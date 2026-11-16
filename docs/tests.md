@@ -17,7 +17,7 @@ build/host/pose_codec_test
 
 The Lua tests (`core/`: `actors_of`, `class_at`, `keybind`, `link`, `mask`, `pak_gate`, `settings_file`, `ue4ss_settings`,
 `unreal`; `cut/`: `chainspin`, `devmenu`, `emote`, `enemy`, `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`,
-`mailbox`, `scene`, `tendril`, `wear`; `main/`: `boot`, `fight`, `fight_notices`, `guide`, `idle`, `input`, `match`,
+`mailbox`, `scene`, `tendril`, `wear`; `main/`: `boot`, `dlc`, `fight`, `fight_notices`, `guide`, `idle`, `input`, `match`,
 `menu`, `quests`, `sbo`, `session_ui`, `settings`, `story`, `world`; `matrix13/quest/`: `on_time`, `zone_talks`;
 `matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`;
 `nightop/`: `board`, `challenges`, `guard_text`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`,
@@ -30,7 +30,8 @@ fails the test. The `main/` tests load
 
 - `core/link_test` also covers the status's `uidev=`, `me=` and `world=` lines and the `owner=`, `room=` and `hall=`
   fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty), and never
-  from a player's name, and the `shared_world` setting;
+  from a player's name, and the `shared_world` setting. It also reads the `dlcs=` line with the `dlc_missing=` and
+  `dlc_extra=` lines after it;
 - `core/mask_test` checks the masking of `UE4SS.log` on the cases `link_protocol_test` checks for the native part's;
 - `core/pak_gate_test` finds the hall lobby pak `zSBO_Lobby` in `~mods`, else `LogicMods`, over fake files, checks its
   version (the `.utoc` size and the `.ucas` size from the `.utoc`'s compression blocks, joined by `_`) and that each
@@ -43,6 +44,8 @@ fails the test. The `main/` tests load
   `shared_quests` and `shared_world` rows, and `coop pvp` (its words, the `pvp_spike` and `shared_enemies` refusals, status, and
   `pvp_spike=off` ending an earlier load's PvP test at a reload);
 - `main/fight_notices_test` covers the same place and same spawns notices in both languages;
+- `main/dlc_test` covers the DLC notice: once a session when the two lists of installed DLCs differ, in the menu's
+  language with its English beside. The same DLCs, or no list yet, give none;
 - `main/quests_test` covers `coop quests` with the `shared_quests` and `quest_deny` settings and the shared quests'
   notices;
 - `main/world_test` covers `coop world` (its words, on and off whatever `shared_world` says, status), the start once a
@@ -98,7 +101,8 @@ fails the test. The `main/` tests load
 - `ui/text_test` checks each language's notices against the feed's 200-byte line, the SBO lobby's notices included,
   and the lobby menu's rows, settings, values and status within their columns, and the hall seats' Sit and Stand up
   hint within the booth hint's width. It also reads `link/core.h` to check that each join Steam refused has the same
-  English line there and in `T.en.join_refused`, then that `T.join_refused` turns each one into every language's words;
+  English line there and in `T.en.join_refused`, then that `T.join_refused` turns each one into every language's words.
+  The DLC notice (`T.dlcs`) stays within 200 bytes in every language with 100-byte DLC names;
 - `session/arrival_test` covers the hold at a lobby arrival: nothing without a lobby warp or before its new
   controller; SB's black up and the kit veiled at the next pass; held while anything is missing, then lifted once with
   one line; the 8 s cap, which lifts whatever is missing and names it, also when the missing items cannot be read; a
@@ -179,7 +183,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   the match modes (`find_mode`), `match search` and `match create` with their room and hall words (each refused when
   missing, extra, too long or not an alias word), `match cancel` and `match end`, `mute` and `unmute`, `block`,
   `unblock` and `unblock all`,
-  the match lines (start, count, end) with their bounds, and protocol 21 refusing a protocol-20 lobby and line;
+  the match lines (start, count, end) with their bounds, the dlc and dlcs lines with their bounds and the DLC
+  comparison by app id, and protocol 21 refusing a protocol-20 lobby and line;
 - `link_core_test`: the link against the shared fake Steam, and two links through it with the handshake both ways,
   channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line,
   joining with a code, and the host's approval of a player who is not a Steam friend (let in, refused, no answer,
@@ -191,7 +196,10 @@ The C++ tests cover the platform-free headers in `native/src`.
   list: its fixed hash; its file with no SteamID in clear, written once for each change and read back with CRLF ends
   and other lines skipped; a removed player refused in the next lobby before any hello, with one notice and her
   session request ignored; `coop block` removing a member of the lobby we host; `unblock` and `unblock all` greeting
-  her again at once; a guest's list never applied;
+  her again at once; a guest's list never applied. The installed DLCs: read from the fake Steam at ready (installed
+  ones only, the first 64, the app id for a name Steam leaves empty), sent after the paks line and again after her
+  hello, hers ignored before the handshake and kept to 64, the status's `dlcs=`, `dlc_missing=` and `dlc_extra=` lines
+  and one log line for each change;
 - `link_pose_cap_test`: the adaptive pose rate (`PoseCap` in `link/core.h`), one reading a second: a calm link and
   a lone bad reading never step; two readings in a row over the line (queue time or pending bytes) step down 60, 30,
   20, to the first cap under the player's `send_rate`, never below 20; 10 calm readings step up one cap; a step up

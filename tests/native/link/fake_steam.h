@@ -48,7 +48,7 @@ struct Filter {
 using Filters = std::vector<Filter>;
 // One player's own Steam: who she is, what waits for her on each channel, her Steam friends, and her lobby search: the
 // filters added since her last RequestLobbyList (Steam clears them at each), then that search's filters (slots 0 and
-// distance -1 when not set) and the lobbies it found, in id order.
+// distance -1 when not set) and the lobbies it found, in id order; and the DLCs installed on her PC, by app id.
 struct Client {
   uint64_t id;
   Inbox inbox[3] = {}; // Channels 0, 1 and 2.
@@ -56,6 +56,7 @@ struct Client {
   Filters filters = {}, searched = {};
   int filter_slots = 0, filter_distance = -1, slots = 0, distance = -1;
   std::vector<uint64_t> found = {};
+  std::set<uint32_t> installed = {};
 };
 
 // The fake Steam's whole state. Lobbies, calls and names are shared; each client (0 is us, 1 is Kaanta, 2 to 7 the
@@ -96,6 +97,9 @@ struct Fake {
   uint32_t join_response = 1;
   // This client's Steam refuses ICE_Enable 0 (relay only): no write, the try is in ops as "config <id> 104 0 refused".
   uint64_t refuse_ice = 0;
+  // The game's DLCs as GetDLCCount and BGetDLCDataByIndex list them, in that order: app id and name. Each client's
+  // installed says which are on her PC.
+  std::vector<std::pair<uint32_t, std::string>> dlcs;
 };
 inline Fake F;
 
@@ -359,6 +363,16 @@ template <int N> Api make_api() {
        (refused ? " refused" : ""));
     return !refused;
   };
+  a.dlc_count = [](void *) { return static_cast<int>(F.dlcs.size()); };
+  a.dlc_data = [](void *, int i, uint32_t *id, bool *available, char *name, int size) {
+    if (i < 0 || static_cast<size_t>(i) >= F.dlcs.size())
+      return false;
+    *id = F.dlcs[static_cast<size_t>(i)].first;
+    *available = true;
+    std::snprintf(name, static_cast<size_t>(size), "%s", F.dlcs[static_cast<size_t>(i)].second.c_str());
+    return true;
+  };
+  a.dlc_installed = [](void *, uint32_t id) { return F.client[N].installed.count(id) > 0; };
   return a;
 }
 

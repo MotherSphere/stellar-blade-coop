@@ -15,7 +15,8 @@
 -- within its columns, the top one with its connection lost and paused words whole before the status line, which comes
 -- without its prefix, the race's panel, marker, banner and results within theirs, the lobby menu's rows, settings,
 -- values and status within their columns and its waiting-room notice within 200 bytes, and no Thai word that ends on a
--- leading vowel; each join Steam refused as link/core.h words it, in every language.
+-- leading vowel; each join Steam refused as link/core.h words it, in every language; the DLC notice (T.dlcs) within
+-- 200 bytes with 100-byte DLC names in every language; its English as main.lua says it.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
 local R=require('nightop.recruiter_text')
@@ -81,6 +82,11 @@ local function notices(w)
         for _,text in pairs(w[group]) do lines[#lines+1]=fill(text) end
     end
     lines[#lines+1]=w.fight.on:format(16)..' '..w.fight.scale:format(200,200) -- The longest on.
+    -- The DLC notice (T.dlcs): one sentence or both, with short names and with names of link/protocol.h's kMaxDlcName.
+    local long,short={('d'):rep(100),('e'):rep(100),('f'):rep(100)},{'Twin Expansion Pack','NieR:Automata','x'}
+    for _,two in ipairs({{long,long},{short,short},{long,{}},{{},long},{short,long},{long,short}}) do
+        lines[#lines+1]=T.dlcs(w,NAME,two[1],two[2])
+    end
     local p=w.pilot
     for _,text in ipairs({p.on:format(16),p.one,p.off:format(p.stopped),p.off:format(fill(p.host))}) do
         lines[#lines+1]=text
@@ -296,4 +302,14 @@ for _,text in ipairs({'Kaanta joined.','Could not join: Steam response .','Could
     'Could not join: Steam response 5. ','x'..en.full,'Could not join: unknown match mode tdm.',en.other}) do
     assert(T.join_refused(text)==nil,text)
 end
+-- The DLC notice: hers we lack, then ours she lacks, in one notice; the names that fit, (+n) for the others; the first
+-- sentence leaves the second room for its count; one sentence when a list is empty.
+local DLC_THEIRS,DLC_YOURS="Kaanta has DLCs you don't have: ","You have DLCs Kaanta doesn't have: "
+assert(T.dlcs(T.en,'Kaanta',{'Alpha','Beta','Gamma'},{'Delta'})==DLC_THEIRS..'Alpha, Beta (+1). '..DLC_YOURS..'Delta.')
+assert(T.dlcs(T.en,'Kaanta',{},{'Delta','Epsilon'})==DLC_YOURS..'Delta, Epsilon.')
+assert(T.dlcs(T.en,'Kaanta',{'Alpha'},{})==DLC_THEIRS..'Alpha.')
+local hundred,other=('a'):rep(100),('b'):rep(100)
+assert(T.dlcs(T.en,'Kaanta',{hundred},{other})==DLC_THEIRS..hundred..'. '..DLC_YOURS..'(+1).')
+assert(T.dlcs(T.fr,'Kaanta',{'Alpha'},{'Delta'})=="Kaanta a des DLC que vous n'avez pas : Alpha. Vous avez des DLC que "
+    .."Kaanta n'a pas : Delta.")
 print('ui_text_test ok')

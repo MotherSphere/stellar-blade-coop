@@ -215,6 +215,30 @@ int main() {
         pk + "0123456789abcdef a\x7f", pk + " 0123456789abcdef a", std::string("SBC12 pak 0123456789abcdef a"),
         p + " Pak 0123456789abcdef a", p + " paks 0123456789abcdef a"})
     assert(parse_text(bad).kind == Kind::invalid);
+  // The dlc lines after the paks line (protocol 21): one installed DLC each, its app id (1 to 2^32 - 1) and its name,
+  // chat_clean() to kMaxDlcName on receipt and never empty; the dlcs line ends the list. Anything else is invalid.
+  assert(dlc_line(3564740, "Stellar Blade - NieR:Automata Collaboration") ==
+         p + " dlc 3564740 Stellar Blade - NieR:Automata Collaboration");
+  assert(dlcs_line() == p + " dlcs" && parse_text(dlcs_line()).kind == Kind::dlcs);
+  m = parse_text(dlc_line(3564740, "Twin Expansion Pack, Goddess of Victory: NIKKE"));
+  assert(m.kind == Kind::dlc && m.a == 3564740 && m.text == "Twin Expansion Pack, Goddess of Victory: NIKKE");
+  m = parse_text(dlc_line(UINT32_MAX, "caf\xc3\xa9 \xe2\x80\x8bpack"));
+  assert(m.kind == Kind::dlc && m.a == UINT32_MAX && m.text == "caf\xc3\xa9 pack"); // The zero-width space dropped.
+  m = parse_text(p + " dlc 7 " + std::string(kMaxDlcName + 50, 'x'));
+  assert(m.kind == Kind::dlc && m.text == std::string(kMaxDlcName, 'x'));
+  const std::string dl = p + " dlc ";
+  for (const std::string &bad : {p + " dlc", dl + "7", dl + "7 ", dl + "0 a", dl + "4294967296 a", dl + "-7 a",
+                                 dl + "x a", dl + " 7 a", dl + "7 \xe2\x80\x8b", p + " dlcs 1", p + " dlcs ",
+                                 p + " Dlc 7 a", std::string("SBC20 dlc 7 a"), std::string("SBC20 dlcs")})
+    assert(parse_text(bad).kind == Kind::invalid);
+  // Her DLCs against ours, by app id: hers we lack with her names, ours she lacks with ours.
+  const std::map<uint32_t, std::string> our_dlcs = {{10, "Ten"}, {20, "Twenty"}, {30, "Thirty"}};
+  const DlcDiff dd = compare_dlcs(our_dlcs, {{20, "Twenty (her name)"}, {40, "Forty"}, {50, "Fifty"}});
+  using Dlcs = std::map<uint32_t, std::string>;
+  assert((dd.missing == Dlcs{{40, "Forty"}, {50, "Fifty"}}) && (dd.extra == Dlcs{{10, "Ten"}, {30, "Thirty"}}));
+  const DlcDiff none = compare_dlcs(our_dlcs, our_dlcs);
+  assert(none.missing.empty() && none.extra.empty() && compare_dlcs({}, {}).missing.empty());
+  assert((compare_dlcs({}, our_dlcs).missing == our_dlcs) && (compare_dlcs(our_dlcs, {}).extra == our_dlcs));
 
   // Night Operation's line, reliable: a full state of the run from the host ("h ...") or the guest ("g ..."), which Lua
   // checks field by field. Here only its size, its characters, single spaces and its first word. Each side's line ends
@@ -372,7 +396,7 @@ int main() {
                                photo_line('1', true), say_line("é ok"), vit_line(v), paks_line(3, 77),
                                pak_line({"~mods/lily_hair_p", 1024, 0xfedcba9876543210ull}), night_line(host_line),
                                mark_line(9, "é ok"), start_line("ffa", "NK_Boss_Scarlet", 7, {1001, 2002}),
-                               count_line(5), end_line()};
+                               count_line(5), end_line(), dlc_line(3564740, "Twin Expansion Pack"), dlcs_line()};
   for (int round = 0; round < 200000; ++round) {
     std::string text;
     if (round % 2) {
@@ -406,6 +430,8 @@ int main() {
     }
     if (f.kind == Kind::count)
       assert(f.a <= 10);
+    if (f.kind == Kind::dlc) // An app id and a cleaned name, never empty.
+      assert(f.a >= 1 && f.a <= UINT32_MAX && !f.text.empty() && f.text == chat_clean(f.text, kMaxDlcName));
     if (f.kind != Kind::invalid) {
       assert(text.size() <= kMaxMessage && f.text.size() <= (f.kind == Kind::night ? kMaxNight : kMaxReason));
       for (char c : f.text)

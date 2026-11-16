@@ -147,7 +147,8 @@ constexpr uint64_t kNightPerSecond = 8;
 // countdown).
 constexpr uint64_t kPingPerSecond = 4, kRoundPerSecond = 8;
 // Design 7.3 rule 12, floods: her channel-0 lines a second, counted, never dropped (in a match lobby about 16 a second:
-// 11 vitals, 3 chat lines, pings; and a list of up to 257 pak lines after a hello, once each 10 s at most), and how
+// 11 vitals, 3 chat lines, pings; and a list of up to 257 pak lines and 65 dlc lines after a hello, once each 10 s at
+// most), and how
 // long a member stays over one of her channel windows (0, 1 or 2) in a match lobby before she is refused. Each receive
 // reads 16 messages a channel for all members together.
 constexpr uint64_t kLinesPerSecond = 128, kFloodMs = 5000;
@@ -258,6 +259,9 @@ struct Api {
   bool (*set_joinable)(void *, uint64_t, bool);
   bool (*set_owner)(void *, uint64_t, uint64_t);
   bool (*set_config_int)(void *, int, int32_t);
+  int (*dlc_count)(void *);
+  bool (*dlc_data)(void *, int, uint32_t *, bool *, char *, int);
+  bool (*dlc_installed)(void *, uint32_t);
 };
 
 // Fills the table through resolve(name); returns the first missing name, or nothing.
@@ -318,6 +322,9 @@ template <class Resolve> std::string load(Api &api, Resolve resolve) {
   get(api.set_joinable, "SteamAPI_ISteamMatchmaking_SetLobbyJoinable");
   get(api.set_owner, "SteamAPI_ISteamMatchmaking_SetLobbyOwner");
   get(api.set_config_int, "SteamAPI_ISteamNetworkingUtils_SetGlobalConfigValueInt32");
+  get(api.dlc_count, "SteamAPI_ISteamApps_GetDLCCount");
+  get(api.dlc_data, "SteamAPI_ISteamApps_BGetDLCDataByIndex");
+  get(api.dlc_installed, "SteamAPI_ISteamApps_BIsDlcInstalled");
   return missing;
 }
 
@@ -480,7 +487,11 @@ struct Peer {
   uint64_t paks_count = 0, paks_hash = 0, paks_next = 0;
   std::map<std::string, uint64_t> pak_list, pak_in;
   std::string mods_status;
-  size_t paks_at = 0;
+  size_t paks_at = 0; // Our dlc lines and dlcs line follow the paks line in this count (send_paks).
+  // Her installed DLCs by app id with their names, from the dlc lines her last dlcs line ended (has_dlcs: one came);
+  // dlc_in: her dlc lines since then.
+  bool has_dlcs = false;
+  std::map<uint32_t, std::string> dlc_list, dlc_in;
   // Her last vitals (her vit line) and when they came: the partner card's and the shared fight's, for the partner.
   Vitals vitals{};
   uint64_t vitals_at = 0;
@@ -557,6 +568,7 @@ public:
     started_ = true;
     event("Steam ready: " + my_name_ + ", app " + std::to_string(app_) + ", game build " + std::to_string(build_) +
           ", mod " + mod_ + ", protocol " + std::to_string(kProtocol));
+    read_dlcs(apps);
     if (uint64_t lobby = connect_lobby(command_line))
       offer(lobby, "launched by an invite");
     return Ready::now;
@@ -1023,6 +1035,18 @@ public:
     if (const Peer *p = slot_zero(); p && p->has_paks && paks_on_)
       s += std::string("paks=") + (p->paks_hash == paks_hash_ ? "same " : "differ ") + std::to_string(paks_count_) +
            " " + std::to_string(p->paks_count) + "\n" + p->mods_status;
+    // The slot-0 member's installed DLCs against ours, once her dlcs line came: "dlcs=same <ours> <hers>" or
+    // "dlcs=differ <ours> <hers>", then "dlc_missing=<app id> <name>" for each of hers we lack and "dlc_extra=<app id>
+    // <name>" for each of ours she lacks, the name last as it may hold spaces.
+    if (const Peer *p = slot_zero(); p && p->has_dlcs) {
+      const DlcDiff d = compare_dlcs(dlcs_, p->dlc_list);
+      s += std::string("dlcs=") + (d.missing.empty() && d.extra.empty() ? "same " : "differ ") +
+           std::to_string(dlcs_.size()) + " " + std::to_string(p->dlc_list.size()) + "\n";
+      for (const auto &[id, name] : d.missing)
+        s += "dlc_missing=" + std::to_string(id) + " " + name + "\n";
+      for (const auto &[id, name] : d.extra)
+        s += "dlc_extra=" + std::to_string(id) + " " + name + "\n";
+    }
     // Her vitals for the partner card (mate_vitals()): none in a match lobby.
     if (const Vitals *v = mate_vitals()) {
       s += "mate=";
@@ -2334,9 +2358,10 @@ private:
       }
       peer.compatible = true;
       peer.photo_sent.clear(); // Her session may be new: our photo line goes again once she accepts.
-      if (peer.paks_at)        // The same for our pak lines and paks line (send_paks); hers start again too.
+      if (peer.paks_at)        // The same for our pak, paks, dlc and dlcs lines (send_paks); hers start again too.
         peer.paks_again = true;
       peer.pak_in.clear();
+      peer.dlc_in.clear();
       send(peer, accept(), kReliable); // Every hello is answered: a peer whose first session broke greets again.
       // Ours may have been lost with that session. A repeated hello once ours was accepted may come from a guest who
       // rejoined before her leave showed here, so her new peer never had ours: it gets ours again, but only
@@ -2418,6 +2443,26 @@ private:
       if (changed && named && paks_on_ && (!d.missing.empty() || !d.other.empty()))
         event(peer.name + " has mods we lack (" + mods_list(d.missing, kModsLog) + ") and mods we have in another " +
               "version (" + mods_list(d.other, kModsLog) + ")");
+      break;
+    }
+    case Kind::dlc: // One of her installed DLCs, kept until her dlcs line ends the list; kMaxDlcs at most.
+      if (const auto id = static_cast<uint32_t>(message.a);
+          peer.compatible && peer.accepted && (peer.dlc_in.size() < kMaxDlcs || peer.dlc_in.count(id)))
+        peer.dlc_in[id] = message.text;
+      break;
+    case Kind::dlcs: {
+      if (!peer.compatible || !peer.accepted) // Before the handshake: ignored, with no log line.
+        break;
+      const bool changed = !peer.has_dlcs || peer.dlc_in != peer.dlc_list;
+      peer.has_dlcs = true;
+      peer.dlc_list = std::exchange(peer.dlc_in, {});
+      if (changed) {
+        const DlcDiff d = compare_dlcs(dlcs_, peer.dlc_list);
+        event(peer.name + " has " + std::to_string(peer.dlc_list.size()) + " DLCs installed" +
+              (d.missing.empty() && d.extra.empty()
+                   ? ", the same as ours"
+                   : "; we lack " + dlc_names(d.missing) + "; she lacks " + dlc_names(d.extra)));
+      }
       break;
     }
     case Kind::vitals:
@@ -2557,13 +2602,13 @@ private:
     }
   }
 
-  // Our pak lines (none with mod_names=off), then the paks line that ends them, to each friend past the handshake from
-  // the first she has not got (from the first again once a resend her hello asked for is due); a refused send goes
-  // again at the next pass.
+  // Our pak lines (none with mod_names=off), then the paks line that ends them, then our dlc lines and the dlcs line,
+  // to each friend past the handshake from the first she has not got (from the first again once a resend her hello
+  // asked for is due); a refused send goes again at the next pass.
   void send_paks() {
     if (!paks_on_)
       return;
-    const size_t named = names_ ? pak_lines_.size() : 0;
+    const size_t named = names_ ? pak_lines_.size() : 0, all = named + 1 + dlc_lines_.size();
     const std::string end = paks_line(paks_count_, paks_hash_);
     for (auto &p : peers_) {
       if (p.paks_again && now_ >= p.paks_next) {
@@ -2571,8 +2616,10 @@ private:
         p.paks_at = 0;
         p.paks_next = now_ + kHelloAgainMs;
       }
-      while (p.compatible && p.accepted && p.paks_at <= named) {
-        const std::string &line = p.paks_at < named ? pak_lines_[p.paks_at] : end;
+      while (p.compatible && p.accepted && p.paks_at < all) {
+        const std::string &line = p.paks_at < named    ? pak_lines_[p.paks_at]
+                                  : p.paks_at == named ? end
+                                                       : dlc_lines_[p.paks_at - named - 1];
         if (send(p, line.data(), line.size(), kReliable) != kResultOk)
           break;
         ++p.paks_at;
@@ -2584,6 +2631,35 @@ private:
   static std::string mods_lines(const ModsDiff &d) {
     return "mods_missing=" + mods_list(d.missing, kModsLine) + "\nmods_other=" + mods_list(d.other, kModsLine) +
            "\nmods_extra=" + mods_list(d.extra, kModsLine) + "\n";
+  }
+  // The DLCs of the game installed on this PC, once Steam is ready. Steam lists the game's own DLCs; the first
+  // kMaxDlcs it says are installed go to each friend after the paks line (send_paks). Read once: a DLC installed while
+  // the game runs counts from the next start.
+  void read_dlcs(void *apps) {
+    const int n = api_.dlc_count(apps);
+    for (int i = 0; i < n && dlcs_.size() < kMaxDlcs; ++i) {
+      uint32_t id = 0;
+      bool available = false;
+      char name[kMaxDlcName * 2] = {};
+      if (!api_.dlc_data(apps, i, &id, &available, name, static_cast<int>(sizeof name)) || !id ||
+          !api_.dlc_installed(apps, id))
+        continue;
+      name[sizeof name - 1] = '\0';
+      const std::string clean = chat_clean(name, kMaxDlcName);
+      dlcs_[id] = clean.empty() ? std::to_string(id) : clean;
+    }
+    dlc_lines_.clear();
+    for (const auto &[id, name] : dlcs_)
+      dlc_lines_.push_back(dlc_line(id, name));
+    dlc_lines_.push_back(dlcs_line());
+    event("DLCs installed: " + std::to_string(dlcs_.size()) + (dlcs_.empty() ? "" : " (" + dlc_names(dlcs_) + ")"));
+  }
+  // DLC names for the log, "; " between them as a name may hold commas; "none" for none.
+  static std::string dlc_names(const std::map<uint32_t, std::string> &dlcs) {
+    std::string out;
+    for (const auto &[id, name] : dlcs)
+      out += (out.empty() ? "" : "; ") + name;
+    return out.empty() ? "none" : out;
   }
   // Our photo line to each friend past the handshake when it changed, or after her hello; a refused send goes again at
   // the next pass. photo_sync=off sends "0 notice": a friend our photo mode paused resumes, and we pause for nobody.
@@ -2844,6 +2920,9 @@ private:
   // Our mod containers by name with their hashes, their pak lines, and mod_names (on until Lua says).
   std::map<std::string, uint64_t> mods_;
   std::vector<std::string> pak_lines_;
+  // Our installed DLCs by app id with their names (read_dlcs()); their dlc lines with the dlcs line last.
+  std::map<uint32_t, std::string> dlcs_;
+  std::vector<std::string> dlc_lines_;
   bool names_ = true;
   char photo_ = '0', theirs_ = '0', mine_ = '0';
   Sync sync_ = Sync::off;

@@ -229,6 +229,29 @@ assert(link.mods()==nil,'Not from a peer line, nor a line of another shape')
 files[STATUS]='mod=v\npaks=same 1 1\n'
 link.changes()
 assert(link.mods()==nil)
+-- Her installed DLCs against ours (protocol 21: dlcs=same|differ <ours> <hers>, then a dlc_missing= or dlc_extra= line
+-- for each, its app id then its name, which may hold spaces and commas), from the start of their own lines and only
+-- after the dlcs= line; nil without one.
+assert(link.dlcs()==nil)
+files[STATUS]='mod=v\ndlcs=differ 2 3\ndlc_missing=400 Delta, the second\ndlc_missing=500 E\ndlc_extra=100 Alpha\n'
+    ..'last=#9 x\n'
+link.changes()
+local dlcs=link.dlcs()
+assert(dlcs.same==false and dlcs.ours==2 and dlcs.hers==3 and #dlcs.missing==2 and dlcs.missing[1]=='Delta, the second'
+    and dlcs.missing[2]=='E' and #dlcs.extra==1 and dlcs.extra[1]=='Alpha')
+files[STATUS]='mod=v\ndlcs=same 1 1\n'
+link.changes()
+dlcs=link.dlcs()
+assert(dlcs.same and dlcs.ours==1 and #dlcs.missing==0 and #dlcs.extra==0)
+files[STATUS]='mod=v\ndlc_missing=400 Delta\npeer=2 name=x dlcs=differ 1 2\ndlcs=odd 1 2\ndlcs=differ x 2\n'
+link.changes()
+assert(link.dlcs()==nil,'Not from a peer line, nor a line of another shape, nor a dlc_ line alone')
+files[STATUS]='mod=v\ndlcs=differ 0 1\ndlc_missing=x Delta\ndlc_odd=4 Delta\ndlc_missing=4 \n'
+link.changes()
+assert(#link.dlcs().missing==0 and #link.dlcs().extra==0,'No app id, another side, or no name: no DLC')
+files[STATUS]='mod=v\n'
+link.changes()
+assert(link.dlcs()==nil)
 -- Our CNS packs (cns=<packs> <outfits>), in words, from the start of their own line; nil without one.
 assert(link.cns()==nil)
 files[STATUS]='mod=v\ncns=9 242\nlast=#9 x\n'

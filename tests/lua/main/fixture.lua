@@ -117,6 +117,7 @@ ping_ms,write_refusal=nil,nil -- link.ping(); why link.write_settings fails (nil
 mate_v=nil -- link.mate(): her vitals.
 paks_v=nil -- link.paks(): her .pak mods against ours.
 mods_v,cns_v=nil,nil -- link.mods(): her mod containers against ours by name; link.cns(): our CNS packs in words.
+dlcs_v=nil -- link.dlcs(): her installed DLCs against ours.
 friend_name,friend_linked='Kaanta',true -- link.friend()'s name and linked (fake_link.lost: lost, below).
 fight_text,fight_reads=nil,0 -- What link.fight() says (the fight= line), and how often it was asked.
 pilot_text,pilot_reads=nil,0 -- What link.pilot() says (the pilot= line), and how often it was asked.
@@ -174,6 +175,7 @@ fake_link={
     mate=function() return mate_v end,
     paks=function() return paks_v end,
     mods=function() return mods_v end,
+    dlcs=function() return dlcs_v end,
     cns=function() return cns_v end,
     shared_version=function() return shared_v or 0 end,
     -- coop-settings.txt for the menu: the same text the settings were read from at load, as written (so the menu
@@ -883,6 +885,14 @@ function mods_tick(paks,mods)
     local n,out=#said,{}
     loops[2].f()
     for i=n+1,#said do if said[i]:find('mod',1,true) then out[#out+1]=said[i] end end
+    return table.concat(out,'|')
+end
+-- One loop with link.dlcs() as given: the DLC notices said, in the menu's words.
+function dlcs_tick(v)
+    dlcs_v=v
+    local n,out=#said,{}
+    loops[2].f()
+    for i=n+1,#said do if said[i]:find('DLC',1,true) then out[#out+1]=said[i] end end
     return table.concat(out,'|')
 end
 function key(k,modifier) press(k,modifier); flush() end

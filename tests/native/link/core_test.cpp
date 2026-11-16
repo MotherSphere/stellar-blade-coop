@@ -2210,6 +2210,102 @@ int main() {
     assert(sent_to(kFriend, paks_line(2, 77)) == 2 && lacks() == 2);
   }
 
+  // Installed DLCs (protocol 21) between two Links: each side reads the game's DLCs from Steam once at ready (those
+  // installed only, the first kMaxDlcs, a name Steam leaves empty as the app id) and sends a dlc line for each after
+  // its paks line, then the dlcs line, reliable on channel 0, again after her next hello. The dlcs line ends her list:
+  // the status then compares it with ours by app id (dlcs=, dlc_missing=, dlc_extra=) and the log says it once a
+  // change.
+  reset();
+  {
+    Two t;
+    F.names[kMe] = "Me";
+    F.dlcs = {{100, "Alpha"}, {200, ""}, {300, "Gamma Pack"}, {400, "Delta, the second"}, {500, "Not installed"}};
+    F.client[0].installed = {100, 200, 300};
+    F.client[1].installed = {300, 400};
+    t.a.paks(0, 0);
+    t.b.paks(0, 0);
+    assert(t.a.ready(L"SB.exe") == Link::Ready::now && t.b.ready(L"SB.exe") == Link::Ready::now);
+    assert(saw("A: DLCs installed: 3 (Alpha; 200; Gamma Pack)") &&
+           saw("B: DLCs installed: 2 (Gamma Pack; Delta, the second)"));
+    t.tick(t.a, 50, "host");
+    finish_all();
+    t.tick(t.a, 50);
+    t.tick(t.b, 50, "join 5000");
+    finish_all();
+    assert(settle(t));
+    const auto passes = [&t] {
+      for (int i = 0; i < 3; ++i)
+        t.tick(t.a, 50), t.tick(t.b, 50);
+    };
+    passes();
+    std::vector<std::string> out;
+    for (auto &s : F.sent)
+      if (s.to == kFriend && (s.text.rfind("SBC" + std::to_string(kProtocol) + " paks", 0) == 0 ||
+                              s.text.rfind("SBC" + std::to_string(kProtocol) + " dlc", 0) == 0)) {
+        assert(s.flags == kReliable && s.channel == kChannel);
+        out.push_back(s.text);
+      }
+    assert((out == std::vector<std::string>{paks_line(0, 0), dlc_line(100, "Alpha"), dlc_line(200, "200"),
+                                            dlc_line(300, "Gamma Pack"), dlcs_line()}));
+    assert(t.a.status(Counters{}).find("\ndlcs=differ 3 2\ndlc_missing=400 Delta, the second\ndlc_extra=100 "
+                                       "Alpha\ndlc_extra=200 200\n") != std::string::npos);
+    assert(t.b.status(Counters{}).find("\ndlcs=differ 2 3\ndlc_missing=100 Alpha\ndlc_missing=200 200\n"
+                                       "dlc_extra=400 Delta, the second\n") != std::string::npos);
+    assert(count("A: Kaanta has 2 DLCs installed; we lack Delta, the second; she lacks Alpha; 200") == 1 &&
+           count("B: Me has 3 DLCs installed; we lack Alpha; 200; she lacks Delta, the second") == 1);
+    // Her next hello: ours go again, her list again changes nothing, so no new log line.
+    inbox(0, kChannel).push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    passes();
+    assert(sent_to(kFriend, dlcs_line()) == 2 && sent_to(kFriend, dlc_line(100, "Alpha")) == 2);
+    assert(count("A: Kaanta has 2 DLCs installed") == 1);
+  }
+  // One Link: her dlc lines before the handshake are ignored with no log line; past it, the same DLCs as ours read
+  // dlcs=same with no dlc_ line; a dlcs line alone is a list of none; she keeps kMaxDlcs of hers at most; we send
+  // the first kMaxDlcs Steam says are installed.
+  reset();
+  {
+    World w;
+    for (uint32_t id = 1; id <= kMaxDlcs + 6; ++id) {
+      F.dlcs.push_back({id, "DLC number " + std::to_string(id)});
+      F.client[0].installed.insert(id);
+    }
+    w.link.paks(0, 0);
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now && saw("DLCs installed: 64 (DLC number 1; "));
+    w.tick("host");
+    finish_all();
+    w.tick();
+    F.members[5000].push_back(kFriend);
+    w.tick("", 0, 0, 600);
+    F.inbox.push_back({kFriend, dlc_line(1, "DLC number 1")});
+    F.inbox.push_back({kFriend, dlcs_line()});
+    const size_t logged = events.size();
+    w.tick();
+    assert(sent_to(kFriend, dlcs_line()) == 0 && w.status().find("\ndlcs=") == std::string::npos &&
+           events.size() == logged);
+    F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    F.inbox.push_back({kFriend, accept()});
+    w.tick();
+    for (int pass = 0; pass < 10; ++pass)
+      w.tick();
+    assert(sent_to(kFriend, dlcs_line()) == 1 && sent_to(kFriend, dlc_line(kMaxDlcs, "DLC number 64")) == 1 &&
+           sent_to(kFriend, dlc_line(kMaxDlcs + 1, "DLC number 65")) == 0);
+    F.inbox.push_back({kFriend, dlcs_line()}); // No DLC on her side: all of ours she lacks.
+    w.tick();
+    std::string status = w.status();
+    assert(status.find("\ndlcs=differ 64 0\ndlc_extra=1 DLC number 1\ndlc_extra=2 DLC number 2\n") !=
+               std::string::npos &&
+           status.find("dlc_missing=") == std::string::npos && saw("Kaanta has 0 DLCs installed; we lack none;"));
+    for (uint32_t id = 1; id <= kMaxDlcs; ++id)
+      F.inbox.push_back({kFriend, dlc_line(id, "DLC number " + std::to_string(id))});
+    F.inbox.push_back({kFriend, dlc_line(kMaxDlcs + 1, "One too many")});
+    F.inbox.push_back({kFriend, dlcs_line()});
+    for (int pass = 0; pass < 10; ++pass)
+      w.tick();
+    status = w.status();
+    assert(status.find("\ndlcs=same 64 64\n") != std::string::npos && status.find("\ndlc_") == std::string::npos &&
+           saw("Kaanta has 64 DLCs installed, the same as ours"));
+  }
+
   // Vitals between two Links: ours go unreliable on change, at most one each 100 ms, and each second; hers show as the
   // status's mate= line while she is linked and her last one is under 3 s old; before the handshake they are ignored
   // with no log line; a malformed one is an invalid message. A session's end forgets hers.

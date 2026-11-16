@@ -14,6 +14,8 @@
 //   SBC<protocol> pak <hash> <name> (game/pak_list.h: one mod container her game loads, by name, with its hash in 16
 //   hex digits; up to kMaxMods of them, unless her mod_names=off), then SBC<protocol> paks <count> <hash> (the .pak
 //   mods her game loads, for a warning when they differ; it ends her list of pak lines),
+//   SBC<protocol> dlc <app id> <name> (one DLC of the game installed on her PC, as Steam names it, chat_clean() to
+//   kMaxDlcName; up to kMaxDlcs of them), then SBC<protocol> dlcs (it ends her list of dlc lines),
 //   SBC<protocol> camps? <id> (the guest's follow: the camps nearest the host, please), SBC<protocol> camps <id>
 //   <world> <alias>:<m> ... (the host's answer: his world and up to 8 camps by distance) or SBC<protocol> camps <id>
 //   none <why>.
@@ -41,6 +43,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iterator>
+#include <map>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -84,7 +87,9 @@ constexpr int kProtocol = 21; // Bump on any wire change. 1 was the first link (
                               // the match lobby keys sbo_mode, sbo_state and sbo_map, which a protocol-19 game never
                               // reads; 21 adds the shared world's SBW lines on channel 2 (doors, levers, lifts and
                               // other envs one player changes, changed in the other player's world), which a
-                              // protocol-20 peer would count malformed, so her world would stay as it was. An older
+                              // protocol-20 peer would count malformed, so her world would stay as it was; 21 also
+                              // adds the dlc and dlcs lines (the DLCs installed on each PC), which a protocol-20 peer
+                              // would count invalid. An older
                               // peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1,
                               // 12: v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14: v0.7.0-beta.1, 17: a v0.7.5 test
                               // build, 18: v0.7.5, 19: v0.8.0 to v0.10.0, 20: v0.11.0; 15 and 16 were never released)
@@ -223,8 +228,8 @@ inline Life life_of(const Vitals &v) {
 }
 
 enum class Kind {
-  invalid, hello, accept, reject, ping, pong, photo, say, vitals, pak, paks, camps_ask, camps, night, mark, race, gift,
-  start, count, end
+  invalid, hello, accept, reject, ping, pong, photo, say, vitals, pak, paks, dlc, dlcs, camps_ask, camps, night, mark,
+  race, gift, start, count, end
 };
 // The follow's camps lines (session/travel.lua): the guest asks with an id from 0 to kMaxCampId, the host answers that
 // id with his world and up to kMaxCamps ZoneCampTable aliases, nearest his EVE first, each with its distance in whole
@@ -250,10 +255,11 @@ struct Message {
   Kind kind = Kind::invalid;
   uint64_t a = 0, b = 0; // hello: protocol, game build. ping/pong: sequence, sender's clock in ms. photo: '0', '1',
                          // 's' or 'c', then 1 for both. pak: the container's hash. paks: the count of .pak mods,
-                         // their hash. camps?, camps: id. mark: its number, from 1. start: the seed. count: the
-                         // seconds, 0 for stop.
+                         // their hash. dlc: the DLC's app id. camps?, camps: id. mark: its number, from 1. start:
+                         // the seed. count: the seconds, 0 for stop.
   std::string text;      // hello: mod version. reject: the reason. say: the line, chat_clean() and never empty. pak:
-                         // the container's name, mod_name_ok(). camps: the host's world, or "none". night: the
+                         // the container's name, mod_name_ok(). dlc: its name, chat_clean() to kMaxDlcName and never
+                         // empty. camps: the host's world, or "none". night: the
                          // payload, night_ok(). mark: chat_clean() to kMaxMark, maybe empty. race: the text after
                          // "race ", printable ASCII. gift: the payload, gift_ok(). start: the mode.
   Vitals vitals{};       // vitals: hers, plausible_vitals().
@@ -309,6 +315,28 @@ inline std::string pak_line(const PakMod &mod) {
   for (int i = 15; i >= 0; --i)
     hex[static_cast<size_t>(i)] = digits[(mod.hash >> (4 * (15 - i))) & 15];
   return "SBC" + std::to_string(kProtocol) + " pak " + hex + " " + mod.name;
+}
+// The DLCs of the game installed on our PC (link/core.h reads them from Steam once), reliable after the paks line, to
+// each friend past the handshake: a dlc line each, by app id and name (chat_clean() to kMaxDlcName and not empty),
+// then the dlcs line that ends the list.
+constexpr size_t kMaxDlcs = 64, kMaxDlcName = 100;
+inline std::string dlc_line(uint32_t id, const std::string &name) {
+  return "SBC" + std::to_string(kProtocol) + " dlc " + std::to_string(id) + " " + name;
+}
+inline std::string dlcs_line() { return "SBC" + std::to_string(kProtocol) + " dlcs"; }
+// Her installed DLCs against ours, by app id: hers we lack (with her names) and ours she lacks (with ours).
+struct DlcDiff {
+  std::map<uint32_t, std::string> missing, extra;
+};
+inline DlcDiff compare_dlcs(const std::map<uint32_t, std::string> &ours, const std::map<uint32_t, std::string> &hers) {
+  DlcDiff d;
+  for (const auto &[id, name] : hers)
+    if (!ours.count(id))
+      d.missing.emplace(id, name);
+  for (const auto &[id, name] : ours)
+    if (!hers.count(id))
+      d.extra.emplace(id, name);
+  return d;
 }
 // The follow's camps lines, reliable (link/core.h relays them between Lua and the friend).
 inline std::string camps_ask_line(uint64_t id) {
@@ -487,6 +515,12 @@ inline Message parse(const char *data, size_t size) {
   } else if (split(text, f, 4, nullptr) && f[0] == versioned_tag && f[1] == "paks") {
     if (number(f[2], m.a) && m.a <= kMaxPaks && number(f[3], m.b))
       m.kind = Kind::paks;
+  } else if (split(text, f, 3, &rest) && f[0] == versioned_tag && f[1] == "dlc") {
+    m.text = chat_clean(rest, kMaxDlcName);
+    if (number(f[2], m.a) && m.a && m.a <= UINT32_MAX && !m.text.empty())
+      m.kind = Kind::dlc;
+  } else if (text == versioned_tag + " dlcs") {
+    m.kind = Kind::dlcs;
   } else if (split(text, f, 4, nullptr) && f[0] == versioned_tag && f[1] == "photo" &&
              (f[2] == "0" || f[2] == "1" || f[2] == "s" || f[2] == "c") && (f[3] == "both" || f[3] == "notice")) {
     m.kind = Kind::photo;

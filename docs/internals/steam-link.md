@@ -205,6 +205,8 @@ SBC21 say <text>
 SBC21 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
 SBC21 pak <hash> <name>
 SBC21 paks <count> <hash>
+SBC21 dlc <app id> <name>
+SBC21 dlcs
 SBC21 camps? <id>
 SBC21 camps <id> <world> <camp>:<m> ...
 SBC21 camps <id> none <title|loading|nocamp|busy>
@@ -297,6 +299,25 @@ with your own `mod_names=off`. The status's `shared=<version> <paths>` line coun
 file again when the version changes and rebuilds the ghost. The hash is FNV-1a over file names and sizes and your
 friend's game states it, so it says that both of you run one build of the mod, without proving it. The list only ever
 holds paths of your own containers.
+
+### The dlc and dlcs lines
+
+The dlc lines and the dlcs line are sent reliable right after the paks line, again after each hello of the other player
+as the pak lines are. Once Steam is ready, the native part asks Steam for the game's own DLCs (`GetDLCCount`, then
+`BGetDLCDataByIndex` for each) and keeps the first 64 that `BIsDlcInstalled` says are on this PC. No DLC id is written
+in the mod. `coop-link.log` lists them after its `Steam ready` line (`DLCs installed: <n> (<names>)`). A DLC installed
+while the game runs counts from the next start. Each one goes in a dlc line: its Steam app id, then its name as Steam
+gives it, cleaned like a chat line and cut to 100 bytes, or the app id when Steam gives no name. The dlcs line ends the
+list. In a match lobby every member gets them.
+
+Once your friend's list came, `coop status` has `dlcs=same <yours> <theirs>` or `dlcs=differ <yours> <theirs>`. A
+`dlc_missing=<app id> <name>` line follows for each DLC they have and you lack, then a `dlc_extra=<app id> <name>` line
+for each one you have and they lack. The two lists are compared by app id. `coop-link.log` says it each time their list
+changes (`<name> has <n> DLCs installed, the same as ours` or `<name> has <n> DLCs installed; we lack <names>; she lacks
+<names>`). When the lists differ, one notice a session names the DLCs your friend has and you lack, then the ones you
+have and they lack: `<name> has DLCs you don't have: <DLCs>. You have DLCs <name> doesn't have: <DLCs>.` A part whose
+list is empty is left out. The notice keeps to the feed's 200 bytes: it names the DLCs that fit and adds `(+n)` for the
+others. Nothing is refused.
 
 ### The camps lines
 

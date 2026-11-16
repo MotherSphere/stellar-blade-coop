@@ -1393,6 +1393,17 @@ if link then
             end
         end
     end
+    -- The DLCs installed on her PC against ours (link.dlcs()): when they differ, one notice a session names hers we
+    -- lack and ours she lacks (ui/text.lua's T.dlcs).
+    local dlcs_said=false
+    local function dlcs_notice()
+        local dlcs=link.dlcs()
+        if link.mode()=='none' then dlcs_said=false
+        elseif dlcs and not dlcs.same and not dlcs_said then
+            dlcs_said=true
+            tell(function(w) return T.dlcs(w,her_name(w),dlcs.missing,dlcs.extra) end)
+        end
+    end
     -- Our CNS packs, once a Lua load, in the log (coop status shows them too).
     local cns_said=false
     local shared_seen=0 -- link.shared_version() as last acted on.
@@ -1568,6 +1579,7 @@ if link then
         guarded('quests',quest_notices)
         guarded('world',world_notices)
         guarded('paks',paks_notice)
+        guarded('dlcs',dlcs_notice)
         if not cns_said and link.cns() then
             cns_said=true
             log(link.cns())

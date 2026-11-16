@@ -393,6 +393,7 @@ a Steam name or a chat line shows as `?`.
 | Co-op saves not switched on (`auto_coop_save=always`, or the title screen left while the copies were made) | `Co-op saves off for this load: <why>. You play your own saves.` |
 | Co-op copies on with a manual co-op slot N, once a load | `Co-op now plays StellarBladeCoop0N.sav. With the game closed, you can move StellarCoopSlot.txt out of the save folder, and StellarBladeSave0N.sav unless you played it after that copy was made.` |
 | Another game version (a game update), on the title screen with `auto_coop_save=ask` or `always`, once a load | `Co-op saves are off: StellarCoop does not support this version of the game. You play your own saves until StellarCoop is updated.` |
+| Your friend's installed DLCs differ from yours, once a session | `<name> has DLCs you don't have: <DLCs>. You have DLCs <name> doesn't have: <DLCs>.`, either part alone when the other list is empty; see [The Steam link](internals/steam-link.md#the-dlc-and-dlcs-lines) |
 | Your friend's `.pak` mods differ from yours, once a session | `<name> uses mods you don't have: <mods>. ...`, `<name> uses other versions of mods you have: <mods>. ...` or `<name> loads other .pak mods than you (<n> there, <n> here). ...`; see [Shared enemies](shared-enemies.md#shared-enemies-experimental) |
 | Shared enemies started, stopped, or waiting for something | See [Shared enemies](shared-enemies.md#shared-enemies-experimental) |
 | Same place moving enemies, or stopped | See [Same place](shared-enemies.md#same-place-experimental) |
