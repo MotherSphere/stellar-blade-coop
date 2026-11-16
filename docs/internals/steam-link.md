@@ -137,10 +137,11 @@ there:
   `<name> runs another version and was refused.` That player then stays refused for the lobby, as above. A guest who
   gets such a hello from another guest marks that member incompatible, counts an invalid message, sends no reject and
   stays. A mismatched hello from the owner still makes the guest reject it and leave.
-- No photo line (and so no photo or cutscene pause), gift, race line, camps line, night line or shared quests' `SBQ`
-  line goes either way. The game sends none. Such a line that arrives on channel 0 is dropped with no log line. An
-  `SBQ` line on channel 2 is dropped too, and the log says `dropped fight data from <name>: shared quests are off in a
-  match lobby` at most once a minute. `coop gift` gets its items back at once (`gift n <id> nolink`), and a camps
+- No photo line (and so no photo or cutscene pause), gift, race line, camps line, night line, shared quests' `SBQ`
+  line or shared world's `SBW` line goes either way. The game sends none. Such a line that arrives on channel 0 is
+  dropped with no log line. An `SBQ` or `SBW` line on channel 2 is dropped too, and the log says `dropped fight data
+  from <name>: shared quests are off in a match lobby` or `...: the shared world is off in a match lobby` at most once
+  a minute. `coop gift` gets its items back at once (`gift n <id> nolink`), and a camps
   request ends with `camps line not sent: a match lobby` in the log.
 - Chat stays on, with a mute per player. `mute <SteamID>` drops that player's chat lines and `unmute <SteamID>` lets
   them through again. The notices read `Muted <name>.` and `Unmuted <name>.` A dropped line counts in the chat totals
@@ -452,7 +453,8 @@ is refused instead of misread:
 | 17 | The table's value lines (the colours and textures set on a dynamic material) and hide lines (the material slots a part hides); a 0.7.5 test build |
 | 18 | The table's fx lines (effect indexes 20 to 64 named by path) and pose effect slots up to index 64; 0.7.5 |
 | 19 | Matrix XIII's world rows (spawn rows, camps, warps): shared Naytibas key an enemy by its spawn row's ID, so a peer without those rows would never match the host's new enemies; no line changes shape, the number keeps 0.7.5 out |
-| 20 | The PvP test's pvp line on channel 2: a drop of the attacker's stand-in for the victim, applied to the victim's EVE in her game, and the match lobbies' start, count and end lines on channel 0 (this version) |
+| 20 | The PvP test's pvp line on channel 2: a drop of the attacker's stand-in for the victim, applied to the victim's EVE in her game, and the match lobbies' start, count and end lines on channel 0 |
+| 21 | The shared world's `SBW` lines on channel 2 (this version; see [Shared world: how it works](shared-world.md)) |
 
 ## Link health in the log
 

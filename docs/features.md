@@ -14,10 +14,10 @@ Two-PC co-op was first played on 2026-10-17, one PC on Linux with Proton and one
 at about 240 ms ping. On 2026-10-21 two players on 0.4.0 played on the automatic co-op saves with shared enemies and
 same place (each enemy in the same spot on both screens). On 2026-11-01 two PCs played 0.7.0-beta.1 with its ghost fix:
 joining with CNS packs no longer crashed. Apart from the 2026-11-01 session, no version after 0.4 has been played on two
-PCs, so nothing else added since 0.4 has been tested between two PCs: shared quests, the friend's revive, the cutscene
-wait, kills that count only for a player who took part, Night Operation's run, levels, revive and challenges, Doro
-races, the co-op line at camp phone booths, the .pak mod list and CNS outfits over the link, `coop gift` and the pose
-rate that adapts to Steam's queue.
+PCs, so nothing else added since 0.4 has been tested between two PCs: shared quests, the shared world, the friend's
+revive, the cutscene wait, kills that count only for a player who took part, Night Operation's run, levels, revive and
+challenges, Doro races, the co-op line at camp phone booths, the .pak mod list and CNS outfits over the link,
+`coop gift` and the pose rate that adapts to Steam's queue.
 
 On one PC, the Leviathan viewer and its free camera ran on 2026-10-22, the Lion was fought on 2026-10-24, the
 first-launch guide opened, and on 2026-10-27 the co-op saves loaded and `coop nightop shop` opened its shop screen. On
@@ -32,12 +32,12 @@ PvP test and the match lobbies, and does not link with 0.10.0 or older. This ver
 world's lines, and does not link with 0.11.0 or older: every player has to update.
 
 In this version every on/off setting is on by default, the experimental ones and the test tools included: the ghost's
-dyes and effects, the spawn filter, the name tag in your photos, shared quests, the revive, the solid partner, the Load
-Shortcut saves, the PvP test and the SBO lobby. The status strip shows its compact form, and F7's travel to the host is
-on. A `coop-settings.txt` written by 0.5.0-beta.1 to 0.10.0 that holds the old off values is changed once at the next
-load (see [Settings](settings.md#coop-settingstxt)). Most of these features have not been tested in game.
-`shortcut_load=on` lets `coop shortcut load` write a developer save that can unlock Steam achievements, which cannot be
-taken back.
+dyes and effects, the spawn filter, the name tag in your photos, shared quests, the shared world, the revive, the solid
+partner, the Load Shortcut saves, the PvP test and the SBO lobby. The status strip shows its compact form, and F7's
+travel to the host is on. A `coop-settings.txt` written by 0.5.0-beta.1 to 0.10.0 that holds the old off values is
+changed once at the next load (see [Settings](settings.md#coop-settingstxt)). Most of these features have not been
+tested in game. `shortcut_load=on` lets `coop shortcut load` write a developer save that can unlock Steam achievements,
+which cannot be taken back.
 
 ## Features
 
@@ -149,7 +149,11 @@ spawns and shared bosses build on it. They are experimental and on by default to
 for both games. As guest, the Same place row of your co-op menu can still turn same place off on your screen. The
 experimental Shared quests option (Options, Saves) is on by default and untested in game. While both players play a
 co-op save, it makes the quest steps that the host and the guest make together in the guest's game too, through the
-game's own quest functions (see [playing-with-a-friend.md](playing-with-a-friend.md#shared-quests-experimental)).
+game's own quest functions (see [playing-with-a-friend.md](playing-with-a-friend.md#shared-quests-experimental)). The
+experimental Shared world option (Options, Session) is on by default and untested in game. While both players play a
+co-op save, a door, lever, switch, crane, lift or shortcut that one player works changes in the other's game too,
+while chests, supply boxes and anything else that gives an item stay each player's own (see
+[shared-world.md](shared-world.md)).
 
 ## SBO lobby and matches
 

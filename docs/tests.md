@@ -18,7 +18,7 @@ build/host/pose_codec_test
 The Lua tests (`core/`: `actors_of`, `class_at`, `keybind`, `link`, `pak_gate`, `settings_file`, `ue4ss_settings`,
 `unreal`; `cut/`: `chainspin`, `devmenu`, `emote`, `enemy`, `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`,
 `mailbox`, `scene`, `tendril`, `wear`; `main/`: `boot`, `fight`, `fight_notices`, `guide`, `idle`, `input`, `match`,
-`menu`, `quests`, `sbo`, `session_ui`, `settings`, `story`; `matrix13/quest/`: `on_time`, `zone_talks`;
+`menu`, `quests`, `sbo`, `session_ui`, `settings`, `story`, `world`; `matrix13/quest/`: `on_time`, `zone_talks`;
 `matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`;
 `nightop/`: `board`, `challenges`, `guard_text`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`,
 `waves`; `partner/`: `capture`, `ghosts`, `hud`, `puppet`, `sentinel`; `race/`: `doro`, `drive`, `drive_model`, `model`,
@@ -28,9 +28,9 @@ the scripts, with fake UE4SS objects for those that call the engine. In the capt
 fails the test. The `main/` tests load
 `main/fixture.lua` first, with UE4SS stubbed for `main.lua`.
 
-- `core/link_test` also covers the status's `uidev=` and `me=` lines and the `owner=`, `room=` and `hall=` fields of a
-  match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty), and never from a
-  player's name;
+- `core/link_test` also covers the status's `uidev=`, `me=` and `world=` lines and the `owner=`, `room=` and `hall=`
+  fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty), and never
+  from a player's name, and the `shared_world` setting;
 - `core/pak_gate_test` finds the hall lobby pak `zSBO_Lobby` in `~mods`, else `LogicMods`, over fake files, checks its
   version (the `.utoc` size and the `.ucas` size from the `.utoc`'s compression blocks, joined by `_`) and that each
   read is bounded,
@@ -39,11 +39,13 @@ fails the test. The `main/` tests load
 - `main/fight_test` also covers `coop fight pilot` (its `test target` and boss tests included),
   `coop fight spawn probe`, the `spawn_filter` setting with the `filter` word it adds, and the `same_place`, `aggro`,
   `same_spawns`, `enemy_extra`, `bosses` and `boss_hp_scale` settings, whose rows `main/menu_test` covers with the
-  `shared_quests` row, and `coop pvp` (its words, the `pvp_spike` and `shared_enemies` refusals, status, and
+  `shared_quests` and `shared_world` rows, and `coop pvp` (its words, the `pvp_spike` and `shared_enemies` refusals, status, and
   `pvp_spike=off` ending an earlier load's PvP test at a reload);
 - `main/fight_notices_test` covers the same place and same spawns notices in both languages;
 - `main/quests_test` covers `coop quests` with the `shared_quests` and `quest_deny` settings and the shared quests'
   notices;
+- `main/world_test` covers `coop world` (its words, on and off whatever `shared_world` says, status), the start once a
+  load with `shared_world=on`, the end at a reload with `shared_world=off`, and the shared world's two notices;
 - `main/idle_test` counts the FindAllOf and StaticFindObject calls of main.lua's two loops over one idle minute, each
   case from a fresh Lua load: 4 and 5 in a world with the UI up, 0 and 2 at the title, all in the first second;
 - `main/input_test` covers the controller's events from a fake `coop_pad` (routed to the menu, the co-op saves' question
@@ -560,6 +562,23 @@ The C++ tests cover the platform-free headers in `native/src`.
   included), a `.utoc` directory index read into object paths (maps, other roots, encrypted, unindexed, cut short
   and looped indexes refused) and the shared list of containers both players have;
 
+### Shared world
+
+- `world_rows_test`: `world/rows.h`'s three lists strictly sorted and every SetEnvActive row with states of its own,
+  the lookups at both ends of each list and on near misses, and rows of build 26123051 each rule keeps or leaves out
+  (a door and a lift with every state, the monorail without its camp-bound garage run, the crane without its camera
+  states, a supply box, a story-only door, a quest's env control row, a monorail speed row whose chain plays a scene);
+- `world_sync_test`: `world/sync.h`'s lines through format and parse and back (the largest legal line, 45 malformed
+  lines and 20,000 fuzzed ones), the ring's capacity and wrap, and two players' sides wired over the parser with a
+  fake engine: the on and off lines, each gate on both sides, the lists on both sides, names without text, sequence
+  numbers, lost and old lines, the queue's order while loading and its overflow, the apply limit, the echo backstop,
+  refusals logged once, a new partner and the status line;
+- `world_engine_test`: `world/engine.h` over fake memory and fake game functions: the four roots read from their
+  nodes (a named target, `self` through the owner env, an ObjectState of 0, a linked env inside and outside its
+  owner's list, values no line carries), and her lines applied: A1 and each of its guards, a tag that did not take,
+  A2's records (found, made, Disable kept), A1b live and offline, A3's call and its list check, A4's order, and the
+  refusals for a missing world, player or name.
+
 ### Quests
 
 - `quest_sync_test`: the shared quests' quest table, line format and parser (with a fuzz), the host's and the guest's
@@ -597,6 +616,12 @@ The C++ tests cover the platform-free headers in `native/src`.
   ones (unique names that never end in `_<digits>`, unique IDs above build 26123051's highest), and its checks refuse
   bad spots, seats, names, IDs, fences and a batch of more than 255 rows. After a change to the data file, run
   `python3 tools/sbo_lobby_rows.py` and commit the two files it writes;
+- `world_rows_test.py`: `tools/world_rows.py` on small made-up tables: each rule that keeps a ZoneEnvSpawnTable row
+  out, each rule that keeps a state out (the player event types reached directly, through AddEvents and FinishEvents,
+  through the states an env control row sets and through a progress control's change tags, and the crane's camera
+  tags), the SetEnvActive list, each ZoneEvent rule, unknown names and loops in chains, and the written block (sorted,
+  between its markers, the rest of the header untouched, a name that cannot go into a C++ literal refused). After new
+  table exports, run `python3 -I tools/world_rows.py <folder>` and commit `native/src/world/rows.h`;
 - `matchmaking_scan_test.py`: a scan that fails if any script or native source could reach the game's matchmaking
   (see [night-operation-previews.md](night-operation-previews.md#how-the-original-matchmaking-is-blocked)). Stellar
   Blade's RunZoneEvent address is held once in `native/src/game/sbo.h` and called at two sites: once in

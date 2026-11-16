@@ -113,6 +113,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop quests on\|off\|status` | [Shared quests](playing-with-a-friend.md#shared-quests-experimental) (experimental, on by default, co-op save only) |
 | `coop quests probe\|record\|replay` | Shared quests' solo test tools (experimental, co-op save only) |
 | `coop quests force <number>` | As the guest, make the step that quest holds for your own kill, or for a place the game's tables cannot give, where you stand; type it twice within 10 s |
+| `coop world on\|off\|status` | The [shared world](shared-world.md) (experimental, on by default): `on` and `off` until the mod reloads, whatever `shared_world` says; `status` prints the `world=` line |
 | `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](playing-with-a-friend.md#synced-photo-mode)'s pause alone, 1 to 3600 s |
 | `coop revive test` | Solo test of the [revive](playing-with-a-friend.md#revive-by-your-friend-experimental): at the death screen, call the game's in-place respawn on your EVE once (co-op save only, no session, with `coop loopback 0 0 0` running so that your life state is read) |
 | `coop guide` | Open the [guide](interface.md#guide) on its first page, on the title screen or in the world |
@@ -293,6 +294,7 @@ word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`
 - the recruiter (despawned in Xion if he was brought there, and not brought back again);
 - the SBO lobby's table rows (back to the game's values);
 - the shared quests;
+- the shared world (its hooks are taken out of the game's slots);
 - the photo pause (released; the native tick keeps running for this alone);
 - a Doro race (left as a DNF, or cancelled before GO, with EVE's movement values put back), the drive probe, a race
   track being recorded (dropped, nothing written) and the Doro look (EVE drawn again);
@@ -384,6 +386,9 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
   role=<role> partner=<on|off>` or `quests=stopped` (see [Shared quests](playing-with-a-friend.md#shared-quests-experimental)), then the last 8
   quest notices as `quest_note=<n> <kind> <number> <name> <zone or ->` and the last `coop quests status` answer as
   `quests_status=<n> <line>` lines.
+- Shared world: `world=off`, `world=waiting why=<friend|match|save|partner>`, `world=on`, then its counters, or
+  `world=stopped`, `world=off why=build` or `world=off why=coop_off` (see [Shared world](shared-world.md#status-line)
+  and the counters in [Shared world: how it works](internals/shared-world.md#status-line)).
 - Photo mode: `photo=<0|1|s|c> peer_photo=<0|1|s|c> frozen=<0|1> sync=<both|notice|off>`: yours and your friend's (`s`
   for selfie mode, `c` on the host while a cutscene plays: the [cutscene wait](playing-with-a-friend.md#cutscene-wait)), whether your game holds
   the photo pause (`coop freeze` holds it too), and the `photo_sync` your friend gets (`notice` when your game cannot

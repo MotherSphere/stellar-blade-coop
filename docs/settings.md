@@ -95,6 +95,12 @@ boss_hp_scale=2.0
 # never shared, by name or number, separated by spaces or commas (for example quest_deny=Quest_Epic_14_1).
 shared_quests=on
 quest_deny=
+# Shared world, experimental: on or off, on by default, not tested in game yet. On, while you and your friend both
+# play a co-op save and both have it on, a door, lever, switch, crane, lift or shortcut that one of you works through
+# the game changes in the other's game too, at once or when that zone next loads. Chests, supply boxes, collectibles
+# and anything that gives an item stay each player's own, and the doors the main story opens move with quest steps
+# only. Off, your changes are not sent and your friend's are not made in your game.
+shared_world=on
 # Revive, experimental: on or off, on by default. Yours, for your own EVE: on, while you are on the death screen and
 # your friend stands within 2 m of your EVE for 3 s, your game revives you where you fell, with full health and your
 # recovery items refilled as at a camp. It needs the shared enemies running (shared_enemies=on, on a co-op save), and
@@ -191,6 +197,7 @@ sbo_lobby=on
 | `boss_hp_scale` | `1.0` to `4.0`: the host's multiplier for a shared boss's maximum HP, used in both games | `2.0` |
 | `shared_quests` | `on` or `off`: [shared quests](playing-with-a-friend.md#shared-quests-experimental), experimental; both players need it on | `on` |
 | `quest_deny` | quest names or numbers separated by spaces or commas, at most 200 characters: quests never shared; the host's value counts | empty |
+| `shared_world` | `on` or `off`: the [shared world](shared-world.md), experimental; doors, levers, lifts and shortcuts one player works change in the other's game too; each player's own, and both need it on | `on` |
 | `revive` | `on` or `off`: your friend may [revive](playing-with-a-friend.md#revive-by-your-friend-experimental) your EVE where she fell, experimental; in a co-op Night Operation run, your death is a [down](night-operation.md#down-and-revive) | `on` |
 | `photo_sync` | `both`, `notice` or `off`: the [synced photo mode](playing-with-a-friend.md#synced-photo-mode); a pause needs `both` on both PCs | `both` |
 | `photo_freeze_max` | `0` (no limit) or `30` to `3600`: the longest pause your friend's photo mode holds your game in, in seconds | `600` |

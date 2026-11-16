@@ -47,8 +47,9 @@ not die in your game, so it gives you no kill, rewards, drops, quest progress or
 
 Each of you plays in your own world, from your own save. Supply boxes, collectibles, passcode doors and camps are each
 player's own: a box you open stays closed and full in your friend's world until they open it there, and what is in it
-goes to you only. Levers, lifts, doors and puzzles move only in the world of the player who uses them, so your friend's
-EVE may ride a lift that stays down on your screen. Vendors, the request board and quest givers work for both players;
+goes to you only. With the [shared world](shared-world.md) (experimental, on by default), a door, lever, switch, crane,
+lift or shortcut that one of you works changes in the other's world too, on co-op saves; with it off, they move only in
+the world of the player who uses them. Vendors, the request board and quest givers work for both players;
 [shared quests](#shared-quests-experimental) says which quest steps are shared. Nothing one player opens, buys or picks
 up is copied into the other player's game.
 

@@ -13,6 +13,7 @@ start with `coop`.
 | [Install](../INSTALL.md) | Install, update and uninstall on Windows, Linux and the Steam Deck; saves and Steam Cloud; which logs to send |
 | [Features and test status](features.md) | The features with their test status, the dated two-PC tests and which versions link together |
 | [Playing with a friend](playing-with-a-friend.md) | Hosting and joining, join codes, following the host, the revive, co-op saves, synced photo mode, shared quests |
+| [Shared world](shared-world.md) | Doors, levers, lifts and shortcuts one player works changing in the other's game; what stays each player's own; the setting and `coop world` |
 | [SBO lobby and matches](sbo-lobby.md) | The recruiter's Join, the lobby menu, Search, private matches, the countdown, leaving, the hall lobbies, the PvP test, the link protocol |
 | [Interface](interface.md) | The co-op menu, the session chat, the partner HUD, the guide, the teleport screen, notices |
 | [Ghost](ghost.md) | The ghost's looks, .pak mods and CNS outfits, the solid partner |
@@ -58,6 +59,7 @@ left. The pages still name build 24463856 where a fact was read on that build, s
 | [The ghost pipeline](internals/ghost.md) | The ghost in seven steps, looks, the CNS guard and crash sentinel, the solid partner |
 | [Shared enemies: how they work](internals/shared-enemies.md) | Same-place enemies, same spawns and the spawn filter, extra enemies, shared bosses |
 | [Group play: how it works](internals/group-play.md) | Shared quests, following the host, the teleport screen, the revive, camp rests, the cutscene wait |
+| [Shared world: how it works](internals/shared-world.md) | The four roots and their hooks, the generated filter, the SBW lines, how her changes are made, the status line, the addresses |
 | [Doro races: how they work](internals/doro-races.md) | The display Doro, the Doro look, the ghost's Doro mode, driving, race lines |
 | [Cut enemies: how they are added](internals/cut-enemies.md) | The cut Lion with the row batches, the cut Gardener, the cut Tendril |
 | [EVE's cut moves: how they work](internals/cut-eve.md) | The cut ChainSpin, developer flight and slow motion, the cut glide, emotes |
