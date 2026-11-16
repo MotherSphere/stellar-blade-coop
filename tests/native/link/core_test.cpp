@@ -2751,6 +2751,9 @@ int main() {
     w.tick("", 0, kStranger);
     std::string s = w.status();
     assert(saw("Stranger is in the lobby, not a Steam friend: waiting for the host's answer"));
+    // Relay only before her session opens, so our IP address never reaches her game.
+    assert(op_index("config 1001 104 0") >= 0 && op_index("config 1001 104 0") < op_index("session 1001 9009"));
+    assert(saw("relay only (ICE off): Stranger is not a Steam friend"));
     assert(noticed(s, "A player who is not your Steam friend is asking to join.") && !noticed(s, "Stranger joined."));
     assert(s.find("\ncode=none refused=0\npending=9009 Stranger\n") != std::string::npos);
     assert(F.accepted == std::vector<uint64_t>{kStranger} && sent_to(kStranger, "SBC hello ") == 0);
@@ -2922,11 +2925,28 @@ int main() {
   }
 
   // A friend with the code: no question, the usual handshake, the usual notices on both sides.
+  // Relay only with a stranger, two Links: each game turns ICE off before its first session with the other (the host
+  // before she pings her, the joiner before her hello), so neither learns the other's IP address. It stays off through
+  // the handshake, and hosting again gives the Steam client's setting back. A friend's session never changes it.
+  reset();
+  {
+    Two t;
+    code_session(t);
+    assert(op_index("config 1001 104 0") >= 0 && op_index("config 1001 104 0") < op_index("session 1001 9009"));
+    assert(op_index("config 9009 104 0") >= 0 && op_index("config 9009 104 0") < op_index("session 9009 1001"));
+    assert(saw("A: relay only (ICE off): Stranger is not a Steam friend") &&
+           saw("B: relay only (ICE off): Me is not a Steam friend"));
+    t.tick(t.a, 50, "allow 9009");
+    assert(settle(t) && ops_with("config ") == 2);
+    t.tick(t.a, 50, "leave");
+    t.tick(t.a, 50, "host");
+    assert(ops_with("config 1001 104 -1") == 1 && ops_with("config ") == 3);
+  }
   reset();
   {
     Two t;
     code_session(t, true);
-    assert(settle(t) && t.a.status(Counters{}).find("\npending=") == std::string::npos);
+    assert(settle(t) && t.a.status(Counters{}).find("\npending=") == std::string::npos && ops_with("config ") == 0);
     assert(noticed(t.a.status(Counters{}), "Kaanta joined.") && noticed(t.b.status(Counters{}), "Joined Me's game."));
     assert(!saw("not a Steam friend") &&
            t.a.status(Counters{}).find("\ncode=CCS-CBMH refused=0\n") != std::string::npos);

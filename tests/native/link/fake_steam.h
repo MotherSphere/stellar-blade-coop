@@ -81,6 +81,9 @@ struct Fake {
   Client client[8] = {{kMe, {}, {kFriend}}, {kFriend, {}, {kMe}}, {kPlayer[2]}, {kPlayer[3]},
                       {kPlayer[4]},         {kPlayer[5]},         {kPlayer[6]}, {kPlayer[7]}};
   std::vector<uint64_t> accepted, closed, left;
+  // Each client's open SteamNetworkingMessages sessions, (her id, the other's): a first send or an accept opens one,
+  // as Steam does, and writes "session <her id> <the other's id>" to ops; a close ends it.
+  std::set<std::pair<uint64_t, uint64_t>> sessions;
   std::map<uint64_t, std::string> names = {{kFriend, "Kaanta"}, {kOther, "Third"}, {kStranger, "Stranger"}};
   std::map<uint64_t, uint64_t> friend_lobby; // A friend playing in a lobby.
   int invites = 0, released = 0, relay = 100, session_state = 3, session_ping = 42;
@@ -113,6 +116,10 @@ template <class T> void store(Call &c, const T &value) {
   std::memcpy(c.result.data(), &value, sizeof value);
 }
 inline void op(const std::string &line) { F.ops.push_back(line); }
+inline void opened(uint64_t me, uint64_t peer) {
+  if (F.sessions.insert({me, peer}).second)
+    op("session " + std::to_string(me) + " " + std::to_string(peer));
+}
 // Steam lets only the lobby's owner write its data, limit, joinable flag and owner.
 template <int N> void assert_owner(uint64_t lobby) { assert(F.owner[lobby] == F.client[N].id); }
 inline Inbox &inbox(int client, int channel) {
@@ -219,6 +226,7 @@ template <int N> Api make_api() {
       return F.send_result;
     uint64_t from = F.client[N].id, to = steam_id_of(*who);
     std::string text(static_cast<const char *>(data), size);
+    opened(from, to);
     F.sent.push_back({from, to, channel, flags, text});
     for (int i = 0; i < 8; ++i)
       if (F.client[i].id == to)
@@ -243,10 +251,12 @@ template <int N> Api make_api() {
     return n;
   };
   a.accept_session = [](void *, const Identity *who) {
+    opened(F.client[N].id, steam_id_of(*who));
     F.accepted.push_back(steam_id_of(*who));
     return true;
   };
   a.close_session = [](void *, const Identity *who) {
+    F.sessions.erase({F.client[N].id, steam_id_of(*who)});
     F.closed.push_back(steam_id_of(*who));
     return true;
   };

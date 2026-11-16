@@ -172,7 +172,7 @@ The C++ tests cover the platform-free headers in `native/src`.
 - `link_core_test`: the link against the shared fake Steam, and two links through it with the handshake both ways,
   channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line,
   joining with a code, and the host's approval of a player who is not a Steam friend (let in, refused, no answer,
-  removed, a flood while waiting);
+  removed, a flood while waiting), with relay only set on both games before their first session with each other;
 - `link_pose_cap_test`: the adaptive pose rate (`PoseCap` in `link/core.h`), one reading a second: a calm link and
   a lone bad reading never step; two readings in a row over the line (queue time or pending bytes) step down 60, 30,
   20, to the first cap under the player's `send_rate`, never below 20; 10 calm readings step up one cap; a step up

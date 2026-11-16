@@ -1414,7 +1414,7 @@ private:
     if (create_call_ || join_call_ || search_call_)
       return event(std::string("busy: ") +
                    (search_call_ ? "a search is pending, " : "a lobby call is still pending, ") + what + " ignored");
-    relay_only(true);
+    relay_only(true, "match session");
     seeking_ = r.mode, want_room_ = r.room, want_hall_ = r.hall;
     if (r.match == MatchAsk::search) {
       search(r.mode, r.hall);
@@ -1481,16 +1481,22 @@ private:
     search(mode_, hall_);
     regrouping_ = search_call_ != 0;
   }
-  // Relay only (ICE_Enable 0) for match sessions, so no member learns another's IP address; the Steam client's own
-  // setting again for co-op. Process-wide, for sessions opened after the call: set before a match's search, create or
-  // join, and before a co-op lobby's first hello.
-  void relay_only(bool on) {
+  // Relay only (ICE_Enable 0), so no player learns another's IP address: for match sessions, and in co-op with a player
+  // who is not our Steam friend (guard()); else the Steam client's own setting. Process-wide, for sessions opened after
+  // the call: set before a match's search, create or join, before a co-op lobby's first hello, and before the first
+  // session with a stranger. A co-op host keeps it on until she hosts again. why says what it is for.
+  void relay_only(bool on, const std::string &why = "") {
     if (on == ice_off_)
       return;
     ice_off_ = on;
     if (!api_.set_config_int(nu_, kIceEnable, on ? kIceDisable : kIceDefault))
       return event("Steam refused the ICE setting");
-    event(on ? "relay only for match sessions (ICE off)" : "ICE back to the Steam client's setting");
+    event(on ? "relay only (ICE off): " + why : "ICE back to the Steam client's setting");
+  }
+  // Relay only before our first session with her, when she is not our Steam friend.
+  void guard(uint64_t id) {
+    if (!ice_off_ && !api_.has_friend(friends_, id, kImmediateFriends))
+      relay_only(true, name_of(id) + " is not a Steam friend");
   }
   // A lobby data key the owner writes, when it changed.
   void put(const char *key, const std::string &value) {
@@ -1737,13 +1743,15 @@ private:
       }
       if (!read_mode())
         return;
-      relay_only(match()); // Before our first hello, which poll_members() sends in this pass.
+      std::string host = name_of(host_id_);
+      const bool stranger = !match() && !api_.has_friend(friends_, host_id_, kImmediateFriends);
+      // Before our first hello, which poll_members() sends in this pass.
+      relay_only(match() || stranger, match() ? "match session" : host + " is not a Steam friend");
       const char *state = api_.lobby_data(mm_, lobby, kStateKey);
       public_ = match() && state && *state;
-      std::string host = name_of(host_id_);
       // Not her Steam friend: her game holds the handshake until she lets us in (an answer she keeps for a rejoin). A
       // match lobby lets everyone in.
-      const bool asking = !rejoin && !match() && !api_.has_friend(friends_, host_id_, kImmediateFriends);
+      const bool asking = !rejoin && stranger;
       event("joined lobby " + id + " hosted by " + host + (asking ? ", not a Steam friend: waiting to be let in" : ""));
       notice((rejoin ? "Rejoined " : "Joined ") + host + "'s game." + (asking ? " Waiting to be let in." : ""));
     }
@@ -1844,6 +1852,7 @@ private:
         if (now_ >= it->second) {
           Peer out;
           out.id = id;
+          guard(id);
           send(out, reject("you cannot join this session again"), kReliable);
           if (!it->second)
             event("refused " + name_of(id) + " came back: told to leave");
@@ -1852,6 +1861,7 @@ private:
         continue;
       }
       if (!find_peer(id)) {
+        guard(id); // Before anything goes to her.
         Peer peer;
         peer.id = id;
         while (peer.slot < kMaxRemote && std::any_of(peers_.begin(), peers_.end(),
@@ -1890,6 +1900,7 @@ private:
   // A session from a lobby member is accepted after a live membership check; anything else is ignored, never closed.
   void on_session_request(uint64_t id) {
     if (lobby_ && id && id != me_ && !refused_.count(id) && member_now(id)) {
+      guard(id);
       Identity who = identity(id);
       api_.accept_session(msgs_, &who);
       event("accepted a session from " + name_of(id));

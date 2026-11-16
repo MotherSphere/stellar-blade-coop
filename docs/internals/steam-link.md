@@ -78,10 +78,15 @@ them after `owner=` on its `link=` line.
 - In a match lobby, public or private, nobody waits for the host's answer, Steam friend or not. The host can still
   `remove` a player.
 - `match search` and `match create` are refused while the game is in a lobby.
-- Match sessions go through Steam's relays only. Before a match's search, create or join, and on entering a match
-  lobby joined by its code, the game sets `P2P_Transport_ICE_Enable` (104) to 0, so no player learns another's IP
-  address. The setting holds for the whole game run, so hosting or joining a co-op lobby afterwards sets it back to
-  -1, the Steam client's own setting, before the first session opens.
+- Match sessions, and co-op sessions with a player who is not your Steam friend, go through Steam's relays only, so
+  no player learns another's IP address. The game sets `P2P_Transport_ICE_Enable` (104) to 0 before a match's search,
+  create or join, on entering a match lobby joined by its code, on joining a co-op lobby whose host is not a Steam
+  friend, and on a co-op host before its first session with a member who is not one (before it accepts her session,
+  pings her or sends her a reject). The log line is `relay only (ICE off): match session` or
+  `relay only (ICE off): <name> is not a Steam friend`. The setting holds for the whole game run. Hosting a co-op
+  lobby sets it back to -1, the Steam client's own setting, and so does joining a co-op lobby whose host is a Steam
+  friend, before the first session opens. A co-op host stays on relays only after a stranger has been in her lobby,
+  until she hosts again.
 - In a match lobby, Steam's lobby owner is the host. An owner who leaves from the menu first hands the lobby to the
   member past the handshake who joined first (`SetLobbyOwner`), then leaves. When the owner changes during a round,
   every game ends it with `host_left`. Ten seconds of silence from the owner also end it, with `host_lost` and the
