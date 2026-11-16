@@ -550,6 +550,21 @@ assert(#asked==n and not ok and why=='the bike is off (bike=off)' and last()=='b
 settings.bike=nil
 R.slow()
 assert(asked[#asked]=='bike load '..CLIP)
+-- That ask lost on the way (bike=off 5 s later): asked again, logged.
+st.load='off'
+n=#asked
+clock=clock+4.9
+R.slow()
+assert(#asked==n,'Not before 5 s')
+clock=clock+0.1
+R.slow()
+assert(#asked==n+1 and asked[#asked]=='bike load '..CLIP)
+assert(last()=='bike=off 5 s after the bike load: asked again: asked the native part: bike load '..CLIP,last())
+st.load='loading'
+clock=clock+5
+R.slow()
+assert(#asked==n+1,'Not again while it loads')
+st.load='ready'
 
 -- 13. coop bike status and tune.
 local said=R.status()

@@ -3,11 +3,12 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The bike on the game thread: SB's Adam_Vehicle_02 as a part on EVE's own actor with her ride on it, on any save
 -- (nothing of the ride is saved). With bike=on the native part preloads the mesh and the riding clip once ("bike load",
--- native/src/game/bike.h; the bike= word of the status line says ready). Once that is ready and an EVE has been in the
--- world 2 s, the part is made: one SkeletalMeshComponent hung KeepRelative on her main mesh at the seat
--- (race/doro.lua's attach: collision off, single-node mode with no clip, so it keeps its reference pose), hidden. After
--- Ctrl+R the part is already there: it is found among her components by its mesh and used again. The capture sends it
--- to every ghost like any part of her outfit, shown or hidden, so nothing new travels.
+-- native/src/game/bike.h; the bike= word of the status line says ready), asked again while that word still reads off
+-- 5 s after the ask (a request lost on the way). Once that is ready and an EVE has been in the world 2 s, the part is
+-- made: one SkeletalMeshComponent hung KeepRelative on her main mesh at the seat (race/doro.lua's attach: collision
+-- off, single-node mode with no clip, so it keeps its reference pose), hidden. After Ctrl+R the part is already there:
+-- it is found among her components by its mesh and used again. The capture sends it to every ghost like any part of her
+-- outfit, shown or hidden, so nothing new travels.
 -- A mount (self.toggle) checks EVE first and refuses with its reason; then, in this order: coop-bike.txt (her object
 -- path, her main mesh's relative rotation and location, or those of a file this Lua load kept for her),
 -- race/drive.lua's drive with bike/model.lua (why 'bike'), "bike gate on" (SB's actions off on her controller, Jump
@@ -45,6 +46,7 @@ local SETTLE=2 -- s an EVE has been in the world before her part is made (the ca
 local POLL,ANSWER=0.1,5 -- s between reads of the anim answer; s with no answer for our play.
 local ENDS,ENDS_IN=3,1 -- SB's ends of the riding clip within ENDS_IN s that take her off the bike.
 local GATE_WAIT=1 -- s after the mount by which the gate must read on.
+local LOAD_AGAIN=5 -- s with bike=off after the bike load before it is asked again.
 -- A right turn (the yaw growing) leans her right, a climb lifts the nose. Signs to check in the first ride.
 local LEAN_SIGN,PITCH_SIGN=1,1
 local TILT_STEP=0.05 -- degrees: a smaller change of the lean or the pitch is not written.
@@ -124,6 +126,7 @@ function Ride.new(o)
     -- asked (os.clock of its ask), playing, ended (this id's end counted), ends (os.clock of each end), read.
     local ride=nil
     local preload=nil -- What the setting last asked of the native part: true (bike load), false (bike free).
+    local load_asked=0 -- os.clock of the last bike load.
     local restored=false
     local serial=2000000000+os.time()%1000000 -- Apart from coop emote's ids, which start under 1000000.
 
@@ -415,6 +418,7 @@ function Ride.new(o)
                 if not ok then log('bike part not removed: '..why_of(e)) end
             end
             local _,said=ask(want and 'bike load '..Ride.CLIP or 'bike free')
+            load_asked=os.clock()
             log('bike='..(want and 'on' or 'off')..': '..tostring(said))
         end
         if not want then return end
@@ -422,6 +426,12 @@ function Ride.new(o)
         local ok,why=pcall(function()
             local e=her()
             local w=Ride.native(status())
+            -- The native part shows bike=off only when it would take the ask: the request was lost or never reached it.
+            if w and w.load=='off' and now-load_asked>=LOAD_AGAIN then
+                load_asked=now
+                local _,said=ask('bike load '..Ride.CLIP)
+                log(('bike=off %.0f s after the bike load: asked again: %s'):format(LOAD_AGAIN,tostring(said)))
+            end
             if e then part_step(e,w,now) end
             if ride then return check(ride,e,w,now) end
         end)
