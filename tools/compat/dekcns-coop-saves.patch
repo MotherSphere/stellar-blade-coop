@@ -1,0 +1,63 @@
+--- a/DekCNS/Scripts/main.lua
++++ b/DekCNS/Scripts/main.lua
+@@ -114,6 +114,14 @@
+                 ResolvedSaveFilePath = path
+                 return ResolvedSaveFilePath
+             end
++            -- (SE co-op patch 2026-11-15) no solo save: fall back to Stellar Blade Co-op's copy
++            local coop = savedDir .. "SaveGames/" .. steamId .. "/StellarBladeCoop00.sav"
++            file = io.open(coop, "rb")
++            if file then
++                file:close()
++                ResolvedSaveFilePath = coop
++                return ResolvedSaveFilePath
++            end
+         end
+     end
+     Log("Failed to resolve save file path!!")
+@@ -139,22 +147,33 @@
+         CachedOutfitsFromSaveFile = {}
+         return CachedOutfitsFromSaveFile
+     end
+-    local file = io.open(path, "rb")
+-    if not file then
+-        Log("Failed to open save file at " .. path)
+-        CachedOutfitsFromSaveFile = {}
+-        return CachedOutfitsFromSaveFile
+-    end
+-    local content = file:read("*a")
+-    file:close()
++    -- (SE co-op patch 2026-11-15) Stellar Blade Co-op's "co-op saves" make the game play from StellarBladeCoop00.sav
++    -- instead of StellarBladeSave00.sav. Read both (when present) and count an outfit as unlocked if either save has it,
++    -- so outfits unlocked while playing on the co-op copy are not treated as locked.
++    local paths = { path }
++    local other = path:gsub("StellarBladeSave00%.sav$", "StellarBladeCoop00.sav")
++    if other == path then other = path:gsub("StellarBladeCoop00%.sav$", "StellarBladeSave00.sav") end
++    if other ~= path then paths[#paths + 1] = other end
+     local outfits = {}
+     local prefixes = GetSaveFilePrefixes()
+-    for _, prefix in ipairs(prefixes) do
+-        local pattern = "\0" .. prefix .. "([a-zA-Z0-9_]+)\0\x10\0\0\0ItemVisualAlias\0"
+-        for label in content:gmatch(pattern) do
+-            outfits[prefix .. label] = true
++    local readAny = false
++    for _, p in ipairs(paths) do
++        local file = io.open(p, "rb")
++        if file then
++            local content = file:read("*a")
++            file:close()
++            readAny = true
++            for _, prefix in ipairs(prefixes) do
++                local pattern = "\0" .. prefix .. "([a-zA-Z0-9_]+)\0\x10\0\0\0ItemVisualAlias\0"
++                for label in content:gmatch(pattern) do
++                    outfits[prefix .. label] = true
++                end
++            end
+         end
+     end
++    if not readAny then
++        Log("Failed to open save file at " .. path)
++    end
+     CachedOutfitsFromSaveFile = outfits
+     return outfits
+ end
