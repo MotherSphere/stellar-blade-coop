@@ -321,13 +321,17 @@ Some steps wait in her game:
 `coop quests force <number>` makes, where she stands, the step that quest holds for a kill or for a place the tables
 cannot give. The number is the one in the kill notice and in `coop quests status`. The command is sent only when typed
 twice for the same quest within 10 s, because the game may then unlock that quest's trophies. A step that waits for its
-zone, a Request at her board and a quest the host moved without her cannot be forced.
+zone, a step that waits for her own pickup, a Request at her board and a quest the host moved without her cannot be
+forced.
 
-What is shared: the 103 quests of the game's Epic, Sub and Request types, the hidden ones included. Not shared: the
+What is shared: the 102 quests of the game's Epic, Sub and Request types, the hidden ones included. Not shared: the
 test, tutorial, collectible and helper quests (names starting with `LV_`, `TQ_`, `SQ_` and `CQ_`), the game's one
-Instant quest, and failed quests. The host's `quest_deny` adds quests that are never shared, by name or number, for
-example `quest_deny=Quest_Epic_14_1, Quest_Epic_14_2`. Notices and logs name a quest by its table name, such as
-`Quest_Sub_017`.
+Instant quest, the Night Operation quest `Quest_WALN10_001` and failed quests. A task that stands for an item waits
+for her own pickup: the 14 Requests whose hand-in takes an item away (006, 008, 010, 016, 018, 023, 024, 025, 028 and
+033 to 037) and the item tasks of `Quest_Sub_005`'s second and third groups. The host's line would give her the task
+without the item. The request board gives the reward without checking it. The host's `quest_deny` adds quests that
+are never shared, by name or number, for example `quest_deny=Quest_Epic_14_1, Quest_Epic_14_2`. Notices and logs name
+a quest by its table name, such as `Quest_Sub_017`.
 
 When her side comes on, the host sends the state of every quest it moved while linked with her, and only those: steps
 from the host's solo play are not sent. Nothing is undone in either game when the session ends; the steps her game made
@@ -341,8 +345,9 @@ sharing goes on from where both games stand.
 
 `coop quests status` answers with the `quests=` line and writes the whole status into `UE4SS.log` as
 `quests_status=<n> ...` lines: the role, the zone, how many steps her game made and how many the game refused, and for
-each quest that waits, why (`waits for its zone <zone>`, `waits for your own kill`, `hand it in at your board`, `not on
-your board yet`, `unseen by the host`, `behind the host, not shared`, `ahead of the host`), with the quest's number.
+each quest that waits, why (`waits for its zone <zone>`, `waits for your own kill`, `waits for your own pickup`,
+`hand it in at your board`, `not on your board yet`, `unseen by the host`, `behind the host, not shared`, `ahead of
+the host`), with the quest's number.
 `coop-quests.log` in the mod folder logs each step the host sends, each step her game made, held or refused with the
 events it starts, and each snapshot. Its stats line each minute counts the quests tracked, the steps made and refused,
 the holds by reason and the quests ahead, with the mean and longest time of a pass in microseconds.

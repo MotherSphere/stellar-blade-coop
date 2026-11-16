@@ -192,7 +192,7 @@ struct Link {
 };
 
 void table() {
-  assert(kRowCount == 103);
+  assert(kRowCount == 102);
   size_t steps = 0, types[3] = {}, kills = 0;
   for (size_t i = 0; i < kRowCount; ++i) {
     const Row &r = kRows[i];
@@ -223,24 +223,29 @@ void table() {
     assert(r && k.group < r->groups && k.position < tasks(*r, k.group, k.container));
     ++kills;
   }
-  assert(steps == sizeof kSteps / sizeof kSteps[0] && kills == 17);
-  assert(types[0] == 28 && types[1] == 38 && types[2] == 37);
+  size_t items = 0, requests = 0;
+  for (const Item &k : kItems) {
+    const Row *r = row(k.id);
+    assert(r && k.group < r->groups && k.position < tasks(*r, k.group, k.container));
+    assert(!kill_task(k.id, k.group, k.container, k.position));
+    assert(held_task(k.id, k.group, k.container, k.position) == 'I');
+    ++items, requests += r->type == 'R';
+  }
+  assert(steps == sizeof kSteps / sizeof kSteps[0] && kills == 17 && items == 19 && requests == 14);
+  assert(types[0] == 28 && types[1] == 37 && types[2] == 37);
   assert(row(0) == nullptr && row(163) == nullptr && row_index(UINT32_MAX) < 0);
-  // The hidden rows are shared; the Instant quest and every helper row are not.
+  // The hidden rows are shared; the Instant quest, the Night Operation quest and every helper row are not.
   R("Quest_Epic_Hidden"), R("Quest_Request_022_hidden");
   for (const Row &r : kRows)
-    assert(std::string_view(r.alias) != "Quest_DEDN_001");
+    assert(std::string_view(r.alias) != "Quest_DEDN_001" && std::string_view(r.alias) != "Quest_WALN10_001");
+  assert(row(134) == nullptr);
 
   // Known rows: group 0 of Quest_Sub_017 ends with an env change in Zone_Xion_10.
   const Row &s17 = R("Quest_Sub_017");
   assert(s17.id == 54 && s17.type == 'S' && s17.groups == 2 && std::string(s17.shape) == "1 1");
   assert(step(s17, 0).mark == '-' && step(s17, 1).mark == 't' && std::string(step(s17, 1).zones) == "Zone_Xion_10");
-  // The warp at the end of Quest_WALN10_001's only group: no zone in the tables, so the host's; the only warp.
-  const Row &w = R("Quest_WALN10_001");
-  assert(step(w, 1).mark == 'h' && step(w, 1).warp && has(step(w, 1).events, "ZoneWarp"));
-  assert(std::count_if(std::begin(kSteps), std::end(kSteps), [](const Step &s) { return s.warp; }) == 1);
-  // Its four missing task rows make no task: one container of one task, four empty ones.
-  assert(containers(w, 0) == 5 && tasks(w, 0, 0) == 1 && tasks(w, 0, 1) == 0);
+  // Its warp was the only one: no shared step moves the player now.
+  assert(std::none_of(std::begin(kSteps), std::end(kSteps), [](const Step &s) { return s.warp; }));
   // An env object of Quest_Epic_03 listed in four Xion zones.
   const Row &e3 = R("Quest_Epic_03");
   bool four = false;
@@ -253,6 +258,12 @@ void table() {
   assert(R("Quest_Request_006").normal && step(R("Quest_Request_006"), 0).mark == 't');
   // KillTarget tasks: Quest_Epic_02's group 6, Quest_Sub_006's group 3 (first of five).
   assert(kill_task(15, 6, 0, 0) && !kill_task(15, 5, 0, 0) && kill_task(45, 3, 0, 0) && !kill_task(45, 3, 0, 1));
+  assert(held_task(15, 6, 0, 0) == 'K' && held_task(15, 5, 0, 0) == 0);
+  // Item tasks: Quest_Sub_005's wafers and resurrection item in group 1, not the TaskCondition beside them; the fish
+  // Request 023 and the Nikke lost item Request 033; not Request_021, whose hand-in takes nothing.
+  assert(held_task(44, 1, 0, 0) == 'I' && held_task(44, 1, 0, 1) == 'I' && held_task(44, 1, 0, 2) == 0);
+  assert(held_task(44, 2, 0, 0) == 0 && held_task(44, 2, 0, 3) == 'I');
+  assert(item_task(139, 0, 0, 0) && item_task(157, 0, 0, 0) && !item_task(103, 0, 0, 0));
   // A chained Epic quest: Quest_Epic_06's last group end acquires Quest_Epic_07 in the same call.
   const Row &e6 = R("Quest_Epic_06"), &e7 = R("Quest_Epic_07");
   assert(*step(e7, 0).events && has(step(e6, e6.groups).events, step(e7, 0).events));
@@ -359,7 +370,7 @@ bool good(const std::string &line) { return parse(line.data(), line.size()).type
 
 void lines() {
   // Every kind, through format and parse.
-  for (const char *l : {"on 0", "on 7", "off setting off", "snap 3 103", "zone 3 255 Zone_Xion_10",
+  for (const char *l : {"on 0", "on 7", "off setting off", "snap 3 102", "zone 3 255 Zone_Xion_10",
                         "end 3 2 18446744073709551615",
                         "q 3 7 54 1 - 0:t - .", "q 3 8 54 3 - 0:t.1:z0 - z0", "q 1 1 45 1 t 0:-.0:-.0:- 0.0:K,0.4:t .",
                         "q 9 2 82 -1 # - - .", "q 9 3 80 2 - 0:? - .", "q 9 4 80 3 - 0:? - #", "at 3 Zone_WLA_10",
@@ -384,7 +395,7 @@ void lines() {
         "q 3 7 54 1 - 0:t. - .", "q 3 7 54 1 - 0:t..1:t - .", "q 3 7 54 1 - 0 - .", "q 3 7 54 1 - - 0.0 .",
         "q 3 7 54 1 - - 0:t .", "q 3 7 54 1 - - 0.0:t, .", "q 0 7 54 1 - - - .", "q 3 0 54 1 - - - .",
         "q 3 7 0 1 - - - .", "q 3 7 65536 1 - - - .", "q 3 7 54 1 - - -", "q 3 7 54 1 - - - . x",
-        "q 3 7 54 +1 - - - .", "q 3 7 54 1 z - - .", "q 3 7 54 1 zz - - .", "snap 0 1", "snap 1 104", "end 1 1",
+        "q 3 7 54 +1 - - - .", "q 3 7 54 1 z - - .", "q 3 7 54 1 zz - - .", "snap 0 1", "snap 1 103", "end 1 1",
         "end 1 1 -1", "zone 1 256 Zone_A", "zone 1 0 Zone-A", "zone 1 0", "at 1", "at 1 Zone A", "have 1 54",
         "have 1 54 0", "have 0 54 7", "ahead 1 54 7", "wait 1 54 7", "wait 1 54 7 kill!", "on", "on -1",
         "q  3 7 54 1 - - - .",
@@ -437,22 +448,25 @@ void record_file() {
       "guest.\n"
       "# role, partner SteamID, quest ID, sequence, state, acquire mark, finished groups, active-group tasks, "
       "completion mark.\n"
+      "g 76561198000000001 44 3 1 t 0:t 0.0:I .\n"
       "g 76561198000000001 54 7 1 - 0:t - .\n"
       "g 76561198000000001 79 2 1 - - 0.0:K .\n"
-      "g 76561198000000005 134 2 3 - 0:Zone_Xion_10 - Zone_Xion_10\n"
+      "g 76561198000000005 70 2 3 - 0:Zone_Xion_10.0:-.0:Zone_Xion_10 - Zone_Xion_10\n"
       "h 76561198000000002 54 7 1 - 0:t - .\n"
+      "h 76561198000000002 70 4 3 - 0:Zone_WLA_10.0:-.0:Zone_WLA_10 - Zone_WLA_10\n"
       "h 76561198000000002 80 3 2 - 0:? - .\n"
-      "h 76561198000000002 82 1 1 # - - .\n"
-      "h 76561198000000002 134 4 3 - 0:Zone_WLA_10 - Zone_WLA_10\n";
+      "h 76561198000000002 82 1 1 # - - .\n";
   size_t bad = 9;
   Record r = parse_record(text, &bad);
-  assert(bad == 0 && r.lines.size() == 7 && r.zones.names.size() == 2);
+  assert(bad == 0 && r.lines.size() == 8 && r.zones.names.size() == 2);
   assert(record_text(r, 2) == text);
-  const Record::Line *l = r.find('g', 76561198000000005ull, 134);
+  assert(r.find('g', kHostId, 44)->e.task[0].kind == 'I');
+  const Record::Line *l = r.find('g', 76561198000000005ull, 70);
   assert(l && l->e.seq == 2 && l->e.done.kind == 'z' && *r.zones.name(l->e.done.zone) == "Zone_Xion_10");
   assert(r.find('h', kGuestId, 82)->e.acq.kind == '#' && r.find('g', kHostId, 79)->e.task[0].kind == 'K');
   // Bad lines are skipped one by one: no shared quest, another role, partner 0, sequence 0, a line that does not fit
-  // its row (three groups on a two-group quest; a 't' where the tables have no zone; K on a task that kills nothing),
+  // its row (three groups on a two-group quest; a 't' where the tables have no zone; K on a task that kills nothing; I
+  // on a task that takes no item),
   // bad fields; a second line for one quest keeps the higher sequence. CRLF ends are fine.
   const std::string worse = text +
                             "h 76561198000000002 999 1 1 - - - .\r\n"
@@ -460,14 +474,15 @@ void record_file() {
                             "h 0 54 8 1 - - - .\n"
                             "h 76561198000000002 41 0 1 - - - .\n"
                             "h 76561198000000002 54 9 3 - 0:t.1:t.0:t - t\n"
-                            "h 76561198000000002 134 9 3 - 0:t - t\n"
+                            "h 76561198000000002 70 9 3 - 0:t.0:-.0:t - t\n"
+                            "h 76561198000000002 44 9 1 t 0:t 0.2:I .\n"
                             "h 76561198000000002 54 9 1 - - 0.0:K .\n"
                             "h 76561198000000002 54 9 1 - - - . extra\n"
                             "h 76561198000000002 54 6 3 - 0:t.0:t - t\r\n"
                             "h 76561198000000002 41 2 1 - 0:- - .\r\n"
                             "h 76561198000000002 41 3 1 - 0:t - .\r\n";
   r = parse_record(worse, &bad);
-  assert(bad == 10 && r.lines.size() == 8 && r.find('h', kGuestId, 54)->e.seq == 7);
+  assert(bad == 11 && r.lines.size() == 9 && r.find('h', kGuestId, 54)->e.seq == 7);
   assert(r.find('h', kGuestId, 41)->e.seq == 3); // '-' on its 't' step was skipped; the CRLF line after it is good.
   // A missing or empty file: nothing; the live quests decide.
   assert(parse_record("", &bad).lines.empty() && bad == 0);
@@ -475,7 +490,7 @@ void record_file() {
   Entry e = r.find('h', kGuestId, 54)->e;
   e.seq = 8;
   r.put('h', kGuestId, e);
-  assert(r.find('h', kGuestId, 54)->e.seq == 8 && r.find('g', kHostId, 54)->e.seq == 7 && r.lines.size() == 8);
+  assert(r.find('h', kGuestId, 54)->e.seq == 8 && r.find('g', kHostId, 54)->e.seq == 7 && r.lines.size() == 9);
 }
 
 // The host's snapshot takes every state from its live quests, never from the file, and keeps the file's marks.
@@ -700,12 +715,14 @@ void requests() {
   k.host_zone = k.guest_zone = "Zone_WLA_10";
   p = k.step();
   assert(p.act == Act::accept && p.ready() && k.gw.v[r6].state == 1 && k.gw.v[r6].groups == 2);
-  // Its task, done by the host: hers reaches state 2 and stops there, as the host's did.
+  // Its task, done by the host: its hand-in takes an item, so hers waits for her own pickup (item). Her own play
+  // brings it to state 2, where it stops, as the host's did.
   k.hw.play(r6);
   k.step();
-  assert(k.gw.v[r6].state == 2 && k.hw.v[r6].state == 2);
+  assert(k.gw.v[r6].state == 1 && k.guest.planned(77).why == Why::item && k.said_has("wait 1 77 2 item"));
+  k.gw.play(r6);
   k.step();
-  assert(k.said_has("have 1 77 2"));
+  assert(k.gw.v[r6].state == 2 && k.hw.v[r6].state == 2 && k.said_has("have 1 77 2"));
   // The host hands it in: she hands hers in at her own board (board), never our code.
   k.hw.hand_in(r6);
   p = k.step();
@@ -723,21 +740,21 @@ void requests() {
 void marks_from_the_host() {
   // A step the tables cannot place carries the zone where the host saw it happen; the guest applies it there. The
   // index is the record's: another partner's line holds index 0, so this generation names index 1 only.
-  auto link = std::make_unique<Link>(parse_record("h 76561198000000009 134 2 3 - 0:Zone_Old - Zone_Old\n"));
+  auto link = std::make_unique<Link>(parse_record("h 76561198000000009 70 2 1 - 0:Zone_Old - .\n"));
   Link &k = *link;
   k.step();
-  const size_t w = at("Quest_WALN10_001"), r12 = at("Quest_Request_012");
+  const size_t w = at("Quest_Sub_029"), r12 = at("Quest_Request_012");
   k.hw.acquire(w);
   k.step();
   k.host_zone = k.guest_zone = "Zone_WLB_20";
   k.hw.play(w);
   Plan p = k.step();
   assert(k.sent.size() == 3 && k.sent[0] == q("at 1 Zone_WLB_20") && k.sent[1] == q("zone 1 1 Zone_WLB_20") &&
-         k.sent[2] == q("q 1 2 134 3 - 0:z1 - z1"));
-  // She stood there with the host: applied at once (its warp moves her, as in solo play).
-  assert(p.ready() && k.gw.v[w].state == 3 && step(R("Quest_WALN10_001"), 1).warp);
+         k.sent[2] == q("q 1 2 70 1 - 0:z1 - ."));
+  // She stood there with the host: applied at once.
+  assert(p.ready() && k.gw.v[w].active == 1);
   // A record line keeps the alias.
-  assert(record_text(k.host.record(), 0).find("134 2 3 - 0:Zone_WLB_20 - Zone_WLB_20\n") != std::string::npos);
+  assert(record_text(k.host.record(), 0).find("70 2 1 - 0:Zone_WLB_20 - .\n") != std::string::npos);
   // Done while the guest was off: at her next on, the snapshot marks it '?' (the host did not see where).
   k.hw.acquire(r12);
   k.step();
@@ -791,6 +808,22 @@ void marks_from_the_host() {
   assert(gate("Zone_WLA_10").why == Why::kill && gate("Zone_DED20", true).ready());
   h6.task[0] = Mark{'#', 0}; // But a denied kill task stays denied, forced or not.
   assert(gate("Zone_WLA_10", true).why == Why::deny && !gate("Zone_WLA_10", true).forced);
+  {
+    // An item task: I whatever the line's mark, never forced. Her Quest_Sub_005 is in group 1 (the wafers, the
+    // resurrection item and a TaskCondition beside them); the TaskCondition is no item task.
+    World g5;
+    const size_t i5 = at("Quest_Sub_005");
+    g5.acquire(i5), g5.play(i5);
+    Entry h5;
+    h5.id = 44, h5.seq = 1, h5.t = g5.tuple(i5), h5.t.tasks = 1, h5.t.task[0] = Pos{0, 0}, h5.task[0] = Mark{'t', 0};
+    auto gate5 = [&](bool force) {
+      return plan(R("Quest_Sub_005"), h5, g5.v[i5], g5.tuple(i5), Where{"", true, force, &zs});
+    };
+    assert(g5.v[i5].active == 1 && gate5(false).why == Why::item && gate5(true).why == Why::item);
+    assert(!gate5(true).forced);
+    h5.t.task[0] = Pos{0, 2};
+    assert(gate5(false).why == Why::zone);
+  }
   // A position her group does not have: blocked, nothing applied.
   h6.t.task[0] = Pos{1, 0};
   assert(gate("Zone_WLA_10").why == Why::blocked && !gate("Zone_WLA_10").ready());
@@ -995,19 +1028,19 @@ void lost_lines() {
 void board_elsewhere() {
   auto link = std::make_unique<Link>();
   Link &k = *link;
-  const size_t r6 = at("Quest_Request_006");
-  k.host_zone = k.guest_zone = "Zone_WLA_10";
-  k.hw.v[r6].state = k.gw.v[r6].state = 0;
+  const size_t r1 = at("Quest_Request_001");
+  k.host_zone = k.guest_zone = "Zone_Xion_22";
+  k.hw.v[r1].state = k.gw.v[r1].state = 0;
   k.step();
-  k.hw.acquire(r6);
+  k.hw.acquire(r1);
   k.steps(2);
-  k.hw.play(r6);
+  k.hw.play(r1);
   k.steps(2);
-  assert(k.gw.v[r6].state == 2 && k.applied == 2);
+  assert(k.gw.v[r1].state == 2 && k.applied == 2);
   k.guest_zone = "Zone_DED20";
-  k.hw.hand_in(r6);
+  k.hw.hand_in(r1);
   k.steps(2);
-  assert(k.guest.planned(kRows[r6].id).why == Why::board && k.guest.behind.empty() && k.gw.v[r6].state == 2);
+  assert(k.guest.planned(kRows[r1].id).why == Why::board && k.guest.behind.empty() && k.gw.v[r1].state == 2);
 }
 
 // Her own reload: a save from inside the steps she shared with the host gets them again, once each; a save from
@@ -1209,7 +1242,7 @@ void checks() {
   assert(!in("q 2 1 77 1 - - - ."));                    // '-' on a 't' step.
   assert(!in("q 2 1 80 2 - 0:z5 - .") && !in("q 2 1 80 2 - 0:z5 - ."));  // An index not named: dropped, logged once,
   assert(in("zone 2 5 Zone_E") && in("q 2 1 80 2 - 0:z5 - ."));           // and taken once it is.
-  assert(!in("q 2 1 139 2 - 0:z1 - .") && in("q 2 1 134 3 - 0:z2 - z2") && in("q 2 1 82 1 # - - ."));
+  assert(!in("q 2 1 139 2 - 0:z1 - .") && in("q 2 1 70 3 - 0:z2.0:-.0:z2 - z2") && in("q 2 1 82 1 # - - ."));
   assert(*g.zones().name(2) == "Zone_C" && !g.zones().name(1));
   assert(!in("have 2 54 1") && !in("ahead 2 54"));      // Guest lines from the host.
   assert(in("at 2 Zone_A") && !in("at 3 Zone_A"));      // The host's zone, in its generation.

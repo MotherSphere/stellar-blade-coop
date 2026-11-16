@@ -24,8 +24,11 @@ on the next co-op save), while a load (the title screen, a map change) only paus
   position), which the game builds the same on both PCs from the same tables.
 - Each step carries a mark that says where it may be made: `-` anywhere (no zone event, or only quest, item, UI or
   hint events), `t` in the zones the game's tables give for its events (spawns, despawns, environment changes, scenes),
-  `z<n>` in the zone where the host stood when its pass saw the step (for the 38 steps the tables cannot place), `?`
-  for such a step the host's pass did not see, `K` for a kill task and `#` for a quest the host denies. The table that
+  `z<n>` in the zone where the host stood when its pass saw the step (for the 33 steps the tables cannot place), `?`
+  for such a step the host's pass did not see, `K` for a kill task, `I` for an item task and `#` for a quest the host
+  denies. `kItems` lists the 19 item tasks, which are never forced: every task of a Request whose hand-in removes an
+  item (the board pays the reward with no item check), plus each RequireItem task in count mode 1 in a container of
+  several tasks (the game puts it back in progress when her count drops while its group is open). The table that
   gives each step's class, zones and events is built into `quest/sync.h` from the tables of build 26123051; another
   game build needs it built again.
 - The guest's pass compares each host line with her own quest and plans the next forward step: an Epic or Sub quest

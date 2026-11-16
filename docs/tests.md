@@ -586,9 +586,9 @@ The C++ tests cover the platform-free headers in `native/src`.
 
 ### Quests
 
-- `quest_sync_test`: the shared quests' quest table, line format and parser (with a fuzz), the host's and the guest's
-  rules, the zone marks, the steps made together and those that are not, the record file, and lost lines and
-  reloads;
+- `quest_sync_test`: the shared quests' quest table (its kill and item tasks), line format and parser (with a fuzz),
+  the host's and the guest's rules, the zone marks, the item hold, the steps made together and those that are not,
+  the record file, and lost lines and reloads;
 - `quest_engine_test`: the shared quests against a fake quest unit: the walk, the guards before each game call, the
   gate, a fault, two PCs through channel 2's text with delay and loss, a recording replayed into another save, and
   the worker's side (the gates that start and end a side, channel 2's lines beside the fight's, the record file and

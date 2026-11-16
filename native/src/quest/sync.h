@@ -18,6 +18,8 @@
 //   z<n>  the tables cannot place it, and the host saw it happen in zone n of this generation: applies there
 //   K     a KillTarget task: held until her own copy completes it (her kill, or a shared enemy that died in both
 //         worlds); a forced step leaves the target alive
+//   I     an item task: held until her own copy completes it from her own pickup, since the partner's line would give
+//         the task without the item; never forced
 //   #     never applied: a Request her board cannot accept, or a quest the host lists in quest_deny
 //   ?     the tables cannot place it and the host did not see it happen, or its group read no complete container
 // A step that waits holds the later steps of its quest, and the acquire of a quest SB gives inside it (kChains), only.
@@ -38,8 +40,8 @@
 //   SBQn end <gen> <count> <digest>          host: the snapshot's end, FNV-1a 64 of its zone and q lines
 //   SBQn at <gen> <alias>                    both: the sender's zone, on change (the host's after each snapshot)
 //   SBQn have <gen> <id> <seq>               guest: her quest holds every part of that line
-//   SBQn wait <gen> <id> <seq> <why>         guest: its next step waits: kill, deny, unseen, board (a Request she hands
-//                                            in at her own board), locked (not on her board yet), or a zone alias
+//   SBQn wait <gen> <id> <seq> <why>         guest: its next step waits: kill, item, deny, unseen, board (a Request she
+//                                            hands in at her own board), locked (not on her board yet), or a zone alias
 //   SBQn ahead <gen> <id>                    guest: her quest holds a part the host's lacks
 // The record file next to each co-op slot (record_text()) keeps the host's marks per partner (h lines) and the
 // host's last line per quest on the guest's side (g lines), in the same fields with zone aliases in place of indices.
@@ -84,6 +86,10 @@ struct Kill {
   uint16_t id;
   uint8_t group, container, position;
 };
+// An item task, at the same place as a kill task: every task of a Request whose hand-in takes an item away (the board
+// completes the Request with no item check), and each RequireItem task that recounts her inventory in a container of
+// several tasks (SB puts it back to in progress when her count drops while its group is open).
+using Item = Kill;
 // A shared quest that SB acquires inside a step of another one (a NextQuest, or an AcquireQuest event): her acquire
 // waits until her parent quest made that step, so her quests move in the order SB gives them.
 struct Chain {
@@ -186,23 +192,22 @@ constexpr Row kRows[] = {
     {116, "Quest_Sub_041", 'S', false, 4, "1 1 1 1", 292},
     {117, "Quest_Sub_042", 'S', false, 4, "1 1 1 1", 297},
     {118, "Quest_Sub_043", 'S', false, 2, "1 1", 302},
-    {134, "Quest_WALN10_001", 'S', false, 1, "1,0,0,0,0", 305},
-    {139, "Quest_Request_023", 'R', true, 1, "1", 307},
-    {140, "Quest_Request_024", 'R', true, 1, "1", 309},
-    {141, "Quest_Request_025", 'R', true, 1, "1", 311},
-    {142, "Quest_Request_026", 'R', true, 1, "1", 313},
-    {143, "Quest_Request_028", 'R', true, 1, "1", 315},
-    {144, "Quest_Request_022_hidden", 'S', false, 1, "6", 317},
-    {151, "Quest_Request_029", 'R', true, 1, "1", 319},
-    {152, "Quest_Request_030", 'R', true, 1, "1", 321},
-    {153, "Quest_Request_031", 'R', true, 1, "1", 323},
-    {156, "Quest_Request_032", 'R', true, 1, "1", 325},
-    {157, "Quest_Request_033", 'R', true, 1, "1", 327},
-    {158, "Quest_Request_034", 'R', true, 1, "1", 329},
-    {159, "Quest_Request_035", 'R', true, 1, "1", 331},
-    {160, "Quest_Request_036", 'R', true, 1, "1", 333},
-    {161, "Quest_Request_037", 'R', true, 1, "1", 335},
-    {162, "Quest_Request_038", 'R', true, 1, "1", 337},
+    {139, "Quest_Request_023", 'R', true, 1, "1", 305},
+    {140, "Quest_Request_024", 'R', true, 1, "1", 307},
+    {141, "Quest_Request_025", 'R', true, 1, "1", 309},
+    {142, "Quest_Request_026", 'R', true, 1, "1", 311},
+    {143, "Quest_Request_028", 'R', true, 1, "1", 313},
+    {144, "Quest_Request_022_hidden", 'S', false, 1, "6", 315},
+    {151, "Quest_Request_029", 'R', true, 1, "1", 317},
+    {152, "Quest_Request_030", 'R', true, 1, "1", 319},
+    {153, "Quest_Request_031", 'R', true, 1, "1", 321},
+    {156, "Quest_Request_032", 'R', true, 1, "1", 323},
+    {157, "Quest_Request_033", 'R', true, 1, "1", 325},
+    {158, "Quest_Request_034", 'R', true, 1, "1", 327},
+    {159, "Quest_Request_035", 'R', true, 1, "1", 329},
+    {160, "Quest_Request_036", 'R', true, 1, "1", 331},
+    {161, "Quest_Request_037", 'R', true, 1, "1", 333},
+    {162, "Quest_Request_038", 'R', true, 1, "1", 335},
 };
 constexpr Step kSteps[] = {
     // EQ_Arcade_Q04
@@ -636,9 +641,6 @@ constexpr Step kSteps[] = {
     {'t', false, "Zone_Xion_10", "Xion_10_E_CharS_164"},
     {'-', false, "", ""},
     {'-', false, "", ""},
-    // Quest_WALN10_001
-    {'-', false, "", ""},
-    {'h', true, "", "Quest_WALN10_001_E_ZoneWarp__026_001"},
     // Quest_Request_023
     {'-', false, "", ""},
     {'h', false, "", "Quest_Request_023_E_Theater__017_001"},
@@ -707,6 +709,27 @@ constexpr Kill kKills[] = {
     {116, 1, 0, 0}, // Quest_Sub_041_M02_T01
     {117, 1, 0, 0}, // Quest_Sub_042_M02_T01
 };
+constexpr Item kItems[] = {
+    {44, 1, 0, 0}, // Quest_Sub_005_M02_T01
+    {44, 1, 0, 1}, // Quest_Sub_005_M02_T02
+    {44, 2, 0, 1}, // Quest_Sub_005_M03_T02
+    {44, 2, 0, 2}, // Quest_Sub_005_M03_T03
+    {44, 2, 0, 3}, // Quest_Sub_005_M03_T04
+    {77, 0, 0, 0}, // Quest_Request_006_M01_T01
+    {84, 0, 0, 0}, // Quest_Request_010_M01_T01
+    {85, 0, 0, 0}, // Quest_Request_016_M01_T01
+    {88, 0, 0, 0}, // Quest_Request_008_M01_T01
+    {99, 0, 0, 0}, // Quest_Request_018_M01_T01
+    {139, 0, 0, 0}, // Quest_Request_023_M01_T01
+    {140, 0, 0, 0}, // Quest_Request_024_M01_T01
+    {141, 0, 0, 0}, // Quest_Request_025_M01_T01
+    {143, 0, 0, 0}, // Quest_Request_028_M01_T01
+    {157, 0, 0, 0}, // Quest_Request_033_M01_T01
+    {158, 0, 0, 0}, // Quest_Request_034_M01_T01
+    {159, 0, 0, 0}, // Quest_Request_035_M01_T01
+    {160, 0, 0, 0}, // Quest_Request_036_M01_T01
+    {161, 0, 0, 0}, // Quest_Request_037_M01_T01
+};
 constexpr Chain kChains[] = {
     {15, 14, 1}, // Quest_Epic_02: Quest_Epic_01 step 1
     {16, 15, 8}, // Quest_Epic_03: Quest_Epic_02 step 8
@@ -760,6 +783,14 @@ inline bool kill_task(uint32_t id, size_t g, size_t c, size_t p) {
   return std::any_of(std::begin(kKills), std::end(kKills),
                      [&](const Kill &k) { return k.id == id && k.group == g && k.container == c && k.position == p; });
 }
+inline bool item_task(uint32_t id, size_t g, size_t c, size_t p) {
+  return std::any_of(std::begin(kItems), std::end(kItems),
+                     [&](const Item &k) { return k.id == id && k.group == g && k.container == c && k.position == p; });
+}
+// The hold of a task her own copy must complete: 'K' a kill task, 'I' an item task, 0 none.
+inline char held_task(uint32_t id, size_t g, size_t c, size_t p) {
+  return kill_task(id, g, c, p) ? 'K' : item_task(id, g, c, p) ? 'I' : 0;
+}
 inline const Chain *chain(uint32_t id) {
   const Chain *k = std::find_if(std::begin(kChains), std::end(kChains), [&](const Chain &x) { return x.id == id; });
   return k == std::end(kChains) ? nullptr : k;
@@ -809,7 +840,7 @@ constexpr int8_t kFailed = 5;         // ESBQuestState: -1 not on the board yet 
 inline bool complete(int8_t state) { return state == 3 || state == 4; }
 
 struct Mark {
-  char kind = '-';  // '-', 't', 'z', 'K', '#', '?'; a done field's '.' (not complete)
+  char kind = '-';  // '-', 't', 'z', 'K', 'I', '#', '?'; a done field's '.' (not complete)
   uint8_t zone = 0; // 'z': a zone index
 };
 inline bool operator==(Mark a, Mark b) { return a.kind == b.kind && (a.kind != 'z' || a.zone == b.zone); }
@@ -956,7 +987,7 @@ inline std::string mark_text(Mark m, const Zones *aliases) {
   return name ? *name : aliases ? "?" : "z" + std::to_string(m.zone);
 }
 inline bool mark(std::string_view s, Mark &out, Zones *aliases) {
-  if (s.size() == 1 && std::string_view("-tK#?").find(s[0]) != std::string_view::npos) {
+  if (s.size() == 1 && std::string_view("-tKI#?").find(s[0]) != std::string_view::npos) {
     out = Mark{s[0], 0};
     return true;
   }
@@ -1052,34 +1083,35 @@ inline bool parse_fields(const std::string &text, Entry &e, Zones *aliases = nul
 
 // Whether an entry fits its row: groups, containers and positions within what SB builds from the tables, every
 // table group finished once the state is 2 or more, and each mark one that step can have (K only on a KillTarget task,
-// '-', 't' and 'z' only where the table puts that step, '#' and '?' anywhere).
+// I only on an item task, '-', 't' and 'z' only where the table puts that step, '#' and '?' anywhere).
 inline bool fits(const Row &r, const Entry &e) {
   const Tuple &t = e.t;
-  auto ok = [&](Mark m, size_t i, bool kill) {
+  auto ok = [&](Mark m, size_t i, char hold) {
     const char c = step(r, i).mark;
     switch (m.kind) {
     case '#':
     case '?': return true;
-    case 'K': return kill;
+    case 'K':
+    case 'I': return m.kind == hold;
     case '-': return c == '-';
     case 't': return c == 't';
     case 'z': return c == 'h';
     default: return false;
     }
   };
-  if (t.groups > r.groups || (t.state >= 2 && t.state != kFailed && t.groups != r.groups) || !ok(e.acq, 0, false))
+  if (t.groups > r.groups || (t.state >= 2 && t.state != kFailed && t.groups != r.groups) || !ok(e.acq, 0, 0))
     return false;
   for (size_t g = 0; g < t.groups; ++g)
-    if ((t.cont[g] >= containers(r, g) && !(t.cont[g] == 0 && e.group[g].kind == '?')) || !ok(e.group[g], 1 + g, false))
+    if ((t.cont[g] >= containers(r, g) && !(t.cont[g] == 0 && e.group[g].kind == '?')) || !ok(e.group[g], 1 + g, 0))
       return false;
   const size_t a = t.groups;
   for (size_t i = 0; i < t.tasks; ++i) {
     const Pos p = t.task[i];
-    if (a >= r.groups || p.p >= tasks(r, a, p.c) || !ok(e.task[i], 1 + a, kill_task(r.id, a, p.c, p.p)))
+    if (a >= r.groups || p.p >= tasks(r, a, p.c) || !ok(e.task[i], 1 + a, held_task(r.id, a, p.c, p.p)))
       return false;
   }
   return e.done.kind == '.' || e.done.kind == '-' || e.done.kind == '#' || e.done.kind == '?' ||
-         (r.groups && ok(e.done, r.groups, false));
+         (r.groups && ok(e.done, r.groups, 0));
 }
 
 // ---- Lines ----
@@ -1094,7 +1126,8 @@ struct Message {
   std::string text;    // zone and at: the alias; wait: why; off: the reason
   Entry e;             // q: the quest; have, wait and ahead: its id, and seq
 };
-constexpr const char *kWhy[] = {"kill", "deny", "unseen", "board", "locked"}; // A wait's reasons beside a zone alias.
+// A wait's reasons beside a zone alias.
+constexpr const char *kWhy[] = {"kill", "deny", "unseen", "board", "locked", "item"};
 constexpr uint64_t kOffset = 0xcbf29ce484222325ull;                             // FNV-1a 64.
 inline uint64_t fnv(uint64_t h, std::string_view text) {
   for (char c : text)
@@ -1371,12 +1404,12 @@ private:
     }
     return false;
   }
-  // A new part's mark: K on a kill task, else the table's; an 'h' step's is the host's zone (added to the record's
-  // zones) when its pass saw it happen, else '?'.
-  Mark mark(size_t i, size_t s, std::string_view zone, bool kill = false) {
+  // A new part's mark: K on a kill task, I on an item task, else the table's; an 'h' step's is the host's zone (added
+  // to the record's zones) when its pass saw it happen, else '?'.
+  Mark mark(size_t i, size_t s, std::string_view zone, char hold = 0) {
     const char c = step(kRows[i], s).mark;
-    const int z = !kill && c == 'h' && !zone.empty() ? record_.zones.add(zone) : -1;
-    return kill ? Mark{'K', 0} : c != 'h' ? Mark{c, 0} : z >= 0 ? Mark{'z', uint8_t(z)} : Mark{'?', 0};
+    const int z = !hold && c == 'h' && !zone.empty() ? record_.zones.add(zone) : -1;
+    return hold ? Mark{hold, 0} : c != 'h' ? Mark{c, 0} : z >= 0 ? Mark{'z', uint8_t(z)} : Mark{'?', 0};
   }
   // The entry for a live tuple. A part old holds keeps its mark ('?' stays '?') and, when its group now reads unsure,
   // its container; a '#' an earlier quest_deny left is marked again with zone "" (an 'h' step gets '?'). A new part
@@ -1387,12 +1420,12 @@ private:
     const Tuple *o = old ? &old->t : nullptr;
     Entry e;
     e.id = r.id, e.t = t, e.seq = old ? old->seq : 0;
-    auto kept = [&](Mark m, size_t s, bool kill) { return m.kind == '#' ? mark(i, s, "", kill) : m; };
-    e.acq = o && o->state >= 1 && t.state >= 1 ? kept(old->acq, 0, false) : mark(i, 0, zone);
+    auto kept = [&](Mark m, size_t s, char hold) { return m.kind == '#' ? mark(i, s, "", hold) : m; };
+    e.acq = o && o->state >= 1 && t.state >= 1 ? kept(old->acq, 0, 0) : mark(i, 0, zone);
     for (size_t g = 0; g < t.groups; ++g) {
       const bool unsure = t.unsure >> g & 1;
       if (o && g < o->groups) {
-        e.group[g] = kept(old->group[g], 1 + g, false);
+        e.group[g] = kept(old->group[g], 1 + g, 0);
         if (unsure)
           e.t.cont[g] = o->cont[g];
       } else {
@@ -1402,12 +1435,12 @@ private:
     const size_t a = t.groups;
     for (size_t j = 0; j < t.tasks; ++j) {
       const Pos p = t.task[j];
-      const bool kill = kill_task(r.id, a, p.c, p.p);
+      const char hold = held_task(r.id, a, p.c, p.p);
       const Mark *had = nullptr;
       for (size_t k = 0; o && o->state == 1 && o->groups == a && k < o->tasks; ++k)
         if (o->task[k].c == p.c && o->task[k].p == p.p)
           had = &old->task[k];
-      e.task[j] = had ? kept(*had, 1 + a, kill) : mark(i, 1 + a, zone, kill);
+      e.task[j] = had ? kept(*had, 1 + a, hold) : mark(i, 1 + a, zone, hold);
     }
     e.done = !complete(t.state) ? Mark{'.', 0} : r.type != 'R' && t.groups ? e.group[t.groups - 1] : Mark{'-', 0};
     if (deny_[i]) {
@@ -1500,6 +1533,7 @@ enum class Why : uint8_t {
   go,      // apply it now
   zone,    // waits until she stands in Plan::zone
   kill,    // a KillTarget task her own copy has not completed
+  item,    // an item task her own copy has not completed from her own pickup
   deny,    // never applied
   unseen,  // the host did not see where it happened
   board,   // a Request ready to hand in at her own board
@@ -1521,6 +1555,7 @@ inline const char *why_word(Why w) {
   case Why::unseen: return kWhy[2];
   case Why::board: return kWhy[3];
   case Why::locked: return kWhy[4];
+  case Why::item: return kWhy[5];
   default: return nullptr;
   }
 }
@@ -1578,6 +1613,8 @@ inline Plan plan(const Row &r, const Entry &h, const View &v, const Tuple &g, co
     } else if (m.kind == 'K' || m.kind == '?') {
       p.forced = w.force;
       p.why = w.force ? Why::go : m.kind == 'K' ? Why::kill : Why::unseen;
+    } else if (m.kind == 'I') {
+      p.why = Why::item;
     } else {
       p.why = Why::deny;
     }
@@ -1618,9 +1655,10 @@ inline Plan plan(const Row &r, const Entry &h, const View &v, const Tuple &g, co
   if (a >= r.groups || a >= v.groups)
     return p;
   p.act = Act::complete, p.group = uint8_t(a), p.step = r.step + 1 + a;
-  auto task = [&](size_t c, size_t q, Mark m) { // K on a kill task, but '#' stays '#'.
+  auto task = [&](size_t c, size_t q, Mark m) { // K on a kill task, I on an item task, but '#' stays '#'.
     p.container = uint8_t(c), p.position = uint8_t(q);
-    return gate(m.kind != '#' && kill_task(r.id, a, c, q) ? Mark{'K', 0} : m);
+    const char hold = held_task(r.id, a, c, q);
+    return gate(m.kind != '#' && hold ? Mark{hold, 0} : m);
   };
   if (a < H.groups) { // The host finished it: her next task in progress in the host's container.
     const size_t c = H.cont[a];
@@ -1864,7 +1902,7 @@ public:
   }
   // coop quests force <id>: the next pass applies that quest's held step where she stands, once, when it waits for
   // a kill or as unseen. False when no host line holds that quest. forced() then holds that pass's plan for it:
-  // Plan::forced when it went, else why it did not (a zone, the board and the rest are never forced).
+  // Plan::forced when it went, else why it did not (a zone, the board, an item task and the rest are never forced).
   bool force(uint16_t id) {
     const int i = row_index(id);
     if (i < 0 || !held_[size_t(i)])

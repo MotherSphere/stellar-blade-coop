@@ -847,6 +847,7 @@ private:
     case Why::go: return "ready";
     case Why::zone: return "waits for its zone";
     case Why::kill: return "waits for your own kill";
+    case Why::item: return "waits for your own pickup";
     case Why::deny: return "denied";
     case Why::unseen: return "unseen by the host";
     case Why::board: return "hand it in at your board";
@@ -917,8 +918,9 @@ private:
   // reason; ahead: hers (on the host's side, the quests her ahead named this generation); the poll's time since the
   // last line.
   std::string stats() const {
-    static constexpr const char *kKeys[] = {"go",     "zone",   "kill",   "deny",    "unseen",  "board", "locked",
-                                            "chain",  "ahead",  "behind", "failed",  "unarmed", "blocked", "done"};
+    static constexpr const char *kKeys[] = {"go",     "zone",   "kill",   "item",   "deny",    "unseen",  "board",
+                                            "locked", "chain",  "ahead",  "behind", "failed",  "unarmed", "blocked",
+                                            "done"};
     static_assert(std::size(kKeys) == size_t(Why::done) + 1, "one key per Why");
     size_t tracked = 0, held[std::size(kKeys)] = {};
     for (size_t i = 0; i < kRowCount; ++i)

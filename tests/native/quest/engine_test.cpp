@@ -881,13 +881,17 @@ void two_worlds() {
   h.play(s1), h.play(s1), steps += 2;
   k.steps(4);
   assert(g.w.v[s1].state == 3 && k.g(s1) == k.h(s1) && g.calls == steps && g.completes == 4);
-  // A Request on both boards: her accept by the apply (its acquire events act in Zone_WLA_10, where both stand), its
-  // task, then she waits at CanComplete until she hands it in at her own board.
+  // A Request on both boards: her accept by the apply (its acquire events act in Zone_WLA_10, where both stand); its
+  // task takes an item at the hand-in, so it waits for her own pickup; then she waits at CanComplete until she hands
+  // it in at her own board.
   h.w.v[r6].state = g.w.v[r6].state = 0, h.render(), g.render();
   h.acquire(r6), ++steps;
   k.steps(2);
   assert(g.accepts == 1 && g.w.v[r6].state == 1);
-  h.play(r6), ++steps;
+  h.play(r6);
+  k.steps(2);
+  assert(g.w.v[r6].state == 1 && has(k.guest->log, "quests: Quest_Request_006 (77) held: waits for your own pickup"));
+  g.play(r6);
   k.steps(2);
   assert(g.w.v[r6].state == 2);
   h.w.hand_in(r6), h.render();
@@ -1118,14 +1122,13 @@ void unlisted() {
   assert(count(k.host->log, "a save load") == 1);
 }
 
-// coop quests force: a step held as unseen (here the host's zone could not be read when it ended Quest_WALN10_001's
-// group, whose warp the tables cannot place) goes where she stands, once, and the notice says SB moves her; a zone
-// hold is never forced.
+// coop quests force: a step held as unseen (here the host's zone could not be read when it ended Quest_Sub_029's
+// group 0, which the tables cannot place) goes where she stands, once; a zone hold is never forced.
 void forced() {
   auto two = std::make_unique<Two>();
   Two &k = *two;
   Pc &h = k.host->pc, &g = k.guest->pc;
-  const size_t w = at("Quest_WALN10_001"), s1 = at("Quest_Sub_001");
+  const size_t w = at("Quest_Sub_029"), s1 = at("Quest_Sub_001");
   k.zone("Zone_WLA_10");
   k.steps(4);
   h.acquire(w), h.acquire(s1);
@@ -1134,12 +1137,12 @@ void forced() {
   h.zone("");
   h.play(w);
   k.steps(3);
-  assert(k.noted(Why::unseen, 134) && g.w.v[w].state == 1);
-  k.guest->e.force(134);
+  assert(k.noted(Why::unseen, 70) && g.w.v[w].state == 1);
+  k.guest->e.force(70);
   k.steps(2);
-  assert(g.w.v[w].state == 3 && has(k.guest->log, "Quest_WALN10_001 task 0.0.0 applied (forced)"));
+  assert(g.w.v[w].active == 1 && has(k.guest->log, "Quest_Sub_029 task 0.0.0 applied (forced)"));
   assert(std::any_of(k.guest->notes.begin(), k.guest->notes.end(),
-                     [](const Note &n) { return n.forced && n.why == Why::go && n.id == 134 && n.warp; }));
+                     [](const Note &n) { return n.forced && n.why == Why::go && n.id == 70 && !n.warp; }));
   h.zone("Zone_WLA_10");
   h.play(s1); // Its group 0 acts in Zone_WLA_30.
   k.steps(3);
