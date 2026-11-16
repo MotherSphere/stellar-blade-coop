@@ -29,7 +29,8 @@ constexpr uint64_t kPadRetryMs = 2000;      // A slot with no pad is asked again
 // whether any pad is connected.
 struct PadState {
   static constexpr uint16_t DPAD_UP = 0x0001, DPAD_DOWN = 0x0002, DPAD_LEFT = 0x0004, DPAD_RIGHT = 0x0008,
-                            BACK = 0x0020, LEFT_SHOULDER = 0x0100, RIGHT_SHOULDER = 0x0200, A = 0x1000, B = 0x2000;
+                            BACK = 0x0020, LEFT_SHOULDER = 0x0100, RIGHT_SHOULDER = 0x0200, A = 0x1000, B = 0x2000,
+                            Y = 0x8000;
   uint16_t buttons = 0;
   int16_t lx = 0, ly = 0;
   bool connected = false;
@@ -37,13 +38,13 @@ struct PadState {
 
 class Pad {
 public:
-  enum Event : uint8_t { kNone = 0, kUp, kDown, kLeft, kRight, kSelect, kBack, kMenu, kTabLeft, kTabRight };
+  enum Event : uint8_t { kNone = 0, kUp, kDown, kLeft, kRight, kSelect, kBack, kMenu, kTabLeft, kTabRight, kRefresh };
 
   // Each poll. Directions (the D-pad or the left stick) on their press; up and down again after kPadRepeatDelayMs
   // and every kPadRepeatEveryMs while held (left and right change a value: once a press). A diagonal is up or down
   // (the stick: its main axis, and near 45 degrees the axis already pressed, so noise does not flip it), so a move
-  // never changes a value too. A, B, LB and RB on their press only; View once it was held kPadMenuHoldMs, once a
-  // hold. One step's events go in event order. No pad connected forgets what was held, so the next press is a new one;
+  // never changes a value too. A, B, LB, RB and Y (the session list's Refresh) on their press only; View once it was
+  // held kPadMenuHoldMs, once a hold. One step's events go in event order. No pad connected forgets what was held, so the next press is a new one;
   // the events already made stay.
   void step(const PadState &s, uint64_t now_ms) {
     if (!s.connected) {
@@ -105,6 +106,8 @@ public:
       push(kTabLeft);
     if (pressed & PadState::RIGHT_SHOULDER)
       push(kTabRight);
+    if (pressed & PadState::Y)
+      push(kRefresh);
   }
 
   // The oldest event waiting, or kNone.
@@ -128,7 +131,7 @@ private:
 
   std::array<bool, 4> held_{}, stick_{}; // Up, down, left, right: the direction, and the stick's part of it.
   std::array<uint64_t, 4> next_{};       // When each held direction repeats next.
-  uint16_t buttons_ = 0;                 // The last step's, for A's, B's, LB's and RB's press.
+  uint16_t buttons_ = 0;                 // The last step's, for A's, B's, LB's, RB's and Y's press.
   bool back_held_ = false, menu_sent_ = false;
   uint64_t back_since_ = 0;
   std::array<uint8_t, kPadRing> ring_{};

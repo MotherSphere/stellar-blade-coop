@@ -125,8 +125,8 @@ if loaded then
     if type(f)=='function' then native_pad=f
     else log('Native pad unavailable (no controller in the co-op menu): '..tostring(pad_why)) end
 end
--- The DLL links no Lua: its event (0 for none) is how many of these nine arguments it hands back.
-local function pad() return select('#',native_pad(0,0,0,0,0,0,0,0,0)) end
+-- The DLL links no Lua: its event (0 for none) is how many of these ten arguments it hands back.
+local function pad() return select('#',native_pad(0,0,0,0,0,0,0,0,0,0)) end
 local link=loaded and require('core.link').new(folder) or nil
 local settings=nil
 if link then
@@ -968,12 +968,13 @@ end
 -- the same way. Nothing while the host's question is open (A is Jump and the D-pad uses items: a press meant for the
 -- game never answers a stranger), nor while the menu waits for a key, but back, which stops the wait (menu.nav). The
 -- chat's box and the code box take only back, which closes them as Esc does: nothing typed, nothing sent, and a pad
--- alone is never stuck there. LB and RB (tab_left, tab_right) change C's tabs while C is open, and nothing elsewhere.
-local PAD={'up','down','left','right','select','back','menu','tab_left','tab_right'}
+-- alone is never stuck there. LB and RB (tab_left, tab_right) change C's tabs while C is open, and nothing elsewhere;
+-- Y (refresh) does nothing yet.
+local PAD={'up','down','left','right','select','back','menu','tab_left','tab_right','refresh'}
 local function pad_event(what)
     if approval.is_open() then return end
-    if what=='tab_left' or what=='tab_right' then
-        if lobby.is_open()=='settings' then lobby.nav(what) end
+    if what=='tab_left' or what=='tab_right' or what=='refresh' then
+        if what~='refresh' and lobby.is_open()=='settings' then lobby.nav(what) end
         return
     end
     if lobby.is_open() then

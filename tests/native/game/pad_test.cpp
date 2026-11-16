@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The pad's events for the co-op menu, checked on the build machine (no Windows, no XInput): edges, the held
-// direction's repeats (up and down only), diagonals, the stick's thresholds, the View hold, LB and RB, a disconnect,
+// direction's repeats (up and down only), diagonals, the stick's thresholds, the View hold, LB, RB and Y, a disconnect,
 // the ring, and the slots asked at each poll.
 #include "game/pad.h"
 
@@ -33,9 +33,11 @@ using V = std::vector<int>;
 int main() {
   static_assert(PadState::DPAD_UP == 0x0001 && PadState::DPAD_DOWN == 0x0002 && PadState::DPAD_LEFT == 0x0004 &&
                 PadState::DPAD_RIGHT == 0x0008 && PadState::BACK == 0x0020 && PadState::LEFT_SHOULDER == 0x0100 &&
-                PadState::RIGHT_SHOULDER == 0x0200 && PadState::A == 0x1000 && PadState::B == 0x2000);
+                PadState::RIGHT_SHOULDER == 0x0200 && PadState::A == 0x1000 && PadState::B == 0x2000 &&
+                PadState::Y == 0x8000);
   static_assert(Pad::kUp == 1 && Pad::kDown == 2 && Pad::kLeft == 3 && Pad::kRight == 4 && Pad::kSelect == 5 &&
-                Pad::kBack == 6 && Pad::kMenu == 7 && Pad::kTabLeft == 8 && Pad::kTabRight == 9);
+                Pad::kBack == 6 && Pad::kMenu == 7 && Pad::kTabLeft == 8 && Pad::kTabRight == 9 &&
+                Pad::kRefresh == 10);
 
   { // Edges: one event per press, none while held (before the repeat), none on release.
     Pad pad;
@@ -327,6 +329,19 @@ int main() {
     assert(drain(pad) == V{Pad::kUp});
     pad.step(buttons(PadState::DPAD_UP), 3536);
     assert(drain(pad) == V{Pad::kUp});
+  }
+
+  { // Y (the session list's Refresh): one event a press, none while held or on release; after RB in one poll.
+    Pad pad;
+    pad.step(buttons(PadState::Y), 0);
+    assert(drain(pad) == V{Pad::kRefresh});
+    for (uint64_t t = 16; t <= 2000; t += 16)
+      pad.step(buttons(PadState::Y), t);
+    assert(drain(pad).empty());
+    pad.step(buttons(0), 2016);
+    assert(drain(pad).empty());
+    pad.step(buttons(PadState::Y | PadState::RIGHT_SHOULDER), 2032);
+    assert(drain(pad) == (V{Pad::kTabRight, Pad::kRefresh}));
   }
 
   { // A ring of 8: once full the newest is dropped, then it fills again as Lua takes them.

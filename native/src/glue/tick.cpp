@@ -276,8 +276,8 @@
 
 
 // Called by Lua for each pad event it takes (package.loadlib(dll, "coop_pad")), in lua_CFunction's shape, the Lua state
-// ignored. The DLL links no Lua, so the event is the result count: Lua passes 9 arguments and gets that many of them
-// back, 0 for none or game/pad.h's event 1 to 9, so this never returns more than 9. Polls the pads at most once per 8
+// ignored. The DLL links no Lua, so the event is the result count: Lua passes 10 arguments and gets that many of them
+// back, 0 for none or game/pad.h's event 1 to 10, so this never returns more than 10. Polls the pads at most once per 8
 // ms, so Lua can take several events in one frame. Never throws, never waits.
 extern "C" __declspec(dllexport) int coop_pad(void *) noexcept {
   using namespace coop::pose;
@@ -287,7 +287,7 @@ extern "C" __declspec(dllexport) int coop_pad(void *) noexcept {
     poll_pad(now);
   }
   const int event = pad.next();
-  return event >= 0 && event <= 9 ? event : 0;
+  return event >= 0 && event <= 10 ? event : 0;
 }
 
 // Called by Lua once per frame (package.loadlib(dll, "coop_tick")), in lua_CFunction's shape: the Lua state is
