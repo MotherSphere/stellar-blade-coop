@@ -124,6 +124,18 @@ inline const Mode *find_mode(std::string_view name) {
   return nullptr;
 }
 
+// The session list's rows (Find a session): the owner of a Public or Friends only online session writes these keys
+// beside kLobbyKey. kListKey=1 on a Public one only, so the Public tab's search finds it; her Steam name (kRowName
+// bytes at most), her SteamID, the members as "<n>/<max>", her map segment and camp alias (Lua's where request,
+// kMaxPlace bytes each), her rules word (Lua's rules request, kMaxRules bytes) and her ping location from Steam's
+// ConvertPingLocationToString (kMaxPingText bytes). kAskKey=1 on any online session whose host asks her Steam friends
+// too (friends_ask=on), so a friend who joins knows she waits for an answer. Any SBO client can write any of them: a
+// reader cleans each one (row_text(), row_word()).
+constexpr char kListKey[] = "sbo_list", kHostKey[] = "sbo_host", kOwnerKey[] = "sbo_owner";
+constexpr char kPlayersKey[] = "sbo_players", kZoneKey[] = "sbo_zone", kCampKey[] = "sbo_camp";
+constexpr char kPingKey[] = "sbo_ping", kRulesKey[] = "sbo_rules", kAskKey[] = "sbo_ask";
+constexpr size_t kRowName = 48, kMaxPlace = 32, kMaxRules = 32, kMaxPingText = 1023;
+
 // Untrusted text made safe for one line of our status file: no control bytes, bounded, never cut inside a UTF-8
 // character.
 inline std::string clean(std::string text, size_t max) {
@@ -248,6 +260,16 @@ inline bool alias_word(std::string_view w) {
     if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_')
       return false;
   return true;
+}
+// The row cleaner (the session list's keys come from any SBO client): a text as chat_clean() keeps it with no < or >,
+// which SB's rich text would read as a tag, at most max bytes; a word as alias_word() takes it and max bytes at most,
+// else empty.
+inline std::string row_text(std::string text, size_t max) {
+  text.erase(std::remove_if(text.begin(), text.end(), [](char c) { return c == '<' || c == '>'; }), text.end());
+  return chat_clean(text, max);
+}
+inline std::string row_word(const std::string &text, size_t max) {
+  return alias_word(text) && text.size() <= max ? text : std::string();
 }
 // Why the host has no camps for her: at the title, in a load (no EVE), no travel camp near him, a warp of his own.
 inline bool camps_why(std::string_view w) { return w == "title" || w == "loading" || w == "nocamp" || w == "busy"; }
@@ -690,11 +712,15 @@ inline std::string masked(std::string_view text) {
   }
   return out;
 }
-// A request from Lua (coop-request.txt): "host", "host code" (who_can_join=code: a lobby joined with its code),
-// "host private" (who_can_join=private: a lobby joined by invite only), "invite", "leave", "report", "join" (a
+// A request from Lua (coop-request.txt): "host [public|friends|invitation|closed] [ask]" (who_can_join, Who; host
+// alone is friends; code and private, the settings' older words, are invitation; ask: friends_ask=on, Steam friends
+// wait for the host's answer too), "invite", "leave", "report", "join" (a
 // friend's lobby), "join <lobby id>", "join <code>" (code_lobby(); anything else after "join " that is no lobby id is
 // taken for a code, so a typo is answered), "copy" (our join code on the clipboard), for the host "allow <SteamID>" and
-// "deny <SteamID>" (her answer to a joiner who is not her Steam friend) and "remove <SteamID>", and for the pose path
+// "deny <SteamID>" (her answer to a joiner who is not her Steam friend) and "remove <SteamID>"; for the session list
+// (Find a session) "list public" (search the Public online sessions), "list friends" (the Steam friends' online
+// sessions) and "list stop" (forget the list); for the rows the host writes "where <map segment> [<camp alias>]" and
+// "rules <word>" (each a word alias_word() takes, kMaxPlace and kMaxRules bytes at most); for the pose path
 // "off", "loopback <one-way delay ms> <jitter ms> <segment loss %>", "loopback off", "record", "record off", "replay"
 // and "replay off"; for the Night Operation probe (Phase 6, T6 only) "nightop" (start the read-only poller) and
 // "nightop rule" (start it if needed and arm the verdict, once a run); for the shared fight (Phase 11, fight/engine.h's
@@ -765,7 +791,7 @@ inline std::string masked(std::string_view text) {
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
-  signal, match, mute, sbo, guardtext, hud, loading, world, block, unblock
+  signal, match, mute, sbo, guardtext, hud, loading, world, block, unblock, list, where, rules
 };
 // match: "match search <mode> <room> <hall>" (quick match: join an open Public lobby of that mode and hall, or host
 // one), "match create <mode> <room> <hall>" (a private match lobby joined with its code), "match cancel" (forget the
@@ -809,7 +835,9 @@ enum class SboAsk : uint8_t { on, arm, enter, warp, abort, leave, seq };
 constexpr size_t kSignalWordCount = 8;
 constexpr const char *kSignalWords[kSignalWordCount] = {"watch",  "acquire", "complete", "prologue",
                                                         "talked", "zone4",   "tell",     "next"};
-enum class Who { friends, code, invited }; // who_can_join: friends, code, private.
+// who_can_join: friends (Friends only), everyone (public: listed), invitation (a Steam invite or the join code) and
+// closed (shown as Private: nobody can join).
+enum class Who { friends, everyone, invitation, closed };
 // pvp: the PvP test (design 13), fight pvp off its end.
 enum class Fight { none, on, off, status, probe, test, record, replay, pilot, pvp };
 // fight pilot ...; bstart to summon: stage 5's probes (fight/engine.h's Engine::boss_test).
@@ -833,15 +861,15 @@ struct Request {
   uint64_t ms = 0, jitter = 0, loss = 0; // loopback: the one-way delay, its jitter, the segment loss in %. freeze:
                                          // the seconds in ms.
   bool off = false;                      // loopback off, record off, replay off, freeze off, a gate off, anim stop,
-                                         // fight pvp off, unmute.
+                                         // fight pvp off, unmute, list stop.
   uint8_t gate = 0;                      // gate: game/debug_keys.h's Gate, 0 for fly, 1 for slowmo.
   uint8_t panel = 0;                     // devinfo: game/dev_panels.h's Panel, 0 off, 1 quest, 2 player.
   ShopAsk shop = ShopAsk::close;         // nightshop: open, open bolt, close or watch.
-  bool on = false;                       // roxanne on, lily on, hud hide on (true) or off.
+  bool on = false;                       // roxanne on, lily on, hud hide on (true) or off; host ... ask.
   bool lily = false;                     // roxanne: lily on or off (Lily's list) rather than Roxanne's.
   uint8_t signal = 0;                    // signal: its word's index in kSignalWords.
   bool rule = false;                     // nightop rule.
-  Who who = Who::friends;                // host: who can join the lobby.
+  Who who = Who::friends;                // host: who can join the lobby. list: everyone (public) or friends.
   bool code = false;                     // join: with a code; lobby 0 when it is no valid code.
   uint64_t player = 0;                   // allow, deny, remove, mute, unmute, block, unblock: her SteamID (0: all).
   Fight fight = Fight::none;
@@ -873,6 +901,8 @@ struct Request {
                                   // seq: the sequence's alias.
   uint32_t ask = 0;             // items: Lua's number for its answer.
   std::string text;             // mark: its text, or empty. gift: the payload. guardtext: what follows the word.
+                                // rules: the word.
+  std::string zone, camp;       // where: the map segment and the camp alias (or empty).
   std::array<uint64_t, kLionTableCount> tables{}; // rows: the tables' addresses, in kLionTables' order.
   uint8_t batch = 0;                               // rows: which batch, its word's index in kRowWords.
   uint32_t id = 0;              // anim play: its id, its clip's path, and whether it loops.
@@ -1082,6 +1112,24 @@ inline uint8_t signal_word(const std::string &text) {
     ++w;
   return w;
 }
+// "host [<who>] [ask]": whether the text is one, with its Who and ask filled.
+inline bool host_request(const std::string &text, Request &r) {
+  static const std::pair<const char *, Who> kHosts[] = {{"host", Who::friends},
+                                                        {"host friends", Who::friends},
+                                                        {"host public", Who::everyone},
+                                                        {"host invitation", Who::invitation},
+                                                        {"host code", Who::invitation},
+                                                        {"host private", Who::invitation},
+                                                        {"host closed", Who::closed}};
+  const bool ask = text.size() > 4 && text.compare(text.size() - 4, 4, " ask") == 0;
+  const std::string bare = ask ? text.substr(0, text.size() - 4) : text;
+  for (const auto &[word, who] : kHosts)
+    if (bare == word) {
+      r.command = Command::host, r.who = who, r.on = ask;
+      return true;
+    }
+  return false;
+}
 inline Request parse_request(std::string text) {
   while (!text.empty() && (text.back() == '\n' || text.back() == '\r' || text.back() == ' '))
     text.pop_back();
@@ -1105,9 +1153,19 @@ inline Request parse_request(std::string text) {
              std::all_of(f + 2, f + 5, [](const std::string &w) { return alias_word(w) && w.size() <= kMaxToken; })) {
     r.command = Command::match, r.match = f[1] == "search" ? MatchAsk::search : MatchAsk::create, r.mode = f[2];
     r.room = f[3], r.hall = f[4];
-  } else if (text == "host" || text == "host code" || text == "host private") {
-    r.command = Command::host;
-    r.who = text.size() == 4 ? Who::friends : text[5] == 'c' ? Who::code : Who::invited;
+  } else if (host_request(text, r)) { // r is filled.
+  } else if (text == "list public" || text == "list friends" || text == "list stop") {
+    r.command = Command::list;
+    r.who = text[5] == 'p' ? Who::everyone : Who::friends;
+    r.off = text[5] == 's';
+  } else if (text.rfind("where ", 0) == 0) {
+    const auto place = [](const std::string &w) { return alias_word(w) && w.size() <= kMaxPlace; };
+    const std::string rest = text.substr(6);
+    std::string w[2];
+    if (split(rest, w, 2, nullptr) ? place(w[0]) && place(w[1]) : place(rest))
+      r.command = Command::where, r.zone = w[1].empty() ? rest : w[0], r.camp = w[1];
+  } else if (split(text, f, 2, nullptr) && f[0] == "rules" && alias_word(f[1]) && f[1].size() <= kMaxRules) {
+    r.command = Command::rules, r.text = f[1];
   } else if (text == "invite")
     r.command = Command::invite;
   else if (text == "leave")

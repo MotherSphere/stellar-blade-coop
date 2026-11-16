@@ -440,13 +440,55 @@ int main() {
   }
 
   // Requests written by Lua.
-  // who_can_join: friends (the default), code (an invisible lobby, joined with its code) or private (invited only).
-  assert(parse_request("host\n").command == Command::host && parse_request("host").who == Who::friends);
-  assert(parse_request("host code\r\n").command == Command::host && parse_request("host code").who == Who::code);
-  assert(parse_request("host private\n").command == Command::host && parse_request("host private").who == Who::invited);
-  for (const char *bad : {"host public", "host  private", "host Code", "host code x", "hostcode", "host friends"})
+  // who_can_join: public, friends (host alone too), invitation (code and private, the settings' older words) or
+  // closed; ask after any of them: friends_ask=on.
+  const struct {
+    const char *text;
+    Who who;
+    bool ask;
+  } kHosts[] = {{"host\n", Who::friends, false},
+                {"host friends", Who::friends, false},
+                {"host public", Who::everyone, false},
+                {"host public ask\r\n", Who::everyone, true},
+                {"host invitation ask", Who::invitation, true},
+                {"host code\r\n", Who::invitation, false},
+                {"host private\n", Who::invitation, false},
+                {"host closed", Who::closed, false},
+                {"host ask", Who::friends, true}};
+  for (const auto &h : kHosts) {
+    const Request r = parse_request(h.text);
+    assert(r.command == Command::host && r.who == h.who && r.on == h.ask);
+  }
+  for (const char *bad : {"host  private", "host Code", "host code x", "hostcode", "host everyone", "host public  ask",
+                          "host ask ask", "host closed asks", "ask"})
     assert(parse_request(bad).command == Command::none);
   assert(parse_request("invite").command == Command::invite);
+  // The session list: list public|friends|stop; the rows' where <zone> [<camp>] and rules <word>, each a word
+  // alias_word takes, at most kMaxPlace or kMaxRules bytes.
+  assert(parse_request("list public").command == Command::list && parse_request("list public").who == Who::everyone &&
+         !parse_request("list public").off);
+  assert(parse_request("list friends\n").who == Who::friends && !parse_request("list friends").off);
+  assert(parse_request("list stop").command == Command::list && parse_request("list stop").off);
+  const Request wr = parse_request("where b07 WLB10_Camp_01\n"), wz = parse_request("where Xion");
+  assert(wr.command == Command::where && wr.zone == "b07" && wr.camp == "WLB10_Camp_01");
+  assert(wz.command == Command::where && wz.zone == "Xion" && wz.camp.empty());
+  assert(parse_request("where " + std::string(kMaxPlace, 'a')).command == Command::where);
+  const Request rr = parse_request("rules ewq_r150");
+  assert(rr.command == Command::rules && rr.text == "ewq_r150");
+  assert(parse_request("rules " + std::string(kMaxRules, 'r')).command == Command::rules);
+  for (const std::string &bad : std::vector<std::string>{
+           "list", "list all", "list public now", "where", "where ", "where b07 camp x", "where b<07", "where b07 a-b",
+           "where " + std::string(kMaxPlace + 1, 'a'), "where b07  camp", "rules", "rules a b", "rules a<b",
+           "rules " + std::string(kMaxRules + 1, 'r')})
+    assert(parse_request(bad).command == Command::none);
+  // The row cleaner: no <, > or control character, valid UTF-8 cut at a character within its bytes; a word only as
+  // alias_word takes it.
+  assert(row_text("<b>Eve</b>\x01\t Lily", kRowName) == "bEve/b Lily");
+  assert(row_text(std::string(60, 'x'), kRowName) == std::string(kRowName, 'x'));
+  assert(row_text(std::string(47, 'x') + "\xc3\xa9", kRowName) == std::string(47, 'x'));
+  assert(row_text("<<>>", kRowName).empty() && row_text("\xe2\x80\xae" "evil", kRowName) == "evil");
+  assert(row_word("WLB10_Camp_01", kMaxPlace) == "WLB10_Camp_01" && row_word("a<b", kMaxPlace).empty());
+  assert(row_word("b07 x", kMaxPlace).empty() && row_word(std::string(kMaxPlace + 1, 'a'), kMaxPlace).empty());
   // Match lobbies: match search|create <mode> <room> <hall>, match cancel. find_mode is the link's check; the room
   // (the lobby map's key) and the hall (the lobby pak's version) are words as alias_word takes them.
   Request mr = parse_request("match search ffa hotel 47101_5096");

@@ -768,9 +768,10 @@ int main() {
     w.tick();
     assert(saw("lobby creation failed (result 2)") && noticed(w.status(), "Could not host: Steam result 2."));
     assert(F.lobby_type == kFriendsOnly);
-    // who_can_join=private: the same lobby, private (joined by invite only); asked again while hosting, the dialog.
+    // The older who_can_join=private reads as invitation: an invisible lobby, joined with its code or an invite; asked
+    // again while hosting, the dialog.
     w.tick("host private");
-    assert(F.lobby_type == kPrivate && saw("creating a private lobby (invite only)"));
+    assert(F.lobby_type == kInvisible && saw("creating an invisible lobby (joined with its code or an invite)"));
     finish_all();
     w.tick();
     int invites = F.invites;
@@ -2690,10 +2691,10 @@ int main() {
     assert(F.sent.empty() && (w.link.take_chat() == Texts{"gift s 20 HP_Potion 2", "gift a 20"}));
   }
 
-  // who_can_join=code, one Link: an invisible lobby (joined by id) with no invite dialog, and its code on
-  // the status (code= and refused=, while we host) and in a notice. The copy request hands the code to the caller once
-  // (the clipboard is glue/steam.cpp's); with no code it says so. A lobby whose id has another high part gets no code:
-  // the invite dialog opens instead. A friends-only lobby has code=none.
+  // who_can_join=invitation (here its older word code), one Link: an invisible lobby (joined by id) with the invite
+  // dialog. Its code shows on the status (code= and refused=, while we host) and in a notice. The copy request hands
+  // the code to the caller once (the clipboard is glue/steam.cpp's); with no code it says so. A lobby whose id has
+  // another high part gets no code: the invite dialog opens alone. A friends-only lobby has code=none.
   reset();
   {
     World w;
@@ -2703,11 +2704,11 @@ int main() {
            noticed(w.status(), "No join code to copy."));
     F.next_lobby = kCodeLobby;
     w.tick("host code");
-    assert(F.lobby_type == kInvisible && saw("creating an invisible lobby (joined with its code)"));
+    assert(F.lobby_type == kInvisible && saw("creating an invisible lobby (joined with its code or an invite)"));
     finish_all();
     w.tick();
     std::string s = w.status();
-    assert(F.invites == 0 && saw("hosting lobby 109775241346428561, join code CCS-CBMH"));
+    assert(F.invites == 1 && saw("hosting lobby 109775241346428561, join code CCS-CBMH: invite dialog opened"));
     assert(s.find("\nlink=host lobby=109775241346428561\ncode=CCS-CBMH refused=0\n") != std::string::npos);
     assert(noticed(s, "Hosting. Your join code is CCS-CBMH.") && F.data[kCodeLobby][kLobbyKey] == lobby_tag(kBuild));
     w.tick("copy");
@@ -2724,7 +2725,7 @@ int main() {
     finish_all();
     w.tick();
     s = w.status();
-    assert(F.invites == 1 && s.find("\ncode=none refused=0\n") != std::string::npos);
+    assert(F.invites == 3 && s.find("\ncode=none refused=0\n") != std::string::npos);
     assert(saw("hosting lobby 5000 without a join code: its high part is not 0x01860000; invite dialog opened"));
     assert(noticed(s, "Hosting without a join code (unexpected lobby id): invite a friend from the Steam overlay "
                       "(Shift+Tab)."));
