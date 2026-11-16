@@ -316,8 +316,9 @@ for each one you have and they lack. The two lists are compared by app id. `coop
 changes (`<name> has <n> DLCs installed, the same as ours` or `<name> has <n> DLCs installed; we lack <names>; she lacks
 <names>`). When the lists differ, one notice a session names the DLCs your friend has and you lack, then the ones you
 have and they lack: `<name> has DLCs you don't have: <DLCs>. You have DLCs <name> doesn't have: <DLCs>.` A part whose
-list is empty is left out. The notice keeps to the feed's 200 bytes: it names the DLCs that fit and adds `(+n)` for the
-others. Nothing is refused.
+list is empty is left out. The notice keeps to the feed's 200 bytes: each sentence names at most its first two DLCs
+when they fit, then `(+n)` for the others. When your friend's name is so long that the two counts alone
+pass 200 bytes, the notice cuts that name. Nothing is refused.
 
 ### The camps lines
 
