@@ -115,7 +115,7 @@ settings_text='# mine\nname_tag=on\n'
 key('F5'); to('Options'); key('RETURN')
 assert(screen():find('^CONTROLS||disabled\nOpen this menu|F5|focus\nShow the status|F6|normal\n'
     ..'Leave the session|F8|normal\nTravel to the host|F7|normal\nSet a race checkpoint|F9|normal\n'
-    ..'PHOTO MODE||disabled\nPhoto sync|Both|normal\n'
+    ..'Reset all keys||normal\nPHOTO MODE||disabled\nPhoto sync|Both|normal\n'
     ..'Longest pause|10 min|normal\n'),screen())
 to('Ponytail cloth'); local rebuilt=#rebuilds
 key('RIGHT_ARROW')
@@ -290,18 +290,19 @@ end
 write_refusal,kit_language=nil,nil
 key('ESCAPE'); assert(focus()=='Options','Esc: back to the main page, on Options')
 key('ESCAPE'); assert(kit_calls[#kit_calls]=='show false')
--- Rebind with capture (D-UI2): a key row waits for an F-key, checked against the other keys; Esc stops waiting; the new
--- key works at once (every F-key is bound). The file had no menu_key line: host_key=none is written with it, so the old
--- key never hosts again by itself. The follow key is off F7 here, for the status key below.
+-- Rebind with capture (D-UI2): a key row waits for an F-key, checked against the other keys; Esc stops waiting; Enter
+-- puts back its default (below); the new key works at once (every F-key is bound). The file had no menu_key line:
+-- host_key=none is written with it, so the old key never hosts again by itself. The follow key is off F7 here, for the
+-- status key below.
 settings_text='host_key=F5\nstatus_key=F6\nleave_key=F8\nfollow_key=F9\n'
 key('F5'); to('Options'); key('RETURN')
 assert(focus()=='Open this menu')
 key('RETURN'); assert(select(2,focus())=='Press a key' and menu_view.note.s:find('^Press F1 to F12'))
+assert(menu_view.hints[2].s=='Default','While it waits, Enter\'s hint says Default')
 key('DOWN_ARROW'); assert(focus()=='Open this menu','Waiting: the arrows do nothing')
 key('F6'); assert(menu_view.note.s=='Show the status already uses this key.' and select(2,focus())=='Press a key')
-key('RETURN')
-assert(menu_view.note.s=='Use F1 to F12, with at most one of Shift, Ctrl, Alt.','Enter is the chat key only')
 key('ESCAPE'); assert(select(2,focus())=='F5' and menu_view.note.s=='' and focus()=='Open this menu','Esc: not waiting')
+assert(menu_view.hints[2].s=='Select')
 key('RETURN'); key('F7','SHIFT')
 assert(settings_text=='host_key=none\nstatus_key=F6\nleave_key=F8\nfollow_key=F9\nmenu_key=Shift+F7\n'
     and select(2,focus())=='Shift+F7')
@@ -349,6 +350,65 @@ settings_text='menu_key=F5\nhost_key=F9\nwho_can_join=private\n'
 load_main(true)
 key('F9'); assert(asked[#asked]=='host private' and logged('key F9: host'))
 coop('host'); assert(asked[#asked]=='host private' and last():find('OK: asked the native part: host private',1,true))
+-- A key's default again: Enter on its row while it waits (Space and the pad's A too), refused while another key holds
+-- it; Reset all keys on a second Select within 3 s; coop keys reset with a key's name, all or no name. Each works at
+-- once.
+settings_text='menu_key=F11\nstatus_key=Shift+F6\nleave_key=F5\n'
+load_main(true)
+in_world,kit_ready=true,true; quarter()
+key('F11'); to('Options'); key('RETURN'); key('RETURN'); key('RETURN')
+assert(menu_view.note.s=='Leave the session already uses this key.' and select(2,focus())=='Press a key',
+    'The menu key\'s F5 is the leave key\'s')
+key('ESCAPE'); key('DOWN_ARROW'); key('RETURN'); key('SPACE')
+assert(settings_text:find('\nstatus_key=F6\n',1,true) and select(2,focus())=='F6','Space: the default')
+key('DOWN_ARROW'); key('RETURN'); pd.q[#pd.q+1]=5; loops[1].f()
+assert(settings_text=='menu_key=F11\nstatus_key=F6\nleave_key=F8\n' and select(2,focus())=='F8','A: the default')
+clock=clock+1
+key('F8'); assert(logged('key F8: leave'),'The leave key\'s default, at once')
+key('UP_ARROW'); key('UP_ARROW'); key('RETURN'); key('RETURN')
+assert(settings_text=='menu_key=F5\nstatus_key=F6\nleave_key=F8\n' and select(2,focus())=='F5'
+    and logged('menu: menu_key=F5 saved in coop-settings.txt'))
+key('ESCAPE'); key('ESCAPE')
+settings_text='# mine\nmenu_key=F11\nstatus_key=F12\nleave_key=Shift+F8\nhost_key=F2\n'
+clock=clock+1
+key('F5'); to('Options'); key('RETURN'); to('Reset all keys')
+assert(select(2,focus())==''
+    and screen():find('Set a race checkpoint|F9|normal\nReset all keys||focus\nPHOTO MODE',1,true))
+key('RETURN')
+assert(menu_view.note.s=='Select again within 3 s to reset every key.' and settings_text:find('F12',1,true))
+clock=clock+1; key('RETURN')
+assert(settings_text=='# mine\nmenu_key=F5\nstatus_key=F6\nleave_key=F8\nhost_key=none\nfollow_key=F7\nrace_key=F9\n'
+    and logged('menu: every key at its default saved in coop-settings.txt'),settings_text)
+key('ESCAPE'); key('ESCAPE')
+settings_text='menu_key=F11\nstatus_key=F5\nhost_key=F2\n'
+load_main(true)
+in_world,kit_ready=true,true; quarter()
+coop('keys','reset','menu')
+assert(last()=="[StellarCoop] STOP: menu_key stays F11: its default is status_key's key now; change status_key first, "
+    ..'or type coop keys reset all\n',last())
+coop('keys','reset','status'); assert(last()=='[StellarCoop] OK: status_key=F6\n',last())
+coop('keys','reset','MENU_KEY'); assert(last()=='[StellarCoop] OK: menu_key=F5\n',last())
+coop('keys','reset','host')
+assert(last()=='[StellarCoop] OK: host_key=none\n' and settings_text=='menu_key=F5\nstatus_key=F6\nhost_key=none\n')
+clock=clock+1
+key('F5'); assert(kit_said('show true') and logged('key F5: menu'),'The menu key\'s default, at once')
+key('ESCAPE')
+settings_text='menu_key=F11\nrace_key=F2\n'
+local ALL='[StellarCoop] OK: menu_key=F5 host_key=none status_key=F6 leave_key=F8 follow_key=F7 race_key=F9: every key '
+    ..'at its default\n'
+coop('keys','reset'); assert(last()==ALL,last())
+settings_text='race_key=F2\n'
+coop('keys','reset','all'); assert(last()==ALL and settings_text:find('race_key=F9\n',1,true))
+for _,typed in ipairs({{'keys'},{'keys','set'},{'keys','reset','chat'},{'keys','reset','all','now'}}) do
+    coop(table.unpack(typed))
+    assert(last()=='[StellarCoop] STOP: Use: coop keys reset [menu|host|status|leave|follow|race|all]\n',last())
+end
+settings_text=nil
+coop('keys','reset'); assert(last()=='[StellarCoop] STOP: coop-settings.txt cannot be read\n',last())
+settings_text=''
+load_main(false)
+coop('keys','reset')
+assert(last()=='[StellarCoop] STOP: coop keys needs the co-op UI, which needs the Steam link\n',last())
 settings_text,in_world,kit_ready='',false,false
 
 -- The co-op line (session/booth.lua, ui/menu.lua, ui/model.lua and ui/text.lua for real on the fake kit; booth_test and

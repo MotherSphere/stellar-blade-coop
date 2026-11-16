@@ -12,7 +12,8 @@
 -- the chat's box or the code box (session/join.lua); Guide closes it and opens the first-launch guide (ui/guide.lua),
 -- and menu_key does nothing while that is open. A setting changed on the Options page rewrites its own line of
 -- coop-settings.txt (core/link.lua keeps the file as it was as coop-settings.old.txt) and applies at once, but the name
--- tag, at the next load; a key row takes the next F-key pressed (capture), checked against the other keys. Each 250 ms
+-- tag, at the next load; a key row takes the next F-key pressed (capture), checked against the other keys, or with
+-- Enter (Space, the pad's A) its default again; Reset all keys (a second Select) puts every key back. Each 250 ms
 -- while open: the status line, the rows of the session's state and, unless a row said something, the newest notice (the
 -- feed hides under the menu); the world gone, the game paused or showing the mouse cursor (UI-DESIGN 7.4), or the kit
 -- off, it closes. The game's input comes back 150 ms after a close, so the key that closed it (Esc would open the pause
@@ -117,7 +118,9 @@ function Menu.new(o)
         v.title.set(words.title)
         v.status.set(link.summary(words)..(linked and ping and ' · '..ping..' ms' or ''))
         v.note.set(note or (o.chat and o.chat.notice()) or (page=='line' and line(ctx)) or '')
-        for i,hint in ipairs({'move','select','back'}) do v.hints[i].set(words.hint[hint]) end
+        for i,hint in ipairs({'move',capturing and 'default' or 'select','back'}) do -- Enter puts back the default.
+            v.hints[i].set(words.hint[hint])
+        end
     end
     -- The drawn row under the mouse: its slot and the page's row there (a header, or nil for an empty slot); nil when
     -- the mouse is over none.
@@ -128,10 +131,11 @@ function Menu.new(o)
             if w.hovered() then return i,model.rows(context())[top+i] end
         end
     end
-    -- A change in effect, from the file now written: every key (the file may hold another clash), else the one setting.
+    -- A change in effect, from the file now written: every key (the file may hold another clash; key nil: all reset),
+    -- else the one setting.
     local function apply(text,key)
         local s=Link.parse_settings(text)
-        for _,k in ipairs(key:find('_key$') and KEYS or {key}) do settings[k]=s[k] end
+        for _,k in ipairs((not key or key:find('_key$')) and KEYS or {key}) do settings[k]=s[k] end
         if o.look[key]~=nil then
             o.look[key]=s[key]
             o.puppet.rebuild('look')
@@ -142,23 +146,48 @@ function Menu.new(o)
             words,guide_words=T.pick(culture,s.ui_language),G.pick(culture,s.ui_language)
         end
     end
-    -- A setting's new value: its line rewritten in the file as it is now (D-UI4), then in effect or, for the one read
-    -- at a load only, said so.
+    -- A setting's new value, or every key at its default with key nil: its line rewritten in the file as it is now
+    -- (D-UI4), then in effect or, for the one read at a load only, said so. true, or false and why in English.
     local function set(key,text)
         local file=link.settings_text()
-        if not file then note=words.unreadable; return end
-        local new,why=M.write(file,key,text)
+        if not file then note=words.unreadable; return false,'coop-settings.txt cannot be read' end
+        local what=key and key..'='..text or 'every key at its default'
+        local new,why
+        if key then new,why=M.write(file,key,text) else new,why=M.reset_keys(file) end
         local saved=new~=nil
         if saved then saved,why=link.write_settings(new) end
         if not saved then
             note=words.not_saved:format(tostring(why))
-            return o.log('menu: '..key..'='..text..' not saved: '..tostring(why))
+            o.log('menu: '..what..' not saved: '..tostring(why))
+            return false,'not saved: '..tostring(why)
         end
         values=M.read(new)
-        o.log('menu: '..key..'='..text..' saved in coop-settings.txt')
-        if ROW[key].reload then note=words.reload else apply(new,key) end
+        o.log('menu: '..what..' saved in coop-settings.txt')
+        if ROW[key or ''] and ROW[key].reload then note=words.reload else apply(new,key) end
+        return true
     end
     self.set=set -- The lobby's settings screen (ui/lobby.lua, through main.lua) writes the same way.
+    -- coop keys reset: one key setting back to its default, as Enter while its row waits for a key, or every key with
+    -- key nil, as the Reset all keys row; true and the keys now, or false and why, in English.
+    function self.reset(key)
+        local file=link.settings_text()
+        if not file then return false,'coop-settings.txt cannot be read' end
+        values=M.read(file)
+        local a,b
+        if key then
+            local action
+            action,a,b=M.rebind(values,key,'Enter')
+            if not action then
+                return false,key..' stays '..values[key]..': its default is '..b..'\'s key now; change '..b
+                    ..' first, or type coop keys reset all'
+            end
+        end
+        local ok,why=set(a,b)
+        if not ok then return false,why end
+        local now={}
+        for _,k in ipairs(key and {key} or KEYS) do now[#now+1]=k..'='..values[k] end
+        return true,table.concat(now,' ')..(key and '' or ': every key at its default')
+    end
     function self.is_open() return open end
     -- Whether a key row waits for a key (main.lua's pad leaves it alone then, but for back).
     function self.capturing() return open and capturing~=nil end
@@ -198,12 +227,13 @@ function Menu.new(o)
     end
     -- A navigation key while open: 'up', 'down', 'left', 'right', 'select' or 'back'; or 'click', a left click: the row
     -- under the mouse takes the focus and Select runs as for Enter (on a header or no row, nothing). While a key row
-    -- waits for a key, back only, which stops waiting.
+    -- waits for a key, back (which stops waiting) and select (which puts back its default).
     function self.nav(what)
         if not open then return end
         if kit.off() then return self.close() end -- Unseen: no row runs.
         if capturing then
-            if what=='back' then capturing,note=nil,nil; kit.sound('back'); draw() end
+            if what=='back' then capturing,note=nil,nil; kit.sound('back'); draw()
+            elseif what=='select' then self.capture('Enter') end -- Space or the pad's A, as Enter: the default.
             return
         end
         local ctx=context()
@@ -228,6 +258,8 @@ function Menu.new(o)
             local action,key,text=model.select(ctx,os.clock(),values)
             if action=='confirm_leave' then note=words.confirm_leave
             elseif action=='confirm_remove' then note=words.confirm_remove:format(stranger(ctx))
+            elseif action=='confirm_reset_keys' then note=words.confirm_reset_keys
+            elseif action=='reset_keys' then set()
             elseif action=='rebind' then capturing,note=key,words.capture
             elseif action=='set' then set(key,text)
             elseif action=='close' then return self.close()
@@ -255,7 +287,7 @@ function Menu.new(o)
         draw()
     end
     -- A key pressed (keybind.text's: 'Shift+F7', 'Enter') while a key row waits for one: true when taken, as the new
-    -- key once it is free, else with why.
+    -- key (Enter: its default) once it is free, else with why.
     function self.capture(name)
         if not (open and capturing) then return false end
         if kit.off() then self.close(); return false end

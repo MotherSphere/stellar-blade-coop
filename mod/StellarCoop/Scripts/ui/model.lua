@@ -3,10 +3,10 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The co-op menu's model (UI-DESIGN 4.1 and its Options table), no engine call: the main page's rows by session state,
 -- the co-op line's (a camp phone booth's page: the main page's session rows, Co-op menu and Hang up),
--- the Options tree (every co-op setting as a toggle, a choice, a range or a key), a cursor that skips section headers
--- and wraps, Leave and Remove only on a second Select of that row within 3 s, values read as the mod reads
--- coop-settings.txt (link.parse_settings), and each change as the one value to write there (settings_file.set). Rows
--- and values are ids; ui_text gives their words.
+-- the Options tree (every co-op setting as a toggle, a choice, a range or a key; Reset all keys too), a cursor that
+-- skips section headers and wraps, Leave, Remove and Reset all keys only on a second Select of that row within 3 s,
+-- values read as the mod reads coop-settings.txt (link.parse_settings) and each change as the one value to write there
+-- (settings_file.set). Rows and values are ids; ui_text gives their words.
 local SF=require('core.settings_file')
 local K=require('core.keybind')
 local Link=require('core.link')
@@ -45,6 +45,7 @@ local function reload(row) row.reload=true; return row end -- The mod takes it a
 M.OPTIONS={
     {head='controls'},
     bind('menu_key','F5'),bind('status_key','F6'),bind('leave_key','F8'),bind('follow_key','F7'),bind('race_key','F9'),
+    {id='reset_keys',confirm=true}, -- Every key back to its default (reset_keys), host_key too.
     {head='photo'},
     {key='photo_sync',values={'both','notice','off'},default='both'},
     -- The file's range: 0 (no limit) or 30 to 3600 s; a minute a step, shown in minutes.
@@ -93,6 +94,8 @@ M.OPTIONS={
 -- Every key setting a rebind is checked against: the page's, and host_key, off once the menu holds Host (D-UI2).
 local KEYS={bind('host_key','none')}
 for _,row in ipairs(M.OPTIONS) do if row.bind then KEYS[#KEYS+1]=row end end
+local DEFAULT={} -- Key setting to its default.
+for _,row in ipairs(KEYS) do DEFAULT[row.key]=row.default end
 -- Every setting's value from the file's text (setting name to value), as the mod takes it (link.parse_settings: the
 -- last line it takes, the menu key's migration, the defaults for two actions on one key); a setting it does not read
 -- yet, the model's default.
@@ -122,9 +125,20 @@ function M.write(text,key,value)
     end
     return SF.set(text,key,value)
 end
+-- The file's text with every key setting at its default, host_key's none included, or nil and why.
+function M.reset_keys(text)
+    for _,row in ipairs(KEYS) do
+        local why
+        text,why=M.write(text,row.key,row.default)
+        if not text then return nil,why end
+    end
+    return text
+end
 -- A key pressed for a rebind (keybind.text's), checked: 'set', key, the value to write; or nil and why: the grammar's
--- reason, or 'clash' and the other setting that holds it.
+-- reason, or 'clash' and the other setting that holds it. Enter, which no key setting takes (the chat's), puts back
+-- the key's default.
 function M.rebind(values,key,text)
+    if text=='Enter' then text=DEFAULT[key] end
     local new,why=K.parse(key,text)
     if not new then return nil,why end
     local keys={}
@@ -195,11 +209,11 @@ function M.new(start)
         return 'set',row.key,new
     end
     -- Select (now in seconds): the row's id for the caller ('host', 'leave', 'invite', 'copy', 'remove', 'join',
-    -- 'join_code', 'chat', 'guide', 'report', 'close', which Hang up gives too); 'confirm_leave' or 'confirm_remove'
-    -- (the row runs on a second Select of it within 3 s); 'options' or 'main' (the page changed: Co-op menu gives
-    -- 'main'); 'rebind', key; or a setting's next value, as change(). nil when a first Select on Leave or Remove is
-    -- pending (under 3 s old) and that row went (the session ended, the player left): the press was meant for it, not
-    -- for its place.
+    -- 'join_code', 'chat', 'guide', 'report', 'close', which Hang up gives too, 'reset_keys'); 'confirm_leave',
+    -- 'confirm_remove' or 'confirm_reset_keys' (the row runs on a second Select of it within 3 s); 'options' or
+    -- 'main' (the page changed: Co-op menu gives 'main'); 'rebind', key; or a setting's next value, as change(). nil
+    -- when a first Select on Leave or Remove is pending (under 3 s old) and that row went (the session ended, the
+    -- player left): the press was meant for it, not for its place.
     function self.select(ctx,now,values)
         local row=self.current(ctx)
         if asked and asked.id~=name(row) then

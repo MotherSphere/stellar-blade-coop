@@ -92,7 +92,8 @@ tested in game yet.
   are equal), as pressed past half of its range and as released under 30 %. Once an axis counts, it keeps counting
   until the other one is pushed more than 10 % further.
 - The mod reads the controller only while the game's window is in front.
-- While a key row waits for a key, only B acts: it stops the wait. A new key has to come from the keyboard.
+- While a key row waits for a key, only A and B act: A puts back that key's default and B stops the wait. A new key
+  has to come from the keyboard.
 - B closes the [chat](#session-chat) box and the [code box](playing-with-a-friend.md#join-codes) as Esc does: nothing is typed or sent. A
   controller cannot type in them.
 - The host's question (`<name> wants to join`) takes no controller input. A is Jump and the D-pad uses heal and
@@ -112,7 +113,7 @@ it says `Native pad unavailable (no controller in the co-op menu): <why>` once, 
 
 While the menu is open, it shows the mouse cursor. The row you move the mouse onto takes the focus (the mouse is read
 every 100 ms, and a mouse at rest never takes the focus back from the keys). A left click selects the row under the
-mouse, as Enter does: Leave the session and Remove <name> still need a second click within 3 s. A right click goes
+mouse, as Enter does: Leave the session, Remove <name> and Reset all keys still need a second click within 3 s. A right click goes
 back, then closes the menu. A click on a heading or on no row does nothing. On the Options page, the mouse on the first
 or last row shown scrolls the page by one row. While a key row waits for a key, the mouse moves nothing. The mouse in
 the menu has not been tested in game yet.
@@ -145,8 +146,12 @@ Same place row applies at once while shared enemies wait or run, and otherwise f
 while they wait or run, and only on your screen).
 
 To change a key, select its row, then press the new key: `F1` to `F12` except `F10`, alone or with Shift, Ctrl or Alt.
-A key that another action already holds is refused, and the menu names that action. Esc stops waiting. The new key
-works at once.
+A key that another action already holds is refused: the menu names that action. Esc stops waiting. Enter (or Space)
+puts back that key's default; while the row waits, the Enter key hint reads Default. The default is refused the same
+way when another action holds it. Reset all keys, the last row of Controls, puts every key back to its default on a
+second Select within 3 s: `F5` for the menu, `F6` for the status, `F8` to leave, `F7` to travel, `F9` for race
+checkpoints and `none` for `host_key`, which has no row. The new keys work at once. The console command
+`coop keys reset` does the same.
 
 The menu, the guide, the chat, the partner HUD, the code box, the host's question, the co-op saves' question and
 notices, the shared enemies', same place, same spawns and shared quests notices, Night Operation's card, result panel

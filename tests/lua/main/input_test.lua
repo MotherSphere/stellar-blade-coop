@@ -9,8 +9,9 @@ dofile('tests/lua/main/fixture.lua')
 -- route theirs. With nothing open in a world, View held opens the co-op menu as menu_key does, its refusals said the
 -- same way; the menu takes the six navigation words and View held closes it; the co-op saves' question takes up, down,
 -- select and back; LB and RB are taken and do nothing, as nothing here has tabs. Nothing while the host's question is
--- open, while the menu waits for a key (B still stops the wait), at the title with nothing open, or after coop off;
--- the chat box and the code box take only B, which closes them. An older DLL: one log line, no pad.
+-- open, while the menu waits for a key (B still stops the wait, A puts back its default), at the title with nothing
+-- open, or after coop off; the chat box and the code box take only B, which closes them. An older DLL: one log line,
+-- no pad.
 ;(function()
     local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end
     settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',false,false
@@ -41,13 +42,15 @@ dofile('tests/lua/main/fixture.lua')
     for _=1,10 do pd.q[#pd.q+1]=2 end
     loops[1].f(); assert(pd.calls==calls+8 and #pd.q==2,pd.calls-calls)
     loops[1].f(); assert(pd.calls==calls+11 and #pd.q==0,pd.calls-calls)
-    -- A selects; left and right change a value row; a key row waiting for a key takes no pad event but B.
+    -- A selects; left and right change a value row; a key row waiting for a key takes no pad event but B and A.
     to('Options'); pad(5)
     assert(focus()=='Open this menu')
     pad(5); assert(select(2,focus())=='Press a key')
-    pad(2,1,3,4,5,7); assert(kit_shown.menu and focus()=='Open this menu' and select(2,focus())=='Press a key',
+    pad(2,1,3,4,7); assert(kit_shown.menu and focus()=='Open this menu' and select(2,focus())=='Press a key',
         'Waiting: the pad does nothing')
     pad(6); assert(select(2,focus())=='F5' and kit_shown.menu,'B: not waiting')
+    pad(5,5); assert(select(2,focus())=='F5' and kit_shown.menu and settings_text:find('menu_key=F5',1,true),
+        'A: the default')
     to('Photo sync'); assert(select(2,focus())=='Both')
     pad(4); assert(select(2,focus())=='Notice only' and settings_text:find('photo_sync=notice',1,true))
     pad(3); assert(select(2,focus())=='Both')
