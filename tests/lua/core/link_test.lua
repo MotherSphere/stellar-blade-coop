@@ -1607,3 +1607,75 @@ do
     reads=0
     assert(l.status()=='link=host lobby=10\n' and reads==1,'No status at the pass: the disk')
 end
+-- The session list (list public, list friends): its list= line, then its session= rows in order, the host's name last
+-- and whole, '-' read as none; each from the start of its own line, and a row only after a list= line. A joiner's
+-- wait= line: the seconds left and the host's name, logged once a wait (its seconds change each second).
+do
+    local l=require('core.link').new('C:\\Mod',fs)
+    local function has(lines,text) for _,line in ipairs(lines) do if line==text then return true end end end
+    files[STATUS]='mod=v steam=ready\nlink=none lobby=0\nlist=public done 2\n'
+        ..'session=900 76561198000000009 1/2 45 1 b07 WLB10_Camp_01 ebwqr200 Str anger x\n'
+        ..'session=901 76561198000000008 2/2 - 0 - - - \n'
+    local new=l.changes()
+    local search,rows=l.list()
+    assert(search.tab=='public' and search.state=='done' and search.rows==2 and #rows==2
+        and has(new,'list=public done 2'))
+    local r=rows[1]
+    assert(r.lobby=='900' and r.owner=='76561198000000009' and r.players=='1/2' and r.ping==45 and r.pal
+        and r.zone=='b07' and r.camp=='WLB10_Camp_01' and r.rules=='ebwqr200' and r.name=='Str anger x')
+    r=rows[2]
+    assert(r.players=='2/2' and r.ping==nil and not r.pal and r.zone==nil and r.camp==nil and r.rules==nil
+        and r.name=='')
+    files[STATUS]='mod=v steam=ready\nlink=none lobby=0\nsession=902 7 1/2 5 0 a b c x\n'
+        ..'member=1 0 1 0 0 5 list=public done 9\nlast=list=friends searching 0\n'
+    l.changes()
+    assert(l.list()==nil and #select(2,l.list())==0,'Never from a name, nor a row with no list')
+    files[STATUS]='mod=v steam=ready\nlink=none lobby=0\nlist=friends searching 0\n'
+    l.changes()
+    search,rows=l.list()
+    assert(search.tab=='friends' and search.state=='searching' and #rows==0)
+    files[STATUS]=nil
+    l.changes()
+    assert(l.list()==nil and l.wait()==nil,'Unread: no list')
+    files[STATUS]='mod=v steam=ready\nlink=guest lobby=7\nwait=60 Ho st\n'
+    new=l.changes()
+    assert(l.wait().left==60 and l.wait().host=='Ho st' and has(new,'wait=60 Ho st'))
+    files[STATUS]='mod=v steam=ready\nlink=guest lobby=7\nwait=59 Ho st\n'
+    new=l.changes()
+    assert(l.wait().left==59 and not has(new,'wait=59 Ho st'),'One log line a wait')
+    files[STATUS]='mod=v steam=ready\nlink=guest lobby=7\npeer=2 name=wait=5 x hello=1\n'
+    l.changes()
+    assert(l.wait()==nil,'Let in, or gone; never from a name')
+    files[STATUS]='mod=v steam=ready\nlink=guest lobby=7\nwait=60 Ho st\n'
+    assert(has(l.changes(),'wait=60 Ho st'),'A new wait is logged again')
+    -- where and rules: asked only when changed; a word the native part would refuse is never asked.
+    files[STATUS],files[REQUEST]=nil,nil
+    assert(l.where('b07','WLB10_Camp_01') and files[REQUEST]=='where b07 WLB10_Camp_01\n')
+    files[REQUEST]=nil
+    assert(l.where('b07','WLB10_Camp_01')==nil and files[REQUEST]==nil,'Unchanged: not asked')
+    assert(l.where('mxiii_p') and files[REQUEST]=='where mxiii_p\n')
+    files[REQUEST]=nil
+    local ok,why=l.where('e04','bad-camp')
+    assert(ok==false and why=='where: not a word of 32 bytes at most: bad-camp' and files[REQUEST]==nil)
+    assert(l.where(('a'):rep(33))==false and l.rules('a b')==false and files[REQUEST]==nil)
+    assert(l.rules('ebwqr200') and files[REQUEST]=='rules ebwqr200\n')
+    files[REQUEST]=nil
+    assert(l.rules('ebwqr200')==nil and files[REQUEST]==nil)
+end
+-- The rules word: a letter for each session rule on (bosses with shared enemies only, the story once its setting
+-- exists), then the boss HP scale in percent; read back only in that shape.
+local S=Link.parse_settings('')
+assert(Link.rules(S)=='ebwqr200','Every rule on by default; no story setting yet')
+S.shared_enemies=false
+assert(Link.rules(S)=='wqr200','Bosses go with shared enemies')
+S.shared_story,S.boss_hp_scale,S.revive=true,1.35,false
+assert(Link.rules(S)=='wsq135')
+local rules=Link.read_rules('ebwqr200')
+assert(rules.shared_enemies and rules.bosses and rules.shared_world and not rules.shared_story and rules.shared_quests
+    and rules.revive and rules.boss_hp_scale==2)
+rules=Link.read_rules('100')
+assert(rules.boss_hp_scale==1 and next(rules,next(rules))==nil,'Nothing on')
+for _,bad in ipairs({'ee200','be200','x200','ebwqr099','ebwqr401','ebwqr2000','EB200','','eb 200'}) do
+    assert(Link.read_rules(bad)==nil,bad)
+end
+assert(Link.read_rules(nil)==nil)

@@ -14,7 +14,9 @@
 -- the session's mode, the friend and the notices for the screen, each from the start of its own line: a Steam name is
 -- never at the start of one.
 -- While we host, the read also gives our join code and the joiner who waits for our answer (session/join.lua asks the
--- host), and keeps who waited in this lobby (the menu's Remove row).
+-- host), and keeps who waited in this lobby (the menu's Remove row); as a joiner, the seconds left of the host's
+-- answer (wait()); the session list's rows (list()). Lua tells the native part the host's place and rules for the
+-- list's rows with where() and rules(), each sent only when it changed.
 -- coop-settings.txt's shared_enemies, fight_chars, guest_kills, enemy_hp_scale, enemy_balance_scale, kill_credit,
 -- same_place, aggro, same_spawns, enemy_extra, spawn_filter, bosses and boss_hp_scale (Phase 11, experimental) are
 -- commands/fight.lua's coop fight (main.lua's loop asks it on or off); its photo_sync, photo_freeze_max, photo_ghost
@@ -218,6 +220,33 @@ local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'}
     kill_credit={'together','fought'},who_can_join={'public','friends','invitation','closed'},
     auto_coop_save={'ask','always','off'},aggro={'game','host'},photo_pause={'full','scenery'},
     follow_host={'ask','always','off'},status_overlay={'off','compact','detailed'}}
+-- The session list's rules word (the rules request, the sbo_rules lobby key the native part writes): a letter for each
+-- session rule on in the host's settings, in this order: e shared enemies, b shared bosses (with shared enemies only),
+-- w shared world, s shared story (once that setting exists), q shared quests, r revive; then the boss HP scale in
+-- whole percent. ebwqr200: all of them on but the story, a boss's HP doubled. Any SBO client can write the key, so
+-- read_rules takes that shape only (each letter once at most, in that order, a scale of 100 to 400) and gives nil for
+-- anything else.
+local RULES={{'e','shared_enemies'},{'b','bosses'},{'w','shared_world'},{'s','shared_story'},{'q','shared_quests'},
+    {'r','revive'}}
+function Link.rules(s)
+    local word=''
+    for _,r in ipairs(RULES) do
+        if s[r[2]]==true and (r[1]~='b' or s.shared_enemies==true) then word=word..r[1] end
+    end
+    return word..math.floor((tonumber(s.boss_hp_scale) or 1)*100+0.5)
+end
+-- {shared_enemies=true, ... (the rules on), boss_hp_scale=2.0}, or nil.
+function Link.read_rules(word)
+    local letters,pct=tostring(word):match('^(%l*)(%d%d%d)$')
+    pct=tonumber(pct)
+    if not pct or pct<100 or pct>400 then return nil end
+    local rules,at={boss_hp_scale=pct/100},1
+    for _,r in ipairs(RULES) do
+        if letters:sub(at,at)==r[1] then rules[r[2]],at=true,at+1 end
+    end
+    if at<=#letters then return nil end
+    return rules
+end
 -- The mate= line's twelve numbers, in the native part's order (link/protocol.h's vital).
 local VITALS={'hp','max_hp','shield','max_shield','blocks','beta','max_beta','burst','max_burst','tachy','max_tachy',
     'life'}
@@ -503,6 +532,8 @@ function Link.new(folder,fs)
     local match,round=nil,nil -- The match line and our last round's line (match(), round()).
     local uidev,my_name,owner=nil,nil,nil -- uidev(), me(), owner(): SB's input device, our name, the lobby's owner.
     local room,hall=nil,nil -- room(), hall(): the match lobby's map and lobby pak version words.
+    -- list(): the session list's list= line and its session= rows; wait(): a joiner's wait= line.
+    local search,found,wait=nil,{},nil
     -- As of the last changes() too: lobby, the link line's; code, our join code while we host with one; refused, the
     -- players refused in this lobby; pending, the first joiner waiting for our answer ({id=, name=}); members, the
     -- lobby members' SteamIDs (peer lines); roster, the member lines (members()). strangers: each joiner seen waiting
@@ -674,6 +705,8 @@ function Link.new(folder,fs)
         quests,noted,sbo,world=nil,nil,nil,nil
         camps_asked,camps_answer,match,round=nil,nil,nil,nil
         uidev,my_name,owner,room,hall=nil,nil,nil,nil,nil
+        local waited=wait~=nil
+        search,found,wait=nil,{},nil
         -- The engine off on another game build (check_build's reasons): a game update, said at the title
         -- (session/saves.lua).
         if engine:find(' reason=build stamp ',1,true) or engine:find(' reason=code bytes differ',1,true) then
@@ -687,6 +720,7 @@ function Link.new(folder,fs)
             if not seen[line] and not line:find('^peer=') and not line:find('^member=') and not line:find('^fight=')
                 and not line:find('^mate=')
                 and not line:find('^match=') -- Its countdown changes each second.
+                and not (waited and line:find('^wait=')) -- Likewise: the first of a wait only.
                 and not line:find('^life=')
                 and not line:find('^night=') -- nightop/run.lua logs each night line itself.
                 -- Their spawns= moves with every enemy; cut/enemy.lua logs what it reads for each.
@@ -719,6 +753,17 @@ function Link.new(folder,fs)
             if ours then code,refused=ours~='none' and ours or nil,tonumber(out) end
             local id,name=line:match('^pending=(%d+) (.*)$')
             if id and not pending then pending={id=id,name=name} end
+            local left,host_name=line:match('^wait=(%d+) (.*)$')
+            if left then wait={left=tonumber(left),host=host_name} end
+            local tab,listing,rows=line:match('^list=(%a+) (%a+) (%d+)$')
+            if tab then search={tab=tab,state=listing,rows=tonumber(rows)} end
+            local lobby_id,owner_id,players,ms,pal,zone,camp,rules,host=line:match(
+                '^session=(%d+) (%d+) (%d+/%d+) ([%d%-]+) ([01]) (%S+) (%S+) (%S+) (.*)$')
+            if lobby_id and search then -- Rows follow their list= line.
+                local function word(w) return w~='-' and w or nil end
+                found[#found+1]={lobby=lobby_id,owner=owner_id,players=players,ping=tonumber(ms),pal=pal=='1',
+                    zone=word(zone),camp=word(camp),rules=word(rules),name=host}
+            end
             id=line:match('^peer=(%d+) ')
             if id then members[#members+1]=id end
             local slot,on,gone,muted,rtt
@@ -974,6 +1019,35 @@ function Link.new(folder,fs)
     -- The first joiner who is not our Steam friend and waits for our answer, {id=her SteamID (digits), name=her Steam
     -- name as the native part cleaned it, maybe ''}; nil when none.
     function self.pending() return pending end
+    -- As a joiner the host has not let in yet: {left=the whole seconds left of the host's minute, host=the host's
+    -- Steam name as the native part cleaned it, maybe ''}; nil when we do not wait.
+    function self.wait() return wait end
+    -- The session list as of the last changes(): {tab='public'|'friends', state='searching'|'done'|'failed', rows=the
+    -- count the native part gave}, and its rows in its order (best ping first once done), each {lobby=, owner=the
+    -- host's SteamID (digits), players='1/2', ping=ms or nil, pal=the host is our Steam friend, zone=, camp=, rules=
+    -- (words, or nil), name=the host's Steam name as the native part cleaned it, maybe ''}; nil and {} without a list.
+    function self.list() return search,found end
+    -- The rows' place and rules words for the native part (link/core.h writes them as lobby data while we host a
+    -- Public or Friends only online session, and keeps them for the next one): where <map segment> [<camp alias>] and
+    -- rules <word>, each asked only when it changed since the last one asked. A word is letters, digits and _, 32
+    -- bytes at most (link/protocol.h's kMaxPlace and kMaxRules). nil when unchanged, else as request(), or false and
+    -- why for a word the native part would refuse.
+    local told={}
+    local function tell(kind,line,...)
+        for i=1,select('#',...) do
+            local w=select(i,...)
+            if not (w:match('^[%w_]+$') and #w<=32) then return false,kind..': not a word of 32 bytes at most: '..w end
+        end
+        if told[kind]==line then return nil end
+        local ok,why=self.request(line)
+        if ok then told[kind]=line end
+        return ok,why
+    end
+    function self.where(zone,camp)
+        if camp then return tell('where','where '..zone..' '..camp,zone,camp) end
+        return tell('where','where '..zone,zone)
+    end
+    function self.rules(word) return tell('rules','rules '..word,word) end
     -- The first lobby member who waited for our answer in this lobby and no longer does (we let her in), {id=, name=};
     -- nil when none.
     function self.stranger()
