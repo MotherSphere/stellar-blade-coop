@@ -598,9 +598,10 @@ The C++ tests cover the platform-free headers in `native/src`.
   bad spots, seats, names, IDs, fences and a batch of more than 255 rows. After a change to the data file, run
   `python3 tools/sbo_lobby_rows.py` and commit the two files it writes;
 - `matchmaking_scan_test.py`: a scan that fails if any script or native source could reach the game's matchmaking
-  (see [night-operation-previews.md](night-operation-previews.md#how-the-original-matchmaking-is-blocked)). Its one
-  native exception is `coop sbo seq`: Stellar Blade's RunZoneEvent address is held once in `native/src/game/sbo.h` and
-  called once in `native/src/glue/tick/sbo_game.inc`;
+  (see [night-operation-previews.md](night-operation-previews.md#how-the-original-matchmaking-is-blocked)). Stellar
+  Blade's RunZoneEvent address is held once in `native/src/game/sbo.h` and called at two sites: once in
+  `native/src/glue/tick/sbo_game.inc` for `coop sbo seq`, and once in `native/src/glue/tick/world_game.inc` for the
+  shared world's env control rows, which `world/engine.h` checks against `world/rows.h`'s list right before the call;
 - `sbo_difficulty_scan_test.py`: a scan that fails unless `native/src` calls Stellar Blade's difficulty setter
   (`sbo::kSetDifficulty`, 0x141cf3180) exactly once, in R8 after the return's reload. Called in game outside a
   Boss Challenge zone, the setter makes the game reload the save, and on 2026-11-12 the call the SBO lobby's entry made

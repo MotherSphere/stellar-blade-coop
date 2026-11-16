@@ -650,7 +650,9 @@ inline uint64_t code_lobby(std::string_view text) {
 // slot's copy replaced by a new copy of the player's save, the old one backed up first) and "saves export <0-4> <0-4>"
 // (that co-op slot's copy written over that save of the player's, the save backed up first); for the shared quests
 // (quest/engine.h's Worker) "quests on|probe|record [deny <list>]" (deny: quest_deny's aliases or IDs, separated by
-// spaces or commas, at most kMaxDeny bytes), "quests off|status|replay" and "quests force <quest ID>"; for the follow
+// spaces or commas, at most kMaxDeny bytes), "quests off|status|replay" and "quests force <quest ID>"; for the shared
+// world (world/sync.h, glue/tick/world_worker.inc) "world on" and "world off" (shared_world, until the next ask) and
+// "world status" (its line in the log); for the follow
 // (session/travel.lua) "camps? <id>" and "camps <id> <world> <alias>:<m> ..." or "camps <id> none <why>" (the camps
 // lines, relayed to the friend by link/core.h), and "travel <alias> <FName index> <FName number>" (the call on the game
 // thread, glue/tick.cpp: an index above 0, both within 32 bits); "mark" or "mark <text>" (a numbered line in both
@@ -690,7 +692,7 @@ inline uint64_t code_lobby(std::string_view text) {
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
-  signal, match, mute, sbo, guardtext, hud, loading
+  signal, match, mute, sbo, guardtext, hud, loading, world
 };
 // match: "match search <mode> <room> <hall>" (quick match: join an open Public lobby of that mode and hall, or host
 // one), "match create <mode> <room> <hall>" (a private match lobby joined with its code), "match cancel" (forget the
@@ -744,6 +746,7 @@ enum class PilotAsk : uint8_t { probe, on, off, status, test, target, exec, bsta
 enum class PilotTest : uint8_t { freeze, cmc, drive, replay };
 enum class SavesAsk { none, probe, convert, coop, main, refresh, export_ };
 enum class Quests { none, on, off, status, probe, record, replay, force };
+enum class WorldAsk : uint8_t { on, off, status };
 constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500, kMaxFreezeS = 3600;
 constexpr size_t kMaxFightChars = 16;
 constexpr uint64_t kMaxFightChange = 10'000'000; // fight/sync.h's kMaxStat.
@@ -789,6 +792,7 @@ struct Request {
   Quests quests = Quests::none; // quests: what.
   uint16_t quest = 0;           // quests force: the QuestTable ID.
   std::string deny;             // quests on, probe, record: quest_deny's list, or empty.
+  WorldAsk world = WorldAsk::status; // world: what.
   std::string line;             // camps: the wire line (link/protocol.h's camps_line), as the link sends it.
   std::string alias;            // travel, items: the camp's or item's alias (for the log), and its FName.
   uint32_t index = 0, number = 0; // travel, items: the FName. sbo arm: the Join's alias; sbo warp: the zone; sbo
@@ -1141,6 +1145,9 @@ inline Request parse_request(std::string text) {
     r.on = text.size() == 11;
   } else if (text == "loading lift") {
     r.command = Command::loading;
+  } else if (text == "world on" || text == "world off" || text == "world status") {
+    r.command = Command::world;
+    r.world = text[7] == 'n' ? WorldAsk::on : text[7] == 'f' ? WorldAsk::off : WorldAsk::status;
   } else if (text == "loopback off" || text == "freeze off") {
     r.command = text[0] == 'l' ? Command::loopback : Command::freeze;
     r.off = true;

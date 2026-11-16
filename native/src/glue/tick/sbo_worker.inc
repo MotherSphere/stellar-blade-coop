@@ -21,8 +21,29 @@ std::string sbo_alias_text(uint64_t alias) {
   return std::to_string(uint32_t(alias)) + ":" + std::to_string(uint32_t(alias >> 32));
 }
 
+// The ZoneEvent action's slot, shared by the SBO lobby's Join and the shared world's ZoneEvent roots (world_game.inc,
+// through the same hook): swapped once a run by whichever needs it first, on the pinned build before coop off. True
+// once our hook is in it; else sbo_refusal says why, for both.
+bool join_slot_install() {
+  if (sbo_slot != Filter::untried)
+    return sbo_slot == Filter::on;
+  const uint64_t original = sbo_original_address();
+  uint64_t held = *reinterpret_cast<const volatile uint64_t *>(base + (sbo::kJoinSlot - game::kImageBase));
+  const bool slot_ok = held == original;
+  const bool page_ok = slot_ok && swap_slot(sbo::kJoinSlot, original, sbo_hook_address(), held);
+  if (page_ok && held == original) {
+    sbo_slot = Filter::on;
+    return true;
+  }
+  sbo_slot = Filter::refused;
+  sbo_refusal = slot_ok && !page_ok ? "the page of 0x145bfece8 would not become writable (error " +
+                                          std::to_string(GetLastError()) + ")"
+                                    : "the Join slot holds " + slot_value(held);
+  return false;
+}
+
 // sbo arm, on the pinned build before coop off: the slot swapped to the hook with the alias kept, or a new alias for a
-// hook already in it. Its result word, and the log line in line.
+// hook already in it (the shared world may have swapped it first). Its result word, and the log line in line.
 sbo::Why sbo_arm(const coop::Request &request, std::string &line) {
   const uint64_t want = request.index | uint64_t(request.number) << 32;
   if (sbo_slot == Filter::on) {
@@ -31,23 +52,14 @@ sbo::Why sbo_arm(const coop::Request &request, std::string &line) {
     return sbo::Why::none;
   }
   if (sbo_slot == Filter::untried) {
-    const uint64_t original = sbo_original_address();
-    uint64_t held = *reinterpret_cast<const volatile uint64_t *>(base + (sbo::kJoinSlot - game::kImageBase));
     sbo_alias = want; // Before the swap: the hook's first call reads it.
-    const bool slot_ok = held == original;
-    const bool page_ok = slot_ok && swap_slot(sbo::kJoinSlot, original, sbo_hook_address(), held);
-    if (page_ok && held == original) {
-      sbo_slot = Filter::on;
+    if (join_slot_install()) {
       line = "sbo arm: 0x145bfece8 swapped from the ZoneEvent action's run to our hook, alias " + sbo_alias_text(want);
       return sbo::Why::none;
     }
     sbo_alias = 0;
-    sbo_slot = Filter::refused;
-    sbo_refusal = slot_ok && !page_ok ? "sbo arm refused: the page of 0x145bfece8 would not become writable (error " +
-                                            std::to_string(GetLastError()) + ")"
-                                      : "sbo arm refused: the Join slot holds " + slot_value(held);
   }
-  line = sbo_refusal;
+  line = "sbo arm refused: " + sbo_refusal;
   return sbo::Why::game;
 }
 
@@ -557,9 +569,10 @@ void sbo_pass() {
   say(text);
 }
 
-// coop off (block()): an open session record logged and left for C1 (no return: design-lobby 3.6 gives coop off Lua's
-// row put-back only; a job then running ends off with nothing written, L5-R1); the slot back by a compare-and-swap
-// from our hook only, and the alias dropped, so a hook the swap leaves in the slot passes every action on.
+// coop off (block(), after world_off): an open session record logged and left for C1 (no return: design-lobby 3.6
+// gives coop off Lua's row put-back only; a job then running ends off with nothing written, L5-R1); the slot back by a
+// compare-and-swap from our hook only, and the alias dropped, so a hook the swap leaves in the slot passes every action
+// on (the shared world's hooks are off by then too).
 void sbo_off() {
   if (const sbo::Record r = sbo_run.record.state; r != sbo::Record::closed && r != sbo::Record::starting)
     say(std::string("coop off: SBO session left open for the title (record ") + sbo::record_name(r) + ")");

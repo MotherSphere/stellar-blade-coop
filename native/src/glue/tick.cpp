@@ -76,6 +76,15 @@
 // the co-op slot (through glue/steam.cpp's save folder) and coop-quests-record.txt. A fault turns them off for the run;
 // the ghost, the link and the shared fight go on.
 //
+// The shared world (world/engine.h, world/sync.h): once its gates first open (shared_world on, a friend linked, a
+// co-op save, no match lobby) the worker swaps three vtable slots of the game's image, the ChangeEnvState action's run,
+// the SetEnvActive action's run and the linked env node's run, for hooks that read the node's change and push it into
+// a ring before they run the game's function; the ZoneEvent action's slot holds the SBO lobby's hook, which does the
+// same for its rows. Each frame coop_tick drains the ring under the shared world's SEH latch and makes channel 2's SBW
+// lines of what world/rows.h allows; her lines wait in order until we are in game (lion_gate open), then go through
+// SB's own functions with our player as caster. A fault turns it off for the run and swaps the slots back; coop off
+// swaps them back too.
+//
 // The revive's guard: every 250 ms coop_tick reads, under its own SEH latch, whether a respawn or a warp is in flight
 // and our EVE's GUID, straight from two globals; status() puts them in the engine line for session/group.lua.
 //
@@ -225,6 +234,7 @@
 #include "save/shortcut.h"
 #include "save/shortcut_load.h"
 #include "save/slot.h"
+#include "world/engine.h"
 
 #include "glue/tick/pose_game.inc"
 #include "glue/tick/fight_game.inc"
@@ -243,6 +253,7 @@
 #include "glue/tick/camp_text_game.inc" // After anim_game.inc and freeze_game.inc: their FStringArg and MakeName.
 #include "glue/tick/guard_text_game.inc" // After camp_text_game.inc: its calls and camp_text_view.
 #include "glue/tick/shortcut_game.inc"
+#include "glue/tick/world_game.inc" // After lion_game.inc, freeze_game.inc and shortcut_game.inc; before sbo_game.inc.
 #include "glue/tick/sbo_game.inc"
 #include "glue/tick/worker.inc"
 #include "glue/tick/saves_worker.inc"
@@ -254,6 +265,7 @@
 #include "glue/tick/shortcut_worker.inc"
 #include "glue/tick/items_worker.inc"
 #include "glue/tick/quests_worker.inc"
+#include "glue/tick/world_worker.inc" // After sbo_worker.inc and quests_worker.inc: the shared slot, the slot line.
 #include "glue/tick/freeze_worker.inc"
 #include "glue/tick/debug_worker.inc"
 #include "glue/tick/anim_worker.inc"
@@ -308,6 +320,10 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // The shared quests' own latch: a pass each 250 ms, none after coop off or their first fault.
   if (game_pinned && !quest_faulted && !blocked)
     quest_tick();
+  // The shared world, its own latch: a pass each frame (the hooks' ring drained, her lines applied), none after coop
+  // off or its first fault.
+  if (game_pinned && !world_faulted && !blocked)
+    world_tick();
   // The mod's own quests, their own latch: a pass each 250 ms, none after coop off or its first fault.
   if (game_pinned && !own_faulted && !blocked)
     own_tick();

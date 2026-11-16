@@ -15,6 +15,7 @@ void block() {
   filter_undo("coop off");
   hold_undo("coop off");
   region_tabs_undo("coop off");
+  world_off("coop off"); // Before sbo_off, which swaps back the ZoneEvent slot they share.
   sbo_off();
   loopback_on = false;
   record_on = false; // worker_stream writes what was recorded and stops the replay.

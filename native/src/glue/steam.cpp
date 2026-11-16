@@ -609,7 +609,8 @@ std::string status_text() {
          coop_saves.status() + "\n" + coop::pose::fight_status() + "\n" + coop::pose::pilot_status() + "\n" +
          coop::pose::sbo_status() + "\n" + (uidev.empty() ? uidev : uidev + "\n") + coop::pose::rows_status() + "\n" +
          (camp_text.empty() ? camp_text : camp_text + "\n") +
-         coop::pose::quest_status() + (link ? link->photo_status(coop::pose::frozen()) + "\n" : std::string()) +
+         coop::pose::quest_status() + coop::pose::world_status() + "\n" +
+         (link ? link->photo_status(coop::pose::frozen()) + "\n" : std::string()) +
          "last=" + journal.last() + "\n";
 }
 
@@ -701,6 +702,10 @@ bool step() {
       break;
     case coop::Command::quests:
       event(coop::pose::ask_quests(coop::parse_request(request)));
+      request.clear();
+      break;
+    case coop::Command::world: // The shared world's setting and status line.
+      event(coop::pose::ask_world(coop::parse_request(request)));
       request.clear();
       break;
     case coop::Command::travel: // The follow's call: the game thread's.
@@ -930,8 +935,9 @@ bool step() {
     coop::pose::hud_pass();
     coop::pose::loading_pass();
     // Channel 2 both ways, with the co-op partner only (none in a match lobby, where partner() is 0): the shared quests
-    // take their SBQ lines out first, the shared fight's job gets the rest; the lobby owner hosts both. Ours are queued
-    // for the next tick. Lines from any other member are dropped.
+    // take their SBQ lines out first, then the shared world its SBW lines, and the shared fight's job gets the rest; the
+    // lobby owner hosts the quests and the fight. Ours are queued for the next tick. Lines from any other member are
+    // dropped.
     const std::vector<coop::FightLine> fights = loaded ? link->take_fight() : std::vector<coop::FightLine>();
     const uint64_t partner = linked ? link->partner() : 0;
     const bool shared = partner != 0;
@@ -939,6 +945,8 @@ bool step() {
     coop::pose::quest_pass(
         GetTickCount64(), shared && link->host(), partner, coop_marker, channel2,
         [](const std::string &line) { return link && link->send_fight(line, true); }, quest_files);
+    coop::pose::world_pass(partner, link && link->match(), channel2,
+                           [](const std::string &line) { return link && link->send_fight(line, true); });
     bool fighting = coop::pose::fight_pass(
         GetTickCount64(), shared, shared && link->host(), coop_marker, channel2,
         [](const std::string &line, bool reliable) { return link && link->send_fight(line, reliable); },

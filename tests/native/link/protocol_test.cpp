@@ -796,6 +796,13 @@ int main() {
          parse_request("loading lift\r\n").command == Command::loading);
   for (const char *bad : {"loading", "loading Lift", "loading lift now", "loading  lift", "loadinglift", "loading off"})
     assert(parse_request(bad).command == Command::none);
+  // The shared world's setting and status (world/sync.h): world on, off or status, nothing else.
+  assert(parse_request("world on\n").command == Command::world && parse_request("world on").world == WorldAsk::on &&
+         parse_request("world off\r\n").world == WorldAsk::off &&
+         parse_request("world status").world == WorldAsk::status && parse_request("world status").command == Command::world);
+  for (const char *bad :
+       {"world", "world On", "world on now", "world  off", "worldoff", "world stat", "world statuses"})
+    assert(parse_request(bad).command == Command::none);
   Request r = parse_request("join");
   assert(r.command == Command::join && r.lobby == 0 && !r.code);
   r = parse_request("join 109775241234567890\n");
