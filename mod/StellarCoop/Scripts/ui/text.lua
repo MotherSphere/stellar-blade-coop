@@ -305,6 +305,15 @@ T.en={
         failed='The search failed. Refresh to try again.',idle='Press Refresh to search.',
         wait='You can search again in %d s.',friend='Steam friend',version='Protocol %s, game build %s',
         footer='Your version: protocol %s, game build %s. Sessions of other versions are not listed.'},
+    -- Create a session (ui/create.lua): its page title, the rules header, the Start row, why a locked row cannot
+    -- change and Who can join's value explained in the right pane.
+    create={title='Create a session',rules='SESSION RULES',start='Start',
+        locked='coop-settings.txt cannot be read: this setting cannot change now.',
+        who={public='Listed in Find a session for players of your version. Players who are not your Steam friends ask '
+            ..'to join.',
+            friends='Only your Steam friends can join. They find it in Find a session or in Steam.',
+            invitation='Not listed. Players join with a Steam invite or your join code.',
+            closed='Nobody can join, not even with an invite or a code.'}},
 }
 T.fr={
     title='CO-OP',
@@ -562,6 +571,13 @@ T.fr={
         failed='La recherche a échoué. Actualisez pour réessayer.',idle='Actualisez pour lancer une recherche.',
         wait='Nouvelle recherche possible dans %d s.',friend='Ami Steam',version='Protocole %s, build du jeu %s',
         footer='Votre version : protocole %s, build du jeu %s. Les sessions des autres versions ne sont pas listées.'},
+    create={title='Créer une session',rules='RÈGLES DE LA SESSION',start='Lancer',
+        locked='coop-settings.txt est illisible : ce réglage ne peut pas changer pour le moment.',
+        who={public='Listée dans Trouver une session pour les joueurs de votre version. Les joueurs qui ne sont pas '
+            ..'vos amis Steam demandent à rejoindre.',
+            friends='Seuls vos amis Steam peuvent rejoindre. Ils la trouvent dans Trouver une session ou dans Steam.',
+            invitation='Non listée. On rejoint avec une invitation Steam ou votre code.',
+            closed='Personne ne peut rejoindre, même avec une invitation ou un code.'}},
 }
 T.ar={
     title='اللعب التعاوني',
@@ -796,6 +812,12 @@ T.ar={
         failed='فشل البحث. حدّث للمحاولة مرة أخرى.',idle='اضغط تحديث للبحث.',wait='يمكنك البحث مجددًا بعد %d ث.',
         friend='صديق على Steam',version='البروتوكول %s، إصدار اللعبة %s',
         footer='إصدارك: البروتوكول %s، إصدار اللعبة %s. لا تظهر جلسات الإصدارات الأخرى.'},
+    create={title='إنشاء جلسة',rules='قواعد الجلسة',start='بدء',
+        locked='تعذرت قراءة الملف coop-settings.txt: لا يمكن تغيير هذا الإعداد الآن.',
+        who={public='تظهر في البحث عن جلسة للاعبي إصدارك. يطلب اللاعبون الذين ليسوا أصدقاءك على Steam الانضمام.',
+            friends='يمكن لأصدقائك على Steam فقط الانضمام. يجدونها في البحث عن جلسة أو في Steam.',
+            invitation='لا تظهر في القائمة. ينضم اللاعبون بدعوة عبر Steam أو برمز الانضمام الخاص بك.',
+            closed='لا يمكن لأحد الانضمام، ولا حتى بدعوة أو برمز.'}},
 }
 T.da={
     title='CO-OP',
@@ -1040,6 +1062,13 @@ T.da={
         failed='Søgningen mislykkedes. Opdater for at prøve igen.',idle='Tryk Opdater for at søge.',
         wait='Du kan søge igen om %d s.',friend='Steam-ven',version='Protokol %s, spilbuild %s',
         footer='Din version: protokol %s, spilbuild %s. Sessioner med andre versioner vises ikke.'},
+    create={title='Opret en session',rules='SESSIONSREGLER',start='Start',
+        locked='coop-settings.txt kan ikke læses: denne indstilling kan ikke ændres nu.',
+        who={public='Vises i Find en session for spillere med din version. Spillere, der ikke er dine Steam-venner, '
+            ..'spørger om at deltage.',
+            friends='Kun dine Steam-venner kan deltage. De finder den i Find en session eller i Steam.',
+            invitation='Vises ikke. Spillere deltager med en Steam-invitation eller din kode.',
+            closed='Ingen kan deltage, heller ikke med en invitation eller en kode.'}},
 }
 T.de={
     title='KOOP',
@@ -1304,6 +1333,14 @@ T.de={
         idle='Aktualisiere, um zu suchen.',wait='Neue Suche in %d Sek. möglich.',friend='Steam-Freund',
         version='Protokoll %s, Spiel-Build %s',
         footer='Deine Version: Protokoll %s, Spiel-Build %s. Sitzungen anderer Versionen werden nicht aufgeführt.'},
+    create={title='Sitzung erstellen',rules='SITZUNGSREGELN',start='Starten',
+        locked='coop-settings.txt ist nicht lesbar: Diese Einstellung lässt sich gerade nicht ändern.',
+        who={public='In Sitzung finden für Spieler deiner Version aufgeführt. Spieler, die nicht deine Steam-Freunde '
+            ..'sind, fragen den Beitritt an.',
+            friends='Nur deine Steam-Freunde können beitreten. Sie finden die Sitzung über Sitzung finden oder in '
+            ..'Steam.',
+            invitation='Nicht aufgeführt. Beitritt mit einer Steam-Einladung oder deinem Code.',
+            closed='Niemand kann beitreten, auch nicht mit Einladung oder Code.'}},
 }
 T.es={
     title='CO-OP',
@@ -1559,6 +1596,13 @@ T.es={
         failed='La búsqueda falló. Actualiza para volver a intentarlo.',idle='Pulsa Actualizar para buscar.',
         wait='Puedes volver a buscar en %d s.',friend='Amigo de Steam',version='Protocolo %s, compilación del juego %s',
         footer='Tu versión: protocolo %s, compilación del juego %s. Las sesiones de otras versiones no aparecen.'},
+    create={title='Crear una sesión',rules='REGLAS DE LA SESIÓN',start='Empezar',
+        locked='No se puede leer coop-settings.txt: este ajuste no puede cambiar ahora.',
+        who={public='Aparece en Buscar una sesión para los jugadores de tu versión. Los jugadores que no son tus '
+            ..'amigos de Steam piden unirse.',
+            friends='Solo tus amigos de Steam pueden unirse. La encuentran en Buscar una sesión o en Steam.',
+            invitation='No aparece en la lista. Se entra con una invitación de Steam o con tu código.',
+            closed='Nadie puede unirse, ni siquiera con una invitación o un código.'}},
 }
 T['es-MX']={
     title='CO-OP',
@@ -1813,6 +1857,13 @@ T['es-MX']={
         failed='La búsqueda falló. Actualiza para intentarlo de nuevo.',idle='Presiona Actualizar para buscar.',
         wait='Puedes buscar de nuevo en %d s.',friend='Amigo de Steam',version='Protocolo %s, compilación del juego %s',
         footer='Tu versión: protocolo %s, compilación del juego %s. Las sesiones de otras versiones no aparecen.'},
+    create={title='Crear una sesión',rules='REGLAS DE LA SESIÓN',start='Comenzar',
+        locked='No se puede leer coop-settings.txt: esta opción no se puede cambiar ahora.',
+        who={public='Aparece en Buscar una sesión para los jugadores de tu versión. Los jugadores que no son tus '
+            ..'amigos de Steam piden unirse.',
+            friends='Solo tus amigos de Steam pueden unirse. La encuentran en Buscar una sesión o en Steam.',
+            invitation='No aparece en la lista. Se entra con una invitación de Steam o con tu código.',
+            closed='Nadie puede unirse, ni siquiera con una invitación o un código.'}},
 }
 T.fi={
     title='CO-OP',
@@ -2069,6 +2120,13 @@ T.fi={
         wait='Voit hakea uudelleen %d s:n kuluttua.',friend='Steam-kaveri',
         version='Protokolla %s, pelin koontiversio %s',
         footer='Sinun versiosi: protokolla %s, pelin koontiversio %s. Muiden versioiden istuntoja ei näytetä.'},
+    create={title='Luo istunto',rules='ISTUNNON SÄÄNNÖT',start='Aloita',
+        locked='coop-settings.txt ei ole luettavissa: tätä asetusta ei voi nyt muuttaa.',
+        who={public='Näkyy Etsi istunto -listassa saman version pelaajille. Pelaajat, jotka eivät ole '
+            ..'Steam-kavereitasi, pyytävät liittyä.',
+            friends='Vain Steam-kaverisi voivat liittyä. He löytävät istunnon Etsi istunto -listasta tai Steamista.',
+            invitation='Ei listassa. Pelaajat liittyvät Steam-kutsulla tai koodillasi.',
+            closed='Kukaan ei voi liittyä, ei edes kutsulla tai koodilla.'}},
 }
 T.it={
     title='CO-OP',
@@ -2324,6 +2382,13 @@ T.it={
         failed='La ricerca non è riuscita. Aggiorna per riprovare.',idle='Premi Aggiorna per cercare.',
         wait='Puoi cercare di nuovo tra %d s.',friend='Amico di Steam',version='Protocollo %s, build del gioco %s',
         footer='La tua versione: protocollo %s, build del gioco %s. Le sessioni di altre versioni non sono elencate.'},
+    create={title='Crea una sessione',rules='REGOLE DELLA SESSIONE',start='Avvia',
+        locked='Impossibile leggere coop-settings.txt: questa impostazione non può cambiare ora.',
+        who={public='Elencata in Trova una sessione per i giocatori della tua versione. Chi non è tuo amico su Steam '
+            ..'chiede di unirsi.',
+            friends='Possono unirsi solo i tuoi amici di Steam. La trovano in Trova una sessione o su Steam.',
+            invitation='Non elencata. Si entra con un invito di Steam o con il tuo codice.',
+            closed='Nessuno può unirsi, nemmeno con un invito o un codice.'}},
 }
 T.ja={
     title='協力プレイ',
@@ -2540,6 +2605,12 @@ T.ja={
     sessions={ask='参加をリクエスト',refresh='更新',empty='開いているセッションはありません。',failed='検索に失敗しました。更新してもう一度お試しください。',
         idle='更新を押して検索します。',wait='%d秒後に再検索できます。',friend='Steamフレンド',version='プロトコル %s、ゲームビルド %s',
         footer='あなたのバージョン：プロトコル %s、ゲームビルド %s。ほかのバージョンのセッションは表示されません。'},
+    create={title='セッションを作成',rules='セッションのルール',start='開始',
+        locked='coop-settings.txtを読み込めないため、この設定は今は変更できません。',
+        who={public='同じバージョンのプレイヤーの「セッションを探す」に表示されます。Steamフレンド以外のプレイヤーは参加をリクエストします。',
+            friends='Steamフレンドだけが参加できます。「セッションを探す」またはSteamから見つけられます。',
+            invitation='一覧には表示されません。Steamの招待かあなたのコードで参加します。',
+            closed='招待やコードがあっても、誰も参加できません。'}},
 }
 T.ko={
     title='코옵',
@@ -2754,6 +2825,12 @@ T.ko={
     sessions={ask='참가 요청',refresh='새로고침',empty='열린 세션이 없습니다.',failed='검색에 실패했습니다. 새로고침해서 다시 시도하세요.',
         idle='새로고침을 눌러 검색하세요.',wait='%d초 후 다시 검색할 수 있습니다.',friend='Steam 친구',version='프로토콜 %s, 게임 빌드 %s',
         footer='내 버전: 프로토콜 %s, 게임 빌드 %s. 다른 버전의 세션은 표시되지 않습니다.'},
+    create={title='세션 만들기',rules='세션 규칙',start='시작',
+        locked='coop-settings.txt를 읽을 수 없어 지금은 이 설정을 바꿀 수 없습니다.',
+        who={public='같은 버전의 플레이어에게 세션 찾기 목록에 표시됩니다. Steam 친구가 아닌 플레이어는 참가를 요청합니다.',
+            friends='Steam 친구만 참가할 수 있습니다. 세션 찾기나 Steam에서 찾을 수 있습니다.',
+            invitation='목록에 표시되지 않습니다. Steam 초대나 내 코드로 참가합니다.',
+            closed='초대나 코드가 있어도 아무도 참가할 수 없습니다.'}},
 }
 T.nl={
     title='CO-OP',
@@ -3006,6 +3083,13 @@ T.nl={
         failed='Zoeken mislukt. Vernieuw om het opnieuw te proberen.',idle='Druk op Vernieuwen om te zoeken.',
         wait='Je kunt over %d s opnieuw zoeken.',friend='Steam-vriend',version='Protocol %s, game-build %s',
         footer='Jouw versie: protocol %s, game-build %s. Sessies van andere versies staan er niet bij.'},
+    create={title='Een sessie maken',rules='SESSIEREGELS',start='Starten',
+        locked='coop-settings.txt kan niet worden gelezen: deze instelling kan nu niet veranderen.',
+        who={public='Staat in Een sessie zoeken voor spelers met jouw versie. Spelers die geen Steam-vriend van je '
+            ..'zijn, vragen om mee te doen.',
+            friends='Alleen je Steam-vrienden kunnen meedoen. Ze vinden de sessie via Een sessie zoeken of in Steam.',
+            invitation='Staat niet in de lijst. Spelers doen mee met een Steam-uitnodiging of jouw code.',
+            closed='Niemand kan meedoen, ook niet met een uitnodiging of een code.'}},
 }
 T.no={
     title='CO-OP',
@@ -3251,6 +3335,13 @@ T.no={
         failed='Søket mislyktes. Oppdater for å prøve igjen.',idle='Trykk Oppdater for å søke.',
         wait='Du kan søke igjen om %d s.',friend='Steam-venn',version='Protokoll %s, spillbygg %s',
         footer='Din versjon: protokoll %s, spillbygg %s. Økter med andre versjoner vises ikke.'},
+    create={title='Opprett en økt',rules='REGLER FOR ØKTEN',start='Start',
+        locked='coop-settings.txt kan ikke leses: denne innstillingen kan ikke endres nå.',
+        who={public='Vises i Finn en økt for spillere med din versjon. Spillere som ikke er Steam-vennene dine, ber '
+            ..'om å bli med.',
+            friends='Bare Steam-vennene dine kan bli med. De finner økten i Finn en økt eller i Steam.',
+            invitation='Vises ikke i listen. Spillere blir med via en Steam-invitasjon eller koden din.',
+            closed='Ingen kan bli med, heller ikke med en invitasjon eller en kode.'}},
 }
 T.pl={
     title='CO-OP',
@@ -3497,6 +3588,13 @@ T.pl={
         failed='Wyszukiwanie nie powiodło się. Odśwież, aby spróbować ponownie.',idle='Naciśnij Odśwież, aby wyszukać.',
         wait='Ponowne wyszukiwanie za %d s.',friend='Znajomy ze Steam',version='Protokół %s, kompilacja gry %s',
         footer='Twoja wersja: protokół %s, kompilacja gry %s. Sesje innych wersji nie są wyświetlane.'},
+    create={title='Utwórz sesję',rules='ZASADY SESJI',start='Rozpocznij',
+        locked='Nie można odczytać coop-settings.txt: tego ustawienia nie można teraz zmienić.',
+        who={public='Widoczna w Znajdź sesję dla graczy z twoją wersją. Gracze spoza twoich znajomych ze Steam proszą '
+            ..'o dołączenie.',
+            friends='Dołączyć mogą tylko twoi znajomi ze Steam. Znajdą ją w Znajdź sesję lub w Steam.',
+            invitation='Niewidoczna na liście. Dołącza się przez zaproszenie Steam lub twój kod.',
+            closed='Nikt nie może dołączyć, nawet z zaproszeniem lub kodem.'}},
 }
 T.pt={
     title='CO-OP',
@@ -3751,6 +3849,13 @@ T.pt={
         failed='A procura falhou. Atualiza para tentar de novo.',idle='Carrega em Atualizar para procurar.',
         wait='Podes procurar de novo daqui a %d s.',friend='Amigo no Steam',version='Protocolo %s, build do jogo %s',
         footer='A tua versão: protocolo %s, build do jogo %s. As sessões de outras versões não aparecem.'},
+    create={title='Criar uma sessão',rules='REGRAS DA SESSÃO',start='Começar',
+        locked='Não é possível ler coop-settings.txt: esta definição não pode mudar agora.',
+        who={public='Aparece em Procurar uma sessão para os jogadores da tua versão. Os jogadores que não são teus '
+            ..'amigos no Steam pedem para entrar.',
+            friends='Só os teus amigos no Steam podem entrar. Encontram-na em Procurar uma sessão ou no Steam.',
+            invitation='Não aparece na lista. Entra-se com um convite do Steam ou com o teu código.',
+            closed='Ninguém pode entrar, nem com um convite nem com um código.'}},
 }
 T['pt-BR']={
     title='CO-OP',
@@ -4003,6 +4108,13 @@ T['pt-BR']={
         failed='A pesquisa falhou. Atualize para tentar de novo.',idle='Pressione Atualizar para pesquisar.',
         wait='Você pode pesquisar de novo em %d s.',friend='Amigo no Steam',version='Protocolo %s, build do jogo %s',
         footer='Sua versão: protocolo %s, build do jogo %s. Sessões de outras versões não aparecem.'},
+    create={title='Criar uma sessão',rules='REGRAS DA SESSÃO',start='Começar',
+        locked='Não foi possível ler coop-settings.txt: esta configuração não pode mudar agora.',
+        who={public='Aparece em Encontrar uma sessão para os jogadores da sua versão. Os jogadores que não são seus '
+            ..'amigos no Steam pedem para entrar.',
+            friends='Só seus amigos no Steam podem entrar. Eles a encontram em Encontrar uma sessão ou no Steam.',
+            invitation='Não aparece na lista. Os jogadores entram com um convite do Steam ou com o seu código.',
+            closed='Ninguém pode entrar, nem com convite nem com código.'}},
 }
 T.ru={
     title='КООПЕРАТИВ',
@@ -4250,6 +4362,13 @@ T.ru={
         failed='Поиск не удался. Обновите, чтобы повторить.',idle='Нажмите «Обновить», чтобы начать поиск.',
         wait='Повторный поиск через %d сек.',friend='Друг в Steam',version='Протокол %s, сборка игры %s',
         footer='Ваша версия: протокол %s, сборка игры %s. Сессии других версий не показываются.'},
+    create={title='Создать сессию',rules='ПРАВИЛА СЕССИИ',start='Начать',
+        locked='Не удается прочитать coop-settings.txt: эту настройку сейчас нельзя изменить.',
+        who={public='Видна игрокам вашей версии в «Найти сессию». Игроки, которые не являются вашими друзьями в '
+            ..'Steam, запрашивают вход.',
+            friends='Присоединиться могут только ваши друзья в Steam. Они найдут ее в «Найти сессию» или в Steam.',
+            invitation='Не видна в списке. Вход по приглашению Steam или по вашему коду.',
+            closed='Никто не может присоединиться, даже по приглашению или коду.'}},
 }
 T.sv={
     title='CO-OP',
@@ -4494,6 +4613,13 @@ T.sv={
         failed='Sökningen misslyckades. Uppdatera för att försöka igen.',idle='Tryck Uppdatera för att söka.',
         wait='Du kan söka igen om %d s.',friend='Steam-vän',version='Protokoll %s, spelbygge %s',
         footer='Din version: protokoll %s, spelbygge %s. Sessioner med andra versioner visas inte.'},
+    create={title='Skapa en session',rules='SESSIONSREGLER',start='Starta',
+        locked='coop-settings.txt kan inte läsas: den här inställningen kan inte ändras nu.',
+        who={public='Visas i Hitta en session för spelare med din version. Spelare som inte är dina Steam-vänner ber '
+            ..'om att få gå med.',
+            friends='Bara dina Steam-vänner kan gå med. De hittar den i Hitta en session eller i Steam.',
+            invitation='Visas inte i listan. Spelare går med via en Steam-inbjudan eller din kod.',
+            closed='Ingen kan gå med, inte ens med en inbjudan eller en kod.'}},
 }
 T.th={
     title='CO-OP',
@@ -4716,6 +4842,13 @@ T.th={
         failed='การค้นหาล้มเหลว กดรีเฟรชเพื่อลองใหม่',idle='กดรีเฟรชเพื่อค้นหา',wait='ค้นหาใหม่ได้ในอีก %d วินาที',
         friend='เพื่อนใน Steam',version='โปรโตคอล %s บิลด์เกม %s',
         footer='เวอร์ชันของคุณ: โปรโตคอล %s บิลด์เกม %s เซสชันของเวอร์ชันอื่นจะไม่แสดง'},
+    create={title='สร้างเซสชัน',rules='กฎของเซสชัน',start='เริ่ม',
+        locked='อ่าน coop-settings.txt ไม่ได้ จึงเปลี่ยนการตั้งค่านี้ตอนนี้ไม่ได้',
+        who={public='แสดงในค้นหาเซสชันสำหรับผู้เล่นเวอร์ชันเดียวกับคุณ ผู้เล่นที่ไม่ใช่เพื่อนใน Steam '
+            ..'ของคุณต้องขอเข้าร่วม',
+            friends='เฉพาะเพื่อนใน Steam ของคุณที่เข้าร่วมได้ โดยหาได้จากค้นหาเซสชันหรือใน Steam',
+            invitation='ไม่แสดงในรายการ ผู้เล่นเข้าร่วมด้วยคำเชิญใน Steam หรือโค้ดของคุณ',
+            closed='ไม่มีใครเข้าร่วมได้ แม้จะมีคำเชิญหรือโค้ด'}},
 }
 T.tr={
     title='CO-OP',
@@ -4967,6 +5100,13 @@ T.tr={
         failed='Arama başarısız oldu. Tekrar denemek için yenile.',idle="Aramak için Yenile'ye bas.",
         wait='%d sn sonra yeniden arayabilirsin.',friend='Steam arkadaşı',version='Protokol %s, oyun derlemesi %s',
         footer='Senin sürümün: protokol %s, oyun derlemesi %s. Diğer sürümlerin oturumları listelenmez.'},
+    create={title='Oturum oluştur',rules='OTURUM KURALLARI',start='Başlat',
+        locked='coop-settings.txt okunamıyor: bu ayar şu an değiştirilemez.',
+        who={public='Senin sürümündeki oyunculara Oturum bul listesinde görünür. Steam arkadaşın olmayan oyuncular '
+            ..'katılmak için izin ister.',
+            friends="Yalnızca Steam arkadaşların katılabilir. Oturumu Oturum bul listesinde ya da Steam'de bulurlar.",
+            invitation='Listede görünmez. Oyuncular Steam davetiyle ya da senin kodunla katılır.',
+            closed='Davet ya da kodla bile kimse katılamaz.'}},
 }
 T['zh-Hans']={
     title='合作模式',
@@ -5160,6 +5300,12 @@ T['zh-Hans']={
             private='私人，房间码 %s',version='%s，协议 %d'},pop={leave_title='离开大厅',leave='返回希雍吗？你会回到与募兵官交谈的地方。'}},
     sessions={ask='申请加入',refresh='刷新',empty='没有开放的房间。',failed='搜索失败。请刷新后重试。',idle='按刷新开始搜索。',wait='%d秒后可再次搜索。',
         friend='Steam好友',version='协议 %s，游戏版本 %s',footer='你的版本：协议 %s，游戏版本 %s。其他版本的房间不会列出。'},
+    create={title='创建房间',rules='房间规则',start='开始',
+        locked='无法读取coop-settings.txt，现在不能更改此设置。',
+        who={public='同版本的玩家可在查找房间中看到它。不是你Steam好友的玩家需要申请加入。',
+            friends='只有你的Steam好友可以加入。他们可在查找房间或Steam中找到它。',
+            invitation='不会列出。玩家通过Steam邀请或你的房间码加入。',
+            closed='任何人都无法加入，即使有邀请或房间码。'}},
 }
 T['zh-Hant']={
     title='合作模式',
@@ -5352,6 +5498,12 @@ T['zh-Hant']={
             version='%s，協定 %d'},pop={leave_title='離開大廳',leave='返回曦安嗎？你會回到與募兵官交談的地方。'}},
     sessions={ask='申請加入',refresh='重新整理',empty='沒有開放的房間。',failed='搜尋失敗。請重新整理後再試。',idle='按重新整理開始搜尋。',wait='%d秒後可再次搜尋。',
         friend='Steam好友',version='協定 %s，遊戲版本 %s',footer='你的版本：協定 %s，遊戲版本 %s。其他版本的房間不會列出。'},
+    create={title='建立房間',rules='房間規則',start='開始',
+        locked='無法讀取coop-settings.txt，現在不能變更此設定。',
+        who={public='同版本的玩家可在尋找房間中看到它。不是你Steam好友的玩家需要申請加入。',
+            friends='只有你的Steam好友可以加入。他們可在尋找房間或Steam中找到它。',
+            invitation='不會列出。玩家透過Steam邀請或你的代碼加入。',
+            closed='任何人都無法加入，即使有邀請或代碼。'}},
 }
 local culture=require('nightop.recruiter_text').culture
 -- A table and the tables in it read T.en's word for a key they lack.

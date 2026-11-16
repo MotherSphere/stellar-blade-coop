@@ -15,7 +15,8 @@
 -- within its columns, the top one with its connection lost and paused words whole before the status line, which comes
 -- without its prefix, the race's panel, marker, banner and results within theirs, the lobby menu's rows, settings,
 -- values and status within their columns and its waiting-room notice within 200 bytes, Find a session's hints, status
--- lines, version and footer within theirs, and no Thai word that ends on a
+-- lines, version and footer within theirs, Create a session's title, rules header, Start row and right-pane words
+-- within theirs, and no Thai word that ends on a
 -- leading vowel; each join Steam refused as link/core.h words it, in every language; the DLC notice (T.dlcs) within
 -- 200 bytes with 100-byte DLC names in every language; its English as main.lua says it.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
@@ -269,6 +270,15 @@ for name in pairs(R.TEXT) do
     fits(name..'.sessions.friend',ss.friend,57)
     fits(name..'.sessions.version',ss.version:format('22','26123051'),57)
     fits(name..'.sessions.footer',ss.footer:format('22','26123051'),2*2200//16)
+    -- Create a session (ui/create.lua): its page title at the top right within 40 columns (Mideum 34, 18 units a
+    -- column); the rules header and the Start row within a setting's title column on C (32); a locked row's reason and
+    -- each Who can join word within four lines of the right pane's 1040 units (57 columns a line).
+    local cr=w.create
+    fits(name..'.create.title',cr.title,40)
+    fits(name..'.create.rules',cr.rules,32)
+    fits(name..'.create.start',cr.start,32)
+    fits(name..'.create.locked',cr.locked,4*57)
+    for k,text in pairs(cr.who) do fits(name..'.create.who.'..k,text,4*57) end
 end
 -- Thai writes a leading vowel (U+0E40 to U+0E44) before its consonant: no word ends on one.
 local function thai(t,at)
