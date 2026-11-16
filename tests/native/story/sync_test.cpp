@@ -588,6 +588,12 @@ void test_talk() {
   // Each bad value gets its line.
   t.name = "/Game/Talk/T Eve";
   assert(!p.send(t) && p.host.counters.invalid == 2 && saw(p.host.log, "T Eve"));
+  // A widget's negative value is logged per value, in any scene.
+  Message w;
+  w.type = Type::pch, w.scene = 1, w.take = 11, w.value = -1;
+  assert(!p.send(w) && p.host.counters.invalid == 3 && saw(p.host.log, "pch 2 1 11 0 -1"));
+  w.scene = 2, w.value = -7;
+  assert(!p.send(w) && p.host.counters.invalid == 4 && saw(p.host.log, "pch 2 2 11 0 -7"));
 }
 
 void test_trips() {

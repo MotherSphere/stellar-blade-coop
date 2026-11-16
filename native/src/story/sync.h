@@ -397,7 +397,9 @@ public:
     const Message back = parse(line.data(), line.size());
     if (back.type != m.type || back.type == Type::on || back.type == Type::off) {
       ++counters.invalid;
-      say("invalid " + std::to_string(int(m.type)) + " " + m.zone + " " + m.name + " " + m.exec,
+      // Every field that can make a line invalid is in the key: names, the exec, a widget's negative value.
+      say("invalid " + std::to_string(int(m.type)) + " " + m.zone + " " + m.name + " " + m.exec + " " +
+              std::to_string(m.value),
           "a value no line carries, not sent: " + line.substr(0, 160));
       return false;
     }
