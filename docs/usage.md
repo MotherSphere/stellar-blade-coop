@@ -40,7 +40,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 
 | Command | What it does |
 | --- | --- |
-| `coop host` | Host an online session of 2 players as `who_can_join` and `friends_ask` say (the menu's Host a session row): a Public or Friends only session, an Invitation session with a [join code](playing-with-a-friend.md#join-codes), or a Private one nobody can join |
+| `coop host` | Open the [Create a session screen](interface.md#create-a-session-screen), as the menu's Host a session row does. Where it cannot open, host an online session of 2 players at once as `who_can_join` and `friends_ask` say: a Public or Friends only session, an Invitation session with a [join code](playing-with-a-friend.md#join-codes), or a Private one nobody can join |
 | `coop host public\|friends\|invitation\|closed` | Host at once with that word in place of `who_can_join`, `friends_ask` still applying |
 | `coop invite` | Open the Steam invite dialog again while you are in a lobby |
 | `coop join` | Join the first Steam friend found in a Stellar Blade lobby |
@@ -136,8 +136,10 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 
 ### Session commands
 
-- `coop host` works like the menu's Host a session row. While you host, it opens the invite dialog again, as
-  `coop invite` does. A guest's host request is refused. With a word (`coop host closed`) it hosts at once with that
+- `coop host` works like the menu's Host a session row: it opens the Create a session screen, whose Start hosts. The
+  screen opens in a world while you are in no lobby. Anywhere else `coop host` asks the native part at once: while you
+  host, it opens the invite dialog again, as `coop invite` does. A guest's host request is refused.
+  With a word (`coop host closed`) it hosts at once with that
   word in place of `who_can_join`; any other word is refused. Under `public` and `invitation`, `friends_ask=on` makes
   your Steam friends wait for your answer too.
 - `coop list public` and `coop list friends` start a search, one at a time and 5 s apart at least. The search is

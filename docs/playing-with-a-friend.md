@@ -5,12 +5,22 @@ of up to 8 players start from the [SBO lobby](sbo-lobby.md) instead. Shared enem
 pages, [Shared enemies](shared-enemies.md) and [Ghost](ghost.md). How the link and the features below work is in
 [The Steam link](internals/steam-link.md) and [Group play: how it works](internals/group-play.md).
 
-1. The host presses F5 and selects Host a session. This creates a Steam lobby for 2 players and opens the Steam invite
-   dialog. Pick your friend there. By default the lobby is friends-only: your Steam friends who have the mod can also
-   join from their friends list or with `coop join`. With Options > Session > Who can join set to Invited only
-   (`who_can_join=private`), only the friends you invite can join. Set to With a code (`who_can_join=code`), it opens
-   no dialog, and anyone you give the [join code](#join-codes) to can ask to join. The setting counts for the next
-   session you host.
+1. The host presses F5 and selects Host a session. The
+   [Create a session screen](interface.md#create-a-session-screen) opens on the values in effect: Who can join, then
+   the session rules. Start creates a Steam lobby for 2 players as Who can join says:
+   - Public (the default): the online session shows in Find a session for every player of your version, with your
+     Steam name, region and nearest camp. No dialog opens. A player who is not your Steam friend asks to join and
+     waits for your answer (see [Join codes](#join-codes)).
+   - Friends only: the Steam invite dialog opens. Pick your friend there. Your Steam friends who have the mod can also
+     join from Find a session, from their friends list or with `coop join`.
+   - Invitation: the Steam invite dialog opens and a notice gives your [join code](#join-codes). The session shows in
+     no list: only the friends you invite and the players you give the code to can join.
+   - Private: nobody can join, not even with an invite or a code (`Hosting a private session: nobody can join it.`).
+
+   Friends join without asking, under Public and Invitation, is On by default: your Steam friends get in at once. Off
+   makes them wait for your answer too. Each row is the same setting as on the Options page and counts for the next
+   session you host. Back closes the screen without hosting. `coop host public` (or `friends`,
+   `invitation`, `closed`) hosts at once with that value, without the screen.
 2. Your friend accepts the invite in Steam. If their game is closed, Steam starts it. They join once a save is loaded
    (EVE in a world, not on the title screen). Until then their game holds the invite (`Invite held: joining once your
    save has loaded.`). A newer invite replaces a held one, and host, join or leave drops it.
@@ -55,10 +65,11 @@ up is copied into the other player's game.
 
 ## Join codes
 
-With Options > Session > Who can join set to With a code (`who_can_join=code`), Host a session creates a lobby that
-does not show in your friends' lists, and no invite dialog opens. The notice `Hosting. Your join code is CCS-CBMH.`
-gives its 7-character code. The menu's Copy my code row shows it too, and selecting it puts it on the clipboard
-(`Join code CCS-CBMH copied.`). Send it to the other player, for example in Discord. Each new lobby gets a new code.
+With Who can join set to Invitation (`who_can_join=invitation`; `code` and `private` from 0.11 and older read the same),
+Start on the Create a session screen creates a lobby that shows in no list and opens the Steam invite dialog. The
+notice `Hosting. Your join code is CCS-CBMH.` gives its 7-character code. The menu's Copy my code row shows it too, and
+selecting it puts it on the clipboard (`Join code CCS-CBMH copied.`). Send it to the other player, for example in
+Discord. Each new lobby gets a new code.
 
 The other player opens the menu outside a session and selects Join with a code. A text box opens where the menu was.
 It works like the chat box: any keyboard layout, the game ignores its own keys, and the mod's keys do nothing.
@@ -73,7 +84,8 @@ part checks the code: most codes with a wrong character get `That is not a join 
 [internals/steam-link.md](internals/steam-link.md#lobby-and-invites)), and a code that leads to no game gets one of the
 `Could not join: ...` notices.
 
-A player who is not your Steam friend waits for your answer, whatever Who can join says. Their game shows
+A player who is not your Steam friend waits for your answer, whatever Who can join says. With Friends join without
+asking set to Off, your Steam friends wait too. Their game shows
 `Joined <host>'s game. Waiting to be let in.` Yours shows a question in the middle of the screen, `<name> wants to
 join`, with Accept and Deny. It opens on its own, maybe while you walk or use the menu. Deny has the focus, and for
 1 s after it shows every key does nothing, so keys pressed for something else never answer it.

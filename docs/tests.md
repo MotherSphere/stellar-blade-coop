@@ -23,8 +23,8 @@ The Lua tests (`commands/`: `session`; `core/`: `actors_of`, `class_at`, `keybin
 `nightop/`: `board`, `challenges`, `guard_text`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`,
 `waves`; `partner/`: `capture`, `ghosts`, `hud`, `puppet`, `sentinel`; `race/`: `doro`, `drive`, `drive_model`, `model`,
 `run`; `session/`: `arrival`, `booth`, `chat`, `group`, `halls_rows`, `join`, `saves`, `sbo`, `travel`; `story/`:
-`snapshot`, `subtitles`; `ui/`: `guide`, `kit`, `lobby`, `lobby_model`, `model`, `notice`, `region_tabs`, `sessions`,
-`sessions_model`, `text`) run
+`snapshot`, `subtitles`; `ui/`: `create`, `create_model`, `guide`, `kit`, `lobby`, `lobby_model`, `model`, `notice`,
+`region_tabs`, `sessions`, `sessions_model`, `text`) run
 the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
 fails the test. The `main/` tests load
 `main/fixture.lua` first, with UE4SS stubbed for `main.lua`.
@@ -120,12 +120,25 @@ fails the test. The `main/` tests load
   log lines. No part is focused or sent a call outside the allowed list;
 - `ui/sessions_model_test` covers a tab's rows and status from the native part's list, what Refresh and Select ask for,
   the cursor, the region and camp keys and the rules word read back (any other shape gives none);
+- `ui/create_test` covers the Create a session screen on fake SB parts: it opens in a world on the values in effect,
+  its rows, headers, right pane and hints, Left, Right and Select changing a value with the rows that come and go with
+  it, the scroll window, Start and Back, the mouse, the locked look and reason while `coop-settings.txt` cannot be read,
+  the closes by itself and the refusals to open, the input given back, parts made again after a root build, the kit
+  drawing for a part the game cannot make and the log lines. No part is focused or sent a call outside the allowed list;
+- `ui/create_model_test` covers its rows for each Who can join value (Friends join without asking under Public and
+  Invitation only), Shared enemies' sub-rows only while it is on, Shared story only once Options defines it, a change
+  written through `settings_file.set` and read back, Start and Back, the cursor and every setting locked with its
+  reason while the file cannot be read;
 - `main/menu_test` also covers Find a session: the Sessions screen opens in place of the menu and takes the keys (R and
   Q, E included), the pad (Y, LB and RB included) and the mouse; the menu key, View held and `coop ui reset` close it;
-  its view reads our protocol and game build from the status;
+  its view reads our protocol and game build from the status. It covers Host a session the same way: the Create a
+  session screen opens from the main page, the co-op line and `coop host` alone, takes the keys (A, D and Q as Left and
+  Right), the pad and the mouse; its view gives the settings in effect, its act writes a change as Options does and
+  hosts Start's word; `host_key` still hosts at once;
 - `ui/text_test` checks each language's notices against the feed's 200-byte line, the SBO lobby's notices included. It
-  checks the lobby menu's rows, settings, values and status within their columns and the Sessions screen's hints, status
-  lines, version and footer within theirs. The hall seats' Sit and Stand up hint stays within the booth hint's width. It
+  checks the lobby menu's rows, settings, values and status within their columns, the Sessions screen's hints, status
+  lines, version and footer within theirs and the Create a session screen's title, header, Start row and right-pane
+  words within theirs. The hall seats' Sit and Stand up hint stays within the booth hint's width. It
   also reads `link/core.h` to check that each join Steam refused has the same English line there and in
   `T.en.join_refused`, then that `T.join_refused` turns each one into every language's words. The DLC notice (`T.dlcs`)
   stays within 200 bytes in every language with 100-byte DLC names;

@@ -25,7 +25,7 @@ The main page shows the rows that fit your session:
 
 | Row | Shown | What it does |
 | --- | --- | --- |
-| Host a session | Outside a session | Runs `coop host`. The menu closes first, because the Steam invite dialog opens. |
+| Host a session | Outside a session | Closes the menu and opens the [Create a session screen](#create-a-session-screen), where Start hosts |
 | Leave the session | In a session | Runs `coop leave` when you select it a second time within 3 s |
 | Invite a friend (Steam) | While you host | Runs `coop invite`. The menu closes first. |
 | Copy my code | While you host with a [join code](playing-with-a-friend.md#join-codes) | Shows the code and runs `coop copy`, which puts it on the clipboard |
@@ -63,8 +63,9 @@ Under them are the status line and a sentence about the line:
 | You joined | Leave the session | `On the line with <name>.` while you are linked, none while connecting or after a connection loss |
 | Steam not ready yet | none | none |
 
-The session rows work as on the main page: Host a session and Invite a friend close the line first. Find a session opens
-the [Sessions screen](#sessions-screen) and Join with a code opens the code box. Leave the session and Remove <name> run
+The session rows work as on the main page: Host a session opens the [Create a session screen](#create-a-session-screen)
+and Invite a friend closes the line first. Find a session opens the [Sessions screen](#sessions-screen) and Join with a
+code opens the code box. Leave the session and Remove <name> run
 on a second Select within 3 s. Co-op menu switches to the main page, where Chat, Options and the bug report are. Hang
 up, Esc and the menu key close the line. A message of the menu, such as `Select again within 3 s to leave.`, or a notice
 under 8 s old shows in place of the sentence.
@@ -73,6 +74,52 @@ The booth keeps its own interaction: the game's Fast travel prompt still shows, 
 travels and saves as it does without the mod. The line works on any save, as the menu does, and changes nothing in the
 game. Away from a booth, the menu key opens the main page as before. Each time the line opens, `UE4SS.log` names the
 booth, for example `line: booth Xion_10_EnvS_016 (Env_Camp_TeleportMachine_C) at 1.8 m`.
+
+### Create a session screen
+
+Host a session closes the menu and opens the Create a session screen, drawn with the game's own setting rows, headers
+and key hints. `coop host` typed alone opens it too. Nothing is hosted until you select Start.
+
+| Row | Shown | What it sets |
+| --- | --- | --- |
+| Who can join | Always | Public, Friends only, Invitation or Private (`who_can_join`, see [Settings](settings.md)) |
+| Friends join without asking | Under Public and Invitation | On lets your Steam friends in at once. Off makes them wait for your answer like other players (`friends_ask=on`). |
+| Shared enemies | Always, under SESSION RULES | [Shared enemies](shared-enemies.md) on or off |
+| Same place, Same spawns, Extra enemies, Shared bosses, Enemy HP, Boss HP, Enemies attack | While Shared enemies is On | The same values as on the Options page |
+| Shared world, Shared quests, Friend can revive me | Always | On or Off |
+| Start | Always | Closes the screen and hosts with the Who can join value shown |
+| Back | Always | Closes the screen without hosting |
+
+Each setting row is the Options page's own setting. A change rewrites that setting's line in `coop-settings.txt` and
+applies as it does from the Options page, so the screen opens on the values in effect and the Options page shows the
+same values. The right pane names the focused row. On Who can join it also says in one sentence who can join with that
+value. What each value does once you host is in [Playing with a friend](playing-with-a-friend.md).
+
+If `coop-settings.txt` cannot be read, every setting row shows the game's locked look and the right pane says
+`coop-settings.txt cannot be read: this setting cannot change now.` Start still hosts with the values in effect.
+
+| Key | Controller | On the Create a session screen |
+| --- | --- | --- |
+| Up arrow, W or Z; down arrow or S | D-pad or left stick, up or down | Move |
+| Left arrow, A or Q; right arrow or D | D-pad or left stick, left or right | Previous or next value |
+| Enter or Space | A | Next value; on Start, host; on Back, close |
+| Esc, F5 | B, View held 1 s | Close without hosting |
+
+The row you move the mouse onto takes the focus, a left click on a row does what Enter does and a right click closes
+the screen.
+
+The screen opens where the co-op menu would (in a world, the game not paused) and only while you are in no lobby.
+Where it cannot open, `coop host` hosts at once with `who_can_join` as before: while you host, it opens the Steam
+invite dialog again. `coop host public` (or `friends`, `invitation`, `closed`) and `host_key` always host at once. The
+screen closes by itself outside a world, when the game pauses or shows the mouse cursor for one of its own screens,
+when the UI turns off and once you are in a lobby (after an invite you accepted, for example). `coop ui reset` and the
+[focus watchdog](#focus-watchdog) close it too.
+
+If one of the game's widgets cannot be made, the screen draws the same rows, headers and hints with the menu's own
+parts. `UE4SS.log` then says `[StellarCoop][UI] create: part <class>: <why>; left out until the mod reloads` once. It
+also says `[StellarCoop][UI] create: open`, `create: start <word>` and `create: closed`. Each change logs
+`[StellarCoop] menu: <setting>=<value> saved in coop-settings.txt`. Start then logs `[StellarCoop] OK: asked the
+native part: host <word>`. The Create a session screen has not been tested in game yet.
 
 ### Sessions screen
 

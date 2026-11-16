@@ -108,9 +108,10 @@ changes the file.
 
 ## Keys and settings
 
-- `F5` opens the co-op menu. Its first row, Host a session, opens a session and the Steam invite dialog, where you
-  pick your friend. The session is friends-only unless Options sets Who can join to Invited only or With a code (see
-  below). While you host, the menu has Invite a friend and Leave the session instead. The arrow keys (or WASD, or
+- `F5` opens the co-op menu. Its first row, Host a session, opens the Create a session screen: pick who can join
+  (Public by default, Friends only, Invitation or Private) and the session rules, then select Start. Friends only and
+  Invitation open the Steam invite dialog, where you pick your friend. While you host,
+  the menu has Invite a friend and Leave the session instead. The arrow keys (or WASD, or
   ZQSD) move, Enter selects and Esc goes back. Within 3 m of a camp phone booth, `F5` opens the co-op line instead, a
   page with the same session rows. See [docs/interface.md](docs/interface.md#co-op-menu).
 - On a controller, hold View for 1 s to open or close the co-op menu. The D-pad or the left stick moves, A selects
@@ -131,7 +132,7 @@ show for 8 s in the feed at the top left of the screen and also go to `UE4SS.log
 the first seconds after a load or a map change, during your own photo mode, or after an engine error), they show
 above EVE for 4 s instead.
 
-With Who can join set to With a code (`who_can_join=code`), Host a session opens no invite dialog. A notice and the
+With Who can join set to Invitation (`who_can_join=invitation`), Start opens the invite dialog too. A notice and the
 menu's Copy my code row give a 7-character join code such as `CCS-CBMH`, and each new session gets a new one. Send it
 to the other player, who selects Join with a code in their co-op menu and types it. Your Steam friends get in at once.
 For a player who is not on your Steam friends list, in any session you host, a question asks whether to let them in:
