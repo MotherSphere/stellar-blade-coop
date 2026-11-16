@@ -591,6 +591,15 @@ The C++ tests cover the platform-free headers in `native/src`.
   order), the Pod landing scene whose end warps the player, a two-event end chain, a shared quest's subtitle sequence,
   a row whose condition is tested before the call, Lily's warp (sent), the lift's zone change (not sent) and the trips
   left out.
+- `story_sync_test`: `story/sync.h`'s lines through format and parse and back (the largest legal line, 59 malformed
+  lines and 20,000 fuzzed ones), the lists, the leash, the dialogue release, the story gate and the replay guard on
+  their own. Then a host and a guest wired over the parser with a fake game on her side: the on and off lines, a scene
+  started and shared, the leash holding her and letting her go, results applied once in their take and dropped once
+  her copy left it, a widget that comes late, a result her game refuses, her dialogue wait closed once, a skip, the
+  host's end with her copy played out, the replay guard and its expiry, a first take that differs, a scene that never
+  shows, a refused start, a busy game, an attach, a quest row, a talk, trips that wait for her copy, the host's
+  position rate, sequence numbers, the queue while she loads and its overflow, a new partner, the feature off and the
+  status line.
 
 ### Quests
 
