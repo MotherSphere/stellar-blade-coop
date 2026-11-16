@@ -118,7 +118,8 @@ local function falling(e)
 end
 
 -- o: log (the [EM] lines), ask(line) (a native request: ok and its line) and status() (the native status text), both
--- nil without the native part.
+-- nil without the native part; riding() (bike/ride.lua's: EVE rides the bike), nil when there is none. No emote or seat
+-- loop starts while she rides: the ride plays its own clip on the same native track.
 function Emote.new(o)
     local log,ask,status=o.log,o.ask,o.status
     local self={}
@@ -152,6 +153,7 @@ function Emote.new(o)
         return true
     end
     local function play(name,pose)
+        if o.riding and o.riding() then return false,'EVE rides the bike: coop bike gets her off first' end
         local e=her()
         if not e then return false,'no EVE in the world' end
         if falling(e) then return false,'EVE is in the air: try again on the ground' end
