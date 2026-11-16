@@ -17,7 +17,7 @@ The code is split as for the shared quests:
 ## Roots
 
 A player's interaction with an env (SB's word for a placed object with states) runs an interaction graph. A graph
-changes an env through four kinds of nodes, and each change one of them makes is a root. Only roots are sent. What a
+changes an env through four kinds of nodes. Each change one of them makes is a root. Only roots are sent. What a
 root sets off afterwards (the lever's own events opening its door, a counter reaching its target) runs in each world
 from that world's tables, so it never goes on the wire.
 
@@ -39,8 +39,7 @@ The worker swaps the R1, R2 and R4 slots once a run, when the gates first open (
 co-op save, no match lobby or SBO lobby session), on the pinned build only. Each swap is one aligned 8-byte
 compare-and-swap from the game's run to our hook, as the spawn filter does, so a slot that holds another mod's value is
 left as it is and logged. R3's slot is the one the SBO lobby hooks for the recruiter's Join (`game/sbo.h`'s
-`kJoinSlot`): `join_slot_install()` swaps it once for whichever of the two features needs it first, and the lobby's hook
-hands each ZoneEvent action to the shared world before its own Join test. `coop off` and the first fault swap our slots
+`kJoinSlot`): `join_slot_install()` swaps it once for whichever of the two features needs it first. The lobby's hook hands each ZoneEvent action to the shared world before its own Join test. `coop off` and the first fault swap our slots
 back.
 
 Each hook reads the node before it calls the game's run and pushes a fixed-size root into a ring of 64. The hook
@@ -61,11 +60,11 @@ python3 -I tools/world_rows.py <folder of <Table>.uasset.json exports>
 It reads ZoneEnvSpawnTable, ZoneEnvTable, ZoneEventTable, EventEnvControlTable, QuestTable, QuestTaskGroupTable,
 QuestTaskTable and AchievementTable, puts Matrix XIII's rows from `data/mxiii-world.json` into them first (each a copy
 of its donor row with every field the file sets, as `lion/rows.h` adds them at run time, so the 114 game rows it
-changes in place are judged on their new values), and writes four sorted lists:
+changes in place are judged on their new values). It writes four sorted lists:
 
 - 6,433 (EnvSpawnAlias, tag) pairs over 2,555 of the 4,628 ZoneEnvSpawnTable rows (2,460 of the game's 4,430 and 95
   of the 198 Matrix XIII adds), for R1 and the state part of an `l` line;
-- 2,416 EnvSpawnAliases for an ObjectState (R2, and an `l` line whose ObjectState is not 0);
+- 2,416 EnvSpawnAliases for an ObjectState (R2 and an `l` line whose ObjectState is not 0);
 - 2,064 ZoneEventTable rows for R3;
 - 11 kept EnvSpawnAliases an `l` line may not add progress to.
 
@@ -83,11 +82,11 @@ A state of a kept row is out when it is the crane's `ResetCam` or `ChangeCam`, w
 the player, her items or her story (Theater, UIAction, GuideAction, CompleteHint, ActivateHint, Item, ItemAction,
 AcquireQuest, InteractCamp, FinishBossChallenge, PlayerWarp, ChangeZone, StartMatchMaking, StopMatchMaking or
 ReturnToSinglePlay), or when that state, or one an env control row among them sets, has a ChangeState achievement.
-ChangeState credits such an achievement to its caster, and the receiver's caster is her own player: without this rule
+ChangeState credits such an achievement to its caster. The receiver's caster is her own player: without this rule
 `Xion_22_EnvS_002` A would complete `Xion_Phase_2` in her game. 65 states are out for an achievement, 43 of them
 directly. A row is on the ObjectState list only when every one of its states is kept, so a forwarded Disable never
 locks a lever whose state change stayed local. A ZoneEvent row is kept when it and every row it chains to are env
-control rows, none names a camp, each names a kept row, every tag it can set is a kept pair, and each Disable is on an
+control rows, none names a camp, each names a kept row, every tag it can set is a kept pair and each Disable is on an
 env of the ObjectState list. A kept row goes on the no-progress list when one of its states counts progress and moves
 at its count to a tag that is not a kept pair: `0x141fe39b0` adds to the current state's counter and at the count runs
 ChangeState to that state's progress change tag. `WLA_30_EnvS_068` is one: On at 3 goes to A, which gives an item.
@@ -95,7 +94,7 @@ ChangeState to that state's progress change tag. `WLA_30_EnvS_068` is one: On at
 Rows that neither the tables nor `data/mxiii-world.json` hold, such as another mod's, are on no list. Another game
 build needs the block written again from that build's tables.
 
-The sender checks its lists before a root becomes a line, and the receiver checks them again when the line arrives.
+The sender checks its lists before a root becomes a line. The receiver checks them again when the line arrives.
 A3 checks the ZoneEvent list a third time right before it calls RunZoneEvent, since SB's RunEvent reaches its
 matchmaking from some row types (see `tests/tools/matchmaking_scan_test.py` in [Tests](../tests.md#python-tests)).
 
@@ -108,17 +107,17 @@ The lines go on Steam channel 2, reliable, after the tag `SBW21`:
 | `SBW21 s <seq> <zone> <alias> <tag>` | an env put in a state (R1) |
 | `SBW21 a <seq> <zone> <alias> <1\|2>` | an env enabled or disabled (R2) |
 | `SBW21 e <seq> <zone> <row>` | a ZoneEventTable row run (R3) |
-| `SBW21 l <seq> <zone> <alias> <tag> <objectState> <progress>` | a linked env: its state (`None` for none), ObjectState 0 to 2, and a progress to add (R4) |
+| `SBW21 l <seq> <zone> <alias> <tag> <objectState> <progress>` | a linked env: its state (`None` for none), ObjectState 0 to 2 and a progress to add (R4) |
 | `SBW21 on`, `SBW21 off <reason>` | the sender's own state; the reason is `setting`, `match`, `save` or `fault` |
 | `SBW21 on reply` | `on`, as the answer to her `on` |
 
 Each line is at most `kMaxMessage` bytes. Zone, alias, tag and row are FName text: letters, digits and `_`, at most
 64 bytes. `seq` starts at 1 after each `on` and goes up by one per line; the receiver counts an old one as bad and logs
-a gap once. A player sends `on` or `off` each time her own state changes, and again to a new partner. Each side also
-answers her `on` with its own state, as `on reply` or its `off`, and never answers an `on reply`. A guest who loses the
+a gap once. A player sends `on` or `off` each time her own state changes and again to a new partner. Each side also
+answers her `on` with its own state, as `on reply` or its `off`. It never answers an `on reply`. A guest who loses the
 host's lobby and rejoins before the host sees her leave starts again and sends `on`, while the host's partner never
 changed; the answer gives her the host's `on` back. An `l` line is sent only when it changes something (a tag other
-than `None`, an ObjectState other than 0 or a progress above 0), and each of those parts is checked on its own list.
+than `None`, an ObjectState other than 0 or a progress above 0). Each of those parts is checked on its own list.
 Before a root becomes a line, the sender reads each FName's text, writes the line, parses it back and checks the
 lists.
 
@@ -126,8 +125,7 @@ The worker hands our lines to `send_fight()`, which refuses a line while its cha
 waits with the lines after it for the next pass, up to 1,024 (`world/sync.h`'s `Outbox`); a new partner, or none,
 drops what waits, as the link drops its own queue then.
 
-`link/core.h` refuses `SBW` lines in match lobbies both ways, as it does `SBQ` lines; one that arrives there is
-dropped, and the log says `dropped fight data from <name>: the shared world is off in a match lobby`.
+`link/core.h` refuses `SBW` lines in match lobbies both ways, as it does `SBQ` lines; one that arrives there is dropped. The log says `dropped fight data from <name>: the shared world is off in a match lobby`.
 
 A last check stops echoes that the applying rule above would miss: the value she sent for an env or a row stops one
 root of ours with the same value for that env or row within 3 s, for her last 32 values. Any other root of ours for
@@ -139,7 +137,7 @@ The worker takes her `SBW` lines out of channel 2 before the shared fight sees t
 (up to 1,024 waiting there; past that they are dropped and counted as `inbox_dropped=`). The game thread queues them in
 arrival order, up to 256; when the queue is full, the newest line is dropped and the log says so once per full spell.
 A line is dropped on arrival (`gated=`) when our setting is off, no friend is linked, we are in a match lobby or the
-SBO lobby, we do not play a co-op save, or her side is not on, and refused (`refused=`) when the lists do not hold it.
+SBO lobby, we do not play a co-op save, or her side is not on. It is refused (`refused=`) when the lists do not hold it.
 When one of our own gates closes, or a new partner links, the queue is dropped. Her `off` does not drop it: she sent
 those lines while she was on. A load (a map, the title, leaving Xion) reads `slot=none` or `slot=unknown` for a
 while, because Lua's world flag is false without EVE; the co-op save gate keeps the last verdict through those
@@ -148,21 +146,20 @@ ends it.
 
 Each frame, `coop_tick` applies up to 8 queued lines when the game is ready for them: `lion_gate` open (net mode 0, no
 logic task in flight), the client in game and playing (flow 2, phase `0xe`), the world's level manager present, not on
-SB's logic thread (`0x1470683b0`), and our own player found. That player, the caster of every call, is read the way
+SB's logic thread (`0x1470683b0`) and our own player found. That player, the caster of every call, is read the way
 SB's load restore reads it at `0x141fe2cdb`: the actor of client `+0x58` in the world's actor map (`0x141aae0d0` on
 world `+0xc8`), then its `+0x10`'s vtable `+0x38`. Names are found with FName's find (`FNAME_Find`), which never adds a
 name: a name her game has and ours lacks refuses the line.
 
 - A1, a state on a live env (`0x141d1e100` on the world's level manager): the env must have the env vtable, not
-  already be in that tag (`+0x1f4`), have that tag among its states (`+0x278`, count `+0x280`), and that state must
-  have no reward group or one already dropped. Then ChangeState `0x141fe3b70(env, tag, caster, L"", 0, 0, 0, 0)`, as
+  already be in that tag (`+0x1f4`), have that tag among its states (`+0x278`, count `+0x280`). That state must have no reward group or one already dropped. Then ChangeState `0x141fe3b70(env, tag, caster, L"", 0, 0, 0, 0)`, as
   R1's run calls it. A tag that does not read back afterwards refuses the line. ChangeState and the runs of R1 and R4
-  never test ObjectState (`+0x28`) or ActiveState (`+0x21c`), and SB's graphs change disabled envs (the lift of
+  never test ObjectState (`+0x28`) or ActiveState (`+0x21c`). SB's graphs change disabled envs (the lift of
   `SE_Area07_Lift_Lever` is Disable during its ride and goes to WaitBottom then), so A1 does not test them either.
 - A1b, an ObjectState on a live env: the setter `0x141fe4f10` (env vtable `+0x78`) when the value differs, then
   `0x141fe33c0`, which copies the env into the records of its row's other zones, as R2's run does.
 - A2, either one with no live env: the stored record of each zone of the spawn row (`0x141a9b420` for the row,
-  `0x141d1df50`, `0x141d15a20`, and `0x141d14620` then `0x141d12490` for a record that is missing), as R1's run does
+  `0x141d1df50`, `0x141d15a20` and `0x141d14620` then `0x141d12490` for a record that is missing), as R1's run does
   offline. The tag goes to record `+0x28` with its StateInfoList entry's flag set, the ObjectState to `+0x20`, whatever
   the record's ObjectState and ActiveState, as SB's offline branch writes it. The game replays the tag's events when
   she loads that zone.
@@ -171,8 +168,7 @@ name: a name her game has and ours lacks refuses the line.
   `away`), in the order R4's run uses: A1 with its guards when the tag is not `None`, skipped when the env is already
   in that tag; then the ObjectState through vtable `+0x78` when not 0; then `0x141fe39b0(env, progress, caster, 0)`
   when the progress is above 0 (0 adds); then `0x141fe33c0`. An A1 guard that refuses (the lists missed something)
-  stops the whole line. A tag that does not read back does not stop the parts after it, as SB's node runs them anyway,
-  and the line then counts as refused (`game`).
+  stops the whole line. A tag that does not read back does not stop the parts after it, as SB's node runs them anyway. The line then counts as refused (`game`).
 
 A line the game refuses is not tried again. Each refusal is logged once per env or row in `coop-link.log`, for up to
 256 of them; after that one line says the rest are only counted.
@@ -203,24 +199,23 @@ after a fault.
 | `gated` | her lines while the feature was off on either side, or in a match lobby |
 | `queued` | her lines that wait now |
 | `overflow` | her lines dropped by a full queue |
-| `bad` | malformed lines, and lines with an old `seq` |
+| `bad` | malformed lines and lines with an old `seq` |
 | `gaps` | `seq` numbers skipped |
 | `hooks` | the slots of ours in place, out of 4 |
 | `inbox_dropped` | her lines dropped before the game thread took them |
 | `unsent` | our lines dropped unsent: past 1,024 waiting for the link, or at a new partner |
 | `elsewhere` | hook calls on a thread other than the game thread |
 
-The line changes with its counters, and each change goes to `UE4SS.log` as a `[StellarCoop] link:` line.
+The line changes with its counters. Each change goes to `UE4SS.log` as a `[StellarCoop] link:` line.
 
 ## Lua side
 
 `shared_world` is a switch in `core/link.lua`'s settings, on by default. Once a load, as soon as the native part has
 judged the save slot, `main.lua` sends the request `world on` when the setting is on; the native part starts off. The
 Options row sends `world on` at once, or `world off` each time it turns off (the `world=` line lags a `world on` by a
-worker pass and a frame, so it is not read there), and `shared_world=off` at a reload sends `world off` when an
+worker pass and a frame, so it is not read there). `shared_world=off` at a reload sends `world off` when an
 earlier load turned it on. `coop world on|off` sends the request itself and leaves the setting alone. The notices
-come from the `world=` line: on with her each time it reads `on` after anything else, and stopped when it changes to
-`stopped`.
+come from the `world=` line: on with her each time it reads `on` after anything else and stopped when it changes to `stopped`.
 
 ## Limits
 
@@ -228,15 +223,15 @@ come from the `world=` line: on with her each time it reads `on` after anything 
 - After a live ChangeState, R1's run has a second pass over the envs of type 5 when an object of the tables has
   `+0x182 == 5`. The receiver does not make that pass: what type 5 covers there was not mapped.
 - The guards are the mod's own beyond SB's: A1 refuses a tag the env already has (SB would run it again, with its
-  events) and a state with a reward still to drop, and a refused line is never retried.
+  events) and a state with a reward still to drop. A refused line is never retried.
 - An R4 change reaches her game only while its target is live there. A linked env of a zone she is not in is refused
-  as `away` and is not written into her records, and nothing catches it up when she loads that zone.
+  as `away` and is not written into her records. Nothing catches it up when she loads that zone.
 - The story walk does not follow a quest NPC's spawn into EventSpawnTable's EventOnDead or EventOnBattle, nor the
   events a theater or level sequence asset fires itself.
 - The tables do not show which of the 2,064 kept ZoneEvent rows a graph's ZoneEvent action runs.
 - A graph that runs one of these nodes off the game thread is not shared; `elsewhere=` counts those calls.
 - Not in this phase: condition triggers, the puzzles played on a UI screen, progress snapping, moved objects (their
-  transform), catching up two worlds that changed apart, and putting the partner onto a moving lift.
+  transform), catching up two worlds that changed apart and putting the partner onto a moving lift.
 
 ## Addresses
 

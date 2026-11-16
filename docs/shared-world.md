@@ -1,8 +1,7 @@
 # Shared world (experimental)
 
-With the shared world on, a door, lever, switch, crane, lift or shortcut that you work in your game changes in your
-friend's game too, and the same goes the other way. It is on by default and has not been tested in game yet. Back up
-your saves before you play a co-op save with it on (see [saves.md](saves.md)), and keep Steam Cloud off.
+With the shared world on, a door, lever, switch, crane, lift or shortcut that you work in your game changes in your friend's game too. The same goes the other way. It is on by default and has not been tested in game yet. Back up
+your saves before you play a co-op save with it on (see [saves.md](saves.md)). Keep Steam Cloud off.
 
 How the code does it is in [Shared world: how it works](internals/shared-world.md).
 
@@ -18,21 +17,17 @@ through the same game function, with its own EVE as the player who made it. Thes
 
 The change runs in the other game as if that player had made it there, with the object's own animation and sound and
 whatever the game's tables chain to it, such as the door a lever opens. If the object is loaded in your friend's game,
-the change happens at once. If it is not, the change is written into her world's saved state for that zone, and she
-finds the object changed when she loads it. Either way the change stays in both co-op saves once the games save.
+the change happens at once. If it is not, the change is written into her world's saved state for that zone. She finds the object changed when she loads it. Either way the change stays in both co-op saves once the games save.
 
-One kind of change is made only while the object is loaded. Some switches drive other objects straight from their own
-list of linked objects, and the game changes those only in the zone the player is in. When your friend is elsewhere,
-such a change is skipped in her game, and that object stays as it was until one of you works it again there.
+One kind of change is made only while the object is loaded. Some switches drive other objects straight from their own list of linked objects. The game changes those only in the zone the player is in. When your friend is elsewhere,
+such a change is skipped in her game. That object stays as it was until one of you works it again there.
 
-A crane moves in both games, but its camera view changes only for the player at its controls.
+A crane moves in both games. Its camera view changes only for the player at its controls.
 
 ## What stays each player's own
 
 Anything that gives an item or a reward is not shared. Each player opens their own copy and gets their own loot:
-chests, supply boxes, cabinets, memory sticks, records, ammo chargers, angel remains, cans, Nikke items, and the cores
-taken after a boss fight (the Beta core at the drop pod, the Burst core). Your friend's ghost still plays her opening
-animation, as for any other move she makes. Camps and the corpses that hold a passcode hint are not shared either. A
+chests, supply boxes, cabinets, memory sticks, records, ammo chargers, angel remains, cans, Nikke items and the cores taken after a boss fight (the Beta core at the drop pod, the Burst core). Your friend's EVE still plays her opening animation, as for any other move she makes. Camps and the corpses that hold a passcode hint are not shared either. A
 change that starts a cutscene, gives an item or a hint, opens a menu, starts a quest or moves the player stays in the
 game where it was made. So does a change that counts toward an achievement, such as Xion's phase changes, an album
 unlock or a map progress entry: each player makes it in their own game.
@@ -50,27 +45,25 @@ the two of you make together opens it in both games.
 
 All of these must hold:
 
-- your friend is linked in a co-op session (not a match lobby, and not the [SBO lobby](sbo-lobby.md));
+- your friend is linked in a session (not a match lobby or the [SBO lobby](sbo-lobby.md));
 - both of you play a co-op save;
 - both of you have the shared world on;
 - the game is Steam build 26123051, the build this version supports.
 
-Your friend's changes that arrive while your game loads wait, up to 256 of them, and are made once you are back in
-the world. A change your game cannot make (an object it does not have, or one already in that state) is skipped, and
+Your friend's changes that arrive while your game loads wait, up to 256 of them. They are made once you are back in the world. A change your game cannot make (an object it does not have, or one already in that state) is skipped.
 `coop-link.log` names that object once. What one of you changed while you were not linked is not caught up when you
 link again.
 
 ## The setting
 
-Options > Session > Shared world (experimental) in the co-op menu turns it on or off at once, and so does
-`shared_world=on` or `off` in [coop-settings.txt](settings.md#coop-settingstxt). Each player has their own: off, your
+Options > Session > Shared world (experimental) in the co-op menu turns it on or off at once. So does `shared_world=on` or `off` in [coop-settings.txt](settings.md#coop-settingstxt). Each player has their own: off, your
 changes are not sent and your friend's are not made in your game. With the setting on, the mod turns it on by itself
 once a load.
 
 `coop world on` and `coop world off` change it until the mod reloads (game start or Ctrl+R), whatever the setting
 says. `coop world status` answers with the `world=` line of [coop status](usage.md#coop-status).
 
-Two notices come in the feed: `Shared world on with <name>.` each time both sides come on, and `Shared world stopped
+Two notices come in the feed: `Shared world on with <name>.` each time both sides come on, `Shared world stopped
 until the game restarts. coop-link.log says why.` after an error. The ghost, the link and the other shared features go
 on after such an error.
 
@@ -84,8 +77,7 @@ on after such an error.
 - `world=stopped`: stopped for this run after an error.
 - `world=off why=build`: another game build. `world=off why=coop_off`: after `coop off`.
 
-The line goes on with counters: `sent=` your changes sent, `received=` and `applied=` hers, `refused=` the ones your
-game did not make, and `queued=` those that wait while you load. The others are described in
+The line goes on with counters: `sent=` your changes sent, `received=` and `applied=` hers, `refused=` the ones your game did not make and `queued=` those that wait while you load. The others are described in
 [Shared world: how it works](internals/shared-world.md#status-line).
 
 ## Not shared yet
