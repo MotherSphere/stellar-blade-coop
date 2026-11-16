@@ -839,6 +839,48 @@ void test_lead() {
   assert(lines().empty()); // Nothing of it went, its end neither.
 }
 
+// The host's results: each before the skip that leaves its take and the position, with its scene; one that came as
+// its theater ended goes before the end; those of a play not shared are said once and not sent.
+void test_lead_results() {
+  Pair p;
+  Lead lead;
+  const Scene &row = plain_row();
+  auto lines = [&] { return std::exchange(p.host.out, {}); };
+  Theater t;
+  t.present = t.ready = true, t.id = 40, t.path = row.path, t.priority = row.priority, t.finish = row.finish;
+  t.pos = Pos{100, "Seq_A", 0, true};
+  lead.pass(t, row.zone, p.host, p.now);
+  assert(lines().size() == 2);
+  Outcome sel, qte;
+  sel.play = qte.play = 40;
+  sel.m.type = Type::sel, sel.m.take = 100, sel.m.name = "-", sel.m.exec = "Exec_X";
+  qte.m.type = Type::qte, qte.m.take = 100, qte.m.n = 1, qte.m.value = 6, qte.m.flag = true;
+  t.results = {sel, qte};
+  t.skips = 2, t.pos = Pos{200, "Seq_A", 0, true};
+  lead.pass(t, row.zone, p.host, p.now += 16);
+  std::vector<std::string> l = lines();
+  assert(l.size() == 4 && l[0] == T + "sel 3 1 100 0 - Exec_X" && l[1] == T + "qte 4 1 100 1 6 1");
+  assert(l[2] == T + "skip 5 1 100 take 200" && l[3] == T + "pos 6 1 200 Seq_A 0 1");
+  // Another play's: said once, not sent.
+  Outcome other = qte;
+  other.play = 39;
+  t.results = {other}, t.skips = 0, t.pos.frame = 10;
+  lead.pass(t, row.zone, p.host, p.now += 200);
+  lead.pass(t, row.zone, p.host, p.now += 200);
+  l = lines();
+  assert(l.size() == 1 && l[0].rfind(T + "pos ", 0) == 0);
+  assert(std::count_if(p.host.log.begin(), p.host.log.end(), [](const std::string &x) {
+           return x.find("results of play 39 are not sent") != std::string::npos;
+         }) == 1);
+  // A PlayerChoice that closed as the theater ended: before its end.
+  Outcome pch;
+  pch.play = 40, pch.m.type = Type::pch, pch.m.take = 200, pch.m.value = 2;
+  t.present = false, t.results = {pch};
+  lead.pass(t, row.zone, p.host, p.now += 16);
+  l = lines();
+  assert(l.size() == 2 && l[0] == T + "pch 8 1 200 0 2" && l[1] == T + "end 9 1");
+}
+
 void test_status() {
   Pair p;
   assert(p.guest.status() ==
@@ -868,6 +910,7 @@ int main() {
   test_load_and_overflow();
   test_partner_and_off();
   test_lead();
+  test_lead_results();
   test_status();
   std::printf("story sync: ok\n");
 }

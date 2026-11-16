@@ -25,7 +25,8 @@
 //   SBSn sel <seq> <scene> <take> <n> <alias|-> <exec|-> an InteractionSelect: the line's TakeAlias and graph exec,
 //                                                      - for None, never both
 //   SBSn pch <seq> <scene> <take> <n> <index>          a PlayerChoice: the index chosen, 0 or more
-//   SBSn qte <seq> <scene> <take> <n> <count> <0|1>    a QTE: the presses counted, 1 for a forced success
+//   SBSn qte <seq> <scene> <take> <n> <count> <0|1>    a QTE: the presses counted, 1 when his accessibility option
+//                                                      forces a success (the section may ignore it: both read that)
 //   SBSn cnt <seq> <scene> <take> <n> <count> <0|1> <bits>
 //                                                      an InputCounter: the same plus its Flow results (bit i: entry i)
 //   SBSn skip <seq> <scene> <take> seek <frame>        a skip that moved the host within the take
@@ -841,6 +842,13 @@ private:
 
 // ---- The host's reader ----
 
+// A result the host's widgets committed (a sel, pch, qte or cnt line with its take, ordinal and values; the scene is
+// Lead's), with the play id of the theater it belongs to.
+struct Outcome {
+  int32_t play = -1;
+  Message m;
+};
+
 // The host's theater as story/engine.h reads it each pass in game.
 struct Theater {
   bool present = false; // the theater manager plays one
@@ -852,6 +860,7 @@ struct Theater {
   int32_t at[6] = {};   // where it plays: whole centimetres, hundredths of a degree
   Pos pos;              // pos.sequence is "" while its player has no sequence
   uint8_t skips = 0;    // the skip latches: 1 the manager's input skip, 2 InteractionSelect's, 4 PlayerChoice's
+  std::vector<Outcome> results; // what the widgets committed since the last pass, this theater's or one before it
 };
 
 constexpr int32_t kSeekFrames = 5; // A skip within a take moves at least this far (SB's can-skip test).
@@ -860,9 +869,12 @@ constexpr size_t kTalks = 8;       // The last play ids hook 1 saw.
 // The host's side: each pass in game, his theater turned into lines through Sync::send, which drops them while the
 // feature is off on either side. A new theater sends its root once its first take started: talk when hook 1 saw an
 // ActionTheater node start it, else play with its ZoneEventTable row (story/rows.h scene()). A path neither one names
-// came from one of the other starts (an env state, a fight); it is logged once and not shared. While it plays: a skip
-// that moved it (a rise of a skip latch, then a new take or a forward jump of kSeekFrames or more), then its position.
-// When it ends or another one starts: end. A skip that ended it sends take -1 before the end.
+// came from one of the other starts (an env state, a fight); it is logged once and not shared. While it plays: the
+// results its widgets committed (a choice, a QTE or InputCounter count), a skip that moved it (a rise of a skip latch,
+// then a new take or a forward jump of kSeekFrames or more), then its position. So each result goes before the skip
+// that leaves its take, before the position that passes it and before the end of a theater it ended. When it ends or
+// another one starts: end. A skip that ended it sends take -1 before the end. Results of a theater that is not shared
+// are logged once for each play and not sent.
 class Lead {
 public:
   // Hook 1: an ActionTheater node started a theater with this play id.
@@ -872,6 +884,16 @@ public:
     const bool same = live_ && t.present && t.id == id_;
     const uint8_t rises = uint8_t(t.skips & ~skips_);
     skips_ = t.skips;
+    for (const Outcome &o : t.results) {
+      if (!live_ || !sent_ || o.play != id_) {
+        note(s, "results " + std::to_string(o.play),
+             "the choice and QTE results of play " + std::to_string(o.play) + " are not sent, it is not shared");
+        continue;
+      }
+      Message m = o.m;
+      m.scene = scene_;
+      s.send(m, now_ms);
+    }
     if (live_ && sent_ && have_last_ && rises) {
       Message k;
       k.type = Type::skip, k.scene = scene_, k.take = last_.take;
