@@ -863,7 +863,7 @@ int main() {
     inbox(0, kFightChannel).push_back({kPlayer[1], world_tag() + " on"});
     inbox(0, kFightChannel).push_back({kPlayer[1], story_tag() + " on"});
     m.round();
-    // One drop line a member: the world and story lines go unsaid, and are dropped all the same.
+    // One drop line a member: the world and story lines go unsaid. They are dropped all the same.
     assert(m[0].take_fight().empty() && saw("P1: dropped fight data from P2: shared quests are off in a match lobby"));
     // Chat with a per-player mute, kept for the run.
     m.tick(0, "mute 2002");

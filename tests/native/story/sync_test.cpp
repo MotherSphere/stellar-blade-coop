@@ -763,7 +763,7 @@ void test_partner_and_off() {
 }
 
 // The host's reader over his theater as the engine reads it: the root once the first take started (play by its row,
-// talk by hook 1's id, nothing for a path neither names), positions, skips by their latches, the end, and her pending
+// talk by hook 1's id, nothing for a path neither names), positions, skips by their latches, the end; her pending
 // start while she loads.
 void test_lead() {
   Pair p;

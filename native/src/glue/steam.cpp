@@ -935,8 +935,8 @@ bool step() {
     coop::pose::hud_pass();
     coop::pose::loading_pass();
     // Channel 2 both ways, with the co-op partner only (none in a match lobby, where partner() is 0): the shared quests
-    // take their SBQ lines out first, then the shared world its SBW lines, then story together its SBS lines, and the
-    // shared fight's job gets the rest; the lobby owner hosts the quests, the story and the fight. Ours are queued for
+    // take their SBQ lines out first, then the shared world its SBW lines, then story together its SBS lines. The
+    // shared fight's job gets the rest. The lobby owner hosts the quests, the story and the fight. Ours are queued for
     // the next tick. Lines from any other member are dropped.
     const std::vector<coop::FightLine> fights = loaded ? link->take_fight() : std::vector<coop::FightLine>();
     const uint64_t partner = linked ? link->partner() : 0;

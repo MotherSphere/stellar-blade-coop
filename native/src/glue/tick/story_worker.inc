@@ -3,7 +3,7 @@
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Part of glue/tick.cpp, one translation unit with it (see there).
 // Story together's worker side: the swap of hook 1's slot, channel 2's SBS lines both ways, the gates handed to the
-// game thread, a fault said once, and coop-status.txt's story line.
+// game thread, a fault said once, coop-status.txt's story line.
 
 namespace coop::pose {
 namespace {
