@@ -22,14 +22,17 @@
 //
 // The receiver (apply), on the game thread in game, as the receiver's own player (the caster the glue reads, as SB's
 // load restore at 0x141fe2cdb does: the actor of client +0x58 in the world's actor map, its +0x10's vtable +0x38):
-//   A1 a state on a live env: FUN_141d1e100(wlm, alias), then the guards (the env vtable, ObjectState Enable, not
-//      Deactive, not already in that tag, the tag's state without an undropped reward), then ChangeState
+//   A1 a state on a live env: FUN_141d1e100(wlm, alias), then the guards (the env vtable, not already in that tag,
+//      the tag one of its states, that state without an undropped reward), then ChangeState
 //      FUN_141fe3b70(env, tag, caster, L"", 0, 0, 0, 0), as R1's run calls it; refused when the tag did not take.
+//      Neither ChangeState nor R1's and R4's runs test ObjectState or ActiveState: SB's own graphs change the state
+//      of a Disable env (a lift that disables itself for the ride), so A1 does not test them either.
 //   A1b an ObjectState on a live env: FUN_141fe4f10 (env vtable +0x78) when it differs, then FUN_141fe33c0, which
 //      copies the env into the records of its row's other zones, as R2's run does.
 //   A2 either one with no live env: the stored record of each zone of the spawn row, made when missing, as R1's run
-//      does offline: the tag at +0x28 with its StateInfoList entry's bool set, or the ObjectState at +0x20. The
-//      cascades follow when she loads that zone (SB's restore replays the tag's events).
+//      does offline (with no test on the record's ObjectState or ActiveState either): the tag at +0x28 with its
+//      StateInfoList entry's bool set, or the ObjectState at +0x20. The cascades follow when she loads that zone
+//      (SB's restore replays the tag's events).
 //   A3 a ZoneEventTable row world/rows.h lists: RunZoneEvent (game/sbo.h holds its address) with (world, caster,
 //      &row, 0), as R3's run calls it. The list is checked again right before the call: SB's RunEvent reaches its
 //      matchmaking from some row types, and only env control rows (kind 10, chains checked) are on it.
@@ -72,16 +75,15 @@ constexpr uint64_t kStateSlot = 0x145bfef68, kStateRun = 0x141b7cc70, kActiveSlo
 // An action's owner node and its two fields; a node's graph, the graph's object; a linked env node's fields.
 constexpr uint64_t kOwnerNode = 0xc0, kTarget = 0xd0, kValue = 0xd8, kGraph = 0x130, kGraphObject = 0x188,
                    kLinkTag = 0x200, kLinkProgress = 0x208, kLinkObject = 0x20c, kLinkIndex = 0x210;
-// The env: its vtable, ObjectState (1 Enable, 2 Disable; vtable +0x60 reads it), EnvSpawnAlias, current tag,
-// ActiveState (2 Deactive), its states (pointers, count) and its LinkEnvSpawnList (FNames, count).
+// The env: its vtable, ObjectState (1 Enable, 2 Disable; vtable +0x60 reads it), EnvSpawnAlias, current tag, its
+// states (pointers, count) and its LinkEnvSpawnList (FNames, count).
 constexpr uint64_t kEnvVtable = 0x145c4de70, kEnvObject = 0x28, kEnvAlias = 0x1ec, kEnvTag = 0x1f4,
-                   kEnvActive = 0x21c, kEnvStates = 0x278, kEnvStateCount = 0x280, kEnvLinks = 0x310,
-                   kEnvLinkCount = 0x318;
+                   kEnvStates = 0x278, kEnvStateCount = 0x280, kEnvLinks = 0x310, kEnvLinkCount = 0x318;
 // A state: its reward-dropped byte, tag and reward group (None: no reward).
 constexpr uint64_t kStateDropped = 0x08, kStateTag = 0x10, kStateReward = 0x58;
-// A stored record: ObjectState, ActiveState, tag, StateInfoList ({FName, bool, int}, 0x10 each, count).
-constexpr uint64_t kRecordObject = 0x20, kRecordActive = 0x24, kRecordTag = 0x28, kRecordInfos = 0x1d0,
-                   kRecordInfoCount = 0x1d8, kInfo = 0x10, kInfoSet = 0x08;
+// A stored record: ObjectState, tag, StateInfoList ({FName, bool, int}, 0x10 each, count).
+constexpr uint64_t kRecordObject = 0x20, kRecordTag = 0x28, kRecordInfos = 0x1d0, kRecordInfoCount = 0x1d8,
+                   kInfo = 0x10, kInfoSet = 0x08;
 // A ZoneEnvSpawnTable row's ZoneList (FNames, count).
 constexpr uint64_t kRowZones = 0x20, kRowZoneCount = 0x28;
 // SB's globals, read and never made (their getters allocate): the world (+0xe0 its world level manager, +0xc8 its
@@ -168,14 +170,9 @@ private:
   }
   bool none(uint64_t name) const { return uint32_t(name) == none_ && !(name >> 32); }
 
-  // A1's guards on a live env, before ChangeState: Enable, not Deactive, not in that tag yet, the tag one of its
-  // states, and that state without a reward still to drop (ChangeState drops it when its reward group is not None
-  // and its byte +0x08 is 0).
+  // A1's guards on a live env, before ChangeState: not in that tag yet, the tag one of its states, and that state
+  // without a reward still to drop (ChangeState drops it when its reward group is not None and its byte +0x08 is 0).
   const char *guard(uint64_t env, uint64_t tag) {
-    if (u32(env + kEnvObject) != 1)
-      return "disabled";
-    if (u32(env + kEnvActive) == 2)
-      return "deactive";
     if (u64(env + kEnvTag) == tag)
       return "same";
     const uint64_t states = ptr(env + kEnvStates);
@@ -193,8 +190,7 @@ private:
     return "tag";
   }
 
-  // A2: the record of each zone of the env's spawn row, made when missing. A record whose env is Disable or
-  // Deactive keeps its tag (ours, not SB's: the net A1 casts on a live env).
+  // A2: the record of each zone of the env's spawn row, made when missing.
   const char *offline(uint64_t wlm, uint64_t alias, uint64_t tag, const Message &m) {
     const uint64_t tables = ptr(at(kTablesAt));
     const uint64_t row = tables ? g_.spawn_row(tables, alias) : 0;
@@ -204,7 +200,6 @@ private:
     const int32_t n = int32_t(u32(row + kRowZoneCount));
     if (!zones || n <= 0 || n > kMaxZones)
       return "zones";
-    const char *why = "record";
     int wrote = 0;
     for (int32_t i = 0; i < n; ++i) {
       const uint64_t records = g_.zone_records(wlm, u64(zones + 8 * uint64_t(i)));
@@ -219,10 +214,6 @@ private:
         ++wrote;
         continue;
       }
-      if (u32(r + kRecordObject) == 2 || u32(r + kRecordActive) == 2) {
-        why = u32(r + kRecordObject) == 2 ? "disabled" : "deactive";
-        continue;
-      }
       g_.write(r + kRecordTag, &tag, sizeof tag);
       const uint64_t infos = ptr(r + kRecordInfos);
       const int32_t count = int32_t(u32(r + kRecordInfoCount));
@@ -232,7 +223,7 @@ private:
           g_.write(infos + kInfo * uint64_t(k) + kInfoSet, &set, 1);
       ++wrote;
     }
-    return wrote ? nullptr : why;
+    return wrote ? nullptr : "record";
   }
 
   Game &g_;

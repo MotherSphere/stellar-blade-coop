@@ -3,9 +3,9 @@
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Shared world's game side on the build machine, over fake memory and fake SB functions: the four roots read from
 // their nodes (a named target, "self" through the owner env, an ObjectState action of 0, a linked env inside and
-// outside its owner's list, values no line carries), and her lines applied: A1 and each of its guards, a tag that did
-// not take, A2's records (found, made, Disable kept), A1b live and offline, A3's call and its list check, A4's order,
-// and the refusals for a missing world, player or name.
+// outside its owner's list, values no line carries), and her lines applied: A1 and each of its guards, a Disable env
+// changed as SB changes it, a tag that did not take, A2's records (found, made, a Disable one written), A1b live and
+// offline, A3's call and its list check, A4's order, and the refusals for a missing world, player or name.
 #include "world/engine.h"
 
 #include <cassert>
@@ -230,12 +230,12 @@ void live() {
   assert(!e.apply(line(Type::state, "Lever_1", "On")) && g.said() == "state On by 77");
   // Already in it, then each guard.
   assert(!std::strcmp(e.apply(line(Type::state, "Lever_1", "On")), "same") && g.said().empty());
+  // A Disable env changes as on the sender, where SB's graph moved it (ChangeState has no ObjectState test); it stays
+  // Disable.
   g.put<int32_t>(lever + kEnvObject, 2);
-  assert(!std::strcmp(e.apply(line(Type::state, "Lever_1", "Off")), "disabled"));
+  assert(!e.apply(line(Type::state, "Lever_1", "Off")) && g.said() == "state Off by 77" &&
+         g.get<int32_t>(lever + kEnvObject) == 2);
   g.put<int32_t>(lever + kEnvObject, 1);
-  g.put<int32_t>(lever + kEnvActive, 2);
-  assert(!std::strcmp(e.apply(line(Type::state, "Lever_1", "Off")), "deactive"));
-  g.put<int32_t>(lever + kEnvActive, 0);
   assert(!std::strcmp(e.apply(line(Type::state, "Lever_1", "Box")), "reward") && g.said().empty());
   assert(!e.apply(line(Type::state, "Lever_1", "Done")) && g.said() == "state Done by 77"); // Its reward dropped.
   g.name("Elsewhere");
@@ -297,11 +297,11 @@ void offline() {
   const uint64_t rb = g.records[{b, door}];
   assert(g.get<uint64_t>(ra + kRecordTag) == open && g.get<uint64_t>(rb + kRecordTag) == open);
   assert(g.get<uint8_t>(infos + kInfo + kInfoSet) == 1 && g.get<uint8_t>(infos + kInfoSet) == 0);
-  // A Disable record keeps its tag; when every record does, the line is refused.
+  // A Disable record takes the tag too, as SB's offline branch writes it, and stays Disable.
   g.put<int32_t>(ra + kRecordObject, 2);
   g.put<int32_t>(rb + kRecordObject, 2);
-  assert(!std::strcmp(e.apply(line(Type::state, "Door_7", "Closed")), "disabled") &&
-         g.get<uint64_t>(ra + kRecordTag) == open);
+  assert(!e.apply(line(Type::state, "Door_7", "Closed")) && g.get<uint64_t>(ra + kRecordTag) == closed &&
+         g.get<uint64_t>(rb + kRecordTag) == closed && g.get<int32_t>(ra + kRecordObject) == 2);
   // A1b offline: the ObjectState into each record.
   assert(!e.apply(line(Type::active, "Door_7", "", 1)) && g.get<int32_t>(ra + kRecordObject) == 1 &&
          g.get<int32_t>(rb + kRecordObject) == 1);
