@@ -320,6 +320,20 @@ The copies were not switched on, and the game uses your own saves. The reason co
 - `the backup folder could not be made` or `the backup of <file> could not be written`: the disk is full, or
   `%LOCALAPPDATA%\SB\Saved\StellarCoopBackups` cannot be written.
 
+### CNS outfits stay locked on the co-op saves
+
+CNS (Custom Nanosuit System) decides which of the game's own outfits you have unlocked by reading
+`StellarBladeSave00.sav`, your first save, by its file name. Once the game uses the co-op copies (`saves=coop`), it
+plays `StellarBladeCoop0N.sav` and no longer writes `StellarBladeSave00.sav`, so an outfit you unlock on the copies
+stays locked in CNS.
+
+CNS has a setting for the save it reads. With the game closed, open
+`SB\Binaries\Win64\ue4ss\Mods\DekCNS\Scripts\config.lua` and set `Config.ManualSaveFilePath` to the co-op copy you
+play: the part of its path after `SaveGames\`, with forward slashes. For co-op slot 1 that is
+`"76561198000000000/StellarBladeCoop00.sav"`, with the name of your own save folder in place of the number. CNS reads
+the setting when the game starts. Set it back to `""` when you play your own saves again. This has not been tested in
+game with Stellar Blade Online yet.
+
 ### A save looks wrong
 
 Do not start the game again. Turn Steam Cloud off for Stellar Blade first, then restore your backup. See
