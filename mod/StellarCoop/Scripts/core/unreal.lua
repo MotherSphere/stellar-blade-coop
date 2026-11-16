@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Helpers over UE4SS objects, shared by the capture (partner/capture.lua), the ghost (partner/puppet.lua) and the
--- game-side scripts (nightop/run.lua, session/group.lua).
+-- game-side scripts (nightop/run.lua, session/group.lua), with the game's own words (game_text) for the Lua screens.
 local U={}
 -- Made once: a function made in each call was 80 B of garbage, twice per U.valid. The method is looked up inside the
 -- pcall, so an object whose __index raises still gives nil (pcall(value.type,value) would raise out of U.kind).
@@ -165,6 +165,21 @@ function U.death_screen()
         if m and U.text(m:GetFullName()):find('GameEngine',1,true) then found=U.valid(m.WB_MainHUD_Dead) end
     end)
     return found
+end
+-- The game's text for a StringTable_UI key in its own language, as its menus show it; nil while that table is not
+-- loaded or its id not a name (nothing is called then, so nothing loads it) or the key not registered, or on any error.
+local STRINGS='/Game/Local/Localize/StringTable_UI.StringTable_UI'
+function U.game_text(key)
+    local ok,text=pcall(function()
+        if not U.valid(StaticFindObject(STRINGS)) then return nil end
+        local id=FName(STRINGS,EFindName.FNAME_Find)
+        if id:GetComparisonIndex()==0
+            or not U.find('/Script/Engine.Default__KismetStringTableLibrary'):IsRegisteredTableEntry(id,key) then
+            return nil
+        end
+        return U.text(U.find('/Script/Engine.Default__KismetTextLibrary'):TextFromStringTable(id,key))
+    end)
+    return ok and text~='' and text or nil
 end
 -- An error's message without the file and line.
 function U.why(e) return (tostring(e):gsub('^.-:%d+: ','')) end

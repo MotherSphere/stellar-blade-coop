@@ -77,10 +77,8 @@ local SLOW=5 -- ms: a live-list refresh this slow gets its own line.
 -- five rows: a label at the left, its value at the right).
 local HUD_W,CARD_H,RESULT_H,HUD_Y=1040,160,506,96 -- 1040: clear of the chat's feed (x 96 to 1396).
 local MIDDLE,LEFT,RIGHT={X=0.5,Y=0.5},{X=0,Y=0.5},{X=1,Y=0.5}
--- The game's own words for the result (StringTable_UI, in its 23 cultures), and ui/text.lua's words for each abort
--- reason (stop and coop off: stop).
-local STRINGS='/Game/Local/Localize/StringTable_UI.StringTable_UI'
--- The same word names an abort reason on the night line (a stop and coop off: stop).
+-- ui/text.lua's words for each abort reason (stop and coop off: stop); the same word names an abort reason on the
+-- night line. The result's own words are the game's (StringTable_UI, in its 23 cultures: U.game_text).
 local WHY={['map change']='map',left='left',slot='slot',link='link',error='error',lost='lost',mate='mate'}
 -- A co-op run: ticks the host waits for her answer (and she for his countdown), ticks a partner's line may stay the
 -- same before the link counts as lost, ticks between two lines that say the same, and metres the guest may stand from
@@ -248,20 +246,8 @@ function Run.result(s,w,game,best)
         {c.best,best and string.format('%d  %s',best.score,clock_text(best.s)) or '-'}}
 end
 local function no_text() return nil end
--- The game's text for a StringTable_UI key in its own language, as its menus show it; nil while that table is not
--- loaded or its id not a name (nothing is called then, so nothing loads it) or the key not registered, or on any error.
-local function game_text(key)
-    local ok,text=pcall(function()
-        if not U.valid(StaticFindObject(STRINGS)) then return nil end
-        local id=FName(STRINGS,EFindName.FNAME_Find)
-        if id:GetComparisonIndex()==0
-            or not U.find('/Script/Engine.Default__KismetStringTableLibrary'):IsRegisteredTableEntry(id,key) then
-            return nil
-        end
-        return U.text(U.find('/Script/Engine.Default__KismetTextLibrary'):TextFromStringTable(id,key))
-    end)
-    return ok and text~='' and text or nil
-end
+-- The game's text for a StringTable_UI key in its own language (core/unreal.lua's).
+local game_text=U.game_text
 -- log(text) writes an [NR] line; status() is the native part's status text; paused() whether the game is paused or
 -- shows one of its screens (the UI kit's), when no body is read; tell(build) a notice that build(words) puts together
 -- (main.lua's: the chat's feed, else the line above EVE), for what the HUD would show while the kit is off and for
