@@ -38,8 +38,8 @@ fails the test. The `main/` tests load
   ending the ride, the 250 ms checks, `coop-bike.txt` and its restore, `coop bike status` and `tune`, the Doro look
   refused while she rides;
 - `core/link_test` also covers the status's `uidev=`, `me=` and `world=` lines and the `owner=`, `room=` and `hall=`
-  fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty), and never
-  from a player's name, the `shared_world` setting; `bike` and `bike_key` (an older file whose keys hold F3 gets no
+  fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty) and never
+  from a player's name; the `shared_world` setting; `bike` and `bike_key` (an older file whose keys hold F3 gets no
   bike key);
 - `core/pak_gate_test` finds the hall lobby pak `zSBO_Lobby` in `~mods`, else `LogicMods`, over fake files, checks its
   version (the `.utoc` size and the `.ucas` size from the `.utoc`'s compression blocks, joined by `_`) and that each
