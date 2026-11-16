@@ -103,7 +103,9 @@ Random.
 
 In a match lobby, public or private, nobody waits for the host's answer, Steam friend or not. The host can still send a
 player out with `coop remove <SteamID>`; the `member=` lines of `coop status` start with each member's SteamID, masked
-to its last 4 digits, which `coop remove` takes too. The host's game refuses a player whose game runs another protocol
+to its last 4 digits, which `coop remove` takes too. `coop remove` also puts the player on the host's
+[block list](playing-with-a-friend.md#block-list), so every later game that host runs refuses them until
+`coop unblock`. The host's game refuses a player whose game runs another protocol
 or game build (`<name> runs another version and was refused.`). A player who sends more messages than the link allows
 for 5 s is refused too (`<name> sent too many messages and was refused.`).
 

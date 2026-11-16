@@ -136,8 +136,10 @@ menu's Copy my code row give a 7-character join code such as `CCS-CBMH`, and eac
 to the other player, who selects Join with a code in their co-op menu and types it. Your Steam friends get in at once.
 For a player who is not on your Steam friends list, in any session you host, a question asks whether to let them in:
 Accept or Deny. With no answer in 60 s, the player is refused. A refused player cannot come back to that session. To
-send out a player you let in, select Remove <name> in the menu, then select it again within 3 s. See
-[docs/playing-with-a-friend.md](docs/playing-with-a-friend.md#join-codes).
+send out a player you let in, select Remove <name> in the menu, then select it again within 3 s. Remove also puts that
+player on your block list, which keeps them out of every game you host later, after a game restart too, until
+`coop unblock`. See [docs/playing-with-a-friend.md](docs/playing-with-a-friend.md#join-codes) and its
+[block list](docs/playing-with-a-friend.md#block-list) section.
 
 The mod writes `Mods/StellarCoop/coop-settings.txt` the first time the game starts with it. The menu's Options page
 changes one line of the file at a time, and keeps the file as it was before its first change since the mod loaded as

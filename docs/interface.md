@@ -29,7 +29,7 @@ The main page shows the rows that fit your session:
 | Leave the session | In a session | Runs `coop leave` when you select it a second time within 3 s |
 | Invite a friend (Steam) | While you host | Runs `coop invite`. The menu closes first. |
 | Copy my code | While you host with a [join code](playing-with-a-friend.md#join-codes) | Shows the code and runs `coop copy`, which puts it on the clipboard |
-| Remove <name> | While a player who is not your Steam friend is in the session you host | Runs `coop remove <SteamID>` when you select it a second time within 3 s |
+| Remove <name> | While a player who is not your Steam friend is in the session you host | Runs `coop remove <SteamID>` when you select it a second time within 3 s. The player goes on your [block list](playing-with-a-friend.md#block-list) too. |
 | Join a friend | Outside a session | Runs `coop join` |
 | Join with a code | Outside a session | Closes the menu and opens the [code box](playing-with-a-friend.md#join-codes) |
 | Chat | During a session, with chat on | Closes the menu and opens the [chat](#session-chat) box |
