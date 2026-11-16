@@ -175,13 +175,13 @@ local function log(m) logs[#logs+1]=m end
 local function last() return logs[#logs] end
 local function find(pattern) for _,l in ipairs(logs) do if l:find(pattern) then return l end end end
 local settings={}
-local world={paused=false,photo='0',frozen=false,life=nil,busy=nil}
+local world={paused=false,photo='0',frozen=false,life=nil,armed=false,busy=nil}
 local Ride=require('bike.ride')
 local function new()
     return Ride.new({log=log,ask=ask,status=status,store=store,drive=drive,settings=settings,
         paused=function() return world.paused end,photo=function() return world.photo end,
         frozen=function() return world.frozen end,life=function() return world.life end,
-        busy=function() return world.busy end})
+        armed=function() return world.armed end,busy=function() return world.busy end})
 end
 local R=new()
 local CLIP='/Game/Art/Character/PC/CH_P_EVE_01/Animation/event/G03/MV_SD20_AfterBruteBattle_Main/eve/'
@@ -262,6 +262,8 @@ refused("EVE is on one of the game's lifts or trains",function() eve.VehicleActo
     function() eve.VehicleActor=nil end)
 refused('EVE is down',function() world.life={state=4,hp=0} end,function() world.life=nil end)
 refused('a race or the drive probe drives EVE',function() dv.on='probe' end,function() dv.on=false end)
+-- A race armed before GO (a guest's whose Doro look failed): its drive would replace the bike's at GO.
+refused('a race is armed: coop race quit leaves it',function() world.armed=true end,function() world.armed=false end)
 refused('coop emote plays',function() world.busy='coop emote plays' end,function() world.busy=nil end)
 refused('the bike is still loading',function() st.load='loading' end,function() st.load='ready' end)
 refused('the bike did not load (missing_mesh)',function() st.load='failed:missing_mesh' end,
@@ -438,6 +440,12 @@ dv.gone=true
 ok,why=R.steer()
 assert(not ok and why=='Off the bike: her EVE changed' and not R.riding(),why)
 dv.gone=nil
+-- A race's drive in place of the bike's: off with that reason; the race's drive is left on.
+id=mount()
+dv.on='race'
+ok,why=R.steer()
+assert(not ok and why=='Off the bike: a race drive took over her driving' and not R.riding() and dv.on=='race',why)
+dv.on=false
 
 -- 9. Every 250 ms while she rides: the drive's check; combat stays (her actions are off); swimming ends it; so does
 -- the gate not on 1 s after the mount; so does another EVE (nothing written on her, nor on the old one once gone).

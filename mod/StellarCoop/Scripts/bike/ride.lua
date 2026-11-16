@@ -103,8 +103,9 @@ local function number(v) return (string.format('%.9g',v):gsub(',','.')) end
 -- o: log (the [BK] lines); ask(line) (a native request: ok and its line); status() (the native status text); store
 -- (coop-bike.txt through link.store); drive (race/drive.lua's); settings (main.lua's: bike); paused() (the game paused
 -- or on one of its screens); photo() ('0', '1' in photo mode, 's' in the selfie mode); frozen() (the partner's photo
--- mode holds our game); life() (link.life's {state}, or nil); busy() (why SBO's own state forbids a mount: the Doro
--- look, coop emote, a hall seat, coop fly or glide, Night Operation, an SBO menu or the chat; nil when none).
+-- mode holds our game); life() (link.life's {state}, or nil); armed() (race/run.lua's: a race is armed here; nil when
+-- there is none); busy() (why SBO's own state forbids a mount: the Doro look, coop emote, a hall seat, coop fly or
+-- glide, Night Operation, an SBO menu or the chat; nil when none).
 function Ride.new(o)
     local log,ask,status,drive=o.log,o.ask,o.status,o.drive
     local store=o.store or {save=function() end,load=function() end,clear=function() end}
@@ -248,6 +249,8 @@ function Ride.new(o)
     -- The SBO and native refusals that come after EVE's own checks.
     local function busy()
         if drive.active() then return 'a race or the drive probe drives EVE' end
+        -- At GO the race's drive would replace the bike's.
+        if o.armed and o.armed() then return 'a race is armed: coop race quit leaves it' end
         return o.busy and o.busy() or nil
     end
     local function mount()
@@ -340,7 +343,9 @@ function Ride.new(o)
     -- One frame of the ride: why she gets off, or nil.
     local function frame(r)
         local look=drive.tick() -- nil on its first frame (no look yet), or once it went off with her EVE.
-        if drive.why()~='bike' then return 'her EVE changed' end
+        if drive.why()~='bike' then
+            return drive.active() and 'a '..drive.why()..' drive took over her driving' or 'her EVE changed'
+        end
         if look then tilt(r,look) end
         local now=os.clock()
         if now-r.read<POLL then return nil end
