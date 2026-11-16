@@ -8,7 +8,7 @@ dofile('tests/lua/main/fixture.lua')
 -- An XInput pad (the native part reads it; pad_test tests its events): each frame up to 8 events, routed as the keys
 -- route theirs. With nothing open in a world, View held opens the co-op menu as menu_key does, its refusals said the
 -- same way; the menu takes the six navigation words and View held closes it; the co-op saves' question takes up, down,
--- select and back; LB and RB are taken and do nothing, as nothing here has tabs. Nothing while the host's question is
+-- select and back; LB, RB and Y are taken and do nothing, as nothing here has tabs or a Refresh. Nothing while the host's question is
 -- open, while the menu waits for a key (B still stops the wait, A puts back its default), at the title with nothing
 -- open, or after coop off; the chat box and the code box take only B, which closes them. An older DLL: one log line,
 -- no pad.
@@ -24,17 +24,18 @@ dofile('tests/lua/main/fixture.lua')
         ..'or shows a menu\n' and fed()=='The co-op menu does not open while the game is paused or shows a menu.',last())
     kit_paused=false
     pad(7); assert(kit_shown.menu and kit_input and focus()=='Host a session' and kit_sounds[#kit_sounds]=='open')
-    pad(2); assert(focus()=='Join a friend' and kit_sounds[#kit_sounds]=='move')
+    pad(2); assert(focus()=='Find a session' and kit_sounds[#kit_sounds]=='move')
     pad(1); assert(focus()=='Host a session')
     pad(7); assert(not kit_shown.menu,'View held again closes it')
     pad(7); pad(6); assert(not kit_shown.menu and kit_sounds[#kit_sounds-1]=='back','B on the main page closes it')
-    -- LB and RB (8 and 9 values back: tab_left and tab_right) are taken like the others; the co-op menu has no tabs, so
-    -- they change nothing there, and the down after them in the same frame still moves.
+    -- LB, RB and Y (8, 9 and 10 values back: tab_left, tab_right and refresh) are taken like the others; the co-op
+    -- menu has no tabs and no Refresh, so they change nothing there, and the down after them in the same frame still
+    -- moves.
     pad(7); assert(kit_shown.menu and focus()=='Host a session')
     local sounds=#kit_sounds
-    pad(8,9,2)
-    assert(#pd.q==0 and focus()=='Join a friend' and #kit_sounds==sounds+1 and not logged('pad: error'),
-        'LB and RB taken, nothing done')
+    pad(8,9,10,2)
+    assert(#pd.q==0 and focus()=='Find a session' and #kit_sounds==sounds+1 and not logged('pad: error'),
+        'LB, RB and Y taken, nothing done')
     pad(7); assert(not kit_shown.menu)
     -- At most 8 a frame: the rest the next frame, where a 0 ends the taking.
     pad(7); assert(kit_shown.menu)
@@ -118,7 +119,7 @@ end)()
     load_main(true)
     kit_ready=true; quarter()
     -- Clock steps in binary fractions: the frame time test below needs sums it can take back exactly.
-    local rows=menu_view.rows -- Drawn: SESSION, Host, Join a friend, Join with a code, SETTINGS, Options, HELP,
+    local rows=menu_view.rows -- Drawn: SESSION, Host, Find a session, Join with a code, SETTINGS, Options, HELP,
     local function hover(i) -- report, Close. The mouse over slot i (nil: none), then a frame.
         for j,r in ipairs(rows) do r.hover=j==i or nil end
         loops[1].f()
@@ -135,14 +136,14 @@ end)()
     assert(focus()=='Options','A resting mouse leaves the keys alone')
     clock=clock+0.125; hover(2); assert(focus()=='Host a session')
     clock=clock+0.0625; hover(3); assert(focus()=='Host a session','Every 100 ms only')
-    clock=clock+0.0625; hover(3); assert(focus()=='Join a friend')
+    clock=clock+0.0625; hover(3); assert(focus()=='Find a session')
     sounds=#kit_sounds
     for _,i in ipairs({5,12,false}) do clock=clock+0.125; hover(i or nil) end
-    assert(focus()=='Join a friend' and #kit_sounds==sounds,'A header, an empty slot, no row: nothing')
+    assert(focus()=='Find a session' and #kit_sounds==sounds,'A header, an empty slot, no row: nothing')
     -- Clicks: on a header or no row nothing; on a row, that row selected (Options opens its page), wherever the keys
     -- left the focus.
     hover(5); key('LEFT_MOUSE_BUTTON'); hover(nil); key('LEFT_MOUSE_BUTTON')
-    assert(kit_shown.menu and focus()=='Join a friend' and #kit_sounds==sounds,'A click on no row: nothing')
+    assert(kit_shown.menu and focus()=='Find a session' and #kit_sounds==sounds,'A click on no row: nothing')
     local clicks=#kit_calls
     hover(6); key('LEFT_MOUSE_BUTTON')
     assert(focus()=='Open this menu' and kit_sounds[#kit_sounds]=='select','A click selects the row under the mouse')

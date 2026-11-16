@@ -8,8 +8,9 @@
 -- the mouse, which the kit shows: the row it moves onto takes the focus, a left click selects the row under it, a right
 -- click goes back. Its rows run the console commands (Host and Invite close it first: the Steam overlay takes the
 -- focus); Leave and Remove <name> (a player let in who is not our Steam friend) ask for a second Select; Copy my code
--- shows our join code and asks the native part to copy it; Chat (in a session) and Join with a code close it and open
--- the chat's box or the code box (session/join.lua); Guide closes it and opens the first-launch guide (ui/guide.lua),
+-- shows our join code and asks the native part to copy it; Chat (in a session), Join with a code and Find a session
+-- close it and open the chat's box, the code box (session/join.lua) or the Sessions screen (ui/sessions.lua); Guide
+-- closes it and opens the first-launch guide (ui/guide.lua),
 -- and menu_key does nothing while that is open. A setting changed on the Options page rewrites its own line of
 -- coop-settings.txt (core/link.lua keeps the file as it was as coop-settings.old.txt) and applies at once, but the name
 -- tag, at the next load; a key row takes the next F-key pressed (capture), checked against the other keys, or with
@@ -36,7 +37,7 @@ local ROW={} -- Options rows by setting name.
 for _,row in ipairs(M.OPTIONS) do if row.key then ROW[row.key]=row end end
 -- o: {kit=ui.kit's, link=, settings= (main.lua's, changed in place), look= (the ghost's), puppet=, run=function(name,
 -- arg) -> ok, message (main.lua's: the console's checks and log line), log=, version=, chat=session/chat.lua's view or
--- nil, code=session/join.lua's code box, guide=ui/guide.lua's}.
+-- nil, code=session/join.lua's code box, guide=ui/guide.lua's, sessions=ui/sessions.lua's}.
 function Menu.new(o)
     local kit,link,settings=o.kit,o.link,o.settings
     local self,open,world,model,capturing,note,top,page,back_at={},false,false,nil,nil,nil,0,nil,nil
@@ -269,6 +270,11 @@ function Menu.new(o)
             elseif action=='join_code' then
                 self.close()
                 return o.code.open()
+            elseif action=='find' then -- Find a session: the Sessions screen in place of the menu.
+                self.close()
+                local ok,why=o.sessions.open()
+                if not ok then o.log('menu: no Sessions screen: '..why) end
+                return
             elseif action=='guide' then
                 self.close()
                 local ok,message=o.guide.open()
@@ -279,7 +285,7 @@ function Menu.new(o)
             elseif action=='host' or action=='invite' then
                 self.close()
                 return o.run(action)
-            elseif action=='leave' or action=='join' or action=='report' or action=='copy' then
+            elseif action=='leave' or action=='report' or action=='copy' then
                 local ok,message=o.run(action)
                 if not ok then note=message elseif action=='report' then note=words.report end
             end

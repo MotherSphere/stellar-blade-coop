@@ -25,9 +25,9 @@ local NONE,HOST,GUEST={mode='none'},{mode='host',chat=true},{mode='guest',chat=t
 local menu=M.new()
 assert(ids(menu,{})=='head:settings options head:help guide report close',
     'Before Steam: no session rows, nor their header')
-assert(ids(menu,NONE)=='head:session host join join_code head:settings options head:help guide report close')
+assert(ids(menu,NONE)=='head:session host find join_code head:settings options head:help guide report close')
 assert(ids(menu,{mode='none',chat=true})
-    =='head:session host join join_code chat head:settings options head:help guide report close',
+    =='head:session host find join_code chat head:settings options head:help guide report close',
     'The loopback chats with no session')
 assert(ids(menu,{mode='host',code='0CS-CBMH'})
     =='head:session leave invite copy head:settings options head:help guide report close','Hosting with a code')
@@ -43,7 +43,7 @@ assert(ids(menu,GUEST)=='head:session leave chat head:settings options head:help
 assert(menu.current(NONE).id=='host')
 local seen={}
 for _=1,7 do menu.move(NONE,1); seen[#seen+1]=menu.current(NONE).id end
-assert(table.concat(seen,' ')=='join join_code options guide report close host',table.concat(seen,' '))
+assert(table.concat(seen,' ')=='find join_code options guide report close host',table.concat(seen,' '))
 menu.move(NONE,-1)
 assert(menu.current(NONE).id=='close')
 menu.move(NONE,1) -- host
@@ -56,7 +56,7 @@ assert(menu.current({}).id=='options','A header in its place: the next row')
 menu=M.new()
 assert(menu.select(NONE,0)=='host')
 menu.move(NONE,1)
-assert(menu.select(NONE,0)=='join')
+assert(menu.select(NONE,0)=='find')
 menu.move(NONE,1)
 assert(menu.select(NONE,0)=='join_code')
 menu=M.new()
@@ -365,7 +365,7 @@ for _,row in ipairs(M.LINE) do
     end
 end
 local line=M.new('line')
-assert(ids(line,NONE)=='head:line host join join_code menu hangup',ids(line,NONE))
+assert(ids(line,NONE)=='head:line host find join_code menu hangup',ids(line,NONE))
 assert(ids(line,{mode='host'})=='head:line invite leave menu hangup','Hosting alone')
 assert(ids(line,CODE)=='head:line invite copy remove leave menu hangup','A code and a player let in; no chat row')
 assert(ids(line,GUEST)=='head:line leave menu hangup')

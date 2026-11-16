@@ -23,7 +23,7 @@ M.MAIN={
     {id='invite',show=function(c) return c.mode=='host' end},
     {id='copy',show=function(c) return c.code~=nil end},
     {id='remove',confirm=true,show=function(c) return c.stranger~=nil end},
-    {id='join',show=none},
+    {id='find',show=none}, -- Find a session: the Sessions screen (ui/sessions.lua).
     {id='join_code',show=none},
     {id='chat',show=function(c) return c.chat end},
     {head='settings'},
@@ -36,7 +36,7 @@ M.MAIN={
 local function main_row(id) for _,row in ipairs(M.MAIN) do if row.id==id then return row end end end
 -- The co-op line: the main page's own session rows (the same tables: the same show and confirm), then Co-op menu (the
 -- main page) and Hang up (closed).
-M.LINE={{head='line'},main_row('host'),main_row('invite'),main_row('copy'),main_row('join'),main_row('join_code'),
+M.LINE={{head='line'},main_row('host'),main_row('invite'),main_row('copy'),main_row('find'),main_row('join_code'),
     main_row('remove'),main_row('leave'),{id='menu'},{id='hangup'}}
 local function toggle(key,default) return {key=key,values={'on','off'},default=default} end
 local function range(key,min,max,step,default) return {key=key,min=min,max=max,step=step,default=tostring(default)} end
@@ -215,7 +215,7 @@ function M.new(start)
         if new==value then return nil end
         return 'set',row.key,new
     end
-    -- Select (now in seconds): the row's id for the caller ('host', 'leave', 'invite', 'copy', 'remove', 'join',
+    -- Select (now in seconds): the row's id for the caller ('host', 'leave', 'invite', 'copy', 'remove', 'find',
     -- 'join_code', 'chat', 'guide', 'report', 'close', which Hang up gives too, 'reset_keys'); 'confirm_leave',
     -- 'confirm_remove' or 'confirm_reset_keys' (the row runs on a second Select of it within 3 s); 'options' or
     -- 'main' (the page changed: Co-op menu gives 'main'); 'rebind', key; or a setting's next value, as change(). nil

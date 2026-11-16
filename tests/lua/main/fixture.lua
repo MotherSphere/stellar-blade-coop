@@ -208,6 +208,9 @@ fake_link.life=function() return fake_link.Q.life end -- link.life(): our life s
 fake_link.friend=function() return friend_name,friend_linked,fake_link.lost==true end
 fake_link.member=function(id) return nil end -- link.member(id): no member line in these tests.
 fake_link.members=function() return {} end
+-- link.list(): the session list's search line and rows (list_search, list_rows).
+list_search,list_rows=nil,{}
+fake_link.list=function() return list_search,list_rows end
 -- link.match(), link.round(), link.me(), link.owner() and link.uidev() (SB's input device: 1 QWERTY, 2 AZERTY).
 link_match,link_round,link_me,link_owner,link_uidev=nil,nil,nil,nil,nil
 fake_link.match=function() return link_match end
@@ -636,6 +639,29 @@ package.loaded['ui.lobby']={new=function(o)
         tick=function(now) lb.ticks[#lb.ticks+1]=now end,
         parts_check=function() said('parts'); return true,'lobby parts: 6 of 6 made (the log has each)' end}
 end}
+-- The Sessions screen (ui/sessions.lua; ui/sessions_test tests it): what new got (o), its calls as words (ss.calls;
+-- each slow counted apart, with the shown it got), open or not (refuse: why open fails).
+ss={}
+package.loaded['ui.sessions']={new=function(o)
+    ss.o=o
+    local function said(...)
+        local w={}
+        for i=1,select('#',...) do w[i]=tostring((select(i,...))) end
+        ss.calls[#ss.calls+1]=table.concat(w,' ')
+    end
+    return {is_open=function() return ss.open end,
+        open=function()
+            said('open')
+            if ss.refuse then return false,ss.refuse end
+            if not ss.open then o.kit.input(true,'sessions',true) end
+            ss.open=true
+            return true
+        end,
+        close=function() said('close'); ss.open=false end,
+        nav=function(what) said('nav',what) end,
+        slow=function(shown) ss.slows[#ss.slows+1]=shown end,
+        tick=function() end}
+end}
 -- The kit (ui/kit.lua's Ui.kit; ui_kit_test tests it): its calls as words, its input on change only (as the kit makes
 -- the engine call), every input asked counted; the menu's view built at once by a builder that keeps what each text and
 -- row was last set to. kit_ready: its root is up; kit_whole: false while that root is a build whose look still warms
@@ -812,6 +838,7 @@ function load_main(with_native,no_folder,source)
     hooks,fades.calls={},{}
     sb.seat,sb.seat_error,sb.sitting,sb.sat,sb.stands,sb.busy=nil,nil,nil,nil,0,false
     lb.o,lb.calls,lb.screen,lb.ask,lb.refuse,lb.slows,lb.ticks=nil,{},nil,nil,nil,0,{}
+    ss.o,ss.calls,ss.open,ss.refuse,ss.slows=nil,{},false,nil,{}
     link_match,link_round,link_me,link_owner,link_uidev=nil,nil,nil,nil,nil
     rx.o,rx.ticks,rx.stops,rx.booked,rx.raise,rx.tick_raise,rx.stopped=nil,0,0,nil,nil,nil,nil
     gt.o,gt.ticks=nil,0

@@ -4,7 +4,8 @@
 -- The co-op menu (ui/menu.lua, ui/model.lua and ui/text.lua for real on fixture.lua's fake kit): it opens, moves, runs
 -- its rows, changes and applies settings (the shared enemies', shared quests', shared world's and same place's rows ask
 -- the native part at once), rebinds keys and migrates an old file; and the co-op line, which opens at a camp phone booth
--- (session/booth.lua on a fake FindAllOf) with its hint shown there.
+-- (session/booth.lua on a fake FindAllOf) with its hint shown there; Find a session, which opens the Sessions screen
+-- and hands it the keys, the pad and the mouse.
 dofile('tests/lua/main/fixture.lua')
 -- The co-op menu (ui/menu.lua, ui/model.lua and ui/text.lua for real; the kit faked). menu_key opens it in a world
 -- only, with its root up and the game not paused; its keys move, wrap over headers, select and go back; Host closes it
@@ -39,13 +40,13 @@ assert(lv.o.blocked()==false)
 key('F5')
 assert(kit_said('show true') and kit_said('input true') and kit_sounds[#kit_sounds]=='open')
 assert(lv.o.blocked()==true,'coop leviathan\'s free camera reads no key while the menu is open')
-assert(screen()=='SESSION||disabled\nHost a session||focus\nJoin a friend||normal\nJoin with a code||normal\n'
+assert(screen()=='SESSION||disabled\nHost a session||focus\nFind a session||normal\nJoin with a code||normal\n'
     ..'SETTINGS||disabled\n'
     ..'Options||normal\nHELP||disabled\nGuide||normal\nWrite a bug report||normal\nClose||normal',screen())
 assert(menu_view.title.s=='CO-OP' and menu_view.status.s=='Co-op: not in a session.' and menu_view.note.s==''
     and menu_view.hints[1].s=='Move' and menu_view.hints[3].s=='Back')
 assert(menu_view.hints.keys=='move enter escape','The menu moves on W, A, S, D (Z, Q on AZERTY) and the arrows')
-key('S'); assert(focus()=='Join a friend' and kit_sounds[#kit_sounds]=='move')
+key('S'); assert(focus()=='Find a session' and kit_sounds[#kit_sounds]=='move')
 key('W'); key('Z'); assert(focus()=='Close','Up wraps over the headers')
 key('DOWN_ARROW'); assert(focus()=='Host a session')
 local executed=executes
@@ -456,7 +457,7 @@ settings_text,in_world,kit_ready='',false,false
     key('F5')
     assert(kit_shown.menu and not kit_shown.line_hint,'The line open, the hint hidden')
     assert(last()=='[StellarCoop] line: booth Xion_10_EnvS_016 (Env_Camp_TeleportMachine_C) at 2.5 m\n',last())
-    assert(screen()=='CO-OP LINE||disabled\nHost a session||focus\nJoin a friend||normal\nJoin with a code||normal\n'
+    assert(screen()=='CO-OP LINE||disabled\nHost a session||focus\nFind a session||normal\nJoin with a code||normal\n'
         ..'Co-op menu||normal\nHang up||normal',screen())
     assert(menu_view.title.s=='CO-OP' and menu_view.note.s=='The line is free. Host a session or join a friend.')
     local scans=bt.scans
@@ -558,5 +559,64 @@ settings_text,in_world,kit_ready='',false,false
     assert(kit_views.line_hint.text.s=='Shift+F7  Co-op line',kit_views.line_hint.text.s)
     coop('off')
     bt.world,link_mode,in_world,kit_ready,settings_text={},'none',false,false,''
+end)()
+-- Find a session (the main page and the co-op line): the menu closes and the Sessions screen opens (ui/sessions.lua,
+-- faked; sessions_test tests it). While it is open it takes the keys, the pad and the mouse: the arrows, W, S, Enter,
+-- Space and Esc; Q and E (A and E on AZERTY) its tabs; R and Y its Refresh; LB and RB; a left click, and a right one as
+-- Back. The menu key and View held close it. Each 250 ms it gets the HUD's shown; coop ui reset closes it.
+;(function()
+    local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end
+    local function navs(n) return table.concat(ss.calls,' ',n+1) end
+    settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',true,false
+    load_main(true)
+    kit_ready=true; quarter()
+    assert(ss.o.log and ss.o.words and ss.o.act and ss.o.game_text and ss.o.view,'Built with its view and act')
+    -- Its view: the list as link.list() gives it, our protocol and game build from the status's first line.
+    list_search,list_rows={tab='public',state='done',rows=1},{{lobby='109775241234567890',name='Ann'}}
+    status_text='last=#1 ready\nmod=v proto=21 steam=ready steamid=7 appid=1 build=26123051 overlay=1\nlink=none lobby=0\n'
+    local v=ss.o.view()
+    assert(v.search==list_search and v.rows==list_rows and v.role=='none' and v.proto=='21' and v.build=='26123051')
+    status_text,list_search,list_rows=plain,nil,{}
+    v=ss.o.view()
+    assert(v.proto=='3' and v.build==nil and v.search==nil,'Before Steam: no build')
+    -- Its act asks the native part; SB's words none with ui_language=english.
+    ss.o.act({request='list friends'}); assert(asked[#asked]=='list friends' and logged('OK: asked the native part: '
+        ..'list friends'))
+    settings_text='ui_language=english\n'; load_main(true); kit_ready=true; quarter()
+    assert(ss.o.game_text('UI_Friends')==nil)
+    settings_text=''; load_main(true); kit_ready=true; quarter()
+    key('F5'); to('Find a session'); key('RETURN')
+    assert(not kit_shown.menu and ss.open and ss.calls[1]=='open' and kit_holder=='sessions','The menu gives way to it')
+    clock=clock+0.2; loops[1].f()
+    assert(kit_input and kit_holder=='sessions','The menu\'s late give-back leaves the screen its input')
+    local n=#ss.calls
+    for _,k in ipairs({'UP_ARROW','W','S','RETURN','SPACE','ESCAPE','Q','E','R','A','D'}) do key(k) end
+    assert(navs(n)=='nav up nav up nav down nav select nav select nav back nav tab_left nav tab_right nav refresh '
+        ..'nav left nav right',navs(n))
+    n=#ss.calls
+    pad(1,2,5,6,8,9,10,3)
+    assert(navs(n)=='nav up nav down nav select nav back nav tab_left nav tab_right nav refresh nav left',navs(n))
+    n=#ss.calls
+    key('LEFT_MOUSE_BUTTON'); key('RIGHT_MOUSE_BUTTON')
+    assert(navs(n)=='nav click nav back' and not kit_shown.menu,navs(n))
+    local slows=#ss.slows
+    quarter(); assert(#ss.slows==slows+1 and ss.slows[#ss.slows]==true,'Its slow gets the HUD shown')
+    key('F5'); assert(not ss.open and not kit_shown.menu,'The menu key closes it, and opens nothing')
+    -- View held closes it; coop ui reset closes it.
+    key('F5'); to('Find a session'); key('RETURN'); assert(ss.open)
+    pad(7); assert(not ss.open and not kit_shown.menu and logged('pad: menu'))
+    key('F5'); to('Find a session'); key('RETURN'); assert(ss.open)
+    n=#ss.calls
+    coop('ui','reset'); assert(not ss.open and ss.calls[n+1]=='close')
+    -- It cannot open (the kit off or not up): the menu closes and the log says why.
+    ss.refuse='Find a session opens in the game world only'
+    key('F5'); to('Find a session'); key('RETURN')
+    assert(not ss.open and not kit_shown.menu and logged('menu: no Sessions screen: Find a session opens in the game '
+        ..'world only'))
+    ss.refuse=nil
+    -- Closed, R and E do nothing.
+    n=#ss.calls
+    key('R'); key('E'); assert(#ss.calls==n)
+    in_world,kit_ready=false,false
 end)()
 io.stdout:write('menu_test ok\n')

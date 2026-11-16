@@ -6,13 +6,13 @@
 -- in-process loopback (coop loopback <delay ms> <jitter ms> <loss %> | off), or a recording of yours (coop record
 -- [off], coop replay [off]), in the outfit it was captured in (coop basesuit: on the base suit instead; coop look: its
 -- cloth, dyes or effects on or off until the mod reloads); the Steam link between two players (coop host, invite, list,
--- join, leave, status, report, copy, allow, deny, remove; the co-op menu on F5, whose rows host, invite, join, leave and
--- change the settings (ui/menu.lua), within 3 m of a camp phone booth the co-op line instead (session/booth.lua),
--- status and leave on F6 and F8, unless coop-settings.txt says otherwise; join codes and the host's question on a
--- player who is not her Steam friend: session/join.lua), the session chat on Enter, alone in the SBO lobby too
--- (session/chat.lua), its notices in the chat's feed (or, with the UI off, on a line above your EVE), your friend's
--- card, marker and off-screen arrow (partner/hud.lua; the ghost's name tag is their fallback); the co-op saves'
--- question on the title screen
+-- join, leave, status, report, copy, allow, deny, remove; the co-op menu on F5, whose rows host, invite, leave, open
+-- the session list (ui/sessions.lua) and change the settings (ui/menu.lua), within 3 m of a camp phone booth the
+-- co-op line instead (session/booth.lua), status and leave on F6 and F8, unless coop-settings.txt says otherwise; join
+-- codes and the host's question on a player who is not her Steam friend: session/join.lua), the session chat on Enter,
+-- alone in the SBO lobby too (session/chat.lua), its notices in the chat's feed (or, with the UI off, on a line above
+-- your EVE), your friend's card, marker and off-screen arrow (partner/hud.lua; the ghost's name tag is their fallback);
+-- the co-op saves' question on the title screen
 -- (session/saves.lua, auto_coop_save in coop-settings.txt), with coop saves probe|convert|coop|main for the native
 -- part's copies and save name by hand, coop saves refresh <0-4> to replace one co-op copy and coop saves export <0-4>
 -- <0-4> to write a co-op copy over one of your own saves; and coop where, a line of
@@ -172,15 +172,16 @@ local capture=require('partner.capture').new(link and link.components or nil,loo
     settings~=nil and not settings.mod_names)
 local notice=require('ui.notice').new()
 -- The UI kit, the co-op menu, the chat's box and feed, the partner HUD, the co-op saves' question, the code box, the
--- host's question and the SBO lobby's screens: with the Steam link. The SBO lobby itself (sbo), its hall maps' rows
--- (halls) and the hold at its arrivals (arrival) are built further down.
-local kit,menu,box,hud,saves_ui,code_box,approval,lobby,sbo,halls,arrival
--- coop ui reset and the focus watchdog: the menu, the chat's box, the code box and the lobby's screens closed, an open
--- host's question denied, the co-op saves' question closed as Decide later, the game's input given back now and the
--- menu's mouse cursor put back; a lobby screen closed in the lobby world gives the view back to EVE with the room's
--- overlay, as Back does. With why (the watchdog's): it is logged, and a co-op saves pass under way is kept.
+-- host's question, the Sessions screen and the SBO lobby's screens: with the Steam link. The SBO lobby itself (sbo),
+-- its hall maps' rows (halls) and the hold at its arrivals (arrival) are built further down.
+local kit,menu,box,hud,saves_ui,code_box,approval,sessions,lobby,sbo,halls,arrival
+-- coop ui reset and the focus watchdog: the menu, the chat's box, the code box, the Sessions screen and the lobby's
+-- screens closed, an open host's question denied, the co-op saves' question closed as Decide later, the game's input
+-- given back now and the menu's mouse cursor put back; a lobby screen closed in the lobby world gives the view back to
+-- EVE with the room's overlay, as Back does. With why (the watchdog's): it is logged, and a co-op saves pass under way
+-- is kept.
 local function ui_reset(why)
-    menu.close(); box.close(); code_box.close(); approval.close(); saves_ui.close(why~=nil)
+    menu.close(); box.close(); code_box.close(); approval.close(); saves_ui.close(why~=nil); sessions.close()
     local was=lobby.is_open()
     lobby.close()
     if was and sbo.in_lobby() then sbo.to_room(); lobby.room(true) end
@@ -341,7 +342,7 @@ local leviathan=require('cut.leviathan').new({log=function(m) print('[StellarCoo
     store=link and link.store('coop-leviathan.txt'),
     blocked=function()
         return menu~=nil and (menu.is_open() or box.is_open() or code_box.is_open() or approval.is_open()
-            or saves_ui.is_open())
+            or saves_ui.is_open() or sessions.is_open())
     end})
 -- The races' driving (race/drive.lua), logging [DR] lines: coop-drive.txt lets the next Lua load put EVE's movement
 -- back.
@@ -845,10 +846,24 @@ if settings then
     local guide=require('ui.guide').new({kit=kit,link=link,settings=settings,theme=Ui.THEME,log=log,folder=folder,
         busy=function()
             return menu.is_open() or box.is_open() or code_box.is_open() or approval.is_open() or saves_ui.is_open()
+                or sessions.is_open()
         end})
     o.guide=guide
+    -- The Sessions screen (ui/sessions.lua), which the menu's Find a session opens: the session list's rows read
+    -- fresh at each call, with our protocol and game build from the status's first line; its searches and joins go to
+    -- the native part as the lobby's requests do. SB's words in the game's language, none under ui_language=english.
+    sessions=require('ui.sessions').new({kit=kit,words=words,log=ui_log,
+        view=function()
+            local first=('\n'..(link.status() or '')):match('\n(mod=[^\n]*)') or ''
+            local search,rows=link.list()
+            return {search=search,rows=rows,match=link.match(),role=link.mode() or 'none',
+                proto=first:match(' proto=(%d+)'),build=first:match(' build=(%d+)')}
+        end,
+        act=function(a) report(link.request(a.request)) end,
+        game_text=function(key) if settings.ui_language~='english' then return U.game_text(key) end end})
+    o.sessions=sessions
     menu=require('ui.menu').new({kit=kit,link=link,settings=settings,look=look,puppet=puppet,run=run,log=log,
-        version=VERSION,chat=box,code=code_box,guide=guide})
+        version=VERSION,chat=box,code=code_box,guide=guide,sessions=sessions})
     o.menu=menu -- For coop keys reset (commands/keys.lua).
     approval=Join.ask({kit=kit,link=link,settings=settings,run=run,say=say,menu=menu,chat=box,guide=guide})
     saves_ui=guide.front(require('session.saves').new({kit=kit,link=link,settings=settings,theme=Ui.THEME,say=say,
@@ -968,11 +983,16 @@ end
 -- the same way. Nothing while the host's question is open (A is Jump and the D-pad uses items: a press meant for the
 -- game never answers a stranger), nor while the menu waits for a key, but back, which stops the wait (menu.nav). The
 -- chat's box and the code box take only back, which closes them as Esc does: nothing typed, nothing sent, and a pad
--- alone is never stuck there. LB and RB (tab_left, tab_right) change C's tabs while C is open, and nothing elsewhere;
--- Y (refresh) does nothing yet.
+-- alone is never stuck there. LB and RB (tab_left, tab_right) change C's tabs while C is open, and nothing elsewhere.
+-- The Sessions screen, after the lobby's, takes them all and Y (refresh); menu closes it.
 local PAD={'up','down','left','right','select','back','menu','tab_left','tab_right','refresh'}
 local function pad_event(what)
     if approval.is_open() then return end
+    if sessions.is_open() and not lobby.is_open() then
+        if what~='menu' then return sessions.nav(what) end
+        log('pad: menu')
+        return sessions.close()
+    end
     if what=='tab_left' or what=='tab_right' or what=='refresh' then
         if what~='refresh' and lobby.is_open()=='settings' then lobby.nav(what) end
         return
@@ -1118,6 +1138,7 @@ LoopInGameThreadWithDelay(1,function()
         if message then report(ok,message) end
         guarded('menu',menu.tick,now)
         guarded('lobby',lobby.tick,now)
+        guarded('sessions',sessions.tick,now)
         guarded('chat',box.tick,now)
         guarded('join',code_box.tick,now)
         guarded('join',approval.tick,now)
@@ -1133,7 +1154,8 @@ LoopInGameThreadWithDelay(1,function()
         if chat_asked and now>=chat_asked+0.1 then
             local asked=chat_asked
             chat_asked=nil
-            if typed_at<asked-0.3 and not menu.is_open() and not approval.is_open() and not lobby.is_open() then
+            if typed_at<asked-0.3 and not menu.is_open() and not approval.is_open() and not lobby.is_open()
+                and not sessions.is_open() then
                 local _,why,en=box.open() -- Said on screen only: Enter is the game's too.
                 if why then say(why,en) end
             end
@@ -1636,6 +1658,7 @@ if link then
             guarded('menu',menu.slow,shown,not (box.is_open() or code_box.is_open() or approval.is_open()
                 or saves_ui.is_open()) and (booth.near(puppet.me()) or guarded('sbo',seat_hint)) or nil)
             guarded('lobby',lobby.slow)
+            guarded('sessions',sessions.slow,shown)
             guarded('arrival',arrival_pass) -- After sbo.tick and kit.slow above: this pass's arrival and look.
             guarded('lobby',lobby_pass) -- After sbo.tick above: this pass's arrival and round lines.
             guarded('lobby',hud_pass) -- After lobby_pass and ui_reset above: the screens as this pass left them.
@@ -1690,7 +1713,8 @@ end
 -- Leave, the follow (follow_key, coop travel host) or a race checkpoint (race_key, while a track is recorded; nothing
 -- otherwise). The host's question takes the navigation keys, Enter and Esc first while it is open, then the SBO lobby's
 -- screens while one is open (menu_key closes B or C to the room; in the lobby world, menu_key opens B in place of the
--- co-op menu; E and the left tab key are C's tabs). Enter goes to the menu's key capture, then selects; the navigation
+-- co-op menu; E and the left tab key are C's tabs), then the Sessions screen while it is open (menu_key closes it; E
+-- and the left tab key are its tabs, R its Refresh). Enter goes to the menu's key capture, then selects; the navigation
 -- keys go to the menu while it is open only (UI-DESIGN 4.1: up arrow, W or Z; down arrow or S; left arrow, A or Q;
 -- right arrow or D; Enter or Space; Esc), and to the co-op saves' question while it is open. The code box takes Enter
 -- (join) and Esc (cancel). With all closed, Enter opens the chat's box, then sends, and Esc cancels; while the question
@@ -1738,6 +1762,7 @@ if settings then
                 elseif off then report(false,OFF)
                 elseif lobby.is_open() then
                     if lobby.is_open()~='popup' then lobby_room() end
+                elseif sessions.is_open() then sessions.close()
                 elseif sbo.in_lobby() and not menu.is_open() then lobby_key()
                 else
                     local ok,why,shown,en=menu.toggle(booth.near(puppet.me()))
@@ -1764,6 +1789,7 @@ if settings then
             if os.clock()-alt_enter_at<0.2 then return end
             if approval.is_open() then approval.nav('select')
             elseif lobby.is_open() then lobby.nav('select')
+            elseif sessions.is_open() then sessions.nav('select')
             elseif menu.is_open() then
                 if not menu.capture('Enter') then menu.nav('select') end
             elseif saves_ui.is_open() then saves_ui.nav('select')
@@ -1777,21 +1803,25 @@ if settings then
         end)
     end)
     -- The lobby's screens take them all, and on C (L4-menus-b-c 3.6) E is the right tab and Q the left one, or A on an
-    -- AZERTY keyboard, where Q is left; the other of A and Q stays left. E does nothing anywhere else.
+    -- AZERTY keyboard, where Q is left; the other of A and Q stays left. The Sessions screen takes them the same way,
+    -- with R for Refresh. E and R do nothing anywhere else.
     local function lobby_key(key,word)
-        if lobby.is_open()=='settings' then
+        local screen=lobby.is_open() and lobby or sessions
+        if lobby.is_open()=='settings' or screen==sessions then
             if key=='E' then word='tab_right' elseif key==(kit.azerty() and 'A' or 'Q') then word='tab_left' end
         end
-        if word then lobby.nav(word) end
+        if key=='R' then word=screen==sessions and 'refresh' or nil end
+        if word then screen.nav(word) end
     end
     for _,nav in ipairs({{'UP_ARROW','up'},{'W','up'},{'Z','up'},{'DOWN_ARROW','down'},{'S','down'},
             {'LEFT_ARROW','left'},{'A','left'},{'Q','left'},{'RIGHT_ARROW','right'},{'D','right'},
-            {'SPACE','select'},{'E'}}) do
+            {'SPACE','select'},{'E'},{'R'}}) do
         bind(nav[1],nil,function()
             -- The host's question opens on its own: the arrows only, never W, S or Space (walking, jumping, the menu).
             if approval.is_open() then
                 if nav[1]:find('_ARROW$') then ExecuteInGameThread(function() approval.nav(nav[2]) end) end
-            elseif lobby.is_open() then ExecuteInGameThread(function() lobby_key(nav[1],nav[2]) end)
+            elseif lobby.is_open() or sessions.is_open() then
+                ExecuteInGameThread(function() lobby_key(nav[1],nav[2]) end)
             elseif not nav[2] then return
             elseif menu.is_open() then ExecuteInGameThread(function() menu.nav(nav[2]) end)
             elseif saves_ui.is_open() then ExecuteInGameThread(function() saves_ui.nav(nav[2]) end) end
@@ -1800,6 +1830,7 @@ if settings then
     bind('ESCAPE',nil,function()
         if approval.is_open() then ExecuteInGameThread(function() approval.nav('back') end)
         elseif lobby.is_open() then ExecuteInGameThread(function() lobby.nav('back') end)
+        elseif sessions.is_open() then ExecuteInGameThread(function() sessions.nav('back') end)
         elseif menu.is_open() then ExecuteInGameThread(function() menu.nav('back') end)
         elseif saves_ui.is_open() then ExecuteInGameThread(function() saves_ui.nav('back') end)
         elseif code_box.is_open() then ExecuteInGameThread(code_box.cancel)
@@ -1815,6 +1846,7 @@ if settings then
         ExecuteInGameThread(function()
             kit.click()
             if lobby.is_open() then lobby.nav('click')
+            elseif sessions.is_open() then sessions.nav('click')
             elseif menu.is_open() then menu.nav('click') elseif saves_ui.is_open() then saves_ui.nav('click') end
         end)
     end)
@@ -1822,7 +1854,8 @@ if settings then
         if kit.holding() or menu.is_open() then
             ExecuteInGameThread(function()
                 kit.click()
-                if lobby.is_open() then lobby.nav('back') else menu.nav('back') end
+                if lobby.is_open() then lobby.nav('back')
+                elseif sessions.is_open() then sessions.nav('back') else menu.nav('back') end
             end)
         end
     end)
