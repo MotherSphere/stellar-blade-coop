@@ -54,6 +54,21 @@ marked in mod/StellarCoop/Scripts/nightop/run.lua, nightop/waves.lua
 and core/unreal.lua. Stellar Blade Online contains no file from Survival
 Protocol.
 
+EVE ON WHEELS
+
+The bike's riding model and its lean adapt code from Eve On Wheels 1.2.1 by
+dCharisma1 (Nexus Mods, Stellar Blade mod 4165,
+https://www.nexusmods.com/stellarblade/mods/4165), who is credited as the
+author of that code.
+
+dCharisma1 gave his written consent on 2026-11-16 to the use of his Eve On
+Wheels code in Stellar Blade Online under the SBO License, version 1.0 or
+any later version that the Licensor publishes. The adapted code is licensed
+here under those terms, with the additional permission above. The adapted
+functions are marked in mod/StellarCoop/Scripts/bike/model.lua and
+bike/ride.lua. Stellar Blade Online contains no file from Eve On Wheels:
+none of its assets, sounds or animations.
+
 THIRD-PARTY COMPONENTS
 
 A third-party component keeps its own license, and the SBO License grants
