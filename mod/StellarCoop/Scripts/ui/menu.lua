@@ -64,7 +64,7 @@ function Menu.new(o)
     end)
     local function context()
         local code=link.code()
-        return {mode=link.mode(),chat=o.chat~=nil and o.chat.can(),code=code,stranger=link.stranger()}
+        return {mode=link.mode(),chat=o.chat~=nil and o.chat.can(),code=code,stranger=link.stranger(),values=values}
     end
     local function stranger(ctx) return Join.name(ctx.stranger.name) or words.ask.someone end
     -- The co-op line's state: free (no session), open (hosting, no friend linked or her connection lost), linked (her

@@ -13,7 +13,8 @@ local Link=require('core.link')
 local M={}
 -- ctx: {mode=link.mode() ('none', 'host', 'guest', nil before Steam), chat=the chat box can open (a session, the SBO
 -- lobby too), code=our join code while we host with one (link.code), stranger=a player we let in who is not our Steam
--- friend ({id=, name=}, link.stranger)}. confirm: the row runs on a second Select within 3 s.
+-- friend ({id=, name=}, link.stranger), values=the settings' values (M.read), for a row shown by another one's value}.
+-- confirm: the row runs on a second Select within 3 s.
 local function none(c) return c.mode=='none' end
 M.MAIN={
     {head='session'},
@@ -60,7 +61,13 @@ M.OPTIONS={
     toggle('collide','on'), -- Yours, at once: the solid partner (partner/puppet.lua).
     range('send_rate',10,60,5,60), -- 5 a step.
     {head='session'},
-    {key='who_can_join',values={'friends','code','private'},default='friends'}, -- At the next host.
+    -- At the next host. closed shows as Private. friends_ask under public and invitation only: its row reads Friends
+    -- join without asking, On while friends_ask=off (ui/text.lua's friends_ask_off).
+    {key='who_can_join',values={'public','friends','invitation','closed'},default='public'},
+    {key='friends_ask',values={'on','off'},default='off',show=function(c)
+        local who=c.values and c.values.who_can_join
+        return who=='public' or who=='invitation'
+    end},
     toggle('revive','on'), -- Yours, at once: the friend's revive of your EVE (session/group.lua).
     toggle('cutscene_wait','on'), -- Yours as the guest, at once: the pause during the host's cutscene.
     -- Yours as the guest, at once: the travel to the camp nearest the host (session/travel.lua), offered (ask), started

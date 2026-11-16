@@ -269,6 +269,26 @@ assert(values.follow_host=='ask' and select(3,menu.change(NONE,values,1))=='alwa
 assert(M.read('follow_host=OFF\n').follow_host=='off' and M.read('follow_host=x\n').follow_host=='ask')
 on('follow_key')
 assert(select(1,menu.select(NONE,0,values))=='rebind')
+-- Who can join: public (the default), friends, invitation or closed (shown as Private), wrapping, at the next host;
+-- 0.11's code and private read as invitation. Friends join without asking (friends_ask, off by default) shows under
+-- public and invitation only, by the values in ctx.
+on('who_can_join')
+assert(values.who_can_join=='public' and select(3,menu.change(NONE,values,1))=='friends'
+    and select(3,menu.change(NONE,values,-1))=='closed' and not menu.current(NONE).reload)
+assert(M.read('who_can_join=code\n').who_can_join=='invitation'
+    and M.read('who_can_join=private\n').who_can_join=='invitation'
+    and M.read('who_can_join=x\n').who_can_join=='public')
+local function asks(who)
+    local rows=ids(M.new('options'),{mode='none',values={who_can_join=who}})
+    return rows:find(' who_can_join friends_ask revive ',1,true)~=nil
+end
+assert(asks('public') and asks('invitation') and not asks('friends') and not asks('closed') and not asks(nil))
+assert(values.friends_ask=='off' and M.read('friends_ask=ON\n').friends_ask=='on')
+local PUBLIC={mode='none',values={who_can_join='public',friends_ask='off'}}
+menu=M.new('options')
+while menu.current(PUBLIC).key~='friends_ask' do menu.move(PUBLIC,1) end
+action,key,text=menu.select(PUBLIC,0,PUBLIC.values)
+assert(action=='set' and key=='friends_ask' and text=='on' and not menu.current(PUBLIC).reload)
 -- The solid partner: on by default, a toggle in effect at once (main.lua gives it to the ghost each 250 ms).
 on('collide')
 assert(values.collide=='on' and select(3,menu.change(NONE,values,1))=='off' and not menu.current(NONE).reload)

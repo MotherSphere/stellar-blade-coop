@@ -51,7 +51,8 @@ key('DOWN_ARROW'); assert(focus()=='Host a session')
 local executed=executes
 press('F7'); flush(); assert(executes==executed+1 and focus()=='Host a session','A free F-key does nothing')
 key('RETURN')
-assert(asked[#asked]=='host' and kit_said('show false') and kit_sounds[#kit_sounds]=='close','Host closes it first')
+assert(asked[#asked]=='host public' and kit_said('show false') and kit_sounds[#kit_sounds]=='close',
+    'Host closes it first')
 assert(not kit_said('input false'),'The game gets its keys back 150 ms after the close only')
 clock=clock+0.1; loops[1].f(); assert(not kit_said('input false'))
 clock=clock+0.1; loops[1].f(); assert(kit_said('input false'))
@@ -131,11 +132,20 @@ assert(cv.value==1 and select(2,focus())=='Scenery live' and settings_text:find(
     'At once: the next photo mode has it')
 key('A'); loops[2].f(); assert(cv.value==0 and select(2,focus())=='Full')
 to('Poses sent a second'); key('LEFT_ARROW'); quarter(); assert(states[#states]=='world=1 rate=55')
-to('Who can join'); key('RETURN')
-assert(settings_text:find('\nwho_can_join=code\n',1,true) and select(2,focus())=='With a code')
-coop('host'); assert(asked[#asked]=='host code','At once: the next Host has a join code')
-key('RETURN'); coop('host'); assert(asked[#asked]=='host private' and select(2,focus())=='Invited only')
-key('RETURN'); coop('host'); assert(asked[#asked]=='host' and select(2,focus())=='Friends')
+-- Who can join: Public (no line: the default), Friends only, Invitation, Private, at once for the next Host. Under
+-- Public and Invitation, Friends join without asking: On while friends_ask=off, Off adds ask to the host request.
+to('Who can join'); assert(select(2,focus())=='Public')
+key('RETURN')
+assert(settings_text:find('\nwho_can_join=friends\n',1,true) and select(2,focus())=='Friends only')
+coop('host'); assert(asked[#asked]=='host friends','At once: the next Host is Friends only')
+assert(not screen():find('Friends join without asking',1,true),'Under Public and Invitation only')
+key('RETURN'); coop('host'); assert(asked[#asked]=='host invitation' and select(2,focus())=='Invitation')
+to('Friends join without asking'); assert(select(2,focus())=='On','friends_ask=off: Steam friends join at once')
+key('RETURN'); assert(settings_text:find('\nfriends_ask=on\n',1,true) and select(2,focus())=='Off')
+coop('host'); assert(asked[#asked]=='host invitation ask','Steam friends wait for the answer too')
+to('Who can join'); key('RETURN'); coop('host')
+assert(asked[#asked]=='host closed' and select(2,focus())=='Private' and not screen():find('without asking',1,true))
+key('RETURN'); coop('host'); assert(asked[#asked]=='host public ask' and select(2,focus())=='Public')
 to('Name tag'); key('RETURN')
 assert(settings_text:find('\nname_tag=off\n',1,true) and select(2,focus())=='Off'
     and menu_view.note.s=='Saved. It takes effect when the mod reloads (game start or Ctrl+R).')
@@ -343,13 +353,16 @@ in_world,kit_ready=true,true; quarter()
 key('F5','SHIFT'); assert(kit_said('show true') and #asked==0)
 settings_text='menu_key=F5\nhost_key=F9\n'
 load_main(true)
-key('F9'); assert(asked[#asked]=='host' and logged('key F9: host'))
+key('F9'); assert(asked[#asked]=='host public' and logged('key F9: host'))
 assert(logged('settings: F9 is host_key: race_key has no key') and ra.keys==0,'A file before race_key keeps its F9')
--- who_can_join=private: Host asks for a private lobby (invited only), from the key, the console or the menu.
+-- who_can_join=private, 0.11's invited only: Host asks for an Invitation session, from the key, the console or the
+-- menu; the file keeps its word.
 settings_text='menu_key=F5\nhost_key=F9\nwho_can_join=private\n'
 load_main(true)
-key('F9'); assert(asked[#asked]=='host private' and logged('key F9: host'))
-coop('host'); assert(asked[#asked]=='host private' and last():find('OK: asked the native part: host private',1,true))
+key('F9'); assert(asked[#asked]=='host invitation' and logged('key F9: host'))
+coop('host')
+assert(asked[#asked]=='host invitation' and last():find('OK: asked the native part: host invitation',1,true))
+assert(settings_text:find('\nwho_can_join=private\n',1,true))
 -- A key's default again: Enter on its row while it waits (Space and the pad's A too), refused while another key holds
 -- it; Reset all keys on a second Select within 3 s; coop keys reset with a key's name, all or no name. Each works at
 -- once.
@@ -494,10 +507,10 @@ settings_text,in_world,kit_ready='',false,false
     -- Host, from the line and from the main page.
     link_mode,friend_linked='none',false
     key('F5'); assert(focus()=='Host a session' and starts('SESSION||disabled'))
-    key('RETURN'); assert(asked[#asked]=='host' and #asked==n+4 and not kit_shown.menu,'Host from the main page')
+    key('RETURN'); assert(asked[#asked]=='host public' and #asked==n+4 and not kit_shown.menu,'Host from the main page')
     bt.me.at.X=0; quarter(); quarter()
     key('F5'); assert(focus()=='Host a session' and starts('CO-OP LINE||disabled'))
-    key('RETURN'); assert(asked[#asked]=='host' and #asked==n+5 and not kit_shown.menu,'Host from the line')
+    key('RETURN'); assert(asked[#asked]=='host public' and #asked==n+5 and not kit_shown.menu,'Host from the line')
     -- The hint hides while a box is open: the code box (Join with a code, from the line), the chat's box.
     clock=clock+0.25; loops[1].f(); quarter(); assert(kit_shown.line_hint)
     key('F5'); to('Join with a code'); key('RETURN'); assert(kit_shown.code)

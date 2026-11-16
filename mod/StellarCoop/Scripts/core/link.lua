@@ -55,10 +55,13 @@ race_key=F9
 # at speed drifts too, with no key. The defaults are R2 on a pad (it still picks up items in reach, as outside a race)
 # and B on the keyboard, which Stellar Blade leaves free.
 drift_keys=Gamepad_RightTrigger B
-# Who can join a session you host: friends (your Steam friends can join from their friends list), code (anyone you
-# give your join code to; the co-op menu shows and copies it) or private (only the friends you invite). A player who
-# is not your Steam friend waits until you accept or deny them.
-who_can_join=friends
+# Who can join a session you host: public (any player of your version, from Find a session), friends (your Steam
+# friends, from their friends list or the Friends tab of Find a session), invitation (the friends you invite or anyone
+# you give your join code to; the co-op menu shows and copies it) or closed (nobody; Private in the co-op menu). A
+# player who is not your Steam friend waits until you accept or deny them. friends_ask, with public or invitation: off
+# (your Steam friends join at once) or on (they wait for your answer too).
+who_can_join=public
+friends_ask=off
 # Co-op saves, the co-op copies of your saves (StellarBladeCoop00.sav to 04.sav): ask (a question on the title
 # screen), always (the copies at every title, no question) or off (no copies; the manual co-op slot that
 # StellarCoopSlot.txt names is then the only co-op save).
@@ -201,18 +204,18 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',rac
     same_spawns='on',enemy_extra='0',spawn_filter='on',bosses='on',boss_hp_scale='2.0',
     photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='on',photo_pause='full',ui_scale='100',
     ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
-    status_overlay='compact',who_can_join='friends',auto_coop_save='ask',shared_quests='on',quest_deny='',revive='on',
-    cutscene_wait='on',follow_host='ask',follow_key='F7',collide='on',mod_names='on',shortcut_load='on',
+    status_overlay='compact',who_can_join='public',friends_ask='off',auto_coop_save='ask',shared_quests='on',
+    quest_deny='',revive='on',cutscene_wait='on',follow_host='ask',follow_key='F7',collide='on',mod_names='on',shortcut_load='on',
     pvp_spike='on',sbo_lobby='on',shared_world='on'}
 -- On or off.
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,spawn_filter=true,bosses=true,
     photo_ghost=true,photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
     card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true,mod_names=true,shortcut_load=true,
-    pvp_spike=true,sbo_lobby=true,shared_world=true}
+    pvp_spike=true,sbo_lobby=true,shared_world=true,friends_ask=true}
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (partner/puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
-    kill_credit={'together','fought'},who_can_join={'friends','code','private'},
+    kill_credit={'together','fought'},who_can_join={'public','friends','invitation','closed'},
     auto_coop_save={'ask','always','off'},aggro={'game','host'},photo_pause={'full','scenery'},
     follow_host={'ask','always','off'},status_overlay={'off','compact','detailed'}}
 -- The mate= line's twelve numbers, in the native part's order (link/protocol.h's vital).
@@ -252,6 +255,9 @@ local function setting(name,text)
     elseif CHOICES[name] then
         local list=CHOICES[name]
         text=text:lower()
+        -- who_can_join's words up to 0.11: code (the join code) and private (invited only), both invitation now. The
+        -- file keeps them as written.
+        if name=='who_can_join' and (text=='code' or text=='private') then return 'invitation' end
         for _,v in ipairs(list) do if text==v then return v end end
         return nil,'use '..table.concat(list,', ',1,#list-1)..' or '..list[#list]
     elseif name=='photo_freeze_max' then

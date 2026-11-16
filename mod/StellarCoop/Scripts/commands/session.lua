@@ -1,16 +1,18 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The session's console commands: coop host (as who_can_join says), invite, join, leave, status, report, copy, mark,
--- allow, deny and remove, block, unblock and blocked, coop match, mute and unmute, with coop revive test, coop travel,
--- coop saves and coop sbo.
+-- The session's console commands: coop host (as who_can_join says, or by its word), invite, join, leave, status,
+-- report, copy, mark, allow, deny and remove, block, unblock and blocked, coop match, mute and unmute, with coop revive
+-- test, coop travel, coop saves and coop sbo.
 -- main.lua builds them with new(o) at each Lua load and merges them into its command table, whose run() logs each
 -- result and, after coop off, refuses all but status and report. o: main.lua's link, settings, puppet, ask (a line for
--- the native part), coop_slot and sbo, and group(), travel() and lobby (ui/lobby.lua's), read at each call: the
--- revive, the follow and the lobby's screens are built later, with the Steam link only.
+-- the native part), coop_slot and sbo, and group(), travel(), create() and lobby (ui/lobby.lua's), read at each call:
+-- the revive, the follow, the Create a session screen and the lobby's screens are built later, with the Steam link
+-- only.
 local Session={}
--- Host by who_can_join: code (an invisible lobby with a join code), private (invited only), friends.
-local HOSTS={code='host code',private='host private'}
+-- who_can_join's words, which the native part's host request takes as they are: public (a Public lobby the session
+-- list finds), friends (Friends only), invitation (a Steam invite or the join code) and closed (Private: nobody joins).
+local WHO={public=true,friends=true,invitation=true,closed=true}
 function Session.new(o)
     local link,settings,puppet,ask,coop_slot=o.link,o.settings,o.puppet,o.ask,o.coop_slot
     local self={}
@@ -40,7 +42,25 @@ function Session.new(o)
         end
     end
     local twice=nil -- coop saves refresh and export: the request typed and when ({line=, at=}), until typed again.
-    function self.host() return ask(HOSTS[settings and settings.who_can_join] or 'host')() end
+    -- coop host <word> hosts at once with that word. coop host alone opens the Create a session screen when it can
+    -- open (o.create(): the screen once built, whose open() is true and a message when it opened), else hosts at once
+    -- as who_can_join says. friends_ask=on adds ask under public and invitation: Steam friends wait for the host's
+    -- answer too.
+    function self.host(word,extra)
+        if extra~=nil or word~=nil and not WHO[word] then
+            return false,'Use: coop host [public|friends|invitation|closed]'
+        end
+        if word==nil then
+            local screen=o.create and o.create()
+            if screen then
+                local opened,message=screen.open()
+                if opened then return true,message end
+            end
+            word=settings and settings.who_can_join or 'public'
+        end
+        local friends_wait=settings and settings.friends_ask and (word=='public' or word=='invitation')
+        return ask('host '..word..(friends_wait and ' ask' or ''))()
+    end
     self.invite,self.leave,self.report,self.copy=ask('invite'),ask('leave'),ask('report'),ask('copy')
     -- Every word typed after mark (the console handler joins them), cleaned like a chat line; the native part numbers
     -- the mark, logs it and sends it to the friend. A console tool: no key, no text on screen.

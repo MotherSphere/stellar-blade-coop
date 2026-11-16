@@ -455,18 +455,28 @@ assert(#notes==0 and s.ui_scale==75 and s.ui_sounds==false and s.ui_language=='e
 for _,bad in ipairs({{'ui_scale','74','use 75 to 150','100'},{'ui_scale','151','use 75 to 150','100'},
         {'ui_scale','1.5','use 75 to 150','100'},{'ui_sounds','yes','use on or off','on'},
         {'ui_language','french','use game or english','game'},
-        {'who_can_join','public','use friends, code or private','friends'},
+        {'who_can_join','everyone','use public, friends, invitation or closed','public'},
+        {'friends_ask','yes','use on or off','off'},
         {'photo_sync','pause','use both, notice or off','both'},
         {'auto_coop_save','never','use ask, always or off','ask'}}) do
     s,notes=Link.parse_settings(bad[1]..'='..bad[2])
     assert(#notes==1 and notes[1]=="settings: line 1: '"..bad[2].."' is not allowed for "..bad[1].." ("..bad[3].."); "
         ..bad[1].." stays "..bad[4],notes[1])
 end
--- Who can join a session hosted here: friends (the default, and an old file's) or private (invited only).
-assert(Link.parse_settings('').who_can_join=='friends' and Link.DEFAULT:find('\nwho_can_join=friends\n',1,true))
-s,notes=Link.parse_settings('Who_Can_Join=PRIVATE\n'); assert(#notes==0 and s.who_can_join=='private')
-s,notes=Link.parse_settings('who_can_join=Code\n'); assert(#notes==0 and s.who_can_join=='code','code: with the join code')
-assert(Link.DEFAULT:find('), code (anyone you',1,true),'A new file explains code')
+-- Who can join a session hosted here: public (the default when the file names none, and a new file's), friends,
+-- invitation or closed, as written. The words of 0.11 and older, code (the join code) and private (invited only), both
+-- read as invitation; the file keeps them. friends_ask: off by default, on or off as written.
+assert(Link.parse_settings('').who_can_join=='public'
+    and Link.DEFAULT:find('\nwho_can_join=public\nfriends_ask=off\n',1,true))
+for _,word in ipairs({'public','friends','invitation','closed'}) do
+    s,notes=Link.parse_settings('who_can_join='..word:upper()..'\n'); assert(#notes==0 and s.who_can_join==word,word)
+end
+s,notes=Link.parse_settings('Who_Can_Join=PRIVATE\n'); assert(#notes==0 and s.who_can_join=='invitation','private')
+s,notes=Link.parse_settings('who_can_join=Code\n'); assert(#notes==0 and s.who_can_join=='invitation','code')
+assert(Link.DEFAULT:find(' or closed (nobody; Private in the co-op menu)',1,true),'A new file explains closed')
+assert(Link.parse_settings('').friends_ask==false)
+s,notes=Link.parse_settings('friends_ask=ON\n'); assert(#notes==0 and s.friends_ask==true)
+s,notes=Link.parse_settings('friends_ask=off\n'); assert(#notes==0 and s.friends_ask==false)
 -- The co-op saves (session/saves.lua): ask (the default, and an old file's), always or off; a new file names it.
 assert(Link.parse_settings('').auto_coop_save=='ask' and Link.DEFAULT:find('\nauto_coop_save=ask\n',1,true))
 s,notes=Link.parse_settings('Auto_Coop_Save=ALWAYS\n'); assert(#notes==0 and s.auto_coop_save=='always')

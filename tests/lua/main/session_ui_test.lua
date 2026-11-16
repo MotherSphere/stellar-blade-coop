@@ -3,10 +3,10 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The session UI on fixture.lua's fake kit, through main.lua: the session chat (session/chat.lua's view) opens on
 -- Enter, sends, cancels on Esc, hands its lines to the native part and takes the notices into its feed while the UI is
--- up; join codes (session/join.lua: who_can_join=code, the menu's Copy my code, Join with a code and Remove rows, the
--- code box and the host's question taking the keys); the partner HUD (partner/hud.lua); and the co-op saves' question
--- (session/saves.lua), which shows on the title screen and takes the menu's keys while open. While the chat box, the
--- code box, the host's question or the saves' question is open, coop leviathan's free camera reads no key.
+-- up; join codes (session/join.lua: who_can_join=invitation, the menu's Copy my code, Join with a code and Remove
+-- rows, the code box and the host's question taking the keys); the partner HUD (partner/hud.lua); and the co-op saves'
+-- question (session/saves.lua), which shows on the title screen and takes the menu's keys while open. While the chat
+-- box, the code box, the host's question or the saves' question is open, coop leviathan's free camera reads no key.
 dofile('tests/lua/main/fixture.lua')
 local n
 -- The session chat (session/chat.lua's view for real on the fake kit; its model a spy). Enter, queued to the game
@@ -160,7 +160,8 @@ coop('off'); quarter()
 assert(last_session()=='false','coop off: no session')
 chat_active,in_world,kit_ready,sb.here=false,false,false,false
 
--- Join codes (session/join.lua for real on the fake kit; join_test tests it). who_can_join=code hosts with a code. Join
+-- Join codes (session/join.lua for real on the fake kit; join_test tests it). who_can_join=invitation hosts with a code
+-- (0.11's code reads as invitation). Join
 -- with a code closes the menu and opens the code box, the input passing from the menu to the box; while it is open the
 -- navigation keys and our F-keys do nothing; Enter joins, Esc cancels. While we host, Copy my code shows our code and
 -- asks the native part to copy it (the menu stays), Remove <name> asks a second Select. The host's question closes the
@@ -168,7 +169,7 @@ chat_active,in_world,kit_ready,sb.here=false,false,false,false
 -- question; coop off ends it.
 settings_text,status_text,link_mode='who_can_join=code\n',plain,'none'
 load_main(true)
-coop('host'); assert(asked[#asked]=='host code' and logged('OK: asked the native part: host code'))
+coop('host'); assert(asked[#asked]=='host invitation' and logged('OK: asked the native part: host invitation'))
 in_world,kit_ready=true,true; quarter()
 key('F5'); to('Join with a code'); key('RETURN')
 assert(not kit_shown.menu and kit_shown.code and kit_holder=='code' and kit_views.code.title.s=='JOIN WITH A CODE')
