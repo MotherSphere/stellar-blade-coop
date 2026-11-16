@@ -94,7 +94,7 @@ join`, with Accept and Deny. It opens on its own, maybe while you walk or use th
 - While a player who is not your Steam friend is in your session, the menu shows Remove <name>. After a Lua reload
   (Ctrl+R) that row stays hidden for a player let in before the reload; `coop remove <SteamID>` still works.
 - `coop allow <SteamID>` and `coop deny <SteamID>` answer from the console. `coop status` shows the waiting player on
-  its `pending=` line.
+  its `pending=` line, with the SteamID masked to `***` and its last 4 digits. These commands take the 4 digits too.
 
 ## Following the host
 

@@ -617,6 +617,45 @@ inline uint64_t code_lobby(std::string_view text) {
   const uint64_t low = value & 0xffffffff;
   return value >> 32 == low % 7 ? kCodeHigh << 32 | low : 0;
 }
+// A line as coop-link.log and coop-report.txt keep it, since players post them in public (core/mask.lua does the same
+// for UE4SS.log). A SteamID (a run of 17 or 18 digits with universe 1 and an individual or chat account type) becomes
+// *** and its last 4 digits, which still tell the players of one report apart. A join code as join_code() writes it
+// (capitals, with a check that matches) becomes its first 3 characters and ****, as does a lobby id with a join code.
+// A lobby id keeps none of its digits: its last 4 beside its code's first 3 would leave about 100 lobbies to try.
+inline std::string masked(std::string_view text) {
+  const auto alnum = [](char c) { return std::isalnum(static_cast<unsigned char>(c)) != 0; };
+  const auto capitals = [](std::string_view code) {
+    for (size_t i = 0; i < code.size(); ++i)
+      if (i != 3 && (!code[i] || !std::strchr(kCodeDigits, code[i])))
+        return false;
+    return true;
+  };
+  std::string out;
+  out.reserve(text.size());
+  for (size_t at = 0; at < text.size();) {
+    if (!alnum(text[at])) {
+      out += text[at++];
+      continue;
+    }
+    size_t end = at;
+    while (end < text.size() && alnum(text[end]))
+      ++end;
+    const std::string_view word = text.substr(at, end - at), code = text.substr(at, 8);
+    uint64_t id = 0;
+    if ((word.size() == 17 || word.size() == 18) && number(word, id) && (id >> 52 == 0x011 || id >> 52 == 0x018)) {
+      const std::string lobby = join_code(id);
+      out += lobby.empty() ? "***" + std::string(word.substr(word.size() - 4)) : lobby.substr(0, 3) + "-****";
+    } else if (word.size() == 3 && code.size() == 8 && code[3] == '-' && (at + 8 == text.size() || !alnum(text[at + 8])) &&
+               capitals(code) && code_lobby(code)) {
+      out += std::string(word) + "-****";
+      end = at + 8;
+    } else {
+      out += word;
+    }
+    at = end;
+  }
+  return out;
+}
 // A request from Lua (coop-request.txt): "host", "host code" (who_can_join=code: a lobby joined with its code),
 // "host private" (who_can_join=private: a lobby joined by invite only), "invite", "leave", "report", "join" (a
 // friend's lobby), "join <lobby id>", "join <code>" (code_lobby(); anything else after "join " that is no lobby id is

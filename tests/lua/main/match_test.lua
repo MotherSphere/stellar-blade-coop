@@ -18,4 +18,17 @@ coop('unmute','76561198000000001'); assert(asked[#asked]=='unmute 76561198000000
 local n=#asked
 coop('match','search'); coop('match','fly'); coop('mute','x')
 assert(#asked==n and last():find('Use: coop mute <SteamID>',1,true))
+-- UE4SS.log masks SteamIDs and join codes (core/mask.lua); the 4 digits it shows after *** name the one player in the
+-- lobby whose SteamID ends in them, for coop mute, unmute, allow, deny and remove.
+coop('mute','76561198000000001'); assert(last()=='[StellarCoop] OK: asked the native part: mute ***0001\n',last())
+coop('join','ccs-cbmh'); assert(not table.concat(printed,'|'):find('CCS-CBMH',1,true),'no whole code in the log')
+local members=fake_link.members
+fake_link.members=function() return {{id='76561198000000001'},{id='76561198000000002'},{id='76561198000010002'}} end
+coop('mute','0001'); assert(asked[#asked]=='mute 76561198000000001')
+coop('remove','0001'); assert(asked[#asked]=='remove 76561198000000001')
+n=#asked
+coop('allow','0002'); assert(#asked==n and last():find('STOP: two players have a SteamID ending in 0002',1,true))
+coop('deny','0003'); assert(#asked==n and last():find('STOP: no player in the lobby has a SteamID ending in 0003',1,true))
+fake_link.members=members
+coop('unmute','0001'); assert(#asked==n,'no lobby: no player')
 io.stdout:write('match_test ok\n') -- The fixture's print keeps lines for last().

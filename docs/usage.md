@@ -50,7 +50,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop remove <SteamID>` | Remove a player from the session you host; they cannot come back to that lobby |
 | `coop leave` | Leave the session (F8) |
 | `coop match search\|create <mode>`, `coop match cancel`, `coop match end`, `coop match join <code>`, `coop match leave` | A [match lobby](sbo-lobby.md#search) of up to 8 players (experimental; the only mode is `ffa`, and a round's start does not take anyone to an arena yet). `search` joins an open public lobby of that mode, or hosts one when none is open; `create` hosts a private one that players join with its [join code](playing-with-a-friend.md#join-codes); `cancel` stops a search; `end` ends the round you host; `join <code>` and `leave` work like `coop join <code>` and `coop leave`. `search` and `create` are refused while you are in a lobby. They run from the console anywhere and on any save, not only in the SBO lobby; outside it they have not been tested in game |
-| `coop mute <SteamID>` / `coop unmute <SteamID>` | Drop that player's chat lines, or show them again, in any lobby until the game closes (experimental). The `member=` lines of `coop status` start with each member's SteamID |
+| `coop mute <SteamID>` / `coop unmute <SteamID>` | Drop that player's chat lines, or show them again, in any lobby until the game closes (experimental). The `member=` lines of `coop status` start with each member's SteamID, masked to its last 4 digits, which these commands take too |
 | `coop travel host` | As the guest, travel to the camp nearest the host (F7), or cancel the travel that `follow_host=always` is about to start ([Following the host](playing-with-a-friend.md#following-the-host)) |
 | `coop travel probe <camp>` | Solo test of the follow's travel: the game's own fast travel to one of its 120 camps that your save has activated (the `activated=` line of `coop status`), with no session and no host's answer; any other camp is refused, see [Following the host](playing-with-a-friend.md#following-the-host) (test command, co-op save only) |
 | `coop status` | Print the full state: link, friend, notices, pose path, save slot, ghost |
@@ -135,7 +135,11 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
   there is none. A lobby id is digits only, and any other text is taken for a join code.
 - `coop leave` works like F8.
 - `coop report` writes `coop-report.txt` in the mod folder: versions, the save folder, DLLs loaded from other mods, the
-  status, a summary of save folder changes and the last 100 events.
+  status, a summary of save folder changes and the last 100 events. Its SteamIDs and join codes are masked, as in the
+  logs (see [Which logs to send](troubleshooting.md#which-logs-to-send)).
+- `coop allow`, `coop deny`, `coop remove`, `coop mute` and `coop unmute` take a full SteamID, or the 4 digits the logs
+  show after `***` for one. With the 4 digits they act on the one player in your lobby whose SteamID ends in them. When
+  two players do, use the full SteamID from `coop-status.txt` in the mod folder, which keeps it whole.
 
 ### Ghost commands
 
@@ -334,7 +338,9 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 
 ### `coop status`
 
-`coop status` prints the full state on one log line, its parts separated by ` | `:
+`coop status` prints the full state on one log line, its parts separated by ` | `. In that line each SteamID shows as
+`***` and its last 4 digits, the join code and the lobby id as the code's first 3 characters and `****`, as in every
+line the mod writes to its logs. `coop-status.txt` in the mod folder holds the same state with them whole.
 
 - Steam: `mod=<version> proto=21 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts.

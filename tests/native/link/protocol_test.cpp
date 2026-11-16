@@ -885,6 +885,29 @@ int main() {
   }
   assert(passed > 2000 && passed < 3000);
 
+  // The logs and the report keep *** and the last 4 digits of a SteamID. Of a join code they keep its first 3
+  // characters, whether written as a code or as its lobby id; a lobby id with no code is masked as a SteamID.
+  assert(masked("allow 76561198000000009 ignored: not in the lobby") == "allow ***0009 ignored: not in the lobby");
+  assert(masked("hosting lobby 109775241346428561, join code CCS-CBMH") == "hosting lobby CCS-****, join code CCS-****");
+  assert(masked("join RAN-GTGX") == "join RAN-****" && masked("lobby 109775241275271709") == "lobby RAN-****" &&
+         masked("lobby 109775245212123136") == "lobby ***3136");
+  assert(masked("steam=ready steamid=76561198012345678 appid=3489700") == "steam=ready steamid=***5678 appid=3489700");
+  assert(masked("76561198012345678\\StellarBladeSave00.sav _76561198012345678_") ==
+         "***5678\\StellarBladeSave00.sav _***5678_");
+  assert(masked("round=1 start ffa map 5 76561198000000001,76561198000000002") ==
+         "round=1 start ffa map 5 ***0001,***0002");
+  assert(masked("76561193665298432 81064793292668927 112589990684262399") == "***8432 ***8927 ***2399");
+  // Left whole: other numbers (too short, too long, outside the SteamID range, next to a letter); codes in another
+  // case, with a check that fails or longer than one; words of the same shape.
+  for (const std::string &kept :
+       {std::string(), std::string("fight_chars 15011001 2, appid=3489700, hash 12345678901234567"),
+        std::string("76561193665298431 81064793292668928 765611980123456789 7656119801234567"),
+        std::string("a76561198012345678 76561198012345678b 2026-11-16T19:34:00.000Z"),
+        std::string("ccs-cbmh ZZZ-ZZZZ XCCS-CBMH CCS-CBMHX CCS-CBM non-zero UTF-8 one-shot")})
+    assert(masked(kept) == kept);
+  for (const char *line : {"allow 76561198000000009", "hosting lobby 109775241346428561, join code CCS-CBMH"})
+    assert(masked(masked(line)) == masked(line));
+
   // coop-state.txt, from Lua: strict, so junk never passes for a loaded world or a photo mode; a refusal leaves the
   // values alone.
   const std::string tail = " photo=0 sync=both max=600";

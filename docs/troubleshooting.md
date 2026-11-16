@@ -14,7 +14,8 @@ Stellar Blade Online is an experimental beta, played in only a few sessions betw
 - `coop status` (console) or F6: the current state. See [usage.md](usage.md#status-lines).
 - `coop report` (console): writes `coop-report.txt` with versions, the save folder, where `xinput1_3.dll`,
   `dinput8.dll`, `dwmapi.dll` (UE4SS's loader) and `steam_api64.dll` were loaded from (other mods' DLLs can change
-  results), the status, a summary of save folder changes and the last 100 events.
+  results), the status, a summary of save folder changes and the last 100 events, with SteamIDs and join codes masked
+  (see [Which logs to send](#which-logs-to-send)).
 
 ## Install and the Steam link
 
@@ -81,8 +82,10 @@ For the host:
 
 - The question does not show: it opens in a world only, while the game is not paused and shows no menu or mouse
   cursor, and while the chat box is closed. After `coop ui off` it never shows. From the console, `coop status` gives
-  the waiting player on its `pending=<SteamID> <name>` line; then type `coop allow <SteamID>` or
-  `coop deny <SteamID>`. With no answer, the player is refused after 60 s.
+  the waiting player on its `pending=***<4 digits> <name>` line, the SteamID masked as in every log (see
+  [Which logs to send](#which-logs-to-send)). Type `coop allow <4 digits>` or `coop deny <4 digits>`, or the full
+  SteamID from the `pending=` line of `coop-status.txt` in the mod folder. With no answer, the player is refused
+  after 60 s.
 - A refused player is still in the lobby. Steam cannot take a player out of a lobby: a Stellar Blade Online game leaves
   when it is refused, but a game that does not keeps the lobby's second place. It gets the refusal again every 10 s and
   never links. Host again: the new session has a new code.
@@ -705,8 +708,12 @@ that do.
 - `Mods/StellarCoop/nightop-probe.txt`, only if you ran the Night Operation probe (`coop no`)
 - `Mods/StellarCoop/coop-quests.log`, only if shared quests were on
 
-They contain your Steam ID and Steam name, the other player's Steam ID and Steam name, lobby IDs and folder paths,
-which may include your Windows user name. They contain no passwords. You can read them before you send them.
+The mod masks SteamIDs and join codes in what it writes to these files. A SteamID shows as `***` and its last 4 digits
+(`***5678`), which still tell the players in one report apart. A join code shows its first 3 characters (`ABC-****`),
+as does a lobby ID, whose digits would give its code away. The files still contain your Steam name, the other players'
+Steam names and folder paths, which may include your Windows user name. They contain no passwords. Logs from an older
+version of the mod keep the full IDs, as does the `coop-link.old.log` of the first run after an update. You can read
+the files before you send them.
 
 When you test with a friend, the player who leads the test types `coop mark <step>` in the console before each step,
 for example `coop mark 3 lift`. Each mark puts a numbered line with that text in both players' `coop-link.log` and

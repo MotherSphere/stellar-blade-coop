@@ -98,10 +98,10 @@ Random.
 ### Match lobbies
 
 In a match lobby, public or private, nobody waits for the host's answer, Steam friend or not. The host can still send a
-player out with `coop remove <SteamID>`; the `member=` lines of `coop status` start with each member's SteamID. The
-host's game refuses a player whose game runs another protocol or game build (`<name> runs another version and was
-refused.`). A player who sends more messages than the link allows for 5 s is refused too (`<name> sent too many
-messages and was refused.`).
+player out with `coop remove <SteamID>`; the `member=` lines of `coop status` start with each member's SteamID, masked
+to its last 4 digits, which `coop remove` takes too. The host's game refuses a player whose game runs another protocol
+or game build (`<name> runs another version and was refused.`). A player who sends more messages than the link allows
+for 5 s is refused too (`<name> sent too many messages and was refused.`).
 
 - Match lobbies go through Steam's relays only, so no player learns another's IP address.
 - Chat stays on with players who are not your Steam friends. Mute a player in Settings > SBO, or with

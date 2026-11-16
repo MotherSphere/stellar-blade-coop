@@ -15,7 +15,7 @@ build/host/pose_codec_test
 
 ## Lua tests
 
-The Lua tests (`core/`: `actors_of`, `class_at`, `keybind`, `link`, `pak_gate`, `settings_file`, `ue4ss_settings`,
+The Lua tests (`core/`: `actors_of`, `class_at`, `keybind`, `link`, `mask`, `pak_gate`, `settings_file`, `ue4ss_settings`,
 `unreal`; `cut/`: `chainspin`, `devmenu`, `emote`, `enemy`, `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`,
 `mailbox`, `scene`, `tendril`, `wear`; `main/`: `boot`, `fight`, `fight_notices`, `guide`, `idle`, `input`, `match`,
 `menu`, `quests`, `sbo`, `session_ui`, `settings`, `story`, `world`; `matrix13/quest/`: `on_time`, `zone_talks`;
@@ -31,6 +31,7 @@ fails the test. The `main/` tests load
 - `core/link_test` also covers the status's `uidev=`, `me=` and `world=` lines and the `owner=`, `room=` and `hall=`
   fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty), and never
   from a player's name, and the `shared_world` setting;
+- `core/mask_test` checks the masking of `UE4SS.log` on the cases `link_protocol_test` checks for the native part's;
 - `core/pak_gate_test` finds the hall lobby pak `zSBO_Lobby` in `~mods`, else `LogicMods`, over fake files, checks its
   version (the `.utoc` size and the `.ucas` size from the `.utoc`'s compression blocks, joined by `_`) and that each
   read is bounded,
@@ -54,7 +55,9 @@ fails the test. The `main/` tests load
   longest frame and 250 ms pass, their counts over 16 ms and over 50 ms, and the longest call of five modules, and the
   gap lines (a frame over 100 ms after the last, with the 250 ms pass in the gap or none, at most 200 a minute);
 - `main/match_test` covers `coop match` (search, create, cancel, end, join with a code, leave), search and create with
-  the SBO lobby's room and hall words, `coop mute` and `coop unmute`, and their usage line;
+  the SBO lobby's room and hall words, `coop mute` and `coop unmute` with their usage line; a SteamID and a join code
+  masked in the log; the 4 digits shown after `***` taken for the one member whose SteamID ends in them (by
+  `coop mute` and `coop remove`) and refused when two members or none have them;
 - `main/sbo_test` covers `coop sbo` and the SBO lobby's wiring (the arm at the recruiter, the tick, the title's
   put-back, coop off), the recruiter's auto spawn pass every 250 ms on any save, and the ghost's collision kept off
   during a session; then the lobby's input routing (menu_key, the pad's View, LB and RB, the keys with C's tabs on
@@ -168,6 +171,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   `abort`, `leave`, `seq`) and their refusals),
   Night Operation's night line (its round trip, its refusals and a fuzz seed), and the join
   codes (both real lobby ids, loose typing, malformed codes, and the share of one-character typos the check turns away),
+  the masking of SteamIDs, lobby ids and join codes in the logs and the report (`masked`, with the numbers and words of
+  the same shape it leaves whole),
   the match modes (`find_mode`), `match search` and `match create` with their room and hall words (each refused when
   missing, extra, too long or not an alias word), `match cancel` and `match end`, `mute` and `unmute`,
   the match lines (start, count, end) with their bounds, and protocol 21 refusing a protocol-20 lobby and line;

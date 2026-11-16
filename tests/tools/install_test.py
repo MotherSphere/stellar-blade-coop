@@ -172,7 +172,7 @@ with tempfile.TemporaryDirectory() as tmp:
                *(f'Scripts/{name}.lua' for name in ('commands/guide', 'ui/guide', 'ui/guide_text')),
                *(f'Scripts/{name}.lua'
                  for name in ('commands/cut', 'commands/fight', 'commands/nightop', 'commands/partner', 'commands/race',
-                              'commands/session', 'commands/story', 'commands/world', 'core/keybind', 'core/link', 'core/pak_gate', 'core/settings_file',
+                              'commands/session', 'commands/story', 'commands/world', 'core/keybind', 'core/link', 'core/mask', 'core/pak_gate', 'core/settings_file',
                               'core/unreal', 'core/ue4ss_settings', 'cut/chainspin', 'cut/devmenu', 'cut/emote', 'cut/enemy', 'cut/flight',
                               'cut/glide', 'cut/gardener', 'cut/leviathan',
                               'cut/lines', 'cut/lion', 'cut/lion_rows', 'cut/mailbox',

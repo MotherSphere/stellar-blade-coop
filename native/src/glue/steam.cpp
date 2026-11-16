@@ -185,10 +185,11 @@ void append_raw(const char *text, DWORD size) {
 constexpr size_t kLogCap = 1 << 20;
 size_t log_bytes = 0;
 bool log_capped = false;
+// Each line with its SteamIDs and join codes masked (link/protocol.h's masked): bug reports bring this log too.
 void append(const std::string &line) {
   if (log_capped)
     return;
-  std::string text = line + "\r\n";
+  std::string text = coop::masked(line) + "\r\n";
   if (log_bytes + text.size() > kLogCap) {
     log_capped = true;
     text = utc_stamp() + " log capped at 1 MB: coop report still lists the last 100 events\r\n";
@@ -637,7 +638,9 @@ void write_report() {
   text += "\r\nlast events:\r\n";
   for (auto &line : journal.recent())
     text += line + "\r\n";
-  event(write_text(folder + L"coop-report.txt", text) ? "report written to coop-report.txt" : "report not written");
+  // Masked like coop-link.log: the status and the save folder's names carry SteamIDs and our join code.
+  event(write_text(folder + L"coop-report.txt", coop::masked(text)) ? "report written to coop-report.txt"
+                                                                     : "report not written");
 }
 
 // One pass of the worker; false stops it for good.

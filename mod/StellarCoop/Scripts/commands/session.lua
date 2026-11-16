@@ -14,11 +14,26 @@ function Session.new(o)
     local link,settings,puppet,ask,coop_slot=o.link,o.settings,o.puppet,o.ask,o.coop_slot
     local self={}
     -- The host's answers about a player (allow, deny: one who is not her Steam friend and waits; remove: anyone in the
-    -- lobby), by SteamID only.
+    -- lobby), by SteamID, or by the 4 digits UE4SS.log shows after *** for it (core/mask.lua): the one player in the
+    -- lobby whose SteamID ends in them.
     local function answer(verb)
         return function(id)
             if type(id)~='string' or not id:match('^%d+$') or #id>20 then
                 return false,'Use: coop '..verb..' <SteamID>'
+            end
+            if #id==4 then
+                local found
+                for _,m in ipairs(link and link.members() or {}) do
+                    if m.id:sub(-4)==id then
+                        if found then
+                            return false,'two players have a SteamID ending in '..id
+                                ..': use the full SteamID from coop-status.txt'
+                        end
+                        found=m.id
+                    end
+                end
+                if not found then return false,'no player in the lobby has a SteamID ending in '..id end
+                id=found
             end
             return ask(verb..' '..id)()
         end

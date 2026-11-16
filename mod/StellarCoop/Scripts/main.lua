@@ -98,6 +98,10 @@
 -- coop sbo enter|leave|status|hop|back|view [set]|seq <alias>|parts, the SBO lobby in Xion by hand (session/sbo.lua,
 -- with sbo_lobby=on; left out of the usage line); the recruiter's Join enters it, or says what is missing. In its world
 -- the lobby's screens (ui/lobby.lua) open over the menu camera at the Agit, where menu_key and View held 1 s open them.
+-- Every line of ours in UE4SS.log goes through this print, with SteamIDs and join codes masked (core/mask.lua): players
+-- post that log in public. coop-status.txt keeps them whole.
+local mask=require('core.mask')
+local print=function(text) _G.print(mask(text)) end
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end

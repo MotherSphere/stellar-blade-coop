@@ -364,8 +364,12 @@ that do.
 - `Mods/StellarCoop/nightop-probe.txt`, only if you ran the Night Operation probe (`coop no`)
 - `Mods/StellarCoop/coop-quests.log`, only if shared quests were on
 
-They contain your Steam ID and Steam name, the other player's Steam ID and Steam name, lobby IDs and folder paths,
-which may include your Windows user name. They contain no passwords. You can read them before you send them.
+The mod masks SteamIDs and join codes in what it writes to these files. A SteamID shows as `***` and its last 4 digits
+(`***5678`), which still tell the players in one report apart. A join code shows its first 3 characters (`ABC-****`),
+as does a lobby ID, whose digits would give its code away. The files still contain your Steam name, the other players'
+Steam names and folder paths, which may include your Windows user name. They contain no passwords. Logs from an older
+version of the mod keep the full IDs, as does the `coop-link.old.log` of the first run after an update. You can read
+the files before you send them.
 
 When you test with a friend, the player who leads the test types `coop mark <step>` in the console before each step,
 for example `coop mark 3 lift`. Each mark puts a numbered line with that text in both players' `coop-link.log` and
