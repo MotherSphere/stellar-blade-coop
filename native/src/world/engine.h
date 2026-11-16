@@ -37,10 +37,10 @@
 //   A3 a ZoneEventTable row world/rows.h lists: RunZoneEvent (game/sbo.h holds its address) with (world, caster,
 //      &row, 0), as R3's run calls it. The list is checked again right before the call: SB's RunEvent reaches its
 //      matchmaking from some row types, and only env control rows (kind 10, chains checked) are on it.
-//   A4 a linked env, live only (SB's node has no offline branch), each part as R4's run orders them and whatever the
-//      part before did: A1 with its guards when the tag is not None (an env already in it skips only that part), the
+//   A4 a linked env, live only (SB's node has no offline branch), in the order R4's run uses: A1 with its guards when
+//      the tag is not None (an env already in it skips only that part, a guard that refuses stops the line), the
 //      ObjectState through vtable +0x78 when not 0, FUN_141fe39b0(env, progress, caster, 0) when the progress is above
-//      0 (0 adds), then FUN_141fe33c0.
+//      0 (0 adds), then FUN_141fe33c0. A tag that did not take does not stop the parts after it, as in SB's node.
 // Names come as text and are found with FName's own find (FNAME_Find, number suffix split as FName splits it): a name
 // her game has and ours lacks is refused, never made.
 //
