@@ -65,6 +65,7 @@ M.OPTIONS={
     -- Yours as the guest, at once: the travel to the camp nearest the host (session/travel.lua), offered (ask), started
     -- by itself (always) or neither (off).
     {key='follow_host',values={'ask','always','off'},default='ask'},
+    toggle('shared_world','on'), -- At once: main.lua asks coop world on or off.
     {head='saves'},
     {key='auto_coop_save',values={'ask','always','off'},default='ask'}, -- At the next title.
     toggle('shared_quests','on'), -- At once: main.lua asks coop quests on or off.

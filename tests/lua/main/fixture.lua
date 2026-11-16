@@ -40,12 +40,12 @@ clock=0
 os.clock=function() return clock end
 settings_text=''
 -- Same place, same spawns, shared bosses and the switches turned on for the 2026-11-12 test build (the looks, the spawn
--- filter, the photo name tag, shared quests, revive, collide, the two test tools, the status strip's compact) are on by
--- default (link_test, ui_model_test). This file reads them as off unless a case's own text names them, so each case
--- names the one it tests: the missing ones go after its lines.
+-- filter, the photo name tag, shared quests, the shared world, revive, collide, the two test tools, the status strip's
+-- compact) are on by default (link_test, ui_model_test). This file reads them as off unless a case's own text names
+-- them, so each case names the one it tests: the missing ones go after its lines.
 function pinned(text)
     for _,key in ipairs({'same_place','same_spawns','bosses','dyes','effects','spawn_filter','photo_name_tag',
-            'shared_quests','revive','collide','shortcut_load','pvp_spike','status_overlay'}) do
+            'shared_quests','shared_world','revive','collide','shortcut_load','pvp_spike','status_overlay'}) do
         if not ('\n'..text):find('\n%s*'..key..'%s*=') then
             text=text..((text=='' or text:sub(-1)=='\n') and '' or '\n')..key..'=off\n'
         end
@@ -200,6 +200,7 @@ fake_link.nights={}
 fake_link.night=function(line) fake_link.nights[#fake_link.nights+1]=line; return true end
 fake_link.quests=function() return fake_link.Q.line end
 fake_link.quest_notes=function() local notes=fake_link.Q.notes; fake_link.Q.notes={}; return notes end
+fake_link.world=function() return fake_link.Q.world end -- link.world(): the world= line, in fake_link.Q.world.
 fake_link.life=function() return fake_link.Q.life end -- link.life(): our life state and HP, in fake_link.Q.life.
 fake_link.friend=function() return friend_name,friend_linked,fake_link.lost==true end
 fake_link.member=function(id) return nil end -- link.member(id): no member line in these tests.
@@ -769,7 +770,7 @@ USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|de
     ..'recruiter [off] | '
     ..'gift [send <item> [count]|take [n]] | '
     ..'race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|'
-    ..'spawn | quests on|off|status|probe|record|replay|force <number> | '
+    ..'spawn | quests on|off|status|probe|record|replay|force <number> | world on|off|status | '
     ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
 
 -- The native part's pad export (coop_pad): each call hands back as many of its arguments as the next count queued

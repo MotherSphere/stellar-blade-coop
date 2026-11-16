@@ -2,8 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The co-op menu (ui/menu.lua, ui/model.lua and ui/text.lua for real on fixture.lua's fake kit): it opens, moves, runs
--- its rows, changes and applies settings (the shared enemies', shared quests' and same place's rows ask the native part
--- at once), rebinds keys and migrates an old file; and the co-op line, which opens at a camp phone booth
+-- its rows, changes and applies settings (the shared enemies', shared quests', shared world's and same place's rows ask
+-- the native part at once), rebinds keys and migrates an old file; and the co-op line, which opens at a camp phone booth
 -- (session/booth.lua on a fake FindAllOf) with its hint shown there.
 dofile('tests/lua/main/fixture.lua')
 -- The co-op menu (ui/menu.lua, ui/model.lua and ui/text.lua for real; the kit faked). menu_key opens it in a world
@@ -182,6 +182,27 @@ do
     quarter(); assert(#asked==asks+2,'Once')
     fake_link.Q.line=nil
     fight_asks=fight_asks+2 -- The counts below go on from these two asks.
+end
+-- Shared world at once, the same way: On by default, read off at this load, so the first press asks nothing; on asks
+-- coop world on, off asks coop world off while coop world on waits or runs.
+do
+    local asks=#asked
+    to('Shared world (experimental)'); assert(select(2,focus())=='On')
+    key('RETURN'); quarter()
+    assert(settings_text:find('\nshared_world=off\n',1,true) and select(2,focus())=='Off' and #asked==asks)
+    key('RETURN')
+    assert(settings_text:find('\nshared_world=on\n',1,true) and select(2,focus())=='On')
+    quarter()
+    assert(#asked==asks+1 and asked[#asked]=='world on'
+        and logged('OK: shared_world=on: asked the native part: world on'))
+    quarter(); assert(#asked==asks+1,'Once')
+    fake_link.Q.world='world=waiting why=friend sent=0'
+    key('RETURN'); quarter()
+    assert(#asked==asks+2 and asked[#asked]=='world off' and select(2,focus())=='Off'
+        and logged('OK: shared_world=off: asked the native part: world off'))
+    quarter(); assert(#asked==asks+2,'Once')
+    fake_link.Q.world=nil
+    fight_asks=fight_asks+2
 end
 -- The host's scaling in percent, 5 a step, written as the file holds it; kill credit a choice. Neither asks anything:
 -- each counts from the next start of shared enemies.
