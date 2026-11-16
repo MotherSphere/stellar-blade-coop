@@ -58,6 +58,8 @@ uintptr_t bike_pc = 0;
 int32_t bike_pc_index = 0, bike_pc_serial = 0;
 uint64_t bike_names[bike::kGatedCount] = {};
 bool bike_names_made = false, bike_gate_pending = false;
+// The ride plays' clip lookups (bike::ride_next), written by anim_play through bike_ride_check, logged by the worker.
+std::atomic<uint64_t> bike_ride_word{0};
 
 bool bike_holding() { return bike_handle[1] || bike_gate.is_on(); }
 // The worker's: the gate's wish for the game thread, one more ask, on or off.
@@ -108,6 +110,12 @@ void bike_text(const anim::Path &p, char (&out)[anim::kMaxPath + 1]) {
 uintptr_t bike_find(const char *path) {
   const SoftPath soft{bike_name(path, 1), {}};
   return soft.name ? game_function<ResolveObject>(bike::kResolveObject)(&soft) : 0;
+}
+// anim_play's, before SB's by-path call for a ride: was the clip in memory, for the worker's line.
+void bike_ride_check(const anim::Path &clip) {
+  char text[anim::kMaxPath + 1];
+  bike_text(clip, text);
+  bike_ride_word = bike::ride_next(bike_ride_word, bike_find(text) != 0);
 }
 
 // The TSharedPtr's end, as SB's own code drops one: the strong count down, at 0 DestroyObject, then the weak count

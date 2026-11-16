@@ -54,6 +54,7 @@ uint64_t anim_ch = 0, anim_next = 0;
 int32_t anim_index = 0, anim_serial = 0;
 
 bool anim_read(uint64_t address, void *out, size_t n) { return safe_read(address, out, n); }
+void bike_ride_check(const anim::Path &clip); // glue/tick/bike_game.inc's: was the ride's clip in memory.
 // Slot 0 of ch, through safe_read: false when ch has no slot.
 bool anim_slot(uint64_t ch, anim::Slot &s, uint64_t *slots = nullptr) {
   int32_t count = 0;
@@ -94,6 +95,8 @@ __declspec(noinline) void anim_play(uint64_t now) {
     return anim_track.refused(anim_now.id, anim::Why::eve);
   if (!anim_slot(ch, before, &slots))
     return anim_track.refused(anim_now.id, anim::Why::slots);
+  if (anim_now.ride)
+    bike_ride_check(anim_now.path);
   FStringArg path{anim_now.path.chars, anim_now.path.num, anim_now.path.num};
   FStringArg empty[5] = {};
   int32_t out[4] = {};

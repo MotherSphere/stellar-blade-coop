@@ -19,11 +19,12 @@
 // bCanceled comes only from CancelHandle FUN_1445c2280, which FUN_1445c5440 calls for an empty or short-name path list
 // and then returns no handle. So once the flag is set the glue looks each path up with SB's
 // FSoftObjectPath::ResolveObject FUN_142b82f40 (kResolveObject): StaticFindObject FUN_142b957b0 with ResolveName
-// FUN_142b96d70's create off, then any redirector followed. It finds an object in memory and never loads one.
-// Releasing is the TSharedPtr's own end: the controller's strong count (+8) down by one, at 0 its DestroyObject
-// (vtable +0; the handle's destructor FUN_1445da400 marks it released and frees it), then its weak count (+0xc) down,
-// at 0 its deleting destructor (vtable +8, argument 1). Until then the handle keeps the assets from the garbage
-// collector, so a later StaticLoadObject of one of them is a find, not a load.
+// FUN_142b96d70's create off, then any redirector followed. It finds an object in memory and never loads one. The
+// ride play's clip is looked up the same way before SB's by-path call, for the line that tells whether the handle kept
+// it in memory. Releasing is the TSharedPtr's own end: the controller's strong count (+8) down by one, at 0 its
+// DestroyObject (vtable +0; the handle's destructor FUN_1445da400 marks it released and frees it), then its weak count
+// (+0xc) down, at 0 its deleting destructor (vtable +8, argument 1). Until then the handle keeps the assets from the
+// garbage collector, so a later StaticLoadObject of one of them is a find, not a load.
 //
 // The gate is SB's ASBPlayerController::InputActionStateMap (TMap<FName, uint8>, transient, controller +0x6b0): SB's
 // action bindings run FUN_142047190 as their predicate, which looks the action's name up there (a missing name counts
@@ -235,5 +236,20 @@ inline std::string describe_gate(bool on, Why w, const Gate &g) {
   if (!unnamed.empty())
     line += "; not in the game's names, so not gated:" + unnamed;
   return line;
+}
+
+// The ride plays' clip lookups, packed for the worker: the plays (high 32 bits), those whose clip was not in memory
+// (bits 1 to 31) and the last one's result (bit 0). ride_next adds a play.
+inline uint64_t ride_next(uint64_t was, bool found) {
+  const uint64_t missed = ((was >> 1 & 0x7fffffff) + (found ? 0 : 1)) & 0x7fffffff;
+  return ((was >> 32) + 1) << 32 | missed << 1 | (found ? 1 : 0);
+}
+// The worker's line for the last ride play: was its clip in memory before SB's by-path call (a find), or did that
+// call load it (a hitch), with the count so far.
+inline std::string describe_ride(uint64_t w) {
+  const std::string plays = std::to_string(w >> 32);
+  return std::string("bike ride clip ") + (w & 1 ? "in memory" : "not in memory") + " before ride play " + plays +
+         (w & 1 ? "" : ", so SB's play loads it") + " (not in memory before " + std::to_string(w >> 1 & 0x7fffffff) +
+         " of " + plays + ")";
 }
 } // namespace coop::bike

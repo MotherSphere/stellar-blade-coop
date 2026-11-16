@@ -8,6 +8,7 @@ namespace coop::pose {
 
 namespace {
 uint32_t bike_load_logged = 0, bike_gate_logged = 0;
+uint64_t bike_ride_logged = 0;
 bool bike_fault_logged = false;
 
 // The status line's bike words (glue/tick/status.inc): the preload's state and the gate's.
@@ -43,7 +44,8 @@ std::string ask_bike(const coop::Request &request) {
   return "bike refused: an ask this build does not know";
 }
 
-// Each worker pass: a line for each change the game thread made; its fault once, with a line for the screen.
+// Each worker pass: a line for each change the game thread made and for each ride play's clip lookup; its fault once,
+// with a line for the screen.
 std::string bike_pass() {
   if (const uint32_t w = bike_load_word; w != bike_load_logged) {
     bike_load_logged = w;
@@ -59,6 +61,10 @@ std::string bike_pass() {
     bike_gate_logged = w;
     const bike::Word word = bike::unpack(w);
     say(bike::describe_gate(word.state != 0, word.why, gate));
+  }
+  if (const uint64_t w = bike_ride_word; w != bike_ride_logged) {
+    bike_ride_logged = w;
+    say(bike::describe_ride(w));
   }
   if (!bike_faulted || bike_fault_logged)
     return std::string();

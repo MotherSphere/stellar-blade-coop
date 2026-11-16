@@ -3,8 +3,8 @@
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // game/bike.h on the build machine: the preload path rule, the gated names, the gate over a fake action map (each
 // state kept and put back, an absent name back as on, a name SB changed during the ride left as SB set it, a name the
-// game never made skipped, a controller gone, a fault), the words packed for the worker and the status line; the log
-// lines.
+// game never made skipped, a controller gone, a fault), the words packed for the worker and the status line; the ride
+// plays' clip lookups; the log lines.
 #include "game/bike.h"
 
 #include <cassert>
@@ -166,6 +166,15 @@ int main() {
   assert(describe_load(Load::off, Why::off, 0) == "bike preload released (coop off)");
   assert(describe_load(Load::off, Why::none, 0) == "bike preload released");
   assert(why_name(Why(200)) == std::string("?"));
+
+  // The ride plays' clip lookups: each play counted, the misses counted, the last one's result.
+  uint64_t ride = ride_next(0, true);
+  assert(describe_ride(ride) == "bike ride clip in memory before ride play 1 (not in memory before 0 of 1)");
+  ride = ride_next(ride, false);
+  assert(describe_ride(ride) ==
+         "bike ride clip not in memory before ride play 2, so SB's play loads it (not in memory before 1 of 2)");
+  ride = ride_next(ride, true);
+  assert((ride >> 32) == 3 && (ride >> 1 & 0x7fffffff) == 1 && (ride & 1) == 1);
 
   std::puts("bike_test: ok");
   return 0;

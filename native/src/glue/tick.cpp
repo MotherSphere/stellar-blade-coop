@@ -139,7 +139,8 @@
 // SB's own custom animation call by path, or stops ours through SB's stop, under its own SEH latch, and reads her
 // custom animation slot every 100 ms while ours plays to tell when it ends. A new Lua load and coop off stop ours. status() puts the last
 // play's id and state in the engine line for cut/emote.lua, and the worker logs each change. The bike's ride plays
-// the same way, as a loop with her foot IK off.
+// the same way, as a loop with her foot IK off. Before it the game thread looks the clip up without a load; the worker
+// logs whether it was in memory.
 //
 // The bike (game/bike.h): the worker hands over Lua's bike load (the riding clip's path), bike free and bike gate on or
 // off; the game thread asks SB's own streamable manager for the bike's mesh and that clip at priority 100, as SB loads

@@ -258,8 +258,8 @@ std::string anim_pass();
 // releases the preload. Returns the line for the log.
 std::string ask_bike(const coop::Request &request);
 // Every pass: logs each change the game thread made (the preload loading, ready with its time, failed or released; the
-// gate on with each action's earlier state, off, refused) and returns a line for the player's screen (the fault's), or
-// empty.
+// gate on with each action's earlier state, off, refused; each ride play's clip in memory or not) and returns a line
+// for the player's screen (the fault's), or empty.
 std::string bike_pass();
 // SB's HUD under the SBO lobby's screens (glue/tick/hud_game.inc), worker thread. Lua's hud hide on or off
 // (Command::hud): our key in the HUD's set of hiding keys from the game thread's next frame, or out of it; coop off
