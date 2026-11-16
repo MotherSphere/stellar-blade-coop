@@ -348,13 +348,15 @@ local function settle()
     R.slow()
 end
 id=mount()
+dv.look=nil -- The drive's first frame gives no look yet: she rides on, nothing written.
+assert(R.steer()==nil and R.riding() and dv.ticks==1 and #composed==0)
 dv.look={top=2306,lean=10,pitch=2}
 R.steer()
-assert(dv.ticks==1 and #composed==1 and composed[1].a.Yaw==-90 and composed[1].b.Roll==10 and composed[1].b.Pitch==2)
+assert(dv.ticks==2 and #composed==1 and composed[1].a.Yaw==-90 and composed[1].b.Roll==10 and composed[1].b.Pitch==2)
 assert(composed[1].b.Yaw==0 and eve.Mesh.RelativeRotation.Roll==10 and eve.Mesh.RelativeRotation.Yaw==-90)
 dv.look={top=2306,lean=10.04,pitch=2}
 R.steer()
-assert(#composed==1 and dv.ticks==2,'Under 0.05 degrees: not written')
+assert(#composed==1 and dv.ticks==3,'Under 0.05 degrees: not written')
 dv.look={top=2306,lean=0,pitch=0}
 R.steer()
 assert(#composed==2 and eve.Mesh.RelativeRotation.Roll==0)

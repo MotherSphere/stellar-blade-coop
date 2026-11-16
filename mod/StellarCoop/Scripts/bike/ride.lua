@@ -339,9 +339,9 @@ function Ride.new(o)
     end
     -- One frame of the ride: why she gets off, or nil.
     local function frame(r)
-        local look=drive.tick()
-        if not look then return 'her EVE changed' end
-        tilt(r,look)
+        local look=drive.tick() -- nil on its first frame (no look yet), or once it went off with her EVE.
+        if drive.why()~='bike' then return 'her EVE changed' end
+        if look then tilt(r,look) end
         local now=os.clock()
         if now-r.read<POLL then return nil end
         r.read=now
