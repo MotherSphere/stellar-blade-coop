@@ -3,9 +3,13 @@
 # SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """Writes the generated block of native/src/world/rows.h from a game build's tables: what shared world sync may send
-and apply. It reads the tables only.
+and apply. It reads the tables and data/mxiii-world.json only.
 
   python3 -I tools/world_rows.py JSON_DIR   JSON_DIR holds the <Table>.uasset.json exports of the pinned build
+
+Matrix XIII's rows go through the same rules as the game's: the tool puts them into the tables first as lion/rows.h
+does at run time, each a copy of its donor row with every field the file sets (a row named as its donor changes the
+game's row in place).
 
 The block holds three sorted lists: the (EnvSpawnAlias, state tag) pairs a ChangeEnvState root may carry, the
 EnvSpawnAliases a SetEnvActive root may carry, and the ZoneEventTable rows a ZoneEvent root may run.
@@ -37,6 +41,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 HEADER = ROOT / 'native/src/world/rows.h'
+MXIII = ROOT / 'data/mxiii-world.json'
 BUILD = '26123051'  # The build whose tables the block is written from; change it with the tables.
 BEGIN = '// ---- world rows: generated, begin ----'
 END = '// ---- world rows: generated, end ----'
@@ -66,6 +71,16 @@ QUEST_EVENTS = (('QuestTable', ('AcquireEventArray', 'CompleteEventArray')),
                 ('QuestTaskTable', ('TaskStartEventSpawnAliasList', 'TaskCompleteEventSpawnAliasList',
                                     'TaskProgressEventSpawnAliasList')))
 NAME = re.compile(r'[A-Za-z0-9_\-]+')  # What a name may hold to go into a C++ string literal and sort as in C++.
+# The enum fields this tool reads that data/mxiii-world.json sets as numbers (lion/rows.h writes the byte), by table,
+# in the names of the table exports. Another number stops the tool.
+MXIII_ENUMS = {
+    ('ZoneEventTable', 'Type'): {10: 'ESBZoneEventType::ZoneEvent_ZoneEnvControl'},
+    ('EventEnvControlTable', 'EnvControlType'): {
+        n: f'ESBZoneEnvControlType::ESBZoneEnvCtrlType_{v}' for n, v in enumerate(
+            ('None', 'BaseState', 'StateProgress', 'SetStateProgress', 'ProgressSpeed', 'ProgressCurValue',
+             'ProgressRange', 'CampProperty'))},
+    ('EventEnvControlTable', 'Activate'): {n: f'ESBObjectState::ESBObject_{v}'
+                                           for n, v in enumerate(('None', 'Enable', 'Disable'))}}
 
 
 def enum(value):
@@ -85,6 +100,24 @@ def load(folder):
         data = json.loads((Path(folder) / f'{name}.uasset.json').read_text())
         out[name] = next(e['Rows'] for e in data if 'Rows' in e)
     return out
+
+
+def mxiii(t, data):
+    """t with Matrix XIII's rows of data (data/mxiii-world.json) for the tables of TABLES, in batch order: each a copy
+    of its donor row with every field the row sets."""
+    for batch in data['batches']:
+        for r in batch['rows']:
+            table = t.get(r['table'])
+            if table is None:
+                continue
+            row = dict(table[r['donor']])
+            for field, value, _ in r['set']:
+                enums = MXIII_ENUMS.get((r['table'], field))
+                if enums is not None and value not in enums:
+                    raise ValueError(f'{r["name"]}: {field} {value!r} is not a known value')
+                row[field] = enums[value] if enums is not None else value
+            table[r['name']] = row
+    return t
 
 
 def env_row(t, alias):
@@ -270,9 +303,9 @@ def render(pairs, active, events, counts):
         raise ValueError(f'names that would not go into a C++ string literal as they are: {bad}')
     if not (pairs and active and events):
         raise ValueError('an empty list would make a zero-size C++ array')
-    note = (f"Written by tools/world_rows.py from build {BUILD}'s {', '.join(TABLES[:-1])} and {TABLES[-1]}. "
-            "Another build needs it written again from that build's tables. A row or state counts under each reason "
-            'it meets.')
+    note = (f"Written by tools/world_rows.py from build {BUILD}'s {', '.join(TABLES[:-1])} and {TABLES[-1]}, with "
+            "Matrix XIII's rows of data/mxiii-world.json. Another build needs it written again from that build's "
+            'tables. A row or state counts under each reason it meets.')
     out = [BEGIN,
            *(f'// {line}' for line in textwrap.wrap(note, 117)),
            *(f'// {line}' for line in textwrap.wrap(f'ZoneEnvSpawnTable rows: {tally(counts["rows"])}.', 117)),
@@ -301,7 +334,7 @@ def write(header, block):
 def main(argv):
     if len(argv) != 1:
         sys.exit('Use: python3 -I tools/world_rows.py JSON_DIR')
-    t = load(argv[0])
+    t = mxiii(load(argv[0]), json.loads(MXIII.read_text()))
     pairs, active, events, counts = build(t)
     write(HEADER, render(pairs, active, events, counts))
     kept = {a for a, _ in pairs}

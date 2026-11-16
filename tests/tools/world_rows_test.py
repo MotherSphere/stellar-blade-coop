@@ -9,8 +9,9 @@ directly, through AddEvents and FinishEvents, through the StateZoneEventList, th
 control row sets, and through a progress control's change tags; the crane's camera tags; a ChangeState achievement on
 the state, on any state of its env, or on a state its events set), the SetEnvActive list (all states
 kept), each ZoneEvent rule (chain, missing control row, camp, target pair, target row, progress tags, Disable), unknown
-names and loops in chains, and the written block: sorted, between its markers, the rest of the header untouched, a
-name that cannot go into a C++ literal refused, and load and main over a folder of table exports.
+names and loops in chains, Matrix XIII's rows (copies, in-place changes, numbered enums), and the written block:
+sorted, between its markers, the rest of the header untouched, a name that cannot go into a C++ literal refused, and
+load and main over a folder of table exports.
 Run: python3 tests/tools/world_rows_test.py"""
 import contextlib
 import importlib.util
@@ -243,6 +244,42 @@ def test_zone_events():
     assert sum(counts['events'].values()) == len(want)
 
 
+def test_mxiii():
+    # A copy of the lever whose On plays a scene, the door changed in place into a supply box, and env control rows
+    # whose enums the file gives as numbers.
+    t = world({'lever': spawn(), 'door': spawn()},
+              events={'open': event('ZoneEnvControl', 'c open'), 'scene': event('Theater')},
+              controls={'c open': control('door', 'On')})
+    data = {'batches': [
+        {'rows': [{'table': 'ZoneCampTable', 'name': 'Camp_9', 'donor': 'Camp_1', 'set': []},
+                  {'table': 'ZoneEnvSpawnTable', 'name': 'mx lever', 'donor': 'lever',
+                   'set': [['EventTagName1', 'On', True], ['TagEventList1', ['scene'], True]]},
+                  {'table': 'ZoneEnvSpawnTable', 'name': 'door', 'donor': 'door',
+                   'set': [['EnvAlias', 'Env_SupplyBox_Normal01', True]]}]},
+        {'rows': [{'table': 'EventEnvControlTable', 'name': 'c mx', 'donor': 'c open',
+                   'set': [['EnvSpawnAlias', 'mx lever', True], ['EnvControlType', 1, False], ['Activate', 2, True],
+                           ['TagName', 'Off', True]]},
+                  {'table': 'ZoneEventTable', 'name': 'mx off', 'donor': 'open',
+                   'set': [['EventAlias', 'c mx', True], ['Type', 10, False]]}]}]}
+    gen.mxiii(t, data)
+    assert t['ZoneEnvSpawnTable']['mx lever']['TagEventList1'] == ['scene']
+    assert t['ZoneEnvSpawnTable']['lever']['TagEventList1'] == []  # The donor stays as it was.
+    assert t['EventEnvControlTable']['c mx']['Activate'] == 'ESBObjectState::ESBObject_Disable'
+    assert t['ZoneEventTable']['mx off']['Type'] == 'ESBZoneEventType::ZoneEvent_ZoneEnvControl'
+    assert 'ZoneCampTable' not in t
+    pairs, active, events, _ = gen.build(t)
+    assert pairs == [('lever', 'Off'), ('lever', 'On'), ('mx lever', 'Off')] and active == ['lever']
+    assert events == []  # mx off disables a lever whose On stays local; open's door is a supply box now.
+    for table, field in (('ZoneEventTable', 'Type'), ('EventEnvControlTable', 'Activate')):
+        bad = {'batches': [{'rows': [{'table': table, 'name': 'x', 'donor': 'open' if table == 'ZoneEventTable'
+                                      else 'c open', 'set': [[field, 99, True]]}]}]}
+        try:
+            gen.mxiii(t, bad)
+            raise AssertionError(f'{field} 99 went in')
+        except ValueError as e:
+            assert field in str(e)
+
+
 def test_render_and_write():
     t = world({'b': spawn(), 'a': spawn()}, events={'z': event('ZoneEnvControl', 'cz'),
                                                      'y': event('ZoneEnvControl', 'cy')},
@@ -284,15 +321,18 @@ def test_load_and_main():
             other = {'Type': 'Package'}  # An export without rows, before the table's.
             (Path(tmp) / f'{name}.uasset.json').write_text(json.dumps([other, {'Name': name, 'Rows': t[name]}]))
         assert gen.load(tmp) == t
-        header = Path(tmp) / 'rows.h'
+        header, mx = Path(tmp) / 'rows.h', Path(tmp) / 'mxiii.json'
         header.write_text(f'{gen.BEGIN}\n{gen.END}\n')
-        saved, gen.HEADER = gen.HEADER, header
+        mx.write_text(json.dumps({'batches': [{'rows': [{'table': 'ZoneEnvSpawnTable', 'name': 'b', 'donor': 'a',
+                                                         'set': []}]}]}))
+        saved = gen.HEADER, gen.MXIII
+        gen.HEADER, gen.MXIII = header, mx
         try:
             with contextlib.redirect_stdout(io.StringIO()) as out:
                 gen.main([tmp])
         finally:
-            gen.HEADER = saved
-        assert out.getvalue().startswith('2 pairs over 1 rows, 1 SetEnvActive rows, 1 ZoneEvent rows\n')
+            gen.HEADER, gen.MXIII = saved
+        assert out.getvalue().startswith('4 pairs over 2 rows, 2 SetEnvActive rows, 1 ZoneEvent rows\n')
         text = header.read_text()
         assert '{"a", "Off"},' in text and '"z",' in text and text.count(gen.BEGIN) == 1
 

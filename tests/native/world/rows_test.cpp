@@ -5,7 +5,8 @@
 // every SetEnvActive row with states of its own; the lookups at both ends of each list and on near misses; and rows
 // of build 26123051 each rule keeps or leaves out: a door and a lift with every state, the monorail without its
 // camp-bound garage run, the crane without its camera states, the hyperdrive without its story states, a supply box,
-// the boss cores, a story-only door, a quest's env control row, a monorail speed row whose chain plays a scene.
+// the boss cores, a story-only door, a Matrix XIII lever, a quest's env control row, a monorail speed row whose chain
+// plays a scene.
 #include "world/rows.h"
 
 #include <algorithm>
@@ -81,6 +82,8 @@ void test_rules() {
   for (const char *tag : {"Closed", "Open"})
     assert(!state_allowed("ME_03_EnvS_026", tag));
   assert(!object_state_allowed("ME_03_EnvS_026"));
+  // A Matrix XIII lever, from data/mxiii-world.json.
+  assert(state_allowed("DLC02_10_EnvS_669", "On") && object_state_allowed("DLC02_10_EnvS_669"));
   // ZoneEvent rows: a plain env control row; a quest's, whose target is a story env; a monorail speed row whose chain
   // holds more than env control.
   assert(event_allowed("DED10_E_EnvC_084"));
