@@ -683,7 +683,9 @@ function Link.new(folder,fs)
                 and not line:find('^night=') -- nightop/run.lua logs each night line itself.
                 -- Their spawns= moves with every enemy; cut/enemy.lua logs what it reads for each.
                 and not line:find('^lion=') and not line:find('^gardener=') and not line:find('^tendril=')
-                and not line:find('^bolt=') and not line:find('^mxiii=') then
+                and not line:find('^bolt=') and not line:find('^mxiii=')
+                -- Its sent= and received= move with each position of a shared scene; the native log has its events.
+                and not line:find('^story=') then
                 new[#new+1]=line
             end
             if ping==nil and line:find('^peer=') then -- Her name comes before: the last rtt_ms= is the native part's.
