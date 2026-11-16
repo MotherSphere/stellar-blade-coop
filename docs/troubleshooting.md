@@ -91,8 +91,9 @@ For the player who types the code:
 - `<host> refused the link: <reason>`, with `you were not let in`, `no answer within 60 s`, `you were removed from
   this session` or `you cannot join this session again`: the host refused or removed you, and your game left. That
   session stays closed to you. A new session the host starts has a new code and the host is asked again. A removed
-  player stays on the host's [block list](playing-with-a-friend.md#block-list), so every later session of that host
-  refuses them too until the host types `coop unblock`.
+  player stays on the host's [block list](playing-with-a-friend.md#block-list), so every later game of that host
+  refuses them too until the host types `coop unblock`. After a game restart the host needs your full SteamID for
+  that: send the number after `steamid=` in your `coop-status.txt`.
 - `Left <host>'s game: Steam would not set relay only.` or, in a match, `Left the match: Steam would not set relay
   only.`: every match goes through Steam's relays only, as does a session with a player who is not your Steam friend.
   Steam refused that setting 3 times, 1 s apart, so your game sent nothing and left. `coop-link.log` has each try

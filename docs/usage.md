@@ -145,7 +145,8 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
   digits the logs show after `***` for one. With the 4 digits they act on the one player in your lobby whose SteamID
   ends in them. When two players do, use the full SteamID from `coop-status.txt` in the mod folder, which keeps it
   whole. `coop unblock` takes the 4 digits only for a player blocked in this game run: `coop-status.txt` lists each
-  one whole on a `block=<SteamID> <name>` line. For a player blocked in an earlier game run it needs the full SteamID.
+  one whole on a `block=<SteamID> <name>` line. For a player blocked in an earlier game run it needs the full SteamID,
+  which the player can give you ([Block list](playing-with-a-friend.md#block-list) says where they find it).
 
 ### Ghost commands
 
