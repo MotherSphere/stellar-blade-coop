@@ -55,7 +55,9 @@ fails the test. The `main/` tests load
   longest frame and 250 ms pass, their counts over 16 ms and over 50 ms, and the longest call of five modules, and the
   gap lines (a frame over 100 ms after the last, with the 250 ms pass in the gap or none, at most 200 a minute);
 - `main/match_test` covers `coop match` (search, create, cancel, end, join with a code, leave), search and create with
-  the SBO lobby's room and hall words, `coop mute` and `coop unmute` with their usage line; a SteamID and a join code
+  the SBO lobby's room and hall words, `coop mute` and `coop unmute` with their usage line, `coop block`,
+  `coop unblock` (a SteamID or `all`) with their usage lines and `coop blocked` (the count from the status for one
+  player or more, or no status yet); a SteamID and a join code
   masked in the log; the 4 digits shown after `***` taken for the one member whose SteamID ends in them (by
   `coop mute` and `coop remove`) and refused when two members or none have them;
 - `main/sbo_test` covers `coop sbo` and the SBO lobby's wiring (the arm at the recruiter, the tick, the title's
@@ -175,13 +177,18 @@ The C++ tests cover the platform-free headers in `native/src`.
   the masking of SteamIDs, lobby ids and join codes in the logs and the report (`masked`, with the numbers and words of
   the same shape it leaves whole),
   the match modes (`find_mode`), `match search` and `match create` with their room and hall words (each refused when
-  missing, extra, too long or not an alias word), `match cancel` and `match end`, `mute` and `unmute`,
+  missing, extra, too long or not an alias word), `match cancel` and `match end`, `mute` and `unmute`, `block`,
+  `unblock` and `unblock all`,
   the match lines (start, count, end) with their bounds, and protocol 21 refusing a protocol-20 lobby and line;
 - `link_core_test`: the link against the shared fake Steam, and two links through it with the handshake both ways,
   channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line,
   joining with a code, and the host's approval of a player who is not a Steam friend (let in, refused, no answer,
   removed, a flood while waiting), with relay only set on both games before their first session with each other. A
-  join Steam refuses gets its notice for each answer Steamworks documents, or the number for any other;
+  join Steam refuses gets its notice for each answer Steamworks documents, or the number for any other. The block
+  list: its fixed hash; its file with no SteamID in clear, written once for each change and read back with CRLF ends
+  and other lines skipped; a removed player refused in the next lobby before any hello, with one notice and her
+  session request ignored; `coop block` removing a member of the lobby we host; `unblock` and `unblock all` greeting
+  her again at once; a guest's list never applied;
 - `link_pose_cap_test`: the adaptive pose rate (`PoseCap` in `link/core.h`), one reading a second: a calm link and
   a lone bad reading never step; two readings in a row over the line (queue time or pending bytes) step down 60, 30,
   20, to the first cap under the player's `send_rate`, never below 20; 10 calm readings step up one cap; a step up

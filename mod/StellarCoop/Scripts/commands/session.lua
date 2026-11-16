@@ -2,7 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The session's console commands: coop host (as who_can_join says), invite, join, leave, status, report, copy, mark,
--- allow, deny and remove, coop match, mute and unmute, with coop revive test, coop travel, coop saves and coop sbo.
+-- allow, deny and remove, block, unblock and blocked, coop match, mute and unmute, with coop revive test, coop travel,
+-- coop saves and coop sbo.
 -- main.lua builds them with new(o) at each Lua load and merges them into its command table, whose run() logs each
 -- result and, after coop off, refuses all but status and report. o: main.lua's link, settings, puppet, ask (a line for
 -- the native part), coop_slot and sbo, and group(), travel() and lobby (ui/lobby.lua's), read at each call: the
@@ -51,6 +52,20 @@ function Session.new(o)
     self.allow,self.deny,self.remove=answer('allow'),answer('deny'),answer('remove')
     -- A player's chat lines dropped (mute) or heard again (unmute), in any lobby, for the game run.
     self.mute,self.unmute=answer('mute'),answer('unmute')
+    -- The block list (coop-blocked.txt, which the native part keeps): block keeps a player out of every game you host,
+    -- across game runs, as coop remove does; unblock takes one player off, or all; blocked counts them, since the file
+    -- holds hashes and never a SteamID.
+    self.block=answer('block')
+    function self.unblock(id)
+        if id=='all' then return ask('unblock all')() end
+        if type(id)~='string' or not id:match('^%d+$') or #id>20 then return false,'Use: coop unblock <SteamID>|all' end
+        return ask('unblock '..id)()
+    end
+    function self.blocked()
+        local n=link and (link.status() or ''):match('\nblocked=(%d+)\n')
+        if not n then return false,'no Steam link status yet' end
+        return true,n..(n=='1' and ' player is' or ' players are')..' on your block list'
+    end
     -- A lobby id, or a join code as the native part takes it.
     function self.join(lobby)
         if lobby and link then

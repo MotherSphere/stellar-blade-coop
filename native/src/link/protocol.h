@@ -731,14 +731,15 @@ inline std::string masked(std::string_view text) {
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
-  signal, match, mute, sbo, guardtext, hud, loading, world
+  signal, match, mute, sbo, guardtext, hud, loading, world, block, unblock
 };
 // match: "match search <mode> <room> <hall>" (quick match: join an open Public lobby of that mode and hall, or host
 // one), "match create <mode> <room> <hall>" (a private match lobby joined with its code), "match cancel" (forget the
 // search) and "match end" (the host ends the round in play). The mode is one word; the link checks it against kModes.
 // The room and hall are Lua's words for the lobby map and the lobby pak's version (kRoomKey, kHallKey). mute: "mute
 // <SteamID>" and "unmute <SteamID>", in any lobby: that member's chat lines are dropped here, or heard again, for the
-// rest of the game run.
+// rest of the game run. block: "block <SteamID>" (the block list, link/core.h: kept out of every lobby we host, across
+// game runs); unblock: "unblock <SteamID>" or "unblock all" (player 0).
 enum class MatchAsk : uint8_t { search, create, cancel, end };
 // shortcut load's maps, save/shortcut.h's kMapNames in its order (shortcut_load_test checks they match).
 constexpr const char *kShortcutMaps[4] = {"B07", "F02", "G03", "Matrix_XI"};
@@ -808,7 +809,7 @@ struct Request {
   bool rule = false;                     // nightop rule.
   Who who = Who::friends;                // host: who can join the lobby.
   bool code = false;                     // join: with a code; lobby 0 when it is no valid code.
-  uint64_t player = 0;                   // allow, deny, remove, mute, unmute: her SteamID.
+  uint64_t player = 0;                   // allow, deny, remove, mute, unmute, block, unblock: her SteamID (0: all).
   Fight fight = Fight::none;
   SavesAsk saves = SavesAsk::none; // saves: which.
   int slot = -1;                    // saves refresh: the slot; saves export: the co-op slot; 0 to 4. shortcut load:
@@ -1108,6 +1109,10 @@ inline Request parse_request(std::string text) {
     r.command = f[0] == "allow" ? Command::allow : f[0] == "deny" ? Command::deny : Command::remove;
   else if (split(text, f, 2, nullptr) && (f[0] == "mute" || f[0] == "unmute") && number(f[1], r.player) && r.player)
     r.command = Command::mute, r.off = f[0] == "unmute";
+  else if (text == "unblock all")
+    r.command = Command::unblock;
+  else if (split(text, f, 2, nullptr) && (f[0] == "block" || f[0] == "unblock") && number(f[1], r.player) && r.player)
+    r.command = f[0] == "block" ? Command::block : Command::unblock;
   else if (text == "record" || text == "record off" || text == "replay" || text == "replay off") {
     r.command = text[2] == 'c' ? Command::record : Command::replay;
     r.off = text.size() > 6;

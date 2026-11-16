@@ -104,6 +104,15 @@ inline uint64_t splitmix64(uint64_t x) {
   x = (x ^ x >> 27) * 0x94d049bb133111ebull;
   return x ^ x >> 31;
 }
+// The block list's key for a SteamID64: FNV-1a 64 over a fixed salt and its digits, so coop-blocked.txt never holds a
+// SteamID in clear. Steam has about 2^32 accounts, so anyone who holds the file can still test a SteamID against it.
+inline uint64_t block_hash(uint64_t id) {
+  uint64_t h = 0xcbf29ce484222325ull;
+  for (char c : "SBO block list 1 " + std::to_string(id))
+    h = (h ^ static_cast<uint8_t>(c)) * 0x100000001b3ull;
+  return h;
+}
+constexpr size_t kMaxBlockFile = 1 << 20; // coop-blocked.txt's bytes read at start: about 60000 players.
 constexpr int kReliable = 8 | 32, kUnreliable = 1 | 32; // Reliable or Unreliable|NoNagle, |AutoRestartBrokenSession.
 constexpr int kChannel = 0, kPoseChannel = 1, kFightChannel = 2, kMaxMembers = 2;
 constexpr size_t kMaxBinary = 65536; // pose/table.h kMaxTable
@@ -913,6 +922,33 @@ public:
   // The copy request: our join code for the clipboard (glue/steam.cpp), once; empty when none was asked.
   std::string take_copy() { return std::exchange(copy_, {}); }
 
+  // The block list from coop-blocked.txt (glue/steam.cpp, once at start): one block_hash() in 16 hex digits a line,
+  // any other line skipped.
+  void blocks(const std::string &text) {
+    for (size_t at = 0, end; at < text.size(); at = end + 1) {
+      end = std::min(text.find('\n', at), text.size());
+      std::string_view line(text.data() + at, end - at);
+      if (!line.empty() && line.back() == '\r')
+        line.remove_suffix(1);
+      if (uint64_t hash = 0; hex64(line, hash))
+        blocked_.insert(hash);
+    }
+  }
+  // coop-blocked.txt's new text once remove, block or unblock changed the list (glue/steam.cpp writes it); empty when
+  // it did not change.
+  std::string take_blocks() {
+    if (!std::exchange(blocks_changed_, false))
+      return {};
+    std::string text = "# SBO's block list: the players coop remove and coop block keep out of every game you host.\n"
+                       "# Each line is a salted hash of a SteamID, never the SteamID. coop unblock all empties it.\n";
+    char line[20];
+    for (uint64_t hash : blocked_) {
+      std::snprintf(line, sizeof line, "%016llx\n", static_cast<unsigned long long>(hash));
+      text += line;
+    }
+    return text;
+  }
+
   // No Steam call here: the caller may ask before Steam is ready, or after the game shut it down.
   std::string status(const Counters &c) const {
     if (!started_)
@@ -924,6 +960,7 @@ public:
                     " cb333=" + std::to_string(c.join_requested) + " cb505=" + std::to_string(c.data_update) +
                     " cb506=" + std::to_string(c.chat_update) + " cb1251=" + std::to_string(c.session_request) + "\n";
     s += "me=" + my_name_ + "\n"; // Our Steam name, cleaned (kMaxName), maybe empty.
+    s += "blocked=" + std::to_string(blocked_.size()) + "\n"; // How many players the block list holds.
     // In a match lobby, its owner's SteamID after the lobby id, then its room and hall words when it has them.
     s += std::string("link=") + (!lobby_ ? "none" : host_ ? "host" : "guest") + " lobby=" + std::to_string(lobby_) +
          (match() ? " owner=" + std::to_string(host_id_) + (room_.empty() ? std::string() : " room=" + room_) +
@@ -1111,12 +1148,24 @@ private:
 
   // Why a non-peer's messages are ignored, for the log.
   const char *outsider(uint64_t id) const {
-    return !refused_.count(id) ? "not in our lobby" : host_ ? "refused by the host" : "refused for a flood";
+    return refused_.count(id) ? (host_ ? "refused by the host" : "refused for a flood")
+           : barred(id)       ? "on the block list"
+                              : "not in our lobby";
+  }
+
+  // Whether the block list keeps her out of the lobby we host. A guest's list never applies: she chose that game.
+  bool barred(uint64_t id) const { return host_ && blocked_.count(block_hash(id)); }
+  // Whether the list changed.
+  bool block(uint64_t id, bool on) {
+    const bool changed = on ? blocked_.insert(block_hash(id)).second : blocked_.erase(block_hash(id)) > 0;
+    blocks_changed_ = blocks_changed_ || changed;
+    return changed;
   }
 
   // The host's no (deny, remove, or no answer in time): a reject with why, which every protocol reads and on which a
-  // StellarCoop game leaves, then she is out for the rest of this lobby. Her session stays open, so the reject still
-  // goes out (CloseSessionWithUser drops unsent reliable data).
+  // StellarCoop game leaves, then she is out for the rest of this lobby (after a remove, the block list keeps her out
+  // of the later ones). Her session stays open, so the reject still goes out (CloseSessionWithUser drops unsent
+  // reliable data).
   // ponytail: Steam has no kick, so a game that ignores the reject keeps the lobby's second place (rejects every
   // 10 s, never greeted); the host hosts again for a new code.
   void refuse(uint64_t id, const std::string &why, const std::string &text) {
@@ -1315,11 +1364,38 @@ private:
         notice(p->name + " was let in.");
       } else if (r.command == Command::deny) {
         refuse(p->id, "you were not let in", p->name + " was not let in.");
-      } else {
-        refuse(p->id, "you were removed from this session", p->name + " was removed.");
+      } else { // Removed for good: kept out of every lobby we host from now on, until coop unblock.
+        block(p->id, true);
+        refuse(p->id, "you were removed from this session", p->name + " was removed and blocked.");
       }
       break;
     }
+    case Command::block: { // Anyone's SteamID, in any state; a member of the lobby we host is removed as well.
+      block(r.player, true);
+      event("blocked " + name_of(r.player) + " (" + std::to_string(r.player) + ")");
+      if (Peer *p = host_ && lobby_ ? find_peer(r.player) : nullptr)
+        refuse(p->id, "you were removed from this session", p->name + " was removed and blocked.");
+      else
+        notice("Player blocked.");
+      break;
+    }
+    case Command::unblock: // One player, or all (player 0), with the refusals in this lobby the list made.
+      if (!r.player) {
+        for (auto it = refused_.begin(); it != refused_.end();)
+          it = barred(it->first) ? refused_.erase(it) : std::next(it);
+        blocks_changed_ = blocks_changed_ || !blocked_.empty();
+        blocked_.clear();
+        event("unblocked everyone");
+        notice("Block list emptied.");
+      } else {
+        if (barred(r.player))
+          refused_.erase(r.player);
+        const bool was = block(r.player, false);
+        event((was ? "unblocked " : "unblock: not on the block list: ") + name_of(r.player) + " (" +
+              std::to_string(r.player) + ")");
+        notice(was ? "Player unblocked." : "That player is not on your block list.");
+      }
+      break;
     // The follow's camps lines (session/travel.lua writes them; link/protocol.h checked their shape): reliable, on
     // channel 0, to the friend past the handshake, the guest's camps? and the host's answers only, never in a match
     // lobby. A camps? of ours forgets the answer to the one before.
@@ -1811,8 +1887,9 @@ private:
   // so a member's first message always finds its peer. On the host, a new member who is not her Steam friend (nor let
   // in before in this lobby) waits for her answer with no hello, refused at kApprovalMs; a member refused in this
   // lobby is never a peer again and gets a reject each time she comes in, and every 10 s while she stays (a
-  // StellarCoop game leaves on the first). In a co-op lobby, the host leaving ends the session for the guest (D1: the
-  // leader is always the host), even though Steam hands the lobby to the guest. Any other loss of her lobby may be ours
+  // StellarCoop game leaves on the first). A member on the host's block list is refused that way before any question
+  // or hello. In a co-op lobby, the host leaving ends the session for the guest (D1: the leader is always the host),
+  // even though Steam hands the lobby to the guest. Any other loss of her lobby may be ours
   // (a network cut): the guest leaves and tries to get back in for 60 s. In a match lobby, Steam's owner is the host:
   // an owner change ends the round (owner_changed()), and a guest no longer listed leaves with no rejoin.
   void poll_members() {
@@ -1875,6 +1952,11 @@ private:
       peers_.erase(peers_.begin() + static_cast<std::ptrdiff_t>(i));
     }
     for (auto id : members) {
+      if (!refused_.count(id) && !find_peer(id) && barred(id)) { // Before any question or hello.
+        refused_[id] = now_; // Told at once below, then each 10 s while she stays, as one refused in this lobby.
+        event(name_of(id) + " (" + std::to_string(id) + ") is on the block list: refused");
+        notice("A player on your block list tried to join and was refused.");
+      }
       if (auto it = refused_.find(id); it != refused_.end()) {
         if (now_ >= it->second) {
           Peer out;
@@ -1926,7 +2008,7 @@ private:
 
   // A session from a lobby member is accepted after a live membership check; anything else is ignored, never closed.
   void on_session_request(uint64_t id) {
-    if (lobby_ && id && id != me_ && !refused_.count(id) && member_now(id)) {
+    if (lobby_ && id && id != me_ && !refused_.count(id) && !barred(id) && member_now(id)) {
       guard(id);
       Identity who = identity(id);
       api_.accept_session(msgs_, &who);
@@ -2681,6 +2763,9 @@ private:
   std::vector<Peer> peers_;
   std::set<uint64_t> strangers_; // Non-members already logged once.
   std::set<uint64_t> muted_;     // The players coop mute named, in any lobby, for the game run (my call 18).
+  // The block list (block_hash()es, coop-blocked.txt), kept across lobbies and game runs.
+  std::set<uint64_t> blocked_;
+  bool blocks_changed_ = false; // take_blocks() owes the file a write.
   // While we host: who_can_join of the lobby asked for, its join code (empty outside who_can_join=code), the members
   // let in, and those refused, with when a reject may go to her again (0: she is gone), all for this lobby only; our
   // code once the copy request asked for it.

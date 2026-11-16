@@ -831,9 +831,17 @@ int main() {
   assert(r.command == Command::mute && r.player == 76561198000000001ull && !r.off);
   r = parse_request("unmute 76561198000000001\n");
   assert(r.command == Command::mute && r.player == 76561198000000001ull && r.off);
+  // The block list: block by SteamID, unblock by SteamID or all (player 0).
+  r = parse_request("block 76561198000000001\r\n");
+  assert(r.command == Command::block && r.player == 76561198000000001ull);
+  r = parse_request("unblock 76561198000000001");
+  assert(r.command == Command::unblock && r.player == 76561198000000001ull);
+  r = parse_request("unblock all\n");
+  assert(r.command == Command::unblock && r.player == 0);
   for (const char *bad : {"", "dance", "hostile", "host now", "allow", "allow 0", "allow x", "allow  1", "allow 1 2",
                           "deny", "deny -1", "remove", "remove all", "copy CCS-CBMH", "copyCCS", "joincode CCS-CBMH",
-                          "mute", "mute x", "mute 0", "unmute", "unmute 0", "mute 1 2"})
+                          "mute", "mute x", "mute 0", "unmute", "unmute 0", "mute 1 2", "block", "block 0", "block all",
+                          "block x", "unblock", "unblock 0", "unblock All", "unblock all 1", "unblock 1 2"})
     assert(parse_request(bad).command == Command::none);
 
   // Join codes (UI-DESIGN 4.6): the low 32 bits of a lobby id with the high part 0x01860000, low % 7 in the 3 bits

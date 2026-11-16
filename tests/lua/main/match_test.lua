@@ -1,9 +1,9 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- coop match (search, create, cancel, end, join with a code, leave), coop mute and coop unmute through main.lua: each
--- asks the native part its request line, search and create with the SBO lobby's room and hall words (lobby_words());
--- anything else gets the usage line and asks nothing.
+-- coop match (search, create, cancel, end, join with a code, leave), coop mute, unmute, block, unblock and blocked
+-- through main.lua: each asks the native part its request line (blocked asks nothing), search and create with the SBO
+-- lobby's room and hall words (lobby_words()); anything else gets the usage line and asks nothing.
 dofile('tests/lua/main/fixture.lua')
 load_main(true)
 coop('match','search','ffa'); assert(asked[#asked]=='match search ffa hotel 47101_5096',asked[#asked])
@@ -31,4 +31,20 @@ coop('allow','0002'); assert(#asked==n and last():find('STOP: two players have a
 coop('deny','0003'); assert(#asked==n and last():find('STOP: no player in the lobby has a SteamID ending in 0003',1,true))
 fake_link.members=members
 coop('unmute','0001'); assert(#asked==n,'no lobby: no player')
+-- The block list: block takes a SteamID (or a lobby member's 4 digits), unblock a SteamID or all; blocked reads the
+-- count from the status, as the file holds only hashes.
+coop('block','76561198000000009'); assert(asked[#asked]=='block 76561198000000009')
+coop('unblock','76561198000000009'); assert(asked[#asked]=='unblock 76561198000000009')
+coop('unblock','all'); assert(asked[#asked]=='unblock all')
+n=#asked
+coop('unblock'); assert(#asked==n and last():find('Use: coop unblock <SteamID>|all',1,true))
+coop('unblock','x'); coop('block','all'); assert(#asked==n and last():find('Use: coop block <SteamID>',1,true))
+coop('blocked'); assert(last():find('STOP: no Steam link status yet',1,true),last())
+local before=status_text
+status_text='mod=v proto=3 steam=ready\nme=Me\nblocked=2\nlink=none lobby=0\n'
+coop('blocked'); assert(last()=='[StellarCoop] OK: 2 players are on your block list\n',last())
+status_text='mod=v proto=3 steam=ready\nme=Me\nblocked=1\nlink=none lobby=0\n'
+coop('blocked'); assert(last()=='[StellarCoop] OK: 1 player is on your block list\n',last())
+status_text=before
+assert(#asked==n,'blocked asks nothing')
 io.stdout:write('match_test ok\n') -- The fixture's print keeps lines for last().

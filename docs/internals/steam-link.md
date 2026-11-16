@@ -108,7 +108,7 @@ with native requests, which Lua writes to `coop-request.txt` like the others:
 - `allow <SteamID>` lets the player in. The handshake then runs as with a friend, and a rejoin after a drop is let in
   without a new question for as long as the lobby lasts.
 - `deny <SteamID>`, or 60 s with no answer, refuses the player, and so does leaving before the answer.
-  `remove <SteamID>` refuses any player already in, friends included.
+  `remove <SteamID>` refuses any player already in (friends included) and puts them on the block list.
 - A refused player gets a `SBC reject` with the reason (`you were not let in`, `no answer within 60 s`, `you were
   removed from this session`). Every build since protocol 9 shows it as `<host> refused the link: <reason>` and leaves. That
   player stays refused until the host creates a new lobby: the host never greets them again, ignores their session
@@ -117,6 +117,11 @@ with native requests, which Lua writes to `coop-request.txt` like the others:
   again every 10 s, and the host can create a new lobby, which gets a new code.
 - Answers go by SteamID, so an answer meant for a player who left never reaches the next one. A guest's answers, and
   an answer for a player who is not waiting, are ignored with a line in `coop-link.log`.
+- The block list (`block <SteamID>`, `unblock <SteamID>`, `unblock all`) lasts across lobbies and game runs. The
+  native part reads `coop-blocked.txt` once at start and writes it again after each change. Each line is FNV-1a 64 of a
+  fixed salt and the SteamID's digits, in 16 hex digits. While we host, a lobby member on the list is put on the
+  refused list of this lobby before any approval question, hello or accepted session. She gets the same
+  `you cannot join this session again` reject. A guest's list never applies.
 
 On the host, `session/join.lua` turns the first `pending=` line into a question on screen and writes the answer. It asks
 each player once a lobby; with no answer, the native part refuses the player after 60 s. The question opens without a

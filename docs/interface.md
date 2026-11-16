@@ -348,7 +348,8 @@ a Steam name or a chat line shows as `?`.
 | Joined | `Joined <host>'s game.`, with ` Waiting to be let in.` when the host is not your Steam friend |
 | A wrong join code | `That is not a join code: check its 7 characters.` or `Could not join: that is not a StellarCoop game.` |
 | A player who is not your Steam friend asks to join | `A player who is not your Steam friend is asking to join.` |
-| Your answer | `<name> was let in.`, `<name> was not let in.`, `<name> was not let in: no answer within 60 s.` or `<name> was removed.` |
+| Your answer | `<name> was let in.`, `<name> was not let in.`, `<name> was not let in: no answer within 60 s.` or `<name> was removed and blocked.` |
+| Your [block list](playing-with-a-friend.md#block-list) | `A player on your block list tried to join and was refused.`, `Player blocked.`, `Player unblocked.`, `That player is not on your block list.`, `Block list emptied.` or `Could not save the block list: it holds until the game closes.` |
 | Could not join | `Could not join: <reason>` for each answer Steam documents (listed in [Troubleshooting](troubleshooting.md#my-friend-cannot-join)), or `Could not join: Steam response <n>.` for any other |
 | A friend joined, left, came back | `<name> joined.`, `<name> left.`, `<name> is back.` |
 | Connection lost | `<name>: connection lost.` |

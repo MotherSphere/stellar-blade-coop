@@ -187,9 +187,10 @@ int main() {
     assert(saw("P1: lobby update: P2 disconnected") && !saw("P1: lobby update: P2 left"));
     // Our name on its own line after the first; a co-op lobby's link= line names no owner.
     assert(m[0].status(Counters{1, 2, 3, 4})
-               .find(" cb333=1 cb505=2 cb506=3 cb1251=4\nme=Me\nlink=host lobby=" + std::to_string(m[0].lobby()) +
-                     "\n") != std::string::npos);
-    assert(m.status(1).find("\nme=Me\nlink=guest lobby=" + std::to_string(m[0].lobby()) + "\n") != std::string::npos);
+               .find(" cb333=1 cb505=2 cb506=3 cb1251=4\nme=Me\nblocked=0\nlink=host lobby=" +
+                     std::to_string(m[0].lobby()) + "\n") != std::string::npos);
+    assert(m.status(1).find("\nme=Me\nblocked=0\nlink=guest lobby=" + std::to_string(m[0].lobby()) + "\n") !=
+           std::string::npos);
     // The mute works in a co-op lobby too.
     m.tick(0, "mute 2002");
     m[1].say("hi");
@@ -213,8 +214,8 @@ int main() {
     assert(s.find("\npending=") == std::string::npos && s.find("\nmate=") == std::string::npos);
     // The owner's SteamID after the lobby id, for the owner and for a guest; our name after the first line.
     const std::string owned = " lobby=" + std::to_string(L) + " owner=" + std::to_string(kMe) + "\n";
-    assert(s.find(" cb1251=0\nme=Me\nlink=host" + owned) != std::string::npos);
-    assert(m.status(5).find("\nme=Me\nlink=guest" + owned) != std::string::npos);
+    assert(s.find(" cb1251=0\nme=Me\nblocked=0\nlink=host" + owned) != std::string::npos);
+    assert(m.status(5).find("\nme=Me\nblocked=0\nlink=guest" + owned) != std::string::npos);
     std::set<std::string> slots; // The second field of each member= line.
     for (size_t at = 0; (at = s.find("\nmember=", at)) != std::string::npos; ++at)
       slots.insert(s.substr(s.find(' ', at) + 1, 1));

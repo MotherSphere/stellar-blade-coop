@@ -2696,7 +2696,8 @@ int main() {
   // hello, nothing of hers read, pings so her game never calls us lost) in any kind of lobby; friends never wait.
   // Answers and removals go by SteamID: a stale one, one from a guest, or a deny for someone already linked is ignored.
   // Removing a friend sends her a reject and keeps her out of this lobby: never greeted again, a reject at once each
-  // time she comes back, her session requests ignored. A new lobby forgets every answer.
+  // time she comes back, her session requests ignored. A new lobby forgets every answer. The removal also put her on
+  // the block list, which keeps her out of that lobby before any hello, until coop unblock.
   reset();
   {
     World w;
@@ -2709,7 +2710,9 @@ int main() {
     w.tick("remove 2002");
     std::string s = w.status();
     assert(!w.link.linked() && sent_to(kFriend, "SBC reject you were removed from this session") == 1);
-    assert(saw("refused Kaanta (2002): you were removed from this session") && noticed(s, "Kaanta was removed."));
+    assert(saw("refused Kaanta (2002): you were removed from this session") &&
+           noticed(s, "Kaanta was removed and blocked."));
+    assert(s.find("\nblocked=1\n") != std::string::npos && !w.link.take_blocks().empty());
     assert(s.find("\ncode=none refused=1\n") != std::string::npos && s.find("\npeer=") == std::string::npos);
     assert(s.find("\nfriend=") == std::string::npos && saw("chat this session: 0 in, 0 out, 0 dropped"));
     // Her game has not left yet: no second reject within 10 s, no hello, her lines ignored and logged once, her session
@@ -2733,15 +2736,30 @@ int main() {
     assert(static_cast<size_t>(sent_to(kFriend, "SBC hello ")) == hellos &&
            w.status().find("\npending=") == std::string::npos);
     assert(count("Kaanta is in the lobby") == 1);
-    // A guest's answers are ignored; a new lobby forgets every answer, and she is greeted again.
+    // A guest's answers are ignored. A new lobby forgets every answer, yet the block list refuses her at once, her
+    // session request in the same pass too: one notice, never greeted. coop unblock lets her in at the same pass.
     w.tick("leave");
     w.tick("host");
     finish_all();
     w.tick();
     F.members[5001].push_back(kFriend);
-    w.tick();
+    w.tick("", 0, kFriend);
+    s = w.status();
+    assert(sent_to(kFriend, "SBC reject you cannot join this session again") == 3 && F.accepted.empty());
+    assert(saw("Kaanta (2002) is on the block list: refused") && count("refused Kaanta came back: told to leave") == 1);
+    assert(noticed(s, "A player on your block list tried to join and was refused."));
+    assert(s.find("\ncode=none refused=1\n") != std::string::npos &&
+           static_cast<size_t>(sent_to(kFriend, "SBC hello ")) == hellos);
+    w.tick("", 0, 0, 10000); // Still there 10 s later: told again, with no second notice.
+    assert(sent_to(kFriend, "SBC reject you cannot join this session again") == 4 &&
+           count("Kaanta (2002) is on the block list: refused") == 1);
+    w.tick("unblock 2002");
     assert(w.status().find("\ncode=none refused=0\n") != std::string::npos &&
+           w.status().find("\nblocked=0\n") != std::string::npos &&
            static_cast<size_t>(sent_to(kFriend, "SBC hello ")) == hellos + 1);
+    assert(saw("unblocked Kaanta (2002)") && noticed(w.status(), "Player unblocked.") && !w.link.take_blocks().empty());
+    w.tick("unblock 2002"); // Not on the list any more: said so, no write.
+    assert(noticed(w.status(), "That player is not on your block list.") && w.link.take_blocks().empty());
   }
   reset();
   {
@@ -2751,6 +2769,60 @@ int main() {
     w.tick("allow 2002");
     assert(saw("remove 2002 ignored: not hosting") && saw("allow 2002 ignored: not hosting") && w.link.linked());
     assert(w.status().find("\ncode=") == std::string::npos);
+  }
+
+  // The block list, one Link: block_hash() never changes, so coop-blocked.txt from an earlier run still matches. The
+  // file never holds the SteamID. coop block works in any state, once a player; the status counts the list;
+  // take_blocks() gives the file's text once for each change; blocks() reads it back with CRLF ends, skipping any other
+  // line. Blocking a member of the lobby we host removes her; unblock all empties the list with the refusals it made,
+  // so she is greeted again. A guest's list never applies: she stays linked to the host she blocked.
+  reset();
+  {
+    assert(block_hash(76561198000000009ull) == 0x7a46acb03c8829bbull);
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    assert(w.status().find("\nblocked=0\n") != std::string::npos && w.link.take_blocks().empty());
+    w.tick("block 76561198000000009");
+    const std::string file = w.link.take_blocks();
+    assert(file.rfind("# ", 0) == 0 && file.find("\n7a46acb03c8829bb\n") != std::string::npos);
+    assert(file.find("76561198000000009") == std::string::npos && w.link.take_blocks().empty());
+    assert(w.status().find("\nblocked=1\n") != std::string::npos && noticed(w.status(), "Player blocked."));
+    w.tick("block 76561198000000009");
+    assert(w.link.take_blocks().empty() && w.status().find("\nblocked=1\n") != std::string::npos);
+    std::string crlf = "junk\n7A46ACB03C8829BB\n";
+    for (char c : file)
+      crlf += c == '\n' ? std::string("\r\n") : std::string(1, c);
+    World v;
+    v.link.blocks(crlf + "7a46acb03c8829b\n");
+    assert(v.link.ready(L"SB.exe") == Link::Ready::now && v.status().find("\nblocked=1\n") != std::string::npos);
+    assert(v.link.take_blocks().empty());
+  }
+  reset();
+  {
+    World w;
+    linked_host(w);
+    const int hellos = sent_to(kFriend, "SBC hello ");
+    w.tick("block 2002");
+    assert(!w.link.linked() && sent_to(kFriend, "SBC reject you were removed from this session") == 1);
+    assert(saw("blocked Kaanta (2002)") && noticed(w.status(), "Kaanta was removed and blocked."));
+    assert(w.status().find("\nblocked=1\n") != std::string::npos && !w.link.take_blocks().empty());
+    w.tick("unblock all");
+    std::string s = w.status();
+    assert(s.find("\nblocked=0\n") != std::string::npos && s.find("\ncode=none refused=0\n") != std::string::npos);
+    assert(noticed(s, "Block list emptied.") && sent_to(kFriend, "SBC hello ") == hellos + 1);
+    const std::string emptied = w.link.take_blocks(); // The two comment lines alone.
+    assert(emptied.rfind("# ", 0) == 0 && std::count(emptied.begin(), emptied.end(), '\n') == 2);
+    w.tick("unblock all"); // Already empty: no write.
+    assert(w.link.take_blocks().empty());
+  }
+  reset();
+  {
+    World w;
+    linked_guest(w);
+    w.tick("block 2002");
+    for (int i = 0; i < 3; ++i)
+      w.tick("", 0, 0, 1000);
+    assert(w.link.linked() && sent_to(kFriend, "SBC reject ") == 0 && noticed(w.status(), "Player blocked."));
   }
   reset();
   {

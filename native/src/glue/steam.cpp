@@ -661,6 +661,8 @@ bool step() {
           api, STELLARCOOP_VERSION, event,
           [](size_t slot, const uint8_t *d, size_t n) { coop::pose::peer_receive(slot, d, n); });
       link->paks(game_paks.count, game_paks.hash, game_mods);
+      bool exists = false; // The block list, kept across game runs; no file yet is an empty list.
+      link->blocks(coop::pose::read_file(folder + L"coop-blocked.txt", exists, coop::kMaxBlockFile));
     }
     if (loaded && !account && !saves_dir.empty() && link->me()) { // The game's save folder for this account.
       account = std::make_unique<WinFs>(saves_dir + L"\\" + std::to_wstring(link->me()), backups_dir);
@@ -882,6 +884,12 @@ bool step() {
         link->tick(GetTickCount64(), request, join, session);
         if (link->take_report())
           write_report();
+        if (const std::string blocks = link->take_blocks(); !blocks.empty()) {
+          const bool saved = write_text(folder + L"coop-blocked.txt", blocks);
+          event(saved ? "block list saved to coop-blocked.txt" : "block list not saved");
+          if (!saved)
+            link->notice("Could not save the block list: it holds until the game closes.");
+        }
         if (const std::string code = link->take_copy(); !code.empty()) {
           const bool copied = coop::copy_text(std::wstring(code.begin(), code.end()));
           event(copied ? "join code copied to the clipboard" : "join code not copied: the clipboard refused it");

@@ -90,7 +90,9 @@ For the player who types the code:
   accept you. Your partner's ghost and card do not show until then. The host has 60 s to answer.
 - `<host> refused the link: <reason>`, with `you were not let in`, `no answer within 60 s`, `you were removed from
   this session` or `you cannot join this session again`: the host refused or removed you, and your game left. That
-  session stays closed to you. A new session the host starts has a new code, and the host is asked again.
+  session stays closed to you. A new session the host starts has a new code and the host is asked again. A removed
+  player stays on the host's [block list](playing-with-a-friend.md#block-list), so every later session of that host
+  refuses them too until the host types `coop unblock`.
 
 For the host:
 
