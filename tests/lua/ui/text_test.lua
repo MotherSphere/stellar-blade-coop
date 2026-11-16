@@ -14,7 +14,8 @@
 -- co-op line's hint and sentences within theirs, the status strip's rows (partner/hud.lua): the second with every fact
 -- within its columns, the top one with its connection lost and paused words whole before the status line, which comes
 -- without its prefix, the race's panel, marker, banner and results within theirs, the lobby menu's rows, settings,
--- values and status within their columns and its waiting-room notice within 200 bytes, and no Thai word that ends on a
+-- values and status within their columns and its waiting-room notice within 200 bytes, Find a session's hints, status
+-- lines, version and footer within theirs, and no Thai word that ends on a
 -- leading vowel; each join Steam refused as link/core.h words it, in every language; the DLC notice (T.dlcs) within
 -- 200 bytes with 100-byte DLC names in every language; its English as main.lua says it.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
@@ -257,6 +258,17 @@ for name in pairs(R.TEXT) do
     for k,text in pairs(w.lobby.status) do fits(name..'.lobby.status.'..k,text:format(k=='start' and 10 or 8,8),40) end
     local room=w.lobby.room:format('F5')
     assert(Chat.clean(room)==room,name..'.lobby.room: '..#room..' bytes or a control')
+    -- Find a session (ui/sessions.lua): a key hint's label within the 420 units between two hints less the icon
+    -- (Bold 30, 17 units a column); a status line on one line of the list's 1600 units (Bold 36, about 21 units a
+    -- column); the version in the details pane on one line of its 1040 units (Mideum 34, 18 units a column), with a
+    -- two-digit protocol and an 8-digit build; the footer within two lines of 2200 units (Mideum 30, 16 units a column).
+    local ss=w.sessions
+    for _,k in ipairs({'ask','refresh'}) do fits(name..'.sessions.'..k,ss[k],20) end
+    for _,k in ipairs({'empty','failed','idle'}) do fits(name..'.sessions.'..k,ss[k],76) end
+    fits(name..'.sessions.wait',ss.wait:format(5),76)
+    fits(name..'.sessions.friend',ss.friend,57)
+    fits(name..'.sessions.version',ss.version:format('22','26123051'),57)
+    fits(name..'.sessions.footer',ss.footer:format('22','26123051'),2*2200//16)
 end
 -- Thai writes a leading vowel (U+0E40 to U+0E44) before its consonant: no word ends on one.
 local function thai(t,at)
