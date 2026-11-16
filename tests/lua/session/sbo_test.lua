@@ -174,6 +174,7 @@ local function gate_read(path,limit) return pak_files[path] and pak_files[path]:
 -- each stop's why and each kind whose loop was looked up ahead, found but for camp; preload_error: the kind whose
 -- look-up raises, with that error); each loop started is also one of EVE's calls.
 local em={}
+local rides=false -- bike/ride.lua's riding().
 local emote={active=function() return em.on end,
     sit=function(kind)
         if em.refuse then return false,em.refuse end
@@ -207,7 +208,8 @@ local function fresh(gate,left)
         say=function(key) said[#said+1]=key end,ue=ue,
         recruiter={run=function() runs=runs+1; return true,'recruiter asked' end},
         nightop={running=function() return night end},fight=function() return fight end,
-        paks=gate_paks,read=gate_read,halls={ok=function() return hall_ok end},emote=emote,arrival=arrival})
+        paks=gate_paks,read=gate_read,halls={ok=function() return hall_ok end},emote=emote,arrival=arrival,
+        riding=function() return rides end})
 end
 local function tick(s,now) status=s; sb.tick(now or 0) end
 local function list(t) return table.concat(t,',') end
@@ -1125,6 +1127,12 @@ landed(HOTEL)
 tick(AT_HOTEL,1) -- The bind check: SB bound none (bind_zone nil).
 eve.at,eve.did={X=-910,Y=2200,Z=183},{}
 assert(sb.near_seat()==seat1,'The nearest')
+-- While EVE rides the bike: refused before anything is written on her or asked of coop emote.
+rides=true
+ok,why=sb.sit(seat1)
+rides=false
+assert(ok==false and why=='EVE rides the bike: coop bike gets her off first' and sb.seated()==nil,why)
+assert(#eve.did==0 and #em.sits==0,list(eve.did))
 -- sit_turns_collision_off_then_plays_loop
 ok,why=sb.sit(seat1)
 assert(ok and list(eve.did)==SIT_1 and sb.seated()==seat1 and sb.near_seat()==nil,list(eve.did))

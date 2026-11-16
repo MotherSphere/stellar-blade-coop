@@ -197,9 +197,9 @@ local CHECK=1
 -- BindZoneAlias and EnvSpawnAlias, nil when it is gone)), recruiter (its run()), nightop (its running()) and fight() (a
 -- fight near EVE), and the hall lobbies' gate: paks (SB/Content/Paks, nil when unknown), read (core/link.lua's
 -- files.read) and halls (the hall rows' session/halls_rows.lua, its ok()), and the hall seats' emote (cut/emote.lua's
--- sit(kind), active(), stop(why) and preload(kind)), and the arrival's hold (session/arrival.lua's arm(), disarm(why)
--- and held(); none when nil). link.store ('coop-sbo.txt') keeps the menu camera's path across Lua loads. Each console
--- method returns ok and its text.
+-- sit(kind), active(), stop(why) and preload(kind)), riding() (bike/ride.lua's: EVE rides the bike; nil when there is
+-- none) and the arrival's hold (session/arrival.lua's arm(), disarm(why) and held(); none when nil). link.store
+-- ('coop-sbo.txt') keeps the menu camera's path across Lua loads. Each console method returns ok and its text.
 local NO_HOLD={arm=function() end,disarm=function() end,held=function() return false end}
 function Sbo.new(o)
     local link,settings,log,say,ue=o.link,o.settings,o.log,o.say,o.ue
@@ -957,9 +957,11 @@ function Sbo.new(o)
     end
     -- EVE onto seat, a seat of the hall she stands in: refused while she sits. Else her collision off, the teleport to
     -- the seat point at her standing height (her centre over her feet), her movement held (with no collision a fall
-    -- would never land, and nothing pushes her) and the seat's loop. A step refused stands her up again. ok and why.
+    -- would never land, and nothing pushes her) and the seat's loop. A step refused stands her up again. Refused while
+    -- she rides the bike, before anything is written. ok and why.
     function self.sit(seat)
         if seated then return false,'EVE is already seated' end
+        if o.riding and o.riding() then return false,'EVE rides the bike: coop bike gets her off first' end
         local her=ue.eve()
         if not her then return false,'no EVE in the world' end
         local now=link.sbo()
