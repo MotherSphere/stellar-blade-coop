@@ -75,8 +75,10 @@ local why_of=U.why
 -- drive), look (race/doro.lua's Doro.new: on, off, emote, drive, log), drive (race/drive.lua's Drive.new), tell(build)
 -- (main.lua's notices: build(words) puts one together), night()
 -- (a Night Operation run is on), slot() (true on a co-op save, else false and why), paused() (the game paused or on one
--- of its screens, read every 250 ms), settings (main.lua's: race_key, ui_language) and store (coop-race-doros.txt
--- through link.store; nil without the native part).
+-- of its screens, read every 250 ms), settings (main.lua's: race_key, ui_language), store (coop-race-doros.txt
+-- through link.store; nil without the native part) and dismount(why) (bike/ride.lua's stop: EVE off the bike, which
+-- also ends its drive). A bike drive is the ride's: no race starts during it; the guest's answer to a track line takes
+-- her off the bike first; neither the race's steer and 250 ms check nor coop off here touch it.
 function Race.new(o)
     local log,link,puppet,look,tell,drive=o.log,o.link,o.puppet,o.look,o.tell,o.drive
     local store=o.store or {save=function() end,load=function() end,clear=function() end}
@@ -450,6 +452,7 @@ function Race.new(o)
         if rec then return false,'a track is being recorded: coop race save or coop race cancel first' end
         if link.mode()=='guest' then return false,'the host starts a race; yours comes when the host starts one' end
         if o.night() then return false,'Night Operation is running: coop nightop stop ends it' end
+        if drive.why()=='bike' then return false,'EVE rides the bike: coop bike gets her off first' end
         if drive.active() then return false,'the drive probe runs: coop race drive off ends it' end
         local e=eve()
         if not e then return false,'no EVE in the world' end
@@ -583,7 +586,9 @@ function Race.new(o)
             log('race '..l.id..' from the host refused: not a co-op save')
             return tell(function(w) return w.race.declined.save:format(her_name(w)) end)
         end
-        if drive.active() then -- Her movement whole until GO, and the look out of the probe's driving.
+        -- Her movement whole until GO: off the bike, or the probe off and the look out of its driving.
+        if drive.why()=='bike' then o.dismount('the host started a race')
+        elseif drive.active() then
             log(drive.off('the host started a race'))
             pcall(look.drive,nil)
         end
@@ -606,10 +611,10 @@ function Race.new(o)
         log(('race: %d display Doros an earlier Lua load left destroyed'):format(n))
     end
     -- Each frame before the native tick, so that the pose it captures and the look have the yaw the driving writes
-    -- this frame: the race's driving from GO to our result, or the drive probe's. Its first error ends the race (as a
-    -- frame's) or the probe: false, why.
+    -- this frame: the race's driving from GO to our result, or the drive probe's (never the bike's, which
+    -- bike/ride.lua steers). Its first error ends the race (as a frame's) or the probe: false, why.
     function self.steer()
-        if not drive.active() then return end
+        if not drive.active() or drive.why()=='bike' then return end
         local ok,e=pcall(function() look.drive(drive.tick()) end)
         if ok then return end
         if race then return fail(e) end
@@ -640,6 +645,7 @@ function Race.new(o)
         end
         local r=race
         if not r then
+            if drive.why()=='bike' then return end -- bike/ride.lua's 250 ms check runs it.
             local ok,e=pcall(drive.slow)
             if ok then return end
             local message=drive.off('error')
@@ -649,12 +655,13 @@ function Race.new(o)
         local ok,e=pcall(slow,r)
         if not ok then return fail(e) end
     end
-    -- coop off: a recording dropped, a race left (its DNF or abort line out first) and closed, the drive probe off.
+    -- coop off: a recording dropped, a race left (its DNF or abort line out first) and closed, the drive probe off. A
+    -- bike drive stays: main.lua's off handler calls bike/ride.lua's stop first.
     function self.stop()
         rec=nil
         local r=race
         if not r then
-            if drive.active() then log(drive.off('coop off')) end
+            if drive.active() and drive.why()~='bike' then log(drive.off('coop off')) end
             pcall(look.drive,nil)
             return
         end
