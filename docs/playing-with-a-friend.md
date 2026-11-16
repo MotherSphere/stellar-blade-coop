@@ -312,9 +312,11 @@ Some steps wait in her game:
 - A kill step waits until her own copy of the task is done: she kills the target, or a shared enemy dies in both games
   (`<quest> waits until you kill its target yourself. coop quests force <number> skips that step.`). A forced kill
   step leaves the target alive in her world.
-- A Request the host accepted is accepted on her board too once her board offers it. Its tasks follow the host's, then
-  it waits until she hands it in at her own request board, where her game gives her the reward and takes the
-  delivered items (`<quest> is ready: hand it in at your request board.`).
+- A task that stands for an item waits until she picks the item up in her own game. No notice comes for it;
+  `coop quests status` shows `waits for your own pickup`.
+- A Request the host accepted is accepted on her board too once her board offers it. Its tasks follow the host's,
+  except a task that stands for an item. Then it waits until she hands it in at her own request board, where her game
+  gives her the reward and takes the delivered items (`<quest> is ready: hand it in at your request board.`).
 - A step that the game's tables cannot place in a zone, and that the host's game did not see happen, waits too. She
   plays it herself or forces it.
 
