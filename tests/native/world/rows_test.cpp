@@ -5,8 +5,8 @@
 // every SetEnvActive and no-progress row with states of its own; the lookups at both ends of each list and on near
 // misses; and rows of build 26123051 each rule keeps or leaves out: a door and a lift with every state, the monorail
 // without its camp-bound garage run, the crane without its camera states, the hyperdrive without its story states, a
-// supply box, the boss cores, a story-only door, a Matrix XIII lever, a quest's env control row, a monorail speed row
-// whose chain plays a scene.
+// supply box, the boss cores, a story-only door, an env whose On a quest task waits for, a Matrix XIII lever, a
+// quest's env control row, a monorail speed row whose chain plays a scene.
 #include "world/rows.h"
 
 #include <algorithm>
@@ -87,6 +87,10 @@ void test_rules() {
   for (const char *tag : {"Closed", "Open"})
     assert(!state_allowed("ME_03_EnvS_026", tag));
   assert(!object_state_allowed("ME_03_EnvS_026"));
+  // A state an EnvState quest task waits for (Quest_Epic_02_M01_T01): its On stays local, so the env leaves the
+  // SetEnvActive list, and its Off travels.
+  assert(!state_allowed("DED20_EnvS_210", "On") && state_allowed("DED20_EnvS_210", "Off"));
+  assert(!object_state_allowed("DED20_EnvS_210"));
   // Progress adds: a door, and not a counter whose On at its count of 3 goes to A, which gives an item.
   assert(progress_allowed("DED20_EnvS_193") && state_allowed("WLA_30_EnvS_068", "On"));
   assert(!progress_allowed("WLA_30_EnvS_068") && !progress_allowed("DED10_EnvS_105"));

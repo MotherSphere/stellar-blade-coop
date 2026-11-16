@@ -7,7 +7,8 @@ the spawn row or the env row, a box trophy, a boss core, no env row, story envs 
 task events through chains and the states they set), each that keeps a state out (every player event type, reached
 directly, through AddEvents and FinishEvents, through the StateZoneEventList, through another env's state that an env
 control row sets, and through a progress control's change tags; the crane's camera tags; a ChangeState achievement on
-the state, on any state of its env, or on a state its events set), the SetEnvActive list (all states kept), each
+the state, on any state of its env, or on a state its events set; an EnvState quest task waiting for the state or for
+a state its events set), the SetEnvActive list (all states kept), each
 ZoneEvent rule (chain, missing control row, camp, target pair, target row, progress tags, Disable), unknown names and
 loops in chains, the envs whose progress count leads off the list, Matrix XIII's rows (copies, in-place changes,
 numbered enums), and the written block: sorted, between its markers, the rest of the header untouched, a name that
@@ -76,8 +77,10 @@ def achievement(alias, progress='None', field='ProgressAchievementOnCompleted', 
     return row
 
 
-def world(spawns, envs=None, events=None, controls=None, quests=None, groups=None, tasks=None, achievements=None):
-    """The tables build() reads. An env row named after each spawn row's EnvAlias defaults to env()."""
+def world(spawns, envs=None, events=None, controls=None, quests=None, groups=None, tasks=None, achievements=None,
+          waits=None):
+    """The tables build() reads. An env row named after each spawn row's EnvAlias defaults to env(). waits: EnvState
+    task rows by name, each (EnvSpawnAlias, state tag)."""
     envs = dict(envs or {})
     for s in spawns.values():
         envs.setdefault(s['EnvAlias'], env())
@@ -86,8 +89,14 @@ def world(spawns, envs=None, events=None, controls=None, quests=None, groups=Non
             'QuestTable': {k: {'AcquireEventArray': v, 'CompleteEventArray': []} for k, v in (quests or {}).items()},
             'QuestTaskGroupTable': {k: {'ActivateEvent': [], 'ProgressEvent': [], 'CompleteEvent': v}
                                     for k, v in (groups or {}).items()},
-            'QuestTaskTable': {k: {'TaskStartEventSpawnAliasList': v, 'TaskCompleteEventSpawnAliasList': [],
-                                   'TaskProgressEventSpawnAliasList': []} for k, v in (tasks or {}).items()},
+            'QuestTaskTable': {**{k: {'MissionType': 'ESBQuestMissionType::ESBMission_Counter', 'CustomStr': '',
+                                      'CustomStr2': '', 'TaskStartEventSpawnAliasList': v,
+                                      'TaskCompleteEventSpawnAliasList': [], 'TaskProgressEventSpawnAliasList': []}
+                                  for k, v in (tasks or {}).items()},
+                               **{k: {'MissionType': 'ESBQuestMissionType::ESBMission_EnvState', 'CustomStr': a,
+                                      'CustomStr2': s, 'TaskStartEventSpawnAliasList': [],
+                                      'TaskCompleteEventSpawnAliasList': [], 'TaskProgressEventSpawnAliasList': []}
+                                  for k, (a, s) in (waits or {}).items()}},
             'AchievementTable': achievements or {}}
 
 
@@ -209,6 +218,25 @@ def test_achievements():
     assert ('door', 'Closed') in pairs and ('door', 'Open') not in pairs and ('lever', 'Off') in pairs
     assert ('free', 'On') in pairs and 'free' in active and 'console' not in {a for a, _ in pairs}
     assert events == ['set C'] and counts['states']['achievement'] == 7
+
+
+def test_quest_tasks():
+    # A quest task waits for the switch's On, and for the door's Open, which the lever's On sets. Off travels, and the
+    # chest's task waits for a row that is out anyway.
+    t = world({'switch': spawn(), 'door': spawn('Env_Door'), 'lever': spawn(events={'On': ['open door']}),
+               'chest': spawn(rewards={1: 'Loot'})},
+              envs={'Env_Door': env(('Closed', 'Open'))},
+              events={'open door': event('ZoneEnvControl', 'c open'), 'set on': event('ZoneEnvControl', 'c on')},
+              controls={'c open': control('door', 'Open'), 'c on': control('switch', 'On')},
+              waits={'Quest_M01_T01': ('switch', 'On'), 'Quest_M02_T01': ('door', 'Open'),
+                     'Quest_M03_T01': ('chest', 'On')})
+    assert gen.task_pairs(t) == {('switch', 'On'), ('door', 'Open'), ('chest', 'On')}
+    assert gen.state_reasons(t, 'switch', 'On') == ['quest task'] and gen.state_reasons(t, 'switch', 'Off') == []
+    assert gen.state_reasons(t, 'lever', 'On') == ['quest task']  # Through the door it opens.
+    pairs, active, events, counts = gen.build(t)
+    assert ('switch', 'Off') in pairs and ('switch', 'On') not in pairs and 'switch' not in active
+    assert ('door', 'Closed') in pairs and ('lever', 'Off') in pairs and 'chest' not in {a for a, _ in pairs}
+    assert events == [] and counts['states']['quest task'] == 3
 
 
 def test_zone_events():

@@ -62,10 +62,10 @@ QuestTaskTable and AchievementTable, puts Matrix XIII's rows from `data/mxiii-wo
 of its donor row with every field the file sets, as `lion/rows.h` adds them at run time, so the 114 game rows it
 changes in place are judged on their new values). It writes four sorted lists:
 
-- 6,433 (EnvSpawnAlias, tag) pairs over 2,555 of the 4,628 ZoneEnvSpawnTable rows (2,460 of the game's 4,430 and 95
+- 6,423 (EnvSpawnAlias, tag) pairs over 2,554 of the 4,628 ZoneEnvSpawnTable rows (2,459 of the game's 4,430 and 95
   of the 198 Matrix XIII adds), for R1 and the state part of an `l` line;
-- 2,416 EnvSpawnAliases for an ObjectState (R2 and an `l` line whose ObjectState is not 0);
-- 2,064 ZoneEventTable rows for R3;
+- 2,409 EnvSpawnAliases for an ObjectState (R2 and an `l` line whose ObjectState is not 0);
+- 2,058 ZoneEventTable rows for R3;
 - 11 kept EnvSpawnAliases an `l` line may not add progress to.
 
 A ZoneEnvSpawnTable row is out, with all its states, when it is per player (its EnvAlias family, such as
@@ -74,7 +74,7 @@ an EnvType Camp, Can or Nikke; an EnvCrate scan type; a box or record trophy on 
 group on any state, has no ZoneEnvTable row, or is story driven: the target of an EventEnvControlTable row that a
 quest's events, task groups or tasks reach, through chained rows and the states those rows set. The rows.h header
 gives the counts per reason; a row counts under each reason it meets: family 1,052, camp 870, type 774, reward 737,
-trophy 572, crate 457, story 131, no env row 37. 14 rows pass these rules but lose every state to the state rules
+trophy 572, crate 457, story 131, no env row 37. 15 rows pass these rules but lose every state to the state rules
 below, so they are on no list.
 
 A state of a kept row is out when it is the crane's `ResetCam` or `ChangeCam`, when the events its ChangeState runs
@@ -84,7 +84,10 @@ AcquireQuest, InteractCamp, FinishBossChallenge, PlayerWarp, ChangeZone, StartMa
 ReturnToSinglePlay), or when that state, or one an env control row among them sets, has a ChangeState achievement.
 ChangeState credits such an achievement to its caster. The receiver's caster is her own player: without this rule
 `Xion_22_EnvS_002` A would complete `Xion_Phase_2` in her game. 65 states are out for an achievement, 43 of them
-directly. A row is on the ObjectState list only when every one of its states is kept, so a forwarded Disable never
+directly. The same holds for a state that an EnvState quest task waits for (QuestTaskTable `CustomStr` and
+`CustomStr2`): the task tests only the env and its state, so a line would complete it outside the shared quests' rules.
+16 states are out for a quest task. Ten of them are the pairs the tasks name, such as `DED20_EnvS_210` On for
+`Quest_Epic_02_M01_T01`; the shared quests move those tasks instead. A row is on the ObjectState list only when every one of its states is kept, so a forwarded Disable never
 locks a lever whose state change stayed local. A ZoneEvent row is kept when it and every row it chains to are env
 control rows, none names a camp, each names a kept row, every tag it can set is a kept pair and each Disable is on an
 env of the ObjectState list. A kept row goes on the no-progress list when one of its states counts progress and moves
@@ -228,7 +231,7 @@ come from the `world=` line: on with her each time it reads `on` after anything 
   as `away` and is not written into her records. Nothing catches it up when she loads that zone.
 - The story walk does not follow a quest NPC's spawn into EventSpawnTable's EventOnDead or EventOnBattle, nor the
   events a theater or level sequence asset fires itself.
-- The tables do not show which of the 2,064 kept ZoneEvent rows a graph's ZoneEvent action runs.
+- The tables do not show which of the 2,058 kept ZoneEvent rows a graph's ZoneEvent action runs.
 - A graph that runs one of these nodes off the game thread is not shared; `elsewhere=` counts those calls.
 - Not in this phase: condition triggers, the puzzles played on a UI screen, progress snapping, moved objects (their
   transform), catching up two worlds that changed apart and putting the partner onto a moving lift.

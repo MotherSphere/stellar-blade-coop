@@ -567,9 +567,9 @@ The C++ tests cover the platform-free headers in `native/src`.
 - `world_rows_test`: `world/rows.h`'s four lists strictly sorted, every SetEnvActive and no-progress row with states
   of its own, the lookups at both ends of each list and on near misses, and rows of build 26123051 each rule keeps or
   leaves out (a door and a lift with every state, the monorail without its camp-bound garage run, the crane without its
-  camera states, the hyperdrive without its story states, a supply box, the boss cores, a story-only door, a Matrix
-  XIII lever, a counter whose progress leads to an item, a quest's env control row, a monorail speed row whose chain
-  plays a scene);
+  camera states, the hyperdrive without its story states, a supply box, the boss cores, a story-only door, an env
+  whose On a quest task waits for, a Matrix XIII lever, a counter whose progress leads to an item, a quest's env
+  control row, a monorail speed row whose chain plays a scene);
 - `world_sync_test`: `world/sync.h`'s lines through format and parse and back (the largest legal line, 50 malformed
   lines and 20,000 fuzzed ones), the ring's capacity and wrap, the outbox that keeps the lines the link refuses, and
   two players' sides wired over the parser with a fake engine: the on and off lines and the answer to an on, a rejoin
@@ -623,11 +623,12 @@ The C++ tests cover the platform-free headers in `native/src`.
   `python3 tools/sbo_lobby_rows.py` and commit the two files it writes;
 - `world_rows_test.py`: `tools/world_rows.py` on small made-up tables: each rule that keeps a ZoneEnvSpawnTable row
   out, each rule that keeps a state out (the player event types reached directly, through AddEvents and FinishEvents,
-  through the states an env control row sets and through a progress control's change tags, the crane's camera tags,
-  and ChangeState achievements on the state or on a state its events set), the SetEnvActive list, each ZoneEvent rule,
-  the no-progress list, unknown names and loops in chains, Matrix XIII's rows from its data file, and the written block
-  (sorted, between its markers, the rest of the header untouched, a name that cannot go into a C++ literal refused). After new
-  table exports, run `python3 -I tools/world_rows.py <folder>` and commit `native/src/world/rows.h`;
+  through the states an env control row sets and through a progress control's change tags; the crane's camera tags;
+  ChangeState achievements and EnvState quest tasks on the state or on a state its events set), the SetEnvActive list,
+  each ZoneEvent rule, the no-progress list, unknown names and loops in chains, Matrix XIII's rows from its data file,
+  and the written block (sorted, between its markers, the rest of the header untouched, a name that cannot go into a
+  C++ literal refused). After new table exports, run `python3 -I tools/world_rows.py <folder>` and commit
+  `native/src/world/rows.h`;
 - `matchmaking_scan_test.py`: a scan that fails if any script or native source could reach the game's matchmaking
   (see [night-operation-previews.md](night-operation-previews.md#how-the-original-matchmaking-is-blocked)). Stellar
   Blade's RunZoneEvent address is held once in `native/src/game/sbo.h` and called at two sites: once in

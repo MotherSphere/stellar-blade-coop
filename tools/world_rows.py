@@ -27,7 +27,8 @@ A state of a kept row is out when it is ResetCam or ChangeCam (the crane's camer
 ChangeState runs for it, followed through AddEvents, FinishEvents and the events of every state an env control row
 among them sets, reach a type that acts on the player, her items or her story (PLAYER_EVENTS), or when that state, or
 one an env control row among them sets, has a ChangeState achievement: ChangeState credits it to the caster, and the
-receiver applies with her own player as caster. A row goes on the
+receiver applies with her own player as caster. The same holds when an EnvState quest task waits for that state: the
+task tests only the env and its state, so a line would complete it outside the shared quests' rules. A row goes on the
 SetEnvActive list only when every one of its states is kept, so a forwarded Disable never locks a lever whose state
 change stayed local. A ZoneEvent row is kept when it and every row it chains to are env control rows, none names a
 camp, each names a kept row, every tag it can set (its TagName, and for a progress control its env's progress change
@@ -199,6 +200,12 @@ def change_state_achievements(t):
     return out
 
 
+def task_pairs(t):
+    """The (EnvSpawnAlias, state tag) pairs an EnvState quest task waits for: its CustomStr and CustomStr2."""
+    return {(r['CustomStr'], r['CustomStr2']) for r in t['QuestTaskTable'].values()
+            if enum(r['MissionType']) == 'ESBMission_EnvState'}
+
+
 def trophy_aliases(t):
     """The envs a ChangeState achievement counts for the box or record trophy."""
     out = set()
@@ -227,12 +234,13 @@ def row_reasons(t, alias, story, trophy):
     return [k for k, v in why.items() if v]
 
 
-def state_reasons(t, alias, tag, credits=None):
-    """Why a state of a kept row is out: 'camera', the player event types its events reach, or 'achievement'; empty
-    when kept. credits: change_state_achievements(t), made when not given."""
+def state_reasons(t, alias, tag, credits=None, waits=None):
+    """Why a state of a kept row is out: 'camera', the player event types its events reach, 'achievement' or 'quest
+    task'; empty when kept. credits: change_state_achievements(t), waits: task_pairs(t), made when not given."""
     if tag in CAMERA:
         return ['camera']
     credits = change_state_achievements(t) if credits is None else credits
+    waits = task_pairs(t) if waits is None else waits
     controls = t['EventEnvControlTable']
     rows = [row for _, row in walk(t, state_events(t, alias, tag))]
     why = {kind(row) for row in rows} & PLAYER_EVENTS
@@ -240,6 +248,8 @@ def state_reasons(t, alias, tag, credits=None):
                              for c in [controls.get(row['EventAlias'])] if c for x in control_tags(t, c)]
     if any(p in credits or (p[0], None) in credits for p in sets):
         why.add('achievement')
+    if any(p in waits for p in sets):
+        why.add('quest task')
     return sorted(why)
 
 
@@ -266,7 +276,7 @@ def event_reason(t, name, pairs, kept, active):
 def build(t):
     """(pairs, SetEnvActive aliases, ZoneEvent rows, counts): the lists sorted, counts a Counter per list of reasons;
     a row or state counts under each reason it meets."""
-    story, trophy, credits = story_aliases(t), trophy_aliases(t), change_state_achievements(t)
+    story, trophy, credits, waits = story_aliases(t), trophy_aliases(t), change_state_achievements(t), task_pairs(t)
     counts = {'rows': Counter(), 'states': Counter(), 'events': Counter()}
     pairs, active = [], []
     for alias in t['ZoneEnvSpawnTable']:
@@ -277,7 +287,7 @@ def build(t):
         tags = states(t, alias)
         ok = []
         for tag in tags:
-            why = state_reasons(t, alias, tag, credits)
+            why = state_reasons(t, alias, tag, credits, waits)
             counts['states'].update(why or ['kept'])
             if not why:
                 ok.append(tag)
