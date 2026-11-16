@@ -100,17 +100,21 @@ end
 
 -- The world stick (her movement input, length 1 at most) as his throttle, brake and steering, read off the nose (off
 -- the tail in reverse). Pulled more than 120 degrees away it brakes. Else it throttles by the cosine of its angle off
--- and steers, at full lock from 45 degrees off. In reverse his brake backs up and his throttle stops, so the two swap
--- there; the steering turns the other way, so the tail swings toward the stick. Returns throttle, brake (0 to 1) and
--- steering (-1 to 1).
+-- and steers, at full lock from 45 degrees off. At a stop (5 cm/s at most) the stick behind the side brakes too, once
+-- reverse would back up on it, so it reaches reverse and swings the tail toward the stick; nearly sideways it does
+-- nothing, as nothing turns a bike in place (a tuning guess of SBO's). In reverse his brake backs up and his throttle
+-- stops, so the two swap there; the steering turns the other way, so the tail swings toward the stick. Returns
+-- throttle, brake (0 to 1) and steering (-1 to 1).
 local function controls(s,stick)
     local L=math.min(1,math.sqrt(stick.x*stick.x+stick.y*stick.y))
     if L<DEAD then return 0,0,0 end
     local rev=s.mode=='rev'
     local diff=wrap(math.deg(math.atan(stick.y,stick.x))-s.heading+(rev and 180 or 0))
+    local ahead=L*math.cos(math.rad(diff))
     local go,stop,turn=0,0,0
-    if math.abs(diff)>BRAKE_ANGLE then stop=L
-    else go,turn=L*math.max(0,math.cos(math.rad(diff))),clamp(diff/FULL_LOCK,-1,1) end
+    -- Under -0.05 (speed's pedal threshold) the reverse that follows backs up, so a stop never flips to it and back.
+    if math.abs(diff)>BRAKE_ANGLE or math.abs(s.v)<=5 and ahead<-0.05 then stop=L
+    else go,turn=math.max(0,ahead),clamp(diff/FULL_LOCK,-1,1) end
     if rev then return stop,go,-turn end
     return go,stop,turn
 end
@@ -181,14 +185,14 @@ local function ramp(s,vz,av,dt)
 end
 -- The lean into the turn: atan(speed x the path's turn rate / g), at most 38 degrees, in full from 600 cm/s, eased at
 -- 103 degrees a second; positive while the heading grows. The pitch, nose up positive: the angle of her vertical speed
--- over her speed (200 cm/s at least), at most 35 degrees, eased at 4 a second. His pitch read the ground under both
--- wheels with two traces on the ground; this one makes no game call. Adapted from Eve On Wheels' lean and flight-path
--- pitch (H.Frame).
+-- over her speed (200 cm/s at least), at most 35 degrees, eased at 4 a second. In reverse the tail leads, so a climb
+-- puts the nose down. His pitch read the ground under both wheels with two traces on the ground; this one makes no
+-- game call. Adapted from Eve On Wheels' lean and flight-path pitch (H.Frame).
 local function tilt(s,track_rate,vz,vmag,dt)
     local lean=clamp(math.deg(math.atan(s.v*math.rad(track_rate)/G)),-MAX_LEAN,MAX_LEAN)
         *clamp(math.abs(s.v)/LEAN_FULL,0,1)
     s.lean=toward(s.lean,lean,LEAN_RATE*dt)
-    local pitch=clamp(math.deg(math.atan(vz,math.max(vmag,200))),-MAX_PITCH,MAX_PITCH)
+    local pitch=clamp(math.deg(math.atan(vz*sign(s.v),math.max(vmag,200))),-MAX_PITCH,MAX_PITCH)
     s.pitch=s.pitch+(pitch-s.pitch)*math.min(PITCH_RATE*dt,1)
 end
 

@@ -4,9 +4,10 @@
 -- bike/model.lua with lua5.4 alone: a bike ridden on flat open ground by the model's own velocity (the read-back is the
 -- velocity it asked for, as EVE's movement gives it with its acceleration fields at 0). The numbers of Eve On Wheels'
 -- default values: 90% of the top speed after 3.9 s, a real top about 2252 cm/s, 15.8 m of braking from the top,
--- reverse after the brake is held 0.3 s at a stop; the yaw rate and lean at full lock at 300, 500, 1000, 1500 cm/s
--- and the top; the drift's 42-degree slip cap; a wall; the air; a ramp launch only after 0.12 s of climb; the pitch;
--- root motion holding the state; the values' bounds.
+-- reverse after the brake is held 0.3 s at a stop, also with the stick behind the side; the yaw rate and lean at full
+-- lock at 300, 500, 1000, 1500 cm/s and the top; the drift's 42-degree slip cap; a wall; the air; a ramp launch only
+-- after 0.12 s of climb; the pitch, nose down when backing up a climb; root motion holding the state; the values'
+-- bounds.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local B=require('bike.model')
 local P=B.values(B.DEFAULTS)
@@ -86,6 +87,23 @@ do
     for _=1,60 do out,v=ride(s,v,{stick=off(out.heading,0),yaw=0}) end
     local h=math.rad(out.heading)
     assert(not out.reverse and v.x*math.cos(h)+v.y*math.sin(h)>500)
+end
+-- From a stop the stick behind the side, 100 degrees off either way, reaches reverse and swings the tail toward it.
+-- Nearly sideways (91 degrees) nothing moves and reverse never flickers on.
+do
+    for _,deg in ipairs({100,-100}) do
+        local s,v={},{x=0,y=0,z=0}
+        local out
+        for _=1,120 do out,v=ride(s,v,{stick=off(0,deg),yaw=0}) end
+        assert(out.reverse and speed(v)>100 and out.heading*deg<0,
+            ('%d: %.1f cm/s, heading %.1f'):format(deg,speed(v),out.heading))
+    end
+    local s,v={},{x=0,y=0,z=0}
+    for _=1,120 do
+        local out
+        out,v=ride(s,v,{stick=off(0,91),yaw=0})
+        assert(not out.reverse and speed(v)==0)
+    end
 end
 -- Coasting from the top with no stick: 220 cm/s2, about 10.5 s, never backward.
 do
@@ -229,7 +247,13 @@ do
     end
     assert(close(pitch(300),math.deg(math.atan(300,1000)),0.01),pitch(300))
     assert(close(pitch(-3000),-35,0.01),pitch(-3000))
-    local s={}
+    -- Backing up a climb at 300 cm/s: the tail leads, so the nose goes down.
+    local s,v,out={},{x=0,y=0,z=0},nil
+    for _=1,60 do out,v=ride(s,v,{stick={x=-1,y=0},yaw=0}) end
+    v.z=100
+    for _=1,180 do out,v=ride(s,v,{stick={x=-1,y=0},yaw=0}) end
+    assert(out.reverse and close(out.pitch,-math.deg(math.atan(100,300)),0.01),out.pitch)
+    s={}
     local out=B.step(s,{stick={x=0,y=0},v={x=0,y=0,z=0},yaw=0},P,DT)
     assert(out.pitch==0 and out.lean==0,'Standing: level')
 end
