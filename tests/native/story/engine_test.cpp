@@ -344,15 +344,31 @@ void test_holds() {
   w.e.hold(false);
   assert(w.g.calls.size() == 5 && w.e.log.back().find("played again already") != std::string::npos);
   // Her skip blocked each pass, given back for the take it came from only.
+  assert(!w.e.holding());
   w.e.block_skip();
-  assert(w.g.get<uint8_t>(w.l + kCanSkip) == 0);
+  assert(w.g.get<uint8_t>(w.l + kCanSkip) == 0 && w.e.holding());
   w.e.release();
-  assert(w.g.get<uint8_t>(w.l + kCanSkip) == 1);
+  assert(w.g.get<uint8_t>(w.l + kCanSkip) == 1 && !w.e.holding());
+  w.e.block_skip();
+  // An unskippable take in the same context, which SB hands on: its start wrote 0, nothing to block or give back.
+  const uint64_t other = w.g.alloc(0x70);
+  w.g.put(w.c + kTakeData, other);
+  w.e.block_skip();
+  w.e.release();
+  assert(w.g.get<uint8_t>(w.l + kCanSkip) == 0 && !w.e.holding());
+  // The same take data in a new context: the same take, whose byte comes back.
+  w.g.put(w.c + kTakeData, w.data), w.g.put<uint8_t>(w.l + kCanSkip, 1);
   w.e.block_skip();
   const uint64_t next = w.g.alloc(0x90);
   w.g.put(w.p + kTake, next), w.g.put(next + kTakeData, w.data);
   w.e.release();
-  assert(w.g.get<uint8_t>(w.l + kCanSkip) == 0); // Another take: its own start writes the byte.
+  assert(w.g.get<uint8_t>(w.l + kCanSkip) == 1);
+  // The leash's pause counts too.
+  w.g.put<int32_t>(w.dialogue + kBlockResult, 0);
+  w.e.hold(true);
+  assert(w.e.holding());
+  w.e.hold(false);
+  assert(!w.e.holding());
 }
 
 } // namespace

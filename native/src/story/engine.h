@@ -1,7 +1,7 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// Story together in the game: the host's theater read for story/sync.h's Lead, and the guest's copy started, held and
+// Story together in the game: the host's theater read for story/sync.h's Lead. The guest's copy is started, held and
 // skipped through SB's own functions. Addresses and offsets are for Stellar Blade's Steam build 26123051, each read in
 // Ghidra; the glue runs this only on the pinned build. Every access goes through a Game (glue/tick/story_game.inc on
 // Windows, under the story's SEH latch; fake memory in tests/native/story/engine_test.cpp), so nothing here is
@@ -26,7 +26,7 @@
 // PlayerChoice (vtable 0x145d20538, +0x739 the latch of its do-skip 0x142550760), +0x6b0 InteractionSelect (vtable
 // 0x145d20f68, +0x711 the latch of its take skip 0x14254ecc0).
 //
-// The host reads (theater()): P and its take, his place, and the three skip latches. The guest:
+// The host reads (theater()): P and its take, his place, the three skip latches. The guest:
 //   her(): her zone, the path of her theater once its first take started, its place, her dialogue wait.
 //   here(): her EVE alive (her actor's +0x2600 not 2 to 5, RunZoneEvent's own test), a warp written (client +0xa20),
 //     a camp asked (+0xb60 and +0xb61), a respawn (world +0x1c4 at 2 or more), a Boss Challenge (client +0x3688),
@@ -45,7 +45,7 @@
 //   wake(): FinishBlock 0x142549a60(her Dialogue widget, 0) while its block is open.
 //   block_skip(), each pass her copy follows his: her can-skip byte L+0x159 to 0 (each take start writes it again from
 //     the take data), so her skip input does nothing and its prompt hides; release() puts the value back for the take
-//     it was taken from.
+//     it was taken from, known by its take data (SB hands a finished take's context to a later take).
 // Names come as text and are found with FName's find, never made.
 //
 // The Game, every call on the game thread:
@@ -262,8 +262,10 @@ public:
   }
 
   void release() override {
+    if (!skip_take_)
+      return;
     const Cur c = cur();
-    if (skip_take_ && c.c == skip_take_ && c.l && !u8(c.l + kCanSkip))
+    if (c.data == skip_take_ && c.l && !u8(c.l + kCanSkip))
       g_.write(c.l + kCanSkip, &skip_was_, 1);
     skip_take_ = 0;
   }
@@ -271,13 +273,16 @@ public:
   // Each pass her copy follows his: her skip input does nothing.
   void block_skip() {
     const Cur c = cur();
-    const uint8_t v = c.l && c.c ? u8(c.l + kCanSkip) : 0;
+    const uint8_t v = c.l && c.data ? u8(c.l + kCanSkip) : 0;
     if (!v)
       return;
-    skip_take_ = c.c, skip_was_ = v;
+    skip_take_ = c.data, skip_was_ = v;
     const uint8_t zero = 0;
     g_.write(c.l + kCanSkip, &zero, 1);
   }
+
+  // Her player paused by the leash or her skip byte cleared: hold(false) and release() still have work.
+  bool holding() const { return held_ || skip_take_; }
 
 private:
   // The manager, its theater, that theater's take context and take data, the first listener, its player; 0 for each
@@ -411,8 +416,8 @@ private:
 
   Game &g_;
   uint64_t held_ = 0;      // The player the leash paused.
-  uint64_t skip_take_ = 0; // The take context whose can-skip byte block_skip() cleared, and its value.
-  uint8_t skip_was_ = 0;
+  uint64_t skip_take_ = 0; // The take data of the take whose can-skip byte block_skip() cleared.
+  uint8_t skip_was_ = 0;   // That byte's value before.
 };
 
 // Hook 1's read, after the node's run: the play id of a theater it started from a theater path; -1 for none (a
