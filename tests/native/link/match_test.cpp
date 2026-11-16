@@ -501,7 +501,8 @@ int main() {
     assert(ops_with("config 1001 104 -1") == 1 && ops_with("config 1001 ") == 2);
   }
   // Relay only refused in a match, friends or not (fail closed): the joiner answers nothing. After 3 tries 1 s apart
-  // she leaves with a notice; the host stays. A search Steam refused relay only for goes on, its try counted.
+  // she leaves with a notice; the host stays. A search Steam refused relay only for goes on, with no try counted: no
+  // lobby holds a player to count it for.
   reset();
   {
     Mesh m(2);
@@ -523,6 +524,7 @@ int main() {
       assert(sent.from != kFriend);
     m.tick(1, "match search ffa xion xion");
     assert(ops_with("config 2002 104 0 refused") == 4 && ops_with("search 2002") == 1);
+    assert(saw("P2: Steam refused relay only: match session"));
   }
   // create_sets_room_and_hall: a match lobby carries its creator's room (the lobby map) and hall (the lobby pak's
   // version), and the link= line names both after owner=.

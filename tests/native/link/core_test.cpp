@@ -3168,6 +3168,29 @@ int main() {
     w.tick("", 0, kStranger, 10000); // Her new request and our reject 10 s later stay held too.
     assert(F.sent.empty() && F.sessions.empty() && F.accepted.empty() && w.link.lobby() == 5000);
   }
+  // Refusals outside any lobby (three cancelled match searches) count for none: the stranger who joins the lobby
+  // hosted next gets her 3 tries 1 s apart.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    F.refuse_ice = kMe;
+    for (int i = 0; i < 3; ++i) {
+      w.tick("match search ffa xion xion");
+      w.tick("match cancel");
+    }
+    assert(ops_with("config 1001 104 0 refused") == 3 && count("Steam refused relay only: match session") == 3);
+    w.tick("host");
+    finish_all();
+    w.tick("", 0, 0, 1000); // Past the 1 s after the last refusal.
+    F.members[5000].push_back(kStranger);
+    w.tick("", 0, kStranger);
+    assert(saw("Steam refused relay only, try 1/3: Stranger is not a Steam friend"));
+    w.tick("", 0, 0, 1000);
+    assert(ops_with("config 1001 104 0 refused") == 5 && w.status().find("\npending=9009 ") != std::string::npos);
+    w.tick("", 0, 0, 1000);
+    assert(saw("refused Stranger (9009): relay only failed") && !saw("try 4/3"));
+  }
   // A friend needs no relay only: a Steam that refuses it changes nothing for her.
   reset();
   {

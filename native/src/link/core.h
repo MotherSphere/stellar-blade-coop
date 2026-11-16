@@ -1626,7 +1626,8 @@ private:
   // the call: set before a match's search, create or join, before a co-op lobby's first hello, and before the first
   // session with a stranger. A co-op host keeps it on until she hosts again. why says what it is for. ice_off_ is what
   // Steam took: a refused ICE off leaves it false (send() holds every line to whoever needs it, guard() asks again), a
-  // refused ICE back leaves relay only on.
+  // refused ICE back leaves relay only on. A refusal counts towards kIceTries only in a lobby, which leave() forgets:
+  // one before a match's search or create takes no try from the players of the lobby that comes next.
   void relay_only(bool on, const std::string &why = "") {
     if (on == ice_off_)
       return;
@@ -1634,6 +1635,8 @@ private:
       if (!on)
         return event("Steam refused the ICE setting: relay only stays on");
       ice_retry_at_ = now_ + kIceRetryMs;
+      if (!lobby_)
+        return event("Steam refused relay only: " + why);
       return event("Steam refused relay only, try " + std::to_string(++ice_tries_) + "/" + std::to_string(kIceTries) +
                    ": " + why);
     }
