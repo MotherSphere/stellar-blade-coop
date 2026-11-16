@@ -393,6 +393,10 @@ end
 -- reflected getters (the library's default object, found once). The first failure turns it off for this Lua load
 -- ('0' from then on) with one log line.
 local U=require('core.unreal')
+-- SB's own word for a StringTable_UI key in the game's language (core/unreal.lua's game_text), for the Sessions screen
+-- and the join popups; none under ui_language=english.
+local function game_words(key) if settings and settings.ui_language~='english' then return U.game_text(key) end end
+local Join=require('session.join')
 local photo_failed=false
 local function photo_state()
     if photo_failed then return '0' end
@@ -836,7 +840,6 @@ if settings then
     night.hud({kit=kit,theme=Ui.THEME,settings=settings})
     race.hud({kit=kit,theme=Ui.THEME,settings=settings})
     talks.hud({kit=kit,theme=Ui.THEME}) -- The kit version of Lily's talks.
-    local Join=require('session.join')
     -- The lobby's view keeps our last match request ('search', 'create', or 'join' from the code box), when its Code
     -- row copied the code, and the map picked on C for a Private match ('random' or a hall's key, for this Lua load).
     local last,copied_at,room=nil,nil,'random'
@@ -864,8 +867,7 @@ if settings then
             return {search=search,rows=rows,match=link.match(),role=link.mode() or 'none',
                 proto=first:match(' proto=(%d+)'),build=first:match(' build=(%d+)')}
         end,
-        act=function(a) report(link.request(a.request)) end,
-        game_text=function(key) if settings.ui_language~='english' then return U.game_text(key) end end})
+        act=function(a) report(link.request(a.request)) end,game_text=game_words})
     o.sessions=sessions
     menu=require('ui.menu').new({kit=kit,link=link,settings=settings,look=look,puppet=puppet,run=run,log=log,
         version=VERSION,chat=box,code=code_box,guide=guide,sessions=sessions})
@@ -883,7 +885,8 @@ if settings then
             return run('host',a.host)
         end})
     o.create=function() return create end
-    approval=Join.ask({kit=kit,link=link,settings=settings,run=run,say=say,menu=menu,chat=box,guide=guide})
+    approval=Join.ask({kit=kit,link=link,settings=settings,run=run,say=say,log=ui_log,game_text=game_words,menu=menu,
+        chat=box,guide=guide})
     saves_ui=guide.front(require('session.saves').new({kit=kit,link=link,settings=settings,theme=Ui.THEME,say=say,
         log=log,wait=guide.waiting}))
     -- The SBO lobby's screens (ui/lobby.lua), over the rest: B and C, the leave question, the countdown and the room's

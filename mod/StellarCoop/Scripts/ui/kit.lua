@@ -78,7 +78,11 @@ for _,a in ipairs({{'mark',TEX..'Item/CommonIcon/4DotMark'},{'link',TEX..'Common
         {'open',SOUND..'MainMenu/Ui_MoveIn_Cue',1},{'close',SOUND..'MainMenu/UI_MoveOut_Cue',1},
         {'move',SOUND..'UI_Common_Hover_Cue',1},{'select',SOUND..'ui_button_Confirm_Cue',1},
         {'back',SOUND..'ui_button_cancel',1},{'change',SOUND..'MainMenu/UI_Setting_Select_Cue',1},
-        {'chat',SOUND..'ui_notice_Cue',0.5},{'alert',SOUND..'ui_SystemNotice_Cue',1}}) do
+        {'chat',SOUND..'ui_notice_Cue',0.5},{'alert',SOUND..'ui_SystemNotice_Cue',1},
+        -- SB's popup cues (WB_Common_Popup's PopupOpenSound, PopupCloseSound and PopupAcceptSound): the join popups'.
+        {'popup_open',SOUND..'CommonPopup/UI_Common_Popup_Open_Cue',1},
+        {'popup_close',SOUND..'CommonPopup/UI_Common_Popup_Close_Cue',1},
+        {'popup_confirm',SOUND..'CommonPopup/UI_Common_Popup_Confirm_Cue',1}}) do
     table.insert(Ui.ASSETS,{a[1],path(a[2]),volume=a[3],alt=a.alt and path(a.alt)})
 end
 local VOLUME={}

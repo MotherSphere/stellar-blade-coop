@@ -1,30 +1,38 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Join codes on screen (UI-DESIGN 4.6, FEATURE-PARITY C5, C6 and Q7) on the Uplink kit (ui/kit.lua); no engine call
--- here. The code box: the co-op menu's Join with a code row closes the menu and opens it. It is a text box like the
--- chat's: Slate types the characters, the game's input goes to the box (focused again 50 ms later) and comes back 150
--- ms after a close. Enter joins with the text when it is a join code (link.join_code: either case, with or without the
--- dash) and closes; other text gets a line saying what a code looks like and stays. Enter on an empty box closes it,
--- Esc cancels. The box closes by itself outside a world, when the game pauses or shows the mouse cursor, when a session
--- starts and when the kit turns off.
--- The host's question: a player who is not her Steam friend asks to join (link.pending). "<name> wants to join" with
--- Accept and Deny, Deny focused. It opens in a world only, not while the game is paused or shows the mouse cursor nor
--- while the chat box is open (it waits, hidden), closes the co-op menu, plays the game's alert and holds the game's
--- input while open: up and down move, Enter answers, Esc denies. It opens on its own, while the host may be walking or
--- in the menu, so every key does nothing for 1 s after it shows, and main.lua gives it the arrows but not W, S or
--- Space: keys meant for something else never answer it. With no answer the native part refuses the player after 60 s
--- (the seconds left show), open or not. Each player is asked once a lobby.
+-- Join codes on screen (UI-DESIGN 4.6, FEATURE-PARITY C5, C6 and Q7) on the Uplink kit (ui/kit.lua). The join popups
+-- on SB's own WB_Common_Popup (ui/parts.lua). The code box: the co-op menu's Join with a code row closes the
+-- menu and opens it. It is a text box like the chat's: Slate types the characters, the game's input goes to the box
+-- (focused again 50 ms later) and comes back 150 ms after a close. Enter joins with the text when it is a join code
+-- (link.join_code: either case, with or without the dash) and closes; other text gets a line saying what a code looks
+-- like and stays. Enter on an empty box closes it, Esc cancels. The box closes by itself outside a world, when the game
+-- pauses or shows the mouse cursor, when a session starts and when the kit turns off.
+-- The host's question: a player asks to join (link.pending: not her Steam friend, or any player with friends_ask=on).
+-- SB's popup says "<name> wants to join" with SB's Accept and Decline (UI_Request_Accept, UI_CollectPersonalInfo_Refuse)
+-- and the seconds left, Decline focused. The joiner's wait (link.wait): SB's popup with one Close button says "Waiting
+-- for <host>'s answer" and the seconds left; Close leaves the host's lobby. Either opens in a world only, not while the
+-- game is paused or shows the mouse cursor nor while the chat box is open (it waits, hidden), closes the co-op menu,
+-- plays SB's popup cues (the game's alert when a player first asks) and holds the game's input while open: up and down
+-- move, Enter answers, Esc declines or closes. It opens on its own, while the player may be walking or in the menu: so
+-- every key does nothing for 1 s after it shows. main.lua gives it the arrows but not W, S or Space, so keys meant for
+-- something else never answer it. With no answer the native part refuses the player after 60 s (the seconds left
+-- show), open or not. Each player is asked once a lobby. When SB's popup cannot be made (logged once), the kit's panel
+-- shows the same words in its place. SBO's own words stand in for SB's while the game's string table has none (always
+-- under ui_language=english).
+-- A name shown is cleaned as a chat line with no < or >, which SB's rich text would read as a tag.
 local T=require('ui.text')
 local Chat=require('session.chat')
+local Parts=require('ui.parts')
 local Join={}
 -- Seconds: the game's input back after a close; the box focused again; the question's keys ignored after it shows.
 local BACK,REFOCUS,ARM=0.15,0.05,1
 local WAIT,NAME=240,16 -- 250 ms ticks of the native part's 60 s for an answer, from our first read; characters.
--- A Steam name for the screen: cleaned as a chat line (a name may hold anything), at most 16 characters so the French
--- title fits; nil when nothing is left.
+-- A Steam name for the screen: cleaned as a chat line (a name may hold anything) with no < or > (SB's popup reads
+-- its text as rich text, where they open a tag), at most 16 characters so the French title fits; nil when nothing is
+-- left.
 function Join.name(text)
-    local name=Chat.clean(text or '')
+    local name=Chat.clean(((text or ''):gsub('[<>]','')))
     if name=='' then return nil end
     if utf8.len(name)>NAME then name=name:sub(1,utf8.offset(name,NAME+1)-1)..'...' end
     return name
@@ -106,44 +114,151 @@ function Join.box(o)
     function self.stop() open,back_at,refocus_at=false,nil,nil end
     return self
 end
--- o: {kit=, link=, settings=, run= (as Join.box's), say=function(text) (a notice), menu=ui/menu.lua's and
--- guide=ui/guide.lua's (closed as the question opens), chat=session/chat.lua's view (the question waits while its box
--- is open)}.
+-- Seconds from an answer to the SB popup removed (its Accept or close animation plays first); ESlateVisibility of the
+-- popup's hover images, which show its keyboard cursor: Hidden, HitTestInvisible.
+local GONE,HIDDEN,SEEN=0.25,2,3
+-- o: {kit=, link=, settings=, run= (as Join.box's), say=function(text) (a notice), log=function(line) (the UI log),
+-- game_text=function(key) SB's word or nil, menu=ui/menu.lua's and guide=ui/guide.lua's (closed as a popup opens),
+-- chat=session/chat.lua's view (a popup waits while its box is open)}.
 function Join.ask(o)
     local kit,link,settings=o.kit,o.link,o.settings
     local self,open,cursor,back_at,stopped,words,ready_at={},false,2,nil,false,T.en,0
-    -- asking: {id=, name=, ticks=} the player asked about; answered: the SteamIDs answered in lobby.
+    -- asking: who the popup is about: {id=, name=, ticks=, alerted=} a player asking us while we host, or {wait=true,
+    -- name=the host's, left=} our own wait after we joined; answered: the SteamIDs answered in lobby (wait=true once
+    -- our wait was closed there).
     local asking,answered,lobby=nil,{},nil
-    -- Centred, scaled from its centre.
+    -- pop: the SB popup while it shows ({rec, put=the texts and cursor written to it}); leaving: one answered, removed
+    -- at its time ({rec, at}); said: SB's words read since the popup opened (false: none).
+    local pop,leaving,said=nil,nil,{}
+    local P=Parts.new(kit,o.log or function() end,'join')
+    kit.warm_part(Parts.ASSET.popup)
+    local function game(key)
+        if said[key]==nil then said[key]=o.game_text and o.game_text(key) or false end
+        return said[key] or nil
+    end
+    -- The kit's fallback (ruling 5), centred, scaled from its centre.
     kit.add('ask',{x=1170,y=780,w=1500,h=600,pivot={X=0.5,Y=0.5}},function(b)
         b.panel(0,0,1500,600)
         return {title=b.text(48,36,'','title'),about=b.text(48,136,'','body'),
             rows={b.row(24,230,1452),b.row(24,306,1452)},
             hints=b.hints(48,500,400,{{'arrows',''},{'enter',''},{'escape',''}})}
     end)
-    local function draw()
-        local v=open and kit.view('ask')
-        if not v then return end
+    -- SB's popup goes in a group of its own over the whole screen; keys only, as the kit's fallback (no mouse).
+    kit.add('ask_popup',{x=0,y=0,w=3840,h=2160,fixed=true},function() return {} end)
+    -- What the popup says: its title, description, line of seconds and its two buttons' words (SB's own).
+    local function texts()
         local w=words.ask
-        v.title.set(w.title:format(Join.name(asking.name) or w.someone))
-        v.about.set(w.about:format(math.max(0,math.ceil((WAIT-asking.ticks)/4))))
-        v.rows[1].set(w.accept,'',cursor==1 and 'focus' or 'normal')
-        v.rows[2].set(w.deny,'',cursor==2 and 'focus' or 'normal')
-        v.hints[1].set(words.hint.move)
-        v.hints[2].set(words.hint.select)
-        v.hints[3].set(w.deny)
+        if asking.wait then
+            local close=game('UI_Close') or w.close
+            return {title=w.wait_title:format(Join.name(asking.name) or w.host),desc=w.wait_desc,
+                left=w.wait_left:format(math.max(0,asking.left)),yes=close,no=close}
+        end
+        return {title=w.title:format(Join.name(asking.name) or w.someone),desc=w.desc,
+            left=w.left:format(math.max(0,math.ceil((WAIT-asking.ticks)/4))),
+            yes=game('UI_Request_Accept') or w.accept,no=game('UI_CollectPersonalInfo_Refuse') or w.deny}
     end
-    local function hide()
+    -- The texts and cursor on screen, each written on change only.
+    local function draw()
+        if not open then return end
+        local t=texts()
+        if pop then
+            local put=pop.put
+            if put.title~=t.title then
+                put.title=t.title
+                P.call(pop.rec,'popup title',function(w)
+                    w.TitleText=FText(t.title)
+                    w.TitleTextBlock:SetText(FText(t.title))
+                end)
+            end
+            if put.left~=t.left then -- Its Construct showed MessageText once; the block itself shows a new one.
+                put.left=t.left
+                P.call(pop.rec,'popup message',function(w)
+                    w.MessageText=FText(t.left)
+                    w.RichTextBlock_Message:SetText(FText(t.left))
+                end)
+            end
+            if not asking.wait and put.cursor~=cursor then -- The hover look of the button the cursor is on.
+                put.cursor=cursor
+                P.call(pop.rec,'popup cursor',function(w)
+                    w.Image_Hover_Positive:SetVisibility(cursor==1 and SEEN or HIDDEN)
+                    w.Image_Hover_Negative:SetVisibility(cursor==2 and SEEN or HIDDEN)
+                end)
+            end
+            return
+        end
+        local v=kit.view('ask')
+        if not v then return end
+        v.title.set(t.title)
+        v.about.set(asking.wait and t.desc..' '..t.left or t.left) -- One line in the panel.
+        if asking.wait then
+            v.rows[1].set(t.yes,'','focus')
+            v.rows[2].set('','','normal')
+            v.hints[1].set('')
+        else
+            v.rows[1].set(t.yes,'',cursor==1 and 'focus' or 'normal')
+            v.rows[2].set(t.no,'',cursor==2 and 'focus' or 'normal')
+            v.hints[1].set(words.hint.move)
+        end
+        v.hints[2].set(words.hint.select)
+        v.hints[3].set(t.no)
+    end
+    -- Shown: SB's popup (Yes and No for a player asking, Close for our wait), or the kit's panel once the popup cannot
+    -- be made (logged once, then left out until the mod reloads). The menu and the guide close; the game's input is
+    -- held, every key dead for ARM s, Decline focused. false while neither can show yet (the UI not up).
+    local function show()
+        words,said=T.pick(kit.language(),settings.ui_language),{}
+        local t,rec=texts(),nil
+        if not P.broken.popup then
+            kit.show('ask_popup',true)
+            rec=P.make('ask_popup','popup',0,0,3840,2160,function(w) -- Filled before its Construct.
+                w.TitleText=FText(t.title)
+                w.DescText=FText(t.desc)
+                w.MessageText=FText(t.left)
+                -- Close; Yes and No. 4, 5 and 7 hold a button whose end calls NotifyBlueprint.
+                w.ButtonType=asking.wait and 1 or 3
+            end)
+            if not rec then kit.show('ask_popup',false) end
+        end
+        if not (rec or P.broken.popup) then return false end
+        if o.menu and o.menu.is_open() then o.menu.close() end
+        if o.guide and o.guide.is_open() then
+            o.guide.close(asking.wait and 'the wait for the host' or "the host's question")
+        end
+        open,back_at,cursor,ready_at=true,nil,2,os.clock()+ARM
+        pop=rec and {rec=rec,put={title=t.title,left=t.left}} or nil
+        if rec then
+            P.call(rec,'popup RefreshAll',function(w) w:EventNotification('RefreshAll') end)
+            P.call(rec,'popup buttons',function(w) -- After RefreshAll: SB's words for the buttons.
+                w.ButtonTextBlock_1:SetText(FText(t.yes))
+                w.ButtonTextBlock_2:SetText(FText(t.no))
+            end)
+        else kit.show('ask',true,os.clock()) end
+        kit.input(true,'ask')
+        if rec then kit.refocus() end -- The popup's Construct took the focus.
+        return true
+    end
+    -- Hidden, how='accept' (SB's Accept animation and confirm cue) or 'close' (its close animation and cue); SB's popup
+    -- removed GONE s later, the game's input back BACK s later.
+    local function hide(how)
         if not open then return end
         open,back_at=false,os.clock()+BACK
-        kit.show('ask',false,os.clock())
-        kit.sound('close')
+        if pop then
+            local rec=pop.rec
+            pop=nil
+            P.call(rec,'popup '..how,function(w) w:PlayAnimation(how=='accept' and w.Accept or w.close,0,1,0,1,false) end)
+            if leaving then kit.drop(leaving.rec) end
+            leaving={rec=rec,at=os.clock()+GONE}
+            kit.refocus()
+        else kit.show('ask',false,os.clock()) end
+        kit.sound(how=='accept' and 'popup_confirm' or 'popup_close')
     end
-    -- The answer about the player asked about, once: allow or deny, through the console's command (logged there).
+    -- The answer, once: allow or deny the player asking, through the console's command (logged there); leave: our wait
+    -- closed with the host's lobby left.
     local function answer(verb)
         local id=asking.id
-        answered[id],asking=true,nil
-        hide()
+        if asking.wait then answered.wait=true else answered[id]=true end
+        asking=nil
+        hide(verb=='allow' and 'accept' or 'close')
         local ok,why=o.run(verb,id)
         if not ok then o.say(why) end
     end
@@ -151,59 +266,74 @@ function Join.ask(o)
     -- Each 250 ms with whether our HUD may show. An unread status (no mode) changes nothing but the seconds left.
     function self.slow(shown)
         if stopped then return end
-        local p=link.pending()
-        if link.mode() then
+        local mode=link.mode()
+        if mode then
             if link.lobby()~=lobby then lobby,answered=link.lobby(),{} end
-            if asking and not (p and p.id==asking.id) then -- She left, or the console or the native 60 s answered.
+            local p,w=link.pending(),link.wait()
+            if asking and not asking.wait and not (p and p.id==asking.id) then -- She left, or the console or the
+                asking=nil                                                     -- native 60 s answered.
+                hide('close')
+            elseif asking and asking.wait and not w then -- Let in (a guest still), or turned away.
                 asking=nil
-                hide()
+                hide(mode=='guest' and 'accept' or 'close')
             end
-            if p and not asking and not answered[p.id] then asking={id=p.id,name=p.name,ticks=0} end
-            if asking then asking.name=p.name end -- Steam may learn her name after she joined.
+            if not asking then
+                if p and not answered[p.id] then asking={id=p.id,ticks=0}
+                elseif w and not answered.wait then asking={wait=true} end
+            end
+            if asking and asking.wait then asking.name,asking.left=w.host,w.left
+            elseif asking then asking.name=p.name end -- Steam may learn her name after she joined.
         end
+        if open and pop and not kit.alive(pop.rec) then open,pop=false,nil end -- A root build took it: made again.
         if asking then
-            asking.ticks=asking.ticks+1
+            if not asking.wait then asking.ticks=asking.ticks+1 end
             local can=shown and kit.ready() and not kit.paused() and not (o.chat and o.chat.is_open())
             if can and not open then
-                words=T.pick(kit.language(),settings.ui_language)
-                if o.menu and o.menu.is_open() then o.menu.close() end
-                if o.guide and o.guide.is_open() then o.guide.close("the host's question") end
-                open,back_at,cursor,ready_at=true,nil,2,os.clock()+ARM
-                kit.show('ask',true,os.clock())
-                kit.input(true,'ask')
-                kit.sound('alert')
-            elseif open and not can then hide() end
+                if show() then
+                    -- A player asking: the game's alert the first time. SB's popup cue when it shows again or for
+                    -- our wait.
+                    kit.sound((asking.wait or asking.alerted) and 'popup_open' or 'alert')
+                    asking.alerted=true
+                end
+            elseif open and not can then hide('close') end
         end
         if not (open or back_at) then kit.input(false,'ask') end
         draw()
     end
-    -- A key while open, from 1 s after it showed: 'up' or 'down' (the other row), 'select' (its answer), 'back' (Esc:
-    -- deny).
+    -- A key while open, from 1 s after it showed. A player asking: 'up' or 'down' (the other button), 'select' (its
+    -- answer), 'back' (Esc: deny). Our wait: 'select' or 'back' closes it and leaves the lobby.
     function self.nav(what)
         if not open or kit.off() or os.clock()<ready_at then return end -- Unseen: the next slow hides it.
-        if what=='up' or what=='down' then
+        if asking.wait then
+            if what=='select' or what=='back' then answer('leave') end
+        elseif what=='up' or what=='down' then
             cursor=3-cursor
             kit.sound('move')
             draw()
-        elseif what=='select' then
-            kit.sound('select')
-            answer(cursor==1 and 'allow' or 'deny')
-        elseif what=='back' then
-            kit.sound('back')
-            answer('deny')
-        end
+        elseif what=='select' then answer(cursor==1 and 'allow' or 'deny')
+        elseif what=='back' then answer('deny') end
     end
-    -- Each frame: the game's input back, once due.
+    -- Each frame: an answered popup removed, the game's input back, once due.
     function self.tick(now)
+        if leaving and now>=leaving.at then
+            kit.drop(leaving.rec)
+            leaving=nil
+            if not pop then kit.show('ask_popup',false) end
+        end
         if back_at and now>=back_at then
             back_at=nil
             kit.input(false,'ask')
         end
     end
-    -- coop ui reset: an open question denied.
-    function self.close() if open then answer('deny') end end
-    -- coop off: nothing more, no answer either (kit.stop gives the game its input back).
-    function self.stop() stopped,open,back_at,asking=true,false,nil,nil end
+    -- coop ui reset: an open question denied; our open wait hidden for this lobby, which we stay in.
+    function self.close()
+        if not open then return end
+        if not asking.wait then return answer('deny') end
+        answered.wait,asking=true,nil
+        hide('close')
+    end
+    -- coop off: nothing more, no answer either (kit.stop gives the game its input back and takes the popup).
+    function self.stop() stopped,open,back_at,asking,pop,leaving=true,false,nil,nil,nil,nil end
     return self
 end
 return Join

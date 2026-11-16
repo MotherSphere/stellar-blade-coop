@@ -128,7 +128,7 @@ saves_info={} -- link.saves(): the slot line's verdict and saves=, the convert= 
 -- it, so the guide does not open by itself at the title.
 link_files={['coop-guide.txt']='The co-op guide opens by itself on the title screen while this file is missing.\n'}
 -- link.code() (our join code, the players refused), link.pending(), link.stranger(), link.lobby().
-link_code,link_refused,link_pending,link_stranger,link_lobby=nil,nil,nil,nil,'0'
+link_code,link_refused,link_pending,link_stranger,link_lobby,link_wait=nil,nil,nil,nil,'0',nil
 link_notices=nil -- link.notices() when set; nil: a friend's join and lost connection every pass.
 fake_link={
     session=function(token) sessions[#sessions+1]=token; return true end,
@@ -169,6 +169,7 @@ fake_link={
     join_code=Link.join_code,
     code=function() return link_code,link_refused end,
     pending=function() return link_pending end,
+    wait=function() return link_wait end,
     stranger=function() return link_stranger end,
     lobby=function() return link_lobby end,
     ping=function() return ping_ms end,
@@ -784,6 +785,10 @@ package.loaded['ui.kit']={kit=function(opts)
         azerty=function() return opts.uidev~=nil and opts.uidev()==2 end, -- SB's last keyboard (no language here).
         lost=function() local who=kit_lost; kit_lost=nil; return who~=nil,who end,
         move=function() end,fade=function() end,
+        -- SB's widget parts (session/join.lua's popups): none in this build, so its kit fallback shows (join_test
+        -- tests the popup itself).
+        warm_part=function() end,part=function(_,class) return nil,'part '..class:match('[^.]+$')..': not in this game build' end,
+        alive=function() end,drop=function() end,refocus=function() end,
         project=function(anchor)
             kit_projects=kit_projects+1
             return {camera={X=0,Y=0,Z=0},rotation={Pitch=0,Yaw=0},fov=90,anchor=anchor,width=3840,height=2160}
