@@ -752,6 +752,30 @@ int main() {
     m.round();
     assert(m.status(2).find("\nmatch=countdown ffa 2 8 10\n") != std::string::npos); // P2 hosts the next countdown.
   }
+  // A guest's block list does not apply in a private match: P2 blocks P3 and both stay linked. Once P1 leaves and the
+  // lobby is P2's, P2 refuses P3 like any blocked member. P3's game leaves.
+  reset();
+  {
+    Mesh m(3);
+    F.next_lobby = kCodeLobby;
+    m.tick(0, "match create ffa xion xion");
+    m.round();
+    m.round();
+    m.tick(1, "join ccs cbmh");
+    m.tick(2, "join ccs cbmh");
+    assert(m.settle(3));
+    const uint64_t id = kCodeLobby;
+    m.tick(1, "block " + std::to_string(kPlayer[2]));
+    m.round();
+    assert(noticed(m.status(1), "Player blocked.") && m[2].lobby() == id && m[1].peers().size() == 2);
+    m.tick(0, "leave");
+    m.round();
+    m.round();
+    assert(m[1].host() && m[1].peers().empty() && m[2].lobby() != id);
+    assert(saw("P2: refused P3 (4003): you cannot join this session again") &&
+           noticed(m.status(1), "P3 is on your block list and was removed."));
+    assert(noticed(m.status(2), "P2 refused the link: you cannot join this session again"));
+  }
   // A crash: P1's game stops, Steam drops it from the members and names P2 owner, with no SetLobbyOwner: the same.
   reset();
   {

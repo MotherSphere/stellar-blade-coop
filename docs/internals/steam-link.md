@@ -129,7 +129,8 @@ with native requests, which Lua writes to `coop-request.txt` like the others:
   native part reads `coop-blocked.txt` once at start and writes it again after each change. Each line is FNV-1a 64 of a
   fixed salt and the SteamID's digits, in 16 hex digits. While we host, a lobby member on the list is put on the
   refused list of this lobby before any approval question, hello or accepted session. She gets the same
-  `you cannot join this session again` reject. A guest's list never applies.
+  `you cannot join this session again` reject. A guest's list never applies. When Steam makes us the owner of a match
+  lobby, a member on our list who linked while we were a guest is refused at once with the same reject.
 
 On the host, `session/join.lua` turns the first `pending=` line into a question on screen and writes the answer. It asks
 each player once a lobby; with no answer, the native part refuses the player after 60 s. The question opens without a

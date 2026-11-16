@@ -109,7 +109,8 @@ lobbies and after the game restarts. Deny only refuses them for the current lobb
 
 - When a blocked player joins a later game of yours, the native part refuses them before any question or handshake.
   Their game shows `<host> refused the link: you cannot join this session again` and leaves. Yours shows
-  `A player on your block list tried to join and was refused.` This works in a match lobby you host too.
+  `A player on your block list tried to join and was refused.` This works in a match lobby you host too. When a
+  match lobby comes to you because its host left, a blocked player in it is removed at that moment.
 - `coop block <SteamID>` blocks a player without a session. If that player is in the game you host, they are removed
   as well.
 - `coop unblock <SteamID>` takes one player off the list and `coop unblock all` empties it. A player unblocked while

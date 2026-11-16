@@ -2005,7 +2005,11 @@ private:
       peers_.erase(peers_.begin() + static_cast<std::ptrdiff_t>(i));
     }
     for (auto id : members) {
-      if (!refused_.count(id) && !find_peer(id) && barred(id)) { // Before any question or hello.
+      if (!refused_.count(id) && barred(id)) { // Before any question or hello.
+        if (const Peer *p = find_peer(id)) { // Linked while we were a guest: a match lobby Steam then gave us.
+          refuse(id, "you cannot join this session again", p->name + " is on your block list and was removed.");
+          continue;
+        }
         refused_[id] = now_; // Told at once below, then each 10 s while she stays, as one refused in this lobby.
         event(name_of(id) + " (" + std::to_string(id) + ") is on the block list: refused");
         notice("A player on your block list tried to join and was refused.");
