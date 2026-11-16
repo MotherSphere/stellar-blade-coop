@@ -474,8 +474,9 @@ if settings and not settings.shared_quests and not off
 end
 -- shared_world=on: coop world on asked once a load, as soon as the native part judged the slot, as coop quests on is;
 -- the native part starts off and then waits for a friend and a co-op save. coop world off before then cancels the ask.
--- The co-op menu's row asks it again (on) or asks coop world off at once while it waits or runs (off); world_wanted:
--- the value last acted on. shared_world=off at a reload (Ctrl+R) ends a coop world on an earlier load asked.
+-- The co-op menu's row asks it again (on) or asks coop world off at once (off), whatever the world= line says: that
+-- line lags a world on asked a moment before. world_wanted: the value last acted on. shared_world=off at a reload
+-- (Ctrl+R) ends a coop world on an earlier load asked.
 local world_auto=settings~=nil and settings.shared_world
 local world_wanted=world_auto
 local function world_running(line) return (line or ''):find('^world=on') or (line or ''):find('^world=waiting') end
@@ -1545,7 +1546,7 @@ if link then
         if settings.shared_world~=world_wanted and not off then -- The co-op menu's row.
             world_wanted=settings.shared_world
             world_auto=world_wanted
-            if not world_wanted and world_running(link.world()) then
+            if not world_wanted then
                 local ok,message=ask('world off')()
                 report(ok,'shared_world=off: '..tostring(message))
             end

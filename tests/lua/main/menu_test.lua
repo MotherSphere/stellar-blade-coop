@@ -184,7 +184,8 @@ do
     fight_asks=fight_asks+2 -- The counts below go on from these two asks.
 end
 -- Shared world at once, the same way: On by default, read off at this load, so the first press asks nothing; on asks
--- coop world on, off asks coop world off while coop world on waits or runs.
+-- coop world on, off asks coop world off each time, whatever the world= line says (it reads off for a moment after a
+-- world on).
 do
     local asks=#asked
     to('Shared world (experimental)'); assert(select(2,focus())=='On')
@@ -196,7 +197,7 @@ do
     assert(#asked==asks+1 and asked[#asked]=='world on'
         and logged('OK: shared_world=on: asked the native part: world on'))
     quarter(); assert(#asked==asks+1,'Once')
-    fake_link.Q.world='world=waiting why=friend sent=0'
+    fake_link.Q.world='world=off sent=0' -- The line from before the native part took the world on.
     key('RETURN'); quarter()
     assert(#asked==asks+2 and asked[#asked]=='world off' and select(2,focus())=='Off'
         and logged('OK: shared_world=off: asked the native part: world off'))
