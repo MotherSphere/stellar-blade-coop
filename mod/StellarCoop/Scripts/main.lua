@@ -72,7 +72,7 @@
 -- added with the Lion's and the skill started through SB's own effect call while she is in Tachy Mode
 -- (cut/chainspin.lua; left out of the usage line; on a co-op save only). coop off stops everything until the game
 -- restarts. An XInput pad, read by the native part, drives the co-op menu and the co-op saves' question: View held 1 s
--- opens or closes the menu. The console commands' handlers are in
+-- opens or closes the menu; D-pad Right held 1 s gets EVE on the bike or off it. The console commands' handlers are in
 -- Scripts/commands/ (session, partner, nightop, race, fight and cut), all but coop ui and coop off, which stay here.
 -- coop wear [<name>|off [hair|suit]] puts cut hairs and suits on your EVE, display only and on any save (cut/wear.lua).
 -- coop scene [emil|orcal|stop] plays two cut scenes through the game's own theater (cut/scene.lua; a scene on a co-op
@@ -82,6 +82,9 @@
 -- line; on on a co-op save only).
 -- coop emote [list|<name>|off] plays one of EVE's clips on her (a photo-mode pose held until she moves, a wave, or a
 -- clip of the Cut category played once), on any save (cut/emote.lua, through the native part's custom animation call).
+-- coop bike [status|tune [<name> <value>]] puts EVE on SB's own bike or takes her off it, as bike_key (F3 unless set)
+-- and D-pad Right held 1 s do, on any save (commands/bike.lua, bike/ride.lua; its riding model, bike/model.lua, adapts
+-- Eve On Wheels by dCharisma1).
 -- coop shortcut lists the cut Load Shortcut menu's developer saves, read from the game's paks by the native part, on
 -- any save (left out of the usage line); coop shortcut load <map> <1-4> writes one, without its achievement data, as
 -- co-op slot 5's copy, only with shortcut_load=on and typed twice within 10 s (commands/cut.lua).
@@ -156,6 +159,7 @@ if settings then
     log('shared quests: '..(settings.shared_quests and 'on' or 'off')..' (experimental)'
         ..(settings.quest_deny~='' and ', quest_deny '..settings.quest_deny or ''))
     log('shared world: '..(settings.shared_world and 'on' or 'off')..' (experimental)')
+    log('bike: '..(settings.bike and 'on' or 'off')..', bike_key '..settings.bike_key.name)
 end
 -- A new token per Lua load: the native part then drops what an older load published (withdrawn here as well).
 if link then
@@ -234,7 +238,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | match search|create <mode>|cancel|end|join <code>|leave | mute|unmute <SteamID> | status | report | mark [text] | where | near [metres] | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | emote [list|<name>|off] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | challenge [<name>|stop] | recruiter [off] | gift [send <item> [count]|take [n]] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | world on|off|status | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | match search|create <mode>|cancel|end|join <code>|leave | mute|unmute <SteamID> | status | report | mark [text] | where | near [metres] | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | emote [list|<name>|off] | bike [status|tune [<name> <value>]] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | challenge [<name>|stop] | recruiter [off] | gift [send <item> [count]|take [n]] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | world on|off|status | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
 local function ask(line)
     return function()
         if not link then return false,'the Steam link needs the native part' end
@@ -355,16 +359,22 @@ local cut_lines=require('cut.lines').new({log=function(m) print('[StellarCoop][L
 -- coop glide (cut/glide.lua), logging [GL] lines: EVE's bGlide set while Jump is held in the air, on a co-op save.
 local glide=require('cut.glide').new({log=function(m) print('[StellarCoop][GL] '..tostring(m)..'\n') end,
     slot=function() return coop_slot('coop glide') end})
+-- The bike (bike/ride.lua), built below once coop fly's keys are: coop emote, the race, the hall seats and the Doro
+-- look read whether EVE rides through riding().
+local bike
+local function riding() return bike~=nil and bike.riding() end
 -- coop emote (cut/emote.lua), logging [EM] lines: one of EVE's clips until she moves, played by the native part (its
--- anim request and the status line's anim field), else as a montage.
+-- anim request and the status line's anim field), else as a montage. None starts while she rides.
 local emote=require('cut.emote').new({log=function(m) print('[StellarCoop][EM] '..tostring(m)..'\n') end,
-    ask=function(line) return ask(line)() end,status=function() return link and link.status() end})
+    ask=function(line) return ask(line)() end,status=function() return link and link.status() end,riding=riding})
 -- Doro races (race/run.lua), logging [DR] lines: the look above on EVE and the ghost's Doro mode while one runs, and
 -- the driving from GO. Its start and the guest's answer need a co-op save; it never arms during a Night Operation run.
+-- No race starts while EVE rides the bike; the guest's answer to a track line takes her off it first (dismount).
 local race=require('race.run').new({log=doro.log,link=link,puppet=puppet,look=doro,drive=drive,tell=tell,
     night=night.running,
     slot=function() return coop_slot('coop race') end,paused=function() return kit~=nil and kit.paused(true) end,
-    settings=settings,store=link and link.store('coop-race-doros.txt')})
+    settings=settings,store=link and link.store('coop-race-doros.txt'),
+    dismount=function(why) return bike.stop(why) end})
 -- The session chat's model (session/chat.lua, memory only, never logged): her lines come from coop-chat.txt, taken
 -- every 250 ms so the file never stays on disk, session or not, and each frame while a race is armed (her race lines
 -- come in it too); ours leave through coop-say.txt in the 250 ms loop, or stay on our screen alone in the SBO lobby.
@@ -525,7 +535,7 @@ if link then
     -- The lobby pak gate's inputs: SB/Content/Paks from the mod folder and the file reader; the hall rows' ok().
     sbo=require('session.sbo').new({link=link,settings=settings,recruiter=recruiter,nightop=night,halls=halls,
         paks=require('matrix13.world.travel').paks_of(folder),read=require('core.link').files.read,
-        log=sbo_log,emote=emote,arrival=arrival,
+        log=sbo_log,emote=emote,arrival=arrival,riding=riding,
         say=function(key) tell(function(w) for part in key:gmatch('[^.]+') do w=w[part] end return w end) end,
         fight=function()
             local her=eve()
@@ -592,10 +602,32 @@ local o={link=link,settings=settings,sbo=sbo,puppet=puppet,native_tick=native_ti
     lion=lion,gardener=gardener,tendril=tendril,mxiii=mxiii,group=function() return group end,
     travel=function() return travel end,
     fight_auto_off=function() fight_auto=false end,quests_auto_off=function() quests_auto=false end,
-    world_auto_off=function() world_auto=false end}
+    world_auto_off=function() world_auto=false end,riding=riding}
 -- coop fly's keys (cut/flight.lua), logging [FL] lines: R2 alone flies, Shift with a direction evades.
 local flight=require('cut.flight').new({log=function(m) print('[StellarCoop][FL] '..tostring(m)..'\n') end})
 o.wear,o.scene,o.lines,o.flight,o.glide,o.emote=wear,scene,cut_lines,flight,glide,emote
+-- The bike (bike/ride.lua), logging [BK] lines: SB's own bike as a part on EVE and her ride on it with bike/model.lua
+-- through the races' driving (drive), on any save. coop-bike.txt lets the next Lua load put her main mesh back. A mount
+-- is refused, with its reason, while SBO's own state holds EVE (busy) or one of our screens is open.
+bike=require('bike.ride').new({log=function(m) print('[StellarCoop][BK] '..tostring(m)..'\n') end,
+    ask=function(line) return ask(line)() end,status=function() return link and link.status() end,
+    store=link and link.store('coop-bike.txt'),drive=drive,settings=settings,
+    paused=function() return kit~=nil and kit.paused(true) end,photo=photo_state,
+    frozen=function() return link~=nil and link.paused() end,life=function() return link and link.life() end,
+    armed=race.armed,
+    busy=function()
+        if doro.active() then return 'the Doro look is on: coop race look off ends it' end
+        if emote.active() then return 'coop emote plays: coop emote off ends it' end
+        if sbo and sbo.seated() then return 'EVE sits on a hall seat: stand her up first' end
+        if flight.active() then return 'coop fly is on: coop fly off ends it' end
+        if glide.active() then return 'coop glide is on: coop glide off ends it' end
+        if night.running() then return 'Night Operation is running: coop nightop stop ends it' end
+        if menu and (menu.is_open() or box.is_open() or code_box.is_open() or approval.is_open()
+            or saves_ui.is_open() or lobby.is_open()) then
+            return 'an SBO menu or the chat is open'
+        end
+    end})
+o.bike=bike
 -- coop chainspin (cut/chainspin.lua), logging [CS] lines: the cut ChainSpin's rows through coop lion, then the request.
 o.chainspin=require('cut.chainspin').new({log=function(m) print('[StellarCoop][CS] '..tostring(m)..'\n') end,
     status=function() return link and link.status() end,rows=function(done) return lion.rows(done) end})
@@ -693,6 +725,8 @@ local commands={
             stopped,e=pcall(group.stop)
             if not stopped then log('revive: '..tostring(e)) end
         end
+        stopped,e=pcall(bike.stop,'coop off') -- Before the race's stop, which leaves a bike drive to it.
+        if not stopped then log('bike: '..tostring(e)) end
         stopped,e=pcall(race.stop)
         if not stopped then log('race: '..tostring(e)) end
         stopped,e=pcall(doro.stop)
@@ -730,7 +764,7 @@ local commands={
     end,
 }
 -- The other commands, from Scripts/commands/.
-for _,file in ipairs({'session','partner','nightop','race','fight','cut','guide','story','world'}) do
+for _,file in ipairs({'session','partner','nightop','race','fight','cut','guide','story','world','bike'}) do
     for name,handler in pairs(require('commands.'..file).new(o)) do
         assert(commands[name]==nil,'coop '..name..' is defined twice')
         commands[name]=handler
@@ -964,9 +998,28 @@ end
 -- game never answers a stranger), nor while the menu waits for a key, but back, which stops the wait (menu.nav). The
 -- chat's box and the code box take only back, which closes them as Esc does: nothing typed, nothing sent, and a pad
 -- alone is never stuck there. LB and RB (tab_left, tab_right) change C's tabs while C is open, and nothing elsewhere.
-local PAD={'up','down','left','right','select','back','menu','tab_left','tab_right'}
+-- bike (D-pad Right held 1 s) gets EVE on the bike or off it as bike_key does, in a world with our HUD shown and none
+-- of our screens open; it does nothing otherwise.
+local PAD={'up','down','left','right','select','back','menu','tab_left','tab_right','bike'}
+-- bike_key and the pad's bike: EVE on the bike or off it, logged as a command is. A refusal also goes on screen, in
+-- English as the bike gives it, since the press shows nothing else.
+local function bike_press(by)
+    if off then return report(false,OFF) end
+    local ran,ok,message=pcall(bike.toggle,by)
+    if not ran then ok,message=false,ok end
+    report(ok,message)
+    if not ok then say(tostring(message)) end
+end
 local function pad_event(what)
     if approval.is_open() then return end
+    if what=='bike' then
+        if hud_shown and not (lobby.is_open() or code_box.is_open() or box.is_open() or menu.is_open()
+            or saves_ui.is_open()) then
+            log('pad: bike')
+            bike_press('the pad')
+        end
+        return
+    end
     if what=='tab_left' or what=='tab_right' then
         if lobby.is_open()=='settings' then lobby.nav(what) end
         return
@@ -1013,7 +1066,7 @@ assert(type(LoopInGameThreadWithDelay)=='function','This UE4SS lacks game-thread
 -- our errors are raised at level 0, and UE4SS's own carry no line), and the modules after it still run in that pass.
 -- The once goes by the function, not the name: a module's other calls under the same name still log their own first
 -- error. A guarded call gives back its first two results, or nothing after an error. Measured with Lua 5.4 on the build
--- machine, the xpcall adds about 40 ns a call: under 2 µs a frame for the per-frame loop's 27 to 43 calls (34 with the
+-- machine, the xpcall adds about 40 ns a call: under 2 µs a frame for the per-frame loop's 29 to 45 calls (36 with the
 -- UI, plus the inbox while a race is armed and up to 8 pad events).
 local escaped={} -- The guarded functions whose error was logged this Lua load.
 local running -- The guarded function under way: its traceback is built only for the error that gets logged.
@@ -1053,6 +1106,7 @@ LoopInGameThreadWithDelay(1,function()
     guarded('scene',scene.restore) -- Likewise for a scene an earlier load left playing, and the farewell take it lent.
     guarded('glide',glide.restore) -- Likewise for a bGlide an earlier load left on.
     guarded('emote',emote.restore) -- Likewise for a pose's montage an earlier load left playing.
+    guarded('bike',bike.restore) -- Likewise for her main mesh after a reload with her on the bike.
     if off then if blocked and native_tick then native_tick() end return end
     local ok,message=guarded('ghost',puppet.tick)
     if message then report(ok,message) end
@@ -1062,6 +1116,9 @@ LoopInGameThreadWithDelay(1,function()
     ok,message=guarded('race',race.steer)
     if message then report(ok,message) end
     steered=os.clock()-steered
+    -- The bike's frame, before the native tick too: her drive's yaw, her lean and pitch. Its end said on screen.
+    ok,message=guarded('bike',bike.steer)
+    if message then report(ok,message); say(message) end
     if native_tick then native_tick() end
     local placed=os.clock()
     ok,message=guarded('ghost',puppet.place) -- The root takes the mailbox this native tick just wrote.
@@ -1637,6 +1694,9 @@ if link then
             -- The race's session and map checks, from the ghost's world read just above.
             local raced,why=guarded('race',race.slow)
             if why then report(raced,why) end
+            -- The bike: the preload as bike says, her part, the ride's checks; an end said on screen.
+            local rode,ended=guarded('bike',bike.slow)
+            if ended then report(rode,ended); say(ended) end
         else -- After coop off, whether a save is loaded or the title is shown, and no photo mode: the native part's
             -- check of the SBO session records at each title visit still runs then (design-lobby 12.8).
             local world,title=guarded('ghost',puppet.world)
@@ -1665,25 +1725,26 @@ end
 -- The keys (N5, D-UI2), only with the Steam link. Every F-key but F10, alone or with Shift, Ctrl or Alt, is bound once
 -- (UE4SS cannot take a bind back), so a key changed in the menu works at once and the menu can take any of them; at
 -- each press the settings say which action holds it: the menu, Host (host_key, none unless set), the status line,
--- Leave, the follow (follow_key, coop travel host) or a race checkpoint (race_key, while a track is recorded; nothing
--- otherwise). The host's question takes the navigation keys, Enter and Esc first while it is open, then the SBO lobby's
--- screens while one is open (menu_key closes B or C to the room; in the lobby world, menu_key opens B in place of the
--- co-op menu; E and the left tab key are C's tabs). Enter goes to the menu's key capture, then selects; the navigation
--- keys go to the menu while it is open only (UI-DESIGN 4.1: up arrow, W or Z; down arrow or S; left arrow, A or Q;
--- right arrow or D; Enter or Space; Esc), and to the co-op saves' question while it is open. The code box takes Enter
--- (join) and Esc (cancel). With all closed, Enter opens the chat's box, then sends, and Esc cancels; while the question
--- or a box is open our F-keys do nothing. The mouse buttons are the lobby's screens' and the menu's while one is open
--- (a left click selects the row under the mouse, a right click goes back), then the left one the co-op saves'
--- question's (the choice under the mouse); closed, they are the game's. A key callback runs on UE4SS's key thread: it
--- only hands the press to the game thread, where the console's checks (coop off included) apply. A modified F-key is
--- bound before the plain one, so if UE4SS also calls the plain bind for a Shift+F5, the plain press that follows at
--- once is the same press, dropped. The status key gives a one-line summary, in the log in English and on screen in the
--- menu's words; coop status keeps the full status. An XInput pad, which no bind can take, comes through the native part
--- (pad_event above, each frame): View held 1 s does what menu_key does, the D-pad or the left stick, A and B navigate
--- the menu and the co-op saves' question, B closes the chat's box and the code box; never the host's question.
+-- Leave, the follow (follow_key, coop travel host), a race checkpoint (race_key, while a track is recorded; nothing
+-- otherwise) or the bike (bike_key: EVE on it or off it). The host's question takes the navigation keys, Enter and Esc
+-- first while it is open, then the SBO lobby's screens while one is open (menu_key closes B or C to the room; in the
+-- lobby world, menu_key opens B in place of the co-op menu; E and the left tab key are C's tabs). Enter goes to the
+-- menu's key capture, then selects; the navigation keys go to the menu while it is open only (UI-DESIGN 4.1: up arrow,
+-- W or Z; down arrow or S; left arrow, A or Q; right arrow or D; Enter or Space; Esc), and to the co-op saves' question
+-- while it is open. The code box takes Enter (join) and Esc (cancel). With all closed, Enter opens the chat's box, then
+-- sends, and Esc cancels; while the question or a box is open our F-keys do nothing. The mouse buttons are the lobby's
+-- screens' and the menu's while one is open (a left click selects the row under the mouse, a right click goes back),
+-- then the left one the co-op saves' question's (the choice under the mouse); closed, they are the game's. A key
+-- callback runs on UE4SS's key thread: it only hands the press to the game thread, where the console's checks (coop off
+-- included) apply. A modified F-key is bound before the plain one, so if UE4SS also calls the plain bind for a
+-- Shift+F5, the plain press that follows at once is the same press, dropped. The status key gives a one-line summary,
+-- in the log in English and on screen in the menu's words; coop status keeps the full status. An XInput pad, which no
+-- bind can take, comes through the native part (pad_event above, each frame): View held 1 s does what menu_key does,
+-- D-pad Right held 1 s what bike_key does, the D-pad or the left stick, A and B navigate the menu and the co-op saves'
+-- question, B closes the chat's box and the code box; never the host's question.
 if settings then
     local K=require('core.keybind')
-    local ACTIONS={'menu','host','status','leave','follow','race'}
+    local ACTIONS={'menu','host','status','leave','follow','race','bike'}
     if type(IsKeyBindRegistered)=='function' then
         for _,action in ipairs(ACTIONS) do
             local key=settings[action..'_key']
@@ -1712,6 +1773,7 @@ if settings then
                         local ok,why=race.key()
                         if why then report(ok,why) end
                     end
+                elseif action=='bike' then bike_press('bike_key')
                 elseif action~='menu' then run(action)
                 elseif off then report(false,OFF)
                 elseif lobby.is_open() then
