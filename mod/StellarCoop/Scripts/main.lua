@@ -121,8 +121,8 @@ if loaded then
     if type(f)=='function' then native_pad=f
     else log('Native pad unavailable (no controller in the co-op menu): '..tostring(pad_why)) end
 end
--- The DLL links no Lua: its event (0 for none) is how many of these nine arguments it hands back.
-local function pad() return select('#',native_pad(0,0,0,0,0,0,0,0,0)) end
+-- The DLL links no Lua: its event (0 for none) is how many of these ten arguments it hands back.
+local function pad() return select('#',native_pad(0,0,0,0,0,0,0,0,0,0)) end
 local link=loaded and require('core.link').new(folder) or nil
 local settings=nil
 if link then
