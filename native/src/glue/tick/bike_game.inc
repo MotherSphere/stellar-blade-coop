@@ -211,7 +211,8 @@ __declspec(noinline) void bike_gate_off(bike::Why why) {
 
 // Each frame on the pinned build until the latch, while coop off has not come or something is still held: the gate's
 // last wish (off after coop off), a preload ask taken (a release after coop off), the loaded flag every bike::kPollMs
-// while it loads. The first fault closes the latch, after one try to put the actions back.
+// while it loads. The first fault closes the latch, after one try to put the actions back when the gate is on:
+// bike_gate_off logs it (back, or the controller gone); a fault in it is logged as such.
 void bike_tick() {
   const uint64_t now = GetTickCount64();
   const uint32_t want = bike_gate_want;
@@ -245,17 +246,18 @@ void bike_tick() {
     bike_faulted = true;
   }
   if (bike_faulted) {
+    bool again = false;
     __try {
-      if (bike_gate.is_on() && anim::alive(anim_live, bike_pc, bike_pc_index, bike_pc_serial)) {
-        BikeGateGame g{bike_pc};
-        bike_gate.off(g);
-      }
+      if (bike_gate.is_on())
+        bike_gate_off(bike::Why::none);
     } __except (passed_on(GetExceptionCode()) ? EXCEPTION_CONTINUE_SEARCH : EXCEPTION_EXECUTE_HANDLER) {
+      again = true;
     }
     bike_gate.gone();
+    if (again)
+      bike_set_gate(bike::Why::fault);
     bike_handle[0] = bike_handle[1] = 0;
     bike_set_load(bike::Load::fault, bike::Why::none);
-    bike_set_gate(bike::Why::none);
   }
   bike_publish();
 }

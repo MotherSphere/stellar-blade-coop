@@ -122,11 +122,11 @@ private:
 enum class Load : uint8_t { off, loading, ready, failed, fault };
 // Why. manager: no asset manager on GEngine. memory: GMalloc gave nothing. name: no FName for a path. game: SB gave no
 // handle. canceled: SB canceled the request. controller: no SB player controller for the gate. gone: the controller the
-// gate was made on is gone. off: coop off.
-enum class Why : uint8_t { none, manager, memory, name, game, canceled, controller, gone, off };
+// gate was made on is gone. off: coop off. fault: the put-back after a fault faulted too.
+enum class Why : uint8_t { none, manager, memory, name, game, canceled, controller, gone, off, fault };
 inline const char *why_name(Why w) {
   static const char *const kNames[] = {"none", "manager", "memory", "name", "game", "canceled", "controller", "gone",
-                                       "off"};
+                                       "off", "fault"};
   return size_t(w) < sizeof kNames / sizeof kNames[0] ? kNames[size_t(w)] : "?";
 }
 // The status line's bike= word: off, loading, ready, failed:<why> or fault.
@@ -197,6 +197,8 @@ inline std::string describe_gate(bool on, Why w, const Gate &g) {
     return "bike gate off: the player controller it was made on is gone, its actions with it";
   if (!on && w == Why::off)
     return "bike gate off (coop off)";
+  if (!on && w == Why::fault)
+    return "bike gate off: a fault stopped the put-back, so some of SB's actions may stay off";
   std::string names, left, unnamed;
   size_t count = 0, kept = 0;
   for (size_t i = 0; i < kGatedCount; ++i) {

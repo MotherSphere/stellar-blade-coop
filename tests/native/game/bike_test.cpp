@@ -3,7 +3,8 @@
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // game/bike.h on the build machine: the preload path rule, the gated names, the gate over a fake action map (each
 // state kept and put back, an absent name back as on, a name SB changed during the ride left as SB set it, a name the
-// game never made skipped, a controller gone), the words packed for the worker and the status line; the log lines.
+// game never made skipped, a controller gone, a fault), the words packed for the worker and the status line; the log
+// lines.
 #include "game/bike.h"
 
 #include <cassert>
@@ -126,6 +127,15 @@ int main() {
            "bike gate off: the player controller it was made on is gone, its actions with it");
     assert(describe_gate(false, Why::controller, g) == "bike gate refused: no SB player controller");
     assert(describe_gate(false, Why::off, g) == "bike gate off (coop off)");
+  }
+
+  { // A fault with the gate never on: it is not on, so the latch writes nothing back and logs no gate line. A put-back
+    // that faulted too says so, never that actions came back.
+    Map m;
+    Gate never;
+    assert(!never.is_on() && m.writes == 0);
+    assert(describe_gate(false, Why::fault, never) ==
+           "bike gate off: a fault stopped the put-back, so some of SB's actions may stay off");
   }
 
   // The words: packed and unpacked, a change bumps the count, the status line's texts.
