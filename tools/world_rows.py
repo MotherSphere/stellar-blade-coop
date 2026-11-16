@@ -11,8 +11,9 @@ Matrix XIII's rows go through the same rules as the game's: the tool puts them i
 does at run time, each a copy of its donor row with every field the file sets (a row named as its donor changes the
 game's row in place).
 
-The block holds three sorted lists: the (EnvSpawnAlias, state tag) pairs a ChangeEnvState root may carry, the
-EnvSpawnAliases a SetEnvActive root may carry, and the ZoneEventTable rows a ZoneEvent root may run.
+The block holds four sorted lists: the (EnvSpawnAlias, state tag) pairs a ChangeEnvState root may carry, the
+EnvSpawnAliases a SetEnvActive root may carry, the ZoneEventTable rows a ZoneEvent root may run, and the kept
+EnvSpawnAliases a linked env node may not add progress to.
 
 A ZoneEnvSpawnTable row is out, all its states with it, when it is per player (its EnvAlias family, the boss cores
 whose graph gives the item included, an EnvType Camp, Can or Nikke, an EnvCrate scan type, a box or record trophy on
@@ -30,7 +31,9 @@ receiver applies with her own player as caster. A row goes on the
 SetEnvActive list only when every one of its states is kept, so a forwarded Disable never locks a lever whose state
 change stayed local. A ZoneEvent row is kept when it and every row it chains to are env control rows, none names a
 camp, each names a kept row, every tag it can set (its TagName, and for a progress control its env's progress change
-tags) is a kept pair, and each Disable is on an env of the SetEnvActive list.
+tags) is a kept pair, and each Disable is on an env of the SetEnvActive list. A kept row goes on the no-progress list
+when a state with a progress count moves at that count to a tag that is not a kept pair, as the linked env node's
+progress add (FUN_141fe39b0) would move it.
 """
 import json
 import re
@@ -292,13 +295,28 @@ def build(t):
     return sorted(pairs), sorted(active), sorted(events), counts
 
 
+def no_progress(t, pairs):
+    """The kept envs a progress add could move to a state off the list: a state with a progress count above 0 whose
+    progress change tag is not a kept pair."""
+    pair_set = set(pairs)
+    out = set()
+    for alias in {a for a, _ in pairs}:
+        env = env_row(t, alias)
+        for count, tag in zip(env['StateProgressCountList'], env['StateProgressChangeTagNameList']):
+            if count > 0 and tag != 'None' and (alias, tag) not in pair_set:
+                out.add(alias)
+    return sorted(out)
+
+
 def tally(c):
     return ', '.join(f'{k} {n}' for k, n in sorted(c.items(), key=lambda kv: (kv[0] == 'kept', -kv[1], kv[0])))
 
 
-def render(pairs, active, events, counts):
-    """The generated block, its begin and end lines included."""
-    bad = sorted(x for x in {x for p in pairs for x in p} | set(active) | set(events) if not NAME.fullmatch(x))
+def render(pairs, active, events, held, counts):
+    """The generated block, its begin and end lines included; held: no_progress(), which may be empty (the C++ list
+    then holds the empty name, which names no env)."""
+    names = {x for p in pairs for x in p} | set(active) | set(events) | set(held)
+    bad = sorted(x for x in names if not NAME.fullmatch(x))
     if bad:
         raise ValueError(f'names that would not go into a C++ string literal as they are: {bad}')
     if not (pairs and active and events):
@@ -320,6 +338,9 @@ def render(pairs, active, events, counts):
            'constexpr const char *kEvents[] = {',
            *(f'    "{e}",' for e in events),
            '};',
+           'constexpr const char *kNoProgress[] = {',
+           *(f'    "{a}",' for a in held or ['']),
+           '};',
            END]
     return '\n'.join(out)
 
@@ -336,11 +357,13 @@ def main(argv):
         sys.exit('Use: python3 -I tools/world_rows.py JSON_DIR')
     t = mxiii(load(argv[0]), json.loads(MXIII.read_text()))
     pairs, active, events, counts = build(t)
-    write(HEADER, render(pairs, active, events, counts))
+    held = no_progress(t, pairs)
+    write(HEADER, render(pairs, active, events, held, counts))
     kept = {a for a, _ in pairs}
     families = Counter(t['ZoneEnvSpawnTable'][a]['EnvAlias'] for a in kept)
     total = Counter(r['EnvAlias'] for r in t['ZoneEnvSpawnTable'].values())
-    print(f'{len(pairs)} pairs over {len(kept)} rows, {len(active)} SetEnvActive rows, {len(events)} ZoneEvent rows')
+    print(f'{len(pairs)} pairs over {len(kept)} rows, {len(active)} SetEnvActive rows, {len(events)} ZoneEvent rows, '
+          f'{len(held)} rows without progress')
     for what, c in counts.items():
         print(f'{what}: {tally(c)}')
     print('kept rows per EnvAlias (kept/all): ' +

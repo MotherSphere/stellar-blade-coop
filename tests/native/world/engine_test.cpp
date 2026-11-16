@@ -5,7 +5,9 @@
 // their nodes (a named target, "self" through the owner env, an ObjectState action of 0, a linked env inside and
 // outside its owner's list, values no line carries), and her lines applied: A1 and each of its guards, a Disable env
 // changed as SB changes it, a tag that did not take, A2's records (found, made, a Disable one written), A1b live and
-// offline, A3's call and its list check, A4's order, and the refusals for a missing world, player or name.
+// offline, A3's call and its list check, A4's order (a None tag, an env already in the tag, a Disable env, a guard
+// and a tag that did not take), a linked target not live on the sender, and the refusals for a missing world, player
+// or name.
 #include "world/engine.h"
 
 #include <cassert>
@@ -191,7 +193,8 @@ void roots() {
   // R3: the row.
   g.put(action + kTarget, g.name("Area_E_EnvC_001"));
   assert(read_root(g, kBase, Kind::event, action, self, r) && g.word(r.name.index) == "Area_E_EnvC_001");
-  // R4: the owner env's LinkEnvSpawnList entry.
+  // R4: the owner env's LinkEnvSpawnList entry, live here.
+  w.env("Gate_2", {{"Closed", "None", 0}, {"Open", "None", 0}}, "Closed");
   const uint64_t links = g.alloc(16);
   g.put(links, g.name("Gate_1"));
   g.put(links + 8, g.name("Gate_2"));
@@ -205,6 +208,13 @@ void roots() {
          g.word(r.name.index) == "Open" && r.object == 2 && r.progress == -3);
   g.put<int32_t>(node + kLinkObject, 7);
   assert(read_root(g, kBase, Kind::link, node, self, r) && r.object == 0xff);
+  // A target in another zone (FUN_141d1e100 finds nothing): SB's run changes nothing, so nothing is read.
+  g.put<int32_t>(node + kLinkIndex, 0);
+  assert(!read_root(g, kBase, Kind::link, node, self, r));
+  g.put<int32_t>(node + kLinkIndex, 1);
+  g.put<uint64_t>(w.world + kWlm, 0);
+  assert(!read_root(g, kBase, Kind::link, node, self, r));
+  g.put(w.world + kWlm, w.wlm);
   g.put<int32_t>(node + kLinkIndex, 2);
   assert(!read_root(g, kBase, Kind::link, node, self, r));
   g.put<int32_t>(node + kLinkIndex, -1);
@@ -260,10 +270,21 @@ void live() {
   g.put<int32_t>(lever + kEnvObject, 1);
   assert(!e.apply(line(Type::link, "Lever_1", "Off", 2, 3)) &&
          g.said() == "state Off by 77, object 2, progress 3 by 77, copy");
-  g.put<int32_t>(lever + kEnvObject, 1);
-  assert(!e.apply(line(Type::link, "Lever_1", "On", 0, 0)) && g.said() == "state On by 77, copy");
+  // On a Disable env too, as on the sender; then its own Enable.
+  assert(!e.apply(line(Type::link, "Lever_1", "On", 1, 0)) && g.said() == "state On by 77, object 1, copy");
+  // A None tag sets no state; an env already in the tag skips only the state; a progress of 0 or less adds nothing.
+  assert(!e.apply(line(Type::link, "Lever_1", "None", 2, 1)) && g.said() == "object 2, progress 1 by 77, copy");
+  assert(!e.apply(line(Type::link, "Lever_1", "On", 0, 1)) && g.said() == "progress 1 by 77, copy");
+  assert(!e.apply(line(Type::link, "Lever_1", "None", 0, -2)) && g.said() == "copy");
+  // A guard that refuses stops the line; a tag that did not take is said after the other parts.
+  assert(!std::strcmp(e.apply(line(Type::link, "Lever_1", "Box", 1, 1)), "reward") && g.said().empty());
+  g.take = false;
+  assert(!std::strcmp(e.apply(line(Type::link, "Lever_1", "Off", 1, 0)), "game") &&
+         g.said() == "state Off by 77, object 1, copy");
+  g.take = true;
   g.name("Gate_9");
   assert(!std::strcmp(e.apply(line(Type::link, "Gate_9", "On")), "away"));
+  assert(!std::strcmp(e.apply(line(Type::link, "Gate_9", "None", 1, 0)), "away"));
   // No world level manager: nothing is called.
   g.put<uint64_t>(w.world + kWlm, 0);
   assert(!std::strcmp(e.apply(line(Type::state, "Lever_1", "Off")), "world") && g.said().empty());

@@ -13,8 +13,9 @@
 //   R1 ChangeEnvState action, slot 0x145bfef68, run 0x141b7cc70: +0xd0 the target env's EnvSpawnAlias, +0xd8 the tag.
 //   R2 SetEnvActive action, slot 0x145bff008, run 0x141b7d600: +0xd0 the target, +0xd8 the ObjectState (int).
 //   R3 ZoneEvent action, slot 0x145bfece8 (game/sbo.h kJoinSlot), run 0x141b7a3c0: +0xd0 the ZoneEventTable row.
-//   R4 linked env node, slot 0x145c0ee98, run 0x141b8ddd0: +0x200 the tag, +0x208 the progress to add, +0x20c the
-//     ObjectState (0: none), +0x210 the index into the owner env's LinkEnvSpawnList (env +0x310, count +0x318).
+//   R4 linked env node, slot 0x145c0ee98, run 0x141b8ddd0: +0x200 the tag (None: none), +0x208 the progress to add,
+//     +0x20c the ObjectState (0: none), +0x210 the index into the owner env's LinkEnvSpawnList (env +0x310, count
+//     +0x318). The run changes the target only when FUN_141d1e100 finds it live in our zone, so the read does too.
 // R1 and R2 name their target "self" (the FString at 0x146f44a70, compared without case, number suffix included) for
 // the env that owns the graph: owner node +0xc0, its graph +0x130, the graph's object +0x188, used only when its vtable
 // +0x40 answers 2. R4 always targets through that owner env. Only one class has the env's set-ObjectState function in
@@ -36,9 +37,10 @@
 //   A3 a ZoneEventTable row world/rows.h lists: RunZoneEvent (game/sbo.h holds its address) with (world, caster,
 //      &row, 0), as R3's run calls it. The list is checked again right before the call: SB's RunEvent reaches its
 //      matchmaking from some row types, and only env control rows (kind 10, chains checked) are on it.
-//   A4 a linked env, live only (SB's node has no offline branch): A1 with its guards, then the ObjectState through
-//      vtable +0x78 when not 0, then FUN_141fe39b0(env, progress, caster, 0) when the progress is above 0 (0 adds),
-//      then FUN_141fe33c0, as R4's run does.
+//   A4 a linked env, live only (SB's node has no offline branch), each part as R4's run orders them and whatever the
+//      part before did: A1 with its guards when the tag is not None (an env already in it skips only that part), the
+//      ObjectState through vtable +0x78 when not 0, FUN_141fe39b0(env, progress, caster, 0) when the progress is above
+//      0 (0 adds), then FUN_141fe33c0.
 // Names come as text and are found with FName's own find (FNAME_Find, number suffix split as FName splits it): a name
 // her game has and ours lacks is refused, never made.
 //
@@ -60,6 +62,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <string>
 
 #include "game/memory.h" // kImageBase, plausible
@@ -125,8 +128,10 @@ public:
       g_.run_event(world, caster, row);
       return nullptr;
     }
-    const uint64_t alias = g_.find(m.alias), tag = m.type == Type::active ? 0 : g_.find(m.name);
-    if (!alias || (m.type != Type::active && !tag))
+    // An active line has no tag, a linked env's None none to set (FName's find never answers None).
+    const bool tagged = m.type != Type::active && !(m.type == Type::link && m.name == "None");
+    const uint64_t alias = g_.find(m.alias), tag = tagged ? g_.find(m.name) : 0;
+    if (!alias || (tagged && !tag))
       return "name";
     const uint64_t env = g_.live_env(wlm, alias);
     if (!env)
@@ -139,19 +144,20 @@ public:
       g_.copy_records(env);
       return nullptr;
     }
-    if (const char *why = guard(env, tag))
+    if (m.type == Type::state)
+      return state(env, tag);
+    // A linked env: the state part unless its tag is None or the env is in it already. A guard that refuses (the table
+    // missed something) stops the line; a tag that did not take is said once the other parts ran, as SB's node runs
+    // them anyway.
+    const char *why = tag && u64(env + kEnvTag) != tag ? state(env, tag) : nullptr;
+    if (why && std::strcmp(why, "game"))
       return why;
-    g_.change_state(env, tag, caster);
-    if (u64(env + kEnvTag) != tag)
-      return "game";
-    if (m.type == Type::link) {
-      if (m.object)
-        g_.object_state(env, m.object);
-      if (m.progress > 0)
-        g_.add_progress(env, m.progress, caster);
-      g_.copy_records(env);
-    }
-    return nullptr;
+    if (m.object)
+      g_.object_state(env, m.object);
+    if (m.progress > 0)
+      g_.add_progress(env, m.progress, caster);
+    g_.copy_records(env);
+    return why;
   }
 
 private:
@@ -188,6 +194,14 @@ private:
       return none(u64(s + kStateReward)) || dropped == 1 ? nullptr : "reward";
     }
     return "tag";
+  }
+
+  // A1: the guards, ChangeState, and the tag read back (a condition that refused our caster leaves the old one).
+  const char *state(uint64_t env, uint64_t tag) {
+    if (const char *why = guard(env, tag))
+      return why;
+    g_.change_state(env, tag, caster);
+    return u64(env + kEnvTag) == tag ? nullptr : "game";
   }
 
   // A2: the record of each zone of the env's spawn row, made when missing.
@@ -241,7 +255,7 @@ template <class Game> uint64_t owner_env(Game &g, uint64_t base, uint64_t node) 
 
 // One root from a graph node, read before the game's run: its zone (the client's), then the node's fields. self: the
 // FName "self" (index | number << 32), 0 when the game has none. False when the node makes no change (an ObjectState
-// action of 0, a linked env node outside its owner's list).
+// action of 0, a linked env node outside its owner's list or whose target is not live here).
 template <class Game> bool read_root(Game &g, uint64_t base, Kind kind, uint64_t node, uint64_t self, Root &r) {
   const auto name = [&](uint64_t a, Name &out) {
     uint32_t v[2] = {};
@@ -261,11 +275,14 @@ template <class Game> bool read_root(Game &g, uint64_t base, Kind kind, uint64_t
   if (kind == Kind::link) {
     const uint64_t owner = owner_env(g, base, node);
     int32_t index = -1, count = 0, object = 0;
-    uint64_t links = 0;
+    uint64_t links = 0, world = 0, wlm = 0;
     if (!owner || !g.read(node + kLinkIndex, &index, 4) || !g.read(owner + kEnvLinkCount, &count, 4) || index < 0 ||
-        count > kMaxLinks || index >= count || !g.read(owner + kEnvLinks, &links, 8) || !game::plausible(links))
+        count > kMaxLinks || index >= count || !g.read(owner + kEnvLinks, &links, 8) || !game::plausible(links) ||
+        !g.read(base + (kWorldAt - kImageBase), &world, 8) || !game::plausible(world) ||
+        !g.read(world + kWlm, &wlm, 8) || !game::plausible(wlm))
       return false;
-    name(links + 8 * uint64_t(index), r.alias);
+    if (!g.live_env(wlm, name(links + 8 * uint64_t(index), r.alias))) // SB's run changes nothing then.
+      return false;
     name(node + kLinkTag, r.name);
     g.read(node + kLinkObject, &object, 4);
     g.read(node + kLinkProgress, &r.progress, 4);

@@ -16,7 +16,8 @@
 //   SBWn s <seq> <zone> <alias> <tag>                         an env put in a state
 //   SBWn a <seq> <zone> <alias> <1|2>                         an env enabled (1) or disabled (2)
 //   SBWn e <seq> <zone> <row>                                 a ZoneEventTable row run
-//   SBWn l <seq> <zone> <alias> <tag> <objectState> <progress> a linked env: state, ObjectState 0 to 2, progress add
+//   SBWn l <seq> <zone> <alias> <tag> <objectState> <progress> a linked env: state (None: none), ObjectState 0 to 2
+//                                                             (0: none), progress add (above 0)
 //   SBWn on, SBWn off <reason>                                the sender's feature state: setting, match or save
 //   SBWn on reply                                             on, as the answer to her on
 // seq is 1 for the first line after each on and one more for each later one; the receiver logs a gap. Each side
@@ -143,14 +144,19 @@ inline Message parse(const char *data, size_t size) {
   return ok ? m : Message();
 }
 
-// Whether world/rows.h lets this line travel: its (alias, tag) pair, its alias for an Enable or Disable (a linked
-// env's too, unless its ObjectState is 0), its ZoneEvent row.
+// Whether world/rows.h lets this line travel: its (alias, tag) pair, its alias for an Enable or Disable, its ZoneEvent
+// row. A linked env line, each part SB's node runs: its pair unless its tag is None, its alias for an ObjectState
+// other than 0, its alias for a progress add above 0, and at least one of the three, as the node changes nothing else.
 inline bool allowed(const Message &m) {
   switch (m.type) {
   case Type::state: return state_allowed(m.alias, m.name);
   case Type::active: return object_state_allowed(m.alias);
   case Type::event: return event_allowed(m.name);
-  case Type::link: return state_allowed(m.alias, m.name) && (!m.object || object_state_allowed(m.alias));
+  case Type::link: {
+    const bool tag = m.name != "None", progress = m.progress > 0;
+    return (tag || m.object || progress) && (!tag || state_allowed(m.alias, m.name)) &&
+           (!m.object || object_state_allowed(m.alias)) && (!progress || progress_allowed(m.alias));
+  }
   default: return false;
   }
 }

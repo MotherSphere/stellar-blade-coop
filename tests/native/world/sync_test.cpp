@@ -310,10 +310,14 @@ void test_send_and_apply() {
   p.ra.push(root(p.fa, Kind::event, "", "DED10_E_EnvC_084"));
   p.ra.push(root(p.fa, Kind::link, "DED20_EnvS_132", "Up", 1, -3));
   p.ra.push(root(p.fa, Kind::link, "DED20_EnvS_151", "N_1_Go_Station1", 0, 0)); // ObjectState 0: no row needed
+  // Linked env nodes: an Enable with no state, a progress add with no state, a state with both.
+  p.ra.push(root(p.fa, Kind::link, "DED20_EnvS_193", "None", 1, 0));
+  p.ra.push(root(p.fa, Kind::link, "DED20_EnvS_132", "None", 0, 2));
+  p.ra.push(root(p.fa, Kind::link, "DED20_EnvS_193", "Open", 2, 1));
   p.step();
-  assert(p.a.counters.sent == 5 && p.b.counters.received == 5 && p.b.counters.applied == 5);
+  assert(p.a.counters.sent == 8 && p.b.counters.received == 8 && p.b.counters.applied == 8);
   const std::vector<Message> &got = p.fb.applied;
-  assert(got.size() == 5);
+  assert(got.size() == 8);
   assert(got[0].type == Type::state && got[0].seq == 1 && got[0].zone == "Zone_DED20" &&
          got[0].alias == "DED20_EnvS_193" && got[0].name == "Open");
   assert(got[1].type == Type::active && got[1].seq == 2 && got[1].object == 2);
@@ -321,6 +325,7 @@ void test_send_and_apply() {
   assert(got[3].type == Type::link && got[3].seq == 4 && got[3].alias == "DED20_EnvS_132" && got[3].name == "Up" &&
          got[3].object == 1 && got[3].progress == -3);
   assert(got[4].type == Type::link && got[4].seq == 5);
+  assert(got[5].name == "None" && got[5].object == 1 && got[6].name == "None" && got[6].progress == 2);
   assert(p.b.counters.gaps == 0 && p.b.counters.bad == 0 && p.b.counters.refused == 0);
   // Her own changes come back the other way.
   p.rb.push(root(p.fb, Kind::state, "DED20_EnvS_132", "Down"));
@@ -345,8 +350,14 @@ void test_deny_never_sent() {
   p.ra.push(root(p.fa, Kind::active, "DED20_EnvS_151", "", 1));
   p.ra.push(root(p.fa, Kind::link, "DED20_EnvS_151", "N_1_Go_Station1", 1, 0));
   p.ra.push(root(p.fa, Kind::state, "SBO_Mod_EnvS_001", "Open"));
+  // A linked env: a node that changes nothing, a progress add to a counter whose count leads to a state with an item
+  // (WLA_30_EnvS_068: On at 3 goes to A), with or without a tag, and a None tag on an env no list holds.
+  p.ra.push(root(p.fa, Kind::link, "DED20_EnvS_193", "None", 0, 0));
+  p.ra.push(root(p.fa, Kind::link, "WLA_30_EnvS_068", "On", 0, 3));
+  p.ra.push(root(p.fa, Kind::link, "WLA_30_EnvS_068", "None", 0, 1));
+  p.ra.push(root(p.fa, Kind::link, "SBO_Mod_EnvS_001", "None", 0, 1));
   p.step();
-  assert(p.a.counters.denied == 11 && p.a.counters.sent == 0 && p.fb.applied.empty() && p.b.counters.received == 0);
+  assert(p.a.counters.denied == 15 && p.a.counters.sent == 0 && p.fb.applied.empty() && p.b.counters.received == 0);
   // Names with no text, or text no line carries, and values no line carries: never sent either.
   Root r = root(p.fa, Kind::state, "DED20_EnvS_193", "Open");
   r.zone = Name{9999, 0};

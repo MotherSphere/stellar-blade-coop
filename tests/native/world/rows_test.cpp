@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Shared world's generated lists on the build machine: each list strictly sorted (so the binary searches hold) and
-// every SetEnvActive row with states of its own; the lookups at both ends of each list and on near misses; and rows
-// of build 26123051 each rule keeps or leaves out: a door and a lift with every state, the monorail without its
-// camp-bound garage run, the crane without its camera states, the hyperdrive without its story states, a supply box,
-// the boss cores, a story-only door, a Matrix XIII lever, a quest's env control row, a monorail speed row whose chain
-// plays a scene.
+// every SetEnvActive and no-progress row with states of its own; the lookups at both ends of each list and on near
+// misses; and rows of build 26123051 each rule keeps or leaves out: a door and a lift with every state, the monorail
+// without its camp-bound garage run, the crane without its camera states, the hyperdrive without its story states, a
+// supply box, the boss cores, a story-only door, a Matrix XIII lever, a quest's env control row, a monorail speed row
+// whose chain plays a scene.
 #include "world/rows.h"
 
 #include <algorithm>
@@ -32,7 +32,10 @@ void test_sorted() {
     const string_view a = kPairs[i - 1].alias, b = kPairs[i].alias;
     assert(a < b || (a == b && string_view(kPairs[i - 1].tag) < string_view(kPairs[i].tag)));
   }
-  assert(strictly_sorted(kObjectState) && strictly_sorted(kEvents));
+  assert(strictly_sorted(kObjectState) && strictly_sorted(kEvents) && strictly_sorted(kNoProgress));
+  // The no-progress list holds kept envs only.
+  for (const char *alias : kNoProgress)
+    assert(env_allowed(alias) && !progress_allowed(alias));
   // A row enables or disables only when all its states travel, so it has some.
   for (const char *alias : kObjectState) {
     const Pair *p = std::find_if(std::begin(kPairs), std::end(kPairs),
@@ -51,6 +54,8 @@ void test_ends_and_misses() {
   assert(!state_allowed("DED20_EnvS_193", "Ope") && !state_allowed("DED20_EnvS_193", "Opened"));
   assert(!state_allowed("Open", "DED20_EnvS_193") && !state_allowed("ded20_envs_193", "Open"));
   assert(!object_state_allowed("DED20_EnvS_19") && !event_allowed("DED10_E_EnvC_08") && !event_allowed("zzz"));
+  assert(env_allowed(first.alias) && env_allowed(last.alias) && !env_allowed("") && !env_allowed("DED20_EnvS_19"));
+  assert(!env_allowed("DED20_EnvS_1930") && !progress_allowed("") && !progress_allowed("zzz"));
 }
 
 void test_rules() {
@@ -82,6 +87,9 @@ void test_rules() {
   for (const char *tag : {"Closed", "Open"})
     assert(!state_allowed("ME_03_EnvS_026", tag));
   assert(!object_state_allowed("ME_03_EnvS_026"));
+  // Progress adds: a door, and not a counter whose On at its count of 3 goes to A, which gives an item.
+  assert(progress_allowed("DED20_EnvS_193") && state_allowed("WLA_30_EnvS_068", "On"));
+  assert(!progress_allowed("WLA_30_EnvS_068") && !progress_allowed("DED10_EnvS_105"));
   // A Matrix XIII lever, from data/mxiii-world.json.
   assert(state_allowed("DLC02_10_EnvS_669", "On") && object_state_allowed("DLC02_10_EnvS_669"));
   // ZoneEvent rows: a plain env control row; a quest's, whose target is a story env; a monorail speed row whose chain

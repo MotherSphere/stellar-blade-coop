@@ -3,15 +3,15 @@
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """tools/world_rows.py on small made-up tables, without the game's: each rule that keeps a ZoneEnvSpawnTable row out
 (EnvAlias family, EnvType Camp, Can and Nikke, EnvCrate, TargetCamp, camp object types and aliases, reward groups on
-the spawn row or the env row, a box trophy, a boss core, no env row, story envs reached from quest, task group and task
-events through chains and the states they set), each that keeps a state out (every player event type, reached
+the spawn row or the env row, a box trophy, a boss core, no env row, story envs reached from quest, task group and
+task events through chains and the states they set), each that keeps a state out (every player event type, reached
 directly, through AddEvents and FinishEvents, through the StateZoneEventList, through another env's state that an env
 control row sets, and through a progress control's change tags; the crane's camera tags; a ChangeState achievement on
-the state, on any state of its env, or on a state its events set), the SetEnvActive list (all states
-kept), each ZoneEvent rule (chain, missing control row, camp, target pair, target row, progress tags, Disable), unknown
-names and loops in chains, Matrix XIII's rows (copies, in-place changes, numbered enums), and the written block:
-sorted, between its markers, the rest of the header untouched, a name that cannot go into a C++ literal refused, and
-load and main over a folder of table exports.
+the state, on any state of its env, or on a state its events set), the SetEnvActive list (all states kept), each
+ZoneEvent rule (chain, missing control row, camp, target pair, target row, progress tags, Disable), unknown names and
+loops in chains, the envs whose progress count leads off the list, Matrix XIII's rows (copies, in-place changes,
+numbered enums), and the written block: sorted, between its markers, the rest of the header untouched, a name that
+cannot go into a C++ literal refused, and load and main over a folder of table exports.
 Run: python3 tests/tools/world_rows_test.py"""
 import contextlib
 import importlib.util
@@ -38,14 +38,15 @@ def spawn(env='Env_EnvState_2Phase', camp='None', events=None, rewards=None):
 
 
 def env(states=('Off', 'On'), kind='ESBENV_Switch', scan='ESBScanDisplayType_None', rewards=None, camp='None',
-        effects=None, zone=None, progress=None):
-    """A ZoneEnvTable row; effects, zone and progress give a state's StateEffectList, StateZoneEventList and
-    StateProgressChangeTagNameList entries by tag."""
+        effects=None, zone=None, progress=None, counts=None):
+    """A ZoneEnvTable row; effects, zone, progress and counts give a state's StateEffectList, StateZoneEventList,
+    StateProgressChangeTagNameList and StateProgressCountList entries by tag."""
     return {'EnvType': f'ESBEnvironmentType::{kind}', 'StateTagNameList': list(states),
             'StateEffectList': [{'EffectList': (effects or {}).get(s, [])} for s in states],
             'StateZoneEventList': [{'ZoneEventList': (zone or {}).get(s, [])} for s in states],
             'StateRewardGroupList': [(rewards or {}).get(s, 'None') for s in states],
             'StateProgressChangeTagNameList': [(progress or {}).get(s, 'None') for s in states],
+            'StateProgressCountList': [(counts or {}).get(s, 0) for s in states],
             'ScanDisplayType': f'ESBScanDisplayType::{scan}',
             'CampObjectType': f'ESBZoneCampObjectType::ESBZoneCampObjectType_{camp}'}
 
@@ -111,10 +112,10 @@ def test_row_rules():
                             'c': achievement('array trophy', 'Trophy_Acquire_AllRecords',
                                              'ProgressAchievementArrayOnCompleted')})
     del t['ZoneEnvTable']['Env_Missing']
-    want = {'lever': [], 'box': ['family'], 'remains': ['family'], 'core': ['family'], 'can': ['type'], 'camp': ['type'],
-            'nikke': ['type'], 'crate': ['crate'], 'target camp': ['camp'], 'chair': ['camp'], 'save': ['camp'],
-            'disc': ['camp'], 'gift': ['reward'], 'chest': ['reward'], 'trophy': ['trophy'], 'other trophy': [],
-            'array trophy': ['trophy'], 'orphan': ['no env row']}
+    want = {'lever': [], 'box': ['family'], 'remains': ['family'], 'core': ['family'], 'can': ['type'],
+            'camp': ['type'], 'nikke': ['type'], 'crate': ['crate'], 'target camp': ['camp'], 'chair': ['camp'],
+            'save': ['camp'], 'disc': ['camp'], 'gift': ['reward'], 'chest': ['reward'], 'trophy': ['trophy'],
+            'other trophy': [], 'array trophy': ['trophy'], 'orphan': ['no env row']}
     assert {a: reasons(t, a) for a in want} == want
     pairs, active, events, counts = gen.build(t)
     assert pairs == [(a, s) for a in ('lever', 'other trophy') for s in ('Off', 'On')]
@@ -244,6 +245,22 @@ def test_zone_events():
     assert sum(counts['events'].values()) == len(want)
 
 
+def test_no_progress():
+    # A counter whose Full shows a scene, one whose Full is kept, one that counts to nothing, and one whose change tag
+    # is out but with no count.
+    t = world({'scene counter': spawn('Env_Scene_Count'), 'counter': spawn('Env_Count'), 'none': spawn('Env_None'),
+               'idle': spawn('Env_Idle'), 'lever': spawn()},
+              envs={'Env_Scene_Count': env(('Off', 'Full'), progress={'Off': 'Full'}, counts={'Off': 3},
+                                           effects={'Full': ['scene']}),
+                    'Env_Count': env(('Off', 'Full'), progress={'Off': 'Full'}, counts={'Off': 3}),
+                    'Env_None': env(('Off', 'On'), counts={'Off': 2}),
+                    'Env_Idle': env(('Off', 'Full'), progress={'Off': 'Full'}, effects={'Full': ['scene']})},
+              events={'scene': event('Theater')})
+    pairs, _, _, _ = gen.build(t)
+    assert gen.no_progress(t, pairs) == ['scene counter']
+    assert gen.no_progress(t, [('lever', 'Off')]) == []
+
+
 def test_mxiii():
     # A copy of the lever whose On plays a scene, the door changed in place into a supply box, and env control rows
     # whose enums the file gives as numbers.
@@ -287,21 +304,23 @@ def test_render_and_write():
     pairs, active, events, counts = gen.build(t)
     assert pairs == [('a', 'Off'), ('a', 'On'), ('b', 'Off'), ('b', 'On')] and active == ['a', 'b']
     assert events == ['y', 'z']
-    block = gen.render(pairs, active, events, counts)
+    block = gen.render(pairs, active, events, ['b'], counts)
     assert block.startswith(gen.BEGIN) and block.endswith(gen.END)
     assert '    {"a", "Off"},\n    {"a", "On"},\n    {"b", "Off"},' in block
     assert 'constexpr const char *kObjectState[] = {\n    "a",\n    "b",\n};' in block
     assert 'constexpr const char *kEvents[] = {\n    "y",\n    "z",\n};' in block
+    assert 'constexpr const char *kNoProgress[] = {\n    "b",\n};' in block
+    assert 'constexpr const char *kNoProgress[] = {\n    "",\n};' in gen.render(pairs, active, events, [], counts)
     assert all(len(line) <= 120 for line in block.splitlines())
     for bad in ('a"b', 'a\\b', 'a b', 'é'):
         try:
-            gen.render([(bad, 'On')], active, events, counts)
+            gen.render([(bad, 'On')], active, events, [], counts)
         except ValueError as e:
             assert repr(bad) in str(e), e
             continue
         raise AssertionError(f'{bad!r} went into the block')
     try:
-        gen.render(pairs, active, [], counts)
+        gen.render(pairs, active, [], [], counts)
         raise AssertionError('an empty list went into the block')
     except ValueError:
         pass
@@ -332,7 +351,8 @@ def test_load_and_main():
                 gen.main([tmp])
         finally:
             gen.HEADER, gen.MXIII = saved
-        assert out.getvalue().startswith('4 pairs over 2 rows, 2 SetEnvActive rows, 1 ZoneEvent rows\n')
+        assert out.getvalue().startswith('4 pairs over 2 rows, 2 SetEnvActive rows, 1 ZoneEvent rows, '
+                                         '0 rows without progress\n')
         text = header.read_text()
         assert '{"a", "Off"},' in text and '"z",' in text and text.count(gen.BEGIN) == 1
 

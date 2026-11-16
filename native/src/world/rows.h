@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Shared world: the env changes world sync may send and apply, as lists read from the pinned build's tables. A
-// ChangeEnvState root names an (EnvSpawnAlias, state tag) pair, a SetEnvActive root an EnvSpawnAlias, a ZoneEvent
-// root a ZoneEventTable row; each goes out, and is applied on arrival, only when its list holds it. Loot, records,
-// camps, envs that quests move and states whose events act on the player or her story are on no list:
-// tools/world_rows.py writes the generated block and its docstring gives each rule. MXIII's rows (data/mxiii-world.json)
-// go through the same rules; rows neither holds, such as another mod's, are on no list. Pure lookups, no Windows
-// types; tests/native/world/rows_test.cpp checks them on the build machine.
+// ChangeEnvState root names an (EnvSpawnAlias, state tag) pair, a SetEnvActive root an EnvSpawnAlias, a ZoneEvent root
+// a ZoneEventTable row; each goes out, and is applied on arrival, only when its list holds it. A linked env node's
+// progress add goes only to an env that is not on the no-progress list. Loot, records, camps, envs that quests move and
+// states whose events act on the player or her story are on no list: tools/world_rows.py writes the generated block and
+// its docstring gives each rule. MXIII's rows (data/mxiii-world.json) go through the same rules; rows neither holds,
+// such as another mod's, are on no list. Pure lookups, no Windows types; tests/native/world/rows_test.cpp checks them
+// on the build machine.
 #pragma once
 
 #include <algorithm>
@@ -22,7 +23,7 @@ struct Pair {
   const char *tag;   // one of its ZoneEnvTable row's StateTagNameList
 };
 
-// The three lists, sorted byte by byte (all names are ASCII) for the lookups below.
+// The four lists, sorted byte by byte (all names are ASCII) for the lookups below.
 // ---- world rows: generated, begin ----
 // Written by tools/world_rows.py from build 26123051's ZoneEnvSpawnTable, ZoneEnvTable, ZoneEventTable,
 // EventEnvControlTable, QuestTable, QuestTaskGroupTable, QuestTaskTable and AchievementTable, with Matrix XIII's rows
@@ -10952,6 +10953,19 @@ constexpr const char *kEvents[] = {
     "Xion_Boss_RavenBeast_E_EnvC_002",
     "Xion_Boss_RavenBeast_E_EnvC_003",
 };
+constexpr const char *kNoProgress[] = {
+    "AYL_04_EnvS_025",
+    "DED10_EnvS_153",
+    "DED10_EnvS_155",
+    "ME_06_EnvS_024",
+    "SD_10_EnvS_023",
+    "SE_05_EnvS_097",
+    "SE_08_EnvS_090",
+    "WLA_30_EnvS_068",
+    "WLA_40_EnvS_060",
+    "WLB_50_EnvS_233",
+    "Xion_10_EnvS_195",
+};
 // ---- world rows: generated, end ----
 
 namespace detail {
@@ -10974,5 +10988,16 @@ inline bool state_allowed(std::string_view alias, std::string_view tag) {
 inline bool object_state_allowed(std::string_view alias) { return detail::listed(kObjectState, alias); }
 // A ZoneEvent root or line that runs ZoneEventTable row name.
 inline bool event_allowed(std::string_view name) { return detail::listed(kEvents, name); }
+// An env some pair names: one the shared world changes at all.
+inline bool env_allowed(std::string_view alias) {
+  const Pair *at = std::lower_bound(std::begin(kPairs), std::end(kPairs), alias,
+                                    [](const Pair &p, std::string_view a) { return std::string_view(p.alias) < a; });
+  return at != std::end(kPairs) && alias == at->alias;
+}
+// A linked env line that adds progress to env alias: progress adds to the counter of its current state, which at its
+// count changes the env to that state's progress change tag, so no counter of the env may lead off the list.
+inline bool progress_allowed(std::string_view alias) {
+  return !alias.empty() && env_allowed(alias) && !detail::listed(kNoProgress, alias);
+}
 
 } // namespace coop::world
