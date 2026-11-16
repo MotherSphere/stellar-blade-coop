@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.1](https://github.com/MotherSphere/stellar-blade-coop/compare/v0.11.0...v0.11.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **link:** relay only with players who are not Steam friends ([d7fbc12](https://github.com/MotherSphere/stellar-blade-coop/commit/d7fbc120f5d0c4976d1adde5e623be026f769071))
+
 ## [0.11.0](https://github.com/MotherSphere/stellar-blade-coop/compare/v0.10.0...v0.11.0) (2026-11-15)
 
 
