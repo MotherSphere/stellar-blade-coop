@@ -11,7 +11,7 @@ namespace {
 bool story_setting = true;
 bool story_tried = false; // The swap was made or refused this run.
 Filter story_slot = Filter::untried;
-bool story_fault_logged = false;
+bool story_fault_logged = false, story_undo_logged = false;
 bool story_slot_coop = false; // The save-slot line's last verdict, kept through a load (world::slot_coop()).
 constexpr size_t kStoryInbox = 1024; // Her lines waiting for the game thread; past that they are dropped and counted.
 std::vector<std::string> story_waiting; // Not handed over yet: the game thread had not taken the last ones.
@@ -83,17 +83,38 @@ void story_pass(uint64_t partner, bool host, bool match, std::vector<std::string
     } else {
       ++it;
     }
+  // story_undo's fault and lines come after coop off or a fault too.
+  if (story_undo_faulted && !std::exchange(story_undo_logged, true)) {
+    const std::string where = story_undo_code ? fault_where(story_undo_rva) : std::string("out of memory");
+    char text[300];
+    std::snprintf(text, sizeof text,
+                  "story: giving her copy back faulted 0x%08llx in %s reading 0x%llx: not tried again, a scene of "
+                  "hers still paused or with its skip hidden stays so",
+                  static_cast<unsigned long long>(story_undo_code.load()), where.c_str(),
+                  static_cast<unsigned long long>(story_undo_address.load()));
+    say(text);
+  }
+  std::vector<std::string> said;
+  {
+    std::lock_guard<std::mutex> lock(story_m);
+    said.swap(story_said);
+  }
+  for (const std::string &line : said)
+    say(line);
   if (!pinned || blocked)
     return;
   if (story_faulted) { // Latched: off to her once, the slot back, nothing more this run.
     if (!std::exchange(story_fault_logged, true)) {
       const std::string where = story_fault_code ? fault_where(story_fault_rva) : std::string("out of memory");
-      char text[300];
+      char text[512];
       std::snprintf(text, sizeof text,
-                    "story together fault 0x%08llx in %s reading 0x%llx: off for this run, the host's cutscenes "
+                    "story together fault 0x%08llx in %s reading 0x%llx: off for this run; %s; the host's cutscenes "
                     "pause her as before; the link and the other shared features go on",
                     static_cast<unsigned long long>(story_fault_code.load()), where.c_str(),
-                    static_cast<unsigned long long>(story_fault_address.load()));
+                    static_cast<unsigned long long>(story_fault_address.load()),
+                    story_whole() ? "a scene of hers still held is given back"
+                                  : "a scene of hers still paused or with its skip hidden stays so (a fault outside "
+                                    "StellarCoop.dll gets no second call)");
       say(text);
       story_off("a fault");
       story::Message off;
@@ -117,21 +138,18 @@ void story_pass(uint64_t partner, bool host, bool match, std::vector<std::string
     else if (!story_dropped++)
       say("story: " + std::to_string(kStoryInbox) + " partner lines wait for the game thread, newer ones are dropped "
           "(said once, counted in inbox_dropped)");
-  std::vector<std::string> out, said;
+  std::vector<std::string> out;
   {
     std::lock_guard<std::mutex> lock(story_m); // Swaps only: the game thread never waits for it.
     story_gates = g;
     if (story_in.empty())
       story_in.swap(story_waiting);
     out.swap(story_out);
-    said.swap(story_said);
   }
   const uint64_t unsent = story_outbox.dropped;
   story_outbox.pass(partner, out, send);
   if (!unsent && story_outbox.dropped)
     say("story: lines to the partner dropped unsent (said once, counted in unsent)");
-  for (const std::string &line : said)
-    say(line);
 }
 
 } // namespace coop::pose

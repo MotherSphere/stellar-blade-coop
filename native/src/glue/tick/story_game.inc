@@ -9,6 +9,9 @@ namespace coop::pose {
 namespace {
 std::atomic<bool> story_faulted{false};
 std::atomic<uint64_t> story_fault_code{0}, story_fault_rva{0}, story_fault_address{0};
+// story_undo's own latch, said once by the worker.
+std::atomic<bool> story_undo_faulted{false};
+std::atomic<uint64_t> story_undo_code{0}, story_undo_rva{0}, story_undo_address{0};
 // Set by the worker once its swap is made, cleared at coop off: the hook records only then.
 std::atomic<bool> story_hooked{false};
 // The game thread's ID as of the last pass; a hook on another thread records nothing and is counted.
@@ -22,7 +25,6 @@ story::Gates story_gates;
 std::string story_line = "story=off";
 // The game thread's own.
 bool story_applying = false; // While a pass applies her lines: a talk her copy starts is hers, not ours to send.
-bool story_undo_faulted = false; // story_undo faulted: it is not tried again.
 std::vector<std::string> story_pending_out, story_pending_said; // Not handed over yet (the lock was busy).
 
 // story/engine.h's Game: the shared world's reads, writes and names, then SB's theater calls.
@@ -171,17 +173,37 @@ void story_tick() {
     story_m.unlock();
   }
 }
-// After coop off or the first fault, while her copy is still held: once in game, the leash's pause played again and
-// her skip byte put back, so it plays on as hers. A fault in it leaves both as they are.
+// A fault in this DLL (one of our reads) or out of memory: SB's state is whole, so a second call is safe.
+bool story_whole() { return !story_fault_code || fault_in_dll(story_fault_rva); }
+// Once in game: her skip byte put back, then the leash's pause played again, so her copy plays on as hers. release()
+// goes first as it only reads and writes memory: the byte comes back even when hold(false)'s play call faults.
+// hold(false) forgets the paused player before it calls SB, so such a fault leaves that player paused.
 __declspec(noinline) void story_undo_body() {
-  if (world_in_game())
-    story_engine.hold(false), story_engine.release();
-}
-void story_undo() {
-  __try {
-    story_undo_body();
-  } __except (passed_on(GetExceptionCode()) ? EXCEPTION_CONTINUE_SEARCH : EXCEPTION_EXECUTE_HANDLER) {
+  try {
+    if (world_in_game())
+      story_engine.release(), story_engine.hold(false);
+    for (std::string &l : story_engine.log)
+      story_pending_said.push_back(std::move(l));
+    story_engine.log.clear();
+  } catch (...) {
     story_undo_faulted = true;
+  }
+}
+// After coop off or the first fault, each frame. While her copy is still held, a try to give it back, unless the fault
+// was in the game's code or another module's (an SB call broken half way, which a second call could hang). Then the
+// lines said are handed over, as story_tick no longer runs.
+void story_undo() {
+  if (!story_undo_faulted && story_engine.holding() && (!story_faulted || story_whole())) {
+    __try {
+      story_undo_body();
+    } __except (fault_filter(GetExceptionInformation(), story_undo_code, story_undo_rva, story_undo_address)) {
+      story_undo_faulted = true;
+    }
+  }
+  if (!story_pending_said.empty() && story_m.try_lock()) {
+    if (story_said.empty())
+      story_said.swap(story_pending_said);
+    story_m.unlock();
   }
 }
 } // namespace

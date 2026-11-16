@@ -328,10 +328,11 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   if (game_pinned && !world_faulted && !blocked)
     world_tick();
   // Story together, its own latch: a pass each frame (her lines, her copy, our theater while we host), none after coop
-  // off or its first fault. Then, while her copy is still paused or her skip blocked, a try each frame to give it back.
+  // off or its first fault. Then each frame, while her copy is still paused or her skip blocked, a try to give it back
+  // (none after a fault in SB's code); the lines it says are handed over.
   if (game_pinned && !story_faulted && !blocked)
     story_tick();
-  else if (game_pinned && !story_undo_faulted && story_engine.holding())
+  else if (game_pinned)
     story_undo();
   // The mod's own quests, their own latch: a pass each 250 ms, none after coop off or its first fault.
   if (game_pinned && !own_faulted && !blocked)
