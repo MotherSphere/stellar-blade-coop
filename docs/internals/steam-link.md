@@ -129,8 +129,11 @@ with native requests, which Lua writes to `coop-request.txt` like the others:
   native part reads `coop-blocked.txt` once at start and writes it again after each change. Each line is FNV-1a 64 of a
   fixed salt and the SteamID's digits, in 16 hex digits. While we host, a lobby member on the list is put on the
   refused list of this lobby before any approval question, hello or accepted session. She gets the same
-  `you cannot join this session again` reject. A guest's list never applies. When Steam makes us the owner of a match
-  lobby, a member on our list who linked while we were a guest is refused at once with the same reject.
+  `you cannot join this session again` reject. When Steam makes us the owner of a match lobby, a member on our list
+  who linked while we were a guest is refused at once with the same reject. A guest's list applies only in a Public
+  match lobby, which a search or a regroup chose for her: with a member on it, she leaves and searches again. A guest
+  whose Public match lobby's host refuses her searches again too. Either way her searches skip that lobby for the rest
+  of the game run, so a regroup never takes her back to it.
 
 On the host, `session/join.lua` turns the first `pending=` line into a question on screen and writes the answer. It asks
 each player once a lobby; with no answer, the native part refuses the player after 60 s. The question opens without a

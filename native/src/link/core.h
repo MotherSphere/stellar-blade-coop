@@ -1184,7 +1184,8 @@ private:
                               : "not in our lobby";
   }
 
-  // Whether the block list keeps her out of the lobby we host. A guest's list never applies: she chose that game.
+  // Whether the block list keeps her out of the lobby we host. A guest's list applies only in a Public match lobby,
+  // which quick match chose for her (poll_members() leaves it); any other game she chose.
   bool barred(uint64_t id) const { return host_ && blocked_.count(block_hash(id)); }
   // Whether the list changed.
   bool block(uint64_t id, bool on) {
@@ -1596,6 +1597,21 @@ private:
     if (!std::exchange(regrouping_, false))
       event("match search cancelled (" + why + ")");
   }
+  // Quick match chose this Public match lobby and we leave it: its host refused us (we are on her block list), or a
+  // player on our block list is in it. Our searches skip it for the rest of the game run. A new search starts at once
+  // with its words, so a regroup or a search never leaves us out of matchmaking nor with a blocked player.
+  void requeue(const std::string &why) {
+    const std::string mode = mode_, room = room_, hall = hall_;
+    shut_.insert(lobby_);
+    leave(why);
+    seeking_ = mode, want_room_ = room, want_hall_ = hall;
+    search(mode, hall);
+    if (search_call_)
+      return event("searching for an open " + mode + " match lobby");
+    seeking_.clear();
+    event("Steam refused the lobby search");
+    notice("Could not search: Steam refused.");
+  }
   // Quick match has no lobby to join: host a Public one.
   void host_match() {
     event("no " + seeking_ + " match found: creating one");
@@ -1919,7 +1935,8 @@ private:
       found_.clear();
       found_at_ = 0;
       for (uint32_t i = 0; got && i < r.count; ++i)
-        if (const uint64_t id = api_.lobby_by_index(mm_, static_cast<int>(i)); id && (!regrouping_ || id < lobby_))
+        if (const uint64_t id = api_.lobby_by_index(mm_, static_cast<int>(i));
+            id && !shut_.count(id) && (!regrouping_ || id < lobby_))
           found_.push_back(id);
       if (std::exchange(regrouping_, false)) { // Ruling R1: the lowest lower id; none, or a member came: stay.
         std::sort(found_.begin(), found_.end());
@@ -1970,6 +1987,13 @@ private:
         notice("Left the match: lost the lobby.");
         return leave("lost the match lobby");
       }
+      if (!host_ && public_) // A guest's list applies where quick match chose the game for her.
+        for (auto id : members)
+          if (blocked_.count(block_hash(id))) {
+            event(name_of(id) + " (" + std::to_string(id) + ") is on the block list");
+            notice("Left the match: a player on your block list is in it. Searching again.");
+            return requeue("a player on the block list is in it");
+          }
     } else if (!host_) {
       uint64_t owner = api_.lobby_owner(mm_, lobby_);
       if (me_here && owner == me_) { // Steam handed us the lobby: only her leaving does that.
@@ -2397,7 +2421,10 @@ private:
       }
       event(peer.name + " rejected us: " + message.text);
       notice(peer.name + " refused the link: " + message.text);
-      leave("rejected by " + peer.name);
+      if (match() && public_)
+        requeue("rejected by " + peer.name);
+      else
+        leave("rejected by " + peer.name);
       break;
     case Kind::ping: // Past kPingPerSecond, no pong: a flood of pings never makes us send as many.
       if (!over_rate(peer.ping_window, 1, kPingPerSecond, kPingPerSecond * kMaxMessage))
@@ -2871,6 +2898,7 @@ private:
   std::string seeking_, want_room_, want_hall_;
   uint64_t search_call_ = 0, regroup_at_ = 0;
   std::vector<uint64_t> found_;
+  std::set<uint64_t> shut_; // Public match lobbies our searches skip for the game run (requeue()).
   size_t found_at_ = 0;
   bool regrouping_ = false, ice_off_ = false, public_ = false;
   int ice_tries_ = 0;         // Relay only refusals in a row (kIceTries).

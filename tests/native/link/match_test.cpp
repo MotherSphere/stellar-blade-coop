@@ -439,6 +439,44 @@ int main() {
     advance(m, 5500);
     assert(ops_with("search 1001") + ops_with("search 2002") == searches);
   }
+  // Quick match and the block list: two searchers each host a lobby of one, then one blocks the other. Whoever hosts
+  // the lower id, the regroup never leaves them in one lobby nor either of them out of matchmaking. The lower lobby's
+  // host refuses the blocked player, or the blocker finds a blocked player in the lower lobby. Either one then skips
+  // that lobby from then on and hosts again.
+  for (const bool blocker_low : {true, false}) {
+    reset();
+    Mesh m(2);
+    m.tick(0, "match search ffa xion xion");
+    m.tick(1, "match search ffa xion xion");
+    m.round();
+    m.round();
+    m.round();
+    const uint64_t lo = std::min(m[0].lobby(), m[1].lobby());
+    const int low = m[0].lobby() == lo ? 0 : 1, blocker = blocker_low ? low : 1 - low, blocked = 1 - blocker;
+    const int mover = 1 - low; // The host of the higher id, whose regroup joins the lower lobby.
+    const std::string B = "P" + std::to_string(blocker + 1), M = "P" + std::to_string(mover + 1);
+    m.tick(blocker, "block " + std::to_string(kPlayer[blocked]));
+    const auto run = [&m](uint64_t ms) { // Steam deletes a lobby once its last member leaves; the fake lists it on.
+      for (uint64_t t = 0; t < ms; t += 50) {
+        m.round();
+        for (auto &[id, in] : F.members)
+          if (in.empty())
+            F.shut.insert(id);
+      }
+    };
+    run(8000);
+    assert(m[low].lobby() == lo && m[mover].lobby() > lo && m[0].host() && m[1].host());
+    assert(m[0].peers().empty() && m[1].peers().empty() && ops_with("create ") == 3);
+    if (blocker_low)
+      assert(noticed(m.status(blocked), B + " refused the link: you cannot join this session again"));
+    else
+      assert(noticed(m.status(blocker), "Left the match: a player on your block list is in it. Searching again."));
+    const std::string moved = M + ": joining lobby " + std::to_string(lo) + " (a lower ffa lobby)";
+    assert(count(moved) == 1 && saw(M + ": searching for an open ffa match lobby"));
+    const int creates = ops_with("create ");
+    run(11000); // Her regroup skips the lobby she left.
+    assert(ops_with("create ") == creates && m[low].lobby() == lo && m[mover].lobby() > lo && count(moved) == 1);
+  }
   // In a lobby: a co-op guest's match search is refused...
   reset();
   {

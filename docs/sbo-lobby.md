@@ -88,6 +88,10 @@ When no lobby is open, you host a public one: `No ffa match found (SBO protocol 
 host alone in a public lobby searches again every 5 s and moves to an open lobby with a lower Steam lobby id, so two
 players who searched in the same second are in one lobby within about 5 s.
 
+Search never leaves you in a public lobby with a player on your [block list](playing-with-a-friend.md#block-list),
+nor outside matchmaking when a lobby's host has blocked you. Your game leaves that lobby with a notice, searches again
+and skips that lobby for the rest of the game run.
+
 ### Private match
 
 Private match hosts a match lobby that Search never returns, with a 7-character

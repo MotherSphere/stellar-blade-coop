@@ -119,7 +119,10 @@ lobbies and after the game restarts. Deny only refuses them for the current lobb
 - The list is `coop-blocked.txt` in the mod folder. It holds a salted hash of each SteamID, never the SteamID itself.
   The salt is the same for every player, so someone who has your file and a SteamID can check whether that SteamID is
   on it. Keep the file when you update the mod (see [INSTALL.md](../INSTALL.md#update)).
-- The list applies only to games you host. You can still join a blocked player's game yourself.
+- The list applies to games you host. A game you join yourself, with a code or an invite, is up to you: you can
+  still join a blocked player's game. Quick match is the exception. Your game never stays in a public match lobby with
+  a player on your list: it leaves, then searches again and skips that lobby for the rest of the game run. A blocked
+  player whom quick match sends to your lobby is refused. Her game searches again the same way.
 
 ## Following the host
 
