@@ -149,6 +149,12 @@ fails the test. The `main/` tests load
   controller; a disarm (a refused warp, coop off); the 60 s arm cap; a black that does not show; and a lift the native
   part cannot take, which still removes the veil;
 - `session/chat_test` covers the Thai leading vowels at a row's end;
+- `session/join_test` covers the code box, then the join popups on a fake SB popup and on the kit panel that stands in
+  for it. For the host's question: the popup filled before its Construct, SB's Accept and Decline, the cursor as its
+  hover look, the seconds and a late name written on change only, the alert then SB's popup cues, the 1 s with no keys,
+  each player asked once a lobby, the 60 s left to the native part. For the joiner's wait: Close leaving the lobby, a
+  let in or a refusal closing it. Then `coop ui reset`, `coop off` and a name with `<` or `>`. It also covers the feed's
+  join and leave lines in SB's words (`Join.feed`);
 - `session/halls_rows_test` checks the hall lobbies' 181 rows (5 worlds, 5 zones, 171 seats) against
   `lion/halls_rows.h` and `session/sbo_maps.lua`, then the title's ask: none without the lobby pak, once with it on the
   co-op save files, read back; a refusal, a fault or rows that read back wrong keep the lobby in Xion with one log line,

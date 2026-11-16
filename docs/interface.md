@@ -49,9 +49,9 @@ when the game pauses or shows the mouse cursor for one of its own screens.
 The camp phone booths open a short page of the menu, the co-op line. The booths are the phone booth of every full camp,
 Xion's five booths and the warp phones of the Wasteland and the Great Desert. Tetrapods are not booths here. Within 3 m
 of a booth, a hint at the bottom centre of the screen shows the menu key's name and `Co-op line`, and the menu key opens
-the line instead of the main page. The hint hides while the menu is open, while the game is paused or shows the mouse
-cursor, and while the chat box, the code box, the host's question or the co-op saves' question is open. The hint and the
-line use the menu's language.
+the line instead of the main page. The hint hides while the menu is open or the game is paused or shows the mouse
+cursor. It also hides while the chat box, the code box, a [join popup](#join-popups) or the co-op saves' question is
+open. The hint and the line use the menu's language.
 
 The line has a CO-OP LINE header, the main page's session rows that fit your session, then Co-op menu and Hang up.
 Under them are the status line and a sentence about the line:
@@ -174,6 +174,34 @@ It also says `[StellarCoop][UI] sessions: open public` (or `friends`), `sessions
 `coop list` and `coop join <row>` read the same list ([Keys and commands](usage.md)). The Sessions screen has not been
 tested in game yet.
 
+### Join popups
+
+The host's question (a player asks to join your online session) and the joiner's wait (you joined a host who asks)
+show in the game's own popup, the one it uses for its yes or no questions.
+[Join codes](playing-with-a-friend.md#join-codes) says who waits for an answer.
+
+| Popup | Title | Text | Buttons |
+| --- | --- | --- | --- |
+| The host's question | `<name> wants to join` | `They wait for your answer before they enter your game.` `Declined in <n> s if you do not answer.` | The game's Accept and Decline. Decline has the focus. |
+| The joiner's wait | `Waiting for <host>'s answer` | `Close cancels your request to join.` `The host has <n> s left to answer.` | The game's Close |
+
+The buttons read the game's own words in its text language (Accept, Deny and Close with `ui_language=english`). The
+titles and texts follow the menu's language. The seconds count down while the popup shows. A Steam name is cut to 16
+characters and loses any `<` or `>` (the popup would read them as a text style tag). The host's game plays the game's
+alert when a player first asks. Each popup then plays the game's own popup sounds: one as it opens, one on Accept or a
+let in, one on Decline or Close (none with `ui_sounds=off`).
+
+The Up and Down arrows move between Accept and Decline, Enter answers and Esc declines. On the joiner's wait, Enter or
+Esc closes the popup and leaves the host's lobby. For 1 s after a popup shows, every key does nothing. A popup takes no
+mouse click and no controller input. It opens in a world only and closes the co-op menu as it opens. It waits while the
+game is paused or the chat box is open.
+
+If the game's popup cannot be made, a panel of the mod in the middle of the screen shows the same words with Accept
+and Deny rows (one Close row on the joiner's wait). `UE4SS.log` then says
+`[StellarCoop][UI] join: part WB_Common_Popup_C: <why>; left out until the mod reloads` once. A call the popup refuses
+is logged once as `[StellarCoop][UI] join: popup <what> refused: <why>`. The join popups have not been tested in game
+yet.
+
 ### Controller
 
 A controller drives the co-op menu and the [co-op saves' question](playing-with-a-friend.md#co-op-saves). Hold View (Back on an Xbox 360
@@ -197,9 +225,9 @@ tested in game yet.
   has to come from the keyboard.
 - B closes the [chat](#session-chat) box and the [code box](playing-with-a-friend.md#join-codes) as Esc does: nothing is typed or sent. A
   controller cannot type in them.
-- The host's question (`<name> wants to join`) takes no controller input. A is Jump and the D-pad uses heal and
-  utility items in a fight, so a press meant for the game must never let a stranger in. Answer it with the keyboard;
-  with no answer, the player is refused after 60 s.
+- The [join popups](#join-popups) take no controller input. A is Jump and the D-pad uses heal and utility items in a
+  fight, so a press meant for the game must never let a stranger in. Answer the host's question with the keyboard;
+  with no answer, the player is refused after 60 s. The joiner's wait ends with the host's answer or that refusal.
 - The key hints at the bottom of the menu show the keyboard keys.
 
 The native part reads XInput: Xbox controllers, the Steam Deck, and any controller under Steam Input. A DualSense
@@ -255,17 +283,19 @@ second Select within 3 s: `F5` for the menu, `F6` for the status, `F8` to leave,
 checkpoints and `none` for `host_key`, which has no row. The new keys work at once. The console command
 `coop keys reset` does the same.
 
-The menu, the guide, the chat, the partner HUD, the code box, the host's question, the co-op saves' question and
+The menu, the guide, the chat, the partner HUD, the code box, the join popups, the co-op saves' question and
 notices, the shared enemies', same place, same spawns and shared quests notices, Night Operation's card, result panel
 and notices, and the Doro race's panel, banners, results and notices use the game's text language, any of the 23 that
 the game ships. So do the status line (under the menu and on F6), the ghost's notices and the notices of a join Steam
-refused (`Could not join: ...`). `ui_language=english` keeps them all in English. The other notices of the Steam link
-(a friend joined or left, your join code) and `UE4SS.log` stay in English. So do the error messages from the coop
+refused (`Could not join: ...`). `ui_language=english` keeps them all in English. A player who joined or left shows
+in the game's own words (`<name> has joined the game.`, `<name> has left the game.`). The other notices of the Steam
+link (your join code, for example) and `UE4SS.log` stay in English. So do the error messages from the coop
 commands, shown in the menu or the code box.
 
 If the menu or the chat box ever leaves the game without its own keys, open the console (F10 or `~`) and type
-`coop ui reset`: the menu and the boxes close, an open [host's question](playing-with-a-friend.md#join-codes) is answered with Deny, and the
-game gets its keys back. `coop ui off` removes the co-op menu, the chat box, the code box, the host's question, the
+`coop ui reset`: the menu and the boxes close, an open [host's question](playing-with-a-friend.md#join-codes) is answered with Deny, a
+joiner's wait popup hides (the player still waits in the lobby) and the game gets its keys back. `coop ui off` removes
+the co-op menu, the chat box, the code box, the join popups, the
 feed, the partner HUD, Night Operation's card and result panel and the co-op saves' question until the mod reloads (game
 start or Ctrl+R). Notices then go back to the line above your EVE, and your friend's name back to the name tag above
 their ghost. With the UI off, `auto_coop_save=ask` plays your own saves and `always` still switches to the copies.
@@ -279,7 +309,7 @@ the mod checks every 250 ms that the keyboard focus is still on its UI. When som
 question closes as Decide later, the mouse cursor goes, and the game gets its keys back at once. One difference: if you
 already chose co-op and the copies are being made, that choice stays, and the result shows as a notice when the copy
 ends. Nothing else shows on screen. `UE4SS.log` says `[StellarCoop] focus watchdog: <who> lost the focus for 1 s: co-op
-UI closed, the game has its input back`, where who is `menu`, `chat`, `code`, `ask` (the host's question) or `saves`.
+UI closed, the game has its input back`, where who is `menu`, `chat`, `code`, `ask` (a join popup) or `saves`.
 The line before it, `focus watchdog: focus on <widgets>; game paused or its cursor shown: <true or false>; <time since
 the last mouse button>`, names the game's widgets that held the focus, or `none` when the game's view, a widget the
 mod cannot list or another window had it. `coop-link.log` says `window: another window is in front` and
@@ -455,10 +485,10 @@ a Steam name or a chat line shows as `?`.
 | Joined | `Joined <host>'s game.`, with ` Waiting to be let in.` when the host is not your Steam friend |
 | A wrong join code | `That is not a join code: check its 7 characters.` or `Could not join: that is not a StellarCoop game.` |
 | A player who is not your Steam friend asks to join | `A player who is not your Steam friend is asking to join.` |
-| Your answer | `<name> was let in.`, `<name> was not let in.`, `<name> was not let in: no answer within 60 s.` or `<name> was removed and blocked.` |
+| Your answer | `<name> was let in.` (in the feed as the game's `<name> has joined the game.`), `<name> was not let in.`, `<name> was not let in: no answer within 60 s.` or `<name> was removed and blocked.` |
 | Your [block list](playing-with-a-friend.md#block-list) | `A player on your block list tried to join and was refused.`, `<name> is on your block list and was removed.` (a match lobby that came to you), `Left the match: a player on your block list is in it. Searching again.` (quick match), `Player blocked.`, `Player unblocked.`, `That player is not on your block list.`, `Block list emptied.`, `Could not save the block list: it holds until the game closes.` or `Could not read the whole block list: changes to it are not saved until the game restarts.` |
 | Could not join | `Could not join: <reason>` for each answer Steam documents (listed in [Troubleshooting](troubleshooting.md#my-friend-cannot-join)), or `Could not join: Steam response <n>.` for any other |
-| A friend joined, left, came back | `<name> joined.`, `<name> left.`, `<name> is back.` |
+| A friend joined, left, came back | `<name> joined.`, `<name> left.`, `<name> is back.` In the feed, the first two show in the game's own words: `<name> has joined the game.` and `<name> has left the game.` |
 | Connection lost | `<name>: connection lost.` |
 | Version mismatch | `Version mismatch: that game runs protocol ..., build ...; yours runs ...` (on joining) or `Version mismatch with <name>: ...` |
 | Refused link | `<name> refused the link: <reason>` |

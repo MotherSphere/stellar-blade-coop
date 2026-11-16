@@ -85,18 +85,25 @@ part checks the code: most codes with a wrong character get `That is not a join 
 `Could not join: ...` notices.
 
 A player who is not your Steam friend waits for your answer, whatever Who can join says. With Friends join without
-asking set to Off, your Steam friends wait too. Their game shows
-`Joined <host>'s game. Waiting to be let in.` Yours shows a question in the middle of the screen, `<name> wants to
-join`, with Accept and Deny. It opens on its own, maybe while you walk or use the menu. Deny has the focus, and for
-1 s after it shows every key does nothing, so keys pressed for something else never answer it.
+asking set to Off, your Steam friends wait too. Both games show the game's own popup
+([Join popups](interface.md#join-popups)). Yours plays the game's alert and asks `<name> wants to join`, with the
+game's Accept and Decline buttons. Theirs shows `Joined <host>'s game. Waiting to be let in.` in the feed and a popup,
+`Waiting for <host>'s answer`, with one Close button. Each popup shows the seconds left.
 
-- The Up and Down arrows move between Accept and Deny, Enter answers, and Esc denies. W, S, Space and the
-  [controller](interface.md#controller) do nothing here. While the question is open, the game ignores its own keys and the mod's
-  keys do nothing.
-- The question opens in a world, while the game is not paused and the chat box is closed, and closes the co-op menu.
-  Until then it waits. It hides while the game pauses and comes back after.
+Your question opens on its own, maybe while you walk or use the menu. Decline has the focus. For 1 s after it shows
+every key does nothing, so keys pressed for something else never answer it.
+
+- The Up and Down arrows move between Accept and Decline, Enter answers and Esc declines. W, S, Space, the mouse and
+  the [controller](interface.md#controller) do nothing here. While the question is open, the game ignores its own keys
+  and the mod's keys do nothing.
+- On the player who waits, Enter or Esc on Close (after the same first second) cancels the request: their game leaves
+  your lobby. Their popup closes by itself once you answer, with the game's accept sound when you let them in.
+- A popup opens in a world, while the game is not paused and the chat box is closed. It closes the co-op menu as it
+  opens. Until then it waits. It hides while the game pauses and comes back after.
 - With no answer for 60 s, the native part refuses the player, even if the question never showed (with
-  `coop ui off`, for example). The question shows the seconds left.
+  `coop ui off`, for example).
+- `coop ui reset` answers an open question with Deny. On the player who waits, it hides the popup for that lobby and
+  they keep waiting for your answer.
 - A denied player cannot come back to that lobby. Their game shows `<host> refused the link: you were not let in` and
   leaves.
 - A removed player cannot come back to any game you host: Remove also puts them on your [block list](#block-list).
