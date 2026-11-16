@@ -59,6 +59,7 @@ std::string status() {
     const anim::Word a = anim::unpack(anim_word);
     s += " anim=" + (anim_faulted ? std::string("fault") : anim::state_text(a.state, a.why)) +
          " anim_id=" + std::to_string(a.id);
+    s += bike_status(); // The bike (bike/ride.lua): the preload's state and the gate's.
   }
   // coop gift's inventory read (cut/mailbox.lua): the last ask's answer, by its number.
   if (!items_line.empty() && !blocked)

@@ -138,7 +138,17 @@
 // or in a loop) or anim stop; the game thread takes our EVE as the player controller's pawn and plays the clip through
 // SB's own custom animation call by path, or stops ours through SB's stop, under its own SEH latch, and reads her
 // custom animation slot every 100 ms while ours plays to tell when it ends. A new Lua load and coop off stop ours. status() puts the last
-// play's id and state in the engine line for cut/emote.lua, and the worker logs each change.
+// play's id and state in the engine line for cut/emote.lua, and the worker logs each change. The bike's ride plays
+// the same way, as a loop with her foot IK off.
+//
+// The bike (game/bike.h): the worker hands over Lua's bike load (the riding clip's path), bike free and bike gate on or
+// off; the game thread asks SB's own streamable manager for the bike's mesh and that clip at priority 100, as SB loads
+// EVE's custom animations. It keeps the handle, reads its loaded flag every 250 ms until the load completes, then
+// releases the handle at bike free and at coop off. The gate turns SB's gameplay actions off on the player controller
+// with SB's own setter of its per-action map, keeps each one's state and puts it back at gate off, at a new Lua load and
+// at coop off, unless SB changed it during the ride. All of it runs under its own SEH latch; status() puts the
+// preload's state and the gate's in the engine line for bike/ride.lua. The worker logs each change with the load's
+// time.
 //
 // coop shortcut (save/shortcut.h): the worker hands over Lua's ask; the game thread reads the cut Load Shortcut menu's
 // 16 paths through SB's own file manager, one a frame, under its own SEH latch, into entries the worker turns into log
@@ -204,6 +214,7 @@
 #include "game/camp_text.h"
 #include "game/camps.h"
 #include "game/anim.h"
+#include "game/bike.h"
 #include "game/debug_keys.h"
 #include "game/dev_panels.h"
 #include "game/items.h"
@@ -250,6 +261,7 @@
 #include "glue/tick/debug_game.inc" // Before nightop_game.inc, which takes its UI calls and ui_reads.
 #include "glue/tick/nightop_game.inc"
 #include "glue/tick/anim_game.inc"
+#include "glue/tick/bike_game.inc" // After anim_game.inc, freeze_game.inc and lion_game.inc: their calls and GMalloc.
 #include "glue/tick/camp_text_game.inc" // After anim_game.inc and freeze_game.inc: their FStringArg and MakeName.
 #include "glue/tick/guard_text_game.inc" // After camp_text_game.inc: its calls and camp_text_view.
 #include "glue/tick/shortcut_game.inc"
@@ -269,6 +281,7 @@
 #include "glue/tick/freeze_worker.inc"
 #include "glue/tick/debug_worker.inc"
 #include "glue/tick/anim_worker.inc"
+#include "glue/tick/bike_worker.inc"
 #include "glue/tick/hud_worker.inc" // After fight_worker.inc: its fault_where.
 #include "glue/tick/loading_worker.inc" // Likewise.
 #include "glue/tick/status.inc"
@@ -352,6 +365,10 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // SB's developer gates, their own latch: a pass each 250 ms while one is wanted, after coop off while one is ours.
   if (game_pinned && !debug_faulted && (!blocked || debug_holding))
     debug_tick();
+  // The bike's preload and SB's actions while she rides, their own latch: the asks each frame, the loaded flag each
+  // 250 ms while it loads; after coop off only to put the actions back and release the preload.
+  if (game_pinned && !bike_faulted && (!blocked || bike_holding()))
+    bike_tick();
   // coop emote's native clips, their own latch: an ask each frame, the watch each 100 ms while ours plays; after coop
   // off only to stop ours.
   if (game_pinned && !anim_faulted)
