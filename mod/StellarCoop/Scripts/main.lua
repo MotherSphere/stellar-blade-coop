@@ -6,8 +6,9 @@
 -- in-process loopback (coop loopback <delay ms> <jitter ms> <loss %> | off), or a recording of yours (coop record
 -- [off], coop replay [off]), in the outfit it was captured in (coop basesuit: on the base suit instead; coop look: its
 -- cloth, dyes or effects on or off until the mod reloads); the Steam link between two players (coop host, invite, list,
--- join, leave, status, report, copy, allow, deny, remove; the co-op menu on F5, whose rows host, invite, leave, open
--- the session list (ui/sessions.lua) and change the settings (ui/menu.lua), within 3 m of a camp phone booth the
+-- join, leave, status, report, copy, allow, deny, remove; the co-op menu on F5, whose rows open the Create a session
+-- screen to host (ui/create.lua), invite, leave, open the session list (ui/sessions.lua) and change the settings
+-- (ui/menu.lua), within 3 m of a camp phone booth the
 -- co-op line instead (session/booth.lua), status and leave on F6 and F8, unless coop-settings.txt says otherwise; join
 -- codes and the host's question on a player who is not her Steam friend: session/join.lua), the session chat on Enter,
 -- alone in the SBO lobby too (session/chat.lua), its notices in the chat's feed (or, with the UI off, on a line above
@@ -172,16 +173,20 @@ local capture=require('partner.capture').new(link and link.components or nil,loo
     settings~=nil and not settings.mod_names)
 local notice=require('ui.notice').new()
 -- The UI kit, the co-op menu, the chat's box and feed, the partner HUD, the co-op saves' question, the code box, the
--- host's question, the Sessions screen and the SBO lobby's screens: with the Steam link. The SBO lobby itself (sbo),
--- its hall maps' rows (halls) and the hold at its arrivals (arrival) are built further down.
-local kit,menu,box,hud,saves_ui,code_box,approval,sessions,lobby,sbo,halls,arrival
--- coop ui reset and the focus watchdog: the menu, the chat's box, the code box, the Sessions screen and the lobby's
--- screens closed, an open host's question denied, the co-op saves' question closed as Decide later, the game's input
--- given back now and the menu's mouse cursor put back; a lobby screen closed in the lobby world gives the view back to
--- EVE with the room's overlay, as Back does. With why (the watchdog's): it is logged, and a co-op saves pass under way
--- is kept.
+-- host's question, the Sessions screen, the Create a session screen and the SBO lobby's screens: with the Steam link.
+-- The SBO lobby itself (sbo), its hall maps' rows (halls) and the hold at its arrivals (arrival) are built further
+-- down.
+local kit,menu,box,hud,saves_ui,code_box,approval,sessions,create,lobby,sbo,halls,arrival
+-- The screen the co-op menu opened in its place, while one is open: the Sessions screen or the Create a session screen.
+local function open_screen() return sessions.is_open() and sessions or create.is_open() and create or nil end
+-- coop ui reset and the focus watchdog: the menu, the chat's box, the code box, the Sessions and Create a session
+-- screens and the lobby's screens closed, an open host's question denied, the co-op saves' question closed as Decide
+-- later, the game's input given back now and the menu's mouse cursor put back; a lobby screen closed in the lobby world
+-- gives the view back to EVE with the room's overlay, as Back does. With why (the watchdog's): it is logged, and a
+-- co-op saves pass under way is kept.
 local function ui_reset(why)
     menu.close(); box.close(); code_box.close(); approval.close(); saves_ui.close(why~=nil); sessions.close()
+    create.close()
     local was=lobby.is_open()
     lobby.close()
     if was and sbo.in_lobby() then sbo.to_room(); lobby.room(true) end
@@ -342,7 +347,7 @@ local leviathan=require('cut.leviathan').new({log=function(m) print('[StellarCoo
     store=link and link.store('coop-leviathan.txt'),
     blocked=function()
         return menu~=nil and (menu.is_open() or box.is_open() or code_box.is_open() or approval.is_open()
-            or saves_ui.is_open() or sessions.is_open())
+            or saves_ui.is_open() or open_screen()~=nil)
     end})
 -- The races' driving (race/drive.lua), logging [DR] lines: coop-drive.txt lets the next Lua load put EVE's movement
 -- back.
@@ -846,7 +851,7 @@ if settings then
     local guide=require('ui.guide').new({kit=kit,link=link,settings=settings,theme=Ui.THEME,log=log,folder=folder,
         busy=function()
             return menu.is_open() or box.is_open() or code_box.is_open() or approval.is_open() or saves_ui.is_open()
-                or sessions.is_open()
+                or open_screen()~=nil
         end})
     o.guide=guide
     -- The Sessions screen (ui/sessions.lua), which the menu's Find a session opens: the session list's rows read
@@ -865,6 +870,19 @@ if settings then
     menu=require('ui.menu').new({kit=kit,link=link,settings=settings,look=look,puppet=puppet,run=run,log=log,
         version=VERSION,chat=box,code=code_box,guide=guide,sessions=sessions})
     o.menu=menu -- For coop keys reset (commands/keys.lua).
+    -- The Create a session screen (ui/create.lua), which Host a session and coop host alone open (commands/session.lua
+    -- reads o.create): the settings in effect, written back as the Options page writes them; Start hosts with its Who
+    -- can join word through coop host.
+    local Options=require('ui.model')
+    create=require('ui.create').new({kit=kit,words=words,log=ui_log,
+        view=function()
+            return {values=Options.values(settings),readable=link.settings_text()~=nil,role=link.mode() or 'none'}
+        end,
+        act=function(a)
+            if a.set then return menu.set(a.set,a.value) end
+            return run('host',a.host)
+        end})
+    o.create=function() return create end
     approval=Join.ask({kit=kit,link=link,settings=settings,run=run,say=say,menu=menu,chat=box,guide=guide})
     saves_ui=guide.front(require('session.saves').new({kit=kit,link=link,settings=settings,theme=Ui.THEME,say=say,
         log=log,wait=guide.waiting}))
@@ -984,14 +1002,16 @@ end
 -- game never answers a stranger), nor while the menu waits for a key, but back, which stops the wait (menu.nav). The
 -- chat's box and the code box take only back, which closes them as Esc does: nothing typed, nothing sent, and a pad
 -- alone is never stuck there. LB and RB (tab_left, tab_right) change C's tabs while C is open, and nothing elsewhere.
--- The Sessions screen, after the lobby's, takes them all and Y (refresh); menu closes it.
+-- The Sessions screen or the Create a session screen, after the lobby's, takes them all and Y (refresh, the Sessions
+-- screen's only); menu closes it.
 local PAD={'up','down','left','right','select','back','menu','tab_left','tab_right','refresh'}
 local function pad_event(what)
     if approval.is_open() then return end
-    if sessions.is_open() and not lobby.is_open() then
-        if what~='menu' then return sessions.nav(what) end
+    local screen=open_screen()
+    if screen and not lobby.is_open() then
+        if what~='menu' then return screen.nav(what) end
         log('pad: menu')
-        return sessions.close()
+        return screen.close()
     end
     if what=='tab_left' or what=='tab_right' or what=='refresh' then
         if what~='refresh' and lobby.is_open()=='settings' then lobby.nav(what) end
@@ -1139,6 +1159,7 @@ LoopInGameThreadWithDelay(1,function()
         guarded('menu',menu.tick,now)
         guarded('lobby',lobby.tick,now)
         guarded('sessions',sessions.tick,now)
+        guarded('create',create.tick,now)
         guarded('chat',box.tick,now)
         guarded('join',code_box.tick,now)
         guarded('join',approval.tick,now)
@@ -1155,7 +1176,7 @@ LoopInGameThreadWithDelay(1,function()
             local asked=chat_asked
             chat_asked=nil
             if typed_at<asked-0.3 and not menu.is_open() and not approval.is_open() and not lobby.is_open()
-                and not sessions.is_open() then
+                and not open_screen() then
                 local _,why,en=box.open() -- Said on screen only: Enter is the game's too.
                 if why then say(why,en) end
             end
@@ -1659,6 +1680,7 @@ if link then
                 or saves_ui.is_open()) and (booth.near(puppet.me()) or guarded('sbo',seat_hint)) or nil)
             guarded('lobby',lobby.slow)
             guarded('sessions',sessions.slow,shown)
+            guarded('create',create.slow,shown)
             guarded('arrival',arrival_pass) -- After sbo.tick and kit.slow above: this pass's arrival and look.
             guarded('lobby',lobby_pass) -- After sbo.tick above: this pass's arrival and round lines.
             guarded('lobby',hud_pass) -- After lobby_pass and ui_reset above: the screens as this pass left them.
@@ -1758,11 +1780,12 @@ if settings then
                         local ok,why=race.key()
                         if why then report(ok,why) end
                     end
+                elseif action=='host' then run('host',settings.who_can_join) -- host_key: at once, never the screen.
                 elseif action~='menu' then run(action)
                 elseif off then report(false,OFF)
                 elseif lobby.is_open() then
                     if lobby.is_open()~='popup' then lobby_room() end
-                elseif sessions.is_open() then sessions.close()
+                elseif open_screen() then open_screen().close()
                 elseif sbo.in_lobby() and not menu.is_open() then lobby_key()
                 else
                     local ok,why,shown,en=menu.toggle(booth.near(puppet.me()))
@@ -1789,7 +1812,7 @@ if settings then
             if os.clock()-alt_enter_at<0.2 then return end
             if approval.is_open() then approval.nav('select')
             elseif lobby.is_open() then lobby.nav('select')
-            elseif sessions.is_open() then sessions.nav('select')
+            elseif open_screen() then open_screen().nav('select')
             elseif menu.is_open() then
                 if not menu.capture('Enter') then menu.nav('select') end
             elseif saves_ui.is_open() then saves_ui.nav('select')
@@ -1804,14 +1827,14 @@ if settings then
     end)
     -- The lobby's screens take them all, and on C (L4-menus-b-c 3.6) E is the right tab and Q the left one, or A on an
     -- AZERTY keyboard, where Q is left; the other of A and Q stays left. The Sessions screen takes them the same way,
-    -- with R for Refresh. E and R do nothing anywhere else.
+    -- with R for Refresh. The Create a session screen takes the navigation keys only. E and R do nothing anywhere else.
     local function lobby_key(key,word)
-        local screen=lobby.is_open() and lobby or sessions
+        local screen=lobby.is_open() and lobby or open_screen()
         if lobby.is_open()=='settings' or screen==sessions then
             if key=='E' then word='tab_right' elseif key==(kit.azerty() and 'A' or 'Q') then word='tab_left' end
         end
         if key=='R' then word=screen==sessions and 'refresh' or nil end
-        if word then screen.nav(word) end
+        if word and screen then screen.nav(word) end -- Closed on the game thread meanwhile: nothing.
     end
     for _,nav in ipairs({{'UP_ARROW','up'},{'W','up'},{'Z','up'},{'DOWN_ARROW','down'},{'S','down'},
             {'LEFT_ARROW','left'},{'A','left'},{'Q','left'},{'RIGHT_ARROW','right'},{'D','right'},
@@ -1820,7 +1843,7 @@ if settings then
             -- The host's question opens on its own: the arrows only, never W, S or Space (walking, jumping, the menu).
             if approval.is_open() then
                 if nav[1]:find('_ARROW$') then ExecuteInGameThread(function() approval.nav(nav[2]) end) end
-            elseif lobby.is_open() or sessions.is_open() then
+            elseif lobby.is_open() or open_screen() then
                 ExecuteInGameThread(function() lobby_key(nav[1],nav[2]) end)
             elseif not nav[2] then return
             elseif menu.is_open() then ExecuteInGameThread(function() menu.nav(nav[2]) end)
@@ -1830,7 +1853,10 @@ if settings then
     bind('ESCAPE',nil,function()
         if approval.is_open() then ExecuteInGameThread(function() approval.nav('back') end)
         elseif lobby.is_open() then ExecuteInGameThread(function() lobby.nav('back') end)
-        elseif sessions.is_open() then ExecuteInGameThread(function() sessions.nav('back') end)
+        elseif open_screen() then ExecuteInGameThread(function()
+            local screen=open_screen() -- Still open on the game thread.
+            if screen then screen.nav('back') end
+        end)
         elseif menu.is_open() then ExecuteInGameThread(function() menu.nav('back') end)
         elseif saves_ui.is_open() then ExecuteInGameThread(function() saves_ui.nav('back') end)
         elseif code_box.is_open() then ExecuteInGameThread(code_box.cancel)
@@ -1846,7 +1872,7 @@ if settings then
         ExecuteInGameThread(function()
             kit.click()
             if lobby.is_open() then lobby.nav('click')
-            elseif sessions.is_open() then sessions.nav('click')
+            elseif open_screen() then open_screen().nav('click')
             elseif menu.is_open() then menu.nav('click') elseif saves_ui.is_open() then saves_ui.nav('click') end
         end)
     end)
@@ -1855,7 +1881,7 @@ if settings then
             ExecuteInGameThread(function()
                 kit.click()
                 if lobby.is_open() then lobby.nav('back')
-                elseif sessions.is_open() then sessions.nav('back') else menu.nav('back') end
+                elseif open_screen() then open_screen().nav('back') else menu.nav('back') end
             end)
         end
     end)

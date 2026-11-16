@@ -662,6 +662,32 @@ package.loaded['ui.sessions']={new=function(o)
         slow=function(shown) ss.slows[#ss.slows+1]=shown end,
         tick=function() end}
 end}
+-- The Create a session screen (ui/create.lua; ui/create_test tests it), the same way: cr.o, cr.calls, cr.slows, cr.open
+-- and cr.refuse. As the real one, it opens only once its last slow said a world shows and the kit is up.
+cr={}
+package.loaded['ui.create']={new=function(o)
+    cr.o=o
+    local function said(...)
+        local w={}
+        for i=1,select('#',...) do w[i]=tostring((select(i,...))) end
+        cr.calls[#cr.calls+1]=table.concat(w,' ')
+    end
+    return {is_open=function() return cr.open end,
+        open=function()
+            said('open')
+            if cr.refuse then return false,cr.refuse end
+            if not (cr.slows[#cr.slows] and o.kit.ready()) then
+                return false,'Create a session opens in the game world only'
+            end
+            if not cr.open then o.kit.input(true,'create',true) end
+            cr.open=true
+            return true,'Create a session is open'
+        end,
+        close=function() said('close'); cr.open=false end,
+        nav=function(what) said('nav',what) end,
+        slow=function(shown) cr.slows[#cr.slows+1]=shown end,
+        tick=function() end}
+end}
 -- The kit (ui/kit.lua's Ui.kit; ui_kit_test tests it): its calls as words, its input on change only (as the kit makes
 -- the engine call), every input asked counted; the menu's view built at once by a builder that keeps what each text and
 -- row was last set to. kit_ready: its root is up; kit_whole: false while that root is a build whose look still warms
@@ -839,6 +865,7 @@ function load_main(with_native,no_folder,source)
     sb.seat,sb.seat_error,sb.sitting,sb.sat,sb.stands,sb.busy=nil,nil,nil,nil,0,false
     lb.o,lb.calls,lb.screen,lb.ask,lb.refuse,lb.slows,lb.ticks=nil,{},nil,nil,nil,0,{}
     ss.o,ss.calls,ss.open,ss.refuse,ss.slows=nil,{},false,nil,{}
+    cr.o,cr.calls,cr.open,cr.refuse,cr.slows=nil,{},false,nil,{}
     link_match,link_round,link_me,link_owner,link_uidev=nil,nil,nil,nil,nil
     rx.o,rx.ticks,rx.stops,rx.booked,rx.raise,rx.tick_raise,rx.stopped=nil,0,0,nil,nil,nil,nil
     gt.o,gt.ticks=nil,0

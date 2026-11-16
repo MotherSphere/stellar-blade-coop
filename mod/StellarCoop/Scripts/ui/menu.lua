@@ -6,8 +6,9 @@
 -- screens). While it is open the game ignores its own keys (the kit's input), and main.lua's binds hand it the
 -- navigation keys: up, down, left and right to move and change, select and back (each a no-op while it is closed); and
 -- the mouse, which the kit shows: the row it moves onto takes the focus, a left click selects the row under it, a right
--- click goes back. Its rows run the console commands (Host and Invite close it first: the Steam overlay takes the
--- focus); Leave and Remove <name> (a player let in who is not our Steam friend) ask for a second Select; Copy my code
+-- click goes back. Its rows run the console commands (Host and Invite close it first: Host's coop host opens the
+-- Create a session screen, ui/create.lua; Invite's Steam overlay takes the focus); Leave and Remove <name> (a
+-- player let in who is not our Steam friend) ask for a second Select; Copy my code
 -- shows our join code and asks the native part to copy it; Chat (in a session), Join with a code and Find a session
 -- close it and open the chat's box, the code box (session/join.lua) or the Sessions screen (ui/sessions.lua); Guide
 -- closes it and opens the first-launch guide (ui/guide.lua),
