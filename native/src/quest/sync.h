@@ -87,7 +87,7 @@ struct Kill {
   uint8_t group, container, position;
 };
 // An item task, at the same place as a kill task: every task of a Request whose hand-in takes an item away (the board
-// completes the Request with no item check), and each RequireItem task that recounts her inventory in a container of
+// completes the Request with no item check), plus each RequireItem task that recounts her inventory in a container of
 // several tasks (SB puts it back to in progress when her count drops while its group is open).
 using Item = Kill;
 // A shared quest that SB acquires inside a step of another one (a NextQuest, or an AcquireQuest event): her acquire
@@ -1655,7 +1655,7 @@ inline Plan plan(const Row &r, const Entry &h, const View &v, const Tuple &g, co
   if (a >= r.groups || a >= v.groups)
     return p;
   p.act = Act::complete, p.group = uint8_t(a), p.step = r.step + 1 + a;
-  auto task = [&](size_t c, size_t q, Mark m) { // K on a kill task, I on an item task, but '#' stays '#'.
+  auto task = [&](size_t c, size_t q, Mark m) { // K on a kill task, I on an item task; '#' stays '#'.
     p.container = uint8_t(c), p.position = uint8_t(q);
     const char hold = held_task(r.id, a, c, q);
     return gate(m.kind != '#' && hold ? Mark{hold, 0} : m);

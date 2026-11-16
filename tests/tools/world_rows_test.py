@@ -221,8 +221,8 @@ def test_achievements():
 
 
 def test_quest_tasks():
-    # A quest task waits for the switch's On, and for the door's Open, which the lever's On sets. Off travels, and the
-    # chest's task waits for a row that is out anyway.
+    # Quest tasks wait for the switch's On and for the door's Open, which the lever's On sets. Off travels. The chest's
+    # task waits for a row that is out anyway.
     t = world({'switch': spawn(), 'door': spawn('Env_Door'), 'lever': spawn(events={'On': ['open door']}),
                'chest': spawn(rewards={1: 'Loot'})},
               envs={'Env_Door': env(('Closed', 'Open'))},

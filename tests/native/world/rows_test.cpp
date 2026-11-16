@@ -88,7 +88,7 @@ void test_rules() {
     assert(!state_allowed("ME_03_EnvS_026", tag));
   assert(!object_state_allowed("ME_03_EnvS_026"));
   // A state an EnvState quest task waits for (Quest_Epic_02_M01_T01): its On stays local, so the env leaves the
-  // SetEnvActive list, and its Off travels.
+  // SetEnvActive list. Its Off travels.
   assert(!state_allowed("DED20_EnvS_210", "On") && state_allowed("DED20_EnvS_210", "Off"));
   assert(!object_state_allowed("DED20_EnvS_210"));
   // Progress adds: a door, and not a counter whose On at its count of 3 goes to A, which gives an item.
