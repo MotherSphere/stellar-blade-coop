@@ -1627,15 +1627,16 @@ private:
   // session with a stranger. A co-op host keeps it on until she hosts again. why says what it is for. ice_off_ is what
   // Steam took: a refused ICE off leaves it false (send() holds every line to whoever needs it, guard() asks again), a
   // refused ICE back leaves relay only on. A refusal counts towards kIceTries only in a lobby, which leave() forgets:
-  // one before a match's search or create takes no try from the players of the lobby that comes next.
-  void relay_only(bool on, const std::string &why = "") {
+  // one before a match's search or create takes no try from the players of the lobby that comes next. counted=false
+  // for a refused player's reject (guard()): her refusals take no try from the next player either.
+  void relay_only(bool on, const std::string &why = "", bool counted = true) {
     if (on == ice_off_)
       return;
     if (!api_.set_config_int(nu_, kIceEnable, on ? kIceDisable : kIceDefault)) {
       if (!on)
         return event("Steam refused the ICE setting: relay only stays on");
       ice_retry_at_ = now_ + kIceRetryMs;
-      if (!lobby_)
+      if (!lobby_ || !counted)
         return event("Steam refused relay only: " + why);
       return event("Steam refused relay only, try " + std::to_string(++ice_tries_) + "/" + std::to_string(kIceTries) +
                    ": " + why);
@@ -1648,12 +1649,13 @@ private:
   bool relay_ok(uint64_t id) const {
     return ice_off_ || (!match() && api_.has_friend(friends_, id, kImmediateFriends));
   }
-  // relay_ok(), asking Steam for relay only first when it is not (again kIceRetryMs after a refusal).
-  bool guard(uint64_t id) {
+  // relay_ok(), asking Steam for relay only first when it is not (again kIceRetryMs after a refusal); counted as
+  // relay_only() takes it.
+  bool guard(uint64_t id, bool counted = true) {
     if (relay_ok(id))
       return true;
     if (now_ >= ice_retry_at_)
-      relay_only(true, match() ? "match session" : name_of(id) + " is not a Steam friend");
+      relay_only(true, match() ? "match session" : name_of(id) + " is not a Steam friend", counted);
     return ice_off_;
   }
   // A lobby data key the owner writes, when it changed.
@@ -2012,7 +2014,7 @@ private:
         if (now_ >= it->second) {
           Peer out;
           out.id = id;
-          guard(id);
+          guard(id, false); // Her reject needs relay only too. She is no player we may link: no try counted.
           send(out, reject("you cannot join this session again"), kReliable);
           if (!it->second)
             event("refused " + name_of(id) + " came back: told to leave");

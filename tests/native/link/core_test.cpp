@@ -3167,6 +3167,18 @@ int main() {
     assert(noticed(s, "Stranger was refused: Steam would not set relay only."));
     w.tick("", 0, kStranger, 10000); // Her new request and our reject 10 s later stay held too.
     assert(F.sent.empty() && F.sessions.empty() && F.accepted.empty() && w.link.lobby() == 5000);
+    // Her rejects each 10 s ask Steam again, counted for nobody: once she leaves, the next stranger who joins gets her
+    // own 3 tries 1 s apart.
+    for (int i = 0; i < 4; ++i)
+      w.tick("", 0, 0, 10000);
+    assert(!saw("try 4/3") && count("Steam refused relay only: Stranger is not a Steam friend") >= 4);
+    F.members[5000] = {kMe, kOther};
+    w.tick("", 0, 0, 1000);
+    assert(saw("Steam refused relay only, try 1/3: Third is not a Steam friend"));
+    w.tick("", 0, 0, 1000);
+    assert(saw("try 2/3: Third") && !saw("no link with Third"));
+    w.tick("", 0, 0, 1000);
+    assert(saw("try 3/3: Third") && saw("no link with Third: Steam refused relay only 3 times"));
   }
   // Refusals outside any lobby (three cancelled match searches) count for none: the stranger who joins the lobby
   // hosted next gets her 3 tries 1 s apart.
