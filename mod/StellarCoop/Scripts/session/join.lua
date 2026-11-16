@@ -114,6 +114,24 @@ function Join.box(o)
     function self.stop() open,back_at,refocus_at=false,nil,nil end
     return self
 end
+-- The native part's join and leave notices that SB has words for: '<name> joined.' and '<name> was let in.' as
+-- UI_Night_Message_ComeBackFriend ('{Name} has joined the game.'), '<name> left.' as UI_Night_Message_LeaveFriend
+-- ('{Name} has left the game.'); the guest's 'Session ended: <host> left.' keeps its own words.
+local FEED={{' joined%.$','UI_Night_Message_ComeBackFriend'},{' was let in%.$','UI_Night_Message_ComeBackFriend'},
+    {' left%.$','UI_Night_Message_LeaveFriend'}}
+-- A notice in SB's words, game=function(key) SB's word or nil: nil for any other notice, a nameless one, or when SB's
+-- word is missing or has no {Name}.
+function Join.feed(text,game)
+    if text:find('^Session ended: ') then return nil end
+    for _,f in ipairs(FEED) do
+        local name=text:match('^(.+)'..f[1])
+        if name then
+            local line=game(f[2])
+            if not (line and line:find('{Name}',1,true)) then return nil end
+            return (line:gsub('{Name}',function() return name end))
+        end
+    end
+end
 -- Seconds from an answer to the SB popup removed (its Accept or close animation plays first); ESlateVisibility of the
 -- popup's hover images, which show its keyboard cursor: Hidden, HitTestInvisible.
 local GONE,HIDDEN,SEEN=0.25,2,3

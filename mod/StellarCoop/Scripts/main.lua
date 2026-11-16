@@ -393,8 +393,8 @@ end
 -- reflected getters (the library's default object, found once). The first failure turns it off for this Lua load
 -- ('0' from then on) with one log line.
 local U=require('core.unreal')
--- SB's own word for a StringTable_UI key in the game's language (core/unreal.lua's game_text), for the Sessions screen
--- and the join popups; none under ui_language=english.
+-- SB's own word for a StringTable_UI key in the game's language (core/unreal.lua's game_text), for the Sessions screen,
+-- the join popups and the feed's join and leave lines; none under ui_language=english.
 local function game_words(key) if settings and settings.ui_language~='english' then return U.game_text(key) end end
 local Join=require('session.join')
 local photo_failed=false
@@ -1638,9 +1638,11 @@ if link then
             if last_mode=='none' and mode~='none' and not off and not puppet.active() then report(puppet.toggle()) end
             last_mode=mode
         end
-        for _,text in ipairs(link.notices()) do -- A join Steam refused in the menu's words, any other as it came.
+        -- A join Steam refused in the menu's words, a player who joined or left in SB's (its English for the line
+        -- above EVE), any other as it came.
+        for _,text in ipairs(link.notices()) do
             local build=T.join_refused(text)
-            if build then tell(build) else say(text) end
+            if build then tell(build) else say(Join.feed(text,game_words) or text,text) end
         end
         if not off then -- Whether a save is loaded (an accepted invite waits for one), the send rate, the photo mode.
             local world,title=guarded('ghost',puppet.world)

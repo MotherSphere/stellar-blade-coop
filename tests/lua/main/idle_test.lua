@@ -14,7 +14,7 @@ local fakes={} -- The fixture's fake modules and Lua's own libraries.
 for name in pairs(package.loaded) do fakes[name]=true end
 local function idle(world)
     for name in pairs(package.loaded) do if not fakes[name] then package.loaded[name]=nil end end
-    settings_text,status_text,link_mode,photo_mode='',plain,'none',false
+    settings_text,status_text,link_mode,photo_mode,link_notices='',plain,'none',false,{} -- No notice: none comes.
     in_world,at_title=world,not world
     load_main(true)
     kit_ready=true
@@ -27,7 +27,7 @@ local function idle(world)
         if frame==64 then first=finds.all..' '..finds.static end
     end
     assert(not logged('error'),table.concat(printed,'|'))
-    in_world,at_title,kit_ready=false,false,false
+    in_world,at_title,kit_ready,link_notices=false,false,false,nil
     return first..', '..finds.all..' '..finds.static
 end
 -- FindAllOf and StaticFindObject after 1 s, then after 60 s.

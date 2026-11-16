@@ -17,7 +17,7 @@
 -- RefreshAll and SB's words on its buttons (UI_Request_Accept, UI_CollectPersonalInfo_Refuse, UI_Close), the cursor
 -- as its hover look, the seconds and a late name written to its blocks on change only; an answer plays its Accept or
 -- close animation and cue, the part removed 250 ms later. The joiner's wait: Close leaves the lobby, a let in plays
--- Accept, a refusal close; coop ui reset hides it and stays.
+-- Accept, a refusal close; coop ui reset hides it and stays. The feed's join and leave lines in SB's words (Join.feed).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -453,4 +453,19 @@ pa.close(); assert(not pa.is_open() and #ran==runs+1)
 pa.slow(true); assert(not pa.is_open())
 assert(#logs==1,'No refusal from SB\'s popup: '..table.concat(logs,'|'))
 
+-- The feed's join and leave lines in SB's words, the name as the native part wrote it (a % in it kept); the others,
+-- and every line when SB's word is missing or has no {Name}, stay as they came (nil).
+local fr={UI_Night_Message_ComeBackFriend='{Name} a rejoint la partie.',
+    UI_Night_Message_LeaveFriend='{Name} has left the game.'}
+local function g(key) return fr[key] end
+assert(Join.feed('Kaanta joined.',g)=='Kaanta a rejoint la partie.')
+assert(Join.feed('Kaanta was let in.',g)=='Kaanta a rejoint la partie.')
+assert(Join.feed('Kaanta left.',g)=='Kaanta has left the game.')
+assert(Join.feed('100% %1 joined.',g)=='100% %1 a rejoint la partie.')
+for _,line in ipairs({'Kaanta was not let in.','Session ended: Kaanta left.',' joined.','Kaanta: connection lost.',
+        "Joined Kaanta's game. Waiting to be let in.",'A player who is not your Steam friend is asking to join.'}) do
+    assert(Join.feed(line,g)==nil,line)
+end
+assert(Join.feed('Kaanta joined.',function() return nil end)==nil)
+assert(Join.feed('Kaanta joined.',function() return 'Joined.' end)==nil)
 print('join_test ok')
