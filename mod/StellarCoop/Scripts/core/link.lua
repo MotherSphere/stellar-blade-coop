@@ -464,14 +464,15 @@ Link.files={
     rename=os.rename,
 }
 -- A join code as typed (the code box, coop join <code>): either case, the dash or a space after the third character or
--- nothing there, spaces around. Returned as the native part takes it, 'XXX-XXXX' in capitals; nil for anything else.
--- Its letters and its check digit are the native part's to judge (link/protocol.h's code_lobby), which answers a wrong
--- one on screen.
+-- nothing there, spaces around. Returned as the native part takes it, 'XXX-XXXX' in capitals with I and L read as 1
+-- and O as 0 (link/protocol.h's code_lobby does the same), so the request line UE4SS.log keeps is masked
+-- (core/mask.lua knows only the code's own characters); nil for anything else. Its letters and its check digit are the
+-- native part's to judge (code_lobby), which answers a wrong one on screen.
 local ALNUM=('[0-9A-Za-z]'):rep(3)
 function Link.join_code(text)
     if type(text)~='string' or #text>32 then return nil end
     local a,b=text:match('^[ \t]*('..ALNUM..')[- ]?('..ALNUM..'[0-9A-Za-z])[ \t]*$')
-    return a and (a..'-'..b):upper() or nil
+    return a and ((a..'-'..b):upper():gsub('[IL]','1'):gsub('O','0')) or nil
 end
 function Link.new(folder,fs)
     fs=fs or Link.files

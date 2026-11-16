@@ -334,6 +334,10 @@ for _,bad in ipairs({'','0CS-CBM','0CS-CBMHX','0CS--CBMH','0CSC-BMH','0CS-CBM!',
     assert(link.join_code(bad)==nil,bad)
 end
 assert(link.join_code(nil)==nil and link.join_code(7)==nil and require('core.link').join_code('abc1234')=='ABC-1234')
+-- I and L read as 1, O as 0, as the native part reads them: the request line UE4SS.log keeps is then masked.
+assert(link.join_code('o3n-qk8v')=='03N-QK8V' and link.join_code('lio-0IL1')=='110-0111')
+assert(require('core.mask')('OK: asked the native part: join '..link.join_code('o3n-qk8v'))
+    =='OK: asked the native part: join 03N-****')
 
 -- coop-settings.txt (N5): free keys, never F10 or ~ (the console on AZERTY); a bad value keeps its default, with a line.
 local Link=require('core.link')
