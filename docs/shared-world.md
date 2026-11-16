@@ -21,18 +21,24 @@ whatever the game's tables chain to it, such as the door a lever opens. If the o
 the change happens at once. If it is not, the change is written into her world's saved state for that zone, and she
 finds the object changed when she loads it. Either way the change stays in both co-op saves once the games save.
 
+One kind of change is made only while the object is loaded. Some switches drive other objects straight from their own
+list of linked objects, and the game changes those only in the zone the player is in. When your friend is elsewhere,
+such a change is skipped in her game, and that object stays as it was until one of you works it again there.
+
 A crane moves in both games, but its camera view changes only for the player at its controls.
 
 ## What stays each player's own
 
 Anything that gives an item or a reward is not shared. Each player opens their own copy and gets their own loot:
-chests, supply boxes, cabinets, memory sticks, records, ammo chargers, angel remains, cans and Nikke items. Your
-friend's ghost still plays her opening animation, as for any other move she makes. Camps and the corpses that hold a
-passcode hint are not shared either. A change that starts a cutscene, gives an item or a hint, opens a menu, starts a
-quest or moves the player stays in the game where it was made.
+chests, supply boxes, cabinets, memory sticks, records, ammo chargers, angel remains, cans, Nikke items, and the cores
+taken after a boss fight (the Beta core at the drop pod, the Burst core). Your friend's ghost still plays her opening
+animation, as for any other move she makes. Camps and the corpses that hold a passcode hint are not shared either. A
+change that starts a cutscene, gives an item or a hint, opens a menu, starts a quest or moves the player stays in the
+game where it was made. So does a change that counts toward an achievement, such as Xion's phase changes, an album
+unlock or a map progress entry: each player makes it in their own game.
 
-The list of what can be shared comes from the game's own tables of build 26123051: 2,476 of the 4,430 objects there.
-The others stay each player's own.
+The list of what can be shared comes from the game's own tables of build 26123051 and from the rows Matrix XIII adds:
+2,460 of the game's 4,430 objects and 95 of the 198 that Matrix XIII adds. The others stay each player's own.
 
 ## Story doors
 
@@ -88,13 +94,11 @@ game did not make, and `queued=` those that wait while you load. The others are 
 - Puzzles played on a screen, such as the pipe and circuit puzzles. If the game opens a puzzle's door through the
   same kind of state change a lever makes, that change is shared; which puzzles do so has not been checked.
 - Objects you push or carry, such as carts and crates you grab.
-- Matrix XIII's objects, which the mod adds while the game runs.
 
 ## Known limits
 
 - Nothing of this has run in game yet.
 - A change reaches the other game even where that player has not been yet: a gate you open in a zone your friend has
-  not reached is already open when she gets there.
-- 43 achievement rows in the game's tables name a state the shared world can carry, for example Xion's phase changes,
-  an album unlock and some map progress. Your game makes your friend's change with your own EVE as the one who made
-  it, so it may count such a row for you. This has not been checked in game.
+  not reached is already open when she gets there (except for the linked objects above).
+- An object that counts toward an achievement stays each player's own even when it is a door or a lift, so the two
+  games can show it in different states.

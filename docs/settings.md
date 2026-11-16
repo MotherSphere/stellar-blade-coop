@@ -97,9 +97,9 @@ shared_quests=on
 quest_deny=
 # Shared world, experimental: on or off, on by default, not tested in game yet. On, while you and your friend both
 # play a co-op save and both have it on, a door, lever, switch, crane, lift or shortcut that one of you works through
-# the game changes in the other's game too, at once or when that zone next loads. Chests, supply boxes, collectibles
-# and anything that gives an item stay each player's own, and the doors the main story opens move with quest steps
-# only. Off, your changes are not sent and your friend's are not made in your game.
+# the game changes in the other's game too, at once or, for most of them, when that zone next loads. Chests, supply
+# boxes, collectibles and anything that gives an item stay each player's own, and the doors the main story opens move
+# with quest steps only. Off, your changes are not sent and your friend's are not made in your game.
 shared_world=on
 # Revive, experimental: on or off, on by default. Yours, for your own EVE: on, while you are on the death screen and
 # your friend stands within 2 m of your EVE for 3 s, your game revives you where you fell, with full health and your

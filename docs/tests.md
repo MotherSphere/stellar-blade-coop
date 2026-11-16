@@ -564,20 +564,25 @@ The C++ tests cover the platform-free headers in `native/src`.
 
 ### Shared world
 
-- `world_rows_test`: `world/rows.h`'s three lists strictly sorted and every SetEnvActive row with states of its own,
-  the lookups at both ends of each list and on near misses, and rows of build 26123051 each rule keeps or leaves out
-  (a door and a lift with every state, the monorail without its camp-bound garage run, the crane without its camera
-  states, a supply box, a story-only door, a quest's env control row, a monorail speed row whose chain plays a scene);
-- `world_sync_test`: `world/sync.h`'s lines through format and parse and back (the largest legal line, 45 malformed
-  lines and 20,000 fuzzed ones), the ring's capacity and wrap, and two players' sides wired over the parser with a
-  fake engine: the on and off lines, each gate on both sides, the lists on both sides, names without text, sequence
-  numbers, lost and old lines, the queue's order while loading and its overflow, the apply limit, the echo backstop,
-  refusals logged once, a new partner and the status line;
+- `world_rows_test`: `world/rows.h`'s four lists strictly sorted, every SetEnvActive and no-progress row with states
+  of its own, the lookups at both ends of each list and on near misses, and rows of build 26123051 each rule keeps or
+  leaves out (a door and a lift with every state, the monorail without its camp-bound garage run, the crane without its
+  camera states, the hyperdrive without its story states, a supply box, the boss cores, a story-only door, a Matrix
+  XIII lever, a counter whose progress leads to an item, a quest's env control row, a monorail speed row whose chain
+  plays a scene);
+- `world_sync_test`: `world/sync.h`'s lines through format and parse and back (the largest legal line, 50 malformed
+  lines and 20,000 fuzzed ones), the ring's capacity and wrap, the outbox that keeps the lines the link refuses, and
+  two players' sides wired over the parser with a fake engine: the on and off lines and the answer to an on, a rejoin
+  one side did not see, each gate on both sides, the lists on both sides (linked env lines part by part included),
+  names without text, sequence numbers, lost and old lines, a load that reads no save for a while, the queue's order
+  while loading and its overflow, the apply limit, the echo backstop, refusals logged once, a new partner and the
+  status line;
 - `world_engine_test`: `world/engine.h` over fake memory and fake game functions: the four roots read from their
   nodes (a named target, `self` through the owner env, an ObjectState of 0, a linked env inside and outside its
-  owner's list, values no line carries), and her lines applied: A1 and each of its guards, a tag that did not take,
-  A2's records (found, made, Disable kept), A1b live and offline, A3's call and its list check, A4's order, and the
-  refusals for a missing world, player or name.
+  owner's list or not live in our zone, values no line carries), and her lines applied: A1 and each of its guards, a
+  Disable env changed as SB changes it, a tag that did not take, A2's records (found, made, a Disable one written),
+  A1b live and offline, A3's call and its list check, A4's order (a None tag, an env already in the tag, a refusing
+  guard), and the refusals for a missing world, player or name.
 
 ### Quests
 
@@ -618,9 +623,10 @@ The C++ tests cover the platform-free headers in `native/src`.
   `python3 tools/sbo_lobby_rows.py` and commit the two files it writes;
 - `world_rows_test.py`: `tools/world_rows.py` on small made-up tables: each rule that keeps a ZoneEnvSpawnTable row
   out, each rule that keeps a state out (the player event types reached directly, through AddEvents and FinishEvents,
-  through the states an env control row sets and through a progress control's change tags, and the crane's camera
-  tags), the SetEnvActive list, each ZoneEvent rule, unknown names and loops in chains, and the written block (sorted,
-  between its markers, the rest of the header untouched, a name that cannot go into a C++ literal refused). After new
+  through the states an env control row sets and through a progress control's change tags, the crane's camera tags,
+  and ChangeState achievements on the state or on a state its events set), the SetEnvActive list, each ZoneEvent rule,
+  the no-progress list, unknown names and loops in chains, Matrix XIII's rows from its data file, and the written block
+  (sorted, between its markers, the rest of the header untouched, a name that cannot go into a C++ literal refused). After new
   table exports, run `python3 -I tools/world_rows.py <folder>` and commit `native/src/world/rows.h`;
 - `matchmaking_scan_test.py`: a scan that fails if any script or native source could reach the game's matchmaking
   (see [night-operation-previews.md](night-operation-previews.md#how-the-original-matchmaking-is-blocked)). Stellar
