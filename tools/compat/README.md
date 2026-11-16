@@ -20,4 +20,4 @@ patch -p1 < dekcns-coop-saves.patch
 or make the same two edits by hand (`ResolveSaveFilePath` and `LoadOutfitKeysFromSaveFile`). Reinstalling or updating
 CNS undoes it.
 
-**Status.** Being tested in game. CNS itself is DekitaRPG's mod; this is only a patch to its Lua, not a copy of it.
+**Status.** Tested in game 2026-11-15: CNS outfits now stay on across a restart while playing on the co-op saves. CNS itself is DekitaRPG's mod; this is only a patch to its Lua, not a copy of it.
