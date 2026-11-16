@@ -23,7 +23,8 @@ The Lua tests (`commands/`: `session`; `core/`: `actors_of`, `class_at`, `keybin
 `nightop/`: `board`, `challenges`, `guard_text`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`,
 `waves`; `partner/`: `capture`, `ghosts`, `hud`, `puppet`, `sentinel`; `race/`: `doro`, `drive`, `drive_model`, `model`,
 `run`; `session/`: `arrival`, `booth`, `chat`, `group`, `halls_rows`, `join`, `saves`, `sbo`, `travel`; `story/`:
-`snapshot`, `subtitles`; `ui/`: `guide`, `kit`, `lobby`, `lobby_model`, `model`, `notice`, `region_tabs`, `text`) run
+`snapshot`, `subtitles`; `ui/`: `guide`, `kit`, `lobby`, `lobby_model`, `model`, `notice`, `region_tabs`, `sessions`,
+`sessions_model`, `text`) run
 the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
 fails the test. The `main/` tests load
 `main/fixture.lua` first, with UE4SS stubbed for `main.lua`.
@@ -67,7 +68,7 @@ fails the test. The `main/` tests load
 - `main/idle_test` counts the FindAllOf and StaticFindObject calls of main.lua's two loops over one idle minute, each
   case from a fresh Lua load: 4 and 5 in a world with the UI up, 0 and 2 at the title, all in the first second;
 - `main/input_test` covers the controller's events from a fake `coop_pad` (routed to the menu, the co-op saves' question
-  and the two boxes, never to the host's question; LB and RB taken and doing nothing there; at most 8 a frame; an
+  and the two boxes, never to the host's question; LB, RB and Y taken and doing nothing there; at most 8 a frame; an
   older DLL without it), the mouse in the menu and the focus watchdog's reset, the Lua frame time line with its
   longest frame and 250 ms pass, their counts over 16 ms and over 50 ms, and the longest call of five modules, and the
   gap lines (a frame over 100 ms after the last, with the 250 ms pass in the gap or none, at most 200 a minute);
@@ -112,11 +113,22 @@ fails the test. The `main/` tests load
   that no part is ever focused, clicked through or sent a call outside the allowed list;
 - `ui/lobby_model_test` covers the lobby menu's rows, actions, status and members by state, the settings rows (the
   Map row only with no lobby open and the hall lobbies in use) and the countdown's resync;
-- `ui/text_test` checks each language's notices against the feed's 200-byte line, the SBO lobby's notices included,
-  and the lobby menu's rows, settings, values and status within their columns, and the hall seats' Sit and Stand up
-  hint within the booth hint's width. It also reads `link/core.h` to check that each join Steam refused has the same
-  English line there and in `T.en.join_refused`, then that `T.join_refused` turns each one into every language's words.
-  The DLC notice (`T.dlcs`) stays within 200 bytes in every language with 100-byte DLC names;
+- `ui/sessions_test` covers the Sessions screen on fake SB parts: the search asked as it opens, the status line (SB's
+  search word, the wait), Refresh and its stop, the 5 s gap, the tabs (SB's Comrades), the rows and their scroll window,
+  the details pane and footer, Select asking to join, the mouse, the closes by itself, the input given back, parts made
+  again after a root build, the kit drawing for a part the game cannot make (rows, headers, hints, the tab keys) and the
+  log lines. No part is focused or sent a call outside the allowed list;
+- `ui/sessions_model_test` covers a tab's rows and status from the native part's list, what Refresh and Select ask for,
+  the cursor, the region and camp keys and the rules word read back (any other shape gives none);
+- `main/menu_test` also covers Find a session: the Sessions screen opens in place of the menu and takes the keys (R and
+  Q, E included), the pad (Y, LB and RB included) and the mouse; the menu key, View held and `coop ui reset` close it;
+  its view reads our protocol and game build from the status;
+- `ui/text_test` checks each language's notices against the feed's 200-byte line, the SBO lobby's notices included. It
+  checks the lobby menu's rows, settings, values and status within their columns and the Sessions screen's hints, status
+  lines, version and footer within theirs. The hall seats' Sit and Stand up hint stays within the booth hint's width. It
+  also reads `link/core.h` to check that each join Steam refused has the same English line there and in
+  `T.en.join_refused`, then that `T.join_refused` turns each one into every language's words. The DLC notice (`T.dlcs`)
+  stays within 200 bytes in every language with 100-byte DLC names;
 - `session/arrival_test` covers the hold at a lobby arrival: nothing without a lobby warp or before its new
   controller; SB's black up and the kit veiled at the next pass; held while anything is missing, then lifted once with
   one line; the 8 s cap, which lifts whatever is missing and names it, also when the missing items cannot be read; a
@@ -580,10 +592,10 @@ The C++ tests cover the platform-free headers in `native/src`.
   EVE does not carry, no manager, bucket or owner, an instance the manager no longer holds, and hostile memory (a
   chain that loops, an index past the array, a hash size that is no power of two, an unreadable item) ending in
   `unread`, never in a hang;
-- `pad_test`: the controller's events for the co-op menu (each press, up and down repeating while held, a D-pad
-  diagonal read as up or down and the stick along its main axis, which keeps its pressed axis near 45 degrees, the
-  stick's thresholds, View held 1 s, LB and RB once a press and in event order with up's repeat going on, a disconnect,
-  the event queue) and which XInput slots each poll asks;
+- `pad_test`: the controller's events for the co-op menu (each press, up and down repeating while held, a D-pad diagonal
+  read as up or down and the stick along its main axis, which keeps its pressed axis near 45 degrees, the stick's
+  thresholds, View held 1 s, LB, RB and Y once a press and in event order with up's repeat going on, a disconnect, the
+  event queue) and which XInput slots each poll asks;
 - `dev_panels_test`: `coop devinfo`'s guard (each read failing alone, refused with its own reason; a close needs
   neither the flow nor the phase), the plan over every mix of open panels and every ask (the other panel closes, the
   one asked opens unless it is open), and the two panels' logic types and names;

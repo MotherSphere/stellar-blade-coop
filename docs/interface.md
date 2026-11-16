@@ -30,7 +30,7 @@ The main page shows the rows that fit your session:
 | Invite a friend (Steam) | While you host | Runs `coop invite`. The menu closes first. |
 | Copy my code | While you host with a [join code](playing-with-a-friend.md#join-codes) | Shows the code and runs `coop copy`, which puts it on the clipboard |
 | Remove <name> | While a player who is not your Steam friend is in the session you host | Runs `coop remove <SteamID>` when you select it a second time within 3 s. The player goes on your [block list](playing-with-a-friend.md#block-list) too. |
-| Join a friend | Outside a session | Runs `coop join` |
+| Find a session | Outside a session | Closes the menu and opens the [Sessions screen](#sessions-screen) |
 | Join with a code | Outside a session | Closes the menu and opens the [code box](playing-with-a-friend.md#join-codes) |
 | Chat | During a session, with chat on | Closes the menu and opens the [chat](#session-chat) box |
 | Options | Always | Opens the settings, below |
@@ -40,7 +40,7 @@ The main page shows the rows that fit your session:
 
 Under the rows, a status line shows the F6 text and, once your friend is linked, their ping. Below it the menu shows its
 own messages, such as `Select again within 3 s to leave.`, or, while it covers the [feed](#session-chat), the newest
-notice under 8 s old (for example the result of Join a friend). If the session ends or the player leaves in the 3 s
+notice under 8 s old (for example a join that Steam refused). If the session ends or the player leaves in the 3 s
 between the two selects of Leave the session or Remove <name>, the second select runs nothing. The menu closes by itself
 when the game pauses or shows the mouse cursor for one of its own screens.
 
@@ -58,20 +58,74 @@ Under them are the status line and a sentence about the line:
 
 | Session | Session rows | Sentence |
 | --- | --- | --- |
-| None | Host a session, Join a friend, Join with a code | `The line is free. Host a session or join a friend.` |
+| None | Host a session, Find a session, Join with a code | `The line is free. Host a session or join a friend.` |
 | You host | Invite a friend (Steam), Copy my code and Remove <name> when the main page shows them, Leave the session | `Your session is open. Invite a friend from here.`, or `On the line with <name>.` while your friend is linked |
 | You joined | Leave the session | `On the line with <name>.` while you are linked, none while connecting or after a connection loss |
 | Steam not ready yet | none | none |
 
-The session rows work as on the main page: Host a session and Invite a friend close the line first, Join with a code
-opens the code box, and Leave the session and Remove <name> run on a second Select within 3 s. Co-op menu switches to
-the main page, where Chat, Options and the bug report are. Hang up, Esc and the menu key close the line. A message of
-the menu, such as `Select again within 3 s to leave.`, or a notice under 8 s old shows in place of the sentence.
+The session rows work as on the main page: Host a session and Invite a friend close the line first. Find a session opens
+the [Sessions screen](#sessions-screen) and Join with a code opens the code box. Leave the session and Remove <name> run
+on a second Select within 3 s. Co-op menu switches to the main page, where Chat, Options and the bug report are. Hang
+up, Esc and the menu key close the line. A message of the menu, such as `Select again within 3 s to leave.`, or a notice
+under 8 s old shows in place of the sentence.
 
 The booth keeps its own interaction: the game's Fast travel prompt still shows, and using the booth with the game's key
 travels and saves as it does without the mod. The line works on any save, as the menu does, and changes nothing in the
 game. Away from a booth, the menu key opens the main page as before. Each time the line opens, `UE4SS.log` names the
 booth, for example `line: booth Xion_10_EnvS_016 (Env_Camp_TeleportMachine_C) at 1.8 m`.
+
+### Sessions screen
+
+Find a session closes the menu and opens the Sessions screen, drawn with the game's own setting rows, headers and key
+hints. It lists the open online sessions of players on your version of the mod and of the game, in two tabs:
+
+- Public: the sessions hosted with Who can join set to Public.
+- Friends (the game's own word, Comrades in English): the sessions your Steam friends host with Public or Friends only.
+
+Sessions hosted with Invitation or Private never show. Full sessions do not show either. Nor do sessions of another
+protocol or game build, sessions hosted by a player you blocked on Steam or on your
+[block list](playing-with-a-friend.md#block-list), or your own. Steam gives at most 50 rows, sorted by ping, best
+first, rows with no ping last.
+
+Each row shows the host's Steam name, then the region, the players (`1/2`) and the ping. Eight rows show at once and
+the list scrolls with the focus. The right pane shows the focused row: the host's name, the region, the travel camp
+nearest the host, the players and ping, the [session rules](settings.md) the host has on (shared enemies, shared
+bosses with the boss HP scale, shared world, shared quests, the revive), `Steam friend` when the host is one, then the
+version. The bottom left names your own protocol and game build, which a session must share to show. A region shows
+in the game's words for the story regions; another map shows its short name, such as `f01`.
+
+The screen asks Steam for a search when it opens, when you change tabs and on Refresh. One search runs at a time, at
+least 5 s after the last one, never by itself. Refresh while a search runs stops it; its key hint then reads Cancel. The
+line under the rows says what the search is doing: the game's `Searching for team members`, `No open session.`, `The
+search failed. Refresh to try again.`, `Press Refresh to search.` (the other tab was searched last) or `You can search
+again in <n> s.`
+
+Select on a row asks to join that session at once and closes the screen. A Steam friend of the host gets in at once,
+unless the host set Friends join without asking to Off. Anyone else waits until the host accepts or denies them, as
+with a [join code](playing-with-a-friend.md#join-codes).
+
+| Key | Controller | On the Sessions screen |
+| --- | --- | --- |
+| Up arrow, W or Z; down arrow or S | D-pad or left stick, up or down | Move |
+| Q (A on an AZERTY keyboard), E | LB, RB | Public or Friends tab |
+| R | Y | Refresh, or stop the search that runs |
+| Enter or Space | A | Ask to join the focused session |
+| Esc, F5 | B, View held 1 s | Close |
+
+The row you move the mouse onto takes the focus, a left click on a row asks to join it and a left click on a tab opens
+that tab. A right click closes the screen. The screen closes by itself outside a world, when the game pauses or
+shows the mouse cursor for one of its own screens, when the UI turns off and once you are in a lobby. `coop ui reset`
+and the [focus watchdog](#focus-watchdog) close it too. Its words follow the menu's language; the game's own words
+(Comrades, the search line, Cancel, the regions and camps) come from the game in its text language. With
+`ui_language=english` the screen shows SBO's English words in their place: Friends only, `Searching…`, Cancel and the
+maps' short names, with no camp.
+
+If one of the game's widgets cannot be made, the screen draws the same rows, headers and hints with the menu's own
+parts. `UE4SS.log` then says `[StellarCoop][UI] sessions: part <class>: <why>; left out until the mod reloads` once.
+It also says `[StellarCoop][UI] sessions: open public` (or `friends`), `sessions: ask to join lobby <id>` and
+`sessions: closed`. Each search shows as `[StellarCoop] OK: asked the native part: list public`. The console's
+`coop list` and `coop join <row>` read the same list ([Keys and commands](usage.md)). The Sessions screen has not been
+tested in game yet.
 
 ### Controller
 
