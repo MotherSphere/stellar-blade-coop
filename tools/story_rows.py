@@ -110,8 +110,8 @@ def scenes(t, quest):
 
 
 def ambiguity(entries):
-    """(paths with two rows or more equal in priority and FinishEvents, paths where such rows also share a zone, rows
-    after the first of such a class that differ from it in AddEvents, condition or quest flag), over scenes()."""
+    """(paths with two rows or more equal in priority and FinishEvents, paths where such rows also share a zone, the
+    classes with two rows or more, keyed by (path, priority, FinishEvents)), over scenes()."""
     classes = {}
     for s in entries:
         classes.setdefault((s['path'], s['priority'], s['finish']), []).append(s)

@@ -35,8 +35,9 @@ struct Scene {
 struct Trip {
   const char *row;      // a ZoneEventTable PlayerWarp or ChangeZone row
   const char *target;   // "<TargetWorld> <camp or spawn point>", or the zone a ChangeZone row changes to
-  const char *starters; // what starts it in the tables: t a theater's end, e another zone event, z a zone trigger, w a
-                        // world transition, q a quest, a a zone's own events, v an env state; "g" none of them
+  const char *starters; // what starts it in the tables: t a theater row's FinishEvents or AddEvents, e another zone
+                        // event, z a zone trigger, w a world transition, q a quest, a a zone's own events, v an env
+                        // state; "g" none of them
 };
 
 // kScenes sorted by path byte by byte (all paths are ASCII), in table order within a path; kTrips sorted by row.
