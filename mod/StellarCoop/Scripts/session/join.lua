@@ -9,8 +9,8 @@
 -- like and stays. Enter on an empty box closes it, Esc cancels. The box closes by itself outside a world, when the game
 -- pauses or shows the mouse cursor, when a session starts and when the kit turns off.
 -- The host's question: a player asks to join (link.pending: not her Steam friend, or any player with friends_ask=on).
--- SB's popup says "<name> wants to join" with SB's Accept and Decline (UI_Request_Accept, UI_CollectPersonalInfo_Refuse)
--- and the seconds left, Decline focused. The joiner's wait (link.wait): SB's popup with one Close button says "Waiting
+-- SB's popup says "<name> wants to join" with SB's Accept and Decline (UI_Request_Accept,
+-- UI_CollectPersonalInfo_Refuse) and the seconds left, Decline focused. The joiner's wait (link.wait): SB's popup with one Close button says "Waiting
 -- for <host>'s answer" and the seconds left; Close leaves the host's lobby. Either opens in a world only, not while the
 -- game is paused or shows the mouse cursor nor while the chat box is open (it waits, hidden), closes the co-op menu,
 -- plays SB's popup cues (the game's alert when a player first asks) and holds the game's input while open: up and down
@@ -263,7 +263,9 @@ function Join.ask(o)
         if pop then
             local rec=pop.rec
             pop=nil
-            P.call(rec,'popup '..how,function(w) w:PlayAnimation(how=='accept' and w.Accept or w.close,0,1,0,1,false) end)
+            P.call(rec,'popup '..how,function(w)
+                w:PlayAnimation(how=='accept' and w.Accept or w.close,0,1,0,1,false)
+            end)
             if leaving then kit.drop(leaving.rec) end
             leaving={rec=rec,at=os.clock()+GONE}
             kit.refocus()
