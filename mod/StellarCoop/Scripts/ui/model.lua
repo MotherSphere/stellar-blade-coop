@@ -106,8 +106,11 @@ for _,row in ipairs(KEYS) do DEFAULT[row.key]=row.default end
 -- Every setting's value from the file's text (setting name to value), as the mod takes it (link.parse_settings: the
 -- last line it takes, the menu key's migration, the defaults for two actions on one key); a setting it does not read
 -- yet, the model's default.
-function M.read(text)
-    local values,s={},Link.parse_settings(text)
+function M.read(text) return M.values(Link.parse_settings(text)) end
+-- The same from settings as link.parse_settings gives them (main.lua's, the ones in effect): a key by its name, on and
+-- off for a switch, a number as text.
+function M.values(s)
+    local values={}
     for _,rows in ipairs({M.OPTIONS,KEYS}) do
         for _,row in ipairs(rows) do
             local v=row.key and s[row.key]
@@ -120,6 +123,34 @@ function M.read(text)
         end
     end
     return values
+end
+-- A setting row's value in w's words (a ui/text.lua table): a choice's word (<key>_<value> first: aggro_game), the
+-- longest pause in minutes or seconds, the scales and the menu size in percent, any other number as it is.
+function M.shown(w,row,v)
+    if row.values then return w.value[row.key..'_'..v] or w.value[v] or v end
+    local n=tonumber(v)
+    if row.key=='photo_freeze_max' then
+        return n==0 and w.no_limit or (n%60==0 and w.minutes:format(n//60) or w.seconds:format(n))
+    end
+    if row.key=='enemy_hp_scale' or row.key=='enemy_balance_scale' or row.key=='boss_hp_scale' then -- 1.35: 135 %.
+        return w.percent:format(math.floor(n*100+0.5))
+    end
+    return row.key=='ui_scale' and w.percent:format(n) or v
+end
+-- A setting row's value one step (dir +1 or -1) from value: a choice's next, wrapping; a range's, held at its ends; nil
+-- when it stays.
+function M.step(row,value,dir)
+    local new
+    if row.values then
+        local at=1
+        for i,v in ipairs(row.values) do if v==value then at=i end end
+        new=row.values[(at-1+dir)%#row.values+1]
+    else
+        local n=math.min(row.max,tonumber(value)+dir*row.step)
+        if n<row.min then n=row.zero and 0 or row.min end -- zero: 0 is a value too (no limit), below min.
+        new=tostring(math.tointeger(n) or n)
+    end
+    if new~=value then return new end
 end
 -- The file's text with key set to value (settings_file.set), or nil and why. The first menu_key written into a file
 -- with none also turns host_key off there: the menu held host_key's key (link.parse_settings), which must not host
@@ -202,17 +233,8 @@ function M.new(start)
     function self.change(ctx,values,dir)
         local row=self.current(ctx)
         if not row.key or row.bind then return nil end
-        local value,new=values[row.key],nil
-        if row.values then
-            local at=1
-            for i,v in ipairs(row.values) do if v==value then at=i end end
-            new=row.values[(at-1+dir)%#row.values+1]
-        else
-            local n=math.min(row.max,tonumber(value)+dir*row.step)
-            if n<row.min then n=row.zero and 0 or row.min end -- zero: 0 is a value too (no limit), below min.
-            new=tostring(math.tointeger(n) or n)
-        end
-        if new==value then return nil end
+        local new=M.step(row,values[row.key],dir)
+        if not new then return nil end
         return 'set',row.key,new
     end
     -- Select (now in seconds): the row's id for the caller ('host', 'leave', 'invite', 'copy', 'remove', 'find',

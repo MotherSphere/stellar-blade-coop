@@ -81,15 +81,7 @@ function Menu.new(o)
     local function value(row)
         local v=values[row.key]
         if row.bind then return capturing==row.key and words.press or v end
-        if row.values then return words.value[row.key..'_'..v] or words.value[v] or v end -- aggro_game before game.
-        local n=tonumber(v)
-        if row.key=='photo_freeze_max' then
-            return n==0 and words.no_limit or (n%60==0 and words.minutes:format(n//60) or words.seconds:format(n))
-        end
-        if row.key=='enemy_hp_scale' or row.key=='enemy_balance_scale' or row.key=='boss_hp_scale' then -- 1.35: 135 %.
-            return words.percent:format(math.floor(n*100+0.5))
-        end
-        return row.key=='ui_scale' and words.percent:format(n) or v
+        return M.shown(words,row,v)
     end
     -- The page as it is now, scrolled to keep the cursor's row and the ones above and below it in view (the mouse on
     -- the first or last slot scrolls by one).
