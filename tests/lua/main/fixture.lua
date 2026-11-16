@@ -761,7 +761,8 @@ package.loaded['session.chat']={new=function(lines,on)
         enable=function() end,lines=function() return chat_feed or {} end,take=function() return table.remove(chat_out,1) end}
 end,view=Chat.view,clean=Chat.clean,wrap=Chat.wrap}
 package.loaded.version='v9-test'
-USAGE='Use: coop puppet | host [public|friends|invitation|closed] | invite | join [lobby id|code] | copy | '
+USAGE='Use: coop puppet | host [public|friends|invitation|closed] | invite | list [public|friends] | '
+    ..'join [lobby id|code|row] | copy | '
     ..'allow|deny|remove|block <SteamID> | '
     ..'unblock <SteamID>|all | blocked | leave | '
     ..'match search|create <mode>|cancel|end|join <code>|leave | mute|unmute <SteamID> | '

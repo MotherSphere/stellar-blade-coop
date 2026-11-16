@@ -5,8 +5,8 @@
 -- by the native part from a table and poses that come back to you: a linked friend's over Steam, yours through an
 -- in-process loopback (coop loopback <delay ms> <jitter ms> <loss %> | off), or a recording of yours (coop record
 -- [off], coop replay [off]), in the outfit it was captured in (coop basesuit: on the base suit instead; coop look: its
--- cloth, dyes or effects on or off until the mod reloads); the Steam link between two players (coop host, invite, join,
--- leave, status, report, copy, allow, deny, remove; the co-op menu on F5, whose rows host, invite, join, leave and
+-- cloth, dyes or effects on or off until the mod reloads); the Steam link between two players (coop host, invite, list,
+-- join, leave, status, report, copy, allow, deny, remove; the co-op menu on F5, whose rows host, invite, join, leave and
 -- change the settings (ui/menu.lua), within 3 m of a camp phone booth the co-op line instead (session/booth.lua),
 -- status and leave on F6 and F8, unless coop-settings.txt says otherwise; join codes and the host's question on a
 -- player who is not her Steam friend: session/join.lua), the session chat on Enter, alone in the SBO lobby too
@@ -238,7 +238,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host [public|friends|invitation|closed] | invite | join [lobby id|code] | copy | allow|deny|remove|block <SteamID> | unblock <SteamID>|all | blocked | leave | match search|create <mode>|cancel|end|join <code>|leave | mute|unmute <SteamID> | status | report | mark [text] | where | near [metres] | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | emote [list|<name>|off] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | challenge [<name>|stop] | recruiter [off] | gift [send <item> [count]|take [n]] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | world on|off|status | keys reset [<name>|all] | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
+local USAGE='Use: coop puppet | host [public|friends|invitation|closed] | invite | list [public|friends] | join [lobby id|code|row] | copy | allow|deny|remove|block <SteamID> | unblock <SteamID>|all | blocked | leave | match search|create <mode>|cancel|end|join <code>|leave | mute|unmute <SteamID> | status | report | mark [text] | where | near [metres] | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | emote [list|<name>|off] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | challenge [<name>|stop] | recruiter [off] | gift [send <item> [count]|take [n]] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | world on|off|status | keys reset [<name>|all] | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
 local function ask(line)
     return function()
         if not link then return false,'the Steam link needs the native part' end

@@ -1,9 +1,9 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The session's console commands: coop host (as who_can_join says, or by its word), invite, join, leave, status,
--- report, copy, mark, allow, deny and remove, block, unblock and blocked, coop match, mute and unmute, with coop revive
--- test, coop travel, coop saves and coop sbo.
+-- The session's console commands: coop host (as who_can_join says, or by its word), invite, join, list, leave,
+-- status, report, copy, mark, allow, deny and remove, block, unblock and blocked, coop match, mute and unmute, with coop
+-- revive test, coop travel, coop saves and coop sbo.
 -- main.lua builds them with new(o) at each Lua load and merges them into its command table, whose run() logs each
 -- result and, after coop off, refuses all but status and report. o: main.lua's link, settings, puppet, ask (a line for
 -- the native part), coop_slot and sbo, and group(), travel(), create() and lobby (ui/lobby.lua's), read at each call:
@@ -103,13 +103,40 @@ function Session.new(o)
         if not n then return false,'no Steam link status yet' end
         return true,n..(n=='1' and ' player is' or ' players are')..' on your block list'
     end
-    -- A lobby id, or a join code as the native part takes it.
+    -- A lobby id, a join code as the native part takes it, or a row of the session list (1 to 99: a Steam lobby id is
+    -- far bigger).
     function self.join(lobby)
         if lobby and link then
-            lobby=link.valid_lobby(lobby) and lobby or link.join_code(lobby)
-            if not lobby then return false,'a lobby id is digits only, a join code 7 letters and digits' end
+            local n=lobby:match('^%d%d?$') and tonumber(lobby)
+            if n then
+                local _,rows=link.list()
+                if not rows[n] then return false,'the session list has no row '..lobby..': coop list shows it' end
+                lobby=rows[n].lobby
+            else
+                lobby=link.valid_lobby(lobby) and lobby or link.join_code(lobby)
+                if not lobby then return false,'a lobby id is digits only, a join code 7 letters and digits' end
+            end
         end
         return ask(lobby and 'join '..lobby or 'join')()
+    end
+    -- The session list by hand: coop list public or coop list friends asks the native part for a search (one at a
+    -- time, 5 s apart at least, none in a lobby: it says why it refuses); coop list alone shows the last list's rows,
+    -- numbered for coop join <row>, or searches the Public sessions when there is none.
+    function self.list(tab,extra)
+        if extra~=nil or tab~=nil and tab~='public' and tab~='friends' then
+            return false,'Use: coop list [public|friends]'
+        end
+        local search,rows
+        if link then search,rows=link.list() end
+        if tab or not search then return ask('list '..(tab or 'public'))() end
+        local out={}
+        for i,r in ipairs(rows) do
+            out[i]=string.format('%d. %s %s %s %s%s%s%s',i,r.name~='' and r.name or '?',r.players,
+                r.ping and r.ping..' ms' or '- ms',r.zone or '-',r.camp and ' '..r.camp or '',
+                r.rules and ' rules '..r.rules or '',r.pal and ' (Steam friend)' or '')
+        end
+        return true,string.format('list %s %s, %d row%s%s',search.tab,search.state,#out,#out==1 and '' or 's',
+            #out>0 and ': '..table.concat(out,' | ') or '')
     end
     -- Matches: search <mode> (join an open public match lobby of that mode, or host one), create <mode> (a private
     -- match lobby joined with its code), cancel (the search), end (the host's round in play), join <code> and leave
