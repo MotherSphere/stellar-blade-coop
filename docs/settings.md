@@ -29,10 +29,13 @@ race_key=F9
 # at speed drifts too, with no key. The defaults are R2 on a pad (it still picks up items in reach, as outside a race)
 # and B on the keyboard, which Stellar Blade leaves free.
 drift_keys=Gamepad_RightTrigger B
-# Who can join a session you host: friends (your Steam friends can join from their friends list), code (anyone you
-# give your join code to; the co-op menu shows and copies it) or private (only the friends you invite). A player who
-# is not your Steam friend waits until you accept or deny them.
-who_can_join=friends
+# Who can join a session you host: public (any player of your version, from Find a session), friends (your Steam
+# friends, from their friends list or the Friends tab of Find a session), invitation (the friends you invite or anyone
+# you give your join code to; the co-op menu shows and copies it) or closed (nobody; Private in the co-op menu). A
+# player who is not your Steam friend waits until you accept or deny them. friends_ask, with public or invitation: off
+# (your Steam friends join at once) or on (they wait for your answer too).
+who_can_join=public
+friends_ask=off
 # Co-op saves, the co-op copies of your saves (StellarBladeCoop00.sav to 04.sav): ask (a question on the title
 # screen), always (the copies at every title, no question) or off (no copies; the manual co-op slot that
 # StellarCoopSlot.txt names is then the only co-op save).
@@ -175,7 +178,8 @@ sbo_lobby=on
 | `follow_key` | same as `menu_key`, or `none`: as the guest, travel to the host ([Following the host](playing-with-a-friend.md#following-the-host)) | `F7` |
 | `race_key` | same, or `none`: a key that sets a [Doro race](doro-races.md) checkpoint while you record a track | `F9` |
 | `drift_keys` | up to 4 Unreal key names separated by spaces, or `none`: the keys held to [drift](doro-races.md#driving) in a race | `Gamepad_RightTrigger B` |
-| `who_can_join` | `friends`, `code` or `private`: who can join a session you host (`code`: anyone with your [join code](playing-with-a-friend.md#join-codes); `private`: only the friends you invite) | `friends` |
+| `who_can_join` | `public`, `friends`, `invitation` or `closed`: who can join an online session you host. `public`: any player of your version, who finds it in the session list. `friends`: your Steam friends. `invitation`: the friends you invite or anyone with your [join code](playing-with-a-friend.md#join-codes). `closed`: nobody (Private in the co-op menu). The words `code` and `private` from 0.11 and older read as `invitation`; the file keeps them | `public` |
+| `friends_ask` | `on` or `off`, with `public` or `invitation`: `on` makes your Steam friends wait for your answer like other players. The co-op menu shows it as Friends join without asking, On while `friends_ask=off` | `off` |
 | `auto_coop_save` | `ask`, `always` or `off`: the [co-op saves](playing-with-a-friend.md#co-op-saves) at the title | `ask` |
 | `name_tag` | `on` or `off`: your friend's Steam name above their ghost | `on` |
 | `send_rate` | `10` to `60` poses sent a second at most (a link that cannot keep up lowers it to 30 or 20 for a while: [link health](internals/steam-link.md#link-health-in-the-log)) | `60` |

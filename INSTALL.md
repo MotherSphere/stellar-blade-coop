@@ -150,9 +150,13 @@ changes one line of the file at a time, and keeps the file as it was before its 
   default); a key set there hosts at once, without the menu. `race_key` (`F9`) takes the same keys, or `none`. If two
   actions share one key, all five keys go back to their defaults. A file written before the menu existed has no
   `menu_key` line: the menu then opens on that file's `host_key`, and no key hosts at once.
-- `who_can_join`: `friends` (the default: your Steam friends can join from their friends list), `code` (anyone with
-  your join code can join; a player who is not your Steam friend waits for your answer) or `private` (only the
-  friends you invite can join). It counts for the next session you host.
+- `who_can_join`: `public` (the default: any player of your version finds your online session in the session list),
+  `friends` (your Steam friends can join from their friends list), `invitation` (the friends you invite or anyone
+  with your join code) or `closed` (Private in the menu: nobody can join). A player who is not your Steam friend waits
+  for your answer. The words `code` and `private` from 0.11 and older read as `invitation`. It counts for the next
+  session you host.
+- `friends_ask`: `off` (the default: your Steam friends join at once) or `on` (they wait for your answer too), with
+  `public` or `invitation`.
 - `name_tag`: `on` or `off`, your friend's Steam name above their ghost. While the partner marker shows their name
   (`partner_bar=on`, the default), the name tag is hidden.
 - `send_rate`: poses sent to your friend per second, from 10 to 60 (60 by default), at most one per game frame. The

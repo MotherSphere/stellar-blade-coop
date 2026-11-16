@@ -15,8 +15,8 @@ build/host/pose_codec_test
 
 ## Lua tests
 
-The Lua tests (`core/`: `actors_of`, `class_at`, `keybind`, `link`, `mask`, `pak_gate`, `settings_file`, `ue4ss_settings`,
-`unreal`; `cut/`: `chainspin`, `devmenu`, `emote`, `enemy`, `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`,
+The Lua tests (`commands/`: `session`; `core/`: `actors_of`, `class_at`, `keybind`, `link`, `mask`, `pak_gate`,
+`settings_file`, `ue4ss_settings`, `unreal`; `cut/`: `chainspin`, `devmenu`, `emote`, `enemy`, `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`,
 `mailbox`, `scene`, `tendril`, `wear`; `main/`: `boot`, `dlc`, `fight`, `fight_notices`, `guide`, `idle`, `input`, `match`,
 `menu`, `quests`, `sbo`, `session_ui`, `settings`, `story`, `world`; `matrix13/quest/`: `on_time`, `zone_talks`;
 `matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`;
@@ -31,7 +31,21 @@ fails the test. The `main/` tests load
 - `core/link_test` also covers the status's `uidev=`, `me=` and `world=` lines and the `owner=`, `room=` and `hall=`
   fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty), and never
   from a player's name, and the `shared_world` setting. It also reads the `dlcs=` line with the `dlc_missing=` and
-  `dlc_extra=` lines after it;
+  `dlc_extra=` lines after it, the session list's `list=` line with its `session=` rows (a row only after a `list=`
+  line, `-` read as none) and a joiner's `wait=` line, logged once a wait. It covers `who_can_join` (`public` by
+  default, the older `code` and `private` read as `invitation`) and `friends_ask`, the `where` and `rules` requests
+  asked only on a change and never with a word the native part refuses. The rules word is built from the settings and
+  read back in that shape only;
+- `commands/session_test` covers `coop host` with each of the four words (`ask` added under `public` and `invitation`
+  with `friends_ask=on`), `coop host` alone (the Create a session screen when it opens, else `who_can_join`),
+  `coop list` (a search by tab; alone, the last list numbered or a Public search) and `coop join <row>`;
+- `core/unreal_test` covers `game_text`: nothing asked while the string table is not loaded or its id is no name, nil
+  for a missing key, an empty text or an error;
+- `ui/model_test` covers the four Who can join values and the Friends join without asking row, shown under Public and
+  Invitation only;
+- `session/travel_test` covers the host's row in the session list: the rules word at each change, the map and nearest
+  camp at once on each map and once a minute at most, from the follow's spawn point read (read again a minute later
+  when it found no camp), nothing in a load, as a guest or in a match lobby. A refusal is logged once;
 - `core/mask_test` checks the masking of `UE4SS.log` on the cases `link_protocol_test` checks for the native part's;
 - `core/pak_gate_test` finds the hall lobby pak `zSBO_Lobby` in `~mods`, else `LogicMods`, over fake files, checks its
   version (the `.utoc` size and the `.ucas` size from the `.utoc`'s compression blocks, joined by `_`) and that each

@@ -40,11 +40,15 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 
 | Command | What it does |
 | --- | --- |
-| `coop host` | Host a session (2 players, friends-only; invited only with `who_can_join=private`) and open the Steam invite dialog (the menu's Host a session row); with `who_can_join=code`, host with a [join code](playing-with-a-friend.md#join-codes) and no dialog |
+| `coop host` | Host an online session of 2 players as `who_can_join` and `friends_ask` say (the menu's Host a session row): a Public or Friends only session, an Invitation session with a [join code](playing-with-a-friend.md#join-codes), or a Private one nobody can join |
+| `coop host public\|friends\|invitation\|closed` | Host at once with that word in place of `who_can_join`, `friends_ask` still applying |
 | `coop invite` | Open the Steam invite dialog again while you are in a lobby |
 | `coop join` | Join the first Steam friend found in a Stellar Blade lobby |
 | `coop join <lobby id>` | Join that lobby (digits only) |
 | `coop join <code>` | Join the lobby of that [join code](playing-with-a-friend.md#join-codes), in capitals or not, with or without the dash |
+| `coop list public\|friends` | Search the session list's Public online sessions, or your Steam friends' ones |
+| `coop list` | Print the last session list's rows, numbered; with no list yet, search the Public sessions |
+| `coop join <row>` | Join the online session of that row of `coop list` (1 to 99) |
 | `coop copy` | Put your join code on the clipboard while you host with one (the menu's Copy my code row) |
 | `coop allow <SteamID>` / `coop deny <SteamID>` | Let in or refuse the player who is not your Steam friend and waits for your answer |
 | `coop remove <SteamID>` | Remove a player from the session you host and put them on your [block list](playing-with-a-friend.md#block-list): they cannot come back to any game you host |
@@ -133,7 +137,16 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 ### Session commands
 
 - `coop host` works like the menu's Host a session row. While you host, it opens the invite dialog again, as
-  `coop invite` does. A guest's host request is refused.
+  `coop invite` does. A guest's host request is refused. With a word (`coop host closed`) it hosts at once with that
+  word in place of `who_can_join`; any other word is refused. Under `public` and `invitation`, `friends_ask=on` makes
+  your Steam friends wait for your answer too.
+- `coop list public` and `coop list friends` start a search, one at a time and 5 s apart at least. The search is
+  refused in a lobby and while a match search runs, with the reason in the log. The rows come a few seconds later.
+  `coop list` then prints them on one line, best ping first:
+  `list public done, 2 rows: 1. <host> 1/2 45 ms b07 WLB10_Camp_01 rules ebwqr200 (Steam friend) | 2. ...`. The
+  rules word has a letter for each session rule on (e shared enemies, b bosses, w shared world, s shared story, q
+  shared quests, r revive), then the boss HP scale in percent. `coop join 1` joins the first row: a player who is
+  not the host's Steam friend then waits for the host's answer.
 - `coop join` and `coop join <lobby id>` do not wait for a save to load, unlike an accepted invite. Without an id it
   joins the first friend found in a Stellar Blade lobby; the log says `no friend is in a Stellar Blade lobby` when
   there is none. A lobby id is digits only, and any other text is taken for a join code.
