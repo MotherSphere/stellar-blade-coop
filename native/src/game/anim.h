@@ -109,8 +109,8 @@ template <class Live> bool alive(Live &&live, uint64_t ch, int32_t index, int32_
 // as the montage fallback is, -1 for the blend of SB's stop at input (its own rule, off: byte 15 is 0), a loop with
 // count -1 (forever) or none, priority 0 as the flight start plays its clips. The bike's ride is a loop with foot_ik 2,
 // the by-path call's int 30: PlayCustomAnim (its 32nd argument, kept at the slot's +0x68) then turns her foot IK off
-// over the blend-in through FUN_1421119c0 under the key "ASBCharacter::PlayCustomAnim_29770", and SB's stop turns it
-// back on. 0 leaves her foot IK alone.
+// over the blend-in through FUN_1421119c0 under the key "ASBCharacter::PlayCustomAnim_29770". SB's stop turns it back
+// on. 0 leaves her foot IK alone.
 struct Play {
   float start = 0, end = -1, rate = 1, blend_in = 0.25f, blend_out = 0.25f, input_blend = -1, priority = 0;
   uint8_t loop = 0;

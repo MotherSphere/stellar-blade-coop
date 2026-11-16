@@ -675,7 +675,7 @@ inline uint64_t code_lobby(std::string_view text) {
 // by their fixed paths, so no console argument reaches an address, and the native part trusts none before it checked
 // the table's vtable and row size (lion/rows.h). For coop emote (cut/emote.lua) "anim play <id> <path> once|loop" (one
 // of EVE's clips on her through SB's custom animation call, glue/tick/anim_game.inc: an id from 1 to 2^32-1, a path
-// game/anim.h's path_ok takes) and "anim stop" (ours, while it plays), and for the bike (bike/ride.lua) "anim play <id>
+// game/anim.h's path_ok takes) and "anim stop" (ours, while it plays). For the bike (bike/ride.lua): "anim play <id>
 // <path> ride" (a loop with her foot IK off) and "bike load <path>" (the bike's mesh and that riding clip preloaded,
 // game/bike.h's clip_ok), "bike free" (the preload released), "bike gate on" and "bike gate off" (SB's actions off
 // while she rides, then back); for coop shortcut "shortcut list" (the cut
