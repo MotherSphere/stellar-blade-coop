@@ -756,6 +756,9 @@ int main() {
   assert(an.command == Command::anim && an.id == 4294967295u && !an.loop);
   an = parse_request("anim stop\n");
   assert(an.command == Command::anim && an.off && an.path.empty());
+  an = parse_request("anim play 9 " + clip + " ride\r\n"); // The bike's: a loop with her foot IK off.
+  assert(an.command == Command::anim && an.id == 9 && an.loop && an.ride);
+  assert(!parse_request("anim play 9 " + clip + " loop").ride && !parse_request("anim play 9 " + clip + " once").ride);
   for (const std::string &bad :
        {"anim play 0 " + clip + " once", "anim play 4294967296 " + clip + " once", "anim play 1 " + clip,
         "anim play 1 " + clip + " twice", "anim play 1 " + clip + " once x", "anim play x " + clip + " once",

@@ -8,7 +8,8 @@ namespace {
 // ---- coop emote's clips on EVE (game/anim.h), the game thread's calls ----
 // SB's by-path custom animation play FUN_1420b7800, in the shape the MovingTarget animation calls it (0x142094ff3):
 // the character, slot 0, the path (a const FString&), the FGuid out, a zero FGuid, the scalars of anim::Play, bytes 15
-// to 17 (stop at input, 16, hold at the end) 0, five empty FStrings with 0 weights between them, 0, 0, 0.0, 0, 0. And
+// to 17 (stop at input, 16, hold at the end) 0, five empty FStrings with 0 weights between them, 0, 0, 0.0, the foot-IK
+// type (anim::Play's foot_ik: 2 for the bike's ride, else 0), 0. And
 // SB's stop FUN_1420b23f0(character, slot, blend out, the clip's FName, force 1). Our EVE is the pawn of the player
 // controller SB's getter gives (kController, the photo pause's), checked to be a live ASBCharacter (fight/pilot.h's
 // live and is_a, through anim::eve); every read of her goes through safe_read. The watch reads slot 0 every
@@ -30,7 +31,7 @@ using StopAnim = void (*)(void *character, int32_t slot, float blend_out, uint64
 // The worker's ask (a play or a stop) and its number, taken by the game thread with try_lock only.
 struct AnimAsk {
   uint32_t id = 0;
-  bool stop = false, loop = false;
+  bool stop = false, loop = false, ride = false;
   anim::Path path;
 };
 std::mutex anim_m;
@@ -97,11 +98,11 @@ __declspec(noinline) void anim_play(uint64_t now) {
   FStringArg empty[5] = {};
   int32_t out[4] = {};
   const int32_t zero[4] = {};
-  const anim::Play p = anim::play(anim_now.loop);
+  const anim::Play p = anim::play(anim_now.loop, anim_now.ride);
   const int32_t ret = game_function<PlayByPath>(anim::kPlayByPath)(
       reinterpret_cast<void *>(ch), 0, &path, out, zero, p.start, p.end, p.rate, p.blend_in, p.blend_out,
       p.input_blend, p.loop, p.loops, p.priority, 0, 0, 0, &empty[0], 0.f, &empty[1], 0.f, &empty[2], 0.f, &empty[3],
-      0, &empty[4], 0, 0, 0.f, 0, 0);
+      0, &empty[4], 0, 0, 0.f, p.foot_ik, 0);
   uint64_t name = 0;
   anim_read(slots + anim::kSlotName, &name, sizeof name);
   anim_ch = ch, anim_index = index, anim_serial = serial;

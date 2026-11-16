@@ -674,7 +674,8 @@ inline uint64_t code_lobby(std::string_view text) {
 // by their fixed paths, so no console argument reaches an address, and the native part trusts none before it checked
 // the table's vtable and row size (lion/rows.h). For coop emote (cut/emote.lua) "anim play <id> <path> once|loop" (one
 // of EVE's clips on her through SB's custom animation call, glue/tick/anim_game.inc: an id from 1 to 2^32-1, a path
-// game/anim.h's path_ok takes) and "anim stop" (ours, while it plays); for coop shortcut "shortcut list" (the cut
+// game/anim.h's path_ok takes) and "anim stop" (ours, while it plays), and for the bike (bike/ride.lua) "anim play <id>
+// <path> ride" (a loop with her foot IK off); for coop shortcut "shortcut list" (the cut
 // Load Shortcut menu's saves, read through the game's file manager on the game thread and named in the log,
 // save/shortcut.h) and "shortcut load <map> <1-4>" (one of them cleaned and written as co-op slot 5's copy,
 // save/shortcut_load.h; map one of kShortcutMaps; Lua sends it only with shortcut_load=on, typed twice). For the
@@ -801,9 +802,9 @@ struct Request {
   std::string text;             // mark: its text, or empty. gift: the payload. guardtext: what follows the word.
   std::array<uint64_t, kLionTableCount> tables{}; // rows: the tables' addresses, in kLionTables' order.
   uint8_t batch = 0;                               // rows: which batch, its word's index in kRowWords.
-  uint32_t id = 0;              // anim play: its id, its clip's path, and whether it loops.
-  std::string path;
-  bool loop = false;
+  uint32_t id = 0;              // anim play: its id, its clip's path, whether it loops and whether it is the bike's
+  std::string path;             // ride (a loop with her foot IK off).
+  bool loop = false, ride = false;
   MatchAsk match = MatchAsk::search; // match: what.
   std::string mode, room, hall; // match search, match create: the mode's word, the lobby map's, the lobby pak's.
   SboAsk sbo = SboAsk::on;      // sbo: what.
@@ -1103,8 +1104,9 @@ inline Request parse_request(std::string text) {
     if (text.size() == 9)
       r.command = Command::anim, r.off = true;
     else if (split(text, w, 5, nullptr) && number(w[2], id) && id && id <= UINT32_MAX && anim::path_ok(w[3]) &&
-             (w[4] == "once" || w[4] == "loop"))
-      r.command = Command::anim, r.id = static_cast<uint32_t>(id), r.path = w[3], r.loop = w[4] == "loop";
+             (w[4] == "once" || w[4] == "loop" || w[4] == "ride"))
+      r.command = Command::anim, r.id = static_cast<uint32_t>(id), r.path = w[3], r.loop = w[4] != "once",
+      r.ride = w[4] == "ride";
   } else if (text.rfind("gift ", 0) == 0 && gift_ok(text.substr(5))) {
     r.command = Command::gift, r.text = text.substr(5);
   } else if (text.rfind("guardtext ", 0) == 0) {

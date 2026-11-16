@@ -11,7 +11,7 @@ uint64_t anim_logged = 0;
 bool anim_fault_logged = false;
 } // namespace
 
-// Lua's anim play <id> <path> once|loop, or anim stop: for the game thread's next frame. An ask it has not taken yet is
+// Lua's anim play <id> <path> once|loop|ride, or anim stop: for the game thread's next frame. An ask it has not taken yet is
 // replaced. Refused off the pinned build, after coop off and after the latch.
 std::string ask_anim(const coop::Request &request) {
   if (!game_pinned || blocked || anim_faulted)
@@ -19,7 +19,7 @@ std::string ask_anim(const coop::Request &request) {
                                : anim_faulted ? std::string("native clips stopped for this run (a fault)")
                                               : engine_reason);
   AnimAsk ask;
-  ask.id = request.id, ask.stop = request.off, ask.loop = request.loop;
+  ask.id = request.id, ask.stop = request.off, ask.loop = request.loop, ask.ride = request.ride;
   if (!ask.stop)
     ask.path = anim::widen(request.path);
   {
@@ -28,7 +28,8 @@ std::string ask_anim(const coop::Request &request) {
     anim_ask = ask;
   }
   return ask.stop ? std::string("anim stop asked")
-                  : "anim " + std::to_string(ask.id) + " asked: " + request.path + (ask.loop ? " in a loop" : " once");
+                  : "anim " + std::to_string(ask.id) + " asked: " + request.path +
+                        (ask.ride ? " as the bike's ride (a loop, her foot IK off)" : ask.loop ? " in a loop" : " once");
 }
 
 // Each worker pass: a line for each change the game thread made, and its fault once with a line for the screen.
