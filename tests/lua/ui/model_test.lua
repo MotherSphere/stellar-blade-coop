@@ -165,7 +165,8 @@ assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.na
     and values.aggro=='game' and values.same_spawns=='on' and values.enemy_extra=='0' and values.bosses=='on'
     and values.boss_hp_scale=='2.0' and values.shared_quests=='on' and values.revive=='on'
     and values.follow_host=='ask' and values.follow_key=='F7' and values.collide=='on' and values.race_key=='F9'
-    and values.photo_name_tag=='on' and values.status_overlay=='compact')
+    and values.photo_name_tag=='on' and values.status_overlay=='compact' and values.bike=='on'
+    and values.bike_key=='F3')
 
 -- Values as the mod reads the file: the last line it takes, any case; a refused value leaves the default.
 values=M.read('send_rate=25\nsend_rate=99\nNAME_TAG=Off\nphoto_sync=NOTICE\nstatus_key=shift+f7\nui_scale=7\n'
@@ -206,7 +207,8 @@ assert(menu.current(NONE).key=='menu_key' and menu.rows(NONE)[1].head=='controls
 assert(menu.back()==nil and menu.page()=='main' and menu.current(NONE).id=='options')
 menu.select(NONE,0)
 -- Every setting shows, under its header.
-assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key race_key head:photo photo_sync '
+assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key race_key bike bike_key head:photo '
+    ..'photo_sync '
     ..'photo_freeze_max photo_ghost '
     ..'photo_name_tag photo_pause head:partner name_tag partner_bar partner_arrow partner_card card_details head:ghost cloth dyes '
     ..'effects collide send_rate head:session who_can_join revive cutscene_wait follow_host shared_world head:saves '
@@ -382,5 +384,13 @@ assert(action==nil and why=='clash' and other=='race_key')
 action,key,text=M.rebind(values,'race_key',K.text('F11','ALT'))
 assert(action=='set' and key=='race_key' and text=='Alt+F11')
 assert(M.read('status_key=F9\n').race_key=='none' and M.read('race_key=Shift+F9\n').race_key=='Shift+F9')
+-- The bike key (Controls): F3 by default, rebound and checked like the others; none in a file whose keys held F3. The
+-- bike's row: on or off.
+action,why,other=M.rebind(values,'leave_key','F3')
+assert(action==nil and why=='clash' and other=='bike_key')
+action,key,text=M.rebind(values,'bike_key',K.text('F2','CONTROL'))
+assert(action=='set' and key=='bike_key' and text=='Ctrl+F2')
+assert(M.read('status_key=F3\n').bike_key=='none' and M.read('bike_key=none\n').bike_key=='none')
+assert(M.read('bike=OFF\n').bike=='off' and M.read('bike=maybe\n').bike=='on')
 
 print('ui_model_test ok')

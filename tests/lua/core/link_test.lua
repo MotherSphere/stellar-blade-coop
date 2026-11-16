@@ -335,6 +335,21 @@ assert(#notes==1 and notes[1]=='settings: F9 is set for two actions: default key
     and s.leave_key.name=='F8' and s.race_key.name=='F9',notes[1])
 s,notes=Link.parse_settings('race_key=F6\n')
 assert(#notes==1 and s.status_key.name=='F6' and s.race_key.name=='F9',notes[1])
+-- The bike (bike/ride.lua): bike on unless off, bike_key F3 unless set, or none; a file from before bike_key whose own
+-- keys hold F3: bike_key has none, the player's keys stay; one that names it on a taken key: all the keys go back.
+s,notes=Link.parse_settings('')
+assert(s.bike==true and s.bike_key.key=='F3' and s.bike_key.mod==nil and s.bike_key.name=='F3')
+s,notes=Link.parse_settings('bike=OFF\nbike_key=Alt+F2\n')
+assert(#notes==0 and s.bike==false and s.bike_key.key=='F2' and s.bike_key.mod=='ALT' and s.bike_key.name=='Alt+F2')
+s,notes=Link.parse_settings('bike=yes\nbike_key=none\n')
+assert(#notes==1 and s.bike==true and notes[1]:find("'yes' is not allowed for bike (use on or off); bike stays on",1,true)
+    and s.bike_key.key==nil and s.bike_key.name=='none',notes[1])
+s,notes=Link.parse_settings('status_key=F3\n')
+assert(#notes==1 and notes[1]=='settings: F3 is status_key: bike_key has no key' and s.bike_key.name=='none'
+    and s.status_key.name=='F3',notes[1])
+s,notes=Link.parse_settings('status_key=F3\nbike_key=F3\n')
+assert(#notes==1 and notes[1]=='settings: F3 is set for two actions: default keys used' and s.status_key.name=='F6'
+    and s.bike_key.name=='F3',notes[1])
 -- drift_keys: the Unreal key names held for a drift in a Doro race, at most 4, or none; R2 and B unless set.
 s,notes=Link.parse_settings('')
 assert(#s.drift_keys==2 and s.drift_keys[1]=='Gamepad_RightTrigger' and s.drift_keys[2]=='B')
@@ -373,8 +388,8 @@ for _,refused in ipairs({{'F10','F10 opens the console'},{'Ctrl+F10','F10 opens 
     local want="settings: line 2: '"..refused[1].."' is not allowed for leave_key ("..refused[2].."); leave_key stays F8"
     assert(#notes==1 and notes[1]==want and s.leave_key.key=='F8' and s.leave_key.mod==nil,notes[1])
 end
-s,notes=Link.parse_settings('host_key=F2\nstatus_key=F3\nleave_key=F3\n')
-assert(#notes==1 and notes[1]=='settings: F3 is set for two actions: default keys used',notes[1])
+s,notes=Link.parse_settings('host_key=F2\nstatus_key=F4\nleave_key=F4\n')
+assert(#notes==1 and notes[1]=='settings: F4 is set for two actions: default keys used',notes[1])
 assert(s.menu_key.key=='F5' and s.host_key.name=='none' and s.status_key.key=='F6' and s.leave_key.key=='F8',
     'A shared key: all four go back')
 s,notes=Link.parse_settings('status_key=Alt+F7\nleave_key=Ctrl+F7\n')
@@ -409,9 +424,12 @@ assert(#notes==0 and s.menu_key.name=='F7','A UTF-8 BOM is skipped')
 local keys=0
 for name,value in Link.DEFAULT:gmatch('\n(%w+_key)=([^\n]*)') do keys=keys+1; assert(not value:upper():find('F10'),name) end
 s,notes=Link.parse_settings(Link.DEFAULT)
-assert(keys==6 and #notes==0 and s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name=='F6'
-    and s.leave_key.name=='F8' and s.follow_key.name=='F7' and s.race_key.name=='F9')
-assert(Link.DEFAULT:find('\nleave_key=F8\nfollow_key=F7\nrace_key=F9\n',1,true),'A new file names the race key')
+assert(keys==7 and #notes==0 and s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name=='F6'
+    and s.leave_key.name=='F8' and s.follow_key.name=='F7' and s.race_key.name=='F9' and s.bike_key.name=='F3')
+assert(Link.DEFAULT:find('\nleave_key=F8\nfollow_key=F7\nrace_key=F9\nbike_key=F3\n',1,true),
+    'A new file names the race key and the bike key')
+assert(s.bike==true and Link.DEFAULT:find('\ndrift_keys=Gamepad_RightTrigger B\n# The bike: on or off, on by default.',1,true)
+    and Link.DEFAULT:find('\nbike=on\n',1,true),'A new file has the bike on')
 assert(Link.DEFAULT:find('\ndrift_keys=Gamepad_RightTrigger B\n',1,true),'A new file names the drift keys')
 assert(Link.DEFAULT:find('\nmenu_key=F5\nhost_key=none\n',1,true),'A new file names the menu key, and no host key')
 -- mod_names: on by default, in a new file too; off or on as written, anything else refused.

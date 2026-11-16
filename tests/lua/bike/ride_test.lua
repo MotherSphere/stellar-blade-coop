@@ -554,7 +554,7 @@ assert(stored==nil and eve.Mesh.RelativeRotation.Roll==0)
 
 -- 12. bike=off: off the bike, the part removed, the preload released, once; on again asks the load again.
 id=mount()
-settings.bike='off'
+settings.bike=false
 R.slow()
 assert(not R.riding() and find('^bike off %(bike=off%)') and part.gone and asked[#asked]=='bike free')
 assert(last()=='bike=off: asked the native part: bike free',last())

@@ -115,7 +115,7 @@ settings_text='# mine\nname_tag=on\n'
 key('F5'); to('Options'); key('RETURN')
 assert(screen():find('^CONTROLS||disabled\nOpen this menu|F5|focus\nShow the status|F6|normal\n'
     ..'Leave the session|F8|normal\nTravel to the host|F7|normal\nSet a race checkpoint|F9|normal\n'
-    ..'PHOTO MODE||disabled\nPhoto sync|Both|normal\n'
+    ..'Bike|On|normal\nGet on or off the bike|F3|normal\nPHOTO MODE||disabled\nPhoto sync|Both|normal\n'
     ..'Longest pause|10 min|normal\n'),screen())
 to('Ponytail cloth'); local rebuilt=#rebuilds
 key('RIGHT_ARROW')

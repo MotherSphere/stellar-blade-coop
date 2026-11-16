@@ -45,6 +45,7 @@ local function reload(row) row.reload=true; return row end -- The mod takes it a
 M.OPTIONS={
     {head='controls'},
     bind('menu_key','F5'),bind('status_key','F6'),bind('leave_key','F8'),bind('follow_key','F7'),bind('race_key','F9'),
+    toggle('bike','on'),bind('bike_key','F3'), -- bike at once: bike/ride.lua reads it every 250 ms.
     {head='photo'},
     {key='photo_sync',values={'both','notice','off'},default='both'},
     -- The file's range: 0 (no limit) or 30 to 3600 s; a minute a step, shown in minutes.

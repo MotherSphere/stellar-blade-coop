@@ -109,9 +109,9 @@ local function fields(line)
 end
 
 -- o: log (the [BK] lines); ask(line) (a native request: ok and its line); status() (the native status text); store
--- (coop-bike.txt through link.store); drive (race/drive.lua's); settings (main.lua's: bike); paused() (the game paused
--- or on one of its screens); photo() ('0', '1' in photo mode, 's' in the selfie mode); frozen() (the partner's photo
--- mode holds our game); life() (link.life's {state}, or nil); armed() (race/run.lua's: a race is armed here; nil when
+-- (coop-bike.txt through link.store); drive (race/drive.lua's); settings (main.lua's: bike, false for off); paused()
+-- (the game paused or on one of its screens); photo() ('0', '1' in photo mode, 's' in the selfie mode); frozen() (the
+-- partner's photo mode holds our game); life() (link.life's {state}, or nil); armed() (race/run.lua's: a race is armed here; nil when
 -- there is none); busy() (why SBO's own state forbids a mount: the Doro look, coop emote, a hall seat, coop fly or
 -- glide, Night Operation, an SBO menu or the chat; nil when none).
 function Ride.new(o)
@@ -265,7 +265,7 @@ function Ride.new(o)
     local function mount()
         local e=her()
         local w=Ride.native(status())
-        local why=o.settings and o.settings.bike=='off' and 'the bike is off (bike=off)'
+        local why=o.settings and o.settings.bike==false and 'the bike is off (bike=off)'
             or not e and 'no EVE in the world' or blocked(e,w,true) or busy() or Ride.loaded(w.load)
         local part
         if not why then part,why=part_for(e) end
@@ -409,7 +409,7 @@ function Ride.new(o)
     -- Every 250 ms: the preload asked or released as the setting says, the part, the ride's checks. A reason to get off
     -- or an error ends the ride: false and a line for the screen.
     function self.slow()
-        local want=not (o.settings and o.settings.bike=='off')
+        local want=not (o.settings and o.settings.bike==false)
         if want~=preload then
             preload=want
             if not want then

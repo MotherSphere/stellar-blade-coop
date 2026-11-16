@@ -29,8 +29,8 @@
 -- coop-state.txt: names=0 keeps the names of our .pak mods from the friend); its shortcut_load commands/cut.lua's
 -- (coop shortcut load, a test tool with no menu row); its pvp_spike commands/fight.lua's (coop pvp, the PvP test, a
 -- test tool with no menu row; main.lua's reload ends it when off); its sbo_lobby session/sbo.lua's (the SBO lobby in
--- Xion, on by default, no menu row), which also reads sbo() here. The co-op menu (ui/menu.lua) changes the file, one
--- line at a time (D-UI4).
+-- Xion, on by default, no menu row), which also reads sbo() here; its bike and bike_key bike/ride.lua's and
+-- main.lua's (the bike). The co-op menu (ui/menu.lua) changes the file, one line at a time (D-UI4).
 local K=require('core.keybind')
 local SF=require('core.settings_file')
 local T=require('ui.text')
@@ -44,17 +44,23 @@ Link.DEFAULT=[[
 # one line at a time, and keeps the file as it was as coop-settings.old.txt. Delete this file to get the defaults back.
 # Keys: F1 to F12 except F10, optionally with Shift+, Ctrl+ or Alt+ in front (for example Shift+F7). menu_key opens
 # the co-op menu, whose first row hosts; host_key hosts at once, or none. follow_key travels to the host (follow_host
-# below), or none. race_key drops a checkpoint while you record a race track (coop race record).
+# below), or none. race_key drops a checkpoint while you record a race track (coop race record). bike_key gets EVE on
+# the bike or off it (bike below), or none.
 menu_key=F5
 host_key=none
 status_key=F6
 leave_key=F8
 follow_key=F7
 race_key=F9
+bike_key=F3
 # The keys you hold to drift in a Doro race: Unreal key names separated by spaces (at most 4), or none. Steering hard
 # at speed drifts too, with no key. The defaults are R2 on a pad (it still picks up items in reach, as outside a race)
 # and B on the keyboard, which Stellar Blade leaves free.
 drift_keys=Gamepad_RightTrigger B
+# The bike: on or off, on by default. On, the mod keeps Stellar Blade's own bike loaded. bike_key, D-pad Right held 1 s
+# on a pad or the console command coop bike puts EVE on it or takes her off, on any save. Nothing of the ride is saved.
+# Off takes her off the bike and frees it.
+bike=on
 # Who can join a session you host: friends (your Steam friends can join from their friends list), code (anyone you
 # give your join code to; the co-op menu shows and copies it) or private (only the friends you invite). A player who
 # is not your Steam friend waits until you accept or deny them.
@@ -194,7 +200,7 @@ sbo_lobby=on
 -- The looks are comments only in the file above: an old file and a new one both follow the code's default here. A file
 -- written before shared_enemies and fight_chars existed lacks them: on and auto, as here; one written before the photo
 -- settings, or the menu's, lacks those: the defaults here. One written before menu_key: see parse_settings.
-local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',race_key='F9',
+local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',race_key='F9',bike_key='F3',bike='on',
     drift_keys='Gamepad_RightTrigger B',name_tag='on',
     send_rate='60',cloth='on',dyes='on',effects='on',shared_enemies='on',fight_chars='auto',guest_kills='at_once',
     enemy_hp_scale='1.35',enemy_balance_scale='1.15',kill_credit='together',same_place='on',aggro='game',
@@ -208,9 +214,9 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',rac
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,spawn_filter=true,bosses=true,
     photo_ghost=true,photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
     card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true,mod_names=true,shortcut_load=true,
-    pvp_spike=true,sbo_lobby=true,shared_world=true}
+    pvp_spike=true,sbo_lobby=true,shared_world=true,bike=true}
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (partner/puppet.lua), each on or off.
-local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key'}
+local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key','bike_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
     kill_credit={'together','fought'},who_can_join={'friends','code','private'},
     auto_coop_save={'ask','always','off'},aggro={'game','host'},photo_pause={'full','scenery'},
@@ -423,13 +429,16 @@ function Link.parse_settings(text)
         end
     end
     -- A file from before race_key whose own keys hold F9: race_key has none there (coop race cp still drops a
-    -- checkpoint), so the rule below never puts back the keys the player chose.
-    if not named.race_key then
-        for _,name in ipairs(KEYS) do
-            if name~='race_key' and settings[name].name==settings.race_key.name then
-                notes[#notes+1]='settings: '..settings[name].name..' is '..name..': race_key has no key'
-                settings.race_key=setting('race_key','none')
-                break
+    -- checkpoint), so the rule below never puts back the keys the player chose. The same for bike_key and F3 (coop bike
+    -- still gets her on the bike).
+    for _,new in ipairs({'race_key','bike_key'}) do
+        if not named[new] then
+            for _,name in ipairs(KEYS) do
+                if name~=new and settings[name].name==settings[new].name then
+                    notes[#notes+1]='settings: '..settings[name].name..' is '..name..': '..new..' has no key'
+                    settings[new]=setting(new,'none')
+                    break
+                end
             end
         end
     end
