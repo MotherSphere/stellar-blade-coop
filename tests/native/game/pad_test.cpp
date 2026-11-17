@@ -3,7 +3,7 @@
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The pad's events for the co-op menu, checked on the build machine (no Windows, no XInput): edges, the held
 // direction's repeats (up and down only), diagonals, the stick's thresholds, the View hold, LB, RB and Y, a disconnect,
-// the ring, and the slots asked at each poll.
+// the ring, the slots asked at each poll, and PadKeys (the game's controller events as one read).
 #include "game/pad.h"
 
 #include <cassert>
@@ -11,6 +11,7 @@
 #include <vector>
 
 using coop::Pad;
+using coop::PadKeys;
 using coop::PadSlots;
 using coop::PadState;
 
@@ -397,6 +398,64 @@ int main() {
     pad.step(buttons(0), t += 16);
     pad.step(buttons(PadState::DPAD_RIGHT), t += 16);
     assert(drain(pad) == V{Pad::kRight});
+  }
+
+  { // PadKeys: SB's controller key events (Slate's handler) as one XInput-shaped read.
+    PadKeys keys;
+    for (size_t i = 0; i < PadKeys::kKeys; ++i)
+      keys.names[i] = 1000 + i; // Stand-ins for the FName values the worker learns.
+    const uint64_t A = 1000 + PadKeys::kA, B = 1000 + PadKeys::kB, LX = 1000 + PadKeys::kLeftX,
+                   LY = 1000 + PadKeys::kLeftY, DOWN = 1000 + PadKeys::kDpadDown;
+    keys.press(A, 0, false); // Held: in every read until its release.
+    assert(keys.state().buttons == PadState::A && keys.state().buttons == PadState::A);
+    keys.release(A, 0);
+    assert(keys.state().buttons == 0);
+    keys.press(A, 0, false); // A press and its release inside one 8 ms poll still count, once.
+    keys.release(A, 0);
+    assert(keys.state().buttons == PadState::A && keys.state().buttons == 0);
+    keys.press(A, 0, true); // A repeat is no press (Pad makes its own repeats).
+    assert(keys.state().buttons == 0);
+    keys.press(A, 0, false), keys.press(A, 1, false), keys.press(B, 1, false); // Two controllers ORed.
+    keys.release(A, 0);
+    (void)keys.state();
+    assert(keys.state().buttons == (PadState::A | PadState::B));
+    keys.release(A, 1), keys.release(B, 1);
+    (void)keys.state();
+    keys.analog(LX, 0, 0.2f), keys.analog(LY, 1, -0.9f); // The larger stick wins.
+    PadState s = keys.state();
+    assert(s.lx == 0 && s.ly == -29490 && s.connected);
+    keys.analog(LX, 0, 1.5f), keys.analog(LY, 1, 0.f); // Clamped to the XInput range.
+    s = keys.state();
+    assert(s.lx == 32767 && s.ly == 0);
+    keys.press(999, 0, false), keys.press(0, 0, false); // Unknown keys and NAME_None: ignored.
+    keys.press(A, 8, false), keys.press(A, -1, false), keys.analog(LX, 9, -1.f); // Ids outside 0 to 7: ignored.
+    s = keys.state();
+    assert(s.buttons == 0 && s.lx == 32767);
+    keys.press(DOWN, 0, false); // A release lost behind another window: clear() forgets the hold.
+    keys.clear();
+    s = keys.state();
+    assert(s.buttons == 0 && s.lx == 0 && s.ly == 0);
+  }
+  { // The 11 events come from PadKeys as from XInput.
+    PadKeys keys;
+    for (size_t i = 0; i < PadKeys::kKeys; ++i)
+      keys.names[i] = 1000 + i;
+    const auto key = [](PadKeys::Key k) { return uint64_t(1000 + k); };
+    Pad pad;
+    keys.press(key(PadKeys::kDpadDown), 0, false);
+    pad.step(keys.state(), 0);
+    assert(drain(pad) == V{Pad::kDown});
+    keys.release(key(PadKeys::kDpadDown), 0);
+    keys.press(key(PadKeys::kA), 0, false), keys.release(key(PadKeys::kA), 0);
+    pad.step(keys.state(), 16);
+    assert(drain(pad) == V{Pad::kSelect});
+    keys.press(key(PadKeys::kRB), 0, false);
+    pad.step(keys.state(), 32);
+    assert(drain(pad) == V{Pad::kTabRight});
+    keys.release(key(PadKeys::kRB), 0);
+    keys.press(key(PadKeys::kView), 0, false);
+    pad.step(keys.state(), 48), pad.step(keys.state(), 1048);
+    assert(drain(pad) == V{Pad::kMenu});
   }
 
   std::puts("pad_test ok");

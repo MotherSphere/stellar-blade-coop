@@ -1,15 +1,19 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// An XInput pad's state turned into the co-op menu's navigation events, free of Windows: the native part
-// (glue/tick.cpp) reads the pads through PadSlots, steps Pad at each poll and hands Lua one event per coop_pad call.
+// A pad's state turned into the co-op menu's navigation events, free of Windows: the native part (glue/tick.cpp)
+// reads the pads through PadKeys (the game's own controller events, while Slate's handler is hooked) or XInput's
+// PadSlots (the fallback), steps Pad at each poll and hands Lua one event per coop_pad call.
 // The menu and the co-op saves' question take the game's input (UIOnly), so the game ignores the pad then, and UE4SS
 // binds only keyboard keys: this is the pad's only way in. In play, View held opens the menu and D-pad Right held gets
 // on or off the bike. tests/native/game/pad_test.cpp checks this file on the build
 // machine.
 #pragma once
 
+#include <algorithm>
 #include <array>
+#include <atomic>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -188,6 +192,90 @@ public:
 private:
   int answered_ = 0;
   std::array<uint64_t, 4> retry_{}; // When each slot that did not answer may be asked again.
+};
+
+// The game's controller key events (Slate's handler: the engine's XInput poll and SB's DualSense module both call it)
+// as one XInput-shaped read, the source while that handler is hooked; PadSlots is the fallback. The hooks call press,
+// release and analog on the game thread, the poll calls state(): relaxed atomics, each field on its own.
+class PadKeys {
+public:
+  enum Key : uint8_t { kDpadUp, kDpadDown, kDpadLeft, kDpadRight, kA, kB, kY, kView, kLB, kRB, kLeftX, kLeftY, kKeys };
+  static constexpr const char *kNames[kKeys] = {"Gamepad_DPad_Up",           "Gamepad_DPad_Down",
+                                                "Gamepad_DPad_Left",         "Gamepad_DPad_Right",
+                                                "Gamepad_FaceButton_Bottom", "Gamepad_FaceButton_Right",
+                                                "Gamepad_FaceButton_Top",    "Gamepad_Special_Left",
+                                                "Gamepad_LeftShoulder",      "Gamepad_RightShoulder",
+                                                "Gamepad_LeftX",             "Gamepad_LeftY"};
+  static constexpr int kIds = 8; // Controller ids 0 to 7; any other is ignored.
+  std::array<uint64_t, kKeys> names{}; // The FName values, written once before a hook goes live.
+
+  // A press sets the held bit and a tap bit; a repeat is no press (Pad makes its own repeats).
+  void press(uint64_t key, int32_t id, bool repeat) {
+    const uint16_t b = bit(key);
+    if (!b || repeat || !valid(id))
+      return;
+    held_[id].fetch_or(b, std::memory_order_relaxed);
+    taps_.fetch_or(b, std::memory_order_relaxed);
+  }
+  void release(uint64_t key, int32_t id) {
+    const uint16_t b = bit(key);
+    if (b && valid(id))
+      held_[id].fetch_and(uint16_t(~b), std::memory_order_relaxed);
+  }
+  void analog(uint64_t key, int32_t id, float value) {
+    if (key == 0 || !valid(id))
+      return;
+    const auto v = int16_t(std::lround(std::clamp(value, -1.f, 1.f) * 32767));
+    if (key == names[kLeftX])
+      x_[id].store(v, std::memory_order_relaxed);
+    else if (key == names[kLeftY])
+      y_[id].store(v, std::memory_order_relaxed);
+  }
+  // Every controller's held buttons ORed with the taps since the last call (a press and its release inside one poll
+  // still count, once), the stick of the controller pushed furthest.
+  PadState state() {
+    PadState s;
+    s.buttons = taps_.exchange(0, std::memory_order_relaxed);
+    int64_t best = -1;
+    for (int i = 0; i < kIds; ++i) {
+      s.buttons |= held_[i].load(std::memory_order_relaxed);
+      const int16_t x = x_[i].load(std::memory_order_relaxed), y = y_[i].load(std::memory_order_relaxed);
+      const int64_t m = int64_t(x) * x + int64_t(y) * y;
+      if (m > best)
+        best = m, s.lx = x, s.ly = y;
+    }
+    s.connected = true;
+    return s;
+  }
+  // Forgets every hold, tap and stick: a release lost while the game was behind another window.
+  void clear() {
+    taps_.store(0, std::memory_order_relaxed);
+    for (int i = 0; i < kIds; ++i) {
+      held_[i].store(0, std::memory_order_relaxed);
+      x_[i].store(0, std::memory_order_relaxed);
+      y_[i].store(0, std::memory_order_relaxed);
+    }
+  }
+
+private:
+  static bool valid(int32_t id) { return id >= 0 && id < kIds; }
+  // The XInput bit of a button key, or 0 (NAME_None, a stick, a key not learned).
+  uint16_t bit(uint64_t key) const {
+    static constexpr uint16_t kBits[kLeftX] = {PadState::DPAD_UP,   PadState::DPAD_DOWN, PadState::DPAD_LEFT,
+                                               PadState::DPAD_RIGHT, PadState::A,         PadState::B,
+                                               PadState::Y,          PadState::BACK,      PadState::LEFT_SHOULDER,
+                                               PadState::RIGHT_SHOULDER};
+    if (key == 0)
+      return 0;
+    for (int i = 0; i < kLeftX; ++i)
+      if (names[i] == key)
+        return kBits[i];
+    return 0;
+  }
+
+  std::array<std::atomic<uint16_t>, kIds> held_{};
+  std::atomic<uint16_t> taps_{0};
+  std::array<std::atomic<int16_t>, kIds> x_{}, y_{};
 };
 
 } // namespace coop
