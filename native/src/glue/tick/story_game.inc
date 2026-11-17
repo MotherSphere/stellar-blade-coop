@@ -31,8 +31,8 @@ bool story_leading = false;  // We read our theater for her: hook 3 reads a bloc
 bool story_holding = false;  // Her copy follows his: hooks 2 and 3 take her presses on each new block.
 std::vector<std::string> story_pending_out, story_pending_said; // Not handed over yet (the lock was busy).
 // Hook 4: set by the worker once the ZoneEvent action's slot holds the shared hook, cleared at coop off. While we lead,
-// each row that action runs and our zone then (FNames, index | number << 32), kept for the pass; past kStoryTrips in
-// one frame they are counted.
+// each row that action runs and our zone then (FNames, index | number << 32), kept for the next pass in game; past
+// kStoryTrips in one frame they are counted.
 std::atomic<bool> story_trips_on{false};
 constexpr size_t kStoryTrips = 16;
 std::array<std::pair<uint64_t, uint64_t>, kStoryTrips> story_trip_rows;
@@ -188,17 +188,26 @@ void story_trip_root(const int64_t *action) {
   }
 }
 // The rows hook 4 kept since the last pass: each story trip among them as a trip line while we lead, then none kept.
-void story_trips_pass(uint64_t now) {
+// A pass out of game with the lead gates (lead) still on keeps them for the next pass in game: a trip runs once. With
+// those gates off each trip among them is said, not sent.
+void story_trips_pass(bool lead, uint64_t now) {
   if (story_trip_lost)
     story_engine.log.push_back("story: " + std::to_string(story_trip_lost) + " ZoneEvent rows past " +
                                std::to_string(kStoryTrips) + " ran in one frame and were not read: a story trip "
                                "among them is not shared");
-  for (size_t k = 0; story_leading && k < story_trip_count; ++k) {
+  story_trip_lost = 0;
+  if (lead && !story_leading)
+    return;
+  for (size_t k = 0; k < story_trip_count; ++k) {
     story::Message m;
-    if (story_engine.trip_line(story_trip_rows[k].first, story_trip_rows[k].second, m))
+    if (!story_engine.trip_line(story_trip_rows[k].first, story_trip_rows[k].second, m))
+      continue;
+    if (story_leading)
       story_sync.send(m, now);
+    else
+      story_engine.log.push_back("story: trip " + m.name + " ran here, not sent: we no longer lead");
   }
-  story_trip_count = 0, story_trip_lost = 0;
+  story_trip_count = 0;
 }
 
 // The shared quests' holds on a step of hers the host would make (quests_game.inc, under the quests' latch): out of
@@ -250,10 +259,11 @@ __declspec(noinline) void story_body(std::vector<std::string> &in, story::Gates 
       story_engine.block_skip(), story_engine.hold_widgets();
     story_applying = false;
     // Read only with a friend who can take it; a pass out of game keeps the scene as it stood.
-    story_leading = gates.host && in_game && gates.setting && gates.partner && !gates.match && gates.coop_save;
+    const bool lead = gates.host && gates.setting && gates.partner && !gates.match && gates.coop_save;
+    story_leading = lead && in_game;
     if (story_leading)
       story_lead.pass(story_engine.theater(), story_engine.zone(), story_sync, now);
-    story_trips_pass(now); // After the scene's lines: a talk's end goes before the trip its graph ran.
+    story_trips_pass(lead, now); // After the scene's lines: a talk's end goes before the trip its graph ran.
     story_scene = story_sync.active() || story_sync.pending();
     for (std::string &l : story_sync.out)
       story_pending_out.push_back(std::move(l));
