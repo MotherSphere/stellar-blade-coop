@@ -591,9 +591,10 @@ The C++ tests cover the platform-free headers in `native/src`.
   order), the Pod landing scene whose end warps the player, a two-event end chain, a shared quest's subtitle sequence,
   a row whose condition is tested before the call, Lily's warp (sent), the lift's zone change (not sent) and the trips
   left out.
-- `story_sync_test`: `story/sync.h`'s lines through format and parse and back (the largest legal line, 59 malformed
-  lines and 20,000 fuzzed ones), the lists, the leash, the dialogue release, the story gate and the replay guard on
-  their own. Then a host and a guest wired over the parser with a fake game on her side: the on and off lines, a scene
+- `story_sync_test`: `story/sync.h`'s lines through format and parse and back (the largest legal line, 67 malformed
+  lines and 20,000 fuzzed ones, the hooks an on line carries, an InputCounter line's last bit), the lists, the leash,
+  the dialogue release, the story gate and the replay guard on their own. Then a host and a guest wired over the
+  parser with a fake game on her side: the on and off lines with the host's hooks kept as `partner_hooks()`, a scene
   started and shared, the leash holding her and letting her go, results applied once in their take and dropped once
   her copy left it, a widget that comes late, a result her game refuses, her dialogue wait closed once, a skip, the
   host's end with her copy played out, the replay guard and its expiry, a first take that differs, a scene that never
@@ -603,12 +604,14 @@ The C++ tests cover the platform-free headers in `native/src`.
   closed in; those of a play he does not share are logged once.
 - `story_engine_test`: `story/engine.h` over fake memory and fake SB functions. Host side: his theater, hook 1's
   read, his menus read when they close (a menu of another play left out, ordinals counted by take), his QTE and
-  InputCounter blocks read once final (Flow results as bits, a widget read before its next start, one gone, one he
-  did not lead). Guest side: her copy and the gate's reads, a play and a talk started, the host's seek and take
-  skips, the leash, her dialogue closed, her skip blocked and given back, a choice line stored in her take context
-  (a name or alias she lacks refused) with her menu for it closed, her PlayerChoice answered through her OK, her QTE
-  and InputCounter given the host's values (late, gone, a success that finishes at once, Flow results), her presses
-  taken when a block starts and her menus held then given back.
+  InputCounter blocks read once final (Flow results as bits, a widget read before its next start, a Flow's results
+  then kept from the last pass, the bit that says his take skip ran, set by his latch or by his take ending before
+  that read, one gone, one he did not lead). Guest side: her copy and the gate's reads, a play and a talk started, the
+  host's seek and take skips, the leash, her dialogue closed, her skip blocked and given back, a choice line stored
+  in her take context (a name or alias she lacks refused) with her menu for it closed after its skip latch is taken,
+  her PlayerChoice answered through her OK, her QTE and InputCounter given the host's values (late, gone, a success
+  that finishes at once, its take skip only after his, Flow results), her presses taken when a block starts and her
+  menus held then given back.
 
 ### Quests
 

@@ -1,16 +1,16 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// Story together's pure logic on the build machine: every line kind through format() and parse() and back, the
-// largest legal line, malformed lines and fuzzed junk; the lists; the leash, the dialogue release, the story gate and
-// the replay guard on their own; then a host and a guest wired to each other over the parser with a fake game on her
-// side: the on and off lines, a scene started, shared, held and let go by the leash, results applied once in their
-// take and dropped once her copy left it, a widget that comes late, her dialogue wait closed once, the host's end and
-// her copy played out, the replay guard and its expiry, a first take that differs, a scene that never shows, an
-// attach, a quest row, a talk, trips that wait for her copy, the host's position rate, sequence numbers, the queue
-// while she loads with its positions kept to the newest and its overflow, a new partner, a copy dropped out of game,
-// the feature off, a log that hundreds of scenes do not use up, lines from the wrong side, the host's reader and the
-// status line.
+// Story together's pure logic on the build machine: every line kind through format() and parse() and back (an on line's
+// hooks, an InputCounter line's last bit), the largest legal line, malformed lines and fuzzed junk; the lists; the
+// leash, the dialogue release, the story gate and the replay guard on their own; then a host and a guest wired to each
+// other over the parser with a fake game on her side: the on and off lines (the host's hooks kept as partner_hooks()),
+// a scene started, shared, held and let go by the leash, results applied once in their take and dropped once her copy
+// left it, a widget that comes late, her dialogue wait closed once, the host's end and her copy played out, the replay
+// guard and its expiry, a first take that differs, a scene that never shows, an attach, a quest row, a talk, trips that
+// wait for her copy, the host's position rate, sequence numbers, the queue while she loads with its positions kept to
+// the newest and its overflow, a new partner, a copy dropped out of game, the feature off, a log that hundreds of
+// scenes do not use up, lines from the wrong side, the host's reader and the status line.
 #include "story/sync.h"
 
 #include <cassert>
