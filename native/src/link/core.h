@@ -491,6 +491,7 @@ struct Peer {
   // as our last wait line gave it to her (0: none sent).
   bool asking = false;
   uint64_t asking_at = 0, wait_sent = 0;
+  uint64_t got_in = 0; // On an online session's host: when she got in, at once or once let in. The pair's hand-over.
   // On a guest of an online session, a member other than the host for whom Steam refused relay only kIceTries times:
   // no link with her while she stays in the lobby (poll_members()); ours with the host and the others stays.
   bool no_relay = false;
@@ -685,7 +686,7 @@ public:
   // The pair of an online session (its SteamID), or 0: the one guest who plays the shared fight, the shared world and
   // story together with the host (phase 7b1; the shared quests keep their record per partner). On the host, the guest
   // past the handshake in ghost slot 0; on a guest, the host past the handshake, while the host's let line names us as
-  // the pair. 0 in a match lobby, which has members and no partner. The pair leaving, the guest who came in first of
+  // the pair. 0 in a match lobby, which has members and no partner. The pair leaving, the guest who got in first of
   // those still linked takes slot 0 at the next pass (poll_members()), so the host's game drops the old pair's table
   // there first; her game sends her table again once the let line names her (glue/steam.cpp).
   uint64_t partner() const {
@@ -1548,6 +1549,7 @@ private:
               std::to_string(r.player) + " ignored: " + why);
       } else if (r.command == Command::allow) {
         p->asking = false; // poll_members() greets her in this pass.
+        p->got_in = now_;
         allowed_.insert(p->id);
         // She waited in a slot past 0: with no other guest let in, she is the first guest and becomes the pair.
         if (!match() && std::none_of(peers_.begin(), peers_.end(),
@@ -2429,17 +2431,20 @@ private:
                 std::to_string(n) + " players in the lobby");
         }
     crowd_ = crowd;
-    // On the host, the pair (slot 0) left at an earlier pass: the guest who came in first of those linked takes slot 0
-    // and pairs with the host. Not in the pass that freed it, so the pose path drops the old pair's table there first
-    // (slot0_seen_: glue/tick.h's peer() got no bit 0 since).
+    // On the host, the pair (slot 0) left at an earlier pass: the guest who got in first of those linked (at once or
+    // once let in, got_in) takes slot 0 and pairs with the host. Not in the pass that freed it, so the pose path drops
+    // the old pair's table there first (slot0_seen_: glue/tick.h's peer() got no bit 0 since).
     if (host_ && !match() && !slot0_seen_ &&
-        std::none_of(peers_.begin(), peers_.end(), [](const Peer &p) { return p.slot == 0; }))
+        std::none_of(peers_.begin(), peers_.end(), [](const Peer &p) { return p.slot == 0; })) {
+      Peer *next = nullptr;
       for (auto &p : peers_)
-        if (!p.asking && p.compatible && p.accepted) {
-          event(p.name + " is the pair now: ghost slot " + std::to_string(p.slot) + " to 0");
-          p.slot = 0;
-          break;
-        }
+        if (!p.asking && p.compatible && p.accepted && (!next || p.got_in < next->got_in))
+          next = &p;
+      if (next) {
+        event(next->name + " is the pair now: ghost slot " + std::to_string(next->slot) + " to 0");
+        next->slot = 0;
+      }
+    }
     for (auto &[id, next] : refused_)
       if (std::find(members.begin(), members.end(), id) == members.end())
         next = 0; // Gone: told at once if she comes back.
@@ -2496,7 +2501,7 @@ private:
         peer.asking = host_ && !match() && !allowed_.count(id) && (ask_ || !pal);
         // In an online session the pair's ghost holds slot 0 on both sides (glue/tick.h reads SBE from slot 0 only): on
         // a guest the host's; on the host the first guest, who comes in without waiting for an answer while no other
-        // guest is let in, or is let in first (handle(): allow), or came in first of those still linked (above).
+        // guest is let in, or is let in first (handle(): allow), or got in first of those still linked (above).
         peer.slot = !match() && (host_ ? peer.asking || std::any_of(peers_.begin(), peers_.end(),
                                                                     [](const Peer &p) { return !p.asking; })
                                        : id != host_id_)
@@ -2508,7 +2513,7 @@ private:
         if (peer.slot == kMaxRemote) // Steam lists kMatchMembers others without us: no slot, so no peer.
           continue;
         peer.name = name_of(id);
-        peer.last_heard = now_;
+        peer.last_heard = peer.got_in = now_;
         // 30 a second to start (my call 20, design 7.4) in a match lobby or in an online session of more than 2
         // players: each upload carries a stream per member.
         if (match() || n > 2)

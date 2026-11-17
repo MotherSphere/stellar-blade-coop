@@ -247,14 +247,14 @@ An online session holds up to 4 players (`max_players`). The host leads every gu
   goes to the first guest: one who comes in without a question while no other guest is let in, or the first one let
   in. The shared enemies, the shared world and story together run within the pair only (`Link::partner()`): the other
   guests' games keep their own enemies and world. They wait through the host's cutscenes as before. When the pair's
-  guest leaves, the let line's pair is 0 for one pass. At the next pass the guest who came in first of those past the
-  handshake moves to slot 0 (`<name> is the pair now: ghost slot <k> to 0` in the host's log). The pass between lets
-  the host's pose path drop the old pair's table from slot 0. The let line then names her: her game says
-  `Shared enemies, the shared world and story together now run between <host> and you.` and sends its pose table to
-  every member at once (`glue/steam.cpp`), since the host's slot 0 holds none of hers yet. With no guest past the
-  handshake, slot 0 waits for the next one. A guest who passes the handshake while slot 0 waits gets no let line
-  until she or another guest takes it, so her first one names the pair and she hears no notice that the features are
-  off for her.
+  guest leaves, the let line's pair is 0 for one pass. At the next pass the guest who got in first of those past the
+  handshake (at once, or when the host let her in) moves to slot 0 (`<name> is the pair now: ghost slot <k> to 0` in
+  the host's log). The pass between lets the host's pose path drop the old pair's table from slot 0. The let line then
+  names her: her game says `Shared enemies, the shared world and story together now run between <host> and you.` and
+  sends its pose table to every member at once (`glue/steam.cpp`), since the host's slot 0 holds none of hers yet.
+  With no guest past the handshake, slot 0 waits for the next one. A guest who passes the handshake while slot 0 waits
+  gets no let line until she or another guest takes it, so her first one names the pair and she hears no notice that
+  the features are off for her.
 - The first let line that does not name a guest as the pair gives her one notice for the session: `Shared enemies,
   the shared world and story together run between <host> and <pair> only. Your game keeps its own.` With no pair, it
   reads `Shared enemies, the shared world and story together are off for you in <host>'s session. Your game keeps its

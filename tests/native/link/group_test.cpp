@@ -226,7 +226,7 @@ int main() {
 
   // A guest leaving is announced on the host and on the other guest. The pair leaving with no guest left leaves no
   // pair: the next guest let in takes slot 0 and pairs with the host. The pair leaving while another guest is linked:
-  // the let line says 0 in that pass, then the guest who came in first of those linked takes slot 0 and pairs with
+  // the let line says 0 in that pass, then the guest who got in first of those linked takes slot 0 and pairs with
   // the host, which she hears once.
   reset();
   {
@@ -301,6 +301,31 @@ int main() {
     assert(s2.find(" Shared enemies") == npos &&
            sent_from(kMe, kPlayer[2], let_line(0, {kPlayer[2]}, kMaxMembers)) == 0 &&
            sent_from(kMe, kPlayer[2], let_line(kPlayer[2], {kPlayer[2]}, kMaxMembers)) == 1);
+  }
+
+  // The pair's hand-over follows the order in which the guests got in, not the lobby's: a stranger who joined first
+  // and was let in last comes after a Steam friend who got in at once while she waited.
+  reset();
+  {
+    Mesh m(4);
+    F.client[0].friends.insert(kPlayer[2]), F.client[2].friends.insert(kMe);
+    m.tick(0, "host public");
+    m.round();
+    const uint64_t L = m[0].lobby();
+    m.tick(3, "join " + id(L));
+    m.round();
+    assert(m.status(0).find("\npending=4004 P4\n") != npos && slot_of(m[0], kPlayer[3]) == 1);
+    m.tick(1, "join " + id(L));
+    assert(m.settle(2) && slot_of(m[0], kFriend) == 0);
+    m.tick(2, "join " + id(L));
+    assert(m.settle(3) && slot_of(m[0], kPlayer[2]) == 2);
+    m.tick(0, "allow 4004");
+    assert(m.settle(4) && slot_of(m[0], kPlayer[3]) == 1 && m[0].partner() == kFriend);
+    m.tick(1, "leave");
+    m.round();
+    m.round();
+    assert(m[0].partner() == kPlayer[2] && slot_of(m[0], kPlayer[2]) == 0 && slot_of(m[0], kPlayer[3]) == 1);
+    assert(saw("P1: P3 is the pair now: ghost slot 2 to 0"));
   }
 
   // Steam refuses relay only on a guest for another guest who is not her Steam friend: that link alone goes, with a
