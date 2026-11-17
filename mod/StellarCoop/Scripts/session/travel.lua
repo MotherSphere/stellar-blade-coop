@@ -493,6 +493,19 @@ function Travel.new(o)
             return camps,rested
         end)
     end
+    -- The bike's paid fetch (bike/ride.lua): the camp of the table under world, on that world's map, that the read
+    -- lists as activated and whose spawn point stands within metres of our EVE, nearest first; else nil. It walks the
+    -- spawn points once a map, as nearest() does.
+    function self.camp_near(world,metres)
+        return guard(function()
+            local me=puppet.me()
+            if not (me and me.map==Travel.WORLDS[world]) then return nil end
+            for _,c in ipairs(nearest(me,world)) do
+                if c.m>metres then return nil end
+                if activated(c.alias) then return c.alias end
+            end
+        end)
+    end
     -- coop mxiii's check before it adds its rows: true, or false and why a probe would be refused now.
     function self.ready()
         return guard(function()

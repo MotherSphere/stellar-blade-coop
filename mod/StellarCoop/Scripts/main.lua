@@ -637,12 +637,27 @@ o.wear,o.scene,o.lines,o.flight,o.glide,o.emote=wear,scene,cut_lines,flight,glid
 -- while SBO's own state holds EVE (busy) or one of our screens is open. Its parked bike's refusals and prompt come in
 -- the menu's words (words, tell), a map by its travel world's name (worlds). Its place is kept per account and save
 -- beside coop-settings.txt (file), never while an SBO lobby is open (lobby). Its line goes to every member (send).
+-- At an activated Xion camp (camp: the follow's camp_near) its paid fetch spends betacrystal through bike/fetch.lua
+-- (fetch, with the Steam link only), as coop gift spends items: the same FName and pause rules.
+-- An alias's FName is FNAME_Find's and must read back as the alias, as the follow's camps do.
+local function fname(alias)
+    local n=U.value_of(FName(alias,EFindName.FNAME_Find))
+    local index=n:GetComparisonIndex()
+    if not index or index==0 or U.text(n):lower()~=alias:lower() then return nil end
+    return {index=index,number=require('session.travel').number(alias)}
+end
+-- Paused also covers our photo mode and the friend's photo mode that pauses our game: SB's logic stops in both.
+local function logic_paused() return kit~=nil and kit.paused(true) or photo_state()~='0' or link.paused() end
 bike=require('bike.ride').new({log=function(m) print('[StellarCoop][BK] '..tostring(m)..'\n') end,
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end,
     words=words,tell=tell,worlds=require('session.travel').WORLDS,
     file=link and {read=link.read_file,write=link.write_file},lobby=function() return sbo~=nil and sbo.active() end,
     store=link and link.store('coop-bike.txt'),stand_store=link and link.store('coop-bike-stand.txt'),drive=drive,
     send=link and function(p) return link.bike(p) end,
+    camp=link and function(world,m) return travel and travel.camp_near(world,m) end,
+    fetch=link and require('bike.fetch').new({log=function(m) print('[StellarCoop][BK] '..tostring(m)..'\n') end,
+        ask=function(line) return ask(line)() end,status=function() return link.status() end,name=fname,
+        paused=logic_paused}),
     settings=settings,
     paused=function() return kit~=nil and kit.paused(true) end,photo=photo_state,
     frozen=function() return link~=nil and link.paused() end,life=function() return link and link.life() end,
@@ -681,20 +696,13 @@ o.story=require('story.snapshot').new({log=function(m) print('[StellarCoop][ST] 
     folder=folder})
 -- coop gift (cut/mailbox.lua), logging [GF] lines: SB's cut mailbox as a co-op gift box, with the Steam link only. Its
 -- tick runs in the 250 ms loop below, her gift lines come through inbox(), and coop gift runs on a co-op save only
--- (commands/cut.lua). An alias's FName is FNAME_Find's and must read back as the alias, as the follow's camps do.
--- Paused also covers our photo mode and the friend's photo mode that pauses our game: SB's logic stops in both.
+-- (commands/cut.lua). Its FName and pause rules are the bike's paid fetch's (fname, logic_paused above).
 local mailbox=link and require('cut.mailbox').new({log=function(m) print('[StellarCoop][GF] '..tostring(m)..'\n') end,
     say=function(text) say(text) end,status=function() return link.status() end,
     request=function(line) return link.request(line) end,read=function(name) return link.read_file(name) end,
     write=function(name,text) return link.write_file(name,text) end,friend=function() return link.friend() end,
     loopback=function() return link.loopback() end,store=link.store('coop-gift-toast.txt'),
-    paused=function() return kit~=nil and kit.paused(true) or photo_state()~='0' or link.paused() end,
-    name=function(alias)
-        local n=U.value_of(FName(alias,EFindName.FNAME_Find))
-        local index=n:GetComparisonIndex()
-        if not index or index==0 or U.text(n):lower()~=alias:lower() then return nil end
-        return {index=index,number=require('session.travel').number(alias)}
-    end}) or nil
+    paused=logic_paused,name=fname}) or nil
 o.mailbox=mailbox
 -- coop ui and coop off stay here: they reach the UI objects built below and the photo pause above.
 local commands={

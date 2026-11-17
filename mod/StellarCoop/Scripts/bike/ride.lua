@@ -37,6 +37,10 @@
 -- lands on its root and heading (a teleport SB refuses mounts her where she stands), then the mount above. A notice
 -- tells bike_key once each time she comes within reach of it. Her bike line (bike/park.lua's wire) goes to the link at
 -- each change, from a mount, a dismount or the 250 ms pass: none while she rides, with bike=off or without a place.
+-- At an activated Xion camp (session/travel.lua's camp_near, within CAMP m), outside an SBO lobby, the refusal for a
+-- bike out of reach or on another map offers the paid fetch (bike/fetch.lua): a second press within Fetch.WINDOW s
+-- pays Fetch.PRICE betacrystal. While it runs every press is refused with that; once paid the bike stands where she
+-- stood at the offer (her pose as a park takes it, else her feet with her actor's yaw), written and sent as a park.
 -- Each frame (self.steer, before the native tick): the drive's frame, then her lean and pitch on her main mesh's
 -- relative rotation, the base rotation then a turn about her actor's forward axis (lean) and side axis (pitch), through
 -- KismetMathLibrary's ComposeRotators, written with teleport off (a teleport clears cloth inertia). The ghosts get it
@@ -53,6 +57,7 @@ local B=require('bike.model')
 local Doro=require('race.doro')
 local Park=require('bike.park')
 local Stand=require('bike.stand')
+local Fetch=require('bike.fetch')
 local T=require('ui.text')
 local valid,value_of,each,find,address,why_of=U.valid,U.value_of,U.each,U.find,U.address,U.why
 local Ride={}
@@ -79,6 +84,7 @@ local WALKING,NAV_WALKING,FALLING,SWIMMING,CUSTOM=1,2,3,4,6 -- EMovementMode.
 local MOVABLE=2 -- EComponentMobility: a base she stands on that moves (a lift, a train, a pawn) is no floor.
 local SKINNED='/Script/Engine.SkeletalMeshComponent'
 local MAX_ID=4294967295
+local CAMP=10 -- m from an activated Xion camp's spawn point for the paid fetch.
 
 -- The native status line's words for the bike: warp (idle or busy), anim and its id, the preload (bike=), the gate
 -- (bike_gate=) and EVE's life state (bike_life=, nil when it did not read); nil without an engine line (no native part).
@@ -157,7 +163,8 @@ end
 -- words() (ui/text.lua's table for the screen); tell(build) (a notice build(words) puts together); worlds
 -- (session/travel.lua's WORLDS, for a map's name); file (the place's record: read(name) and write(name, text),
 -- link.read_file and link.write_file; nil without the link); lobby() (whether an SBO lobby is open); send(payload)
--- (her bike line to the link, link.bike: true once written; nil without the link).
+-- (her bike line to the link, link.bike: true once written; nil without the link); camp(world, metres)
+-- (session/travel.lua's camp_near, nil without the link); fetch (bike/fetch.lua's, nil without the link).
 function Ride.new(o)
     local log,ask,status,drive=o.log,o.ask,o.status,o.drive
     local none={save=function() end,load=function() end,clear=function() end}
@@ -184,6 +191,8 @@ function Ride.new(o)
     local restored=false
     local serial=2000000000+os.time()%1000000 -- Apart from coop emote's ids, which start under 1000000.
     local sent=nil -- Her bike line as the link last took it.
+    local offer=nil -- The paid fetch offered at the last refusal: {due (os.clock), pose, camp}.
+    local paying=nil -- The offer being paid for, while o.fetch runs.
 
     -- The check before a mount (mount true) and every 250 ms while she rides: why she cannot ride now, or nil. w: the
     -- native words. While she rides, the air, a skill, combat, aiming and the free camera are no reason: SB's actions
@@ -329,12 +338,13 @@ function Ride.new(o)
     end
     -- Her bike's place against her for a mount: a refusal as a function of a words table (o.words() for the screen,
     -- T.en for the log) when it is on another map, not shown yet on hers or out of reach; else nil, with the stand to
-    -- get on when there is one. A stand that could not be made never holds the bike: it comes to her.
+    -- get on when there is one; its third value is true when the refusal may offer the paid fetch (far, another map).
+    -- A stand that could not be made never holds the bike: it comes to her.
     local function at_place(e)
         if not place then return nil end
         if place.map~=U.map_of(e) then
             local name=Park.map_name(place.map,o.worlds)
-            return function(t) return t.bike.other_map:format(name) end
+            return function(t) return t.bike.other_map:format(name) end,nil,true
         end
         local h=here
         if h and h.at==address(e) and h.stand_failed then return nil end
@@ -343,7 +353,7 @@ function Ride.new(o)
         local feet=value_of(valid(e.Mesh):K2_GetComponentLocation())
         if Park.reach(feet,place) then return nil,d end
         local metres,side=Park.where(feet,value_of(e:GetControlRotation()).Yaw,place)
-        return function(t) return t.bike.far:format(metres,t.bike[side]) end
+        return function(t) return t.bike.far:format(metres,t.bike[side]) end,nil,true
     end
     -- Every 250 ms after sync: bike_key's notice once each time her feet come within reach of her shown bike.
     local function prompt(e)
@@ -481,17 +491,81 @@ function Ride.new(o)
         if o.armed and o.armed() then return 'a race is armed: coop race quit leaves it' end
         return o.busy and o.busy() or nil
     end
+    -- Where the bike would come at the paid fetch: her pose as a park takes it, else her feet with her actor's yaw.
+    local function here_pose(e)
+        local read,pose=pcall(pose_of,e,(part_for(e)))
+        if read and pose then return pose end
+        local at,yaw=value_of(valid(e.Mesh):K2_GetComponentLocation()),value_of(e:K2_GetActorRotation()).Yaw
+        return {map=U.map_of(e),at={X=at.X,Y=at.Y,Z=at.Z},rot={Pitch=0,Yaw=yaw,Roll=0}}
+    end
+    -- A refusal that may offer the paid fetch (far, another map): at an activated Xion camp outside an SBO lobby, a
+    -- press within the offer's window starts the payment, any other press arms the offer after the refusal.
+    local function offered(e,refusal)
+        local words=o.words()
+        local alias=o.fetch and not lobby() and o.camp and o.camp('Xion',CAMP)
+        if not alias then
+            offer=nil
+            return false,refusal(words)
+        end
+        local now=os.clock()
+        if offer and now<=offer.due then
+            local paid_for=offer
+            offer=nil
+            local started,why=o.fetch.start(now)
+            if not started then
+                log('bike fetch not started: '..tostring(why))
+                return false,words.bike.unpaid
+            end
+            paying=paid_for
+            log(('bike fetch asked at %s for %d betacrystal'):format(paid_for.camp,Fetch.PRICE))
+            -- main.lua puts only refusals on screen.
+            o.tell(function(t) return t.bike.paying:format(Fetch.PRICE) end)
+            return true,words.bike.paying:format(Fetch.PRICE)
+        end
+        offer={due=now+Fetch.WINDOW,pose=here_pose(e),camp=alias}
+        local key=o.settings and o.settings.bike_key
+        key=key and key.name~='none' and key.name or 'coop bike'
+        return false,refusal(words)..' '..words.bike.offer:format(key,Fetch.PRICE)
+    end
+    -- Each 250 ms pass while the payment runs: its end on screen; paid, the bike stands where the offer was made.
+    local function fetched()
+        if not (paying and o.fetch.busy()) then return end
+        local result,detail=o.fetch.step(os.clock())
+        if not result then return end
+        local paid_for=paying
+        paying=nil
+        if result=='paid' then
+            place=paid_for.pose
+            log(('bike brought to %s for %d betacrystal'):format(paid_for.camp,Fetch.PRICE))
+            if not in_lobby then save() end
+            local shown,why=pcall(sync,her(),os.clock(),true)
+            if not shown then log('bike stand not shown: '..why_of(why)) end
+            if here then here.near=true end -- This notice, not the prompt, says it stands at her feet.
+            o.tell(function(t) return t.bike.paid:format(Fetch.PRICE) end)
+        elseif result=='poor' then
+            log(('bike fetch refused: you carry %d betacrystal, %d needed'):format(detail,Fetch.PRICE))
+            o.tell(function(t) return t.bike.poor:format(Fetch.PRICE,detail) end)
+        else
+            log('bike fetch failed: '..tostring(detail))
+            o.tell(function(t) return t.bike.unpaid end)
+        end
+    end
     local function mount()
+        if paying and o.fetch.busy() then
+            log('bike refused: '..T.en.bike.paying:format(Fetch.PRICE))
+            return false,o.words().bike.paying:format(Fetch.PRICE)
+        end
         local e=her()
         local w=Ride.native(status())
         local why=o.settings and o.settings.bike==false and 'the bike is off (bike=off)'
             or not e and 'no EVE in the world' or blocked(e,w,true) or busy() or Ride.loaded(w.load)
         local part,stand
         if not why then
-            local refusal
-            refusal,stand=at_place(e)
+            local refusal,offers
+            refusal,stand,offers=at_place(e)
             if refusal then
                 log('bike refused: '..refusal(T.en))
+                if offers then return offered(e,refusal) end
                 return false,refusal(o.words())
             end
             part,why=part_for(e)
@@ -708,8 +782,10 @@ function Ride.new(o)
         end
         if why then return off_line(why) end
     end
-    -- Then her bike line, whatever the pass did.
+    -- The paid fetch's step first, so a paid place is shown by the pass and sent. Then her bike line, whatever the
+    -- pass did.
     function self.slow()
+        fetched()
         local off,why=pass()
         send()
         return off,why

@@ -18,7 +18,9 @@
 -- onto it by a teleport; the prompt once she comes within reach; its place per account and save (o.file), kept out
 -- of the record while an SBO lobby is open; its path kept for the next Lua load (o.stand_store), swept at that load's
 -- first tick, which parks at her feet after a Ctrl+R while she rode; removed at coop off and bike=off, put back at
--- bike=on; its line for the link (o.send) at each change, sent again after a failed write.
+-- bike=on; its line for the link (o.send) at each change, sent again after a failed write. The paid fetch at a Xion
+-- camp (o.camp, o.fetch): offered after a far or another-map refusal, paid by a press within 5 s, every press refused
+-- while it runs, the place it gives, its notices; never within reach, in an SBO lobby or away from a camp.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -262,13 +264,38 @@ local Ride=require('bike.ride')
 -- The screen's words (T.en until a test picks another table) and the notices told in them.
 local T=require('ui.text')
 local words,told=T.en,{}
+-- o.camp: counts camp_asks, answers camp. o.fetch (bike/fetch.lua): start counts fetch.starts; with fetch.refuse set it
+-- returns false and fetch.refuse (busy() stays false), else busy() is true; step returns fetch.result once (then busy()
+-- is false).
+local camp,camp_asks=nil,0
+local fetch={starts=0}
+function fetch.start(t)
+    assert(t==clock,'Started at os.clock()')
+    fetch.starts=fetch.starts+1
+    if fetch.refuse then return false,fetch.refuse end
+    fetch.running=true
+    return true
+end
+function fetch.busy() return fetch.running==true end
+function fetch.step(t)
+    assert(t==clock and fetch.running,'Stepped at os.clock(), while it runs')
+    local r=fetch.result
+    if not r then return nil end
+    fetch.result,fetch.running=nil,false
+    return table.unpack(r)
+end
 local function new()
     return Ride.new({log=log,ask=ask,status=status,store=store,stand_store=stand_store,drive=drive,settings=settings,
         paused=function() return world.paused end,photo=function() return world.photo end,
         frozen=function() return world.frozen end,life=function() return world.life end,
         armed=function() return world.armed end,busy=function() return world.busy end,
         words=function() return words end,tell=function(build) told[#told+1]=build(words) end,
-        worlds={Xion='/game/art/bg/worldmap/level_p/e04'},file=file,lobby=function() return lobby end,send=send})
+        worlds={Xion='/game/art/bg/worldmap/level_p/e04'},file=file,lobby=function() return lobby end,send=send,
+        camp=function(w,m)
+            assert(w=='Xion' and m==10,'Xion within 10 m')
+            camp_asks=camp_asks+1
+            return camp
+        end,fetch=fetch})
 end
 local R=new()
 local CLIP='/Game/Art/Character/PC/CH_P_EVE_01/Animation/event/G03/MV_SD20_AfterBruteBattle_Main/eve/'
@@ -929,4 +956,51 @@ mount(); assert(sent[#sent]=='none')
 R.toggle(); send_fails=true; mount(); send_fails=false; clock=clock+0.25; R.slow(); assert(sent[#sent]=='none')
 R.toggle(); settings.bike=false; clock=clock+0.25; R.slow(); assert(sent[#sent]=='none')
 settings.bike=true; clock=clock+0.25; R.slow(); assert(sent[#sent]:find('^park /game/map/map '))
+
+-- 21. The paid fetch at a Xion camp (o.camp, o.fetch): a far or other-map refusal there offers it; a press within 5 s
+-- pays; presses while it runs refuse; paid moves the place to where she stood at the offer; too little money and a
+-- failure are said; never within reach, never in an SBO lobby, never away from a camp.
+words,camp_asks=T.en,0
+no_key(); eve.mesh_at={X=0,Y=0,Z=0}
+camp='Xion_Camp_10'; place_on('/game/other')
+ok,why=R.toggle()
+assert(not ok and why=='Your bike is on another map: other. Press F3 again within 5 s to pay 500 betacrystal to bring it here.')
+assert(camp_asks==1)
+clock=clock+4.9; ok,why=R.toggle()
+assert(ok and why=='Paying 500 betacrystal for your bike.' and fetch.starts==1)
+assert(told[#told]=='Paying 500 betacrystal for your bike.','On screen: F3 and the pad show only refusals')
+-- Review Focus 3: presses during the payment: no second start.
+ok,why=R.toggle(); assert(not ok and why=='Paying 500 betacrystal for your bike.' and fetch.starts==1)
+fetch.result={'paid'}; clock=clock+0.25; R.slow()
+assert(st_made[#st_made].shown and told[#told]=='Your bike was brought here for 500 betacrystal.')
+assert(find('^bike brought to Xion_Camp_10 for 500 betacrystal$') and sent[#sent]:find('^park /game/map/map 0 0 0 '))
+-- Review Focus 2: within reach at the camp: a plain mount, the camp never asked, no charge.
+local asks=camp_asks
+assert(R.toggle() and R.riding() and camp_asks==asks and fetch.starts==1); R.toggle()
+-- The window: a press after 5 s offers again; a press inside it pays; too little money and a failure are said.
+place_on('/game/other'); R.toggle(); clock=clock+5.1; ok=R.toggle(); assert(not ok and fetch.starts==1)
+assert(R.toggle()==true and fetch.starts==2)
+fetch.result={'poor',120}; clock=clock+0.25; R.slow()
+assert(told[#told]=='Not enough betacrystal: 500 needed, you carry 120.')
+R.toggle(); R.toggle(); fetch.result={'failed','no answer from the native part'}; clock=clock+0.25; R.slow()
+assert(fetch.starts==3 and told[#told]=='Your bike was not brought here. UE4SS.log says why.' and find('no answer from the native part'))
+-- A start the fetch refuses (no FName, the native part off): unpaid at once, the why logged, no payment running.
+R.toggle(); fetch.refuse='BetaCrystal has no FName'; ok,why=R.toggle(); fetch.refuse=nil
+assert(not ok and why=='Your bike was not brought here. UE4SS.log says why.' and fetch.starts==4 and not fetch.busy())
+assert(find('^bike fetch not started: BetaCrystal has no FName$'))
+-- Review Focus 2: an SBO lobby (its own place, far away here): refused with no offer, the camp never asked.
+lobby=true; clock=clock+0.25; R.slow(); park_at({X=4200,Y=0,Z=0},0); eve.mesh_at={X=0,Y=0,Z=0}; eve.control_yaw=0
+asks=camp_asks; ok,why=R.toggle()
+assert(not ok and why=='Your bike is 42 m away, ahead of you.' and camp_asks==asks and fetch.starts==4); lobby=false
+-- Not at a Xion camp: the plain refusal.
+camp=nil; place_on('/game/other'); ok,why=R.toggle(); assert(why=='Your bike is on another map: other.')
+-- Another language on screen, English in the log.
+words=T.fr; camp='Xion_Camp_10'; ok,why=R.toggle()
+assert(why==T.fr.bike.other_map:format('other')..' '..T.fr.bike.offer:format('F3',500)
+    and last()=='bike refused: Your bike is on another map: other.',last())
+words=T.en
+-- On a Movable base (no pose a park takes) the fetch brings it to her feet with her actor's yaw.
+clock=clock+6; eve.base={Mobility=2}; eve.mesh_at={X=5,Y=0,Z=0}; R.toggle(); eve.base=nil
+assert(R.toggle()==true); fetch.result={'paid'}; clock=clock+0.25; R.slow()
+assert(sent[#sent]=='park /game/map/map 5 0 0 0 0 0',sent[#sent])
 print('ride_test ok')

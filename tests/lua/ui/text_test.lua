@@ -18,7 +18,8 @@
 -- lines, version and footer within theirs, Create a session's title, rules header, Start row and right-pane words
 -- within theirs; no Thai word that ends on a leading vowel; each join Steam refused as link/core.h words it, in every language; the DLC notice (T.dlcs) within
 -- 200 bytes with 100-byte DLC names in every language; its English as main.lua says it; the bike's refusals with each
--- side word and a six-digit distance within 200 bytes.
+-- side word and a six-digit distance or another map's 32-byte name, the paid fetch's offer after them, within 200
+-- bytes.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
 local R=require('nightop.recruiter_text')
@@ -83,8 +84,13 @@ local function notices(w)
         'join_refused','bike'}) do
         for _,text in pairs(w[group]) do lines[#lines+1]=fill(text) end
     end
-    -- The bike's refusal (bike/ride.lua) with each side word and a six-digit distance (positions reach 10,000,000 cm).
-    for _,side in ipairs({'ahead','behind','left','right'}) do lines[#lines+1]=w.bike.far:format(999999,w.bike[side]) end
+    -- The bike's refusals (bike/ride.lua) with the paid fetch's offer after them, as its mount joins them: each side
+    -- word with a six-digit distance (positions reach 10,000,000 cm), another map with a 32-byte name.
+    local offer=w.bike.offer:format('F3',500)
+    for _,side in ipairs({'ahead','behind','left','right'}) do
+        lines[#lines+1]=w.bike.far:format(999999,w.bike[side])..' '..offer
+    end
+    lines[#lines+1]=w.bike.other_map:format(NAME)..' '..offer
     lines[#lines+1]=w.fight.on:format(16)..' '..w.fight.scale:format(200,200) -- The longest on.
     -- The DLC notice (T.dlcs): one sentence or both, with short names and with names of link/protocol.h's kMaxDlcName.
     local long,short={('d'):rep(100),('e'):rep(100),('f'):rep(100)},{'Twin Expansion Pack','NieR:Automata','x'}

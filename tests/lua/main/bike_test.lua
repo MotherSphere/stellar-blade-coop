@@ -7,8 +7,9 @@
 -- restore, its frame before the native tick, its 250 ms pass, coop off (the stop, then the parked bike out of the
 -- world), the Options rows; riding() as coop emote, the race, the hall seats, coop fly on and coop glide on read it;
 -- its idle_part as the capture's leave_out; the menu's words, a notice and the travel worlds for the parked bike; its
--- bike line through link.bike. Other players' parked bikes (fixture.lua's fake bike/others.lua): what they are built
--- with, their restore at the first tick, their pass after the ride's, their clear at coop off.
+-- bike line through link.bike; its paid fetch at a Xion camp (a fake bike/fetch.lua: what it is built with, coop gift's
+-- FName and pause rules) and the follow's camp_near. Other players' parked bikes (fixture.lua's fake bike/others.lua):
+-- what they are built with, their restore at the first tick, their pass after the ride's, their clear at coop off.
 dofile('tests/lua/main/fixture.lua')
 -- coop fly's keys: cut/flight.lua for real, with fly_on in place of its active() (on() needs SB's player input).
 local Flight,fly_on=require('cut.flight'),nil
@@ -20,6 +21,15 @@ end}
 local USE='[StellarCoop] STOP: Use: coop bike [status | tune [<name> <value>]]\n'
 settings_text,status_text,in_world='',plain,true
 package.loaded['session.travel'].WORLDS={Xion='/game/art/bg/worldmap/level_p/e04'}
+-- The paid fetch: what bike/fetch.lua's new got (fe.o); the follow answers camp_near with its arguments.
+local fe={}
+package.loaded['bike.fetch']={new=function(o) fe.o=o; return {name='fetch'} end}
+local travel_new=package.loaded['session.travel'].new
+package.loaded['session.travel'].new=function(o)
+    local t=travel_new(o)
+    t.camp_near=function(w,m) return w..' '..m end
+    return t
+end
 load_main(true)
 assert(logged('bike: on, bike_key F3'),table.concat(printed,'|'))
 local o=bk.o
@@ -40,6 +50,12 @@ assert(o.send('none')==true and parked[1]=='none')
 fake_link.bike=function() return false,'cannot write' end
 assert(o.send('none')==false)
 fake_link.bike=nil
+-- The paid fetch: bike/fetch.lua with the native asks, the status and [BK] lines, coop gift's own FName and pause
+-- rules; the camp from the follow's camp_near.
+assert(o.fetch.name=='fetch' and fe.o.name==gf.o.name and fe.o.paused==gf.o.paused and fe.o.status()==status_text)
+assert(fe.o.ask('items 1 BetaCrystal 77 0') and asked[#asked]=='items 1 BetaCrystal 77 0')
+fe.o.log('x'); assert(last()=='[StellarCoop][BK] x\n',last())
+assert(o.camp('Xion',10)=='Xion 10')
 -- Other players' parked bikes: the members' bike lines, names and our SteamID from the link, our EVE, the native
 -- status, the settings, coop-bike-copies.txt for the next Lua load's sweep.
 local b=bo.o
