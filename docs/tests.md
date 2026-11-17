@@ -35,8 +35,9 @@ fails the test. The `main/` tests load
 - `bike/ride_test` covers `bike/ride.lua` over a fake EVE and native part: the preload asked once and released at
   `bike=off`, the part made once (at the seat, hidden) or found again after a reload, every mount refusal with its
   reason and nothing written, the mount's order and the dismount backward, the lean, the riding pose played again or
-  ending the ride, the 250 ms checks, `coop-bike.txt` and its restore, `coop bike status` and `tune`, the Doro look
-  refused while she rides;
+  ending the ride, the 250 ms checks (EVE down read from the status line's `bike_life=` with no session, or from the
+  session's life state without that word), `coop-bike.txt` and its restore, `coop bike status` and `tune`, the Doro
+  look refused while she rides;
 - `core/link_test` also covers the status's `uidev=`, `me=` and `world=` lines and the `owner=`, `room=` and `hall=`
   fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty) and never
   from a player's name; the `shared_world` setting; `bike` and `bike_key` (an older file whose keys hold F3 gets no
