@@ -606,10 +606,11 @@ The C++ tests cover the platform-free headers in `native/src`.
   read, his menus read when they close (a menu of another play left out, ordinals counted by take), his QTE and
   InputCounter blocks read once final (Flow results as bits, a widget read before its next start, a Flow's results
   then kept from the last pass, the bit that says his take skip ran, set by his latch or by his take ending before
-  that read, one gone, one he did not lead). Guest side: her copy and the gate's reads, a play and a talk started, the
-  host's seek and take skips, the leash, her dialogue closed, her skip blocked and given back, a choice line stored
-  in her take context (a name or alias she lacks refused) with her menu for it closed after its skip latch is taken,
-  her PlayerChoice answered through her OK, her QTE and InputCounter given the host's values (late, gone, a success
+  that read, one gone, one he did not lead), hook 4's trip line (a row that is no trip, a zone that cannot be read).
+  Guest side: her copy and the gate's reads, a play and a talk started, a trip run with her ID, the host's seek and
+  take skips, the leash, her dialogue closed, her skip blocked and given back, a choice line stored in her take
+  context (a name or alias she lacks refused) with her menu for it closed after its skip latch is taken, her
+  PlayerChoice answered through her OK, her QTE and InputCounter given the host's values (late, gone, a success
   that finishes at once, its take skip only after his, Flow results), her presses taken when a block starts and her
   menus held then given back.
 
@@ -617,9 +618,12 @@ The C++ tests cover the platform-free headers in `native/src`.
 
 - `quest_sync_test`: the shared quests' quest table (its kill and item tasks), line format and parser (with a fuzz),
   the host's and the guest's rules, the zone marks, the item hold, the steps made together and those that are not,
-  the record file, lost lines and reloads;
+  the record file, lost lines and reloads; a step the guest makes first: sent only from the host's line in his zone,
+  never echoed back, taken by the host under each rule of `accept()` (two tasks of one group done on both sides in
+  one pass end with both in both games), the host's checks on her step lines;
 - `quest_engine_test`: the shared quests against a fake quest unit: the walk, the guards before each game call, the
-  gate, a fault, two PCs through channel 2's text with delay and loss, a recording replayed into another save, and
+  gate, a fault, two PCs through channel 2's text with delay and loss (her step made first taken by the host's game,
+  kept through a hold of his game, dropped by his load), a recording replayed into another save, and
   the worker's side (the gates that start and end a side, channel 2's lines beside the fight's, the record file and
   the status lines);
 - `quest_own_test`: the mod's own quests in a fake quest unit (`quest/own.h`): nothing read off a co-op save, on SB's
