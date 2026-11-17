@@ -10,12 +10,23 @@ namespace {
 uint32_t bike_load_logged = 0, bike_gate_logged = 0;
 uint64_t bike_ride_logged = 0;
 bool bike_fault_logged = false;
+// EVE's life state for bike/ride.lua's down check, which link.life() gives only in a session: fight::vitals' read of
+// our FSBActor (ReadProcessMemory, which fails instead of faulting) at most each bike::kLifeMs; -1 when it did not read.
+std::atomic<int32_t> bike_life{-1};
+std::atomic<uint64_t> bike_life_next{0};
 
-// The status line's bike words (glue/tick/status.inc): the preload's state and the gate's.
+// The status line's bike words (glue/tick/status.inc): the preload's state, the gate's and EVE's life state when read.
 std::string bike_status() {
+  if (const uint64_t now = GetTickCount64(); now >= bike_life_next) {
+    coop::Vitals v{};
+    bike_life = fight::vitals(base, rpm, v) ? int32_t(v[coop::vital::life]) : -1;
+    bike_life_next = now + bike::kLifeMs;
+  }
   const bike::Word load = bike::unpack(bike_load_word), gate = bike::unpack(bike_gate_word);
+  const int32_t life = bike_life;
   return " bike=" + (bike_faulted ? std::string("fault") : bike::load_text(bike::Load(load.state), load.why)) +
-         " bike_gate=" + bike::gate_text(gate.state != 0, gate.why);
+         " bike_gate=" + bike::gate_text(gate.state != 0, gate.why) +
+         (life >= 0 ? " bike_life=" + std::to_string(life) : std::string());
 }
 } // namespace
 

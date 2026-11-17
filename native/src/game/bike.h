@@ -51,6 +51,7 @@ constexpr size_t kSoftPath = 0x18;            // FSoftObjectPath: the asset's FN
 constexpr size_t kLoaded = 0x10, kCanceled = 0x12; // The handle's bLoadCompleted and bCanceled.
 constexpr size_t kStrong = 8, kWeak = 0xc;    // The reference controller's counts.
 constexpr uint64_t kPollMs = 250;             // The game thread reads the loaded flag this often while it loads.
+constexpr uint64_t kLifeMs = 250; // The worker reads EVE's life state for the status line's bike_life= this often.
 constexpr uint64_t kResolveObject = 0x142b82f40; // FSoftObjectPath::ResolveObject: the object in memory, or null.
 constexpr uint64_t kSetAction = 0x1423ca710, kFindAction = 0x140e6c8e0;
 constexpr uint64_t kControllerClassAt = 0x1470402c8; // SBPlayerController's UClass, as FUN_14276fe90 returns it.

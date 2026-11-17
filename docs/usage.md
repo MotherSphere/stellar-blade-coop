@@ -365,7 +365,8 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
   requests handled so far), `anim=<state> anim_id=<n>` (the last `coop emote` clip or bike pose the native part took
   and what became of it: `idle`, `playing`, `ended`, `ended:weight`, `stopped`, `refused:<why>` or `fault`, see
   [Emotes](cut-eve.md#emotes-coop-emote)), `bike=<off|loading|ready|failed:<why>|fault> bike_gate=<on|off|refused:<why>>`
-  (the [bike](internals/bike.md#status-words-and-the-latch)'s preload and the game's actions while EVE rides), `items=<ask> <count>` or `items=<ask> none <why>` (the answer to
+  and `bike_life=<n>` (the [bike](internals/bike.md#status-words-and-the-latch)'s preload, the game's actions while EVE
+  rides, her life state), `items=<ask> <count>` or `items=<ask> none <why>` (the answer to
   [`coop gift`](cut-scenes-and-menus.md#cut-mailbox-coop-gift)'s last inventory read, by its number; why is `unpinned`, `noeve`, `nomanager`,
   `nobucket` or `unread`), and `nightop=on` or `nightop=rule` while the probe's poller runs.
 - Activated camps: `activated=<n>:<camp>,<camp>,...` lists the camps of the game's camp table (simple and full camps,

@@ -126,12 +126,12 @@ local eve=make_eve('EVE_1')
 local function wrapper(o) return o and setmetatable({},{__index=o,__newindex=o}) end
 package.loaded.UEHelpers={GetPlayer=function() return wrapper(eve) end}
 -- The native part: the asks (each an event) and the status line's words.
-local st={warp='idle',anim='idle',id=0,load='off',gate='off'}
+local st={warp='idle',anim='idle',id=0,load='off',gate='off',life=1}
 local native=true
 local function status()
     if not native then return 'slot=coop x\n' end
-    return ('slot=coop x\nengine=on warp=%s me=1 travel=idle travel_calls=0 anim=%s anim_id=%d bike=%s bike_gate=%s\n')
-        :format(st.warp,st.anim,st.id,st.load,st.gate)
+    return ('slot=coop x\nengine=on warp=%s me=1 travel=idle travel_calls=0 anim=%s anim_id=%d bike=%s bike_gate=%s%s\n')
+        :format(st.warp,st.anim,st.id,st.load,st.gate,st.life and ' bike_life='..st.life or '')
 end
 local asked,refuse={},{}
 local function ask(line)
@@ -190,9 +190,10 @@ local ok,why
 
 -- 1. The status words; the preload's word as a refusal.
 local w=Ride.native('engine=on warp=busy me=3 anim=ended anim_id=12 bike=failed:missing_clip '
-    ..'bike_gate=refused:controller')
+    ..'bike_gate=refused:controller bike_life=4')
 assert(w.warp=='busy' and w.anim=='ended' and w.id==12 and w.load=='failed:missing_clip'
-    and w.gate=='refused:controller')
+    and w.gate=='refused:controller' and w.life==4)
+assert(Ride.native('engine=on anim=idle anim_id=0 bike=ready bike_gate=off').life==nil,'Her life state unread')
 assert(Ride.native('slot=none\n')==nil and Ride.native(nil)==nil,'No engine line: no native part')
 assert(Ride.CLIP==CLIP and Ride.MESH==MESH)
 assert(Ride.loaded('ready')==nil and Ride.loaded('loading')=='the bike is still loading')
@@ -260,7 +261,9 @@ refused('EVE aims',function() eve.tps=true end,function() eve.tps=false end)
 refused('the free camera is on',function() eve.bFreeCamMode=true end,function() eve.bFreeCamMode=false end)
 refused("EVE is on one of the game's lifts or trains",function() eve.VehicleActor=uobj({}) end,
     function() eve.VehicleActor=nil end)
-refused('EVE is down',function() world.life={state=4,hp=0} end,function() world.life=nil end)
+-- Down: her own life state from the native part, on any save; link.life() (a session's) only when it did not read.
+refused('EVE is down',function() st.life=4 end,function() st.life=1 end)
+refused('EVE is down',function() st.life,world.life=nil,{state=4,hp=0} end,function() st.life,world.life=1,nil end)
 refused('a race or the drive probe drives EVE',function() dv.on='probe' end,function() dv.on=false end)
 -- A race armed before GO (a guest's whose Doro look failed): its drive would replace the bike's at GO.
 refused('a race is armed: coop race quit leaves it',function() world.armed=true end,function() world.armed=false end)
@@ -462,11 +465,12 @@ move.MovementMode=1
 for _,case in ipairs({{function() world.photo='s' end,'the selfie mode is open'},
     {function() st.warp='busy' end,'a load or a warp is under way'},
     {function() eve.VehicleActor=uobj({}) end,"EVE is on one of the game's lifts or trains"},
-    {function() world.life={state=3,hp=0} end,'EVE is down'},{function() eve.fishing=1 end,'EVE is fishing'}}) do
+    {function() st.life=5 end,'EVE is down'},{function() st.life,world.life=nil,{state=3,hp=0} end,'EVE is down'},
+    {function() eve.fishing=1 end,'EVE is fishing'}}) do
     id=mount()
     case[1]()
     ok,why=R.slow()
-    world.photo,st.warp,eve.VehicleActor,world.life,eve.fishing='0','idle',nil,nil,0
+    world.photo,st.warp,eve.VehicleActor,world.life,st.life,eve.fishing='0','idle',nil,nil,1,0
     assert(not ok and why=='Off the bike: '..case[2],why)
 end
 id=mount()

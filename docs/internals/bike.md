@@ -160,13 +160,16 @@ the pose, the bike is the last part listed and the first one left out.
 
 ## Status words and the latch
 
-The engine status line carries `bike=<off|loading|ready|failed:<why>|fault>` and
-`bike_gate=<on|off|refused:controller>`. The native lines (`bike preload ready after <ms> ms`, `bike gate on: ...`,
-`bike gate off: ...`, the clip lookups) go to `coop-link.log`. All of it runs in `coop_tick` on the pinned build under
-its own SEH latch: the first fault tries once to turn the gate off, leaves the handle as it is (a leaked reference only
-keeps the bike in memory) and turns the bike's native side off for the run, with
-`The bike stopped until the game restarts (a fault).` on screen. `bike load`, `bike free` and `bike gate on|off` are
-local asks between Lua and the native part: the link protocol does not change.
+The engine status line carries `bike=<off|loading|ready|failed:<why>|fault>`, `bike_gate=<on|off|refused:controller>`
+and `bike_life=<n>`, EVE's life state. The worker reads that state from her `FSBActor +0x2600` (the read of the partner
+card's numbers, `ReadProcessMemory`, which fails instead of faulting) at most every 250 ms, on any save; the word is
+left out when the read failed. The ride's down check reads it. Without it, the check falls back on `link.life()`, which
+only a session gives. The native lines (`bike preload ready after <ms> ms`, `bike gate on: ...`, `bike gate off: ...`,
+the clip lookups) go to `coop-link.log`. The rest runs in `coop_tick` on the pinned build under its own SEH latch: the
+first fault tries once to turn the gate off, leaves the handle as it is (a leaked reference only keeps the bike in
+memory) and turns the bike's native side off for the run, with `The bike stopped until the game restarts (a fault).` on
+screen. `bike load`, `bike free` and `bike gate on|off` are local asks between Lua and the native part: the link
+protocol does not change.
 
 ## Credits
 

@@ -54,14 +54,15 @@ local WALKING,NAV_WALKING,FALLING,SWIMMING,CUSTOM=1,2,3,4,6 -- EMovementMode.
 local SKINNED='/Script/Engine.SkeletalMeshComponent'
 local MAX_ID=4294967295
 
--- The native status line's words for the bike: warp (idle or busy), anim and its id, the preload (bike=) and the gate
--- (bike_gate=); nil without an engine line (no native part).
+-- The native status line's words for the bike: warp (idle or busy), anim and its id, the preload (bike=), the gate
+-- (bike_gate=) and EVE's life state (bike_life=, nil when it did not read); nil without an engine line (no native part).
 function Ride.native(status)
     local line=('\n'..(status or '')):match('\nengine=([^\r\n]*)')
     if not line then return nil end
     local anim,id=line:match(' anim=(%S+) anim_id=(%d+)')
     local load,gate=line:match(' bike=(%S+) bike_gate=(%S+)')
-    return {warp=line:match(' warp=(%a+)'),anim=anim,id=tonumber(id),load=load,gate=gate}
+    return {warp=line:match(' warp=(%a+)'),anim=anim,id=tonumber(id),load=load,gate=gate,
+        life=tonumber(line:match(' bike_life=(%d+)'))}
 end
 -- The preload's word as a refusal, or nil when it is ready.
 function Ride.loaded(word)
@@ -111,9 +112,10 @@ end
 -- o: log (the [BK] lines); ask(line) (a native request: ok and its line); status() (the native status text); store
 -- (coop-bike.txt through link.store); drive (race/drive.lua's); settings (main.lua's: bike, false for off); paused()
 -- (the game paused or on one of its screens); photo() ('0', '1' in photo mode, 's' in the selfie mode); frozen() (the
--- partner's photo mode holds our game); life() (link.life's {state}, or nil); armed() (race/run.lua's: a race is armed here; nil when
--- there is none); busy() (why SBO's own state forbids a mount: the Doro look, coop emote, a hall seat, coop fly or
--- glide, Night Operation, an SBO menu or the chat; nil when none).
+-- partner's photo mode holds our game); life() (link.life's {state}, or nil; only the fallback for the status line's
+-- bike_life=, since it reads only in a session); armed() (race/run.lua's: a race is armed here; nil when there is none);
+-- busy() (why SBO's own state forbids a mount: the Doro look, coop emote, a hall seat, coop fly or glide, Night
+-- Operation, an SBO menu or the chat; nil when none).
 function Ride.new(o)
     local log,ask,status,drive=o.log,o.ask,o.status,o.drive
     local store=o.store or {save=function() end,load=function() end,clear=function() end}
@@ -166,8 +168,9 @@ function Ride.new(o)
             if e.bFreeCamMode==true then return 'the free camera is on' end
         end
         if valid(e.VehicleActor) then return "EVE is on one of the game's lifts or trains" end
-        local life=o.life()
-        if life and life.state>=3 and life.state<=5 then return 'EVE is down' end
+        -- Her own life state from the native part, on any save; link.life() (a session's) when it did not read.
+        local life=w.life or (o.life() or {}).state
+        if life and life>=3 and life<=5 then return 'EVE is down' end
         return nil
     end
     -- The part for EVE (the one seen last), or nil and why.
