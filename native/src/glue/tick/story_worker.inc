@@ -143,7 +143,15 @@ void story_pass(uint64_t partner, bool host, bool match, std::vector<std::string
     say(line);
   if (!pinned || blocked)
     return;
-  if (story_faulted) { // Latched: off to her once, the slot back, nothing more this run.
+  // Our lines through the outbox, which keeps a refused one with those after it for the next pass.
+  auto flush = [&](std::vector<std::string> &out) {
+    const uint64_t unsent = story_outbox.dropped;
+    story_outbox.pass(partner, out, send);
+    if (!unsent && story_outbox.dropped)
+      say("story: lines to the partner dropped unsent (said once, counted in unsent)");
+  };
+  if (story_faulted) { // Latched: the slots back and off to her once, then only what still waits goes.
+    std::vector<std::string> off_line;
     if (!std::exchange(story_fault_logged, true)) {
       const std::string where = story_fault_code ? fault_where(story_fault_rva) : std::string("out of memory");
       char text[512];
@@ -159,9 +167,10 @@ void story_pass(uint64_t partner, bool host, bool match, std::vector<std::string
       story_off("a fault");
       story::Message off;
       off.type = story::Type::off, off.reason = "fault";
-      if (partner)
-        send(story::format(off));
+      if (partner) // After the lines that wait, until the link takes it: her copy no longer waits for the host.
+        off_line.push_back(story::format(off));
     }
+    flush(off_line);
     return;
   }
   story::Gates g;
@@ -189,10 +198,7 @@ void story_pass(uint64_t partner, bool host, bool match, std::vector<std::string
       story_in.swap(story_waiting);
     out.swap(story_out);
   }
-  const uint64_t unsent = story_outbox.dropped;
-  story_outbox.pass(partner, out, send);
-  if (!unsent && story_outbox.dropped)
-    say("story: lines to the partner dropped unsent (said once, counted in unsent)");
+  flush(out);
 }
 
 } // namespace coop::pose
