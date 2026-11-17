@@ -297,6 +297,22 @@ on('max_players')
 assert(values.max_players=='4' and select(3,menu.change(NONE,values,-1))=='3'
     and menu.change(NONE,values,1)==nil and not menu.current(NONE).reload)
 assert(M.read('max_players=2\n').max_players=='2' and M.read('max_players=5\n').max_players=='4')
+-- Mute rows: one per other player of an online session past the handshake, under Chat at the end of Options, the same
+-- row each call; Select says to mute or unmute her. None outside a session nor for one still connecting.
+local MEMBERS={{id='21',linked=true,muted=false,name='Kaanta'},{id='22',linked=true,muted=true,name='Lucas'},
+    {id='23',linked=false,muted=false,name='Wait'}}
+local CROWD={mode='host',members=MEMBERS,values={}}
+menu=M.new('options')
+assert(ids(menu,CROWD):find(' head:chat chat mute mute$')~=nil and ids(menu,{mode='none',members=MEMBERS,values={}})
+    :find(' head:chat chat$')~=nil)
+local muting=menu.rows(CROWD)
+assert(muting[#muting-1].member=='21' and muting[#muting].member=='22' and menu.rows(CROWD)[#muting]==muting[#muting])
+while menu.current(CROWD).member~='22' do menu.move(CROWD,1) end
+action,key,text=menu.select(CROWD,0,{})
+assert(action=='mute' and key=='22' and text==true and menu.change(CROWD,{},1)==nil)
+menu.move(CROWD,-1)
+action,key,text=menu.select(CROWD,0,{})
+assert(action=='mute' and key=='21' and text==false)
 -- The solid partner: on by default, a toggle in effect at once (main.lua gives it to the ghost each 250 ms).
 on('collide')
 assert(values.collide=='on' and select(3,menu.change(NONE,values,1))=='off' and not menu.current(NONE).reload)

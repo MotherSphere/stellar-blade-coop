@@ -8,7 +8,8 @@
 -- the mouse, which the kit shows: the row it moves onto takes the focus, a left click selects the row under it, a right
 -- click goes back. Its rows run the console commands (Host and Invite close it first: Host's coop host opens the
 -- Create a session screen, ui/create.lua; Invite's Steam overlay takes the focus); Leave and Remove <name> (a
--- player let in who is not our Steam friend) ask for a second Select; Copy my code
+-- player let in who is not our Steam friend) ask for a second Select; a mute row (one per other player of an online
+-- session, at the end of Options) runs coop mute or coop unmute; Copy my code
 -- shows our join code and asks the native part to copy it; Chat (in a session), Join with a code and Find a session
 -- close it and open the chat's box, the code box (session/join.lua) or the Sessions screen (ui/sessions.lua); Guide
 -- closes it and opens the first-launch guide (ui/guide.lua),
@@ -66,7 +67,8 @@ function Menu.new(o)
     end)
     local function context()
         local code=link.code()
-        return {mode=link.mode(),chat=o.chat~=nil and o.chat.can(),code=code,stranger=link.stranger(),values=values}
+        return {mode=link.mode(),chat=o.chat~=nil and o.chat.can(),code=code,stranger=link.stranger(),values=values,
+            members=link.members()}
     end
     local function stranger(ctx) return Join.name(ctx.stranger.name) or words.ask.someone end
     -- The co-op line's state: free (no session), open (hosting, no friend linked or her connection lost), linked (her
@@ -112,7 +114,10 @@ function Menu.new(o)
             else
                 local label,v=row.id=='guide' and guide_words.row or words.row[row.id or row.key],
                     row.key and value(row) or ''
-                if row.id=='copy' then v=ctx.code elseif row.id=='remove' then label=label:format(stranger(ctx)) end
+                if row.id=='copy' then v=ctx.code elseif row.id=='remove' then label=label:format(stranger(ctx))
+                elseif row.member then -- A mute row: the SBO lobby's words.
+                    label,v=words.lobby.set.mute:format(Join.name(row.name) or ''),words.value[row.muted and 'on' or 'off']
+                end
                 w.set(label,v,row==current and 'focus' or 'normal')
             end
         end
@@ -283,6 +288,9 @@ function Menu.new(o)
                 return o.log((ok and 'menu: ' or 'menu: no guide: ')..message)
             elseif action=='remove' then
                 local ok,message=o.run('remove',ctx.stranger.id)
+                if not ok then note=message end
+            elseif action=='mute' then -- Her chat lines dropped, or heard again, for the game run.
+                local ok,message=o.run(text and 'unmute' or 'mute',key)
                 if not ok then note=message end
             elseif action=='host' or action=='invite' then
                 self.close()

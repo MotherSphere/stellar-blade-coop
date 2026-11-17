@@ -322,6 +322,18 @@ end
 write_refusal,kit_language=nil,nil
 key('ESCAPE'); assert(focus()=='Options','Esc: back to the main page, on Options')
 key('ESCAPE'); assert(kit_calls[#kit_calls]=='show false')
+-- In an online session, Options ends with a mute row for each other player past the handshake, in the SBO lobby's
+-- words; Select runs coop mute or coop unmute for her.
+link_mode,fake_link.members='host',function()
+    return {{id='21',slot=0,linked=true,muted=false,name='Kaanta'},{id='22',slot=1,linked=true,muted=true,name='Lucas'}}
+end
+key('F5'); to('Options'); key('RETURN')
+to('Mute Kaanta'); assert(select(2,focus())=='Off')
+key('RETURN'); assert(asked[#asked]=='mute 21' and logged('OK: asked the native part: mute 21'))
+to('Mute Lucas'); assert(select(2,focus())=='On')
+key('RETURN'); assert(asked[#asked]=='unmute 22')
+key('ESCAPE'); key('ESCAPE')
+link_mode,fake_link.members='none',function() return {} end
 -- Rebind with capture (D-UI2): a key row waits for an F-key, checked against the other keys; Esc stops waiting; Enter
 -- puts back its default (below); the new key works at once (every F-key is bound). The file had no menu_key line:
 -- host_key=none is written with it, so the old key never hosts again by itself. The follow key is off F7 here, for the
