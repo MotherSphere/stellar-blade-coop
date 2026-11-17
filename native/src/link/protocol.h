@@ -808,7 +808,8 @@ inline std::string masked(std::string_view text) {
 // (game/debug_keys.h, coop fly and coop slowmo) "fly on|off" and "slowmo on|off"; for SB's developer panels
 // (game/dev_panels.h, coop devinfo) "devinfo quest|player|off"; for SB's HUD under the SBO lobby's screens (main.lua,
 // glue/tick/hud_game.inc) "hud hide on|off"; for the pause menu's Online tab (ui/pause_tab.lua, game/pause_tab.h)
-// "pausetab on|off"; for the day/night cycle (game/sky.h, sky/daynight.lua) "sky off|hold",
+// "pausetab on|off"; for the game's tutorial and record popups during online play (game/options.h) "popups on|off";
+// for the day/night cycle (game/sky.h, sky/daynight.lua) "sky off|hold",
 // "sky cycle <hz> <heading>" and "sky hour <minute> <hz> <heading>" (whole numbers: hz 0 to 30, heading 0 to 359,
 // minute 0 to 1439); for the SBO lobby arrival's black (session/arrival.lua,
 // glue/tick/loading_game.inc) "loading lift"; for the co-op saves (save/slot.h,
@@ -864,7 +865,7 @@ enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
   signal, match, mute, sbo, guardtext, hud, loading, world, scenes, bike, block, unblock, list, where, rules, sky,
-  pausetab
+  pausetab, popups
 };
 // match: "match search <mode> <room> <hall>" (quick match: join an open Public lobby of that mode and hall, or host
 // one), "match create <mode> <room> <hall>" (a private match lobby joined with its code), "match cancel" (forget the
@@ -941,7 +942,8 @@ struct Request {
   uint8_t gate = 0;                      // gate: game/debug_keys.h's Gate, 0 for fly, 1 for slowmo.
   uint8_t panel = 0;                     // devinfo: game/dev_panels.h's Panel, 0 off, 1 quest, 2 player.
   ShopAsk shop = ShopAsk::close;         // nightshop: open, open bolt, close or watch.
-  bool on = false;                       // roxanne on, lily on, hud hide on, pausetab on (true) or off; host ... ask.
+  bool on = false;                       // roxanne on, lily on, hud hide on, pausetab on, popups on (true) or off;
+                                         // host ... ask.
   bool lily = false;                     // roxanne: lily on or off (Lily's list) rather than Roxanne's.
   uint8_t signal = 0;                    // signal: its word's index in kSignalWords.
   bool rule = false;                     // nightop rule.
@@ -1376,6 +1378,9 @@ inline Request parse_request(std::string text) {
   } else if (text == "pausetab on" || text == "pausetab off") {
     r.command = Command::pausetab;
     r.on = text.size() == 11;
+  } else if (text == "popups on" || text == "popups off") {
+    r.command = Command::popups;
+    r.on = text.size() == 9;
   } else if (text == "sky off" || text == "sky hold") {
     r.command = Command::sky;
     r.sky = text[4] == 'o' ? SkyAsk::off : SkyAsk::hold;

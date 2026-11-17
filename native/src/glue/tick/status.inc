@@ -20,6 +20,7 @@ void block() {
   hold_undo("coop off");
   region_tabs_undo("coop off");
   pause_tab_undo("coop off");
+  options_block(); // The game thread puts a forced option back; options_pass gives the slots back after that.
   pad_hook_undo("coop off");
   world_off("coop off"); // Before sbo_off, which swaps back the ZoneEvent slot they share.
   story_off("coop off");

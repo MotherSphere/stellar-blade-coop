@@ -772,6 +772,10 @@ bool step() {
       coop::pose::ask_pause_tab(coop::parse_request(request).on);
       request.clear();
       break;
+    case coop::Command::popups: // The game's popups during online play: the game thread's pass reads it; logged.
+      coop::pose::ask_popups(coop::parse_request(request).on);
+      request.clear();
+      break;
     case coop::Command::sky: // The day/night cycle: the game thread's; each change of state is logged.
       coop::pose::ask_sky(coop::parse_request(request));
       request.clear();
@@ -959,6 +963,7 @@ bool step() {
         loaded && !switched_off && link->photo_freeze() && coop::pose::lua_state().world, GetTickCount64());
     if (loaded && !said.empty())
       link->notice(said);
+    coop::pose::options_pass(linked); // The game's popups off while a peer is linked.
     said = coop::pose::debug_pass(linked, coop_marker, GetTickCount64());
     if (loaded && !said.empty())
       link->notice(said);

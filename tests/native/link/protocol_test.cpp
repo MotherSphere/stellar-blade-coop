@@ -924,6 +924,11 @@ int main() {
          parse_request("pausetab off\r\n").command == Command::pausetab && !parse_request("pausetab off").on);
   for (const char *bad : {"pausetab", "pausetab On", "pausetab on now", "pause tab on", "pausetab  off", "pausetab 1"})
     assert(parse_request(bad).command == Command::none);
+  // The game's tutorial and record popups during online play: popups on or off, nothing else.
+  assert(parse_request("popups on").command == Command::popups && parse_request("popups on").on &&
+         !parse_request("popups off\n").on && parse_request("popups off\n").command == Command::popups);
+  for (const char *bad : {"popups", "popups On", "popups 1", "popups  on", "popup on", "popups on now"})
+    assert(parse_request(bad).command == Command::none);
   // The day/night cycle's asks: off, hold, cycle <hz> <heading>, hour <minute> <hz> <heading>, nothing else.
   Request k = parse_request("sky cycle 8 205\n");
   assert(k.command == Command::sky && k.sky == SkyAsk::cycle && k.horizon == 8 && k.heading == 205);

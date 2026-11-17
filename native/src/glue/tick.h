@@ -294,6 +294,13 @@ void hud_pass();
 // (Command::pausetab): RB on the pause menu's last tab opens the Online tab only while on (on until Lua says off). A
 // change is logged.
 void ask_pause_tab(bool on);
+// The game's tutorial and record popups during online play (glue/tick/options_game.inc, game/options.h), worker
+// thread. Lua's popups on or off (Command::popups): the game thread turns both options Off while a peer is linked only
+// while on (on until Lua says off). A change is logged.
+void ask_popups(bool on);
+// Every pass: the save slots swapped once a run, the game thread's want from linked (a peer past the handshake), its
+// changes and refusals logged, the slots back once nothing is forced after coop off or a fault.
+void options_pass(bool linked);
 // The SBO lobby arrival's black (glue/tick/loading_game.inc, game/loading.h), worker thread. Lua's loading lift
 // (Command::loading): SB's end fade for that black from the game thread's next frame; refused off the pinned build and
 // after its fault. Returns the line for the log.
