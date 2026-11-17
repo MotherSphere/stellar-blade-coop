@@ -6,12 +6,22 @@
 
 #include <cassert>
 #include <cmath>
+#include <cstring>
+#include <vector>
 
 using namespace coop::sky;
 
 namespace {
 bool near(double a, double b, double eps = 1e-4) { return std::fabs(a - b) <= eps; }
 constexpr uint64_t kBase = 1763380800000ULL; // 2025-11-17 12:00:00 UTC.
+template <class T> void put(uintptr_t base, size_t off, T v) {
+  std::memcpy(reinterpret_cast<void *>(base + off), &v, sizeof v);
+}
+template <class T> T get(uintptr_t base, size_t off) {
+  T v;
+  std::memcpy(&v, reinterpret_cast<const void *>(base + off), sizeof v);
+  return v;
+}
 } // namespace
 
 int main() {
@@ -47,5 +57,105 @@ int main() {
   assert(near(t[1], 0.775) && near(t[2], 0.65));
   sun_tint(23, 8, t);
   assert(t[0] == 1 && t[1] == 1 && t[2] == 1);
+
+  // A fake WorldSettings whose env array holds three elements: 0 sunlit with its own exposure bias, 1 covered (a cave),
+  // 2 sunlit without the bias override bit.
+  std::vector<uint8_t> settings_mem(0x2100), array_mem(3 * kStride);
+  const uintptr_t ws = reinterpret_cast<uintptr_t>(settings_mem.data());
+  const uintptr_t e0 = reinterpret_cast<uintptr_t>(array_mem.data()), e1 = e0 + kStride, e2 = e1 + kStride;
+  put<uint64_t>(ws, kArray, e0);
+  put<int32_t>(ws, kNum, 3);
+  put<uint64_t>(e0, kVolume, 0x1000), put<uint64_t>(e0, kData, 0x2000), put<float>(e0, kSun, 18);
+  for (int i = 0; i < 3; ++i)
+    put<float>(e0, kColor + 4 * i, 1);
+  put<float>(e0, kSky, 4), put<float>(e0, kEve, 2), put<float>(e0, kEveSub, 1);
+  put<float>(e0, kFog, 0.5f), put<float>(e0, kFog + 4, 0.4f), put<float>(e0, kFog + 8, 0.3f);
+  put<float>(e0, kGlow, 1), put<float>(e0, kGlow + 4, 0.8f), put<float>(e0, kGlow + 8, 0.6f);
+  put<float>(e0, kBias, -1), put<uint8_t>(e0, kBiasBits, kBiasBit), put<float>(e0, kDir + 8, -1);
+  put<uint64_t>(e1, kVolume, 0x1001), put<uint64_t>(e1, kData, 0x2001), put<float>(e1, kSun, 0);
+  put<float>(e1, kSky, 0.5f), put<float>(e1, kEve, 1), put<float>(e1, kEveSub, 1), put<float>(e1, kDir + 8, -1);
+  put<uint64_t>(e2, kVolume, 0x1002), put<uint64_t>(e2, kData, 0x2002), put<float>(e2, kSun, 10);
+  put<float>(e2, kSky, 1), put<float>(e2, kBias, 0.7f);
+  const Want cyc{Mode::cycle, 0, 8, 0};
+  const uint64_t noon = kBase + 1920000, midnight = kBase + 120000;
+  const uintptr_t world = 0xAAAA;
+  static Sky sky; // Its cache is 256 entries: kept off the stack as the DLL keeps it in a global.
+
+  // 8. Noon: the direction in every element, the sun's values in the sunlit ones, the covered one left alone.
+  assert(sky.pass(world, ws, cyc, noon) == State::cycle && sky.elements() == 3 && sky.sunlit() == 2 && sky.holding());
+  assert(near(get<float>(e0, kDir), 0.42262) && near(get<float>(e1, kDir + 8), -0.90631) && get<float>(e0, kSun) == 18);
+  assert(get<float>(e1, kSun) == 0 && get<float>(e1, kSky) == 0.5f && near(get<float>(e2, kBias), 0.7));
+  // 9. Midnight: moon light, darker sky and EVE, dim fog, no glow, one EV down where the preset sets its bias.
+  sky.pass(world, ws, cyc, midnight);
+  assert(near(get<float>(e0, kSun), 2.7) && near(get<float>(e0, kColor), 0.70) && near(get<float>(e0, kSky), 0.8));
+  assert(near(get<float>(e0, kEve), 1.0) && near(get<float>(e0, kEveSub), 0.5) && near(get<float>(e0, kFog), 0.075));
+  assert(get<float>(e0, kGlow) == 0 && near(get<float>(e0, kBias), -2) && near(get<float>(e2, kSun), 1.5));
+  assert(near(get<float>(e2, kBias), 0.7) && !(get<uint8_t>(e2, kBiasBits) & kBiasBit) && get<float>(e1, kSky) == 0.5f);
+  // 10. Restore: every original back, the direction of the covered element too; off then writes nothing.
+  sky.restore();
+  assert(get<float>(e0, kSun) == 18 && get<float>(e0, kSky) == 4 && near(get<float>(e0, kBias), -1));
+  assert(get<float>(e1, kDir + 8) == -1 && !sky.holding());
+  put<float>(e0, kSun, 3);
+  assert(sky.pass(world, ws, Want{}, midnight) == State::off && get<float>(e0, kSun) == 3);
+  put<float>(e0, kSun, 18);
+  // 11. A re-copy by SB (the original back) is written again; a value matching neither is read again as new.
+  sky.pass(world, ws, cyc, midnight);
+  put<float>(e0, kSun, 18);
+  sky.pass(world, ws, cyc, midnight);
+  assert(near(get<float>(e0, kSun), 2.7));
+  put<float>(e0, kSun, 5);
+  sky.pass(world, ws, cyc, midnight);
+  assert(near(get<float>(e0, kSun), 0.75));
+  // 12. Review Focus 4: another world at the same addresses. Its element holds 0.75, the value the old cache last
+  //     wrote: the cache is gone, so 0.75 is read as this element's original (a kept cache would have written 5 at
+  //     noon).
+  put<float>(e0, kSun, 0.75f);
+  sky.pass(0xBBBB, ws, cyc, noon);
+  assert(near(get<float>(e0, kSun), 0.75));
+  // 13. Review Focus 5: SB's forced settings: nothing written while they hold; a restore then still puts the array
+  //     back.
+  sky.pass(0xBBBB, ws, cyc, midnight);
+  assert(near(get<float>(e0, kSun), 0.1125));
+  put<uint8_t>(ws, kForcedFlag, 1), put<uint64_t>(ws, kForced, 0x5000), put<float>(e0, kSun, 9);
+  assert(sky.pass(0xBBBB, ws, cyc, noon) == State::forced && get<float>(e0, kSun) == 9);
+  put<float>(e0, kSun, 0.1125f);
+  sky.restore();
+  assert(near(get<float>(e0, kSun), 0.75));
+  put<uint8_t>(ws, kForcedFlag, 0);
+  // 14. Gated blend, too many elements, no world, an empty array.
+  put<uint8_t>(ws, kGated, 1);
+  assert(sky.pass(0xBBBB, ws, cyc, noon) == State::gated);
+  put<uint8_t>(ws, kGated, 0);
+  put<int32_t>(ws, kNum, 257);
+  assert(sky.pass(0xBBBB, ws, cyc, noon) == State::full);
+  put<int32_t>(ws, kNum, 3);
+  assert(sky.pass(0, 0, cyc, noon) == State::waiting && !sky.holding());
+  put<int32_t>(ws, kNum, 0);
+  assert(sky.pass(0xCCCC, ws, cyc, noon) == State::cycle && sky.elements() == 0);
+  put<int32_t>(ws, kNum, 3);
+  // 15. Pinned and held: minute 0 at noon gives midnight; held keeps the minute it was asked at.
+  assert(sky.pass(0xCCCC, ws, Want{Mode::pinned, 0, 8, 0}, noon) == State::pinned && near(sky.light().el, -30));
+  assert(sky.pass(0xCCCC, ws, Want{Mode::held, 0, 8, 0}, noon) == State::held && near(sky.light().el, 65));
+  assert(sky.pass(0xCCCC, ws, Want{Mode::held, 0, 8, 0}, midnight) == State::held && near(sky.light().el, 65));
+  // 16. The status line; the main view's read-back says whether EVE stands in env sunlight.
+  assert(line(State::cycle, light_at(12, 8, 0), 114, 20, true) ==
+         "sky=cycle h=12.00 el=65.0 le=65.0 ly=0.0 k=1.000 moon=0 amb=1.000 eve=1.000 ev=0.00 tint=1.00,1.00,1.00 "
+         "n=114 lit=20 seen=1");
+  assert(!sky.seen());
+  put<uint8_t>(ws, kViewFlag, 1), put<float>(ws, kViewSun, 3);
+  sky.pass(0xCCCC, ws, cyc, noon);
+  assert(sky.seen());
+  // 17. An element SB moved in its array keeps its originals (no compounding); one that left is forgotten.
+  put<float>(e2, kSun, 10); // Neither its cached original nor what was written: read again as new.
+  sky.pass(0xCCCC, ws, cyc, midnight);
+  assert(near(get<float>(e2, kSun), 1.5));
+  std::vector<uint8_t> moved(2 * kStride);
+  std::memcpy(moved.data(), array_mem.data() + kStride, 2 * kStride); // Element 0 removed: 1 and 2 shift down.
+  put<uint64_t>(ws, kArray, reinterpret_cast<uintptr_t>(moved.data()));
+  put<int32_t>(ws, kNum, 2);
+  assert(sky.pass(0xCCCC, ws, cyc, midnight) == State::cycle && sky.elements() == 2 && sky.sunlit() == 1);
+  assert(near(get<float>(reinterpret_cast<uintptr_t>(moved.data()) + kStride, kSun), 1.5));
+  sky.restore();
+  assert(get<float>(reinterpret_cast<uintptr_t>(moved.data()) + kStride, kSun) == 10);
   return 0;
 }
