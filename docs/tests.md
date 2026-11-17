@@ -55,7 +55,8 @@ fails the test. The `main/` tests load
   while she rode parking at her feet, `coop off` and `bike=off` removing it with its place kept; its bike line at each
   change, sent again after a failed write; the paid fetch at a Xion camp (offered after a far or another-map refusal,
   paid by a press within 5 s, one start for every press during the payment, too little money and a failure said, never
-  within reach, in an SBO lobby or away from a camp);
+  within reach, in an SBO lobby or away from a camp; the money's name from `game_text` on the screen's words,
+  `betacrystal` in the English copy of another language, for a name over 32 bytes and in an offer past 200 bytes);
 - `bike/park_test` checks `bike/park.lua` with `lua5.4` alone: the reach (200 cm across, 100 cm up or down, from any
   side), the whole metres and the side from the camera's yaw (never `0 m`), the seat a mount lands her on, the spot a
   dismount parks at, the clearance from her capsule to the bike's and the open-then-solid rule, a map's name, the
@@ -124,7 +125,7 @@ fails the test. The `main/` tests load
   with `friends_ask=on`), `coop host` alone (the Create a session screen when it opens, else `who_can_join`),
   `coop list` (a search by tab; alone, the last list numbered or a Public search) and `coop join <row>`;
 - `core/unreal_test` covers `game_text`: nothing asked while the string table is not loaded or its id is no name, nil
-  for a missing key, an empty text or an error;
+  for a missing key, an empty text or an error, another table's key read by its path;
 - `ui/model_test` covers the four Who can join values and the Friends join without asking row, shown under Public and
   Invitation only;
 - `session/travel_test` covers the host's row in the session list: the rules word at each change, the map and nearest
@@ -154,10 +155,10 @@ fails the test. The `main/` tests load
   reason logged at the title, with one of our screens open or with the game paused, the restore, the frame and the
   250 ms pass with an end said on screen, the Options rows, `coop off`; `riding()` as `coop emote`, the race, the hall
   seats, `coop fly on` and `coop glide on` read it; the ride's `idle_part` as the capture's `leave_out`; what the parked
-  bike gets (the menu's words, a notice, the travel worlds, its record through the link's files, `coop-bike-stand.txt`,
-  its bike line through `link.bike`, the paid fetch with `coop gift`'s FName and pause rules, the follow's
-  `camp_near`); the other players' parked bikes built, restored at the first tick, run after the ride's pass and
-  cleared at `coop off`;
+  bike gets (the menu's words, a notice, SB's text by table path, the travel worlds, its record through the link's
+  files, `coop-bike-stand.txt`, its bike line through `link.bike`, the paid fetch with `coop gift`'s FName and pause
+  rules, the follow's `camp_near`); the other players' parked bikes built, restored at the first tick, run after the
+  ride's pass and cleared at `coop off`;
 - `main/daynight_test` covers the day and night cycle through `main.lua` with a fake `sky/daynight.lua`: what it is
   built with (the native asks and status, the `daynight` setting, the cutscene, SB's screens, photo mode, Night
   Operation, the SBO lobby in Xion's training room only, the third-party plugin's path, `coop-sky.txt`, the world's

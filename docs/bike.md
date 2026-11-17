@@ -103,21 +103,26 @@ comes back at the next game start. `bike=off` also takes it out and keeps its pl
 ## Bringing it back at Xion
 
 A bike she cannot walk back to, on another map or on a spot she cannot reach, can be brought to her at Xion for 500
-betacrystal, the money of the game's shops. This works only on Xion's map, within 10 m of a Xion camp that your save
-has activated (one that `coop status` lists on its `activated=` line). It never works in the SBO lobby.
+betacrystal, the money of the game's shops (Gold in the English game). This works only on Xion's map, within 10 m of
+a Xion camp that your save has activated (one that `coop status` lists on its `activated=` line). It never works in
+the SBO lobby.
 
 There, when F3 is refused because the bike is out of reach or on another map, the refusal adds an offer:
-`Your bike is on another map: WasteLandA. Press F3 again within 5 s to pay 500 betacrystal to bring it here.` With
+`Your bike is on another map: WasteLandA. Press F3 again within 5 s to pay 500 Gold to bring it here.` With
 `bike_key=none` it names `coop bike` instead. Pressing F3 again within 5 s (or holding the pad's D-pad Right, or typing
-`coop bike`) pays. `Paying 500 betacrystal for your bike.` shows while the game takes the money. Every press meanwhile
-says the same and pays nothing more. Then `Your bike was brought here for 500 betacrystal.`: the bike stands where she
+`coop bike`) pays. `Paying 500 Gold for your bike.` shows while the game takes the money. Every press meanwhile
+says the same and pays nothing more. Then `Your bike was brought here for 500 Gold.`: the bike stands where she
 stood at the first press. The next F3 gets her on. Within reach of the bike, F3 gets her on as anywhere else and
 nothing is paid.
 
-With less than 500 betacrystal nothing is taken: `Not enough betacrystal: 500 needed, you carry 120.` Any other
+With less than 500 betacrystal nothing is taken: `Not enough Gold: 500 needed, you carry 120.` Any other
 failure shows `Your bike was not brought here. UE4SS.log says why.` If the game's count has not fallen by 500 within
 10 s of play after the mod asked it to take the money (time paused or in photo mode does not count), the payment fails
 and the log line says the betacrystal may be gone.
+
+These lines name the money as the game does in its language: Gold in English, Or in French. They say betacrystal
+with `ui_language=english`, when the mod cannot read the game's name or when that name is over 32 bytes. The offer
+also says betacrystal when the game's name would take the line past the chat's 200 bytes.
 
 The betacrystal comes out of the inventory of the save you play, a co-op save or one of your own. The payment needs
 the mod's native part on the pinned game build, which reads how many she carries.

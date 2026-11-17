@@ -166,13 +166,15 @@ function U.death_screen()
     end)
     return found
 end
--- The game's text for a StringTable_UI key in its own language, as its menus show it; nil while that table is not
--- loaded or its id not a name (nothing is called then, so nothing loads it) or the key not registered, or on any error.
+-- The game's text for a key of StringTable_UI (or of the string table at path) in its own language, as its menus show
+-- it; nil while that table is not loaded or its id not a name (nothing is called then, so nothing loads it) or the key
+-- not registered, or on any error.
 local STRINGS='/Game/Local/Localize/StringTable_UI.StringTable_UI'
-function U.game_text(key)
+function U.game_text(key,path)
+    path=path or STRINGS
     local ok,text=pcall(function()
-        if not U.valid(StaticFindObject(STRINGS)) then return nil end
-        local id=FName(STRINGS,EFindName.FNAME_Find)
+        if not U.valid(StaticFindObject(path)) then return nil end
+        local id=FName(path,EFindName.FNAME_Find)
         if id:GetComparisonIndex()==0
             or not U.find('/Script/Engine.Default__KismetStringTableLibrary'):IsRegisteredTableEntry(id,key) then
             return nil

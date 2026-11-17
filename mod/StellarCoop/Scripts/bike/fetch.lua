@@ -19,6 +19,10 @@ local U=require('core.unreal')
 local Fetch={}
 -- ItemTable's alias of the shops' money (ShopItemTable's MoneyItemAlias1 says betacrystal; FName ignores case).
 Fetch.PRICE,Fetch.ALIAS=500,'BetaCrystal'
+-- The money's name on screen: its ItemTable row's Name key in ItemStringTable (SB's word, Gold in English), else the
+-- English word, also the log's. A name over NAME_MAX bytes takes the word, so the feed's 200 bytes hold every line.
+Fetch.NAME_TABLE,Fetch.NAME_KEY='/Game/Local/Localize/ItemStringTable.ItemStringTable','Item_BetaCrystal_Name'
+Fetch.WORD,Fetch.NAME_MAX='betacrystal',32
 -- Seconds: the remove at most, time paused not counted; the native part's answer to a read at most; between two reads
 -- after the remove; the offer's window for the second press (bike/ride.lua).
 Fetch.SETTLE,Fetch.READ,Fetch.POLL,Fetch.WINDOW=10,5,0.5,5

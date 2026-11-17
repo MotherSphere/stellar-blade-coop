@@ -6,10 +6,11 @@
 -- bike and its words, bike_key (F3) and the pad's D-pad Right held 1 s with a refusal on screen, the first tick's
 -- restore, its frame before the native tick, its 250 ms pass, coop off (the stop, then the parked bike out of the
 -- world), the Options rows; riding() as coop emote, the race, the hall seats, coop fly on and coop glide on read it;
--- its idle_part as the capture's leave_out; the menu's words, a notice and the travel worlds for the parked bike; its
--- bike line through link.bike; its paid fetch at a Xion camp (a fake bike/fetch.lua: what it is built with, coop gift's
--- FName and pause rules) and the follow's camp_near. Other players' parked bikes (fixture.lua's fake bike/others.lua):
--- what they are built with, their restore at the first tick, their pass after the ride's, their clear at coop off.
+-- its idle_part as the capture's leave_out; the menu's words, a notice, SB's text (game_text) and the travel worlds for
+-- the parked bike; its bike line through link.bike; its paid fetch at a Xion camp (a fake bike/fetch.lua: what it is
+-- built with, coop gift's FName and pause rules) and the follow's camp_near. Other players' parked bikes (fixture.lua's
+-- fake bike/others.lua): what they are built with, their restore at the first tick, their pass after the ride's,
+-- their clear at coop off.
 dofile('tests/lua/main/fixture.lua')
 -- coop fly's keys: cut/flight.lua for real, with fly_on in place of its active() (on() needs SB's player input).
 local Flight,fly_on=require('cut.flight'),nil
@@ -40,6 +41,12 @@ assert(o.stand_store=='store coop-bike-stand.txt',tostring(o.stand_store))
 assert(o.words().bike.not_back=='Your bike is not back yet.' and o.worlds.Xion=='/game/art/bg/worldmap/level_p/e04')
 o.tell(function(w) return w.bike.prompt:format('F3') end)
 assert(said[#said]=='F3: get on the bike' and said_en[#said]=='F3: get on the bike',tostring(said[#said]))
+-- The money's name for the paid fetch: SB's text for a key of the table at a path (core/unreal.lua's game_text).
+local unreal=require('core.unreal')
+local game_text=unreal.game_text
+unreal.game_text=function(key,path) return key..' '..tostring(path) end
+assert(o.game_text('Item_BetaCrystal_Name','/T.T')=='Item_BetaCrystal_Name /T.T')
+unreal.game_text=game_text
 -- Its place per save through the link's own files; none written while an SBO lobby is open.
 assert(o.file.read==fake_link.read_file and o.file.write==fake_link.write_file and o.lobby()==false)
 sb.active=true; assert(o.lobby()==true); sb.active=false

@@ -412,9 +412,12 @@ end
 -- reflected getters (the library's default object, found once). The first failure turns it off for this Lua load
 -- ('0' from then on) with one log line.
 local U=require('core.unreal')
--- SB's own word for a StringTable_UI key in the game's language (core/unreal.lua's game_text), for the Sessions screen,
--- the join popups and the feed's join and leave lines; none under ui_language=english.
-local function game_words(key) if settings and settings.ui_language~='english' then return U.game_text(key) end end
+-- SB's own word for a StringTable_UI key (or a key of the string table at path) in the game's language
+-- (core/unreal.lua's game_text), for the Sessions screen, the join popups, the feed's join and leave lines and the
+-- bike's money name; none under ui_language=english.
+local function game_words(key,path)
+    if settings and settings.ui_language~='english' then return U.game_text(key,path) end
+end
 local Join=require('session.join')
 local photo_failed=false
 local function photo_state()
@@ -643,7 +646,8 @@ o.wear,o.scene,o.lines,o.flight,o.glide,o.emote=wear,scene,cut_lines,flight,glid
 -- the menu's words (words, tell), a map by its travel world's name (worlds). Its place is kept per account and save
 -- beside coop-settings.txt (file), never while an SBO lobby is open (lobby). Its line goes to every member (send).
 -- At an activated Xion camp (camp: the follow's camp_near) its paid fetch spends betacrystal through bike/fetch.lua
--- (fetch, with the Steam link only), as coop gift spends items: the same FName and pause rules.
+-- (fetch, with the Steam link only), as coop gift spends items: the same FName and pause rules. Its lines name the
+-- money with SB's word (game_text).
 -- An alias's FName is FNAME_Find's and must read back as the alias, as the follow's camps do.
 local function fname(alias)
     local n=U.value_of(FName(alias,EFindName.FNAME_Find))
@@ -655,7 +659,7 @@ end
 local function logic_paused() return kit~=nil and kit.paused(true) or photo_state()~='0' or link.paused() end
 bike=require('bike.ride').new({log=function(m) print('[StellarCoop][BK] '..tostring(m)..'\n') end,
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end,
-    words=words,tell=tell,worlds=require('session.travel').WORLDS,
+    words=words,tell=tell,game_text=game_words,worlds=require('session.travel').WORLDS,
     file=link and {read=link.read_file,write=link.write_file},lobby=function() return sbo~=nil and sbo.active() end,
     store=link and link.store('coop-bike.txt'),stand_store=link and link.store('coop-bike-stand.txt'),drive=drive,
     send=link and function(p) return link.bike(p) end,

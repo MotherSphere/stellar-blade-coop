@@ -37,23 +37,26 @@ StaticFindObject=function(path) return path=='/Script/SB.SBCharacter' and SBC or
 local eve=object({IsA=function(_,c) return c==SBC end})
 assert(U.her(eve)==eve and U.her(object({IsA=function() return false end}))==nil and U.her(nil)==nil)
 
--- game_text: the table's id a name and the key registered, its text; anything less, nil.
+-- game_text: the table's id a name and the key registered, its text; anything less, nil. Another table by its path.
 local STRINGS='/Game/Local/Localize/StringTable_UI.StringTable_UI'
+local ITEMS='/Game/Local/Localize/ItemStringTable.ItemStringTable'
 local loaded,named,asked,words=false,false,0,{UI_Cancel='Annuler',UI_Empty=''}
+local tables={[STRINGS]=words,[ITEMS]={Item_BetaCrystal_Name='Or'}}
 EFindName={FNAME_Find=1}
 FName=function(text,find)
-    assert(text==STRINGS and find==EFindName.FNAME_Find,'never a new name')
+    assert(tables[text] and find==EFindName.FNAME_Find,'never a new name')
     return object({GetComparisonIndex=function() return named and 7 or 0 end,ToString=function() return text end})
 end
 local STL=object({IsRegisteredTableEntry=function(_,id,key)
     asked=asked+1
-    assert(id:ToString()==STRINGS)
     if key=='UI_Raise' then error('stale table') end
-    return words[key]~=nil or key=='UI_Raise'
+    return tables[id:ToString()][key]~=nil or key=='UI_Raise'
 end})
-local KTL=object({TextFromStringTable=function(_,_,key) return object({ToString=function() return words[key] end}) end})
+local KTL=object({TextFromStringTable=function(_,id,key)
+    return object({ToString=function() return tables[id:ToString()][key] end})
+end})
 StaticFindObject=function(path)
-    if path==STRINGS then return loaded and object({}) or nil end
+    if tables[path] then return loaded and object({}) or nil end
     return ({['/Script/Engine.Default__KismetStringTableLibrary']=STL,
         ['/Script/Engine.Default__KismetTextLibrary']=KTL})[path]
 end
@@ -63,4 +66,6 @@ assert(U.game_text('UI_Cancel')==nil and asked==0,'Loaded, its id no name: nothi
 named=true
 assert(U.game_text('UI_Cancel')=='Annuler' and U.game_text('UI_Missing')==nil and U.game_text('UI_Empty')==nil)
 assert(U.game_text('UI_Raise')==nil,'An error: nil')
+assert(U.game_text('Item_BetaCrystal_Name',ITEMS)=='Or' and U.game_text('Item_BetaCrystal_Name')==nil)
+assert(U.game_text('UI_Cancel',ITEMS)==nil,'Its key read in the table at the path')
 print('unreal_test ok')

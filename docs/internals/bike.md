@@ -303,6 +303,14 @@ every press is refused with `Paying 500 betacrystal for your bike.`, so it charg
 runs before the ride's pass. Paid, the place becomes the offer's pose, written as a park (outside an SBO lobby), shown
 and sent: `bike brought to <camp> for 500 betacrystal`. Nothing of a payment is kept across Lua loads.
 
+The on-screen lines put the money's name in a `%s`. On the screen's words it is SB's own: the ItemTable row
+`BetaCrystal` names the key `Item_BetaCrystal_Name`, read from `/Game/Local/Localize/ItemStringTable.ItemStringTable`
+through `core/unreal.lua`'s `game_text` (Gold in English, Or in French, 골드 in Korean). main.lua's `game_words` reads
+nothing under `ui_language=english`. The English copy of another language (the line above EVE), the log, a name that
+does not read and a name over 32 bytes (`Fetch.NAME_MAX`) take `betacrystal`. So does an offer whose refusal and name
+pass the feed's 200 bytes: `ui/text_test` fits every refusal and offer with `betacrystal` and the other lines with a
+32-byte name.
+
 `bike/fetch.lua` spends the money as SB's shops spend it. Read in Ghidra on build 26123051:
 
 - The shop's buy, `FSBActorLogicObject::BuyItem` (`0x141bbe480`), takes bucket type 1 (the inventory) of the buyer's

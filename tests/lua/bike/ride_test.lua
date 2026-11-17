@@ -21,7 +21,9 @@
 -- first tick, which parks at her feet after a Ctrl+R while she rode; removed at coop off and bike=off, put back at
 -- bike=on; its line for the link (o.send) at each change, sent again after a failed write. The paid fetch at a Xion
 -- camp (o.camp, o.fetch): offered after a far or another-map refusal, paid by a press within 5 s, every press refused
--- while it runs, the place it gives, its notices; never within reach, in an SBO lobby or away from a camp.
+-- while it runs, the place it gives, its notices; never within reach, in an SBO lobby or away from a camp. The money's
+-- name in them: SB's (o.game_text) on the screen's words, betacrystal in the English copy of another language, for a
+-- name over 32 bytes and in an offer it would take past the feed's 200 bytes.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -267,9 +269,11 @@ package.loaded['bike.stand']={CULL=20000,
     remove=function(d) d.removed,d.shown=true,false end,
     sweep=function(path,mesh) swept[#swept+1],swept_mesh[#swept_mesh+1]=path,mesh end}
 local Ride=require('bike.ride')
--- The screen's words (T.en until a test picks another table) and the notices told in them.
+-- The screen's words (T.en until a test picks another table) and the notices told in them, with their English copies
+-- (told_en, main.lua's for the line above EVE). o.game_text answers money and logs each ask (money_asks).
 local T=require('ui.text')
-local words,told=T.en,{}
+local words,told,told_en=T.en,{},{}
+local money,money_asks=nil,{}
 -- o.camp: counts camp_asks, answers camp. o.fetch (bike/fetch.lua): start counts fetch.starts; with fetch.refuse set it
 -- returns false and fetch.refuse (busy() stays false), else busy() is true; step returns fetch.result once (then busy()
 -- is false).
@@ -295,7 +299,9 @@ local function new()
         paused=function() return world.paused end,photo=function() return world.photo end,
         frozen=function() return world.frozen end,life=function() return world.life end,
         armed=function() return world.armed end,busy=function() return world.busy end,
-        words=function() return words end,tell=function(build) told[#told+1]=build(words) end,
+        words=function() return words end,
+        tell=function(build) told[#told+1],told_en[#told_en+1]=build(words),build(T.en) end,
+        game_text=function(key,path) money_asks[#money_asks+1]=key..' '..path; return money end,
         worlds={Xion='/game/art/bg/worldmap/level_p/e04'},file=file,lobby=function() return lobby end,send=send,
         camp=function(w,m)
             assert(w=='Xion' and m==10,'Xion within 10 m')
@@ -1016,9 +1022,34 @@ assert(not ok and why=='Your bike is 42 m away, ahead of you.' and camp_asks==as
 camp=nil; place_on('/game/other'); ok,why=R.toggle(); assert(why=='Your bike is on another map: other.')
 -- Another language on screen, English in the log.
 words=T.fr; camp='Xion_Camp_10'; ok,why=R.toggle()
-assert(why==T.fr.bike.other_map:format('other')..' '..T.fr.bike.offer:format('F3',500)
+assert(why==T.fr.bike.other_map:format('other')..' '..T.fr.bike.offer:format('F3',500,'betacrystal')
     and last()=='bike refused: Your bike is on another map: other.',last())
-words=T.en
+-- SB's name for the money on the screen's words, from ItemStringTable's Item_BetaCrystal_Name; the log and the English
+-- copy of another language keep betacrystal.
+money='Or'; clock=clock+6; ok,why=R.toggle()
+assert(why==T.fr.bike.other_map:format('other')..' '..T.fr.bike.offer:format('F3',500,'Or'),why)
+assert(money_asks[#money_asks]=='Item_BetaCrystal_Name /Game/Local/Localize/ItemStringTable.ItemStringTable')
+ok,why=R.toggle(); assert(ok and why=='Paiement de 500 Or pour votre moto.' and told[#told]==why)
+assert(told_en[#told_en]=='Paying 500 betacrystal for your bike.')
+assert(last()=='bike fetch asked at Xion_Camp_10 for 500 betacrystal')
+ok,why=R.toggle(); assert(not ok and why=='Paiement de 500 Or pour votre moto.')
+assert(last()=='bike refused: Paying 500 betacrystal for your bike.')
+fetch.result={'poor',120}; clock=clock+0.25; R.slow()
+assert(told[#told]=='Or insuffisant : 500 requis, vous en avez 120.')
+assert(told_en[#told_en]=='Not enough betacrystal: 500 needed, you carry 120.')
+-- A name over 32 bytes: betacrystal.
+words,money=T.en,('Ж'):rep(17); clock=clock+6; ok,why=R.toggle()
+assert(why=='Your bike is on another map: other. Press F3 again within 5 s to pay 500 betacrystal to bring it here.')
+-- A 32-byte name after a 32-byte map name passes Russian's 200 bytes: the offer says betacrystal.
+words,money=T.ru,('Ж'):rep(16); place_on('/game/'..('m'):rep(32)); ok,why=R.toggle()
+assert(why==T.ru.bike.other_map:format(('m'):rep(32))..' '..T.ru.bike.offer:format('F3',500,'betacrystal'),why)
+-- The English screen: SB's English name in both copies.
+words,money=T.en,'Gold'; place_on('/game/other'); ok,why=R.toggle()
+assert(why=='Your bike is on another map: other. Press F3 again within 5 s to pay 500 Gold to bring it here.',why)
+ok,why=R.toggle(); assert(ok and why=='Paying 500 Gold for your bike.' and told_en[#told_en]==why)
+fetch.result={'poor',120}; clock=clock+0.25; R.slow()
+assert(told[#told]=='Not enough Gold: 500 needed, you carry 120.' and told_en[#told_en]==told[#told])
+money=nil
 -- On a Movable base (no pose a park takes) the fetch brings it to her feet with her actor's yaw.
 clock=clock+6; eve.base={Mobility=2}; eve.mesh_at={X=5,Y=0,Z=0}; R.toggle(); eve.base=nil
 assert(R.toggle()==true); fetch.result={'paid'}; clock=clock+0.25; R.slow()
