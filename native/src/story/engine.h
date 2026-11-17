@@ -627,14 +627,18 @@ private:
     return Did::done;
   }
   // Her InteractionSelect menu of this play, open for a line stored already: SelectIndex unset, so its OnFinishBlock
-  // stores nothing over the host's line, then FinishBlock(w, 0), which plays her copy on when its template waits.
+  // stores nothing over the host's line. Its take skip latch is taken too: that OnFinishBlock (0x14254e640) would run
+  // her take skip 0x14254ecc0 otherwise (a menu that opened this pass has not been held yet). Then FinishBlock(w, 0),
+  // which plays her copy on when its template waits.
   void close_menu(const Cur &c) {
     const uint64_t w = select_open(c);
     if (!w || w != select_.w || !select_.open || select_.data != c.data || chosen_data_ != c.data ||
         std::find(chosen_.begin(), chosen_.end(), select_.n) == chosen_.end())
       return;
     const int32_t none = kNoIndex;
+    const uint8_t taken = 1;
     g_.write(w + kSelectIndex, &none, sizeof none);
+    g_.write(w + kSelectSkipped, &taken, 1);
     g_.finish_block(w, 0);
     select_.open = false; // So the next block counts even when it opens before her next pass.
     say("story: her menu " + std::to_string(select_.n) + " of take " + std::to_string(i32(c.data + kTakeUid)) +

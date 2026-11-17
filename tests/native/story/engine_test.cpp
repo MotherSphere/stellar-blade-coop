@@ -531,6 +531,11 @@ void test_guest_choices() {
   assert(w.g.calls.size() == 2 && w.e.holding());
   m.n = 2;
   assert(w.e.apply(m, why) == Did::done && w.last() == "finish 0" && w.g.calls.size() == 3);
+  // Block 3 opens in the pass its line comes, before any hold: its take skip latch is taken before it closes.
+  open(w, w.select), w.g.put<uint8_t>(w.select + kSelectSkipped, 0), w.e.her();
+  m.n = 3;
+  assert(w.e.apply(m, why) == Did::done && w.last() == "finish 0" && w.g.calls.size() == 4);
+  assert(w.g.get<uint8_t>(w.select + kSelectSkipped) == 1);
   // One of another play is not hers to hold.
   open(w, w.select, 99), w.g.put<float>(w.select + kSelectBlock, 0.5f), w.e.her(), w.e.hold_widgets();
   assert(w.g.get<float>(w.select + kSelectBlock) == 0.5f && !w.e.holding());
