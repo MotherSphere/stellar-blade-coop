@@ -79,9 +79,13 @@ setting is now on by default, the experimental ones included; most of them have 
 - The shared world (experimental, on by default, not tested in game yet) makes a door, lever, switch, crane, lift or
   shortcut that one player works change in the other's game too, while both play a co-op save. Chests, supply boxes
   and other loot stay each player's own. See [Shared world](docs/shared-world.md).
+- Story together (experimental, on by default, not tested in game yet) plays the host's story scenes in the guest's
+  game too, with his choices, QTE results and skips, while both play a co-op save. See
+  [Story together](docs/story-together.md).
 - Co-op saves (`StellarBladeCoop00.sav` to `04.sav`) are copies of your own saves that the mod makes on the title
-  screen. Night Operation, the challenges, shared enemies, shared quests and the shared world run on them only, and
-  nothing goes back to your own saves unless you export it. See [Co-op saves](docs/playing-with-a-friend.md#co-op-saves).
+  screen. Night Operation, the challenges, shared enemies, shared quests, the shared world and story together run on
+  them only. Nothing goes back to your own saves unless you export it. See
+  [Co-op saves](docs/playing-with-a-friend.md#co-op-saves).
 - Group play adds the friend's revive and shared quests (both experimental and on by default), a pause while a
   cutscene plays in the host's game, and travel to the camp nearest the host (F7, not tested in game yet). See
   [Playing with a friend](docs/playing-with-a-friend.md).

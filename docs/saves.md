@@ -103,9 +103,10 @@ Night Operation's run and the challenges refuse to run there.
 ## Co-op saves
 
 Some features run only on a co-op save and never on your own saves: Night Operation's run and its shop (`coop nightop`),
-the challenges (`coop challenge`), the two Night Operation previews (`coop no` and `coop recruiter`), the experimental
-shared enemies (`coop fight`) and the experimental shared quests (`coop quests`). The ghost, the keys and the Steam link
-work on any save. Nothing is copied back from a co-op save to your own saves unless you export it (below).
+the challenges (`coop challenge`) and the two Night Operation previews (`coop no` and `coop recruiter`). So do the
+experimental shared enemies (`coop fight`), shared quests (`coop quests`), shared world (`coop world`) and story
+together (`coop scenes`). The ghost, the keys and the Steam link work on any save. Nothing is copied back from a co-op
+save to your own saves unless you export it (below).
 
 A co-op save is either a co-op copy, which the mod makes, or the manual co-op slot of `StellarCoopSlot.txt` (below).
 

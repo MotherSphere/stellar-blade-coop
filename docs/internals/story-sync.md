@@ -80,7 +80,9 @@ ZoneEnvSpawnTable, ZoneEnvTable and the three quest tables, with `quest/sync.h`'
 - 847 scene rows over 761 paths, 146 of them a level sequence alone, 27 run by a shared quest step. Several rows can
   share a path. The priority and the FinishEvents tell most apart; the host's zone tells the rest. 44 paths keep rows
   equal in both, 17 of them with the same zone: those rows play the same theater with the same end chain, so the first
-  in table order stands for them all. 38 theater rows have both a ZoneEventTable condition and AddEvents.
+  in table order stands for them all. 11 rows after the first of such a group differ from it in AddEvents, condition
+  or quest flag. Where the host's zone does not tell such a row from the first, the host sends the first row's name
+  and the guest runs that row. 38 theater rows have both a ZoneEventTable condition and AddEvents.
   RunZoneEvent runs AddEvents whatever the condition says, so the guest tests such a row's condition for her own player
   first (`0x141c8d850`, as RunEvent tests it).
 - 73 story trips (PlayerWarp or ChangeZone rows). The 35 that no table starts (starter `g`: an interaction graph ran
@@ -185,9 +187,9 @@ another map, so kept rows wait at most 60 s from the first pass out of game. Pas
 pass turns a story trip among them into a `trip` line after the scene's own lines, so a talk's end goes first.
 
 The guest keeps up to 8 trips, each dropped when she was not in the host's zone when it came. One runs when no shared
-copy plays: the story gate's zone, ghost, life, block and story checks, then RunZoneEvent with her id, SB's own replay
-of a ZoneEvent row (`0x141b218d0`). RunEvent tests the row's condition and the warp row's against her. PlayerWarp moves
-only the local player.
+copy plays: the story gate's zone, ghost, life, block and story checks, then RunZoneEvent (`0x141ca5790`) with her id,
+as SB's own replay of a ZoneEvent row calls it (`FSBRunZoneEvent::Execute`, `0x141b218d0`). RunEvent tests the row's
+condition and the warp row's against her. PlayerWarp moves only the local player.
 
 ## Quest steps the guest makes first
 
@@ -268,6 +270,9 @@ setting alone and cancels the load's request. The notices come from the `story=`
   and `0x141a3af50`, `0x141c34760`), ZoneEvent_PlayLevelSeq sequences (RunEvent case 1, which never uses the
   manager), a node that plays only a subtitle sequence, select sets registered on her side, warp-block trip matching,
   holds on her own graph nodes.
+- 11 scene rows differ in AddEvents, condition or quest flag from the first row of their path, priority and
+  FinishEvents. When the host's zone does not tell one of them from that first row, the guest runs the first row's
+  AddEvents, condition test and quest flag in place of the row the host played.
 - SB's writer of the requested skip at manager `+0x44` was not found. A skip through it would not raise the input
   skip latch (`+0x181`), so the host's line would miss it.
 - A skip `seek` leaves out do-skip's side steps (closing the remaining widgets, the camera fade); the sequencer's own

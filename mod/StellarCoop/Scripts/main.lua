@@ -491,8 +491,8 @@ if settings and not settings.shared_world and not off
 end
 -- shared_story: the native part starts with it on. Once a load, as soon as the native part judged the slot, the loop
 -- asks coop scenes off for shared_story=off, or coop scenes on for shared_story=on while the story= line reads off by
--- the setting (an earlier load's off, or coop scenes off), and nothing when the line already agrees. coop scenes on or
--- off before then cancels the ask. The co-op menu's row asks coop scenes on or off at once; scenes_wanted: the value
+-- the setting (an earlier load's off, or coop scenes off). It asks nothing when the line already agrees. coop scenes on
+-- or off before then cancels the ask. The co-op menu's row asks coop scenes on or off at once; scenes_wanted: the value
 -- last acted on.
 local scenes_auto=settings~=nil
 local scenes_wanted=settings~=nil and settings.shared_story

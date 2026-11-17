@@ -2,8 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop scenes (story together, experimental) through main.lua (fixture.lua): its arguments, on and off whatever
--- shared_story says, status, the ask once a load where the story= line and shared_story differ, and its notices on
--- screen in the menu's words.
+-- shared_story says, status and the ask once a load where the story= line and shared_story differ. Then its notices
+-- on screen in the menu's words.
 dofile('tests/lua/main/fixture.lua')
 in_world=true
 local Q=fake_link
@@ -28,7 +28,7 @@ assert(asked[2]=='scenes on' and last()=='[StellarCoop] OK: asked the native par
 coop('scenes','off')
 assert(asked[3]=='scenes off' and last()=='[StellarCoop] OK: asked the native part: scenes off\n',last())
 loops[2].f(); assert(#asked==3,'The loop leaves them alone')
--- status asks the native part, whose answer follows in the log, and answers with the story= line.
+-- status asks the native part (whose answer follows in the log) and answers with the story= line.
 Q.Q.story='story=waiting why=partner scene=none sent=0'
 coop('scenes','status')
 assert(asked[4]=='scenes status' and last()=='[StellarCoop] OK: story=waiting why=partner scene=none sent=0\n',last())
@@ -58,8 +58,8 @@ for _,case in ipairs({{'on',nil,nil},{'on','story=on scene=none sent=0',nil},
     assert(not case[3] or logged('OK: shared_story='..case[1]..': asked the native part: '..case[3]),
         table.concat(printed,'|'))
 end
--- The notices, every 250 ms: on with her each time both sides come on, and stopped for the run, each once as it starts,
--- in the menu's words.
+-- The notices, every 250 ms: on with her each time both sides come on; stopped for the run. Each comes once as it
+-- starts, in the menu's words.
 settings_text,status_text,fight_text,pilot_text,paks_v='shared_enemies=off\n',COOP,nil,nil,nil
 load_main(true)
 local function step(line)
