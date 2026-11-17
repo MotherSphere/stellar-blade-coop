@@ -23,10 +23,12 @@
 //   #     never applied: a Request her board cannot accept, or a quest the host lists in quest_deny
 //   ?     the tables cannot place it and the host did not see it happen, or its group read no complete container
 // A step that waits holds the later steps of its quest, and the acquire of a quest SB gives inside it (kChains), only.
-// The guest never follows the host backwards, never touches a failed quest, and never sends quest state: her lines
-// are for display. Only what both did together is shared: the guest takes a host step only when her quest stood where
-// the host's stood before it and she stood in the host's zone when its line came. A guest behind on a quest gets
-// nothing on it, no catch-up and no completion, until she reaches the host's state in her own game.
+// The guest never follows the host backwards and never touches a failed quest. Only what both did together is shared:
+// the guest takes a host step only when her quest stood where the host's stood before it and she stood in the host's
+// zone when its line came. A guest behind on a quest gets nothing on it, no catch-up and no completion, until she
+// reaches the host's state in her own game. The same rule runs the other way for a step she makes first: she sends it
+// only when her quest stood where the host's last line stood while she stands in his zone. The host makes it in his
+// game through the same calls (accept()). Her other lines are for display.
 //
 // Channel 2 (link/core.h), plain text after quest_tag(), at most kMaxMessage bytes:
 //   SBQn on <gen>, SBQn off <reason>         both, reliable: the feature's state; a guest's on asks for a snapshot
@@ -43,6 +45,10 @@
 //   SBQn wait <gen> <id> <seq> <why>         guest: its next step waits: kill, item, deny, unseen, board (a Request she
 //                                            hands in at her own board), locked (not on her board yet), or a zone alias
 //   SBQn ahead <gen> <id>                    guest: her quest holds a part the host's lacks
+//   SBQn step <gen> <seq> <id> <state> <acq> <groups> <tasks> <done> <zone>
+//                                            guest: one SB step of hers past the host's line of seq, which her quest
+//                                            held before it: her quest's whole state after it, as a q line has it,
+//                                            then the zone alias she made it in
 // The record file next to each co-op slot (record_text()) keeps the host's marks per partner (h lines) and the
 // host's last line per quest on the guest's side (g lines), in the same fields with zone aliases in place of indices.
 #pragma once
@@ -1116,15 +1122,15 @@ inline bool fits(const Row &r, const Entry &e) {
 
 // ---- Lines ----
 
-enum class Type : uint8_t { invalid, on, off, snap, zone, q, end, at, have, wait, ahead };
+enum class Type : uint8_t { invalid, on, off, snap, zone, q, end, at, have, wait, ahead, step };
 struct Message {
   Type type = Type::invalid;
   uint32_t gen = 0;    // on: 0 when it has none yet
   uint32_t count = 0;  // snap, end
   uint64_t digest = 0; // end
   uint8_t zone = 0;    // zone: its index
-  std::string text;    // zone and at: the alias; wait: why; off: the reason
-  Entry e;             // q: the quest; have, wait and ahead: its id, and seq
+  std::string text;    // zone, at and step: the alias; wait: why; off: the reason
+  Entry e;             // q and step: the quest (step: seq of the host's line it left); have, wait, ahead: id, seq
 };
 // A wait's reasons beside a zone alias.
 constexpr const char *kWhy[] = {"kill", "deny", "unseen", "board", "locked", "item"};
@@ -1149,6 +1155,7 @@ inline std::string format(const Message &m) {
   case Type::have: return t + "have" + n(m.gen) + n(m.e.id) + n(m.e.seq);
   case Type::wait: return t + "wait" + n(m.gen) + n(m.e.id) + n(m.e.seq) + " " + m.text;
   case Type::ahead: return t + "ahead" + n(m.gen) + n(m.e.id);
+  case Type::step: return t + "step" + n(m.gen) + n(m.e.seq) + n(m.e.id) + " " + fields(m.e) + " " + m.text;
   case Type::invalid: break;
   }
   return std::string();
@@ -1199,6 +1206,12 @@ inline Message parse(const char *data, size_t size) {
   } else if (kind == "q") {
     m.type = Type::q;
     ok = split(rest, f, 3, &f[3]) && u32(f[0], m.gen) && u32(f[1], m.e.seq) && id(f[2]) && parse_fields(f[3], m.e);
+  } else if (kind == "step") { // A q line's fields, then the zone.
+    m.type = Type::step;
+    const size_t space = rest.rfind(' ');
+    m.text = space == std::string::npos ? std::string() : rest.substr(space + 1);
+    ok = space != std::string::npos && split(rest.substr(0, space), f, 3, &f[3]) && u32(f[0], m.gen) &&
+         u32(f[1], m.e.seq) && id(f[2]) && parse_fields(f[3], m.e) && zone_alias(m.text);
   } else if (kind == "at") {
     m.type = Type::at;
     ok = split(rest, f, 2, nullptr) && u32(f[0], m.gen) && zone_alias(f[1]);
@@ -1305,21 +1318,23 @@ inline Record parse_record(std::string_view text, size_t *bad = nullptr) {
 constexpr uint64_t kMaxBad = 16;              // Bad lines before a side ignores its peer for the session.
 constexpr uint32_t kHostLinesPerSecond = 20;  // The most guest lines the host takes in a second.
 constexpr uint32_t kGuestLinesPerSecond = 10; // What the guest sends at most, well under that.
+constexpr size_t kMaxSteps = 16;              // Her step lines that wait for the host's next pass.
 // "Ahead" holds this long before it is sent: a kill that completes in both worlds shows on her side before the host's
 // line can arrive.
 constexpr uint64_t kAheadMs = 2000;
 constexpr uint64_t kSnapshotMs = 5000; // The host answers a guest's on with a snapshot at most this often.
 
 // The host's side: reads its own quests each pass, keeps its marks per partner in the record, and sends the
-// snapshot and each change while the guest is on. It applies nothing it receives. Not thread-safe, like Guest: the
-// glue locks each object or keeps it on one thread.
+// snapshot and each change while the guest is on. It applies nothing itself: her step lines wait in take_steps() for
+// the engine, which plans each with accept(). Not thread-safe, like Guest: the glue locks each object or keeps it on
+// one thread.
 class Host {
 public:
   Host(Record record, uint64_t partner, Deny deny) : record_(std::move(record)), partner_(partner), deny_(deny) {}
 
-  // A line from the guest; true when it is good and current (the glue shows have, wait and ahead). A guest's on
-  // makes a pass send a snapshot; on and off count even from an ignored guest. Lines over kHostLinesPerSecond are
-  // dropped without counting as bad: a stalled link can deliver a burst.
+  // A line from the guest; true when it is good and current (the glue shows have, wait and ahead; a step waits for
+  // take_steps()). A guest's on makes a pass send a snapshot; on and off count even from an ignored guest. Lines over
+  // kHostLinesPerSecond are dropped without counting as bad: a stalled link can deliver a burst.
   bool receive(const Message &m, uint64_t now_ms) {
     if (m.type == Type::on || m.type == Type::off) {
       guest_on_ = m.type == Type::on;
@@ -1339,11 +1354,17 @@ public:
     case Type::at:
     case Type::have:
     case Type::wait:
-    case Type::ahead: break;
+    case Type::ahead:
+    case Type::step: break;
     default: return bad("host line");
     }
-    if (m.gen != gen_)
-      return m.gen > gen_ ? bad("generation") : false; // An older one was on its way: dropped.
+    if (m.gen != gen_) { // An older one was on its way: dropped.
+      if (m.type == Type::step && m.gen < gen_)
+        log.push_back("quests: her step of " + std::to_string(m.e.id) + " dropped: from an older snapshot");
+      return m.gen > gen_ ? bad("generation") : false;
+    }
+    if (m.type == Type::step)
+      return take_step(m);
     if (m.type == Type::at || m.type == Type::ahead)
       return m.type == Type::at || row_index(m.e.id) >= 0 || bad("quest");
     const Record::Line *l = record_.find('h', partner_, m.e.id);
@@ -1392,9 +1413,33 @@ public:
   const Record &record() const { return record_; }
   // Whether the record changed since the last call (the worker writes the file then).
   bool take_changed() { return std::exchange(changed_, false); }
+  // Her step lines since the last call, for accept() and the engine's calls.
+  std::vector<Message> take_steps() { return std::exchange(steps_, {}); }
   std::vector<std::string> log; // Lines for coop-*.log, taken by the glue.
 
 private:
+  // Her step line, of this generation: a shared quest, fitting its row, from a line of ours, newer than her last step
+  // of that quest. kMaxSteps wait for the next pass at most.
+  bool take_step(const Message &m) {
+    const int i = row_index(m.e.id);
+    if (i < 0 || !fits(kRows[size_t(i)], m.e))
+      return bad("step");
+    const Record::Line *l = record_.find('h', partner_, m.e.id);
+    if (!l || m.e.seq > l->e.seq)
+      return bad("step");
+    const std::string what = std::string("quests: her step of ") + kRows[size_t(i)].alias + " dropped: ";
+    if (m.e.seq <= step_seq_[size_t(i)]) {
+      log.push_back(what + "not newer than her last one");
+      return false;
+    }
+    if (steps_.size() == kMaxSteps) {
+      log.push_back(what + std::to_string(kMaxSteps) + " steps wait");
+      return false;
+    }
+    step_seq_[size_t(i)] = m.e.seq;
+    steps_.push_back(m);
+    return true;
+  }
   bool bad(const char *why) {
     if (++bad_ == 1)
       log.push_back(std::string("quests: bad guest line (") + why + ")");
@@ -1524,6 +1569,8 @@ private:
   std::string at_; // Our zone as this generation's at line said it.
   uint64_t bad_ = 0, window_ = 0, next_snapshot_ = 0;
   uint32_t lines_ = 0;
+  std::vector<Message> steps_;
+  uint32_t step_seq_[kRowCount] = {}; // Per quest, the seq her last step line left.
 };
 
 // ---- The guest ----
@@ -1677,8 +1724,116 @@ inline Plan plan(const Row &r, const Entry &h, const View &v, const Tuple &g, co
   return p;
 }
 
+// ---- A step the guest makes first ----
+
+// The step that took her quest from b to g when one_step(r, b, g): its place in kSteps. For a task or a group end,
+// also its task: the one task done in her active group, or the one task of the container that ended it.
+struct Made {
+  size_t step = 0;
+  bool task = false;
+  Pos at;
+};
+inline Made made_step(const Row &r, const Tuple &b, const Tuple &g) {
+  if (b.state <= 0)
+    return Made{r.step, false, Pos()};
+  const size_t a = b.groups;
+  return Made{r.step + 1 + a, true, g.groups > a ? Pos{g.cont[a], 0} : g.task[0]};
+}
+// Why such a step is not one the host takes, on either side: never shared ('#', or the host's quest_deny, which marks
+// his lines '#'), a kill or item task each player's own copy completes, or a step SB moves the player in. Null: it can.
+inline const char *step_hold(const Row &r, const Tuple &b, const Tuple &g, bool denied) {
+  const Made s = made_step(r, b, g);
+  const char hold = s.task ? held_task(r.id, b.groups, s.at.c, s.at.p) : 0;
+  return denied || kSteps[s.step].mark == '#' ? "never shared"
+         : hold == 'K'                        ? "a kill task"
+         : hold == 'I'                        ? "an item task"
+         : kSteps[s.step].warp                ? "it moves the player"
+                                              : nullptr;
+}
+// Her entry after her step from the host's line t to g: t's marks on the parts t holds, the table's on the new one
+// ('?' for a step the tables cannot place: its zone is the line's own field).
+inline Entry stepped(const Row &r, const Entry &t, const Tuple &g) {
+  Entry e = t;
+  e.t = g;
+  const Made s = made_step(r, t.t, g);
+  const char c = kSteps[s.step].mark;
+  const Mark m{c == 'h' ? '?' : c, 0};
+  if (!s.task)
+    e.acq = m;
+  else if (g.groups > t.t.groups)
+    e.group[t.t.groups] = m;
+  else
+    e.task[0] = m;
+  e.done = !complete(g.state) ? Mark{'.', 0} : r.type != 'R' && g.groups ? e.group[g.groups - 1] : Mark{'-', 0};
+  return e;
+}
+// Her quest before a step whose end is g: the one SB transition one_step allows, undone. False when g ends no such
+// step; a Request's hand-in (state 2 to 3, at each player's own board) is none.
+inline bool before(const Row &r, const Tuple &g, Tuple &b) {
+  b = Tuple();
+  if (g.state == 1 && !g.groups && !g.tasks)
+    b.state = 0; // her acquire, or her board's accept
+  else if (g.state == 1 && g.tasks == 1)
+    b = g, b.tasks = 0;
+  else if (g.groups && !g.tasks && g.state != kFailed && !(r.type == 'R' && complete(g.state)))
+    b = g, b.state = 1, --b.groups;
+  else
+    return false;
+  b.unsure = 0;
+  return one_step(r, b, g);
+}
+constexpr const char *kMadeHere = "made here already"; // accept(): his quest holds her step, nothing to do
+// The host's step for one of hers: s her quest after it (a step line), zone the zone she made it in, against his
+// quest (view v, tuple h) where he stands (w.zone; w.armed and w.ordered as plan() takes them), denied his quest_deny.
+// Null with p ready, else a word for the log (kMadeHere when his quest holds it). His quest need not equal hers before
+// her step, only hold it: her task is taken while his active group is hers and that task is in progress for him, so two
+// players who finish different tasks of one group in the same pass both end with both.
+inline const char *accept(const Row &r, const Entry &s, std::string_view zone, const View &v, const Tuple &h,
+                          const Where &w, bool denied, Plan &p) {
+  p = Plan();
+  p.id = r.id, p.step = r.step;
+  Tuple b;
+  if (r.type == 'R' && complete(s.t.state))
+    return "a Request handed in at her own board";
+  if (!before(r, s.t, b))
+    return "not one step";
+  if (h.state == kFailed)
+    return "failed here";
+  if (zone != w.zone)
+    return "made in another zone";
+  if (covers(h, s.t))
+    return kMadeHere;
+  if (!covers(h, b))
+    return "his quest stands behind hers";
+  if (const char *why = step_hold(r, b, s.t, denied))
+    return why;
+  if (b.state <= 0) {
+    p.act = r.type == 'R' ? Act::accept : Act::acquire;
+    if (r.type == 'R' && (!r.normal || h.state < 0))
+      return r.normal ? "not on his board yet" : "a Request the board does not accept";
+    if (r.type != 'R' && !w.armed)
+      return "acquire not armed for this load";
+    if (!w.ordered)
+      return "it comes with a step of another quest he has not made";
+  } else {
+    const size_t a = b.groups;
+    const Made m = made_step(r, b, s.t);
+    if (h.state != 1 || h.groups != a)
+      return "his active group is another";
+    if (m.at.c >= containers(v, a) || m.at.p >= tasks(v, a, m.at.c) || v.task[a][m.at.c][m.at.p] != 1)
+      return "that task is not in progress here";
+    p.act = Act::complete, p.group = uint8_t(a), p.container = m.at.c, p.position = m.at.p, p.step = m.step;
+  }
+  const Step &st = kSteps[p.step];
+  if (st.mark == 't' && !in_list(st.zones, w.zone))
+    return "not in the step's zones";
+  p.why = Why::go;
+  return nullptr;
+}
+
 // The guest's side: takes the host's lines (checked against her own table), plans one step per pass over her
-// quests, and says what she reached, what waits and where she is ahead. A quest whose last move the host made without
+// quests, and says what she reached, what waits and where she is ahead. A step she makes first with the host goes to
+// him as a step line (lead()). A quest whose last move the host made without
 // her (her copy behind it, she elsewhere, a snapshot of moves made while she was away, or a lost line between) is
 // behind: nothing of it is planned until her own play reaches the host's state. So is one her own reload took back
 // before the first step she shared with the host; a reload inside those steps gets them again, as they were hers.
@@ -1705,7 +1860,7 @@ public:
         return bad("generation");
       // A new generation: the host loaded a save, went back, or answers her on. Her zone, have, wait and ahead are
       // said again for it.
-      gen_ = m.gen, zones_ = Zones(), held_.reset(), ahead_sent_.reset(), at_.clear(), host_at_.clear();
+      gen_ = m.gen, zones_ = Zones(), held_.reset(), ahead_sent_.reset(), at_.clear(), host_at_.clear(), even_.reset();
       in_snap_ = true, expected_ = m.count, got_ = 0, digest_ = kOffset, complete_ = false;
       std::fill(std::begin(have_), std::end(have_), 0), std::fill(std::begin(wait_seq_), std::end(wait_seq_), 0);
       return true;
@@ -1819,6 +1974,7 @@ public:
       if (unsynced_[i]) {
         plans_[i] = Plan();
         plans_[i].id = r.id, plans_[i].why = Why::blocked;
+        even_.reset(i);
         continue;
       }
       Message m;
@@ -1826,6 +1982,10 @@ public:
       bool ahead = false;
       if (held_[i]) {
         const Entry &h = h_[i];
+        if (even_[i])
+          lead(i, g, zone, send);
+        even_.set(i, h.t.state != kFailed && covers(g, h.t) && covers(h.t, g));
+        then_[i] = h;
         m.e.seq = h.seq;
         const Chain *k = chain(r.id);
         const size_t up = k ? size_t(row_index(k->parent)) : 0;
@@ -1963,6 +2123,24 @@ private:
     return ok(e.acq) && ok(e.done) && std::all_of(e.group, e.group + e.t.groups, ok) &&
            std::all_of(e.task, e.task + e.t.tasks, ok);
   }
+  // Her quest i was even with the host's line then_[i] at the last pass and now stands at g: a step line goes when
+  // that is one SB step past the line, which his line now lacks, made in his zone, of a kind he takes (step_hold()).
+  // A step SBO made from his line leaves her even with it, so it never goes back.
+  template <class Send> void lead(size_t i, const Tuple &g, std::string_view zone, Send &send) {
+    const Row &r = kRows[i];
+    const Entry &t = then_[i];
+    if (g.state == kFailed || h_[i].t.state == kFailed || covers(t.t, g) || !covers(g, t.t) || !one_step(r, t.t, g) ||
+        covers(h_[i].t, g))
+      return;
+    const std::string what = std::string("quests: ") + r.alias + " step of hers ";
+    const char *why = zone != host_at_ || !zone_alias(zone) ? "made outside the host's zone"
+                                                             : step_hold(r, t.t, g, t.acq.kind == '#');
+    Message m;
+    m.type = Type::step, m.gen = gen_, m.e = stepped(r, t, g), m.text = std::string(zone);
+    if (!why && !send(m))
+      why = gen_ ? "over the line rate" : "the host is off";
+    log.push_back(what + (why ? std::string("not sent: ") + why : "sent: " + fields(m.e) + " in " + m.text));
+  }
 
   Record record_;
   uint64_t host_;
@@ -1976,6 +2154,9 @@ private:
   std::bitset<kRowCount> known_, with_, decide_, was_, behind_, put_;
   Tuple prev_[kRowCount], base_[kRowCount], before_[kRowCount], from_[kRowCount];
   Entry g_[kRowCount];
+  // Her own steps: even_, her quest equalled the host's line then_ at the last pass.
+  std::bitset<kRowCount> even_;
+  Entry then_[kRowCount];
   std::string host_at_; // The host's zone from its at line.
   uint32_t have_[kRowCount] = {}, wait_seq_[kRowCount] = {};
   std::string wait_[kRowCount];

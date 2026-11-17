@@ -7,8 +7,9 @@
 // parser with fake quest objects: snapshot and diffs, one step a pass, every hold and what clears it, forced steps,
 // chained quests in SB's order, only steps made together (a guest behind or elsewhere gets none of that quest), her
 // own progress shown as ahead, a host that goes back to an older save, repeated and stale lines, counts past the
-// arrays, and every check each side makes on the other's lines. Nothing here completes a quest by itself: the fake
-// does it inside the last task, as the game does.
+// arrays, and every check each side makes on the other's lines. Then a step the guest makes first: sent only under its
+// rules, taken by the host only under accept()'s, with two tasks of one group done on both sides in one pass. Nothing
+// here completes a quest by itself: the fake does it inside the last task, as the game does.
 #include "quest/sync.h"
 
 #include <cassert>
@@ -1351,6 +1352,175 @@ void host_lines() {
   assert(count(pass(), "snap") == 0);
 }
 
+// The host's engine on her step lines: accept() on his quest where he stands, then the step in his world. The words.
+std::vector<std::string> host_takes(Link &k, Deny deny = Deny()) {
+  std::vector<std::string> words;
+  for (const Message &m : k.host.take_steps()) {
+    const size_t i = size_t(row_index(m.e.id));
+    const Chain *c = chain(m.e.id);
+    const bool ordered = !c || made(k.hw.tuple(size_t(row_index(c->parent))), c->step);
+    Plan p;
+    const char *why =
+        accept(kRows[i], m.e, m.text, k.hw.v[i], k.hw.tuple(i), Where{k.host_zone, k.armed, false, nullptr, ordered},
+               deny[i], p);
+    if (!why)
+      k.hw.apply(p);
+    words.push_back(why ? why : "go");
+  }
+  return words;
+}
+bool logged(const std::vector<std::string> &log, const std::string &what) {
+  return std::any_of(log.begin(), log.end(), [&](const std::string &l) { return l.find(what) != std::string::npos; });
+}
+
+// A step the guest makes first: sent only from where the host's line stood, made in his zone, of a kind he takes; he
+// makes it in his world and his next line finds her there, so nothing goes back. Two different tasks of one group done
+// in the same pass end with both in both games. Then every rule of accept() and of the host's step lines.
+void guest_steps() {
+  auto link = std::make_unique<Link>();
+  Link &k = *link;
+  const size_t s1 = at("Quest_Sub_001"), d1 = at("EQ_DownTown_Quest_01");
+  k.host_zone = k.guest_zone = "Zone_WLA_30";
+  k.step();
+  k.hw.acquire(s1);
+  k.step();
+  k.step();
+  assert(k.gw.tuple(s1) == k.hw.tuple(s1) && k.applied == 1);
+  // She ends group 0 first, where he stands: the step goes, he makes it.
+  k.gw.play(s1);
+  k.step();
+  assert(count(k.said, "step") == 1 && k.said_has("step 1 1 41 1 - 0:t - . Zone_WLA_30"));
+  assert(logged(k.guest.log, "Quest_Sub_001 step of hers sent: 1 - 0:t - . in Zone_WLA_30"));
+  assert((host_takes(k) == std::vector<std::string>{"go"}) && k.hw.tuple(s1) == k.gw.tuple(s1));
+  // His next line holds it: she is even, nothing goes back, nothing is applied on her side.
+  k.steps(3);
+  assert(count(k.heard, "step") == 1 && k.applied == 1 && k.guest.planned(41).why == Why::done);
+  assert(k.host.record().find('h', kGuestId, 41)->e.seq == 2);
+  // His step after hers is shared as before.
+  k.hw.play(s1);
+  k.step();
+  assert(k.gw.tuple(s1) == k.hw.tuple(s1) && k.applied == 2 && count(k.heard, "step") == 1);
+  // Her next step made outside his zone stays hers, with a line in her log.
+  k.guest_zone = "Zone_WLA_10";
+  k.step();
+  k.gw.play(s1);
+  k.step();
+  assert(count(k.heard, "step") == 1 && logged(k.guest.log, "step of hers not sent: made outside the host's zone"));
+  // Two tasks of one group in the same pass, his and hers: her step goes from his older line, he takes her task, his
+  // next line gives her his. Both end the quest.
+  k.host_zone = k.guest_zone = "Zone_DED20";
+  k.hw.acquire(d1);
+  k.steps(2);
+  assert(k.gw.tuple(d1) == k.hw.tuple(d1) && k.gw.v[d1].state == 1);
+  k.hw.complete(d1, 0, 0), k.gw.complete(d1, 0, 1);
+  k.step();
+  assert(count(k.said, "step") == 1 && k.guest.planned(2).why == Why::ahead);
+  assert((host_takes(k) == std::vector<std::string>{"go"}) && k.hw.v[d1].state == 3);
+  k.steps(2);
+  assert(k.gw.v[d1].state == 3 && k.gw.tuple(d1) == k.hw.tuple(d1) && count(k.heard, "step") == 2);
+
+  // accept() on its own, then the holds both sides share.
+  const Row &r1 = kRows[s1], &rd = kRows[d1];
+  World a, b;
+  a.acquire(s1), b.acquire(s1), b.play(s1);
+  Entry e;
+  e.id = r1.id, e.t = b.tuple(s1), e.acq = Mark{'-', 0}, e.group[0] = Mark{'t', 0};
+  assert(fits(r1, e));
+  Plan p;
+  const Where here{"Zone_WLA_30", true, false, nullptr, true};
+  auto take = [&](const Row &r, const Entry &s, std::string_view zone, const World &w, const Where &at,
+                  bool denied = false) {
+    const char *why = accept(r, s, zone, w.v[size_t(row_index(r.id))], w.tuple(size_t(row_index(r.id))), at, denied, p);
+    return std::string(why ? why : "go");
+  };
+  assert(take(r1, e, "Zone_WLA_30", a, here) == "go" && p.act == Act::complete && p.group == 0 && p.container == 0 &&
+         p.position == 0 && p.step == r1.step + 1u);
+  assert(take(r1, e, "Zone_WLA_10", a, here) == "made in another zone");
+  assert(take(r1, e, "Zone_WLA_30", b, here) == kMadeHere);
+  assert(take(r1, e, "Zone_WLA_30", World(), here) == "his quest stands behind hers");
+  assert(take(r1, e, "Zone_WLA_30", a, here, true) == "never shared");
+  const Where there{"Zone_WLA_10", true, false, nullptr, true}; // A 't' step acts in Zone_WLA_30 only.
+  assert(take(r1, e, "Zone_WLA_10", a, there) == "not in the step's zones");
+  World c = b; // Her line two steps past his quest reads as one step past a state his quest lacks.
+  c.play(s1);
+  e.t = c.tuple(s1), e.group[1] = Mark{'t', 0};
+  assert(take(r1, e, "Zone_WLA_30", a, here) == "his quest stands behind hers");
+  Entry two; // Two tasks done in her active group: no one SB step ends there.
+  two.id = kRows[d1].id, two.t.state = 1, two.t.tasks = 2, two.t.task[1] = Pos{0, 1};
+  assert(take(kRows[d1], two, "Zone_WLA_30", a, here) == "not one step");
+  World failed = a;
+  failed.v[s1].state = kFailed;
+  e.t = b.tuple(s1);
+  assert(take(r1, e, "Zone_WLA_30", failed, here) == "failed here");
+  // Her acquire: his acquire by ID, once his load check passed and his parent quest made the step that gives it.
+  Entry acq;
+  acq.id = r1.id, acq.t = a.tuple(s1);
+  assert(take(r1, acq, "Zone_WLA_30", World(), here) == "go" && p.act == Act::acquire);
+  assert(take(r1, acq, "Zone_WLA_30", World(), Where{"Zone_WLA_30", false, false, nullptr, true}) ==
+         "acquire not armed for this load");
+  assert(take(r1, acq, "Zone_WLA_30", World(), Where{"Zone_WLA_30", true, false, nullptr, false}) ==
+         "it comes with a step of another quest he has not made");
+  // His active group must be hers, her task in progress for him.
+  World d, g2;
+  d.acquire(d1), g2.acquire(d1), g2.complete(d1, 0, 1);
+  Entry t;
+  t.id = rd.id, t.t = g2.tuple(d1), t.task[0] = Mark{'-', 0};
+  const Where down{"Zone_DED20", true, false, nullptr, true};
+  assert(take(rd, t, "Zone_DED20", d, down) == "go" && p.container == 0 && p.position == 1);
+  d.v[d1].task[0][0][1] = 4;
+  assert(take(rd, t, "Zone_DED20", d, down) == "that task is not in progress here");
+  // Requests: never her hand-in, the board's accept only on his board.
+  size_t req = 0;
+  while (kRows[req].type != 'R' || !kRows[req].normal || item_task(kRows[req].id, 0, 0, 0) ||
+         step(kRows[req], 0).mark != '-')
+    ++req;
+  const Row &rr = kRows[req];
+  World board, mine;
+  Plan accept_plan;
+  accept_plan.act = Act::accept, accept_plan.why = Why::go, accept_plan.id = rr.id;
+  board.v[req].state = 0, mine.v[req].state = 0, mine.apply(accept_plan);
+  Entry ra;
+  ra.id = rr.id, ra.t = mine.tuple(req);
+  const Where anywhere{"Zone_DED20", true, false, nullptr, true};
+  assert(take(rr, ra, "Zone_DED20", board, anywhere) == "go" && p.act == Act::accept);
+  assert(take(rr, ra, "Zone_DED20", World(), anywhere) == "not on his board yet");
+  ra.t.state = 3, ra.t.groups = rr.groups;
+  assert(take(rr, ra, "Zone_DED20", board, anywhere) == "a Request handed in at her own board");
+  // A kill task and an item task stay each player's own.
+  Tuple from, to;
+  from.state = to.state = 1, from.groups = to.groups = kKills[0].group, to.tasks = 1;
+  to.task[0] = Pos{kKills[0].container, kKills[0].position};
+  assert(std::string(step_hold(*row(kKills[0].id), from, to, false)) == "a kill task");
+  from.groups = to.groups = kItems[0].group, to.task[0] = Pos{kItems[0].container, kItems[0].position};
+  assert(std::string(step_hold(*row(kItems[0].id), from, to, false)) == "an item task");
+
+  // The host's step lines: from a line he sent, newer than her last one, of this generation; the line's shape.
+  auto h = std::make_unique<Host>(Record(), kGuestId, Deny());
+  World w;
+  Tuple live[kRowCount];
+  uint64_t now = 1000;
+  auto pass = [&] {
+    w.tuples(live);
+    return h->pass(live, "Zone_WLA_30", false, now);
+  };
+  assert(h->receive(wire(q("on 0")), now));
+  pass();
+  w.acquire(s1);
+  pass(); // q 1 1 41.
+  const std::string line = "step 1 1 41 1 - 0:t - . Zone_WLA_30";
+  assert(h->receive(wire(q(line)), now) && h->take_steps().size() == 1);
+  assert(!h->receive(wire(q(line)), now) && logged(h->log, "Quest_Sub_001 dropped: not newer than her last one"));
+  assert(!h->receive(wire(q("step 1 2 41 1 - 0:t - . Zone_WLA_30")), now) && logged(h->log, "bad guest line (step)"));
+  assert(!h->receive(wire(q("step 1 1 41 1 - 0:K - . Zone_WLA_30")), now)); // Does not fit its row.
+  for (const char *bad : {"step 1 1 41 1 - 0:t - .", "step 1 1 41 1 - 0:t - . Zone-X", "step 1 1 41 1 - 0:t - . Z Z",
+                          "step 0 1 41 1 - 0:t - . Z", "step 1 1 41 1 - 0:t - .  Z"})
+    assert(parse(q(bad).data(), q(bad).size()).type == Type::invalid);
+  now += kSnapshotMs;
+  assert(h->receive(wire(q("on 1")), now) && count(pass(), "snap") == 1);
+  assert(!h->receive(wire(q("step 1 1 41 1 - 0:t - . Zone_WLA_30")), now) &&
+         logged(h->log, "her step of 41 dropped: from an older snapshot"));
+}
+
 } // namespace
 
 int main() {
@@ -1380,5 +1550,6 @@ int main() {
   idempotence();
   checks();
   host_lines();
+  guest_steps();
   std::printf("quest_sync_test: ok\n");
 }
