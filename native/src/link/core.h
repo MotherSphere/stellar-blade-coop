@@ -773,19 +773,22 @@ public:
   // Channel 2 (Phase 11, shared enemies): a line for every member past the handshake (to 0) or for the member with
   // that SteamID, sent by the next tick(), reliable (on, off, world, up, down, dead, hit) or not (hp). False when it
   // cannot go: not linked, to someone who is not a member past the handshake, empty or past kMaxMessage, kFightQueue
-  // lines already waiting, or a shared quests', shared world's or story together's line in a match lobby. Both queues
+  // lines already waiting for that member (for every member with to 0), or a shared quests', shared world's or story
+  // together's line in a match lobby. Both queues
   // hold one session's lines: a session that starts or ends (linked() changes) empties them. So does a new pair
   // (partner()), all but the shared quests' lines, which run with every member. No other line crosses into the next
   // session or pair. The fight logic restarts at the same changes. Worker thread, like tick().
   bool send_fight(const std::string &line, bool reliable, uint64_t to = 0) {
-    if (!linked() || line.empty() || line.size() > kMaxMessage || fight_out_.size() >= kFightQueue ||
+    const auto hers = [to](const FightOut &l) { return !to || !l.to || l.to == to; };
+    if (!linked() || line.empty() || line.size() > kMaxMessage ||
+        static_cast<size_t>(std::count_if(fight_out_.begin(), fight_out_.end(), hers)) >= kFightQueue ||
         (match() && (line.rfind(quest_tag(), 0) == 0 || line.rfind(world_tag(), 0) == 0 ||
                      line.rfind(story_tag(), 0) == 0)))
       return false;
     if (to && std::none_of(peers_.begin(), peers_.end(),
                            [to](const Peer &p) { return p.id == to && p.compatible && p.accepted; }))
       return false;
-    fight_out_.push_back({line, reliable, to});
+    fight_out_.push_back({line, reliable, to, false});
     return true;
   }
   // The members' channel-2 lines since the last call, oldest first, each with its sender. The link never parses
@@ -2761,7 +2764,6 @@ private:
         fight_out_.end());
     fight_linked_ = now_linked;
     fight_pair_ = pair;
-    fight_waiting_ = false;
   }
 
   // A chat session's end (chatting() goes false: here, as for channel 2, or with loopback() between passes): the lines
@@ -2839,34 +2841,33 @@ private:
   }
 
   // What send_fight() queued, in order, on channel 2 to its member, or to every member past the handshake for to 0. A
-  // reliable line Steam refuses (25 LimitExceeded: the session's send buffer, shared with channel 1, is full) waits
-  // with the reliable lines after it for the next pass, so none is lost or overtaken. An hp line refused, or behind a
-  // waiting line, is dropped, as the next values replace it: what waits stays small, and fits in the friend's rate
-  // limit once Steam takes it. Each refused line is one failure of the 60 s line, however many passes it waits.
+  // reliable line Steam refuses for a member (25 LimitExceeded: her session's send buffer, shared with channel 1, is
+  // full) waits for her with her reliable lines after it for the next pass, so none is lost or overtaken. The other
+  // members' lines go on: one guest's full buffer never holds the pair's lines back. An hp line refused, or behind a
+  // line waiting for her, is dropped for her, as the next values replace it: what waits stays small and fits in her
+  // rate limit once Steam takes it. Each refused line is one failure of the 60 s line, however many passes it waits.
   void send_fight_queue() {
-    size_t done = 0;
-    for (; done < fight_out_.size(); ++done) {
-      auto &[line, reliable, to] = fight_out_[done];
-      bool refused = false;
-      for (auto &p : peers_)
-        if (p.compatible && p.accepted && (!to || p.id == to)) {
-          int r = send(p, line.data(), line.size(), reliable ? kReliable : kUnreliable, kFightChannel);
-          if (r != kResultOk) {
-            if (done > 0 || !fight_waiting_) // A line refused at an earlier pass was counted then.
-              ++p.failed;
-            p.last_result = r;
-            refused = true;
-          }
+    std::vector<FightOut> kept;
+    std::vector<uint64_t> stuck; // Members with a reliable line waiting: their later lines wait behind it.
+    for (auto &out : fight_out_)
+      for (auto &p : peers_) {
+        if (!p.compatible || !p.accepted || (out.to && p.id != out.to))
+          continue;
+        const bool behind = std::find(stuck.begin(), stuck.end(), p.id) != stuck.end();
+        int r = kResultOk;
+        if (!behind && (r = send(p, out.line.data(), out.line.size(), out.reliable ? kReliable : kUnreliable,
+                                 kFightChannel)) != kResultOk) {
+          if (!out.refused) // A line refused at an earlier pass was counted then.
+            ++p.failed;
+          p.last_result = r;
         }
-      if (refused && reliable) {
-        auto behind = fight_out_.begin() + static_cast<std::ptrdiff_t>(done) + 1;
-        fight_out_.erase(std::remove_if(behind, fight_out_.end(), [](const auto &l) { return !l.reliable; }),
-                         fight_out_.end());
-        break;
+        if ((behind || r != kResultOk) && out.reliable) {
+          kept.push_back({out.line, true, p.id, out.refused || r != kResultOk});
+          if (!behind)
+            stuck.push_back(p.id);
+        }
       }
-    }
-    fight_waiting_ = done < fight_out_.size();
-    fight_out_.erase(fight_out_.begin(), fight_out_.begin() + static_cast<std::ptrdiff_t>(done));
+    fight_out_ = std::move(kept);
   }
 
   void on_message(Peer &peer, const Message &message) {
@@ -3552,11 +3553,11 @@ private:
     std::string line;
     bool reliable;
     uint64_t to;
+    bool refused; // Refused at an earlier pass: counted as a failure then.
   };
   std::vector<FightOut> fight_out_;
   bool fight_linked_ = false;
   uint64_t fight_pair_ = 0;    // partner() as fight_session() last saw it.
-  bool fight_waiting_ = false; // fight_out_'s first line was refused at an earlier pass.
   // The follow's camps lines in this session, as the guest: our last camps? and the host's answer to it (without its
   // tag; empty until one came). The host keeps each guest's in her Peer.
   bool asked_camps_ = false;

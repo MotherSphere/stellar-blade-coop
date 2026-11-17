@@ -455,6 +455,39 @@ int main() {
     assert(notices(m.status(3), out) == 1); // The pair gone: no second notice.
   }
 
+  // Channel 2 per member: Steam refusing one guest's lines (her send buffer full) holds back hers alone. The pair's
+  // lines go at once, in order, past kFightQueue of them; the refused guest's wait for her, kFightQueue at most, and
+  // reach her in order once Steam takes them, each refused line counted once.
+  reset();
+  {
+    Mesh m(3);
+    group(m, 3);
+    F.refuse_to = kPlayer[2];
+    std::vector<std::string> to_pair, to_guest, pair_got, guest_got;
+    for (size_t i = 0; i < kFightQueue + 4; ++i) {
+      const std::string sbq = quest_tag() + " step " + std::to_string(i), sbf = fight_tag() + " dead 3 " + id(i);
+      assert(m[0].send_fight(sbq, true, kPlayer[2]) == (i < kFightQueue));
+      if (i < kFightQueue)
+        to_guest.push_back(sbq);
+      assert(m[0].send_fight(sbf, true, kFriend));
+      to_pair.push_back(sbf);
+      m.tick(0);
+      m.tick(1);
+      for (auto &l : m[1].take_fight())
+        pair_got.push_back(l.line);
+    }
+    assert(pair_got == to_pair && sent_on(kFightChannel, kMe, kPlayer[2], quest_tag()) == 0);
+    assert(peer_of(m[0], kPlayer[2])->failed == 1 && peer_of(m[0], kFriend)->failed == 0);
+    F.refuse_to = 0;
+    m.tick(0);
+    for (size_t i = 0; i <= kFightQueue / 16; ++i) {
+      m.tick(2);
+      for (auto &l : m[2].take_fight())
+        guest_got.push_back(l.line);
+    }
+    assert(guest_got == to_guest);
+  }
+
   // max_players: host public 3 makes a lobby of 3, with 1/3 on its rows; the fourth player is refused full.
   reset();
   {
