@@ -155,8 +155,11 @@ rotation for that.
 Nothing new travels. The part is one more skeletal mesh component of EVE, so `partner/capture.lua` lists it in her table
 (37 bones, 667 bytes more in a keyframe pose) and republishes the table under the same generation when it is shown or
 hidden. Each ghost applies that with `SetVisibility`. Her lean reaches every ghost through her main mesh's transform.
-This works for the friend in ghost slot 0 and for each match-lobby member in slots 1 to 6. When a large CNS outfit fills
-the pose, the bike is the last part listed and the first one left out.
+This works for the friend in ghost slot 0 and for each match-lobby member in slots 1 to 6. The part stays on her,
+hidden, while `bike=on`. It has no `MasterPoseComponent`, so `capture.lua` ranks it with the leaders, ahead of every
+follower; with `MAX_PARTS` at 16, an EVE with 16 skeletal parts or more loses the last follower of her outfit from every
+ghost, ridden or not. Over the pose size, `capture.lua` drops the last leader in `K2_GetComponentsByClass` order, which
+follows her actor's component set: the bike is a part like any other there. Parts added after it go first.
 
 ## Status words and the latch
 
