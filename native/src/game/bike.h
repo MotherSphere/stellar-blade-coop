@@ -12,8 +12,9 @@
 // field itself and refuses on null). The paths, the delegate and the debug name go by value, so the callee owns them:
 // it moves the paths' TArray into the handle (FUN_141708770 takes its data pointer), which frees it with GMalloc later,
 // so the array is GMalloc's; the delegate is unbound (two zero words) and the debug name empty, which nothing frees.
-// The handle comes back as a TSharedPtr {object, reference controller}, one strong reference ours: SB's own keeps its
-// handle the same way at ASBCharacter +0x36b8. The handle's bools sit at +0x10: bLoadCompleted (set by CompleteLoad
+// The handle comes back as a TSharedPtr {object, reference controller}, one strong reference ours. SB drops its own
+// handle at the end of FUN_1420b4ed0 (its +0x36b8 holds the clip's FSoftObjectPath); SBO keeps its handle so the
+// garbage collector leaves both assets in memory. The handle's bools sit at +0x10: bLoadCompleted (set by CompleteLoad
 // FUN_1445c2af0 once every asset loaded or failed), +0x11 bReleased, +0x12 bCanceled, +0x13 bStalled (the one
 // FUN_1445c5440 sets for bStartStalled). CompleteLoad sets bLoadCompleted for a path whose package did not load too.
 // bCanceled comes only from CancelHandle FUN_1445c2280, which FUN_1445c5440 calls for an empty or short-name path list

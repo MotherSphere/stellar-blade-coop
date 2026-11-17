@@ -14,13 +14,14 @@ the bike's mesh and the riding clip in one request, the way SB loads EVE's custo
 `+0x178`; the asset manager is GEngine's (`0x1470e7eb8`) `+0x2a0`, read directly and refused when null (SB's
 `UAssetManager::Get`, `0x143ff83b0`, stops the game then). The delegate is unbound.
 
-SBO keeps the returned `TSharedPtr` handle, as SB keeps its own at `ASBCharacter +0x36b8`, so the garbage collector
-leaves both assets in memory. Every 250 ms the game thread reads the handle's `bLoadCompleted` at `+0x10`, which SB's
-`CompleteLoad` (`0x1445c2af0`) sets once every path loaded or failed; `+0x12` is `bCanceled`. Once it is set, each path
-is looked up with SB's `FSoftObjectPath::ResolveObject` (`0x142b82f40`), which finds an object in memory and never loads
-one. Both found: `bike=ready`. One missing: `bike=failed:missing_mesh` or `failed:missing_clip`, with the handle
-released. The release is the `TSharedPtr`'s own end: the strong count at `+8` down, at 0 the controller's
-`DestroyObject` (vtable `+0`), then the weak count at `+0xc` down, at 0 its deleting destructor (vtable `+8`).
+SB drops its own handle at the end of `0x1420b4ed0` (its `ASBCharacter +0x36b8` holds the clip's `FSoftObjectPath`). SBO
+keeps the returned `TSharedPtr` handle, so the garbage collector leaves both assets in memory. Every 250 ms the game
+thread reads the handle's `bLoadCompleted` at `+0x10`, which SB's `CompleteLoad` (`0x1445c2af0`) sets once every path
+loaded or failed; `+0x12` is `bCanceled`. Once it is set, each path is looked up with SB's
+`FSoftObjectPath::ResolveObject` (`0x142b82f40`), which finds an object in memory and never loads one. Both found:
+`bike=ready`. One missing: `bike=failed:missing_mesh` or `failed:missing_clip`, with the handle released. The release is
+the `TSharedPtr`'s own end: the strong count at `+8` down, at 0 the controller's `DestroyObject` (vtable `+0`), then the
+weak count at `+0xc` down, at 0 its deleting destructor (vtable `+8`).
 
 The clip must be one of EVE's clips in object path form (`game/anim.h`'s `path_ok`), so the ride's play later takes it.
 `Ride.CLIP` is the one place that names it. When the status line still reads `bike=off` 5 s after a `bike load`, the ask
