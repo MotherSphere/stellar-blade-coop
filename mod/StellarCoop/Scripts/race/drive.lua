@@ -23,8 +23,17 @@ local FIELDS={'MaxAcceleration','GroundFriction','BrakingDecelerationWalking','B
 local MAX_DT=0.1 -- s: a longer frame (a hitch) counts as this much.
 local PROBE_SPEED,PROBE_FOR=1500,3 -- cm/s straight ahead, and s for each of the probe's two feeds.
 local SAY_EVERY=10 -- s between two speed lines: players post UE4SS.log in public, a line a second buries the rest.
+local STILL=1 -- cm/s: an impulse under this on both axes is not given once the last frame gave none (parked).
+local TURNED=0.01 -- degrees: her yaw this close to the heading is not written again.
+local PC='/Script/Engine.PlayerController'
 
 local function path_of(o) return o:GetFullName():match('^%S+ (.+)$') end
+-- The player controller, or nil. UEHelpers keeps the last one while its address is valid: after a map change it may
+-- be another object.
+local function controller()
+    local pc=valid(UE.GetPlayerController())
+    return pc and pc:IsA(find(PC)) and pc or nil
+end
 local function same(o,path)
     o=valid(o)
     return o and path_of(o)==path and o or nil
@@ -46,7 +55,8 @@ function Drive.new(o)
     local feed='impulse'
     -- While one drives: eve, path, move, kept (the four values), M (its model: race/drive_model.lua or
     -- bike/model.lua), P (its model's values), state, why ('race', 'probe' or 'bike'), t (her world time at the last
-    -- frame), keys (each drift key's last state), probe ({phase, til, yaw}), said_at.
+    -- frame), keys (each drift key's last state), pc (the player controller, read at on and checked every 250 ms),
+    -- gave (the last frame gave an impulse of STILL or more), probe ({phase, til, yaw}), said_at.
     local drive=nil
     local restored=false
     local keys_failed=nil -- Why IsInputKeyDown could not be read: no key until the mod reloads.
@@ -109,7 +119,7 @@ function Drive.new(o)
         local move=valid(e.CharacterMovement)
         if not move then return false,'EVE has no movement component' end
         local d={eve=e,path=path_of(e),move=move,move_path=path_of(move),kept={},M=model,P=model.values(P),state={},
-            why=why,keys={},said_at=0}
+            why=why,keys={},said_at=0,pc=controller()}
         -- A file this Lua load left (an off that could not write the values back) holds hers: never replaced by the
         -- zeros she still has.
         local left={}
@@ -131,28 +141,27 @@ function Drive.new(o)
         log(('drive on (%s): %s kept; %s'):format(why,fields(d.kept),list(model.clamp(P),model)))
         return true
     end
+    -- Whether any of the keys names is held on pc, each change logged. Raises on a read that fails.
+    local function keys_down(d,pc,names)
+        local any=false
+        for _,name in ipairs(names) do
+            fkeys[name]=fkeys[name] or {KeyName=FName(name)}
+            local held=pc:IsInputKeyDown(fkeys[name])==true
+            if held~=(d.keys[name]==true) then
+                d.keys[name]=held
+                log('drive key '..name..(held and ' down' or ' up'))
+            end
+            any=any or held
+        end
+        return any
+    end
     -- The drift keys (settings.drift_keys): any one held. Each change is logged; a read that fails is said once and
     -- the keys are left out until the mod reloads (the drift then comes from steering alone). No player controller
-    -- this frame only skips this frame.
+    -- means no key until a 250 ms check (self.slow) finds one.
     local function drift(d)
         local names=o.settings and o.settings.drift_keys or {}
-        if keys_failed or not names[1] then return false end
-        local pc=valid(UE.GetPlayerController())
-        -- UEHelpers keeps the last one while its address is valid: after a map change it may be another object.
-        if not (pc and pc:IsA(find('/Script/Engine.PlayerController'))) then return false end
-        local ok,down=pcall(function()
-            local any=false
-            for _,name in ipairs(names) do
-                fkeys[name]=fkeys[name] or {KeyName=FName(name)}
-                local held=pc:IsInputKeyDown(fkeys[name])==true
-                if held~=(d.keys[name]==true) then
-                    d.keys[name]=held
-                    log('drive key '..name..(held and ' down' or ' up'))
-                end
-                any=any or held
-            end
-            return any
-        end)
+        if keys_failed or not names[1] or not d.pc then return false end
+        local ok,down=pcall(keys_down,d,d.pc,names)
         if ok then return down end
         keys_failed=tostring(down)
         log('drive: the drift keys cannot be read ('..keys_failed..'); drifts come from steering alone')
@@ -161,12 +170,16 @@ function Drive.new(o)
     -- The velocity to the movement component: the difference as an impulse (Z left to the game), or a write of its
     -- Velocity with her own vertical speed. The impulse an earlier frame left unused (her movement did not tick: photo
     -- mode with photo_pause=scenery runs the world but not SB's logic) is dropped first, so impulses never pile up.
+    -- Parked (an impulse under STILL cm/s on both axes after a frame that gave none), nothing is given: her movement
+    -- neither brakes nor accelerates meanwhile, so she keeps within STILL cm/s of the model.
     local function give(d,vx,vy,v)
-        if (d.feed or feed)=='struct' then d.move.Velocity={X=vx,Y=vy,Z=v.Z}
-        else
-            d.move:ClearAccumulatedForces()
-            d.move:AddImpulse({X=vx-v.X,Y=vy-v.Y,Z=0},true)
-        end
+        if (d.feed or feed)=='struct' then d.move.Velocity={X=vx,Y=vy,Z=v.Z} return end
+        local ix,iy=vx-v.X,vy-v.Y
+        local real=math.abs(ix)>=STILL or math.abs(iy)>=STILL
+        if not (real or d.gave) then return end
+        d.gave=real
+        d.move:ClearAccumulatedForces()
+        d.move:AddImpulse({X=ix,Y=iy,Z=0},true)
     end
     -- The probe's first 6 s: 1500 cm/s straight ahead along her yaw at the start, 3 s through each feed, logged each
     -- frame; then the model drives as in a race until coop race drive off.
@@ -217,7 +230,9 @@ function Drive.new(o)
         local out=d.probe and d.probe.phase~='free' and probe_out(d,t,v) or d.M.step(d.state,input,d.P,dt)
         if out.launch then e:LaunchCharacter({X=out.launch.x,Y=out.launch.y,Z=out.launch.z},true,true)
         elseif out.vx then give(d,out.vx,out.vy,v) end
-        if out.heading then e:K2_SetActorRotation({Pitch=0,Yaw=out.heading,Roll=0},false) end
+        if out.heading and math.abs((out.heading-yaw+180)%360-180)>=TURNED then
+            e:K2_SetActorRotation({Pitch=0,Yaw=out.heading,Roll=0},false)
+        end
         if out.stumble then log(('drive wall at %.0f cm/s: stumble'):format(d.state.asked or 0)) end
         if out.launch then log(('drive crest: launched at %.0f cm/s up'):format(out.launch.z)) end
         d.look={top=d.P.top,stumble=out.stumbling==true,lean=out.lean,pitch=out.pitch}
@@ -232,7 +247,8 @@ function Drive.new(o)
         end
         return d.look
     end
-    -- Every 250 ms: any of the four the game wrote again (a stance push) goes back to 0, and is logged.
+    -- Every 250 ms: any of the four the game wrote again (a stance push) goes back to 0 with a log line. The drive's
+    -- player controller is read again when it is gone or no longer one.
     function self.slow()
         local d=drive
         if not d or not same(d.move,d.move_path) then return end
@@ -243,6 +259,7 @@ function Drive.new(o)
                 d.move[f]=0
             end
         end
+        if not (valid(d.pc) and d.pc:IsA(find(PC))) then d.pc=controller() end
     end
     -- coop race drive [probe | off | feed impulse|struct | <name> <value>]: the values (none), the probe on or off,
     -- how the velocity reaches her movement, or one of the host's values for this Lua load. race/run.lua refuses the

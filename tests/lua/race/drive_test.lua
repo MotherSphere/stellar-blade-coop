@@ -67,7 +67,9 @@ local eve=make_eve('EVE_1')
 local down={}
 local pc=uobj({IsInputKeyDown=function(_,key) return down[key.KeyName:ToString()]==true end,
     IsA=function(_,c) return c==PCC end})
-package.loaded.UEHelpers={GetPlayer=function() return eve end,GetPlayerController=function() return pc end}
+local pc_reads=0
+package.loaded.UEHelpers={GetPlayer=function() return eve end,
+    GetPlayerController=function() pc_reads=pc_reads+1 return pc end}
 local Drive=require('race.drive')
 local M=require('race.drive_model')
 local logs={}
@@ -95,7 +97,8 @@ assert(logs[#logs]=='drive on (race): MaxAcceleration=2048 GroundFriction=8 Brak
     ..'turn_fast=75 drift_angle=45',logs[#logs])
 
 -- 2. The first frame only reads her time; the next one feeds the model's velocity as an impulse (the difference, Z at
--- 0) and writes her yaw. The look gets the top speed and the stumble.
+-- 0); her yaw is written only where it is off the heading by 0.01 degree or more (straight ahead here: not written).
+-- The look gets the top speed and the stumble.
 eve.stick={X=1,Y=0,Z=0}
 local look=d.tick()
 assert(#eve.impulses==0 and #eve.yaws==0,'First frame: her time only')
@@ -105,20 +108,20 @@ look=d.tick()
 local step=M.step({heading=0},{stick={x=1,y=0},v={x=500,y=0,z=0},yaw=0},M.values(M.DEFAULTS),0.1)
 local i=eve.impulses[1]
 assert(#eve.impulses==1 and close(i.X,step.vx-500) and close(i.Y,0) and i.Z==0,i.X)
-assert(eve.yaws[1]==0 and look.top==2200 and look.stumble==false)
+assert(#eve.yaws==0 and look.top==2200 and look.stumble==false)
 assert(find('^drive v=500 vz=0 asked=%d+ yaw=0%.0 heading=0%.0 air=0 root=0 drift=0 stumble=0$'),logs[#logs])
 -- Paused (her time not moved): nothing written, the same look.
-assert(d.tick()==look and #eve.impulses==1 and #eve.yaws==1)
+assert(d.tick()==look and #eve.impulses==1 and #eve.yaws==0)
 -- Under root motion (a dodge): nothing written, not even the yaw.
 eve.time,eve.root=eve.time+0.1,true
 d.tick()
-assert(#eve.impulses==1 and #eve.yaws==1)
+assert(#eve.impulses==1 and #eve.yaws==0)
 eve.root=false
--- In the air: the yaw only.
-eve.time,move.falling,eve.velocity=eve.time+0.1,true,{X=1500,Y=0,Z=400}
+-- In the air: the yaw only (the stick to her right turns the heading).
+eve.time,move.falling,eve.velocity,eve.stick=eve.time+0.1,true,{X=1500,Y=0,Z=400},{X=0,Y=1,Z=0}
 d.tick()
-assert(#eve.impulses==1 and #eve.yaws==2)
-move.falling=false
+assert(#eve.impulses==1 and #eve.yaws==1)
+move.falling,eve.stick=false,{X=1,Y=0,Z=0}
 -- A crest: on the ground her Velocity.Z stays 0, as the game's; her height climbs 500 then 520 cm/s and then 100: a
 -- launch in place of the impulse. The same climb in her Velocity.Z alone, at her height, launches nothing.
 for _,vz in ipairs({0,500,520,100}) do
@@ -139,19 +142,27 @@ d.tick()
 assert(#eve.impulses==impulses and move.Velocity and move.Velocity.Z==-7 and move.Velocity.X>1400,'Velocity written')
 assert(d.command('feed','impulse'))
 
--- 3. The drift keys: held, the model drifts; each change logged; a failing read said once, then no key. No player
--- controller, or another object where UEHelpers kept it: no key this frame, and the keys are read again the next.
+-- 3. The drift keys: held, the model drifts; each change logged; a failing read said once, then no key. The player
+-- controller is read at drive on and checked every 250 ms: once it is gone, no player controller or another object
+-- where UEHelpers kept it gives no key until a 250 ms check finds one again.
 down.B=true
 eve.time,eve.velocity,eve.stick=eve.time+1/60,{X=1500,Y=0,Z=0},{X=1,Y=0,Z=0}
 local real_pc=pc
+real_pc.gone=true
 for _,other in ipairs({false,uobj({IsA=function() return false end,IsInputKeyDown=function() error('no such call') end})})
 do
     pc=other or nil
+    d.slow()
     eve.time=eve.time+1/60
     d.tick()
     assert(not find('^drive key B down$') and not find('cannot be read'),logs[#logs])
 end
+real_pc.gone=nil
 pc=real_pc
+eve.time=eve.time+1/60
+d.tick()
+assert(not find('^drive key B down$'),'No key before the next 250 ms check')
+d.slow()
 eve.time=eve.time+1/60
 d.tick()
 assert(find('^drive key B down$'))
@@ -301,5 +312,50 @@ end
 local lines=0
 for k=said+1,#logs do if logs[k]:find('^drive v=') then lines=lines+1 end end
 assert(lines==2,lines)
+d.off('done')
+
+-- 11. Fewer engine calls a frame. The controller is read at drive on and checked every 250 ms, never per frame.
+eve.yaw,eve.velocity,eve.stick=0,{X=0,Y=0,Z=0},{X=0,Y=0,Z=0}
+local reads=pc_reads
+assert(d.on(M.DEFAULTS,'race') and pc_reads==reads+1,'Read at drive on')
+for _=1,60 do
+    eve.time=eve.time+1/60
+    d.tick()
+end
+d.slow()
+assert(pc_reads==reads+1,'Never per frame, kept by the 250 ms check while it is valid')
+-- Parked: no rotation write and no impulse pair once the last frame gave none.
+local yaws,impulses=#eve.yaws,#eve.impulses
+for _=1,2 do
+    eve.time=eve.time+1/60
+    d.tick()
+end
+assert(#eve.yaws==yaws and #eve.impulses==impulses,'Parked: nothing written')
+-- A turn the game made is still corrected the same frame.
+eve.yaw=5
+eve.time=eve.time+1/60
+d.tick()
+assert(#eve.yaws==yaws+1 and eve.yaw==0,'Turned back to the heading')
+-- The stick again: an impulse at once.
+eve.stick={X=1,Y=0,Z=0}
+eve.time=eve.time+1/60
+d.tick()
+assert(#eve.impulses==impulses+1)
+-- Coasting to a stop, her movement taking each impulse: after the last real one, one pair under 1 cm/s (it clears what
+-- the last frame may have left unused), then none.
+eve.stick,eve.velocity={X=0,Y=0,Z=0},{X=eve.impulses[#eve.impulses].X,Y=0,Z=0}
+local given={}
+for k=1,120 do
+    eve.time=eve.time+1/60
+    local n=#eve.impulses
+    d.tick()
+    if #eve.impulses>n then
+        local i=eve.impulses[#eve.impulses]
+        eve.velocity={X=eve.velocity.X+i.X,Y=eve.velocity.Y+i.Y,Z=0}
+        given[#given+1]={k=k,size=math.sqrt(i.X^2+i.Y^2)}
+    end
+end
+local tail,before=given[#given],given[#given-1]
+assert(tail.size<1 and before.size>=1 and tail.k==before.k+1 and tail.k<60,'One pair once she stops, then none')
 d.off('done')
 print('drive_test ok')
