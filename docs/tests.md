@@ -47,8 +47,8 @@ fails the test. The `main/` tests load
   a look): an outfit of 16 parts keeps them all; while she rides the bike is part 1 and the last follower goes; getting
   on or off starts a new generation; another component on the bike's mesh stays a part;
 - `core/link_test` also covers the status's `uidev=`, `me=` and `world=` lines and the `owner=`, `room=` and `hall=`
-  fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty), and never
-  from a player's name, the `shared_world` setting, `bike` and `bike_key` (an older file whose keys hold F3 gets no
+  fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty) and never
+  from a player's name; the `shared_world` setting; `bike` and `bike_key` (an older file whose keys hold F3 gets no
   bike key). It also reads the `dlcs=` line with the `dlc_missing=` and
   `dlc_extra=` lines after it, the session list's `list=` line with its `session=` rows (a row only after a `list=`
   line, `-` read as none) and a joiner's `wait=` line, logged once a wait. It covers `who_can_join` (`public` by

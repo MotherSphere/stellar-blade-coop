@@ -240,7 +240,7 @@ through XInput, a polling API that takes nothing from the game.
   Sessions screen's Refresh, once a press. D-pad Right held 1000 ms gives the [bike](bike.md)'s event, once a hold,
   after its right. A ring of 8 holds them; a full ring drops the newest.
 - The DLL links no Lua, so each event travels as a result count. Lua calls
-  `select('#', native_pad(0,0,0,0,0,0,0,0,0,0,0))`: `coop_pad`, called as a Lua C function, returns n, and Lua hands
+  `select('#', native_pad(0,0,0,0,0,0,0,0,0,0,0))`: `coop_pad`, called as a Lua C function, returns n. Lua hands
   back the top n of the 11 arguments on its stack. n is the event, 1 to 11, or 0 when the ring is empty. `main.lua`
   takes at most 8 events a frame and routes them as the keys route theirs: the join popups get every word first while
   one is open, the SBO lobby's screens get the six navigation words while one is open and View closes it to the waiting
