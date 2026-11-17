@@ -23,8 +23,9 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
     `private`, the words older settings files hold, mean the same.
   - `closed` (Private in the menus): an invisible lobby the host shuts to joins at once (`SetLobbyJoinable`). It has
     no code and no rows. No invite dialog opens. Asked again, or with `invite`, the game says
-    `Nobody can join a private session.` A join gets Steam's refusal (`Could not join: that game is closed (its match
-    may have started).`). A member Steam lets in anyway is refused before any hello with the reject
+    `Nobody can join a private session.` A join gets Steam's refusal. The mod reads response 3 as
+    `Could not join: that game is closed (a private session, or a match that started).`; which response Steam sends for
+    a lobby set not joinable has not been checked in game. A member Steam lets in anyway is refused before any hello with the reject
     `this session is private`. The host sees `A player tried to join your private session and was refused.`
 
   `ask` after the word (`host public ask`, from `friends_ask=on`) makes the host's Steam friends wait for her answer
@@ -492,8 +493,8 @@ At 0 the owner checks the count again. If it still holds, the owner sets the lob
 the SteamIDs of the players counted at 0, the owner first, then in Steam's member order. A member whose SteamID is not
 in the list stays in the lobby, out of the round, with the notice `A round started without you.`, shown once for the
 countdown that member saw. A player who tries to
-join after the start gets Steam's answer 3 and the notice `Could not join: that game is closed (its match may have
-started).`
+join after the start gets Steam's answer 3 and the notice `Could not join: that game is closed (a private session, or
+a match that started).`
 
 `match end` on the owner ends the round: the lobby is joinable again, `sbo_state` goes back to `open` on a Public lobby,
 and each member gets the end line. While the minimum still holds, the next countdown starts at once. `coop status`

@@ -754,7 +754,7 @@ int main() {
     m.round();
     m.round();
     assert(m[2].lobby() == 0 &&
-           noticed(m.status(2), "Could not join: that game is closed (its match may have started)."));
+           noticed(m.status(2), "Could not join: that game is closed (a private session, or a match that started)."));
   }
   // Ruling R1's gate: a host left alone in a round in play keeps its lobby and does not search again.
   reset();

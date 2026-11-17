@@ -188,7 +188,7 @@ int main() {
     m.tick(1, "join " + id(L));
     m.round();
     assert(m[1].lobby() == 0 &&
-           noticed(m.status(1), "Could not join: that game is closed (its match may have started)."));
+           noticed(m.status(1), "Could not join: that game is closed (a private session, or a match that started)."));
     F.members[L].push_back(kPlayer[2]);
     m[0].tick(m.now += 50, "", 0, kPlayer[2]); // Her session request comes in the pass that first lists her.
     assert(sent_to(kPlayer[2], "SBC reject this session is private") == 1 && sent_to(kPlayer[2], "SBC hello ") == 0);

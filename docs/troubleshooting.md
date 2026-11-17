@@ -51,9 +51,9 @@ Stellar Blade Online is an experimental beta, played in only a few sessions betw
 - `Could not join: that game is full.`: an online session holds 2 players; a match lobby of the
   [SBO lobby](sbo-lobby.md) holds 8. `Left: the lobby has more than 2 players.` means the co-op lobby was not made by
   Stellar Blade Online (it holds more players than a Stellar Blade Online co-op lobby can), so the mod left it.
-- `Could not join: that game is closed (its match may have started).`: the host's online session is Private
-  (`who_can_join=closed`), which nobody can join, or the match lobby of the [SBO lobby](sbo-lobby.md) shut when its
-  round started. A match lobby opens again when the round ends. A Private session stays shut: the host has to host
+- `Could not join: that game is closed (a private session, or a match that started).`: the host's online session is
+  Private (`who_can_join=closed`), which nobody can join, or the match lobby of the [SBO lobby](sbo-lobby.md) shut when
+  its round started. A match lobby opens again when the round ends. A Private session stays shut: the host has to host
   again with another Who can join value.
 - `Could not join: Steam had an unexpected error. Try again.`: Steam failed the join on its side.
 - `Could not join: too many tries in a short time. Wait a moment and try again.`: Steam limits how often an account

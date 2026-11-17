@@ -195,8 +195,9 @@ inline std::string join_refusal(uint32_t response) {
   switch (response) {
   case 2: // DoesntExist
     return "Could not join: that game no longer exists.";
-  case 3: // NotAllowed: a match lobby its owner shut at the start of a round (no join in progress).
-    return "Could not join: that game is closed (its match may have started).";
+  case 3: // NotAllowed. Our guess for a lobby its owner shut (a Private online session, a match lobby at the start of a
+          // round); which response Steam gives for one set not joinable was never read in game.
+    return "Could not join: that game is closed (a private session, or a match that started).";
   case 4: // Full
     return "Could not join: that game is full.";
   case 5: // Error

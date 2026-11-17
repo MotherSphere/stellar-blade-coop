@@ -585,7 +585,7 @@ int main() {
   // number for any other) and no lobby.
   for (auto [response, text] : {
            std::pair<uint32_t, std::string>{2, "Could not join: that game no longer exists."},
-           {3, "Could not join: that game is closed (its match may have started)."},
+           {3, "Could not join: that game is closed (a private session, or a match that started)."},
            {4, "Could not join: that game is full."},
            {5, "Could not join: Steam had an unexpected error. Try again."},
            {6, "Could not join: Steam has banned you from that game's lobby."},
