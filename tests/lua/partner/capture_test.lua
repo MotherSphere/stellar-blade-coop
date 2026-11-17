@@ -8,7 +8,7 @@
 -- materials (a dynamic one as its parent); with effects on, the Niagara layout by reflection and the listed systems in
 -- memory, looked up one a tick; the game's own folders against a mod's, a mod's mesh tagged with its outfit and sending
 -- its materials with dyes off, her cloth's collision line, a dynamic material's value lines, and the hide lines
--- (hidden material slots), with no shape key read; SBO's bike left out while she does not ride (leave_out).
+-- (hidden material slots), with no shape key read; SBO's bike, a part shown or hidden under one generation.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -712,50 +712,35 @@ assert(ok==false and message:find('^Capture: materials not read: hidden slots: .
 raw[body].IsMaterialSectionShown=shown_of
 raw[body].state.slots,raw[body].state.hidden=nil,nil
 
--- SBO's bike (bike/ride.lua's part, hidden on EVE while bike=on): leave_out, asked once a look with her address, names
--- it while she does not ride, so an outfit of 16 parts keeps all of them. While she rides it is a part as before,
--- ranked with the leaders in the engine's order; the last follower goes over 16. Getting on or off is a new
--- generation. Another component on the same mesh stays a part.
+-- SBO's bike (bike/ride.lua's part, hidden on EVE while bike=on) is a part like any other, ranked with the leaders in
+-- the engine's order (the last follower goes over 16): getting on or off only shows or hides it, published again under
+-- the same generation.
 local BIKE='/Game/Art/Character/ETC/Adam_vehicle_02/Adam_Vehicle_02.Adam_Vehicle_02'
 local bike=her('Bike',BIKE,{parent=body,bones=37,visible=false})
 local outfit={body,bike}
 for k=1,14 do outfit[#outfit+1]=her('Piece'..k,X..'P'..k..'.P'..k,{parent=body,bones=1}) end
 outfit[#outfit+1]=her('Ribbon',X..'Ribbon.Ribbon',{leader=body,parent=body})
-local riding,leave_asked=false,{}
 published={}
 capture=Capture.new(function(text) published[#published+1]=text or 'withdrawn'; return true end)
-capture.leave_out(function(at)
-    leave_asked[#leave_asked+1]=at
-    return not riding and bike:GetAddress() or nil
-end)
 player=eve_of('EVE21',outfit)
 tick()
 ok,message=step(2)
 t=published[#published]
-local first=tonumber(t:match('^generation (%d+)\n'))
+local first=t:match('^generation (%d+)\n')
 assert(ok and message:find('^Capture %d+: 16 parts, ') and select(2,t:gsub('\npart ',''))==16,tostring(message))
-assert(t:find(' Ribbon ',1,true) and not t:find(BIKE,1,true),t)
-assert(#leave_asked==1 and leave_asked[1]==raw[player].GetAddress(),'Asked once a look, with her address')
-assert(step(0.5)==nil and #leave_asked==1,'No look, no ask')
--- On the bike: a new generation with the bike as part 1, shown; the follower goes.
-riding,raw[bike].state.visible=true,true
-ok,message=step(0.5)
+assert(t:find('\npart 1 - 0 - 0 37 Bike '..BIKE..'\n',1,true) and not t:find(' Ribbon ',1,true),t)
+-- On the bike: shown, the same generation.
+raw[bike].state.visible=true
+local n=#published
+step(1)
 t=published[#published]
-assert(ok and message:find('^Capture '..(first+1)..': 16 parts, ') and #leave_asked==2,tostring(message))
+assert(#published==n+1 and t:match('^generation (%d+)\n')==first,t)
 assert(t:find('\npart 1 - 0 - 1 37 Bike '..BIKE..'\n',1,true) and not t:find(' Ribbon ',1,true),t)
-assert(step(1)==nil,'Riding on: nothing new')
--- Off the bike: a new generation without it, the follower back.
-riding,raw[bike].state.visible=false,false
-ok,message=step(1)
+assert(step(1)==nil and #published==n+1,'Riding on: nothing new')
+-- Off the bike: hidden, still the same generation.
+raw[bike].state.visible=false
+step(1)
 t=published[#published]
-assert(ok and message:find('^Capture '..(first+2)..': 16 parts, '),tostring(message))
-assert(t:find(' Ribbon ',1,true) and not t:find(BIKE,1,true),t)
--- Another mod's component on the same mesh is a part: only the one leave_out names is left out.
-local copy=her('Bike2',BIKE,{parent=body,bones=37})
-player=eve_of('EVE22',{body,copy,bike})
-tick()
-ok,message=step(2)
-t=published[#published]
-assert(ok and message:find('^Capture %d+: 2 parts, ') and t:find('\npart 1 - 0 - 1 37 Bike2 '..BIKE..'\n',1,true),t)
-assert(not t:find(' Bike '..BIKE,1,true),t)
+assert(#published==n+2 and t:match('^generation (%d+)\n')==first,t)
+assert(t:find('\npart 1 - 0 - 0 37 Bike '..BIKE..'\n',1,true),t)
 print('capture_test ok')

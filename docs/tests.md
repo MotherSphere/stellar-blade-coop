@@ -41,13 +41,11 @@ fails the test. The `main/` tests load
   up once a ride), the riding pose played again or ending the ride (read in the 250 ms pass only: no frame reads the
   status), the 250 ms checks (EVE down read from the status line's `bike_life=` with no session, or from the
   session's life state without that word), `coop-bike.txt` and its restore, `coop bike status` and `tune`, the Doro
-  look refused while she rides, `parked` (the part the capture leaves out) before the part, on and off the bike, after
-  a ride ended on a fault, after a reload and at `bike=off`, the part's `SBO_Bike` tag (a tag that does not hold makes
-  no part), the earlier load's part found at a reload's first tick with the preload at `fault` and removed by the
-  first pass at `bike=off`, another mod's component on the bike's mesh never hidden, used or removed;
-- `partner/capture_test` also covers SBO's bike left out of the parts while EVE does not ride (`leave_out`, asked once
-  a look): an outfit of 16 parts keeps them all; while she rides the bike is part 1 and the last follower goes; getting
-  on or off starts a new generation; another component on the bike's mesh stays a part;
+  look refused while she rides, the part's `SBO_Bike` tag (a tag that does not hold makes no part), the earlier
+  load's part found at a reload's first tick with the preload at `fault` and removed by the first pass at `bike=off`,
+  another mod's component on the bike's mesh never hidden, used or removed;
+- `partner/capture_test` also covers SBO's bike as one of EVE's parts: hidden, it is part 1 and the last follower of
+  an outfit of 16 parts goes; getting on or off shows or hides it under the same generation;
 - `core/link_test` also covers the status's `uidev=`, `me=`, `world=` and `story=` lines and the `owner=`, `room=`
   and `hall=` fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty)
   and never from a player's name; the `shared_world`, `shared_story` and `daynight` settings (the `sky=` line kept out
@@ -89,7 +87,7 @@ fails the test. The `main/` tests load
   `coop bike` and its words, F3 and the pad's D-pad Right hold with a refusal on screen, the hold ignored with its
   reason logged at the title, with one of our screens open or with the game paused, the restore, the frame and the
   250 ms pass with an end said on screen, the Options rows, `coop off`; `riding()` as `coop emote`, the race, the hall
-  seats, `coop fly on` and `coop glide on` read it; the ride's `parked` as the capture's `leave_out`;
+  seats, `coop fly on` and `coop glide on` read it;
 - `main/daynight_test` covers the day and night cycle through `main.lua` with a fake `sky/daynight.lua`: what it is
   built with (the native asks and status, the `daynight` setting, the cutscene, SB's screens, photo mode, Night
   Operation, the SBO lobby in Xion's training room only, the third-party plugin's path) and its 250 ms pass with

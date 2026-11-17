@@ -39,9 +39,9 @@ The native part refuses a table whose pose would pass 16 KiB (about 900 leader b
 capture counts the pose as the native part does and leaves out the last leader parts, with their followers, until it
 fits; its log line then ends with `<n> leaders left out, over the pose size`.
 
-It reads her again once a second. A new mesh (her outfit) starts a new generation, as does getting on or off the bike. A
-part hung elsewhere (the blade drawn or sheathed), shown or hidden is published again under the same generation. The log
-gives a `Capture` line per generation.
+It reads her again once a second. A new mesh (her outfit) starts a new generation. A part hung elsewhere (the blade
+drawn or sheathed), shown or hidden is published again under the same generation: getting on or off the bike is one of
+those. The log gives a `Capture` line per generation.
 
 ## 2. The component table
 

@@ -655,8 +655,6 @@ bike=require('bike.ride').new({log=function(m) print('[StellarCoop][BK] '..tostr
         end
     end})
 o.bike=bike
--- The capture leaves the bike's part out while EVE does not ride: hidden, it would take one of the ghost's 16 parts.
-capture.leave_out(bike.parked)
 -- The day/night cycle (sky/daynight.lua): the request for the native part's env writer (game/sky.h), decided in the
 -- 250 ms loop below from the map, the setting and SB's state; coop daynight reads and pins it (commands/daynight.lua).
 -- The lobby rule is Xion's training room only: a hall lobby has its own row.

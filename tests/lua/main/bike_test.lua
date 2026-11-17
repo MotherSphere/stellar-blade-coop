@@ -5,7 +5,7 @@
 -- the ride is built with (its native asks, coop-bike.txt, the races' driving, the settings, the checks it reads), coop
 -- bike and its words, bike_key (F3) and the pad's D-pad Right held 1 s with a refusal on screen, the first tick's
 -- restore, its frame before the native tick, its 250 ms pass, coop off, the Options rows; riding() as coop emote, the
--- race, the hall seats, coop fly on and coop glide on read it; its parked as the capture's leave_out.
+-- race, the hall seats, coop fly on and coop glide on read it.
 dofile('tests/lua/main/fixture.lua')
 -- coop fly's keys: cut/flight.lua for real, with fly_on in place of its active() (on() needs SB's player input).
 local Flight,fly_on=require('cut.flight'),nil
@@ -45,11 +45,6 @@ bk.riding=true
 assert(em.o.riding()==true and sb.o.riding()==true)
 ra.o.dismount('the host started a race')
 assert(bk.stops[1]=='the host started a race')
--- The capture asks the ride at each look which part of hers to leave out: its parked (bike/ride_test, capture_test).
-assert(capture_leave_out(0x40)==nil and bk.parked_at==0x40)
-bk.parked=0x7100
-assert(capture_leave_out(0x40)==0x7100)
-bk.parked=nil
 -- coop fly on and coop glide on are refused while she rides (on a co-op save, where both would start); off is not.
 status_text=COOP
 local n_asked,n_glide=#asked,#gl.cmds

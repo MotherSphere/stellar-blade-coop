@@ -9,9 +9,8 @@
 -- off, single-node mode with no clip, so it keeps its reference pose), hidden, its tick off, tagged Ride.TAG. After Ctrl+R the part
 -- is already there: the new Lua load's first tick (self.restore) finds it among her components by its mesh and that
 -- tag, whatever the bike= word or the setting says. That load uses it again; its first 250 ms pass removes it at
--- bike=off. While she rides, the capture sends it to every ghost like any part of her outfit, so nothing new travels.
--- While she does not, self.parked names it and the capture leaves it out (main.lua): hidden, it would take one of the
--- ghost's 16 parts.
+-- bike=off. The capture sends it to every ghost like any part of her outfit, so nothing new travels: shown while she
+-- rides, hidden while she does not, under the same capture generation.
 -- A mount (self.toggle) checks EVE first and refuses with its reason; then, in this order: coop-bike.txt (her object
 -- path, her main mesh's relative rotation and location, or those of a file this Lua load kept for her),
 -- race/drive.lua's drive with bike/model.lua (why 'bike'), "bike gate on" (SB's actions off on her controller, Jump
@@ -409,13 +408,6 @@ function Ride.new(o)
     end
 
     function self.riding() return ride~=nil end
-    -- partner/capture.lua's leave_out at each look (main.lua): the address of the part this Lua load made or found on
-    -- the EVE at at while she does not ride; nil while she rides, before the part and after bike=off. No engine call.
-    -- After a Lua load, restore names the earlier load's part from the first tick, whatever the bike= word.
-    function self.parked(at)
-        local h=here
-        return not ride and h and h.at==at and h.part and address(h.part) or nil
-    end
     -- The key, the pad gesture and coop bike: on the bike, or off it. ok and a line for the screen.
     function self.toggle(why)
         if ride then
@@ -472,7 +464,7 @@ function Ride.new(o)
         if why then return off_line(why) end
     end
     -- At the first tick of a Lua load, once: the part an earlier load made on her EVE (its tag), hidden and kept as
-    -- this load's, so parked names it and bike=off removes it with no bike= word read. Then an earlier load's
+    -- this load's, so bike=off removes it with no bike= word read. Then an earlier load's
     -- coop-bike.txt (it left EVE on the bike) puts her main mesh's rotation and location back on that EVE if she still
     -- is one and hides the bike part, then the file is cleared unless that mesh write failed. Its drive comes back
     -- through coop-drive.txt (race/drive.lua's restore).
