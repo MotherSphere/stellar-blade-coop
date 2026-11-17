@@ -115,17 +115,19 @@ fails the test. The `main/` tests load
 - `ui/lobby_model_test` covers the lobby menu's rows, actions, status and members by state, the settings rows (the
   Map row only with no lobby open and the hall lobbies in use) and the countdown's resync;
 - `ui/sessions_test` covers the Sessions screen on fake SB parts: the search asked as it opens, the status line (SB's
-  search word, the wait), Refresh and its stop, the 5 s gap, the tabs (SB's Comrades), the rows and their scroll window,
-  the details pane and footer, Select asking to join, the mouse, the closes by itself, the input given back, parts made
-  again after a root build, the kit drawing for a part the game cannot make (rows, headers, hints, the tab keys) and the
-  log lines. No part is focused or sent a call outside the allowed list;
+  search word, the wait), Refresh and its stop, the 5 s gap, the tabs (SB's Comrades), the rows and their scroll
+  window, the details pane and footer, Select asking to join, the mouse (a resting mouse moves neither the cursor nor
+  the list), the closes by itself, the input given back, parts made again after a root build, the kit drawing for a
+  part the game cannot make (rows, headers, hints, the tab keys) and the log lines. No part is focused or sent a call
+  outside the allowed list;
 - `ui/sessions_model_test` covers a tab's rows and status from the native part's list, what Refresh and Select ask for,
   the cursor, the region and camp keys and the rules word read back (any other shape gives none);
 - `ui/create_test` covers the Create a session screen on fake SB parts: it opens in a world on the values in effect,
   its rows, headers, right pane and hints, Left, Right and Select changing a value with the rows that come and go with
-  it, the scroll window, Start and Back, the mouse, the locked look and reason while `coop-settings.txt` cannot be read,
-  the closes by itself and the refusals to open, the input given back, parts made again after a root build, the kit
-  drawing for a part the game cannot make and the log lines. No part is focused or sent a call outside the allowed list;
+  it, the scroll window, Start and Back, the mouse (a resting mouse moves neither the cursor nor the list), a change
+  not saved with its reason, the locked look and reason while `coop-settings.txt` cannot be read, the closes by itself
+  and the refusals to open, the input given back, parts made again after a root build, the kit drawing for a part the
+  game cannot make and the log lines. No part is focused or sent a call outside the allowed list;
 - `ui/create_model_test` covers its rows for each Who can join value (Friends join without asking under Public and
   Invitation only), Shared enemies' sub-rows only while it is on, Shared story only once Options defines it, a change
   written through `settings_file.set` and read back, Start and Back, the cursor and every setting locked with its
@@ -290,7 +292,7 @@ The C++ tests cover the platform-free headers in `native/src`.
 - `link_list_test`: the session list through the same fake Steam, which follows Steamworks' read rules (no data for a
   lobby before a search returned it or `RequestLobbyData` was answered, `GetLobbyOwner` for members only, a result
   count, friends-only lobbies never in a search). A Public host's rows with `where` and `rules`, no relay only forced
-  and no regroup alone; the Public search's exact filters, its one row and no join; a player who is not the host's
+  and no regroup alone; a host request with another Who can join refused while hosting; the Public search's exact filters, its one row and no join; a player who is not the host's
   Steam friend joining from the list, `wait=` counting down, denied then let in, with `sbo_players` following; a
   friend let in at once; `friends_ask` making a friend wait; a Private session shut to joins, with no rows, code or
   invite dialog, refusing a member Steam let in; what the Public tab hides (Friends only, Invitation, another version,
