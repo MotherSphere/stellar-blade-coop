@@ -708,6 +708,10 @@ bool step() {
       event(coop::pose::ask_world(coop::parse_request(request)));
       request.clear();
       break;
+    case coop::Command::scenes: // Story together's setting and status line.
+      event(coop::pose::ask_scenes(coop::parse_request(request)));
+      request.clear();
+      break;
     case coop::Command::travel: // The follow's call: the game thread's.
       event(coop::pose::ask_travel(coop::parse_request(request)));
       request.clear();

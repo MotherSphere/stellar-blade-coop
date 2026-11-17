@@ -127,6 +127,10 @@ void world_pass(uint64_t partner, bool match, std::vector<std::string> &lines, b
 // unsent=<lines dropped unsent> elsewhere=<hooks off the game thread>), or world=off why=build|coop_off, or
 // world=stopped after a fault.
 std::string world_status();
+// Worker thread, story together (story/sync.h, story/engine.h): Lua's scenes request (Command::scenes). on and off set
+// shared_story until the next ask (on until the first one); status returns coop-status.txt's story line. Refused off
+// the pinned build and after coop off. Returns the line for the log.
+std::string ask_scenes(const coop::Request &request);
 // Worker, every pass after world_pass and before fight_pass, story together (story/sync.h, story/engine.h): takes her
 // SBS lines out of lines and hands them to the game thread with the gates (shared_story, on while Lua sets nothing;
 // partner: her SteamID while she is linked, else 0; host: we own the lobby and lead; match: a match lobby, the SBO
@@ -136,7 +140,7 @@ std::string world_status();
 // first fault: off to her once, the hooks out, nothing more.
 void story_pass(uint64_t partner, bool host, bool match, std::vector<std::string> &lines,
                 bool (*send)(const std::string &));
-// Worker: coop-status.txt's story line (story/sync.h's Sync::status, then hooks=<slots of 3> inbox_dropped=<n>
+// Worker: coop-status.txt's story line (story/sync.h's Sync::status, then hooks=<slots of 4> inbox_dropped=<n>
 // unsent=<lines dropped unsent> elsewhere=<hooks off the game thread>), or story=off why=build|coop_off, or
 // story=stopped after a fault.
 std::string story_status();

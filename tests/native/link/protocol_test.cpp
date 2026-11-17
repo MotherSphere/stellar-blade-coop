@@ -808,6 +808,13 @@ int main() {
   for (const char *bad :
        {"world", "world On", "world on now", "world  off", "worldoff", "world stat", "world statuses"})
     assert(parse_request(bad).command == Command::none);
+  // Story together's setting and status (story/sync.h): scenes on, off or status, nothing else.
+  assert(parse_request("scenes on\n").command == Command::scenes && parse_request("scenes on").world == WorldAsk::on &&
+         parse_request("scenes off\r\n").world == WorldAsk::off &&
+         parse_request("scenes status").world == WorldAsk::status &&
+         parse_request("scenes status").command == Command::scenes);
+  for (const char *bad : {"scenes", "scenes On", "scenes on now", "scenes  off", "scenesoff", "scene on", "scenes stat"})
+    assert(parse_request(bad).command == Command::none);
   Request r = parse_request("join");
   assert(r.command == Command::join && r.lobby == 0 && !r.code);
   r = parse_request("join 109775241234567890\n");

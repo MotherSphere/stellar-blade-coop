@@ -1349,6 +1349,7 @@ private:
     case Command::saves:
     case Command::quests:
     case Command::world:
+    case Command::scenes:
     case Command::travel:
     case Command::rows:
     case Command::gate:

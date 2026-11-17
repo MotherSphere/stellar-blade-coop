@@ -100,6 +100,18 @@ std::string story_status() {
          " elsewhere=" + std::to_string(story_elsewhere.load());
 }
 
+std::string ask_scenes(const coop::Request &request) {
+  if (!pinned || blocked)
+    return "scenes refused: " + (blocked ? std::string("coop off") : engine_reason);
+  if (request.world == coop::WorldAsk::status)
+    return "scenes status: " + story_status();
+  story_setting = request.world == coop::WorldAsk::on;
+  return story_setting ? "scenes on: the host's story scenes play in the guest's game while a friend is linked and "
+                         "both play a co-op save"
+                       : "scenes off: no scene is sent or followed until scenes on; the host's cutscenes pause the "
+                         "guest as before";
+}
+
 void story_pass(uint64_t partner, bool host, bool match, std::vector<std::string> &lines,
                 bool (*send)(const std::string &)) {
   const std::string tag = story_tag() + " ";
