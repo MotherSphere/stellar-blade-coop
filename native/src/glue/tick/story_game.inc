@@ -34,7 +34,7 @@ std::vector<std::string> story_pending_out, story_pending_said; // Not handed ov
 // Hook 4: set by the worker once the ZoneEvent action's slot holds the shared hook, cleared at coop off. While the
 // lead gates hold, each row that action runs and our zone then (FNames, index | number << 32), kept for the next pass
 // in game, kStoryTripKeepMs at most (since the first pass out of game that kept them); past kStoryTrips kept they are
-// counted. The limit lets a trip's own map load through (34 of the 70 story trips load another map).
+// counted. The limit lets a trip's own map load through (34 of the 70 story PlayerWarp rows load another map).
 std::atomic<bool> story_trips_on{false};
 constexpr size_t kStoryTrips = 16;
 constexpr uint64_t kStoryTripKeepMs = 60000;
@@ -103,12 +103,14 @@ __declspec(noinline) int32_t story_node_read(const int64_t *node) {
 using TheaterRun = void (*)(int64_t *node);
 void story_theater_hook(int64_t *node) {
   game_function<TheaterRun>(story::kTheaterRun)(node);
-  if (!story_hooked || story_faulted || story_applying)
+  if (!story_hooked || story_faulted)
     return;
   if (GetCurrentThreadId() != story_thread) {
     ++story_elsewhere;
     return;
   }
+  if (story_applying) // A plain game-thread bool: read on that thread only.
+    return;
   int32_t id = -1;
   __try {
     id = story_node_read(node);
@@ -178,12 +180,14 @@ __declspec(noinline) void story_trip_read(const int64_t *action) {
 // Only while the lead gates held at the last pass (out of game too: the pass keeps the row for a pass in game), on the
 // game thread, after the worker's swap, before a fault, never while her lines are applied.
 void story_trip_root(const int64_t *action) {
-  if (!story_trips_on || !story_hooked || story_faulted || story_applying || !story_trip_lead)
+  if (!story_trips_on || !story_hooked || story_faulted)
     return;
   if (GetCurrentThreadId() != story_thread) {
     ++story_elsewhere;
     return;
   }
+  if (story_applying || !story_trip_lead) // Plain game-thread bools: read on that thread only.
+    return;
   __try {
     story_trip_read(action);
   } __except (fault_filter(GetExceptionInformation(), story_fault_code, story_fault_rva, story_fault_address)) {
