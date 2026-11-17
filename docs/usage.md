@@ -127,6 +127,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop quests probe\|record\|replay` | Shared quests' solo test tools (experimental, co-op save only) |
 | `coop quests force <number>` | As the guest, make the step that quest holds for your own kill, or for a place the game's tables cannot give, where you stand; type it twice within 10 s |
 | `coop world on\|off\|status` | The [shared world](shared-world.md) (experimental, on by default): `on` and `off` until the mod reloads, whatever `shared_world` says; `status` prints the `world=` line |
+| `coop daynight [on\|off\|status\|hour <h>]` | The [day and night cycle](internals/daynight.md) (on by default, untested in game; a test tool, never written to `coop-settings.txt`): alone or `status`, one line with the request and its reason, the map's row, the native part's hour and sun and the real minutes until the next night; `off` gives Stellar Blade's own light and `on` the clock again, until another word or a Lua reload; `hour <h>` pins the hour, 0 to under 24 with decimals (`13.5` is 13:30), until `on`, `off` or a Lua reload, refused while `daynight=off`; any save |
 | `coop scenes on\|off\|status` | [Story together](story-together.md) (experimental, on by default): `on` and `off` until the mod reloads, whatever `shared_story` says; `status` prints the `story=` line |
 | `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](playing-with-a-friend.md#synced-photo-mode)'s pause alone, 1 to 3600 s |
 | `coop revive test` | Solo test of the [revive](playing-with-a-friend.md#revive-by-your-friend-experimental): at the death screen, call the game's in-place respawn on your EVE once (co-op save only, no session, with `coop loopback 0 0 0` running so that your life state is read) |
@@ -344,6 +345,7 @@ word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`
   (`coop glide`: EVE's glide flag is cleared) and a `coop emote` clip (it blends out);
 - the [bike](bike.md) (EVE gets off: the game's actions, her movement values and her mesh come back; the native part
   frees the bike's loaded files);
+- the day and night cycle (Stellar Blade's own light, sky domes and SkyCreator time come back);
 - the game's developer panels (`coop devinfo`: closed);
 - a `coop shortcut` list under way and the gift toast (taken off the screen).
 
@@ -442,6 +444,9 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
   [Story together](story-together.md#status-line) and the counters in
   [Story together: how it works](internals/story-sync.md#status-line)). Its changes are not logged as `link:` lines:
   its counters move with each position of a shared scene.
+- Day and night: `sky=<state> h=<hour> el=<sun's elevation> ...`, the [day and night cycle](internals/daynight.md#the-request-and-the-status-line)'s
+  state, hour, sun and moon, light factors and env volumes. Its changes are not logged as `link:` lines: its hour moves
+  each second.
 - Photo mode: `photo=<0|1|s|c> peer_photo=<0|1|s|c> frozen=<0|1> sync=<both|notice|off>`: yours and your friend's (`s`
   for selfie mode, `c` on the host while a cutscene plays: the [cutscene wait](playing-with-a-friend.md#cutscene-wait)), whether your game holds
   the photo pause (`coop freeze` holds it too), and the `photo_sync` your friend gets (`notice` when your game cannot
@@ -454,7 +459,8 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
   through (`a` hidden or off, `b` overlap, `c` height, `d` movement mode, `e` 2 s of contact, `g` your friend down).
 
 Each changed status line, except the per-peer ones, the `fight=` line, the `mate=` and `life=` lines, the `night=`
-line (Night Operation's run logs each one as an `[NR]` line) and the `story=` line, also goes to `UE4SS.log` as
+line (Night Operation's run logs each one as an `[NR]` line), the `story=` line and the `sky=` line, also goes to
+`UE4SS.log` as
 `[StellarCoop] link: ...`.
 Each load logs the save slot as `link: slot=...`.
 

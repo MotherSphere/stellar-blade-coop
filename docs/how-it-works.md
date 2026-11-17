@@ -22,6 +22,7 @@ bodies, which is in [internals/cut-enemies.md: The spawn](internals/cut-enemies.
 | [shared-world.md](internals/shared-world.md) | The shared world's roots and hooks, its filter, its lines, how the partner's changes are made, its status line and addresses |
 | [story-sync.md](internals/story-sync.md) | Story together's theater reads and hooks, its tables, its lines, the guest's gate, leash and results, the guest's quest steps, its status line and addresses |
 | [doro-races.md](internals/doro-races.md) | The display Doro, the Doro look, the ghost's Doro mode, driving, race lines |
+| [daynight.md](internals/daynight.md) | The day and night cycle: the shared clock, the sun and moon, the map table, the rules, the env fields written, the request and status line, the cost |
 | [bike.md](internals/bike.md) | The bike: the preload, the part on EVE, mount and dismount, the gate, the riding pose, the riding model, the lean |
 | [cut-enemies.md](internals/cut-enemies.md) | The cut Lion with the row batches, the cut Gardener, the cut Tendril |
 | [cut-eve.md](internals/cut-eve.md) | The cut ChainSpin, developer flight and slow motion, the cut glide, emotes |

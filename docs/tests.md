@@ -18,12 +18,13 @@ build/host/pose_codec_test
 The Lua tests (`bike/`: `model`, `ride`; `commands/`: `session`; `core/`: `actors_of`, `class_at`, `keybind`, `link`,
 `mask`, `pak_gate`, `settings_file`, `ue4ss_settings`, `unreal`; `cut/`: `chainspin`, `devmenu`, `emote`, `enemy`,
 `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`,
-`mailbox`, `scene`, `tendril`, `wear`; `main/`: `bike`, `boot`, `dlc`, `fight`, `fight_notices`, `guide`, `idle`, `input`, `match`,
+`mailbox`, `scene`, `tendril`, `wear`; `main/`: `bike`, `boot`, `daynight`, `dlc`, `fight`, `fight_notices`, `guide`, `idle`, `input`, `match`,
 `menu`, `quests`, `sbo`, `scenes`, `session_ui`, `settings`, `story`, `world`; `matrix13/quest/`: `on_time`, `zone_talks`;
 `matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`;
 `nightop/`: `board`, `challenges`, `guard_text`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`,
 `waves`; `partner/`: `capture`, `ghosts`, `hud`, `puppet`, `sentinel`; `race/`: `doro`, `drive`, `drive_model`, `model`,
-`run`; `session/`: `arrival`, `booth`, `chat`, `group`, `halls_rows`, `join`, `saves`, `sbo`, `travel`; `story/`:
+`run`; `session/`: `arrival`, `booth`, `chat`, `group`, `halls_rows`, `join`, `saves`, `sbo`, `travel`; `sky/`:
+`daynight`, `rule`; `story/`:
 `snapshot`, `subtitles`; `ui/`: `create`, `create_model`, `guide`, `kit`, `lobby`, `lobby_model`, `model`, `notice`,
 `region_tabs`, `sessions`, `sessions_model`, `text`) run
 the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
@@ -48,7 +49,8 @@ fails the test. The `main/` tests load
   on or off starts a new generation; another component on the bike's mesh stays a part;
 - `core/link_test` also covers the status's `uidev=`, `me=`, `world=` and `story=` lines and the `owner=`, `room=`
   and `hall=` fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty)
-  and never from a player's name; the `shared_world` and `shared_story` settings; `bike` and `bike_key` (an older
+  and never from a player's name; the `shared_world`, `shared_story` and `daynight` settings (the `sky=` line kept out
+  of the `link:` lines); `bike` and `bike_key` (an older
   file whose keys hold F3 gets no bike key). It also reads the `dlcs=` line with the `dlc_missing=` and
   `dlc_extra=` lines after it, the session list's `list=` line with its `session=` rows (a row only after a `list=`
   line, `-` read as none) and a joiner's `wait=` line, logged once a wait. It covers `who_can_join` (`public` by
@@ -87,6 +89,26 @@ fails the test. The `main/` tests load
   reason logged at the title, with one of our screens open or with the game paused, the restore, the frame and the
   250 ms pass with an end said on screen, the Options rows, `coop off`; `riding()` as `coop emote`, the race, the hall
   seats, `coop fly on` and `coop glide on` read it; the ride's `parked` as the capture's `leave_out`;
+- `main/daynight_test` covers the day and night cycle through `main.lua` with a fake `sky/daynight.lua`: what it is
+  built with (the native asks and status, the `daynight` setting, the cutscene, SB's screens, photo mode, Night
+  Operation, the SBO lobby in Xion's training room only, the third-party plugin's path) and its 250 ms pass with
+  `coop off`. It also covers `coop daynight` with each word and its usage line for the rest. `main/menu_test` covers the
+  Day and night row: On by default, a change saved at once with no request;
+- `sky/rule_test` covers `sky/rule.lua`: every row of the map table (keys in lower case, each open row complete for its
+  kind of sky, the fixed maps, an unknown map), the rules in their order (a cutscene before photo mode, photo mode's
+  hold whatever the hour, a test pin before Night Operation's midnight), the `sky=` line read into numbers (none from
+  an older DLL), the command's hour (`24`, `-1`, `abc`, an empty word, `13,5`, `1e9`, `0x10`, `inf` and `nan` refused
+  with the accepted range), the sky dressing and the star fade for an elevation, a SkyCreator's time, the real minutes
+  to the night and the third-party plugin's path;
+- `sky/daynight_test` covers `sky/daynight.lua` over a fake engine: one request per change, the map read once per EVE,
+  the setting, each rule's case (Xion's story night read every 2 s), the command's words, a fixed map and the title,
+  the status with an older DLL (no request loop), `coop off`, a refused ask and the third-party plugin's line once.
+  Then the sky dressing: each dome looked up once per world and hidden once, a missing one logged once, the star layer
+  made once with its material loaded once a world and faded on change, the SkyCreators' time on change and back at an
+  off, Xion's night dome, a Lua reload at night that finds the star layer by its tag (no second one), an earlier load's
+  dressing put back by a new load that starts off. Last, SBO's own maps: the Sun turned, its intensity, its colour and
+  the SkyLight's intensity scaled, Matrix XIII's exposure bias lowered, each written on change only and put back at an
+  off; the Terrace hall left alone;
 - `main/world_test` covers `coop world` (its words, on and off whatever `shared_world` says, status), the start once a
   load with `shared_world=on`, the end at a reload with `shared_world=off`, and the shared world's two notices;
 - `main/scenes_test` covers `coop scenes` (its words, on and off whatever `shared_story` says, status, an on or off
@@ -250,7 +272,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   `mxiii rows`, `shop rows` and `signal rows` with their 25 table words and bad addresses, the longest of them 813
   bytes; `fly` and `slowmo` on or off; `anim play` with its id, path and `once`, `loop` or `ride`, and `anim stop`;
   `bike load <clip>`, `bike free`, `bike gate on` and `bike gate off`, a mesh, a package path or a mod's clip refused;
-  `shortcut list` and `shortcut load <map> <1-4>`; `hud hide on` and `hud hide off`; `loading lift`; `world` and
+  `shortcut list` and `shortcut load <map> <1-4>`; `hud hide on` and `hud hide off`; `loading lift`; `sky off`,
+  `sky hold`, `sky cycle <hz> <H>` and `sky hour <minute> <hz> <H>` with their ranges; `world` and
   `scenes` with `on`, `off` or `status`; `nightshop`,
   `roxanne`, `lily`,
   `guardtext` and the 8 `signal` words, in `quest/own.h`'s order; the `sbo` requests (`on`, `arm`, `enter`, `warp`,
@@ -645,6 +668,13 @@ The C++ tests cover the platform-free headers in `native/src`.
   action map (each state kept and put back, an absent name back as on, a name SB changed during the ride left as SB set
   it, a name the game never made skipped, a controller gone, a fault in the middle of turning it on, a fault), the words
   packed for the worker and the status line, the ride plays' clip lookups and the log lines;
+- `game_sky_test`: the day and night cycle (`game/sky.h`): the clock at :02, :12, :32 and :52 and under 24 just before
+  the hour's wrap, the ramps, the sun and moon at noon, sunrise, sunset, midnight and mid-morning, the dusk colour, the
+  status line. Over a fake WorldSettings whose env array holds a sunlit element with its own exposure bias, a covered
+  one and a sunlit one without the bias bit: noon and midnight written from the originals with the covered one given
+  only the direction; a restore; a copy SB makes into an element; another world at the same addresses, read as new;
+  SB's forced settings (nothing written, a restore still puts the array back); the gated blend, too many elements, no
+  world, an empty array; a pinned and a held hour; an element SB moved in its array keeps its originals;
 - `items_test`: `coop gift`'s inventory read against a fake image laid out like the pinned build: the FName and
   CityHash64 hashes checked against the game's, a count over two instances and along chains of collisions, an item
   EVE does not carry, no manager, bucket or owner, an instance the manager no longer holds, and hostile memory (a

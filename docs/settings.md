@@ -169,6 +169,9 @@ partner_card=on
 card_details=on
 # status_overlay, a strip above her card: off, compact (the status line and the ping) or detailed (and what is shared).
 status_overlay=compact
+# Day and night: on or off, on by default. On, the sky follows one clock shared by every player: one real hour is one
+# game day, with the night from about :52 to :12 past each hour (UTC). Off gives each map Stellar Blade's own light.
+daynight=on
 # Shortcut saves, a test tool: on or off, on by default. On, coop shortcut load <map> <1-4> writes one of the game's
 # cut developer saves as your co-op slot 5 (StellarBladeCoop04.sav, backed up first), without its achievement list.
 # A Steam achievement it still unlocks cannot be taken back: use it only on a Steam account whose achievements do not
@@ -238,6 +241,7 @@ sbo_lobby=on
 | `partner_card` | `on` or `off`: your friend's card at the top left | `on` |
 | `card_details` | `on` or `off`: the ping and your friend's map on the card | `on` |
 | `status_overlay` | `off`, `compact` or `detailed`: the [status strip](interface.md#status-strip-above-the-card) above the card | `compact` |
+| `daynight` | `on` or `off`: the [day and night cycle](internals/daynight.md). On, the sun moves on the open maps and SBO's own maps by one clock that every player shares: one real hour is one game day and the night runs from about :52 to :12 past each hour (UTC). Off gives each map Stellar Blade's own fixed light, as before. The Terrace hall stays a night hall either way. Options, Display, Day and night; it applies at once | `on` |
 | `shortcut_load` | `on` or `off`: lets `coop shortcut load` write a [cut developer save](cut-scenes-and-menus.md#loading-one-coop-shortcut-load) as co-op slot 5; it can unlock Steam achievements; no menu row | `on` |
 | `pvp_spike` | `on` or `off`: lets `coop pvp on` start the [PvP test](sbo-lobby.md#the-pvp-test) with your friend: a stand-in enemy at their ghost takes your hits for their game, down to 1 HP; needs `shared_enemies=off`; no menu row | `on` |
 | `sbo_lobby` | `on` or `off`: the [SBO lobby](sbo-lobby.md), a test. On, the recruiter's Join saves the co-op game and takes you to the lobby in Xion's training room (a hall lobby with the hall lobby pak), and each co-op save is copied before the game rewrites it (10 copies kept per slot). At each arrival in the lobby the screen stays black until the lobby menu is ready, 8 s at most, then fades onto the open menu. No menu row | `on` |

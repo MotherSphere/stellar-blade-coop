@@ -285,7 +285,7 @@ session you host and whether your Steam friends join without asking, the
 [shared quests](playing-with-a-friend.md#shared-quests-experimental)), Combat (shared enemies, same place, who
 same-place enemies attack, same spawns, extra enemies, shared bosses, the host's enemy and boss scaling and your kill
 rewards), Display (the [status strip](#status-strip-above-the-card) above the partner card; the size, sounds and
-language of the menu, the chat and the partner HUD) and Chat.
+language of the menu, the chat and the partner HUD; the [day and night cycle](internals/daynight.md)) and Chat.
 
 Left and right change a value, and Enter does the same as right. Each change rewrites only that setting's line in
 `coop-settings.txt`; comments and other lines stay as they are. Reset all keys rewrites the line of every key setting

@@ -33,7 +33,8 @@ the shared world and of story together. It does not link with 0.11.0 or older: e
 
 In this version every on/off setting is on by default, the experimental ones and the test tools included: the ghost's
 dyes and effects, the spawn filter, the name tag in your photos, shared quests, the shared world, story together, the
-revive, the solid partner, the Load Shortcut saves, the PvP test, the SBO lobby and the bike. The status strip shows its
+revive, the solid partner, the Load Shortcut saves, the PvP test, the SBO lobby, the bike and the day and night cycle.
+The status strip shows its
 compact form, and F7's travel to the host is on. A `coop-settings.txt` written by 0.5.0-beta.1 to 0.10.0 that holds the
 old off values is changed once at the next load (see [Settings](settings.md#coop-settingstxt)). Most of these features
 have not been tested in game. `shortcut_load=on` lets `coop shortcut load` write a developer save that can unlock Steam
@@ -83,6 +84,17 @@ achievements, which cannot be taken back.
   items are off while she rides. Your friend's ghost of you and the match-lobby ghosts show the bike. Its riding model
   adapts dCharisma1's Eve On Wheels, with his consent. Nothing of the ride is saved. It is not tested in game yet (see
   [bike.md](bike.md)).
+- Day and night: the sun moves across the sky on the maps that can show it, by one clock that every SBO player shares
+  through UTC, so players on the same map see the same sky with no network message. One real hour is one game day; the
+  night runs from about :52 to :12 past each hour. It runs in solo play, in online sessions, in the hall lobbies, in
+  Matrix XIII and in Night Operation, which keeps midnight. On the Wasteland, the Great Desert, Eidos 7 and 9, Matrix 11, Spire 4 and
+  both NIKKE minigame maps the painted sky dome gives way to a real sky, orange near the horizon at dawn and dusk. At
+  night the sun light goes off (no light through the ground), the sky, the fog and EVE's lights get darker, a cold
+  moon light takes over and stars come out. Xion swaps to the game's own night dome. Rooms, caves and labs keep their
+  own light, as do cutscenes and the game's menus. The NIKKE boss arena, the story places and the Terrace hall keep
+  their fixed light: the Terrace stays a night hall. `daynight=off` (Options, Display) gives each map Stellar Blade's
+  own fixed light, as before. `coop daynight hour <h>` pins an hour for tests. It is not tested in game yet (see
+  [the day and night cycle](internals/daynight.md)).
 - `coop leviathan` shows Leviathan, a Naytiba cut from the game whose models and animations are still in its files, as
   a display-only model in front of EVE, with a free camera for filming. `coop gardener` and `coop tendril` do the same
   for two more cut Naytibas, the Gardener and the Tendril (see
