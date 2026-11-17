@@ -639,7 +639,7 @@ function Ui.kit(opts)
                 if built.root.v~=v then built.root.v=v; r:SetVisibility(v) end
                 if warming(built.partial) or not built.partial then return end
                 for _,def in ipairs(order) do if def.shown and def.place.hit then return end end -- Not under the mouse.
-                if inputting then return end -- Nor the root the input focused (the host's question has no hit group).
+                if inputting then return end -- Nor the root the input focused (its holder may show no hit group).
             elseif built.size==#order then
                 lost=lost+1 -- A map change took it out, or the game, or another mod.
                 need(lost<=LOSSES,'the UI root keeps leaving the viewport')

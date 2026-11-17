@@ -111,14 +111,15 @@ asking set to Off, your Steam friends wait too. Both games show the game's own p
 game's Accept and Decline buttons. Theirs shows `Joined <host>'s game. Waiting to be let in.` in the feed and a popup,
 `Waiting for <host>'s answer`, with one Close button. Each popup shows the seconds left.
 
-Your question opens on its own, maybe while you walk or use the menu. Decline has the focus. For 1 s after it shows
-every key does nothing, so keys pressed for something else never answer it.
+Your question opens on its own, maybe while you walk, fight or use the menu. Decline has the focus. For 1 s after it
+shows every key, controller button and click does nothing, so a press meant for something else never answers it.
 
-- The Up and Down arrows move between Accept and Decline, Enter answers and Esc declines. W, S, Space, the mouse and
-  the [controller](interface.md#controller) do nothing here. While the question is open, the game ignores its own keys
-  and the mod's keys do nothing.
-- On the player who waits, Enter or Esc on Close (after the same first second) cancels the request: their game leaves
-  your lobby. Their popup closes by itself once you answer, with the game's accept sound when you let them in.
+- The arrows, or the [controller](interface.md#controller)'s D-pad or left stick, move between Accept and Decline.
+  Enter or A answers with the focused button. Esc, B or a right click declines. A left click on a button answers with
+  that button. W, S and Space do nothing here. While the question is open, the mouse cursor shows and the game ignores
+  its own keys and controller. The mod's keys do nothing.
+- On the player who waits, Enter, Esc, A, B or a click on Close (after the same first second) cancels the request:
+  their game leaves your lobby. Their popup closes by itself once you answer, with the game's accept sound when you let them in.
 - A popup opens in a world, while the game is not paused and the chat box is closed. It closes the co-op menu as it
   opens. Until then it waits. It hides while the game pauses and comes back after.
 - With no answer for 60 s, the native part refuses the player, even if the question never showed (with

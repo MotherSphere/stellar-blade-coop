@@ -67,9 +67,10 @@ fails the test. The `main/` tests load
   load with `shared_world=on`, the end at a reload with `shared_world=off`, and the shared world's two notices;
 - `main/idle_test` counts the FindAllOf and StaticFindObject calls of main.lua's two loops over one idle minute, each
   case from a fresh Lua load: 4 and 5 in a world with the UI up, 0 and 2 at the title, all in the first second;
-- `main/input_test` covers the controller's events from a fake `coop_pad` (routed to the menu, the co-op saves' question
-  and the two boxes, never to the host's question; LB, RB and Y taken and doing nothing there; at most 8 a frame; an
-  older DLL without it), the mouse in the menu and the focus watchdog's reset, the Lua frame time line with its
+- `main/input_test` covers the controller's events from a fake `coop_pad` (routed to the menu, the co-op saves' question,
+  the two boxes and the host's question, which ignores them for 1 s and never takes View held; LB, RB and Y taken and
+  doing nothing there; at most 8 a frame; an older DLL without it), the mouse in the menu and on the host's question,
+  the focus watchdog's reset, the Lua frame time line with its
   longest frame and 250 ms pass, their counts over 16 ms and over 50 ms, and the longest call of five modules, and the
   gap lines (a frame over 100 ms after the last, with the 250 ms pass in the gap or none, at most 200 a minute);
 - `main/match_test` covers `coop match` (search, create, cancel, end, join with a code, leave), search and create with
@@ -152,8 +153,10 @@ fails the test. The `main/` tests load
 - `session/join_test` covers the code box, then the join popups on a fake SB popup and on the kit panel that stands in
   for it. For the host's question: the popup filled before its Construct, SB's Accept and Decline, the cursor as its
   hover look, the seconds and a late name written on change only, the alert then SB's popup cues, the 1 s with no keys,
-  each player asked once a lobby, the 60 s left to the native part. For the joiner's wait: Close leaving the lobby, a
-  let in or a refusal closing it. Then `coop ui reset`, `coop off` and a name with `<` or `>`. It also covers the feed's
+  pad buttons or clicks, left and right moving as up and down do, a left click answering with the button under the
+  mouse (SB's own buttons or the panel's rows, nothing elsewhere), the mouse cursor shown, each player asked once a
+  lobby, the 60 s left to the native part. For the joiner's wait: Close (a key or a click) leaving the lobby, a let in
+  or a refusal closing it. Then `coop ui reset`, `coop off` and a name with `<` or `>`. It also covers the feed's
   join and leave lines in SB's words (`Join.feed`);
 - `session/halls_rows_test` checks the hall lobbies' 181 rows (5 worlds, 5 zones, 171 seats) against
   `lion/halls_rows.h` and `session/sbo_maps.lua`, then the title's ask: none without the lobby pak, once with it on the

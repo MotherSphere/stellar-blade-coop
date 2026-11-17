@@ -924,7 +924,7 @@ assert(#logs==1,'Not built again while open')
 k.show('menu',false)
 k.slow(true)
 assert(#logs==2 and logs[2]:find('^UI built: '),logs[2])
--- Nor while our UI holds the game's input with no hit group shown (the host's question): the input focused that root.
+-- Nor while our UI holds the game's input with no hit group shown: the input focused that root.
 reset()
 k=kit()
 for _=1,#UMG+6 do k.slow(true) end

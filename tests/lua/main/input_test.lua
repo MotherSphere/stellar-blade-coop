@@ -8,10 +8,10 @@ dofile('tests/lua/main/fixture.lua')
 -- An XInput pad (the native part reads it; pad_test tests its events): each frame up to 8 events, routed as the keys
 -- route theirs. With nothing open in a world, View held opens the co-op menu as menu_key does, its refusals said the
 -- same way; the menu takes the six navigation words and View held closes it; the co-op saves' question takes up, down,
--- select and back; LB, RB and Y are taken and do nothing, as nothing here has tabs or a Refresh. Nothing while the host's question is
--- open, while the menu waits for a key (B still stops the wait, A puts back its default), at the title with nothing
--- open, or after coop off; the chat box and the code box take only B, which closes them. An older DLL: one log line,
--- no pad.
+-- select and back; LB, RB and Y are taken and do nothing, as nothing here has tabs or a Refresh. The host's question
+-- takes the D-pad, A and B from 1 s after it shows (a left or right click too), never View held. Nothing while the menu
+-- waits for a key (B still stops the wait, A puts back its default), at the title with nothing open, or after coop off;
+-- the chat box and the code box take only B, which closes them. An older DLL: one log line, no pad.
 ;(function()
     local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end
     settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',false,false
@@ -66,13 +66,32 @@ dofile('tests/lua/main/fixture.lua')
     key('RETURN'); clock=clock+0.25; loops[1].f(); assert(kit_shown.chat) -- Quarters: the frame time test below.
     pad(5,7); assert(kit_shown.chat and not kit_shown.menu,'The chat box: A and View held do nothing')
     pad(6); assert(not kit_shown.chat and not kit_shown.menu,'B closes it')
-    -- The host's question: never answered with the pad (its buttons are the game's in a fight).
+    -- The host's question: for 1 s after it shows every pad event does nothing (its buttons are the game's in a fight);
+    -- then the D-pad moves, A answers with the focused button and B declines. View held never does anything there.
     link_pending={id='76561198000000008',name='Two'}
     quarter(); assert(kit_shown.ask)
     local n=#asked
-    clock=clock+2
-    pad(5,6,1,2,7); assert(kit_shown.ask and #asked==n and not kit_shown.menu,'The host\'s question: nothing')
-    coop('ui','reset'); assert(not kit_shown.ask and asked[#asked]=='deny 76561198000000008')
+    pad(5,6,1,2,7); assert(kit_shown.ask and #asked==n and not kit_shown.menu,'The host\'s question: 1 s with nothing')
+    clock=clock+1
+    pad(7); assert(kit_shown.ask and #asked==n and not kit_shown.menu,'View held: nothing')
+    pad(5); assert(not kit_shown.ask and asked[#asked]=='deny 76561198000000008','A on Decline, focused: denied')
+    link_pending={id='76561198000000009',name='Three'}
+    quarter(); clock=clock+1
+    pad(1,5); assert(not kit_shown.ask and asked[#asked]=='allow 76561198000000009','Up, then A: let in')
+    link_pending={id='76561198000000010',name='Four'}
+    quarter(); clock=clock+1
+    pad(6); assert(not kit_shown.ask and asked[#asked]=='deny 76561198000000010','B: denied')
+    -- The mouse on it: a left click on its Accept row lets the player in, a right click declines.
+    link_pending={id='76561198000000011',name='Five'}
+    quarter(); clock=clock+1
+    kit_views.ask.rows[1].hover=true; key('LEFT_MOUSE_BUTTON'); kit_views.ask.rows[1].hover=nil
+    assert(not kit_shown.ask and asked[#asked]=='allow 76561198000000011','A click on Accept: let in')
+    link_pending={id='76561198000000012',name='Six'}
+    quarter(); clock=clock+1
+    key('RIGHT_MOUSE_BUTTON'); assert(not kit_shown.ask and asked[#asked]=='deny 76561198000000012','Right click: denied')
+    link_pending={id='76561198000000013',name='Seven'}
+    quarter(); assert(kit_shown.ask)
+    coop('ui','reset'); assert(not kit_shown.ask and asked[#asked]=='deny 76561198000000013')
     link_mode,chat_active,link_pending='none',false,nil
     -- coop off: no event taken.
     coop('off'); calls=pd.calls
@@ -194,7 +213,7 @@ end)()
     link_mode='host'
     link_pending={id='76561198000000004',name='Six'}
     quarter(); assert(kit_shown.ask and kit_holder=='ask')
-    -- Under the host's question (no hit group), either mouse button only has the kit put our focus back.
+    -- Under the host's question, in the second after it shows, either mouse button only has the kit put our focus back.
     local asks,clicks=#asked,0
     calls=#kit_calls
     key('LEFT_MOUSE_BUTTON'); key('RIGHT_MOUSE_BUTTON')

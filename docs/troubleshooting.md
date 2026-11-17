@@ -292,8 +292,8 @@ Look at the `pad:` lines in `coop-link.log`:
   scripts. Install the whole folder of one version again.
 - `pad: XInput pads connected: ...` and still nothing: hold View for a full second, in a world with the game's HUD
   shown. The mod reads the controller only while the game's window is in front. If the menu cannot open, the same
-  `STOP:` line as for F5 shows. The host's question takes no controller input, and in the chat box and the code box
-  only B acts (it closes them).
+  `STOP:` line as for F5 shows. A join popup ignores every button for 1 s after it shows. In the chat box and the
+  code box only B acts (it closes them).
 
 ### Screen notices stopped
 

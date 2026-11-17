@@ -22,7 +22,7 @@ package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
 local calls,state,built,placed={},{ready=true,off=false,paused=false},{},{}
-local holder,inputting=nil,false
+local holder,inputting,pointing=nil,false,false
 local fields={} -- The field of each group: {text=, hint=, focuses=}.
 local kit={}
 function kit.add(name,place,build)
@@ -40,9 +40,10 @@ function kit.add(name,place,build)
         return {text=function() return f.text end,set=function(s) f.text=s end,
             focus=function() f.focuses=f.focuses+1 end,hint=function(s) f.hint=s end}
     end
-    function b.row()
+    function b.row() -- hover: the mouse is over it.
         local r={}
         r.set=function(l,v,st) r.l,r.v,r.st=l,v,st end
+        r.hovered=function() return r.hover==true end
         return r
     end
     -- Its labels; keys: the icons asked, in order ('move enter escape'); y: the row's top; bottom: the panel's.
@@ -61,18 +62,19 @@ function kit.paused() return state.paused end
 function kit.language() return state.language end
 function kit.show(name,on) calls[#calls+1]='show '..name..' '..tostring(on) end
 function kit.sound(name) calls[#calls+1]='sound '..name end
-function kit.input(on,who) -- As the kit: each once, and off only from the one who holds it.
+function kit.input(on,who,mouse) -- As the kit: each once; off only from the one who holds it.
     if on then
         if inputting and holder==who then return end
-        holder,inputting=who,true
+        holder,inputting,pointing=who,true,mouse==true
         calls[#calls+1]='input true '..tostring(who)
     elseif inputting and holder==who then
         inputting=false
         calls[#calls+1]='input false '..tostring(who)
     end
 end
--- SB's parts (kit.part): each a fake WB_Common_Popup keeping what it is sent (sent) and its fields; no_parts: the kit
--- answers as for a part missing from this game build.
+-- SB's parts (kit.part): each a fake WB_Common_Popup keeping what it is sent (sent) and its fields, over='yes' or 'no'
+-- while the mouse is over its Accept or Decline button; no_parts: the kit answers as for a part missing from this game
+-- build.
 local made,warmed,no_parts={},{},false
 FText=function(s) return s end
 local function popup()
@@ -84,14 +86,16 @@ local function popup()
     end
     function w.EventNotification(_,e) w.sent[#w.sent+1]='event '..e end
     function w.PlayAnimation(_,a) w.sent[#w.sent+1]='play '..a end
+    w.Button_Positive={IsHovered=function() return w.over=='yes' end}
+    w.Button_Negative={IsHovered=function() return w.over=='no' end}
     return w
 end
 function kit.warm_part(path) warmed[#warmed+1]=path end
-function kit.part(group,class,_,_,_,_,fill)
+function kit.part(group,class,_,_,_,_,fill,hit)
     if no_parts then return nil,'part '..class:match('[^.]+$')..': not in this game build' end
     local w=popup()
     fill(w)
-    made[#made+1]={o=w}
+    made[#made+1]={o=w,hit=hit}
     calls[#calls+1]='part '..group
     return made[#made]
 end
@@ -127,9 +131,9 @@ local function log(line) logs[#logs+1]=line end
 local ask=Join.ask({kit=kit,link=link,settings=settings,theme=TH,run=run,say=function(t) said[#said+1]=t end,log=log,
     menu=menu,chat=chat})
 assert(placed[1]=='code' and placed[2]=='ask' and placed[3]=='ask_popup' and built.code.place.hit
-    and not built.code.place.shown and not built.ask.place.hit and not built.ask.place.shown
-    and not built.ask_popup.place.hit and not built.ask_popup.place.shown and built.ask_popup.place.fixed
-    and built.ask_popup.place.w==3840,'All hidden at first; the box takes the mouse, the popup keys only')
+    and not built.code.place.shown and built.ask.place.hit and not built.ask.place.shown
+    and built.ask_popup.place.hit and not built.ask_popup.place.shown and built.ask_popup.place.fixed
+    and built.ask_popup.place.w==3840,'All hidden at first; the box, the panel and the popup take the mouse')
 assert(warmed[1]=='/Game/Art/UI/Widget/GameMenu/Common/WB_Common_Popup.WB_Common_Popup','The popup loaded ahead')
 local code,field=built.code.view,fields.code
 
@@ -220,17 +224,22 @@ assert(#logs==1 and logs[1]=='join: part WB_Common_Popup_C: not in this game bui
 assert(q.title.s=='Stranger wants to join' and q.about.s=='Declined in 60 s if you do not answer.'
     and shown_rows()=='Accept|normal Deny|focus' and q.hints[1].s=='Move' and q.hints[3].s=='Deny')
 assert(q.hints.keys=='arrows enter escape','The arrows only: it opens on its own while she walks')
+assert(pointing,'The mouse cursor shows, as SB shows it for its popup')
 assert(q.hints.y+66<=q.hints.bottom and code.hints.y+66<=code.hints.bottom,'The key icons stay inside both panels')
--- It opened on its own: for 1 s every key does nothing (a walk forward then a jump, a stray Enter or Esc).
+-- It opened on its own: for 1 s every key, pad button and click does nothing (a walk forward then a jump, a stray
+-- Enter, Esc, A or click).
 local runs
 n,runs=#calls,#ran
-for _,what in ipairs({'up','select','down','back'}) do ask.nav(what) end
-clock=10.99; ask.nav('up'); ask.nav('select')
+q.rows[1].hover=true
+for _,what in ipairs({'up','select','down','back','left','click'}) do ask.nav(what) end
+clock=10.99; ask.nav('up'); ask.nav('select'); ask.nav('click')
+q.rows[1].hover=nil
 assert(ask.is_open() and #ran==runs and #calls==n and shown_rows()=='Accept|normal Deny|focus','1 s: nothing')
--- Up and down move; Enter on Accept lets her in with SB's confirm cue; asked once: her line, until the native part
--- drops it, opens nothing.
+-- Up and down move, left and right too (a pad's D-pad on SB's popup, whose buttons sit side by side); Enter on Accept
+-- lets her in with SB's confirm cue; asked once: her line, until the native part drops it, opens nothing.
 clock=11; ask.nav('up'); assert(shown_rows()=='Accept|focus Deny|normal' and calls[#calls]=='sound move')
-ask.nav('left'); assert(shown_rows()=='Accept|focus Deny|normal','Left and right: nothing')
+ask.nav('left'); assert(shown_rows()=='Accept|normal Deny|focus' and calls[#calls]=='sound move')
+ask.nav('right'); assert(shown_rows()=='Accept|focus Deny|normal')
 n=#calls
 ask.nav('select')
 assert(ran[#ran]=='allow 76561198000000009' and not ask.is_open() and since(n)=='show ask false|sound popup_confirm',
@@ -251,6 +260,16 @@ clock=12.2; ask.nav('back'); assert(ran[#ran]=='deny 76561198000000008' and call
 link.waiting={id='76561198000000007',name='Three'}
 ask.slow(true); clock=13.2; ask.nav('down'); ask.nav('down'); ask.nav('select')
 assert(ran[#ran]=='deny 76561198000000007')
+-- The mouse: a left click on no row does nothing; on Deny it denies, on Accept it lets her in, wherever the focus is.
+link.waiting={id='76561198000000010',name='Mouse'}
+ask.slow(true); clock=14.2; runs=#ran
+ask.nav('click'); assert(ask.is_open() and #ran==runs,'A click on no row: nothing')
+q.rows[2].hover=true; ask.nav('click'); q.rows[2].hover=nil
+assert(ran[#ran]=='deny 76561198000000010' and calls[#calls]=='sound popup_close')
+link.waiting={id='76561198000000011',name='Mouse Two'}
+ask.slow(true); clock=15.2
+q.rows[1].hover=true; ask.nav('click'); q.rows[1].hover=nil
+assert(ran[#ran]=='allow 76561198000000011' and calls[#calls]=='sound popup_confirm')
 -- Hidden while the chat box is open or the game is paused (the game's input given back), shown again after with Deny
 -- focused, the seconds left, its 1 s with no keys and SB's popup cue in place of the alert.
 link.waiting,clock={id='76561198000000006',name=''},20
@@ -317,7 +336,8 @@ assert(q.title.s=="Waiting for bHost/b's answer"
     and shown_rows()=='Close|focus |normal' and q.hints[1].s=='' and q.hints[3].s=='Close',q.title.s)
 link.joined.left=42; ask.slow(true); assert(q.about.s:find('has 42 s left',1,true),q.about.s)
 ask.nav('back'); assert(ask.is_open(),'1 s: nothing')
-clock=clock+1; ask.nav('up'); ask.nav('down'); assert(ask.is_open(),'Up and down: nothing')
+clock=clock+1; ask.nav('up'); ask.nav('down'); ask.nav('left'); assert(ask.is_open(),'A move: nothing')
+q.rows[2].hover=true; ask.nav('click'); q.rows[2].hover=nil; assert(ask.is_open(),'A click under Close: nothing')
 runs=#ran
 ask.nav('select')
 assert(ran[#ran]=='leave' and #ran==runs+1 and not ask.is_open() and calls[#calls]=='sound popup_close')
@@ -325,6 +345,7 @@ ask.slow(true); assert(not ask.is_open() and #ran==runs+1,'Closed: not again in 
 -- A nameless host; let in: the panel goes with SB's confirm cue. Turned away (the lobby left): its close cue.
 link.at,link.joined='7301',{left=60,host=''}
 ask.slow(true); assert(ask.is_open() and q.title.s=="Waiting for the host's answer",q.title.s)
+assert(pointing,'The mouse cursor shows on the wait too')
 link.joined=nil; ask.slow(true)
 assert(not ask.is_open() and calls[#calls]=='sound popup_confirm' and #ran==runs+1)
 link.at,link.joined='7302',{left=60,host='Host'}
@@ -451,6 +472,29 @@ link.at,link.joined='7202',{left=60,host='Host'}
 pa.slow(true); assert(pa.is_open())
 pa.close(); assert(not pa.is_open() and #ran==runs+1)
 pa.slow(true); assert(not pa.is_open())
+-- The mouse on SB's popup: made so it takes the mouse; a left click with no button under it does nothing, on Decline
+-- it denies, on Accept it lets her in. A pad's left and right move its hover look. Our wait: a click on its Close
+-- leaves.
+link.m,link.at,link.joined,link.waiting='host','7400',nil,{id='76561198000000015',name='Pointer'}
+clock=110; pa.slow(true)
+local p7=w()
+assert(pa.is_open() and made[#made].hit==true and pointing,'SB\'s popup takes the mouse')
+clock=111; runs=#ran
+pa.nav('click'); assert(pa.is_open() and #ran==runs,'No button under the mouse: nothing')
+pa.nav('left'); assert(sent(5,p7)=='Image_Hover_Positive 3|Image_Hover_Negative 2',sent(5,p7))
+p7.over='no'; pa.nav('click')
+assert(ran[#ran]=='deny 76561198000000015' and sent(0,p7):find('|play close$') and calls[#calls]=='sound popup_close')
+link.waiting={id='76561198000000014',name='Pointer Two'}
+pa.slow(true); clock=112
+local p8=w()
+p8.over='yes'; pa.nav('click')
+assert(ran[#ran]=='allow 76561198000000014' and sent(0,p8):find('|play Accept$'))
+link.m,link.at,link.waiting,link.joined='guest','7401',nil,{left=60,host='Host'}
+clock=113; pa.slow(true)
+local p9=w()
+clock=114; runs=#ran
+p9.over='no'; pa.nav('click')
+assert(ran[#ran]=='leave' and #ran==runs+1 and not pa.is_open())
 assert(#logs==1,'No refusal from SB\'s popup: '..table.concat(logs,'|'))
 
 -- The feed's join and leave lines in SB's words, the name as the native part wrote it (a % in it kept). The others

@@ -191,10 +191,16 @@ characters and loses any `<` or `>` (the popup would read them as a text style t
 alert when a player first asks. Each popup then plays the game's own popup sounds: one as it opens, one on Accept or a
 let in, one on Decline or Close (none with `ui_sounds=off`).
 
-The Up and Down arrows move between Accept and Decline, Enter answers and Esc declines. On the joiner's wait, Enter or
-Esc closes the popup and leaves the host's lobby. For 1 s after a popup shows, every key does nothing. A popup takes no
-mouse click and no controller input. It opens in a world only and closes the co-op menu as it opens. It waits while the
-game is paused or the chat box is open.
+| Key | Controller | Mouse | On the host's question | On the joiner's wait |
+| --- | --- | --- | --- | --- |
+| Arrows | D-pad or left stick | | Move between Accept and Decline | Nothing |
+| Enter | A | Left click on a button | Answer with the focused button (with the mouse: the button clicked) | Close |
+| Esc | B | Right click | Decline | Close |
+
+Close leaves the host's lobby. For 1 s after a popup shows, every key, button and click does nothing. Decline has the
+focus, so a stray Enter or A declines. W, S and Space never answer a popup. While a popup is open the mouse cursor
+shows (as it does for the game's own popups) and the game ignores its own keys and controller. A popup opens in a
+world only and closes the co-op menu as it opens. It waits while the game is paused or the chat box is open.
 
 If the game's popup cannot be made, a panel of the mod in the middle of the screen shows the same words with Accept
 and Deny rows (one Close row on the joiner's wait). `UE4SS.log` then says
@@ -204,7 +210,8 @@ yet.
 
 ### Controller
 
-A controller drives the co-op menu and the [co-op saves' question](playing-with-a-friend.md#co-op-saves). Hold View (Back on an Xbox 360
+A controller drives the co-op menu, the [join popups](#join-popups) and the
+[co-op saves' question](playing-with-a-friend.md#co-op-saves). Hold View (Back on an Xbox 360
 pad) for 1 s to open the menu, in a world with the game's HUD shown, and hold it again to close the menu. View is also
 the game's Scan button, and the game still gets the press that opens the menu. The controller in the menu has not been
 tested in game yet.
@@ -225,9 +232,9 @@ tested in game yet.
   has to come from the keyboard.
 - B closes the [chat](#session-chat) box and the [code box](playing-with-a-friend.md#join-codes) as Esc does: nothing is typed or sent. A
   controller cannot type in them.
-- The [join popups](#join-popups) take no controller input. A is Jump and the D-pad uses heal and utility items in a
-  fight, so a press meant for the game must never let a stranger in. Answer the host's question with the keyboard;
-  with no answer, the player is refused after 60 s. The joiner's wait ends with the host's answer or that refusal.
+- The [join popups](#join-popups) take the D-pad, the left stick, A and B. A is Jump and the D-pad uses heal and
+  utility items in a fight, so a popup ignores every button for 1 s after it shows and opens with Decline focused: a
+  stray A declines. To let a player in with the controller, move to Accept, then press A.
 - The key hints at the bottom of the menu show the keyboard keys.
 
 The native part reads XInput: Xbox controllers, the Steam Deck, and any controller under Steam Input. A DualSense

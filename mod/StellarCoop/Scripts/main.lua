@@ -1000,16 +1000,17 @@ end
 -- the six navigation words, and menu (View held 1 s) closes B or C to the room; the menu open takes the six navigation
 -- words, and menu closes it; the co-op saves' question takes up, down, select and back; with nothing open, in a world
 -- with our HUD shown, menu sits EVE down, stands her up or opens B in the lobby world (lobby_key) and opens the co-op
--- menu elsewhere, as menu_key does, its refusals said
--- the same way. Nothing while the host's question is open (A is Jump and the D-pad uses items: a press meant for the
--- game never answers a stranger), nor while the menu waits for a key, but back, which stops the wait (menu.nav). The
--- chat's box and the code box take only back, which closes them as Esc does: nothing typed, nothing sent, and a pad
--- alone is never stuck there. LB and RB (tab_left, tab_right) change C's tabs while C is open, and nothing elsewhere.
+-- menu elsewhere, as menu_key does, its refusals said the same way. The host's question and the joiner's wait, while
+-- one is open, take every word first (A is Jump and the D-pad uses items: for 1 s after it shows a press does nothing;
+-- Decline has the focus, so a stray A declines). While the menu waits for a key only back acts: it stops the wait
+-- (menu.nav). The chat's box and the code box take only back, which closes them as Esc does: nothing is typed or sent.
+-- A pad alone is never stuck there. LB and RB (tab_left, tab_right) change C's tabs while C is open; nothing
+-- elsewhere.
 -- The Sessions screen or the Create a session screen, after the lobby's, takes them all and Y (refresh, the Sessions
 -- screen's only); menu closes it.
 local PAD={'up','down','left','right','select','back','menu','tab_left','tab_right','refresh'}
 local function pad_event(what)
-    if approval.is_open() then return end
+    if approval.is_open() then return approval.nav(what) end
     local screen=open_screen()
     if screen and not lobby.is_open() then
         if what~='menu' then return screen.nav(what) end
@@ -1745,7 +1746,8 @@ end
 -- keys go to the menu while it is open only (UI-DESIGN 4.1: up arrow, W or Z; down arrow or S; left arrow, A or Q;
 -- right arrow or D; Enter or Space; Esc), and to the co-op saves' question while it is open. The code box takes Enter
 -- (join) and Esc (cancel). With all closed, Enter opens the chat's box, then sends, and Esc cancels; while the question
--- or a box is open our F-keys do nothing. The mouse buttons are the lobby's screens' and the menu's while one is open
+-- or a box is open our F-keys do nothing. The mouse buttons are the join popups' first while one is open (a left click
+-- answers with the button under the mouse, a right click declines or closes), then the lobby's screens' and the menu's
 -- (a left click selects the row under the mouse, a right click goes back), then the left one the co-op saves'
 -- question's (the choice under the mouse); closed, they are the game's. A key callback runs on UE4SS's key thread: it
 -- only hands the press to the game thread, where the console's checks (coop off included) apply. A modified F-key is
@@ -1753,7 +1755,7 @@ end
 -- once is the same press, dropped. The status key gives a one-line summary, in the log in English and on screen in the
 -- menu's words; coop status keeps the full status. An XInput pad, which no bind can take, comes through the native part
 -- (pad_event above, each frame): View held 1 s does what menu_key does, the D-pad or the left stick, A and B navigate
--- the menu and the co-op saves' question, B closes the chat's box and the code box; never the host's question.
+-- the join popups, the menu and the co-op saves' question, B closes the chat's box and the code box.
 if settings then
     local K=require('core.keybind')
     local ACTIONS={'menu','host','status','leave','follow','race'}
@@ -1867,16 +1869,18 @@ if settings then
         elseif code_box.is_open() then ExecuteInGameThread(code_box.cancel)
         elseif box.is_open() then ExecuteInGameThread(box.cancel) end
     end)
-    -- A left click is the lobby's while one of its screens is open, else it selects the co-op menu's row under the
-    -- mouse, or answers the co-op saves' question with the choice under it; a right click goes back in the lobby's
-    -- screens or the menu (the kit's input leaves Slate the mouse, and UE4SS calls the binds whatever has it). While
-    -- our UI holds the game's input, either button first has the kit put our focus back (a click on none of our widgets
-    -- gives it to the game's viewport). No gamepad button can be bound: the pad comes through the native part.
+    -- A left click answers a join popup with the button under the mouse while one is open, else it is the lobby's
+    -- while one of its screens is open, else it selects the co-op menu's row under the mouse, or answers the co-op
+    -- saves' question with the choice under it; a right click declines or closes a join popup, goes back in the
+    -- lobby's screens or the menu (the kit's input leaves Slate the mouse; UE4SS calls the binds whatever has it).
+    -- While our UI holds the game's input, either button first has the kit put our focus back (a click on none of our
+    -- widgets gives it to the game's viewport). No gamepad button can be bound: the pad comes through the native part.
     bind('LEFT_MOUSE_BUTTON',nil,function()
         if not (kit.holding() or menu.is_open() or saves_ui.is_open()) then return end
         ExecuteInGameThread(function()
             kit.click()
-            if lobby.is_open() then lobby.nav('click')
+            if approval.is_open() then approval.nav('click')
+            elseif lobby.is_open() then lobby.nav('click')
             elseif open_screen() then open_screen().nav('click')
             elseif menu.is_open() then menu.nav('click') elseif saves_ui.is_open() then saves_ui.nav('click') end
         end)
@@ -1885,7 +1889,8 @@ if settings then
         if kit.holding() or menu.is_open() then
             ExecuteInGameThread(function()
                 kit.click()
-                if lobby.is_open() then lobby.nav('back')
+                if approval.is_open() then approval.nav('back')
+                elseif lobby.is_open() then lobby.nav('back')
                 elseif open_screen() then open_screen().nav('back') else menu.nav('back') end
             end)
         end
