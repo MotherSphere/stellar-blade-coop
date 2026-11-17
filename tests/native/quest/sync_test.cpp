@@ -1494,7 +1494,8 @@ void guest_steps() {
   from.groups = to.groups = kItems[0].group, to.task[0] = Pos{kItems[0].container, kItems[0].position};
   assert(std::string(step_hold(*row(kItems[0].id), from, to, false)) == "an item task");
 
-  // The host's step lines: from a line he sent, newer than her last one, of this generation; the line's shape.
+  // The host's step lines: from a line he sent, not older than her last one, of this generation; the line's shape.
+  // A step from the same line again goes on (the first may have been refused): accept() judges the repeat.
   auto h = std::make_unique<Host>(Record(), kGuestId, Deny());
   World w;
   Tuple live[kRowCount];
@@ -1509,12 +1510,16 @@ void guest_steps() {
   pass(); // q 1 1 41.
   const std::string line = "step 1 1 41 1 - 0:t - . Zone_WLA_30";
   assert(h->receive(wire(q(line)), now) && h->take_steps().size() == 1);
-  assert(!h->receive(wire(q(line)), now) && logged(h->log, "Quest_Sub_001 dropped: not newer than her last one"));
+  assert(h->receive(wire(q(line)), now) && h->take_steps().size() == 1);
   assert(!h->receive(wire(q("step 1 2 41 1 - 0:t - . Zone_WLA_30")), now) && logged(h->log, "bad guest line (step)"));
   assert(!h->receive(wire(q("step 1 1 41 1 - 0:K - . Zone_WLA_30")), now)); // Does not fit its row.
   for (const char *bad : {"step 1 1 41 1 - 0:t - .", "step 1 1 41 1 - 0:t - . Zone-X", "step 1 1 41 1 - 0:t - . Z Z",
                           "step 0 1 41 1 - 0:t - . Z", "step 1 1 41 1 - 0:t - .  Z"})
     assert(parse(q(bad).data(), q(bad).size()).type == Type::invalid);
+  w.play(s1);
+  pass(); // q 1 2 41.
+  assert(h->receive(wire(q("step 1 2 41 1 - 0:t - . Zone_WLA_30")), now) && h->take_steps().size() == 1);
+  assert(!h->receive(wire(q(line)), now) && logged(h->log, "Quest_Sub_001 dropped: older than her last one"));
   now += kSnapshotMs;
   assert(h->receive(wire(q("on 1")), now) && count(pass(), "snap") == 1);
   assert(!h->receive(wire(q("step 1 1 41 1 - 0:t - . Zone_WLA_30")), now) &&

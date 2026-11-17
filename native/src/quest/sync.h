@@ -1418,8 +1418,9 @@ public:
   std::vector<std::string> log; // Lines for coop-*.log, taken by the glue.
 
 private:
-  // Her step line, of this generation: a shared quest, fitting its row, from a line of ours, newer than her last step
-  // of that quest. kMaxSteps wait for the next pass at most.
+  // Her step line, of this generation: a shared quest, fitting its row, from a line of ours, not older than her last
+  // step of that quest. A step from the same line again goes on: the first may have been refused or dropped by a load,
+  // and accept() finds a repeat made here already. kMaxSteps wait for the next pass at most.
   bool take_step(const Message &m) {
     const int i = row_index(m.e.id);
     if (i < 0 || !fits(kRows[size_t(i)], m.e))
@@ -1428,8 +1429,8 @@ private:
     if (!l || m.e.seq > l->e.seq)
       return bad("step");
     const std::string what = std::string("quests: her step of ") + kRows[size_t(i)].alias + " dropped: ";
-    if (m.e.seq <= step_seq_[size_t(i)]) {
-      log.push_back(what + "not newer than her last one");
+    if (m.e.seq < step_seq_[size_t(i)]) {
+      log.push_back(what + "older than her last one");
       return false;
     }
     if (steps_.size() == kMaxSteps) {

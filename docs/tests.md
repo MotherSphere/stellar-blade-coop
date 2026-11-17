@@ -620,7 +620,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   the host's and the guest's rules, the zone marks, the item hold, the steps made together and those that are not,
   the record file, lost lines and reloads; a step the guest makes first: sent only from the host's line in his zone,
   never echoed back, taken by the host under each rule of `accept()` (two tasks of one group done on both sides in
-  one pass end with both in both games), the host's checks on her step lines;
+  one pass end with both in both games), the host's checks on her step lines (one from the same line again taken,
+  an older one dropped);
 - `quest_engine_test`: the shared quests against a fake quest unit: the walk, the guards before each game call, the
   gate, a fault, two PCs through channel 2's text with delay and loss (her step made first taken by the host's game,
   kept through a hold of his game, dropped by his load), a recording replayed into another save, and
