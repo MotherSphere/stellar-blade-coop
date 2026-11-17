@@ -129,13 +129,15 @@ How each kind of sky is dressed:
 | Xion's story night (Burning Xion) | `bActiveVolume` of `E04_Area_02_Global_ENV_01_NIGHT`, read every 2 s on Xion | `sky off`, Xion's domes left to SB |
 | An SB cutscene or dialogue scene, in an online session | `group.cutscene_playing()`, read once a second while a friend is linked | `sky off` |
 | Photo mode | `photo_state()` | `sky hold`: the hour it opened at, a pinned one included |
+| Our game paused for another player's photo mode or the host's cutscene | `link.photo().frozen` | `sky hold`, as in photo mode |
 | SB's pause menu or one of its screens | `kit.paused(true)` | `sky off`: their studio scenes are env volumes too |
 | `coop daynight hour <h>` | the command | `sky hour <minute> <hz> <H>` |
 | Night Operation runs | `night.running()` | `sky hour 0 <hz> <H>`: midnight |
 | Anything else | | `sky cycle <hz> <H>` |
 
 Photo mode comes before SB's screens because SB's photo mode pauses the game (its Pauser, which `kit.paused(true)`
-reads) for as long as it is open with `photo_pause=full`.
+reads) for as long as it is open with `photo_pause=full`. The pause that photo sync or `cutscene_wait=on` puts on a
+guest is SB's own pause tag too (`frozen=1` on the status's photo line), so it holds the hour the same way.
 
 A covered spot in an open map (a cave, a room, a lab) keeps its own light at any hour: see the sunlit rule below.
 

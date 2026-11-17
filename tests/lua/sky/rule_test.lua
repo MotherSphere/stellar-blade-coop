@@ -53,6 +53,10 @@ assert(select(2,Rule.decide({setting=true,map=W,screen=true,photo=true}))=='phot
 assert(Rule.decide({setting=true,map=W,screen=true,photo=true,cutscene=true})=='sky off')
 assert(Rule.decide({setting=true,map=W,photo=true,night=true})=='sky hold','Photo mode holds whatever the hour')
 assert(select(2,Rule.decide({setting=true,map=W,photo=true}))=='photo mode')
+-- Another player's photo mode or the host's cutscene pauses us with SB's pause tag (screen reads true): it holds too.
+assert(Rule.decide({setting=true,map=W,screen=true,frozen=true})=='sky hold','Our held pause beats the paused game')
+assert(select(2,Rule.decide({setting=true,map=W,screen=true,frozen=true}))=="another player's pause")
+assert(Rule.decide({setting=true,map=W,frozen=true,cutscene=true})=='sky off','A cutscene beats our held pause')
 assert(Rule.decide({setting=true,map=W,pinned=810,night=true})=='sky hour 810 8 0','A test pin beats Night Operation')
 assert(select(2,Rule.decide({setting=true,map=W,pinned=810}))=='pinned')
 assert(Rule.decide({setting=true,map=W,night=true})=='sky hour 0 8 0')

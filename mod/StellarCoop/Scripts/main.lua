@@ -670,6 +670,10 @@ o.daynight=require('sky.daynight').new({log=log,ask=function(line) return ask(li
     world=function(eve) return U.address(eve:GetWorld()) end,
     cutscene=function() return group~=nil and group.cutscene_playing() end,
     screen=function() return kit~=nil and kit.paused(true) end,photo=photo_state,night=night.running,
+    frozen=function()
+        local p=link and link.photo()
+        return p~=nil and p.frozen
+    end,
     lobby=function()
         local t=sbo and sbo.target()
         return t~=nil and t.key=='xion'

@@ -33,7 +33,7 @@ local calls={map_of=0,find=0,find_flag=0,flag_reads=0,find_dome=0,load=0,add_com
 local streamed={} -- SB's streaming levels by package, for GetStreamingLevel: none unless a test sets one.
 local creator_list=nil -- The SkyCreators listed, when a test sets them.
 local settings={daynight=true}
-local world={cutscene=false,screen=false,photo='0',night=false,lobby=false}
+local world={cutscene=false,screen=false,photo='0',frozen=false,night=false,lobby=false}
 -- The native status: text as it is, else a sky= line from the fields.
 local st={text='engine=on\n'..NOON,state='cycle',h=12,el=65}
 local function status()
@@ -158,7 +158,8 @@ local o={log=function(m) printed[#printed+1]=m end,
     end,load=function() return sky_file.line end},
     map_of=function(e) calls.map_of=calls.map_of+1; return e.map end,
     cutscene=function() return world.cutscene end,screen=function() return world.screen end,
-    photo=function() return world.photo end,night=function() return world.night end,
+    photo=function() return world.photo end,frozen=function() return world.frozen end,
+    night=function() return world.night end,
     lobby=function() return world.lobby end,
     find=function(path)
         calls.find=calls.find+1
@@ -207,6 +208,10 @@ world.night=true; D.slow(false); assert(asked[8]=='sky hour 0 8 0'); world.night
 world.lobby=true; D.slow(false); assert(asked[#asked]=='sky off'); world.lobby=false; D.slow(false)
 world.screen=true; D.slow(false); assert(asked[#asked]=='sky off' and logged("%(the game's menu%)"))
 world.screen=false; D.slow(false); assert(asked[#asked]=='sky cycle 8 0')
+-- Another player's photo mode or the host's cutscene pauses us with SB's pause tag: the hour holds, no SB day.
+world.frozen,world.screen=true,true; D.slow(false)
+assert(asked[#asked]=='sky hold' and logged("daynight: hold %(another player's pause%)"))
+world.frozen,world.screen=false,false; D.slow(false); assert(asked[#asked]=='sky cycle 8 0')
 -- 4. The command: hour, on, off; hour refused with daynight=off or a bad hour.
 assert(D.command('hour','13.5')); D.slow(false); assert(asked[#asked]=='sky hour 810 8 0')
 assert(D.command('off')); D.slow(false); assert(asked[#asked]=='sky off')

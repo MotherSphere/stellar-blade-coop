@@ -7,9 +7,10 @@
 -- nothing. The hour and the sun come from the native part's sky= status line (game/sky.h); coop daynight status reads
 -- it. o: log, ask(line) -> ok and why, status() -> the native status text, settings (daynight), her() -> EVE or nil,
 -- address(eve), map_of(eve), cutscene(), screen() (SB's pause menu or one of its screens), photo() -> '0', '1' or 's',
--- night() (Night Operation runs), lobby() (EVE stands in the SBO lobby in Xion's training room), find(path) -> object
--- or nil, actors_of(class path) -> list, load(path), exists(path), cps (the third-party plugin's file), level(package)
--- -> the streaming level of a sublevel in EVE's world or nil.
+-- frozen() (our pause tag held for another player's photo mode or the host's cutscene), night() (Night Operation
+-- runs), lobby() (EVE stands in the SBO lobby in Xion's training room), find(path) -> object or nil, actors_of(class
+-- path) -> list, load(path), exists(path), cps (the third-party plugin's file), level(package) -> the streaming level
+-- of a sublevel in EVE's world or nil.
 -- The sky dressing, from the status line's sun while the native part's light is ours: the painted domes of a real-sky
 -- map hidden; SBO's star layer (a StaticMeshComponent tagged SBO_Stars on the first dome's actor, the dome's
 -- mesh with SB's star material, found again by its tag after a Lua reload) shown at night; each SkyCreator's own time
@@ -505,6 +506,7 @@ function Daynight.new(o)
             s.cutscene=o.cutscene()
             s.screen=o.screen()
             s.photo=o.photo()~='0'
+            s.frozen=o.frozen()
             s.night=o.night()
         end
         send(Rule.decide(s))
