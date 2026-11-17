@@ -207,7 +207,8 @@ popup's confirm sound; Decline or Close plays its close sound. With `ui_sounds=o
 Several players asking at once wait in a queue. The host's question is about the first of them only, in the order they
 joined: her 60 s run from the moment her question is the first. Once she is answered or gone, the next player gets
 her own question, with its keys dead again for 1 s. Each joiner's wait popup counts down the most the host's answer
-may take: her own minute plus a minute for each player asked before her.
+may take: what is left of the current question's minute, plus a minute for each player after that one, hers
+included.
 
 | Key | Controller | Mouse | On the host's question | On the joiner's wait |
 | --- | --- | --- | --- | --- |
@@ -430,8 +431,9 @@ while the host has no pair. Each other member past the handshake gets a row to t
 fonts and HUD dots: her name, her state on the same line and a row of HP dots under them. The state reads as on the
 card: `DOWN` in red, `elsewhere · <map>`, `connection lost`, `—` with no HP from her for 3 s, else her ping and map
 with `card_details`. A row greys out as the card does. The alert sounds once when she goes down and when her
-connection is lost. The rows go three to a column, six at most. They show with `partner_card` and hide when the card
-does. Their HP shows each reading as it comes, without the card's 300 ms move.
+connection is lost. The rows go three to a column, six at most, right of the card as `ui_scale` sizes it. They show
+with `partner_card` and hide when the card does. They never show in a match lobby. Their HP shows each reading as it
+comes, without the card's 300 ms move.
 
 While nothing comes from your friend (connection lost, or no HP for 3 s), the marker and the arrow turn grey and stay
 where your friend was last seen, until they are back or one of you changes map. On another map there is no marker and
@@ -573,7 +575,7 @@ a Steam name or a chat line shows as `?`.
 | `coop mute`, `coop unmute` | `Muted <name>.` or `Unmuted <name>.` |
 | A player on another protocol or game build joins a lobby you host (a match lobby or an online session) | `<name> runs another version and was refused.` |
 | A player in your match lobby stays over a channel's rate limit for 5 s; you keep the lobby | `<name> sent too many messages and was refused.` |
-| Steam refused relay only 3 times, 1 s apart (needed in a match and with a player who is not your Steam friend) | `<name> was refused: Steam would not set relay only.` (co-op host), `Left <host>'s game: Steam would not set relay only.` (co-op guest) or `Left the match: Steam would not set relay only.` |
+| Steam refused relay only 3 times, 1 s apart (needed in a match and with a player who is not your Steam friend) | `<name> was refused: Steam would not set relay only.` (co-op host), `Left <host>'s game: Steam would not set relay only.` (co-op guest, with the host), `No link with <name>: Steam would not set relay only.` (co-op guest, with another guest) or `Left the match: Steam would not set relay only.` |
 | The match host stays over a channel's rate limit for 5 s; you leave | `Left the match: <name> sent too many messages.` |
 | Friend on another map | `<name> is in <map>, you are in <map>.` |
 | [Following the host](playing-with-a-friend.md#following-the-host) (guest) | `<host> is in <map>. Press F7 to travel to the camp nearest them.`, `Following <host> in 5 s. Press F7 to stay.`, `Travelling to <host>.`, `No camp you have found is near <host>.`, `You cannot travel now. Try again in a moment.` or `The travel did not start. UE4SS.log says why.` |

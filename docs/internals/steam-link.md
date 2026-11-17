@@ -110,8 +110,10 @@ them after `owner=` on its `link=` line.
   waits (`session request from <name> held: no relay only yet`). The next member pass at least 1 s later asks Steam
   again. After 3 refusals in a row the log reads `no link with <name>: Steam refused relay only 3 times`. A co-op
   host refuses her (`<name> was refused: Steam would not set relay only.`). A co-op guest leaves with `Left <host>'s
-  game: Steam would not set relay only.` In a match lobby every role leaves with `Left the match: Steam would not set
-  relay only.` A refused ICE back to -1 leaves relay only on.
+  game: Steam would not set relay only.` when it is the host she cannot link with. When it is another guest, only
+  that link goes, until that guest leaves the lobby: `No link with <name>: Steam would not set relay only.` In a match
+  lobby every role leaves with `Left the match: Steam would not set relay only.` A refused ICE back to -1 leaves relay
+  only on.
 - In a match lobby, Steam's lobby owner is the host. An owner who leaves from the menu first hands the lobby to the
   member past the handshake who joined first (`SetLobbyOwner`), then leaves. When the owner changes during a round,
   every game ends it with `host_left`. Ten seconds of silence from the owner also end it, with `host_lost` and the
@@ -201,7 +203,8 @@ host answers with native requests, which Lua writes to `coop-request.txt` like t
 - `deny <SteamID>`, or 60 s with no answer, refuses the player. So does leaving before the answer. The host's
   questions come one at a time, in the order the players joined: a player's minute starts when her question is the
   first one waiting. The host's game sends each waiting player `SBC23 wait <seconds>`, reliable, at the start and after
-  each change: her own minute, plus a minute for each player asked before her.
+  each change: what is left of the minute of the player asked now, plus a minute for each player after that one, hers
+  included.
   `remove <SteamID>` refuses any player already in (friends included) and puts them on the block list.
 - A refused player gets a `SBC reject` with the reason (`you were not let in`, `no answer within 60 s`, `you were
   removed from this session`). Every build since protocol 9 shows it as `<host> refused the link: <reason>` and leaves. That
@@ -249,7 +252,9 @@ An online session holds up to 4 players (`max_players`). The host leads every gu
   the host's pose path drop the old pair's table from slot 0. The let line then names her: her game says
   `Shared enemies, the shared world and story together now run between <host> and you.` and sends its pose table to
   every member at once (`glue/steam.cpp`), since the host's slot 0 holds none of hers yet. With no guest past the
-  handshake, slot 0 waits for the next one.
+  handshake, slot 0 waits for the next one. A guest who passes the handshake while slot 0 waits gets no let line
+  until she or another guest takes it, so her first one names the pair and she hears no notice that the features are
+  off for her.
 - The first let line that does not name a guest as the pair gives her one notice for the session: `Shared enemies,
   the shared world and story together run between <host> and <pair> only. Your game keeps its own.` With no pair, it
   reads `Shared enemies, the shared world and story together are off for you in <host>'s session. Your game keeps its
@@ -265,13 +270,14 @@ An online session holds up to 4 players (`max_players`). The host leads every gu
 - A new pair, or none, empties channel 2's queues both ways of all but the shared quests' lines, so a snapshot on its
   way to another guest still goes.
 - The status has `host=<host's SteamID> pair=<pair's SteamID or 0> max=<max_players>` in an online session (on a
-  guest, `max=0` before the let line came), then `vit=<SteamID> <12
-  numbers>` for each member past the handshake whose vit line is under 3 s old. `mate=` is the slot-0 member's: the
-  host's on a guest, the pair's on the host.
+  guest, `pair=` is the let line's, her own when she is the pair; `max=0` before the let line came), then
+  `vit=<SteamID> <12 numbers>` for each member past the handshake whose vit line is under 3 s old. `mate=` is the
+  slot-0 member's: the host's on a guest, the pair's on the host. A match lobby has neither.
 - A member who comes in while the lobby holds more than 2 players starts at 30 poses a second, as in a match lobby.
   When the lobby grows past 2, each link still at 60 starts again at 30 too (`pose rate cap 30 a second for <name>: 3
   players in the lobby`). Each one steps back up after 10 calm readings, as any capped link does.
-- A guest who leaves is announced on the host and on each guest she linked with (`<name> left.`).
+- A guest who leaves is announced on the host and on each guest she linked with (`<name> left.`). In a match lobby
+  only the owner says it.
 - With more than 2 players, a gift is refused at once (`Gifts need a session of 2 players.`; Lua gets `gift n <id>
   nolink`). Its answers (`a`, `n`) still go to every member, so a gift sent in a session of 2 gets its answer after a
   third player came in. Doro races and Night Operation send nothing. Lua refuses a gift, a race, a Night Operation run and the PvP
@@ -471,11 +477,12 @@ pass 200 bytes, the notice cuts that name. Nothing is refused.
 The camps lines carry the [follow](group-play.md#following-the-host), both reliable: the guest's `camps?` with a number from 0 to
 65535, and the host's answer to it, its world and up to 8 camps nearest its EVE with their distance in whole metres, or
 `none` and why. Only a guest asks, of the host only. Only the host answers. The host's link takes one `camps?`
-each 2 s from each guest. It sends an answer to each guest whose last `camps?` had its number: guests whose numbers
-meet get the same answer, which suits them, as each asks for the camps nearest the host. A guest's link keeps only the
-answer to her last number. A world or camp name is letters, digits and `_`, at most 64 characters. Both lines show in
-`coop status` until the session ends: `camps=` on the guest; on the host, `camps?=` with the oldest number still
-waiting for an answer, else the last one taken.
+each 2 s from each guest and gives it a number of its own, 1 to 65535 in turn: two guests' numbers may meet, the
+host's never do. Its status shows that number (`camps?=`) for the oldest request still waiting for an answer, else
+for the last one taken. His Lua answers each number once. The answer goes to the guest whose request had that
+number, alone, with her own number in place of the host's. A guest's link keeps only the answer to her last number. A
+world or camp name is letters, digits and `_`, at most 64 characters. Both lines show in `coop status` until the
+session ends: `camps=` on the guest, `camps?=` on the host.
 
 ### The night line
 

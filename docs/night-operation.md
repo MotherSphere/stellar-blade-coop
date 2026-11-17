@@ -59,7 +59,7 @@ These parts do not exist yet:
 
 - The recruiter's Join choice starting a Night Operation match. Today the host types `coop nightop start`, and Join
   takes you to the [SBO lobby](sbo-lobby.md), whose match lobbies have no Night Operation mode yet.
-- More players, up to six. A co-op session holds two.
+- More players, up to six. A run holds two, though an online session holds up to 4.
 - A boss wave.
 
 The Steam link connects the players of a session and shows each player the others' ghosts (see [playing-with-a-friend.md](playing-with-a-friend.md)). The previews
@@ -316,7 +316,8 @@ With a partner linked over the Steam link, the host starts the run for both play
 at the same points around the host's start point, and both cards show one timer and one score. The host's level is
 the run's: the waves, the score for each kill, the heals and the time limit are those of a solo run at that level. A
 run has two players at most, each on a co-op save: in an online session of more than 2 players, the host cannot start
-one ([More than 2 players](playing-with-a-friend.md#more-than-2-players)).
+one. A run under way when a third player gets in ends on both games with `Night Operation does not run in a session
+of more than 2 players.` ([More than 2 players](playing-with-a-friend.md#more-than-2-players)).
 
 ### Starting a run together
 

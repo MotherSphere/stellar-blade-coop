@@ -136,6 +136,9 @@ For the player who types the code:
   Steam refused that setting 3 times, 1 s apart, so your game sent nothing and left. `coop-link.log` has each try
   (`Steam refused relay only, try <n>/3`). Restart the game and try again. If it happens again, send the logs (see
   [Which logs to send](#which-logs-to-send)).
+- `No link with <name>: Steam would not set relay only.`: in a session of more than 2 players, Steam refused relay
+  only 3 times for another guest who is not your Steam friend. You stay in the host's session; that guest's EVE and
+  chat do not reach you until she leaves and joins again.
 
 For the host:
 
@@ -145,9 +148,9 @@ For the host:
   [Which logs to send](#which-logs-to-send)). Type `coop allow <4 digits>` or `coop deny <4 digits>`, or the full
   SteamID from the `pending=` line of `coop-status.txt` in the mod folder. With no answer, the player is refused
   after 60 s.
-- A refused player is still in the lobby. Steam cannot take a player out of a lobby: a Stellar Blade Online game leaves
-  when it is refused, but a game that does not keeps the lobby's second place. It gets the refusal again every 10 s and
-  never links. Host again: the new session has a new code.
+- A refused player is still in the lobby. Steam cannot take a player out of a lobby. A Stellar Blade Online game leaves
+  when it is refused. A game that does not keeps its place in the lobby: it gets the refusal again every 10 s and never
+  links. Host again: the new session has a new code.
 - Players you do not know keep asking: a Public session is listed for every player of your version. Leave, then host
   again with Friends only, or with Invitation and give the new code only to the player you expect. While you host, a
   session keeps the Who can join it was hosted with.

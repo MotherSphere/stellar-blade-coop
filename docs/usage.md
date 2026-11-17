@@ -390,21 +390,25 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
   (not your Steam friend, or any player with `friends_ask=on`), in the order the native part asks about them. As a
   joiner who waits for the host's answer, a `wait=<seconds left> <host's name>` line. While a session list lasts, a
   `list=` line and a `session=` line per row ([The session list](internals/steam-link.md#the-session-list)). In an
-  online session, `host=<host's SteamID> pair=<pair's SteamID or 0> max=<max_players, 0 before a guest heard it>`
+  online session, `host=<host's SteamID> pair=<pair's SteamID or 0, yours when you are the pair> max=<max_players, 0
+  before a guest heard it>`
   ([Sessions of more than 2 players](internals/steam-link.md#sessions-of-more-than-2-players)). Then a `peer=...` line
   per lobby member (handshake, lost flag, RTT), a `friend=<linked 0|1> <lost 0|1> <name>` line, after a
   [coop mark](#coop-mark) a `mark=<n> ours: <text>` or `mark=<n> from <name>: <text>` line (no `: <text>` for a mark
   with no text), a `mate=<12 numbers>` line with your friend's HP, shield, Beta, Burst and Tachy for the partner card
   (while their last reading is under 3 s old; your own during `coop loopback`), a `vit=<SteamID> <12 numbers>` line
-  for each member linked whose last reading is under 3 s old, a `life=<state> <hp>` line with your
+  for each member linked whose last reading is under 3 s old (neither line in a match lobby), a `life=<state> <hp>`
+  line with your
   own EVE's life state (1 or 6 alive, 3 to 5 dying or dead) and HP for the revive, a `night=<line>` line with your
   friend's last Night Operation line while a session holds, and the last 8 notices as `notice=<n> <text>`. While you
-  host, `camps?=<id>` is the oldest request for the camps nearest you still waiting for an answer, else the last one;
-  as the guest, `camps=<id> <answer>` is the host's last answer
+  host, `camps?=<n>` is your game's number for the oldest request for the camps nearest you still waiting for an
+  answer, else for the last one (your answer to that number goes to that guest alone, with her own id); as the guest,
+  `camps=<id> <answer>` is the host's last answer
   ([Following the host](playing-with-a-friend.md#following-the-host)).
 - Pose path: `engine=on` (then `loopback=on <delay> <jitter> <loss>` or `loopback=waiting` until EVE's capture comes,
-  `record=on`, `replay=on`, `remote=<generation> <count> <loopback|replay|peer>`, and in a match lobby
-  `remote<k>=<generation> <count>` for each other member's ghost slot k from 1 to 6), or `engine=off reason=<why>`; then
+  `record=on`, `replay=on`, `remote=<generation> <count> <loopback|replay|peer>`, then in a match lobby or an
+  online session of more than 2 players `remote<k>=<generation> <count>` for each other member's ghost slot k from 1 to
+  6), or `engine=off reason=<why>`; then
   `warp=<idle|busy> me=<n>` (a respawn or a warp under way, and your EVE's id, for the revive), `travel=<state>
   travel_calls=<n>` (the last travel's state: `idle`, `pending`, `warping`, `arrived` or `refused:<why>`, and the travel
   requests handled so far), `anim=<state> anim_id=<n>` (the last `coop emote` clip or bike pose the native part took
@@ -437,9 +441,10 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
 - Same place: `pilot=on piloted=<n>`, `pilot=off why=<why>`, `pilot=stopped` or `pilot=refused why=<why>` (see
   [Same place](shared-enemies.md#same-place-experimental)).
 - Shared quests: `quests=off`, `quests=waiting mode=<mode> why=<friend|save|game>`, `quests=on mode=<mode>
-  role=<role> partner=<on|off>` or `quests=stopped` (see [Shared quests](playing-with-a-friend.md#shared-quests-experimental)), then the last 8
-  quest notices as `quest_note=<n> <kind> <number> <name> <zone or ->` and the last `coop quests status` answer as
-  `quests_status=<n> <line>` lines.
+  role=<role> partner=<on|off>` (on a host with several guests, then `with=<SteamID>` of the first guest whose side is
+  on) or `quests=stopped` (see [Shared quests](playing-with-a-friend.md#shared-quests-experimental)), then the last 8
+  quest notices as `quest_note=<n> <kind> <number> <name> <zone or ->`, with the guest's SteamID after a host's
+  `ahead` note, then the last `coop quests status` answer as `quests_status=<n> <line>` lines.
 - Shared world: `world=off`, `world=waiting why=<friend|match|save|partner>`, `world=on`, then its counters, or
   `world=stopped`, `world=off why=build` or `world=off why=coop_off` (see [Shared world](shared-world.md#status-line)
   and the counters in [Shared world: how it works](internals/shared-world.md#status-line)).

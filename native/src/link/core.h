@@ -1329,8 +1329,8 @@ private:
   // StellarCoop game leaves, then she is out for the rest of this lobby (after a remove, the block list keeps her out
   // of the later ones). Her session stays open, so the reject still goes out (CloseSessionWithUser drops unsent
   // reliable data).
-  // ponytail: Steam has no kick, so a game that ignores the reject keeps the lobby's second place (rejects every
-  // 10 s, never greeted); the host hosts again for a new code.
+  // ponytail: Steam has no kick, so a game that ignores the reject keeps its place in the lobby (rejects every 10 s,
+  // never greeted); the host hosts again for a new code.
   void refuse(uint64_t id, const std::string &why, const std::string &text) {
     Peer *p = find_peer(id);
     send(*p, reject(why), kReliable);
@@ -2570,7 +2570,8 @@ private:
   }
   // The host's questions, one at a time (session/join.lua shows the first pending= line): the first joiner waiting for
   // an answer, in the order they came, gets her minute from now. Then each one waiting is told the most her answer may
-  // take (a wait line): her own minute, after a minute for each one before her. A change goes to her again.
+  // take (a wait line): what is left of the first one's minute, then a minute for each one after the first, hers
+  // included. A change goes to her again.
   void ask_next() {
     uint64_t end = 0;
     for (auto &p : peers_) {

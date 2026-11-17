@@ -314,7 +314,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-request.txt` | Lua | A console request for the native part |
 | `coop-session.txt` | Lua | A token per Lua load |
 | `coop-components.txt` | Lua | Your EVE's capture (the component table) |
-| `coop-remote.txt` | native | The remote table the ghost is built from. In a match lobby, `coop-remote-<k>.txt` holds the table of the member in ghost slot k, 1 to 6 |
+| `coop-remote.txt` | native | The remote table the ghost is built from. In a match lobby or an online session of more than 2 players, `coop-remote-<k>.txt` holds the table of the member in ghost slot k, 1 to 6 |
 | `coop-cns.txt` | native, at start | The assets your CNS packs declare, one `<path> <outfit>` line each (empty without CNS packs): with `coop-shared-assets.txt`, the only paths from a mod's folder the ghost loads |
 | `coop-cns-call.txt` | Lua | The crash sentinel's marker: `<path> <outfit>` while the ghost hands the engine an asset your CNS packs declare or a mod you both have holds (the container name in place of the outfit), empty otherwise. Written in place, with no `.tmp` file (see [When a mod asset fails](ghost.md#when-a-mod-asset-fails)) |
 | `coop-shared-assets.txt` | native, when the list changes | The assets of the mods you and your friend both have in one version, one `<path> <container>` line each: loaded by the ghost as CNS paths are (see [Mods you both have](ghost.md#mods-you-both-have)) |

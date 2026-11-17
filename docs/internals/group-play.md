@@ -20,9 +20,11 @@ on the next co-op save), while a load (the title screen, a map change) only paus
 
 - In an online session of more than 2 players, the host's side runs one `quest::Host` per guest linked past the
   handshake, in the order they came. The pass reads his quests once and feeds every Host. Each Host keeps its guest's
-  `h` lines in the one record of the co-op slot. It sends her our `on`, her own snapshot and her lines, then takes her
-  step lines. A guest who comes gets a Host and our `on` line; one who leaves loses hers. Neither starts the side again.
-  The same step from two guests is made once in the host's game; his next read brings it to the others.
+  `h` lines in the one record of the co-op slot. It sends her our `on`, her own snapshot and her lines. A guest who
+  comes gets a Host and our `on` line; one who leaves loses hers. Neither starts the side again. Only the pair's step
+  lines are taken (story together runs within the pair): the host's game makes a step the pair made first. His
+  next read brings it to the others. Any other guest sends none. Her quest stays ahead of the host's until his game
+  makes that step. The host's ahead notice names her (`quest_note=` carries her SteamID).
 - The host reads his quests. Each quest whose state changed goes to the guest as one reliable line on channel 2 with
   the whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ23 q <gen> <seq> <id> <state>
   <acquire mark> <finished groups> <tasks done> <done mark>`. A group or a task is named by its place (container and
@@ -76,8 +78,8 @@ game yet.
   `follow_host=always` 5 s after the host arrived somewhere new. It sends one at most each 2.5 s.
 - In an online session of more than 2 players, each guest asks the host only and reads the host's map and place from
   the ghost in the slot of the host's `member=` line (slot 0, `main.lua`'s puppet, on every guest). The host's Lua
-  answers while any guest is linked. Its native part sends each answer to every guest whose last `camps?` had that
-  number (see [The camps lines](steam-link.md#the-camps-lines)).
+  answers while any guest is linked, by the number its native part gave each request. That part sends the answer to
+  the guest who asked alone, with her own number (see [The camps lines](steam-link.md#the-camps-lines)).
 - The host's Lua answers from the game's spawn points on its map: those named after one of the travel camps of its
   world, read once a map, sorted by distance to the host's EVE. The answer names the world and the 8 nearest, or
   `none` with `title`, `loading`, `nocamp` or `busy` (a warp or respawn of the host's under way).
@@ -229,7 +231,9 @@ alive within the distance revives; the wait notice names the first member alive 
 - The friend's game shows its notices from her vitals: `<name> is down. Stand next to them for 3 s to revive them.`
   once per death, while the friend's own EVE is alive, on her map and outside a boss fight; and `You revived <name>.`
   when her vitals turn alive while the friend's EVE stands within 3 m of her ghost. With more than 2 players, each
-  game shows them for each member past the handshake.
+  game shows them for the host and the pair only (`host=` line's `id` and `pair`): a guest outside the pair has no
+  `boss=0` on her `fight=` line, as her shared fight never runs, so her game never makes the call. Her own game logs
+  `revive waits: no shared fight` and shows no wait notice. It shows no down notice either, for the same reason.
 - `coop revive test` makes the same call alone, at the death screen of a co-op save outside a session, for the first
   in-game check.
 - With both players down, nobody can revive. Each respawns at a camp in their own game, each world resets on its own,

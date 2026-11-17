@@ -69,15 +69,20 @@ fails the test. The `main/` tests load
   `ui/lobby_model_test` a session counted against its host's `max_players`, against 4 while it is not known; `session/join_test` the host's queue (one question
   about the first joiner with the players waiting after her on the seconds' line, then the next one's own question
   with its keys dead again for 1 s); `partner/hud_test` the members' rows (right of the card, three to a column, six
-  made; her name, HP and state as on the card, greyed, the alert once on DOWN and on a lost link; hidden with
-  `partner_card` off, while paused and out of a session) and the card following the first member past the handshake
-  on a host whose pair left; `session/group_test` the revive with three players (the nearest member alive within 2 m
-  named in the wait, the call and the revived notice; the wait naming the member alive on our map when she is far; no
-  member alive), each member's down notice with our revive of her, then the guest's cutscene pause read from the
-  host's slot; `session/travel_test` the host answering `camps?` while any guest is linked and the guest reading the host's
-  map from his member line's slot (no offer while that slot has no ghost or the host is not linked);
+  made, clear of the card and of each other at every `ui_scale` from 75 to 150 and moved for it; her name, HP and
+  state as on the card, greyed, the alert once on DOWN and once on a lost link; hidden with `partner_card` off, while
+  paused, out of a session and in a match lobby) and the card following the first member past the handshake on a
+  host whose pair left; `session/group_test` the revive with three players (the nearest member alive within 2 m named
+  in the wait, the call and the revived notice; the wait naming the member alive on our map when she is far; no member
+  alive), each member's down notice with our revive of her, no down notice nor revived notice for a guest outside the
+  pair on the host and on the pair, her own game waiting on no shared fight, then the guest's cutscene pause read from
+  the host's slot; `session/travel_test` the host answering `camps?` while any guest is linked and the guest reading
+  the host's map from his member line's slot (no offer while that slot has no ghost or the host is not linked);
   `partner/ghosts_test` `get(k)`; `cut/mailbox_test`, `race/run_test`, `nightop/run_test`, `nightop/roxanne_test` and
-  `main/fight_test` a gift, a race, a run, Roxanne's pick and the PvP test refused with 3 players;
+  `main/fight_test` a gift, a race, a run, Roxanne's pick and the PvP test refused with 3 players, `race/run_test` and
+  `nightop/run_test` also a race and a run under way ending with their reason when a third player gets in;
+  `main/quests_test` the host's quest notices naming the guest whose side came on first and the guest whose ahead line
+  it is;
 - `commands/session_test` covers `coop host` with each of the four words (`ask` added under `public` and `invitation`
   with `friends_ask=on`), `coop host` alone (the Create a session screen when it opens, else `who_can_join`),
   `coop list` (a search by tab; alone, the last list numbered or a Public search) and `coop join <row>`;
@@ -315,7 +320,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   co-op lobby, eight links in one match lobby (no approval, every pair linked, the owner's SteamID as `owner=` on the
   owner's and a guest's `link=` line, ghost slots 0 to 6 and a freed slot taken again, `friend=` from slot 0, the
   slot-0 member leaving a lobby of three, whose `friend=` line goes while the third member stays linked and still gets
-  our chat line, no `mate=` line, the mods every member shares), an
+  our chat line, with no `mate=` nor `vit=` line and `<name> left.` on the owner only, the mods every member shares),
+  an
   online session of `max_players` 2 refusing a third player, a lobby of an unknown mode left, each channel-1 message, channel-2 line and chat line
   handed on with its sender, a channel-2 line to one member, `lines_from`, quick match (the exact filters and their
   order with the relay-only setting, a lobby created when none is found with its member limit and data, seven more
@@ -355,7 +361,10 @@ The C++ tests cover the platform-free headers in `native/src`.
   the pair leaving with no guest left, slot 0 then taken by the next guest let in; the pair leaving with a guest
   linked, the let line's pair 0 for one pass, then that guest in slot 0, named the pair with her notice; the pair
   leaving in the pass a Steam friend comes in, the guest already linked taking slot 0 and the friend a slot past it;
-  the camps answers to the asker only; gifts (an answer to an earlier gift still going), Doro races, Night Operation
+  the pair leaving while a Steam friend is in her handshake, her first let line naming her the pair with no notice;
+  Steam refusing relay only on a guest for another guest, which ends that link alone with its notice; the camps
+  answers to the asker only, by the host's own number for each request (two guests' ids that meet, at once or one
+  after the other, each answered once); gifts (an answer to an earlier gift still going), Doro races, Night Operation
   and a guest's photo pause refused past 2 players, the guest told so, while the host's cutscene still pauses each
   guest; the pair rule
   (the notice once on each guest who is not the pair and never on the pair, an `SBE` to the pair only and none from
@@ -792,7 +801,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   kept through a hold of his game until 16 wait, the same step again made once, dropped by his load), three PCs (one
   read of the host's quests a pass feeding a Host per guest, each guest's own snapshot and lines, the pair's step
   made once in the host's game and brought to the second guest, the second guest's step line dropped by the host,
-  none sent once she is told she is no pair (`Engine::pair`), the status per guest, a guest who leaves losing her Host only while the record keeps her lines, her return with our on to her
+  none sent once she is told she is no pair (`Engine::pair`), the status per guest, her quest then ahead with the
+  host's ahead note naming her, the host's state naming the first guest on (`with=`), a guest who leaves losing her Host only while the record keeps her lines, her return with our on to her
   alone and a snapshot of her quests only), a recording replayed into another save, the worker's side (the gates that
   start and end a side, channel 2's lines beside the fight's, the record file and the status lines);
 - `quest_own_test`: the mod's own quests in a fake quest unit (`quest/own.h`): nothing read off a co-op save, on SB's

@@ -162,7 +162,8 @@ rotation for that.
 
 Nothing new travels. While EVE rides, the part is one more skeletal mesh component of hers in `partner/capture.lua`'s
 table (37 bones, 667 bytes more in a keyframe pose). Her lean reaches every ghost through her main mesh's transform.
-This works for the friend in ghost slot 0 and for each match-lobby member in slots 1 to 6.
+This works for the friend in ghost slot 0 and for each member in slots 1 to 6 (a match lobby, or an online session of
+more than 2 players).
 
 The part stays on her, hidden, while `bike=on`. While she does not ride, the capture leaves it out. `main.lua` gives
 `capture.leave_out` the ride's `parked`, which the capture asks once a look (once a second) with her actor's address.
