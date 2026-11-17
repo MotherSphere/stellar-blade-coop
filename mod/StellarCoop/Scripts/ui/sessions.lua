@@ -107,12 +107,13 @@ function Sessions.new(o)
         local where=region(r)
         return (where~='' and where..' · ' or '')..players(r)
     end
-    -- The rules on, by their Options names, then the boss HP scale with shared bosses.
+    -- The rules on, by their Options names, then the boss HP scale with shared bosses. Revive has its own word: the
+    -- host's revive covers the host's EVE only, so 'Friend can revive me' would read as the joiner's.
     local function rules_of(t,r)
         local ids=Model.rules(r.rules)
         if not ids then return '' end
         local out={}
-        for i,id in ipairs(ids) do out[i]=t.row[id] or id end
+        for i,id in ipairs(ids) do out[i]=id=='revive' and t.sessions.revive or t.row[id] or id end
         if ids.boss then out[#out+1]=t.row.boss_hp_scale..' '..t.percent:format(ids.boss) end
         return table.concat(out,' · ')
     end

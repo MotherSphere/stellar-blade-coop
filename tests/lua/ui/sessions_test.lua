@@ -168,7 +168,7 @@ local pane=live(HEADER,2600)
 assert(#pane==1 and pane[1].props.Category_Name.text=='Host1')
 assert(text_at(2600,524)=='Xion' and text_at(2600,594)=='Camp of the Xion gate' and text_at(2600,664)=='1/2 · 41 ms')
 assert(text_at(2600,734)=='Shared enemies (experimental) · Shared bosses (experimental) · Shared world (experimental)'
-    ..' · Shared quests (experimental) · Friend can revive me · Boss HP (host\'s) 200 %',text_at(2600,734))
+    ..' · Shared quests (experimental) · You can revive the host · Boss HP (host\'s) 200 %',text_at(2600,734))
 assert(text_at(2656,944)=='' and text_at(2600,1014)=='Protocol 21, game build 26123051')
 assert(text_at(192,2000)=='Your version: protocol 21, game build 26123051. Sessions of other versions are not listed.')
 assert(hint_line()=='Back/Negative Refresh/UI_FaceButton_Top Ask to join/Positive',hint_line())
