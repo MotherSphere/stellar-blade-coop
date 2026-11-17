@@ -637,7 +637,7 @@ bike=require('bike.ride').new({log=function(m) print('[StellarCoop][BK] '..tostr
         if glide.active() then return 'coop glide is on: coop glide off ends it' end
         if night.running() then return 'Night Operation is running: coop nightop stop ends it' end
         if menu and (menu.is_open() or box.is_open() or code_box.is_open() or approval.is_open()
-            or saves_ui.is_open() or lobby.is_open()) then
+            or saves_ui.is_open() or lobby.is_open() or open_screen()~=nil) then
             return 'an SBO menu or the chat is open'
         end
     end})

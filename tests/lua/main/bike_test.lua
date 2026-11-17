@@ -118,6 +118,12 @@ key('F5'); assert(not kit_shown.menu and o.busy()==nil)
 lb.screen='menu'; assert(o.busy()==SCREEN); lb.screen=nil
 coop('guide'); assert(kit_shown.guide and o.busy()==SCREEN,tostring(o.busy()))
 coop('ui','reset'); assert(not kit_shown.guide and o.busy()==nil)
+-- The Sessions and Create a session screens: the menu closes for them and the game does not pause, so busy() says it.
+for _,screen in ipairs({ss,cr}) do
+    screen.open=true; assert(o.busy()==SCREEN,tostring(o.busy()))
+    key('F3'); assert(bk.toggles[#bk.toggles]=='bike_key' and o.busy()==SCREEN)
+    screen.open=false; assert(o.busy()==nil)
+end
 
 -- The pad: D-pad Right held 1 s (the native part's tenth event) as bike_key, in a world with our HUD shown, none of
 -- our screens open and the game not paused; otherwise nothing, with the reason logged.
