@@ -140,11 +140,14 @@ A release goes through these steps, in order:
 6. Merge `main` back into `dev`, so `dev` gets the new `version.txt`, `CHANGELOG.md` and manifest and has the tag in
    its history.
 
-`nexus-upload.yml` reads three repository settings (Settings, Secrets and variables, Actions):
+`nexus-upload.yml` reads three settings. The API key is a secret of the `release` environment (Settings,
+Environments), not of the repository. Only the `v*` tags and `main` may run a job in that environment. Each run waits
+for MotherSphere's approval before it can read the key, so a collaborator's workflow cannot read it. The two IDs are
+repository variables (Settings, Secrets and variables, Actions).
 
 | Setting | Kind | Value |
 |---|---|---|
-| `NEXUSMODS_API_KEY` | secret | an API key from nexusmods.com/settings/api-keys |
+| `NEXUSMODS_API_KEY` | secret of the `release` environment | an API key from nexusmods.com/settings/api-keys |
 | `NEXUS_MOD_ID` | variable | `33517924781995`, the mod's API ID |
 | `NEXUS_FILE_ID` | variable | `8255901`, the main file's API ID |
 

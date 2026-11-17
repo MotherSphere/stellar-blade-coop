@@ -2,7 +2,8 @@
 # python3 tools/release.py <tag> builds the zip locally (the DLL needs the clang-cl and xwin toolchain), attaches it to
 # the draft release as StellarCoop-<tag>.zip and publishes the release with the user's gh token. A release published
 # with the GITHUB_TOKEN would not start this workflow. See docs/building.md, Releases.
-# Repository settings: secret NEXUSMODS_API_KEY; variables NEXUS_MOD_ID (the mod's API ID, 33517924781995) and
+# Settings: secret NEXUSMODS_API_KEY in the release environment, whose runs wait for MotherSphere's approval and come
+# only from v* tags or main; repository variables NEXUS_MOD_ID (the mod's API ID, 33517924781995) and
 # NEXUS_FILE_ID (the main file's API ID, 8255901). Neither is the number in the mod page's URL or the file's uid there.
 name: Nexus Mods upload
 
@@ -25,6 +26,7 @@ concurrency:
 jobs:
   upload:
     if: github.repository == 'MotherSphere/stellar-blade-coop'
+    environment: release # The key lives there: collaborators with write access cannot read it without an approval.
     runs-on: ubuntu-latest
     steps:
       - name: Release zip and notes
