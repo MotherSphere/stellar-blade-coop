@@ -128,7 +128,7 @@ writes these lobby keys beside `stellarcoop` with `SetLobbyData`, each only when
 | Key | Value | Written |
 | --- | --- | --- |
 | `sbo_list` | `1`, on a Public session only | At create |
-| `sbo_host` | Her Steam name, 48 bytes at most | At create, then every 5 minutes when it changed |
+| `sbo_host` | Her Steam name, 48 bytes at most | At create, then within 5 s of a change (her game reads her name every 5 s) |
 | `sbo_owner` | Her SteamID | At create |
 | `sbo_players` | Members and room, `1/2` or `2/2`. A joiner who waits for the host's answer counts | At create, at each join or leave |
 | `sbo_zone`, `sbo_camp` | The words of Lua's `where <map segment> [<camp alias>]` | At create, at each `where` |

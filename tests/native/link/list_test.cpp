@@ -318,7 +318,7 @@ int main() {
   }
 
   // sbo_ping waits while Steam does not know our ping location (said once). It is written once known, 5 s later. Our
-  // Steam name is read again with it, each 5 minutes.
+  // Steam name is read each 5 s: a persona change reaches sbo_host within 5 s.
   reset();
   {
     Mesh m(1);
@@ -334,8 +334,8 @@ int main() {
       m.round();
     assert(F.data[L][kPingKey] == "sbo0" && F.data[L][kHostKey] == "Eve");
     F.client[0].persona = "Eve 2";
-    m.round(300000);
-    assert(F.data[L][kHostKey] == "Eve 2" && count("sbo_ping waits") == 1);
+    m.round(5000);
+    assert(F.data[L][kHostKey] == "Eve 2" && F.data[L][kPingKey] == "sbo0" && count("sbo_ping waits") == 1);
   }
 
   std::puts("link_list_test: ok");

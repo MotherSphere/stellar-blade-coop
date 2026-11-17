@@ -296,7 +296,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   invite dialog, refusing a member Steam let in; what the Public tab hides (Friends only, Invitation, another version,
   full, no rows, match lobby, blocked on Steam or with `coop block`, our own) and its order by ping; the Friends tab's
   walk (a lobby read only once Steam answered, dropped after 5 s with no answer); the list search's refusals and a
-  match search ending it; the row cleaner; `sbo_ping` waiting for Steam's ping location;
+  match search ending it; the row cleaner; `sbo_ping` waiting for Steam's ping location; a new Steam name reaching
+  `sbo_host` within 5 s;
 
 ### Poses
 

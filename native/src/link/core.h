@@ -84,11 +84,13 @@ constexpr int kCreatedId = 513, kEnterId = 504, kJoinRequestedId = 333, kDataUpd
 constexpr int kPublic = 2, kMatchListId = 510, kChatUpdateId = 506, kLobbyEqual = 0, kDistanceDefault = 1;
 // The session list (Find a session): ELobbyDistanceFilter Worldwide; EFriendRelationship Blocked, Ignored and
 // IgnoredFriend (a host the player blocked on Steam); k_cchMaxSteamNetworkingPingLocationString. At most kMaxRows rows,
-// one search each kListEveryMs at most; a friend's lobby is read for kWalkMs after RequestLobbyData. The host writes
-// sbo_ping and sbo_host again each kRowsEveryMs, or kRowsRetryMs later while Steam does not know her ping location.
+// one search each kListEveryMs at most; a friend's lobby is read for kWalkMs after RequestLobbyData. The host reads her
+// Steam name each kNameEveryMs (sbo_host follows a persona change) and writes sbo_ping again each kRowsEveryMs, or
+// kRowsRetryMs later while Steam does not know her ping location.
 constexpr int kDistanceWorldwide = 3, kBlocked = 1, kIgnored = 5, kIgnoredFriend = 6, kPingTextSize = 1024;
 constexpr size_t kMaxRows = 50;
-constexpr uint64_t kListEveryMs = 5000, kWalkMs = 5000, kRowsEveryMs = 300000, kRowsRetryMs = 5000;
+constexpr uint64_t kListEveryMs = 5000, kWalkMs = 5000, kNameEveryMs = 5000, kRowsEveryMs = 300000,
+                   kRowsRetryMs = 5000;
 // ESteamNetworkingConfigValue P2P_Transport_ICE_Enable and its values: 0 relays only, -1 is the Steam client's own.
 constexpr int kIceEnable = 104, kIceDisable = 0, kIceDefault = -1;
 // A refused ICE_Enable 0 is asked again at a guard() this long after; after kIceTries refusals in a row the link with
@@ -1875,17 +1877,23 @@ private:
     put(kZoneKey, zone_);
     put(kCampKey, camp_);
     put(kRulesKey, rules_);
-    rows_at_ = 0;
+    rows_at_ = name_at_ = 0;
   }
-  // sbo_host and sbo_ping of the online session we host: at create, then each kRowsEveryMs, or kRowsRetryMs later while
-  // Steam does not know our ping location yet. put() writes a change only.
+  // sbo_host and sbo_ping of the online session we host, both at create. Then our Steam name each kNameEveryMs (a
+  // local read: a persona change reaches the row within that time) and our ping location each kRowsEveryMs, or
+  // kRowsRetryMs later while Steam does not know it yet. put() writes a change only.
   void refresh_rows() {
-    if (!rows_ || now_ < rows_at_)
+    if (!rows_)
       return;
-    const char *persona = api_.persona(friends_);
-    const std::string name = persona ? persona : "";
-    my_name_ = clean(name, kMaxName);
-    put(kHostKey, row_text(name, kRowName));
+    if (now_ >= name_at_) {
+      name_at_ = now_ + kNameEveryMs;
+      const char *persona = api_.persona(friends_);
+      const std::string name = persona ? persona : "";
+      my_name_ = clean(name, kMaxName);
+      put(kHostKey, row_text(name, kRowName));
+    }
+    if (now_ < rows_at_)
+      return;
     PingLocation here{};
     const bool known = api_.local_ping(nu_, &here) >= 0;
     if (known) {
@@ -3239,11 +3247,11 @@ private:
   Who hosting_ = Who::friends;
   // The session list's rows while we host an online session: written (Public and Friends only), listed (Public),
   // whether Steam friends wait for our answer too (friends_ask=on, from the host request), the members' count as last
-  // written, the time sbo_host and sbo_ping are read again (refresh_rows()). Lua's where and rules words, kept for the
+  // written, the times sbo_ping and sbo_host are read again (refresh_rows()). Lua's where and rules words, kept for the
   // next lobby.
   bool rows_ = false, listed_ = false, ask_ = false;
   std::string players_;
-  uint64_t rows_at_ = 0;
+  uint64_t rows_at_ = 0, name_at_ = 0;
   std::string zone_, camp_, rules_;
   // The session list: its tab ("public", "friends", or empty with no list), its state ("searching", "done" or
   // "failed"), its rows, the lobbies it hid, the pending Public search, the friends' lobbies waited for with their
