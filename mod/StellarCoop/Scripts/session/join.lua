@@ -138,7 +138,8 @@ function Join.feed(text,game)
     end
 end
 -- Seconds from an answer to the SB popup removed (its Accept or close animation plays first); ESlateVisibility of the
--- popup's hover images, which show its keyboard cursor: Hidden, HitTestInvisible.
+-- popup's hover images, which show its keyboard cursor: Hidden, HitTestInvisible. SB's mouse hover events write them
+-- too: tick puts ours back.
 local GONE,HIDDEN,SEEN=0.25,2,3
 -- o: {kit=, link=, settings=, run= (as Join.box's), say=function(text) (a notice), log=function(line) (the UI log),
 -- game_text=function(key) SB's word or nil, menu=ui/menu.lua's and guide=ui/guide.lua's (closed as a popup opens),
@@ -249,7 +250,7 @@ function Join.ask(o)
             o.guide.close(asking.wait and 'the wait for the host' or "the host's question")
         end
         open,back_at,cursor,ready_at,moved_at=true,nil,2,os.clock()+ARM,nil
-        pop=rec and {rec=rec,put={title=t.title,left=t.left}} or nil
+        pop=rec and {rec=rec,put={title=t.title,left=t.left},over=0} or nil
         if rec then
             P.call(rec,'popup RefreshAll',function(w) w:EventNotification('RefreshAll') end)
             P.call(rec,'popup buttons',function(w) -- After RefreshAll: SB's words for the buttons.
@@ -364,8 +365,20 @@ function Join.ask(o)
         elseif what=='yes' then answer('allow')
         elseif what=='back' or what=='no' then answer('deny') end
     end
-    -- Each frame: an answered popup removed, the game's input back, once due.
+    -- Each frame: the question's hover look put back on the focused button after the mouse moved onto or off a button
+    -- (SB's own hover events show and hide the same two images, so Enter or A would answer a button that does not
+    -- look focused); an answered popup removed, the game's input back, once due.
     function self.tick(now)
+        if pop and asking and not asking.wait then
+            local over
+            P.call(pop.rec,'popup hover',function(w)
+                over=w.Button_Positive:IsHovered() and 1 or w.Button_Negative:IsHovered() and 2 or 0
+            end)
+            if over and over~=pop.over then
+                pop.over,pop.put.cursor=over,nil
+                draw()
+            end
+        end
         if leaving and now>=leaving.at then
             kit.drop(leaving.rec)
             leaving=nil

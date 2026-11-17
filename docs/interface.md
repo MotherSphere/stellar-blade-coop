@@ -201,10 +201,11 @@ let in, one on Decline or Close (none with `ui_sounds=off`).
 
 Close leaves the host's lobby. For 1 s after a popup shows, every key, button and click does nothing. Decline has the
 focus, so a stray Enter or A declines. A direction less than 0.5 s after the last one moves nothing, so a stick or
-D-pad held to run or fight (it repeats every 0.12 s) moves the focus once at most. W, S and Space never answer a popup.
-While a popup is open the mouse cursor shows (as it does for the game's own popups) and the game ignores its own keys
-and controller. A popup opens in a world only and closes the co-op menu as it opens. It waits while the game is paused
-or the chat box is open.
+D-pad held to run or fight (it repeats every 0.12 s) moves the focus once at most. The mouse over a button does not
+move the focus. The highlight stays on the focused button, which Enter and A answer. W, S and Space never answer a
+popup. While a popup is open the mouse cursor shows (as it does for the game's own popups) and the game ignores its own
+keys and controller. A popup opens in a world only and closes the co-op menu as it opens. It waits while the game is
+paused or the chat box is open.
 
 If the game's popup cannot be made, a panel of the mod in the middle of the screen shows the same words with Accept
 and Deny rows (one Close row on the joiner's wait). `UE4SS.log` then says

@@ -485,7 +485,14 @@ assert(pa.is_open() and made[#made].hit==true and pointing,'SB\'s popup takes th
 clock=111; runs=#ran
 pa.nav('click'); assert(pa.is_open() and #ran==runs,'No button under the mouse: nothing')
 pa.nav('left'); assert(sent(5,p7)=='Image_Hover_Positive 3|Image_Hover_Negative 2',sent(5,p7))
-p7.over='no'; pa.nav('click')
+-- The mouse moves across Accept onto Decline: SB's hover events hide Accept's look and show Decline's. The next frame
+-- puts the focus's look back on Accept, which Enter or A answers; a frame with the mouse still there writes nothing.
+p7.over='yes'; p7.Image_Hover_Positive:SetVisibility(4)
+pa.tick(clock); assert(sent(8,p7)=='Image_Hover_Positive 3|Image_Hover_Negative 2',sent(8,p7))
+p7.over='no'; p7.Image_Hover_Positive:SetVisibility(1); p7.Image_Hover_Negative:SetVisibility(4)
+pa.tick(clock); assert(sent(12,p7)=='Image_Hover_Positive 3|Image_Hover_Negative 2',sent(12,p7))
+pa.tick(clock); assert(#p7.sent==14,'No hover change: nothing')
+pa.nav('click')
 assert(ran[#ran]=='deny 76561198000000015' and sent(0,p7):find('|play close$') and calls[#calls]=='sound popup_close')
 link.waiting={id='76561198000000014',name='Pointer Two'}
 pa.slow(true); clock=112
