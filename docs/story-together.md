@@ -83,9 +83,10 @@ in the world.
 
 ## The setting
 
-Options > Session > Story together (experimental) in the co-op menu turns it on or off at once. So does
-`shared_story=on` or `off` in [coop-settings.txt](settings.md#coop-settingstxt). Each player has their own. Off, your
-game sends no scene and plays none of the host's. The host's cutscenes then pause the guest as before.
+Options > Session > Story together (experimental) in the co-op menu turns it on or off at once. The same row on the
+[Create a session screen](interface.md#create-a-session-screen) does too. So does `shared_story=on` or `off` in
+[coop-settings.txt](settings.md#coop-settingstxt). Each player has their own. Off, your game sends no scene and plays
+none of the host's. The host's cutscenes then pause the guest as before.
 
 `coop scenes on` and `coop scenes off` change it until the mod reloads (game start or Ctrl+R), whatever the setting
 says. `coop scenes status` answers with the `story=` line of [coop status](usage.md#coop-status).

@@ -86,7 +86,7 @@ and key hints. `coop host` typed alone opens it too. Nothing is hosted until you
 | Friends join without asking | Under Public and Invitation | On lets your Steam friends in at once. Off makes them wait for your answer like other players (`friends_ask=on`). |
 | Shared enemies | Always, under SESSION RULES | [Shared enemies](shared-enemies.md) on or off |
 | Same place, Same spawns, Extra enemies, Shared bosses, Enemy HP, Boss HP, Enemies attack | While Shared enemies is On | The same values as on the Options page |
-| Shared world, Shared quests, Friend can revive me | Always | On or Off |
+| Shared world, Story together, Shared quests, Friend can revive me | Always | On or Off |
 | Start | Always | Closes the screen and hosts with the Who can join value shown |
 | Back | Always | Closes the screen without hosting |
 
@@ -140,11 +140,11 @@ first, rows with no ping last.
 Each row shows the host's Steam name, then the region, the players (`1/2`) and the ping (Steam's estimate in ms, `-`
 when Steam has none). Eight rows show at once and the list scrolls with the focus. The right pane shows the focused
 row: the host's name, the region, the travel camp nearest the host, the players and ping, the
-[session rules](settings.md) the host has on (shared enemies, shared bosses with the boss HP scale, shared world, shared
-quests; the host's `revive` shows as `You can revive the host`, since it covers the host's EVE only), `Steam friend`
-when the host is your Steam friend and Steam shows them in that session, then the version. The bottom left names your
-own protocol and game build, which a session must share to show. A region shows in the game's words for the story
-regions; another map shows its short name, such as `f01`.
+[session rules](settings.md) the host has on (shared enemies, shared bosses with the boss HP scale, shared world,
+[story together](story-together.md), shared quests; the host's `revive` shows as `You can revive the host`, since it
+covers the host's EVE only), `Steam friend` when the host is your Steam friend and Steam shows them in that session,
+then the version. The bottom left names your own protocol and game build, which a session must share to show. A region
+shows in the game's words for the story regions; another map shows its short name, such as `f01`.
 
 The screen asks Steam for a search when it opens, when you change tabs and on Refresh. One search runs at a time, at
 least 5 s after the last one, never by itself. Refresh while a search runs stops it; its key hint then reads Cancel. A

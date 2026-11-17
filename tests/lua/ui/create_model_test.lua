@@ -22,6 +22,17 @@ local rows=M.rows({values=values,readable=true})
 local ALL='#session who_can_join friends_ask #rules shared_enemies same_place same_spawns enemy_extra bosses '
     ..'enemy_hp_scale boss_hp_scale aggro shared_world shared_story shared_quests revive start back'
 assert(ids(rows)==ALL,ids(rows))
+-- docs/interface.md's Create a session table names every setting row by its English label.
+local T=require('ui.text')
+local f=assert(io.open('docs/interface.md'))
+local doc=f:read('a'):match('### Create a session screen(.-)\n### ')
+f:close()
+for _,r in ipairs(rows) do
+    if r.key then
+        local label=T.en.row[r.key]:gsub(' %(.-%)$','')
+        assert(doc:find(label,1,true),'docs/interface.md leaves out '..label)
+    end
+end
 assert(rows[2].value=='public' and rows[3].value=='off' and rows[2].row.values[4]=='closed' and not rows[2].locked)
 for _,r in ipairs(rows) do assert(not r.locked and not r.why,r.id) end
 -- Friends join without asking: under Public and Invitation only.

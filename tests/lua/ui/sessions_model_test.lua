@@ -62,4 +62,15 @@ assert(table.concat(r,',')=='shared_world,shared_quests' and r.boss==nil)
 assert(#M.rules('100')==0)
 for _,bad in ipairs({'x200','ebw','be200','ebwqr999','<b>200',''}) do assert(M.rules(bad)==nil,bad) end
 assert(M.rules(nil)==nil)
+-- docs/interface.md's Sessions screen names every rule the right pane can show, in its English words.
+local T=require('ui.text')
+local f=assert(io.open('docs/interface.md'))
+local doc=f:read('a'):match('### Sessions screen(.-)\n### '):gsub('%s+',' '):lower()
+f:close()
+r=M.rules('ebwsqr200')
+assert(#r==6,'Every rule on')
+for _,id in ipairs(r) do
+    local label=(id=='revive' and T.en.sessions.revive or T.en.row[id]):gsub(' %(.-%)$','')
+    assert(doc:find(label:lower(),1,true),'docs/interface.md leaves out '..label)
+end
 print('sessions_model_test ok')
