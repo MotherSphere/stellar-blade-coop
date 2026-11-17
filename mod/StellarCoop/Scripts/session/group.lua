@@ -21,11 +21,13 @@
 -- off for the run, or at coop off (stop()). A Lua error turns the revive off for the run. Notices: the wait (the friend
 -- can revive us) once per death, once everything but the distance holds; the revived line after a revive. A link that
 -- drops starts the 3 s again.
--- The friend's side, for each member past the handshake: her down notice once per death of hers, while our EVE is not
--- down, she is on our map and no boss of ours is in battle; our revive of her when her vitals go from down to alive
--- while our EVE stands within 3 m of her ghost. Her revive setting reaches no line, so the down notice shows whatever
--- it says. A member's vitals are the link's (vit=, mate= for slot 0), her ghost her slot's: main.lua's puppet for slot
--- 0, o.ghost(k) for the others.
+-- The friend's side, for each member past the handshake whose game can make the call: her down notice once per death
+-- of hers, while our EVE is not down, she is on our map and no boss of ours is in battle; our revive of her when her
+-- vitals go from down to alive while our EVE stands within 3 m of her ghost. Her revive setting reaches no line, so
+-- the down notice shows whatever it says. A member's vitals are the link's (vit=, mate= for slot 0), her ghost her
+-- slot's: main.lua's puppet for slot 0, o.ghost(k) for the others. In an online session of more than 2 players only
+-- the host and the pair can be revived (phase 7b1): the boss=0 read comes from the shared fight, which runs between
+-- them alone, so another guest's game never makes the call and nobody is told to revive her.
 -- coop revive test, the solo probe: refused while linked, it makes the same call at the death screen with life 3 to 5,
 -- with the same lines (commands/session.lua runs it on a co-op save only).
 -- During a Night Operation run (o.night()), the run owns the revive (nightop/run.lua): the 3 s rule and its notices
@@ -111,6 +113,11 @@ function G.new(o)
         return m and ghost_of(m.slot) or puppet
     end
     local function boss_free() return (link.fight() or ''):find(' boss=0',1,true)~=nil end
+    -- A member whose own game can make the revive's call: outside an online session any, in one the host or the pair.
+    local function revivable(m)
+        local h=link.host()
+        return not h or m.id==h.id or m.id==h.pair
+    end
     -- The screen we hid comes back as it was.
     local function show(reason)
         local h=hidden
@@ -251,24 +258,26 @@ function G.new(o)
     local function friend()
         local seen={}
         for _,m in ipairs(mates()) do
-            seen[m.id]=true
-            local h=hers[m.id]
-            if down(m.vit) then
-                h=h or {}
-                hers[m.id]=h
-                local life=link.life()
-                local ours_down=life and life.state>=3 and life.state<=5
-                if not h.said and not ours_down and same_map(m.ghost) and boss_free() then
-                    h.said=true
-                    if not night() then tell('down',m.name) end -- The run gives its own: her key, not 3 s near.
-                end
-            elseif h and alive(m.vit) then
-                hers[m.id]=nil
-                local _,ghost=m.ghost.anchor()
-                local mine=feet()
-                if not night() and ghost and mine and (ghost.X-mine.X)^2+(ghost.Y-mine.Y)^2+(ghost.Z-mine.Z)^2<=NEAR^2
-                then
-                    tell('you_revived',m.name)
+            if revivable(m) then
+                seen[m.id]=true
+                local h=hers[m.id]
+                if down(m.vit) then
+                    h=h or {}
+                    hers[m.id]=h
+                    local life=link.life()
+                    local ours_down=life and life.state>=3 and life.state<=5
+                    if not h.said and not ours_down and same_map(m.ghost) and boss_free() then
+                        h.said=true
+                        if not night() then tell('down',m.name) end -- The run gives its own: her key, not 3 s near.
+                    end
+                elseif h and alive(m.vit) then
+                    hers[m.id]=nil
+                    local _,ghost=m.ghost.anchor()
+                    local mine=feet()
+                    if not night() and ghost and mine
+                        and (ghost.X-mine.X)^2+(ghost.Y-mine.Y)^2+(ghost.Z-mine.Z)^2<=NEAR^2 then
+                        tell('you_revived',m.name)
+                    end
                 end
             end
         end

@@ -618,6 +618,31 @@ assert(#W.said==1 and W.said[1]=='Lucas is down. Stand next to them for 3 s to r
 W.vits['3']={life=1,hp=1600,max_hp=1600}
 run(g,0.25)
 assert(#W.said==2 and W.said[2]=='You revived Lucas.',table.concat(W.said,'|'))
+-- In an online session only the host and the pair can be revived (their shared fight gives boss=0): on the host and
+-- on the pair, a guest outside the pair who goes down is never said down, nor revived by us when she is up again;
+-- the other one of the pair is. Her own game waits on 'no shared fight', with no wait notice and no call.
+local CARA={id='3',slot=1,linked=true,name='Cara'}
+for _,side in ipairs({{mode='host',members={THREE[1],CARA}},
+        {mode='guest',members={{id='1',slot=0,linked=true,name='Kaanta'},CARA}}}) do
+    g=world(function(w)
+        w.mode,w.life,w.members,w.host=side.mode,{state=1,hp=1600},side.members,{id='1',pair='2'}
+        w.mate,w.vits={life=1,hp=1600,max_hp=1600},{['3']={life=3,hp=0,max_hp=1600}}
+        w.ghosts={[1]={map='/game/e04',feet={X=1100,Y=2000,Z=300}}}
+    end)
+    run(g,2)
+    W.vits['3']={life=1,hp=1600,max_hp=1600}
+    run(g,1)
+    assert(#W.said==0,side.mode..': '..table.concat(W.said,'|'))
+    W.mate={life=3,hp=0,max_hp=1600}
+    run(g,0.25)
+    assert(#W.said==1 and W.said[1]=='Kaanta is down. Stand next to them for 3 s to revive them.',W.said[1])
+end
+g=world(function(w)
+    w.host,w.fight=({id='1',pair='2'}),'fight=waiting mode=on why=no friend linked'
+    w.members={{id='1',slot=0,linked=true,name='Kaanta'},{id='2',slot=1,linked=true,name='Ana'}}
+end)
+run(g,4)
+assert(#W.calls==0 and #W.said==0 and logged('revive waits: no shared fight'),table.concat(W.said,'|'))
 -- The guest's pause: the host's ghost is the one of his member line's slot.
 g=world(function(w)
     w.life,w.host,w.her_map={state=1,hp=1600},{id='5'},'/game/f02'
