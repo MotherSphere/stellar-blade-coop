@@ -32,7 +32,7 @@ uint64_t host(Mesh &m, int i, const std::string &how) {
 // A lobby made by hand with a room for 2: its owner (a member), its type, a second member or none, its data.
 void lobby_of(uint64_t id, uint64_t owner, int type, bool full, const std::map<std::string, std::string> &data) {
   F.type[id] = type;
-  F.limit[id] = kMaxMembers;
+  F.limit[id] = 2;
   F.owner[id] = owner;
   F.members[id] = {owner};
   if (full)
@@ -54,7 +54,7 @@ std::string id(uint64_t n) { return std::to_string(n); }
 } // namespace
 
 int main() {
-  // A Public host writes the rows at create: sbo_list, her SteamID, her name, 1/2, Lua's where and rules words and her
+  // A Public host writes the rows at create: sbo_list, her SteamID, her name, 1/4, Lua's where and rules words and her
   // ping location. No invite dialog, no relay only forced, no regroup alone. Another player's Public search finds it
   // with the exact filters, keeps one row and joins nothing. where and rules while hosting change the rows at once.
   reset();
@@ -65,7 +65,7 @@ int main() {
     const uint64_t L = host(m, 2, "public");
     auto &d = F.data[L];
     assert(F.type[L] == kPublic && F.limit[L] == kMaxMembers && d[kLobbyKey] == kTag && d[kListKey] == "1");
-    assert(d[kOwnerKey] == id(kPlayer[2]) && d[kHostKey] == "Me" && d[kPlayersKey] == "1/2");
+    assert(d[kOwnerKey] == id(kPlayer[2]) && d[kHostKey] == "Me" && d[kPlayersKey] == "1/4");
     assert(d[kZoneKey] == "b07" && d[kCampKey] == "WLB10_Camp_01" && d[kRulesKey] == "ewq150" && d[kPingKey] == "sbo2");
     assert(!d.count(kAskKey) && !d.count(kModeKey) && F.invites == 0 && !F.shut.count(L));
     assert(saw("P3: creating a public lobby (listed)") && saw("P3: hosting lobby " + id(L) + " (public: listed)"));
@@ -84,7 +84,7 @@ int main() {
            c.distance == kDistanceWorldwide && c.count == static_cast<int>(kMaxRows));
     const std::string s = m.status(3);
     assert(lines(s, "list=") == Texts{"list=public done 1"} && saw("P4: list public done: 1 shown, 0 hidden"));
-    assert(lines(s, "session=") == Texts{"session=" + id(L) + " 4003 1/2 40 0 b07 WLB10_Camp_01 ewq150 Me"});
+    assert(lines(s, "session=") == Texts{"session=" + id(L) + " 4003 1/4 40 0 b07 WLB10_Camp_01 ewq150 Me"});
     assert(m[3].lobby() == 0 && ops_with("join ") == 0 && F.members[L].size() == 1);
     m.tick(2, "where Xion");
     m.tick(2, "rules q");
@@ -110,8 +110,8 @@ int main() {
   }
 
   // A player who is not the host's Steam friend joins from the list and waits: pending= on the host, wait= with the
-  // seconds left of the host's minute and her name as Steam has it now on the joiner, 2/2 on the rows. Denied, she leaves and the rows say
-  // 1/2 again. The next one, let in, links and her wait= line goes. A Steam friend joins at once.
+  // seconds left of the host's minute and her name as Steam has it now on the joiner, 2/4 on the rows. Denied, she
+  // leaves and the rows say 1/4 again. The next one, let in, links and her wait= line goes. A Steam friend joins at once.
   reset();
   {
     Mesh m(4);
@@ -125,7 +125,7 @@ int main() {
     assert(s0.find("\npending=4003 P3\n") != npos &&
            noticed(s0, "A player who is not your Steam friend is asking to join."));
     assert(s2.find("\nwait=60 P1\n") != npos && noticed(s2, "Joined P1's game. Waiting to be let in."));
-    assert(F.data[L][kPlayersKey] == "2/2" && has_op("config 4003 104 0") && has_op("config 1001 104 0"));
+    assert(F.data[L][kPlayersKey] == "2/4" && has_op("config 4003 104 0") && has_op("config 1001 104 0"));
     for (int i = 0; i < 20; ++i)
       m.round();
     assert(m.status(2).find("\nwait=59 P1\n") != npos);
@@ -135,7 +135,7 @@ int main() {
     m.tick(0, "deny 4003");
     m.round();
     m.round();
-    assert(m[2].lobby() == 0 && m.status(2).find("\nwait=") == npos && F.data[L][kPlayersKey] == "1/2");
+    assert(m[2].lobby() == 0 && m.status(2).find("\nwait=") == npos && F.data[L][kPlayersKey] == "1/4");
     assert(noticed(m.status(2), "P1 refused the link: you were not let in"));
     m.tick(3, "list public");
     m.round();
@@ -285,7 +285,7 @@ int main() {
     assert(std::string(a0.lobby_data(nullptr, L1, kLobbyKey)) == kTag && a0.lobby_owner(nullptr, L1) == 0);
     m.round();
     assert(lines(m.status(0), "list=") == Texts{"list=friends searching 1"});
-    assert(lines(m.status(0), "session=") == Texts{"session=" + id(L1) + " 2002 1/2 - 1 b07 - r1 Me"});
+    assert(lines(m.status(0), "session=") == Texts{"session=" + id(L1) + " 2002 1/4 - 1 b07 - r1 Me"});
     for (int i = 0; i < 100; ++i) // 5 s
       m.round();
     assert(lines(m.status(0), "list=") == Texts{"list=friends done 1"} && saw("P1: lobby " + id(L3) + " sent no data"));
@@ -338,7 +338,7 @@ int main() {
     m.tick(0, "list public");
     m.round();
     assert((lines(m.status(0), "session=") ==
-            Texts{"session=" + id(L) + " 2002 1/2 - 1 - - - bEve/b", "session=7000 9009 1/2 - 0 - ok_1 - ix/iy",
+            Texts{"session=" + id(L) + " 2002 1/4 - 1 - - - bEve/b", "session=7000 9009 1/2 - 0 - ok_1 - ix/iy",
                   "session=7001 9009 1/2 - 0 e05_greatdesert_p - - Host"}));
   }
 

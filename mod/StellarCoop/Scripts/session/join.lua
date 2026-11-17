@@ -10,8 +10,11 @@
 -- pauses or shows the mouse cursor, when a session starts and when the kit turns off.
 -- The host's question: a player asks to join (link.pending: not her Steam friend, or any player with friends_ask=on).
 -- SB's popup says "<name> wants to join" with SB's Accept and Decline (UI_Request_Accept,
--- UI_CollectPersonalInfo_Refuse) and the seconds left, Decline focused. The joiner's wait (link.wait): SB's popup with
--- one Close button says "Waiting for <host>'s answer" and the seconds left; Close leaves the host's lobby. Either opens
+-- UI_CollectPersonalInfo_Refuse) and the seconds left, Decline focused. Several players asking wait in a queue: the
+-- native part asks about the first one (her minute runs). The popup asks about her alone, with how many wait after
+-- her on the seconds' line; once she is answered or gone, the next one gets her own popup. The joiner's wait
+-- (link.wait): SB's popup with one Close button says "Waiting for <host>'s answer" and the seconds left; Close leaves
+-- the host's lobby. Either opens
 -- in a world only, not while the game is paused or shows the mouse cursor nor while the chat box is open (it waits,
 -- hidden), closes the co-op menu, plays SB's popup cues (the game's alert when a player first asks) and holds the
 -- game's input with the mouse cursor while open, as SB's popup asks (bUseShowMouseCursor). Up, down, left and right
@@ -148,9 +151,9 @@ function Join.ask(o)
     local kit,link,settings=o.kit,o.link,o.settings
     local self,open,cursor,back_at,stopped,words,ready_at={},false,2,nil,false,T.en,0
     local moved_at=nil -- The last direction's os.clock, dead ones included.
-    -- asking: who the popup is about: {id=, name=, ticks=, alerted=} a player asking us while we host, or {wait=true,
-    -- name=the host's, left=} our own wait after we joined; answered: the SteamIDs answered in lobby (wait=true once
-    -- our wait was closed there).
+    -- asking: who the popup is about: {id=, name=, ticks=, alerted=, more=the players asking after her} a player
+    -- asking us while we host, or {wait=true, name=the host's, left=} our own wait after we joined; answered: the
+    -- SteamIDs answered in lobby (wait=true once our wait was closed there).
     local asking,answered,lobby=nil,{},nil
     -- pop: the SB popup while it shows ({rec, put=the texts and cursor written to it}); leaving: one answered, removed
     -- at its time ({rec, at}); said: SB's words read since the popup opened (false: none).
@@ -178,8 +181,9 @@ function Join.ask(o)
             return {title=w.wait_title:format(Join.name(asking.name) or w.host),desc=w.wait_desc,
                 left=w.wait_left:format(math.max(0,asking.left)),yes=close,no=close}
         end
-        return {title=w.title:format(Join.name(asking.name) or w.someone),desc=w.desc,
-            left=w.left:format(math.max(0,math.ceil((WAIT-asking.ticks)/4))),
+        local left=w.left:format(math.max(0,math.ceil((WAIT-asking.ticks)/4)))
+        if (asking.more or 0)>0 then left=left..' '..w.queue:format(asking.more) end
+        return {title=w.title:format(Join.name(asking.name) or w.someone),desc=w.desc,left=left,
             yes=game('UI_Request_Accept') or w.accept,no=game('UI_CollectPersonalInfo_Refuse') or w.deny}
     end
     -- The texts and cursor on screen, each written on change only.
@@ -309,7 +313,9 @@ function Join.ask(o)
                 elseif w and not answered.wait then asking={wait=true} end
             end
             if asking and asking.wait then asking.name,asking.left=w.host,w.left
-            elseif asking then asking.name=p.name end -- Steam may learn her name after she joined.
+            elseif asking then -- Steam may learn her name after she joined.
+                asking.name,asking.more=p.name,#link.pendings()-1
+            end
         end
         if open and pop and not kit.alive(pop.rec) then open,pop=false,nil end -- A root build took it: made again.
         if asking then

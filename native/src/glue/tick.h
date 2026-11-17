@@ -38,6 +38,9 @@ void peer(uint8_t slots, uint64_t now_ms, void (*send)(const uint8_t *, size_t, 
 // (below kMaxRemote; her SBE from slot 0 only). Her pose after a second without one sends our table again within 5 s
 // (pose/table.h TableResend).
 void peer_receive(size_t slot, const uint8_t *data, size_t size);
+// Worker, before peer(): our table to every member at peer()'s next send, as to a new member (a guest the host made
+// the pair moved to his ghost slot 0, which has no table of hers).
+void table_again();
 // Worker thread. Each returns the line for the log: what was asked, or why not. The loopback and the replay never run
 // together, and either takes over from the linked members until it is off, as slot 0's single source; turning either
 // off removes slot 0's remote table, so the ghost goes with it.
@@ -104,14 +107,17 @@ struct QuestFiles {
 // Worker thread, the shared quests (Phase 12, quest/engine.h's Worker): a coop quests request (Command::quests),
 // refused off the pinned build and after coop off. Returns the line for the log.
 std::string ask_quests(const coop::Request &request);
-// Worker, every pass after the link's tick and before fight_pass: takes her SBQ lines out of lines (the rest are the
-// shared fight's), hands the game thread the save-slot line its gate reads, starts and stops the side for the asks and
-// the gates, and sends, logs and writes what the game thread's passes made (coop-quests.log, the record beside the
-// co-op slot through files, coop-quests-record.txt in the mod folder). hosting: we own the lobby; partner: her SteamID
-// while she is linked, else 0; send: a line to her on channel 2, reliable (false when it cannot go); marker: the slot
+// Worker, every pass after the link's tick and before fight_pass: takes the SBQ lines out of lines (a partner's go to
+// the engine; the rest are the shared fight's, world's and story's), hands the game thread the save-slot line its gate
+// reads, starts and stops the side for the asks and the gates. It sends, logs and writes what the game thread's passes
+// made (coop-quests.log, the record beside the co-op slot through files, coop-quests-record.txt in the mod folder).
+// hosting: we own the lobby; partners: on the host, every guest linked past the handshake (one quest::Host each); on a
+// guest, the host; none while nobody is linked; pair: Link::partner(), whose step lines the host takes (on a guest:
+// none sent while 0); send: a line to that member on channel 2, reliable (false when it cannot go); marker: the slot
 // StellarCoopSlot.txt names.
-void quest_pass(uint64_t now_ms, bool hosting, uint64_t partner, int marker, std::vector<std::string> &lines,
-                bool (*send)(const std::string &), const QuestFiles &files);
+void quest_pass(uint64_t now_ms, bool hosting, const std::vector<uint64_t> &partners, uint64_t pair, int marker,
+                std::vector<coop::FightLine> &lines, bool (*send)(const std::string &, uint64_t),
+                const QuestFiles &files);
 // Worker thread, the shared world (world/sync.h, world/engine.h): Lua's world request (Command::world). on and off set
 // shared_world until the next ask (off until the first one); status returns coop-status.txt's world line. Refused off
 // the pinned build and after coop off. Returns the line for the log.
@@ -290,6 +296,15 @@ void hud_pass();
 std::string ask_loading();
 // Every pass: logs the game thread's answer to the last lift and its fault.
 void loading_pass();
+// The day/night cycle (glue/tick/sky_game.inc, game/sky.h), worker thread. Lua's sky request (Command::sky): SB's light
+// back (off), the shared clock (cycle), a pinned minute (hour) or the hour shown kept (hold), with the map's horizon
+// and noon heading, from the game thread's next 100 ms pass; coop off puts SB's light back too.
+void ask_sky(const coop::Request &request);
+// Every pass: logs each state the game thread reached, a refusal once an ask and its fault once.
+void sky_pass();
+// coop-status.txt's sky line (game/sky.h's line) and its newline: the state, the light of the hour asked, the
+// elements written and whether EVE stands in env sunlight; refused off the pinned build.
+std::string sky_status();
 // "engine=on" (plus " loopback=on <delay> <jitter> <loss>" or " loopback=waiting", " record=on", " replay=on",
 // " remote=<generation> <tables written> <loopback|replay|peer>" for slot 0 and " remote<k>=<generation> <tables
 // written>" for each slot k from 1 holding a table) or "engine=off reason=...", then " fight=on <count>",

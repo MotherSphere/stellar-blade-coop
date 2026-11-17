@@ -188,7 +188,9 @@ function Race.new(o)
             end
             tell(function(t) return t.race.out:format(her_name(t)) end)
         elseif w=='cancelled' then
-            if not quiet(r) then tell(function(t) return t.race.cancelled end) end
+            if not quiet(r) then
+                tell(function(t) return e.why=='crowd' and t.race.why.crowd or t.race.cancelled end)
+            end
         elseif w=='count' then -- 3, 2, 1: on the HUD only, as notices they would come late.
             banner(r,function() return tostring(e.n) end,nil,'beta',false)
             sound('move')
@@ -416,12 +418,13 @@ function Race.new(o)
         place_doros(r,e)
         draw(r)
     end
-    -- Every 250 ms: the session's end (a DNF left), a map change or EVE gone 2 s (a DNF map, then the race closes
-    -- here), and the fin flags.
+    -- Every 250 ms: the session's end (a DNF left), a third player in it (a DNF crowd: Doro races are for 2), a map
+    -- change or EVE gone 2 s (a DNF map, then the race closes here). Then the fin flags.
     local function slow(r)
         local paused=o.paused()==true
         away=paused
-        if r.with and link.chatting()==false then r.left=true end
+        if r.with and link.chatting()==false then r.left=true
+        elseif r.with and link.crowd()>1 then r.left='crowd' end
         if r.loop and not link.loopback() then r.left=true end
         local me=puppet.me()
         r.gone=me and 0 or r.gone+0.25
@@ -451,6 +454,8 @@ function Race.new(o)
         if race then return false,'a race is on: coop race quit leaves it' end
         if rec then return false,'a track is being recorded: coop race save or coop race cancel first' end
         if link.mode()=='guest' then return false,'the host starts a race; yours comes when the host starts one' end
+        local others=link.crowd()
+        if others>1 then return false,'Doro races are for 2 players at most; this session has '..(others+1) end
         if o.night() then return false,'Night Operation is running: coop nightop stop ends it' end
         if drive.why()=='bike' then return false,'EVE rides the bike: coop bike gets her off first' end
         if drive.active() then return false,'the drive probe runs: coop race drive off ends it' end

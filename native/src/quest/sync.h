@@ -58,6 +58,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -1330,7 +1331,12 @@ constexpr uint64_t kSnapshotMs = 5000; // The host answers a guest's on with a s
 // one thread.
 class Host {
 public:
-  Host(Record record, uint64_t partner, Deny deny) : record_(std::move(record)), partner_(partner), deny_(deny) {}
+  Host(Record record, uint64_t partner, Deny deny)
+      : Host(std::make_shared<Record>(std::move(record)), partner, deny) {}
+  // One Host per guest of an online session, all on the record their engine holds: each keeps its partner's h lines.
+  // The zones are one list for all.
+  Host(std::shared_ptr<Record> record, uint64_t partner, Deny deny)
+      : record_(std::move(record)), partner_(partner), deny_(deny) {}
 
   // A line from the guest; true when it is good and current (the glue shows have, wait and ahead; a step waits for
   // take_steps()). A guest's on makes a pass send a snapshot; on and off count even from an ignored guest. Lines over
@@ -1367,7 +1373,7 @@ public:
       return take_step(m);
     if (m.type == Type::at || m.type == Type::ahead)
       return m.type == Type::at || row_index(m.e.id) >= 0 || bad("quest");
-    const Record::Line *l = record_.find('h', partner_, m.e.id);
+    const Record::Line *l = record_->find('h', partner_, m.e.id);
     return (l && m.e.seq <= l->e.seq) || bad("quest");
   }
 
@@ -1397,7 +1403,7 @@ public:
     // had then ('?' for an 'h' step this poll never saw happen); only new parts get the host's zone.
     if (guest_on_ && seen_ && !load && !back)
       for (size_t i = 0; i < kRowCount; ++i) {
-        const Record::Line *l = record_.find('h', partner_, kRows[i].id);
+        const Record::Line *l = record_->find('h', partner_, kRows[i].id);
         if (live[i] == last_[i] || (snap && l))
           continue;
         const Entry base = l ? l->e : merge(i, nullptr, last_[i], "");
@@ -1410,7 +1416,7 @@ public:
 
   uint32_t generation() const { return gen_; }
   bool guest_on() const { return guest_on_; }
-  const Record &record() const { return record_; }
+  const Record &record() const { return *record_; }
   // Whether the record changed since the last call (the worker writes the file then).
   bool take_changed() { return std::exchange(changed_, false); }
   // Her step lines since the last call, for accept() and the engine's calls.
@@ -1425,7 +1431,7 @@ private:
     const int i = row_index(m.e.id);
     if (i < 0 || !fits(kRows[size_t(i)], m.e))
       return bad("step");
-    const Record::Line *l = record_.find('h', partner_, m.e.id);
+    const Record::Line *l = record_->find('h', partner_, m.e.id);
     if (!l || m.e.seq > l->e.seq)
       return bad("step");
     const std::string what = std::string("quests: her step of ") + kRows[size_t(i)].alias + " dropped: ";
@@ -1454,7 +1460,7 @@ private:
   // to the record's zones) when its pass saw it happen, else '?'.
   Mark mark(size_t i, size_t s, std::string_view zone, char hold = 0) {
     const char c = step(kRows[i], s).mark;
-    const int z = !hold && c == 'h' && !zone.empty() ? record_.zones.add(zone) : -1;
+    const int z = !hold && c == 'h' && !zone.empty() ? record_->zones.add(zone) : -1;
     return hold ? Mark{hold, 0} : c != 'h' ? Mark{c, 0} : z >= 0 ? Mark{'z', uint8_t(z)} : Mark{'?', 0};
   }
   // The entry for a live tuple. A part old holds keeps its mark ('?' stays '?') and, when its group now reads unsure,
@@ -1508,13 +1514,13 @@ private:
       same = old->task[j] == e.task[j];
     if (!same) {
       ++e.seq;
-      record_.put('h', partner_, e);
+      record_->put('h', partner_, e);
     }
     auto zone = [&](Mark m) {
-      if (m.kind == 'z' && !named_[m.zone] && record_.zones.name(m.zone)) {
+      if (m.kind == 'z' && !named_[m.zone] && record_->zones.name(m.zone)) {
         named_.set(m.zone);
         Message z;
-        z.type = Type::zone, z.gen = gen_, z.zone = m.zone, z.text = *record_.zones.name(m.zone);
+        z.type = Type::zone, z.gen = gen_, z.zone = m.zone, z.text = *record_->zones.name(m.zone);
         out.push_back(format(z));
       }
     };
@@ -1535,7 +1541,7 @@ private:
     snapshot_ = false;
     std::vector<std::string> lines;
     std::vector<uint16_t> ids;
-    for (const Record::Line &l : record_.lines)
+    for (const Record::Line &l : record_->lines)
       if (l.role == 'h' && l.partner == partner_)
         ids.push_back(l.e.id);
     std::sort(ids.begin(), ids.end());
@@ -1543,7 +1549,7 @@ private:
       const int i = row_index(id);
       if (i < 0)
         continue;
-      Record::Line *l = record_.find('h', partner_, id);
+      Record::Line *l = record_->find('h', partner_, id);
       const Entry old = l->e;
       changed_ |= send(merge(size_t(i), &old, live[i], ""), &old, lines);
     }
@@ -1560,7 +1566,7 @@ private:
     log.push_back("quests: snapshot " + std::to_string(gen_) + ", " + std::to_string(ids.size()) + " quests");
   }
 
-  Record record_;
+  std::shared_ptr<Record> record_;
   uint64_t partner_;
   Deny deny_;
   uint32_t gen_ = 0;
@@ -2085,6 +2091,9 @@ public:
     const int i = row_index(id);
     return i < 0 ? none : plans_[size_t(i)];
   }
+  // Whether she is the host's pair (link/core.h's partner()), whose steps his game takes; a guest past the pair (more
+  // than 2 players) sends none (lead()). True until told.
+  void pair(bool on) { pair_ = on; }
   // Story together's gate (story/sync.h, Here::in_step): each Epic quest of hers covers the host's line of this
   // snapshot and his covers hers, so a scene's end events run at the same story point in both games. A quest his
   // snapshot did not name counts as not acquired on his side. False until a whole snapshot came.
@@ -2146,9 +2155,10 @@ private:
                       (covers(h_[i].t, g) ? "the host's line holds it now" : "her quest moved while it waited"));
       return false;
     }
-    const char *why = zone == host_at_ && zone_alias(zone) ? step_hold(r, t.t, g, t.acq.kind == '#')
-                      : lead_[i]                           ? "she left the host's zone while it waited"
-                                                           : "made outside the host's zone";
+    const char *why = !pair_                                 ? "she is not the host's pair (more than 2 players)"
+                      : zone == host_at_ && zone_alias(zone) ? step_hold(r, t.t, g, t.acq.kind == '#')
+                      : lead_[i]                             ? "she left the host's zone while it waited"
+                                                             : "made outside the host's zone";
     Message m;
     m.type = Type::step, m.gen = gen_, m.e = stepped(r, t, g), m.text = std::string(zone);
     if (!why && !send(m)) {
@@ -2188,7 +2198,7 @@ private:
   std::string at_;
   Plan forced_;
   uint16_t force_ = 0;
-  bool host_on_ = false, in_snap_ = false, complete_ = false, changed_ = false, ignored_ = false;
+  bool host_on_ = false, in_snap_ = false, complete_ = false, changed_ = false, ignored_ = false, pair_ = true;
   uint32_t expected_ = 0, got_ = 0, sent_ = 0;
   uint64_t digest_ = kOffset, bad_ = 0, window_ = 0;
 };

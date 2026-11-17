@@ -122,7 +122,9 @@ From GO until our own result, `race/drive.lua` drives EVE with `race/drive_model
 heading and a horizontal velocity. Each frame it turns the heading toward the stick's world direction
 (`GetLastMovementInputVector`) at a rate that falls with speed, adds speed along the heading with a throttle that fades
 near the top speed, and decays the speed across the heading by a grip, which drops during a drift (the drift keys, read
-with the player controller's `IsInputKeyDown`, or hard steering at speed).
+with the player controller's `IsInputKeyDown`, or hard steering at speed). The player controller is read when the
+drive starts and checked every 250 ms, never per frame: when it is gone or no longer one, the drift keys wait until a
+check finds one again.
 
 In SB's movement component, the turn of the velocity toward the stick is the engine's friction step in `CalcVelocity`,
 with `GroundFriction` as the friction. SB's own speed fields (`MaxRunSpeedOverride` and the sprint scales) only set the
@@ -133,7 +135,10 @@ Each frame the race gives it the model's velocity: by default through `AddImpuls
 `ClearAccumulatedForces` drops any impulse an earlier frame left unused. In photo mode with `photo_pause=scenery` the
 world's time runs while SB's logic stands still; if her movement stands still with it, the impulses would otherwise add
 up. The next frame starts from the velocity the component made of it, so walls, slopes and landings act on the model.
-The yaw goes to EVE with `K2_SetActorRotation`, and the pose stream carries it to your friend. The driving runs each
+An impulse under 1 cm/s on both axes is not given when the frame before gave none either: EVE parked on the bike costs
+no call. The component keeps her within 1 cm/s of the model meanwhile. The yaw goes to EVE with `K2_SetActorRotation`
+when it is 0.01 degree or more off the heading, so a turn the game made is corrected in the same frame. The pose stream
+carries it to your friend. The driving runs each
 frame before the native tick, so the pose it captures and the Doro look both have the yaw written that frame.
 
 On the ground SB's walking step ends by setting `Velocity.Z` to 0 (the engine's `MaintainHorizontalGroundVelocity`), so
@@ -156,7 +161,7 @@ race are the ones to put back; the 250 ms check catches a write the search misse
 
 The host owns a race. Its game sends the track and the start, each game times its own racer from its own GO, and the
 host's game sends the ranking. The guest's game checks each line against fixed bounds before using it, and sends only
-its own racer's lines. Each line travels as `SBC22 race <text>` on channel 0 (see [Channel 0: text](steam-link.md#channel-0-text)),
+its own racer's lines. Each line travels as `SBC23 race <text>` on channel 0 (see [Channel 0: text](steam-link.md#channel-0-text)),
 with whole numbers only, in centimetres and milliseconds. `<id>` is the host's race number:
 
 | Line | From | Meaning |

@@ -29,8 +29,9 @@ is refused, and F9 does nothing while no track is being recorded. The mod ships 
 `coop race start <name>` arms a race on `coop-track-<name>.txt`, on a co-op save only. The host starts every race: a
 guest's `coop race start` is refused, and the guest's game takes part when the host starts one. The start is also
 refused while a Night Operation run is on, while a track is being recorded, when the track is on another map than
-yours, and when your friend is on another map or their map is not known yet. `coop nightop start` is refused while a
-race is armed.
+yours and when your friend is on another map or their map is not known yet. A session of more than 2 players refuses
+it too (`Doro races are for 2 players at most; this session has <n>`). `coop nightop start` is refused while a race
+is armed.
 
 - With no session, you race alone against the clock.
 - With a friend linked, your game sends the track to theirs, which checks it and joins the race. They need no track
@@ -99,7 +100,7 @@ Test and tuning commands, left out of the usage line:
 - `coop race drive feed impulse|struct` picks how the velocity reaches her movement: an impulse each frame (the
   default) or a write of its velocity.
 
-During a drive, `UE4SS.log` has a line once a second, `[StellarCoop][DR] drive v=<cm/s> vz=<cm/s> asked=<cm/s>
+During a drive, `UE4SS.log` has a line every 10 s, `[StellarCoop][DR] drive v=<cm/s> vz=<cm/s> asked=<cm/s>
 yaw=<degrees> heading=<degrees> air=0|1 root=0|1 drift=0|1 stumble=0|1`, and a line for each drift key pressed or
 released, each wall hit and each crest. `asked` is the speed the car gave the last frame, `yaw` EVE's facing as read
 one frame after the car turned her.
@@ -125,13 +126,15 @@ A DNF (did not finish) ends your race. A notice says why:
 | `Moved more than 20 m at once.` | EVE moved over 20 m in one frame: a fast travel, a respawn at a camp after a death, or any other warp. After a frame that took long (a hitch), the limit is the distance twice the top speed covers in that time, when that is more |
 | `Left the map.` | A map change, or no EVE in the world for 2 s (a load, the title screen) |
 | `The session ended.` | The link with your friend ended |
+| `Doro races do not run in a session of more than 2 players.` | A third player got into the session. Both racers get this DNF at once, the guest even before her game has linked with the new player |
 | `Not finished 60 s after the winner.` | You were still racing 60 s after the first racer finished |
 | `Over the 15 min limit.` | You were still racing 15 min after GO |
 
 `coop race quit` and `coop off` end your race as a DNF too, with the command's answer instead of a notice. Before GO,
-the host's quit or map change cancels the race for both players (`Race cancelled.`). A guest who does the same leaves
-the race. Before the countdown the host then races alone; during it, the guest stays in the race as a DNF, so `POS`
-counts two racers and the results list the guest as `DNF`.
+the host's quit or map change cancels the race for both players (`Race cancelled.`). A third player who gets into the
+session before GO cancels it too, with the notice `Doro races do not run in a session of more than 2 players.` A guest
+who quits or changes map before GO leaves the race. Before the countdown the host then races alone; during it, the
+guest stays in the race as a DNF, so `POS` counts two racers and the results list the guest as `DNF`.
 
 ## Results
 
@@ -195,7 +198,8 @@ Two test commands are left out of the usage line. Both need a co-op save, except
 
 ## Limits
 
-- Two players at most. The host starts every race, and only the host needs the track file.
+- Two players at most: a third player who gets into the session ends the race. The host starts every race. Only the
+  host needs the track file.
 - Both players must be on the track's map.
 - Enemies stay as they are: each game runs its own fights during a race, and shared enemies, same place and same
   spawns work as usual. Record tracks through ground you have cleared.

@@ -234,7 +234,8 @@ int main() {
     assert(F.released == 3 && F.inbox.empty());
   }
 
-  // A peer on another protocol or game build gets a typed reject, and both sides leave.
+  // A peer on another protocol or game build gets a typed reject. The host refuses her for this lobby and goes on
+  // hosting for the others; a guest leaves the host who runs another version.
   struct Theirs {
     uint64_t protocol;
     std::string mod;
@@ -261,24 +262,45 @@ int main() {
     assert(!w.link.send_fight(fight_tag() + " on", true));
     F.inbox.push_back({kFriend, their});
     w.tick();
-    assert(sent_to(kFriend, "SBC reject protocol ") == 1 && saw("rejected Kaanta: protocol "));
+    const std::string why = "protocol " + std::to_string(t.protocol) + " build " + std::to_string(t.build) + " (mod " +
+                            t.mod + "), mine protocol " + std::to_string(kProtocol) + " build 24463856 (mod v1.2-dev)";
+    assert(sent_to(kFriend, "SBC reject " + why) == 1 && saw("refused Kaanta (2002): " + why));
     assert(w.link.take_fight().empty() && F.released == 2);
-    assert(saw("left lobby 5000: incompatible player") && w.link.lobby() == 0 && F.left.size() == 1);
-    assert(noticed(w.status(), "Version mismatch with Kaanta: protocol " + std::to_string(t.protocol) + " build " +
-                                   std::to_string(t.build) + " (mod " + t.mod + "), mine protocol " +
-                                   std::to_string(kProtocol) + " build 24463856 (mod v1.2-dev)."));
+    assert(w.link.lobby() == 5000 && F.left.empty() && w.link.peers().empty());
+    assert(noticed(w.status(), "Kaanta runs another version and was refused."));
     assert(!noticed(w.status(), "Left the session.")); // Only a leave the player asked for says so.
+    reset();
+    World g;
+    assert(g.link.ready(L"SB.exe") == Link::Ready::now);
+    her_lobby(7000);
+    g.tick("join 7000");
+    finish_all();
+    g.tick();
+    F.inbox.push_back({kFriend, their});
+    g.tick();
+    assert(sent_to(kFriend, "SBC reject " + why) == 1 && saw("rejected Kaanta: " + why));
+    assert(saw("left lobby 7000: incompatible player") && g.link.lobby() == 0 && F.left.size() == 1);
+    assert(noticed(g.status(), "Version mismatch with Kaanta: " + why + "."));
   }
-  // A reject from the peer: we leave too, and say why.
+  // A reject from the host: we leave with its reason. One from a guest says why and keeps our lobby: she leaves.
+  reset();
+  {
+    World w;
+    linked_guest(w);
+    F.inbox.push_back({kFriend, reject("protocol 3 build 1, mine protocol 9 build 1 (mod x)")});
+    F.inbox.push_back({kFriend, ping(9, 9)}); // Still released after we left mid-batch.
+    w.tick();
+    assert(saw("Kaanta rejected us: protocol 3 build 1") && saw("left lobby 7000: rejected by Kaanta"));
+    assert(w.link.lobby() == 0 && F.inbox.empty() && F.released == 4);
+    assert(noticed(w.status(), "Kaanta refused the link: protocol 3 build 1, mine protocol 9 build 1 (mod x)"));
+  }
   reset();
   {
     World w;
     linked_host(w);
     F.inbox.push_back({kFriend, reject("protocol 3 build 1, mine protocol 9 build 1 (mod x)")});
-    F.inbox.push_back({kFriend, ping(9, 9)}); // Still released after we left mid-batch.
     w.tick();
-    assert(saw("Kaanta rejected us: protocol 3 build 1") && saw("left lobby 5000: rejected by Kaanta"));
-    assert(w.link.lobby() == 0 && F.inbox.empty() && F.released == 4);
+    assert(saw("Kaanta rejected us: protocol 3 build 1") && w.link.lobby() == 5000 && F.left.empty());
     assert(noticed(w.status(), "Kaanta refused the link: protocol 3 build 1, mine protocol 9 build 1 (mod x)"));
   }
 
@@ -301,7 +323,8 @@ int main() {
                                    ", build 24463856."));
   }
 
-  // A third member: we leave before greeting anyone.
+  // More members than an online session holds (a lobby made elsewhere): we leave before greeting anyone.
+  static_assert(kMaxMembers == 4, "the notices below name 4");
   reset();
   {
     World w;
@@ -309,11 +332,11 @@ int main() {
     w.tick("host");
     finish_all();
     w.tick();
-    F.members[5000].push_back(kFriend);
-    F.members[5000].push_back(kOther);
+    for (uint64_t id : {kFriend, kOther, kPlayer[2], kPlayer[3]})
+      F.members[5000].push_back(id);
     w.tick("", 0, 0, 600);
-    assert(saw("left lobby 5000: more than 2 players in it") && F.sent.empty());
-    assert(noticed(w.status(), "Left: the lobby has more than 2 players."));
+    assert(saw("left lobby 5000: more than 4 players in it") && F.sent.empty());
+    assert(noticed(w.status(), "Left: the lobby has more than 4 players."));
   }
 
   // Guest: join by id; the host leaving ends the session (D1), even though Steam hands the lobby over.
@@ -2373,10 +2396,11 @@ int main() {
   }
 
   // The follow's camps lines (session/travel.lua). Outside a session nothing goes. Between two Links, A hosting (Me)
-  // and B (Kaanta): her camps? goes reliable on channel 0 to A, whose status keeps the last as camps?=<id>; another
-  // within 2 s is dropped there with a log line. A's answer to her last id reaches B's status as camps=<id> ...; an
-  // answer with another id, and one that comes after she asked again, is dropped. The host never asks and the guest
-  // never answers: both requests are refused, and such a line from the friend is dropped. A session's end forgets both.
+  // and B (Kaanta): her camps? goes reliable on channel 0 to A, whose status keeps the last as camps?=<n>, A's own
+  // number for it; another within 2 s is dropped there with a log line. A's answer to that number reaches B's status
+  // as camps=<her id> ...; an answer with another id is dropped, as is one that comes after she asked again. The host
+  // never asks and the guest never answers: both requests are refused. Such a line from the friend is dropped. A
+  // session's end forgets both.
   reset();
   {
     World w;
@@ -2419,8 +2443,8 @@ int main() {
            status(t.b).find("\ncamps=") == std::string::npos);
     t.tick(t.b, 2000, "camps? 3");
     t.tick(t.a, 50);
-    assert(status(t.a).find("\ncamps?=3\n") != std::string::npos);
-    t.tick(t.a, 50, "camps 3 none busy");
+    assert(status(t.a).find("\ncamps?=2\n") != std::string::npos);
+    t.tick(t.a, 50, "camps 2 none busy");
     t.tick(t.b, 50);
     assert(status(t.b).find("\ncamps=3 none busy\n") != std::string::npos);
     t.tick(t.a, 50, "camps? 4");
@@ -2431,7 +2455,7 @@ int main() {
     t.tick(t.a, 50);
     assert(saw("A: dropped a camps line from Kaanta: an answer to the host"));
     t.b.tick(t.now, "", 0, 0); // Unchanged: the request and the answer stay for Lua.
-    assert(status(t.a).find("\ncamps?=3\n") != std::string::npos &&
+    assert(status(t.a).find("\ncamps?=2\n") != std::string::npos &&
            status(t.b).find("\ncamps=3 none busy\n") != std::string::npos);
     t.tick(t.b, 50, "leave");
     t.tick(t.a, 600);

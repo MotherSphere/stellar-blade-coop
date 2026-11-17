@@ -35,7 +35,9 @@ Once `bike=ready` and an EVE has been in the world for 2 s (the capture's own wa
 `race/doro.lua`'s `Doro.attach`: one `SkeletalMeshComponent` showing `Adam_Vehicle_02`, attached KeepRelative to her
 main mesh, collision off, single-node mode with no clip, so it keeps its reference pose. It sits at (1.53, 0.52, 2.95)
 cm with a pitch of 0.69 degrees relative to her main mesh, from the attach tracks of the game's SD20 scene (riders on
-the bike's bone `Base`). It starts hidden. It carries the component tag `SBO_Bike` (`Ride.TAG`), written into its
+the bike's bone `Base`). It starts hidden, with its component tick off and `VisibilityBasedAnimTickOption` 3
+(`OnlyTickPoseWhenRendered`): its reference pose needs no tick and her mesh moves it, so it costs no tick a frame on
+every EVE with `bike=on`. It carries the component tag `SBO_Bike` (`Ride.TAG`), written into its
 empty `ComponentTags` and read back with `ComponentHasTag`. A tag that does not hold leaves the part in use for this
 Lua load. The log then says `bike part tag SBO_Bike not written (<why>): a Ctrl+R will not find this part`. The log line `bike part ready on EVE (made in <ms> ms)` gives the time. A part that cannot be made
 is not tried again on that EVE; a mount says why.
@@ -131,7 +133,8 @@ calls `0x1421119c0(character, "ASBCharacter::StopCustomAnim_29443", 1, 0.25, -1,
 says which (`anim: EVE's foot IK ...`). Before the play, the game thread looks the clip up with `ResolveObject`; the log
 says whether it was in memory (`bike ride clip in memory before ride play <n>`) or whether SB's call loaded it.
 
-Every 0.1 s the ride reads the status line's `anim=` word for its id. When SB ends the clip, the ride plays it again,
+Every 250 ms the ride's pass reads the `anim=` word for its id in the status text it already has: no frame reads the
+file. When SB ends the clip, the ride plays it again at that pass,
 unless photo mode is open, a skill runs or a root-motion move plays. Three ends within 1 s take her off the bike: SB
 uses the slot.
 
@@ -156,7 +159,8 @@ its angle off the nose, full lock from 45 degrees, brake past 120 degrees); its 
 The model gives a lean from the path's turn rate, `atan(v x turn rate / g)`, at most 38 degrees, eased at 103 degrees a
 second, in full from 600 cm/s. The pitch comes from the vertical speed, `atan(vz, max(v, 200))`. After each drive frame
 her main mesh's relative rotation becomes the kept base rotation composed with a turn about her forward axis (lean) and
-her side axis (pitch), through `KismetMathLibrary`'s `ComposeRotators`, written with teleport off (a teleport clears
+her side axis (pitch), through `KismetMathLibrary`'s `ComposeRotators` (the library looked up once at the mount),
+written with teleport off (a teleport clears
 cloth inertia) and only after a change of 0.05 degrees or more. The part hangs from that mesh, so it leans with her. The
 signs (`LEAN_SIGN`, `PITCH_SIGN`) are to be checked in the first ride; the mount's log line prints her mesh's relative
 rotation for that.
@@ -329,8 +333,9 @@ friend's photo mode that pauses ours does not count) or no answer to a read with
 
 While EVE rides, the part is one more skeletal mesh component of hers in `partner/capture.lua`'s table (37 bones, 667
 bytes more in a keyframe pose), so the ride needs no line of its own. Her lean reaches every ghost through her main
-mesh's transform. This works for the friend in ghost slot 0 and for each match-lobby member in slots 1 to 6. While she
-does not ride, her parked bike travels as its own line ([The bike line](#the-bike-line)).
+mesh's transform. This works for the friend in ghost slot 0 and for each member in slots 1 to 6 (a match lobby, or an
+online session of more than 2 players). While she does not ride, her parked bike travels as its own line
+([The bike line](#the-bike-line)).
 
 The part stays on her, hidden, while `bike=on`. While she does not ride, the capture leaves it out. `main.lua` gives
 `capture.leave_out` the ride's `idle_part`, which the capture asks once a look (once a second) with her actor's address.

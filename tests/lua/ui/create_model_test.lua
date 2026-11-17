@@ -17,9 +17,9 @@ local function ids(rows)
 end
 local values=Options.read('')
 local rows=M.rows({values=values,readable=true})
--- The defaults: Public, so Friends join without asking; Shared enemies on, so its seven sub-rows; Shared story between
--- Shared world and Shared quests.
-local ALL='#session who_can_join friends_ask #rules shared_enemies same_place same_spawns enemy_extra bosses '
+-- The defaults: Public, so Friends join without asking; Players (max_players); Shared enemies on, so its seven sub-rows;
+-- Shared story between Shared world and Shared quests.
+local ALL='#session who_can_join friends_ask max_players #rules shared_enemies same_place same_spawns enemy_extra bosses '
     ..'enemy_hp_scale boss_hp_scale aggro shared_world shared_story shared_quests revive start back'
 assert(ids(rows)==ALL,ids(rows))
 -- docs/interface.md's Create a session table names every setting row by its English label.
@@ -34,6 +34,7 @@ for _,r in ipairs(rows) do
     end
 end
 assert(rows[2].value=='public' and rows[3].value=='off' and rows[2].row.values[4]=='closed' and not rows[2].locked)
+assert(rows[4].key=='max_players' and rows[4].value=='4' and rows[4].row.min==2 and rows[4].row.max==4)
 for _,r in ipairs(rows) do assert(not r.locked and not r.why,r.id) end
 -- Friends join without asking: under Public and Invitation only.
 for who,shows in pairs({public=true,friends=false,invitation=true,closed=false}) do
@@ -44,7 +45,7 @@ end
 values.who_can_join='public'
 -- Shared enemies off: its sub-rows go; the other rules stay.
 values.shared_enemies='off'
-assert(ids(M.rows({values=values,readable=true}))=='#session who_can_join friends_ask #rules shared_enemies '
+assert(ids(M.rows({values=values,readable=true}))=='#session who_can_join friends_ask max_players #rules shared_enemies '
     ..'shared_world shared_story shared_quests revive start back')
 values.shared_enemies='on'
 
@@ -57,6 +58,11 @@ assert(M.change(at('boss_hp_scale'),1).value=='2.05' and M.change(at('enemy_hp_s
 values.enemy_extra='3'
 assert(M.change(at('enemy_extra'),1)==nil and M.change(at('enemy_extra'),-1).value=='2','A range held at its end')
 values.enemy_extra='0'
+-- Players: 2 to 4, held at its ends.
+assert(M.change(at('max_players'),-1).value=='3' and M.change(at('max_players'),1)==nil)
+values.max_players='2'
+assert(M.change(at('max_players'),-1)==nil and M.change(at('max_players'),1).value=='3')
+values.max_players='4'
 assert(M.change(rows[1],1)==nil and M.change(rows[#rows],1)==nil and M.change(nil,1)==nil)
 -- Written through settings_file.set as Options writes: the file's own line rewritten, read back as the new value.
 local file='# mine\nwho_can_join=public\nshared_enemies=on\n'
@@ -79,7 +85,7 @@ assert(M.select(o,rows[#rows-1]).host=='closed','The value now, not the one when
 values.who_can_join='public'
 assert(M.select(o,rows[2]).value=='friends' and M.select(o,rows[1])==nil)
 -- The cursor: headers skipped, wrapping both ways.
-assert(M.move(rows,2,-1)==#rows and M.move(rows,#rows,1)==2 and M.move(rows,3,1)==5 and M.move(rows,0,1)==2)
+assert(M.move(rows,2,-1)==#rows and M.move(rows,#rows,1)==2 and M.move(rows,3,1)==4 and M.move(rows,4,1)==6 and M.move(rows,0,1)==2)
 
 -- coop-settings.txt cannot be read: every setting locked with its reason (a locked row changes nothing and its value
 -- still shows); Start and Back still run.

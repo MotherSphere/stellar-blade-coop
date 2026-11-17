@@ -8,8 +8,9 @@
 local Join=require('session.join')
 local Maps=require('session.sbo_maps')
 local M={}
--- FFA's lobby size (N11's 8); a co-op lobby's (two players); seconds the copied word stays.
-local LIMIT,COOP,COPIED=8,2,3
+-- FFA's lobby size (N11's 8); an online session's while its max_players is not known (a guest before the host's let
+-- line: the most one holds); seconds the copied word stays.
+local LIMIT,COOP,COPIED=8,4,3
 local ROWS={
     idle={'ffa','more','search','private','join_code','room','settings','leave'},
     public={'ffa','more','cancel','room','settings','leave'},
@@ -44,7 +45,8 @@ local function mark(m)
     if not m.linked or m.rtt>=150 then return 'warn' end
     return 'ok'
 end
--- o: {match=link.match(), members=link.members(), role=link.mode() or 'none', code=our code while we host with one,
+-- o: {match=link.match(), members=link.members(), role=link.mode() or 'none', limit=link.cap() (the players at most of
+-- the online session we are in, its host's max_players; nil otherwise), code=our code while we host with one,
 -- me={id=our SteamID, name=link.me()}, owner=link.owner(), last=our last request ('search', 'create', 'join' or nil),
 -- copied_at=, now= (seconds), version=, proto= (mod= and proto=)}. A countdown's status is its left seconds; a match
 -- lobby playing a round reads as open (stage 4 has the words for a round).
@@ -58,7 +60,7 @@ function M.view(o)
     end
     local n,limit=1,LIMIT
     if m and m.state~='searching' then n,limit=m.members or 1,m.limit or LIMIT
-    elseif not m and state=='code' then n,limit=1+#list,COOP end
+    elseif not m and state=='code' then n,limit=1+#list,o.limit or COOP end
     local key,args,tone
     if m and m.state=='searching' then key,tone='status.searching','warn'
     elseif m and m.state=='countdown' then key,args,tone='status.start',{m.left or 0},'teal'

@@ -110,13 +110,30 @@ local function world(change)
         end,
         mode=function() return W.mode end,friend=function() return 'Kaanta',W.linked,false end,
         photo=function() return W.photo end}
+    -- The member lines (W.members; without them Kaanta alone in slot 0, linked as W.linked says), each one's vitals
+    -- (W.vits by SteamID), the session's host (W.host).
+    function link.members() return W.members or {{id='2',slot=0,linked=W.linked,name='Kaanta'}} end
+    function link.vitals(id) return W.vits and W.vits[id] end
+    function link.host() return W.host end
+    function link.member(id) for _,m in ipairs(link.members()) do if m.id==id then return m end end end
+    function link.others()
+        local n=0
+        for _,m in ipairs(link.members()) do if m.linked then n=n+1 end end
+        return n
+    end
     local puppet={her_map=function() return W.her_map end,me=function() return {at=W.at,map=W.map} end,
         anchor=function()
             if W.shown then return {X=W.ghost.X,Y=W.ghost.Y,Z=W.ghost.Z+220},W.ghost end
         end}
     return G.new({link=link,puppet=puppet,settings=W.settings,log=function(m) W.logs[#W.logs+1]=m end,
-        tell=function(build) W.said[#W.said+1]=build(T.en) end,name=function() return 'Kaanta' end,
-        night=function() return W.night end})
+        tell=function(build) W.said[#W.said+1]=build(T.en) end,
+        name=function(_,name) return name and name~='' and name or 'Kaanta' end,night=function() return W.night end,
+        -- Ghost slot k (W.ghosts[k]: {map=, feet=}), as main.lua's ghost(k) gives it.
+        ghost=function(k)
+            local gh=W.ghosts and W.ghosts[k]
+            return gh and {her_map=function() return gh.map end,
+                anchor=function() return {X=gh.feet.X,Y=gh.feet.Y,Z=gh.feet.Z+220},gh.feet end}
+        end})
 end
 local function run(g,seconds) -- Ticks of 250 ms, as main.lua's loop gives them.
     for _=1,math.floor(seconds/0.25+0.5) do
@@ -562,4 +579,77 @@ run(g,0.25)
 W.photo={mine='0',peer='c',frozen=true}
 run(g,0.25)
 assert(#W.said==2 and W.said[2]==CUT)
+
+-- Three players. Down, with Kaanta (slot 0) on another map and Lucas (slot 1) alive 1 m away: Lucas revives, named in
+-- the wait, the call and the revived notices. Lucas far too: the wait names him, as the member alive on our map;
+-- no call. Lucas down as well: no member alive.
+local THREE={{id='2',slot=0,linked=true,name='Kaanta'},{id='3',slot=1,linked=true,name='Lucas'}}
+g=world(function(w)
+    w.members,w.her_map,w.vits=THREE,'/game/f02',{['3']={life=1,hp=500,max_hp=1600}}
+    w.ghosts={[1]={map='/game/e04',feet={X=1100,Y=2000,Z=300}}}
+    w.respawn=function() w.life={state=1,hp=1600} end
+end)
+run(g,0.25)
+assert(W.said[1]=='Lucas can revive you: wait, or respawn at a camp.',W.said[1])
+run(g,3)
+assert(#W.calls==1 and logged('asked (Lucas 1.0 m away; life 3'),table.concat(W.logs,'|'))
+run(g,2)
+assert(logged('revive result (Lucas): life 3/1') and W.said[2]=='Revived by Lucas.',table.concat(W.said,'|'))
+g=world(function(w)
+    w.members,w.her_map,w.vits=THREE,'/game/f02',{['3']={life=1,hp=500,max_hp=1600}}
+    w.ghosts={[1]={map='/game/e04',feet={X=9000,Y=2000,Z=300}}}
+end)
+run(g,4)
+assert(#W.calls==0 and W.said[1]=='Lucas can revive you: wait, or respawn at a camp.' and logged('revive waits: friend far'))
+g=world(function(w)
+    w.members,w.mate,w.vits=THREE,{life=3,hp=0,max_hp=1600},{['3']={life=4,hp=0,max_hp=1600}}
+    w.ghosts={[1]={map='/game/e04',feet={X=1100,Y=2000,Z=300}}}
+end)
+run(g,4)
+assert(#W.calls==0 and logged('revive waits: friend not alive'))
+-- Each member's down notice once per death of hers, on our map; our revive of her, named; one on another map unsaid.
+g=world(function(w)
+    w.mode,w.life,w.members=w.mode,{state=1,hp=1600},{THREE[1],THREE[2],{id='4',slot=2,linked=true,name='Mo'}}
+    w.vits={['3']={life=3,hp=0,max_hp=1600},['4']={life=3,hp=0,max_hp=1600}}
+    w.ghosts={[1]={map='/game/e04',feet={X=1100,Y=2000,Z=300}},[2]={map='/game/f02',feet={X=0,Y=0,Z=0}}}
+end)
+run(g,2)
+assert(#W.said==1 and W.said[1]=='Lucas is down. Stand next to them for 3 s to revive them.',table.concat(W.said,'|'))
+W.vits['3']={life=1,hp=1600,max_hp=1600}
+run(g,0.25)
+assert(#W.said==2 and W.said[2]=='You revived Lucas.',table.concat(W.said,'|'))
+-- In an online session only the host and the pair can be revived (their shared fight gives boss=0): on the host and
+-- on the pair, a guest outside the pair who goes down is never said down, nor revived by us when she is up again;
+-- the other one of the pair is. Her own game waits on 'no shared fight', with no wait notice and no call.
+local CARA={id='3',slot=1,linked=true,name='Cara'}
+for _,side in ipairs({{mode='host',members={THREE[1],CARA}},
+        {mode='guest',members={{id='1',slot=0,linked=true,name='Kaanta'},CARA}}}) do
+    g=world(function(w)
+        w.mode,w.life,w.members,w.host=side.mode,{state=1,hp=1600},side.members,{id='1',pair='2'}
+        w.mate,w.vits={life=1,hp=1600,max_hp=1600},{['3']={life=3,hp=0,max_hp=1600}}
+        w.ghosts={[1]={map='/game/e04',feet={X=1100,Y=2000,Z=300}}}
+    end)
+    run(g,2)
+    W.vits['3']={life=1,hp=1600,max_hp=1600}
+    run(g,1)
+    assert(#W.said==0,side.mode..': '..table.concat(W.said,'|'))
+    W.mate={life=3,hp=0,max_hp=1600}
+    run(g,0.25)
+    assert(#W.said==1 and W.said[1]=='Kaanta is down. Stand next to them for 3 s to revive them.',W.said[1])
+end
+g=world(function(w)
+    w.host,w.fight=({id='1',pair='2'}),'fight=waiting mode=on why=no friend linked'
+    w.members={{id='1',slot=0,linked=true,name='Kaanta'},{id='2',slot=1,linked=true,name='Ana'}}
+end)
+run(g,4)
+assert(#W.calls==0 and #W.said==0 and logged('revive waits: no shared fight'),table.concat(W.said,'|'))
+-- The guest's pause: the host's ghost is the one of his member line's slot.
+g=world(function(w)
+    w.life,w.host,w.her_map={state=1,hp=1600},{id='5'},'/game/f02'
+    w.members={THREE[1],{id='5',slot=2,linked=true,name='Host'}}
+    w.ghosts={[2]={map='/game/e04',feet={X=0,Y=0,Z=0}}}
+end)
+assert(g.cut()==true)
+W.ghosts[2].map='/game/f02'
+assert(g.cut()==false)
 print('group_test ok')

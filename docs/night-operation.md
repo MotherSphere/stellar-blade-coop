@@ -59,10 +59,10 @@ These parts do not exist yet:
 
 - The recruiter's Join choice starting a Night Operation match. Today the host types `coop nightop start`, and Join
   takes you to the [SBO lobby](sbo-lobby.md), whose match lobbies have no Night Operation mode yet.
-- More players, up to six. A co-op session holds two.
+- More players, up to six. A run holds two, though an online session holds up to 4.
 - A boss wave.
 
-The Steam link connects two players and shows each player the other's ghost (see [playing-with-a-friend.md](playing-with-a-friend.md)). The previews
+The Steam link connects the players of a session and shows each player the others' ghosts (see [playing-with-a-friend.md](playing-with-a-friend.md)). The previews
 test how the cut mode's parts behave.
 
 ## The solo run (`coop nightop`)
@@ -315,7 +315,10 @@ Restoring a backup does not take an unlocked achievement back.
 With a partner linked over the Steam link, the host starts the run for both players. Each game spawns the same waves
 at the same points around the host's start point, and both cards show one timer and one score. The host's level is
 the run's: the waves, the score for each kill, the heals and the time limit are those of a solo run at that level. A
-co-op session holds two players, so a run has two at most, each on a co-op save.
+run has two players at most, each on a co-op save: in an online session of more than 2 players, the host cannot start
+one. A run under way when a third player gets in ends on both games with `Night Operation does not run in a session
+of more than 2 players.` ([More than 2 players](playing-with-a-friend.md#more-than-2-players)). The guest's game ends
+it as soon as the host's game names the third player, even before its own link with that player is made.
 
 ### Starting a run together
 
@@ -437,6 +440,7 @@ The run ends on both screens, each with its result panel. The line under the hea
 | On the host's side: `coop nightop stop`, a map change or a load, 80 m from the start point for 10 s, a save that is no longer a co-op save, or an error | His reason, as in the solo run | `Your partner left the run.` |
 | The same on the guest's side | `Your partner left the run.` | Her reason, as in the solo run |
 | The session ended: `coop leave` (F8) or `coop off` on either side | `The link to your partner was lost.` | `The link to your partner was lost.` |
+| A third player got into the session | `Night Operation does not run in a session of more than 2 players.` | `Night Operation does not run in a session of more than 2 players.` |
 
 A player who types `coop off` ends their own run as a stop (`result: aborted (coop off)` in `UE4SS.log`); only the
 partner reads the lost line. A game's night line stops while that game does not tick, for example during a load. Once it

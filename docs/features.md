@@ -28,12 +28,14 @@ with a local pak. No match lobby has held two players in game yet (see
 0.6.0-beta.1 to beta.3 use link protocol 13. 0.7.0-beta.1 uses protocol 14 and does not link with them. 0.7.5 uses
 protocol 18 and does not link with 0.7.0-beta.1 or with the first 0.7.5 test build (protocol 17). Builds after it, 0.8.0
 to 0.10.0, use protocol 19, for Matrix XIII's world rows, and do not link with 0.7.5. 0.11.0 uses protocol 20, for the
-PvP test and the match lobbies, and does not link with 0.10.0 or older. This version uses protocol 22, for the lines of
-the shared world and of story together. It does not link with 0.11.0 or older: every player has to update.
+PvP test and the match lobbies. It does not link with 0.10.0 or older. This version uses protocol 23, for the shared
+world, story together and sessions of up to 4 players. It does not link with 0.11.0 or older: every player has to
+update.
 
 In this version every on/off setting is on by default, the experimental ones and the test tools included: the ghost's
 dyes and effects, the spawn filter, the name tag in your photos, shared quests, the shared world, story together, the
-revive, the solid partner, the Load Shortcut saves, the PvP test, the SBO lobby and the bike. The status strip shows its
+revive, the solid partner, the Load Shortcut saves, the PvP test, the SBO lobby, the bike and the day and night cycle.
+The status strip shows its
 compact form, and F7's travel to the host is on. A `coop-settings.txt` written by 0.5.0-beta.1 to 0.10.0 that holds the
 old off values is changed once at the next load (see [Settings](settings.md#coop-settingstxt)). Most of these features
 have not been tested in game. `shortcut_load=on` lets `coop shortcut load` write a developer save that can unlock Steam
@@ -83,6 +85,17 @@ achievements, which cannot be taken back.
   items are off while she rides. Your friend's ghost of you and the match-lobby ghosts show the bike. It stays where she
   gets off, one place for each save, where the players linked with you see it too. Its riding model adapts dCharisma1's
   Eve On Wheels, with his consent. It is not tested in game yet (see [bike.md](bike.md)).
+- Day and night: the sun moves across the sky on the maps that can show it, by one clock that every SBO player shares
+  through UTC, so players on the same map see the same sky with no network message. One real hour is one game day; the
+  night runs from about :52 to :12 past each hour. It runs in solo play, in online sessions, in the hall lobbies, in
+  Matrix XIII and in Night Operation, which keeps midnight. On the Wasteland, the Great Desert, Eidos 7 and 9, Matrix 11, Spire 4 and
+  both NIKKE minigame maps the painted sky dome gives way to a real sky, orange near the horizon at dawn and dusk. At
+  night the sun light goes off (no light through the ground), the sky, the fog and EVE's lights get darker, a cold
+  moon light takes over and stars come out. Xion swaps to the game's own night dome. Rooms, caves and labs keep their
+  own light, as do cutscenes and the game's menus. The NIKKE boss arena, the story places and the Terrace hall keep
+  their fixed light: the Terrace stays a night hall. `daynight=off` (Options, Display) gives each map Stellar Blade's
+  own fixed light, as before. `coop daynight hour <h>` pins an hour for tests. It is not tested in game yet (see
+  [the day and night cycle](internals/daynight.md)).
 - `coop leviathan` shows Leviathan, a Naytiba cut from the game whose models and animations are still in its files, as
   a display-only model in front of EVE, with a free camera for filming. `coop gardener` and `coop tendril` do the same
   for two more cut Naytibas, the Gardener and the Tendril (see
@@ -188,7 +201,7 @@ and the black screen held over each arrival.
 
 This project found Night Operation in the game files: a multiplayer wave-survival mode that Shift Up prototyped and cut
 before release. Its recruiter was meant to stand next to Roxanne in Xion's Scrap Market. The plan is to bring the mode
-back for friends over Steam, started from the recruiter's Join choice, for up to six players. A co-op session holds
+back for friends over Steam, started from the recruiter's Join choice, for up to six players. A Night Operation run holds
 two players today; the match lobbies hold eight but run no Night Operation yet, and Join takes you to the
 [SBO lobby](sbo-lobby.md) instead. The mod never contacts the cut mode's online services (Shift Up's servers).
 

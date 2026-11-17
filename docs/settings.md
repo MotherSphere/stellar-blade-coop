@@ -40,9 +40,11 @@ bike=on
 # friends, from their friends list or the Friends tab of Find a session), invitation (the friends you invite or anyone
 # you give your join code to; the co-op menu shows and copies it) or closed (nobody; Private in the co-op menu). A
 # player who is not your Steam friend waits until you accept or deny them. friends_ask, with public or invitation: off
-# (your Steam friends join at once) or on (they wait for your answer too).
+# (your Steam friends join at once) or on (they wait for your answer too). max_players: 2 to 4, the players a session
+# you host holds, you included. Only you and your first guest share enemies, the world and the story.
 who_can_join=public
 friends_ask=off
+max_players=4
 # Co-op saves, the co-op copies of your saves (StellarBladeCoop00.sav to 04.sav): ask (a question on the title
 # screen), always (the copies at every title, no question) or off (no copies; the manual co-op slot that
 # StellarCoopSlot.txt names is then the only co-op save).
@@ -170,6 +172,9 @@ partner_card=on
 card_details=on
 # status_overlay, a strip above her card: off, compact (the status line and the ping) or detailed (and what is shared).
 status_overlay=compact
+# Day and night: on or off, on by default. On, the sky follows one clock shared by every player: one real hour is one
+# game day, with the night from about :52 to :12 past each hour (UTC). Off gives each map Stellar Blade's own light.
+daynight=on
 # Shortcut saves, a test tool: on or off, on by default. On, coop shortcut load <map> <1-4> writes one of the game's
 # cut developer saves as your co-op slot 5 (StellarBladeCoop04.sav, backed up first), without its achievement list.
 # A Steam achievement it still unlocks cannot be taken back: use it only on a Steam account whose achievements do not
@@ -197,6 +202,7 @@ sbo_lobby=on
 | `bike` | `on` or `off`: the [bike](bike.md), on any save; off takes EVE off the bike, removes it from her, takes her parked bike out of every world (its place is kept), hides the other players' parked bikes and frees its loaded files | `on` |
 | `who_can_join` | `public`, `friends`, `invitation` or `closed`: who can join an online session you host. `public`: any player of your version, who finds it in the session list. `friends`: your Steam friends. `invitation`: the friends you invite or anyone with your [join code](playing-with-a-friend.md#join-codes). `closed`: nobody (Private in the co-op menu). The words `code` and `private` from 0.11 and older read as `invitation`; the file keeps them | `public` |
 | `friends_ask` | `on` or `off`, with `public` or `invitation`: `on` makes your Steam friends wait for your answer like other players. The co-op menu shows it as Friends join without asking, On while `friends_ask=off` | `off` |
+| `max_players` | `2` to `4`: the players an online session you host holds, you included (Players on the Options page and the Create a session screen), from the next session you host. Past 2, shared enemies, the shared world and story together run between you and one guest only ([More than 2 players](playing-with-a-friend.md#more-than-2-players)) | `4` |
 | `auto_coop_save` | `ask`, `always` or `off`: the [co-op saves](playing-with-a-friend.md#co-op-saves) at the title | `ask` |
 | `name_tag` | `on` or `off`: your friend's Steam name above their ghost | `on` |
 | `send_rate` | `10` to `60` poses sent a second at most (a link that cannot keep up lowers it to 30 or 20 for a while: [link health](internals/steam-link.md#link-health-in-the-log)) | `60` |
@@ -239,6 +245,7 @@ sbo_lobby=on
 | `partner_card` | `on` or `off`: your friend's card at the top left | `on` |
 | `card_details` | `on` or `off`: the ping and your friend's map on the card | `on` |
 | `status_overlay` | `off`, `compact` or `detailed`: the [status strip](interface.md#status-strip-above-the-card) above the card | `compact` |
+| `daynight` | `on` or `off`: the [day and night cycle](internals/daynight.md). On, the sun moves on the open maps and SBO's own maps by one clock that every player shares: one real hour is one game day and the night runs from about :52 to :12 past each hour (UTC). Off gives each map Stellar Blade's own fixed light, as before. The Terrace hall stays a night hall either way. Options, Display, Day and night; it applies at once | `on` |
 | `shortcut_load` | `on` or `off`: lets `coop shortcut load` write a [cut developer save](cut-scenes-and-menus.md#loading-one-coop-shortcut-load) as co-op slot 5; it can unlock Steam achievements; no menu row | `on` |
 | `pvp_spike` | `on` or `off`: lets `coop pvp on` start the [PvP test](sbo-lobby.md#the-pvp-test) with your friend: a stand-in enemy at their ghost takes your hits for their game, down to 1 HP; needs `shared_enemies=off`; no menu row | `on` |
 | `sbo_lobby` | `on` or `off`: the [SBO lobby](sbo-lobby.md), a test. On, the recruiter's Join saves the co-op game and takes you to the lobby in Xion's training room (a hall lobby with the hall lobby pak), and each co-op save is copied before the game rewrites it (10 copies kept per slot). At each arrival in the lobby the screen stays black until the lobby menu is ready, 8 s at most, then fades onto the open menu. No menu row | `on` |
@@ -312,7 +319,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-request.txt` | Lua | A console request for the native part |
 | `coop-session.txt` | Lua | A token per Lua load |
 | `coop-components.txt` | Lua | Your EVE's capture (the component table) |
-| `coop-remote.txt` | native | The remote table the ghost is built from. In a match lobby, `coop-remote-<k>.txt` holds the table of the member in ghost slot k, 1 to 6 |
+| `coop-remote.txt` | native | The remote table the ghost is built from. In a match lobby or an online session of more than 2 players, `coop-remote-<k>.txt` holds the table of the member in ghost slot k, 1 to 6 |
 | `coop-cns.txt` | native, at start | The assets your CNS packs declare, one `<path> <outfit>` line each (empty without CNS packs): with `coop-shared-assets.txt`, the only paths from a mod's folder the ghost loads |
 | `coop-cns-call.txt` | Lua | The crash sentinel's marker: `<path> <outfit>` while the ghost hands the engine an asset your CNS packs declare or a mod you both have holds (the container name in place of the outfit), empty otherwise. Written in place, with no `.tmp` file (see [When a mod asset fails](ghost.md#when-a-mod-asset-fails)) |
 | `coop-shared-assets.txt` | native, when the list changes | The assets of the mods you and your friend both have in one version, one `<path> <container>` line each: loaded by the ghost as CNS paths are (see [Mods you both have](ghost.md#mods-you-both-have)) |

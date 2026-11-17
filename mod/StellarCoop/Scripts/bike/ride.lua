@@ -6,12 +6,12 @@
 -- riding clip once ("bike load", native/src/game/bike.h; the bike= word of the status line says ready), asked again
 -- while that word still reads off 5 s after the ask (a request lost on the way). Once that is ready and an EVE has been
 -- in the world 2 s, the part is made: one SkeletalMeshComponent hung KeepRelative on her main mesh at the seat
--- (race/doro.lua's attach: collision off, single-node mode with no clip, so it keeps its reference pose), hidden,
--- tagged Ride.TAG. After Ctrl+R the part is already there: the new Lua load's first tick (self.restore) finds it among
--- her components by its mesh and that tag, whatever the bike= word or the setting says. That load uses it again; its
--- first 250 ms pass removes it at bike=off. While she rides, the capture sends it to every ghost like any part of her
--- outfit. While she does not, self.idle_part names it and the capture leaves it out (main.lua): hidden, it would take
--- one of the ghost's 16 parts.
+-- (race/doro.lua's attach: collision off, single-node mode with no clip, so it keeps its reference pose), hidden, its
+-- tick off, tagged Ride.TAG. After Ctrl+R the part is already there: the new Lua load's first tick (self.restore) finds
+-- it among her components by its mesh and that tag, whatever the bike= word or the setting says. That load uses it
+-- again; its first 250 ms pass removes it at bike=off. While she rides, the capture sends it to every ghost like any
+-- part of her outfit. While she does not, self.idle_part names it and the capture leaves it out (main.lua): hidden, it
+-- would take one of the ghost's 16 parts.
 -- A mount (self.toggle) checks EVE first and refuses with its reason; then, in this order: coop-bike.txt (her object
 -- path, her main mesh's relative rotation and location, or those of a file this Lua load kept for her),
 -- race/drive.lua's drive with bike/model.lua (why 'bike'), "bike gate on" (SB's actions off on her controller, Jump
@@ -45,8 +45,9 @@
 -- Each frame (self.steer, before the native tick): the drive's frame, then her lean and pitch on her main mesh's
 -- relative rotation, the base rotation then a turn about her actor's forward axis (lean) and side axis (pitch), through
 -- KismetMathLibrary's ComposeRotators, written with teleport off (a teleport clears cloth inertia). The ghosts get it
--- through her mesh's transform. Every 0.1 s the anim answer: the clip played again when SB ended it, unless the photo
--- mode, a skill or a root-motion move holds her; three ends within 1 s take her off the bike (SB uses the slot).
+-- through her mesh's transform. Every 250 ms (self.slow) the anim answer from that pass's status text: the clip played
+-- again when SB ended it, unless the photo mode, a skill or a root-motion move holds her; three ends within 1 s take
+-- her off the bike (SB uses the slot).
 -- What it writes on the player's own EVE: the part, her main mesh's relative rotation (and its location back at the
 -- end), what race/drive.lua writes; through the native part SB's per-action switches and the custom animation slot.
 -- Parts of this file adapt Eve On Wheels 1.2.1 by dCharisma1 (nexusmods.com/stellarblade/mods/4165), used with his
@@ -74,7 +75,7 @@ Ride.CLIP='/Game/Art/Character/PC/CH_P_EVE_01/Animation/event/G03/MV_SD20_AfterB
 -- The bike relative to her main mesh, cm and degrees: SD20's attach tracks (riders on its bone Base).
 local SEAT,SEAT_PITCH={X=1.53,Y=0.52,Z=2.95},0.69
 local SETTLE=2 -- s an EVE has been in the world before her part is made (the capture's own wait).
-local POLL,ANSWER=0.1,5 -- s between reads of the anim answer; s with no answer for our play.
+local ANSWER=5 -- s with no answer for our play.
 local ENDS,ENDS_IN=3,1 -- SB's ends of the riding clip within ENDS_IN s that take her off the bike.
 local GATE_WAIT=1 -- s after the mount by which the gate must read on.
 local LOAD_AGAIN=5 -- s with bike=off after the bike load before it is asked again.
@@ -123,7 +124,8 @@ local function find_part(e)
     end)
     return found
 end
--- A new part on her main mesh at the seat, hidden, tagged. Raises, with nothing left, when it cannot be made. Also
+-- A new part on her main mesh at the seat, hidden, tagged, its tick off: its reference pose needs none and her mesh
+-- moves it (race/doro.lua's keepers do the same). Raises, with nothing left, when it cannot be made. Also
 -- returns why the tag did not hold (nil when it did): the part still serves this Lua load, only a Ctrl+R cannot
 -- find it again.
 local function make_part(e)
@@ -132,6 +134,8 @@ local function make_part(e)
     local ok,why=pcall(function()
         c:K2_SetRelativeLocationAndRotation(SEAT,{Pitch=SEAT_PITCH,Yaw=0,Roll=0},false,{},false)
         c:SetVisibility(false,false)
+        c:SetComponentTickEnabled(false)
+        c.VisibilityBasedAnimTickOption=3 -- OnlyTickPoseWhenRendered
     end)
     if not ok then
         pcall(function() c:K2_DestroyComponent(e) end)
@@ -184,8 +188,9 @@ function Ride.new(o)
     local ground=nil -- The last ground pose of this ride, kept every 250 ms.
     local floor_told=false
     -- While she rides: eve, path, at, mesh, part, part_path, base and base_at (her mesh's relative rotation and
-    -- location before), lean and pitch (as written), since, what the mount did (drove, gated, shown), id (the play's),
-    -- asked (os.clock of its ask), playing, ended (this id's end counted), ends (os.clock of each end), read.
+    -- location before), lean and pitch (as written), math (KismetMathLibrary, looked up once a ride), since, what the
+    -- mount did (drove, gated, shown), id (the play's), asked (os.clock of its ask), playing, ended (this id's end
+    -- counted), ends (os.clock of each end).
     local ride=nil
     local preload=nil -- What the setting last asked of the native part: true (bike load), false (bike free).
     local load_asked=0 -- os.clock of the last bike load.
@@ -598,7 +603,7 @@ function Ride.new(o)
         at={X=base(5,at.X),Y=base(6,at.Y),Z=base(7,at.Z)}
         local r={eve=e,path=path,at=address(e),mesh=mesh,part=part,part_path=here.part_path,
             base={Pitch=rot.Pitch,Yaw=rot.Yaw,Roll=rot.Roll},base_at={X=at.X,Y=at.Y,Z=at.Z},lean=0,pitch=0,
-            since=began,read=began,ends={}}
+            math=math_lib(),since=began,ends={}}
         local saved,save_why=store.save(table.concat({r.path,number(rot.Pitch),number(rot.Yaw),number(rot.Roll),
             number(at.X),number(at.Y),number(at.Z)},'\t'))
         if saved==false then
@@ -637,7 +642,7 @@ function Ride.new(o)
         local lean,pitch=look.lean or 0,look.pitch or 0
         if math.abs(lean-r.lean)<TILT_STEP and math.abs(pitch-r.pitch)<TILT_STEP then return end
         r.lean,r.pitch=lean,pitch
-        local c=value_of(math_lib():ComposeRotators(r.base,{Pitch=PITCH_SIGN*pitch,Yaw=0,Roll=LEAN_SIGN*lean}))
+        local c=value_of(r.math:ComposeRotators(r.base,{Pitch=PITCH_SIGN*pitch,Yaw=0,Roll=LEAN_SIGN*lean}))
         r.mesh:K2_SetRelativeRotation({Pitch=c.Pitch,Yaw=c.Yaw,Roll=c.Roll},false,{},false)
     end
     -- The anim answer for our play: nil while it plays, waits or was played again; else why she gets off.
@@ -679,14 +684,8 @@ function Ride.new(o)
             return drive.active() and 'a '..drive.why()..' drive took over her driving' or 'her EVE changed'
         end
         if look then tilt(r,look) end
-        local now=os.clock()
-        if now-r.read<POLL then return nil end
-        r.read=now
-        local w=Ride.native(status())
-        if not w then return 'the bike needs the native part' end
-        return keep(r,r.eve,w,now)
     end
-    -- Every 250 ms while she rides: why she gets off, or nil.
+    -- Every 250 ms while she rides: why she gets off, or nil. The anim answer comes from this pass's status text.
     local function check(r,e,w,now)
         if not e or address(e)~=r.at then return 'her EVE changed' end
         local why=blocked(e,w,false)
@@ -697,6 +696,7 @@ function Ride.new(o)
         end
         ground=pose_of(e,r.part) or ground
         drive.slow()
+        return keep(r,e,w,now)
     end
     local function off_line(why)
         stop(why)
@@ -731,7 +731,7 @@ function Ride.new(o)
         stand_store.clear()
         if d then Stand.remove(d) end
     end
-    -- Each frame before the native tick, after race/run.lua's steer: the ride's drive, lean and clip. A reason to get
+    -- Each frame before the native tick, after race/run.lua's steer: the ride's drive and lean. A reason to get
     -- off or an error ends the ride: false and a line for the screen.
     function self.steer()
         local r=ride
@@ -740,8 +740,8 @@ function Ride.new(o)
         if not ok then return off_line('an error: '..why_of(why)) end
         if why then return off_line(why) end
     end
-    -- Every 250 ms: the preload asked or released as the setting says, the part, the ride's checks. A reason to get off
-    -- or an error ends the ride: false and a line for the screen.
+    -- Every 250 ms: the preload asked or released as the setting says, the part, the ride's checks and its clip. A
+    -- reason to get off or an error ends the ride: false and a line for the screen.
     local function pass()
         local want=not (o.settings and o.settings.bike==false)
         if want~=preload then

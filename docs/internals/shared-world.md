@@ -105,16 +105,16 @@ matchmaking from some row types (see `tests/tools/matchmaking_scan_test.py` in [
 
 ## Wire
 
-The lines go on Steam channel 2, reliable, after the tag `SBW22`:
+The lines go on Steam channel 2, reliable, after the tag `SBW23`:
 
 | Line | Meaning |
 | --- | --- |
-| `SBW22 s <seq> <zone> <alias> <tag>` | an env put in a state (R1) |
-| `SBW22 a <seq> <zone> <alias> <1\|2>` | an env enabled or disabled (R2) |
-| `SBW22 e <seq> <zone> <row>` | a ZoneEventTable row run (R3) |
-| `SBW22 l <seq> <zone> <alias> <tag> <objectState> <progress>` | a linked env: its state (`None` for none), ObjectState 0 to 2 and a progress to add (R4) |
-| `SBW22 on`, `SBW22 off <reason>` | the sender's own state; the reason is `setting`, `match`, `save` or `fault` |
-| `SBW22 on reply` | `on`, as the answer to her `on` |
+| `SBW23 s <seq> <zone> <alias> <tag>` | an env put in a state (R1) |
+| `SBW23 a <seq> <zone> <alias> <1\|2>` | an env enabled or disabled (R2) |
+| `SBW23 e <seq> <zone> <row>` | a ZoneEventTable row run (R3) |
+| `SBW23 l <seq> <zone> <alias> <tag> <objectState> <progress>` | a linked env: its state (`None` for none), ObjectState 0 to 2 and a progress to add (R4) |
+| `SBW23 on`, `SBW23 off <reason>` | the sender's own state; the reason is `setting`, `match`, `save` or `fault` |
+| `SBW23 on reply` | `on`, as the answer to her `on` |
 
 Each line is at most `kMaxMessage` bytes. Zone, alias, tag and row are FName text: letters, digits and `_`, at most
 64 bytes. `seq` starts at 1 after each `on` and goes up by one per line; the receiver counts an old one as bad and logs
@@ -126,7 +126,8 @@ than `None`, an ObjectState other than 0 or a progress above 0). Each of those p
 Before a root becomes a line, the sender reads each FName's text, writes the line, parses it back and checks the
 lists.
 
-The worker hands our lines to `send_fight()`, which refuses a line while its channel 2 queue holds 256. A refused line
+The worker hands our lines to `send_fight()` for the pair only (`Link::partner()`, the host and the guest in ghost slot
+0 in an online session of more than 2 players), which refuses a line while its channel 2 queue holds 256. A refused line
 waits with the lines after it for the next pass, up to 1,024 (`world/sync.h`'s `Outbox`); a new partner, or none,
 drops what waits, as the link drops its own queue then.
 

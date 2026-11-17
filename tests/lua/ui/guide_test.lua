@@ -62,6 +62,16 @@ for name,t in pairs(G) do
     end
 end
 assert(count==#codes and count==22,count)
+-- The first page gives the players a session holds at most as the default max_players (core/link.lua's), in every
+-- language: no other player count (100 is the goal; F5 a key).
+local most=require('core.link').DEFAULT:match('\nmax_players=(%d)\n')
+assert(most=='4' and G.en.pages[1].body:find('A session holds up to 4 players for now.',1,true))
+for name,t in pairs(G) do
+    if type(t)=='table' then
+        local body=t.pages[1].body:gsub('F5','')
+        assert(body:find(most,1,true) and not body:find('[235-9]'),name)
+    end
+end
 -- Each translated string keeps what its English holds of the console commands, file names, keys, the Discord address
 -- and the names (KEEP, as written), and the keys B, C, E, Space, Ctrl, Shift and Enter as whole words, or under the
 -- name OWN gives one in that language (its keyboard's, as ui/text.lua writes Strg, Maiusc, Invio, Maj or Intro).

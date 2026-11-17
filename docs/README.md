@@ -64,6 +64,7 @@ left. The pages still name build 24463856 where a fact was read on that build, s
 | [Shared world: how it works](internals/shared-world.md) | The four roots and their hooks, the generated filter, the SBW lines, how her changes are made, the status line, the addresses |
 | [Story together: how it works](internals/story-sync.md) | The host's theater reads and hooks, the scene and trip tables, the SBS lines, the guest's gate, leash and results, the guest's quest steps, the status line, the addresses |
 | [Doro races: how they work](internals/doro-races.md) | The display Doro, the Doro look, the ghost's Doro mode, driving, race lines |
+| [Day and night: how it works](internals/daynight.md) | The shared UTC clock, the sun and moon, the dawn and dusk ramps, the map table, the rules, the env fields the native part writes, the request and status line, the cost |
 | [The bike: how it works](internals/bike.md) | The preload, the part on EVE, mount and dismount, the gate, the riding pose, the riding model, the lean, the ghosts |
 | [Cut enemies: how they are added](internals/cut-enemies.md) | The cut Lion with the row batches, the cut Gardener, the cut Tendril |
 | [EVE's cut moves: how they work](internals/cut-eve.md) | The cut ChainSpin, developer flight and slow motion, the cut glide, emotes |

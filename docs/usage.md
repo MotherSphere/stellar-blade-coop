@@ -43,7 +43,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 
 | Command | What it does |
 | --- | --- |
-| `coop host` | Open the [Create a session screen](interface.md#create-a-session-screen), as the menu's Host a session row does. Where it cannot open, host an online session of 2 players at once as `who_can_join` and `friends_ask` say: a Public or Friends only session, an Invitation session with a [join code](playing-with-a-friend.md#join-codes), or a Private one nobody can join |
+| `coop host` | Open the [Create a session screen](interface.md#create-a-session-screen), as the menu's Host a session row does. Where it cannot open, host an online session at once as `who_can_join`, `friends_ask` and `max_players` say: a Public or Friends only session, an Invitation session with a [join code](playing-with-a-friend.md#join-codes), or a Private one nobody can join |
 | `coop host public\|friends\|invitation\|closed` | Host at once with that word in place of `who_can_join`; `friends_ask` applies under `public` and `invitation` |
 | `coop invite` | Open the Steam invite dialog again while you are in a lobby |
 | `coop join` | Join the first Steam friend found in a Stellar Blade lobby |
@@ -127,6 +127,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop quests probe\|record\|replay` | Shared quests' solo test tools (experimental, co-op save only) |
 | `coop quests force <number>` | As the guest, make the step that quest holds for your own kill, or for a place the game's tables cannot give, where you stand; type it twice within 10 s |
 | `coop world on\|off\|status` | The [shared world](shared-world.md) (experimental, on by default): `on` and `off` until the mod reloads, whatever `shared_world` says; `status` prints the `world=` line |
+| `coop daynight [on\|off\|status\|hour <h>]` | The [day and night cycle](internals/daynight.md) (on by default, untested in game; a test tool, never written to `coop-settings.txt`): alone or `status`, one line with the request and its reason, the map's row, the native part's hour and sun and the real minutes until the next night; `off` gives Stellar Blade's own light and `on` the clock again, until another word or a Lua reload; `hour <h>` pins the hour, 0 to under 24 with decimals (`13.5` is 13:30), until `on`, `off` or a Lua reload, refused while `daynight=off`; any save |
 | `coop scenes on\|off\|status` | [Story together](story-together.md) (experimental, on by default): `on` and `off` until the mod reloads, whatever `shared_story` says; `status` prints the `story=` line |
 | `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](playing-with-a-friend.md#synced-photo-mode)'s pause alone, 1 to 3600 s |
 | `coop revive test` | Solo test of the [revive](playing-with-a-friend.md#revive-by-your-friend-experimental): at the death screen, call the game's in-place respawn on your EVE once (co-op save only, no session, with `coop loopback 0 0 0` running so that your life state is read) |
@@ -150,11 +151,12 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
   in place of `who_can_join`; any other word is refused. While you host, a word (the one typed, else `who_can_join`)
   other than your session's is refused with the notice `You already host a session: leave it first to host with
   another Who can join.` Leave with `coop leave`, then host again. Under `public` and `invitation`, `friends_ask=on` makes your
-  Steam friends wait for your answer too.
+  Steam friends wait for your answer too. The request ends with `max_players`, the players the lobby holds (2 to 4),
+  for example `host public ask 4`.
 - `coop list public` and `coop list friends` start a search, one at a time and 5 s apart at least. The search is
   refused in a lobby and while a match search runs, with the reason in the log and the feed. The rows come a few
   seconds later. `coop list` then prints them on one line, best ping first:
-  `list public done, 2 rows: 1. <host> 1/2 45 ms b07 WLB10_Camp_01 rules ebwsqr200 (Steam friend) | 2. ...`. A `-`
+  `list public done, 2 rows: 1. <host> 1/4 45 ms b07 WLB10_Camp_01 rules ebwsqr200 (Steam friend) | 2. ...`. A `-`
   stands for a ping or a region the row lacks. The rules word has a letter for each session rule on (e shared
   enemies, b bosses, w shared world, s story together, q shared quests, r revive), then the
   boss HP scale in percent. `coop join 1` joins the first row: a player who is not the host's Steam friend then waits
@@ -252,7 +254,7 @@ These three commands run the ghost pipeline on one PC. They need the native tick
   `coop-record.bin` in the mod folder if it holds a pose. The name is fixed, so a new recording replaces the last one.
   Rename the file by hand to keep it.
 - `coop replay` checks the whole of `coop-record.bin` before anything plays and refuses a file that fails, with the
-  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 22). It
+  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 23). It
   then plays the file in a loop as the remote side, each pose re-stamped as if sent now, until `coop replay off`, which
   removes the ghost. The generation, map and positions stay as recorded: the ghost wears the recorded outfit and walks
   where you walked, with no offset, and the map gate applies.
@@ -344,6 +346,7 @@ word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`
   (`coop glide`: EVE's glide flag is cleared) and a `coop emote` clip (it blends out);
 - the [bike](bike.md) (EVE gets off: the game's actions, her movement values and her mesh come back; the native part
   frees the bike's loaded files);
+- the day and night cycle (Stellar Blade's own light, sky domes and SkyCreator time come back);
 - the game's developer panels (`coop devinfo`: closed);
 - a `coop shortcut` list under way and the gift toast (taken off the screen).
 
@@ -365,7 +368,9 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 - `Co-op: hosting, no friend yet.`
 - `Co-op: <name> is connecting.`
 - `Co-op: hosting <name>.` or `Co-op: in <name>'s game.` (`Paused by <name>.` while their photo mode pauses your game;
-  a lost friend adds `Connection lost.`)
+  a lost friend adds `Connection lost.`). In a session of more than 2 players, `<name>` is the host on a guest and the
+  pair on the host (else the first guest linked), then ` +<n>` for the other members linked. `Paused by <name>.` names
+  the host alone: only the host's photo mode pauses a guest past 2 players.
 - `Co-op: invite held until your save has loaded.`
 - `Co-op: rejoining your friend's game (try <n>/3).`
 - `Co-op: waiting for Steam.`
@@ -377,28 +382,37 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 `***` and its last 4 digits, the join code and the lobby id as the code's first 3 characters and `****`, as in every
 line the mod writes to its logs. `coop-status.txt` in the mod folder holds the same state with them whole.
 
-- Steam: `mod=<version> proto=22 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
+- Steam: `mod=<version> proto=23 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts, your Steam name on a `me=` line, then `blocked=<n>`: the players on your
   [block list](playing-with-a-friend.md#block-list). A `block=<SteamID> <name>` line follows for each player you
   blocked in this game run.
 - Link: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite held
   and `rejoin=<n>/3` while rejoining. While you host, a `code=<join code|none> refused=<n>` line follows: the join code
   (`none` outside an Invitation session) and the number of players refused for the rest of this lobby, blocked
-  players who came in included; then a `pending=<SteamID> <name>` line for a player who waits for your answer (not
-  your Steam friend, or any player with `friends_ask=on`). As a joiner who waits for the host's answer, a
-  `wait=<seconds left> <host's name>` line. While a session list lasts, a `list=` line and a `session=` line per row
-  ([The session list](internals/steam-link.md#the-session-list)). Then a
-  `peer=...` line per lobby member (handshake, lost flag, RTT), a `friend=<linked 0|1> <lost 0|1> <name>` line, after a
+  players who came in included; then a `pending=<SteamID> <name>` line for each player who waits for your answer
+  (not your Steam friend, or any player with `friends_ask=on`), in the order the native part asks about them. As a
+  joiner who waits for the host's answer, a `wait=<seconds left> <host's name>` line. While a session list lasts, a
+  `list=` line and a `session=` line per row ([The session list](internals/steam-link.md#the-session-list)). In an
+  online session, `host=<host's SteamID> pair=<pair's SteamID or 0, yours when you are the pair> max=<max_players, 0
+  before a guest heard it>` and `players=<the players in the session as the host counts them, you and the host
+  included, 0 before a guest heard it>`
+  ([Sessions of more than 2 players](internals/steam-link.md#sessions-of-more-than-2-players)). Then a `peer=...` line
+  per lobby member (handshake, lost flag, RTT), a `friend=<linked 0|1> <lost 0|1> <name>` line, after a
   [coop mark](#coop-mark) a `mark=<n> ours: <text>` or `mark=<n> from <name>: <text>` line (no `: <text>` for a mark
   with no text), a `mate=<12 numbers>` line with your friend's HP, shield, Beta, Burst and Tachy for the partner card
-  (while their last reading is under 3 s old; your own during `coop loopback`), a `life=<state> <hp>` line with your
+  (while their last reading is under 3 s old; your own during `coop loopback`), a `vit=<SteamID> <12 numbers>` line
+  for each member linked whose last reading is under 3 s old (neither line in a match lobby), a `life=<state> <hp>`
+  line with your
   own EVE's life state (1 or 6 alive, 3 to 5 dying or dead) and HP for the revive, a `night=<line>` line with your
   friend's last Night Operation line while a session holds, and the last 8 notices as `notice=<n> <text>`. While you
-  host, `camps?=<id>` is the guest's last request for the camps nearest you; as the guest, `camps=<id> <answer>` is the
-  host's last answer ([Following the host](playing-with-a-friend.md#following-the-host)).
+  host, `camps?=<n>` is your game's number for the oldest request for the camps nearest you still waiting for an
+  answer, else for the last one (your answer to that number goes to that guest alone, with her own id); as the guest,
+  `camps=<id> <answer>` is the host's last answer
+  ([Following the host](playing-with-a-friend.md#following-the-host)).
 - Pose path: `engine=on` (then `loopback=on <delay> <jitter> <loss>` or `loopback=waiting` until EVE's capture comes,
-  `record=on`, `replay=on`, `remote=<generation> <count> <loopback|replay|peer>`, and in a match lobby
-  `remote<k>=<generation> <count>` for each other member's ghost slot k from 1 to 6), or `engine=off reason=<why>`; then
+  `record=on`, `replay=on`, `remote=<generation> <count> <loopback|replay|peer>`, then in a match lobby or an
+  online session of more than 2 players `remote<k>=<generation> <count>` for each other member's ghost slot k from 1 to
+  6), or `engine=off reason=<why>`; then
   `warp=<idle|busy> me=<n>` (a respawn or a warp under way, and your EVE's id, for the revive), `travel=<state>
   travel_calls=<n>` (the last travel's state: `idle`, `pending`, `warping`, `arrived` or `refused:<why>`, and the travel
   requests handled so far), `anim=<state> anim_id=<n>` (the last `coop emote` clip or bike pose the native part took
@@ -431,9 +445,10 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
 - Same place: `pilot=on piloted=<n>`, `pilot=off why=<why>`, `pilot=stopped` or `pilot=refused why=<why>` (see
   [Same place](shared-enemies.md#same-place-experimental)).
 - Shared quests: `quests=off`, `quests=waiting mode=<mode> why=<friend|save|game>`, `quests=on mode=<mode>
-  role=<role> partner=<on|off>` or `quests=stopped` (see [Shared quests](playing-with-a-friend.md#shared-quests-experimental)), then the last 8
-  quest notices as `quest_note=<n> <kind> <number> <name> <zone or ->` and the last `coop quests status` answer as
-  `quests_status=<n> <line>` lines.
+  role=<role> partner=<on|off>` (on a host with several guests, then `with=<SteamID>` of the first guest whose side is
+  on) or `quests=stopped` (see [Shared quests](playing-with-a-friend.md#shared-quests-experimental)), then the last 8
+  quest notices as `quest_note=<n> <kind> <number> <name> <zone or ->`, with the guest's SteamID after a host's
+  `ahead` note, then the last `coop quests status` answer as `quests_status=<n> <line>` lines.
 - Shared world: `world=off`, `world=waiting why=<friend|match|save|partner>`, `world=on`, then its counters, or
   `world=stopped`, `world=off why=build` or `world=off why=coop_off` (see [Shared world](shared-world.md#status-line)
   and the counters in [Shared world: how it works](internals/shared-world.md#status-line)).
@@ -442,6 +457,9 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
   [Story together](story-together.md#status-line) and the counters in
   [Story together: how it works](internals/story-sync.md#status-line)). Its changes are not logged as `link:` lines:
   its counters move with each position of a shared scene.
+- Day and night: `sky=<state> h=<hour> el=<sun's elevation> ...`, the [day and night cycle](internals/daynight.md#the-request-and-the-status-line)'s
+  state, hour, sun and moon, light factors and env volumes. Its changes are not logged as `link:` lines: its hour moves
+  each second.
 - Photo mode: `photo=<0|1|s|c> peer_photo=<0|1|s|c> frozen=<0|1> sync=<both|notice|off>`: yours and your friend's (`s`
   for selfie mode, `c` on the host while a cutscene plays: the [cutscene wait](playing-with-a-friend.md#cutscene-wait)), whether your game holds
   the photo pause (`coop freeze` holds it too), and the `photo_sync` your friend gets (`notice` when your game cannot
@@ -453,9 +471,9 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
   exists, `collide=` adds `solid=<0|1>` and `changes=`, the times it turned solid and the times each rule let your EVE
   through (`a` hidden or off, `b` overlap, `c` height, `d` movement mode, `e` 2 s of contact, `g` your friend down).
 
-Each changed status line, except the per-peer ones, the `fight=` line, the `mate=` and `life=` lines, the `night=`
-line (Night Operation's run logs each one as an `[NR]` line) and the `story=` line, also goes to `UE4SS.log` as
-`[StellarCoop] link: ...`.
+Each changed status line, except the per-peer ones, the `fight=` line, the `mate=`, `vit=` and `life=` lines, the
+`night=` line (Night Operation's run logs each one as an `[NR]` line), the `story=` line and the `sky=` line, also goes
+to `UE4SS.log` as `[StellarCoop] link: ...`.
 Each load logs the save slot as `link: slot=...`.
 
 ## Sections that moved

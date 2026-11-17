@@ -62,7 +62,17 @@ local function world(change)
         rules={}}
     if change then change(W) end
     clock=0
+    -- host(), member() and others() as core/link.lua gives them: W.host names the session's host ({id=}) and
+    -- W.members the member lines; without W.members, the slot-0 member alone, linked as W.linked says.
+    local function members() return W.members or {{id='2',slot=0,linked=W.linked}} end
     local link={mode=function() return W.mode end,friend=function() return 'Kaanta',W.linked,false end,
+        host=function() return W.host end,
+        member=function(id) for _,m in ipairs(members()) do if m.id==id then return m end end end,
+        others=function()
+            local n=0
+            for _,m in ipairs(members()) do if m.linked then n=n+1 end end
+            return n
+        end,
         status=function()
             local engine=W.engine or ENGINE..' warp='..W.warp..' me=4242 travel='..W.travel..' travel_calls='..W.calls
             local camps=W.camps and 'activated='..W.camps..(W.rested and ' rested='..W.rested or '')..'\n' or ''
@@ -81,7 +91,13 @@ local function world(change)
     local puppet={me=function() return W.me end,her_map=function() return W.her_map end,
         anchor=function() if W.ghost then return {X=W.ghost.X,Y=W.ghost.Y,Z=W.ghost.Z+220},W.ghost end end,
         world=function() return W.me~=nil,W.title==true end}
-    return Travel.new({link=link,puppet=puppet,settings=W.settings,
+    -- Ghost slot k's puppet (W.ghosts[k]: {map=, feet=}), as main.lua's ghost(k) gives it.
+    local function ghost(k)
+        local g=W.ghosts and W.ghosts[k]
+        if not g then return nil end
+        return {her_map=function() return g.map end,anchor=function() return {X=g.feet.X,Y=g.feet.Y,Z=g.feet.Z+220},g.feet end}
+    end
+    return Travel.new({link=link,puppet=puppet,settings=W.settings,ghost=ghost,
         tell=function(build) W.said[#W.said+1]=build(T.en) end,
         name=function() return 'Kaanta' end,log=function(m) W.logs[#W.logs+1]=m end,
         paused=function() return W.paused end,night=function() return W.night end,
@@ -175,6 +191,20 @@ W.spawns={{'DED10_Camp_07',200000000,0,0}}
 W.asked=43
 run(t,0.25)
 assert(W.finds==2 and last(W.requests)=='camps 43 DrownedEidosDistrict DED10_Camp_07:65535',last(W.requests))
+-- More than 2 players: the host answers while any guest is linked, the pair or not.
+t=world(function(w)
+    w.mode,w.linked='host',false
+    w.members={{id='2',slot=0,linked=false},{id='3',slot=1,linked=true}}
+    w.me={at={X=0,Y=0,Z=0},map=XION}
+    w.spawns={{'Xion_Camp_10',1000,0,0}}
+end)
+W.asked=50
+run(t,0.25)
+assert(last(W.requests)=='camps 50 Xion Xion_Camp_10:10',tostring(last(W.requests)))
+W.members[2].linked=false
+W.asked=51
+run(t,0.25)
+assert(last(W.requests)=='camps 50 Xion Xion_Camp_10:10','No guest linked: no answer')
 -- None and why: no EVE (a load, and no spawn point read then), the title, a map no travel camp is on, its own warp in
 -- flight, a map with none of its camps loaded.
 for _,case in ipairs({{function(w) w.me=nil end,'loading'},{function(w) w.me=nil; w.title=true end,'title'},
@@ -246,6 +276,24 @@ for _,case in ipairs({function(w) w.mode='guest' end,function(w) w.match={state=
     W.mode,W.match='host',nil
 end
 
+-- The guest of more than 2 players reads the host by her member line: linked or not, her map from her own ghost slot
+-- (slot 0 is main.lua's puppet); a slot with no ghost yet offers nothing.
+t=world(function(w)
+    w.host,w.her_map={id='1'},DEDA -- Slot 0 holds another member, on our map.
+    w.members={{id='9',slot=0,linked=true},{id='1',slot=2,linked=true}}
+    w.ghosts={[2]={map=XION,feet={X=0,Y=0,Z=0}}}
+end)
+run(t,1)
+assert(#W.said==1 and W.said[1]==OFFER,table.concat(W.said,'|'))
+t=world(function(w)
+    w.host,w.members={id='1'},{{id='1',slot=2,linked=false}}
+    w.ghosts={[2]={map=XION,feet={X=0,Y=0,Z=0}}}
+end)
+run(t,1)
+assert(#W.said==0 and select(2,t.press())=='not a guest in a session','The host not linked')
+t=world(function(w) w.host,w.members={id='1'},{{id='1',slot=2,linked=true}} end)
+run(t,1)
+assert(#W.said==0,'No ghost in her slot yet')
 -- The guest: the host on another map, an offer once (follow_host=ask), follow_key asks the host's camps. Of the
 -- answer, a name not in her table, a camp of another world and one this game does not know (FNAME_Find gives None)
 -- are skipped; the first that passes is asked of the native part with its FName (Xion_Camp_10: Xion_Camp and 11).

@@ -145,9 +145,9 @@ local ok,message=screen.open()
 assert(ok and message=='Create a session is open' and screen.is_open() and shown.create)
 assert(inputs[1].on==true and inputs[1].who=='create' and inputs[1].mouse==true and sounds[1]=='open')
 assert(logs[1]=='create: open' and text_at(3686,72)=='Create a session')
-assert(list()=='#SESSION | >Who can join=Public | Friends join without asking=On | #SESSION RULES | '
+assert(list()=='#SESSION | >Who can join=Public | Friends join without asking=On | Players=4 | #SESSION RULES | '
     ..'Shared enemies (experimental)=On | Same place (experimental)=On | Same spawns (experimental)=On | '
-    ..'Extra enemies (host\'s)=0 | Shared bosses (experimental)=On | Enemy HP (host\'s)=135 %',list())
+    ..'Extra enemies (host\'s)=0 | Shared bosses (experimental)=On',list())
 local pane=live(HEADER,2600)
 assert(#pane==1 and pane[1].y==384 and pane[1].props.Category_Name.text=='Who can join')
 assert(text_at(2600,524)==T.en.create.who.public,text_at(2600,524))
@@ -156,11 +156,11 @@ assert(hint_line()=='Back/Negative Change/UI_DPad_Left',hint_line())
 sounds={}
 screen.nav('right')
 assert(acts[1].set=='who_can_join' and acts[1].value=='friends' and sounds[1]=='change')
-assert(list():find('^#SESSION | >Who can join=Friends only | #SESSION RULES',1),list())
+assert(list():find('^#SESSION | >Who can join=Friends only | Players=4 | #SESSION RULES',1),list())
 assert(text_at(2600,524)==T.en.create.who.friends)
 -- Left twice: Public, then Private (wrapping back past Public's left); Invitation gives the row back.
 screen.nav('left'); screen.nav('left')
-assert(acts[3].value=='closed' and list():find('>Who can join=Private | #SESSION RULES',1,true))
+assert(acts[3].value=='closed' and list():find('>Who can join=Private | Players=4 | #SESSION RULES',1,true))
 screen.nav('left')
 assert(acts[4].value=='invitation' and list():find('>Who can join=Invitation | Friends join without asking=On',1,true))
 -- Select on a setting: its next value, as Right.
@@ -173,19 +173,21 @@ screen.nav('down')
 assert(live(HEADER,2600)[1].props.Category_Name.text=='Friends join without asking' and text_at(2600,524)=='')
 screen.nav('right')
 assert(acts[7].set=='friends_ask' and acts[7].value=='on' and list():find('>Friends join without asking=Off',1,true))
--- Down past the header to Shared enemies; Off takes its seven sub-rows away.
+-- Down to Players, then past the header to Shared enemies; Off takes its seven sub-rows away.
 sounds={}
 screen.nav('down')
-assert(sounds[1]=='move' and list():find('>Shared enemies (experimental)=On',1,true))
+assert(sounds[1]=='move' and list():find('>Players=4',1,true))
+screen.nav('down')
+assert(sounds[2]=='move' and list():find('>Shared enemies (experimental)=On',1,true))
 screen.nav('left')
 assert(acts[8].set=='shared_enemies' and acts[8].value=='off')
-assert(list()=='#SESSION | Who can join=Public | Friends join without asking=Off | #SESSION RULES | '
+assert(list()=='#SESSION | Who can join=Public | Friends join without asking=Off | Players=4 | #SESSION RULES | '
     ..'>Shared enemies (experimental)=Off | Shared world (experimental)=On | Story together (experimental)=On | '
-    ..'Shared quests (experimental)=On | Friend can revive me=On | Start=',list()) -- Back below the 10 rows shown.
+    ..'Shared quests (experimental)=On | Friend can revive me=On',list()) -- Start and Back below the 10 rows shown.
 screen.nav('right')
 assert(input.values.shared_enemies=='on')
 
--- The window: 18 rows, 10 shown; down to the end scrolls, Start and Back last; their hint is Select.
+-- The window: 19 rows, 10 shown; down to the end scrolls, Start and Back last; their hint is Select.
 for _=1,12 do screen.nav('down') end
 assert(list():find('| >Start= | Back=$'),list())
 assert(list():find('^Shared bosses'),list())
@@ -224,18 +226,18 @@ assert(not screen.is_open() and #acts==n and sounds[1]=='back')
 clock=120
 screen.open()
 local zones=groups.create.zones
-zones[5].hover=true
+zones[6].hover=true
 screen.tick(200)
 assert(list():find('>Who can join',1,true),'The first look: a resting mouse')
-zones[5].hover,zones[3].hover=false,true
+zones[6].hover,zones[3].hover=false,true
 screen.tick(200.2)
 assert(list():find('>Friends join without asking',1,true),'Moved onto row 3')
-zones[3].hover,zones[5].hover=false,true
+zones[3].hover,zones[6].hover=false,true
 screen.nav('click')
 assert(acts[#acts].set=='shared_enemies' and acts[#acts].value=='off' and #acts==n+1)
-zones[5].hover,zones[4].hover=false,true
+zones[6].hover,zones[5].hover=false,true
 screen.nav('click')
-zones[4].hover=false
+zones[5].hover=false
 assert(#acts==n+1,'A click on a header: nothing')
 screen.nav('select')
 assert(input.values.shared_enemies=='on')
@@ -248,19 +250,20 @@ local locked=live(OPTION)[1]
 assert(locked.props.bLockItem==true and has(locked,'EventNotification','RefreshAppearance'))
 assert(list():find('Shared enemies (experimental)=On*',1,true),list())
 n=#acts
-screen.nav('up') -- From Shared enemies over the header: Friends join without asking.
-assert(list():find('>Friends join without asking=Off*',1,true) and text_at(2600,524)==T.en.create.locked,list())
+screen.nav('up') -- From Shared enemies over the header: Players.
+assert(list():find('>Players=4*',1,true) and text_at(2600,524)==T.en.create.locked,list())
 assert(hint_line()=='Back/Negative',hint_line())
 screen.nav('right'); screen.nav('left'); screen.nav('select')
 assert(#acts==n and screen.is_open())
-screen.nav('up'); screen.nav('up'); screen.nav('up') -- Who can join, Back, Start.
+screen.nav('up'); screen.nav('up'); screen.nav('up'); screen.nav('up') -- Friends join without asking, Who can
+-- join, Back, Start.
 screen.nav('select')
 assert(acts[#acts].host=='public' and not screen.is_open())
 input.readable=true
 
--- The mouse moved onto the 10th row (Enemy HP) and resting there: the list keeps still under it, one move sound; a
--- click 0.7 s later changes Enemy HP and the list still keeps still. Keys that scroll the list under the resting mouse
--- keep the cursor.
+-- The mouse moved onto the 10th row (Shared bosses) and resting there: the list keeps still under it, one move sound;
+-- a click 0.7 s later changes Shared bosses and the list still keeps still. Keys that scroll the list under the
+-- resting mouse keep the cursor.
 clock=125
 screen.open()
 sounds={}
@@ -270,16 +273,16 @@ zones[9].hover,zones[10].hover=false,true
 for k=1,7 do screen.tick(300+0.1*k) end
 local window=list()
 local function ends(text,tail) return text:sub(-#tail)==tail end
-assert(window:find('#SESSION |',1,true)==1 and ends(window,'| >Enemy HP (host\'s)=135 %'),window)
+assert(window:find('#SESSION |',1,true)==1 and ends(window,'| >Shared bosses (experimental)=On'),window)
 assert(#sounds==1 and sounds[1]=='move',#sounds)
 n=#acts
 screen.nav('click')
-assert(acts[n+1].set=='enemy_hp_scale' and ends(list(),'| >Enemy HP (host\'s)=140 %'),list())
+assert(acts[n+1].set=='bosses' and ends(list(),'| >Shared bosses (experimental)=Off'),list())
 screen.nav('left')
-assert(ends(list(),'| >Enemy HP (host\'s)=135 %'),list())
-screen.nav('down') -- Boss HP; the list scrolls by two: Enemies attack under the mouse.
+assert(ends(list(),'| >Shared bosses (experimental)=On'),list())
+screen.nav('down') -- Enemy HP; the list scrolls by two: Boss HP under the mouse.
 screen.tick(302)
-assert(list():find('| >Boss HP (host\'s)=200 % | Enemies attack (host\'s)=',1,true),list())
+assert(list():find('| >Enemy HP (host\'s)=135 % | Boss HP (host\'s)=',1,true),list())
 zones[10].hover=false
 screen.close()
 
@@ -288,10 +291,10 @@ screen.close()
 screen.open()
 refuse='cannot write coop-settings.txt.tmp'
 sounds={}
-screen.nav('down'); screen.nav('down') -- Shared enemies.
+screen.nav('down'); screen.nav('down'); screen.nav('down') -- Shared enemies.
 screen.nav('right')
 refuse=nil
-assert(acts[#acts].set=='shared_enemies' and table.concat(sounds,' ')=='move move',table.concat(sounds,' '))
+assert(acts[#acts].set=='shared_enemies' and table.concat(sounds,' ')=='move move move',table.concat(sounds,' '))
 assert(list():find('>Shared enemies (experimental)=On',1,true) and text_at(2600,524)=='Not saved: cannot write '
     ..'coop-settings.txt.tmp',text_at(2600,524))
 screen.nav('up')
@@ -373,7 +376,7 @@ fail_class=HEADER
 local s3=Create.new({kit=kit,words=function() return T.en end,view=function() return input end,act=act})
 zones=groups.create.zones
 s3.slow(true); s3.open()
-assert(zones[1].label=='SESSION' and zones[1].state=='disabled' and zones[4].label=='SESSION RULES')
+assert(zones[1].label=='SESSION' and zones[1].state=='disabled' and zones[5].label=='SESSION RULES')
 assert(text_at(2600,384)=='Who can join','The pane header\'s fallback')
 s3.close()
 fail_class=HINT

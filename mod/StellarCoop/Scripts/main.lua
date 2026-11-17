@@ -89,6 +89,8 @@
 -- coop bike [status|tune [<name> <value>]] puts EVE on SB's own bike or takes her off it, as bike_key (F3 unless set)
 -- and D-pad Right held 1 s do, on any save (commands/bike.lua, bike/ride.lua; its riding model, bike/model.lua, adapts
 -- Eve On Wheels by dCharisma1).
+-- coop daynight [on|off|status|hour <h>], the day/night cycle's test words (sky/daynight.lua, commands/daynight.lua;
+-- left out of the usage line); daynight in coop-settings.txt or the co-op menu turns the cycle on or off.
 -- coop shortcut lists the cut Load Shortcut menu's developer saves, read from the game's paks by the native part, on
 -- any save (left out of the usage line); coop shortcut load <map> <1-4> writes one, without its achievement data, as
 -- co-op slot 5's copy, only with shortcut_load=on and typed twice within 10 s (commands/cut.lua).
@@ -240,10 +242,13 @@ if crashed then
     aside_note=(crashed.path:match('([^./]+)$') or crashed.path):sub(1,32)
 end
 local puppet=require('partner.puppet').new(link,capture,say,settings and settings.name_tag,look,words,sentinel)
--- With the Steam link, a ghost for each other member of a match lobby in ghost slots 1 to 6, each on its slot's files.
+-- With the Steam link, a ghost for each other member of a lobby in ghost slots 1 to 6 (a match lobby, or an online
+-- session of more than 2 players), each on its slot's files.
 local ghosts=link and require('partner.ghosts').new(link,function(files)
     return require('partner.puppet').new(files,capture,say,settings and settings.name_tag,look,words,sentinel)
 end)
+-- Ghost slot k's puppet past slot 0 (the HUD rows, the revive, the follow), nil before a member held it.
+local function ghost_of(k) return ghosts and ghosts.get(k) end
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 -- Read from the pose path's line only, as a peer's Steam name could say the same.
 local function native_off()
@@ -684,6 +689,42 @@ local others=link and require('bike.others').new({log=function(m) print('[Stella
     store=link.store('coop-bike-copies.txt')})
 -- The capture leaves the bike's part out while EVE does not ride: hidden, it would take one of the ghost's 16 parts.
 capture.leave_out(bike.idle_part)
+-- The day/night cycle (sky/daynight.lua): the request for the native part's env writer (game/sky.h), decided in the
+-- 250 ms loop below from the map, the setting and SB's state; coop daynight reads and pins it (commands/daynight.lua).
+-- The lobby rule is Xion's training room only: a hall lobby has its own row.
+-- coop-sky.txt keeps the originals of the world's lights, so a Lua reload does not take the dimmed ones for them.
+o.daynight=require('sky.daynight').new({log=log,ask=function(line) return ask(line)() end,
+    status=function() return link and link.status() end,settings=settings,store=link and link.store('coop-sky.txt'),
+    her=function() return U.her(U.valid(require('UEHelpers').GetPlayer())) end,address=U.address,map_of=U.map_of,
+    world=function(eve) return U.address(eve:GetWorld()) end,
+    cutscene=function() return group~=nil and group.cutscene_playing() end,
+    screen=function() return kit~=nil and kit.paused(true) end,photo=photo_state,night=night.running,
+    frozen=function()
+        local p=link and link.photo()
+        return p~=nil and p.frozen
+    end,
+    lobby=function()
+        local t=sbo and sbo.target()
+        return t~=nil and t.key=='xion'
+    end,
+    find=function(path) return U.valid(StaticFindObject(path)) end,
+    actors_of=function(path)
+        local cls,her=U.valid(StaticFindObject(path)),U.her(U.valid(require('UEHelpers').GetPlayer()))
+        return cls and her and (U.actors_of(cls,path:match('([^.]+)$'),her)) or {}
+    end,
+    load=function(path) return LoadAsset(path) end,
+    -- The streaming level of a sublevel package in EVE's world (GameplayStatics GetStreamingLevel matches the end of
+    -- each streaming level's package name in C++), or nil when it is not streamed.
+    level=function(package)
+        local her=U.her(U.valid(require('UEHelpers').GetPlayer()))
+        return her and U.find('/Script/Engine.Default__GameplayStatics'):GetStreamingLevel(her,FName(package)) or nil
+    end,
+    exists=function(path)
+        local f=io.open(path,'rb')
+        if f then f:close() end
+        return f~=nil
+    end,
+    cps=folder and require('sky.rule').cps(folder)})
 -- coop chainspin (cut/chainspin.lua), logging [CS] lines: the cut ChainSpin's rows through coop lion, then the request.
 o.chainspin=require('cut.chainspin').new({log=function(m) print('[StellarCoop][CS] '..tostring(m)..'\n') end,
     status=function() return link and link.status() end,rows=function(done) return lion.rows(done) end})
@@ -819,7 +860,8 @@ local commands={
     end,
 }
 -- The other commands, from Scripts/commands/.
-for _,file in ipairs({'session','partner','nightop','race','fight','cut','guide','story','world','scenes','bike','keys'}) do
+for _,file in ipairs({'session','partner','nightop','race','fight','cut','guide','story','world','scenes','bike','keys',
+        'daynight'}) do
     for name,handler in pairs(require('commands.'..file).new(o)) do
         assert(commands[name]==nil,'coop '..name..' is defined twice')
         commands[name]=handler
@@ -911,7 +953,7 @@ if settings then
         uidev=link.uidev})
     box=require('session.chat').view({kit=kit,model=chat,settings=settings,theme=Ui.THEME,
         covered=function() return menu.is_open() end})
-    hud=require('partner.hud').hud({kit=kit,link=link,puppet=puppet,settings=settings,theme=Ui.THEME})
+    hud=require('partner.hud').hud({kit=kit,link=link,puppet=puppet,settings=settings,theme=Ui.THEME,ghost=ghost_of})
     night.hud({kit=kit,theme=Ui.THEME,settings=settings})
     race.hud({kit=kit,theme=Ui.THEME,settings=settings})
     talks.hud({kit=kit,theme=Ui.THEME}) -- The kit version of Lily's talks.
@@ -969,7 +1011,7 @@ if settings then
     local LAST={['match search']='search',['match create']='create',join='join'}
     local function view()
         local version,proto=('\n'..(link.status() or '')):match('\nmod=(%S+) proto=(%d+)')
-        return {match=link.match(),members=link.members(),role=link.mode() or 'none',code=(link.code()),
+        return {match=link.match(),members=link.members(),role=link.mode() or 'none',limit=link.cap(),code=(link.code()),
             me={id=(link.saves() or {}).steamid,name=link.me()},owner=link.owner(),last=last,copied_at=copied_at,
             now=os.clock(),version=version,proto=tonumber(proto),settings=settings,halls=sbo.hall()~='xion',room=room}
     end
@@ -1211,10 +1253,10 @@ LoopInGameThreadWithDelay(1,function()
     -- Before the native tick: the pose it captures has the yaw the driving writes.
     ok,message=guarded('race',race.steer)
     if message then report(ok,message) end
-    steered=os.clock()-steered
     -- The bike's frame, before the native tick too: her drive's yaw, her lean and pitch. Its end said on screen.
     ok,message=guarded('bike',bike.steer)
     if message then report(ok,message); say(message) end
+    steered=os.clock()-steered -- The race column carries the bike's frame: the first ride gives its real cost.
     if native_tick then native_tick() end
     local placed=os.clock()
     ok,message=guarded('ghost',puppet.place) -- The root takes the mailbox this native tick just wrote.
@@ -1340,16 +1382,19 @@ if link then
     -- own respawn says nothing). rest: the line's last zone, n and resets, when the host last read down, and since when
     -- ours reads alive. Forgotten with fight_maxhp.
     local REST_CALM,rest=10,{}
-    local function her_name(w) -- '' (a stranger's unknown name) as your friend, in w's words.
-        local name=require('session.chat').clean((link.friend()) or '')
+    -- That name, or the slot-0 member's, cleaned; '' (a stranger's unknown name) as your friend, in w's words.
+    local function her_name(w,name)
+        name=require('session.chat').clean(name or (link.friend()) or '')
         return name~='' and name or w.fight.friend
     end
     group=require('session.group').new({link=link,puppet=puppet,settings=settings,tell=tell,name=her_name,
-        log=function(m) print('[StellarCoop][GR] '..tostring(m)..'\n') end,night=function() return night.running() end})
+        log=function(m) print('[StellarCoop][GR] '..tostring(m)..'\n') end,night=function() return night.running() end,
+        ghost=ghost_of})
     -- The follow waits while the game is paused, in photo mode or in the co-op menu, during a Night Operation run and
     -- during a cutscene in our game. follow=true: on since 2026-11-12 with every other mode, not yet tested in game.
     -- Its tick also gives the native part the host's place and rules words for the session list's row.
     travel=require('session.travel').new({link=link,puppet=puppet,settings=settings,tell=tell,name=her_name,follow=true,
+        ghost=ghost_of,
         log=function(m) print('[StellarCoop][TR] '..tostring(m)..'\n') end,
         paused=function() return kit.paused(true) or menu.is_open() or photo_state()~='0' end,
         night=function() return night.running() end,cutscene=function() return group.cutscene_playing() end})
@@ -1476,17 +1521,20 @@ if link then
     -- save loaded, so not at the title or during a load) and stopped for the run, each once as it starts; and each
     -- quest note once (link.quest_notes): her quest ahead (in the host's words or hers, by our role), behind the host,
     -- a step waiting for its zone, a Request to hand in at her board, a kill step, and coop quests force's answers. A
-    -- Request not on her board yet and a step no zone can place show in coop quests status only.
+    -- Request not on her board yet and a step no zone can place show in coop quests status only. With several guests,
+    -- the host's on notice names the first whose side is on (with=) and his ahead notice the guest whose line it is.
     local QUEST_NOTES={ahead=true,behind=true,zone=true,board=true,kill=true,forced=true,forced_warp=true,
         not_forced=true}
     local quests_was,quests_with,quests_role=nil,false,nil
+    local function member_name(id) local m=id and link.member(id); return m and m.name end
     local function quest_notices()
         local line=link.quests()
         if line then
             local state,why,partner=line:match('^quests=(%a+)'),line:match(' why=(%a+)'),line:match(' partner=(%a+)')
             local with=state=='on' and partner=='on'
             if with and not quests_with then
-                tell(function(w) return w.quests.on:format(her_name(w)) end)
+                local name=member_name(line:match(' with=(%d+)'))
+                tell(function(w) return w.quests.on:format(her_name(w,name)) end)
             elseif quests_with and state=='on' and partner=='off' then
                 tell(function(w) return w.quests.partner_off:format(her_name(w)) end)
             end
@@ -1501,12 +1549,13 @@ if link then
         for _,n in ipairs(link.quest_notes()) do
             if QUEST_NOTES[n.kind] then
                 local key=n.kind=='ahead' and (quests_role=='host' and 'ahead_host' or 'ahead_guest') or n.kind
+                local name=member_name(n.from)
                 tell(function(w)
                     local q=w.quests
                     if key=='zone' then return q.zone:format(her_name(w),n.alias,n.zone or '?') end
                     if key=='kill' then return q.kill:format(n.alias,n.id) end
                     if key=='board' or key:find('forced') then return q[key]:format(n.alias) end
-                    return q[key]:format(her_name(w),n.alias) -- ahead_host, ahead_guest, behind
+                    return q[key]:format(her_name(w,name),n.alias) -- ahead_host, ahead_guest, behind
                 end)
             end
         end
@@ -1658,6 +1707,7 @@ if link then
         took.slow,took.booth=0,0 -- Neither may run in this pass.
         if off and not blocked then blocked=native_off() end
         for _,line in ipairs(link.changes()) do log('link: '..line) end
+        guarded('daynight',o.daynight.slow,off) -- After coop off too: it asks sky off once.
         if not off then guarded('nightop',night.tick) end -- Night Operation's run, if any: it logs its own lines.
         -- Roxanne's Night Operation choices: likewise; after coop off, only her two choices and the rows back.
         guarded('roxanne',o.roxanne.tick,off)

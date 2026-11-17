@@ -43,5 +43,6 @@ do
     said=H.tick()
     assert(#said==1 and said[1][2]=='slot 4: stopped','the error once')
     assert(#H.place()==0,'nothing to say')
+    assert(H.get(2)==made[2] and H.get(4)==made[4] and H.get(1)==nil and H.get(0)==nil,'get(k): slot k\'s ghost')
 end
 print('ghosts_test ok')

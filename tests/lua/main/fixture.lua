@@ -172,7 +172,7 @@ fake_link={
     wait=function() return link_wait end,
     stranger=function() return link_stranger end,
     lobby=function() return link_lobby end,
-    ping=function() return ping_ms end,
+    ping=function() return friend_linked and ping_ms or nil end, -- The real one: none before she is linked.
     mate=function() return mate_v end,
     paks=function() return paks_v end,
     mods=function() return mods_v end,
@@ -210,6 +210,17 @@ fake_link.life=function() return fake_link.Q.life end -- link.life(): our life s
 fake_link.friend=function() return friend_name,friend_linked,fake_link.lost==true end
 fake_link.member=function(id) return nil end -- link.member(id): no member line in these tests.
 fake_link.members=function() return {} end
+-- link.pendings(): link_pending alone; link.host() and link.vitals(): none; link.cap(): link_cap; link.others(): the
+-- friend while linked plus each member line linked past slot 0.
+fake_link.pendings=function() return {link_pending} end
+fake_link.host=function() return nil end
+fake_link.vitals=function() return nil end
+fake_link.cap=function() return link_cap end
+fake_link.others=function()
+    local n=friend_linked and 1 or 0
+    for _,m in ipairs(fake_link.members()) do if m.linked and m.slot~=0 then n=n+1 end end
+    return n
+end
 -- link.list(): the session list's search line and rows (list_search, list_rows).
 list_search,list_rows=nil,{}
 fake_link.list=function() return list_search,list_rows end
@@ -539,6 +550,14 @@ package.loaded['bike.others']={new=function(o)
     return {slow=function() bo.slows=bo.slows+1 end,restore=function() bo.restores=bo.restores+1 end,
         clear=function(why) bo.cleared=why end}
 end}
+-- The day/night cycle (sky/daynight.lua; sky/daynight_test tests it): what new got (o), each 250 ms pass's off,
+-- coop daynight's words.
+dn={}
+package.loaded['sky.daynight']={new=function(o)
+    dn.o=o
+    return {slow=function(off) dn.slows[#dn.slows+1]=off end,status=function() return 'daynight: test' end,
+        command=function(word,arg) dn.words[#dn.words+1]={word,arg}; return true,'dn '..word end}
+end}
 -- The Doro race (race/run.lua; race_test tests it): what race.new got, coop race's words, her race lines, its ticks,
 -- slows, stops and keys, whether it is armed, what a tick or the key answers, a stop, a steer or a tick that raises,
 -- its HUD; its steers and the native ticks made before the last one.
@@ -622,7 +641,7 @@ end}
 -- what hall() says (sb.hall, nil: 'xion') and the last Private match asked (created: its request and room); the hall
 -- lobby seats: the free seat within reach (sb.seat; seat_error: what near_seat raises), the seat EVE sits on
 -- (sb.sitting), the last seat sat on (sat), the stand-ups asked (stands) and whether SB's interaction runs on EVE
--- (sb.busy); the arrival's hold: what unready() gives (sb.unready, nil: none).
+-- (sb.busy); the arrival's hold: what unready() gives (sb.unready, nil: none); the lobby EVE stands in (sb.target).
 sb={}
 package.loaded['session.sbo']={OFF='the SBO lobby is off in coop-settings.txt (sbo_lobby=off)',new=function(o)
     sb.o=o
@@ -635,6 +654,7 @@ package.loaded['session.sbo']={OFF='the SBO lobby is off in coop-settings.txt (s
         in_lobby=function() return sb.here end,
         active=function() return sb.active end,gate=function() return nil,'no zSBO_Lobby (fixture)' end,
         lobby_words=function() return 'hotel 47101_5096' end,hall=function() return sb.hall or 'xion' end,
+        target=function() return sb.target end,
         create=function(request,room) sb.created=request..' '..tostring(room); return true,'sb create' end,
         near_seat=function() if sb.seat_error then error(sb.seat_error,0) end return sb.seat end,
         seated=function() return sb.sitting end,busy=function() return sb.busy end,
@@ -898,6 +918,7 @@ function load_main(with_native,no_folder,source)
     rc_log,rc_ready,rc_runs,rc_stops,rc_ticks,rc_autos=nil,nil,{},0,0,0
     sb.o,sb.calls,sb.on_loads,sb.ticks,sb.titles,sb.offs,sb.asked_at_off,sb.active=nil,{},0,0,0,0,nil,false
     sb.to_menus,sb.to_rooms,sb.here,sb.hall,sb.created,sb.unready=0,0,false,nil,nil,nil
+    sb.target=nil
     hooks,fades.calls={},{}
     sb.seat,sb.seat_error,sb.sitting,sb.sat,sb.stands,sb.busy=nil,nil,nil,nil,0,false
     lb.o,lb.calls,lb.screen,lb.ask,lb.refuse,lb.slows,lb.ticks=nil,{},nil,nil,nil,0,{}
@@ -929,6 +950,7 @@ function load_main(with_native,no_folder,source)
     bk.answer,bk.raise,bk.says,bk.slow_says,bk.idle_part,bk.idle_part_at=nil,nil,nil,nil,nil,nil
     bo.o,bo.slows,bo.restores,bo.cleared=nil,0,0,nil
     dr.active,gl.active=nil,nil
+    dn.o,dn.slows,dn.words=nil,{},{}
     ra.o,ra.cmds,ra.received,ra.ticks,ra.slows,ra.stops,ra.keys,ra.armed,ra.hud={},{},{},0,0,0,0,false,nil
     ra.tick_raise,ra.steer_raise=nil,nil
     ra.steers,ra.steered_at,dv.restores=0,nil,0

@@ -14,7 +14,8 @@ Stellar Blade Online has two parts, both in the mod folder `Mods/StellarCoop/`:
   - a worker thread, started when Windows loads the DLL. It makes every Steam call, reads and writes the files shared
     with Lua, sends and receives tables and poses, and writes the logs.
   - `coop_tick`, an exported function that the Lua loop calls once per frame on the game thread. It reads and encodes
-    EVE's pose from engine memory, decodes the poses that came back, and writes the ghost's bones.
+    EVE's pose from engine memory, decodes the poses that came back and writes the ghost's bones. Every 100 ms it also
+    writes the [day and night cycle](daynight.md)'s light into the world's env settings.
   - `coop_pad`, an exported function that the Lua loop calls each frame for the controller's events (see
     [Controller](#controller)).
 
@@ -43,9 +44,12 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `commands/guide.lua` | `coop guide`, which opens the guide |
 | `commands/world.lua` | `coop world`: on and off for the [shared world](shared-world.md) until the mod reloads, and its status line |
 | `commands/scenes.lua` | `coop scenes`: on and off for [story together](story-sync.md) until the mod reloads; its status line |
+| `commands/daynight.lua` | `coop daynight`: its words handed to `sky/daynight.lua` ([Day and night](daynight.md)) |
 | `commands/bike.lua` | `coop bike`, `coop bike status` and `coop bike tune`, handed to `bike/ride.lua` ([The bike](bike.md)) |
 | `bike/ride.lua` | The bike on EVE: the preload asked of the native part, the bike part on her actor, the checks, the mount and the dismount in their order with `coop-bike.txt`, the gate, the riding pose kept playing, the lean on her main mesh ([The bike](bike.md)) |
 | `bike/model.lua` | The bike's riding model, adapted from Eve On Wheels by dCharisma1, in `race/drive_model.lua`'s table shape so `race/drive.lua` drives it ([Riding](bike.md#riding)) |
+| `sky/rule.lua` | The day and night cycle's map table and rules, the native status line's `sky=` reader, the command's hour, with no engine call ([Day and night](daynight.md)) |
+| `sky/daynight.lua` | The day and night cycle in the 250 ms pass: the `sky` request on change, the sky dressing (domes, SkyCreator time, SBO's star layer, Xion's night dome) and the lights of SBO's own maps, all put back at an off, with their originals kept in `coop-sky.txt` for a Lua reload ([Day and night](daynight.md)) |
 | `core/link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
 | `partner/capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
 | `partner/puppet.lua` | The ghost: builds it from a table, places it, its name tag, effects, its Doro mode in a race, `coop where` |
@@ -117,7 +121,8 @@ the UI's open and close animations, the game's input given back after the menu o
 controller's events, the row under the mouse (every 100 ms while the menu is open), and your friend's marker and
 gauges. The other runs every 250 ms: link status changes, session start, notices to show, chat lines in and out, Night
 Operation's run, the race's session and map checks, the UI's root and its focus watchdog, the menu's rows and status
-line, the phone booth scan, the chat's feed, your friend's card, the capture and the remote table.
+line, the phone booth scan, the chat's feed, your friend's card, the capture, the remote table and the day and night
+cycle's request and sky.
 
 The [co-op line](../interface.md#co-op-line) opens at the camp phone booths that the levels place, actors of two
 classes: `Env_Camp_TeleportMachine_C` (the booth of every full camp, and Xion's five booths) and
@@ -183,6 +188,9 @@ file is written in full beside its final name and then renamed over it, so the r
   our key and the keys of photo mode and the game's menus never undo each other. The DLL remembers whether our key is
   in: an `off` with nothing hidden calls nothing, and `coop off` takes the key out. `coop-link.log` has
   `hud: SB's HUD hidden for the lobby (key SBOLobby)` and `hud: SB's HUD shown again`.
+- The day and night cycle asks `sky off`, `sky cycle`, `sky hour` or `sky hold` in `coop-request.txt` only when its
+  decision changes. It reads its state, hour and sun from the `sky=` line of `coop-status.txt`
+  ([Day and night](daynight.md#the-request-and-the-status-line)).
 - Each warp into an SBO lobby (the entry, a guest's warp to her host's hall, a Private match on another hall,
   `coop sbo back`) arms the arrival's hold (`session/arrival.lua`). Stellar Blade hides its travel screen at the end
   of its own arrival flow and has no setting that keeps it up, so the hold uses the game's second loading screen:

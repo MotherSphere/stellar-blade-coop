@@ -98,6 +98,7 @@ struct Fake {
   int32_t pending = 4096; // Steam's pending unreliable bytes and queue time.
   int64_t queue_us = 25000;
   int send_result = 1; // Anything but 1: Steam refuses the send, which is neither recorded nor delivered.
+  uint64_t refuse_to = 0; // Steam refuses every send to this SteamID with 25 (LimitExceeded), as send_result does.
   // Anything but 1: the join fails with that EChatRoomEnterResponse, no member added. A lobby with no members gets 2
   // (DoesntExist) whatever it says: Steam drops an empty lobby. One set not joinable gets 3 (NotAllowed), one at its
   // member limit 4 (Full).
@@ -196,7 +197,7 @@ template <int N> Api make_api() {
     return true;
   };
   a.create_lobby = [](void *, int type, int max) -> uint64_t {
-    assert(type >= 0 && type <= kInvisible && (max == 2 || max == 8));
+    assert(type >= 0 && type <= kInvisible && ((max >= 2 && max <= kMaxMembers) || max == kMatchMembers));
     op("create " + std::to_string(F.client[N].id) + " " + std::to_string(type) + " " + std::to_string(max));
     F.lobby_type = type;
     if (F.refuse_create)
@@ -253,9 +254,9 @@ template <int N> Api make_api() {
   a.member_count = [](void *, uint64_t lobby) { return static_cast<int>(F.members[lobby].size()); };
   a.member = [](void *, uint64_t lobby, int i) { return F.members[lobby].at(static_cast<size_t>(i)); };
   a.send = [](void *, const Identity *who, const void *data, uint32_t size, int flags, int channel) {
-    if (F.send_result != 1)
-      return F.send_result;
     uint64_t from = F.client[N].id, to = steam_id_of(*who);
+    if (F.send_result != 1 || to == F.refuse_to)
+      return F.send_result != 1 ? F.send_result : 25;
     std::string text(static_cast<const char *>(data), size);
     opened(from, to);
     F.sent.push_back({from, to, channel, flags, text});

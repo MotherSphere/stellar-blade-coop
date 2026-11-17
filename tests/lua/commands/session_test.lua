@@ -20,12 +20,12 @@ local s=Session.new({link=link,settings=settings,
 
 -- coop host <word>: at once, as the native part takes the word.
 for _,word in ipairs({'public','friends','invitation','closed'}) do
-    assert(s.host(word) and asked[#asked]=='host '..word,word)
+    assert(s.host(word) and asked[#asked]=='host '..word..' 4',word)
 end
 -- friends_ask=on: Steam friends wait too, under public and invitation only.
 settings.friends_ask=true
-for word,line in pairs({public='host public ask',invitation='host invitation ask',friends='host friends',
-    closed='host closed'}) do
+for word,line in pairs({public='host public ask 4',invitation='host invitation ask 4',friends='host friends 4',
+    closed='host closed 4'}) do
     assert(s.host(word) and asked[#asked]==line,word)
 end
 -- Any other word, or a second one, is refused; nothing asked.
@@ -35,15 +35,16 @@ for _,bad in ipairs({{'code'},{'private'},{'Public'},{'public','ask'}}) do
     assert(not ok and why=='Use: coop host [public|friends|invitation|closed]' and #asked==n,bad[1])
 end
 -- coop host alone: who_can_join's word with no screen, or a screen that does not open now; the screen once it opens.
-settings.friends_ask,settings.who_can_join=false,'invitation'
-assert(s.host() and asked[#asked]=='host invitation')
+-- max_players ends the line: the lobby's room.
+settings.friends_ask,settings.who_can_join,settings.max_players=false,'invitation',3
+assert(s.host() and asked[#asked]=='host invitation 3')
 local opens=0
 screen={open=function() opens=opens+1; return nil end}
-assert(s.host() and asked[#asked]=='host invitation' and #asked==n+2 and opens==1,'It cannot open: hosts at once')
+assert(s.host() and asked[#asked]=='host invitation 3' and #asked==n+2 and opens==1,'It cannot open: hosts at once')
 screen.open=function() opens=opens+1; return true,'Create a session opened' end
 local ok,message=s.host()
 assert(ok and message=='Create a session opened' and #asked==n+2 and opens==2,'Opened: nothing hosted')
-assert(s.host('closed') and asked[#asked]=='host closed' and opens==2,'A word never opens the screen')
+assert(s.host('closed') and asked[#asked]=='host closed 3' and opens==2,'A word never opens the screen')
 
 -- coop list: a search by its tab; alone, the Public one while there is no list.
 assert(s.list('friends') and asked[#asked]=='list friends' and s.list('public') and asked[#asked]=='list public')

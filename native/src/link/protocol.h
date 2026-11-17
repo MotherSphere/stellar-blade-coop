@@ -30,6 +30,10 @@
 //   From a match lobby's owner only (link/core.h): SBC<protocol> start <mode> <map> <seed> <id>,<id>,... (a round
 //   starts: its mode, map, 32-bit seed and players, host first), SBC<protocol> count <1-10|stop> (the countdown's
 //   seconds left, or its stop) and SBC<protocol> end (the round ended).
+//   From an online session's host only (link/core.h): SBC<protocol> let <pair> <id>,<id>,... <max> (to each guest past
+//   the handshake: the one who plays the shared fight, world and story with the host, or 0, then the members the host
+//   let in, then the players the session holds at most) and SBC<protocol> wait <seconds> (to a joiner who waits for
+//   the host's answer: the most it may take now).
 // All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
 // (pose/table.h), its pose "SBP<protocol>" and its delta "SBD<protocol>" (pose/codec.h), and beside them the enemy
 // roots of same-place enemies, "SBE<protocol>" (fight/pilot.h). Channel 2 carries the shared enemies' text lines and
@@ -57,7 +61,7 @@
 #include "game/pak_list.h"
 
 namespace coop {
-constexpr int kProtocol = 22; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 23; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                               // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
                               // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
                               // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines,
@@ -95,13 +99,15 @@ constexpr int kProtocol = 22; // Bump on any wire change. 1 was the first link (
                               // adds the dlc and dlcs lines (the DLCs installed on each PC), which a protocol-20 peer
                               // would count invalid; 22 adds story together's SBS lines on channel 2 (the host's
                               // scenes and story trips, followed in the guest's game), which a protocol-21 peer would
-                              // count malformed, so she would wait through his scenes as before; 22 also adds the
-                              // bike line on channel 0 (where each player's parked bike stands), which a protocol-21
-                              // peer would count invalid. An older peer (6:
-                              // v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1, 12:
-                              // v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14: v0.7.0-beta.1, 17: a v0.7.5 test
-                              // build, 18: v0.7.5, 19: v0.8.0 to v0.10.0, 20: v0.11.0; 15, 16 and 21 were never
-                              // released) is told why: the lobby tag, then the hello's reject, name both.
+                              // count malformed, so she would wait through his scenes as before; 23 adds online
+                              // sessions of up to 4 players with the host's let and wait lines on channel 0, which a
+                              // protocol-22 peer would count invalid; a protocol-22 game would also leave a lobby of
+                              // 3; 23 also adds the bike line on channel 0 (where each player's parked bike stands),
+                              // which a protocol-22 peer would count invalid. An older peer (6: v0.1.1, 7: v0.2.0, 9:
+                              // v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1
+                              // to beta.3, 14: v0.7.0-beta.1, 17: a v0.7.5 test build, 18: v0.7.5, 19: v0.8.0 to
+                              // v0.10.0, 20: v0.11.0; 15, 16, 21 and 22 were never released) is told why: the lobby
+                              // tag, then the hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -115,6 +121,9 @@ inline std::string lobby_tag(uint32_t build) { return std::to_string(kProtocol) 
 // the creator's request. A lobby whose kModeKey names a known mode is a match lobby; a co-op lobby carries none.
 constexpr int kMatchMembers = 8;
 constexpr size_t kMaxRemote = kMatchMembers - 1;
+// An online session (no kModeKey) holds 2 players to kMaxMembers, its host's max_players. 8 waits for a measure of 7
+// ghosts on one GPU: every structure here stays sized for kMatchMembers.
+constexpr int kMaxMembers = 4;
 constexpr char kModeKey[] = "sbo_mode", kStateKey[] = "sbo_state", kMapKey[] = "sbo_map";
 constexpr char kRoomKey[] = "sbo_room", kHallKey[] = "sbo_hall";
 // A mode: its name in kModeKey, the players its round needs at least, and its map until stage 4 adds arenas.
@@ -251,7 +260,7 @@ inline Life life_of(const Vitals &v) {
 
 enum class Kind {
   invalid, hello, accept, reject, ping, pong, photo, say, vitals, pak, paks, dlc, dlcs, camps_ask, camps, night, mark,
-  race, gift, bike, start, count, end
+  race, gift, bike, start, count, end, let, wait
 };
 // The follow's camps lines (session/travel.lua): the guest asks with an id from 0 to kMaxCampId, the host answers that
 // id with his world and up to kMaxCamps ZoneCampTable aliases, nearest his EVE first, each with its distance in whole
@@ -288,7 +297,8 @@ struct Message {
   uint64_t a = 0, b = 0; // hello: protocol, game build. ping/pong: sequence, sender's clock in ms. photo: '0', '1',
                          // 's' or 'c', then 1 for both. pak: the container's hash. paks: the count of .pak mods,
                          // their hash. dlc: the DLC's app id. camps?, camps: id. mark: its number, from 1. start:
-                         // the seed. count: the seconds, 0 for stop.
+                         // the seed. count: the seconds, 0 for stop. let: the pair's SteamID, 0 for none, then
+                         // max_players (2 to kMaxMembers). wait: the seconds, 1 to kMaxWait.
   std::string text;      // hello: mod version. reject: the reason. say: the line, chat_clean() and never empty. pak:
                          // the container's name, mod_name_ok(). dlc: its name, chat_clean() to kMaxDlcName and never
                          // empty. camps: the host's world, or "none". night: the
@@ -299,7 +309,8 @@ struct Message {
   std::string why;         // camps none: why.
   std::vector<Camp> camps; // camps: nearest first.
   std::string map;           // start: the map.
-  std::vector<uint64_t> ids; // start: the players' SteamIDs, 1 to kMatchMembers, distinct, none 0, host first.
+  std::vector<uint64_t> ids; // start: the players' SteamIDs, 1 to kMatchMembers, distinct, none 0, host first. let:
+                             // the members let in, 1 to kMaxRemote, distinct, none 0, the pair among them.
 };
 
 inline std::string hello(int protocol, const std::string &mod, uint32_t build) {
@@ -430,12 +441,43 @@ inline std::string count_line(uint32_t seconds) {
   return "SBC" + std::to_string(kProtocol) + " count " + (seconds ? std::to_string(seconds) : "stop");
 }
 inline std::string end_line() { return "SBC" + std::to_string(kProtocol) + " end"; }
-// Channel 2's tags, versioned like channel 0's: "SBF22" for the shared fight, "SBQ22" for the shared quests, "SBW22"
-// for the shared world, "SBS22" for story together.
+// An online session's host lines (link/core.h), reliable. let: to each guest past the handshake, the members the host
+// let in (past its handshake), in the order they came, after the pair: the one guest who plays the shared fight, the
+// shared world and story together with the host (0: none now); then max, the players the session holds at most (the
+// host's max_players). A guest greets only the host and these members. wait:
+// to a joiner who waits for the host's answer, the seconds the answer may take at most from now: her own minute, or
+// the minutes of those asked before her too. kMaxWait covers kMaxRemote joiners asked in turn.
+constexpr uint64_t kMaxWait = 60 * kMaxRemote;
+inline std::string let_line(uint64_t pair, const std::vector<uint64_t> &ids, int max) {
+  std::string line = "SBC" + std::to_string(kProtocol) + " let " + std::to_string(pair);
+  for (size_t i = 0; i < ids.size(); ++i)
+    line += (i ? "," : " ") + std::to_string(ids[i]);
+  return line + " " + std::to_string(max);
+}
+inline std::string wait_line(uint64_t seconds) {
+  return "SBC" + std::to_string(kProtocol) + " wait " + std::to_string(seconds);
+}
+// Channel 2's tags, versioned like channel 0's: "SBF23" for the shared fight, "SBQ23" for the shared quests, "SBW23"
+// for the shared world, "SBS23" for story together.
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
 inline std::string world_tag() { return "SBW" + std::to_string(kProtocol); }
 inline std::string story_tag() { return "SBS" + std::to_string(kProtocol); }
+// A channel-2 line as link/core.h's take_fight() hands it on: its sender's SteamID and the line as it came. The shared
+// quests take theirs from every partner by sender (quest/engine.h's Worker); the shared fight, the shared world and
+// story together take the pair's only (lines_from).
+struct FightLine {
+  uint64_t from;
+  std::string line;
+};
+// The lines from one sender, in order (none for 0).
+inline std::vector<std::string> lines_from(const std::vector<FightLine> &lines, uint64_t from) {
+  std::vector<std::string> out;
+  for (const FightLine &l : lines)
+    if (from && l.from == from)
+      out.push_back(l.line);
+  return out;
+}
 
 // Digits only, no sign, no overflow.
 inline bool number(std::string_view text, uint64_t &out) {
@@ -552,6 +594,19 @@ inline bool bike_ok(const std::string &payload) {
 inline std::string bike_line(const std::string &payload) {
   return bike_ok(payload) ? "SBC" + std::to_string(kProtocol) + " bike " + payload : std::string();
 }
+// SteamIDs split on commas into out: 1 to max of them, distinct, none 0. False on anything else.
+inline bool id_list(std::string_view text, size_t max, std::vector<uint64_t> &out) {
+  out.clear();
+  for (size_t at = 0, end = 0; at <= text.size(); at = end + 1) {
+    end = std::min(text.find(',', at), text.size());
+    uint64_t id = 0;
+    if (out.size() == max || !number(text.substr(at, end - at), id) || !id ||
+        std::find(out.begin(), out.end(), id) != out.end())
+      return false;
+    out.push_back(id);
+  }
+  return true;
+}
 
 inline Message parse(const char *data, size_t size) {
   Message m;
@@ -621,17 +676,19 @@ inline Message parse(const char *data, size_t size) {
     uint64_t seed = 0;
     if (!alias_word(f[2]) || f[2].size() > kMaxToken || !alias_word(f[3]) || !number(f[4], seed) || seed > UINT32_MAX)
       return Message();
-    for (size_t at = 0, end = 0; at <= f[5].size(); at = end + 1) {
-      end = f[5].find(',', at);
-      end = end == std::string::npos ? f[5].size() : end;
-      uint64_t id = 0;
-      if (m.ids.size() == kMatchMembers || !number(std::string_view(f[5]).substr(at, end - at), id) || !id ||
-          std::find(m.ids.begin(), m.ids.end(), id) != m.ids.end())
-        return Message();
-      m.ids.push_back(id);
-    }
+    if (!id_list(f[5], kMatchMembers, m.ids))
+      return Message();
     m.kind = Kind::start;
     m.text = f[2], m.map = f[3], m.a = seed;
+  } else if (split(text, f, 5, nullptr) && f[0] == versioned_tag && f[1] == "let") {
+    if (!number(f[2], m.a) || !id_list(f[3], kMaxRemote, m.ids) ||
+        (m.a && std::find(m.ids.begin(), m.ids.end(), m.a) == m.ids.end()) || !number(f[4], m.b) || m.b < 2 ||
+        m.b > uint64_t(kMaxMembers))
+      return Message();
+    m.kind = Kind::let;
+  } else if (split(text, f, 3, nullptr) && f[0] == versioned_tag && f[1] == "wait") {
+    if (number(f[2], m.a) && m.a >= 1 && m.a <= kMaxWait)
+      m.kind = Kind::wait;
   } else if (split(text, f, 3, nullptr) && f[0] == versioned_tag && f[1] == "count") {
     if (f[2] == "stop" || (number(f[2], m.a) && m.a >= 1 && m.a <= 10))
       m.kind = Kind::count;
@@ -793,7 +850,9 @@ inline std::string masked(std::string_view text) {
 // <seconds>" (1 to kMaxFreezeS: our pause held that long) and "freeze off"; for SB's two developer gates
 // (game/debug_keys.h, coop fly and coop slowmo) "fly on|off" and "slowmo on|off"; for SB's developer panels
 // (game/dev_panels.h, coop devinfo) "devinfo quest|player|off"; for SB's HUD under the SBO lobby's screens (main.lua,
-// glue/tick/hud_game.inc) "hud hide on|off"; for the SBO lobby arrival's black (session/arrival.lua,
+// glue/tick/hud_game.inc) "hud hide on|off"; for the day/night cycle (game/sky.h, sky/daynight.lua) "sky off|hold",
+// "sky cycle <hz> <heading>" and "sky hour <minute> <hz> <heading>" (whole numbers: hz 0 to 30, heading 0 to 359,
+// minute 0 to 1439); for the SBO lobby arrival's black (session/arrival.lua,
 // glue/tick/loading_game.inc) "loading lift"; for the co-op saves (save/slot.h,
 // save/twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make
 // them, then switch to them), "saves main" (switch back to the player's own saves) and "saves refresh <0-4>" (that
@@ -846,7 +905,7 @@ inline std::string masked(std::string_view text) {
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
-  signal, match, mute, sbo, guardtext, hud, loading, world, scenes, bike, block, unblock, list, where, rules
+  signal, match, mute, sbo, guardtext, hud, loading, world, scenes, bike, block, unblock, list, where, rules, sky
 };
 // match: "match search <mode> <room> <hall>" (quick match: join an open Public lobby of that mode and hall, or host
 // one), "match create <mode> <room> <hall>" (a private match lobby joined with its code), "match cancel" (forget the
@@ -905,6 +964,8 @@ enum class SavesAsk { none, probe, convert, coop, main, refresh, export_ };
 enum class Quests { none, on, off, status, probe, record, replay, force };
 enum class WorldAsk : uint8_t { on, off, status };
 enum class BikeAsk : uint8_t { load, free, gate_on, gate_off };
+// sky: SB's light back, the minute shown kept (photo mode), the shared clock, or a pinned minute (game/sky.h's Mode).
+enum class SkyAsk : uint8_t { off, cycle, hour, hold };
 constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500, kMaxFreezeS = 3600;
 constexpr size_t kMaxFightChars = 16;
 constexpr uint64_t kMaxFightChange = 10'000'000; // fight/sync.h's kMaxStat.
@@ -926,6 +987,7 @@ struct Request {
   uint8_t signal = 0;                    // signal: its word's index in kSignalWords.
   bool rule = false;                     // nightop rule.
   Who who = Who::friends;                // host: who can join the lobby. list: everyone (public) or friends.
+  int players = kMaxMembers;             // host: the session's players at most (max_players), 2 to kMaxMembers.
   bool code = false;                     // join: with a code; lobby 0 when it is no valid code.
   uint64_t player = 0;                   // allow, deny, remove, mute, unmute, block, unblock: her SteamID (0: all).
   Fight fight = Fight::none;
@@ -971,6 +1033,10 @@ struct Request {
   uint64_t address = 0;         // sbo enter: SB's save manager, as Lua read it.
   uint32_t point_index = 0, point_number = 0; // sbo warp: the start point's FName.
   std::string why;              // sbo abort: Lua's word.
+  SkyAsk sky = SkyAsk::off;     // sky: what.
+  uint16_t minute = 0;          // sky hour: the minute of the game day, 0 to 1439.
+  uint8_t horizon = 0;          // sky cycle, sky hour: the map's horizon in degrees, 0 to 30.
+  uint16_t heading = 0;         // sky cycle, sky hour: the map's noon heading in degrees, 0 to 359.
 };
 // What follows "fight ": its words split on single spaces. Command::none when anything is off.
 inline Request parse_fight(const std::string &text) {
@@ -1169,8 +1235,14 @@ inline uint8_t signal_word(const std::string &text) {
     ++w;
   return w;
 }
-// "host [<who>] [ask]": whether the text is one, with its Who and ask filled.
-inline bool host_request(const std::string &text, Request &r) {
+// "host [<who>] [ask] [<n>]": whether the text is one, with its Who, ask and players (n, 2 to kMaxMembers; without it,
+// kMaxMembers) filled.
+inline bool host_request(std::string text, Request &r) {
+  int players = kMaxMembers;
+  if (text.size() > 2 && text[text.size() - 2] == ' ' && text.back() >= '2' && text.back() <= '0' + kMaxMembers) {
+    players = text.back() - '0';
+    text.resize(text.size() - 2);
+  }
   static const std::pair<const char *, Who> kHosts[] = {{"host", Who::friends},
                                                         {"host friends", Who::friends},
                                                         {"host public", Who::everyone},
@@ -1182,7 +1254,7 @@ inline bool host_request(const std::string &text, Request &r) {
   const std::string bare = ask ? text.substr(0, text.size() - 4) : text;
   for (const auto &[word, who] : kHosts)
     if (bare == word) {
-      r.command = Command::host, r.who = who, r.on = ask;
+      r.command = Command::host, r.who = who, r.on = ask, r.players = players;
       return true;
     }
   return false;
@@ -1342,6 +1414,21 @@ inline Request parse_request(std::string text) {
   } else if (text == "hud hide on" || text == "hud hide off") {
     r.command = Command::hud;
     r.on = text.size() == 11;
+  } else if (text == "sky off" || text == "sky hold") {
+    r.command = Command::sky;
+    r.sky = text[4] == 'o' ? SkyAsk::off : SkyAsk::hold;
+  } else if (text.rfind("sky ", 0) == 0) {
+    const bool hour = split(text, f, 5, nullptr) && f[1] == "hour";
+    const bool cycle = !hour && split(text, f, 4, nullptr) && f[1] == "cycle";
+    uint64_t minute = 0, hz = 0, heading = 0;
+    if ((hour && number(f[2], minute) && minute <= 1439 && number(f[3], hz) && number(f[4], heading)) ||
+        (cycle && number(f[2], hz) && number(f[3], heading))) {
+      if (hz <= 30 && heading <= 359) {
+        r.command = Command::sky;
+        r.sky = hour ? SkyAsk::hour : SkyAsk::cycle;
+        r.minute = uint16_t(minute), r.horizon = uint8_t(hz), r.heading = uint16_t(heading);
+      }
+    }
   } else if (text == "loading lift") {
     r.command = Command::loading;
   } else if (text == "world on" || text == "world off" || text == "world status") {

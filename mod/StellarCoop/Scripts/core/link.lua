@@ -13,10 +13,11 @@
 -- (coop gift, cut/mailbox.lua, whose own lines go as gift requests). The same read gives
 -- the session's mode, the friend and the notices for the screen, each from the start of its own line: a Steam name is
 -- never at the start of one.
--- While we host, the read also gives our join code and the joiner who waits for our answer (session/join.lua asks the
--- host) and keeps who waited in this lobby (the menu's Remove row); as a joiner, the seconds left of the host's
--- answer (wait()); the session list's rows (list()). Lua tells the native part the host's place and rules for the
--- list's rows with where() and rules(), each sent only when it changed.
+-- While we host, the read also gives our join code and the joiners who wait for our answer, in the order the native
+-- part asks about them (session/join.lua asks the host about the first). It keeps who waited in this lobby (the
+-- menu's Remove row); as a joiner, the seconds left of the host's answer (wait()); the session list's rows (list());
+-- in an online session, its host and pair (host()) and each member's vitals (vitals()). Lua tells the native part the
+-- host's place and rules for the list's rows with where() and rules(), each sent only when it changed.
 -- coop-settings.txt's shared_enemies, fight_chars, guest_kills, enemy_hp_scale, enemy_balance_scale, kill_credit,
 -- same_place, aggro, same_spawns, enemy_extra, spawn_filter, bosses and boss_hp_scale (Phase 11, experimental) are
 -- commands/fight.lua's coop fight (main.lua's loop asks it on or off); its photo_sync, photo_freeze_max, photo_ghost
@@ -69,9 +70,11 @@ bike=on
 # friends, from their friends list or the Friends tab of Find a session), invitation (the friends you invite or anyone
 # you give your join code to; the co-op menu shows and copies it) or closed (nobody; Private in the co-op menu). A
 # player who is not your Steam friend waits until you accept or deny them. friends_ask, with public or invitation: off
-# (your Steam friends join at once) or on (they wait for your answer too).
+# (your Steam friends join at once) or on (they wait for your answer too). max_players: 2 to 4, the players a session
+# you host holds, you included. Only you and your first guest share enemies, the world and the story.
 who_can_join=public
 friends_ask=off
+max_players=4
 # Co-op saves, the co-op copies of your saves (StellarBladeCoop00.sav to 04.sav): ask (a question on the title
 # screen), always (the copies at every title, no question) or off (no copies; the manual co-op slot that
 # StellarCoopSlot.txt names is then the only co-op save).
@@ -199,6 +202,9 @@ partner_card=on
 card_details=on
 # status_overlay, a strip above her card: off, compact (the status line and the ping) or detailed (and what is shared).
 status_overlay=compact
+# Day and night: on or off, on by default. On, the sky follows one clock shared by every player: one real hour is one
+# game day, with the night from about :52 to :12 past each hour (UTC). Off gives each map Stellar Blade's own light.
+daynight=on
 # Shortcut saves, a test tool: on or off, on by default. On, coop shortcut load <map> <1-4> writes one of the game's
 # cut developer saves as your co-op slot 5 (StellarBladeCoop04.sav, backed up first), without its achievement list.
 # A Steam achievement it still unlocks cannot be taken back: use it only on a Steam account whose achievements do not
@@ -222,14 +228,15 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',rac
     same_spawns='on',enemy_extra='0',spawn_filter='on',bosses='on',boss_hp_scale='2.0',
     photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='on',photo_pause='full',ui_scale='100',
     ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
-    status_overlay='compact',who_can_join='public',friends_ask='off',auto_coop_save='ask',shared_quests='on',
+    status_overlay='compact',who_can_join='public',friends_ask='off',max_players='4',auto_coop_save='ask',
+    shared_quests='on',
     quest_deny='',revive='on',cutscene_wait='on',follow_host='ask',follow_key='F7',collide='on',mod_names='on',shortcut_load='on',
-    pvp_spike='on',sbo_lobby='on',shared_world='on',shared_story='on'}
+    pvp_spike='on',sbo_lobby='on',shared_world='on',shared_story='on',daynight='on'}
 -- On or off.
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,spawn_filter=true,bosses=true,
     photo_ghost=true,photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
     card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true,mod_names=true,shortcut_load=true,
-    pvp_spike=true,sbo_lobby=true,shared_world=true,shared_story=true,friends_ask=true,bike=true}
+    pvp_spike=true,sbo_lobby=true,shared_world=true,shared_story=true,friends_ask=true,bike=true,daynight=true}
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (partner/puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key','bike_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
@@ -266,12 +273,19 @@ end
 local VITALS={'hp','max_hp','shield','max_shield','blocks','beta','max_beta','burst','max_burst','tachy','max_tachy',
     'life'}
 local MATE='^mate='..('(%d+) '):rep(11)..'(%d+)$'
+local VIT='^vit=(%d+) '..('(%d+) '):rep(11)..'(%d+)$' -- A member's: her SteamID, then the same twelve.
+local function vitals_of(v,from)
+    local out={}
+    for i,key in ipairs(VITALS) do out[key]=tonumber(v[from+i]) end
+    return out
+end
 -- A setting's value from its text, or nil and why it is refused. A key is core/keybind.lua's ({key='F7', mod='SHIFT' or
 -- nil, name='Shift+F7'}; host_key none: no key); fight_chars a list of whole numbers (the native part takes at most 16,
 -- each from 1 to 2^32-1), empty for auto (every Monster, the native part's rule), which an empty value means too (a
 -- file written before auto); a choice (CHOICES: photo_sync, ui_language, guest_kills, kill_credit, who_can_join,
 -- auto_coop_save, aggro, photo_pause, follow_host, status_overlay) one of its words; photo_freeze_max a whole number of
--- seconds; ui_scale one of percent; the scales a number from 1 to 4, digits with a decimal point or none
+-- seconds; ui_scale one of percent; max_players a whole number from 2 to 4; the scales a number from 1 to 4, digits
+-- with a decimal point or none
 -- (commands/fight.lua sends them in whole percents); quest_deny its text, letters, digits, '_', spaces and commas only,
 -- at most 200 bytes (the native part's request limit; it names the entries that are no shared quest); drift_keys a list
 -- of Unreal key names (race/drive.lua reads them with IsInputKeyDown), at most 4, empty for none.
@@ -320,6 +334,10 @@ local function setting(name,text)
         local x=text:match('^%d+%.?%d*$') and tonumber(text)
         if x and x>=1 and x<=4 then return x end
         return nil,'use 1.0 to 4.0'
+    elseif name=='max_players' then
+        local n=text:match('^%d$') and tonumber(text)
+        if n and n>=2 and n<=4 then return n end
+        return nil,'use 2 to 4'
     elseif name=='enemy_extra' then
         local n=text:match('^%d$') and tonumber(text)
         if n and n<=3 then return n end
@@ -527,6 +545,15 @@ function Link.join_code(text)
     local a,b=text:match('^[ \t]*('..ALNUM..')[- ]?('..ALNUM..'[0-9A-Za-z])[ \t]*$')
     return a and ((a..'-'..b):upper():gsub('[IL]','1'):gsub('O','0')) or nil
 end
+-- How many other players a status text's session holds: its members past the handshake with us (member= lines with
+-- linked 1), or the host's count when more (players=, us included: on a guest, the members the host let in whose link
+-- with us is not made yet count too). More than 1 is a session of more than 2 players, where Doro races and Night
+-- Operation end or are refused, on the pair as soon as on the host.
+function Link.crowd(text)
+    local n=0
+    for _ in ('\n'..(text or '')):gmatch('\nmember=%d+ %d 1 ') do n=n+1 end
+    return math.max(n,(tonumber(('\n'..(text or '')):match('\nplayers=(%d+)')) or 0)-1)
+end
 function Link.new(folder,fs)
     fs=fs or Link.files
     local function path(name) return folder..'\\'..name end
@@ -535,7 +562,8 @@ function Link.new(folder,fs)
     -- As of the last changes(); dead: the worker stopped for good (a fault or another Steamworks build); held: an
     -- invite waits for a save; rejoin: the tries started to get back into a lost game; shown: the last notice number
     -- handed out; fight: the shared fight's line; pilot: same-place enemies' line; photo: the photo line's {mine=,
-    -- peer=,frozen=}; mate: her vitals; life: our life state and HP (life()); ping: the first peer's RTT in ms;
+    -- peer=,frozen=}; mate: her vitals; life: our life state and HP (life()); ping: the RTT in ms of the member the
+    -- status line names (ping());
     -- loopback: coop loopback runs; rejoined: a rejoin got her lobby back and waits for the handshake (kept across
     -- changes() until she is linked or we are no longer a guest); saves: the co-op saves' state (saves()); paks: her
     -- .pak mods against ours (paks()); mods: her mod containers against ours by name (mods()); dlcs: her installed
@@ -553,13 +581,16 @@ function Link.new(folder,fs)
     -- list(): the session list's list= line and its session= rows; wait(): a joiner's wait= line.
     local search,found,wait=nil,{},nil
     -- As of the last changes() too: lobby, the link line's; code, our join code while we host with one; refused, the
-    -- players refused in this lobby; pending, the first joiner waiting for our answer ({id=, name=}); members, the
-    -- lobby members' SteamIDs (peer lines); roster, the member lines (members()). strangers: each joiner seen waiting
-    -- in the lobby strangers_in names (SteamID to her last name), none a Steam friend.
+    -- players refused in this lobby; pending, the joiners waiting for our answer in the status's order ({id=, name=}
+    -- each); members, the lobby members' SteamIDs (peer lines); roster, the member lines (members()); session, the
+    -- online session's host and pair ({id=, pair=}, host()); vits, each member's vitals by SteamID (vitals()).
+    -- strangers: each joiner seen waiting in the lobby strangers_in names (SteamID to her last name), none a Steam
+    -- friend.
     -- ponytail: Lua memory only: a Lua reload forgets them, and the Remove row with them (coop remove still works); a
     -- flag on her peer line from the native part would outlive the reload.
-    local lobby,code,refused,pending,members,strangers,strangers_in=nil,nil,nil,nil,{},{},nil
-    local roster={}
+    local lobby,code,refused,pending,members,strangers,strangers_in=nil,nil,nil,{},{},{},nil
+    local roster,session,vits={},nil,{}
+    local players=nil -- The status's players= line: the host's count of its session's players (crowd()).
     local bikes={} -- bikes(): each member's bike_of= payload by her SteamID, as of the last changes().
     local self={}
     local function put(name,text,keep)
@@ -734,13 +765,14 @@ function Link.new(folder,fs)
         if engine:find(' reason=build stamp ',1,true) or engine:find(' reason=code bytes differ',1,true) then
             saves.build=true
         end
-        lobby,code,refused,pending,members,roster,bikes=nil,nil,nil,nil,{},{},{}
+        lobby,code,refused,pending,members,roster,session,vits,bikes=nil,nil,nil,{},{},{},nil,{},{}
+        players=nil
         if not text then return new end
         listed,noted={},{}
         for line in text:gmatch('[^\r\n]+') do
             now[line]=true
             if not seen[line] and not line:find('^peer=') and not line:find('^member=') and not line:find('^fight=')
-                and not line:find('^mate=')
+                and not line:find('^mate=') and not line:find('^vit=')
                 and not line:find('^match=') -- Its countdown changes each second.
                 and not (waited and line:find('^wait=')) -- Likewise: the first of a wait only.
                 and not line:find('^life=')
@@ -750,20 +782,24 @@ function Link.new(folder,fs)
                 and not line:find('^lion=') and not line:find('^gardener=') and not line:find('^tendril=')
                 and not line:find('^bolt=') and not line:find('^mxiii=')
                 -- Its sent= and received= move with each position of a shared scene; the native log has its events.
-                and not line:find('^story=') then
+                and not line:find('^story=')
+                -- Its hour and sun move each second; the native log has each change of its state.
+                and not line:find('^sky=') then
                 new[#new+1]=line
-            end
-            if ping==nil and line:find('^peer=') then -- Her name comes before: the last rtt_ms= is the native part's.
-                ping=tonumber(line:match(' rtt_ms=(%-?%d+) session=%-?%d+ session_ping=%-?%d+$'))
-                ping=ping and ping>=0 and ping or false
             end
             if line:find('^mate=') then
                 local v={line:match(MATE)}
-                if v[12] then
-                    mate={}
-                    for i,key in ipairs(VITALS) do mate[key]=tonumber(v[i]) end
-                end
+                if v[12] then mate=vitals_of(v,0) end
             end
+            if line:find('^vit=') then
+                local v={line:match(VIT)}
+                if v[13] then vits[v[1]]=vitals_of(v,1) end
+            end
+            local host_id,pair_id,most=line:match('^host=(%d+) pair=(%d+) max=(%d+)$')
+            if host_id then
+                session={id=host_id,pair=pair_id~='0' and pair_id or nil,max=most~='0' and tonumber(most) or nil}
+            end
+            players=tonumber(line:match('^players=(%d+)$')) or players
             local own,hp=line:match('^life=(%d+) (%d+)$')
             if own then life={state=tonumber(own),hp=tonumber(hp)} end
             if not mode and line:find('^link=') then
@@ -777,7 +813,7 @@ function Link.new(folder,fs)
             local ours,out=line:match('^code=([%w%-]+) refused=(%d+)$')
             if ours then code,refused=ours~='none' and ours or nil,tonumber(out) end
             local id,name=line:match('^pending=(%d+) (.*)$')
-            if id and not pending then pending={id=id,name=name} end
+            if id then pending[#pending+1]={id=id,name=name} end
             local left,host_name=line:match('^wait=(%d+) (.*)$')
             if left then wait={left=tonumber(left),host=host_name} end
             local tab,listing,rows=line:match('^list=(%a+) (%a+) (%d+)$')
@@ -829,8 +865,11 @@ function Link.new(folder,fs)
             end
             camps_asked=tonumber(line:match('^camps%?=(%d+)$')) or camps_asked
             camps_answer=line:match('^camps=(%d+ %S.*)$') or camps_answer
-            local qn,kind,id,alias,zone=line:match('^quest_note=(%d+) ([%a_]+) (%d+) ([%w_]+) ([%w_%-]+)$')
-            if qn then noted[#noted+1]={n=tonumber(qn),kind=kind,id=id,alias=alias,zone=zone~='-' and zone or nil} end
+            local qn,kind,id,alias,zone,from=line:match('^quest_note=(%d+) ([%a_]+) (%d+) ([%w_]+) ([%w_%-]+) (%d+)$')
+            if not qn then qn,kind,id,alias,zone=line:match('^quest_note=(%d+) ([%a_]+) (%d+) ([%w_]+) ([%w_%-]+)$') end
+            if qn then
+                noted[#noted+1]={n=tonumber(qn),kind=kind,id=id,alias=alias,zone=zone~='-' and zone or nil,from=from}
+            end
             local same,ours_n,hers_n=line:match('^paks=(%a+) (%d+) (%d+)$')
             if same then paks={same=same=='same',ours=tonumber(ours_n),hers=tonumber(hers_n)} end
             local kind,count,list=line:match('^mods_(%a+)=(%d+) ?([^ ]*)$')
@@ -861,11 +900,20 @@ function Link.new(folder,fs)
             saves.convert=saves.convert or line:match('^convert=(.+)$')
             if line:find('^mod=') then saves.steamid=line:match(' steamid=(%d+) ') end
         end
+        -- The member summary() names: the slot-0 one, else on the host the first one past the handshake. Her ping
+        -- once she is past it.
+        local named=nil
+        for _,m in ipairs(roster) do if m.slot==0 then named=m; break end end
+        if mode=='host' and not (named and named.linked) then
+            named=nil
+            for _,m in ipairs(roster) do if m.linked then named=m; break end end
+        end
+        ping=named and named.linked and named.rtt>=0 and named.rtt or nil
         if held then saves.held=true end -- The question at the title says an invite waits (session/saves.lua).
         -- Back in her lobby, the native part drops rejoin= before the handshake: the rejoin holds until she is linked.
         if rejoin then rejoined=true elseif mode~='guest' or (friend and friend[2]) then rejoined=false end
         if lobby and lobby~=strangers_in then strangers,strangers_in={},lobby end
-        if pending then strangers[pending.id]=pending.name end
+        for _,p in ipairs(pending) do strangers[p.id]=p.name end
         seen=now
         return new
     end
@@ -881,14 +929,16 @@ function Link.new(folder,fs)
     function self.photo() return photo end
     -- Whether coop loopback runs, as of the last changes(): with no friend linked, our race lines come back as hers.
     function self.loopback() return loopback end
-    -- The friend's round trip in ms, or nil before the first pong.
-    function self.ping() return ping or nil end
-    -- A chat session holds once Steam is ready: a friend linked (lost or not), a rejoin under way (until she is linked
-    -- again), or coop loopback. Its end clears the chat (session/chat.lua's session()); the native part's own ends with
-    -- the link, so a line typed during a rejoin fails. nil when the status was not read: that ends nothing.
+    -- The round trip in ms of the member the status line names (the slot-0 one, else on the host the first one past
+    -- the handshake), or nil before she is past it or before the first pong.
+    function self.ping() return ping end
+    -- A chat session holds once Steam is ready: a friend linked (lost or not; the slot-0 member, or any member past the
+    -- handshake while slot 0 is free), a rejoin under way (until she is linked again), or coop loopback. Its end clears
+    -- the chat (session/chat.lua's session()); the native part's own ends with the link, so a line typed during a
+    -- rejoin fails. nil when the status was not read: that ends nothing.
     function self.chatting()
         if not listed then return nil end
-        return mode~=nil and ((friend~=nil and friend[2]) or rejoin~=nil or rejoined or loopback)
+        return mode~=nil and ((friend~=nil and friend[2]) or self.others()>0 or rejoin~=nil or rejoined or loopback)
     end
     -- The shared fight's line ("fight=on mode=on role=host enemies=3 ...", "fight=off why=..."; native fight_status());
     -- nil without one.
@@ -974,9 +1024,10 @@ function Link.new(folder,fs)
     -- arrivals=the type-5 arrivals seen, zone='<index>:<number>' of the last, loader=SB's loader state, copy=the last
     -- co-op save copy's name (nil for none), last={n=the requests answered, verb=, result=} (nil for none)}, or nil.
     function self.sbo() return sbo end
-    -- Their notes numbered above the last one handed out, oldest first, each {kind=, id=, alias=, zone=} (kind: ahead,
-    -- behind, zone, board, locked, kill, unseen, forced, forced_warp or not_forced; id the quest's number as text;
-    -- alias its row name; zone for kind zone only). The first call only primes the count, as notices() does.
+    -- Their notes numbered above the last one handed out, oldest first, each {kind=, id=, alias=, zone=, from=} (kind:
+    -- ahead, behind, zone, board, locked, kill, unseen, forced, forced_warp or not_forced; id the quest's number as
+    -- text; alias its row name; zone for kind zone only; from, on the host's ahead note, the SteamID of the guest whose
+    -- line it is). The first call only primes the count, as notices() does.
     function self.quest_notes()
         if not noted then return {} end
         local out,top={},noted[#noted]
@@ -986,11 +1037,12 @@ function Link.new(folder,fs)
         noted_shown=math.max(noted_shown or 0,top and top.n or 0)
         return out
     end
-    -- The follow's camps lines as of the last changes(), each from the start of its own line: as the host, the id of
-    -- her last camps? (a number); as the guest, the host's answer to ours ('<id> <world> <alias>:<m> ...' or
-    -- '<id> none <why>'); nil without them.
+    -- The follow's camps lines as of the last changes(), each from the start of its own line: as the host, the native
+    -- part's number for the oldest camps? still waiting, else for the last one (the answer goes by that number); as
+    -- the guest, the host's answer to ours ('<id> <world> <alias>:<m> ...' or '<id> none <why>'); nil without them.
     function self.camps() return camps_asked,camps_answer end
-    -- The slot-0 member: her Steam name, linked (hello accepted, compatible), lost; nil without one.
+    -- The slot-0 member: her Steam name, linked (hello accepted, compatible), lost; nil without one. On a guest of an
+    -- online session that is the host; on the host, the pair (the guest who shares the fight, world and story).
     function self.friend() if friend then return friend[1],friend[2],friend[3] end end
     -- The lobby members as of the last changes(), in the status's order: each {id=her SteamID (digits), slot=her ghost
     -- slot (0 to 6), linked=, lost=, muted=, rtt=her round trip in ms (-1 before the first pong), name=her Steam name
@@ -999,6 +1051,23 @@ function Link.new(folder,fs)
     -- Each member's parked bike as of the last changes(): her SteamID (digits) to her bike line's payload ('none' or
     -- 'park <map> <x> <y> <z> <pitch> <yaw> <roll>'), for those who sent one past the handshake.
     function self.bikes() return bikes end
+    -- How many members are past the handshake with us: more than 1 is a session of more than 2 players.
+    function self.others()
+        local n=0
+        for _,m in ipairs(roster) do if m.linked then n=n+1 end end
+        return n
+    end
+    -- The other players as Link.crowd() counts them: others(), or the host's count when more.
+    function self.crowd() return math.max(self.others(),(players or 0)-1) end
+    -- In an online session (not a match lobby): {id=the host's SteamID (ours while we host), pair=the pair's SteamID
+    -- (ours when we are the pair), nil for none, max=the players it holds at most, nil before a guest heard it}; nil
+    -- outside one. On a guest, the host's member line is member(host().id).
+    function self.host() return session end
+    -- A member's vitals by her SteamID (digits), as mate() gives them, while her last line is under 3 s old; nil
+    -- otherwise.
+    function self.vitals(id) return vits[id] end
+    -- The players the online session holds at most (the host's max_players, from the status's host= line), or nil.
+    function self.cap() return session and session.max end
     -- The match line ({state='searching'|'open'|'countdown'|'playing', mode=, members= (past the handshake, us
     -- included), limit=, left= (whole seconds of the countdown)}; members and limit nil while searching, left nil
     -- outside the countdown), or nil outside matchmaking.
@@ -1026,6 +1095,7 @@ function Link.new(folder,fs)
             display=function(text) return put_or_remove(file('coop-display'),text) end,
             store=function() return self.store(file('coop-puppet')) end,
             friend=function() for _,m in ipairs(roster) do if m.slot==k then return m.name end end end,
+            mate=function() for _,m in ipairs(roster) do if m.slot==k then return vits[m.id] end end end,
             mod_assets=self.mod_assets,
         }
     end
@@ -1051,9 +1121,12 @@ function Link.new(folder,fs)
     -- Our join code ('XXX-XXXX', nil when we host without one or do not host) and the players refused in this lobby
     -- (nil when we do not host).
     function self.code() return code,refused end
-    -- The first joiner who is not our Steam friend and waits for our answer, {id=her SteamID (digits), name=her Steam
-    -- name as the native part cleaned it, maybe ''}; nil when none.
-    function self.pending() return pending end
+    -- The first joiner who waits for our answer (not our Steam friend, or any with friends_ask=on), {id=her SteamID
+    -- (digits), name=her Steam name as the native part cleaned it, maybe ''}; nil when none. The native part asks about
+    -- one at a time, in the order they came: this one's minute runs.
+    function self.pending() return pending[1] end
+    -- Every joiner who waits for our answer, the first one first; {} when none.
+    function self.pendings() return pending end
     -- As a joiner the host has not let in yet: {left=the whole seconds left of the host's minute, host=the host's
     -- Steam name as the native part cleaned it, maybe ''}; nil when we do not wait.
     function self.wait() return wait end
@@ -1088,7 +1161,9 @@ function Link.new(folder,fs)
     -- nil when none.
     function self.stranger()
         for _,id in ipairs(members) do
-            if strangers[id] and not (pending and pending.id==id) then return {id=id,name=strangers[id]} end
+            local waiting=false
+            for _,p in ipairs(pending) do waiting=waiting or p.id==id end
+            if strangers[id] and not waiting then return {id=id,name=strangers[id]} end
         end
     end
     -- The co-op saves' state as of the last changes(), each from its own line: {slot=the verdict ('coop', 'main',
@@ -1099,7 +1174,9 @@ function Link.new(folder,fs)
     function self.saves() return saves end
     -- The status key's line, in words (ui/text.lua's T.en or T.fr; English when not given). Her name is an argument
     -- to the words' formats, never one itself, and cleaned as a chat line: a stranger waiting for the host's answer
-    -- may hold a line separator or a bidi override in it.
+    -- may hold a line separator or a bidi override in it. It names the slot-0 member, or on the host the first member
+    -- past the handshake while that one is not; with more members past the handshake, ' +<n>' after the name. The
+    -- pause words name her alone: one player pauses us.
     function self.summary(words)
         local w=(words or T.en).summary
         if dead then return w.stopped end
@@ -1108,14 +1185,21 @@ function Link.new(folder,fs)
         if rejoin then return w.rejoin:format(rejoin) end
         if mode=='none' then return w.none end
         local name,linked,lost=self.friend()
+        if mode=='host' and not linked then
+            for _,m in ipairs(roster) do
+                if m.linked then name,linked,lost=m.name,true,m.lost; break end
+            end
+        end
         local who=name and clean(name)
         if who=='' then who=w.friend end
+        local pauser=who
+        if linked and self.others()>1 then who=who..' +'..(self.others()-1) end
         local text
         if not name and mode=='host' then text=w.alone
         elseif not linked then text=w.connecting:format(who or w.friend)
         elseif mode=='host' then text=w.hosting:format(who)
         else text=w.guest:format(who) end
-        if self.paused() then text=text..w.paused:format(who) end
+        if self.paused() then text=text..w.paused:format(pauser) end
         return lost and text..w.lost or text
     end
     -- The settings and their log lines. A file that cannot be read is kept as well: the rename fails if it exists.

@@ -292,7 +292,7 @@ assert(link.shared_version()==2 and next(link.shared_assets())==nil and link.mod
 files[SHARED]=nil
 -- The shared quests' line (Phase 12) and their notes, from the start of their own lines only. The first notes call
 -- only primes the count (a reload never shows old ones); then each new note once, in order, its zone for kind zone
--- only. A note of another shape, or in a peer's name, is none.
+-- only, the guest's SteamID after a host's ahead note. A note of another shape, or in a peer's name, is none.
 files[STATUS]='mod=v\npeer=2 name=x quests=on mode=on role=host partner=on\nquests=waiting mode=on why=save\n'
     ..'quest_note=1 kill 54 Quest_Sub_017 -\nlast=#3 x\n'
 link.changes()
@@ -302,11 +302,13 @@ files[STATUS]='mod=v\r\nquests=on mode=on role=guest partner=on\r\nquest_note=1 
     ..'quest_note=2 zone 41 Quest_Sub_001 Zone_WLA_30\r\nquest_note=3 forced_warp 30 Quest_Epic_Hidden -\r\n'
     ..'peer=2 name=x quest_note=9 kill 54 Quest_Sub_017 -\r\nquest_note=10 kill 54 Quest Sub -\r\n'
     ..'quest_note=11 kill 54 Quest_Sub_017\r\nquest_note=12 Kill! 54 Quest_Sub_017 -\r\n'
+    ..'quest_note=13 ahead 54 Quest_Sub_017 - 76561198000000003\r\nquest_note=14 ahead 54 Quest_Sub_017 - x\r\n'
 link.changes()
 assert(link.quests()=='quests=on mode=on role=guest partner=on','CRLF')
 local qn=link.quest_notes()
-assert(#qn==2 and qn[1].kind=='zone' and qn[1].id=='41' and qn[1].alias=='Quest_Sub_001' and qn[1].zone=='Zone_WLA_30'
-    and qn[2].kind=='forced_warp' and qn[2].id=='30' and qn[2].alias=='Quest_Epic_Hidden' and qn[2].zone==nil,#qn)
+assert(#qn==3 and qn[1].kind=='zone' and qn[1].id=='41' and qn[1].alias=='Quest_Sub_001' and qn[1].zone=='Zone_WLA_30'
+    and qn[2].kind=='forced_warp' and qn[2].id=='30' and qn[2].alias=='Quest_Epic_Hidden' and qn[2].zone==nil
+    and qn[1].from==nil and qn[3].kind=='ahead' and qn[3].zone==nil and qn[3].from=='76561198000000003',#qn)
 assert(#link.quest_notes()==0,'Each once')
 files[STATUS]=nil
 link.changes()
@@ -533,7 +535,16 @@ assert(Link.parse_settings(Link.DEFAULT).status_overlay=='compact')
 -- shortcut_load (coop shortcut load, a test tool, no menu row): on or off in any case, on by default, in a new file
 -- (after its comment, which names the achievement risk) and in an old one; a bad value keeps on, with a line.
 assert(Link.parse_settings('').shortcut_load==true and Link.parse_settings(Link.DEFAULT).shortcut_load==true)
-assert(Link.DEFAULT:find('\nstatus_overlay=compact\n# Shortcut saves, a test tool: on or off, on by default.',1,true)
+-- daynight (sky/daynight.lua): on or off in any case, on by default, in a new file after status_overlay with its
+-- comment and in an old one; a bad value keeps on, with a line.
+assert(Link.parse_settings('').daynight==true and Link.parse_settings(Link.DEFAULT).daynight==true)
+assert(Link.DEFAULT:find('\nstatus_overlay=compact\n# Day and night: on or off, on by default.',1,true)
+    and Link.DEFAULT:find('\ndaynight=on\n',1,true))
+assert(Link.parse_settings('daynight=off').daynight==false and Link.parse_settings('DayNight=ON').daynight==true)
+s,notes=Link.parse_settings('daynight=maybe')
+assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for daynight (use on or off); "
+    .."daynight stays on" and s.daynight==true,notes[1])
+assert(Link.DEFAULT:find('\ndaynight=on\n# Shortcut saves, a test tool: on or off, on by default.',1,true)
     and Link.DEFAULT:find('cannot be taken back',1,true) and Link.DEFAULT:find('\nshortcut_load=on\n'))
 assert(Link.parse_settings('shortcut_load=OFF').shortcut_load==false)
 s,notes=Link.parse_settings('shortcut_load=yes')
@@ -831,6 +842,16 @@ s,notes=Link.parse_settings(older)
 assert(#notes==0 and s.cutscene_wait==true)
 s,notes=Link.parse_settings('CUTSCENE_WAIT=Off')
 assert(#notes==0 and s.cutscene_wait==false)
+-- max_players: 2 to 4, 4 by default and in a new file; anything else keeps 4, with a line.
+assert(Link.DEFAULT:find('\nmax_players=4\n',1,true) and Link.parse_settings('').max_players==4)
+for _,case in ipairs({{'2',2},{'3',3},{' 4 ',4}}) do
+    s,notes=Link.parse_settings('max_players='..case[1])
+    assert(#notes==0 and s.max_players==case[2] and math.type(s.max_players)=='integer',case[1])
+end
+for _,bad in ipairs({'1','5','8','03','x','3.0',''}) do
+    s,notes=Link.parse_settings('max_players='..bad)
+    assert(#notes==1 and s.max_players==4 and notes[1]:find('(use 2 to 4); max_players stays 4',1,true),bad)
+end
 s,notes=Link.parse_settings('cutscene_wait=2')
 assert(#notes==1 and s.cutscene_wait==true and notes[1]:find("'2' is not allowed for cutscene_wait",1,true))
 -- follow_host (yours, as the guest): ask, always or off in any case, ask by default and in a file written before it;
@@ -1239,6 +1260,10 @@ lines=link.changes()
 for _,l in ipairs(lines) do assert(not l:find('^bike_of='),'bike_of lines stay out of the log') end
 local b=link.bikes(); assert(b['4003']=='park /a 1 2 3 4 5 6' and b['2002']=='none')
 files[STATUS]=HEAD; link.changes(); assert(next(link.bikes())==nil)
+-- The day/night cycle's line: its hour and sun move each second.
+files[STATUS]=HEAD..'friend=1 0 Kaanta\nsky=cycle h=12.00 el=65.0 le=65.0 ly=0.0 k=1.000 moon=0 amb=1.000 eve=1.000 '
+    ..'ev=0.00 tint=1.00,1.00,1.00 n=114 lit=20 seen=1\n'
+for _,line in ipairs(fresh.changes()) do assert(not line:find('^sky='),'sky= stays out of the log') end
 -- coop lion's line, coop gardener fight's, coop tendril fight's, the Shock Bolt's and coop mxiii's too: their spawns=
 -- moves with every enemy that spawns or goes, and cut/enemy.lua logs what it reads for each.
 files[STATUS]=HEAD..'friend=1 0 Kaanta\nlion=rows added=78/78 asks=1 spawns=7 char=2/2 skills=15/15 stance=1/1\n'
@@ -1369,11 +1394,12 @@ assert(#sent==512 and sent[1]=='cp 7 1 1 9' and sent[512]=='cp 7 1 1 520')
 files[RACE]=nil
 
 -- The HUD's fields, as of the last changes(): her vitals (mate=, never logged as they change up to 10 times a
--- second), the first peer's RTT (its last rtt_ms=, as a Steam name may hold one), and whether a chat session holds:
--- a friend linked (lost or not), a rejoin under way, or the loopback.
+-- second), the RTT of the member the status line names (her member= line's, past the handshake only); whether a chat
+-- session holds: a friend linked (lost or not), a rejoin under way, or the loopback.
 local MATE='mate=900 1600 0 50 5 200 1000 0 0 0 0 1\n'
 files[STATUS]=HEAD..'peer=2 name=x rtt_ms=5 session=3 session_ping=4 hello=1 accepted=1 compatible=1 lost=0 '
-    ..'invalid=0 rtt_ms=118 session=3 session_ping=40\nfriend=1 0 x\n'..MATE..'last=#9 x\n'
+    ..'invalid=0 rtt_ms=118 session=3 session_ping=40\nmember=2 0 1 0 0 118 x rtt_ms=5\nfriend=1 0 x\n'..MATE
+    ..'last=#9 x\n'
 lines=fresh.changes()
 for _,line in ipairs(lines) do assert(not line:find('^mate='),'mate= stays out of the log') end
 local mate=fresh.mate()
@@ -1406,8 +1432,8 @@ for _,bad in ipairs({'friend=1 0 x camps?=41 camps=7 x\n','camps?=x\ncamps=\n','
     asked,answer=fresh.camps()
     assert(asked==nil and answer==nil,bad)
 end
-files[STATUS]=HEAD..'peer=2 name=x hello=1 accepted=0 compatible=1 lost=0 invalid=0 rtt_ms=-1 session=1 '
-    ..'session_ping=-1\nfriend=0 0 x mate=1 2 3 4 5 6 7 8 9 10 11 12\nmate=1 2 3\n'
+files[STATUS]=HEAD..'peer=2 name=x hello=1 accepted=0 compatible=1 lost=0 invalid=0 rtt_ms=40 session=1 '
+    ..'session_ping=-1\nmember=2 0 0 0 0 40 x\nfriend=0 0 x mate=1 2 3 4 5 6 7 8 9 10 11 12\nmate=1 2 3\n'
 fresh.changes()
 assert(fresh.mate()==nil and fresh.ping()==nil and fresh.chatting()==false,'No vitals, no RTT, not linked')
 files[STATUS]=HEAD..'friend=1 1 x\n'
@@ -1486,6 +1512,71 @@ assert(door.stranger()==nil,'A new lobby: every stranger of the last one forgott
 files[STATUS]=HOSTING..peer('76561198000000009','S')
 door.changes()
 assert(door.stranger()==nil,'Forgotten for good, not hidden')
+-- Every joiner who waits, in the status's order (the native part asks about the first): the first in pending(), all
+-- in pendings(); one let in while another still waits is removable at once.
+files[STATUS]='mod=v steam=ready\nlink=host lobby=7002\npending=11 One\npending=12 Two\npending=13 Three\n'
+    ..peer('11','One')..peer('12','Two')..peer('13','Three')
+door.changes()
+local queue=door.pendings()
+assert(#queue==3 and queue[1].id=='11' and queue[2].name=='Two' and queue[3].id=='13' and door.pending()==queue[1])
+files[STATUS]='mod=v steam=ready\nlink=host lobby=7002\npending=12 Two\npending=13 Three\n'
+    ..peer('11','One')..peer('12','Two')..peer('13','Three')
+door.changes()
+assert(door.pending().id=='12' and #door.pendings()==2 and door.stranger().id=='11','The first let in, two wait')
+files[STATUS]='mod=v steam=ready\nlink=host lobby=7002\n'
+door.changes()
+assert(door.pending()==nil and #door.pendings()==0)
+-- An online session of more than 2 players: its host and pair (host=, from the start of its own line), each member's
+-- vitals (vit=, out of the log as mate= is), how many are past the handshake, the status line with ' +<n>'.
+local V12='1 2 3 4 5 6 7 8 9 10 11 '
+local CROWD='mod=v steam=ready\nlink=host lobby=7003\nhost=1 pair=21 max=4\nmember=21 0 1 0 0 40 Kaanta\n'
+    ..'member=22 1 1 0 0 50 Lucas\nmember=23 2 0 0 0 -1 Wait\nfriend=1 0 Kaanta\nvit=21 '..V12..'1\nvit=22 '..V12..'4\n'
+files[STATUS]=CROWD
+lines=door.changes()
+for _,line in ipairs(lines) do assert(not line:find('^vit='),'vit= stays out of the log') end
+assert(door.host().id=='1' and door.host().pair=='21' and door.others()==2)
+assert(door.vitals('21').life==1 and door.vitals('22').life==4 and door.vitals('22').hp==1 and door.vitals('23')==nil)
+assert(door.slot(1).mate().life==4 and door.slot(2).mate()==nil and door.slot(1).friend()=='Lucas')
+assert(door.summary()=='Co-op: hosting Kaanta +1.' and door.ping()==40 and door.cap()==4)
+files[STATUS]=CROWD:gsub('friend=1 0 Kaanta\n',''):gsub('member=21 0 1','member=21 0 0'):gsub('pair=21','pair=0')
+door.changes()
+assert(door.host().pair==nil and door.others()==1 and door.summary()=='Co-op: hosting Lucas.' and door.chatting()
+    and door.ping()==50,'No pair: the first member past the handshake, her ping too; the session holds')
+files[STATUS]='mod=v steam=ready\nlink=guest lobby=7003\nhost=1 pair=0 max=3\nmember=1 0 1 0 0 40 Host\n'
+    ..'member=22 1 1 0 0 50 Lucas\nfriend=1 0 Host\n'
+door.changes()
+assert(door.host().id=='1' and door.host().pair==nil and door.summary()=="Co-op: in Host +1's game.")
+assert(door.host().max==3 and door.cap()==3 and door.ping()==40,'The host\'s max_players and ping on a guest')
+files[STATUS]=files[STATUS]..PHOTO
+door.changes()
+assert(door.summary()=="Co-op: in Host +1's game. Paused by Host." and door.paused(),'Only the host pauses a guest')
+-- The pair's count of the session (crowd()): a member the host let in whose link with us is not made yet counts, from
+-- the host's players= line; others() keeps the members past the handshake with us.
+files[STATUS]='mod=v steam=ready\nlink=guest lobby=7003\nhost=1 pair=21 max=4\nplayers=3\n'
+    ..'member=1 0 1 0 0 40 Host\nmember=22 1 0 0 0 -1 Lucas\nfriend=1 0 Host\n'
+door.changes()
+assert(door.others()==1 and door.crowd()==2 and require('core.link').crowd(files[STATUS])==2)
+assert(require('core.link').crowd((files[STATUS]:gsub('players=3','players=0')))==1
+    and door.summary()=="Co-op: in Host's game.")
+files[STATUS]='mod=v steam=ready\nlink=guest lobby=7003\nhost=1 pair=0 max=0\nmember=1 0 1 0 0 40 Host\n'
+door.changes()
+assert(door.host().id=='1' and door.cap()==nil,'max=0: the let line has not come yet')
+for _,bad in ipairs({'host=1\n','host=x pair=2 max=4\n','host=1 pair=2 max=4 x\n','friend=1 0 x host=1 pair=2 max=4\n',
+        'host=1 pair=2\n','host=1 pair=2 max=x\n',
+        'vit=21 1 2 3\n','vit=x '..V12..'1\n'}) do
+    files[STATUS]='mod=v steam=ready\nlink=host lobby=7003\n'..bad
+    door.changes()
+    assert(door.host()==nil and door.vitals('21')==nil,bad)
+end
+-- cap(): the players at most from the status's host= line, read again after a Lua reload; none outside a session.
+files[STATUS]='mod=v steam=ready\nlink=host lobby=7004\nhost=1 pair=0 max=3\n'
+local reloaded=require('core.link').new('C:\\Mod',fs)
+reloaded.changes()
+door.changes()
+assert(reloaded.cap()==3 and door.cap()==3,'A Lua reload reads it again')
+files[STATUS]='mod=v steam=ready\nlink=none lobby=0\n'
+door.changes()
+assert(door.cap()==nil,'Not hosting')
 -- An object path kept across Lua loads: the ghost's in coop-puppet.txt, the UI root's in a file of its own.
 local ghost,ui=link.store(),link.store('coop-ui.txt')
 assert(ghost.save('/Game/Maps/E04.Actor_1') and ui.save('/Engine/Transient.UserWidget_7'))

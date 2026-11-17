@@ -3,11 +3,12 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- bike/ride.lua over a fake EVE with her components, the native part's asks and status line, race/drive.lua: the
 -- status words; the preload asked once and released at bike=off; the part made once bike=ready and EVE stood 2 s (on
--- her main mesh, at the seat, hidden), found again by a new Lua load; every mount refusal with its reason, nothing
+-- her main mesh, at the seat, hidden, its tick off), found again by a new Lua load; every mount refusal with its reason, nothing
 -- asked or written; the mount in its order (coop-bike.txt first, the drive, the gate, the riding clip, the part shown)
 -- and the dismount backward; the lean through ComposeRotators with teleport off, written only on a change; the clip
 -- played again after an end or held in photo mode; three ends within 1 s, no weight, a refusal or no answer ending
--- the ride; the 250 ms checks (combat stays, swimming and the gate not on end it); a new EVE, an error and bike=off; a
+-- the ride, all read in the 250 ms pass (no frame reads the status); the 250 ms checks (combat stays, swimming and the
+-- gate not on end it); a new EVE, an error and bike=off; a
 -- mesh write that fails keeps the file; the next Lua load's restore; coop bike status and tune; the Doro look refused
 -- while she rides; idle_part (the part the capture leaves out) before the part, off the bike, on it and at bike=off;
 -- the part's tag (one that does not hold makes no part), found at a new Lua load's first tick whatever the bike= word,
@@ -39,7 +40,8 @@ local function class(path)
     return classes[path]
 end
 local composed={}
-local mathlib=uobj({MakeTransform=function() return {} end,
+local math_looks=0 -- Each U.find of the math library checks it with IsValid.
+local mathlib=uobj({IsValid=function() math_looks=math_looks+1 return true end,MakeTransform=function() return {} end,
     ComposeRotators=function(_,a,b)
         composed[#composed+1]={a=a,b=b}
         return {Pitch=a.Pitch+b.Pitch,Yaw=a.Yaw+b.Yaw,Roll=a.Roll+b.Roll}
@@ -92,6 +94,7 @@ local function component(owner,mesh)
         event(v and 'show' or 'hide')
     end
     function c:K2_DestroyComponent() self.gone=true end
+    function c:SetComponentTickEnabled(v) self.tick_enabled=v end
     return c
 end
 -- EVE: her address and path, her main mesh (its relative rotation and location), her components, her movement and
@@ -172,7 +175,9 @@ local native=true
 local key_text=nil
 local function use_key(text) key_text=text end
 local function no_key() key_text=nil end
+local status_reads=0
 local function status()
+    status_reads=status_reads+1
     if not native then return 'slot=coop x\n' end
     return (key_text or 'slot=coop x\n')
         ..('engine=on warp=%s me=1 travel=idle travel_calls=0 anim=%s anim_id=%d bike=%s bike_gate=%s%s\n')
@@ -338,6 +343,8 @@ assert(part.at.X==1.53 and part.at.Y==0.52 and part.at.Z==2.95 and part.rot.Pitc
 assert(part.scale.X==1 and part.visible==false and find('^bike part ready on EVE %(made in [%d.]+ ms%)$'),last())
 assert(#part.ComponentTags==1 and part.ComponentTags[1]:ToString()=='SBO_Bike' and Ride.TAG=='SBO_Bike',
     "Tagged as SBO's")
+-- The part never ticks: made with its tick off and OnlyTickPoseWhenRendered (its reference pose needs no tick).
+assert(part.tick_enabled==false and part.VisibilityBasedAnimTickOption==3)
 clock=3
 R.slow()
 assert(eve.added==1 and #asked==1,'Made once')
@@ -495,6 +502,7 @@ local function settle()
     clock=clock+2
     R.slow()
 end
+local looks=math_looks
 id=mount()
 dv.look=nil -- The drive's first frame gives no look yet: she rides on, nothing written.
 assert(R.steer()==nil and R.riding() and dv.ticks==1 and #composed==0)
@@ -508,43 +516,48 @@ assert(#composed==1 and dv.ticks==3,'Under 0.05 degrees: not written')
 dv.look={top=2306,lean=0,pitch=0}
 R.steer()
 assert(#composed==2 and eve.Mesh.RelativeRotation.Roll==0)
+assert(math_looks==looks+1,'The math library looked up once per ride, not at each tilted frame')
 
--- 8. The riding clip: its answer read every 0.1 s; playing logged once; an end plays it again with a new id, unless
--- the photo mode, a skill or root motion holds her.
+-- 8. The riding clip: its answer read in the 250 ms pass, from that pass's status text; no frame reads the status.
+-- Playing logged once; an end plays it again with a new id at the next pass, unless the photo mode, a skill or root
+-- motion holds her.
+local reads=status_reads
+for _=1,30 do R.steer() end
+assert(status_reads==reads,'No frame reads the status')
 st.id,st.anim=id,'playing'
-clock=clock+0.15
-R.steer()
+clock=clock+0.25
+R.slow()
 assert(last()==('bike ride clip plays (anim %d)'):format(id),last())
 local n=#asked
 st.anim='ended'
-clock=clock+0.05
 R.steer()
-assert(#asked==n,'Read every 0.1 s only')
+assert(#asked==n,'A frame never plays it again')
 world.photo='1'
-clock=clock+0.15
-R.steer()
+clock=clock+0.25
+R.slow()
 assert(#asked==n and R.riding() and last()==('bike ride clip ended (anim %d, 1 end(s) within 1 s)'):format(id),last())
 world.photo='0'
 eve.skill=true
-clock=clock+0.15
-R.steer()
+clock=clock+0.25
+R.slow()
 assert(#asked==n,'A skill holds her')
 eve.skill=false
 eve.root=true
-clock=clock+0.15
-R.steer()
+clock=clock+0.25
+R.slow()
 assert(#asked==n,'Root motion holds her')
 eve.root=false
-clock=clock+0.15
-R.steer()
+clock=clock+0.25
+R.slow()
+assert(asked[#asked]:find('^anim '),'Asked again at the next 250 ms pass')
 local id2=tonumber(asked[#asked]:match('^anim play (%d+) '..CLIP:gsub('%p','%%%0')..' ride$'))
 assert(#asked==n+1 and id2==id+1,asked[#asked])
 -- No answer for the new id in 5 s: off.
 clock=clock+4.9
-R.steer()
+R.slow()
 assert(R.riding())
 clock=clock+0.2
-ok,why=R.steer()
+ok,why=R.slow()
 assert(not ok and why=='Off the bike: no answer from the native part for the riding clip' and not R.riding(),why)
 assert(R.idle_part(eve:GetAddress())==part:GetAddress(),'Left out again after a ride that ended on a fault')
 assert(asked[#asked-1]=='anim stop' and asked[#asked]=='bike gate off' and stored==nil)
@@ -552,8 +565,8 @@ assert(asked[#asked-1]=='anim stop' and asked[#asked]=='bike gate off' and store
 id=mount()
 for k=1,3 do
     st.id,st.anim=id+k-1,'ended'
-    clock=clock+0.2
-    ok,why=R.steer()
+    clock=clock+0.25
+    ok,why=R.slow()
 end
 assert(not ok and why=='Off the bike: SB ended the riding clip 3 times within 1 s' and not R.riding(),why)
 -- Ends further apart only play it again.
@@ -561,7 +574,7 @@ id=mount()
 for k=1,4 do
     st.id,st.anim=id+k-1,'ended'
     clock=clock+0.6
-    ok,why=R.steer()
+    ok,why=R.slow()
     assert(ok==nil and R.riding(),tostring(why))
 end
 R.toggle()
@@ -572,8 +585,8 @@ for word,reason in pairs({['ended:weight']='her animation blueprint showed none 
     fault='the native part stopped the riding clip (fault)'}) do
     id=mount()
     st.id,st.anim=id,word
-    clock=clock+0.15
-    ok,why=R.steer()
+    clock=clock+0.25
+    ok,why=R.slow()
     assert(not ok and why=='Off the bike: '..reason and not R.riding(),why)
 end
 -- A frame that raises; the drive gone with her EVE (a map change): off.

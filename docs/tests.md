@@ -18,12 +18,13 @@ build/host/pose_codec_test
 The Lua tests (`bike/`: `fetch`, `model`, `others`, `park`, `ride`, `stand`; `commands/`: `session`; `core/`:
 `actors_of`, `class_at`, `keybind`, `link`, `mask`, `pak_gate`, `settings_file`, `ue4ss_settings`, `unreal`; `cut/`:
 `chainspin`, `devmenu`, `emote`, `enemy`, `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`,
-`mailbox`, `scene`, `tendril`, `wear`; `main/`: `bike`, `boot`, `dlc`, `fight`, `fight_notices`, `guide`, `idle`, `input`, `match`,
+`mailbox`, `scene`, `tendril`, `wear`; `main/`: `bike`, `boot`, `daynight`, `dlc`, `fight`, `fight_notices`, `guide`, `idle`, `input`, `match`,
 `menu`, `quests`, `sbo`, `scenes`, `session_ui`, `settings`, `story`, `world`; `matrix13/quest/`: `on_time`, `zone_talks`;
 `matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`;
 `nightop/`: `board`, `challenges`, `guard_text`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`,
 `waves`; `partner/`: `capture`, `ghosts`, `hud`, `puppet`, `sentinel`; `race/`: `doro`, `drive`, `drive_model`, `model`,
-`run`; `session/`: `arrival`, `booth`, `chat`, `group`, `halls_rows`, `join`, `saves`, `sbo`, `travel`; `story/`:
+`run`; `session/`: `arrival`, `booth`, `chat`, `group`, `halls_rows`, `join`, `saves`, `sbo`, `travel`; `sky/`:
+`daynight`, `rule`; `story/`:
 `snapshot`, `subtitles`; `ui/`: `create`, `create_model`, `guide`, `kit`, `lobby`, `lobby_model`, `model`, `notice`,
 `region_tabs`, `sessions`, `sessions_model`, `text`) run
 the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
@@ -35,9 +36,10 @@ fails the test. The `main/` tests load
   rate and lean at full lock at five speeds, the drift's 42-degree slip cap, a wall, the air, a ramp launch only after
   0.12 s of climb, the pitch, root motion holding the state and the values' bounds;
 - `bike/ride_test` covers `bike/ride.lua` over a fake EVE and native part: the preload asked once and released at
-  `bike=off`, the part made once (at the seat, hidden) or found again after a reload, every mount refusal with its
-  reason and nothing written, the mount's order and the dismount backward, the lean, the riding pose played again or
-  ending the ride, the 250 ms checks (EVE down read from the status line's `bike_life=` with no session, or from the
+  `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every mount refusal
+  with its reason and nothing written, the mount's order and the dismount backward, the lean (the math library looked
+  up once a ride), the riding pose played again or ending the ride (read in the 250 ms pass only: no frame reads the
+  status), the 250 ms checks (EVE down read from the status line's `bike_life=` with no session, or from the
   session's life state without that word), `coop-bike.txt` and its restore, `coop bike status` and `tune`, the Doro
   look refused while she rides, `idle_part` (the part the capture leaves out) before the part, on and off the bike,
   after a ride ended on a fault, after a reload and at `bike=off`, the part's `SBO_Bike` tag (a tag that does not hold
@@ -78,7 +80,8 @@ fails the test. The `main/` tests load
   on or off starts a new generation; another component on the bike's mesh stays a part;
 - `core/link_test` also covers the status's `uidev=`, `me=`, `world=` and `story=` lines and the `owner=`, `room=`
   and `hall=` fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty)
-  and never from a player's name; the `shared_world` and `shared_story` settings; `bike` and `bike_key` (an older
+  and never from a player's name; the `shared_world`, `shared_story` and `daynight` settings (the `sky=` line kept out
+  of the `link:` lines); `bike` and `bike_key` (an older
   file whose keys hold F3 gets no bike key). It also reads the `dlcs=` line with the `dlc_missing=` and
   `dlc_extra=` lines after it, the session list's `list=` line with its `session=` rows (a row only after a `list=`
   line, `-` read as none) and a joiner's `wait=` line, logged once a wait. It covers `who_can_join` (`public` by
@@ -86,6 +89,37 @@ fails the test. The `main/` tests load
   asked only on a change and never with a word the native part refuses. The rules word is built from the settings and
   read back in that shape only. The parked bike's line goes to `coop-parked.txt`, the newest replacing one the native
   part has not taken. Each member's `bike_of=` line reads into `bikes()` by her SteamID and stays out of the log;
+- sessions of more than 2 players: `core/link_test` reads `max_players` (2 to 4, 4 by default and in a new file; any
+  other value refused with a line, `4` kept), every `pending=` line in the status's order (`pending()` the first,
+  `pendings()` all of them), the `host=` and `vit=` lines (`vit=` kept out of the log, a malformed line read as none),
+  `others()`, `crowd()` and `Link.crowd()` with the `players=` line (a member the host let in counted before her link
+  with us is made), `cap()` from the `host=` line's `max=` (none for `max=0`, read again after a Lua reload), the status
+  line with ` +<n>` (`Paused by` naming the host alone), the first member past the handshake standing in on a host whose
+  pair left, `ping()` the round trip of the member the status line names once she is past the handshake;
+  `commands/session_test`, `main/boot_test`, `main/menu_test` and `main/session_ui_test` the host request ending with
+  `max_players` (`main/session_ui_test` also the members' rows after the arrow in the kit's order); `ui/model_test` the
+  Players row on the Options page and its mute rows (one per other member past the handshake, under Chat, the same row
+  each call, Select giving `mute`, her SteamID and whether she is muted); `main/menu_test` a mute row's words and its
+  `coop mute` or `coop unmute`; `ui/create_model_test` and `ui/create_test` the Players row of the Create a session
+  screen (held at 2 and 4, the scroll window one row longer); `ui/lobby_model_test` a session counted against its host's
+  `max_players`, against 4 while it is not known; `session/join_test` the host's queue (one question about the first
+  joiner with the players waiting after her on the seconds' line, then the next one's own question with its keys dead
+  again for 1 s); `partner/hud_test` the members' rows (right of the card, three to a column, six made, clear of the
+  card and of each other at every `ui_scale` from 75 to 150 and moved for it; her name, HP and state as on the card,
+  greyed, the alert once on DOWN and once on a lost link; hidden with `partner_card` off, while paused, out of a session
+  and in a match lobby) and the card following the first member past the handshake on a host whose pair left;
+  `session/group_test` the revive with three players (the nearest member alive within 2 m named in the wait, the call
+  and the revived notice; the wait naming the member alive on our map when she is far; no member alive), each member's
+  down notice with our revive of her, no down notice nor revived notice for a guest outside the pair on the host and on
+  the pair, her own game waiting on no shared fight, then the guest's cutscene pause read from the host's slot;
+  `session/travel_test` the host answering `camps?` while any guest is linked and the guest reading the host's map from
+  his member line's slot (no offer while that slot has no ghost or the host is not linked); `partner/ghosts_test`
+  `get(k)`; `cut/mailbox_test`, `race/run_test`, `nightop/run_test`, `nightop/roxanne_test` and `main/fight_test` a
+  gift, a race, a run, Roxanne's pick and the PvP test refused with 3 players, `race/run_test` and `nightop/run_test`
+  also a race and a run under way ending with their reason when a third player gets in, on the pair too while her own
+  link with that player is not made; `ui/guide_test` the first page's player count, the default `max_players`, in every
+  language; `main/quests_test` the host's quest notices naming the guest whose side came on first and the guest whose
+  ahead line it is;
 - `commands/session_test` covers `coop host` with each of the four words (`ask` added under `public` and `invitation`
   with `friends_ask=on`), `coop host` alone (the Create a session screen when it opens, else `who_can_join`),
   `coop list` (a search by tab; alone, the last list numbered or a Public search) and `coop join <row>`;
@@ -124,6 +158,34 @@ fails the test. The `main/` tests load
   its bike line through `link.bike`, the paid fetch with `coop gift`'s FName and pause rules, the follow's
   `camp_near`); the other players' parked bikes built, restored at the first tick, run after the ride's pass and
   cleared at `coop off`;
+- `main/daynight_test` covers the day and night cycle through `main.lua` with a fake `sky/daynight.lua`: what it is
+  built with (the native asks and status, the `daynight` setting, the cutscene, SB's screens, photo mode, Night
+  Operation, the SBO lobby in Xion's training room only, the third-party plugin's path, `coop-sky.txt`, the world's
+  address, no streaming level asked with no EVE) and its 250 ms pass with `coop off`. It also covers `coop daynight`
+  with each word and its usage line for the rest. `main/menu_test` covers the Day and night row: On by default, a change
+  saved at once with no request;
+- `sky/rule_test` covers `sky/rule.lua`: every row of the map table (keys in lower case, each open row complete for its
+  kind of sky, the fixed maps, an unknown map), the rules in their order (a cutscene before photo mode, photo mode's
+  hold whatever the hour and while SB's photo mode pauses the game, a test pin before Night Operation's midnight), the
+  `sky=` line read into numbers (none from an older DLL), the command's hour (`24`, `-1`, `abc`, an empty word, `13,5`,
+  `1e9`, `0x10`, `inf` and `nan` refused with the accepted range), the sky dressing and the star fade for an elevation,
+  a SkyCreator's time, the real minutes to the night and the third-party plugin's path;
+- `sky/daynight_test` covers `sky/daynight.lua` over a fake engine: one request per change, the map read once per EVE,
+  the setting, each rule's case (Xion's story night read every 2 s), the command's words, a fixed map and the title, the
+  status with an older DLL (no request loop), `coop off`, a refused ask and the third-party plugin's line once. Then the
+  sky dressing: each dome looked up once per world and hidden once, a missing one logged once, the star layer made once
+  with its material loaded once a world and faded on change, the SkyCreators' time on change and back at an off, Xion's
+  night dome shown through its actor and again after its story night, a Lua reload at night that finds the star layer by
+  its tag (no second one), an earlier load's dressing put back by a new load that starts off. Last, SBO's own maps: the
+  Sun turned, its intensity, its colour and the SkyLight's intensity scaled, Matrix XIII's exposure bias lowered, each
+  written on change only and put back at an off. Then the originals across a Lua reload at full night (the Hotel's
+  lights, Matrix XIII's bias, a SkyCreator's time, each kept in `coop-sky.txt` with no compounding and back at an off),
+  a new EVE in the same world, a new game run that reads the lights again and a `coop-sky.txt` that cannot be written.
+  Spire 4's streamed sky sublevels: a dome that waits for its sublevel with no lookup, one looked up and hidden 2 s
+  after its sublevel came (not before) with the SkyCreators listed again, one dropped when it went, one looked up again
+  after it went and came back between two reads, a SkyCreator sublevel with no dome, nothing read off the live passes
+  and a sublevel that came meanwhile looked up at the first live pass, a streaming level whose read raises; the Terrace
+  hall left alone;
 - `main/world_test` covers `coop world` (its words, on and off whatever `shared_world` says, status), the start once a
   load with `shared_world=on`, the end at a reload with `shared_world=off`, and the shared world's two notices;
 - `main/scenes_test` covers `coop scenes` (its words, on and off whatever `shared_story` says, status, an on or off
@@ -289,7 +351,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   `mxiii rows`, `shop rows` and `signal rows` with their 25 table words and bad addresses, the longest of them 813
   bytes; `fly` and `slowmo` on or off; `anim play` with its id, path and `once`, `loop` or `ride`, and `anim stop`;
   `bike load <clip>`, `bike free`, `bike gate on` and `bike gate off`, a mesh, a package path or a mod's clip refused;
-  `shortcut list` and `shortcut load <map> <1-4>`; `hud hide on` and `hud hide off`; `loading lift`; `world` and
+  `shortcut list` and `shortcut load <map> <1-4>`; `hud hide on` and `hud hide off`; `loading lift`; `sky off`,
+  `sky hold`, `sky cycle <hz> <H>` and `sky hour <minute> <hz> <H>` with their ranges; `world` and
   `scenes` with `on`, `off` or `status`; `nightshop`,
   `roxanne`, `lily`,
   `guardtext` and the 8 `signal` words, in `quest/own.h`'s order; the `sbo` requests (`on`, `arm`, `enter`, `warp`,
@@ -301,15 +364,19 @@ The C++ tests cover the platform-free headers in `native/src`.
   the match modes (`find_mode`), `match search` and `match create` with their room and hall words (each refused when
   missing, extra, too long or not an alias word), `match cancel` and `match end`, `mute` and `unmute`, `block`,
   `unblock` and `unblock all`, the `host` words (`public`, `friends`, `invitation` with the older `code` and
-  `private`, `closed`, then `ask`), `list public|friends|stop`, `where`, `rules` and the row cleaner,
-  the match lines (start, count, end) with their bounds, the dlc and dlcs lines with their bounds and the DLC
-  comparison by app id, the bike line (`none`, or `park` with the map rule, three places within 10,000,000 and three
-  angles within 36,000 as signed whole numbers) and protocol 22 refusing a protocol-21 lobby and line;
+  `private`, `closed`, then `ask`, then `max_players` from 2 to 4), `list public|friends|stop`, `where`, `rules` and the
+  row cleaner, the match lines (start, count, end) with their bounds, the host's let and wait lines with theirs, the
+  dlc and dlcs lines with their bounds, the DLC comparison by app id, the bike line (`none`, or
+  `park` with the map rule, three places within 10,000,000 and three angles within 36,000 as signed whole numbers),
+  then protocol 23 refusing a protocol-22 lobby and
+  line;
 - `link_core_test`: the link against the shared fake Steam, and two links through it with the handshake both ways,
   channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, an
   Invitation lobby (its code, the invite dialog, the older words `code` and `private`) joined with its code and the
   host's approval of a player who is not a Steam friend (let in, refused, no answer, removed, a flood while waiting),
-  with relay only set on both games before their first session with each other. With a Steam that refuses relay only,
+  with relay only set on both games before their first session with each other. A player on another protocol or game
+  build: refused by the host, who keeps the lobby; left by a guest. A reject: from the host, the guest leaves; from a
+  guest, the host stays. With a Steam that refuses relay only,
   nothing goes to that player and her session request waits; Steam is asked again 1 s later. After 3 refusals the host
   refuses her with a notice, or the guest leaves with one. A friend's session never asks. A join Steam refuses gets its
   notice for each answer Steamworks documents, or the number for any other. The block list: its fixed hash; its file
@@ -333,8 +400,9 @@ The C++ tests cover the platform-free headers in `native/src`.
   co-op lobby, eight links in one match lobby (no approval, every pair linked, the owner's SteamID as `owner=` on the
   owner's and a guest's `link=` line, ghost slots 0 to 6 and a freed slot taken again, `friend=` from slot 0, the
   slot-0 member leaving a lobby of three, whose `friend=` line goes while the third member stays linked and still gets
-  our chat line, no `mate=` line, the mods every member shares), a
-  co-op lobby that stays at two, a lobby of an unknown mode left, each channel-1 message, channel-2 line and chat line
+  our chat line, with no `mate=` nor `vit=` line and `<name> left.` on the owner only, the mods every member shares),
+  an
+  online session of `max_players` 2 refusing a third player, a lobby of an unknown mode left, each channel-1 message, channel-2 line and chat line
   handed on with its sender, a channel-2 line to one member, `lines_from`, quick match (the exact filters and their
   order with the relay-only setting, a lobby created when none is found with its member limit and data, seven more
   searchers joining it, another version's lobby and a code match lobby never found, two searchers in one pass each
@@ -361,8 +429,32 @@ The C++ tests cover the platform-free headers in `native/src`.
   floods), the owner's round lines on a guest (a count line logged only when it moves her countdown, one notice for
   a start without her, past 8 a second dropped and logged once), the per-player chat mute kept for the run, per-peer
   pose caps (30 a second for a member of a match lobby, one peer's cap stepping down alone, one second of poses
-  reaching peers at 20, 30 and 60 a second, tables always sent), the 60 s line of passes and full receive batches. Each
-  of eight members' bike lines reaches the seven others, one state per sender;
+  reaching peers at 20, 30 and 60 a second, tables always sent, an `SBE` sent to nobody as a match lobby has no pair)
+  and the 60 s line of passes and full receive batches. Each of eight members' bike lines reaches the seven others, one
+  state per sender;
+- `link_group_test`: online sessions of 3 and 4 players through the same fake Steam: the pair (the host and the guest in
+  slot 0) with the host in slot 0 on every guest, the host's let line with its `max_players`, the `host=` (with `max=`),
+  `players=` and `vit=` status lines, 30 poses a second for a member who comes in past 2 players and for the pair's
+  links once the third comes in, chat between guests, each member's parked bike reaching the three others in a session
+  of 4; a joiner the guests hold (no hello, no session) until the host lets her in, after 15 s with no lost or back line
+  either way, a removed member whose link each guest closes, a refused
+  member who stays in the lobby and never links with a guest; the host's questions one at a time with each joiner's wait
+  line; the host leaving, which ends every guest's session whoever Steam hands the lobby to; a guest leaving, announced
+  everywhere; the pair leaving with no guest left, slot 0 then taken by the next guest let in; the pair leaving with a
+  guest linked, the let line's pair 0 for one pass, then that guest in slot 0, named the pair with her notice; the pair
+  leaving in the pass a Steam friend comes in, the guest already linked taking slot 0 and the friend a slot past it; the
+  pair leaving while a Steam friend is in her handshake, her first let line naming her the pair with no notice; the
+  pair's hand-over in the order the guests got in (a stranger who joined first and was let in last comes after a Steam
+  friend who got in while she waited); Steam refusing relay only on a guest for another guest, which ends that link
+  alone with its notice while the host's count (`players=`) still names her; the camps answers to the asker only, by the
+  host's own number for each request (two guests' ids that meet, at once or one after the other, each answered once);
+  gifts (an answer to an earlier gift still going), Doro races, Night Operation and a guest's photo pause refused past 2
+  players, the guest told so, while the host's cutscene still pauses each guest; the pair rule (the notice once on each
+  guest who is not the pair and never on the pair, an `SBE` to the pair only and none from another guest, a channel-2
+  line to one member reaching her alone with its sender, the pair leaving dropping the shared fight's lines both ways
+  while the shared quests' lines of the guest who stays go on); channel 2 per member (Steam refusing one guest's lines
+  holds back hers alone, the pair's going on in order past `kFightQueue`, hers reaching her in order once Steam takes
+  them, each refused line counted once); `max_players` 3 on a guest's `host=` line and refusing a fourth player;
 - `link_list_test`: the session list through the same fake Steam, which follows Steamworks' read rules (no data for a
   lobby before a search returned it or `RequestLobbyData` was answered, `GetLobbyOwner` for members only, a result
   count, friends-only lobbies never in a search). A Public host's rows with `where` and `rules`, no relay only forced
@@ -690,6 +782,15 @@ The C++ tests cover the platform-free headers in `native/src`.
   action map (each state kept and put back, an absent name back as on, a name SB changed during the ride left as SB set
   it, a name the game never made skipped, a controller gone, a fault in the middle of turning it on, a fault), the words
   packed for the worker and the status line, the ride plays' clip lookups and the log lines;
+- `game_sky_test`: the day and night cycle (`game/sky.h`): the clock at :02, :12, :32 and :52 and under 24 just before
+  the hour's wrap, the ramps, the sun and moon at noon, sunrise, sunset, midnight and mid-morning, the dusk colour, the
+  status line. Over a fake WorldSettings whose env array holds a sunlit element with its own exposure bias, a covered
+  one and a sunlit one without the bias bit: noon and midnight written from the originals with the covered one given
+  only the direction; a restore; a copy SB makes into an element; another world at the same addresses, read as new; SB's
+  forced settings (nothing written, a restore still puts the array back); the gated blend, too many elements, no world,
+  an empty array; a pinned hour, a hold that keeps a pinned hour or the clock's; an element SB moved in its array keeps
+  its originals; a cutscene or talk scene of SB's (its values back while it plays, under its forced settings too, our
+  light again after it);
 - `items_test`: `coop gift`'s inventory read against a fake image laid out like the pinned build: the FName and
   CityHash64 hashes checked against the game's, a count over two instances and along chains of collisions, an item
   EVE does not carry, no manager, bucket or owner, an instance the manager no longer holds, and hostile memory (a
@@ -790,9 +891,17 @@ The C++ tests cover the platform-free headers in `native/src`.
   the host's checks on her step lines (one from the same line again taken, an older one dropped);
 - `quest_engine_test`: the shared quests against a fake quest unit: the walk, the guards before each game call, the
   gate, a fault, two PCs through channel 2's text with delay and loss (her step made first taken by the host's game,
-  kept through a hold of his game until 16 wait, the same step again made once, dropped by his load), a recording
-  replayed into another save, and the worker's side (the gates that start and end a side, channel 2's lines beside
-  the fight's, the record file and the status lines);
+  kept through a hold of his game until 16 wait, the same step again made once, dropped by his load), three PCs (one
+  read of the host's quests a pass feeding a Host per guest, each guest's own snapshot and lines, the pair's step made
+  once in the host's game and brought to the second guest, the second guest's step line dropped by the host, none sent
+  once she is told she is no pair (`Engine::pair`), the status per guest, her quest then ahead with the host's ahead
+  note naming her, the host's state naming the first guest on (`with=`), a guest who leaves losing her Host only while
+  the record keeps her lines, her return with our on to her alone and a snapshot of her quests only), a recording
+  replayed into another save, the worker's side (the gates that start and end a side, channel 2's lines beside the
+  fight's, the record file and the status lines), the worker on a host with two guests (each guest's on and snapshot,
+  each guest's lines to the engine under her own SteamID, the second guest's step dropped and the pair's taken, another
+  member's line never reaching a guest's engine, the pair gone with pair 0 while the second guest stays, the left guest
+  logged under her own SteamID);
 - `quest_own_test`: the mod's own quests in a fake quest unit (`quest/own.h`): nothing read off a co-op save, on SB's
   logic thread or before the world and the manager exist; the ID map through its inline and heap bits; the prologue
   and Quest_Epic_11 read beside "On Time"; each request word's one call (an acquire once, never when held; a first
