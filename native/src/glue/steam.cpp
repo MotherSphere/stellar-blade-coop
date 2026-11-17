@@ -961,24 +961,38 @@ bool step() {
       link->notice(said);
     coop::pose::hud_pass();
     coop::pose::loading_pass();
-    // Channel 2 both ways, with the co-op partner only (none in a match lobby, where partner() is 0): the shared quests
-    // take their SBQ lines out first, then the shared world its SBW lines, then story together its SBS lines. The
-    // shared fight's job gets the rest. The lobby owner hosts the quests, the story and the fight. Ours are queued for
-    // the next tick. Lines from any other member are dropped.
-    const std::vector<coop::FightLine> fights = loaded ? link->take_fight() : std::vector<coop::FightLine>();
+    // Channel 2 both ways (none in a match lobby). The shared quests take their SBQ lines out first, by sender: on the
+    // host, one quest::Host per guest past the handshake; on a guest, the host's only. The shared world (SBW lines),
+    // story together (SBS lines) and the shared fight (the rest) run within the pair only (partner(): the host and the
+    // guest in ghost slot 0): they read the pair's lines and send theirs to the pair alone. Every other guest's game
+    // keeps those three off (its partner() is 0). The lobby owner hosts the quests, the story and the fight. Ours are
+    // queued for the next tick. Lines from any other member are dropped.
+    std::vector<coop::FightLine> fights = loaded ? link->take_fight() : std::vector<coop::FightLine>();
     const uint64_t partner = linked ? link->partner() : 0;
     const bool shared = partner != 0;
-    std::vector<std::string> channel2 = coop::lines_from(fights, partner);
+    std::vector<uint64_t> mates;
+    if (linked && !link->match())
+      mates = link->host() ? link->members() : std::vector<uint64_t>(link->leader() ? 1 : 0, link->leader());
     coop::pose::quest_pass(
-        GetTickCount64(), shared && link->host(), partner, coop_marker, channel2,
-        [](const std::string &line) { return link && link->send_fight(line, true); }, quest_files);
-    coop::pose::world_pass(partner, link && link->match(), channel2,
-                           [](const std::string &line) { return link && link->send_fight(line, true); });
+        GetTickCount64(), !mates.empty() && link->host(), mates, coop_marker, fights,
+        [](const std::string &line, uint64_t to) { return link && to && link->send_fight(line, true, to); },
+        quest_files);
+    std::vector<std::string> channel2 = coop::lines_from(fights, partner);
+    coop::pose::world_pass(partner, link && link->match(), channel2, [](const std::string &line) {
+      const uint64_t pair = link ? link->partner() : 0;
+      return pair && link->send_fight(line, true, pair);
+    });
     coop::pose::story_pass(partner, shared && link->host(), link && link->match(), channel2,
-                           [](const std::string &line) { return link && link->send_fight(line, true); });
+                           [](const std::string &line) {
+                             const uint64_t pair = link ? link->partner() : 0;
+                             return pair && link->send_fight(line, true, pair);
+                           });
     bool fighting = coop::pose::fight_pass(
         GetTickCount64(), shared, shared && link->host(), coop_marker, channel2,
-        [](const std::string &line, bool reliable) { return link && link->send_fight(line, reliable); },
+        [](const std::string &line, bool reliable) {
+          const uint64_t pair = link ? link->partner() : 0;
+          return pair && link->send_fight(line, reliable, pair);
+        },
         shared ? link->mate_life() : coop::Life::unknown, partner);
     streaming = streaming || fighting;
     // Every send passes here, worker_poll's and worker_stream's before this pass's ready(): none once Steam shut down.

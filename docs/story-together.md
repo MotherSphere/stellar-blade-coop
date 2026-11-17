@@ -78,6 +78,10 @@ All of these must hold:
 - both of you have story together on;
 - the game is Steam build 26123051, the build this version supports.
 
+In an online session of more than 2 players, story together runs between the host and the first guest only (the guest
+in ghost slot 0 on the host). Every other guest gets a notice when she comes in. The host's cutscenes pause her game
+as before.
+
 The host's scene lines that arrive while her game loads wait, up to 256 of them. Her game takes them once she is back
 in the world.
 

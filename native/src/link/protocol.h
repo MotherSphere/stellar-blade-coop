@@ -456,6 +456,21 @@ inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
 inline std::string world_tag() { return "SBW" + std::to_string(kProtocol); }
 inline std::string story_tag() { return "SBS" + std::to_string(kProtocol); }
+// A channel-2 line as link/core.h's take_fight() hands it on: its sender's SteamID and the line as it came. The shared
+// quests take theirs from every partner by sender (quest/engine.h's Worker); the shared fight, the shared world and
+// story together take the pair's only (lines_from).
+struct FightLine {
+  uint64_t from;
+  std::string line;
+};
+// The lines from one sender, in order (none for 0).
+inline std::vector<std::string> lines_from(const std::vector<FightLine> &lines, uint64_t from) {
+  std::vector<std::string> out;
+  for (const FightLine &l : lines)
+    if (from && l.from == from)
+      out.push_back(l.line);
+  return out;
+}
 
 // Digits only, no sign, no overflow.
 inline bool number(std::string_view text, uint64_t &out) {

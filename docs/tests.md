@@ -319,7 +319,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   floods), the owner's round lines on a guest (a count line logged only when it moves her countdown, one notice for
   a start without her, past 8 a second dropped and logged once), the per-player chat mute kept for the run, per-peer
   pose caps (30 a second for a member of a match lobby, one peer's cap stepping down alone, one second of poses
-  reaching peers at 20, 30 and 60 a second, tables always sent) and the 60 s line of passes and full receive batches;
+  reaching peers at 20, 30 and 60 a second, tables always sent, an `SBE` sent to nobody as a match lobby has no pair)
+  and the 60 s line of passes and full receive batches;
 - `link_group_test`: online sessions of 3 and 4 players through the same fake Steam: the pair (the host and the guest
   in slot 0) with the host in slot 0 on every guest, the host's let line, the `host=` and `vit=` status lines, 30 poses
   a second for a member who comes in past 2 players, chat between guests; a joiner the guests hold (no hello, no
@@ -327,7 +328,10 @@ The C++ tests cover the platform-free headers in `native/src`.
   lobby and never links with a guest; the host's questions one at a time with each joiner's wait line; the host
   leaving, which ends every guest's session whoever Steam hands the lobby to; a guest leaving, announced everywhere,
   with slot 0 taken by the next guest let in; the camps answers to the asker only; gifts, Doro races, Night Operation
-  and a guest's photo pause refused past 2 players while the host's cutscene still pauses each guest; `max_players` 3
+  and a guest's photo pause refused past 2 players while the host's cutscene still pauses each guest; the pair rule
+  (the notice once on each guest who is not the pair and never on the pair, an `SBE` to the pair only and none from
+  another guest, a channel-2 line to one member reaching her alone with its sender, the pair leaving dropping the
+  shared fight's lines both ways while the shared quests' lines of the guest who stays go on); `max_players` 3
   refusing a fourth player;
 - `link_list_test`: the session list through the same fake Steam, which follows Steamworks' read rules (no data for a
   lobby before a search returned it or `RequestLobbyData` was answered, `GetLobbyOwner` for members only, a result
@@ -756,9 +760,12 @@ The C++ tests cover the platform-free headers in `native/src`.
   the host's checks on her step lines (one from the same line again taken, an older one dropped);
 - `quest_engine_test`: the shared quests against a fake quest unit: the walk, the guards before each game call, the
   gate, a fault, two PCs through channel 2's text with delay and loss (her step made first taken by the host's game,
-  kept through a hold of his game until 16 wait, the same step again made once, dropped by his load), a recording
-  replayed into another save, and the worker's side (the gates that start and end a side, channel 2's lines beside
-  the fight's, the record file and the status lines);
+  kept through a hold of his game until 16 wait, the same step again made once, dropped by his load), three PCs (one
+  read of the host's quests a pass feeding a Host per guest, each guest's own snapshot and lines, the second guest's
+  step made once in the host's game and brought to the first, the same step from both made once, the status per
+  guest, a guest who leaves losing her Host only while the record keeps her lines, her return with our on to her
+  alone and a snapshot of her quests only), a recording replayed into another save, the worker's side (the gates that
+  start and end a side, channel 2's lines beside the fight's, the record file and the status lines);
 - `quest_own_test`: the mod's own quests in a fake quest unit (`quest/own.h`): nothing read off a co-op save, on SB's
   logic thread or before the world and the manager exist; the ID map through its inline and heap bits; the prologue
   and Quest_Epic_11 read beside "On Time"; each request word's one call (an acquire once, never when held; a first

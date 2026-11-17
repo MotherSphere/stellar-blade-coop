@@ -15,9 +15,9 @@ uint64_t quest_slot_at = 0; // When the save-slot line was last read for the gam
 std::string quest_slot_line = "slot=unknown ";
 constexpr size_t kMaxQuestRecording = size_t(16) << 20; // quest::kMaxRecording lines of about 100 bytes, and more.
 struct QuestIo {
-  bool (*out)(const std::string &) = nullptr;
+  bool (*out)(const std::string &, uint64_t) = nullptr;
   const QuestFiles *files = nullptr;
-  bool send(const std::string &line) { return out && out(line); }
+  bool send(const std::string &line, uint64_t to) { return out && out(line, to); }
   void say(const std::string &line) { pose::say(line); }
   void trace(const std::string &line) { pose::trace(quest_trace, line); }
   bool load(int slot, std::string &text, size_t max) { return files && files->load && files->load(slot, text, max); }
@@ -87,8 +87,9 @@ void own_pass() {
 }
 } // namespace
 
-void quest_pass(uint64_t now_ms, bool hosting, uint64_t partner, int marker, std::vector<std::string> &lines,
-                bool (*send)(const std::string &), const QuestFiles &files) {
+void quest_pass(uint64_t now_ms, bool hosting, const std::vector<uint64_t> &partners, int marker,
+                std::vector<coop::FightLine> &lines, bool (*send)(const std::string &, uint64_t),
+                const QuestFiles &files) {
   QuestIo io{send, &files};
   if (quest_faulted && !quest_fault_logged) { // Latched: off to her at this pass, nothing more this run.
     quest_fault_logged = true;
@@ -109,7 +110,7 @@ void quest_pass(uint64_t now_ms, bool hosting, uint64_t partner, int marker, std
     std::lock_guard<std::mutex> lock(quest_m);
     quest_slot = quest_slot_line, quest_slot_ms = now_ms;
   }
-  quest_worker.pass(now_ms, hosting, partner, quest_slot_line, lines, io);
+  quest_worker.pass(now_ms, hosting, partners, quest_slot_line, lines, io);
   own_pass();
 }
 

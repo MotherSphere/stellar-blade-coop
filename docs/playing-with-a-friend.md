@@ -369,7 +369,8 @@ on by default and have not been tested in game yet. Back up your saves before yo
 They run while a friend is linked, both players play a co-op save and both have them on: Options > Saves > Shared
 quests (experimental) in the co-op menu, or `shared_quests=on` in [coop-settings.txt](settings.md#coop-settingstxt). The row asks
 `coop quests on` or `coop quests off` at once, and with the setting on the mod asks `coop quests on` by itself once a
-load. Steps go from the host to the guest, except a step the guest makes first (see below). Four times a second the
+load. In an online session of more than 2 players, they run between the host and each guest. Steps go from the host
+to the guest, except a step the guest makes first (see below). Four times a second the
 host's game reads its own quests, and when an Epic, Sub or Request quest moves (the quest starts, one of its tasks is
 done, or a group of its tasks ends), it sends that quest's state to the guest. Her game makes the same step through
 the game's own quest functions, at most one step every 250 ms, when both of these hold:

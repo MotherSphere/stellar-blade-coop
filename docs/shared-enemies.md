@@ -102,6 +102,10 @@ once you are linked and both play a [co-op save](playing-with-a-friend.md#co-op-
 linked only while you are on the same map. Turning the row off (`shared_enemies=off`) stops it at once, but not the
 solo test tools below.
 
+In an online session of more than 2 players, shared enemies and every option on them (same place, same spawns, extra
+enemies, shared bosses) run between the host and the first guest only (the guest in ghost slot 0 on the host). Every
+other guest fights her own enemies, with a notice when she comes in.
+
 ### Which enemies are shared
 
 `fight_chars=auto`, the default, shares every common enemy (the game's Monster type). Bosses and Alpha Naytibas (the

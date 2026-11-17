@@ -18,6 +18,11 @@ it checks that it is not on the game's logic worker thread (whose ID the game ke
 is still the co-op save it started on: another save ends the side with `SBQ23 off slot` (the worker starts a new one
 on the next co-op save), while a load (the title screen, a map change) only pauses it.
 
+- In an online session of more than 2 players, the host's side runs one `quest::Host` per guest linked past the
+  handshake, in the order they came. The pass reads his quests once and feeds every Host. Each Host keeps its guest's
+  `h` lines in the one record of the co-op slot. It sends her our `on`, her own snapshot and her lines, then takes her
+  step lines. A guest who comes gets a Host and our `on` line; one who leaves loses hers. Neither starts the side again.
+  The same step from two guests is made once in the host's game; his next read brings it to the others.
 - The host reads his quests. Each quest whose state changed goes to the guest as one reliable line on channel 2 with
   the whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ23 q <gen> <seq> <id> <state>
   <acquire mark> <finished groups> <tasks done> <done mark>`. A group or a task is named by its place (container and

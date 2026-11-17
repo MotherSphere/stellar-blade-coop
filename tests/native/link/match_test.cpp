@@ -1094,8 +1094,8 @@ int main() {
     assert(sent_poses(kMe, kPlayer[1]) - before[0] == 20); // cap 20
     assert(sent_poses(kMe, kPlayer[2]) - before[1] == 60); // cap 60
     assert(sent_poses(kMe, kPlayer[3]) - before[2] == 32); // cap 30: 28 deltas and the 4 keyframes
-    // Tables always go: a reliable "SBT x" right after a pose reaches all three, and so does an SBE; neither moves
-    // the next delta's time. A delta at that time reaches none.
+    // Tables always go: a reliable "SBT x" right after a pose reaches all three. An SBE reaches none, as a match lobby
+    // has no pair. Neither moves the next delta's time. A delta at that time reaches none.
     uint64_t due[3];
     for (int i = 0; i < 3; ++i)
       due[i] = peer_of(m[0], kPlayer[i + 1]).pose_due;
@@ -1103,7 +1103,7 @@ int main() {
     send_binary(m[0], "SBE x", false);
     send_binary(m[0], "SBD late", false);
     for (int i = 0; i < 3; ++i)
-      assert(sent_binary(kMe, kPlayer[i + 1], "SBT x") == 1 && sent_binary(kMe, kPlayer[i + 1], "SBE x") == 1 &&
+      assert(sent_binary(kMe, kPlayer[i + 1], "SBT x") == 1 && sent_binary(kMe, kPlayer[i + 1], "SBE x") == 0 &&
              sent_binary(kMe, kPlayer[i + 1], "SBD late") == 0 && peer_of(m[0], kPlayer[i + 1]).pose_due == due[i]);
     // The 60 s line: after the first one, 60 s of 50 ms passes on link 0 read "1200 passes, 0 full receive batches".
     const int lines = count("P1: link, last 60 s: ");

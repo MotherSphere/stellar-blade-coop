@@ -126,7 +126,8 @@ than `None`, an ObjectState other than 0 or a progress above 0). Each of those p
 Before a root becomes a line, the sender reads each FName's text, writes the line, parses it back and checks the
 lists.
 
-The worker hands our lines to `send_fight()`, which refuses a line while its channel 2 queue holds 256. A refused line
+The worker hands our lines to `send_fight()` for the pair only (`Link::partner()`, the host and the guest in ghost slot
+0 in an online session of more than 2 players), which refuses a line while its channel 2 queue holds 256. A refused line
 waits with the lines after it for the next pass, up to 1,024 (`world/sync.h`'s `Outbox`); a new partner, or none,
 drops what waits, as the link drops its own queue then.
 

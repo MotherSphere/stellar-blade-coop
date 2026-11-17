@@ -243,6 +243,18 @@ An online session holds up to 4 players (`max_players`). The host leads every gu
   enemies, the shared world and story together run within the pair only (`Link::partner()`): the other guests' games
   keep their own enemies and world. They wait through the host's cutscenes as before. When the pair's guest leaves,
   slot 0 stays free and no guest pairs with the host until a new one comes in (the let line's pair is then 0).
+- The first let line that does not name a guest as the pair gives her one notice for the session: `Shared enemies,
+  the shared world and story together run between <host> and <pair> only. Your game keeps its own.` With no pair, it
+  reads `Shared enemies, the shared world and story together are off for you in <host>'s session. Your game keeps its
+  own.`
+- Channel 2 follows the pair. `glue/steam.cpp` sends the shared fight's, the shared world's and story together's
+  lines to `partner()` only. It hands those three the pair's lines only: a guest out of the pair sends none and reads
+  none. Same-place enemies' `SBE` on channel 1 goes to the pair only. The shared quests run with every member: the
+  host's game runs one quest side per guest past the handshake, all fed by one read of its quests each pass. Each
+  guest gets her own lines (see [Group play: how it works](group-play.md#shared-quests)). A guest sends her `SBQ` lines
+  to the host only and reads the host's only. Lines from any other member are dropped.
+- A new pair, or none, empties channel 2's queues both ways of all but the shared quests' lines, so a snapshot on its
+  way to another guest still goes.
 - The status has `host=<host's SteamID> pair=<pair's SteamID or 0>` in an online session, then `vit=<SteamID> <12
   numbers>` for each member past the handshake whose vit line is under 3 s old. `mate=` is the slot-0 member's: the
   host's on a guest, the pair's on the host.
@@ -562,7 +574,7 @@ Channel 1 carries the pose path's bytes unchanged: the component table as text s
 each pose as a binary message starting `SBP` (a keyframe) or `SBD` (a delta), then the protocol byte (sent unreliable,
 without Nagle delay). Same-place enemies add a binary message starting `SBE` and the protocol byte, at most 30 a
 second (sent unreliable): the place, rotation and animation speed of up to 16 enemies that the sender moves on the
-other screen.
+other screen. An `SBE` goes to the pair only (`Link::partner()`), never in a match lobby.
 
 - Your table goes to your friend at once, again 5 s later, and then at waits that double while nothing changes, up to
   60 s: 5, 10, 20, 40, 60, 60 s. A table lost with a broken session, or sent before they accepted, arrives with a

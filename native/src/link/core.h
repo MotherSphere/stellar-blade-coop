@@ -555,20 +555,6 @@ struct Peer {
   uint64_t pose_due = 0; // Her next delta may go from here: our last pose to her plus 1000 / cap less kPoseSlackMs.
 };
 
-// A channel-2 line as take_fight() hands it on: its sender's SteamID and the line as it came.
-struct FightLine {
-  uint64_t from;
-  std::string line;
-};
-// The lines from one sender, in order (none for 0): what the fight and quest workers take from the co-op partner.
-inline std::vector<std::string> lines_from(const std::vector<FightLine> &lines, uint64_t from) {
-  std::vector<std::string> out;
-  for (const FightLine &l : lines)
-    if (from && l.from == from)
-      out.push_back(l.line);
-  return out;
-}
-
 // Callback counters, kept by the caller (they are bumped on the game's Steam thread).
 struct Counters {
   int join_requested = 0, data_update = 0, chat_update = 0, session_request = 0;
@@ -752,7 +738,8 @@ public:
     return cap ? cap : kPoseCaps[0];
   }
 
-  // The pose path's table (reliable), pose or SBE (unreliable), on channel 1 to every member past the handshake only.
+  // The pose path's table (reliable) or pose (unreliable), on channel 1 to every member past the handshake only; SBE
+  // (unreliable, the shared fight's same-place enemies) to the pair only (partner()).
   // A delta (SBD) skips a member until her pose_due; a pose sent (SBP keyframe or SBD) sets it from her cap. Tables
   // and SBE always go and leave it. Worker thread, like tick().
   // ponytail: queued unreliable poses never expire, so a send rate below the stream rate builds latency (the 60 s
@@ -760,8 +747,10 @@ public:
   // NoDelay (4) or SendRateMin/Max through SetConfigValue.
   void send_binary(const uint8_t *data, size_t size, bool reliable) {
     const bool pose = size >= 3 && data[0] == 'S' && data[1] == 'B' && (data[2] == 'P' || data[2] == 'D');
+    const bool sbe = size >= 3 && data[0] == 'S' && data[1] == 'B' && data[2] == 'E';
+    const uint64_t pair = sbe ? partner() : 0;
     for (auto &p : peers_) {
-      if (!p.compatible || !p.accepted || (pose && data[2] == 'D' && now_ < p.pose_due))
+      if (!p.compatible || !p.accepted || (pose && data[2] == 'D' && now_ < p.pose_due) || (sbe && p.id != pair))
         continue;
       int r = send(p, data, size, reliable ? kReliable : kUnreliable, kPoseChannel);
       if (r == kResultOk) {
@@ -780,9 +769,9 @@ public:
   // that SteamID, sent by the next tick(), reliable (on, off, world, up, down, dead, hit) or not (hp). False when it
   // cannot go: not linked, to someone who is not a member past the handshake, empty or past kMaxMessage, kFightQueue
   // lines already waiting, or a shared quests', shared world's or story together's line in a match lobby. Both queues
-  // hold one session's lines: a session that starts or ends (linked() changes), or a new pair (partner()), empties
-  // them, so no line crosses into the next one, and the fight logic restarts at the same changes. Worker thread, like
-  // tick().
+  // hold one session's lines: a session that starts or ends (linked() changes) empties them. So does a new pair
+  // (partner()), all but the shared quests' lines, which run with every member. No other line crosses into the next
+  // session or pair. The fight logic restarts at the same changes. Worker thread, like tick().
   bool send_fight(const std::string &line, bool reliable, uint64_t to = 0) {
     if (!linked() || line.empty() || line.size() > kMaxMessage || fight_out_.size() >= kFightQueue ||
         (match() && (line.rfind(quest_tag(), 0) == 0 || line.rfind(world_tag(), 0) == 0 ||
@@ -2688,7 +2677,7 @@ private:
 
   // linked() and partner() change only before this point of a pass (requests, calls, members, channel 0): a session
   // that starts or ends empties channel 2's queues both ways, and forgets her night line and the follow's camps lines;
-  // a new pair (or none) empties channel 2's queues too.
+  // a new pair (or none) empties them of all but the shared quests' lines.
   void fight_session() {
     const bool now_linked = linked();
     const uint64_t pair = partner();
@@ -2701,10 +2690,18 @@ private:
       for (auto &p : peers_)
         p.camps_asked = p.camps_waiting = false;
     }
+    // A new pair while linked: the shared quests' lines go on, as the quests run with every member.
+    const std::string tag = quest_tag() + " ";
+    const bool keep = now_linked == fight_linked_;
+    auto quest = [&](const std::string &line) { return keep && line.compare(0, tag.size(), tag) == 0; };
+    fight_in_.erase(
+        std::remove_if(fight_in_.begin(), fight_in_.end(), [&](const FightLine &l) { return !quest(l.line); }),
+        fight_in_.end());
+    fight_out_.erase(
+        std::remove_if(fight_out_.begin(), fight_out_.end(), [&](const auto &l) { return !quest(l.line); }),
+        fight_out_.end());
     fight_linked_ = now_linked;
     fight_pair_ = pair;
-    fight_in_.clear();
-    fight_out_.clear();
     fight_waiting_ = false;
   }
 
@@ -3111,6 +3108,13 @@ private:
                    (id == message.a ? " (pair)" : "");
         event(peer.name + " let in " + names);
       }
+      // The pair word: once a session, the first let line that does not name us as the pair keeps our shared fight,
+      // shared world and story together off (partner() is 0), which the player hears.
+      if (message.a != me_ && (let_.empty() || pair_ == me_))
+        notice(message.a ? "Shared enemies, the shared world and story together run between " + peer.name + " and " +
+                               name_of(message.a) + " only. Your game keeps its own."
+                         : "Shared enemies, the shared world and story together are off for you in " + peer.name +
+                               "'s session. Your game keeps its own.");
       let_ = std::move(let);
       pair_ = message.a;
       break;

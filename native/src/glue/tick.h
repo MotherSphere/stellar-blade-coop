@@ -104,14 +104,16 @@ struct QuestFiles {
 // Worker thread, the shared quests (Phase 12, quest/engine.h's Worker): a coop quests request (Command::quests),
 // refused off the pinned build and after coop off. Returns the line for the log.
 std::string ask_quests(const coop::Request &request);
-// Worker, every pass after the link's tick and before fight_pass: takes her SBQ lines out of lines (the rest are the
-// shared fight's), hands the game thread the save-slot line its gate reads, starts and stops the side for the asks and
-// the gates, and sends, logs and writes what the game thread's passes made (coop-quests.log, the record beside the
-// co-op slot through files, coop-quests-record.txt in the mod folder). hosting: we own the lobby; partner: her SteamID
-// while she is linked, else 0; send: a line to her on channel 2, reliable (false when it cannot go); marker: the slot
-// StellarCoopSlot.txt names.
-void quest_pass(uint64_t now_ms, bool hosting, uint64_t partner, int marker, std::vector<std::string> &lines,
-                bool (*send)(const std::string &), const QuestFiles &files);
+// Worker, every pass after the link's tick and before fight_pass: takes the SBQ lines out of lines (a partner's go to
+// the engine; the rest are the shared fight's, world's and story's), hands the game thread the save-slot line its gate
+// reads, starts and stops the side for the asks and the gates. It sends, logs and writes what the game thread's passes
+// made (coop-quests.log, the record beside the co-op slot through files, coop-quests-record.txt in the mod folder).
+// hosting: we own the lobby; partners: on the host, every guest linked past the handshake (one quest::Host each); on a
+// guest, the host; none while nobody is linked; send: a line to that member on channel 2, reliable (false when it
+// cannot go); marker: the slot StellarCoopSlot.txt names.
+void quest_pass(uint64_t now_ms, bool hosting, const std::vector<uint64_t> &partners, int marker,
+                std::vector<coop::FightLine> &lines, bool (*send)(const std::string &, uint64_t),
+                const QuestFiles &files);
 // Worker thread, the shared world (world/sync.h, world/engine.h): Lua's world request (Command::world). on and off set
 // shared_world until the next ask (off until the first one); status returns coop-status.txt's world line. Refused off
 // the pinned build and after coop off. Returns the line for the log.

@@ -5,7 +5,8 @@
 // its Mesh: the host's let line and the pair, the host in slot 0 on every guest, a joiner every guest holds until the
 // host lets her in, refused and removed members, the host's questions one at a time with each joiner's wait line, the
 // host leaving, a guest leaving, the follow's camps answers to the asker only, the features kept to 2 players (gifts,
-// Doro races, Night Operation, a guest's photo pause), max_players, the pose rate past 2 and each member's vitals.
+// Doro races, Night Operation, a guest's photo pause), the pair rule on channels 1 and 2 with its notice, max_players,
+// the pose rate past 2 and each member's vitals.
 #include "fake_steam.h"
 
 namespace {
@@ -37,6 +38,20 @@ int sent_from(uint64_t from, uint64_t to, const std::string &prefix) {
   return n;
 }
 std::string v(const std::string &rest) { return "SBC" + std::to_string(kProtocol) + " " + rest; }
+// Messages on a channel from one player to another that start so.
+int sent_on(int channel, uint64_t from, uint64_t to, const std::string &prefix) {
+  int n = 0;
+  for (auto &s : F.sent)
+    n += s.from == from && s.to == to && s.channel == channel && s.text.rfind(prefix, 0) == 0;
+  return n;
+}
+// Notice lines of a status with exactly this text.
+int notices(const std::string &status, const std::string &text) {
+  int n = 0;
+  for (size_t at = 0; (at = status.find(" " + text + "\n", at)) != npos; ++at)
+    n += status.rfind("notice=", at) != npos;
+  return n;
+}
 // Link 0 hosts an online session with these words after host; links 1 to n-1 join it in turn, each the host's Steam
 // friend (none asks), each once the ones before are linked. The lobby's id.
 uint64_t group(Mesh &m, int n, const std::string &how = "") {
@@ -286,6 +301,54 @@ int main() {
     m.round();
     assert(!m[0].photo_freeze() && !m[1].photo_freeze() && !m[2].photo_freeze());
     assert(noticed(m.status(0), "P2 is taking photos (no pause with more than 2 players)."));
+  }
+
+  // The pair rule (glue/steam.cpp sends the shared fight's, world's and story's channel-2 lines to partner() only and
+  // the shared quests' to each member): a guest who is not the pair hears it once, in a notice; the pair never does. An
+  // SBE goes to the pair only, none from a guest out of the pair. A channel-2 line to one member reaches her alone,
+  // with its sender. The pair leaving drops the shared fight's lines both ways and keeps the shared quests' lines of
+  // the guest who stays.
+  reset();
+  {
+    Mesh m(4);
+    group(m, 3);
+    const std::string out = "Shared enemies, the shared world and story together run between P1 and P2 only. Your game "
+                            "keeps its own.";
+    assert(notices(m.status(2), out) == 1 && notices(m.status(1), out) == 0 && notices(m.status(0), out) == 0);
+    F.client[0].friends.insert(kPlayer[3]), F.client[3].friends.insert(kMe);
+    m.tick(3, "join " + id(m[0].lobby()));
+    assert(m.settle(4));
+    m.round();
+    assert(notices(m.status(2), out) == 1 && notices(m.status(3), out) == 1 && notices(m.status(1), out) == 0);
+    send_binary(m[0], "SBE x", false);
+    send_binary(m[1], "SBE y", false);
+    send_binary(m[2], "SBE z", false);
+    assert(sent_on(kPoseChannel, kMe, kFriend, "SBE x") == 1 && sent_on(kPoseChannel, kMe, kPlayer[2], "SBE x") == 0 &&
+           sent_on(kPoseChannel, kMe, kPlayer[3], "SBE x") == 0 && sent_on(kPoseChannel, kFriend, kMe, "SBE y") == 1 &&
+           sent_on(kPoseChannel, kFriend, kPlayer[2], "SBE y") == 0);
+    for (uint64_t to : {kMe, kFriend, kPlayer[3]})
+      assert(sent_on(kPoseChannel, kPlayer[2], to, "SBE z") == 0);
+    const std::string sbq = quest_tag() + " on 0", sbf = fight_tag() + " world 3";
+    assert(m[0].send_fight(sbq, true, kPlayer[2]) && m[0].send_fight(sbf, true, kFriend));
+    m.round();
+    assert(sent_on(kFightChannel, kMe, kPlayer[2], sbq) == 1 && sent_on(kFightChannel, kMe, kFriend, sbq) == 0 &&
+           sent_on(kFightChannel, kMe, kFriend, sbf) == 1 && sent_on(kFightChannel, kMe, kPlayer[2], sbf) == 0);
+    m.round();
+    const auto two = m[2].take_fight(), one = m[1].take_fight();
+    assert(two.size() == 1 && two[0].from == kMe && two[0].line == sbq);
+    assert(one.size() == 1 && one[0].from == kMe && one[0].line == sbf && m[3].take_fight().empty());
+    // Both ways at the pair's leaving: her lines already in and ours still queued go, all but the shared quests'.
+    assert(m[2].send_fight(sbq, true, kMe) && m[1].send_fight(sbf, true, kMe));
+    m.round();
+    m.round();
+    assert(m[0].send_fight(sbq, true, kPlayer[3]) && m[0].send_fight(sbf, true, kFriend));
+    m.tick(1, "leave");
+    m.tick(0);
+    assert(m[0].partner() == 0);
+    const auto in = m[0].take_fight();
+    assert(in.size() == 1 && in[0].from == kPlayer[2] && in[0].line == sbq);
+    assert(sent_on(kFightChannel, kMe, kPlayer[3], sbq) == 1 && sent_on(kFightChannel, kMe, kFriend, sbf) == 1);
+    assert(notices(m.status(3), out) == 1); // The pair gone: no second notice.
   }
 
   // max_players: host public 3 makes a lobby of 3, with 1/3 on its rows; the fourth player is refused full.

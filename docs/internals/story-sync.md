@@ -122,7 +122,8 @@ match lobby` in the log.
 
 ## The guest's side
 
-The worker takes her `SBS` lines out of channel 2 after the shared world and before the shared fight. It hands them
+The worker takes her `SBS` lines out of channel 2 after the shared world and before the shared fight, from the pair
+only (`Link::partner()`); ours go to the pair only. It hands them
 to the game thread (up to 1,024 waiting there, then dropped and counted as `inbox_dropped=`). The game thread queues
 them in `seq` order, up to 256; a position replaces the position of the same scene just before it, so positions never
 fill the queue. Each pass in game (lion_gate open, the client in game and playing, not on SB's logic thread, our
