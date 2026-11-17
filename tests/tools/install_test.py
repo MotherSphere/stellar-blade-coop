@@ -194,7 +194,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'race/drive',
                               'race/drive_model', 'race/model', 'race/run', 'session/booth', 'session/chat',
                               'session/group', 'session/halls_rows', 'session/join', 'session/saves', 'session/sbo',
-                              'session/arrival', 'session/sbo_maps', 'session/travel', 'story/snapshot',
+                              'session/arrival', 'session/sbo_maps', 'session/travel', 'sky/rule', 'story/snapshot',
                               'story/subtitles', 'ui/create', 'ui/create_model', 'ui/kit', 'ui/lobby',
                               'ui/lobby_model', 'ui/menu', 'ui/model', 'ui/notice', 'ui/parts', 'ui/region_tabs',
                               'ui/sessions', 'ui/sessions_model', 'ui/text', 'version'))}
