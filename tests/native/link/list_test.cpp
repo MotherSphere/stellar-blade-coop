@@ -301,7 +301,8 @@ int main() {
   }
 
   // The row cleaner: a host's name loses <, > and control characters when written and when read; a forged row's
-  // zone, camp and rules show only as words alias_word takes, else as "-".
+  // zone, camp and rules show only as words alias_word takes, within kMaxPlace, kMaxCamp and kMaxRules bytes, else
+  // as "-".
   reset();
   {
     Mesh m(2);
@@ -311,10 +312,14 @@ int main() {
     auto forged = rows(kStranger, "<i>x</i>\x07y\xe2\x80\xae");
     forged[kZoneKey] = "b<07", forged[kCampKey] = "ok_1", forged[kRulesKey] = "a b", forged[kPingKey] = "1.2.3.4 x";
     lobby_of(7000, kStranger, kPublic, false, forged);
+    auto long_camp = rows(kStranger);
+    long_camp[kZoneKey] = "e05_greatdesert_p", long_camp[kCampKey] = std::string(kMaxCamp + 1, 'c');
+    lobby_of(7001, kStranger, kPublic, false, long_camp);
     m.tick(0, "list public");
     m.round();
     assert((lines(m.status(0), "session=") ==
-            Texts{"session=" + id(L) + " 2002 1/2 - 1 - - - bEve/b", "session=7000 9009 1/2 - 0 - ok_1 - ix/iy"}));
+            Texts{"session=" + id(L) + " 2002 1/2 - 1 - - - bEve/b", "session=7000 9009 1/2 - 0 - ok_1 - ix/iy",
+                  "session=7001 9009 1/2 - 0 e05_greatdesert_p - - Host"}));
   }
 
   // sbo_ping waits while Steam does not know our ping location (said once). It is written once known, 5 s later. Our

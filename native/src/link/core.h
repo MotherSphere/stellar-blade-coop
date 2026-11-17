@@ -1851,7 +1851,7 @@ private:
       return;
     }
     Row r{lobby, owner, std::to_string(n) + "/" + std::to_string(max), row_word(data(kZoneKey), kMaxPlace),
-          row_word(data(kCampKey), kMaxPlace), row_word(data(kRulesKey), kMaxRules),
+          row_word(data(kCampKey), kMaxCamp), row_word(data(kRulesKey), kMaxRules),
           row_text(data(kHostKey), kRowName), -1, api_.has_friend(friends_, owner, kImmediateFriends)};
     PingLocation where{};
     if (!at.empty() && at.size() <= kMaxPingText &&

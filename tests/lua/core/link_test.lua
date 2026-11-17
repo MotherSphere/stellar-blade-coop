@@ -1658,6 +1658,8 @@ do
     local ok,why=l.where('e04','bad-camp')
     assert(ok==false and why=='where: not a word of 32 bytes at most: bad-camp' and files[REQUEST]==nil)
     assert(l.where(('a'):rep(33))==false and l.rules('a b')==false and files[REQUEST]==nil)
+    ok,why=l.where('e04',('c'):rep(25))
+    assert(ok==false and why=='where: not a camp alias of 24 bytes at most: '..('c'):rep(25) and files[REQUEST]==nil)
     assert(l.rules('ebwqr200') and files[REQUEST]=='rules ebwqr200\n')
     files[REQUEST]=nil
     assert(l.rules('ebwqr200')==nil and files[REQUEST]==nil)

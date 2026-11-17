@@ -103,13 +103,13 @@ local W_ = T.en.travel
 local OFFER=W_.offer:format('Kaanta','e04','F7')
 local GOING,NONE,BUSY,FAILED=W_.going:format('Kaanta'),W_.none:format('Kaanta'),W_.busy,W_.failed
 
--- The table: 120 rows, each alias once, a travel camp type, one of the 12 story worlds (each with its map, as
--- core/unreal.lua's map_of names it). No autosave volume, no developer test world, none that leads to several worlds or
+-- The table: 120 rows, each alias once (24 bytes at most, the session list's sbo_camp cap, link/protocol.h's
+-- kMaxCamp), a travel camp type, one of the 12 story worlds (each with its map, as core/unreal.lua's map_of names it). No autosave volume, no developer test world, none that leads to several worlds or
 -- to none.
 local types,worlds,seen={},{},{}
 for _,row in ipairs(Travel.CAMPS) do
     local alias,kind,w=row[1],row[2],row[3]
-    assert(#row==3 and not seen[alias] and alias:match('^[%w_]+$') and #alias<=64,alias)
+    assert(#row==3 and not seen[alias] and alias:match('^[%w_]+$') and #alias<=24,alias)
     seen[alias]=true
     types[kind]=(types[kind] or 0)+1
     assert(Travel.WORLDS[w],alias..': '..tostring(w))

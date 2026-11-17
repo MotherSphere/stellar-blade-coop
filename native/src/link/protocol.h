@@ -127,14 +127,16 @@ inline const Mode *find_mode(std::string_view name) {
 // The session list's rows (Find a session): the owner of a Public or Friends only online session writes these keys
 // beside kLobbyKey. kListKey=1 on a Public one only, so the Public tab's search finds it; her Steam name (kRowName
 // bytes at most), her SteamID, the members as "<n>/<max>", her map segment and camp alias (Lua's where request,
-// kMaxPlace bytes each), her rules word (Lua's rules request, kMaxRules bytes) and her ping location from Steam's
-// ConvertPingLocationToString (kMaxPingText bytes). kAskKey=1 on any online session whose host asks her Steam friends
+// kMaxPlace and kMaxCamp bytes), her rules word (Lua's rules request, kMaxRules bytes) and her ping location from
+// Steam's ConvertPingLocationToString (kMaxPingText bytes). kAskKey=1 on any online session whose host asks her Steam friends
 // too (friends_ask=on): a friend who joins reads it and waits for an answer. Any SBO client can write any of them: a
 // reader cleans each one (row_text(), row_word()).
 constexpr char kListKey[] = "sbo_list", kHostKey[] = "sbo_host", kOwnerKey[] = "sbo_owner";
 constexpr char kPlayersKey[] = "sbo_players", kZoneKey[] = "sbo_zone", kCampKey[] = "sbo_camp";
 constexpr char kPingKey[] = "sbo_ping", kRulesKey[] = "sbo_rules", kAskKey[] = "sbo_ask";
-constexpr size_t kRowName = 48, kMaxPlace = 32, kMaxRules = 32, kMaxPingText = 1023;
+// A map segment takes up to 32 bytes: the Great Desert's, e05_greatdesert_p, is already 17. A camp alias takes 24: the
+// longest of session/travel.lua's table, ATL_Camp_Maelstrom, is 18.
+constexpr size_t kRowName = 48, kMaxPlace = 32, kMaxCamp = 24, kMaxRules = 32, kMaxPingText = 1023;
 
 // Untrusted text made safe for one line of our status file: no control bytes, bounded, never cut inside a UTF-8
 // character.
@@ -720,7 +722,7 @@ inline std::string masked(std::string_view text) {
 // "deny <SteamID>" (her answer to a joiner who is not her Steam friend) and "remove <SteamID>"; for the session list
 // (Find a session) "list public" (search the Public online sessions), "list friends" (the Steam friends' online
 // sessions) and "list stop" (forget the list); for the rows the host writes "where <map segment> [<camp alias>]" and
-// "rules <word>" (each a word alias_word() takes, kMaxPlace and kMaxRules bytes at most); for the pose path
+// "rules <word>" (each a word alias_word() takes, kMaxPlace, kMaxCamp and kMaxRules bytes at most); for the pose path
 // "off", "loopback <one-way delay ms> <jitter ms> <segment loss %>", "loopback off", "record", "record off", "replay"
 // and "replay off"; for the Night Operation probe (Phase 6, T6 only) "nightop" (start the read-only poller) and
 // "nightop rule" (start it if needed and arm the verdict, once a run); for the shared fight (Phase 11, fight/engine.h's
@@ -1159,10 +1161,10 @@ inline Request parse_request(std::string text) {
     r.who = text[5] == 'p' ? Who::everyone : Who::friends;
     r.off = text[5] == 's';
   } else if (text.rfind("where ", 0) == 0) {
-    const auto place = [](const std::string &w) { return alias_word(w) && w.size() <= kMaxPlace; };
+    const auto word = [](const std::string &w, size_t max) { return alias_word(w) && w.size() <= max; };
     const std::string rest = text.substr(6);
     std::string w[2];
-    if (split(rest, w, 2, nullptr) ? place(w[0]) && place(w[1]) : place(rest))
+    if (split(rest, w, 2, nullptr) ? word(w[0], kMaxPlace) && word(w[1], kMaxCamp) : word(rest, kMaxPlace))
       r.command = Command::where, r.zone = w[1].empty() ? rest : w[0], r.camp = w[1];
   } else if (split(text, f, 2, nullptr) && f[0] == "rules" && alias_word(f[1]) && f[1].size() <= kMaxRules) {
     r.command = Command::rules, r.text = f[1];

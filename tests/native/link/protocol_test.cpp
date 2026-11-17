@@ -464,7 +464,7 @@ int main() {
     assert(parse_request(bad).command == Command::none);
   assert(parse_request("invite").command == Command::invite);
   // The session list: list public|friends|stop; the rows' where <zone> [<camp>] and rules <word>, each a word
-  // alias_word takes, at most kMaxPlace or kMaxRules bytes.
+  // alias_word takes, at most kMaxPlace, kMaxCamp or kMaxRules bytes.
   assert(parse_request("list public").command == Command::list && parse_request("list public").who == Who::everyone &&
          !parse_request("list public").off);
   assert(parse_request("list friends\n").who == Who::friends && !parse_request("list friends").off);
@@ -473,13 +473,15 @@ int main() {
   assert(wr.command == Command::where && wr.zone == "b07" && wr.camp == "WLB10_Camp_01");
   assert(wz.command == Command::where && wz.zone == "Xion" && wz.camp.empty());
   assert(parse_request("where " + std::string(kMaxPlace, 'a')).command == Command::where);
+  assert(parse_request("where e05_greatdesert_p " + std::string(kMaxCamp, 'c')).camp == std::string(kMaxCamp, 'c'));
+  assert(kMaxCamp == 24 && parse_request("where b07 ATL_Camp_Maelstrom").camp == "ATL_Camp_Maelstrom");
   const Request rr = parse_request("rules ewq_r150");
   assert(rr.command == Command::rules && rr.text == "ewq_r150");
   assert(parse_request("rules " + std::string(kMaxRules, 'r')).command == Command::rules);
   for (const std::string &bad : std::vector<std::string>{
            "list", "list all", "list public now", "where", "where ", "where b07 camp x", "where b<07", "where b07 a-b",
-           "where " + std::string(kMaxPlace + 1, 'a'), "where b07  camp", "rules", "rules a b", "rules a<b",
-           "rules " + std::string(kMaxRules + 1, 'r')})
+           "where " + std::string(kMaxPlace + 1, 'a'), "where b07 " + std::string(kMaxCamp + 1, 'c'), "where b07  camp",
+           "rules", "rules a b", "rules a<b", "rules " + std::string(kMaxRules + 1, 'r')})
     assert(parse_request(bad).command == Command::none);
   // The row cleaner: no <, > or control character, valid UTF-8 cut at a character within its bytes; a word only as
   // alias_word takes it.
@@ -489,6 +491,7 @@ int main() {
   assert(row_text("<<>>", kRowName).empty() && row_text("\xe2\x80\xae" "evil", kRowName) == "evil");
   assert(row_word("WLB10_Camp_01", kMaxPlace) == "WLB10_Camp_01" && row_word("a<b", kMaxPlace).empty());
   assert(row_word("b07 x", kMaxPlace).empty() && row_word(std::string(kMaxPlace + 1, 'a'), kMaxPlace).empty());
+  assert(row_word(std::string(kMaxCamp + 1, 'c'), kMaxCamp).empty());
   // Match lobbies: match search|create <mode> <room> <hall>, match cancel. find_mode is the link's check; the room
   // (the lobby map's key) and the hall (the lobby pak's version) are words as alias_word takes them.
   Request mr = parse_request("match search ffa hotel 47101_5096");

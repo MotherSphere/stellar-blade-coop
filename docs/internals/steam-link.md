@@ -137,7 +137,7 @@ writes these lobby keys beside `stellarcoop` with `SetLobbyData`, each only when
 | `sbo_ask` | `1` on any online session whose Steam friends wait for her answer too (`host ... ask`) | At create |
 
 An Invitation or Private session writes none of these keys but `sbo_ask`. `where` and `rules` take words of letters,
-digits and `_`, 32 bytes at most. The game keeps the last ones for the next session it hosts. The log has one line for
+digits and `_`, 32 bytes at most (24 for the camp alias). The game keeps the last ones for the next session it hosts. The log has one line for
 each (`where: b07 WLB10_Camp_01`, `rules: <word>`).
 
 Any SBO client can write any of these keys, so a reader cleans each one before the status shows it. The name loses

@@ -1030,8 +1030,8 @@ function Link.new(folder,fs)
     -- The rows' place and rules words for the native part (link/core.h writes them as lobby data while we host a
     -- Public or Friends only online session; it keeps them for the next one): where <map segment> [<camp alias>] and
     -- rules <word>, each asked only when it changed since the last one asked. A word is letters, digits and _, 32
-    -- bytes at most (link/protocol.h's kMaxPlace and kMaxRules). nil when unchanged, else as request(), or false and
-    -- why for a word the native part would refuse.
+    -- bytes at most, a camp alias 24 (link/protocol.h's kMaxPlace, kMaxCamp and kMaxRules). nil when unchanged, else as
+    -- request(), or false and why for a word the native part would refuse.
     local told={}
     local function tell(kind,line,...)
         for i=1,select('#',...) do
@@ -1044,6 +1044,7 @@ function Link.new(folder,fs)
         return ok,why
     end
     function self.where(zone,camp)
+        if camp and #camp>24 then return false,'where: not a camp alias of 24 bytes at most: '..camp end
         if camp then return tell('where','where '..zone..' '..camp,zone,camp) end
         return tell('where','where '..zone,zone)
     end
