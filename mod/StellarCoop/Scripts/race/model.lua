@@ -372,15 +372,16 @@ local function quit(m,now,why)
         send(m,('dnf %d %s'):format(m.id,why))
     end
 end
--- The session ended: the race closes on this side, with no line.
-local function left(m,now)
+-- The session ended (why left), or a third player came in (why crowd: Doro races are for 2): the race closes on this
+-- side, with no line.
+local function left(m,now,why)
     m.gone=true
     if m.phase=='race' then
-        finish(m,now,nil,'left')
+        finish(m,now,nil,why)
         results(m,now)
     elseif before_go(m) then
         m.phase='over'
-        emit(m,{what='cancelled',why='left'})
+        emit(m,{what='cancelled',why=why})
     end
 end
 local function receive(m,text,input,now)
@@ -460,13 +461,15 @@ local function receive(m,text,input,now)
 end
 -- One frame of either side. input: pos (our EVE's feet {x,y,z}; nil: not read this frame), lines (the race texts that
 -- came, oldest first), rtt (ms, for the guest's start), map (ours, for the guest's check), flags (the fin flags seen
--- this frame: 1 fast, 2 pause), dnf ('quit' or 'map', ours) and left (the session ended). Returns the lines to send, in
+-- this frame: 1 fast, 2 pause), dnf ('quit' or 'map', ours) and left (true: the session ended; 'crowd': a third player
+-- is in it). Returns the lines to send, in
 -- order, and the events: joined, refused (why: map, track, save, silent), armed, out, cancelled (why), count (n: 3, 2, 1),
 -- go, false_start, the runner's (cp, missed, wrong_way, right_way), fin (ms, flags), dnf (why), results (list: {who,
 -- ms, pos} in host, guest order) and over.
 function R.tick(m,input,now)
     for _,text in ipairs(input.lines or {}) do receive(m,text,input,now) end
-    if input.left then left(m,now) elseif input.dnf then quit(m,now,input.dnf) end
+    if input.left then left(m,now,input.left=='crowd' and 'crowd' or 'left')
+    elseif input.dnf then quit(m,now,input.dnf) end
     local pos,me,her=input.pos,m.me,m.her
     if pos and (m.phase=='ready' or m.phase=='countdown') then
         local was=me.ready

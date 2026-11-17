@@ -1601,7 +1601,7 @@ local function enter(w)
     link_line=w.link..'\n'..w.friend..'\npeer=9 name=x hello=1 accepted=1 compatible=1 lost=0 invalid=0 rtt_ms='
         ..(w.rtt or 40)..' session=3 session_ping=20'
         ..(w.night and not w.link:find('none') and '\nnight='..w.night or '')..(w.fight and '\n'..w.fight or '')
-        ..(w.life and '\nlife='..w.life or '')
+        ..(w.life and '\nlife='..w.life or '')..(w.members or '')
     keys_down={F=w.key}
 end
 local function leave(w) w.bodies,w.gt,w.eve_at,w.map,w.dying=bodies,gt,eve_at,map,dying end
@@ -1771,6 +1771,19 @@ assert(Gs.told[#Gs.told]=='The link to your partner was lost.' and find(Gs.lines
 round(1)
 assert(find(Hs.lines,'^result: aborted %(lost%) ') and Hs.told[#Hs.told]=='The link to your partner was lost.',
     Hs.lines[#Hs.lines])
+-- A third player passes the handshake mid-run: the native part sends no night line past 2 players, so each run ends at
+-- once with the reason said (not as a lost link).
+do
+running()
+Hs.members='\nmember=2 0 1 0 0 40 Kaanta\nmember=3 1 1 0 0 40 Lucas'
+Gs.members='\nmember=1 0 1 0 0 40 Me\nmember=3 1 1 0 0 40 Lucas'
+round(1)
+local PAIR='Night Operation does not run in a session of more than 2 players.'
+assert(find(Hs.lines,'^result: aborted %(crowd%) ') and find(Gs.lines,'^result: aborted %(crowd%) '),
+    Hs.lines[#Hs.lines])
+assert(Hs.told[#Hs.told]==PAIR and Gs.told[#Gs.told]==PAIR,Gs.told[#Gs.told])
+Hs.members,Gs.members=nil,nil
+end
 
 -- 10b. The down and the revive, with each side's life read (life=, our vitals in a session). Her death is a down: the
 -- run goes on, both lines carry her time left, each side gets the cut mode's notice in its English, and coop nightop

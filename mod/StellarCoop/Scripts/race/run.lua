@@ -188,7 +188,9 @@ function Race.new(o)
             end
             tell(function(t) return t.race.out:format(her_name(t)) end)
         elseif w=='cancelled' then
-            if not quiet(r) then tell(function(t) return t.race.cancelled end) end
+            if not quiet(r) then
+                tell(function(t) return e.why=='crowd' and t.race.why.crowd or t.race.cancelled end)
+            end
         elseif w=='count' then -- 3, 2, 1: on the HUD only, as notices they would come late.
             banner(r,function() return tostring(e.n) end,nil,'beta',false)
             sound('move')
@@ -416,12 +418,13 @@ function Race.new(o)
         place_doros(r,e)
         draw(r)
     end
-    -- Every 250 ms: the session's end (a DNF left), a map change or EVE gone 2 s (a DNF map, then the race closes
-    -- here), and the fin flags.
+    -- Every 250 ms: the session's end (a DNF left), a third player in it (a DNF crowd: Doro races are for 2), a map
+    -- change or EVE gone 2 s (a DNF map, then the race closes here). Then the fin flags.
     local function slow(r)
         local paused=o.paused()==true
         away=paused
-        if r.with and link.chatting()==false then r.left=true end
+        if r.with and link.chatting()==false then r.left=true
+        elseif r.with and link.others()>1 then r.left='crowd' end
         if r.loop and not link.loopback() then r.left=true end
         local me=puppet.me()
         r.gone=me and 0 or r.gone+0.25

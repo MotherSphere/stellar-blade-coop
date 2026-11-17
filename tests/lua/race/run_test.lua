@@ -645,6 +645,27 @@ run({G},function() return not G.race.armed() end,400)
 H.race.command('quit')
 step({H})
 
+-- 9b. A third player joins mid-race (a session of 3): each race ends at once, a DNF crowd with its notice. Before GO,
+-- the race is cancelled with the same words.
+H,G=pair()
+player=H.eve
+H.race.command('start','quest')
+run({H,G},function() return G.go_at and clock-G.go_at>3 end)
+H.others,G.others=2,2
+run({H,G},function() return not H.race.armed() and not G.race.armed() end,400)
+local CROWD='Doro races do not run in a session of more than 2 players.'
+assert(find(H.logs,'^race %d+ dnf crowd$') and find(G.logs,'^race %d+ dnf crowd$') and has(H.told,CROWD)
+    and has(G.told,CROWD))
+H,G=pair()
+player=H.eve
+H.race.command('start','quest')
+step({H,G})
+G.others=2
+run({G},function() return not G.race.armed() end,40)
+assert(G.told[#G.told]==CROWD,G.told[#G.told])
+H.race.command('quit')
+step({H})
+
 -- 10. A map change on her PC: her DNF (map) goes out, her race closes; the host finishes and wins.
 H,G=pair()
 player=H.eve
