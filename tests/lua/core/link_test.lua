@@ -1228,6 +1228,10 @@ for _,line in ipairs(fresh.changes()) do assert(not line:find('^night='),'night=
 -- Story together's line: its counts move with each position of a scene.
 files[STATUS]=HEAD..'friend=1 0 Kaanta\nstory=on scene=shared sent=0 received=41 hooks=1\n'
 for _,line in ipairs(fresh.changes()) do assert(not line:find('^story='),'story= stays out of the log') end
+-- The day/night cycle's line: its hour and sun move each second.
+files[STATUS]=HEAD..'friend=1 0 Kaanta\nsky=cycle h=12.00 el=65.0 le=65.0 ly=0.0 k=1.000 moon=0 amb=1.000 eve=1.000 '
+    ..'ev=0.00 tint=1.00,1.00,1.00 n=114 lit=20 seen=1\n'
+for _,line in ipairs(fresh.changes()) do assert(not line:find('^sky='),'sky= stays out of the log') end
 -- coop lion's line, coop gardener fight's, coop tendril fight's, the Shock Bolt's and coop mxiii's too: their spawns=
 -- moves with every enemy that spawns or goes, and cut/enemy.lua logs what it reads for each.
 files[STATUS]=HEAD..'friend=1 0 Kaanta\nlion=rows added=78/78 asks=1 spawns=7 char=2/2 skills=15/15 stance=1/1\n'

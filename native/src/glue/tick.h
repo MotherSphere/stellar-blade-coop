@@ -290,6 +290,15 @@ void hud_pass();
 std::string ask_loading();
 // Every pass: logs the game thread's answer to the last lift and its fault.
 void loading_pass();
+// The day/night cycle (glue/tick/sky_game.inc, game/sky.h), worker thread. Lua's sky request (Command::sky): SB's light
+// back (off), the shared clock (cycle), a pinned minute (hour) or the hour shown kept (hold), with the map's horizon
+// and noon heading, from the game thread's next 100 ms pass; coop off puts SB's light back too.
+void ask_sky(const coop::Request &request);
+// Every pass: logs each state the game thread reached, a refusal once an ask and its fault once.
+void sky_pass();
+// coop-status.txt's sky line (game/sky.h's line) and its newline: the state, the light of the hour asked, the
+// elements written and whether EVE stands in env sunlight; refused off the pinned build.
+std::string sky_status();
 // "engine=on" (plus " loopback=on <delay> <jitter> <loss>" or " loopback=waiting", " record=on", " replay=on",
 // " remote=<generation> <tables written> <loopback|replay|peer>" for slot 0 and " remote<k>=<generation> <tables
 // written>" for each slot k from 1 holding a table) or "engine=off reason=...", then " fight=on <count>",

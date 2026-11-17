@@ -605,7 +605,7 @@ std::string status_text() {
   const std::string camp_text = coop::pose::camp_text_status();
   const std::string uidev = coop::pose::uidev_status();
   return head + cns_line + "shared=" + std::to_string(shared_version) + " " + std::to_string(shared_count) + "\n" +
-         coop::pose::status() + "\n" + (camps.empty() ? camps : camps + "\n") +
+         coop::pose::status() + "\n" + coop::pose::sky_status() + (camps.empty() ? camps : camps + "\n") +
          coop::slot::line(slot_index, coop_marker, coop::pose::lua_state().world, saves_state) + "\n" +
          coop_saves.status() + "\n" + coop::pose::fight_status() + "\n" + coop::pose::pilot_status() + "\n" +
          coop::pose::sbo_status() + "\n" + (uidev.empty() ? uidev : uidev + "\n") + coop::pose::rows_status() + "\n" +
@@ -765,6 +765,10 @@ bool step() {
       break;
     case coop::Command::hud: // SB's HUD under the SBO lobby's screens: the game thread's; the change is logged.
       coop::pose::ask_hud(coop::parse_request(request).on);
+      request.clear();
+      break;
+    case coop::Command::sky: // The day/night cycle: the game thread's; each change of state is logged.
+      coop::pose::ask_sky(coop::parse_request(request));
       request.clear();
       break;
     case coop::Command::loading: // The SBO lobby arrival's black lifted: the game thread's; its answer is logged.
@@ -961,6 +965,7 @@ bool step() {
       link->notice(said);
     coop::pose::hud_pass();
     coop::pose::loading_pass();
+    coop::pose::sky_pass();
     // Channel 2 both ways, with the co-op partner only (none in a match lobby, where partner() is 0): the shared quests
     // take their SBQ lines out first, then the shared world its SBW lines, then story together its SBS lines. The
     // shared fight's job gets the rest. The lobby owner hosts the quests, the story and the fight. Ours are queued for

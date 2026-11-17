@@ -749,7 +749,9 @@ inline std::string masked(std::string_view text) {
 // <seconds>" (1 to kMaxFreezeS: our pause held that long) and "freeze off"; for SB's two developer gates
 // (game/debug_keys.h, coop fly and coop slowmo) "fly on|off" and "slowmo on|off"; for SB's developer panels
 // (game/dev_panels.h, coop devinfo) "devinfo quest|player|off"; for SB's HUD under the SBO lobby's screens (main.lua,
-// glue/tick/hud_game.inc) "hud hide on|off"; for the SBO lobby arrival's black (session/arrival.lua,
+// glue/tick/hud_game.inc) "hud hide on|off"; for the day/night cycle (game/sky.h, sky/daynight.lua) "sky off|hold",
+// "sky cycle <hz> <heading>" and "sky hour <minute> <hz> <heading>" (whole numbers: hz 0 to 30, heading 0 to 359,
+// minute 0 to 1439); for the SBO lobby arrival's black (session/arrival.lua,
 // glue/tick/loading_game.inc) "loading lift"; for the co-op saves (save/slot.h,
 // save/twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make
 // them, then switch to them), "saves main" (switch back to the player's own saves) and "saves refresh <0-4>" (that
@@ -802,7 +804,7 @@ inline std::string masked(std::string_view text) {
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
-  signal, match, mute, sbo, guardtext, hud, loading, world, scenes, bike, block, unblock, list, where, rules
+  signal, match, mute, sbo, guardtext, hud, loading, world, scenes, bike, block, unblock, list, where, rules, sky
 };
 // match: "match search <mode> <room> <hall>" (quick match: join an open Public lobby of that mode and hall, or host
 // one), "match create <mode> <room> <hall>" (a private match lobby joined with its code), "match cancel" (forget the
@@ -861,6 +863,8 @@ enum class SavesAsk { none, probe, convert, coop, main, refresh, export_ };
 enum class Quests { none, on, off, status, probe, record, replay, force };
 enum class WorldAsk : uint8_t { on, off, status };
 enum class BikeAsk : uint8_t { load, free, gate_on, gate_off };
+// sky: SB's light back, the minute shown kept (photo mode), the shared clock, or a pinned minute (game/sky.h's Mode).
+enum class SkyAsk : uint8_t { off, cycle, hour, hold };
 constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500, kMaxFreezeS = 3600;
 constexpr size_t kMaxFightChars = 16;
 constexpr uint64_t kMaxFightChange = 10'000'000; // fight/sync.h's kMaxStat.
@@ -927,6 +931,10 @@ struct Request {
   uint64_t address = 0;         // sbo enter: SB's save manager, as Lua read it.
   uint32_t point_index = 0, point_number = 0; // sbo warp: the start point's FName.
   std::string why;              // sbo abort: Lua's word.
+  SkyAsk sky = SkyAsk::off;     // sky: what.
+  uint16_t minute = 0;          // sky hour: the minute of the game day, 0 to 1439.
+  uint8_t horizon = 0;          // sky cycle, sky hour: the map's horizon in degrees, 0 to 30.
+  uint16_t heading = 0;         // sky cycle, sky hour: the map's noon heading in degrees, 0 to 359.
 };
 // What follows "fight ": its words split on single spaces. Command::none when anything is off.
 inline Request parse_fight(const std::string &text) {
@@ -1298,6 +1306,21 @@ inline Request parse_request(std::string text) {
   } else if (text == "hud hide on" || text == "hud hide off") {
     r.command = Command::hud;
     r.on = text.size() == 11;
+  } else if (text == "sky off" || text == "sky hold") {
+    r.command = Command::sky;
+    r.sky = text[4] == 'o' ? SkyAsk::off : SkyAsk::hold;
+  } else if (text.rfind("sky ", 0) == 0) {
+    const bool hour = split(text, f, 5, nullptr) && f[1] == "hour";
+    const bool cycle = !hour && split(text, f, 4, nullptr) && f[1] == "cycle";
+    uint64_t minute = 0, hz = 0, heading = 0;
+    if ((hour && number(f[2], minute) && minute <= 1439 && number(f[3], hz) && number(f[4], heading)) ||
+        (cycle && number(f[2], hz) && number(f[3], heading))) {
+      if (hz <= 30 && heading <= 359) {
+        r.command = Command::sky;
+        r.sky = hour ? SkyAsk::hour : SkyAsk::cycle;
+        r.minute = uint16_t(minute), r.horizon = uint8_t(hz), r.heading = uint16_t(heading);
+      }
+    }
   } else if (text == "loading lift") {
     r.command = Command::loading;
   } else if (text == "world on" || text == "world off" || text == "world status") {

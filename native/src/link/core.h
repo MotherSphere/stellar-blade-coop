@@ -1598,6 +1598,7 @@ private:
     case Command::guardtext:
     case Command::hud:
     case Command::loading:
+    case Command::sky:
       break;
     case Command::match:
       ask_match(r);

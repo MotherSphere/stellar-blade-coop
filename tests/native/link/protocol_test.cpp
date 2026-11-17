@@ -882,6 +882,19 @@ int main() {
   for (const char *bad : {"hud", "hud hide", "hud on", "hud hide On", "hud hide on now", "hud  hide on", "hudhide off",
                           "hud show on", "hud hide 1"})
     assert(parse_request(bad).command == Command::none);
+  // The day/night cycle's asks: off, hold, cycle <hz> <heading>, hour <minute> <hz> <heading>, nothing else.
+  Request k = parse_request("sky cycle 8 205\n");
+  assert(k.command == Command::sky && k.sky == SkyAsk::cycle && k.horizon == 8 && k.heading == 205);
+  k = parse_request("sky hour 1439 2 200");
+  assert(k.command == Command::sky && k.sky == SkyAsk::hour && k.minute == 1439 && k.horizon == 2 && k.heading == 200);
+  assert(parse_request("sky off").sky == SkyAsk::off && parse_request("sky hold\r\n").sky == SkyAsk::hold);
+  assert(parse_request("sky off").command == Command::sky && parse_request("sky hold").command == Command::sky);
+  assert(parse_request("sky cycle 30 359").command == Command::sky &&
+         parse_request("sky hour 0 0 0").command == Command::sky);
+  for (const char *bad : {"sky", "sky on", "sky cycle", "sky cycle 8", "sky cycle 31 0", "sky cycle 8 360",
+                          "sky cycle -1 0", "sky hour 1440 8 0", "sky hour 12 8", "sky cycle 8 0 1", "sky cycle 8.5 0",
+                          "Sky off", "sky  off", "sky hold now", "sky cycle 8 x", "sky hour 1 2 3 4", "sky off 1"})
+    assert(parse_request(bad).command == Command::none);
   // The SBO lobby arrival's black lifted (session/arrival.lua): loading lift, nothing else.
   assert(parse_request("loading lift\n").command == Command::loading &&
          parse_request("loading lift\r\n").command == Command::loading);

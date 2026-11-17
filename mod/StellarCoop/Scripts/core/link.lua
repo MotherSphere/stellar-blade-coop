@@ -744,7 +744,9 @@ function Link.new(folder,fs)
                 and not line:find('^lion=') and not line:find('^gardener=') and not line:find('^tendril=')
                 and not line:find('^bolt=') and not line:find('^mxiii=')
                 -- Its sent= and received= move with each position of a shared scene; the native log has its events.
-                and not line:find('^story=') then
+                and not line:find('^story=')
+                -- Its hour and sun move each second; the native log has each change of its state.
+                and not line:find('^sky=') then
                 new[#new+1]=line
             end
             if ping==nil and line:find('^peer=') then -- Her name comes before: the last rtt_ms= is the native part's.

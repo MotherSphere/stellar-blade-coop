@@ -38,6 +38,12 @@
 // HUD's set of hiding keys through SB's own keyed request, under its own SEH latch, and takes it out at hud hide off
 // and at coop off.
 //
+// The day/night cycle (game/sky.h, sky/daynight.lua): every 100 ms coop_tick reaches the world's WorldSettings through
+// SB's player controller and writes the light of the shared clock's hour into SB's env array, from each element's own
+// values, under its own SEH latch; SB's blend does the per-frame work. Lua's sky request picks the map's horizon and
+// heading, a pinned hour or a hold; an off, coop off and the first fault put SB's values back. sky_status() gives
+// coop-status.txt's sky line; the worker logs each change of state.
+//
 // The SBO lobby arrival's black (session/arrival.lua): at Lua's loading lift, coop_tick sets the lifetime of each
 // LoadingScreenFadeAuto entry of tag Load to 0 in SB's UI manager (game/loading.h), under its own SEH latch, so SB's
 // loading controller ends that black with its own end fade.
@@ -228,6 +234,7 @@
 #include "game/preset.h"
 #include "game/region_tabs.h"
 #include "game/sbo.h"
+#include "game/sky.h"
 #include "game/travel.h"
 #include "glue/tick.h"
 #include "link/protocol.h"
@@ -255,6 +262,7 @@
 #include "glue/tick/fight_game.inc"
 #include "glue/tick/freeze_game.inc"
 #include "glue/tick/hud_game.inc" // After freeze_game.inc: its MakeName.
+#include "glue/tick/sky_game.inc" // After freeze_game.inc: its controller reach.
 #include "glue/tick/loading_game.inc"
 #include "glue/tick/quests_game.inc"
 #include "glue/tick/warp_game.inc"
@@ -290,6 +298,7 @@
 #include "glue/tick/bike_worker.inc"
 #include "glue/tick/hud_worker.inc" // After fight_worker.inc: its fault_where.
 #include "glue/tick/loading_worker.inc" // Likewise.
+#include "glue/tick/sky_worker.inc" // Likewise.
 #include "glue/tick/status.inc"
 #include "glue/tick/pad_game.inc"
 
@@ -332,6 +341,9 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // The SBO lobby arrival's black lifted, its own latch: one write an ask, after coop off too.
   if (game_pinned && !loading_faulted)
     loading_tick();
+  // The day/night cycle, its own latch: a pass each 100 ms; after coop off only while SB's env array holds our values.
+  if (game_pinned && !sky_faulted && (!blocked || sky_holding()))
+    sky_tick();
   // Same-place enemies' capture and drive, their own latch too; after coop off while a drawn copy is held, to put it
   // back.
   if (game_pinned && !pilot_faulted && (!blocked || driver.holding()))
