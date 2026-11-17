@@ -36,9 +36,10 @@ fails the test. The `main/` tests load
   rate and lean at full lock at five speeds, the drift's 42-degree slip cap, a wall, the air, a ramp launch only after
   0.12 s of climb, the pitch, root motion holding the state and the values' bounds;
 - `bike/ride_test` covers `bike/ride.lua` over a fake EVE and native part: the preload asked once and released at
-  `bike=off`, the part made once (at the seat, hidden) or found again after a reload, every mount refusal with its
-  reason and nothing written, the mount's order and the dismount backward, the lean, the riding pose played again or
-  ending the ride, the 250 ms checks (EVE down read from the status line's `bike_life=` with no session, or from the
+  `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every mount refusal
+  with its reason and nothing written, the mount's order and the dismount backward, the lean (the math library looked
+  up once a ride), the riding pose played again or ending the ride (read in the 250 ms pass only: no frame reads the
+  status), the 250 ms checks (EVE down read from the status line's `bike_life=` with no session, or from the
   session's life state without that word), `coop-bike.txt` and its restore, `coop bike status` and `tune`, the Doro
   look refused while she rides, `parked` (the part the capture leaves out) before the part, on and off the bike, after
   a ride ended on a fault, after a reload and at `bike=off`, the part's `SBO_Bike` tag (a tag that does not hold makes
