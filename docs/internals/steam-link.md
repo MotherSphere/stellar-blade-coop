@@ -30,7 +30,7 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
 
   `ask` after the word (`host public ask`, from `friends_ask=on`) makes the host's Steam friends wait for her answer
   too (see [Players who are not Steam friends](#players-who-are-not-steam-friends)). The lobby carries a tag under the
-  key `stellarcoop`: the protocol and the game's Steam build (`22:<build>`). A lobby from another protocol or game
+  key `stellarcoop`: the protocol and the game's Steam build (`23:<build>`). A lobby from another protocol or game
   build is refused on joining, with both versions in the joiner's log and on screen. A lobby with no tag is another
   game's. It is refused as such.
 - Anyone who has an invisible lobby's id can join it. The host's friends do not see it. Steamworks documents that a
@@ -283,28 +283,28 @@ Channel 0 carries short text messages over Steam's relayed P2P messages (SteamNe
 handshake, every message carries the protocol number, and a peer that runs another protocol drops it:
 
 ```
-SBC22 ping <seq> <ms>
-SBC22 pong <seq> <ms>
-SBC22 photo <0|1|s|c> <both|notice>
-SBC22 say <text>
-SBC22 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
-SBC22 pak <hash> <name>
-SBC22 paks <count> <hash>
-SBC22 dlc <app id> <name>
-SBC22 dlcs
-SBC22 camps? <id>
-SBC22 camps <id> <world> <camp>:<m> ...
-SBC22 camps <id> none <title|loading|nocamp|busy>
-SBC22 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level> <down> <help>
-SBC22 night g <n> <run> <state> <up> <killed> <done> <why> <down> <help>
-SBC22 mark <n> [<text>]
-SBC22 race <text>
-SBC22 gift s <id> <item> <count>
-SBC22 gift a <id>
-SBC22 gift n <id> <why>
-SBC22 start <mode> <map> <seed> <id>,<id>,...
-SBC22 count <1-10|stop>
-SBC22 end
+SBC23 ping <seq> <ms>
+SBC23 pong <seq> <ms>
+SBC23 photo <0|1|s|c> <both|notice>
+SBC23 say <text>
+SBC23 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
+SBC23 pak <hash> <name>
+SBC23 paks <count> <hash>
+SBC23 dlc <app id> <name>
+SBC23 dlcs
+SBC23 camps? <id>
+SBC23 camps <id> <world> <camp>:<m> ...
+SBC23 camps <id> none <title|loading|nocamp|busy>
+SBC23 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level> <down> <help>
+SBC23 night g <n> <run> <state> <up> <killed> <done> <why> <down> <help>
+SBC23 mark <n> [<text>]
+SBC23 race <text>
+SBC23 gift s <id> <item> <count>
+SBC23 gift a <id>
+SBC23 gift n <id> <why>
+SBC23 start <mode> <map> <seed> <id>,<id>,...
+SBC23 count <1-10|stop>
+SBC23 end
 ```
 
 ### The photo line
@@ -520,7 +520,7 @@ other request is ignored.
 
 ## Channel 1: tables and poses
 
-Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 22` (sent reliable), and
+Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 23` (sent reliable), and
 each pose as a binary message starting `SBP` (a keyframe) or `SBD` (a delta), then the protocol byte (sent unreliable,
 without Nagle delay). Same-place enemies add a binary message starting `SBE` and the protocol byte, at most 30 a
 second (sent unreliable): the place, rotation and animation speed of up to 16 enemies that the sender moves on the
@@ -575,7 +575,8 @@ is refused instead of misread:
 | 19 | Matrix XIII's world rows (spawn rows, camps, warps): shared Naytibas key an enemy by its spawn row's ID, so a peer without those rows would never match the host's new enemies; no line changes shape, the number keeps 0.7.5 out |
 | 20 | The PvP test's pvp line on channel 2: a drop of the attacker's stand-in for the victim, applied to the victim's EVE in her game, and the match lobbies' start, count and end lines on channel 0 |
 | 21 | Never released: development builds of the shared world's `SBW` lines on channel 2 and of the dlc and dlcs lines on channel 0 used it (see [Shared world: how it works](shared-world.md)) |
-| 22 | Story together's `SBS` lines on channel 2: the host's story scenes and story trips, followed in the guest's game (see [Story together: how it works](story-sync.md)); the guest's `SBQ22 step` line, a quest step she made first, made in the host's game (this version) |
+| 22 | Never released: development builds of story together's `SBS` lines on channel 2 (the host's story scenes and story trips, followed in the guest's game; see [Story together: how it works](story-sync.md)) and of the guest's `SBQ22 step` line (a quest step she made first, made in the host's game) used it |
+| 23 | Online sessions of up to 4 players: the host's `let` and `wait` lines on channel 0, which a protocol-22 peer would count invalid; a protocol-22 game would also leave a lobby of 3 (this version) |
 
 ## Link health in the log
 

@@ -84,7 +84,7 @@ Online protocol and game build and with the same lobby maps: players without the
 without it. Steam limits the search to your region and the regions near it. Search joins the first lobby found, and
 tries the next one if that join fails.
 
-When no lobby is open, you host a public one: `No ffa match found (SBO protocol 22, build 26123051): hosting one.` A
+When no lobby is open, you host a public one: `No ffa match found (SBO protocol 23, build 26123051): hosting one.` A
 host alone in a public lobby searches again every 5 s and moves to an open lobby with a lower Steam lobby id, so two
 players who searched in the same second are in one lobby within about 5 s.
 
@@ -169,7 +169,7 @@ parry or dodge does not stop it. `coop pvp status` prints the test's counts and 
 
 ## Link protocol
 
-The match lobbies and the PvP test added lines to the Steam link in protocol 20 (0.11.0). This version uses protocol 22
+The match lobbies and the PvP test added lines to the Steam link in protocol 20 (0.11.0). This version uses protocol 23
 and does not link with 0.11.0 or older versions, with a friend or in a match lobby. Search never finds their
 lobbies. Every player has to update (see [INSTALL.md: Update](../INSTALL.md#update)).
 

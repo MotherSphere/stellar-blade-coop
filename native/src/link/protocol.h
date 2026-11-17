@@ -55,7 +55,7 @@
 #include "game/pak_list.h"
 
 namespace coop {
-constexpr int kProtocol = 22; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 23; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                               // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
                               // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
                               // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines,
@@ -93,11 +93,13 @@ constexpr int kProtocol = 22; // Bump on any wire change. 1 was the first link (
                               // adds the dlc and dlcs lines (the DLCs installed on each PC), which a protocol-20 peer
                               // would count invalid; 22 adds story together's SBS lines on channel 2 (the host's
                               // scenes and story trips, followed in the guest's game), which a protocol-21 peer would
-                              // count malformed, so she would wait through his scenes as before. An older peer (6:
-                              // v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1, 12:
-                              // v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14: v0.7.0-beta.1, 17: a v0.7.5 test
-                              // build, 18: v0.7.5, 19: v0.8.0 to v0.10.0, 20: v0.11.0; 15, 16 and 21 were never
-                              // released) is told why: the lobby tag, then the hello's reject, name both.
+                              // count malformed, so she would wait through his scenes as before; 23 adds online
+                              // sessions of up to 4 players with the host's let and wait lines on channel 0, which a
+                              // protocol-22 peer would count invalid, and a protocol-22 game would leave a lobby of
+                              // 3. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11:
+                              // v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14: v0.7.0-beta.1, 17:
+                              // a v0.7.5 test build, 18: v0.7.5, 19: v0.8.0 to v0.10.0, 20: v0.11.0; 15, 16, 21 and 22
+                              // were never released) is told why: the lobby tag, then the hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -425,8 +427,8 @@ inline std::string count_line(uint32_t seconds) {
   return "SBC" + std::to_string(kProtocol) + " count " + (seconds ? std::to_string(seconds) : "stop");
 }
 inline std::string end_line() { return "SBC" + std::to_string(kProtocol) + " end"; }
-// Channel 2's tags, versioned like channel 0's: "SBF22" for the shared fight, "SBQ22" for the shared quests, "SBW22"
-// for the shared world, "SBS22" for story together.
+// Channel 2's tags, versioned like channel 0's: "SBF23" for the shared fight, "SBQ23" for the shared quests, "SBW23"
+// for the shared world, "SBS23" for story together.
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
 inline std::string world_tag() { return "SBW" + std::to_string(kProtocol); }

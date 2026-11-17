@@ -119,7 +119,7 @@ int main() {
   m = parse_text(p + " say  two spaces ");
   assert(m.kind == Kind::say && m.text == "two spaces");
 
-  // The race line, reliable: Lua's text after "SBC22 race ", printable ASCII only, the whole line within kMaxMessage.
+  // The race line, reliable: Lua's text after "SBC23 race ", printable ASCII only, the whole line within kMaxMessage.
   // Anything else is invalid, never cleaned into another line.
   assert(race_line("cp 7 1 2 34567") == p + " race cp 7 1 2 34567");
   m = parse_text(race_line("cp 7 1 2 34567"));
@@ -134,7 +134,7 @@ int main() {
                                  race + "end\r", race + "\xff", p + " race", race})
     assert(parse_text(bad).kind == Kind::invalid);
   assert(parse(race.data(), race.size() + 1).kind == Kind::invalid); // A NUL after the prefix.
-  for (const char *other : {"SBC21 race cp 7 1 2 3", "SBC23 race cp 7 1 2 3", "SBC race end 7"})
+  for (const char *other : {"SBC22 race cp 7 1 2 3", "SBC24 race cp 7 1 2 3", "SBC race end 7"})
     assert(parse_text(other).kind == Kind::invalid);
   for (int c = 0x20; c < 0x7f; ++c) { // Every printable byte passes as it is.
     m = parse_text(race + "x" + static_cast<char>(c) + "x");
@@ -164,7 +164,7 @@ int main() {
     assert(!gift_ok(bad) && gift_line(bad).empty());
     assert(parse_text(p + " gift " + bad).kind == Kind::invalid);
   }
-  for (const char *other : {"SBC21 gift a 1", "SBC23 gift a 1", "SBC gift a 1"})
+  for (const char *other : {"SBC22 gift a 1", "SBC24 gift a 1", "SBC gift a 1"})
     assert(parse_text(other).kind == Kind::invalid);
 
   // The vit line, unreliable: the partner card's twelve numbers, whole units. Each rule holds at its edge.
@@ -286,7 +286,7 @@ int main() {
   assert(m.kind == Kind::mark && m.text == std::string(kMaxMark, 'y'));
   for (const std::string &bad : {p + " mark", p + " mark 0", p + " mark 0 x", p + " mark 4294967296", p + " mark -1",
                                  p + " mark x", p + " mark 3 ", p + " mark  3", p + " mark 3x boss", p + " marks 3",
-                                 std::string("SBC21 mark 3 x"), std::string("SBC mark 3"), std::string("SBC23 mark 3")})
+                                 std::string("SBC22 mark 3 x"), std::string("SBC mark 3"), std::string("SBC24 mark 3")})
     assert(parse_text(bad).kind == Kind::invalid);
 
   // A v0.1.1 peer runs protocol 6, and her lobby tag says so. Her hello still parses, so the link answers it with a
@@ -321,7 +321,10 @@ int main() {
   // stay as they were. Protocol 21 refuses the link.
   // Protocol 21 (the shared world alone) was never released: its builds would count every story together line
   // malformed, so the guest would wait through the host's scenes as before. Protocol 22 refuses the link.
-  static_assert(kProtocol == 22, "22 adds story together's SBS lines on channel 2; 21 the shared world's SBW lines on "
+  // Protocol 22 (story together for two) was never released either: its builds would count the host's let and wait
+  // lines invalid and leave a lobby of 3. Protocol 23 refuses the link.
+  static_assert(kProtocol == 23, "23 adds sessions of up to 4 players with the let and wait lines; 22 story together's "
+                                 "SBS lines on channel 2; 21 the shared world's SBW lines on "
                                  "channel 2; 20 the PvP test's pvp line on channel 2; 19 Matrix XIII's world rows; "
                                  "18 the table's fx lines and effect slots to 64; 17 the hide lines; 16 the value lines; 15 "
                                  "was never released; 14 the night lines' level and down words and the gift line; 13 "
@@ -334,7 +337,8 @@ int main() {
          lobby_tag(24463856) != "15:24463856" && lobby_tag(24463856) != "16:24463856" &&
          lobby_tag(24463856) != "17:24463856" && lobby_tag(24463856) != "18:24463856" &&
          lobby_tag(24463856) != "19:24463856" && lobby_tag(24463856) != "20:24463856" &&
-         lobby_tag(24463856) != "21:24463856");
+         lobby_tag(24463856) != "21:24463856" && lobby_tag(24463856) != "22:24463856");
+  assert(parse_text("SBC22 ping 1 2").kind == Kind::invalid && parse_text("SBC22 let 0 1").kind == Kind::invalid);
   assert(parse_text("SBC21 ping 1 2").kind == Kind::invalid && parse_text("SBC20 ping 1 2").kind == Kind::invalid &&
          parse_text("SBC19 ping 1 2").kind == Kind::invalid);
   assert(parse_text("SBC18 ping 1 2").kind == Kind::invalid && parse_text("SBC18 gift x").kind == Kind::invalid);

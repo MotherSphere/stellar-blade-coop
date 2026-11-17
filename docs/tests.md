@@ -264,7 +264,7 @@ The C++ tests cover the platform-free headers in `native/src`.
   `unblock` and `unblock all`, the `host` words (`public`, `friends`, `invitation` with the older `code` and
   `private`, `closed`, then `ask`), `list public|friends|stop`, `where`, `rules` and the row cleaner,
   the match lines (start, count, end) with their bounds, the dlc and dlcs lines with their bounds and the DLC
-  comparison by app id, and protocol 22 refusing a protocol-21 lobby and line;
+  comparison by app id, and protocol 23 refusing a protocol-22 lobby and line;
 - `link_core_test`: the link against the shared fake Steam, and two links through it with the handshake both ways,
   channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, an
   Invitation lobby (its code, the invite dialog, the older words `code` and `private`) joined with its code and the

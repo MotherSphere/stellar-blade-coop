@@ -28,8 +28,8 @@ with a local pak. No match lobby has held two players in game yet (see
 0.6.0-beta.1 to beta.3 use link protocol 13. 0.7.0-beta.1 uses protocol 14 and does not link with them. 0.7.5 uses
 protocol 18 and does not link with 0.7.0-beta.1 or with the first 0.7.5 test build (protocol 17). Builds after it, 0.8.0
 to 0.10.0, use protocol 19, for Matrix XIII's world rows, and do not link with 0.7.5. 0.11.0 uses protocol 20, for the
-PvP test and the match lobbies, and does not link with 0.10.0 or older. This version uses protocol 22, for the lines of
-the shared world and of story together. It does not link with 0.11.0 or older: every player has to update.
+PvP test and the match lobbies, and does not link with 0.10.0 or older. This version uses protocol 23, for
+the shared world, story together and sessions of up to 4 players. It does not link with 0.11.0 or older: every player has to update.
 
 In this version every on/off setting is on by default, the experimental ones and the test tools included: the ghost's
 dyes and effects, the spawn filter, the name tag in your photos, shared quests, the shared world, story together, the
