@@ -5,7 +5,7 @@
 -- the ride is built with (its native asks, coop-bike.txt, the races' driving, the settings, the checks it reads), coop
 -- bike and its words, bike_key (F3) and the pad's D-pad Right held 1 s with a refusal on screen, the first tick's
 -- restore, its frame before the native tick, its 250 ms pass, coop off, the Options rows; riding() as coop emote, the
--- race and the hall seats read it.
+-- race, the hall seats, coop fly on and coop glide on read it.
 dofile('tests/lua/main/fixture.lua')
 -- coop fly's keys: cut/flight.lua for real, with fly_on in place of its active() (on() needs SB's player input).
 local Flight,fly_on=require('cut.flight'),nil
@@ -45,6 +45,19 @@ bk.riding=true
 assert(em.o.riding()==true and sb.o.riding()==true)
 ra.o.dismount('the host started a race')
 assert(bk.stops[1]=='the host started a race')
+-- coop fly on and coop glide on are refused while she rides (on a co-op save, where both would start); off is not.
+status_text=COOP
+local n_asked,n_glide=#asked,#gl.cmds
+coop('fly','on')
+assert(#asked==n_asked and last()=='[StellarCoop] STOP: EVE rides the bike: coop bike gets her off first\n',last())
+coop('glide','on')
+assert(#gl.cmds==n_glide and last()=='[StellarCoop] STOP: EVE rides the bike: coop bike gets her off first\n',last())
+coop('fly','off'); coop('glide','off')
+assert(asked[#asked]=='fly off' and #gl.cmds==n_glide+1 and gl.cmds[#gl.cmds][1]=='off')
+coop('slowmo','on')
+assert(asked[#asked]=='slowmo on','coop slowmo stays free while she rides')
+coop('slowmo','off')
+status_text=plain
 bk.riding=false
 
 -- coop bike: on or off, status, tune with no words or a name and a value; anything else is its usage line.

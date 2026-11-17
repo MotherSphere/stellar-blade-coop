@@ -58,8 +58,8 @@ fails the test. The `main/` tests load
   (its asks, `coop-bike.txt`, the driving, the settings, SBO's busy reasons with coop fly and our open screens),
   `coop bike` and its words, F3 and the pad's D-pad Right hold with a refusal on screen, the hold ignored with its
   reason logged at the title, with one of our screens open or with the game paused, the restore, the frame and the
-  250 ms pass with an end said on screen, the Options rows, `coop off`; `riding()` as `coop emote`, the race and the
-  hall seats read it;
+  250 ms pass with an end said on screen, the Options rows, `coop off`; `riding()` as `coop emote`, the race, the hall
+  seats, `coop fly on` and `coop glide on` read it;
 - `main/world_test` covers `coop world` (its words, on and off whatever `shared_world` says, status), the start once a
   load with `shared_world=on`, the end at a reload with `shared_world=off`, and the shared world's two notices;
 - `main/idle_test` counts the FindAllOf and StaticFindObject calls of main.lua's two loops over one idle minute, each

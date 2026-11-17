@@ -36,7 +36,8 @@ A mount is refused, with the reason on screen and in `UE4SS.log` (`[StellarCoop]
 She gets off by herself, with `Off the bike: <reason>` on screen, on a load or warp, a cutscene, an interaction, the
 game's hold on her movement, water, a ladder, rope or other special move, a lift or train, fishing, when she goes down,
 in selfie mode, when her EVE changes (a map change) and when the game takes over her animation slot (it ends her riding
-pose 3 times within 1 s). `coop off` and `bike=off` take her off too. Combat does not.
+pose 3 times within 1 s). `coop off` and `bike=off` take her off too. Combat does not. While she rides, `coop fly on`
+and `coop glide on` are refused.
 
 While she rides, 54 of the game's actions are off: attacks, dodge, guard, the Beta and Burst skills, scan, aiming,
 sprint, the D-pad's own actions and the others listed in [internals/bike.md](internals/bike.md#the-gate). She cannot
