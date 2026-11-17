@@ -27,7 +27,7 @@
 -- overridden materials, values and hidden slots with dyes off too; any part sends its cloth's collision
 -- asset (her ponytail's OverrideClothPhysicsAsset). Leaders whose bones would make a pose too big for the native part
 -- go, the last first. The component leave_out() names at each look is no part (main.lua: SBO's bike while EVE does not
--- ride, bike/ride.lua's parked), so getting on or off the bike is a new generation.
+-- ride, bike/ride.lua's idle_part), so getting on or off the bike is a new generation.
 -- Read-only: nothing here changes EVE or any of her components.
 local UE=require('UEHelpers')
 local U=require('core.unreal')

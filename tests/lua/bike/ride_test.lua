@@ -9,9 +9,12 @@
 -- played again after an end or held in photo mode; three ends within 1 s, no weight, a refusal or no answer ending
 -- the ride; the 250 ms checks (combat stays, swimming and the gate not on end it); a new EVE, an error and bike=off; a
 -- mesh write that fails keeps the file; the next Lua load's restore; coop bike status and tune; the Doro look refused
--- while she rides; parked (the part the capture leaves out) before the part, off the bike, on it and at bike=off; the
--- part's tag (one that does not hold makes no part), found at a new Lua load's first tick whatever the bike= word,
--- removed by its first pass at bike=off; another mod's component on the same mesh never taken for it.
+-- while she rides; idle_part (the part the capture leaves out) before the part, off the bike, on it and at bike=off;
+-- the part's tag (one that does not hold makes no part), found at a new Lua load's first tick whatever the bike= word,
+-- removed by its first pass at bike=off; another mod's component on the same mesh never taken for it. The parked bike
+-- (a fake bike/stand.lua): made after the part, parked where a dismount by the key leaves her, at the last ground pose
+-- after a forced one or where it stood before the mount, hidden while she rides or a cutscene holds her, removed for a
+-- new EVE.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -23,6 +26,7 @@ local function uobj(o)
 end
 local events={}
 local function event(e) events[#events+1]=e end
+local stand_order={} -- The fake stand's hides, in order with what the tests put beside them.
 local classes={}
 local function class(path)
     classes[path]=classes[path] or uobj({path=path})
@@ -33,7 +37,8 @@ local mathlib=uobj({MakeTransform=function() return {} end,
     ComposeRotators=function(_,a,b)
         composed[#composed+1]={a=a,b=b}
         return {Pitch=a.Pitch+b.Pitch,Yaw=a.Yaw+b.Yaw,Roll=a.Roll+b.Roll}
-    end})
+    end,
+    MakeRotFromZX=function(_,z,x) return {Pitch=0,Yaw=math.deg(math.atan(x.Y,x.X)),Roll=0} end})
 local MESH='/Game/Art/Character/ETC/Adam_vehicle_02/Adam_Vehicle_02.Adam_Vehicle_02'
 local function mesh_asset(path)
     return uobj({GetFullName=function() return 'SkeletalMesh '..path end,
@@ -53,8 +58,9 @@ local components=0
 local function component(owner,mesh)
     components=components+1
     local n=components
-    local c=uobj({SkeletalMesh=mesh,visible=true,ComponentTags={}})
+    local c=uobj({SkeletalMesh=mesh,visible=true,ComponentTags={},forward={X=0,Y=1,Z=0}})
     function c:GetAddress() return 0x7000+n end
+    function c:GetForwardVector() return self.forward end
     function c:ComponentHasTag(tag)
         for _,t in ipairs(self.ComponentTags) do if t:ToString()==tag:ToString() then return true end end
         return false
@@ -87,9 +93,11 @@ local function make_eve(name)
     addresses=addresses+1
     local address=addresses
     local e=uobj({name=name,list={},added=0,skill=false,battle=false,root=false,sequence=false,interaction=false,
-        block=false,fishing=0,tps=false,bEnableInteractionBlock=false,bFreeCamMode=false})
+        block=false,fishing=0,tps=false,bEnableInteractionBlock=false,bFreeCamMode=false,
+        mesh_at={X=0,Y=0,Z=0},base=nil,world_name='World /Game/Map/Map.Map'})
     local m=component(e,eve_mesh)
     m.RelativeRotation,m.RelativeLocation={Pitch=0,Yaw=-90,Roll=0},{X=0,Y=0,Z=-90}
+    function m:K2_GetComponentLocation() return e.mesh_at end
     function m:K2_SetRelativeRotation(rot,sweep,hit,teleport)
         assert(sweep==false and teleport==false,'Teleport off: cloth keeps its inertia')
         self.RelativeRotation=rot
@@ -102,7 +110,15 @@ local function make_eve(name)
         event('mesh back')
     end
     e.Mesh,e.list[1]=m,m
-    e.CharacterMovement=uobj({MovementMode=1})
+    -- A walkable flat floor; its read raises while floor_raises (a struct UE4SS would not read).
+    local floor={bWalkableFloor=true,HitResult={ImpactNormal={X=0,Y=0,Z=1}}}
+    e.CharacterMovement=setmetatable(uobj({MovementMode=1}),{__index=function(_,k)
+        if k~='CurrentFloor' then return nil end
+        if e.floor_raises then error('CurrentFloor unreadable',0) end
+        return floor
+    end})
+    function e:GetWorld() return {GetFullName=function() return e.world_name end} end
+    function e:GetMovementBase() return self.base and uobj(self.base) end
     function e:GetFullName() return 'CH_P_EVE_01_Blueprint_C /Game/Map.Map:PersistentLevel.'..name end
     function e:GetAddress() return address end
     function e:IsA(c) return c.path=='/Script/SB.SBCharacter' end
@@ -183,6 +199,25 @@ local function last() return logs[#logs] end
 local function find(pattern) for _,l in ipairs(logs) do if l:find(pattern) then return l end end end
 local settings={}
 local world={paused=false,photo='0',frozen=false,life=nil,armed=false,busy=nil}
+-- bike/stand.lua (bike/stand_test tests it): each display made (st_made) with its place, shown, removed and path; a
+-- hide also goes to stand_order; sweep records what it was asked (swept, swept_mesh). It writes no event and no log.
+local st_made,swept,swept_mesh={},{},{}
+package.loaded['bike.stand']={CULL=20000,
+    make=function(w,mesh,cull)
+        assert(w and mesh==MESH,'In her world, with the bike mesh')
+        local d={shown=false,cull=cull,path='/Game/Map.Map:PersistentLevel.Actor_'..(#st_made+1)}
+        st_made[#st_made+1]=d
+        return d
+    end,
+    put=function(d,place) d.place=place end,
+    show=function(d,on)
+        d.shown=on
+        if not on then stand_order[#stand_order+1]='stand hide' end
+    end,
+    step=function() return nil end,
+    alive=function(d) return not d.removed and d or nil end,
+    remove=function(d) d.removed=true end,
+    sweep=function(path,mesh) swept[#swept+1],swept_mesh[#swept_mesh+1]=path,mesh end}
 local Ride=require('bike.ride')
 local function new()
     return Ride.new({log=log,ask=ask,status=status,store=store,drive=drive,settings=settings,
@@ -214,7 +249,7 @@ assert(asked[1]=='bike load '..CLIP and #asked==1 and last()=='bike=on: asked th
 st.load='loading'
 R.slow()
 assert(#asked==1 and eve.added==0,'Asked once')
-assert(R.parked(eve:GetAddress())==nil,'No part to leave out yet')
+assert(R.idle_part(eve:GetAddress())==nil,'No part to leave out yet')
 
 -- 3. The part: once bike=ready and EVE stood 2 s, made on her main mesh at the seat, hidden; then never again.
 st.load='ready'
@@ -227,14 +262,14 @@ R.slow()
 local part=eve.list[2]
 assert(eve.added==1 and part.SkeletalMesh==bike_mesh and part.parent==eve.Mesh and part.collision==0 and part.mode==1)
 assert(part.at.X==1.53 and part.at.Y==0.52 and part.at.Z==2.95 and part.rot.Pitch==0.69 and part.rot.Yaw==0)
-assert(part.scale.X==1 and part.visible==false and last():find('^bike part ready on EVE %(made in [%d.]+ ms%)$'),last())
+assert(part.scale.X==1 and part.visible==false and find('^bike part ready on EVE %(made in [%d.]+ ms%)$'),last())
 assert(#part.ComponentTags==1 and part.ComponentTags[1]:ToString()=='SBO_Bike' and Ride.TAG=='SBO_Bike',
     "Tagged as SBO's")
 clock=3
 R.slow()
 assert(eve.added==1 and #asked==1,'Made once')
 -- The capture's leave_out: the part's address while she does not ride, asked with her EVE's address.
-assert(R.parked(eve:GetAddress())==part:GetAddress() and R.parked(eve:GetAddress()+100)==nil)
+assert(R.idle_part(eve:GetAddress())==part:GetAddress() and R.idle_part(eve:GetAddress()+100)==nil)
 
 -- 4. The refusals, each with its reason, logged; nothing asked, saved or driven.
 local function refused(reason,set,unset)
@@ -303,7 +338,7 @@ do
     R.slow()
     clock=clock+2
     R.slow()
-    assert(last():find('^bike part ready on EVE %(found in'),last())
+    assert(find('^bike part ready on EVE %(found in'),last())
 end
 -- A tag that does not hold: the part kept for this Lua load, why logged once; only a Ctrl+R cannot find it.
 do
@@ -318,9 +353,9 @@ do
     R.slow()
     clock=clock+2
     R.slow()
-    assert(not lone.list[2].gone and last()=='bike part tag SBO_Bike not written (it did not hold): a Ctrl+R will not '
-        ..'find this part',last())
-    assert(logs[#logs-1]:find('^bike part ready on EVE %(made in'),logs[#logs-1])
+    assert(not lone.list[2].gone and logs[#logs-1]=='bike part tag SBO_Bike not written (it did not hold): a Ctrl+R '
+        ..'will not find this part',logs[#logs-1])
+    assert(logs[#logs-2]:find('^bike part ready on EVE %(made in'),logs[#logs-2])
     eve=real
     R.slow()
     clock=clock+2
@@ -339,7 +374,7 @@ assert(eve==real and eve.added==1 and #eve.list==2)
 events={}
 ok,why=R.toggle()
 assert(ok and why=='On the bike: coop bike gets her off.' and R.riding(),why)
-assert(R.parked(eve:GetAddress())==nil,'A part of the ghost while she rides')
+assert(R.idle_part(eve:GetAddress())==nil,'A part of the ghost while she rides')
 local id=tonumber(asked[#asked]:match('^anim play (%d+) '))
 assert(id and id>2000000000,'Apart from coop emote\'s ids')
 local order={'save','drive on bike','bike gate on','anim play '..id..' '..CLIP..' ride','show'}
@@ -356,7 +391,7 @@ order={'hide','anim stop','bike gate off','drive off','mesh back'}
 for k,e in ipairs(order) do assert(events[5+k]==e,k..': '..tostring(events[5+k])) end
 assert(not part.visible and stored==nil and eve.Mesh.RelativeRotation.Yaw==-90 and eve.Mesh.RelativeLocation.Z==-90)
 assert(last():find('^bike off %(coop bike%) after [%d.]+ s: her mesh back$'),last())
-assert(R.parked(eve:GetAddress())==part:GetAddress(),'Left out again once she is off')
+assert(R.idle_part(eve:GetAddress())==part:GetAddress(),'Left out again once she is off')
 assert(find('^drive off %(bike coop bike%)$'))
 
 -- The mount fails halfway: the drive refused (nothing else asked); the gate's ask refused (the drive off again).
@@ -438,7 +473,7 @@ assert(R.riding())
 clock=clock+0.2
 ok,why=R.steer()
 assert(not ok and why=='Off the bike: no answer from the native part for the riding clip' and not R.riding(),why)
-assert(R.parked(eve:GetAddress())==part:GetAddress(),'Left out again after a ride that ended on a fault')
+assert(R.idle_part(eve:GetAddress())==part:GetAddress(),'Left out again after a ride that ended on a fault')
 assert(asked[#asked-1]=='anim stop' and asked[#asked]=='bike gate off' and stored==nil)
 -- Three ends within 1 s: SB uses the slot.
 id=mount()
@@ -565,7 +600,7 @@ part.visible=true
 local R2=new()
 local n_logs=#logs
 R2.restore()
-assert(R2.parked(eve:GetAddress())==part:GetAddress(),"The earlier load's part, named from the first tick")
+assert(R2.idle_part(eve:GetAddress())==part:GetAddress(),"The earlier load's part, named from the first tick")
 assert(logs[n_logs+1]=="bike part found on EVE (an earlier Lua load's), hidden",tostring(logs[n_logs+1]))
 assert(stored==nil and eve.Mesh.RelativeRotation.Yaw==-90 and eve.Mesh.RelativeRotation.Roll==0)
 assert(eve.Mesh.RelativeLocation.Z==-90 and not part.visible)
@@ -580,8 +615,9 @@ n_logs=#logs
 R2.slow()
 clock=clock+2
 R2.slow()
-assert(eve.added==added and #logs==n_logs+1 and last()=='bike=on: asked the native part: bike load '..CLIP,last())
-assert(R2.parked(eve:GetAddress())==part:GetAddress(),'The part it found, left out')
+assert(eve.added==added and logs[n_logs+1]=='bike=on: asked the native part: bike load '..CLIP,logs[n_logs+1])
+for k=n_logs+2,#logs do assert(not logs[k]:find('^bike part'),logs[k]) end
+assert(R2.idle_part(eve:GetAddress())==part:GetAddress(),'The part it found, left out')
 -- A value the file cannot give clears it. A mesh write that fails keeps it: the next mount takes her base from it.
 stored='/Game/Map.Map:PersistentLevel.EVE_1\t0\tx\t0\t0\t0\t-90'
 new().restore()
@@ -603,7 +639,7 @@ id=mount()
 settings.bike=false
 R.slow()
 assert(not R.riding() and find('^bike off %(bike=off%)') and part.gone and asked[#asked]=='bike free')
-assert(R.parked(eve:GetAddress())==nil,'bike=off: no part')
+assert(R.idle_part(eve:GetAddress())==nil,'bike=off: no part')
 assert(last()=='bike=off: asked the native part: bike free',last())
 n=#asked
 R.slow()
@@ -649,38 +685,38 @@ assert(not R.tune('speed','1') and not R.tune('top','fast'))
 -- part is made beside it.
 local sbo=eve.list[#eve.list]
 assert(sbo.SkeletalMesh==bike_mesh and sbo.ComponentTags[1] and not sbo.gone)
-assert(R.parked(eve:GetAddress())==sbo:GetAddress())
+assert(R.idle_part(eve:GetAddress())==sbo:GetAddress())
 local theirs=component(eve,bike_mesh)
 table.insert(eve.list,2,theirs)
 st.load='fault'
 local R3=new()
 R3.restore()
-assert(R3.parked(eve:GetAddress())==sbo:GetAddress() and theirs.visible,'Its own part, by its tag')
+assert(R3.idle_part(eve:GetAddress())==sbo:GetAddress() and theirs.visible,'Its own part, by its tag')
 added=eve.added
 for _=1,12 do
     R3.slow()
     clock=clock+0.25
 end
-assert(R3.parked(eve:GetAddress())==sbo:GetAddress() and eve.added==added and not sbo.gone,'Named at a fault')
+assert(R3.idle_part(eve:GetAddress())==sbo:GetAddress() and eve.added==added and not sbo.gone,'Named at a fault')
 settings.bike=false
 local R4=new()
 R4.restore()
-assert(R4.parked(eve:GetAddress())==sbo:GetAddress())
+assert(R4.idle_part(eve:GetAddress())==sbo:GetAddress())
 n_logs=#logs
 R4.slow()
-assert(sbo.gone and not theirs.gone and theirs.visible and R4.parked(eve:GetAddress())==nil)
+assert(sbo.gone and not theirs.gone and theirs.visible and R4.idle_part(eve:GetAddress())==nil)
 assert(logs[n_logs+1]=='bike part removed from EVE' and logs[n_logs+2]=='bike=off: asked the native part: bike free')
 settings.bike=nil
 st.load='ready'
 local R5=new()
 R5.restore()
-assert(R5.parked(eve:GetAddress())==nil and theirs.visible,'Nothing of SBO\'s on her')
+assert(R5.idle_part(eve:GetAddress())==nil and theirs.visible,'Nothing of SBO\'s on her')
 R5.slow()
 clock=clock+2
 R5.slow()
 local made=eve.list[#eve.list]
 assert(made~=theirs and made.ComponentTags[1] and eve.added==added+1,'Made beside it')
-assert(last():find('^bike part ready on EVE %(made in') and R5.parked(eve:GetAddress())==made:GetAddress(),last())
+assert(find('^bike part ready on EVE %(made in') and R5.idle_part(eve:GetAddress())==made:GetAddress(),last())
 assert(theirs.visible and not theirs.gone)
 
 -- 15. The Doro look does not start while she rides (commands/race.lua).
@@ -693,4 +729,34 @@ ok,why=Cmd.race('look','on')
 assert(not ok and why=='EVE rides the bike: coop bike gets her off first' and looks==0,why)
 rides=false
 assert(Cmd.race('look','on') and looks==1)
+
+-- 16. The stand: one per EVE, made after her part under the same 2 s gate, hidden; a dismount by the key parks it
+-- where she stands, shown; a forced one at the last ground pose; none kept on a Movable base; no pose keeps the place
+-- before the mount; hidden while she rides or a cutscene holds her.
+R=new(); local before=#st_made; eve=make_eve('EVE_15'); settle()
+assert(#st_made==before+1 and st_made[#st_made].shown==false and find('^bike stand made in [%d.]+ ms$'))
+local s=st_made[#st_made]
+mount()
+eve.mesh_at={X=100,Y=200,Z=0}
+clock=clock+0.25; R.slow()
+R.toggle()
+assert(s.shown and s.place.map=='/game/map/map' and s.place.at.X==100 and s.place.rot.Yaw==90)
+assert(find('^bike parked on /game/map/map at 100,200,0 %(here%)$'))
+mount(); eve.mesh_at={X=500,Y=0,Z=0}; clock=clock+0.25; R.slow()
+assert(s.shown==false,'Hidden while she rides')
+eve.CharacterMovement.MovementMode=4; clock=clock+0.25
+assert(select(1,R.slow())==false and s.place.at.X==500 and find('^bike parked on /game/map/map at 500,0,0 %(last ground%)$'))
+eve.CharacterMovement.MovementMode=1
+mount(); eve.base={Mobility=2}; eve.mesh_at={X=900,Y=0,Z=0}; clock=clock+0.25; R.slow()
+eve.CharacterMovement.MovementMode=4; clock=clock+0.25; R.slow()
+assert(s.place.at.X==500 and find('%(before the mount%)$'),'A lift is never a ground pose')
+eve.CharacterMovement.MovementMode,eve.base=1,nil
+eve.sequence=true; clock=clock+0.25; R.slow(); assert(s.shown==false)
+eve.sequence=false; clock=clock+0.25; R.slow(); assert(s.shown==true)
+-- CurrentFloor that does not read: walking on a fixed base counts, the yaw alone kept, one log line.
+eve.mesh_at={X=500,Y=0,Z=0}; eve.floor_raises=true; mount(); clock=clock+0.25; R.slow(); R.toggle()
+assert(s.place.rot.Pitch==0 and s.place.rot.Roll==0 and find('^bike floor: CurrentFloor not read'))
+-- A new EVE on the same map (a respawn): the old stand removed before the new one is made.
+local n=#st_made; eve=make_eve('EVE_16'); settle()
+assert(s.removed and #st_made==n+1)
 print('ride_test ok')

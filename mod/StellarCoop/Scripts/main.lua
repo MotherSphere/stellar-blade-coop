@@ -654,7 +654,7 @@ bike=require('bike.ride').new({log=function(m) print('[StellarCoop][BK] '..tostr
     end})
 o.bike=bike
 -- The capture leaves the bike's part out while EVE does not ride: hidden, it would take one of the ghost's 16 parts.
-capture.leave_out(bike.parked)
+capture.leave_out(bike.idle_part)
 -- coop chainspin (cut/chainspin.lua), logging [CS] lines: the cut ChainSpin's rows through coop lion, then the request.
 o.chainspin=require('cut.chainspin').new({log=function(m) print('[StellarCoop][CS] '..tostring(m)..'\n') end,
     status=function() return link and link.status() end,rows=function(done) return lion.rows(done) end})
