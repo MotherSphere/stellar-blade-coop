@@ -7,7 +7,9 @@
 -- file logged once; the sky dressing: the domes looked up once per world and hidden once, a missing one logged once,
 -- the star layer made once with its material loaded once a world and faded on change, the SkyCreators' time on change
 -- and back at an off, Xion's night dome, coop off, a Lua reload that finds the layer by its tag, an earlier load's
--- dressing put back by a new load that starts off.
+-- dressing put back by a new load that starts off; SBO's own maps: the Sun turned, its intensity and colour and the
+-- SkyLight's scaled, Matrix XIII's exposure bias lowered, each written on change only and put back at an off; the
+-- Terrace hall left alone.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Rule=require('sky.rule')
 local Daynight=require('sky.daynight')
@@ -27,15 +29,17 @@ local NOON='sky=cycle h=12.00 el=65.0 le=65.0 ly=0.0 k=1.000 moon=0 amb=1.000 ev
     ..'n=114 lit=20 seen=1\n'
 local asked,printed={},{}
 local calls={map_of=0,find=0,find_flag=0,flag_reads=0,find_dome=0,load=0,add_component=0,make_mid=0,
-    actors_of_creator=0}
+    actors_of_creator=0,actors_of_lights=0,rotate=0,set_intensity=0,set_color=0,bias_writes=0}
 local settings={daynight=true}
 local world={cutscene=false,screen=false,photo='0',night=false,lobby=false}
 -- The native status: text as it is, else a sky= line from the fields.
 local st={text='engine=on\n'..NOON,state='cycle',h=12,el=65}
 local function status()
     if st.text then return st.text end
-    return string.format('engine=on\nsky=%s h=%.2f el=%.1f le=%.1f ly=0.0 k=1.000 moon=0 amb=1.000 eve=1.000 '
-        ..'ev=0.00 tint=1.00,1.00,1.00 n=114 lit=20 seen=1\n',st.state,st.h,st.el,math.abs(st.el))
+    local t=st.tint or {1,1,1}
+    return string.format('engine=on\nsky=%s h=%.2f el=%.1f le=%.1f ly=%.1f k=%.3f moon=0 amb=%.3f eve=1.000 ev=%.2f '
+        ..'tint=%.2f,%.2f,%.2f n=114 lit=20 seen=1\n',st.state,st.h,st.el,st.le or math.abs(st.el),st.ly or 0,
+        st.k or 1,st.amb or 1,st.ev or 0,t[1],t[2],t[3])
 end
 local refuse=nil -- The ask's refusal while set.
 local flag_state=uobj({bActiveVolume=false})
@@ -95,6 +99,39 @@ local objects={[Rule.MAPS[E04].flag]=flag,
     ['/Script/Engine.Default__KismetMathLibrary']=uobj({MakeTransform=function() return {} end}),
     [Rule.MAPS[E04].day_dome]=uobj({RootComponent=xion_day}),
     [Rule.MAPS[E04].night_dome]=uobj({RootComponent=xion_night})}
+-- SBO's own maps: a light actor is its own light component here (rotation, intensity, colour in one record).
+local HOTEL,MX='/game/sbo_lobby/lobby_hotel','/game/art/bg/worldmap_dlc_01/level_p/mxiii_p'
+local SUN,SKY_LIGHT='/Script/Engine.DirectionalLight','/Script/Engine.SkyLight'
+local VOLUME='/Script/Engine.PostProcessVolume'
+local function new_light(name,intensity,pitch,yaw,rgb)
+    local a=uobj({name=name,Intensity=intensity,intensity=intensity,rot={Pitch=pitch,Yaw=yaw,Roll=0},
+        LightColor=rgb or {R=255,G=255,B=255,A=255},
+        GetFName=function(self) return FName(self.name) end,
+        K2_GetActorRotation=function(self) return {Pitch=self.rot.Pitch,Yaw=self.rot.Yaw,Roll=0} end,
+        K2_SetActorRotation=function(self,r,teleport)
+            assert(teleport==false and r.Roll==0)
+            calls.rotate=calls.rotate+1
+            self.rot=r
+        end,
+        SetIntensity=function(self,v) calls.set_intensity=calls.set_intensity+1; self.intensity=v end,
+        SetLightColor=function(self,c,srgb)
+            assert(srgb==true and c.A==1)
+            calls.set_color=calls.set_color+1
+            self.color=c
+        end})
+    a.LightComponent=a
+    return a
+end
+local sun,fill,skylight=new_light('Sun',7.5,-58,-52),new_light('Fill',3,-20,10),new_light('SkyLight',1,0,0)
+local mx_sun=new_light('DirectionalLight_0',4,-8,85,{R=255,G=192,B=138,A=255})
+local settings_bias=setmetatable({},{__index={AutoExposureBias=1.0},__newindex=function(t,k,v)
+    calls.bias_writes=calls.bias_writes+1
+    getmetatable(t).__index[k]=v
+end})
+local ppv=uobj({name='Z0_PPV_Desert',Settings=settings_bias,GetFName=function(self) return FName(self.name) end})
+local zone1=uobj({name='Z1_PPV',GetFName=function(self) return FName(self.name) end})
+local lists={[HOTEL]={[SUN]={fill,sun},[SKY_LIGHT]={skylight}},
+    [MX]={[SUN]={mx_sun},[SKY_LIGHT]={new_light('SkyLight',0,0,0)},[VOLUME]={zone1,ppv}}}
 local function new_eve(at,map) return {at=at,map=map} end
 local eve=new_eve(0x100,W)
 local o={log=function(m) printed[#printed+1]=m end,
@@ -116,9 +153,13 @@ local o={log=function(m) printed[#printed+1]=m end,
         return objects[path]
     end,
     actors_of=function(path)
-        assert(path==Rule.CREATOR,path)
-        calls.actors_of_creator=calls.actors_of_creator+1
-        return {creator}
+        if path==Rule.CREATOR then
+            calls.actors_of_creator=calls.actors_of_creator+1
+            return {creator}
+        end
+        assert(path==SUN or path==SKY_LIGHT or path==VOLUME,path)
+        calls.actors_of_lights=calls.actors_of_lights+1
+        return (lists[eve.map] or {})[path] or {}
     end,
     load=function(path)
         assert(path==Rule.STARS)
@@ -250,4 +291,30 @@ dome.hidden,layer.visible=true,true
 settings.daynight=false
 local D3=Daynight.new(o); D3.slow(false); assert(dome.hidden==false and layer.visible==false)
 settings.daynight=true
+-- 18. Hotel hall at noon then midnight: each class listed once per world, the Sun found by its name; rotation
+--     {Pitch=-le,Yaw=ly} only when either moved 0.01 degree or more; SetIntensity(7.5*k), SetLightColor(tint), sky
+--     light SetIntensity(1*amb) only when the value changes (at noon each is the value it had: no write).
+D=Daynight.new(o); st.el,st.le,st.ly=65,65,308
+eve=new_eve(0x7A0,HOTEL); D.slow(false); D.slow(false)
+assert(asked[#asked]=='sky cycle 8 308' and calls.actors_of_lights==2)
+assert(sun.rot.Pitch==-65 and sun.rot.Yaw==308 and sun.intensity==7.5 and fill.rot.Pitch==-20)
+assert(calls.rotate==1 and calls.set_intensity==0 and calls.set_color==0)
+assert(logged('lobby_hotel: 0 of 0 domes, 0 SkyCreators, Sun found, SkyLight found, lookups'))
+local rots=calls.rotate; st.le=65.005; D.slow(false); assert(calls.rotate==rots,'Under 0.01 degree: no write')
+st.el,st.le,st.ly,st.k,st.amb,st.tint=-30,30,128,0.15,0.2,{0.7,0.8,1}; D.slow(false); D.slow(false)
+assert(sun.rot.Pitch==-30 and sun.rot.Yaw==128 and math.abs(sun.intensity-1.125)<1e-9 and skylight.intensity==0.2)
+assert(sun.color.R==0.7 and sun.color.G==0.8 and calls.set_intensity==2 and calls.set_color==1)
+-- 19. Matrix XIII zone 0 at full night: bias 1.0 + 2 * ev = -1.0, written once; its only DirectionalLight is its Sun.
+eve=new_eve(0x800,MX); st.ev=-1; D.slow(false); D.slow(false)
+assert(ppv.Settings.AutoExposureBias==-1.0 and calls.bias_writes==1 and calls.actors_of_lights==5)
+assert(mx_sun.rot.Pitch==-30 and math.abs(mx_sun.intensity-0.6)<1e-9)
+assert(math.abs(mx_sun.color.G-0.8*((192/255+0.055)/1.055)^2.4)<1e-9)
+-- 20. Off: intensity, colour, rotation and bias back to what the first find read.
+D.slow(true)
+assert(ppv.Settings.AutoExposureBias==1.0 and mx_sun.intensity==4 and mx_sun.rot.Pitch==-8 and mx_sun.rot.Yaw==85)
+assert(math.abs(mx_sun.color.G-((192/255+0.055)/1.055)^2.4)<1e-9 and mx_sun.color.R==1)
+-- 21. The Terrace hall: nothing looked up, nothing written.
+D=Daynight.new(o); local seen,writes=calls.actors_of_lights,calls.set_intensity+calls.rotate
+eve=new_eve(0x900,'/game/sbo_lobby/lobby_terrace'); D.slow(false)
+assert(calls.actors_of_lights==seen and calls.set_intensity+calls.rotate==writes and asked[#asked]=='sky off')
 print('daynight_test ok')

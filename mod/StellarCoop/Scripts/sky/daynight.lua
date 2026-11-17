@@ -9,12 +9,15 @@
 -- address(eve), map_of(eve), cutscene(), screen() (SB's pause menu or one of its screens), photo() -> '0', '1' or 's',
 -- night() (Night Operation runs), lobby() (EVE stands in the SBO lobby in Xion's training room), find(path) -> object
 -- or nil, actors_of(class path) -> list, load(path), exists(path), cps (the third-party plugin's file).
--- The sky dressing (DESIGN 3.2), from the status line's sun while the native part's light is ours: the painted domes of
--- a real-sky map hidden; SBO's star layer (a StaticMeshComponent tagged SBO_Stars on the first dome's actor, the dome's
+-- The sky dressing, from the status line's sun while the native part's light is ours: the painted domes of a real-sky
+-- map hidden; SBO's star layer (a StaticMeshComponent tagged SBO_Stars on the first dome's actor, the dome's
 -- mesh with SB's star material, found again by its tag after a Lua reload) shown at night; each SkyCreator's own time
 -- turned with our sun; Xion's night dome in place of its day dome at night. Each part is looked up once per world (a
 -- new EVE address), each write made only when its value changes. SB's look comes back at an off, coop off included,
--- except Xion's domes during its story night, which SB owns.
+-- except Xion's domes during its story night, which SB owns. SBO's own maps (the hall lobbies, Matrix XIII) have no SB
+-- env settings: there the Sun actor turns with the status line's light, its intensity and colour follow it, the
+-- SkyLight follows the sky light factor and Matrix XIII's zone 0 exposure volume goes 2 EV down at full night, each
+-- from the values its lookup read.
 local Rule=require('sky.rule')
 local U=require('core.unreal')
 local Daynight={}
@@ -24,6 +27,13 @@ local MESH_COMPONENT='/Script/Engine.StaticMeshComponent'
 local MATH='/Script/Engine.Default__KismetMathLibrary'
 local LIVE={cycle=true,pinned=true,held=true,forced=true} -- The native states where the sky follows our sun.
 local FADES={'Emissive','Bright','Intens','Opacity'} -- A star material scalar holding one of these fades the layer.
+local SUN,SKY_LIGHT='/Script/Engine.DirectionalLight','/Script/Engine.SkyLight'
+local VOLUME='/Script/Engine.PostProcessVolume'
+-- An 8-bit sRGB channel (FColor's) as linear light, as FLinearColor(FColor) reads it.
+local function linear(c)
+    c=c/255
+    return c<=0.04045 and c/12.92 or ((c+0.055)/1.055)^2.4
+end
 
 function Daynight.new(o)
     local self={}
@@ -75,6 +85,48 @@ function Daynight.new(o)
         end
     end
     local function set_time(c,t) try(c,'SetTime',function(a) a:SetTime(t) end) end
+    -- A part's value written through write(c, v) only when it differs from the value last written (the original first).
+    local function put(part,key,v,write)
+        if part and part[key]~=v then
+            part[key]=v
+            try(part,key,function(c) write(c,v) end)
+        end
+    end
+    -- The Sun turned to pitch p and yaw y when either moved 0.01 degree or more.
+    local function turn(part,p,y)
+        if math.abs(p-part.p)<0.01 and math.abs(y-part.y)<0.01 then return end
+        part.p,part.y=p,y
+        try(part,'rotation',function() part.actor:K2_SetActorRotation({Pitch=p,Yaw=y,Roll=0},false) end)
+    end
+    -- The Sun's colour: the one it had times the tint t.
+    local function color(part,t)
+        local r,g,b=part.color[1]*t[1],part.color[2]*t[2],part.color[3]*t[3]
+        put(part,'tint',string.format('%.4f %.4f %.4f',r,g,b),function(c) c:SetLightColor({R=r,G=g,B=b,A=1},true) end)
+    end
+    -- The actor of class cls named name in this world: by its name, else the only one of its class unless exact. One
+    -- log line when there is none.
+    local function named(cls,name,exact)
+        local ok,list=pcall(o.actors_of,cls)
+        local actors=ok and list or {}
+        for _,a in ipairs(actors) do if U.text(a:GetFName())==name then return a end end
+        if not exact and #actors==1 then return actors[1] end
+        o.log('daynight: no '..name..' in this world'..(ok and '' or ': '..U.why(list)))
+    end
+    -- A light actor's part: its light component with the intensity, colour and rotation it had, or nil with one log
+    -- line.
+    local function light(a,name)
+        if not a then return nil end
+        local ok,part=pcall(function()
+            local c=assert(U.valid(a.LightComponent),'no light component')
+            local rgb,rot=c.LightColor,a:K2_GetActorRotation()
+            local linear_rgb={linear(rgb.R),linear(rgb.G),linear(rgb.B)}
+            return {c=c,actor=a,what=name,original=c.Intensity,intensity=c.Intensity,color=linear_rgb,
+                tint=string.format('%.4f %.4f %.4f',linear_rgb[1],linear_rgb[2],linear_rgb[3]),
+                rot={rot.Pitch,rot.Yaw},p=rot.Pitch,y=rot.Yaw}
+        end)
+        if ok then return part end
+        o.log('daynight: '..name..' is unreadable: '..U.why(part))
+    end
     -- A dome: its actor and root component (the mesh it shows), or nil with one log line.
     local function dome(path)
         local actor=U.valid(o.find(path))
@@ -118,10 +170,20 @@ function Daynight.new(o)
             local ok,layer=pcall(find_layer,w.domes[1].actor)
             if ok then w.layer=layer else o.log('daynight: the star layer is not looked for: '..U.why(layer)) end
         end
+        local e=row.engine
+        if e then
+            w.sun,w.sky=light(named(SUN,e.sun),e.sun),light(named(SKY_LIGHT,e.sky),e.sky)
+            local v=e.ppv and named(VOLUME,e.ppv,true)
+            local ok,bias=pcall(function() return v.Settings.AutoExposureBias end)
+            if v and not ok then o.log('daynight: '..e.ppv..' is unreadable: '..U.why(bias)) end
+            w.ppv=v and ok and {c=v,what=e.ppv,original=bias,bias=bias} or nil
+        end
         local wanted=row.sky=='real' and #row.domes or row.day_dome and 2 or 0
         local found=#w.domes+(w.day and 1 or 0)+(w.night and 1 or 0)
-        o.log(string.format('daynight: %s: %d of %d domes, %d SkyCreators%s, lookups %.1f ms',map,found,wanted,
-            #w.creators,w.layer and ", an earlier load's star layer" or '',(os.clock()-began)*1000))
+        local lights=e and string.format(', %s %s, %s %s%s',e.sun,w.sun and 'found' or 'missing',e.sky,
+            w.sky and 'found' or 'missing',e.ppv and ', '..e.ppv..' '..(w.ppv and 'found' or 'missing') or '') or ''
+        o.log(string.format('daynight: %s: %d of %d domes, %d SkyCreators%s%s, lookups %.1f ms',map,found,wanted,
+            #w.creators,w.layer and ", an earlier load's star layer" or '',lights,(os.clock()-began)*1000))
     end
     -- SB's star material, loaded once a world when the layer first shows, with the scalar that fades it (or none).
     local function star_material()
@@ -213,6 +275,13 @@ function Daynight.new(o)
                 end
             end
             if row.stars=='layer' and w.domes[1] then stars(row,n.el) end
+            if w.sun then
+                turn(w.sun,-n.le,n.ly)
+                put(w.sun,'intensity',w.sun.original*n.k,function(c,v) c:SetIntensity(v) end)
+                color(w.sun,n.tint)
+            end
+            if w.sky then put(w.sky,'intensity',w.sky.original*n.amb,function(c,v) c:SetIntensity(v) end) end
+            if w.ppv then put(w.ppv,'bias',w.ppv.original+2*n.ev,function(c,v) c.Settings.AutoExposureBias=v end) end
             return
         end
         for _,d in ipairs(w.domes) do show(d,true) end
@@ -227,6 +296,13 @@ function Daynight.new(o)
             end
         end
         show(w.layer,false)
+        if w.sun then
+            turn(w.sun,w.sun.rot[1],w.sun.rot[2])
+            put(w.sun,'intensity',w.sun.original,function(c,v) c:SetIntensity(v) end)
+            color(w.sun,{1,1,1})
+        end
+        if w.sky then put(w.sky,'intensity',w.sky.original,function(c,v) c:SetIntensity(v) end) end
+        if w.ppv then put(w.ppv,'bias',w.ppv.original,function(c,v) c.Settings.AutoExposureBias=v end) end
     end
 
     local function send(want,reason)
