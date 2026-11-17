@@ -9,7 +9,7 @@
 -- played again after an end or held in photo mode; three ends within 1 s, no weight, a refusal or no answer ending
 -- the ride; the 250 ms checks (combat stays, swimming and the gate not on end it); a new EVE, an error and bike=off; a
 -- mesh write that fails keeps the file; the next Lua load's restore; coop bike status and tune; the Doro look refused
--- while she rides.
+-- while she rides; parked (the part the capture leaves out) before the part, off the bike, on it and at bike=off.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -46,12 +46,13 @@ StaticFindObject=function(path)
     return by_path[path]
 end
 LoadAsset=function(path) error('nothing loads in a ride: '..path,0) end
--- A component of EVE's: its mesh, parent, place, visibility; each write as an event.
+-- A component of EVE's: its address, mesh, parent, place, visibility; each write as an event.
 local components=0
 local function component(owner,mesh)
     components=components+1
     local n=components
     local c=uobj({SkeletalMesh=mesh,visible=true})
+    function c:GetAddress() return 0x7000+n end
     function c:GetFullName() return 'SkeletalMeshComponent /Game/Map.Map:PersistentLevel.'..owner.name..'.Part_'..n end
     function c:K2_AttachToComponent(parent,socket,a,b,d,weld)
         assert(socket:ToString()=='None' and a==0 and b==0 and d==0 and weld==false,'KeepRelative, no socket')
@@ -207,6 +208,7 @@ assert(asked[1]=='bike load '..CLIP and #asked==1 and last()=='bike=on: asked th
 st.load='loading'
 R.slow()
 assert(#asked==1 and eve.added==0,'Asked once')
+assert(R.parked(eve:GetAddress())==nil,'No part to leave out yet')
 
 -- 3. The part: once bike=ready and EVE stood 2 s, made on her main mesh at the seat, hidden; then never again.
 st.load='ready'
@@ -223,6 +225,8 @@ assert(part.scale.X==1 and part.visible==false and last():find('^bike part ready
 clock=3
 R.slow()
 assert(eve.added==1 and #asked==1,'Made once')
+-- The capture's leave_out: the part's address while she does not ride, asked with her EVE's address.
+assert(R.parked(eve:GetAddress())==part:GetAddress() and R.parked(eve:GetAddress()+100)==nil)
 
 -- 4. The refusals, each with its reason, logged; nothing asked, saved or driven.
 local function refused(reason,set,unset)
@@ -306,6 +310,7 @@ assert(eve==real and eve.added==1 and #eve.list==2)
 events={}
 ok,why=R.toggle()
 assert(ok and why=='On the bike: coop bike gets her off.' and R.riding(),why)
+assert(R.parked(eve:GetAddress())==nil,'A part of the ghost while she rides')
 local id=tonumber(asked[#asked]:match('^anim play (%d+) '))
 assert(id and id>2000000000,'Apart from coop emote\'s ids')
 local order={'save','drive on bike','bike gate on','anim play '..id..' '..CLIP..' ride','show'}
@@ -322,6 +327,7 @@ order={'hide','anim stop','bike gate off','drive off','mesh back'}
 for k,e in ipairs(order) do assert(events[5+k]==e,k..': '..tostring(events[5+k])) end
 assert(not part.visible and stored==nil and eve.Mesh.RelativeRotation.Yaw==-90 and eve.Mesh.RelativeLocation.Z==-90)
 assert(last():find('^bike off %(coop bike%) after [%d.]+ s: her mesh back$'),last())
+assert(R.parked(eve:GetAddress())==part:GetAddress(),'Left out again once she is off')
 assert(find('^drive off %(bike coop bike%)$'))
 
 -- The mount fails halfway: the drive refused (nothing else asked); the gate's ask refused (the drive off again).
@@ -403,6 +409,7 @@ assert(R.riding())
 clock=clock+0.2
 ok,why=R.steer()
 assert(not ok and why=='Off the bike: no answer from the native part for the riding clip' and not R.riding(),why)
+assert(R.parked(eve:GetAddress())==part:GetAddress(),'Left out again after a ride that ended on a fault')
 assert(asked[#asked-1]=='anim stop' and asked[#asked]=='bike gate off' and stored==nil)
 -- Three ends within 1 s: SB uses the slot.
 id=mount()
@@ -527,6 +534,7 @@ eve.Mesh.RelativeRotation,eve.Mesh.RelativeLocation={Pitch=5,Yaw=-80,Roll=20},{X
 part.visible=true
 local R2=new()
 R2.restore()
+assert(R2.parked(eve:GetAddress())==nil,'A new Lua load knows no part until it finds it')
 assert(stored==nil and eve.Mesh.RelativeRotation.Yaw==-90 and eve.Mesh.RelativeRotation.Roll==0)
 assert(eve.Mesh.RelativeLocation.Z==-90 and not part.visible)
 assert(last()=='bike restored from coop-bike.txt: her mesh back, the bike hidden',last())
@@ -540,6 +548,7 @@ R2.slow()
 clock=clock+2
 R2.slow()
 assert(eve.added==added and last():find('^bike part ready on EVE %(found in'),'Found, not made: '..last())
+assert(R2.parked(eve:GetAddress())==part:GetAddress(),'The part it found, left out')
 -- A value the file cannot give clears it. A mesh write that fails keeps it: the next mount takes her base from it.
 stored='/Game/Map.Map:PersistentLevel.EVE_1\t0\tx\t0\t0\t0\t-90'
 new().restore()
@@ -561,6 +570,7 @@ id=mount()
 settings.bike=false
 R.slow()
 assert(not R.riding() and find('^bike off %(bike=off%)') and part.gone and asked[#asked]=='bike free')
+assert(R.parked(eve:GetAddress())==nil,'bike=off: no part')
 assert(last()=='bike=off: asked the native part: bike free',last())
 n=#asked
 R.slow()

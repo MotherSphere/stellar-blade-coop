@@ -217,7 +217,9 @@ fake_link.owner=function() return link_owner end
 fake_link.uidev=function() return link_uidev end
 native_ok=nil
 captured,remoted={},nil
-fake_capture={tick=function(on) captured[#captured+1]=on; return true,'Capture 7: 3 parts' end,yaw_delta=function() return 0 end}
+-- capture_leave_out: what main.lua gave the capture's leave_out (the bike's parked).
+fake_capture={tick=function(on) captured[#captured+1]=on; return true,'Capture 7: 3 parts' end,
+    yaw_delta=function() return 0 end,leave_out=function(f) capture_leave_out=f end}
 capture_look=nil
 package.loaded['partner.capture']={new=function(publish,looks)
     assert(publish==(native_ok and fake_link.components or nil),'The capture publishes through the link, if any')
@@ -505,12 +507,13 @@ package.loaded['race.drive']={new=function(o)
     return {name='drive',restore=function() dv.restores=dv.restores+1 end}
 end}
 -- The bike (bike/ride.lua; bike/ride_test tests it): what new got (o), the why of each toggle and stop, its steers,
--- slows and restores, its tunes; whether she rides, what a toggle answers (answer: ok and a line; raise: an error) and
--- what a steer or a slow says (an end of the ride).
+-- slows and restores, its tunes; whether she rides, what a toggle answers (answer: ok and a line; raise: an error),
+-- what a steer or a slow says (an end of the ride); what parked answers (parked), with the address it got (parked_at).
 bk={}
 package.loaded['bike.ride']={new=function(o)
     bk.o=o
     return {riding=function() return bk.riding==true end,
+        parked=function(at) bk.parked_at=at; return bk.parked end,
         toggle=function(why)
             bk.toggles[#bk.toggles+1]=why
             if bk.raise then error(bk.raise,0) end
@@ -852,7 +855,7 @@ function load_main(with_native,no_folder,source)
     gl.o,gl.cmds,gl.restores,gl.ticks,gl.stops,gl.says=nil,{},0,0,0,nil
     em.o,em.cmds,em.restores,em.ticks,em.stops,em.says,em.active=nil,{},0,0,0,nil,nil
     bk.o,bk.riding,bk.toggles,bk.stops,bk.steers,bk.slows,bk.restores,bk.tunes=nil,false,{},{},0,0,0,{}
-    bk.answer,bk.raise,bk.says,bk.slow_says=nil,nil,nil,nil
+    bk.answer,bk.raise,bk.says,bk.slow_says,bk.parked,bk.parked_at=nil,nil,nil,nil,nil,nil
     dr.active,gl.active=nil,nil
     ra.o,ra.cmds,ra.received,ra.ticks,ra.slows,ra.stops,ra.keys,ra.armed,ra.hud={},{},{},0,0,0,0,false,nil
     ra.tick_raise,ra.steer_raise=nil,nil

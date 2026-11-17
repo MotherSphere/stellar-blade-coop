@@ -7,8 +7,9 @@
 -- 5 s after the ask (a request lost on the way). Once that is ready and an EVE has been in the world 2 s, the part is
 -- made: one SkeletalMeshComponent hung KeepRelative on her main mesh at the seat (race/doro.lua's attach: collision
 -- off, single-node mode with no clip, so it keeps its reference pose), hidden. After Ctrl+R the part is already there:
--- it is found among her components by its mesh and used again. The capture sends it to every ghost like any part of her
--- outfit, shown or hidden, so nothing new travels.
+-- it is found among her components by its mesh and used again. While she rides, the capture sends it to every ghost
+-- like any part of her outfit, so nothing new travels. While she does not, self.parked names it and the capture leaves
+-- it out (main.lua): hidden, it would take one of the ghost's 16 parts.
 -- A mount (self.toggle) checks EVE first and refuses with its reason; then, in this order: coop-bike.txt (her object
 -- path, her main mesh's relative rotation and location, or those of a file this Lua load kept for her),
 -- race/drive.lua's drive with bike/model.lua (why 'bike'), "bike gate on" (SB's actions off on her controller, Jump
@@ -390,6 +391,12 @@ function Ride.new(o)
     end
 
     function self.riding() return ride~=nil end
+    -- partner/capture.lua's leave_out at each look (main.lua): the address of the part this Lua load made or found on
+    -- the EVE at at while she does not ride; nil while she rides, before the part and after bike=off. No engine call.
+    function self.parked(at)
+        local h=here
+        return not ride and h and h.at==at and h.part and address(h.part) or nil
+    end
     -- The key, the pad gesture and coop bike: on the bike, or off it. ok and a line for the screen.
     function self.toggle(why)
         if ride then
