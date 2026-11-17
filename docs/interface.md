@@ -155,7 +155,7 @@ unless the host set Friends join without asking to Off. Anyone else waits until 
 | --- | --- | --- |
 | Up arrow, W or Z; down arrow or S | D-pad or left stick, up or down | Move |
 | Q (A on an AZERTY keyboard), E | LB, RB | Public or Friends tab |
-| R | Y | Refresh, or stop the search that runs |
+| F | Y | Refresh, or stop the search that runs |
 | Enter or Space | A | Ask to join the focused session |
 | Esc, F5 | B, View held 1 s | Close |
 

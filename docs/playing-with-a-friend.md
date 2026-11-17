@@ -75,7 +75,7 @@ Steam or on your [block list](#block-list), or your own.
 
 Each row shows the host's Steam name, the region, the players (`1/2`) and the ping. The right pane adds the travel
 camp nearest the host and the session rules the host has on. The screen searches when it opens, when you change tabs
-and on Refresh (R, or Y on a controller), 5 s apart at least. It never searches by itself.
+and on Refresh (F, or Y on a controller), 5 s apart at least. It never searches by itself.
 
 Select a row to join that session. A Steam friend of the host gets in at once, unless the host set Friends join
 without asking to Off. Anyone else waits for the host's answer (see [Asking to join](#asking-to-join)). The console

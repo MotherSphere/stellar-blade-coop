@@ -314,7 +314,7 @@ azerty=true
 local s4=Sessions.new({kit=kit,words=function() return T.en end,view=function() return input end,act=function() end})
 s4.open()
 assert(text_at(86,120)=='A' and text_at(956,120)=='E')
-assert(text_at(3280,2010)=='Esc  Back' and text_at(2860,2010)=='R  Refresh' and text_at(2440,2010)=='Enter  Ask to join')
+assert(text_at(3280,2010)=='Esc  Back' and text_at(2860,2010)=='F  Refresh' and text_at(2440,2010)=='Enter  Ask to join')
 s4.close()
 fail_class,azerty=nil,false
 -- A part call refused: logged once a kind; with every part made, the fallbacks are empty.

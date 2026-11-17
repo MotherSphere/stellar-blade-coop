@@ -10,7 +10,7 @@
 -- and ping, the session rules, a Steam friend mark, the version); the player's own protocol and game build at the
 -- bottom left; key hints (Select: Ask to join, Refresh, Back) in WB_Common_IndicatorBtnDefault. Rows, statuses and
 -- requests are ui/sessions_model.lua's over main.lua's view(); requests go to main.lua's act().
--- It opens on the last tab of this Lua load and asks for a search of it, as a tab change and Refresh (Y, R) do, one at
+-- It opens on the last tab of this Lua load and asks for a search of it, as a tab change and Refresh (Y, F) do, one at
 -- a time and 5 s apart at least; there is no search by itself. Refresh while our search runs stops it (its hint then
 -- reads SB's UI_Cancel). Select on a row asks to join its lobby at once and closes the screen. Back (B, Esc, a right
 -- click) closes it. It holds the game's input as 'sessions' with the mouse cursor, given back 150 ms after a close; it
@@ -35,7 +35,7 @@ local PANE_X,PANE_W=2600,1040 -- The details pane (C's right pane).
 local TAB_X,TAB_STEP=236,360
 local HOVER,BACK=0.1,0.15 -- Seconds: between mouse looks; to the input given back.
 -- The hints' keyboard keys, in their fallback (right to left: Back, Refresh, Select).
-local KEYS={'Esc','R','Enter'}
+local KEYS={'Esc','F','Enter'}
 -- o: {kit=ui.kit's, words=function() the ui/text.lua table to show, view=function() {search=, rows= (link.list()'s),
 -- match=link.match(), role=link.mode() or 'none', proto=, build= (ours, from the status)}, act=function({request=})
 -- (main.lua's: a link request, logged), game_text=function(key) SB's word or nil, log=}.
@@ -181,8 +181,9 @@ function Sessions.new(o)
         v.version.set(r and t.sessions.version:format(proto,build) or '')
         v.foot.set(t.sessions.footer:format(proto,build))
         local refresh=view.ours and (game('UI_Cancel') or t.lobby.row.cancel) or t.sessions.refresh
-        -- Y's icon: UI_FaceButton_Top is the id StringTable_UI's <img> tags give that button, as they give
-        -- UI_LeftShoulder, a hint icon of SB's own tabs; no dumped widget uses it as a hint's resource action yet.
+        -- Y's icon: UI_FaceButton_Top, SB's UI action for the top face button. The 26123051 exe names it beside
+        -- UI_FaceButton_Bottom (WB_Common_Popup's hint action) and UI_LeftShoulder (our tab hint) in one switch
+        -- (FUN_14254baf0); SB's key map binds it to the pad's Y and the keyboard's F, so F is our Refresh key.
         local shown={{t.hint.back,'Negative'},{refresh,'UI_FaceButton_Top'},r and {t.sessions.ask,'Positive'} or nil}
         sync(hints_p,'sessions',hints(shown),#KEYS)
         for i,h in ipairs(v.hints) do

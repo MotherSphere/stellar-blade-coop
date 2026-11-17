@@ -1742,7 +1742,7 @@ end
 -- otherwise). The host's question takes the navigation keys, Enter and Esc first while it is open, then the SBO lobby's
 -- screens while one is open (menu_key closes B or C to the room; in the lobby world, menu_key opens B in place of the
 -- co-op menu; E and the left tab key are C's tabs), then the Sessions screen while it is open (menu_key closes it; E
--- and the left tab key are its tabs, R its Refresh). Enter goes to the menu's key capture, then selects; the navigation
+-- and the left tab key are its tabs, F its Refresh). Enter goes to the menu's key capture, then selects; the navigation
 -- keys go to the menu while it is open only (UI-DESIGN 4.1: up arrow, W or Z; down arrow or S; left arrow, A or Q;
 -- right arrow or D; Enter or Space; Esc), and to the co-op saves' question while it is open. The code box takes Enter
 -- (join) and Esc (cancel). With all closed, Enter opens the chat's box, then sends, and Esc cancels; while the question
@@ -1834,18 +1834,19 @@ if settings then
     end)
     -- The lobby's screens take them all, and on C (L4-menus-b-c 3.6) E is the right tab and Q the left one, or A on an
     -- AZERTY keyboard, where Q is left; the other of A and Q stays left. The Sessions screen takes them the same way,
-    -- with R for Refresh. The Create a session screen takes the navigation keys only. E and R do nothing anywhere else.
+    -- with F for Refresh (the key Stellar Blade binds to the UI_FaceButton_Top action its Refresh hint shows). The Create
+    -- a session screen takes the navigation keys only. E and F do nothing anywhere else.
     local function lobby_key(key,word)
         local screen=lobby.is_open() and lobby or open_screen()
         if lobby.is_open()=='settings' or screen==sessions then
             if key=='E' then word='tab_right' elseif key==(kit.azerty() and 'A' or 'Q') then word='tab_left' end
         end
-        if key=='R' then word=screen==sessions and 'refresh' or nil end
+        if key=='F' then word=screen==sessions and 'refresh' or nil end
         if word and screen then screen.nav(word) end -- Closed on the game thread meanwhile: nothing.
     end
     for _,nav in ipairs({{'UP_ARROW','up'},{'W','up'},{'Z','up'},{'DOWN_ARROW','down'},{'S','down'},
             {'LEFT_ARROW','left'},{'A','left'},{'Q','left'},{'RIGHT_ARROW','right'},{'D','right'},
-            {'SPACE','select'},{'E'},{'R'}}) do
+            {'SPACE','select'},{'E'},{'F'}}) do
         bind(nav[1],nil,function()
             -- The host's question opens on its own: the arrows only, never W, S or Space (walking, jumping, the menu).
             if approval.is_open() then

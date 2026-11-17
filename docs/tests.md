@@ -130,7 +130,7 @@ fails the test. The `main/` tests load
   Invitation only), Shared enemies' sub-rows only while it is on, Shared story only once Options defines it, a change
   written through `settings_file.set` and read back, Start and Back, the cursor and every setting locked with its
   reason while the file cannot be read;
-- `main/menu_test` also covers Find a session: the Sessions screen opens in place of the menu and takes the keys (R and
+- `main/menu_test` also covers Find a session: the Sessions screen opens in place of the menu and takes the keys (F and
   Q, E included), the pad (Y, LB and RB included) and the mouse; the menu key, View held and `coop ui reset` close it;
   its view reads our protocol and game build from the status. It covers Host a session the same way: the Create a
   session screen opens from the main page, the co-op line and `coop host` alone, takes the keys (A, D and Q as Left and

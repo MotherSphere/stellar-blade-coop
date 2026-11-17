@@ -570,7 +570,7 @@ settings_text,in_world,kit_ready='',false,false
 end)()
 -- Find a session (the main page and the co-op line): the menu closes and the Sessions screen opens (ui/sessions.lua,
 -- faked; sessions_test tests it). While it is open it takes the keys, the pad and the mouse: the arrows, W, S, Enter,
--- Space and Esc; Q and E (A and E on AZERTY) its tabs; R and Y its Refresh; LB and RB; a left click; a right one as
+-- Space and Esc; Q and E (A and E on AZERTY) its tabs; F and Y its Refresh; LB and RB; a left click; a right one as
 -- Back. The menu key and View held close it. Each 250 ms it gets the HUD's shown; coop ui reset closes it.
 ;(function()
     local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end
@@ -598,7 +598,7 @@ end)()
     clock=clock+0.2; loops[1].f()
     assert(kit_input and kit_holder=='sessions','The menu\'s late give-back leaves the screen its input')
     local n=#ss.calls
-    for _,k in ipairs({'UP_ARROW','W','S','RETURN','SPACE','ESCAPE','Q','E','R','A','D'}) do key(k) end
+    for _,k in ipairs({'UP_ARROW','W','S','RETURN','SPACE','ESCAPE','Q','E','F','A','D'}) do key(k) end
     assert(navs(n)=='nav up nav up nav down nav select nav select nav back nav tab_left nav tab_right nav refresh '
         ..'nav left nav right',navs(n))
     n=#ss.calls
@@ -622,14 +622,14 @@ end)()
     assert(not ss.open and not kit_shown.menu and logged('menu: no Sessions screen: Find a session opens in the game '
         ..'world only'))
     ss.refuse=nil
-    -- Closed, R and E do nothing.
+    -- Closed, F and E do nothing.
     n=#ss.calls
-    key('R'); key('E'); assert(#ss.calls==n)
+    key('F'); key('E'); assert(#ss.calls==n)
     in_world,kit_ready=false,false
 end)()
 -- Host a session (the main page and the co-op line): the menu closes and the Create a session screen opens
 -- (ui/create.lua, faked; create_test tests it) through coop host alone. While it is open it takes the keys, the pad
--- and the mouse: the arrows, W, S, A, D, Q, Enter, Space and Esc; E and R do nothing there. The menu key and View held close
+-- and the mouse: the arrows, W, S, A, D, Q, Enter, Space and Esc; E and F do nothing there. The menu key and View held close
 -- it; coop ui reset closes it. Its view gives the settings in effect and whether coop-settings.txt reads; its act
 -- writes a change as the Options page does and hosts Start's word. host_key hosts at once, never through it.
 ;(function()
@@ -658,7 +658,7 @@ end)()
     clock=clock+0.2; loops[1].f()
     assert(kit_input and kit_holder=='create','The menu\'s late give-back leaves the screen its input')
     local n=#cr.calls
-    for _,k in ipairs({'UP_ARROW','W','S','RETURN','SPACE','A','Q','D','RIGHT_ARROW','E','R','ESCAPE'}) do key(k) end
+    for _,k in ipairs({'UP_ARROW','W','S','RETURN','SPACE','A','Q','D','RIGHT_ARROW','E','F','ESCAPE'}) do key(k) end
     assert(navs(n)=='nav up nav up nav down nav select nav select nav left nav left nav right nav right nav back',
         navs(n))
     n=#cr.calls
@@ -678,7 +678,7 @@ end)()
     coop('ui','reset'); assert(not cr.open and cr.calls[n+1]=='close')
     -- Closed, the keys are nobody's here.
     n=#cr.calls
-    key('R'); key('E'); key('D'); assert(#cr.calls==n)
+    key('F'); key('E'); key('D'); assert(#cr.calls==n)
     -- host_key hosts at once with who_can_join, never through the screen.
     settings_text='who_can_join=invitation\nmenu_key=F5\nhost_key=F11\n'
     load_main(true); kit_ready=true; quarter()
