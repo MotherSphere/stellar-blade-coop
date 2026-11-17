@@ -531,6 +531,14 @@ package.loaded['bike.ride']={new=function(o)
         restore=function() bk.restores=bk.restores+1 end,status=function() return 'bike: preload ready' end,
         tune=function(name,value) bk.tunes[#bk.tunes+1]={name,value}; return true,'bk tune '..tostring(name) end}
 end}
+-- Other players' parked bikes (bike/others.lua; bike/others_test tests it): what new got (o), its slows and restores,
+-- the why of its clear (cleared).
+bo={}
+package.loaded['bike.others']={new=function(o)
+    bo.o=o
+    return {slow=function() bo.slows=bo.slows+1 end,restore=function() bo.restores=bo.restores+1 end,
+        clear=function(why) bo.cleared=why end}
+end}
 -- The Doro race (race/run.lua; race_test tests it): what race.new got, coop race's words, her race lines, its ticks,
 -- slows, stops and keys, whether it is armed, what a tick or the key answers, a stop, a steer or a tick that raises,
 -- its HUD; its steers and the native ticks made before the last one.
@@ -919,6 +927,7 @@ function load_main(with_native,no_folder,source)
     em.o,em.cmds,em.restores,em.ticks,em.stops,em.says,em.active=nil,{},0,0,0,nil,nil
     bk.o,bk.riding,bk.toggles,bk.stops,bk.steers,bk.slows,bk.restores,bk.tunes,bk.left=nil,false,{},{},0,0,0,{},nil
     bk.answer,bk.raise,bk.says,bk.slow_says,bk.idle_part,bk.idle_part_at=nil,nil,nil,nil,nil,nil
+    bo.o,bo.slows,bo.restores,bo.cleared=nil,0,0,nil
     dr.active,gl.active=nil,nil
     ra.o,ra.cmds,ra.received,ra.ticks,ra.slows,ra.stops,ra.keys,ra.armed,ra.hud={},{},{},0,0,0,0,false,nil
     ra.tick_raise,ra.steer_raise=nil,nil

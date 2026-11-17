@@ -660,6 +660,13 @@ bike=require('bike.ride').new({log=function(m) print('[StellarCoop][BK] '..tostr
         end
     end})
 o.bike=bike
+-- Other players' parked bikes (bike/others.lua), logging [BK] lines, with the link only: a copy of each member's bike
+-- (bikes, members for names, our SteamID left out) on the map our EVE stands on, as the bike's preload and setting
+-- allow (status, settings); coop-bike-copies.txt lets the next Lua load sweep them.
+local others=link and require('bike.others').new({log=function(m) print('[StellarCoop][BK] '..tostring(m)..'\n') end,
+    bikes=function() return link.bikes() end,members=link.members,me=function() return (link.saves() or {}).steamid end,
+    eve=function() return U.her(U.valid(require('UEHelpers').GetPlayer())) end,status=link.status,settings=settings,
+    store=link.store('coop-bike-copies.txt')})
 -- The capture leaves the bike's part out while EVE does not ride: hidden, it would take one of the ghost's 16 parts.
 capture.leave_out(bike.idle_part)
 -- coop chainspin (cut/chainspin.lua), logging [CS] lines: the cut ChainSpin's rows through coop lion, then the request.
@@ -763,6 +770,10 @@ local commands={
         if not stopped then log('bike: '..tostring(e)) end
         stopped,e=pcall(bike.leave) -- Her parked bike out of the world, its place kept.
         if not stopped then log('bike: '..tostring(e)) end
+        if others then -- The other players' copies too.
+            stopped,e=pcall(others.clear,'coop off')
+            if not stopped then log('bike: '..tostring(e)) end
+        end
         stopped,e=pcall(race.stop)
         if not stopped then log('race: '..tostring(e)) end
         stopped,e=pcall(doro.stop)
@@ -1183,6 +1194,7 @@ LoopInGameThreadWithDelay(1,function()
     guarded('glide',glide.restore) -- Likewise for a bGlide an earlier load left on.
     guarded('emote',emote.restore) -- Likewise for a pose's montage an earlier load left playing.
     guarded('bike',bike.restore) -- Likewise for her main mesh after a reload with her on the bike.
+    if others then guarded('bike',others.restore) end -- Likewise for the copies of other players' parked bikes.
     if off then if blocked and native_tick then native_tick() end return end
     local ok,message=guarded('ghost',puppet.tick)
     if message then report(ok,message) end
@@ -1830,6 +1842,7 @@ if link then
             -- The bike: the preload as bike says, her part, the ride's checks; an end said on screen.
             local rode,ended=guarded('bike',bike.slow)
             if ended then report(rode,ended); say(ended) end
+            guarded('bike',others.slow) -- Then the other players' parked bikes on our map.
         else -- After coop off, whether a save is loaded or the title is shown, and no photo mode: the native part's
             -- check of the SBO session records at each title visit still runs then (design-lobby 12.8).
             local world,title=guarded('ghost',puppet.world)
