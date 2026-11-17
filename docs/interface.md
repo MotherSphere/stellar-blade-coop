@@ -496,14 +496,20 @@ a Steam name or a chat line shows as `?`.
 
 | Event | Notice |
 | --- | --- |
-| Hosting | `Hosting: invite a friend from the Steam overlay (Shift+Tab).` |
-| Hosting with a join code | `Hosting. Your join code is <code>.` |
+| Hosting a Public session | `Hosting a public session: other players can find it in Find a session.` |
+| Hosting a Friends only session | `Hosting: invite a friend from the Steam overlay (Shift+Tab).` |
+| Hosting an Invitation session | `Hosting. Your join code is <code>.` |
+| Hosting a Private session | `Hosting a private session: nobody can join it.` |
+| `coop host` or `coop invite` while you host a Private session | `Nobody can join a private session.` |
+| A player tried to join your Private session | `A player tried to join your private session and was refused.` |
 | Join code copied | `Join code <code> copied.`, `Could not copy the join code <code>.` or `No join code to copy.` |
 | Could not host | `Could not host: Steam refused.` or `Could not host: Steam result <n>.` |
 | Host asked as a guest | `You are in <host>'s game: leave it first.` |
-| Joined | `Joined <host>'s game.`, with ` Waiting to be let in.` when the host is not your Steam friend |
+| Joined | `Joined <host>'s game.`, with ` Waiting to be let in.` when the host is not your Steam friend or asks Steam friends too (`friends_ask=on`) |
 | A wrong join code | `That is not a join code: check its 7 characters.` or `Could not join: that is not a StellarCoop game.` |
 | A player who is not your Steam friend asks to join | `A player who is not your Steam friend is asking to join.` |
+| A Steam friend asks to join while you host with `friends_ask=on` | `<name> is asking to join.` |
+| A session list search (Find a session, `coop list`) refused or failed | `A search is already running.`, `Wait 5 s between two searches.`, `Leave this game first.`, `Could not search: Steam refused.` or `Could not search: Steam failed. Try again.` |
 | Your answer | `<name> was let in.` (in the feed as the game's `<name> has joined the game.`), `<name> was not let in.`, `<name> was not let in: no answer within 60 s.` or `<name> was removed and blocked.` |
 | Your [block list](playing-with-a-friend.md#block-list) | `A player on your block list tried to join and was refused.`, `<name> is on your block list and was removed.` (a match lobby that came to you), `Left the match: a player on your block list is in it. Searching again.` (quick match), `Player blocked.`, `Player unblocked.`, `That player is not on your block list.`, `Block list emptied.`, `Could not save the block list: it holds until the game closes.` or `Could not read the whole block list: changes to it are not saved until the game restarts.` |
 | Could not join | `Could not join: <reason>` for each answer Steam documents (listed in [Troubleshooting](troubleshooting.md#my-friend-cannot-join)), or `Could not join: Steam response <n>.` for any other |
