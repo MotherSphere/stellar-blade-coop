@@ -4,8 +4,9 @@
 // Story together's game side on the build machine, over fake memory and fake SB functions: the host's theater read (its
 // path, FinishEvents, place, take, sequence, frame and skip latches, a widget of another class), hook 1's read, her
 // copy read (no path before its first take), the gate's reads, a play started with and without its row's condition, a
-// talk with her key and his place, the host's seek (and its wait) and take skips (by index, by alias, to the end, a
-// random take refused), the leash's pause and its careful play, her dialogue closed, her skip blocked and given back.
+// talk with her key and his place, a trip run by her, hook 4's trip line (a row that is no trip, a zone not read), the
+// host's seek (and its wait) and take skips (by index, by alias, to the end, a random take refused), the leash's pause
+// and its careful play, her dialogue closed, her skip blocked and given back.
 // Then choices, QTEs and InputCounters: the host's menus read when they close (an InteractionSelect of another play
 // left out, ordinals by take), his QTE and InputCounter blocks read once final (a Flow's results, a widget read before
 // its next start, a Flow's results then kept from the last pass, his take skip told by his latch or by his take ending
@@ -291,6 +292,19 @@ void test_start() {
   Message trip;
   trip.type = Type::trip, trip.name = plain_row().row;
   assert(!w.e.trip(trip) && w.last() == "run " + std::string(plain_row().row) + " by 7");
+  w.e.caster = 0;
+  assert(std::string(w.e.trip(trip)) == "player" && w.last() == "run " + std::string(plain_row().row) + " by 7");
+  // Hook 4 on the host: a story trip row the ZoneEvent action ran gives a trip line with his zone. Another row gives
+  // none. A trip whose zone cannot be read gives none either, with a line in the log.
+  Message line;
+  const uint64_t warp = w.g.name("Xion_10_E_ZoneWarp_012"), zone = w.g.name("Zone_Xion_10");
+  assert(w.e.trip_line(warp, zone, line) && line.type == Type::trip && line.name == "Xion_10_E_ZoneWarp_012" &&
+         line.zone == "Zone_Xion_10" && allowed(line));
+  assert(!w.e.trip_line(w.g.name(plain_row().row), zone, line) && w.e.log.empty());
+  assert(!w.e.trip_line(warp, 0, line) && w.e.log.size() == 1 &&
+         w.e.log[0] == "story: trip Xion_10_E_ZoneWarp_012 ran here, not sent: our zone's name could not be read");
+  // A trip a theater's end starts reads as one; Sync::send then keeps it from her.
+  assert(w.e.trip_line(w.g.name("Xion_11_ZoneE_130"), zone, line) && !allowed(line));
 }
 
 void test_skips() {

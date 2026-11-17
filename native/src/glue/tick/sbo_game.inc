@@ -18,10 +18,12 @@ std::atomic<bool> sbo_copies{false};
 
 using JoinRun = void (*)(int64_t *action);
 // The slot's target once swapped, on the game thread inside the graph tick. No SB call, no allocation, no lock: the
-// shared world's root read (world_game.inc, under its own latch, while its hooks are on), three reads of the action,
-// which the game's own function reads too, then that function, which finishes the graph node.
+// shared world's root read (world_game.inc) and story together's trip read (story_game.inc), each under its own latch
+// while its hooks are on, three reads of the action, which the game's own function reads too, then that function,
+// which finishes the graph node.
 void sbo_join_hook(int64_t *action) {
   world_event_root(action);
+  story_trip_root(action);
   const auto *const bytes = reinterpret_cast<const uint8_t *>(action);
   const uint64_t want = sbo_alias;
   if (sbo::join_match(want != 0, *reinterpret_cast<const uint32_t *>(bytes + sbo::kAliasIndex),

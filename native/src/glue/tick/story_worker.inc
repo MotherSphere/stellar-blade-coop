@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Part of glue/tick.cpp, one translation unit with it (see there).
-// Story together's worker side: the swaps of hooks 1 to 3, channel 2's SBS lines both ways, the gates handed to the
-// game thread, a fault said once, coop-status.txt's story line.
+// Story together's worker side: the swaps of hooks 1 to 3 and the shared ZoneEvent slot for hook 4, channel 2's SBS
+// lines both ways, the gates handed to the game thread, a fault said once, coop-status.txt's story line.
 
 namespace coop::pose {
 namespace {
@@ -53,13 +53,19 @@ void story_install() {
       say(head + " holds " + slot_value(held) + ", not the game's function (another mod's hook?); left as it is, " +
           k.loss);
   }
-  story_hooked = std::any_of(std::begin(story_slots), std::end(story_slots),
-                             [](const StorySlot &k) { return k.state == Filter::on; });
+  // Hook 4: the ZoneEvent action's slot, shared with the SBO lobby and the shared world, swapped by whichever needs it
+  // first and never a second time.
+  story_trips_on = join_slot_install();
+  say(story_trips_on ? "story: the ZoneEvent action's slot 0x145bfece8 holds the shared hook, so story trips a graph "
+                       "runs are shared"
+                     : "story: story trips a graph runs are not shared: " + sbo_refusal);
+  story_hooked = story_trips_on || std::any_of(std::begin(story_slots), std::end(story_slots),
+                                               [](const StorySlot &k) { return k.state == Filter::on; });
 }
 // coop off (block()) and the first fault: each slot back to the game's function, by a compare-and-swap from our hook
 // only. A hook the swap leaves in place runs the game's function alone: story_hooked is false.
 void story_off(const char *why) {
-  story_hooked = false;
+  story_hooked = false, story_trips_on = false; // sbo_off swaps the ZoneEvent action's slot back.
   for (StorySlot &k : story_slots) {
     if (k.state != Filter::on)
       continue;
@@ -89,7 +95,7 @@ std::string story_status() {
   }
   const auto hooks = std::count_if(std::begin(story_slots), std::end(story_slots),
                                    [](const StorySlot &k) { return k.state == Filter::on; });
-  return line + " hooks=" + std::to_string(hooks) +
+  return line + " hooks=" + std::to_string(hooks + story_trips_on) +
          " inbox_dropped=" + std::to_string(story_dropped) + " unsent=" + std::to_string(story_outbox.dropped) +
          " elsewhere=" + std::to_string(story_elsewhere.load());
 }

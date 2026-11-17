@@ -31,6 +31,10 @@
 // started by 0x1422f31f0). The game's start runs first, after the widget's Setup bound its presses. Each start is kept
 // with its take and its ordinal in the take (the n-th block of that class since the take data last changed, the same
 // rule in both games), behind a weak pointer made by 0x142ba93c0 and read by 0x142ba9510 as the engine's own are.
+// Hook 4 is the ZoneEvent action's slot 0x145bfece8 (game/sbo.h's Join hook, which the SBO lobby and the shared world
+// use too; swapped once a run). Before the game's run 0x141b7a3c0, which runs the row at the action's +0xd0 through
+// RunZoneEvent with the graph owner as caster, the host keeps that row and his zone (client +0x68); trip_line() turns a
+// story trip among them into a trip line.
 //
 // The host reads (theater()): P and its take, his place, the three skip latches, then the results his widgets
 // committed. A QTE or InputCounter result is final once its Result shows (QTE +0x7d8, InputCounter +0x820: presses and
@@ -52,6 +56,9 @@
 //     AddEvents, which RunZoneEvent runs whatever its condition says. A talk line makes the ActionTheater node's call
 //     0x141d02830(&path, &her key, &location, &rotation, 0, priority, no FinishEvents, &zero key, 0) with her actor's
 //     key (+0x4a4) and the host's place; below 0 is a refusal.
+//   trip(): a trip line runs its row through RunZoneEvent(world, her id, &row, 0), SB's own replay of a ZoneEvent row
+//     (0x141b218d0) with her id. RunEvent tests the row's condition and the warp row's against her. PlayerWarp moves
+//     only the local player.
 //   apply() for a skip: seek 0x1424d3a20(L, frame, 0), waiting while 0x147037680 is set (the seek does nothing then);
 //     take: the index of the host's next take in her NextTakeUIDs, else the alias in her P+0x88 that holds it, else -1
 //     for the end, then C+0x59 = 1, C+0x48 = 2 and 0x1424d6ef0(P, 0), the stores the take skips of SB make. Her own
@@ -264,7 +271,22 @@ public:
     return s ? run(m.name, s->condition, s->group) : "list";
   }
 
+  // No graph trip row has AddEvents, so RunZoneEvent's RunEvent tests the row's condition against her itself.
   const char *trip(const Message &m) override { return caster ? run(m.name, "", "") : "player"; }
+
+  // Hook 4 while we lead: the row the ZoneEvent action ran and our zone then, FNames as the hook read them (index |
+  // number << 32). A row on story/rows.h's trip list gives a trip line, which Sync::send sends only for a trip no table
+  // starts; any other row is no trip. False for no trip or for a trip whose names cannot be read (said here).
+  bool trip_line(uint64_t row, uint64_t zone, Message &m) {
+    m = Message();
+    m.type = Type::trip;
+    if (!g_.text(uint32_t(row), uint32_t(row >> 32), m.name) || !story::trip(m.name))
+      return false;
+    if (g_.text(uint32_t(zone), uint32_t(zone >> 32), m.zone) && !m.zone.empty())
+      return true;
+    say("story: trip " + m.name + " ran here, not sent: our zone's name could not be read");
+    return false;
+  }
 
   Did apply(const Message &m, const char *&why) override {
     const Cur c = cur();

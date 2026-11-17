@@ -3,8 +3,9 @@
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Part of glue/tick.cpp, one translation unit with it (see there).
 // Story together (story/engine.h, story/sync.h) on the game thread: hook 1 in the ActionTheater node's slot, hooks 2
-// and 3 in the QTE's and the InputCounter's OnStartBlock slots. Each frame's pass takes her lines in, follows her copy,
-// then reads and sends our theater while we host.
+// and 3 in the QTE's and the InputCounter's OnStartBlock slots, hook 4 called by the SBO lobby's hook in the ZoneEvent
+// action's slot. Each frame's pass takes her lines in, follows her copy, then reads and sends our theater and our story
+// trips while we host.
 
 namespace coop::pose {
 namespace {
@@ -29,6 +30,14 @@ bool story_applying = false; // While a pass applies her lines: a talk her copy 
 bool story_leading = false;  // We read our theater for her: hook 3 reads a block before its widget's next start.
 bool story_holding = false;  // Her copy follows his: hooks 2 and 3 take her presses on each new block.
 std::vector<std::string> story_pending_out, story_pending_said; // Not handed over yet (the lock was busy).
+// Hook 4: set by the worker once the ZoneEvent action's slot holds the shared hook, cleared at coop off. While we lead,
+// each row that action runs and our zone then (FNames, index | number << 32), kept for the pass; past kStoryTrips in
+// one frame they are counted.
+std::atomic<bool> story_trips_on{false};
+constexpr size_t kStoryTrips = 16;
+std::array<std::pair<uint64_t, uint64_t>, kStoryTrips> story_trip_rows;
+size_t story_trip_count = 0;
+uint64_t story_trip_lost = 0;
 
 // story/engine.h's Game: the shared world's reads, writes and names, then SB's theater calls.
 struct WinStoryGame : WinWorldGame {
@@ -151,6 +160,47 @@ void story_block_hook(story::Type type, uint64_t start, int64_t *widget) {
 void story_qte_hook(int64_t *widget) { story_block_hook(story::Type::qte, story::kQteStart, widget); }
 void story_counter_hook(int64_t *widget) { story_block_hook(story::Type::cnt, story::kCounterStart, widget); }
 
+// ---- Hook 4: from the SBO lobby's hook in the ZoneEvent action's slot, before it runs the game's function ----
+// Two reads the game's run makes too (the action's row) or the pass makes each frame (our zone), out of line for the
+// latch as hook 1. No SB call, no allocation, no lock.
+__declspec(noinline) void story_trip_read(const int64_t *action) {
+  const uint64_t row = *reinterpret_cast<const uint64_t *>(reinterpret_cast<const uint8_t *>(action) + sbo::kAliasIndex);
+  const uintptr_t client = world_global(story::kClientAt);
+  const uint64_t zone = game::plausible(client) ? at<uint64_t>(client + story::kClientZone) : 0;
+  if (story_trip_count < kStoryTrips)
+    story_trip_rows[story_trip_count++] = {row, zone};
+  else
+    ++story_trip_lost;
+}
+// Only while we lead, on the game thread, after the worker's swap, before a fault, never while her lines are applied.
+void story_trip_root(const int64_t *action) {
+  if (!story_trips_on || !story_hooked || story_faulted || story_applying || !story_leading)
+    return;
+  if (GetCurrentThreadId() != story_thread) {
+    ++story_elsewhere;
+    return;
+  }
+  __try {
+    story_trip_read(action);
+  } __except (fault_filter(GetExceptionInformation(), story_fault_code, story_fault_rva, story_fault_address)) {
+    story_faulted = true;
+    story_scene = false; // story_tick no longer runs to clear it: the photo freeze holds again.
+  }
+}
+// The rows hook 4 kept since the last pass: each story trip among them as a trip line while we lead, then none kept.
+void story_trips_pass(uint64_t now) {
+  if (story_trip_lost)
+    story_engine.log.push_back("story: " + std::to_string(story_trip_lost) + " ZoneEvent rows past " +
+                               std::to_string(kStoryTrips) + " ran in one frame and were not read: a story trip "
+                               "among them is not shared");
+  for (size_t k = 0; story_leading && k < story_trip_count; ++k) {
+    story::Message m;
+    if (story_engine.trip_line(story_trip_rows[k].first, story_trip_rows[k].second, m))
+      story_sync.send(m, now);
+  }
+  story_trip_count = 0, story_trip_lost = 0;
+}
+
 // ---- The pass, each frame ----
 // In game as the shared world reads it (world_in_game: lion_gate open, the client in game and playing, not on SB's
 // logic thread, our player's actor ID), then that actor.
@@ -186,6 +236,7 @@ __declspec(noinline) void story_body(std::vector<std::string> &in, story::Gates 
     story_leading = gates.host && in_game && gates.setting && gates.partner && !gates.match && gates.coop_save;
     if (story_leading)
       story_lead.pass(story_engine.theater(), story_engine.zone(), story_sync, now);
+    story_trips_pass(now); // After the scene's lines: a talk's end goes before the trip its graph ran.
     story_scene = story_sync.active() || story_sync.pending();
     for (std::string &l : story_sync.out)
       story_pending_out.push_back(std::move(l));
