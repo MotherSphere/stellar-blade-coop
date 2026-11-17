@@ -129,14 +129,14 @@ int main() {
   }
 
   // A joiner who is not the host's Steam friend: every guest holds her (no hello, no session, nothing of hers read)
-  // while the host asks; she holds the guests too. Let in, she links with everyone. Removed, the guests close her link
-  // and say she left.
+  // while the host asks; she holds the guests too. Let in after 15 s, she links with everyone, with no lost or back
+  // line either way. Removed, the guests close her link and say she left.
   reset();
   {
     Mesh m(3);
     const uint64_t L = group(m, 2, " public");
     m.tick(2, "join " + id(L));
-    rounds(m, 3000);
+    rounds(m, 15000);
     assert(m.status(0).find("\npending=4003 P3\n") != npos && m.status(2).find("\nwait=") != npos);
     assert(sent_from(kFriend, kPlayer[2], "SBC hello") == 0 && sent_from(kPlayer[2], kFriend, "SBC hello") == 0);
     assert(sent_from(kFriend, kPlayer[2], v("ping")) == 0 && !linked_with(m[1], kPlayer[2]));
@@ -147,6 +147,9 @@ int main() {
     m.tick(0, "allow 4003");
     assert(m.settle(3) && slot_of(m[0], kPlayer[2]) == 1 && m[0].partner() == kFriend);
     assert(sent_from(kFriend, kPlayer[2], "SBC hello") >= 1);
+    rounds(m, 2000);
+    assert(!saw("silent for 10 s") && !saw(" is back") && !noticed(m.status(1), "P3: connection lost.") &&
+           !noticed(m.status(2), "P2: connection lost."));
     m.tick(0, "remove 4003"); // Her game has not read the reject yet: P2 closes their link on the let line alone.
     m.tick(1);
     m.tick(1);

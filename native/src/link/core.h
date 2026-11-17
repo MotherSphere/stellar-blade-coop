@@ -3347,7 +3347,9 @@ private:
         send(peer, ping(++peer.ping_seq, now_), kUnreliable);
         peer.pings += !peer.asking; // Her pongs are not read: the 60 s line counts no loss for them.
       }
-      if (!waiting(peer) && !peer.lost && now_ - peer.last_heard >= kLostAfterMs) {
+      if (waiting(peer)) // Nobody talks to her while she waits (a guest holds her): her 10 s start once she is in.
+        peer.last_heard = now_;
+      else if (!peer.lost && now_ - peer.last_heard >= kLostAfterMs) {
         peer.lost = true;
         night_.clear(); // Her night line is stale now: nightop/run.lua's watch sees it gone.
         event(peer.name + " silent for 10 s: lost");
