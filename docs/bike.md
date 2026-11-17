@@ -98,10 +98,11 @@ The bike is one more part of EVE for the ghost: your friend sees it under your g
 Each member of a match lobby sees it too. Nothing new goes over the link, so a build of the same protocol without the
 bike draws it too. Your friend's game loads the bike's mesh when it builds your ghost, as for any outfit part.
 
-The bike stays on EVE, hidden, while `bike=on`, ridden or not. The ghost takes at most 16 of her parts. The bike counts
-as one of them, ahead of the parts that follow her outfit's main pieces. On an outfit of 16 parts or more, the last of
-those is left out of the ghost. When a large CNS outfit fills the pose, the parts listed last are left out first. The
-bike may be one of them.
+The bike stays on EVE while `bike=on`, hidden when you do not ride. The ghost takes at most 16 of her parts. The bike
+counts as one of them only while you ride, ahead of the parts that follow her outfit's main pieces. On an outfit of 16
+parts or more, the last of those leaves the ghost while you ride and comes back when you get off. Getting on or off
+rebuilds your ghost in your friend's game, as an outfit change does. When a large CNS outfit fills the pose, the parts
+listed last are left out first. While you ride, the bike may be one of them.
 
 ## Credits
 

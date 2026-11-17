@@ -37,7 +37,11 @@ fails the test. The `main/` tests load
   reason and nothing written, the mount's order and the dismount backward, the lean, the riding pose played again or
   ending the ride, the 250 ms checks (EVE down read from the status line's `bike_life=` with no session, or from the
   session's life state without that word), `coop-bike.txt` and its restore, `coop bike status` and `tune`, the Doro
-  look refused while she rides;
+  look refused while she rides, `parked` (the part the capture leaves out) before the part, on and off the bike, after
+  a ride ended on a fault, after a reload and at `bike=off`;
+- `partner/capture_test` also covers SBO's bike left out of the parts while EVE does not ride (`leave_out`, asked once
+  a look): an outfit of 16 parts keeps them all; while she rides the bike is part 1 and the last follower goes; getting
+  on or off starts a new generation; another component on the bike's mesh stays a part;
 - `core/link_test` also covers the status's `uidev=`, `me=` and `world=` lines and the `owner=`, `room=` and `hall=`
   fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty) and never
   from a player's name; the `shared_world` setting; `bike` and `bike_key` (an older file whose keys hold F3 gets no
@@ -63,7 +67,7 @@ fails the test. The `main/` tests load
   `coop bike` and its words, F3 and the pad's D-pad Right hold with a refusal on screen, the hold ignored with its
   reason logged at the title, with one of our screens open or with the game paused, the restore, the frame and the
   250 ms pass with an end said on screen, the Options rows, `coop off`; `riding()` as `coop emote`, the race, the hall
-  seats, `coop fly on` and `coop glide on` read it;
+  seats, `coop fly on` and `coop glide on` read it; the ride's `parked` as the capture's `leave_out`;
 - `main/world_test` covers `coop world` (its words, on and off whatever `shared_world` says, status), the start once a
   load with `shared_world=on`, the end at a reload with `shared_world=off`, and the shared world's two notices;
 - `main/idle_test` counts the FindAllOf and StaticFindObject calls of main.lua's two loops over one idle minute, each
