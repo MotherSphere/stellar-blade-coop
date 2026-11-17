@@ -22,7 +22,8 @@
 -- main.lua's own; its auto_coop_save the co-op saves' (session/saves.lua), which also read saves() here; its
 -- shared_quests and quest_deny commands/fight.lua's coop quests (Phase 12, experimental); main.lua's loop, which asks
 -- it on or off, reads quests() and quest_notes() here; its shared_world commands/world.lua's coop world (main.lua's
--- loop asks it on or off and reads world() here); its revive and cutscene_wait session/group.lua's (the friend's
+-- loop asks it on or off and reads world() here); its shared_story commands/scenes.lua's coop scenes (main.lua's loop
+-- asks it on or off and reads story() here); its revive and cutscene_wait session/group.lua's (the friend's
 -- revive, the wait during the host's cutscene); its follow_host and follow_key session/travel.lua's and main.lua's (the
 -- guest's travel to the camp nearest the host), which reads camps() here; its collide partner/puppet.lua's (the solid
 -- partner); its drift_keys the Doro races' driving (race/drive.lua); its mod_names the native part's (through
@@ -128,6 +129,12 @@ quest_deny=
 # boxes, collectibles and anything that gives an item stay each player's own, and the doors the main story opens move
 # with quest steps only. Off, your changes are not sent and your friend's are not made in your game.
 shared_world=on
+# Story together, experimental: on or off, on by default, not tested in game yet. On, while you and your friend both
+# play a co-op save and both have it on, a story scene the host plays (a cutscene or a talk) plays in the guest's game
+# too, with the host's choices, QTE results and skips. A story trip the host starts, such as Lily's warp, takes the
+# guest along. A scene the guest's game cannot play keeps the cutscene wait. Off, the host's scenes are not sent and
+# none plays in your game.
+shared_story=on
 # Revive, experimental: on or off, on by default. Yours, for your own EVE: on, while you are on the death screen and
 # your friend stands within 2 m of your EVE for 3 s, your game revives you where you fell, with full health and your
 # recovery items refilled as at a camp. It needs the shared enemies running (shared_enemies=on, on a co-op save), and
@@ -204,12 +211,12 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',rac
     ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
     status_overlay='compact',who_can_join='friends',auto_coop_save='ask',shared_quests='on',quest_deny='',revive='on',
     cutscene_wait='on',follow_host='ask',follow_key='F7',collide='on',mod_names='on',shortcut_load='on',
-    pvp_spike='on',sbo_lobby='on',shared_world='on'}
+    pvp_spike='on',sbo_lobby='on',shared_world='on',shared_story='on'}
 -- On or off.
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,spawn_filter=true,bosses=true,
     photo_ghost=true,photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
     card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true,mod_names=true,shortcut_load=true,
-    pvp_spike=true,sbo_lobby=true,shared_world=true}
+    pvp_spike=true,sbo_lobby=true,shared_world=true,shared_story=true}
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (partner/puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
@@ -490,7 +497,7 @@ function Link.new(folder,fs)
     -- out; sbo: the SBO lobby's line (sbo()).
     local mode,friend,listed,dead,held,rejoin,shown,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil,nil
     local mate,life,ping,loopback,rejoined,saves,paks,mods,cns=nil,nil,nil,false,false,{},nil,nil,nil
-    local quests,noted,noted_shown,sbo,world=nil,nil,nil,nil,nil
+    local quests,noted,noted_shown,sbo,world,story=nil,nil,nil,nil,nil,nil
     local shared_version=0 -- The status's shared= line's version (shared_assets()); kept across changes().
     local camps_asked,camps_answer=nil,nil -- The follow's camps lines (camps()).
     local match,round=nil,nil -- The match line and our last round's line (match(), round()).
@@ -663,7 +670,7 @@ function Link.new(folder,fs)
         remote={tonumber(generation),tonumber(count),source}
         mode,friend,listed,dead,held,rejoin,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil
         mate,life,ping,loopback,saves,paks,mods,cns=nil,nil,nil,engine:find(' loopback=')~=nil,{},nil,nil,nil
-        quests,noted,sbo,world=nil,nil,nil,nil
+        quests,noted,sbo,world,story=nil,nil,nil,nil,nil
         camps_asked,camps_answer,match,round=nil,nil,nil,nil
         uidev,my_name,owner,room,hall=nil,nil,nil,nil,nil
         -- The engine off on another game build (check_build's reasons): a game update, said at the title
@@ -740,6 +747,7 @@ function Link.new(folder,fs)
             if line:find('^pilot=') then pilot=line end
             if line:find('^quests=') then quests=line end
             if line:find('^world=') then world=line end
+            if line:find('^story=') then story=line end
             local on,join,record,slot,arrivals,zone,loader,copy,last,verb,result=line:match('^sbo=(%a+) join=(%d+) '
                 ..'record=(%a+) slot=(%S+) arrivals=(%d+) zone=(%d+:%d+) loader=(%-?%d+) copy=(%S+) last=(%d+) '
                 ..'(%S+) (%S+)$')
@@ -876,6 +884,10 @@ function Link.new(folder,fs)
     -- The shared world's line ("world=on sent=3 ...", "world=waiting why=save sent=0 ...", "world=off ...",
     -- "world=stopped"; native world_status()), from the start of its own line; nil without one.
     function self.world() return world end
+    -- Story together's line ("story=on scene=shared sent=3 ...", "story=waiting why=partner scene=none ...",
+    -- "story=off scene=none ...", "story=off why=build", "story=stopped"; native story_status()), from the start of its
+    -- own line; nil without one.
+    function self.story() return story end
     -- The SBO lobby's line (the native part's game/sbo.h status_line), from the start of its own line: {state='off',
     -- 'on' or 'armed', join=the Joins counted, record=the session record's state, slot=its save slot (nil for none),
     -- arrivals=the type-5 arrivals seen, zone='<index>:<number>' of the last, loader=SB's loader state, copy=the last

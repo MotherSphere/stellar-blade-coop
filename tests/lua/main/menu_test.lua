@@ -2,9 +2,9 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The co-op menu (ui/menu.lua, ui/model.lua and ui/text.lua for real on fixture.lua's fake kit): it opens, moves, runs
--- its rows, changes and applies settings (the shared enemies', shared quests', shared world's and same place's rows ask
--- the native part at once), rebinds keys and migrates an old file; and the co-op line, which opens at a camp phone booth
--- (session/booth.lua on a fake FindAllOf) with its hint shown there.
+-- its rows, changes and applies settings (the shared enemies', shared quests', shared world's, story together's and
+-- same place's rows ask the native part at once), rebinds keys and migrates an old file; and the co-op line, which
+-- opens at a camp phone booth (session/booth.lua on a fake FindAllOf) with its hint shown there.
 dofile('tests/lua/main/fixture.lua')
 -- The co-op menu (ui/menu.lua, ui/model.lua and ui/text.lua for real; the kit faked). menu_key opens it in a world
 -- only, with its root up and the game not paused; its keys move, wrap over headers, select and go back; Host closes it
@@ -203,6 +203,21 @@ do
         and logged('OK: shared_world=off: asked the native part: world off'))
     quarter(); assert(#asked==asks+2,'Once')
     fake_link.Q.world=nil
+    fight_asks=fight_asks+2
+end
+-- Story together at once: On by default and on at this load, where the native part's own on agrees, so the load asked
+-- nothing; off asks coop scenes off, on asks coop scenes on, each once.
+do
+    local asks=#asked
+    to('Story together (experimental)'); assert(select(2,focus())=='On' and #asked==asks)
+    key('RETURN'); quarter()
+    assert(settings_text:find('\nshared_story=off\n',1,true) and select(2,focus())=='Off' and #asked==asks+1
+        and asked[#asked]=='scenes off' and logged('OK: shared_story=off: asked the native part: scenes off'))
+    quarter(); assert(#asked==asks+1,'Once')
+    key('RETURN'); quarter()
+    assert(settings_text:find('\nshared_story=on\n',1,true) and select(2,focus())=='On' and #asked==asks+2
+        and asked[#asked]=='scenes on' and logged('OK: shared_story=on: asked the native part: scenes on'))
+    quarter(); assert(#asked==asks+2,'Once')
     fight_asks=fight_asks+2
 end
 -- The host's scaling in percent, 5 a step, written as the file holds it; kill credit a choice. Neither asks anything:

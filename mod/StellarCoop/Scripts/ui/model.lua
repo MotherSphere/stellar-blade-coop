@@ -66,6 +66,7 @@ M.OPTIONS={
     -- by itself (always) or neither (off).
     {key='follow_host',values={'ask','always','off'},default='ask'},
     toggle('shared_world','on'), -- At once: main.lua asks coop world on or off.
+    toggle('shared_story','on'), -- At once: main.lua asks coop scenes on or off.
     {head='saves'},
     {key='auto_coop_save',values={'ask','always','off'},default='ask'}, -- At the next title.
     toggle('shared_quests','on'), -- At once: main.lua asks coop quests on or off.

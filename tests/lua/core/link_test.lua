@@ -298,6 +298,16 @@ assert(link.world()==nil,'Only from the start of its own line')
 files[STATUS]=nil
 link.changes()
 assert(link.world()==nil,'No status: none')
+-- Story together's line, the same way.
+files[STATUS]='mod=v\npeer=2 name=story=on x\nstory=waiting why=partner scene=none sent=0\n'
+link.changes()
+assert(link.story()=='story=waiting why=partner scene=none sent=0',tostring(link.story()))
+files[STATUS]='mod=v\npeer=2 name=story=on x\n'
+link.changes()
+assert(link.story()==nil,'Only from the start of its own line')
+files[STATUS]=nil
+link.changes()
+assert(link.story()==nil,'No status: none')
 
 assert(link.valid_lobby('109775241234567890') and not link.valid_lobby('12x') and not link.valid_lobby('0'))
 -- A join code as typed (the code box, coop join <code>): either case, the dash after the third character, a space there
@@ -727,9 +737,25 @@ s,notes=Link.parse_settings('shared_world=yes')
 assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for shared_world (use on or off); "
     .."shared_world stays on" and s.shared_world==true,notes[1])
 
+-- shared_story (experimental, each player's own): on or off in any case, on by default and in a file written before
+-- it. A new file names it right after shared_world, with its comment; a bad value keeps the default, with a line.
+assert(Link.DEFAULT:find('\nshared_world=on\n# Story together, experimental: on or off, on by default, not tested '
+    ..'in game yet.',1,true) and Link.DEFAULT:find('\nshared_story=on\n',1,true))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.shared_story==true)
+s,notes=Link.parse_settings(Link.DEFAULT)
+assert(#notes==0 and s.shared_story==true)
+for _,case in ipairs({{'on',true},{'ON',true},{'Off',false}}) do
+    s,notes=Link.parse_settings('shared_story='..case[1])
+    assert(#notes==0 and s.shared_story==case[2],case[1])
+end
+s,notes=Link.parse_settings('shared_story=yes')
+assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for shared_story (use on or off); "
+    .."shared_story stays on" and s.shared_story==true,notes[1])
+
 -- revive (experimental, your own): on or off in any case, on by default and in a file written before it. A new file
--- names it right after shared_world, with its comment; a bad value keeps the default, with a line.
-assert(Link.DEFAULT:find('\nshared_world=on\n# Revive, experimental: on or off, on by default.',1,true)
+-- names it right after shared_story, with its comment; a bad value keeps the default, with a line.
+assert(Link.DEFAULT:find('\nshared_story=on\n# Revive, experimental: on or off, on by default.',1,true)
     and Link.DEFAULT:find('\nrevive=on\n',1,true))
 s,notes=Link.parse_settings(older)
 assert(#notes==0 and s.revive==true)

@@ -201,6 +201,7 @@ fake_link.night=function(line) fake_link.nights[#fake_link.nights+1]=line; retur
 fake_link.quests=function() return fake_link.Q.line end
 fake_link.quest_notes=function() local notes=fake_link.Q.notes; fake_link.Q.notes={}; return notes end
 fake_link.world=function() return fake_link.Q.world end -- link.world(): the world= line, in fake_link.Q.world.
+fake_link.story=function() return fake_link.Q.story end -- link.story(): the story= line, in fake_link.Q.story.
 fake_link.life=function() return fake_link.Q.life end -- link.life(): our life state and HP, in fake_link.Q.life.
 fake_link.friend=function() return friend_name,friend_linked,fake_link.lost==true end
 fake_link.member=function(id) return nil end -- link.member(id): no member line in these tests.
@@ -770,7 +771,7 @@ USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|de
     ..'recruiter [off] | '
     ..'gift [send <item> [count]|take [n]] | '
     ..'race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|'
-    ..'spawn | quests on|off|status|probe|record|replay|force <number> | world on|off|status | '
+    ..'spawn | quests on|off|status|probe|record|replay|force <number> | world on|off|status | scenes on|off|status | '
     ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
 
 -- The native part's pad export (coop_pad): each call hands back as many of its arguments as the next count queued

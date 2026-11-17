@@ -47,7 +47,10 @@
 -- on, off and each quest step that waits or that the host and the guest made apart; coop world on|off|status, the
 -- shared world (experimental: shared_world in coop-settings.txt or the co-op menu asks it on or off by itself, coop
 -- world until the mod reloads; doors, levers and lifts one player works change in the other's game too, with a friend
--- linked and both on a co-op save), with notices for on with her and stopped; the synced photo mode (photo_sync
+-- linked and both on a co-op save), with notices for on with her and stopped; coop scenes on|off|status, story
+-- together (experimental: shared_story in coop-settings.txt or the co-op menu asks it on or off by itself, coop scenes
+-- until the mod reloads; a story scene the host plays plays in the guest's game too, with a friend linked and both on a
+-- co-op save), with notices for on with her and stopped; the synced photo mode (photo_sync
 -- in coop-settings.txt: your friend's photo mode pauses your game, yours pauses theirs; during your own, the notices,
 -- and as set the ghost and its name tag, stay out of the shot), with coop freeze <seconds>|off to test the pause alone,
 -- and photo_pause=scenery, SB's photo mode without its full pause (experimental); coop ui reset (the menu and the
@@ -156,6 +159,7 @@ if settings then
     log('shared quests: '..(settings.shared_quests and 'on' or 'off')..' (experimental)'
         ..(settings.quest_deny~='' and ', quest_deny '..settings.quest_deny or ''))
     log('shared world: '..(settings.shared_world and 'on' or 'off')..' (experimental)')
+    log('story together: '..(settings.shared_story and 'on' or 'off')..' (experimental)')
 end
 -- A new token per Lua load: the native part then drops what an older load published (withdrawn here as well).
 if link then
@@ -234,7 +238,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | match search|create <mode>|cancel|end|join <code>|leave | mute|unmute <SteamID> | status | report | mark [text] | where | near [metres] | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | emote [list|<name>|off] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | challenge [<name>|stop] | recruiter [off] | gift [send <item> [count]|take [n]] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | world on|off|status | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | match search|create <mode>|cancel|end|join <code>|leave | mute|unmute <SteamID> | status | report | mark [text] | where | near [metres] | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | emote [list|<name>|off] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | challenge [<name>|stop] | recruiter [off] | gift [send <item> [count]|take [n]] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | world on|off|status | scenes on|off|status | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
 local function ask(line)
     return function()
         if not link then return false,'the Steam link needs the native part' end
@@ -485,6 +489,13 @@ if settings and not settings.shared_world and not off
     local ok,why=ask('world off')()
     log((ok and 'OK: ' or 'STOP: ')..'shared_world=off: '..tostring(why))
 end
+-- shared_story: the native part starts with it on. Once a load, as soon as the native part judged the slot, the loop
+-- asks coop scenes off for shared_story=off, or coop scenes on for shared_story=on while the story= line reads off by
+-- the setting (an earlier load's off, or coop scenes off), and nothing when the line already agrees. coop scenes on or
+-- off before then cancels the ask. The co-op menu's row asks coop scenes on or off at once; scenes_wanted: the value
+-- last acted on.
+local scenes_auto=settings~=nil
+local scenes_wanted=settings~=nil and settings.shared_story
 -- The SBO lobby (session/sbo.lua), logging [SB] lines, with the Steam link only: the entry from the recruiter's Join or
 -- coop sbo enter, the return, the waiting room, and the rows put back at each title and at coop off. Its notices are
 -- keys of ui/text.lua, said in the menu's words. Its engine: SB's game instance, the player controller, EVE, the first
@@ -592,7 +603,7 @@ local o={link=link,settings=settings,sbo=sbo,puppet=puppet,native_tick=native_ti
     lion=lion,gardener=gardener,tendril=tendril,mxiii=mxiii,group=function() return group end,
     travel=function() return travel end,
     fight_auto_off=function() fight_auto=false end,quests_auto_off=function() quests_auto=false end,
-    world_auto_off=function() world_auto=false end}
+    world_auto_off=function() world_auto=false end,scenes_auto_off=function() scenes_auto=false end}
 -- coop fly's keys (cut/flight.lua), logging [FL] lines: R2 alone flies, Shift with a direction evades.
 local flight=require('cut.flight').new({log=function(m) print('[StellarCoop][FL] '..tostring(m)..'\n') end})
 o.wear,o.scene,o.lines,o.flight,o.glide,o.emote=wear,scene,cut_lines,flight,glide,emote
@@ -730,7 +741,7 @@ local commands={
     end,
 }
 -- The other commands, from Scripts/commands/.
-for _,file in ipairs({'session','partner','nightop','race','fight','cut','guide','story','world'}) do
+for _,file in ipairs({'session','partner','nightop','race','fight','cut','guide','story','world','scenes'}) do
     for name,handler in pairs(require('commands.'..file).new(o)) do
         assert(commands[name]==nil,'coop '..name..' is defined twice')
         commands[name]=handler
@@ -1367,6 +1378,18 @@ if link then
         end
         world_was=state
     end
+    -- Story together's notices, the same way from the story= line.
+    local story_was=nil
+    local function story_notices()
+        local state=(link.story() or ''):match('^story=(%a+)')
+        if not state then return end
+        if state=='on' and story_was~='on' then
+            tell(function(w) return w.story.on:format(her_name(w)) end)
+        elseif state=='stopped' and story_was and story_was~='stopped' then
+            tell(function(w) return w.story.stopped end)
+        end
+        story_was=state
+    end
     -- A notice naming mods (a list of core/link.lua's mods()): the file names (no folders) of the first two that fit,
     -- then (+n) for the others (ui/text.lua's T.mods).
     local mods_notice=T.mods
@@ -1559,10 +1582,31 @@ if link then
                 report(ok,'shared_world=on: '..tostring(message))
             end
         end
+        if settings.shared_story~=scenes_wanted and not off then -- The co-op menu's row.
+            scenes_wanted=settings.shared_story
+            local word=scenes_wanted and 'on' or 'off'
+            local ok,message=commands.scenes(word)
+            report(ok,'shared_story='..word..': '..tostring(message))
+        end
+        if scenes_auto and not off then
+            local verdict=(slot_line() or ''):match('^slot=(%a+)')
+            if verdict=='coop' or verdict=='main' or verdict=='none' then
+                scenes_auto=false
+                -- off why=build and off why=coop_off refuse any ask; off scene= is the setting's off.
+                local line=link.story() or ''
+                local word=settings.shared_story and 'on' or 'off'
+                local setting_off=line:find('^story=off scene=')~=nil
+                if not line:find('^story=off why=') and settings.shared_story==setting_off then
+                    local ok,message=commands.scenes(word)
+                    report(ok,'shared_story='..word..': '..tostring(message))
+                end
+            end
+        end
         guarded('fight',fight_notices)
         guarded('pilot',pilot_notices)
         guarded('quests',quest_notices)
         guarded('world',world_notices)
+        guarded('scenes',story_notices)
         guarded('paks',paks_notice)
         if not cns_said and link.cns() then
             cns_said=true
