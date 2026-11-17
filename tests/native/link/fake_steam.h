@@ -196,7 +196,7 @@ template <int N> Api make_api() {
     return true;
   };
   a.create_lobby = [](void *, int type, int max) -> uint64_t {
-    assert(type >= 0 && type <= kInvisible && (max == 2 || max == 8));
+    assert(type >= 0 && type <= kInvisible && ((max >= 2 && max <= kMaxMembers) || max == kMatchMembers));
     op("create " + std::to_string(F.client[N].id) + " " + std::to_string(type) + " " + std::to_string(max));
     F.lobby_type = type;
     if (F.refuse_create)

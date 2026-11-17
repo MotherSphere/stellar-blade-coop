@@ -528,7 +528,7 @@ a Steam name or a chat line shows as `?`.
 | Invite held | `Invite held: joining once your save has loaded.` |
 | Rejoin | `Lost <host>'s game: rejoining.`, then `Rejoined <host>'s game.` |
 | Session ended | `Session ended: <host> left.`, `Session ended: <host>'s game is gone.` or `Session ended: could not rejoin <host>'s game.` |
-| Too many players | `Left: the lobby has more than 2 players.`, or `... 8 players.` in a match lobby |
+| Too many players | `Left: the lobby has more than 4 players.`, or `... 8 players.` in a match lobby |
 | Leaving | `Left the session.`, `Not in a session.` or `Held invite dropped.` |
 | `coop match search` or `create` with a mode this version does not have | `No such mode: <mode>. Modes: <modes>.` |
 | `coop match search` or `create` while you are in a lobby | `Leave this game first.` |

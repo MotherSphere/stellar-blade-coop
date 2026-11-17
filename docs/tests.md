@@ -262,14 +262,16 @@ The C++ tests cover the platform-free headers in `native/src`.
   the match modes (`find_mode`), `match search` and `match create` with their room and hall words (each refused when
   missing, extra, too long or not an alias word), `match cancel` and `match end`, `mute` and `unmute`, `block`,
   `unblock` and `unblock all`, the `host` words (`public`, `friends`, `invitation` with the older `code` and
-  `private`, `closed`, then `ask`), `list public|friends|stop`, `where`, `rules` and the row cleaner,
-  the match lines (start, count, end) with their bounds, the dlc and dlcs lines with their bounds and the DLC
+  `private`, `closed`, then `ask`, then `max_players` from 2 to 4), `list public|friends|stop`, `where`, `rules` and the
+  row cleaner, the match lines (start, count, end) with their bounds, the host's let and wait lines with theirs, the dlc and dlcs lines with their bounds and the DLC
   comparison by app id, and protocol 23 refusing a protocol-22 lobby and line;
 - `link_core_test`: the link against the shared fake Steam, and two links through it with the handshake both ways,
   channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, an
   Invitation lobby (its code, the invite dialog, the older words `code` and `private`) joined with its code and the
   host's approval of a player who is not a Steam friend (let in, refused, no answer, removed, a flood while waiting),
-  with relay only set on both games before their first session with each other. With a Steam that refuses relay only,
+  with relay only set on both games before their first session with each other. A player on another protocol or game
+  build: refused by the host, who keeps the lobby; left by a guest. A reject: from the host, the guest leaves; from a
+  guest, the host stays. With a Steam that refuses relay only,
   nothing goes to that player and her session request waits; Steam is asked again 1 s later. After 3 refusals the host
   refuses her with a notice, or the guest leaves with one. A friend's session never asks. A join Steam refuses gets its
   notice for each answer Steamworks documents, or the number for any other. The block list: its fixed hash; its file
@@ -289,8 +291,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   co-op lobby, eight links in one match lobby (no approval, every pair linked, the owner's SteamID as `owner=` on the
   owner's and a guest's `link=` line, ghost slots 0 to 6 and a freed slot taken again, `friend=` from slot 0, the
   slot-0 member leaving a lobby of three, whose `friend=` line goes while the third member stays linked and still gets
-  our chat line, no `mate=` line, the mods every member shares), a
-  co-op lobby that stays at two, a lobby of an unknown mode left, each channel-1 message, channel-2 line and chat line
+  our chat line, no `mate=` line, the mods every member shares), an
+  online session of `max_players` 2 refusing a third player, a lobby of an unknown mode left, each channel-1 message, channel-2 line and chat line
   handed on with its sender, a channel-2 line to one member, `lines_from`, quick match (the exact filters and their
   order with the relay-only setting, a lobby created when none is found with its member limit and data, seven more
   searchers joining it, another version's lobby and a code match lobby never found, two searchers in one pass each
@@ -318,6 +320,15 @@ The C++ tests cover the platform-free headers in `native/src`.
   a start without her, past 8 a second dropped and logged once), the per-player chat mute kept for the run, per-peer
   pose caps (30 a second for a member of a match lobby, one peer's cap stepping down alone, one second of poses
   reaching peers at 20, 30 and 60 a second, tables always sent) and the 60 s line of passes and full receive batches;
+- `link_group_test`: online sessions of 3 and 4 players through the same fake Steam: the pair (the host and the guest
+  in slot 0) with the host in slot 0 on every guest, the host's let line, the `host=` and `vit=` status lines, 30 poses
+  a second for a member who comes in past 2 players, chat between guests; a joiner the guests hold (no hello, no
+  session) until the host lets her in, a removed member whose link each guest closes, a refused member who stays in the
+  lobby and never links with a guest; the host's questions one at a time with each joiner's wait line; the host
+  leaving, which ends every guest's session whoever Steam hands the lobby to; a guest leaving, announced everywhere,
+  with slot 0 taken by the next guest let in; the camps answers to the asker only; gifts, Doro races, Night Operation
+  and a guest's photo pause refused past 2 players while the host's cutscene still pauses each guest; `max_players` 3
+  refusing a fourth player;
 - `link_list_test`: the session list through the same fake Steam, which follows Steamworks' read rules (no data for a
   lobby before a search returned it or `RequestLobbyData` was answered, `GetLobbyOwner` for members only, a result
   count, friends-only lobbies never in a search). A Public host's rows with `where` and `rules`, no relay only forced

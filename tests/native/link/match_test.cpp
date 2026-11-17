@@ -278,11 +278,12 @@ int main() {
     m.round();
     assert(contains(m[2].take_chat(), "in " + std::to_string(kMe) + " still here"));
   }
-  // A co-op lobby still holds two: the third join is refused full and the host keeps her partner.
+  // An online session holds its host's max_players: with 2, the third join is refused full and the host keeps her
+  // partner.
   reset();
   {
     Mesh m(3);
-    m.tick(0, "host");
+    m.tick(0, "host 2");
     m.round();
     m.tick(1, "join " + std::to_string(m[0].lobby()));
     assert(m.settle(2));

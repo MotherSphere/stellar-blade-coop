@@ -405,7 +405,8 @@ int main() {
                                photo_line('1', true), say_line("é ok"), vit_line(v), paks_line(3, 77),
                                pak_line({"~mods/lily_hair_p", 1024, 0xfedcba9876543210ull}), night_line(host_line),
                                mark_line(9, "é ok"), start_line("ffa", "NK_Boss_Scarlet", 7, {1001, 2002}),
-                               count_line(5), end_line(), dlc_line(3564740, "Twin Expansion Pack"), dlcs_line()};
+                               count_line(5), end_line(), dlc_line(3564740, "Twin Expansion Pack"), dlcs_line(),
+                               let_line(2002, {2002, 4003}), wait_line(120)};
   for (int round = 0; round < 200000; ++round) {
     std::string text;
     if (round % 2) {
@@ -439,6 +440,13 @@ int main() {
     }
     if (f.kind == Kind::count)
       assert(f.a <= 10);
+    if (f.kind == Kind::let) { // 1 to 7 distinct SteamIDs, none 0; the pair 0 or one of them.
+      std::set<uint64_t> ids(f.ids.begin(), f.ids.end());
+      assert(!f.ids.empty() && f.ids.size() <= kMaxRemote && ids.size() == f.ids.size() && !ids.count(0) &&
+             (!f.a || ids.count(f.a)));
+    }
+    if (f.kind == Kind::wait)
+      assert(f.a >= 1 && f.a <= kMaxWait);
     if (f.kind == Kind::dlc) // An app id and a cleaned name, never empty.
       assert(f.a >= 1 && f.a <= UINT32_MAX && !f.text.empty() && f.text == chat_clean(f.text, kMaxDlcName));
     if (f.kind != Kind::invalid) {
@@ -450,26 +458,33 @@ int main() {
 
   // Requests written by Lua.
   // who_can_join: public, friends (host alone too), invitation (code and private, the settings' older words) or
-  // closed; ask after any of them: friends_ask=on.
+  // closed; ask after any of them: friends_ask=on; then max_players, 2 to kMaxMembers (kMaxMembers without it).
   const struct {
     const char *text;
     Who who;
     bool ask;
-  } kHosts[] = {{"host\n", Who::friends, false},
-                {"host friends", Who::friends, false},
-                {"host public", Who::everyone, false},
-                {"host public ask\r\n", Who::everyone, true},
-                {"host invitation ask", Who::invitation, true},
-                {"host code\r\n", Who::invitation, false},
-                {"host private\n", Who::invitation, false},
-                {"host closed", Who::closed, false},
-                {"host ask", Who::friends, true}};
+    int players;
+  } kHosts[] = {{"host\n", Who::friends, false, kMaxMembers},
+                {"host friends", Who::friends, false, kMaxMembers},
+                {"host public", Who::everyone, false, kMaxMembers},
+                {"host public ask\r\n", Who::everyone, true, kMaxMembers},
+                {"host invitation ask", Who::invitation, true, kMaxMembers},
+                {"host code\r\n", Who::invitation, false, kMaxMembers},
+                {"host private\n", Who::invitation, false, kMaxMembers},
+                {"host closed", Who::closed, false, kMaxMembers},
+                {"host ask", Who::friends, true, kMaxMembers},
+                {"host 2", Who::friends, false, 2},
+                {"host public 3\n", Who::everyone, false, 3},
+                {"host invitation ask 4", Who::invitation, true, 4},
+                {"host closed 2", Who::closed, false, 2}};
   for (const auto &h : kHosts) {
     const Request r = parse_request(h.text);
-    assert(r.command == Command::host && r.who == h.who && r.on == h.ask);
+    assert(r.command == Command::host && r.who == h.who && r.on == h.ask && r.players == h.players);
   }
+  static_assert(kMaxMembers == 4, "5 below is one past it");
   for (const char *bad : {"host  private", "host Code", "host code x", "hostcode", "host everyone", "host public  ask",
-                          "host ask ask", "host closed asks", "ask"})
+                          "host ask ask", "host closed asks", "ask", "host 1", "host 5", "host public 9", "host 3 ask",
+                          "host public  3", "host 22", "host public 3 3"})
     assert(parse_request(bad).command == Command::none);
   assert(parse_request("invite").command == Command::invite);
   // The session list: list public|friends|stop; the rows' where <zone> [<camp>] and rules <word>, each a word
@@ -537,6 +552,21 @@ int main() {
     for (const std::string bad : {"start ffa NK 4294967296 1001", "start ffa NK 1 1001,1001", "start ffa NK 1 0",
                                   "start ffa NK 1 1001,", "start ffa NK 1 1,2,3,4,5,6,7,8,9", "start f!a NK 1 1001",
                                   "count 0", "count 11", "count", "end now"})
+      assert(parse_text("SBC" + std::to_string(kProtocol) + " " + bad).kind == Kind::invalid);
+  }
+  // An online session's host lines: let (the pair, 0 or one of 1 to 7 distinct non-zero SteamIDs, the members let in)
+  // and wait (1 to kMaxWait s).
+  {
+    const std::string let = let_line(4003, {2002, 4003});
+    assert(let == "SBC" + std::to_string(kProtocol) + " let 4003 2002,4003");
+    Message lm = parse_text(let);
+    assert(lm.kind == Kind::let && lm.a == 4003 && (lm.ids == std::vector<uint64_t>{2002, 4003}));
+    lm = parse_text(let_line(0, {1, 2, 3, 4, 5, 6, 7}));
+    assert(lm.kind == Kind::let && lm.a == 0 && lm.ids.size() == kMaxRemote);
+    assert(wait_line(60) == "SBC" + std::to_string(kProtocol) + " wait 60" && parse_text(wait_line(60)).a == 60);
+    assert(parse_text(wait_line(kMaxWait)).kind == Kind::wait && kMaxWait == 420);
+    for (const std::string bad : {"let 5 2002", "let 0 2002,2002", "let 0 0", "let 0 2002,", "let 0", "let x 2002",
+                                  "let 0 1,2,3,4,5,6,7,8", "let  0 2002", "wait 0", "wait 421", "wait", "wait 1 2"})
       assert(parse_text("SBC" + std::to_string(kProtocol) + " " + bad).kind == Kind::invalid);
   }
   assert(parse_request("match search " + std::string(kMaxToken, 'a') + " xion xion").command == Command::match &&
