@@ -13,18 +13,33 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
 
 ## Lobby and invites
 
-- `coop host` creates a friends-only lobby with room for 2 players and opens Steam's invite dialog. With
-  `who_can_join=private`, Lua asks for `host private` instead, and the lobby is a private one that only invited friends
-  can join. The lobby carries a tag under the key `stellarcoop`: the protocol and the game's Steam build
-  (`22:<build>`). A lobby from another protocol or game build is refused on joining, with both versions in the joiner's
-  log and on screen. A lobby with no tag is another game's, and is refused as such.
-- The native request `host code` creates an invisible lobby (Steam's `ELobbyType` 3): anyone who has its id can ask to
-  join, and the host's friends do not see it. Steamworks documents that a lobby search still returns it. The quick
-  match's search (below) asks for `sbo_mode` and `sbo_state`, which a co-op lobby never carries, so it never returns
-  one, and a player who finds it another way waits for the host's answer like any other player who is not a friend. No
-  invite dialog opens. The host gets a 7-character join code instead (`CCS-CBMH`), on screen and in `coop-status.txt`.
-  The request `copy` puts it on the Windows clipboard. Under Proton, Wine should pass it on to the desktop's clipboard;
-  the Wine smoke test checks the Windows side only. `join <code>` joins the lobby it names.
+- The native request `host <who>` creates a lobby with room for 2 players. `<who>` is the word `who_can_join` stores:
+  - `public`: a Public lobby (Steam's `ELobbyType` 2) carrying the session list's rows with `sbo_list=1`, so the
+    Public tab of Find a session lists it (see [The session list](#the-session-list)). No invite dialog opens; the
+    request `invite` opens it.
+  - `friends`, or `host` alone: a friends-only lobby (type 1) carrying the rows without `sbo_list`. Steam's invite
+    dialog opens.
+  - `invitation`: an invisible lobby (type 3) with a join code. Steam's invite dialog opens too. `code` and
+    `private`, the words older settings files hold, mean the same.
+  - `closed` (Private in the menus): an invisible lobby the host shuts to joins at once (`SetLobbyJoinable`). It has
+    no code and no rows. No invite dialog opens. Asked again, or with `invite`, the game says
+    `Nobody can join a private session.` A join gets Steam's refusal. The mod reads response 3 as
+    `Could not join: that game is closed (a private session, or a match that started).`; which response Steam sends for
+    a lobby set not joinable has not been checked in game. A member Steam lets in anyway is refused before any hello with the reject
+    `this session is private`. The host sees `A player tried to join your private session and was refused.`
+
+  `ask` after the word (`host public ask`, from `friends_ask=on`) makes the host's Steam friends wait for her answer
+  too (see [Players who are not Steam friends](#players-who-are-not-steam-friends)). The lobby carries a tag under the
+  key `stellarcoop`: the protocol and the game's Steam build (`22:<build>`). A lobby from another protocol or game
+  build is refused on joining, with both versions in the joiner's log and on screen. A lobby with no tag is another
+  game's. It is refused as such.
+- Anyone who has an invisible lobby's id can join it. The host's friends do not see it. Steamworks documents that a
+  lobby search still returns it. The quick match's search (below) asks for `sbo_mode` and `sbo_state`, which an online
+  session never carries. The session list's search asks for `sbo_list`, which an invisible one never carries. A player
+  who finds it another way waits for the host's answer like any other player who is not a friend. The host of an
+  Invitation session gets a 7-character join code (`CCS-CBMH`), on screen and in `coop-status.txt`. The request `copy`
+  puts it on the Windows clipboard. Under Proton, Wine should pass it on to the desktop's clipboard; the Wine smoke
+  test checks the Windows side only. `join <code>` joins the lobby it names.
 - The code holds the low 32 bits of the lobby id in Crockford's base 32, which leaves out I, L, O and U. Every lobby
   id seen so far starts with the same high 32 bits, `0x01860000`, which the code leaves out. The 3 spare bits hold the
   low part modulo 7, so 89% of the codes with one character wrong are turned away (over 2,000 random ids) instead of
@@ -87,6 +102,14 @@ them after `owner=` on its `link=` line.
   lobby sets it back to -1, the Steam client's own setting, and so does joining a co-op lobby whose host is a Steam
   friend, before the first session opens. A co-op host stays on relays only after a stranger has been in her lobby,
   until she hosts again or joins a friend's co-op lobby.
+- Relay only fails closed. When Steam refuses ICE off, the game keeps ICE marked on and logs `Steam refused relay
+  only, try <n>/3: <why>`. While it is on, no line goes to a player who needs relay only (every member of a match
+  lobby, any player who is not a Steam friend in a co-op lobby): the send returns EResult 15 and her session request
+  waits (`session request from <name> held: no relay only yet`). The next member pass at least 1 s later asks Steam
+  again. After 3 refusals in a row the log reads `no link with <name>: Steam refused relay only 3 times`. A co-op
+  host refuses her (`<name> was refused: Steam would not set relay only.`). A co-op guest leaves with `Left <host>'s
+  game: Steam would not set relay only.` In a match lobby every role leaves with `Left the match: Steam would not set
+  relay only.` A refused ICE back to -1 leaves relay only on.
 - In a match lobby, Steam's lobby owner is the host. An owner who leaves from the menu first hands the lobby to the
   member past the handshake who joined first (`SetLobbyOwner`), then leaves. When the owner changes during a round,
   every game ends it with `host_left`. Ten seconds of silence from the owner also end it, with `host_lost` and the
@@ -97,18 +120,84 @@ them after `owner=` on its `link=` line.
 - A guest whose game is no longer in a match lobby's member list leaves it, with no rejoin. Friend sessions keep the
   rules in [Lobby and invites](#lobby-and-invites).
 
+### The session list
+
+Find a session lists the online sessions other players host. The host of a Public or Friends only online session
+writes these lobby keys beside `stellarcoop` with `SetLobbyData`, each only when its value changed:
+
+| Key | Value | Written |
+| --- | --- | --- |
+| `sbo_list` | `1`, on a Public session only | At create |
+| `sbo_host` | Her Steam name, 48 bytes at most | At create, then within 5 s of a change (her game reads her name every 5 s) |
+| `sbo_owner` | Her SteamID | At create |
+| `sbo_players` | Members and room, `1/2` or `2/2`. A joiner who waits for the host's answer counts | At create, at each join or leave |
+| `sbo_zone`, `sbo_camp` | The words of Lua's `where <map segment> [<camp alias>]` | At create, at each `where` |
+| `sbo_rules` | The word of Lua's `rules <word>`: the session rules that are on | At create, at each `rules` |
+| `sbo_ping` | Her ping location, from Steam's `ConvertPingLocationToString` | At create (again every 5 s while Steam does not know it yet), then every 5 minutes when it changed |
+| `sbo_ask` | `1` on any online session whose Steam friends wait for her answer too (`host ... ask`) | At create |
+
+An Invitation or Private session writes none of these keys but `sbo_ask`. `where` and `rules` take words of letters,
+digits and `_`, 32 bytes at most (24 for the camp alias). The game keeps the last ones for the next session it hosts. The log has one line for
+each (`where: b07 WLB10_Camp_01`, `rules: <word>`).
+
+Any SBO client can write any of these keys, so a reader cleans each one before the status shows it. The name loses
+`<`, `>` (Stellar Blade's rich text would read a tag), control characters, bidirectional and zero-width marks and any
+byte that is no valid UTF-8, then is cut to 48 bytes at a character. The zone, camp and rules show only when they are
+one word of letters, digits and `_` within 32 bytes (24 for the camp alias), else as `-`. The ping location goes to Steam only when it is
+printable ASCII without spaces, 1023 bytes at most.
+
+- `list public` asks Steam for lobbies whose `stellarcoop` equals this game's tag and `sbo_list` equals `1`, with a
+  free place, at the worldwide distance, 50 at most. Another version's sessions never match. A session whose joiner
+  waits for the host's answer has no free place, so it leaves the list meanwhile.
+- `list friends` walks the Steam friends playing Stellar Blade in a lobby (`GetFriendGamePlayed`). Steam gives no data
+  for a lobby the player is not in before it answers `RequestLobbyData`, so the game asks once for each lobby and reads
+  its data each pass until its tag shows, 5 s at most. A lobby with no answer by then is dropped with the log line
+  `lobby <id> sent no data within 5 s`.
+- Either search keeps its rows and joins none of them. A row is hidden when the lobby runs another version, is a match
+  lobby (`sbo_mode`), has no `sbo_owner` (an Invitation or Private session), is the player's own, is full by its
+  `sbo_players`, or when the player blocked its host on Steam (`GetFriendRelationship` Blocked, Ignored or
+  IgnoredFriend) or with `coop block`. Each row's ping is Steam's estimate from the host's `sbo_ping`
+  (`EstimatePingTimeFromLocalHost`). Once the search ends, the rows go best ping first, those without one last. The
+  log line reads `list public done: <n> shown, <n> hidden`.
+- A row's Steam friend mark takes Steam's word, not the row's: the SteamID in `sbo_owner` is the player's Steam friend
+  (`HasFriend`) and `GetFriendGamePlayed` puts that friend in this lobby. A lobby that writes a friend's SteamID and
+  name over its own gets no mark, since Steam has the friend elsewhere or in no lobby.
+- One search runs at a time, 5 s apart at least, with no automatic refresh. A list search is refused in a lobby
+  (`Leave this game first.`), while a match search or another list search runs (`A search is already running.`), or
+  under 5 s after the last one (`Wait 5 s between two searches.`). Steam runs one lobby search per player, so a match
+  search that starts while Steam has not answered the list's ends it (`list search dropped: a match search started`).
+- `list stop` forgets the list.
+- A row is joined with `join <lobby id>`, then everything runs as for any join: the tag check, relay only with a host
+  who is not a Steam friend, the host's answer.
+
+The status shows the list while it lasts, then one line per row, the host's name last:
+
+```
+list=<public|friends> <searching|done|failed> <rows>
+session=<lobby id> <host's SteamID> <n>/<max> <ping ms|-> <Steam friend 1|0> <zone|-> <camp|-> <rules|-> <host's name>
+```
+
+Steamworks documents the read rules the list relies on: a search result's data can be read without joining,
+`GetLobbyOwner` answers members only, a friends-only lobby never comes back from a search while an invisible one does.
+The fake Steam of the tests follows them. None of them was checked in game yet.
+
+None of this changes the protocol: the rows are lobby data, never a line between two games.
+
 ## Players who are not Steam friends
 
 In a co-op lobby, a player who joins and is not the host's Steam friend waits for the host's answer. The host's game
 holds the handshake: it sends no hello and reads none of the player's messages, only pings them so that neither game
 reports a lost connection. The host's status shows `pending=<SteamID> <name>` and a notice says that a player who is not
-a Steam friend is asking to join. The joiner's game shows `Joined <host>'s game. Waiting to be let in.` The host answers
-with native requests, which Lua writes to `coop-request.txt` like the others:
+a Steam friend is asking to join. The joiner's game shows `Joined <host>'s game. Waiting to be let in.` Until the host
+lets it in, its status has the line `wait=<seconds left> <host's name>`: the seconds left of the host's minute, counted
+from the join. The name is read from Steam each time, since Steam may learn a stranger's name a moment after the join. With `friends_ask=on` (`host <who> ask`), the host's Steam friends wait the same way. The host's notice
+for one of them reads `<name> is asking to join.` The lobby's `sbo_ask=1` tells the friend's game that it waits. The
+host answers with native requests, which Lua writes to `coop-request.txt` like the others:
 
 - `allow <SteamID>` lets the player in. The handshake then runs as with a friend, and a rejoin after a drop is let in
   without a new question for as long as the lobby lasts.
 - `deny <SteamID>`, or 60 s with no answer, refuses the player, and so does leaving before the answer.
-  `remove <SteamID>` refuses any player already in, friends included.
+  `remove <SteamID>` refuses any player already in (friends included) and puts them on the block list.
 - A refused player gets a `SBC reject` with the reason (`you were not let in`, `no answer within 60 s`, `you were
   removed from this session`). Every build since protocol 9 shows it as `<host> refused the link: <reason>` and leaves. That
   player stays refused until the host creates a new lobby: the host never greets them again, ignores their session
@@ -117,6 +206,15 @@ with native requests, which Lua writes to `coop-request.txt` like the others:
   again every 10 s, and the host can create a new lobby, which gets a new code.
 - Answers go by SteamID, so an answer meant for a player who left never reaches the next one. A guest's answers, and
   an answer for a player who is not waiting, are ignored with a line in `coop-link.log`.
+- The block list (`block <SteamID>`, `unblock <SteamID>`, `unblock all`) lasts across lobbies and game runs. The
+  native part reads `coop-blocked.txt` once at start and writes it again after each change. Each line is FNV-1a 64 of a
+  fixed salt and the SteamID's digits, in 16 hex digits. While we host, a lobby member on the list is put on the
+  refused list of this lobby before any approval question, hello or accepted session. She gets the same
+  `you cannot join this session again` reject. When Steam makes us the owner of a match lobby, a member on our list
+  who linked while we were a guest is refused at once with the same reject. A guest's list applies only in a Public
+  match lobby, which a search or a regroup chose for her: with a member on it, she leaves and searches again. A guest
+  whose Public match lobby's host refuses her searches again too. Either way her searches skip that lobby for the rest
+  of the game run, so a regroup never takes her back to it.
 
 On the host, `session/join.lua` turns the first `pending=` line into a question on screen and writes the answer. It asks
 each player once a lobby; with no answer, the native part refuses the player after 60 s. The question opens without a
@@ -192,6 +290,8 @@ SBC22 say <text>
 SBC22 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
 SBC22 pak <hash> <name>
 SBC22 paks <count> <hash>
+SBC22 dlc <app id> <name>
+SBC22 dlcs
 SBC22 camps? <id>
 SBC22 camps <id> <world> <camp>:<m> ...
 SBC22 camps <id> none <title|loading|nocamp|busy>
@@ -285,6 +385,26 @@ file again when the version changes and rebuilds the ghost. The hash is FNV-1a o
 friend's game states it, so it says that both of you run one build of the mod, without proving it. The list only ever
 holds paths of your own containers.
 
+### The dlc and dlcs lines
+
+The dlc lines and the dlcs line are sent reliable right after the paks line, again after each hello of the other player
+as the pak lines are. Once Steam is ready, the native part asks Steam for the game's own DLCs (`GetDLCCount`, then
+`BGetDLCDataByIndex` for each) and keeps the first 64 that `BIsDlcInstalled` says are on this PC. No DLC id is written
+in the mod. `coop-link.log` lists them after its `Steam ready` line (`DLCs installed: <n> (<names>)`). A DLC installed
+while the game runs counts from the next start. Each one goes in a dlc line: its Steam app id, then its name as Steam
+gives it, cleaned like a chat line and cut to 100 bytes, or the app id when Steam gives no name. The dlcs line ends the
+list. In a match lobby every member gets them.
+
+Once your friend's list came, `coop status` has `dlcs=same <yours> <theirs>` or `dlcs=differ <yours> <theirs>`. A
+`dlc_missing=<app id> <name>` line follows for each DLC they have and you lack, then a `dlc_extra=<app id> <name>` line
+for each one you have and they lack. The two lists are compared by app id. `coop-link.log` says it each time their list
+changes (`<name> has <n> DLCs installed, the same as ours` or `<name> has <n> DLCs installed; we lack <names>; she lacks
+<names>`). When the lists differ, one notice a session names the DLCs your friend has and you lack, then the ones you
+have and they lack: `<name> has DLCs you don't have: <DLCs>. You have DLCs <name> doesn't have: <DLCs>.` A part whose
+list is empty is left out. The notice keeps to the feed's 200 bytes: each sentence names at most its first two DLCs
+when they fit, then `(+n)` for the others. When your friend's name is so long that the two counts alone
+pass 200 bytes, the notice cuts that name. Nothing is refused.
+
 ### The camps lines
 
 The camps lines carry the [follow](group-play.md#following-the-host), both reliable: the guest's `camps?` with a number from 0 to
@@ -376,8 +496,8 @@ At 0 the owner checks the count again. If it still holds, the owner sets the lob
 the SteamIDs of the players counted at 0, the owner first, then in Steam's member order. A member whose SteamID is not
 in the list stays in the lobby, out of the round, with the notice `A round started without you.`, shown once for the
 countdown that member saw. A player who tries to
-join after the start gets Steam's answer 3 and the notice `Could not join: that game is closed (its match may have
-started).`
+join after the start gets Steam's answer 3 and the notice `Could not join: that game is closed (a private session, or
+a match that started).`
 
 `match end` on the owner ends the round: the lobby is joinable again, `sbo_state` goes back to `open` on a Public lobby,
 and each member gets the end line. While the minimum still holds, the next countdown starts at once. `coop status`
@@ -454,7 +574,7 @@ is refused instead of misread:
 | 18 | The table's fx lines (effect indexes 20 to 64 named by path) and pose effect slots up to index 64; 0.7.5 |
 | 19 | Matrix XIII's world rows (spawn rows, camps, warps): shared Naytibas key an enemy by its spawn row's ID, so a peer without those rows would never match the host's new enemies; no line changes shape, the number keeps 0.7.5 out |
 | 20 | The PvP test's pvp line on channel 2: a drop of the attacker's stand-in for the victim, applied to the victim's EVE in her game, and the match lobbies' start, count and end lines on channel 0 |
-| 21 | Never released: development builds of the shared world's `SBW` lines on channel 2 used it (see [Shared world: how it works](shared-world.md)) |
+| 21 | Never released: development builds of the shared world's `SBW` lines on channel 2 and of the dlc and dlcs lines on channel 0 used it (see [Shared world: how it works](shared-world.md)) |
 | 22 | Story together's `SBS` lines on channel 2: the host's story scenes and story trips, followed in the guest's game (see [Story together: how it works](story-sync.md)); the guest's `SBQ22 step` line, a quest step she made first, made in the host's game (this version) |
 
 ## Link health in the log

@@ -167,7 +167,9 @@ The game's code holds two developer tools that it ships switched off: a flight m
 waits on a setting of the game's (`UseFlyingActionKey`, `UseTimeControlKey`) that only a cheat command sets, and that
 command does nothing in the released game. `coop fly on` and `coop slowmo on` have the native part set the setting in
 the game's memory, and `off` puts the game's value back. These test commands are left out of the usage line, need the
-native part and run on a [co-op save](playing-with-a-friend.md#co-op-saves) only. The flight was tried in game once, with the game's Z key.
+native part and run on a [co-op save](playing-with-a-friend.md#co-op-saves) only. `coop fly on` is refused while EVE
+rides the [bike](bike.md), whose drift key R2 is also the flight key. The flight was tried in game once, with the game's
+Z key.
 The first space bar start was tried on 2026-10-26 and started no flight, since it read a flag the game never sets; the
 current one has not been tried in game.
 
@@ -225,7 +227,7 @@ EVE's movement code still holds the end of a glide that was cut: a flag that mak
 gravity while it is set. Nothing in the game sets the flag any more. Its config keeps a Jump hold time for it (0.2 s)
 that no code reads, so no setting or cheat turns it on. `coop glide on` has the mod set the flag itself, with that hold
 time. This test command is left out of the usage line, runs on a [co-op save](playing-with-a-friend.md#co-op-saves) only and has not been tried
-in game yet.
+in game yet. `coop glide on` is refused while EVE rides the [bike](bike.md).
 
 - With `coop glide on`, hold Jump (Space, or A/Cross on a controller) in the air. Once Jump has been held for 0.2 s and
   EVE is past the top of her jump, she glides until you release Jump or she lands. To glide after a double jump, hold

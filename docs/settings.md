@@ -18,21 +18,30 @@ The file the mod writes:
 # one line at a time, and keeps the file as it was as coop-settings.old.txt. Delete this file to get the defaults back.
 # Keys: F1 to F12 except F10, optionally with Shift+, Ctrl+ or Alt+ in front (for example Shift+F7). menu_key opens
 # the co-op menu, whose first row hosts; host_key hosts at once, or none. follow_key travels to the host (follow_host
-# below), or none. race_key drops a checkpoint while you record a race track (coop race record).
+# below), or none. race_key drops a checkpoint while you record a race track (coop race record). bike_key gets EVE on
+# the bike or off it (bike below), or none.
 menu_key=F5
 host_key=none
 status_key=F6
 leave_key=F8
 follow_key=F7
 race_key=F9
+bike_key=F3
 # The keys you hold to drift in a Doro race: Unreal key names separated by spaces (at most 4), or none. Steering hard
 # at speed drifts too, with no key. The defaults are R2 on a pad (it still picks up items in reach, as outside a race)
 # and B on the keyboard, which Stellar Blade leaves free.
 drift_keys=Gamepad_RightTrigger B
-# Who can join a session you host: friends (your Steam friends can join from their friends list), code (anyone you
-# give your join code to; the co-op menu shows and copies it) or private (only the friends you invite). A player who
-# is not your Steam friend waits until you accept or deny them.
-who_can_join=friends
+# The bike: on or off, on by default. On, the mod keeps Stellar Blade's own bike loaded. bike_key, D-pad Right held 1 s
+# on a pad or the console command coop bike puts EVE on it or takes her off, on any save. Nothing of the ride is saved.
+# Off takes her off the bike and frees it.
+bike=on
+# Who can join a session you host: public (any player of your version, from Find a session), friends (your Steam
+# friends, from their friends list or the Friends tab of Find a session), invitation (the friends you invite or anyone
+# you give your join code to; the co-op menu shows and copies it) or closed (nobody; Private in the co-op menu). A
+# player who is not your Steam friend waits until you accept or deny them. friends_ask, with public or invitation: off
+# (your Steam friends join at once) or on (they wait for your answer too).
+who_can_join=public
+friends_ask=off
 # Co-op saves, the co-op copies of your saves (StellarBladeCoop00.sav to 04.sav): ask (a question on the title
 # screen), always (the copies at every title, no question) or off (no copies; the manual co-op slot that
 # StellarCoopSlot.txt names is then the only co-op save).
@@ -182,8 +191,11 @@ sbo_lobby=on
 | `leave_key` | same as `menu_key` | `F8` |
 | `follow_key` | same as `menu_key`, or `none`: as the guest, travel to the host ([Following the host](playing-with-a-friend.md#following-the-host)) | `F7` |
 | `race_key` | same, or `none`: a key that sets a [Doro race](doro-races.md) checkpoint while you record a track | `F9` |
-| `drift_keys` | up to 4 Unreal key names separated by spaces, or `none`: the keys held to [drift](doro-races.md#driving) in a race | `Gamepad_RightTrigger B` |
-| `who_can_join` | `friends`, `code` or `private`: who can join a session you host (`code`: anyone with your [join code](playing-with-a-friend.md#join-codes); `private`: only the friends you invite) | `friends` |
+| `bike_key` | same, or `none`: a key that puts EVE on the [bike](bike.md) or takes her off it | `F3` |
+| `drift_keys` | up to 4 Unreal key names separated by spaces, or `none`: the keys held to [drift](doro-races.md#driving) in a race or on the [bike](bike.md#riding) | `Gamepad_RightTrigger B` |
+| `bike` | `on` or `off`: the [bike](bike.md), on any save; off takes EVE off the bike, removes it from her and frees its loaded files | `on` |
+| `who_can_join` | `public`, `friends`, `invitation` or `closed`: who can join an online session you host. `public`: any player of your version, who finds it in the session list. `friends`: your Steam friends. `invitation`: the friends you invite or anyone with your [join code](playing-with-a-friend.md#join-codes). `closed`: nobody (Private in the co-op menu). The words `code` and `private` from 0.11 and older read as `invitation`; the file keeps them | `public` |
+| `friends_ask` | `on` or `off`, with `public` or `invitation`: `on` makes your Steam friends wait for your answer like other players. The co-op menu shows it as Friends join without asking, On while `friends_ask=off` | `off` |
 | `auto_coop_save` | `ask`, `always` or `off`: the [co-op saves](playing-with-a-friend.md#co-op-saves) at the title | `ask` |
 | `name_tag` | `on` or `off`: your friend's Steam name above their ghost | `on` |
 | `send_rate` | `10` to `60` poses sent a second at most (a link that cannot keep up lowers it to 30 or 20 for a while: [link health](internals/steam-link.md#link-health-in-the-log)) | `60` |
@@ -237,12 +249,15 @@ Rules:
 - A refused value keeps its default, and `UE4SS.log` gives the reason in a `[StellarCoop] settings:` line. An unknown
   setting is ignored with a note.
 - If two actions share one key, all the keys go back to their defaults: `F5` for the menu, `none` to host, `F6`, `F7`,
-  `F8` and `F9`.
+  `F8`, `F9` and `F3`.
 - A file written before `follow_key` existed that already holds `F7` for another action keeps it there: `follow_key`
   then reads `none`, with no log line.
 - A file with no `race_key` line (one written before Doro races) whose other keys already use `F9`: `race_key` reads
   `none`, and `UE4SS.log` says so, for example `[StellarCoop] settings: F9 is leave_key: race_key has no key`.
   `coop race cp` still sets checkpoints.
+- A file with no `bike_key` line (one written before the bike) whose other keys already use `F3`: `bike_key` reads
+  `none` the same way, for example `[StellarCoop] settings: F3 is status_key: bike_key has no key`. `coop bike` still
+  works.
 - A file with no `menu_key` line (one written before the menu existed): the menu takes `host_key`'s key, and
   `host_key` counts as `none`. The first `menu_key` that the menu writes into such a file also writes `host_key=none`.
 - A file from a version that sent at most 30 poses a second and still says `send_rate=20`, the old default, reads
@@ -279,6 +294,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-settings.old.txt` | Lua, at the menu's first change since the mod loaded | `coop-settings.txt` as it was before that change |
 | `coop-guide.txt` | Lua, on the guide's Don't show again or a close on its last page | One line. While it exists, the [guide](interface.md#guide) does not open by itself |
 | `coop-records.txt` | Lua, after a challenge or Night Operation success that beats the best kept | Your best runs, one `best_<name>=<score> <seconds>` line each (see [challenges.md](challenges.md#best-runs-coop-recordstxt)). Written to `coop-records.txt.tmp` first, then renamed |
+| `coop-blocked.txt` | native, after `coop remove`, `coop block` or `coop unblock` | Your [block list](playing-with-a-friend.md#block-list): two comment lines, then a salted hash of each blocked SteamID, one a line |
 | `coop-status.txt` | native | The current state, as `coop status` shows it |
 | `coop-link.log` | native | This run's header and numbered events, in UTC like `UE4SS.log`, repeats counted, capped at 1 MB |
 | `coop-link.old.log` | native | The previous run's `coop-link.log`, moved there at start |
@@ -316,7 +332,8 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-track-<name>.txt` | Lua, on `coop race save` | A Doro race track |
 | `coop-look.txt` | Lua | While the Doro look is on: EVE's object path, her main mesh's animation option before the look, the Doro's object path, the names of the parts the look hid and, once the look hid the drone's body, the drone's object path, so the next Lua load (Ctrl+R) can show both again |
 | `coop-race-doros.txt` | Lua | While a race shows Doros: their object paths, so the next Lua load (Ctrl+R) can remove them |
-| `coop-drive.txt` | Lua | While a race or the drive probe drives EVE: her object path and her movement's four values from before, so the next Lua load (Ctrl+R) can put them back |
+| `coop-drive.txt` | Lua | While a race, the drive probe or the [bike](bike.md) drives EVE: her object path and her movement's four values from before, so the next Lua load (Ctrl+R) can put them back |
+| `coop-bike.txt` | Lua | While EVE rides the [bike](bike.md): her object path and her main mesh's relative rotation and location from before, so the next Lua load (Ctrl+R) can put her mesh back and hide the bike |
 | `coop-sbo.txt` | Lua | The object path of the SBO lobby's last menu camera, so the next Lua load (Ctrl+R) can remove it if it still stands |
 | `coop-leviathan.txt` | Lua | While `coop leviathan show`, `coop gardener show` or `coop tendril show` shows a mesh or the free camera is on: the mesh actor's object path and the mesh's, the camera actor's path, the player controller's path, whether its move and look input were ignored before and the path of its view target before, so the next Lua load (Ctrl+R) can remove both and give the controller back |
 | `coop-devmenu.txt` | Lua | After a `coop devmenu` row reached the game, until `coop off`: one line, so `coop off` runs `clear` and `lockswitch` even after a Lua reload (Ctrl+R) |

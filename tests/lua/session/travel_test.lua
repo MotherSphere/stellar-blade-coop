@@ -5,9 +5,11 @@
 -- each on one of the 12 story worlds, no autosave volume, no camp of a developer test world and none that leads to
 -- several worlds (together only: such a camp is never sent by the host's game nor accepted by the guest's). The host's
 -- answer: its cache of the map's spawn points named after a camp of its world, built once a map and never during a
--- load, the 8 nearest its EVE first, and none with why (title, loading, nocamp, busy). The guest's choice: the first
--- camp of the answer in her table under the host's world that her save has activated and that this game knows as a name
--- (FNAME_Find, never a new name; UE's trailing number split off), the next one after SB's refusal, 3 calls at most,
+-- load, the 8 nearest its EVE first, or none with why (title, loading, nocamp, busy). The host's row in the session
+-- list: its rules word on each change, its map and nearest camp at once on each map and once a minute at most, from the
+-- same cache (read again a minute later when it found none). The guest's choice: the first camp of the answer in her
+-- table under the host's world that her save has activated and that this game knows as a name (FNAME_Find, never a
+-- new name; UE's trailing number split off), the next one after SB's refusal, 3 calls at most,
 -- then the notices. Her activated camps come from the status line activated=<n>:<alias>,... (the native read):
 -- without it, with activated=none:<why> or a list cut short, no offer, and every travel refused. With follow=true, as
 -- main.lua passes it, the follow runs; without it the same refusals with a read: the follow is off. The offer: once
@@ -56,7 +58,8 @@ local function world(change)
     W={mode='guest',linked=true,slot='slot=coop index=1 marker=1 saves=coop',travel='idle',calls=0,
         warp='idle',life={state=1,hp=1600},fight=FIGHT,me={at={X=0,Y=0,Z=0},map=DEDA},her_map=XION,ghost=nil,
         settings={follow_host='ask',follow_key={key='F7',name='F7'}},names={},fnames={},spawns={},finds=0,
-        requests={},said={},logs={},paused=false,night=false,cutscene=false,camps=EVERY,follow=true}
+        requests={},said={},logs={},paused=false,night=false,cutscene=false,camps=EVERY,follow=true,wheres={},
+        rules={}}
     if change then change(W) end
     clock=0
     local link={mode=function() return W.mode end,friend=function() return 'Kaanta',W.linked,false end,
@@ -68,7 +71,13 @@ local function world(change)
         end,
         camps=function() return W.asked,W.answer end,
         request=function(line) W.requests[#W.requests+1]=line; return true,'asked the native part: '..line end,
-        life=function() return W.life end,fight=function() return W.fight end}
+        life=function() return W.life end,fight=function() return W.fight end,match=function() return W.match end,
+        -- The session list's where and rules (core/link.lua's, which ask only a change): each call kept.
+        where=function(zone,camp)
+            W.wheres[#W.wheres+1]=zone..(camp and ' '..camp or '')
+            return W.refuse_where,W.refuse_where==false and 'not a word' or nil
+        end,
+        rules=function(word) W.rules[#W.rules+1]=word; return true end}
     local puppet={me=function() return W.me end,her_map=function() return W.her_map end,
         anchor=function() if W.ghost then return {X=W.ghost.X,Y=W.ghost.Y,Z=W.ghost.Z+220},W.ghost end end,
         world=function() return W.me~=nil,W.title==true end}
@@ -94,13 +103,13 @@ local W_ = T.en.travel
 local OFFER=W_.offer:format('Kaanta','e04','F7')
 local GOING,NONE,BUSY,FAILED=W_.going:format('Kaanta'),W_.none:format('Kaanta'),W_.busy,W_.failed
 
--- The table: 120 rows, each alias once, a travel camp type, one of the 12 story worlds (each with its map, as
--- core/unreal.lua's map_of names it). No autosave volume, no developer test world, none that leads to several worlds or
+-- The table: 120 rows, each alias once (24 bytes at most, the session list's sbo_camp cap, link/protocol.h's
+-- kMaxCamp), a travel camp type, one of the 12 story worlds (each with its map, as core/unreal.lua's map_of names it). No autosave volume, no developer test world, none that leads to several worlds or
 -- to none.
 local types,worlds,seen={},{},{}
 for _,row in ipairs(Travel.CAMPS) do
     local alias,kind,w=row[1],row[2],row[3]
-    assert(#row==3 and not seen[alias] and alias:match('^[%w_]+$') and #alias<=64,alias)
+    assert(#row==3 and not seen[alias] and alias:match('^[%w_]+$') and #alias<=24,alias)
     seen[alias]=true
     types[kind]=(types[kind] or 0)+1
     assert(Travel.WORLDS[w],alias..': '..tostring(w))
@@ -140,7 +149,10 @@ for i,alias in ipairs(xion) do
     if alias~='Xion_Camp_10' and alias~='Xion_Camp_10_01' then W.spawns[#W.spawns+1]={alias,10000+i*2000,0,0} end
 end
 run(t,0.25)
-assert(#W.requests==0 and W.finds==0,'Nothing asked: nothing read')
+-- Hosting: the session list's row at once (its map's last part and the nearest camp, from the read the answer then
+-- uses; the rules word); nothing else asked of the native part.
+assert(#W.requests==0 and W.finds==1 and #W.wheres==1 and W.wheres[1]=='e04 Xion_Camp_10_01' and W.rules[1]=='100',
+    tostring(W.wheres[1]))
 W.asked=41
 run(t,0.25)
 local answer=last(W.requests)
@@ -174,6 +186,64 @@ for _,case in ipairs({{function(w) w.me=nil end,'loading'},{function(w) w.me=nil
     run(t,0.25)
     assert(last(W.requests)=='camps 7 none '..case[2],tostring(last(W.requests)))
     assert(case[2]=='busy' or case[2]=='nocamp' and W.me and W.me.map==XION or W.finds==0)
+end
+
+-- The host's row in the session list (outside a match lobby, linked or not): the rules word at each change of a
+-- setting; the place at once on each map, the camp again once a minute at most; a map outside the table with no camp
+-- and no spawn point read; nothing in a load. A read that found no camp is read again a minute later. A refusal is
+-- logged once.
+local Link=require('core.link')
+t=world(function(w)
+    w.mode,w.linked='host',false
+    w.settings=Link.parse_settings('')
+    w.me={at={X=0,Y=0,Z=0},map=XION}
+    w.spawns={{'Xion_Camp_10',1000,0,0},{'Xion_Camp_20',90000,0,0}}
+end)
+run(t,0.25)
+assert(W.wheres[1]=='e04 Xion_Camp_10' and #W.wheres==1 and last(W.rules)=='ebwsqr200' and W.finds==1)
+W.settings.revive=false
+run(t,0.25)
+assert(last(W.rules)=='ebwsq200' and #W.wheres==1,'A setting changed: the new word')
+W.me.at={X=89000,Y=0,Z=0}
+run(t,59)
+assert(#W.wheres==1,'Within a minute: the same place')
+run(t,1)
+assert(#W.wheres==2 and W.wheres[2]=='e04 Xion_Camp_20' and W.finds==1,'A minute later, from the same read')
+W.me={at={X=0,Y=0,Z=0},map=DEDA}
+W.spawns={{'DED10_Camp_07',500,0,0}}
+run(t,0.25)
+assert(W.wheres[3]=='f02 DED10_Camp_07' and W.finds==2,'Another map: at once')
+W.me=nil
+run(t,61)
+assert(#W.wheres==3,'A load: nothing')
+W.me={at={X=0,Y=0,Z=0},map='/game/gamedesign/test/level/systest/systest_p'}
+run(t,0.25)
+assert(W.wheres[4]=='systest_p' and W.finds==2,'No camp of the table there: no read')
+W.me={at={X=0,Y=0,Z=0},map=XION}
+W.spawns={}
+run(t,0.25)
+assert(W.wheres[5]=='e04' and W.finds==3,'No camp loaded yet')
+W.spawns={{'Xion_Camp_10',1000,0,0}}
+run(t,59.75)
+assert(#W.wheres==5 and W.finds==3)
+run(t,0.25)
+assert(W.wheres[6]=='e04 Xion_Camp_10' and W.finds==4,'Read again a minute later')
+W.refuse_where=false
+W.me={at={X=0,Y=0,Z=0},map=DEDA}
+run(t,0.25)
+W.me={at={X=0,Y=0,Z=0},map=XION}
+run(t,0.25)
+local refusals=0
+for _,line in ipairs(W.logs) do if line=='where not asked: not a word' then refusals=refusals+1 end end
+assert(#W.wheres==8 and refusals==1,'A refusal logged once')
+local n_rules,n_wheres=#W.rules,#W.wheres
+for _,case in ipairs({function(w) w.mode='guest' end,function(w) w.match={state='open'} end,
+    function(w) w.mode='none' end}) do
+    case(W)
+    W.me={at={X=0,Y=0,Z=0},map=DEDA}
+    run(t,61)
+    assert(#W.rules==n_rules and #W.wheres==n_wheres,'A guest, a match lobby, no lobby: no row')
+    W.mode,W.match='host',nil
 end
 
 -- The guest: the host on another map, an offer once (follow_host=ask), follow_key asks the host's camps. Of the

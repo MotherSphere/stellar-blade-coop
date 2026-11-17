@@ -33,20 +33,22 @@ the shared world and of story together. It does not link with 0.11.0 or older: e
 
 In this version every on/off setting is on by default, the experimental ones and the test tools included: the ghost's
 dyes and effects, the spawn filter, the name tag in your photos, shared quests, the shared world, story together, the
-revive, the solid partner, the Load Shortcut saves, the PvP test and the SBO lobby. The status strip shows its compact
-form, and F7's travel to the host is on. A `coop-settings.txt` written by 0.5.0-beta.1 to 0.10.0 that holds the old off
-values is changed once at the next load (see [Settings](settings.md#coop-settingstxt)). Most of these features have not
-been tested in game. `shortcut_load=on` lets `coop shortcut load` write a developer save that can unlock Steam
+revive, the solid partner, the Load Shortcut saves, the PvP test, the SBO lobby and the bike. The status strip shows its
+compact form, and F7's travel to the host is on. A `coop-settings.txt` written by 0.5.0-beta.1 to 0.10.0 that holds the
+old off values is changed once at the next load (see [Settings](settings.md#coop-settingstxt)). Most of these features
+have not been tested in game. `shortcut_load=on` lets `coop shortcut load` write a developer save that can unlock Steam
 achievements, which cannot be taken back.
 
 ## Features
 
-- F5 opens the co-op menu. Its first row hosts a session: by default a friends-only one, with the Steam invite dialog.
-  Options can limit the session to invited friends, or open it to anyone who has its 7-character join code, with no
-  dialog. A player who is not the host's Steam friend waits until the host accepts them. The invited friend joins once
-  their save has loaded, even if Steam had to start their game. The menu also invites, joins, leaves and changes the
-  settings. F6 shows the status and F8 leaves the session. On an XInput controller (an Xbox controller, the Steam Deck,
-  or any controller under Steam Input), View held for 1 s opens the menu, and the mouse works in it too.
+- F5 opens the co-op menu. Its first row opens the Create a session screen, where the host picks who can join and the
+  session rules before Start. Public, the default, lists the online session in Find a session for every player of the
+  same version. Friends only opens it to the host's Steam friends, Invitation to a Steam invite or a 7-character join
+  code, Private to nobody. A player who is not the host's Steam friend waits until the host accepts them. With
+  Friends join without asking off, the host's friends wait too. The invited friend joins once their save has loaded,
+  even if Steam had to start their game. The menu also finds sessions, invites, leaves and changes the settings. F6
+  shows the status and F8 leaves the session. On an XInput controller (an Xbox controller, the Steam Deck, or any
+  controller under Steam Input), View held for 1 s opens the menu. The mouse works in it too.
 - At a camp phone booth (any full camp, Xion's booths, the Wasteland and Great Desert warp phones), F5 opens the co-op
   line: the menu's session rows, Co-op menu and Hang up, and a sentence that says whether the line is free, open or
   linked with your friend. The booth's own fast travel works as before. The line is not tested in game yet.
@@ -76,6 +78,11 @@ achievements, which cannot be taken back.
   friend, each racer drawn as a Doro (Dororong). The race has a countdown, a timer, checkpoint markers and a ranking.
   It gives no reward or achievement and writes nothing to a save. Doro races are not tested in game yet (see
   [doro-races.md](doro-races.md)).
+- The bike: F3, D-pad Right held 1 s or `coop bike` puts EVE on a motorbike from the game's files, on any save. She
+  rides it with the left stick, leans into turns, drifts with R2 or B and jumps with the game's Jump; her attacks and
+  items are off while she rides. Your friend's ghost of you and the match-lobby ghosts show the bike. Its riding model
+  adapts dCharisma1's Eve On Wheels, with his consent. Nothing of the ride is saved. It is not tested in game yet (see
+  [bike.md](bike.md)).
 - `coop leviathan` shows Leviathan, a Naytiba cut from the game whose models and animations are still in its files, as
   a display-only model in front of EVE, with a free camera for filming. `coop gardener` and `coop tendril` do the same
   for two more cut Naytibas, the Gardener and the Tendril (see

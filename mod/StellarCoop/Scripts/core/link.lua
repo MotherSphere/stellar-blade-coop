@@ -14,7 +14,9 @@
 -- the session's mode, the friend and the notices for the screen, each from the start of its own line: a Steam name is
 -- never at the start of one.
 -- While we host, the read also gives our join code and the joiner who waits for our answer (session/join.lua asks the
--- host), and keeps who waited in this lobby (the menu's Remove row).
+-- host) and keeps who waited in this lobby (the menu's Remove row); as a joiner, the seconds left of the host's
+-- answer (wait()); the session list's rows (list()). Lua tells the native part the host's place and rules for the
+-- list's rows with where() and rules(), each sent only when it changed.
 -- coop-settings.txt's shared_enemies, fight_chars, guest_kills, enemy_hp_scale, enemy_balance_scale, kill_credit,
 -- same_place, aggro, same_spawns, enemy_extra, spawn_filter, bosses and boss_hp_scale (Phase 11, experimental) are
 -- commands/fight.lua's coop fight (main.lua's loop asks it on or off); its photo_sync, photo_freeze_max, photo_ghost
@@ -30,8 +32,8 @@
 -- coop-state.txt: names=0 keeps the names of our .pak mods from the friend); its shortcut_load commands/cut.lua's
 -- (coop shortcut load, a test tool with no menu row); its pvp_spike commands/fight.lua's (coop pvp, the PvP test, a
 -- test tool with no menu row; main.lua's reload ends it when off); its sbo_lobby session/sbo.lua's (the SBO lobby in
--- Xion, on by default, no menu row), which also reads sbo() here. The co-op menu (ui/menu.lua) changes the file, one
--- line at a time (D-UI4).
+-- Xion, on by default, no menu row), which also reads sbo() here; its bike and bike_key bike/ride.lua's and
+-- main.lua's (the bike). The co-op menu (ui/menu.lua) changes the file, one line at a time (D-UI4).
 local K=require('core.keybind')
 local SF=require('core.settings_file')
 local T=require('ui.text')
@@ -45,21 +47,30 @@ Link.DEFAULT=[[
 # one line at a time, and keeps the file as it was as coop-settings.old.txt. Delete this file to get the defaults back.
 # Keys: F1 to F12 except F10, optionally with Shift+, Ctrl+ or Alt+ in front (for example Shift+F7). menu_key opens
 # the co-op menu, whose first row hosts; host_key hosts at once, or none. follow_key travels to the host (follow_host
-# below), or none. race_key drops a checkpoint while you record a race track (coop race record).
+# below), or none. race_key drops a checkpoint while you record a race track (coop race record). bike_key gets EVE on
+# the bike or off it (bike below), or none.
 menu_key=F5
 host_key=none
 status_key=F6
 leave_key=F8
 follow_key=F7
 race_key=F9
+bike_key=F3
 # The keys you hold to drift in a Doro race: Unreal key names separated by spaces (at most 4), or none. Steering hard
 # at speed drifts too, with no key. The defaults are R2 on a pad (it still picks up items in reach, as outside a race)
 # and B on the keyboard, which Stellar Blade leaves free.
 drift_keys=Gamepad_RightTrigger B
-# Who can join a session you host: friends (your Steam friends can join from their friends list), code (anyone you
-# give your join code to; the co-op menu shows and copies it) or private (only the friends you invite). A player who
-# is not your Steam friend waits until you accept or deny them.
-who_can_join=friends
+# The bike: on or off, on by default. On, the mod keeps Stellar Blade's own bike loaded. bike_key, D-pad Right held 1 s
+# on a pad or the console command coop bike puts EVE on it or takes her off, on any save. Nothing of the ride is saved.
+# Off takes her off the bike and frees it.
+bike=on
+# Who can join a session you host: public (any player of your version, from Find a session), friends (your Steam
+# friends, from their friends list or the Friends tab of Find a session), invitation (the friends you invite or anyone
+# you give your join code to; the co-op menu shows and copies it) or closed (nobody; Private in the co-op menu). A
+# player who is not your Steam friend waits until you accept or deny them. friends_ask, with public or invitation: off
+# (your Steam friends join at once) or on (they wait for your answer too).
+who_can_join=public
+friends_ask=off
 # Co-op saves, the co-op copies of your saves (StellarBladeCoop00.sav to 04.sav): ask (a question on the title
 # screen), always (the copies at every title, no question) or off (no copies; the manual co-op slot that
 # StellarCoopSlot.txt names is then the only co-op save).
@@ -203,27 +214,53 @@ sbo_lobby=on
 -- The looks are comments only in the file above: an old file and a new one both follow the code's default here. A file
 -- written before shared_enemies and fight_chars existed lacks them: on and auto, as here; one written before the photo
 -- settings, or the menu's, lacks those: the defaults here. One written before menu_key: see parse_settings.
-local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',race_key='F9',
+local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',race_key='F9',bike_key='F3',bike='on',
     drift_keys='Gamepad_RightTrigger B',name_tag='on',
     send_rate='60',cloth='on',dyes='on',effects='on',shared_enemies='on',fight_chars='auto',guest_kills='at_once',
     enemy_hp_scale='1.35',enemy_balance_scale='1.15',kill_credit='together',same_place='on',aggro='game',
     same_spawns='on',enemy_extra='0',spawn_filter='on',bosses='on',boss_hp_scale='2.0',
     photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='on',photo_pause='full',ui_scale='100',
     ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
-    status_overlay='compact',who_can_join='friends',auto_coop_save='ask',shared_quests='on',quest_deny='',revive='on',
-    cutscene_wait='on',follow_host='ask',follow_key='F7',collide='on',mod_names='on',shortcut_load='on',
+    status_overlay='compact',who_can_join='public',friends_ask='off',auto_coop_save='ask',shared_quests='on',
+    quest_deny='',revive='on',cutscene_wait='on',follow_host='ask',follow_key='F7',collide='on',mod_names='on',shortcut_load='on',
     pvp_spike='on',sbo_lobby='on',shared_world='on',shared_story='on'}
 -- On or off.
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,spawn_filter=true,bosses=true,
     photo_ghost=true,photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
     card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true,mod_names=true,shortcut_load=true,
-    pvp_spike=true,sbo_lobby=true,shared_world=true,shared_story=true}
+    pvp_spike=true,sbo_lobby=true,shared_world=true,shared_story=true,friends_ask=true,bike=true}
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (partner/puppet.lua), each on or off.
-local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key'}
+local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key','bike_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
-    kill_credit={'together','fought'},who_can_join={'friends','code','private'},
+    kill_credit={'together','fought'},who_can_join={'public','friends','invitation','closed'},
     auto_coop_save={'ask','always','off'},aggro={'game','host'},photo_pause={'full','scenery'},
     follow_host={'ask','always','off'},status_overlay={'off','compact','detailed'}}
+-- The session list's rules word (the rules request, the sbo_rules lobby key the native part writes): a letter for each
+-- session rule on in the host's settings, in this order: e shared enemies, b shared bosses (with shared enemies only),
+-- w shared world, s shared story, q shared quests, r revive; then the boss HP scale in whole percent. ebwqr200: all
+-- of them on but the story, a boss's HP doubled. Any SBO client can write the key, so read_rules takes that shape only
+-- (each letter once at most, in that order, a scale of 100 to 400) and gives nil for anything else.
+local RULES={{'e','shared_enemies'},{'b','bosses'},{'w','shared_world'},{'s','shared_story'},{'q','shared_quests'},
+    {'r','revive'}}
+function Link.rules(s)
+    local word=''
+    for _,r in ipairs(RULES) do
+        if s[r[2]]==true and (r[1]~='b' or s.shared_enemies==true) then word=word..r[1] end
+    end
+    return word..math.floor((tonumber(s.boss_hp_scale) or 1)*100+0.5)
+end
+-- {shared_enemies=true, ... (the rules on), boss_hp_scale=2.0}, or nil.
+function Link.read_rules(word)
+    local letters,pct=tostring(word):match('^(%l*)(%d%d%d)$')
+    pct=tonumber(pct)
+    if not pct or pct<100 or pct>400 then return nil end
+    local rules,at={boss_hp_scale=pct/100},1
+    for _,r in ipairs(RULES) do
+        if letters:sub(at,at)==r[1] then rules[r[2]],at=true,at+1 end
+    end
+    if at<=#letters then return nil end
+    return rules
+end
 -- The mate= line's twelve numbers, in the native part's order (link/protocol.h's vital).
 local VITALS={'hp','max_hp','shield','max_shield','blocks','beta','max_beta','burst','max_burst','tachy','max_tachy',
     'life'}
@@ -261,6 +298,9 @@ local function setting(name,text)
     elseif CHOICES[name] then
         local list=CHOICES[name]
         text=text:lower()
+        -- who_can_join's words up to 0.11: code (the join code) and private (invited only), both invitation now. The
+        -- file keeps them as written.
+        if name=='who_can_join' and (text=='code' or text=='private') then return 'invitation' end
         for _,v in ipairs(list) do if text==v then return v end end
         return nil,'use '..table.concat(list,', ',1,#list-1)..' or '..list[#list]
     elseif name=='photo_freeze_max' then
@@ -432,13 +472,16 @@ function Link.parse_settings(text)
         end
     end
     -- A file from before race_key whose own keys hold F9: race_key has none there (coop race cp still drops a
-    -- checkpoint), so the rule below never puts back the keys the player chose.
-    if not named.race_key then
-        for _,name in ipairs(KEYS) do
-            if name~='race_key' and settings[name].name==settings.race_key.name then
-                notes[#notes+1]='settings: '..settings[name].name..' is '..name..': race_key has no key'
-                settings.race_key=setting('race_key','none')
-                break
+    -- checkpoint), so the rule below never puts back the keys the player chose. The same for bike_key and F3 (coop bike
+    -- still gets her on the bike).
+    for _,new in ipairs({'race_key','bike_key'}) do
+        if not named[new] then
+            for _,name in ipairs(KEYS) do
+                if name~=new and settings[name].name==settings[new].name then
+                    notes[#notes+1]='settings: '..settings[name].name..' is '..name..': '..new..' has no key'
+                    settings[new]=setting(new,'none')
+                    break
+                end
             end
         end
     end
@@ -473,14 +516,15 @@ Link.files={
     rename=os.rename,
 }
 -- A join code as typed (the code box, coop join <code>): either case, the dash or a space after the third character or
--- nothing there, spaces around. Returned as the native part takes it, 'XXX-XXXX' in capitals; nil for anything else.
--- Its letters and its check digit are the native part's to judge (link/protocol.h's code_lobby), which answers a wrong
--- one on screen.
+-- nothing there, spaces around. Returned as the native part takes it, 'XXX-XXXX' in capitals with I and L read as 1
+-- and O as 0 (link/protocol.h's code_lobby does the same), so the request line UE4SS.log keeps is masked
+-- (core/mask.lua knows only the code's own characters); nil for anything else. Its letters and its check digit are the
+-- native part's to judge (code_lobby), which answers a wrong one on screen.
 local ALNUM=('[0-9A-Za-z]'):rep(3)
 function Link.join_code(text)
     if type(text)~='string' or #text>32 then return nil end
     local a,b=text:match('^[ \t]*('..ALNUM..')[- ]?('..ALNUM..'[0-9A-Za-z])[ \t]*$')
-    return a and (a..'-'..b):upper() or nil
+    return a and ((a..'-'..b):upper():gsub('[IL]','1'):gsub('O','0')) or nil
 end
 function Link.new(folder,fs)
     fs=fs or Link.files
@@ -493,17 +537,20 @@ function Link.new(folder,fs)
     -- peer=,frozen=}; mate: her vitals; life: our life state and HP (life()); ping: the first peer's RTT in ms;
     -- loopback: coop loopback runs; rejoined: a rejoin got her lobby back and waits for the handshake (kept across
     -- changes() until she is linked or we are no longer a guest); saves: the co-op saves' state (saves()); paks: her
-    -- .pak mods against ours (paks()); mods: her mod containers against ours by name (mods()); cns: our CNS packs
-    -- (cns()); quests: the shared quests' line; noted: their notes listed; noted_shown: the last note number handed
-    -- out; sbo: the SBO lobby's line (sbo()).
+    -- .pak mods against ours (paks()); mods: her mod containers against ours by name (mods()); dlcs: her installed
+    -- DLCs against ours (dlcs()); cns: our CNS packs (cns()); quests: the shared quests' line; noted: their notes
+    -- listed; noted_shown: the last note number handed out; sbo: the SBO lobby's line (sbo()).
     local mode,friend,listed,dead,held,rejoin,shown,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil,nil
     local mate,life,ping,loopback,rejoined,saves,paks,mods,cns=nil,nil,nil,false,false,{},nil,nil,nil
+    local dlcs=nil
     local quests,noted,noted_shown,sbo,world,story=nil,nil,nil,nil,nil,nil
     local shared_version=0 -- The status's shared= line's version (shared_assets()); kept across changes().
     local camps_asked,camps_answer=nil,nil -- The follow's camps lines (camps()).
     local match,round=nil,nil -- The match line and our last round's line (match(), round()).
     local uidev,my_name,owner=nil,nil,nil -- uidev(), me(), owner(): SB's input device, our name, the lobby's owner.
     local room,hall=nil,nil -- room(), hall(): the match lobby's map and lobby pak version words.
+    -- list(): the session list's list= line and its session= rows; wait(): a joiner's wait= line.
+    local search,found,wait=nil,{},nil
     -- As of the last changes() too: lobby, the link line's; code, our join code while we host with one; refused, the
     -- players refused in this lobby; pending, the first joiner waiting for our answer ({id=, name=}); members, the
     -- lobby members' SteamIDs (peer lines); roster, the member lines (members()). strangers: each joiner seen waiting
@@ -671,9 +718,12 @@ function Link.new(folder,fs)
         remote={tonumber(generation),tonumber(count),source}
         mode,friend,listed,dead,held,rejoin,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil
         mate,life,ping,loopback,saves,paks,mods,cns=nil,nil,nil,engine:find(' loopback=')~=nil,{},nil,nil,nil
+        dlcs=nil
         quests,noted,sbo,world,story=nil,nil,nil,nil,nil
         camps_asked,camps_answer,match,round=nil,nil,nil,nil
         uidev,my_name,owner,room,hall=nil,nil,nil,nil,nil
+        local waited=wait~=nil
+        search,found,wait=nil,{},nil
         -- The engine off on another game build (check_build's reasons): a game update, said at the title
         -- (session/saves.lua).
         if engine:find(' reason=build stamp ',1,true) or engine:find(' reason=code bytes differ',1,true) then
@@ -687,6 +737,7 @@ function Link.new(folder,fs)
             if not seen[line] and not line:find('^peer=') and not line:find('^member=') and not line:find('^fight=')
                 and not line:find('^mate=')
                 and not line:find('^match=') -- Its countdown changes each second.
+                and not (waited and line:find('^wait=')) -- Likewise: the first of a wait only.
                 and not line:find('^life=')
                 and not line:find('^night=') -- nightop/run.lua logs each night line itself.
                 -- Their spawns= moves with every enemy; cut/enemy.lua logs what it reads for each.
@@ -721,6 +772,17 @@ function Link.new(folder,fs)
             if ours then code,refused=ours~='none' and ours or nil,tonumber(out) end
             local id,name=line:match('^pending=(%d+) (.*)$')
             if id and not pending then pending={id=id,name=name} end
+            local left,host_name=line:match('^wait=(%d+) (.*)$')
+            if left then wait={left=tonumber(left),host=host_name} end
+            local tab,listing,rows=line:match('^list=(%a+) (%a+) (%d+)$')
+            if tab then search={tab=tab,state=listing,rows=tonumber(rows)} end
+            local lobby_id,owner_id,players,ms,pal,zone,camp,rules,host=line:match(
+                '^session=(%d+) (%d+) (%d+/%d+) ([%d%-]+) ([01]) (%S+) (%S+) (%S+) (.*)$')
+            if lobby_id and search then -- Rows follow their list= line.
+                local function word(w) return w~='-' and w or nil end
+                found[#found+1]={lobby=lobby_id,owner=owner_id,players=players,ping=tonumber(ms),pal=pal=='1',
+                    zone=word(zone),camp=word(camp),rules=word(rules),name=host}
+            end
             id=line:match('^peer=(%d+) ')
             if id then members[#members+1]=id end
             local slot,on,gone,muted,rtt
@@ -770,6 +832,12 @@ function Link.new(folder,fs)
                 for name in list:gmatch('[^,]+') do names[#names+1]=name end
                 mods[kind]={n=tonumber(count),names=names}
             end
+            local differ,ours_d,hers_d=line:match('^dlcs=(%a+) (%d+) (%d+)$')
+            if differ=='same' or differ=='differ' then
+                dlcs={same=differ=='same',ours=tonumber(ours_d),hers=tonumber(hers_d),missing={},extra={}}
+            end
+            local side,dlc_name=line:match('^dlc_(%a+)=%d+ (.+)$')
+            if dlcs and (side=='missing' or side=='extra') then table.insert(dlcs[side],dlc_name) end
             local version_of=line:match('^shared=(%d+) %d+$')
             if version_of then shared_version=tonumber(version_of) end
             local packs,outfits=line:match('^cns=(%d+) (%d+)$')
@@ -832,6 +900,10 @@ function Link.new(folder,fs)
         for _,kind in ipairs({'missing','other','extra'}) do mods[kind]=mods[kind] or {n=0,names={}} end
         return mods
     end
+    -- Her installed DLCs against ours, once her game listed them (the dlcs= line and the dlc_ lines after it):
+    -- {same=, ours=, hers=, missing=, extra=}, the counts, then the names of hers we lack and of ours she lacks; nil
+    -- before her list.
+    function self.dlcs() return dlcs end
     -- Our CNS packs (the Custom Nanosuit System's .dekcns.json files under ~mods) in words, 'CNS detected (<n> packs,
     -- <m> outfits)', from the status's cns= line; nil without one.
     function self.cns() return cns end
@@ -971,6 +1043,36 @@ function Link.new(folder,fs)
     -- The first joiner who is not our Steam friend and waits for our answer, {id=her SteamID (digits), name=her Steam
     -- name as the native part cleaned it, maybe ''}; nil when none.
     function self.pending() return pending end
+    -- As a joiner the host has not let in yet: {left=the whole seconds left of the host's minute, host=the host's
+    -- Steam name as the native part cleaned it, maybe ''}; nil when we do not wait.
+    function self.wait() return wait end
+    -- The session list as of the last changes(): {tab='public'|'friends', state='searching'|'done'|'failed', rows=the
+    -- count the native part gave} and its rows in its order (best ping first once done), each {lobby=, owner=the
+    -- host's SteamID (digits), players='1/2', ping=ms or nil, pal=the host is our Steam friend, zone=, camp=, rules=
+    -- (words, or nil), name=the host's Steam name as the native part cleaned it, maybe ''}; nil and {} without a list.
+    function self.list() return search,found end
+    -- The rows' place and rules words for the native part (link/core.h writes them as lobby data while we host a
+    -- Public or Friends only online session; it keeps them for the next one): where <map segment> [<camp alias>] and
+    -- rules <word>, each asked only when it changed since the last one asked. A word is letters, digits and _, 32
+    -- bytes at most, a camp alias 24 (link/protocol.h's kMaxPlace, kMaxCamp and kMaxRules). nil when unchanged, else as
+    -- request(), or false and why for a word the native part would refuse.
+    local told={}
+    local function tell(kind,line,...)
+        for i=1,select('#',...) do
+            local w=select(i,...)
+            if not (w:match('^[%w_]+$') and #w<=32) then return false,kind..': not a word of 32 bytes at most: '..w end
+        end
+        if told[kind]==line then return nil end
+        local ok,why=self.request(line)
+        if ok then told[kind]=line end
+        return ok,why
+    end
+    function self.where(zone,camp)
+        if camp and #camp>24 then return false,'where: not a camp alias of 24 bytes at most: '..camp end
+        if camp then return tell('where','where '..zone..' '..camp,zone,camp) end
+        return tell('where','where '..zone,zone)
+    end
+    function self.rules(word) return tell('rules','rules '..word,word) end
     -- The first lobby member who waited for our answer in this lobby and no longer does (we let her in), {id=, name=};
     -- nil when none.
     function self.stranger()

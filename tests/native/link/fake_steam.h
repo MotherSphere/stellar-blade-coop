@@ -47,15 +47,23 @@ struct Filter {
 };
 using Filters = std::vector<Filter>;
 // One player's own Steam: who she is, what waits for her on each channel, her Steam friends, and her lobby search: the
-// filters added since her last RequestLobbyList (Steam clears them at each), then that search's filters (slots 0 and
-// distance -1 when not set) and the lobbies it found, in id order.
+// filters added since her last RequestLobbyList (Steam clears them at each), then that search's filters (slots 0,
+// distance -1 and result count 0 when not set) and the lobbies it found, in id order; the DLCs installed on her PC, by
+// app id; the lobbies whose data and owner she may read; her EFriendRelationship with a player, when not None (0) or
+// Friend (3); and her Steam name.
 struct Client {
   uint64_t id;
   Inbox inbox[3] = {}; // Channels 0, 1 and 2.
   std::set<uint64_t> friends = {};
   Filters filters = {}, searched = {};
-  int filter_slots = 0, filter_distance = -1, slots = 0, distance = -1;
+  int filter_slots = 0, filter_distance = -1, filter_count = 0, slots = 0, distance = -1, count = 0;
   std::vector<uint64_t> found = {};
+  std::set<uint32_t> installed = {};
+  // Steam's read rules (Steamworks): a lobby's data reads empty until she was in it, a search of hers returned it or
+  // Steam answered her RequestLobbyData; its owner reads 0 unless she is a member.
+  std::set<uint64_t> seen = {};
+  std::map<uint64_t, int> relation = {};
+  std::string persona = "Me";
 };
 
 // The fake Steam's whole state. Lobbies, calls and names are shared; each client (0 is us, 1 is Kaanta, 2 to 7 the
@@ -94,11 +102,26 @@ struct Fake {
   // (DoesntExist) whatever it says: Steam drops an empty lobby. One set not joinable gets 3 (NotAllowed), one at its
   // member limit 4 (Full).
   uint32_t join_response = 1;
+  // This client's Steam refuses ICE_Enable 0 (relay only): no write, the try is in ops as "config <id> 104 0 refused".
+  uint64_t refuse_ice = 0;
+  // The game's DLCs as GetDLCCount and BGetDLCDataByIndex list them, in that order: app id and name. Each client's
+  // installed says which are on her PC.
+  std::vector<std::pair<uint32_t, std::string>> dlcs;
+  // The lobbies whose RequestLobbyData Steam never answers. The ping location: its age as GetLocalPingLocation returns
+  // it (under 0: not known yet); client N's is the text "sbo<N>"; EstimatePingTimeFromLocalHost gives ping_ms's
+  // value for a text, -1 for any other.
+  std::set<uint64_t> mute_data;
+  float ping_age = 2.5f;
+  std::map<std::string, int> ping_ms;
 };
 inline Fake F;
 
 inline int dummy;
 inline void *iface() { return &dummy; }
+inline bool member_of(uint64_t lobby, uint64_t id) {
+  const auto &in = F.members[lobby];
+  return std::find(in.begin(), in.end(), id) != in.end();
+}
 
 inline void finish(uint64_t call) {
   Call &c = F.calls.at(call);
@@ -138,7 +161,7 @@ template <int N> Api make_api() {
   a.app_id = [](void *) { return 3489700u; };
   a.overlay = [](void *) { return true; };
   a.build_id = [](void *) { return F.build; };
-  a.persona = [](void *) -> const char * { return "Me"; };
+  a.persona = [](void *) -> const char * { return F.client[N].persona.c_str(); };
   a.friend_persona = [](void *, uint64_t id) -> const char * {
     auto it = F.names.find(id);
     return it == F.names.end() ? "" : it->second.c_str();
@@ -149,8 +172,11 @@ template <int N> Api make_api() {
     std::advance(it, i);
     return it->first;
   };
-  a.friend_game = [](void *, uint64_t id, FriendGame *g) {
-    *g = FriendGame{3489700, 0, 0, 0, F.friend_lobby.at(id)};
+  a.friend_game = [](void *, uint64_t id, FriendGame *g) { // false for a friend not in the game, as Steam answers.
+    const auto it = F.friend_lobby.find(id);
+    if (it == F.friend_lobby.end())
+      return false;
+    *g = FriendGame{3489700, 0, 0, 0, it->second};
     return true;
   };
   a.has_friend = [](void *, uint64_t id, int flags) {
@@ -170,7 +196,7 @@ template <int N> Api make_api() {
     return true;
   };
   a.create_lobby = [](void *, int type, int max) -> uint64_t {
-    assert(type >= kPrivate && type <= kInvisible && (max == 2 || max == 8));
+    assert(type >= 0 && type <= kInvisible && (max == 2 || max == 8));
     op("create " + std::to_string(F.client[N].id) + " " + std::to_string(type) + " " + std::to_string(max));
     F.lobby_type = type;
     if (F.refuse_create)
@@ -180,6 +206,7 @@ template <int N> Api make_api() {
     c.id = kCreatedId;
     store(c, LobbyCreated{kResultOk, lobby});
     c.on_done = [lobby, type, max] {
+      F.client[N].seen.insert(lobby);
       F.members[lobby] = {F.client[N].id};
       F.owner[lobby] = F.client[N].id;
       F.type[lobby] = type;
@@ -197,8 +224,10 @@ template <int N> Api make_api() {
     uint32_t response = in.empty() ? 2 : F.shut.count(lobby) ? 3 : full ? 4 : F.join_response;
     store(c, LobbyEnter{lobby, 0, false, response});
     c.on_done = [lobby, response] {
-      if (response == kEnterSuccess)
-        F.members[lobby].push_back(F.client[N].id);
+      if (response != kEnterSuccess)
+        return;
+      F.members[lobby].push_back(F.client[N].id);
+      F.client[N].seen.insert(lobby);
     };
     return call;
   };
@@ -216,9 +245,11 @@ template <int N> Api make_api() {
   };
   a.lobby_data = [](void *, uint64_t lobby, const char *k) -> const char * {
     auto &d = F.data[lobby];
-    return d.count(k) ? d[k].c_str() : "";
+    return d.count(k) && (F.client[N].seen.count(lobby) || member_of(lobby, F.client[N].id)) ? d[k].c_str() : "";
   };
-  a.lobby_owner = [](void *, uint64_t lobby) { return F.owner[lobby]; };
+  a.lobby_owner = [](void *, uint64_t lobby) -> uint64_t {
+    return member_of(lobby, F.client[N].id) ? F.owner[lobby] : 0;
+  };
   a.member_count = [](void *, uint64_t lobby) { return static_cast<int>(F.members[lobby].size()); };
   a.member = [](void *, uint64_t lobby, int i) { return F.members[lobby].at(static_cast<size_t>(i)); };
   a.send = [](void *, const Identity *who, const void *data, uint32_t size, int flags, int channel) {
@@ -296,14 +327,18 @@ template <int N> Api make_api() {
   };
   a.slots_filter = [](void *, int n) { F.client[N].filter_slots = n; };
   a.distance_filter = [](void *, int d) { F.client[N].filter_distance = d; };
-  // Lobbies of type Public or Invisible, joinable, under their limit with the slots asked free, and holding every
-  // filter's key with its value. An empty lobby stays listed: it stands for one gone between the search and the join.
+  a.result_count_filter = [](void *, int n) { F.client[N].filter_count = n; };
+  // Lobbies of type Public or Invisible (never FriendsOnly or Private), joinable, under their limit with the slots
+  // asked free, holding every filter's key with its value; the first ones by id, at most the result count asked
+  // (50, as Steamworks documents, when none was). An empty lobby stays listed: it stands for one gone between the
+  // search and the join. Each one found may be read.
   a.request_lobby_list = [](void *) -> uint64_t {
     Client &me = F.client[N];
     op("search " + std::to_string(me.id));
     me.searched = std::exchange(me.filters, {});
     me.slots = std::exchange(me.filter_slots, 0);
     me.distance = std::exchange(me.filter_distance, -1);
+    me.count = std::exchange(me.filter_count, 0);
     me.found.clear();
     for (auto &[lobby, type] : F.type) {
       const int free = F.limit[lobby] - static_cast<int>(F.members[lobby].size());
@@ -313,8 +348,10 @@ template <int N> Api make_api() {
         auto it = d.find(f.key);
         match = match && it != d.end() && it->second == f.value;
       }
-      if (match)
+      if (match && me.found.size() < static_cast<size_t>(me.count ? me.count : 50)) {
         me.found.push_back(lobby);
+        me.seen.insert(lobby);
+      }
     }
     uint64_t call = F.next_call++;
     Call &c = F.calls[call];
@@ -352,8 +389,48 @@ template <int N> Api make_api() {
     return true;
   };
   a.set_config_int = [](void *, int key, int32_t value) {
-    op("config " + std::to_string(F.client[N].id) + " " + std::to_string(key) + " " + std::to_string(value));
+    const bool refused = F.refuse_ice == F.client[N].id && key == kIceEnable && value == kIceDisable;
+    op("config " + std::to_string(F.client[N].id) + " " + std::to_string(key) + " " + std::to_string(value) +
+       (refused ? " refused" : ""));
+    return !refused;
+  };
+  a.dlc_count = [](void *) { return static_cast<int>(F.dlcs.size()); };
+  a.dlc_data = [](void *, int i, uint32_t *id, bool *available, char *name, int size) {
+    if (i < 0 || static_cast<size_t>(i) >= F.dlcs.size())
+      return false;
+    *id = F.dlcs[static_cast<size_t>(i)].first;
+    *available = true;
+    std::snprintf(name, static_cast<size_t>(size), "%s", F.dlcs[static_cast<size_t>(i)].second.c_str());
     return true;
+  };
+  a.dlc_installed = [](void *, uint32_t id) { return F.client[N].installed.count(id) > 0; };
+  // Steam answers a data request with callback 505, here at the next finish_all(); from then on the lobby may be read.
+  a.request_lobby_data = [](void *, uint64_t lobby) {
+    op("lobbydata " + std::to_string(F.client[N].id) + " " + std::to_string(lobby));
+    if (!F.mute_data.count(lobby))
+      F.calls[F.next_call++] = Call{false, kDataUpdateId, {}, [lobby] { F.client[N].seen.insert(lobby); }};
+    return true;
+  };
+  a.relationship = [](void *, uint64_t id) {
+    const Client &me = F.client[N];
+    return me.relation.count(id) ? me.relation.at(id) : me.friends.count(id) ? 3 : 0;
+  };
+  a.local_ping = [](void *, PingLocation *at) {
+    std::snprintf(reinterpret_cast<char *>(at->data), sizeof at->data, "sbo%d", N);
+    return F.ping_age;
+  };
+  a.ping_text = [](void *, const PingLocation *at, char *text, int size) {
+    std::snprintf(text, static_cast<size_t>(size), "%s", reinterpret_cast<const char *>(at->data));
+  };
+  a.parse_ping = [](void *, const char *text, PingLocation *at) {
+    if (std::strncmp(text, "sbo", 3) || std::strlen(text) >= sizeof at->data)
+      return false;
+    std::snprintf(reinterpret_cast<char *>(at->data), sizeof at->data, "%s", text);
+    return true;
+  };
+  a.estimate_ping = [](void *, const PingLocation *at) {
+    const auto it = F.ping_ms.find(reinterpret_cast<const char *>(at->data));
+    return it == F.ping_ms.end() ? -1 : it->second;
   };
   return a;
 }

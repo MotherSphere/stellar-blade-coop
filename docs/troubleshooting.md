@@ -14,7 +14,8 @@ Stellar Blade Online is an experimental beta, played in only a few sessions betw
 - `coop status` (console) or F6: the current state. See [usage.md](usage.md#status-lines).
 - `coop report` (console): writes `coop-report.txt` with versions, the save folder, where `xinput1_3.dll`,
   `dinput8.dll`, `dwmapi.dll` (UE4SS's loader) and `steam_api64.dll` were loaded from (other mods' DLLs can change
-  results), the status, a summary of save folder changes and the last 100 events.
+  results), the status, a summary of save folder changes and the last 100 events, with SteamIDs and join codes masked
+  (see [Which logs to send](#which-logs-to-send)).
 
 ## Install and the Steam link
 
@@ -47,18 +48,65 @@ Stellar Blade Online is an experimental beta, played in only a few sessions betw
 - `Version mismatch: ...`: you run different Stellar Blade Online protocols or game builds. Both players update
   together: see [INSTALL.md: Update](../INSTALL.md#update).
 - `Invite held: joining once your save has loaded.`: they join once their save has loaded. This is normal.
-- `Could not join: that game is full.`: a co-op session holds 2 players, and a match lobby of the
-  [SBO lobby](sbo-lobby.md) 8. `Left: the lobby has more than 2 players.` means the co-op lobby was not made by
+- `Could not join: that game is full.`: an online session holds 2 players; a match lobby of the
+  [SBO lobby](sbo-lobby.md) holds 8. `Left: the lobby has more than 2 players.` means the co-op lobby was not made by
   Stellar Blade Online (it holds more players than a Stellar Blade Online co-op lobby can), so the mod left it.
+- `Could not join: that game is closed (a private session, or a match that started).`: the host's online session is
+  Private (`who_can_join=closed`), which nobody can join, or the match lobby of the [SBO lobby](sbo-lobby.md) shut when
+  its round started. A match lobby opens again when the round ends. A Private session stays shut: the host has to host
+  again with another Who can join value.
+- `Could not join: Steam had an unexpected error. Try again.`: Steam failed the join on its side.
+- `Could not join: too many tries in a short time. Wait a moment and try again.`: Steam limits how often an account
+  can try to join.
+- `Could not join: a player in that game has blocked you on Steam.` or `... you have blocked a player in that game on
+  Steam.`: Steam does not let two players into one lobby when one has blocked the other. Removing the block in Steam
+  lets the join through.
+- `Could not join: your Steam account is limited. Spending 5 USD on Steam lifts the limit.`: Steam does not let a
+  limited account join this lobby.
+- `Could not join: Steam has banned you from that game's lobby.`, `... your Steam account has a community ban.` or
+  `... that Steam group is locked or disabled.`: Steam refused the account. Stellar Blade Online cannot change that.
+- `Could not join: Steam response <n>.`: Steam gave an answer its documentation does not list. `coop-link.log` has the
+  same number in `joining lobby ... failed (response <n>)`. Send `coop-report.txt` (`coop report`) with a bug report.
 - `coop join` without an id logs `no friend is in a Stellar Blade lobby`: ask your friend to host, then accept their
   invite, or use `coop join <lobby id>`.
 - `You are in <host>'s game: leave it first.`: a guest cannot host. Press F8 first.
-- The host set Options > Session > Who can join to Invited only (`who_can_join=private`): `coop join` and the Steam
-  friends list do not find that session. The host invites the friend with the menu's Invite a friend row instead.
-- The host set Who can join to With a code (`who_can_join=code`): that session does not show in the friends list
-  either. Join with the host's code, or the host invites you. See "Join codes and the host's question" below.
+- The host set Who can join to Invitation (`who_can_join=invitation`): that session shows neither in the Steam
+  friends list nor in Find a session. Join with the host's code, or the host invites you with the menu's Invite a
+  friend row. See "Join codes and asking to join" below.
 
-### Join codes and the host's question
+### Find a session lists nothing
+
+- `No open session.`: the search found no session to show. The Public tab lists Public sessions only. A session
+  hosted with Friends only shows on the Friends tab of the host's Steam friends. Invitation and Private sessions
+  never show. Ask the host which Who can join value they used.
+- A session of another protocol or game build is never listed. The bottom left of the Sessions screen names yours
+  (`Your version: protocol <n>, game build <n>.`). The host's `coop status` names theirs on its first line (`proto=`
+  and `build=`). Both players update together: see [INSTALL.md: Update](../INSTALL.md#update). A host on a build of
+  the mod from before the session list writes no rows, so it is not listed either: join it with an invite or a code.
+- A full session is not listed. An online session holds 2 players. A player who waits for the host's answer takes
+  the second place, so the session leaves the list until the host answers.
+- A host you blocked on Steam or with `coop block` is not listed, nor is your own session.
+- The Friends tab asks Steam for each friend's lobby and waits 5 s at most. A lobby Steam sent nothing for is left
+  out (`coop-link.log`: `lobby <id> sent no data within 5 s`). Refresh to ask again.
+- `The search failed. Refresh to try again.`: Steam refused or failed the search (`coop-link.log`: `Steam refused the
+  lobby search` or `lobby search failed`).
+- `You can search again in <n> s.`: one search every 5 s at most. Refresh once the count ends. While a match search of
+  the [SBO lobby](sbo-lobby.md) runs, the status line shows the search and Refresh does nothing: Steam runs one lobby
+  search at a time.
+- From the console, `coop list public` or `coop list friends` gets `Leave this game first.` in a lobby,
+  `A search is already running.` while a search runs and `Wait 5 s between two searches.` under 5 s after the last
+  one.
+
+For the host whose session does not show:
+
+- Only Who can join set to Public puts it on the Public tab. Public and Friends only put it on the Friends tab of your
+  Steam friends. The notice `Hosting a public session: other players can find it in Find a session.` says it is
+  listed.
+- The other player needs your protocol and game build and a free place in your session. They do not see it when
+  you are on their block list or they blocked you on Steam. A player on your block list still sees it: your game
+  refuses them when they join.
+
+### Join codes and asking to join
 
 For the player who types the code:
 
@@ -71,24 +119,43 @@ For the player who types the code:
 - `Could not join: that game no longer exists.`: the host left, or hosted again, and each session has its own code.
   Ask for the new code.
 - `Could not join: that is not a StellarCoop game.`: the code leads to another game's lobby. Check the code.
-- `Joined <host>'s game. Waiting to be let in.`: you are not on the host's Steam friends list, so the host has to
-  accept you. Your partner's ghost and card do not show until then. The host has 60 s to answer.
+- `Joined <host>'s game. Waiting to be let in.`: you are not on the host's Steam friends list, or the host set Friends
+  join without asking to Off, so the host has to accept you. Your partner's ghost and card do not show until then. The
+  host has 60 s to answer. The game's popup `Waiting for <host>'s answer` counts them down; Close in it cancels your
+  request and leaves the host's lobby.
 - `<host> refused the link: <reason>`, with `you were not let in`, `no answer within 60 s`, `you were removed from
   this session` or `you cannot join this session again`: the host refused or removed you, and your game left. That
-  session stays closed to you. A new session the host starts has a new code, and the host is asked again.
+  session stays closed to you. A new session the host starts has a new code and the host is asked again. A removed
+  player stays on the host's [block list](playing-with-a-friend.md#block-list), so every later game of that host
+  refuses them too until the host types `coop unblock`. After a game restart the host needs your full SteamID for
+  that: send the number after `steamid=` in your `coop-status.txt`.
+- `Left <host>'s game: Steam would not set relay only.` or, in a match, `Left the match: Steam would not set relay
+  only.`: every match goes through Steam's relays only, as does a session with a player who is not your Steam friend.
+  Steam refused that setting 3 times, 1 s apart, so your game sent nothing and left. `coop-link.log` has each try
+  (`Steam refused relay only, try <n>/3`). Restart the game and try again. If it happens again, send the logs (see
+  [Which logs to send](#which-logs-to-send)).
 
 For the host:
 
 - The question does not show: it opens in a world only, while the game is not paused and shows no menu or mouse
   cursor, and while the chat box is closed. After `coop ui off` it never shows. From the console, `coop status` gives
-  the waiting player on its `pending=<SteamID> <name>` line; then type `coop allow <SteamID>` or
-  `coop deny <SteamID>`. With no answer, the player is refused after 60 s.
+  the waiting player on its `pending=***<4 digits> <name>` line, the SteamID masked as in every log (see
+  [Which logs to send](#which-logs-to-send)). Type `coop allow <4 digits>` or `coop deny <4 digits>`, or the full
+  SteamID from the `pending=` line of `coop-status.txt` in the mod folder. With no answer, the player is refused
+  after 60 s.
 - A refused player is still in the lobby. Steam cannot take a player out of a lobby: a Stellar Blade Online game leaves
   when it is refused, but a game that does not keeps the lobby's second place. It gets the refusal again every 10 s and
   never links. Host again: the new session has a new code.
-- Players you do not know keep asking: host again for a new code, and give it only to the player you expect.
-- `No join code to copy.`: you do not host, or you host with Friends or Invited only. Set Who can join to With a code,
-  then host again.
+- Players you do not know keep asking: a Public session is listed for every player of your version. Leave, then host
+  again with Friends only, or with Invitation and give the new code only to the player you expect. While you host, a
+  session keeps the Who can join it was hosted with.
+- `A player tried to join your private session and was refused.`: a player got into the lobby of your Private session
+  although Steam shuts it to joins. Your game refused them before any handshake. They cannot come back to it.
+- `<name> was refused: Steam would not set relay only.`: a session with a player who is not your Steam friend goes
+  through Steam's relays only. Steam refused that setting 3 times, 1 s apart. Nothing went to that player. Restart
+  the game and host again.
+- `No join code to copy.`: you do not host, or you host with Who can join set to Public, Friends only or Private.
+  Leave, set it to Invitation, then host again.
 - `Could not copy the join code <code>.`: the Windows clipboard was busy. Select Copy my code again, or read the code
   from that row. On Linux, if the code does not paste outside the game, read it from the row too: no test has yet
   checked that Proton passes it on to the desktop's clipboard.
@@ -185,8 +252,8 @@ off; notices then show on the line above EVE. `coop ui off` turns the UI off the
   `booths: scan failed on <map>: <why> (<ms> ms)` means that the scan hit an error; the next one runs 30 s later.
 - Press the menu key at the booth. `line: booth <name> (<class>) at <d> m` after `key F5: menu` means that the line
   opened. If the main page opens with no `line:` line, no booth was within 3 m of EVE: stand closer to the booth.
-- The hint stays hidden while the chat box, the code box, the host's question or the co-op saves' question is open.
-  `coop ui reset` in the console (F10 or `~`) closes them all.
+- The hint stays hidden while the chat box, the code box, a join popup, the co-op saves' question, the Sessions screen
+  or the Create a session screen is open. `coop ui reset` in the console (F10 or `~`) closes them all.
 - `booths: slow scan <ms> ms (<n> found, <route>, <lookup>)`: one scan took 5 ms or more on that PC. The scan runs on
   the game thread, so that frame took as much longer. `<route>` is how the scan listed the booths: `class hash` is the
   fast route, and `walk` means this UE4SS could not use it, so each scan walks every object. `<lookup>` is how it found
@@ -226,8 +293,8 @@ Look at the `pad:` lines in `coop-link.log`:
   scripts. Install the whole folder of one version again.
 - `pad: XInput pads connected: ...` and still nothing: hold View for a full second, in a world with the game's HUD
   shown. The mod reads the controller only while the game's window is in front. If the menu cannot open, the same
-  `STOP:` line as for F5 shows. The host's question takes no controller input, and in the chat box and the code box
-  only B acts (it closes them).
+  `STOP:` line as for F5 shows. A join popup ignores every button for 1 s after it shows. In the chat box and the
+  code box only B acts (it closes them).
 
 ### Screen notices stopped
 
@@ -364,6 +431,9 @@ co-op menu. The `fight=` line of `coop status` says what is missing (see
 - `paks=differ` in `coop status`: the two games load different `.pak` mods. Each `coop-link.log` names its own in the
   `paks` line at the top; compare the two lists. When both players have `mod_names=on`, the `mods_missing=`,
   `mods_other=` and `mods_extra=` lines in `coop status` name the differences already.
+- `dlcs=differ` in `coop status`: the two PCs have different DLCs of the game installed. Each `dlc_missing=` line names
+  one your friend has and you lack, each `dlc_extra=` line one you have and they lack. Each `coop-link.log` lists its
+  own after `Steam ready` (`DLCs installed:`).
 - `fight kill held` in `coop-link.log`: a kill from the other game waits while this game's copy is in a grab or another
   state that takes no damage, or, on the host with same place, while the guest's takedown of that enemy runs (`her
   takedown`). It goes when the state or the takedown ends, or after 6 s (`fight held-expired`).
@@ -705,8 +775,12 @@ that do.
 - `Mods/StellarCoop/nightop-probe.txt`, only if you ran the Night Operation probe (`coop no`)
 - `Mods/StellarCoop/coop-quests.log`, only if shared quests were on
 
-They contain your Steam ID and Steam name, the other player's Steam ID and Steam name, lobby IDs and folder paths,
-which may include your Windows user name. They contain no passwords. You can read them before you send them.
+The mod masks SteamIDs and join codes in what it writes to these files. A SteamID shows as `***` and its last 4 digits
+(`***5678`), which still tell the players in one report apart. A join code shows its first 3 characters (`ABC-****`),
+as does a lobby ID, whose digits would give its code away. The files still contain your Steam name, the other players'
+Steam names and folder paths, which may include your Windows user name. They contain no passwords. Logs from an older
+version of the mod keep the full IDs, as does the `coop-link.old.log` of the first run after an update. You can read
+the files before you send them.
 
 When you test with a friend, the player who leads the test types `coop mark <step>` in the console before each step,
 for example `coop mark 3 lift`. Each mark puts a numbered line with that text in both players' `coop-link.log` and

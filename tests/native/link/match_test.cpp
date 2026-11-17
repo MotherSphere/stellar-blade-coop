@@ -187,9 +187,10 @@ int main() {
     assert(saw("P1: lobby update: P2 disconnected") && !saw("P1: lobby update: P2 left"));
     // Our name on its own line after the first; a co-op lobby's link= line names no owner.
     assert(m[0].status(Counters{1, 2, 3, 4})
-               .find(" cb333=1 cb505=2 cb506=3 cb1251=4\nme=Me\nlink=host lobby=" + std::to_string(m[0].lobby()) +
-                     "\n") != std::string::npos);
-    assert(m.status(1).find("\nme=Me\nlink=guest lobby=" + std::to_string(m[0].lobby()) + "\n") != std::string::npos);
+               .find(" cb333=1 cb505=2 cb506=3 cb1251=4\nme=Me\nblocked=0\nlink=host lobby=" +
+                     std::to_string(m[0].lobby()) + "\n") != std::string::npos);
+    assert(m.status(1).find("\nme=Me\nblocked=0\nlink=guest lobby=" + std::to_string(m[0].lobby()) + "\n") !=
+           std::string::npos);
     // The mute works in a co-op lobby too.
     m.tick(0, "mute 2002");
     m[1].say("hi");
@@ -213,8 +214,8 @@ int main() {
     assert(s.find("\npending=") == std::string::npos && s.find("\nmate=") == std::string::npos);
     // The owner's SteamID after the lobby id, for the owner and for a guest; our name after the first line.
     const std::string owned = " lobby=" + std::to_string(L) + " owner=" + std::to_string(kMe) + "\n";
-    assert(s.find(" cb1251=0\nme=Me\nlink=host" + owned) != std::string::npos);
-    assert(m.status(5).find("\nme=Me\nlink=guest" + owned) != std::string::npos);
+    assert(s.find(" cb1251=0\nme=Me\nblocked=0\nlink=host" + owned) != std::string::npos);
+    assert(m.status(5).find("\nme=Me\nblocked=0\nlink=guest" + owned) != std::string::npos);
     std::set<std::string> slots; // The second field of each member= line.
     for (size_t at = 0; (at = s.find("\nmember=", at)) != std::string::npos; ++at)
       slots.insert(s.substr(s.find(' ', at) + 1, 1));
@@ -438,6 +439,44 @@ int main() {
     advance(m, 5500);
     assert(ops_with("search 1001") + ops_with("search 2002") == searches);
   }
+  // Quick match and the block list: two searchers each host a lobby of one, then one blocks the other. Whoever hosts
+  // the lower id, the regroup never leaves them in one lobby nor either of them out of matchmaking. The lower lobby's
+  // host refuses the blocked player, or the blocker finds a blocked player in the lower lobby. Either one then skips
+  // that lobby from then on and hosts again.
+  for (const bool blocker_low : {true, false}) {
+    reset();
+    Mesh m(2);
+    m.tick(0, "match search ffa xion xion");
+    m.tick(1, "match search ffa xion xion");
+    m.round();
+    m.round();
+    m.round();
+    const uint64_t lo = std::min(m[0].lobby(), m[1].lobby());
+    const int low = m[0].lobby() == lo ? 0 : 1, blocker = blocker_low ? low : 1 - low, blocked = 1 - blocker;
+    const int mover = 1 - low; // The host of the higher id, whose regroup joins the lower lobby.
+    const std::string B = "P" + std::to_string(blocker + 1), M = "P" + std::to_string(mover + 1);
+    m.tick(blocker, "block " + std::to_string(kPlayer[blocked]));
+    const auto run = [&m](uint64_t ms) { // Steam deletes a lobby once its last member leaves; the fake lists it on.
+      for (uint64_t t = 0; t < ms; t += 50) {
+        m.round();
+        for (auto &[id, in] : F.members)
+          if (in.empty())
+            F.shut.insert(id);
+      }
+    };
+    run(8000);
+    assert(m[low].lobby() == lo && m[mover].lobby() > lo && m[0].host() && m[1].host());
+    assert(m[0].peers().empty() && m[1].peers().empty() && ops_with("create ") == 3);
+    if (blocker_low)
+      assert(noticed(m.status(blocked), B + " refused the link: you cannot join this session again"));
+    else
+      assert(noticed(m.status(blocker), "Left the match: a player on your block list is in it. Searching again."));
+    const std::string moved = M + ": joining lobby " + std::to_string(lo) + " (a lower ffa lobby)";
+    assert(count(moved) == 1 && saw(M + ": searching for an open ffa match lobby"));
+    const int creates = ops_with("create ");
+    run(11000); // Her regroup skips the lobby she left.
+    assert(ops_with("create ") == creates && m[low].lobby() == lo && m[mover].lobby() > lo && count(moved) == 1);
+  }
   // In a lobby: a co-op guest's match search is refused...
   reset();
   {
@@ -498,6 +537,32 @@ int main() {
     m.tick(0, "host");
     m.round();
     assert(ops_with("config 1001 104 -1") == 1 && ops_with("config 1001 ") == 2);
+  }
+  // Relay only refused in a match, friends or not (fail closed): the joiner answers nothing. After 3 tries 1 s apart
+  // she leaves with a notice; the host stays. A search Steam refused relay only for goes on, with no try counted: no
+  // lobby holds a player to count it for.
+  reset();
+  {
+    Mesh m(2);
+    F.next_lobby = kCodeLobby;
+    F.refuse_ice = kFriend;
+    m.tick(0, "match create ffa xion xion");
+    m.round();
+    m.round();
+    m.tick(1, "join ccs cbmh");
+    m.round();
+    assert(has_op("config 2002 104 0 refused") && saw("P2: Steam refused relay only, try 1/3: match session"));
+    m.round(1000);
+    assert(m[1].lobby() == kCodeLobby && ops_with("config 2002 104 0 refused") == 2);
+    m.round(1000);
+    assert(ops_with("config 2002 104 0 refused") == 3 && m[1].lobby() == 0 && m[0].lobby() == kCodeLobby);
+    assert(saw("P2: no link with P1: Steam refused relay only 3 times") &&
+           noticed(m.status(1), "Left the match: Steam would not set relay only."));
+    for (auto &sent : F.sent)
+      assert(sent.from != kFriend);
+    m.tick(1, "match search ffa xion xion");
+    assert(ops_with("config 2002 104 0 refused") == 4 && ops_with("search 2002") == 1);
+    assert(saw("P2: Steam refused relay only: match session"));
   }
   // create_sets_room_and_hall: a match lobby carries its creator's room (the lobby map) and hall (the lobby pak's
   // version), and the link= line names both after owner=.
@@ -689,7 +754,7 @@ int main() {
     m.round();
     m.round();
     assert(m[2].lobby() == 0 &&
-           noticed(m.status(2), "Could not join: that game is closed (its match may have started)."));
+           noticed(m.status(2), "Could not join: that game is closed (a private session, or a match that started)."));
   }
   // Ruling R1's gate: a host left alone in a round in play keeps its lobby and does not search again.
   reset();
@@ -724,6 +789,30 @@ int main() {
     assert(m[1].host() && !m[2].host() && has_op("joinable " + L + " 1") && F.data[m[1].lobby()][kStateKey] == "open");
     m.round();
     assert(m.status(2).find("\nmatch=countdown ffa 2 8 10\n") != std::string::npos); // P2 hosts the next countdown.
+  }
+  // A guest's block list does not apply in a private match: P2 blocks P3 and both stay linked. Once P1 leaves and the
+  // lobby is P2's, P2 refuses P3 like any blocked member. P3's game leaves.
+  reset();
+  {
+    Mesh m(3);
+    F.next_lobby = kCodeLobby;
+    m.tick(0, "match create ffa xion xion");
+    m.round();
+    m.round();
+    m.tick(1, "join ccs cbmh");
+    m.tick(2, "join ccs cbmh");
+    assert(m.settle(3));
+    const uint64_t id = kCodeLobby;
+    m.tick(1, "block " + std::to_string(kPlayer[2]));
+    m.round();
+    assert(noticed(m.status(1), "Player blocked.") && m[2].lobby() == id && m[1].peers().size() == 2);
+    m.tick(0, "leave");
+    m.round();
+    m.round();
+    assert(m[1].host() && m[1].peers().empty() && m[2].lobby() != id);
+    assert(saw("P2: refused P3 (4003): you cannot join this session again") &&
+           noticed(m.status(1), "P3 is on your block list and was removed."));
+    assert(noticed(m.status(2), "P2 refused the link: you cannot join this session again"));
   }
   // A crash: P1's game stops, Steam drops it from the members and names P2 owner, with no SetLobbyOwner: the same.
   reset();

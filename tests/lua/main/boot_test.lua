@@ -66,16 +66,16 @@ assert(capture_look==look,'The capture holds the same table: dyes and effects of
 assert(logged('keys: F6 is also bound by a mod loaded earlier; both run') and not logged('keys: F5 is also bound')
     and not logged('keys: F8 is also bound'),'Checked before our own bind')
 -- Every F-key but F10 bound once, with Shift, Ctrl, Alt, then alone (a modified press first); then Alt+Enter, Enter
--- and the thirteen navigation keys (E for the lobby's settings tabs), then the left mouse button (the co-op menu, the
--- co-op saves' question) and the right one (the co-op menu).
-assert(#binds==44+2+13+2,#binds)
+-- and the fourteen navigation keys (E for the tabs of the lobby's settings and of the Sessions screen, F for its
+-- Refresh), then the left mouse button (the co-op menu, the co-op saves' question) and the right one (the co-op menu).
+assert(#binds==44+2+14+2,#binds)
 assert(binds[1].key=='Key.F1' and binds[1].modifiers[1]==0x10 and binds[2].modifiers[1]==0x11
     and binds[3].modifiers[1]==0x12 and binds[4].key=='Key.F1' and not binds[4].modifiers and binds[44].key=='Key.F12')
 for _,b in ipairs(binds) do assert(b.key~='Key.F10','F10 opens the console') end
 assert(binds[45].key=='Key.RETURN' and binds[45].modifiers[1]==0x12 and binds[46].key=='Key.RETURN'
-    and not binds[46].modifiers and binds[58].key=='Key.E' and binds[59].key=='Key.ESCAPE'
-    and binds[60].key=='Key.LEFT_MOUSE_BUTTON' and binds[61].key=='Key.RIGHT_MOUSE_BUTTON' and not binds[60].modifiers
-    and not binds[61].modifiers)
+    and not binds[46].modifiers and binds[58].key=='Key.E' and binds[59].key=='Key.F' and binds[60].key=='Key.ESCAPE'
+    and binds[61].key=='Key.LEFT_MOUSE_BUTTON' and binds[62].key=='Key.RIGHT_MOUSE_BUTTON' and not binds[61].modifiers
+    and not binds[62].modifiers)
 local executed=executes
 press('F8'); assert(executes==executed+1 and #queued==1 and #asked==0,'Nothing runs before the flush')
 flush(); assert(executes==executed+1 and asked[1]=='leave' and printed[#printed-1]=='[StellarCoop] key F8: leave\n')
@@ -108,7 +108,7 @@ coop('mark'); assert(asked[#asked]=='mark' and last()=='[StellarCoop] OK: asked 
 coop('mark','\1'); assert(asked[#asked]=='mark' and asked[#asked-1]=='mark','Nothing left of the text: no text')
 kit_language=nil
 asked={}
-coop('host'); assert(asked[1]=='host' and last():find('OK: asked the native part: host',1,true),last())
+coop('host'); assert(asked[1]=='host public' and last():find('OK: asked the native part: host public',1,true),last())
 coop('invite'); coop('leave'); coop('report')
 assert(asked[2]=='invite' and asked[3]=='leave' and asked[4]=='report')
 coop('join'); assert(asked[5]=='join')
@@ -172,7 +172,7 @@ for _,bad in ipairs({{'allow'},{'deny','12x'},{'remove',('9'):rep(21)},{'allow',
     coop(table.unpack(bad))
     assert(#asked==6 and last()=='[StellarCoop] STOP: Use: coop '..bad[1]..' <SteamID>\n',last())
 end
-asked={'host','invite','leave','report','join','join 109775241234567890'}
+asked={'host public','invite','leave','report','join','join 109775241234567890'}
 coop('status'); assert(last():find('OK: mod=v proto=3 steam=ready | link=none lobby=0 | last=#1 ready | ghost=off',1,true),last())
 assert(#sessions==1 and sessions[1]:find('^%d+%-%d+$'),'A session token per load')
 loops[1].f(); loops[1].f()
@@ -450,6 +450,14 @@ kit_language=nil
 chatting=false
 assert(table.concat(printed,'|'):find('[StellarCoop] link: link=host lobby=7\n',1,true),'Status lines go to the log')
 assert(said[#said-1]=='Kaanta joined.' and said[#said]=='Kaanta: connection lost.','Notices go to the screen')
+-- A join Steam refused goes in the menu's words, with its English for the line above EVE; any other notice as it came.
+local full,other='Could not join: that game is full.','Could not join: Steam response 16.'
+link_notices,kit_language={full,other,'Kaanta joined.'},'fr-FR'
+loops[2].f()
+link_notices,kit_language=nil,nil
+assert(table.concat(said,'|',#said-2)=='Impossible de rejoindre : cette partie est complète.|Impossible de rejoindre : '
+    ..'réponse Steam 16.|Kaanta joined.',table.concat(said,'|',#said-2))
+assert(said_en[#said-2]==full and said_en[#said-1]==other)
 assert(captured[#captured]==true and last():find('OK: Capture 7',1,true),'The capture runs while the ghost is on')
 assert(remoted[1]==3 and remoted[2]==1 and remoted[3]=='loopback','The ghost learns the remote table every 250 ms')
 -- The world state every 250 ms, across a title round trip (a save loaded, the title, another save): never a request.
@@ -1184,7 +1192,7 @@ assert(nr.o and nr.o.records==nil,'No mod folder: no records')
 status_text=with_slot('slot=main index=0 marker=4\n')
 load_main(true)
 toggles=0
-coop('host'); assert(asked[#asked]=='host' and last():find('OK: asked the native part: host',1,true),last())
+coop('host'); assert(asked[#asked]=='host public' and last():find('OK: asked the native part: host public',1,true),last())
 coop('puppet'); assert(toggles==1 and active and last()=='[StellarCoop] OK: ghost\n',last())
 coop('puppet'); assert(toggles==2 and not active)
 coop('no'); assert(#probe_runs==0 and last()==STOP..'slot=main index=0 marker=4\n',last())

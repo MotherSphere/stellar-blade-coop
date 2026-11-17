@@ -117,6 +117,7 @@ ping_ms,write_refusal=nil,nil -- link.ping(); why link.write_settings fails (nil
 mate_v=nil -- link.mate(): her vitals.
 paks_v=nil -- link.paks(): her .pak mods against ours.
 mods_v,cns_v=nil,nil -- link.mods(): her mod containers against ours by name; link.cns(): our CNS packs in words.
+dlcs_v=nil -- link.dlcs(): her installed DLCs against ours.
 friend_name,friend_linked='Kaanta',true -- link.friend()'s name and linked (fake_link.lost: lost, below).
 fight_text,fight_reads=nil,0 -- What link.fight() says (the fight= line), and how often it was asked.
 pilot_text,pilot_reads=nil,0 -- What link.pilot() says (the pilot= line), and how often it was asked.
@@ -127,7 +128,8 @@ saves_info={} -- link.saves(): the slot line's verdict and saves=, the convert= 
 -- it, so the guide does not open by itself at the title.
 link_files={['coop-guide.txt']='The co-op guide opens by itself on the title screen while this file is missing.\n'}
 -- link.code() (our join code, the players refused), link.pending(), link.stranger(), link.lobby().
-link_code,link_refused,link_pending,link_stranger,link_lobby=nil,nil,nil,nil,'0'
+link_code,link_refused,link_pending,link_stranger,link_lobby,link_wait=nil,nil,nil,nil,'0',nil
+link_notices=nil -- link.notices() when set; nil: a friend's join and lost connection every pass.
 fake_link={
     session=function(token) sessions[#sessions+1]=token; return true end,
     components=function(text) if text==nil then withdrawn[#withdrawn+1]='components' end; return true end,
@@ -160,19 +162,21 @@ fake_link={
         said_lines[#said_lines+1]=text
         return true
     end,
-    notices=function() return {'Kaanta joined.','Kaanta: connection lost.'} end,
+    notices=function() return link_notices or {'Kaanta joined.','Kaanta: connection lost.'} end,
     summary=function(words) return words and words.summary.none or 'Co-op: not in a session.' end,
     paused=function() return false end,
     valid_lobby=function(text) return text:match('^%d+$')~=nil end,
     join_code=Link.join_code,
     code=function() return link_code,link_refused end,
     pending=function() return link_pending end,
+    wait=function() return link_wait end,
     stranger=function() return link_stranger end,
     lobby=function() return link_lobby end,
     ping=function() return ping_ms end,
     mate=function() return mate_v end,
     paks=function() return paks_v end,
     mods=function() return mods_v end,
+    dlcs=function() return dlcs_v end,
     cns=function() return cns_v end,
     shared_version=function() return shared_v or 0 end,
     -- coop-settings.txt for the menu: the same text the settings were read from at load, as written (so the menu
@@ -206,6 +210,9 @@ fake_link.life=function() return fake_link.Q.life end -- link.life(): our life s
 fake_link.friend=function() return friend_name,friend_linked,fake_link.lost==true end
 fake_link.member=function(id) return nil end -- link.member(id): no member line in these tests.
 fake_link.members=function() return {} end
+-- link.list(): the session list's search line and rows (list_search, list_rows).
+list_search,list_rows=nil,{}
+fake_link.list=function() return list_search,list_rows end
 -- link.match(), link.round(), link.me(), link.owner() and link.uidev() (SB's input device: 1 QWERTY, 2 AZERTY).
 link_match,link_round,link_me,link_owner,link_uidev=nil,nil,nil,nil,nil
 fake_link.match=function() return link_match end
@@ -215,7 +222,9 @@ fake_link.owner=function() return link_owner end
 fake_link.uidev=function() return link_uidev end
 native_ok=nil
 captured,remoted={},nil
-fake_capture={tick=function(on) captured[#captured+1]=on; return true,'Capture 7: 3 parts' end,yaw_delta=function() return 0 end}
+-- capture_leave_out: what main.lua gave the capture's leave_out (the bike's parked).
+fake_capture={tick=function(on) captured[#captured+1]=on; return true,'Capture 7: 3 parts' end,
+    yaw_delta=function() return 0 end,leave_out=function(f) capture_leave_out=f end}
 capture_look=nil
 package.loaded['partner.capture']={new=function(publish,looks)
     assert(publish==(native_ok and fake_link.components or nil),'The capture publishes through the link, if any')
@@ -357,7 +366,8 @@ package.loaded['race.doro']={new=function(o)
         probe=function() dr.calls[#dr.calls+1]='probe'; return true,'probe on' end,
         stop=function() dr.calls[#dr.calls+1]='stop'; if dr.raise then error(dr.raise,0) end end,
         restore=function() dr.restores=dr.restores+1 end,
-        tick=function() dr.ticks=dr.ticks+1; if dr.says then return table.unpack(dr.says) end end}
+        tick=function() dr.ticks=dr.ticks+1; if dr.says then return table.unpack(dr.says) end end,
+        active=function() return dr.active==true end}
 end}
 -- The cut model viewer's read, display and free camera (cut/leviathan.lua; leviathan_test tests it): what new got
 -- (log, store, blocked), its commands (each with its creature's word as who), restores, ticks and stops, what a tick
@@ -481,7 +491,7 @@ package.loaded['cut.glide']={new=function(o)
     return {command=function(...) gl.cmds[#gl.cmds+1]={...}; return true,'gl '..tostring((...)) end,
         restore=function() gl.restores=gl.restores+1 end,
         tick=function() gl.ticks=gl.ticks+1; if gl.says then return table.unpack(gl.says) end end,
-        stop=function() gl.stops=gl.stops+1 end}
+        stop=function() gl.stops=gl.stops+1 end,active=function() return gl.active==true end}
 end}
 -- coop emote (cut/emote.lua; emote_test tests it): what new got (log, ask, status), its commands, restores, ticks and
 -- stops, what a tick says.
@@ -492,7 +502,7 @@ package.loaded['cut.emote']={new=function(o)
         restore=function() em.restores=em.restores+1 end,
         tick=function() em.ticks=em.ticks+1; if em.says then return table.unpack(em.says) end end,
         stop=function() em.stops=em.stops+1 end,
-        sit=function(kind) return true,'em sit '..tostring(kind) end,active=function() return false end,
+        sit=function(kind) return true,'em sit '..tostring(kind) end,active=function() return em.active==true end,
         preload=function() return true end}
 end}
 -- The races' driving (race/drive.lua; drive_test tests it): what drive.new got, its restores.
@@ -500,6 +510,25 @@ dv={restores=0}
 package.loaded['race.drive']={new=function(o)
     dv.o=o
     return {name='drive',restore=function() dv.restores=dv.restores+1 end}
+end}
+-- The bike (bike/ride.lua; bike/ride_test tests it): what new got (o), the why of each toggle and stop, its steers,
+-- slows and restores, its tunes; whether she rides, what a toggle answers (answer: ok and a line; raise: an error),
+-- what a steer or a slow says (an end of the ride); what parked answers (parked), with the address it got (parked_at).
+bk={}
+package.loaded['bike.ride']={new=function(o)
+    bk.o=o
+    return {riding=function() return bk.riding==true end,
+        parked=function(at) bk.parked_at=at; return bk.parked end,
+        toggle=function(why)
+            bk.toggles[#bk.toggles+1]=why
+            if bk.raise then error(bk.raise,0) end
+            return table.unpack(bk.answer or {true,'On the bike: coop bike gets her off.'})
+        end,
+        stop=function(why) bk.stops[#bk.stops+1]=why end,
+        steer=function() bk.steers=bk.steers+1; if bk.says then return table.unpack(bk.says) end end,
+        slow=function() bk.slows=bk.slows+1; if bk.slow_says then return table.unpack(bk.slow_says) end end,
+        restore=function() bk.restores=bk.restores+1 end,status=function() return 'bike: preload ready' end,
+        tune=function(name,value) bk.tunes[#bk.tunes+1]={name,value}; return true,'bk tune '..tostring(name) end}
 end}
 -- The Doro race (race/run.lua; race_test tests it): what race.new got, coop race's words, her race lines, its ticks,
 -- slows, stops and keys, whether it is armed, what a tick or the key answers, a stop, a steer or a tick that raises,
@@ -634,6 +663,55 @@ package.loaded['ui.lobby']={new=function(o)
         tick=function(now) lb.ticks[#lb.ticks+1]=now end,
         parts_check=function() said('parts'); return true,'lobby parts: 6 of 6 made (the log has each)' end}
 end}
+-- The Sessions screen (ui/sessions.lua; ui/sessions_test tests it): what new got (o), its calls as words (ss.calls;
+-- each slow counted apart, with the shown it got), open or not (refuse: why open fails).
+ss={}
+package.loaded['ui.sessions']={new=function(o)
+    ss.o=o
+    local function said(...)
+        local w={}
+        for i=1,select('#',...) do w[i]=tostring((select(i,...))) end
+        ss.calls[#ss.calls+1]=table.concat(w,' ')
+    end
+    return {is_open=function() return ss.open end,
+        open=function()
+            said('open')
+            if ss.refuse then return false,ss.refuse end
+            if not ss.open then o.kit.input(true,'sessions',true) end
+            ss.open=true
+            return true
+        end,
+        close=function() said('close'); ss.open=false end,
+        nav=function(what) said('nav',what) end,
+        slow=function(shown) ss.slows[#ss.slows+1]=shown end,
+        tick=function() end}
+end}
+-- The Create a session screen (ui/create.lua; ui/create_test tests it), the same way: cr.o, cr.calls, cr.slows, cr.open
+-- and cr.refuse. As the real one, it opens only once its last slow said a world shows and the kit is up.
+cr={}
+package.loaded['ui.create']={new=function(o)
+    cr.o=o
+    local function said(...)
+        local w={}
+        for i=1,select('#',...) do w[i]=tostring((select(i,...))) end
+        cr.calls[#cr.calls+1]=table.concat(w,' ')
+    end
+    return {is_open=function() return cr.open end,
+        open=function()
+            said('open')
+            if cr.refuse then return false,cr.refuse end
+            if not (cr.slows[#cr.slows] and o.kit.ready()) then
+                return false,'Create a session opens in the game world only'
+            end
+            if not cr.open then o.kit.input(true,'create',true) end
+            cr.open=true
+            return true,'Create a session is open'
+        end,
+        close=function() said('close'); cr.open=false end,
+        nav=function(what) said('nav',what) end,
+        slow=function(shown) cr.slows[#cr.slows+1]=shown end,
+        tick=function() end}
+end}
 -- The kit (ui/kit.lua's Ui.kit; ui_kit_test tests it): its calls as words, its input on change only (as the kit makes
 -- the engine call), every input asked counted; the menu's view built at once by a builder that keeps what each text and
 -- row was last set to. kit_ready: its root is up; kit_whole: false while that root is a build whose look still warms
@@ -730,6 +808,10 @@ package.loaded['ui.kit']={kit=function(opts)
         azerty=function() return opts.uidev~=nil and opts.uidev()==2 end, -- SB's last keyboard (no language here).
         lost=function() local who=kit_lost; kit_lost=nil; return who~=nil,who end,
         move=function() end,fade=function() end,
+        -- SB's widget parts (session/join.lua's popups): none in this build, so its kit fallback shows (join_test
+        -- tests the popup itself).
+        warm_part=function() end,part=function(_,class) return nil,'part '..class:match('[^.]+$')..': not in this game build' end,
+        alive=function() end,drop=function() end,refocus=function() end,
         project=function(anchor)
             kit_projects=kit_projects+1
             return {camera={X=0,Y=0,Z=0},rotation={Pitch=0,Yaw=0},fov=90,anchor=anchor,width=3840,height=2160}
@@ -759,12 +841,15 @@ package.loaded['session.chat']={new=function(lines,on)
         enable=function() end,lines=function() return chat_feed or {} end,take=function() return table.remove(chat_out,1) end}
 end,view=Chat.view,clean=Chat.clean,wrap=Chat.wrap}
 package.loaded.version='v9-test'
-USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | '
+USAGE='Use: coop puppet | host [public|friends|invitation|closed] | invite | list [public|friends] | '
+    ..'join [lobby id|code|row] | copy | '
+    ..'allow|deny|remove|block <SteamID> | '
+    ..'unblock <SteamID>|all | blocked | leave | '
     ..'match search|create <mode>|cancel|end|join <code>|leave | mute|unmute <SteamID> | '
     ..'status | report | mark [text] | where | near [metres] | travel host | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
     ..'on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | '
-    ..'emote [list|<name>|off] | '
+    ..'emote [list|<name>|off] | bike [status|tune [<name> <value>]] | '
     ..'no [heal|rule|spawnpt|actor] | '
     ..'nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | '
     ..'challenge [<name>|stop] | '
@@ -772,6 +857,7 @@ USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|de
     ..'gift [send <item> [count]|take [n]] | '
     ..'race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|'
     ..'spawn | quests on|off|status|probe|record|replay|force <number> | world on|off|status | scenes on|off|status | '
+    ..'keys reset [<name>|all] | '
     ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
 
 -- The native part's pad export (coop_pad): each call hands back as many of its arguments as the next count queued
@@ -787,7 +873,7 @@ function load_main(with_native,no_folder,source)
         if name=='coop_pad' then
             if pd.missing then return nil,'not exported' end
             return function(...)
-                assert(select('#',...)==9,'Nine arguments: the most the native part hands back')
+                assert(select('#',...)==11,'Eleven arguments: the most the native part hands back')
                 pd.calls=pd.calls+1
                 return table.unpack({...},1,table.remove(pd.q,1) or 0)
             end
@@ -806,6 +892,8 @@ function load_main(with_native,no_folder,source)
     hooks,fades.calls={},{}
     sb.seat,sb.seat_error,sb.sitting,sb.sat,sb.stands,sb.busy=nil,nil,nil,nil,0,false
     lb.o,lb.calls,lb.screen,lb.ask,lb.refuse,lb.slows,lb.ticks=nil,{},nil,nil,nil,0,{}
+    ss.o,ss.calls,ss.open,ss.refuse,ss.slows=nil,{},false,nil,{}
+    cr.o,cr.calls,cr.open,cr.refuse,cr.slows=nil,{},false,nil,{}
     link_match,link_round,link_me,link_owner,link_uidev=nil,nil,nil,nil,nil
     rx.o,rx.ticks,rx.stops,rx.booked,rx.raise,rx.tick_raise,rx.stopped=nil,0,0,nil,nil,nil,nil
     gt.o,gt.ticks=nil,0
@@ -827,7 +915,10 @@ function load_main(with_native,no_folder,source)
     sc.o,sc.cmds,sc.restores,sc.ticks,sc.stops,sc.says=nil,{},0,0,0,nil
     ln.o,ln.cmds,ln.ticks,ln.stops,ln.says=nil,{},0,0,nil
     gl.o,gl.cmds,gl.restores,gl.ticks,gl.stops,gl.says=nil,{},0,0,0,nil
-    em.o,em.cmds,em.restores,em.ticks,em.stops,em.says=nil,{},0,0,0,nil
+    em.o,em.cmds,em.restores,em.ticks,em.stops,em.says,em.active=nil,{},0,0,0,nil,nil
+    bk.o,bk.riding,bk.toggles,bk.stops,bk.steers,bk.slows,bk.restores,bk.tunes=nil,false,{},{},0,0,0,{}
+    bk.answer,bk.raise,bk.says,bk.slow_says,bk.parked,bk.parked_at=nil,nil,nil,nil,nil,nil
+    dr.active,gl.active=nil,nil
     ra.o,ra.cmds,ra.received,ra.ticks,ra.slows,ra.stops,ra.keys,ra.armed,ra.hud={},{},{},0,0,0,0,false,nil
     ra.tick_raise,ra.steer_raise=nil,nil
     ra.steers,ra.steered_at,dv.restores=0,nil,0
@@ -882,6 +973,14 @@ function mods_tick(paks,mods)
     local n,out=#said,{}
     loops[2].f()
     for i=n+1,#said do if said[i]:find('mod',1,true) then out[#out+1]=said[i] end end
+    return table.concat(out,'|')
+end
+-- One loop with link.dlcs() as given: the DLC notices said, in the menu's words.
+function dlcs_tick(v)
+    dlcs_v=v
+    local n,out=#said,{}
+    loops[2].f()
+    for i=n+1,#said do if said[i]:find('DLC',1,true) then out[#out+1]=said[i] end end
     return table.concat(out,'|')
 end
 function key(k,modifier) press(k,modifier); flush() end

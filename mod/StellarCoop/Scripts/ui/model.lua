@@ -3,17 +3,18 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The co-op menu's model (UI-DESIGN 4.1 and its Options table), no engine call: the main page's rows by session state,
 -- the co-op line's (a camp phone booth's page: the main page's session rows, Co-op menu and Hang up),
--- the Options tree (every co-op setting as a toggle, a choice, a range or a key), a cursor that skips section headers
--- and wraps, Leave and Remove only on a second Select of that row within 3 s, values read as the mod reads
--- coop-settings.txt (link.parse_settings), and each change as the one value to write there (settings_file.set). Rows
--- and values are ids; ui_text gives their words.
+-- the Options tree (every co-op setting as a toggle, a choice, a range or a key; Reset all keys too), a cursor that
+-- skips section headers and wraps, Leave, Remove and Reset all keys only on a second Select of that row within 3 s,
+-- values read as the mod reads coop-settings.txt (link.parse_settings) and each change as the one value to write there
+-- (settings_file.set). Rows and values are ids; ui_text gives their words.
 local SF=require('core.settings_file')
 local K=require('core.keybind')
 local Link=require('core.link')
 local M={}
 -- ctx: {mode=link.mode() ('none', 'host', 'guest', nil before Steam), chat=the chat box can open (a session, the SBO
 -- lobby too), code=our join code while we host with one (link.code), stranger=a player we let in who is not our Steam
--- friend ({id=, name=}, link.stranger)}. confirm: the row runs on a second Select within 3 s.
+-- friend ({id=, name=}, link.stranger), values=the settings' values (M.read), for a row shown by another one's value}.
+-- confirm: the row runs on a second Select within 3 s.
 local function none(c) return c.mode=='none' end
 M.MAIN={
     {head='session'},
@@ -22,7 +23,7 @@ M.MAIN={
     {id='invite',show=function(c) return c.mode=='host' end},
     {id='copy',show=function(c) return c.code~=nil end},
     {id='remove',confirm=true,show=function(c) return c.stranger~=nil end},
-    {id='join',show=none},
+    {id='find',show=none}, -- Find a session: the Sessions screen (ui/sessions.lua).
     {id='join_code',show=none},
     {id='chat',show=function(c) return c.chat end},
     {head='settings'},
@@ -35,7 +36,7 @@ M.MAIN={
 local function main_row(id) for _,row in ipairs(M.MAIN) do if row.id==id then return row end end end
 -- The co-op line: the main page's own session rows (the same tables: the same show and confirm), then Co-op menu (the
 -- main page) and Hang up (closed).
-M.LINE={{head='line'},main_row('host'),main_row('invite'),main_row('copy'),main_row('join'),main_row('join_code'),
+M.LINE={{head='line'},main_row('host'),main_row('invite'),main_row('copy'),main_row('find'),main_row('join_code'),
     main_row('remove'),main_row('leave'),{id='menu'},{id='hangup'}}
 local function toggle(key,default) return {key=key,values={'on','off'},default=default} end
 local function range(key,min,max,step,default) return {key=key,min=min,max=max,step=step,default=tostring(default)} end
@@ -45,6 +46,8 @@ local function reload(row) row.reload=true; return row end -- The mod takes it a
 M.OPTIONS={
     {head='controls'},
     bind('menu_key','F5'),bind('status_key','F6'),bind('leave_key','F8'),bind('follow_key','F7'),bind('race_key','F9'),
+    toggle('bike','on'),bind('bike_key','F3'), -- bike at once: bike/ride.lua reads it every 250 ms.
+    {id='reset_keys',confirm=true}, -- Every key back to its default (reset_keys), host_key too.
     {head='photo'},
     {key='photo_sync',values={'both','notice','off'},default='both'},
     -- The file's range: 0 (no limit) or 30 to 3600 s; a minute a step, shown in minutes.
@@ -59,7 +62,13 @@ M.OPTIONS={
     toggle('collide','on'), -- Yours, at once: the solid partner (partner/puppet.lua).
     range('send_rate',10,60,5,60), -- 5 a step.
     {head='session'},
-    {key='who_can_join',values={'friends','code','private'},default='friends'}, -- At the next host.
+    -- At the next host. closed shows as Private. friends_ask under public and invitation only: its row reads Friends
+    -- join without asking, On while friends_ask=off (ui/text.lua's friends_ask_off).
+    {key='who_can_join',values={'public','friends','invitation','closed'},default='public'},
+    {key='friends_ask',values={'on','off'},default='off',show=function(c)
+        local who=c.values and c.values.who_can_join
+        return who=='public' or who=='invitation'
+    end},
     toggle('revive','on'), -- Yours, at once: the friend's revive of your EVE (session/group.lua).
     toggle('cutscene_wait','on'), -- Yours as the guest, at once: the pause during the host's cutscene.
     -- Yours as the guest, at once: the travel to the camp nearest the host (session/travel.lua), offered (ask), started
@@ -94,11 +103,16 @@ M.OPTIONS={
 -- Every key setting a rebind is checked against: the page's, and host_key, off once the menu holds Host (D-UI2).
 local KEYS={bind('host_key','none')}
 for _,row in ipairs(M.OPTIONS) do if row.bind then KEYS[#KEYS+1]=row end end
+local DEFAULT={} -- Key setting to its default.
+for _,row in ipairs(KEYS) do DEFAULT[row.key]=row.default end
 -- Every setting's value from the file's text (setting name to value), as the mod takes it (link.parse_settings: the
 -- last line it takes, the menu key's migration, the defaults for two actions on one key); a setting it does not read
 -- yet, the model's default.
-function M.read(text)
-    local values,s={},Link.parse_settings(text)
+function M.read(text) return M.values(Link.parse_settings(text)) end
+-- The same from settings as link.parse_settings gives them (main.lua's, the ones in effect): a key by its name, on and
+-- off for a switch, a number as text.
+function M.values(s)
+    local values={}
     for _,rows in ipairs({M.OPTIONS,KEYS}) do
         for _,row in ipairs(rows) do
             local v=row.key and s[row.key]
@@ -112,6 +126,34 @@ function M.read(text)
     end
     return values
 end
+-- A setting row's value in w's words (a ui/text.lua table): a choice's word (<key>_<value> first: aggro_game), the
+-- longest pause in minutes or seconds, the scales and the menu size in percent, any other number as it is.
+function M.shown(w,row,v)
+    if row.values then return w.value[row.key..'_'..v] or w.value[v] or v end
+    local n=tonumber(v)
+    if row.key=='photo_freeze_max' then
+        return n==0 and w.no_limit or (n%60==0 and w.minutes:format(n//60) or w.seconds:format(n))
+    end
+    if row.key=='enemy_hp_scale' or row.key=='enemy_balance_scale' or row.key=='boss_hp_scale' then -- 1.35: 135 %.
+        return w.percent:format(math.floor(n*100+0.5))
+    end
+    return row.key=='ui_scale' and w.percent:format(n) or v
+end
+-- A setting row's value one step (dir +1 or -1) from value: a choice's next, wrapping; a range's, held at its ends; nil
+-- when it stays.
+function M.step(row,value,dir)
+    local new
+    if row.values then
+        local at=1
+        for i,v in ipairs(row.values) do if v==value then at=i end end
+        new=row.values[(at-1+dir)%#row.values+1]
+    else
+        local n=math.min(row.max,tonumber(value)+dir*row.step)
+        if n<row.min then n=row.zero and 0 or row.min end -- zero: 0 is a value too (no limit), below min.
+        new=tostring(math.tointeger(n) or n)
+    end
+    if new~=value then return new end
+end
 -- The file's text with key set to value (settings_file.set), or nil and why. The first menu_key written into a file
 -- with none also turns host_key off there: the menu held host_key's key (link.parse_settings), which must not host
 -- again by itself.
@@ -123,9 +165,20 @@ function M.write(text,key,value)
     end
     return SF.set(text,key,value)
 end
+-- The file's text with every key setting at its default, host_key's none included, or nil and why.
+function M.reset_keys(text)
+    for _,row in ipairs(KEYS) do
+        local why
+        text,why=M.write(text,row.key,row.default)
+        if not text then return nil,why end
+    end
+    return text
+end
 -- A key pressed for a rebind (keybind.text's), checked: 'set', key, the value to write; or nil and why: the grammar's
--- reason, or 'clash' and the other setting that holds it.
+-- reason, or 'clash' and the other setting that holds it. Enter, which no key setting takes (the chat's), puts back
+-- the key's default.
 function M.rebind(values,key,text)
+    if text=='Enter' then text=DEFAULT[key] end
     local new,why=K.parse(key,text)
     if not new then return nil,why end
     local keys={}
@@ -182,25 +235,16 @@ function M.new(start)
     function self.change(ctx,values,dir)
         local row=self.current(ctx)
         if not row.key or row.bind then return nil end
-        local value,new=values[row.key],nil
-        if row.values then
-            local at=1
-            for i,v in ipairs(row.values) do if v==value then at=i end end
-            new=row.values[(at-1+dir)%#row.values+1]
-        else
-            local n=math.min(row.max,tonumber(value)+dir*row.step)
-            if n<row.min then n=row.zero and 0 or row.min end -- zero: 0 is a value too (no limit), below min.
-            new=tostring(math.tointeger(n) or n)
-        end
-        if new==value then return nil end
+        local new=M.step(row,values[row.key],dir)
+        if not new then return nil end
         return 'set',row.key,new
     end
-    -- Select (now in seconds): the row's id for the caller ('host', 'leave', 'invite', 'copy', 'remove', 'join',
-    -- 'join_code', 'chat', 'guide', 'report', 'close', which Hang up gives too); 'confirm_leave' or 'confirm_remove'
-    -- (the row runs on a second Select of it within 3 s); 'options' or 'main' (the page changed: Co-op menu gives
-    -- 'main'); 'rebind', key; or a setting's next value, as change(). nil when a first Select on Leave or Remove is
-    -- pending (under 3 s old) and that row went (the session ended, the player left): the press was meant for it, not
-    -- for its place.
+    -- Select (now in seconds): the row's id for the caller ('host', 'leave', 'invite', 'copy', 'remove', 'find',
+    -- 'join_code', 'chat', 'guide', 'report', 'close', which Hang up gives too, 'reset_keys'); 'confirm_leave',
+    -- 'confirm_remove' or 'confirm_reset_keys' (the row runs on a second Select of it within 3 s); 'options' or
+    -- 'main' (the page changed: Co-op menu gives 'main'); 'rebind', key; or a setting's next value, as change(). nil
+    -- when a first Select on Leave or Remove is pending (under 3 s old) and that row went (the session ended, the
+    -- player left): the press was meant for it, not for its place.
     function self.select(ctx,now,values)
         local row=self.current(ctx)
         if asked and asked.id~=name(row) then

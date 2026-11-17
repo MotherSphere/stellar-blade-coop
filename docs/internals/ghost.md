@@ -9,7 +9,8 @@ The ghost goes through the same pipeline whatever its source: a linked friend, t
 When the ghost is on, `partner/capture.lua` describes your EVE once she has been in the world for 2 s (never on a menu
 pawn). It only reads. For each skeletal mesh part (up to 16, with up to 1024 bones each) it notes the mesh path, the
 part it follows, the part and socket it hangs from, its placement there, whether it is shown, a leader's bone names, and
-the map she is on (the package path of her world, lowercased).
+the map she is on (the package path of her world, lowercased). SBO's bike is one of those parts only while you ride
+([The bike](bike.md#ghosts)).
 
 With the dyes look on, it adds each part's overridden materials, and for a dynamic material (one CNS made at run time)
 the vector, scalar and texture values set on it, read from `VectorParameterValues`, `ScalarParameterValues` and
@@ -38,9 +39,9 @@ The native part refuses a table whose pose would pass 16 KiB (about 900 leader b
 capture counts the pose as the native part does and leaves out the last leader parts, with their followers, until it
 fits; its log line then ends with `<n> leaders left out, over the pose size`.
 
-It reads her again once a second. A new mesh (her outfit) starts a new generation. A part hung elsewhere (the blade
-drawn or sheathed), shown or hidden is published again under the same generation. The log gives a `Capture` line per
-generation.
+It reads her again once a second. A new mesh (her outfit) starts a new generation, as does getting on or off the bike. A
+part hung elsewhere (the blade drawn or sheathed), shown or hidden is published again under the same generation. The log
+gives a `Capture` line per generation.
 
 ## 2. The component table
 

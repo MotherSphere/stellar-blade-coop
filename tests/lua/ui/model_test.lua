@@ -5,8 +5,8 @@
 -- Steam friend included), the co-op line's (a camp phone booth's page: the same session rows, Co-op menu and
 -- Hang up), a cursor that skips section headers and wraps, Leave and Remove only on a second Select of
 -- that same row within 3 s, the Options tree (every co-op setting as a toggle, a choice, a range or a key),
--- its values read as the mod reads coop-settings.txt, each change as the one line to rewrite, and key rebinds checked
--- against the other keys.
+-- its values read as the mod reads coop-settings.txt, each change as the one line to rewrite, key rebinds checked
+-- against the other keys, Enter for a key's default and Reset all keys.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local M=require('ui.model')
 local SF=require('core.settings_file')
@@ -25,9 +25,9 @@ local NONE,HOST,GUEST={mode='none'},{mode='host',chat=true},{mode='guest',chat=t
 local menu=M.new()
 assert(ids(menu,{})=='head:settings options head:help guide report close',
     'Before Steam: no session rows, nor their header')
-assert(ids(menu,NONE)=='head:session host join join_code head:settings options head:help guide report close')
+assert(ids(menu,NONE)=='head:session host find join_code head:settings options head:help guide report close')
 assert(ids(menu,{mode='none',chat=true})
-    =='head:session host join join_code chat head:settings options head:help guide report close',
+    =='head:session host find join_code chat head:settings options head:help guide report close',
     'The loopback chats with no session')
 assert(ids(menu,{mode='host',code='0CS-CBMH'})
     =='head:session leave invite copy head:settings options head:help guide report close','Hosting with a code')
@@ -43,7 +43,7 @@ assert(ids(menu,GUEST)=='head:session leave chat head:settings options head:help
 assert(menu.current(NONE).id=='host')
 local seen={}
 for _=1,7 do menu.move(NONE,1); seen[#seen+1]=menu.current(NONE).id end
-assert(table.concat(seen,' ')=='join join_code options guide report close host',table.concat(seen,' '))
+assert(table.concat(seen,' ')=='find join_code options guide report close host',table.concat(seen,' '))
 menu.move(NONE,-1)
 assert(menu.current(NONE).id=='close')
 menu.move(NONE,1) -- host
@@ -56,7 +56,7 @@ assert(menu.current({}).id=='options','A header in its place: the next row')
 menu=M.new()
 assert(menu.select(NONE,0)=='host')
 menu.move(NONE,1)
-assert(menu.select(NONE,0)=='join')
+assert(menu.select(NONE,0)=='find')
 menu.move(NONE,1)
 assert(menu.select(NONE,0)=='join_code')
 menu=M.new()
@@ -133,10 +133,11 @@ menu.point(CODE,rows[2])
 assert(menu.select(CODE,75)=='confirm_leave' and menu.point(CODE,rows[3]) and menu.point(CODE,rows[2])
     and menu.select(CODE,76)=='confirm_leave','Leave too')
 
--- The Options tree: every row a header or a setting with a unique name the file can hold, and a default it takes.
+-- The Options tree: every row a header, Reset all keys or a setting with a unique name the file can hold and a default
+-- it takes.
 local names={}
 for _,row in ipairs(M.OPTIONS) do
-    if not row.head then
+    if not row.head and row.id~='reset_keys' then
         assert(row.key:find('^[%w_]+$') and not names[row.key],row.key)
         names[row.key]=true
         local d=row.default
@@ -165,7 +166,8 @@ assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.na
     and values.aggro=='game' and values.same_spawns=='on' and values.enemy_extra=='0' and values.bosses=='on'
     and values.boss_hp_scale=='2.0' and values.shared_quests=='on' and values.revive=='on'
     and values.follow_host=='ask' and values.follow_key=='F7' and values.collide=='on' and values.race_key=='F9'
-    and values.photo_name_tag=='on' and values.status_overlay=='compact')
+    and values.photo_name_tag=='on' and values.status_overlay=='compact' and values.bike=='on'
+    and values.bike_key=='F3')
 
 -- Values as the mod reads the file: the last line it takes, any case; a refused value leaves the default.
 values=M.read('send_rate=25\nsend_rate=99\nNAME_TAG=Off\nphoto_sync=NOTICE\nstatus_key=shift+f7\nui_scale=7\n'
@@ -206,7 +208,8 @@ assert(menu.current(NONE).key=='menu_key' and menu.rows(NONE)[1].head=='controls
 assert(menu.back()==nil and menu.page()=='main' and menu.current(NONE).id=='options')
 menu.select(NONE,0)
 -- Every setting shows, under its header.
-assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key race_key head:photo photo_sync '
+assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key race_key bike bike_key reset_keys head:photo '
+    ..'photo_sync '
     ..'photo_freeze_max photo_ghost '
     ..'photo_name_tag photo_pause head:partner name_tag partner_bar partner_arrow partner_card card_details head:ghost cloth dyes '
     ..'effects collide send_rate head:session who_can_join revive cutscene_wait follow_host shared_world shared_story '
@@ -268,6 +271,26 @@ assert(values.follow_host=='ask' and select(3,menu.change(NONE,values,1))=='alwa
 assert(M.read('follow_host=OFF\n').follow_host=='off' and M.read('follow_host=x\n').follow_host=='ask')
 on('follow_key')
 assert(select(1,menu.select(NONE,0,values))=='rebind')
+-- Who can join: public (the default), friends, invitation or closed (shown as Private), wrapping, at the next host;
+-- 0.11's code and private read as invitation. Friends join without asking (friends_ask, off by default) shows under
+-- public and invitation only, by the values in ctx.
+on('who_can_join')
+assert(values.who_can_join=='public' and select(3,menu.change(NONE,values,1))=='friends'
+    and select(3,menu.change(NONE,values,-1))=='closed' and not menu.current(NONE).reload)
+assert(M.read('who_can_join=code\n').who_can_join=='invitation'
+    and M.read('who_can_join=private\n').who_can_join=='invitation'
+    and M.read('who_can_join=x\n').who_can_join=='public')
+local function asks(who)
+    local rows=ids(M.new('options'),{mode='none',values={who_can_join=who}})
+    return rows:find(' who_can_join friends_ask revive ',1,true)~=nil
+end
+assert(asks('public') and asks('invitation') and not asks('friends') and not asks('closed') and not asks(nil))
+assert(values.friends_ask=='off' and M.read('friends_ask=ON\n').friends_ask=='on')
+local PUBLIC={mode='none',values={who_can_join='public',friends_ask='off'}}
+menu=M.new('options')
+while menu.current(PUBLIC).key~='friends_ask' do menu.move(PUBLIC,1) end
+action,key,text=menu.select(PUBLIC,0,PUBLIC.values)
+assert(action=='set' and key=='friends_ask' and text=='on' and not menu.current(PUBLIC).reload)
 -- The solid partner: on by default, a toggle in effect at once (main.lua gives it to the ghost each 250 ms).
 on('collide')
 assert(values.collide=='on' and select(3,menu.change(NONE,values,1))=='off' and not menu.current(NONE).reload)
@@ -344,7 +367,7 @@ for _,row in ipairs(M.LINE) do
     end
 end
 local line=M.new('line')
-assert(ids(line,NONE)=='head:line host join join_code menu hangup',ids(line,NONE))
+assert(ids(line,NONE)=='head:line host find join_code menu hangup',ids(line,NONE))
 assert(ids(line,{mode='host'})=='head:line invite leave menu hangup','Hosting alone')
 assert(ids(line,CODE)=='head:line invite copy remove leave menu hangup','A code and a player let in; no chat row')
 assert(ids(line,GUEST)=='head:line leave menu hangup')
@@ -383,5 +406,36 @@ assert(action==nil and why=='clash' and other=='race_key')
 action,key,text=M.rebind(values,'race_key',K.text('F11','ALT'))
 assert(action=='set' and key=='race_key' and text=='Alt+F11')
 assert(M.read('status_key=F9\n').race_key=='none' and M.read('race_key=Shift+F9\n').race_key=='Shift+F9')
+-- The bike key (Controls): F3 by default, rebound and checked like the others; none in a file whose keys held F3. The
+-- bike's row: on or off.
+action,why,other=M.rebind(values,'leave_key','F3')
+assert(action==nil and why=='clash' and other=='bike_key')
+action,key,text=M.rebind(values,'bike_key',K.text('F2','CONTROL'))
+assert(action=='set' and key=='bike_key' and text=='Ctrl+F2')
+assert(M.read('status_key=F3\n').bike_key=='none' and M.read('bike_key=none\n').bike_key=='none')
+assert(M.read('bike=OFF\n').bike=='off' and M.read('bike=maybe\n').bike=='on')
+-- Enter (no key setting takes it) puts back the key's default, checked as any key: refused while another holds it.
+values=M.read('menu_key=F11\nstatus_key=Shift+F6\nhost_key=F12\n')
+action,key,text=M.rebind(values,'status_key','Enter')
+assert(action=='set' and key=='status_key' and text=='F6')
+assert(select(3,M.rebind(values,'host_key','Enter'))=='none' and select(3,M.rebind(values,'menu_key','Enter'))=='F5')
+action,why,other=M.rebind(M.read('menu_key=F11\nstatus_key=F5\n'),'menu_key','Enter')
+assert(action==nil and why=='clash' and other=='status_key')
+-- Reset all keys: a second Select within 3 s, then every key line at its default (host_key too), the rest kept.
+menu=M.new()
+menu.select({},0)
+while menu.current(NONE).id~='reset_keys' do menu.move(NONE,1) end
+assert(menu.change(NONE,values,1)==nil,'No value to change')
+assert(menu.select(NONE,90,values)=='confirm_reset_keys' and menu.select(NONE,91,values)=='reset_keys')
+assert(menu.select(NONE,92,values)=='confirm_reset_keys' and menu.select(NONE,96,values)=='confirm_reset_keys',
+    'A second Select after 3 s asks again')
+file=assert(M.reset_keys('# keys\nmenu_key=F11\nstatus_key=F5\nhost_key=F12\nsend_rate=30\n'))
+assert(file=='# keys\nmenu_key=F5\nstatus_key=F6\nhost_key=none\nsend_rate=30\nleave_key=F8\nfollow_key=F7\n'
+    ..'race_key=F9\nbike_key=F3\n',file)
+s=Link.parse_settings(file)
+assert(s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name=='F6' and s.race_key.name=='F9'
+    and s.send_rate==30)
+assert(M.reset_keys('')=='host_key=none\nmenu_key=F5\nstatus_key=F6\nleave_key=F8\nfollow_key=F7\nrace_key=F9\n'
+    ..'bike_key=F3\n')
 
 print('ui_model_test ok')

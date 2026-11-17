@@ -4,12 +4,14 @@
 -- The co-op menu (ui/menu.lua, ui/model.lua and ui/text.lua for real on fixture.lua's fake kit): it opens, moves, runs
 -- its rows, changes and applies settings (the shared enemies', shared quests', shared world's, story together's and
 -- same place's rows ask the native part at once), rebinds keys and migrates an old file; and the co-op line, which
--- opens at a camp phone booth (session/booth.lua on a fake FindAllOf) with its hint shown there.
+-- opens at a camp phone booth (session/booth.lua on a fake FindAllOf) with its hint shown there; Find a session, which
+-- opens the Sessions screen and hands it the keys, the pad and the mouse; Host a session, which opens the Create a
+-- session screen the same way.
 dofile('tests/lua/main/fixture.lua')
 -- The co-op menu (ui/menu.lua, ui/model.lua and ui/text.lua for real; the kit faked). menu_key opens it in a world
 -- only, with its root up and the game not paused; its keys move, wrap over headers, select and go back; Host closes it
--- and hosts (the Steam overlay takes the focus); the game's input comes back 150 ms after a close; it closes when the
--- world or our HUD goes, and at coop off.
+-- and, while the Create a session screen cannot open, hosts at once (the Steam overlay takes the focus); the game's
+-- input comes back 150 ms after a close; it closes when the world or our HUD goes, also at coop off.
 settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',false,false
 load_main(true)
 assert(kit_opts.scale==100 and kit_opts.sounds==true and kit_opts.store=='store coop-ui.txt'
@@ -39,19 +41,22 @@ assert(lv.o.blocked()==false)
 key('F5')
 assert(kit_said('show true') and kit_said('input true') and kit_sounds[#kit_sounds]=='open')
 assert(lv.o.blocked()==true,'coop leviathan\'s free camera reads no key while the menu is open')
-assert(screen()=='SESSION||disabled\nHost a session||focus\nJoin a friend||normal\nJoin with a code||normal\n'
+assert(screen()=='SESSION||disabled\nHost a session||focus\nFind a session||normal\nJoin with a code||normal\n'
     ..'SETTINGS||disabled\n'
     ..'Options||normal\nHELP||disabled\nGuide||normal\nWrite a bug report||normal\nClose||normal',screen())
 assert(menu_view.title.s=='CO-OP' and menu_view.status.s=='Co-op: not in a session.' and menu_view.note.s==''
     and menu_view.hints[1].s=='Move' and menu_view.hints[3].s=='Back')
 assert(menu_view.hints.keys=='move enter escape','The menu moves on W, A, S, D (Z, Q on AZERTY) and the arrows')
-key('S'); assert(focus()=='Join a friend' and kit_sounds[#kit_sounds]=='move')
+key('S'); assert(focus()=='Find a session' and kit_sounds[#kit_sounds]=='move')
 key('W'); key('Z'); assert(focus()=='Close','Up wraps over the headers')
 key('DOWN_ARROW'); assert(focus()=='Host a session')
 local executed=executes
 press('F7'); flush(); assert(executes==executed+1 and focus()=='Host a session','A free F-key does nothing')
+cr.refuse='Create a session opens in the game world only' -- coop host alone then hosts at once.
 key('RETURN')
-assert(asked[#asked]=='host' and kit_said('show false') and kit_sounds[#kit_sounds]=='close','Host closes it first')
+cr.refuse=nil
+assert(asked[#asked]=='host public' and kit_said('show false') and kit_sounds[#kit_sounds]=='close',
+    'Host closes it first')
 assert(not kit_said('input false'),'The game gets its keys back 150 ms after the close only')
 clock=clock+0.1; loops[1].f(); assert(not kit_said('input false'))
 clock=clock+0.1; loops[1].f(); assert(kit_said('input false'))
@@ -115,7 +120,7 @@ settings_text='# mine\nname_tag=on\n'
 key('F5'); to('Options'); key('RETURN')
 assert(screen():find('^CONTROLS||disabled\nOpen this menu|F5|focus\nShow the status|F6|normal\n'
     ..'Leave the session|F8|normal\nTravel to the host|F7|normal\nSet a race checkpoint|F9|normal\n'
-    ..'PHOTO MODE||disabled\nPhoto sync|Both|normal\n'
+    ..'Bike|On|normal\nGet on or off the bike|F3|normal\nReset all keys||normal\nPHOTO MODE||disabled\nPhoto sync|Both|normal\n'
     ..'Longest pause|10 min|normal\n'),screen())
 to('Ponytail cloth'); local rebuilt=#rebuilds
 key('RIGHT_ARROW')
@@ -131,11 +136,23 @@ assert(cv.value==1 and select(2,focus())=='Scenery live' and settings_text:find(
     'At once: the next photo mode has it')
 key('A'); loops[2].f(); assert(cv.value==0 and select(2,focus())=='Full')
 to('Poses sent a second'); key('LEFT_ARROW'); quarter(); assert(states[#states]=='world=1 rate=55')
-to('Who can join'); key('RETURN')
-assert(settings_text:find('\nwho_can_join=code\n',1,true) and select(2,focus())=='With a code')
-coop('host'); assert(asked[#asked]=='host code','At once: the next Host has a join code')
-key('RETURN'); coop('host'); assert(asked[#asked]=='host private' and select(2,focus())=='Invited only')
-key('RETURN'); coop('host'); assert(asked[#asked]=='host' and select(2,focus())=='Friends')
+-- Who can join: Public (no line: the default), Friends only, Invitation, Private, at once for the next Host. Under
+-- Public and Invitation, Friends join without asking: On while friends_ask=off, Off adds ask to the host request.
+-- coop host checks each, the Create a session screen refused so that it hosts at once.
+cr.refuse='Create a session opens in the game world only'
+to('Who can join'); assert(select(2,focus())=='Public')
+key('RETURN')
+assert(settings_text:find('\nwho_can_join=friends\n',1,true) and select(2,focus())=='Friends only')
+coop('host'); assert(asked[#asked]=='host friends','At once: the next Host is Friends only')
+assert(not screen():find('Friends join without asking',1,true),'Under Public and Invitation only')
+key('RETURN'); coop('host'); assert(asked[#asked]=='host invitation' and select(2,focus())=='Invitation')
+to('Friends join without asking'); assert(select(2,focus())=='On','friends_ask=off: Steam friends join at once')
+key('RETURN'); assert(settings_text:find('\nfriends_ask=on\n',1,true) and select(2,focus())=='Off')
+coop('host'); assert(asked[#asked]=='host invitation ask','Steam friends wait for the answer too')
+to('Who can join'); key('RETURN'); coop('host')
+assert(asked[#asked]=='host closed' and select(2,focus())=='Private' and not screen():find('without asking',1,true))
+key('RETURN'); coop('host'); assert(asked[#asked]=='host public ask' and select(2,focus())=='Public')
+cr.refuse=nil
 to('Name tag'); key('RETURN')
 assert(settings_text:find('\nname_tag=off\n',1,true) and select(2,focus())=='Off'
     and menu_view.note.s=='Saved. It takes effect when the mod reloads (game start or Ctrl+R).')
@@ -305,18 +322,19 @@ end
 write_refusal,kit_language=nil,nil
 key('ESCAPE'); assert(focus()=='Options','Esc: back to the main page, on Options')
 key('ESCAPE'); assert(kit_calls[#kit_calls]=='show false')
--- Rebind with capture (D-UI2): a key row waits for an F-key, checked against the other keys; Esc stops waiting; the new
--- key works at once (every F-key is bound). The file had no menu_key line: host_key=none is written with it, so the old
--- key never hosts again by itself. The follow key is off F7 here, for the status key below.
+-- Rebind with capture (D-UI2): a key row waits for an F-key, checked against the other keys; Esc stops waiting; Enter
+-- puts back its default (below); the new key works at once (every F-key is bound). The file had no menu_key line:
+-- host_key=none is written with it, so the old key never hosts again by itself. The follow key is off F7 here, for the
+-- status key below.
 settings_text='host_key=F5\nstatus_key=F6\nleave_key=F8\nfollow_key=F9\n'
 key('F5'); to('Options'); key('RETURN')
 assert(focus()=='Open this menu')
 key('RETURN'); assert(select(2,focus())=='Press a key' and menu_view.note.s:find('^Press F1 to F12'))
+assert(menu_view.hints[2].s=='Default','While it waits, Enter\'s hint says Default')
 key('DOWN_ARROW'); assert(focus()=='Open this menu','Waiting: the arrows do nothing')
 key('F6'); assert(menu_view.note.s=='Show the status already uses this key.' and select(2,focus())=='Press a key')
-key('RETURN')
-assert(menu_view.note.s=='Use F1 to F12, with at most one of Shift, Ctrl, Alt.','Enter is the chat key only')
 key('ESCAPE'); assert(select(2,focus())=='F5' and menu_view.note.s=='' and focus()=='Open this menu','Esc: not waiting')
+assert(menu_view.hints[2].s=='Select')
 key('RETURN'); key('F7','SHIFT')
 assert(settings_text=='host_key=none\nstatus_key=F6\nleave_key=F8\nfollow_key=F9\nmenu_key=Shift+F7\n'
     and select(2,focus())=='Shift+F7')
@@ -357,21 +375,85 @@ in_world,kit_ready=true,true; quarter()
 key('F5','SHIFT'); assert(kit_said('show true') and #asked==0)
 settings_text='menu_key=F5\nhost_key=F9\n'
 load_main(true)
-key('F9'); assert(asked[#asked]=='host' and logged('key F9: host'))
+key('F9'); assert(asked[#asked]=='host public' and logged('key F9: host'))
 assert(logged('settings: F9 is host_key: race_key has no key') and ra.keys==0,'A file before race_key keeps its F9')
--- who_can_join=private: Host asks for a private lobby (invited only), from the key, the console or the menu.
+-- who_can_join=private, 0.11's invited only: Host asks for an Invitation session, from the key, the console or the
+-- menu; the file keeps its word.
 settings_text='menu_key=F5\nhost_key=F9\nwho_can_join=private\n'
 load_main(true)
-key('F9'); assert(asked[#asked]=='host private' and logged('key F9: host'))
-coop('host'); assert(asked[#asked]=='host private' and last():find('OK: asked the native part: host private',1,true))
+key('F9'); assert(asked[#asked]=='host invitation' and logged('key F9: host'))
+coop('host')
+assert(asked[#asked]=='host invitation' and last():find('OK: asked the native part: host invitation',1,true))
+assert(settings_text:find('\nwho_can_join=private\n',1,true))
+-- A key's default again: Enter on its row while it waits (Space and the pad's A too), refused while another key holds
+-- it; Reset all keys on a second Select within 3 s; coop keys reset with a key's name, all or no name. Each works at
+-- once.
+settings_text='menu_key=F11\nstatus_key=Shift+F6\nleave_key=F5\n'
+load_main(true)
+in_world,kit_ready=true,true; quarter()
+key('F11'); to('Options'); key('RETURN'); key('RETURN'); key('RETURN')
+assert(menu_view.note.s=='Leave the session already uses this key.' and select(2,focus())=='Press a key',
+    'The menu key\'s F5 is the leave key\'s')
+key('ESCAPE'); key('DOWN_ARROW'); key('RETURN'); key('SPACE')
+assert(settings_text:find('\nstatus_key=F6\n',1,true) and select(2,focus())=='F6','Space: the default')
+key('DOWN_ARROW'); key('RETURN'); pd.q[#pd.q+1]=5; loops[1].f()
+assert(settings_text=='menu_key=F11\nstatus_key=F6\nleave_key=F8\n' and select(2,focus())=='F8','A: the default')
+clock=clock+1
+key('F8'); assert(logged('key F8: leave'),'The leave key\'s default, at once')
+key('UP_ARROW'); key('UP_ARROW'); key('RETURN'); key('RETURN')
+assert(settings_text=='menu_key=F5\nstatus_key=F6\nleave_key=F8\n' and select(2,focus())=='F5'
+    and logged('menu: menu_key=F5 saved in coop-settings.txt'))
+key('ESCAPE'); key('ESCAPE')
+settings_text='# mine\nmenu_key=F11\nstatus_key=F12\nleave_key=Shift+F8\nhost_key=F2\n'
+clock=clock+1
+key('F5'); to('Options'); key('RETURN'); to('Reset all keys')
+assert(select(2,focus())==''
+    and screen():find('Set a race checkpoint|F9|normal\nBike|On|normal\nGet on or off the bike|F3|normal\n'
+        ..'Reset all keys||focus\nPHOTO MODE',1,true))
+key('RETURN')
+assert(menu_view.note.s=='Select again within 3 s to reset every key.' and settings_text:find('F12',1,true))
+clock=clock+1; key('RETURN')
+assert(settings_text=='# mine\nmenu_key=F5\nstatus_key=F6\nleave_key=F8\nhost_key=none\nfollow_key=F7\nrace_key=F9\n'
+    ..'bike_key=F3\n'
+    and logged('menu: every key at its default saved in coop-settings.txt'),settings_text)
+key('ESCAPE'); key('ESCAPE')
+settings_text='menu_key=F11\nstatus_key=F5\nhost_key=F2\n'
+load_main(true)
+in_world,kit_ready=true,true; quarter()
+coop('keys','reset','menu')
+assert(last()=="[StellarCoop] STOP: menu_key stays F11: its default is status_key's key now; change status_key first, "
+    ..'or type coop keys reset all\n',last())
+coop('keys','reset','status'); assert(last()=='[StellarCoop] OK: status_key=F6\n',last())
+coop('keys','reset','MENU_KEY'); assert(last()=='[StellarCoop] OK: menu_key=F5\n',last())
+coop('keys','reset','host')
+assert(last()=='[StellarCoop] OK: host_key=none\n' and settings_text=='menu_key=F5\nstatus_key=F6\nhost_key=none\n')
+clock=clock+1
+key('F5'); assert(kit_said('show true') and logged('key F5: menu'),'The menu key\'s default, at once')
+key('ESCAPE')
+settings_text='menu_key=F11\nrace_key=F2\n'
+local ALL='[StellarCoop] OK: menu_key=F5 host_key=none status_key=F6 leave_key=F8 follow_key=F7 race_key=F9 bike_key=F3: '
+    ..'every key at its default\n'
+coop('keys','reset'); assert(last()==ALL,last())
+settings_text='race_key=F2\n'
+coop('keys','reset','all'); assert(last()==ALL and settings_text:find('race_key=F9\n',1,true))
+for _,typed in ipairs({{'keys'},{'keys','set'},{'keys','reset','chat'},{'keys','reset','all','now'}}) do
+    coop(table.unpack(typed))
+    assert(last()=='[StellarCoop] STOP: Use: coop keys reset [menu|host|status|leave|follow|race|bike|all]\n',last())
+end
+settings_text=nil
+coop('keys','reset'); assert(last()=='[StellarCoop] STOP: coop-settings.txt cannot be read\n',last())
+settings_text=''
+load_main(false)
+coop('keys','reset')
+assert(last()=='[StellarCoop] STOP: coop keys needs the co-op UI, which needs the Steam link\n',last())
 settings_text,in_world,kit_ready='',false,false
 
 -- The co-op line (session/booth.lua, ui/menu.lua, ui/model.lua and ui/text.lua for real on the fake kit; booth_test and
 -- ui_model_test test them alone). Within 3 m of a camp phone booth the menu key opens the line: its header, the session
 -- rows of the state, Co-op menu and Hang up, and a sentence by state; 3.1 m away, the main page as before. Co-op menu
 -- turns to the main page; Hang up and Esc close; Leave still asks twice; Host and Invite run the same commands and
--- close as from the main page. The hint shows at a booth with nothing open, and hides with the menu, a box or a
--- question open, while paused and after coop off. No scan while the menu is open, while paused, nor after coop off,
+-- close as from the main page. The hint shows at a booth with nothing open. It hides with the menu, a box, a question,
+-- the Sessions screen or the Create a session screen open, while paused and after coop off. No scan while the menu is open, while paused, nor after coop off,
 -- with EVE 100 m from the last scan's spot and 30 s after it; none either back where it ran.
 (function()
     local CAMP='Env_Camp_TeleportMachine_C'
@@ -398,7 +480,7 @@ settings_text,in_world,kit_ready='',false,false
     key('F5')
     assert(kit_shown.menu and not kit_shown.line_hint,'The line open, the hint hidden')
     assert(last()=='[StellarCoop] line: booth Xion_10_EnvS_016 (Env_Camp_TeleportMachine_C) at 2.5 m\n',last())
-    assert(screen()=='CO-OP LINE||disabled\nHost a session||focus\nJoin a friend||normal\nJoin with a code||normal\n'
+    assert(screen()=='CO-OP LINE||disabled\nHost a session||focus\nFind a session||normal\nJoin with a code||normal\n'
         ..'Co-op menu||normal\nHang up||normal',screen())
     assert(menu_view.title.s=='CO-OP' and menu_view.note.s=='The line is free. Host a session or join a friend.')
     local scans=bt.scans
@@ -446,13 +528,21 @@ settings_text,in_world,kit_ready='',false,false
     assert(starts('SESSION||disabled\nLeave the session||focus\n') and lines_with('line: booth')==said_line,screen())
     to('Invite a friend (Steam)'); key('RETURN')
     assert(asked[#asked]=='invite' and #asked==n+3 and not kit_shown.menu,'Invite from the main page')
-    -- Host, from the line and from the main page.
+    -- Host, from the line and from the main page: the Create a session screen opens, nothing is hosted yet; the menu
+    -- key closes it.
     link_mode,friend_linked='none',false
     key('F5'); assert(focus()=='Host a session' and starts('SESSION||disabled'))
-    key('RETURN'); assert(asked[#asked]=='host' and #asked==n+4 and not kit_shown.menu,'Host from the main page')
+    key('RETURN'); assert(cr.open and #asked==n+3 and not kit_shown.menu,'Host from the main page')
+    key('F5'); assert(not cr.open and not kit_shown.menu)
     bt.me.at.X=0; quarter(); quarter()
     key('F5'); assert(focus()=='Host a session' and starts('CO-OP LINE||disabled'))
-    key('RETURN'); assert(asked[#asked]=='host' and #asked==n+5 and not kit_shown.menu,'Host from the line')
+    key('RETURN'); assert(cr.open and #asked==n+3 and not kit_shown.menu,'Host from the line')
+    quarter(); quarter(); assert(not kit_shown.line_hint,'Create a session open: no hint')
+    key('F5'); assert(not cr.open and not kit_shown.menu)
+    quarter(); assert(kit_shown.line_hint)
+    key('F5'); to('Find a session'); key('RETURN'); assert(ss.open)
+    quarter(); quarter(); assert(not kit_shown.line_hint,'The Sessions screen open: no hint')
+    key('F5'); assert(not ss.open and not kit_shown.menu)
     -- The hint hides while a box is open: the code box (Join with a code, from the line), the chat's box.
     clock=clock+0.25; loops[1].f(); quarter(); assert(kit_shown.line_hint)
     key('F5'); to('Join with a code'); key('RETURN'); assert(kit_shown.code)
@@ -500,5 +590,134 @@ settings_text,in_world,kit_ready='',false,false
     assert(kit_views.line_hint.text.s=='Shift+F7  Co-op line',kit_views.line_hint.text.s)
     coop('off')
     bt.world,link_mode,in_world,kit_ready,settings_text={},'none',false,false,''
+end)()
+-- Find a session (the main page and the co-op line): the menu closes and the Sessions screen opens (ui/sessions.lua,
+-- faked; sessions_test tests it). While it is open it takes the keys, the pad and the mouse: the arrows, W, S, Enter,
+-- Space and Esc; Q and E (A and E on AZERTY) its tabs; F and Y its Refresh; LB and RB; a left click; a right one as
+-- Back. The pad's bike does nothing there. The menu key and View held close it. Each 250 ms it gets the HUD's shown;
+-- coop ui reset closes it.
+;(function()
+    local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end
+    local function navs(n) return table.concat(ss.calls,' ',n+1) end
+    settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',true,false
+    load_main(true)
+    kit_ready=true; quarter()
+    assert(ss.o.log and ss.o.words and ss.o.act and ss.o.game_text and ss.o.view,'Built with its view and act')
+    -- Its view: the list as link.list() gives it, our protocol and game build from the status's first line.
+    list_search,list_rows={tab='public',state='done',rows=1},{{lobby='109775241234567890',name='Ann'}}
+    status_text='last=#1 ready\nmod=v proto=22 steam=ready steamid=7 appid=1 build=26123051 overlay=1\nlink=none lobby=0\n'
+    local v=ss.o.view()
+    assert(v.search==list_search and v.rows==list_rows and v.role=='none' and v.proto=='22' and v.build=='26123051')
+    status_text,list_search,list_rows=plain,nil,{}
+    v=ss.o.view()
+    assert(v.proto=='3' and v.build==nil and v.search==nil,'Before Steam: no build')
+    -- Its act asks the native part; SB's words none with ui_language=english.
+    ss.o.act({request='list friends'}); assert(asked[#asked]=='list friends' and logged('OK: asked the native part: '
+        ..'list friends'))
+    settings_text='ui_language=english\n'; load_main(true); kit_ready=true; quarter()
+    assert(ss.o.game_text('UI_Friends')==nil)
+    settings_text=''; load_main(true); kit_ready=true; quarter()
+    key('F5'); to('Find a session'); key('RETURN')
+    assert(not kit_shown.menu and ss.open and ss.calls[1]=='open' and kit_holder=='sessions','The menu gives way to it')
+    clock=clock+0.2; loops[1].f()
+    assert(kit_input and kit_holder=='sessions','The menu\'s late give-back leaves the screen its input')
+    local n=#ss.calls
+    for _,k in ipairs({'UP_ARROW','W','S','RETURN','SPACE','ESCAPE','Q','E','F','A','D'}) do key(k) end
+    assert(navs(n)=='nav up nav up nav down nav select nav select nav back nav tab_left nav tab_right nav refresh '
+        ..'nav left nav right',navs(n))
+    n=#ss.calls
+    pad(1,2,5,6,8,9,11,3)
+    assert(navs(n)=='nav up nav down nav select nav back nav tab_left nav tab_right nav refresh nav left',navs(n))
+    n=#ss.calls
+    pad(10)
+    assert(#ss.calls==n and logged('pad: bike ignored: one of our screens is open'),'The bike: nothing while it is open')
+    n=#ss.calls
+    key('LEFT_MOUSE_BUTTON'); key('RIGHT_MOUSE_BUTTON')
+    assert(navs(n)=='nav click nav back' and not kit_shown.menu,navs(n))
+    local slows=#ss.slows
+    quarter(); assert(#ss.slows==slows+1 and ss.slows[#ss.slows]==true,'Its slow gets the HUD shown')
+    key('F5'); assert(not ss.open and not kit_shown.menu,'The menu key closes it: it opens nothing')
+    -- View held closes it; coop ui reset closes it.
+    key('F5'); to('Find a session'); key('RETURN'); assert(ss.open)
+    pad(7); assert(not ss.open and not kit_shown.menu and logged('pad: menu'))
+    key('F5'); to('Find a session'); key('RETURN'); assert(ss.open)
+    n=#ss.calls
+    coop('ui','reset'); assert(not ss.open and ss.calls[n+1]=='close')
+    -- It cannot open (the kit off or not up): the menu closes and the log says why.
+    ss.refuse='Find a session opens in the game world only'
+    key('F5'); to('Find a session'); key('RETURN')
+    assert(not ss.open and not kit_shown.menu and logged('menu: no Sessions screen: Find a session opens in the game '
+        ..'world only'))
+    ss.refuse=nil
+    -- Closed, F and E do nothing.
+    n=#ss.calls
+    key('F'); key('E'); assert(#ss.calls==n)
+    in_world,kit_ready=false,false
+end)()
+-- Host a session (the main page and the co-op line): the menu closes and the Create a session screen opens
+-- (ui/create.lua, faked; create_test tests it) through coop host alone. While it is open it takes the keys, the pad
+-- and the mouse: the arrows, W, S, A, D, Q, Enter, Space and Esc; E and F do nothing there. The menu key and View held close
+-- it; coop ui reset closes it. Its view gives the settings in effect and whether coop-settings.txt reads; its act
+-- writes a change as the Options page does and hosts Start's word. host_key hosts at once, never through it.
+;(function()
+    local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end
+    local function navs(n) return table.concat(cr.calls,' ',n+1) end
+    settings_text,status_text,link_mode,in_world,photo_mode='who_can_join=friends\n',plain,'none',true,false
+    load_main(true)
+    kit_ready=true; quarter()
+    assert(cr.o.log and cr.o.words and cr.o.act and cr.o.view,'Built with its view and act')
+    local v=cr.o.view()
+    assert(v.values.who_can_join=='friends' and v.values.shared_enemies=='on' and v.readable and v.role=='none')
+    settings_text=nil
+    assert(cr.o.view().readable==false,'coop-settings.txt cannot be read')
+    settings_text='who_can_join=friends\n'
+    -- A change: written in the file as Options writes it, in effect at once (its view shows it).
+    assert(cr.o.act({set='who_can_join',value='invitation'}))
+    assert(settings_text=='who_can_join=invitation\n' and cr.o.view().values.who_can_join=='invitation',settings_text)
+    assert(logged('menu: who_can_join=invitation saved in coop-settings.txt'))
+    -- A change not saved: false, why and the note in the player's words, which the screen shows on its right pane.
+    write_refusal='cannot write coop-settings.txt: busy'
+    local saved,why,note=cr.o.act({set='who_can_join',value='closed'})
+    write_refusal=nil
+    assert(saved==false and why=='not saved: cannot write coop-settings.txt: busy' and settings_text==
+        'who_can_join=invitation\n' and note=='Not saved: cannot write coop-settings.txt: busy',tostring(note))
+    -- Start: coop host with its word, at once.
+    cr.o.act({host='closed'})
+    assert(asked[#asked]=='host closed' and logged('OK: asked the native part: host closed'))
+    -- The Host row: the menu gives way to the screen, which keeps the input past the menu's late give-back.
+    key('F5'); key('RETURN')
+    assert(not kit_shown.menu and cr.open and cr.calls[1]=='open' and kit_holder=='create','The menu gives way to it')
+    assert(logged('OK: Create a session is open') and asked[#asked]=='host closed','Nothing hosted yet')
+    clock=clock+0.2; loops[1].f()
+    assert(kit_input and kit_holder=='create','The menu\'s late give-back leaves the screen its input')
+    local n=#cr.calls
+    for _,k in ipairs({'UP_ARROW','W','S','RETURN','SPACE','A','Q','D','RIGHT_ARROW','E','F','ESCAPE'}) do key(k) end
+    assert(navs(n)=='nav up nav up nav down nav select nav select nav left nav left nav right nav right nav back',
+        navs(n))
+    n=#cr.calls
+    pad(1,2,3,4,5,6,10)
+    assert(navs(n)=='nav up nav down nav left nav right nav select nav back',navs(n))
+    assert(logged('pad: bike ignored: one of our screens is open'),'The bike: nothing while it is open')
+    n=#cr.calls
+    key('LEFT_MOUSE_BUTTON'); key('RIGHT_MOUSE_BUTTON')
+    assert(navs(n)=='nav click nav back',navs(n))
+    local slows=#cr.slows
+    quarter(); assert(#cr.slows==slows+1 and cr.slows[#cr.slows]==true,'Its slow gets the HUD shown')
+    key('F5'); assert(not cr.open and not kit_shown.menu,'The menu key closes it and opens nothing')
+    -- View held closes it; coop ui reset closes it; console coop host alone opens it.
+    key('F5'); key('RETURN'); assert(cr.open)
+    pad(7); assert(not cr.open and not kit_shown.menu and logged('pad: menu'))
+    coop('host'); assert(cr.open and asked[#asked]=='host closed','coop host alone: the screen')
+    n=#cr.calls
+    coop('ui','reset'); assert(not cr.open and cr.calls[n+1]=='close')
+    -- Closed, the keys are nobody's here.
+    n=#cr.calls
+    key('F'); key('E'); key('D'); assert(#cr.calls==n)
+    -- host_key hosts at once with who_can_join, never through the screen.
+    settings_text='who_can_join=invitation\nmenu_key=F5\nhost_key=F11\n'
+    load_main(true); kit_ready=true; quarter()
+    press('F11'); flush()
+    assert(asked[#asked]=='host invitation' and not cr.open and #cr.calls==0,asked[#asked])
+    in_world,kit_ready,settings_text=false,false,''
 end)()
 io.stdout:write('menu_test ok\n')

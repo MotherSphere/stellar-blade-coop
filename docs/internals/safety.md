@@ -127,7 +127,7 @@ feature or drops the input.
   once a Lua load. Several calls share a name (`ghost` covers seven of `partner/puppet.lua`'s, and each restore has
   its module's name), and each of them still logs its own first error. The modules after it still run in that pass,
   and the module is called again at the next one, so one that recovers goes on working. Measured with Lua 5.4 on the
-  build machine, the guard adds about 40 ns a call. The per-frame loop makes 27 to 43 guarded calls (34 with the
+  build machine, the guard adds about 40 ns a call. The per-frame loop makes 29 to 45 guarded calls (36 with the
   on-screen UI, plus the inbox while a race is armed and up to 8 pad events), under 2 µs a frame.
 - The save slot read, the vitals read and the Night Operation poller read through `ReadProcessMemory`, which returns an
   error instead of faulting, and only after a plausibility check of every pointer and count.
@@ -138,7 +138,7 @@ feature or drops the input.
 - Everything from your friend's game is checked before use: the table parser and the pose decoder (both fuzzed by the
   tests), the mesh path rule, the channel 1 size and rate limits, at most 8 effect starts a second, and race lines
   (printable ASCII, 512 bytes and 40 lines a second at most, then the bounds in [Race lines](doro-races.md#race-lines)).
-- The [Doro look](doro-races.md#the-doro-look) and a race's [driving](doro-races.md#driving) are the only writes to the player actor. The look
+- The [Doro look](doro-races.md#the-doro-look) and a race's [driving](doro-races.md#driving) write to the player actor. The look
   writes `bHiddenInGame` on EVE's mesh parts and `VisibilityBasedAnimTickOption` on her main mesh. It writes
   `coop-look.txt` before it changes either, and undoes both at the race's end, on `coop race look off` and `coop off`,
   after a map change and at its first error. It also sets `bHiddenInGame` on the main mesh of the drone that follows
@@ -146,6 +146,17 @@ feature or drops the input.
   her movement component to 0 and gives it a velocity and her a yaw each frame. It writes `coop-drive.txt` before it
   changes the values, and puts them back on the same exits. The next Lua load undoes either from its file when this one
   could not.
+- The [bike](bike.md) writes to the player actor too. It adds one skeletal mesh component to EVE's actor, hung on her
+  main mesh and hidden until she rides. While she rides it sets her main mesh's relative rotation for the lean and
+  drives her as a race does (`coop-drive.txt`, the four values, a velocity and a yaw). Through the native part it turns
+  54 of SB's actions off in the player controller's `InputActionStateMap` (each one's state kept) and plays the riding
+  pose in her custom animation slot. It writes `coop-bike.txt` (her main mesh's relative rotation and location) before any
+  of it. A dismount, `coop off`, `bike=off`, a new EVE and the ride's first error put it all back: the pose stopped,
+  each action's kept state written back unless SB changed it during the ride, the four values, her mesh. The next Lua
+  load puts her mesh back from `coop-bike.txt`; the native part turns the actions back on and stops the pose itself at
+  a new Lua load. Its preload keeps a handle to SB's own async load of the bike's mesh and the riding clip, released at
+  `bike=off` and `coop off`. All of it runs under its own SEH latch
+  ([The bike: how it works](bike.md#status-words-and-the-latch)).
 - The co-op save copies (`StellarBladeCoop00.sav` to `04.sav`) are made only on a `saves convert`, `saves coop` or
   `saves refresh N` request (the question on the title screen, `auto_coop_save=always` or `coop saves`), and only at the
   title: Lua reports the title screen (`world=title` in `coop-state.txt`), no save is loaded, Continue or Load Game

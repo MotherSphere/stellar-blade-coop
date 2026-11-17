@@ -18,10 +18,10 @@ G.en={
             ..'now. The goal is 100 players.\nOpen this guide again at any time from the co-op menu (F5).'},
         {title='Play together',
          body='Press F5 in the world to open the co-op menu (hold View on a controller). Its first row, Host a '
-            ..'session, opens the Steam invite window.\nSomeone who is not on your Steam friends list can join with '
-            ..'a code. Before you host, set Who can join to With a code in the Options. Then send them the '
-            ..'7-character code from Copy my code. You accept them when they join.\nF6: status\nF8: leave the '
-            ..'session\nEnter: chat\nAt a camp phone booth, F5 opens the co-op line instead of the menu.'},
+            ..'session, opens Create a session: pick Who can join and the session rules, then Start. Find a session '
+            ..'lists the open sessions you can join.\nWith Invitation, send the 7-character code from Copy my code. '
+            ..'A player who is not on your Steam friends list waits until you accept them.\nF6: status\nF8: leave '
+            ..'the session\nEnter: chat\nAt a camp phone booth, F5 opens the co-op line instead of the menu.'},
         {title='Co-op saves',
          body='Shared enemies, shared quests, Night Operation, Doro races and Leviathan run on co-op saves. These '
             ..'are copies of your saves made by the mod. It never writes to your own save files and backs them up '
@@ -69,11 +69,12 @@ G.fr={
             ..'moment depuis le menu co-op (F5).'},
         {title='Jouer ensemble',
          body='Dans le monde du jeu, appuyez sur F5 pour ouvrir le menu co-op (maintenez View à la manette). Sa '
-            .."première ligne, Héberger une session, ouvre la fenêtre d'invitation Steam.\nUne personne absente de "
-            .."votre liste d'amis Steam peut rejoindre avec un code. Avant d'héberger, réglez Qui peut rejoindre sur "
-            ..'Avec un code dans les Options. Envoyez-lui ensuite le code de 7 caractères donné par Copier mon code. '
-            .."Vous l'acceptez à son arrivée.\nF6 : état\nF8 : quitter la session\nEntrée : discussion\nÀ une cabine "
-            ..'téléphonique de camp, F5 ouvre la ligne co-op au lieu du menu.'},
+            ..'première ligne, Héberger une session, ouvre Créer une session : choisissez Qui peut rejoindre et les '
+            ..'règles de la session, puis Lancer. Trouver une session liste les sessions ouvertes que vous pouvez '
+            ..'rejoindre.\nAvec Sur invitation, envoyez le code de 7 caractères donné par Copier mon code. Une '
+            .."personne absente de votre liste d'amis Steam attend que vous l'acceptiez.\nF6 : état\nF8 : quitter la "
+            ..'session\nEntrée : discussion\nÀ une cabine téléphonique de camp, F5 ouvre la ligne co-op au lieu du '
+            ..'menu.'},
         {title='Sauvegardes co-op',
          body="Les ennemis partagés, les quêtes partagées, l'opération nocturne, les courses de Doro et Leviathan "
             ..'fonctionnent sur des sauvegardes co-op. Ce sont des copies de vos sauvegardes faites par le mod. Il '
@@ -124,9 +125,9 @@ G.ar={
             ..'والهدف هو 100 لاعب.\nيمكنك فتح هذا الدليل مجددًا في أي وقت من قائمة اللعب التعاوني (F5).'},
         {title='اللعب معًا',
          body='اضغط F5 في عالم اللعبة لفتح قائمة اللعب التعاوني (أو اضغط مطولًا على View في يد التحكم). الخيار الأول، '
-            ..'"استضافة جلسة"، يفتح نافذة دعوات Steam.\nيمكن لمن ليس في قائمة أصدقائك على Steam الانضمام برمز. قبل '
-            ..'الاستضافة، اضبط "من يمكنه الانضمام" على "برمز الانضمام" في "الخيارات". ثم استخدم "نسخ رمز الانضمام" '
-            ..'وأرسل إليه الرمز المكوّن من 7 أحرف وأرقام. وعندما يحاول الانضمام، اقبل طلبه.\nF6: الحالة\nF8: مغادرة '
+            ..'"استضافة جلسة"، يفتح "إنشاء جلسة": اختر "من يمكنه الانضمام" وقواعد الجلسة، ثم "بدء". ويعرض "البحث عن '
+            ..'جلسة" الجلسات المفتوحة التي يمكنك الانضمام إليها.\nمع "بدعوة"، استخدم "نسخ رمز الانضمام" وأرسل الرمز '
+            ..'المكوّن من 7 أحرف وأرقام. ومن ليس في قائمة أصدقائك على Steam ينتظر حتى تقبله.\nF6: الحالة\nF8: مغادرة '
             ..'الجلسة\nEnter: الدردشة\nعند كشك الهاتف في المخيم، يفتح F5 خط اللعب التعاوني بدلًا من القائمة.'},
         {title='ملفات الحفظ التعاونية',
          body='تعمل مشاركة الأعداء ومشاركة المهام والتشغيل الليلي وسباقات دورو وLeviathan على ملفات الحفظ التعاونية. '
@@ -173,11 +174,11 @@ G.da={
             ..'(F5).'},
         {title='Spil sammen',
          body='Tryk på F5 i spilverdenen for at åbne co-op-menuen (hold View nede på en controller). Det første '
-            ..'punkt, Vær vært for en session, åbner Steams invitationsvindue.\nSpillere, der ikke er på din '
-            ..'Steam-venneliste, kan deltage med en kode. Før du bliver vært, skal du sætte Hvem kan deltage til Med '
-            ..'en kode i Indstillinger. Send dem derefter koden på 7 tegn fra Kopiér min kode. Du accepterer dem, '
-            ..'når de deltager.\nF6: status\nF8: forlad sessionen\nEnter: chat\nVed en lejrs telefonboks åbner F5 '
-            ..'co-op-linjen i stedet for menuen.'},
+            ..'punkt, Vær vært for en session, åbner Opret en session: vælg Hvem kan deltage og sessionsreglerne. '
+            ..'Vælg derefter Start. Find en session viser de åbne sessioner, du kan deltage i.\nVed Invitation '
+            ..'sender du koden på 7 tegn fra Kopiér min kode. En spiller, der ikke er på din Steam-venneliste, '
+            ..'venter, til du accepterer vedkommende.\nF6: status\nF8: forlad sessionen\nEnter: chat\nVed en lejrs '
+            ..'telefonboks åbner F5 co-op-linjen i stedet for menuen.'},
         {title='Gemte co-op-spil',
          body='Delte fjender, delte quests, Natmission, Doro-løb og Leviathan kører på gemte co-op-spil. Det er '
             ..'kopier af dine gemte spil, som modden laver. Den skriver aldrig til dine egne gemte spil og tager en '
@@ -225,11 +226,11 @@ G.de={
             ..'(F5) wieder öffnen.'},
         {title='Zusammen spielen',
          body='Drück in der Spielwelt F5, um das Koop-Menü zu öffnen (am Controller View gedrückt halten). Die erste '
-            ..'Zeile, „Sitzung hosten“, öffnet das Steam-Einladungsfenster.\nWer nicht auf deiner '
-            ..'Steam-Freundesliste steht, kann mit einem Code beitreten. Stell vor dem Hosten in den Optionen „Wer '
-            ..'darf beitreten“ auf „Mit Code“. Schick der Person dann den 7-stelligen Code aus „Meinen Code '
-            ..'kopieren“. Wenn sie beitritt, nimmst du sie an.\nF6: Status\nF8: Sitzung verlassen\nEnter: Chat\nAn '
-            ..'der Telefonzelle eines Lagers öffnet F5 die Koop-Leitung statt des Menüs.'},
+            ..'Zeile, „Sitzung hosten“, öffnet „Sitzung erstellen“: Wähl dort „Wer darf beitreten“ und die '
+            ..'Sitzungsregeln, dann „Starten“. „Sitzung finden“ listet die offenen Sitzungen, denen du beitreten '
+            ..'kannst.\nBei „Einladung“ schickst du den 7-stelligen Code aus „Meinen Code kopieren“. Wer nicht auf '
+            ..'deiner Steam-Freundesliste steht, wartet, bis du ihn annimmst.\nF6: Status\nF8: Sitzung '
+            ..'verlassen\nEnter: Chat\nAn der Telefonzelle eines Lagers öffnet F5 die Koop-Leitung statt des Menüs.'},
         {title='Koop-Speicherstände',
          body='Gemeinsame Gegner, gemeinsame Quests, der nächtliche Einsatz, Doro-Rennen und Leviathan brauchen '
             ..'Koop-Speicherstände. Das sind Kopien deiner Speicherstände, die der Mod anlegt. Er schreibt nie in '
@@ -282,11 +283,11 @@ G.es={
             ..'cualquier momento desde el menú co-op (F5).'},
         {title='Jugar juntos',
          body='Pulsa F5 en el mundo del juego para abrir el menú co-op (en el mando, mantén View). Su primera '
-            ..'opción, Crear una sesión, abre la ventana de invitaciones de Steam.\nAlguien que no esté en tu lista '
-            ..'de amigos de Steam puede unirse con un código. Antes de crear la sesión, ajusta Quién puede unirse a '
-            ..'Con un código en las Opciones. Luego envíale el código de 7 caracteres que da Copiar mi código. '
-            ..'Cuando se una, tendrás que aceptarlo.\nF6: estado\nF8: salir de la sesión\nIntro: chat\nEn una cabina '
-            ..'telefónica de campamento, F5 abre la línea co-op en lugar del menú.'},
+            ..'opción, Crear una sesión, abre una pantalla donde eliges Quién puede unirse y las reglas de la '
+            ..'sesión; luego elige Empezar. Buscar una sesión muestra las sesiones abiertas a las que puedes '
+            ..'unirte.\nCon Invitación, envía el código de 7 caracteres que da Copiar mi código. Quien no esté en tu '
+            ..'lista de amigos de Steam espera a que lo aceptes.\nF6: estado\nF8: salir de la sesión\nIntro: '
+            ..'chat\nEn una cabina telefónica de campamento, F5 abre la línea co-op en lugar del menú.'},
         {title='Partidas co-op',
          body='Los enemigos compartidos, las misiones compartidas, la operación nocturna, las carreras de Doro y '
             ..'Leviathan usan partidas co-op. Son copias de tus partidas que crea el mod. Nunca escribe en tus '
@@ -337,11 +338,12 @@ G['es-MX']={
             ..'desde el menú co-op (F5).'},
         {title='Jugar juntos',
          body='Presiona F5 en el mundo para abrir el menú co-op (en un control, mantén presionado View). La primera '
-            ..'opción, Crear una sesión, abre la ventana de invitaciones de Steam.\nQuien no esté en tu lista de '
-            ..'amigos de Steam puede unirse con un código. Antes de crear la sesión, en Opciones cambia Quién puede '
-            ..'unirse a Con un código. Después usa Copiar mi código y envíale el código de 7 caracteres. Cuando '
-            ..'intente unirse, acepta la solicitud.\nF6: estado\nF8: salir de la sesión\nEnter: chat\nEn la cabina '
-            ..'telefónica de un campamento, F5 abre la línea co-op en lugar del menú.'},
+            ..'opción, Crear una sesión, abre una pantalla donde eliges Quién puede unirse y las reglas de la '
+            ..'sesión; después elige Comenzar. Buscar una sesión muestra las sesiones abiertas a las que puedes '
+            ..'unirte.\nCon Invitación, usa Copiar mi código y envía el código de 7 caracteres. Quien no esté en tu '
+            ..'lista de amigos de Steam espera a que aceptes la solicitud.\nF6: estado\nF8: salir de la '
+            ..'sesión\nEnter: chat\nEn la cabina telefónica de un campamento, F5 abre la línea co-op en lugar del '
+            ..'menú.'},
         {title='Partidas co-op',
          body='Los enemigos compartidos, las misiones compartidas, la operación nocturna, las carreras de Doro y '
             ..'Leviathan funcionan con partidas co-op. Son copias de tus partidas guardadas que hace el mod. El mod '
@@ -393,11 +395,11 @@ G.fi={
             ..'co-op-valikosta (F5).'},
         {title='Pelatkaa yhdessä',
          body='Avaa co-op-valikko painamalla pelimaailmassa F5 (ohjaimella pidä View-painiketta pohjassa). Sen '
-            ..'ensimmäinen rivi, Isännöi istuntoa, avaa Steamin kutsuikkunan.\nPelaaja, joka ei ole '
-            ..'Steam-kaverilistallasi, voi liittyä koodilla. Valitse ennen isännöintiä Asetuksissa kohtaan Kuka voi '
-            ..'liittyä arvo Koodilla. Lähetä hänelle sitten 7-merkkinen koodi kohdasta Kopioi koodini. Hyväksyt '
-            ..'hänet, kun hän liittyy.\nF6: tila\nF8: poistu istunnosta\nEnter: keskustelu\nLeirin puhelinkopilla F5 '
-            ..'avaa co-op-linjan valikon sijaan.'},
+            ..'ensimmäinen rivi, Isännöi istuntoa, avaa näkymän Luo istunto: valitse Kuka voi liittyä ja istunnon '
+            ..'säännöt, sitten Aloita. Etsi istunto näyttää avoimet istunnot, joihin voit liittyä.\nKun valintana on '
+            ..'Kutsu, lähetä 7-merkkinen koodi kohdasta Kopioi koodini. Pelaaja, joka ei ole Steam-kaverilistallasi, '
+            ..'odottaa, kunnes hyväksyt hänet.\nF6: tila\nF8: poistu istunnosta\nEnter: keskustelu\nLeirin '
+            ..'puhelinkopilla F5 avaa co-op-linjan valikon sijaan.'},
         {title='Co-op-tallennukset',
          body='Jaetut viholliset, jaetut tehtävät, Yöoperaatio, Doro-kilvat ja Leviathan toimivat '
             ..'co-op-tallennuksilla. Ne ovat modin tekemiä kopioita tallennuksistasi. Modi ei koskaan kirjoita omiin '
@@ -447,11 +449,11 @@ G.it={
             ..'menu co-op (F5).'},
         {title='Giocare insieme',
          body='Nel mondo di gioco premi F5 per aprire il menu co-op (sul controller tieni premuto View). La prima '
-            ..'riga, «Ospita una sessione», apre la finestra degli inviti di Steam.\nChi non è tra i tuoi amici di '
-            ..'Steam può unirsi con un codice. Prima di ospitare, nelle Opzioni imposta «Chi può unirsi» su «Con un '
-            ..'codice». Poi invia a quel giocatore il codice di 7 caratteri preso con «Copia il mio codice». Quando '
-            ..'prova a unirsi, lo accetti tu.\nF6: stato\nF8: lascia la sessione\nInvio: chat\nVicino alla cabina '
-            ..'telefonica di un accampamento, F5 apre la linea co-op al posto del menu.'},
+            ..'riga, «Ospita una sessione», apre «Crea una sessione»: scegli «Chi può unirsi» e le regole della '
+            ..'sessione, poi «Avvia». «Trova una sessione» elenca le sessioni aperte a cui puoi unirti.\nCon '
+            ..'«Invito», invia il codice di 7 caratteri preso con «Copia il mio codice». Chi non è tra i tuoi amici '
+            ..'di Steam aspetta che tu lo accetti.\nF6: stato\nF8: lascia la sessione\nInvio: chat\nVicino alla '
+            ..'cabina telefonica di un accampamento, F5 apre la linea co-op al posto del menu.'},
         {title='Salvataggi co-op',
          body="Nemici condivisi, missioni condivise, l'operazione notturna, gare di Doro e Leviathan richiedono i "
             ..'salvataggi co-op. Sono copie dei tuoi salvataggi create dalla mod. La mod non scrive mai sui tuoi '
@@ -503,10 +505,11 @@ G.ja={
             ..'からいつでも開けます。'},
         {title='一緒に遊ぶ',
          body='ゲームプレイ中にF5を押すと協力プレイメニューが開きます（コントローラーではViewを長押し）。'
-            ..'最初の項目「セッションをホスト」でSteamの招待画面が開きます。\nSteamのフレンドでない人も、'
-            ..'コードで参加できます。ホストする前に、「オプション」で「参加できる人」を「コードを持つ人」'
-            ..'にしてください。次に「自分のコードをコピー」で7文字のコードを相手に送ります。相手が参加するときに、'
-            ..'あなたが承認します。\nF6：状態\nF8：セッションから退出\nEnter：チャット\nキャンプの電話ボックスでは、'
+            ..'最初の項目「セッションをホスト」で「セッションを作成」が開きます。「参加できる人」'
+            ..'とセッションのルールを選び、「開始」を選んでください。「セッションを探す」'
+            ..'には参加できるセッションが表示されます。\n「招待」の場合は、「自分のコードをコピー」'
+            ..'で7文字のコードを相手に送ります。Steamのフレンドでない人は、あなたが承認するまで待ちます。\nF6：'
+            ..'状態\nF8：セッションから退出\nEnter：チャット\nキャンプの電話ボックスでは、'
             ..'F5でメニューではなく協力プレイ回線が開きます。'},
         {title='協力プレイ用セーブ',
          body='敵の共有、クエスト共有、夜間オペレーション、ドロレース、Leviathanは協力プレイ用セーブで動きます。'
@@ -554,10 +557,10 @@ G.ko={
             ..'플레이할 수 있습니다. 목표는 100명입니다.\n이 가이드는 언제든 코옵 메뉴(F5)에서 다시 열 수 있습니다.'},
         {title='함께 플레이하기',
          body="월드에서 F5를 누르면 코옵 메뉴가 열립니다(컨트롤러는 View 길게 누르기). 첫 번째 항목 '세션 열기'는 "
-            .."Steam 초대 창을 엽니다.\nSteam 친구가 아닌 사람도 코드로 참가할 수 있습니다. 세션을 열기 전에 "
-            .."'옵션'에서 '참가 가능 대상'을 '코드 보유자'로 설정하세요. 그다음 '내 코드 복사'로 7자리 코드를 복사해 "
-            .."보내세요. 참가 요청이 오면 수락하세요.\nF6: 상태\nF8: 세션 나가기\nEnter: 채팅\n캠프의 공중전화에서는 "
-            .."F5를 누르면 메뉴 대신 코옵 회선이 열립니다."},
+            .."'세션 만들기'를 엽니다. '참가 가능 대상'과 세션 규칙을 고른 뒤 '시작'을 누르세요. '세션 찾기'에는 "
+            .."참가할 수 있는 세션이 표시됩니다.\n'초대'로 설정했다면 '내 코드 복사'로 7자리 코드를 복사해 보내세요. "
+            ..'Steam 친구가 아닌 사람은 수락할 때까지 기다립니다.\nF6: 상태\nF8: 세션 나가기\nEnter: 채팅\n캠프의 '
+            ..'공중전화에서는 F5를 누르면 메뉴 대신 코옵 회선이 열립니다.'},
         {title='코옵 세이브',
          body='적 공유, 퀘스트 공유, 야간 작전, 도로 레이스, Leviathan은 코옵 세이브에서 작동합니다. 코옵 세이브는 '
             ..'모드가 만든 세이브 사본입니다. 모드는 원래 세이브 파일에 절대 쓰지 않으며, 첫 사본을 만들기 전에 원래 '
@@ -604,10 +607,10 @@ G.nl={
             ..'via het co-opmenu (F5).'},
         {title='Samen spelen',
          body='Druk in de gamewereld op F5 om het co-opmenu te openen (houd View ingedrukt op een controller). De '
-            ..'eerste regel, Een sessie hosten, opent het uitnodigingsvenster van Steam.\nIemand die niet in je '
-            ..'Steam-vriendenlijst staat, kan meedoen met een code. Zet voor het hosten Wie mag meedoen op Met een '
-            ..'code in de Opties. Stuur die speler daarna de code van 7 tekens uit Mijn code kopiëren. Je accepteert '
-            ..'de speler zodra die meedoet.\nF6: status\nF8: sessie verlaten\nEnter: chat\nBij een telefooncel in '
+            ..'eerste regel, Een sessie hosten, opent Een sessie maken: kies Wie mag meedoen en de sessieregels, '
+            ..'daarna Starten. Een sessie zoeken toont de open sessies waaraan je kunt meedoen.\nBij Uitnodiging '
+            ..'stuur je de code van 7 tekens uit Mijn code kopiëren. Wie niet in je Steam-vriendenlijst staat, wacht '
+            ..'tot je die speler accepteert.\nF6: status\nF8: sessie verlaten\nEnter: chat\nBij een telefooncel in '
             ..'een kamp opent F5 de co-oplijn in plaats van het menu.'},
         {title='Opgeslagen co-opgames',
          body='Gedeelde vijanden, gedeelde quests, de nachtelijke missie, Dororaces en Leviathan werken op '
@@ -657,10 +660,10 @@ G.no={
             ..'co-op-menyen (F5).'},
         {title='Spill sammen',
          body='Trykk på F5 i spillverdenen for å åpne co-op-menyen (hold inne View på en kontroller). Den første '
-            ..'raden, «Vær vert for en økt», åpner invitasjonsvinduet i Steam.\nEn som ikke står på '
-            ..'Steam-vennelisten din, kan bli med via kode. Før du blir vert, sett «Hvem kan bli med» til «Med kode» '
-            ..'under Alternativer. Send så koden på 7 tegn fra «Kopier koden min». Når spilleren blir med, må du '
-            ..'godta forespørselen.\nF6: status\nF8: forlat økten\nEnter: chat\nVed telefonkiosken i en leir åpner '
+            ..'raden, «Vær vert for en økt», åpner «Opprett en økt»: velg «Hvem kan bli med» og reglene for økten, '
+            ..'deretter «Start». «Finn en økt» viser de åpne øktene du kan bli med i.\nMed «Invitasjon» sender du '
+            ..'koden på 7 tegn fra «Kopier koden min». En som ikke står på Steam-vennelisten din, venter til du '
+            ..'godtar forespørselen.\nF6: status\nF8: forlat økten\nEnter: chat\nVed telefonkiosken i en leir åpner '
             ..'F5 co-op-linjen i stedet for menyen.'},
         {title='Co-op-lagringer',
          body='Delte fiender, delte oppdrag, nattoperasjonen, Doro-løp og Leviathan krever co-op-lagringer. Det er '
@@ -709,11 +712,11 @@ G.pl={
             ..'co-op (F5).'},
         {title='Wspólna gra',
          body='W świecie gry naciśnij F5, aby otworzyć menu co-op (na padzie przytrzymaj View). Pierwsza pozycja, '
-            ..'„Utwórz sesję”, otwiera okno zaproszeń Steam.\nOsoba spoza twojej listy znajomych Steam może dołączyć '
-            ..'za pomocą kodu. Zanim utworzysz sesję, w sekcji Opcje ustaw „Kto może dołączyć” na „Osoby z kodem”. '
-            ..'Potem wyślij jej 7-znakowy kod z „Kopiuj mój kod”. Gdy ta osoba dołącza, musisz ją przyjąć.\nF6: '
-            ..'status\nF8: opuść sesję\nEnter: czat\nPrzy budce telefonicznej w obozie F5 otwiera linię co-op '
-            ..'zamiast menu.'},
+            ..'„Utwórz sesję”, otwiera ekran, na którym wybierasz „Kto może dołączyć” i zasady sesji, a potem '
+            ..'„Rozpocznij”. „Znajdź sesję” pokazuje otwarte sesje, do których możesz dołączyć.\nPrzy ustawieniu '
+            ..'„Zaproszenie” wyślij 7-znakowy kod z „Kopiuj mój kod”. Osoba spoza twojej listy znajomych Steam '
+            ..'czeka, aż ją przyjmiesz.\nF6: status\nF8: opuść sesję\nEnter: czat\nPrzy budce telefonicznej w obozie '
+            ..'F5 otwiera linię co-op zamiast menu.'},
         {title='Zapisy co-op',
          body='Wspólni wrogowie, wspólne zadania, nocna operacja, wyścigi Doro i Leviathan działają na zapisach '
             ..'co-op. To kopie twoich zapisów zrobione przez moda. Mod nigdy nie zapisuje niczego w twoich plikach '
@@ -761,11 +764,11 @@ G.pt={
             ..'qualquer momento no menu co-op (F5).'},
         {title='Jogar em conjunto',
          body='Prime F5 no mundo para abrir o menu co-op (num comando, mantém View premido). A primeira opção, Criar '
-            ..'uma sessão, abre a janela de convites do Steam.\nQuem não estiver na tua lista de amigos Steam pode '
-            ..'entrar com um código. Antes de criar a sessão, define Quem pode entrar como Com um código nas Opções. '
-            ..'Depois usa Copiar o meu código e envia-lhe o código de 7 caracteres. Quando tentar entrar, aceita o '
-            ..'pedido.\nF6: estado\nF8: sair da sessão\nEnter: chat\nNa cabine telefónica de um acampamento, F5 abre a '
-            ..'linha co-op em vez do menu.'},
+            ..'uma sessão, abre um ecrã onde escolhes Quem pode entrar e as regras da sessão; depois escolhe '
+            ..'Começar. Procurar uma sessão mostra as sessões abertas em que podes entrar.\nCom Convite, usa Copiar '
+            ..'o meu código e envia o código de 7 caracteres. Quem não estiver na tua lista de amigos Steam espera '
+            ..'até o aceitares.\nF6: estado\nF8: sair da sessão\nEnter: chat\nNa cabine telefónica de um '
+            ..'acampamento, F5 abre a linha co-op em vez do menu.'},
         {title='Dados guardados co-op',
          body='Os inimigos partilhados, as missões partilhadas, a operação noturna, as corridas de Doro e Leviathan '
             ..'funcionam com dados guardados co-op. São cópias dos teus dados guardados feitas pelo mod. O mod nunca '
@@ -816,10 +819,10 @@ G['pt-BR']={
             ..'menu co-op (F5).'},
         {title='Jogar junto',
          body='Aperte F5 no mundo do jogo para abrir o menu co-op (segure View no controle). A primeira linha, '
-            ..'Hospedar uma sessão, abre a janela de convite do Steam.\nQuem não está na sua lista de amigos do '
-            ..'Steam pode entrar com um código. Antes de hospedar, mude Quem pode entrar para Com um código nas '
-            ..'Opções. Depois, envie a essa pessoa o código de 7 caracteres de Copiar meu código. Você aceita a '
-            ..'pessoa quando ela entra.\nF6: status\nF8: sair da sessão\nEnter: chat\nNa cabine telefônica de um '
+            ..'Hospedar uma sessão, abre Criar uma sessão: escolha Quem pode entrar e as regras da sessão, depois '
+            ..'Começar. Encontrar uma sessão mostra as sessões abertas em que você pode entrar.\nCom Convite, envie '
+            ..'o código de 7 caracteres de Copiar meu código. Quem não está na sua lista de amigos do Steam espera '
+            ..'até você aceitar.\nF6: status\nF8: sair da sessão\nEnter: chat\nNa cabine telefônica de um '
             ..'acampamento, F5 abre a linha co-op em vez do menu.'},
         {title='Jogos salvos co-op',
          body='Inimigos compartilhados, missões compartilhadas, Operação Noturna, corridas de Doro e Leviathan usam '
@@ -871,11 +874,12 @@ G.ru={
             ..'меню кооператива (F5).'},
         {title='Совместная игра',
          body='Нажмите F5 в игровом мире, чтобы открыть меню кооператива (на контроллере удерживайте View). Первая '
-            ..'строка, "Создать сессию", открывает окно приглашений Steam.\nИгрок не из вашего списка друзей Steam '
-            ..'может присоединиться по коду. Перед созданием сессии в разделе "Настройки" выберите для "Кто может '
-            ..'присоединиться" значение "По коду". Затем отправьте ему код из 7 символов, полученный через '
-            ..'"Скопировать мой код". Когда игрок подключается, вы принимаете его запрос.\nF6: статус\nF8: покинуть '
-            ..'сессию\nEnter: чат\nУ телефонной будки в лагере F5 открывает линию кооператива вместо меню.'},
+            ..'строка, "Создать сессию", открывает экран, где вы выбираете "Кто может присоединиться" и правила '
+            ..'сессии, затем "Начать". "Найти сессию" показывает открытые сессии, к которым можно '
+            ..'присоединиться.\nПри значении "По приглашению" отправьте код из 7 символов, полученный через '
+            ..'"Скопировать мой код". Игрок не из вашего списка друзей Steam ждёт, пока вы его примете.\nF6: '
+            ..'статус\nF8: покинуть сессию\nEnter: чат\nУ телефонной будки в лагере F5 открывает линию кооператива '
+            ..'вместо меню.'},
         {title='Кооперативные сохранения',
          body='Общие враги, общие задания, ночная операция, гонки Доро и Leviathan требуют кооперативных сохранений. '
             ..'Это копии ваших сохранений, которые создает мод. Он никогда не записывает в ваши собственные файлы '
@@ -924,11 +928,11 @@ G.sv={
             ..'spelare. Målet är 100 spelare.\nÖppna den här guiden igen när som helst från co-op-menyn (F5).'},
         {title='Spela tillsammans',
          body='Tryck på F5 i spelvärlden för att öppna co-op-menyn (håll in View på handkontrollen). Första raden, '
-            ..'Bli värd för en session, öppnar Steams inbjudningsfönster.\nNågon som inte finns bland dina '
-            ..'Steam-vänner kan gå med via kod. Ställ in Vem kan gå med på Med en kod under Alternativ innan du blir '
-            ..'värd. Skicka sedan den 7 tecken långa koden från Kopiera min kod. Du accepterar personen när den går '
-            ..'med.\nF6: status\nF8: lämna sessionen\nEnter: chatt\nVid en telefonkiosk i ett läger öppnar F5 '
-            ..'co-op-linjen i stället för menyn.'},
+            ..'Bli värd för en session, öppnar Skapa en session: välj Vem kan gå med och sessionsreglerna, sedan '
+            ..'Starta. Hitta en session visar de öppna sessioner du kan gå med i.\nMed Inbjudan skickar du den 7 '
+            ..'tecken långa koden från Kopiera min kod. Någon som inte finns bland dina Steam-vänner väntar tills du '
+            ..'accepterar personen.\nF6: status\nF8: lämna sessionen\nEnter: chatt\nVid en telefonkiosk i ett läger '
+            ..'öppnar F5 co-op-linjen i stället för menyn.'},
         {title='Sparfiler för co-op',
          body='Delade fiender, delade uppdrag, nattinsatsen, Dorolopp och Leviathan körs på co-op-sparfiler. Det är '
             ..'kopior av dina sparfiler som modden gör. Modden skriver aldrig till dina egna sparfiler och '
@@ -974,9 +978,9 @@ G.th={
          body='Stellar Blade Online ให้ EVE ของเพื่อนเข้ามาในโลกของคุณผ่าน Steam ตอนนี้เซสชันหนึ่งรองรับผู้เล่น 2 คน เป้าหมายคือ 100 '
             ..'คน\nเปิดคู่มือนี้อีกครั้งได้ทุกเมื่อจากเมนู co-op (F5)'},
         {title='เล่นด้วยกัน',
-         body='กด F5 ในโลกของเกมเพื่อเปิดเมนู co-op (บนคอนโทรลเลอร์ให้กด View ค้างไว้) แถวแรก [โฮสต์เซสชัน] จะเปิดหน้าต่างเชิญของ '
-            ..'Steam\nคนที่ไม่ได้อยู่ในรายชื่อเพื่อน Steam ของคุณเข้าร่วมด้วยโค้ดได้ ก่อนโฮสต์ ให้ตั้ง [ใครเข้าร่วมได้] เป็น [ใช้โค้ด] ใน '
-            ..'[ตัวเลือก] จากนั้นใช้ [คัดลอกโค้ดของฉัน] แล้วส่งโค้ด 7 ตัวให้เขา เมื่อเขาขอเข้าร่วม ให้กดรับ\nF6: สถานะ\nF8: '
+         body='กด F5 ในโลกของเกมเพื่อเปิดเมนู co-op (บนคอนโทรลเลอร์ให้กด View ค้างไว้) แถวแรก [โฮสต์เซสชัน] จะเปิด [สร้างเซสชัน] '
+            ..'ให้เลือก [ใครเข้าร่วมได้] และกฎของเซสชัน แล้วกด [เริ่ม] ส่วน [ค้นหาเซสชัน] จะแสดงเซสชันที่คุณเข้าร่วมได้\nถ้าเลือก [คำเชิญ] '
+            ..'ให้ใช้ [คัดลอกโค้ดของฉัน] แล้วส่งโค้ด 7 ตัวให้อีกฝ่าย คนที่ไม่ใช่เพื่อน Steam ของคุณจะรอจนกว่าคุณจะกดรับ\nF6: สถานะ\nF8: '
             ..'ออกจากเซสชัน\nEnter: แชท\nที่ตู้โทรศัพท์ในแคมป์ F5 จะเปิดสาย Co-op แทนเมนู'},
         {title='เซฟ co-op',
          body='ศัตรูร่วม แชร์เควสต์ ปฏิบัติการกลางคืน โดโรเรซ และ Leviathan ทำงานบนเซฟ co-op ซึ่งเป็นสำเนาเซฟของคุณที่ม็อดสร้างขึ้น '
@@ -1018,10 +1022,11 @@ G.tr={
             ..'menüsünden (F5) yeniden açabilirsin.'},
         {title='Birlikte oyna',
          body="Co-op menüsünü açmak için oyun dünyasında F5'e bas (kumandada View'u basılı tut). İlk satırdaki "
-            ..'Oturum kur, Steam davet penceresini açar.\nSteam arkadaş listende olmayan biri kodla katılabilir. '
-            .."Oturum kurmadan önce Seçenekler'de Kimler katılabilir ayarını Kodu olanlar yap. Sonra Kodumu kopyala "
-            ..'ile aldığın 7 karakterlik kodu ona gönder. Katıldığında onu kabul edersin.\nF6: durum\nF8: oturumdan '
-            ..'ayrıl\nEnter: sohbet\nBir kampın telefon kulübesinde F5, menü yerine co-op hattını açar.'},
+            ..'Oturum kur, Oturum oluştur ekranını açar: Kimler katılabilir ayarını ve oturum kurallarını seç, sonra '
+            .."Başlat'a bas. Oturum bul, katılabileceğin açık oturumları listeler.\nDavet seçiliyse Kodumu kopyala "
+            ..'ile aldığın 7 karakterlik kodu gönder. Steam arkadaşın olmayan biri, sen kabul edene kadar '
+            ..'bekler.\nF6: durum\nF8: oturumdan ayrıl\nEnter: sohbet\nBir kampın telefon kulübesinde F5, menü '
+            ..'yerine co-op hattını açar.'},
         {title='Co-op kayıtları',
          body='Ortak düşmanlar, ortak görevler, Gece Operasyonu, Doro yarışları ve Leviathan co-op kayıtlarında '
             ..'çalışır. Bunlar, modun senin kayıtlarından aldığı kopyalardır. Mod senin kayıt dosyalarına asla '
@@ -1067,9 +1072,9 @@ G['zh-Hans']={
          body='Stellar Blade Online让好友的EVE通过Steam加入你的世界。目前一个房间最多2名玩家，目标是100名。\n'
             ..'随时可在合作菜单（F5）中再次打开本指南。'},
         {title='一起玩',
-         body='在游戏世界中按F5打开合作菜单（手柄上按住View）。第一行“创建房间”会打开Steam邀请窗口。\n'
-            ..'不在你Steam好友列表中的玩家可以用房间码加入。创建房间前，在“选项”中将“谁可以加入”设为“凭房间码”。'
-            ..'然后用“复制我的房间码”复制7位房间码，发给对方。对方加入时由你接受。\nF6：状态\nF8：离开房间\nEnter：'
+         body='在游戏世界中按F5打开合作菜单（手柄上按住View）。第一行“创建房间”会打开设置界面：选择“谁可以加入”'
+            ..'和房间规则，然后选“开始”。“查找房间”会列出你可以加入的房间。\n选择“邀请”时，用“复制我的房间码”'
+            ..'复制7位房间码，发给对方。不是你Steam好友的玩家要等你接受。\nF6：状态\nF8：离开房间\nEnter：'
             ..'聊天\n在营地的电话亭旁，F5会打开合作线路而不是菜单。'},
         {title='合作存档',
          body='共享敌人、共享任务、暗夜行动、Doro竞速和Leviathan都需要合作存档。合作存档是模组复制的存档副本。'
@@ -1109,10 +1114,10 @@ G['zh-Hant']={
          body='Stellar Blade Online讓好友的EVE透過Steam加入你的世界。目前一個房間最多2名玩家。目標是100名玩家。'
             ..'\n隨時可從合作選單（F5）再次開啟本指南。'},
         {title='一起遊玩',
-         body='在遊戲世界中按F5開啟合作選單（控制器請長按View）。第一項「建立房間」會開啟Steam邀請視窗。'
-            ..'\n不在你Steam好友名單中的人可以用代碼加入。建立房間前，請先在「選項」中將「誰可以加入」'
-            ..'設為「使用代碼」，再把「複製我的代碼」取得的7字元代碼傳給對方。對方加入時需要你接受。\nF6：狀態\nF8：'
-            ..'離開房間\nEnter：聊天\n在營地的電話亭，F5會開啟合作線路，而不是選單。'},
+         body='在遊戲世界中按F5開啟合作選單（控制器請長按View）。第一項「建立房間」會開啟設定畫面：選擇「誰可以加入」'
+            ..'和房間規則，再選「開始」。「尋找房間」會列出你可以加入的房間。\n選擇「邀請」時，把「複製我的代碼」'
+            ..'取得的7字元代碼傳給對方。不是你Steam好友的人要等你接受。\nF6：狀態\nF8：離開房間\nEnter：'
+            ..'聊天\n在營地的電話亭，F5會開啟合作線路，而不是選單。'},
         {title='合作存檔',
          body='共享敵人、共享任務、夜間行動、Doro競速和Leviathan都使用合作存檔。合作存檔是模組製作的存檔複本。'
             ..'模組絕不會寫入你自己的存檔檔案，並會在第一次轉換前先備份。\n在主選單可選擇合作（複本）'

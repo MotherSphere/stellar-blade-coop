@@ -60,9 +60,11 @@ setting is now on by default, the experimental ones included; most of them have 
 
 ## What it does
 
-- F5 opens the co-op menu. Its first row, Host a session, creates a Steam lobby for 2 players and opens the Steam
-  invite dialog. Options can limit the session to invited friends, or give it a 7-character join code and open no
-  dialog. See [Playing with a friend](docs/playing-with-a-friend.md).
+- F5 opens the co-op menu. Its first row, Host a session, opens the Create a session screen: pick who can join and
+  the session rules, then Start hosts a Steam lobby for 2 players. Public, the default, lists the online session in
+  Find a session for every player of your version. Friends only opens it to your Steam friends, Invitation to a Steam
+  invite or a 7-character join code, Private to nobody. Find a session lists the online sessions you can join. See
+  [Playing with a friend](docs/playing-with-a-friend.md).
 - Your friend's EVE appears in your world as a ghost: a display-only copy that moves as she moves, wears her outfit and
   has your friend's Steam name above it. Items are not shared, except the consumables sent with `coop gift`. See
   [Ghost](docs/ghost.md).
@@ -91,6 +93,8 @@ setting is now on by default, the experimental ones included; most of them have 
   [Playing with a friend](docs/playing-with-a-friend.md).
 - In Doro races you record a track with F9 checkpoints, then race it alone or against your friend, each racer drawn
   as a Doro. See [Doro races](docs/doro-races.md).
+- The bike (not tested in game yet): F3, D-pad Right held 1 s or `coop bike` puts EVE on a motorbike from the game's
+  files, on any save. Your friend's ghost of you rides it too. See [The bike](docs/bike.md).
 - Night Operation is a multiplayer wave-survival mode that Shift Up cut before release. `coop nightop` runs five timed
   waves alone or for both players, and the points buy items in a reward shop. `coop challenge` runs five short fights
   on the same code. See [Night Operation](docs/night-operation.md).
@@ -147,6 +151,10 @@ Mods, Stellar Blade mod 4009). The author gave permission, and the code is distr
 [NOTICE](NOTICE)). The challenge list follows Survival Protocol's graded stages: five difficulty stages picked from a
 list before a fight. [Night Operation: Credits](docs/night-operation.md#credits) lists the adapted parts and the files
 that mark them.
+
+The bike's riding model and its lean adapt code from [Eve On Wheels](https://www.nexusmods.com/stellarblade/mods/4165)
+by dCharisma1 (Nexus Mods, Stellar Blade mod 4165). With his written consent, the code is distributed here under the
+SBO License (see [NOTICE](NOTICE)). No asset, sound or animation of Eve On Wheels ships with the mod.
 
 Mother Sphere illustration by timediffer24 (https://x.com/timediffer24), given to this project; not covered by the SBO
 License. It is `mod/StellarCoop/Assets/MotherSphere.png`, shown in the guide the mod opens at its first run. The release

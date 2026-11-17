@@ -1,19 +1,31 @@
 # Playing with a friend
 
-One player hosts a session and the other joins it through Steam. A co-op session holds 2 players; the match lobbies
+One player hosts a session and the other joins it through Steam. An online session holds 2 players; the match lobbies
 of up to 8 players start from the [SBO lobby](sbo-lobby.md) instead. Shared enemies and your friend's EVE have their own
 pages, [Shared enemies](shared-enemies.md) and [Ghost](ghost.md). How the link and the features below work is in
 [The Steam link](internals/steam-link.md) and [Group play: how it works](internals/group-play.md).
 
-1. The host presses F5 and selects Host a session. This creates a Steam lobby for 2 players and opens the Steam invite
-   dialog. Pick your friend there. By default the lobby is friends-only: your Steam friends who have the mod can also
-   join from their friends list or with `coop join`. With Options > Session > Who can join set to Invited only
-   (`who_can_join=private`), only the friends you invite can join. Set to With a code (`who_can_join=code`), it opens
-   no dialog, and anyone you give the [join code](#join-codes) to can ask to join. The setting counts for the next
-   session you host.
-2. Your friend accepts the invite in Steam. If their game is closed, Steam starts it. They join once a save is loaded
-   (EVE in a world, not on the title screen). Until then their game holds the invite (`Invite held: joining once your
-   save has loaded.`). A newer invite replaces a held one, and host, join or leave drops it.
+1. The host presses F5 and selects Host a session. The [Create a session screen](interface.md#create-a-session-screen)
+   opens on the values in effect: Who can join, then the session rules. Start creates a Steam lobby for 2 players as Who
+   can join says:
+   - Public (the default): the online session shows in Find a session for every player of your version, with your
+     Steam name, region and nearest camp. No dialog opens. A player who is not your Steam friend asks to join and
+     waits for your answer (see [Asking to join](#asking-to-join)).
+   - Friends only: the Steam invite dialog opens. Pick your friend there. Your Steam friends who have the mod can also
+     join from Find a session, from their friends list or with `coop join`.
+   - Invitation: the Steam invite dialog opens and a notice gives your [join code](#join-codes). The session shows in
+     no list: only the friends you invite and the players you give the code to can join.
+   - Private: nobody can join, not even with an invite or a code (`Hosting a private session: nobody can join it.`).
+
+   Friends join without asking, under Public and Invitation, is On by default: your Steam friends get in at once. Off
+   makes them wait for your answer too. Each row is the same setting as on the Options page: a change there shows here
+   and the other way round. Who can join and Friends join without asking count for the next session you host. Back
+   closes the screen without hosting. `coop host public` (or `friends`, `invitation`, `closed`) hosts at once with that
+   value, without the screen.
+2. Your friend accepts the invite in Steam, or selects your session in [Find a session](#finding-a-session). If their
+   game is closed when they accept an invite, Steam starts it. They join once a save is loaded (EVE in a world, not on
+   the title screen). Until then their game holds the invite (`Invite held: joining once your save has loaded.`). A
+   newer invite replaces a held one. Host, join or leave drops it.
 3. The ghost turns on automatically in both games when the session starts. Once both games have accepted each other's
    handshake, each of you sees the other's EVE where she stands, in her outfit, with their Steam name above her.
 
@@ -53,12 +65,30 @@ the world of the player who uses them. Vendors, the request board and quest give
 [shared quests](#shared-quests-experimental) says which quest steps are shared. Nothing one player opens, buys or picks
 up is copied into the other player's game.
 
+## Finding a session
+
+Find a session, on the co-op menu's main page and on the co-op line outside a session, opens the
+[Sessions screen](interface.md#sessions-screen). Its Public tab lists the Public online sessions of the players whose
+mod runs your protocol and whose game runs your build. Its Friends tab lists the sessions your Steam friends host with
+Public or Friends only. Neither tab shows an Invitation or Private session, a full one, one whose host you blocked on
+Steam or on your [block list](#block-list), or your own.
+
+Each row shows the host's Steam name, the region, the players (`1/2`) and the ping. The right pane adds the travel
+camp nearest the host and the session rules the host has on. The screen searches when it opens, when you change tabs
+and on Refresh (F, or Y on a controller), 5 s apart at least. It never searches by itself.
+
+Select a row to join that session. A Steam friend of the host gets in at once, unless the host set Friends join
+without asking to Off. Anyone else waits for the host's answer (see [Asking to join](#asking-to-join)). The console
+reads the same list: `coop list public` or `coop list friends` searches, `coop list` prints the rows and
+`coop join <row>` joins one (see [Session commands](usage.md#session-commands)).
+
 ## Join codes
 
-With Options > Session > Who can join set to With a code (`who_can_join=code`), Host a session creates a lobby that
-does not show in your friends' lists, and no invite dialog opens. The notice `Hosting. Your join code is CCS-CBMH.`
-gives its 7-character code. The menu's Copy my code row shows it too, and selecting it puts it on the clipboard
-(`Join code CCS-CBMH copied.`). Send it to the other player, for example in Discord. Each new lobby gets a new code.
+With Who can join set to Invitation (`who_can_join=invitation`; `code` and `private` from 0.11 and older read the same),
+Start on the Create a session screen creates a lobby that shows in no list and opens the Steam invite dialog. The
+notice `Hosting. Your join code is CCS-CBMH.` gives its 7-character code. The menu's Copy my code row shows it too.
+Selecting it puts the code on the clipboard (`Join code CCS-CBMH copied.`). Send it to the other player, for example
+in Discord. Each new lobby gets a new code.
 
 The other player opens the menu outside a session and selects Join with a code. A text box opens where the menu was.
 It works like the chat box: any keyboard layout, the game ignores its own keys, and the mod's keys do nothing.
@@ -73,28 +103,79 @@ part checks the code: most codes with a wrong character get `That is not a join 
 [internals/steam-link.md](internals/steam-link.md#lobby-and-invites)), and a code that leads to no game gets one of the
 `Could not join: ...` notices.
 
-A player who is not your Steam friend waits for your answer, whatever Who can join says. Their game shows
-`Joined <host>'s game. Waiting to be let in.` Yours shows a question in the middle of the screen, `<name> wants to
-join`, with Accept and Deny. It opens on its own, maybe while you walk or use the menu. Deny has the focus, and for
-1 s after it shows every key does nothing, so keys pressed for something else never answer it.
+## Asking to join
 
-- The Up and Down arrows move between Accept and Deny, Enter answers, and Esc denies. W, S, Space and the
-  [controller](interface.md#controller) do nothing here. While the question is open, the game ignores its own keys and the mod's
-  keys do nothing.
-- The question opens in a world, while the game is not paused and the chat box is closed, and closes the co-op menu.
-  Until then it waits. It hides while the game pauses and comes back after.
+A player who is not your Steam friend waits for your answer, whatever Who can join says. With Friends join without
+asking set to Off, your Steam friends wait too. Both games show the game's own popup
+([Join popups](interface.md#join-popups)). Yours plays the game's alert and asks `<name> wants to join`, with the
+game's Accept and Decline buttons. Theirs shows `Joined <host>'s game. Waiting to be let in.` in the feed and a popup,
+`Waiting for <host>'s answer`, with one Close button. Each popup shows the seconds left.
+
+Your question opens on its own, maybe while you walk, fight or use the menu. Decline has the focus. For 1 s after it
+shows every key, controller button and click does nothing, so a press meant for something else never answers it.
+
+- The arrows, or the [controller](interface.md#controller)'s D-pad or left stick, move between Accept and Decline.
+  Enter or A answers with the focused button. Esc, B or a right click declines. A left click on a button answers with
+  that button. W, S and Space do nothing here. While the question is open, the mouse cursor shows and the game ignores
+  its own keys and controller. The mod's keys do nothing.
+- On the player who waits, Enter, Esc, A, B or a click on Close (after the same first second) cancels the request:
+  their game leaves your lobby. Their popup closes by itself once you answer, with the game's accept sound when you let them in.
+- A popup opens in a world, while the game is not paused and the chat box is closed. It closes the co-op menu as it
+  opens. Until then it waits. It hides while the game pauses and comes back after.
 - With no answer for 60 s, the native part refuses the player, even if the question never showed (with
-  `coop ui off`, for example). The question shows the seconds left.
-- A denied or removed player cannot come back to that lobby. Their game shows `<host> refused the link: you were not
-  let in` (or `you were removed from this session`) and leaves.
-- If players you do not know keep asking, host again: the new lobby gets a new code.
+  `coop ui off`, for example).
+- `coop ui reset` answers an open question with Deny. On the player who waits, it hides the popup for that lobby and
+  they keep waiting for your answer.
+- A denied player cannot come back to that lobby. Their game shows `<host> refused the link: you were not let in` and
+  leaves.
+- A removed player cannot come back to any game you host: Remove also puts them on your [block list](#block-list).
+  Their game shows `<host> refused the link: you were removed from this session` and leaves.
+- If players you do not know keep asking, leave, then host again with Friends only or Invitation: neither shows in
+  the Public tab of Find a session. An Invitation lobby gets a new code.
 - A session with a player who is not your Steam friend goes through Steam's relays only, on both games, so neither
   of you learns the other's IP address. The relay route can add ping. Once such a player has been in your lobby, your
   game stays on relays only until you host again or join a friend's game.
-- While a player who is not your Steam friend is in your session, the menu shows Remove <name>. After a Lua reload
-  (Ctrl+R) that row stays hidden for a player let in before the reload; `coop remove <SteamID>` still works.
+- If Steam refuses the relays-only setting, nothing goes to that player and your game asks Steam again each second.
+  After 3 refusals the link with that player stops. The host sees `<name> was refused: Steam would not set relay
+  only.` A guest's game leaves with `Left <host>'s game: Steam would not set relay only.`
+- While a player who is not your Steam friend is in your session, the menu shows Remove <name>, which also blocks
+  them. After a Lua reload (Ctrl+R) that row stays hidden for a player let in before the reload;
+  `coop remove <SteamID>` still works.
 - `coop allow <SteamID>` and `coop deny <SteamID>` answer from the console. `coop status` shows the waiting player on
-  its `pending=` line.
+  its `pending=` line, with the SteamID masked to `***` and its last 4 digits. These commands take the 4 digits too.
+
+### Block list
+
+Remove (the menu row or `coop remove <SteamID>`) keeps the player out of every game you host from then on, in later
+lobbies and after the game restarts. Deny only refuses them for the current lobby.
+
+- When a blocked player joins a later game of yours, the native part refuses them before any question or handshake.
+  Their game shows `<host> refused the link: you cannot join this session again` and leaves. Yours shows
+  `A player on your block list tried to join and was refused.` This works in a match lobby you host too. When a
+  match lobby comes to you because its host left, a blocked player in it is removed at that moment.
+- `coop block <SteamID>` blocks a player without a session. If that player is in the game you host, they are removed
+  as well.
+- `coop unblock <SteamID>` takes one player off the list and `coop unblock all` empties it. A player unblocked while
+  still in your lobby is greeted again (or asked about, if not your Steam friend) at once. For a player you blocked
+  in this game run, `coop unblock` also takes the 4 digits the logs show after `***`.
+- For a player blocked in an earlier game run, `coop unblock` needs the full SteamID, 17 digits. The logs and the
+  block list never hold it whole. Ask the player for it: their own `coop-status.txt` shows it after `steamid=` on its
+  first line. Their Steam profile shows it too, in the address `steamcommunity.com/profiles/<SteamID>`, unless they
+  set a custom one. While a player is in your lobby, your `coop-status.txt` has it on their `peer=` and `member=`
+  lines, so you can note it before a remove.
+- `coop blocked` prints how many players the list holds. It cannot name them.
+- The list is `coop-blocked.txt` in the mod folder. It holds a hash of each SteamID, so the SteamIDs do not show as
+  they are. The hash does not keep them secret. The salt is the same for every player. Steam has about 4 billion
+  personal accounts, few enough for one PC to hash them all in a few minutes. Anyone who gets your file can list every
+  SteamID on it that way, so do not share it. Keep it when you update the mod (see
+  [INSTALL.md](../INSTALL.md#update)).
+- When the file is there at game start but the mod cannot read all of it (another program holds it open, for
+  example), you see `Could not read the whole block list: changes to it are not saved until the game restarts.` The
+  players it read stay blocked. The file stays as it is until the next game start, so no player on it is lost.
+- The list applies to games you host. A game you join yourself, with a code or an invite, is up to you: you can
+  still join a blocked player's game. Quick match is the exception. Your game never stays in a public match lobby with
+  a player on your list: it leaves, then searches again and skips that lobby for the rest of the game run. A blocked
+  player whom quick match sends to your lobby is refused. Her game searches again the same way.
 
 ## Following the host
 

@@ -185,10 +185,11 @@ void append_raw(const char *text, DWORD size) {
 constexpr size_t kLogCap = 1 << 20;
 size_t log_bytes = 0;
 bool log_capped = false;
+// Each line with its SteamIDs and join codes masked (link/protocol.h's masked): bug reports bring this log too.
 void append(const std::string &line) {
   if (log_capped)
     return;
-  std::string text = line + "\r\n";
+  std::string text = coop::masked(line) + "\r\n";
   if (log_bytes + text.size() > kLogCap) {
     log_capped = true;
     text = utc_stamp() + " log capped at 1 MB: coop report still lists the last 100 events\r\n";
@@ -637,7 +638,9 @@ void write_report() {
   text += "\r\nlast events:\r\n";
   for (auto &line : journal.recent())
     text += line + "\r\n";
-  event(write_text(folder + L"coop-report.txt", text) ? "report written to coop-report.txt" : "report not written");
+  // Masked like coop-link.log: the status and the save folder's names carry SteamIDs and our join code.
+  event(write_text(folder + L"coop-report.txt", coop::masked(text)) ? "report written to coop-report.txt"
+                                                                     : "report not written");
 }
 
 // One pass of the worker; false stops it for good.
@@ -658,6 +661,13 @@ bool step() {
           api, STELLARCOOP_VERSION, event,
           [](size_t slot, const uint8_t *d, size_t n) { coop::pose::peer_receive(slot, d, n); });
       link->paks(game_paks.count, game_paks.hash, game_mods);
+      bool exists = false; // The block list, kept across game runs; no file yet is an empty list.
+      const std::wstring blocked = folder + L"coop-blocked.txt";
+      const std::string text = coop::pose::read_file(blocked, exists, coop::kMaxBlockFile);
+      // read_file() cannot tell a missing file from one it could not open, nor a read cut short: the size can.
+      WIN32_FILE_ATTRIBUTE_DATA file{};
+      const bool there = GetFileAttributesExW(blocked.c_str(), GetFileExInfoStandard, &file);
+      link->blocks(text, !there || (!file.nFileSizeHigh && file.nFileSizeLow == text.size()));
     }
     if (loaded && !account && !saves_dir.empty() && link->me()) { // The game's save folder for this account.
       account = std::make_unique<WinFs>(saves_dir + L"\\" + std::to_wstring(link->me()), backups_dir);
@@ -737,6 +747,10 @@ bool step() {
       break;
     case coop::Command::anim: // coop emote's native clips: the game thread's too.
       event(coop::pose::ask_anim(coop::parse_request(request)));
+      request.clear();
+      break;
+    case coop::Command::bike: // The bike's preload and SB's actions while she rides: the game thread's too.
+      event(coop::pose::ask_bike(coop::parse_request(request)));
       request.clear();
       break;
     case coop::Command::shortcut: // coop shortcut's list, or a load's read: the game thread's reads.
@@ -883,6 +897,12 @@ bool step() {
         link->tick(GetTickCount64(), request, join, session);
         if (link->take_report())
           write_report();
+        if (const std::string blocks = link->take_blocks(); !blocks.empty()) {
+          const bool saved = write_text(folder + L"coop-blocked.txt", blocks);
+          event(saved ? "block list saved to coop-blocked.txt" : "block list not saved");
+          if (!saved)
+            link->notice("Could not save the block list: it holds until the game closes.");
+        }
         if (const std::string code = link->take_copy(); !code.empty()) {
           const bool copied = coop::copy_text(std::wstring(code.begin(), code.end()));
           event(copied ? "join code copied to the clipboard" : "join code not copied: the clipboard refused it");
@@ -934,6 +954,9 @@ bool step() {
     if (loaded && !said.empty())
       link->notice(said);
     said = coop::pose::anim_pass();
+    if (loaded && !said.empty())
+      link->notice(said);
+    said = coop::pose::bike_pass();
     if (loaded && !said.empty())
       link->notice(said);
     coop::pose::hud_pass();

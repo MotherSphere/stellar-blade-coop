@@ -5,14 +5,15 @@
 -- by the native part from a table and poses that come back to you: a linked friend's over Steam, yours through an
 -- in-process loopback (coop loopback <delay ms> <jitter ms> <loss %> | off), or a recording of yours (coop record
 -- [off], coop replay [off]), in the outfit it was captured in (coop basesuit: on the base suit instead; coop look: its
--- cloth, dyes or effects on or off until the mod reloads); the Steam link between two players (coop host, invite, join,
--- leave, status, report, copy, allow, deny, remove; the co-op menu on F5, whose rows host, invite, join, leave and
--- change the settings (ui/menu.lua), within 3 m of a camp phone booth the co-op line instead (session/booth.lua),
--- status and leave on F6 and F8, unless coop-settings.txt says otherwise; join codes and the host's question on a
--- player who is not her Steam friend: session/join.lua), the session chat on Enter, alone in the SBO lobby too
--- (session/chat.lua), its notices in the chat's feed (or, with the UI off, on a line above your EVE), your friend's
--- card, marker and off-screen arrow (partner/hud.lua; the ghost's name tag is their fallback); the co-op saves'
--- question on the title screen
+-- cloth, dyes or effects on or off until the mod reloads); the Steam link between two players (coop host, invite, list,
+-- join, leave, status, report, copy, allow, deny, remove; the co-op menu on F5, whose rows open the Create a session
+-- screen to host (ui/create.lua), invite, leave, open the session list (ui/sessions.lua) and change the settings
+-- (ui/menu.lua), within 3 m of a camp phone booth the
+-- co-op line instead (session/booth.lua), status and leave on F6 and F8, unless coop-settings.txt says otherwise; join
+-- codes and the host's question on a player who is not her Steam friend: session/join.lua), the session chat on Enter,
+-- alone in the SBO lobby too (session/chat.lua), its notices in the chat's feed (or, with the UI off, on a line above
+-- your EVE), your friend's card, marker and off-screen arrow (partner/hud.lua; the ghost's name tag is their fallback);
+-- the co-op saves' question on the title screen
 -- (session/saves.lua, auto_coop_save in coop-settings.txt), with coop saves probe|convert|coop|main for the native
 -- part's copies and save name by hand, coop saves refresh <0-4> to replace one co-op copy and coop saves export <0-4>
 -- <0-4> to write a co-op copy over one of your own saves; and coop where, a line of
@@ -75,7 +76,7 @@
 -- added with the Lion's and the skill started through SB's own effect call while she is in Tachy Mode
 -- (cut/chainspin.lua; left out of the usage line; on a co-op save only). coop off stops everything until the game
 -- restarts. An XInput pad, read by the native part, drives the co-op menu and the co-op saves' question: View held 1 s
--- opens or closes the menu. The console commands' handlers are in
+-- opens or closes the menu; D-pad Right held 1 s gets EVE on the bike or off it. The console commands' handlers are in
 -- Scripts/commands/ (session, partner, nightop, race, fight and cut), all but coop ui and coop off, which stay here.
 -- coop wear [<name>|off [hair|suit]] puts cut hairs and suits on your EVE, display only and on any save (cut/wear.lua).
 -- coop scene [emil|orcal|stop] plays two cut scenes through the game's own theater (cut/scene.lua; a scene on a co-op
@@ -85,6 +86,9 @@
 -- line; on on a co-op save only).
 -- coop emote [list|<name>|off] plays one of EVE's clips on her (a photo-mode pose held until she moves, a wave, or a
 -- clip of the Cut category played once), on any save (cut/emote.lua, through the native part's custom animation call).
+-- coop bike [status|tune [<name> <value>]] puts EVE on SB's own bike or takes her off it, as bike_key (F3 unless set)
+-- and D-pad Right held 1 s do, on any save (commands/bike.lua, bike/ride.lua; its riding model, bike/model.lua, adapts
+-- Eve On Wheels by dCharisma1).
 -- coop shortcut lists the cut Load Shortcut menu's developer saves, read from the game's paks by the native part, on
 -- any save (left out of the usage line); coop shortcut load <map> <1-4> writes one, without its achievement data, as
 -- co-op slot 5's copy, only with shortcut_load=on and typed twice within 10 s (commands/cut.lua).
@@ -101,6 +105,10 @@
 -- coop sbo enter|leave|status|hop|back|view [set]|seq <alias>|parts, the SBO lobby in Xion by hand (session/sbo.lua,
 -- with sbo_lobby=on; left out of the usage line); the recruiter's Join enters it, or says what is missing. In its world
 -- the lobby's screens (ui/lobby.lua) open over the menu camera at the Agit, where menu_key and View held 1 s open them.
+-- Every line of ours in UE4SS.log goes through this print, with SteamIDs and join codes masked (core/mask.lua): players
+-- post that log in public. coop-status.txt keeps them whole.
+local mask=require('core.mask')
+local print=function(text) _G.print(mask(text)) end
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -124,8 +132,8 @@ if loaded then
     if type(f)=='function' then native_pad=f
     else log('Native pad unavailable (no controller in the co-op menu): '..tostring(pad_why)) end
 end
--- The DLL links no Lua: its event (0 for none) is how many of these nine arguments it hands back.
-local function pad() return select('#',native_pad(0,0,0,0,0,0,0,0,0)) end
+-- The DLL links no Lua: its event (0 for none) is how many of these eleven arguments it hands back.
+local function pad() return select('#',native_pad(0,0,0,0,0,0,0,0,0,0,0)) end
 local link=loaded and require('core.link').new(folder) or nil
 local settings=nil
 if link then
@@ -160,6 +168,7 @@ if settings then
         ..(settings.quest_deny~='' and ', quest_deny '..settings.quest_deny or ''))
     log('shared world: '..(settings.shared_world and 'on' or 'off')..' (experimental)')
     log('story together: '..(settings.shared_story and 'on' or 'off')..' (experimental)')
+    log('bike: '..(settings.bike and 'on' or 'off')..', bike_key '..settings.bike_key.name)
 end
 -- A new token per Lua load: the native part then drops what an older load published (withdrawn here as well).
 if link then
@@ -172,15 +181,20 @@ local capture=require('partner.capture').new(link and link.components or nil,loo
     settings~=nil and not settings.mod_names)
 local notice=require('ui.notice').new()
 -- The UI kit, the co-op menu, the chat's box and feed, the partner HUD, the co-op saves' question, the code box, the
--- host's question and the SBO lobby's screens: with the Steam link. The SBO lobby itself (sbo), its hall maps' rows
--- (halls) and the hold at its arrivals (arrival) are built further down.
-local kit,menu,box,hud,saves_ui,code_box,approval,lobby,sbo,halls,arrival
--- coop ui reset and the focus watchdog: the menu, the chat's box, the code box and the lobby's screens closed, an open
--- host's question denied, the co-op saves' question closed as Decide later, the game's input given back now and the
--- menu's mouse cursor put back; a lobby screen closed in the lobby world gives the view back to EVE with the room's
--- overlay, as Back does. With why (the watchdog's): it is logged, and a co-op saves pass under way is kept.
+-- host's question, the Sessions screen, the Create a session screen and the SBO lobby's screens: with the Steam link.
+-- The SBO lobby itself (sbo), its hall maps' rows (halls) and the hold at its arrivals (arrival) are built further
+-- down.
+local kit,menu,box,hud,saves_ui,code_box,approval,sessions,create,lobby,sbo,halls,arrival
+-- The screen the co-op menu opened in its place, while one is open: the Sessions screen or the Create a session screen.
+local function open_screen() return sessions.is_open() and sessions or create.is_open() and create or nil end
+-- coop ui reset and the focus watchdog: the menu, the chat's box, the code box, the Sessions and Create a session
+-- screens and the lobby's screens closed, an open host's question denied, the co-op saves' question closed as Decide
+-- later, the game's input given back now and the menu's mouse cursor put back; a lobby screen closed in the lobby world
+-- gives the view back to EVE with the room's overlay, as Back does. With why (the watchdog's): it is logged. A co-op
+-- saves pass under way is kept.
 local function ui_reset(why)
-    menu.close(); box.close(); code_box.close(); approval.close(); saves_ui.close(why~=nil)
+    menu.close(); box.close(); code_box.close(); approval.close(); saves_ui.close(why~=nil); sessions.close()
+    create.close()
     local was=lobby.is_open()
     lobby.close()
     if was and sbo.in_lobby() then sbo.to_room(); lobby.room(true) end
@@ -238,7 +252,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | match search|create <mode>|cancel|end|join <code>|leave | mute|unmute <SteamID> | status | report | mark [text] | where | near [metres] | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | emote [list|<name>|off] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | challenge [<name>|stop] | recruiter [off] | gift [send <item> [count]|take [n]] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | world on|off|status | scenes on|off|status | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
+local USAGE='Use: coop puppet | host [public|friends|invitation|closed] | invite | list [public|friends] | join [lobby id|code|row] | copy | allow|deny|remove|block <SteamID> | unblock <SteamID>|all | blocked | leave | match search|create <mode>|cancel|end|join <code>|leave | mute|unmute <SteamID> | status | report | mark [text] | where | near [metres] | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | emote [list|<name>|off] | bike [status|tune [<name> <value>]] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | challenge [<name>|stop] | recruiter [off] | gift [send <item> [count]|take [n]] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | world on|off|status | scenes on|off|status | keys reset [<name>|all] | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
 local function ask(line)
     return function()
         if not link then return false,'the Steam link needs the native part' end
@@ -341,7 +355,7 @@ local leviathan=require('cut.leviathan').new({log=function(m) print('[StellarCoo
     store=link and link.store('coop-leviathan.txt'),
     blocked=function()
         return menu~=nil and (menu.is_open() or box.is_open() or code_box.is_open() or approval.is_open()
-            or saves_ui.is_open())
+            or saves_ui.is_open() or open_screen()~=nil)
     end})
 -- The races' driving (race/drive.lua), logging [DR] lines: coop-drive.txt lets the next Lua load put EVE's movement
 -- back.
@@ -359,16 +373,22 @@ local cut_lines=require('cut.lines').new({log=function(m) print('[StellarCoop][L
 -- coop glide (cut/glide.lua), logging [GL] lines: EVE's bGlide set while Jump is held in the air, on a co-op save.
 local glide=require('cut.glide').new({log=function(m) print('[StellarCoop][GL] '..tostring(m)..'\n') end,
     slot=function() return coop_slot('coop glide') end})
+-- The bike (bike/ride.lua), built below once coop fly's keys are: coop emote, the race, the hall seats and the Doro
+-- look read whether EVE rides through riding().
+local bike
+local function riding() return bike~=nil and bike.riding() end
 -- coop emote (cut/emote.lua), logging [EM] lines: one of EVE's clips until she moves, played by the native part (its
--- anim request and the status line's anim field), else as a montage.
+-- anim request and the status line's anim field), else as a montage. None starts while she rides.
 local emote=require('cut.emote').new({log=function(m) print('[StellarCoop][EM] '..tostring(m)..'\n') end,
-    ask=function(line) return ask(line)() end,status=function() return link and link.status() end})
+    ask=function(line) return ask(line)() end,status=function() return link and link.status() end,riding=riding})
 -- Doro races (race/run.lua), logging [DR] lines: the look above on EVE and the ghost's Doro mode while one runs, and
 -- the driving from GO. Its start and the guest's answer need a co-op save; it never arms during a Night Operation run.
+-- No race starts while EVE rides the bike; the guest's answer to a track line takes her off it first (dismount).
 local race=require('race.run').new({log=doro.log,link=link,puppet=puppet,look=doro,drive=drive,tell=tell,
     night=night.running,
     slot=function() return coop_slot('coop race') end,paused=function() return kit~=nil and kit.paused(true) end,
-    settings=settings,store=link and link.store('coop-race-doros.txt')})
+    settings=settings,store=link and link.store('coop-race-doros.txt'),
+    dismount=function(why) return bike.stop(why) end})
 -- The session chat's model (session/chat.lua, memory only, never logged): her lines come from coop-chat.txt, taken
 -- every 250 ms so the file never stays on disk, session or not, and each frame while a race is armed (her race lines
 -- come in it too); ours leave through coop-say.txt in the 250 ms loop, or stay on our screen alone in the SBO lobby.
@@ -387,6 +407,10 @@ end
 -- reflected getters (the library's default object, found once). The first failure turns it off for this Lua load
 -- ('0' from then on) with one log line.
 local U=require('core.unreal')
+-- SB's own word for a StringTable_UI key in the game's language (core/unreal.lua's game_text), for the Sessions screen,
+-- the join popups and the feed's join and leave lines; none under ui_language=english.
+local function game_words(key) if settings and settings.ui_language~='english' then return U.game_text(key) end end
+local Join=require('session.join')
 local photo_failed=false
 local function photo_state()
     if photo_failed then return '0' end
@@ -536,7 +560,7 @@ if link then
     -- The lobby pak gate's inputs: SB/Content/Paks from the mod folder and the file reader; the hall rows' ok().
     sbo=require('session.sbo').new({link=link,settings=settings,recruiter=recruiter,nightop=night,halls=halls,
         paks=require('matrix13.world.travel').paks_of(folder),read=require('core.link').files.read,
-        log=sbo_log,emote=emote,arrival=arrival,
+        log=sbo_log,emote=emote,arrival=arrival,riding=riding,
         say=function(key) tell(function(w) for part in key:gmatch('[^.]+') do w=w[part] end return w end) end,
         fight=function()
             local her=eve()
@@ -603,10 +627,34 @@ local o={link=link,settings=settings,sbo=sbo,puppet=puppet,native_tick=native_ti
     lion=lion,gardener=gardener,tendril=tendril,mxiii=mxiii,group=function() return group end,
     travel=function() return travel end,
     fight_auto_off=function() fight_auto=false end,quests_auto_off=function() quests_auto=false end,
-    world_auto_off=function() world_auto=false end,scenes_auto_off=function() scenes_auto=false end}
+    world_auto_off=function() world_auto=false end,scenes_auto_off=function() scenes_auto=false end,riding=riding}
 -- coop fly's keys (cut/flight.lua), logging [FL] lines: R2 alone flies, Shift with a direction evades.
 local flight=require('cut.flight').new({log=function(m) print('[StellarCoop][FL] '..tostring(m)..'\n') end})
 o.wear,o.scene,o.lines,o.flight,o.glide,o.emote=wear,scene,cut_lines,flight,glide,emote
+-- The bike (bike/ride.lua), logging [BK] lines: SB's own bike as a part on EVE and her ride on it with bike/model.lua
+-- through the races' driving (drive), on any save. coop-bike.txt lets the next Lua load put her main mesh back. A mount
+-- is refused, with its reason, while SBO's own state holds EVE (busy) or one of our screens is open.
+bike=require('bike.ride').new({log=function(m) print('[StellarCoop][BK] '..tostring(m)..'\n') end,
+    ask=function(line) return ask(line)() end,status=function() return link and link.status() end,
+    store=link and link.store('coop-bike.txt'),drive=drive,settings=settings,
+    paused=function() return kit~=nil and kit.paused(true) end,photo=photo_state,
+    frozen=function() return link~=nil and link.paused() end,life=function() return link and link.life() end,
+    armed=race.armed,
+    busy=function()
+        if doro.active() then return 'the Doro look is on: coop race look off ends it' end
+        if emote.active() then return 'coop emote plays: coop emote off ends it' end
+        if sbo and sbo.seated() then return 'EVE sits on a hall seat: stand her up first' end
+        if flight.active() then return 'coop fly is on: coop fly off ends it' end
+        if glide.active() then return 'coop glide is on: coop glide off ends it' end
+        if night.running() then return 'Night Operation is running: coop nightop stop ends it' end
+        if menu and (menu.is_open() or box.is_open() or code_box.is_open() or approval.is_open()
+            or saves_ui.is_open() or lobby.is_open() or open_screen()~=nil) then
+            return 'an SBO menu or the chat is open'
+        end
+    end})
+o.bike=bike
+-- The capture leaves the bike's part out while EVE does not ride: hidden, it would take one of the ghost's 16 parts.
+capture.leave_out(bike.parked)
 -- coop chainspin (cut/chainspin.lua), logging [CS] lines: the cut ChainSpin's rows through coop lion, then the request.
 o.chainspin=require('cut.chainspin').new({log=function(m) print('[StellarCoop][CS] '..tostring(m)..'\n') end,
     status=function() return link and link.status() end,rows=function(done) return lion.rows(done) end})
@@ -704,6 +752,8 @@ local commands={
             stopped,e=pcall(group.stop)
             if not stopped then log('revive: '..tostring(e)) end
         end
+        stopped,e=pcall(bike.stop,'coop off') -- Before the race's stop, which leaves a bike drive to it.
+        if not stopped then log('bike: '..tostring(e)) end
         stopped,e=pcall(race.stop)
         if not stopped then log('race: '..tostring(e)) end
         stopped,e=pcall(doro.stop)
@@ -741,7 +791,7 @@ local commands={
     end,
 }
 -- The other commands, from Scripts/commands/.
-for _,file in ipairs({'session','partner','nightop','race','fight','cut','guide','story','world','scenes'}) do
+for _,file in ipairs({'session','partner','nightop','race','fight','cut','guide','story','world','scenes','bike','keys'}) do
     for name,handler in pairs(require('commands.'..file).new(o)) do
         assert(commands[name]==nil,'coop '..name..' is defined twice')
         commands[name]=handler
@@ -837,7 +887,6 @@ if settings then
     night.hud({kit=kit,theme=Ui.THEME,settings=settings})
     race.hud({kit=kit,theme=Ui.THEME,settings=settings})
     talks.hud({kit=kit,theme=Ui.THEME}) -- The kit version of Lily's talks.
-    local Join=require('session.join')
     -- The lobby's view keeps our last match request ('search', 'create', or 'join' from the code box), when its Code
     -- row copied the code, and the map picked on C for a Private match ('random' or a hall's key, for this Lua load).
     local last,copied_at,room=nil,nil,'random'
@@ -852,11 +901,39 @@ if settings then
     local guide=require('ui.guide').new({kit=kit,link=link,settings=settings,theme=Ui.THEME,log=log,folder=folder,
         busy=function()
             return menu.is_open() or box.is_open() or code_box.is_open() or approval.is_open() or saves_ui.is_open()
+                or open_screen()~=nil
         end})
     o.guide=guide
+    -- The Sessions screen (ui/sessions.lua), which the menu's Find a session opens: the session list's rows read
+    -- fresh at each call, with our protocol and game build from the status's first line; its searches and joins go to
+    -- the native part as the lobby's requests do. SB's words in the game's language, none under ui_language=english.
+    sessions=require('ui.sessions').new({kit=kit,words=words,log=ui_log,
+        view=function()
+            local first=('\n'..(link.status() or '')):match('\n(mod=[^\n]*)') or ''
+            local search,rows=link.list()
+            return {search=search,rows=rows,match=link.match(),role=link.mode() or 'none',
+                proto=first:match(' proto=(%d+)'),build=first:match(' build=(%d+)')}
+        end,
+        act=function(a) report(link.request(a.request)) end,game_text=game_words})
+    o.sessions=sessions
     menu=require('ui.menu').new({kit=kit,link=link,settings=settings,look=look,puppet=puppet,run=run,log=log,
-        version=VERSION,chat=box,code=code_box,guide=guide})
-    approval=Join.ask({kit=kit,link=link,settings=settings,run=run,say=say,menu=menu,chat=box,guide=guide})
+        version=VERSION,chat=box,code=code_box,guide=guide,sessions=sessions})
+    o.menu=menu -- For coop keys reset (commands/keys.lua).
+    -- The Create a session screen (ui/create.lua), which Host a session and coop host alone open (commands/session.lua
+    -- reads o.create): the settings in effect, written back as the Options page writes them; Start hosts with its Who
+    -- can join word through coop host.
+    local Options=require('ui.model')
+    create=require('ui.create').new({kit=kit,words=words,log=ui_log,
+        view=function()
+            return {values=Options.values(settings),readable=link.settings_text()~=nil,role=link.mode() or 'none'}
+        end,
+        act=function(a)
+            if a.set then return menu.set(a.set,a.value) end
+            return run('host',a.host)
+        end})
+    o.create=function() return create end
+    approval=Join.ask({kit=kit,link=link,settings=settings,run=run,say=say,log=ui_log,game_text=game_words,menu=menu,
+        chat=box,guide=guide})
     saves_ui=guide.front(require('session.saves').new({kit=kit,link=link,settings=settings,theme=Ui.THEME,say=say,
         log=log,wait=guide.waiting}))
     -- The SBO lobby's screens (ui/lobby.lua), over the rest: B and C, the leave question, the countdown and the room's
@@ -970,16 +1047,48 @@ end
 -- the six navigation words, and menu (View held 1 s) closes B or C to the room; the menu open takes the six navigation
 -- words, and menu closes it; the co-op saves' question takes up, down, select and back; with nothing open, in a world
 -- with our HUD shown, menu sits EVE down, stands her up or opens B in the lobby world (lobby_key) and opens the co-op
--- menu elsewhere, as menu_key does, its refusals said
--- the same way. Nothing while the host's question is open (A is Jump and the D-pad uses items: a press meant for the
--- game never answers a stranger), nor while the menu waits for a key, but back, which stops the wait (menu.nav). The
--- chat's box and the code box take only back, which closes them as Esc does: nothing typed, nothing sent, and a pad
--- alone is never stuck there. LB and RB (tab_left, tab_right) change C's tabs while C is open, and nothing elsewhere.
-local PAD={'up','down','left','right','select','back','menu','tab_left','tab_right'}
+-- menu elsewhere, as menu_key does, its refusals said the same way. The host's question and the joiner's wait, while
+-- one is open, take every word first (A is Jump and the D-pad uses items: for 1 s after it shows a press does nothing;
+-- Decline has the focus, so a stray A declines; a held stick's or D-pad's repeats never move that focus). While the menu waits for a key only back acts: it stops the wait
+-- (menu.nav). The chat's box and the code box take only back, which closes them as Esc does: nothing is typed or sent.
+-- A pad alone is never stuck there. LB and RB (tab_left, tab_right) change C's tabs while C is open; nothing
+-- elsewhere.
+-- The Sessions screen or the Create a session screen, after the lobby's, takes them all and Y (refresh, the Sessions
+-- screen's only); menu closes it.
+-- bike (D-pad Right held 1 s) gets EVE on the bike or off it as bike_key does, in a world with our HUD shown, none of
+-- our screens open (the host's question, the Sessions screen and the Create a session screen included) and the game
+-- neither paused nor showing one of its own screens, such as its inventory or map; otherwise it logs why and does
+-- nothing.
+local PAD={'up','down','left','right','select','back','menu','tab_left','tab_right','bike','refresh'}
+-- bike_key and the pad's bike: EVE on the bike or off it, logged as a command is. A refusal also goes on screen, in
+-- English as the bike gives it, since the press shows nothing else.
+local function bike_press(by)
+    if off then return report(false,OFF) end
+    local ran,ok,message=pcall(bike.toggle,by)
+    if not ran then ok,message=false,ok end
+    report(ok,message)
+    if not ok then say(tostring(message)) end
+end
 local function pad_event(what)
-    if approval.is_open() then return end
-    if what=='tab_left' or what=='tab_right' then
-        if lobby.is_open()=='settings' then lobby.nav(what) end
+    if what=='bike' then
+        local why=not hud_shown and 'our HUD is not shown'
+            or (approval.is_open() or lobby.is_open() or code_box.is_open() or box.is_open() or menu.is_open()
+                or saves_ui.is_open() or open_screen()~=nil) and 'one of our screens is open'
+            or kit~=nil and kit.paused(true) and 'the game is paused or shows one of its screens'
+        if why then log('pad: bike ignored: '..why); return end
+        log('pad: bike')
+        bike_press('the pad')
+        return
+    end
+    if approval.is_open() then return approval.nav(what) end
+    local screen=open_screen()
+    if screen and not lobby.is_open() then
+        if what~='menu' then return screen.nav(what) end
+        log('pad: menu')
+        return screen.close()
+    end
+    if what=='tab_left' or what=='tab_right' or what=='refresh' then
+        if what~='refresh' and lobby.is_open()=='settings' then lobby.nav(what) end
         return
     end
     if lobby.is_open() then
@@ -1024,7 +1133,7 @@ assert(type(LoopInGameThreadWithDelay)=='function','This UE4SS lacks game-thread
 -- our errors are raised at level 0, and UE4SS's own carry no line), and the modules after it still run in that pass.
 -- The once goes by the function, not the name: a module's other calls under the same name still log their own first
 -- error. A guarded call gives back its first two results, or nothing after an error. Measured with Lua 5.4 on the build
--- machine, the xpcall adds about 40 ns a call: under 2 µs a frame for the per-frame loop's 27 to 43 calls (34 with the
+-- machine, the xpcall adds about 40 ns a call: under 2 µs a frame for the per-frame loop's 29 to 45 calls (36 with the
 -- UI, plus the inbox while a race is armed and up to 8 pad events).
 local escaped={} -- The guarded functions whose error was logged this Lua load.
 local running -- The guarded function under way: its traceback is built only for the error that gets logged.
@@ -1064,6 +1173,7 @@ LoopInGameThreadWithDelay(1,function()
     guarded('scene',scene.restore) -- Likewise for a scene an earlier load left playing, and the farewell take it lent.
     guarded('glide',glide.restore) -- Likewise for a bGlide an earlier load left on.
     guarded('emote',emote.restore) -- Likewise for a pose's montage an earlier load left playing.
+    guarded('bike',bike.restore) -- Likewise for her main mesh after a reload with her on the bike.
     if off then if blocked and native_tick then native_tick() end return end
     local ok,message=guarded('ghost',puppet.tick)
     if message then report(ok,message) end
@@ -1073,6 +1183,9 @@ LoopInGameThreadWithDelay(1,function()
     ok,message=guarded('race',race.steer)
     if message then report(ok,message) end
     steered=os.clock()-steered
+    -- The bike's frame, before the native tick too: her drive's yaw, her lean and pitch. Its end said on screen.
+    ok,message=guarded('bike',bike.steer)
+    if message then report(ok,message); say(message) end
     if native_tick then native_tick() end
     local placed=os.clock()
     ok,message=guarded('ghost',puppet.place) -- The root takes the mailbox this native tick just wrote.
@@ -1123,6 +1236,8 @@ LoopInGameThreadWithDelay(1,function()
         if message then report(ok,message) end
         guarded('menu',menu.tick,now)
         guarded('lobby',lobby.tick,now)
+        guarded('sessions',sessions.tick,now)
+        guarded('create',create.tick,now)
         guarded('chat',box.tick,now)
         guarded('join',code_box.tick,now)
         guarded('join',approval.tick,now)
@@ -1138,7 +1253,8 @@ LoopInGameThreadWithDelay(1,function()
         if chat_asked and now>=chat_asked+0.1 then
             local asked=chat_asked
             chat_asked=nil
-            if typed_at<asked-0.3 and not menu.is_open() and not approval.is_open() and not lobby.is_open() then
+            if typed_at<asked-0.3 and not menu.is_open() and not approval.is_open() and not lobby.is_open()
+                and not open_screen() then
                 local _,why,en=box.open() -- Said on screen only: Enter is the game's too.
                 if why then say(why,en) end
             end
@@ -1203,6 +1319,7 @@ if link then
         log=function(m) print('[StellarCoop][GR] '..tostring(m)..'\n') end,night=function() return night.running() end})
     -- The follow waits while the game is paused, in photo mode or in the co-op menu, during a Night Operation run and
     -- during a cutscene in our game. follow=true: on since 2026-11-12 with every other mode, not yet tested in game.
+    -- Its tick also gives the native part the host's place and rules words for the session list's row.
     travel=require('session.travel').new({link=link,puppet=puppet,settings=settings,tell=tell,name=her_name,follow=true,
         log=function(m) print('[StellarCoop][TR] '..tostring(m)..'\n') end,
         paused=function() return kit.paused(true) or menu.is_open() or photo_state()~='0' end,
@@ -1412,6 +1529,17 @@ if link then
             end
         end
     end
+    -- The DLCs installed on her PC against ours (link.dlcs()): when they differ, one notice a session names hers we
+    -- lack and ours she lacks (ui/text.lua's T.dlcs).
+    local dlcs_said=false
+    local function dlcs_notice()
+        local dlcs=link.dlcs()
+        if link.mode()=='none' then dlcs_said=false
+        elseif dlcs and not dlcs.same and not dlcs_said then
+            dlcs_said=true
+            tell(function(w) return T.dlcs(w,her_name(w),dlcs.missing,dlcs.extra) end)
+        end
+    end
     -- Our CNS packs, once a Lua load, in the log (coop status shows them too).
     local cns_said=false
     local shared_seen=0 -- link.shared_version() as last acted on.
@@ -1608,6 +1736,7 @@ if link then
         guarded('world',world_notices)
         guarded('scenes',story_notices)
         guarded('paks',paks_notice)
+        guarded('dlcs',dlcs_notice)
         if not cns_said and link.cns() then
             cns_said=true
             log(link.cns())
@@ -1617,7 +1746,12 @@ if link then
             if last_mode=='none' and mode~='none' and not off and not puppet.active() then report(puppet.toggle()) end
             last_mode=mode
         end
-        for _,text in ipairs(link.notices()) do say(text) end
+        -- A join Steam refused in the menu's words, a player who joined or left in SB's (its English for the line
+        -- above EVE), any other as it came.
+        for _,text in ipairs(link.notices()) do
+            local build=T.join_refused(text)
+            if build then tell(build) else say(Join.feed(text,game_words) or text,text) end
+        end
         if not off then -- Whether a save is loaded (an accepted invite waits for one), the send rate, the photo mode.
             local world,title=guarded('ghost',puppet.world)
             if title==true and not at_title then guarded('sbo',sbo.title) end -- Each title visit: the rows as shipped.
@@ -1656,8 +1790,11 @@ if link then
                     ..'back')
             end
             guarded('menu',menu.slow,shown,not (box.is_open() or code_box.is_open() or approval.is_open()
-                or saves_ui.is_open()) and (booth.near(puppet.me()) or guarded('sbo',seat_hint)) or nil)
+                or saves_ui.is_open() or open_screen()) and (booth.near(puppet.me()) or guarded('sbo',seat_hint))
+                or nil)
             guarded('lobby',lobby.slow)
+            guarded('sessions',sessions.slow,shown)
+            guarded('create',create.slow,shown)
             guarded('arrival',arrival_pass) -- After sbo.tick and kit.slow above: this pass's arrival and look.
             guarded('lobby',lobby_pass) -- After sbo.tick above: this pass's arrival and round lines.
             guarded('lobby',hud_pass) -- After lobby_pass and ui_reset above: the screens as this pass left them.
@@ -1681,6 +1818,9 @@ if link then
             -- The race's session and map checks, from the ghost's world read just above.
             local raced,why=guarded('race',race.slow)
             if why then report(raced,why) end
+            -- The bike: the preload as bike says, her part, the ride's checks; an end said on screen.
+            local rode,ended=guarded('bike',bike.slow)
+            if ended then report(rode,ended); say(ended) end
         else -- After coop off, whether a save is loaded or the title is shown, and no photo mode: the native part's
             -- check of the SBO session records at each title visit still runs then (design-lobby 12.8).
             local world,title=guarded('ghost',puppet.world)
@@ -1709,25 +1849,28 @@ end
 -- The keys (N5, D-UI2), only with the Steam link. Every F-key but F10, alone or with Shift, Ctrl or Alt, is bound once
 -- (UE4SS cannot take a bind back), so a key changed in the menu works at once and the menu can take any of them; at
 -- each press the settings say which action holds it: the menu, Host (host_key, none unless set), the status line,
--- Leave, the follow (follow_key, coop travel host) or a race checkpoint (race_key, while a track is recorded; nothing
--- otherwise). The host's question takes the navigation keys, Enter and Esc first while it is open, then the SBO lobby's
+-- Leave, the follow (follow_key, coop travel host), a race checkpoint (race_key, while a track is recorded; nothing
+-- otherwise) or the bike (bike_key: EVE on it or off it). The host's question takes the navigation keys, Enter and Esc first while it is open, then the SBO lobby's
 -- screens while one is open (menu_key closes B or C to the room; in the lobby world, menu_key opens B in place of the
--- co-op menu; E and the left tab key are C's tabs). Enter goes to the menu's key capture, then selects; the navigation
+-- co-op menu; E and the left tab key are C's tabs), then the Sessions screen while it is open (menu_key closes it; E
+-- and the left tab key are its tabs, F its Refresh). Enter goes to the menu's key capture, then selects; the navigation
 -- keys go to the menu while it is open only (UI-DESIGN 4.1: up arrow, W or Z; down arrow or S; left arrow, A or Q;
 -- right arrow or D; Enter or Space; Esc), and to the co-op saves' question while it is open. The code box takes Enter
 -- (join) and Esc (cancel). With all closed, Enter opens the chat's box, then sends, and Esc cancels; while the question
--- or a box is open our F-keys do nothing. The mouse buttons are the lobby's screens' and the menu's while one is open
+-- or a box is open our F-keys do nothing. The mouse buttons are the join popups' first while one is open (a left click
+-- answers with the button under the mouse, a right click declines or closes), then the lobby's screens' and the menu's
 -- (a left click selects the row under the mouse, a right click goes back), then the left one the co-op saves'
 -- question's (the choice under the mouse); closed, they are the game's. A key callback runs on UE4SS's key thread: it
 -- only hands the press to the game thread, where the console's checks (coop off included) apply. A modified F-key is
 -- bound before the plain one, so if UE4SS also calls the plain bind for a Shift+F5, the plain press that follows at
 -- once is the same press, dropped. The status key gives a one-line summary, in the log in English and on screen in the
 -- menu's words; coop status keeps the full status. An XInput pad, which no bind can take, comes through the native part
--- (pad_event above, each frame): View held 1 s does what menu_key does, the D-pad or the left stick, A and B navigate
--- the menu and the co-op saves' question, B closes the chat's box and the code box; never the host's question.
+-- (pad_event above, each frame): View held 1 s does what menu_key does, D-pad Right held 1 s what bike_key does, the
+-- D-pad or the left stick, A and B navigate the join popups, the menu and the co-op saves' question, B closes the
+-- chat's box and the code box.
 if settings then
     local K=require('core.keybind')
-    local ACTIONS={'menu','host','status','leave','follow','race'}
+    local ACTIONS={'menu','host','status','leave','follow','race','bike'}
     if type(IsKeyBindRegistered)=='function' then
         for _,action in ipairs(ACTIONS) do
             local key=settings[action..'_key']
@@ -1756,10 +1899,13 @@ if settings then
                         local ok,why=race.key()
                         if why then report(ok,why) end
                     end
+                elseif action=='host' then run('host',settings.who_can_join) -- host_key: at once, never the screen.
+                elseif action=='bike' then bike_press('bike_key')
                 elseif action~='menu' then run(action)
                 elseif off then report(false,OFF)
                 elseif lobby.is_open() then
                     if lobby.is_open()~='popup' then lobby_room() end
+                elseif open_screen() then open_screen().close()
                 elseif sbo.in_lobby() and not menu.is_open() then lobby_key()
                 else
                     local ok,why,shown,en=menu.toggle(booth.near(puppet.me()))
@@ -1786,6 +1932,7 @@ if settings then
             if os.clock()-alt_enter_at<0.2 then return end
             if approval.is_open() then approval.nav('select')
             elseif lobby.is_open() then lobby.nav('select')
+            elseif open_screen() then open_screen().nav('select')
             elseif menu.is_open() then
                 if not menu.capture('Enter') then menu.nav('select') end
             elseif saves_ui.is_open() then saves_ui.nav('select')
@@ -1799,21 +1946,26 @@ if settings then
         end)
     end)
     -- The lobby's screens take them all, and on C (L4-menus-b-c 3.6) E is the right tab and Q the left one, or A on an
-    -- AZERTY keyboard, where Q is left; the other of A and Q stays left. E does nothing anywhere else.
+    -- AZERTY keyboard, where Q is left; the other of A and Q stays left. The Sessions screen takes them the same way,
+    -- with F for Refresh (the key Stellar Blade binds to the UI_FaceButton_Top action its Refresh hint shows). The Create
+    -- a session screen takes the navigation keys only. E and F do nothing anywhere else.
     local function lobby_key(key,word)
-        if lobby.is_open()=='settings' then
+        local screen=lobby.is_open() and lobby or open_screen()
+        if lobby.is_open()=='settings' or screen==sessions then
             if key=='E' then word='tab_right' elseif key==(kit.azerty() and 'A' or 'Q') then word='tab_left' end
         end
-        if word then lobby.nav(word) end
+        if key=='F' then word=screen==sessions and 'refresh' or nil end
+        if word and screen then screen.nav(word) end -- Closed on the game thread meanwhile: nothing.
     end
     for _,nav in ipairs({{'UP_ARROW','up'},{'W','up'},{'Z','up'},{'DOWN_ARROW','down'},{'S','down'},
             {'LEFT_ARROW','left'},{'A','left'},{'Q','left'},{'RIGHT_ARROW','right'},{'D','right'},
-            {'SPACE','select'},{'E'}}) do
+            {'SPACE','select'},{'E'},{'F'}}) do
         bind(nav[1],nil,function()
             -- The host's question opens on its own: the arrows only, never W, S or Space (walking, jumping, the menu).
             if approval.is_open() then
                 if nav[1]:find('_ARROW$') then ExecuteInGameThread(function() approval.nav(nav[2]) end) end
-            elseif lobby.is_open() then ExecuteInGameThread(function() lobby_key(nav[1],nav[2]) end)
+            elseif lobby.is_open() or open_screen() then
+                ExecuteInGameThread(function() lobby_key(nav[1],nav[2]) end)
             elseif not nav[2] then return
             elseif menu.is_open() then ExecuteInGameThread(function() menu.nav(nav[2]) end)
             elseif saves_ui.is_open() then ExecuteInGameThread(function() saves_ui.nav(nav[2]) end) end
@@ -1822,21 +1974,28 @@ if settings then
     bind('ESCAPE',nil,function()
         if approval.is_open() then ExecuteInGameThread(function() approval.nav('back') end)
         elseif lobby.is_open() then ExecuteInGameThread(function() lobby.nav('back') end)
+        elseif open_screen() then ExecuteInGameThread(function()
+            local screen=open_screen() -- Still open on the game thread.
+            if screen then screen.nav('back') end
+        end)
         elseif menu.is_open() then ExecuteInGameThread(function() menu.nav('back') end)
         elseif saves_ui.is_open() then ExecuteInGameThread(function() saves_ui.nav('back') end)
         elseif code_box.is_open() then ExecuteInGameThread(code_box.cancel)
         elseif box.is_open() then ExecuteInGameThread(box.cancel) end
     end)
-    -- A left click is the lobby's while one of its screens is open, else it selects the co-op menu's row under the
-    -- mouse, or answers the co-op saves' question with the choice under it; a right click goes back in the lobby's
-    -- screens or the menu (the kit's input leaves Slate the mouse, and UE4SS calls the binds whatever has it). While
-    -- our UI holds the game's input, either button first has the kit put our focus back (a click on none of our widgets
-    -- gives it to the game's viewport). No gamepad button can be bound: the pad comes through the native part.
+    -- A left click answers a join popup with the button under the mouse while one is open, else it is the lobby's
+    -- while one of its screens is open, else it selects the co-op menu's row under the mouse, or answers the co-op
+    -- saves' question with the choice under it; a right click declines or closes a join popup, goes back in the
+    -- lobby's screens or the menu (the kit's input leaves Slate the mouse; UE4SS calls the binds whatever has it).
+    -- While our UI holds the game's input, either button first has the kit put our focus back (a click on none of our
+    -- widgets gives it to the game's viewport). No gamepad button can be bound: the pad comes through the native part.
     bind('LEFT_MOUSE_BUTTON',nil,function()
         if not (kit.holding() or menu.is_open() or saves_ui.is_open()) then return end
         ExecuteInGameThread(function()
             kit.click()
-            if lobby.is_open() then lobby.nav('click')
+            if approval.is_open() then approval.nav('click')
+            elseif lobby.is_open() then lobby.nav('click')
+            elseif open_screen() then open_screen().nav('click')
             elseif menu.is_open() then menu.nav('click') elseif saves_ui.is_open() then saves_ui.nav('click') end
         end)
     end)
@@ -1844,7 +2003,9 @@ if settings then
         if kit.holding() or menu.is_open() then
             ExecuteInGameThread(function()
                 kit.click()
-                if lobby.is_open() then lobby.nav('back') else menu.nav('back') end
+                if approval.is_open() then approval.nav('back')
+                elseif lobby.is_open() then lobby.nav('back')
+                elseif open_screen() then open_screen().nav('back') else menu.nav('back') end
             end)
         end
     end)

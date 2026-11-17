@@ -15,21 +15,57 @@ build/host/pose_codec_test
 
 ## Lua tests
 
-The Lua tests (`core/`: `actors_of`, `class_at`, `keybind`, `link`, `pak_gate`, `settings_file`, `ue4ss_settings`,
-`unreal`; `cut/`: `chainspin`, `devmenu`, `emote`, `enemy`, `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`,
-`mailbox`, `scene`, `tendril`, `wear`; `main/`: `boot`, `fight`, `fight_notices`, `guide`, `idle`, `input`, `match`,
-`menu`, `quests`, `sbo`, `scenes`, `session_ui`, `settings`, `story`, `world`; `matrix13/quest/`: `on_time`,
-`zone_talks`; `matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`,
-`travel`; `nightop/`: `board`, `challenges`, `guard_text`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`,
-`shop`, `waves`; `partner/`: `capture`, `ghosts`, `hud`, `puppet`, `sentinel`; `race/`: `doro`, `drive`, `drive_model`,
-`model`, `run`; `session/`: `arrival`, `booth`, `chat`, `group`, `halls_rows`, `join`, `saves`, `sbo`, `travel`;
-`story/`: `snapshot`, `subtitles`; `ui/`: `guide`, `kit`, `lobby`, `lobby_model`, `model`, `notice`, `region_tabs`,
-`text`) run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the
-fake EVE fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`.
+The Lua tests (`bike/`: `model`, `ride`; `commands/`: `session`; `core/`: `actors_of`, `class_at`, `keybind`, `link`,
+`mask`, `pak_gate`, `settings_file`, `ue4ss_settings`, `unreal`; `cut/`: `chainspin`, `devmenu`, `emote`, `enemy`,
+`flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`,
+`mailbox`, `scene`, `tendril`, `wear`; `main/`: `bike`, `boot`, `dlc`, `fight`, `fight_notices`, `guide`, `idle`, `input`, `match`,
+`menu`, `quests`, `sbo`, `scenes`, `session_ui`, `settings`, `story`, `world`; `matrix13/quest/`: `on_time`, `zone_talks`;
+`matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`;
+`nightop/`: `board`, `challenges`, `guard_text`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`,
+`waves`; `partner/`: `capture`, `ghosts`, `hud`, `puppet`, `sentinel`; `race/`: `doro`, `drive`, `drive_model`, `model`,
+`run`; `session/`: `arrival`, `booth`, `chat`, `group`, `halls_rows`, `join`, `saves`, `sbo`, `travel`; `story/`:
+`snapshot`, `subtitles`; `ui/`: `create`, `create_model`, `guide`, `kit`, `lobby`, `lobby_model`, `model`, `notice`,
+`region_tabs`, `sessions`, `sessions_model`, `text`) run
+the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
+fails the test. The `main/` tests load
+`main/fixture.lua` first, with UE4SS stubbed for `main.lua`.
 
-- `core/link_test` also covers the status's `uidev=`, `me=`, `world=` and `story=` lines and the `owner=`, `room=` and
-  `hall=` fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty), and
-  never from a player's name, and the `shared_world` and `shared_story` settings;
+- `bike/model_test` rides `bike/model.lua` on flat ground with Eve On Wheels' default values: 90% of the top speed
+  after 3.9 s, a real top of about 2252 cm/s, 15.8 m of braking from the top, reverse after 0.3 s at a stop, the yaw
+  rate and lean at full lock at five speeds, the drift's 42-degree slip cap, a wall, the air, a ramp launch only after
+  0.12 s of climb, the pitch, root motion holding the state and the values' bounds;
+- `bike/ride_test` covers `bike/ride.lua` over a fake EVE and native part: the preload asked once and released at
+  `bike=off`, the part made once (at the seat, hidden) or found again after a reload, every mount refusal with its
+  reason and nothing written, the mount's order and the dismount backward, the lean, the riding pose played again or
+  ending the ride, the 250 ms checks (EVE down read from the status line's `bike_life=` with no session, or from the
+  session's life state without that word), `coop-bike.txt` and its restore, `coop bike status` and `tune`, the Doro
+  look refused while she rides, `parked` (the part the capture leaves out) before the part, on and off the bike, after
+  a ride ended on a fault, after a reload and at `bike=off`, the part's `SBO_Bike` tag (a tag that does not hold makes
+  no part), the earlier load's part found at a reload's first tick with the preload at `fault` and removed by the
+  first pass at `bike=off`, another mod's component on the bike's mesh never hidden, used or removed;
+- `partner/capture_test` also covers SBO's bike left out of the parts while EVE does not ride (`leave_out`, asked once
+  a look): an outfit of 16 parts keeps them all; while she rides the bike is part 1 and the last follower goes; getting
+  on or off starts a new generation; another component on the bike's mesh stays a part;
+- `core/link_test` also covers the status's `uidev=`, `me=`, `world=` and `story=` lines and the `owner=`, `room=`
+  and `hall=` fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty)
+  and never from a player's name; the `shared_world` and `shared_story` settings; `bike` and `bike_key` (an older
+  file whose keys hold F3 gets no bike key). It also reads the `dlcs=` line with the `dlc_missing=` and
+  `dlc_extra=` lines after it, the session list's `list=` line with its `session=` rows (a row only after a `list=`
+  line, `-` read as none) and a joiner's `wait=` line, logged once a wait. It covers `who_can_join` (`public` by
+  default, the older `code` and `private` read as `invitation`) and `friends_ask`, the `where` and `rules` requests
+  asked only on a change and never with a word the native part refuses. The rules word is built from the settings and
+  read back in that shape only;
+- `commands/session_test` covers `coop host` with each of the four words (`ask` added under `public` and `invitation`
+  with `friends_ask=on`), `coop host` alone (the Create a session screen when it opens, else `who_can_join`),
+  `coop list` (a search by tab; alone, the last list numbered or a Public search) and `coop join <row>`;
+- `core/unreal_test` covers `game_text`: nothing asked while the string table is not loaded or its id is no name, nil
+  for a missing key, an empty text or an error;
+- `ui/model_test` covers the four Who can join values and the Friends join without asking row, shown under Public and
+  Invitation only;
+- `session/travel_test` covers the host's row in the session list: the rules word at each change, the map and nearest
+  camp at once on each map and once a minute at most, from the follow's spawn point read (read again a minute later
+  when it found no camp), nothing in a load, as a guest or in a match lobby. A refusal is logged once;
+- `core/mask_test` checks the masking of `UE4SS.log` on the cases `link_protocol_test` checks for the native part's;
 - `core/pak_gate_test` finds the hall lobby pak `zSBO_Lobby` in `~mods`, else `LogicMods`, over fake files, checks its
   version (the `.utoc` size and the `.ucas` size from the `.utoc`'s compression blocks, joined by `_`) and that each
   read is bounded,
@@ -41,8 +77,16 @@ fake EVE fails the test. The `main/` tests load `main/fixture.lua` first, with U
   `shared_world` and `shared_story` rows, and `coop pvp` (its words, the `pvp_spike` and `shared_enemies` refusals,
   status, and `pvp_spike=off` ending an earlier load's PvP test at a reload);
 - `main/fight_notices_test` covers the same place and same spawns notices in both languages;
+- `main/dlc_test` covers the DLC notice: once a session when the two lists of installed DLCs differ, in the menu's
+  language with its English beside. The same DLCs, or no list yet, give none;
 - `main/quests_test` covers `coop quests` with the `shared_quests` and `quest_deny` settings and the shared quests'
   notices;
+- `main/bike_test` covers the bike through `main.lua` with a fake `bike/ride.lua`: the load line, what the ride gets
+  (its asks, `coop-bike.txt`, the driving, the settings, SBO's busy reasons with coop fly and our open screens),
+  `coop bike` and its words, F3 and the pad's D-pad Right hold with a refusal on screen, the hold ignored with its
+  reason logged at the title, with one of our screens open or with the game paused, the restore, the frame and the
+  250 ms pass with an end said on screen, the Options rows, `coop off`; `riding()` as `coop emote`, the race, the hall
+  seats, `coop fly on` and `coop glide on` read it; the ride's `parked` as the capture's `leave_out`;
 - `main/world_test` covers `coop world` (its words, on and off whatever `shared_world` says, status), the start once a
   load with `shared_world=on`, the end at a reload with `shared_world=off`, and the shared world's two notices;
 - `main/scenes_test` covers `coop scenes` (its words, on and off whatever `shared_story` says, status, an on or off
@@ -50,13 +94,18 @@ fake EVE fails the test. The `main/` tests load `main/fixture.lua` first, with U
   `shared_story` differ (none off the pinned build or after `coop off`) and story together's two notices;
 - `main/idle_test` counts the FindAllOf and StaticFindObject calls of main.lua's two loops over one idle minute, each
   case from a fresh Lua load: 4 and 5 in a world with the UI up, 0 and 2 at the title, all in the first second;
-- `main/input_test` covers the controller's events from a fake `coop_pad` (routed to the menu, the co-op saves' question
-  and the two boxes, never to the host's question; LB and RB taken and doing nothing there; at most 8 a frame; an
-  older DLL without it), the mouse in the menu and the focus watchdog's reset, the Lua frame time line with its
+- `main/input_test` covers the controller's events from a fake `coop_pad` (routed to the menu, the co-op saves' question,
+  the two boxes and the host's question, which ignores them for 1 s and never takes View held; LB, RB and Y taken and
+  doing nothing there; at most 8 a frame; an older DLL without it), the mouse in the menu and on the host's question,
+  the focus watchdog's reset, the Lua frame time line with its
   longest frame and 250 ms pass, their counts over 16 ms and over 50 ms, and the longest call of five modules, and the
   gap lines (a frame over 100 ms after the last, with the 250 ms pass in the gap or none, at most 200 a minute);
 - `main/match_test` covers `coop match` (search, create, cancel, end, join with a code, leave), search and create with
-  the SBO lobby's room and hall words, `coop mute` and `coop unmute`, and their usage line;
+  the SBO lobby's room and hall words, `coop mute` and `coop unmute` with their usage line, `coop block`,
+  `coop unblock` (a SteamID or `all`) with their usage lines and `coop blocked` (the count from the status for one
+  player or more, or no status yet); a SteamID and a join code
+  masked in the log; the 4 digits shown after `***` taken for the one member whose SteamID ends in them (by
+  `coop mute` and `coop remove`) and refused when two members or none have them;
 - `main/sbo_test` covers `coop sbo` and the SBO lobby's wiring (the arm at the recruiter, the tick, the title's
   put-back, coop off), the recruiter's auto spawn pass every 250 ms on any save, and the ghost's collision kept off
   during a session; then the lobby's input routing (menu_key, the pad's View, LB and RB, the keys with C's tabs on
@@ -92,9 +141,37 @@ fake EVE fails the test. The `main/` tests load `main/fixture.lua` first, with U
   that no part is ever focused, clicked through or sent a call outside the allowed list;
 - `ui/lobby_model_test` covers the lobby menu's rows, actions, status and members by state, the settings rows (the
   Map row only with no lobby open and the hall lobbies in use) and the countdown's resync;
-- `ui/text_test` checks each language's notices against the feed's 200-byte line, the SBO lobby's notices included,
-  and the lobby menu's rows, settings, values and status within their columns, and the hall seats' Sit and Stand up
-  hint within the booth hint's width;
+- `ui/sessions_test` covers the Sessions screen on fake SB parts: the search asked as it opens, the status line (SB's
+  search word, the wait), Refresh and its stop, the 5 s gap, the tabs (SB's Comrades), the rows and their scroll
+  window, the details pane and footer, Select asking to join, the mouse (a resting mouse moves neither the cursor nor
+  the list), the closes by itself, the input given back, parts made again after a root build, the kit drawing for a
+  part the game cannot make (rows, headers, hints, the tab keys) and the log lines. No part is focused or sent a call
+  outside the allowed list;
+- `ui/sessions_model_test` covers a tab's rows and status from the native part's list, what Refresh and Select ask for,
+  the cursor, the region and camp keys and the rules word read back (any other shape gives none);
+- `ui/create_test` covers the Create a session screen on fake SB parts: it opens in a world on the values in effect,
+  its rows, headers, right pane and hints, Left, Right and Select changing a value with the rows that come and go with
+  it, the scroll window, Start and Back, the mouse (a resting mouse moves neither the cursor nor the list), a change
+  not saved with its reason, the locked look and reason while `coop-settings.txt` cannot be read, the closes by itself
+  and the refusals to open, the input given back, parts made again after a root build, the kit drawing for a part the
+  game cannot make and the log lines. No part is focused or sent a call outside the allowed list;
+- `ui/create_model_test` covers its rows for each Who can join value (Friends join without asking under Public and
+  Invitation only), Shared enemies' sub-rows only while it is on, Shared story between Shared world and Shared quests,
+  a setting Options does not define left out, a change written through `settings_file.set` and read back, Start and
+  Back, the cursor and every setting locked with its reason while the file cannot be read;
+- `main/menu_test` also covers Find a session: the Sessions screen opens in place of the menu and takes the keys (F and
+  Q, E included), the pad (Y, LB and RB included; the bike ignored with its log line) and the mouse; the menu key, View
+  held and `coop ui reset` close it; its view reads our protocol and game build from the status. It covers Host a
+  session the same way: the Create a session screen opens from the main page, the co-op line and `coop host` alone,
+  takes the keys (A, D and Q as Left and Right), the pad (the bike ignored) and the mouse; its view gives the settings
+  in effect, its act writes a change as Options does and hosts Start's word; `host_key` still hosts at once;
+- `ui/text_test` checks each language's notices against the feed's 200-byte line, the SBO lobby's notices included. It
+  checks the lobby menu's rows, settings, values and status within their columns, the Sessions screen's hints, status
+  lines, version and footer within theirs and the Create a session screen's title, header, Start row and right-pane
+  words within theirs. The hall seats' Sit and Stand up hint stays within the booth hint's width. It
+  also reads `link/core.h` to check that each join Steam refused has the same English line there and in
+  `T.en.join_refused`, then that `T.join_refused` turns each one into every language's words. The DLC notice (`T.dlcs`)
+  stays within 200 bytes in every language with 100-byte DLC names;
 - `session/arrival_test` covers the hold at a lobby arrival: nothing without a lobby warp or before its new
   controller; SB's black up and the kit veiled at the next pass; held while anything is missing, then lifted once with
   one line; the 8 s cap, which lifts whatever is missing and names it, also when the missing items cannot be read; a
@@ -102,6 +179,14 @@ fake EVE fails the test. The `main/` tests load `main/fixture.lua` first, with U
   controller; a disarm (a refused warp, coop off); the 60 s arm cap; a black that does not show; and a lift the native
   part cannot take, which still removes the veil;
 - `session/chat_test` covers the Thai leading vowels at a row's end;
+- `session/join_test` covers the code box, then the join popups on a fake SB popup and on the kit panel that stands in
+  for it. For the host's question: the popup filled before its Construct, SB's Accept and Decline, the cursor as its
+  hover look, the seconds and a late name written on change only, the alert then SB's popup cues, the 1 s with no keys,
+  pad buttons or clicks, left and right moving as up and down do, a left click answering with the button under the
+  mouse (SB's own buttons or the panel's rows, nothing elsewhere), the mouse cursor shown, each player asked once a
+  lobby, the 60 s left to the native part. For the joiner's wait: Close (a key or a click) leaving the lobby, a let in
+  or a refusal closing it. Then `coop ui reset`, `coop off` and a name with `<` or `>`. It also covers the feed's
+  join and leave lines in SB's words (`Join.feed`);
 - `session/halls_rows_test` checks the hall lobbies' 181 rows (5 worlds, 5 zones, 171 seats) against
   `lion/halls_rows.h` and `session/sbo_maps.lua`, then the title's ask: none without the lobby pak, once with it on the
   co-op save files, read back; a refusal, a fault or rows that read back wrong keep the lobby in Xion with one log line,
@@ -163,7 +248,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target` and
   the boss tests included; `coop fight pvp` and `pvp off`; `lion rows`, `gardener rows`, `tendril rows`, `bolt rows`,
   `mxiii rows`, `shop rows` and `signal rows` with their 25 table words and bad addresses, the longest of them 813
-  bytes; `fly` and `slowmo` on or off; `anim play` with its id, path and `once` or `loop`, and `anim stop`;
+  bytes; `fly` and `slowmo` on or off; `anim play` with its id, path and `once`, `loop` or `ride`, and `anim stop`;
+  `bike load <clip>`, `bike free`, `bike gate on` and `bike gate off`, a mesh, a package path or a mod's clip refused;
   `shortcut list` and `shortcut load <map> <1-4>`; `hud hide on` and `hud hide off`; `loading lift`; `world` and
   `scenes` with `on`, `off` or `status`; `nightshop`,
   `roxanne`, `lily`,
@@ -171,13 +257,28 @@ The C++ tests cover the platform-free headers in `native/src`.
   `abort`, `leave`, `seq`) and their refusals),
   Night Operation's night line (its round trip, its refusals and a fuzz seed), and the join
   codes (both real lobby ids, loose typing, malformed codes, and the share of one-character typos the check turns away),
+  the masking of SteamIDs, lobby ids and join codes in the logs and the report (`masked`, with the numbers and words of
+  the same shape it leaves whole),
   the match modes (`find_mode`), `match search` and `match create` with their room and hall words (each refused when
-  missing, extra, too long or not an alias word), `match cancel` and `match end`, `mute` and `unmute`,
-  the match lines (start, count, end) with their bounds, and protocol 22 refusing a protocol-21 lobby and line;
+  missing, extra, too long or not an alias word), `match cancel` and `match end`, `mute` and `unmute`, `block`,
+  `unblock` and `unblock all`, the `host` words (`public`, `friends`, `invitation` with the older `code` and
+  `private`, `closed`, then `ask`), `list public|friends|stop`, `where`, `rules` and the row cleaner,
+  the match lines (start, count, end) with their bounds, the dlc and dlcs lines with their bounds and the DLC
+  comparison by app id, and protocol 22 refusing a protocol-21 lobby and line;
 - `link_core_test`: the link against the shared fake Steam, and two links through it with the handshake both ways,
-  channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line,
-  joining with a code, and the host's approval of a player who is not a Steam friend (let in, refused, no answer,
-  removed, a flood while waiting), with relay only set on both games before their first session with each other;
+  channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, an
+  Invitation lobby (its code, the invite dialog, the older words `code` and `private`) joined with its code and the
+  host's approval of a player who is not a Steam friend (let in, refused, no answer, removed, a flood while waiting),
+  with relay only set on both games before their first session with each other. With a Steam that refuses relay only,
+  nothing goes to that player and her session request waits; Steam is asked again 1 s later. After 3 refusals the host
+  refuses her with a notice, or the guest leaves with one. A friend's session never asks. A join Steam refuses gets its
+  notice for each answer Steamworks documents, or the number for any other. The block list: its fixed hash; its file
+  with no SteamID in clear, written once for each change and read back with CRLF ends and other lines skipped; a removed
+  player refused in the next lobby before any hello, with one notice and her session request ignored; `coop block`
+  removing a member of the lobby we host; `unblock` and `unblock all` greeting her again at once; a guest's list never
+  applied. The installed DLCs: read from the fake Steam at ready (installed ones only, the first 64, the app id for a
+  name Steam leaves empty), sent after the paks line and again after her hello, hers ignored before the handshake and
+  kept to 64, the status's `dlcs=`, `dlc_missing=` and `dlc_extra=` lines and one log line for each change;
 - `link_pose_cap_test`: the adaptive pose rate (`PoseCap` in `link/core.h`), one reading a second: a calm link and
   a lone bad reading never step; two readings in a row over the line (queue time or pending bytes) step down 60, 30,
   20, to the first cap under the player's `send_rate`, never below 20; 10 calm readings step up one cap; a step up
@@ -199,7 +300,7 @@ The C++ tests cover the platform-free headers in `native/src`.
   cancelled search), a private match lobby by code (Invisible, no `sbo_state`, its code, a stranger joining with no
   approval), the room and hall a created lobby carries and its `link=` line, a search that finds only lobbies of its
   own hall, a member reading both each pass and dropping a word `alias_word` refuses, the ICE setting given back in a
-  co-op lobby, the host's
+  co-op lobby, a joiner whose Steam refuses relay only sending nothing and leaving after 3 tries, the host's
   countdown (none alone, 10 s from two members with each member told, a member joining while it runs told the time
   left, 5 s once eight, stopped under the minimum, checked again at 0), the start (the lobby closed, `sbo_state` and
   `sbo_map`, one start line with the same seed and member order everywhere), `match end` and the next round's countdown
@@ -217,6 +318,17 @@ The C++ tests cover the platform-free headers in `native/src`.
   a start without her, past 8 a second dropped and logged once), the per-player chat mute kept for the run, per-peer
   pose caps (30 a second for a member of a match lobby, one peer's cap stepping down alone, one second of poses
   reaching peers at 20, 30 and 60 a second, tables always sent) and the 60 s line of passes and full receive batches;
+- `link_list_test`: the session list through the same fake Steam, which follows Steamworks' read rules (no data for a
+  lobby before a search returned it or `RequestLobbyData` was answered, `GetLobbyOwner` for members only, a result
+  count, friends-only lobbies never in a search). A Public host's rows with `where` and `rules`, no relay only forced
+  and no regroup alone; a host request with another Who can join refused while hosting; the Public search's exact filters, its one row and no join; a player who is not the host's
+  Steam friend joining from the list, `wait=` counting down, denied then let in, with `sbo_players` following; a
+  friend let in at once; `friends_ask` making a friend wait; a Private session shut to joins, with no rows, code or
+  invite dialog, refusing a member Steam let in; what the Public tab hides (Friends only, Invitation, another version,
+  full, no rows, match lobby, blocked on Steam or with `coop block`, our own) and its order by ping; the Friends tab's
+  walk (a lobby read only once Steam answered, dropped after 5 s with no answer); the list search's refusals and a
+  match search ending it; the row cleaner; `sbo_ping` waiting for Steam's ping location; a new Steam name reaching
+  `sbo_host` within 5 s;
 
 ### Poses
 
@@ -527,7 +639,12 @@ The C++ tests cover the platform-free headers in `native/src`.
   our clip, another clip, a cleared slot, a gone EVE and a slot that takes no weight, with paused time left out,
   the stops, the fault, the status word and the log lines), our EVE as the controller's pawn and the check that she
   is still the object played on, over fake memory (no pawn, a pawn of another class, a pending kill, a new serial),
-  and what each frame does;
+  what each frame does; the bike's `ride` play (a loop forever with foot IK type 2) and its foot IK put back as SB's
+  stop does once the ride's play is over;
+- `bike_test`: the bike's native side (`game/bike.h`): the preload path rule, the 54 gated names, the gate over a fake
+  action map (each state kept and put back, an absent name back as on, a name SB changed during the ride left as SB set
+  it, a name the game never made skipped, a controller gone, a fault in the middle of turning it on, a fault), the words
+  packed for the worker and the status line, the ride plays' clip lookups and the log lines;
 - `items_test`: `coop gift`'s inventory read against a fake image laid out like the pinned build: the FName and
   CityHash64 hashes checked against the game's, a count over two instances and along chains of collisions, an item
   EVE does not carry, no manager, bucket or owner, an instance the manager no longer holds, and hostile memory (a
@@ -535,8 +652,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   `unread`, never in a hang;
 - `pad_test`: the controller's events for the co-op menu (each press, up and down repeating while held, a D-pad
   diagonal read as up or down and the stick along its main axis, which keeps its pressed axis near 45 degrees, the
-  stick's thresholds, View held 1 s, LB and RB once a press and in event order with up's repeat going on, a disconnect,
-  the event queue) and which XInput slots each poll asks;
+  stick's thresholds, View held 1 s, D-pad Right held 1 s for the bike, LB, RB and Y once a press and in event order
+  with up's repeat going on, a disconnect, the event queue) and which XInput slots each poll asks;
 - `dev_panels_test`: `coop devinfo`'s guard (each read failing alone, refused with its own reason; a close needs
   neither the flow nor the phase), the plan over every mix of open panels and every ask (the other panel closes, the
   one asked opens unless it is open), and the two panels' logic types and names;

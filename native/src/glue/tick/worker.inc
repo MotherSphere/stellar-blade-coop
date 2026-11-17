@@ -181,7 +181,7 @@ void trace(Trace &log, const std::string &line) {
   char stamp[32];
   wsprintfA(stamp, "%04u-%02u-%02uT%02u:%02u:%02u.%03uZ ", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond,
             t.wMilliseconds);
-  std::string text = stamp + line + "\r\n";
+  std::string text = stamp + coop::masked(line) + "\r\n"; // Masked as coop-link.log is: bug reports bring these too.
   if (log.bytes + text.size() > kTraceCap) {
     text = std::string(stamp) + "capped at 4 MB: " + log.tail + "\r\n";
     log.bytes = kTraceCap;
@@ -666,6 +666,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     ++freeze_unsure; // Our pause tag is removed unless it is still wanted.
     debug_asks.asked = 0; // And SB's developer gates go back to the game's values.
     anim_drop = true;     // And a clip an earlier load played on EVE stops.
+    bike_want(false);     // And SB's actions an earlier load turned off for the bike come back.
     event("new Lua session: capture and ghost dropped");
   }
   take_capture(now_ms);

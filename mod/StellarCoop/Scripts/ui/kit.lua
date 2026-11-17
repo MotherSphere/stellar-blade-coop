@@ -78,7 +78,11 @@ for _,a in ipairs({{'mark',TEX..'Item/CommonIcon/4DotMark'},{'link',TEX..'Common
         {'open',SOUND..'MainMenu/Ui_MoveIn_Cue',1},{'close',SOUND..'MainMenu/UI_MoveOut_Cue',1},
         {'move',SOUND..'UI_Common_Hover_Cue',1},{'select',SOUND..'ui_button_Confirm_Cue',1},
         {'back',SOUND..'ui_button_cancel',1},{'change',SOUND..'MainMenu/UI_Setting_Select_Cue',1},
-        {'chat',SOUND..'ui_notice_Cue',0.5},{'alert',SOUND..'ui_SystemNotice_Cue',1}}) do
+        {'chat',SOUND..'ui_notice_Cue',0.5},{'alert',SOUND..'ui_SystemNotice_Cue',1},
+        -- SB's popup cues (WB_Common_Popup's PopupOpenSound, PopupCloseSound and PopupAcceptSound): the join popups'.
+        {'popup_open',SOUND..'CommonPopup/UI_Common_Popup_Open_Cue',1},
+        {'popup_close',SOUND..'CommonPopup/UI_Common_Popup_Close_Cue',1},
+        {'popup_confirm',SOUND..'CommonPopup/UI_Common_Popup_Confirm_Cue',1}}) do
     table.insert(Ui.ASSETS,{a[1],path(a[2]),volume=a[3],alt=a.alt and path(a.alt)})
 end
 local VOLUME={}
@@ -635,7 +639,7 @@ function Ui.kit(opts)
                 if built.root.v~=v then built.root.v=v; r:SetVisibility(v) end
                 if warming(built.partial) or not built.partial then return end
                 for _,def in ipairs(order) do if def.shown and def.place.hit then return end end -- Not under the mouse.
-                if inputting then return end -- Nor the root the input focused (the host's question has no hit group).
+                if inputting then return end -- Nor the root the input focused (its holder may show no hit group).
             elseif built.size==#order then
                 lost=lost+1 -- A map change took it out, or the game, or another mod.
                 need(lost<=LOSSES,'the UI root keeps leaving the viewport')

@@ -100,6 +100,8 @@ function Flight.new(o)
         if not ok then log('flight keys not set: '..tostring(why)) end
         return ok and why or 'the flight keys stay the game\'s ('..tostring(why)..')'
     end
+    -- coop fly's keys are on (bike/ride.lua refuses a mount then).
+    function self.active() return on end
     function self.off()
         if not on then return end
         pcall(function() speed_back(U.valid(U.controller():K2_GetPawn())) end)

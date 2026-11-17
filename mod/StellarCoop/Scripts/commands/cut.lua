@@ -16,7 +16,7 @@
 -- (cut/lion.lua's), gardener (cut/gardener.lua's), tendril (cut/tendril.lua's), wear (cut/wear.lua's), scene
 -- (cut/scene.lua's), lines (cut/lines.lua's), flight (cut/flight.lua's keys for coop fly), chainspin
 -- (cut/chainspin.lua's), glide (cut/glide.lua's), ask (a native request; coop fly, coop slowmo, coop shortcut and coop
--- devinfo) and devmenu (cut/devmenu.lua's). coop chainspin, EVE's cut Tachy Mode ChainSpin (a test tool, left out of
+-- devinfo), devmenu (cut/devmenu.lua's) and riding (bike/ride.lua's: EVE rides the bike). coop chainspin, EVE's cut Tachy Mode ChainSpin (a test tool, left out of
 -- the usage line), runs on a co-op save only. coop emote, one of EVE's clips (cut/emote.lua, o.emote), runs on any
 -- save. coop devmenu, the developer menu's rows that still work (left out of the usage line too): its list on any save,
 -- a row on a co-op save only. coop devinfo, two read-only panels of the game's developer UI (left out too), on any
@@ -40,13 +40,15 @@ function Cut.new(o)
     function self.emote(...) return o.emote.command(...) end
     -- coop fly and coop slowmo (the native part's game/debug_keys.h, test tools left out of the usage line): SB's
     -- developer flight and slow motion. on is asked on a co-op save only, off anywhere; coop off and the next Lua load
-    -- end both in the native part.
+    -- end both in the native part. coop fly on is refused while EVE rides the bike: its R2 is the bike's drift key.
+    local RIDING='EVE rides the bike: coop bike gets her off first'
     for _,name in ipairs({'fly','slowmo'}) do
         self[name]=function(sub,a)
             if a~=nil or sub~='on' and sub~='off' then return false,'Use: coop '..name..' on|off' end
             local ok,why=true,nil
             if sub=='on' then ok,why=coop_slot('coop '..name..' on') end
             if not ok then return false,why end
+            if sub=='on' and name=='fly' and o.riding and o.riding() then return false,RIDING end
             ok,why=o.ask(name..' '..sub)()
             if name=='fly' and o.flight then -- Its keys: R2 only flies, Shift with a direction evades.
                 if sub=='off' then o.flight.off() elseif ok then why=tostring(why)..'; '..o.flight.on() end
@@ -88,11 +90,13 @@ function Cut.new(o)
         return ok,why
     end
     -- coop glide (cut/glide.lua, o.glide, a test tool left out of the usage line): EVE's cut glide, on asked on a co-op
-    -- save only, off anywhere (cut/glide.lua checks the save again once a second while on).
+    -- save only, off anywhere (cut/glide.lua checks the save again once a second while on). on is refused while EVE
+    -- rides the bike: Jump stays SB's in the saddle.
     function self.glide(sub,extra)
         if sub=='on' and extra==nil then
             local ok,why=coop_slot('coop glide on')
             if not ok then return false,why end
+            if o.riding and o.riding() then return false,RIDING end
         end
         return o.glide.command(sub,extra)
     end

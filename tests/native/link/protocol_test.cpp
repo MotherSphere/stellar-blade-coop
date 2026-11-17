@@ -215,6 +215,30 @@ int main() {
         pk + "0123456789abcdef a\x7f", pk + " 0123456789abcdef a", std::string("SBC12 pak 0123456789abcdef a"),
         p + " Pak 0123456789abcdef a", p + " paks 0123456789abcdef a"})
     assert(parse_text(bad).kind == Kind::invalid);
+  // The dlc lines after the paks line (protocol 21): one installed DLC each, its app id (1 to 2^32 - 1) and its name,
+  // chat_clean() to kMaxDlcName on receipt and never empty; the dlcs line ends the list. Anything else is invalid.
+  assert(dlc_line(3564740, "Stellar Blade - NieR:Automata Collaboration") ==
+         p + " dlc 3564740 Stellar Blade - NieR:Automata Collaboration");
+  assert(dlcs_line() == p + " dlcs" && parse_text(dlcs_line()).kind == Kind::dlcs);
+  m = parse_text(dlc_line(3564740, "Twin Expansion Pack, Goddess of Victory: NIKKE"));
+  assert(m.kind == Kind::dlc && m.a == 3564740 && m.text == "Twin Expansion Pack, Goddess of Victory: NIKKE");
+  m = parse_text(dlc_line(UINT32_MAX, "caf\xc3\xa9 \xe2\x80\x8bpack"));
+  assert(m.kind == Kind::dlc && m.a == UINT32_MAX && m.text == "caf\xc3\xa9 pack"); // The zero-width space dropped.
+  m = parse_text(p + " dlc 7 " + std::string(kMaxDlcName + 50, 'x'));
+  assert(m.kind == Kind::dlc && m.text == std::string(kMaxDlcName, 'x'));
+  const std::string dl = p + " dlc ";
+  for (const std::string &bad : {p + " dlc", dl + "7", dl + "7 ", dl + "0 a", dl + "4294967296 a", dl + "-7 a",
+                                 dl + "x a", dl + " 7 a", dl + "7 \xe2\x80\x8b", p + " dlcs 1", p + " dlcs ",
+                                 p + " Dlc 7 a", std::string("SBC20 dlc 7 a"), std::string("SBC20 dlcs")})
+    assert(parse_text(bad).kind == Kind::invalid);
+  // Her DLCs against ours, by app id: hers we lack with her names, ours she lacks with ours.
+  const std::map<uint32_t, std::string> our_dlcs = {{10, "Ten"}, {20, "Twenty"}, {30, "Thirty"}};
+  const DlcDiff dd = compare_dlcs(our_dlcs, {{20, "Twenty (her name)"}, {40, "Forty"}, {50, "Fifty"}});
+  using Dlcs = std::map<uint32_t, std::string>;
+  assert((dd.missing == Dlcs{{40, "Forty"}, {50, "Fifty"}}) && (dd.extra == Dlcs{{10, "Ten"}, {30, "Thirty"}}));
+  const DlcDiff none = compare_dlcs(our_dlcs, our_dlcs);
+  assert(none.missing.empty() && none.extra.empty() && compare_dlcs({}, {}).missing.empty());
+  assert((compare_dlcs({}, our_dlcs).missing == our_dlcs) && (compare_dlcs(our_dlcs, {}).extra == our_dlcs));
 
   // Night Operation's line, reliable: a full state of the run from the host ("h ...") or the guest ("g ..."), which Lua
   // checks field by field. Here only its size, its characters, single spaces and its first word. Each side's line ends
@@ -377,7 +401,7 @@ int main() {
                                photo_line('1', true), say_line("é ok"), vit_line(v), paks_line(3, 77),
                                pak_line({"~mods/lily_hair_p", 1024, 0xfedcba9876543210ull}), night_line(host_line),
                                mark_line(9, "é ok"), start_line("ffa", "NK_Boss_Scarlet", 7, {1001, 2002}),
-                               count_line(5), end_line()};
+                               count_line(5), end_line(), dlc_line(3564740, "Twin Expansion Pack"), dlcs_line()};
   for (int round = 0; round < 200000; ++round) {
     std::string text;
     if (round % 2) {
@@ -411,6 +435,8 @@ int main() {
     }
     if (f.kind == Kind::count)
       assert(f.a <= 10);
+    if (f.kind == Kind::dlc) // An app id and a cleaned name, never empty.
+      assert(f.a >= 1 && f.a <= UINT32_MAX && !f.text.empty() && f.text == chat_clean(f.text, kMaxDlcName));
     if (f.kind != Kind::invalid) {
       assert(text.size() <= kMaxMessage && f.text.size() <= (f.kind == Kind::night ? kMaxNight : kMaxReason));
       for (char c : f.text)
@@ -419,13 +445,58 @@ int main() {
   }
 
   // Requests written by Lua.
-  // who_can_join: friends (the default), code (an invisible lobby, joined with its code) or private (invited only).
-  assert(parse_request("host\n").command == Command::host && parse_request("host").who == Who::friends);
-  assert(parse_request("host code\r\n").command == Command::host && parse_request("host code").who == Who::code);
-  assert(parse_request("host private\n").command == Command::host && parse_request("host private").who == Who::invited);
-  for (const char *bad : {"host public", "host  private", "host Code", "host code x", "hostcode", "host friends"})
+  // who_can_join: public, friends (host alone too), invitation (code and private, the settings' older words) or
+  // closed; ask after any of them: friends_ask=on.
+  const struct {
+    const char *text;
+    Who who;
+    bool ask;
+  } kHosts[] = {{"host\n", Who::friends, false},
+                {"host friends", Who::friends, false},
+                {"host public", Who::everyone, false},
+                {"host public ask\r\n", Who::everyone, true},
+                {"host invitation ask", Who::invitation, true},
+                {"host code\r\n", Who::invitation, false},
+                {"host private\n", Who::invitation, false},
+                {"host closed", Who::closed, false},
+                {"host ask", Who::friends, true}};
+  for (const auto &h : kHosts) {
+    const Request r = parse_request(h.text);
+    assert(r.command == Command::host && r.who == h.who && r.on == h.ask);
+  }
+  for (const char *bad : {"host  private", "host Code", "host code x", "hostcode", "host everyone", "host public  ask",
+                          "host ask ask", "host closed asks", "ask"})
     assert(parse_request(bad).command == Command::none);
   assert(parse_request("invite").command == Command::invite);
+  // The session list: list public|friends|stop; the rows' where <zone> [<camp>] and rules <word>, each a word
+  // alias_word takes, at most kMaxPlace, kMaxCamp or kMaxRules bytes.
+  assert(parse_request("list public").command == Command::list && parse_request("list public").who == Who::everyone &&
+         !parse_request("list public").off);
+  assert(parse_request("list friends\n").who == Who::friends && !parse_request("list friends").off);
+  assert(parse_request("list stop").command == Command::list && parse_request("list stop").off);
+  const Request wr = parse_request("where b07 WLB10_Camp_01\n"), wz = parse_request("where Xion");
+  assert(wr.command == Command::where && wr.zone == "b07" && wr.camp == "WLB10_Camp_01");
+  assert(wz.command == Command::where && wz.zone == "Xion" && wz.camp.empty());
+  assert(parse_request("where " + std::string(kMaxPlace, 'a')).command == Command::where);
+  assert(parse_request("where e05_greatdesert_p " + std::string(kMaxCamp, 'c')).camp == std::string(kMaxCamp, 'c'));
+  assert(kMaxCamp == 24 && parse_request("where b07 ATL_Camp_Maelstrom").camp == "ATL_Camp_Maelstrom");
+  const Request rr = parse_request("rules ewq_r150");
+  assert(rr.command == Command::rules && rr.text == "ewq_r150");
+  assert(parse_request("rules " + std::string(kMaxRules, 'r')).command == Command::rules);
+  for (const std::string &bad : std::vector<std::string>{
+           "list", "list all", "list public now", "where", "where ", "where b07 camp x", "where b<07", "where b07 a-b",
+           "where " + std::string(kMaxPlace + 1, 'a'), "where b07 " + std::string(kMaxCamp + 1, 'c'), "where b07  camp",
+           "rules", "rules a b", "rules a<b", "rules " + std::string(kMaxRules + 1, 'r')})
+    assert(parse_request(bad).command == Command::none);
+  // The row cleaner: no <, > or control character, valid UTF-8 cut at a character within its bytes; a word only as
+  // alias_word takes it.
+  assert(row_text("<b>Eve</b>\x01\t Lily", kRowName) == "bEve/b Lily");
+  assert(row_text(std::string(60, 'x'), kRowName) == std::string(kRowName, 'x'));
+  assert(row_text(std::string(47, 'x') + "\xc3\xa9", kRowName) == std::string(47, 'x'));
+  assert(row_text("<<>>", kRowName).empty() && row_text("\xe2\x80\xae" "evil", kRowName) == "evil");
+  assert(row_word("WLB10_Camp_01", kMaxPlace) == "WLB10_Camp_01" && row_word("a<b", kMaxPlace).empty());
+  assert(row_word("b07 x", kMaxPlace).empty() && row_word(std::string(kMaxPlace + 1, 'a'), kMaxPlace).empty());
+  assert(row_word(std::string(kMaxCamp + 1, 'c'), kMaxCamp).empty());
   // Match lobbies: match search|create <mode> <room> <hall>, match cancel. find_mode is the link's check; the room
   // (the lobby map's key) and the hall (the lobby pak's version) are words as alias_word takes them.
   Request mr = parse_request("match search ffa hotel 47101_5096");
@@ -761,6 +832,21 @@ int main() {
   assert(an.command == Command::anim && an.id == 4294967295u && !an.loop);
   an = parse_request("anim stop\n");
   assert(an.command == Command::anim && an.off && an.path.empty());
+  an = parse_request("anim play 9 " + clip + " ride\r\n"); // The bike's: a loop with her foot IK off.
+  assert(an.command == Command::anim && an.id == 9 && an.loop && an.ride);
+  assert(!parse_request("anim play 9 " + clip + " loop").ride && !parse_request("anim play 9 " + clip + " once").ride);
+  // The bike: its preload with one of EVE's clips in object path form, its release, SB's actions off and back.
+  Request bk = parse_request("bike load " + clip + "\r\n");
+  assert(bk.command == Command::bike && bk.bike == BikeAsk::load && bk.path == clip);
+  assert(parse_request("bike free\n").bike == BikeAsk::free && parse_request("bike free").command == Command::bike);
+  assert(parse_request("bike gate on").bike == BikeAsk::gate_on && parse_request("bike gate off\n").bike == BikeAsk::gate_off);
+  for (const std::string &bad :
+       {std::string("bike"), std::string("bike load"), "bike load " + clip + " x", "bike  load " + clip,
+        std::string("bike load /Game/Art/Character/ETC/Adam_vehicle_02/Adam_Vehicle_02.Adam_Vehicle_02"),
+        std::string("bike load /Game/Art/Character/PC/CH_P_EVE_01/Animation/PhotoMode/Clap"),
+        std::string("bike load /Game/Mods/Batcycle/Eve_BikeIdle.Eve_BikeIdle"), std::string("bike gate"),
+        std::string("bike gate yes"), std::string("bike free now"), std::string("bike Gate on")})
+    assert(parse_request(bad).command == Command::none);
   for (const std::string &bad :
        {"anim play 0 " + clip + " once", "anim play 4294967296 " + clip + " once", "anim play 1 " + clip,
         "anim play 1 " + clip + " twice", "anim play 1 " + clip + " once x", "anim play x " + clip + " once",
@@ -843,9 +929,17 @@ int main() {
   assert(r.command == Command::mute && r.player == 76561198000000001ull && !r.off);
   r = parse_request("unmute 76561198000000001\n");
   assert(r.command == Command::mute && r.player == 76561198000000001ull && r.off);
+  // The block list: block by SteamID, unblock by SteamID or all (player 0).
+  r = parse_request("block 76561198000000001\r\n");
+  assert(r.command == Command::block && r.player == 76561198000000001ull);
+  r = parse_request("unblock 76561198000000001");
+  assert(r.command == Command::unblock && r.player == 76561198000000001ull);
+  r = parse_request("unblock all\n");
+  assert(r.command == Command::unblock && r.player == 0);
   for (const char *bad : {"", "dance", "hostile", "host now", "allow", "allow 0", "allow x", "allow  1", "allow 1 2",
                           "deny", "deny -1", "remove", "remove all", "copy CCS-CBMH", "copyCCS", "joincode CCS-CBMH",
-                          "mute", "mute x", "mute 0", "unmute", "unmute 0", "mute 1 2"})
+                          "mute", "mute x", "mute 0", "unmute", "unmute 0", "mute 1 2", "block", "block 0", "block all",
+                          "block x", "unblock", "unblock 0", "unblock All", "unblock all 1", "unblock 1 2"})
     assert(parse_request(bad).command == Command::none);
 
   // Join codes (UI-DESIGN 4.6): the low 32 bits of a lobby id with the high part 0x01860000, low % 7 in the 3 bits
@@ -896,6 +990,29 @@ int main() {
     passed += code_lobby(random) != 0;
   }
   assert(passed > 2000 && passed < 3000);
+
+  // The logs and the report keep *** and the last 4 digits of a SteamID. Of a join code they keep its first 3
+  // characters, whether written as a code or as its lobby id; a lobby id with no code is masked as a SteamID.
+  assert(masked("allow 76561198000000009 ignored: not in the lobby") == "allow ***0009 ignored: not in the lobby");
+  assert(masked("hosting lobby 109775241346428561, join code CCS-CBMH") == "hosting lobby CCS-****, join code CCS-****");
+  assert(masked("join RAN-GTGX") == "join RAN-****" && masked("lobby 109775241275271709") == "lobby RAN-****" &&
+         masked("lobby 109775245212123136") == "lobby ***3136");
+  assert(masked("steam=ready steamid=76561198012345678 appid=3489700") == "steam=ready steamid=***5678 appid=3489700");
+  assert(masked("76561198012345678\\StellarBladeSave00.sav _76561198012345678_") ==
+         "***5678\\StellarBladeSave00.sav _***5678_");
+  assert(masked("round=1 start ffa map 5 76561198000000001,76561198000000002") ==
+         "round=1 start ffa map 5 ***0001,***0002");
+  assert(masked("76561193665298432 81064793292668927 112589990684262399") == "***8432 ***8927 ***2399");
+  // Left whole: other numbers (too short, too long, outside the SteamID range, next to a letter); codes in another
+  // case, with a check that fails or longer than one; words of the same shape.
+  for (const std::string &kept :
+       {std::string(), std::string("fight_chars 15011001 2, appid=3489700, hash 12345678901234567"),
+        std::string("76561193665298431 81064793292668928 765611980123456789 7656119801234567"),
+        std::string("a76561198012345678 76561198012345678b 2026-11-16T19:34:00.000Z"),
+        std::string("ccs-cbmh ZZZ-ZZZZ XCCS-CBMH CCS-CBMHX CCS-CBM non-zero UTF-8 one-shot")})
+    assert(masked(kept) == kept);
+  for (const char *line : {"allow 76561198000000009", "hosting lobby 109775241346428561, join code CCS-CBMH"})
+    assert(masked(masked(line)) == masked(line));
 
   // coop-state.txt, from Lua: strict, so junk never passes for a loaded world or a photo mode; a refusal leaves the
   // values alone.

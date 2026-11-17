@@ -169,10 +169,11 @@ with tempfile.TemporaryDirectory() as tmp:
     docs = {'INSTALL.md', 'LICENSE', 'NOTICE', 'EXCLUDED-PARTIES.md', 'CHANGELOG.md', 'SHA256SUMS.txt'}
     shipped = {'enabled.txt', 'StellarCoop.dll', *docs,
                'Assets/MotherSphere.png',
-               *(f'Scripts/{name}.lua' for name in ('commands/guide', 'ui/guide', 'ui/guide_text')),
+               *(f'Scripts/{name}.lua' for name in ('commands/guide', 'commands/keys', 'ui/guide', 'ui/guide_text')),
                *(f'Scripts/{name}.lua'
-                 for name in ('commands/cut', 'commands/fight', 'commands/nightop', 'commands/partner', 'commands/race',
-                              'commands/scenes', 'commands/session', 'commands/story', 'commands/world', 'core/keybind', 'core/link', 'core/pak_gate', 'core/settings_file',
+                 for name in ('bike/model', 'bike/ride', 'commands/bike',
+                              'commands/cut', 'commands/fight', 'commands/nightop', 'commands/partner', 'commands/race',
+                              'commands/scenes', 'commands/session', 'commands/story', 'commands/world', 'core/keybind', 'core/link', 'core/mask', 'core/pak_gate', 'core/settings_file',
                               'core/unreal', 'core/ue4ss_settings', 'cut/chainspin', 'cut/devmenu', 'cut/emote', 'cut/enemy', 'cut/flight',
                               'cut/glide', 'cut/gardener', 'cut/leviathan',
                               'cut/lines', 'cut/lion', 'cut/lion_rows', 'cut/mailbox',
@@ -194,8 +195,9 @@ with tempfile.TemporaryDirectory() as tmp:
                               'race/drive_model', 'race/model', 'race/run', 'session/booth', 'session/chat',
                               'session/group', 'session/halls_rows', 'session/join', 'session/saves', 'session/sbo',
                               'session/arrival', 'session/sbo_maps', 'session/travel', 'story/snapshot',
-                              'story/subtitles', 'ui/kit', 'ui/lobby', 'ui/lobby_model', 'ui/menu',
-                              'ui/model', 'ui/notice', 'ui/region_tabs', 'ui/text', 'version'))}
+                              'story/subtitles', 'ui/create', 'ui/create_model', 'ui/kit', 'ui/lobby',
+                              'ui/lobby_model', 'ui/menu', 'ui/model', 'ui/notice', 'ui/parts', 'ui/region_tabs',
+                              'ui/sessions', 'ui/sessions_model', 'ui/text', 'version'))}
     assert set(files) == shipped - docs, sorted(files)
     assert not [rel for rel in files
                 if any(fnmatch(Path(rel).name, bad) for bad in ('coop-*', '*.sav', 'steam_api*', '*.pak', '*.uasset'))]

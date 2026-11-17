@@ -54,6 +54,7 @@ assert(#added==4 and added[1][1].ActionName:ToString()=='FlyingActionEvade_Left'
 assert(lines[#lines]=='flight keys: Gamepad_RightTrigger, Gamepad_RightTrigger (space three times in the air flies);'
     ..' evades Shift+Q, D, Z, S',lines[#lines])
 assert(f.on()=='flight keys already R2 alone' and #added==4,'Once')
+assert(f.active(),'On: active (the bike refuses a mount)')
 -- Each frame: nothing on the ground; flying, Z climbs and S descends, each eased over 0.3 s (frames of 0.05 s here);
 -- the speed starts at 40 % and reaches all of it in 0.6 s, then the game's value is left alone.
 local function frame() clock=clock+0.05; f.tick() end
@@ -90,6 +91,7 @@ clock=60.3; flying=false; f.tick(); assert(#lines==n,'Let go and pressed again: 
 -- Off: R2 and Z back, the mappings out (the A and E ones too); a tick then does nothing.
 f.off()
 assert(names()=='Gamepad_RightTrigger,Z' and #removed==6 and removed[4][2]==true,names())
+assert(not f.active(),'Off: not active')
 n=#inputs; flying=true; held.Z=true; f.tick(); assert(#inputs==n); held.Z=false
 -- A list with a third slot (the last version's R2, Z, S): R2 in all three, then Z in the second and third at off.
 handler.DefinedFlyActionKeyLists=keys('Gamepad_RightTrigger','Z','S')

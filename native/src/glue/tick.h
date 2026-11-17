@@ -268,6 +268,16 @@ std::string ask_anim(const coop::Request &request);
 // Every pass: logs each change the game thread made (a play taken or refused, ours ended or stopped) and returns a
 // line for the player's screen (the fault's), or empty.
 std::string anim_pass();
+// The bike (game/bike.h), worker thread. Lua's bike request (Command::bike): load (the bike's mesh and the riding clip
+// preloaded; the same clip while it is held changes nothing), free (the preload released), gate on or gate off (SB's
+// gameplay actions off while she rides, then each back as it was), for the game thread's next frame; refused off the
+// pinned build, after coop off and after the bike's fault. A new Lua load and coop off turn the gate off and coop off
+// releases the preload. Returns the line for the log.
+std::string ask_bike(const coop::Request &request);
+// Every pass: logs each change the game thread made (the preload loading, ready with its time, failed or released; the
+// gate on with each action's earlier state, off, refused; each ride play's clip in memory or not) and returns a line
+// for the player's screen (the fault's), or empty.
+std::string bike_pass();
 // SB's HUD under the SBO lobby's screens (glue/tick/hud_game.inc), worker thread. Lua's hud hide on or off
 // (Command::hud): our key in the HUD's set of hiding keys from the game thread's next frame, or out of it; coop off
 // takes it out too.
@@ -284,8 +294,10 @@ void loading_pass();
 // " remote=<generation> <tables written> <loopback|replay|peer>" for slot 0 and " remote<k>=<generation> <tables
 // written>" for each slot k from 1 holding a table) or "engine=off reason=...", then " fight=on <count>",
 // " fight=probe", " fight=waiting" or " fight=stopped" while the shared fight is asked or latched, then " anim=<state>
-// anim_id=<id>" (game/anim.h's state_text, of the last play asked) on the pinned build before coop off, then
-// " nightop=on" or " nightop=rule" (once the rule was asked) last while the poller runs: no per-frame counters.
+// anim_id=<id>" (game/anim.h's state_text, of the last play asked) and " bike=<state> bike_gate=<state>"
+// (game/bike.h's load_text and gate_text, then " bike_life=<n>", EVE's life state, when it read) on the pinned build
+// before coop off, then " nightop=on" or " nightop=rule" (once the rule was asked) last while the poller runs: no
+// per-frame counters.
 std::string status();
 // Worker: coop-status.txt's activated line (game/camps.h's line), the camps this save has activated and the camp EVE
 // respawns at as of the game thread's last check: "activated=<n>:<alias>,..." with " rested=<alias>" when known, or

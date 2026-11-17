@@ -14,8 +14,10 @@
 -- co-op line's hint and sentences within theirs, the status strip's rows (partner/hud.lua): the second with every fact
 -- within its columns, the top one with its connection lost and paused words whole before the status line, which comes
 -- without its prefix, the race's panel, marker, banner and results within theirs, the lobby menu's rows, settings,
--- values and status within their columns and its waiting-room notice within 200 bytes, and no Thai word that ends on a
--- leading vowel.
+-- values and status within their columns and its waiting-room notice within 200 bytes, Find a session's hints, status
+-- lines, version and footer within theirs, Create a session's title, rules header, Start row and right-pane words
+-- within theirs; no Thai word that ends on a leading vowel; each join Steam refused as link/core.h words it, in every language; the DLC notice (T.dlcs) within
+-- 200 bytes with 100-byte DLC names in every language; its English as main.lua says it.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
 local R=require('nightop.recruiter_text')
@@ -76,10 +78,16 @@ end
 -- put them together.
 local function notices(w)
     local lines={}
-    for _,group in ipairs({'fight','spawns','group','ghost','refused','quests','world','story','travel','ue4ss'}) do
+    for _,group in ipairs({'fight','spawns','group','ghost','refused','quests','world','story','travel','ue4ss',
+        'join_refused'}) do
         for _,text in pairs(w[group]) do lines[#lines+1]=fill(text) end
     end
     lines[#lines+1]=w.fight.on:format(16)..' '..w.fight.scale:format(200,200) -- The longest on.
+    -- The DLC notice (T.dlcs): one sentence or both, with short names and with names of link/protocol.h's kMaxDlcName.
+    local long,short={('d'):rep(100),('e'):rep(100),('f'):rep(100)},{'Twin Expansion Pack','NieR:Automata','x'}
+    for _,two in ipairs({{long,long},{short,short},{long,{}},{{},long},{short,long},{long,short}}) do
+        lines[#lines+1]=T.dlcs(w,NAME,two[1],two[2])
+    end
     local p=w.pilot
     for _,text in ipairs({p.on:format(16),p.one,p.off:format(p.stopped),p.off:format(fill(p.host))}) do
         lines[#lines+1]=text
@@ -250,6 +258,26 @@ for name in pairs(R.TEXT) do
     for k,text in pairs(w.lobby.status) do fits(name..'.lobby.status.'..k,text:format(k=='start' and 10 or 8,8),40) end
     local room=w.lobby.room:format('F5')
     assert(Chat.clean(room)==room,name..'.lobby.room: '..#room..' bytes or a control')
+    -- Find a session (ui/sessions.lua): a key hint's label within the 420 units between two hints less the icon
+    -- (Bold 30, 17 units a column); a status line on one line of the list's 1600 units (Bold 36, about 21 units a
+    -- column); the version in the details pane on one line of its 1040 units (Mideum 34, 18 units a column), with a
+    -- two-digit protocol and an 8-digit build; the footer within two lines of 2200 units (Mideum 30, 16 units a column).
+    local ss=w.sessions
+    for _,k in ipairs({'ask','refresh'}) do fits(name..'.sessions.'..k,ss[k],20) end
+    for _,k in ipairs({'empty','failed','idle'}) do fits(name..'.sessions.'..k,ss[k],76) end
+    fits(name..'.sessions.wait',ss.wait:format(5),76)
+    fits(name..'.sessions.friend',ss.friend,57)
+    fits(name..'.sessions.version',ss.version:format('22','26123051'),57)
+    fits(name..'.sessions.footer',ss.footer:format('22','26123051'),2*2200//16)
+    -- Create a session (ui/create.lua): its page title at the top right within 40 columns (Mideum 34, 18 units a
+    -- column); the rules header and the Start row within a setting's title column on C (32); a locked row's reason and
+    -- each Who can join word within four lines of the right pane's 1040 units (57 columns a line).
+    local cr=w.create
+    fits(name..'.create.title',cr.title,40)
+    fits(name..'.create.rules',cr.rules,32)
+    fits(name..'.create.start',cr.start,32)
+    fits(name..'.create.locked',cr.locked,4*57)
+    for k,text in pairs(cr.who) do fits(name..'.create.who.'..k,text,4*57) end
 end
 -- Thai writes a leading vowel (U+0E40 to U+0E44) before its consonant: no word ends on one.
 local function thai(t,at)
@@ -262,4 +290,58 @@ local function thai(t,at)
     end
 end
 if T.th then thai(T.th,'th.') end
+
+-- A join Steam refused: link/core.h's join_refusal() gives the English lines T.en.join_refused holds and no other.
+-- Any other number gets T.en's other words. T.join_refused gives each in every language's words; any other notice
+-- gets nil.
+local src=io.open('native/src/link/core.h'):read('a')
+local body=src:match('inline std::string join_refusal%(uint32_t response%) {(.-)\n}\n')
+assert(body,'link/core.h: no join_refusal()')
+local native,en={},T.en.join_refused
+for line in body:gmatch('return "([^"]*)";') do native[line]=true end
+for key,text in pairs(en) do assert(key=='other' or native[text],'link/core.h lacks T.en.join_refused.'..key) end
+for line in pairs(native) do
+    local found=false
+    for _,text in pairs(en) do found=found or text==line end
+    assert(found,'T.en.join_refused lacks "'..line..'"')
+end
+local head,tail=en.other:match('^(.*)%%d(.*)$')
+assert(body:find('return "'..head..'" + std::to_string(response) + "'..tail..'";',1,true),'link/core.h: other')
+for name,w in pairs(T) do
+    if type(w)=='table' then
+        w=T.pick(name)
+        for key,text in pairs(en) do
+            if key~='other' then assert(T.join_refused(text)(w)==w.join_refused[key],name..'.'..key) end
+        end
+        assert(T.join_refused(en.other:format(12))(w)==w.join_refused.other:format(12),name..'.other')
+        assert(T.join_refused(en.other:format(4294967295))(w)==w.join_refused.other:format(4294967295),name)
+    end
+end
+assert(T.join_refused(en.full)(T.pick('fr-FR'))=='Impossible de rejoindre : cette partie est complète.')
+assert(T.join_refused(en.other:format(16))(T.en)=='Could not join: Steam response 16.')
+for _,text in ipairs({'Kaanta joined.','Could not join: Steam response .','Could not join: Steam response -1.',
+    'Could not join: Steam response 5. ','x'..en.full,'Could not join: unknown match mode tdm.',en.other}) do
+    assert(T.join_refused(text)==nil,text)
+end
+-- The DLC notice: hers we lack, then ours she lacks, in one notice; the names that fit, (+n) for the others; the first
+-- sentence leaves the second room for its count; one sentence when a list is empty.
+local DLC_THEIRS,DLC_YOURS="Kaanta has DLCs you don't have: ","You have DLCs Kaanta doesn't have: "
+assert(T.dlcs(T.en,'Kaanta',{'Alpha','Beta','Gamma'},{'Delta'})==DLC_THEIRS..'Alpha, Beta (+1). '..DLC_YOURS..'Delta.')
+assert(T.dlcs(T.en,'Kaanta',{},{'Delta','Epsilon'})==DLC_YOURS..'Delta, Epsilon.')
+assert(T.dlcs(T.en,'Kaanta',{'Alpha'},{})==DLC_THEIRS..'Alpha.')
+local hundred,other=('a'):rep(100),('b'):rep(100)
+assert(T.dlcs(T.en,'Kaanta',{hundred},{other})==DLC_THEIRS..hundred..'. '..DLC_YOURS..'(+1).')
+assert(T.dlcs(T.fr,'Kaanta',{'Alpha'},{'Delta'})=="Kaanta a des DLC que vous n'avez pas : Alpha. Vous avez des DLC que "
+    .."Kaanta n'a pas : Delta.")
+-- Her name at link/protocol.h's kMaxName (64 bytes, 32 Cyrillic letters) in both sentences: cut at a character's
+-- start in every language until both counts fit, so the feed's 200 bytes never cut the second sentence.
+local LONG_NAME=('Ж'):rep(32)
+for lang,w in pairs(T) do
+    if type(w)=='table' and w.dlc then
+        local line=T.dlcs(w,LONG_NAME,{hundred},{other})
+        assert(#line<=200 and utf8.len(line) and Chat.clean(line)==line,lang..': '..line)
+        assert(select(2,line:gsub('%(%+1%)',''))==2,lang..': '..line)
+    end
+end
+assert(T.dlcs(T.en,LONG_NAME,{'Alpha'},{'Delta'}):find(LONG_NAME,1,true),'A name that fits stays whole')
 print('ui_text_test ok')

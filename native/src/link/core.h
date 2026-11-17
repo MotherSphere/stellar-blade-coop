@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The Steam link's logic, free of Windows: lobby, invites, join codes, match lobbies (quick match, a private match
-// lobby by code, relay only, the host's countdown and round lines), members, the host's approval of a joiner who is not
-// her Steam friend, handshake, liveness and status, the synced photo mode's line, the chat and vitals lines, the
-// follow's camps lines, Night Operation's night line, channel 1, where the pose path's tables and poses and the pilot's
-// enemy roots (SBE) travel, and channel 2, where the shared enemies' lines and the pilot's show lines travel. Every
-// Steam call goes through the Api table, so tests/native/link/core_test.cpp drives this file with a fake Steam on the
-// build machine, and glue/steam.cpp fills the table from the game's steam_api64.dll (flat API, SDK 1.59).
+// lobby by code, relay only, the host's countdown and round lines), the session list (the rows an online session's host
+// writes, the Public search, the friends' lobbies), members, the host's approval of a joiner who is not her Steam
+// friend (or of any joiner with friends_ask=on), handshake, liveness and status, the synced photo mode's line, the chat
+// and vitals lines, the follow's camps lines, Night Operation's night line, channel 1, where the pose path's tables and
+// poses and the pilot's enemy roots (SBE) travel, then channel 2, where the shared enemies' lines and the pilot's show
+// lines travel. Every Steam call goes through the Api table, so tests/native/link/core_test.cpp drives this file with a
+// fake Steam on the build machine; glue/steam.cpp fills the table from the game's steam_api64.dll (flat API, SDK
+// 1.59).
 #pragma once
 
 #include <algorithm>
@@ -65,20 +67,36 @@ struct NetMessage { // SteamNetworkingMessage_t: only the first fields are read.
   uint32_t connection;
   Identity peer;
 };
+struct PingLocation { // SteamNetworkPingLocation_t: Valve's bytes, read only by Steam.
+  uint8_t data[512];
+};
 static_assert(sizeof(FriendGame) == 24 && sizeof(LobbyCreated) == 16 && sizeof(LobbyEnter) == 24 &&
                   sizeof(JoinRequested) == 16 && sizeof(LobbyMatchList) == 4 && sizeof(ChatUpdate) == 32 &&
-                  sizeof(Identity) == 136 && offsetof(NetMessage, peer) == 16,
+                  sizeof(Identity) == 136 && offsetof(NetMessage, peer) == 16 && sizeof(PingLocation) == 512,
               "Steamworks 1.59 layouts");
-// ELobbyType: who_can_join=private (invite only), friends, code (invisible: joined by id, hidden from the host's
-// friends; Steamworks says a lobby search still returns it, which StellarCoop never makes).
-constexpr int kPrivate = 0, kFriendsOnly = 1, kInvisible = 3;
+// ELobbyType: who_can_join=friends (FriendsOnly), public (Public, below), invitation and closed (Invisible: joined by
+// id, hidden from the host's friends; Steamworks says a lobby search still returns it, which no SBO search asks for).
+constexpr int kFriendsOnly = 1, kInvisible = 3;
 constexpr int kResultOk = 1, kEnterSuccess = 1, kImmediateFriends = 4, kIdentitySteamId = 16;
 constexpr int kCreatedId = 513, kEnterId = 504, kJoinRequestedId = 333, kDataUpdateId = 505, kSessionRequestId = 1251;
 // Match lobbies: ELobbyType Public, LobbyMatchList_t and LobbyChatUpdate_t's IDs, ELobbyComparison Equal,
 // ELobbyDistanceFilter Default.
 constexpr int kPublic = 2, kMatchListId = 510, kChatUpdateId = 506, kLobbyEqual = 0, kDistanceDefault = 1;
+// The session list (Find a session): ELobbyDistanceFilter Worldwide; EFriendRelationship Blocked, Ignored and
+// IgnoredFriend (a host the player blocked on Steam); k_cchMaxSteamNetworkingPingLocationString. At most kMaxRows rows,
+// one search each kListEveryMs at most; a friend's lobby is read for kWalkMs after RequestLobbyData. The host reads her
+// Steam name each kNameEveryMs (sbo_host follows a persona change) and writes sbo_ping again each kRowsEveryMs, or
+// kRowsRetryMs later while Steam does not know her ping location.
+constexpr int kDistanceWorldwide = 3, kBlocked = 1, kIgnored = 5, kIgnoredFriend = 6, kPingTextSize = 1024;
+constexpr size_t kMaxRows = 50;
+constexpr uint64_t kListEveryMs = 5000, kWalkMs = 5000, kNameEveryMs = 5000, kRowsEveryMs = 300000,
+                   kRowsRetryMs = 5000;
 // ESteamNetworkingConfigValue P2P_Transport_ICE_Enable and its values: 0 relays only, -1 is the Steam client's own.
 constexpr int kIceEnable = 104, kIceDisable = 0, kIceDefault = -1;
+// A refused ICE_Enable 0 is asked again at a guard() this long after; after kIceTries refusals in a row the link with
+// the player who needs relay only is refused. A send held meanwhile returns EResult AccessDenied.
+constexpr int kIceTries = 3, kResultDenied = 15;
+constexpr uint64_t kIceRetryMs = 1000;
 // A host alone in a Public match lobby searches again this often and moves to an open lobby with a lower id, so two
 // players who searched in the same second (each hosting a lobby of one) end up in one lobby (ruling R1).
 constexpr uint64_t kRegroupMs = 5000;
@@ -104,6 +122,16 @@ inline uint64_t splitmix64(uint64_t x) {
   x = (x ^ x >> 27) * 0x94d049bb133111ebull;
   return x ^ x >> 31;
 }
+// The block list's key for a SteamID64: FNV-1a 64 over a fixed salt and its digits, so coop-blocked.txt shows no
+// SteamID as it is. It hides little: a personal SteamID is 76561197960265728 plus a 32-bit account number. One PC
+// hashes all 2^32 in about 5 minutes, which lists every SteamID in the file.
+inline uint64_t block_hash(uint64_t id) {
+  uint64_t h = 0xcbf29ce484222325ull;
+  for (char c : "SBO block list 1 " + std::to_string(id))
+    h = (h ^ static_cast<uint8_t>(c)) * 0x100000001b3ull;
+  return h;
+}
+constexpr size_t kMaxBlockFile = 1 << 20; // coop-blocked.txt's bytes read at start: about 60000 players.
 constexpr int kReliable = 8 | 32, kUnreliable = 1 | 32; // Reliable or Unreliable|NoNagle, |AutoRestartBrokenSession.
 constexpr int kChannel = 0, kPoseChannel = 1, kFightChannel = 2, kMaxMembers = 2;
 constexpr size_t kMaxBinary = 65536; // pose/table.h kMaxTable
@@ -134,7 +162,8 @@ constexpr uint64_t kNightPerSecond = 8;
 // countdown).
 constexpr uint64_t kPingPerSecond = 4, kRoundPerSecond = 8;
 // Design 7.3 rule 12, floods: her channel-0 lines a second, counted, never dropped (in a match lobby about 16 a second:
-// 11 vitals, 3 chat lines, pings; and a list of up to 257 pak lines after a hello, once each 10 s at most), and how
+// 11 vitals, 3 chat lines, pings; and a list of up to 257 pak lines and 65 dlc lines after a hello, once each 10 s at
+// most), and how
 // long a member stays over one of her channel windows (0, 1 or 2) in a match lobby before she is refused. Each receive
 // reads 16 messages a channel for all members together.
 constexpr uint64_t kLinesPerSecond = 128, kFloodMs = 5000;
@@ -161,6 +190,37 @@ inline uint64_t steam_id_of(const Identity &who) {
   for (int i = 7; i >= 0; --i)
     id = (id << 8) | who.data[i];
   return id;
+}
+// The notice for a join Steam refused, by its EChatRoomEnterResponse (Steamworks marks 12 to 14 no longer used).
+// ui/text.lua's join_refused holds the same lines in every menu language: change both together.
+inline std::string join_refusal(uint32_t response) {
+  switch (response) {
+  case 2: // DoesntExist
+    return "Could not join: that game no longer exists.";
+  case 3: // NotAllowed. Our guess for a lobby its owner shut (a Private online session, a match lobby at the start of a
+          // round); which response Steam gives for one set not joinable was never read in game.
+    return "Could not join: that game is closed (a private session, or a match that started).";
+  case 4: // Full
+    return "Could not join: that game is full.";
+  case 5: // Error
+    return "Could not join: Steam had an unexpected error. Try again.";
+  case 6: // Banned
+    return "Could not join: Steam has banned you from that game's lobby.";
+  case 7: // Limited
+    return "Could not join: your Steam account is limited. Spending 5 USD on Steam lifts the limit.";
+  case 8: // ClanDisabled
+    return "Could not join: that Steam group is locked or disabled.";
+  case 9: // CommunityBan
+    return "Could not join: your Steam account has a community ban.";
+  case 10: // MemberBlockedYou
+    return "Could not join: a player in that game has blocked you on Steam.";
+  case 11: // YouBlockedMember
+    return "Could not join: you have blocked a player in that game on Steam.";
+  case 15: // RatelimitExceeded
+    return "Could not join: too many tries in a short time. Wait a moment and try again.";
+  default:
+    return "Could not join: Steam response " + std::to_string(response) + ".";
+  }
 }
 
 // The flat API functions the link uses.
@@ -215,6 +275,17 @@ struct Api {
   bool (*set_joinable)(void *, uint64_t, bool);
   bool (*set_owner)(void *, uint64_t, uint64_t);
   bool (*set_config_int)(void *, int, int32_t);
+  int (*dlc_count)(void *);
+  bool (*dlc_data)(void *, int, uint32_t *, bool *, char *, int);
+  bool (*dlc_installed)(void *, uint32_t);
+  // The session list's.
+  void (*result_count_filter)(void *, int);
+  bool (*request_lobby_data)(void *, uint64_t);
+  int (*relationship)(void *, uint64_t);
+  float (*local_ping)(void *, PingLocation *);
+  void (*ping_text)(void *, const PingLocation *, char *, int);
+  bool (*parse_ping)(void *, const char *, PingLocation *);
+  int (*estimate_ping)(void *, const PingLocation *);
 };
 
 // Fills the table through resolve(name); returns the first missing name, or nothing.
@@ -275,6 +346,16 @@ template <class Resolve> std::string load(Api &api, Resolve resolve) {
   get(api.set_joinable, "SteamAPI_ISteamMatchmaking_SetLobbyJoinable");
   get(api.set_owner, "SteamAPI_ISteamMatchmaking_SetLobbyOwner");
   get(api.set_config_int, "SteamAPI_ISteamNetworkingUtils_SetGlobalConfigValueInt32");
+  get(api.dlc_count, "SteamAPI_ISteamApps_GetDLCCount");
+  get(api.dlc_data, "SteamAPI_ISteamApps_BGetDLCDataByIndex");
+  get(api.dlc_installed, "SteamAPI_ISteamApps_BIsDlcInstalled");
+  get(api.result_count_filter, "SteamAPI_ISteamMatchmaking_AddRequestLobbyListResultCountFilter");
+  get(api.request_lobby_data, "SteamAPI_ISteamMatchmaking_RequestLobbyData");
+  get(api.relationship, "SteamAPI_ISteamFriends_GetFriendRelationship");
+  get(api.local_ping, "SteamAPI_ISteamNetworkingUtils_GetLocalPingLocation");
+  get(api.ping_text, "SteamAPI_ISteamNetworkingUtils_ConvertPingLocationToString");
+  get(api.parse_ping, "SteamAPI_ISteamNetworkingUtils_ParsePingLocationString");
+  get(api.estimate_ping, "SteamAPI_ISteamNetworkingUtils_EstimatePingTimeFromLocalHost");
   return missing;
 }
 
@@ -437,7 +518,11 @@ struct Peer {
   uint64_t paks_count = 0, paks_hash = 0, paks_next = 0;
   std::map<std::string, uint64_t> pak_list, pak_in;
   std::string mods_status;
-  size_t paks_at = 0;
+  size_t paks_at = 0; // Our dlc lines and dlcs line follow the paks line in this count (send_paks).
+  // Her installed DLCs by app id with their names, from the dlc lines her last dlcs line ended (has_dlcs: one came);
+  // dlc_in: her dlc lines since then.
+  bool has_dlcs = false;
+  std::map<uint32_t, std::string> dlc_list, dlc_in;
   // Her last vitals (her vit line) and when they came: the partner card's and the shared fight's, for the partner.
   Vitals vitals{};
   uint64_t vitals_at = 0;
@@ -514,6 +599,7 @@ public:
     started_ = true;
     event("Steam ready: " + my_name_ + ", app " + std::to_string(app_) + ", game build " + std::to_string(build_) +
           ", mod " + mod_ + ", protocol " + std::to_string(kProtocol));
+    read_dlcs(apps);
     if (uint64_t lobby = connect_lobby(command_line))
       offer(lobby, "launched by an invite");
     return Ready::now;
@@ -556,6 +642,11 @@ public:
         run_match();
     }
     regroup();
+    refresh_rows();
+    if (!walk_.empty())
+      walk();
+    if (linked()) // Let in: the wait= line goes.
+      wait_until_ = 0;
     fight_session();
     chat_session();
     if (lobby_) { // A reject may have made us leave.
@@ -884,6 +975,46 @@ public:
   // The copy request: our join code for the clipboard (glue/steam.cpp), once; empty when none was asked.
   std::string take_copy() { return std::exchange(copy_, {}); }
 
+  // The block list from coop-blocked.txt (glue/steam.cpp, once at start): one block_hash() in 16 hex digits a line,
+  // any other line skipped. whole=false: the file is there but was not read in full (another program held it, a read
+  // error, over kMaxBlockFile). The lines read still apply. The file is never written in this game run, so the
+  // players it holds that were not read stay on it.
+  void blocks(const std::string &text, bool whole = true) {
+    if (!whole) {
+      blocks_kept_ = true;
+      event("coop-blocked.txt could not be read in full: it stays as it is until the game restarts");
+      notice("Could not read the whole block list: changes to it are not saved until the game restarts.");
+    }
+    for (size_t at = 0, end; at < text.size(); at = end + 1) {
+      end = std::min(text.find('\n', at), text.size());
+      std::string_view line(text.data() + at, end - at);
+      if (!line.empty() && line.back() == '\r')
+        line.remove_suffix(1);
+      if (uint64_t hash = 0; hex64(line, hash))
+        blocked_.insert(hash);
+    }
+  }
+  // coop-blocked.txt's new text once remove, block or unblock changed the list (glue/steam.cpp writes it); empty when
+  // it did not change.
+  std::string take_blocks() {
+    if (!std::exchange(blocks_changed_, false))
+      return {};
+    if (blocks_kept_) {
+      event("block list not saved: coop-blocked.txt was not read in full");
+      notice("Could not save the block list: it holds until the game closes.");
+      return {};
+    }
+    std::string text = "# SBO's block list: the players coop remove and coop block keep out of every game you host. "
+                       "coop unblock all empties it.\n"
+                       "# Each line hashes a SteamID. Trying every SteamID finds them again, so keep this file private.\n";
+    char line[20];
+    for (uint64_t hash : blocked_) {
+      std::snprintf(line, sizeof line, "%016llx\n", static_cast<unsigned long long>(hash));
+      text += line;
+    }
+    return text;
+  }
+
   // No Steam call here: the caller may ask before Steam is ready, or after the game shut it down.
   std::string status(const Counters &c) const {
     if (!started_)
@@ -895,6 +1026,9 @@ public:
                     " cb333=" + std::to_string(c.join_requested) + " cb505=" + std::to_string(c.data_update) +
                     " cb506=" + std::to_string(c.chat_update) + " cb1251=" + std::to_string(c.session_request) + "\n";
     s += "me=" + my_name_ + "\n"; // Our Steam name, cleaned (kMaxName), maybe empty.
+    s += "blocked=" + std::to_string(blocked_.size()) + "\n"; // How many players the block list holds.
+    for (const auto &[id, name] : blocked_now_) // The file keeps no SteamID: these let coop unblock take 4 digits.
+      s += "block=" + std::to_string(id) + " " + name + "\n";
     // In a match lobby, its owner's SteamID after the lobby id, then its room and hall words when it has them.
     s += std::string("link=") + (!lobby_ ? "none" : host_ ? "host" : "guest") + " lobby=" + std::to_string(lobby_) +
          (match() ? " owner=" + std::to_string(host_id_) + (room_.empty() ? std::string() : " room=" + room_) +
@@ -919,14 +1053,31 @@ public:
       s += "round=" + std::to_string(round_.n) + " " +
            (round_.playing ? start.substr(start.find(' ') + 1) : "end " + round_.why) + "\n";
     }
-    // While we host: our join code (none outside who_can_join=code), the players refused for the rest of this lobby,
-    // and each joiner waiting for our answer, her name last.
+    // While we host: our join code (none outside who_can_join=invitation), the players refused for the rest of this
+    // lobby, then each joiner waiting for our answer, her name last.
     if (host_ && lobby_) {
       s += "code=" + (code_.empty() ? std::string("none") : code_) + " refused=" + std::to_string(refused_.size()) +
            "\n";
       for (auto &p : peers_)
         if (p.asking)
           s += "pending=" + std::to_string(p.id) + " " + p.name + "\n";
+    }
+    // As a joiner the host has not let in yet (she is not the host's Steam friend, or the host asks friends too): the
+    // seconds left of the host's minute, rounded up, then the host's name last, read from Steam each time (a
+    // stranger's may reach Steam a moment after we joined).
+    if (wait_until_ && lobby_ && !host_)
+      s += "wait=" + std::to_string(wait_until_ > now_ ? (wait_until_ - now_ + 999) / 1000 : 0) + " " +
+           name_of(host_id_) + "\n";
+    // The session list (list public, list friends): "list=<public|friends> <searching|done|failed> <rows>", then each
+    // row, best ping first once done: "session=<lobby> <host's SteamID> <n>/<max> <ping ms or -> <1 for a Steam friend,
+    // else 0> <map segment or -> <camp alias or -> <rules or -> <host's name>", the name last.
+    if (!list_tab_.empty()) {
+      s += "list=" + list_tab_ + " " + list_state_ + " " + std::to_string(list_.size()) + "\n";
+      const auto word = [](const std::string &w) { return w.empty() ? std::string("-") : w; };
+      for (const Row &r : list_)
+        s += "session=" + std::to_string(r.lobby) + " " + std::to_string(r.owner) + " " + r.players + " " +
+             (r.ping < 0 ? std::string("-") : std::to_string(r.ping)) + " " + (r.pal ? "1 " : "0 ") + word(r.zone) +
+             " " + word(r.camp) + " " + word(r.rules) + " " + r.name + "\n";
     }
     for (auto &p : peers_)
       s += "peer=" + std::to_string(p.id) + " name=" + p.name + " hello=" + (p.hello_received ? "1" : "0") +
@@ -953,6 +1104,18 @@ public:
     if (const Peer *p = slot_zero(); p && p->has_paks && paks_on_)
       s += std::string("paks=") + (p->paks_hash == paks_hash_ ? "same " : "differ ") + std::to_string(paks_count_) +
            " " + std::to_string(p->paks_count) + "\n" + p->mods_status;
+    // The slot-0 member's installed DLCs against ours, once her dlcs line came: "dlcs=same <ours> <hers>" or
+    // "dlcs=differ <ours> <hers>", then "dlc_missing=<app id> <name>" for each of hers we lack and "dlc_extra=<app id>
+    // <name>" for each of ours she lacks, the name last as it may hold spaces.
+    if (const Peer *p = slot_zero(); p && p->has_dlcs) {
+      const DlcDiff d = compare_dlcs(dlcs_, p->dlc_list);
+      s += std::string("dlcs=") + (d.missing.empty() && d.extra.empty() ? "same " : "differ ") +
+           std::to_string(dlcs_.size()) + " " + std::to_string(p->dlc_list.size()) + "\n";
+      for (const auto &[id, name] : d.missing)
+        s += "dlc_missing=" + std::to_string(id) + " " + name + "\n";
+      for (const auto &[id, name] : d.extra)
+        s += "dlc_extra=" + std::to_string(id) + " " + name + "\n";
+    }
     // Her vitals for the partner card (mate_vitals()): none in a match lobby.
     if (const Vitals *v = mate_vitals()) {
       s += "mate=";
@@ -1052,8 +1215,11 @@ private:
     return who;
   }
 
-  // Steam's EResult: 1 sent (queued), anything else not.
+  // Steam's EResult: 1 sent (queued), anything else not. Nothing goes to a player who needs relay only while it is not
+  // set: our first send would open her session with ICE on.
   int send(const Peer &peer, const void *data, size_t size, int flags, int channel = kChannel) {
+    if (!relay_ok(peer.id))
+      return kResultDenied;
     Identity who = identity(peer.id);
     return api_.send(msgs_, &who, data, static_cast<uint32_t>(size), flags, channel);
   }
@@ -1082,12 +1248,32 @@ private:
 
   // Why a non-peer's messages are ignored, for the log.
   const char *outsider(uint64_t id) const {
-    return !refused_.count(id) ? "not in our lobby" : host_ ? "refused by the host" : "refused for a flood";
+    return refused_.count(id) ? (host_ ? "refused by the host" : "refused for a flood")
+           : barred(id)       ? "on the block list"
+           : closed()         ? "our session is private"
+                              : "not in our lobby";
+  }
+
+  // Whether the block list keeps her out of the lobby we host. A guest's list applies only in a Public match lobby,
+  // which quick match chose for her (poll_members() leaves it); any other game she chose.
+  bool barred(uint64_t id) const { return host_ && blocked_.count(block_hash(id)); }
+  // We host a Private online session (who_can_join=closed): Steam refuses every join; we refuse any member it lets in.
+  bool closed() const { return host_ && lobby_ && !match() && hosting_ == Who::closed; }
+  // Whether the list changed.
+  bool block(uint64_t id, bool on) {
+    const bool changed = on ? blocked_.insert(block_hash(id)).second : blocked_.erase(block_hash(id)) > 0;
+    blocks_changed_ = blocks_changed_ || changed;
+    if (on)
+      blocked_now_[id] = name_of(id);
+    else
+      blocked_now_.erase(id);
+    return changed;
   }
 
   // The host's no (deny, remove, or no answer in time): a reject with why, which every protocol reads and on which a
-  // StellarCoop game leaves, then she is out for the rest of this lobby. Her session stays open, so the reject still
-  // goes out (CloseSessionWithUser drops unsent reliable data).
+  // StellarCoop game leaves, then she is out for the rest of this lobby (after a remove, the block list keeps her out
+  // of the later ones). Her session stays open, so the reject still goes out (CloseSessionWithUser drops unsent
+  // reliable data).
   // ponytail: Steam has no kick, so a game that ignores the reject keeps the lobby's second place (rejects every
   // 10 s, never greeted); the host hosts again for a new code.
   void refuse(uint64_t id, const std::string &why, const std::string &text) {
@@ -1113,8 +1299,9 @@ private:
     peers_.clear();
     api_.leave_lobby(mm_, lobby_);
     event("left lobby " + std::to_string(lobby_) + ": " + why);
-    lobby_ = host_id_ = 0;
-    host_ = public_ = false;
+    lobby_ = host_id_ = wait_until_ = 0;
+    host_ = public_ = rows_ = listed_ = false;
+    players_.clear();
     mode_.clear();
     room_.clear();
     hall_.clear();
@@ -1123,6 +1310,8 @@ private:
       end_round("left");
     allowed_.clear(); // Our answers as host hold for that lobby only: never for the next one, nor once we are a guest.
     refused_.clear();
+    ice_tries_ = 0;
+    ice_retry_at_ = 0;
   }
 
   void join(uint64_t lobby, const std::string &how) {
@@ -1203,7 +1392,15 @@ private:
       cancel_rejoin(std::string(asked) + " asked");
     switch (r.command) {
     case Command::host:
-      if (host_ && lobby_) {
+      if (host_ && lobby_ && !match() && r.who != hosting_) { // The lobby keeps its type until the player leaves.
+        static const char *const kWords[] = {"friends", "public", "invitation", "closed"}; // In Who's order.
+        event(std::string("already hosting a ") + kWords[int(hosting_)] + " lobby: host " + kWords[int(r.who)] +
+              " refused");
+        notice("You already host a session: leave it first to host with another Who can join.");
+      } else if (closed()) {
+        event("already hosting a private session: no invite dialog");
+        notice("Nobody can join a private session.");
+      } else if (host_ && lobby_) {
         api_.invite_dialog(friends_, lobby_);
         event("already hosting: invite dialog opened");
       } else if (lobby_) { // A guest: one key press must not end her friend's session.
@@ -1215,23 +1412,31 @@ private:
       } else {
         leave("hosting instead");
         drop_search("host");
-        relay_only(false); // Before a co-op lobby's first session opens.
+        relay_only(false); // Before a co-op lobby's first session opens (guard() asks again for a stranger).
         hosting_ = r.who;
+        ask_ = r.on;
         create_call_ = api_.create_lobby(mm_,
-                                         r.who == Who::code      ? kInvisible
-                                         : r.who == Who::invited ? kPrivate
-                                                                 : kFriendsOnly,
+                                         r.who == Who::everyone  ? kPublic
+                                         : r.who == Who::friends ? kFriendsOnly
+                                                                 : kInvisible,
                                          kMaxMembers);
-        event(!create_call_           ? "Steam refused to create a lobby"
-              : r.who == Who::invited ? "creating a private lobby (invite only)"
-              : r.who == Who::code    ? "creating an invisible lobby (joined with its code)"
-                                      : "creating a friends-only lobby");
-        if (!create_call_)
+        if (!create_call_) {
+          event("Steam refused to create a lobby");
           notice("Could not host: Steam refused.");
+        } else {
+          const char *what = r.who == Who::everyone     ? "a public lobby (listed)"
+                             : r.who == Who::invitation ? "an invisible lobby (joined with its code or an invite)"
+                             : r.who == Who::closed     ? "a private lobby (nobody can join)"
+                                                        : "a friends-only lobby";
+          event(std::string("creating ") + what + (ask_ ? ", Steam friends ask too" : ""));
+        }
       }
       break;
     case Command::invite:
-      if (lobby_) {
+      if (closed()) {
+        event("invite ignored: a private session");
+        notice("Nobody can join a private session.");
+      } else if (lobby_) {
         api_.invite_dialog(friends_, lobby_);
         event("invite dialog opened");
       } else {
@@ -1286,11 +1491,39 @@ private:
         notice(p->name + " was let in.");
       } else if (r.command == Command::deny) {
         refuse(p->id, "you were not let in", p->name + " was not let in.");
-      } else {
-        refuse(p->id, "you were removed from this session", p->name + " was removed.");
+      } else { // Removed for good: kept out of every lobby we host from now on, until coop unblock.
+        block(p->id, true);
+        refuse(p->id, "you were removed from this session", p->name + " was removed and blocked.");
       }
       break;
     }
+    case Command::block: { // Anyone's SteamID, in any state; a member of the lobby we host is removed as well.
+      block(r.player, true);
+      event("blocked " + name_of(r.player) + " (" + std::to_string(r.player) + ")");
+      if (Peer *p = host_ && lobby_ ? find_peer(r.player) : nullptr)
+        refuse(p->id, "you were removed from this session", p->name + " was removed and blocked.");
+      else
+        notice("Player blocked.");
+      break;
+    }
+    case Command::unblock: // One player, or all (player 0), with the refusals in this lobby the list made.
+      if (!r.player) {
+        for (auto it = refused_.begin(); it != refused_.end();)
+          it = barred(it->first) ? refused_.erase(it) : std::next(it);
+        blocks_changed_ = blocks_changed_ || !blocked_.empty();
+        blocked_.clear();
+        blocked_now_.clear();
+        event("unblocked everyone");
+        notice("Block list emptied.");
+      } else {
+        if (barred(r.player))
+          refused_.erase(r.player);
+        const bool was = block(r.player, false);
+        event((was ? "unblocked " : "unblock: not on the block list: ") + name_of(r.player) + " (" +
+              std::to_string(r.player) + ")");
+        notice(was ? "Player unblocked." : "That player is not on your block list.");
+      }
+      break;
     // The follow's camps lines (session/travel.lua writes them; link/protocol.h checked their shape): reliable, on
     // channel 0, to the friend past the handshake, the guest's camps? and the host's answers only, never in a match
     // lobby. A camps? of ours forgets the answer to the one before.
@@ -1337,8 +1570,8 @@ private:
         notice("No join code to copy.");
       }
       break;
-    // The pose path's, the shared fight's, the photo pause's, the saves', the shared quests', the rows', coop emote's
-    // and coop shortcut's: the caller's.
+    // The pose path's, the shared fight's, the photo pause's, the saves', the shared quests', the rows', coop emote's,
+    // the bike's and coop shortcut's: the caller's.
     case Command::off:
     case Command::loopback:
     case Command::record:
@@ -1354,6 +1587,7 @@ private:
     case Command::rows:
     case Command::gate:
     case Command::anim:
+    case Command::bike:
     case Command::shortcut:
     case Command::devinfo:
     case Command::items:
@@ -1367,6 +1601,21 @@ private:
       break;
     case Command::match:
       ask_match(r);
+      break;
+    case Command::list:
+      ask_list(r);
+      break;
+    case Command::where: // The rows' place, written at once while we host an online session, else at the next host.
+      zone_ = r.zone, camp_ = r.camp;
+      if (rows_)
+        put(kZoneKey, zone_), put(kCampKey, camp_);
+      event("where: " + zone_ + (camp_.empty() ? "" : " " + camp_));
+      break;
+    case Command::rules: // The rows' rules word, the same way.
+      rules_ = r.text;
+      if (rows_)
+        put(kRulesKey, rules_);
+      event("rules: " + rules_);
       break;
     case Command::mute: { // Any player's, in any lobby, kept for the game run (my call 18).
       const std::string name = name_of(r.player);
@@ -1427,7 +1676,7 @@ private:
       notice("Could not search: Steam refused.");
     } else {
       public_ = false;
-      hosting_ = Who::code;
+      hosting_ = Who::invitation;
       create_call_ = api_.create_lobby(mm_, kInvisible, kMatchMembers);
       if (create_call_)
         return event("creating a private " + r.mode + " match lobby (joined with its code)");
@@ -1440,6 +1689,11 @@ private:
   // The quick-match search (design 7.2): our tag, the mode, still open, the lobby pak's version, a free slot, the
   // default distance.
   void search(const std::string &mode, const std::string &hall) {
+    if (list_call_) { // Steam runs one search per player: this one ends the list's.
+      list_call_ = 0;
+      list_state_ = "failed";
+      event("list search dropped: a match search started");
+    }
     api_.string_filter(mm_, kLobbyKey, tag_.c_str(), kLobbyEqual);
     api_.string_filter(mm_, kModeKey, mode.c_str(), kLobbyEqual);
     api_.string_filter(mm_, kStateKey, "open", kLobbyEqual);
@@ -1459,12 +1713,28 @@ private:
     if (!std::exchange(regrouping_, false))
       event("match search cancelled (" + why + ")");
   }
+  // Quick match chose this Public match lobby and we leave it: its host refused us (we are on her block list), or a
+  // player on our block list is in it. Our searches skip it for the rest of the game run. A new search starts at once
+  // with its words, so a regroup or a search never leaves us out of matchmaking nor with a blocked player.
+  void requeue(const std::string &why) {
+    const std::string mode = mode_, room = room_, hall = hall_;
+    shut_.insert(lobby_);
+    leave(why);
+    seeking_ = mode, want_room_ = room, want_hall_ = hall;
+    search(mode, hall);
+    if (search_call_)
+      return event("searching for an open " + mode + " match lobby");
+    seeking_.clear();
+    event("Steam refused the lobby search");
+    notice("Could not search: Steam refused.");
+  }
   // Quick match has no lobby to join: host a Public one.
   void host_match() {
     event("no " + seeking_ + " match found: creating one");
     notice("No " + seeking_ + " match found (SBO protocol " + std::to_string(kProtocol) + ", build " +
            std::to_string(build_) + "): hosting one.");
     public_ = true;
+    hosting_ = Who::everyone; // Not the last online session's: a closed one would refuse every member.
     create_call_ = api_.create_lobby(mm_, kPublic, kMatchMembers);
     if (create_call_)
       return;
@@ -1484,22 +1754,211 @@ private:
     search(mode_, hall_);
     regrouping_ = search_call_ != 0;
   }
+
+  // The session list (Find a session). list public asks Steam for the Public online sessions of our protocol and build
+  // with a free place, worldwide, kMaxRows at most; list friends walks our Steam friends who sit in a lobby of this
+  // game and asks Steam for each lobby's data. Either keeps its rows for the status until list stop or the next list.
+  // Neither joins one. One at a time, kListEveryMs apart at least, never in a lobby or while a match search runs: Steam
+  // runs one search per player.
+  void ask_list(const Request &r) {
+    if (r.off) {
+      if (list_tab_.empty())
+        return event("list stop ignored: no list");
+      list_tab_.clear(), list_state_.clear(), list_.clear(), walk_.clear();
+      list_call_ = 0; // Its answer, if one comes, is never read.
+      return event("list stopped");
+    }
+    const std::string tab = r.who == Who::everyone ? "public" : "friends";
+    if (lobby_) {
+      event("list " + tab + " ignored: in lobby " + std::to_string(lobby_));
+      return notice("Leave this game first.");
+    }
+    if (create_call_ || join_call_)
+      return event("busy: a lobby call is still pending, list " + tab + " ignored");
+    if (search_call_ || list_call_ || !walk_.empty()) {
+      event("busy: a search is pending, list " + tab + " ignored");
+      return notice("A search is already running.");
+    }
+    if (list_at_ && now_ - list_at_ < kListEveryMs) {
+      event("list " + tab + " ignored: the last search began under 5 s ago");
+      return notice("Wait 5 s between two searches.");
+    }
+    list_tab_ = tab, list_state_ = "searching", list_.clear(), list_hidden_ = 0, list_at_ = now_;
+    if (r.who == Who::friends)
+      return walk_friends();
+    api_.string_filter(mm_, kLobbyKey, tag_.c_str(), kLobbyEqual);
+    api_.string_filter(mm_, kListKey, "1", kLobbyEqual);
+    api_.slots_filter(mm_, 1);
+    api_.distance_filter(mm_, kDistanceWorldwide);
+    api_.result_count_filter(mm_, static_cast<int>(kMaxRows));
+    list_call_ = api_.request_lobby_list(mm_);
+    if (list_call_)
+      return event("searching for public online sessions");
+    list_state_ = "failed";
+    event("Steam refused the lobby search");
+    notice("Could not search: Steam refused.");
+  }
+  // The Friends tab: each lobby of this game a Steam friend sits in, once, asked from Steam (RequestLobbyData). Steam
+  // gives no data for a lobby we are not in until it answers: walk() reads each until its tag shows, kWalkMs at most.
+  void walk_friends() {
+    const int n = api_.friend_count(friends_, kImmediateFriends);
+    int in_lobby = 0; // Two friends in one lobby are two here, one lobby in walk_.
+    for (int i = 0; i < n; ++i) {
+      const uint64_t id = api_.friend_by_index(friends_, i, kImmediateFriends);
+      FriendGame g{};
+      if (!api_.friend_game(friends_, id, &g) || (g.game & 0xffffff) != app_ || !g.lobby)
+        continue;
+      ++in_lobby;
+      if (std::any_of(walk_.begin(), walk_.end(), [&g](const auto &w) { return w.first == g.lobby; }))
+        continue;
+      if (api_.request_lobby_data(mm_, g.lobby))
+        walk_.push_back({g.lobby, now_ + kWalkMs});
+      else
+        event("Steam refused to send the data of lobby " + std::to_string(g.lobby));
+    }
+    event("Steam friends in a lobby: " + std::to_string(in_lobby) + "; their lobbies to read: " +
+          std::to_string(walk_.size()));
+    if (walk_.empty())
+      list_done();
+  }
+  void walk() {
+    for (auto it = walk_.begin(); it != walk_.end();) {
+      const char *tag = api_.lobby_data(mm_, it->first, kLobbyKey);
+      if (tag && *tag) {
+        row(it->first);
+      } else if (now_ < it->second) {
+        ++it;
+        continue;
+      } else {
+        ++list_hidden_;
+        event("lobby " + std::to_string(it->first) + " sent no data within 5 s");
+      }
+      it = walk_.erase(it);
+    }
+    if (walk_.empty())
+      list_done();
+  }
+  // One lobby the list found, read as its owner wrote it and cleaned (any SBO client can write these keys). A row
+  // unless it is another version's, a match lobby, one with no rows (Invitation, Private, older builds), ours, full,
+  // listed twice or past kMaxRows, or its host is one we blocked on Steam or on our block list. Its ping is Steam's
+  // estimate from the host's ping location, -1 when unknown. Its friend mark needs Steam's word, not the row's: the
+  // SteamID in sbo_owner is our Steam friend and Steam puts that friend in this lobby (GetFriendGamePlayed), so a row
+  // that writes a friend's SteamID over a stranger's lobby gets no mark.
+  void row(uint64_t lobby) {
+    const auto data = [&](const char *key) {
+      const char *v = api_.lobby_data(mm_, lobby, key);
+      return std::string(v ? v : "");
+    };
+    const std::string players = data(kPlayersKey), at = data(kPingKey);
+    const size_t slash = players.find('/');
+    uint64_t owner = 0, n = 0, max = 0;
+    const bool shown =
+        data(kLobbyKey) == tag_ && data(kModeKey).empty() && (list_tab_ != "public" || data(kListKey) == "1") &&
+        number(data(kOwnerKey), owner) && owner && owner != me_ && slash != std::string::npos &&
+        number(std::string_view(players).substr(0, slash), n) &&
+        number(std::string_view(players).substr(slash + 1), max) && n < max && max <= kMatchMembers &&
+        list_.size() < kMaxRows &&
+        std::none_of(list_.begin(), list_.end(), [lobby](const Row &r) { return r.lobby == lobby; }) &&
+        !blocked_.count(block_hash(owner));
+    const int rel = shown ? api_.relationship(friends_, owner) : 0;
+    if (!shown || rel == kBlocked || rel == kIgnored || rel == kIgnoredFriend) {
+      ++list_hidden_;
+      return;
+    }
+    Row r{lobby, owner, std::to_string(n) + "/" + std::to_string(max), row_word(data(kZoneKey), kMaxPlace),
+          row_word(data(kCampKey), kMaxCamp), row_word(data(kRulesKey), kMaxRules),
+          row_text(data(kHostKey), kRowName), -1, false};
+    FriendGame g{};
+    r.pal = api_.has_friend(friends_, owner, kImmediateFriends) && api_.friend_game(friends_, owner, &g) &&
+            (g.game & 0xffffff) == app_ && g.lobby == lobby;
+    PingLocation where{};
+    if (!at.empty() && at.size() <= kMaxPingText &&
+        std::all_of(at.begin(), at.end(), [](char c) { return c > ' ' && c < 0x7f; }) &&
+        api_.parse_ping(nu_, at.c_str(), &where))
+      r.ping = std::max(api_.estimate_ping(nu_, &where), -1);
+    list_.push_back(std::move(r));
+  }
+  // The search's end: the rows by ping, best first, those with none last.
+  void list_done() {
+    const auto key = [](const Row &r) { return r.ping < 0 ? 1 << 30 : r.ping; };
+    std::stable_sort(list_.begin(), list_.end(), [&key](const Row &a, const Row &b) { return key(a) < key(b); });
+    list_state_ = "done";
+    event("list " + list_tab_ + " done: " + std::to_string(list_.size()) + " shown, " + std::to_string(list_hidden_) +
+          " hidden");
+  }
+  // At create, every row key but sbo_host and sbo_ping, which refresh_rows() writes in the same pass.
+  void write_rows() {
+    if (listed_)
+      put(kListKey, "1");
+    put(kOwnerKey, std::to_string(me_));
+    put(kPlayersKey, players_ = "1/" + std::to_string(kMaxMembers));
+    put(kZoneKey, zone_);
+    put(kCampKey, camp_);
+    put(kRulesKey, rules_);
+    rows_at_ = name_at_ = 0;
+  }
+  // sbo_host and sbo_ping of the online session we host, both at create. Then our Steam name each kNameEveryMs (a
+  // local read: a persona change reaches the row within that time) and our ping location each kRowsEveryMs, or
+  // kRowsRetryMs later while Steam does not know it yet. put() writes a change only.
+  void refresh_rows() {
+    if (!rows_)
+      return;
+    if (now_ >= name_at_) {
+      name_at_ = now_ + kNameEveryMs;
+      const char *persona = api_.persona(friends_);
+      const std::string name = persona ? persona : "";
+      my_name_ = clean(name, kMaxName);
+      put(kHostKey, row_text(name, kRowName));
+    }
+    if (now_ < rows_at_)
+      return;
+    PingLocation here{};
+    const bool known = api_.local_ping(nu_, &here) >= 0;
+    if (known) {
+      char text[kPingTextSize] = {};
+      api_.ping_text(nu_, &here, text, kPingTextSize);
+      put(kPingKey, text);
+    } else if (!rows_at_) {
+      event("Steam does not know our ping location yet: sbo_ping waits");
+    }
+    rows_at_ = now_ + (known ? kRowsEveryMs : kRowsRetryMs);
+  }
   // Relay only (ICE_Enable 0), so no player learns another's IP address: for match sessions, and in co-op with a player
   // who is not our Steam friend (guard()); else the Steam client's own setting. Process-wide, for sessions opened after
   // the call: set before a match's search, create or join, before a co-op lobby's first hello, and before the first
-  // session with a stranger. A co-op host keeps it on until she hosts again. why says what it is for.
-  void relay_only(bool on, const std::string &why = "") {
+  // session with a stranger. A co-op host keeps it on until she hosts again. why says what it is for. ice_off_ is what
+  // Steam took: a refused ICE off leaves it false (send() holds every line to whoever needs it, guard() asks again), a
+  // refused ICE back leaves relay only on. A refusal counts towards kIceTries only in a lobby, which leave() forgets:
+  // one before a match's search or create takes no try from the players of the lobby that comes next. counted=false
+  // for a refused player's reject (guard()): her refusals take no try from the next player either.
+  void relay_only(bool on, const std::string &why = "", bool counted = true) {
     if (on == ice_off_)
       return;
+    if (!api_.set_config_int(nu_, kIceEnable, on ? kIceDisable : kIceDefault)) {
+      if (!on)
+        return event("Steam refused the ICE setting: relay only stays on");
+      ice_retry_at_ = now_ + kIceRetryMs;
+      if (!lobby_ || !counted)
+        return event("Steam refused relay only: " + why);
+      return event("Steam refused relay only, try " + std::to_string(++ice_tries_) + "/" + std::to_string(kIceTries) +
+                   ": " + why);
+    }
     ice_off_ = on;
-    if (!api_.set_config_int(nu_, kIceEnable, on ? kIceDisable : kIceDefault))
-      return event("Steam refused the ICE setting");
+    ice_tries_ = 0;
     event(on ? "relay only (ICE off): " + why : "ICE back to the Steam client's setting");
   }
-  // Relay only before our first session with her, when she is not our Steam friend.
-  void guard(uint64_t id) {
-    if (!ice_off_ && !api_.has_friend(friends_, id, kImmediateFriends))
-      relay_only(true, name_of(id) + " is not a Steam friend");
+  // Whether a session with her may open: relay only is set, or she is our Steam friend outside a match.
+  bool relay_ok(uint64_t id) const {
+    return ice_off_ || (!match() && api_.has_friend(friends_, id, kImmediateFriends));
+  }
+  // relay_ok(), asking Steam for relay only first when it is not (again kIceRetryMs after a refusal); counted as
+  // relay_only() takes it.
+  bool guard(uint64_t id, bool counted = true) {
+    if (relay_ok(id))
+      return true;
+    if (now_ >= ice_retry_at_)
+      relay_only(true, match() ? "match session" : name_of(id) + " is not a Steam friend", counted);
+    return ice_off_;
   }
   // A lobby data key the owner writes, when it changed.
   void put(const char *key, const std::string &value) {
@@ -1637,31 +2096,51 @@ private:
         lobby_ = r.lobby;
         host_ = true;
         host_id_ = me_;
-        code_ = hosting_ == Who::code && !public_ ? join_code(lobby_) : std::string();
+        const bool session = seeking_.empty(); // An online session, not a match lobby.
+        code_ = hosting_ == Who::invitation && !public_ ? join_code(lobby_) : std::string();
         const std::string id = std::to_string(lobby_);
         if (cancel_) {
           leave("leave asked while it was being created");
           notice("Left the session.");
         } else {
-          if (!seeking_.empty()) // A match lobby: room for 8.
+          if (!session) // A match lobby: room for 8.
             api_.set_member_limit(mm_, lobby_, kMatchMembers);
           api_.set_lobby_data(mm_, lobby_, kLobbyKey, tag_.c_str());
-          if (!seeking_.empty()) {
+          if (!session) {
             put(kModeKey, seeking_);
             if (public_) // A code match lobby has no sbo_state, so no search finds it.
               put(kStateKey, "open");
             put(kRoomKey, want_room_);
             put(kHallKey, want_hall_);
           }
+          // The session list's rows on Public and Friends only online sessions, sbo_list on Public ones; sbo_ask on any
+          // whose host asks friends too; a Private one shut to joins.
+          listed_ = session && hosting_ == Who::everyone;
+          rows_ = listed_ || (session && hosting_ == Who::friends);
+          if (session && ask_)
+            put(kAskKey, "1");
+          if (rows_)
+            write_rows();
+          if (closed())
+            joinable(false);
           if (public_) {
             regroup_at_ = now_ + kRegroupMs;
             event("hosting " + seeking_ + " match lobby " + id + " (public)");
             notice("Hosting a " + seeking_ + " match: waiting for players.");
-          } else if (!code_.empty()) { // The player shares the code: no overlay over the game.
-            event("hosting " + (seeking_.empty() ? "" : seeking_ + " match ") + "lobby " + id + ", join code " + code_);
-            notice(seeking_.empty() ? "Hosting. Your join code is " + code_ + "."
-                                    : "Hosting a private " + seeking_ + " match. Your join code is " + code_ + ".");
-          } else if (hosting_ == Who::code) {
+          } else if (closed()) {
+            event("hosting lobby " + id + " (private: nobody can join)");
+            notice("Hosting a private session: nobody can join it.");
+          } else if (listed_) {
+            event("hosting lobby " + id + " (public: listed)");
+            notice("Hosting a public session: other players can find it in Find a session.");
+          } else if (!code_.empty()) { // A match lobby's host shares the code: no overlay over the game.
+            if (session)
+              api_.invite_dialog(friends_, lobby_);
+            event("hosting " + (session ? "" : seeking_ + " match ") + "lobby " + id + ", join code " + code_ +
+                  (session ? ": invite dialog opened" : ""));
+            notice(session ? "Hosting. Your join code is " + code_ + "."
+                           : "Hosting a private " + seeking_ + " match. Your join code is " + code_ + ".");
+          } else if (hosting_ == Who::invitation) {
             api_.invite_dialog(friends_, lobby_);
             event("hosting lobby " + id +
                   " without a join code: its high part is not 0x01860000; invite dialog opened");
@@ -1709,11 +2188,7 @@ private:
           return host_match();
         }
         seeking_.clear();
-        // 3 NotAllowed: a match lobby its owner shut at the start of a round (no join in progress).
-        return notice(r.response == 2   ? "Could not join: that game no longer exists."
-                      : r.response == 3 ? "Could not join: that game is closed (its match may have started)."
-                      : r.response == 4 ? "Could not join: that game is full."
-                                        : "Could not join: Steam response " + response + ".");
+        return notice(join_refusal(r.response));
       }
       found_.clear();
       seeking_.clear();
@@ -1752,10 +2227,15 @@ private:
       relay_only(match() || stranger, match() ? "match session" : host + " is not a Steam friend");
       const char *state = api_.lobby_data(mm_, lobby, kStateKey);
       public_ = match() && state && *state;
-      // Not her Steam friend: her game holds the handshake until she lets us in (an answer she keeps for a rejoin). A
-      // match lobby lets everyone in.
-      const bool asking = !rejoin && stranger;
-      event("joined lobby " + id + " hosted by " + host + (asking ? ", not a Steam friend: waiting to be let in" : ""));
+      // Not her Steam friend, or her lobby says she asks friends too (sbo_ask): her game holds the handshake until she
+      // lets us in (an answer she keeps for a rejoin). A match lobby lets everyone in.
+      const char *ask = api_.lobby_data(mm_, lobby, kAskKey);
+      const bool asked = !match() && ask && std::string(ask) == "1", asking = !rejoin && (stranger || asked);
+      wait_until_ = asking ? now_ + kApprovalMs : 0;
+      event("joined lobby " + id + " hosted by " + host +
+            (!asking   ? ""
+             : stranger ? ", not a Steam friend: waiting to be let in"
+                        : ": waiting to be let in (the host asks Steam friends too)"));
       notice((rejoin ? "Rejoined " : "Joined ") + host + "'s game." + (asking ? " Waiting to be let in." : ""));
     }
     failed = false;
@@ -1766,7 +2246,8 @@ private:
       found_.clear();
       found_at_ = 0;
       for (uint32_t i = 0; got && i < r.count; ++i)
-        if (const uint64_t id = api_.lobby_by_index(mm_, static_cast<int>(i)); id && (!regrouping_ || id < lobby_))
+        if (const uint64_t id = api_.lobby_by_index(mm_, static_cast<int>(i));
+            id && !shut_.count(id) && (!regrouping_ || id < lobby_))
           found_.push_back(id);
       if (std::exchange(regrouping_, false)) { // Ruling R1: the lowest lower id; none, or a member came: stay.
         std::sort(found_.begin(), found_.end());
@@ -1781,14 +2262,28 @@ private:
         return host_match();
       join(found_[0], "match search");
     }
+    failed = false;
+    if (list_call_ && api_.call_done(utils_, list_call_, &failed)) { // LobbyMatchList_t: the Public tab's rows.
+      LobbyMatchList r{};
+      if (!api_.call_result(utils_, std::exchange(list_call_, 0), &r, sizeof r, kMatchListId, &failed) || failed) {
+        list_state_ = "failed";
+        event("lobby search failed");
+        return notice("Could not search: Steam failed. Try again.");
+      }
+      for (uint32_t i = 0; i < r.count; ++i)
+        if (const uint64_t id = api_.lobby_by_index(mm_, static_cast<int>(i)))
+          row(id);
+      list_done();
+    }
   }
 
   // Lobby members are the only peers: new ones get a hello, gone ones are dropped. Read every pass, before receive(),
   // so a member's first message always finds its peer. On the host, a new member who is not her Steam friend (nor let
   // in before in this lobby) waits for her answer with no hello, refused at kApprovalMs; a member refused in this
   // lobby is never a peer again and gets a reject each time she comes in, and every 10 s while she stays (a
-  // StellarCoop game leaves on the first). In a co-op lobby, the host leaving ends the session for the guest (D1: the
-  // leader is always the host), even though Steam hands the lobby to the guest. Any other loss of her lobby may be ours
+  // StellarCoop game leaves on the first). A member on the host's block list is refused that way before any question
+  // or hello. In a co-op lobby, the host leaving ends the session for the guest (D1: the leader is always the host),
+  // even though Steam hands the lobby to the guest. Any other loss of her lobby may be ours
   // (a network cut): the guest leaves and tries to get back in for 60 s. In a match lobby, Steam's owner is the host:
   // an owner change ends the round (owner_changed()), and a guest no longer listed leaves with no rejoin.
   void poll_members() {
@@ -1816,6 +2311,13 @@ private:
         notice("Left the match: lost the lobby.");
         return leave("lost the match lobby");
       }
+      if (!host_ && public_) // A guest's list applies where quick match chose the game for her.
+        for (auto id : members)
+          if (blocked_.count(block_hash(id))) {
+            event(name_of(id) + " (" + std::to_string(id) + ") is on the block list");
+            notice("Left the match: a player on your block list is in it. Searching again.");
+            return requeue("a player on the block list is in it");
+          }
     } else if (!host_) {
       uint64_t owner = api_.lobby_owner(mm_, lobby_);
       if (me_here && owner == me_) { // Steam handed us the lobby: only her leaving does that.
@@ -1829,6 +2331,11 @@ private:
         notice("Lost " + host + "'s game: rejoining.");
         return leave("lost the host's lobby, rejoining");
       }
+    }
+    if (rows_ && me_here) { // The rows' count, as Steam has it: a joiner waiting for our answer takes her place.
+      const std::string players = std::to_string(n) + "/" + std::to_string(kMaxMembers);
+      if (players != players_)
+        put(kPlayersKey, players_ = players);
     }
     for (auto &[id, next] : refused_)
       if (std::find(members.begin(), members.end(), id) == members.end())
@@ -1851,12 +2358,25 @@ private:
       peers_.erase(peers_.begin() + static_cast<std::ptrdiff_t>(i));
     }
     for (auto id : members) {
+      if (!refused_.count(id) && closed()) { // Steam shut the lobby: only a join it let through anyway comes here.
+        refused_[id] = now_;
+        event(name_of(id) + " (" + std::to_string(id) + ") tried to join our private session: refused");
+        notice("A player tried to join your private session and was refused.");
+      } else if (!refused_.count(id) && barred(id)) { // Before any question or hello.
+        if (const Peer *p = find_peer(id)) { // Linked while we were a guest: a match lobby Steam then gave us.
+          refuse(id, "you cannot join this session again", p->name + " is on your block list and was removed.");
+          continue;
+        }
+        refused_[id] = now_; // Told at once below, then each 10 s while she stays, as one refused in this lobby.
+        event(name_of(id) + " (" + std::to_string(id) + ") is on the block list: refused");
+        notice("A player on your block list tried to join and was refused.");
+      }
       if (auto it = refused_.find(id); it != refused_.end()) {
         if (now_ >= it->second) {
           Peer out;
           out.id = id;
-          guard(id);
-          send(out, reject("you cannot join this session again"), kReliable);
+          guard(id, false); // Her reject needs relay only too. She is no player we may link: no try counted.
+          send(out, reject(closed() ? "this session is private" : "you cannot join this session again"), kReliable);
           if (!it->second)
             event("refused " + name_of(id) + " came back: told to leave");
           it->second = now_ + kHelloAgainMs;
@@ -1864,7 +2384,6 @@ private:
         continue;
       }
       if (!find_peer(id)) {
-        guard(id); // Before anything goes to her.
         Peer peer;
         peer.id = id;
         while (peer.slot < kMaxRemote && std::any_of(peers_.begin(), peers_.end(),
@@ -1876,14 +2395,19 @@ private:
         peer.last_heard = now_;
         if (match()) // 30 a second to start (my call 20, design 7.4): each upload carries a stream per member.
           peer.cap.level = 1;
-        // A match lobby lets everyone in: no approval.
-        peer.asking = host_ && !match() && !allowed_.count(id) && !api_.has_friend(friends_, id, kImmediateFriends);
+        // A match lobby lets everyone in: no approval. With friends_ask=on (ask_), Steam friends wait too.
+        const bool pal = api_.has_friend(friends_, id, kImmediateFriends);
+        peer.asking = host_ && !match() && !allowed_.count(id) && (ask_ || !pal);
         peer.asking_at = now_;
         peers_.push_back(peer);
         event(peer.name + " is in the lobby" +
-              (peer.asking ? ", not a Steam friend: waiting for the host's answer" : ""));
+              (!peer.asking ? ""
+               : pal        ? ", a Steam friend: waiting for the host's answer (friends_ask=on)"
+                            : ", not a Steam friend: waiting for the host's answer"));
         if (host_) // A guest has had her Joined line. A stranger's name may not be known yet: pending= has it later.
-          notice(peer.asking ? "A player who is not your Steam friend is asking to join." : peer.name + " joined.");
+          notice(!peer.asking ? peer.name + " joined."
+                 : pal        ? peer.name + " is asking to join."
+                              : "A player who is not your Steam friend is asking to join.");
       }
       Peer &peer = *find_peer(id);
       if (peer.asking) // A stranger's name may reach Steam a moment after she joins.
@@ -1891,6 +2415,19 @@ private:
       if (peer.asking && now_ - peer.asking_at >= kApprovalMs) {
         refuse(id, "no answer within 60 s", peer.name + " was not let in: no answer within 60 s.");
         continue;
+      }
+      if (!guard(id)) { // No relay only yet: send() holds every line to her, her session request waits.
+        if (ice_tries_ < kIceTries)
+          continue;
+        ice_tries_ = 0;
+        event("no link with " + peer.name + ": Steam refused relay only " + std::to_string(kIceTries) + " times");
+        if (host_ && !match()) {
+          refuse(id, "relay only failed", peer.name + " was refused: Steam would not set relay only.");
+          continue;
+        }
+        notice(match() ? "Left the match: Steam would not set relay only."
+                       : "Left " + peer.name + "'s game: Steam would not set relay only.");
+        return leave("Steam refused relay only");
       }
       if (!peer.hello_sent && !peer.asking) {
         send(peer, hello(kProtocol, mod_, build_), kReliable);
@@ -1902,8 +2439,9 @@ private:
 
   // A session from a lobby member is accepted after a live membership check; anything else is ignored, never closed.
   void on_session_request(uint64_t id) {
-    if (lobby_ && id && id != me_ && !refused_.count(id) && member_now(id)) {
-      guard(id);
+    if (lobby_ && id && id != me_ && !refused_.count(id) && !barred(id) && !closed() && member_now(id)) {
+      if (!guard(id))
+        return event("session request from " + name_of(id) + " held: no relay only yet");
       Identity who = identity(id);
       api_.accept_session(msgs_, &who);
       event("accepted a session from " + name_of(id));
@@ -2192,9 +2730,10 @@ private:
       }
       peer.compatible = true;
       peer.photo_sent.clear(); // Her session may be new: our photo line goes again once she accepts.
-      if (peer.paks_at)        // The same for our pak lines and paks line (send_paks); hers start again too.
+      if (peer.paks_at)        // The same for our pak, paks, dlc and dlcs lines (send_paks); hers start again too.
         peer.paks_again = true;
       peer.pak_in.clear();
+      peer.dlc_in.clear();
       send(peer, accept(), kReliable); // Every hello is answered: a peer whose first session broke greets again.
       // Ours may have been lost with that session. A repeated hello once ours was accepted may come from a guest who
       // rejoined before her leave showed here, so her new peer never had ours: it gets ours again, but only
@@ -2221,7 +2760,10 @@ private:
       }
       event(peer.name + " rejected us: " + message.text);
       notice(peer.name + " refused the link: " + message.text);
-      leave("rejected by " + peer.name);
+      if (match() && public_)
+        requeue("rejected by " + peer.name);
+      else
+        leave("rejected by " + peer.name);
       break;
     case Kind::ping: // Past kPingPerSecond, no pong: a flood of pings never makes us send as many.
       if (!over_rate(peer.ping_window, 1, kPingPerSecond, kPingPerSecond * kMaxMessage))
@@ -2276,6 +2818,26 @@ private:
       if (changed && named && paks_on_ && (!d.missing.empty() || !d.other.empty()))
         event(peer.name + " has mods we lack (" + mods_list(d.missing, kModsLog) + ") and mods we have in another " +
               "version (" + mods_list(d.other, kModsLog) + ")");
+      break;
+    }
+    case Kind::dlc: // One of her installed DLCs, kept until her dlcs line ends the list; kMaxDlcs at most.
+      if (const auto id = static_cast<uint32_t>(message.a);
+          peer.compatible && peer.accepted && (peer.dlc_in.size() < kMaxDlcs || peer.dlc_in.count(id)))
+        peer.dlc_in[id] = message.text;
+      break;
+    case Kind::dlcs: {
+      if (!peer.compatible || !peer.accepted) // Before the handshake: ignored, with no log line.
+        break;
+      const bool changed = !peer.has_dlcs || peer.dlc_in != peer.dlc_list;
+      peer.has_dlcs = true;
+      peer.dlc_list = std::exchange(peer.dlc_in, {});
+      if (changed) {
+        const DlcDiff d = compare_dlcs(dlcs_, peer.dlc_list);
+        event(peer.name + " has " + std::to_string(peer.dlc_list.size()) + " DLCs installed" +
+              (d.missing.empty() && d.extra.empty()
+                   ? ", the same as ours"
+                   : "; we lack " + dlc_names(d.missing) + "; she lacks " + dlc_names(d.extra)));
+      }
       break;
     }
     case Kind::vitals:
@@ -2415,13 +2977,13 @@ private:
     }
   }
 
-  // Our pak lines (none with mod_names=off), then the paks line that ends them, to each friend past the handshake from
-  // the first she has not got (from the first again once a resend her hello asked for is due); a refused send goes
-  // again at the next pass.
+  // Our pak lines (none with mod_names=off), then the paks line that ends them, then our dlc lines and the dlcs line,
+  // to each friend past the handshake from the first she has not got (from the first again once a resend her hello
+  // asked for is due); a refused send goes again at the next pass.
   void send_paks() {
     if (!paks_on_)
       return;
-    const size_t named = names_ ? pak_lines_.size() : 0;
+    const size_t named = names_ ? pak_lines_.size() : 0, all = named + 1 + dlc_lines_.size();
     const std::string end = paks_line(paks_count_, paks_hash_);
     for (auto &p : peers_) {
       if (p.paks_again && now_ >= p.paks_next) {
@@ -2429,8 +2991,10 @@ private:
         p.paks_at = 0;
         p.paks_next = now_ + kHelloAgainMs;
       }
-      while (p.compatible && p.accepted && p.paks_at <= named) {
-        const std::string &line = p.paks_at < named ? pak_lines_[p.paks_at] : end;
+      while (p.compatible && p.accepted && p.paks_at < all) {
+        const std::string &line = p.paks_at < named    ? pak_lines_[p.paks_at]
+                                  : p.paks_at == named ? end
+                                                       : dlc_lines_[p.paks_at - named - 1];
         if (send(p, line.data(), line.size(), kReliable) != kResultOk)
           break;
         ++p.paks_at;
@@ -2442,6 +3006,35 @@ private:
   static std::string mods_lines(const ModsDiff &d) {
     return "mods_missing=" + mods_list(d.missing, kModsLine) + "\nmods_other=" + mods_list(d.other, kModsLine) +
            "\nmods_extra=" + mods_list(d.extra, kModsLine) + "\n";
+  }
+  // The DLCs of the game installed on this PC, once Steam is ready. Steam lists the game's own DLCs; the first
+  // kMaxDlcs it says are installed go to each friend after the paks line (send_paks). Read once: a DLC installed while
+  // the game runs counts from the next start.
+  void read_dlcs(void *apps) {
+    const int n = api_.dlc_count(apps);
+    for (int i = 0; i < n && dlcs_.size() < kMaxDlcs; ++i) {
+      uint32_t id = 0;
+      bool available = false;
+      char name[kMaxDlcName * 2] = {};
+      if (!api_.dlc_data(apps, i, &id, &available, name, static_cast<int>(sizeof name)) || !id ||
+          !api_.dlc_installed(apps, id))
+        continue;
+      name[sizeof name - 1] = '\0';
+      const std::string clean = chat_clean(name, kMaxDlcName);
+      dlcs_[id] = clean.empty() ? std::to_string(id) : clean;
+    }
+    dlc_lines_.clear();
+    for (const auto &[id, name] : dlcs_)
+      dlc_lines_.push_back(dlc_line(id, name));
+    dlc_lines_.push_back(dlcs_line());
+    event("DLCs installed: " + std::to_string(dlcs_.size()) + (dlcs_.empty() ? "" : " (" + dlc_names(dlcs_) + ")"));
+  }
+  // DLC names for the log, "; " between them as a name may hold commas; "none" for none.
+  static std::string dlc_names(const std::map<uint32_t, std::string> &dlcs) {
+    std::string out;
+    for (const auto &[id, name] : dlcs)
+      out += (out.empty() ? "" : "; ") + name;
+    return out.empty() ? "none" : out;
   }
   // Our photo line to each friend past the handshake when it changed, or after her hello; a refused send goes again at
   // the next pass. photo_sync=off sends "0 notice": a friend our photo mode paused resumes, and we pause for nobody.
@@ -2644,8 +3237,11 @@ private:
   std::string seeking_, want_room_, want_hall_;
   uint64_t search_call_ = 0, regroup_at_ = 0;
   std::vector<uint64_t> found_;
+  std::set<uint64_t> shut_; // Public match lobbies our searches skip for the game run (requeue()).
   size_t found_at_ = 0;
   bool regrouping_ = false, ice_off_ = false, public_ = false;
+  int ice_tries_ = 0;         // Relay only refusals in a row (kIceTries).
+  uint64_t ice_retry_at_ = 0; // When guard() may ask Steam for relay only again.
   bool world_ = false; // A save is loaded (Lua's coop-state.txt).
   uint64_t held_ = 0;  // An invite waiting for a world, or for the pending lobby call to end, and how it came.
   std::string held_how_;
@@ -2658,10 +3254,39 @@ private:
   std::vector<Peer> peers_;
   std::set<uint64_t> strangers_; // Non-members already logged once.
   std::set<uint64_t> muted_;     // The players coop mute named, in any lobby, for the game run (my call 18).
-  // While we host: who_can_join of the lobby asked for, its join code (empty outside who_can_join=code), the members
-  // let in, and those refused, with when a reject may go to her again (0: she is gone), all for this lobby only; our
-  // code once the copy request asked for it.
+  // The block list (block_hash()es, coop-blocked.txt), kept across lobbies and game runs.
+  std::set<uint64_t> blocked_;
+  std::map<uint64_t, std::string> blocked_now_; // The players blocked in this game run, by SteamID: their names.
+  bool blocks_kept_ = false; // coop-blocked.txt was not read in full: never written (blocks()).
+  bool blocks_changed_ = false; // take_blocks() owes the file a write.
+  // While we host: who_can_join of the lobby asked for, its join code (empty outside who_can_join=invitation), the
+  // members let in, those refused with when a reject may go to her again (0: she is gone), all for this lobby only;
+  // our code once the copy request asked for it.
   Who hosting_ = Who::friends;
+  // The session list's rows while we host an online session: written (Public and Friends only), listed (Public),
+  // whether Steam friends wait for our answer too (friends_ask=on, from the host request), the members' count as last
+  // written, the times sbo_ping and sbo_host are read again (refresh_rows()). Lua's where and rules words, kept for the
+  // next lobby.
+  bool rows_ = false, listed_ = false, ask_ = false;
+  std::string players_;
+  uint64_t rows_at_ = 0, name_at_ = 0;
+  std::string zone_, camp_, rules_;
+  // The session list: its tab ("public", "friends", or empty with no list), its state ("searching", "done" or
+  // "failed"), its rows, the lobbies it hid, the pending Public search, the friends' lobbies waited for with their
+  // deadline, the time the last search began.
+  struct Row {
+    uint64_t lobby, owner;
+    std::string players, zone, camp, rules, name;
+    int ping;
+    bool pal; // The host is our Steam friend.
+  };
+  std::string list_tab_, list_state_;
+  std::vector<Row> list_;
+  size_t list_hidden_ = 0;
+  uint64_t list_call_ = 0, list_at_ = 0;
+  std::vector<std::pair<uint64_t, uint64_t>> walk_;
+  // As a joiner the host has not let in yet: when the host's minute ends (0: not waiting).
+  uint64_t wait_until_ = 0;
   std::string code_, copy_;
   std::set<uint64_t> allowed_;
   std::map<uint64_t, uint64_t> refused_;
@@ -2697,6 +3322,9 @@ private:
   // Our mod containers by name with their hashes, their pak lines, and mod_names (on until Lua says).
   std::map<std::string, uint64_t> mods_;
   std::vector<std::string> pak_lines_;
+  // Our installed DLCs by app id with their names (read_dlcs()); their dlc lines with the dlcs line last.
+  std::map<uint32_t, std::string> dlcs_;
+  std::vector<std::string> dlc_lines_;
   bool names_ = true;
   char photo_ = '0', theirs_ = '0', mine_ = '0';
   Sync sync_ = Sync::off;

@@ -3,6 +3,8 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Doro races' driving on the game thread: race/drive_model.lua's car model fed into EVE's own movement each frame while
 -- a race drives (race/run.lua turns it on at GO and off at our result) or the drive probe runs (coop race drive probe).
+-- It also drives bike/model.lua's motorcycle model while EVE rides the bike (bike/ride.lua, why 'bike'). Each drive
+-- keeps its model.
 -- Her movement component's MaxAcceleration, GroundFriction, BrakingDecelerationWalking and BrakingFrictionFactor go to
 -- 0 meanwhile, so her movement neither accelerates, brakes nor turns the velocity it is given: each frame the model's
 -- velocity reaches it as an impulse (or, with coop race drive feed struct, a write of its Velocity), and her yaw is the
@@ -27,9 +29,9 @@ local function same(o,path)
     return o and path_of(o)==path and o or nil
 end
 local her=U.her
-local function list(values)
+local function list(values,model)
     local out={}
-    for _,name in ipairs(M.NAMES) do out[#out+1]=name..'='..values[name] end
+    for _,name in ipairs((model or M).NAMES) do out[#out+1]=name..'='..values[name] end
     return table.concat(out,' ')
 end
 
@@ -41,8 +43,9 @@ function Drive.new(o)
     local self={}
     local values=M.clamp(M.DEFAULTS) -- The host's for this Lua load: coop race drive <name> <value> changes them.
     local feed='impulse'
-    -- While one drives: eve, path, move, kept (the four values), P (drive_model's), state, why ('race' or 'probe'),
-    -- t (her world time at the last frame), keys (each drift key's last state), probe ({phase, til, yaw}), said_at.
+    -- While one drives: eve, path, move, kept (the four values), M (its model: race/drive_model.lua or
+    -- bike/model.lua), P (its model's values), state, why ('race', 'probe' or 'bike'), t (her world time at the last
+    -- frame), keys (each drift key's last state), probe ({phase, til, yaw}), said_at.
     local drive=nil
     local restored=false
     local keys_failed=nil -- Why IsInputKeyDown could not be read: no key until the mod reloads.
@@ -74,6 +77,8 @@ function Drive.new(o)
     end
     function self.active() return drive~=nil end
     function self.racing() return drive~=nil and drive.why=='race' end
+    -- Why the drive is on ('race', 'probe' or 'bike'), or nil.
+    function self.why() return drive and drive.why end
     function self.values() return M.clamp(values) end
     -- The four values back on the EVE they were kept from, while she is still that object (after a map change she is
     -- not, and nothing is written); the file cleared when nothing failed. Returns the log line.
@@ -92,16 +97,18 @@ function Drive.new(o)
             ..(ok and e or 'failed, coop-drive.txt kept for the next Lua load: '..tostring(e))
     end
     -- The four values kept (the file first: whatever happens next, the next Lua load can undo it), then 0. P: the
-    -- values to drive with (race/drive_model.lua's, as the line carries them); why: 'race' or 'probe'. Any drive on
-    -- already (the probe at a race's GO) goes off first. True, or false and why with nothing left changed.
-    function self.on(P,why)
+    -- values to drive with (race/drive_model.lua's, as the line carries them, or model's); why: 'race', 'probe' or
+    -- 'bike'; model: the model to drive with (race/drive_model.lua when nil). Any drive on already (the probe at a
+    -- race's GO) goes off first. True, or false and why with nothing left changed.
+    function self.on(P,why,model)
+        model=model or M
         if drive then log(self.off('replaced by a '..why)) end
         local e=her(valid(UE.GetPlayer()))
         if not e then return false,'no EVE in the world' end
         local move=valid(e.CharacterMovement)
         if not move then return false,'EVE has no movement component' end
-        local d={eve=e,path=path_of(e),move=move,move_path=path_of(move),kept={},P=M.values(P),state={},why=why,
-            keys={},said_at=0}
+        local d={eve=e,path=path_of(e),move=move,move_path=path_of(move),kept={},M=model,P=model.values(P),state={},
+            why=why,keys={},said_at=0}
         -- A file this Lua load left (an off that could not write the values back) holds hers: never replaced by the
         -- zeros she still has.
         local left={}
@@ -120,7 +127,7 @@ function Drive.new(o)
             local message=self.off('error')
             return false,'its movement values could not be set ('..tostring(e)..'); '..message
         end
-        log(('drive on (%s): %s kept; %s'):format(why,fields(d.kept),list(M.clamp(P))))
+        log(('drive on (%s): %s kept; %s'):format(why,fields(d.kept),list(model.clamp(P),model)))
         return true
     end
     -- The drift keys (settings.drift_keys): any one held. Each change is logged; a read that fails is said once and
@@ -178,8 +185,11 @@ function Drive.new(o)
         return out
     end
     -- Each frame while a drive is on: the model from her stick, drift key and velocity; the velocity, a launch and the
-    -- yaw to her. Returns what the look takes ({top, stumble}), or nil once the drive is off (her EVE gone). Raises on
-    -- a failing call: the caller ends the race or the probe.
+    -- yaw to her. Returns what the look takes ({top, stumble, lean, pitch}: the last two the bike's, in degrees), or
+    -- nil once the drive is off (her EVE gone). Raises on a failing call: the caller ends the race, the probe or the
+    -- ride. The stick is GetLastMovementInputVector for the bike too: no move block is set while she rides, so SB's
+    -- MoveForward handler (FUN_142059df0) still reaches AddMovementInput; once a second the bike's line adds the raw
+    -- axes SB stored (LastMoveFowardInput, LastMoveRightInput) beside it.
     function self.tick()
         local d=drive
         if not d then return nil end
@@ -203,18 +213,21 @@ function Drive.new(o)
         local yaw=value_of(e:K2_GetActorRotation()).Yaw
         local input={stick={x=stick.X,y=stick.Y},drift=drift(d),v={x=v.X,y=v.Y,z=vz},falling=d.move:IsFalling()==true,
             root=e:IsPlayingRootMotion()==true,yaw=yaw}
-        local out=d.probe and d.probe.phase~='free' and probe_out(d,t,v) or M.step(d.state,input,d.P,dt)
+        local out=d.probe and d.probe.phase~='free' and probe_out(d,t,v) or d.M.step(d.state,input,d.P,dt)
         if out.launch then e:LaunchCharacter({X=out.launch.x,Y=out.launch.y,Z=out.launch.z},true,true)
         elseif out.vx then give(d,out.vx,out.vy,v) end
         if out.heading then e:K2_SetActorRotation({Pitch=0,Yaw=out.heading,Roll=0},false) end
         if out.stumble then log(('drive wall at %.0f cm/s: stumble'):format(d.state.asked or 0)) end
         if out.launch then log(('drive crest: launched at %.0f cm/s up'):format(out.launch.z)) end
-        d.look={top=d.P.top,stumble=out.stumbling==true}
+        d.look={top=d.P.top,stumble=out.stumbling==true,lean=out.lean,pitch=out.pitch}
         if t>=d.said_at then -- Once a second: her speed, the speed asked, her yaw read against the heading written.
             d.said_at=t+1
-            log(('drive v=%.0f vz=%.0f asked=%.0f yaw=%.1f heading=%s air=%d root=%d drift=%d stumble=%d'):format(
+            log(('drive v=%.0f vz=%.0f asked=%.0f yaw=%.1f heading=%s air=%d root=%d drift=%d stumble=%d%s'):format(
                 math.sqrt(v.X*v.X+v.Y*v.Y),vz,d.state.asked or 0,yaw,out.heading and ('%.1f'):format(out.heading)
-                or '-',input.falling and 1 or 0,input.root and 1 or 0,out.drifting and 1 or 0,out.stumbling and 1 or 0))
+                or '-',input.falling and 1 or 0,input.root and 1 or 0,out.drifting and 1 or 0,out.stumbling and 1 or 0,
+                d.why=='bike' and (' lean=%.1f pitch=%.1f stick=%.2f,%.2f raw=%.2f,%.2f'):format(out.lean or 0,
+                out.pitch or 0,stick.X,stick.Y,tonumber(value_of(e.LastMoveFowardInput)) or 0,
+                tonumber(value_of(e.LastMoveRightInput)) or 0) or ''))
         end
         return d.look
     end
@@ -232,9 +245,12 @@ function Drive.new(o)
     end
     -- coop race drive [probe | off | feed impulse|struct | <name> <value>]: the values (none), the probe on or off,
     -- how the velocity reaches her movement, or one of the host's values for this Lua load. race/run.lua refuses the
-    -- probe while a race is armed.
+    -- probe while a race is armed; the probe and its off wait while EVE rides the bike (bike/ride.lua ends that drive).
     function self.command(a,b)
         if a==nil then return true,'drive: '..list(values)..' feed='..feed end
+        if (a=='probe' or a=='off') and b==nil and drive and drive.why=='bike' then
+            return false,'EVE rides the bike: coop bike gets her off first'
+        end
         if a=='probe' and b==nil then
             local e=her(valid(UE.GetPlayer()))
             if not e then return false,'no EVE in the world' end

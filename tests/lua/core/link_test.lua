@@ -229,6 +229,29 @@ assert(link.mods()==nil,'Not from a peer line, nor a line of another shape')
 files[STATUS]='mod=v\npaks=same 1 1\n'
 link.changes()
 assert(link.mods()==nil)
+-- Her installed DLCs against ours (protocol 21: dlcs=same|differ <ours> <hers>, then a dlc_missing= or dlc_extra= line
+-- for each, its app id then its name, which may hold spaces and commas), from the start of their own lines and only
+-- after the dlcs= line; nil without one.
+assert(link.dlcs()==nil)
+files[STATUS]='mod=v\ndlcs=differ 2 3\ndlc_missing=400 Delta, the second\ndlc_missing=500 E\ndlc_extra=100 Alpha\n'
+    ..'last=#9 x\n'
+link.changes()
+local dlcs=link.dlcs()
+assert(dlcs.same==false and dlcs.ours==2 and dlcs.hers==3 and #dlcs.missing==2 and dlcs.missing[1]=='Delta, the second'
+    and dlcs.missing[2]=='E' and #dlcs.extra==1 and dlcs.extra[1]=='Alpha')
+files[STATUS]='mod=v\ndlcs=same 1 1\n'
+link.changes()
+dlcs=link.dlcs()
+assert(dlcs.same and dlcs.ours==1 and #dlcs.missing==0 and #dlcs.extra==0)
+files[STATUS]='mod=v\ndlc_missing=400 Delta\npeer=2 name=x dlcs=differ 1 2\ndlcs=odd 1 2\ndlcs=differ x 2\n'
+link.changes()
+assert(link.dlcs()==nil,'Not from a peer line, nor a line of another shape, nor a dlc_ line alone')
+files[STATUS]='mod=v\ndlcs=differ 0 1\ndlc_missing=x Delta\ndlc_odd=4 Delta\ndlc_missing=4 \n'
+link.changes()
+assert(#link.dlcs().missing==0 and #link.dlcs().extra==0,'No app id, another side, or no name: no DLC')
+files[STATUS]='mod=v\n'
+link.changes()
+assert(link.dlcs()==nil)
 -- Our CNS packs (cns=<packs> <outfits>), in words, from the start of their own line; nil without one.
 assert(link.cns()==nil)
 files[STATUS]='mod=v\ncns=9 242\nlast=#9 x\n'
@@ -321,6 +344,10 @@ for _,bad in ipairs({'','0CS-CBM','0CS-CBMHX','0CS--CBMH','0CSC-BMH','0CS-CBM!',
     assert(link.join_code(bad)==nil,bad)
 end
 assert(link.join_code(nil)==nil and link.join_code(7)==nil and require('core.link').join_code('abc1234')=='ABC-1234')
+-- I and L read as 1, O as 0, as the native part reads them: the request line UE4SS.log keeps is then masked.
+assert(link.join_code('o3n-qk8v')=='03N-QK8V' and link.join_code('lio-0IL1')=='110-0111')
+assert(require('core.mask')('OK: asked the native part: join '..link.join_code('o3n-qk8v'))
+    =='OK: asked the native part: join 03N-****')
 
 -- coop-settings.txt (N5): free keys, never F10 or ~ (the console on AZERTY); a bad value keeps its default, with a line.
 local Link=require('core.link')
@@ -345,6 +372,21 @@ assert(#notes==1 and notes[1]=='settings: F9 is set for two actions: default key
     and s.leave_key.name=='F8' and s.race_key.name=='F9',notes[1])
 s,notes=Link.parse_settings('race_key=F6\n')
 assert(#notes==1 and s.status_key.name=='F6' and s.race_key.name=='F9',notes[1])
+-- The bike (bike/ride.lua): bike on unless off, bike_key F3 unless set, or none; a file from before bike_key whose own
+-- keys hold F3: bike_key has none, the player's keys stay; one that names it on a taken key: all the keys go back.
+s,notes=Link.parse_settings('')
+assert(s.bike==true and s.bike_key.key=='F3' and s.bike_key.mod==nil and s.bike_key.name=='F3')
+s,notes=Link.parse_settings('bike=OFF\nbike_key=Alt+F2\n')
+assert(#notes==0 and s.bike==false and s.bike_key.key=='F2' and s.bike_key.mod=='ALT' and s.bike_key.name=='Alt+F2')
+s,notes=Link.parse_settings('bike=yes\nbike_key=none\n')
+assert(#notes==1 and s.bike==true and notes[1]:find("'yes' is not allowed for bike (use on or off); bike stays on",1,true)
+    and s.bike_key.key==nil and s.bike_key.name=='none',notes[1])
+s,notes=Link.parse_settings('status_key=F3\n')
+assert(#notes==1 and notes[1]=='settings: F3 is status_key: bike_key has no key' and s.bike_key.name=='none'
+    and s.status_key.name=='F3',notes[1])
+s,notes=Link.parse_settings('status_key=F3\nbike_key=F3\n')
+assert(#notes==1 and notes[1]=='settings: F3 is set for two actions: default keys used' and s.status_key.name=='F6'
+    and s.bike_key.name=='F3',notes[1])
 -- drift_keys: the Unreal key names held for a drift in a Doro race, at most 4, or none; R2 and B unless set.
 s,notes=Link.parse_settings('')
 assert(#s.drift_keys==2 and s.drift_keys[1]=='Gamepad_RightTrigger' and s.drift_keys[2]=='B')
@@ -383,8 +425,8 @@ for _,refused in ipairs({{'F10','F10 opens the console'},{'Ctrl+F10','F10 opens 
     local want="settings: line 2: '"..refused[1].."' is not allowed for leave_key ("..refused[2].."); leave_key stays F8"
     assert(#notes==1 and notes[1]==want and s.leave_key.key=='F8' and s.leave_key.mod==nil,notes[1])
 end
-s,notes=Link.parse_settings('host_key=F2\nstatus_key=F3\nleave_key=F3\n')
-assert(#notes==1 and notes[1]=='settings: F3 is set for two actions: default keys used',notes[1])
+s,notes=Link.parse_settings('host_key=F2\nstatus_key=F4\nleave_key=F4\n')
+assert(#notes==1 and notes[1]=='settings: F4 is set for two actions: default keys used',notes[1])
 assert(s.menu_key.key=='F5' and s.host_key.name=='none' and s.status_key.key=='F6' and s.leave_key.key=='F8',
     'A shared key: all four go back')
 s,notes=Link.parse_settings('status_key=Alt+F7\nleave_key=Ctrl+F7\n')
@@ -419,9 +461,12 @@ assert(#notes==0 and s.menu_key.name=='F7','A UTF-8 BOM is skipped')
 local keys=0
 for name,value in Link.DEFAULT:gmatch('\n(%w+_key)=([^\n]*)') do keys=keys+1; assert(not value:upper():find('F10'),name) end
 s,notes=Link.parse_settings(Link.DEFAULT)
-assert(keys==6 and #notes==0 and s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name=='F6'
-    and s.leave_key.name=='F8' and s.follow_key.name=='F7' and s.race_key.name=='F9')
-assert(Link.DEFAULT:find('\nleave_key=F8\nfollow_key=F7\nrace_key=F9\n',1,true),'A new file names the race key')
+assert(keys==7 and #notes==0 and s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name=='F6'
+    and s.leave_key.name=='F8' and s.follow_key.name=='F7' and s.race_key.name=='F9' and s.bike_key.name=='F3')
+assert(Link.DEFAULT:find('\nleave_key=F8\nfollow_key=F7\nrace_key=F9\nbike_key=F3\n',1,true),
+    'A new file names the race key and the bike key')
+assert(s.bike==true and Link.DEFAULT:find('\ndrift_keys=Gamepad_RightTrigger B\n# The bike: on or off, on by default.',1,true)
+    and Link.DEFAULT:find('\nbike=on\n',1,true),'A new file has the bike on')
 assert(Link.DEFAULT:find('\ndrift_keys=Gamepad_RightTrigger B\n',1,true),'A new file names the drift keys')
 assert(Link.DEFAULT:find('\nmenu_key=F5\nhost_key=none\n',1,true),'A new file names the menu key, and no host key')
 -- mod_names: on by default, in a new file too; off or on as written, anything else refused.
@@ -438,18 +483,28 @@ assert(#notes==0 and s.ui_scale==75 and s.ui_sounds==false and s.ui_language=='e
 for _,bad in ipairs({{'ui_scale','74','use 75 to 150','100'},{'ui_scale','151','use 75 to 150','100'},
         {'ui_scale','1.5','use 75 to 150','100'},{'ui_sounds','yes','use on or off','on'},
         {'ui_language','french','use game or english','game'},
-        {'who_can_join','public','use friends, code or private','friends'},
+        {'who_can_join','everyone','use public, friends, invitation or closed','public'},
+        {'friends_ask','yes','use on or off','off'},
         {'photo_sync','pause','use both, notice or off','both'},
         {'auto_coop_save','never','use ask, always or off','ask'}}) do
     s,notes=Link.parse_settings(bad[1]..'='..bad[2])
     assert(#notes==1 and notes[1]=="settings: line 1: '"..bad[2].."' is not allowed for "..bad[1].." ("..bad[3].."); "
         ..bad[1].." stays "..bad[4],notes[1])
 end
--- Who can join a session hosted here: friends (the default, and an old file's) or private (invited only).
-assert(Link.parse_settings('').who_can_join=='friends' and Link.DEFAULT:find('\nwho_can_join=friends\n',1,true))
-s,notes=Link.parse_settings('Who_Can_Join=PRIVATE\n'); assert(#notes==0 and s.who_can_join=='private')
-s,notes=Link.parse_settings('who_can_join=Code\n'); assert(#notes==0 and s.who_can_join=='code','code: with the join code')
-assert(Link.DEFAULT:find('), code (anyone you',1,true),'A new file explains code')
+-- Who can join a session hosted here: public (the default when the file names none, also a new file's), friends,
+-- invitation or closed, as written. The words of 0.11 and older, code (the join code) and private (invited only), both
+-- read as invitation; the file keeps them. friends_ask: off by default, on or off as written.
+assert(Link.parse_settings('').who_can_join=='public'
+    and Link.DEFAULT:find('\nwho_can_join=public\nfriends_ask=off\n',1,true))
+for _,word in ipairs({'public','friends','invitation','closed'}) do
+    s,notes=Link.parse_settings('who_can_join='..word:upper()..'\n'); assert(#notes==0 and s.who_can_join==word,word)
+end
+s,notes=Link.parse_settings('Who_Can_Join=PRIVATE\n'); assert(#notes==0 and s.who_can_join=='invitation','private')
+s,notes=Link.parse_settings('who_can_join=Code\n'); assert(#notes==0 and s.who_can_join=='invitation','code')
+assert(Link.DEFAULT:find(' or closed (nobody; Private in the co-op menu)',1,true),'A new file explains closed')
+assert(Link.parse_settings('').friends_ask==false)
+s,notes=Link.parse_settings('friends_ask=ON\n'); assert(#notes==0 and s.friends_ask==true)
+s,notes=Link.parse_settings('friends_ask=off\n'); assert(#notes==0 and s.friends_ask==false)
 -- The co-op saves (session/saves.lua): ask (the default, and an old file's), always or off; a new file names it.
 assert(Link.parse_settings('').auto_coop_save=='ask' and Link.DEFAULT:find('\nauto_coop_save=ask\n',1,true))
 s,notes=Link.parse_settings('Auto_Coop_Save=ALWAYS\n'); assert(#notes==0 and s.auto_coop_save=='always')
@@ -1599,3 +1654,79 @@ do
     reads=0
     assert(l.status()=='link=host lobby=10\n' and reads==1,'No status at the pass: the disk')
 end
+-- The session list (list public, list friends): its list= line, then its session= rows in order, the host's name last
+-- and whole, '-' read as none; each from the start of its own line, a row only after a list= line. A joiner's
+-- wait= line: the seconds left and the host's name, logged once a wait (its seconds change each second).
+do
+    local l=require('core.link').new('C:\\Mod',fs)
+    local function has(lines,text) for _,line in ipairs(lines) do if line==text then return true end end end
+    files[STATUS]='mod=v steam=ready\nlink=none lobby=0\nlist=public done 2\n'
+        ..'session=900 76561198000000009 1/2 45 1 b07 WLB10_Camp_01 ebwqr200 Str anger x\n'
+        ..'session=901 76561198000000008 2/2 - 0 - - - \n'
+    local new=l.changes()
+    local search,rows=l.list()
+    assert(search.tab=='public' and search.state=='done' and search.rows==2 and #rows==2
+        and has(new,'list=public done 2'))
+    local r=rows[1]
+    assert(r.lobby=='900' and r.owner=='76561198000000009' and r.players=='1/2' and r.ping==45 and r.pal
+        and r.zone=='b07' and r.camp=='WLB10_Camp_01' and r.rules=='ebwqr200' and r.name=='Str anger x')
+    r=rows[2]
+    assert(r.players=='2/2' and r.ping==nil and not r.pal and r.zone==nil and r.camp==nil and r.rules==nil
+        and r.name=='')
+    files[STATUS]='mod=v steam=ready\nlink=none lobby=0\nsession=902 7 1/2 5 0 a b c x\n'
+        ..'member=1 0 1 0 0 5 list=public done 9\nlast=list=friends searching 0\n'
+    l.changes()
+    assert(l.list()==nil and #select(2,l.list())==0,'Never from a name, nor a row with no list')
+    files[STATUS]='mod=v steam=ready\nlink=none lobby=0\nlist=friends searching 0\n'
+    l.changes()
+    search,rows=l.list()
+    assert(search.tab=='friends' and search.state=='searching' and #rows==0)
+    files[STATUS]=nil
+    l.changes()
+    assert(l.list()==nil and l.wait()==nil,'Unread: no list')
+    files[STATUS]='mod=v steam=ready\nlink=guest lobby=7\nwait=60 Ho st\n'
+    new=l.changes()
+    assert(l.wait().left==60 and l.wait().host=='Ho st' and has(new,'wait=60 Ho st'))
+    files[STATUS]='mod=v steam=ready\nlink=guest lobby=7\nwait=59 Ho st\n'
+    new=l.changes()
+    assert(l.wait().left==59 and not has(new,'wait=59 Ho st'),'One log line a wait')
+    files[STATUS]='mod=v steam=ready\nlink=guest lobby=7\npeer=2 name=wait=5 x hello=1\n'
+    l.changes()
+    assert(l.wait()==nil,'Let in, or gone; never from a name')
+    files[STATUS]='mod=v steam=ready\nlink=guest lobby=7\nwait=60 Ho st\n'
+    assert(has(l.changes(),'wait=60 Ho st'),'A new wait is logged again')
+    -- where and rules: asked only when changed; a word the native part would refuse is never asked.
+    files[STATUS],files[REQUEST]=nil,nil
+    assert(l.where('b07','WLB10_Camp_01') and files[REQUEST]=='where b07 WLB10_Camp_01\n')
+    files[REQUEST]=nil
+    assert(l.where('b07','WLB10_Camp_01')==nil and files[REQUEST]==nil,'Unchanged: not asked')
+    assert(l.where('mxiii_p') and files[REQUEST]=='where mxiii_p\n')
+    files[REQUEST]=nil
+    local ok,why=l.where('e04','bad-camp')
+    assert(ok==false and why=='where: not a word of 32 bytes at most: bad-camp' and files[REQUEST]==nil)
+    assert(l.where(('a'):rep(33))==false and l.rules('a b')==false and files[REQUEST]==nil)
+    ok,why=l.where('e04',('c'):rep(25))
+    assert(ok==false and why=='where: not a camp alias of 24 bytes at most: '..('c'):rep(25) and files[REQUEST]==nil)
+    assert(l.rules('ebwqr200') and files[REQUEST]=='rules ebwqr200\n')
+    files[REQUEST]=nil
+    assert(l.rules('ebwqr200')==nil and files[REQUEST]==nil)
+end
+-- The rules word: a letter for each session rule on (bosses with shared enemies only), then the boss HP scale in
+-- percent; read back only in that shape.
+local S=Link.parse_settings('')
+assert(Link.rules(S)=='ebwsqr200','Every rule on by default')
+S.shared_enemies=false
+assert(Link.rules(S)=='wsqr200','Bosses go with shared enemies')
+S.shared_story,S.boss_hp_scale,S.revive=false,1.35,false
+assert(Link.rules(S)=='wq135')
+S.shared_story=true
+assert(Link.rules(S)=='wsq135')
+local rules=Link.read_rules('ebwqr200')
+assert(rules.shared_enemies and rules.bosses and rules.shared_world and not rules.shared_story and rules.shared_quests
+    and rules.revive and rules.boss_hp_scale==2)
+rules=Link.read_rules('100')
+assert(rules.boss_hp_scale==1 and next(rules,next(rules))==nil,'Nothing on')
+for _,bad in ipairs({'ee200','be200','x200','ebwqr099','ebwqr401','ebwqr2000','EB200','','eb 200'}) do
+    assert(Link.read_rules(bad)==nil,bad)
+end
+assert(Link.read_rules(nil)==nil)
