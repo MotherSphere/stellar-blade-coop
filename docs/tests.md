@@ -18,34 +18,36 @@ build/host/pose_codec_test
 The Lua tests (`core/`: `actors_of`, `class_at`, `keybind`, `link`, `pak_gate`, `settings_file`, `ue4ss_settings`,
 `unreal`; `cut/`: `chainspin`, `devmenu`, `emote`, `enemy`, `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`,
 `mailbox`, `scene`, `tendril`, `wear`; `main/`: `boot`, `fight`, `fight_notices`, `guide`, `idle`, `input`, `match`,
-`menu`, `quests`, `sbo`, `session_ui`, `settings`, `story`, `world`; `matrix13/quest/`: `on_time`, `zone_talks`;
-`matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`;
-`nightop/`: `board`, `challenges`, `guard_text`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`,
-`waves`; `partner/`: `capture`, `ghosts`, `hud`, `puppet`, `sentinel`; `race/`: `doro`, `drive`, `drive_model`, `model`,
-`run`; `session/`: `arrival`, `booth`, `chat`, `group`, `halls_rows`, `join`, `saves`, `sbo`, `travel`; `story/`:
-`snapshot`, `subtitles`; `ui/`: `guide`, `kit`, `lobby`, `lobby_model`, `model`, `notice`, `region_tabs`, `text`) run
-the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
-fails the test. The `main/` tests load
-`main/fixture.lua` first, with UE4SS stubbed for `main.lua`.
+`menu`, `quests`, `sbo`, `scenes`, `session_ui`, `settings`, `story`, `world`; `matrix13/quest/`: `on_time`,
+`zone_talks`; `matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`,
+`travel`; `nightop/`: `board`, `challenges`, `guard_text`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`,
+`shop`, `waves`; `partner/`: `capture`, `ghosts`, `hud`, `puppet`, `sentinel`; `race/`: `doro`, `drive`, `drive_model`,
+`model`, `run`; `session/`: `arrival`, `booth`, `chat`, `group`, `halls_rows`, `join`, `saves`, `sbo`, `travel`;
+`story/`: `snapshot`, `subtitles`; `ui/`: `guide`, `kit`, `lobby`, `lobby_model`, `model`, `notice`, `region_tabs`,
+`text`) run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the
+fake EVE fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`.
 
-- `core/link_test` also covers the status's `uidev=`, `me=` and `world=` lines and the `owner=`, `room=` and `hall=`
-  fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty), and never
-  from a player's name, and the `shared_world` setting;
+- `core/link_test` also covers the status's `uidev=`, `me=`, `world=` and `story=` lines and the `owner=`, `room=` and
+  `hall=` fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty), and
+  never from a player's name, and the `shared_world` and `shared_story` settings;
 - `core/pak_gate_test` finds the hall lobby pak `zSBO_Lobby` in `~mods`, else `LogicMods`, over fake files, checks its
   version (the `.utoc` size and the `.ucas` size from the `.utoc`'s compression blocks, joined by `_`) and that each
   read is bounded,
   and refuses a missing game folder, `.utoc`, `.pak` or `.ucas`, a map or folder missing from the directory index, and a
   `.utoc` whose header does not read as one;
-- `main/fight_test` also covers `coop fight pilot` (its `test target` and boss tests included),
-  `coop fight spawn probe`, the `spawn_filter` setting with the `filter` word it adds, and the `same_place`, `aggro`,
-  `same_spawns`, `enemy_extra`, `bosses` and `boss_hp_scale` settings, whose rows `main/menu_test` covers with the
-  `shared_quests` and `shared_world` rows, and `coop pvp` (its words, the `pvp_spike` and `shared_enemies` refusals, status, and
-  `pvp_spike=off` ending an earlier load's PvP test at a reload);
+- `main/fight_test` also covers `coop fight pilot` (its `test target` and boss tests included), `coop fight spawn
+  probe`, the `spawn_filter` setting with the `filter` word it adds, and the `same_place`, `aggro`, `same_spawns`,
+  `enemy_extra`, `bosses` and `boss_hp_scale` settings, whose rows `main/menu_test` covers with the `shared_quests`,
+  `shared_world` and `shared_story` rows, and `coop pvp` (its words, the `pvp_spike` and `shared_enemies` refusals,
+  status, and `pvp_spike=off` ending an earlier load's PvP test at a reload);
 - `main/fight_notices_test` covers the same place and same spawns notices in both languages;
 - `main/quests_test` covers `coop quests` with the `shared_quests` and `quest_deny` settings and the shared quests'
   notices;
 - `main/world_test` covers `coop world` (its words, on and off whatever `shared_world` says, status), the start once a
   load with `shared_world=on`, the end at a reload with `shared_world=off`, and the shared world's two notices;
+- `main/scenes_test` covers `coop scenes` (its words, on and off whatever `shared_story` says, status, an on or off
+  before the load's request that cancels it), the request once a load only where the `story=` line and
+  `shared_story` differ (none off the pinned build or after `coop off`) and story together's two notices;
 - `main/idle_test` counts the FindAllOf and StaticFindObject calls of main.lua's two loops over one idle minute, each
   case from a fresh Lua load: 4 and 5 in a world with the UI up, 0 and 2 at the title, all in the first second;
 - `main/input_test` covers the controller's events from a fake `coop_pad` (routed to the menu, the co-op saves' question
@@ -162,7 +164,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   the boss tests included; `coop fight pvp` and `pvp off`; `lion rows`, `gardener rows`, `tendril rows`, `bolt rows`,
   `mxiii rows`, `shop rows` and `signal rows` with their 25 table words and bad addresses, the longest of them 813
   bytes; `fly` and `slowmo` on or off; `anim play` with its id, path and `once` or `loop`, and `anim stop`;
-  `shortcut list` and `shortcut load <map> <1-4>`; `hud hide on` and `hud hide off`; `loading lift`; `nightshop`,
+  `shortcut list` and `shortcut load <map> <1-4>`; `hud hide on` and `hud hide off`; `loading lift`; `world` and
+  `scenes` with `on`, `off` or `status`; `nightshop`,
   `roxanne`, `lily`,
   `guardtext` and the 8 `signal` words, in `quest/own.h`'s order; the `sbo` requests (`on`, `arm`, `enter`, `warp`,
   `abort`, `leave`, `seq`) and their refusals),

@@ -128,8 +128,8 @@ Each row of the Options page is a setting of [coop-settings.txt](settings.md#coo
 (the menu, status, leave, travel and race checkpoint keys), Photo mode, Partner (the name tag and the
 [partner HUD](#partner-hud)), Ghost (the looks, the [solid partner](ghost.md#solid-partner-experimental) and the send rate),
 Session (who can join a session you host, the [revive](playing-with-a-friend.md#revive-by-your-friend-experimental), the
-[cutscene wait](playing-with-a-friend.md#cutscene-wait), [following the host](playing-with-a-friend.md#following-the-host) and the
-[shared world](shared-world.md)), Saves (the [co-op saves](playing-with-a-friend.md#co-op-saves)
+[cutscene wait](playing-with-a-friend.md#cutscene-wait), [following the host](playing-with-a-friend.md#following-the-host), the
+[shared world](shared-world.md) and [story together](story-together.md)), Saves (the [co-op saves](playing-with-a-friend.md#co-op-saves)
 at the title and [shared quests](playing-with-a-friend.md#shared-quests-experimental)), Combat (shared enemies, same place, who same-place
 enemies attack, same spawns, extra enemies, shared bosses, the host's enemy and boss scaling and your kill rewards),
 Display (the [status strip](#status-strip-above-the-card) above the partner card, and the size, sounds and language of
@@ -395,4 +395,5 @@ a Steam name or a chat line shows as `?`.
 | Same place moving enemies, or stopped | See [Same place](shared-enemies.md#same-place-experimental) |
 | Shared quests on, off or waiting for a co-op save, and quest steps that wait or that were made apart | See [Shared quests](playing-with-a-friend.md#shared-quests-experimental) |
 | Shared world on with your friend, or stopped after an error | `Shared world on with <name>.` or `Shared world stopped until the game restarts. coop-link.log says why.` ([shared world](shared-world.md)) |
+| Story together on with your friend, or stopped after an error | `Story together on with <name>.` or `Story together stopped until the game restarts. coop-link.log says why.` ([story together](story-together.md)) |
 | Night Operation: a partner's run starting, a partner who cannot join, the points a run gave | See [night-operation.md](night-operation.md#the-co-op-run) and [the reward shop](night-operation-shop.md) |

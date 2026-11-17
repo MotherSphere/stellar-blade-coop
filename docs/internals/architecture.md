@@ -42,6 +42,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `commands/cut.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop gardener fight`, handed to `cut/gardener.lua` with the co-op save check and the viewer's display put away before the words that spawn; `coop tendril fight`, handed to `cut/tendril.lua` the same way; `coop wear`; `coop scene`, with the co-op save check before a scene's name (`coop scene lily` handed to `matrix13/quest/on_time.lua`'s talk); `coop lines`; `coop emote`; `coop fly`, `coop slowmo` and `coop glide`, with the co-op save check before `on`; `coop gift`, with the co-op save check before every word |
 | `commands/guide.lua` | `coop guide`, which opens the guide |
 | `commands/world.lua` | `coop world`: on and off for the [shared world](shared-world.md) until the mod reloads, and its status line |
+| `commands/scenes.lua` | `coop scenes`: on and off for [story together](story-sync.md) until the mod reloads; its status line |
 | `core/link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
 | `partner/capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
 | `partner/puppet.lua` | The ghost: builds it from a table, places it, its name tag, effects, its Doro mode in a race, `coop where` |

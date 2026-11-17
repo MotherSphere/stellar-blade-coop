@@ -276,6 +276,9 @@ guest's game running. Only the host's cutscenes pause the other game.
 Each game looks for the game's own cutscene player once a second while linked. Whether every story scene, dialogue and
 boss intro counts as a cutscene there has not been checked in game yet.
 
+With [story together](story-together.md) on, a story scene the host plays plays in the guest's game too, so she
+watches it instead of waiting. The cutscene wait covers the scenes her game cannot play with him.
+
 ## Shared quests (experimental)
 
 Shared quests carry the quest steps that the host and the guest make together into the guest's co-op save. They are

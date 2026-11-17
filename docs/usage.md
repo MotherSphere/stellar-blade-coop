@@ -114,6 +114,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop quests probe\|record\|replay` | Shared quests' solo test tools (experimental, co-op save only) |
 | `coop quests force <number>` | As the guest, make the step that quest holds for your own kill, or for a place the game's tables cannot give, where you stand; type it twice within 10 s |
 | `coop world on\|off\|status` | The [shared world](shared-world.md) (experimental, on by default): `on` and `off` until the mod reloads, whatever `shared_world` says; `status` prints the `world=` line |
+| `coop scenes on\|off\|status` | [Story together](story-together.md) (experimental, on by default): `on` and `off` until the mod reloads, whatever `shared_story` says; `status` prints the `story=` line |
 | `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](playing-with-a-friend.md#synced-photo-mode)'s pause alone, 1 to 3600 s |
 | `coop revive test` | Solo test of the [revive](playing-with-a-friend.md#revive-by-your-friend-experimental): at the death screen, call the game's in-place respawn on your EVE once (co-op save only, no session, with `coop loopback 0 0 0` running so that your life state is read) |
 | `coop guide` | Open the [guide](interface.md#guide) on its first page, on the title screen or in the world |
@@ -389,6 +390,11 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 - Shared world: `world=off`, `world=waiting why=<friend|match|save|partner>`, `world=on`, then its counters, or
   `world=stopped`, `world=off why=build` or `world=off why=coop_off` (see [Shared world](shared-world.md#status-line)
   and the counters in [Shared world: how it works](internals/shared-world.md#status-line)).
+- Story together: `story=off`, `story=waiting why=<friend|match|save|partner>`, `story=on`, then `scene=` and its
+  counters, or `story=stopped`, `story=off why=build` or `story=off why=coop_off` (see
+  [Story together](story-together.md#status-line) and the counters in
+  [Story together: how it works](internals/story-sync.md#status-line)). It does not go to `UE4SS.log`: its counters
+  move with each position of a shared scene.
 - Photo mode: `photo=<0|1|s|c> peer_photo=<0|1|s|c> frozen=<0|1> sync=<both|notice|off>`: yours and your friend's (`s`
   for selfie mode, `c` on the host while a cutscene plays: the [cutscene wait](playing-with-a-friend.md#cutscene-wait)), whether your game holds
   the photo pause (`coop freeze` holds it too), and the `photo_sync` your friend gets (`notice` when your game cannot

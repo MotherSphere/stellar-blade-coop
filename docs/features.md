@@ -14,9 +14,9 @@ Two-PC co-op was first played on 2026-10-17, one PC on Linux with Proton and one
 at about 240 ms ping. On 2026-10-21 two players on 0.4.0 played on the automatic co-op saves with shared enemies and
 same place (each enemy in the same spot on both screens). On 2026-11-01 two PCs played 0.7.0-beta.1 with its ghost fix:
 joining with CNS packs no longer crashed. Apart from the 2026-11-01 session, no version after 0.4 has been played on two
-PCs, so nothing else added since 0.4 has been tested between two PCs: shared quests, the shared world, the friend's
-revive, the cutscene wait, kills that count only for a player who took part, Night Operation's run, levels, revive and
-challenges, Doro races, the co-op line at camp phone booths, the .pak mod list and CNS outfits over the link,
+PCs, so nothing else added since 0.4 has been tested between two PCs: shared quests, the shared world, story together,
+the friend's revive, the cutscene wait, kills that count only for a player who took part, Night Operation's run, levels,
+revive and challenges, Doro races, the co-op line at camp phone booths, the .pak mod list and CNS outfits over the link,
 `coop gift` and the pose rate that adapts to Steam's queue.
 
 On one PC, the Leviathan viewer and its free camera ran on 2026-10-22, the Lion was fought on 2026-10-24, the
@@ -32,12 +32,12 @@ PvP test and the match lobbies, and does not link with 0.10.0 or older. This ver
 the shared world and of story together. It does not link with 0.11.0 or older: every player has to update.
 
 In this version every on/off setting is on by default, the experimental ones and the test tools included: the ghost's
-dyes and effects, the spawn filter, the name tag in your photos, shared quests, the shared world, the revive, the solid
-partner, the Load Shortcut saves, the PvP test and the SBO lobby. The status strip shows its compact form, and F7's
-travel to the host is on. A `coop-settings.txt` written by 0.5.0-beta.1 to 0.10.0 that holds the old off values is
-changed once at the next load (see [Settings](settings.md#coop-settingstxt)). Most of these features have not been
-tested in game. `shortcut_load=on` lets `coop shortcut load` write a developer save that can unlock Steam achievements,
-which cannot be taken back.
+dyes and effects, the spawn filter, the name tag in your photos, shared quests, the shared world, story together, the
+revive, the solid partner, the Load Shortcut saves, the PvP test and the SBO lobby. The status strip shows its compact
+form, and F7's travel to the host is on. A `coop-settings.txt` written by 0.5.0-beta.1 to 0.10.0 that holds the old off
+values is changed once at the next load (see [Settings](settings.md#coop-settingstxt)). Most of these features have not
+been tested in game. `shortcut_load=on` lets `coop shortcut load` write a developer save that can unlock Steam
+achievements, which cannot be taken back.
 
 ## Features
 
@@ -153,7 +153,10 @@ game's own quest functions (see [playing-with-a-friend.md](playing-with-a-friend
 experimental Shared world option (Options, Session) is on by default and untested in game. While both players play a
 co-op save, a door, lever, switch, crane, lift or shortcut that one player works changes in the other's game too,
 while chests, supply boxes and anything else that gives an item stay each player's own (see
-[shared-world.md](shared-world.md)).
+[shared-world.md](shared-world.md)). The experimental Story together option (Options, Session) is on by default and
+untested in game. While both players play a co-op save, a cutscene or a talk the host plays plays in the guest's game
+too, with the host's choices, QTE results and skips. A story trip the host starts takes the guest along. With shared
+quests on, a quest step the guest makes first moves the host's quest too (see [story-together.md](story-together.md)).
 
 ## SBO lobby and matches
 

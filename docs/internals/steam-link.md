@@ -137,12 +137,12 @@ there:
   `<name> runs another version and was refused.` That player then stays refused for the lobby, as above. A guest who
   gets such a hello from another guest marks that member incompatible, counts an invalid message, sends no reject and
   stays. A mismatched hello from the owner still makes the guest reject it and leave.
-- No photo line (and so no photo or cutscene pause), gift, race line, camps line, night line, shared quests' `SBQ`
-  line or shared world's `SBW` line goes either way. The game sends none. Such a line that arrives on channel 0 is
-  dropped with no log line. An `SBQ` or `SBW` line on channel 2 is dropped too, and the log says `dropped fight data
-  from <name>: shared quests are off in a match lobby` or `...: the shared world is off in a match lobby` at most once
-  a minute. `coop gift` gets its items back at once (`gift n <id> nolink`), and a camps
-  request ends with `camps line not sent: a match lobby` in the log.
+- No photo line (and so no photo or cutscene pause), gift, race line, camps line, night line, shared quests' `SBQ` line,
+  shared world's `SBW` line or story together's `SBS` line goes either way. The game sends none. Such a line that
+  arrives on channel 0 is dropped with no log line. An `SBQ`, `SBW` or `SBS` line on channel 2 is dropped too. The log
+  says `dropped fight data from <name>: shared quests are off in a match lobby`, `...: the shared world is off in a
+  match lobby` or `...: story together is off in a match lobby` at most once a minute. `coop gift` gets its items back
+  at once (`gift n <id> nolink`), and a camps request ends with `camps line not sent: a match lobby` in the log.
 - Chat stays on, with a mute per player. `mute <SteamID>` drops that player's chat lines and `unmute <SteamID>` lets
   them through again. The notices read `Muted <name>.` and `Unmuted <name>.` A dropped line counts in the chat totals
   and gives `dropped chat lines from <name>: muted` in the log at most once a minute, never with its text. A mute
@@ -455,7 +455,7 @@ is refused instead of misread:
 | 19 | Matrix XIII's world rows (spawn rows, camps, warps): shared Naytibas key an enemy by its spawn row's ID, so a peer without those rows would never match the host's new enemies; no line changes shape, the number keeps 0.7.5 out |
 | 20 | The PvP test's pvp line on channel 2: a drop of the attacker's stand-in for the victim, applied to the victim's EVE in her game, and the match lobbies' start, count and end lines on channel 0 |
 | 21 | Never released: development builds of the shared world's `SBW` lines on channel 2 used it (see [Shared world: how it works](shared-world.md)) |
-| 22 | Story together's `SBS` lines on channel 2: the host's story scenes and story trips, followed in the guest's game (this version) |
+| 22 | Story together's `SBS` lines on channel 2: the host's story scenes and story trips, followed in the guest's game (see [Story together: how it works](story-sync.md)); the guest's `SBQ22 step` line, a quest step she made first, made in the host's game (this version) |
 
 ## Link health in the log
 

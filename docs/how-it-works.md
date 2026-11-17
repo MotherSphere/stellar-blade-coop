@@ -20,6 +20,7 @@ bodies, which is in [internals/cut-enemies.md: The spawn](internals/cut-enemies.
 | [shared-enemies.md](internals/shared-enemies.md) | Same-place enemies, same spawns and the spawn filter, extra enemies, shared bosses |
 | [group-play.md](internals/group-play.md) | Shared quests, following the host, the teleport screen's extra tabs, a player down and the revive, camp rests, the cutscene wait |
 | [shared-world.md](internals/shared-world.md) | The shared world's roots and hooks, its filter, its lines, how the partner's changes are made, its status line and addresses |
+| [story-sync.md](internals/story-sync.md) | Story together's theater reads and hooks, its tables, its lines, the guest's gate, leash and results, the guest's quest steps, its status line and addresses |
 | [doro-races.md](internals/doro-races.md) | The display Doro, the Doro look, the ghost's Doro mode, driving, race lines |
 | [cut-enemies.md](internals/cut-enemies.md) | The cut Lion with the row batches, the cut Gardener, the cut Tendril |
 | [cut-eve.md](internals/cut-eve.md) | The cut ChainSpin, developer flight and slow motion, the cut glide, emotes |
