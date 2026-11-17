@@ -12,7 +12,7 @@
 -- requests are ui/sessions_model.lua's over main.lua's view(); requests go to main.lua's act().
 -- It opens on the last tab of this Lua load and asks for a search of it, as a tab change and Refresh (Y, F) do, one at
 -- a time and 5 s apart at least; there is no search by itself. Refresh while our search runs stops it (its hint then
--- reads SB's UI_Cancel). Select on a row asks to join its lobby at once and closes the screen. Back (B, Esc, a right
+-- reads SB's UI_Cancel); a tab change leaves it running. Select on a row asks to join its lobby at once and closes the screen. Back (B, Esc, a right
 -- click) closes it. It holds the game's input as 'sessions' with the mouse cursor, given back 150 ms after a close; it
 -- closes by itself outside a world, when the game pauses or shows the mouse cursor, when the kit turns off and once we
 -- are in a lobby. A transparent kit row over each row and tab takes the mouse, so no part ever sees it.
@@ -199,11 +199,14 @@ function Sessions.new(o)
         o.act({request=request})
         return true
     end
+    -- A tab change asks for the new tab's search. Our running search goes on (Refresh alone stops it): stopping it
+    -- here would lose its rows while the 5 s gap held the new one back.
     local function set_tab(id)
         if id~=tab then
             tab,cur,top=id,1,0
             kit.sound('change')
-            search()
+            read()
+            if not view.ours then search() end
         end
         draw()
     end

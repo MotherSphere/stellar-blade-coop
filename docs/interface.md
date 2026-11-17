@@ -143,7 +143,8 @@ version. The bottom left names your own protocol and game build, which a session
 in the game's words for the story regions; another map shows its short name, such as `f01`.
 
 The screen asks Steam for a search when it opens, when you change tabs and on Refresh. One search runs at a time, at
-least 5 s after the last one, never by itself. Refresh while a search runs stops it; its key hint then reads Cancel. The
+least 5 s after the last one, never by itself. Refresh while a search runs stops it; its key hint then reads Cancel. A
+tab change leaves a running search alone, so its rows are there when you come back to its tab. The
 line under the rows says what the search is doing: the game's `Searching for team members`, `No open session.`, `The
 search failed. Refresh to try again.`, `Press Refresh to search.` (the other tab was searched last) or `You can search
 again in <n> s.`

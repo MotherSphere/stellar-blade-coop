@@ -264,6 +264,20 @@ sounds={}
 screen.nav('back')
 assert(not screen.is_open() and sounds[1]=='back' and sounds[2]=='close')
 
+-- A tab change while our search runs leaves it running: no list stop and no other search. Back on its tab, its rows
+-- show.
+clock=clock+10
+screen.open()
+local asks=#acts
+assert(acts[asks]=='list public')
+input.search={tab='public',state='searching'}
+screen.nav('tab_right')
+assert(#acts==asks and live(HEADER,192)[1].props.Category_Name.text=='Comrades',acts[#acts])
+input.search={tab='public',state='done',rows=12}
+screen.nav('tab_left')
+assert(#acts==asks and #live(OPTION)==8)
+screen.close()
+
 -- A root build (a map change): the parts are gone; the next draw makes them again.
 screen.open()
 for _,p in ipairs(parts) do p.alive=false end
