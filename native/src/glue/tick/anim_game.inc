@@ -28,6 +28,11 @@ using PlayByPath = int32_t (*)(void *character, int32_t slot, const FStringArg *
                                FStringArg *s22, float w23, FStringArg *s24, uint64_t p25, FStringArg *s26, uint64_t p27,
                                uint8_t b28, float f29, int32_t i30, uint8_t b31);
 using StopAnim = void (*)(void *character, int32_t slot, float blend_out, uint64_t name, uint8_t force);
+// game/anim.h's feet: FUN_142111440(character, 0) and FUN_1421119c0(character, key, on, blend, -1, 0, 0, priority), as
+// SB's stop calls them.
+using FootIkAllowed = uint8_t (*)(void *character, uint8_t which);
+using SetFootIk = void (*)(void *character, const FStringArg *key, uint8_t on, float blend, float blend_off, float f6,
+                           uint8_t b7, float priority);
 // The worker's ask (a play or a stop) and its number, taken by the game thread with try_lock only.
 struct AnimAsk {
   uint32_t id = 0;
@@ -43,6 +48,7 @@ std::atomic<uint64_t> anim_word{0};
 std::atomic<int32_t> anim_ret{0};
 std::atomic<uint32_t> anim_peak{0};
 std::atomic<uint64_t> anim_held{0};
+std::atomic<uint32_t> anim_feet_word{0}; // The last anim::Feet (low byte) and a count of them above it.
 std::atomic<bool> anim_drop{false}, anim_faulted{false};
 std::atomic<uint64_t> anim_fault_code{0}, anim_fault_rva{0}, anim_fault_address{0};
 // The game thread's own: the ask taken, the track, the character played on (with its object item's index and serial)
@@ -109,7 +115,30 @@ __declspec(noinline) void anim_play(uint64_t now) {
   uint64_t name = 0;
   anim_read(slots + anim::kSlotName, &name, sizeof name);
   anim_ch = ch, anim_index = index, anim_serial = serial;
-  anim_track.played(anim_now.id, ret, out, name, now);
+  anim_track.played(anim_now.id, ret, out, name, now, anim_now.ride);
+}
+// The ride's foot IK, once its play is over (game/anim.h's feet): on the live EVE played on, as SB's stop does.
+__declspec(noinline) void anim_feet() {
+  if (!anim_track.owes_feet())
+    return;
+  anim_track.paid_feet();
+  anim::Slot s;
+  uint64_t slots = 0;
+  uint8_t on = 0;
+  int32_t type = 0;
+  const bool alive = anim_alive() && anim_read(anim_ch + anim::kFootIkOn, &on, sizeof on) &&
+                     anim_slot(anim_ch, s, &slots) && anim_read(slots + anim::kSlotFootIk, &type, sizeof type);
+  void *const ch = reinterpret_cast<void *>(anim_ch);
+  const bool allowed = alive && !on && game_function<FootIkAllowed>(anim::kFootIkAllowed)(ch, 0) == 1;
+  const anim::Feet f = anim::feet(alive, on, s.playing, type, allowed);
+  if (f == anim::Feet::on) {
+    const FStringArg key{anim::kFootIkKey, int32_t(sizeof anim::kFootIkKey / sizeof(char16_t)),
+                         int32_t(sizeof anim::kFootIkKey / sizeof(char16_t))};
+    game_function<SetFootIk>(anim::kSetFootIk)(ch, &key, 1, anim::play(false).blend_out, -1.f, 0.f, 0, 100.f);
+  } else if (f == anim::Feet::later) {
+    *reinterpret_cast<volatile uint8_t *>(anim_ch + anim::kFootIkLater) = 1;
+  }
+  anim_feet_word = ((anim_feet_word >> 8) + 1) << 8 | uint32_t(f);
 }
 // The watch, then (stop) ours blended out while slot 0 still holds it. A slot that took no weight is freed at once,
 // whatever was asked.
@@ -134,7 +163,8 @@ void anim_publish() {
 }
 // Each frame on the pinned build until the latch, while coop off has not come or ours still plays: a new ask taken
 // and run (ours stopped first when it still plays), ours stopped at a new Lua load and at coop off, the watch every
-// anim::kWatchMs. The first fault closes the latch, after one try to stop ours.
+// anim::kWatchMs, then the ride's foot IK once its play is over. The first fault closes the latch, after one try to
+// stop ours.
 void anim_tick() {
   const uint64_t now = GetTickCount64();
   bool got = false;
@@ -160,6 +190,7 @@ void anim_tick() {
       anim_play(now);
     else
       anim_watch(act == anim::Act::stop, why, now);
+    anim_feet();
   } __except (fault_filter(GetExceptionInformation(), anim_fault_code, anim_fault_rva, anim_fault_address)) {
     anim_faulted = true;
   }

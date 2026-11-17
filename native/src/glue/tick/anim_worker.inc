@@ -8,6 +8,7 @@ namespace coop::pose {
 
 namespace {
 uint64_t anim_logged = 0;
+uint32_t anim_feet_logged = 0;
 bool anim_fault_logged = false;
 } // namespace
 
@@ -32,11 +33,16 @@ std::string ask_anim(const coop::Request &request) {
                         (ask.ride ? " as the bike's ride (a loop, her foot IK off)" : ask.loop ? " in a loop" : " once");
 }
 
-// Each worker pass: a line for each change the game thread made, and its fault once with a line for the screen.
+// Each worker pass: a line for each change the game thread made and for each foot IK put-back after a ride, and its
+// fault once with a line for the screen.
 std::string anim_pass() {
   if (const uint64_t w = anim_word; w != anim_logged) {
     anim_logged = w;
     say(anim::describe(anim::unpack(w), anim_ret, float(anim_peak) / 1000, anim_held));
+  }
+  if (const uint32_t w = anim_feet_word; w != anim_feet_logged) {
+    anim_feet_logged = w;
+    say(anim::describe_feet(anim::Feet(w & 0xff)));
   }
   if (!anim_faulted || anim_fault_logged)
     return std::string();
