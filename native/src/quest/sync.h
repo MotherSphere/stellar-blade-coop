@@ -1333,8 +1333,8 @@ class Host {
 public:
   Host(Record record, uint64_t partner, Deny deny)
       : Host(std::make_shared<Record>(std::move(record)), partner, deny) {}
-  // One Host per guest of an online session, all on the record their engine holds: each keeps its partner's h lines,
-  // and the zones are one list for all.
+  // One Host per guest of an online session, all on the record their engine holds: each keeps its partner's h lines.
+  // The zones are one list for all.
   Host(std::shared_ptr<Record> record, uint64_t partner, Deny deny)
       : record_(std::move(record)), partner_(partner), deny_(deny) {}
 
