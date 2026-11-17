@@ -26,7 +26,8 @@
 -- game's own folders, Capture.base_path) is tagged with the outfit it comes from (Capture.label) and sends its
 -- overridden materials, values and hidden slots with dyes off too; any part sends its cloth's collision
 -- asset (her ponytail's OverrideClothPhysicsAsset). Leaders whose bones would make a pose too big for the native part
--- go, the last first. SBO's bike (bike/ride.lua) is a part like any other: getting on or off shows or hides it.
+-- go, the last first. The component leave_out() names at each look is no part (main.lua: SBO's bike while EVE does not
+-- ride, bike/ride.lua's parked), so getting on or off the bike is a new generation.
 -- Read-only: nothing here changes EVE or any of her components.
 local UE=require('UEHelpers')
 local U=require('core.unreal')
@@ -88,14 +89,14 @@ function Capture.label(path,assets)
     return word(path:match('^/Game/([^/]+/[^/]+)/') or path:match('^/Game/([^/]+)/') or path:sub(7))
 end
 -- EVE's skeletal mesh components that have a mesh: her main mesh first, then leaders, then followers; each with the
--- component it follows and the one it hangs from, by address.
-local function parts_of(eve)
+-- component it follows and the one it hangs from, by address. skip: the address of a component left out, or nil.
+local function parts_of(eve,skip)
     local main=valid(eve.Mesh)
     local list={}
     each(eve:K2_GetComponentsByClass(find('/Script/Engine.SkeletalMeshComponent')),function(_,component)
         component=valid(component)
         local mesh=component and valid(component.SkeletalMesh)
-        if not mesh then return end
+        if not mesh or skip and address(component)==skip then return end
         local found,leader=pcall(function() return valid(value_of(component.MasterPoseComponent):Get()) end)
         local parent=valid(component:GetAttachParent())
         list[#list+1]={handle=component,mesh=mesh,leader=found and leader and address(leader) or nil,
@@ -238,6 +239,8 @@ function Capture.new(publish,looks,assets,private)
     local named,named_at,named_unread={},{},nil
     local fixed={}
     for k,path in ipairs(Capture.EFFECTS) do fixed[path]=k end
+    local leave_out=nil -- f(her address): the address of a component of hers that is no part, or nil. Asked each look.
+    function self.leave_out(f) leave_out=f end
     local function withdraw()
         if published then publish(nil); published=nil end
     end
@@ -286,7 +289,7 @@ function Capture.new(publish,looks,assets,private)
     end
     local function look(eve,effects)
         local started=os.clock()
-        local list=parts_of(eve)
+        local list=parts_of(eve,leave_out and leave_out(address(eve)))
         if not (list[1] and list[1].main) then return end
         -- The parts the table can take: a follower of a part left out is left out too. While a pose of them would be
         -- over MAX_POSE, the last leader goes, with its followers.

@@ -164,23 +164,24 @@ rotation for that.
 
 ## Ghosts
 
-Nothing new travels. The part is one more skeletal mesh component of hers in `partner/capture.lua`'s table (37 bones,
-667 bytes more in a keyframe pose). Her lean reaches every ghost through her main mesh's transform. This works for the
-friend in ghost slot 0 and for each match-lobby member in slots 1 to 6.
+Nothing new travels. While EVE rides, the part is one more skeletal mesh component of hers in `partner/capture.lua`'s
+table (37 bones, 667 bytes more in a keyframe pose). Her lean reaches every ghost through her main mesh's transform.
+This works for the friend in ghost slot 0 and for each match-lobby member in slots 1 to 6.
 
-The part stays on her, hidden, while `bike=on`. It is one of the ghost's parts the whole time, ridden or not. A mount
-shows it and a dismount hides it. The capture's next look (once a second) publishes that change again under the same
-generation. Each ghost applies it with `SetVisibility`. Getting on or off reads no bone names on the rider's PC and
-builds no ghost again on the other PCs. A new generation at each mount would cost both: one frame of about 23 ms on the
-rider's PC (measured with 470 bone names) and a full ghost rebuild in every other game. Making the part is still a new
-mesh on her: it starts one generation about 2 s after she enters a world, once per map load. A new Lua load finds the
-earlier load's part by its tag and starts none. With `bike=off` the first 250 ms pass removes it, which is one more
-generation.
+The part stays on her, hidden, while `bike=on`. While she does not ride, the capture leaves it out. `main.lua` gives
+`capture.leave_out` the ride's `parked`, which the capture asks once a look (once a second) with her actor's address.
+`parked` answers the address of the part this Lua load made, or found by its tag, on that EVE. It answers nothing while
+she rides, before the part exists and after `bike=off`. It makes no engine call. The capture compares that address with
+each component's. Only SBO's own part is left out: another mod's component on the same mesh has no `SBO_Bike` tag and
+stays a part. The part list changes at each mount and dismount, so each one starts a new capture generation and every
+ghost is built again with or without the bike. A ride that ends on a fault, `coop off`, `bike=off` and a new Lua load
+each leave `riding()` false, which the next look follows. After a Lua load the first tick names the earlier load's part,
+before the capture's first look and whatever the `bike=` word reads. With `bike=off` the first 250 ms pass removes it.
 
-The part has no `MasterPoseComponent`, so `capture.lua` ranks it with the leaders, ahead of every follower. With
-`MAX_PARTS` at 16, an EVE with 16 skeletal parts or more loses the last follower of her outfit from every ghost while
-`bike=on`. Over the pose size, `capture.lua` drops the last leader in `K2_GetComponentsByClass` order, which follows her
-actor's component set: the bike is a part like any other there. Parts added after it go first.
+While she rides, the part has no `MasterPoseComponent`, so `capture.lua` ranks it with the leaders, ahead of every
+follower. With `MAX_PARTS` at 16, an EVE with 16 skeletal parts or more loses the last follower of her outfit from every
+ghost until she gets off. Over the pose size, `capture.lua` drops the last leader in `K2_GetComponentsByClass` order,
+which follows her actor's component set: the bike is a part like any other there. Parts added after it go first.
 
 ## Status words and the latch
 
