@@ -185,7 +185,7 @@ local function new_kit()
     return kit
 end
 local E04B,B07B='/game/art/bg/worldmap/level_p/e04','/game/art/bg/worldmap/level_p/b07'
-local link,puppet,settings,hud,now
+local link,puppet,settings,hud,now,ghosts
 local function vitals(o)
     local v={hp=500,max_hp=1000,shield=150,max_shield=300,blocks=3,beta=450,max_beta=1000,burst=0,max_burst=0,tachy=0,
         max_tachy=0,life=1}
@@ -210,6 +210,10 @@ local function setup()
     function link.fight() return link.fight_line end
     function link.pilot() return link.pilot_line end
     function link.quests() return link.quests_line end
+    -- The member lines (link.roster: none unless a case sets them) and each one's vitals (link.vits by SteamID).
+    function link.members() return link.roster or {} end
+    function link.vitals(id) return link.vits and link.vits[id] end
+    function link.match() return link.match_v end -- The match line: nil outside a match lobby.
     puppet={at=at(1000,0,220),feet=at(1000,0,0),map=E04B,me_v={at=at(0,0,0),map=E04B}}
     function puppet.anchor() if puppet.at then return puppet.at,puppet.feet end end
     function puppet.her_map() return puppet.map end
@@ -217,7 +221,14 @@ local function setup()
     settings={partner_bar=true,partner_arrow=true,partner_card=true,card_details=true,ui_language='game',send_rate=60}
     package.loaded['partner.hud']=nil
     P=require('partner.hud')
-    hud=P.hud({kit=kit,link=link,puppet=puppet,settings=settings,theme=THEME})
+    -- Ghost slot k (ghosts[k]: {map=, feet=}), as main.lua's ghost(k) gives it.
+    ghosts={}
+    local function ghost(k)
+        local g=ghosts[k]
+        return g and {her_map=function() return g.map end,
+            anchor=function() if g.feet then return at(g.feet.X,g.feet.Y,g.feet.Z+220),g.feet end end}
+    end
+    hud=P.hud({kit=kit,link=link,puppet=puppet,settings=settings,theme=THEME,ghost=ghost})
     now=100
 end
 local function by(g,kind,n) -- The n-th element of a kind in a group's view.
@@ -675,5 +686,90 @@ assert(st.top.v[1]==P.short(T.fr).summary.hosting:format('Kaanta') and st.top.v[
 link.lost=true
 hud.slow()
 assert(st.top.v[1]==T.fr.partner.lost..' · vous hébergez Kaanta.',st.top.v[1])
+
+-- More than 2 players: a compact row right of the card for each member past the handshake but the card's, three to a
+-- column, six groups made; each with her name, HP and state as on the card (DOWN in red, elsewhere, lost, a dash with
+-- no vitals, else the ping and her map), greyed as the card is, the alert once on DOWN and once on a lost link; hidden
+-- with partner_card off, when paused, out of a session and in a match lobby. Placed for ui_scale: right of the card as
+-- the kit scales it, never on it nor on each other.
+setup()
+for i=1,6 do assert(groups['member'..i] and not groups['member'..i].place.shown,i) end
+local x1,y1=P.row_at(1)
+local x3,y3=P.row_at(3)
+local x4,y4=P.row_at(4)
+assert(x1==96+744+16 and y1==96 and x3==x1 and y3+groups.member3.place.h<=96+220 and x4>x1+groups.member1.place.w
+    and y4==96,'Right of the card, three a column within its height')
+for _,s in ipairs({0.75,1.05,1.25,1.5}) do
+    local w,h=groups.member1.place.w*s,groups.member1.place.h*s
+    for i=1,6 do
+        local x,y=P.row_at(i,s)
+        assert(x>=96+744*s,s..': on the card')
+        if i%3~=0 then assert(select(2,P.row_at(i+1,s))>=y+h,s..': on the next row') end
+        if i<=3 then assert(P.row_at(i+3,s)>=x+w,s..': on the next column') end
+    end
+end
+link.roster={{id='2',slot=0,linked=true,lost=false,rtt=118,name='Kaanta'},
+    {id='3',slot=1,linked=true,lost=false,rtt=40,name='Lucas'},{id='4',slot=2,linked=true,lost=false,rtt=60,name='Mo'},
+    {id='5',slot=3,linked=false,lost=false,rtt=-1,name='Waits'}}
+link.vits={['3']=vitals({hp=250,max_hp=1000}),['4']=vitals({life=4,hp=0})}
+ghosts[1]={map=E04B,feet=at(0,0,0)}
+ghosts[2]={map=B07B,feet=at(0,0,0)}
+sounds={}
+hud.slow()
+local function row(i) return texts('member'..i) end
+assert(shown.member1==true and shown.member2==true and not shown.member3,'Slot 0 is the card; not linked: no row')
+assert(row(1)[1].v[1]=='Lucas' and row(1)[2].v[1]=='40 ms · e04' and faded.member1==1,row(1)[2].v[1])
+assert(by('member1','hp').v[1]==250 and by('member1','hp').v[2]==1000)
+assert(row(2)[1].v[1]=='Mo' and row(2)[2].v[1]=='DOWN' and row(2)[2].c=='error' and #sounds==1 and sounds[1]=='alert')
+hud.slow()
+assert(#sounds==1,'The alert once')
+link.vits['4']=nil
+ghosts[2].feet=nil
+hud.slow()
+assert(row(2)[2].v[1]=='—' and faded.member2==0.45,'No vitals: greyed')
+link.vits['4']=vitals()
+hud.slow()
+assert(row(2)[2].v[1]==T.en.partner.elsewhere:format('b07') and faded.member2==1,row(2)[2].v[1])
+link.roster[3].lost=true
+hud.slow()
+assert(row(2)[2].v[1]==T.en.partner.lost and faded.member2==0.45 and #sounds==2 and sounds[2]=='alert')
+hud.slow()
+assert(#sounds==2,'The lost alert once')
+settings.ui_scale='125'
+hud.slow()
+local x,y=P.row_at(2,1.25)
+assert(moved.member2[1]==x and moved.member2[2]==y and moved.member2[1]>=96+744*1.25,'Moved for ui_scale')
+settings.ui_scale=nil
+link.match_v={state='open'}
+hud.slow()
+assert(shown.member1==false and shown.member2==false,'None in a match lobby')
+link.match_v=nil
+settings.card_details=false
+hud.slow()
+assert(row(1)[2].v[1]=='','card_details off: no ping, no map')
+settings.partner_card=false
+hud.slow()
+assert(shown.member1==false and shown.member2==false)
+settings.partner_card=true
+kit.away=true
+hud.slow()
+assert(shown.member1==false,'Paused')
+kit.away=false
+link.session=false
+hud.slow()
+assert(shown.member1==false and shown.member2==false,'Out of a session')
+-- The host whose pair left (no slot-0 member): the card follows the first member past the handshake, her vitals, her
+-- ghost and her ping; the rows the others.
+setup()
+link.name=nil
+link.roster={{id='3',slot=1,linked=true,lost=false,rtt=40,name='Lucas'},
+    {id='4',slot=2,linked=true,lost=false,rtt=60,name='Mo'}}
+link.vits={['3']=vitals({hp=100}),['4']=vitals()}
+ghosts[1]={map=E04B,feet=at(1000,0,0)}
+ghosts[2]={map=E04B,feet=at(0,0,0)}
+hud.slow()
+local card=texts('card')
+assert(card[1].v[1]=='Lucas' and card[2].v[1]=='40 ms · e04' and by('card','hp').v[1]==100,card[2].v[1])
+assert(shown.member1==true and row(1)[1].v[1]=='Mo' and not shown.member2)
 
 print('partner_test ok')

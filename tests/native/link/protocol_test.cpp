@@ -119,7 +119,7 @@ int main() {
   m = parse_text(p + " say  two spaces ");
   assert(m.kind == Kind::say && m.text == "two spaces");
 
-  // The race line, reliable: Lua's text after "SBC22 race ", printable ASCII only, the whole line within kMaxMessage.
+  // The race line, reliable: Lua's text after "SBC23 race ", printable ASCII only, the whole line within kMaxMessage.
   // Anything else is invalid, never cleaned into another line.
   assert(race_line("cp 7 1 2 34567") == p + " race cp 7 1 2 34567");
   m = parse_text(race_line("cp 7 1 2 34567"));
@@ -134,7 +134,7 @@ int main() {
                                  race + "end\r", race + "\xff", p + " race", race})
     assert(parse_text(bad).kind == Kind::invalid);
   assert(parse(race.data(), race.size() + 1).kind == Kind::invalid); // A NUL after the prefix.
-  for (const char *other : {"SBC21 race cp 7 1 2 3", "SBC23 race cp 7 1 2 3", "SBC race end 7"})
+  for (const char *other : {"SBC22 race cp 7 1 2 3", "SBC24 race cp 7 1 2 3", "SBC race end 7"})
     assert(parse_text(other).kind == Kind::invalid);
   for (int c = 0x20; c < 0x7f; ++c) { // Every printable byte passes as it is.
     m = parse_text(race + "x" + static_cast<char>(c) + "x");
@@ -164,7 +164,7 @@ int main() {
     assert(!gift_ok(bad) && gift_line(bad).empty());
     assert(parse_text(p + " gift " + bad).kind == Kind::invalid);
   }
-  for (const char *other : {"SBC21 gift a 1", "SBC23 gift a 1", "SBC gift a 1"})
+  for (const char *other : {"SBC22 gift a 1", "SBC24 gift a 1", "SBC gift a 1"})
     assert(parse_text(other).kind == Kind::invalid);
 
   // The vit line, unreliable: the partner card's twelve numbers, whole units. Each rule holds at its edge.
@@ -286,7 +286,7 @@ int main() {
   assert(m.kind == Kind::mark && m.text == std::string(kMaxMark, 'y'));
   for (const std::string &bad : {p + " mark", p + " mark 0", p + " mark 0 x", p + " mark 4294967296", p + " mark -1",
                                  p + " mark x", p + " mark 3 ", p + " mark  3", p + " mark 3x boss", p + " marks 3",
-                                 std::string("SBC21 mark 3 x"), std::string("SBC mark 3"), std::string("SBC23 mark 3")})
+                                 std::string("SBC22 mark 3 x"), std::string("SBC mark 3"), std::string("SBC24 mark 3")})
     assert(parse_text(bad).kind == Kind::invalid);
 
   // A v0.1.1 peer runs protocol 6, and her lobby tag says so. Her hello still parses, so the link answers it with a
@@ -321,7 +321,10 @@ int main() {
   // stay as they were. Protocol 21 refuses the link.
   // Protocol 21 (the shared world alone) was never released: its builds would count every story together line
   // malformed, so the guest would wait through the host's scenes as before. Protocol 22 refuses the link.
-  static_assert(kProtocol == 22, "22 adds story together's SBS lines on channel 2; 21 the shared world's SBW lines on "
+  // Protocol 22 (story together for two) was never released either: its builds would count the host's let and wait
+  // lines invalid and leave a lobby of 3. Protocol 23 refuses the link.
+  static_assert(kProtocol == 23, "23 adds sessions of up to 4 players with the let and wait lines; 22 story together's "
+                                 "SBS lines on channel 2; 21 the shared world's SBW lines on "
                                  "channel 2; 20 the PvP test's pvp line on channel 2; 19 Matrix XIII's world rows; "
                                  "18 the table's fx lines and effect slots to 64; 17 the hide lines; 16 the value lines; 15 "
                                  "was never released; 14 the night lines' level and down words and the gift line; 13 "
@@ -334,7 +337,10 @@ int main() {
          lobby_tag(24463856) != "15:24463856" && lobby_tag(24463856) != "16:24463856" &&
          lobby_tag(24463856) != "17:24463856" && lobby_tag(24463856) != "18:24463856" &&
          lobby_tag(24463856) != "19:24463856" && lobby_tag(24463856) != "20:24463856" &&
-         lobby_tag(24463856) != "21:24463856");
+         lobby_tag(24463856) != "21:24463856" && lobby_tag(24463856) != "22:24463856");
+  // A well-formed let line under another protocol's tag: refused by its tag alone (the same line with ours is read).
+  assert(parse_text("SBC22 ping 1 2").kind == Kind::invalid && parse_text("SBC22 let 0 2002 4").kind == Kind::invalid &&
+         parse_text("SBC24 let 0 2002 4").kind == Kind::invalid && parse_text(let_line(0, {2002}, 4)).kind == Kind::let);
   assert(parse_text("SBC21 ping 1 2").kind == Kind::invalid && parse_text("SBC20 ping 1 2").kind == Kind::invalid &&
          parse_text("SBC19 ping 1 2").kind == Kind::invalid);
   assert(parse_text("SBC18 ping 1 2").kind == Kind::invalid && parse_text("SBC18 gift x").kind == Kind::invalid);
@@ -401,7 +407,8 @@ int main() {
                                photo_line('1', true), say_line("é ok"), vit_line(v), paks_line(3, 77),
                                pak_line({"~mods/lily_hair_p", 1024, 0xfedcba9876543210ull}), night_line(host_line),
                                mark_line(9, "é ok"), start_line("ffa", "NK_Boss_Scarlet", 7, {1001, 2002}),
-                               count_line(5), end_line(), dlc_line(3564740, "Twin Expansion Pack"), dlcs_line()};
+                               count_line(5), end_line(), dlc_line(3564740, "Twin Expansion Pack"), dlcs_line(),
+                               let_line(2002, {2002, 4003}, 4), wait_line(120)};
   for (int round = 0; round < 200000; ++round) {
     std::string text;
     if (round % 2) {
@@ -435,6 +442,13 @@ int main() {
     }
     if (f.kind == Kind::count)
       assert(f.a <= 10);
+    if (f.kind == Kind::let) { // 1 to 7 distinct SteamIDs, none 0; the pair 0 or one of them.
+      std::set<uint64_t> ids(f.ids.begin(), f.ids.end());
+      assert(!f.ids.empty() && f.ids.size() <= kMaxRemote && ids.size() == f.ids.size() && !ids.count(0) &&
+             (!f.a || ids.count(f.a)));
+    }
+    if (f.kind == Kind::wait)
+      assert(f.a >= 1 && f.a <= kMaxWait);
     if (f.kind == Kind::dlc) // An app id and a cleaned name, never empty.
       assert(f.a >= 1 && f.a <= UINT32_MAX && !f.text.empty() && f.text == chat_clean(f.text, kMaxDlcName));
     if (f.kind != Kind::invalid) {
@@ -446,26 +460,33 @@ int main() {
 
   // Requests written by Lua.
   // who_can_join: public, friends (host alone too), invitation (code and private, the settings' older words) or
-  // closed; ask after any of them: friends_ask=on.
+  // closed; ask after any of them: friends_ask=on; then max_players, 2 to kMaxMembers (kMaxMembers without it).
   const struct {
     const char *text;
     Who who;
     bool ask;
-  } kHosts[] = {{"host\n", Who::friends, false},
-                {"host friends", Who::friends, false},
-                {"host public", Who::everyone, false},
-                {"host public ask\r\n", Who::everyone, true},
-                {"host invitation ask", Who::invitation, true},
-                {"host code\r\n", Who::invitation, false},
-                {"host private\n", Who::invitation, false},
-                {"host closed", Who::closed, false},
-                {"host ask", Who::friends, true}};
+    int players;
+  } kHosts[] = {{"host\n", Who::friends, false, kMaxMembers},
+                {"host friends", Who::friends, false, kMaxMembers},
+                {"host public", Who::everyone, false, kMaxMembers},
+                {"host public ask\r\n", Who::everyone, true, kMaxMembers},
+                {"host invitation ask", Who::invitation, true, kMaxMembers},
+                {"host code\r\n", Who::invitation, false, kMaxMembers},
+                {"host private\n", Who::invitation, false, kMaxMembers},
+                {"host closed", Who::closed, false, kMaxMembers},
+                {"host ask", Who::friends, true, kMaxMembers},
+                {"host 2", Who::friends, false, 2},
+                {"host public 3\n", Who::everyone, false, 3},
+                {"host invitation ask 4", Who::invitation, true, 4},
+                {"host closed 2", Who::closed, false, 2}};
   for (const auto &h : kHosts) {
     const Request r = parse_request(h.text);
-    assert(r.command == Command::host && r.who == h.who && r.on == h.ask);
+    assert(r.command == Command::host && r.who == h.who && r.on == h.ask && r.players == h.players);
   }
+  static_assert(kMaxMembers == 4, "5 below is one past it");
   for (const char *bad : {"host  private", "host Code", "host code x", "hostcode", "host everyone", "host public  ask",
-                          "host ask ask", "host closed asks", "ask"})
+                          "host ask ask", "host closed asks", "ask", "host 1", "host 5", "host public 9", "host 3 ask",
+                          "host public  3", "host 22", "host public 3 3"})
     assert(parse_request(bad).command == Command::none);
   assert(parse_request("invite").command == Command::invite);
   // The session list: list public|friends|stop; the rows' where <zone> [<camp>] and rules <word>, each a word
@@ -533,6 +554,22 @@ int main() {
     for (const std::string bad : {"start ffa NK 4294967296 1001", "start ffa NK 1 1001,1001", "start ffa NK 1 0",
                                   "start ffa NK 1 1001,", "start ffa NK 1 1,2,3,4,5,6,7,8,9", "start f!a NK 1 1001",
                                   "count 0", "count 11", "count", "end now"})
+      assert(parse_text("SBC" + std::to_string(kProtocol) + " " + bad).kind == Kind::invalid);
+  }
+  // An online session's host lines: let (the pair, 0 or one of 1 to 7 distinct non-zero SteamIDs, the members let in,
+  // max_players 2 to kMaxMembers) and wait (1 to kMaxWait s).
+  {
+    const std::string let = let_line(4003, {2002, 4003}, 3);
+    assert(let == "SBC" + std::to_string(kProtocol) + " let 4003 2002,4003 3");
+    Message lm = parse_text(let);
+    assert(lm.kind == Kind::let && lm.a == 4003 && (lm.ids == std::vector<uint64_t>{2002, 4003}) && lm.b == 3);
+    lm = parse_text(let_line(0, {1, 2, 3, 4, 5, 6, 7}, kMaxMembers));
+    assert(lm.kind == Kind::let && lm.a == 0 && lm.ids.size() == kMaxRemote && lm.b == uint64_t(kMaxMembers));
+    assert(wait_line(60) == "SBC" + std::to_string(kProtocol) + " wait 60" && parse_text(wait_line(60)).a == 60);
+    assert(parse_text(wait_line(kMaxWait)).kind == Kind::wait && kMaxWait == 420);
+    for (const std::string bad : {"let 5 2002 4", "let 0 2002,2002 4", "let 0 0 4", "let 0 2002, 4", "let 0", "let x 2002 4",
+                                  "let 0 1,2,3,4,5,6,7,8 4", "let  0 2002 4", "let 0 2002", "let 0 2002 1", "let 0 2002 5",
+                                  "let 0 2002 x", "let 0 2002 4 4", "wait 0", "wait 421", "wait", "wait 1 2"})
       assert(parse_text("SBC" + std::to_string(kProtocol) + " " + bad).kind == Kind::invalid);
   }
   assert(parse_request("match search " + std::string(kMaxToken, 'a') + " xion xion").command == Command::match &&

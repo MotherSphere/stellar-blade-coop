@@ -10,9 +10,9 @@ local M={}
 local ROW={} -- Options' rows by setting.
 for _,row in ipairs(Options.OPTIONS) do if row.key then ROW[row.key]=row end end
 -- The rows in order: headers, settings, then Start and Back. under: shown while that setting is on. Options' own show
--- holds too: Friends join without asking under Public and Invitation only.
+-- holds too: Friends join without asking under Public and Invitation only. Players: max_players, 2 to 4.
 local E='shared_enemies'
-local LAYOUT={{head='session'},{key='who_can_join'},{key='friends_ask'},{head='rules'},{key=E},
+local LAYOUT={{head='session'},{key='who_can_join'},{key='friends_ask'},{key='max_players'},{head='rules'},{key=E},
     {key='same_place',under=E},{key='same_spawns',under=E},{key='enemy_extra',under=E},{key='bosses',under=E},
     {key='enemy_hp_scale',under=E},{key='boss_hp_scale',under=E},{key='aggro',under=E},{key='shared_world'},
     {key='shared_story'},{key='shared_quests'},{key='revive'},{id='start'},{id='back'}}

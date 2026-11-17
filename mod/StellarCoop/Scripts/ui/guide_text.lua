@@ -14,8 +14,8 @@ local G={}
 G.en={
     pages={
         {title='Welcome to Stellar Blade Online',
-         body="Stellar Blade Online lets a friend's EVE join your world over Steam. A session holds 2 players for "
-            ..'now. The goal is 100 players.\nOpen this guide again at any time from the co-op menu (F5).'},
+         body="Stellar Blade Online lets a friend's EVE join your world over Steam. A session holds up to 4 "
+            ..'players for now. The goal is 100 players.\nOpen this guide again at any time from the co-op menu (F5).'},
         {title='Play together',
          body='Press F5 in the world to open the co-op menu (hold View on a controller). Its first row, Host a '
             ..'session, opens Create a session: pick Who can join and the session rules, then Start. Find a session '
@@ -65,8 +65,8 @@ G.fr={
     pages={
         {title='Bienvenue dans Stellar Blade Online',
          body="Stellar Blade Online permet à l'EVE d'un ami de rejoindre votre monde via Steam. Une session "
-            .."accueille 2 joueurs pour l'instant. Le but est d'atteindre 100 joueurs.\nRouvrez ce guide à tout "
-            ..'moment depuis le menu co-op (F5).'},
+            .."accueille jusqu'à 4 joueurs pour l'instant. Le but est d'atteindre 100 joueurs.\nRouvrez ce guide à "
+            ..'tout moment depuis le menu co-op (F5).'},
         {title='Jouer ensemble',
          body='Dans le monde du jeu, appuyez sur F5 pour ouvrir le menu co-op (maintenez View à la manette). Sa '
             ..'première ligne, Héberger une session, ouvre Créer une session : choisissez Qui peut rejoindre et les '
@@ -121,8 +121,8 @@ G.fr={
 G.ar={
     pages={
         {title='مرحبًا بك في Stellar Blade Online',
-         body='يتيح Stellar Blade Online لـ EVE صديقك الانضمام إلى عالمك عبر Steam. تتسع الجلسة حاليًا للاعبَين اثنين. '
-            ..'والهدف هو 100 لاعب.\nيمكنك فتح هذا الدليل مجددًا في أي وقت من قائمة اللعب التعاوني (F5).'},
+         body='يتيح Stellar Blade Online لـ EVE صديقك الانضمام إلى عالمك عبر Steam. تتسع الجلسة حاليًا لما يصل إلى '
+            ..'4 لاعبين. والهدف هو 100 لاعب.\nيمكنك فتح هذا الدليل مجددًا في أي وقت من قائمة اللعب التعاوني (F5).'},
         {title='اللعب معًا',
          body='اضغط F5 في عالم اللعبة لفتح قائمة اللعب التعاوني (أو اضغط مطولًا على View في يد التحكم). الخيار الأول، '
             ..'"استضافة جلسة"، يفتح "إنشاء جلسة": اختر "من يمكنه الانضمام" وقواعد الجلسة، ثم "بدء". ويعرض "البحث عن '
@@ -169,9 +169,9 @@ G.ar={
 G.da={
     pages={
         {title='Velkommen til Stellar Blade Online',
-         body='Stellar Blade Online lader en vens EVE komme ind i din verden via Steam. En session har plads til 2 '
-            ..'spillere indtil videre. Målet er 100 spillere.\nÅbn denne guide igen når som helst fra co-op-menuen '
-            ..'(F5).'},
+         body='Stellar Blade Online lader en vens EVE komme ind i din verden via Steam. En session har plads '
+            ..'til op til 4 spillere indtil videre. Målet er 100 spillere.\nÅbn denne guide igen når som helst fra '
+            ..'co-op-menuen (F5).'},
         {title='Spil sammen',
          body='Tryk på F5 i spilverdenen for at åbne co-op-menuen (hold View nede på en controller). Det første '
             ..'punkt, Vær vært for en session, åbner Opret en session: vælg Hvem kan deltage og sessionsreglerne. '
@@ -222,8 +222,8 @@ G.de={
     pages={
         {title='Willkommen bei Stellar Blade Online',
          body='Mit Stellar Blade Online kann die EVE eines Freundes über Steam deiner Welt beitreten. Eine Sitzung '
-            ..'fasst vorerst 2 Spieler. Das Ziel sind 100 Spieler.\nDiese Anleitung kannst du jederzeit im Koop-Menü '
-            ..'(F5) wieder öffnen.'},
+            ..'fasst vorerst bis zu 4 Spieler. Das Ziel sind 100 Spieler.\nDiese Anleitung kannst du jederzeit im '
+            ..'Koop-Menü (F5) wieder öffnen.'},
         {title='Zusammen spielen',
          body='Drück in der Spielwelt F5, um das Koop-Menü zu öffnen (am Controller View gedrückt halten). Die erste '
             ..'Zeile, „Sitzung hosten“, öffnet „Sitzung erstellen“: Wähl dort „Wer darf beitreten“ und die '
@@ -279,7 +279,7 @@ G.es={
     pages={
         {title='Bienvenido a Stellar Blade Online',
          body='Stellar Blade Online permite que la EVE de un amigo se una a tu mundo a través de Steam. Por ahora, '
-            ..'una sesión admite 2 jugadores. El objetivo es llegar a 100.\nPuedes volver a abrir esta guía en '
+            ..'una sesión admite hasta 4 jugadores. El objetivo es llegar a 100.\nPuedes volver a abrir esta guía en '
             ..'cualquier momento desde el menú co-op (F5).'},
         {title='Jugar juntos',
          body='Pulsa F5 en el mundo del juego para abrir el menú co-op (en el mando, mantén View). Su primera '
@@ -334,8 +334,8 @@ G['es-MX']={
     pages={
         {title='Bienvenido a Stellar Blade Online',
          body='Con Stellar Blade Online, la EVE de un amigo se une a tu mundo a través de Steam. Por ahora, una sesión '
-            ..'admite 2 jugadores. La meta es llegar a 100 jugadores.\nPuedes volver a abrir esta guía cuando quieras '
-            ..'desde el menú co-op (F5).'},
+            ..'admite hasta 4 jugadores. La meta es llegar a 100 jugadores.\nPuedes volver a abrir esta guía cuando '
+            ..'quieras desde el menú co-op (F5).'},
         {title='Jugar juntos',
          body='Presiona F5 en el mundo para abrir el menú co-op (en un control, mantén presionado View). La primera '
             ..'opción, Crear una sesión, abre una pantalla donde eliges Quién puede unirse y las reglas de la '
@@ -391,8 +391,8 @@ G.fi={
     pages={
         {title='Tervetuloa Stellar Blade Onlineen',
          body='Stellar Blade Onlinen avulla kaverin EVE voi liittyä maailmaasi Steamin kautta. Istuntoon mahtuu '
-            ..'toistaiseksi 2 pelaajaa. Tavoite on 100 pelaajaa.\nVoit avata tämän oppaan milloin tahansa uudelleen '
-            ..'co-op-valikosta (F5).'},
+            ..'toistaiseksi enintään 4 pelaajaa. Tavoite on 100 pelaajaa.\nVoit avata tämän oppaan milloin tahansa '
+            ..'uudelleen co-op-valikosta (F5).'},
         {title='Pelatkaa yhdessä',
          body='Avaa co-op-valikko painamalla pelimaailmassa F5 (ohjaimella pidä View-painiketta pohjassa). Sen '
             ..'ensimmäinen rivi, Isännöi istuntoa, avaa näkymän Luo istunto: valitse Kuka voi liittyä ja istunnon '
@@ -445,8 +445,8 @@ G.it={
     pages={
         {title='Benvenuti in Stellar Blade Online',
          body="Con Stellar Blade Online l'EVE di un amico entra nel tuo mondo tramite Steam. Per ora una sessione "
-            .."ospita 2 giocatori. L'obiettivo è 100 giocatori.\nPuoi riaprire questa guida in qualsiasi momento dal "
-            ..'menu co-op (F5).'},
+            .."ospita fino a 4 giocatori. L'obiettivo è 100 giocatori.\nPuoi riaprire questa guida in qualsiasi "
+            ..'momento dal menu co-op (F5).'},
         {title='Giocare insieme',
          body='Nel mondo di gioco premi F5 per aprire il menu co-op (sul controller tieni premuto View). La prima '
             ..'riga, «Ospita una sessione», apre «Crea una sessione»: scegli «Chi può unirsi» e le regole della '
@@ -501,7 +501,7 @@ G.ja={
     pages={
         {title='Stellar Blade Onlineへようこそ',
          body='Stellar Blade Onlineでは、フレンドのEVEがSteam経由であなたの世界に参加できます。現在、'
-            ..'1セッションの人数は2人です。目標は100人です。\nこのガイドは協力プレイメニュー（F5）'
+            ..'1セッションの人数は最大4人です。目標は100人です。\nこのガイドは協力プレイメニュー（F5）'
             ..'からいつでも開けます。'},
         {title='一緒に遊ぶ',
          body='ゲームプレイ中にF5を押すと協力プレイメニューが開きます（コントローラーではViewを長押し）。'
@@ -553,7 +553,7 @@ G.ja={
 G.ko={
     pages={
         {title='Stellar Blade Online에 어서 오세요',
-         body='Stellar Blade Online에서는 친구의 EVE가 Steam을 통해 내 월드에 참가합니다. 현재 세션 하나에 2명까지 '
+         body='Stellar Blade Online에서는 친구의 EVE가 Steam을 통해 내 월드에 참가합니다. 현재 세션 하나에 4명까지 '
             ..'플레이할 수 있습니다. 목표는 100명입니다.\n이 가이드는 언제든 코옵 메뉴(F5)에서 다시 열 수 있습니다.'},
         {title='함께 플레이하기',
          body="월드에서 F5를 누르면 코옵 메뉴가 열립니다(컨트롤러는 View 길게 누르기). 첫 번째 항목 '세션 열기'는 "
@@ -603,8 +603,8 @@ G.nl={
     pages={
         {title='Welkom bij Stellar Blade Online',
          body='Met Stellar Blade Online komt de EVE van een vriend via Steam in jouw wereld. Een sessie heeft '
-            ..'voorlopig plaats voor 2 spelers. Het doel is 100 spelers.\nJe kunt deze gids altijd opnieuw openen '
-            ..'via het co-opmenu (F5).'},
+            ..'voorlopig plaats voor maximaal 4 spelers. Het doel is 100 spelers.\nJe kunt deze gids altijd opnieuw '
+            ..'openen via het co-opmenu (F5).'},
         {title='Samen spelen',
          body='Druk in de gamewereld op F5 om het co-opmenu te openen (houd View ingedrukt op een controller). De '
             ..'eerste regel, Een sessie hosten, opent Een sessie maken: kies Wie mag meedoen en de sessieregels, '
@@ -656,8 +656,8 @@ G.no={
     pages={
         {title='Velkommen til Stellar Blade Online',
          body='Med Stellar Blade Online kan en venns EVE bli med i verdenen din via Steam. Foreløpig har en økt '
-            ..'plass til 2 spillere. Målet er 100 spillere.\nDu kan åpne denne veiledningen igjen når som helst fra '
-            ..'co-op-menyen (F5).'},
+            ..'plass til opptil 4 spillere. Målet er 100 spillere.\nDu kan åpne denne veiledningen igjen når som helst '
+            ..'fra co-op-menyen (F5).'},
         {title='Spill sammen',
          body='Trykk på F5 i spillverdenen for å åpne co-op-menyen (hold inne View på en kontroller). Den første '
             ..'raden, «Vær vert for en økt», åpner «Opprett en økt»: velg «Hvem kan bli med» og reglene for økten, '
@@ -708,8 +708,8 @@ G.pl={
     pages={
         {title='Witaj w Stellar Blade Online',
          body='Stellar Blade Online pozwala EVE znajomego dołączyć do twojego świata przez Steam. Na razie sesja '
-            ..'mieści 2 graczy. Celem jest 100 graczy.\nTen poradnik możesz otworzyć ponownie w każdej chwili z menu '
-            ..'co-op (F5).'},
+            ..'mieści do 4 graczy. Celem jest 100 graczy.\nTen poradnik możesz otworzyć ponownie w każdej chwili z '
+            ..'menu co-op (F5).'},
         {title='Wspólna gra',
          body='W świecie gry naciśnij F5, aby otworzyć menu co-op (na padzie przytrzymaj View). Pierwsza pozycja, '
             ..'„Utwórz sesję”, otwiera ekran, na którym wybierasz „Kto może dołączyć” i zasady sesji, a potem '
@@ -760,8 +760,8 @@ G.pt={
     pages={
         {title='Bem-vindo ao Stellar Blade Online',
          body='O Stellar Blade Online permite que a EVE de um amigo entre no teu mundo através do Steam. Por agora, '
-            ..'uma sessão aceita 2 jogadores. O objetivo é chegar aos 100 jogadores.\nPodes voltar a abrir este guia a '
-            ..'qualquer momento no menu co-op (F5).'},
+            ..'uma sessão aceita até 4 jogadores. O objetivo é chegar aos 100 jogadores.\nPodes voltar a abrir este '
+            ..'guia a qualquer momento no menu co-op (F5).'},
         {title='Jogar em conjunto',
          body='Prime F5 no mundo para abrir o menu co-op (num comando, mantém View premido). A primeira opção, Criar '
             ..'uma sessão, abre um ecrã onde escolhes Quem pode entrar e as regras da sessão; depois escolhe '
@@ -815,7 +815,7 @@ G['pt-BR']={
     pages={
         {title='Boas-vindas ao Stellar Blade Online',
          body='O Stellar Blade Online deixa a EVE de um amigo entrar no seu mundo pelo Steam. Por enquanto, uma '
-            ..'sessão tem 2 jogadores. A meta é chegar a 100 jogadores.\nAbra este guia de novo quando quiser pelo '
+            ..'sessão tem até 4 jogadores. A meta é chegar a 100 jogadores.\nAbra este guia de novo quando quiser pelo '
             ..'menu co-op (F5).'},
         {title='Jogar junto',
          body='Aperte F5 no mundo do jogo para abrir o menu co-op (segure View no controle). A primeira linha, '
@@ -870,8 +870,8 @@ G.ru={
     pages={
         {title='Добро пожаловать в Stellar Blade Online',
          body='Stellar Blade Online позволяет EVE вашего друга присоединиться к вашему миру через Steam. Пока в '
-            ..'сессии может быть 2 игрока. Цель — 100 игроков.\nЭто руководство можно снова открыть в любой момент в '
-            ..'меню кооператива (F5).'},
+            ..'сессии может быть до 4 игроков. Цель — 100 игроков.\nЭто руководство можно снова открыть в любой момент '
+            ..'в меню кооператива (F5).'},
         {title='Совместная игра',
          body='Нажмите F5 в игровом мире, чтобы открыть меню кооператива (на контроллере удерживайте View). Первая '
             ..'строка, "Создать сессию", открывает экран, где вы выбираете "Кто может присоединиться" и правила '
@@ -924,8 +924,9 @@ G.ru={
 G.sv={
     pages={
         {title='Välkommen till Stellar Blade Online',
-         body='Med Stellar Blade Online kan en väns EVE gå med i din värld via Steam. Just nu rymmer en session 2 '
-            ..'spelare. Målet är 100 spelare.\nÖppna den här guiden igen när som helst från co-op-menyn (F5).'},
+         body='Med Stellar Blade Online kan en väns EVE gå med i din värld via Steam. Just nu rymmer en session '
+            ..'upp till 4 spelare. Målet är 100 spelare.\nÖppna den här guiden igen när som helst från '
+            ..'co-op-menyn (F5).'},
         {title='Spela tillsammans',
          body='Tryck på F5 i spelvärlden för att öppna co-op-menyn (håll in View på handkontrollen). Första raden, '
             ..'Bli värd för en session, öppnar Skapa en session: välj Vem kan gå med och sessionsreglerna, sedan '
@@ -975,7 +976,7 @@ G.sv={
 G.th={
     pages={
         {title='ยินดีต้อนรับสู่ Stellar Blade Online',
-         body='Stellar Blade Online ให้ EVE ของเพื่อนเข้ามาในโลกของคุณผ่าน Steam ตอนนี้เซสชันหนึ่งรองรับผู้เล่น 2 คน เป้าหมายคือ 100 '
+         body='Stellar Blade Online ให้ EVE ของเพื่อนเข้ามาในโลกของคุณผ่าน Steam ตอนนี้เซสชันหนึ่งรองรับผู้เล่นได้สูงสุด 4 คน เป้าหมายคือ 100 '
             ..'คน\nเปิดคู่มือนี้อีกครั้งได้ทุกเมื่อจากเมนู co-op (F5)'},
         {title='เล่นด้วยกัน',
          body='กด F5 ในโลกของเกมเพื่อเปิดเมนู co-op (บนคอนโทรลเลอร์ให้กด View ค้างไว้) แถวแรก [โฮสต์เซสชัน] จะเปิด [สร้างเซสชัน] '
@@ -1018,7 +1019,7 @@ G.tr={
     pages={
         {title="Stellar Blade Online'a hoş geldin",
          body="Stellar Blade Online, bir arkadaşının EVE'sinin Steam üzerinden senin dünyana katılmasını sağlar. "
-            ..'Şimdilik bir oturumda 2 oyuncu olabilir. Hedef 100 oyuncu.\nBu rehberi istediğin zaman co-op '
+            ..'Şimdilik bir oturumda en fazla 4 oyuncu olabilir. Hedef 100 oyuncu.\nBu rehberi istediğin zaman co-op '
             ..'menüsünden (F5) yeniden açabilirsin.'},
         {title='Birlikte oyna',
          body="Co-op menüsünü açmak için oyun dünyasında F5'e bas (kumandada View'u basılı tut). İlk satırdaki "
@@ -1069,7 +1070,7 @@ G.tr={
 G['zh-Hans']={
     pages={
         {title='欢迎来到Stellar Blade Online',
-         body='Stellar Blade Online让好友的EVE通过Steam加入你的世界。目前一个房间最多2名玩家，目标是100名。\n'
+         body='Stellar Blade Online让好友的EVE通过Steam加入你的世界。目前一个房间最多4名玩家，目标是100名。\n'
             ..'随时可在合作菜单（F5）中再次打开本指南。'},
         {title='一起玩',
          body='在游戏世界中按F5打开合作菜单（手柄上按住View）。第一行“创建房间”会打开设置界面：选择“谁可以加入”'
@@ -1111,7 +1112,7 @@ G['zh-Hans']={
 G['zh-Hant']={
     pages={
         {title='歡迎來到Stellar Blade Online',
-         body='Stellar Blade Online讓好友的EVE透過Steam加入你的世界。目前一個房間最多2名玩家。目標是100名玩家。'
+         body='Stellar Blade Online讓好友的EVE透過Steam加入你的世界。目前一個房間最多4名玩家。目標是100名玩家。'
             ..'\n隨時可從合作選單（F5）再次開啟本指南。'},
         {title='一起遊玩',
          body='在遊戲世界中按F5開啟合作選單（控制器請長按View）。第一項「建立房間」會開啟設定畫面：選擇「誰可以加入」'

@@ -172,7 +172,7 @@ fake_link={
     wait=function() return link_wait end,
     stranger=function() return link_stranger end,
     lobby=function() return link_lobby end,
-    ping=function() return ping_ms end,
+    ping=function() return friend_linked and ping_ms or nil end, -- The real one: none before she is linked.
     mate=function() return mate_v end,
     paks=function() return paks_v end,
     mods=function() return mods_v end,
@@ -210,6 +210,17 @@ fake_link.life=function() return fake_link.Q.life end -- link.life(): our life s
 fake_link.friend=function() return friend_name,friend_linked,fake_link.lost==true end
 fake_link.member=function(id) return nil end -- link.member(id): no member line in these tests.
 fake_link.members=function() return {} end
+-- link.pendings(): link_pending alone; link.host() and link.vitals(): none; link.cap(): link_cap; link.others(): the
+-- friend while linked plus each member line linked past slot 0.
+fake_link.pendings=function() return {link_pending} end
+fake_link.host=function() return nil end
+fake_link.vitals=function() return nil end
+fake_link.cap=function() return link_cap end
+fake_link.others=function()
+    local n=friend_linked and 1 or 0
+    for _,m in ipairs(fake_link.members()) do if m.linked and m.slot~=0 then n=n+1 end end
+    return n
+end
 -- link.list(): the session list's search line and rows (list_search, list_rows).
 list_search,list_rows=nil,{}
 fake_link.list=function() return list_search,list_rows end

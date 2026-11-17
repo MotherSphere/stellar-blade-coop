@@ -26,6 +26,7 @@
 local U=require('core.unreal')
 local N=require('nightop.probe')
 local R=require('nightop.recruiter')
+local others=require('core.link').crowd
 local Roxanne={}
 local CHOICES='/Game/Local/Data/TheaterSelectDataTable.TheaterSelectDataTable'
 local XION='/game/art/bg/worldmap/level_p/e04'
@@ -209,6 +210,11 @@ function Roxanne.new(o)
         if raw:match('\nlink=(%a+)')=='guest' then
             log('roxanne: '..r.level..' picked as a guest: the host starts a co-op run')
             if tell then tell(function(w) return w.night.host_only end) end
+            return
+        end
+        if others(raw)>1 then -- Night Operation's run is for two (the native part sends no night line past 2).
+            log('roxanne: '..r.level..' picked in a session of more than 2 players: not booked')
+            if tell then tell(function(w) return w.night.pair_only end) end
             return
         end
         booked={level=r.level,next=now}

@@ -42,6 +42,7 @@ local T=require('ui.text')
 local Shop=require('nightop.shop')
 local C=require('nightop.challenges')
 local Board=require('nightop.board')
+local crowd=require('core.link').crowd
 local Run={}
 -- The definitions a co-op run can carry, by the word on the host's night line: Night Operation's levels and each
 -- challenge marked coop, under its id.
@@ -237,6 +238,7 @@ function Run.result(s,w,game,best)
     elseif s.outcome=='failed' and s.reason then sub=s.reason==s.role and n.you_died or n.mate_died
     elseif s.outcome=='failed' then sub=game('UI_Night_OperationFail_Des') or n.died
     elseif s.outcome=='time' then sub=n.time_up
+    elseif s.outcome=='aborted' and s.reason=='crowd' then sub=n.pair_only
     elseif s.outcome=='aborted' then
         local key=WHY[s.reason] or 'stop'
         sub=key=='stop' and not s.def.level and c.stopped or n.why[key]
@@ -904,12 +906,14 @@ function Run.new(o)
         -- The abort watch, every tick, paused or not. Adapted from Survival Protocol's arena exit (80 m for 10 s) and
         -- its map-load hygiene: a map change or a death drops every handle without a read. slot=none means no EVE
         -- (a load, the title): the gone rule decides. A new world on the same map restarts the game clock. A solo run
-        -- ends when a Steam session starts; a co-op one when the session ends or the partner's line stops. A status not
+        -- ends when a Steam session starts; a co-op one when a third player is in the session (crowd: the native part
+        -- sends no night line past 2 players), when the session ends or when the partner's line stops. A status not
         -- read (no link= word) ends nothing: the partner's line still has to come within QUIET ticks.
         local slot=raw:match('\nslot=(%a+)')
         local now
         if slot and slot~='coop' and slot~='none' then input.abort='slot'
         elseif not r.role and mode and mode~='none' then input.abort='link'
+        elseif r.role and crowd(raw)>1 then input.abort='crowd'
         elseif r.role and (mode and mode~=r.role or r.quiet>=QUIET) then input.abort='lost'
         elseif not eve then
             r.gone=r.gone+1
@@ -980,6 +984,7 @@ function Run.new(o)
             return false,name_of(def)..' is solo for now: leave the Steam session first (coop leave)'
         end
         if linked=='guest' then return false,'the host starts a co-op run' end
+        if crowd(raw)>1 then return false,'Night Operation runs with 2 players at most; this session has '..(crowd(raw)+1) end
         if linked=='host' and not raw:find('\nfriend=1 0 ',1,true) then
             return false,'no partner linked yet: a co-op run starts once they are'
         end

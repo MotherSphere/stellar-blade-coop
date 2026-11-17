@@ -15,14 +15,21 @@ player's quest unit (the quest manager at `0x147037428`, its unit from `FUN_141c
 latch. The pass walks the unit's three quest arrays (in progress, complete, failed) and its ID map, and for each shared
 quest reads its state, its active group and the state of each task the game made for it. Before each pass and each call
 it checks that it is not on the game's logic worker thread (whose ID the game keeps at `0x1470683b0`) and that the save
-is still the co-op save it started on: another save ends the side with `SBQ22 off slot` (the worker starts a new one
+is still the co-op save it started on: another save ends the side with `SBQ23 off slot` (the worker starts a new one
 on the next co-op save), while a load (the title screen, a map change) only pauses it.
 
+- In an online session of more than 2 players, the host's side runs one `quest::Host` per guest linked past the
+  handshake, in the order they came. The pass reads his quests once and feeds every Host. Each Host keeps its guest's
+  `h` lines in the one record of the co-op slot. It sends her our `on`, her own snapshot and her lines. A guest who
+  comes gets a Host and our `on` line; one who leaves loses hers. Neither starts the side again. Only the pair's step
+  lines are taken (story together runs within the pair): the host's game makes a step the pair made first. His
+  next read brings it to the others. Any other guest sends none. Her quest stays ahead of the host's until his game
+  makes that step. The host's ahead notice names her (`quest_note=` carries her SteamID).
 - The host reads his quests. Each quest whose state changed goes to the guest as one reliable line on channel 2 with
-  the whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ22 q <gen> <seq> <id> <state>
+  the whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ23 q <gen> <seq> <id> <state>
   <acquire mark> <finished groups> <tasks done> <done mark>`. A group or a task is named by its place (container and
   position), which the game builds the same on both PCs from the same tables. He also makes a step the guest made
-  first. Her `SBQ22 step <gen> <seq> <id> <state> <acquire mark> <finished groups> <tasks done> <done mark> <zone>`
+  first. Her `SBQ23 step <gen> <seq> <id> <state> <acquire mark> <finished groups> <tasks done> <done mark> <zone>`
   line holds her quest's state after the step and the zone she made it in. His pass judges it with `accept()`, then
   `apply()` makes it on his own unit (see
   [Story together: how it works](story-sync.md#quest-steps-the-guest-makes-first)).
@@ -69,6 +76,10 @@ game yet.
 
 - The guest's Lua sends `camps? <id>` when she presses F7 (`follow_key`) or types `coop travel host`, and with
   `follow_host=always` 5 s after the host arrived somewhere new. It sends one at most each 2.5 s.
+- In an online session of more than 2 players, each guest asks the host only and reads the host's map and place from
+  the ghost in the slot of the host's `member=` line (slot 0, `main.lua`'s puppet, on every guest). The host's Lua
+  answers while any guest is linked, by the number its native part gave each request. That part sends the answer to
+  the guest who asked alone, with her own number (see [The camps lines](steam-link.md#the-camps-lines)).
 - The host's Lua answers from the game's spawn points on its map: those named after one of the travel camps of its
   world, read once a map, sorted by distance to the host's EVE. The answer names the world and the 8 nearest, or
   `none` with `title`, `loading`, `nocamp` or `busy` (a warp or respawn of the host's under way).
@@ -176,9 +187,10 @@ build 26123051's, and the hook is never installed off the pinned build.
 ## A player down
 
 Each game reads its own EVE's life state with its vitals (`life=` in `coop status`) and the friend's from her vit line:
-down in life state 3 to 5 or at 0 HP, alive in 1 or 6, unknown in any other state or when no vit line came for 3 s. The
-native worker hands the friend's state to the shared fight's job as a local message, on each change and once a second.
-It never goes on the wire.
+down in life state 3 to 5 or at 0 HP, alive in 1 or 6, unknown in any other state or when no vit line came for 3 s. In
+an online session of more than 2 players, Lua reads each member's from her `vit=` status line (the slot-0 member's
+from `mate=`). The native worker hands the pair's state to the shared fight's job as a local message, on each change
+and once a second. It never goes on the wire.
 
 - On the host, while the guest's EVE is down, each same-place pair she owns comes back to the host at the next turn,
   guards or not, if the enemy stands within 30 m of the host's EVE, and stays his while she is down. While the host's
@@ -196,7 +208,10 @@ It never goes on the wire.
 ### Revive
 
 The revive runs on the downed player's side (`session/group.lua`, every 250 ms) and sends nothing: her game reads its
-own state, the friend's vitals and the friend's ghost. The friend's game calls nothing.
+own state, the friend's vitals and the friend's ghost. The friend's game calls nothing. In an online session of more
+than 2 players, every member past the handshake counts as a friend: her vitals from `vit=` (or `mate=` for slot 0) and
+her ghost from her slot (`main.lua`'s puppet for slot 0, `partner/ghosts.lua`'s for slots 1 to 6). The nearest member
+alive within the distance revives; the wait notice names the first member alive on her map while none is near enough.
 
 - These conditions must hold for 3 s with no gap: the downed player's `revive=on`; her life state 3 and the death
   screen's animation playing (the lookup Night Operation's solo run uses, in `core/unreal.lua`); `warp=idle` on the
@@ -215,7 +230,10 @@ own state, the friend's vitals and the friend's ghost. The friend's game calls n
   pawn is the same.
 - The friend's game shows its notices from her vitals: `<name> is down. Stand next to them for 3 s to revive them.`
   once per death, while the friend's own EVE is alive, on her map and outside a boss fight; and `You revived <name>.`
-  when her vitals turn alive while the friend's EVE stands within 3 m of her ghost.
+  when her vitals turn alive while the friend's EVE stands within 3 m of her ghost. With more than 2 players, each
+  game shows them for the host and the pair only (`host=` line's `id` and `pair`): a guest outside the pair has no
+  `boss=0` on her `fight=` line, as her shared fight never runs, so her game never makes the call. Her own game logs
+  `revive waits: no shared fight` and shows no wait notice. It shows no down notice either, for the same reason.
 - `coop revive test` makes the same call alone, at the death screen of a co-op save outside a session, for the first
   in-game check.
 - With both players down, nobody can revive. Each respawns at a camp in their own game, each world resets on its own,
@@ -260,8 +278,10 @@ reflection data, so Lua cannot read it.
 
 While a cutscene plays in the host's game and its own photo state is `0`, the host's Lua writes `c` as its photo state,
 and its photo line carries `c`. The guest's Lua writes `cut=1` in `coop-state.txt` while her `cutscene_wait` is on and
-the host's ghost is on her map. Her native part then holds the photo sync pause for that `c`, with the photo pause's
-release rules and `photo_freeze_max`; `photo_sync` plays no part in it. With story together on, the pause is not held
+the host's ghost (the one in the slot of the host's `member=` line) is on her map. Her native part then holds the photo
+sync pause for that `c`, with the photo pause's release rules and `photo_freeze_max`; `photo_sync` plays no part in it.
+With more than 2 players, the host's photo line pauses each guest that asks for it, the pair or not: a guest's native
+part follows the host's line only (`Link::leader()`). With story together on, the pause is not held
 while a shared scene starts or plays in her game or a scene line of the host's waits for her next pass (`story_scene`,
 see [Story together: how it works](story-sync.md#the-guests-side)). The native part shows no notice for it, and her
 Lua shows one in her language, once per pause. A cutscene in the guest's game pauses nothing on the host's side.

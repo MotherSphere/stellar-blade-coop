@@ -264,25 +264,33 @@ int main() {
     assert(std::find(chat.begin(), chat.end(), "in 2002 hello") != chat.end());
   }
   // The slot-0 member leaves a match lobby of three: link 0's friend= line goes while P3 stays linked, and our chat
-  // line still reaches her (Lua's chat asks the member= lines who hears it, not friend=).
+  // line still reaches her (Lua's chat asks the member= lines who hears it, not friend=). No member's vitals reach a
+  // status there (no mate=, no vit=). Only the owner hears who left.
   reset();
   {
     Mesh m(3);
     match_of(m, 3);
     assert(slot_of(m[0], kFriend) == 0 && slot_of(m[0], kPlayer[2]) == 1);
+    for (int i = 0; i < 3; ++i)
+      m[i].vitals(Vitals{uint32_t(100 + i), 500, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1});
+    m.round();
+    for (int i = 0; i < 3; ++i)
+      assert(m.status(i).find("\nvit=") == std::string::npos && m.status(i).find("\nmate=") == std::string::npos);
     m.tick(1, "leave");
     m.round();
     const std::string s = m.status(0);
+    assert(noticed(s, "P2 left.") && !noticed(m.status(2), "P2 left."));
     assert(s.find("\nfriend=") == std::string::npos && member_field(s, kPlayer[2], 2) == "1" && m[0].chatting());
     assert(m[0].say("still here"));
     m.round();
     assert(contains(m[2].take_chat(), "in " + std::to_string(kMe) + " still here"));
   }
-  // A co-op lobby still holds two: the third join is refused full and the host keeps her partner.
+  // An online session holds its host's max_players: with 2, the third join is refused full and the host keeps her
+  // partner.
   reset();
   {
     Mesh m(3);
-    m.tick(0, "host");
+    m.tick(0, "host 2");
     m.round();
     m.tick(1, "join " + std::to_string(m[0].lobby()));
     assert(m.settle(2));
@@ -343,7 +351,7 @@ int main() {
   {
     Mesh m(1);
     lobby_of(7000, kPlayer[7], kPublic,
-             {{kLobbyKey, "21:24463856"}, {kModeKey, "ffa"}, {kStateKey, "open"}, {kHallKey, "xion"}});
+             {{kLobbyKey, "22:24463856"}, {kModeKey, "ffa"}, {kStateKey, "open"}, {kHallKey, "xion"}});
     m.tick(0, "match search ffa xion xion");
     m.round();
     m.round();
@@ -1093,8 +1101,8 @@ int main() {
     assert(sent_poses(kMe, kPlayer[1]) - before[0] == 20); // cap 20
     assert(sent_poses(kMe, kPlayer[2]) - before[1] == 60); // cap 60
     assert(sent_poses(kMe, kPlayer[3]) - before[2] == 32); // cap 30: 28 deltas and the 4 keyframes
-    // Tables always go: a reliable "SBT x" right after a pose reaches all three, and so does an SBE; neither moves
-    // the next delta's time. A delta at that time reaches none.
+    // Tables always go: a reliable "SBT x" right after a pose reaches all three. An SBE reaches none, as a match lobby
+    // has no pair. Neither moves the next delta's time. A delta at that time reaches none.
     uint64_t due[3];
     for (int i = 0; i < 3; ++i)
       due[i] = peer_of(m[0], kPlayer[i + 1]).pose_due;
@@ -1102,7 +1110,7 @@ int main() {
     send_binary(m[0], "SBE x", false);
     send_binary(m[0], "SBD late", false);
     for (int i = 0; i < 3; ++i)
-      assert(sent_binary(kMe, kPlayer[i + 1], "SBT x") == 1 && sent_binary(kMe, kPlayer[i + 1], "SBE x") == 1 &&
+      assert(sent_binary(kMe, kPlayer[i + 1], "SBT x") == 1 && sent_binary(kMe, kPlayer[i + 1], "SBE x") == 0 &&
              sent_binary(kMe, kPlayer[i + 1], "SBD late") == 0 && peer_of(m[0], kPlayer[i + 1]).pose_due == due[i]);
     // The 60 s line: after the first one, 60 s of 50 ms passes on link 0 read "1200 passes, 0 full receive batches".
     const int lines = count("P1: link, last 60 s: ");

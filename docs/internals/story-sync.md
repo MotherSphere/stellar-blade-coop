@@ -12,7 +12,7 @@ The code is split as for the [shared world](shared-world.md):
   and fake memory in the tests;
 - `native/src/glue/tick/story_game.inc`: the hooks and each frame's pass on the game thread;
 - `native/src/glue/tick/story_worker.inc`: Lua's request, the slot swaps, channel 2 and the status line on the worker;
-- `native/src/quest/sync.h` and `quest/engine.h`: the guest's quest steps the host makes (`SBQ22 step`);
+- `native/src/quest/sync.h` and `quest/engine.h`: the guest's quest steps the host makes (`SBQ23 step`);
 - `mod/StellarCoop/Scripts/commands/scenes.lua` and `main.lua`: the setting, `coop scenes` and the notices.
 
 ## Model
@@ -93,25 +93,25 @@ Another game build needs the block written again from that build's tables.
 
 ## Wire
 
-The lines go on Steam channel 2, reliable, after the tag `SBS22`. Names are FName text, found with FName's find on the
+The lines go on Steam channel 2, reliable, after the tag `SBS23`. Names are FName text, found with FName's find on the
 receiving side and never made. `scene` is the host's own number for one play of a scene. `take` is a TakeUID. `n` is
 the ordinal of a widget's block within its take, the same in both games since both build the blocks from one
 sequence.
 
 | Line | Meaning |
 | --- | --- |
-| `SBS22 play <seq> <scene> <zone> <row> <take>` | a zone-event scene: its ZoneEventTable row and first take |
-| `SBS22 talk <seq> <scene> <zone> <path> <priority> <x> <y> <z> <pitch> <yaw> <roll> <take>` | a talk: its theater path, priority, place (whole centimetres, hundredths of a degree) and first take |
-| `SBS22 pos <seq> <scene> <take> <sequence> <frame> <0\|1>` | the host's place; 1 while his player plays |
-| `SBS22 sel <seq> <scene> <take> <n> <alias\|-> <exec\|->` | an InteractionSelect: the line's TakeAlias and graph exec, `-` for None, never both |
-| `SBS22 pch <seq> <scene> <take> <n> <index>` | a PlayerChoice: the index chosen |
-| `SBS22 qte <seq> <scene> <take> <n> <count> <0\|1>` | a QTE: the presses counted, 1 for a forced success |
-| `SBS22 cnt <seq> <scene> <take> <n> <count> <0\|1> <bits> <0\|1>` | an InputCounter: the same, its Flow results, then 1 when his take skip had run |
-| `SBS22 skip <seq> <scene> <take> seek <frame>` | a skip that moved him within the take |
-| `SBS22 skip <seq> <scene> <take> take <next>` | a skip that finished the take: the next take, -1 for the end |
-| `SBS22 end <seq> <scene>` | his scene ended |
-| `SBS22 trip <seq> <zone> <row>` | a story trip a graph ran |
-| `SBS22 on <hooks>`, `SBS22 on reply <hooks>`, `SBS22 off <reason>` | the sender's state, as the shared world's; hooks: 1, 2 and 4 added for hooks 1 to 3 in |
+| `SBS23 play <seq> <scene> <zone> <row> <take>` | a zone-event scene: its ZoneEventTable row and first take |
+| `SBS23 talk <seq> <scene> <zone> <path> <priority> <x> <y> <z> <pitch> <yaw> <roll> <take>` | a talk: its theater path, priority, place (whole centimetres, hundredths of a degree) and first take |
+| `SBS23 pos <seq> <scene> <take> <sequence> <frame> <0\|1>` | the host's place; 1 while his player plays |
+| `SBS23 sel <seq> <scene> <take> <n> <alias\|-> <exec\|->` | an InteractionSelect: the line's TakeAlias and graph exec, `-` for None, never both |
+| `SBS23 pch <seq> <scene> <take> <n> <index>` | a PlayerChoice: the index chosen |
+| `SBS23 qte <seq> <scene> <take> <n> <count> <0\|1>` | a QTE: the presses counted, 1 for a forced success |
+| `SBS23 cnt <seq> <scene> <take> <n> <count> <0\|1> <bits> <0\|1>` | an InputCounter: the same, its Flow results, then 1 when his take skip had run |
+| `SBS23 skip <seq> <scene> <take> seek <frame>` | a skip that moved him within the take |
+| `SBS23 skip <seq> <scene> <take> take <next>` | a skip that finished the take: the next take, -1 for the end |
+| `SBS23 end <seq> <scene>` | his scene ended |
+| `SBS23 trip <seq> <zone> <row>` | a story trip a graph ran |
+| `SBS23 on <hooks>`, `SBS23 on reply <hooks>`, `SBS23 off <reason>` | the sender's state, as the shared world's; hooks: 1, 2 and 4 added for hooks 1 to 3 in |
 
 `seq` is 1 for the first line after each `on` and one more for each later one. The guest takes them in order: an old
 one is counted as bad and a gap is logged once, so the leash never steps back. Before a line is sent, the sender writes
@@ -122,7 +122,8 @@ match lobby` in the log.
 
 ## The guest's side
 
-The worker takes her `SBS` lines out of channel 2 after the shared world and before the shared fight. It hands them
+The worker takes her `SBS` lines out of channel 2 after the shared world and before the shared fight, from the pair
+only (`Link::partner()`); ours go to the pair only. It hands them
 to the game thread (up to 1,024 waiting there, then dropped and counted as `inbox_dropped=`). The game thread queues
 them in `seq` order, up to 256; a position replaces the position of the same scene just before it, so positions never
 fill the queue. Each pass in game (lion_gate open, the client in game and playing, not on SB's logic thread, our
@@ -198,7 +199,7 @@ this line when her quest moved one SB step past the host's line it equalled, his
 his zone:
 
 ```
-SBQ22 step <gen> <seq> <id> <state> <acq> <groups> <tasks> <done> <zone>
+SBQ23 step <gen> <seq> <id> <state> <acq> <groups> <tasks> <done> <zone>
 ```
 
 The fields after `<id>` are her quest's whole state after the step, as a `q` line has it, then the zone alias she made
@@ -214,6 +215,11 @@ his own unit. SB runs the step's events with his EVE as caster. His next pass se
 of a quest stepped in the same pass waits for his next walk. So does a line while he is out of game, a cutscene of his
 plays or his game is paused (a menu or photo mode), up to 16 waiting lines. A load drops them. Each line gets one log
 line. The host's `coop quests status` answer counts her steps applied and refused.
+
+In an online session of more than 2 players these lines run within the pair only, as story together's `SBS` lines do.
+The worker hands the engine `Link::partner()` (`quest::Engine::pair`). The host's pass drops a step line from any other
+guest with `quests: a step line from guest <SteamID> not taken: her game is not the pair`. A guest whose partner is 0
+sends none: `Guest::lead()` logs `step of hers not sent: she is not the host's pair (more than 2 players)`.
 
 ## Status line
 

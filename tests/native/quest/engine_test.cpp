@@ -30,6 +30,7 @@
 
 using namespace coop::quest;
 using coop::fight_tag;
+using coop::FightLine;
 using coop::parse_request;
 using coop::quest_tag;
 using coop::Request;
@@ -390,12 +391,15 @@ struct Side {
   Engine e;
   std::string slot = kSlot;
   std::vector<std::string> log, lines, recorded;
+  std::vector<uint64_t> to; // The last tick's: to[i], whom its line i goes to (0: every partner).
   std::vector<Note> notes;
-  std::string record, status;
+  std::string record, status, state;
   explicit Side(Setup s = Setup()) { e.on(std::move(s)); }
   std::vector<std::string> tick(uint64_t now) {
     e.tick(pc, kBase, slot, now);
     Out o = e.take();
+    assert(o.to.size() == o.lines.size());
+    to = o.to;
     log.insert(log.end(), o.log.begin(), o.log.end());
     lines.insert(lines.end(), o.lines.begin(), o.lines.end());
     recorded.insert(recorded.end(), o.recorded.begin(), o.recorded.end());
@@ -404,6 +408,7 @@ struct Side {
       record = o.record;
     if (!o.status.empty())
       status = o.status;
+    state = o.state;
     return o.lines;
   }
   void hear(const std::string &line) { e.line(line.data(), line.size()); }
@@ -1060,6 +1065,119 @@ void her_steps() {
   assert(k.h(s1) == k.g(s1) && h.w.v[s1].state == 3 && h.completes == 3 && g.calls == 1);
 }
 
+// An online session of three: the host's side runs one Host per guest (Engine::guests), all fed by one read of his
+// quests each pass, on one record. Each guest gets our on, her own snapshot and the steps made with her, by lines to
+// her alone. A step the first guest (the pair, Engine::pair) makes first is made once in the host's game; his next read
+// brings it to the second guest. The second guest's step line is dropped: only the pair's steps are taken. Told she is
+// no pair, she sends none: her quest stays ahead of the host's. Her ahead line's note on the host names her. The
+// host's state names the first guest whose side is on while he has several. A guest who leaves loses her Host only:
+// the other goes on while the record keeps her h lines. A quest the host takes meanwhile is not hers when she comes
+// back.
+void three_worlds() {
+  constexpr uint64_t kOtherId = 76561198000000003ull;
+  auto host = std::make_unique<Side>(setup(Mode::host, kGuestId));
+  auto first = std::make_unique<Side>(setup(Mode::guest, kHostId));
+  auto second = std::make_unique<Side>(setup(Mode::guest, kHostId));
+  Side &k = *host, &a = *first, &b = *second;
+  Pc &h = k.pc, &ga = a.pc, &gb = b.pc;
+  k.e.guests({kGuestId, kOtherId});
+  const size_t s1 = at("Quest_Sub_001"), s2 = at("Quest_Sub_002");
+  uint64_t now = 1000;
+  int passes = 0;
+  bool away = false; // The second guest left: nothing reaches her.
+  // One pass each: the host's lines to their guest (0: both), then each guest's lines to the host with her SteamID.
+  auto step = [&](int n = 1) {
+    while (n--) {
+      const std::vector<std::string> out = k.tick(now);
+      ++passes;
+      for (size_t i = 0; i < out.size(); ++i) {
+        assert(k.to[i] == 0 || k.to[i] == kGuestId || k.to[i] == kOtherId);
+        if (k.to[i] != kOtherId)
+          a.hear(out[i]);
+        if (k.to[i] != kGuestId && !away)
+          b.hear(out[i]);
+      }
+      for (const std::string &l : a.tick(now))
+        k.e.line(l.data(), l.size(), kGuestId);
+      for (const std::string &l : b.tick(now))
+        if (!away)
+          k.e.line(l.data(), l.size(), kOtherId);
+      now += 250;
+    }
+  };
+  for (Pc *pc : {&h, &ga, &gb})
+    pc->zone("Zone_WLA_30");
+  step(4);
+  assert(k.lines.front() == q("on 0") && k.to.empty() && count(k.log, "quests: snapshot 1, 0 quests") == 2);
+  assert(k.state == "on role=host partner=on with=" + std::to_string(kGuestId));
+  assert(has(a.log, "quests: snapshot 1 complete, 0 quests") && has(b.log, "quests: snapshot 1 complete, 0 quests"));
+  // The host's step reaches both guests from one read a pass.
+  h.acquire(s1);
+  step(4);
+  assert(k.pc.units == passes && a.pc.w.tuple(s1) == h.w.tuple(s1) && b.pc.w.tuple(s1) == h.w.tuple(s1));
+  assert(ga.calls == 1 && gb.calls == 1 && h.calls == 0);
+  assert(has(k.log, "quests: sent " + q("q 1 1 41 1 - - - .") + " to " + std::to_string(kGuestId)) &&
+         has(k.log, "quests: sent " + q("q 1 1 41 1 - - - .") + " to " + std::to_string(kOtherId)));
+  // The pair's step: made once in the host's game; his next read brings it to the second guest.
+  ga.play(s1);
+  step(6);
+  assert(h.calls == 1 && h.completes == 1 && h.w.tuple(s1) == ga.w.tuple(s1) && gb.w.tuple(s1) == h.w.tuple(s1));
+  assert(gb.calls == 2 && ga.calls == 1);
+  // The second guest's step line: dropped. The pair's same step is made, which the second guest holds already.
+  const std::string dropped =
+      "quests: a step line from guest " + std::to_string(kOtherId) + " not taken: her game is not the pair";
+  gb.play(s1);
+  step(6);
+  assert(h.completes == 1 && count(k.log, dropped) == 1 && has(b.log, "step of hers sent: "));
+  ga.play(s1);
+  step(6);
+  assert(h.completes == 2 && h.w.tuple(s1) == ga.w.tuple(s1) && h.w.tuple(s1) == gb.w.tuple(s1));
+  // Told she is no pair, the second guest sends none.
+  b.e.pair(0);
+  gb.play(s1);
+  step(6);
+  assert(h.completes == 2 && count(k.log, dropped) == 1 &&
+         has(b.log, "step of hers not sent: she is not the host's pair (more than 2 players)"));
+  ga.play(s1);
+  step(6);
+  assert(h.completes == 3 && h.w.tuple(s1) == gb.w.tuple(s1));
+  k.e.ask_status();
+  step();
+  assert(k.status.find(", guest " + std::to_string(kGuestId) + ", generation 1, partner on, guest " +
+                       std::to_string(kOtherId) + ", generation 1, partner on, her steps applied 3") !=
+         std::string::npos);
+  k.notes.clear();
+  gb.play(s1);
+  step(12);
+  const auto ahead = std::find_if(k.notes.begin(), k.notes.end(), [](const Note &n) { return n.why == Why::ahead; });
+  assert(ahead != k.notes.end() && ahead->id == kRows[s1].id && ahead->from == kOtherId);
+  ga.play(s1);
+  step(6);
+  assert(h.w.tuple(s1) == gb.w.tuple(s1));
+  // The second guest leaves: her Host goes; the first goes on alone. The record keeps both guests' lines.
+  away = true;
+  k.e.guests({kGuestId});
+  b.e.off("link");
+  step();
+  assert(has(k.log, "quests: guest " + std::to_string(kOtherId) + " left the side") &&
+         k.state == "on role=host partner=on");
+  h.acquire(s2);
+  step(4);
+  assert(ga.w.tuple(s2) == h.w.tuple(s2) && gb.w.v[s2].state <= 0);
+  assert(k.record.find("\nh " + std::to_string(kGuestId) + " 41 ") != std::string::npos &&
+         k.record.find("\nh " + std::to_string(kOtherId) + " 41 ") != std::string::npos &&
+         k.record.find("\nh " + std::to_string(kOtherId) + " 42 ") == std::string::npos);
+  // She comes back: our on to her alone, her snapshot holds her quests only.
+  away = false;
+  b.e.on(setup(Mode::guest, kHostId));
+  k.e.guests({kGuestId, kOtherId});
+  step();
+  assert(has(k.log, "quests: guest " + std::to_string(kOtherId) + " joined the side") &&
+         k.lines.back() == q("on 0") && k.to.back() == kOtherId);
+  step(6);
+  assert(count(k.log, "quests: snapshot 1, 1 quests") == 1 && gb.w.v[s2].state <= 0 && gb.w.tuple(s1) == h.w.tuple(s1));
+}
+
 // The host comes on after her: her first on found nothing running, so the host's on brings her on again, once.
 void late_host() {
   auto two = std::make_unique<Two>();
@@ -1337,12 +1455,16 @@ void record_replay() {
 // the recording, the lines sent, coop-link.log and coop-quests.log.
 struct Desk {
   std::vector<std::string> sent, said, traced;
+  std::vector<uint64_t> sent_to; // sent_to[i]: whom sent[i] went to.
   std::map<int, std::string> records;
   std::map<int, int> loads, saves;
   std::string recording;
   bool has_recording = false, unreadable = false, refuse = false; // refuse: channel 2 takes no line.
   int recording_saves = 0;
-  bool send(const std::string &l) { return !refuse && (sent.push_back(l), true); }
+  bool send(const std::string &l, uint64_t to) {
+    assert(to);
+    return !refuse && (sent.push_back(l), sent_to.push_back(to), true);
+  }
   void say(const std::string &l) { said.push_back(l); }
   void trace(const std::string &l) { traced.push_back(l); }
   bool load(int slot, std::string &text, size_t max) {
@@ -1359,23 +1481,36 @@ struct Desk {
   }
 };
 // One PC as the glue runs it: the game thread's pass, then the worker's, every 250 ms. partner: her SteamID while she
-// is linked, else 0.
+// is linked, else 0; others: on the host, the guests linked after her; unpaired: the link names no pair (partner()
+// 0), as on the host for a pass at least after the pair left while other guests stay.
 struct Desktop {
   Pc pc;
   Engine e;
   Worker w{e};
   Desk io;
   std::string slot = kSlot;
-  bool hosting = false;
+  bool hosting = false, unpaired = false;
   uint64_t partner = 0;
-  std::vector<std::string> in; // Channel 2's lines from her since the last pass.
+  std::vector<uint64_t> others;
+  std::vector<std::string> in;   // Channel 2's lines from her since the last pass.
+  std::vector<FightLine> others_in; // And from the others, with their senders.
+  // The channel-2 lines the worker left for the shared fight, the world and the story, whoever sent them.
   std::vector<std::string> pass(uint64_t now) {
     e.tick(pc, kBase, slot, now);
     const size_t from = io.sent.size();
-    w.pass(now, hosting, partner, slot, in, io);
-    std::vector<std::string> fight = std::move(in);
-    in.clear();
+    std::vector<uint64_t> partners(partner ? 1 : 0, partner);
+    partners.insert(partners.end(), others.begin(), others.end());
+    std::vector<FightLine> lines;
+    for (std::string &l : in)
+      lines.push_back({partner, std::move(l)});
+    lines.insert(lines.end(), others_in.begin(), others_in.end());
+    in.clear(), others_in.clear();
+    w.pass(now, hosting, partners, unpaired ? 0 : partner, slot, lines, io);
+    std::vector<std::string> fight;
+    for (FightLine &l : lines)
+      fight.push_back(std::move(l.line));
     io.sent.erase(io.sent.begin(), io.sent.begin() + std::ptrdiff_t(from)); // Only this pass's go out.
+    io.sent_to.erase(io.sent_to.begin(), io.sent_to.begin() + std::ptrdiff_t(from));
     return fight;
   }
   std::string state() const { return w.status().substr(0, w.status().find('\n')); }
@@ -1634,6 +1769,78 @@ void workers() {
 }
 } // namespace
 
+// The worker on a host with two guests, as glue/steam.cpp drives it (partners: every guest past the handshake; pair:
+// the link's partner()): each guest gets the host's on and a snapshot, to her alone; each guest's SBQ lines reach the
+// engine under her own SteamID, so the second guest's step is not taken (not the pair) and the pair's is. On a guest,
+// an SBQ line from a member other than the host never reaches her engine. The pair gone while the second guest stays
+// (pair 0, as the link says for a pass at least): her step is not taken.
+void worker_guests() {
+  constexpr uint64_t kOtherId = 76561198000000003ull;
+  auto host = std::make_unique<Desktop>(), first = std::make_unique<Desktop>(), second = std::make_unique<Desktop>();
+  Desktop &h = *host, &a = *first, &b = *second;
+  h.hosting = true;
+  h.partner = kGuestId, h.others = {kOtherId};
+  a.partner = b.partner = kHostId;
+  const Request on = parse_request("quests on");
+  for (Desktop *d : {&h, &a, &b})
+    d->w.ask(on, d->io), d->pc.zone("Zone_WLA_30");
+  const size_t s1 = at("Quest_Sub_001");
+  uint64_t now = 1000;
+  std::vector<std::string> to_a, to_b; // Every line the host sent to each guest.
+  // Each PC passes; each hears what the others sent it at their passes, the host each guest's with her SteamID.
+  auto step = [&](int n = 1) {
+    while (n--) {
+      for (size_t i = 0; i < h.io.sent.size(); ++i) {
+        assert(h.io.sent_to[i] == kGuestId || h.io.sent_to[i] == kOtherId);
+        Desktop &d = h.io.sent_to[i] == kGuestId ? a : b;
+        (&d == &a ? to_a : to_b).push_back(h.io.sent[i]);
+        if (d.partner)
+          d.in.push_back(h.io.sent[i]);
+      }
+      for (auto [d, id] : {std::pair<Desktop *, uint64_t>{&a, kGuestId}, {&b, kOtherId}})
+        for (const std::string &l : d->io.sent) {
+          assert(d->io.sent_to.empty() || d->io.sent_to.front() == kHostId);
+          if (h.partner == id)
+            h.in.push_back(l);
+          else if (std::find(h.others.begin(), h.others.end(), id) != h.others.end())
+            h.others_in.push_back({id, l});
+        }
+      for (Desktop *d : {&h, &a, &b})
+        d->io.sent.clear(), d->io.sent_to.clear();
+      h.pass(now), a.pass(now), b.pass(now);
+      now += 250;
+    }
+  };
+  step(8);
+  assert(h.state() == "quests=on mode=on role=host partner=on with=" + std::to_string(kGuestId));
+  assert(a.state() == "quests=on mode=on role=guest partner=on" && b.state() == "quests=on mode=on role=guest partner=on");
+  assert(count(to_a, q("on 0")) == 1 && count(to_b, q("on 0")) == 1 && has(to_a, q("snap ")) && has(to_b, q("snap ")));
+  // On a guest: another member's off is not the host's.
+  a.others_in.push_back({kOtherId, q("off setting")});
+  step(2);
+  assert(a.state() == "quests=on mode=on role=guest partner=on" && !has(a.io.traced, "setting"));
+  h.pc.acquire(s1);
+  step(6);
+  assert(a.pc.w.tuple(s1) == h.pc.w.tuple(s1) && b.pc.w.tuple(s1) == h.pc.w.tuple(s1));
+  const std::string dropped =
+      "quests: a step line from guest " + std::to_string(kOtherId) + " not taken: her game is not the pair";
+  b.pc.play(s1);
+  step(6);
+  assert(h.pc.completes == 0 && count(h.io.traced, dropped) == 1);
+  a.pc.play(s1);
+  step(6);
+  assert(h.pc.completes == 1 && count(h.io.traced, dropped) == 1);
+  // The pair leaves (her Host goes, logged under her own SteamID); the second guest stays with no pair yet.
+  a.partner = 0;
+  h.partner = kOtherId, h.others.clear(), h.unpaired = true;
+  step(4);
+  assert(has(h.io.traced, "quests: guest " + std::to_string(kGuestId) + " left the side") &&
+         !has(h.io.traced, "quests: guest " + std::to_string(kOtherId) + " left the side"));
+  b.pc.play(s1);
+  step(6);
+  assert(h.pc.completes == 1 && count(h.io.traced, dropped) == 2);
+}
+
 int main() {
   walk();
   implausible();
@@ -1649,6 +1856,7 @@ int main() {
   her_steps();
   dropped();
   two_worlds();
+  three_worlds();
   late_host();
   loads();
   vanished();
@@ -1657,5 +1865,6 @@ int main() {
   lossy();
   record_replay();
   workers();
+  worker_guests();
   std::printf("quest_engine_test: ok\n");
 }

@@ -119,7 +119,8 @@ local function side(o)
         end,
         friend=function() if s.friend then return s.friend,s.linked,false end end,mode=function() return s.mode end,
         loopback=function() return s.loopback end,ping=function() return s.ping end,
-        chatting=function() return s.chatting end}
+        chatting=function() return s.chatting end,others=function() return s.others or (s.linked and 1 or 0) end,
+        crowd=function() return s.crowd or s.others or (s.linked and 1 or 0) end}
     -- The driving (race/drive.lua's): on and off with why and the values, its frames, its 250 ms checks, the look it
     -- gives; refuse makes on fail, error makes a frame raise.
     s.drive={on=false,ons=0,ticks=0,slows=0,values={top=2600,accel=1200,brake=2000,coast=300,grip=70,drift_grip=20,
@@ -350,7 +351,9 @@ refused(A,'quest','Night Operation is running: coop nightop stop ends it')
 A.night=false
 A.mode='guest'
 refused(A,'quest','the host starts a race; yours comes when the host starts one')
-A.mode='none'
+A.mode,A.others='host',2 -- Two members past the handshake: Doro races are for two.
+refused(A,'quest','Doro races are for 2 players at most; this session has 3')
+A.mode,A.others='none',nil
 A.race.command('record','x')
 refused(A,'quest','a track is being recorded: coop race save or coop race cancel first')
 A.race.command('cancel')
@@ -642,6 +645,36 @@ assert(not G.drive.on and G.drive.why=='race left')
 run({G},function() return not G.race.armed() end,400)
 H.race.command('quit')
 step({H})
+
+-- 9b. A third player joins mid-race (a session of 3): each race ends at once, a DNF crowd with its notice. Before GO,
+-- the race is cancelled with the same words.
+H,G=pair()
+player=H.eve
+H.race.command('start','quest')
+run({H,G},function() return G.go_at and clock-G.go_at>3 end)
+H.others,G.others=2,2
+run({H,G},function() return not H.race.armed() and not G.race.armed() end,400)
+local CROWD='Doro races do not run in a session of more than 2 players.'
+assert(find(H.logs,'^race %d+ dnf crowd$') and find(G.logs,'^race %d+ dnf crowd$') and has(H.told,CROWD)
+    and has(G.told,CROWD))
+H,G=pair()
+player=H.eve
+H.race.command('start','quest')
+step({H,G})
+G.others=2
+run({G},function() return not G.race.armed() end,40)
+assert(G.told[#G.told]==CROWD,G.told[#G.told])
+H.race.command('quit')
+step({H})
+-- The pair counts the players the host let in (link.crowd(): players=), her link with the third one not made yet: her
+-- race ends as soon as the host's.
+H,G=pair()
+player=H.eve
+H.race.command('start','quest')
+run({H,G},function() return G.go_at and clock-G.go_at>3 end)
+H.others,G.crowd=2,2
+run({H,G},function() return not H.race.armed() and not G.race.armed() end,400)
+assert(find(G.logs,'^race %d+ dnf crowd$') and has(G.told,CROWD) and G.others==nil)
 
 -- 10. A map change on her PC: her DNF (map) goes out, her race closes; the host finishes and wins.
 H,G=pair()

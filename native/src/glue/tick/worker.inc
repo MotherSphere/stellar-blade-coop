@@ -834,6 +834,8 @@ void peer(uint8_t slots, uint64_t now_ms, void (*send)(const uint8_t *, size_t, 
     send(reinterpret_cast<const uint8_t *>(sent_table.data()), sent_table.size(), true);
 }
 
+void table_again() { table_resend = TableResend(); }
+
 // Gated on peer_open, not peer_on: a table that follows the accept in the tick that completes the handshake comes
 // before this pass's peer(), and the link already checked the handshake.
 void peer_receive(size_t slot, const uint8_t *data, size_t size) {

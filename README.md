@@ -54,17 +54,17 @@ return to Xion have not run in game, nor has the restore at the title after a fa
 Stellar Blade's `Preset_Eve_Max` build, and only that return or restore gives the co-op save its own skills and
 equipment back ([SBO lobby: Leaving](docs/sbo-lobby.md#leaving)).
 
-This version uses link protocol 22 and does not link with 0.11.0 or older, so every player has to update. Every on/off
+This version uses link protocol 23 and does not link with 0.11.0 or older, so every player has to update. Every on/off
 setting is now on by default, the experimental ones included; most of them have not been tested in game
 ([Settings](docs/settings.md#coop-settingstxt)).
 
 ## What it does
 
-- F5 opens the co-op menu. Its first row, Host a session, opens the Create a session screen: pick who can join and
-  the session rules, then Start hosts a Steam lobby for 2 players. Public, the default, lists the online session in
-  Find a session for every player of your version. Friends only opens it to your Steam friends, Invitation to a Steam
-  invite or a 7-character join code, Private to nobody. Find a session lists the online sessions you can join. See
-  [Playing with a friend](docs/playing-with-a-friend.md).
+- F5 opens the co-op menu. Its first row, Host a session, opens the Create a session screen: pick who can join, the
+  players (2 to 4, you included) and the session rules, then Start hosts a Steam lobby. Public, the default, lists the
+  online session in Find a session for every player of your version. Friends only opens it to your Steam friends,
+  Invitation to a Steam invite or a 7-character join code, Private to nobody. Find a session lists the online sessions
+  you can join. See [Playing with a friend](docs/playing-with-a-friend.md).
 - Your friend's EVE appears in your world as a ghost: a display-only copy that moves as she moves, wears her outfit and
   has your friend's Steam name above it. Items are not shared, except the consumables sent with `coop gift`. See
   [Ghost](docs/ghost.md).
@@ -120,7 +120,7 @@ features; Matrix XIII and Lily's signal have their own pages.
 | UE4SS | v3.0.1 Beta, as packaged in "Stellar Blade UE4SS 1.3". |
 | System | Windows, or Linux with Proton (Steam Deck included). |
 | Console | Optional: ConsoleEnablerMod (in that UE4SS package) for the `coop` console commands. The keys work without it. |
-| Playing together | The same game build and the same link protocol: 22 in this version, which does not link with 0.11.0 (protocol 20) or older versions. |
+| Playing together | The same game build and the same link protocol: 23 in this version, which does not link with 0.11.0 (protocol 20) or older versions. |
 
 ## Documentation
 

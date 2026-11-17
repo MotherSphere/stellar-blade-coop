@@ -13,7 +13,8 @@ local Link=require('core.link')
 local M={}
 -- ctx: {mode=link.mode() ('none', 'host', 'guest', nil before Steam), chat=the chat box can open (a session, the SBO
 -- lobby too), code=our join code while we host with one (link.code), stranger=a player we let in who is not our Steam
--- friend ({id=, name=}, link.stranger), values=the settings' values (M.read), for a row shown by another one's value}.
+-- friend ({id=, name=}, link.stranger), values=the settings' values (M.read), for a row shown by another one's value,
+-- members=the online session's other players past the handshake (link.members()'s), for their mute rows}.
 -- confirm: the row runs on a second Select within 3 s.
 local function none(c) return c.mode=='none' end
 M.MAIN={
@@ -69,6 +70,7 @@ M.OPTIONS={
         local who=c.values and c.values.who_can_join
         return who=='public' or who=='invitation'
     end},
+    range('max_players',2,4,1,4), -- At the next host: the players the session holds, the host included.
     toggle('revive','on'), -- Yours, at once: the friend's revive of your EVE (session/group.lua).
     toggle('cutscene_wait','on'), -- Yours as the guest, at once: the pause during the host's cutscene.
     -- Yours as the guest, at once: the travel to the camp nearest the host (session/travel.lua), offered (ask), started
@@ -191,14 +193,26 @@ end
 -- start: the page it opens on, 'main' (the default) or 'line'.
 function M.new(start)
     local self,page,id,index,asked={},start or 'main',nil,1,nil -- asked: {id=, at=} the first Select of a confirm row.
-    local function name(row) return row.id or row.key end
+    local function name(row) return row.member and 'mute '..row.member or row.id or row.key end
     function self.page() return page end
-    -- The page's rows shown in this state, headers included, but none with no row under it.
+    -- The page's rows shown in this state, headers included. A header with no row under it is left out. Options ends
+    -- with one mute row per other player of the online session, under Chat: {id='mute', member=her SteamID, name=,
+    -- muted=}, the same table for her each call (the menu finds the cursor's row by identity).
+    local mutes={}
     function self.rows(ctx)
         local rows={}
         for _,row in ipairs(page=='main' and M.MAIN or page=='line' and M.LINE or M.OPTIONS) do
             if row.head and rows[#rows] and rows[#rows].head then rows[#rows]=nil end
             if not row.show or row.show(ctx) then rows[#rows+1]=row end
+        end
+        if page=='options' and (ctx.mode=='host' or ctx.mode=='guest') then
+            for _,m in ipairs(ctx.members or {}) do
+                if m.linked then
+                    local row=mutes[m.id] or {id='mute',member=m.id}
+                    row.name,row.muted,mutes[m.id]=m.name,m.muted,row
+                    rows[#rows+1]=row
+                end
+            end
         end
         if rows[#rows].head then rows[#rows]=nil end
         return rows
@@ -241,7 +255,8 @@ function M.new(start)
         return 'set',row.key,new
     end
     -- Select (now in seconds): the row's id for the caller ('host', 'leave', 'invite', 'copy', 'remove', 'find',
-    -- 'join_code', 'chat', 'guide', 'report', 'close', which Hang up gives too, 'reset_keys'); 'confirm_leave',
+    -- 'join_code', 'chat', 'guide', 'report', 'close', which Hang up gives too, 'reset_keys'); 'mute', her SteamID and
+    -- whether she is muted now (the caller mutes or unmutes her); 'confirm_leave',
     -- 'confirm_remove' or 'confirm_reset_keys' (the row runs on a second Select of it within 3 s); 'options' or
     -- 'main' (the page changed: Co-op menu gives 'main'); 'rebind', key; or a setting's next value, as change(). nil
     -- when a first Select on Leave or Remove is pending (under 3 s old) and that row went (the session ended, the
@@ -263,6 +278,7 @@ function M.new(start)
         if row.id=='hangup' then return 'close' end
         if row.bind then return 'rebind',row.key end
         if row.key then return self.change(ctx,values,1) end
+        if row.member then return 'mute',row.member,row.muted end
         return row.id
     end
     -- The menu closed (by menu_key; back() calls it for Esc): a first Select on Leave or Remove is forgotten.

@@ -13,7 +13,8 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
 
 ## Lobby and invites
 
-- The native request `host <who>` creates a lobby with room for 2 players. `<who>` is the word `who_can_join` stores:
+- The native request `host <who> [ask] [<n>]` creates a lobby with room for `n` players, 2 to 4 (`max_players`; 4
+  without the number). `<who>` is the word `who_can_join` stores:
   - `public`: a Public lobby (Steam's `ELobbyType` 2) carrying the session list's rows with `sbo_list=1`, so the
     Public tab of Find a session lists it (see [The session list](#the-session-list)). No invite dialog opens; the
     request `invite` opens it.
@@ -30,7 +31,7 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
 
   `ask` after the word (`host public ask`, from `friends_ask=on`) makes the host's Steam friends wait for her answer
   too (see [Players who are not Steam friends](#players-who-are-not-steam-friends)). The lobby carries a tag under the
-  key `stellarcoop`: the protocol and the game's Steam build (`22:<build>`). A lobby from another protocol or game
+  key `stellarcoop`: the protocol and the game's Steam build (`23:<build>`). A lobby from another protocol or game
   build is refused on joining, with both versions in the joiner's log and on screen. A lobby with no tag is another
   game's. It is refused as such.
 - Anyone who has an invisible lobby's id can join it. The host's friends do not see it. Steamworks documents that a
@@ -48,8 +49,9 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
   game for it. Either way the game joins only once a save is loaded (Lua writes `world=1` in `coop-state.txt`), so a
   launch never joins from the title screen. Until then the invite is held.
 - `coop join` without an id searches your Steam friends for one who is playing Stellar Blade in a lobby.
-- The host leads. When the host leaves, the guest leaves too, even though Steam would hand the lobby to them. A co-op
-  lobby with more than 2 players is left.
+- The host leads. When the host leaves, every guest leaves too, even though Steam hands the lobby to one of them. A
+  co-op lobby with more than 4 players is left. [Sessions of more than 2 players](#sessions-of-more-than-2-players)
+  says what changes past 2.
 - When a guest's game loses the host's lobby another way, it rejoins automatically: it tries at 2, 12 and 42 s and
   gives up at 60 s. A lobby that is gone or has a new owner by then ends the session.
 
@@ -108,8 +110,10 @@ them after `owner=` on its `link=` line.
   waits (`session request from <name> held: no relay only yet`). The next member pass at least 1 s later asks Steam
   again. After 3 refusals in a row the log reads `no link with <name>: Steam refused relay only 3 times`. A co-op
   host refuses her (`<name> was refused: Steam would not set relay only.`). A co-op guest leaves with `Left <host>'s
-  game: Steam would not set relay only.` In a match lobby every role leaves with `Left the match: Steam would not set
-  relay only.` A refused ICE back to -1 leaves relay only on.
+  game: Steam would not set relay only.` when it is the host she cannot link with. When it is another guest, only
+  that link goes, until that guest leaves the lobby: `No link with <name>: Steam would not set relay only.` In a match
+  lobby every role leaves with `Left the match: Steam would not set relay only.` A refused ICE back to -1 leaves relay
+  only on.
 - In a match lobby, Steam's lobby owner is the host. An owner who leaves from the menu first hands the lobby to the
   member past the handshake who joined first (`SetLobbyOwner`), then leaves. When the owner changes during a round,
   every game ends it with `host_left`. Ten seconds of silence from the owner also end it, with `host_lost` and the
@@ -130,7 +134,7 @@ writes these lobby keys beside `stellarcoop` with `SetLobbyData`, each only when
 | `sbo_list` | `1`, on a Public session only | At create |
 | `sbo_host` | Her Steam name, 48 bytes at most | At create, then within 5 s of a change (her game reads her name every 5 s) |
 | `sbo_owner` | Her SteamID | At create |
-| `sbo_players` | Members and room, `1/2` or `2/2`. A joiner who waits for the host's answer counts | At create, at each join or leave |
+| `sbo_players` | Members and room, `<n>/<max_players>`, for example `1/4`. A joiner who waits for the host's answer counts | At create, at each join or leave |
 | `sbo_zone`, `sbo_camp` | The words of Lua's `where <map segment> [<camp alias>]` | At create, at each `where` |
 | `sbo_rules` | The word of Lua's `rules <word>`: the session rules that are on | At create, at each `rules` |
 | `sbo_ping` | Her ping location, from Steam's `ConvertPingLocationToString` | At create (again every 5 s while Steam does not know it yet), then every 5 minutes when it changed |
@@ -147,8 +151,8 @@ one word of letters, digits and `_` within 32 bytes (24 for the camp alias), els
 printable ASCII without spaces, 1023 bytes at most.
 
 - `list public` asks Steam for lobbies whose `stellarcoop` equals this game's tag and `sbo_list` equals `1`, with a
-  free place, at the worldwide distance, 50 at most. Another version's sessions never match. A session whose joiner
-  waits for the host's answer has no free place, so it leaves the list meanwhile.
+  free place, at the worldwide distance, 50 at most. Another version's sessions never match. A joiner who waits for
+  the host's answer takes a place meanwhile: a session she fills leaves the list.
 - `list friends` walks the Steam friends playing Stellar Blade in a lobby (`GetFriendGamePlayed`). Steam gives no data
   for a lobby the player is not in before it answers `RequestLobbyData`, so the game asks once for each lobby and reads
   its data each pass until its tag shows, 5 s at most. A lobby with no answer by then is dropped with the log line
@@ -187,22 +191,26 @@ None of this changes the protocol: the rows are lobby data, never a line between
 
 In a co-op lobby, a player who joins and is not the host's Steam friend waits for the host's answer. The host's game
 holds the handshake: it sends no hello and reads none of the player's messages, only pings them so that neither game
-reports a lost connection. The host's status shows `pending=<SteamID> <name>` and a notice says that a player who is not
-a Steam friend is asking to join. The joiner's game shows `Joined <host>'s game. Waiting to be let in.` Until the host
-lets it in, its status has the line `wait=<seconds left> <host's name>`: the seconds left of the host's minute, counted
-from the join. The name is read from Steam each time, since Steam may learn a stranger's name a moment after the join. With `friends_ask=on` (`host <who> ask`), the host's Steam friends wait the same way. The host's notice
+reports a lost connection. The host's status shows a `pending=<SteamID> <name>` line for each player who waits, in the
+order they joined. A notice says that a player who is not a Steam friend is asking to join. The joiner's game shows `Joined <host>'s game. Waiting to be let in.` Until the host
+lets it in, its status has the line `wait=<seconds left> <host's name>`: the most the host's answer may still take, as
+the host's last `wait` line gave it (below), else the minute counted from the join. The name is read from Steam each time, since Steam may learn a stranger's name a moment after the join. With `friends_ask=on` (`host <who> ask`), the host's Steam friends wait the same way. The host's notice
 for one of them reads `<name> is asking to join.` The lobby's `sbo_ask=1` tells the friend's game that it waits. The
 host answers with native requests, which Lua writes to `coop-request.txt` like the others:
 
 - `allow <SteamID>` lets the player in. The handshake then runs as with a friend, and a rejoin after a drop is let in
   without a new question for as long as the lobby lasts.
-- `deny <SteamID>`, or 60 s with no answer, refuses the player, and so does leaving before the answer.
+- `deny <SteamID>`, or 60 s with no answer, refuses the player. So does leaving before the answer. The host's
+  questions come one at a time, in the order the players joined: a player's minute starts when her question is the
+  first one waiting. The host's game sends each waiting player `SBC23 wait <seconds>`, reliable, at the start and after
+  each change: what is left of the minute of the player asked now, plus a minute for each player after that one, hers
+  included.
   `remove <SteamID>` refuses any player already in (friends included) and puts them on the block list.
 - A refused player gets a `SBC reject` with the reason (`you were not let in`, `no answer within 60 s`, `you were
   removed from this session`). Every build since protocol 9 shows it as `<host> refused the link: <reason>` and leaves. That
   player stays refused until the host creates a new lobby: the host never greets them again, ignores their session
   requests and messages, and sends `you cannot join this session again` each time they come back. Steam has no way to
-  remove a lobby member, so a game that ignores the reject keeps the second place in the lobby. It gets the reject
+  remove a lobby member, so a game that ignores the reject keeps its place in the lobby. It gets the reject
   again every 10 s, and the host can create a new lobby, which gets a new code.
 - Answers go by SteamID, so an answer meant for a player who left never reaches the next one. A guest's answers, and
   an answer for a player who is not waiting, are ignored with a line in `coop-link.log`.
@@ -216,13 +224,73 @@ host answers with native requests, which Lua writes to `coop-request.txt` like t
   whose Public match lobby's host refuses her searches again too. Either way her searches skip that lobby for the rest
   of the game run, so a regroup never takes her back to it.
 
-On the host, `session/join.lua` turns the first `pending=` line into a question on screen and writes the answer. It asks
-each player once a lobby; with no answer, the native part refuses the player after 60 s. The question opens without a
+On the host, `session/join.lua` turns the first `pending=` line into a question on screen and writes the answer. While
+more lines follow, its seconds line adds how many players wait after this one. Once the first player is answered or
+gone, the next `pending=` line gets its own question. It asks each player once a lobby; with no answer, the native
+part refuses the player 60 s after her question became the first one. The question opens without a
 key press, so it ignores every key for 1 s after it shows, and `main.lua` gives it the arrow keys but not W, S or Space.
 `core/link.lua` keeps in memory which lobby members waited for an answer, for the menu's Remove row, so a Lua reload
 forgets them.
 
-None of this adds a line to the protocol: it uses the hello's timing, the ping and the reject.
+Apart from the wait line, this uses the hello's timing, the ping and the reject.
+
+### Sessions of more than 2 players
+
+An online session holds up to 4 players (`max_players`). The host leads every guest:
+
+- The host's game sends each guest past its handshake `SBC23 let <pair> <id>,<id>,... <max>`, reliable, again after
+  each change and after each hello of hers. It names the pair, then the guests past the host's handshake in the order
+  they came, then the host's `max_players` (2 to 4). A guest greets, reads and accepts a session from the host and the members this line names only. A joiner who
+  waits for the host's answer gets nothing from the guests and sends them nothing. A member the line no longer names
+  (refused or removed) loses her link with each guest at its next pass, which says `<name> left.`
+- The pair is the host and the guest in ghost slot 0. On a guest, the host always holds slot 0. On the host, slot 0
+  goes to the first guest: one who comes in without a question while no other guest is let in, or the first one let
+  in. The shared enemies, the shared world and story together run within the pair only (`Link::partner()`): the other
+  guests' games keep their own enemies and world. They wait through the host's cutscenes as before. When the pair's
+  guest leaves, the let line's pair is 0 for one pass. At the next pass the guest who got in first of those past the
+  handshake (at once, or when the host let her in) moves to slot 0 (`<name> is the pair now: ghost slot <k> to 0` in
+  the host's log). The pass between lets the host's pose path drop the old pair's table from slot 0. The let line then
+  names her: her game says `Shared enemies, the shared world and story together now run between <host> and you.` and
+  sends its pose table to every member at once (`glue/steam.cpp`), since the host's slot 0 holds none of hers yet.
+  With no guest past the handshake, slot 0 waits for the next one. A guest who passes the handshake while slot 0 waits
+  gets no let line until she or another guest takes it, so her first one names the pair and she hears no notice that
+  the features are off for her.
+- The first let line that does not name a guest as the pair gives her one notice for the session: `Shared enemies,
+  the shared world and story together run between <host> and <pair> only. Your game keeps its own.` With no pair, it
+  reads `Shared enemies, the shared world and story together are off for you in <host>'s session. Your game keeps its
+  own.`
+- Channel 2 follows the pair. `glue/steam.cpp` sends the shared fight's, the shared world's and story together's
+  lines to `partner()` only. It hands those three the pair's lines only: a guest out of the pair sends none and reads
+  none. Same-place enemies' `SBE` on channel 1 goes to the pair only. The shared quests run with every member: the
+  host's game runs one quest side per guest past the handshake, all fed by one read of its quests each pass. Each
+  guest gets her own lines (see [Group play: how it works](group-play.md#shared-quests)). A guest sends her `SBQ` lines
+  to the host only and reads the host's only. Lines from any other member are dropped. A quest step a guest makes first
+  (`SBQ23 step`) is story together's: the host's game takes it from the pair only and logs any other guest's as `a
+  step line from guest <SteamID> not taken: her game is not the pair`. A guest out of the pair sends none.
+- A new pair, or none, empties channel 2's queues both ways of all but the shared quests' lines, so a snapshot on its
+  way to another guest still goes.
+- The status has `host=<host's SteamID> pair=<pair's SteamID or 0> max=<max_players>` in an online session (on a
+  guest, `pair=` is the let line's, her own when she is the pair; `max=0` before the let line came), then
+  `players=<n>`: the host and each member past the handshake with it, the reader included. On a guest that is the let
+  line's members plus the host (0 before the let line came), whether her own link with each is made or not. Night
+  Operation and Doro races read it (`Link.crowd()`): the pair ends a run as soon as the host's let line names a third
+  player, even while her own link with that player is still being made. Then `vit=<SteamID> <12 numbers>` for each
+  member past the handshake whose vit line is under 3 s old. `mate=` is the slot-0 member's: the host's on a guest,
+  the pair's on the host. A match lobby has neither.
+- A member who comes in while the lobby holds more than 2 players starts at 30 poses a second, as in a match lobby.
+  When the lobby grows past 2, each link still at 60 starts again at 30 too (`pose rate cap 30 a second for <name>: 3
+  players in the lobby`). Each one steps back up after 10 calm readings, as any capped link does.
+- A guest who leaves is announced on the host and on each guest she linked with (`<name> left.`). In a match lobby
+  only the owner says it.
+- With more than 2 players, a gift is refused at once (`Gifts need a session of 2 players.`; Lua gets `gift n <id>
+  nolink`). Its answers (`a`, `n`) still go to every member, so a gift sent in a session of 2 gets its answer after a
+  third player came in. Doro races and Night Operation send nothing. Lua refuses a gift, a race, a Night Operation run and the PvP
+  test before it asks, from the count of `member=` lines past the handshake (`core/link.lua`'s `others()`). A guest's
+  photo mode no longer pauses the host's game (`<name> is taking photos (no pause with more than 2 players).`). Her
+  game counts the let line's members: past one, it says `<host>'s game does not pause for photos with more than 2
+  players.` once a session. The host's photo mode and cutscene still pause each guest that asked for it.
+- A player on another protocol or game build is refused by the host, who keeps the lobby for the others. A reject from
+  a guest is logged with a notice and the host stays.
 
 ### In a match lobby
 
@@ -283,28 +351,30 @@ Channel 0 carries short text messages over Steam's relayed P2P messages (SteamNe
 handshake, every message carries the protocol number, and a peer that runs another protocol drops it:
 
 ```
-SBC22 ping <seq> <ms>
-SBC22 pong <seq> <ms>
-SBC22 photo <0|1|s|c> <both|notice>
-SBC22 say <text>
-SBC22 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
-SBC22 pak <hash> <name>
-SBC22 paks <count> <hash>
-SBC22 dlc <app id> <name>
-SBC22 dlcs
-SBC22 camps? <id>
-SBC22 camps <id> <world> <camp>:<m> ...
-SBC22 camps <id> none <title|loading|nocamp|busy>
-SBC22 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level> <down> <help>
-SBC22 night g <n> <run> <state> <up> <killed> <done> <why> <down> <help>
-SBC22 mark <n> [<text>]
-SBC22 race <text>
-SBC22 gift s <id> <item> <count>
-SBC22 gift a <id>
-SBC22 gift n <id> <why>
-SBC22 start <mode> <map> <seed> <id>,<id>,...
-SBC22 count <1-10|stop>
-SBC22 end
+SBC23 ping <seq> <ms>
+SBC23 pong <seq> <ms>
+SBC23 photo <0|1|s|c> <both|notice>
+SBC23 say <text>
+SBC23 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
+SBC23 pak <hash> <name>
+SBC23 paks <count> <hash>
+SBC23 dlc <app id> <name>
+SBC23 dlcs
+SBC23 camps? <id>
+SBC23 camps <id> <world> <camp>:<m> ...
+SBC23 camps <id> none <title|loading|nocamp|busy>
+SBC23 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level> <down> <help>
+SBC23 night g <n> <run> <state> <up> <killed> <done> <why> <down> <help>
+SBC23 mark <n> [<text>]
+SBC23 race <text>
+SBC23 gift s <id> <item> <count>
+SBC23 gift a <id>
+SBC23 gift n <id> <why>
+SBC23 start <mode> <map> <seed> <id>,<id>,...
+SBC23 count <1-10|stop>
+SBC23 end
+SBC23 let <pair> <id>,<id>,... <max>
+SBC23 wait <seconds>
 ```
 
 ### The photo line
@@ -334,7 +404,8 @@ changes, at most 10 times a second, and once a second otherwise. During a sessio
 every 100 ms, or 500 ms after a read that took over 1 ms (game build 26123051 only). Each read is eight
 `ReadProcessMemory` calls on the worker, never on the game thread, on the EVE that the game's actor manager marks as the
 local player. A vit line is invalid if a value is over 10,000,000, HP is over its maximum, there are more than 64 shield
-blocks or the life state is over 255. Your friend's last line shows in `coop status` as `mate=` for 3 s.
+blocks or the life state is over 255. The last line of the member in ghost slot 0 shows in `coop status` as `mate=`
+for 3 s. Each member's shows as `vit=<SteamID> ...`.
 
 ### The pak and paks lines
 
@@ -409,9 +480,13 @@ pass 200 bytes, the notice cuts that name. Nothing is refused.
 
 The camps lines carry the [follow](group-play.md#following-the-host), both reliable: the guest's `camps?` with a number from 0 to
 65535, and the host's answer to it, its world and up to 8 camps nearest its EVE with their distance in whole metres, or
-`none` and why. Only the guest asks and only the host answers. The host's link takes one `camps?` each 2 s, and the
-guest's keeps only the answer to her last number. A world or camp name is letters, digits and `_`, at most 64
-characters. Both lines show in `coop status` (`camps?=`, `camps=`) until the session ends.
+`none` and why. Only a guest asks, of the host only. Only the host answers. The host's link takes one `camps?`
+each 2 s from each guest and gives it a number of its own, 1 to 65535 in turn: two guests' numbers may meet, the
+host's never do. Its status shows that number (`camps?=`) for the oldest request still waiting for an answer, else
+for the last one taken. His Lua answers each number once. The answer goes to the guest whose request had that
+number, alone, with her own number in place of the host's. A guest's link keeps only the answer to her last number. A
+world or camp name is letters, digits and `_`, at most 64 characters. Both lines show in `coop status` until the
+session ends: `camps=` on the guest, `camps?=` on the host.
 
 ### The night line
 
@@ -515,16 +590,17 @@ rest. A peer silent on channel 0 for 10 s is marked lost (`<name> silent for 10 
 until they are heard again; they stay linked and their table is kept. A message longer than 512 bytes is treated as
 invalid.
 
-A session request from Steam is accepted only after a live check that the requester is a member of your lobby. Any
-other request is ignored.
+A session request from Steam is accepted only after a live check that the requester is a member of your lobby. A guest
+of an online session also accepts one only from the host and the members the host's let line names. Any other request
+is ignored.
 
 ## Channel 1: tables and poses
 
-Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 22` (sent reliable), and
+Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 23` (sent reliable) and
 each pose as a binary message starting `SBP` (a keyframe) or `SBD` (a delta), then the protocol byte (sent unreliable,
 without Nagle delay). Same-place enemies add a binary message starting `SBE` and the protocol byte, at most 30 a
 second (sent unreliable): the place, rotation and animation speed of up to 16 enemies that the sender moves on the
-other screen.
+other screen. An `SBE` goes to the pair only (`Link::partner()`), never in a match lobby.
 
 - Your table goes to your friend at once, again 5 s later, and then at waits that double while nothing changes, up to
   60 s: 5, 10, 20, 40, 60, 60 s. A table lost with a broken session, or sent before they accepted, arrives with a
@@ -575,7 +651,8 @@ is refused instead of misread:
 | 19 | Matrix XIII's world rows (spawn rows, camps, warps): shared Naytibas key an enemy by its spawn row's ID, so a peer without those rows would never match the host's new enemies; no line changes shape, the number keeps 0.7.5 out |
 | 20 | The PvP test's pvp line on channel 2: a drop of the attacker's stand-in for the victim, applied to the victim's EVE in her game, and the match lobbies' start, count and end lines on channel 0 |
 | 21 | Never released: development builds of the shared world's `SBW` lines on channel 2 and of the dlc and dlcs lines on channel 0 used it (see [Shared world: how it works](shared-world.md)) |
-| 22 | Story together's `SBS` lines on channel 2: the host's story scenes and story trips, followed in the guest's game (see [Story together: how it works](story-sync.md)); the guest's `SBQ22 step` line, a quest step she made first, made in the host's game (this version) |
+| 22 | Never released: development builds of story together's `SBS` lines on channel 2 (the host's story scenes and story trips, followed in the guest's game; see [Story together: how it works](story-sync.md)) and of the guest's `SBQ22 step` line (a quest step she made first, made in the host's game) used it |
+| 23 | Online sessions of up to 4 players: the host's `let` and `wait` lines on channel 0, which a protocol-22 peer would count invalid; a protocol-22 game would also leave a lobby of 3 (this version) |
 
 ## Link health in the log
 

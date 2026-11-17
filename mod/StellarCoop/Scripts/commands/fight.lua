@@ -156,6 +156,8 @@ function Fight.new(o)
             if settings.shared_enemies then
                 return false,'the PvP test needs shared_enemies=off in coop-settings.txt: both use the same fight job'
             end
+            local others=link and link.others() or 0
+            if others>1 then return false,'the PvP test is for 2 players at most; this session has '..(others+1) end
             return ask('fight pvp')()
         end
         if sub=='off' then return ask('fight pvp off')() end

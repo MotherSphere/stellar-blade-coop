@@ -110,7 +110,7 @@ local function text_at(x,y)
 end
 
 -- The view main.lua gives (link.list(), link.match(), link.mode(), our protocol and build) and SB's words.
-local input={rows={},role='none',proto='22',build='26123051'}
+local input={rows={},role='none',proto='23',build='26123051'}
 local SB={UI_Night_SearchPartner='Searching for team members',UI_Friends='Comrades',UI_RegionAlias_E04='Xion',
     UI_CampAlias_Xion_Camp_01='Camp of the Xion gate',UI_Cancel='Cancel search'}
 local reads={}
@@ -169,8 +169,8 @@ assert(#pane==1 and pane[1].props.Category_Name.text=='Host1')
 assert(text_at(2600,524)=='Xion' and text_at(2600,594)=='Camp of the Xion gate' and text_at(2600,664)=='1/2 · 41 ms')
 assert(text_at(2600,734)=='Shared enemies (experimental) · Shared bosses (experimental) · Shared world (experimental)'
     ..' · Shared quests (experimental) · You can revive the host · Boss HP (host\'s) 200 %',text_at(2600,734))
-assert(text_at(2656,944)=='' and text_at(2600,1014)=='Protocol 22, game build 26123051')
-assert(text_at(192,2000)=='Your version: protocol 22, game build 26123051. Sessions of other versions are not listed.')
+assert(text_at(2656,944)=='' and text_at(2600,1014)=='Protocol 23, game build 26123051')
+assert(text_at(192,2000)=='Your version: protocol 23, game build 26123051. Sessions of other versions are not listed.')
 assert(hint_line()=='Back/Negative Refresh/UI_FaceButton_Top Ask to join/Positive',hint_line())
 -- SB's words read once a key while open.
 assert(reads.UI_RegionAlias_E04==1 and reads.UI_Friends==1,reads.UI_Friends)

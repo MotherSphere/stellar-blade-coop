@@ -242,10 +242,13 @@ if crashed then
     aside_note=(crashed.path:match('([^./]+)$') or crashed.path):sub(1,32)
 end
 local puppet=require('partner.puppet').new(link,capture,say,settings and settings.name_tag,look,words,sentinel)
--- With the Steam link, a ghost for each other member of a match lobby in ghost slots 1 to 6, each on its slot's files.
+-- With the Steam link, a ghost for each other member of a lobby in ghost slots 1 to 6 (a match lobby, or an online
+-- session of more than 2 players), each on its slot's files.
 local ghosts=link and require('partner.ghosts').new(link,function(files)
     return require('partner.puppet').new(files,capture,say,settings and settings.name_tag,look,words,sentinel)
 end)
+-- Ghost slot k's puppet past slot 0 (the HUD rows, the revive, the follow), nil before a member held it.
+local function ghost_of(k) return ghosts and ghosts.get(k) end
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 -- Read from the pose path's line only, as a peer's Steam name could say the same.
 local function native_off()
@@ -918,7 +921,7 @@ if settings then
         uidev=link.uidev})
     box=require('session.chat').view({kit=kit,model=chat,settings=settings,theme=Ui.THEME,
         covered=function() return menu.is_open() end})
-    hud=require('partner.hud').hud({kit=kit,link=link,puppet=puppet,settings=settings,theme=Ui.THEME})
+    hud=require('partner.hud').hud({kit=kit,link=link,puppet=puppet,settings=settings,theme=Ui.THEME,ghost=ghost_of})
     night.hud({kit=kit,theme=Ui.THEME,settings=settings})
     race.hud({kit=kit,theme=Ui.THEME,settings=settings})
     talks.hud({kit=kit,theme=Ui.THEME}) -- The kit version of Lily's talks.
@@ -976,7 +979,7 @@ if settings then
     local LAST={['match search']='search',['match create']='create',join='join'}
     local function view()
         local version,proto=('\n'..(link.status() or '')):match('\nmod=(%S+) proto=(%d+)')
-        return {match=link.match(),members=link.members(),role=link.mode() or 'none',code=(link.code()),
+        return {match=link.match(),members=link.members(),role=link.mode() or 'none',limit=link.cap(),code=(link.code()),
             me={id=(link.saves() or {}).steamid,name=link.me()},owner=link.owner(),last=last,copied_at=copied_at,
             now=os.clock(),version=version,proto=tonumber(proto),settings=settings,halls=sbo.hall()~='xion',room=room}
     end
@@ -1346,16 +1349,19 @@ if link then
     -- own respawn says nothing). rest: the line's last zone, n and resets, when the host last read down, and since when
     -- ours reads alive. Forgotten with fight_maxhp.
     local REST_CALM,rest=10,{}
-    local function her_name(w) -- '' (a stranger's unknown name) as your friend, in w's words.
-        local name=require('session.chat').clean((link.friend()) or '')
+    -- That name, or the slot-0 member's, cleaned; '' (a stranger's unknown name) as your friend, in w's words.
+    local function her_name(w,name)
+        name=require('session.chat').clean(name or (link.friend()) or '')
         return name~='' and name or w.fight.friend
     end
     group=require('session.group').new({link=link,puppet=puppet,settings=settings,tell=tell,name=her_name,
-        log=function(m) print('[StellarCoop][GR] '..tostring(m)..'\n') end,night=function() return night.running() end})
+        log=function(m) print('[StellarCoop][GR] '..tostring(m)..'\n') end,night=function() return night.running() end,
+        ghost=ghost_of})
     -- The follow waits while the game is paused, in photo mode or in the co-op menu, during a Night Operation run and
     -- during a cutscene in our game. follow=true: on since 2026-11-12 with every other mode, not yet tested in game.
     -- Its tick also gives the native part the host's place and rules words for the session list's row.
     travel=require('session.travel').new({link=link,puppet=puppet,settings=settings,tell=tell,name=her_name,follow=true,
+        ghost=ghost_of,
         log=function(m) print('[StellarCoop][TR] '..tostring(m)..'\n') end,
         paused=function() return kit.paused(true) or menu.is_open() or photo_state()~='0' end,
         night=function() return night.running() end,cutscene=function() return group.cutscene_playing() end})
@@ -1482,17 +1488,20 @@ if link then
     -- save loaded, so not at the title or during a load) and stopped for the run, each once as it starts; and each
     -- quest note once (link.quest_notes): her quest ahead (in the host's words or hers, by our role), behind the host,
     -- a step waiting for its zone, a Request to hand in at her board, a kill step, and coop quests force's answers. A
-    -- Request not on her board yet and a step no zone can place show in coop quests status only.
+    -- Request not on her board yet and a step no zone can place show in coop quests status only. With several guests,
+    -- the host's on notice names the first whose side is on (with=) and his ahead notice the guest whose line it is.
     local QUEST_NOTES={ahead=true,behind=true,zone=true,board=true,kill=true,forced=true,forced_warp=true,
         not_forced=true}
     local quests_was,quests_with,quests_role=nil,false,nil
+    local function member_name(id) local m=id and link.member(id); return m and m.name end
     local function quest_notices()
         local line=link.quests()
         if line then
             local state,why,partner=line:match('^quests=(%a+)'),line:match(' why=(%a+)'),line:match(' partner=(%a+)')
             local with=state=='on' and partner=='on'
             if with and not quests_with then
-                tell(function(w) return w.quests.on:format(her_name(w)) end)
+                local name=member_name(line:match(' with=(%d+)'))
+                tell(function(w) return w.quests.on:format(her_name(w,name)) end)
             elseif quests_with and state=='on' and partner=='off' then
                 tell(function(w) return w.quests.partner_off:format(her_name(w)) end)
             end
@@ -1507,12 +1516,13 @@ if link then
         for _,n in ipairs(link.quest_notes()) do
             if QUEST_NOTES[n.kind] then
                 local key=n.kind=='ahead' and (quests_role=='host' and 'ahead_host' or 'ahead_guest') or n.kind
+                local name=member_name(n.from)
                 tell(function(w)
                     local q=w.quests
                     if key=='zone' then return q.zone:format(her_name(w),n.alias,n.zone or '?') end
                     if key=='kill' then return q.kill:format(n.alias,n.id) end
                     if key=='board' or key:find('forced') then return q[key]:format(n.alias) end
-                    return q[key]:format(her_name(w),n.alias) -- ahead_host, ahead_guest, behind
+                    return q[key]:format(her_name(w,name),n.alias) -- ahead_host, ahead_guest, behind
                 end)
             end
         end

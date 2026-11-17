@@ -55,7 +55,7 @@ press('F7'); flush(); assert(executes==executed+1 and focus()=='Host a session',
 cr.refuse='Create a session opens in the game world only' -- coop host alone then hosts at once.
 key('RETURN')
 cr.refuse=nil
-assert(asked[#asked]=='host public' and kit_said('show false') and kit_sounds[#kit_sounds]=='close',
+assert(asked[#asked]=='host public 4' and kit_said('show false') and kit_sounds[#kit_sounds]=='close',
     'Host closes it first')
 assert(not kit_said('input false'),'The game gets its keys back 150 ms after the close only')
 clock=clock+0.1; loops[1].f(); assert(not kit_said('input false'))
@@ -143,15 +143,15 @@ cr.refuse='Create a session opens in the game world only'
 to('Who can join'); assert(select(2,focus())=='Public')
 key('RETURN')
 assert(settings_text:find('\nwho_can_join=friends\n',1,true) and select(2,focus())=='Friends only')
-coop('host'); assert(asked[#asked]=='host friends','At once: the next Host is Friends only')
+coop('host'); assert(asked[#asked]=='host friends 4','At once: the next Host is Friends only')
 assert(not screen():find('Friends join without asking',1,true),'Under Public and Invitation only')
-key('RETURN'); coop('host'); assert(asked[#asked]=='host invitation' and select(2,focus())=='Invitation')
+key('RETURN'); coop('host'); assert(asked[#asked]=='host invitation 4' and select(2,focus())=='Invitation')
 to('Friends join without asking'); assert(select(2,focus())=='On','friends_ask=off: Steam friends join at once')
 key('RETURN'); assert(settings_text:find('\nfriends_ask=on\n',1,true) and select(2,focus())=='Off')
-coop('host'); assert(asked[#asked]=='host invitation ask','Steam friends wait for the answer too')
+coop('host'); assert(asked[#asked]=='host invitation ask 4','Steam friends wait for the answer too')
 to('Who can join'); key('RETURN'); coop('host')
-assert(asked[#asked]=='host closed' and select(2,focus())=='Private' and not screen():find('without asking',1,true))
-key('RETURN'); coop('host'); assert(asked[#asked]=='host public ask' and select(2,focus())=='Public')
+assert(asked[#asked]=='host closed 4' and select(2,focus())=='Private' and not screen():find('without asking',1,true))
+key('RETURN'); coop('host'); assert(asked[#asked]=='host public ask 4' and select(2,focus())=='Public')
 cr.refuse=nil
 to('Name tag'); key('RETURN')
 assert(settings_text:find('\nname_tag=off\n',1,true) and select(2,focus())=='Off'
@@ -329,6 +329,18 @@ end
 write_refusal,kit_language=nil,nil
 key('ESCAPE'); assert(focus()=='Options','Esc: back to the main page, on Options')
 key('ESCAPE'); assert(kit_calls[#kit_calls]=='show false')
+-- In an online session, Options ends with a mute row for each other player past the handshake, in the SBO lobby's
+-- words; Select runs coop mute or coop unmute for her.
+link_mode,fake_link.members='host',function()
+    return {{id='21',slot=0,linked=true,muted=false,name='Kaanta'},{id='22',slot=1,linked=true,muted=true,name='Lucas'}}
+end
+key('F5'); to('Options'); key('RETURN')
+to('Mute Kaanta'); assert(select(2,focus())=='Off')
+key('RETURN'); assert(asked[#asked]=='mute 21' and logged('OK: asked the native part: mute 21'))
+to('Mute Lucas'); assert(select(2,focus())=='On')
+key('RETURN'); assert(asked[#asked]=='unmute 22')
+key('ESCAPE'); key('ESCAPE')
+link_mode,fake_link.members='none',function() return {} end
 -- Rebind with capture (D-UI2): a key row waits for an F-key, checked against the other keys; Esc stops waiting; Enter
 -- puts back its default (below); the new key works at once (every F-key is bound). The file had no menu_key line:
 -- host_key=none is written with it, so the old key never hosts again by itself. The follow key is off F7 here, for the
@@ -382,15 +394,15 @@ in_world,kit_ready=true,true; quarter()
 key('F5','SHIFT'); assert(kit_said('show true') and #asked==0)
 settings_text='menu_key=F5\nhost_key=F9\n'
 load_main(true)
-key('F9'); assert(asked[#asked]=='host public' and logged('key F9: host'))
+key('F9'); assert(asked[#asked]=='host public 4' and logged('key F9: host'))
 assert(logged('settings: F9 is host_key: race_key has no key') and ra.keys==0,'A file before race_key keeps its F9')
 -- who_can_join=private, 0.11's invited only: Host asks for an Invitation session, from the key, the console or the
 -- menu; the file keeps its word.
 settings_text='menu_key=F5\nhost_key=F9\nwho_can_join=private\n'
 load_main(true)
-key('F9'); assert(asked[#asked]=='host invitation' and logged('key F9: host'))
+key('F9'); assert(asked[#asked]=='host invitation 4' and logged('key F9: host'))
 coop('host')
-assert(asked[#asked]=='host invitation' and last():find('OK: asked the native part: host invitation',1,true))
+assert(asked[#asked]=='host invitation 4' and last():find('OK: asked the native part: host invitation 4',1,true))
 assert(settings_text:find('\nwho_can_join=private\n',1,true))
 -- A key's default again: Enter on its row while it waits (Space and the pad's A too), refused while another key holds
 -- it; Reset all keys on a second Select within 3 s; coop keys reset with a key's name, all or no name. Each works at
@@ -612,9 +624,9 @@ end)()
     assert(ss.o.log and ss.o.words and ss.o.act and ss.o.game_text and ss.o.view,'Built with its view and act')
     -- Its view: the list as link.list() gives it, our protocol and game build from the status's first line.
     list_search,list_rows={tab='public',state='done',rows=1},{{lobby='109775241234567890',name='Ann'}}
-    status_text='last=#1 ready\nmod=v proto=22 steam=ready steamid=7 appid=1 build=26123051 overlay=1\nlink=none lobby=0\n'
+    status_text='last=#1 ready\nmod=v proto=23 steam=ready steamid=7 appid=1 build=26123051 overlay=1\nlink=none lobby=0\n'
     local v=ss.o.view()
-    assert(v.search==list_search and v.rows==list_rows and v.role=='none' and v.proto=='22' and v.build=='26123051')
+    assert(v.search==list_search and v.rows==list_rows and v.role=='none' and v.proto=='23' and v.build=='26123051')
     status_text,list_search,list_rows=plain,nil,{}
     v=ss.o.view()
     assert(v.proto=='3' and v.build==nil and v.search==nil,'Before Steam: no build')
@@ -690,11 +702,11 @@ end)()
         'who_can_join=invitation\n' and note=='Not saved: cannot write coop-settings.txt: busy',tostring(note))
     -- Start: coop host with its word, at once.
     cr.o.act({host='closed'})
-    assert(asked[#asked]=='host closed' and logged('OK: asked the native part: host closed'))
+    assert(asked[#asked]=='host closed 4' and logged('OK: asked the native part: host closed 4'))
     -- The Host row: the menu gives way to the screen, which keeps the input past the menu's late give-back.
     key('F5'); key('RETURN')
     assert(not kit_shown.menu and cr.open and cr.calls[1]=='open' and kit_holder=='create','The menu gives way to it')
-    assert(logged('OK: Create a session is open') and asked[#asked]=='host closed','Nothing hosted yet')
+    assert(logged('OK: Create a session is open') and asked[#asked]=='host closed 4','Nothing hosted yet')
     clock=clock+0.2; loops[1].f()
     assert(kit_input and kit_holder=='create','The menu\'s late give-back leaves the screen its input')
     local n=#cr.calls
@@ -714,7 +726,7 @@ end)()
     -- View held closes it; coop ui reset closes it; console coop host alone opens it.
     key('F5'); key('RETURN'); assert(cr.open)
     pad(7); assert(not cr.open and not kit_shown.menu and logged('pad: menu'))
-    coop('host'); assert(cr.open and asked[#asked]=='host closed','coop host alone: the screen')
+    coop('host'); assert(cr.open and asked[#asked]=='host closed 4','coop host alone: the screen')
     n=#cr.calls
     coop('ui','reset'); assert(not cr.open and cr.calls[n+1]=='close')
     -- Closed, the keys are nobody's here.
@@ -724,7 +736,7 @@ end)()
     settings_text='who_can_join=invitation\nmenu_key=F5\nhost_key=F11\n'
     load_main(true); kit_ready=true; quarter()
     press('F11'); flush()
-    assert(asked[#asked]=='host invitation' and not cr.open and #cr.calls==0,asked[#asked])
+    assert(asked[#asked]=='host invitation 4' and not cr.open and #cr.calls==0,asked[#asked])
     in_world,kit_ready,settings_text=false,false,''
 end)()
 io.stdout:write('menu_test ok\n')

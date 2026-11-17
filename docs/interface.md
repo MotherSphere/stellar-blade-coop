@@ -38,10 +38,12 @@ The main page shows the rows that fit your session:
 | Write a bug report | Always | Runs `coop report` |
 | Close | Always | Closes the menu |
 
-Under the rows, a status line shows the F6 text and, once your friend is linked, their ping. Below it the menu shows its
-own messages, such as `Select again within 3 s to leave.`, or, while it covers the [feed](#session-chat), the newest
-notice under 8 s old (for example a join that Steam refused). If the session ends or the player leaves in the 3 s
-between the two selects of Leave the session or Remove <name>, the second select runs nothing. The menu closes by itself
+Under the rows, a status line shows the F6 text and the ping of the player it names, once that player is linked
+(with more than 2 players: the host on a guest, the pair or the guest standing in for her on the host). Below it the
+menu shows its own messages, such as `Select again within 3 s to leave.`, or, while it covers the
+[feed](#session-chat), the newest notice under 8 s old (for example a join that Steam refused). If the session ends or
+the player leaves in the 3 s between the two selects of Leave the session or Remove <name>, the second select runs
+nothing. The menu closes by itself
 when the game pauses or shows the mouse cursor for one of its own screens.
 
 ### Co-op line
@@ -59,7 +61,7 @@ Under them are the status line and a sentence about the line:
 | Session | Session rows | Sentence |
 | --- | --- | --- |
 | None | Host a session, Find a session, Join with a code | `The line is free. Host a session or join a friend.` |
-| You host | Invite a friend (Steam), Copy my code and Remove <name> when the main page shows them, Leave the session | `Your session is open. Invite a friend from here.`, or `On the line with <name>.` while your friend is linked |
+| You host | Invite a friend (Steam), Copy my code and Remove <name> when the main page shows them, Leave the session | `Your session is open. Invite a friend from here.`, or `On the line with <name>.` while a guest is linked |
 | You joined | Leave the session | `On the line with <name>.` while you are linked, none while connecting or after a connection loss |
 | Steam not ready yet | none | none |
 
@@ -68,7 +70,9 @@ and Invite a friend closes the line first. Find a session opens the [Sessions sc
 code opens the code box. Leave the session and Remove <name> run
 on a second Select within 3 s. Co-op menu switches to the main page, where Chat, Options and the bug report are. Hang
 up, Esc and the menu key close the line. A message of the menu, such as `Select again within 3 s to leave.`, or a notice
-under 8 s old shows in place of the sentence.
+under 8 s old shows in place of the sentence. With more than one other member linked, the name reads `<name> +<n>`:
+the host on a guest, the pair on the host (or the first guest linked while there is no pair), then how many others
+are linked.
 
 The booth keeps its own interaction: the game's Fast travel prompt still shows, and using the booth with the game's key
 travels and saves as it does without the mod. The line works on any save, as the menu does, and changes nothing in the
@@ -84,6 +88,7 @@ and key hints. `coop host` typed alone opens it too. Nothing is hosted until you
 | --- | --- | --- |
 | Who can join | Always | Public, Friends only, Invitation or Private (`who_can_join`, see [Settings](settings.md)) |
 | Friends join without asking | Under Public and Invitation | On lets your Steam friends in at once. Off makes them wait for your answer like other players (`friends_ask=on`). |
+| Players | Always | 2 to 4: the players the session holds, you included (`max_players`) |
 | Shared enemies | Always, under SESSION RULES | [Shared enemies](shared-enemies.md) on or off |
 | Same place, Same spawns, Extra enemies, Shared bosses, Enemy HP, Boss HP, Enemies attack | While Shared enemies is On | The same values as on the Options page |
 | Shared world, Story together, Shared quests, Friend can revive me | Always | On or Off |
@@ -122,7 +127,8 @@ If one of the game's widgets cannot be made, the screen draws the same rows, hea
 parts. `UE4SS.log` then says `[StellarCoop][UI] create: part <class>: <why>; left out until the mod reloads` once. It
 also says `[StellarCoop][UI] create: open`, `create: start <word>` and `create: closed`. Each change logs
 `[StellarCoop] menu: <setting>=<value> saved in coop-settings.txt`. Start then logs `[StellarCoop] OK: asked the
-native part: host <word>`. The Create a session screen has not been tested in game yet.
+native part: host <word> <players>`, with `ask` before the players under `friends_ask=on`. The Create a session screen
+has not been tested in game yet.
 
 ### Sessions screen
 
@@ -137,7 +143,7 @@ protocol or game build, sessions hosted by a player you blocked on Steam or on y
 [block list](playing-with-a-friend.md#block-list), or your own. A tab holds 50 rows at most, sorted by ping, best
 first, rows with no ping last.
 
-Each row shows the host's Steam name, then the region, the players (`1/2`) and the ping (Steam's estimate in ms, `-`
+Each row shows the host's Steam name, then the region, the players (`1/4`) and the ping (Steam's estimate in ms, `-`
 when Steam has none). Eight rows show at once and the list scrolls with the focus. The right pane shows the focused
 row: the host's name, the region, the travel camp nearest the host, the players and ping, the
 [session rules](settings.md) the host has on (shared enemies, shared bosses with the boss HP scale, shared world,
@@ -188,7 +194,7 @@ show in the game's own popup, the one it uses for its yes or no questions.
 
 | Popup | Title | Text | Buttons |
 | --- | --- | --- | --- |
-| The host's question | `<name> wants to join` | `They wait for your answer before they enter your game.` `Declined in <n> s if you do not answer.` | The game's Accept and Decline. Decline has the focus. |
+| The host's question | `<name> wants to join` | `They wait for your answer before they enter your game.` `Declined in <n> s if you do not answer.`, then `Players waiting after this one: <n>.` while others wait | The game's Accept and Decline. Decline has the focus. |
 | The joiner's wait | `Waiting for <host>'s answer` | `Close cancels your request to join.` `The host has <n> s left to answer.` | The game's Close |
 
 The buttons read the game's own words in its text language (Accept, Deny and Close with `ui_language=english`). The
@@ -197,6 +203,12 @@ characters and loses any `<` or `>` (the popup would read them as a text style t
 opens, the host's game plays the game's alert in place of the popup's open sound. The open sound plays when that
 question shows again (after a pause or the chat box) and when the joiner's wait opens. Accept or a let in plays the
 popup's confirm sound; Decline or Close plays its close sound. With `ui_sounds=off` none of these play.
+
+Several players asking at once wait in a queue. The host's question is about the first of them only, in the order they
+joined: her 60 s run from the moment her question is the first. Once she is answered or gone, the next player gets
+her own question, with its keys dead again for 1 s. Each joiner's wait popup counts down the most the host's answer
+may take: what is left of the current question's minute, plus a minute for each player after that one, hers
+included.
 
 | Key | Controller | Mouse | On the host's question | On the joiner's wait |
 | --- | --- | --- | --- | --- |
@@ -277,7 +289,7 @@ Each row of the Options page is a setting of [coop-settings.txt](settings.md#coo
 The rows are in groups: Controls (the menu, status, leave, travel and race checkpoint keys, the [bike](bike.md) on or
 off and its key, then Reset all keys), Photo mode, Partner (the name tag and the [partner HUD](#partner-hud)), Ghost
 (the looks, the [solid partner](ghost.md#solid-partner-experimental) and the send rate), Session (who can join a
-session you host and whether your Steam friends join without asking, the
+session you host, whether your Steam friends join without asking, the players it holds (Players, 2 to 4), the
 [revive](playing-with-a-friend.md#revive-by-your-friend-experimental), the
 [cutscene wait](playing-with-a-friend.md#cutscene-wait),
 [following the host](playing-with-a-friend.md#following-the-host), the [shared world](shared-world.md) and
@@ -285,7 +297,9 @@ session you host and whether your Steam friends join without asking, the
 [shared quests](playing-with-a-friend.md#shared-quests-experimental)), Combat (shared enemies, same place, who
 same-place enemies attack, same spawns, extra enemies, shared bosses, the host's enemy and boss scaling and your kill
 rewards), Display (the [status strip](#status-strip-above-the-card) above the partner card; the size, sounds and
-language of the menu, the chat and the partner HUD; the [day and night cycle](internals/daynight.md)) and Chat.
+language of the menu, the chat and the partner HUD; the [day and night cycle](internals/daynight.md)) and Chat. In a
+session, Chat ends with a row for each other member past the handshake, `Mute <name>` with On or Off: Enter runs
+`coop mute` or `coop unmute` for her, for the game run.
 
 Left and right change a value, and Enter does the same as right. Each change rewrites only that setting's line in
 `coop-settings.txt`; comments and other lines stay as they are. Reset all keys rewrites the line of every key setting
@@ -412,6 +426,16 @@ friend, in teal:
 - The arrow at the edge of the screen, which points to them when they are out of view or behind you, with the distance
   and three HP pips.
 
+In a session of more than 2 players, the card, the marker and the arrow follow one member: the host on a guest, the
+pair on the host (see [More than 2 players](playing-with-a-friend.md#more-than-2-players)), or the first guest linked
+while the host has no pair. Each other member past the handshake gets a row to the right of the card, in the game's
+fonts and HUD dots: her name, her state on the same line and a row of HP dots under them. The state reads as on the
+card: `DOWN` in red, `elsewhere · <map>`, `connection lost`, `—` with no HP from her for 3 s, else her ping and map
+with `card_details`. A row greys out as the card does. The alert sounds once when she goes down and when her
+connection is lost. The rows go three to a column, six at most, right of the card as `ui_scale` sizes it. They show
+with `partner_card` and hide when the card does. They never show in a match lobby. Their HP shows each reading as it
+comes, without the card's 300 ms move.
+
 While nothing comes from your friend (connection lost, or no HP for 3 s), the marker and the arrow turn grey and stay
 where your friend was last seen, until they are back or one of you changes map. On another map there is no marker and
 no arrow; the card says where they are. The card, the marker and the arrow stay inside the screen at any resolution
@@ -528,7 +552,13 @@ a Steam name or a chat line shows as `?`.
 | Invite held | `Invite held: joining once your save has loaded.` |
 | Rejoin | `Lost <host>'s game: rejoining.`, then `Rejoined <host>'s game.` |
 | Session ended | `Session ended: <host> left.`, `Session ended: <host>'s game is gone.` or `Session ended: could not rejoin <host>'s game.` |
-| Too many players | `Left: the lobby has more than 2 players.`, or `... 8 players.` in a match lobby |
+| Too many players | `Left: the lobby has more than 4 players.`, or `... 8 players.` in a match lobby |
+| You are a guest out of the pair in a session of more than 2 players, once a session | `Shared enemies, the shared world and story together run between <host> and <pair> only. Your game keeps its own.`, or with no pair `Shared enemies, the shared world and story together are off for you in <host>'s session. Your game keeps its own.` ([More than 2 players](playing-with-a-friend.md#more-than-2-players)) |
+| You become the pair after the pair before you left | `Shared enemies, the shared world and story together now run between <host> and you.` |
+| A gift in a session of more than 2 players | `Gifts need a session of 2 players.` |
+| A guest's photo mode in a session of more than 2 players you host | `<name> is taking photos (no pause with more than 2 players).` |
+| Your photo mode as a guest in a session of more than 2 players, once a session | `<host>'s game does not pause for photos with more than 2 players.` |
+| A Night Operation level picked at Roxanne's in a session of more than 2 players | `Night Operation does not run in a session of more than 2 players.` |
 | Leaving | `Left the session.`, `Not in a session.` or `Held invite dropped.` |
 | `coop match search` or `create` with a mode this version does not have | `No such mode: <mode>. Modes: <modes>.` |
 | `coop match search` or `create` while you are in a lobby | `Leave this game first.` |
@@ -544,9 +574,9 @@ a Steam name or a chat line shows as `?`.
 | The match lobby's owner cleared or changed its mode while you were in it | `Left the match: the lobby changed its mode.` |
 | In the SBO lobby, you joined a match lobby on a hall lobby map you do not have, or on another build of the hall lobby pak | `Left the match: its lobby map is missing or a different version here.` |
 | `coop mute`, `coop unmute` | `Muted <name>.` or `Unmuted <name>.` |
-| A player on another protocol or game build joins the match lobby you host | `<name> runs another version and was refused.` |
+| A player on another protocol or game build joins a lobby you host (a match lobby or an online session) | `<name> runs another version and was refused.` |
 | A player in your match lobby stays over a channel's rate limit for 5 s; you keep the lobby | `<name> sent too many messages and was refused.` |
-| Steam refused relay only 3 times, 1 s apart (needed in a match and with a player who is not your Steam friend) | `<name> was refused: Steam would not set relay only.` (co-op host), `Left <host>'s game: Steam would not set relay only.` (co-op guest) or `Left the match: Steam would not set relay only.` |
+| Steam refused relay only 3 times, 1 s apart (needed in a match and with a player who is not your Steam friend) | `<name> was refused: Steam would not set relay only.` (co-op host), `Left <host>'s game: Steam would not set relay only.` (co-op guest, with the host), `No link with <name>: Steam would not set relay only.` (co-op guest, with another guest) or `Left the match: Steam would not set relay only.` |
 | The match host stays over a channel's rate limit for 5 s; you leave | `Left the match: <name> sent too many messages.` |
 | Friend on another map | `<name> is in <map>, you are in <map>.` |
 | [Following the host](playing-with-a-friend.md#following-the-host) (guest) | `<host> is in <map>. Press F7 to travel to the camp nearest them.`, `Following <host> in 5 s. Press F7 to stay.`, `Travelling to <host>.`, `No camp you have found is near <host>.`, `You cannot travel now. Try again in a moment.` or `The travel did not start. UE4SS.log says why.` |
