@@ -141,7 +141,7 @@ fallback:
 | she ended that path less than 120 s ago | `replay` |
 | a shared quest step runs that row: wait for it to start her copy | |
 | every Epic quest of hers covers the host's last snapshot of it, his covering hers | `story` |
-| her theater manager plays nothing, or its theater has finished (one still loading its first take has not), and no copy started for the host still waits to show | `busy` |
+| her theater manager plays nothing or its theater has finished (one still loading its first take has not); no copy started for the host still waits to show | `busy` |
 
 The `story` check comes from the shared quests' guest side (`quest::Engine::story_in_step`). It is false while no
 guest side runs, so with shared quests off every start falls back. A start calls RunZoneEvent `0x141ca5790(world, her
