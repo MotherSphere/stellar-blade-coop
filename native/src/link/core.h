@@ -1799,18 +1799,22 @@ private:
   // gives no data for a lobby we are not in until it answers: walk() reads each until its tag shows, kWalkMs at most.
   void walk_friends() {
     const int n = api_.friend_count(friends_, kImmediateFriends);
+    int in_lobby = 0; // Two friends in one lobby are two here, one lobby in walk_.
     for (int i = 0; i < n; ++i) {
       const uint64_t id = api_.friend_by_index(friends_, i, kImmediateFriends);
       FriendGame g{};
-      if (!api_.friend_game(friends_, id, &g) || (g.game & 0xffffff) != app_ || !g.lobby ||
-          std::any_of(walk_.begin(), walk_.end(), [&g](const auto &w) { return w.first == g.lobby; }))
+      if (!api_.friend_game(friends_, id, &g) || (g.game & 0xffffff) != app_ || !g.lobby)
+        continue;
+      ++in_lobby;
+      if (std::any_of(walk_.begin(), walk_.end(), [&g](const auto &w) { return w.first == g.lobby; }))
         continue;
       if (api_.request_lobby_data(mm_, g.lobby))
         walk_.push_back({g.lobby, now_ + kWalkMs});
       else
         event("Steam refused to send the data of lobby " + std::to_string(g.lobby));
     }
-    event("reading the lobbies of " + std::to_string(walk_.size()) + " Steam friends");
+    event("Steam friends in a lobby: " + std::to_string(in_lobby) + "; their lobbies to read: " +
+          std::to_string(walk_.size()));
     if (walk_.empty())
       list_done();
   }

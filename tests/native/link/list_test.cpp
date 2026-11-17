@@ -272,14 +272,15 @@ int main() {
     auto other = rows(kPlayer[4]);
     other[kLobbyKey] = "20:" + std::to_string(kBuild);
     lobby_of(7100, kPlayer[4], kFriendsOnly, false, other);
-    F.friend_lobby = {{kFriend, L1}, {kPlayer[2], L2}, {kPlayer[3], L3}, {kPlayer[4], 7100}, {kOther, 0}};
+    F.friend_lobby = {{kFriend, L1}, {kPlayer[2], L2}, {kPlayer[3], L3}, {kPlayer[4], 7100}, {kPlayer[5], L1},
+                      {kOther, 0}}; // kPlayer[5]: the friend's guest, in her lobby.
     F.mute_data.insert(L3);
     const Api a0 = make_api<0>();
     assert(!*a0.lobby_data(nullptr, L1, kLobbyKey) && a0.lobby_owner(nullptr, L1) == 0);
     m[0].tick(m.now += 50, "list friends", 0, 0); // Steam has not answered yet.
     assert(has_op("lobbydata 1001 " + id(L1)) && has_op("lobbydata 1001 " + id(L3)) && ops_with("lobbydata ") == 4);
     assert(!*a0.lobby_data(nullptr, L1, kLobbyKey) && lines(m.status(0), "list=") == Texts{"list=friends searching 0"});
-    assert(saw("P1: reading the lobbies of 4 Steam friends"));
+    assert(saw("P1: Steam friends in a lobby: 5; their lobbies to read: 4"));
     finish_all();
     assert(std::string(a0.lobby_data(nullptr, L1, kLobbyKey)) == kTag && a0.lobby_owner(nullptr, L1) == 0);
     m.round();
