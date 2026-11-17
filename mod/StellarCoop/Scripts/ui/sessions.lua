@@ -47,7 +47,8 @@ function Sessions.new(o)
     local asked=nil -- When we last asked for a search (os.clock).
     local view,input=nil,nil -- As last drawn: what nav acts on.
     local icons,head,list,pane,hints_p={},{},{},{},{} -- Parts by slot.
-    local back_at,hover,hover_at=nil,false,0
+    local back_at,hover,hover_at=nil,false,0 -- hover: the slot or tab under the mouse at the last look.
+    local pointed=false -- The cursor came from the mouse: the list keeps still under it until a key moves the cursor.
     local said={} -- SB's words read while open (false: none).
     local P=Parts.new(kit,log,'sessions')
     local call,sync,look=P.call,P.sync,P.look
@@ -135,7 +136,8 @@ function Sessions.new(o)
         local rows=view.rows
         cur=#rows==0 and 0 or math.max(1,math.min(cur,#rows))
         top=math.max(0,math.min(top,#rows-WINDOW))
-        if cur>0 and cur<=top+1 then top=math.max(0,cur-2)
+        if pointed then top=math.max(0,math.min(math.max(top,cur-WINDOW),cur-1)) -- Moved only to keep cur shown.
+        elseif cur>0 and cur<=top+1 then top=math.max(0,cur-2)
         elseif cur>=top+WINDOW then top=math.min(#rows-WINDOW,cur-WINDOW+1) end
         v.page.set(t.row.find)
         for i,id in ipairs(Model.TABS) do
@@ -204,20 +206,20 @@ function Sessions.new(o)
     -- here would lose its rows while the 5 s gap held the new one back.
     local function set_tab(id)
         if id~=tab then
-            tab,cur,top=id,1,0
+            tab,cur,top,pointed=id,1,0,false
             kit.sound('change')
             read()
             if not view.ours then search() end
         end
         draw()
     end
-    -- The row under the mouse, or nil and a tab id.
+    -- The row under the mouse or nil, then a tab id or the slot.
     local function under()
         local v=kit.view('sessions')
         if not (v and view) then return nil end
         for i,tb in ipairs(v.tabs) do if tb.zone.hovered() then return nil,Model.TABS[i] end end
         for i,zone in ipairs(v.zones) do
-            if view.rows[top+i] and zone.hovered() then return top+i end
+            if zone.hovered() then return view.rows[top+i] and top+i or nil,i end
         end
     end
     function self.is_open() return open end
@@ -229,7 +231,7 @@ function Sessions.new(o)
         if not open then
             kit.input(true,'sessions',true)
             kit.sound('open')
-            open,back_at,hover,cur,top,said=true,nil,false,1,0,{}
+            open,back_at,hover,pointed,cur,top,said=true,nil,false,false,1,0,{}
             log('sessions: open '..tab)
         end
         kit.show('sessions',true)
@@ -254,11 +256,12 @@ function Sessions.new(o)
         if not view then read() end
         if what=='click' then
             local i,id=under()
-            if id then return set_tab(id) end
+            if type(id)=='string' then return set_tab(id) end -- A tab; a slot comes as a number.
             if not i then return end
             cur,what=i,'select'
         end
         if what=='up' or what=='down' then
+            pointed=false
             if #view.rows>0 then
                 cur=Model.move(#view.rows,cur,what=='up' and -1 or 1)
                 kit.sound('move')
@@ -290,8 +293,9 @@ function Sessions.new(o)
         if not (open or back_at) then kit.input(false,'sessions') end
         draw()
     end
-    -- Each frame: the input given back once due; every 100 ms while open, the row the mouse moved onto takes the cursor
-    -- (a resting mouse never does).
+    -- Each frame: the input given back once due; every 100 ms while open, the row the mouse moved onto (another slot
+    -- than at the last look) takes the cursor, the list kept still under it. A resting mouse never does, even while
+    -- the keys scroll the list under it.
     function self.tick(now)
         if back_at and now>=back_at then
             back_at=nil
@@ -299,12 +303,11 @@ function Sessions.new(o)
         end
         if open and now>=hover_at then
             hover_at=now+HOVER
-            local i,id=under()
-            local key=i or id
+            local i,key=under()
             local moved=hover~=false and key~=hover
             hover=key
             if moved and i then
-                cur=i
+                cur,pointed=i,true
                 kit.sound('move')
                 draw()
             end

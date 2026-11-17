@@ -241,6 +241,34 @@ zones[4].hover,zones[5].hover=false,true
 screen.nav('click')
 zones[5].hover=false
 assert(acts[6]=='join '..ROWS[3].lobby and not screen.is_open())
+-- The mouse moved onto the 8th row and resting there: the list keeps still under it, one move sound; a click 0.7 s
+-- later asks to join that row. Keys that scroll the list under the resting mouse keep the cursor.
+clock=clock+10
+screen.open()
+sounds={}
+zones[9].hover=true
+screen.tick(300)
+zones[9].hover,zones[10].hover=false,true
+for k=1,7 do screen.tick(300+0.1*k) end
+opts=live(OPTION)
+assert(opts[1].props.Text_TitleValue.text=='Host1' and opts[8].props.Text_TitleValue.text=='Host8',
+    opts[1].props.Text_TitleValue.text)
+assert(live(HEADER,2600)[1].props.Category_Name.text=='Host8' and #sounds==1 and sounds[1]=='move')
+screen.nav('down'); screen.nav('down') -- Host10, the list scrolled by three: Host11 under the mouse.
+screen.tick(302)
+assert(live(HEADER,2600)[1].props.Category_Name.text=='Host10' and live(OPTION)[8].props.Text_TitleValue.text=='Host11')
+screen.nav('up') -- Host9; the mouse rests on Host11's slot.
+screen.tick(303)
+assert(live(HEADER,2600)[1].props.Category_Name.text=='Host9',live(HEADER,2600)[1].props.Category_Name.text)
+zones[10].hover,zones[9].hover=false,true -- Onto the 7th slot, Host10.
+screen.tick(304)
+zones[9].hover=false
+assert(live(HEADER,2600)[1].props.Category_Name.text=='Host10')
+zones[10].hover=true
+screen.tick(305)
+screen.nav('click')
+zones[10].hover=false
+assert(acts[#acts]=='join '..ROWS[11].lobby and not screen.is_open(),acts[#acts])
 
 -- It closes by itself: no world, the game paused, in a lobby, the kit off.
 for _,case in ipairs({{'world'},{'paused'},{'lobby'},{'off'}}) do
