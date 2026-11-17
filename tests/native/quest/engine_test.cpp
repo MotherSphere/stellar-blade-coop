@@ -1027,6 +1027,17 @@ void her_steps() {
   assert(k.h(s1).groups == 1 && k.g(s1).groups == 2 && h.calls == 1);
   assert(has(k.host->log, "quests: her step of Quest_Sub_001 (1 - 0:t.0:t - . in Zone_WLA_30) waits: his cutscene"));
   assert(count(k.host->log, "waits: his cutscene") == 1);
+  // The same line again, 16 times over two seconds: the queue fills, then the full queue refuses the last one.
+  const std::string held = last(k.guest->lines, " step ");
+  for (int round = 0; round < 2; ++round) {
+    k.now += 1000;
+    for (size_t n = 0; n < kMaxSteps / 2; ++n)
+      k.host->hear(held);
+    k.step();
+  }
+  const std::string full = "(1 - 0:t.0:t - . in Zone_WLA_30) refused: " + std::to_string(kMaxSteps) +
+                           " of her steps wait already";
+  assert(!held.empty() && count(k.host->log, full) == 1 && count(k.host->log, "waits: his cutscene") == kMaxSteps);
   k.host->e.host_hold = nullptr;
   k.steps(4);
   assert(k.h(s1) == k.g(s1) && k.h(s1).groups == 2 && h.completes == 2 && g.calls == 1);

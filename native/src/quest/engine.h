@@ -733,10 +733,11 @@ private:
   }
 
   // The host's side of her step line, after this pass's walk. While a hold of his game stands (host_hold's: out of
-  // game, his cutscene, a menu) it waits, kMaxSteps at most, to be judged when the hold ends. A load drops it, as his
-  // quests may have gone back. Then accept()'s rules on his quest as the walk read it, apply()'s re-reads and SB's call
-  // on his own unit. SB then runs the step's events with his EVE as caster. His next pass sends the change to her.
-  // A refusal drops the line; the quest stays shared. One log line each. A line that starts to wait gets one too.
+  // game, his cutscene, a menu) it waits, kMaxSteps at most, to be judged when the hold ends; past them the full queue
+  // refuses it. A load drops it, as his quests may have gone back. Then accept()'s rules on his quest as the walk read
+  // it, apply()'s re-reads and SB's call on his own unit. SB then runs the step's events with his EVE as caster. His
+  // next pass sends the change to her. A refusal drops the line; the quest stays shared. One log line each. A line that
+  // starts to wait gets one too.
   template <class Game> void her_step(Game &g, const Message &m, bool load, bool waited) {
     const size_t i = size_t(row_index(m.e.id)); // Host::receive took only a shared quest.
     const Row &r = kRows[i];
@@ -745,11 +746,15 @@ private:
     const std::string what = "quests: her step of " + std::string(r.alias) + " (" + fields(m.e) + " in " + m.text + ")";
     Plan p;
     const char *why = load ? "a load" : host_hold ? host_hold() : nullptr;
-    if (why && !load && waiting_.size() < kMaxSteps) {
-      waiting_.push_back(m);
-      if (!waited)
-        log(what + " waits: " + why);
-      return;
+    if (why && !load) {
+      if (waiting_.size() < kMaxSteps) {
+        waiting_.push_back(m);
+        if (!waited)
+          log(what + " waits: " + why);
+        return;
+      }
+      static const std::string full = std::to_string(kMaxSteps) + " of her steps wait already";
+      why = full.c_str();
     }
     if (!why)
       why = accept(r, m.e, m.text, views_[i], live_[i], Where{zone_, arm_, false, nullptr, ordered}, side_.deny[i], p);

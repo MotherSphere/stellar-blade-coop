@@ -624,7 +624,7 @@ The C++ tests cover the platform-free headers in `native/src`.
   an older one dropped);
 - `quest_engine_test`: the shared quests against a fake quest unit: the walk, the guards before each game call, the
   gate, a fault, two PCs through channel 2's text with delay and loss (her step made first taken by the host's game,
-  kept through a hold of his game, dropped by his load), a recording replayed into another save, and
+  kept through a hold of his game until 16 wait, dropped by his load), a recording replayed into another save, and
   the worker's side (the gates that start and end a side, channel 2's lines beside the fight's, the record file and
   the status lines);
 - `quest_own_test`: the mod's own quests in a fake quest unit (`quest/own.h`): nothing read off a co-op save, on SB's
