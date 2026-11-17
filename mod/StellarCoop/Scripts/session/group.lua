@@ -5,9 +5,10 @@
 -- the Steam link. The revive sends nothing: each side reads its own game and the friend's vitals and ghost.
 -- The downed side (us): our EVE is revived where she lies once all of these held for 3 s with no gap: our life state
 -- 3 (the death screen's), the death screen's animation playing (core/unreal.lua's death_screen()), the engine line's
--- warp=idle (no respawn or warp in flight, read by the native part), the friend linked with her vitals alive (life 1 or
--- 6, HP above 0), her ghost shown on our map within 2 m across and 1 m up or down of our EVE, the fight= line's boss=0
--- (the shared fight runs, which the native part allows on a co-op save only, and no boss of ours is in battle), the
+-- warp=idle (no respawn or warp in flight, read by the native part), a member past the handshake with her vitals alive
+-- (life 1 or 6, HP above 0) and her ghost shown on our map within 2 m across and 1 m up or down of our EVE (with more
+-- than one, the nearest revives), the fight= line's boss=0 (the shared fight runs, which the native part allows on a
+-- co-op save only, and no boss of ours is in battle), the
 -- game standalone (KismetSystemLibrary IsStandalone, as nightop/probe.lua reads it: in net mode 3 the call would go to
 -- a server instead), no nightop=rule on the engine line (with a rule row the respawn spends a life count and may not
 -- respawn at all), and revive=on. Then pc:ServerRequest_ActorRespawn(me, false), SB's own
@@ -20,9 +21,11 @@
 -- off for the run, or at coop off (stop()). A Lua error turns the revive off for the run. Notices: the wait (the friend
 -- can revive us) once per death, once everything but the distance holds; the revived line after a revive. A link that
 -- drops starts the 3 s again.
--- The friend's side: her down notice once per death of hers, while our EVE is not down, she is on our map and no boss
--- of ours is in battle; our revive of her when her vitals go from down to alive while our EVE stands within 3 m of her
--- ghost. Her revive setting reaches no line, so the down notice shows whatever it says.
+-- The friend's side, for each member past the handshake: her down notice once per death of hers, while our EVE is not
+-- down, she is on our map and no boss of ours is in battle; our revive of her when her vitals go from down to alive
+-- while our EVE stands within 3 m of her ghost. Her revive setting reaches no line, so the down notice shows whatever
+-- it says. A member's vitals are the link's (vit=, mate= for slot 0), her ghost her slot's: main.lua's puppet for slot
+-- 0, o.ghost(k) for the others.
 -- coop revive test, the solo probe: refused while linked, it makes the same call at the death screen with life 3 to 5,
 -- with the same lines (commands/session.lua runs it on a co-op save only).
 -- During a Night Operation run (o.night()), the run owns the revive (nightop/run.lua): the 3 s rule and its notices
@@ -35,7 +38,8 @@
 -- name).
 -- The host's photo state goes to the native part as 'c' while it plays and the host's own is '0' (photo()), so its
 -- photo line pauses the guest; the guest asks for that pause with cut=1 while her cutscene_wait is on and the host's
--- ghost is on her map (cut()). Her notice comes once each time her photo line says the pause holds for it.
+-- ghost (his member line's slot) is on her map (cut()). Her notice comes once each time her photo line says the pause
+-- holds for it.
 local U=require('core.unreal')
 local N=require('nightop.probe')
 local G={}
@@ -55,16 +59,17 @@ local function feet()
     local v=U.value_of(mesh:K2_GetComponentLocation())
     return {X=v.X,Y=v.Y,Z=v.Z}
 end
--- o: {link=, puppet=, settings= (revive), tell(build), name(words) (her name, or the words' friend), log(text), night()
--- (a Night Operation run is on; nil: never)}.
+-- o: {link=, puppet=, settings= (revive), tell(build), name(words, name) (that name cleaned, or with none the slot-0
+-- member's, else the words' friend), log(text), night() (a Night Operation run is on; nil: never), ghost(k) (ghost
+-- slot k's puppet, 1 to 6, or nil)}.
 function G.new(o)
     local link,puppet,settings,log=o.link,o.puppet,o.settings,o.log
-    local function tell(key) o.tell(function(w) return w.group[key]:format(o.name(w)) end) end
+    local function tell(key,name) o.tell(function(w) return w.group[key]:format(o.name(w,name)) end) end
     local self,now,off={},0,{}
     local screen,look_at,hidden=nil,-math.huge,nil -- hidden: {widget=, was=} while we hide the death screen.
     local d=nil -- This death of ours: {since=, waited=, said=, call=, before=, fallback=, probe=, night=}.
     local function night() return o.night~=nil and o.night()==true end
-    local hers=nil -- Her death as we saw it: {said=}.
+    local hers={} -- Each member's death as we saw it, by her SteamID: {said=}.
     local scene={playing=false,next=0,told=false} -- A cutscene: as of the last read, the next read, our notice.
     local function engine() return ('\n'..(link.status() or '')):match('\nengine=([^\r\n]*)') or '' end
     local function death_screen()
@@ -79,9 +84,31 @@ function G.new(o)
         local s=death_screen()
         return s~=nil and s:IsAnyAnimationPlaying()==true
     end
-    local function same_map()
+    local NONE={her_map=function() end,anchor=function() end} -- A slot whose ghost is not made yet.
+    local function ghost_of(slot)
+        if slot==0 then return puppet end
+        return o.ghost and o.ghost(slot) or NONE
+    end
+    -- Each member past the handshake: {id=, name=, vit= (her vitals or nil), ghost=}, in the status's order.
+    local function mates()
+        local out={}
+        for _,m in ipairs(link.members()) do
+            if m.linked then
+                out[#out+1]={id=m.id,name=m.name,vit=m.slot==0 and link.mate() or link.vitals(m.id),
+                    ghost=ghost_of(m.slot)}
+            end
+        end
+        return out
+    end
+    local function same_map(ghost)
         local me=puppet.me()
-        return me~=nil and me.map~=nil and puppet.her_map()==me.map
+        return me~=nil and me.map~=nil and (ghost or puppet).her_map()==me.map
+    end
+    -- On a guest, the host's ghost (his member line's slot; the native part gives him slot 0).
+    local function host_ghost()
+        local h=link.host()
+        local m=h and link.member(h.id)
+        return m and ghost_of(m.slot) or puppet
     end
     local function boss_free() return (link.fight() or ''):find(' boss=0',1,true)~=nil end
     -- The screen we hid comes back as it was.
@@ -91,19 +118,29 @@ function G.new(o)
         if U.valid(h.widget) then h.widget:SetVisibility(h.was) end
         log('revive: death screen shown again ('..reason..')')
     end
-    -- Why the revive waits, or nil when every condition holds now; 'friend far' when only the distance fails. probe:
-    -- coop revive test's (life 3 to 5, and nothing of the friend's or of the shared fight's).
+    -- Why the revive waits, or nil when every condition holds now; 'friend far' when only the distance fails. Then our
+    -- EVE's GUID, the controller, the metres to the nearest member within 2 m and her name (with 'friend far', the
+    -- name of the first member alive on our map). probe: coop revive test's (life 3 to 5, and nothing of the friend's
+    -- or of the shared fight's).
     local function blocker(probe)
         if not probe and not settings.revive then return 'revive=off' end
         local life=link.life()
         if not life then return 'no life read (our life is read in a session only: start coop loopback 0 0 0 first)' end
         -- The death screen's life state: 3 for a co-op revive, 3 to 5 for coop revive test.
         if life.state<3 or life.state>(probe and 5 or 3) then return 'life '..life.state end
-        local _,linked=link.friend()
+        local near={} -- The members alive on our map.
         if not probe then
-            if not linked then return 'no friend linked' end
-            if not alive(link.mate()) then return 'friend not alive' end
-            if not same_map() then return 'friend on another map' end
+            local list=mates()
+            if not list[1] then return 'no friend linked' end
+            local up=false
+            for _,m in ipairs(list) do
+                if alive(m.vit) then
+                    up=true
+                    if same_map(m.ghost) then near[#near+1]=m end
+                end
+            end
+            if not up then return 'friend not alive' end
+            if not near[1] then return 'friend on another map' end
             if not boss_free() then
                 return (link.fight() or ''):find(' boss=',1,true) and 'boss fight' or 'no shared fight'
             end
@@ -121,12 +158,16 @@ function G.new(o)
         if not N.her() then return 'no EVE' end
         if not playing() then return 'no death screen' end
         if probe then return nil,tonumber(me),pc end
-        local _,ghost=puppet.anchor()
-        local mine=feet()
-        if not (ghost and mine) or (ghost.X-mine.X)^2+(ghost.Y-mine.Y)^2>ACROSS^2 or math.abs(ghost.Z-mine.Z)>UP then
-            return 'friend far'
+        local mine,best,by=feet(),nil,nil
+        for _,m in ipairs(near) do
+            local _,ghost=m.ghost.anchor()
+            if ghost and mine and (ghost.X-mine.X)^2+(ghost.Y-mine.Y)^2<=ACROSS^2 and math.abs(ghost.Z-mine.Z)<=UP then
+                local d=math.sqrt((ghost.X-mine.X)^2+(ghost.Y-mine.Y)^2)
+                if not best or d<best then best,by=d,m end
+            end
         end
-        return nil,tonumber(me),pc,math.sqrt((ghost.X-mine.X)^2+(ghost.Y-mine.Y)^2)/100
+        if not by then return 'friend far',nil,nil,nil,near[1].name end
+        return nil,tonumber(me),pc,best/100,by.name
     end
     local function snapshot()
         local life,s,eve=link.life(),death_screen(),N.her()
@@ -134,10 +175,11 @@ function G.new(o)
             screen=s and (s:IsAnyAnimationPlaying()==true and 'up' or 'off') or 'gone',pawn=eve and U.address(eve)}
     end
     local function who()
-        return d.probe and 'coop revive test' or d.night=='self' and 'coop nightop revive' or (link.friend()) or '?'
+        return d.probe and 'coop revive test' or d.night=='self' and 'coop nightop revive' or d.by or (link.friend())
+            or '?'
     end
-    local function call(me,pc,where)
-        d.call,d.me,d.before=now,me,snapshot()
+    local function call(me,pc,where,by)
+        d.call,d.me,d.before,d.by=now,me,snapshot(),by
         local b=d.before
         log(string.format('revive: ServerRequest_ActorRespawn(%d, false) asked (%s%s; life %s, hp %s, death screen %s)',
             me,who(),where and string.format(' %.1f m away',where) or '',b.life,b.hp,b.screen))
@@ -174,7 +216,7 @@ function G.new(o)
             screen_now,not a.pawn and 'gone' or a.pawn==b.pawn and 'same' or 'new'))
         d.call=nil
         d.done=true
-        if not d.probe and d.night~='self' and (up or d.moved) then tell('revived') end
+        if not d.probe and d.night~='self' and (up or d.moved) then tell('revived',d.by) end
         if d.moved and not up then d=nil end
     end
     local function downed(linked)
@@ -193,36 +235,44 @@ function G.new(o)
             return
         end
         if d.done or not linked or night() then d.since=nil; return end
-        local reason,me,pc,where=blocker(false)
+        local reason,me,pc,where,by=blocker(false)
         if reason~=d.said then
             d.said=reason
             if reason then log('revive waits: '..reason) end
         end
         if (not reason or reason=='friend far') and not d.waited then
             d.waited=true
-            tell('wait')
+            tell('wait',by)
         end
         if reason then d.since=nil; return end
         d.since=d.since or now
-        if now-d.since>=HOLD then call(me,pc,where) end
+        if now-d.since>=HOLD then call(me,pc,where,by) end
     end
     local function friend()
-        local m=link.mate()
-        if down(m) then
-            hers=hers or {}
-            local life=link.life()
-            if not hers.said and not (life and life.state>=3 and life.state<=5) and same_map() and boss_free() then
-                hers.said=true
-                if not night() then tell('down') end -- The run gives its own: her key, not 3 s near.
-            end
-        elseif hers and alive(m) then
-            hers=nil
-            local _,ghost=puppet.anchor()
-            local mine=feet()
-            if not night() and ghost and mine and (ghost.X-mine.X)^2+(ghost.Y-mine.Y)^2+(ghost.Z-mine.Z)^2<=NEAR^2 then
-                tell('you_revived')
+        local seen={}
+        for _,m in ipairs(mates()) do
+            seen[m.id]=true
+            local h=hers[m.id]
+            if down(m.vit) then
+                h=h or {}
+                hers[m.id]=h
+                local life=link.life()
+                local ours_down=life and life.state>=3 and life.state<=5
+                if not h.said and not ours_down and same_map(m.ghost) and boss_free() then
+                    h.said=true
+                    if not night() then tell('down',m.name) end -- The run gives its own: her key, not 3 s near.
+                end
+            elseif h and alive(m.vit) then
+                hers[m.id]=nil
+                local _,ghost=m.ghost.anchor()
+                local mine=feet()
+                if not night() and ghost and mine and (ghost.X-mine.X)^2+(ghost.Y-mine.Y)^2+(ghost.Z-mine.Z)^2<=NEAR^2
+                then
+                    tell('you_revived',m.name)
+                end
             end
         end
+        for id in pairs(hers) do if not seen[id] then hers[id]=nil end end -- Gone, or no longer linked.
     end
     -- The cutscene's name while one plays, else nil. The observer found playing is kept while it plays. A theater plays
     -- through a level sequence actor, whose class's actors come from the engine's class hash (core/unreal.lua's
@@ -303,13 +353,12 @@ function G.new(o)
     function self.tick(t)
         now=t
         local mode=link.mode()
-        local _,with=link.friend()
-        local linked=(mode=='host' or mode=='guest') and with==true
+        local linked=(mode=='host' or mode=='guest') and link.others()>0
         guard('revive',downed,linked)
         if hidden and (off.revive or not link.life()) then
             guard('screen',show,off.revive and 'the revive is off' or 'no session')
         end
-        if linked then guard('friend',friend) else hers=nil end
+        if linked then guard('friend',friend) else hers={} end
         if linked then guard('cutscene',watch) end
         if not linked or off.cutscene then scene.playing,scene.told=false,false end
     end
@@ -324,7 +373,7 @@ function G.new(o)
     -- The guest's ask for the pause during the host's cutscene: cutscene_wait=on, the host's ghost on her map, and our
     -- read of cutscenes not off for the run (the pause would come with no notice).
     function self.cut()
-        return not off.cutscene and settings.cutscene_wait==true and link.mode()=='guest' and same_map()
+        return not off.cutscene and settings.cutscene_wait==true and link.mode()=='guest' and same_map(host_ghost())
     end
     -- coop off: the death screen we hid comes back.
     function self.stop() if hidden then show('coop off') end end

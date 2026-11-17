@@ -831,6 +831,16 @@ s,notes=Link.parse_settings(older)
 assert(#notes==0 and s.cutscene_wait==true)
 s,notes=Link.parse_settings('CUTSCENE_WAIT=Off')
 assert(#notes==0 and s.cutscene_wait==false)
+-- max_players: 2 to 4, 4 by default and in a new file; anything else keeps 4, with a line.
+assert(Link.DEFAULT:find('\nmax_players=4\n',1,true) and Link.parse_settings('').max_players==4)
+for _,case in ipairs({{'2',2},{'3',3},{' 4 ',4}}) do
+    s,notes=Link.parse_settings('max_players='..case[1])
+    assert(#notes==0 and s.max_players==case[2] and math.type(s.max_players)=='integer',case[1])
+end
+for _,bad in ipairs({'1','5','8','03','x','3.0',''}) do
+    s,notes=Link.parse_settings('max_players='..bad)
+    assert(#notes==1 and s.max_players==4 and notes[1]:find('(use 2 to 4); max_players stays 4',1,true),bad)
+end
 s,notes=Link.parse_settings('cutscene_wait=2')
 assert(#notes==1 and s.cutscene_wait==true and notes[1]:find("'2' is not allowed for cutscene_wait",1,true))
 -- follow_host (yours, as the guest): ask, always or off in any case, ask by default and in a file written before it;
@@ -1475,6 +1485,57 @@ assert(door.stranger()==nil,'A new lobby: every stranger of the last one forgott
 files[STATUS]=HOSTING..peer('76561198000000009','S')
 door.changes()
 assert(door.stranger()==nil,'Forgotten for good, not hidden')
+-- Every joiner who waits, in the status's order (the native part asks about the first): the first in pending(), all
+-- in pendings(); one let in while another still waits is removable at once.
+files[STATUS]='mod=v steam=ready\nlink=host lobby=7002\npending=11 One\npending=12 Two\npending=13 Three\n'
+    ..peer('11','One')..peer('12','Two')..peer('13','Three')
+door.changes()
+local queue=door.pendings()
+assert(#queue==3 and queue[1].id=='11' and queue[2].name=='Two' and queue[3].id=='13' and door.pending()==queue[1])
+files[STATUS]='mod=v steam=ready\nlink=host lobby=7002\npending=12 Two\npending=13 Three\n'
+    ..peer('11','One')..peer('12','Two')..peer('13','Three')
+door.changes()
+assert(door.pending().id=='12' and #door.pendings()==2 and door.stranger().id=='11','The first let in, two wait')
+files[STATUS]='mod=v steam=ready\nlink=host lobby=7002\n'
+door.changes()
+assert(door.pending()==nil and #door.pendings()==0)
+-- An online session of more than 2 players: its host and pair (host=, from the start of its own line), each member's
+-- vitals (vit=, out of the log as mate= is), how many are past the handshake, the status line with ' +<n>'.
+local V12='1 2 3 4 5 6 7 8 9 10 11 '
+local CROWD='mod=v steam=ready\nlink=host lobby=7003\nhost=1 pair=21\nmember=21 0 1 0 0 40 Kaanta\n'
+    ..'member=22 1 1 0 0 50 Lucas\nmember=23 2 0 0 0 -1 Wait\nfriend=1 0 Kaanta\nvit=21 '..V12..'1\nvit=22 '..V12..'4\n'
+files[STATUS]=CROWD
+lines=door.changes()
+for _,line in ipairs(lines) do assert(not line:find('^vit='),'vit= stays out of the log') end
+assert(door.host().id=='1' and door.host().pair=='21' and door.others()==2)
+assert(door.vitals('21').life==1 and door.vitals('22').life==4 and door.vitals('22').hp==1 and door.vitals('23')==nil)
+assert(door.slot(1).mate().life==4 and door.slot(2).mate()==nil and door.slot(1).friend()=='Lucas')
+assert(door.summary()=='Co-op: hosting Kaanta +1.')
+files[STATUS]=CROWD:gsub('friend=1 0 Kaanta\n',''):gsub('member=21 0 1','member=21 0 0'):gsub('pair=21','pair=0')
+door.changes()
+assert(door.host().pair==nil and door.others()==1 and door.summary()=='Co-op: hosting Lucas.' and door.chatting(),
+    'No pair: the first member past the handshake; the session holds')
+files[STATUS]='mod=v steam=ready\nlink=guest lobby=7003\nhost=1 pair=0\nmember=1 0 1 0 0 40 Host\n'
+    ..'member=22 1 1 0 0 50 Lucas\nfriend=1 0 Host\n'
+door.changes()
+assert(door.host().id=='1' and door.host().pair==nil and door.summary()=="Co-op: in Host +1's game.")
+for _,bad in ipairs({'host=1\n','host=x pair=2\n','host=1 pair=2 x\n','friend=1 0 x host=1 pair=2\n',
+        'vit=21 1 2 3\n','vit=x '..V12..'1\n'}) do
+    files[STATUS]='mod=v steam=ready\nlink=host lobby=7003\n'..bad
+    door.changes()
+    assert(door.host()==nil and door.vitals('21')==nil,bad)
+end
+-- cap(): the players at most of our last host request, while we host.
+door.request('host public ask 3')
+files[STATUS]='mod=v steam=ready\nlink=host lobby=7004\n'
+door.changes()
+assert(door.cap()==3)
+door.request('host friends 2')
+assert(door.cap()==2)
+files[STATUS]='mod=v steam=ready\nlink=none lobby=0\n'
+door.changes()
+assert(door.cap()==nil,'Not hosting')
+files[REQUEST]=nil
 -- An object path kept across Lua loads: the ghost's in coop-puppet.txt, the UI root's in a file of its own.
 local ghost,ui=link.store(),link.store('coop-ui.txt')
 assert(ghost.save('/Game/Maps/E04.Actor_1') and ui.save('/Engine/Transient.UserWidget_7'))

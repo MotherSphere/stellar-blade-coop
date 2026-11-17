@@ -212,7 +212,8 @@ assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key r
     ..'photo_sync '
     ..'photo_freeze_max photo_ghost '
     ..'photo_name_tag photo_pause head:partner name_tag partner_bar partner_arrow partner_card card_details head:ghost cloth dyes '
-    ..'effects collide send_rate head:session who_can_join revive cutscene_wait follow_host shared_world shared_story '
+    ..'effects collide send_rate head:session who_can_join max_players revive cutscene_wait follow_host shared_world '
+    ..'shared_story '
     ..'head:saves '
     ..'auto_coop_save '
     ..'shared_quests '
@@ -282,7 +283,7 @@ assert(M.read('who_can_join=code\n').who_can_join=='invitation'
     and M.read('who_can_join=x\n').who_can_join=='public')
 local function asks(who)
     local rows=ids(M.new('options'),{mode='none',values={who_can_join=who}})
-    return rows:find(' who_can_join friends_ask revive ',1,true)~=nil
+    return rows:find(' who_can_join friends_ask max_players revive ',1,true)~=nil
 end
 assert(asks('public') and asks('invitation') and not asks('friends') and not asks('closed') and not asks(nil))
 assert(values.friends_ask=='off' and M.read('friends_ask=ON\n').friends_ask=='on')
@@ -291,6 +292,11 @@ menu=M.new('options')
 while menu.current(PUBLIC).key~='friends_ask' do menu.move(PUBLIC,1) end
 action,key,text=menu.select(PUBLIC,0,PUBLIC.values)
 assert(action=='set' and key=='friends_ask' and text=='on' and not menu.current(PUBLIC).reload)
+-- Players: 2 to 4 (max_players, 4 by default), held at its ends, at the next host.
+on('max_players')
+assert(values.max_players=='4' and select(3,menu.change(NONE,values,-1))=='3'
+    and menu.change(NONE,values,1)==nil and not menu.current(NONE).reload)
+assert(M.read('max_players=2\n').max_players=='2' and M.read('max_players=5\n').max_players=='4')
 -- The solid partner: on by default, a toggle in effect at once (main.lua gives it to the ghost each 250 ms).
 on('collide')
 assert(values.collide=='on' and select(3,menu.change(NONE,values,1))=='off' and not menu.current(NONE).reload)

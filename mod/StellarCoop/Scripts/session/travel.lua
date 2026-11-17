@@ -18,7 +18,10 @@
 -- Notices: going (the call was taken), none (no camp passed, or SB refused each), busy (a guard of the moment, or the
 -- host's game busy or loading), failed (the native part refused, no answer came, the warp never started, no read of
 -- the activated camps, or the follow off; UE4SS.log says why).
--- The host. Its game answers each new camps? from the link's status: its world and the 8 camps of this table under it
+-- The guest reads the host's map and feet from the host's ghost: the slot the host's member line names (the native
+-- part gives the host slot 0, main.lua's puppet, on every guest), through o.ghost(k) for another slot.
+-- The host. While any guest is linked, its game answers each new camps? from the link's status (the native part
+-- sends each answer to the guests who asked): its world and the 8 camps of this table under it
 -- nearest its EVE, in whole metres, or none and why (title, loading, nocamp, busy). The camps are the map's
 -- SBSpawnPoint actors named after a camp of its world, read once a map (FindAllOf walks every object; a read that found
 -- none, again a minute later), never during a load.
@@ -134,7 +137,8 @@ end
 local why=U.why
 -- o: {link=, puppet=, settings= (follow_host, follow_key), tell(build), name(words) (her name, or the words' friend),
 -- log(text), paused() (the game paused, photo mode or a menu), night() (a Night Operation run), cutscene() (one plays
--- in our game), follow (true: the follow may travel; main.lua passes it)}.
+-- in our game), follow (true: the follow may travel; main.lua passes it), ghost(k) (ghost slot k's puppet, 1 to 6, or
+-- nil)}.
 function Travel.new(o)
     local link,puppet,settings,log=o.link,o.puppet,o.settings,o.log
     local self,now,off={},0,false
@@ -176,17 +180,34 @@ function Travel.new(o)
     local offer={}
     local answered,cache=nil,{} -- The host's: the last camps? answered; its camps on cache.map, read at cache.at.
     local placed=nil -- The host's last place for the session list: {map=, at=}.
+    -- On a guest: the host's member line (nil before the status names the host) and the host's ghost, main.lua's
+    -- puppet in slot 0, else slot k's ghost (none until it is made).
+    local NONE={her_map=function() end,anchor=function() end}
+    local function host_member()
+        local h=link.host()
+        return h and link.member(h.id)
+    end
+    local function host_ghost()
+        local m=host_member()
+        if not m or m.slot==0 then return puppet end
+        return o.ghost and o.ghost(m.slot) or NONE
+    end
     -- The host's map, ours, and the metres between his ghost and our EVE when both are on one map and it shows.
     local function where()
-        local me,host=puppet.me(),puppet.her_map()
+        local ghost=host_ghost()
+        local me,host=puppet.me(),ghost.her_map()
         local mine=me and me.map
         if not (host and mine) or host~=mine then return host,mine,nil end
-        local _,feet=puppet.anchor()
+        local _,feet=ghost.anchor()
         return host,mine,feet and math.sqrt((feet.X-me.at.X)^2+(feet.Y-me.at.Y)^2+(feet.Z-me.at.Z)^2)/100
     end
+    -- A guest linked with the host: her member line, else (no host line) the slot-0 member's.
     local function guest()
+        if link.mode()~='guest' then return false end
+        local m=host_member()
+        if m then return m.linked end
         local _,linked=link.friend()
-        return link.mode()=='guest' and linked==true
+        return linked==true
     end
     -- Why a travel cannot start now, and the notice for it (nil: the log only), or nil when it can. calling: again
     -- right before a call, inside the travel under way.
@@ -354,7 +375,7 @@ function Travel.new(o)
                 offer.due=now+AUTO
                 tell('auto',function(w) return {o.name(w),settings.follow_key.name} end)
             else
-                local host=puppet.her_map():match('([^/]+)$')
+                local host=host_ghost().her_map():match('([^/]+)$')
                 tell('offer',function(w) return {o.name(w),host,settings.follow_key.name} end)
             end
         end
@@ -392,8 +413,7 @@ function Travel.new(o)
         return camps
     end
     local function host()
-        local _,linked=link.friend()
-        if link.mode()~='host' or linked~=true then answered=nil; return end
+        if link.mode()~='host' or link.others()==0 then answered=nil; return end
         local asked=link.camps()
         if not asked or asked==answered then return end
         answered=asked

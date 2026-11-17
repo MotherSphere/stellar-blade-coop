@@ -108,7 +108,7 @@ coop('mark'); assert(asked[#asked]=='mark' and last()=='[StellarCoop] OK: asked 
 coop('mark','\1'); assert(asked[#asked]=='mark' and asked[#asked-1]=='mark','Nothing left of the text: no text')
 kit_language=nil
 asked={}
-coop('host'); assert(asked[1]=='host public' and last():find('OK: asked the native part: host public',1,true),last())
+coop('host'); assert(asked[1]=='host public 4' and last():find('OK: asked the native part: host public 4',1,true),last())
 coop('invite'); coop('leave'); coop('report')
 assert(asked[2]=='invite' and asked[3]=='leave' and asked[4]=='report')
 coop('join'); assert(asked[5]=='join')
@@ -172,7 +172,7 @@ for _,bad in ipairs({{'allow'},{'deny','12x'},{'remove',('9'):rep(21)},{'allow',
     coop(table.unpack(bad))
     assert(#asked==6 and last()=='[StellarCoop] STOP: Use: coop '..bad[1]..' <SteamID>\n',last())
 end
-asked={'host public','invite','leave','report','join','join 109775241234567890'}
+asked={'host public 4','invite','leave','report','join','join 109775241234567890'}
 coop('status'); assert(last():find('OK: mod=v proto=3 steam=ready | link=none lobby=0 | last=#1 ready | ghost=off',1,true),last())
 assert(#sessions==1 and sessions[1]:find('^%d+%-%d+$'),'A session token per load')
 loops[1].f(); loops[1].f()
@@ -1192,7 +1192,7 @@ assert(nr.o and nr.o.records==nil,'No mod folder: no records')
 status_text=with_slot('slot=main index=0 marker=4\n')
 load_main(true)
 toggles=0
-coop('host'); assert(asked[#asked]=='host public' and last():find('OK: asked the native part: host public',1,true),last())
+coop('host'); assert(asked[#asked]=='host public 4' and last():find('OK: asked the native part: host public 4',1,true),last())
 coop('puppet'); assert(toggles==1 and active and last()=='[StellarCoop] OK: ghost\n',last())
 coop('puppet'); assert(toggles==2 and not active)
 coop('no'); assert(#probe_runs==0 and last()==STOP..'slot=main index=0 marker=4\n',last())

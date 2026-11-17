@@ -70,12 +70,20 @@ function Menu.new(o)
     end
     local function stranger(ctx) return Join.name(ctx.stranger.name) or words.ask.someone end
     -- The co-op line's state: free (no session), open (hosting, no friend linked or her connection lost), linked (her
-    -- name, else the status line's word for her), else nothing (before Steam, connecting, a guest's connection lost).
+    -- name, else the status line's word for her; on the host with slot 0 free, the first member past the handshake;
+    -- ' +<n>' for the other members past it), else nothing (before Steam, connecting, a guest's connection lost).
     local function line(ctx)
         local name,linked,lost=link.friend()
         if ctx.mode=='none' then return words.line.free end
+        if not linked then
+            for _,m in ipairs(link.members()) do
+                if m.linked then name,linked,lost=m.name,true,m.lost; break end
+            end
+        end
         if linked and not lost and (ctx.mode=='host' or ctx.mode=='guest') then
-            return words.line.linked:format(Join.name(name) or words.summary.friend)
+            local who=Join.name(name) or words.summary.friend
+            if link.others()>1 then who=who..' +'..(link.others()-1) end
+            return words.line.linked:format(who)
         end
         if ctx.mode=='host' then return words.line.open end
     end

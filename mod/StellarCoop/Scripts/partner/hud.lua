@@ -151,6 +151,12 @@ end
 -- corner). Each frame (tick): the gauges while they move and the marker or arrow while she has an anchor, so it follows
 -- the camera at the game's frame rate: one projection through the kit, its views' setters touching the engine on change
 -- only. No engine call here: the kit makes them.
+-- The card, marker and arrow follow the slot-0 member (the host on a guest, the pair on the host), or on the host while
+-- slot 0 is free the first member past the handshake. In a session of more than 2 players each other member past the
+-- handshake gets a compact row right of the card, in the kit's SB fonts and HUD dots: her name, an HP row and her
+-- state as on the card (DOWN, elsewhere, connection lost, a dash with no vitals; else the ping and her map with
+-- card_details), greyed as the card is, the alert once on DOWN and on a lost link. Rows show with partner_card, three
+-- to a column, six at most (ghost slots 1 to 6: sized for 8 players); her HP is drawn as read, with no tween.
 local clean=Chat.clean
 local TWEEN,GREY,NAME=0.3,0.45,20 -- s a gauge moves; a greyed card's opacity; characters shown.
 local MW,MH,AW,AH,AC=320,120,160,180,80 -- Marker and arrow sizes in layout units; the arrow's diamond centre in it.
@@ -165,11 +171,26 @@ local SY,SH,BAND,PAD=8,84,46,16
 local MOST=(CY-4-SY)/SH
 local HP_ROW,SH_ROW,BE_ROW={'HP',79,45},{'SH',133,20},{'BE',162,30}
 local MID,RIGHT={X=0,Y=0.5},{X=1,Y=0.5} -- A text centred on its line, from its left or its right end.
+-- The members' rows: their count, size, the gap between two, the first one's place (right of the card, at its top) and
+-- how many go in a column (three fill the card's height).
+local ROWS,RW,RH,RGAP,COLUMN=6,640,60,8,3
+local RX,RY=CX+CW+16,CY
+function P.row_at(i) -- Row i's top left.
+    local col,line=(i-1)//COLUMN,(i-1)%COLUMN
+    return RX+col*(RW+16),RY+line*(RH+RGAP)
+end
 local TWEENED={'hp','shield','beta'}
--- o: {kit=ui.kit's, link= (chatting, friend, mate, ping, summary, paused, fight, pilot, quests), puppet= (anchor,
--- her_map, me), settings= (main.lua's: the menu changes them in place), theme=ui.THEME}.
+-- o: {kit=ui.kit's, link= (chatting, friend, mate, ping, summary, paused, fight, pilot, quests, members, vitals),
+-- puppet= (anchor, her_map, me), settings= (main.lua's: the menu changes them in place), theme=ui.THEME, ghost(k)
+-- (ghost slot k's puppet, 1 to 6, or nil)}.
 function P.hud(o)
     local kit,link,puppet,settings,theme=o.kit,o.link,o.puppet,o.settings,o.theme
+    local NONE={anchor=function() end,her_map=function() end} -- A slot whose ghost is not made yet.
+    local function ghost_of(slot)
+        if slot==0 then return puppet end
+        return o.ghost and o.ghost(slot) or NONE
+    end
+    local her=puppet -- The ghost the card, the marker and the arrow follow (slow() picks it).
     local self,all,words,picked,lang={},T.en,T.en.partner,nil,nil
     local session,quiet,away,where,alert,vit,from,since=false,false,false,nil,nil,nil,nil,nil
     local now,was_on,last_at,last_feet=0,false,nil,nil
@@ -202,6 +223,16 @@ function P.hud(o)
             diamond=b.image(64,64,32,32,'diamond',theme.teal),far=b.text(52,116,'','num'),
             pips=b.dots(65,160,3,1,'small')}
     end)
+    -- The members' rows: flat glass, her name and state on the top line, her HP under them.
+    for i=1,ROWS do
+        local x,y=P.row_at(i)
+        kit.add('member'..i,{x=x,y=y,w=RW,h=RH},function(b)
+            b.image(0,0,RW,RH,nil,theme.panel)
+            return {name=b.text(16,20,'','hint',theme.teal,MID),info=b.text(RW-16,20,'','status',theme.grey,RIGHT),
+                hp=b.hp(16,40,(RW-32)//10,1,'small')}
+        end)
+    end
+    local row_alert={} -- Each member's state that sounded the alert (by SteamID).
     -- Before her first vitals (a new session): every gauge empty, never the last partner's.
     local NONE={hp=0,max_hp=0,shield=0,max_shield=0,blocks=0,beta=0,max_beta=0}
     -- A gauge's value as drawn now.
@@ -237,7 +268,7 @@ function P.hud(o)
     local function place()
         local bar=session and not away and settings.partner_bar~=false
         local arrow=session and not away and settings.partner_arrow~=false
-        local at,feet=puppet.anchor()
+        local at,feet=her.anchor()
         if at then last_at,last_feet=at,feet elseif not quiet or where=='elsewhere' then last_at,last_feet=nil,nil end
         at,feet=at or last_at,feet or last_feet
         local m,a=kit.view('marker'),kit.view('arrow')
@@ -271,11 +302,23 @@ function P.hud(o)
             all=T.pick(kit.language(),lang)
             words=all.partner
         end
+        -- The card's member: the slot-0 one, else (the host, slot 0 free) the first member past the handshake.
         local friend,_,is_lost=link.friend()
+        local new=session and link.mate() or nil
+        local lead_slot,ping=0,link.ping()
+        her=puppet
+        if not friend then
+            for _,m in ipairs(link.members()) do
+                if m.linked then
+                    friend,is_lost,lead_slot,her=m.name,m.lost,m.slot,ghost_of(m.slot)
+                    new,ping=session and link.vitals(m.id) or nil,m.rtt>=0 and m.rtt or nil
+                    break
+                end
+            end
+        end
         local top,right,second=P.status_rows(all,{mode=settings.status_overlay,summary=link.summary(P.short(all)),
             lost=is_lost==true,paused=link.paused(),ping=link.ping(),fight=link.fight(),pilot=link.pilot(),
             quests=link.quests(),rate=settings.send_rate})
-        local new=session and link.mate() or nil
         local lost=session and is_lost==true
         quiet=session and (lost or not new) -- Her link lost, or no vitals from her for 3 s (none yet included).
         away=(session or top~=nil) and kit.paused()
@@ -302,7 +345,7 @@ function P.hud(o)
         vit=new or vit
         local mine=puppet.me()
         local map
-        where,map=P.where(mine and mine.map,puppet.her_map())
+        where,map=P.where(mine and mine.map,her.her_map())
         local info,color,grey,state='',theme.grey,false,nil
         if lost then info,grey,state=words.lost,true,'lost'
         elseif not new then info,grey='—',true
@@ -310,7 +353,7 @@ function P.hud(o)
             info,color,state=words.down,theme.error,'down'
         elseif where=='elsewhere' then info=words.elsewhere:format(map)
         elseif settings.card_details~=false then
-            local ping,parts=link.ping(),{}
+            local parts={}
             if ping then parts[1]=string.format('%d ms',ping) end
             parts[#parts+1]=map
             info=table.concat(parts,' · ')
@@ -338,6 +381,42 @@ function P.hud(o)
         end
         gauges()
         if rebuilt then place() end -- A new root shows a shown marker or arrow at its corner: placed before it draws.
+        -- The other members' rows.
+        local i,seen=0,{}
+        for _,m in ipairs(session and link.members() or {}) do
+            if m.linked and m.slot~=lead_slot and i<ROWS then
+                i=i+1
+                seen[m.id]=true
+                local group='member'..i
+                local vit,ghost=link.vitals(m.id),ghost_of(m.slot)
+                local where_m,at_map=P.where(mine and mine.map,ghost.her_map())
+                local text,tone,dim,st='',theme.grey,false,nil
+                if m.lost then text,dim,st=words.lost,true,'lost'
+                elseif not vit then text,dim='—',true
+                elseif vit.life>=3 and vit.life<=5 or vit.hp==0 and vit.max_hp>0 then
+                    text,tone,st=words.down,theme.error,'down'
+                elseif where_m=='elsewhere' then text=words.elsewhere:format(at_map)
+                elseif settings.card_details~=false then
+                    local parts={}
+                    if m.rtt>=0 then parts[1]=string.format('%d ms',m.rtt) end
+                    parts[#parts+1]=at_map
+                    text=table.concat(parts,' · ')
+                end
+                if st and st~=row_alert[m.id] then kit.sound('alert') end
+                row_alert[m.id]=st
+                kit.show(group,not away and settings.partner_card~=false)
+                kit.fade(group,dim and GREY or 1)
+                local v=kit.view(group)
+                if v then
+                    v.name.set(shown_name(m.name))
+                    v.info.set(text)
+                    v.info.color(tone)
+                    v.hp.set(vit and vit.hp or 0,vit and vit.max_hp or 0)
+                end
+            end
+        end
+        for k=i+1,ROWS do kit.show('member'..k,false) end
+        for id in pairs(row_alert) do if not seen[id] then row_alert[id]=nil end end
     end
     -- Each frame with the 1 ms loop's clock (os.clock, as the kit's tweens).
     function self.tick(t)

@@ -45,7 +45,8 @@ function Session.new(o)
     -- coop host <word> hosts at once with that word. coop host alone opens the Create a session screen when it can
     -- open (o.create(): the screen once built, whose open() is true and a message when it opened), else hosts at once
     -- as who_can_join says. friends_ask=on adds ask under public and invitation: Steam friends wait for the host's
-    -- answer too. While we host, the native part refuses a word other than the session's (leave first).
+    -- answer too. max_players ends the line (2 to 4: the lobby's room). While we host, the native part refuses a word
+    -- other than the session's (leave first).
     function self.host(word,extra)
         if extra~=nil or word~=nil and not WHO[word] then
             return false,'Use: coop host [public|friends|invitation|closed]'
@@ -59,7 +60,7 @@ function Session.new(o)
             word=settings and settings.who_can_join or 'public'
         end
         local friends_wait=settings and settings.friends_ask and (word=='public' or word=='invitation')
-        return ask('host '..word..(friends_wait and ' ask' or ''))()
+        return ask('host '..word..(friends_wait and ' ask' or '')..' '..(settings and settings.max_players or 4))()
     end
     self.invite,self.leave,self.report,self.copy=ask('invite'),ask('leave'),ask('report'),ask('copy')
     -- Every word typed after mark (the console handler joins them), cleaned like a chat line; the native part numbers

@@ -42,6 +42,7 @@ local T=require('ui.text')
 local Shop=require('nightop.shop')
 local C=require('nightop.challenges')
 local Board=require('nightop.board')
+local others=require('core.link').others
 local Run={}
 -- The definitions a co-op run can carry, by the word on the host's night line: Night Operation's levels and each
 -- challenge marked coop, under its id.
@@ -980,6 +981,7 @@ function Run.new(o)
             return false,name_of(def)..' is solo for now: leave the Steam session first (coop leave)'
         end
         if linked=='guest' then return false,'the host starts a co-op run' end
+        if others(raw)>1 then return false,'Night Operation runs with 2 players at most; this session has '..(others(raw)+1) end
         if linked=='host' and not raw:find('\nfriend=1 0 ',1,true) then
             return false,'no partner linked yet: a co-op run starts once they are'
         end

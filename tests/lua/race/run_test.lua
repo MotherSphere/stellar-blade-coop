@@ -119,7 +119,7 @@ local function side(o)
         end,
         friend=function() if s.friend then return s.friend,s.linked,false end end,mode=function() return s.mode end,
         loopback=function() return s.loopback end,ping=function() return s.ping end,
-        chatting=function() return s.chatting end}
+        chatting=function() return s.chatting end,others=function() return s.others or (s.linked and 1 or 0) end}
     -- The driving (race/drive.lua's): on and off with why and the values, its frames, its 250 ms checks, the look it
     -- gives; refuse makes on fail, error makes a frame raise.
     s.drive={on=false,ons=0,ticks=0,slows=0,values={top=2600,accel=1200,brake=2000,coast=300,grip=70,drift_grip=20,
@@ -350,7 +350,9 @@ refused(A,'quest','Night Operation is running: coop nightop stop ends it')
 A.night=false
 A.mode='guest'
 refused(A,'quest','the host starts a race; yours comes when the host starts one')
-A.mode='none'
+A.mode,A.others='host',2 -- Two members past the handshake: Doro races are for two.
+refused(A,'quest','Doro races are for 2 players at most; this session has 3')
+A.mode,A.others='none',nil
 A.race.command('record','x')
 refused(A,'quest','a track is being recorded: coop race save or coop race cancel first')
 A.race.command('cancel')

@@ -75,10 +75,11 @@ removes={}
 -- The mailbox over the fakes.
 local ME,HER='76561198000000001','76561198000000002'
 local slot,steamid,peer_id,engine='slot=coop index=4 marker=4',ME,HER,'engine=on warp=idle me=81'
+local crowd=nil -- More member lines (a session of more than 2 players).
 local function status()
     return 'mod=v proto=14 steam=ready'..(steamid and ' steamid='..steamid or '')..' appid=1\n'..engine..'\n'
         ..'link=host lobby=5\n'..(peer_id and 'peer='..peer_id..' name=Kaanta hello=1 accepted=1\n' or '')
-        ..'friend=1 0 Kaanta\n'..slot..'\n'
+        ..'friend=1 0 Kaanta\n'..slot..'\n'..(crowd or '')
 end
 local files,unreadable,write_fails,write_beside={},{},nil,nil
 local function read(name)
@@ -133,6 +134,10 @@ linked=false
 local ok,why=mail.command('send','1')
 assert(not ok and why=='no friend is linked (coop loopback sends a gift to yourself)')
 linked=true
+crowd='member=2 0 1 0 0 40 Kaanta\nmember=3 1 1 0 0 50 Lucas\n'
+ok,why=mail.command('send','1')
+assert(not ok and why=='gifts need a session of 2 players; this one has 3: nothing sent',why)
+crowd=nil
 slot='slot=main index=0 marker=4'
 ok,why=mail.command('send','1'); assert(not ok and why=='not on a co-op save',why)
 slot='slot=coop index=4 marker=4'

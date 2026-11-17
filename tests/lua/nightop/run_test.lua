@@ -352,6 +352,8 @@ link_line='link=host lobby=7\nfriend=0 0 Kaanta'
 refused('no partner linked yet: a co-op run starts once they are')
 link_line='link=guest lobby=7\nfriend=1 0 Kaanta'
 refused('the host starts a co-op run')
+link_line='link=host lobby=7\nfriend=1 0 Kaanta\nmember=2 0 1 0 0 40 Kaanta\nmember=3 1 1 0 0 50 Lucas'
+refused('Night Operation runs with 2 players at most; this session has 3')
 link_line='steam=waiting'
 refused('the Steam link is not ready yet: try again in a moment')
 link_line='link=none lobby=0'

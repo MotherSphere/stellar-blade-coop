@@ -69,6 +69,7 @@ M.OPTIONS={
         local who=c.values and c.values.who_can_join
         return who=='public' or who=='invitation'
     end},
+    range('max_players',2,4,1,4), -- At the next host: the players the session holds, the host included.
     toggle('revive','on'), -- Yours, at once: the friend's revive of your EVE (session/group.lua).
     toggle('cutscene_wait','on'), -- Yours as the guest, at once: the pause during the host's cutscene.
     -- Yours as the guest, at once: the travel to the camp nearest the host (session/travel.lua), offered (ask), started

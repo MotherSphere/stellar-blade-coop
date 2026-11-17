@@ -240,10 +240,13 @@ if crashed then
     aside_note=(crashed.path:match('([^./]+)$') or crashed.path):sub(1,32)
 end
 local puppet=require('partner.puppet').new(link,capture,say,settings and settings.name_tag,look,words,sentinel)
--- With the Steam link, a ghost for each other member of a match lobby in ghost slots 1 to 6, each on its slot's files.
+-- With the Steam link, a ghost for each other member of a lobby in ghost slots 1 to 6 (a match lobby, or an online
+-- session of more than 2 players), each on its slot's files.
 local ghosts=link and require('partner.ghosts').new(link,function(files)
     return require('partner.puppet').new(files,capture,say,settings and settings.name_tag,look,words,sentinel)
 end)
+-- Ghost slot k's puppet past slot 0 (the HUD rows, the revive, the follow), nil before a member held it.
+local function ghost_of(k) return ghosts and ghosts.get(k) end
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 -- Read from the pose path's line only, as a peer's Steam name could say the same.
 local function native_off()
@@ -883,7 +886,7 @@ if settings then
         uidev=link.uidev})
     box=require('session.chat').view({kit=kit,model=chat,settings=settings,theme=Ui.THEME,
         covered=function() return menu.is_open() end})
-    hud=require('partner.hud').hud({kit=kit,link=link,puppet=puppet,settings=settings,theme=Ui.THEME})
+    hud=require('partner.hud').hud({kit=kit,link=link,puppet=puppet,settings=settings,theme=Ui.THEME,ghost=ghost_of})
     night.hud({kit=kit,theme=Ui.THEME,settings=settings})
     race.hud({kit=kit,theme=Ui.THEME,settings=settings})
     talks.hud({kit=kit,theme=Ui.THEME}) -- The kit version of Lily's talks.
@@ -941,7 +944,7 @@ if settings then
     local LAST={['match search']='search',['match create']='create',join='join'}
     local function view()
         local version,proto=('\n'..(link.status() or '')):match('\nmod=(%S+) proto=(%d+)')
-        return {match=link.match(),members=link.members(),role=link.mode() or 'none',code=(link.code()),
+        return {match=link.match(),members=link.members(),role=link.mode() or 'none',limit=link.cap(),code=(link.code()),
             me={id=(link.saves() or {}).steamid,name=link.me()},owner=link.owner(),last=last,copied_at=copied_at,
             now=os.clock(),version=version,proto=tonumber(proto),settings=settings,halls=sbo.hall()~='xion',room=room}
     end
@@ -1311,16 +1314,19 @@ if link then
     -- own respawn says nothing). rest: the line's last zone, n and resets, when the host last read down, and since when
     -- ours reads alive. Forgotten with fight_maxhp.
     local REST_CALM,rest=10,{}
-    local function her_name(w) -- '' (a stranger's unknown name) as your friend, in w's words.
-        local name=require('session.chat').clean((link.friend()) or '')
+    -- That name, or the slot-0 member's, cleaned; '' (a stranger's unknown name) as your friend, in w's words.
+    local function her_name(w,name)
+        name=require('session.chat').clean(name or (link.friend()) or '')
         return name~='' and name or w.fight.friend
     end
     group=require('session.group').new({link=link,puppet=puppet,settings=settings,tell=tell,name=her_name,
-        log=function(m) print('[StellarCoop][GR] '..tostring(m)..'\n') end,night=function() return night.running() end})
+        log=function(m) print('[StellarCoop][GR] '..tostring(m)..'\n') end,night=function() return night.running() end,
+        ghost=ghost_of})
     -- The follow waits while the game is paused, in photo mode or in the co-op menu, during a Night Operation run and
     -- during a cutscene in our game. follow=true: on since 2026-11-12 with every other mode, not yet tested in game.
     -- Its tick also gives the native part the host's place and rules words for the session list's row.
     travel=require('session.travel').new({link=link,puppet=puppet,settings=settings,tell=tell,name=her_name,follow=true,
+        ghost=ghost_of,
         log=function(m) print('[StellarCoop][TR] '..tostring(m)..'\n') end,
         paused=function() return kit.paused(true) or menu.is_open() or photo_state()~='0' end,
         night=function() return night.running() end,cutscene=function() return group.cutscene_playing() end})

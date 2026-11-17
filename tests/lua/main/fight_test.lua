@@ -471,6 +471,13 @@ settings_text='pvp_spike=on\nshared_enemies=off\n'
 load_main(true)
 coop('pvp','on')
 assert(asked[#asked]=='fight pvp' and last()=='[StellarCoop] OK: asked the native part: fight pvp\n',last())
+-- With 2 members past the handshake (3 players): refused, nothing asked.
+local members_of,n_asked=fake_link.members,#asked
+fake_link.members=function() return {{id='3',slot=1,linked=true,lost=false,muted=false,rtt=30,name='Lucas'}} end
+coop('pvp','on')
+assert(last()=='[StellarCoop] STOP: the PvP test is for 2 players at most; this session has 3\n' and #asked==n_asked,
+    last())
+fake_link.members=members_of
 coop('pvp','off'); assert(asked[#asked]=='fight pvp off',asked[#asked])
 fight_text='fight=on mode=pvp proxy=50000 sent=3 unnamed=0 lines=2 applied=2 capped=0 refused=0 game_refused=0 '
     ..'floor=on sim_us=8/30 threads=1/1/2'

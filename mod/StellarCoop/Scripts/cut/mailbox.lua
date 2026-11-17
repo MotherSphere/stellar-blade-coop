@@ -53,6 +53,7 @@
 local Shop=require('nightop.shop')
 local N=require('nightop.probe')
 local U=require('core.unreal')
+local others_of=require('core.link').others
 local Mailbox={}
 Mailbox.ITEMS={'HP_Potion','HP_Potion_Small','HealGrenade','PulseGrenade','ConcussionGrenade','TrapGrenade',
     'FlashGrenade'}
@@ -510,6 +511,8 @@ function Mailbox.new(o)
         if more~=nil or not alias or not c or c<1 or c>Mailbox.MOST then return false,USE end
         if sending then return false,'a gift is already on its way out: wait for its answer on screen' end
         local raw=status()
+        local others=others_of(raw)
+        if others>1 then return false,'gifts need a session of 2 players; this one has '..(others+1)..': nothing sent' end
         local to=peer(raw)
         local _,linked=friend()
         if not linked or not to then

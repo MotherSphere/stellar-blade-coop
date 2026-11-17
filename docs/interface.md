@@ -84,6 +84,7 @@ and key hints. `coop host` typed alone opens it too. Nothing is hosted until you
 | --- | --- | --- |
 | Who can join | Always | Public, Friends only, Invitation or Private (`who_can_join`, see [Settings](settings.md)) |
 | Friends join without asking | Under Public and Invitation | On lets your Steam friends in at once. Off makes them wait for your answer like other players (`friends_ask=on`). |
+| Players | Always | 2 to 4: the players the session holds, you included (`max_players`) |
 | Shared enemies | Always, under SESSION RULES | [Shared enemies](shared-enemies.md) on or off |
 | Same place, Same spawns, Extra enemies, Shared bosses, Enemy HP, Boss HP, Enemies attack | While Shared enemies is On | The same values as on the Options page |
 | Shared world, Story together, Shared quests, Friend can revive me | Always | On or Off |
@@ -122,7 +123,7 @@ If one of the game's widgets cannot be made, the screen draws the same rows, hea
 parts. `UE4SS.log` then says `[StellarCoop][UI] create: part <class>: <why>; left out until the mod reloads` once. It
 also says `[StellarCoop][UI] create: open`, `create: start <word>` and `create: closed`. Each change logs
 `[StellarCoop] menu: <setting>=<value> saved in coop-settings.txt`. Start then logs `[StellarCoop] OK: asked the
-native part: host <word>`. The Create a session screen has not been tested in game yet.
+native part: host <word> <players>`. The Create a session screen has not been tested in game yet.
 
 ### Sessions screen
 

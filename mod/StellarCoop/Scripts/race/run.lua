@@ -451,6 +451,8 @@ function Race.new(o)
         if race then return false,'a race is on: coop race quit leaves it' end
         if rec then return false,'a track is being recorded: coop race save or coop race cancel first' end
         if link.mode()=='guest' then return false,'the host starts a race; yours comes when the host starts one' end
+        local others=link.others()
+        if others>1 then return false,'Doro races are for 2 players at most; this session has '..(others+1) end
         if o.night() then return false,'Night Operation is running: coop nightop stop ends it' end
         if drive.why()=='bike' then return false,'EVE rides the bike: coop bike gets her off first' end
         if drive.active() then return false,'the drive probe runs: coop race drive off ends it' end

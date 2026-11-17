@@ -108,6 +108,8 @@ local link={m='none',at='0',waiting=nil,joined=nil}
 function link.mode() return link.m end
 function link.lobby() return link.at end
 function link.pending() return link.waiting end
+-- Every joiner waiting, the first one first: the queue when set, else the one waiting.
+function link.pendings() return link.queue or {link.waiting} end
 function link.wait() return link.joined end
 link.join_code=require('core.link').join_code -- The real one (link_test tests it).
 -- The console's commands (main.lua's run): each call kept as 'name arg'; refusal: what the next one answers.
@@ -273,6 +275,25 @@ link.waiting={id='76561198000000011',name='Mouse Two'}
 ask.slow(true); clock=17.3
 q.rows[1].hover=true; ask.nav('click'); q.rows[1].hover=nil
 assert(ran[#ran]=='allow 76561198000000011' and calls[#calls]=='sound popup_confirm')
+-- A queue: one question at a time, about the first one, with how many wait after her; the next one gets her own
+-- popup once the first is gone from the queue, its seconds counted from then, the keys dead again for 1 s.
+local A,B,C={id='31',name='Ann'},{id='32',name='Bo'},{id='33',name='Cy'}
+link.waiting,link.queue=A,{A,B,C}
+ask.slow(true)
+assert(ask.is_open() and q.title.s=='Ann wants to join'
+    and q.about.s=='Declined in 60 s if you do not answer. Players waiting after this one: 2.',q.about.s)
+link.queue={A,B}
+ask.slow(true)
+assert(q.about.s=='Declined in 60 s if you do not answer. Players waiting after this one: 1.',q.about.s)
+clock=18.3; ask.nav('back'); assert(ran[#ran]=='deny 31')
+ask.slow(true); assert(not ask.is_open(),'Answered: the next one waits for the native part')
+link.waiting,link.queue=B,{B}
+ask.slow(true)
+assert(ask.is_open() and q.title.s=='Bo wants to join' and q.about.s=='Declined in 60 s if you do not answer.')
+runs=#ran
+clock=18.5; ask.nav('back'); assert(#ran==runs,'Its keys dead for 1 s')
+clock=19.4; ask.nav('back'); assert(ran[#ran]=='deny 32')
+link.queue=nil
 -- Hidden while the chat box is open or the game is paused (the game's input given back), shown again after with Deny
 -- focused, the seconds left, its 1 s with no keys and SB's popup cue in place of the alert.
 link.waiting,clock={id='76561198000000006',name=''},20

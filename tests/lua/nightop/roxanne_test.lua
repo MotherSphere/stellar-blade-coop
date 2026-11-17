@@ -135,7 +135,7 @@ local start_answer={true,'Night Operation (hard) starts in 5 s (run 0x01)'}
 local rox=Roxanne.new({log=function(m) logs[#logs+1]=m end,status=function() return status_text end,
     ask=function(line) asked[#asked+1]=line; return true,'asked the native part: '..line end,
     paused=function() return paused end,
-    tell=function(build) told[#told+1]=build({night={booked='B',host_only='H',shop_failed='F'}}) end,
+    tell=function(build) told[#told+1]=build({night={booked='B',host_only='H',pair_only='P',shop_failed='F'}}) end,
     start=function(level) starts[#starts+1]=level; return table.unpack(start_answer) end,
     shop=function() shops=shops+1; return true,'Night Operation shop: 3 points as Beta Seeds' end})
 local function last() return logs[#logs] end
@@ -246,6 +246,12 @@ status_text='mod=v\nslot=coop index=4\nlink=guest lobby=7\nroxanne=on asks=2 wan
 widget.SelectIndex=-1; at(160); rox.tick()
 widget.SelectIndex=0; at(160.25); rox.tick()
 assert(told[#told]=='H' and rox.cancel()==nil,'No booking for a guest')
+-- A host's pick with two members past the handshake: Night Operation's run is for two.
+status_text='mod=v\nslot=coop index=4\nlink=host lobby=7\nmember=2 0 1 0 0 40 A\nmember=3 1 1 0 0 40 B\n'
+    ..'roxanne=on asks=2 want=on why=none\n'
+widget.SelectIndex=-1; at(160.5); rox.tick()
+widget.SelectIndex=0; at(160.75); rox.tick()
+assert(told[#told]=='P' and rox.cancel()==nil and last():find('more than 2 players: not booked',1,true),last())
 -- cancel: the booking dropped.
 status_text='mod=v\nslot=coop index=4\nlink=none lobby=0\nroxanne=on asks=2 want=on why=none\n'
 widget.SelectIndex=-1; at(161); rox.tick()
