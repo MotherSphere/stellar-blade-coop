@@ -18,10 +18,14 @@ it checks that it is not on the game's logic worker thread (whose ID the game ke
 is still the co-op save it started on: another save ends the side with `SBQ22 off slot` (the worker starts a new one
 on the next co-op save), while a load (the title screen, a map change) only pauses it.
 
-- The host only reads. Each quest whose state changed goes to the guest as one reliable line on channel 2 with the
-  whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ22 q <gen> <seq> <id> <state>
+- The host reads his quests. Each quest whose state changed goes to the guest as one reliable line on channel 2 with
+  the whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ22 q <gen> <seq> <id> <state>
   <acquire mark> <finished groups> <tasks done> <done mark>`. A group or a task is named by its place (container and
-  position), which the game builds the same on both PCs from the same tables.
+  position), which the game builds the same on both PCs from the same tables. He also makes a step the guest made
+  first. Her `SBQ22 step <gen> <seq> <id> <state> <acquire mark> <finished groups> <tasks done> <done mark> <zone>`
+  line holds her quest's state after the step and the zone she made it in. His pass judges it with `accept()`, then
+  `apply()` makes it on his own unit (see
+  [Story together: how it works](story-sync.md#quest-steps-the-guest-makes-first)).
 - Each step carries a mark that says where it may be made: `-` anywhere (no zone event, or only quest, item, UI or
   hint events), `t` in the zones the game's tables give for its events (spawns, despawns, environment changes, scenes),
   `z<n>` in the zone where the host stood when its pass saw the step (for the 33 steps the tables cannot place), `?`
@@ -257,6 +261,8 @@ reflection data, so Lua cannot read it.
 While a cutscene plays in the host's game and its own photo state is `0`, the host's Lua writes `c` as its photo state,
 and its photo line carries `c`. The guest's Lua writes `cut=1` in `coop-state.txt` while her `cutscene_wait` is on and
 the host's ghost is on her map. Her native part then holds the photo sync pause for that `c`, with the photo pause's
-release rules and `photo_freeze_max`; `photo_sync` plays no part in it. The native part shows no notice for it, and her
+release rules and `photo_freeze_max`; `photo_sync` plays no part in it. With story together on, the pause is not held
+while a shared scene starts or plays in her game or a scene line of the host's waits for her next pass (`story_scene`,
+see [Story together: how it works](story-sync.md#the-guests-side)). The native part shows no notice for it, and her
 Lua shows one in her language, once per pause. A cutscene in the guest's game pauses nothing on the host's side.
 Whether every story scene, dialogue and boss intro runs through a theater observer has not been checked in game yet.

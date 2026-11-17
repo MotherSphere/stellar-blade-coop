@@ -6,10 +6,11 @@
 event MultiplayTest_ZoneE_059 (type 15) -> RunEvent_StartMatchMaking -> RequestMatchRequest, an HTTP client to Shift
 Up's stage servers; types 16 and 19 sit on the same path. Native code calls RunZoneEvent at two sites, with its
 address held once in game/sbo.h: sbo_game.inc, for coop sbo seq's four PlayLevelSeq rows, with the native part's own
-FNames, and world_game.inc, for the shared world's env control rows, which world/engine.h checks against
-world/rows.h's list (kind 10 rows whose chains are kind 10) right before the call. A text scan: scan(root) lists the
-violations. It first runs on planted trees, one violation each, so no rule
-passes vacuously, then on this repository, which must be clean.
+FNames, and world_game.inc. That one serves the shared world's env control rows, which world/engine.h checks against
+world/rows.h's list (kind 10 rows whose chains are kind 10) right before the call. It also serves story together's
+scene starts and trips (story/engine.h), whose rows are on story/rows.h's lists (scene_row(), trip_sent()). A text
+scan: scan(root) lists the violations. It first runs on planted trees, one violation each, so no rule passes
+vacuously, then on this repository, which must be clean.
 Run: python3 tests/tools/matchmaking_scan_test.py"""
 import re
 import tempfile
@@ -61,8 +62,9 @@ ADD_ROW = re.compile(r"[:.]\s*AddRow\s*[('{]")
 # StartMatchMaking, RequestMatchRequest, RunEvent, RunZoneEvent and the CreateSBZoneEvent job, as image offsets.
 ADDRESSES = re.compile('1ca3ea0|230b090|1ca5a10|1ca5790|1abdd80', re.I)
 NATIVE_NAMES = re.compile('MatchMaking|RequestMatch')  # Case-sensitive: Steam's Matchmaking lobby API stays allowed.
-# RunZoneEvent's two sites, coop sbo seq's (L15-R3) and the shared world's, raw counts with comments: its address only
-# in game/sbo.h (N1 anywhere else), its constant there and at each call. The address is counted case-insensitively.
+# RunZoneEvent's two sites, coop sbo seq's (L15-R3) and world_game.inc's (the shared world's env rows, story together's
+# scene and trip rows), raw counts with comments: its address only in game/sbo.h (N1 anywhere else), its constant there
+# and at each call. The address is counted case-insensitively.
 RUN_ZONE_EVENT = '1ca5790'
 NATIVE_RATIONED = {RUN_ZONE_EVENT: {'native/src/game/sbo.h': 1},
                    'kRunZoneEvent': {'native/src/game/sbo.h': 1, 'native/src/glue/tick/sbo_game.inc': 1,

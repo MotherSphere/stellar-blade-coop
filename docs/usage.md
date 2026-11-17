@@ -296,6 +296,7 @@ word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`
 - the SBO lobby's table rows (back to the game's values);
 - the shared quests;
 - the shared world (its hooks are taken out of the game's slots);
+- story together (its hooks are taken out of the game's slots; a scene of hers still paused is given back);
 - the photo pause (released; the native tick keeps running for this alone);
 - a Doro race (left as a DNF, or cancelled before GO, with EVE's movement values put back), the drive probe, a race
   track being recorded (dropped, nothing written) and the Doro look (EVE drawn again);
@@ -393,8 +394,8 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 - Story together: `story=off`, `story=waiting why=<friend|match|save|partner>`, `story=on`, then `scene=` and its
   counters, or `story=stopped`, `story=off why=build` or `story=off why=coop_off` (see
   [Story together](story-together.md#status-line) and the counters in
-  [Story together: how it works](internals/story-sync.md#status-line)). It does not go to `UE4SS.log`: its counters
-  move with each position of a shared scene.
+  [Story together: how it works](internals/story-sync.md#status-line)). Its changes are not logged as `link:` lines:
+  its counters move with each position of a shared scene.
 - Photo mode: `photo=<0|1|s|c> peer_photo=<0|1|s|c> frozen=<0|1> sync=<both|notice|off>`: yours and your friend's (`s`
   for selfie mode, `c` on the host while a cutscene plays: the [cutscene wait](playing-with-a-friend.md#cutscene-wait)), whether your game holds
   the photo pause (`coop freeze` holds it too), and the `photo_sync` your friend gets (`notice` when your game cannot
@@ -406,8 +407,9 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
   exists, `collide=` adds `solid=<0|1>` and `changes=`, the times it turned solid and the times each rule let your EVE
   through (`a` hidden or off, `b` overlap, `c` height, `d` movement mode, `e` 2 s of contact, `g` your friend down).
 
-Each changed status line, except the per-peer ones, the `fight=` line, the `mate=` and `life=` lines and the `night=`
-line (Night Operation's run logs each one as an `[NR]` line), also goes to `UE4SS.log` as `[StellarCoop] link: ...`.
+Each changed status line, except the per-peer ones, the `fight=` line, the `mate=` and `life=` lines, the `night=`
+line (Night Operation's run logs each one as an `[NR]` line) and the `story=` line, also goes to `UE4SS.log` as
+`[StellarCoop] link: ...`.
 Each load logs the save slot as `link: slot=...`.
 
 ## Sections that moved

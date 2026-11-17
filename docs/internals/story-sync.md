@@ -193,8 +193,9 @@ condition and the warp row's against her. PlayerWarp moves only the local player
 
 ## Quest steps the guest makes first
 
-These belong to the shared quests and need `shared_quests` on, not `shared_story`. The guest's pass sends this line
-when her quest moved one SB step past the host's line it equalled, his line lacks that step and she stands in his zone:
+These belong to the shared quests and need `shared_quests` on, whatever `shared_story` says. The guest's pass sends
+this line when her quest moved one SB step past the host's line it equalled, his line lacks that step and she stands in
+his zone:
 
 ```
 SBQ22 step <gen> <seq> <id> <state> <acq> <groups> <tasks> <done> <zone>
@@ -202,14 +203,17 @@ SBQ22 step <gen> <seq> <id> <state> <acq> <groups> <tasks> <done> <zone>
 
 The fields after `<id>` are her quest's whole state after the step, as a `q` line has it, then the zone alias she made
 it in. A step marked `#`, a kill task, an item task and a step that moves the player are not sent (`step_hold()`).
+When her 10 lines a second are spent, the line waits: later passes send it while her quest still stands one step past
+that line of his and his newer line lacks the step. A new snapshot or her leaving his zone drops it.
 
-The host queues her step lines per quest, the newer one replacing the older. His pass judges each one with `accept()`
-on his quest as the walk read it: her quest before the step undone from her line, his zone equal to hers, his quest
-holding her quest's state before the step, her task in progress in his active group, the step's zones for a `t` mark.
-Then `Engine::apply` re-reads and makes SB's call on his own unit. SB runs the step's events with his EVE as caster.
-His next pass sends the change to her. While he is out of game, a cutscene of his plays or his game is paused (a menu
-or photo mode), the line waits, up to 16. A load drops them. Each line gets one log line. The host's `coop quests
-status` answer counts her steps applied and refused.
+The host queues her step lines of this generation, up to 16. A line older than her last step line of that quest is
+dropped. His pass judges each one in turn with `accept()` on his quest as the walk read it: her quest before the step
+undone from her line, his zone equal to hers, his quest holding her quest's state before the step, her task in
+progress in his active group, the step's zones for a `t` mark. Then `Engine::apply` re-reads and makes SB's call on
+his own unit. SB runs the step's events with his EVE as caster. His next pass sends the change to her. A second line
+of a quest stepped in the same pass waits for his next walk. So does a line while he is out of game, a cutscene of his
+plays or his game is paused (a menu or photo mode), up to 16 waiting lines. A load drops them. Each line gets one log
+line. The host's `coop quests status` answer counts her steps applied and refused.
 
 ## Status line
 
@@ -222,8 +226,8 @@ queued= overflow= bad= gaps= hooks= inbox_dropped= unsent= elsewhere=
 ```
 
 It reads `story=off why=build` on another game build, `story=off why=coop_off` after `coop off` and `story=stopped`
-after a fault. The line moves with every position of a shared scene, so `core/link.lua` keeps it out of `UE4SS.log`;
-the native log has its events.
+after a fault. The line moves with every position of a shared scene, so `core/link.lua` does not log its changes as
+`link:` lines; the native log has its events. `coop status` and `coop scenes status` still print it.
 
 | Field | Counts |
 | --- | --- |

@@ -37,14 +37,17 @@ While a shared scene starts or plays in her game, her game does not hold the pau
 
 A trip that a story talk or an interaction starts in the host's game, such as Lily's warp, takes the guest along: her
 game runs the same trip once her shared copy of the talk has ended. The tables hold 73 such trips. The 35 that no table
-starts by itself are sent; the game starts the other 38 in each game on its own.
+starts by itself are sent; the game starts the other 38 in each game on its own. A trip runs in her game only when she
+stands in the host's zone with his ghost on her map, her EVE is alive, no warp, respawn or Boss Challenge is under way,
+shared quests are on and her main story quests stand where his stand. Otherwise her game refuses it and logs why.
 
 ### Quest steps the guest makes first
 
-With [shared quests](playing-with-a-friend.md#shared-quests-experimental) on too, a quest step that the guest makes
-first is sent to the host and made in his game, so either player can lead a step. The guest's game sends it only when
-her quest stood where the host's last quest line stood and she stands in his zone. A kill task, an item task, a step
-that moves the player and a quest the host never shares stay with each player.
+This is part of [shared quests](playing-with-a-friend.md#shared-quests-experimental): it needs `shared_quests` on,
+whatever `shared_story` says. A quest step that the guest makes first is sent to the host and made in his game, so
+either player can lead a step. The guest's game sends it only when her quest stood where the host's last quest line
+stood and she stands in his zone. A kill task, an item task, a step that moves the player and a quest the host never
+shares stay with each player.
 
 The host's game makes her step once he is in game with no cutscene playing and the game not paused. Up to 16 of her
 steps wait for that. A load on his side drops them. His game makes the step through the same calls the shared quests
