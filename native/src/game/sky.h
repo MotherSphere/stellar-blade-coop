@@ -119,11 +119,11 @@ struct Want {
   uint8_t hz = 8;      // The map's horizon, degrees.
   uint16_t heading = 0; // The map's noon heading, degrees.
 };
-enum class State : uint8_t { off, cycle, pinned, held, waiting, forced, gated, full, fault, refused };
+enum class State : uint8_t { off, cycle, pinned, held, waiting, forced, scene, gated, full, fault, refused };
 
 inline const char *word(State s) {
-  static const char *const words[] = {"off",    "cycle", "pinned", "held",  "waiting",
-                                      "forced", "gated", "full",   "fault", "refused"};
+  static const char *const words[] = {"off",   "cycle", "pinned", "held",  "waiting", "forced",
+                                      "scene", "gated", "full",   "fault", "refused"};
   return words[static_cast<int>(s)];
 }
 
@@ -139,10 +139,11 @@ inline std::string line(State s, const Light &l, int n, int lit, bool seen) {
 }
 
 // Writes the light of the hour into every element of SB's env array from the originals it read there, so SB's own
-// blend does the per-frame work. Memory is reached by address: the caller runs it under its own fault guard.
+// blend does the per-frame work. Memory is reached by address: the caller runs it under its own fault guard. scene:
+// SB plays a cutscene or a talk scene (its theater), whose env volumes must draw SB's own light.
 class Sky {
 public:
-  State pass(uintptr_t world, uintptr_t settings, const Want &want, uint64_t utc_ms) {
+  State pass(uintptr_t world, uintptr_t settings, const Want &want, uint64_t utc_ms, bool scene = false) {
     elements_ = sunlit_ = 0;
     if (want.mode != Mode::held)
       held_ = false;
@@ -166,6 +167,10 @@ public:
     if (want.mode == Mode::off) { // Even under SB's forced settings: the array is ours to put back.
       restore();
       return State::off;
+    }
+    if (scene) { // The scene's CutScene_ and Dialogue_ volumes blend from the array: SB's values until it ends.
+      restore();
+      return State::scene;
     }
     if (settings == 0)
       return State::waiting;

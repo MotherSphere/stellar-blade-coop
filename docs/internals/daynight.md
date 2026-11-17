@@ -125,7 +125,7 @@ How each kind of sky is dressed:
 | A map with no row or a fixed one | the table | `sky off` |
 | The SBO lobby in Xion's training room | `sbo.in_lobby()` with no hall | `sky off` |
 | Xion's story night (Burning Xion) | `bActiveVolume` of `E04_Area_02_Global_ENV_01_NIGHT`, read every 2 s on Xion | `sky off`, Xion's domes left to SB |
-| An SB cutscene or dialogue scene | `group.cutscene_playing()` | `sky off` |
+| An SB cutscene or dialogue scene, in an online session | `group.cutscene_playing()`, read once a second while a friend is linked | `sky off` |
 | SB's pause menu or one of its screens | `kit.paused(true)` | `sky off`: their studio scenes are env volumes too |
 | Photo mode | `photo_state()` | `sky hold`: the hour it opened at |
 | `coop daynight hour <h>` | the command | `sky hour <minute> <hz> <H>` |
@@ -133,6 +133,11 @@ How each kind of sky is dressed:
 | Anything else | | `sky cycle <hz> <H>` |
 
 A covered spot in an open map (a cave, a room, a lab) keeps its own light at any hour: see the sunlit rule below.
+
+The native part does not wait for Lua to see a cutscene. At each of its passes, in every mode, solo included, it reads
+SB's own test for a theater (a cutscene or a talk scene): the theater manager's theater, set and not finished. While
+one plays, it puts SB's values back and writes nothing (state `scene`). The scene's `CutScene_` and `Dialogue_` volumes
+then blend SB's light. Lua puts its dressing back too, since `scene` is not a state where the sky follows our sun.
 
 ## What the native part writes
 
@@ -168,6 +173,9 @@ written: the readers ignore them.
 
 The rules of a pass (`sky::Sky::pass`):
 
+- A theater plays (WorldSettings aside): SB's values back, nothing written (state `scene`). The theater manager is the
+  global `0x1470375a0`, read and never made since its getter allocates. Its `+0x18` is the theater; `FUN_1424d70c0`
+  tells whether it has finished: the test SB itself makes in `FUN_141e0f720` and `FUN_142554300`.
 - SB's forced settings in place: nothing written, the array left as it is (state `forced`). An off still puts the array
   back.
 - WorldSettings `+0x2018` set (the blend gated by the `bUse` bytes): SB's values back, nothing written (`gated`). No map
@@ -180,7 +188,7 @@ The rules of a pass (`sky::Sky::pass`):
   the value the last pass wrote. Anything else (SB copied other values in, or a new world reused the address) is read
   as new, so cached originals never land on an element they do not belong to.
 - Another world or WorldSettings, or none: the cache is dropped, since the old array died with its world.
-- An off (the request, `coop off`, a cutscene, SB's screens): each element of the current world that still holds our
+- An off (the request, `coop off`, a cutscene in an online session, SB's screens): each element of the current world that still holds our
   value or its original gets its originals back once, then nothing is written.
 - The first fault: one try to put SB's values back, then the cycle stays off for the game run (state `fault`).
 
@@ -205,8 +213,8 @@ sky hold                        the hour of the pass that took it, kept
 sky=cycle h=13.42 el=61.3 le=61.3 ly=211.9 k=1.000 moon=0 amb=1.000 eve=1.000 ev=0.00 tint=1.00,1.00,1.00 n=114 lit=20 seen=1
 ```
 
-The state is `off`, `cycle`, `pinned`, `held`, `waiting` (no world or no array), `forced`, `gated`, `full`, `fault` or
-`refused` (off the pinned game build: the values are computed, nothing is written). `h` is the hour, `el` the sun's
+The state is `off`, `cycle`, `pinned`, `held`, `waiting` (no world or no array), `forced`, `scene` (SB plays a theater),
+`gated`, `full`, `fault` or `refused` (off the pinned game build: the values are computed, nothing is written). `h` is the hour, `el` the sun's
 signed elevation, `le` and `ly` the light's elevation and heading (sun or moon), `k` the light's factor, `moon` 1 when
 the moon is the light, `amb` the sky light's factor, `eve` that of EVE's lights, `ev` the exposure offset, `tint` the
 light's colour, `n` the elements, `lit` the sunlit ones and `seen` 1 when EVE stands in env sunlight. The line moves
@@ -244,7 +252,7 @@ SBO searches nothing on a timer.
 | Where | Work | Bound |
 | --- | --- | --- |
 | Native, each frame | one clock read and one compare | |
-| Native, every 100 ms | one SB call and four pointer reads; up to 256 elements, each a key compare and up to 22 float writes | the minute line's native tick maximum shows it |
+| Native, every 100 ms | two SB calls and six pointer reads; up to 256 elements, each a key compare and up to 22 float writes | the minute line's native tick maximum shows it |
 | Lua, every 250 ms | the rules on cached values, the pass's status text, a request only on change | |
 | Lua, SkyCreator maps | one `SetTime` a pass while the hour moves | 4 calls a second |
 | Lua, SBO's own maps | up to 4 reflected writes a pass, only on change | 16 a second |

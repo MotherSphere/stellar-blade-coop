@@ -1,12 +1,13 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// game/sky.h on the build machine: the hour from UTC, the sun and moon path and the light factors.
+// game/sky.h on the build machine: the hour from UTC, the sun and moon path, the light factors and the env writer.
 #include "game/sky.h"
 
 #include <cassert>
 #include <cmath>
 #include <cstring>
+#include <string>
 #include <vector>
 
 using namespace coop::sky;
@@ -161,5 +162,19 @@ int main() {
   assert(near(get<float>(reinterpret_cast<uintptr_t>(moved.data()) + kStride, kSun), 1.5));
   sky.restore();
   assert(get<float>(reinterpret_cast<uintptr_t>(moved.data()) + kStride, kSun) == 10);
+  // 18. SB plays a cutscene or a talk scene at midnight: its originals back while it plays (its CutScene_ and Dialogue_
+  //     volumes blend from them), nothing held; the cycle writes again once it ends. Under SB's forced settings too.
+  put<uint64_t>(ws, kArray, e0);
+  put<int32_t>(ws, kNum, 3);
+  put<float>(e0, kSun, 18), put<float>(e0, kSky, 4);
+  assert(sky.pass(0xDDDD, ws, cyc, midnight) == State::cycle && near(get<float>(e0, kSun), 2.7));
+  assert(sky.pass(0xDDDD, ws, cyc, midnight, true) == State::scene && get<float>(e0, kSun) == 18 && !sky.holding());
+  assert(get<float>(e0, kSky) == 4 && sky.elements() == 0);
+  assert(sky.pass(0xDDDD, ws, cyc, midnight, true) == State::scene && get<float>(e0, kSun) == 18);
+  assert(sky.pass(0xDDDD, ws, cyc, midnight) == State::cycle && near(get<float>(e0, kSun), 2.7));
+  put<uint8_t>(ws, kForcedFlag, 1);
+  assert(sky.pass(0xDDDD, ws, cyc, midnight, true) == State::scene && get<float>(e0, kSun) == 18);
+  put<uint8_t>(ws, kForcedFlag, 0);
+  assert(std::string(word(State::scene)) == "scene" && std::string(word(State::refused)) == "refused");
   return 0;
 }

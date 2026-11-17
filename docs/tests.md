@@ -675,7 +675,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   one and a sunlit one without the bias bit: noon and midnight written from the originals with the covered one given
   only the direction; a restore; a copy SB makes into an element; another world at the same addresses, read as new;
   SB's forced settings (nothing written, a restore still puts the array back); the gated blend, too many elements, no
-  world, an empty array; a pinned and a held hour; an element SB moved in its array keeps its originals;
+  world, an empty array; a pinned and a held hour; an element SB moved in its array keeps its originals; a cutscene or
+  talk scene of SB's (its values back while it plays, under its forced settings too, our light again after it);
 - `items_test`: `coop gift`'s inventory read against a fake image laid out like the pinned build: the FName and
   CityHash64 hashes checked against the game's, a count over two instances and along chains of collisions, an item
   EVE does not carry, no manager, bucket or owner, an instance the manager no longer holds, and hostile memory (a

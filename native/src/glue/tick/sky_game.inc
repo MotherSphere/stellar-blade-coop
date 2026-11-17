@@ -8,8 +8,9 @@ namespace {
 // ---- The day/night cycle (game/sky.h, sky/daynight.lua's sky request), the game thread's writes ----
 // Every sky::kPassMs: SB's player controller (kController, FUN_142321EE0: GEngine's first local player's, null before
 // one exists; it makes nothing), its GetWorld (virtual +0x158), the world's persistent level (+0x30) and the level's
-// WorldSettings (+0x268), the reach of freeze_game.inc's FreezeGame::paused, each pointer checked. Then sky::Sky
-// writes the hour's light into SB's env array there; SB's own blend does the per-frame work.
+// WorldSettings (+0x268), the reach of freeze_game.inc's FreezeGame::paused, each pointer checked, then whether SB plays
+// a theater. Then sky::Sky writes the hour's light into SB's env array there, or puts SB's back during a theater; SB's
+// own blend does the per-frame work.
 // The worker's ask, packed: the mode, the pinned minute, the map's horizon and noon heading.
 std::atomic<uint64_t> sky_want_word{0};
 // What the game thread did, for the worker's line and log: game/sky.h's State, the worlds seen, the elements and the
@@ -45,13 +46,23 @@ uint64_t utc_ms() {
   return (t - 116444736000000000ULL) / 10000;
 }
 
+// A cutscene or a talk scene plays, by SB's own test (FUN_141e0f720 and FUN_142554300 make it): the theater manager's
+// theater (story/engine.h: the global 0x1470375a0, +0x18) set and FUN_1424d70c0 saying it has not finished. The global
+// is read, never made: its getter allocates. Every mode reads it, solo included, with no Lua object search.
+bool sky_theater() {
+  const uintptr_t manager = at<uintptr_t>(base + (story::kManagerAt - game::kImageBase));
+  const uintptr_t theater = game::plausible(manager) ? at<uintptr_t>(manager + story::kCurrent) : 0;
+  return game::plausible(theater) && !game_function<bool (*)(uintptr_t)>(story::kFinished)(theater);
+}
+
 __declspec(noinline) void sky_body(const sky::Want &want) {
   const uintptr_t pc = game_function<Controller>(kController)();
   const uintptr_t world =
       game::plausible(pc) ? reinterpret_cast<GetWorld>(at<uintptr_t>(at<uintptr_t>(pc) + kGetWorld))(pc) : 0;
   const uintptr_t level = game::plausible(world) ? at<uintptr_t>(world + kLevel) : 0;
   const uintptr_t settings = game::plausible(level) ? at<uintptr_t>(level + kWorldSettings) : 0;
-  const sky::State s = sky_writer.pass(world, game::plausible(settings) ? settings : 0, want, utc_ms());
+  const sky::State s =
+      sky_writer.pass(world, game::plausible(settings) ? settings : 0, want, utc_ms(), sky_theater());
   sky_elements = sky_writer.elements();
   sky_sunlit = sky_writer.sunlit();
   sky_seen = sky_writer.seen();

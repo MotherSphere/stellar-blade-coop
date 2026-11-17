@@ -69,6 +69,9 @@ void sky_pass() {
   case sky::State::forced:
     say("sky: SB's forced light, nothing written");
     break;
+  case sky::State::scene:
+    say("sky: SB plays a cutscene or a talk scene, its own light until it ends");
+    break;
   case sky::State::gated:
     say("sky: this map blends SB's env settings by their bUse bytes, nothing written");
     break;

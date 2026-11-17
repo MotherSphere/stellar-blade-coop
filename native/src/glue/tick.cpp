@@ -41,8 +41,9 @@
 // The day/night cycle (game/sky.h, sky/daynight.lua): every 100 ms coop_tick reaches the world's WorldSettings through
 // SB's player controller and writes the light of the shared clock's hour into SB's env array, from each element's own
 // values, under its own SEH latch; SB's blend does the per-frame work. Lua's sky request picks the map's horizon and
-// heading, a pinned hour or a hold; an off, coop off and the first fault put SB's values back. sky_status() gives
-// coop-status.txt's sky line; the worker logs each change of state.
+// heading, a pinned hour or a hold; an off, coop off, SB's theater (a cutscene or a talk scene, in every mode) and the
+// first fault put SB's values back. sky_status() gives coop-status.txt's sky line; the worker logs each change of
+// state.
 //
 // The SBO lobby arrival's black (session/arrival.lua): at Lua's loading lift, coop_tick sets the lifetime of each
 // LoadingScreenFadeAuto entry of tag Load to 0 in SB's UI manager (game/loading.h), under its own SEH latch, so SB's
