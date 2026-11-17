@@ -8,12 +8,14 @@
 -- it. o: log, ask(line) -> ok and why, status() -> the native status text, settings (daynight), her() -> EVE or nil,
 -- address(eve), map_of(eve), cutscene(), screen() (SB's pause menu or one of its screens), photo() -> '0', '1' or 's',
 -- night() (Night Operation runs), lobby() (EVE stands in the SBO lobby in Xion's training room), find(path) -> object
--- or nil, actors_of(class path) -> list, load(path), exists(path), cps (the third-party plugin's file).
+-- or nil, actors_of(class path) -> list, load(path), exists(path), cps (the third-party plugin's file), level(package)
+-- -> the streaming level of a sublevel in EVE's world or nil.
 -- The sky dressing, from the status line's sun while the native part's light is ours: the painted domes of a real-sky
 -- map hidden; SBO's star layer (a StaticMeshComponent tagged SBO_Stars on the first dome's actor, the dome's
 -- mesh with SB's star material, found again by its tag after a Lua reload) shown at night; each SkyCreator's own time
 -- turned with our sun; Xion's night dome in place of its day dome at night. Each part is looked up once per world (a
--- new EVE address), each write made only when its value changes. SB's look comes back at an off, coop off included,
+-- new EVE address), a dome of a streamed sublevel each time that sublevel comes (its IsLevelVisible read every 2 s
+-- while live), each write made only when its value changes. SB's look comes back at an off, coop off included,
 -- except Xion's domes during its story night, which SB owns. SBO's own maps (the hall lobbies, Matrix XIII) have no SB
 -- env settings: there the Sun actor turns with the status line's light, its intensity and colour follow it, the
 -- SkyLight follows the sky light factor and Matrix XIII's zone 0 exposure volume goes 2 EV down at full night, each
@@ -26,6 +28,7 @@ local Rule=require('sky.rule')
 local U=require('core.unreal')
 local Daynight={}
 local FLAG_EVERY=8 -- Xion's story-night flag read every 8 passes of 250 ms: every 2 s.
+local LOOK_EVERY=8 -- The sublevels of the domes and SkyCreators looked at every 8 live passes: every 2 s.
 local TAG='SBO_Stars'
 local MESH_COMPONENT='/Script/Engine.StaticMeshComponent'
 local MATH='/Script/Engine.Default__KismetMathLibrary'
@@ -203,34 +206,111 @@ function Daynight.new(o)
         end
         return t
     end
-    -- This world's parts, looked up once: the domes, Xion's two, the SkyCreators with their own day and time, an
-    -- earlier load's star layer. One log line with the time the lookups took. The originals come from kept when it is
-    -- this world's (no key: never), else from the values read now, then saved.
+    -- This world's SkyCreators with their own day and time, those listed before kept as they are. Read through the
+    -- class hash: at world entry, then when a sublevel came or went.
+    local function list_creators()
+        local listed,list=pcall(o.actors_of,Rule.CREATOR)
+        if not listed then return o.log('daynight: no SkyCreator list: '..U.why(list)) end
+        local had,now={},{}
+        for _,c in ipairs(w.creators) do had[c.at]=c end
+        for _,a in ipairs(list) do
+            local ok,c=pcall(function()
+                local at=o.address(a)
+                if had[at] and U.valid(had[at].c) then return had[at] end
+                local t=a:GetTime()
+                local time=original('c'..at,{t})[1]
+                -- h: the hour last given; -1 when it holds an earlier load's time, which an off puts back.
+                return {c=a,at=at,what='SkyCreator',rise=a.SunriseTime,set=a.SunsetTime,original=time,
+                    h=t~=time and -1 or nil}
+            end)
+            if ok then now[#now+1]=c else o.log('daynight: a SkyCreator is unreadable: '..U.why(c)) end
+        end
+        w.creators=now
+    end
+    -- Whether slot s's sublevel shows (its streaming level's IsLevelVisible). A read that raises is logged, the level
+    -- dropped and the sublevel taken as shown: its dome gets one lookup, as with no level.
+    local function visible(s)
+        local ok,on=pcall(function() return s.level:IsLevelVisible()==true end)
+        if ok then return on end
+        o.log('daynight: the sublevel of '..(s.path or s.package)..' is unreadable: '..U.why(on)..'; looked up once')
+        s.level=nil
+        return true
+    end
+    -- A slot for a dome path (role dome, day or night) or a sublevel alone (role level, a SkyCreator's): its streaming
+    -- level, through SB's GameplayStatics GetStreamingLevel (none for a level that is not streamed). A dome is looked
+    -- up now unless its sublevel does not show yet: then it waits for it, with no lookup that would miss (25 to 35 ms).
+    local function slot(path,role,package)
+        local s={path=path,role=role,package=package or path:match('^[^.]+')}
+        local ok,level=pcall(function() return o.level and U.valid(o.level(s.package)) or nil end)
+        s.level=ok and level or nil
+        if s.level then s.shown=visible(s) end
+        if path and s.shown~=false then s.part=dome(path,role=='night') end
+        return s
+    end
+    -- The parts the dressing uses, from the slots: the domes in order, Xion's two.
+    local function sync()
+        w.domes,w.day,w.night={},nil,nil
+        for _,s in ipairs(w.slots) do
+            if s.part and s.role=='dome' then w.domes[#w.domes+1]=s.part end
+            if s.role=='day' or s.role=='night' then w[s.role]=s.part end
+        end
+    end
+    -- The star layer on the first dome's actor: an earlier load's, found by its tag, or none yet.
+    local function host_layer()
+        w.layer,w.mid,w.fade,w.host=nil,nil,nil,w.domes[1] and w.domes[1].actor
+        if w.row.stars~='layer' or not w.host then return end
+        local ok,layer=pcall(find_layer,w.host)
+        if ok then w.layer=layer else o.log('daynight: the star layer is not looked for: '..U.why(layer)) end
+    end
+    -- The domes' count for the log: found, wanted and waiting for their sublevel.
+    local function count()
+        local found,wanted,waiting=0,0,0
+        for _,s in ipairs(w.slots) do
+            if s.path then
+                wanted=wanted+1
+                if s.part then found=found+1 elseif s.shown==false then waiting=waiting+1 end
+            end
+        end
+        return string.format('%d of %d domes%s',found,wanted,waiting>0 and ' ('..waiting..' wait for their sublevel)'
+            or '')
+    end
+    -- Every 2 s while live: a slot whose sublevel came is looked up (a hit), one whose sublevel went drops its part,
+    -- one whose part died while its sublevel showed (out and in between two looks) is looked up again; then the
+    -- SkyCreators are listed again. One log line when something moved.
+    local function watch()
+        local began,moved=os.clock(),false
+        for _,s in ipairs(w.slots) do
+            local on=s.level and visible(s)
+            if on~=nil and (on~=s.shown or on and s.part and not U.valid(s.part.c)) then
+                s.shown,moved=on,true
+                s.part=on and s.path and dome(s.path,s.role=='night') or nil
+            end
+        end
+        if not moved then return end
+        sync()
+        if (w.domes[1] and w.domes[1].actor)~=w.host then host_layer() end
+        if w.row.stars=='creator' then list_creators() end
+        if unsaved and where then save_kept() end
+        o.log(string.format('daynight: a sublevel came or went: %s, %d SkyCreators, %.1f ms',count(),#w.creators,
+            (os.clock()-began)*1000))
+    end
+    -- This world's parts, looked up once: the domes (each when its sublevel shows), Xion's two, the SkyCreators with
+    -- their own day and time, an earlier load's star layer. One log line with the time the lookups took. The originals
+    -- come from kept when it is this world's (no key: never), else from the values read now, then saved.
     local function enter(row)
         local began=os.clock()
         if not kept or kept.key~=where or not where then kept,unsaved={key=where,v={}},false end
-        w={row=row,domes={},creators={}}
-        for _,path in ipairs(row.sky=='real' and row.domes or {}) do w.domes[#w.domes+1]=dome(path) end
-        if row.day_dome then w.day,w.night=dome(row.day_dome),dome(row.night_dome,true) end
-        if row.stars=='creator' then
-            local listed,list=pcall(o.actors_of,Rule.CREATOR)
-            if not listed then o.log('daynight: no SkyCreator list: '..U.why(list)) end
-            for _,a in ipairs(listed and list or {}) do
-                local ok,c=pcall(function()
-                    local now=a:GetTime()
-                    local time=original('c'..o.address(a),{now})[1]
-                    -- h: the hour last given; -1 when it holds an earlier load's time, which an off puts back.
-                    return {c=a,what='SkyCreator',rise=a.SunriseTime,set=a.SunsetTime,original=time,
-                        h=now~=time and -1 or nil}
-                end)
-                if ok then w.creators[#w.creators+1]=c
-                else o.log('daynight: a SkyCreator is unreadable: '..U.why(c)) end
-            end
+        w={row=row,slots={},creators={},wait=0}
+        for _,path in ipairs(row.sky=='real' and row.domes or {}) do w.slots[#w.slots+1]=slot(path,'dome') end
+        if row.day_dome then
+            w.slots[#w.slots+1]=slot(row.day_dome,'day')
+            w.slots[#w.slots+1]=slot(row.night_dome,'night')
         end
-        if row.stars=='layer' and w.domes[1] then
-            local ok,layer=pcall(find_layer,w.domes[1].actor)
-            if ok then w.layer=layer else o.log('daynight: the star layer is not looked for: '..U.why(layer)) end
-        end
+        for _,package in ipairs(row.levels or {}) do w.slots[#w.slots+1]=slot(nil,'level',package) end
+        for _,s in ipairs(w.slots) do w.watched=w.watched or s.level~=nil end
+        sync()
+        if row.stars=='creator' then list_creators() end
+        host_layer()
         local e=row.engine
         if e then
             w.sun,w.sky=light(named(SUN,e.sun),e.sun),light(named(SKY_LIGHT,e.sky),e.sky)
@@ -240,12 +320,10 @@ function Daynight.new(o)
             w.ppv=v and ok and {c=v,what=e.ppv,original=original(e.ppv,{bias})[1],bias=bias} or nil
         end
         if unsaved and where then save_kept() end
-        local wanted=row.sky=='real' and #row.domes or row.day_dome and 2 or 0
-        local found=#w.domes+(w.day and 1 or 0)+(w.night and 1 or 0)
         local lights=e and string.format(', %s %s, %s %s%s',e.sun,w.sun and 'found' or 'missing',e.sky,
             w.sky and 'found' or 'missing',e.ppv and ', '..e.ppv..' '..(w.ppv and 'found' or 'missing') or '') or ''
-        o.log(string.format('daynight: %s: %d of %d domes, %d SkyCreators%s%s, lookups %.1f ms',map,found,wanted,
-            #w.creators,w.layer and ", an earlier load's star layer" or '',lights,(os.clock()-began)*1000))
+        o.log(string.format('daynight: %s: %s, %d SkyCreators%s%s, lookups %.1f ms',map,count(),#w.creators,
+            w.layer and ", an earlier load's star layer" or '',lights,(os.clock()-began)*1000))
     end
     -- SB's star material, loaded once a world when the layer first shows, with the scalar that fades it (or none).
     local function star_material()
@@ -323,6 +401,14 @@ function Daynight.new(o)
             leftover=false
             enter(row)
         end
+        if w.watched and live then -- At once when the sky becomes ours again: a sublevel may have come meanwhile.
+            w.wait=w.wait-1
+            if w.wait<0 or not w.live then
+                w.wait=LOOK_EVERY-1
+                watch()
+            end
+        end
+        w.live=live
         if live then
             for _,d in ipairs(w.domes) do show(d,false) end
             if w.day then

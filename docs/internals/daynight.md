@@ -193,8 +193,8 @@ The rules of a pass (`sky::Sky::pass`):
   the value the last pass wrote. Anything else (SB copied other values in, or a new world reused the address) is read
   as new, so cached originals never land on an element they do not belong to.
 - Another world or WorldSettings, or none: the cache is dropped, since the old array died with its world.
-- An off (the request, `coop off`, a cutscene in an online session, SB's screens): each element of the current world that still holds our
-  value or its original gets its originals back once, then nothing is written.
+- An off (the request, `coop off`, a cutscene in an online session, SB's screens): each element of the current world
+  that still holds our value or its original gets its originals back once, then nothing is written.
 - The first fault: one try to put SB's values back, then the cycle stays off for the game run (state `fault`).
 
 Two caches of 256 elements swap each pass, so a pass allocates nothing. WorldSettings `+0x1420` (the main view's copy
@@ -246,6 +246,16 @@ logs one line and is not tried again in that world. Each write goes through a `p
 write that fails is logged once and that part left alone in the world. The star material comes through one synchronous
 `LoadAsset` the first time the stars show in a world, timed in its log line.
 
+Some sky sublevels stream (`LevelStreamingDynamic`): Spire 4's `B07_Skysphere_01` to `_05` load with the region EVE
+climbs to. Xion's `E04_SkySphere_01` is streamed too. A dome path that is not in memory costs 25 to 35 ms to miss, so
+each dome first gets its sublevel's streaming level from SB's `GameplayStatics.GetStreamingLevel` (a loop in C++ over
+the world's streaming levels) and is looked up only while `IsLevelVisible` is true. A dome in a level that is not
+streamed is looked up once, as before. Every 2 s while the sky is ours (at once when it becomes ours again), each
+streaming level's `IsLevelVisible` is read again: a sublevel that came gets its dome looked up (a hit) and hidden, one
+that went drops its dome; a dome that died while its sublevel still shows (out and in between two reads) is looked up
+again. Then the SkyCreators are listed again, so those of `_02` and `_05` get our time. The row's `levels` names
+`_05`, which has a SkyCreator and no dome. One log line says what moved and the time it took.
+
 An off puts SB's look back: the domes shown, each SkyCreator's own time, the star layer hidden, Xion's two domes as SB
 ships them (except during its story night, which SB owns), the engine maps' lights and bias as the world had them. A
 Lua reload that starts while the native part still holds an earlier load's cycle looks the parts up again, so it can
@@ -278,7 +288,8 @@ SBO searches nothing on a timer.
 | Lua, SkyCreator maps | one `SetTime` a pass while the hour moves | 4 calls a second |
 | Lua, SBO's own maps | up to 4 reflected writes a pass, only on change | 16 a second |
 | Lua, Xion | one bool read | every 2 s |
-| Lua, each world entry | up to 4 dome lookups by path, one class-hash list, one star material load on star-layer maps | once per world |
+| Lua, Spire 4 and Xion | one `IsLevelVisible` read per sky sublevel (5 and 1); a dome lookup that hits and a class-hash list only when a sublevel came or went | every 2 s while live |
+| Lua, each world entry | up to 5 streaming level reads, up to 4 dome lookups by path that hit, one class-hash list, one star material load on star-layer maps | once per world |
 | Lua, each frame | nothing | |
 | GPU | no new light, shadow or effect; a hidden dome is one draw less; the star layer is one sphere at night | |
 

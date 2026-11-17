@@ -29,7 +29,9 @@ local NOON='sky=cycle h=12.00 el=65.0 le=65.0 ly=0.0 k=1.000 moon=0 amb=1.000 ev
     ..'n=114 lit=20 seen=1\n'
 local asked,printed={},{}
 local calls={map_of=0,find=0,find_flag=0,flag_reads=0,find_dome=0,load=0,add_component=0,make_mid=0,
-    actors_of_creator=0,actors_of_lights=0,rotate=0,set_intensity=0,set_color=0,bias_writes=0}
+    actors_of_creator=0,actors_of_lights=0,rotate=0,set_intensity=0,set_color=0,bias_writes=0,level=0}
+local streamed={} -- SB's streaming levels by package, for GetStreamingLevel: none unless a test sets one.
+local creator_list=nil -- The SkyCreators listed, when a test sets them.
 local settings={daynight=true}
 local world={cutscene=false,screen=false,photo='0',night=false,lobby=false}
 -- The native status: text as it is, else a sky= line from the fields.
@@ -167,7 +169,7 @@ local o={log=function(m) printed[#printed+1]=m end,
     actors_of=function(path)
         if path==Rule.CREATOR then
             calls.actors_of_creator=calls.actors_of_creator+1
-            return {creator}
+            return creator_list or {creator}
         end
         assert(path==SUN or path==SKY_LIGHT or path==VOLUME,path)
         calls.actors_of_lights=calls.actors_of_lights+1
@@ -178,6 +180,7 @@ local o={log=function(m) printed[#printed+1]=m end,
         calls.load=calls.load+1
         objects[path]=material
     end,
+    level=function(package) calls.level=calls.level+1; return streamed[package] end,
     exists=function(path) return path==CPS end,cps=CPS}
 local function count_logged(pattern)
     local n=0
@@ -384,7 +387,63 @@ sky_file.fails='disk full'; D=Daynight.new(o); eve=new_eve(0x7E0,HOTEL); D.slow(
 assert(count_logged('coop%-sky%.txt not written %(disk full%)')==1 and math.abs(sun.intensity-1.125)<1e-9)
 D.slow(true); sky_file.fails=nil
 day()
--- 22. The Terrace hall: nothing looked up, nothing written.
+-- 22. Spire 4: its sky sublevels stream. A dome waits for its sublevel with no lookup (a miss costs 25 to 35 ms);
+--     every 2 s live, a sublevel that came gets its dome looked up and hidden and the SkyCreators listed again, one
+--     that went drops its dome, one that went and came back between two looks is looked up again; an off shows the
+--     domes found and gives each SkyCreator its own time.
+local B07='/game/art/bg/worldmap/level_p/b07'
+local function level(on) return uobj({visible=on,IsLevelVisible=function(self) return self.visible end}) end
+local function package(path) return path:match('^[^.]+') end
+local paths,b07=Rule.MAPS[B07].domes,{}
+for i,path in ipairs(paths) do
+    b07[i]=uobj({RootComponent=new_root(false)})
+    streamed[package(path)]=level(i==1)
+end
+streamed[Rule.MAPS[B07].levels[1]]=level(false)
+local function stream(i,on) -- Sublevel _0i comes (a new actor) or goes.
+    local pkg=i<=4 and package(paths[i]) or Rule.MAPS[B07].levels[1]
+    streamed[pkg].visible=on
+    if i<=4 then
+        if b07[i] then b07[i].gone,b07[i].RootComponent.gone=true,true end -- Its components die with it.
+        b07[i]=on and uobj({RootComponent=new_root(false)}) or nil
+        objects[paths[i]]=b07[i]
+    end
+end
+local function new_creator(at,time)
+    return uobj({at=at,SunriseTime=5,SunsetTime=21,times={},time=time,GetTime=function(self) return self.time end,
+        SetTime=function(self,t) self.times[#self.times+1]=t; self.time=t end})
+end
+local c02,c05=new_creator(0xC2,10),new_creator(0xC5,11)
+objects[paths[1]],creator_list=b07[1],{}
+day(); st.h=12
+D=Daynight.new(o); eve=new_eve(0xB00,B07); local finds,levels=calls.find,calls.level; D.slow(false)
+assert(calls.find==finds+1 and calls.level==levels+5 and b07[1].RootComponent.hidden==true,calls.find-finds)
+assert(logged('level_p/b07: 1 of 4 domes %(3 wait for their sublevel%), 0 SkyCreators'))
+stream(2,true); creator_list={c02}; finds=calls.find
+for _=1,7 do D.slow(false) end; assert(b07[2].RootComponent.hidden==false and calls.find==finds,'Not before 2 s')
+D.slow(false)
+assert(b07[2].RootComponent.hidden==true and calls.find==finds+1 and c02.time==Rule.creator_time(12,5,21))
+assert(logged('a sublevel came or went: 2 of 4 domes %(2 wait for their sublevel%), 1 SkyCreators'))
+stream(2,false); for _=1,8 do D.slow(false) end
+assert(calls.find==finds+1 and logged('a sublevel came or went: 1 of 4 domes %(3 wait'))
+stream(2,true); for _=1,8 do D.slow(false) end; assert(b07[2].RootComponent.hidden==true and calls.find==finds+2)
+local old=b07[2]; stream(2,true); assert(old.gone and streamed[package(paths[2])].visible) -- Out and in between looks.
+for _=1,8 do D.slow(false) end; assert(b07[2].RootComponent.hidden==true and calls.find==finds+3)
+stream(5,true); creator_list={c02,c05}; for _=1,8 do D.slow(false) end
+assert(c05.time==Rule.creator_time(12,5,21) and #c02.times==1,'The SkyCreator already listed keeps its state')
+settings.daynight=false; D.slow(false)
+assert(b07[1].RootComponent.hidden==false and b07[2].RootComponent.hidden==false and c02.time==10 and c05.time==11)
+settings.daynight=true
+-- Off the live passes nothing is looked at; a sublevel that came meanwhile is looked up at the first live pass.
+D.command('off'); D.slow(false); levels=calls.level; stream(3,true); for _=1,8 do D.slow(false) end
+assert(calls.level==levels and b07[3].RootComponent.hidden==false)
+D.command('on'); D.slow(false); assert(b07[3].RootComponent.hidden==true)
+-- A streaming level whose read raises: logged, its dome looked up once.
+streamed[package(Rule.MAPS[E04].day_dome)]=uobj({IsLevelVisible=function() error('gone',0) end})
+D=Daynight.new(o); eve=new_eve(0x610,E04); st.el=20; D.slow(false)
+assert(logged('the sublevel of .*SM_SkySphere2 is unreadable: gone; looked up once') and xion_day.hidden==false)
+streamed[package(Rule.MAPS[E04].day_dome)],creator_list=nil,nil
+-- 23. The Terrace hall: nothing looked up, nothing written.
 D=Daynight.new(o); local seen,writes=calls.actors_of_lights,calls.set_intensity+calls.rotate
 eve=new_eve(0x900,'/game/sbo_lobby/lobby_terrace'); D.slow(false)
 assert(calls.actors_of_lights==seen and calls.set_intensity+calls.rotate==writes and asked[#asked]=='sky off')

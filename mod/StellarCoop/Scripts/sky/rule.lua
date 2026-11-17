@@ -15,7 +15,8 @@ local HALL={sun='Sun',sky='SkyLight'} -- SBO's halls: engine lights, manual expo
 -- Keys: the world's package path lowercased, as U.map_of gives it. sky: real (the domes hidden, the SkyAtmosphere
 -- draws the sky), creator (SB's SkyCreator turns its own sun, moon and stars), painted (Xion: a day dome and SB's
 -- night dome) or engine (SBO's own maps: no SB env settings, Lua drives the Sun and SkyLight actors). stars: layer
--- (SBO's star layer on the first hidden dome), creator, night_dome or none.
+-- (SBO's star layer on the first hidden dome), creator, night_dome or none. levels: streamed sublevels with a
+-- SkyCreator and no dome, watched as the domes' are (Spire 4's _05).
 Rule.MAPS={
     ['/game/art/bg/worldmap/e03_wasteland_p/e03_wasteland_p']={cycle='on',hz=8,heading=0,sky='real',
         domes={'/Game/Art/BG/WorldMap/E03_WasteLand_P/E03_SubLevel_ENV/E03_ENV.E03_ENV:PersistentLevel.Sky_Sphere'},
@@ -36,7 +37,8 @@ Rule.MAPS={
         BG..'B07/B07_Skysphere_01.B07_Skysphere_01:PersistentLevel.SM_SkySphere3',
         BG..'B07/B07_Skysphere_02.B07_Skysphere_02:PersistentLevel.SM_SkySphere2',
         BG..'B07/B07_Skysphere_03.B07_Skysphere_03:PersistentLevel.SM_SkySphere4',
-        BG..'B07/B07_Skysphere_04.B07_Skysphere_04:PersistentLevel.SM_SkySphere2'}},
+        BG..'B07/B07_Skysphere_04.B07_Skysphere_04:PersistentLevel.SM_SkySphere2'},
+        levels={BG..'B07/B07_Skysphere_05'}}, -- B07's sky sublevels stream (LevelStreamingDynamic), as E04's does.
     ['/game/dlc_2/art/bg/worldmap_nk_minigame/nk_minigame_p']={cycle='on',hz=8,heading=60,sky='real',
         domes={NK..'Waste/NK_MiniGame_Waste_ENV.NK_MiniGame_Waste_ENV:PersistentLevel.Sky_Sphere'},stars='layer'},
     ['/game/dlc_2/art/bg/worldmap_nk_minigame/nk_minigame_02_p']={cycle='on',hz=8,heading=76,sky='real',

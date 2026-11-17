@@ -677,6 +677,12 @@ o.daynight=require('sky.daynight').new({log=log,ask=function(line) return ask(li
         return cls and her and (U.actors_of(cls,path:match('([^.]+)$'),her)) or {}
     end,
     load=function(path) return LoadAsset(path) end,
+    -- The streaming level of a sublevel package in EVE's world (GameplayStatics GetStreamingLevel matches the end of
+    -- each streaming level's package name in C++), or nil when it is not streamed.
+    level=function(package)
+        local her=U.her(U.valid(require('UEHelpers').GetPlayer()))
+        return her and U.find('/Script/Engine.Default__GameplayStatics'):GetStreamingLevel(her,FName(package)) or nil
+    end,
     exists=function(path)
         local f=io.open(path,'rb')
         if f then f:close() end

@@ -93,8 +93,9 @@ fails the test. The `main/` tests load
 - `main/daynight_test` covers the day and night cycle through `main.lua` with a fake `sky/daynight.lua`: what it is
   built with (the native asks and status, the `daynight` setting, the cutscene, SB's screens, photo mode, Night
   Operation, the SBO lobby in Xion's training room only, the third-party plugin's path, `coop-sky.txt`, the world's
-  address) and its 250 ms pass with `coop off`. It also covers `coop daynight` with each word and its usage line for the
-  rest. `main/menu_test` covers the Day and night row: On by default, a change saved at once with no request;
+  address, no streaming level asked with no EVE) and its 250 ms pass with `coop off`. It also covers `coop daynight`
+  with each word and its usage line for the rest. `main/menu_test` covers the Day and night row: On by default, a change
+  saved at once with no request;
 - `sky/rule_test` covers `sky/rule.lua`: every row of the map table (keys in lower case, each open row complete for its
   kind of sky, the fixed maps, an unknown map), the rules in their order (a cutscene before photo mode, photo mode's
   hold whatever the hour and while SB's photo mode pauses the game, a test pin before Night Operation's midnight), the
@@ -111,8 +112,12 @@ fails the test. The `main/` tests load
   Sun turned, its intensity, its colour and the SkyLight's intensity scaled, Matrix XIII's exposure bias lowered, each
   written on change only and put back at an off. Then the originals across a Lua reload at full night (the Hotel's
   lights, Matrix XIII's bias, a SkyCreator's time, each kept in `coop-sky.txt` with no compounding and back at an off),
-  a new EVE in the same world, a new game run that reads the lights again and a `coop-sky.txt` that cannot be written;
-  the Terrace hall left alone;
+  a new EVE in the same world, a new game run that reads the lights again and a `coop-sky.txt` that cannot be written.
+  Spire 4's streamed sky sublevels: a dome that waits for its sublevel with no lookup, one looked up and hidden 2 s
+  after its sublevel came (not before) with the SkyCreators listed again, one dropped when it went, one looked up again
+  after it went and came back between two reads, a SkyCreator sublevel with no dome, nothing read off the live passes
+  and a sublevel that came meanwhile looked up at the first live pass, a streaming level whose read raises; the Terrace
+  hall left alone;
 - `main/world_test` covers `coop world` (its words, on and off whatever `shared_world` says, status), the start once a
   load with `shared_world=on`, the end at a reload with `shared_world=off`, and the shared world's two notices;
 - `main/scenes_test` covers `coop scenes` (its words, on and off whatever `shared_story` says, status, an on or off

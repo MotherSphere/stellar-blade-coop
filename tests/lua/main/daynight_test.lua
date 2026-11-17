@@ -11,6 +11,9 @@ load_main(true)
 local o=dn.o
 assert(o.settings.daynight==true and o.status()==status_text and o.store=='store coop-sky.txt')
 assert(o.world({GetWorld=function() return {GetAddress=function() return 0x5000 end} end})==0x5000)
+package.loaded.UEHelpers.GetPlayer=function() return nil end -- No EVE (the title): no streaming level asked.
+assert(o.level('/Game/Art/BG/WorldMap/SubLevel/B07/B07_Skysphere_02')==nil)
+package.loaded.UEHelpers.GetPlayer=nil
 assert(o.ask('sky off') and asked[#asked]=='sky off')
 assert(o.cps=='mod/StellarCoop\\..\\..\\..\\CPS\\Plugins\\activate_day_night_cycle.cps',o.cps)
 -- SB's state it reads: a cutscene, its screens, photo mode, Night Operation, the lobby in Xion's training room only.
