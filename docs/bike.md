@@ -66,9 +66,10 @@ her off the bike. Photo mode works while she rides; her riding pose comes back w
 ## Where the bike stays
 
 Getting off with F3, the pad or `coop bike` leaves the bike where she stands, its nose where it pointed, tilted to the
-slope of the ground. In the air or on one of the game's lifts or trains, it goes
-instead to the last spot on the ground she rode over. While she rides, the mod keeps that spot every 250 ms, so it is at
-most about 6 m behind her at top speed. When she is taken off, the bike also stays at that last spot:
+slope of the ground. In the air or on one of the game's lifts or trains, it goes instead to the last spot on the ground
+she rode over. While she rides, the mod keeps that spot every 250 ms, so it is at most one pass of riding behind her:
+about 6 m at the default top speed, 21 m at the highest `top` (8333 cm/s). When she is taken off, the bike also stays at
+that last spot:
 
 - water: on the shore she rode off;
 - a lift or train, a ladder, a rope or another of the game's special moves: at the last spot before it;
@@ -164,10 +165,9 @@ The riding values are whole numbers, kept within these bounds:
 `bike` (on or off, on by default) and `bike_key` (F1 to F12 but F10, with at most one of Shift+, Ctrl+, Alt+, or `none`;
 F3 by default) are in `coop-settings.txt` and in the co-op menu under Options, Controls: the Bike and Get on or off the
 bike rows. Bike off takes EVE off the bike, removes the bike from her, takes her parked bike out of every world (its
-place is kept), hides the other players' parked bikes on your screen and frees the loaded files. On loads them again
-and puts her parked bike back. A
-`coop-settings.txt` written before the bike, whose own keys already use F3, gets no bike key. `UE4SS.log` then says
-`[StellarCoop] settings: F3 is <setting>: bike_key has no key`.
+place is kept), hides the other players' parked bikes on your screen and frees the loaded files. On loads them again and
+puts her parked bike back. A `coop-settings.txt` written before the bike, whose own keys already use F3, gets no bike
+key. `UE4SS.log` then says `[StellarCoop] settings: F3 is <setting>: bike_key has no key`.
 
 ## Your friend and match lobbies
 

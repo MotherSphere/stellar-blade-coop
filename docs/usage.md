@@ -78,7 +78,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop lines [<name>\|stop]` | Show the subtitles of a [scene cut before it was voiced](cut-scenes-and-menus.md#cut-scene-lines-coop-lines) in the chat's feed, or play unused voice takes, or end it (untested in game) |
 | `coop emote [list\|<name>\|off]` | Play one of [EVE's clips](cut-eve.md#emotes-coop-emote) (a photo-mode pose held until she moves, a wave, a clip of the Cut category; untested in game), list them or end it |
 | `coop bike` | Put EVE on the [bike](bike.md) or take her off it, on any save (untested in game) |
-| `coop bike status` | The bike's preload, whether it is on EVE, whether she rides, its four riding values |
+| `coop bike status` | The bike's preload, whether it is on EVE, whether she rides, its four riding values, where it is [parked](bike.md#where-the-bike-stays) (`parked on <map>`, with `<n> m away` on her map, or `no place yet`) |
 | `coop bike tune [<name> <value>]` | The four [riding values](bike.md#coop-bike), or one changed for your next rides until the mod reloads |
 | `coop loopback <delay ms> <jitter ms> <loss %>` | Run your own ghost through a simulated network on one PC |
 | `coop loopback off` | Stop the loopback |

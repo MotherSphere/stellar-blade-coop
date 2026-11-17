@@ -61,8 +61,9 @@ bike_key=F3
 # and B on the keyboard, which Stellar Blade leaves free.
 drift_keys=Gamepad_RightTrigger B
 # The bike: on or off, on by default. On, the mod keeps Stellar Blade's own bike loaded. bike_key, D-pad Right held 1 s
-# on a pad or the console command coop bike puts EVE on it or takes her off, on any save. Nothing of the ride is saved.
-# Off takes her off the bike and frees it.
+# on a pad or the console command coop bike puts EVE on it or takes her off, on any save. The bike stays where she gets
+# off: its place is kept for each save, in the mod folder. Off gets her off the bike, removes her parked bike from
+# every world (its place stays), hides the other players' parked bikes and frees the bike's files.
 bike=on
 # Who can join a session you host: public (any player of your version, from Find a session), friends (your Steam
 # friends, from their friends list or the Friends tab of Find a session), invitation (the friends you invite or anyone

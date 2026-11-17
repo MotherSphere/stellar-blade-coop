@@ -32,8 +32,9 @@ bike_key=F3
 # and B on the keyboard, which Stellar Blade leaves free.
 drift_keys=Gamepad_RightTrigger B
 # The bike: on or off, on by default. On, the mod keeps Stellar Blade's own bike loaded. bike_key, D-pad Right held 1 s
-# on a pad or the console command coop bike puts EVE on it or takes her off, on any save. Nothing of the ride is saved.
-# Off takes her off the bike and frees it.
+# on a pad or the console command coop bike puts EVE on it or takes her off, on any save. The bike stays where she gets
+# off: its place is kept for each save, in the mod folder. Off gets her off the bike, removes her parked bike from
+# every world (its place stays), hides the other players' parked bikes and frees the bike's files.
 bike=on
 # Who can join a session you host: public (any player of your version, from Find a session), friends (your Steam
 # friends, from their friends list or the Friends tab of Find a session), invitation (the friends you invite or anyone
@@ -193,7 +194,7 @@ sbo_lobby=on
 | `race_key` | same, or `none`: a key that sets a [Doro race](doro-races.md) checkpoint while you record a track | `F9` |
 | `bike_key` | same, or `none`: a key that puts EVE on the [bike](bike.md) or takes her off it | `F3` |
 | `drift_keys` | up to 4 Unreal key names separated by spaces, or `none`: the keys held to [drift](doro-races.md#driving) in a race or on the [bike](bike.md#riding) | `Gamepad_RightTrigger B` |
-| `bike` | `on` or `off`: the [bike](bike.md), on any save; off takes EVE off the bike, removes it from her and frees its loaded files | `on` |
+| `bike` | `on` or `off`: the [bike](bike.md), on any save; off takes EVE off the bike, removes it from her, takes her parked bike out of every world (its place is kept), hides the other players' parked bikes and frees its loaded files | `on` |
 | `who_can_join` | `public`, `friends`, `invitation` or `closed`: who can join an online session you host. `public`: any player of your version, who finds it in the session list. `friends`: your Steam friends. `invitation`: the friends you invite or anyone with your [join code](playing-with-a-friend.md#join-codes). `closed`: nobody (Private in the co-op menu). The words `code` and `private` from 0.11 and older read as `invitation`; the file keeps them | `public` |
 | `friends_ask` | `on` or `off`, with `public` or `invitation`: `on` makes your Steam friends wait for your answer like other players. The co-op menu shows it as Friends join without asking, On while `friends_ask=off` | `off` |
 | `auto_coop_save` | `ask`, `always` or `off`: the [co-op saves](playing-with-a-friend.md#co-op-saves) at the title | `ask` |
@@ -334,6 +335,10 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-race-doros.txt` | Lua | While a race shows Doros: their object paths, so the next Lua load (Ctrl+R) can remove them |
 | `coop-drive.txt` | Lua | While a race, the drive probe or the [bike](bike.md) drives EVE: her object path and her movement's four values from before, so the next Lua load (Ctrl+R) can put them back |
 | `coop-bike.txt` | Lua | While EVE rides the [bike](bike.md): her object path and her main mesh's relative rotation and location from before, so the next Lua load (Ctrl+R) can put her mesh back and hide the bike |
+| `coop-bike-<steamid>-<saves><index>.txt` | Lua, each time the bike is parked at a new place, never in the SBO lobby | Where your [bike](bike.md#where-the-bike-stays) stands for that Steam account and save, one line: version 1, the map, its position and its rotation (see [The place per save](internals/bike.md#the-place-per-save)) |
+| `coop-bike-stand.txt` | Lua | While your parked bike stands in the world: its actor path, so the next Lua load (Ctrl+R) can remove it |
+| `coop-bike-copies.txt` | Lua | While the other players' parked bikes show: their actor paths, tab-separated, so the next Lua load (Ctrl+R) can remove them |
+| `coop-parked.txt` | Lua | Your parked bike's line (`park <map> <x> <y> <z> <pitch> <yaw> <roll>` or `none`), for a moment: the native part takes and deletes it at its next pass and sends it to the players linked with you |
 | `coop-sbo.txt` | Lua | The object path of the SBO lobby's last menu camera, so the next Lua load (Ctrl+R) can remove it if it still stands |
 | `coop-leviathan.txt` | Lua | While `coop leviathan show`, `coop gardener show` or `coop tendril show` shows a mesh or the free camera is on: the mesh actor's object path and the mesh's, the camera actor's path, the player controller's path, whether its move and look input were ignored before and the path of its view target before, so the next Lua load (Ctrl+R) can remove both and give the controller back |
 | `coop-devmenu.txt` | Lua | After a `coop devmenu` row reached the game, until `coop off`: one line, so `coop off` runs `clear` and `lockswitch` even after a Lua reload (Ctrl+R) |
@@ -341,9 +346,9 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 
 Each file shared between Lua and the native part is written in full to a `.tmp` file beside it and then renamed over it,
 so neither side reads a half-written file. When the native part starts, it deletes the capture, remote, display, state,
-chat and night line files, `coop-race.txt`, and any stale request or report, and writes `coop-cns.txt` again. The chat
-files and `coop-race.txt` are also deleted when a session ends and when the game exits. A run without `coop no` writes
-no probe file, so `nightop-probe.old.txt` can be older than the previous run.
+chat, night and parked bike line files, `coop-race.txt` and any stale request or report. Then it writes `coop-cns.txt`
+again. The chat files and `coop-race.txt` are also deleted when a session ends and when the game exits. A run without
+`coop no` writes no probe file, so `nightop-probe.old.txt` can be older than the previous run.
 
 An install and the release zip both add `Scripts/version.lua`. An install also writes `install-manifest.txt`; the
 release zip adds `INSTALL.md`, `CHANGELOG.md` and `SHA256SUMS.txt`.

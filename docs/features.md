@@ -80,9 +80,9 @@ achievements, which cannot be taken back.
   [doro-races.md](doro-races.md)).
 - The bike: F3, D-pad Right held 1 s or `coop bike` puts EVE on a motorbike from the game's files, on any save. She
   rides it with the left stick, leans into turns, drifts with R2 or B and jumps with the game's Jump; her attacks and
-  items are off while she rides. Your friend's ghost of you and the match-lobby ghosts show the bike. Its riding model
-  adapts dCharisma1's Eve On Wheels, with his consent. Nothing of the ride is saved. It is not tested in game yet (see
-  [bike.md](bike.md)).
+  items are off while she rides. Your friend's ghost of you and the match-lobby ghosts show the bike. It stays where she
+  gets off, one place for each save, where the players linked with you see it too. Its riding model adapts dCharisma1's
+  Eve On Wheels, with his consent. It is not tested in game yet (see [bike.md](bike.md)).
 - `coop leviathan` shows Leviathan, a Naytiba cut from the game whose models and animations are still in its files, as
   a display-only model in front of EVE, with a free camera for filming. `coop gardener` and `coop tendril` do the same
   for two more cut Naytibas, the Gardener and the Tendril (see

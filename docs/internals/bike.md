@@ -166,9 +166,9 @@ rotation for that.
 `bike/stand.lua` makes the parked bike with `race/doro.lua`'s `Doro.spawn`: a plain `Actor` whose root is one
 `SkeletalMeshComponent` showing `Adam_Vehicle_02` at scale 1 in its reference pose. `bike/ride.lua` makes one for each
 EVE right after her part, under the same gate (`bike=ready`, EVE in the world for 2 s). It starts hidden with its
-collision off. The log says `bike stand made in <ms> ms`. A new EVE (a map change, a respawn) has the old EVE's stand removed first. A
-stand that cannot be made (`bike stand not made: <why>`) is not tried again on that EVE: a mount then ignores the place
-and the bike comes out under her.
+collision off. The log says `bike stand made in <ms> ms`. A new EVE (a map change, a respawn) has the old EVE's stand
+removed first. A stand that cannot be made (`bike stand not made: <why>`) is not tried again on that EVE: a mount then
+ignores the place and the bike comes out under her.
 
 The component is `WorldDynamic`, blocks every channel but `Camera`, makes no overlap events and has
 `CanCharacterStepUpOn` set to `ECB_No`. Its body is the mesh's own physics asset; no capsule is added. Shown, the
