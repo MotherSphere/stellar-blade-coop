@@ -69,8 +69,43 @@ inline Act step(Option &o, int32_t value, bool want) {
 }
 // The save slot's wrapper hands SB's save the kept value: only while forced and still Off.
 inline bool save_swap(const Option &o, int32_t value) { return o.forced && value == kOff; }
-// The save slots stay ours while either option is forced.
-inline bool holding(const Option (&all)[2]) { return all[0].forced || all[1].forced; }
+
+// The game thread's pass over both options and its fault latch, through g (glue/tick/options_game.inc on SB's memory, a
+// fake in the tests): g.find(k) is option k's address this pass (0 skips it), g.value(option) its +0x10,
+// g.set(option, value) its SetValue, g.show(k, forced, kept) what the save wrappers and the worker read on their own
+// threads, g.count(k, act) the step for the log. Any of them may fault (the tests throw). show() runs before a force's
+// SetValue and after each step, so after a fault anywhere an option that may hold our Off is still shown forced: the
+// save slots stay ours while one is shown forced. A first fault ends the force for the run; the passes after it only
+// put a forced option back. A second fault stops the pass: an option still forced stays Off until the game restarts,
+// with the save slots still ours.
+class Pass {
+public:
+  // Whether the game thread runs a pass: while coop is on before a fault, or while an option is shown forced (held), to
+  // put it back.
+  bool runs(bool blocked, bool held) const { return faults_ < 2 && (held || (!blocked && faults_ == 0)); }
+  template <class G> void run(bool want, G &g) {
+    want = want && faults_ == 0;
+    for (size_t k = 0; k < 2; ++k) {
+      const uint64_t option = g.find(k);
+      if (!option)
+        continue;
+      Option &o = all_[k];
+      const Act act = step(o, g.value(option), want);
+      if (act == Act::force)
+        g.show(k, true, o.kept);
+      if (act == Act::force || act == Act::restore)
+        g.set(option, act == Act::force ? kOff : o.kept);
+      g.show(k, o.forced, o.kept);
+      g.count(k, act);
+    }
+  }
+  void fault() { faults_ += faults_ < 2; }
+  uint8_t faults() const { return faults_; }
+
+private:
+  Option all_[2];
+  uint8_t faults_ = 0;
+};
 
 // The option of key in the map at map, as FUN_1421fdb60 finds it, through read(at, out, n) -> bool: 0 when absent,
 // unreadable or past kMaxSteps.

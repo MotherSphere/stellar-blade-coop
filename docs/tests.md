@@ -787,8 +787,11 @@ The C++ tests cover the platform-free headers in `native/src`.
 - `options_test`: the game's Tutorial and RecordPopup options during online play (an option On at link forced Off with
   On kept, the save slot handed the kept value while it is forced, the value back at unlink; an option already Off left
   alone; the player's On during online play kept with no new force until unlink; a value the game never writes never
-  forced; the save slots held while either option is forced), their pinned keys, vtables and save slots, the
-  registry lookup over a fake map (on the heap and inline buckets, a key further along its chain, an empty map, no
+  forced), the pass over both options with its fault latch (a fault in the second option's lookup right after the
+  first one's force, or inside SetValue, leaving that option shown forced so the save slots stay held; the next pass
+  putting it back though online play still asks the popups off; a second fault stopping the pass with the option still
+  shown forced; a first fault with nothing forced running no more passes), their pinned keys, vtables and save slots,
+  the registry lookup over a fake map (on the heap and inline buckets, a key further along its chain, an empty map, no
   bucket, an index out of range, a chain that loops, a read that fails) ending in 0, never in a hang;
 - `dev_panels_test`: `coop devinfo`'s guard (each read failing alone, refused with its own reason; a close needs
   neither the flow nor the phase), the plan over every mix of open panels and every ask (the other panel closes, the

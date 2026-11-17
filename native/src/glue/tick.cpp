@@ -220,7 +220,8 @@
 // its vtable and turns an option that is On to Off through SB's SetValue, the player's On kept. The wrappers hand SB's
 // settings save the kept value, so the settings file keeps the player's values. When the link ends, Lua asks popups off
 // or coop goes off, the pass puts the kept value back; the slots go back once nothing is forced. An option the player
-// turns on during online play stays on.
+// turns on during online play stays on. A fault ends the force for the run: the pass then only puts the kept values
+// back. A second fault stops it with the slots still ours while an option is forced.
 //
 // This file is one translation unit made of the parts in glue/tick/, included below in this order: a part sees
 // what the parts before it declare, and the game thread's parts share one anonymous namespace. Each part is named
@@ -388,9 +389,9 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // The day/night cycle, its own latch: a pass each 100 ms; after coop off only while SB's env array holds our values.
   if (game_pinned && !sky_faulted && (!blocked || sky_holding()))
     sky_tick();
-  // The game's tutorial and record popups, their own latch: a pass each 250 ms; after coop off only while an option
-  // is forced, to put the player's value back.
-  if (game_pinned && !options_faulted && (!blocked || options_holding()))
+  // The game's tutorial and record popups, their own latch: a pass each 250 ms; after coop off or a first fault only
+  // while an option is forced, to put the player's value back; none after a second fault.
+  if (game_pinned && options_run.runs(blocked, options_holding()))
     options_tick();
   // Same-place enemies' capture and drive, their own latch too; after coop off while a drawn copy is held, to put it
   // back.

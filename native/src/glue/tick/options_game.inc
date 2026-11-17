@@ -11,9 +11,11 @@ namespace {
 using OptionSave = void (*)(void *option, void *save);
 using OptionSet = void (*)(uintptr_t option, const int32_t *value);
 // options_want: the worker's (swapped, asked on, linked, coop on). options_asked: Lua's popups on or off (on until Lua
-// says off). options_held: an option forced (the save slots stay ours). options_faulted: the pass's latch.
-std::atomic<bool> options_want{false}, options_asked{true}, options_held{false}, options_faulted{false};
-// For the save wrappers, which may run on any thread SB saves on: each option's force and kept value.
+// says off). options_faults: the pass's faults, 0 to 2, for the worker (game/options.h's Pass).
+std::atomic<bool> options_want{false}, options_asked{true};
+std::atomic<uint8_t> options_faults{0};
+// For the save wrappers (on any thread SB saves on) and the worker: each option shown forced and its kept value (Pass's
+// show).
 std::atomic<bool> options_forced[2];
 std::atomic<int32_t> options_kept[2];
 // For the worker's log: each option's forces, restores and drops this run; why it was skipped (0 none, 1 not in SB's
@@ -22,40 +24,31 @@ std::atomic<uint32_t> options_forces[2], options_restores[2], options_drops[2];
 std::atomic<uint64_t> options_skip[2];
 std::atomic<uint64_t> options_fault_code{0}, options_fault_rva{0}, options_fault_address{0};
 // The game thread's.
-coop::options::Option options_state[2];
+coop::options::Pass options_run;
 uint64_t options_next = 0;
 
-// Each option as SB's lookup finds it, its vtable checked before its value is read or SetValue called. In game only:
-// the client in game and playing (no load, no title) and the world object set, so Tutorial's SetValue (which reaches
-// the player through FUN_141a98b50, a getter that allocates when that object is null) only reads.
-__declspec(noinline) void options_body(bool want) {
-  using namespace coop::options;
-  const uintptr_t client = at<uintptr_t>(base + (travel::kClientAt - game::kImageBase));
-  if (!game::plausible(client) || at<int32_t>(client + travel::kFlow) != travel::kInGame ||
-      at<int32_t>(client + travel::kPhase) != travel::kPlaying ||
-      !game::plausible(at<uintptr_t>(base + (travel::kWorldAt - game::kImageBase))))
-    return;
-  const auto read = [](uint64_t where, void *out, size_t n) {
-    std::memcpy(out, reinterpret_cast<const void *>(where), n);
-    return true;
-  };
-  for (size_t k = 0; k < 2; ++k) {
-    const uintptr_t option = find(read, base + (kRegistry - game::kImageBase), kKinds[k].key);
+// Pass's g on SB's memory: each option as SB's lookup finds it, its vtable checked before its value is read or SetValue
+// called.
+struct OptionsGame {
+  uint64_t find(size_t k) {
+    using namespace coop::options;
+    const auto read = [](uint64_t where, void *out, size_t n) {
+      std::memcpy(out, reinterpret_cast<const void *>(where), n);
+      return true;
+    };
+    const uintptr_t option = coop::options::find(read, base + (kRegistry - game::kImageBase), kKinds[k].key);
     const uintptr_t vtable = game::plausible(option) ? at<uintptr_t>(option) : 0;
-    if (vtable != base + (kKinds[k].vtable - game::kImageBase)) {
-      options_skip[k] = vtable ? vtable : 1;
-      continue;
-    }
-    options_skip[k] = 0;
-    Option &o = options_state[k];
-    const Act act = step(o, at<int32_t>(option + kOptionValue), want);
-    if (act == Act::force) // Published before SetValue makes the option Off: a save from then on gets the kept value.
-      options_kept[k] = o.kept, options_forced[k] = true;
-    if (act == Act::force || act == Act::restore) {
-      const int32_t value = act == Act::force ? kOff : o.kept;
-      at<OptionSet>(vtable + kSetValue)(option, &value);
-    }
-    options_forced[k] = o.forced; // After a restore's SetValue: the option holds the kept value by then.
+    const bool ours = vtable == base + (kKinds[k].vtable - game::kImageBase);
+    options_skip[k] = ours ? 0 : vtable ? vtable : 1;
+    return ours ? option : 0;
+  }
+  int32_t value(uint64_t option) { return at<int32_t>(option + coop::options::kOptionValue); }
+  void set(uint64_t option, int32_t value) {
+    at<OptionSet>(at<uintptr_t>(option) + coop::options::kSetValue)(option, &value);
+  }
+  void show(size_t k, bool forced, int32_t kept) { options_kept[k] = kept, options_forced[k] = forced; }
+  void count(size_t k, coop::options::Act act) {
+    using coop::options::Act;
     if (act == Act::force)
       ++options_forces[k];
     else if (act == Act::restore)
@@ -63,10 +56,22 @@ __declspec(noinline) void options_body(bool want) {
     else if (act == Act::drop)
       ++options_drops[k];
   }
-  options_held = coop::options::holding(options_state);
+};
+// In game only: the client in game and playing (no load, no title) and the world object set, so Tutorial's SetValue
+// (which reaches the player through FUN_141a98b50, a getter that allocates when that object is null) only reads.
+__declspec(noinline) void options_body(bool want) {
+  const uintptr_t client = at<uintptr_t>(base + (travel::kClientAt - game::kImageBase));
+  if (!game::plausible(client) || at<int32_t>(client + travel::kFlow) != travel::kInGame ||
+      at<int32_t>(client + travel::kPhase) != travel::kPlaying ||
+      !game::plausible(at<uintptr_t>(base + (travel::kWorldAt - game::kImageBase))))
+    return;
+  OptionsGame g;
+  options_run.run(want, g);
 }
-bool options_holding() { return options_held; }
-// Every kPassMs on the game thread; after coop off only while an option is forced, to put it back.
+// The save slots stay ours while an option is shown forced: set before a force's SetValue, cleared after a restore's.
+bool options_holding() { return options_forced[0] || options_forced[1]; }
+// Every kPassMs on the game thread while Pass::runs: before a fault while coop is on; after coop off or a first fault
+// only while an option is shown forced, to put it back.
 void options_tick() {
   const uint64_t now = clock_us() / 1000;
   if (now < options_next)
@@ -75,8 +80,9 @@ void options_tick() {
   __try {
     options_body(options_want && !blocked);
   } __except (fault_filter(GetExceptionInformation(), options_fault_code, options_fault_rva, options_fault_address)) {
-    options_faulted = true;
+    options_run.fault();
   }
+  options_faults = options_run.faults();
 }
 
 // The save slots' targets once swapped (any thread SB saves on). While the option is forced and still Off, SB's save

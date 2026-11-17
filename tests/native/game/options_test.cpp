@@ -1,7 +1,9 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// game/options.h: the Tutorial and RecordPopup options' decisions during online play and the registry lookup.
+// game/options.h: the Tutorial and RecordPopup options' decisions during online play, the pass over both with its fault
+// latch (an option shown forced through a fault, put back after the first one, the pass stopped by a second) and the
+// registry lookup.
 #include "game/options.h"
 
 #include <cassert>
@@ -25,6 +27,36 @@ struct Image {
     return true;
   }
 };
+// Pass's g over two fake options at 0x100 and 0x101: a throw stands for a fault, in option throw_find's lookup or in
+// option throw_set's SetValue after its write, as SB's SetValue writes +0x10 first.
+struct Fake {
+  int32_t values[2] = {kOn, kOn};
+  bool shown[2] = {};
+  int32_t kept[2] = {kOn, kOn};
+  int throw_find = -1, throw_set = -1, sets = 0;
+  uint64_t find(size_t k) {
+    if (int(k) == throw_find)
+      throw 1;
+    return 0x100 + k;
+  }
+  int32_t value(uint64_t option) { return values[option - 0x100]; }
+  void set(uint64_t option, int32_t value) {
+    values[option - 0x100] = value, ++sets;
+    if (int(option - 0x100) == throw_set)
+      throw 2;
+  }
+  void show(size_t k, bool forced, int32_t value) { shown[k] = forced, kept[k] = value; }
+  void count(size_t, Act) {}
+  bool held() const { return shown[0] || shown[1]; }
+};
+// One pass as glue/tick/options_game.inc runs it: a fault caught and handed to the latch.
+void pass(Pass &p, bool want, Fake &g) {
+  try {
+    p.run(want, g);
+  } catch (int) {
+    p.fault();
+  }
+}
 } // namespace
 
 int main() {
@@ -45,12 +77,44 @@ int main() {
     step(o, kOn, true);
     assert(step(o, kOff, false) == Act::restore && step(o, kOn, true) == Act::force); }
   { Option o; assert(step(o, 7, true) == Act::none && !o.forced && !save_swap(o, 7)); } // A value SB never writes.
-  { Option all[2]; // The save slots stay swapped while one option is forced.          Review Focus 2
-    assert(!holding(all));
-    step(all[1], kOn, true);
-    assert(holding(all));
-    step(all[1], kOff, false);
-    assert(!holding(all)); }
+  { Pass p; // Link with both On: both forced and shown before the unlink puts them back.
+    Fake g;
+    assert(p.runs(false, false) && !p.runs(true, false) && p.runs(true, true));
+    pass(p, true, g);
+    assert(g.values[0] == kOff && g.values[1] == kOff && g.held() && g.sets == 2);
+    pass(p, false, g);
+    assert(g.values[0] == kOn && g.values[1] == kOn && !g.held() && g.sets == 4 && p.faults() == 0); }
+  { Pass p; // A fault in RecordPopup's lookup right after Tutorial's force: Tutorial is still shown forced, so the save
+    Fake g; // slots stay ours. The next pass puts it back though want is still on, then nothing runs.
+    g.throw_find = 1;
+    pass(p, true, g);
+    assert(p.faults() == 1 && g.values[0] == kOff && g.shown[0] && g.held());
+    assert(p.runs(false, g.held()) && !p.runs(false, false));
+    g.throw_find = -1;
+    pass(p, true, g);
+    assert(p.faults() == 1 && g.values[0] == kOn && g.values[1] == kOn && !g.held() && g.sets == 2); }
+  { Pass p; // A fault inside Tutorial's SetValue after it wrote Off: shown forced from before the call.
+    Fake g;
+    g.throw_set = 0;
+    pass(p, true, g);
+    assert(p.faults() == 1 && g.values[0] == kOff && g.held() && g.sets == 1);
+    g.throw_set = -1;
+    pass(p, true, g);
+    assert(g.values[0] == kOn && !g.held()); }
+  { Pass p; // A second fault while putting it back: the pass stops, Tutorial still shown forced (slots ours for good).
+    Fake g;
+    g.throw_find = 1;
+    pass(p, true, g);
+    g.throw_find = -1, g.throw_set = 0;
+    pass(p, false, g);
+    assert(p.faults() == 2 && g.held() && !p.runs(false, true) && !p.runs(true, true));
+    p.fault();
+    assert(p.faults() == 2); }
+  { Pass p; // A first fault with nothing forced: no pass after it, even while coop is on.
+    Fake g;
+    g.throw_find = 0;
+    pass(p, true, g);
+    assert(p.faults() == 1 && !g.held() && !p.runs(false, false) && g.sets == 0); }
 
   // find(): a fake map laid out as FUN_1421fdb60 reads it. Entries at 0x2000: [0] key 0x57 -> 0xbbbb, next -1; [1] key
   // 0x56 -> 0xaaaa, next 0. 4 buckets on the heap at 0x3000 (SB keeps one inline at +0x38, so 4 live on the heap):

@@ -10,9 +10,9 @@ namespace {
 // Two aligned 8-byte stores into the options' vtables, as region_tabs_worker.inc makes: no instruction byte of the
 // game changes. Made once a run by a compare-and-swap from SB's save functions only, undone once nothing is forced
 // (coop off, after a fault) by a compare-and-swap from our wrappers only. While an option is forced the slots stay
-// ours, so SB's next settings save never writes our Off into the settings file.
+// ours, after a fault too, so SB's next settings save never writes our Off into the settings file.
 Filter options_hook_state = Filter::untried; // The worker's.
-bool options_fault_logged = false;
+uint8_t options_faults_logged = 0;
 uint32_t options_forces_logged[2] = {}, options_restores_logged[2] = {}, options_drops_logged[2] = {};
 uint64_t options_skip_logged[2] = {};
 
@@ -74,12 +74,14 @@ void options_block() { options_want = false; }
 } // namespace
 
 // Each worker pass (steam.cpp, beside debug_pass): the swap once a run, the want, a line for each change the game
-// thread made, a skipped option once, the fault once, the slots back once nothing is forced after coop off or a fault.
+// thread made, a skipped option once, each of the two faults once, the slots back once nothing is forced after coop
+// off or a fault.
 void options_pass(bool linked) {
   using coop::options::kKinds;
-  if (options_hook_state == Filter::untried && pinned && !blocked && !options_faulted)
+  const uint8_t faults = options_faults;
+  if (options_hook_state == Filter::untried && pinned && !blocked && !faults)
     options_install();
-  options_want = options_hook_state == Filter::on && options_asked && linked && !blocked && !options_faulted;
+  options_want = options_hook_state == Filter::on && options_asked && linked && !blocked && !faults;
   for (size_t k = 0; k < 2; ++k) {
     const std::string name = kKinds[k].name;
     if (const uint32_t n = options_forces[k]; n != options_forces_logged[k]) {
@@ -101,17 +103,20 @@ void options_pass(bool linked) {
                           world_hex(kKinds[k].vtable) + "; it is left alone");
     }
   }
-  if (options_faulted && !options_fault_logged) {
-    options_fault_logged = true;
-    char text[300];
+  for (; options_faults_logged < faults; ++options_faults_logged) {
+    char text[400];
     std::snprintf(text, sizeof text,
-                  "popups fault 0x%08llx in %s reading 0x%llx: off for this run; the settings file keeps the player's "
-                  "values",
+                  options_faults_logged == 0
+                      ? "popups fault 0x%08llx in %s reading 0x%llx: off for this run; the next pass in game puts a "
+                        "popup turned off back to the player's value; the settings file keeps the player's values"
+                      : "popups fault 0x%08llx in %s reading 0x%llx while putting the player's values back: stopped "
+                        "for this run; a popup still off stays off until the game restarts; the settings file keeps "
+                        "the player's values",
                   static_cast<unsigned long long>(options_fault_code.load()), fault_where(options_fault_rva).c_str(),
                   static_cast<unsigned long long>(options_fault_address.load()));
     say(text);
   }
-  if (options_hook_state == Filter::on && (blocked || options_faulted) && !options_holding())
+  if (options_hook_state == Filter::on && (blocked || faults) && !options_holding())
     options_undo(blocked ? "coop off" : "a fault");
 }
 
