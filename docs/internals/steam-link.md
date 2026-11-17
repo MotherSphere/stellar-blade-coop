@@ -143,7 +143,7 @@ each (`where: b07 WLB10_Camp_01`, `rules: <word>`).
 Any SBO client can write any of these keys, so a reader cleans each one before the status shows it. The name loses
 `<`, `>` (Stellar Blade's rich text would read a tag), control characters, bidirectional and zero-width marks and any
 byte that is no valid UTF-8, then is cut to 48 bytes at a character. The zone, camp and rules show only when they are
-one word of letters, digits and `_` within 32 bytes, else as `-`. The ping location goes to Steam only when it is
+one word of letters, digits and `_` within 32 bytes (24 for the camp alias), else as `-`. The ping location goes to Steam only when it is
 printable ASCII without spaces, 1023 bytes at most.
 
 - `list public` asks Steam for lobbies whose `stellarcoop` equals this game's tag and `sbo_list` equals `1`, with a
