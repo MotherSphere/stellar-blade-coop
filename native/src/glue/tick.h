@@ -130,13 +130,13 @@ std::string world_status();
 // Worker, every pass after world_pass and before fight_pass, story together (story/sync.h, story/engine.h): takes her
 // SBS lines out of lines and hands them to the game thread with the gates (shared_story, on while Lua sets nothing;
 // partner: her SteamID while she is linked, else 0; host: we own the lobby and lead; match: a match lobby, the SBO
-// lobby's session counts too; a co-op save, from the save-slot line quest_pass read). It swaps hook 1 in once those
-// gates first open, then sends and logs what the game thread's passes made. send: a line to her on channel 2,
-// reliable (false when it cannot go: the line then waits for the next pass). After the first fault: off to her once,
-// the hook out, nothing more.
+// lobby's session counts too; a co-op save, from the save-slot line quest_pass read; the hooks in, for our on line).
+// It swaps hooks 1 to 3 in once those gates first open, then sends and logs what the game thread's passes made. send:
+// a line to her on channel 2, reliable (false when it cannot go: the line then waits for the next pass). After the
+// first fault: off to her once, the hooks out, nothing more.
 void story_pass(uint64_t partner, bool host, bool match, std::vector<std::string> &lines,
                 bool (*send)(const std::string &));
-// Worker: coop-status.txt's story line (story/sync.h's Sync::status, then hooks=<slots of 1> inbox_dropped=<n>
+// Worker: coop-status.txt's story line (story/sync.h's Sync::status, then hooks=<slots of 3> inbox_dropped=<n>
 // unsent=<lines dropped unsent> elsewhere=<hooks off the game thread>), or story=off why=build|coop_off, or
 // story=stopped after a fault.
 std::string story_status();
