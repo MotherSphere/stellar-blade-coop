@@ -19,6 +19,7 @@ void block() {
   filter_undo("coop off");
   hold_undo("coop off");
   region_tabs_undo("coop off");
+  pause_tab_undo("coop off");
   pad_hook_undo("coop off");
   world_off("coop off"); // Before sbo_off, which swaps back the ZoneEvent slot they share.
   story_off("coop off");

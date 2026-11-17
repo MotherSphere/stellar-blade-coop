@@ -290,6 +290,10 @@ std::string bike_pass();
 void ask_hud(bool hide);
 // Every pass: logs each change the game thread made, a hide it could not make (once an ask) and its fault.
 void hud_pass();
+// The pause menu's Online tab (glue/tick/pause_tab_game.inc, game/pause_tab.h), worker thread. Lua's pausetab on or off
+// (Command::pausetab): RB on the pause menu's last tab opens the Online tab only while on (on until Lua says off). A
+// change is logged.
+void ask_pause_tab(bool on);
 // The SBO lobby arrival's black (glue/tick/loading_game.inc, game/loading.h), worker thread. Lua's loading lift
 // (Command::loading): SB's end fade for that black from the game thread's next frame; refused off the pinned build and
 // after its fault. Returns the line for the log.

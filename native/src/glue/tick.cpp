@@ -207,6 +207,11 @@
 // slots back.
 // status() says which source runs (pad=slate or pad=xinput).
 //
+// The pause menu's Online tab (game/pause_tab.h): once a run the worker swaps the GameMenu logic's input slot of the
+// game's image for a hook on the game thread. RB on the highest enabled tab (Settings), while SB's tab lock is off and
+// Lua's pausetab is on, becomes coop_pad's event 12 in place of SB's wrap to Equipment; every other action runs SB's
+// function with the same arguments. Coop off and a fault of the hook give the slot back.
+//
 // This file is one translation unit made of the parts in glue/tick/, included below in this order: a part sees
 // what the parts before it declare, and the game thread's parts share one anonymous namespace. Each part is named
 // for the thread it runs on: *_game.inc for the game (or SB's logic) thread, *_worker.inc for our worker.
@@ -239,6 +244,7 @@
 #include "game/loading.h"
 #include "game/memory.h"
 #include "game/pad.h"
+#include "game/pause_tab.h"
 #include "game/photo_freeze.h"
 #include "game/preset.h"
 #include "game/region_tabs.h"
@@ -270,6 +276,7 @@
 #include "glue/tick/pose_game.inc"
 #include "glue/tick/fight_game.inc"
 #include "glue/tick/freeze_game.inc"
+#include "glue/tick/pause_tab_game.inc"
 #include "glue/tick/hud_game.inc" // After freeze_game.inc: its MakeName.
 #include "glue/tick/sky_game.inc" // After freeze_game.inc: its controller reach.
 #include "glue/tick/loading_game.inc"
@@ -293,6 +300,7 @@
 #include "glue/tick/saves_worker.inc"
 #include "glue/tick/fight_worker.inc"
 #include "glue/tick/region_tabs_worker.inc"
+#include "glue/tick/pause_tab_worker.inc" // After pause_tab_game.inc: its hook and flags.
 #include "glue/tick/sbo_worker.inc"
 #include "glue/tick/nightop_worker.inc"
 #include "glue/tick/travel_worker.inc"
@@ -314,9 +322,10 @@
 
 
 // Called by Lua for each pad event it takes (package.loadlib(dll, "coop_pad")), in lua_CFunction's shape, the Lua state
-// ignored. The DLL links no Lua, so the event is the result count: Lua passes 11 arguments and gets that many of them
-// back, 0 for none or game/pad.h's event 1 to 11, so this never returns more than 11. Polls the pads at most once per 8
-// ms, so Lua can take several events in one frame. Never throws, never waits.
+// ignored. The DLL links no Lua, so the event is the result count: Lua passes 12 arguments and gets that many of them
+// back, 0 for none or game/pad.h's event 1 to 12, so this never returns more than 12. Event 12 is the Online tab's (RB
+// on the pause menu's last tab, pause_tab_game.inc's hook), posted before the pads' next one. Polls the pads at most
+// once per 8 ms, so Lua can take several events in one frame. Never throws, never waits.
 extern "C" __declspec(dllexport) int coop_pad(void *) noexcept {
   using namespace coop::pose;
   const uint64_t now = GetTickCount64();
@@ -324,8 +333,10 @@ extern "C" __declspec(dllexport) int coop_pad(void *) noexcept {
     pad_next_poll = now + kPadPollMs;
     poll_pad(now);
   }
+  if (pause_tab_asked.exchange(false))
+    pad.post(coop::Pad::kPauseTab);
   const int event = pad.next();
-  return event >= 0 && event <= 11 ? event : 0;
+  return event >= 0 && event <= 12 ? event : 0;
 }
 
 // Called by Lua once per frame (package.loadlib(dll, "coop_tick")), in lua_CFunction's shape: the Lua state is

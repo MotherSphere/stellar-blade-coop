@@ -3,7 +3,8 @@
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The pad's events for the co-op menu, checked on the build machine (no Windows, no XInput): edges, the held
 // direction's repeats (up and down only), diagonals, the stick's thresholds, the View hold, LB, RB and Y, a disconnect,
-// the ring, the slots asked at each poll, and PadKeys (the game's controller events as one read).
+// the ring and the Online tab's event posted into it, the slots asked at each poll and PadKeys (the game's
+// controller events as one read).
 #include "game/pad.h"
 
 #include <cassert>
@@ -38,7 +39,7 @@ int main() {
                 PadState::Y == 0x8000);
   static_assert(Pad::kUp == 1 && Pad::kDown == 2 && Pad::kLeft == 3 && Pad::kRight == 4 && Pad::kSelect == 5 &&
                 Pad::kBack == 6 && Pad::kMenu == 7 && Pad::kTabLeft == 8 && Pad::kTabRight == 9 && Pad::kBike == 10 &&
-                Pad::kRefresh == 11);
+                Pad::kRefresh == 11 && Pad::kPauseTab == 12);
   static_assert(coop::slate::kSlots[0] == coop::slate::kHandlerVtable + 0x88 &&
                 coop::slate::kSlots[1] == coop::slate::kHandlerVtable + 0x90 &&
                 coop::slate::kSlots[2] == coop::slate::kHandlerVtable + 0x98 && coop::slate::kHandlerAt == 0x118);
@@ -459,6 +460,15 @@ int main() {
     keys.press(key(PadKeys::kView), 0, false);
     pad.step(keys.state(), 48), pad.step(keys.state(), 1048);
     assert(drain(pad) == V{Pad::kMenu});
+  }
+  { // The Online tab's event goes in the ring in order with the pad's, and a full ring drops the newest.
+    Pad pad;
+    pad.post(Pad::kPauseTab);
+    pad.step(buttons(PadState::A), 0);
+    assert(drain(pad) == (V{Pad::kPauseTab, Pad::kSelect}));
+    for (int i = 0; i < 9; ++i)
+      pad.post(Pad::kPauseTab);
+    assert(drain(pad).size() == coop::kPadRing);
   }
 
   std::puts("pad_test ok");

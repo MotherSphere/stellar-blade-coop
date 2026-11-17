@@ -529,6 +529,7 @@ void nightop_pass(); // nightop_worker.inc's, after this part.
 void region_tabs_pass(); // region_tabs_worker.inc's, after this part.
 void sbo_pass();         // sbo_worker.inc's, after this part.
 void pad_hook_pass();    // pad_worker.inc's, after this part.
+void pause_tab_pass();   // pause_tab_worker.inc's, after this part.
 uint32_t rows_logged[kRowWordCount] = {};
 bool lion_fault_logged = false, shock_logged = false;
 void lion_pass() {
@@ -536,6 +537,7 @@ void lion_pass() {
   region_tabs_pass();
   sbo_pass();
   pad_hook_pass();
+  pause_tab_pass();
   for (size_t k = 0; k < kRowWordCount; ++k) {
     const RowsJob &j = *kJobs[k];
     uint32_t asks = 0;

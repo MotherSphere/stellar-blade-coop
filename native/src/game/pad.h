@@ -44,7 +44,8 @@ struct PadState {
 class Pad {
 public:
   enum Event : uint8_t {
-    kNone = 0, kUp, kDown, kLeft, kRight, kSelect, kBack, kMenu, kTabLeft, kTabRight, kBike, kRefresh
+    kNone = 0, kUp, kDown, kLeft, kRight, kSelect, kBack, kMenu, kTabLeft, kTabRight, kBike, kRefresh,
+    kPauseTab // RB on the pause menu's last tab (game/pause_tab.h): never made by step, only posted.
   };
 
   // Each poll. Directions (the D-pad or the left stick) on their press; up and down again after kPadRepeatDelayMs
@@ -110,6 +111,9 @@ public:
     if (pressed & PadState::Y)
       push(kRefresh);
   }
+
+  // An event from outside the pads (the Online tab's), in order with step's; a full ring drops it.
+  void post(Event e) { push(e); }
 
   // The oldest event waiting, or kNone.
   int next() {

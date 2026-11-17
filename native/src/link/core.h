@@ -1685,6 +1685,7 @@ private:
     case Command::sbo:
     case Command::guardtext:
     case Command::hud:
+    case Command::pausetab:
     case Command::loading:
     case Command::sky:
       break;

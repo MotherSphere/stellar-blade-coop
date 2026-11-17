@@ -768,6 +768,10 @@ bool step() {
       coop::pose::ask_hud(coop::parse_request(request).on);
       request.clear();
       break;
+    case coop::Command::pausetab: // The pause menu's Online tab: the game thread's hook reads it; a change is logged.
+      coop::pose::ask_pause_tab(coop::parse_request(request).on);
+      request.clear();
+      break;
     case coop::Command::sky: // The day/night cycle: the game thread's; each change of state is logged.
       coop::pose::ask_sky(coop::parse_request(request));
       request.clear();

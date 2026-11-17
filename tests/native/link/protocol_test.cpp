@@ -919,6 +919,11 @@ int main() {
   for (const char *bad : {"hud", "hud hide", "hud on", "hud hide On", "hud hide on now", "hud  hide on", "hudhide off",
                           "hud show on", "hud hide 1"})
     assert(parse_request(bad).command == Command::none);
+  // The Online tab's hook: pausetab on or off, nothing else.
+  assert(parse_request("pausetab on\n").command == Command::pausetab && parse_request("pausetab on").on &&
+         parse_request("pausetab off\r\n").command == Command::pausetab && !parse_request("pausetab off").on);
+  for (const char *bad : {"pausetab", "pausetab On", "pausetab on now", "pause tab on", "pausetab  off", "pausetab 1"})
+    assert(parse_request(bad).command == Command::none);
   // The day/night cycle's asks: off, hold, cycle <hz> <heading>, hour <minute> <hz> <heading>, nothing else.
   Request k = parse_request("sky cycle 8 205\n");
   assert(k.command == Command::sky && k.sky == SkyAsk::cycle && k.horizon == 8 && k.heading == 205);
