@@ -116,9 +116,9 @@ function Menu.new(o)
                 w.set(label,v,row==current and 'focus' or 'normal')
             end
         end
-        local ping,_,linked=link.ping(),link.friend()
+        local ping=link.ping() -- The member the status line names, once past the handshake.
         v.title.set(words.title)
-        v.status.set(link.summary(words)..(linked and ping and ' · '..ping..' ms' or ''))
+        v.status.set(link.summary(words)..(ping and ' · '..ping..' ms' or ''))
         v.note.set(note or (o.chat and o.chat.notice()) or (page=='line' and line(ctx)) or '')
         for i,hint in ipairs({'move',capturing and 'default' or 'select','back'}) do -- Enter puts back the default.
             v.hints[i].set(words.hint[hint])

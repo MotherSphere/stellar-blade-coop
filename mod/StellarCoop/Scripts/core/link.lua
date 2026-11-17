@@ -557,7 +557,8 @@ function Link.new(folder,fs)
     -- As of the last changes(); dead: the worker stopped for good (a fault or another Steamworks build); held: an
     -- invite waits for a save; rejoin: the tries started to get back into a lost game; shown: the last notice number
     -- handed out; fight: the shared fight's line; pilot: same-place enemies' line; photo: the photo line's {mine=,
-    -- peer=,frozen=}; mate: her vitals; life: our life state and HP (life()); ping: the first peer's RTT in ms;
+    -- peer=,frozen=}; mate: her vitals; life: our life state and HP (life()); ping: the RTT in ms of the member the
+    -- status line names (ping());
     -- loopback: coop loopback runs; rejoined: a rejoin got her lobby back and waits for the handshake (kept across
     -- changes() until she is linked or we are no longer a guest); saves: the co-op saves' state (saves()); paks: her
     -- .pak mods against ours (paks()); mods: her mod containers against ours by name (mods()); dlcs: her installed
@@ -772,10 +773,6 @@ function Link.new(folder,fs)
                 and not line:find('^story=') then
                 new[#new+1]=line
             end
-            if ping==nil and line:find('^peer=') then -- Her name comes before: the last rtt_ms= is the native part's.
-                ping=tonumber(line:match(' rtt_ms=(%-?%d+) session=%-?%d+ session_ping=%-?%d+$'))
-                ping=ping and ping>=0 and ping or false
-            end
             if line:find('^mate=') then
                 local v={line:match(MATE)}
                 if v[12] then mate=vitals_of(v,0) end
@@ -883,6 +880,15 @@ function Link.new(folder,fs)
             saves.convert=saves.convert or line:match('^convert=(.+)$')
             if line:find('^mod=') then saves.steamid=line:match(' steamid=(%d+) ') end
         end
+        -- The member summary() names: the slot-0 one, else on the host the first one past the handshake. Her ping
+        -- once she is past it.
+        local named=nil
+        for _,m in ipairs(roster) do if m.slot==0 then named=m; break end end
+        if mode=='host' and not (named and named.linked) then
+            named=nil
+            for _,m in ipairs(roster) do if m.linked then named=m; break end end
+        end
+        ping=named and named.linked and named.rtt>=0 and named.rtt or nil
         if held then saves.held=true end -- The question at the title says an invite waits (session/saves.lua).
         -- Back in her lobby, the native part drops rejoin= before the handshake: the rejoin holds until she is linked.
         if rejoin then rejoined=true elseif mode~='guest' or (friend and friend[2]) then rejoined=false end
@@ -903,8 +909,9 @@ function Link.new(folder,fs)
     function self.photo() return photo end
     -- Whether coop loopback runs, as of the last changes(): with no friend linked, our race lines come back as hers.
     function self.loopback() return loopback end
-    -- The friend's round trip in ms, or nil before the first pong.
-    function self.ping() return ping or nil end
+    -- The round trip in ms of the member the status line names (the slot-0 one, else on the host the first one past
+    -- the handshake), or nil before she is past it or before the first pong.
+    function self.ping() return ping end
     -- A chat session holds once Steam is ready: a friend linked (lost or not; the slot-0 member, or any member past the
     -- handshake while slot 0 is free), a rejoin under way (until she is linked again), or coop loopback. Its end clears
     -- the chat (session/chat.lua's session()); the native part's own ends with the link, so a line typed during a

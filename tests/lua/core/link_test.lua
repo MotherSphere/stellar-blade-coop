@@ -1368,11 +1368,12 @@ assert(#sent==512 and sent[1]=='cp 7 1 1 9' and sent[512]=='cp 7 1 1 520')
 files[RACE]=nil
 
 -- The HUD's fields, as of the last changes(): her vitals (mate=, never logged as they change up to 10 times a
--- second), the first peer's RTT (its last rtt_ms=, as a Steam name may hold one), and whether a chat session holds:
--- a friend linked (lost or not), a rejoin under way, or the loopback.
+-- second), the RTT of the member the status line names (her member= line's, past the handshake only), and whether a
+-- chat session holds: a friend linked (lost or not), a rejoin under way, or the loopback.
 local MATE='mate=900 1600 0 50 5 200 1000 0 0 0 0 1\n'
 files[STATUS]=HEAD..'peer=2 name=x rtt_ms=5 session=3 session_ping=4 hello=1 accepted=1 compatible=1 lost=0 '
-    ..'invalid=0 rtt_ms=118 session=3 session_ping=40\nfriend=1 0 x\n'..MATE..'last=#9 x\n'
+    ..'invalid=0 rtt_ms=118 session=3 session_ping=40\nmember=2 0 1 0 0 118 x rtt_ms=5\nfriend=1 0 x\n'..MATE
+    ..'last=#9 x\n'
 lines=fresh.changes()
 for _,line in ipairs(lines) do assert(not line:find('^mate='),'mate= stays out of the log') end
 local mate=fresh.mate()
@@ -1405,8 +1406,8 @@ for _,bad in ipairs({'friend=1 0 x camps?=41 camps=7 x\n','camps?=x\ncamps=\n','
     asked,answer=fresh.camps()
     assert(asked==nil and answer==nil,bad)
 end
-files[STATUS]=HEAD..'peer=2 name=x hello=1 accepted=0 compatible=1 lost=0 invalid=0 rtt_ms=-1 session=1 '
-    ..'session_ping=-1\nfriend=0 0 x mate=1 2 3 4 5 6 7 8 9 10 11 12\nmate=1 2 3\n'
+files[STATUS]=HEAD..'peer=2 name=x hello=1 accepted=0 compatible=1 lost=0 invalid=0 rtt_ms=40 session=1 '
+    ..'session_ping=-1\nmember=2 0 0 0 0 40 x\nfriend=0 0 x mate=1 2 3 4 5 6 7 8 9 10 11 12\nmate=1 2 3\n'
 fresh.changes()
 assert(fresh.mate()==nil and fresh.ping()==nil and fresh.chatting()==false,'No vitals, no RTT, not linked')
 files[STATUS]=HEAD..'friend=1 1 x\n'
@@ -1510,16 +1511,16 @@ for _,line in ipairs(lines) do assert(not line:find('^vit='),'vit= stays out of 
 assert(door.host().id=='1' and door.host().pair=='21' and door.others()==2)
 assert(door.vitals('21').life==1 and door.vitals('22').life==4 and door.vitals('22').hp==1 and door.vitals('23')==nil)
 assert(door.slot(1).mate().life==4 and door.slot(2).mate()==nil and door.slot(1).friend()=='Lucas')
-assert(door.summary()=='Co-op: hosting Kaanta +1.' and door.cap()==4)
+assert(door.summary()=='Co-op: hosting Kaanta +1.' and door.ping()==40 and door.cap()==4)
 files[STATUS]=CROWD:gsub('friend=1 0 Kaanta\n',''):gsub('member=21 0 1','member=21 0 0'):gsub('pair=21','pair=0')
 door.changes()
-assert(door.host().pair==nil and door.others()==1 and door.summary()=='Co-op: hosting Lucas.' and door.chatting(),
-    'No pair: the first member past the handshake; the session holds')
+assert(door.host().pair==nil and door.others()==1 and door.summary()=='Co-op: hosting Lucas.' and door.chatting()
+    and door.ping()==50,'No pair: the first member past the handshake, her ping too; the session holds')
 files[STATUS]='mod=v steam=ready\nlink=guest lobby=7003\nhost=1 pair=0 max=3\nmember=1 0 1 0 0 40 Host\n'
     ..'member=22 1 1 0 0 50 Lucas\nfriend=1 0 Host\n'
 door.changes()
 assert(door.host().id=='1' and door.host().pair==nil and door.summary()=="Co-op: in Host +1's game.")
-assert(door.host().max==3 and door.cap()==3,'The host\'s max_players on a guest')
+assert(door.host().max==3 and door.cap()==3 and door.ping()==40,'The host\'s max_players and ping on a guest')
 files[STATUS]='mod=v steam=ready\nlink=guest lobby=7003\nhost=1 pair=0 max=0\nmember=1 0 1 0 0 40 Host\n'
 door.changes()
 assert(door.host().id=='1' and door.cap()==nil,'max=0: the let line has not come yet')
