@@ -62,7 +62,7 @@ These parts do not exist yet:
 - More players, up to six. A co-op session holds two.
 - A boss wave.
 
-The Steam link connects two players and shows each player the other's ghost (see [playing-with-a-friend.md](playing-with-a-friend.md)). The previews
+The Steam link connects the players of a session and shows each player the others' ghosts (see [playing-with-a-friend.md](playing-with-a-friend.md)). The previews
 test how the cut mode's parts behave.
 
 ## The solo run (`coop nightop`)
@@ -315,7 +315,8 @@ Restoring a backup does not take an unlocked achievement back.
 With a partner linked over the Steam link, the host starts the run for both players. Each game spawns the same waves
 at the same points around the host's start point, and both cards show one timer and one score. The host's level is
 the run's: the waves, the score for each kill, the heals and the time limit are those of a solo run at that level. A
-co-op session holds two players, so a run has two at most, each on a co-op save.
+run has two players at most, each on a co-op save: in an online session of more than 2 players, the host cannot start
+one ([More than 2 players](playing-with-a-friend.md#more-than-2-players)).
 
 ### Starting a run together
 

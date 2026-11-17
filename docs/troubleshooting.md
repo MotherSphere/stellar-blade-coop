@@ -48,9 +48,10 @@ Stellar Blade Online is an experimental beta, played in only a few sessions betw
 - `Version mismatch: ...`: you run different Stellar Blade Online protocols or game builds. Both players update
   together: see [INSTALL.md: Update](../INSTALL.md#update).
 - `Invite held: joining once your save has loaded.`: they join once their save has loaded. This is normal.
-- `Could not join: that game is full.`: an online session holds 2 players; a match lobby of the
-  [SBO lobby](sbo-lobby.md) holds 8. `Left: the lobby has more than 2 players.` means the co-op lobby was not made by
-  Stellar Blade Online (it holds more players than a Stellar Blade Online co-op lobby can), so the mod left it.
+- `Could not join: that game is full.`: an online session holds as many players as its host's `max_players` (2 to 4);
+  a match lobby of the [SBO lobby](sbo-lobby.md) holds 8. `Left: the lobby has more than 4 players.` means the lobby
+  was not made by Stellar Blade Online (it holds more players than a Stellar Blade Online session can), so the mod
+  left it.
 - `Could not join: that game is closed (a private session, or a match that started).`: the host's online session is
   Private (`who_can_join=closed`), which nobody can join, or the match lobby of the [SBO lobby](sbo-lobby.md) shut when
   its round started. A match lobby opens again when the round ends. A Private session stays shut: the host has to host
@@ -83,8 +84,9 @@ Stellar Blade Online is an experimental beta, played in only a few sessions betw
   (`Your version: protocol <n>, game build <n>.`). The host's `coop status` names theirs on its first line (`proto=`
   and `build=`). Both players update together: see [INSTALL.md: Update](../INSTALL.md#update). A host on a build of
   the mod from before the session list writes no rows, so it is not listed either: join it with an invite or a code.
-- A full session is not listed. An online session holds 2 players. A player who waits for the host's answer takes
-  the second place, so the session leaves the list until the host answers.
+- A full session is not listed. An online session holds as many players as its host's `max_players` (2 to 4). A
+  player who waits for the host's answer takes a place, so a session she fills leaves the list until the host
+  answers.
 - A host you blocked on Steam or with `coop block` is not listed, nor is your own session.
 - The Friends tab asks Steam for each friend's lobby and waits 5 s at most. A lobby Steam sent nothing for is left
   out (`coop-link.log`: `lobby <id> sent no data within 5 s`). Refresh to ask again.

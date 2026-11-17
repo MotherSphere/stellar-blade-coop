@@ -80,7 +80,8 @@ All of these must hold:
 
 In an online session of more than 2 players, story together runs between the host and the first guest only (the guest
 in ghost slot 0 on the host). Every other guest gets a notice when she comes in. The host's cutscenes pause her game
-as before.
+as before. [Quest steps the guest makes first](#quest-steps-the-guest-makes-first) belong to shared quests, which run
+with each guest: the host's game takes such a step from any guest. The same step from two guests is made once.
 
 The host's scene lines that arrive while her game loads wait, up to 256 of them. Her game takes them once she is back
 in the world.

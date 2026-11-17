@@ -55,6 +55,26 @@ fails the test. The `main/` tests load
   default, the older `code` and `private` read as `invitation`) and `friends_ask`, the `where` and `rules` requests
   asked only on a change and never with a word the native part refuses. The rules word is built from the settings and
   read back in that shape only;
+- sessions of more than 2 players: `core/link_test` reads `max_players` (2 to 4, 4 by default and in a new file; any
+  other value refused with a line, `4` kept), every `pending=` line in the status's order (`pending()` the first,
+  `pendings()` all of them), the `host=` and `vit=` lines (`vit=` kept out of the log, a malformed line read as none),
+  `others()`, `cap()` from our last host request and the status line with ` +<n>`, the first member past the handshake
+  standing in on a host whose pair left; `commands/session_test`, `main/boot_test`, `main/menu_test` and
+  `main/session_ui_test` the host request ending with `max_players` (`main/session_ui_test` also the members' rows
+  after the arrow in the kit's order); `ui/model_test` the Players row on the Options page; `ui/create_model_test` and
+  `ui/create_test` the Players row of the Create a session screen (held at 2 and 4, the scroll window one row longer);
+  `ui/lobby_model_test` a session we host counted against its `max_players`, any other against 4; `session/join_test` the host's queue (one question
+  about the first joiner with the players waiting after her on the seconds' line, then the next one's own question
+  with its keys dead again for 1 s); `partner/hud_test` the members' rows (right of the card, three to a column, six
+  made; her name, HP and state as on the card, greyed, the alert once on DOWN and on a lost link; hidden with
+  `partner_card` off, while paused and out of a session) and the card following the first member past the handshake
+  on a host whose pair left; `session/group_test` the revive with three players (the nearest member alive within 2 m
+  named in the wait, the call and the revived notice; the wait naming the member alive on our map when she is far; no
+  member alive), each member's down notice with our revive of her, then the guest's cutscene pause read from the
+  host's slot; `session/travel_test` the host answering `camps?` while any guest is linked and the guest reading the host's
+  map from his member line's slot (no offer while that slot has no ghost or the host is not linked);
+  `partner/ghosts_test` `get(k)`; `cut/mailbox_test`, `race/run_test`, `nightop/run_test`, `nightop/roxanne_test` and
+  `main/fight_test` a gift, a race, a run, Roxanne's pick and the PvP test refused with 3 players;
 - `commands/session_test` covers `coop host` with each of the four words (`ask` added under `public` and `invitation`
   with `friends_ask=on`), `coop host` alone (the Create a session screen when it opens, else `who_can_join`),
   `coop list` (a search by tab; alone, the last list numbered or a Public search) and `coop join <row>`;
@@ -263,8 +283,9 @@ The C++ tests cover the platform-free headers in `native/src`.
   missing, extra, too long or not an alias word), `match cancel` and `match end`, `mute` and `unmute`, `block`,
   `unblock` and `unblock all`, the `host` words (`public`, `friends`, `invitation` with the older `code` and
   `private`, `closed`, then `ask`, then `max_players` from 2 to 4), `list public|friends|stop`, `where`, `rules` and the
-  row cleaner, the match lines (start, count, end) with their bounds, the host's let and wait lines with theirs, the dlc and dlcs lines with their bounds and the DLC
-  comparison by app id, and protocol 23 refusing a protocol-22 lobby and line;
+  row cleaner, the match lines (start, count, end) with their bounds, the host's let and wait lines with theirs, the
+  dlc and dlcs lines with their bounds, the DLC comparison by app id, then protocol 23 refusing a protocol-22 lobby and
+  line;
 - `link_core_test`: the link against the shared fake Steam, and two links through it with the handshake both ways,
   channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, an
   Invitation lobby (its code, the invite dialog, the older words `code` and `private`) joined with its code and the

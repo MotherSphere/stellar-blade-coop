@@ -43,7 +43,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 
 | Command | What it does |
 | --- | --- |
-| `coop host` | Open the [Create a session screen](interface.md#create-a-session-screen), as the menu's Host a session row does. Where it cannot open, host an online session of 2 players at once as `who_can_join` and `friends_ask` say: a Public or Friends only session, an Invitation session with a [join code](playing-with-a-friend.md#join-codes), or a Private one nobody can join |
+| `coop host` | Open the [Create a session screen](interface.md#create-a-session-screen), as the menu's Host a session row does. Where it cannot open, host an online session at once as `who_can_join`, `friends_ask` and `max_players` say: a Public or Friends only session, an Invitation session with a [join code](playing-with-a-friend.md#join-codes), or a Private one nobody can join |
 | `coop host public\|friends\|invitation\|closed` | Host at once with that word in place of `who_can_join`; `friends_ask` applies under `public` and `invitation` |
 | `coop invite` | Open the Steam invite dialog again while you are in a lobby |
 | `coop join` | Join the first Steam friend found in a Stellar Blade lobby |
@@ -150,11 +150,12 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
   in place of `who_can_join`; any other word is refused. While you host, a word (the one typed, else `who_can_join`)
   other than your session's is refused with the notice `You already host a session: leave it first to host with
   another Who can join.` Leave with `coop leave`, then host again. Under `public` and `invitation`, `friends_ask=on` makes your
-  Steam friends wait for your answer too.
+  Steam friends wait for your answer too. The request ends with `max_players`, the players the lobby holds (2 to 4),
+  for example `host public ask 4`.
 - `coop list public` and `coop list friends` start a search, one at a time and 5 s apart at least. The search is
   refused in a lobby and while a match search runs, with the reason in the log and the feed. The rows come a few
   seconds later. `coop list` then prints them on one line, best ping first:
-  `list public done, 2 rows: 1. <host> 1/2 45 ms b07 WLB10_Camp_01 rules ebwsqr200 (Steam friend) | 2. ...`. A `-`
+  `list public done, 2 rows: 1. <host> 1/4 45 ms b07 WLB10_Camp_01 rules ebwsqr200 (Steam friend) | 2. ...`. A `-`
   stands for a ping or a region the row lacks. The rules word has a letter for each session rule on (e shared
   enemies, b bosses, w shared world, s story together, q shared quests, r revive), then the
   boss HP scale in percent. `coop join 1` joins the first row: a player who is not the host's Steam friend then waits
@@ -365,7 +366,8 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 - `Co-op: hosting, no friend yet.`
 - `Co-op: <name> is connecting.`
 - `Co-op: hosting <name>.` or `Co-op: in <name>'s game.` (`Paused by <name>.` while their photo mode pauses your game;
-  a lost friend adds `Connection lost.`)
+  a lost friend adds `Connection lost.`). In a session of more than 2 players, `<name>` is the host on a guest and the
+  pair on the host (else the first guest linked), then ` +<n>` for the other members linked.
 - `Co-op: invite held until your save has loaded.`
 - `Co-op: rejoining your friend's game (try <n>/3).`
 - `Co-op: waiting for Steam.`
@@ -384,18 +386,22 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
 - Link: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite held
   and `rejoin=<n>/3` while rejoining. While you host, a `code=<join code|none> refused=<n>` line follows: the join code
   (`none` outside an Invitation session) and the number of players refused for the rest of this lobby, blocked
-  players who came in included; then a `pending=<SteamID> <name>` line for a player who waits for your answer (not
-  your Steam friend, or any player with `friends_ask=on`). As a joiner who waits for the host's answer, a
-  `wait=<seconds left> <host's name>` line. While a session list lasts, a `list=` line and a `session=` line per row
-  ([The session list](internals/steam-link.md#the-session-list)). Then a
-  `peer=...` line per lobby member (handshake, lost flag, RTT), a `friend=<linked 0|1> <lost 0|1> <name>` line, after a
+  players who came in included; then a `pending=<SteamID> <name>` line for each player who waits for your answer
+  (not your Steam friend, or any player with `friends_ask=on`), in the order the native part asks about them. As a
+  joiner who waits for the host's answer, a `wait=<seconds left> <host's name>` line. While a session list lasts, a
+  `list=` line and a `session=` line per row ([The session list](internals/steam-link.md#the-session-list)). In an
+  online session, `host=<host's SteamID> pair=<pair's SteamID or 0>`
+  ([Sessions of more than 2 players](internals/steam-link.md#sessions-of-more-than-2-players)). Then a `peer=...` line
+  per lobby member (handshake, lost flag, RTT), a `friend=<linked 0|1> <lost 0|1> <name>` line, after a
   [coop mark](#coop-mark) a `mark=<n> ours: <text>` or `mark=<n> from <name>: <text>` line (no `: <text>` for a mark
   with no text), a `mate=<12 numbers>` line with your friend's HP, shield, Beta, Burst and Tachy for the partner card
-  (while their last reading is under 3 s old; your own during `coop loopback`), a `life=<state> <hp>` line with your
+  (while their last reading is under 3 s old; your own during `coop loopback`), a `vit=<SteamID> <12 numbers>` line
+  for each member linked whose last reading is under 3 s old, a `life=<state> <hp>` line with your
   own EVE's life state (1 or 6 alive, 3 to 5 dying or dead) and HP for the revive, a `night=<line>` line with your
   friend's last Night Operation line while a session holds, and the last 8 notices as `notice=<n> <text>`. While you
-  host, `camps?=<id>` is the guest's last request for the camps nearest you; as the guest, `camps=<id> <answer>` is the
-  host's last answer ([Following the host](playing-with-a-friend.md#following-the-host)).
+  host, `camps?=<id>` is the oldest request for the camps nearest you still waiting for an answer, else the last one;
+  as the guest, `camps=<id> <answer>` is the host's last answer
+  ([Following the host](playing-with-a-friend.md#following-the-host)).
 - Pose path: `engine=on` (then `loopback=on <delay> <jitter> <loss>` or `loopback=waiting` until EVE's capture comes,
   `record=on`, `replay=on`, `remote=<generation> <count> <loopback|replay|peer>`, and in a match lobby
   `remote<k>=<generation> <count>` for each other member's ghost slot k from 1 to 6), or `engine=off reason=<why>`; then
@@ -453,9 +459,9 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
   exists, `collide=` adds `solid=<0|1>` and `changes=`, the times it turned solid and the times each rule let your EVE
   through (`a` hidden or off, `b` overlap, `c` height, `d` movement mode, `e` 2 s of contact, `g` your friend down).
 
-Each changed status line, except the per-peer ones, the `fight=` line, the `mate=` and `life=` lines, the `night=`
-line (Night Operation's run logs each one as an `[NR]` line) and the `story=` line, also goes to `UE4SS.log` as
-`[StellarCoop] link: ...`.
+Each changed status line, except the per-peer ones, the `fight=` line, the `mate=`, `vit=` and `life=` lines, the
+`night=` line (Night Operation's run logs each one as an `[NR]` line) and the `story=` line, also goes to `UE4SS.log`
+as `[StellarCoop] link: ...`.
 Each load logs the save slot as `link: slot=...`.
 
 ## Sections that moved

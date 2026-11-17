@@ -1,13 +1,14 @@
 # Playing with a friend
 
-One player hosts a session and the other joins it through Steam. An online session holds 2 players; the match lobbies
-of up to 8 players start from the [SBO lobby](sbo-lobby.md) instead. Shared enemies and your friend's EVE have their own
-pages, [Shared enemies](shared-enemies.md) and [Ghost](ghost.md). How the link and the features below work is in
+One player hosts a session and the others join it through Steam. An online session holds 2 to 4 players, the host
+included ([More than 2 players](#more-than-2-players)); the match lobbies of up to 8 players start from the
+[SBO lobby](sbo-lobby.md) instead. Shared enemies and your friend's EVE have their own pages,
+[Shared enemies](shared-enemies.md) and [Ghost](ghost.md). How the link and the features below work is in
 [The Steam link](internals/steam-link.md) and [Group play: how it works](internals/group-play.md).
 
 1. The host presses F5 and selects Host a session. The [Create a session screen](interface.md#create-a-session-screen)
-   opens on the values in effect: Who can join, then the session rules. Start creates a Steam lobby for 2 players as Who
-   can join says:
+   opens on the values in effect: Who can join, Players, then the session rules. Start creates a Steam lobby for as
+   many players as Players says (`max_players`, 2 to 4, 4 by default), open as Who can join says:
    - Public (the default): the online session shows in Find a session for every player of your version, with your
      Steam name, region and nearest camp. No dialog opens. A player who is not your Steam friend asks to join and
      waits for your answer (see [Asking to join](#asking-to-join)).
@@ -19,9 +20,9 @@ pages, [Shared enemies](shared-enemies.md) and [Ghost](ghost.md). How the link a
 
    Friends join without asking, under Public and Invitation, is On by default: your Steam friends get in at once. Off
    makes them wait for your answer too. Each row is the same setting as on the Options page: a change there shows here
-   and the other way round. Who can join and Friends join without asking count for the next session you host. Back
-   closes the screen without hosting. `coop host public` (or `friends`, `invitation`, `closed`) hosts at once with that
-   value, without the screen.
+   and the other way round. Who can join, Friends join without asking and Players count for the next session you host.
+   Back closes the screen without hosting. `coop host public` (or `friends`, `invitation`, `closed`) hosts at once with
+   that value, without the screen.
 2. Your friend accepts the invite in Steam, or selects your session in [Find a session](#finding-a-session). If their
    game is closed when they accept an invite, Steam starts it. They join once a save is loaded (EVE in a world, not on
    the title screen). Until then their game holds the invite (`Invite held: joining once your save has loaded.`). A
@@ -31,7 +32,7 @@ pages, [Shared enemies](shared-enemies.md) and [Ghost](ghost.md). How the link a
 
 More about sessions:
 
-- The host leads. When the host leaves, the guest leaves too (`Session ended: <host> left.`).
+- The host leads. When the host leaves, every guest leaves too (`Session ended: <host> left.`).
 - A guest cannot host. The menu shows a guest Leave the session instead of Host a session, and `coop host` answers
   `You are in <host>'s game: leave it first.`, so a guest's key press never ends the host's session.
 - If the guest loses the host's lobby another way (Steam drops them, a network cut), their game rejoins it
@@ -65,6 +66,38 @@ the world of the player who uses them. Vendors, the request board and quest give
 [shared quests](#shared-quests-experimental) says which quest steps are shared. Nothing one player opens, buys or picks
 up is copied into the other player's game.
 
+## More than 2 players
+
+A session you host holds up to `max_players` players, you included: the Players row of the Create a session screen or
+of Options > Session, from 2 to 4, 4 by default. Every member sees the other members' EVEs and shares the chat. A
+session of 3 or 4 players has not been tested in game yet.
+
+- Shared enemies, the shared world and story together run between the host and one guest only, the pair: the first
+  guest who got in, at once or once the host accepted her. Every other guest fights her own enemies, keeps her own
+  world and plays the story in her own game. Once a session she sees `Shared enemies, the shared world and story
+  together run between <host> and <pair> only. Your game keeps its own.` The host's cutscenes still pause her game
+  ([Cutscene wait](#cutscene-wait)). When the pair leaves, no guest already in takes her place: the next guest who gets
+  in is the new pair. A guest who comes in while there is no pair sees `Shared enemies, the shared world and story
+  together are off for you in <host>'s session. Your game keeps its own.`
+- [Shared quests](#shared-quests-experimental) run between the host and each guest.
+- The host's game asks about one joiner at a time, in the order they joined. Its question adds `Players waiting after
+  this one: <n>.` to the seconds line. A joiner's 60 s start when her question is the first one. Her wait popup counts
+  down the most the host's answer may take: her own minute plus a minute for each player asked before her.
+- Each guest can [follow the host](#following-the-host). The host's photo mode and cutscenes pause each guest as in a
+  session of 2. A guest's photo mode pauses no other game: the host sees `<name> is taking photos (no pause with more
+  than 2 players).`
+- Any member can [revive you](#revive-by-your-friend-experimental): the nearest one alive within 2 m across and 1 m up
+  or down. The down notice comes for each member who goes down on your map.
+- The [partner HUD](interface.md#partner-hud) keeps its card for the pair on the host and for the host on a guest.
+  Each other member gets a row beside the card. The status line names the card's player and adds `+<n>` for the
+  others, for example `Co-op: hosting Alex +2.`
+- Gifts, Doro races, Night Operation runs and the PvP test are for 2 players. Past 2, each is refused with the reason,
+  for example `Doro races are for 2 players at most; this session has 3`. A refused gift takes nothing from your save.
+  Picking a Night Operation level at Roxanne's shows `Night Operation does not run in a session of more than 2
+  players.`
+- Your game sends at most 30 poses a second to a member who came in once the lobby held 3 players or more, as in a
+  match lobby.
+
 ## Finding a session
 
 Find a session, on the co-op menu's main page and on the co-op line outside a session, opens the
@@ -73,7 +106,7 @@ mod runs your protocol and whose game runs your build. Its Friends tab lists the
 Public or Friends only. Neither tab shows an Invitation or Private session, a full one, one whose host you blocked on
 Steam or on your [block list](#block-list), or your own.
 
-Each row shows the host's Steam name, the region, the players (`1/2`) and the ping. The right pane adds the travel
+Each row shows the host's Steam name, the region, the players (`1/4`) and the ping. The right pane adds the travel
 camp nearest the host and the session rules the host has on. The screen searches when it opens, when you change tabs
 and on Refresh (F, or Y on a controller), 5 s apart at least. It never searches by itself.
 

@@ -39,9 +39,11 @@ bike=on
 # friends, from their friends list or the Friends tab of Find a session), invitation (the friends you invite or anyone
 # you give your join code to; the co-op menu shows and copies it) or closed (nobody; Private in the co-op menu). A
 # player who is not your Steam friend waits until you accept or deny them. friends_ask, with public or invitation: off
-# (your Steam friends join at once) or on (they wait for your answer too).
+# (your Steam friends join at once) or on (they wait for your answer too). max_players: 2 to 4, the players a session
+# you host holds, you included. Only you and your first guest share enemies, the world and the story.
 who_can_join=public
 friends_ask=off
+max_players=4
 # Co-op saves, the co-op copies of your saves (StellarBladeCoop00.sav to 04.sav): ask (a question on the title
 # screen), always (the copies at every title, no question) or off (no copies; the manual co-op slot that
 # StellarCoopSlot.txt names is then the only co-op save).
@@ -196,6 +198,7 @@ sbo_lobby=on
 | `bike` | `on` or `off`: the [bike](bike.md), on any save; off takes EVE off the bike, removes it from her and frees its loaded files | `on` |
 | `who_can_join` | `public`, `friends`, `invitation` or `closed`: who can join an online session you host. `public`: any player of your version, who finds it in the session list. `friends`: your Steam friends. `invitation`: the friends you invite or anyone with your [join code](playing-with-a-friend.md#join-codes). `closed`: nobody (Private in the co-op menu). The words `code` and `private` from 0.11 and older read as `invitation`; the file keeps them | `public` |
 | `friends_ask` | `on` or `off`, with `public` or `invitation`: `on` makes your Steam friends wait for your answer like other players. The co-op menu shows it as Friends join without asking, On while `friends_ask=off` | `off` |
+| `max_players` | `2` to `4`: the players an online session you host holds, you included (Players on the Options page and the Create a session screen), from the next session you host. Past 2, shared enemies, the shared world and story together run between you and one guest only ([More than 2 players](playing-with-a-friend.md#more-than-2-players)) | `4` |
 | `auto_coop_save` | `ask`, `always` or `off`: the [co-op saves](playing-with-a-friend.md#co-op-saves) at the title | `ask` |
 | `name_tag` | `on` or `off`: your friend's Steam name above their ghost | `on` |
 | `send_rate` | `10` to `60` poses sent a second at most (a link that cannot keep up lowers it to 30 or 20 for a while: [link health](internals/steam-link.md#link-health-in-the-log)) | `60` |

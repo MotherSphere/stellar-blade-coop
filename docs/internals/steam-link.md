@@ -132,7 +132,7 @@ writes these lobby keys beside `stellarcoop` with `SetLobbyData`, each only when
 | `sbo_list` | `1`, on a Public session only | At create |
 | `sbo_host` | Her Steam name, 48 bytes at most | At create, then within 5 s of a change (her game reads her name every 5 s) |
 | `sbo_owner` | Her SteamID | At create |
-| `sbo_players` | Members and room, `1/2` or `2/2`. A joiner who waits for the host's answer counts | At create, at each join or leave |
+| `sbo_players` | Members and room, `<n>/<max_players>`, for example `1/4`. A joiner who waits for the host's answer counts | At create, at each join or leave |
 | `sbo_zone`, `sbo_camp` | The words of Lua's `where <map segment> [<camp alias>]` | At create, at each `where` |
 | `sbo_rules` | The word of Lua's `rules <word>`: the session rules that are on | At create, at each `rules` |
 | `sbo_ping` | Her ping location, from Steam's `ConvertPingLocationToString` | At create (again every 5 s while Steam does not know it yet), then every 5 minutes when it changed |
@@ -149,8 +149,8 @@ one word of letters, digits and `_` within 32 bytes (24 for the camp alias), els
 printable ASCII without spaces, 1023 bytes at most.
 
 - `list public` asks Steam for lobbies whose `stellarcoop` equals this game's tag and `sbo_list` equals `1`, with a
-  free place, at the worldwide distance, 50 at most. Another version's sessions never match. A session whose joiner
-  waits for the host's answer has no free place, so it leaves the list meanwhile.
+  free place, at the worldwide distance, 50 at most. Another version's sessions never match. A joiner who waits for
+  the host's answer takes a place meanwhile: a session she fills leaves the list.
 - `list friends` walks the Steam friends playing Stellar Blade in a lobby (`GetFriendGamePlayed`). Steam gives no data
   for a lobby the player is not in before it answers `RequestLobbyData`, so the game asks once for each lobby and reads
   its data each pass until its tag shows, 5 s at most. A lobby with no answer by then is dropped with the log line
@@ -189,8 +189,8 @@ None of this changes the protocol: the rows are lobby data, never a line between
 
 In a co-op lobby, a player who joins and is not the host's Steam friend waits for the host's answer. The host's game
 holds the handshake: it sends no hello and reads none of the player's messages, only pings them so that neither game
-reports a lost connection. The host's status shows `pending=<SteamID> <name>` and a notice says that a player who is not
-a Steam friend is asking to join. The joiner's game shows `Joined <host>'s game. Waiting to be let in.` Until the host
+reports a lost connection. The host's status shows a `pending=<SteamID> <name>` line for each player who waits, in the
+order they joined. A notice says that a player who is not a Steam friend is asking to join. The joiner's game shows `Joined <host>'s game. Waiting to be let in.` Until the host
 lets it in, its status has the line `wait=<seconds left> <host's name>`: the most the host's answer may still take, as
 the host's last `wait` line gave it (below), else the minute counted from the join. The name is read from Steam each time, since Steam may learn a stranger's name a moment after the join. With `friends_ask=on` (`host <who> ask`), the host's Steam friends wait the same way. The host's notice
 for one of them reads `<name> is asking to join.` The lobby's `sbo_ask=1` tells the friend's game that it waits. The
@@ -221,8 +221,10 @@ host answers with native requests, which Lua writes to `coop-request.txt` like t
   whose Public match lobby's host refuses her searches again too. Either way her searches skip that lobby for the rest
   of the game run, so a regroup never takes her back to it.
 
-On the host, `session/join.lua` turns the first `pending=` line into a question on screen and writes the answer. It asks
-each player once a lobby; with no answer, the native part refuses the player after 60 s. The question opens without a
+On the host, `session/join.lua` turns the first `pending=` line into a question on screen and writes the answer. While
+more lines follow, its seconds line adds how many players wait after this one. Once the first player is answered or
+gone, the next `pending=` line gets its own question. It asks each player once a lobby; with no answer, the native
+part refuses the player 60 s after her question became the first one. The question opens without a
 key press, so it ignores every key for 1 s after it shows, and `main.lua` gives it the arrow keys but not W, S or Space.
 `core/link.lua` keeps in memory which lobby members waited for an answer, for the menu's Remove row, so a Lua reload
 forgets them.
@@ -261,9 +263,10 @@ An online session holds up to 4 players (`max_players`). The host leads every gu
 - A member who comes in while the lobby holds more than 2 players starts at 30 poses a second, as in a match lobby.
 - A guest who leaves is announced on the host and on each guest she linked with (`<name> left.`).
 - With more than 2 players, a gift is refused at once (`Gifts need a session of 2 players.`; Lua gets `gift n <id>
-  nolink`). Doro races and Night Operation send nothing. A guest's photo mode no longer pauses the host's game (`<name>
-  is taking photos (no pause with more than 2 players).`). The host's photo mode and cutscene still pause each guest
-  that asked for it.
+  nolink`). Doro races and Night Operation send nothing. Lua refuses a gift, a race, a Night Operation run and the PvP
+  test before it asks, from the count of `member=` lines past the handshake (`core/link.lua`'s `others()`). A guest's
+  photo mode no longer pauses the host's game (`<name> is taking photos (no pause with more than 2 players).`). The
+  host's photo mode and cutscene still pause each guest that asked for it.
 - A player on another protocol or game build is refused by the host, who keeps the lobby for the others. A reject from
   a guest is logged with a notice and the host stays.
 
@@ -570,7 +573,7 @@ is ignored.
 
 ## Channel 1: tables and poses
 
-Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 23` (sent reliable), and
+Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 23` (sent reliable) and
 each pose as a binary message starting `SBP` (a keyframe) or `SBD` (a delta), then the protocol byte (sent unreliable,
 without Nagle delay). Same-place enemies add a binary message starting `SBE` and the protocol byte, at most 30 a
 second (sent unreliable): the place, rotation and animation speed of up to 16 enemies that the sender moves on the

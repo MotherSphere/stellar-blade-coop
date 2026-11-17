@@ -5,7 +5,7 @@ one or join one with a code. The mod's notices and menu call it the PvP lobby. I
 lobby, the search and the countdown run, but no match mode is built yet, so when a countdown ends nobody travels to an
 arena and nothing is scored. What has been tried in game is listed under [Test status](#test-status).
 
-A co-op session with a friend still holds 2 players (see [Playing with a friend](playing-with-a-friend.md)), and Join
+An online session with friends holds 2 to 4 players (see [Playing with a friend](playing-with-a-friend.md)). Join
 refuses while you are in one.
 
 ## Getting there

@@ -73,7 +73,7 @@ HP, Shield, balance and death stay with the host's game whoever owns the pair.
   that ends, then it blends back to the stream over 300 ms (a snap beyond 2 m).
 - Takedowns (stage 3c). Each pass reads two takedown markers in a copy's effect list, `Check_LinkSkillHit_Skill`
   (5000039) and `LinkState_MonsterHit` (2006004). When one shows on the guest's copy while same place runs on her side
-  with `aggro=game`, she sends `SBF23 exec <gen> <hguid> 1`, and `SBF23 exec <gen> <hguid> 0` once her copy has held
+  with `aggro=game`, she sends `SBF23 exec <gen> <hguid> 1`, then `SBF23 exec <gen> <hguid> 0` once her copy has held
   none for 200 ms, or at once when the copy dies or goes (a turn between the two markers ends nothing). The host takes
   one exec 1 an enemy in 2 s, none while one runs, and only when its own copy is a Monster (ActorType 3) in life state 1
   holding Groggy or a marker, or with its balance at 0 after her claims of that turn. It then hands her the enemy
@@ -128,7 +128,7 @@ pairs through its spawn key like any other.
   epoch and every 5 s after. The host answers one round each 500 ms at most: `SBF23 spawn <gen> <n> <spawnId> <idx>
   <charId> <x> <y> <z> <yaw>` for each of its Monsters there she lacks within 1 km of her EVE (as her ghost stands in
   the host's world; never a dying one), where it stands in whole
-  centimetres, and `SBF23 drop <gen> <n> <spawnId> <idx>` for each key of hers it lacks, 16 of each a round.
+  centimetres. It also sends `SBF23 drop <gen> <n> <spawnId> <idx>` for each key of hers it lacks, 16 of each a round.
 - The guest checks each line: the epoch, the shared zone, the row in her own tables and its zone, a place within 1 km of
   her EVE, no enemy of hers with that key, and 32 calls a second at most. She creates a key through the game's spawn
   function on its spawn manager (`FUN_141c1dbf0`, as `FSBCreateActor` does) and removes one through the game's despawn
