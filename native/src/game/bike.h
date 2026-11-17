@@ -70,19 +70,21 @@ inline bool clip_ok(std::string_view p) { return anim::path_ok(p) && object_path
 
 // The actions turned off while EVE rides: every name SB gates through the map (its SetupPlayerInputComponent
 // FUN_1420473b0 gives those bindings the predicate), except Jump, which stays SB's. The four CombinationCross names stay
-// out too: SB itself turns them on and off.
+// out too: SB itself turns them on and off. So does Interaction_Key: the interaction manager's tick FUN_141b35720
+// writes it every frame through FUN_141b3cdd0 and FUN_14228df50 (1 while something is in reach, else 0), so a 0 of
+// ours would not hold. An interaction ends the ride instead (bike/ride.lua's 250 ms check).
 constexpr const char *kGated[] = {
     "AttackLight",       "AttackStrong",     "Evade",          "Guard",          "SpecialCommand1",
     "SpecialCommand2",   "Scan",             "BetaSkillPreCommand", "BetaSkill1", "BetaSkill2",
     "BetaSkill3",        "BetaSkill4",       "BetaSkillView",  "BurstSkillPreCommand", "BurstSkill1",
     "BurstSkill2",       "BurstSkill3",      "BurstSkill4",    "BurstSkillView", "TachyModeTwoKey1",
     "TachyModeTwoKey2",  "TPSMode",          "TPSFire",        "ToggleSprint",   "SwimDash",
-    "FishingModeCancel", "Interaction_Key",  "CommandKey1",    "CommandKey2",    "CommandKey3",
-    "CommandKey4",       "CommandKey5",      "CommandKey6",    "CommandKey7",    "CommandKey8",
-    "CommandKey9",       "CommandKey10",     "CommandKey11",   "CommandKey12",   "Combination1",
-    "Combination2",      "CrossKey_Up",      "CrossKey_Down",  "CrossKey_Left",  "CrossKey_Right",
-    "LeftShoulderKey",   "LeftTriggerKey",   "RightTriggerKey", "RightKey_Up",   "RightKey_Down",
-    "RightKey_Left",     "RightKey_Right",   "RightKey_Click", "LeftKey_Click",  "FocusChangeKey"};
+    "FishingModeCancel", "CommandKey1",      "CommandKey2",    "CommandKey3",    "CommandKey4",
+    "CommandKey5",       "CommandKey6",      "CommandKey7",    "CommandKey8",    "CommandKey9",
+    "CommandKey10",      "CommandKey11",     "CommandKey12",   "Combination1",   "Combination2",
+    "CrossKey_Up",       "CrossKey_Down",    "CrossKey_Left",  "CrossKey_Right", "LeftShoulderKey",
+    "LeftTriggerKey",    "RightTriggerKey",  "RightKey_Up",    "RightKey_Down",  "RightKey_Left",
+    "RightKey_Right",    "RightKey_Click",   "LeftKey_Click",  "FocusChangeKey"};
 constexpr size_t kGatedCount = sizeof kGated / sizeof kGated[0];
 
 // What a name held in the map before the gate: absent, no FName in the game's pool (SB never made the name, so no

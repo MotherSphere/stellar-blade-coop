@@ -543,7 +543,7 @@ The C++ tests cover the platform-free headers in `native/src`.
   is still the object played on, over fake memory (no pawn, a pawn of another class, a pending kill, a new serial),
   what each frame does; the bike's `ride` play (a loop forever with foot IK type 2) and its foot IK put back as SB's
   stop does once the ride's play is over;
-- `bike_test`: the bike's native side (`game/bike.h`): the preload path rule, the 55 gated names, the gate over a fake
+- `bike_test`: the bike's native side (`game/bike.h`): the preload path rule, the 54 gated names, the gate over a fake
   action map (each state kept and put back, an absent name back as on, a name SB changed during the ride left as SB set
   it, a name the game never made skipped, a controller gone, a fault), the words packed for the worker and the status
   line, the ride plays' clip lookups and the log lines;

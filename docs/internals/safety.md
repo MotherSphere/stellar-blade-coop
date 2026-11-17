@@ -149,7 +149,7 @@ feature or drops the input.
 - The [bike](bike.md) writes to the player actor too. It adds one skeletal mesh component to EVE's actor, hung on her
   main mesh and hidden until she rides. While she rides it sets her main mesh's relative rotation for the lean and
   drives her as a race does (`coop-drive.txt`, the four values, a velocity and a yaw). Through the native part it turns
-  55 of SB's actions off in the player controller's `InputActionStateMap` (each one's state kept) and plays the riding
+  54 of SB's actions off in the player controller's `InputActionStateMap` (each one's state kept) and plays the riding
   pose in her custom animation slot. It writes `coop-bike.txt` (her main mesh's relative rotation and location) before any
   of it. A dismount, `coop off`, `bike=off`, a new EVE and the ride's first error put it all back: the pose stopped,
   each action's kept state written back unless SB changed it during the ride, the four values, her mesh. The next Lua

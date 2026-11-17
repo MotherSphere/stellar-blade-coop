@@ -83,14 +83,18 @@ missing name counts as on) and drops the action when its byte is 0. SB writes it
 bytes, its byte at `+8`.
 
 `bike gate on` checks that the player controller is an `SBPlayerController` (its class at `0x1470402c8`), keeps each
-name's state (absent, or its byte) and writes 0 through SB's own setter, for these 55 names: `AttackLight`,
+name's state (absent, or its byte) and writes 0 through SB's own setter, for these 54 names: `AttackLight`,
 `AttackStrong`, `Evade`, `Guard`, `SpecialCommand1` and `2`, `Scan`, `BetaSkillPreCommand`, `BetaSkill1` to `4`,
 `BetaSkillView`, `BurstSkillPreCommand`, `BurstSkill1` to `4`, `BurstSkillView`, `TachyModeTwoKey1` and `2`, `TPSMode`,
-`TPSFire`, `ToggleSprint`, `SwimDash`, `FishingModeCancel`, `Interaction_Key`, `CommandKey1` to `12`, `Combination1` and
-`2`, `CrossKey_Up`, `_Down`, `_Left` and `_Right`, `LeftShoulderKey`, `LeftTriggerKey`, `RightTriggerKey`,
-`RightKey_Up`, `_Down`, `_Left`, `_Right` and `_Click`, `LeftKey_Click` and `FocusChangeKey`. `Jump` stays SB's. The
-four `CombinationCross` names stay out too: SB turns them on and off itself. A name that is not in the game's FName pool
-has no binding, so it is skipped.
+`TPSFire`, `ToggleSprint`, `SwimDash`, `FishingModeCancel`, `CommandKey1` to `12`, `Combination1` and `2`,
+`CrossKey_Up`, `_Down`, `_Left` and `_Right`, `LeftShoulderKey`, `LeftTriggerKey`, `RightTriggerKey`, `RightKey_Up`,
+`_Down`, `_Left`, `_Right` and `_Click`, `LeftKey_Click` and `FocusChangeKey`. `Jump` stays SB's. The four
+`CombinationCross` names stay out too: SB turns them on and off itself. So does `Interaction_Key`: the interaction
+manager's tick (`0x141b35720`) writes it every frame through `0x141b3cdd0` and `0x14228df50`, 1 while something is in
+reach, else 0, so a 0 from the gate would not hold. An interaction in reach still starts from the saddle; the ride's 250
+ms check then takes her off. `Item_Interaction` (R2 or F) and `Item_UseHeal`, `Item_UseUtil` and `Item_UseBullet` (D-pad
+Up and Down) have their own predicates outside the map, so they stay on as well. A name that is not in the game's FName
+pool has no binding, so it is skipped.
 
 `bike gate off` writes each kept state back (an absent name as 1, which SB reads the same way), unless the name no
 longer reads 0: SB wrote it during the ride, so SB's value stays. The log names the actions turned off with what each

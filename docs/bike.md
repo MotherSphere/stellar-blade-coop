@@ -38,9 +38,11 @@ game's hold on her movement, water, a ladder, rope or other special move, a lift
 in selfie mode, when her EVE changes (a map change) and when the game takes over her animation slot (it ends her riding
 pose 3 times within 1 s). `coop off` and `bike=off` take her off too. Combat does not.
 
-While she rides, 55 of the game's actions are off: attacks, dodge, guard, the Beta and Burst skills, scan, aiming, the
-D-pad, interaction, sprint and the others listed in [internals/bike.md](internals/bike.md#the-gate). She cannot fight
-from the saddle. Jump stays the game's. Photo mode works while she rides; her riding pose comes back when it closes.
+While she rides, 54 of the game's actions are off: attacks, dodge, guard, the Beta and Burst skills, scan, aiming,
+sprint, the D-pad's own actions and the others listed in [internals/bike.md](internals/bike.md#the-gate). She cannot
+fight from the saddle. Jump stays the game's. A few keys still work. D-pad Up and Down still use items. R2, also a drift
+key, still picks up an item in reach. The interaction key still starts a talk, a box or a pickup in reach, which takes
+her off the bike. Photo mode works while she rides; her riding pose comes back when it closes.
 
 ## Riding
 

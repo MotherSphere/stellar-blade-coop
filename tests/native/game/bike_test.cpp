@@ -59,19 +59,21 @@ int main() {
     assert(!clip_ok(bad));
   assert(!object_path("A.A") && object_path("/A.A") && !object_path("/A/") && !object_path("/A.A/B"));
 
-  // The gated names: 55, each once; Jump stays SB's and SB itself writes the four CombinationCross names.
-  assert(kGatedCount == 55);
+  // The gated names: 54, each once; Jump stays SB's and SB itself writes Interaction_Key and the four CombinationCross
+  // names.
+  assert(kGatedCount == 54);
   std::set<std::string> names;
   for (const char *n : kGated)
     assert(names.insert(n).second && std::strlen(n) < 32);
-  assert(!names.count("Jump") && !names.count("CombinationCrossUp") && !names.count("CombinationCrossDown") &&
-         !names.count("CombinationCrossLeft") && !names.count("CombinationCrossRight"));
+  assert(!names.count("Jump") && !names.count("Interaction_Key") && !names.count("CombinationCrossUp") &&
+         !names.count("CombinationCrossDown") && !names.count("CombinationCrossLeft") &&
+         !names.count("CombinationCrossRight"));
   assert(names.count("AttackLight") && names.count("Evade") && names.count("CrossKey_Right") &&
-         names.count("Interaction_Key") && names.count("CommandKey12") && names.count("RightTriggerKey"));
+         names.count("FishingModeCancel") && names.count("CommandKey12") && names.count("RightTriggerKey"));
 
   { // On: each state kept, every name written 0. Off: each back, an absent one as 1.
     Map m;
-    const size_t on = index_of("Interaction_Key"), off = index_of("Scan");
+    const size_t on = index_of("Guard"), off = index_of("Scan");
     m.bytes[on] = 1, m.bytes[off] = 0;
     Gate g;
     g.on(m);
@@ -89,14 +91,15 @@ int main() {
       copy.on(fresh);
       return copy;
     }());
-    assert(has(line, "bike gate on: 55 of SB's actions off: AttackLight AttackStrong") &&
-           has(line, " Interaction_Key=1 ") && has(line, " Scan=0 ") && !has(line, "not in the game's names"));
-    assert(describe_gate(false, Why::none, g) == "bike gate off: 55 actions back as SB had them");
+    assert(has(line, "bike gate on: 54 of SB's actions off: AttackLight AttackStrong") &&
+           has(line, " Guard=1 ") && has(line, " Scan=0 ") && !has(line, "not in the game's names"));
+    assert(describe_gate(false, Why::none, g) == "bike gate off: 54 actions back as SB had them");
   }
 
   { // SB wrote a name during the ride: its value stays, the rest come back. A name the game never made is skipped.
     Map m;
-    const size_t sb = index_of("Interaction_Key"), gone = index_of("CommandKey12"), cross = index_of("CrossKey_Right");
+    const size_t sb = index_of("FishingModeCancel"), gone = index_of("CommandKey12");
+    const size_t cross = index_of("CrossKey_Right");
     m.unnamed.insert(gone);
     m.bytes[cross] = 1;
     Gate g;
@@ -106,8 +109,8 @@ int main() {
     g.off(m);
     assert(m.value(sb) == 1 && g.left(sb) && m.value(cross) == 1 && !g.left(cross));
     const std::string line = describe_gate(false, Why::none, g);
-    assert(line == "bike gate off: 53 actions back as SB had them; SB changed these during the ride, left as SB set "
-                   "them: Interaction_Key; not in the game's names, so not gated: CommandKey12");
+    assert(line == "bike gate off: 52 actions back as SB had them; SB changed these during the ride, left as SB set "
+                   "them: FishingModeCancel; not in the game's names, so not gated: CommandKey12");
     // A name SB removed from the map is left too.
     Gate h;
     h.on(m);
