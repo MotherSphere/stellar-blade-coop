@@ -34,8 +34,8 @@ Once `bike=ready` and an EVE has been in the world for 2 s (the capture's own wa
 main mesh, collision off, single-node mode with no clip, so it keeps its reference pose. It sits at (1.53, 0.52, 2.95)
 cm with a pitch of 0.69 degrees relative to her main mesh, from the attach tracks of the game's SD20 scene (riders on
 the bike's bone `Base`). It starts hidden. It carries the component tag `SBO_Bike` (`Ride.TAG`), written into its
-empty `ComponentTags` and read back with `ComponentHasTag`. A tag that does not hold destroys the component: the part
-counts as not made. The log line `bike part ready on EVE (made in <ms> ms)` gives the time. A part that cannot be made
+empty `ComponentTags` and read back with `ComponentHasTag`. A tag that does not hold leaves the part in use for this
+Lua load. The log then says `bike part tag SBO_Bike not written (<why>): a Ctrl+R will not find this part`. The log line `bike part ready on EVE (made in <ms> ms)` gives the time. A part that cannot be made
 is not tried again on that EVE; a mount says why.
 
 After Ctrl+R the part is already there. The new Lua load's first tick (`self.restore`) looks among her components

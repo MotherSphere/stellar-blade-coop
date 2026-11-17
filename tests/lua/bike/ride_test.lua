@@ -305,7 +305,7 @@ do
     R.slow()
     assert(last():find('^bike part ready on EVE %(found in'),last())
 end
--- A tag that does not hold: the component destroyed, why, once; the part is not taken without it.
+-- A tag that does not hold: the part kept for this Lua load, why logged once; only a Ctrl+R cannot find it.
 do
     local lone=make_eve('EVE_4')
     local add=lone.AddComponentByClass
@@ -318,8 +318,9 @@ do
     R.slow()
     clock=clock+2
     R.slow()
-    assert(lone.list[2].gone and last()=='bike part not made: its tag SBO_Bike did not hold',last())
-    refused('the bike part could not be made (its tag SBO_Bike did not hold)',function() end,function() end)
+    assert(not lone.list[2].gone and last()=='bike part tag SBO_Bike not written (it did not hold): a Ctrl+R will not '
+        ..'find this part',last())
+    assert(logs[#logs-1]:find('^bike part ready on EVE %(made in'),logs[#logs-1])
     eve=real
     R.slow()
     clock=clock+2

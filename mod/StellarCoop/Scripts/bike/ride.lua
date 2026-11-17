@@ -95,22 +95,27 @@ local function find_part(e)
     end)
     return found
 end
--- A new part on her main mesh at the seat, hidden, tagged. Raises, with nothing left, when it cannot be made.
+-- A new part on her main mesh at the seat, hidden, tagged. Raises, with nothing left, when it cannot be made. Also
+-- returns why the tag did not hold (nil when it did): the part still serves this Lua load, only a Ctrl+R cannot
+-- find it again.
 local function make_part(e)
     local mesh=assert(valid(e.Mesh),'EVE has no main mesh')
     local c=Doro.attach(e,mesh,{path=Ride.MESH}).mesh
     local ok,why=pcall(function()
         c:K2_SetRelativeLocationAndRotation(SEAT,{Pitch=SEAT_PITCH,Yaw=0,Roll=0},false,{},false)
         c:SetVisibility(false,false)
-        -- A new component's ComponentTags is empty: UE4SS 3.0.1 lands a write at 1 there (matrix13/world/move.lua).
-        c.ComponentTags[1]=FName(Ride.TAG)
-        assert(c:ComponentHasTag(FName(Ride.TAG))==true,'its tag '..Ride.TAG..' did not hold')
     end)
     if not ok then
         pcall(function() c:K2_DestroyComponent(e) end)
         error(why,0)
     end
-    return c
+    -- A new component's ComponentTags is empty: UE4SS 3.0.1 lands a write at 1 there (matrix13/world/move.lua), proven
+    -- for uint8 arrays only. A tag that does not hold costs only the Ctrl+R find, so the part is kept.
+    local tagged,tag_why=pcall(function()
+        c.ComponentTags[1]=FName(Ride.TAG)
+        assert(c:ComponentHasTag(FName(Ride.TAG))==true,'it did not hold')
+    end)
+    return c,not tagged and why_of(tag_why) or nil
 end
 local function number(v) return (string.format('%.9g',v):gsub(',','.')) end
 -- The tab-separated fields of a coop-bike.txt line (none for nil).
@@ -199,7 +204,9 @@ function Ride.new(o)
         local began=os.clock()
         local ok,made=pcall(function()
             local found=find_part(e)
-            return found and {found,'found'} or {make_part(e),'made'}
+            if found then return {found,'found'} end
+            local c,untagged=make_part(e)
+            return {c,'made',untagged}
         end)
         if not ok then
             here.failed=why_of(made)
@@ -208,6 +215,7 @@ function Ride.new(o)
         here.part,here.part_path=made[1],path_of(made[1])
         if not ride then made[1]:SetVisibility(false,false) end
         log(('bike part ready on EVE (%s in %.1f ms)'):format(made[2],(os.clock()-began)*1000))
+        if made[3] then log('bike part tag '..Ride.TAG..' not written ('..made[3]..'): a Ctrl+R will not find this part') end
     end
     local function remove_part()
         local h=here
