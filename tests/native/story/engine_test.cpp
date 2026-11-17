@@ -461,7 +461,8 @@ void test_host_results() {
   assert(w.e.theater().results.empty());
   w.g.put<int32_t>(counter + kCounterCount, 2), w.g.put<int32_t>(counter + kBlockResult, 0);
   r = w.e.theater().results;
-  assert(r.size() == 1 && r[0].m.type == Type::cnt && r[0].m.n == 0 && r[0].m.value == 2 && r[0].m.bits == 5);
+  assert(r.size() == 1 && r[0].m.type == Type::cnt && r[0].m.n == 0 && r[0].m.value == 2 && r[0].m.bits == 5 &&
+         !r[0].m.now);
   // Its next start reads the block before, still open, before the start clears it.
   w.g.put<int32_t>(counter + kBlockResult, -1);
   w.e.block_started(Type::cnt, counter, true, false);
@@ -482,6 +483,11 @@ void test_host_results() {
   r = w.e.theater().results;
   assert(r.size() == 1 && r[0].m.n == 2 && r[0].m.bits == 7 && !r[0].m.flag);
   assert(w.e.log.back().find("maybe a frame old") != std::string::npos);
+  // His press on that Single block ran its take select and skip with its Result: the line says so.
+  w.g.put<int32_t>(counter + kCounterCount, 3), w.g.put<uint8_t>(counter + kCounterShown, 1);
+  w.g.put<uint8_t>(counter + kCounterSkipDone, 1);
+  r = w.e.theater().results;
+  assert(r.size() == 1 && r[0].m.n == 3 && r[0].m.value == 3 && r[0].m.flag && r[0].m.now);
   // A widget gone before its result: said, not sent. A block he did not lead: not his to read.
   const uint64_t other = w.g.alloc(0x860);
   w.g.put<int32_t>(other + kBlockResult, -1);
@@ -601,10 +607,21 @@ void test_guest_counts() {
   assert(w.g.get<uint8_t>(infos + kInfo + kInfoResult) == 0 && w.g.get<uint8_t>(infos + kInfo + kInfoFired) == 1);
   m.bits = 7;
   assert(w.e.apply(m, why) == Did::done && w.last() == "cnt show");
+  // With +0x6dd a Flow still shows Result alone, as its tick does: her section end makes the take select and skip.
+  w.g.put<uint8_t>(counter + kImmediateNow, 1), m.now = true;
+  size_t before = w.g.calls.size();
+  assert(w.e.apply(m, why) == Did::done && w.g.calls.size() == before + 1 && w.last() == "cnt show");
+  // A Single: his stick's success shows Result alone; his press runs the take select and skip with it.
+  w.g.put<uint8_t>(counter + kCounterKind, 1), w.g.put<int32_t>(counter + kGoal, 3), m.now = false;
+  before = w.g.calls.size();
+  assert(w.e.apply(m, why) == Did::done && w.g.calls.size() == before + 1 && w.last() == "cnt show");
+  m.now = true;
+  assert(w.e.apply(m, why) == Did::done && w.g.calls.size() == before + 4 && w.last() == "cnt skip");
   // A block she did not start while following him keeps its presses.
   const uint64_t own = w.g.alloc(0x860);
+  before = w.g.calls.size();
   w.e.block_started(Type::qte, own, false, false);
-  assert(w.last() == "cnt show");
+  assert(w.g.calls.size() == before);
 }
 
 } // namespace

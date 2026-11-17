@@ -76,7 +76,7 @@ void test_lines() {
         T + "pos 5 7 100 MV_Seq_A 120 1", T + "pos 6 7 -3 S -10 0", T + "sel 7 7 100 0 Take_B Exec_1",
         T + "sel 8 7 100 2 - Exec_1", T + "sel 9 7 100 4294967295 Take_B -", T + "pch 10 7 100 0 0",
         T + "pch 11 7 100 1 2147483647", T + "qte 12 7 100 0 12 0", T + "qte 13 7 100 1 0 1",
-        T + "cnt 14 7 100 0 3 1 4294967295", T + "cnt 15 7 100 1 0 0 0", T + "skip 16 7 100 seek 340",
+        T + "cnt 14 7 100 0 3 1 4294967295 1", T + "cnt 15 7 100 1 0 0 0 0", T + "skip 16 7 100 seek 340",
         T + "skip 17 7 100 seek -20", T + "skip 18 7 100 take 200", T + "skip 19 7 100 take -1",
         T + "end 20 7", T + "trip 21 Zone_Xion_10 Xion_10_E_ZoneWarp_012"})
     assert(round(l));
@@ -86,8 +86,9 @@ void test_lines() {
          t.at[4] == -9000 && t.at[5] == 18000 && t.take == 100);
   const Message s = P(T + "sel 8 7 100 2 - Exec_1");
   assert(s.type == Type::sel && s.take == 100 && s.n == 2 && s.name == "-" && s.exec == "Exec_1" && result(s.type));
-  const Message c = P(T + "cnt 14 7 100 0 3 1 4294967295");
-  assert(c.type == Type::cnt && c.value == 3 && c.flag && c.bits == UINT32_MAX);
+  const Message c = P(T + "cnt 14 7 100 0 3 1 4294967295 1");
+  assert(c.type == Type::cnt && c.value == 3 && c.flag && c.bits == UINT32_MAX && c.now);
+  assert(!P(T + "cnt 15 7 100 1 0 0 0 0").now);
   const Message k = P(T + "skip 19 7 100 take -1"), e = P(T + "skip 17 7 100 seek -20");
   assert(k.flag && k.value == -1 && !e.flag && e.frame == -20 && result(k.type) && !result(Type::pos));
   const Message p = P(T + "pos 6 7 -3 S -10 0");
@@ -117,7 +118,8 @@ void test_malformed() {
         T + "pos 1 7 1 S 1", T + "pos 1 7 1 S.T 1 1", T + "pos 1 7 1 S -2147483649 1", T + "sel 1 7 1 0 - -",
         T + "sel 1 7 1 0 A", T + "sel 1 7 1 -1 A B", T + "sel 1 7 1 0 A.B C", T + "pch 1 7 1 0 -1",
         T + "pch 1 7 1 0", T + "pch 1 7 1 0 1 2", T + "qte 1 7 1 0 -1 0", T + "qte 1 7 1 0 1 2", T + "qte 1 7 1 0 1",
-        T + "cnt 1 7 1 0 1 0", T + "cnt 1 7 1 0 1 0 -1", T + "cnt 1 7 1 0 1 0 4294967296", T + "skip 1 7 1 jump 3",
+        T + "cnt 1 7 1 0 1 0", T + "cnt 1 7 1 0 1 0 0", T + "cnt 1 7 1 0 1 0 0 2", T + "cnt 1 7 1 0 1 0 -1 0",
+        T + "cnt 1 7 1 0 1 0 4294967296 0", T + "skip 1 7 1 jump 3",
         T + "skip 1 7 1 seek", T + "skip 1 7 1 take -0", T + "skip 1 7 1 take 1 2", T + "skip 1 7 seek 3",
         T + "trip 1 Z", T + "trip 1 7 Z R", T + "trip 1 Z R-1"})
     assert(bad(l));

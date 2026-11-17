@@ -70,7 +70,9 @@
 //     tick leaves it). A success her section finishes at once (ImmediateSuccessTakeSkip +0x6dc, or its template's
 //     flag: QTE +0x801, InputCounter +0x849) repeats what the press handler (0x1425522b0, 0x14254dee0) does: Result
 //     (0x142551530, 0x14254b170), then with +0x6dd the take select and take skip (0x142551290, 0x142551300;
-//     0x14254a750, 0x14254a800).
+//     0x14254a750, 0x14254a800). The InputCounter's press handler runs those two for kinds 1 and 2 only; its stick
+//     test (0x14254ade0) and the Flow's tick (0x14254d2d0) show Result alone, so they wait for her section end unless
+//     the host's line says his press ran them (his Result shown with his take skip latch +0x848 taken).
 //   block_started() on her side while her copy follows his: the widget's unbind (0x142551ea0, 0x14254daa0); for an
 //     InputCounter also its stick checks (+0x818, the Flow entries' +0x20) cleared and each Flow entry marked bound
 //     (+0x30), since its tick 0x14254ade0 counts sticks and binds each Flow entry's presses itself.
@@ -492,6 +494,9 @@ private:
     Message m;
     m.type = r.type, m.take = r.take, m.n = r.n;
     m.value = i32(w + (r.type == Type::qte ? kQteCount : kCounterCount)), m.flag = r.force, m.bits = r.bits;
+    // Its Result shown with its take skip taken: his press (0x14254dee0) ran the take select and skip with it. A stick,
+    // a Flow or a forced success leaves the skip to OnFinishBlock 0x14254a570 at his section end.
+    m.now = live && r.type == Type::cnt && u8(w + kCounterShown) && u8(w + kCounterSkipDone);
     out.push_back(Outcome{r.play, m});
   }
   // What a block holds until its Result, kept each pass: Setup writes the next section over it before hook 3's read.
@@ -692,7 +697,9 @@ private:
     }
     if ((u8(w + kImmediate) || u8(w + (qte ? kQteNow : kCounterNow))) && success(m.type, w)) {
       g_.call(qte ? kQteShow : kCounterShow, w);
-      if (u8(w + kImmediateNow))
+      // An InputCounter's take select and skip only after his press of kind 1 or 2: a Flow's tick (0x14254d2d0) and
+      // a stick (0x14254ade0) show Result alone, so her section end makes them, as his did.
+      if (u8(w + kImmediateNow) && (qte || (m.now && u8(w + kCounterKind) != 3)))
         g_.call(qte ? kQteSelect : kCounterSelect, w), g_.call(qte ? kQteSkip : kCounterSkip, w);
     }
     return Did::done;

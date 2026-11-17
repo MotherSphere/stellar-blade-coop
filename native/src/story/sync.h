@@ -27,8 +27,9 @@
 //   SBSn pch <seq> <scene> <take> <n> <index>          a PlayerChoice: the index chosen, 0 or more
 //   SBSn qte <seq> <scene> <take> <n> <count> <0|1>    a QTE: the presses counted, 1 when his accessibility option
 //                                                      forces a success (the section may ignore it: both read that)
-//   SBSn cnt <seq> <scene> <take> <n> <count> <0|1> <bits>
-//                                                      an InputCounter: the same plus its Flow results (bit i: entry i)
+//   SBSn cnt <seq> <scene> <take> <n> <count> <0|1> <bits> <0|1>
+//                                                      an InputCounter: the same plus its Flow results (bit i: entry i),
+//                                                      then 1 when his press ran its take select and skip at once
 //   SBSn skip <seq> <scene> <take> seek <frame>        a skip that moved the host within the take
 //   SBSn skip <seq> <scene> <take> take <next>         a skip that finished the take: the next take, -1 for the end
 //   SBSn end <seq> <scene>                             the host's scene ended
@@ -86,6 +87,7 @@ struct Message {
   int32_t at[6] = {};    // talk: x, y, z, pitch, yaw, roll
   bool flag = false;     // pos: the host's player plays; qte, cnt: forced; skip: take (else seek)
   uint32_t bits = 0;     // cnt
+  bool now = false;      // cnt: his press ran the take select and skip with its Result
   std::string reason;    // off
   bool reply = false;    // on: the answer to her on, never answered itself
 };
@@ -113,7 +115,8 @@ inline std::string format(const Message &m) {
   case Type::sel: return t + "sel" + widget + m.name + " " + m.exec;
   case Type::pch: return t + "pch" + widget + s(m.value);
   case Type::qte: return t + "qte" + widget + s(m.value) + (m.flag ? " 1" : " 0");
-  case Type::cnt: return t + "cnt" + widget + s(m.value) + (m.flag ? " 1 " : " 0 ") + s(m.bits);
+  case Type::cnt:
+    return t + "cnt" + widget + s(m.value) + (m.flag ? " 1 " : " 0 ") + s(m.bits) + (m.now ? " 1" : " 0");
   case Type::skip: return t + "skip" + head + s(m.take) + (m.flag ? " take " + s(m.value) : " seek " + s(m.frame));
   case Type::end: return t + "end " + s(m.seq) + " " + s(m.scene);
   case Type::trip: return t + "trip " + s(m.seq) + " " + m.zone + " " + m.name;
@@ -205,7 +208,7 @@ inline Message parse(const char *data, size_t size) {
     ok = widget(4) && bit(f[5], m.flag);
   } else if (kind == "cnt") {
     m.type = Type::cnt;
-    ok = widget(5) && bit(f[5], m.flag) && uint32(f[6], m.bits);
+    ok = widget(6) && bit(f[5], m.flag) && uint32(f[6], m.bits) && bit(f[7], m.now);
   } else if (kind == "skip") {
     m.type = Type::skip;
     ok = fields(3) && int32(f[2], m.take) && (f[3] == "seek" || f[3] == "take");
