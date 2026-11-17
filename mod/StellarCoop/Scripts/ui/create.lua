@@ -6,9 +6,9 @@
 -- of 10 WB_Setting_Button_Slot rows under WB_Setting_Category headers: SESSION (Who can join, with Friends join without
 -- asking under Public and Invitation), SESSION RULES (Shared enemies with its sub-rows while it is on, Shared world,
 -- Shared story once Options has it, Shared quests, Revive), then Start and Back. The focused row's name heads the right
--- pane, over Who can join's value explained or a locked row's reason; key hints in WB_Common_IndicatorBtnDefault (Back;
--- Select on Start and Back; Change on a setting). Rows and actions are ui/create_model.lua's over main.lua's view();
--- changes and Start go to main.lua's act().
+-- pane, over Who can join's value explained, a locked row's reason or why a change was not saved; key hints in
+-- WB_Common_IndicatorBtnDefault (Back; Select on Start and Back; Change on a setting). Rows and actions are
+-- ui/create_model.lua's over main.lua's view(); changes and Start go to main.lua's act().
 -- Left and Right (Select too) change a setting: its own line of coop-settings.txt rewritten as Options does
 -- (ui/menu.lua's set), so the screen opens on the values in effect and Options stays in step. Start closes the screen
 -- and hosts with Who can join's value shown; Back (the row, B, Esc, a right click) closes it without hosting. A row that
@@ -33,7 +33,8 @@ local HINTS=2 -- Back, then Select or Change.
 local HOVER,BACK=0.1,0.15 -- Seconds: between mouse looks; to the input given back.
 -- o: {kit=ui.kit's, words=function() the ui/text.lua table to show, view=function() {values= (ui/model.lua's values:
 -- the settings in effect), readable= (coop-settings.txt can be read), role=link.mode() or 'none'}, act=function(a)
--- (main.lua's: {set=, value=} written as Options writes; {host=word} hosts with that word), log=}.
+-- (main.lua's: {set=, value=} written as Options writes, false, why and the player's note when not saved; {host=word}
+-- hosts with that word), log=}.
 function Create.new(o)
     local kit,log=o.kit,o.log or function() end
     local self={}
@@ -42,6 +43,7 @@ function Create.new(o)
     local list,pane,hints_p={},{},{} -- Parts by slot.
     local back_at,hover,hover_at=nil,false,0 -- hover: the slot under the mouse at the last look.
     local pointed=false -- The cursor came from the mouse: the list keeps still under it until a key moves the cursor.
+    local failed=nil -- A change not saved: {at=its item, text=act's note}, on the right until the next key or click.
     local P=Parts.new(kit,log,'create')
     local call,sync,look=P.call,P.sync,P.look
     for _,kind in ipairs(KINDS) do kit.warm_part(Parts.ASSET[kind]) end
@@ -68,9 +70,11 @@ function Create.new(o)
         return t.row[item.key] or item.key
     end
     local function value_of(t,item) return item.row and Options.shown(t,item.row,item.value) or '' end
-    -- The right pane's words: a locked row's reason, else Who can join's value explained, else none.
+    -- The right pane's words: why a change there was not saved, a locked row's reason, Who can join's value explained,
+    -- else none.
     local function desc_of(t,item)
         if not item then return '' end
+        if failed and failed.at==cur then return failed.text end
         if item.locked then return t.create.locked end -- Its one reason today: why 'unreadable'.
         if item.key=='who_can_join' then return t.create.who[item.value] or '' end
         return ''
@@ -155,7 +159,7 @@ function Create.new(o)
         if not open then
             kit.input(true,'create',true)
             kit.sound('open')
-            open,back_at,hover,pointed,cur,top=true,nil,false,false,0,0
+            open,back_at,hover,pointed,failed,cur,top=true,nil,false,false,nil,0,0
             log('create: open')
         end
         kit.show('create',true)
@@ -177,6 +181,7 @@ function Create.new(o)
         if not open then return end
         if kit.off() then return self.close() end
         if not view then read() end
+        failed=nil
         if what=='click' then
             local i=under()
             if not i then return end
@@ -198,9 +203,9 @@ function Create.new(o)
             elseif a and a.back then
                 kit.sound('back')
                 return self.close()
-            elseif a then
-                kit.sound('change')
-                o.act(a)
+            elseif a then -- Not saved (act's false): no change sound, the reason on the right.
+                local saved,why,note=o.act(a)
+                if saved==false then failed={at=cur,text=note or tostring(why)} else kit.sound('change') end
             end
         elseif what=='back' then
             kit.sound('back')

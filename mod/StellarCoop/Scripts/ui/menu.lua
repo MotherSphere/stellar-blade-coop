@@ -141,10 +141,11 @@ function Menu.new(o)
         end
     end
     -- A setting's new value, or every key at its default with key nil: its line rewritten in the file as it is now
-    -- (D-UI4), then in effect or, for the one read at a load only, said so. true, or false and why in English.
+    -- (D-UI4), then in effect or, for the one read at a load only, said so. true, or false, why in English and the
+    -- note in the player's words (the Create a session screen shows it too).
     local function set(key,text)
         local file=link.settings_text()
-        if not file then note=words.unreadable; return false,'coop-settings.txt cannot be read' end
+        if not file then note=words.unreadable; return false,'coop-settings.txt cannot be read',note end
         local what=key and key..'='..text or 'every key at its default'
         local new,why
         if key then new,why=M.write(file,key,text) else new,why=M.reset_keys(file) end
@@ -153,7 +154,7 @@ function Menu.new(o)
         if not saved then
             note=words.not_saved:format(tostring(why))
             o.log('menu: '..what..' not saved: '..tostring(why))
-            return false,'not saved: '..tostring(why)
+            return false,'not saved: '..tostring(why),note
         end
         values=M.read(new)
         o.log('menu: '..what..' saved in coop-settings.txt')

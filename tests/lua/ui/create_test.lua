@@ -121,11 +121,13 @@ local function text_at(x,y)
 end
 
 -- The view main.lua gives (the settings in effect, whether coop-settings.txt reads, link.mode()); act as main.lua's:
--- a change goes into the values in effect, as menu.set applies it.
+-- a change goes into the values in effect, as menu.set applies it, or with refuse set is not saved, as menu.set says.
 local input={values=Options.read(''),readable=true,role='none'}
 local acts,logs={},{}
+local refuse=nil
 local function act(a)
     acts[#acts+1]=a
+    if a.set and refuse then return false,'not saved: '..refuse,T.en.not_saved:format(refuse) end
     if a.set then input.values[a.set]=a.value end
 end
 local screen=Create.new({kit=kit,words=function() return T.en end,view=function() return input end,act=act,
@@ -279,6 +281,21 @@ screen.nav('down') -- Boss HP; the list scrolls by two: Enemies attack under the
 screen.tick(302)
 assert(list():find('| >Boss HP (host\'s)=200 % | Enemies attack (host\'s)=',1,true),list())
 zones[10].hover=false
+screen.close()
+
+-- A change that is not saved (coop-settings.txt cannot be written): no change sound, the value as it was, why on the
+-- right until the next key.
+screen.open()
+refuse='cannot write coop-settings.txt.tmp'
+sounds={}
+screen.nav('down'); screen.nav('down') -- Shared enemies.
+screen.nav('right')
+refuse=nil
+assert(acts[#acts].set=='shared_enemies' and table.concat(sounds,' ')=='move move',table.concat(sounds,' '))
+assert(list():find('>Shared enemies (experimental)=On',1,true) and text_at(2600,524)=='Not saved: cannot write '
+    ..'coop-settings.txt.tmp',text_at(2600,524))
+screen.nav('up')
+assert(text_at(2600,524)=='')
 screen.close()
 
 -- It closes by itself: no world, the game paused, in a lobby, the kit off.

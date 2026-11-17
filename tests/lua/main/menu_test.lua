@@ -653,6 +653,12 @@ end)()
     assert(cr.o.act({set='who_can_join',value='invitation'}))
     assert(settings_text=='who_can_join=invitation\n' and cr.o.view().values.who_can_join=='invitation',settings_text)
     assert(logged('menu: who_can_join=invitation saved in coop-settings.txt'))
+    -- A change not saved: false, why and the note in the player's words, which the screen shows on its right pane.
+    write_refusal='cannot write coop-settings.txt: busy'
+    local saved,why,note=cr.o.act({set='who_can_join',value='closed'})
+    write_refusal=nil
+    assert(saved==false and why=='not saved: cannot write coop-settings.txt: busy' and settings_text==
+        'who_can_join=invitation\n' and note=='Not saved: cannot write coop-settings.txt: busy',tostring(note))
     -- Start: coop host with its word, at once.
     cr.o.act({host='closed'})
     assert(asked[#asked]=='host closed' and logged('OK: asked the native part: host closed'))

@@ -96,7 +96,9 @@ same values. The right pane names the focused row. On Who can join it also says 
 value. What each value does once you host is in [Playing with a friend](playing-with-a-friend.md).
 
 If `coop-settings.txt` cannot be read, every setting row shows the game's locked look and the right pane says
-`coop-settings.txt cannot be read: this setting cannot change now.` Start still hosts with the values in effect.
+`coop-settings.txt cannot be read: this setting cannot change now.` Start still hosts with the values in effect. A
+change that cannot be written (a read-only file, a full disk) plays no sound, keeps the value and puts
+`Not saved: <why>` in the right pane until the next key or click.
 
 | Key | Controller | On the Create a session screen |
 | --- | --- | --- |
