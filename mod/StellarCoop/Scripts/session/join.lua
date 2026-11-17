@@ -20,9 +20,9 @@
 -- while the player may be walking, fighting or in the menu: so every key, pad button and click does nothing for 1 s
 -- after it shows. Decline has the focus, so a stray select declines. A direction held moves the focus once: its
 -- repeats move nothing. main.lua gives it the arrows but not W, S or Space; the game ignores its pad while the popup
--- holds its input. With no answer the native part refuses the player
--- after 60 s (the seconds left show), open or not. Each player is asked once a lobby. When SB's popup cannot be made
--- (logged once), the kit's panel shows the same words in its place. SBO's own words stand in for SB's while the game's
+-- holds its input. With no answer the native part refuses the player after 60 s (the seconds left show), open or not.
+-- Each player is asked once a lobby. When SB's popup cannot be made (logged once), the kit's panel shows the same words
+-- in its place. SBO's own words stand in for SB's while the game's
 -- string table has none (always under ui_language=english).
 -- A name shown is cleaned as a chat line with no < or >, which SB's rich text would read as a tag.
 local T=require('ui.text')

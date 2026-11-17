@@ -12,10 +12,11 @@
 -- requests are ui/sessions_model.lua's over main.lua's view(); requests go to main.lua's act().
 -- It opens on the last tab of this Lua load and asks for a search of it, as a tab change and Refresh (Y, F) do, one at
 -- a time and 5 s apart at least; there is no search by itself. Refresh while our search runs stops it (its hint then
--- reads SB's UI_Cancel); a tab change leaves it running. Select on a row asks to join its lobby at once and closes the screen. Back (B, Esc, a right
--- click) closes it. It holds the game's input as 'sessions' with the mouse cursor, given back 150 ms after a close; it
--- closes by itself outside a world, when the game pauses or shows the mouse cursor, when the kit turns off and once we
--- are in a lobby. A transparent kit row over each row and tab takes the mouse, so no part ever sees it.
+-- reads SB's UI_Cancel); a tab change leaves it running. Select on a row asks to join its lobby at once and closes
+-- the screen. Back (B, Esc, a right click) closes it. It holds the game's input as 'sessions' with the mouse cursor,
+-- given back 150 ms after a close; it closes by itself outside a world, when the game pauses or shows the mouse
+-- cursor, when the kit turns off and once we are in a lobby. A transparent kit row over each row and tab takes the
+-- mouse, so no part ever sees it.
 -- SB's words come from its StringTable_UI through game_text (o.game_text, nil under ui_language=english), read once a
 -- key while the screen is open; SBO's words are ui/text.lua's. Parts are ui/parts.lua's: every part call runs in pcall,
 -- a refusal is logged once, a part that cannot be made is logged once and left out until the mod reloads. Its kit
