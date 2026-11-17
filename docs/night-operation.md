@@ -317,7 +317,8 @@ at the same points around the host's start point, and both cards show one timer 
 the run's: the waves, the score for each kill, the heals and the time limit are those of a solo run at that level. A
 run has two players at most, each on a co-op save: in an online session of more than 2 players, the host cannot start
 one. A run under way when a third player gets in ends on both games with `Night Operation does not run in a session
-of more than 2 players.` ([More than 2 players](playing-with-a-friend.md#more-than-2-players)).
+of more than 2 players.` ([More than 2 players](playing-with-a-friend.md#more-than-2-players)). The guest's game ends
+it as soon as the host's game names the third player, even before its own link with that player is made.
 
 ### Starting a run together
 
@@ -439,6 +440,7 @@ The run ends on both screens, each with its result panel. The line under the hea
 | On the host's side: `coop nightop stop`, a map change or a load, 80 m from the start point for 10 s, a save that is no longer a co-op save, or an error | His reason, as in the solo run | `Your partner left the run.` |
 | The same on the guest's side | `Your partner left the run.` | Her reason, as in the solo run |
 | The session ended: `coop leave` (F8) or `coop off` on either side | `The link to your partner was lost.` | `The link to your partner was lost.` |
+| A third player got into the session | `Night Operation does not run in a session of more than 2 players.` | `Night Operation does not run in a session of more than 2 players.` |
 
 A player who types `coop off` ends their own run as a stop (`result: aborted (coop off)` in `UE4SS.log`); only the
 partner reads the lost line. A game's night line stops while that game does not tick, for example during a load. Once it
