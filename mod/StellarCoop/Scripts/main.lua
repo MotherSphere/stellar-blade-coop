@@ -1453,17 +1453,20 @@ if link then
     -- save loaded, so not at the title or during a load) and stopped for the run, each once as it starts; and each
     -- quest note once (link.quest_notes): her quest ahead (in the host's words or hers, by our role), behind the host,
     -- a step waiting for its zone, a Request to hand in at her board, a kill step, and coop quests force's answers. A
-    -- Request not on her board yet and a step no zone can place show in coop quests status only.
+    -- Request not on her board yet and a step no zone can place show in coop quests status only. With several guests,
+    -- the host's on notice names the first whose side is on (with=) and his ahead notice the guest whose line it is.
     local QUEST_NOTES={ahead=true,behind=true,zone=true,board=true,kill=true,forced=true,forced_warp=true,
         not_forced=true}
     local quests_was,quests_with,quests_role=nil,false,nil
+    local function member_name(id) local m=id and link.member(id); return m and m.name end
     local function quest_notices()
         local line=link.quests()
         if line then
             local state,why,partner=line:match('^quests=(%a+)'),line:match(' why=(%a+)'),line:match(' partner=(%a+)')
             local with=state=='on' and partner=='on'
             if with and not quests_with then
-                tell(function(w) return w.quests.on:format(her_name(w)) end)
+                local name=member_name(line:match(' with=(%d+)'))
+                tell(function(w) return w.quests.on:format(her_name(w,name)) end)
             elseif quests_with and state=='on' and partner=='off' then
                 tell(function(w) return w.quests.partner_off:format(her_name(w)) end)
             end
@@ -1478,12 +1481,13 @@ if link then
         for _,n in ipairs(link.quest_notes()) do
             if QUEST_NOTES[n.kind] then
                 local key=n.kind=='ahead' and (quests_role=='host' and 'ahead_host' or 'ahead_guest') or n.kind
+                local name=member_name(n.from)
                 tell(function(w)
                     local q=w.quests
                     if key=='zone' then return q.zone:format(her_name(w),n.alias,n.zone or '?') end
                     if key=='kill' then return q.kill:format(n.alias,n.id) end
                     if key=='board' or key:find('forced') then return q[key]:format(n.alias) end
-                    return q[key]:format(her_name(w),n.alias) -- ahead_host, ahead_guest, behind
+                    return q[key]:format(her_name(w,name),n.alias) -- ahead_host, ahead_guest, behind
                 end)
             end
         end

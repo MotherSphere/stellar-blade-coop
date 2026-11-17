@@ -140,6 +140,16 @@ for _,case in ipairs({{nil,''},{'quests=waiting mode=on why=friend',''},
     local got=step(case[1],case[3])
     assert(got==case[2],tostring(case[1])..': '..got)
 end
+-- Several guests: the host's on notice names the first whose side is on, his ahead notice the guest whose line it is.
+fake_link.member=function(id) return id=='3' and {id='3',name='Lucas'} or nil end
+assert(step('quests=off')=='')
+assert(step('quests=on mode=on role=host partner=on with=3')=='Shared quests on with Lucas.')
+local from=note('ahead','54','Quest_Sub_017')
+from.from='3'
+assert(step('quests=on mode=on role=host partner=on with=3',{from})=='Lucas is ahead of you on Quest_Sub_017. Nothing '
+    ..'is undone; the step stays in their save.')
+fake_link.member=function() return nil end
+assert(step('quests=off')=='')
 kit_language='fr-FR'
 assert(step('quests=on mode=on role=guest partner=on',{note('board','80','Quest_Request_023')})=='Quêtes partagées '
     ..'actives avec Kaanta.|Quest_Request_023 est prête : rendez-la à votre tableau des requêtes.')

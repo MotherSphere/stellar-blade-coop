@@ -102,17 +102,20 @@ constexpr uint64_t kAskAgainMs = 1000; // The guest's on again when the host's o
 // host's side, hers said so), Why::behind (the host moved that quest without her), Why::zone (a step made with her
 // waits in zone), Why::board (a Request she hands in at her own board), and the other holds as they start; and the
 // answer to coop quests force: Why::go when the step went (warp: SB moves her), else why it did not (Why::done: no
-// step to force, or no side ran in the game).
+// step to force, or no side ran in the game). from: on the host, the SteamID of the guest whose ahead line it is (0
+// otherwise), so the notice names her.
 struct Note {
   Why why = Why::done;
   uint16_t id = 0;
   std::string zone;
   bool forced = false, warp = false;
+  uint64_t from = 0;
 };
 // What the worker takes each time: lines for channel 2, coop-quests.log lines, notices, the record file's text when
 // it changed (StellarCoopQuests0N.txt, N the slot), the record mode's lines with their times, the status asked, and
 // the side's state as of the last pass ("off", "stopped" after a fault, "waiting role=<r>" until the game's quest unit
-// is found, "on role=<r>" with " partner=<on|off>" when linked; r: host, guest, recorder, probe or replay).
+// is found, "on role=<r>" with " partner=<on|off>" when linked, then on a host with several guests " with=<SteamID>"
+// of the first one whose side is on; r: host, guest, recorder, probe or replay).
 struct Out {
   std::vector<std::string> lines, log, recorded;
   std::vector<uint64_t> to; // to[i]: the SteamID lines[i] goes to; 0: every partner.
@@ -739,7 +742,7 @@ private:
         }
         lines.insert(lines.end(), out.begin(), out.end());
         to.resize(lines.size(), m.id);
-        for (Message &s : m.host->take_steps()) { // Two guests' same step: the second finds it made here.
+        for (Message &s : m.host->take_steps()) { // The pair's only (phase 7b1): another guest's waits for his game.
           if (side_.mode == Mode::host && m.id != pair_)
             log("quests: a step line from guest " + std::to_string(m.id) + " not taken: her game is not the pair");
           else
@@ -875,7 +878,7 @@ private:
       return;
     g.heard.set(size_t(i));
     Note n;
-    n.why = Why::ahead, n.id = m.e.id;
+    n.why = Why::ahead, n.id = m.e.id, n.from = g.id;
     notes_.push_back(n);
   }
   // The guest's holds as they start, each in the log and some for the glue's notices. Ahead only once her ahead line
@@ -1023,12 +1026,12 @@ private:
     if (!running_)
       return "off";
     std::string s = std::string(armed_ ? "on" : "waiting") + " role=" + mode_name(side_.mode);
-    if (armed_ && record_ && side_.mode == Mode::host) // On while any guest's side is.
-      s += std::string(" partner=") + (std::any_of(mates_.begin(), mates_.end(),
-                                                   [](const Mate &m) { return m.host->guest_on(); })
-                                           ? "on"
-                                           : "off");
-    else if (armed_ && guest_ && side_.mode == Mode::guest) // A snapshot came from a host that is on.
+    if (armed_ && record_ && side_.mode == Mode::host) { // On while any guest's side is; with several, whose first.
+      const auto on = std::find_if(mates_.begin(), mates_.end(), [](const Mate &m) { return m.host->guest_on(); });
+      s += std::string(" partner=") + (on != mates_.end() ? "on" : "off");
+      if (on != mates_.end() && mates_.size() > 1)
+        s += " with=" + std::to_string(on->id);
+    } else if (armed_ && guest_ && side_.mode == Mode::guest) // A snapshot came from a host that is on.
       s += std::string(" partner=") + (guest_->host_on() || guest_->generation() ? "on" : "off");
     return s;
   }
@@ -1260,11 +1263,13 @@ public:
   }
 
   // coop-status.txt's lines: "quests=" and the state, the last notes as "quest_note=<n> <kind> <id> <alias> <zone>"
-  // (kind: ahead, behind, zone, board, locked, kill, unseen, forced, forced_warp or not_forced; zone "-" but for zone),
-  // and the last coop quests status answer as "quests_status=<n> <line>" lines.
-  //   quests=off | stopped | waiting mode=<m> why=<friend|save|game> | on mode=<m> role=<r>[ partner=<on|off>]
-  // m: on, probe, record or replay as asked; why game: the game world or quest unit is not there yet (a load); r and
-  // partner as Out::state.
+  // (kind: ahead, behind, zone, board, locked, kill, unseen, forced, forced_warp or not_forced; zone "-" but for zone)
+  // with " <SteamID>" after a host's ahead note (the guest whose line it is). Then the last coop quests status answer
+  // as "quests_status=<n> <line>" lines.
+  //   quests=off | stopped | waiting mode=<m> why=<friend|save|game>
+  //   | on mode=<m> role=<r>[ partner=<on|off>[ with=<id>]]
+  // m: on, probe, record or replay as asked; why game: the game world or quest unit is not there yet (a load); r,
+  // partner and with as Out::state.
   std::string status() const {
     std::string s = "quests=" + state() + "\n";
     for (const std::string &n : notes_)
@@ -1380,7 +1385,8 @@ private:
     for (const Note &n : o.notes)
       if (const char *kind = note_kind(n); kind && row(n.id)) {
         notes_.push_back("quest_note=" + std::to_string(++note_n_) + " " + kind + " " + std::to_string(n.id) + " " +
-                         row(n.id)->alias + " " + (n.zone.empty() ? "-" : n.zone));
+                         row(n.id)->alias + " " + (n.zone.empty() ? "-" : n.zone) +
+                         (n.from ? " " + std::to_string(n.from) : std::string()));
         if (notes_.size() > kNotes)
           notes_.erase(notes_.begin());
       }

@@ -393,7 +393,7 @@ struct Side {
   std::vector<std::string> log, lines, recorded;
   std::vector<uint64_t> to; // The last tick's: to[i], whom its line i goes to (0: every partner).
   std::vector<Note> notes;
-  std::string record, status;
+  std::string record, status, state;
   explicit Side(Setup s = Setup()) { e.on(std::move(s)); }
   std::vector<std::string> tick(uint64_t now) {
     e.tick(pc, kBase, slot, now);
@@ -408,6 +408,7 @@ struct Side {
       record = o.record;
     if (!o.status.empty())
       status = o.status;
+    state = o.state;
     return o.lines;
   }
   void hear(const std::string &line) { e.line(line.data(), line.size()); }
@@ -1068,8 +1069,10 @@ void her_steps() {
 // quests each pass, on one record. Each guest gets our on, her own snapshot and the steps made with her, by lines to
 // her alone. A step the first guest (the pair, Engine::pair) makes first is made once in the host's game; his next read
 // brings it to the second guest. The second guest's step line is dropped: only the pair's steps are taken. Told she is
-// no pair, she sends none. A guest who leaves loses her Host only: the other goes on while the record keeps her h
-// lines. A quest the host takes meanwhile is not hers when she comes back.
+// no pair, she sends none: her quest stays ahead of the host's. Her ahead line's note on the host names her. The
+// host's state names the first guest whose side is on while he has several. A guest who leaves loses her Host only:
+// the other goes on while the record keeps her h lines. A quest the host takes meanwhile is not hers when she comes
+// back.
 void three_worlds() {
   constexpr uint64_t kOtherId = 76561198000000003ull;
   auto host = std::make_unique<Side>(setup(Mode::host, kGuestId));
@@ -1106,6 +1109,7 @@ void three_worlds() {
     pc->zone("Zone_WLA_30");
   step(4);
   assert(k.lines.front() == q("on 0") && k.to.empty() && count(k.log, "quests: snapshot 1, 0 quests") == 2);
+  assert(k.state == "on role=host partner=on with=" + std::to_string(kGuestId));
   assert(has(a.log, "quests: snapshot 1 complete, 0 quests") && has(b.log, "quests: snapshot 1 complete, 0 quests"));
   // The host's step reaches both guests from one read a pass.
   h.acquire(s1);
@@ -1142,12 +1146,21 @@ void three_worlds() {
   assert(k.status.find(", guest " + std::to_string(kGuestId) + ", generation 1, partner on, guest " +
                        std::to_string(kOtherId) + ", generation 1, partner on, her steps applied 3") !=
          std::string::npos);
+  k.notes.clear();
+  gb.play(s1);
+  step(12);
+  const auto ahead = std::find_if(k.notes.begin(), k.notes.end(), [](const Note &n) { return n.why == Why::ahead; });
+  assert(ahead != k.notes.end() && ahead->id == kRows[s1].id && ahead->from == kOtherId);
+  ga.play(s1);
+  step(6);
+  assert(h.w.tuple(s1) == gb.w.tuple(s1));
   // The second guest leaves: her Host goes; the first goes on alone. The record keeps both guests' lines.
   away = true;
   k.e.guests({kGuestId});
   b.e.off("link");
   step();
-  assert(has(k.log, "quests: guest " + std::to_string(kOtherId) + " left the side"));
+  assert(has(k.log, "quests: guest " + std::to_string(kOtherId) + " left the side") &&
+         k.state == "on role=host partner=on");
   h.acquire(s2);
   step(4);
   assert(ga.w.tuple(s2) == h.w.tuple(s2) && gb.w.v[s2].state <= 0);

@@ -848,8 +848,11 @@ function Link.new(folder,fs)
             end
             camps_asked=tonumber(line:match('^camps%?=(%d+)$')) or camps_asked
             camps_answer=line:match('^camps=(%d+ %S.*)$') or camps_answer
-            local qn,kind,id,alias,zone=line:match('^quest_note=(%d+) ([%a_]+) (%d+) ([%w_]+) ([%w_%-]+)$')
-            if qn then noted[#noted+1]={n=tonumber(qn),kind=kind,id=id,alias=alias,zone=zone~='-' and zone or nil} end
+            local qn,kind,id,alias,zone,from=line:match('^quest_note=(%d+) ([%a_]+) (%d+) ([%w_]+) ([%w_%-]+) (%d+)$')
+            if not qn then qn,kind,id,alias,zone=line:match('^quest_note=(%d+) ([%a_]+) (%d+) ([%w_]+) ([%w_%-]+)$') end
+            if qn then
+                noted[#noted+1]={n=tonumber(qn),kind=kind,id=id,alias=alias,zone=zone~='-' and zone or nil,from=from}
+            end
             local same,ours_n,hers_n=line:match('^paks=(%a+) (%d+) (%d+)$')
             if same then paks={same=same=='same',ours=tonumber(ours_n),hers=tonumber(hers_n)} end
             local kind,count,list=line:match('^mods_(%a+)=(%d+) ?([^ ]*)$')
@@ -1004,9 +1007,10 @@ function Link.new(folder,fs)
     -- arrivals=the type-5 arrivals seen, zone='<index>:<number>' of the last, loader=SB's loader state, copy=the last
     -- co-op save copy's name (nil for none), last={n=the requests answered, verb=, result=} (nil for none)}, or nil.
     function self.sbo() return sbo end
-    -- Their notes numbered above the last one handed out, oldest first, each {kind=, id=, alias=, zone=} (kind: ahead,
-    -- behind, zone, board, locked, kill, unseen, forced, forced_warp or not_forced; id the quest's number as text;
-    -- alias its row name; zone for kind zone only). The first call only primes the count, as notices() does.
+    -- Their notes numbered above the last one handed out, oldest first, each {kind=, id=, alias=, zone=, from=} (kind:
+    -- ahead, behind, zone, board, locked, kill, unseen, forced, forced_warp or not_forced; id the quest's number as
+    -- text; alias its row name; zone for kind zone only; from, on the host's ahead note, the SteamID of the guest whose
+    -- line it is). The first call only primes the count, as notices() does.
     function self.quest_notes()
         if not noted then return {} end
         local out,top={},noted[#noted]

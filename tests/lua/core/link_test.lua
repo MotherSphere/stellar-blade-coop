@@ -292,7 +292,7 @@ assert(link.shared_version()==2 and next(link.shared_assets())==nil and link.mod
 files[SHARED]=nil
 -- The shared quests' line (Phase 12) and their notes, from the start of their own lines only. The first notes call
 -- only primes the count (a reload never shows old ones); then each new note once, in order, its zone for kind zone
--- only. A note of another shape, or in a peer's name, is none.
+-- only, the guest's SteamID after a host's ahead note. A note of another shape, or in a peer's name, is none.
 files[STATUS]='mod=v\npeer=2 name=x quests=on mode=on role=host partner=on\nquests=waiting mode=on why=save\n'
     ..'quest_note=1 kill 54 Quest_Sub_017 -\nlast=#3 x\n'
 link.changes()
@@ -302,11 +302,13 @@ files[STATUS]='mod=v\r\nquests=on mode=on role=guest partner=on\r\nquest_note=1 
     ..'quest_note=2 zone 41 Quest_Sub_001 Zone_WLA_30\r\nquest_note=3 forced_warp 30 Quest_Epic_Hidden -\r\n'
     ..'peer=2 name=x quest_note=9 kill 54 Quest_Sub_017 -\r\nquest_note=10 kill 54 Quest Sub -\r\n'
     ..'quest_note=11 kill 54 Quest_Sub_017\r\nquest_note=12 Kill! 54 Quest_Sub_017 -\r\n'
+    ..'quest_note=13 ahead 54 Quest_Sub_017 - 76561198000000003\r\nquest_note=14 ahead 54 Quest_Sub_017 - x\r\n'
 link.changes()
 assert(link.quests()=='quests=on mode=on role=guest partner=on','CRLF')
 local qn=link.quest_notes()
-assert(#qn==2 and qn[1].kind=='zone' and qn[1].id=='41' and qn[1].alias=='Quest_Sub_001' and qn[1].zone=='Zone_WLA_30'
-    and qn[2].kind=='forced_warp' and qn[2].id=='30' and qn[2].alias=='Quest_Epic_Hidden' and qn[2].zone==nil,#qn)
+assert(#qn==3 and qn[1].kind=='zone' and qn[1].id=='41' and qn[1].alias=='Quest_Sub_001' and qn[1].zone=='Zone_WLA_30'
+    and qn[2].kind=='forced_warp' and qn[2].id=='30' and qn[2].alias=='Quest_Epic_Hidden' and qn[2].zone==nil
+    and qn[1].from==nil and qn[3].kind=='ahead' and qn[3].zone==nil and qn[3].from=='76561198000000003',#qn)
 assert(#link.quest_notes()==0,'Each once')
 files[STATUS]=nil
 link.changes()
