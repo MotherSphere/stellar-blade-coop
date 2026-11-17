@@ -1606,6 +1606,26 @@ if link then
             tell(function(w) return T.dlcs(w,her_name(w),dlcs.missing,dlcs.extra) end)
         end
     end
+    -- Her New Game+ count and difficulty against ours (link.cycles()): the guest compares with the host, the host with
+    -- each member. One notice a member while the two differ, one more each time the values change (ui/text.lua's
+    -- T.cycle). None before ours is read, nor in a match lobby or the SBO lobby, where no enemy or quest is shared.
+    local cycles_seen={} -- Her SteamID to the values as last compared this session.
+    local function cycle_notice()
+        local mode=link.mode()
+        if mode=='none' then cycles_seen={} return end
+        local mine,list=link.cycles()
+        if not mine or link.match() or sbo.in_lobby() then return end
+        local host=mode=='guest' and link.host()
+        for _,m in ipairs(list) do
+            if mode=='host' or (host and m.id==host.id) then
+                local seen=table.concat({m.count,m.difficulty,mine.count,mine.difficulty},' ')
+                if cycles_seen[m.id]~=seen and (m.count~=mine.count or m.difficulty~=mine.difficulty) then
+                    tell(function(w) return T.cycle(w,her_name(w,m.name),m,mine) end)
+                end
+                cycles_seen[m.id]=seen
+            end
+        end
+    end
     -- Our CNS packs, once a Lua load, in the log (coop status shows them too).
     local cns_said=false
     local shared_seen=0 -- link.shared_version() as last acted on.
@@ -1819,6 +1839,7 @@ if link then
         guarded('scenes',story_notices)
         guarded('paks',paks_notice)
         guarded('dlcs',dlcs_notice)
+        guarded('cycle',cycle_notice)
         if not cns_said and link.cns() then
             cns_said=true
             log(link.cns())

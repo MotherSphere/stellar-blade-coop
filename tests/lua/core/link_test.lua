@@ -252,6 +252,20 @@ assert(#link.dlcs().missing==0 and #link.dlcs().extra==0,'No app id, another sid
 files[STATUS]='mod=v\n'
 link.changes()
 assert(link.dlcs()==nil)
+-- The cycle lines (protocol 23): mycycle=<count> <difficulty>, then cycle=<SteamID> <count> <difficulty> <name>.
+local mine,list=link.cycles()
+assert(mine==nil and #list==0)
+files[STATUS]='mod=v\nmycycle=1 2\ncycle=1001 0 0 Kaanta the Second\ncycle=2002 3 1 Lily\n'
+link.changes()
+mine,list=link.cycles()
+assert(mine.count==1 and mine.difficulty==2 and #list==2 and list[1].id=='1001' and list[1].count==0
+    and list[1].name=='Kaanta the Second' and list[2].id=='2002' and list[2].count==3 and list[2].difficulty==1)
+files[STATUS]='mod=v\nmycycle=1 7\ncycle=1001 100 0 X\npeer=2 name=x cycle=1001 1 1 Y\ncycle=x 1 1 Z\n'
+link.changes()
+mine,list=link.cycles()
+assert(mine==nil and #list==0,'Out of range, not from a peer line, nor a line of another shape: dropped')
+files[STATUS]='mod=v\n'
+link.changes()
 -- Our CNS packs (cns=<packs> <outfits>), in words, from the start of their own line; nil without one.
 assert(link.cns()==nil)
 files[STATUS]='mod=v\ncns=9 242\nlast=#9 x\n'

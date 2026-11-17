@@ -18,7 +18,8 @@
 -- lines, version and footer within theirs, Create a session's title, rules header, Start row and right-pane words
 -- within theirs, the pause menu's Online tab word within its tab and its notice within 200 bytes; no Thai word that
 -- ends on a leading vowel; each join Steam refused as link/core.h words it, in every language; the DLC notice
--- (T.dlcs) within 200 bytes with 100-byte DLC names in every language; its English as main.lua says it.
+-- (T.dlcs) within 200 bytes with 100-byte DLC names in every language; its English as main.lua says it; the New Game+
+-- notice (T.cycle) within 200 bytes with every count word and difficulty on both sides; its English.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
 local R=require('nightop.recruiter_text')
@@ -89,6 +90,10 @@ local function notices(w)
     for _,two in ipairs({{long,long},{short,short},{long,{}},{{},long},{short,long},{long,short}}) do
         lines[#lines+1]=T.dlcs(w,NAME,two[1],two[2])
     end
+    -- The New Game+ notice (T.cycle): a first playthrough and New Game+ 99, each difficulty, on both sides.
+    for _,a in ipairs({0,99}) do for _,b in ipairs({0,99}) do for d=0,2 do for e=0,2 do
+        lines[#lines+1]=T.cycle(w,NAME,{count=a,difficulty=d},{count=b,difficulty=e})
+    end end end end
     local p=w.pilot
     for _,text in ipairs({p.on:format(16),p.one,p.off:format(p.stopped),p.off:format(fill(p.host))}) do
         lines[#lines+1]=text
@@ -350,4 +355,10 @@ for lang,w in pairs(T) do
     end
 end
 assert(T.dlcs(T.en,LONG_NAME,{'Alpha'},{'Delta'}):find(LONG_NAME,1,true),'A name that fits stays whole')
+-- The New Game+ notice: her name, her cycle and difficulty, then ours.
+local CYCLE_TAIL=' Enemies with another max HP stay unshared.'
+assert(T.cycle(T.en,'Kaanta',{count=1,difficulty=2},{count=0,difficulty=0})=='Kaanta is on New Game+ 1 (Hard); you are '
+    ..'on your first playthrough (Normal).'..CYCLE_TAIL)
+assert(T.cycle(T.en,'Kaanta',{count=0,difficulty=1},{count=12,difficulty=1})=='Kaanta is on their first playthrough '
+    ..'(Story); you are on New Game+ 12 (Story).'..CYCLE_TAIL)
 print('ui_text_test ok')

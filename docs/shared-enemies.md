@@ -165,6 +165,11 @@ scaling). `Shared enemies: <name> is down. Once they respawn, the enemies you sh
 time the host goes down while enemies are linked: the host's respawn resets the enemies in the host's game, and your
 copies follow them back to full health. A respawn on another map leaves your copies unshared, with the HP they had.
 
+Once both games have read their New Game+ cycle and difficulty, each compares them: the guest with the host, the host
+with each member. When they differ, one notice says so, for example `Kaanta is on New Game+ 1 (Hard); you are on your
+first playthrough (Normal). Enemies with another max HP stay unshared.` It shows again only when one of the values
+changes. [The cycle line](internals/steam-link.md#the-cycle-line) carries them.
+
 ### Commands
 
 - `coop fight on` asks for it by hand (it needs `shared_enemies=on`) and `coop fight off` stops it until the mod reloads

@@ -307,6 +307,10 @@ guest's rest works as in solo play.
   the host's copy.
 - A revive refills the recovery items, as a camp respawn does, and the enemies keep their HP. A death resets the zone,
   a boss fight included, which is why no revive runs during a boss fight.
+- The mod never moves a player to another New Game+ cycle or difficulty. When they differ, the guest gets one notice
+  about the host; the host gets one about each member who differs, for example `Kaanta is on New Game+ 1 (Hard); you
+  are on your first playthrough (Normal). Enemies with another max HP stay unshared.` A change of either value gives
+  one more. No such notice shows in a match lobby or in the SBO lobby.
 
 ## Co-op saves
 
@@ -476,7 +480,8 @@ When her side comes on, the host sends the state of every quest it moved while l
 from the host's solo play are not sent. Nothing is undone in either game when the session ends; the steps her game made
 stay in her co-op save once the game saves. Each player's saved world (opened doors, supply boxes, enemies killed for
 good) stays their own, so an enemy the host killed out of her sight is still alive in her world. Both saves should be
-on the same New Game Plus cycle: other cycles have not been tested.
+on the same New Game Plus cycle: other cycles have not been tested. A notice says when they differ (see
+[Known limits](#known-limits)).
 
 Each co-op slot keeps a record beside it in your save folder, `StellarCoopQuests0N.txt` (N the slot), which notes the
 steps shared with each friend, as host and as guest. It is a text file, which Steam Cloud does not sync. Without it,

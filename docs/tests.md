@@ -53,9 +53,10 @@ fails the test. The `main/` tests load
   and never from a player's name; the `shared_world`, `shared_story`, `daynight`, `pause_tab` and `hide_popups`
   settings (the `sky=` line kept out of the `link:` lines); `bike` and `bike_key` (an older
   file whose keys hold F3 gets no bike key). It also reads the `dlcs=` line with the `dlc_missing=` and
-  `dlc_extra=` lines after it, the session list's `list=` line with its `session=` rows (a row only after a `list=`
-  line, `-` read as none) and a joiner's `wait=` line, logged once a wait. It covers `who_can_join` (`public` by
-  default, the older `code` and `private` read as `invitation`) and `friends_ask`, the `where` and `rules` requests
+  `dlc_extra=` lines after it, the `mycycle=` and `cycle=` lines (a value out of range dropped), the session list's
+  `list=` line with its `session=` rows (a row only after a `list=` line, `-` read as none) and a joiner's `wait=`
+  line, logged once a wait. It covers `who_can_join` (`public` by default, the older `code` and `private` read as
+  `invitation`) and `friends_ask`, the `where` and `rules` requests
   asked only on a change and never with a word the native part refuses. The rules word is built from the settings and
   read back in that shape only;
 - sessions of more than 2 players: `core/link_test` reads `max_players` (2 to 4, 4 by default and in a new file; any
@@ -113,6 +114,9 @@ fails the test. The `main/` tests load
 - `main/fight_notices_test` covers the same place and same spawns notices in both languages;
 - `main/dlc_test` covers the DLC notice: once a session when the two lists of installed DLCs differ, in the menu's
   language with its English beside. The same DLCs, or no list yet, give none;
+- `main/cycle_test` covers the New Game+ notice: the guest compares with the host, the host with each member; one
+  notice a member while the values differ, one more on a change, in the menu's language with its English beside. The
+  same values, ours not read yet, a match lobby or the SBO lobby give none;
 - `main/quests_test` covers `coop quests` with the `shared_quests` and `quest_deny` settings and the shared quests'
   notices;
 - `main/bike_test` covers the bike through `main.lua` with a fake `bike/ride.lua`: the load line, what the ride gets

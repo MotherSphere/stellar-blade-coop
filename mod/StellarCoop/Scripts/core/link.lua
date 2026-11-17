@@ -575,10 +575,11 @@ function Link.new(folder,fs)
     -- changes() until she is linked or we are no longer a guest); saves: the co-op saves' state (saves()); paks: her
     -- .pak mods against ours (paks()); mods: her mod containers against ours by name (mods()); dlcs: her installed
     -- DLCs against ours (dlcs()); cns: our CNS packs (cns()); quests: the shared quests' line; noted: their notes
-    -- listed; noted_shown: the last note number handed out; sbo: the SBO lobby's line (sbo()).
+    -- listed; noted_shown: the last note number handed out; sbo: the SBO lobby's line (sbo()); cycle, cycles: our
+    -- New Game+ count and difficulty and each member's (cycles()).
     local mode,friend,listed,dead,held,rejoin,shown,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil,nil
     local mate,life,ping,loopback,rejoined,saves,paks,mods,cns=nil,nil,nil,false,false,{},nil,nil,nil
-    local dlcs=nil
+    local dlcs,cycle,cycles=nil,nil,{}
     local quests,noted,noted_shown,sbo,world,story=nil,nil,nil,nil,nil,nil
     local shared_version=0 -- The status's shared= line's version (shared_assets()); kept across changes().
     local camps_asked,camps_answer=nil,nil -- The follow's camps lines (camps()).
@@ -757,7 +758,7 @@ function Link.new(folder,fs)
         remote={tonumber(generation),tonumber(count),source}
         mode,friend,listed,dead,held,rejoin,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil
         mate,life,ping,loopback,saves,paks,mods,cns=nil,nil,nil,engine:find(' loopback=')~=nil,{},nil,nil,nil
-        dlcs=nil
+        dlcs,cycle,cycles=nil,nil,{}
         quests,noted,sbo,world,story=nil,nil,nil,nil,nil
         camps_asked,camps_answer,match,round=nil,nil,nil,nil
         uidev,my_name,owner,room,hall=nil,nil,nil,nil,nil
@@ -885,6 +886,12 @@ function Link.new(folder,fs)
             end
             local side,dlc_name=line:match('^dlc_(%a+)=%d+ (.+)$')
             if dlcs and (side=='missing' or side=='extra') then table.insert(dlcs[side],dlc_name) end
+            local cn,cd=line:match('^mycycle=(%d+) (%d+)$')
+            cn,cd=tonumber(cn),tonumber(cd)
+            if cn and cn<=99 and cd<=2 then cycle={count=cn,difficulty=cd} end
+            local cid,mn,md,cname=line:match('^cycle=(%d+) (%d+) (%d+) (.+)$')
+            mn,md=tonumber(mn),tonumber(md)
+            if cid and mn<=99 and md<=2 then cycles[#cycles+1]={id=cid,count=mn,difficulty=md,name=cname} end
             local version_of=line:match('^shared=(%d+) %d+$')
             if version_of then shared_version=tonumber(version_of) end
             local packs,outfits=line:match('^cns=(%d+) (%d+)$')
@@ -962,6 +969,10 @@ function Link.new(folder,fs)
     -- {same=, ours=, hers=, missing=, extra=}, the counts, then the names of hers we lack and of ours she lacks; nil
     -- before her list.
     function self.dlcs() return dlcs end
+    -- Our game's New Game+ count and difficulty (0 Normal, 1 Story, 2 Hard) once the native part read them (the
+    -- mycycle= line): {count=, difficulty=} or nil; then each member's past the handshake whose cycle line came, in
+    -- the status's order: {id=her SteamID's digits, count=, difficulty=, name=}. A line out of range is dropped.
+    function self.cycles() return cycle,cycles end
     -- Our CNS packs (the Custom Nanosuit System's .dekcns.json files under ~mods) in words, 'CNS detected (<n> packs,
     -- <m> outfits)', from the status's cns= line; nil without one.
     function self.cns() return cns end

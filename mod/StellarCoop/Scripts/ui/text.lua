@@ -162,6 +162,10 @@ T.en={
     -- The DLC notice (main.lua, T.dlcs): the DLCs she has and you lack (theirs), those you have and she lacks (yours);
     -- %s: her name, then the DLCs' names.
     dlc={theirs="%s has DLCs you don't have: %s.",yours="You have DLCs %s doesn't have: %s."},
+    -- The New Game+ notice (main.lua, T.cycle): %s her name, her cycle, her difficulty, your cycle, your difficulty.
+    cycle={notice='%s is on %s (%s); you are on %s (%s). Enemies with another max HP stay unshared.',
+        their_first='their first playthrough',your_first='your first playthrough',plus='New Game+ %d',
+        normal='Normal',story='Story',hard='Hard'},
     -- Same place's notices (main.lua): how many enemies it moves, and why it went off (off with host or stopped; %s
     -- in host: her name, or fight.friend).
     pilot={on='Same place: %d enemies piloted.',one='Same place: 1 enemy piloted.',off='Same place off: %s',
@@ -475,6 +479,9 @@ T.fr={
         mods_other="%s a d'autres versions de vos mods : %s. Les parties de sa tenue qui en viennent peuvent "
             .."s'afficher autrement ici."},
     dlc={theirs="%s a des DLC que vous n'avez pas : %s.",yours="Vous avez des DLC que %s n'a pas : %s."},
+    cycle={notice="%s est %s (%s) ; vous êtes %s (%s). Les ennemis aux PV max différents ne sont pas partagés.",
+        their_first='à sa première partie',your_first='à votre première partie',plus='en New Game+ %d',
+        normal='Normal',story='Histoire',hard='Difficile'},
     pilot={on='Même position : %d ennemis pilotés.',one='Même position : 1 ennemi piloté.',
         off='Même position coupée : %s',host="la partie de %s l'a désactivée.",
         stopped="arrêtée par une erreur jusqu'au redémarrage du jeu. coop-link.log dit pourquoi."},
@@ -739,6 +746,9 @@ T.ar={
         mods_missing='يستخدم %s تعديلات ليست لديك: %s. يظهر جزء من زيه بشكل مختلف هنا.',
         mods_other='لدى %s إصدارات أخرى من تعديلاتك: %s. قد يظهر جزء من زيه بشكل مختلف هنا.'},
     dlc={theirs='لدى %s محتوى إضافي (DLC) ليس لديك: %s.',yours='لديك محتوى إضافي (DLC) ليس لدى %s: %s.'},
+    cycle={notice='%s في %s (%s)، وأنت في %s (%s). لا يُشارك عدو صحته القصوى مختلفة.',
+        their_first='اللعب الأول',your_first='لعبك الأول',plus='لعبة جديدة + %d',normal='عادي',story='قصة',
+        hard='صعب'},
     pilot={on='تطابق المواضع: يتم التحكم في %d من الأعداء.',one='تطابق المواضع: يتم التحكم في عدو واحد.',
         off='تطابق المواضع متوقف: %s',host='أوقفته لعبة %s.',
         stopped='أوقفه خطأ حتى إعادة تشغيل اللعبة. يذكر coop-link.log السبب.'},
@@ -1001,6 +1011,9 @@ T.da={
         mods_missing='%s bruger mods, du ikke har: %s. Dele af dragten fra dem ser anderledes ud her.',
         mods_other='%s bruger andre versioner af dine mods: %s. Dele af dragten fra dem kan se anderledes ud her.'},
     dlc={theirs='%s har DLC, du ikke har: %s.',yours='Du har DLC, som %s ikke har: %s.'},
+    cycle={notice='%s spiller %s (%s); du spiller %s (%s). Fjender med en anden maks. HP deles ikke.',
+        their_first='sin første gennemspilning',your_first='din første gennemspilning',plus='Nyt spil + %d',
+        normal='Normal',story='Historie',hard='Svær'},
     pilot={on='Samme position: %d fjender styret.',one='Samme position: 1 fjende styret.',
         off='Samme position slået fra: %s',host='spillet hos %s slog den fra.',
         stopped='stoppet af en fejl, indtil spillet genstartes. coop-link.log forklarer hvorfor.'},
@@ -1274,6 +1287,9 @@ T.de={
         mods_missing='%s nutzt Mods, die du nicht hast: %s. Teile des Outfits daraus sehen hier anders aus.',
         mods_other='%s nutzt andere Versionen deiner Mods: %s. Teile des Outfits daraus können hier anders aussehen.'},
     dlc={theirs='%s hat DLCs, die du nicht hast: %s.',yours='Du hast DLCs, die %s nicht hat: %s.'},
+    cycle={notice='%s spielt %s (%s); du spielst %s (%s). Gegner mit anderen max. LP werden nicht geteilt.',
+        their_first='den ersten Durchgang',your_first='deinen ersten Durchgang',plus='Neues Spiel + %d',
+        normal='Normal',story='Story',hard='Schwer'},
     pilot={on='Gleiche Position: %d Gegner gesteuert.',one='Gleiche Position: 1 Gegner gesteuert.',
         off='Gleiche Position aus: %s',host='im Spiel des Hosts (%s) ausgeschaltet.',
         stopped='durch einen Fehler bis zum Neustart des Spiels gestoppt. Der Grund steht in coop-link.log.'},
@@ -1558,6 +1574,9 @@ T.es={
         mods_other='%s usa otras versiones de tus mods: %s. Las partes de su traje que vienen de ellos pueden verse '
             ..'distintas aquí.'},
     dlc={theirs='%s tiene DLC que tú no tienes: %s.',yours='Tienes DLC que %s no tiene: %s.'},
+    cycle={notice='%s juega %s (%s); tú juegas %s (%s). Los enemigos con otros PS máximos no se comparten.',
+        their_first='su primera partida',your_first='tu primera partida',plus='Partida nueva + %d',
+        normal='Normal',story='Historia',hard='Difícil'},
     pilot={on='Misma posición: %d enemigos controlados.',one='Misma posición: 1 enemigo controlado.',
         off='Misma posición desactivada: %s',host='la partida de %s la ha desactivado.',
         stopped='detenida por un error hasta que se reinicie el juego. coop-link.log indica el motivo.'},
@@ -1835,6 +1854,9 @@ T['es-MX']={
         mods_other='%s usa otras versiones de tus mods: %s. Las partes de su atuendo que vienen de ellos pueden '
             ..'verse diferentes aquí.'},
     dlc={theirs='%s tiene DLC que tú no tienes: %s.',yours='Tienes DLC que %s no tiene: %s.'},
+    cycle={notice='%s juega %s (%s); tú juegas %s (%s). Los enemigos con otra salud máxima no se comparten.',
+        their_first='su primera partida',your_first='tu primera partida',plus='Partida nueva+ %d',
+        normal='Normal',story='Historia',hard='Difícil'},
     pilot={on='Misma posición: %d enemigos controlados.',one='Misma posición: 1 enemigo controlado.',
         off='Misma posición desactivada: %s',host='la partida de %s la desactivó.',
         stopped='detenida por un error hasta que reinicies el juego. coop-link.log dice por qué.'},
@@ -2111,6 +2133,9 @@ T.fi={
             ..'erilaisilta.'},
     dlc={theirs='%s omistaa DLC-sisältöjä, joita sinulla ei ole: %s.',
         yours='Sinulla on DLC-sisältöjä, joita %s ei omista: %s.'},
+    cycle={notice='%s: %s (%s). Sinä: %s (%s). Vihollisia, joiden enimmäis-HP on eri, ei jaeta.',
+        their_first='ensimmäinen läpipeluu',your_first='ensimmäinen läpipeluu',plus='Uusi peli+ %d',
+        normal='Normaali',story='Tarina',hard='Vaikea'},
     pilot={on='Sama sijainti: %d vihollista ohjauksessa.',one='Sama sijainti: 1 vihollinen ohjauksessa.',
         off='Sama sijainti pois: %s',host='%s on poistanut sen käytöstä.',
         stopped='virhe pysäytti sen pelin uudelleenkäynnistykseen asti. Syy on coop-link.log-tiedostossa.'},
@@ -2385,6 +2410,9 @@ T.it={
         mods_other='%s usa altre versioni delle tue mod: %s. Le parti della sua tenuta che ne derivano qui possono '
             ..'apparire diverse.'},
     dlc={theirs='%s ha DLC che tu non hai: %s.',yours='Hai DLC che %s non ha: %s.'},
+    cycle={notice='%s gioca %s (%s); tu giochi %s (%s). I nemici con PS massimi diversi non sono condivisi.',
+        their_first='la prima partita',your_first='la tua prima partita',plus='Nuova partita + %d',
+        normal='Normale',story='Storia',hard='Difficile'},
     pilot={on='Stessa posizione: %d nemici pilotati.',one='Stessa posizione: 1 nemico pilotato.',
         off='Stessa posizione disattivata: %s',host="%s l'ha disattivata.",
         stopped='fermata da un errore fino al riavvio del gioco. Il motivo è in coop-link.log.'},
@@ -2649,6 +2677,9 @@ T.ja={
         mods_missing='%sはあなたにないMODを使用中：%s。相手の衣装の一部がこちらでは違って見えます。',
         mods_other='%sはあなたのMODの別バージョンを使用中：%s。相手の衣装の一部が違って見えることがあります。'},
     dlc={theirs='%sはあなたにないDLCを持っています：%s。',yours='あなたは%sにないDLCを持っています：%s。'},
+    cycle={notice='%sは%s（%s）、あなたは%s（%s）です。最大HPが違う敵は共有されません。',
+        their_first='1周目',your_first='1周目',plus='ニューゲーム+%d',normal='ノーマル',story='ストーリー',
+        hard='ハード'},
     pilot={on='敵の位置同期：%d体の敵を操作中。',one='敵の位置同期：1体の敵を操作中。',off='敵の位置同期：オフ。%s',
         host='%sのゲームでオフになりました。',
         stopped='エラーのためゲームを再起動するまで停止。理由はcoop-link.logにあります。'},
@@ -2881,6 +2912,9 @@ T.ko={
         mods_missing='%s 쪽이 이쪽에 없는 모드를 씁니다: %s. 그 모드로 된 의상 부분은 여기서 다르게 보입니다.',
         mods_other='%s 쪽이 다른 버전의 모드를 씁니다: %s. 그 모드로 된 의상 부분은 여기서 다르게 보일 수 있습니다.'},
     dlc={theirs='%s 쪽에 이쪽에 없는 DLC가 있습니다: %s.',yours='이쪽에 %s 쪽에 없는 DLC가 있습니다: %s.'},
+    cycle={notice='%s 쪽: %s (%s), 이쪽: %s (%s). 최대 생명력이 다른 적은 공유되지 않습니다.',
+        their_first='첫 회차',your_first='첫 회차',plus='새로운 게임+ %d',normal='일반',story='스토리',
+        hard='어려움'},
     pilot={on='적 위치 동기화: 적 %d마리 조종 중.',one='적 위치 동기화: 적 1마리 조종 중.',off='적 위치 동기화 꺼짐: %s',
         host='%s의 게임에서 꺼졌습니다.',stopped='오류로 게임을 다시 시작할 때까지 중지됨. 이유는 coop-link.log 참고.'},
     spawns={host='스폰 동기화 켜짐: 한 구역에서 나와 %s의 거리가 100m 이내인 곳에서는 그쪽 게임에 내 게임과 같은 '
@@ -3128,6 +3162,9 @@ T.nl={
         mods_other='%s gebruikt andere versies van jouw mods: %s. Delen van de outfit daaruit kunnen er hier anders '
             ..'uitzien.'},
     dlc={theirs='%s heeft DLC die jij niet hebt: %s.',yours='Jij hebt DLC die %s niet heeft: %s.'},
+    cycle={notice='%s speelt %s (%s); jij speelt %s (%s). Vijanden met een andere max. HP worden niet gedeeld.',
+        their_first='de eerste speelronde',your_first='je eerste speelronde',plus='Nieuwe game + %d',
+        normal='Normaal',story='Verhaal',hard='Moeilijk'},
     pilot={on='Zelfde plek: %d vijanden aangestuurd.',one='Zelfde plek: 1 vijand aangestuurd.',
         off='Zelfde plek uit: %s',host='de game van %s heeft het uitgezet.',
         stopped='gestopt door een fout tot de game opnieuw start. coop-link.log zegt waarom.'},
@@ -3401,6 +3438,9 @@ T.no={
         mods_other='%s bruker andre versjoner av moddene dine: %s. Deler av antrekket fra dem kan se annerledes ut '
             ..'her.'},
     dlc={theirs='%s har DLC-er du ikke har: %s.',yours='Du har DLC-er som %s ikke har: %s.'},
+    cycle={notice='%s spiller %s (%s); du spiller %s (%s). Fiender med annen maks HP deles ikke.',
+        their_first='sin første gjennomspilling',your_first='din første gjennomspilling',plus='Nytt spill+ %d',
+        normal='Normal',story='Historie',hard='Vanskelig'},
     pilot={on='Samme posisjon: %d fiender styres.',one='Samme posisjon: 1 fiende styres.',
         off='Samme posisjon slått av: %s',
         host='spillet til %s slo den av.',
@@ -3665,6 +3705,9 @@ T.pl={
         mods_missing='%s używa modów, których nie masz: %s. Części stroju z tych modów wyglądają tu inaczej.',
         mods_other='%s używa innych wersji twoich modów: %s. Części stroju z tych modów mogą tu wyglądać inaczej.'},
     dlc={theirs='%s ma DLC, których nie masz: %s.',yours='Masz DLC, których %s nie ma: %s.'},
+    cycle={notice='%s: %s (%s). Ty: %s (%s). Wrogowie z innymi maks. PŻ nie są wspólni.',
+        their_first='pierwsze przejście',your_first='pierwsze przejście',plus='Nowa gra + %d',
+        normal='Normalny',story='Fabularny',hard='Trudny'},
     pilot={on='Ta sama pozycja: sterowanie %d wrogami.',one='Ta sama pozycja: sterowanie 1 wrogiem.',
         off='Ta sama pozycja wyłączona: %s',host='zrobiła to gra po drugiej stronie (%s).',
         stopped='zatrzymał ją błąd do restartu gry. coop-link.log podaje powód.'},
@@ -3937,6 +3980,9 @@ T.pt={
         mods_other='%s usa outras versões dos teus mods: %s. As partes da roupa que vêm deles podem aparecer '
             ..'diferentes aqui.'},
     dlc={theirs='%s tem DLC que não tens: %s.',yours='Tens DLC que %s não tem: %s.'},
+    cycle={notice='%s joga %s (%s); tu jogas %s (%s). Os inimigos com outros PV máximos não são partilhados.',
+        their_first='a primeira partida',your_first='a tua primeira partida',plus='Novo jogo + %d',
+        normal='Normal',story='História',hard='Difícil'},
     pilot={on='Mesma posição: %d inimigos controlados.',one='Mesma posição: 1 inimigo controlado.',
         off='Mesma posição desativada: %s',host='o outro jogo (%s) desativou-a.',
         stopped='parada por um erro até o jogo reiniciar. O coop-link.log diz porquê.'},
@@ -4210,6 +4256,9 @@ T['pt-BR']={
         mods_other='%s usa outras versões dos seus mods: %s. As partes do traje que vêm deles podem aparecer '
             ..'diferentes aqui.'},
     dlc={theirs='%s tem DLCs que você não tem: %s.',yours='Você tem DLCs que %s não tem: %s.'},
+    cycle={notice='%s joga %s (%s); você joga %s (%s). Inimigos com outros PV máximos não são compartilhados.',
+        their_first='a primeira partida',your_first='a sua primeira partida',plus='Novo Jogo + %d',
+        normal='Normal',story='História',hard='Difícil'},
     pilot={on='Mesma posição: %d inimigos controlados.',one='Mesma posição: 1 inimigo controlado.',
         off='Mesma posição desativada: %s',host='o jogo de %s a desativou.',
         stopped='parada por um erro até o jogo reiniciar. O coop-link.log diz o motivo.'},
@@ -4478,6 +4527,9 @@ T.ru={
         mods_missing='У партнера (%s) моды, которых у вас нет: %s. Часть костюма здесь выглядит иначе.',
         mods_other='У партнера (%s) другие версии ваших модов: %s. Костюм может выглядеть иначе.'},
     dlc={theirs='DLC партнера (%s), которых у вас нет: %s.',yours='Ваши DLC, которых нет у партнера (%s): %s.'},
+    cycle={notice='%s: %s (%s). Вы: %s (%s). Враги с другим макс. ОЗ не общие.',
+        their_first='1-е прохождение',your_first='1-е прохождение',plus='"Новая игра +" %d',
+        normal='Обычный',story='Сюжетный',hard='Сложный'},
     pilot={on='Общие позиции включены. Синхронизировано врагов: %d.',
         one='Общие позиции включены. Синхронизирован 1 враг.',off='Общие позиции выключены: %s',
         host='так решила игра партнера (%s).',
@@ -4746,6 +4798,9 @@ T.sv={
         mods_other='%s använder andra versioner av dina moddar: %s. Delar av dräkten från dem kan se annorlunda ut '
             ..'här.'},
     dlc={theirs='%s har DLC som du inte har: %s.',yours='Du har DLC som %s inte har: %s.'},
+    cycle={notice='%s spelar %s (%s); du spelar %s (%s). Fiender med annan maxhälsa förblir odelade.',
+        their_first='sin första genomspelning',your_first='din första genomspelning',plus='Nytt spel + %d',
+        normal='Normal',story='Berättelse',hard='Svår'},
     pilot={on='Samma position: %d fiender styrs.',one='Samma position: 1 fiende styrs.',off='Samma position av: %s',
         host='spelet hos %s stängde av den.',
         stopped='ett fel stoppade den tills spelet startas om. coop-link.log säger varför.'},
@@ -4998,6 +5053,8 @@ T.th={
         mods_missing='%s ใช้ม็อดที่คุณไม่มี: %s ชุดบางส่วนจะดูต่างไป',
         mods_other='%s ใช้ม็อดคนละเวอร์ชัน: %s ชุดบางส่วนอาจดูต่างไป'},
     dlc={theirs='%s มี DLC ที่คุณไม่มี: %s',yours='คุณมี DLC ที่ %s ไม่มี: %s'},
+    cycle={notice='%s: %s (%s) คุณ: %s (%s) ศัตรู HP สูงสุดต่างกันไม่แชร์',
+        their_first='รอบ 1',your_first='รอบ 1',plus='NG+ %d',normal='ปกติ',story='สตอรี่',hard='ยาก'},
     pilot={on='ตำแหน่งเดียวกัน: ควบคุมศัตรู %d ตัว',one='ตำแหน่งเดียวกัน: ควบคุมศัตรู 1 ตัว',
         off='ปิดตำแหน่งเดียวกัน: %s',host='เกมของ %s ปิดฟีเจอร์นี้',
         stopped='เกิดข้อผิดพลาด หยุดจนกว่าจะรีสตาร์ตเกม ดูใน coop-link.log'},
@@ -5258,6 +5315,9 @@ T.tr={
         mods_other='%s sendeki modların başka sürümlerini kullanıyor: %s. Kıyafetinin bu modlardan gelen kısımları '
             ..'burada farklı görünebilir.'},
     dlc={theirs="%s sende olmayan DLC'lere sahip: %s.",yours="Sende %s oyuncusunda olmayan DLC'ler var: %s."},
+    cycle={notice='%s: %s (%s). Sen: %s (%s). Maksimum canı farklı düşmanlar paylaşılmaz.',
+        their_first='ilk oynanış',your_first='ilk oynanış',plus='Yeni Oyun + %d',
+        normal='Normal',story='Hikâye',hard='Zor'},
     pilot={on='Aynı konum: %d düşman yönlendiriliyor.',one='Aynı konum: 1 düşman yönlendiriliyor.',
         off='Aynı konum devre dışı: %s',host='%s tarafından kapatıldı.',
         stopped='bir hata yüzünden oyun yeniden başlayana dek durdu. Nedeni coop-link.log dosyasında.'},
@@ -5507,6 +5567,8 @@ T['zh-Hans']={
         mods_missing='%s使用了你没有的模组：%s。其服装中来自这些模组的部分在这里看起来不同。',
         mods_other='%s使用了你已有模组的其他版本：%s。其服装中来自这些模组的部分在这里可能看起来不同。'},
     dlc={theirs='%s拥有你没有的DLC：%s。',yours='你拥有%s没有的DLC：%s。'},
+    cycle={notice='%s：%s（%s）；你：%s（%s）。生命上限不同的敌人不共享。',
+        their_first='一周目',your_first='一周目',plus='新游戏+ %d',normal='正常',story='剧情',hard='困难'},
     pilot={on='同步位置：已操控%d个敌人。',one='同步位置：已操控1个敌人。',off='同步位置已关闭：%s',
         host='%s的游戏关闭了此功能。',stopped='因错误停止，重启游戏前不会恢复。原因见coop-link.log。'},
     spawns={host='同步刷怪已启用：你和%s在同一区域内相距100米以内时，对方游戏中的普通敌人与你的相同。',
@@ -5718,6 +5780,8 @@ T['zh-Hant']={
         mods_missing='%s使用了你沒有的模組：%s。其服裝中來自這些模組的部分在這裡看起來不同。',
         mods_other='%s使用了你已有模組的其他版本：%s。其服裝中來自這些模組的部分在這裡可能看起來不同。'},
     dlc={theirs='%s擁有你沒有的DLC：%s。',yours='你擁有%s沒有的DLC：%s。'},
+    cycle={notice='%s：%s（%s）；你：%s（%s）。最大生命值不同的敵人不會共享。',
+        their_first='一周目',your_first='一周目',plus='新遊戲+ %d',normal='普通',story='劇情',hard='困難'},
     pilot={on='敵人位置同步：已操控%d個敵人。',one='敵人位置同步：已操控1個敵人。',off='敵人位置同步已關閉：%s',
         host='%s的遊戲關閉了此功能。',stopped='因錯誤而停止，重新啟動遊戲前不會恢復。原因請見coop-link.log。'},
     spawns={host='敵人生成同步已開啟：在同一區域內，你與%s相距100公尺以內時，對方遊戲中的一般敵人會與你的相同。',
@@ -5861,6 +5925,16 @@ function T.dlcs(w,name,missing,extra)
         room=room-#said[i]-1
     end
     return table.concat(said,' ')
+end
+-- The New Game+ notice (main.lua): in w's words, her name, then her cycle and difficulty and ours (core/link.lua's
+-- cycles(): {count=, difficulty=}). A count of 0 reads as a first playthrough, any other as New Game+ n; difficulty 0
+-- is Normal, 1 Story, 2 Hard (game/sbo.h).
+function T.cycle(w,name,theirs,mine)
+    local c=w.cycle
+    local level={[0]=c.normal,c.story,c.hard}
+    local function run(n,first) return n==0 and first or c.plus:format(n) end
+    return c.notice:format(name,run(theirs.count,c.their_first),level[theirs.difficulty],run(mine.count,c.your_first),
+        level[mine.difficulty])
 end
 -- A notice of the Steam link (core/link.lua's notices(), link/core.h's English): for a join Steam refused, the
 -- function of the words (T.en or another table) that gives it in their language, as main.lua's tell takes one; nil
