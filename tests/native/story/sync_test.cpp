@@ -69,7 +69,7 @@ const char *const kTripSent = "ATL_01_E_ZoneWarp_001", *const kTripKept = "DED40
 
 void test_lines() {
   for (const std::string &l :
-       {T + "on", T + "on reply", T + "off setting", T + "off save", T + "off match",
+       {T + "on 7", T + "on 0", T + "on reply 2", T + "off setting", T + "off save", T + "off match",
         T + "play 1 7 Zone_WLA_40 WLA_40_E_Theater_026 100", T + "play 2 0 Z R -5",
         T + "talk 3 7 Zone_Xion_10 /Game/A/B.C 10 -150 2000 35 0 -9000 18000 100",
         T + "talk 4 4294967295 Z /a-b/c_d.e 2147483647 -2147483648 0 0 0 0 0 -1",
@@ -94,7 +94,9 @@ void test_lines() {
   const Message p = P(T + "pos 6 7 -3 S -10 0");
   assert(p.type == Type::pos && p.take == -3 && p.name == "S" && p.frame == -10 && !p.flag);
   assert(P(T + "trip 21 Zone_Xion_10 Xion_10_E_ZoneWarp_012").scene == 0);
-  assert(P(T + "end 007 07").seq == 7 && P(T + "off match").reason == "match" && P(T + "on reply").reply);
+  assert(P(T + "end 007 07").seq == 7 && P(T + "off match").reason == "match");
+  const Message o = P(T + "on reply 6");
+  assert(o.type == Type::on && o.reply && o.hooks == (kHookQte | kHookCounter) && !P(T + "on 1").reply);
   // The largest legal line fits kMaxMessage.
   const std::string w(coop::kMaxAlias, 'W'), path = "/" + std::string(kMaxPath - 1, 'p');
   const std::string big = T + "talk 4294967295 4294967295 " + w + " " + path +
@@ -108,7 +110,8 @@ void test_lines() {
 void test_malformed() {
   const std::string w(coop::kMaxAlias + 1, 'W');
   for (const std::string &l :
-       {std::string(), std::string("SBS"), T, T + "on ", T + "on 1", T + "off", T + "off a b", T + "off bad-word",
+       {std::string(), std::string("SBS"), T, T + "on", T + "on reply", T + "on ", T + "on 8", T + "on -1",
+        T + "on 1 2", T + "on reply x", T + "on  1", T + "off", T + "off a b", T + "off bad-word",
         std::string("SBS21 end 1 7"), std::string("SBW") + T.substr(3) + "end 1 7", T + "End 1 7", T + "x 1 7",
         T + "end 0 7", T + "end 4294967296 7", T + "end 1 4294967296", T + "end 1", T + "end 1 7 8", T + "end  1 7",
         T + "end 1 7 ", T + "end -1 7", T + "play 1 7 Z R", T + "play 1 7 Z R 1 2", T + "play 1 7 Z R/S 1",
@@ -278,6 +281,7 @@ constexpr uint64_t kHim = 76561198000000001ull, kHer = 76561198000000002ull;
 Gates on(uint64_t partner, bool host) {
   Gates g;
   g.setting = true, g.partner = partner, g.host = host, g.match = false, g.coop_save = true, g.in_game = true;
+  g.hooks = kHooks;
   return g;
 }
 
@@ -653,9 +657,16 @@ void test_seq_and_sides() {
   p.host.receive(T + "end 1 7", p.hg);
   assert(p.host.counters.bad == 1);
   // Her on starts the seq again.
-  p.guest.receive(T + "on", p.gg);
+  p.guest.receive(T + "on 7", p.gg);
   p.guest.receive(T + "end 1 7", p.gg);
   assert(p.guest.counters.received == 4 && p.guest.counters.bad == 3);
+  // The host's on says which of his hooks are in: without his QTE hook her presses on QTEs stay hers, said in the log.
+  assert(p.guest.partner_hooks() == kHooks && !saw(p.guest.log, "hook is not in"));
+  p.guest.receive(T + "on 5", p.gg);
+  assert(p.guest.partner_hooks() == (kHookTalk | kHookCounter) && saw(p.guest.log, "the host's QTE hook is not in"));
+  assert(!saw(p.guest.log, "InputCounter hook is not in"));
+  p.guest.receive(T + "off setting", p.gg);
+  assert(p.guest.partner_hooks() == 0);
 }
 
 void test_load_and_overflow() {

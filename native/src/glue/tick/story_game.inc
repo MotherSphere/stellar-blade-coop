@@ -112,14 +112,16 @@ void story_theater_hook(int64_t *node) {
 // Before the game's start, while we lead, a block of the same widget not read yet gives its count (the InputCounter's
 // one widget serves every section and its start clears the count). Its template's Setup has written the next
 // section's kind, forced success and Flow entries by then, so those come from what the last pass kept of the block.
-// After the start, the new block is kept with its take and ordinal; while her copy follows his, her presses on it go.
-// Out of line for the latch, as hook 1.
+// After the start, the new block is kept with its take and ordinal; while her copy follows his and his hook for that
+// class is in (his on line says so), her presses on it go. Out of line for the latch, as hook 1.
 __declspec(noinline) void story_block_body(story::Type type, uint64_t widget, bool before) {
   try { // Out of memory turns story together off for the run, as a fault does.
     if (before)
       story_engine.block_closing(widget);
     else
-      story_engine.block_started(type, widget, story_leading, story_holding);
+      story_engine.block_started(type, widget, story_leading,
+                                 story_holding && (story_sync.partner_hooks() &
+                                                   (type == story::Type::qte ? story::kHookQte : story::kHookCounter)));
   } catch (...) {
     story_faulted = true;
   }

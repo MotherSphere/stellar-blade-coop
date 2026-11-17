@@ -28,13 +28,15 @@
 //   SBSn qte <seq> <scene> <take> <n> <count> <0|1>    a QTE: the presses counted, 1 when his accessibility option
 //                                                      forces a success (the section may ignore it: both read that)
 //   SBSn cnt <seq> <scene> <take> <n> <count> <0|1> <bits> <0|1>
-//                                                      an InputCounter: the same plus its Flow results (bit i: entry i),
-//                                                      then 1 when his press ran its take select and skip at once
+//                                                      an InputCounter: the same plus its Flow results (bit i for
+//                                                      entry i), then 1 when his press ran its take select and skip
 //   SBSn skip <seq> <scene> <take> seek <frame>        a skip that moved the host within the take
 //   SBSn skip <seq> <scene> <take> take <next>         a skip that finished the take: the next take, -1 for the end
 //   SBSn end <seq> <scene>                             the host's scene ended
 //   SBSn trip <seq> <zone> <row>                       a story trip an interaction graph ran (story/rows.h trip_sent)
-//   SBSn on, SBSn on reply, SBSn off <reason>          the sender's feature state, as world/sync.h's
+//   SBSn on <hooks>, SBSn on reply <hooks>, SBSn off <reason>
+//                                                      the sender's feature state, as world/sync.h's; hooks: the
+//                                                      sender's hooks in (kHookTalk, kHookQte, kHookCounter added)
 // seq is 1 for the first line after each on and one more for each later one. The guest takes them in seq order: an
 // old seq is dropped and a gap is logged, so the leash never steps back. The host sends a scene's results before the
 // position that passes them, so each result is in her copy before her copy reaches the point where the game reads it.
@@ -72,6 +74,8 @@ inline bool path_word(std::string_view w) {
 }
 
 enum class Type : uint8_t { invalid, play, talk, pos, sel, pch, qte, cnt, skip, end, trip, on, off };
+// The hooks a side has in, on its on line: hook 1 (ActionTheater), 2 (QTE OnStartBlock), 3 (InputCounter's).
+constexpr uint8_t kHookTalk = 1, kHookQte = 2, kHookCounter = 4, kHooks = 7;
 struct Message {
   Type type = Type::invalid;
   uint32_t seq = 0;      // all but on and off
@@ -90,6 +94,7 @@ struct Message {
   bool now = false;      // cnt: his press ran the take select and skip with its Result
   std::string reason;    // off
   bool reply = false;    // on: the answer to her on, never answered itself
+  uint8_t hooks = 0;     // on: the sender's hooks in
 };
 // A result: a line written into her copy for its take.
 inline bool result(Type t) {
@@ -102,7 +107,7 @@ inline std::string format(const Message &m) {
   const std::string head = " " + s(m.seq) + " " + s(m.scene) + " ";
   const std::string widget = head + s(m.take) + " " + s(m.n) + " ";
   switch (m.type) {
-  case Type::on: return t + (m.reply ? "on reply" : "on");
+  case Type::on: return t + (m.reply ? "on reply " : "on ") + s(unsigned(m.hooks));
   case Type::off: return t + "off " + m.reason;
   case Type::play: return t + "play" + head + m.zone + " " + m.name + " " + s(m.take);
   case Type::talk: {
@@ -158,10 +163,13 @@ inline Message parse(const char *data, size_t size) {
   if (text.find('\0') != std::string::npos)
     return Message();
   Message m;
-  if (text == story_tag() + " on" || text == story_tag() + " on reply") {
-    m.type = Type::on;
-    m.reply = text != story_tag() + " on";
-    return m;
+  for (const bool reply : {false, true}) {
+    const std::string on = story_tag() + (reply ? " on reply " : " on ");
+    uint32_t hooks = 0;
+    if (text.compare(0, on.size(), on) == 0 && detail::uint32(text.substr(on.size()), hooks) && hooks <= kHooks) {
+      m.type = Type::on, m.reply = reply, m.hooks = uint8_t(hooks);
+      return m;
+    }
   }
   std::string head[2], rest, f[12];
   if (!split(text, head, 2, &rest) || head[0] != story_tag())
@@ -337,6 +345,7 @@ struct Gates {
   bool match = false;     // a match lobby or the SBO lobby, where nobody plays a co-op save
   bool coop_save = false; // we play a co-op save
   bool in_game = false;   // in game, not loading, not on the logic thread: her lines wait otherwise
+  uint8_t hooks = 0;      // our hooks in (kHookTalk, kHookQte, kHookCounter), told to her on our on line
 };
 
 // The guest's game side, behind story/engine.h. Every call is on the game thread, in game.
@@ -432,9 +441,15 @@ public:
     if (m.type == Type::on || m.type == Type::off) {
       const bool on = m.type == Type::on;
       if (on)
-        last_ = 0; // Her seq starts again after each on.
+        last_ = 0, her_hooks_ = m.hooks; // Her seq starts again after each on.
       her_on_ = on;
-      log.push_back(on ? "story: partner on" : "story: partner off (" + m.reason + ")");
+      std::string said = on ? "story: partner on" : "story: partner off (" + m.reason + ")";
+      // Her presses on a QTE or InputCounter are taken only when the host's hook for that class reads his results.
+      if (on && !g.host && !(m.hooks & kHookQte))
+        said += "; the host's QTE hook is not in, so her own presses count on QTEs in his scenes";
+      if (on && !g.host && !(m.hooks & kHookCounter))
+        said += "; the host's InputCounter hook is not in, so her own presses count on InputCounters in his scenes";
+      log.push_back(said);
       return;
     }
     if (g.host)
@@ -518,6 +533,8 @@ public:
     return s;
   }
   bool partner_on() const { return her_on_; }
+  // The hooks her last on line said she has in; none while she is off.
+  uint8_t partner_hooks() const { return her_on_ ? her_hooks_ : 0; }
   size_t queued() const { return queue_.size(); }
   // A shared copy starts or plays in her game: the photo freeze for the host's cutscene is not held.
   bool active() const { return copy_.state != State::none; }
@@ -579,7 +596,7 @@ private:
       counters.gated += queue_.size() + trips_.size();
       if (copy_.state != State::none)
         drop_copy(g.in_game, "a new partner");
-      partner_ = g.partner, her_on_ = false, last_ = 0, said_.clear(), queue_.clear(), trips_.clear();
+      partner_ = g.partner, her_on_ = false, her_hooks_ = 0, last_ = 0, said_.clear(), queue_.clear(), trips_.clear();
       last_pos_ = Message();
     }
     if (!partner_)
@@ -592,6 +609,7 @@ private:
     m.type = why ? Type::off : Type::on;
     m.reason = why ? why : "";
     m.reply = answer;
+    m.hooks = g.hooks; // Swapped in by the worker before it first hands us open gates, so they hold while we are on.
     out.push_back(format(m));
     said_ = word;
     if (!why)
@@ -831,6 +849,7 @@ private:
   Gates gates_;
   uint64_t partner_ = 0;
   bool her_on_ = false, overflowing_ = false, gap_logged_ = false, said_full_ = false;
+  uint8_t her_hooks_ = 0; // From her last on line.
   bool unhold_ = false, unrelease_ = false; // A copy dropped out of game: its pause and input holds still to go.
   uint32_t seq_ = 0, last_ = 0;
   std::string said_; // Our last state line to her ("on" or "off <reason>"), empty after a new partner.

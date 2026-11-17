@@ -73,7 +73,8 @@
 //     0x14254a750, 0x14254a800). The InputCounter's press handler runs those two for kinds 1 and 2 only; its stick
 //     test (0x14254ade0) and the Flow's tick (0x14254d2d0) show Result alone, so they wait for her section end unless
 //     the host's line says his press ran them (his Result shown with his take skip latch +0x848 taken).
-//   block_started() on her side while her copy follows his: the widget's unbind (0x142551ea0, 0x14254daa0); for an
+//   block_started() on her side while her copy follows his and his hook for that class is in (his on line says so; a
+//     QTE he cannot read stays hers to press): the widget's unbind (0x142551ea0, 0x14254daa0); for an
 //     InputCounter also its stick checks (+0x818, the Flow entries' +0x20) cleared and each Flow entry marked bound
 //     (+0x30), since its tick 0x14254ade0 counts sticks and binds each Flow entry's presses itself.
 //   hold_widgets(), each pass her copy follows his: her InteractionSelect menu of this play keeps its input block

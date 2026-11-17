@@ -11,20 +11,21 @@ namespace {
 bool story_setting = true;
 bool story_tried = false; // The swaps were made or refused this run.
 // The three slots: hook 1, the ActionTheater node's run; hooks 2 and 3, the QTE's and the InputCounter's
-// OnStartBlock. What each one brings; what goes without it.
+// OnStartBlock. Its bit on our on line; what each one brings; what goes without it.
 struct StorySlot {
   const char *name;
+  uint8_t bit;
   uint64_t slot, original;
   void (*hook)(int64_t *);
   const char *gain, *loss;
   Filter state = Filter::untried;
 };
 StorySlot story_slots[] = {
-    {"ActionTheater", story::kTheaterSlot, story::kTheaterRun, story_theater_hook, "talks are shared too",
-     "every scene goes as a table row, talks are not shared"},
-    {"QTE OnStartBlock", story::kQteSlot, story::kQteStart, story_qte_hook, "QTE results are shared",
+    {"ActionTheater", story::kHookTalk, story::kTheaterSlot, story::kTheaterRun, story_theater_hook,
+     "talks are shared too", "every scene goes as a table row, talks are not shared"},
+    {"QTE OnStartBlock", story::kHookQte, story::kQteSlot, story::kQteStart, story_qte_hook, "QTE results are shared",
      "a QTE in a shared scene counts her own presses"},
-    {"InputCounter OnStartBlock", story::kCounterSlot, story::kCounterStart, story_counter_hook,
+    {"InputCounter OnStartBlock", story::kHookCounter, story::kCounterSlot, story::kCounterStart, story_counter_hook,
      "InputCounter results are shared", "an InputCounter in a shared scene counts her own presses"},
 };
 bool story_fault_logged = false, story_undo_logged = false;
@@ -153,6 +154,9 @@ void story_pass(uint64_t partner, bool host, bool match, std::vector<std::string
   g.coop_save = world::slot_coop(quest_slot_line, story_slot_coop);
   if (!story_tried && g.setting && g.partner && !g.match && g.coop_save)
     story_install();
+  for (const StorySlot &k : story_slots)
+    if (k.state == Filter::on)
+      g.hooks |= k.bit;
   for (std::string &line : hers)
     if (story_waiting.size() < kStoryInbox)
       story_waiting.push_back(std::move(line));
