@@ -15,7 +15,7 @@ local ROWS={{lobby='109775241234567890',owner='76561198000000001',players='1/2',
     {lobby='109775241234567891',owner='76561198000000003',players='1/2',pal=true,name='Bo\7b'},
     {lobby='109775241234567892',owner='76561198000000004',players='1/2',name=''}}
 
--- No list yet, never asked: idle, and Refresh asks for this tab.
+-- No list yet, never asked: idle; Refresh asks for this tab.
 local v=view({})
 assert(v.status.key=='idle' and #v.rows==0 and not v.busy and v.wait==0)
 assert(M.refresh(v)=='list public' and M.refresh(view({tab='friends'}))=='list friends')
@@ -28,7 +28,7 @@ v=view({search={tab='public',state='searching',rows=0},asked=99})
 assert(v.status.key=='searching' and v.busy and v.ours and M.refresh(v)=='list stop')
 v=view({tab='friends',search={tab='public',state='searching',rows=0},asked=99})
 assert(v.status.key=='searching' and #v.rows==0 and M.refresh(v)=='list stop')
--- A match search runs: searching, and Refresh asks nothing (Steam runs one search a player).
+-- A match search runs: searching; Refresh asks nothing (Steam runs one search a player).
 v=view({match={state='searching',mode='ffa'}})
 assert(v.status.key=='searching' and v.busy and not v.ours and M.refresh(v)==nil)
 -- Done: this tab's rows as the native part gave them, names cleaned (a control character dropped) and nil when empty;

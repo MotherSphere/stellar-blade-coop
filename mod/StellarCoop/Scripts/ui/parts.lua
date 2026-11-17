@@ -1,11 +1,12 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Stellar Blade's own widget parts for the SBO screens made of them (ui/lobby.lua, ui/sessions.lua): each part's
--- object path and class, and for one screen (new) the helpers that make, remake and drive them. A part is made in a
--- ui/kit.lua group (kit.part) from a spec, and made again when its slot's content or place changes or its root went (a
--- map change); a call on one runs in pcall and a refusal is logged once a kind; a kind that cannot be made is logged
--- once and left out until the mod reloads, so the screen draws its kit fallback in its place.
+-- Stellar Blade's own widget parts for the SBO screens made of them (ui/lobby.lua, ui/sessions.lua, ui/create.lua and
+-- session/join.lua's popups): each part's object path and class; for one screen (new), the helpers that make, remake
+-- and drive them. A part is made in a ui/kit.lua group (kit.part) from a spec. It is made again when its slot's content
+-- or place changes or its root went (a map change); a call on one runs in pcall and a refusal is logged once a kind; a
+-- kind that cannot be made is logged once and left out until the mod reloads, so the screen draws its kit fallback in
+-- its place.
 local Parts={}
 -- Each kind's path under /Game/Art/UI/Widget/, in the parts check's order (ui/lobby.lua).
 Parts.ORDER={'row','option','header','hint','popup','count'}

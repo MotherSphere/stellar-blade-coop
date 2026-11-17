@@ -463,7 +463,7 @@ for _,bad in ipairs({{'ui_scale','74','use 75 to 150','100'},{'ui_scale','151','
     assert(#notes==1 and notes[1]=="settings: line 1: '"..bad[2].."' is not allowed for "..bad[1].." ("..bad[3].."); "
         ..bad[1].." stays "..bad[4],notes[1])
 end
--- Who can join a session hosted here: public (the default when the file names none, and a new file's), friends,
+-- Who can join a session hosted here: public (the default when the file names none, also a new file's), friends,
 -- invitation or closed, as written. The words of 0.11 and older, code (the join code) and private (invited only), both
 -- read as invitation; the file keeps them. friends_ask: off by default, on or off as written.
 assert(Link.parse_settings('').who_can_join=='public'
@@ -1608,7 +1608,7 @@ do
     assert(l.status()=='link=host lobby=10\n' and reads==1,'No status at the pass: the disk')
 end
 -- The session list (list public, list friends): its list= line, then its session= rows in order, the host's name last
--- and whole, '-' read as none; each from the start of its own line, and a row only after a list= line. A joiner's
+-- and whole, '-' read as none; each from the start of its own line, a row only after a list= line. A joiner's
 -- wait= line: the seconds left and the host's name, logged once a wait (its seconds change each second).
 do
     local l=require('core.link').new('C:\\Mod',fs)

@@ -6,9 +6,9 @@
 // writes, the Public search, the friends' lobbies), members, the host's approval of a joiner who is not her Steam
 // friend (or of any joiner with friends_ask=on), handshake, liveness and status, the synced photo mode's line, the chat
 // and vitals lines, the follow's camps lines, Night Operation's night line, channel 1, where the pose path's tables and
-// poses and the pilot's enemy roots (SBE) travel, and channel 2, where the shared enemies' lines and the pilot's show
+// poses and the pilot's enemy roots (SBE) travel, then channel 2, where the shared enemies' lines and the pilot's show
 // lines travel. Every Steam call goes through the Api table, so tests/native/link/core_test.cpp drives this file with a
-// fake Steam on the build machine, and glue/steam.cpp fills the table from the game's steam_api64.dll (flat API, SDK
+// fake Steam on the build machine; glue/steam.cpp fills the table from the game's steam_api64.dll (flat API, SDK
 // 1.59).
 #pragma once
 
@@ -1050,7 +1050,7 @@ public:
            (round_.playing ? start.substr(start.find(' ') + 1) : "end " + round_.why) + "\n";
     }
     // While we host: our join code (none outside who_can_join=invitation), the players refused for the rest of this
-    // lobby, and each joiner waiting for our answer, her name last.
+    // lobby, then each joiner waiting for our answer, her name last.
     if (host_ && lobby_) {
       s += "code=" + (code_.empty() ? std::string("none") : code_) + " refused=" + std::to_string(refused_.size()) +
            "\n";
@@ -3233,8 +3233,8 @@ private:
   bool blocks_kept_ = false; // coop-blocked.txt was not read in full: never written (blocks()).
   bool blocks_changed_ = false; // take_blocks() owes the file a write.
   // While we host: who_can_join of the lobby asked for, its join code (empty outside who_can_join=invitation), the
-  // members let in, and those refused, with when a reject may go to her again (0: she is gone), all for this lobby
-  // only; our code once the copy request asked for it.
+  // members let in, those refused with when a reject may go to her again (0: she is gone), all for this lobby only;
+  // our code once the copy request asked for it.
   Who hosting_ = Who::friends;
   // The session list's rows while we host an online session: written (Public and Friends only), listed (Public),
   // whether Steam friends wait for our answer too (friends_ask=on, from the host request), the members' count as last

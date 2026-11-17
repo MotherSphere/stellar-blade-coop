@@ -129,7 +129,7 @@ inline const Mode *find_mode(std::string_view name) {
 // bytes at most), her SteamID, the members as "<n>/<max>", her map segment and camp alias (Lua's where request,
 // kMaxPlace bytes each), her rules word (Lua's rules request, kMaxRules bytes) and her ping location from Steam's
 // ConvertPingLocationToString (kMaxPingText bytes). kAskKey=1 on any online session whose host asks her Steam friends
-// too (friends_ask=on), so a friend who joins knows she waits for an answer. Any SBO client can write any of them: a
+// too (friends_ask=on): a friend who joins reads it and waits for an answer. Any SBO client can write any of them: a
 // reader cleans each one (row_text(), row_word()).
 constexpr char kListKey[] = "sbo_list", kHostKey[] = "sbo_host", kOwnerKey[] = "sbo_owner";
 constexpr char kPlayersKey[] = "sbo_players", kZoneKey[] = "sbo_zone", kCampKey[] = "sbo_camp";

@@ -412,7 +412,7 @@ function Travel.new(o)
         link.request(text)
         log('travel: answered '..text)
     end
-    -- The host's row in the session list: the rules word, and its place once EVE stands on a map (none at the title or
+    -- The host's row in the session list: the rules word, then its place once EVE stands on a map (none at the title or
     -- in a load); a map outside the camp table goes with no camp.
     -- A refusal is logged once until it changes or the ask goes through (a request file that cannot be written would
     -- come back every 250 ms).

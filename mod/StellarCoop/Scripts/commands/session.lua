@@ -6,7 +6,7 @@
 -- revive test, coop travel, coop saves and coop sbo.
 -- main.lua builds them with new(o) at each Lua load and merges them into its command table, whose run() logs each
 -- result and, after coop off, refuses all but status and report. o: main.lua's link, settings, puppet, ask (a line for
--- the native part), coop_slot and sbo, and group(), travel(), create() and lobby (ui/lobby.lua's), read at each call:
+-- the native part), coop_slot and sbo; group(), travel(), create() and lobby (ui/lobby.lua's), read at each call:
 -- the revive, the follow, the Create a session screen and the lobby's screens are built later, with the Steam link
 -- only.
 local Session={}

@@ -16,8 +16,7 @@
 -- without its prefix, the race's panel, marker, banner and results within theirs, the lobby menu's rows, settings,
 -- values and status within their columns and its waiting-room notice within 200 bytes, Find a session's hints, status
 -- lines, version and footer within theirs, Create a session's title, rules header, Start row and right-pane words
--- within theirs, and no Thai word that ends on a
--- leading vowel; each join Steam refused as link/core.h words it, in every language; the DLC notice (T.dlcs) within
+-- within theirs; no Thai word that ends on a leading vowel; each join Steam refused as link/core.h words it, in every language; the DLC notice (T.dlcs) within
 -- 200 bytes with 100-byte DLC names in every language; its English as main.lua says it.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')

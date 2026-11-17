@@ -10,7 +10,7 @@ dofile('tests/lua/main/fixture.lua')
 -- The co-op menu (ui/menu.lua, ui/model.lua and ui/text.lua for real; the kit faked). menu_key opens it in a world
 -- only, with its root up and the game not paused; its keys move, wrap over headers, select and go back; Host closes it
 -- and, while the Create a session screen cannot open, hosts at once (the Steam overlay takes the focus); the game's
--- input comes back 150 ms after a close; it closes when the world or our HUD goes, and at coop off.
+-- input comes back 150 ms after a close; it closes when the world or our HUD goes, also at coop off.
 settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',false,false
 load_main(true)
 assert(kit_opts.scale==100 and kit_opts.sounds==true and kit_opts.store=='store coop-ui.txt'
@@ -570,7 +570,7 @@ settings_text,in_world,kit_ready='',false,false
 end)()
 -- Find a session (the main page and the co-op line): the menu closes and the Sessions screen opens (ui/sessions.lua,
 -- faked; sessions_test tests it). While it is open it takes the keys, the pad and the mouse: the arrows, W, S, Enter,
--- Space and Esc; Q and E (A and E on AZERTY) its tabs; R and Y its Refresh; LB and RB; a left click, and a right one as
+-- Space and Esc; Q and E (A and E on AZERTY) its tabs; R and Y its Refresh; LB and RB; a left click; a right one as
 -- Back. The menu key and View held close it. Each 250 ms it gets the HUD's shown; coop ui reset closes it.
 ;(function()
     local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end
@@ -609,7 +609,7 @@ end)()
     assert(navs(n)=='nav click nav back' and not kit_shown.menu,navs(n))
     local slows=#ss.slows
     quarter(); assert(#ss.slows==slows+1 and ss.slows[#ss.slows]==true,'Its slow gets the HUD shown')
-    key('F5'); assert(not ss.open and not kit_shown.menu,'The menu key closes it, and opens nothing')
+    key('F5'); assert(not ss.open and not kit_shown.menu,'The menu key closes it: it opens nothing')
     -- View held closes it; coop ui reset closes it.
     key('F5'); to('Find a session'); key('RETURN'); assert(ss.open)
     pad(7); assert(not ss.open and not kit_shown.menu and logged('pad: menu'))

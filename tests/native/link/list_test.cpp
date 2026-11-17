@@ -143,7 +143,8 @@ int main() {
   }
 
   // friends_ask=on (host ... ask): sbo_ask=1 on the lobby, so a Steam friend who joins waits for the host's answer like
-  // anyone else, and knows it. Let in, she links. An Invitation session writes sbo_ask too, with no rows.
+  // anyone else; her game reads sbo_ask and shows the wait. Let in, she links. An Invitation session writes sbo_ask
+  // too, with no rows.
   reset();
   {
     Mesh m(2);

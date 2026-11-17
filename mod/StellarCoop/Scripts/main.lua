@@ -182,8 +182,8 @@ local function open_screen() return sessions.is_open() and sessions or create.is
 -- coop ui reset and the focus watchdog: the menu, the chat's box, the code box, the Sessions and Create a session
 -- screens and the lobby's screens closed, an open host's question denied, the co-op saves' question closed as Decide
 -- later, the game's input given back now and the menu's mouse cursor put back; a lobby screen closed in the lobby world
--- gives the view back to EVE with the room's overlay, as Back does. With why (the watchdog's): it is logged, and a
--- co-op saves pass under way is kept.
+-- gives the view back to EVE with the room's overlay, as Back does. With why (the watchdog's): it is logged. A co-op
+-- saves pass under way is kept.
 local function ui_reset(why)
     menu.close(); box.close(); code_box.close(); approval.close(); saves_ui.close(why~=nil); sessions.close()
     create.close()

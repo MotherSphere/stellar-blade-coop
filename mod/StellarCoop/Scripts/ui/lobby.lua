@@ -13,8 +13,8 @@
 -- takes the mouse, so no part ever sees it. A part is made on the first draw after a root build (a map change or the
 -- look warmed drops them all) and again when its slot's content changes. Rows, words and actions are
 -- ui/lobby_model.lua's over main.lua's view(); what a row asks for goes to main.lua's act(). The parts are made and
--- driven through ui/parts.lua: every part call runs in pcall; a refusal is logged once, and a part that cannot be made
--- is logged once and left out until the mod reloads.
+-- driven through ui/parts.lua: every part call runs in pcall; a refusal is logged once; a part that cannot be made is
+-- logged once and left out until the mod reloads.
 -- B or C opened, both closed, the question asked and answered, and C's Back each log one line (the focus watchdog's
 -- context).
 -- Ruling 5's fallback then draws the same shape with the kit: B's and C's rows as kit rows (the mouse zones' own

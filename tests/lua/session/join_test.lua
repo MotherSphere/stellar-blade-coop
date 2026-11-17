@@ -453,8 +453,8 @@ pa.close(); assert(not pa.is_open() and #ran==runs+1)
 pa.slow(true); assert(not pa.is_open())
 assert(#logs==1,'No refusal from SB\'s popup: '..table.concat(logs,'|'))
 
--- The feed's join and leave lines in SB's words, the name as the native part wrote it (a % in it kept); the others,
--- and every line when SB's word is missing or has no {Name}, stay as they came (nil).
+-- The feed's join and leave lines in SB's words, the name as the native part wrote it (a % in it kept). The others
+-- stay as they came (nil), as does every line when SB's word is missing or has no {Name}.
 local fr={UI_Night_Message_ComeBackFriend='{Name} a rejoint la partie.',
     UI_Night_Message_LeaveFriend='{Name} has left the game.'}
 local function g(key) return fr[key] end

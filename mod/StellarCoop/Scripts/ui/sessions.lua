@@ -18,7 +18,7 @@
 -- are in a lobby. A transparent kit row over each row and tab takes the mouse, so no part ever sees it.
 -- SB's words come from its StringTable_UI through game_text (o.game_text, nil under ui_language=english), read once a
 -- key while the screen is open; SBO's words are ui/text.lua's. Parts are ui/parts.lua's: every part call runs in pcall,
--- a refusal is logged once, a part that cannot be made is logged once and left out until the mod reloads, and its kit
+-- a refusal is logged once, a part that cannot be made is logged once and left out until the mod reloads. Its kit
 -- fallback draws in its place: rows as kit rows, headers and hints as kit texts.
 -- Open, closed and a join asked each log one line.
 local Model=require('ui.sessions_model')
@@ -105,7 +105,7 @@ function Sessions.new(o)
         local where=region(r)
         return (where~='' and where..' · ' or '')..players(r)
     end
-    -- The rules on, by their Options names, and the boss HP scale with shared bosses.
+    -- The rules on, by their Options names, then the boss HP scale with shared bosses.
     local function rules_of(t,r)
         local ids=Model.rules(r.rules)
         if not ids then return '' end
@@ -216,7 +216,7 @@ function Sessions.new(o)
         end
     end
     function self.is_open() return open end
-    -- Opens the screen, taking the game's input with the mouse cursor, and asks for a search of its tab when it may.
+    -- Opens the screen, taking the game's input with the mouse cursor; asks for a search of its tab when it may.
     -- false and why (English, for the log) when the kit is off or not up.
     function self.open()
         if kit.off() then return false,'Find a session is off: the UI stopped (see the log)' end

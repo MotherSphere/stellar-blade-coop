@@ -5,7 +5,7 @@
 -- each on one of the 12 story worlds, no autosave volume, no camp of a developer test world and none that leads to
 -- several worlds (together only: such a camp is never sent by the host's game nor accepted by the guest's). The host's
 -- answer: its cache of the map's spawn points named after a camp of its world, built once a map and never during a
--- load, the 8 nearest its EVE first, and none with why (title, loading, nocamp, busy). The host's row in the session
+-- load, the 8 nearest its EVE first, or none with why (title, loading, nocamp, busy). The host's row in the session
 -- list: its rules word on each change, its map and nearest camp at once on each map and once a minute at most, from the
 -- same cache (read again a minute later when it found none). The guest's choice: the first camp of the answer in her
 -- table under the host's world that her save has activated and that this game knows as a name (FNAME_Find, never a
@@ -150,7 +150,7 @@ for i,alias in ipairs(xion) do
 end
 run(t,0.25)
 -- Hosting: the session list's row at once (its map's last part and the nearest camp, from the read the answer then
--- uses; the rules word), and nothing asked of the native part.
+-- uses; the rules word); nothing else asked of the native part.
 assert(#W.requests==0 and W.finds==1 and #W.wheres==1 and W.wheres[1]=='e04 Xion_Camp_10_01' and W.rules[1]=='100',
     tostring(W.wheres[1]))
 W.asked=41

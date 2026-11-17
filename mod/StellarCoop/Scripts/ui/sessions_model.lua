@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The Sessions screen's model (Find a session), no engine call: a tab's rows from the native part's list, the status
--- line's key, what Refresh and Select ask for, the cursor, and the StringTable_UI keys a row's region and camp read.
+-- line's key, what Refresh and Select ask for, the cursor and the StringTable_UI keys a row's region and camp read.
 -- One search at a time, M.GAP s apart at least, none while a match search runs; Refresh while our own search runs stops
 -- it. The native part refuses the same (link/core.h's ask_list); asking here first keeps its notices out of the feed.
 -- ui/sessions.lua gives the keys and ids their words.
@@ -14,7 +14,7 @@ M.GAP=5 -- Seconds between two searches (link/core.h's kListEveryMs).
 -- A row's region: its zone word (the host's map, the last part of its path) to the StringTable_UI keys tried in order,
 -- the region's own name first (UI_RegionAlias_<segment>, the open worlds' UI_Map_Region_<world> next). A zone with no
 -- key here shows as it is.
--- shortcut: the story maps whose segment names its key only, and three named alike; DEDA (f01) and the DLC maps
+-- shortcut: the story maps whose segment names its key only, plus three named alike; DEDA (f01) and the DLC maps
 -- (ard_p, met_p) show their raw word until a key for them is read in Ghidra.
 local REGION={b07={'UI_RegionAlias_B07'},c05={'UI_RegionAlias_C05'},f02={'UI_RegionAlias_F02'},
     e03_wasteland_p={'UI_RegionAlias_E03','UI_Map_Region_WasteLand'},e04={'UI_RegionAlias_E04','UI_Map_Region_Xion'},
@@ -66,7 +66,7 @@ function M.move(n,at,step)
 end
 -- The other tab.
 function M.other(tab) return tab==M.TABS[1] and M.TABS[2] or M.TABS[1] end
--- A zone word's region keys (nil: none known), and a camp alias's key.
+-- A zone word's region keys (nil: none known); a camp alias's key.
 function M.region(zone) return zone and REGION[zone:lower()] end
 function M.camp(alias) return alias and 'UI_CampAlias_'..alias end
 -- A rules word read back (Link.read_rules: any SBO client writes it): the rule ids on, in order, with boss (the boss HP

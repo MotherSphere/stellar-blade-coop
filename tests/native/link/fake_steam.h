@@ -326,7 +326,7 @@ template <int N> Api make_api() {
   a.distance_filter = [](void *, int d) { F.client[N].filter_distance = d; };
   a.result_count_filter = [](void *, int n) { F.client[N].filter_count = n; };
   // Lobbies of type Public or Invisible (never FriendsOnly or Private), joinable, under their limit with the slots
-  // asked free, and holding every filter's key with its value; the first ones by id, at most the result count asked
+  // asked free, holding every filter's key with its value; the first ones by id, at most the result count asked
   // (50, as Steamworks documents, when none was). An empty lobby stays listed: it stands for one gone between the
   // search and the join. Each one found may be read.
   a.request_lobby_list = [](void *) -> uint64_t {

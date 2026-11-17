@@ -29,7 +29,7 @@ dofile('tests/lua/main/fixture.lua')
     pad(7); assert(not kit_shown.menu,'View held again closes it')
     pad(7); pad(6); assert(not kit_shown.menu and kit_sounds[#kit_sounds-1]=='back','B on the main page closes it')
     -- LB, RB and Y (8, 9 and 10 values back: tab_left, tab_right and refresh) are taken like the others; the co-op
-    -- menu has no tabs and no Refresh, so they change nothing there, and the down after them in the same frame still
+    -- menu has no tabs and no Refresh, so they change nothing there. The down after them in the same frame still
     -- moves.
     pad(7); assert(kit_shown.menu and focus()=='Host a session')
     local sounds=#kit_sounds

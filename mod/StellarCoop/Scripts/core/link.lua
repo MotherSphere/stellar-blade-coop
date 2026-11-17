@@ -14,7 +14,7 @@
 -- the session's mode, the friend and the notices for the screen, each from the start of its own line: a Steam name is
 -- never at the start of one.
 -- While we host, the read also gives our join code and the joiner who waits for our answer (session/join.lua asks the
--- host), and keeps who waited in this lobby (the menu's Remove row); as a joiner, the seconds left of the host's
+-- host) and keeps who waited in this lobby (the menu's Remove row); as a joiner, the seconds left of the host's
 -- answer (wait()); the session list's rows (list()). Lua tells the native part the host's place and rules for the
 -- list's rows with where() and rules(), each sent only when it changed.
 -- coop-settings.txt's shared_enemies, fight_chars, guest_kills, enemy_hp_scale, enemy_balance_scale, kill_credit,
@@ -1023,12 +1023,12 @@ function Link.new(folder,fs)
     -- Steam name as the native part cleaned it, maybe ''}; nil when we do not wait.
     function self.wait() return wait end
     -- The session list as of the last changes(): {tab='public'|'friends', state='searching'|'done'|'failed', rows=the
-    -- count the native part gave}, and its rows in its order (best ping first once done), each {lobby=, owner=the
+    -- count the native part gave} and its rows in its order (best ping first once done), each {lobby=, owner=the
     -- host's SteamID (digits), players='1/2', ping=ms or nil, pal=the host is our Steam friend, zone=, camp=, rules=
     -- (words, or nil), name=the host's Steam name as the native part cleaned it, maybe ''}; nil and {} without a list.
     function self.list() return search,found end
     -- The rows' place and rules words for the native part (link/core.h writes them as lobby data while we host a
-    -- Public or Friends only online session, and keeps them for the next one): where <map segment> [<camp alias>] and
+    -- Public or Friends only online session; it keeps them for the next one): where <map segment> [<camp alias>] and
     -- rules <word>, each asked only when it changed since the last one asked. A word is letters, digits and _, 32
     -- bytes at most (link/protocol.h's kMaxPlace and kMaxRules). nil when unchanged, else as request(), or false and
     -- why for a word the native part would refuse.

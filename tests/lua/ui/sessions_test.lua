@@ -5,7 +5,7 @@
 -- asks for a search, shows the search, the rows, the details and the hints, Refresh and its stop, the 5 s gap, the
 -- tabs, the cursor and its scroll window, Select asking to join, the mouse, the closes by itself, the input given back,
 -- parts made again after a root build, the kit fallback of each part and the log lines. Over the whole test no part is
--- focused or sent a call outside the lobby's list, and every part is HitTestInvisible.
+-- focused or sent a call outside the lobby's list. Every part is HitTestInvisible.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 FText=function(s) return {text=s} end
 FName=function(s) return {name=s} end
