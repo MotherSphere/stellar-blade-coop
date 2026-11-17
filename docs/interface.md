@@ -50,8 +50,8 @@ The camp phone booths open a short page of the menu, the co-op line. The booths 
 Xion's five booths and the warp phones of the Wasteland and the Great Desert. Tetrapods are not booths here. Within 3 m
 of a booth, a hint at the bottom centre of the screen shows the menu key's name and `Co-op line`, and the menu key opens
 the line instead of the main page. The hint hides while the menu is open or the game is paused or shows the mouse
-cursor. It also hides while the chat box, the code box, a [join popup](#join-popups) or the co-op saves' question is
-open. The hint and the line use the menu's language.
+cursor. It also hides while the chat box, the code box, a [join popup](#join-popups), the co-op saves' question, the
+Sessions screen or the Create a session screen is open. The hint and the line use the menu's language.
 
 The line has a CO-OP LINE header, the main page's session rows that fit your session, then Co-op menu and Hang up.
 Under them are the status line and a sentence about the line:

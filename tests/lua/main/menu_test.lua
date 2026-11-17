@@ -434,8 +434,8 @@ settings_text,in_world,kit_ready='',false,false
 -- ui_model_test test them alone). Within 3 m of a camp phone booth the menu key opens the line: its header, the session
 -- rows of the state, Co-op menu and Hang up, and a sentence by state; 3.1 m away, the main page as before. Co-op menu
 -- turns to the main page; Hang up and Esc close; Leave still asks twice; Host and Invite run the same commands and
--- close as from the main page. The hint shows at a booth with nothing open, and hides with the menu, a box or a
--- question open, while paused and after coop off. No scan while the menu is open, while paused, nor after coop off,
+-- close as from the main page. The hint shows at a booth with nothing open. It hides with the menu, a box, a question,
+-- the Sessions screen or the Create a session screen open, while paused and after coop off. No scan while the menu is open, while paused, nor after coop off,
 -- with EVE 100 m from the last scan's spot and 30 s after it; none either back where it ran.
 (function()
     local CAMP='Env_Camp_TeleportMachine_C'
@@ -519,7 +519,12 @@ settings_text,in_world,kit_ready='',false,false
     bt.me.at.X=0; quarter(); quarter()
     key('F5'); assert(focus()=='Host a session' and starts('CO-OP LINE||disabled'))
     key('RETURN'); assert(cr.open and #asked==n+3 and not kit_shown.menu,'Host from the line')
+    quarter(); quarter(); assert(not kit_shown.line_hint,'Create a session open: no hint')
     key('F5'); assert(not cr.open and not kit_shown.menu)
+    quarter(); assert(kit_shown.line_hint)
+    key('F5'); to('Find a session'); key('RETURN'); assert(ss.open)
+    quarter(); quarter(); assert(not kit_shown.line_hint,'The Sessions screen open: no hint')
+    key('F5'); assert(not ss.open and not kit_shown.menu)
     -- The hint hides while a box is open: the code box (Join with a code, from the line), the chat's box.
     clock=clock+0.25; loops[1].f(); quarter(); assert(kit_shown.line_hint)
     key('F5'); to('Join with a code'); key('RETURN'); assert(kit_shown.code)

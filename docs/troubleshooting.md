@@ -251,8 +251,8 @@ off; notices then show on the line above EVE. `coop ui off` turns the UI off the
   `booths: scan failed on <map>: <why> (<ms> ms)` means that the scan hit an error; the next one runs 30 s later.
 - Press the menu key at the booth. `line: booth <name> (<class>) at <d> m` after `key F5: menu` means that the line
   opened. If the main page opens with no `line:` line, no booth was within 3 m of EVE: stand closer to the booth.
-- The hint stays hidden while the chat box, the code box, the host's question or the co-op saves' question is open.
-  `coop ui reset` in the console (F10 or `~`) closes them all.
+- The hint stays hidden while the chat box, the code box, a join popup, the co-op saves' question, the Sessions screen
+  or the Create a session screen is open. `coop ui reset` in the console (F10 or `~`) closes them all.
 - `booths: slow scan <ms> ms (<n> found, <route>, <lookup>)`: one scan took 5 ms or more on that PC. The scan runs on
   the game thread, so that frame took as much longer. `<route>` is how the scan listed the booths: `class hash` is the
   fast route, and `walk` means this UE4SS could not use it, so each scan walks every object. `<lookup>` is how it found

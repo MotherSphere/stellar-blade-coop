@@ -1683,7 +1683,8 @@ if link then
                     ..'back')
             end
             guarded('menu',menu.slow,shown,not (box.is_open() or code_box.is_open() or approval.is_open()
-                or saves_ui.is_open()) and (booth.near(puppet.me()) or guarded('sbo',seat_hint)) or nil)
+                or saves_ui.is_open() or open_screen()) and (booth.near(puppet.me()) or guarded('sbo',seat_hint))
+                or nil)
             guarded('lobby',lobby.slow)
             guarded('sessions',sessions.slow,shown)
             guarded('create',create.slow,shown)

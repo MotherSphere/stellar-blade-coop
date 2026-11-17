@@ -302,8 +302,8 @@ function Menu.new(o)
     -- Each 250 ms: whether our HUD may show (a world, not our photo mode); closed when not, or when the game pauses or
     -- shows the mouse cursor. Closed, the game's input is given back again while still due (no player controller at the
     -- close: a map change). at: the booth within reach, or in the SBO lobby a hall seat's {word='sit'|'stand'} (nil
-    -- while a box or a question is open): its hint shows while the menu is closed, the HUD may show and the game is not
-    -- paused, with the co-op line's word, or that word.
+    -- while a box, a question, the Sessions screen or the Create a session screen is open): its hint shows while the
+    -- menu is closed, the HUD may show and the game is not paused, with the co-op line's word, or that word.
     function self.slow(shown,at)
         world=shown==true
         local hint=world and at~=nil and not open and not kit.off() and not kit.paused()
