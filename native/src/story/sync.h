@@ -669,6 +669,9 @@ private:
     const Verdict v = gate(m, path, row && row->quest, her, e_.here(), played_.recent(path, now_ms));
     if (v.go == Go::refuse)
       return fallback(m.scene, v.why);
+    // A start over her copy still starting would Stop it in SB's play call, past its End: busy until it shows.
+    if (v.go == Go::start && copy_.state == State::starting)
+      return fallback(m.scene, "busy");
     if (copy_.state != State::none)
       drop_copy(true, "the host started another scene");
     if (v.go == Go::start) {

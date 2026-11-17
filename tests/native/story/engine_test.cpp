@@ -236,6 +236,10 @@ void test_her() {
   w.e.in_step = true, w.g.done = true;
   r = w.e.here();
   assert(r.in_step && r.idle);
+  // A theater still loading its first take has no take context. SB's finished test says yes; the gate counts it busy.
+  w.g.put<uint64_t>(w.p + kTake, 0);
+  assert(!w.e.here().idle);
+  w.g.put(w.p + kTake, w.c);
   w.g.put<int32_t>(w.actor + kActorLife, 3);
   assert(!w.e.here().alive);
   w.g.put<uint8_t>(w.client + kAsked, 1);

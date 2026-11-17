@@ -221,8 +221,9 @@ void story_trips_pass(const char *why, uint64_t now) {
 }
 
 // The shared quests' holds on a step of hers the host would make (quests_game.inc, under the quests' latch): out of
-// game (lion_gate shut, the client not in game and playing), his cutscene (the theater manager's theater, not
-// finished) or the game paused (a menu or photo mode, read as the photo pause reads it). Null: none.
+// game (lion_gate shut, the client not in game and playing), his cutscene (the theater manager's theater, still
+// loading its first take or not finished) or the game paused (a menu or photo mode, read as the photo pause reads it).
+// Null: none.
 const char *quest_host_hold() {
   uint32_t mode = 0;
   const uintptr_t client = world_global(world::kClientAt);
@@ -231,7 +232,7 @@ const char *quest_host_hold() {
     return "out of game";
   const uintptr_t manager = world_global(story::kManagerAt);
   const uintptr_t theater = game::plausible(manager) ? at<uintptr_t>(manager + story::kCurrent) : 0;
-  if (game::plausible(theater) && !story_game.finished(theater))
+  if (game::plausible(theater) && (!at<uintptr_t>(theater + story::kTake) || !story_game.finished(theater)))
     return "his cutscene";
   FreezeGame f;
   return !f.ready() ? "out of game" : f.paused() ? "the game paused (a menu or photo mode)" : nullptr;

@@ -50,7 +50,7 @@
 //   her(): her zone, the path of her theater once its first take started, its place, her dialogue wait.
 //   here(): her EVE alive (her actor's +0x2600 not 2 to 5, RunZoneEvent's own test), a warp written (client +0xa20),
 //     a camp asked (+0xb60 and +0xb61), a respawn (world +0x1c4 at 2 or more), a Boss Challenge (client +0x3688),
-//     her Epic quests in step (from the shared quests), her manager idle (no P, or P finished).
+//     her Epic quests in step (from the shared quests), her manager idle (no P, or P with C and finished).
 //   start(): a play line runs its row through RunZoneEvent(world, her id, &row, 0), after the row's ZoneEventTable
 //     condition passes for her (0x141c8d850(&condition, &group, her id), as RunEvent tests it) when the row has
 //     AddEvents, which RunZoneEvent runs whatever its condition says. A talk line makes the ActionTheater node's call
@@ -251,7 +251,9 @@ public:
                                                            : nullptr;
     h.in_step = in_step;
     const Cur c = cur();
-    h.idle = !c.p || g_.finished(c.p);
+    // FUN_1424d70c0 answers finished for a P with no take context, which is also a theater still loading its first
+    // take: only End and Stop clear the manager's P, so a P without C stays busy here.
+    h.idle = !c.p || (c.c && g_.finished(c.p));
     return h;
   }
 

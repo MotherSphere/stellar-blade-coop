@@ -523,6 +523,17 @@ void test_start_fails() {
     p.flow();
     assert(!p.guest.active() && p.guest.counters.started == 0 && saw(p.guest.log, "(noworld)"));
   }
+  { // The host's next scene while her copy of his last one still starts: no start over it (SB would Stop it).
+    Pair p;
+    assert(p.play(1, row) && p.play(2, other_row()));
+    p.flow();
+    p.flow();
+    assert(p.game.starts.size() == 1 && p.guest.active() && p.guest.counters.fallbacks == 1);
+    assert(saw(p.guest.log, "scene 2 not played with the host (busy)"));
+    p.her(row.path);
+    p.flow();
+    assert(p.guest.sharing() && p.guest.status().find(" scene=shared ") != std::string::npos);
+  }
   { // Her own scene plays: busy.
     Pair p;
     p.her("/Game/Her/Own.Own");
@@ -710,8 +721,9 @@ void test_load_and_overflow() {
   p.gg.in_game = true;
   p.flow();
   assert(p.game.starts.size() == 2 && p.guest.queued() == 2);
-  p.flow();
-  assert(p.game.starts.size() == 3 && p.guest.queued() == 0 && p.game.starts[2].name == other_row().row);
+  p.flow(); // Her copy of scene 2 has not shown yet: scene 3 is not started over it.
+  assert(p.game.starts.size() == 2 && p.guest.queued() == 0);
+  assert(saw(p.guest.log, "scene 3 not played with the host (busy)"));
 }
 
 void test_partner_and_off() {
