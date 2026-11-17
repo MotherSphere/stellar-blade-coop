@@ -1,18 +1,19 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// Story together's game side on the build machine, over fake memory and fake SB functions: the host's theater read
-// (its path, FinishEvents, place, take, sequence, frame and skip latches, a widget of another class), hook 1's read,
-// her copy read (no path before its first take), the gate's reads, a play started with and without its row's
-// condition, a talk with her key and his place, the host's seek (and its wait) and take skips (by index, by alias, to
-// the end, a random take refused), the leash's pause and its careful play, her dialogue closed, her skip blocked and
-// given back. Then choices, QTEs and InputCounters: the host's menus read when they close (an InteractionSelect of
-// another play left out, ordinals by take), his QTE and InputCounter blocks read once final (a Flow's results, a
-// widget read before its next start, a Flow's results then kept from the last pass, one gone, one he did not lead);
-// her line stored in her take context (a name or alias she lacks refused) and her menu for it closed, her
-// PlayerChoice answered through her OK (its index checked, a block not open yet, one she passed), her QTE and
-// InputCounter given the host's values (late, gone, a success that finishes at once, Flow results), her presses taken
-// on their start, her menus held and given back.
+// Story together's game side on the build machine, over fake memory and fake SB functions: the host's theater read (its
+// path, FinishEvents, place, take, sequence, frame and skip latches, a widget of another class), hook 1's read, her
+// copy read (no path before its first take), the gate's reads, a play started with and without its row's condition, a
+// talk with her key and his place, the host's seek (and its wait) and take skips (by index, by alias, to the end, a
+// random take refused), the leash's pause and its careful play, her dialogue closed, her skip blocked and given back.
+// Then choices, QTEs and InputCounters: the host's menus read when they close (an InteractionSelect of another play
+// left out, ordinals by take), his QTE and InputCounter blocks read once final (a Flow's results, a widget read before
+// its next start, a Flow's results then kept from the last pass, his take skip told by his latch or by his take ending
+// before that read, one gone, one he did not lead); her line stored in her take context (a name or alias she lacks
+// refused) and her menu for it closed with its skip latch taken first, her PlayerChoice answered through her OK (its
+// index checked, a block not open yet, one she passed), her QTE and InputCounter given the host's values (late, gone, a
+// success that finishes at once, its take skip only after his, Flow results), her presses taken on their start, her
+// menus held and given back.
 #include "story/engine.h"
 
 #include <cassert>
@@ -488,6 +489,25 @@ void test_host_results() {
   w.g.put<uint8_t>(counter + kCounterSkipDone, 1);
   r = w.e.theater().results;
   assert(r.size() == 1 && r[0].m.n == 3 && r[0].m.value == 3 && r[0].m.flag && r[0].m.now);
+  // His press ran his take skip and the next take started its InputCounter in the same frame, before the pass: Setup
+  // cleared Result shown and the latch, so hook 3's read says his take skip ran because his take changed.
+  w.g.put<uint8_t>(counter + kCounterShown, 0), w.g.put<uint8_t>(counter + kCounterSkipDone, 0);
+  w.e.block_started(Type::cnt, counter, true, false);
+  assert(w.e.theater().results.empty());
+  w.g.put<int32_t>(counter + kCounterCount, 4);
+  w.e.block_closing(counter);
+  w.e.block_started(Type::cnt, counter, true, false);
+  r = w.e.theater().results;
+  assert(r.size() == 1 && r[0].m.n == 4 && r[0].m.value == 4 && !r[0].m.now); // Same take: his skip did not run.
+  const uint64_t after = w.g.alloc(0x70);
+  w.g.put<int32_t>(after + kTakeUid, 201);
+  w.g.put<int32_t>(counter + kCounterCount, 2);
+  w.g.put(w.c + kTakeData, after);
+  w.e.block_closing(counter);
+  w.e.block_started(Type::cnt, counter, true, false);
+  r = w.e.theater().results;
+  assert(r.size() == 1 && r[0].m.take == 200 && r[0].m.n == 5 && r[0].m.value == 2 && r[0].m.now);
+  w.g.put(w.c + kTakeData, data);
   // A widget gone before its result: said, not sent. A block he did not lead: not his to read.
   const uint64_t other = w.g.alloc(0x860);
   w.g.put<int32_t>(other + kBlockResult, -1);

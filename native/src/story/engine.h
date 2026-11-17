@@ -71,8 +71,9 @@
 //     flag: QTE +0x801, InputCounter +0x849) repeats what the press handler (0x1425522b0, 0x14254dee0) does: Result
 //     (0x142551530, 0x14254b170), then with +0x6dd the take select and take skip (0x142551290, 0x142551300;
 //     0x14254a750, 0x14254a800). The InputCounter's press handler runs those two for kinds 1 and 2 only; its stick
-//     test (0x14254ade0) and the Flow's tick (0x14254d2d0) show Result alone, so they wait for her section end unless
-//     the host's line says his press ran them (his Result shown with his take skip latch +0x848 taken).
+//     test (0x14254ade0) and the Flow's tick (0x14254d2d0) show Result alone, so they wait for her section end (its
+//     template's 0x1422f43d0, or OnFinishBlock 0x14254a570) unless the host's line says his take skip had run: his
+//     Result shown with his take skip latch +0x848 taken, or his take ended before hook 3 read his block.
 //   block_started() on her side while her copy follows his and his hook for that class is in (his on line says so; a
 //     QTE he cannot read stays hers to press): the widget's unbind (0x142551ea0, 0x14254daa0); for an
 //     InputCounter also its stick checks (+0x818, the Flow entries' +0x20) cleared and each Flow entry marked bound
@@ -309,15 +310,18 @@ public:
   }
   // Hook 3 before the game's start while we lead: the widget's last block, not read yet, gives its count now (the start
   // clears it). Setup has written the next section over the rest already: that comes from the last pass. Its result
-  // goes with the next theater().
+  // goes with the next theater(). Setup also cleared Result shown and the take skip latch. A block whose take he has
+  // left (his press ran Result, take select and take skip, then the next take started this section in the same frame)
+  // says his take skip ran: her copy finishing that take at once cannot run ahead of him.
   void block_closing(uint64_t w) {
+    const uint64_t data = cur().data;
     for (Record &r : records_) {
       if (r.widget != w || r.told || g_.weak_get(r.weak) != w)
         continue;
       if (r.flow)
         say("story: an InputCounter Flow block of take " + std::to_string(r.take) +
             " ended as the next one started: its Flow results are sent as the last pass read them, maybe a frame old");
-      read(r, w, pending_, false);
+      read(r, w, pending_, false, r.data != data);
     }
   }
 
@@ -485,7 +489,8 @@ private:
     return out;
   }
   // A QTE's or InputCounter's result: its count as it stands now, the rest read now too (live) or as snap() kept it.
-  void read(Record &r, uint64_t w, std::vector<Outcome> &out, bool live) {
+  // left: his take ended before this read.
+  void read(Record &r, uint64_t w, std::vector<Outcome> &out, bool live, bool left = false) {
     r.told = true;
     if (live)
       snap(r, w);
@@ -495,9 +500,11 @@ private:
     Message m;
     m.type = r.type, m.take = r.take, m.n = r.n;
     m.value = i32(w + (r.type == Type::qte ? kQteCount : kCounterCount)), m.flag = r.force, m.bits = r.bits;
-    // Its Result shown with its take skip taken: his press (0x14254dee0) ran the take select and skip with it. A stick,
-    // a Flow or a forced success leaves the skip to OnFinishBlock 0x14254a570 at his section end.
-    m.now = live && r.type == Type::cnt && u8(w + kCounterShown) && u8(w + kCounterSkipDone);
+    // 1 when his take skip had run by the time his Result was read: its latch taken with Result shown (his press
+    // 0x14254dee0, or his section end 0x1422f43d0, which runs Result, take select and take skip together), or his take
+    // ended before hook 3's read (left). A stick, a Flow or a forced success leaves the skip to his section end
+    // (0x1422f43d0, or OnFinishBlock 0x14254a570).
+    m.now = r.type == Type::cnt && (left || (live && u8(w + kCounterShown) && u8(w + kCounterSkipDone)));
     out.push_back(Outcome{r.play, m});
   }
   // What a block holds until its Result, kept each pass: Setup writes the next section over it before hook 3's read.
@@ -702,8 +709,8 @@ private:
     }
     if ((u8(w + kImmediate) || u8(w + (qte ? kQteNow : kCounterNow))) && success(m.type, w)) {
       g_.call(qte ? kQteShow : kCounterShow, w);
-      // An InputCounter's take select and skip only after his press of kind 1 or 2: a Flow's tick (0x14254d2d0) and
-      // a stick (0x14254ade0) show Result alone, so her section end makes them, as his did.
+      // An InputCounter's take select and skip only for kind 1 or 2 once his take skip had run (the line's last bit):
+      // a Flow's tick (0x14254d2d0) and a stick (0x14254ade0) show Result alone, so her section end makes them.
       if (u8(w + kImmediateNow) && (qte || (m.now && u8(w + kCounterKind) != 3)))
         g_.call(qte ? kQteSelect : kCounterSelect, w), g_.call(qte ? kQteSkip : kCounterSkip, w);
     }

@@ -29,7 +29,8 @@
 //                                                      forces a success (the section may ignore it: both read that)
 //   SBSn cnt <seq> <scene> <take> <n> <count> <0|1> <bits> <0|1>
 //                                                      an InputCounter: the same plus its Flow results (bit i for
-//                                                      entry i), then 1 when his press ran its take select and skip
+//                                                      entry i), then 1 when his take skip had run or his take
+//                                                      had ended by the time his Result was read
 //   SBSn skip <seq> <scene> <take> seek <frame>        a skip that moved the host within the take
 //   SBSn skip <seq> <scene> <take> take <next>         a skip that finished the take: the next take, -1 for the end
 //   SBSn end <seq> <scene>                             the host's scene ended
@@ -91,7 +92,7 @@ struct Message {
   int32_t at[6] = {};    // talk: x, y, z, pitch, yaw, roll
   bool flag = false;     // pos: the host's player plays; qte, cnt: forced; skip: take (else seek)
   uint32_t bits = 0;     // cnt
-  bool now = false;      // cnt: his press ran the take select and skip with its Result
+  bool now = false;      // cnt: his take skip had run or his take had ended when his Result was read
   std::string reason;    // off
   bool reply = false;    // on: the answer to her on, never answered itself
   uint8_t hooks = 0;     // on: the sender's hooks in
