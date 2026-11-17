@@ -1159,7 +1159,8 @@ function Link.new(folder,fs)
     -- The status key's line, in words (ui/text.lua's T.en or T.fr; English when not given). Her name is an argument
     -- to the words' formats, never one itself, and cleaned as a chat line: a stranger waiting for the host's answer
     -- may hold a line separator or a bidi override in it. It names the slot-0 member, or on the host the first member
-    -- past the handshake while that one is not; with more members past the handshake, ' +<n>' after the name.
+    -- past the handshake while that one is not; with more members past the handshake, ' +<n>' after the name. The
+    -- pause words name her alone: one player pauses us.
     function self.summary(words)
         local w=(words or T.en).summary
         if dead then return w.stopped end
@@ -1175,13 +1176,14 @@ function Link.new(folder,fs)
         end
         local who=name and clean(name)
         if who=='' then who=w.friend end
+        local pauser=who
         if linked and self.others()>1 then who=who..' +'..(self.others()-1) end
         local text
         if not name and mode=='host' then text=w.alone
         elseif not linked then text=w.connecting:format(who or w.friend)
         elseif mode=='host' then text=w.hosting:format(who)
         else text=w.guest:format(who) end
-        if self.paused() then text=text..w.paused:format(who) end
+        if self.paused() then text=text..w.paused:format(pauser) end
         return lost and text..w.lost or text
     end
     -- The settings and their log lines. A file that cannot be read is kept as well: the rename fails if it exists.

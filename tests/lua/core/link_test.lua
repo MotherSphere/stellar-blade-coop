@@ -1523,6 +1523,9 @@ files[STATUS]='mod=v steam=ready\nlink=guest lobby=7003\nhost=1 pair=0 max=3\nme
 door.changes()
 assert(door.host().id=='1' and door.host().pair==nil and door.summary()=="Co-op: in Host +1's game.")
 assert(door.host().max==3 and door.cap()==3 and door.ping()==40,'The host\'s max_players and ping on a guest')
+files[STATUS]=files[STATUS]..PHOTO
+door.changes()
+assert(door.summary()=="Co-op: in Host +1's game. Paused by Host." and door.paused(),'Only the host pauses a guest')
 -- The pair's count of the session (crowd()): a member the host let in whose link with us is not made yet counts, from
 -- the host's players= line; others() keeps the members past the handshake with us.
 files[STATUS]='mod=v steam=ready\nlink=guest lobby=7003\nhost=1 pair=21 max=4\nplayers=3\n'

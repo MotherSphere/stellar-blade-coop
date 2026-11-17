@@ -367,7 +367,8 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 - `Co-op: <name> is connecting.`
 - `Co-op: hosting <name>.` or `Co-op: in <name>'s game.` (`Paused by <name>.` while their photo mode pauses your game;
   a lost friend adds `Connection lost.`). In a session of more than 2 players, `<name>` is the host on a guest and the
-  pair on the host (else the first guest linked), then ` +<n>` for the other members linked.
+  pair on the host (else the first guest linked), then ` +<n>` for the other members linked. `Paused by <name>.` names
+  the host alone: only the host's photo mode pauses a guest past 2 players.
 - `Co-op: invite held until your save has loaded.`
 - `Co-op: rejoining your friend's game (try <n>/3).`
 - `Co-op: waiting for Steam.`
