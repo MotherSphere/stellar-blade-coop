@@ -257,7 +257,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host [public|friends|invitation|closed] | invite | list [public|friends] | join [lobby id|code|row] | copy | allow|deny|remove|block <SteamID> | unblock <SteamID>|all | blocked | leave | match search|create <mode>|cancel|end|join <code>|leave | mute|unmute <SteamID> | status | report | mark [text] | where | near [metres] | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | emote [list|<name>|off] | bike [status|tune [<name> <value>]] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | challenge [<name>|stop] | recruiter [off] | gift [send <item> [count]|take [n]] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | world on|off|status | scenes on|off|status | keys reset [<name>|all] | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
+local USAGE='Use: coop puppet | host [public|friends|invitation|closed] | invite | list [public|friends] | join [lobby id|code|row] | copy | allow|deny|remove|block <SteamID> | unblock <SteamID>|all | blocked | leave | match search|create <mode>|cancel|end|join <code>|leave | mute|unmute <SteamID> | status | report | mark [text] | where | near [metres] | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | emote [list|<name>|off] | bike [status|tune [<name> <value>]] | gun [status] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | challenge [<name>|stop] | recruiter [off] | gift [send <item> [count]|take [n]] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | world on|off|status | scenes on|off|status | keys reset [<name>|all] | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
 local function ask(line)
     return function()
         if not link then return false,'the Steam link needs the native part' end
@@ -835,6 +835,21 @@ local commands={
 for _,file in ipairs({'session','partner','nightop','race','fight','cut','guide','story','world','scenes','bike','keys',
         'daynight'}) do
     for name,handler in pairs(require('commands.'..file).new(o)) do
+        assert(commands[name]==nil,'coop '..name..' is defined twice')
+        commands[name]=handler
+    end
+end
+-- Gun mode (gunmode/, logging [GM] lines): a module of its own, built and started inside a pcall so nothing in it
+-- can stop the rest of the mod; it reads its own coop-settings.txt lines and finds its own paks. coop gun [status].
+local gunmode
+do
+    local ok,e=pcall(function()
+        gunmode=require('gunmode.mode').new({log=function(m) print('[StellarCoop][GM] '..tostring(m)..'\n') end,
+            folder=folder})
+        gunmode.start()
+    end)
+    if not ok then log('gun mode: '..tostring(e)); gunmode=nil end
+    for name,handler in pairs(require('gunmode.commands').new(function() return gunmode end)) do
         assert(commands[name]==nil,'coop '..name..' is defined twice')
         commands[name]=handler
     end
