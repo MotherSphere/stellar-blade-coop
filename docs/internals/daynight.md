@@ -126,11 +126,14 @@ How each kind of sky is dressed:
 | The SBO lobby in Xion's training room | `sbo.in_lobby()` with no hall | `sky off` |
 | Xion's story night (Burning Xion) | `bActiveVolume` of `E04_Area_02_Global_ENV_01_NIGHT`, read every 2 s on Xion | `sky off`, Xion's domes left to SB |
 | An SB cutscene or dialogue scene, in an online session | `group.cutscene_playing()`, read once a second while a friend is linked | `sky off` |
+| Photo mode | `photo_state()` | `sky hold`: the hour it opened at, a pinned one included |
 | SB's pause menu or one of its screens | `kit.paused(true)` | `sky off`: their studio scenes are env volumes too |
-| Photo mode | `photo_state()` | `sky hold`: the hour it opened at |
 | `coop daynight hour <h>` | the command | `sky hour <minute> <hz> <H>` |
 | Night Operation runs | `night.running()` | `sky hour 0 <hz> <H>`: midnight |
 | Anything else | | `sky cycle <hz> <H>` |
+
+Photo mode comes before SB's screens because SB's photo mode pauses the game (its Pauser, which `kit.paused(true)`
+reads) for as long as it is open with `photo_pause=full`.
 
 A covered spot in an open map (a cave, a room, a lab) keeps its own light at any hour: see the sunlit rule below.
 
@@ -204,7 +207,7 @@ Lua asks through `coop-request.txt`, a local file that never goes on the wire:
 sky off
 sky cycle <hz> <H>              hz 0 to 30, H 0 to 359, whole degrees
 sky hour <minute> <hz> <H>      minute 0 to 1439 of the game day
-sky hold                        the hour of the pass that took it, kept
+sky hold                        the hour the pass before it drew (a pinned one included), kept
 ```
 
 `coop-status.txt` gets one line at each worker pass:
@@ -214,11 +217,11 @@ sky=cycle h=13.42 el=61.3 le=61.3 ly=211.9 k=1.000 moon=0 amb=1.000 eve=1.000 ev
 ```
 
 The state is `off`, `cycle`, `pinned`, `held`, `waiting` (no world or no array), `forced`, `scene` (SB plays a theater),
-`gated`, `full`, `fault` or `refused` (off the pinned game build: the values are computed, nothing is written). `h` is the hour, `el` the sun's
-signed elevation, `le` and `ly` the light's elevation and heading (sun or moon), `k` the light's factor, `moon` 1 when
-the moon is the light, `amb` the sky light's factor, `eve` that of EVE's lights, `ev` the exposure offset, `tint` the
-light's colour, `n` the elements, `lit` the sunlit ones and `seen` 1 when EVE stands in env sunlight. The line moves
-each second, so it stays out of the `link:` lines of `UE4SS.log`.
+`gated`, `full`, `fault` or `refused` (off the pinned game build: the values are computed, nothing is written). `h` is
+the hour, `el` the sun's signed elevation, `le` and `ly` the light's elevation and heading (sun or moon), `k` the
+light's factor, `moon` 1 when the moon is the light, `amb` the sky light's factor, `eve` that of EVE's lights, `ev` the
+exposure offset, `tint` the light's colour, `n` the elements, `lit` the sunlit ones and `seen` 1 when EVE stands in env
+sunlight. The line moves each second, so it stays out of the `link:` lines of `UE4SS.log`.
 
 `coop-link.log` gets a `sky:` line at each change of state and at each new world the cycle writes in, for example
 `sky: cycle, 114 volumes, 20 in the sun`, then `sky: not written: <why>` once per request off the pinned build and the

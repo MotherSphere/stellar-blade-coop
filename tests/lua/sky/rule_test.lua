@@ -46,7 +46,11 @@ assert(select(2,Rule.decide({setting=true,map=W,lobby=true,story_night=true}))==
 assert(select(2,Rule.decide({setting=true,map=W,story_night=true,cutscene=true}))=='Xion story night')
 assert(Rule.decide({setting=true,map=W,cutscene=true,photo=true})=='sky off','A cutscene beats photo mode')
 assert(Rule.decide({setting=true,map=W,screen=true})=='sky off')
-assert(select(2,Rule.decide({setting=true,map=W,screen=true,photo=true}))=="the game's menu")
+assert(select(2,Rule.decide({setting=true,map=W,screen=true}))=="the game's menu")
+-- SB's photo mode pauses the game, so screen reads true in it: photo mode still holds the hour.
+assert(Rule.decide({setting=true,map=W,screen=true,photo=true})=='sky hold','Photo mode beats the paused game')
+assert(select(2,Rule.decide({setting=true,map=W,screen=true,photo=true}))=='photo mode')
+assert(Rule.decide({setting=true,map=W,screen=true,photo=true,cutscene=true})=='sky off')
 assert(Rule.decide({setting=true,map=W,photo=true,night=true})=='sky hold','Photo mode holds whatever the hour')
 assert(select(2,Rule.decide({setting=true,map=W,photo=true}))=='photo mode')
 assert(Rule.decide({setting=true,map=W,pinned=810,night=true})=='sky hour 810 8 0','A test pin beats Night Operation')

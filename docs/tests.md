@@ -97,10 +97,10 @@ fails the test. The `main/` tests load
   Day and night row: On by default, a change saved at once with no request;
 - `sky/rule_test` covers `sky/rule.lua`: every row of the map table (keys in lower case, each open row complete for its
   kind of sky, the fixed maps, an unknown map), the rules in their order (a cutscene before photo mode, photo mode's
-  hold whatever the hour, a test pin before Night Operation's midnight), the `sky=` line read into numbers (none from
-  an older DLL), the command's hour (`24`, `-1`, `abc`, an empty word, `13,5`, `1e9`, `0x10`, `inf` and `nan` refused
-  with the accepted range), the sky dressing and the star fade for an elevation, a SkyCreator's time, the real minutes
-  to the night and the third-party plugin's path;
+  hold whatever the hour and while SB's photo mode pauses the game, a test pin before Night Operation's midnight), the
+  `sky=` line read into numbers (none from an older DLL), the command's hour (`24`, `-1`, `abc`, an empty word, `13,5`,
+  `1e9`, `0x10`, `inf` and `nan` refused with the accepted range), the sky dressing and the star fade for an elevation,
+  a SkyCreator's time, the real minutes to the night and the third-party plugin's path;
 - `sky/daynight_test` covers `sky/daynight.lua` over a fake engine: one request per change, the map read once per EVE,
   the setting, each rule's case (Xion's story night read every 2 s), the command's words, a fixed map and the title,
   the status with an older DLL (no request loop), `coop off`, a refused ask and the third-party plugin's line once.
@@ -673,10 +673,11 @@ The C++ tests cover the platform-free headers in `native/src`.
   the hour's wrap, the ramps, the sun and moon at noon, sunrise, sunset, midnight and mid-morning, the dusk colour, the
   status line. Over a fake WorldSettings whose env array holds a sunlit element with its own exposure bias, a covered
   one and a sunlit one without the bias bit: noon and midnight written from the originals with the covered one given
-  only the direction; a restore; a copy SB makes into an element; another world at the same addresses, read as new;
-  SB's forced settings (nothing written, a restore still puts the array back); the gated blend, too many elements, no
-  world, an empty array; a pinned and a held hour; an element SB moved in its array keeps its originals; a cutscene or
-  talk scene of SB's (its values back while it plays, under its forced settings too, our light again after it);
+  only the direction; a restore; a copy SB makes into an element; another world at the same addresses, read as new; SB's
+  forced settings (nothing written, a restore still puts the array back); the gated blend, too many elements, no world,
+  an empty array; a pinned hour, a hold that keeps a pinned hour or the clock's; an element SB moved in its array keeps
+  its originals; a cutscene or talk scene of SB's (its values back while it plays, under its forced settings too, our
+  light again after it);
 - `items_test`: `coop gift`'s inventory read against a fake image laid out like the pinned build: the FName and
   CityHash64 hashes checked against the game's, a count over two instances and along chains of collisions, an item
   EVE does not carry, no manager, bucket or owner, an instance the manager no longer holds, and hostile memory (a

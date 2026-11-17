@@ -185,8 +185,9 @@ settings.daynight=true; D.slow(false); assert(asked[3]=='sky cycle 8 0')
 -- 3. A cutscene, photo mode, Night Operation, the SBO lobby, SB's screens.
 world.cutscene=true; D.slow(false); world.cutscene=false; D.slow(false)
 assert(asked[4]=='sky off' and asked[5]=='sky cycle 8 0')
-world.photo='1'; D.slow(false); world.photo='0'; D.slow(false)
-assert(asked[6]=='sky hold' and asked[7]=='sky cycle 8 0')
+-- SB's photo mode pauses the game (screen reads true in it): the hour holds.
+world.photo,world.screen='1',true; D.slow(false); world.photo,world.screen='0',false; D.slow(false)
+assert(asked[6]=='sky hold' and asked[7]=='sky cycle 8 0' and logged('daynight: hold %(photo mode%)'))
 world.night=true; D.slow(false); assert(asked[8]=='sky hour 0 8 0'); world.night=false; D.slow(false)
 world.lobby=true; D.slow(false); assert(asked[#asked]=='sky off'); world.lobby=false; D.slow(false)
 world.screen=true; D.slow(false); assert(asked[#asked]=='sky off' and logged("%(the game's menu%)"))

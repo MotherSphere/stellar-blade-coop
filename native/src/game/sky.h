@@ -151,12 +151,13 @@ public:
     if (want.mode == Mode::pinned)
       hour = want.minute / 60.0;
     else if (want.mode == Mode::held) {
-      if (!held_) {
-        held_hour_ = hour;
+      if (!held_) { // The hour drawn when the hold came: a pinned one (Night Operation, a test) stays, not the clock's.
+        held_hour_ = last_ == Mode::pinned ? light_.hour : hour;
         held_ = true;
       }
       hour = held_hour_;
     }
+    last_ = want.mode;
     light_ = light_at(hour, want.hz, want.heading);
     if (settings == 0 || world != world_ || settings != settings_) { // The old array died with its world.
       drop();
@@ -315,6 +316,7 @@ private:
   int cur_ = 0, count_ = 0, elements_ = 0, sunlit_ = 0;
   uintptr_t world_ = 0, settings_ = 0;
   Light light_{};
+  Mode last_ = Mode::off; // The last pass's mode: light_ holds the hour it drew.
   double held_hour_ = 0;
   bool held_ = false, holding_ = false, seen_ = false;
 };

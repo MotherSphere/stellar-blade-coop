@@ -138,10 +138,18 @@ int main() {
   put<int32_t>(ws, kNum, 0);
   assert(sky.pass(0xCCCC, ws, cyc, noon) == State::cycle && sky.elements() == 0);
   put<int32_t>(ws, kNum, 3);
-  // 15. Pinned and held: minute 0 at noon gives midnight; held keeps the minute it was asked at.
+  // 15. Pinned and held: minute 0 at noon gives midnight. A hold keeps the hour the pass before it drew: a pinned
+  //     midnight stays midnight at the clock's noon (Night Operation's photo mode); after the clock, the clock's hour.
   assert(sky.pass(0xCCCC, ws, Want{Mode::pinned, 0, 8, 0}, noon) == State::pinned && near(sky.light().el, -30));
+  assert(sky.pass(0xCCCC, ws, Want{Mode::held, 0, 8, 0}, noon) == State::held && near(sky.light().el, -30));
+  assert(sky.pass(0xCCCC, ws, Want{Mode::held, 0, 8, 0}, midnight) == State::held && near(sky.light().el, -30));
+  assert(sky.pass(0xCCCC, ws, cyc, noon) == State::cycle && near(sky.light().el, 65));
   assert(sky.pass(0xCCCC, ws, Want{Mode::held, 0, 8, 0}, noon) == State::held && near(sky.light().el, 65));
   assert(sky.pass(0xCCCC, ws, Want{Mode::held, 0, 8, 0}, midnight) == State::held && near(sky.light().el, 65));
+  sky.pass(0, 0, Want{}, 0); // An off between them (the DLL's off pass): the hold that follows starts at the clock.
+  assert(sky.pass(0xCCCC, ws, Want{Mode::pinned, 0, 8, 0}, noon) == State::pinned);
+  sky.pass(0, 0, Want{}, 0);
+  assert(sky.pass(0xCCCC, ws, Want{Mode::held, 0, 8, 0}, noon) == State::held && near(sky.light().el, 65));
   // 16. The status line; the main view's read-back says whether EVE stands in env sunlight.
   assert(line(State::cycle, light_at(12, 8, 0), 114, 20, true) ==
          "sky=cycle h=12.00 el=65.0 le=65.0 ly=0.0 k=1.000 moon=0 amb=1.000 eve=1.000 ev=0.00 tint=1.00,1.00,1.00 "
