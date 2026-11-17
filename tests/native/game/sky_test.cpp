@@ -121,6 +121,10 @@ int main() {
   put<float>(e0, kSun, 0.1125f);
   sky.restore();
   assert(near(get<float>(e0, kSun), 0.75));
+  put<uint8_t>(ws, kForcedFlag, 0); // An off asked while SB's forced settings hold puts the array back too.
+  assert(sky.pass(0xBBBB, ws, cyc, midnight) == State::cycle && near(get<float>(e0, kSun), 0.1125));
+  put<uint8_t>(ws, kForcedFlag, 1);
+  assert(sky.pass(0xBBBB, ws, Want{}, noon) == State::off && near(get<float>(e0, kSun), 0.75) && !sky.holding());
   put<uint8_t>(ws, kForcedFlag, 0);
   // 14. Gated blend, too many elements, no world, an empty array.
   put<uint8_t>(ws, kGated, 1);

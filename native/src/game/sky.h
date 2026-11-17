@@ -157,18 +157,18 @@ public:
       hour = held_hour_;
     }
     light_ = light_at(hour, want.hz, want.heading);
-    if (settings == 0) {
-      drop();
-      world_ = settings_ = 0;
-      seen_ = false;
-      return State::waiting;
-    }
-    if (world != world_ || settings != settings_) { // The old array died with its world.
+    if (settings == 0 || world != world_ || settings != settings_) { // The old array died with its world.
       drop();
       world_ = world;
       settings_ = settings;
     }
-    seen_ = rd<uint8_t>(settings + kViewFlag) != 0 && rd<float>(settings + kViewSun) > 0;
+    seen_ = settings && rd<uint8_t>(settings + kViewFlag) != 0 && rd<float>(settings + kViewSun) > 0;
+    if (want.mode == Mode::off) { // Even under SB's forced settings: the array is ours to put back.
+      restore();
+      return State::off;
+    }
+    if (settings == 0)
+      return State::waiting;
     if (rd<uint8_t>(settings + kForcedFlag) != 0 && rd<uint64_t>(settings + kForced) != 0)
       return State::forced; // SB draws its forced block, not the array: leave the array as it is.
     if (rd<uint8_t>(settings + kGated) != 0) {
@@ -183,10 +183,6 @@ public:
     }
     if (n < 0 || (n > 0 && array == 0))
       return State::waiting;
-    if (want.mode == Mode::off) {
-      restore();
-      return State::off;
-    }
     const Entry *old = cache_[cur_];
     Entry *next = cache_[cur_ ^ 1];
     for (int i = 0; i < n; ++i) {
