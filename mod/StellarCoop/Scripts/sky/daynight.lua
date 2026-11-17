@@ -78,10 +78,14 @@ function Daynight.new(o)
             o.log('daynight: '..part.what..', '..what..': '..U.why(e)..'; left alone in this world')
         end
     end
+    -- A dome shown or hidden: through its mesh, never its children (the star layer is one), or through its actor when
+    -- SB ships it hidden there (Xion's night dome: its actor's bHidden set, its mesh visible).
     local function show(part,on)
         if part and part.on~=on then
             part.on=on
-            try(part,'visibility',function(c) c:SetVisibility(on,false) end)
+            try(part,'visibility',function(c)
+                if part.actor_level then part.actor:SetActorHiddenInGame(not on) else c:SetVisibility(on,false) end
+            end)
         end
     end
     local function set_time(c,t) try(c,'SetTime',function(a) a:SetTime(t) end) end
@@ -127,12 +131,13 @@ function Daynight.new(o)
         if ok then return part end
         o.log('daynight: '..name..' is unreadable: '..U.why(part))
     end
-    -- A dome: its actor and root component (the mesh it shows), or nil with one log line.
-    local function dome(path)
+    -- A dome: its actor and root component (the mesh it shows), shown through its actor when actor_level, or nil with
+    -- one log line.
+    local function dome(path,actor_level)
         local actor=U.valid(o.find(path))
         local root=actor and U.valid(actor.RootComponent)
         if not root then o.log('daynight: no dome '..path..' in this world') return nil end
-        return {c=root,actor=actor,what=path:match('[^.:]+$')}
+        return {c=root,actor=actor,what=path:match('[^.:]+$'),actor_level=actor_level}
     end
     local mesh_class=nil -- StaticMeshComponent's class, found once a Lua load.
     local function class()
@@ -154,7 +159,7 @@ function Daynight.new(o)
         local began=os.clock()
         w={row=row,domes={},creators={}}
         for _,path in ipairs(row.sky=='real' and row.domes or {}) do w.domes[#w.domes+1]=dome(path) end
-        if row.day_dome then w.day,w.night=dome(row.day_dome),dome(row.night_dome) end
+        if row.day_dome then w.day,w.night=dome(row.day_dome),dome(row.night_dome,true) end
         if row.stars=='creator' then
             local listed,list=pcall(o.actors_of,Rule.CREATOR)
             if not listed then o.log('daynight: no SkyCreator list: '..U.why(list)) end
@@ -288,6 +293,9 @@ function Daynight.new(o)
         if not story_held then
             show(w.day,true)
             show(w.night,false)
+        else -- SB sets them for its story night: what we wrote no longer holds, so the next live pass writes again.
+            if w.day then w.day.on=nil end
+            if w.night then w.night.on=nil end
         end
         for _,c in ipairs(w.creators) do
             if c.h~=nil then

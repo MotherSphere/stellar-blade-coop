@@ -89,7 +89,10 @@ function dome_actor:K2_GetComponentsByClass(class)
     assert(class.path=='/Script/Engine.StaticMeshComponent')
     return self.components
 end
-local xion_day,xion_night=new_root(false),new_root(true)
+-- Xion's domes as SB ships them (the pak dump): the day dome shown; the night dome's mesh visible, its actor hidden.
+local xion_day,xion_night=new_root(false),new_root(false)
+local night_actor=uobj({RootComponent=xion_night,bHidden=true,
+    SetActorHiddenInGame=function(self,v) self.bHidden=v end})
 local material=uobj({ScalarParameterValues={{ParameterInfo={Name=FName('Tint')}},
     {ParameterInfo={Name=FName('StarEmissive')}}}})
 local creator=uobj({SunriseTime=5,SunsetTime=21,times={},GetTime=function() return 12 end,
@@ -98,7 +101,7 @@ local objects={[Rule.MAPS[E04].flag]=flag,
     ['/Script/Engine.StaticMeshComponent']=uobj({path='/Script/Engine.StaticMeshComponent'}),
     ['/Script/Engine.Default__KismetMathLibrary']=uobj({MakeTransform=function() return {} end}),
     [Rule.MAPS[E04].day_dome]=uobj({RootComponent=xion_day}),
-    [Rule.MAPS[E04].night_dome]=uobj({RootComponent=xion_night})}
+    [Rule.MAPS[E04].night_dome]=night_actor}
 -- SBO's own maps: a light actor is its own light component here (rotation, intensity, colour in one record).
 local HOTEL,MX='/game/sbo_lobby/lobby_hotel','/game/art/bg/worldmap_dlc_01/level_p/mxiii_p'
 local SUN,SKY_LIGHT='/Script/Engine.DirectionalLight','/Script/Engine.SkyLight'
@@ -272,16 +275,21 @@ st.h=12.0117; D.slow(false); assert(#creator.times==3,'A 250 ms step of the hour
 table.remove(creator.times)
 settings.daynight=false; D.slow(false); D.slow(false)
 assert(#creator.times==3 and creator.times[3]==12); settings.daynight=true
--- 15. Xion: at el -5 the day dome hides and the night dome shows; at el -3 both go back.
+-- 15. Xion: at el -5 the day dome hides and the night dome shows (its actor, which SB ships hidden); at el -3 both go
+--     back. The night dome's mesh is never touched.
 eve=new_eve(0x600,E04); st.el=-5; D.slow(false)
-assert(xion_day.hidden==true and xion_night.hidden==false)
-st.el=-3; D.slow(false); assert(xion_day.hidden==false and xion_night.hidden==true)
+assert(xion_day.hidden==true and night_actor.bHidden==false and xion_night.vis_calls==0)
+st.el=-3; D.slow(false); assert(xion_day.hidden==false and night_actor.bHidden==true and xion_night.hidden==false)
 -- 16. Off: Xion's domes back to SB's shipped state; with Xion's story night on, they are left as they are.
-st.el=-5; D.slow(false); D.slow(true); assert(xion_day.hidden==false and xion_night.hidden==true)
+st.el=-5; D.slow(false); D.slow(true)
+assert(xion_day.hidden==false and night_actor.bHidden==true and xion_night.hidden==false and xion_night.vis_calls==0)
 D=Daynight.new(o); D.slow(false); st.el=-5; D.slow(false); flag.bActiveVolume=true; for _=1,8 do D.slow(false) end
-assert(asked[#asked]=='sky off' and xion_day.hidden==true and xion_night.hidden==false,
+assert(asked[#asked]=='sky off' and xion_day.hidden==true and night_actor.bHidden==false,
     'SB owns them during its story night')
-flag.bActiveVolume=false
+-- SB hides its night dome at the end of its story night: our night shows it again.
+night_actor.bHidden,xion_day.hidden=true,false
+flag.bActiveVolume=false; for _=1,8 do D.slow(false) end
+assert(asked[#asked]=='sky cycle 8 205' and night_actor.bHidden==false and xion_day.hidden==true)
 -- 17. Review Focus 1: a new load at night finds the tagged layer (no second AddComponentByClass), hides the domes
 --     again; coop off after that reload shows every dome.
 eve=new_eve(0x700,W); st.el=-10; D.slow(false); local added=calls.add_component

@@ -102,14 +102,14 @@ fails the test. The `main/` tests load
   `1e9`, `0x10`, `inf` and `nan` refused with the accepted range), the sky dressing and the star fade for an elevation,
   a SkyCreator's time, the real minutes to the night and the third-party plugin's path;
 - `sky/daynight_test` covers `sky/daynight.lua` over a fake engine: one request per change, the map read once per EVE,
-  the setting, each rule's case (Xion's story night read every 2 s), the command's words, a fixed map and the title,
-  the status with an older DLL (no request loop), `coop off`, a refused ask and the third-party plugin's line once.
-  Then the sky dressing: each dome looked up once per world and hidden once, a missing one logged once, the star layer
-  made once with its material loaded once a world and faded on change, the SkyCreators' time on change and back at an
-  off, Xion's night dome, a Lua reload at night that finds the star layer by its tag (no second one), an earlier load's
-  dressing put back by a new load that starts off. Last, SBO's own maps: the Sun turned, its intensity, its colour and
-  the SkyLight's intensity scaled, Matrix XIII's exposure bias lowered, each written on change only and put back at an
-  off; the Terrace hall left alone;
+  the setting, each rule's case (Xion's story night read every 2 s), the command's words, a fixed map and the title, the
+  status with an older DLL (no request loop), `coop off`, a refused ask and the third-party plugin's line once. Then the
+  sky dressing: each dome looked up once per world and hidden once, a missing one logged once, the star layer made once
+  with its material loaded once a world and faded on change, the SkyCreators' time on change and back at an off, Xion's
+  night dome shown through its actor and again after its story night, a Lua reload at night that finds the star layer by
+  its tag (no second one), an earlier load's dressing put back by a new load that starts off. Last, SBO's own maps: the
+  Sun turned, its intensity, its colour and the SkyLight's intensity scaled, Matrix XIII's exposure bias lowered, each
+  written on change only and put back at an off; the Terrace hall left alone;
 - `main/world_test` covers `coop world` (its words, on and off whatever `shared_world` says, status), the start once a
   load with `shared_world=on`, the end at a reload with `shared_world=off`, and the shared world's two notices;
 - `main/scenes_test` covers `coop scenes` (its words, on and off whatever `shared_story` says, status, an on or off

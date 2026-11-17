@@ -105,7 +105,9 @@ How each kind of sky is dressed:
   the layer shows from -4 degrees with a dynamic instance faded in down to -8. Without one it shows from -8 degrees,
   when the sky is already dark.
 - Painted (Xion): the day dome stays. At -4 degrees and below it hides and SB's own night dome (`SM_SkySphere_NIGHT`)
-  shows.
+  shows. SB ships that dome with its actor hidden (`bHidden`) and its mesh visible, so it shows and hides through
+  `SetActorHiddenInGame`; its mesh is never touched. After Xion's story night, which sets both domes, the next pass
+  writes them again.
 - Engine (SBO's own maps): these maps have no SB env settings, so the native part writes nothing there. Lua turns the
   `Sun` actor to pitch `-le` and yaw `ly` when either moved 0.01 degree or more. Its light's intensity becomes the one
   it had times `k`, its colour the one it had times the tint. The `SkyLight`'s intensity becomes the one it had times
