@@ -9,17 +9,17 @@
 -- A place is {map=<package path>, at={X,Y,Z}, rot={Pitch,Yaw,Roll}}: the bike's root (her feet while she rides) and
 -- its heading, in centimetres and degrees, as the game's. UE's yaw grows from +X toward +Y.
 local P={}
--- A mount reaches the bike from any side: at most 200 cm across from her feet to its root, 100 cm up or down.
-P.REACH,P.RISE=200,100
+-- A mount reaches the bike from any side: her capsule at most 50 cm from its body (P.clear), her feet 100 cm up or
+-- down from its root. Its body is solid, so a reach from the root would leave her out of reach at its nose and tail.
+P.REACH,P.RISE=50,100
 -- The bike's body: the capsule of its physics asset (on Bn_AdamV_Sub, radius 82.9, 576 cm end to end) as a radius
 -- around a segment on the bike's X axis. Its height: past 200 cm up or down her capsule never meets it. Once open,
 -- the bike turns solid again only when she is 20 cm clear of it.
 P.BODY,P.AXIS,P.TALL,P.LEAVE=83,{-97,314},200,20
 -- An angle within (-180, 180].
 local function norm(a) return 180-(180-a)%360 end
-function P.reach(feet,place)
-    local dx,dy,dz=place.at.X-feet.X,place.at.Y-feet.Y,place.at.Z-feet.Z
-    return dx*dx+dy*dy<=P.REACH*P.REACH and math.abs(dz)<=P.RISE
+function P.reach(feet,place,radius)
+    return math.abs(place.at.Z-feet.Z)<=P.RISE and P.clear(place,feet,radius)<=P.REACH
 end
 -- Whole metres of the 3D distance, rounded (out of reach is over 100 cm, so a refusal says 1 m or more), then the
 -- quarter it lies in from her camera's yaw. Straight above or below it lies ahead.

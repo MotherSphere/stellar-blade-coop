@@ -118,6 +118,7 @@ local function make_eve(name)
         event('mesh back')
     end
     e.Mesh,e.list[1]=m,m
+    e.CapsuleComponent=uobj({GetUnscaledCapsuleRadius=function() return 35 end})
     -- A walkable flat floor; its read raises while floor_raises (a struct UE4SS would not read).
     local floor={bWalkableFloor=true,HitResult={ImpactNormal={X=0,Y=0,Z=1}}}
     e.CharacterMovement=setmetatable(uobj({MovementMode=1}),{__index=function(_,k)
@@ -880,6 +881,12 @@ R.toggle(); eve.teleport_ok=false; R.toggle()
 assert(R.riding() and find('^bike mount: teleport refused, the bike came to her$')); eve.teleport_ok=true
 R.toggle(); dv.refuse='no'; ok=R.toggle(); dv.refuse=nil
 assert(not ok and st_made[#st_made].shown,'A failed mount shows the stand again')
+-- Touching its nose, its tail or the front of a flank reaches it: its solid body stops her there, so the reach counts
+-- from the body, not from the root.
+for _,at in ipairs({{X=433,Y=0,Z=0},{X=-216,Y=0,Z=0},{X=300,Y=120,Z=0}}) do
+    park_at({X=0,Y=0,Z=0},0); eve.mesh_at=at
+    ok,why=R.toggle(); assert(ok and R.riding(),why); R.toggle()
+end
 -- The prompt: once on entering reach.
 local n=#told
 eve.mesh_at={X=1000,Y=0,Z=0}; clock=clock+0.25; R.slow()

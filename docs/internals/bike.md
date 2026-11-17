@@ -203,8 +203,9 @@ the cached place and her main mesh's location:
 - on another map: `Your bike is on another map: <name>.`, the name from `session/travel.lua`'s `WORLDS`, else the
   path's last part;
 - on her map with the stand not shown: `Your bike is not back yet.`;
-- out of reach (`bike/park.lua`'s `reach`: more than 200 cm across from her feet to the stand's root, or more than 100
-  cm up or down): `Your bike is <n> m away, <side>.` The distance is the 3D one rounded to whole metres, so a refusal
+- out of reach (`bike/park.lua`'s `reach`: her capsule more than 50 cm from the bike's body by the clearance rule
+  above, with her capsule's radius read from `CapsuleComponent`, or her feet more than 100 cm up or down from the
+  stand's root): `Your bike is <n> m away, <side>.` The distance is the 3D one rounded to whole metres, so a refusal
   says 1 m or more. The side is the quarter the bike lies in from `GetControlRotation()`'s yaw: within 45 degrees
   `ahead of you`, from 135 degrees `behind you`, else `to your right` or `to your left`. A bike straight above or below
   is ahead;

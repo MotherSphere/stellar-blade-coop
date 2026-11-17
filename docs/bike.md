@@ -19,8 +19,8 @@ been in the world for 2 s. Until then a mount is refused with `the bike is still
 press loads nothing.
 
 The first ride on a save comes out under her, wherever she stands. After that the bike is where she last got off (see
-[Where the bike stays](#where-the-bike-stays)). Within reach of it, at most 200 cm across from her feet to the bike and
-100 cm up or down, from any side, the press moves her onto its seat and she rides off from there. If the game refuses
+[Where the bike stays](#where-the-bike-stays)). Within reach of it, with at most 50 cm between EVE and the bike on any
+side and 100 cm up or down, the press moves her onto its seat and she rides off from there. If the game refuses
 to move her, she gets on where she stands and the bike comes to her. Each time she comes within reach,
 `F3: get on the bike` shows once, with your `bike_key` (nothing with `bike_key=none`).
 

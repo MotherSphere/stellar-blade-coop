@@ -9,9 +9,15 @@ local P=require('bike.park')
 local function near(a,b) return math.abs(a-b)<1e-6 end
 local function place(x,y,z,yaw) return {map='/game/map/map',at={X=x,Y=y,Z=z},rot={Pitch=0,Yaw=yaw or 0,Roll=0}} end
 local O={X=0,Y=0,Z=0}
--- Reach: 200 cm across, 100 cm up or down, from any side.
-assert(P.reach(O,place(200,0,100)) and P.reach(O,place(141,141,0)) and P.reach(O,place(-150,0,-100)))
-assert(not P.reach(O,place(201,0,0)) and not P.reach(O,place(0,0,101)))
+-- Reach: her capsule (radius 35) at most 50 cm from the bike's body, 100 cm up or down, from any side. Touching the
+-- tail, the nose or the front of a flank reaches it (the body is solid, so she stops there).
+local B=place(0,0,0)
+assert(P.reach({X=-216,Y=0,Z=0},B,35) and P.reach({X=433,Y=0,Z=0},B,35) and P.reach({X=300,Y=120,Z=0},B,35))
+assert(P.reach({X=-265,Y=0,Z=0},B,35) and P.reach({X=0,Y=-168,Z=100},B,35) and P.reach({X=100,Y=0,Z=-100},B,35))
+assert(not P.reach({X=-266,Y=0,Z=0},B,35) and not P.reach({X=483,Y=0,Z=0},B,35) and not P.reach({X=0,Y=169,Z=0},B,35))
+assert(not P.reach(O,place(0,0,101),35) and not P.reach(O,place(0,0,-101),35),'A floor above or below does not count')
+assert(P.reach({X=0,Y=433,Z=0},place(0,0,0,90),35) and not P.reach({X=433,Y=0,Z=0},place(0,0,0,90),35),
+    'Its heading turns the body')
 -- Where, from her camera's yaw: whole metres of the 3D distance, rounded; the word by quarter.
 assert(select(1,P.where(O,0,place(4249,0,0)))==42 and select(1,P.where(O,0,place(4250,0,0)))==43)
 assert(select(1,P.where(O,0,place(0,0,300)))==3 and select(1,P.where(O,0,place(0,0,-101)))==1,

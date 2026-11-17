@@ -32,11 +32,12 @@
 -- unpinned build, saves=off, no link) the place lives in memory. While an SBO lobby is open no record is read or
 -- written: it starts with no place; leaving it reads the save's record again. It shows on its map once her EVE stood
 -- 2 s, while she does not ride and no cutscene holds her. With a place, a mount after EVE's own checks is refused while
--- the bike is on another map, not shown yet on hers or out of reach (200 cm across, 100 cm up or down: bike/park.lua),
--- with its distance and side from her camera. Within reach the bike is hidden, then her actor is teleported so the part
--- lands on its root and heading (a teleport SB refuses mounts her where she stands), then the mount above. A notice
--- tells bike_key once each time she comes within reach of it. Her bike line (bike/park.lua's wire) goes to the link at
--- each change, from a mount, a dismount or the 250 ms pass: none while she rides, with bike=off or without a place.
+-- the bike is on another map, not shown yet on hers or out of reach (her capsule over 50 cm from its body or her feet
+-- over 100 cm up or down: bike/park.lua), with its distance and side from her camera. Within reach the bike is hidden,
+-- then her actor is teleported so the part lands on its root and heading (a teleport SB refuses mounts her where she
+-- stands), then the mount above. A notice tells bike_key once each time she comes within reach of it. Her bike line
+-- (bike/park.lua's wire) goes to the link at each change, from a mount, a dismount or the 250 ms pass: none while she
+-- rides, with bike=off or without a place.
 -- At an activated Xion camp (session/travel.lua's camp_near, within CAMP m), outside an SBO lobby, the refusal for a
 -- bike out of reach or on another map offers the paid fetch (bike/fetch.lua): a second press within Fetch.WINDOW s
 -- pays Fetch.PRICE betacrystal. While it runs every press is refused with that; once paid the bike stands where she
@@ -351,7 +352,7 @@ function Ride.new(o)
         local d=h and h.at==address(e) and h.stand
         if not (d and d.shown) then return function(t) return t.bike.not_back end end
         local feet=value_of(valid(e.Mesh):K2_GetComponentLocation())
-        if Park.reach(feet,place) then return nil,d end
+        if Park.reach(feet,place,valid(e.CapsuleComponent):GetUnscaledCapsuleRadius()) then return nil,d end
         local metres,side=Park.where(feet,value_of(e:GetControlRotation()).Yaw,place)
         return function(t) return t.bike.far:format(metres,t.bike[side]) end,nil,true
     end
@@ -364,7 +365,8 @@ function Ride.new(o)
             return
         end
         if not (h.stand.shown and place) then return end
-        local near=Park.reach(value_of(valid(e.Mesh):K2_GetComponentLocation()),place)
+        local near=Park.reach(value_of(valid(e.Mesh):K2_GetComponentLocation()),place,
+            valid(e.CapsuleComponent):GetUnscaledCapsuleRadius())
         local key=o.settings and o.settings.bike_key
         if near and not h.near and key and key.name~='none' then
             o.tell(function(w) return w.bike.prompt:format(key.name) end)
