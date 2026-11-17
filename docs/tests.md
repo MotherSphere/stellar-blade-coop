@@ -26,7 +26,7 @@ The Lua tests (`bike/`: `model`, `ride`; `commands/`: `session`; `core/`: `actor
 `run`; `session/`: `arrival`, `booth`, `chat`, `group`, `halls_rows`, `join`, `saves`, `sbo`, `travel`; `sky/`:
 `daynight`, `rule`; `story/`:
 `snapshot`, `subtitles`; `ui/`: `create`, `create_model`, `guide`, `kit`, `lobby`, `lobby_model`, `model`, `notice`,
-`region_tabs`, `sessions`, `sessions_model`, `text`) run
+`pause_tab`, `region_tabs`, `sessions`, `sessions_model`, `text`) run
 the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
 fails the test. The `main/` tests load
 `main/fixture.lua` first, with UE4SS stubbed for `main.lua`.
@@ -126,7 +126,14 @@ fails the test. The `main/` tests load
   Operation, the SBO lobby in Xion's training room only, the third-party plugin's path, `coop-sky.txt`, the world's
   address, no streaming level asked with no EVE) and its 250 ms pass with `coop off`. It also covers `coop daynight`
   with each word and its usage line for the rest. `main/menu_test` covers the Day and night row: On by default, a change
-  saved at once with no request;
+  saved at once with no request. It covers the Online tab in the pause menu row too: On by default, a change saved at
+  once, the next 250 ms pass asking `pausetab off` or `pausetab on`;
+- `ui/pause_tab_test` covers the pause menu's Online tab over fakes: nothing before the game is ready, the class loaded
+  with its keeper and the Construct hook once, one button after the game's 8 with the word and the last button's
+  style, none on a second Construct, the button again after a rebuild while paused, a click over the button or RB
+  closing the pause menu once, the co-op menu at the first tick after the unpause or the give-up line and notice after
+  2 s, `pause_tab=off` making nothing and asking `pausetab off`, a refused ask asked again and logged once, a pause menu
+  of another shape stopping the tab with one STOP line and `pausetab off`, then `coop off` stopping it;
 - `sky/rule_test` covers `sky/rule.lua`: every row of the map table (keys in lower case, each open row complete for its
   kind of sky, the fixed maps, an unknown map), the rules in their order (a cutscene before photo mode, photo mode's
   hold whatever the hour and while SB's photo mode pauses the game, a test pin before Night Operation's midnight), the
@@ -158,7 +165,9 @@ fails the test. The `main/` tests load
   case from a fresh Lua load: 4 and 5 in a world with the UI up, 0 and 2 at the title, all in the first second;
 - `main/input_test` covers the controller's events from a fake `coop_pad` (routed to the menu, the co-op saves' question,
   the two boxes and the host's question, which ignores them for 1 s and never takes View held; LB, RB and Y taken and
-  doing nothing there; at most 8 a frame; an older DLL without it), the mouse in the menu and on the host's question,
+  doing nothing there; the Online tab's event 12 going to the pause tab only, the open menu and the host's question
+  keeping their focus; at most 8 a frame; an older DLL without it), the mouse in the menu and on the host's question
+  (a left click going to the pause menu's Online tab while a pause menu holds it),
   the focus watchdog's reset, the Lua frame time line with its
   longest frame and 250 ms pass, their counts over 16 ms and over 50 ms, and the longest call of five modules, and the
   gap lines (a frame over 100 ms after the last, with the 250 ms pass in the gap or none, at most 200 a minute);
@@ -312,7 +321,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   `mxiii rows`, `shop rows` and `signal rows` with their 25 table words and bad addresses, the longest of them 813
   bytes; `fly` and `slowmo` on or off; `anim play` with its id, path and `once`, `loop` or `ride`, and `anim stop`;
   `bike load <clip>`, `bike free`, `bike gate on` and `bike gate off`, a mesh, a package path or a mod's clip refused;
-  `shortcut list` and `shortcut load <map> <1-4>`; `hud hide on` and `hud hide off`; `loading lift`; `sky off`,
+  `shortcut list` and `shortcut load <map> <1-4>`; `hud hide on` and `hud hide off`; `pausetab on` and
+  `pausetab off`; `loading lift`; `sky off`,
   `sky hold`, `sky cycle <hz> <H>` and `sky hour <minute> <hz> <H>` with their ranges; `world` and
   `scenes` with `on`, `off` or `status`; `nightshop`,
   `roxanne`, `lily`,
@@ -755,7 +765,12 @@ The C++ tests cover the platform-free headers in `native/src`.
   with up's repeat going on, a disconnect, the event queue), which XInput slots each poll asks, `PadKeys` (a held
   button in every read until its release, a press and release inside one poll counted once, a repeat ignored, two
   controllers ORed, the stick pushed furthest, clamped values, unknown keys and ids outside 0 to 7 ignored, `clear()`,
-  the events from `PadKeys` as from XInput) and Slate's handler slots pinned to the vtable;
+  the events from `PadKeys` as from XInput), Slate's handler slots pinned to the vtable and the Online tab's event
+  posted into the queue in order with the pad's, a full queue dropping the newest;
+- `pause_tab_test`: the Online tab's decision on the GameMenu logic's input (RB on the highest enabled tab while the
+  game's tab lock is off opens it; any other tab, action or lock passes the action on to the game; a tab list the game
+  never builds passes too; a press and its release within 500 ms open once) and its pinned slot, function, FName
+  global and offsets;
 - `dev_panels_test`: `coop devinfo`'s guard (each read failing alone, refused with its own reason; a close needs
   neither the flow nor the phase), the plan over every mix of open panels and every ask (the other panel closes, the
   one asked opens unless it is open), and the two panels' logic types and names;

@@ -132,8 +132,8 @@ settings_text='# mine\nname_tag=on\n'
 key('F5'); to('Options'); key('RETURN')
 assert(screen():find('^CONTROLS||disabled\nOpen this menu|F5|focus\nShow the status|F6|normal\n'
     ..'Leave the session|F8|normal\nTravel to the host|F7|normal\nSet a race checkpoint|F9|normal\n'
-    ..'Bike|On|normal\nGet on or off the bike|F3|normal\nReset all keys||normal\nPHOTO MODE||disabled\nPhoto sync|Both|normal\n'
-    ..'Longest pause|10 min|normal\n'),screen())
+    ..'Bike|On|normal\nGet on or off the bike|F3|normal\nOnline tab in the pause menu|On|normal\n'
+    ..'Reset all keys||normal\nPHOTO MODE||disabled\nPhoto sync|Both|normal\nLongest pause|10 min|normal\n'),screen())
 to('Ponytail cloth'); local rebuilt=#rebuilds
 key('RIGHT_ARROW')
 assert(settings_text=='# mine\nname_tag=on\ncloth=off\n' and look.cloth==false and #rebuilds==rebuilt+1
@@ -320,6 +320,13 @@ key('RETURN')
 assert(settings_text:find('\ndaynight=off\n',1,true) and select(2,focus())=='Off' and #asked==day_asks
     and logged('menu: daynight=off saved in coop-settings.txt'))
 key('RETURN'); assert(settings_text:find('\ndaynight=on\n',1,true) and select(2,focus())=='On')
+-- The Online tab: On by default; a change is saved at once and the next 250 ms pass asks the native part pausetab off
+-- or on (ui/pause_tab.lua's slow; the fixture's stand-in asks as it does).
+to('Online tab in the pause menu'); assert(select(2,focus())=='On')
+key('RETURN'); quarter()
+assert(settings_text:find('\npause_tab=off\n',1,true) and pausetabs[#pausetabs]=='pausetab off'
+    and select(2,focus())=='Off')
+key('RETURN'); quarter(); assert(pausetabs[#pausetabs]=='pausetab on' and select(2,focus())=='On')
 -- The language: the game's (French here), English when set so; the page scrolled to keep the cursor and the row below
 -- it in view.
 kit_language='fr-FR'
@@ -440,7 +447,7 @@ clock=clock+1
 key('F5'); to('Options'); key('RETURN'); to('Reset all keys')
 assert(select(2,focus())==''
     and screen():find('Set a race checkpoint|F9|normal\nBike|On|normal\nGet on or off the bike|F3|normal\n'
-        ..'Reset all keys||focus\nPHOTO MODE',1,true))
+        ..'Online tab in the pause menu|On|normal\nReset all keys||focus\nPHOTO MODE',1,true))
 key('RETURN')
 assert(menu_view.note.s=='Select again within 3 s to reset every key.' and settings_text:find('F12',1,true))
 clock=clock+1; key('RETURN')

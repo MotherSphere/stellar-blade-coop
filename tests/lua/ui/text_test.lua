@@ -16,8 +16,9 @@
 -- without its prefix, the race's panel, marker, banner and results within theirs, the lobby menu's rows, settings,
 -- values and status within their columns and its waiting-room notice within 200 bytes, Find a session's hints, status
 -- lines, version and footer within theirs, Create a session's title, rules header, Start row and right-pane words
--- within theirs; no Thai word that ends on a leading vowel; each join Steam refused as link/core.h words it, in every language; the DLC notice (T.dlcs) within
--- 200 bytes with 100-byte DLC names in every language; its English as main.lua says it.
+-- within theirs, the pause menu's Online tab word within its tab and its notice within 200 bytes; no Thai word that
+-- ends on a leading vowel; each join Steam refused as link/core.h words it, in every language; the DLC notice
+-- (T.dlcs) within 200 bytes with 100-byte DLC names in every language; its English as main.lua says it.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
 local R=require('nightop.recruiter_text')
@@ -278,6 +279,11 @@ for name in pairs(R.TEXT) do
     fits(name..'.create.start',cr.start,32)
     fits(name..'.create.locked',cr.locked,4*57)
     for k,text in pairs(cr.who) do fits(name..'.create.who.'..k,text,4*57) end
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word within SB's tab, whose TextWidthValue it copies (16
+    -- columns, so Thai's marks count as nothing), the notice when the game stays paused within the feed's 200 bytes.
+    local pt=w.pause_tab
+    fits(name..'.pause_tab.tab',pt.tab,16)
+    assert(Chat.clean(pt.stuck)==pt.stuck,name..'.pause_tab.stuck: '..#pt.stuck..' bytes or a control')
 end
 -- Thai writes a leading vowel (U+0E40 to U+0E44) before its consonant: no word ends on one.
 local function thai(t,at)

@@ -110,7 +110,7 @@ fades.library={type=function() return 'UObject' end,IsValid=function() return tr
     LoadingScreenFadeAuto=function(_,...) fades.calls[#fades.calls+1]=table.concat({...},' ') end}
 Link=dofile('mod/StellarCoop/Scripts/core/link.lua') -- The real parser behind the fake link.
 LoopInGameThreadWithDelay=function(ms,f) loops[#loops+1]={ms=ms,f=f} end
-asked,huds,sessions,ticks,withdrawn,states,photos={},{},{},0,{},{},{}
+asked,huds,pausetabs,sessions,ticks,withdrawn,states,photos={},{},{},{},0,{},{},{}
 status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
 link_mode='none' -- What link.mode() says, as of the last changes().
 ping_ms,write_refusal=nil,nil -- link.ping(); why link.write_settings fails (nil: it writes).
@@ -138,11 +138,12 @@ fake_link={
     remote=function(k) if (k or 0)==0 then return 3,1,'loopback' end end, -- No table in ghost slots 1 to 6.
     slot=function(k) return {} end, -- A ghost slot's files (partner/ghosts.lua): no member holds one in these tests.
     remote_table=function() return nil end,
-    -- The hud requests of the lobby's screens go to huds (tests/lua/main/sbo_test), the others to asked. hud_refuse:
-    -- a hud request is refused with that why, as link.request answers when coop-request.txt cannot be written.
+    -- The hud requests of the lobby's screens go to huds (tests/lua/main/sbo_test), the pause menu's Online tab's to
+    -- pausetabs, the others to asked. hud_refuse: a hud request is refused with that why, as link.request answers when
+    -- coop-request.txt cannot be written.
     request=function(line)
         if hud_refuse and line:find('^hud ') then return false,hud_refuse end
-        local into=line:find('^hud ') and huds or asked
+        local into=line:find('^hud ') and huds or line:find('^pausetab ') and pausetabs or asked
         into[#into+1]=line
         return true,'asked the native part: '..line
     end,
@@ -324,6 +325,20 @@ rt={o=nil,ticks=0,stops=0} -- The teleport tabs: what region_tabs.new got, its t
 package.loaded['ui.region_tabs']={new=function(o)
     rt.o,rt.ticks,rt.stops=o,0,0
     return {tick=function() rt.ticks=rt.ticks+1 end,stop=function() rt.stops=rt.stops+1 end}
+end}
+-- The pause menu's Online tab: what pause_tab.new got, its ticks, the clocks of its events and clicks, its stops,
+-- armed() (pt.armed) and the ask its slow writes when the setting changes, as ui/pause_tab.lua's does (pt.asked: the
+-- last one written; tests/lua/ui/pause_tab_test.lua tests the module itself).
+pt={o=nil,ticks=0,events={},clicks={},stops=0,armed=false,asked=nil}
+package.loaded['ui.pause_tab']={new=function(o)
+    pt.o,pt.ticks,pt.events,pt.clicks,pt.stops,pt.armed,pt.asked=o,0,{},{},0,false,nil
+    return {tick=function() pt.ticks=pt.ticks+1 end,
+        slow=function()
+            if pt.stops>0 or o.enabled()==pt.asked then return end
+            if o.ask(o.enabled() and 'pausetab on' or 'pausetab off') then pt.asked=o.enabled() end
+        end,
+        event=function(now) pt.events[#pt.events+1]=now end,click=function(now) pt.clicks[#pt.clicks+1]=now end,
+        armed=function() return pt.armed end,stop=function() pt.stops=pt.stops+1 end}
 end}
 package.loaded['nightop.probe']={new=function(log,ask,status)
     probe={log=log,ask=ask,status=status}
@@ -914,7 +929,7 @@ function load_main(with_native,no_folder,source)
         if name=='coop_pad' then
             if pd.missing then return nil,'not exported' end
             return function(...)
-                assert(select('#',...)==11,'Eleven arguments: the most the native part hands back')
+                assert(select('#',...)==12,'Twelve arguments: the most the native part hands back')
                 pd.calls=pd.calls+1
                 return table.unpack({...},1,table.remove(pd.q,1) or 0)
             end
@@ -923,6 +938,7 @@ function load_main(with_native,no_folder,source)
     end
     pd.q,pd.calls,kit_lost={},0,nil
     printed,handler,loops,asked,huds,sessions,ticks,active,withdrawn,captured,states={},nil,{},{},{},{},0,false,{},{},{}
+    pausetabs={}
     state_names={} -- link.state's mod_names argument, each call.
     settles=0 -- link.settle() calls: the end of each 250 ms pass and the top of each frame.
     photos,veils,photo_veils={},{},{}

@@ -186,6 +186,9 @@ pvp_spike=on
 # SBO lobby: on or off, on by default. On, the recruiter's Join saves the co-op game and opens the PvP lobby in Xion,
 # and each co-op save is copied before the game rewrites it (the 10 newest kept per slot).
 sbo_lobby=on
+# Online tab: on or off, on by default. On, the pause menu gets an Online tab after Settings. RB on Settings (E on
+# the keyboard) or a click on the tab closes the pause menu and opens the co-op menu.
+pause_tab=on
 ```
 
 | Setting | Values | Default |
@@ -199,6 +202,7 @@ sbo_lobby=on
 | `bike_key` | same, or `none`: a key that puts EVE on the [bike](bike.md) or takes her off it | `F3` |
 | `drift_keys` | up to 4 Unreal key names separated by spaces, or `none`: the keys held to [drift](doro-races.md#driving) in a race or on the [bike](bike.md#riding) | `Gamepad_RightTrigger B` |
 | `bike` | `on` or `off`: the [bike](bike.md), on any save; off takes EVE off the bike, removes it from her and frees its loaded files | `on` |
+| `pause_tab` | `on` or `off`: the [Online tab](interface.md#pause-menu) after Settings in the game's pause menu, which opens the co-op menu. Off, RB on Settings goes to Equipment as in the game. Options, Controls, Online tab in the pause menu; it applies from the next pause menu | `on` |
 | `who_can_join` | `public`, `friends`, `invitation` or `closed`: who can join an online session you host. `public`: any player of your version, who finds it in the session list. `friends`: your Steam friends. `invitation`: the friends you invite or anyone with your [join code](playing-with-a-friend.md#join-codes). `closed`: nobody (Private in the co-op menu). The words `code` and `private` from 0.11 and older read as `invitation`; the file keeps them | `public` |
 | `friends_ask` | `on` or `off`, with `public` or `invitation`: `on` makes your Steam friends wait for your answer like other players. The co-op menu shows it as Friends join without asking, On while `friends_ask=off` | `off` |
 | `max_players` | `2` to `4`: the players an online session you host holds, you included (Players on the Options page and the Create a session screen), from the next session you host. Past 2, shared enemies, the shared world and story together run between you and one guest only ([More than 2 players](playing-with-a-friend.md#more-than-2-players)) | `4` |

@@ -51,6 +51,8 @@ achievements, which cannot be taken back.
   even if Steam had to start their game. The menu also finds sessions, invites, leaves and changes the settings. F6
   shows the status and F8 leaves the session. On any controller the game reads (a DualSense with Steam Input off
   included), View held for 1 s opens the menu. The mouse works in it too.
+- The game's pause menu gets an Online tab after Settings. RB on Settings (E on the keyboard) or a click on the tab
+  closes the pause menu and opens the co-op menu. Not tested in game yet.
 - At a camp phone booth (any full camp, Xion's booths, the Wasteland and Great Desert warp phones), F5 opens the co-op
   line: the menu's session rows, Co-op menu and Hang up, and a sentence that says whether the line is free, open or
   linked with your friend. The booth's own fast travel works as before. The line is not tested in game yet.

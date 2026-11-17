@@ -544,6 +544,10 @@ assert(Link.parse_settings('daynight=off').daynight==false and Link.parse_settin
 s,notes=Link.parse_settings('daynight=maybe')
 assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for daynight (use on or off); "
     .."daynight stays on" and s.daynight==true,notes[1])
+-- The pause menu's Online tab: on by default, last in a new file, its comment right after sbo_lobby.
+assert(Link.parse_settings('').pause_tab==true and Link.parse_settings('pause_tab=OFF').pause_tab==false
+    and Link.DEFAULT:find('\nsbo_lobby=on\n# Online tab: on or off, on by default.',1,true)
+    and Link.DEFAULT:find('\npause_tab=on\n$'))
 assert(Link.DEFAULT:find('\ndaynight=on\n# Shortcut saves, a test tool: on or off, on by default.',1,true)
     and Link.DEFAULT:find('cannot be taken back',1,true) and Link.DEFAULT:find('\nshortcut_load=on\n'))
 assert(Link.parse_settings('shortcut_load=OFF').shortcut_load==false)
@@ -559,11 +563,11 @@ assert(Link.parse_settings('pvp_spike=OFF').pvp_spike==false)
 s,notes=Link.parse_settings('pvp_spike=yes')
 assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for pvp_spike (use on or off); "
     .."pvp_spike stays on" and s.pvp_spike==true,notes[1])
--- sbo_lobby (the SBO lobby, no menu row): on or off in any case, on by default, last in a new file after pvp_spike,
--- with its comment; a bad value keeps on, with a line.
+-- sbo_lobby (the SBO lobby, no menu row): on or off in any case, on by default, after pvp_spike in a new file, with
+-- its comment; a bad value keeps on, with a line.
 assert(Link.parse_settings('').sbo_lobby==true and Link.parse_settings(Link.DEFAULT).sbo_lobby==true)
 assert(Link.DEFAULT:find('\npvp_spike=on\n# SBO lobby: on or off, on by default.',1,true)
-    and Link.DEFAULT:find('\nsbo_lobby=on\n$'))
+    and Link.DEFAULT:find('\nsbo_lobby=on\n',1,true))
 assert(Link.parse_settings('sbo_lobby=OFF').sbo_lobby==false)
 s,notes=Link.parse_settings('sbo_lobby=yes')
 assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for sbo_lobby (use on or off); "

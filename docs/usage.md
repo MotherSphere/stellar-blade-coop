@@ -16,6 +16,7 @@ The keys work with or without the console. They need the native part (`StellarCo
 | F5 | Open or close the [co-op menu](interface.md#co-op-menu); its first row hosts a session. Within 3 m of a camp phone booth, open the [co-op line](interface.md#co-op-line) instead. In the [SBO lobby](sbo-lobby.md#the-lobby-menu), open the lobby menu, or sit on a hall seat within 1.5 m that has no chair | (none) |
 | View held 1 s, on a [controller](interface.md#controller) | Open or close the co-op menu, the co-op line at a booth, or the lobby menu in the SBO lobby | (none) |
 | LB, RB, on a controller | Change the tab of the SBO lobby's Settings screen or of the [Sessions screen](interface.md#sessions-screen) | (none) |
+| RB or E on the Settings tab of the game's pause menu, or a click on its Online tab | Close the pause menu and open the co-op menu ([Pause menu](interface.md#pause-menu)) | (none) |
 | Y, on a controller | Refresh the Sessions screen's list, or stop the search that runs | `coop list public\|friends` |
 | F6 | Show the status: one line on screen (see [Notices](interface.md#notices)) and in `UE4SS.log` | (a short form of `coop status`) |
 | F7 | As the guest, travel to the camp nearest the host, or cancel the travel that `follow_host=always` is about to start ([Following the host](playing-with-a-friend.md#following-the-host)) | `coop travel host` |

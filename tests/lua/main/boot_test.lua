@@ -183,6 +183,7 @@ assert(settles==2,'Each frame first drops the status text a 250 ms pass kept (co
 assert(rt.o.ready()==true,'A link and a player controller: the teleport tabs may load')
 cv.pc=nil; assert(rt.o.ready()==false,'No player controller yet'); cv.pc=cv.stale
 assert(rt.o.ready()==false,'Another object at the old address'); cv.pc=cv.PC
+assert(pt.o.ready()==true and pt.o.enabled()==true,'The pause menu\'s Online tab: as the teleport tabs, on by default')
 assert(ra.steers==2 and ra.steered_at==1,'The driving each frame, before the native tick: the pose has its yaw')
 -- coop race: its words to race/run.lua (record, cp, save, cancel, quit on any slot), its start on the co-op save slot
 -- only; race.new got the [DR] logger, the link, the ghost, the Doro look, the notices, Night Operation's run, the slot
@@ -1161,6 +1162,7 @@ status_text=status_text..'engine=off reason=coop_off\n'; loops[2].f(); loops[1].
 assert(ticks==24 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
 assert(probe_ticks==probed and rc_ticks==recruited,'No probe or recruiter follow-up after coop off')
 assert(rt.stops==1,'coop off stops new teleport tabs')
+assert(pt.stops==1,'coop off stops the pause menu\'s Online tab')
 before=#probe_runs
 coop('no')
 assert(#probe_runs==before and last():find('STOP: coop off is active until the game restarts',1,true),last())

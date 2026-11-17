@@ -134,8 +134,8 @@ if loaded then
     if type(f)=='function' then native_pad=f
     else log('Native pad unavailable (no controller in the co-op menu): '..tostring(pad_why)) end
 end
--- The DLL links no Lua: its event (0 for none) is how many of these eleven arguments it hands back.
-local function pad() return select('#',native_pad(0,0,0,0,0,0,0,0,0,0,0)) end
+-- The DLL links no Lua: its event (0 for none) is how many of these twelve arguments it hands back.
+local function pad() return select('#',native_pad(0,0,0,0,0,0,0,0,0,0,0,0)) end
 local link=loaded and require('core.link').new(folder) or nil
 local settings=nil
 if link then
@@ -339,6 +339,7 @@ local mxiii=require('matrix13.world.travel').new({log=function(m) print('[Stella
 -- The teleport screen's extra tabs (ui/region_tabs.lua), logging [RT] lines. Their records come from the native part.
 local region_tabs=require('ui.region_tabs').new({log=function(m) print('[StellarCoop][RT] '..tostring(m)..'\n') end,
     ready=function() return link~=nil and require('core.unreal').controller()~=nil end})
+local pause_tab -- The pause menu's Online tab (ui/pause_tab.lua), made after pad_event below: it opens the menu.
 -- commands.recruiter runs only on a co-op save; coop off despawns on any slot (cleanup). Once he stands there, his Join
 -- is armed, with sbo_lobby=on only: arming swaps a slot in the game's image, and a player who has not turned the lobby
 -- on gets no swap (his Join then does what the game's does). The native part counts each Join on the sbo line
@@ -777,6 +778,7 @@ local commands={
             if not stopped then log('halls: '..tostring(e)) end
         end
         region_tabs.stop() -- No more tabs: only a flag.
+        pause_tab.stop() -- Likewise; the native part gives its slot back.
         stopped,e=pcall(wear.stop) -- EVE's own meshes back.
         if not stopped then log('wear: '..tostring(e)) end
         if o.roxanne then -- Her two choices back before the native part stops taking requests.
@@ -1100,8 +1102,9 @@ end
 -- bike (D-pad Right held 1 s) gets EVE on the bike or off it as bike_key does, in a world with our HUD shown, none of
 -- our screens open (the host's question, the Sessions screen and the Create a session screen included) and the game
 -- neither paused nor showing one of its own screens, such as its inventory or map; otherwise it logs why and does
--- nothing.
-local PAD={'up','down','left','right','select','back','menu','tab_left','tab_right','bike','refresh'}
+-- nothing. pause_tab (RB on the pause menu's last tab, E on the keyboard: the native part's event 12) goes to the
+-- Online tab only (ui/pause_tab.lua), never to one of our screens.
+local PAD={'up','down','left','right','select','back','menu','tab_left','tab_right','bike','refresh','pause_tab'}
 -- bike_key and the pad's bike: EVE on the bike or off it, logged as a command is. A refusal also goes on screen, in
 -- English as the bike gives it, since the press shows nothing else.
 local function bike_press(by)
@@ -1111,7 +1114,14 @@ local function bike_press(by)
     report(ok,message)
     if not ok then say(tostring(message)) end
 end
+-- menu_key's path with nothing open in a world: B in the lobby world, the co-op menu elsewhere, its refusals said.
+local function open_menu()
+    if sbo.in_lobby() then return lobby_key() end
+    local ok,why,shown,en=menu.toggle(booth.near(puppet.me()))
+    if why then report(ok,why); say(shown or why,en) end
+end
 local function pad_event(what)
+    if what=='pause_tab' then return pause_tab.event(os.clock()) end
     if what=='bike' then
         local why=not hud_shown and 'our HUD is not shown'
             or (approval.is_open() or lobby.is_open() or code_box.is_open() or box.is_open() or menu.is_open()
@@ -1155,11 +1165,17 @@ local function pad_event(what)
         if what=='up' or what=='down' or what=='select' or what=='back' then saves_ui.nav(what) end
     elseif what=='menu' and hud_shown then
         log('pad: menu')
-        if sbo.in_lobby() then return lobby_key() end
-        local ok,why,shown,en=menu.toggle(booth.near(puppet.me()))
-        if why then report(ok,why); say(shown or why,en) end
+        open_menu()
     end
 end
+-- Logging [PT] lines. Its button and its open run on the game thread; RB comes as pad_event's pause_tab, a click
+-- through the LEFT_MOUSE_BUTTON bind below.
+pause_tab=require('ui.pause_tab').new({log=function(m) print('[StellarCoop][PT] '..tostring(m)..'\n') end,
+    ready=function() return link~=nil and require('core.unreal').controller()~=nil end,
+    enabled=function() return settings~=nil and settings.pause_tab==true end,
+    word=function() return words().pause_tab.tab end,paused=function() return kit~=nil and kit.paused(true) end,
+    open=open_menu,notice=function() say(words().pause_tab.stuck,T.en.pause_tab.stuck) end,
+    ask=function(line) return ask(line)() end})
 RegisterConsoleCommandHandler('coop',function(_,parameters)
     typed_at=os.clock()
     -- A seventh word too, so a command that takes six (coop leviathan show) refuses one more.
@@ -1285,6 +1301,7 @@ LoopInGameThreadWithDelay(1,function()
         guarded('join',approval.tick,now)
         guarded('saves',saves_ui.tick,now)
         guarded('hud',hud.tick,now)
+        guarded('pause tab',pause_tab.tick,now)
         if native_pad then -- At most 8 pad events a frame, the native part's whole ring.
             for _=1,8 do
                 local what=PAD[pad()]
@@ -1679,6 +1696,7 @@ if link then
         if off and not blocked then blocked=native_off() end
         for _,line in ipairs(link.changes()) do log('link: '..line) end
         guarded('daynight',o.daynight.slow,off) -- After coop off too: it asks sky off once.
+        guarded('pause tab',pause_tab.slow) -- Asks pausetab on or off; nothing after coop off.
         if not off then guarded('nightop',night.tick) end -- Night Operation's run, if any: it logs its own lines.
         -- Roxanne's Night Operation choices: likewise; after coop off, only her two choices and the rows back.
         guarded('roxanne',o.roxanne.tick,off)
@@ -1910,7 +1928,8 @@ end
 -- or a box is open our F-keys do nothing. The mouse buttons are the join popups' first while one is open (a left click
 -- answers with the button under the mouse, a right click declines or closes), then the lobby's screens' and the menu's
 -- (a left click selects the row under the mouse, a right click goes back), then the left one the co-op saves'
--- question's (the choice under the mouse); closed, they are the game's. A key callback runs on UE4SS's key thread: it
+-- question's (the choice under the mouse); closed, they are the game's. A left click over the pause menu's Online tab
+-- closes the pause menu and opens the co-op menu (ui/pause_tab.lua). A key callback runs on UE4SS's key thread: it
 -- only hands the press to the game thread, where the console's checks (coop off included) apply. A modified F-key is
 -- bound before the plain one, so if UE4SS also calls the plain bind for a Shift+F5, the plain press that follows at
 -- once is the same press, dropped. The status key gives a one-line summary, in the log in English and on screen in the
@@ -2040,6 +2059,7 @@ if settings then
     -- While our UI holds the game's input, either button first has the kit put our focus back (a click on none of our
     -- widgets gives it to the game's viewport). No gamepad button can be bound: the pad comes through the native part.
     bind('LEFT_MOUSE_BUTTON',nil,function()
+        if pause_tab.armed() then ExecuteInGameThread(function() pause_tab.click(os.clock()) end) end
         if not (kit.holding() or menu.is_open() or saves_ui.is_open()) then return end
         ExecuteInGameThread(function()
             kit.click()

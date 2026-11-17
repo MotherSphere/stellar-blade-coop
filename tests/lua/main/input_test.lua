@@ -8,7 +8,8 @@ dofile('tests/lua/main/fixture.lua')
 -- An XInput pad (the native part reads it; pad_test tests its events): each frame up to 8 events, routed as the keys
 -- route theirs. With nothing open in a world, View held opens the co-op menu as menu_key does, its refusals said the
 -- same way; the menu takes the six navigation words and View held closes it; the co-op saves' question takes up, down,
--- select and back; LB, RB and Y are taken and do nothing, as nothing here has tabs or a Refresh. The host's question
+-- select and back; LB, RB and Y are taken and do nothing, as nothing here has tabs or a Refresh; the Online tab's
+-- event (12) goes to the pause tab only. The host's question
 -- takes the D-pad, A and B from 1 s after it shows (a left or right click too), never View held. Nothing while the menu
 -- waits for a key (B still stops the wait, A puts back its default), at the title with nothing open, or after coop off;
 -- the chat box and the code box take only B, which closes them. An older DLL: one log line, no pad.
@@ -37,6 +38,13 @@ dofile('tests/lua/main/fixture.lua')
     assert(#pd.q==0 and focus()=='Find a session' and #kit_sounds==sounds+1 and not logged('pad: error'),
         'LB, RB and Y taken, nothing done')
     pad(7); assert(not kit_shown.menu)
+    -- 12 (pause_tab, the Online tab's RB from the native part) goes to the pause tab only, never to a screen's nav.
+    pad(7); assert(kit_shown.menu and focus()=='Host a session')
+    pad(12)
+    assert(kit_shown.menu and focus()=='Host a session' and #pt.events==1
+        and not table.concat(printed,'|'):find('pad: error',1,true),
+        'The Online tab event changes nothing in the open co-op menu')
+    pad(7)
     -- At most 8 a frame: the rest the next frame, where a 0 ends the taking.
     pad(7); assert(kit_shown.menu)
     local calls=pd.calls
@@ -78,6 +86,11 @@ dofile('tests/lua/main/fixture.lua')
     link_pending={id='76561198000000009',name='Three'}
     quarter(); clock=clock+1
     pad(1,5); assert(not kit_shown.ask and asked[#asked]=='allow 76561198000000009','Up, then A: let in')
+    -- The Online tab's event under the question: the pause tab's only; the focus stays on Decline.
+    link_pending={id='76561198000000020',name='Eight'}
+    quarter(); clock=clock+1
+    pad(12); assert(kit_shown.ask and #pt.events==2,'The question stays')
+    pad(5); assert(not kit_shown.ask and asked[#asked]=='deny 76561198000000020','A on Decline, still focused: denied')
     link_pending={id='76561198000000010',name='Four'}
     quarter(); clock=clock+1
     pad(6); assert(not kit_shown.ask and asked[#asked]=='deny 76561198000000010','B: denied')
@@ -132,7 +145,7 @@ end)()
 -- mouse resting while the keys move, never takes it; a header or an empty slot, nothing. A left click selects the row
 -- under the mouse as Enter does (Leave still asks twice), on a header or no row nothing; a right click goes back,
 -- closing it on the main page. Closed, both buttons are the game's: nothing queued (the left one is the saves'
--- question's).
+-- question's, or the pause menu's Online tab's while a pause menu holds it).
 ;(function()
     settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',true,false
     load_main(true)
@@ -145,6 +158,10 @@ end)()
     end
     local queued_at=executes
     press('LEFT_MOUSE_BUTTON'); press('RIGHT_MOUSE_BUTTON'); assert(executes==queued_at,'Closed: not queued')
+    -- A pause menu holding the Online tab arms it: a left click then goes to the tab on the game thread.
+    pt.armed=true
+    key('LEFT_MOUSE_BUTTON'); assert(#pt.clicks==1 and not kit_shown.menu,'The Online tab takes the click')
+    pt.armed=false
     rows[3].hover=true
     key('F5'); hover(3); assert(focus()=='Host a session','Under the mouse as it opens: not taken')
     local sounds=#kit_sounds
@@ -176,13 +193,13 @@ end)()
     assert(focus()=='Open this menu' and select(2,focus())~='Press a key','Right click: not waiting, nothing taken')
     -- The mouse onto the last slot scrolls the page down by one, onto the first up by one. The keys take the page one
     -- row down first: the last slot then holds a row, not the PARTNER header.
-    for _=1,13 do key('DOWN_ARROW') end
-    assert(focus()=='Name tag' and rows[1].l=='Leave the session',focus())
+    for _=1,14 do key('DOWN_ARROW') end
+    assert(focus()=='Name tag' and rows[1].l=='Travel to the host',focus())
     local last=rows[15].l
     clock=clock+0.125; hover(15)
     assert(focus()==last and rows[14].l==last and rows[15].l~=last,'The last slot: one row down')
     clock=clock+0.125; hover(1)
-    assert(focus()=='Travel to the host' and rows[1].l=='Leave the session' and rows[2].st=='focus',
+    assert(focus()=='Set a race checkpoint' and rows[1].l=='Travel to the host' and rows[2].st=='focus',
         'The first slot: one row up')
     key('RIGHT_MOUSE_BUTTON'); assert(kit_shown.menu and focus()=='Options','Right click: back to the main page')
     key('RIGHT_MOUSE_BUTTON'); assert(not kit_shown.menu and kit_sounds[#kit_sounds-1]=='back','And it closes')

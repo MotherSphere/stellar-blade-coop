@@ -216,6 +216,9 @@ pvp_spike=on
 # SBO lobby: on or off, on by default. On, the recruiter's Join saves the co-op game and opens the PvP lobby in Xion,
 # and each co-op save is copied before the game rewrites it (the 10 newest kept per slot).
 sbo_lobby=on
+# Online tab: on or off, on by default. On, the pause menu gets an Online tab after Settings. RB on Settings (E on
+# the keyboard) or a click on the tab closes the pause menu and opens the co-op menu.
+pause_tab=on
 ]]
 -- The looks are comments only in the file above: an old file and a new one both follow the code's default here. A file
 -- written before shared_enemies and fight_chars existed lacks them: on and auto, as here; one written before the photo
@@ -230,12 +233,13 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',rac
     status_overlay='compact',who_can_join='public',friends_ask='off',max_players='4',auto_coop_save='ask',
     shared_quests='on',
     quest_deny='',revive='on',cutscene_wait='on',follow_host='ask',follow_key='F7',collide='on',mod_names='on',shortcut_load='on',
-    pvp_spike='on',sbo_lobby='on',shared_world='on',shared_story='on',daynight='on'}
+    pvp_spike='on',sbo_lobby='on',shared_world='on',shared_story='on',daynight='on',pause_tab='on'}
 -- On or off.
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,spawn_filter=true,bosses=true,
     photo_ghost=true,photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
     card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true,mod_names=true,shortcut_load=true,
-    pvp_spike=true,sbo_lobby=true,shared_world=true,shared_story=true,friends_ask=true,bike=true,daynight=true}
+    pvp_spike=true,sbo_lobby=true,shared_world=true,shared_story=true,friends_ask=true,bike=true,daynight=true,
+    pause_tab=true}
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (partner/puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key','bike_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},

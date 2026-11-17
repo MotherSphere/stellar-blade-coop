@@ -40,6 +40,7 @@ T.en={
         follow_host='Follow the host',follow_key='Travel to the host',menu='Co-op menu',hangup='Hang up',
         status_overlay='Status line',race_key='Set a race checkpoint',
         bike='Bike',bike_key='Get on or off the bike',daynight='Day and night',
+        pause_tab='Online tab in the pause menu',
         reset_keys='Reset all keys'},
     value={on='On',off='Off',both='Both',notice='Notice only',game='Game language',english='English',
         ask='Ask',always='Always',together='Fought or within 30 m',
@@ -326,6 +327,8 @@ T.en={
             friends='Only your Steam friends can join. They find it in Find a session or in Steam.',
             invitation='Not listed. Players join with a Steam invite or your join code.',
             closed='Nobody can join, not even with an invite or a code.'}},
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    pause_tab={tab='Online',stuck='The game stayed paused, so the co-op menu did not open.'},
 }
 T.fr={
     title='CO-OP',
@@ -357,6 +360,7 @@ T.fr={
         follow_host="Suivre l'hôte",follow_key="Rejoindre l'hôte",menu='Menu co-op',hangup='Raccrocher',
         status_overlay="Ligne d'état",race_key='Poser un point de contrôle',
         bike='Moto',bike_key='Monter ou descendre de la moto',daynight='Jour et nuit',
+        pause_tab='Onglet En ligne du menu pause',
         reset_keys='Réinitialiser les touches'},
     value={on='Oui',off='Non',both='Les deux',notice='Avis seul',game='Langue du jeu',english='Anglais',
         ask='Demander',always='Toujours',
@@ -600,6 +604,8 @@ T.fr={
             friends='Seuls vos amis Steam peuvent rejoindre. Ils la trouvent dans Trouver une session ou dans Steam.',
             invitation='Non listée. On rejoint avec une invitation Steam ou votre code.',
             closed='Personne ne peut rejoindre, même avec une invitation ou un code.'}},
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    pause_tab={tab='En ligne',stuck='Le jeu est resté en pause : le menu co-op ne s\'est pas ouvert.'},
 }
 T.ar={
     title='اللعب التعاوني',
@@ -631,6 +637,7 @@ T.ar={
         photo_pause='الإيقاف في وضع الصور (تجريبي)',menu='قائمة اللعب التعاوني',hangup='إنهاء المكالمة',
         status_overlay='سطر الحالة',race_key='وضع نقطة تفتيش للسباق',
         bike='الدراجة النارية',bike_key='ركوب الدراجة أو النزول عنها',daynight='النهار والليل',
+        pause_tab='تبويب «أونلاين» في قائمة الإيقاف',
         reset_keys='إعادة ضبط كل المفاتيح'},
     value={on='تشغيل',off='إيقاف',both='إيقاف مؤقت وإشعار',notice='إشعار فقط',game='لغة اللعبة',english='English',
         ask='السؤال كل مرة',always='دائمًا',
@@ -850,6 +857,8 @@ T.ar={
             friends='يمكن لأصدقائك على Steam فقط الانضمام. يجدونها في البحث عن جلسة أو في Steam.',
             invitation='لا تظهر في القائمة. ينضم اللاعبون بدعوة عبر Steam أو برمز الانضمام الخاص بك.',
             closed='لا يمكن لأحد الانضمام، ولا حتى بدعوة أو برمز.'}},
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    pause_tab={tab='أونلاين',stuck='بقيت اللعبة متوقفة مؤقتًا، فلم تُفتح قائمة اللعب التعاوني.'},
 }
 T.da={
     title='CO-OP',
@@ -882,6 +891,7 @@ T.da={
         photo_pause='Fotopause (eksperimentel)',menu='Co-op-menu',hangup='Læg på',status_overlay='Statuslinje',
         race_key='Sæt et checkpoint',
         bike='Motorcykel',bike_key='Stig på eller af motorcyklen',daynight='Dag og nat',
+        pause_tab='Online-fane i pausemenuen',
         reset_keys='Nulstil alle taster'},
     value={on='Til',off='Fra',both='Begge',notice='Kun besked',game='Spillets sprog',english='Engelsk',
         ask='Spørg',always='Altid',
@@ -1111,6 +1121,8 @@ T.da={
             friends='Kun dine Steam-venner kan deltage. De finder den i Find en session eller i Steam.',
             invitation='Vises ikke. Spillere deltager med en Steam-invitation eller din kode.',
             closed='Ingen kan deltage, heller ikke med en invitation eller en kode.'}},
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    pause_tab={tab='Online',stuck='Spillet blev på pause, så co-op-menuen åbnede ikke.'},
 }
 T.de={
     title='KOOP',
@@ -1144,6 +1156,7 @@ T.de={
         photo_pause='Fotomodus-Pause (experimentell)',menu='Koop-Menü',hangup='Auflegen',status_overlay='Statuszeile',
         race_key='Renn-Checkpoint setzen',
         bike='Motorrad',bike_key='Motorrad besteigen oder verlassen',daynight='Tag und Nacht',
+        pause_tab='Online-Tab im Pausenmenü',
         reset_keys='Alle Tasten zurücksetzen'},
     value={on='An',off='Aus',both='Beide',notice='Nur Hinweis',game='Spielsprache',english='Englisch',
         ask='Fragen',always='Immer',
@@ -1394,6 +1407,8 @@ T.de={
             ..'Steam.',
             invitation='Nicht aufgeführt. Beitritt mit einer Steam-Einladung oder deinem Code.',
             closed='Niemand kann beitreten, auch nicht mit Einladung oder Code.'}},
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    pause_tab={tab='Online',stuck='Das Spiel blieb pausiert, daher hat sich das Koop-Menü nicht geöffnet.'},
 }
 T.es={
     title='CO-OP',
@@ -1427,6 +1442,7 @@ T.es={
         photo_pause='Pausa en modo foto (experimental)',menu='Menú co-op',hangup='Colgar',
         status_overlay='Línea de estado',race_key='Poner un punto de control',
         bike='Moto',bike_key='Subir o bajar de la moto',daynight='Día y noche',
+        pause_tab='Pestaña En línea del menú de pausa',
         reset_keys='Restablecer todas las teclas'},
     value={on='Activado',off='Desactivado',both='Ambos',notice='Solo aviso',game='Idioma del juego',english='Inglés',
         ask='Preguntar',always='Siempre',
@@ -1666,6 +1682,8 @@ T.es={
             friends='Solo tus amigos de Steam pueden unirse. La encuentran en Buscar una sesión o en Steam.',
             invitation='No aparece en la lista. Se entra con una invitación de Steam o con tu código.',
             closed='Nadie puede unirse, ni siquiera con una invitación o un código.'}},
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    pause_tab={tab='En línea',stuck='El juego siguió en pausa, así que el menú co-op no se abrió.'},
 }
 T['es-MX']={
     title='CO-OP',
@@ -1699,6 +1717,7 @@ T['es-MX']={
         photo_pause='Pausa de fotos (experimental)',menu='Menú co-op',hangup='Colgar',status_overlay='Línea de estado',
         race_key='Poner un punto de control',
         bike='Moto',bike_key='Subir o bajar de la moto',daynight='Día y noche',
+        pause_tab='Pestaña En línea del menú de pausa',
         reset_keys='Restablecer todas las teclas'},
     value={on='Sí',off='No',both='Ambos',notice='Solo aviso',game='Idioma del juego',english='Inglés',
         ask='Preguntar',always='Siempre',
@@ -1937,6 +1956,8 @@ T['es-MX']={
             friends='Solo tus amigos de Steam pueden unirse. La encuentran en Buscar una sesión o en Steam.',
             invitation='No aparece en la lista. Se entra con una invitación de Steam o con tu código.',
             closed='Nadie puede unirse, ni siquiera con una invitación o un código.'}},
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    pause_tab={tab='En línea',stuck='El juego siguió en pausa, por eso el menú co-op no se abrió.'},
 }
 T.fi={
     title='CO-OP',
@@ -1968,6 +1989,7 @@ T.fi={
         photo_pause='Kuvaustilan tauko (kokeellinen)',menu='Co-op-valikko',hangup='Lopeta puhelu',
         status_overlay='Tilarivi',race_key='Aseta kilvan rastipiste',
         bike='Moottoripyörä',bike_key='Nouse pyörän kyytiin tai pois',daynight='Päivä ja yö',
+        pause_tab='Online-välilehti taukovalikossa',
         reset_keys='Palauta kaikki näppäimet'},
     value={on='Päällä',off='Pois',both='Molemmat',notice='Vain ilmoitus',game='Pelin kieli',english='Englanti',
         ask='Kysy',always='Aina',
@@ -2210,6 +2232,8 @@ T.fi={
             friends='Vain Steam-kaverisi voivat liittyä. He löytävät istunnon Etsi istunto -listasta tai Steamista.',
             invitation='Ei listassa. Pelaajat liittyvät Steam-kutsulla tai koodillasi.',
             closed='Kukaan ei voi liittyä, ei edes kutsulla tai koodilla.'}},
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    pause_tab={tab='Online',stuck='Peli jäi tauolle, joten co-op-valikko ei avautunut.'},
 }
 T.it={
     title='CO-OP',
@@ -2243,6 +2267,7 @@ T.it={
         photo_pause='Pausa foto (sperimentale)',menu='Menu co-op',hangup='Riaggancia',status_overlay='Riga di stato',
         race_key='Piazza un checkpoint',
         bike='Moto',bike_key='Sali o scendi dalla moto',daynight='Giorno e notte',
+        pause_tab='Scheda Online nel menu di pausa',
         reset_keys='Ripristina tutti i tasti'},
     value={on='Attiva',off='Disattiva',both='Entrambi',notice='Solo avviso',game='Lingua del gioco',
         english='Inglese',ask='Chiedi',always='Sempre',
@@ -2483,6 +2508,8 @@ T.it={
             friends='Possono unirsi solo i tuoi amici di Steam. La trovano in Trova una sessione o su Steam.',
             invitation='Non elencata. Si entra con un invito di Steam o con il tuo codice.',
             closed='Nessuno può unirsi, nemmeno con un invito o un codice.'}},
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    pause_tab={tab='Online',stuck='Il gioco è rimasto in pausa, quindi il menu co-op non si è aperto.'},
 }
 T.ja={
     title='協力プレイ',
@@ -2513,6 +2540,7 @@ T.ja={
         photo_pause='フォトモードの一時停止（実験的）',menu='協力プレイメニュー',hangup='電話を切る',status_overlay='ステータス表示',
         race_key='レースのチェックポイント設置',
         bike='バイク',bike_key='バイクに乗る・降りる',daynight='昼と夜',
+        pause_tab='ポーズメニューのオンラインタブ',
         reset_keys='すべてのキーを初期化'},
     value={on='オン',off='オフ',both='両方',notice='通知のみ',game='ゲームの言語',english='English',
         ask='毎回確認',always='常に使用',together='交戦か30m以内',
@@ -2714,6 +2742,8 @@ T.ja={
             friends='Steamフレンドだけが参加できます。「セッションを探す」またはSteamから見つけられます。',
             invitation='一覧には表示されません。Steamの招待かあなたのコードで参加します。',
             closed='招待やコードがあっても、誰も参加できません。'}},
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    pause_tab={tab='オンライン',stuck='ゲームが一時停止したままのため、協力プレイメニューを開けませんでした。'},
 }
 T.ko={
     title='코옵',
@@ -2743,6 +2773,7 @@ T.ko={
         follow_host='호스트 따라가기',follow_key='호스트에게 이동',
         photo_pause='포토 모드 일시 정지 (실험)',menu='코옵 메뉴',hangup='전화 끊기',status_overlay='상태 표시줄',race_key='레이스 체크포인트 설치',
         bike='바이크',bike_key='바이크 타기/내리기',daynight='낮과 밤',
+        pause_tab='일시 정지 메뉴의 온라인 탭',
         reset_keys='모든 키 초기화'},
     value={on='켜기',off='끄기',both='양쪽',notice='알림만',game='게임 언어',english='English',
         ask='매번 묻기',always='항상',together='교전 또는 30m 이내',
@@ -2943,6 +2974,8 @@ T.ko={
             friends='Steam 친구만 참가할 수 있습니다. 세션 찾기나 Steam에서 찾을 수 있습니다.',
             invitation='목록에 표시되지 않습니다. Steam 초대나 내 코드로 참가합니다.',
             closed='초대나 코드가 있어도 아무도 참가할 수 없습니다.'}},
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    pause_tab={tab='온라인',stuck='게임이 일시 정지된 상태라 코옵 메뉴가 열리지 않았습니다.'},
 }
 T.nl={
     title='CO-OP',
@@ -2974,6 +3007,7 @@ T.nl={
         photo_pause='Pauze fotomodus (experimenteel)',menu='Co-opmenu',hangup='Ophangen',status_overlay='Statusregel',
         race_key='Racecheckpoint plaatsen',
         bike='Motor',bike_key='Op of van de motor stappen',daynight='Dag en nacht',
+        pause_tab='Online-tab in het pauzemenu',
         reset_keys='Alle toetsen herstellen'},
     value={on='Aan',off='Uit',both='Beide',notice='Alleen melding',game='Taal van de game',english='Engels',
         ask='Vragen',always='Altijd',
@@ -3212,6 +3246,8 @@ T.nl={
             friends='Alleen je Steam-vrienden kunnen meedoen. Ze vinden de sessie via Een sessie zoeken of in Steam.',
             invitation='Staat niet in de lijst. Spelers doen mee met een Steam-uitnodiging of jouw code.',
             closed='Niemand kan meedoen, ook niet met een uitnodiging of een code.'}},
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    pause_tab={tab='Online',stuck='De game bleef gepauzeerd, dus het co-opmenu ging niet open.'},
 }
 T.no={
     title='CO-OP',
@@ -3243,6 +3279,7 @@ T.no={
         photo_pause='Fotomoduspause (eksperimentelt)',menu='Co-op-meny',hangup='Legg på',status_overlay='Statuslinje',
         race_key='Sett et sjekkpunkt',
         bike='Motorsykkel',bike_key='På eller av motorsykkelen',daynight='Dag og natt',
+        pause_tab='Online-fane i pausemenyen',
         reset_keys='Tilbakestill alle taster'},
     value={on='På',off='Av',both='Begge',notice='Bare varsel',game='Spillets språk',english='Engelsk',
         ask='Spør',always='Alltid',
@@ -3475,6 +3512,8 @@ T.no={
             friends='Bare Steam-vennene dine kan bli med. De finner økten i Finn en økt eller i Steam.',
             invitation='Vises ikke i listen. Spillere blir med via en Steam-invitasjon eller koden din.',
             closed='Ingen kan bli med, heller ikke med en invitasjon eller en kode.'}},
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    pause_tab={tab='Online',stuck='Spillet ble stående på pause, så co-op-menyen åpnet seg ikke.'},
 }
 T.pl={
     title='CO-OP',
@@ -3507,6 +3546,7 @@ T.pl={
         photo_pause='Pauza w trybie foto (eksperyment)',menu='Menu co-op',hangup='Rozłącz się',
         status_overlay='Pasek stanu',race_key='Ustaw punkt kontrolny',
         bike='Motocykl',bike_key='Wsiądź na motocykl lub zsiądź',daynight='Dzień i noc',
+        pause_tab='Karta Online w menu pauzy',
         reset_keys='Przywróć domyślne klawisze'},
     value={on='Wł.',off='Wył.',both='Pauza i komunikat',notice='Tylko komunikat',game='Język gry',english='English',
         ask='Pytaj',always='Zawsze',
@@ -3738,6 +3778,8 @@ T.pl={
             friends='Dołączyć mogą tylko twoi znajomi ze Steam. Znajdą ją w Znajdź sesję lub w Steam.',
             invitation='Niewidoczna na liście. Dołącza się przez zaproszenie Steam lub twój kod.',
             closed='Nikt nie może dołączyć, nawet z zaproszeniem lub kodem.'}},
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    pause_tab={tab='Online',stuck='Gra pozostała wstrzymana, więc menu co-op się nie otworzyło.'},
 }
 T.pt={
     title='CO-OP',
@@ -3771,6 +3813,7 @@ T.pt={
         photo_pause='Pausa da fotografia (experimental)',menu='Menu co-op',hangup='Desligar',
         status_overlay='Linha de estado',race_key='Colocar ponto de controlo',
         bike='Mota',bike_key='Subir ou descer da mota',daynight='Dia e noite',
+        pause_tab='Separador Online no menu de pausa',
         reset_keys='Repor todas as teclas'},
     value={on='Ativado',off='Desativado',both='Ambos',notice='Só aviso',game='Idioma do jogo',english='Inglês',
         ask='Perguntar',always='Sempre',
@@ -4008,6 +4051,8 @@ T.pt={
             friends='Só os teus amigos no Steam podem entrar. Encontram-na em Procurar uma sessão ou no Steam.',
             invitation='Não aparece na lista. Entra-se com um convite do Steam ou com o teu código.',
             closed='Ninguém pode entrar, nem com um convite nem com um código.'}},
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    pause_tab={tab='Online',stuck='O jogo ficou em pausa, por isso o menu co-op não abriu.'},
 }
 T['pt-BR']={
     title='CO-OP',
@@ -4040,6 +4085,7 @@ T['pt-BR']={
         photo_pause='Pausa da fotografia (em teste)',menu='Menu co-op',hangup='Desligar',
         status_overlay='Linha de status',race_key='Colocar checkpoint',
         bike='Moto',bike_key='Subir ou descer da moto',daynight='Dia e noite',
+        pause_tab='Aba Online no menu de pausa',
         reset_keys='Redefinir todas as teclas'},
     value={on='Ativar',off='Desativar',both='Ambos',notice='Só aviso',game='Idioma do jogo',english='Inglês',
         ask='Perguntar',always='Sempre',
@@ -4278,6 +4324,8 @@ T['pt-BR']={
             friends='Só seus amigos no Steam podem entrar. Eles a encontram em Encontrar uma sessão ou no Steam.',
             invitation='Não aparece na lista. Os jogadores entram com um convite do Steam ou com o seu código.',
             closed='Ninguém pode entrar, nem com convite nem com código.'}},
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    pause_tab={tab='Online',stuck='O jogo continuou pausado, então o menu co-op não abriu.'},
 }
 T.ru={
     title='КООПЕРАТИВ',
@@ -4310,6 +4358,7 @@ T.ru={
         photo_pause='Пауза фоторежима (эксперимент)',menu='Меню кооператива',hangup='Повесить трубку',
         status_overlay='Строка статуса',race_key='Поставить контрольную точку',
         bike='Мотоцикл',bike_key='Сесть на мотоцикл или слезть',daynight='День и ночь',
+        pause_tab='Вкладка «Онлайн» в меню паузы',
         reset_keys='Сбросить все клавиши'},
     value={on='Вкл.',off='Выкл.',both='Пауза и уведомление',notice='Только уведомление',game='Язык игры',
         english='English',
@@ -4542,6 +4591,8 @@ T.ru={
             friends='Присоединиться могут только ваши друзья в Steam. Они найдут ее в «Найти сессию» или в Steam.',
             invitation='Не видна в списке. Вход по приглашению Steam или по вашему коду.',
             closed='Никто не может присоединиться, даже по приглашению или коду.'}},
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    pause_tab={tab='Онлайн',stuck='Игра осталась на паузе, поэтому меню кооператива не открылось.'},
 }
 T.sv={
     title='CO-OP',
@@ -4574,6 +4625,7 @@ T.sv={
         photo_pause='Paus i fotoläget (experimentell)',menu='Co-op-meny',hangup='Lägg på',status_overlay='Statusrad',
         race_key='Sätt en checkpoint',
         bike='Motorcykel',bike_key='Kliv på eller av motorcykeln',daynight='Dag och natt',
+        pause_tab='Online-flik i pausmenyn',
         reset_keys='Återställ alla tangenter'},
     value={on='På',off='Av',both='Båda',notice='Bara meddelande',game='Spelets språk',english='Engelska',
         ask='Fråga',always='Alltid',
@@ -4802,6 +4854,8 @@ T.sv={
             friends='Bara dina Steam-vänner kan gå med. De hittar den i Hitta en session eller i Steam.',
             invitation='Visas inte i listan. Spelare går med via en Steam-inbjudan eller din kod.',
             closed='Ingen kan gå med, inte ens med en inbjudan eller en kod.'}},
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    pause_tab={tab='Online',stuck='Spelet förblev pausat, så co-op-menyn öppnades inte.'},
 }
 T.th={
     title='CO-OP',
@@ -4832,6 +4886,7 @@ T.th={
         photo_pause='การหยุดในโหมดถ่ายภาพ (ทดลอง)',menu='เมนู Co-op',hangup='วางสาย',status_overlay='แถบสถานะ',
         race_key='วางเช็กพอยต์การแข่ง',
         bike='มอเตอร์ไซค์',bike_key='ขึ้นหรือลงมอเตอร์ไซค์',daynight='กลางวันและกลางคืน',
+        pause_tab='แท็บออนไลน์ในเมนูหยุดชั่วคราว',
         reset_keys='รีเซ็ตปุ่มทั้งหมด'},
     value={on='เปิด',off='ปิด',both='หยุดเกมและแจ้งเตือน',notice='แจ้งเตือนเท่านั้น',game='ภาษาของเกม',
         english='English',
@@ -5040,6 +5095,8 @@ T.th={
             friends='เฉพาะเพื่อนใน Steam ของคุณที่เข้าร่วมได้ โดยหาได้จากค้นหาเซสชันหรือใน Steam',
             invitation='ไม่แสดงในรายการ ผู้เล่นเข้าร่วมด้วยคำเชิญใน Steam หรือโค้ดของคุณ',
             closed='ไม่มีใครเข้าร่วมได้ แม้จะมีคำเชิญหรือโค้ด'}},
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    pause_tab={tab='ออนไลน์',stuck='เกมยังหยุดชั่วคราวอยู่ เมนู co-op จึงไม่เปิด'},
 }
 T.tr={
     title='CO-OP',
@@ -5072,6 +5129,7 @@ T.tr={
         photo_pause='Fotoğraf duraklaması (deneysel)',menu='Co-op menüsü',hangup='Telefonu kapat',
         status_overlay='Durum satırı',race_key='Kontrol noktası koy',
         bike='Motosiklet',bike_key='Motosiklete bin veya in',daynight='Gündüz ve gece',
+        pause_tab='Duraklatmada Çevrimiçi sekmesi',
         reset_keys='Tüm tuşları sıfırla'},
     value={on='Açık',off='Kapalı',both='Duraklatma ve bildirim',notice='Yalnızca bildirim',game='Oyun dili',
         english='English',
@@ -5308,6 +5366,8 @@ T.tr={
             friends="Yalnızca Steam arkadaşların katılabilir. Oturumu Oturum bul listesinde ya da Steam'de bulurlar.",
             invitation='Listede görünmez. Oyuncular Steam davetiyle ya da senin kodunla katılır.',
             closed='Davet ya da kodla bile kimse katılamaz.'}},
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    pause_tab={tab='Çevrimiçi',stuck='Oyun duraklatılmış kaldığı için co-op menüsü açılmadı.'},
 }
 T['zh-Hans']={
     title='合作模式',
@@ -5336,6 +5396,7 @@ T['zh-Hans']={
         follow_host='跟随房主',follow_key='前往房主处',
         photo_pause='拍照模式暂停（实验性）',menu='合作菜单',hangup='挂断',status_overlay='状态栏',race_key='设置比赛检查点',
         bike='摩托车',bike_key='上下摩托车',daynight='昼夜交替',
+        pause_tab='暂停菜单中的在线标签',
         reset_keys='重置所有按键'},
     value={on='开',off='关',both='暂停并提示',notice='仅提示',game='游戏语言',english='English',
         ask='每次询问',always='始终',together='交战或30米内',
@@ -5516,6 +5577,8 @@ T['zh-Hans']={
             friends='只有你的Steam好友可以加入。他们可在查找房间或Steam中找到它。',
             invitation='不会列出。玩家通过Steam邀请或你的房间码加入。',
             closed='任何人都无法加入，即使有邀请或房间码。'}},
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    pause_tab={tab='在线',stuck='游戏仍处于暂停状态，因此合作菜单没有打开。'},
 }
 T['zh-Hant']={
     title='合作模式',
@@ -5542,6 +5605,7 @@ T['zh-Hant']={
         follow_host='跟隨主機',follow_key='前往主機處',
         photo_pause='相片模式暫停（實驗性）',menu='合作選單',hangup='掛斷',status_overlay='狀態列',race_key='設置比賽檢查點',
         bike='機車',bike_key='上下機車',daynight='晝夜交替',
+        pause_tab='暫停選單中的線上分頁',
         reset_keys='重設所有按鍵'},
     value={on='開',off='關',both='暫停並通知',notice='僅通知',game='遊戲語言',english='English',
         ask='詢問',always='總是',together='交戰或30公尺內',fought='僅限交戰的敵人',
@@ -5723,6 +5787,8 @@ T['zh-Hant']={
             friends='只有你的Steam好友可以加入。他們可在尋找房間或Steam中找到它。',
             invitation='不會列出。玩家透過Steam邀請或你的代碼加入。',
             closed='任何人都無法加入，即使有邀請或代碼。'}},
+    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    pause_tab={tab='線上',stuck='遊戲仍處於暫停狀態，因此合作選單沒有開啟。'},
 }
 local culture=require('nightop.recruiter_text').culture
 -- A table and the tables in it read T.en's word for a key they lack.
