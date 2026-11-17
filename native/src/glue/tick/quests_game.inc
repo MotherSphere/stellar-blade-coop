@@ -38,9 +38,11 @@ struct QuestGame {
       game_function<QuestCall>(function)(reinterpret_cast<void *>(object));
   }
 };
+const char *quest_host_hold(); // story_game.inc: why the host's game takes no step of hers now.
 __declspec(noinline) void quest_body(std::string_view slot, uint64_t now_ms) {
   try { // coop_tick never throws: out of memory turns the shared quests off for the run, as a fault does.
     QuestGame g;
+    quest_engine.host_hold = quest_host_hold;
     const uint64_t from = clock_us();
     quest_engine.tick(g, base, slot, now_ms);
     quest_engine.cost(clock_us() - from); // The stats line's poll time.

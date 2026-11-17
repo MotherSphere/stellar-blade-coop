@@ -10,9 +10,10 @@
 // between two steps, partner lines in a mode with no partner, her ahead shown once; two PCs through
 // channel 2's text at 120 +/- 30 ms: steps made together applied once with SB's completion and reward once, a step
 // acting in another zone waiting for her there, a kill step waiting for her own kill, a denied quest never moving, her
-// Request handed in at her own board, a guest away or behind getting nothing of that quest, her own quest shown as
-// ahead on both sides, a re-join snapshot, a host that comes on after her, coop quests force and status, and lost
-// lines, loading screens and reloads on both sides; a recording replayed into another save; and the worker's side as
+// Request handed in at her own board, her step made first taken by the host's game (kept through a hold of his,
+// dropped by his load), a guest away or behind getting nothing of that quest, her own quest shown as ahead on both
+// sides, a re-join snapshot, a host that comes on after her, coop quests force and status, and lost lines, loading
+// screens and reloads on both sides; a recording replayed into another save; and the worker's side as
 // the glue drives it (the gates that start and end a side, channel 2's SBQ lines beside the fight's, the record file,
 // the recording, coop-status.txt's lines).
 #include "quest/engine.h"
@@ -999,6 +1000,51 @@ void both_worlds_first_hers() {
   assert(std::none_of(k.host->notes.begin(), k.host->notes.end(), [](const Note &n) { return n.why == Why::ahead; }));
 }
 
+// A step she makes first, where the host stands and from where his line stood: his game makes it through SB's call on
+// his own unit. His next line finds her there. A hold of his game keeps it waiting until the hold ends. A load
+// drops a waiting one; she stays ahead until his own play reaches her, then her next step goes again.
+void her_steps() {
+  auto two = std::make_unique<Two>();
+  Two &k = *two;
+  Pc &h = k.host->pc, &g = k.guest->pc;
+  const size_t s1 = at("Quest_Sub_001");
+  k.zone("Zone_WLA_30");
+  k.steps(4);
+  h.acquire(s1);
+  k.steps(4);
+  assert(k.g(s1) == k.h(s1) && g.calls == 1);
+  g.play(s1);
+  k.steps(6);
+  assert(k.h(s1) == k.g(s1) && k.h(s1).groups == 1 && h.calls == 1 && h.completes == 1 && g.calls == 1);
+  assert(has(k.guest->log, "quests: Quest_Sub_001 step of hers sent: 1 - 0:t - . in Zone_WLA_30"));
+  assert(has(k.host->log, "quests: her step of Quest_Sub_001 (1 - 0:t - . in Zone_WLA_30) applied here, mark t"));
+  k.host->e.ask_status();
+  k.step();
+  assert(k.host->status.find("her steps applied 1, refused 0") != std::string::npos);
+  k.host->e.host_hold = +[]() -> const char * { return "his cutscene"; };
+  g.play(s1);
+  k.steps(6);
+  assert(k.h(s1).groups == 1 && k.g(s1).groups == 2 && h.calls == 1);
+  assert(has(k.host->log, "quests: her step of Quest_Sub_001 (1 - 0:t.0:t - . in Zone_WLA_30) waits: his cutscene"));
+  assert(count(k.host->log, "waits: his cutscene") == 1);
+  k.host->e.host_hold = nullptr;
+  k.steps(4);
+  assert(k.h(s1) == k.g(s1) && k.h(s1).groups == 2 && h.completes == 2 && g.calls == 1);
+  k.host->e.host_hold = +[]() -> const char * { return "his cutscene"; };
+  g.play(s1);
+  k.steps(3);
+  h.load();
+  k.steps(3);
+  assert(has(k.host->log, "(1 - 0:t.0:t.0:- - . in Zone_WLA_30) refused: a load") && k.h(s1).groups == 2);
+  k.host->e.host_hold = nullptr;
+  h.play(s1);
+  k.steps(4);
+  assert(k.h(s1) == k.g(s1) && k.h(s1).groups == 3);
+  g.play(s1);
+  k.steps(6);
+  assert(k.h(s1) == k.g(s1) && h.w.v[s1].state == 3 && h.completes == 3 && g.calls == 1);
+}
+
 // The host comes on after her: her first on found nothing running, so the host's on brings her on again, once.
 void late_host() {
   auto two = std::make_unique<Two>();
@@ -1585,6 +1631,7 @@ int main() {
   unlinked_modes();
   ahead_once();
   both_worlds_first_hers();
+  her_steps();
   dropped();
   two_worlds();
   late_host();

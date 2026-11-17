@@ -5,7 +5,7 @@
 // Story together (story/engine.h, story/sync.h) on the game thread: hook 1 in the ActionTheater node's slot, hooks 2
 // and 3 in the QTE's and the InputCounter's OnStartBlock slots, hook 4 called by the SBO lobby's hook in the ZoneEvent
 // action's slot. Each frame's pass takes her lines in, follows her copy, then reads and sends our theater and our story
-// trips while we host.
+// trips while we host. Also the shared quests' holds on a step of hers the host would make (quest_host_hold).
 
 namespace coop::pose {
 namespace {
@@ -199,6 +199,23 @@ void story_trips_pass(uint64_t now) {
       story_sync.send(m, now);
   }
   story_trip_count = 0, story_trip_lost = 0;
+}
+
+// The shared quests' holds on a step of hers the host would make (quests_game.inc, under the quests' latch): out of
+// game (lion_gate shut, the client not in game and playing), his cutscene (the theater manager's theater, not
+// finished) or the game paused (a menu or photo mode, read as the photo pause reads it). Null: none.
+const char *quest_host_hold() {
+  uint32_t mode = 0;
+  const uintptr_t client = world_global(world::kClientAt);
+  if (lion_gate(mode) != lion::Why::none || !game::plausible(client) ||
+      at<int32_t>(client + travel::kFlow) != travel::kInGame || at<int32_t>(client + travel::kPhase) != travel::kPlaying)
+    return "out of game";
+  const uintptr_t manager = world_global(story::kManagerAt);
+  const uintptr_t theater = game::plausible(manager) ? at<uintptr_t>(manager + story::kCurrent) : 0;
+  if (game::plausible(theater) && !story_game.finished(theater))
+    return "his cutscene";
+  FreezeGame f;
+  return !f.ready() ? "out of game" : f.paused() ? "the game paused (a menu or photo mode)" : nullptr;
 }
 
 // ---- The pass, each frame ----

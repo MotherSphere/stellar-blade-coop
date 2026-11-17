@@ -7,7 +7,8 @@
 // a pass it makes through SB's own functions: acquire by ID for an Epic or Sub quest, the Request board's accept
 // (quest vtable +0x10) and a task's Complete (task vtable +0x60). SB then runs that step's events, the next group, the
 // quest's completion with its reward and its next quest in her world, as in solo play. There is no quest-complete
-// call and no row lookup. The host only reads.
+// call and no row lookup. The host makes a step she made first with him (her step line, accept()) through the same
+// three calls on his own unit; otherwise he only reads.
 // Every access goes through a Game (the glue on Windows, under its SEH guard; fake memory in
 // tests/native/quest/engine_test.cpp), so nothing here is Windows-specific. The worker hands the partner's lines in and
 // takes lines, log lines, notices and the record out under a lock; tick() takes that lock only around those hand-overs,
@@ -226,7 +227,7 @@ public:
   }
 
   // The guards of one step, every field re-read just before SB's call: null when the call was made, else why not.
-  // tick() runs it for the guest's step; tests call it with any plan.
+  // tick() runs it for the guest's step and for a step of hers the host takes; tests call it with any plan.
   template <class Game> const char *apply(Game &g, const Plan &p) {
     const int i = row_index(p.id);
     if (i < 0 || p.act == Act::none)
@@ -284,6 +285,9 @@ public:
   bool story_in_step() const {
     return running_ && guest_ && side_.mode == Mode::guest && guest_->story_in_step(views_.data());
   }
+  // The glue's, called on the game thread only when a step of hers waits on the host: why his game takes none now
+  // (out of game, his cutscene, a menu), or null.
+  const char *(*host_hold)() = nullptr;
 
 private:
   uint64_t rebased(uint64_t address) const { return base_ + (address - kImageBase); }
@@ -332,7 +336,7 @@ private:
     if (running_ && say)
       out_.log.push_back("quests: off (" + why + ")");
     running_ = armed_ = said_on_ = false;
-    host_.reset(), guest_.reset(), held_in_.clear(), heard_.reset();
+    host_.reset(), guest_.reset(), held_in_.clear(), heard_.reset(), waiting_.clear();
   }
 
   // The slot line without its marker= field: the verdict, the index and the saves mode.
@@ -659,6 +663,12 @@ private:
         if (!snap && t == Type::q)
           log("quests: sent " + l);
       }
+      std::vector<Message> steps = std::exchange(waiting_, {}); // Those a hold kept, then the new ones.
+      const size_t waited = steps.size();
+      for (Message &m : host_->take_steps())
+        steps.push_back(std::move(m));
+      for (size_t n = 0; n < steps.size(); ++n)
+        her_step(g, steps[n], load && !first_, n < waited);
       if (side_.mode == Mode::probe && (first_ || load))
         log(summary(g));
     } else if (guest_) {
@@ -720,6 +730,47 @@ private:
         std::string(1, s.mark) + (*s.events ? std::string(", events ") + s.events : std::string()) +
         (s.warp ? ", it moves the player" : ""));
     return true;
+  }
+
+  // The host's side of her step line, after this pass's walk. While a hold of his game stands (host_hold's: out of
+  // game, his cutscene, a menu) it waits, kMaxSteps at most, to be judged when the hold ends. A load drops it, as his
+  // quests may have gone back. Then accept()'s rules on his quest as the walk read it, apply()'s re-reads and SB's call
+  // on his own unit. SB then runs the step's events with his EVE as caster. His next pass sends the change to her.
+  // A refusal drops the line; the quest stays shared. One log line each. A line that starts to wait gets one too.
+  template <class Game> void her_step(Game &g, const Message &m, bool load, bool waited) {
+    const size_t i = size_t(row_index(m.e.id)); // Host::receive took only a shared quest.
+    const Row &r = kRows[i];
+    const Chain *k = chain(r.id);
+    const bool ordered = !k || made(live_[size_t(row_index(k->parent))], k->step);
+    const std::string what = "quests: her step of " + std::string(r.alias) + " (" + fields(m.e) + " in " + m.text + ")";
+    Plan p;
+    const char *why = load ? "a load" : host_hold ? host_hold() : nullptr;
+    if (why && !load && waiting_.size() < kMaxSteps) {
+      waiting_.push_back(m);
+      if (!waited)
+        log(what + " waits: " + why);
+      return;
+    }
+    if (!why)
+      why = accept(r, m.e, m.text, views_[i], live_[i], Where{zone_, arm_, false, nullptr, ordered}, side_.deny[i], p);
+    if (!why)
+      why = apply(g, p);
+    if (!why) {
+      const Step &s = kSteps[p.step];
+      ++applied_;
+      log(what + " applied here, mark " + std::string(1, s.mark) +
+          (*s.events ? std::string(", events ") + s.events : std::string()));
+      return;
+    }
+    if (latched())
+      return;
+    if (why == kMadeHere)
+      return log(what + ": " + why);
+    ++refused_;
+    log(what + " refused: " + why +
+        (p.act == Act::acquire && std::string_view(why) == "refused by the game"
+             ? " (he holds that quest already, or a quest it requires stands below state 2 here)"
+             : ""));
   }
 
   // The host's side of her lines: the good ones that show something, her ahead once a quest and generation as she
@@ -837,7 +888,8 @@ private:
                     ", zone " + (zone_.empty() ? "unknown" : zone_);
     if (host_)
       return s + ", generation " + std::to_string(host_->generation()) + ", partner " +
-             (host_->guest_on() ? "on" : "off");
+             (host_->guest_on() ? "on" : "off") + ", her steps applied " + std::to_string(applied_) + ", refused " +
+             std::to_string(refused_);
     s += ", applied " + std::to_string(applied_) + ", refused " + std::to_string(refused_);
     for (size_t i = 0; i < kRowCount; ++i) {
       const Note &n = shown_[i];
@@ -964,6 +1016,7 @@ private:
   std::string slot_, zone_, zone_text_, replay_at_, waited_;
   std::deque<std::string> feed_;
   std::vector<std::string> held_in_;
+  std::vector<Message> waiting_; // Her step lines a hold of the host's game keeps for a later pass.
   std::vector<uint64_t> list_[3], values_, listed_;
   std::vector<uint8_t> elements_;
   std::vector<uint64_t> objects_ = std::vector<uint64_t>(kRowCount), seen_ = std::vector<uint64_t>(kRowCount);
