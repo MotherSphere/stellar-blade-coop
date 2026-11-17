@@ -18,7 +18,7 @@ build/host/pose_codec_test
 The Lua tests (`bike/`: `model`, `ride`; `commands/`: `session`; `core/`: `actors_of`, `class_at`, `keybind`, `link`,
 `mask`, `pak_gate`, `settings_file`, `ue4ss_settings`, `unreal`; `cut/`: `chainspin`, `devmenu`, `emote`, `enemy`,
 `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`,
-`mailbox`, `scene`, `tendril`, `wear`; `main/`: `bike`, `boot`, `daynight`, `dlc`, `fight`, `fight_notices`, `guide`, `idle`, `input`, `match`,
+`mailbox`, `scene`, `tendril`, `wear`; `gunmode/`: `helpers`, `mode`; `main/`: `bike`, `boot`, `daynight`, `dlc`, `fight`, `fight_notices`, `guide`, `idle`, `input`, `match`,
 `menu`, `quests`, `sbo`, `scenes`, `session_ui`, `settings`, `story`, `world`; `matrix13/quest/`: `on_time`, `zone_talks`;
 `matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`;
 `nightop/`: `board`, `challenges`, `guard_text`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`,
@@ -35,6 +35,14 @@ fails the test. The `main/` tests load
   after 3.9 s, a real top of about 2252 cm/s, 15.8 m of braking from the top, reverse after 0.3 s at a stop, the yaw
   rate and lean at full lock at five speeds, the drift's 42-degree slip cap, a wall, the air, a ramp launch only after
   0.12 s of climb, the pitch, root motion holding the state and the values' bounds;
+- `gunmode/helpers_test` covers gun mode's pure parts: its three `coop-settings.txt` lines (defaults, the last line
+  winning, refusals), the rows it fires with and without real ammo, the polled keys' edges and D-pad Right's tap (a
+  hold is the bike's), the crosshair point in EVE's frame, the laser's nearest hit, the pose's quaternion helpers and
+  elbow turn, the montage filter and the pak search;
+- `gunmode/mode_test` runs `gunmode/mode.lua` over a fake UE4SS and a fake EVE whose stance follows the rows: off
+  without its pak or with `gun_mode=off`; G on (the rows in order, standing, TPS mode 0, the shoulder camera, the
+  NIKKE row on the drone frame), LMB full auto with each round at the crosshair point, Y crouched and back, Shift's
+  roll, the pose loop's error kept inside it, G off (everything put back, the off rows again) and D-pad Right's tap;
 - `bike/ride_test` covers `bike/ride.lua` over a fake EVE and native part: the preload asked once and released at
   `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every mount refusal
   with its reason and nothing written, the mount's order and the dismount backward, the lean (the math library looked
