@@ -140,7 +140,9 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
   screen opens in a world while you are in no lobby. Anywhere else `coop host` asks the native part at once: while you
   host, it opens the invite dialog again, as `coop invite` does, or says `Nobody can join a private session.` in a
   Private session. A guest's host request is refused. With a word (`coop host closed`) it hosts at once with that word
-  in place of `who_can_join`; any other word is refused. Under `public` and `invitation`, `friends_ask=on` makes your
+  in place of `who_can_join`; any other word is refused. While you host, a word (the one typed, else `who_can_join`)
+  other than your session's is refused with the notice `You already host a session: leave it first to host with
+  another Who can join.` Leave with `coop leave`, then host again. Under `public` and `invitation`, `friends_ask=on` makes your
   Steam friends wait for your answer too.
 - `coop list public` and `coop list friends` start a search, one at a time and 5 s apart at least. The search is
   refused in a lobby and while a match search runs, with the reason in the log and the feed. The rows come a few

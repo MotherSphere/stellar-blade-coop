@@ -111,9 +111,10 @@ the screen.
 The screen opens where the co-op menu would (in a world, the game not paused) and only while you are in no lobby. Where
 it cannot open, `coop host` hosts at once with `who_can_join` as before. While you host, it opens the Steam invite
 dialog again, or says `Nobody can join a private session.` in a Private one. `coop host public` (or `friends`,
-`invitation`, `closed`) and `host_key` always host at once. The screen closes by itself outside a world, when the game
-pauses or shows the mouse cursor for one of its own screens, when the UI turns off and once you are in a lobby (after an
-invite you accepted, for example). `coop ui reset` and the [focus watchdog](#focus-watchdog) close it too.
+`invitation`, `closed`) and `host_key` always host at once. While you host, a host request whose word (the one typed,
+else `who_can_join`) differs from your session's is refused: leave first. The screen closes by itself outside a world,
+when the game pauses or shows the mouse cursor for one of its own screens, when the UI turns off and once you are in a
+lobby (after an invite you accepted, for example). `coop ui reset` and the [focus watchdog](#focus-watchdog) close it too.
 
 If one of the game's widgets cannot be made, the screen draws the same rows, headers and hints with the menu's own
 parts. `UE4SS.log` then says `[StellarCoop][UI] create: part <class>: <why>; left out until the mod reloads` once. It
@@ -501,6 +502,7 @@ a Steam name or a chat line shows as `?`.
 | Hosting an Invitation session | `Hosting. Your join code is <code>.` |
 | Hosting a Private session | `Hosting a private session: nobody can join it.` |
 | `coop host` or `coop invite` while you host a Private session | `Nobody can join a private session.` |
+| Host asked with another Who can join while you host | `You already host a session: leave it first to host with another Who can join.` |
 | A player tried to join your Private session | `A player tried to join your private session and was refused.` |
 | Join code copied | `Join code <code> copied.`, `Could not copy the join code <code>.` or `No join code to copy.` |
 | Could not host | `Could not host: Steam refused.` or `Could not host: Steam result <n>.` |

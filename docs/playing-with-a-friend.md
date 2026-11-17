@@ -130,8 +130,8 @@ shows every key, controller button and click does nothing, so a press meant for 
   leaves.
 - A removed player cannot come back to any game you host: Remove also puts them on your [block list](#block-list).
   Their game shows `<host> refused the link: you were removed from this session` and leaves.
-- If players you do not know keep asking, host again with Friends only or Invitation: neither shows in the Public
-  tab of Find a session. An Invitation lobby gets a new code.
+- If players you do not know keep asking, leave, then host again with Friends only or Invitation: neither shows in
+  the Public tab of Find a session. An Invitation lobby gets a new code.
 - A session with a player who is not your Steam friend goes through Steam's relays only, on both games, so neither
   of you learns the other's IP address. The relay route can add ping. Once such a player has been in your lobby, your
   game stays on relays only until you host again or join a friend's game.

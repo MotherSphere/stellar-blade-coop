@@ -146,15 +146,16 @@ For the host:
 - A refused player is still in the lobby. Steam cannot take a player out of a lobby: a Stellar Blade Online game leaves
   when it is refused, but a game that does not keeps the lobby's second place. It gets the refusal again every 10 s and
   never links. Host again: the new session has a new code.
-- Players you do not know keep asking: a Public session is listed for every player of your version. Host again with
-  Friends only, or with Invitation and give the new code only to the player you expect.
+- Players you do not know keep asking: a Public session is listed for every player of your version. Leave, then host
+  again with Friends only, or with Invitation and give the new code only to the player you expect. While you host, a
+  session keeps the Who can join it was hosted with.
 - `A player tried to join your private session and was refused.`: a player got into the lobby of your Private session
   although Steam shuts it to joins. Your game refused them before any handshake. They cannot come back to it.
 - `<name> was refused: Steam would not set relay only.`: a session with a player who is not your Steam friend goes
   through Steam's relays only. Steam refused that setting 3 times, 1 s apart. Nothing went to that player. Restart
   the game and host again.
 - `No join code to copy.`: you do not host, or you host with Who can join set to Public, Friends only or Private.
-  Set it to Invitation, then host again.
+  Leave, set it to Invitation, then host again.
 - `Could not copy the join code <code>.`: the Windows clipboard was busy. Select Copy my code again, or read the code
   from that row. On Linux, if the code does not paste outside the game, read it from the row too: no test has yet
   checked that Proton passes it on to the desktop's clipboard.

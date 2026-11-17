@@ -89,6 +89,17 @@ int main() {
     m.tick(2, "where Xion");
     m.tick(2, "rules q");
     assert(d[kZoneKey] == "Xion" && d[kCampKey].empty() && d[kRulesKey] == "q" && saw("P3: where: Xion"));
+    // Hosting with another word while hosting is refused with a notice: the lobby stays Public and listed, no dialog.
+    for (const char *word : {"closed", "invitation", "friends"})
+      m.tick(2, std::string("host ") + word);
+    m.round();
+    assert(m[2].lobby() == L && F.type[L] == kPublic && d[kListKey] == "1" && F.invites == 0 && !F.shut.count(L));
+    assert(saw("P3: already hosting a public lobby: host closed refused") &&
+           saw("P3: already hosting a public lobby: host invitation refused") &&
+           saw("P3: already hosting a public lobby: host friends refused") &&
+           noticed(m.status(2), "You already host a session: leave it first to host with another Who can join."));
+    m.tick(2, "host public"); // The same word: the invite dialog, as before.
+    assert(F.invites == 1 && saw("P3: already hosting: invite dialog opened"));
     // The list stays as it is until list stop, which empties it; a second stop has nothing to stop.
     m.round();
     assert(lines(m.status(3), "session=").size() == 1);
@@ -184,7 +195,7 @@ int main() {
     assert(!F.data[L].count(kOwnerKey) && !F.data[L].count(kListKey) && s.find("\ncode=none refused=0\n") != npos);
     assert(saw("P1: creating a private lobby (nobody can join)") && noticed(s, "Hosting a private session: nobody can "
                                                                                 "join it."));
-    m.tick(0, "host");
+    m.tick(0, "host closed");
     m.tick(0, "invite");
     assert(F.invites == 0 && saw("P1: already hosting a private session: no invite dialog") &&
            saw("P1: invite ignored: a private session") && noticed(m.status(0), "Nobody can join a private session."));

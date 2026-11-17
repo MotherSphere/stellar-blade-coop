@@ -1391,7 +1391,12 @@ private:
       cancel_rejoin(std::string(asked) + " asked");
     switch (r.command) {
     case Command::host:
-      if (closed()) {
+      if (host_ && lobby_ && !match() && r.who != hosting_) { // The lobby keeps its type until the player leaves.
+        static const char *const kWords[] = {"friends", "public", "invitation", "closed"}; // In Who's order.
+        event(std::string("already hosting a ") + kWords[int(hosting_)] + " lobby: host " + kWords[int(r.who)] +
+              " refused");
+        notice("You already host a session: leave it first to host with another Who can join.");
+      } else if (closed()) {
         event("already hosting a private session: no invite dialog");
         notice("Nobody can join a private session.");
       } else if (host_ && lobby_) {
