@@ -109,9 +109,11 @@ void story_theater_hook(int64_t *node) {
 }
 
 // ---- Hooks 2 and 3: the slots' targets once swapped, on the game thread inside the sequence's evaluation ----
-// Before the game's start, while we lead, a block of the same widget not read yet is read (the InputCounter's one
-// widget serves every section and its start clears the count). After it, the new block is kept with its take and
-// ordinal; while her copy follows his, her presses on it go. Out of line for the latch, as hook 1.
+// Before the game's start, while we lead, a block of the same widget not read yet gives its count (the InputCounter's
+// one widget serves every section and its start clears the count). Its template's Setup has written the next
+// section's kind, forced success and Flow entries by then, so those come from what the last pass kept of the block.
+// After the start, the new block is kept with its take and ordinal; while her copy follows his, her presses on it go.
+// Out of line for the latch, as hook 1.
 __declspec(noinline) void story_block_body(story::Type type, uint64_t widget, bool before) {
   try { // Out of memory turns story together off for the run, as a fault does.
     if (before)

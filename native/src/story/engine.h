@@ -35,7 +35,9 @@
 // The host reads (theater()): P and its take, his place, the three skip latches, then the results his widgets
 // committed. A QTE or InputCounter result is final once its Result shows (QTE +0x7d8, InputCounter +0x820: presses and
 // counting stop there) or its block closed (+0x6a0 at 0 or more), whichever he sees first; a widget the next start
-// reuses is read just before that start. QTE: its count +0x7d4 and the option's forced success +0x858 (both games
+// reuses gives its count just before that start. Its template (0x1422f31f0) runs Setup 0x14254a170 before that start,
+// which writes the next section's kind, forced success and Flow entries: those come from the last pass, where each
+// block not read yet is kept (snap()). QTE: its count +0x7d4 and the option's forced success +0x858 (both games
 // test it against the section's +0x700; 0x14c986680 reads it alone). InputCounter: its count +0x81c, forced
 // success +0x8a0, the Flow entries' results (+0x7f8, count +0x800, stride 0x38, result +0x2e). An InteractionSelect of
 // this play (+0x718 equal to P+0x1dc) or a PlayerChoice is read when its block closes: the line at SelectIndex +0x714
@@ -284,6 +286,8 @@ public:
       Record &r = records_[next_++ % kRecords];
       r = Record{type, w, g_.weak_make(w), c.data, i32(c.data + kTakeUid), i32(c.p + kPlayId), ordinal(type, c.data),
                  !lead};
+      if (lead)
+        snap(r, w);
     }
     if (!hold)
       return;
@@ -300,12 +304,18 @@ public:
     for (int32_t i = 0; infos && i < n && i < kMaxInfos; ++i)
       g_.write(infos + kInfo * uint64_t(i) + kInfoSticks, off, 2), g_.write(infos + kInfo * uint64_t(i) + kInfoBound, &bound, 1);
   }
-  // Hook 3 before the game's start while we lead: the widget's last block, not read yet, read now (the start clears
-  // its count). Its result goes with the next theater().
+  // Hook 3 before the game's start while we lead: the widget's last block, not read yet, gives its count now (the start
+  // clears it). Setup has written the next section over the rest already: that comes from the last pass. Its result
+  // goes with the next theater().
   void block_closing(uint64_t w) {
-    for (Record &r : records_)
-      if (r.widget == w && !r.told && g_.weak_get(r.weak) == w)
-        read(r, w, pending_);
+    for (Record &r : records_) {
+      if (r.widget != w || r.told || g_.weak_get(r.weak) != w)
+        continue;
+      if (r.flow)
+        say("story: an InputCounter Flow block of take " + std::to_string(r.take) +
+            " ended as the next one started: its Flow results are sent as the last pass read them, maybe a frame old");
+      read(r, w, pending_, false);
+    }
   }
 
   // Each pass her copy follows his: her menus hold her input with their skip latches taken; a menu whose line came
@@ -406,13 +416,18 @@ private:
     return r;
   }
   // A QTE or InputCounter block hooks 2 and 3 saw start: its widget (as a weak pointer too), take data, TakeUID, play
-  // id and ordinal; told once the host read its result or it is not his to read.
+  // id and ordinal; told once the host read its result or it is not his to read. Then what snap() kept of it.
   struct Record {
     Type type = Type::invalid;
     uint64_t widget = 0, weak = 0, data = 0;
     int32_t take = 0, play = -1;
     uint32_t n = 0;
     bool told = true;
+    uint8_t force = 0;    // its forced success
+    bool flow = false;    // an InputCounter of kind 3 (Flow)
+    int32_t infos = 0;    // its Flow entries
+    bool readable = true; // those entries could be read (kMaxInfos at most)
+    uint32_t bits = 0;    // their results, bit i for entry i
   };
   // A menu widget of the root (InteractionSelect, PlayerChoice) followed each pass: its block open, with the play id,
   // take data, TakeUID and ordinal it opened with.
@@ -457,31 +472,39 @@ private:
         r.told = true;
         say("story: a block of take " + std::to_string(r.take) + " went before its result was read, not sent");
       } else if (u8(w + (r.type == Type::qte ? kQteShown : kCounterShown)) || i32(w + kBlockResult) >= 0) {
-        read(r, w, out);
+        read(r, w, out, true);
+      } else {
+        snap(r, w);
       }
     }
     track(select_, Type::sel, root_widget(kSelect, kSelectVtable), c, &out);
     track(choice_, Type::pch, root_widget(kChoice, kChoiceVtable), c, &out);
     return out;
   }
-  // A QTE's or InputCounter's result as it stands now.
-  void read(Record &r, uint64_t w, std::vector<Outcome> &out) {
+  // A QTE's or InputCounter's result: its count as it stands now, the rest read now too (live) or as snap() kept it.
+  void read(Record &r, uint64_t w, std::vector<Outcome> &out, bool live) {
     r.told = true;
+    if (live)
+      snap(r, w);
+    if (!r.readable)
+      return say("story: an InputCounter of take " + std::to_string(r.take) + " with " + std::to_string(r.infos) +
+                 " Flow entries is not sent (" + std::to_string(kMaxInfos) + " at most)");
     Message m;
     m.type = r.type, m.take = r.take, m.n = r.n;
-    const bool qte = r.type == Type::qte;
-    m.value = i32(w + (qte ? kQteCount : kCounterCount)), m.flag = u8(w + (qte ? kQteForce : kCounterForce));
-    if (!qte && u8(w + kCounterKind) == 3) {
-      const int32_t n = i32(w + kInfoCount);
-      const uint64_t infos = ptr(w + kInfos);
-      if (n > kMaxInfos || (n > 0 && !infos))
-        return say("story: an InputCounter of take " + std::to_string(r.take) + " with " + std::to_string(n) +
-                   " Flow entries is not sent (" + std::to_string(kMaxInfos) + " at most)");
-      for (int32_t i = 0; i < n; ++i)
-        if (u8(infos + kInfo * uint64_t(i) + kInfoResult))
-          m.bits |= 1u << i;
-    }
+    m.value = i32(w + (r.type == Type::qte ? kQteCount : kCounterCount)), m.flag = r.force, m.bits = r.bits;
     out.push_back(Outcome{r.play, m});
+  }
+  // What a block holds until its Result, kept each pass: Setup writes the next section over it before hook 3's read.
+  void snap(Record &r, uint64_t w) {
+    const bool qte = r.type == Type::qte;
+    r.force = u8(w + (qte ? kQteForce : kCounterForce));
+    r.flow = !qte && u8(w + kCounterKind) == 3;
+    r.infos = r.flow ? i32(w + kInfoCount) : 0, r.bits = 0;
+    const uint64_t infos = r.flow ? ptr(w + kInfos) : 0;
+    r.readable = r.infos <= kMaxInfos && (r.infos <= 0 || infos);
+    for (int32_t i = 0; r.readable && i < r.infos; ++i)
+      if (u8(infos + kInfo * uint64_t(i) + kInfoResult))
+        r.bits |= 1u << i;
   }
   // A menu widget each pass: a block that opened gets its take and ordinal (an InteractionSelect only when set up for
   // the theater that plays, as its OnFinishBlock stores only then); one that closed gives its result to out (host).

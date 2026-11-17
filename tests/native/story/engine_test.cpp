@@ -8,10 +8,11 @@
 // the end, a random take refused), the leash's pause and its careful play, her dialogue closed, her skip blocked and
 // given back. Then choices, QTEs and InputCounters: the host's menus read when they close (an InteractionSelect of
 // another play left out, ordinals by take), his QTE and InputCounter blocks read once final (a Flow's results, a
-// widget read before its next start, one gone, one he did not lead); her line stored in her take context (a name or
-// alias she lacks refused) and her menu for it closed, her PlayerChoice answered through her OK (its index checked, a
-// block not open yet, one she passed), her QTE and InputCounter given the host's values (late, gone, a success that
-// finishes at once, Flow results), her presses taken on their start, her menus held and given back.
+// widget read before its next start, a Flow's results then kept from the last pass, one gone, one he did not lead);
+// her line stored in her take context (a name or alias she lacks refused) and her menu for it closed, her
+// PlayerChoice answered through her OK (its index checked, a block not open yet, one she passed), her QTE and
+// InputCounter given the host's values (late, gone, a success that finishes at once, Flow results), her presses taken
+// on their start, her menus held and given back.
 #include "story/engine.h"
 
 #include <cassert>
@@ -469,6 +470,18 @@ void test_host_results() {
   w.e.block_started(Type::cnt, counter, true, false);
   r = w.e.theater().results;
   assert(r.size() == 1 && r[0].m.n == 1 && r[0].m.value == 1);
+  // A Flow block that ends as a Single one starts in the same frame: Setup wrote the Single's kind, forced success and
+  // entries before that start, so the Flow's come from the last pass, said in the log.
+  w.g.put<uint8_t>(infos + kInfo + kInfoResult, 1);
+  assert(w.e.theater().results.empty());
+  w.g.put<uint8_t>(counter + kCounterKind, 1), w.g.put<uint8_t>(counter + kCounterForce, 1);
+  for (uint64_t i = 0; i < 3; ++i)
+    w.g.put<uint8_t>(infos + kInfo * i + kInfoResult, 0);
+  w.e.block_closing(counter);
+  w.e.block_started(Type::cnt, counter, true, false);
+  r = w.e.theater().results;
+  assert(r.size() == 1 && r[0].m.n == 2 && r[0].m.bits == 7 && !r[0].m.flag);
+  assert(w.e.log.back().find("maybe a frame old") != std::string::npos);
   // A widget gone before its result: said, not sent. A block he did not lead: not his to read.
   const uint64_t other = w.g.alloc(0x860);
   w.g.put<int32_t>(other + kBlockResult, -1);
