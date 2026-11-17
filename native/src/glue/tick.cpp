@@ -199,6 +199,14 @@
 // our EVE carries through ReadProcessMemory, her GUID too, and status() puts the answer in the engine
 // line for cut/mailbox.lua.
 //
+// The pad (game/pad.h): once a run the worker finds the twelve controller key names PadKeys reads, checks that Slate's
+// application holds its message handler, then swaps the handler's three controller slots of the game's image (analog,
+// button pressed, button released), all or none, for hooks on the game thread that record the key and run the game's
+// function with the same arguments. coop_pad then reads that record, so any controller the game reads drives the menu;
+// XInput stays the source when a name, the handler or a slot refuses; it is the source again once coop off gives the
+// slots back.
+// status() says which source runs (pad=slate or pad=xinput).
+//
 // This file is one translation unit made of the parts in glue/tick/, included below in this order: a part sees
 // what the parts before it declare, and the game thread's parts share one anonymous namespace. Each part is named
 // for the thread it runs on: *_game.inc for the game (or SB's logic) thread, *_worker.inc for our worker.
@@ -302,6 +310,7 @@
 #include "glue/tick/sky_worker.inc" // Likewise.
 #include "glue/tick/status.inc"
 #include "glue/tick/pad_game.inc"
+#include "glue/tick/pad_worker.inc" // After pad_game.inc: its hooks and pad_keys.
 
 
 // Called by Lua for each pad event it takes (package.loadlib(dll, "coop_pad")), in lua_CFunction's shape, the Lua state

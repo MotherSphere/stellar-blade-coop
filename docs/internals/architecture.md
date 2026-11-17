@@ -232,15 +232,29 @@ so its screens work again after the give-back.
 ### Controller
 
 UE4SS cannot bind a controller button, and UIOnly makes the game ignore the controller, so the native part reads it
-through XInput, a polling API that takes nothing from the game.
+itself: through the game's own controller events when it can, else through XInput, a polling API that takes nothing
+from the game.
 
+- Slate's message handler (the Slate application at `0x146faa4d0`, its handler at `+0x118` with the vtable
+  `0x145fe5430`) has three controller slots: analog `+0x88`, button pressed `+0x90` and released `+0x98`. The engine's
+  XInput poll and SB's DualSense module both call them, so they see every controller the game reads. Once a run the
+  worker finds the twelve key names `game/pad.h`'s `PadKeys` reads (`Gamepad_DPad_Up` to `Gamepad_LeftY`) with FName's
+  find, which never makes a name, checks the handler's vtable, then swaps the three slots by compare-and-swap, all or
+  none. Each hook records the key into `PadKeys` (relaxed atomics) and runs the game's function with the same
+  arguments; it never drops or changes an event. `PadKeys` keeps each controller's held buttons in XInput's bit layout
+  and its left stick, ids 0 to 7; a read gives the held buttons of every controller ORed with the presses since the
+  last read, so a press and its release inside one 8 ms poll still count. A repeat is no press: `game/pad.h` makes its
+  own. A missing name, another vtable or a slot holding anything else leaves XInput as the source, with one log line.
+  coop off gives the slots back by compare-and-swap from our hooks only; XInput is the source again.
 - The worker loads `xinput1_4.dll`, else `xinput9_1_0.dll`, with `LoadLibraryExW(..., LOAD_LIBRARY_SEARCH_SYSTEM32)`,
   and takes `XInputGetState` from it. The game's folder can hold another tool's `xinput1_3.dll` proxy, which is never
   loaded.
-- `coop_pad` runs on the game thread. It reads slots 0 to 3 at most once per 8 ms, ORs their buttons and takes the
-  first connected controller's left stick. A slot with no controller is asked again only after 2 s, and only one such
-  slot per read, since asking an empty slot can cost milliseconds. While another process's window is in front nothing
-  is read, and the held state counts as released: XInput answers whatever window has the focus.
+- `coop_pad` runs on the game thread. At most once per 8 ms it reads `PadKeys` while the hooks are the source, else
+  XInput's slots 0 to 3: their buttons ORed and the first connected controller's left stick. A slot with no controller
+  is asked again only after 2 s and only one such slot per read, since asking an empty slot can cost milliseconds.
+  While another process's window is in front nothing is read and the held state counts as released: XInput answers
+  whatever window has the focus. Slate may never deliver the release of a button held across an alt-tab, so `PadKeys`
+  forgets its holds then.
 - `game/pad.h` turns the reads into events: up, down, left and right from the D-pad or the left stick (pressed at 50 %
   of its range, released under 30 %), a D-pad diagonal read as up or down and the stick along its main axis (up or down
   when both are equal; an axis already pressed stays until the other is more than 10 % larger, so a stick held near

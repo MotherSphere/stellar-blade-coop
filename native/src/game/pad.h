@@ -278,4 +278,16 @@ private:
   std::array<std::atomic<int16_t>, kIds> x_{}, y_{};
 };
 
+// Slate's message handler on the pinned build (26123051): the application global, the handler inside it (its vtable at
+// +0x118, which the ctor FUN_142cc87e0 writes) and the handler's controller slots: analog +0x88, button pressed +0x90
+// and released +0x98, which the engine's XInput poll and SB's DualSense module both call. The originals take the key's
+// FName by value in rdx, the controller id in r8d, then the float in xmm3 or the repeat flag in r9b.
+namespace slate {
+constexpr uint64_t kApp = 0x146faa4d0;
+constexpr size_t kHandlerAt = 0x118;
+constexpr uint64_t kHandlerVtable = 0x145fe5430;
+constexpr uint64_t kSlots[3] = {0x145fe54b8, 0x145fe54c0, 0x145fe54c8};
+constexpr uint64_t kOriginals[3] = {0x142cdef50, 0x142cdf0a0, 0x142cdf1c0};
+} // namespace slate
+
 } // namespace coop

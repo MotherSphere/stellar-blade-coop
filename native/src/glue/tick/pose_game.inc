@@ -23,6 +23,9 @@ using XInputGetStateFn = DWORD(WINAPI *)(DWORD, XINPUT_STATE *);
 std::atomic<XInputGetStateFn> xinput_get{nullptr};
 constexpr int kPadUnread = -1, kPadMissing = -2;
 std::atomic<int> pad_seen{kPadUnread};
+// Whether coop_pad reads the game's own controller events (pad_game.inc's hooks on Slate's handler) in place of XInput:
+// the worker sets it once the three slots are ours and clears it before it gives them back.
+std::atomic<bool> pad_slate{false};
 // SB's input device as the game thread last read it (pad_game.inc's uidev_tick): -1 before the first read and after
 // its latch's fault.
 std::atomic<int> uidev_value{-1};

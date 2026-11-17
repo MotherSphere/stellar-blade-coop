@@ -521,12 +521,13 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     else
       pad_seen = kPadMissing;
   }
-  // Each change of the pads coop_pad sees, so a test's log says whether the pad is read.
-  if (const int seen = pad_seen; seen != pad_logged) {
+  // Each change of the pads coop_pad sees through XInput, so a test's log says whether the pad is read; none while
+  // the game's own controller events are the source (pad_worker.inc).
+  if (const int seen = pad_seen; !pad_slate && seen != pad_logged) {
     pad_logged = seen;
     std::string line = "pad: no XInput pad";
     if (seen == kPadMissing)
-      line = "pad: no XInput in System32: no controller in the co-op menu";
+      line = "pad: no XInput in System32: the controller works only through Slate's handler";
     else if (seen > 0) {
       line = "pad: XInput pads connected:";
       for (int slot = 0; slot < 4; ++slot)
@@ -536,7 +537,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     event(line);
   }
   // Each change of the window in front, at every pass: an alt-tab or a screenshot tool taking the foreground shows in
-  // the log next to the focus watchdog's lines. poll_pad's owner test, which it skips without XInput.
+  // the log next to the focus watchdog's lines. poll_pad's owner test, which it skips with neither XInput nor the hooks.
   DWORD owner = 0;
   if (const int front = GetWindowThreadProcessId(GetForegroundWindow(), &owner) && owner == GetCurrentProcessId();
       front != front_logged) {

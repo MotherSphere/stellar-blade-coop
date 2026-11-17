@@ -6,6 +6,10 @@
 
 namespace coop::pose {
 
+namespace {
+void pad_hook_undo(const char *why); // pad_worker.inc's, after this part.
+} // namespace
+
 void block() {
   blocked = true;
   guard_undo = true; // The game thread writes the guard's Korean sources back over his lines.
@@ -15,6 +19,7 @@ void block() {
   filter_undo("coop off");
   hold_undo("coop off");
   region_tabs_undo("coop off");
+  pad_hook_undo("coop off");
   world_off("coop off"); // Before sbo_off, which swaps back the ZoneEvent slot they share.
   story_off("coop off");
   sbo_off();
@@ -65,6 +70,7 @@ std::string status() {
   // coop gift's inventory read (cut/mailbox.lua): the last ask's answer, by its number.
   if (!items_line.empty() && !blocked)
     s += items_line;
+  s += pad_slate ? " pad=slate" : " pad=xinput"; // coop_pad's source: the game's controller events, or XInput.
   if (nightop_on && !blocked) // Last, so Lua's unanchored remote= match still holds.
     s += poller.rule_asked() ? " nightop=rule" : " nightop=on";
   for (char &c : s)

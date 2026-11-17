@@ -39,6 +39,9 @@ int main() {
   static_assert(Pad::kUp == 1 && Pad::kDown == 2 && Pad::kLeft == 3 && Pad::kRight == 4 && Pad::kSelect == 5 &&
                 Pad::kBack == 6 && Pad::kMenu == 7 && Pad::kTabLeft == 8 && Pad::kTabRight == 9 && Pad::kBike == 10 &&
                 Pad::kRefresh == 11);
+  static_assert(coop::slate::kSlots[0] == coop::slate::kHandlerVtable + 0x88 &&
+                coop::slate::kSlots[1] == coop::slate::kHandlerVtable + 0x90 &&
+                coop::slate::kSlots[2] == coop::slate::kHandlerVtable + 0x98 && coop::slate::kHandlerAt == 0x118);
 
   { // Edges: one event per press, none while held (before the repeat), none on release.
     Pad pad;

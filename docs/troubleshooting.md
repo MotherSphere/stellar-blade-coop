@@ -288,15 +288,21 @@ off; notices then show on the line above EVE. `coop ui off` turns the UI off the
 
 Look at the `pad:` lines in `coop-link.log`:
 
-- `pad: no XInput pad`: the mod sees no XInput controller. A DualSense read by the game's own PlayStation support is
-  not one: turn Steam Input on for Stellar Blade (Steam, right-click the game, Properties, Controller), restart the
-  game, and look for `pad: XInput pads connected: 0` (or another slot number).
-- `pad: no XInput in System32: no controller in the co-op menu`: Windows' `xinput1_4.dll` and `xinput9_1_0.dll` were
-  not found in System32. The mod never loads them from the game folder, where other tools put their own
-  `xinput1_3.dll`.
+- `pad: the game's controller input (Slate's handler)`: the mod reads every controller the game reads. Go on with the
+  last item of this list.
+- `pad: the game has no FName <name>; XInput instead`, `pad: Slate's handler is not at 0x145fe5430 (...); XInput
+  instead`, `pad: Slate's handler refused (...); XInput instead` or a `pad: fault` line: the mod could not take the
+  game's input and reads XInput. `Slate's handler refused` with a slot holding a value outside the game means another
+  mod hooked the same slot. The XInput lines below apply from then on.
+- `pad: no XInput pad` (XInput only): the mod sees no XInput controller. A DualSense read by the game's own PlayStation
+  support is not one: turn Steam Input on for Stellar Blade (Steam, right-click the game, Properties, Controller),
+  restart the game and look for `pad: XInput pads connected: 0` (or another slot number).
+- `pad: no XInput in System32: the controller works only through Slate's handler`: Windows' `xinput1_4.dll` and
+  `xinput9_1_0.dll` were not found in System32. The mod never loads them from the game folder, where other tools put
+  their own `xinput1_3.dll`.
 - `Native pad unavailable (no controller in the co-op menu)` in `UE4SS.log`: `StellarCoop.dll` is older than the
   scripts. Install the whole folder of one version again.
-- `pad: XInput pads connected: ...` and still nothing: hold View for a full second, in a world with the game's HUD
+- `pad: XInput pads connected: ...` or the game's controller input and still nothing: hold View for a full second, in a world with the game's HUD
   shown. The mod reads the controller only while the game's window is in front. If the menu cannot open, the same
   `STOP:` line as for F5 shows. A join popup ignores every button for 1 s after it shows. In the chat box and the
   code box only B acts (it closes them).

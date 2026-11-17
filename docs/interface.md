@@ -250,7 +250,8 @@ a world with none of the mod's screens or the game's menus open; the game still 
 - A D-pad diagonal counts as up or down. The stick counts along the axis it is pushed further on (up or down when both
   are equal), as pressed past half of its range and as released under 30 %. Once an axis counts, it keeps counting
   until the other one is pushed more than 10 % further.
-- The mod reads the controller only while the game's window is in front.
+- The mod reads the controller only while the game's window is in front. A button held when another window comes in
+  front counts as released.
 - While a key row waits for a key, only A and B act: A puts back that key's default and B stops the wait. A new key
   has to come from the keyboard.
 - B closes the [chat](#session-chat) box and the [code box](playing-with-a-friend.md#join-codes) as Esc does: nothing is typed or sent. A
@@ -260,11 +261,21 @@ a world with none of the mod's screens or the game's menus open; the game still 
   stray A declines. To let a player in with the controller, move to Accept, then press A.
 - The key hints at the bottom of the menu show the keyboard keys.
 
-The native part reads XInput: Xbox controllers, the Steam Deck, and any controller under Steam Input. A DualSense
-that the game reads through its own PlayStation support is not an XInput controller, so the mod does not see it. Turn
-Steam Input on for Stellar Blade (Steam, right-click the game, Properties, Controller) to use it in the menu.
-`coop-link.log` says at start and at each change which controllers it sees: `pad: XInput pads connected: 0` (the
-slots, 0 to 3), `pad: no XInput pad`, or `pad: no XInput in System32: no controller in the co-op menu`. `UE4SS.log`
+The native part reads the controller through the game's own input, so any controller the game reads works in the menu:
+Xbox controllers, the Steam Deck, controllers under Steam Input and a DualSense with Steam Input off (the menu reads
+it wherever the game's own PlayStation support does). `coop-link.log` says
+`pad: the game's controller input (Slate's handler)` once at start. This path has not been tested in game yet.
+
+When the mod cannot take the game's input, `coop-link.log` says why and the mod reads XInput, as versions before it
+did: `pad: the game has no FName <name>; XInput instead`, `pad: Slate's handler is not at 0x145fe5430 (it holds
+<value>); XInput instead` or `pad: Slate's handler refused (<slot> holds <value>); XInput instead`. XInput sees Xbox
+controllers, the Steam Deck and controllers under Steam Input. It does not see a DualSense that the game reads through
+its own PlayStation support: turn Steam Input on for Stellar Blade (Steam, right-click the game, Properties,
+Controller) to use one in the menu then. On XInput, `coop-link.log` says at start and at each change which controllers
+it sees: `pad: XInput pads connected: 0` (the slots, 0 to 3), `pad: no XInput pad`, or
+`pad: no XInput in System32: the controller works only through Slate's handler`. At coop off the mod gives the game's
+input back and reads XInput: `pad: Slate's handler given back (coop off); XInput instead`. The `engine=` line of
+`coop-status.txt` says which one it reads, `pad=slate` or `pad=xinput`. `UE4SS.log`
 says `[StellarCoop] pad: menu` each time a View hold asks to open or close the menu; `[StellarCoop] pad: bike` each
 time a D-pad Right hold asks for the bike. With an older `StellarCoop.dll`
 it says `Native pad unavailable (no controller in the co-op menu): <why>` once, and the keyboard works as before.

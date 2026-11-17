@@ -752,7 +752,10 @@ The C++ tests cover the platform-free headers in `native/src`.
 - `pad_test`: the controller's events for the co-op menu (each press, up and down repeating while held, a D-pad
   diagonal read as up or down and the stick along its main axis, which keeps its pressed axis near 45 degrees, the
   stick's thresholds, View held 1 s, D-pad Right held 1 s for the bike, LB, RB and Y once a press and in event order
-  with up's repeat going on, a disconnect, the event queue) and which XInput slots each poll asks;
+  with up's repeat going on, a disconnect, the event queue), which XInput slots each poll asks, `PadKeys` (a held
+  button in every read until its release, a press and release inside one poll counted once, a repeat ignored, two
+  controllers ORed, the stick pushed furthest, clamped values, unknown keys and ids outside 0 to 7 ignored, `clear()`,
+  the events from `PadKeys` as from XInput) and Slate's handler slots pinned to the vtable;
 - `dev_panels_test`: `coop devinfo`'s guard (each read failing alone, refused with its own reason; a close needs
   neither the flow nor the phase), the plan over every mix of open panels and every ask (the other panel closes, the
   one asked opens unless it is open), and the two panels' logic types and names;
