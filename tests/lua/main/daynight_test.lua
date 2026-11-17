@@ -25,7 +25,8 @@ quarter(); assert(dn.slows[#dn.slows]==false)
 -- coop daynight: alone or status, on, off, hour <h>; anything else is its usage line.
 coop('daynight'); assert(last()=='[StellarCoop] OK: daynight: test\n',last())
 coop('daynight','status'); assert(last()=='[StellarCoop] OK: daynight: test\n',last())
-coop('daynight','hour','13.5'); assert(dn.words[1][1]=='hour' and dn.words[1][2]=='13.5' and last()=='[StellarCoop] OK: dn hour\n')
+coop('daynight','hour','13.5')
+assert(dn.words[1][1]=='hour' and dn.words[1][2]=='13.5' and last()=='[StellarCoop] OK: dn hour\n')
 coop('daynight','off'); coop('daynight','on')
 assert(dn.words[2][1]=='off' and dn.words[3][1]=='on' and #dn.words==3)
 for _,bad in ipairs({{'hour'},{'on','x'},{'status','x'},{'sometimes'},{'hour','3','x'}}) do
