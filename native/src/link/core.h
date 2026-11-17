@@ -1828,7 +1828,9 @@ private:
   // One lobby the list found, read as its owner wrote it and cleaned (any SBO client can write these keys). A row
   // unless it is another version's, a match lobby, one with no rows (Invitation, Private, older builds), ours, full,
   // listed twice or past kMaxRows, or its host is one we blocked on Steam or on our block list. Its ping is Steam's
-  // estimate from the host's ping location, -1 when unknown.
+  // estimate from the host's ping location, -1 when unknown. Its friend mark needs Steam's word, not the row's: the
+  // SteamID in sbo_owner is our Steam friend and Steam puts that friend in this lobby (GetFriendGamePlayed), so a row
+  // that writes a friend's SteamID over a stranger's lobby gets no mark.
   void row(uint64_t lobby) {
     const auto data = [&](const char *key) {
       const char *v = api_.lobby_data(mm_, lobby, key);
@@ -1852,7 +1854,10 @@ private:
     }
     Row r{lobby, owner, std::to_string(n) + "/" + std::to_string(max), row_word(data(kZoneKey), kMaxPlace),
           row_word(data(kCampKey), kMaxCamp), row_word(data(kRulesKey), kMaxRules),
-          row_text(data(kHostKey), kRowName), -1, api_.has_friend(friends_, owner, kImmediateFriends)};
+          row_text(data(kHostKey), kRowName), -1, false};
+    FriendGame g{};
+    r.pal = api_.has_friend(friends_, owner, kImmediateFriends) && api_.friend_game(friends_, owner, &g) &&
+            (g.game & 0xffffff) == app_ && g.lobby == lobby;
     PingLocation where{};
     if (!at.empty() && at.size() <= kMaxPingText &&
         std::all_of(at.begin(), at.end(), [](char c) { return c > ' ' && c < 0x7f; }) &&

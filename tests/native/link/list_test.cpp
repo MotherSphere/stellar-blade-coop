@@ -204,7 +204,8 @@ int main() {
   // What the Public tab hides: Friends only and Invitation sessions and another version's (Steam's filters), a full
   // one (the free place filter, or a count its owner wrote), one with no rows, a match lobby, one whose host we blocked
   // on Steam or on our block list, or our own. The rows come best ping first, those with none last, with the friend
-  // mark of a Steam friend.
+  // mark of a Steam friend whom Steam puts in that lobby. A stranger's lobby that writes the friend's SteamID and name
+  // gets no mark: Steam has the friend in another lobby.
   reset();
   {
     Mesh m(3);
@@ -231,15 +232,18 @@ int main() {
     lobby_of(7008, kFriend, kPublic, false, pal);
     lobby_of(7009, kOther, kPublic, false, near);
     lobby_of(7010, kOther + 1, kPublic, false, far);
+    lobby_of(7011, kStranger, kPublic, false, rows(kFriend, "Kaanta"));
+    F.friend_lobby = {{kFriend, 7008}};
     F.client[0].relation[kPlayer[5]] = kIgnored;
     m.tick(0, "block " + id(kPlayer[6]));
     m.tick(0, "list public");
     m.round();
     const std::string s = m.status(0);
-    assert(lines(s, "list=") == Texts{"list=public done 3"} && saw("P1: list public done: 3 shown, 6 hidden"));
+    assert(lines(s, "list=") == Texts{"list=public done 4"} && saw("P1: list public done: 4 shown, 6 hidden"));
     assert((lines(s, "session=") == Texts{"session=7009 3003 1/2 20 0 - - - Host",
                                           "session=7008 2002 1/2 80 1 - - - Kaanta",
-                                          "session=7010 3004 1/2 - 0 - - - Host"}));
+                                          "session=7010 3004 1/2 - 0 - - - Host",
+                                          "session=7011 2002 1/2 - 0 - - - Kaanta"}));
   }
 
   // The Friends tab: Steam gives no data for a friend's lobby before RequestLobbyData answers. Each lobby a friend sits
@@ -309,6 +313,7 @@ int main() {
     F.client[1].persona = "<b>Eve</b>\x01";
     const uint64_t L = host(m, 1, "public");
     assert(F.data[L][kHostKey] == "bEve/b");
+    F.friend_lobby = {{kFriend, L}};
     auto forged = rows(kStranger, "<i>x</i>\x07y\xe2\x80\xae");
     forged[kZoneKey] = "b<07", forged[kCampKey] = "ok_1", forged[kRulesKey] = "a b", forged[kPingKey] = "1.2.3.4 x";
     lobby_of(7000, kStranger, kPublic, false, forged);

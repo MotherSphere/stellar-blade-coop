@@ -159,6 +159,9 @@ printable ASCII without spaces, 1023 bytes at most.
   IgnoredFriend) or with `coop block`. Each row's ping is Steam's estimate from the host's `sbo_ping`
   (`EstimatePingTimeFromLocalHost`). Once the search ends, the rows go best ping first, those without one last. The
   log line reads `list public done: <n> shown, <n> hidden`.
+- A row's Steam friend mark takes Steam's word, not the row's: the SteamID in `sbo_owner` is the player's Steam friend
+  (`HasFriend`) and `GetFriendGamePlayed` puts that friend in this lobby. A lobby that writes a friend's SteamID and
+  name over its own gets no mark, since Steam has the friend elsewhere or in no lobby.
 - One search runs at a time, 5 s apart at least, with no automatic refresh. A list search is refused in a lobby
   (`Leave this game first.`), while a match search or another list search runs (`A search is already running.`), or
   under 5 s after the last one (`Wait 5 s between two searches.`). Steam runs one lobby search per player, so a match

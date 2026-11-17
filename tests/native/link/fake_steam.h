@@ -172,8 +172,11 @@ template <int N> Api make_api() {
     std::advance(it, i);
     return it->first;
   };
-  a.friend_game = [](void *, uint64_t id, FriendGame *g) {
-    *g = FriendGame{3489700, 0, 0, 0, F.friend_lobby.at(id)};
+  a.friend_game = [](void *, uint64_t id, FriendGame *g) { // false for a friend not in the game, as Steam answers.
+    const auto it = F.friend_lobby.find(id);
+    if (it == F.friend_lobby.end())
+      return false;
+    *g = FriendGame{3489700, 0, 0, 0, it->second};
     return true;
   };
   a.has_friend = [](void *, uint64_t id, int flags) {
