@@ -224,7 +224,8 @@ A controller drives the co-op menu, the [join popups](#join-popups) and the
 [co-op saves' question](playing-with-a-friend.md#co-op-saves). Hold View (Back on an Xbox 360
 pad) for 1 s to open the menu, in a world with the game's HUD shown, and hold it again to close the menu. View is also
 the game's Scan button, and the game still gets the press that opens the menu. The controller in the menu has not been
-tested in game yet.
+tested in game yet. Outside the menu, D-pad Right held for 1 s puts EVE on the [bike](bike.md) or takes her off it, in
+a world with none of the mod's screens or the game's menus open; the game still gets the press as D-pad Right.
 
 | Button | In the menu |
 | --- | --- |
@@ -252,7 +253,8 @@ that the game reads through its own PlayStation support is not an XInput control
 Steam Input on for Stellar Blade (Steam, right-click the game, Properties, Controller) to use it in the menu.
 `coop-link.log` says at start and at each change which controllers it sees: `pad: XInput pads connected: 0` (the
 slots, 0 to 3), `pad: no XInput pad`, or `pad: no XInput in System32: no controller in the co-op menu`. `UE4SS.log`
-says `[StellarCoop] pad: menu` each time a View hold asks to open or close the menu. With an older `StellarCoop.dll`
+says `[StellarCoop] pad: menu` each time a View hold asks to open or close the menu; `[StellarCoop] pad: bike` each
+time a D-pad Right hold asks for the bike. With an older `StellarCoop.dll`
 it says `Native pad unavailable (no controller in the co-op menu): <why>` once, and the keyboard works as before.
 
 ### Mouse
@@ -272,10 +274,10 @@ closes.
 ### Options
 
 Each row of the Options page is a setting of [coop-settings.txt](settings.md#coop-settingstxt), except Reset all keys.
-The rows are in groups: Controls (the menu, status, leave, travel and race checkpoint keys, then Reset all keys), Photo
-mode, Partner (the name tag and the [partner HUD](#partner-hud)), Ghost (the looks, the
-[solid partner](ghost.md#solid-partner-experimental) and the send rate), Session (who can join a session you host and
-whether your Steam friends join without asking, the
+The rows are in groups: Controls (the menu, status, leave, travel and race checkpoint keys, the [bike](bike.md) on or
+off and its key, then Reset all keys), Photo mode, Partner (the name tag and the [partner HUD](#partner-hud)), Ghost
+(the looks, the [solid partner](ghost.md#solid-partner-experimental) and the send rate), Session (who can join a
+session you host and whether your Steam friends join without asking, the
 [revive](playing-with-a-friend.md#revive-by-your-friend-experimental), the
 [cutscene wait](playing-with-a-friend.md#cutscene-wait),
 [following the host](playing-with-a-friend.md#following-the-host) and the [shared world](shared-world.md)), Saves (the
@@ -300,7 +302,7 @@ A key that another action already holds is refused: the menu names that action. 
 puts back that key's default; while the row waits, the Enter key hint reads Default. The default is refused the same
 way when another action holds it. Reset all keys, the last row of Controls, puts every key back to its default on a
 second Select within 3 s: `F5` for the menu, `F6` for the status, `F8` to leave, `F7` to travel, `F9` for race
-checkpoints and `none` for `host_key`, which has no row. The new keys work at once. The console command
+checkpoints, `F3` for the bike and `none` for `host_key`, which has no row. The new keys work at once. The console command
 `coop keys reset` does the same.
 
 The menu, the Sessions and Create a session screens, the guide, the chat, the partner HUD, the code box, the join

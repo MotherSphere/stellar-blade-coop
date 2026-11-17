@@ -28,12 +28,12 @@ dofile('tests/lua/main/fixture.lua')
     pad(1); assert(focus()=='Host a session')
     pad(7); assert(not kit_shown.menu,'View held again closes it')
     pad(7); pad(6); assert(not kit_shown.menu and kit_sounds[#kit_sounds-1]=='back','B on the main page closes it')
-    -- LB, RB and Y (8, 9 and 10 values back: tab_left, tab_right and refresh) are taken like the others; the co-op
+    -- LB, RB and Y (8, 9 and 11 values back: tab_left, tab_right and refresh) are taken like the others; the co-op
     -- menu has no tabs and no Refresh, so they change nothing there. The down after them in the same frame still
     -- moves.
     pad(7); assert(kit_shown.menu and focus()=='Host a session')
     local sounds=#kit_sounds
-    pad(8,9,10,2)
+    pad(8,9,11,2)
     assert(#pd.q==0 and focus()=='Find a session' and #kit_sounds==sounds+1 and not logged('pad: error'),
         'LB, RB and Y taken, nothing done')
     pad(7); assert(not kit_shown.menu)
@@ -174,12 +174,16 @@ end)()
     assert(focus()=='Open this menu' and select(2,focus())=='Press a key','Waiting: the mouse moves nothing')
     key('RIGHT_MOUSE_BUTTON'); clock=clock+0.125; hover(4)
     assert(focus()=='Open this menu' and select(2,focus())~='Press a key','Right click: not waiting, nothing taken')
-    -- The mouse onto the last slot scrolls the page down by one, onto the first up by one.
+    -- The mouse onto the last slot scrolls the page down by one, onto the first up by one. The keys take the page one
+    -- row down first: the last slot then holds a row, not the PARTNER header.
+    for _=1,13 do key('DOWN_ARROW') end
+    assert(focus()=='Name tag' and rows[1].l=='Leave the session',focus())
     local last=rows[15].l
     clock=clock+0.125; hover(15)
     assert(focus()==last and rows[14].l==last and rows[15].l~=last,'The last slot: one row down')
     clock=clock+0.125; hover(1)
-    assert(focus()=='Open this menu' and rows[1].l=='CONTROLS' and rows[2].st=='focus','The first slot: one row up')
+    assert(focus()=='Travel to the host' and rows[1].l=='Leave the session' and rows[2].st=='focus',
+        'The first slot: one row up')
     key('RIGHT_MOUSE_BUTTON'); assert(kit_shown.menu and focus()=='Options','Right click: back to the main page')
     key('RIGHT_MOUSE_BUTTON'); assert(not kit_shown.menu and kit_sounds[#kit_sounds-1]=='back','And it closes')
     -- Hosting: Leave on two clicks within 3 s, as with Enter.

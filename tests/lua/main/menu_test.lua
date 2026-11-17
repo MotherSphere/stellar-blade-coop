@@ -119,7 +119,7 @@ settings_text='# mine\nname_tag=on\n'
 key('F5'); to('Options'); key('RETURN')
 assert(screen():find('^CONTROLS||disabled\nOpen this menu|F5|focus\nShow the status|F6|normal\n'
     ..'Leave the session|F8|normal\nTravel to the host|F7|normal\nSet a race checkpoint|F9|normal\n'
-    ..'Reset all keys||normal\nPHOTO MODE||disabled\nPhoto sync|Both|normal\n'
+    ..'Bike|On|normal\nGet on or off the bike|F3|normal\nReset all keys||normal\nPHOTO MODE||disabled\nPhoto sync|Both|normal\n'
     ..'Longest pause|10 min|normal\n'),screen())
 to('Ponytail cloth'); local rebuilt=#rebuilds
 key('RIGHT_ARROW')
@@ -392,11 +392,13 @@ settings_text='# mine\nmenu_key=F11\nstatus_key=F12\nleave_key=Shift+F8\nhost_ke
 clock=clock+1
 key('F5'); to('Options'); key('RETURN'); to('Reset all keys')
 assert(select(2,focus())==''
-    and screen():find('Set a race checkpoint|F9|normal\nReset all keys||focus\nPHOTO MODE',1,true))
+    and screen():find('Set a race checkpoint|F9|normal\nBike|On|normal\nGet on or off the bike|F3|normal\n'
+        ..'Reset all keys||focus\nPHOTO MODE',1,true))
 key('RETURN')
 assert(menu_view.note.s=='Select again within 3 s to reset every key.' and settings_text:find('F12',1,true))
 clock=clock+1; key('RETURN')
 assert(settings_text=='# mine\nmenu_key=F5\nstatus_key=F6\nleave_key=F8\nhost_key=none\nfollow_key=F7\nrace_key=F9\n'
+    ..'bike_key=F3\n'
     and logged('menu: every key at its default saved in coop-settings.txt'),settings_text)
 key('ESCAPE'); key('ESCAPE')
 settings_text='menu_key=F11\nstatus_key=F5\nhost_key=F2\n'
@@ -413,14 +415,14 @@ clock=clock+1
 key('F5'); assert(kit_said('show true') and logged('key F5: menu'),'The menu key\'s default, at once')
 key('ESCAPE')
 settings_text='menu_key=F11\nrace_key=F2\n'
-local ALL='[StellarCoop] OK: menu_key=F5 host_key=none status_key=F6 leave_key=F8 follow_key=F7 race_key=F9: every key '
-    ..'at its default\n'
+local ALL='[StellarCoop] OK: menu_key=F5 host_key=none status_key=F6 leave_key=F8 follow_key=F7 race_key=F9 bike_key=F3: '
+    ..'every key at its default\n'
 coop('keys','reset'); assert(last()==ALL,last())
 settings_text='race_key=F2\n'
 coop('keys','reset','all'); assert(last()==ALL and settings_text:find('race_key=F9\n',1,true))
 for _,typed in ipairs({{'keys'},{'keys','set'},{'keys','reset','chat'},{'keys','reset','all','now'}}) do
     coop(table.unpack(typed))
-    assert(last()=='[StellarCoop] STOP: Use: coop keys reset [menu|host|status|leave|follow|race|all]\n',last())
+    assert(last()=='[StellarCoop] STOP: Use: coop keys reset [menu|host|status|leave|follow|race|bike|all]\n',last())
 end
 settings_text=nil
 coop('keys','reset'); assert(last()=='[StellarCoop] STOP: coop-settings.txt cannot be read\n',last())
@@ -576,7 +578,8 @@ end)()
 -- Find a session (the main page and the co-op line): the menu closes and the Sessions screen opens (ui/sessions.lua,
 -- faked; sessions_test tests it). While it is open it takes the keys, the pad and the mouse: the arrows, W, S, Enter,
 -- Space and Esc; Q and E (A and E on AZERTY) its tabs; F and Y its Refresh; LB and RB; a left click; a right one as
--- Back. The menu key and View held close it. Each 250 ms it gets the HUD's shown; coop ui reset closes it.
+-- Back. The pad's bike does nothing there. The menu key and View held close it. Each 250 ms it gets the HUD's shown;
+-- coop ui reset closes it.
 ;(function()
     local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end
     local function navs(n) return table.concat(ss.calls,' ',n+1) end
@@ -607,8 +610,11 @@ end)()
     assert(navs(n)=='nav up nav up nav down nav select nav select nav back nav tab_left nav tab_right nav refresh '
         ..'nav left nav right',navs(n))
     n=#ss.calls
-    pad(1,2,5,6,8,9,10,3)
+    pad(1,2,5,6,8,9,11,3)
     assert(navs(n)=='nav up nav down nav select nav back nav tab_left nav tab_right nav refresh nav left',navs(n))
+    n=#ss.calls
+    pad(10)
+    assert(#ss.calls==n and logged('pad: bike ignored: one of our screens is open'),'The bike: nothing while it is open')
     n=#ss.calls
     key('LEFT_MOUSE_BUTTON'); key('RIGHT_MOUSE_BUTTON')
     assert(navs(n)=='nav click nav back' and not kit_shown.menu,navs(n))
@@ -673,8 +679,9 @@ end)()
     assert(navs(n)=='nav up nav up nav down nav select nav select nav left nav left nav right nav right nav back',
         navs(n))
     n=#cr.calls
-    pad(1,2,3,4,5,6)
+    pad(1,2,3,4,5,6,10)
     assert(navs(n)=='nav up nav down nav left nav right nav select nav back',navs(n))
+    assert(logged('pad: bike ignored: one of our screens is open'),'The bike: nothing while it is open')
     n=#cr.calls
     key('LEFT_MOUSE_BUTTON'); key('RIGHT_MOUSE_BUTTON')
     assert(navs(n)=='nav click nav back',navs(n))

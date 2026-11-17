@@ -827,6 +827,21 @@ int main() {
   assert(an.command == Command::anim && an.id == 4294967295u && !an.loop);
   an = parse_request("anim stop\n");
   assert(an.command == Command::anim && an.off && an.path.empty());
+  an = parse_request("anim play 9 " + clip + " ride\r\n"); // The bike's: a loop with her foot IK off.
+  assert(an.command == Command::anim && an.id == 9 && an.loop && an.ride);
+  assert(!parse_request("anim play 9 " + clip + " loop").ride && !parse_request("anim play 9 " + clip + " once").ride);
+  // The bike: its preload with one of EVE's clips in object path form, its release, SB's actions off and back.
+  Request bk = parse_request("bike load " + clip + "\r\n");
+  assert(bk.command == Command::bike && bk.bike == BikeAsk::load && bk.path == clip);
+  assert(parse_request("bike free\n").bike == BikeAsk::free && parse_request("bike free").command == Command::bike);
+  assert(parse_request("bike gate on").bike == BikeAsk::gate_on && parse_request("bike gate off\n").bike == BikeAsk::gate_off);
+  for (const std::string &bad :
+       {std::string("bike"), std::string("bike load"), "bike load " + clip + " x", "bike  load " + clip,
+        std::string("bike load /Game/Art/Character/ETC/Adam_vehicle_02/Adam_Vehicle_02.Adam_Vehicle_02"),
+        std::string("bike load /Game/Art/Character/PC/CH_P_EVE_01/Animation/PhotoMode/Clap"),
+        std::string("bike load /Game/Mods/Batcycle/Eve_BikeIdle.Eve_BikeIdle"), std::string("bike gate"),
+        std::string("bike gate yes"), std::string("bike free now"), std::string("bike Gate on")})
+    assert(parse_request(bad).command == Command::none);
   for (const std::string &bad :
        {"anim play 0 " + clip + " once", "anim play 4294967296 " + clip + " once", "anim play 1 " + clip,
         "anim play 1 " + clip + " twice", "anim play 1 " + clip + " once x", "anim play x " + clip + " once",

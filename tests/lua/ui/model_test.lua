@@ -166,7 +166,8 @@ assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.na
     and values.aggro=='game' and values.same_spawns=='on' and values.enemy_extra=='0' and values.bosses=='on'
     and values.boss_hp_scale=='2.0' and values.shared_quests=='on' and values.revive=='on'
     and values.follow_host=='ask' and values.follow_key=='F7' and values.collide=='on' and values.race_key=='F9'
-    and values.photo_name_tag=='on' and values.status_overlay=='compact')
+    and values.photo_name_tag=='on' and values.status_overlay=='compact' and values.bike=='on'
+    and values.bike_key=='F3')
 
 -- Values as the mod reads the file: the last line it takes, any case; a refused value leaves the default.
 values=M.read('send_rate=25\nsend_rate=99\nNAME_TAG=Off\nphoto_sync=NOTICE\nstatus_key=shift+f7\nui_scale=7\n'
@@ -207,7 +208,7 @@ assert(menu.current(NONE).key=='menu_key' and menu.rows(NONE)[1].head=='controls
 assert(menu.back()==nil and menu.page()=='main' and menu.current(NONE).id=='options')
 menu.select(NONE,0)
 -- Every setting shows, under its header.
-assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key race_key reset_keys head:photo '
+assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key race_key bike bike_key reset_keys head:photo '
     ..'photo_sync '
     ..'photo_freeze_max photo_ghost '
     ..'photo_name_tag photo_pause head:partner name_tag partner_bar partner_arrow partner_card card_details head:ghost cloth dyes '
@@ -404,6 +405,14 @@ assert(action==nil and why=='clash' and other=='race_key')
 action,key,text=M.rebind(values,'race_key',K.text('F11','ALT'))
 assert(action=='set' and key=='race_key' and text=='Alt+F11')
 assert(M.read('status_key=F9\n').race_key=='none' and M.read('race_key=Shift+F9\n').race_key=='Shift+F9')
+-- The bike key (Controls): F3 by default, rebound and checked like the others; none in a file whose keys held F3. The
+-- bike's row: on or off.
+action,why,other=M.rebind(values,'leave_key','F3')
+assert(action==nil and why=='clash' and other=='bike_key')
+action,key,text=M.rebind(values,'bike_key',K.text('F2','CONTROL'))
+assert(action=='set' and key=='bike_key' and text=='Ctrl+F2')
+assert(M.read('status_key=F3\n').bike_key=='none' and M.read('bike_key=none\n').bike_key=='none')
+assert(M.read('bike=OFF\n').bike=='off' and M.read('bike=maybe\n').bike=='on')
 -- Enter (no key setting takes it) puts back the key's default, checked as any key: refused while another holds it.
 values=M.read('menu_key=F11\nstatus_key=Shift+F6\nhost_key=F12\n')
 action,key,text=M.rebind(values,'status_key','Enter')
@@ -421,10 +430,11 @@ assert(menu.select(NONE,92,values)=='confirm_reset_keys' and menu.select(NONE,96
     'A second Select after 3 s asks again')
 file=assert(M.reset_keys('# keys\nmenu_key=F11\nstatus_key=F5\nhost_key=F12\nsend_rate=30\n'))
 assert(file=='# keys\nmenu_key=F5\nstatus_key=F6\nhost_key=none\nsend_rate=30\nleave_key=F8\nfollow_key=F7\n'
-    ..'race_key=F9\n',file)
+    ..'race_key=F9\nbike_key=F3\n',file)
 s=Link.parse_settings(file)
 assert(s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name=='F6' and s.race_key.name=='F9'
     and s.send_rate==30)
-assert(M.reset_keys('')=='host_key=none\nmenu_key=F5\nstatus_key=F6\nleave_key=F8\nfollow_key=F7\nrace_key=F9\n')
+assert(M.reset_keys('')=='host_key=none\nmenu_key=F5\nstatus_key=F6\nleave_key=F8\nfollow_key=F7\nrace_key=F9\n'
+    ..'bike_key=F3\n')
 
 print('ui_model_test ok')

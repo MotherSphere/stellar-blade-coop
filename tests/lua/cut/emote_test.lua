@@ -13,7 +13,8 @@
 -- start asks anim play with a new id, the path and once or loop, no montage made; only the answer for its id counts:
 -- playing (logged once), ended (nothing to stop), ended:weight and refused (a line for the screen), none in 5 s (anim
 -- stop asked); the end rule, another emote, coop emote off, coop off and another EVE ask anim stop; a fault sends the
--- next start to the montage; once it plays, the status is read every 0.1 s, not each frame. GetPlayer gives a new wrapper at each call, as UE4SS does, so EVE is told by address.
+-- next start to the montage; once it plays, the status is read every 0.1 s, not each frame. Nothing starts while EVE
+-- rides the bike. GetPlayer gives a new wrapper at each call, as UE4SS does, so EVE is told by address.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -435,4 +436,15 @@ assert(seats.preload('table')==true and loads[1]==TABLE and #asked==n_asked and 
     table.concat(loads,','))
 assert(seats.preload('table')==true and #loads==1,'In memory now: no second load')
 assert(seats.preload('outdoor')==false and seats.preload('folding')==false and #asked==n_asked)
+-- While EVE rides the bike (bike/ride.lua's riding): no emote and no seat loop starts, nothing asked or played.
+local rides=true
+local riding=Emote.new({log=log,ask=ask,status=function() return status end,riding=function() return rides end})
+for _,try in ipairs({function() return riding.command('clap') end,function() return riding.sit('bar') end}) do
+    ok,said=try()
+    assert(ok==false and said=='EVE rides the bike: coop bike gets her off first' and #asked==n_asked
+        and not riding.active(),said)
+end
+rides=false
+assert(riding.command('clap') and riding.active() and #asked==n_asked+1,'Off the bike: as before')
+riding.stop()
 print('emote_test: ok')

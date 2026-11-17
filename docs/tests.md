@@ -15,9 +15,10 @@ build/host/pose_codec_test
 
 ## Lua tests
 
-The Lua tests (`commands/`: `session`; `core/`: `actors_of`, `class_at`, `keybind`, `link`, `mask`, `pak_gate`,
-`settings_file`, `ue4ss_settings`, `unreal`; `cut/`: `chainspin`, `devmenu`, `emote`, `enemy`, `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`,
-`mailbox`, `scene`, `tendril`, `wear`; `main/`: `boot`, `dlc`, `fight`, `fight_notices`, `guide`, `idle`, `input`, `match`,
+The Lua tests (`bike/`: `model`, `ride`; `commands/`: `session`; `core/`: `actors_of`, `class_at`, `keybind`, `link`,
+`mask`, `pak_gate`, `settings_file`, `ue4ss_settings`, `unreal`; `cut/`: `chainspin`, `devmenu`, `emote`, `enemy`,
+`flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`,
+`mailbox`, `scene`, `tendril`, `wear`; `main/`: `bike`, `boot`, `dlc`, `fight`, `fight_notices`, `guide`, `idle`, `input`, `match`,
 `menu`, `quests`, `sbo`, `session_ui`, `settings`, `story`, `world`; `matrix13/quest/`: `on_time`, `zone_talks`;
 `matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`;
 `nightop/`: `board`, `challenges`, `guard_text`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`,
@@ -29,9 +30,26 @@ the scripts, with fake UE4SS objects for those that call the engine. In the capt
 fails the test. The `main/` tests load
 `main/fixture.lua` first, with UE4SS stubbed for `main.lua`.
 
+- `bike/model_test` rides `bike/model.lua` on flat ground with Eve On Wheels' default values: 90% of the top speed
+  after 3.9 s, a real top of about 2252 cm/s, 15.8 m of braking from the top, reverse after 0.3 s at a stop, the yaw
+  rate and lean at full lock at five speeds, the drift's 42-degree slip cap, a wall, the air, a ramp launch only after
+  0.12 s of climb, the pitch, root motion holding the state and the values' bounds;
+- `bike/ride_test` covers `bike/ride.lua` over a fake EVE and native part: the preload asked once and released at
+  `bike=off`, the part made once (at the seat, hidden) or found again after a reload, every mount refusal with its
+  reason and nothing written, the mount's order and the dismount backward, the lean, the riding pose played again or
+  ending the ride, the 250 ms checks (EVE down read from the status line's `bike_life=` with no session, or from the
+  session's life state without that word), `coop-bike.txt` and its restore, `coop bike status` and `tune`, the Doro
+  look refused while she rides, `parked` (the part the capture leaves out) before the part, on and off the bike, after
+  a ride ended on a fault, after a reload and at `bike=off`, the part's `SBO_Bike` tag (a tag that does not hold makes
+  no part), the earlier load's part found at a reload's first tick with the preload at `fault` and removed by the
+  first pass at `bike=off`, another mod's component on the bike's mesh never hidden, used or removed;
+- `partner/capture_test` also covers SBO's bike left out of the parts while EVE does not ride (`leave_out`, asked once
+  a look): an outfit of 16 parts keeps them all; while she rides the bike is part 1 and the last follower goes; getting
+  on or off starts a new generation; another component on the bike's mesh stays a part;
 - `core/link_test` also covers the status's `uidev=`, `me=` and `world=` lines and the `owner=`, `room=` and `hall=`
   fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty), and never
-  from a player's name, and the `shared_world` setting. It also reads the `dlcs=` line with the `dlc_missing=` and
+  from a player's name, the `shared_world` setting, `bike` and `bike_key` (an older file whose keys hold F3 gets no
+  bike key). It also reads the `dlcs=` line with the `dlc_missing=` and
   `dlc_extra=` lines after it, the session list's `list=` line with its `session=` rows (a row only after a `list=`
   line, `-` read as none) and a joiner's `wait=` line, logged once a wait. It covers `who_can_join` (`public` by
   default, the older `code` and `private` read as `invitation`) and `friends_ask`, the `where` and `rules` requests
@@ -63,6 +81,12 @@ fails the test. The `main/` tests load
   language with its English beside. The same DLCs, or no list yet, give none;
 - `main/quests_test` covers `coop quests` with the `shared_quests` and `quest_deny` settings and the shared quests'
   notices;
+- `main/bike_test` covers the bike through `main.lua` with a fake `bike/ride.lua`: the load line, what the ride gets
+  (its asks, `coop-bike.txt`, the driving, the settings, SBO's busy reasons with coop fly and our open screens),
+  `coop bike` and its words, F3 and the pad's D-pad Right hold with a refusal on screen, the hold ignored with its
+  reason logged at the title, with one of our screens open or with the game paused, the restore, the frame and the
+  250 ms pass with an end said on screen, the Options rows, `coop off`; `riding()` as `coop emote`, the race, the hall
+  seats, `coop fly on` and `coop glide on` read it; the ride's `parked` as the capture's `leave_out`;
 - `main/world_test` covers `coop world` (its words, on and off whatever `shared_world` says, status), the start once a
   load with `shared_world=on`, the end at a reload with `shared_world=off`, and the shared world's two notices;
 - `main/idle_test` counts the FindAllOf and StaticFindObject calls of main.lua's two loops over one idle minute, each
@@ -133,11 +157,11 @@ fails the test. The `main/` tests load
   written through `settings_file.set` and read back, Start and Back, the cursor and every setting locked with its
   reason while the file cannot be read;
 - `main/menu_test` also covers Find a session: the Sessions screen opens in place of the menu and takes the keys (F and
-  Q, E included), the pad (Y, LB and RB included) and the mouse; the menu key, View held and `coop ui reset` close it;
-  its view reads our protocol and game build from the status. It covers Host a session the same way: the Create a
-  session screen opens from the main page, the co-op line and `coop host` alone, takes the keys (A, D and Q as Left and
-  Right), the pad and the mouse; its view gives the settings in effect, its act writes a change as Options does and
-  hosts Start's word; `host_key` still hosts at once;
+  Q, E included), the pad (Y, LB and RB included; the bike ignored with its log line) and the mouse; the menu key, View
+  held and `coop ui reset` close it; its view reads our protocol and game build from the status. It covers Host a
+  session the same way: the Create a session screen opens from the main page, the co-op line and `coop host` alone,
+  takes the keys (A, D and Q as Left and Right), the pad (the bike ignored) and the mouse; its view gives the settings
+  in effect, its act writes a change as Options does and hosts Start's word; `host_key` still hosts at once;
 - `ui/text_test` checks each language's notices against the feed's 200-byte line, the SBO lobby's notices included. It
   checks the lobby menu's rows, settings, values and status within their columns, the Sessions screen's hints, status
   lines, version and footer within theirs and the Create a session screen's title, header, Start row and right-pane
@@ -221,7 +245,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target` and
   the boss tests included; `coop fight pvp` and `pvp off`; `lion rows`, `gardener rows`, `tendril rows`, `bolt rows`,
   `mxiii rows`, `shop rows` and `signal rows` with their 25 table words and bad addresses, the longest of them 813
-  bytes; `fly` and `slowmo` on or off; `anim play` with its id, path and `once` or `loop`, and `anim stop`;
+  bytes; `fly` and `slowmo` on or off; `anim play` with its id, path and `once`, `loop` or `ride`, and `anim stop`;
+  `bike load <clip>`, `bike free`, `bike gate on` and `bike gate off`, a mesh, a package path or a mod's clip refused;
   `shortcut list` and `shortcut load <map> <1-4>`; `hud hide on` and `hud hide off`; `loading lift`; `nightshop`,
   `roxanne`, `lily`,
   `guardtext` and the 8 `signal` words, in `quest/own.h`'s order; the `sbo` requests (`on`, `arm`, `enter`, `warp`,
@@ -610,16 +635,21 @@ The C++ tests cover the platform-free headers in `native/src`.
   our clip, another clip, a cleared slot, a gone EVE and a slot that takes no weight, with paused time left out,
   the stops, the fault, the status word and the log lines), our EVE as the controller's pawn and the check that she
   is still the object played on, over fake memory (no pawn, a pawn of another class, a pending kill, a new serial),
-  and what each frame does;
+  what each frame does; the bike's `ride` play (a loop forever with foot IK type 2) and its foot IK put back as SB's
+  stop does once the ride's play is over;
+- `bike_test`: the bike's native side (`game/bike.h`): the preload path rule, the 54 gated names, the gate over a fake
+  action map (each state kept and put back, an absent name back as on, a name SB changed during the ride left as SB set
+  it, a name the game never made skipped, a controller gone, a fault in the middle of turning it on, a fault), the words
+  packed for the worker and the status line, the ride plays' clip lookups and the log lines;
 - `items_test`: `coop gift`'s inventory read against a fake image laid out like the pinned build: the FName and
   CityHash64 hashes checked against the game's, a count over two instances and along chains of collisions, an item
   EVE does not carry, no manager, bucket or owner, an instance the manager no longer holds, and hostile memory (a
   chain that loops, an index past the array, a hash size that is no power of two, an unreadable item) ending in
   `unread`, never in a hang;
-- `pad_test`: the controller's events for the co-op menu (each press, up and down repeating while held, a D-pad diagonal
-  read as up or down and the stick along its main axis, which keeps its pressed axis near 45 degrees, the stick's
-  thresholds, View held 1 s, LB, RB and Y once a press and in event order with up's repeat going on, a disconnect, the
-  event queue) and which XInput slots each poll asks;
+- `pad_test`: the controller's events for the co-op menu (each press, up and down repeating while held, a D-pad
+  diagonal read as up or down and the stick along its main axis, which keeps its pressed axis near 45 degrees, the
+  stick's thresholds, View held 1 s, D-pad Right held 1 s for the bike, LB, RB and Y once a press and in event order
+  with up's repeat going on, a disconnect, the event queue) and which XInput slots each poll asks;
 - `dev_panels_test`: `coop devinfo`'s guard (each read failing alone, refused with its own reason; a close needs
   neither the flow nor the phase), the plan over every mix of open panels and every ask (the other panel closes, the
   one asked opens unless it is open), and the two panels' logic types and names;

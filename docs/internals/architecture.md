@@ -42,6 +42,9 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `commands/cut.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop gardener fight`, handed to `cut/gardener.lua` with the co-op save check and the viewer's display put away before the words that spawn; `coop tendril fight`, handed to `cut/tendril.lua` the same way; `coop wear`; `coop scene`, with the co-op save check before a scene's name (`coop scene lily` handed to `matrix13/quest/on_time.lua`'s talk); `coop lines`; `coop emote`; `coop fly`, `coop slowmo` and `coop glide`, with the co-op save check before `on`; `coop gift`, with the co-op save check before every word |
 | `commands/guide.lua` | `coop guide`, which opens the guide |
 | `commands/world.lua` | `coop world`: on and off for the [shared world](shared-world.md) until the mod reloads, and its status line |
+| `commands/bike.lua` | `coop bike`, `coop bike status` and `coop bike tune`, handed to `bike/ride.lua` ([The bike](bike.md)) |
+| `bike/ride.lua` | The bike on EVE: the preload asked of the native part, the bike part on her actor, the checks, the mount and the dismount in their order with `coop-bike.txt`, the gate, the riding pose kept playing, the lean on her main mesh ([The bike](bike.md)) |
+| `bike/model.lua` | The bike's riding model, adapted from Eve On Wheels by dCharisma1, in `race/drive_model.lua`'s table shape so `race/drive.lua` drives it ([Riding](bike.md#riding)) |
 | `core/link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
 | `partner/capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
 | `partner/puppet.lua` | The ghost: builds it from a table, places it, its name tag, effects, its Doro mode in a race, `coop where` |
@@ -197,6 +200,9 @@ file is written in full beside its final name and then renamed over it, so the r
   `coop-link.log` has `loading lift: <n> of SB's black screens set to end`; the Lua lines start with `arrival:`.
 - The recruiter's lines go as one request too (`guardtext`, the culture and his seven lines, each after a tab),
   answered by the `guardtext=` line of `coop-status.txt`.
+- The [bike](bike.md)'s asks go as requests (`bike load <clip>`, `bike free`, `bike gate on`, `bike gate off`,
+  `anim play <id> <clip> ride`), answered by the `bike=`, `bike_gate=` and `anim=` words of the engine line in
+  `coop-status.txt`. They stay on your PC: the link protocol does not change.
 - Two files are Lua's alone, for the [crash sentinel](ghost.md#cns-guard-and-crash-sentinel): `coop-cns-call.txt`, written in
   place with no temporary file to keep each write to one, and `coop-cns-aside.txt`, the set-aside list.
 
@@ -230,17 +236,22 @@ through XInput, a polling API that takes nothing from the game.
   of its range, released under 30 %), a D-pad diagonal read as up or down and the stick along its main axis (up or down
   when both are equal; an axis already pressed stays until the other is more than 10 % larger, so a stick held near
   45 degrees does not switch at each read), up and down repeating after 400 ms then every 120 ms, A for select, B for
-  back, View held 1000 ms for the menu, once a hold, and LB and RB for the tab to the left and right, once a press. A
-  ring of 8 holds them; a full ring drops the newest.
-- The DLL links no Lua, so each event travels as a result count. Lua calls `select('#', native_pad(0,0,0,0,0,0,0,0,0))`:
-  `coop_pad`, called as a Lua C function, returns n, and Lua hands back the top n of the 9 arguments on its stack. n is
-  the event, 1 to 9, or 0 when the ring is empty. `main.lua` takes at most 8 events a frame and routes them as the keys
-  route theirs: the SBO lobby's screens get the six navigation words while one is open and View closes it to the
-  waiting room, the open menu gets the six navigation words and View closes it, the co-op saves' question gets up,
-  down, select and back (the guide gets them first while it is open), the chat box and the code box get back only (it
-  closes them), the host's question gets none, and with nothing open, in a world with the HUD shown, View opens the
-  lobby menu in the SBO lobby's world and the co-op menu elsewhere, through the same path as `menu_key`. LB and RB
-  change the tab of the lobby's settings screen while it is open and do nothing anywhere else.
+  back, View held 1000 ms for the menu, once a hold, LB and RB for the tab to the left and right and Y for the
+  Sessions screen's Refresh, once a press. D-pad Right held 1000 ms gives the [bike](bike.md)'s event, once a hold,
+  after its right. A ring of 8 holds them; a full ring drops the newest.
+- The DLL links no Lua, so each event travels as a result count. Lua calls
+  `select('#', native_pad(0,0,0,0,0,0,0,0,0,0,0))`: `coop_pad`, called as a Lua C function, returns n, and Lua hands
+  back the top n of the 11 arguments on its stack. n is the event, 1 to 11, or 0 when the ring is empty. `main.lua`
+  takes at most 8 events a frame and routes them as the keys route theirs: the join popups get every word first while
+  one is open, the SBO lobby's screens get the six navigation words while one is open and View closes it to the waiting
+  room, the Sessions screen and the Create a session screen get every word while one is open (Y is the Sessions screen's
+  Refresh) and View closes it, the open menu gets the six navigation words and View closes it, the co-op saves' question
+  gets up, down, select and back (the guide gets them first while it is open), the chat box and the code box get back
+  only (it closes them). With nothing open, in a world with the HUD shown, View opens the lobby menu in the SBO lobby's
+  world and the co-op menu elsewhere, through the same path as `menu_key`. LB and RB change the tab of the lobby's
+  settings screen or of the Sessions screen while one is open and do nothing anywhere else. The bike's event goes the
+  path of `bike_key` in a world with the HUD shown while none of these screens is open and the game is neither paused
+  nor showing one of its screens; it does nothing otherwise (the log says why).
 - The worker logs each change of the connected slots (`pad: XInput pads connected: <slots>`, `pad: no XInput pad`).
 
 ### Mouse

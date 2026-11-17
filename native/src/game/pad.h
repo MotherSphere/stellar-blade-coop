@@ -4,7 +4,8 @@
 // An XInput pad's state turned into the co-op menu's navigation events, free of Windows: the native part
 // (glue/tick.cpp) reads the pads through PadSlots, steps Pad at each poll and hands Lua one event per coop_pad call.
 // The menu and the co-op saves' question take the game's input (UIOnly), so the game ignores the pad then, and UE4SS
-// binds only keyboard keys: this is the pad's only way in. tests/native/game/pad_test.cpp checks this file on the build
+// binds only keyboard keys: this is the pad's only way in. In play, View held opens the menu and D-pad Right held gets
+// on or off the bike. tests/native/game/pad_test.cpp checks this file on the build
 // machine.
 #pragma once
 
@@ -16,7 +17,7 @@
 namespace coop {
 
 // The tuning, named so an evening of tests can change it.
-constexpr uint64_t kPadMenuHoldMs = 1000;   // View (Back) held this long: the menu event, once a hold.
+constexpr uint64_t kPadMenuHoldMs = 1000;   // View (Back) held this long: the menu event; D-pad Right: the bike's.
 constexpr uint64_t kPadRepeatDelayMs = 400; // Up or down held repeats after this...
 constexpr uint64_t kPadRepeatEveryMs = 120; // ...then this often while held.
 constexpr int kPadStickPress = 16384;       // 50 % of the left stick's full scale (32767): at or past it, pressed.
@@ -38,20 +39,22 @@ struct PadState {
 
 class Pad {
 public:
-  enum Event : uint8_t { kNone = 0, kUp, kDown, kLeft, kRight, kSelect, kBack, kMenu, kTabLeft, kTabRight, kRefresh };
+  enum Event : uint8_t {
+    kNone = 0, kUp, kDown, kLeft, kRight, kSelect, kBack, kMenu, kTabLeft, kTabRight, kBike, kRefresh
+  };
 
   // Each poll. Directions (the D-pad or the left stick) on their press; up and down again after kPadRepeatDelayMs
   // and every kPadRepeatEveryMs while held (left and right change a value: once a press). A diagonal is up or down
   // (the stick: its main axis, and near 45 degrees the axis already pressed, so noise does not flip it), so a move
-  // never changes a value too. A, B, LB, RB and Y (the session list's Refresh) on their press only; View once it was
-  // held kPadMenuHoldMs, once a hold. One step's events go in event order. No pad connected forgets what was held, so the next press is a new one;
-  // the events already made stay.
+  // never changes a value too. A, B, LB, RB and Y (the session list's Refresh) on their press only; View (kMenu) and
+  // D-pad Right (kBike, after its kRight) once each was held kPadMenuHoldMs, once a hold. One step's events go in event
+  // order. No pad connected forgets what was held, so the next press is a new one; the events already made stay.
   void step(const PadState &s, uint64_t now_ms) {
     if (!s.connected) {
       held_ = {};
       stick_ = {};
       buttons_ = 0;
-      back_held_ = menu_sent_ = false;
+      back_ = right_ = Hold();
       return;
     }
     const int x = s.lx, y = s.ly; // As int: -(-32768) fits.
@@ -92,20 +95,14 @@ public:
       push(kSelect);
     if (pressed & PadState::B)
       push(kBack);
-    if (!(s.buttons & PadState::BACK))
-      back_held_ = false;
-    else if (!back_held_) {
-      back_held_ = true;
-      menu_sent_ = false;
-      back_since_ = now_ms;
-    } else if (!menu_sent_ && now_ms - back_since_ >= kPadMenuHoldMs) {
-      menu_sent_ = true;
+    if (back_.step(s.buttons & PadState::BACK, now_ms))
       push(kMenu);
-    }
     if (pressed & PadState::LEFT_SHOULDER)
       push(kTabLeft);
     if (pressed & PadState::RIGHT_SHOULDER)
       push(kTabRight);
+    if (right_.step(s.buttons & PadState::DPAD_RIGHT, now_ms))
+      push(kBike);
     if (pressed & PadState::Y)
       push(kRefresh);
   }
@@ -121,6 +118,22 @@ public:
   }
 
 private:
+  // A button held kPadMenuHoldMs: true once a hold, at the step that reaches it.
+  struct Hold {
+    bool held = false, sent = false;
+    uint64_t since = 0;
+    bool step(bool down, uint64_t now_ms) {
+      if (!down)
+        return held = false;
+      if (!held) {
+        held = true, sent = false, since = now_ms;
+        return false;
+      }
+      if (sent || now_ms - since < kPadMenuHoldMs)
+        return false;
+      return sent = true;
+    }
+  };
   static bool stick(bool held, int value) { return value >= (held ? kPadStickRelease : kPadStickPress); }
   void push(Event e) {
     if (count_ == kPadRing)
@@ -132,8 +145,7 @@ private:
   std::array<bool, 4> held_{}, stick_{}; // Up, down, left, right: the direction, and the stick's part of it.
   std::array<uint64_t, 4> next_{};       // When each held direction repeats next.
   uint16_t buttons_ = 0;                 // The last step's, for A's, B's, LB's, RB's and Y's press.
-  bool back_held_ = false, menu_sent_ = false;
-  uint64_t back_since_ = 0;
+  Hold back_, right_; // View, D-pad Right.
   std::array<uint8_t, kPadRing> ring_{};
   size_t head_ = 0, count_ = 0;
 };

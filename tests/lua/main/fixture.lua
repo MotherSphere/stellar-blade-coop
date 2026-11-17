@@ -221,7 +221,9 @@ fake_link.owner=function() return link_owner end
 fake_link.uidev=function() return link_uidev end
 native_ok=nil
 captured,remoted={},nil
-fake_capture={tick=function(on) captured[#captured+1]=on; return true,'Capture 7: 3 parts' end,yaw_delta=function() return 0 end}
+-- capture_leave_out: what main.lua gave the capture's leave_out (the bike's parked).
+fake_capture={tick=function(on) captured[#captured+1]=on; return true,'Capture 7: 3 parts' end,
+    yaw_delta=function() return 0 end,leave_out=function(f) capture_leave_out=f end}
 capture_look=nil
 package.loaded['partner.capture']={new=function(publish,looks)
     assert(publish==(native_ok and fake_link.components or nil),'The capture publishes through the link, if any')
@@ -363,7 +365,8 @@ package.loaded['race.doro']={new=function(o)
         probe=function() dr.calls[#dr.calls+1]='probe'; return true,'probe on' end,
         stop=function() dr.calls[#dr.calls+1]='stop'; if dr.raise then error(dr.raise,0) end end,
         restore=function() dr.restores=dr.restores+1 end,
-        tick=function() dr.ticks=dr.ticks+1; if dr.says then return table.unpack(dr.says) end end}
+        tick=function() dr.ticks=dr.ticks+1; if dr.says then return table.unpack(dr.says) end end,
+        active=function() return dr.active==true end}
 end}
 -- The cut model viewer's read, display and free camera (cut/leviathan.lua; leviathan_test tests it): what new got
 -- (log, store, blocked), its commands (each with its creature's word as who), restores, ticks and stops, what a tick
@@ -487,7 +490,7 @@ package.loaded['cut.glide']={new=function(o)
     return {command=function(...) gl.cmds[#gl.cmds+1]={...}; return true,'gl '..tostring((...)) end,
         restore=function() gl.restores=gl.restores+1 end,
         tick=function() gl.ticks=gl.ticks+1; if gl.says then return table.unpack(gl.says) end end,
-        stop=function() gl.stops=gl.stops+1 end}
+        stop=function() gl.stops=gl.stops+1 end,active=function() return gl.active==true end}
 end}
 -- coop emote (cut/emote.lua; emote_test tests it): what new got (log, ask, status), its commands, restores, ticks and
 -- stops, what a tick says.
@@ -498,7 +501,7 @@ package.loaded['cut.emote']={new=function(o)
         restore=function() em.restores=em.restores+1 end,
         tick=function() em.ticks=em.ticks+1; if em.says then return table.unpack(em.says) end end,
         stop=function() em.stops=em.stops+1 end,
-        sit=function(kind) return true,'em sit '..tostring(kind) end,active=function() return false end,
+        sit=function(kind) return true,'em sit '..tostring(kind) end,active=function() return em.active==true end,
         preload=function() return true end}
 end}
 -- The races' driving (race/drive.lua; drive_test tests it): what drive.new got, its restores.
@@ -506,6 +509,25 @@ dv={restores=0}
 package.loaded['race.drive']={new=function(o)
     dv.o=o
     return {name='drive',restore=function() dv.restores=dv.restores+1 end}
+end}
+-- The bike (bike/ride.lua; bike/ride_test tests it): what new got (o), the why of each toggle and stop, its steers,
+-- slows and restores, its tunes; whether she rides, what a toggle answers (answer: ok and a line; raise: an error),
+-- what a steer or a slow says (an end of the ride); what parked answers (parked), with the address it got (parked_at).
+bk={}
+package.loaded['bike.ride']={new=function(o)
+    bk.o=o
+    return {riding=function() return bk.riding==true end,
+        parked=function(at) bk.parked_at=at; return bk.parked end,
+        toggle=function(why)
+            bk.toggles[#bk.toggles+1]=why
+            if bk.raise then error(bk.raise,0) end
+            return table.unpack(bk.answer or {true,'On the bike: coop bike gets her off.'})
+        end,
+        stop=function(why) bk.stops[#bk.stops+1]=why end,
+        steer=function() bk.steers=bk.steers+1; if bk.says then return table.unpack(bk.says) end end,
+        slow=function() bk.slows=bk.slows+1; if bk.slow_says then return table.unpack(bk.slow_says) end end,
+        restore=function() bk.restores=bk.restores+1 end,status=function() return 'bike: preload ready' end,
+        tune=function(name,value) bk.tunes[#bk.tunes+1]={name,value}; return true,'bk tune '..tostring(name) end}
 end}
 -- The Doro race (race/run.lua; race_test tests it): what race.new got, coop race's words, her race lines, its ticks,
 -- slows, stops and keys, whether it is armed, what a tick or the key answers, a stop, a steer or a tick that raises,
@@ -826,7 +848,7 @@ USAGE='Use: coop puppet | host [public|friends|invitation|closed] | invite | lis
     ..'status | report | mark [text] | where | near [metres] | travel host | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
     ..'on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | '
-    ..'emote [list|<name>|off] | '
+    ..'emote [list|<name>|off] | bike [status|tune [<name> <value>]] | '
     ..'no [heal|rule|spawnpt|actor] | '
     ..'nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | '
     ..'challenge [<name>|stop] | '
@@ -850,7 +872,7 @@ function load_main(with_native,no_folder,source)
         if name=='coop_pad' then
             if pd.missing then return nil,'not exported' end
             return function(...)
-                assert(select('#',...)==10,'Ten arguments: the most the native part hands back')
+                assert(select('#',...)==11,'Eleven arguments: the most the native part hands back')
                 pd.calls=pd.calls+1
                 return table.unpack({...},1,table.remove(pd.q,1) or 0)
             end
@@ -892,7 +914,10 @@ function load_main(with_native,no_folder,source)
     sc.o,sc.cmds,sc.restores,sc.ticks,sc.stops,sc.says=nil,{},0,0,0,nil
     ln.o,ln.cmds,ln.ticks,ln.stops,ln.says=nil,{},0,0,nil
     gl.o,gl.cmds,gl.restores,gl.ticks,gl.stops,gl.says=nil,{},0,0,0,nil
-    em.o,em.cmds,em.restores,em.ticks,em.stops,em.says=nil,{},0,0,0,nil
+    em.o,em.cmds,em.restores,em.ticks,em.stops,em.says,em.active=nil,{},0,0,0,nil,nil
+    bk.o,bk.riding,bk.toggles,bk.stops,bk.steers,bk.slows,bk.restores,bk.tunes=nil,false,{},{},0,0,0,{}
+    bk.answer,bk.raise,bk.says,bk.slow_says,bk.parked,bk.parked_at=nil,nil,nil,nil,nil,nil
+    dr.active,gl.active=nil,nil
     ra.o,ra.cmds,ra.received,ra.ticks,ra.slows,ra.stops,ra.keys,ra.armed,ra.hud={},{},{},0,0,0,0,false,nil
     ra.tick_raise,ra.steer_raise=nil,nil
     ra.steers,ra.steered_at,dv.restores=0,nil,0

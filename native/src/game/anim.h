@@ -107,16 +107,55 @@ template <class Live> bool alive(Live &&live, uint64_t ch, int32_t index, int32_
 
 // The scalar arguments: from the start (0) to the end (-1: the whole clip) at rate 1, blended in and out over 0.25 s
 // as the montage fallback is, -1 for the blend of SB's stop at input (its own rule, off: byte 15 is 0), a loop with
-// count -1 (forever) or none, priority 0 as the flight start plays its clips.
+// count -1 (forever) or none, priority 0 as the flight start plays its clips. The bike's ride is a loop with foot_ik 2,
+// the by-path call's int 30: PlayCustomAnim (its 32nd argument, kept at the slot's +0x68) then turns her foot IK off
+// over the blend-in through FUN_1421119c0 under the key "ASBCharacter::PlayCustomAnim_29770", at priority 100. SB's
+// stop turns it back on only while the slot's +0x68 still reads 1 or 2 (feet() below covers the other ends). 0
+// leaves her foot IK alone.
 struct Play {
   float start = 0, end = -1, rate = 1, blend_in = 0.25f, blend_out = 0.25f, input_blend = -1, priority = 0;
   uint8_t loop = 0;
-  int32_t loops = -1;
+  int32_t loops = -1, foot_ik = 0;
 };
-inline Play play(bool loop) {
+inline Play play(bool loop, bool ride = false) {
   Play p;
-  p.loop = loop ? 1 : 0;
+  p.loop = loop || ride ? 1 : 0;
+  p.foot_ik = ride ? 2 : 0;
   return p;
+}
+
+// EVE's foot IK after the ride's play is over without SB's stop turning it back on (another clip took slot 0, so its
+// +0x68 holds that clip's type; a replay refused; EVE gone). SB's stop FUN_1420b23f0 does, for a slot of type 1 or 2:
+// FUN_142111440(character, 0) true, FUN_1421119c0(character, key, 1, blend, -1, 0, 0, 100), the only priority that
+// can undo the ride's off; else, while +0x2b20 (on) reads 0, +0x2b23 = 1, which FUN_1420fe2b0 turns on at 100 later.
+// The glue does the same: nothing while she is gone (alive false), while her foot IK is on, or while slot 0 plays a
+// clip of type 1 or 2 (that clip turned it off; its own stop turns it on).
+constexpr uint64_t kFootIkAllowed = 0x142111440, kSetFootIk = 0x1421119c0;
+constexpr size_t kFootIkOn = 0x2b20, kFootIkLater = 0x2b23, kSlotFootIk = 0x68;
+constexpr char16_t kFootIkKey[] = u"ASBCharacter::StopCustomAnim_29443"; // SB's stop's key for type 2.
+enum class Feet : uint8_t { none, on, later, gone };
+inline Feet feet(bool alive, bool on, bool playing, int32_t type, bool allowed) {
+  if (!alive)
+    return Feet::gone;
+  if (on || (playing && (type == 1 || type == 2)))
+    return Feet::none;
+  return allowed ? Feet::on : Feet::later;
+}
+// The worker's line for what feet() decided.
+inline std::string describe_feet(Feet f) {
+  switch (f) {
+  case Feet::on:
+    return "anim: EVE's foot IK turned back on after the bike's ride, as SB's stop does";
+  case Feet::later:
+    return "anim: EVE's foot IK set to come back once SB allows it, as SB's stop does";
+  case Feet::gone:
+    return "anim: EVE's foot IK left alone after the bike's ride: the EVE it played on is gone, or her state did not "
+           "read";
+  case Feet::none:
+    break;
+  }
+  return "anim: EVE's foot IK needs nothing after the bike's ride (it is on, or the clip in her slot turns it on at "
+         "its stop)";
 }
 
 // What became of the last play asked: idle (none yet), playing, ended (SB ended it: a clip played once ran out,
@@ -182,12 +221,18 @@ inline Word unpack(uint64_t v) {
 }
 class Track {
 public:
-  // The call's answer for play id: playing with its FGuid and the slot's FName, or refused (game) without an FGuid.
-  void played(uint32_t id, int32_t ret, const int32_t (&guid)[4], uint64_t name, uint64_t now) {
+  // The call's answer for play id: playing with its FGuid and the slot's FName, or refused (game) without an FGuid. A
+  // ride that played turned EVE's foot IK off: owes_feet() from its end until paid_feet().
+  void played(uint32_t id, int32_t ret, const int32_t (&guid)[4], uint64_t name, uint64_t now, bool ride = false) {
     ret_ = ret, peak_ = 0, held_ = 0, since_ = now, last_ = now, unpaused_ = 0, name_ = name;
     std::memcpy(guid_, guid, sizeof guid_);
+    ride_ = ride && any(guid);
+    feet_ = feet_ || ride_;
     set(id, any(guid) ? State::playing : State::refused, any(guid) ? Why::none : Why::game);
   }
+  // The ride's foot IK off is owed back once no ride of ours plays (glue/tick/anim_game.inc's anim_feet, game thread).
+  bool owes_feet() const { return feet_ && !(live() && ride_); }
+  void paid_feet() { feet_ = false; }
   void refused(uint32_t id, Why why) {
     ret_ = 0, peak_ = 0, held_ = 0;
     set(id, State::refused, why);
@@ -238,6 +283,7 @@ private:
   uint64_t name_ = 0, since_ = 0, held_ = 0, last_ = 0, unpaused_ = 0; // last_: the last watch; unpaused_: ms counted.
   int32_t ret_ = 0;
   float peak_ = 0;
+  bool ride_ = false, feet_ = false; // ride_: the last play is a ride that played; feet_: a ride turned foot IK off.
 };
 
 // What the game thread does this frame (glue/tick/anim_game.inc's anim_tick). got: an ask taken this frame, stop: it

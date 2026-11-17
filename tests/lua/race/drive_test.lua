@@ -7,7 +7,7 @@
 -- nothing while the world's time stands still, nor under root motion; the drift keys (a change logged, a read that
 -- fails said once, no controller this frame skips this frame only); a stance push undone at the next 250 ms; off writes the values back on that EVE only, and
 -- clears the file; a failing write keeps it; the next Lua load's restore; the probe's two feeds and its free drive;
--- and coop race drive's words.
+-- coop race drive's words; and the bike's drive with its own model, lean and pitch, the probe and its off refused.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local function fname(t) return {type=function() return 'FName' end,ToString=function() return t end} end
 FName=fname
@@ -260,4 +260,33 @@ assert(d.on(M.DEFAULTS,'race') and d.racing() and find('^drive off %(replaced by
 ok,message=d.command('off')
 assert(not ok and message=='a race drives: coop race quit leaves it')
 d.off('done')
+
+-- 9. The bike (bike/ride.lua): its own model per drive, why 'bike'. The log lists the bike's four values; each frame
+-- bike/model.lua's step drives her and the look carries its lean and pitch; once a second the line adds them with the
+-- stick and SB's raw axes. coop race drive probe and off wait while she rides; the race's model is untouched.
+local B=require('bike.model')
+eve.LastMoveFowardInput,eve.LastMoveRightInput=0.75,-0.25
+eve.yaw,eve.velocity,eve.stick=0,{X=0,Y=0,Z=0},{X=1,Y=0,Z=0}
+assert(d.why()==nil)
+assert(d.on(B.DEFAULTS,'bike',B) and d.active() and not d.racing() and d.why()=='bike')
+assert(logs[#logs]:find('kept; top=2306 accel=1150 brake_hardness=48 turn_angle=36$'),logs[#logs])
+d.tick()
+eve.time,eve.velocity=eve.time+1,{X=500,Y=0,Z=0}
+local fed=#eve.impulses
+look=d.tick()
+assert(look.top==2306 and look.lean==0 and look.pitch==0,'Straight ahead: no lean')
+assert(#eve.impulses==fed+1 and eve.impulses[fed+1].X>0,'The bike model\'s speed fed as an impulse')
+assert(logs[#logs]:find(' lean=0%.0 pitch=0%.0 stick=1%.00,0%.00 raw=0%.75,%-0%.25$'),logs[#logs])
+eve.time,eve.stick=eve.time+0.1,{X=0.5,Y=0.86,Z=0}
+for _=1,10 do
+    eve.time=eve.time+1/60
+    look=d.tick()
+end
+assert(look.lean>0,'A right turn (the yaw growing) leans right: '..tostring(look.lean))
+for _,word in ipairs({'probe','off'}) do
+    ok,message=d.command(word)
+    assert(not ok and message=='EVE rides the bike: coop bike gets her off first' and d.why()=='bike')
+end
+assert(d.values().top==2600,'The race values stay the races\'')
+assert(d.off('bike coop bike'):find('^drive off %(bike coop bike%)') and d.why()==nil)
 print('drive_test ok')

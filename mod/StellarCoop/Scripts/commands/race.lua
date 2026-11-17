@@ -3,13 +3,15 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The Doro races' console command, coop race: look on|off and probe doro here (race/doro.lua), the co-op save check of
 -- start and drive probe, and the rest in race/run.lua's command. main.lua builds it with new(o) at each Lua load and
--- merges it into its command table. o: main.lua's puppet, doro, coop_slot and race (race/run.lua's).
+-- merges it into its command table. o: main.lua's puppet, doro, coop_slot, race (race/run.lua's) and riding
+-- (bike/ride.lua's: EVE rides the bike; nil when there is none).
 local Race={}
 function Race.new(o)
     local puppet,doro,coop_slot,race=o.puppet,o.doro,o.coop_slot,o.race
     local self={}
     -- The look and the ghost's Doro mode go on together; off ends both, whether the look is on or not, on any save.
-    -- The look and the probe start on a co-op save only: the look writes to the player actor.
+    -- The look and the probe start on a co-op save only: the look writes to the player actor. The look does not start
+    -- while EVE rides the bike: it would hide the bike with her.
     function self.race(sub,a,extra)
         if sub=='look' and (a=='on' or a=='off') and extra==nil then
             if a=='off' then
@@ -18,6 +20,7 @@ function Race.new(o)
             end
             local ok,why=coop_slot('coop race look')
             if not ok then return false,why end
+            if o.riding and o.riding() then return false,'EVE rides the bike: coop bike gets her off first' end
             ok,why=doro.on()
             if not ok then return false,why end
             local _,ghost_why=puppet.doro(true,doro.log)

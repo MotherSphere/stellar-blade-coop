@@ -745,6 +745,10 @@ bool step() {
       event(coop::pose::ask_anim(coop::parse_request(request)));
       request.clear();
       break;
+    case coop::Command::bike: // The bike's preload and SB's actions while she rides: the game thread's too.
+      event(coop::pose::ask_bike(coop::parse_request(request)));
+      request.clear();
+      break;
     case coop::Command::shortcut: // coop shortcut's list, or a load's read: the game thread's reads.
       if (const coop::Request ask = coop::parse_request(request); ask.slot < 0) {
         event(coop::pose::ask_shortcut());
@@ -946,6 +950,9 @@ bool step() {
     if (loaded && !said.empty())
       link->notice(said);
     said = coop::pose::anim_pass();
+    if (loaded && !said.empty())
+      link->notice(said);
+    said = coop::pose::bike_pass();
     if (loaded && !said.empty())
       link->notice(said);
     coop::pose::hud_pass();

@@ -110,11 +110,13 @@ int main() {
   assert(widen("/Game/Other.Other").num == 0);
 
   // The scalars: the whole clip at rate 1, 0.25 s blends, SB's stop at input left to its -1, priority 0; a loop
-  // forever or none.
-  const Play once = play(false), loop = play(true);
+  // forever or none. The bike's ride: a loop forever with foot-IK type 2; the others leave foot IK alone.
+  const Play once = play(false), loop = play(true), ride = play(false, true);
   assert(once.start == 0 && once.end == -1 && once.rate == 1 && once.blend_in == 0.25f && once.blend_out == 0.25f &&
          once.input_blend == -1 && once.priority == 0 && once.loops == -1);
   assert(once.loop == 0 && loop.loop == 1 && loop.loops == -1);
+  assert(once.foot_ik == 0 && loop.foot_ik == 0 && ride.loop == 1 && ride.loops == -1 && ride.foot_ik == 2 &&
+         ride.priority == 0 && play(true, true).foot_ik == 2);
 
   // Slot 0 as read from +0x14: the weight, the playing byte at +0x18, the FGuid at +0x20.
   static_assert(kSlotRead == 0x1c, "+0x14 to +0x30");
@@ -209,6 +211,42 @@ int main() {
   t.faulted();
   w = unpack(t.word());
   assert(w.state == State::fault && w.id == 15 && state_text(w.state, w.why) == "fault");
+
+  { // The ride's foot IK: owed once a ride that played is over (ended by another clip, a replay refused, our stop),
+    // never while it plays or for a play that is not a ride; paid once.
+    Track r;
+    r.played(30, 0, guid, 1, 0);
+    r.stopped(10, Why::none);
+    assert(!r.owes_feet());
+    r.played(31, -1, none, 0, 0, true);
+    assert(!r.owes_feet()); // Refused: SB never turned it off.
+    r.played(32, 0, guid, 1, 0, true);
+    assert(r.live() && !r.owes_feet());
+    r.watch(true, ours(other, 1.0f), 100, false); // SB's clip took the slot.
+    assert(!r.live() && r.owes_feet());
+    r.played(33, -1, none, 0, 200, true); // The replay refused: still owed.
+    assert(r.owes_feet());
+    r.paid_feet();
+    assert(!r.owes_feet());
+    r.played(34, 0, guid, 1, 300, true);
+    r.played(35, 0, other, 2, 400); // An emote after a ride: owed while the emote plays.
+    assert(r.live() && r.owes_feet());
+    r.paid_feet();
+    r.played(36, 0, guid, 1, 500, true);
+    r.stopped(600, Why::none);
+    assert(r.owes_feet());
+    // What the glue then does, as SB's stop: nothing for an EVE gone, a foot IK on or a slot clip of type 1 or 2 that is
+    // playing; else on now when SB allows it, or SB's pending flag.
+    assert(feet(false, false, false, 0, true) == Feet::gone && feet(true, true, false, 0, true) == Feet::none);
+    assert(feet(true, false, true, 2, true) == Feet::none && feet(true, false, true, 1, false) == Feet::none);
+    assert(feet(true, false, true, 0, true) == Feet::on && feet(true, false, false, 2, true) == Feet::on);
+    assert(feet(true, false, true, 0, false) == Feet::later);
+    assert(describe_feet(Feet::on) == "anim: EVE's foot IK turned back on after the bike's ride, as SB's stop does");
+    assert(describe_feet(Feet::none).find("needs nothing") != std::string::npos &&
+           describe_feet(Feet::later).find("once SB allows it") != std::string::npos &&
+           describe_feet(Feet::gone).find("is gone") != std::string::npos);
+    assert(kFootIkKey[sizeof kFootIkKey / sizeof(char16_t) - 1] == 0 && sizeof kFootIkKey / sizeof(char16_t) == 35);
+  }
 
   // Our EVE: the controller's pawn at +0x2f8, when it is a live object of ASBCharacter's class (or a child class).
   {
