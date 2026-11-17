@@ -598,12 +598,13 @@ The C++ tests cover the platform-free headers in `native/src`.
   lines and 20,000 fuzzed ones, the hooks an on line carries, an InputCounter line's last bit), the lists, the leash,
   the dialogue release, the story gate and the replay guard on their own. Then a host and a guest wired over the
   parser with a fake game on her side: the on and off lines with the host's hooks kept as `partner_hooks()`, a scene
-  started and shared, the leash holding her and letting her go, results applied once in their take and dropped once
-  her copy left it, a widget that comes late, a result her game refuses, her dialogue wait closed once, a skip, the
-  host's end with her copy played out, the replay guard and its expiry, a first take that differs, a scene that never
-  shows, a refused start, a busy game, an attach, a quest row, a talk, trips that wait for her copy, the host's
-  position rate, sequence numbers, the queue while she loads and its overflow, a new partner, the feature off and the
-  status line. The host's choice and QTE results go before his skip, his position and the end of a theater they
+  started and shared, the leash holding her and letting her go, results applied once in their take, dropped once her
+  copy left it and applied again when her copy comes back to that take, a widget that comes late, a result her game
+  refuses, her dialogue wait closed once, a skip, the host's end with her copy played out, the replay guard and its
+  expiry, a first take that differs, a scene that never shows, a refused start, a busy game, a second start while her
+  copy still starts, an attach, a quest row, a talk, trips that wait for her copy, the host's position rate, sequence
+  numbers, the queue while she loads and its overflow, a new partner, the feature off, her save not a co-op save and
+  the status line. The host's choice and QTE results go before his skip, his position and the end of a theater they
   closed in; those of a play he does not share are logged once.
 - `story_engine_test`: `story/engine.h` over fake memory and fake SB functions. Host side: his theater, hook 1's
   read, his menus read when they close (a menu of another play left out, ordinals counted by take), his QTE and
@@ -620,11 +621,11 @@ The C++ tests cover the platform-free headers in `native/src`.
 ### Quests
 
 - `quest_sync_test`: the shared quests' quest table (its kill and item tasks), line format and parser (with a fuzz),
-  the host's and the guest's rules, the zone marks, the item hold, the steps made together and those that are not,
-  the record file, lost lines and reloads; a step the guest makes first: sent only from the host's line in his zone,
-  never echoed back, taken by the host under each rule of `accept()` (two tasks of one group done on both sides in
-  one pass end with both in both games), the host's checks on her step lines (one from the same line again taken,
-  an older one dropped);
+  the host's and the guest's rules, the zone marks, the item hold, the steps made together and those that are not, the
+  record file, lost lines and reloads; a step the guest makes first: sent only from the host's line in his zone, sent
+  at a later pass when the line rate refused it, not sent while the host is off, never echoed back, taken by the host
+  under each rule of `accept()` (two tasks of one group done on both sides in one pass end with both in both games),
+  the host's checks on her step lines (one from the same line again taken, an older one dropped);
 - `quest_engine_test`: the shared quests against a fake quest unit: the walk, the guards before each game call, the
   gate, a fault, two PCs through channel 2's text with delay and loss (her step made first taken by the host's game,
   kept through a hold of his game until 16 wait, the same step again made once, dropped by his load), a recording

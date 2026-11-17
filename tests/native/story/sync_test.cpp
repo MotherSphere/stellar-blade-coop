@@ -6,11 +6,12 @@
 // leash, the dialogue release, the story gate and the replay guard on their own; then a host and a guest wired to each
 // other over the parser with a fake game on her side: the on and off lines (the host's hooks kept as partner_hooks()),
 // a scene started, shared, held and let go by the leash, results applied once in their take and dropped once her copy
-// left it, a widget that comes late, her dialogue wait closed once, the host's end and her copy played out, the replay
-// guard and its expiry, a first take that differs, a scene that never shows, an attach, a quest row, a talk, trips that
-// wait for her copy, the host's position rate, sequence numbers, the queue while she loads with its positions kept to
-// the newest and its overflow, a new partner, a copy dropped out of game, the feature off, a log that hundreds of
-// scenes do not use up, lines from the wrong side, the host's reader and the status line.
+// left it, applied again when her copy comes back to that take, a widget that comes late, her dialogue wait closed
+// once, the host's end and her copy played out, the replay guard and its expiry, a first take that differs, a scene
+// that never shows, a second start while her copy still starts, an attach, a quest row, a talk, trips that wait for
+// her copy, the host's position rate, sequence numbers, the queue while she loads with its positions kept to the
+// newest and its overflow, a new partner, a copy dropped out of game, the feature off, her save not a co-op save, a
+// log that hundreds of scenes do not use up, lines from the wrong side, the host's reader and the status line.
 #include "story/sync.h"
 
 #include <cassert>
@@ -493,6 +494,31 @@ void test_shared_scene() {
   assert(g.starts.size() == 2 && p.guest.active());
 }
 
+// Her copy back in a take it left (A, B, then A again): a result for A is dropped while she is in B and applies again
+// in her new visit of A.
+void test_take_revisit() {
+  Pair p;
+  const Scene &row = plain_row();
+  Game &g = p.game;
+  assert(p.play(1, row, 100));
+  p.flow();
+  p.her(row.path, 100);
+  p.flow();
+  assert(p.guest.sharing() && p.widget(Type::qte, 1, 100, 0, 5));
+  p.flow();
+  assert(g.applied.size() == 1);
+  p.her(row.path, 200);
+  p.flow();
+  assert(p.widget(Type::qte, 1, 100, 1, 6));
+  p.flow();
+  assert(g.applied.size() == 1 && saw(p.guest.log, "take 100 qte dropped: her copy left the take"));
+  p.her(row.path, 100);
+  p.flow();
+  assert(p.widget(Type::qte, 1, 100, 0, 7));
+  p.flow();
+  assert(g.applied.size() == 2 && g.applied[1].value == 7 && !saw(p.guest.log, "applied already"));
+}
+
 void test_start_fails() {
   const Scene &row = plain_row();
   { // Her first take differs (a random first take): her copy plays as hers.
@@ -779,6 +805,16 @@ void test_partner_and_off() {
     p.flow();
     assert(saw(p.guest.log, "refused (story)") && !saw(p.guest.log, "counted only"));
   }
+  { // Her save is no co-op save: she says off, a line already on its way is gated, the host sends nothing more.
+    Pair p;
+    assert(p.play(1, row));
+    p.gg.coop_save = false;
+    p.flow();
+    assert(p.guest.status().rfind("story=waiting why=save ", 0) == 0 && p.guest.counters.gated == 1);
+    assert(p.game.starts.empty() && !p.host.partner_on() && saw(p.host.log, "story: partner off (save)"));
+    assert(!p.play(2, row) && p.host.counters.skipped == 1);
+    assert(p.host.status().rfind("story=waiting why=partner ", 0) == 0);
+  }
   { // A match lobby on her side.
     Pair p;
     p.gg.match = true;
@@ -927,6 +963,7 @@ int main() {
   test_played();
   test_on_off();
   test_shared_scene();
+  test_take_revisit();
   test_start_fails();
   test_attach_and_quest();
   test_talk();
