@@ -35,7 +35,8 @@
 -- the bike is on another map, not shown yet on hers or out of reach (200 cm across, 100 cm up or down: bike/park.lua),
 -- with its distance and side from her camera. Within reach the bike is hidden, then her actor is teleported so the part
 -- lands on its root and heading (a teleport SB refuses mounts her where she stands), then the mount above. A notice
--- tells bike_key once each time she comes within reach of it.
+-- tells bike_key once each time she comes within reach of it. Her bike line (bike/park.lua's wire) goes to the link at
+-- each change, from a mount, a dismount or the 250 ms pass: none while she rides, with bike=off or without a place.
 -- Each frame (self.steer, before the native tick): the drive's frame, then her lean and pitch on her main mesh's
 -- relative rotation, the base rotation then a turn about her actor's forward axis (lean) and side axis (pitch), through
 -- KismetMathLibrary's ComposeRotators, written with teleport off (a teleport clears cloth inertia). The ghosts get it
@@ -155,7 +156,8 @@ end
 -- the Doro look, coop emote, a hall seat, coop fly or glide, Night Operation, an SBO menu or the chat; nil when none);
 -- words() (ui/text.lua's table for the screen); tell(build) (a notice build(words) puts together); worlds
 -- (session/travel.lua's WORLDS, for a map's name); file (the place's record: read(name) and write(name, text),
--- link.read_file and link.write_file; nil without the link); lobby() (whether an SBO lobby is open).
+-- link.read_file and link.write_file; nil without the link); lobby() (whether an SBO lobby is open); send(payload)
+-- (her bike line to the link, link.bike: true once written; nil without the link).
 function Ride.new(o)
     local log,ask,status,drive=o.log,o.ask,o.status,o.drive
     local none={save=function() end,load=function() end,clear=function() end}
@@ -181,6 +183,7 @@ function Ride.new(o)
     local load_asked=0 -- os.clock of the last bike load.
     local restored=false
     local serial=2000000000+os.time()%1000000 -- Apart from coop emote's ids, which start under 1000000.
+    local sent=nil -- Her bike line as the link last took it.
 
     -- The check before a mount (mount true) and every 250 ms while she rides: why she cannot ride now, or nil. w: the
     -- native words. While she rides, the air, a skill, combat, aiming and the free camera are no reason: SB's actions
@@ -376,6 +379,14 @@ function Ride.new(o)
         log(('bike ride clip asked (anim %d)'):format(serial))
     end
 
+    -- Her bike line to the link when it changed: none while she rides, with bike=off or without a place, else its
+    -- place. Remembered only once the link took it, so a failed write goes again at the next pass.
+    local function send()
+        if not o.send then return end
+        local off=ride or o.settings and o.settings.bike==false
+        local line=off and 'none' or Park.wire(place)
+        if line~=sent and o.send(line) then sent=line end
+    end
     -- The place into the record at the key read last. Not written: kept in memory (dirty), said when the write failed.
     local function save()
         local ok,why=false,nil
@@ -457,6 +468,7 @@ function Ride.new(o)
         if ok then store.clear() end
         park(live)
         try('the parked bike',function() sync(her(),os.clock(),true) end)
+        send()
         local line=('bike off (%s) after %.1f s: %s%s'):format(why,os.clock()-r.since,mesh,
             failed[1] and '; failed: '..table.concat(failed,'; ') or '')
         log(line)
@@ -539,6 +551,7 @@ function Ride.new(o)
         log(('bike on in %.1f ms: her mesh relative rotation P=%.2f Y=%.2f R=%.2f, location %.2f %.2f %.2f%s'):format(
             (os.clock()-began)*1000,rot.Pitch,rot.Yaw,rot.Roll,at.X,at.Y,at.Z,
             left[1]==path and ' (kept in coop-bike.txt)' or ''))
+        send()
         return true,'On the bike: coop bike gets her off.'
     end
 
@@ -653,7 +666,7 @@ function Ride.new(o)
     end
     -- Every 250 ms: the preload asked or released as the setting says, the part, the ride's checks. A reason to get off
     -- or an error ends the ride: false and a line for the screen.
-    function self.slow()
+    local function pass()
         local want=not (o.settings and o.settings.bike==false)
         if want~=preload then
             preload=want
@@ -694,6 +707,12 @@ function Ride.new(o)
             error(why,0)
         end
         if why then return off_line(why) end
+    end
+    -- Then her bike line, whatever the pass did.
+    function self.slow()
+        local off,why=pass()
+        send()
+        return off,why
     end
     -- At the first tick of a Lua load, once: the parked bike an earlier load left in the world swept by its path. The
     -- part an earlier load made on her EVE (its tag), hidden and kept as this load's, so idle_part names it and

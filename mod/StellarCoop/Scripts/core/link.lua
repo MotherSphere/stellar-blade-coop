@@ -559,6 +559,7 @@ function Link.new(folder,fs)
     -- flag on her peer line from the native part would outlive the reload.
     local lobby,code,refused,pending,members,strangers,strangers_in=nil,nil,nil,nil,{},{},nil
     local roster={}
+    local bikes={} -- bikes(): each member's bike_of= payload by her SteamID, as of the last changes().
     local self={}
     local function put(name,text,keep)
         local final=path(name)
@@ -599,6 +600,9 @@ function Link.new(folder,fs)
     -- Night Operation's night line (nightop/run.lua): coop-night.txt, which the native part takes at every pass and
     -- sends to the partner. An untaken one is replaced: the newest state wins.
     function self.night(line) return put('coop-night.txt',line..'\n') end
+    -- Her parked bike's line (bike/ride.lua: park ... or none): coop-parked.txt, which the native part takes at every
+    -- pass and sends to every member. An untaken one is replaced: the newest state wins.
+    function self.bike(payload) return put('coop-parked.txt',payload..'\n') end
     -- coop-state.txt: whether a save is loaded (held invites wait for one) or else the title screen is shown
     -- (world=title: the only time the native part changes the co-op saves), the poses sent a second, and the synced
     -- photo mode's: ours ('0', '1' or 's'; 'c' while the host's cutscene plays, session/group.lua's), photo_sync and
@@ -729,7 +733,7 @@ function Link.new(folder,fs)
         if engine:find(' reason=build stamp ',1,true) or engine:find(' reason=code bytes differ',1,true) then
             saves.build=true
         end
-        lobby,code,refused,pending,members,roster=nil,nil,nil,nil,{},{}
+        lobby,code,refused,pending,members,roster,bikes=nil,nil,nil,nil,{},{},{}
         if not text then return new end
         listed,noted={},{}
         for line in text:gmatch('[^\r\n]+') do
@@ -739,6 +743,7 @@ function Link.new(folder,fs)
                 and not line:find('^match=') -- Its countdown changes each second.
                 and not (waited and line:find('^wait=')) -- Likewise: the first of a wait only.
                 and not line:find('^life=')
+                and not line:find('^bike_of=') -- bike/others.lua logs what it does with each.
                 and not line:find('^night=') -- nightop/run.lua logs each night line itself.
                 -- Their spawns= moves with every enemy; cut/enemy.lua logs what it reads for each.
                 and not line:find('^lion=') and not line:find('^gardener=') and not line:find('^tendril=')
@@ -785,6 +790,8 @@ function Link.new(folder,fs)
             end
             id=line:match('^peer=(%d+) ')
             if id then members[#members+1]=id end
+            local rider,parked=line:match('^bike_of=(%d+) (.+)$')
+            if rider then bikes[rider]=parked end
             local slot,on,gone,muted,rtt
             id,slot,on,gone,muted,rtt,name=line:match('^member=(%d+) (%d) ([01]) ([01]) ([01]) (%-?%d+) (.*)$')
             if id then
@@ -988,6 +995,9 @@ function Link.new(folder,fs)
     -- slot (0 to 6), linked=, lost=, muted=, rtt=her round trip in ms (-1 before the first pong), name=her Steam name
     -- as the native part cleaned it, maybe ''}.
     function self.members() return roster end
+    -- Each member's parked bike as of the last changes(): her SteamID (digits) to her bike line's payload ('none' or
+    -- 'park <map> <x> <y> <z> <pitch> <yaw> <roll>'), for those who sent one past the handshake.
+    function self.bikes() return bikes end
     -- The match line ({state='searching'|'open'|'countdown'|'playing', mode=, members= (past the handshake, us
     -- included), limit=, left= (whole seconds of the countdown)}; members and limit nil while searching, left nil
     -- outside the countdown), or nil outside matchmaking.

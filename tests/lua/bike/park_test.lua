@@ -3,7 +3,7 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- bike/park.lua with lua5.4 alone: the reach of a mount, where the bike is from her camera, the seat a mount lands her
 -- on, the spot a dismount parks at, the clearance from her capsule to the bike's, the open-then-solid rule and a map's
--- name; the record per account and save (its file, its line, read back).
+-- name; the record per account and save (its file, its line, read back); the link's line, read back.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local P=require('bike.park')
 local function near(a,b) return math.abs(a-b)<1e-6 end
@@ -52,3 +52,10 @@ assert(select(2,P.read(nil))=='none')
 for _,bad in ipairs({'2\t/game/map/map\t0\t0\t0\t0\t0\t0','1\tgame\t0\t0\t0\t0\t0\t0','1\t/game/map/map\t1e8\t0\t0\t0\t0\t0',
         '1\t/game/map/map\tnan\t0\t0\t0\t0\t0','1\t/game/map/map\t0\t0\t0\t0\t400\t0','1\t/game/map/map\t0\t0'}) do
     assert(P.read(bad)==nil and select(2,P.read(bad))=='unreadable',bad) end
+-- The wire: whole centimetres, hundredths of a degree within (-180, 180]; read back as a place, nil for none or a line
+-- the native part would refuse.
+local w={map='/game/lobby/lobby',at={X=1.4,Y=-2.6,Z=3},rot={Pitch=-1.234,Yaw=359.99,Roll=180}}
+assert(P.wire(w)=='park /game/lobby/lobby 1 -3 3 -123 -1 18000' and P.wire(nil)=='none')
+local back=P.from_wire('park /a 1 -3 3 -123 -1 18000')
+assert(back.map=='/a' and back.at.Y==-3 and near(back.rot.Pitch,-1.23) and near(back.rot.Roll,180))
+assert(P.from_wire('none')==nil and P.from_wire('park /a 1 2')==nil and P.from_wire('park /a 1 2 3 4 5 99999')==nil)

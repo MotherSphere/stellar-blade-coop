@@ -3,7 +3,8 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The parked bike's rules, no engine call: whether her feet reach it for a mount, where it is from her camera when they
 -- do not, where a mount puts her so the part lands on it, which spot a dismount parks at, how far her capsule is from
--- the bike's, when the bike turns solid and its record per account and save (coop-bike-<steamid>-<saves><index>.txt).
+-- the bike's, when the bike turns solid, its record per account and save (coop-bike-<steamid>-<saves><index>.txt) and
+-- its line on the link (park or none).
 -- tests/lua/bike/park_test.lua covers it with lua5.4 alone.
 -- A place is {map=<package path>, at={X,Y,Z}, rot={Pitch,Yaw,Roll}}: the bike's root (her feet while she rides) and
 -- its heading, in centimetres and degrees, as the game's. UE's yaw grows from +X toward +Y.
@@ -98,5 +99,30 @@ function P.read(text)
         if not (n[k] and math.abs(n[k])<=(k<=5 and 1e7 or 360)) then return nil,'unreadable' end
     end
     return {map=map,at={X=n[3],Y=n[4],Z=n[5]},rot={Pitch=n[6],Yaw=n[7],Roll=n[8]}}
+end
+-- The link's bike line from a place (native/src/link/protocol.h's bike_ok): "park <map> <x> <y> <z> <pitch> <yaw>
+-- <roll>" in whole centimetres and hundredths of a degree within (-180, 180]; "none" without a place or for one the
+-- line cannot carry.
+function P.wire(place)
+    if not place then return 'none' end
+    local at,rot=place.at,place.rot
+    -- math.floor gives an integer when it fits; NaN or a huge value stays a float the check below refuses.
+    local function whole(v) return tostring(math.floor(v+0.5)) end
+    local function cents(a) return whole(norm(a)*100) end
+    local line=table.concat({'park',place.map,whole(at.X),whole(at.Y),whole(at.Z),cents(rot.Pitch),cents(rot.Yaw),
+        cents(rot.Roll)},' ')
+    return P.from_wire(line) and line or 'none'
+end
+-- A place from a member's bike line, as bike_ok() takes it; nil for none or a line it refuses.
+function P.from_wire(payload)
+    local f={}
+    for field in ((payload or '')..' '):gmatch('([^ ]*) ') do f[#f+1]=field end
+    if #f~=8 or f[1]~='park' or #f[2]>128 or not f[2]:find('^/[a-z0-9_/%-]*$') then return nil end
+    local n={}
+    for k=3,8 do
+        n[k]=f[k]:find('^%-?%d+$') and tonumber(f[k])
+        if not (n[k] and math.abs(n[k])<=(k<=5 and 1e7 or 36000)) then return nil end
+    end
+    return {map=f[2],at={X=n[3],Y=n[4],Z=n[5]},rot={Pitch=n[6]/100,Yaw=n[7]/100,Roll=n[8]/100}}
 end
 return P

@@ -1228,6 +1228,17 @@ for _,line in ipairs(fresh.changes()) do assert(not line:find('^night='),'night=
 -- Story together's line: its counts move with each position of a scene.
 files[STATUS]=HEAD..'friend=1 0 Kaanta\nstory=on scene=shared sent=0 received=41 hooks=1\n'
 for _,line in ipairs(fresh.changes()) do assert(not line:find('^story='),'story= stays out of the log') end
+-- The parked bike's line: coop-parked.txt, the newest replacing one the native part has not taken; each member's
+-- bike_of= line stays out of the log and reads into bikes() by her SteamID, gone with her line.
+local PARKED='C:\\Mod\\coop-parked.txt'
+assert(link.bike('park /a 1 2 3 4 5 6') and files[PARKED]=='park /a 1 2 3 4 5 6\n')
+assert(link.bike('none') and files[PARKED]=='none\n','The newest wins')
+files[PARKED]=nil
+files[STATUS]=HEAD..'member=4003 1 1 0 0 40 P3\nbike_of=4003 park /a 1 2 3 4 5 6\nbike_of=2002 none\n'
+lines=link.changes()
+for _,l in ipairs(lines) do assert(not l:find('^bike_of='),'bike_of lines stay out of the log') end
+local b=link.bikes(); assert(b['4003']=='park /a 1 2 3 4 5 6' and b['2002']=='none')
+files[STATUS]=HEAD; link.changes(); assert(next(link.bikes())==nil)
 -- coop lion's line, coop gardener fight's, coop tendril fight's, the Shock Bolt's and coop mxiii's too: their spawns=
 -- moves with every enemy that spawns or goes, and cut/enemy.lua logs what it reads for each.
 files[STATUS]=HEAD..'friend=1 0 Kaanta\nlion=rows added=78/78 asks=1 spawns=7 char=2/2 skills=15/15 stance=1/1\n'

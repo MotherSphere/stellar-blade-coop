@@ -6,7 +6,8 @@
 -- bike and its words, bike_key (F3) and the pad's D-pad Right held 1 s with a refusal on screen, the first tick's
 -- restore, its frame before the native tick, its 250 ms pass, coop off (the stop, then the parked bike out of the
 -- world), the Options rows; riding() as coop emote, the race, the hall seats, coop fly on and coop glide on read it;
--- its idle_part as the capture's leave_out; the menu's words, a notice and the travel worlds for the parked bike.
+-- its idle_part as the capture's leave_out; the menu's words, a notice and the travel worlds for the parked bike; its
+-- bike line through link.bike.
 dofile('tests/lua/main/fixture.lua')
 -- coop fly's keys: cut/flight.lua for real, with fly_on in place of its active() (on() needs SB's player input).
 local Flight,fly_on=require('cut.flight'),nil
@@ -31,6 +32,13 @@ assert(said[#said]=='F3: get on the bike' and said_en[#said]=='F3: get on the bi
 -- Its place per save through the link's own files; none written while an SBO lobby is open.
 assert(o.file.read==fake_link.read_file and o.file.write==fake_link.write_file and o.lobby()==false)
 sb.active=true; assert(o.lobby()==true); sb.active=false
+-- Her bike line goes to the link (coop-parked.txt), its answer back to the ride.
+local parked={}
+fake_link.bike=function(payload) parked[#parked+1]=payload; return true end
+assert(o.send('none')==true and parked[1]=='none')
+fake_link.bike=function() return false,'cannot write' end
+assert(o.send('none')==false)
+fake_link.bike=nil
 -- Its native asks and status, the game's checks.
 assert(o.ask('bike load x') and asked[#asked]=='bike load x' and o.status()==status_text)
 assert(o.paused()==false and o.photo()=='0' and o.frozen()==false and o.life()==nil and o.armed()==false)

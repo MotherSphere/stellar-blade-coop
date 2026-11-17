@@ -18,7 +18,7 @@
 -- onto it by a teleport; the prompt once she comes within reach; its place per account and save (o.file), kept out
 -- of the record while an SBO lobby is open; its path kept for the next Lua load (o.stand_store), swept at that load's
 -- first tick, which parks at her feet after a Ctrl+R while she rode; removed at coop off and bike=off, put back at
--- bike=on.
+-- bike=on; its line for the link (o.send) at each change, sent again after a failed write.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -226,6 +226,13 @@ local store={save=function(line)
 local stand_stored
 local stand_store={save=function(path) stand_stored=path; return true end,load=function() return stand_stored end,
     clear=function() stand_stored=nil end}
+-- o.send: each bike line the ride hands the link, in sent; while send_fails it returns false and keeps nothing.
+local sent,send_fails={},false
+local function send(payload)
+    if send_fails then return false end
+    sent[#sent+1]=payload
+    return true
+end
 local logs={}
 local function log(m) logs[#logs+1]=m end
 local function last() return logs[#logs] end
@@ -261,7 +268,7 @@ local function new()
         frozen=function() return world.frozen end,life=function() return world.life end,
         armed=function() return world.armed end,busy=function() return world.busy end,
         words=function() return words end,tell=function(build) told[#told+1]=build(words) end,
-        worlds={Xion='/game/art/bg/worldmap/level_p/e04'},file=file,lobby=function() return lobby end})
+        worlds={Xion='/game/art/bg/worldmap/level_p/e04'},file=file,lobby=function() return lobby end,send=send})
 end
 local R=new()
 local CLIP='/Game/Art/Character/PC/CH_P_EVE_01/Animation/event/G03/MV_SD20_AfterBruteBattle_Main/eve/'
@@ -909,4 +916,17 @@ assert(st_made[#st_made].removed and R.status():find('parked on'))
 settings.bike=true; st.load='ready'; clock=clock+0.25; R.slow(); clock=clock+2; R.slow()
 assert(st_made[#st_made].shown and not st_made[#st_made].removed,'bike=on: put back at its place')
 R.leave(); assert(st_made[#st_made].removed and stand_stored==nil and R.status():find('parked on'))
+
+-- 20. Her bike line for the link (o.send): none first, park at a dismount, none at a mount, none at bike=off, the park
+-- again at bike=on; a send that fails goes again at the next pass; nothing when nothing changed.
+assert(sent[1]=='none')
+-- Section 19's state first: the earlier load's drive off (race/drive.lua's restore does it after a Ctrl+R), the
+-- stand R.leave took made again and shown at its place.
+dv.on=false; clock=clock+0.25; R.slow()
+eve.mesh_at={X=0,Y=0,Z=0}; mount(); R.toggle(); assert(sent[#sent]:find('^park /game/map/map 0 0 0 '))
+local n=#sent; clock=clock+0.25; R.slow(); assert(#sent==n)
+mount(); assert(sent[#sent]=='none')
+R.toggle(); send_fails=true; mount(); send_fails=false; clock=clock+0.25; R.slow(); assert(sent[#sent]=='none')
+R.toggle(); settings.bike=false; clock=clock+0.25; R.slow(); assert(sent[#sent]=='none')
+settings.bike=true; clock=clock+0.25; R.slow(); assert(sent[#sent]:find('^park /game/map/map '))
 print('ride_test ok')

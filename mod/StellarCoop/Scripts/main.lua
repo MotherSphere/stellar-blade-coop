@@ -636,12 +636,13 @@ o.wear,o.scene,o.lines,o.flight,o.glide,o.emote=wear,scene,cut_lines,flight,glid
 -- coop-bike-stand.txt sweep the parked bike an earlier load left (stand_store). A mount is refused, with its reason,
 -- while SBO's own state holds EVE (busy) or one of our screens is open. Its parked bike's refusals and prompt come in
 -- the menu's words (words, tell), a map by its travel world's name (worlds). Its place is kept per account and save
--- beside coop-settings.txt (file), never while an SBO lobby is open (lobby).
+-- beside coop-settings.txt (file), never while an SBO lobby is open (lobby). Its line goes to every member (send).
 bike=require('bike.ride').new({log=function(m) print('[StellarCoop][BK] '..tostring(m)..'\n') end,
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end,
     words=words,tell=tell,worlds=require('session.travel').WORLDS,
     file=link and {read=link.read_file,write=link.write_file},lobby=function() return sbo~=nil and sbo.active() end,
     store=link and link.store('coop-bike.txt'),stand_store=link and link.store('coop-bike-stand.txt'),drive=drive,
+    send=link and function(p) return link.bike(p) end,
     settings=settings,
     paused=function() return kit~=nil and kit.paused(true) end,photo=photo_state,
     frozen=function() return link~=nil and link.paused() end,life=function() return link and link.life() end,
