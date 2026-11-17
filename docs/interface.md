@@ -518,10 +518,11 @@ shows its own key images and `UE4SS.log` says
 
 The game's pause menu gets an Online tab after Settings. On Settings, RB on a controller or E on the keyboard opens the
 co-op menu. A click on the tab does the same. The pause menu closes first, then the co-op menu opens as F5 opens it,
-once the game is no longer paused. If the game stays paused for 2 s after the pause menu closed, the co-op menu does
-not open: a notice says so. `pause_tab=off` in [coop-settings.txt](settings.md#coop-settingstxt) or Online tab in the
-pause menu (Options, Controls) removes the tab from the next pause menu; RB on Settings then goes to Equipment as in
-the game.
+once the game is no longer paused. The pause menu closes through the game's own close, the one Back uses: a save the
+game makes as the menu closes and a frame generation change made in Settings happen as they do on Back. If the game
+stays paused for 2 s after the pause menu closed, the co-op menu does not open: a notice says so. `pause_tab=off` in
+[coop-settings.txt](settings.md#coop-settingstxt) or Online tab in the pause menu (Options, Controls) removes the tab
+from the next pause menu; RB on Settings then goes to Equipment as in the game.
 
 The tab is not a page of the pause menu: it shows its word only. The game's own 8 tabs stay as they are. The arrow at
 the right end of the tab row still goes from Settings to Equipment. LB on Equipment still goes to Settings. The tab
@@ -530,14 +531,17 @@ has not been tested in game yet. These lines tell you what happened:
 - `coop-link.log`: `pause tab on: 0x145c26768 swapped from the GameMenu logic's input to our hook` at start, then
   `pause tab: RB on Settings opened the Online tab (<n> this run)` at each open. `pause tab refused: ...` means another
   mod holds that pointer or its page would not change. `pause tab fault ...: off for this run` means a fault in the
-  mod's hook. In both cases RB on Settings goes to Equipment as in the game. `pause tab: asked off, ...` and
-  `pause tab: asked on, ...` follow the setting.
+  mod's hook or in its search for the open pause menu. In both cases RB on Settings goes to Equipment as in the game.
+  `pause tab: asked off, ...` and `pause tab: asked on, ...` follow the setting.
 - `UE4SS.log`: `[PT] hook on: WB_GameMenu_Master_C:Construct` once a Lua load, or `[PT] STOP: <why>; the pause menu
   keeps its 8 tabs until the mod reloads`, after which the mod asks the native part `pausetab off`.
   `[PT] pause tab: the game stayed paused for 2 s; the pause menu is the player's` comes with the notice.
   `[PT] pause tab: RB on Settings with no Online tab shown; nothing opened` means the native part took RB on a pause
-  menu the mod had not seen built. `[PT] pause tab: pausetab on not asked: <why>` means the request could not be
-  written; the mod asks again every 250 ms.
+  menu the mod had not seen built. `[PT] pause tab: nothing closed: the game has no pause menu open` means the game
+  closed its pause menu first; the co-op menu does not open. When the native part cannot close the pause menu at all
+  (an older `StellarCoop.dll`, a game build it does not know, or after its fault), the STOP line gives that reason.
+  `[PT] pause tab: pausetab on not asked: <why>` means the request could not be written; the mod asks again every
+  250 ms.
 
 ## Teleport screen
 

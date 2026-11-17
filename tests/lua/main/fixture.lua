@@ -923,6 +923,9 @@ USAGE='Use: coop puppet | host [public|friends|invitation|closed] | invite | lis
 -- The native part's pad export (coop_pad): each call hands back as many of its arguments as the next count queued
 -- (q; 0 once empty), its event; calls: how often it was called; missing: an older DLL without it.
 pd={q={},calls=0,missing=false}
+-- The native part's pause menu close (coop_pause_close): each call hands back answer of its three arguments (1 closed,
+-- 2 no pause menu, 3 off); calls: how often it was called; missing: an older DLL without it.
+pc={answer=1,calls=0,missing=false}
 -- source: the chunk name main.lua gets instead of its path in the repository, as UE4SS gives it ('@<path>'), which sets
 -- the mod folder.
 function load_main(with_native,no_folder,source)
@@ -930,6 +933,14 @@ function load_main(with_native,no_folder,source)
     package.loadlib=function(_,name)
         if not native_ok then return nil,'no dll' end
         if name=='coop_tick' then return function() ticks=ticks+1; return 0 end end
+        if name=='coop_pause_close' then
+            if pc.missing then return nil,'not exported' end
+            return function(...)
+                assert(select('#',...)==3,'Three arguments: the most the native part hands back')
+                pc.calls=pc.calls+1
+                return table.unpack({...},1,pc.answer)
+            end
+        end
         if name=='coop_pad' then
             if pd.missing then return nil,'not exported' end
             return function(...)
@@ -940,7 +951,7 @@ function load_main(with_native,no_folder,source)
         end
         return true
     end
-    pd.q,pd.calls,kit_lost={},0,nil
+    pd.q,pd.calls,pc.calls,kit_lost={},0,0,nil
     printed,handler,loops,asked,huds,sessions,ticks,active,withdrawn,captured,states={},nil,{},{},{},{},0,false,{},{},{}
     pausetabs,popup_asks={},{}
     state_names={} -- link.state's mod_names argument, each call.

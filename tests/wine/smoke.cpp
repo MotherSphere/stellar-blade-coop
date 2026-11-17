@@ -7,7 +7,8 @@
 // build the slot line reads neither the game's memory, though a plausible client holding slot 3 sits at the pinned
 // build's global, nor a marker, nor the save name (saves=off); the shared fight's line says fight=off and the pilot's
 // pilot=refused with the engine's reason, and the shared quests' quests=off), that coop_tick is exported and one call
-// returns 0, that coop_pad is exported and returns 0 (no event: smoke.exe has no window in front), and that the
+// returns 0, that coop_pad is exported and returns 0 (no event: smoke.exe has no window in front), that
+// coop_pause_close is exported and answers 3 (off: smoke.exe is not the pinned build); that the
 // nightop, fight probe, pilot test, pilot test target, coop freeze and quests probe requests are refused on an
 // unpinned exe (coop-link.log, within 3 s each), as
 // the save name's probe is, at load and on request, and saves coop, while coop fight pilot off is taken;
@@ -130,6 +131,9 @@ int wmain(int argc, wchar_t **argv) {
   int ticked = tick ? tick(nullptr) : 0;
   auto pad = reinterpret_cast<int (*)(void *)>(reinterpret_cast<void *>(GetProcAddress(dll, "coop_pad")));
   const bool pad_ok = pad && pad(nullptr) == 0;
+  auto pause_close =
+      reinterpret_cast<int (*)(void *)>(reinterpret_cast<void *>(GetProcAddress(dll, "coop_pause_close")));
+  const bool pause_close_ok = pause_close && pause_close(nullptr) == 3;
 
   // The poller reads only the pinned build: smoke.exe is not, so the request is refused with the engine's reason.
   bool nightop = false;
@@ -264,19 +268,20 @@ int wmain(int argc, wchar_t **argv) {
 
   // coop_tick is required since Phase 2; the fake client must be mapped, or index=? proves nothing.
   bool ok = waiting && page && !steam && tick && ticked == 0 && nightop && fight && pilot && target && pilot_off &&
-            freeze && quests && saves && chat_ok && once && rpm_ok && clip_ok && pad_ok;
+            freeze && quests && saves && chat_ok && once && rpm_ok && clip_ok && pad_ok && pause_close_ok;
   std::string first = status.empty() ? "none" : status.substr(0, status.find_first_of("\r\n"));
   char tick_text[48];
   if (tick)
     std::snprintf(tick_text, sizeof tick_text, "present, returned %d", ticked);
   std::printf("smoke: %s | load=ok | status: %s | fake client=%s | steam_api64=%s | coop_tick: %s | coop_pad=%s | "
-              "nightop=%s | "
+              "coop_pause_close=%s | nightop=%s | "
               "fight probe=%s | pilot=%s | pilot target=%s | pilot off=%s | freeze=%s | quests probe=%s | "
               "saves probe=%s | "
               "chat files=%s | undeletable request=%s | clipboard=%s | rpm=%s (stack %s, 0x1000 %s, PAGE_NOACCESS %s, "
               "%.1f us a read)\n",
               ok ? "PASS" : "FAIL", first.c_str(), page ? "mapped" : "FAIL", steam ? "loaded" : "absent",
-              tick ? tick_text : "absent", pad_ok ? "0" : "FAIL", nightop ? "refused" : "FAIL",
+              tick ? tick_text : "absent", pad_ok ? "0" : "FAIL", pause_close_ok ? "3" : "FAIL",
+              nightop ? "refused" : "FAIL",
               fight ? "refused" : "FAIL",
               pilot ? "refused" : "FAIL", target ? "refused" : "FAIL", pilot_off ? "taken" : "FAIL",
               freeze ? "refused" : "FAIL", quests ? "refused" : "FAIL",

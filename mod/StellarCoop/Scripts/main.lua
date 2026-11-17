@@ -136,6 +136,20 @@ if loaded then
 end
 -- The DLL links no Lua: its event (0 for none) is how many of these twelve arguments it hands back.
 local function pad() return select('#',native_pad(0,0,0,0,0,0,0,0,0,0,0,0)) end
+-- The pause menu's close for its Online tab (ui/pause_tab.lua): SB's own close, run by the native part on the game
+-- thread. Its answer is how many of three arguments it hands back: 1 closed, 2 SB has no pause menu open, 3 off. An
+-- older DLL without it, or none: no close can work.
+local native_pause_close,pause_close_why=nil,why
+if loaded then native_pause_close,pause_close_why=package.loadlib(folder..'\\StellarCoop.dll','coop_pause_close') end
+local function pause_close()
+    if type(native_pause_close)~='function' then
+        return false,'the native part has no coop_pause_close ('..tostring(pause_close_why)..')',true
+    end
+    local n=select('#',native_pause_close(0,0,0))
+    if n==1 then return true end
+    if n==2 then return false,'the game has no pause menu open' end
+    return false,'the native part refused the close (not the pinned game build, or after its fault)',true
+end
 local link=loaded and require('core.link').new(folder) or nil
 local settings=nil
 if link then
@@ -1175,7 +1189,7 @@ pause_tab=require('ui.pause_tab').new({log=function(m) print('[StellarCoop][PT] 
     enabled=function() return settings~=nil and settings.pause_tab==true end,
     word=function() return words().pause_tab.tab end,paused=function() return kit~=nil and kit.paused(true) end,
     open=open_menu,notice=function() say(words().pause_tab.stuck,T.en.pause_tab.stuck) end,
-    ask=function(line) return ask(line)() end})
+    ask=function(line) return ask(line)() end,close=pause_close})
 RegisterConsoleCommandHandler('coop',function(_,parameters)
     typed_at=os.clock()
     -- A seventh word too, so a command that takes six (coop leviathan show) refuses one more.

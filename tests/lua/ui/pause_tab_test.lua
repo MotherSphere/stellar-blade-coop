@@ -4,9 +4,11 @@
 -- The pause menu's Online tab (ui/pause_tab.lua) over fakes. Covered: nothing before the game is ready; the class
 -- loaded, the keeper made and the Construct hook registered once; a Construct adds one button after SB's 8 with the
 -- word, SB's last button's style, RefreshDesign and HitTestInvisible; a second Construct adds none; a row rebuilt to
--- SB's 8 gets it again at the next slow while paused; a click over the button closes the pause menu once, one
--- elsewhere or with no pause menu does nothing; RB closes it, the co-op menu opens at the first tick after the unpause,
--- or after 2 s still paused a give-up line and notice; pause_tab off makes nothing and asks pausetab off; the asks:
+-- SB's 8 gets it again at the next slow while paused; a click over the button closes the pause menu once through the
+-- native part's close (SB's own, never the widget's CloseSelf), one elsewhere or with no pause menu does nothing; RB
+-- closes it, the co-op menu opens at the first tick after the unpause, or after 2 s still paused a give-up line and
+-- notice; a close refused for now logs one line and waits for nothing, one that can never work stops the tab with one
+-- STOP line and asks pausetab off; pause_tab off makes nothing and asks pausetab off; the asks:
 -- once a change, a refused one again at the next slow and logged once; a pause menu of another shape stops the tab
 -- with one STOP line and asks pausetab off; coop off stops it.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
@@ -81,6 +83,7 @@ local function menu(no_tap_set)
             buttons[#buttons+1]=made
             return made
         end})
+    -- CloseSelf counted: it skips SB's own close (its menu-close save, the shown tab's deactivate), so never called.
     local m=object({closes=0,CloseSelf=function(self) self.closes=self.closes+1 end})
     if not no_tap_set then m.WB_Tap_Set=object({WB_Common_Tabs=tabs}) end
     return m,buttons
@@ -88,7 +91,8 @@ end
 
 local function new(t)
     t=t or {}
-    local s={opens=0,notices=0,asks={},paused=true,enabled=true,ready=true}
+    -- closes: the native closes asked; answer: what the next ones return (closed by default).
+    local s={opens=0,notices=0,asks={},paused=true,enabled=true,ready=true,closes=0,answer={true}}
     s.tab=Tab.new({log=function(line) logs[#logs+1]=line end,ready=function() return s.ready end,
         enabled=function() return s.enabled end,word=function() return 'Online' end,
         paused=function() return s.paused end,open=function() s.opens=s.opens+1 end,
@@ -97,7 +101,8 @@ local function new(t)
             s.asks[#s.asks+1]=line
             if ask_refusal then return false,ask_refusal end
             return true,'asked the native part: '..line
-        end})
+        end,
+        close=function() s.closes=s.closes+1; return table.unpack(s.answer) end})
     return s
 end
 local function construct(m) for _,h in ipairs(hooks) do if h.path==MASTER..'_C:Construct' then h.f(m) end end end
@@ -140,10 +145,11 @@ assert(#buttons==9 and buttons[9]~=ours and buttons[9].TextValue=='Online','Adde
 -- A click: over the button closes the pause menu once; elsewhere nothing.
 libraries()
 assert(s.tab.armed(),'Armed while a pause menu has our button')
-s.tab.click(1); assert(m.closes==0,'A click elsewhere: nothing')
+s.tab.click(1); assert(s.closes==0,'A click elsewhere: nothing')
 under=true
 s.tab.click(1); s.tab.click(1.1)
-assert(m.closes==1 and not s.tab.armed(),'A click over the button: closed once, then no pause menu')
+assert(s.closes==1 and m.closes==0 and not s.tab.armed(),
+    'A click over the button: closed once by SB\'s own close, then no pause menu')
 s.tab.tick(1.5); assert(s.opens==0,'Still paused: not yet')
 s.paused=false
 s.tab.tick(1.6); s.tab.tick(1.7)
@@ -153,13 +159,34 @@ assert(s.opens==1,'The first tick after the unpause opens the co-op menu once')
 s.paused=true
 local m2=menu(); construct(m2)
 s.tab.event(10); s.tab.event(10.1)
-assert(m2.closes==1 and not logged('nothing opened'),'RB: closed once')
+assert(s.closes==2 and m2.closes==0 and not logged('nothing opened'),'RB: closed once by SB\'s own close')
 s.tab.tick(11); s.tab.tick(12.1); s.tab.tick(13)
 assert(s.opens==1 and s.notices==1
     and logged("pause tab: the game stayed paused for 2 s; the pause menu is the player's"),
     'Still paused after 2 s: one line, one notice, no open')
 -- With no pause menu seen: nothing closed, one line.
 s.tab.event(20); assert(logged('nothing opened'))
+-- A close refused for now (SB has no pause menu open): one line, no wait, the tab still works at the next pause menu.
+s.answer={false,'the game has no pause menu open'}
+local m7=menu(); construct(m7)
+local before=#logs
+s.tab.event(30); s.tab.tick(30.1); s.paused=false; s.tab.tick(30.2)
+assert(s.closes==3 and #logs==before+1 and logs[#logs]=='pause tab: nothing closed: the game has no pause menu open'
+    and s.opens==1 and s.notices==1,'Refused for now: one line, nothing opened')
+s.paused=true; s.answer={true}
+local m8=menu(); construct(m8)
+s.tab.event(40); s.paused=false; s.tab.tick(40.1)
+assert(s.closes==4 and s.opens==2,'The next pause menu closes and opens the co-op menu')
+-- A close that can never work (no export in the native part, or it is off): one STOP line, pausetab off at the next
+-- slow, no more buttons.
+s.paused=true; s.answer={false,'the native part has no coop_pause_close (not exported)',true}
+local m9,b9=menu(); construct(m9)
+s.tab.event(50)
+assert(logs[#logs]=='STOP: the native part has no coop_pause_close (not exported); the pause menu keeps its 8 tabs '
+    ..'until the mod reloads' and not s.tab.armed(),logs[#logs])
+s.tab.slow(); assert(s.asks[#s.asks]=='pausetab off','Stopped: off asked')
+local m10,b10=menu(); construct(m10)
+assert(#b9==9 and #b10==8 and m9.closes==0,'Stopped: no more buttons')
 
 -- pause_tab off: no button, RB and a click do nothing, pausetab off asked at the next slow.
 reset(); libraries()
@@ -167,7 +194,7 @@ s=new(); s.tab.tick(0)
 s.enabled=false
 local m3,b3=menu(); construct(m3)
 s.tab.event(1); under=true; s.tab.click(1)
-assert(#b3==8 and m3.closes==0 and not s.tab.armed() and #logs==1,'Off: nothing')
+assert(#b3==8 and s.closes==0 and m3.closes==0 and not s.tab.armed() and #logs==1,'Off: nothing')
 s.tab.slow(); assert(s.asks[1]=='pausetab off','Off asked')
 -- A refused ask: asked again at the next slow, logged once.
 s.enabled=true; ask_refusal='coop-request.txt cannot be written'
@@ -184,7 +211,7 @@ local m4=menu(true); construct(m4); construct(m4)
 assert(#logs==2 and logs[2]:find('^STOP: ') and logs[2]:find('the pause menu has no WB_Tap_Set; the pause menu keeps '
     ..'its 8 tabs until the mod reloads$'),logs[2])
 s.tab.slow(); assert(s.asks[#s.asks]=='pausetab off','Failed: off asked')
-s.tab.event(1); assert(m4.closes==0 and #logs==2,'Failed: RB does nothing')
+s.tab.event(1); assert(s.closes==0 and m4.closes==0 and #logs==2,'Failed: RB does nothing')
 
 -- coop off: no more buttons, not armed.
 reset()

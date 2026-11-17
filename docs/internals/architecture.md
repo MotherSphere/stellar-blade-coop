@@ -18,6 +18,8 @@ Stellar Blade Online has two parts, both in the mod folder `Mods/StellarCoop/`:
     writes the [day and night cycle](daynight.md)'s light into the world's env settings.
   - `coop_pad`, an exported function that the Lua loop calls each frame for the controller's events (see
     [Controller](#controller)).
+  - `coop_pause_close`, an exported function that Lua calls on the game thread when the pause menu's Online tab closes
+    the pause menu. It runs the game's own close, the one Back uses (see [Pause menu](../interface.md#pause-menu)).
 
 ```
    your game                                                      friend's game

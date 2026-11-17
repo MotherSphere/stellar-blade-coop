@@ -76,7 +76,8 @@ with their scope; a `!` marks a breaking change.
 
 `tools/wine_smoke.py` builds `StellarCoop.dll` exactly as the installer does, builds `tests/wine/smoke.cpp`, and loads
 the DLL under Proton's `wine` in a scratch prefix with no `steam_api64.dll` present. It checks that the DLL attaches,
-waits for Steam, answers `coop_tick` and `coop_pad` (no pad event, with no window of its own in front), refuses the
+waits for Steam, answers `coop_tick` and `coop_pad` (no pad event, with no window of its own in front), answers
+`coop_pause_close` with 3 (off, as on any exe that is not the game), refuses the
 engine, the Night Operation poller, the save name's probe, `saves coop` and same-place enemies (`pilot=refused` in
 `coop-status.txt`, and a refused `coop fight pilot test`) on an exe that is not the game, takes `coop fight pilot off`
 there, logs `save name: saves=off` once, and logs a clean process exit. It also checks that `ReadProcessMemory` behaves

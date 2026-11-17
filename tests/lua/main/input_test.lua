@@ -12,7 +12,8 @@ dofile('tests/lua/main/fixture.lua')
 -- event (12) goes to the pause tab only. The host's question
 -- takes the D-pad, A and B from 1 s after it shows (a left or right click too), never View held. Nothing while the menu
 -- waits for a key (B still stops the wait, A puts back its default), at the title with nothing open, or after coop off;
--- the chat box and the code box take only B, which closes them. An older DLL: one log line, no pad.
+-- the chat box and the code box take only B, which closes them. An older DLL: one log line, no pad. The Online tab's
+-- close goes to the native part's coop_pause_close; an older DLL without it: no close can work.
 ;(function()
     local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end
     settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',false,false
@@ -45,6 +46,14 @@ dofile('tests/lua/main/fixture.lua')
         and not table.concat(printed,'|'):find('pad: error',1,true),
         'The Online tab event changes nothing in the open co-op menu')
     pad(7)
+    -- The tab's close: the native part's coop_pause_close, its answer read from how many of three arguments come back.
+    pc.answer=1; assert(pt.o.close()==true and pc.calls==1,'1: SB closed it')
+    pc.answer=2
+    local ok,why,lasting=pt.o.close()
+    assert(not ok and why=='the game has no pause menu open' and not lasting,'2: none open, for now')
+    pc.answer=3; ok,why,lasting=pt.o.close()
+    assert(not ok and why:find('refused the close',1,true) and lasting,'3: off for good')
+    pc.answer=1
     -- At most 8 a frame: the rest the next frame, where a 0 ends the taking.
     pad(7); assert(kit_shown.menu)
     local calls=pd.calls
@@ -135,6 +144,12 @@ dofile('tests/lua/main/fixture.lua')
     for _,line in ipairs(printed) do if line:find('Native pad unavailable',1,true) then lines=lines+1 end end
     assert(lines==1 and logged('Native pad unavailable (no controller in the co-op menu): not exported'),
         table.concat(printed,'|'))
+    -- One without coop_pause_close: the Online tab's close can never work.
+    pc.missing=true
+    load_main(true)
+    local ok,why,lasting=pt.o.close()
+    assert(not ok and why=='the native part has no coop_pause_close (not exported)' and lasting and pc.calls==0)
+    pc.missing=false
     in_world,kit_ready=true,true; quarter()
     loops[1].f(); key('F5'); assert(kit_shown.menu and pd.calls==0,'The keys still work')
     pd.missing,in_world,kit_ready=false,false,false

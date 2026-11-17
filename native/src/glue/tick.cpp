@@ -210,7 +210,9 @@
 // The pause menu's Online tab (game/pause_tab.h): once a run the worker swaps the GameMenu logic's input slot of the
 // game's image for a hook on the game thread. RB on the highest enabled tab (Settings), while SB's tab lock is off and
 // Lua's pausetab is on, becomes coop_pad's event 12 in place of SB's wrap to Equipment; every other action runs SB's
-// function with the same arguments. Coop off and a fault of the hook give the slot back.
+// function with the same arguments. Coop off and a fault of the hook give the slot back. coop_pause_close closes the
+// pause menu for the tab with SB's own close, the one SB's Back runs, so its menu-close save and the shown tab's
+// deactivate run as in the game.
 //
 // The game's tutorial and record popups during online play (game/options.h): once a run the worker swaps the save
 // slots of SB's Tutorial and RecordPopup options, both or neither, for wrappers. Every 250 ms in game, while a peer is
@@ -285,7 +287,6 @@
 #include "glue/tick/pose_game.inc"
 #include "glue/tick/fight_game.inc"
 #include "glue/tick/freeze_game.inc"
-#include "glue/tick/pause_tab_game.inc"
 #include "glue/tick/options_game.inc"
 #include "glue/tick/hud_game.inc" // After freeze_game.inc: its MakeName.
 #include "glue/tick/sky_game.inc" // After freeze_game.inc: its controller reach.
@@ -297,6 +298,7 @@
 #include "glue/tick/camps_game.inc"
 #include "glue/tick/lion_game.inc"
 #include "glue/tick/debug_game.inc" // Before nightop_game.inc, which takes its UI calls and ui_reads.
+#include "glue/tick/pause_tab_game.inc" // After debug_game.inc: its UI calls and ui_reads.
 #include "glue/tick/nightop_game.inc"
 #include "glue/tick/anim_game.inc"
 #include "glue/tick/bike_game.inc" // After anim_game.inc, freeze_game.inc and lion_game.inc: their calls and GMalloc.
@@ -349,6 +351,15 @@ extern "C" __declspec(dllexport) int coop_pad(void *) noexcept {
     pad.post(coop::Pad::kPauseTab);
   const int event = pad.next();
   return event >= 0 && event <= 12 ? event : 0;
+}
+
+// Called by Lua on the game thread when the pause menu's Online tab closes the pause menu (package.loadlib(dll,
+// "coop_pause_close")), in lua_CFunction's shape, the Lua state ignored. The DLL links no Lua, so the answer is the
+// result count, game/pause_tab.h's Close: Lua passes 3 arguments and gets back 1 when SB's own close ran, 2 when SB has
+// no pause menu open, 3 when the tab is off (not the pinned build, or after its fault). Never throws, never waits.
+extern "C" __declspec(dllexport) int coop_pause_close(void *) noexcept {
+  using namespace coop::pose;
+  return static_cast<int>(game_pinned ? pause_tab_close() : coop::pause_tab::Close::off);
 }
 
 // Called by Lua once per frame (package.loadlib(dll, "coop_tick")), in lua_CFunction's shape: the Lua state is

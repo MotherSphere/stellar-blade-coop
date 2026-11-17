@@ -6,15 +6,18 @@
 -- (SB's click code never sees it) and only shows the word. RB on Settings reaches it through the native part
 -- (game/pause_tab.h: RB on the highest enabled tab becomes coop_pad's event 12, E on the keyboard too, as SB maps it
 -- to the same action), a left click through main.lua's mouse bind and the button's cached geometry. Either closes the
--- pause menu through its CloseSelf, then opens the co-op menu once the game is unpaused, as menu_key does; still
--- paused after WAIT s, it gives up with one log line and one notice. The tab bar's own right arrow on Settings still
--- wraps to Equipment: SB binds it straight to its next-tab function.
+-- pause menu through the native part's coop_pause_close, which runs SB's own close (what SB's Back runs, with its
+-- menu-close save and the shown tab's deactivate), then opens the co-op menu once the game is unpaused, as menu_key
+-- does; still paused after WAIT s, it gives up with one log line and one notice. A close the native part cannot make
+-- at all stops the tab as an error does. The tab bar's own right arrow on Settings still wraps to Equipment: SB binds
+-- it straight to its next-tab function.
 --
 -- The button copies its text style from SB's last button. A container rebuilt without it gets it again from the 250 ms
 -- loop while the game is paused. A rooted, never-shown master keeps the class in memory, so the hook stays on it. Every
 -- engine call runs in pcall on the game thread; the first error stops the tab until the next Lua load with one STOP
 -- line. The native part is then asked pausetab off, so RB on Settings wraps to Equipment as in the game. Only UI: no
--- save, trophy or inventory call. tests/lua/ui/pause_tab_test.lua covers it over fakes.
+-- save, trophy or inventory call of its own (SB's close saves only as it does on Back). tests/lua/ui/pause_tab_test.lua
+-- covers it over fakes.
 local U=require('core.unreal')
 local Tab={WAIT=2}
 local MASTER='/Game/Art/UI/Widget/GameMenu/WB_GameMenu_Master.WB_GameMenu_Master'
@@ -35,7 +38,8 @@ end
 -- o: {log=function(line), ready=function() the game is far enough to load the menu's class, enabled=function() the
 -- pause_tab setting, word=function() the tab's word in the menu's language, paused=function() the game is paused,
 -- open=function() the co-op menu as menu_key opens it, notice=function() the give-up notice on screen,
--- ask=function(line) the native ask: ok, why}.
+-- ask=function(line) the native ask: ok, why, close=function() SB's close of the pause menu through the native part:
+-- true, or false and why with lasting true when no later close can work}.
 function Tab.new(o)
     local log=o.log
     local hooked,failed,stopped=false,false,false
@@ -86,13 +90,14 @@ function Tab.new(o)
         RegisterHook(MASTER..'_C:Construct',on_construct)
         log('hook on: WB_GameMenu_Master_C:Construct')
     end
-    -- The pause menu closed through its own CloseSelf; the co-op menu opens from tick once the game runs again.
+    -- The pause menu closed through SB's own close; the co-op menu opens from tick once the game runs again.
     local function close(now)
         local shown=U.valid(master)
         master=nil
         if not shown then return log('pause tab: the pause menu was gone; nothing closed') end
-        local ok,e=pcall(shown.CloseSelf,shown)
-        if not ok then return fail(e) end
+        local ok,why,lasting=o.close()
+        if lasting then return fail(why) end
+        if not ok then return log('pause tab: nothing closed: '..tostring(why)) end
         closed_at=now
     end
     local self={}

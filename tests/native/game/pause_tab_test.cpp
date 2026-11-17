@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The Online tab's decision (game/pause_tab.h), checked on the build machine: RB opens it only on the GameMenu logic's
-// highest enabled tab while SB's tab lock is off, a list SB never builds passes on, and one open a press and release.
+// highest enabled tab while SB's tab lock is off, a list SB never builds passes on, one open a press and release; the
+// close is SB's own, its result counts the ones Lua reads.
 #include "game/pause_tab.h"
 
 #include <cassert>
@@ -13,6 +14,9 @@ using namespace coop::pause_tab;
 int main() {
   static_assert(kSlot == 0x145c266f8 + 14 * 8 && kInput == 0x141d91500 && kRightShoulder == 0x146f52ee0);
   static_assert(kCurrent == 0xb0 && kEnabled == 0xb8 && kEnabledCount == 0xc0 && kLock == 0x188 && kEventName == 0x28);
+  // The close: SB's own (what Back and the pause key run), on the logic found as the pause key finds it.
+  static_assert(kClose == 0x141d90b80 && kSlot == kLogic + 14 * 8 && kMenuType == 0x51 && kEntryLogic == 0x60);
+  static_assert(int(Close::closed) == 1 && int(Close::none) == 2 && int(Close::off) == 3); // Lua's result counts.
   const int32_t all[] = {1, 2, 3, 4, 5, 6, 7, 8};
   { Gate g; assert(g.decide(8, all, 8, 0, true, 1000) == Verdict::open); }    // RB on Settings.
   { Gate g; assert(g.decide(7, all, 8, 0, true, 1000) == Verdict::pass); }    // Not the last tab.
