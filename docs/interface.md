@@ -46,6 +46,13 @@ the player leaves in the 3 s between the two selects of Leave the session or Rem
 nothing. The menu closes by itself
 when the game pauses or shows the mouse cursor for one of its own screens.
 
+The key hints at the bottom of the menu (Move, Select, Back) are the game's own hint widget
+(`WB_Common_IndicatorBtnDefault`, as on the Sessions screen), with the icons of the device you used last. On a keyboard
+the icons are the keys the game's own key map gives those actions. If that widget cannot be made, the menu shows its
+own key images instead and `UE4SS.log` says
+`[StellarCoop] menu: part WB_Common_IndicatorBtnDefault_C: <why>; left out until the mod reloads` once. The game's
+hints in the menu and the guide have not been tested in game yet.
+
 ### Co-op line
 
 The camp phone booths open a short page of the menu, the co-op line. The booths are the phone booth of every full camp,
@@ -259,7 +266,7 @@ a world with none of the mod's screens or the game's menus open; the game still 
 - The [join popups](#join-popups) take the D-pad, the left stick, A and B. A is Jump and the D-pad uses heal and
   utility items in a fight, so a popup ignores every button for 1 s after it shows and opens with Decline focused: a
   stray A declines. To let a player in with the controller, move to Accept, then press A.
-- The key hints at the bottom of the menu show the keyboard keys.
+- The key hints at the bottom of the menu show the controller's icons once you use it (the game's hint widget).
 
 The native part reads the controller through the game's own input, so any controller the game reads works in the menu:
 Xbox controllers, the Steam Deck, controllers under Steam Input and a DualSense with Steam Input off (the menu reads
@@ -500,6 +507,11 @@ nothing. Don't show again, or a close on the last page, writes `coop-guide.txt` 
 exists the guide does not open by itself. Delete it to see the guide at the next start. With no key for 3 minutes the
 guide closes, so a controller the mod cannot read does not keep you on it. If the art does not load, `UE4SS.log` says
 why and the guide shows without it.
+
+The key hints under the rows (Move, Select, Close) are the game's own hint widget, as in the co-op menu: the icons of
+the device you used last, on a keyboard the keys of the game's own key map. If that widget cannot be made, the guide
+shows its own key images and `UE4SS.log` says
+`[StellarCoop] guide: part WB_Common_IndicatorBtnDefault_C: <why>; left out until the mod reloads` once.
 
 ## Teleport screen
 

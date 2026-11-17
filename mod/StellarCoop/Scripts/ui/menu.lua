@@ -29,12 +29,16 @@ local Link=require('core.link')
 local T=require('ui.text')
 local G=require('ui.guide_text')
 local Join=require('session.join')
+local Parts=require('ui.parts')
 local Menu={}
 local ROWS,BACK=15,0.15 -- Rows shown at once (a longer page scrolls); seconds before the game's input comes back.
 local HINT_W,HINT_Y=700,1830 -- The booth hint's width and top, in the kit's 3840 by 2160 units.
 local HOVER=0.1 -- Seconds between two looks at the row under the mouse.
 local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key','bike_key'}
 local OFF='the co-op menu is off (the UI stopped, see the log): use the coop commands'
+-- The key hints' resource actions in SB's hint widget (as ui/lobby.lua and ui/sessions.lua): move, select, back. The
+-- widget shows the icon of the player's last device.
+local HINT_ACTIONS={{'UI_DPad_Up','UI_DPad_Down'},{'Positive'},{'Negative'}}
 local ROW={} -- Options rows by setting name.
 for _,row in ipairs(M.OPTIONS) do if row.key then ROW[row.key]=row end end
 -- o: {kit=ui.kit's, link=, settings= (main.lua's, changed in place), look= (the ghost's), puppet=, run=function(name,
@@ -47,6 +51,8 @@ function Menu.new(o)
     -- when the next look is due.
     local hover,hover_at=false,0
     local values,words,guide_words={},T.en,G.en
+    local parts,hint_parts=Parts.new(kit,o.log or function() end,'menu'),{} -- SB's key hints, by slot.
+    kit.warm_part(Parts.ASSET.hint)
     -- Scaled from its left middle: centred on the 2160-unit screen, all of it stays on screen up to ui_scale=150. As
     -- wide as the host's question and the co-op saves' question; a row's value in its last 600 units, so a value of up
     -- to 26 columns of Bold 40 and a label of up to 34 fit side by side (ui/text_test.lua checks every word).
@@ -125,8 +131,17 @@ function Menu.new(o)
         v.title.set(words.title)
         v.status.set(link.summary(words)..(ping and ' · '..ping..' ms' or ''))
         v.note.set(note or (o.chat and o.chat.notice()) or (page=='line' and line(ctx)) or '')
-        for i,hint in ipairs({'move',capturing and 'default' or 'select','back'}) do -- Enter puts back the default.
-            v.hints[i].set(words.hint[hint])
+        -- SB's hint parts; the kit's key image and label show only where one is not alive (the kind broken).
+        local hints={'move',capturing and 'default' or 'select','back'} -- Enter puts back the default.
+        local specs={}
+        for i,hint in ipairs(hints) do
+            specs[i]=Parts.hint(48+(i-1)*320,1400,words.hint[hint],HINT_ACTIONS[i][1],HINT_ACTIONS[i][2])
+        end
+        parts.sync(hint_parts,'menu',specs,#hints)
+        for i,hint in ipairs(hints) do
+            local game=kit.alive(hint_parts[i])
+            v.hints[i].set(game and '' or words.hint[hint])
+            v.hints.icons[i].show(not game)
         end
     end
     -- The drawn row under the mouse: its slot and the page's row there (a header, or nil for an empty slot); nil when

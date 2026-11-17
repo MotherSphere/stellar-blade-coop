@@ -210,8 +210,13 @@ local function builder()
         return r
     end
     function b.hints(x,y,cell,list)
-        local out,keys={},{}
-        for i,h in ipairs(list) do out[i],keys[i]=b.text(x+(i-1)*cell,y,h[2],'hint'),h[1] end
+        local out,keys={icons={}},{}
+        for i,h in ipairs(list) do
+            out[i],keys[i]=b.text(x+(i-1)*cell,y,h[2],'hint'),h[1]
+            local icon={on=true}
+            icon.show=function(on) icon.on=on end
+            out.icons[i]=icon
+        end
         out.keys,out.x,out.y,out.cell=table.concat(keys,' '),x,y,cell
         return out
     end
@@ -222,6 +227,23 @@ function kit.add(name,place,build)
     built[name]={place=place,build=build,b=b,view=build(b)}
 end
 local function rebuild(name) local g=built[name]; g.b=builder(); g.view=g.build(g.b) end
+-- SB's hint parts (ui/parts.lua through the kit): while state.parts each made is kept in parts_made ({group=, class=,
+-- text=, actions={a1, a2}}) and alive; else none can be made yet (the UI not up), so the kit's hints show.
+FText=FText or function(s) return s end -- The engine's, the identity here.
+FName=FName or function(s) return s end
+local parts_made={}
+function kit.warm_part() end
+function kit.part(group,class,_,_,_,_,fill)
+    if not state.parts then return nil,'part '..class:match('[^.]+$')..': the UI is not up' end
+    local p={group=group,class=class,actions={}}
+    local w=setmetatable({SetText=function(_,t) p.text=t end,SetResourceAction=function(_,a) p.actions[1]=a end,
+        SetResourceAction2=function(_,a) p.actions[2]=a end},{__index=function() return function() end end})
+    if fill then fill(w) end
+    parts_made[#parts_made+1]=p
+    return {w=w}
+end
+function kit.alive(rec) return state.parts and rec and rec.w or nil end
+function kit.drop() end
 function kit.ready() main_thread(); return state.ready and not state.off end
 function kit.whole() return kit.ready() and state.whole end
 function kit.view(name) return kit.ready() and built[name].view or nil end
@@ -341,6 +363,20 @@ local page1=Guide.rows(G.en.pages[1].body)
 assert(screen()==table.concat({G.en.pages[1].title,table.concat(page1,'\n'),'Page 1 of 9','Next|focus',
     'Back|disabled',"Don't show again|normal",'Close|normal'},'\n'),screen())
 assert(v.hints[1].s=='Move' and v.hints[2].s=='Select' and v.hints[3].s=='Close' and lit()=='1')
+-- The key hints as SB's own hint widget (WB_Common_IndicatorBtnDefault): the last device's icons.
+state.parts=true
+key('left') -- No page before the first: only a draw, which makes the game's hint parts.
+local hint_parts={}
+for _,p in ipairs(parts_made) do if p.group=='guide' then hint_parts[#hint_parts+1]=p end end
+assert(#hint_parts==3 and hint_parts[1].actions[1]=='UI_DPad_Up' and hint_parts[1].actions[2]=='UI_DPad_Down'
+    and hint_parts[2].actions[1]=='Positive' and hint_parts[2].actions[2]=='None'
+    and hint_parts[3].actions[1]=='Negative','The game\'s actions: move, select, close')
+assert(hint_parts[1].text=='Move' and hint_parts[2].text=='Select' and hint_parts[3].text=='Close')
+assert(hint_parts[1].class=='/Game/Art/UI/Widget/GameMenu/Common/Indicator/WB_Common_IndicatorBtnDefault.'
+    ..'WB_Common_IndicatorBtnDefault_C')
+assert(v.hints[1].s=='' and not v.hints.icons[1].on,'The kit hint hides under the game\'s')
+state.parts=false; key('left')
+assert(v.hints[1].s=='Move' and v.hints.icons[1].on,'A part gone: the kit hint again')
 assert(#import.calls==1 and import.calls[1].world==pc and import.calls[1].path==FOLDER..'\\Assets\\MotherSphere.png',
     'Imported from the mod folder')
 assert(art.t==import.last and art.on==true,'The art shown')

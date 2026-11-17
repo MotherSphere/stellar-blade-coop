@@ -25,12 +25,15 @@ local U=require('core.unreal')
 local G=require('ui.guide_text')
 local T=require('ui.text')
 local Chat=require('session.chat')
+local Parts=require('ui.parts')
 local Guide={}
 local FILE,LINE='coop-guide.txt','The co-op guide opens by itself on the title screen while this file is missing.\n'
 local ART,RENDER='\\Assets\\MotherSphere.png','/Script/Engine.Default__KismetRenderingLibrary'
 -- Seconds before the game's input comes back; seconds after it shows before it runs a row; 250 ms ticks with no key
 -- (3 minutes); seconds between two looks at the row under the mouse.
 local BACK,ARM,IDLE,HOVER=0.15,1,720,0.1
+-- The key hints' resource actions in SB's hint widget (as ui/menu.lua): move, select, close.
+local HINT_ACTIONS={{'UI_DPad_Up','UI_DPad_Down'},{'Positive'},{'Negative'}}
 -- Layout units of the kit's 3840 by 2160, scaled from the screen's centre, at most 125 % (Guide.MOST): at any
 -- ui_scale the panel stays on a 16:10 screen and under the co-op saves' badge. The art, 821 by 1200 pixels, keeps its
 -- ratio; the text column right of it: body rows of WIDE columns (Mideum 34, 18 units a column, as the co-op saves'
@@ -67,6 +70,8 @@ function Guide.new(o)
     local tried,seen,stopped=false,nil,false -- Opened by itself this load; coop-guide.txt there (nil: unread).
     local words,hint=G.en,T.en.hint
     local art,painted=nil,nil -- The texture ({o=, full=}, false once an import failed); the view whose image has it.
+    local parts,hint_parts=Parts.new(kit,log or function() end,'guide'),{} -- SB's key hints, by slot.
+    kit.warm_part(Parts.ASSET.hint)
     kit.add('guide',{x=0,y=0,w=3840,h=2160,hit=true,pivot={X=0.5,Y=0.5},most=Guide.MOST},function(b)
         b.shade(-1920,-1080,7680,4320,o.theme.shade) -- Takes the mouse: no click reaches the title menu under it.
         b.panel(P.x,P.y,P.w,P.h)
@@ -130,9 +135,18 @@ function Guide.new(o)
         for i,r in ipairs(v.rows) do
             r.set(words[ROWS[i]],'',not usable(ROWS[i]) and 'disabled' or i==cursor and 'focus' or 'normal')
         end
-        v.hints[1].set(hint.move)
-        v.hints[2].set(hint.select)
-        v.hints[3].set(words.close)
+        -- SB's hint parts; the kit's key image and label show only where one is not alive (the kind broken).
+        local labels={hint.move,hint.select,words.close}
+        local specs={}
+        for i,label in ipairs(labels) do
+            specs[i]=Parts.hint(TX+(i-1)*400,P.y+1192,label,HINT_ACTIONS[i][1],HINT_ACTIONS[i][2])
+        end
+        parts.sync(hint_parts,'guide',specs,#labels)
+        for i,label in ipairs(labels) do
+            local game=kit.alive(hint_parts[i])
+            v.hints[i].set(game and '' or label)
+            v.hints.icons[i].show(not game)
+        end
     end
     -- coop-guide.txt, once: the guide no longer opens by itself.
     local function remember()

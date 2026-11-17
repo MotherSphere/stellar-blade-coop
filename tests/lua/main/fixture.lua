@@ -746,6 +746,9 @@ kit_language_seen=nil
 kit_views,kit_holder,box_text,box_focuses,code_text={},nil,'',0,''
 kit_order,kit_projects={},0 -- The groups in the order added; the projections asked (the partner marker's).
 kit_shown={} -- Each group shown or not, as the kit keeps it.
+kit_parts_ok,kit_parts=false,{} -- SB's widget parts: whether they can be made (and stay alive); those made.
+FText=FText or function(s) return s end -- The engine's, the identity here.
+FName=FName or function(s) return s end
 function builder(group)
     local b={}
     function b.panel(x,y,w,h) b.bottom,b.right=y+h,x+w end
@@ -775,10 +778,11 @@ function builder(group)
         r.hovered=function() return r.hover==true end
         return r
     end
-    -- Its labels; keys: the icons asked, in order ('move enter escape'); y: the row's top; bottom: the panel's.
+    -- Its labels; keys: the icons asked, in order ('move enter escape'); icons: their views (on: shown); y: the row's
+    -- top; bottom: the panel's.
     function b.hints(_,y,_,list)
-        local out,keys={},{}
-        for i,h in ipairs(list) do out[i],keys[i]=b.text(0,0,h[2]),h[1] end
+        local out,keys={icons={}},{}
+        for i,h in ipairs(list) do out[i],keys[i],out.icons[i]=b.text(0,0,h[2]),h[1],gauge() end
         out.keys,out.y,out.bottom=table.concat(keys,' '),y,b.bottom
         return out
     end
@@ -828,10 +832,27 @@ package.loaded['ui.kit']={kit=function(opts)
         azerty=function() return opts.uidev~=nil and opts.uidev()==2 end, -- SB's last keyboard (no language here).
         lost=function() local who=kit_lost; kit_lost=nil; return who~=nil,who end,
         move=function() end,fade=function() end,
-        -- SB's widget parts (session/join.lua's popups): none in this build, so its kit fallback shows (join_test
-        -- tests the popup itself).
-        warm_part=function() end,part=function(_,class) return nil,'part '..class:match('[^.]+$')..': not in this game build' end,
-        alive=function() end,drop=function() end,refocus=function() end,
+        -- SB's widget parts (session/join.lua's popups, the menu's and the guide's key hints): while kit_parts_ok,
+        -- each made is kept in kit_parts ({group=, class=, text=, actions={a1, a2}}) and alive. Else a popup is not in
+        -- this build, so its kit fallback shows (join_test tests the popup itself), and a key hint cannot be made yet
+        -- (the UI not up): its kind is never left out here, so a test turns the hints on and off.
+        warm_part=function() end,
+        part=function(group,class,_,_,_,_,fill)
+            local short=class:match('[^.]+$')
+            if not kit_parts_ok then
+                return nil,'part '..short..(short=='WB_Common_IndicatorBtnDefault_C' and ': the UI is not up'
+                    or ': not in this game build')
+            end
+            local p={group=group,class=class,actions={}}
+            local w=setmetatable({SetText=function(_,t) p.text=t end,
+                SetResourceAction=function(_,a) p.actions[1]=a end,
+                SetResourceAction2=function(_,a) p.actions[2]=a end},
+                {__index=function() return function() end end}) -- Any other call: nothing.
+            if fill then fill(w) end
+            kit_parts[#kit_parts+1]=p
+            return {w=w}
+        end,
+        alive=function(rec) return kit_parts_ok and rec and rec.w or nil end,drop=function() end,refocus=function() end,
         project=function(anchor)
             kit_projects=kit_projects+1
             return {camera={X=0,Y=0,Z=0},rotation={Pitch=0,Yaw=0},fov=90,anchor=anchor,width=3840,height=2160}

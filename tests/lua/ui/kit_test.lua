@@ -181,7 +181,7 @@ local function kit(options)
     k.add('menu',{x=180,y=330,w=1240,h=1500,hit=true},function(b)
         b.panel(0,0,1240,1500)
         local v={title=b.text(40,30,'CO-OP','title'),row=b.row(40,200,760),bar=b.bar(40,900,400,12,T.teal)}
-        b.hints(40,1400,300,{{'move','Move'},{'enter','Select'},{'escape','Close'}})
+        v.hints=b.hints(40,1400,300,{{'move','Move'},{'enter','Select'},{'escape','Close'}})
         return v
     end)
     return k
@@ -365,6 +365,10 @@ menu.bar.set(0.5)
 assert(stores[of('ProgressBar')[1]].last.SetPercent[1]==0.5)
 card.dot.show(false)
 assert(vis(textured('link')[1])==1)
+menu.hints.icons[2].show(false) -- Under SB's own hint part (ui/menu.lua): the key icon hides, then shows again.
+assert(vis(textured('key_enter')[1])==1)
+menu.hints.icons[2].show(true)
+assert(vis(textured('key_enter')[1])==3)
 -- The first root went: the one built while the look warmed.
 assert(k.view('card')==card and count('construct ')==#constructed and count('UserWidget.RemoveFromParent')==1)
 

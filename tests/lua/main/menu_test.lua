@@ -47,6 +47,18 @@ assert(screen()=='SESSION||disabled\nHost a session||focus\nFind a session||norm
 assert(menu_view.title.s=='CO-OP' and menu_view.status.s=='Co-op: not in a session.' and menu_view.note.s==''
     and menu_view.hints[1].s=='Move' and menu_view.hints[3].s=='Back')
 assert(menu_view.hints.keys=='move enter escape','The menu moves on W, A, S, D (Z, Q on AZERTY) and the arrows')
+-- The key hints as SB's own hint widget (WB_Common_IndicatorBtnDefault): the last device's icons.
+kit_parts_ok=true
+quarter() -- The menu is open: its next draw makes the game's hint parts.
+local hints={}
+for _,p in ipairs(kit_parts) do if p.group=='menu' then hints[#hints+1]=p end end
+assert(#hints==3 and hints[1].actions[1]=='UI_DPad_Up' and hints[1].actions[2]=='UI_DPad_Down'
+    and hints[2].actions[1]=='Positive' and hints[2].actions[2]=='None'
+    and hints[3].actions[1]=='Negative','The game\'s actions: move, select, back')
+assert(hints[1].text=='Move' and hints[2].text=='Select' and hints[3].text=='Back')
+assert(menu_view.hints[1].s=='' and not menu_view.hints.icons[1].on,'The kit hint hides under the game\'s')
+kit_parts_ok=false; quarter()
+assert(menu_view.hints[1].s=='Move' and menu_view.hints.icons[1].on,'A part gone: the kit hint again')
 key('S'); assert(focus()=='Find a session' and kit_sounds[#kit_sounds]=='move')
 key('W'); key('Z'); assert(focus()=='Close','Up wraps over the headers')
 key('DOWN_ARROW'); assert(focus()=='Host a session')

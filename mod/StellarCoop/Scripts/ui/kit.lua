@@ -473,12 +473,14 @@ function Ui.kit(opts)
                 hint=function(s) upd(w,function(x2) set_hint(x2,s) end) end}
         end
         -- Key hints cell units apart, {{key, label}, ...}; keys: move (WASD, ZQSD with azerty), arrows, up, enter,
-        -- space, escape. A missing icon leaves its label. Returns the labels (text's views: the language may change).
+        -- space, escape. A missing icon leaves its label. Returns the labels (text's views: the language may change),
+        -- and in labels.icons each icon's view with show(on) (hidden under one of SB's own hint parts).
         function b.hints(x,y,cell,list)
-            local labels={}
+            local labels={icons={}}
             for i,hint in ipairs(list) do
                 local key=(hint[1]=='move' and n.azerty) and 'move_azerty' or hint[1]
-                image(x+(i-1)*cell,y,KEY_ICON,KEY_ICON,'key_'..key,THEME.white,false,false)
+                local icon=image(x+(i-1)*cell,y,KEY_ICON,KEY_ICON,'key_'..key,THEME.white,false,false)
+                labels.icons[i]={show=function(on) show_w(icon,on) end}
                 labels[i]=text(x+(i-1)*cell+KEY_ICON+12,y+KEY_TEXT,hint[2],'hint')
             end
             return labels
