@@ -119,7 +119,8 @@ local function side(o)
         end,
         friend=function() if s.friend then return s.friend,s.linked,false end end,mode=function() return s.mode end,
         loopback=function() return s.loopback end,ping=function() return s.ping end,
-        chatting=function() return s.chatting end,others=function() return s.others or (s.linked and 1 or 0) end}
+        chatting=function() return s.chatting end,others=function() return s.others or (s.linked and 1 or 0) end,
+        crowd=function() return s.crowd or s.others or (s.linked and 1 or 0) end}
     -- The driving (race/drive.lua's): on and off with why and the values, its frames, its 250 ms checks, the look it
     -- gives; refuse makes on fail, error makes a frame raise.
     s.drive={on=false,ons=0,ticks=0,slows=0,values={top=2600,accel=1200,brake=2000,coast=300,grip=70,drift_grip=20,
@@ -665,6 +666,15 @@ run({G},function() return not G.race.armed() end,40)
 assert(G.told[#G.told]==CROWD,G.told[#G.told])
 H.race.command('quit')
 step({H})
+-- The pair counts the players the host let in (link.crowd(): players=), her link with the third one not made yet: her
+-- race ends as soon as the host's.
+H,G=pair()
+player=H.eve
+H.race.command('start','quest')
+run({H,G},function() return G.go_at and clock-G.go_at>3 end)
+H.others,G.crowd=2,2
+run({H,G},function() return not H.race.armed() and not G.race.armed() end,400)
+assert(find(G.logs,'^race %d+ dnf crowd$') and has(G.told,CROWD) and G.others==nil)
 
 -- 10. A map change on her PC: her DNF (map) goes out, her race closes; the host finishes and wins.
 H,G=pair()

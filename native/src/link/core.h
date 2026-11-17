@@ -1103,6 +1103,13 @@ public:
     if (lobby_ && !match())
       s += "host=" + std::to_string(host_id_) + " pair=" + std::to_string(host_ ? partner() : pair_) +
            " max=" + std::to_string(max_players_) + "\n";
+    // Then the players in it as the host counts them, us and the host included: the host and each member past the
+    // handshake with it (on a guest, those its let line names, maybe not linked with us yet; 0 before one came).
+    // Past 2, a Night Operation run or a Doro race ends on both sides at once (nightop/run.lua, race/run.lua).
+    if (lobby_ && !match()) {
+      const size_t players = host_ ? members().size() + 1 : let_.empty() ? 0 : let_.size() + 1;
+      s += "players=" + std::to_string(players) + "\n";
+    }
     // The session list (list public, list friends): "list=<public|friends> <searching|done|failed> <rows>", then each
     // row, best ping first once done: "session=<lobby> <host's SteamID> <n>/<max> <ping ms or -> <1 for a Steam friend,
     // else 0> <map segment or -> <camp alias or -> <rules or -> <host's name>", the name last.

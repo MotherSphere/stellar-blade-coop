@@ -91,9 +91,10 @@ int main() {
     for (int i = 1; i < 3; ++i)
       assert(sent_from(kMe, kPlayer[i], let_line(kFriend, {kFriend, kPlayer[2]}, kMaxMembers)) == 1);
     assert(saw("P3: P1 let in P2 (pair), us") && saw("P2: P1 let in us (pair), P3"));
-    assert(m.status(0).find("\nhost=1001 pair=2002 max=4\n") != npos &&
-           m.status(1).find("\nhost=1001 pair=2002 max=4\n") != npos &&
-           m.status(2).find("\nhost=1001 pair=2002 max=4\n") != npos && m.status(2).find("\nfriend=1 0 P1\n") != npos);
+    assert(m.status(0).find("\nhost=1001 pair=2002 max=4\nplayers=3\n") != npos &&
+           m.status(1).find("\nhost=1001 pair=2002 max=4\nplayers=3\n") != npos &&
+           m.status(2).find("\nhost=1001 pair=2002 max=4\nplayers=3\n") != npos &&
+           m.status(2).find("\nfriend=1 0 P1\n") != npos);
     assert(peer_of(m[0], kFriend)->cap.cap() == 30 && peer_of(m[0], kPlayer[2])->cap.cap() == 30);
     assert(peer_of(m[1], kMe)->cap.cap() == 30 && peer_of(m[1], kPlayer[2])->cap.cap() == 30);
     assert(saw("P1: pose rate cap 30 a second for P2: 3 players in the lobby") &&
@@ -142,6 +143,7 @@ int main() {
     assert(sent_from(kFriend, kPlayer[2], v("ping")) == 0 && !linked_with(m[1], kPlayer[2]));
     assert(sent_from(kMe, kFriend, let_line(kFriend, {kFriend}, kMaxMembers)) == 1 && m[1].members().size() == 1);
     assert(!noticed(m.status(1), "P3: connection lost.")); // Held, never lost.
+    assert(m.status(0).find("\nplayers=2\n") != npos && m.status(1).find("\nplayers=2\n") != npos);
     m[1].tick(m.now, "", 0, kPlayer[2]);
     assert(saw("P2: ignored a session request from 4003: not let in by the host yet"));
     m.tick(0, "allow 4003");
@@ -341,6 +343,8 @@ int main() {
     const std::string s1 = m.status(1);
     assert(m[1].lobby() == L && linked_with(m[1], kMe) && !linked_with(m[1], kPlayer[2]) && m[1].partner() == kMe);
     assert(noticed(s1, "No link with P3: Steam would not set relay only.") && s1.find("Left ") == npos);
+    // The host's count still names her (nightop/run.lua and race/run.lua end a run past 2 players on it).
+    assert(s1.find("\nplayers=3\n") != npos && s1.find("\nmember=4003 1 0 ") != npos);
     assert(saw("P2: no link with P3: Steam refused relay only 3 times") && count("P2: Steam refused relay only") == 3);
     assert(linked_with(m[0], kFriend) && linked_with(m[0], kPlayer[2]) && m[2].lobby() == L);
   }

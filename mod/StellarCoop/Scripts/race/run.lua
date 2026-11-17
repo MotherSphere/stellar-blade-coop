@@ -424,7 +424,7 @@ function Race.new(o)
         local paused=o.paused()==true
         away=paused
         if r.with and link.chatting()==false then r.left=true
-        elseif r.with and link.others()>1 then r.left='crowd' end
+        elseif r.with and link.crowd()>1 then r.left='crowd' end
         if r.loop and not link.loopback() then r.left=true end
         local me=puppet.me()
         r.gone=me and 0 or r.gone+0.25
@@ -454,7 +454,7 @@ function Race.new(o)
         if race then return false,'a race is on: coop race quit leaves it' end
         if rec then return false,'a track is being recorded: coop race save or coop race cancel first' end
         if link.mode()=='guest' then return false,'the host starts a race; yours comes when the host starts one' end
-        local others=link.others()
+        local others=link.crowd()
         if others>1 then return false,'Doro races are for 2 players at most; this session has '..(others+1) end
         if o.night() then return false,'Night Operation is running: coop nightop stop ends it' end
         if drive.why()=='bike' then return false,'EVE rides the bike: coop bike gets her off first' end

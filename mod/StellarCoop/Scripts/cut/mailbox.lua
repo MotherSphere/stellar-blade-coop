@@ -53,7 +53,7 @@
 local Shop=require('nightop.shop')
 local N=require('nightop.probe')
 local U=require('core.unreal')
-local others_of=require('core.link').others
+local others_of=require('core.link').crowd
 local Mailbox={}
 Mailbox.ITEMS={'HP_Potion','HP_Potion_Small','HealGrenade','PulseGrenade','ConcussionGrenade','TrapGrenade',
     'FlashGrenade'}

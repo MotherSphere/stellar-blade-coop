@@ -541,13 +541,14 @@ function Link.join_code(text)
     local a,b=text:match('^[ \t]*('..ALNUM..')[- ]?('..ALNUM..'[0-9A-Za-z])[ \t]*$')
     return a and ((a..'-'..b):upper():gsub('[IL]','1'):gsub('O','0')) or nil
 end
--- How many members a status text names past the handshake (member= lines with linked 1), for the parts that read the
--- status themselves: more than 1 is a session of more than 2 players, where gifts, Doro races, Night Operation and
--- the PvP test are refused.
-function Link.others(text)
+-- How many other players a status text's session holds: its members past the handshake with us (member= lines with
+-- linked 1), or the host's count when more (players=, us included: on a guest, the members the host let in whose link
+-- with us is not made yet count too). More than 1 is a session of more than 2 players, where Doro races and Night
+-- Operation end or are refused, on the pair as soon as on the host.
+function Link.crowd(text)
     local n=0
     for _ in ('\n'..(text or '')):gmatch('\nmember=%d+ %d 1 ') do n=n+1 end
-    return n
+    return math.max(n,(tonumber(('\n'..(text or '')):match('\nplayers=(%d+)')) or 0)-1)
 end
 function Link.new(folder,fs)
     fs=fs or Link.files
@@ -585,6 +586,7 @@ function Link.new(folder,fs)
     -- flag on her peer line from the native part would outlive the reload.
     local lobby,code,refused,pending,members,strangers,strangers_in=nil,nil,nil,{},{},{},nil
     local roster,session,vits={},nil,{}
+    local players=nil -- The status's players= line: the host's count of its session's players (crowd()).
     local self={}
     local function put(name,text,keep)
         local final=path(name)
@@ -756,6 +758,7 @@ function Link.new(folder,fs)
             saves.build=true
         end
         lobby,code,refused,pending,members,roster,session,vits=nil,nil,nil,{},{},{},nil,{}
+        players=nil
         if not text then return new end
         listed,noted={},{}
         for line in text:gmatch('[^\r\n]+') do
@@ -785,6 +788,7 @@ function Link.new(folder,fs)
             if host_id then
                 session={id=host_id,pair=pair_id~='0' and pair_id or nil,max=most~='0' and tonumber(most) or nil}
             end
+            players=tonumber(line:match('^players=(%d+)$')) or players
             local own,hp=line:match('^life=(%d+) (%d+)$')
             if own then life={state=tonumber(own),hp=tonumber(hp)} end
             if not mode and line:find('^link=') then
@@ -1037,6 +1041,8 @@ function Link.new(folder,fs)
         for _,m in ipairs(roster) do if m.linked then n=n+1 end end
         return n
     end
+    -- The other players as Link.crowd() counts them: others(), or the host's count when more.
+    function self.crowd() return math.max(self.others(),(players or 0)-1) end
     -- In an online session (not a match lobby): {id=the host's SteamID (ours while we host), pair=the pair's SteamID
     -- (ours when we are the pair), nil for none, max=the players it holds at most, nil before a guest heard it}; nil
     -- outside one. On a guest, the host's member line is member(host().id).

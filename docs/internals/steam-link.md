@@ -271,8 +271,12 @@ An online session holds up to 4 players (`max_players`). The host leads every gu
   way to another guest still goes.
 - The status has `host=<host's SteamID> pair=<pair's SteamID or 0> max=<max_players>` in an online session (on a
   guest, `pair=` is the let line's, her own when she is the pair; `max=0` before the let line came), then
-  `vit=<SteamID> <12 numbers>` for each member past the handshake whose vit line is under 3 s old. `mate=` is the
-  slot-0 member's: the host's on a guest, the pair's on the host. A match lobby has neither.
+  `players=<n>`: the host and each member past the handshake with it, the reader included. On a guest that is the let
+  line's members plus the host (0 before the let line came), whether her own link with each is made or not. Night
+  Operation and Doro races read it (`Link.crowd()`): the pair ends a run as soon as the host's let line names a third
+  player, even while her own link with that player is still being made. Then `vit=<SteamID> <12 numbers>` for each
+  member past the handshake whose vit line is under 3 s old. `mate=` is the slot-0 member's: the host's on a guest,
+  the pair's on the host. A match lobby has neither.
 - A member who comes in while the lobby holds more than 2 players starts at 30 poses a second, as in a match lobby.
   When the lobby grows past 2, each link still at 60 starts again at 30 too (`pose rate cap 30 a second for <name>: 3
   players in the lobby`). Each one steps back up after 10 calm readings, as any capped link does.

@@ -1523,6 +1523,14 @@ files[STATUS]='mod=v steam=ready\nlink=guest lobby=7003\nhost=1 pair=0 max=3\nme
 door.changes()
 assert(door.host().id=='1' and door.host().pair==nil and door.summary()=="Co-op: in Host +1's game.")
 assert(door.host().max==3 and door.cap()==3 and door.ping()==40,'The host\'s max_players and ping on a guest')
+-- The pair's count of the session (crowd()): a member the host let in whose link with us is not made yet counts, from
+-- the host's players= line; others() keeps the members past the handshake with us.
+files[STATUS]='mod=v steam=ready\nlink=guest lobby=7003\nhost=1 pair=21 max=4\nplayers=3\n'
+    ..'member=1 0 1 0 0 40 Host\nmember=22 1 0 0 0 -1 Lucas\nfriend=1 0 Host\n'
+door.changes()
+assert(door.others()==1 and door.crowd()==2 and require('core.link').crowd(files[STATUS])==2)
+assert(require('core.link').crowd((files[STATUS]:gsub('players=3','players=0')))==1
+    and door.summary()=="Co-op: in Host's game.")
 files[STATUS]='mod=v steam=ready\nlink=guest lobby=7003\nhost=1 pair=0 max=0\nmember=1 0 1 0 0 40 Host\n'
 door.changes()
 assert(door.host().id=='1' and door.cap()==nil,'max=0: the let line has not come yet')

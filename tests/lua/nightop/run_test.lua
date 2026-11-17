@@ -1783,6 +1783,15 @@ assert(find(Hs.lines,'^result: aborted %(crowd%) ') and find(Gs.lines,'^result: 
     Hs.lines[#Hs.lines])
 assert(Hs.told[#Hs.told]==PAIR and Gs.told[#Gs.told]==PAIR,Gs.told[#Gs.told])
 Hs.members,Gs.members=nil,nil
+-- The pair's link with the third player is not made yet (linked 0): the host's count (players=, from its let line)
+-- ends her run at once too, with the same words, never as lost.
+running()
+Hs.members='\nmember=2 0 1 0 0 40 Kaanta\nmember=3 1 1 0 0 40 Lucas\nplayers=3'
+Gs.members='\nmember=1 0 1 0 0 40 Me\nmember=3 1 0 0 0 -1 Lucas\nplayers=3'
+Hs.drop=1000
+round(1)
+assert(find(Gs.lines,'^result: aborted %(crowd%) ') and Gs.told[#Gs.told]==PAIR,Gs.lines[#Gs.lines])
+Hs.members,Gs.members,Hs.drop=nil,nil,0
 end
 
 -- 10b. The down and the revive, with each side's life read (life=, our vitals in a session). Her death is a down: the

@@ -26,7 +26,7 @@
 local U=require('core.unreal')
 local N=require('nightop.probe')
 local R=require('nightop.recruiter')
-local others=require('core.link').others
+local others=require('core.link').crowd
 local Roxanne={}
 local CHOICES='/Game/Local/Data/TheaterSelectDataTable.TheaterSelectDataTable'
 local XION='/game/art/bg/worldmap/level_p/e04'
