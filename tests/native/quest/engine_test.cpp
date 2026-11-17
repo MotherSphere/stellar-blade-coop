@@ -1066,9 +1066,10 @@ void her_steps() {
 
 // An online session of three: the host's side runs one Host per guest (Engine::guests), all fed by one read of his
 // quests each pass, on one record. Each guest gets our on, her own snapshot and the steps made with her, by lines to
-// her alone. A step the second guest makes first is made once in the host's game; his next read brings it to the
-// first guest. The same step from both guests in one pass is made once. A guest who leaves loses her Host only: the
-// other goes on while the record keeps her h lines. A quest the host takes meanwhile is not hers when she comes back.
+// her alone. A step the first guest (the pair, Engine::pair) makes first is made once in the host's game; his next read
+// brings it to the second guest. The second guest's step line is dropped: only the pair's steps are taken. Told she is
+// no pair, she sends none. A guest who leaves loses her Host only: the other goes on while the record keeps her h
+// lines. A quest the host takes meanwhile is not hers when she comes back.
 void three_worlds() {
   constexpr uint64_t kOtherId = 76561198000000003ull;
   auto host = std::make_unique<Side>(setup(Mode::host, kGuestId));
@@ -1113,20 +1114,33 @@ void three_worlds() {
   assert(ga.calls == 1 && gb.calls == 1 && h.calls == 0);
   assert(has(k.log, "quests: sent " + q("q 1 1 41 1 - - - .") + " to " + std::to_string(kGuestId)) &&
          has(k.log, "quests: sent " + q("q 1 1 41 1 - - - .") + " to " + std::to_string(kOtherId)));
-  // The second guest's step: made once in the host's game; his next read brings it to the first guest.
+  // The pair's step: made once in the host's game; his next read brings it to the second guest.
+  ga.play(s1);
+  step(6);
+  assert(h.calls == 1 && h.completes == 1 && h.w.tuple(s1) == ga.w.tuple(s1) && gb.w.tuple(s1) == h.w.tuple(s1));
+  assert(gb.calls == 2 && ga.calls == 1);
+  // The second guest's step line: dropped. The pair's same step is made, which the second guest holds already.
+  const std::string dropped =
+      "quests: a step line from guest " + std::to_string(kOtherId) + " not taken: her game is not the pair";
   gb.play(s1);
   step(6);
-  assert(h.calls == 1 && h.completes == 1 && h.w.tuple(s1) == gb.w.tuple(s1) && ga.w.tuple(s1) == h.w.tuple(s1));
-  assert(ga.calls == 2 && gb.calls == 1);
-  // The same step from both in one pass: the host's game makes it once.
-  ga.play(s1), gb.play(s1);
+  assert(h.completes == 1 && count(k.log, dropped) == 1 && has(b.log, "step of hers sent: "));
+  ga.play(s1);
   step(6);
   assert(h.completes == 2 && h.w.tuple(s1) == ga.w.tuple(s1) && h.w.tuple(s1) == gb.w.tuple(s1));
-  assert(count(k.log, "(1 - 0:t.0:t - . in Zone_WLA_30): made here already") == 1);
+  // Told she is no pair, the second guest sends none.
+  b.e.pair(0);
+  gb.play(s1);
+  step(6);
+  assert(h.completes == 2 && count(k.log, dropped) == 1 &&
+         has(b.log, "step of hers not sent: she is not the host's pair (more than 2 players)"));
+  ga.play(s1);
+  step(6);
+  assert(h.completes == 3 && h.w.tuple(s1) == gb.w.tuple(s1));
   k.e.ask_status();
   step();
   assert(k.status.find(", guest " + std::to_string(kGuestId) + ", generation 1, partner on, guest " +
-                       std::to_string(kOtherId) + ", generation 1, partner on, her steps applied 2") !=
+                       std::to_string(kOtherId) + ", generation 1, partner on, her steps applied 3") !=
          std::string::npos);
   // The second guest leaves: her Host goes; the first goes on alone. The record keeps both guests' lines.
   away = true;
@@ -1477,7 +1491,7 @@ struct Desktop {
       lines.push_back({partner, std::move(l)});
     lines.insert(lines.end(), others_in.begin(), others_in.end());
     in.clear(), others_in.clear();
-    w.pass(now, hosting, partners, slot, lines, io);
+    w.pass(now, hosting, partners, partner, slot, lines, io);
     std::vector<std::string> fight;
     for (FightLine &l : lines)
       fight.push_back(std::move(l.line));

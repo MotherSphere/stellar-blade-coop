@@ -546,6 +546,7 @@ private:
 coop::Api api;
 std::unique_ptr<coop::Link> link;
 bool chat_was = false;    // A chat session held at the last pass.
+uint64_t was_pair = 0;    // Link::partner() at the last pass.
 uint64_t next_vitals = 0; // Our vitals are read every 100 ms in a chat session (500 after a read over 1 ms).
 bool switched_off = false; // coop off: until the game restarts, only coop status and coop report get an answer.
 std::wstring command_line;
@@ -970,11 +971,16 @@ bool step() {
     std::vector<coop::FightLine> fights = loaded ? link->take_fight() : std::vector<coop::FightLine>();
     const uint64_t partner = linked ? link->partner() : 0;
     const bool shared = partner != 0;
+    // A guest the let line names the pair: once the pair before her left, the host moved her ghost to slot 0, which
+    // holds no table of hers yet, so ours goes to every member at once (at a session's start, one table more).
+    if (partner && partner != was_pair && !link->host())
+      coop::pose::table_again();
+    was_pair = partner;
     std::vector<uint64_t> mates;
     if (linked && !link->match())
       mates = link->host() ? link->members() : std::vector<uint64_t>(link->leader() ? 1 : 0, link->leader());
     coop::pose::quest_pass(
-        GetTickCount64(), !mates.empty() && link->host(), mates, coop_marker, fights,
+        GetTickCount64(), !mates.empty() && link->host(), mates, partner, coop_marker, fights,
         [](const std::string &line, uint64_t to) { return link && to && link->send_fight(line, true, to); },
         quest_files);
     std::vector<std::string> channel2 = coop::lines_from(fights, partner);

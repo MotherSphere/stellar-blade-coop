@@ -38,6 +38,9 @@ void peer(uint8_t slots, uint64_t now_ms, void (*send)(const uint8_t *, size_t, 
 // (below kMaxRemote; her SBE from slot 0 only). Her pose after a second without one sends our table again within 5 s
 // (pose/table.h TableResend).
 void peer_receive(size_t slot, const uint8_t *data, size_t size);
+// Worker, before peer(): our table to every member at peer()'s next send, as to a new member (a guest the host made
+// the pair moved to his ghost slot 0, which has no table of hers).
+void table_again();
 // Worker thread. Each returns the line for the log: what was asked, or why not. The loopback and the replay never run
 // together, and either takes over from the linked members until it is off, as slot 0's single source; turning either
 // off removes slot 0's remote table, so the ghost goes with it.
@@ -109,9 +112,10 @@ std::string ask_quests(const coop::Request &request);
 // reads, starts and stops the side for the asks and the gates. It sends, logs and writes what the game thread's passes
 // made (coop-quests.log, the record beside the co-op slot through files, coop-quests-record.txt in the mod folder).
 // hosting: we own the lobby; partners: on the host, every guest linked past the handshake (one quest::Host each); on a
-// guest, the host; none while nobody is linked; send: a line to that member on channel 2, reliable (false when it
-// cannot go); marker: the slot StellarCoopSlot.txt names.
-void quest_pass(uint64_t now_ms, bool hosting, const std::vector<uint64_t> &partners, int marker,
+// guest, the host; none while nobody is linked; pair: Link::partner(), whose step lines the host takes (on a guest:
+// none sent while 0); send: a line to that member on channel 2, reliable (false when it cannot go); marker: the slot
+// StellarCoopSlot.txt names.
+void quest_pass(uint64_t now_ms, bool hosting, const std::vector<uint64_t> &partners, uint64_t pair, int marker,
                 std::vector<coop::FightLine> &lines, bool (*send)(const std::string &, uint64_t),
                 const QuestFiles &files);
 // Worker thread, the shared world (world/sync.h, world/engine.h): Lua's world request (Command::world). on and off set

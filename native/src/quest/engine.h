@@ -143,6 +143,7 @@ public:
   void on(Setup s) {
     std::lock_guard<std::mutex> lock(mutex_);
     guests_.assign(s.partner ? 1 : 0, s.partner);
+    pair_in_ = s.partner;
     setup_ = std::move(s), start_ = true, stop_.clear();
   }
   // The host's side of an online session: its guests linked past the handshake (on() starts the list with
@@ -151,6 +152,13 @@ public:
   void guests(std::vector<uint64_t> ids) {
     std::lock_guard<std::mutex> lock(mutex_);
     guests_ = std::move(ids);
+  }
+  // The pair of an online session (link/core.h's partner(); on() starts it at Setup::partner): story together's steps
+  // run within it only (phase 7b1). On the host, the guest whose step lines his game takes: another guest's are
+  // logged and dropped. On a guest, the host while she is the pair, else 0: she sends no step line then.
+  void pair(uint64_t id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    pair_in_ = id;
   }
   // coop quests off, the link gone, the setting off: the next tick says off (when it said on) and drops the side.
   void off(const std::string &why) {
@@ -222,6 +230,7 @@ public:
       inbox.assign(std::make_move_iterator(inbox_.begin()), std::make_move_iterator(inbox_.end()));
       inbox_.clear();
       want_ = guests_;
+      pair_ = pair_in_;
       force = std::exchange(force_, 0);
       status = std::exchange(ask_status_, false);
     }
@@ -730,8 +739,12 @@ private:
         }
         lines.insert(lines.end(), out.begin(), out.end());
         to.resize(lines.size(), m.id);
-        for (Message &s : m.host->take_steps()) // Two guests' same step: the second finds it made here.
-          steps.push_back(std::move(s));
+        for (Message &s : m.host->take_steps()) { // Two guests' same step: the second finds it made here.
+          if (side_.mode == Mode::host && m.id != pair_)
+            log("quests: a step line from guest " + std::to_string(m.id) + " not taken: her game is not the pair");
+          else
+            steps.push_back(std::move(s));
+        }
       }
       stepped_.reset();
       for (size_t n = 0; n < steps.size(); ++n)
@@ -759,6 +772,7 @@ private:
         log("quests: force " + std::to_string(force) + ": no line of the host holds that quest");
         notes_.push_back(Note{Why::done, force, "", true, false});
       }
+      guest_->pair(side_.mode != Mode::guest || pair_ != 0);
       const Plan p = guest_->pass(views_.data(), zone_, arm_, now_ms, lines);
       fed_ready_ = p.ready();
       const Plan &f = guest_->forced();
@@ -1096,6 +1110,7 @@ private:
   uint16_t force_ = 0;
   std::vector<std::pair<uint64_t, std::string>> inbox_; // With each line's sender.
   std::vector<uint64_t> guests_;                         // guests()'s, for the host's side.
+  uint64_t pair_in_ = 0;                                 // pair()'s.
   Out out_;
   // The game thread's (status_text() reads a few under the lock: counts and the last notes).
   Setup side_;
@@ -1103,6 +1118,7 @@ private:
   std::shared_ptr<Record> record_;
   std::vector<Mate> mates_;
   std::vector<uint64_t> want_; // guests_ as this pass took it.
+  uint64_t pair_ = 0;          // pair_in_ as this pass took it.
   std::unique_ptr<Guest> guest_;
   bool running_ = false, armed_ = false, said_on_ = false, first_ = false, arm_ = false, fed_ready_ = false;
   uint64_t base_ = 0, world_ = 0, mgr_ = 0, unit_ = 0, logic_ = 0, start_ms_ = 0, stats_ms_ = 0, host_on_ms_ = 0;
@@ -1195,11 +1211,11 @@ public:
 
   // Every worker pass, after the link's tick. lines: channel 2's lines with their senders (the SBQ ones are taken out
   // here: those of a partner go to the engine, any other member's go); partners: on the host, the guests linked past
-  // the handshake, in the order they came; on a guest, the host; none while nobody is linked; hosting: we own the
-  // lobby; slot: the save-slot line (slot::line).
+  // the handshake, in the order they came; on a guest, the host; none while nobody is linked; pair: link/core.h's
+  // partner() (Engine::pair); hosting: we own the lobby; slot: the save-slot line (slot::line).
   template <class Io>
-  void pass(uint64_t now_ms, bool hosting, const std::vector<uint64_t> &partners, const std::string &slot,
-            std::vector<FightLine> &lines, Io &io) {
+  void pass(uint64_t now_ms, bool hosting, const std::vector<uint64_t> &partners, uint64_t pair,
+            const std::string &slot, std::vector<FightLine> &lines, Io &io) {
     const std::string tag = quest_tag() + " ";
     lines.erase(std::remove_if(lines.begin(), lines.end(),
                                [&](const FightLine &l) {
@@ -1239,6 +1255,8 @@ public:
       start(mode, partner, slot, io);
     if (started_ && mode_ == Mode::host && partners != guests_)
       e_.guests(guests_ = partners);
+    if (started_ && linked_mode && pair != pair_)
+      e_.pair(pair_ = pair);
   }
 
   // coop-status.txt's lines: "quests=" and the state, the last notes as "quest_note=<n> <kind> <id> <alias> <zone>"
@@ -1331,6 +1349,7 @@ private:
     e_.on(std::move(s));
     started_ = true, asked_ = ask_, mode_ = mode, partner_ = partner, engine_ = "off";
     guests_.assign(partner ? 1 : 0, partner); // As on() set it; pass() gives the engine the rest.
+    pair_ = partner;
   }
   template <class Io> void save_record(Io &io) {
     record_dirty_ = false;
@@ -1401,6 +1420,7 @@ private:
   Mode mode_ = Mode::guest;
   uint64_t partner_ = 0, note_n_ = 0, answer_n_ = 0, record_at_ = 0, recording_at_ = 0;
   std::vector<uint64_t> guests_; // The host's side's partners as the engine last got them.
+  uint64_t pair_ = 0;            // The pair as the engine last got it.
   size_t recorded_ = 0;
   int record_slot_ = -1;
   bool started_ = false, blocked_ = false, record_dirty_ = false, recording_dirty_ = false, unsent_said_ = false,

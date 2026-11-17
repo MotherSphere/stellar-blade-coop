@@ -2091,6 +2091,9 @@ public:
     const int i = row_index(id);
     return i < 0 ? none : plans_[size_t(i)];
   }
+  // Whether she is the host's pair (link/core.h's partner()), whose steps his game takes; a guest past the pair (more
+  // than 2 players) sends none (lead()). True until told.
+  void pair(bool on) { pair_ = on; }
   // Story together's gate (story/sync.h, Here::in_step): each Epic quest of hers covers the host's line of this
   // snapshot and his covers hers, so a scene's end events run at the same story point in both games. A quest his
   // snapshot did not name counts as not acquired on his side. False until a whole snapshot came.
@@ -2152,9 +2155,10 @@ private:
                       (covers(h_[i].t, g) ? "the host's line holds it now" : "her quest moved while it waited"));
       return false;
     }
-    const char *why = zone == host_at_ && zone_alias(zone) ? step_hold(r, t.t, g, t.acq.kind == '#')
-                      : lead_[i]                           ? "she left the host's zone while it waited"
-                                                           : "made outside the host's zone";
+    const char *why = !pair_                                 ? "she is not the host's pair (more than 2 players)"
+                      : zone == host_at_ && zone_alias(zone) ? step_hold(r, t.t, g, t.acq.kind == '#')
+                      : lead_[i]                             ? "she left the host's zone while it waited"
+                                                             : "made outside the host's zone";
     Message m;
     m.type = Type::step, m.gen = gen_, m.e = stepped(r, t, g), m.text = std::string(zone);
     if (!why && !send(m)) {
@@ -2194,7 +2198,7 @@ private:
   std::string at_;
   Plan forced_;
   uint16_t force_ = 0;
-  bool host_on_ = false, in_snap_ = false, complete_ = false, changed_ = false, ignored_ = false;
+  bool host_on_ = false, in_snap_ = false, complete_ = false, changed_ = false, ignored_ = false, pair_ = true;
   uint32_t expected_ = 0, got_ = 0, sent_ = 0;
   uint64_t digest_ = kOffset, bad_ = 0, window_ = 0;
 };

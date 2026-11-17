@@ -656,6 +656,7 @@ public:
     photo_pass(); // Also once the session ended: a pause held for her goes.
     log_peers();
     poll_relay();
+    slot0_seen_ = slots() & 1;
   }
 
   // Callback 506 for our lobby: logged only, by its first state bit. The members are still polled every pass.
@@ -680,9 +681,9 @@ public:
   // The pair of an online session (its SteamID), or 0: the one guest who plays the shared fight, the shared world and
   // story together with the host (phase 7b1; the shared quests keep their record per partner). On the host, the guest
   // past the handshake in ghost slot 0; on a guest, the host past the handshake, while the host's let line names us as
-  // the pair. 0 in a match lobby, which has members and no partner.
-  // shortcut: a guest already in another slot never becomes the pair (her ghost would need its table again), so a
-  // session whose slot-0 guest left has no pair until a new guest comes in; 7b2 runs the shared features for everyone.
+  // the pair. 0 in a match lobby, which has members and no partner. The pair leaving, the guest who came in first of
+  // those still linked takes slot 0 at the next pass (poll_members()), so the host's game drops the old pair's table
+  // there first; her game sends her table again once the let line names her (glue/steam.cpp).
   uint64_t partner() const {
     if (match())
       return 0;
@@ -1532,8 +1533,9 @@ private:
       } else if (r.command == Command::allow) {
         p->asking = false; // poll_members() greets her in this pass.
         allowed_.insert(p->id);
-        // She waited in a slot past 0: the first guest let in while slot 0 is free becomes the pair (partner()).
-        if (!match() && std::none_of(peers_.begin(), peers_.end(), [](const Peer &q) { return q.slot == 0; }))
+        // She waited in a slot past 0: with no other guest let in, she is the first guest and becomes the pair.
+        if (!match() && std::none_of(peers_.begin(), peers_.end(),
+                                     [p](const Peer &q) { return q.slot == 0 || (&q != p && !q.asking); }))
           p->slot = 0;
         event("let " + p->name + " in");
         notice(p->name + " was let in.");
@@ -2393,6 +2395,17 @@ private:
       if (players != players_)
         put(kPlayersKey, players_ = players);
     }
+    // On the host, the pair (slot 0) left at an earlier pass: the guest who came in first of those linked takes slot 0
+    // and pairs with the host. Not in the pass that freed it, so the pose path drops the old pair's table there first
+    // (slot0_seen_: glue/tick.h's peer() got no bit 0 since).
+    if (host_ && !match() && !slot0_seen_ &&
+        std::none_of(peers_.begin(), peers_.end(), [](const Peer &p) { return p.slot == 0; }))
+      for (auto &p : peers_)
+        if (!p.asking && p.compatible && p.accepted) {
+          event(p.name + " is the pair now: ghost slot " + std::to_string(p.slot) + " to 0");
+          p.slot = 0;
+          break;
+        }
     for (auto &[id, next] : refused_)
       if (std::find(members.begin(), members.end(), id) == members.end())
         next = 0; // Gone: told at once if she comes back.
@@ -2447,9 +2460,13 @@ private:
         const bool pal = api_.has_friend(friends_, id, kImmediateFriends);
         peer.asking = host_ && !match() && !allowed_.count(id) && (ask_ || !pal);
         // In an online session the pair's ghost holds slot 0 on both sides (glue/tick.h reads SBE from slot 0 only): on
-        // a guest the host's, on the host the first guest who comes in without waiting for an answer, or is let in
-        // first while it is free (handle(): allow).
-        peer.slot = !match() && (host_ ? peer.asking : id != host_id_) ? 1 : 0;
+        // a guest the host's; on the host the first guest, who comes in without waiting for an answer while no other
+        // guest is let in, or is let in first (handle(): allow), or came in first of those still linked (above).
+        peer.slot = !match() && (host_ ? peer.asking || std::any_of(peers_.begin(), peers_.end(),
+                                                                    [](const Peer &p) { return !p.asking; })
+                                       : id != host_id_)
+                        ? 1
+                        : 0;
         while (peer.slot < kMaxRemote && std::any_of(peers_.begin(), peers_.end(),
                                                      [&](const Peer &p) { return p.slot == peer.slot; }))
           ++peer.slot;
@@ -3115,6 +3132,9 @@ private:
                                name_of(message.a) + " only. Your game keeps its own."
                          : "Shared enemies, the shared world and story together are off for you in " + peer.name +
                                "'s session. Your game keeps its own.");
+      // Named the pair later (the pair before us left): ours run with the host from now on, which the player hears.
+      else if (message.a == me_ && pair_ != me_ && !let_.empty())
+        notice("Shared enemies, the shared world and story together now run between " + peer.name + " and you.");
       let_ = std::move(let);
       pair_ = message.a;
       break;
@@ -3395,6 +3415,7 @@ private:
   // An online session: the players it holds at most as we host it (max_players); on a guest, the members the host's
   // let line names with its pair (0: none).
   int max_players_ = kMaxMembers;
+  bool slot0_seen_ = false; // slots()'s bit 0 at the end of the last tick(), as glue/tick.h's peer() got it.
   std::set<uint64_t> let_;
   uint64_t pair_ = 0;
   std::string mode_; // The lobby's match mode (kModeKey) as of the last pass; empty in a co-op lobby or none.

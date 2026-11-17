@@ -87,7 +87,7 @@ void own_pass() {
 }
 } // namespace
 
-void quest_pass(uint64_t now_ms, bool hosting, const std::vector<uint64_t> &partners, int marker,
+void quest_pass(uint64_t now_ms, bool hosting, const std::vector<uint64_t> &partners, uint64_t pair, int marker,
                 std::vector<coop::FightLine> &lines, bool (*send)(const std::string &, uint64_t),
                 const QuestFiles &files) {
   QuestIo io{send, &files};
@@ -110,7 +110,7 @@ void quest_pass(uint64_t now_ms, bool hosting, const std::vector<uint64_t> &part
     std::lock_guard<std::mutex> lock(quest_m);
     quest_slot = quest_slot_line, quest_slot_ms = now_ms;
   }
-  quest_worker.pass(now_ms, hosting, partners, quest_slot_line, lines, io);
+  quest_worker.pass(now_ms, hosting, partners, pair, quest_slot_line, lines, io);
   own_pass();
 }
 

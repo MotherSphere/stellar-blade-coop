@@ -217,8 +217,10 @@ int main() {
     assert(!saw("lost the host's lobby") && !saw("rejoining"));
   }
 
-  // A guest leaving is announced on the host and on the other guest. The pair leaving leaves no pair (slot 0 stays
-  // free): the let line says 0. The next guest let in takes slot 0 and pairs with the host.
+  // A guest leaving is announced on the host and on the other guest. The pair leaving with no guest left leaves no
+  // pair: the next guest let in takes slot 0 and pairs with the host. The pair leaving while another guest is linked:
+  // the let line says 0 in that pass, then the guest who came in first of those linked takes slot 0 and pairs with
+  // the host, which she hears once.
   reset();
   {
     Mesh m(4);
@@ -239,10 +241,34 @@ int main() {
       m.round(600);
     assert(slot_of(m[0], kPlayer[3]) == 1 && m[3].partner() == 0 && m[2].partner() == kMe);
     m.tick(2, "leave");
+    m.tick(0);
+    assert(m[0].partner() == 0 && slot_of(m[0], kPlayer[3]) == 1); // Not in the pass that freed slot 0.
     m.round();
     m.round();
-    assert(m[0].partner() == 0 && m.status(3).find("\nhost=1001 pair=0\n") != npos &&
-           sent_from(kMe, kPlayer[3], let_line(0, {kPlayer[3]})) == 1);
+    assert(sent_from(kMe, kPlayer[3], let_line(0, {kPlayer[3]})) == 1);
+    assert(slot_of(m[0], kPlayer[3]) == 0 && m[0].partner() == kPlayer[3] && m[3].partner() == kMe);
+    assert(saw("P1: P4 is the pair now: ghost slot 1 to 0") &&
+           sent_from(kMe, kPlayer[3], let_line(kPlayer[3], {kPlayer[3]})) == 1);
+    const std::string s3 = m.status(3);
+    assert(notices(s3, "Shared enemies, the shared world and story together now run between P1 and you.") == 1 &&
+           s3.find("\nhost=1001 pair=1001\n") != npos);
+  }
+
+  // The first guest is the pair: the pair leaving in the pass where a Steam friend comes in, the guest already linked
+  // takes slot 0 at the next pass; the newcomer takes a slot past 0.
+  reset();
+  {
+    Mesh m(4);
+    const uint64_t L = group(m, 3);
+    F.client[0].friends.insert(kPlayer[3]), F.client[3].friends.insert(kMe);
+    m.tick(1, "leave");
+    m.tick(3, "join " + id(L));
+    m.tick(0);
+    assert(m[0].partner() == 0 && slot_of(m[0], kPlayer[3]) == 2);
+    for (int r = 0; r < 12 && !linked_with(m[0], kPlayer[3]); ++r)
+      m.round(600);
+    assert(slot_of(m[0], kPlayer[2]) == 0 && slot_of(m[0], kPlayer[3]) == 2 && m[0].partner() == kPlayer[2] &&
+           m[2].partner() == kMe && m[3].partner() == 0);
   }
 
   // The follow: each guest's camps? goes to the host only. The host's status shows the oldest one waiting; an answer
