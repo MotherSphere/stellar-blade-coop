@@ -47,6 +47,7 @@ local AIR=400 -- cm/s with no falling flag: in the air from a vertical speed pas
 local LANDED,LEDGE=100,1
 local TAKE_OFF,EVADE_END=0.5,1.07 -- s into N_Dororong_Evade: the game's own split (held during a fall), its end.
 local STAND=50 -- cm/s: an emote plays below this only.
+local SAY_EVERY=10 -- s between two speed lines: players post UE4SS.log in public, a line a second buries the rest.
 -- While a race drives (s.drive): all fours from 60% of the top speed, two legs again under 55%; the play rate up to 3;
 -- the stumble's 1.2 s played in the model's 0.6 s. The lean into a bend: 25 degrees at 1 g of the speed times the
 -- turn rate, at most 25, smoothed over 0.15 s. A landing pitches the nose by the landing speed (a degree each 50 cm/s,
@@ -585,7 +586,7 @@ function Doro.new(o)
             Doro.tilted({Pitch=rot.Pitch,Yaw=rot.Yaw,Roll=rot.Roll},c.tilt),false,{},false)
         Doro.apply(l.doro,c)
         if now>=l.speed_at then
-            l.speed_at=now+1
+            l.speed_at=now+SAY_EVERY
             local read,sb=pcall(function() return string.format('%.0f',l.eve:GetSBSpeedForAnimGraph()) end)
             log(string.format('speed v=%.0f sb=%s sprint=%d',speed,read and sb or '?',sprint and 1 or 0))
         end

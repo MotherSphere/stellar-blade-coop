@@ -155,7 +155,7 @@ pc=real_pc
 eve.time=eve.time+1/60
 d.tick()
 assert(find('^drive key B down$'))
-eve.time=eve.time+1
+eve.time=eve.time+10
 d.tick()
 assert(logs[#logs]:find(' drift=1 '),logs[#logs])
 down.B=false
@@ -262,7 +262,7 @@ assert(not ok and message=='a race drives: coop race quit leaves it')
 d.off('done')
 
 -- 9. The bike (bike/ride.lua): its own model per drive, why 'bike'. The log lists the bike's four values; each frame
--- bike/model.lua's step drives her and the look carries its lean and pitch; once a second the line adds them with the
+-- bike/model.lua's step drives her and the look carries its lean and pitch; every 10 s the line adds them with the
 -- stick and SB's raw axes. coop race drive probe and off wait while she rides; the race's model is untouched.
 local B=require('bike.model')
 eve.LastMoveFowardInput,eve.LastMoveRightInput=0.75,-0.25
@@ -289,4 +289,17 @@ for _,word in ipairs({'probe','off'}) do
 end
 assert(d.values().top==2600,'The race values stay the races\'')
 assert(d.off('bike coop bike'):find('^drive off %(bike coop bike%)') and d.why()==nil)
+
+-- 10. One speed line every 10 s, not every second (players post UE4SS.log in public): 12 s at 60 fps give two.
+assert(d.on(M.DEFAULTS,'race'))
+d.tick()
+local said,t0=#logs,eve.time
+for k=1,720 do
+    eve.time=t0+k/60
+    d.tick()
+end
+local lines=0
+for k=said+1,#logs do if logs[k]:find('^drive v=') then lines=lines+1 end end
+assert(lines==2,lines)
+d.off('done')
 print('drive_test ok')

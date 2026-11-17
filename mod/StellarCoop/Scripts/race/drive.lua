@@ -22,6 +22,7 @@ local Drive={}
 local FIELDS={'MaxAcceleration','GroundFriction','BrakingDecelerationWalking','BrakingFrictionFactor'}
 local MAX_DT=0.1 -- s: a longer frame (a hitch) counts as this much.
 local PROBE_SPEED,PROBE_FOR=1500,3 -- cm/s straight ahead, and s for each of the probe's two feeds.
+local SAY_EVERY=10 -- s between two speed lines: players post UE4SS.log in public, a line a second buries the rest.
 
 local function path_of(o) return o:GetFullName():match('^%S+ (.+)$') end
 local function same(o,path)
@@ -188,7 +189,7 @@ function Drive.new(o)
     -- yaw to her. Returns what the look takes ({top, stumble, lean, pitch}: the last two the bike's, in degrees), or
     -- nil once the drive is off (her EVE gone). Raises on a failing call: the caller ends the race, the probe or the
     -- ride. The stick is GetLastMovementInputVector for the bike too: no move block is set while she rides, so SB's
-    -- MoveForward handler (FUN_142059df0) still reaches AddMovementInput; once a second the bike's line adds the raw
+    -- MoveForward handler (FUN_142059df0) still reaches AddMovementInput; every 10 s the bike's line adds the raw
     -- axes SB stored (LastMoveFowardInput, LastMoveRightInput) beside it.
     function self.tick()
         local d=drive
@@ -220,8 +221,8 @@ function Drive.new(o)
         if out.stumble then log(('drive wall at %.0f cm/s: stumble'):format(d.state.asked or 0)) end
         if out.launch then log(('drive crest: launched at %.0f cm/s up'):format(out.launch.z)) end
         d.look={top=d.P.top,stumble=out.stumbling==true,lean=out.lean,pitch=out.pitch}
-        if t>=d.said_at then -- Once a second: her speed, the speed asked, her yaw read against the heading written.
-            d.said_at=t+1
+        if t>=d.said_at then -- Every 10 s: her speed, the speed asked, her yaw read against the heading written.
+            d.said_at=t+SAY_EVERY
             log(('drive v=%.0f vz=%.0f asked=%.0f yaw=%.1f heading=%s air=%d root=%d drift=%d stumble=%d%s'):format(
                 math.sqrt(v.X*v.X+v.Y*v.Y),vz,d.state.asked or 0,yaw,out.heading and ('%.1f'):format(out.heading)
                 or '-',input.falling and 1 or 0,input.root and 1 or 0,out.drifting and 1 or 0,out.stumbling and 1 or 0,

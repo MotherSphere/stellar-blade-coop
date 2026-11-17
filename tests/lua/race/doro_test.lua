@@ -439,7 +439,7 @@ assert(stored=='/Game/Map.Map:PersistentLevel.EVE_1\t3\t/Game/Map.Map:Persistent
 assert(logs[1]=='look drone none within 30 m (0 in the world)' and
     logs[2]=='look hid=4 tick=3->0 rehid=0/min' and logs[3]=='look yaw_delta=90.0',table.concat(logs,'|'))
 assert(look.active() and select(2,look.on())=='The Doro look is on already.')
--- Each frame: placed at her main mesh, animated from her velocity, her sprint and her fall; her speed once a second.
+-- Each frame: placed at her main mesh, animated from her velocity, her sprint and her fall; her speed every 10 s.
 eve.velocity={X=300,Y=400,Z=0}
 eve.Mesh.K2_GetComponentLocation=function() return {X=60,Y=20,Z=-87} end
 root.calls={}
@@ -454,10 +454,10 @@ root.calls={}
 look.tick()
 assert(root.calls[1]=='play four true' and #logs==lines+1
     and last()=='look clip four: v=500 vz=0 falling=0 root=0 sprint=1',
-    'All fours, said once; no speed line before a second')
+    'All fours, said once; no speed line before 10 s')
 clock=101
 look.tick()
-assert(last()=='speed v=500 sb=512 sprint=1',last())
+assert(#logs==lines+1,'Still no speed line a second later')
 eve.sprint=false
 -- Her falling flag with no vertical speed: held at 0.5 s. Evade was collected meanwhile: found again, and counted on
 -- the minute line.
@@ -595,6 +595,19 @@ ok,why=look3.on()
 eve.K2_GetActorRotation=rotation
 assert(ok and look3.active(),why)
 look3.off('test')
+-- One speed line every 10 s, not every second (players post UE4SS.log in public): 12 s at 60 fps give two.
+local look4=Doro.new({log=log,store=store})
+clock=200
+assert(look4.on())
+local said=#logs
+for k=1,720 do
+    clock=200+k/60
+    look4.tick()
+end
+local speeds=0
+for k=said+1,#logs do if logs[k]:find('^speed v=') then speeds=speeds+1 end end
+assert(speeds==2,speeds)
+look4.off('test')
 
 -- An earlier Lua load left its look on (Ctrl+R): the next load's first tick shows the listed parts, sets the tick
 -- option back, destroys that load's Doro and clears the file. Once.

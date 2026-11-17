@@ -742,7 +742,7 @@ grows to 80 s. A cap that stays at 20 points at the connection itself: compare t
 ghost <x> ms, doro <d> ms, race <r> ms, UI <y> ms a frame (<n> frames); longest frame <f> ms (<a> over 16 ms, <b> over
 50 ms): mxiii <m> ms, lion <l> ms, scene <s> ms; longest 250 ms pass <p> ms (<c> over 16 ms, <e> over 50 ms): booth
 <o> ms, kit.slow <k> ms`. Its first part is the mean game-thread cost per frame of placing the ghost, of the Doro look,
-of a Doro race and of the co-op menu, chat and partner HUD. To see what the marker and the arrow cost, compare a minute
+of a Doro race or a bike ride and of the co-op menu, chat and partner HUD. To see what the marker and the arrow cost, compare a minute
 with them on against a minute with Options > Partner > HP marker and Off-screen arrow set to Off. A mean hides a single
 frozen frame, so the rest of the line gives the longest Lua work in one frame and in one pass of the 250 ms loop, how
 many frames and passes took over 16 ms (one frame at 60 fps) or over 50 ms, and the longest call of Matrix XIII, the

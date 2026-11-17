@@ -99,7 +99,7 @@ Test and tuning commands, left out of the usage line:
 - `coop race drive feed impulse|struct` picks how the velocity reaches her movement: an impulse each frame (the
   default) or a write of its velocity.
 
-During a drive, `UE4SS.log` has a line once a second, `[StellarCoop][DR] drive v=<cm/s> vz=<cm/s> asked=<cm/s>
+During a drive, `UE4SS.log` has a line every 10 s, `[StellarCoop][DR] drive v=<cm/s> vz=<cm/s> asked=<cm/s>
 yaw=<degrees> heading=<degrees> air=0|1 root=0|1 drift=0|1 stumble=0|1`, and a line for each drift key pressed or
 released, each wall hit and each crest. `asked` is the speed the car gave the last frame, `yaw` EVE's facing as read
 one frame after the car turned her.

@@ -1209,10 +1209,10 @@ LoopInGameThreadWithDelay(1,function()
     -- Before the native tick: the pose it captures has the yaw the driving writes.
     ok,message=guarded('race',race.steer)
     if message then report(ok,message) end
-    steered=os.clock()-steered
     -- The bike's frame, before the native tick too: her drive's yaw, her lean and pitch. Its end said on screen.
     ok,message=guarded('bike',bike.steer)
     if message then report(ok,message); say(message) end
+    steered=os.clock()-steered -- The race column carries the bike's frame: the first ride gives its real cost.
     if native_tick then native_tick() end
     local placed=os.clock()
     ok,message=guarded('ghost',puppet.place) -- The root takes the mailbox this native tick just wrote.
