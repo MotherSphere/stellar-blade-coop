@@ -213,7 +213,7 @@ sky hold                        the hour the pass before it drew (a pinned one i
 `coop-status.txt` gets one line at each worker pass:
 
 ```
-sky=cycle h=13.42 el=61.3 le=61.3 ly=211.9 k=1.000 moon=0 amb=1.000 eve=1.000 ev=0.00 tint=1.00,1.00,1.00 n=114 lit=20 seen=1
+sky=cycle h=13.4200 el=62.5 le=62.490 ly=215.975 k=1.000 moon=0 amb=1.000 eve=1.000 ev=0.00 tint=1.00,1.00,1.00 n=114 lit=20 seen=1
 ```
 
 The state is `off`, `cycle`, `pinned`, `held`, `waiting` (no world or no array), `forced`, `scene` (SB plays a theater),
@@ -221,7 +221,9 @@ The state is `off`, `cycle`, `pinned`, `held`, `waiting` (no world or no array),
 the hour, `el` the sun's signed elevation, `le` and `ly` the light's elevation and heading (sun or moon), `k` the
 light's factor, `moon` 1 when the moon is the light, `amb` the sky light's factor, `eve` that of EVE's lights, `ev` the
 exposure offset, `tint` the light's colour, `n` the elements, `lit` the sunlit ones and `seen` 1 when EVE stands in env
-sunlight. The line moves each second, so it stays out of the `link:` lines of `UE4SS.log`.
+sunlight. `h`, `le` and `ly` keep four and three decimals: Lua turns the SBO maps' Sun and SB's SkyCreators from them
+each 250 ms, about 0.02 degree a pass. Rounded to one decimal, they moved in steps of 0.1 to 0.15 degree every second
+or so. The line moves each second, so it stays out of the `link:` lines of `UE4SS.log`.
 
 `coop-link.log` gets a `sky:` line at each change of state and at each new world the cycle writes in, for example
 `sky: cycle, 114 volumes, 20 in the sun`, then `sky: not written: <why>` once per request off the pinned build and the

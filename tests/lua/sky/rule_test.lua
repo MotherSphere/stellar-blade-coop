@@ -59,11 +59,14 @@ assert(Rule.decide({setting=true,map=W,night=true})=='sky hour 0 8 0')
 assert(select(2,Rule.decide({setting=true,map=W,night=true}))=='Night Operation')
 assert(Rule.decide({setting=true,map='/game/art/bg/worldmap/level_p/e04'})=='sky cycle 8 205')
 -- 3. The status line; an older DLL (Review Focus 2).
-local n=Rule.native('engine=on\nsky=cycle h=0.00 el=-30.0 le=30.0 ly=0.0 k=0.150 moon=1 amb=0.200 eve=0.500 ev=-1.00 '
-    ..'tint=0.70,0.80,1.00 n=114 lit=20 seen=0\nslot=none\n')
+local n=Rule.native('engine=on\nsky=cycle h=0.0000 el=-30.0 le=30.000 ly=0.000 k=0.150 moon=1 amb=0.200 eve=0.500 '
+    ..'ev=-1.00 tint=0.70,0.80,1.00 n=114 lit=20 seen=0\nslot=none\n')
 assert(n.state=='cycle' and n.el==-30 and n.le==30 and n.k==0.15 and n.moon==true and n.seen==false and n.lit==20)
 assert(n.tint[1]==0.7 and n.tint[3]==1 and n.h==0 and n.n==114 and n.ev==-1 and n.amb==0.2)
 assert(Rule.native('engine=on\nslot=none\n')==nil and Rule.native(nil)==nil)
+n=Rule.native('sky=cycle h=13.4200 el=62.5 le=62.490 ly=215.975 k=1.000 moon=0 amb=1.000 eve=1.000 ev=0.00 '
+    ..'tint=1.00,1.00,1.00 n=114 lit=20 seen=1')
+assert(n.h==13.42 and n.le==62.49 and n.ly==215.975,'The decimals the Sun and SkyCreators turn with')
 assert(Rule.native('sky=refused h=12.00 el=65.0 le=65.0 ly=0.0 k=1.000 moon=0 amb=1.000 eve=1.000 ev=0.00 '
     ..'tint=1.00,1.00,1.00 n=0 lit=0 seen=0').state=='refused','The first line, with no line end')
 -- 4. The command's hour (Review Focus 3).

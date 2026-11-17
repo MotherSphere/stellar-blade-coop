@@ -150,10 +150,13 @@ int main() {
   assert(sky.pass(0xCCCC, ws, Want{Mode::pinned, 0, 8, 0}, noon) == State::pinned);
   sky.pass(0, 0, Want{}, 0);
   assert(sky.pass(0xCCCC, ws, Want{Mode::held, 0, 8, 0}, noon) == State::held && near(sky.light().el, 65));
-  // 16. The status line; the main view's read-back says whether EVE stands in env sunlight.
+  // 16. The status line; the main view's read-back says whether EVE stands in env sunlight. The hour and the light's
+  //     angles keep a 250 ms pass's step (about 0.02 degree): 3 real seconds after 13:00, h 13.02 and ly 11.475.
   assert(line(State::cycle, light_at(12, 8, 0), 114, 20, true) ==
-         "sky=cycle h=12.00 el=65.0 le=65.0 ly=0.0 k=1.000 moon=0 amb=1.000 eve=1.000 ev=0.00 tint=1.00,1.00,1.00 "
-         "n=114 lit=20 seen=1");
+         "sky=cycle h=12.0000 el=65.0 le=65.000 ly=0.000 k=1.000 moon=0 amb=1.000 eve=1.000 ev=0.00 "
+         "tint=1.00,1.00,1.00 n=114 lit=20 seen=1");
+  const std::string later = line(State::cycle, light_at(13 + 3.0 / 150, 8, 0), 0, 0, false);
+  assert(later.find(" h=13.0200 el=63.7 le=63.701 ly=11.475 ") != std::string::npos);
   assert(!sky.seen());
   put<uint8_t>(ws, kViewFlag, 1), put<float>(ws, kViewSun, 3);
   sky.pass(0xCCCC, ws, cyc, noon);

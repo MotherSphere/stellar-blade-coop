@@ -127,11 +127,13 @@ inline const char *word(State s) {
   return words[static_cast<int>(s)];
 }
 
-// The status line's sky= row, no newline. Adding 0.0 prints a negative zero as 0.
+// The status line's sky= row, no newline. Adding 0.0 prints a negative zero as 0. h, le and ly carry what Lua turns
+// with each 250 ms (the light moves about 0.02 degree, a SkyCreator's sky 0.025): coarser, they would move in visible
+// steps (0.1 degree every 1.2 s, 0.15 every 1.5 s).
 inline std::string line(State s, const Light &l, int n, int lit, bool seen) {
   char b[256];
   std::snprintf(b, sizeof b,
-                "sky=%s h=%.2f el=%.1f le=%.1f ly=%.1f k=%.3f moon=%d amb=%.3f eve=%.3f ev=%.2f tint=%.2f,%.2f,%.2f "
+                "sky=%s h=%.4f el=%.1f le=%.3f ly=%.3f k=%.3f moon=%d amb=%.3f eve=%.3f ev=%.2f tint=%.2f,%.2f,%.2f "
                 "n=%d lit=%d seen=%d",
                 word(s), l.hour + 0.0, l.el + 0.0, l.le + 0.0, l.ly + 0.0, l.k + 0.0, l.moon ? 1 : 0, l.amb + 0.0,
                 l.eve + 0.0, l.ev + 0.0, l.tint[0] + 0.0, l.tint[1] + 0.0, l.tint[2] + 0.0, n, lit, seen ? 1 : 0);

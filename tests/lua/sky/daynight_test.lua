@@ -37,7 +37,7 @@ local st={text='engine=on\n'..NOON,state='cycle',h=12,el=65}
 local function status()
     if st.text then return st.text end
     local t=st.tint or {1,1,1}
-    return string.format('engine=on\nsky=%s h=%.2f el=%.1f le=%.1f ly=%.1f k=%.3f moon=0 amb=%.3f eve=1.000 ev=%.2f '
+    return string.format('engine=on\nsky=%s h=%.4f el=%.1f le=%.3f ly=%.3f k=%.3f moon=0 amb=%.3f eve=1.000 ev=%.2f '
         ..'tint=%.2f,%.2f,%.2f n=114 lit=20 seen=1\n',st.state,st.h,st.el,st.le or math.abs(st.el),st.ly or 0,
         st.k or 1,st.amb or 1,st.ev or 0,t[1],t[2],t[3])
 end
@@ -268,6 +268,8 @@ assert(calls.make_mid==1 and #emissive==2 and emissive[1]==0.25 and emissive[2]=
 --     its own time back at an off.
 eve=new_eve(0x500,F02); st.h=12; D.slow(false); D.slow(false); st.h=12.01; D.slow(false)
 assert(calls.actors_of_creator==1 and #creator.times==2 and creator.times[1]==13)
+st.h=12.0117; D.slow(false); assert(#creator.times==3,'A 250 ms step of the hour turns the SkyCreator')
+table.remove(creator.times)
 settings.daynight=false; D.slow(false); D.slow(false)
 assert(#creator.times==3 and creator.times[3]==12); settings.daynight=true
 -- 15. Xion: at el -5 the day dome hides and the night dome shows; at el -3 both go back.
@@ -302,6 +304,8 @@ assert(sun.rot.Pitch==-65 and sun.rot.Yaw==308 and sun.intensity==7.5 and fill.r
 assert(calls.rotate==1 and calls.set_intensity==0 and calls.set_color==0)
 assert(logged('lobby_hotel: 0 of 0 domes, 0 SkyCreators, Sun found, SkyLight found, lookups'))
 local rots=calls.rotate; st.le=65.005; D.slow(false); assert(calls.rotate==rots,'Under 0.01 degree: no write')
+st.le=65.021; D.slow(false); assert(calls.rotate==rots+1 and sun.rot.Pitch==-65.021,'A 250 ms step turns the Sun')
+st.le=65; D.slow(false)
 st.el,st.le,st.ly,st.k,st.amb,st.tint=-30,30,128,0.15,0.2,{0.7,0.8,1}; D.slow(false); D.slow(false)
 assert(sun.rot.Pitch==-30 and sun.rot.Yaw==128 and math.abs(sun.intensity-1.125)<1e-9 and skylight.intensity==0.2)
 assert(sun.color.R==0.7 and sun.color.G==0.8 and calls.set_intensity==2 and calls.set_color==1)
