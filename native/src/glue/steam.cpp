@@ -11,9 +11,9 @@
 // shared quests' lines on the same channel (Phase 12, glue/tick.cpp) with their record beside each co-op slot, the
 // synced photo mode between Lua's coop-state.txt, the link's photo line and the game thread's pause (glue/tick.cpp),
 // the chat and vitals lines between the link, our EVE (glue/tick.cpp) and Lua's two short-lived chat files,
-// Night Operation's line from Lua's coop-night.txt to the link (hers comes back in the status), the race lines Lua
-// writes into coop-race.txt and coop gift's lines from Lua's gift requests (hers of both reach Lua through
-// coop-chat.txt). It
+// Night Operation's line from Lua's coop-night.txt to the link (hers comes back in the status), our parked bike's line
+// from Lua's coop-parked.txt to the link (the members' come back in the status), the race lines Lua writes into
+// coop-race.txt and coop gift's lines from Lua's gift requests (hers of both reach Lua through coop-chat.txt). It
 // makes the co-op save copies at the title and switches the game's save name to them on request (save/twins.h), and
 // puts our join code on the clipboard on the copy request (glue/clipboard.h). The follow's camps lines go through the
 // link (link/core.h), its travel request to the game thread (glue/tick.cpp).
@@ -151,8 +151,8 @@ std::string utc_stamp() {
 
 // The whole file (its first max bytes), then deleted; empty when there is none, or when it cannot be deleted (Lua's
 // busy check holds it open, say): taken at a later pass, never twice. Lua writes it beside and renames it, so it is
-// complete. 512 by default: a chat line or a night line (link/protocol.h's kMaxNight) and its line end; a request takes
-// link/protocol.h's kMaxRequestFile.
+// complete. 512 by default: a chat line, a night line (link/protocol.h's kMaxNight) or a bike line (about 200 bytes)
+// with its line end; a request takes link/protocol.h's kMaxRequestFile.
 // Deleted on close, not by path after it: a request Lua renames in once the handle is closed is never deleted unread.
 std::string take_text(const std::wstring &path, DWORD max = 512) {
   HANDLE f = CreateFileW(path.c_str(), GENERIC_READ | DELETE, 0, nullptr, OPEN_EXISTING, FILE_FLAG_DELETE_ON_CLOSE,
@@ -680,6 +680,10 @@ bool step() {
     std::string night = take_text(folder + L"coop-night.txt");
     while (!night.empty() && (night.back() == '\n' || night.back() == '\r'))
       night.pop_back();
+    // Our parked bike's line (bike/ride.lua), taken the same way: the newest state wins.
+    std::string parked = take_text(folder + L"coop-parked.txt");
+    while (!parked.empty() && (parked.back() == '\n' || parked.back() == '\r'))
+      parked.pop_back();
     const std::string raced = take_text(folder + L"coop-race.txt", kRaceFile); // Never logged either.
     coop::Command command = coop::parse_request(request).command;
     if (switched_off && !request.empty() && command != coop::Command::report) {
@@ -920,6 +924,8 @@ bool step() {
             link->say(typed);
           if (!night.empty() && link->linked())
             link->night(night); // Lua logs its lines; the link logs a refusal past the rate.
+          if (!parked.empty())
+            link->bike(parked); // Linked or not: send_bike() hands it to each member once there is one.
           // Each whole line, in order; a line cut by kRaceFile is no line.
           for (size_t at = 0, end; (end = raced.find('\n', at)) != std::string::npos; at = end + 1)
             if (end > at)
@@ -1023,7 +1029,7 @@ DWORD WINAPI worker(void *) {
   DeleteFileW((folder + L"coop-report.txt").c_str());
   // And a previous run's world state, whose world=1 would release a held invite on the title screen.
   for (const wchar_t *stale : {L"coop-components.txt", L"coop-remote.txt", L"coop-display.txt", L"coop-state.txt",
-                               L"coop-night.txt", L"coop-cns.txt", L"coop-shared-assets.txt"})
+                               L"coop-night.txt", L"coop-parked.txt", L"coop-cns.txt", L"coop-shared-assets.txt"})
     DeleteFileW((folder + stale).c_str()); // Tables, addresses and a run's line from a previous run mean nothing now.
   for (size_t k = 1; k < coop::kMaxRemote; ++k) // And those of the other ghost slots.
     for (const char *stem : {"coop-remote", "coop-display"})

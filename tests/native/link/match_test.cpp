@@ -1116,5 +1116,25 @@ int main() {
     advance(m, 60000);
     assert(saw("P1: link, last 60 s: 1200 passes, 1 full receive batches (16 messages)"));
   }
+  // Eight links in one match lobby: each one's bike line reaches the seven others, one state per sender.
+  reset();
+  {
+    Mesh m(8);
+    match_by_hand(m, 8);
+    for (int i = 0; i < 8; ++i)
+      assert(m[i].bike("park /game/lobby " + std::to_string(i) + " 0 0 0 0 0"));
+    m.round();
+    m.round();
+    assert(m[1].bike("park /game/lobby 99 0 0 0 0 0"));
+    m.round();
+    m.round();
+    const std::string s = m.status(0);
+    size_t n = 0;
+    for (size_t at = 0; (at = s.find("\nbike_of=", at)) != std::string::npos; ++at)
+      ++n;
+    assert(n == 7 && s.find("\nbike_of=" + std::to_string(kPlayer[1]) + " park /game/lobby 99 ") != std::string::npos &&
+           s.find(" park /game/lobby 1 0 0 0 0 0\n") == std::string::npos &&
+           s.find("\nbike_of=" + std::to_string(kMe)) == std::string::npos);
+  }
   std::puts("link_match_test: ok");
 }
