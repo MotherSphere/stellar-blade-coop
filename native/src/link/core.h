@@ -2970,6 +2970,8 @@ private:
               ", seed " + std::to_string(round_.seed) + ", " + std::to_string(round_.ids.size()) + " players");
       }
       break;
+    case Kind::bike: // Nothing reads a bike line yet: dropped with no log line.
+      break;
     case Kind::invalid:
       if (++peer.invalid == 1)
         event("invalid message from " + peer.name);
