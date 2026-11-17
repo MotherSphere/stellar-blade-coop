@@ -1,10 +1,10 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// game/bike.h on the build machine: the preload path rule, the gated names, the gate over a fake action map (each
-// state kept and put back, an absent name back as on, a name SB changed during the ride left as SB set it, a name the
-// game never made skipped, a controller gone, a fault), the words packed for the worker and the status line; the ride
-// plays' clip lookups; the log lines.
+// game/bike.h on the build machine: the preload path rule, the gated names, the gate over a fake action map (each state
+// kept and put back, an absent name back as on, a name SB changed during the ride left as SB set it, a name the game
+// never made skipped, a controller gone, a fault in the middle of on, a fault), the words packed for the worker and the
+// status line; the ride plays' clip lookups; the log lines.
 #include "game/bike.h"
 
 #include <cassert>
@@ -130,6 +130,35 @@ int main() {
            "bike gate off: the player controller it was made on is gone, its actions with it");
     assert(describe_gate(false, Why::controller, g) == "bike gate refused: no SB player controller");
     assert(describe_gate(false, Why::off, g) == "bike gate off (coop off)");
+  }
+
+  { // A fault in the middle of on (the fake throws at its 10th write): the gate is on already, so the put-back after the
+    // fault writes back exactly the names written before it. The name whose write faulted is left as it reads.
+    struct Faulty : Map {
+      size_t fault_at = 10;
+      void set(size_t i, uint8_t v) {
+        if (writes == fault_at)
+          throw 1;
+        Map::set(i, v);
+      }
+    } m;
+    for (size_t i = 0; i < kGatedCount; ++i)
+      m.bytes[i] = 1;
+    Gate g;
+    bool threw = false;
+    try {
+      g.on(m);
+    } catch (int) {
+      threw = true;
+    }
+    assert(threw && g.is_on() && m.writes == 10 && g.kept(10) == 1 && g.kept(11) == kNoName);
+    for (size_t i = 0; i < kGatedCount; ++i)
+      assert(m.value(i) == (i < 10 ? 0 : 1));
+    m.fault_at = kGatedCount * 4;
+    g.off(m);
+    assert(!g.is_on() && m.writes == 20 && g.left(10) && !g.left(9) && !g.left(11));
+    for (size_t i = 0; i < kGatedCount; ++i)
+      assert(m.value(i) == 1);
   }
 
   { // A put-back that faulted says so, never that actions came back. Only the text is checked here: the latch's skip of

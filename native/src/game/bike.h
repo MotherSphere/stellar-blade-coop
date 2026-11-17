@@ -95,17 +95,20 @@ constexpr int16_t kAbsent = -1, kNoName = -2;
 // The gate over the kGatedCount names. on() keeps each name's state and writes 0. off() puts each kept state back, an
 // absent name as 1 (SB reads a missing name as on), unless the name no longer reads our 0: SB wrote it during the ride,
 // so SB's value stays. gone() forgets the gate when the controller it was made on is gone (its map went with it).
-// The game G: int value(size_t i) (kAbsent, kNoName or the byte) and set(size_t i, uint8_t byte).
+// The game G: int value(size_t i) (kAbsent, kNoName or the byte) and set(size_t i, uint8_t byte). on() is on before
+// its first write and keeps nothing yet: when a call faults in the middle, the put-back after the fault (off) touches
+// exactly the names read so far.
 class Gate {
 public:
   template <class G> void on(G &g) {
+    kept_.fill(kNoName);
+    left_.fill(false);
+    on_ = true;
     for (size_t i = 0; i < kGatedCount; ++i) {
       kept_[i] = int16_t(g.value(i));
-      left_[i] = false;
       if (kept_[i] != kNoName)
         g.set(i, 0);
     }
-    on_ = true;
   }
   template <class G> void off(G &g) {
     for (size_t i = 0; i < kGatedCount; ++i) {

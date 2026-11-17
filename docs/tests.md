@@ -545,8 +545,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   stop does once the ride's play is over;
 - `bike_test`: the bike's native side (`game/bike.h`): the preload path rule, the 54 gated names, the gate over a fake
   action map (each state kept and put back, an absent name back as on, a name SB changed during the ride left as SB set
-  it, a name the game never made skipped, a controller gone, a fault), the words packed for the worker and the status
-  line, the ride plays' clip lookups and the log lines;
+  it, a name the game never made skipped, a controller gone, a fault in the middle of turning it on, a fault), the words
+  packed for the worker and the status line, the ride plays' clip lookups and the log lines;
 - `items_test`: `coop gift`'s inventory read against a fake image laid out like the pinned build: the FName and
   CityHash64 hashes checked against the game's, a count over two instances and along chains of collisions, an item
   EVE does not carry, no manager, bucket or owner, an instance the manager no longer holds, and hostile memory (a

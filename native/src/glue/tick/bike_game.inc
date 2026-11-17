@@ -224,9 +224,9 @@ __declspec(noinline) void bike_gate_on() {
       bike_names[i] = bike_name(bike::kGated[i], 0);
     bike_names_made = true;
   }
+  bike_pc = pc, bike_pc_index = index, bike_pc_serial = serial; // First: the fault branch's put-back needs them.
   BikeGateGame g{pc};
   bike_gate.on(g);
-  bike_pc = pc, bike_pc_index = index, bike_pc_serial = serial;
   bike_set_gate(bike::Why::none);
 }
 __declspec(noinline) void bike_gate_off(bike::Why why) {
