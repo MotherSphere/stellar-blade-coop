@@ -172,7 +172,7 @@ with tempfile.TemporaryDirectory() as tmp:
                *(f'Scripts/{name}.lua' for name in ('commands/guide', 'commands/keys', 'ui/guide', 'ui/guide_text')),
                *(f'Scripts/{name}.lua'
                  for name in ('bike/model', 'bike/ride', 'commands/bike',
-                              'commands/cut', 'commands/fight', 'commands/nightop', 'commands/partner', 'commands/race',
+                              'commands/cut', 'commands/daynight', 'commands/fight', 'commands/nightop', 'commands/partner', 'commands/race',
                               'commands/scenes', 'commands/session', 'commands/story', 'commands/world', 'core/keybind', 'core/link', 'core/mask', 'core/pak_gate', 'core/settings_file',
                               'core/unreal', 'core/ue4ss_settings', 'cut/chainspin', 'cut/devmenu', 'cut/emote', 'cut/enemy', 'cut/flight',
                               'cut/glide', 'cut/gardener', 'cut/leviathan',
@@ -194,7 +194,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'race/drive',
                               'race/drive_model', 'race/model', 'race/run', 'session/booth', 'session/chat',
                               'session/group', 'session/halls_rows', 'session/join', 'session/saves', 'session/sbo',
-                              'session/arrival', 'session/sbo_maps', 'session/travel', 'sky/rule', 'story/snapshot',
+                              'session/arrival', 'session/sbo_maps', 'session/travel', 'sky/daynight', 'sky/rule', 'story/snapshot',
                               'story/subtitles', 'ui/create', 'ui/create_model', 'ui/kit', 'ui/lobby',
                               'ui/lobby_model', 'ui/menu', 'ui/model', 'ui/notice', 'ui/parts', 'ui/region_tabs',
                               'ui/sessions', 'ui/sessions_model', 'ui/text', 'version'))}

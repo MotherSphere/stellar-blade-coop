@@ -301,12 +301,19 @@ loops[2].f(); assert(#asked==fight_asks+5,'The next start carries them')
 status_text=plain
 to('Menu size'); key('RIGHT_ARROW'); assert(kit_calls[#kit_calls]=='scale 105' and select(2,focus())=='105 %')
 to('Menu sounds'); key('Q'); assert(kit_calls[#kit_calls]=='sounds false')
+-- Day and night: On by default; a change is saved at once and asks nothing (sky/daynight.lua reads it every 250 ms).
+to('Day and night'); assert(select(2,focus())=='On')
+local day_asks=#asked
+key('RETURN')
+assert(settings_text:find('\ndaynight=off\n',1,true) and select(2,focus())=='Off' and #asked==day_asks
+    and logged('menu: daynight=off saved in coop-settings.txt'))
+key('RETURN'); assert(settings_text:find('\ndaynight=on\n',1,true) and select(2,focus())=='On')
 -- The language: the game's (French here), English when set so; the page scrolled to keep the cursor and the row below
 -- it in view.
 kit_language='fr-FR'
 to('Menu language'); key('RIGHT_ARROW')
 assert(focus()=='Menu language' and select(2,focus())=='English','ui_language=english: English whatever the game')
-assert(screen():find('^Same place %(experimental%)|') and screen():find('\nCHAT||disabled$')
+assert(screen():find('^Same place %(experimental%)|') and screen():find('\nDay and night|On|normal$')
     and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows, the one below the cursor in view')
 key('RIGHT_ARROW')
 assert(focus()=='Langue du menu' and select(2,focus())=='Langue du jeu' and menu_view.hints[1].s=='Déplacer')

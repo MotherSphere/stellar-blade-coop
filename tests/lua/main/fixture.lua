@@ -530,6 +530,14 @@ package.loaded['bike.ride']={new=function(o)
         restore=function() bk.restores=bk.restores+1 end,status=function() return 'bike: preload ready' end,
         tune=function(name,value) bk.tunes[#bk.tunes+1]={name,value}; return true,'bk tune '..tostring(name) end}
 end}
+-- The day/night cycle (sky/daynight.lua; sky/daynight_test tests it): what new got (o), each 250 ms pass's off,
+-- coop daynight's words.
+dn={}
+package.loaded['sky.daynight']={new=function(o)
+    dn.o=o
+    return {slow=function(off) dn.slows[#dn.slows+1]=off end,status=function() return 'daynight: test' end,
+        command=function(word,arg) dn.words[#dn.words+1]={word,arg}; return true,'dn '..word end}
+end}
 -- The Doro race (race/run.lua; race_test tests it): what race.new got, coop race's words, her race lines, its ticks,
 -- slows, stops and keys, whether it is armed, what a tick or the key answers, a stop, a steer or a tick that raises,
 -- its HUD; its steers and the native ticks made before the last one.
@@ -613,7 +621,7 @@ end}
 -- what hall() says (sb.hall, nil: 'xion') and the last Private match asked (created: its request and room); the hall
 -- lobby seats: the free seat within reach (sb.seat; seat_error: what near_seat raises), the seat EVE sits on
 -- (sb.sitting), the last seat sat on (sat), the stand-ups asked (stands) and whether SB's interaction runs on EVE
--- (sb.busy); the arrival's hold: what unready() gives (sb.unready, nil: none).
+-- (sb.busy); the arrival's hold: what unready() gives (sb.unready, nil: none); the lobby EVE stands in (sb.target).
 sb={}
 package.loaded['session.sbo']={OFF='the SBO lobby is off in coop-settings.txt (sbo_lobby=off)',new=function(o)
     sb.o=o
@@ -626,6 +634,7 @@ package.loaded['session.sbo']={OFF='the SBO lobby is off in coop-settings.txt (s
         in_lobby=function() return sb.here end,
         active=function() return sb.active end,gate=function() return nil,'no zSBO_Lobby (fixture)' end,
         lobby_words=function() return 'hotel 47101_5096' end,hall=function() return sb.hall or 'xion' end,
+        target=function() return sb.target end,
         create=function(request,room) sb.created=request..' '..tostring(room); return true,'sb create' end,
         near_seat=function() if sb.seat_error then error(sb.seat_error,0) end return sb.seat end,
         seated=function() return sb.sitting end,busy=function() return sb.busy end,
@@ -889,6 +898,7 @@ function load_main(with_native,no_folder,source)
     rc_log,rc_ready,rc_runs,rc_stops,rc_ticks,rc_autos=nil,nil,{},0,0,0
     sb.o,sb.calls,sb.on_loads,sb.ticks,sb.titles,sb.offs,sb.asked_at_off,sb.active=nil,{},0,0,0,0,nil,false
     sb.to_menus,sb.to_rooms,sb.here,sb.hall,sb.created,sb.unready=0,0,false,nil,nil,nil
+    sb.target=nil
     hooks,fades.calls={},{}
     sb.seat,sb.seat_error,sb.sitting,sb.sat,sb.stands,sb.busy=nil,nil,nil,nil,0,false
     lb.o,lb.calls,lb.screen,lb.ask,lb.refuse,lb.slows,lb.ticks=nil,{},nil,nil,nil,0,{}
@@ -919,6 +929,7 @@ function load_main(with_native,no_folder,source)
     bk.o,bk.riding,bk.toggles,bk.stops,bk.steers,bk.slows,bk.restores,bk.tunes=nil,false,{},{},0,0,0,{}
     bk.answer,bk.raise,bk.says,bk.slow_says,bk.parked,bk.parked_at=nil,nil,nil,nil,nil,nil
     dr.active,gl.active=nil,nil
+    dn.o,dn.slows,dn.words=nil,{},{}
     ra.o,ra.cmds,ra.received,ra.ticks,ra.slows,ra.stops,ra.keys,ra.armed,ra.hud={},{},{},0,0,0,0,false,nil
     ra.tick_raise,ra.steer_raise=nil,nil
     ra.steers,ra.steered_at,dv.restores=0,nil,0

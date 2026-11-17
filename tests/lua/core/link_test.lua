@@ -533,7 +533,16 @@ assert(Link.parse_settings(Link.DEFAULT).status_overlay=='compact')
 -- shortcut_load (coop shortcut load, a test tool, no menu row): on or off in any case, on by default, in a new file
 -- (after its comment, which names the achievement risk) and in an old one; a bad value keeps on, with a line.
 assert(Link.parse_settings('').shortcut_load==true and Link.parse_settings(Link.DEFAULT).shortcut_load==true)
-assert(Link.DEFAULT:find('\nstatus_overlay=compact\n# Shortcut saves, a test tool: on or off, on by default.',1,true)
+-- daynight (sky/daynight.lua): on or off in any case, on by default, in a new file after status_overlay with its
+-- comment and in an old one; a bad value keeps on, with a line.
+assert(Link.parse_settings('').daynight==true and Link.parse_settings(Link.DEFAULT).daynight==true)
+assert(Link.DEFAULT:find('\nstatus_overlay=compact\n# Day and night: on or off, on by default.',1,true)
+    and Link.DEFAULT:find('\ndaynight=on\n',1,true))
+assert(Link.parse_settings('daynight=off').daynight==false and Link.parse_settings('DayNight=ON').daynight==true)
+s,notes=Link.parse_settings('daynight=maybe')
+assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for daynight (use on or off); "
+    .."daynight stays on" and s.daynight==true,notes[1])
+assert(Link.DEFAULT:find('\ndaynight=on\n# Shortcut saves, a test tool: on or off, on by default.',1,true)
     and Link.DEFAULT:find('cannot be taken back',1,true) and Link.DEFAULT:find('\nshortcut_load=on\n'))
 assert(Link.parse_settings('shortcut_load=OFF').shortcut_load==false)
 s,notes=Link.parse_settings('shortcut_load=yes')

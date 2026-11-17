@@ -89,6 +89,8 @@
 -- coop bike [status|tune [<name> <value>]] puts EVE on SB's own bike or takes her off it, as bike_key (F3 unless set)
 -- and D-pad Right held 1 s do, on any save (commands/bike.lua, bike/ride.lua; its riding model, bike/model.lua, adapts
 -- Eve On Wheels by dCharisma1).
+-- coop daynight [on|off|status|hour <h>], the day/night cycle's test words (sky/daynight.lua, commands/daynight.lua;
+-- left out of the usage line); daynight in coop-settings.txt or the co-op menu turns the cycle on or off.
 -- coop shortcut lists the cut Load Shortcut menu's developer saves, read from the game's paks by the native part, on
 -- any save (left out of the usage line); coop shortcut load <map> <1-4> writes one, without its achievement data, as
 -- co-op slot 5's copy, only with shortcut_load=on and typed twice within 10 s (commands/cut.lua).
@@ -655,6 +657,30 @@ bike=require('bike.ride').new({log=function(m) print('[StellarCoop][BK] '..tostr
 o.bike=bike
 -- The capture leaves the bike's part out while EVE does not ride: hidden, it would take one of the ghost's 16 parts.
 capture.leave_out(bike.parked)
+-- The day/night cycle (sky/daynight.lua): the request for the native part's env writer (game/sky.h), decided in the
+-- 250 ms loop below from the map, the setting and SB's state; coop daynight reads and pins it (commands/daynight.lua).
+-- The lobby rule is Xion's training room only: a hall lobby has its own row.
+o.daynight=require('sky.daynight').new({log=log,ask=function(line) return ask(line)() end,
+    status=function() return link and link.status() end,settings=settings,
+    her=function() return U.her(U.valid(require('UEHelpers').GetPlayer())) end,address=U.address,map_of=U.map_of,
+    cutscene=function() return group~=nil and group.cutscene_playing() end,
+    screen=function() return kit~=nil and kit.paused(true) end,photo=photo_state,night=night.running,
+    lobby=function()
+        local t=sbo and sbo.target()
+        return t~=nil and t.key=='xion'
+    end,
+    find=function(path) return U.valid(StaticFindObject(path)) end,
+    actors_of=function(path)
+        local cls,her=U.valid(StaticFindObject(path)),U.her(U.valid(require('UEHelpers').GetPlayer()))
+        return cls and her and (U.actors_of(cls,path:match('([^.]+)$'),her)) or {}
+    end,
+    load=function(path) return LoadAsset(path) end,
+    exists=function(path)
+        local f=io.open(path,'rb')
+        if f then f:close() end
+        return f~=nil
+    end,
+    cps=folder and require('sky.rule').cps(folder)})
 -- coop chainspin (cut/chainspin.lua), logging [CS] lines: the cut ChainSpin's rows through coop lion, then the request.
 o.chainspin=require('cut.chainspin').new({log=function(m) print('[StellarCoop][CS] '..tostring(m)..'\n') end,
     status=function() return link and link.status() end,rows=function(done) return lion.rows(done) end})
@@ -791,7 +817,8 @@ local commands={
     end,
 }
 -- The other commands, from Scripts/commands/.
-for _,file in ipairs({'session','partner','nightop','race','fight','cut','guide','story','world','scenes','bike','keys'}) do
+for _,file in ipairs({'session','partner','nightop','race','fight','cut','guide','story','world','scenes','bike','keys',
+        'daynight'}) do
     for name,handler in pairs(require('commands.'..file).new(o)) do
         assert(commands[name]==nil,'coop '..name..' is defined twice')
         commands[name]=handler
@@ -1629,6 +1656,7 @@ if link then
         took.slow,took.booth=0,0 -- Neither may run in this pass.
         if off and not blocked then blocked=native_off() end
         for _,line in ipairs(link.changes()) do log('link: '..line) end
+        guarded('daynight',o.daynight.slow,off) -- After coop off too: it asks sky off once.
         if not off then guarded('nightop',night.tick) end -- Night Operation's run, if any: it logs its own lines.
         -- Roxanne's Night Operation choices: likewise; after coop off, only her two choices and the rows back.
         guarded('roxanne',o.roxanne.tick,off)

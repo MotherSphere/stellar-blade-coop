@@ -198,6 +198,9 @@ partner_card=on
 card_details=on
 # status_overlay, a strip above her card: off, compact (the status line and the ping) or detailed (and what is shared).
 status_overlay=compact
+# Day and night: on or off, on by default. On, the sky follows one clock shared by every player: one real hour is one
+# game day, with the night from about :52 to :12 past each hour (UTC). Off gives each map Stellar Blade's own light.
+daynight=on
 # Shortcut saves, a test tool: on or off, on by default. On, coop shortcut load <map> <1-4> writes one of the game's
 # cut developer saves as your co-op slot 5 (StellarBladeCoop04.sav, backed up first), without its achievement list.
 # A Steam achievement it still unlocks cannot be taken back: use it only on a Steam account whose achievements do not
@@ -223,12 +226,12 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',rac
     ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
     status_overlay='compact',who_can_join='public',friends_ask='off',auto_coop_save='ask',shared_quests='on',
     quest_deny='',revive='on',cutscene_wait='on',follow_host='ask',follow_key='F7',collide='on',mod_names='on',shortcut_load='on',
-    pvp_spike='on',sbo_lobby='on',shared_world='on',shared_story='on'}
+    pvp_spike='on',sbo_lobby='on',shared_world='on',shared_story='on',daynight='on'}
 -- On or off.
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,spawn_filter=true,bosses=true,
     photo_ghost=true,photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
     card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true,mod_names=true,shortcut_load=true,
-    pvp_spike=true,sbo_lobby=true,shared_world=true,shared_story=true,friends_ask=true,bike=true}
+    pvp_spike=true,sbo_lobby=true,shared_world=true,shared_story=true,friends_ask=true,bike=true,daynight=true}
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (partner/puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key','bike_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},

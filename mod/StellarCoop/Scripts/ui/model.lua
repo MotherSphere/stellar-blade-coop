@@ -97,6 +97,7 @@ M.OPTIONS={
     {key='status_overlay',values={'off','compact','detailed'},default='compact'}, -- At once: the HUD reads it each 250 ms.
     range('ui_scale',75,150,5,100),toggle('ui_sounds','on'),
     {key='ui_language',values={'game','english'},default='game'},
+    toggle('daynight','on'), -- At once: sky/daynight.lua reads it every 250 ms.
     {head='chat'},
     toggle('chat','on'),
 }

@@ -220,7 +220,7 @@ assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key r
     ..'shared_enemies '
     ..'same_place '
     ..'aggro same_spawns enemy_extra bosses enemy_hp_scale enemy_balance_scale boss_hp_scale kill_credit head:display '
-    ..'status_overlay ui_scale ui_sounds ui_language head:chat chat',
+    ..'status_overlay ui_scale ui_sounds ui_language daynight head:chat chat',
     ids(menu,NONE))
 -- The one the mod takes at its next load only: the name tag is part of the ghost's build. The shared enemies apply at
 -- once (main.lua asks coop fight on or off).
