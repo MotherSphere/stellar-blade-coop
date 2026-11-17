@@ -1862,6 +1862,10 @@ public:
       // A new generation: the host loaded a save, went back, or answers her on. Her zone, have, wait and ahead are
       // said again for it.
       gen_ = m.gen, zones_ = Zones(), held_.reset(), ahead_sent_.reset(), at_.clear(), host_at_.clear(), even_.reset();
+      for (size_t i = 0; i < kRowCount; ++i)
+        if (lead_[i])
+          log.push_back(std::string("quests: ") + kRows[i].alias + " step of hers not sent: a new snapshot came");
+      lead_.reset();
       in_snap_ = true, expected_ = m.count, got_ = 0, digest_ = kOffset, complete_ = false;
       std::fill(std::begin(have_), std::end(have_), 0), std::fill(std::begin(wait_seq_), std::end(wait_seq_), 0);
       return true;
@@ -1976,6 +1980,8 @@ public:
         plans_[i] = Plan();
         plans_[i].id = r.id, plans_[i].why = Why::blocked;
         even_.reset(i);
+        if (lead_[i])
+          lead_.reset(i), log.push_back("quests: " + std::string(r.alias) + " step of hers not sent: it is unsynced");
         continue;
       }
       Message m;
@@ -1983,10 +1989,11 @@ public:
       bool ahead = false;
       if (held_[i]) {
         const Entry &h = h_[i];
-        if (even_[i])
-          lead(i, g, zone, send);
+        if (even_[i] || lead_[i])
+          lead_.set(i, lead(i, g, zone, send));
         even_.set(i, h.t.state != kFailed && covers(g, h.t) && covers(h.t, g));
-        then_[i] = h;
+        if (!lead_[i])
+          then_[i] = h;
         m.e.seq = h.seq;
         const Chain *k = chain(r.id);
         const size_t up = k ? size_t(row_index(k->parent)) : 0;
@@ -2126,21 +2133,34 @@ private:
   }
   // Her quest i was even with the host's line then_[i] at the last pass and now stands at g: a step line goes when
   // that is one SB step past the line, which his line now lacks, made in his zone, of a kind he takes (step_hold()).
-  // A step SBO made from his line leaves her even with it, so it never goes back.
-  template <class Send> void lead(size_t i, const Tuple &g, std::string_view zone, Send &send) {
+  // A step SBO made from his line leaves her even with it, so it never goes back. True when the line rate refused it:
+  // later passes (lead_) send it while all that still holds, one log line when it starts to wait.
+  template <class Send> bool lead(size_t i, const Tuple &g, std::string_view zone, Send &send) {
     const Row &r = kRows[i];
     const Entry &t = then_[i];
-    if (g.state == kFailed || h_[i].t.state == kFailed || covers(t.t, g) || !covers(g, t.t) || !one_step(r, t.t, g) ||
-        covers(h_[i].t, g))
-      return;
     const std::string what = std::string("quests: ") + r.alias + " step of hers ";
-    const char *why = zone != host_at_ || !zone_alias(zone) ? "made outside the host's zone"
-                                                             : step_hold(r, t.t, g, t.acq.kind == '#');
+    if (g.state == kFailed || h_[i].t.state == kFailed || covers(t.t, g) || !covers(g, t.t) || !one_step(r, t.t, g) ||
+        covers(h_[i].t, g)) {
+      if (lead_[i])
+        log.push_back(what + "not sent: " +
+                      (covers(h_[i].t, g) ? "the host's line holds it now" : "her quest moved while it waited"));
+      return false;
+    }
+    const char *why = zone == host_at_ && zone_alias(zone) ? step_hold(r, t.t, g, t.acq.kind == '#')
+                      : lead_[i]                           ? "she left the host's zone while it waited"
+                                                           : "made outside the host's zone";
     Message m;
     m.type = Type::step, m.gen = gen_, m.e = stepped(r, t, g), m.text = std::string(zone);
-    if (!why && !send(m))
-      why = gen_ ? "over the line rate" : "the host is off";
+    if (!why && !send(m)) {
+      if (gen_) {
+        if (!lead_[i])
+          log.push_back(what + "waits: over the line rate");
+        return true;
+      }
+      why = "the host is off";
+    }
     log.push_back(what + (why ? std::string("not sent: ") + why : "sent: " + fields(m.e) + " in " + m.text));
+    return false;
   }
 
   Record record_;
@@ -2155,8 +2175,9 @@ private:
   std::bitset<kRowCount> known_, with_, decide_, was_, behind_, put_;
   Tuple prev_[kRowCount], base_[kRowCount], before_[kRowCount], from_[kRowCount];
   Entry g_[kRowCount];
-  // Her own steps: even_, her quest equalled the host's line then_ at the last pass.
-  std::bitset<kRowCount> even_;
+  // Her own steps: even_, her quest equalled the host's line then_ at the last pass; lead_, her step from then_ waits
+  // for the line rate.
+  std::bitset<kRowCount> even_, lead_;
   Entry then_[kRowCount];
   std::string host_at_; // The host's zone from its at line.
   uint32_t have_[kRowCount] = {}, wait_seq_[kRowCount] = {};

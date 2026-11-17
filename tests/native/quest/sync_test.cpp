@@ -1418,6 +1418,50 @@ void guest_steps() {
   assert((host_takes(k) == std::vector<std::string>{"go"}) && k.hw.v[d1].state == 3);
   k.steps(2);
   assert(k.gw.v[d1].state == 3 && k.gw.tuple(d1) == k.hw.tuple(d1) && count(k.heard, "step") == 2);
+  // A step of hers over the line rate waits with one log line, then a later pass sends it. One while the host is off
+  // is not sent.
+  auto even = [&](Link &n) {
+    n.host_zone = n.guest_zone = "Zone_WLA_30";
+    n.step();
+    n.hw.acquire(s1);
+    n.steps(2);
+    assert(n.gw.tuple(s1) == n.hw.tuple(s1));
+  };
+  auto times = [](const std::vector<std::string> &log, const std::string &what) {
+    return std::count_if(log.begin(), log.end(),
+                         [&](const std::string &l) { return l.find(what) != std::string::npos; });
+  };
+  {
+    auto link2 = std::make_unique<Link>();
+    Link &n = *link2;
+    even(n);
+    std::vector<std::string> spent;
+    n.now += 1000;
+    for (uint32_t z = 0; z < kGuestLinesPerSecond; ++z) // An at line for each zone: this second's lines are spent.
+      n.guest.pass(n.gw.v.data(), "Zone_X" + std::to_string(z), true, n.now, spent);
+    assert(spent.size() == kGuestLinesPerSecond);
+    n.gw.play(s1);
+    n.guest.pass(n.gw.v.data(), "Zone_WLA_30", true, n.now, spent);
+    n.guest.pass(n.gw.v.data(), "Zone_WLA_30", true, n.now + 250, spent);
+    assert(spent.size() == kGuestLinesPerSecond);
+    assert(times(n.guest.log, "Quest_Sub_001 step of hers waits: over the line rate") == 1);
+    n.now += 1000;
+    n.step();
+    assert(n.said_has("step 1 1 41 1 - 0:t - . Zone_WLA_30") && logged(n.guest.log, "Quest_Sub_001 step of hers sent"));
+    assert((host_takes(n) == std::vector<std::string>{"go"}) && n.hw.tuple(s1) == n.gw.tuple(s1));
+  }
+  {
+    auto link3 = std::make_unique<Link>();
+    Link &n = *link3;
+    even(n);
+    Message off;
+    off.type = Type::off;
+    assert(n.guest.receive(off));
+    n.gw.play(s1);
+    std::vector<std::string> none;
+    n.guest.pass(n.gw.v.data(), "Zone_WLA_30", true, n.now, none);
+    assert(none.empty() && logged(n.guest.log, "Quest_Sub_001 step of hers not sent: the host is off"));
+  }
 
   // accept() on its own, then the holds both sides share.
   const Row &r1 = kRows[s1], &rd = kRows[d1];
@@ -1452,6 +1496,9 @@ void guest_steps() {
   failed.v[s1].state = kFailed;
   e.t = b.tuple(s1);
   assert(take(r1, e, "Zone_WLA_30", failed, here) == "failed here");
+  Tuple moved = a.tuple(s1); // His quest holds her state before the step in a state other than 1: her task is not his.
+  moved.state = 2;
+  assert(std::string(accept(r1, e, "Zone_WLA_30", a.v[s1], moved, here, false, p)) == "his active group is another");
   // Her acquire: his acquire by ID, once his load check passed and his parent quest made the step that gives it.
   Entry acq;
   acq.id = r1.id, acq.t = a.tuple(s1);
@@ -1486,6 +1533,12 @@ void guest_steps() {
   assert(take(rr, ra, "Zone_DED20", World(), anywhere) == "not on his board yet");
   ra.t.state = 3, ra.t.groups = rr.groups;
   assert(take(rr, ra, "Zone_DED20", board, anywhere) == "a Request handed in at her own board");
+  // A Request her board never offers is never accepted from her line. Both such rows of build 26123051 carry '#',
+  // which step_hold() refuses first, so the rule is checked on a copy of a normal row.
+  Row odd = rr;
+  odd.normal = false;
+  ra.t = mine.tuple(req);
+  assert(take(odd, ra, "Zone_DED20", board, anywhere) == "a Request the board does not accept");
   // A kill task and an item task stay each player's own.
   Tuple from, to;
   from.state = to.state = 1, from.groups = to.groups = kKills[0].group, to.tasks = 1;
