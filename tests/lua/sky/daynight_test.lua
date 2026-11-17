@@ -95,8 +95,8 @@ local night_actor=uobj({RootComponent=xion_night,bHidden=true,
     SetActorHiddenInGame=function(self,v) self.bHidden=v end})
 local material=uobj({ScalarParameterValues={{ParameterInfo={Name=FName('Tint')}},
     {ParameterInfo={Name=FName('StarEmissive')}}}})
-local creator=uobj({SunriseTime=5,SunsetTime=21,times={},GetTime=function() return 12 end,
-    SetTime=function(self,t) self.times[#self.times+1]=t end})
+local creator=uobj({at=0xC0,SunriseTime=5,SunsetTime=21,times={},time=12,GetTime=function(self) return self.time end,
+    SetTime=function(self,t) self.times[#self.times+1]=t; self.time=t end})
 local objects={[Rule.MAPS[E04].flag]=flag,
     ['/Script/Engine.StaticMeshComponent']=uobj({path='/Script/Engine.StaticMeshComponent'}),
     ['/Script/Engine.Default__KismetMathLibrary']=uobj({MakeTransform=function() return {} end}),
@@ -116,11 +116,12 @@ local function new_light(name,intensity,pitch,yaw,rgb)
             calls.rotate=calls.rotate+1
             self.rot=r
         end,
-        SetIntensity=function(self,v) calls.set_intensity=calls.set_intensity+1; self.intensity=v end,
-        SetLightColor=function(self,c,srgb)
+        SetIntensity=function(self,v) calls.set_intensity=calls.set_intensity+1; self.intensity,self.Intensity=v,v end,
+        SetLightColor=function(self,c,srgb) -- Kept as the engine keeps it: an 8-bit sRGB FColor.
             assert(srgb==true and c.A==1)
             calls.set_color=calls.set_color+1
-            self.color=c
+            local function byte(x) return math.floor(255*(x<=0.0031308 and 12.92*x or 1.055*x^(1/2.4)-0.055)+0.5) end
+            self.color,self.LightColor=c,{R=byte(c.R),G=byte(c.G),B=byte(c.B),A=255}
         end})
     a.LightComponent=a
     return a
@@ -135,7 +136,10 @@ local ppv=uobj({name='Z0_PPV_Desert',Settings=settings_bias,GetFName=function(se
 local zone1=uobj({name='Z1_PPV',GetFName=function(self) return FName(self.name) end})
 local lists={[HOTEL]={[SUN]={fill,sun},[SKY_LIGHT]={skylight}},
     [MX]={[SUN]={mx_sun},[SKY_LIGHT]={new_light('SkyLight',0,0,0)},[VOLUME]={zone1,ppv}}}
-local function new_eve(at,map) return {at=at,map=map} end
+-- EVE at address at in a world of map; each EVE in a world of her own unless world says it.
+local function new_eve(at,map,world) return {at=at,map=map,world=world or at} end
+-- coop-sky.txt: its line and whether a write fails.
+local sky_file={line=nil,fails=nil,writes=0}
 local eve=new_eve(0x100,W)
 local o={log=function(m) printed[#printed+1]=m end,
     ask=function(line)
@@ -144,7 +148,12 @@ local o={log=function(m) printed[#printed+1]=m end,
         return true,'asked the native part: '..line
     end,
     status=status,settings=settings,
-    her=function() return eve end,address=function(e) return e.at end,
+    her=function() return eve end,address=function(e) return e.at end,world=function(e) return e.world end,
+    store={save=function(line)
+        if sky_file.fails then return false,sky_file.fails end
+        sky_file.line,sky_file.writes=line,sky_file.writes+1
+        return true
+    end,load=function() return sky_file.line end},
     map_of=function(e) calls.map_of=calls.map_of+1; return e.map end,
     cutscene=function() return world.cutscene end,screen=function() return world.screen end,
     photo=function() return world.photo end,night=function() return world.night end,
@@ -326,7 +335,56 @@ assert(math.abs(mx_sun.color.G-0.8*((192/255+0.055)/1.055)^2.4)<1e-9)
 D.slow(true)
 assert(ppv.Settings.AutoExposureBias==1.0 and mx_sun.intensity==4 and mx_sun.rot.Pitch==-8 and mx_sun.rot.Yaw==85)
 assert(math.abs(mx_sun.color.G-((192/255+0.055)/1.055)^2.4)<1e-9 and mx_sun.color.R==1)
--- 21. The Terrace hall: nothing looked up, nothing written.
+-- 21. A Lua reload in the Hotel hall at full night (Ctrl+R). The new load takes the originals from coop-sky.txt, not
+--     the light the earlier one dimmed: the night stays 0.15 times 7.5 (no compounding), the day gives 7.5 back and an
+--     off the map's rotation and colour. A new EVE in the same world finds the load's own copy.
+local function night() st.state,st.el,st.le,st.ly,st.k,st.amb,st.ev,st.tint='cycle',-30,30,128,0.15,0.2,-1,{0.7,0.8,1} end
+local function day() st.state,st.el,st.le,st.ly,st.k,st.amb,st.ev,st.tint='cycle',65,65,308,1,1,0,{1,1,1} end
+sun.rot,sun.intensity,sun.Intensity,sun.LightColor={Pitch=-58,Yaw=-52,Roll=0},7.5,7.5,{R=255,G=255,B=255,A=255}
+skylight.intensity,skylight.Intensity=1,1
+night(); D=Daynight.new(o); eve=new_eve(0x7C0,HOTEL); D.slow(false); D.slow(false)
+assert(math.abs(sun.intensity-1.125)<1e-9 and math.abs(skylight.intensity-0.2)<1e-9)
+assert(sky_file.line=='/game/sbo_lobby/lobby_hotel 1984\tSkyLight=1,1,1,1,0,0\tSun=7.5,1,1,1,-58,-52',sky_file.line)
+local writes=sky_file.writes
+D=Daynight.new(o); D.slow(false); D.slow(false)
+assert(math.abs(sun.intensity-1.125)<1e-9 and math.abs(skylight.intensity-0.2)<1e-9,'No compounding')
+assert(sky_file.writes==writes,'Nothing new to keep')
+eve=new_eve(0x7D0,HOTEL,0x7C0); D.slow(false); assert(math.abs(sun.intensity-1.125)<1e-9,'A new EVE, the same world')
+day(); D.slow(false); assert(sun.intensity==7.5 and skylight.intensity==1)
+night(); D.slow(false); D.slow(true)
+assert(sun.intensity==7.5 and skylight.intensity==1 and sun.rot.Pitch==-58 and sun.rot.Yaw==-52)
+assert(sun.LightColor.R==255 and sun.LightColor.G==255 and sun.LightColor.B==255)
+-- Matrix XIII at full night, then a reload: its bias stays 2 EV under 1.0 and comes back to 1.0 at an off.
+ppv.Settings.AutoExposureBias=1.0
+night(); D=Daynight.new(o); eve=new_eve(0x810,MX); D.slow(false); D.slow(false)
+assert(ppv.Settings.AutoExposureBias==-1.0)
+D=Daynight.new(o); D.slow(false); D.slow(false); assert(ppv.Settings.AutoExposureBias==-1.0,'Not -3')
+D.slow(true); assert(ppv.Settings.AutoExposureBias==1.0)
+-- Eidos 7 at night, then a reload: an off gives the SkyCreator SB's own time back, not the cycle's last.
+creator.time=12
+night(); st.h=0; D=Daynight.new(o); eve=new_eve(0x520,F02); D.slow(false); D.slow(false)
+assert(creator.time==Rule.creator_time(0,5,21))
+D=Daynight.new(o); D.slow(false); D.slow(true); assert(creator.time==12)
+D=Daynight.new(o); D.slow(false); D.slow(false); settings.daynight=false
+D=Daynight.new(o); D.slow(false); assert(creator.time==12,'A reload that starts off puts it back too')
+settings.daynight=true
+-- A game started again (the native part off at the first pass): coop-sky.txt is an older run's, so the light is read.
+sun.intensity,sun.Intensity=6,6
+st.state='off'; D=Daynight.new(o); eve=new_eve(0x7C0,HOTEL); D.slow(false)
+night(); D.slow(false); D.slow(false); assert(math.abs(sun.intensity-0.9)<1e-9,'0.15 times the 6 read')
+D.slow(true); sun.intensity,sun.Intensity=7.5,7.5
+-- A damaged coop-sky.txt line for this world (a number short): the light is read instead.
+sun.intensity,sun.Intensity=7.5,7.5
+sky_file.line='/game/sbo_lobby/lobby_hotel 1984\tSkyLight=1,1,1,1,0,0\tSun=0.5,1,1,x,-58,-52'
+st.state='cycle'; day(); D=Daynight.new(o); eve=new_eve(0x7C0,HOTEL); D.slow(false)
+night(); D.slow(false); assert(math.abs(sun.intensity-1.125)<1e-9 and sky_file.line:find('Sun=7.5,',1,true))
+D.slow(true)
+-- coop-sky.txt that cannot be written: one line, the cycle goes on.
+sky_file.fails='disk full'; D=Daynight.new(o); eve=new_eve(0x7E0,HOTEL); D.slow(false); D.slow(false)
+assert(count_logged('coop%-sky%.txt not written %(disk full%)')==1 and math.abs(sun.intensity-1.125)<1e-9)
+D.slow(true); sky_file.fails=nil
+day()
+-- 22. The Terrace hall: nothing looked up, nothing written.
 D=Daynight.new(o); local seen,writes=calls.actors_of_lights,calls.set_intensity+calls.rotate
 eve=new_eve(0x900,'/game/sbo_lobby/lobby_terrace'); D.slow(false)
 assert(calls.actors_of_lights==seen and calls.set_intensity+calls.rotate==writes and asked[#asked]=='sky off')

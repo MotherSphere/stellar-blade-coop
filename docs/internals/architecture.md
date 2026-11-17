@@ -49,7 +49,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `bike/ride.lua` | The bike on EVE: the preload asked of the native part, the bike part on her actor, the checks, the mount and the dismount in their order with `coop-bike.txt`, the gate, the riding pose kept playing, the lean on her main mesh ([The bike](bike.md)) |
 | `bike/model.lua` | The bike's riding model, adapted from Eve On Wheels by dCharisma1, in `race/drive_model.lua`'s table shape so `race/drive.lua` drives it ([Riding](bike.md#riding)) |
 | `sky/rule.lua` | The day and night cycle's map table and rules, the native status line's `sky=` reader, the command's hour, with no engine call ([Day and night](daynight.md)) |
-| `sky/daynight.lua` | The day and night cycle in the 250 ms pass: the `sky` request on change, the sky dressing (domes, SkyCreator time, SBO's star layer, Xion's night dome) and the lights of SBO's own maps, all put back at an off ([Day and night](daynight.md)) |
+| `sky/daynight.lua` | The day and night cycle in the 250 ms pass: the `sky` request on change, the sky dressing (domes, SkyCreator time, SBO's star layer, Xion's night dome) and the lights of SBO's own maps, all put back at an off, with their originals kept in `coop-sky.txt` for a Lua reload ([Day and night](daynight.md)) |
 | `core/link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
 | `partner/capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
 | `partner/puppet.lua` | The ghost: builds it from a table, places it, its name tag, effects, its Doro mode in a race, `coop where` |

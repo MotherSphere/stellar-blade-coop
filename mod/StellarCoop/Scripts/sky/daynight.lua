@@ -18,6 +18,10 @@
 -- env settings: there the Sun actor turns with the status line's light, its intensity and colour follow it, the
 -- SkyLight follows the sky light factor and Matrix XIII's zone 0 exposure volume goes 2 EV down at full night, each
 -- from the values its lookup read.
+-- Those values and each SkyCreator's own time are the originals of one world (its map and address, read when EVE's
+-- address changes): kept for this Lua load, so a new EVE in the same world finds them again; also in coop-sky.txt
+-- (o.store, link.store's), so a Lua reload that starts while the native part still holds a cycle reads them there, not
+-- the light it dimmed. o.world(eve) gives the world's address.
 local Rule=require('sky.rule')
 local U=require('core.unreal')
 local Daynight={}
@@ -40,11 +44,14 @@ function Daynight.new(o)
     local test,pinned=nil,nil -- coop daynight off ('off') and hour (a minute), until on, off or a reload.
     local asked,told=nil,nil -- The last line the native part took; the last log line's text.
     local line,why=nil,nil -- This pass's decision.
-    local eve_at,map=nil,nil
+    local eve_at,map,where=nil,nil,nil -- EVE's address, her world's map and its key (the map and its address).
     local flag,flag_wait,story=nil,0,false -- Xion's story-night volume this world, passes to its next read, its state.
     local first,stopped=true,false
     local w=nil -- This world's dressing: the parts found at its first live pass, each with the state last written.
     local leftover=nil -- Whether an earlier Lua load may have left its dressing in the world this load starts in.
+    local kept=nil -- The originals of one world: {key=where, v={name -> list of numbers}}.
+    local unsaved=false -- kept has values coop-sky.txt lacks.
+    local store=o.store or {save=function() return true end,load=function() end}
 
     -- The story-night flag of a row that has one: looked up once per world, read every 2 s. A miss or a read that
     -- raises is logged once and leaves the cycle running in that world.
@@ -116,17 +123,23 @@ function Daynight.new(o)
         if not exact and #actors==1 then return actors[1] end
         o.log('daynight: no '..name..' in this world'..(ok and '' or ': '..U.why(list)))
     end
-    -- A light actor's part: its light component with the intensity, colour and rotation it had, or nil with one log
-    -- line.
+    -- The originals named name in this world: the ones kept (as many numbers as now), else now (the values read now),
+    -- kept from then on.
+    local function original(name,now)
+        if not kept.v[name] or #kept.v[name]~=#now then kept.v[name],unsaved=now,true end
+        return kept.v[name]
+    end
+    -- A light actor's part: its light component with its original intensity, colour and rotation, the values it holds
+    -- now as the last written, or nil with one log line.
     local function light(a,name)
         if not a then return nil end
         local ok,part=pcall(function()
             local c=assert(U.valid(a.LightComponent),'no light component')
             local rgb,rot=c.LightColor,a:K2_GetActorRotation()
-            local linear_rgb={linear(rgb.R),linear(rgb.G),linear(rgb.B)}
-            return {c=c,actor=a,what=name,original=c.Intensity,intensity=c.Intensity,color=linear_rgb,
-                tint=string.format('%.4f %.4f %.4f',linear_rgb[1],linear_rgb[2],linear_rgb[3]),
-                rot={rot.Pitch,rot.Yaw},p=rot.Pitch,y=rot.Yaw}
+            local now={c.Intensity,linear(rgb.R),linear(rgb.G),linear(rgb.B),rot.Pitch,rot.Yaw}
+            local v=original(name,now)
+            return {c=c,actor=a,what=name,original=v[1],intensity=now[1],color={v[2],v[3],v[4]},
+                tint=string.format('%.4f %.4f %.4f',now[2],now[3],now[4]),rot={v[5],v[6]},p=now[5],y=now[6]}
         end)
         if ok then return part end
         o.log('daynight: '..name..' is unreadable: '..U.why(part))
@@ -153,10 +166,49 @@ function Daynight.new(o)
         end)
         return found and {c=found,what='the star layer'}
     end
+    -- A number as coop-sky.txt keeps it, with a decimal point whatever the locale.
+    local function number(v) return (string.format('%.9g',v):gsub(',','.')) end
+    -- coop-sky.txt's line: the world's key, then name=v,v,... for each originals, tab-separated, names sorted.
+    local function save_kept()
+        local names,fields={},{kept.key}
+        for name in pairs(kept.v) do names[#names+1]=name end
+        table.sort(names)
+        for _,name in ipairs(names) do
+            local v={}
+            for i,x in ipairs(kept.v[name]) do v[i]=number(x) end
+            fields[#fields+1]=name..'='..table.concat(v,',')
+        end
+        local ran,saved,e=pcall(store.save,table.concat(fields,'\t'))
+        unsaved=not (ran and saved)
+        if unsaved then
+            o.log('daynight: coop-sky.txt not written ('..U.why(ran and e or saved)..'): a Lua reload in this world '
+                ..'reads its lights as they are then')
+        end
+    end
+    -- coop-sky.txt's originals, or nil when it has none or cannot be read.
+    local function load_kept()
+        local ran,text=pcall(store.load)
+        if not ran or type(text)~='string' then return nil end
+        local t=nil
+        for field in (text..'\t'):gmatch('([^\t]*)\t') do
+            if not t then t={key=field,v={}}
+            else
+                local name,list=field:match('^([%w_]+)=(.*)$')
+                if name then
+                    local v={}
+                    for x in list:gmatch('[^,]+') do v[#v+1]=tonumber(x) end
+                    t.v[name]=v
+                end
+            end
+        end
+        return t
+    end
     -- This world's parts, looked up once: the domes, Xion's two, the SkyCreators with their own day and time, an
-    -- earlier load's star layer. One log line with the time the lookups took.
+    -- earlier load's star layer. One log line with the time the lookups took. The originals come from kept when it is
+    -- this world's (no key: never), else from the values read now, then saved.
     local function enter(row)
         local began=os.clock()
+        if not kept or kept.key~=where or not where then kept,unsaved={key=where,v={}},false end
         w={row=row,domes={},creators={}}
         for _,path in ipairs(row.sky=='real' and row.domes or {}) do w.domes[#w.domes+1]=dome(path) end
         if row.day_dome then w.day,w.night=dome(row.day_dome),dome(row.night_dome,true) end
@@ -165,7 +217,11 @@ function Daynight.new(o)
             if not listed then o.log('daynight: no SkyCreator list: '..U.why(list)) end
             for _,a in ipairs(listed and list or {}) do
                 local ok,c=pcall(function()
-                    return {c=a,what='SkyCreator',rise=a.SunriseTime,set=a.SunsetTime,original=a:GetTime()}
+                    local now=a:GetTime()
+                    local time=original('c'..o.address(a),{now})[1]
+                    -- h: the hour last given; -1 when it holds an earlier load's time, which an off puts back.
+                    return {c=a,what='SkyCreator',rise=a.SunriseTime,set=a.SunsetTime,original=time,
+                        h=now~=time and -1 or nil}
                 end)
                 if ok then w.creators[#w.creators+1]=c
                 else o.log('daynight: a SkyCreator is unreadable: '..U.why(c)) end
@@ -181,8 +237,9 @@ function Daynight.new(o)
             local v=e.ppv and named(VOLUME,e.ppv,true)
             local ok,bias=pcall(function() return v.Settings.AutoExposureBias end)
             if v and not ok then o.log('daynight: '..e.ppv..' is unreadable: '..U.why(bias)) end
-            w.ppv=v and ok and {c=v,what=e.ppv,original=bias,bias=bias} or nil
+            w.ppv=v and ok and {c=v,what=e.ppv,original=original(e.ppv,{bias})[1],bias=bias} or nil
         end
+        if unsaved and where then save_kept() end
         local wanted=row.sky=='real' and #row.domes or row.day_dome and 2 or 0
         local found=#w.domes+(w.day and 1 or 0)+(w.night and 1 or 0)
         local lights=e and string.format(', %s %s, %s %s%s',e.sun,w.sun and 'found' or 'missing',e.sky,
@@ -334,6 +391,7 @@ function Daynight.new(o)
             end
             local n=Rule.native(o.status())
             leftover=n~=nil and n.state~='off'
+            if leftover then kept=load_kept() end -- Its values may be the earlier load's: its originals are there.
         end
         if off then
             if not stopped then
@@ -348,7 +406,9 @@ function Daynight.new(o)
         local at=her and o.address(her)
         if at~=eve_at then
             eve_at,map=at,her and o.map_of(her) or nil
-            flag,flag_wait,story,w=nil,0,false,nil -- The old world's parts died with it.
+            local found,place=pcall(function() return her and o.world(her) end)
+            where=map and found and place and map..' '..tostring(place) or nil
+            flag,flag_wait,story,w=nil,0,false,nil -- Looked up again: the old world's parts died with it.
         end
         local row=Rule.row(map)
         local s={setting=o.settings~=nil and o.settings.daynight==true,test=test,pinned=pinned,map=map}

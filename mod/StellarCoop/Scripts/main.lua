@@ -660,9 +660,11 @@ capture.leave_out(bike.parked)
 -- The day/night cycle (sky/daynight.lua): the request for the native part's env writer (game/sky.h), decided in the
 -- 250 ms loop below from the map, the setting and SB's state; coop daynight reads and pins it (commands/daynight.lua).
 -- The lobby rule is Xion's training room only: a hall lobby has its own row.
+-- coop-sky.txt keeps the originals of the world's lights, so a Lua reload does not take the dimmed ones for them.
 o.daynight=require('sky.daynight').new({log=log,ask=function(line) return ask(line)() end,
-    status=function() return link and link.status() end,settings=settings,
+    status=function() return link and link.status() end,settings=settings,store=link and link.store('coop-sky.txt'),
     her=function() return U.her(U.valid(require('UEHelpers').GetPlayer())) end,address=U.address,map_of=U.map_of,
+    world=function(eve) return U.address(eve:GetWorld()) end,
     cutscene=function() return group~=nil and group.cutscene_playing() end,
     screen=function() return kit~=nil and kit.paused(true) end,photo=photo_state,night=night.running,
     lobby=function()

@@ -247,9 +247,23 @@ write that fails is logged once and that part left alone in the world. The star 
 `LoadAsset` the first time the stars show in a world, timed in its log line.
 
 An off puts SB's look back: the domes shown, each SkyCreator's own time, the star layer hidden, Xion's two domes as SB
-ships them (except during its story night, which SB owns), the engine maps' lights and bias as the lookup read them. A
+ships them (except during its story night, which SB owns), the engine maps' lights and bias as the world had them. A
 Lua reload that starts while the native part still holds an earlier load's cycle looks the parts up again, so it can
 put that load's dressing back.
+
+The originals of a world (each engine light's intensity, colour and rotation, Matrix XIII's bias, each SkyCreator's
+time) are read at the first lookup in that world, a world being its map and its address. A new EVE in the same world,
+such as a respawn, finds them again in the Lua load's copy. They also go into `coop-sky.txt` beside
+`coop-settings.txt`, one line:
+
+```
+/game/sbo_lobby/lobby_hotel 2214587392	SkyLight=1,1,1,1,0,0	Sun=7.5,1,1,1,-58,-52
+```
+
+A Lua reload that starts while the native part is not off takes them from there when the line's world is the one EVE
+stands in, since the lights it would read then are the ones the earlier load dimmed. A reload while the native part is
+off, or a new game run, reads the lights again. A SkyCreator that holds an earlier load's time gets its own back at
+an off.
 
 ## Cost
 
