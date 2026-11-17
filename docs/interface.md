@@ -193,9 +193,10 @@ show in the game's own popup, the one it uses for its yes or no questions.
 
 The buttons read the game's own words in its text language (Accept, Deny and Close with `ui_language=english`). The
 titles and texts follow the menu's language. The seconds count down while the popup shows. A Steam name is cut to 16
-characters and loses any `<` or `>` (the popup would read them as a text style tag). The host's game plays the game's
-alert when a player first asks. Each popup then plays the game's own popup sounds: one as it opens, one on Accept or a
-let in, one on Decline or Close (none with `ui_sounds=off`).
+characters and loses any `<` or `>` (the popup would read them as a text style tag). The first time a player's question
+opens, the host's game plays the game's alert in place of the popup's open sound. The open sound plays when that
+question shows again (after a pause or the chat box) and when the joiner's wait opens. Accept or a let in plays the
+popup's confirm sound; Decline or Close plays its close sound. With `ui_sounds=off` none of these play.
 
 | Key | Controller | Mouse | On the host's question | On the joiner's wait |
 | --- | --- | --- | --- | --- |
