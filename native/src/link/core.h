@@ -491,6 +491,9 @@ struct Peer {
   // as our last wait line gave it to her (0: none sent).
   bool asking = false;
   uint64_t asking_at = 0, wait_sent = 0;
+  // On a guest of an online session, a member other than the host for whom Steam refused relay only kIceTries times:
+  // no link with her while she stays in the lobby (poll_members()); ours with the host and the others stays.
+  bool no_relay = false;
   int invalid = 0; // Junk messages received; only the first is logged.
   bool told = false; // On a match lobby's host: our count line for the countdown running now reached her.
   uint64_t ping_seq = 0, next_ping = 0, last_heard = 0;
@@ -500,9 +503,10 @@ struct Peer {
   Window pose_window, fight_window; // Channels 1 and 2, received.
   // Our let line as she last got it (on an online session's host), sent again after each hello of hers.
   std::string let_sent;
-  // The follow on the host: her last camps? (an id), when it came, whether it still waits for our answer.
+  // The follow on the host: her last camps? (an id), when it came, whether it still waits for our answer. Then our
+  // number for it (camps_n_), which the status gives Lua: two guests' ids may meet, ours never do.
   bool camps_asked = false, camps_waiting = false;
-  uint64_t camps_id = 0, camps_at = 0;
+  uint64_t camps_id = 0, camps_at = 0, camps_n = 0;
   // The synced photo mode: her state and whether her photo mode may pause our game, from her last photo line ('0' and
   // no before one); our line as she last got it (sent again after each hello of hers, so a rejoin heals); whether
   // "does not pause for photos" was said for her; her photo lines' window.
@@ -1089,10 +1093,11 @@ public:
     if (wait_until_ && lobby_ && !host_)
       s += "wait=" + std::to_string(wait_until_ > now_ ? (wait_until_ - now_ + 999) / 1000 : 0) + " " +
            name_of(host_id_) + "\n";
-    // In an online session: its host's SteamID (ours while we host), then the pair's (partner()), 0 for none, then the
-    // players it holds at most (max_players: ours while we host, the host's let line's on a guest, 0 before one came).
+    // In an online session: its host's SteamID (ours while we host), then the pair's (partner() on the host, the host's
+    // let line's on a guest: ours when we are the pair), 0 for none, then the players it holds at most (max_players:
+    // ours while we host, the host's let line's on a guest, 0 before one came).
     if (lobby_ && !match())
-      s += "host=" + std::to_string(host_id_) + " pair=" + std::to_string(partner()) +
+      s += "host=" + std::to_string(host_id_) + " pair=" + std::to_string(host_ ? partner() : pair_) +
            " max=" + std::to_string(max_players_) + "\n";
     // The session list (list public, list friends): "list=<public|friends> <searching|done|failed> <rows>", then each
     // row, best ping first once done: "session=<lobby> <host's SteamID> <n>/<max> <ping ms or -> <1 for a Steam friend,
@@ -1142,8 +1147,8 @@ public:
       for (const auto &[id, name] : d.extra)
         s += "dlc_extra=" + std::to_string(id) + " " + name + "\n";
     }
-    // The slot-0 member's vitals for the partner card (mate_vitals()): the host's on a guest, the pair's on the host;
-    // none in a match lobby. Then each member's past the handshake, her SteamID first, for her row of the HUD.
+    // The slot-0 member's vitals for the partner card (mate_vitals()): the host's on a guest, the pair's on the host.
+    // Then each member's past the handshake, her SteamID first, for her row of the HUD. Neither in a match lobby.
     const auto numbers = [](const Vitals &v) {
       std::string out;
       for (size_t i = 0; i < v.size(); ++i)
@@ -1154,14 +1159,15 @@ public:
     if (const Vitals *v = match() ? nullptr : mate_vitals(zero ? zero->id : 0))
       s += "mate=" + numbers(*v) + "\n";
     for (auto &p : peers_)
-      if (const Vitals *v = p.compatible && p.accepted ? mate_vitals(p.id) : nullptr)
+      if (const Vitals *v = !match() && p.compatible && p.accepted ? mate_vitals(p.id) : nullptr)
         s += "vit=" + std::to_string(p.id) + " " + numbers(*v) + "\n";
     // Our life state and HP, from our last vitals read while a session holds and it is under kMateMs old (the revive's
     // read, which the partner card's line does not give).
     if (has_own_ && chatting() && now_ - own_at_ < kMateMs)
       s += "life=" + std::to_string(own_[vital::life]) + " " + std::to_string(own_[vital::hp]) + "\n";
-    // The follow (session/travel.lua), while linked: as the host, the oldest camps? still waiting for our answer, else
-    // the last one taken (Lua answers each id once); as the guest, the host's answer to our last one, without its tag.
+    // The follow (session/travel.lua), while linked: as the host, our number for the oldest camps? still waiting for
+    // our answer, else for the last one taken (Lua answers each number once); as the guest, the host's answer to our
+    // last one, without its tag.
     const Peer *ask = nullptr, *last = nullptr;
     for (auto &p : peers_)
       if (host_ && p.camps_asked) {
@@ -1171,7 +1177,7 @@ public:
           last = &p;
       }
     if (linked() && (ask || last))
-      s += "camps?=" + std::to_string((ask ? ask : last)->camps_id) + "\n";
+      s += "camps?=" + std::to_string((ask ? ask : last)->camps_n) + "\n";
     if (linked() && !camps_answer_.empty())
       s += "camps=" + camps_answer_ + "\n";
     // Her last night line (nightop/run.lua's), while a session holds; gone when she is lost or the session ends.
@@ -1291,6 +1297,8 @@ private:
     return refused_.count(id) ? (host_ ? "refused by the host" : "refused for a flood")
            : barred(id)       ? "on the block list"
            : closed()         ? "our session is private"
+           : std::any_of(peers_.begin(), peers_.end(), [id](const Peer &p) { return p.id == id && p.no_relay; })
+               ? "Steam would not set relay only for her"
            : held(id) && std::any_of(peers_.begin(), peers_.end(), [id](const Peer &p) { return p.id == id; })
                ? "not let in by the host yet"
                : "not in our lobby";
@@ -1299,7 +1307,7 @@ private:
   // greet her nor read her, as the host has not let her in (she may wait for its answer, or have been refused).
   bool held(uint64_t id) const { return lobby_ && !host_ && !match() && id != host_id_ && !let_.count(id); }
   // A member who is not in the session yet: she waits for our answer as host, or for the host's let line as a guest.
-  bool waiting(const Peer &p) const { return p.asking || held(p.id); }
+  bool waiting(const Peer &p) const { return p.asking || p.no_relay || held(p.id); }
 
   // Whether the block list keeps her out of the lobby we host. A guest's list applies only in a Public match lobby,
   // which quick match chose for her (poll_members() leaves it); any other game she chose.
@@ -1580,34 +1588,41 @@ private:
       }
       break;
     // The follow's camps lines (session/travel.lua writes them; link/protocol.h checked their shape): reliable, on
-    // channel 0, the guest's camps? to the host, the host's answer to each guest whose last camps? had its id (each one
-    // asks for the camps nearest the host: guests whose ids met get the same answer), never in a match lobby. A camps?
-    // of ours forgets the answer to the one before.
+    // channel 0, the guest's camps? to the host, the host's answer to the guest whose last camps? had the number it
+    // answers (camps?= in our status), with her own id in place of that number, never in a match lobby. A camps? of
+    // ours forgets the answer to the one before.
     case Command::camps: {
       const bool ask = r.line.find(" camps? ") != std::string::npos;
-      const uint64_t id = parse(r.line.data(), r.line.size()).a;
-      const auto asked = [id](const Peer &p) { return p.compatible && p.accepted && p.camps_asked && p.camps_id == id; };
+      Message m = parse(r.line.data(), r.line.size());
+      Peer *to = nullptr;
+      for (auto &p : peers_)
+        if (!ask && p.compatible && p.accepted && p.camps_asked && p.camps_n == m.a)
+          to = &p;
       const char *why = match()                         ? "a match lobby"
                         : !(host_ ? linked() : leader()) ? "no session"
                         : ask && host_                   ? "the host does not ask"
                         : !ask && !host_                 ? "only the host answers"
-                        : !ask && std::none_of(peers_.begin(), peers_.end(), asked) ? "no guest asked for it"
-                                                                                     : nullptr;
+                        : !ask && !to                    ? "no guest asked for it"
+                                                         : nullptr;
       if (why) {
         event(std::string("camps line not sent: ") + why);
         break;
       }
-      for (auto &p : peers_)
-        if (ask ? p.id == host_id_ : asked(p)) {
-          send(p, r.line, kReliable);
-          p.camps_waiting = false;
-        }
       if (ask) {
+        for (auto &p : peers_)
+          if (p.id == host_id_)
+            send(p, r.line, kReliable);
         asked_camps_ = true;
-        camps_asked_ = parse(r.line.data(), r.line.size()).a;
+        camps_asked_ = m.a;
         camps_answer_.clear();
+        event("sent " + r.line.substr(r.line.find(' ') + 1));
+        break;
       }
-      event("sent " + r.line.substr(r.line.find(' ') + 1));
+      m.a = to->camps_id;
+      const std::string line = camps_line(m);
+      send(*to, line, kReliable);
+      to->camps_waiting = false;
+      event("sent " + line.substr(line.find(' ') + 1) + " to " + to->name);
       break;
     }
     case Command::gift:
@@ -2434,8 +2449,9 @@ private:
         continue;
       }
       event(peers_[i].name + " left the lobby");
-      // On a guest, for a member the host let in (the host's own leaving ended the session above).
-      if (host_ || (peers_[i].compatible && peers_[i].accepted) || let_.count(peers_[i].id))
+      // On a guest of an online session, for a member the host let in (the host's own leaving ended the session
+      // above); in a match lobby, on its owner only.
+      if (host_ || (!match() && ((peers_[i].compatible && peers_[i].accepted) || let_.count(peers_[i].id))))
         notice(peers_[i].name + " left.");
       if (peers_[i].asking) // Gone before our answer: a no, so leaving and coming back never asks again.
         refused_[peers_[i].id] = 0;
@@ -2511,6 +2527,8 @@ private:
         refuse(id, "no answer within 60 s", peer.name + " was not let in: no answer within 60 s.");
         continue;
       }
+      if (peer.no_relay) // Steam refused relay only for her: no link until she leaves and comes back.
+        continue;
       if (held(id)) { // Before the relay setting: she may never be let in.
         if (peer.hello_sent || peer.hello_received || peer.accepted) { // The host refused or removed her since.
           event(peer.name + " is no longer let in by the host: link closed");
@@ -2531,6 +2549,11 @@ private:
         event("no link with " + peer.name + ": Steam refused relay only " + std::to_string(kIceTries) + " times");
         if (host_ && !match()) {
           refuse(id, "relay only failed", peer.name + " was refused: Steam would not set relay only.");
+          continue;
+        }
+        if (!match() && id != host_id_) { // Another guest: only her link goes, the host's game is still ours.
+          peer.no_relay = true;
+          notice("No link with " + peer.name + ": Steam would not set relay only.");
           continue;
         }
         notice(match() ? "Left the match: Steam would not set relay only."
@@ -2569,7 +2592,9 @@ private:
   // A session from a lobby member is accepted after a live membership check; anything else is ignored, never closed. A
   // guest takes sessions only from the host and the members its let line names.
   void on_session_request(uint64_t id) {
-    if (lobby_ && id && id != me_ && !refused_.count(id) && !barred(id) && !closed() && !held(id) && member_now(id)) {
+    const Peer *peer = find_peer(id);
+    if (lobby_ && id && id != me_ && !refused_.count(id) && !barred(id) && !closed() && !held(id) &&
+        !(peer && peer->no_relay) && member_now(id)) {
       if (!guard(id))
         return event("session request from " + name_of(id) + " held: no relay only yet");
       Identity who = identity(id);
@@ -3037,7 +3062,8 @@ private:
       const std::string line = camps_line(message);
       event(line.substr(line.find(' ') + 1) + " from " + peer.name);
       if (ask)
-        peer.camps_asked = peer.camps_waiting = true, peer.camps_id = message.a, peer.camps_at = now_;
+        peer.camps_asked = peer.camps_waiting = true, peer.camps_id = message.a, peer.camps_at = now_,
+        peer.camps_n = camps_n_ = camps_n_ % kMaxCampId + 1;
       else
         camps_answer_ = line.substr(line.find(" camps ") + 7);
       break;
@@ -3242,13 +3268,18 @@ private:
 
   // An online session's host: our let line to each guest past the handshake when it changed, or after her hello; a
   // refused send goes again at the next pass. It names the pair (partner()), then the guests past our handshake in the
-  // order they came, then our max_players.
+  // order they came, then our max_players. With slot 0 free, a guest past the handshake takes it at the next pass
+  // (poll_members()): a guest who has had no let line yet waits for that one, so she never hears that the shared
+  // features are off for her a pass before they run with her.
   void send_let() {
     if (!host_ || match())
       return;
     const std::string line = let_line(partner(), members(), max_players_);
+    const bool pairing =
+        !partner() && std::none_of(peers_.begin(), peers_.end(), [](const Peer &p) { return p.slot == 0; });
     for (auto &p : peers_)
-      if (p.compatible && p.accepted && p.let_sent != line && send(p, line.data(), line.size(), kReliable) == kResultOk)
+      if (p.compatible && p.accepted && !(pairing && p.let_sent.empty()) && p.let_sent != line &&
+          send(p, line.data(), line.size(), kReliable) == kResultOk)
         p.let_sent = line;
   }
 
@@ -3527,6 +3558,7 @@ private:
   // tag; empty until one came). The host keeps each guest's in her Peer.
   bool asked_camps_ = false;
   uint64_t camps_asked_ = 0;
+  uint64_t camps_n_ = 0; // The host's last number for a guest's camps? (Peer::camps_n), 1 to kMaxCampId.
   std::string camps_answer_;
   // The synced photo mode: photo() called yet, ours, our photo_sync as sent, the cap in s, whether our Lua asks for
   // the host's cutscene pause; as of the last pass, hers ('0' with no friend or a lost one) and ours, whether our game

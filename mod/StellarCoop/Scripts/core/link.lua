@@ -1016,9 +1016,9 @@ function Link.new(folder,fs)
         noted_shown=math.max(noted_shown or 0,top and top.n or 0)
         return out
     end
-    -- The follow's camps lines as of the last changes(), each from the start of its own line: as the host, the id of
-    -- her last camps? (a number); as the guest, the host's answer to ours ('<id> <world> <alias>:<m> ...' or
-    -- '<id> none <why>'); nil without them.
+    -- The follow's camps lines as of the last changes(), each from the start of its own line: as the host, the native
+    -- part's number for the oldest camps? still waiting, else for the last one (the answer goes by that number); as
+    -- the guest, the host's answer to ours ('<id> <world> <alias>:<m> ...' or '<id> none <why>'); nil without them.
     function self.camps() return camps_asked,camps_answer end
     -- The slot-0 member: her Steam name, linked (hello accepted, compatible), lost; nil without one. On a guest of an
     -- online session that is the host; on the host, the pair (the guest who shares the fight, world and story).
@@ -1033,9 +1033,9 @@ function Link.new(folder,fs)
         for _,m in ipairs(roster) do if m.linked then n=n+1 end end
         return n
     end
-    -- In an online session (not a match lobby): {id=the host's SteamID (ours while we host), pair=the pair's SteamID,
-    -- nil for none, max=the players it holds at most, nil before a guest heard it}; nil outside one. On a guest, the
-    -- host's member line is member(host().id).
+    -- In an online session (not a match lobby): {id=the host's SteamID (ours while we host), pair=the pair's SteamID
+    -- (ours when we are the pair), nil for none, max=the players it holds at most, nil before a guest heard it}; nil
+    -- outside one. On a guest, the host's member line is member(host().id).
     function self.host() return session end
     -- A member's vitals by her SteamID (digits), as mate() gives them, while her last line is under 3 s old; nil
     -- otherwise.

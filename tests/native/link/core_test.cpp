@@ -2396,10 +2396,11 @@ int main() {
   }
 
   // The follow's camps lines (session/travel.lua). Outside a session nothing goes. Between two Links, A hosting (Me)
-  // and B (Kaanta): her camps? goes reliable on channel 0 to A, whose status keeps the last as camps?=<id>; another
-  // within 2 s is dropped there with a log line. A's answer to her last id reaches B's status as camps=<id> ...; an
-  // answer with another id, and one that comes after she asked again, is dropped. The host never asks and the guest
-  // never answers: both requests are refused, and such a line from the friend is dropped. A session's end forgets both.
+  // and B (Kaanta): her camps? goes reliable on channel 0 to A, whose status keeps the last as camps?=<n>, A's own
+  // number for it; another within 2 s is dropped there with a log line. A's answer to that number reaches B's status
+  // as camps=<her id> ...; an answer with another id is dropped, as is one that comes after she asked again. The host
+  // never asks and the guest never answers: both requests are refused. Such a line from the friend is dropped. A
+  // session's end forgets both.
   reset();
   {
     World w;
@@ -2442,8 +2443,8 @@ int main() {
            status(t.b).find("\ncamps=") == std::string::npos);
     t.tick(t.b, 2000, "camps? 3");
     t.tick(t.a, 50);
-    assert(status(t.a).find("\ncamps?=3\n") != std::string::npos);
-    t.tick(t.a, 50, "camps 3 none busy");
+    assert(status(t.a).find("\ncamps?=2\n") != std::string::npos);
+    t.tick(t.a, 50, "camps 2 none busy");
     t.tick(t.b, 50);
     assert(status(t.b).find("\ncamps=3 none busy\n") != std::string::npos);
     t.tick(t.a, 50, "camps? 4");
@@ -2454,7 +2455,7 @@ int main() {
     t.tick(t.a, 50);
     assert(saw("A: dropped a camps line from Kaanta: an answer to the host"));
     t.b.tick(t.now, "", 0, 0); // Unchanged: the request and the answer stay for Lua.
-    assert(status(t.a).find("\ncamps?=3\n") != std::string::npos &&
+    assert(status(t.a).find("\ncamps?=2\n") != std::string::npos &&
            status(t.b).find("\ncamps=3 none busy\n") != std::string::npos);
     t.tick(t.b, 50, "leave");
     t.tick(t.a, 600);

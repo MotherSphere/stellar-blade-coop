@@ -264,15 +264,22 @@ int main() {
     assert(std::find(chat.begin(), chat.end(), "in 2002 hello") != chat.end());
   }
   // The slot-0 member leaves a match lobby of three: link 0's friend= line goes while P3 stays linked, and our chat
-  // line still reaches her (Lua's chat asks the member= lines who hears it, not friend=).
+  // line still reaches her (Lua's chat asks the member= lines who hears it, not friend=). No member's vitals reach a
+  // status there (no mate=, no vit=). Only the owner hears who left.
   reset();
   {
     Mesh m(3);
     match_of(m, 3);
     assert(slot_of(m[0], kFriend) == 0 && slot_of(m[0], kPlayer[2]) == 1);
+    for (int i = 0; i < 3; ++i)
+      m[i].vitals(Vitals{uint32_t(100 + i), 500, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1});
+    m.round();
+    for (int i = 0; i < 3; ++i)
+      assert(m.status(i).find("\nvit=") == std::string::npos && m.status(i).find("\nmate=") == std::string::npos);
     m.tick(1, "leave");
     m.round();
     const std::string s = m.status(0);
+    assert(noticed(s, "P2 left.") && !noticed(m.status(2), "P2 left."));
     assert(s.find("\nfriend=") == std::string::npos && member_field(s, kPlayer[2], 2) == "1" && m[0].chatting());
     assert(m[0].say("still here"));
     m.round();

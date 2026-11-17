@@ -74,7 +74,8 @@ void rounds(Mesh &m, uint64_t ms) {
 
 int main() {
   // Three players: the pair is the host and the first guest (ghost slot 0 on both sides), the host holds slot 0 on
-  // every guest. The host's let line names both guests, the pair first. The status says who hosts and who pairs.
+  // every guest. The host's let line names both guests, the pair first. The status says who hosts and who pairs, on
+  // every side.
   // Each member's vitals reach the others; mate= is the slot-0 member's. A peer that comes in once the lobby holds 3
   // starts at 30 poses a second; the pair's links, made at 60 in a lobby of 2, start again at 30 as the third comes in.
   reset();
@@ -91,8 +92,8 @@ int main() {
       assert(sent_from(kMe, kPlayer[i], let_line(kFriend, {kFriend, kPlayer[2]}, kMaxMembers)) == 1);
     assert(saw("P3: P1 let in P2 (pair), us") && saw("P2: P1 let in us (pair), P3"));
     assert(m.status(0).find("\nhost=1001 pair=2002 max=4\n") != npos &&
-           m.status(1).find("\nhost=1001 pair=1001 max=4\n") != npos &&
-           m.status(2).find("\nhost=1001 pair=0 max=4\n") != npos && m.status(2).find("\nfriend=1 0 P1\n") != npos);
+           m.status(1).find("\nhost=1001 pair=2002 max=4\n") != npos &&
+           m.status(2).find("\nhost=1001 pair=2002 max=4\n") != npos && m.status(2).find("\nfriend=1 0 P1\n") != npos);
     assert(peer_of(m[0], kFriend)->cap.cap() == 30 && peer_of(m[0], kPlayer[2])->cap.cap() == 30);
     assert(peer_of(m[1], kMe)->cap.cap() == 30 && peer_of(m[1], kPlayer[2])->cap.cap() == 30);
     assert(saw("P1: pose rate cap 30 a second for P2: 3 players in the lobby") &&
@@ -254,7 +255,7 @@ int main() {
            sent_from(kMe, kPlayer[3], let_line(kPlayer[3], {kPlayer[3]}, kMaxMembers)) == 1);
     const std::string s3 = m.status(3);
     assert(notices(s3, "Shared enemies, the shared world and story together now run between P1 and you.") == 1 &&
-           s3.find("\nhost=1001 pair=1001 max=4\n") != npos);
+           s3.find("\nhost=1001 pair=4004 max=4\n") != npos);
   }
 
   // The first guest is the pair: the pair leaving in the pass where a Steam friend comes in, the guest already linked
@@ -274,9 +275,52 @@ int main() {
            m[2].partner() == kMe && m[3].partner() == 0);
   }
 
-  // The follow: each guest's camps? goes to the host only. The host's status shows the oldest one waiting; an answer
-  // goes to the guests whose last camps? had its id, then the next one shows; once all are answered, the last one
-  // taken stays. Ids that meet get one answer each. An answer nobody asked for goes nowhere.
+  // The pair leaving while a Steam friend of the host is still in her handshake: she gets no let line before she is
+  // the pair, so she never hears the shared features are off for her, then on; her first let line names her.
+  reset();
+  {
+    Mesh m(3);
+    F.client[0].friends.insert(kPlayer[2]), F.client[2].friends.insert(kMe);
+    m.tick(0, "host");
+    m.round();
+    const uint64_t L = m[0].lobby();
+    m.tick(1, "join " + id(L));
+    assert(m.settle(2));
+    m.tick(2, "join " + id(L));
+    m.tick(0);
+    assert(slot_of(m[0], kPlayer[2]) == 1 && !linked_with(m[0], kPlayer[2]));
+    m.tick(1, "leave");
+    for (int r = 0; r < 40 && !(linked_with(m[2], kMe) && m[2].partner() == kMe); ++r)
+      m.round();
+    m.round();
+    const std::string s2 = m.status(2);
+    assert(m[2].partner() == kMe && slot_of(m[0], kPlayer[2]) == 0 && m[0].partner() == kPlayer[2]);
+    assert(s2.find(" Shared enemies") == npos &&
+           sent_from(kMe, kPlayer[2], let_line(0, {kPlayer[2]}, kMaxMembers)) == 0 &&
+           sent_from(kMe, kPlayer[2], let_line(kPlayer[2], {kPlayer[2]}, kMaxMembers)) == 1);
+  }
+
+  // Steam refuses relay only on a guest for another guest who is not her Steam friend: that link alone goes, with a
+  // notice naming her. The guest stays in the host's session, linked with him; the host keeps both.
+  reset();
+  {
+    Mesh m(3);
+    const uint64_t L = group(m, 2);
+    F.client[0].friends.insert(kPlayer[2]), F.client[2].friends.insert(kMe); // P3: P1's friend, not P2's.
+    F.refuse_ice = kFriend;
+    m.tick(2, "join " + id(L));
+    rounds(m, 10000);
+    const std::string s1 = m.status(1);
+    assert(m[1].lobby() == L && linked_with(m[1], kMe) && !linked_with(m[1], kPlayer[2]) && m[1].partner() == kMe);
+    assert(noticed(s1, "No link with P3: Steam would not set relay only.") && s1.find("Left ") == npos);
+    assert(saw("P2: no link with P3: Steam refused relay only 3 times") && count("P2: Steam refused relay only") == 3);
+    assert(linked_with(m[0], kFriend) && linked_with(m[0], kPlayer[2]) && m[2].lobby() == L);
+  }
+
+  // The follow: each guest's camps? goes to the host only. The host's status shows its own number for the oldest one
+  // waiting (camps?=, which Lua answers once each); its answer to that number goes to that guest alone, with her own
+  // id, then the next one shows; once all are answered, the last one taken stays. Ids that meet, at once or one after
+  // the other, get one answer each. An answer to a number nobody waits for goes nowhere.
   reset();
   {
     Mesh m(3);
@@ -286,24 +330,47 @@ int main() {
     m.tick(2, "camps? 7");
     m.round();
     assert(sent_from(kFriend, kMe, v("camps? 5")) == 1 && sent_from(kFriend, kPlayer[2], v("camps?")) == 0);
-    assert(m.status(0).find("\ncamps?=5\n") != npos);
-    m.tick(0, "camps 5 Xion A:1");
-    assert(sent_from(kMe, kFriend, v("camps 5")) == 1 && sent_from(kMe, kPlayer[2], v("camps")) == 0);
-    assert(m.status(0).find("\ncamps?=7\n") != npos);
-    m.tick(0, "camps 7 none busy");
+    assert(m.status(0).find("\ncamps?=1\n") != npos);
+    m.tick(0, "camps 1 Xion A:1");
+    assert(sent_from(kMe, kFriend, v("camps 5 Xion A:1")) == 1 && sent_from(kMe, kPlayer[2], v("camps")) == 0);
+    assert(saw("P1: sent camps 5 Xion A:1 to P2") && m.status(0).find("\ncamps?=2\n") != npos);
+    m.tick(0, "camps 2 none busy");
     m.round();
     assert(sent_from(kMe, kPlayer[2], v("camps 7 none busy")) == 1 && sent_from(kMe, kFriend, v("camps 7")) == 0);
-    assert(m.status(0).find("\ncamps?=7\n") != npos && m.status(1).find("\ncamps=5 Xion A:1\n") != npos &&
+    assert(m.status(0).find("\ncamps?=2\n") != npos && m.status(1).find("\ncamps=5 Xion A:1\n") != npos &&
            m.status(2).find("\ncamps=7 none busy\n") != npos);
     m.round(2000);
     m.tick(1, "camps? 9");
     m.tick(2, "camps? 9");
     m.round();
-    m.tick(0, "camps 9 Xion B:2");
+    assert(m.status(0).find("\ncamps?=3\n") != npos);
+    m.tick(0, "camps 3 Xion B:2");
     m.round();
-    assert(m.status(1).find("\ncamps=9 Xion B:2\n") != npos && m.status(2).find("\ncamps=9 Xion B:2\n") != npos);
+    assert(m.status(1).find("\ncamps=9 Xion B:2\n") != npos && m.status(2).find("\ncamps=") == npos &&
+           m.status(0).find("\ncamps?=4\n") != npos);
+    m.tick(0, "camps 4 Xion B:3");
+    m.round();
+    assert(m.status(2).find("\ncamps=9 Xion B:3\n") != npos && sent_from(kMe, kFriend, v("camps 9")) == 1);
+    // One after the other: P2's 11 answered, then P3 asks with 11 too and P2 with 12. Each gets its answer.
+    m.round(2000);
+    m.tick(1, "camps? 11");
+    m.round();
+    m.tick(0, "camps 5 Xion C:1");
+    m.round();
+    m.tick(2, "camps? 11");
+    m.round(2000);
+    m.tick(1, "camps? 12");
+    m.round();
+    assert(m.status(0).find("\ncamps?=6\n") != npos);
+    m.tick(0, "camps 6 Xion C:2");
+    m.round();
+    assert(m.status(2).find("\ncamps=11 Xion C:2\n") != npos && sent_from(kMe, kFriend, v("camps 11")) == 1);
+    assert(m.status(0).find("\ncamps?=7\n") != npos);
+    m.tick(0, "camps 7 Xion C:3");
+    m.round();
+    assert(m.status(1).find("\ncamps=12 Xion C:3\n") != npos);
     m.tick(0, "camps 4 Xion B:2");
-    assert(saw("P1: camps line not sent: no guest asked for it") && sent_from(kMe, kFriend, v("camps 4")) == 0);
+    assert(saw("P1: camps line not sent: no guest asked for it") && sent_from(kMe, kPlayer[2], v("camps 9")) == 1);
   }
 
   // Past 2 players: a gift is refused at once (nolink, with a notice) and nothing goes; an answer to a gift sent before
@@ -391,7 +458,7 @@ int main() {
     Mesh m(4);
     const uint64_t L = group(m, 3, " public 3");
     assert(F.limit[L] == 3 && F.data[L][kPlayersKey] == "3/3" && saw("P1: creating a public lobby (listed), 3 players"));
-    assert(m.status(2).find("\nhost=1001 pair=0 max=3\n") != npos && m[2].peers().size() == 2);
+    assert(m.status(2).find("\nhost=1001 pair=2002 max=3\n") != npos && m[2].peers().size() == 2);
     m.tick(3, "join " + id(L));
     m.round();
     assert(noticed(m.status(3), "Could not join: that game is full.") && m[3].lobby() == 0);
