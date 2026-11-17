@@ -108,12 +108,12 @@ If `coop-settings.txt` cannot be read, every setting row shows the game's locked
 The row you move the mouse onto takes the focus, a left click on a row does what Enter does and a right click closes
 the screen.
 
-The screen opens where the co-op menu would (in a world, the game not paused) and only while you are in no lobby.
-Where it cannot open, `coop host` hosts at once with `who_can_join` as before: while you host, it opens the Steam
-invite dialog again. `coop host public` (or `friends`, `invitation`, `closed`) and `host_key` always host at once. The
-screen closes by itself outside a world, when the game pauses or shows the mouse cursor for one of its own screens,
-when the UI turns off and once you are in a lobby (after an invite you accepted, for example). `coop ui reset` and the
-[focus watchdog](#focus-watchdog) close it too.
+The screen opens where the co-op menu would (in a world, the game not paused) and only while you are in no lobby. Where
+it cannot open, `coop host` hosts at once with `who_can_join` as before. While you host, it opens the Steam invite
+dialog again, or says `Nobody can join a private session.` in a Private one. `coop host public` (or `friends`,
+`invitation`, `closed`) and `host_key` always host at once. The screen closes by itself outside a world, when the game
+pauses or shows the mouse cursor for one of its own screens, when the UI turns off and once you are in a lobby (after an
+invite you accepted, for example). `coop ui reset` and the [focus watchdog](#focus-watchdog) close it too.
 
 If one of the game's widgets cannot be made, the screen draws the same rows, headers and hints with the menu's own
 parts. `UE4SS.log` then says `[StellarCoop][UI] create: part <class>: <why>; left out until the mod reloads` once. It
@@ -131,7 +131,7 @@ hints. It lists the open online sessions of players on your version of the mod a
 
 Sessions hosted with Invitation or Private never show. Full sessions do not show either. Nor do sessions of another
 protocol or game build, sessions hosted by a player you blocked on Steam or on your
-[block list](playing-with-a-friend.md#block-list), or your own. Steam gives at most 50 rows, sorted by ping, best
+[block list](playing-with-a-friend.md#block-list), or your own. A tab holds 50 rows at most, sorted by ping, best
 first, rows with no ping last.
 
 Each row shows the host's Steam name, then the region, the players (`1/2`) and the ping. Eight rows show at once and
@@ -148,8 +148,8 @@ search failed. Refresh to try again.`, `Press Refresh to search.` (the other tab
 again in <n> s.`
 
 Select on a row asks to join that session at once and closes the screen. A Steam friend of the host gets in at once,
-unless the host set Friends join without asking to Off. Anyone else waits until the host accepts or denies them, as
-with a [join code](playing-with-a-friend.md#join-codes).
+unless the host set Friends join without asking to Off. Anyone else waits until the host accepts or denies them (see
+[Asking to join](playing-with-a-friend.md#asking-to-join)).
 
 | Key | Controller | On the Sessions screen |
 | --- | --- | --- |
@@ -178,7 +178,7 @@ tested in game yet.
 
 The host's question (a player asks to join your online session) and the joiner's wait (you joined a host who asks)
 show in the game's own popup, the one it uses for its yes or no questions.
-[Join codes](playing-with-a-friend.md#join-codes) says who waits for an answer.
+[Asking to join](playing-with-a-friend.md#asking-to-join) says who waits for an answer.
 
 | Popup | Title | Text | Buttons |
 | --- | --- | --- | --- |
@@ -254,16 +254,19 @@ closes.
 
 ### Options
 
-Each row of the Options page is a setting of [coop-settings.txt](settings.md#coop-settingstxt), except Reset all keys. The rows are
-in groups: Controls (the menu, status, leave, travel and race checkpoint keys, then Reset all keys), Photo mode, Partner (the name tag and the
-[partner HUD](#partner-hud)), Ghost (the looks, the [solid partner](ghost.md#solid-partner-experimental) and the send rate),
-Session (who can join a session you host, the [revive](playing-with-a-friend.md#revive-by-your-friend-experimental), the
-[cutscene wait](playing-with-a-friend.md#cutscene-wait), [following the host](playing-with-a-friend.md#following-the-host) and the
-[shared world](shared-world.md)), Saves (the [co-op saves](playing-with-a-friend.md#co-op-saves)
-at the title and [shared quests](playing-with-a-friend.md#shared-quests-experimental)), Combat (shared enemies, same place, who same-place
-enemies attack, same spawns, extra enemies, shared bosses, the host's enemy and boss scaling and your kill rewards),
-Display (the [status strip](#status-strip-above-the-card) above the partner card, and the size, sounds and language of
-the menu, the chat and the partner HUD) and Chat.
+Each row of the Options page is a setting of [coop-settings.txt](settings.md#coop-settingstxt), except Reset all keys.
+The rows are in groups: Controls (the menu, status, leave, travel and race checkpoint keys, then Reset all keys), Photo
+mode, Partner (the name tag and the [partner HUD](#partner-hud)), Ghost (the looks, the
+[solid partner](ghost.md#solid-partner-experimental) and the send rate), Session (who can join a session you host and
+whether your Steam friends join without asking, the
+[revive](playing-with-a-friend.md#revive-by-your-friend-experimental), the
+[cutscene wait](playing-with-a-friend.md#cutscene-wait),
+[following the host](playing-with-a-friend.md#following-the-host) and the [shared world](shared-world.md)), Saves (the
+[co-op saves](playing-with-a-friend.md#co-op-saves) at the title and
+[shared quests](playing-with-a-friend.md#shared-quests-experimental)), Combat (shared enemies, same place, who
+same-place enemies attack, same spawns, extra enemies, shared bosses, the host's enemy and boss scaling and your kill
+rewards), Display (the [status strip](#status-strip-above-the-card) above the partner card; the size, sounds and
+language of the menu, the chat and the partner HUD) and Chat.
 
 Left and right change a value, and Enter does the same as right. Each change rewrites only that setting's line in
 `coop-settings.txt`; comments and other lines stay as they are. Reset all keys rewrites the line of every key setting
@@ -283,33 +286,37 @@ second Select within 3 s: `F5` for the menu, `F6` for the status, `F8` to leave,
 checkpoints and `none` for `host_key`, which has no row. The new keys work at once. The console command
 `coop keys reset` does the same.
 
-The menu, the guide, the chat, the partner HUD, the code box, the join popups, the co-op saves' question and
-notices, the shared enemies', same place, same spawns and shared quests notices, Night Operation's card, result panel
-and notices, and the Doro race's panel, banners, results and notices use the game's text language, any of the 23 that
-the game ships. So do the status line (under the menu and on F6), the ghost's notices and the notices of a join Steam
-refused (`Could not join: ...`). `ui_language=english` keeps them all in English. A player who joined or left shows
-in the game's own words (`<name> has joined the game.`, `<name> has left the game.`). The other notices of the Steam
-link (your join code, for example) and `UE4SS.log` stay in English. So do the error messages from the coop
-commands, shown in the menu or the code box.
+The menu, the Sessions and Create a session screens, the guide, the chat, the partner HUD, the code box, the join
+popups, the co-op saves' question and notices, the shared enemies', same place, same spawns and shared quests notices,
+Night Operation's card, result panel and notices as well as the Doro race's panel, banners, results and notices use the
+game's text language, any of the 23 that the game ships. So do the status line (under the menu and on F6), the ghost's
+notices and the notices of a join Steam refused (`Could not join: ...`). `ui_language=english` keeps them all in
+English. Without it, a player who joined or left shows in the feed in the game's own words
+(`<name> has joined the game.`, `<name> has left the game.`). The other notices of the Steam link (your join code, for
+example) and `UE4SS.log` stay in English. So do the error messages from the coop commands, shown in the menu or the code
+box.
 
 If the menu or the chat box ever leaves the game without its own keys, open the console (F10 or `~`) and type
-`coop ui reset`: the menu and the boxes close, an open [host's question](playing-with-a-friend.md#join-codes) is answered with Deny, a
-joiner's wait popup hides (the player still waits in the lobby) and the game gets its keys back. `coop ui off` removes
-the co-op menu, the chat box, the code box, the join popups, the
-feed, the partner HUD, Night Operation's card and result panel and the co-op saves' question until the mod reloads (game
-start or Ctrl+R). Notices then go back to the line above your EVE, and your friend's name back to the name tag above
-their ghost. With the UI off, `auto_coop_save=ask` plays your own saves and `always` still switches to the copies.
+`coop ui reset`: the menu, the Sessions and Create a session screens and the boxes close, an open
+[host's question](playing-with-a-friend.md#asking-to-join) is answered with Deny, a joiner's wait popup hides (the
+player still waits in the lobby) and the game gets its keys back. `coop ui off` removes the co-op menu, the Sessions and
+Create a session screens, the chat box, the code box, the join popups, the feed, the partner HUD, Night Operation's card
+and result panel and the co-op saves' question until the mod reloads (game start or Ctrl+R). Notices then go back to the
+line above your EVE. Your friend's name goes back to the name tag above their ghost. With the UI off,
+`auto_coop_save=ask` plays your own saves and `always` still switches to the copies.
 
 ### Focus watchdog
 
-While the menu, the chat box, the code box, the host's question or the co-op saves' question holds the game's keys,
-the mod checks every 250 ms that the keyboard focus is still on its UI. When something else has kept the focus for 1 s
-(one of the game's screens, another mod, a window switch that does not give the focus back), the mod does what
-`coop ui reset` does: the menu and the boxes close, an open host's question is answered with Deny, the co-op saves'
-question closes as Decide later, the mouse cursor goes, and the game gets its keys back at once. One difference: if you
-already chose co-op and the copies are being made, that choice stays, and the result shows as a notice when the copy
-ends. Nothing else shows on screen. `UE4SS.log` says `[StellarCoop] focus watchdog: <who> lost the focus for 1 s: co-op
-UI closed, the game has its input back`, where who is `menu`, `chat`, `code`, `ask` (a join popup) or `saves`.
+While the menu, the Sessions or Create a session screen, the chat box, the code box, a join popup or the co-op saves'
+question holds the game's keys, the mod checks every 250 ms that the keyboard focus is still on its UI. When something
+else has kept the focus for 1 s (one of the game's screens, another mod, a window switch that does not give the focus
+back), the mod does what `coop ui reset` does: the menu, the screens and the boxes close, an open host's question is
+answered with Deny, a joiner's wait popup hides, the co-op saves' question closes as Decide later and the mouse cursor
+goes. The game gets its keys back at once. One difference: if you already chose co-op and the copies are being made,
+that choice stays. The result shows as a notice when the copy ends. Nothing else shows on screen.
+`UE4SS.log` says `[StellarCoop] focus watchdog: <who> lost the focus for 1 s: co-op UI closed, the game has its input
+back`, where who is `menu`, `sessions` (the Sessions screen), `create` (the Create a session screen), `chat`, `code`,
+`ask` (a join popup) or `saves`.
 The line before it, `focus watchdog: focus on <widgets>; game paused or its cursor shown: <true or false>; <time since
 the last mouse button>`, names the game's widgets that held the focus, or `none` when the game's view, a widget the
 mod cannot list or another window had it. `coop-link.log` says `window: another window is in front` and

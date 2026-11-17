@@ -34,7 +34,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | Script | Role |
 | --- | --- |
 | `main.lua` | Entry point: loads the DLL, reads the settings, registers the `coop` command and the keys, runs the loops |
-| `commands/session.lua` | The session's `coop` commands: `host`, `invite`, `join`, `leave`, `status`, `report`, `copy`, `mark`, `allow`, `deny`, `remove`, `revive test`, `travel` and `saves` |
+| `commands/session.lua` | The session's `coop` commands: `host` (the Create a session screen, or a host at once with a Who can join word), `invite`, `join` (a lobby id, a join code or a row of the session list), `list`, `leave`, `status`, `report`, `copy`, `mark`, `allow`, `deny`, `remove`, `revive test`, `travel` and `saves` |
 | `commands/partner.lua` | The ghost's `coop` commands: `puppet`, `basesuit`, `where`, `look`, `loopback`, `record`, `replay` and `freeze` |
 | `commands/nightop.lua` | `coop no`, `coop nightop`, `coop challenge` and `coop recruiter`, with their co-op save check |
 | `commands/race.lua` | `coop race`: the Doro look and probe, and the co-op save check before `race/run.lua`'s command |
@@ -56,6 +56,11 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `ui/model.lua` | The menu's rows and settings, with no engine call |
 | `ui/lobby_model.lua` | The SBO lobby menu's rows, status and members by lobby state, and its settings screen's rows, with no engine call |
 | `ui/lobby.lua` | The SBO lobby menu and its settings screen drawn with Stellar Blade's own widget parts, the Leave question, the countdown and the waiting room's line |
+| `ui/parts.lua` | Stellar Blade's widget parts that the lobby's screens, the Sessions screen, the Create a session screen and the join popups make: their classes, specs and the calls that make and drive them, each refusal logged once |
+| `ui/sessions_model.lua` | The Sessions screen's rows, status line, Refresh and Select from the native part's session list, with no engine call |
+| `ui/sessions.lua` | The Sessions screen (Find a session) drawn with Stellar Blade's own widget parts: its two tabs, rows, details pane and key hints |
+| `ui/create_model.lua` | The Create a session screen's rows (Who can join and the session rules, Options' own settings), with no engine call |
+| `ui/create.lua` | The Create a session screen (Host a session) drawn with Stellar Blade's own widget parts; Start hosts |
 | `ui/guide.lua` | The first-launch guide: its pages, keys, mouse and pad, `coop-guide.txt`, and the Mother Sphere art imported from `Assets/MotherSphere.png` at run time (`ImportFileAsTexture2D`) |
 | `ui/guide_text.lua` | The guide's words and its menu row's, in the same languages as `ui/text.lua` |
 | `ui/text.lua` | The words of the menu, the chat, the partner HUD, the co-op saves, the join codes, the status line, the Doro race's HUD and the notices written in Lua, in the game's 23 text languages |

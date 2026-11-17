@@ -60,9 +60,11 @@ setting is now on by default, the experimental ones included; most of them have 
 
 ## What it does
 
-- F5 opens the co-op menu. Its first row, Host a session, creates a Steam lobby for 2 players and opens the Steam
-  invite dialog. Options can limit the session to invited friends, or give it a 7-character join code and open no
-  dialog. See [Playing with a friend](docs/playing-with-a-friend.md).
+- F5 opens the co-op menu. Its first row, Host a session, opens the Create a session screen: pick who can join and
+  the session rules, then Start hosts a Steam lobby for 2 players. Public, the default, lists the online session in
+  Find a session for every player of your version. Friends only opens it to your Steam friends, Invitation to a Steam
+  invite or a 7-character join code, Private to nobody. Find a session lists the online sessions you can join. See
+  [Playing with a friend](docs/playing-with-a-friend.md).
 - Your friend's EVE appears in your world as a ghost: a display-only copy that moves as she moves, wears her outfit and
   has your friend's Steam name above it. Items are not shared, except the consumables sent with `coop gift`. See
   [Ghost](docs/ghost.md).

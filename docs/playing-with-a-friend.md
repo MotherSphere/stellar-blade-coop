@@ -1,16 +1,16 @@
 # Playing with a friend
 
-One player hosts a session and the other joins it through Steam. A co-op session holds 2 players; the match lobbies
+One player hosts a session and the other joins it through Steam. An online session holds 2 players; the match lobbies
 of up to 8 players start from the [SBO lobby](sbo-lobby.md) instead. Shared enemies and your friend's EVE have their own
 pages, [Shared enemies](shared-enemies.md) and [Ghost](ghost.md). How the link and the features below work is in
 [The Steam link](internals/steam-link.md) and [Group play: how it works](internals/group-play.md).
 
-1. The host presses F5 and selects Host a session. The
-   [Create a session screen](interface.md#create-a-session-screen) opens on the values in effect: Who can join, then
-   the session rules. Start creates a Steam lobby for 2 players as Who can join says:
+1. The host presses F5 and selects Host a session. The [Create a session screen](interface.md#create-a-session-screen)
+   opens on the values in effect: Who can join, then the session rules. Start creates a Steam lobby for 2 players as Who
+   can join says:
    - Public (the default): the online session shows in Find a session for every player of your version, with your
      Steam name, region and nearest camp. No dialog opens. A player who is not your Steam friend asks to join and
-     waits for your answer (see [Join codes](#join-codes)).
+     waits for your answer (see [Asking to join](#asking-to-join)).
    - Friends only: the Steam invite dialog opens. Pick your friend there. Your Steam friends who have the mod can also
      join from Find a session, from their friends list or with `coop join`.
    - Invitation: the Steam invite dialog opens and a notice gives your [join code](#join-codes). The session shows in
@@ -18,12 +18,14 @@ pages, [Shared enemies](shared-enemies.md) and [Ghost](ghost.md). How the link a
    - Private: nobody can join, not even with an invite or a code (`Hosting a private session: nobody can join it.`).
 
    Friends join without asking, under Public and Invitation, is On by default: your Steam friends get in at once. Off
-   makes them wait for your answer too. Each row is the same setting as on the Options page and counts for the next
-   session you host. Back closes the screen without hosting. `coop host public` (or `friends`,
-   `invitation`, `closed`) hosts at once with that value, without the screen.
-2. Your friend accepts the invite in Steam. If their game is closed, Steam starts it. They join once a save is loaded
-   (EVE in a world, not on the title screen). Until then their game holds the invite (`Invite held: joining once your
-   save has loaded.`). A newer invite replaces a held one, and host, join or leave drops it.
+   makes them wait for your answer too. Each row is the same setting as on the Options page: a change there shows here
+   and the other way round. Who can join and Friends join without asking count for the next session you host. Back
+   closes the screen without hosting. `coop host public` (or `friends`, `invitation`, `closed`) hosts at once with that
+   value, without the screen.
+2. Your friend accepts the invite in Steam, or selects your session in [Find a session](#finding-a-session). If their
+   game is closed when they accept an invite, Steam starts it. They join once a save is loaded (EVE in a world, not on
+   the title screen). Until then their game holds the invite (`Invite held: joining once your save has loaded.`). A
+   newer invite replaces a held one. Host, join or leave drops it.
 3. The ghost turns on automatically in both games when the session starts. Once both games have accepted each other's
    handshake, each of you sees the other's EVE where she stands, in her outfit, with their Steam name above her.
 
@@ -63,13 +65,30 @@ the world of the player who uses them. Vendors, the request board and quest give
 [shared quests](#shared-quests-experimental) says which quest steps are shared. Nothing one player opens, buys or picks
 up is copied into the other player's game.
 
+## Finding a session
+
+Find a session, on the co-op menu's main page and on the co-op line outside a session, opens the
+[Sessions screen](interface.md#sessions-screen). Its Public tab lists the Public online sessions of the players whose
+mod runs your protocol and whose game runs your build. Its Friends tab lists the sessions your Steam friends host with
+Public or Friends only. Neither tab shows an Invitation or Private session, a full one, one whose host you blocked on
+Steam or on your [block list](#block-list), or your own.
+
+Each row shows the host's Steam name, the region, the players (`1/2`) and the ping. The right pane adds the travel
+camp nearest the host and the session rules the host has on. The screen searches when it opens, when you change tabs
+and on Refresh (R, or Y on a controller), 5 s apart at least. It never searches by itself.
+
+Select a row to join that session. A Steam friend of the host gets in at once, unless the host set Friends join
+without asking to Off. Anyone else waits for the host's answer (see [Asking to join](#asking-to-join)). The console
+reads the same list: `coop list public` or `coop list friends` searches, `coop list` prints the rows and
+`coop join <row>` joins one (see [Session commands](usage.md#session-commands)).
+
 ## Join codes
 
 With Who can join set to Invitation (`who_can_join=invitation`; `code` and `private` from 0.11 and older read the same),
 Start on the Create a session screen creates a lobby that shows in no list and opens the Steam invite dialog. The
-notice `Hosting. Your join code is CCS-CBMH.` gives its 7-character code. The menu's Copy my code row shows it too, and
-selecting it puts it on the clipboard (`Join code CCS-CBMH copied.`). Send it to the other player, for example in
-Discord. Each new lobby gets a new code.
+notice `Hosting. Your join code is CCS-CBMH.` gives its 7-character code. The menu's Copy my code row shows it too.
+Selecting it puts the code on the clipboard (`Join code CCS-CBMH copied.`). Send it to the other player, for example
+in Discord. Each new lobby gets a new code.
 
 The other player opens the menu outside a session and selects Join with a code. A text box opens where the menu was.
 It works like the chat box: any keyboard layout, the game ignores its own keys, and the mod's keys do nothing.
@@ -83,6 +102,8 @@ The box closes when a session starts, when the game pauses or shows the mouse cu
 part checks the code: most codes with a wrong character get `That is not a join code: check its 7 characters.` (see
 [internals/steam-link.md](internals/steam-link.md#lobby-and-invites)), and a code that leads to no game gets one of the
 `Could not join: ...` notices.
+
+## Asking to join
 
 A player who is not your Steam friend waits for your answer, whatever Who can join says. With Friends join without
 asking set to Off, your Steam friends wait too. Both games show the game's own popup
@@ -108,7 +129,8 @@ every key does nothing, so keys pressed for something else never answer it.
   leaves.
 - A removed player cannot come back to any game you host: Remove also puts them on your [block list](#block-list).
   Their game shows `<host> refused the link: you were removed from this session` and leaves.
-- If players you do not know keep asking, host again: the new lobby gets a new code.
+- If players you do not know keep asking, host again with Friends only or Invitation: neither shows in the Public
+  tab of Find a session. An Invitation lobby gets a new code.
 - A session with a player who is not your Steam friend goes through Steam's relays only, on both games, so neither
   of you learns the other's IP address. The relay route can add ping. Once such a player has been in your lobby, your
   game stays on relays only until you host again or join a friend's game.

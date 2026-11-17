@@ -110,8 +110,8 @@ changes the file.
 
 - `F5` opens the co-op menu. Its first row, Host a session, opens the Create a session screen: pick who can join
   (Public by default, Friends only, Invitation or Private) and the session rules, then select Start. Friends only and
-  Invitation open the Steam invite dialog, where you pick your friend. While you host,
-  the menu has Invite a friend and Leave the session instead. The arrow keys (or WASD, or
+  Invitation open the Steam invite dialog, where you pick your friend. Find a session lists the online sessions you
+  can join. While you host, the menu has Invite a friend and Leave the session instead. The arrow keys (or WASD, or
   ZQSD) move, Enter selects and Esc goes back. Within 3 m of a camp phone booth, `F5` opens the co-op line instead, a
   page with the same session rows. See [docs/interface.md](docs/interface.md#co-op-menu).
 - On a controller, hold View for 1 s to open or close the co-op menu. The D-pad or the left stick moves, A selects
@@ -126,20 +126,21 @@ changes the file.
   Join: a test lobby for matches of up to 8 players, where `F5` opens the lobby menu. See
   [docs/sbo-lobby.md](docs/sbo-lobby.md).
 
-Your friend accepts the invite in Steam. If their game is closed, Steam starts it. They join once they have loaded a
-save, and both ghosts turn on automatically. Session events (a friend joined or left, connection lost, a rejoin)
-show for 8 s in the feed at the top left of the screen and also go to `UE4SS.log`. While the on-screen UI is not up (in
-the first seconds after a load or a map change, during your own photo mode, or after an engine error), they show
-above EVE for 4 s instead.
+Your friend accepts the invite in Steam, or selects your session in Find a session. If their game is closed when they
+accept an invite, Steam starts it. They join once they have loaded a save. Both ghosts then turn on automatically.
+Session events (a friend joined or left, connection lost, a rejoin) show for 8 s in the feed at the top left of the
+screen and also go to `UE4SS.log`. While the on-screen UI is not up (in the first seconds after a load or a map change,
+during your own photo mode, or after an engine error), they show above EVE for 4 s instead.
 
 With Who can join set to Invitation (`who_can_join=invitation`), Start opens the invite dialog too. A notice and the
-menu's Copy my code row give a 7-character join code such as `CCS-CBMH`, and each new session gets a new one. Send it
-to the other player, who selects Join with a code in their co-op menu and types it. Your Steam friends get in at once.
-For a player who is not on your Steam friends list, in any session you host, a question asks whether to let them in:
-Accept or Deny. With no answer in 60 s, the player is refused. A refused player cannot come back to that session. To
-send out a player you let in, select Remove <name> in the menu, then select it again within 3 s. Remove also puts that
-player on your block list, which keeps them out of every game you host later, after a game restart too, until
-`coop unblock`. See [docs/playing-with-a-friend.md](docs/playing-with-a-friend.md#join-codes) and its
+menu's Copy my code row give a 7-character join code such as `CCS-CBMH`. Each new session gets a new one. Send it to the
+other player, who selects Join with a code in their co-op menu and types it. Your Steam friends get in at once, unless
+you set Friends join without asking to Off. For a player who is not on your Steam friends list, in any session you host,
+the game's popup asks whether to let them in: Accept or Decline. With no answer in 60 s, the player is refused. A
+refused player cannot come back to that session. To send out a player you let in, select Remove <name> in the menu, then
+select it again within 3 s. Remove also puts that player on your block list, which keeps them out of every game you host
+later, after a game restart too, until `coop unblock`. See
+[docs/playing-with-a-friend.md](docs/playing-with-a-friend.md#asking-to-join) and its
 [block list](docs/playing-with-a-friend.md#block-list) section.
 
 The mod writes `Mods/StellarCoop/coop-settings.txt` the first time the game starts with it. The menu's Options page
@@ -152,10 +153,10 @@ changes one line of the file at a time, and keeps the file as it was before its 
   actions share one key, all five keys go back to their defaults. A file written before the menu existed has no
   `menu_key` line: the menu then opens on that file's `host_key`, and no key hosts at once.
 - `who_can_join`: `public` (the default: any player of your version finds your online session in the session list),
-  `friends` (your Steam friends can join from their friends list), `invitation` (the friends you invite or anyone
-  with your join code) or `closed` (Private in the menu: nobody can join). A player who is not your Steam friend waits
-  for your answer. The words `code` and `private` from 0.11 and older read as `invitation`. It counts for the next
-  session you host.
+  `friends` (your Steam friends can join from their friends list or Find a session's Friends tab), `invitation` (the
+  friends you invite or anyone with your join code) or `closed` (Private in the menu: nobody can join). A player who is
+  not your Steam friend waits for your answer. The words `code` and `private` from 0.11 and older read as `invitation`.
+  It counts for the next session you host.
 - `friends_ask`: `off` (the default: your Steam friends join at once) or `on` (they wait for your answer too), with
   `public` or `invitation`.
 - `name_tag`: `on` or `off`, your friend's Steam name above their ghost. While the partner marker shows their name

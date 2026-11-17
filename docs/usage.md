@@ -41,7 +41,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | Command | What it does |
 | --- | --- |
 | `coop host` | Open the [Create a session screen](interface.md#create-a-session-screen), as the menu's Host a session row does. Where it cannot open, host an online session of 2 players at once as `who_can_join` and `friends_ask` say: a Public or Friends only session, an Invitation session with a [join code](playing-with-a-friend.md#join-codes), or a Private one nobody can join |
-| `coop host public\|friends\|invitation\|closed` | Host at once with that word in place of `who_can_join`, `friends_ask` still applying |
+| `coop host public\|friends\|invitation\|closed` | Host at once with that word in place of `who_can_join`; `friends_ask` applies under `public` and `invitation` |
 | `coop invite` | Open the Steam invite dialog again while you are in a lobby |
 | `coop join` | Join the first Steam friend found in a Stellar Blade lobby |
 | `coop join <lobby id>` | Join that lobby (digits only) |
@@ -138,17 +138,18 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 
 - `coop host` works like the menu's Host a session row: it opens the Create a session screen, whose Start hosts. The
   screen opens in a world while you are in no lobby. Anywhere else `coop host` asks the native part at once: while you
-  host, it opens the invite dialog again, as `coop invite` does. A guest's host request is refused.
-  With a word (`coop host closed`) it hosts at once with that
-  word in place of `who_can_join`; any other word is refused. Under `public` and `invitation`, `friends_ask=on` makes
-  your Steam friends wait for your answer too.
+  host, it opens the invite dialog again, as `coop invite` does, or says `Nobody can join a private session.` in a
+  Private session. A guest's host request is refused. With a word (`coop host closed`) it hosts at once with that word
+  in place of `who_can_join`; any other word is refused. Under `public` and `invitation`, `friends_ask=on` makes your
+  Steam friends wait for your answer too.
 - `coop list public` and `coop list friends` start a search, one at a time and 5 s apart at least. The search is
-  refused in a lobby and while a match search runs, with the reason in the log. The rows come a few seconds later.
-  `coop list` then prints them on one line, best ping first:
-  `list public done, 2 rows: 1. <host> 1/2 45 ms b07 WLB10_Camp_01 rules ebwqr200 (Steam friend) | 2. ...`. The
-  rules word has a letter for each session rule on (e shared enemies, b bosses, w shared world, s shared story, q
-  shared quests, r revive), then the boss HP scale in percent. `coop join 1` joins the first row: a player who is
-  not the host's Steam friend then waits for the host's answer.
+  refused in a lobby and while a match search runs, with the reason in the log and the feed. The rows come a few
+  seconds later. `coop list` then prints them on one line, best ping first:
+  `list public done, 2 rows: 1. <host> 1/2 45 ms b07 WLB10_Camp_01 rules ebwqr200 (Steam friend) | 2. ...`. A `-`
+  stands for a ping or a region the row lacks. The rules word has a letter for each session rule on (e shared
+  enemies, b bosses, w shared world, s shared story once that setting exists, q shared quests, r revive), then the
+  boss HP scale in percent. `coop join 1` joins the first row: a player who is not the host's Steam friend then waits
+  for the host's answer, as does any player when the host has `friends_ask=on`.
 - `coop join` and `coop join <lobby id>` do not wait for a save to load, unlike an accepted invite. Without an id it
   joins the first friend found in a Stellar Blade lobby; the log says `no friend is in a Stellar Blade lobby` when
   there is none. A lobby id is digits only, and any other text is taken for a join code.

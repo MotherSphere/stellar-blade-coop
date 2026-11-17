@@ -232,20 +232,19 @@ The C++ tests cover the platform-free headers in `native/src`.
   the match lines (start, count, end) with their bounds, the dlc and dlcs lines with their bounds and the DLC
   comparison by app id, and protocol 21 refusing a protocol-20 lobby and line;
 - `link_core_test`: the link against the shared fake Steam, and two links through it with the handshake both ways,
-  channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line,
-  joining with a code, and the host's approval of a player who is not a Steam friend (let in, refused, no answer,
-  removed, a flood while waiting), with relay only set on both games before their first session with each other.
-  With a Steam that refuses relay only, nothing goes to that player and her session request waits; Steam is asked
-  again 1 s later. After 3 refusals the host refuses her with a notice, or the guest leaves with one. A friend's
-  session never asks. A
-  join Steam refuses gets its notice for each answer Steamworks documents, or the number for any other. The block
-  list: its fixed hash; its file with no SteamID in clear, written once for each change and read back with CRLF ends
-  and other lines skipped; a removed player refused in the next lobby before any hello, with one notice and her
-  session request ignored; `coop block` removing a member of the lobby we host; `unblock` and `unblock all` greeting
-  her again at once; a guest's list never applied. The installed DLCs: read from the fake Steam at ready (installed
-  ones only, the first 64, the app id for a name Steam leaves empty), sent after the paks line and again after her
-  hello, hers ignored before the handshake and kept to 64, the status's `dlcs=`, `dlc_missing=` and `dlc_extra=` lines
-  and one log line for each change;
+  channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, an
+  Invitation lobby (its code, the invite dialog, the older words `code` and `private`) joined with its code and the
+  host's approval of a player who is not a Steam friend (let in, refused, no answer, removed, a flood while waiting),
+  with relay only set on both games before their first session with each other. With a Steam that refuses relay only,
+  nothing goes to that player and her session request waits; Steam is asked again 1 s later. After 3 refusals the host
+  refuses her with a notice, or the guest leaves with one. A friend's session never asks. A join Steam refuses gets its
+  notice for each answer Steamworks documents, or the number for any other. The block list: its fixed hash; its file
+  with no SteamID in clear, written once for each change and read back with CRLF ends and other lines skipped; a removed
+  player refused in the next lobby before any hello, with one notice and her session request ignored; `coop block`
+  removing a member of the lobby we host; `unblock` and `unblock all` greeting her again at once; a guest's list never
+  applied. The installed DLCs: read from the fake Steam at ready (installed ones only, the first 64, the app id for a
+  name Steam leaves empty), sent after the paks line and again after her hello, hers ignored before the handshake and
+  kept to 64, the status's `dlcs=`, `dlc_missing=` and `dlc_extra=` lines and one log line for each change;
 - `link_pose_cap_test`: the adaptive pose rate (`PoseCap` in `link/core.h`), one reading a second: a calm link and
   a lone bad reading never step; two readings in a row over the line (queue time or pending bytes) step down 60, 30,
   20, to the first cap under the player's `send_rate`, never below 20; 10 calm readings step up one cap; a step up
