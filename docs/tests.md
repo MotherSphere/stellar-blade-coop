@@ -96,7 +96,8 @@ fails the test. The `main/` tests load
 - `core/unreal_test` covers `game_text`: nothing asked while the string table is not loaded or its id is no name, nil
   for a missing key, an empty text or an error;
 - `ui/model_test` covers the four Who can join values and the Friends join without asking row, shown under Public and
-  Invitation only;
+  Invitation only, then the Online tab row named in `docs/interface.md`'s Options paragraph between the bike's key and
+  Reset all keys;
 - `session/travel_test` covers the host's row in the session list: the rules word at each change, the map and nearest
   camp at once on each map and once a minute at most, from the follow's spawn point read (read again a minute later
   when it found no camp), nothing in a load, as a guest or in a match lobby. A refusal is logged once;
@@ -179,7 +180,8 @@ fails the test. The `main/` tests load
   (a left click going to the pause menu's Online tab while a pause menu holds it),
   the focus watchdog's reset, the Lua frame time line with its
   longest frame and 250 ms pass, their counts over 16 ms and over 50 ms, and the longest call of five modules, and the
-  gap lines (a frame over 100 ms after the last, with the 250 ms pass in the gap or none, at most 200 a minute);
+  gap lines (a frame over 100 ms after the last, with the 250 ms pass in the gap or none, at most 200 a minute), then
+  `INSTALL.md` and `docs/interface.md` both saying the mod reads any controller the game reads;
 - `main/match_test` covers `coop match` (search, create, cancel, end, join with a code, leave), search and create with
   the SBO lobby's room and hall words, `coop mute` and `coop unmute` with their usage line, `coop block`,
   `coop unblock` (a SteamID or `all`) with their usage lines and `coop blocked` (the count from the status for one

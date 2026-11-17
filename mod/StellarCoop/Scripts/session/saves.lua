@@ -6,8 +6,8 @@
 -- a choice (Enter, Space, A on a pad, a click) only 1 s after it shows, so a press meant for the title does not answer
 -- it. With auto_coop_save=ask it shows once a visit of the title, while the game uses your own saves (the slot line's
 -- saves=main), the Steam ID is known and no copy pass runs, once the kit has its whole look: Convert and play co-op
--- (Play co-op once a co-op copy exists in this account's save folder), Play solo normally, Decide later (Esc or B on an
--- XInput pad, or 60 s with no key: a pad that is not XInput cannot answer) and Don't ask again, which writes
+-- (Play co-op once a co-op copy exists in this account's save folder), Play solo normally, Decide later (Esc or B on a
+-- pad, or 60 s with no key: a pad the native part cannot read cannot answer) and Don't ask again, which writes
 -- auto_coop_save=always as one line of coop-settings.txt, then plays co-op. Co-op asks the native part for "saves coop"
 -- (it makes or refreshes the copies, then switches the save name, at the title only) and shows the pass's steps until
 -- saves=coop; a pass that ends without the switch, or a request with no answer in 2 s, shows why, with only the solo

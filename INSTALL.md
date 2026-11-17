@@ -226,9 +226,9 @@ Continue or Load Game before it shows, the game loads your own save, and the que
 screen. Up and down arrows (or W, Z and S) move, Enter selects, Esc is Decide later, and a left click selects the
 choice under the mouse. On a controller, the D-pad or the left stick moves, A selects and B is Decide later. For 1 s
 after the question shows, Enter, Space, A and a click do nothing, so a press meant for the title screen does not
-answer it. The mod reads XInput controllers (Xbox controllers, the Steam Deck, any controller under Steam Input); a
-DualSense needs Steam Input on for Stellar Blade (see [docs/interface.md](docs/interface.md#controller)). With no answer for 60 s,
-the question closes as Decide later.
+answer it. The mod reads any controller the game reads, a DualSense with Steam Input off included. If the mod cannot
+use the game's input, it reads XInput controllers only; a DualSense then needs Steam Input on for Stellar Blade
+(see [docs/interface.md](docs/interface.md#controller)). With no answer for 60 s, the question closes as Decide later.
 
 - Convert and play co-op (Play co-op once copies exist): the mod copies your saves, then switches the game to the
   copies. Before the first copies, it backs up every `StellarBlade*.sav` of your account into
