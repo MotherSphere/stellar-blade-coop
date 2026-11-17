@@ -38,7 +38,9 @@ fails the test. The `main/` tests load
   ending the ride, the 250 ms checks (EVE down read from the status line's `bike_life=` with no session, or from the
   session's life state without that word), `coop-bike.txt` and its restore, `coop bike status` and `tune`, the Doro
   look refused while she rides, `parked` (the part the capture leaves out) before the part, on and off the bike, after
-  a ride ended on a fault, after a reload and at `bike=off`;
+  a ride ended on a fault, after a reload and at `bike=off`, the part's `SBO_Bike` tag (a tag that does not hold makes
+  no part), the earlier load's part found at a reload's first tick with the preload at `fault` and removed by the
+  first pass at `bike=off`, another mod's component on the bike's mesh never hidden, used or removed;
 - `partner/capture_test` also covers SBO's bike left out of the parts while EVE does not ride (`leave_out`, asked once
   a look): an outfit of 16 parts keeps them all; while she rides the bike is part 1 and the last follower goes; getting
   on or off starts a new generation; another component on the bike's mesh stays a part;

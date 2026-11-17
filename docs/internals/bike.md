@@ -33,10 +33,18 @@ Once `bike=ready` and an EVE has been in the world for 2 s (the capture's own wa
 `race/doro.lua`'s `Doro.attach`: one `SkeletalMeshComponent` showing `Adam_Vehicle_02`, attached KeepRelative to her
 main mesh, collision off, single-node mode with no clip, so it keeps its reference pose. It sits at (1.53, 0.52, 2.95)
 cm with a pitch of 0.69 degrees relative to her main mesh, from the attach tracks of the game's SD20 scene (riders on
-the bike's bone `Base`). It starts hidden. After Ctrl+R the part is already there: the ride finds it among her
-components (`K2_GetComponentsByClass`) by its mesh and uses it again. The log line
-`bike part ready on EVE (made in <ms> ms)` or `(found ...)` gives the time. A part that cannot be made is not tried
-again on that EVE; a mount says why.
+the bike's bone `Base`). It starts hidden. It carries the component tag `SBO_Bike` (`Ride.TAG`), written into its
+empty `ComponentTags` and read back with `ComponentHasTag`. A tag that does not hold destroys the component: the part
+counts as not made. The log line `bike part ready on EVE (made in <ms> ms)` gives the time. A part that cannot be made
+is not tried again on that EVE; a mount says why.
+
+After Ctrl+R the part is already there. The new Lua load's first tick (`self.restore`) looks among her components
+(`K2_GetComponentsByClass`) for one that shows the bike's mesh and carries that tag. It hides it, keeps it as this
+load's part and logs `bike part found on EVE (an earlier Lua load's), hidden`. This happens before any `bike=` word is
+read, so it also holds when the preload reads `fault` or `failed:<why>`. With `bike=off`, the load's first 250 ms pass
+removes it (`bike part removed from EVE`). An EVE that is not in the world at that tick gets the same look 2 s after
+`bike=ready` (`bike part ready on EVE (found ...)`). A component on the bike's mesh without the tag belongs to another
+mod: the ride never hides, uses or removes it. It makes its own part beside it.
 
 The key press loads nothing, spawns nothing and walks no object array: every lookup and load happens at the preload or
 when a new EVE appears.
@@ -158,14 +166,13 @@ This works for the friend in ghost slot 0 and for each match-lobby member in slo
 
 The part stays on her, hidden, while `bike=on`. While she does not ride, the capture leaves it out. `main.lua` gives
 `capture.leave_out` the ride's `parked`, which the capture asks once a look (once a second) with her actor's address.
-`parked` answers the address of the part this Lua load made or found on that EVE. It answers nothing while she rides,
-before the part is ready and after `bike=off`. It makes no engine call. The capture compares that address with each
-component's, so only SBO's own part is left out: another mod's component on the same mesh stays a part. The part list
-changes at each mount and dismount, so each one starts a new capture generation and every ghost is built again with or
-without the bike. A ride that ends on a fault, `coop off`, `bike=off` and a new Lua load each leave `riding()` false,
-which the next look follows. After a Lua load the ride finds the part again 2 s after `bike=ready` (the capture's own
-wait), earlier in the same 250 ms pass. When the preload was already ready, the first capture leaves the part out. When
-it was not, one capture may carry the hidden part; the next look takes it out under a new generation.
+`parked` answers the address of the part this Lua load made, or found by its tag, on that EVE. It answers nothing while
+she rides, before the part exists and after `bike=off`. It makes no engine call. The capture compares that address with
+each component's. Only SBO's own part is left out: another mod's component on the same mesh has no `SBO_Bike` tag and
+stays a part. The part list changes at each mount and dismount, so each one starts a new capture generation and every
+ghost is built again with or without the bike. A ride that ends on a fault, `coop off`, `bike=off` and a new Lua load
+each leave `riding()` false, which the next look follows. After a Lua load the first tick names the earlier load's part,
+before the capture's first look and whatever the `bike=` word reads. With `bike=off` the first 250 ms pass removes it.
 
 While she rides, the part has no `MasterPoseComponent`, so `capture.lua` ranks it with the leaders, ahead of every
 follower. With `MAX_PARTS` at 16, an EVE with 16 skeletal parts or more loses the last follower of her outfit from every

@@ -6,10 +6,12 @@
 -- native/src/game/bike.h; the bike= word of the status line says ready), asked again while that word still reads off
 -- 5 s after the ask (a request lost on the way). Once that is ready and an EVE has been in the world 2 s, the part is
 -- made: one SkeletalMeshComponent hung KeepRelative on her main mesh at the seat (race/doro.lua's attach: collision
--- off, single-node mode with no clip, so it keeps its reference pose), hidden. After Ctrl+R the part is already there:
--- it is found among her components by its mesh and used again. While she rides, the capture sends it to every ghost
--- like any part of her outfit, so nothing new travels. While she does not, self.parked names it and the capture leaves
--- it out (main.lua): hidden, it would take one of the ghost's 16 parts.
+-- off, single-node mode with no clip, so it keeps its reference pose), hidden, tagged Ride.TAG. After Ctrl+R the part
+-- is already there: the new Lua load's first tick (self.restore) finds it among her components by its mesh and that
+-- tag, whatever the bike= word or the setting says. That load uses it again; its first 250 ms pass removes it at
+-- bike=off. While she rides, the capture sends it to every ghost like any part of her outfit, so nothing new travels.
+-- While she does not, self.parked names it and the capture leaves it out (main.lua): hidden, it would take one of the
+-- ghost's 16 parts.
 -- A mount (self.toggle) checks EVE first and refuses with its reason; then, in this order: coop-bike.txt (her object
 -- path, her main mesh's relative rotation and location, or those of a file this Lua load kept for her),
 -- race/drive.lua's drive with bike/model.lua (why 'bike'), "bike gate on" (SB's actions off on her controller, Jump
@@ -36,6 +38,8 @@ local valid,value_of,each,find,address,why_of=U.valid,U.value_of,U.each,U.find,U
 local Ride={}
 -- SB's bike (37 bones, no wheel bone; its skeleton, physics asset and four material instances come with it).
 Ride.MESH='/Game/Art/Character/ETC/Adam_vehicle_02/Adam_Vehicle_02.Adam_Vehicle_02'
+-- The component tag that marks SBO's own part, so another mod's component on the same mesh is never taken for it.
+Ride.TAG='SBO_Bike'
 -- The riding clip, one of EVE's clips (the native part plays only those): SB has no driver clip for her, so this is the
 -- pillion pose asleep on the bike of the SD20 scene, 301 frames at 30 fps with no root motion. The one place to change
 -- it.
@@ -78,23 +82,29 @@ end
 local function path_of(o) return o:GetFullName():match('^%S+ (.+)$') end
 local function her() return U.her(valid(UE.GetPlayer())) end
 local function math_lib() return find('/Script/Engine.Default__KismetMathLibrary') end
--- The bike part an earlier Lua load made on EVE: her skeletal mesh component that shows Ride.MESH, else nil.
+-- The bike part an earlier Lua load made on EVE: her skeletal mesh component that shows Ride.MESH and carries
+-- Ride.TAG, else nil.
 local function find_part(e)
     local found=nil
     each(e:K2_GetComponentsByClass(find(SKINNED)),function(_,c)
         c=valid(c)
         local mesh=c and valid(c.SkeletalMesh)
-        if not found and mesh and path_of(mesh)==Ride.MESH then found=c end
+        if not found and mesh and path_of(mesh)==Ride.MESH and c:ComponentHasTag(FName(Ride.TAG))==true then
+            found=c
+        end
     end)
     return found
 end
--- A new part on her main mesh at the seat, hidden. Raises, with nothing left, when it cannot be made.
+-- A new part on her main mesh at the seat, hidden, tagged. Raises, with nothing left, when it cannot be made.
 local function make_part(e)
     local mesh=assert(valid(e.Mesh),'EVE has no main mesh')
     local c=Doro.attach(e,mesh,{path=Ride.MESH}).mesh
     local ok,why=pcall(function()
         c:K2_SetRelativeLocationAndRotation(SEAT,{Pitch=SEAT_PITCH,Yaw=0,Roll=0},false,{},false)
         c:SetVisibility(false,false)
+        -- A new component's ComponentTags is empty: UE4SS 3.0.1 lands a write at 1 there (matrix13/world/move.lua).
+        c.ComponentTags[1]=FName(Ride.TAG)
+        assert(c:ComponentHasTag(FName(Ride.TAG))==true,'its tag '..Ride.TAG..' did not hold')
     end)
     if not ok then
         pcall(function() c:K2_DestroyComponent(e) end)
@@ -393,6 +403,7 @@ function Ride.new(o)
     function self.riding() return ride~=nil end
     -- partner/capture.lua's leave_out at each look (main.lua): the address of the part this Lua load made or found on
     -- the EVE at at while she does not ride; nil while she rides, before the part and after bike=off. No engine call.
+    -- After a Lua load, restore names the earlier load's part from the first tick, whatever the bike= word.
     function self.parked(at)
         local h=here
         return not ride and h and h.at==at and h.part and address(h.part) or nil
@@ -451,12 +462,23 @@ function Ride.new(o)
         end
         if why then return off_line(why) end
     end
-    -- At the first tick of a Lua load: an earlier load's coop-bike.txt (it left EVE on the bike) puts her main mesh's
-    -- rotation and location back on that EVE if she still is one and hides the bike part, then the file is cleared
-    -- unless that mesh write failed. Once. Its drive comes back through coop-drive.txt (race/drive.lua's restore).
+    -- At the first tick of a Lua load, once: the part an earlier load made on her EVE (its tag), hidden and kept as
+    -- this load's, so parked names it and bike=off removes it with no bike= word read. Then an earlier load's
+    -- coop-bike.txt (it left EVE on the bike) puts her main mesh's rotation and location back on that EVE if she still
+    -- is one and hides the bike part, then the file is cleared unless that mesh write failed. Its drive comes back
+    -- through coop-drive.txt (race/drive.lua's restore).
     function self.restore()
         if restored then return end
         restored=true
+        local found,why=pcall(function()
+            local e=her()
+            local p=e and find_part(e)
+            if not p then return end
+            p:SetVisibility(false,false)
+            here={at=address(e),path=path_of(e),since=os.clock(),part=p,part_path=path_of(p)}
+            log("bike part found on EVE (an earlier Lua load's), hidden")
+        end)
+        if not found then log('bike part not looked for: '..why_of(why)) end
         local line=store.load()
         if not line then return end
         local f=fields(line)
