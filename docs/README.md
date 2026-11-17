@@ -21,6 +21,7 @@ start with `coop`.
 | [Shared enemies](shared-enemies.md) | Shared enemies, same place, same spawns, the spawn filter, extra enemies, shared bosses |
 | [Doro races](doro-races.md) | Recording a track, starting a race, driving, rules, results, the Doro look, track files |
 | [The bike](bike.md) | Getting on and off, the refusals, riding, `coop bike`, the settings, the ghosts, credits to Eve On Wheels |
+| [Gun mode](gun-mode.md) | The NIKKE rifle outside its missions: standing and crouched, firing, the laser sight, the keys, `coop gun`, the settings, building its paks, credits |
 | [Settings](settings.md) | `coop-settings.txt` as the mod writes it, the files in the mod folder |
 | [Keys and commands](usage.md) | Every key and `coop` console command, the F6 and `coop status` lines, and the new place of each section that moved |
 | [Saves](saves.md) | What the mod reads and writes, backups, Steam Cloud, the co-op saves, recovery |
