@@ -8,9 +8,8 @@
 local Join=require('session.join')
 local Maps=require('session.sbo_maps')
 local M={}
--- FFA's lobby size (N11's 8); an online session's when we do not host it (the most one holds: its host's max_players is
--- in no status line on a guest); seconds the copied word stays.
--- shortcut: a guest reads 4 whatever the host set; a cap= on the native status line would give the real one.
+-- FFA's lobby size (N11's 8); an online session's while its max_players is not known (a guest before the host's let
+-- line: the most one holds); seconds the copied word stays.
 local LIMIT,COOP,COPIED=8,4,3
 local ROWS={
     idle={'ffa','more','search','private','join_code','room','settings','leave'},
@@ -47,7 +46,7 @@ local function mark(m)
     return 'ok'
 end
 -- o: {match=link.match(), members=link.members(), role=link.mode() or 'none', limit=link.cap() (the players at most of
--- the online session we host, nil otherwise), code=our code while we host with one,
+-- the online session we are in, its host's max_players; nil otherwise), code=our code while we host with one,
 -- me={id=our SteamID, name=link.me()}, owner=link.owner(), last=our last request ('search', 'create', 'join' or nil),
 -- copied_at=, now= (seconds), version=, proto= (mod= and proto=)}. A countdown's status is its left seconds; a match
 -- lobby playing a round reads as open (stage 4 has the words for a round).

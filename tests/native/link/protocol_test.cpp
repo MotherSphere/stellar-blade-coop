@@ -406,7 +406,7 @@ int main() {
                                pak_line({"~mods/lily_hair_p", 1024, 0xfedcba9876543210ull}), night_line(host_line),
                                mark_line(9, "é ok"), start_line("ffa", "NK_Boss_Scarlet", 7, {1001, 2002}),
                                count_line(5), end_line(), dlc_line(3564740, "Twin Expansion Pack"), dlcs_line(),
-                               let_line(2002, {2002, 4003}), wait_line(120)};
+                               let_line(2002, {2002, 4003}, 4), wait_line(120)};
   for (int round = 0; round < 200000; ++round) {
     std::string text;
     if (round % 2) {
@@ -554,19 +554,20 @@ int main() {
                                   "count 0", "count 11", "count", "end now"})
       assert(parse_text("SBC" + std::to_string(kProtocol) + " " + bad).kind == Kind::invalid);
   }
-  // An online session's host lines: let (the pair, 0 or one of 1 to 7 distinct non-zero SteamIDs, the members let in)
-  // and wait (1 to kMaxWait s).
+  // An online session's host lines: let (the pair, 0 or one of 1 to 7 distinct non-zero SteamIDs, the members let in,
+  // max_players 2 to kMaxMembers) and wait (1 to kMaxWait s).
   {
-    const std::string let = let_line(4003, {2002, 4003});
-    assert(let == "SBC" + std::to_string(kProtocol) + " let 4003 2002,4003");
+    const std::string let = let_line(4003, {2002, 4003}, 3);
+    assert(let == "SBC" + std::to_string(kProtocol) + " let 4003 2002,4003 3");
     Message lm = parse_text(let);
-    assert(lm.kind == Kind::let && lm.a == 4003 && (lm.ids == std::vector<uint64_t>{2002, 4003}));
-    lm = parse_text(let_line(0, {1, 2, 3, 4, 5, 6, 7}));
-    assert(lm.kind == Kind::let && lm.a == 0 && lm.ids.size() == kMaxRemote);
+    assert(lm.kind == Kind::let && lm.a == 4003 && (lm.ids == std::vector<uint64_t>{2002, 4003}) && lm.b == 3);
+    lm = parse_text(let_line(0, {1, 2, 3, 4, 5, 6, 7}, kMaxMembers));
+    assert(lm.kind == Kind::let && lm.a == 0 && lm.ids.size() == kMaxRemote && lm.b == uint64_t(kMaxMembers));
     assert(wait_line(60) == "SBC" + std::to_string(kProtocol) + " wait 60" && parse_text(wait_line(60)).a == 60);
     assert(parse_text(wait_line(kMaxWait)).kind == Kind::wait && kMaxWait == 420);
-    for (const std::string bad : {"let 5 2002", "let 0 2002,2002", "let 0 0", "let 0 2002,", "let 0", "let x 2002",
-                                  "let 0 1,2,3,4,5,6,7,8", "let  0 2002", "wait 0", "wait 421", "wait", "wait 1 2"})
+    for (const std::string bad : {"let 5 2002 4", "let 0 2002,2002 4", "let 0 0 4", "let 0 2002, 4", "let 0", "let x 2002 4",
+                                  "let 0 1,2,3,4,5,6,7,8 4", "let  0 2002 4", "let 0 2002", "let 0 2002 1", "let 0 2002 5",
+                                  "let 0 2002 x", "let 0 2002 4 4", "wait 0", "wait 421", "wait", "wait 1 2"})
       assert(parse_text("SBC" + std::to_string(kProtocol) + " " + bad).kind == Kind::invalid);
   }
   assert(parse_request("match search " + std::string(kMaxToken, 'a') + " xion xion").command == Command::match &&

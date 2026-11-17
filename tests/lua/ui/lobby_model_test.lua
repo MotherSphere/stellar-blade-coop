@@ -34,9 +34,11 @@ local code=M.view({match={state='open',mode='ffa',members=2,limit=8},role='host'
 assert(ids(code)=='ffa*,more*,code,cancel,room,settings,leave' and code.status.key=='status.private' and M.act(code,'code').copy)
 local joined=M.view({match={state='open',mode='ffa',members=2,limit=8},role='guest',me=me,last='join',now=0})
 assert(ids(joined)=='ffa*,more*,cancel,room,settings,leave')
--- An online session: its member count over its host's max_players while we host it (limit), else over 4, the most.
+-- An online session: its member count over its host's max_players (limit), over 4 (the most) while it is not known.
 local coop=M.view({role='guest',me=me,now=0})
 assert(coop.state=='code' and coop.status.key=='status.private' and coop.status.args[1]==1 and coop.status.args[2]==4)
+coop=M.view({role='guest',me=me,limit=2,now=0})
+assert(coop.status.args[2]==2,'A guest: the host\'s max_players')
 coop=M.view({role='host',me=me,limit=3,members={{id='5',linked=true,lost=false,muted=false,rtt=20,name='P'}},now=0})
 assert(coop.status.args[1]==2 and coop.status.args[2]==3)
 local long=M.view({match={state='open',mode='ffa',members=2,limit=8},members={{id='76561198000000009',linked=true,

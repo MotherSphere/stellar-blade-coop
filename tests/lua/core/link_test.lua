@@ -1502,7 +1502,7 @@ assert(door.pending()==nil and #door.pendings()==0)
 -- An online session of more than 2 players: its host and pair (host=, from the start of its own line), each member's
 -- vitals (vit=, out of the log as mate= is), how many are past the handshake, the status line with ' +<n>'.
 local V12='1 2 3 4 5 6 7 8 9 10 11 '
-local CROWD='mod=v steam=ready\nlink=host lobby=7003\nhost=1 pair=21\nmember=21 0 1 0 0 40 Kaanta\n'
+local CROWD='mod=v steam=ready\nlink=host lobby=7003\nhost=1 pair=21 max=4\nmember=21 0 1 0 0 40 Kaanta\n'
     ..'member=22 1 1 0 0 50 Lucas\nmember=23 2 0 0 0 -1 Wait\nfriend=1 0 Kaanta\nvit=21 '..V12..'1\nvit=22 '..V12..'4\n'
 files[STATUS]=CROWD
 lines=door.changes()
@@ -1510,32 +1510,35 @@ for _,line in ipairs(lines) do assert(not line:find('^vit='),'vit= stays out of 
 assert(door.host().id=='1' and door.host().pair=='21' and door.others()==2)
 assert(door.vitals('21').life==1 and door.vitals('22').life==4 and door.vitals('22').hp==1 and door.vitals('23')==nil)
 assert(door.slot(1).mate().life==4 and door.slot(2).mate()==nil and door.slot(1).friend()=='Lucas')
-assert(door.summary()=='Co-op: hosting Kaanta +1.')
+assert(door.summary()=='Co-op: hosting Kaanta +1.' and door.cap()==4)
 files[STATUS]=CROWD:gsub('friend=1 0 Kaanta\n',''):gsub('member=21 0 1','member=21 0 0'):gsub('pair=21','pair=0')
 door.changes()
 assert(door.host().pair==nil and door.others()==1 and door.summary()=='Co-op: hosting Lucas.' and door.chatting(),
     'No pair: the first member past the handshake; the session holds')
-files[STATUS]='mod=v steam=ready\nlink=guest lobby=7003\nhost=1 pair=0\nmember=1 0 1 0 0 40 Host\n'
+files[STATUS]='mod=v steam=ready\nlink=guest lobby=7003\nhost=1 pair=0 max=3\nmember=1 0 1 0 0 40 Host\n'
     ..'member=22 1 1 0 0 50 Lucas\nfriend=1 0 Host\n'
 door.changes()
 assert(door.host().id=='1' and door.host().pair==nil and door.summary()=="Co-op: in Host +1's game.")
-for _,bad in ipairs({'host=1\n','host=x pair=2\n','host=1 pair=2 x\n','friend=1 0 x host=1 pair=2\n',
+assert(door.host().max==3 and door.cap()==3,'The host\'s max_players on a guest')
+files[STATUS]='mod=v steam=ready\nlink=guest lobby=7003\nhost=1 pair=0 max=0\nmember=1 0 1 0 0 40 Host\n'
+door.changes()
+assert(door.host().id=='1' and door.cap()==nil,'max=0: the let line has not come yet')
+for _,bad in ipairs({'host=1\n','host=x pair=2 max=4\n','host=1 pair=2 max=4 x\n','friend=1 0 x host=1 pair=2 max=4\n',
+        'host=1 pair=2\n','host=1 pair=2 max=x\n',
         'vit=21 1 2 3\n','vit=x '..V12..'1\n'}) do
     files[STATUS]='mod=v steam=ready\nlink=host lobby=7003\n'..bad
     door.changes()
     assert(door.host()==nil and door.vitals('21')==nil,bad)
 end
--- cap(): the players at most of our last host request, while we host.
-door.request('host public ask 3')
-files[STATUS]='mod=v steam=ready\nlink=host lobby=7004\n'
+-- cap(): the players at most from the status's host= line, read again after a Lua reload; none outside a session.
+files[STATUS]='mod=v steam=ready\nlink=host lobby=7004\nhost=1 pair=0 max=3\n'
+local reloaded=require('core.link').new('C:\\Mod',fs)
+reloaded.changes()
 door.changes()
-assert(door.cap()==3)
-door.request('host friends 2')
-assert(door.cap()==2)
+assert(reloaded.cap()==3 and door.cap()==3,'A Lua reload reads it again')
 files[STATUS]='mod=v steam=ready\nlink=none lobby=0\n'
 door.changes()
 assert(door.cap()==nil,'Not hosting')
-files[REQUEST]=nil
 -- An object path kept across Lua loads: the ghost's in coop-puppet.txt, the UI root's in a file of its own.
 local ghost,ui=link.store(),link.store('coop-ui.txt')
 assert(ghost.save('/Game/Maps/E04.Actor_1') and ui.save('/Engine/Transient.UserWidget_7'))

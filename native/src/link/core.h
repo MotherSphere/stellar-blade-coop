@@ -1087,9 +1087,11 @@ public:
     if (wait_until_ && lobby_ && !host_)
       s += "wait=" + std::to_string(wait_until_ > now_ ? (wait_until_ - now_ + 999) / 1000 : 0) + " " +
            name_of(host_id_) + "\n";
-    // In an online session: its host's SteamID (ours while we host), then the pair's (partner()), 0 for none.
+    // In an online session: its host's SteamID (ours while we host), then the pair's (partner()), 0 for none, then the
+    // players it holds at most (max_players: ours while we host, the host's let line's on a guest, 0 before one came).
     if (lobby_ && !match())
-      s += "host=" + std::to_string(host_id_) + " pair=" + std::to_string(partner()) + "\n";
+      s += "host=" + std::to_string(host_id_) + " pair=" + std::to_string(partner()) +
+           " max=" + std::to_string(max_players_) + "\n";
     // The session list (list public, list friends): "list=<public|friends> <searching|done|failed> <rows>", then each
     // row, best ping first once done: "session=<lobby> <host's SteamID> <n>/<max> <ping ms or -> <1 for a Steam friend,
     // else 0> <map segment or -> <camp alias or -> <rules or -> <host's name>", the name last.
@@ -1343,6 +1345,7 @@ private:
     api_.leave_lobby(mm_, lobby_);
     event("left lobby " + std::to_string(lobby_) + ": " + why);
     lobby_ = host_id_ = wait_until_ = pair_ = 0;
+    max_players_ = 0;
     let_.clear();
     host_ = public_ = rows_ = listed_ = false;
     players_.clear();
@@ -3137,6 +3140,7 @@ private:
         notice("Shared enemies, the shared world and story together now run between " + peer.name + " and you.");
       let_ = std::move(let);
       pair_ = message.a;
+      max_players_ = static_cast<int>(message.b);
       break;
     }
     case Kind::wait: // The most the host's answer may take now (checked above), while it has not let us in.
@@ -3225,11 +3229,11 @@ private:
 
   // An online session's host: our let line to each guest past the handshake when it changed, or after her hello; a
   // refused send goes again at the next pass. It names the pair (partner()), then the guests past our handshake in the
-  // order they came.
+  // order they came, then our max_players.
   void send_let() {
     if (!host_ || match())
       return;
-    const std::string line = let_line(partner(), members());
+    const std::string line = let_line(partner(), members(), max_players_);
     for (auto &p : peers_)
       if (p.compatible && p.accepted && p.let_sent != line && send(p, line.data(), line.size(), kReliable) == kResultOk)
         p.let_sent = line;
@@ -3412,9 +3416,9 @@ private:
   bool cancel_ = false, report_ = false;                  // coop leave while a call was pending; coop report.
   uint64_t lobby_ = 0, host_id_ = 0;
   bool host_ = false;
-  // An online session: the players it holds at most as we host it (max_players); on a guest, the members the host's
-  // let line names with its pair (0: none).
-  int max_players_ = kMaxMembers;
+  // An online session: the players it holds at most (max_players: ours as we host it, from the host's let line on a
+  // guest, 0 before it came); on a guest, the members the host's let line names with its pair (0: none).
+  int max_players_ = 0;
   bool slot0_seen_ = false; // slots()'s bit 0 at the end of the last tick(), as glue/tick.h's peer() got it.
   std::set<uint64_t> let_;
   uint64_t pair_ = 0;

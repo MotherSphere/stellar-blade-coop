@@ -584,7 +584,6 @@ function Link.new(folder,fs)
     -- flag on her peer line from the native part would outlive the reload.
     local lobby,code,refused,pending,members,strangers,strangers_in=nil,nil,nil,{},{},{},nil
     local roster,session,vits={},nil,{}
-    local cap=nil -- The players at most of our last host request (cap()).
     local self={}
     local function put(name,text,keep)
         local final=path(name)
@@ -612,7 +611,6 @@ function Link.new(folder,fs)
     end
     function self.request(line)
         pass=nil -- Whatever reads next may look for its answer.
-        cap=tonumber(line:match('^host [%a ]* ([2-9])$')) or cap
         if not queue[1] and not fs.read(path('coop-request.txt')) then
             local ok,why,beside=put('coop-request.txt',line..'\n',true)
             if ok then return true,'asked the native part: '..line end
@@ -786,8 +784,10 @@ function Link.new(folder,fs)
                 local v={line:match(VIT)}
                 if v[13] then vits[v[1]]=vitals_of(v,1) end
             end
-            local host_id,pair_id=line:match('^host=(%d+) pair=(%d+)$')
-            if host_id then session={id=host_id,pair=pair_id~='0' and pair_id or nil} end
+            local host_id,pair_id,most=line:match('^host=(%d+) pair=(%d+) max=(%d+)$')
+            if host_id then
+                session={id=host_id,pair=pair_id~='0' and pair_id or nil,max=most~='0' and tonumber(most) or nil}
+            end
             local own,hp=line:match('^life=(%d+) (%d+)$')
             if own then life={state=tonumber(own),hp=tonumber(hp)} end
             if not mode and line:find('^link=') then
@@ -1027,13 +1027,14 @@ function Link.new(folder,fs)
         return n
     end
     -- In an online session (not a match lobby): {id=the host's SteamID (ours while we host), pair=the pair's SteamID,
-    -- nil for none}; nil outside one. On a guest, the host's member line is member(host().id).
+    -- nil for none, max=the players it holds at most, nil before a guest heard it}; nil outside one. On a guest, the
+    -- host's member line is member(host().id).
     function self.host() return session end
     -- A member's vitals by her SteamID (digits), as mate() gives them, while her last line is under 3 s old; nil
     -- otherwise.
     function self.vitals(id) return vits[id] end
-    -- The players at most of our last host request (max_players), while we host; nil otherwise.
-    function self.cap() return mode=='host' and cap or nil end
+    -- The players the online session holds at most (the host's max_players, from the status's host= line), or nil.
+    function self.cap() return session and session.max end
     -- The match line ({state='searching'|'open'|'countdown'|'playing', mode=, members= (past the handshake, us
     -- included), limit=, left= (whole seconds of the countdown)}; members and limit nil while searching, left nil
     -- outside the countdown), or nil outside matchmaking.

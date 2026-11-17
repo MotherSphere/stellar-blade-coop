@@ -28,9 +28,10 @@
 //   From a match lobby's owner only (link/core.h): SBC<protocol> start <mode> <map> <seed> <id>,<id>,... (a round
 //   starts: its mode, map, 32-bit seed and players, host first), SBC<protocol> count <1-10|stop> (the countdown's
 //   seconds left, or its stop) and SBC<protocol> end (the round ended).
-//   From an online session's host only (link/core.h): SBC<protocol> let <pair> <id>,<id>,... (to each guest past the
-//   handshake: the one who plays the shared fight, world and story with the host, or 0, then the members the host let
-//   in) and SBC<protocol> wait <seconds> (to a joiner who waits for the host's answer: the most it may take now).
+//   From an online session's host only (link/core.h): SBC<protocol> let <pair> <id>,<id>,... <max> (to each guest past
+//   the handshake: the one who plays the shared fight, world and story with the host, or 0, then the members the host
+//   let in, then the players the session holds at most) and SBC<protocol> wait <seconds> (to a joiner who waits for
+//   the host's answer: the most it may take now).
 // All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
 // (pose/table.h), its pose "SBP<protocol>" and its delta "SBD<protocol>" (pose/codec.h), and beside them the enemy
 // roots of same-place enemies, "SBE<protocol>" (fight/pilot.h). Channel 2 carries the shared enemies' text lines and
@@ -292,8 +293,8 @@ struct Message {
   uint64_t a = 0, b = 0; // hello: protocol, game build. ping/pong: sequence, sender's clock in ms. photo: '0', '1',
                          // 's' or 'c', then 1 for both. pak: the container's hash. paks: the count of .pak mods,
                          // their hash. dlc: the DLC's app id. camps?, camps: id. mark: its number, from 1. start:
-                         // the seed. count: the seconds, 0 for stop. let: the pair's SteamID, 0 for none. wait: the
-                         // seconds, 1 to kMaxWait.
+                         // the seed. count: the seconds, 0 for stop. let: the pair's SteamID, 0 for none, then
+                         // max_players (2 to kMaxMembers). wait: the seconds, 1 to kMaxWait.
   std::string text;      // hello: mod version. reject: the reason. say: the line, chat_clean() and never empty. pak:
                          // the container's name, mod_name_ok(). dlc: its name, chat_clean() to kMaxDlcName and never
                          // empty. camps: the host's world, or "none". night: the
@@ -437,15 +438,16 @@ inline std::string count_line(uint32_t seconds) {
 inline std::string end_line() { return "SBC" + std::to_string(kProtocol) + " end"; }
 // An online session's host lines (link/core.h), reliable. let: to each guest past the handshake, the members the host
 // let in (past its handshake), in the order they came, after the pair: the one guest who plays the shared fight, the
-// shared world and story together with the host (0: none now). A guest greets only the host and these members. wait:
+// shared world and story together with the host (0: none now); then max, the players the session holds at most (the
+// host's max_players). A guest greets only the host and these members. wait:
 // to a joiner who waits for the host's answer, the seconds the answer may take at most from now: her own minute, or
 // the minutes of those asked before her too. kMaxWait covers kMaxRemote joiners asked in turn.
 constexpr uint64_t kMaxWait = 60 * kMaxRemote;
-inline std::string let_line(uint64_t pair, const std::vector<uint64_t> &ids) {
+inline std::string let_line(uint64_t pair, const std::vector<uint64_t> &ids, int max) {
   std::string line = "SBC" + std::to_string(kProtocol) + " let " + std::to_string(pair);
   for (size_t i = 0; i < ids.size(); ++i)
     line += (i ? "," : " ") + std::to_string(ids[i]);
-  return line;
+  return line + " " + std::to_string(max);
 }
 inline std::string wait_line(uint64_t seconds) {
   return "SBC" + std::to_string(kProtocol) + " wait " + std::to_string(seconds);
@@ -635,9 +637,10 @@ inline Message parse(const char *data, size_t size) {
       return Message();
     m.kind = Kind::start;
     m.text = f[2], m.map = f[3], m.a = seed;
-  } else if (split(text, f, 4, nullptr) && f[0] == versioned_tag && f[1] == "let") {
+  } else if (split(text, f, 5, nullptr) && f[0] == versioned_tag && f[1] == "let") {
     if (!number(f[2], m.a) || !id_list(f[3], kMaxRemote, m.ids) ||
-        (m.a && std::find(m.ids.begin(), m.ids.end(), m.a) == m.ids.end()))
+        (m.a && std::find(m.ids.begin(), m.ids.end(), m.a) == m.ids.end()) || !number(f[4], m.b) || m.b < 2 ||
+        m.b > uint64_t(kMaxMembers))
       return Message();
     m.kind = Kind::let;
   } else if (split(text, f, 3, nullptr) && f[0] == versioned_tag && f[1] == "wait") {

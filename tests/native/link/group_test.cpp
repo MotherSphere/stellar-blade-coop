@@ -88,10 +88,11 @@ int main() {
     assert(slot_of(m[1], kMe) == 0 && slot_of(m[1], kPlayer[2]) == 1);
     assert(slot_of(m[2], kMe) == 0 && slot_of(m[2], kFriend) == 1);
     for (int i = 1; i < 3; ++i)
-      assert(sent_from(kMe, kPlayer[i], let_line(kFriend, {kFriend, kPlayer[2]})) == 1);
+      assert(sent_from(kMe, kPlayer[i], let_line(kFriend, {kFriend, kPlayer[2]}, kMaxMembers)) == 1);
     assert(saw("P3: P1 let in P2 (pair), us") && saw("P2: P1 let in us (pair), P3"));
-    assert(m.status(0).find("\nhost=1001 pair=2002\n") != npos && m.status(1).find("\nhost=1001 pair=1001\n") != npos &&
-           m.status(2).find("\nhost=1001 pair=0\n") != npos && m.status(2).find("\nfriend=1 0 P1\n") != npos);
+    assert(m.status(0).find("\nhost=1001 pair=2002 max=4\n") != npos &&
+           m.status(1).find("\nhost=1001 pair=1001 max=4\n") != npos &&
+           m.status(2).find("\nhost=1001 pair=0 max=4\n") != npos && m.status(2).find("\nfriend=1 0 P1\n") != npos);
     assert(peer_of(m[0], kFriend)->cap.cap() == 60 && peer_of(m[0], kPlayer[2])->cap.cap() == 30);
     assert(peer_of(m[1], kMe)->cap.cap() == 60 && peer_of(m[1], kPlayer[2])->cap.cap() == 30);
     assert(peer_of(m[2], kMe)->cap.cap() == 30 && peer_of(m[2], kFriend)->cap.cap() == 30);
@@ -121,7 +122,7 @@ int main() {
     for (int i = 1; i < 4; ++i)
       assert(slot_of(m[i], kMe) == 0 && m[i].members().size() == 3 && m[i].leader() == kMe);
     assert(m[0].partner() == kFriend && m[2].partner() == 0 && m[3].partner() == 0);
-    assert(sent_from(kMe, kPlayer[3], let_line(kFriend, {kFriend, kPlayer[2], kPlayer[3]})) == 1);
+    assert(sent_from(kMe, kPlayer[3], let_line(kFriend, {kFriend, kPlayer[2], kPlayer[3]}, kMaxMembers)) == 1);
   }
 
   // A joiner who is not the host's Steam friend: every guest holds her (no hello, no session, nothing of hers read)
@@ -136,7 +137,7 @@ int main() {
     assert(m.status(0).find("\npending=4003 P3\n") != npos && m.status(2).find("\nwait=") != npos);
     assert(sent_from(kFriend, kPlayer[2], "SBC hello") == 0 && sent_from(kPlayer[2], kFriend, "SBC hello") == 0);
     assert(sent_from(kFriend, kPlayer[2], v("ping")) == 0 && !linked_with(m[1], kPlayer[2]));
-    assert(sent_from(kMe, kFriend, let_line(kFriend, {kFriend})) == 1 && m[1].members().size() == 1);
+    assert(sent_from(kMe, kFriend, let_line(kFriend, {kFriend}, kMaxMembers)) == 1 && m[1].members().size() == 1);
     assert(!noticed(m.status(1), "P3: connection lost.")); // Held, never lost.
     m[1].tick(m.now, "", 0, kPlayer[2]);
     assert(saw("P2: ignored a session request from 4003: not let in by the host yet"));
@@ -165,7 +166,7 @@ int main() {
     rounds(m, 25000);
     assert(sent_from(kFriend, kPlayer[3], "SBC") == 0 && peer_of(m[1], kPlayer[3]) &&
            !linked_with(m[1], kPlayer[3]) && sent_from(kMe, kPlayer[3], "SBC reject") >= 3);
-    assert(sent_from(kMe, kFriend, let_line(kFriend, {kFriend})) == 1 && m[0].members().size() == 1);
+    assert(sent_from(kMe, kFriend, let_line(kFriend, {kFriend}, kMaxMembers)) == 1 && m[0].members().size() == 1);
   }
 
   // The host's questions one at a time: two strangers join at once, pending= lines in the order they came. Only the
@@ -245,13 +246,13 @@ int main() {
     assert(m[0].partner() == 0 && slot_of(m[0], kPlayer[3]) == 1); // Not in the pass that freed slot 0.
     m.round();
     m.round();
-    assert(sent_from(kMe, kPlayer[3], let_line(0, {kPlayer[3]})) == 1);
+    assert(sent_from(kMe, kPlayer[3], let_line(0, {kPlayer[3]}, kMaxMembers)) == 1);
     assert(slot_of(m[0], kPlayer[3]) == 0 && m[0].partner() == kPlayer[3] && m[3].partner() == kMe);
     assert(saw("P1: P4 is the pair now: ghost slot 1 to 0") &&
-           sent_from(kMe, kPlayer[3], let_line(kPlayer[3], {kPlayer[3]})) == 1);
+           sent_from(kMe, kPlayer[3], let_line(kPlayer[3], {kPlayer[3]}, kMaxMembers)) == 1);
     const std::string s3 = m.status(3);
     assert(notices(s3, "Shared enemies, the shared world and story together now run between P1 and you.") == 1 &&
-           s3.find("\nhost=1001 pair=1001\n") != npos);
+           s3.find("\nhost=1001 pair=1001 max=4\n") != npos);
   }
 
   // The first guest is the pair: the pair leaving in the pass where a Steam friend comes in, the guest already linked
@@ -383,6 +384,7 @@ int main() {
     Mesh m(4);
     const uint64_t L = group(m, 3, " public 3");
     assert(F.limit[L] == 3 && F.data[L][kPlayersKey] == "3/3" && saw("P1: creating a public lobby (listed), 3 players"));
+    assert(m.status(2).find("\nhost=1001 pair=0 max=3\n") != npos && m[2].peers().size() == 2);
     m.tick(3, "join " + id(L));
     m.round();
     assert(noticed(m.status(3), "Could not join: that game is full.") && m[3].lobby() == 0);
