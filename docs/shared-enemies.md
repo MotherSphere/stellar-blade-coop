@@ -103,8 +103,9 @@ linked only while you are on the same map. Turning the row off (`shared_enemies=
 solo test tools below.
 
 In an online session of more than 2 players, shared enemies and every option on them (same place, same spawns, extra
-enemies, shared bosses) run between the host and the first guest only (the guest in ghost slot 0 on the host). Every
-other guest fights her own enemies, with a notice when she comes in.
+enemies, shared bosses) run between the host and the first guest only (the guest in ghost slot 0 on the host; when she
+leaves, the guest who got in first of those still in). Every other guest fights her own enemies, with a notice when she
+comes in.
 
 ### Which enemies are shared
 

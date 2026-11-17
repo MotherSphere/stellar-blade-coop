@@ -216,6 +216,11 @@ of a quest stepped in the same pass waits for his next walk. So does a line whil
 plays or his game is paused (a menu or photo mode), up to 16 waiting lines. A load drops them. Each line gets one log
 line. The host's `coop quests status` answer counts her steps applied and refused.
 
+In an online session of more than 2 players these lines run within the pair only, as story together's `SBS` lines do.
+The worker hands the engine `Link::partner()` (`quest::Engine::pair`). The host's pass drops a step line from any other
+guest with `quests: a step line from guest <SteamID> not taken: her game is not the pair`. A guest whose partner is 0
+sends none: `Guest::lead()` logs `step of hers not sent: she is not the host's pair (more than 2 players)`.
+
 ## Status line
 
 `coop-status.txt` holds one `story=` line, which `coop scenes status` prints:

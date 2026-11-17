@@ -51,7 +51,8 @@ All of these must hold:
 - the game is Steam build 26123051, the build this version supports.
 
 In an online session of more than 2 players, the shared world runs between the host and the first guest only (the
-guest in ghost slot 0 on the host). Every other guest keeps her own world, with a notice when she comes in.
+guest in ghost slot 0 on the host; when she leaves, the guest who got in first of those still in). Every other guest
+keeps her own world, with a notice when she comes in.
 
 Your friend's changes that arrive while your game loads wait, up to 256 of them. They are made once you are back in the world. A change your game cannot make (an object it does not have, or one already in that state) is skipped.
 `coop-link.log` names that object once. What one of you changed while you were not linked is not caught up when you

@@ -58,12 +58,15 @@ fails the test. The `main/` tests load
 - sessions of more than 2 players: `core/link_test` reads `max_players` (2 to 4, 4 by default and in a new file; any
   other value refused with a line, `4` kept), every `pending=` line in the status's order (`pending()` the first,
   `pendings()` all of them), the `host=` and `vit=` lines (`vit=` kept out of the log, a malformed line read as none),
-  `others()`, `cap()` from our last host request and the status line with ` +<n>`, the first member past the handshake
-  standing in on a host whose pair left; `commands/session_test`, `main/boot_test`, `main/menu_test` and
+  `others()`, `cap()` from the `host=` line's `max=` (none for `max=0`, read again after a Lua reload), the status line
+  with ` +<n>`, the first member past the handshake standing in on a host whose pair left, `ping()` the round trip of
+  the member the status line names once she is past the handshake; `commands/session_test`, `main/boot_test`, `main/menu_test` and
   `main/session_ui_test` the host request ending with `max_players` (`main/session_ui_test` also the members' rows
-  after the arrow in the kit's order); `ui/model_test` the Players row on the Options page; `ui/create_model_test` and
+  after the arrow in the kit's order); `ui/model_test` the Players row on the Options page and its mute rows (one per
+  other member past the handshake, under Chat, the same row each call, Select giving `mute`, her SteamID and whether
+  she is muted); `main/menu_test` a mute row's words and its `coop mute` or `coop unmute`; `ui/create_model_test` and
   `ui/create_test` the Players row of the Create a session screen (held at 2 and 4, the scroll window one row longer);
-  `ui/lobby_model_test` a session we host counted against its `max_players`, any other against 4; `session/join_test` the host's queue (one question
+  `ui/lobby_model_test` a session counted against its host's `max_players`, against 4 while it is not known; `session/join_test` the host's queue (one question
   about the first joiner with the players waiting after her on the seconds' line, then the next one's own question
   with its keys dead again for 1 s); `partner/hud_test` the members' rows (right of the card, three to a column, six
   made; her name, HP and state as on the card, greyed, the alert once on DOWN and on a lost link; hidden with
@@ -343,17 +346,22 @@ The C++ tests cover the platform-free headers in `native/src`.
   reaching peers at 20, 30 and 60 a second, tables always sent, an `SBE` sent to nobody as a match lobby has no pair)
   and the 60 s line of passes and full receive batches;
 - `link_group_test`: online sessions of 3 and 4 players through the same fake Steam: the pair (the host and the guest
-  in slot 0) with the host in slot 0 on every guest, the host's let line, the `host=` and `vit=` status lines, 30 poses
-  a second for a member who comes in past 2 players, chat between guests; a joiner the guests hold (no hello, no
+  in slot 0) with the host in slot 0 on every guest, the host's let line with its `max_players`, the `host=` (with
+  `max=`) and `vit=` status lines, 30 poses a second for a member who comes in past 2 players and for the pair's links
+  once the third comes in, chat between guests; a joiner the guests hold (no hello, no
   session) until the host lets her in, a removed member whose link each guest closes, a refused member who stays in the
   lobby and never links with a guest; the host's questions one at a time with each joiner's wait line; the host
-  leaving, which ends every guest's session whoever Steam hands the lobby to; a guest leaving, announced everywhere,
-  with slot 0 taken by the next guest let in; the camps answers to the asker only; gifts, Doro races, Night Operation
-  and a guest's photo pause refused past 2 players while the host's cutscene still pauses each guest; the pair rule
+  leaving, which ends every guest's session whoever Steam hands the lobby to; a guest leaving, announced everywhere;
+  the pair leaving with no guest left, slot 0 then taken by the next guest let in; the pair leaving with a guest
+  linked, the let line's pair 0 for one pass, then that guest in slot 0, named the pair with her notice; the pair
+  leaving in the pass a Steam friend comes in, the guest already linked taking slot 0 and the friend a slot past it;
+  the camps answers to the asker only; gifts (an answer to an earlier gift still going), Doro races, Night Operation
+  and a guest's photo pause refused past 2 players, the guest told so, while the host's cutscene still pauses each
+  guest; the pair rule
   (the notice once on each guest who is not the pair and never on the pair, an `SBE` to the pair only and none from
   another guest, a channel-2 line to one member reaching her alone with its sender, the pair leaving dropping the
-  shared fight's lines both ways while the shared quests' lines of the guest who stays go on); `max_players` 3
-  refusing a fourth player;
+  shared fight's lines both ways while the shared quests' lines of the guest who stays go on); `max_players` 3 on a
+  guest's `host=` line and refusing a fourth player;
 - `link_list_test`: the session list through the same fake Steam, which follows Steamworks' read rules (no data for a
   lobby before a search returned it or `RequestLobbyData` was answered, `GetLobbyOwner` for members only, a result
   count, friends-only lobbies never in a search). A Public host's rows with `where` and `rules`, no relay only forced
@@ -782,9 +790,9 @@ The C++ tests cover the platform-free headers in `native/src`.
 - `quest_engine_test`: the shared quests against a fake quest unit: the walk, the guards before each game call, the
   gate, a fault, two PCs through channel 2's text with delay and loss (her step made first taken by the host's game,
   kept through a hold of his game until 16 wait, the same step again made once, dropped by his load), three PCs (one
-  read of the host's quests a pass feeding a Host per guest, each guest's own snapshot and lines, the second guest's
-  step made once in the host's game and brought to the first, the same step from both made once, the status per
-  guest, a guest who leaves losing her Host only while the record keeps her lines, her return with our on to her
+  read of the host's quests a pass feeding a Host per guest, each guest's own snapshot and lines, the pair's step
+  made once in the host's game and brought to the second guest, the second guest's step line dropped by the host,
+  none sent once she is told she is no pair (`Engine::pair`), the status per guest, a guest who leaves losing her Host only while the record keeps her lines, her return with our on to her
   alone and a snapshot of her quests only), a recording replayed into another save, the worker's side (the gates that
   start and end a side, channel 2's lines beside the fight's, the record file and the status lines);
 - `quest_own_test`: the mod's own quests in a fake quest unit (`quest/own.h`): nothing read off a co-op save, on SB's

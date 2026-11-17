@@ -235,16 +235,21 @@ Apart from the wait line, this uses the hello's timing, the ping and the reject.
 
 An online session holds up to 4 players (`max_players`). The host leads every guest:
 
-- The host's game sends each guest past its handshake `SBC23 let <pair> <id>,<id>,...`, reliable, again after each
-  change and after each hello of hers. It names the pair, then the guests past the host's handshake in the order they
-  came. A guest greets, reads and accepts a session from the host and the members this line names only. A joiner who
+- The host's game sends each guest past its handshake `SBC23 let <pair> <id>,<id>,... <max>`, reliable, again after
+  each change and after each hello of hers. It names the pair, then the guests past the host's handshake in the order
+  they came, then the host's `max_players` (2 to 4). A guest greets, reads and accepts a session from the host and the members this line names only. A joiner who
   waits for the host's answer gets nothing from the guests and sends them nothing. A member the line no longer names
   (refused or removed) loses her link with each guest at its next pass, which says `<name> left.`
 - The pair is the host and the guest in ghost slot 0. On a guest, the host always holds slot 0. On the host, slot 0
-  goes to the first guest who comes in without a question, or to the first one let in while slot 0 is free. The shared
-  enemies, the shared world and story together run within the pair only (`Link::partner()`): the other guests' games
-  keep their own enemies and world. They wait through the host's cutscenes as before. When the pair's guest leaves,
-  slot 0 stays free and no guest pairs with the host until a new one comes in (the let line's pair is then 0).
+  goes to the first guest: one who comes in without a question while no other guest is let in, or the first one let
+  in. The shared enemies, the shared world and story together run within the pair only (`Link::partner()`): the other
+  guests' games keep their own enemies and world. They wait through the host's cutscenes as before. When the pair's
+  guest leaves, the let line's pair is 0 for one pass. At the next pass the guest who came in first of those past the
+  handshake moves to slot 0 (`<name> is the pair now: ghost slot <k> to 0` in the host's log). The pass between lets
+  the host's pose path drop the old pair's table from slot 0. The let line then names her: her game says
+  `Shared enemies, the shared world and story together now run between <host> and you.` and sends its pose table to
+  every member at once (`glue/steam.cpp`), since the host's slot 0 holds none of hers yet. With no guest past the
+  handshake, slot 0 waits for the next one.
 - The first let line that does not name a guest as the pair gives her one notice for the session: `Shared enemies,
   the shared world and story together run between <host> and <pair> only. Your game keeps its own.` With no pair, it
   reads `Shared enemies, the shared world and story together are off for you in <host>'s session. Your game keeps its
@@ -254,19 +259,26 @@ An online session holds up to 4 players (`max_players`). The host leads every gu
   none. Same-place enemies' `SBE` on channel 1 goes to the pair only. The shared quests run with every member: the
   host's game runs one quest side per guest past the handshake, all fed by one read of its quests each pass. Each
   guest gets her own lines (see [Group play: how it works](group-play.md#shared-quests)). A guest sends her `SBQ` lines
-  to the host only and reads the host's only. Lines from any other member are dropped.
+  to the host only and reads the host's only. Lines from any other member are dropped. A quest step a guest makes first
+  (`SBQ23 step`) is story together's: the host's game takes it from the pair only and logs any other guest's as `a
+  step line from guest <SteamID> not taken: her game is not the pair`. A guest out of the pair sends none.
 - A new pair, or none, empties channel 2's queues both ways of all but the shared quests' lines, so a snapshot on its
   way to another guest still goes.
-- The status has `host=<host's SteamID> pair=<pair's SteamID or 0>` in an online session, then `vit=<SteamID> <12
+- The status has `host=<host's SteamID> pair=<pair's SteamID or 0> max=<max_players>` in an online session (on a
+  guest, `max=0` before the let line came), then `vit=<SteamID> <12
   numbers>` for each member past the handshake whose vit line is under 3 s old. `mate=` is the slot-0 member's: the
   host's on a guest, the pair's on the host.
 - A member who comes in while the lobby holds more than 2 players starts at 30 poses a second, as in a match lobby.
+  When the lobby grows past 2, each link still at 60 starts again at 30 too (`pose rate cap 30 a second for <name>: 3
+  players in the lobby`). Each one steps back up after 10 calm readings, as any capped link does.
 - A guest who leaves is announced on the host and on each guest she linked with (`<name> left.`).
 - With more than 2 players, a gift is refused at once (`Gifts need a session of 2 players.`; Lua gets `gift n <id>
-  nolink`). Doro races and Night Operation send nothing. Lua refuses a gift, a race, a Night Operation run and the PvP
+  nolink`). Its answers (`a`, `n`) still go to every member, so a gift sent in a session of 2 gets its answer after a
+  third player came in. Doro races and Night Operation send nothing. Lua refuses a gift, a race, a Night Operation run and the PvP
   test before it asks, from the count of `member=` lines past the handshake (`core/link.lua`'s `others()`). A guest's
-  photo mode no longer pauses the host's game (`<name> is taking photos (no pause with more than 2 players).`). The
-  host's photo mode and cutscene still pause each guest that asked for it.
+  photo mode no longer pauses the host's game (`<name> is taking photos (no pause with more than 2 players).`). Her
+  game counts the let line's members: past one, it says `<host>'s game does not pause for photos with more than 2
+  players.` once a session. The host's photo mode and cutscene still pause each guest that asked for it.
 - A player on another protocol or game build is refused by the host, who keeps the lobby for the others. A reject from
   a guest is logged with a notice and the host stays.
 
@@ -351,7 +363,7 @@ SBC23 gift n <id> <why>
 SBC23 start <mode> <map> <seed> <id>,<id>,...
 SBC23 count <1-10|stop>
 SBC23 end
-SBC23 let <pair> <id>,<id>,...
+SBC23 let <pair> <id>,<id>,... <max>
 SBC23 wait <seconds>
 ```
 

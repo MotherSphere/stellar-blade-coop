@@ -79,9 +79,11 @@ All of these must hold:
 - the game is Steam build 26123051, the build this version supports.
 
 In an online session of more than 2 players, story together runs between the host and the first guest only (the guest
-in ghost slot 0 on the host). Every other guest gets a notice when she comes in. The host's cutscenes pause her game
-as before. [Quest steps the guest makes first](#quest-steps-the-guest-makes-first) belong to shared quests, which run
-with each guest: the host's game takes such a step from any guest. The same step from two guests is made once.
+in ghost slot 0 on the host; when she leaves, the guest who got in first of those still in). Every other guest gets a
+notice when she comes in. The host's cutscenes pause her game as before. The host's game takes
+[quest steps the guest makes first](#quest-steps-the-guest-makes-first) from that guest only. Another guest's game
+sends none: `coop-quests.log` says `step of hers not sent: she is not the host's pair (more than 2 players)`. Her
+quest stays ahead of the host's until his game makes that step.
 
 The host's scene lines that arrive while her game loads wait, up to 256 of them. Her game takes them once she is back
 in the world.

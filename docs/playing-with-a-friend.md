@@ -76,16 +76,18 @@ session of 3 or 4 players has not been tested in game yet.
   guest who got in, at once or once the host accepted her. Every other guest fights her own enemies, keeps her own
   world and plays the story in her own game. Once a session she sees `Shared enemies, the shared world and story
   together run between <host> and <pair> only. Your game keeps its own.` The host's cutscenes still pause her game
-  ([Cutscene wait](#cutscene-wait)). When the pair leaves, no guest already in takes her place: the next guest who gets
-  in is the new pair. A guest who comes in while there is no pair sees `Shared enemies, the shared world and story
-  together are off for you in <host>'s session. Your game keeps its own.`
-- [Shared quests](#shared-quests-experimental) run between the host and each guest.
+  ([Cutscene wait](#cutscene-wait)). When the pair leaves, the guest who got in first of those still in becomes the
+  pair a moment later and sees `Shared enemies, the shared world and story together now run between <host> and you.`
+  A guest who comes in while there is no pair sees `Shared enemies, the shared world and story together are off for
+  you in <host>'s session. Your game keeps its own.`
+- [Shared quests](#shared-quests-experimental) run between the host and each guest. A quest step a guest makes first
+  is made in the host's game too only when she is the pair: it belongs to [story together](story-together.md).
 - The host's game asks about one joiner at a time, in the order they joined. Its question adds `Players waiting after
   this one: <n>.` to the seconds line. A joiner's 60 s start when her question is the first one. Her wait popup counts
   down the most the host's answer may take: her own minute plus a minute for each player asked before her.
 - Each guest can [follow the host](#following-the-host). The host's photo mode and cutscenes pause each guest as in a
   session of 2. A guest's photo mode pauses no other game: the host sees `<name> is taking photos (no pause with more
-  than 2 players).`
+  than 2 players).` The guest sees `<host>'s game does not pause for photos with more than 2 players.`
 - Any member can [revive you](#revive-by-your-friend-experimental): the nearest one alive within 2 m across and 1 m up
   or down. The down notice comes for each member who goes down on your map.
 - The [partner HUD](interface.md#partner-hud) keeps its card for the pair on the host and for the host on a guest.
@@ -93,10 +95,13 @@ session of 3 or 4 players has not been tested in game yet.
   others, for example `Co-op: hosting Alex +2.`
 - Gifts, Doro races, Night Operation runs and the PvP test are for 2 players. Past 2, each is refused with the reason,
   for example `Doro races are for 2 players at most; this session has 3`. A refused gift takes nothing from your save.
+  A gift sent while you were 2 still gets its answer once a third player is in.
   Picking a Night Operation level at Roxanne's shows `Night Operation does not run in a session of more than 2
   players.`
-- Your game sends at most 30 poses a second to a member who came in once the lobby held 3 players or more, as in a
-  match lobby.
+- Once the lobby holds 3 players or more, your game sends at most 30 poses a second to each member, as in a match
+  lobby. A link steps back up toward 60 after 10 s with Steam's send queue calm.
+- Options > Chat holds a mute row for each other member. A muted member's chat lines stop showing on your screen for
+  the game run, as with `coop mute`.
 
 ## Finding a session
 

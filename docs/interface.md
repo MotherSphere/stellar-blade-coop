@@ -38,10 +38,12 @@ The main page shows the rows that fit your session:
 | Write a bug report | Always | Runs `coop report` |
 | Close | Always | Closes the menu |
 
-Under the rows, a status line shows the F6 text and, once your friend is linked, their ping. Below it the menu shows its
-own messages, such as `Select again within 3 s to leave.`, or, while it covers the [feed](#session-chat), the newest
-notice under 8 s old (for example a join that Steam refused). If the session ends or the player leaves in the 3 s
-between the two selects of Leave the session or Remove <name>, the second select runs nothing. The menu closes by itself
+Under the rows, a status line shows the F6 text and the ping of the player it names, once that player is linked
+(with more than 2 players: the host on a guest, the pair or the guest standing in for her on the host). Below it the
+menu shows its own messages, such as `Select again within 3 s to leave.`, or, while it covers the
+[feed](#session-chat), the newest notice under 8 s old (for example a join that Steam refused). If the session ends or
+the player leaves in the 3 s between the two selects of Leave the session or Remove <name>, the second select runs
+nothing. The menu closes by itself
 when the game pauses or shows the mouse cursor for one of its own screens.
 
 ### Co-op line
@@ -294,7 +296,8 @@ session you host, whether your Steam friends join without asking, the players it
 [shared quests](playing-with-a-friend.md#shared-quests-experimental)), Combat (shared enemies, same place, who
 same-place enemies attack, same spawns, extra enemies, shared bosses, the host's enemy and boss scaling and your kill
 rewards), Display (the [status strip](#status-strip-above-the-card) above the partner card; the size, sounds and
-language of the menu, the chat and the partner HUD) and Chat.
+language of the menu, the chat and the partner HUD) and Chat. In a session, Chat ends with a row for each other member
+past the handshake, `Mute <name>` with On or Off: Enter runs `coop mute` or `coop unmute` for her, for the game run.
 
 Left and right change a value, and Enter does the same as right. Each change rewrites only that setting's line in
 `coop-settings.txt`; comments and other lines stay as they are. Reset all keys rewrites the line of every key setting
@@ -548,8 +551,10 @@ a Steam name or a chat line shows as `?`.
 | Session ended | `Session ended: <host> left.`, `Session ended: <host>'s game is gone.` or `Session ended: could not rejoin <host>'s game.` |
 | Too many players | `Left: the lobby has more than 4 players.`, or `... 8 players.` in a match lobby |
 | You are a guest out of the pair in a session of more than 2 players, once a session | `Shared enemies, the shared world and story together run between <host> and <pair> only. Your game keeps its own.`, or with no pair `Shared enemies, the shared world and story together are off for you in <host>'s session. Your game keeps its own.` ([More than 2 players](playing-with-a-friend.md#more-than-2-players)) |
+| You become the pair after the pair before you left | `Shared enemies, the shared world and story together now run between <host> and you.` |
 | A gift in a session of more than 2 players | `Gifts need a session of 2 players.` |
 | A guest's photo mode in a session of more than 2 players you host | `<name> is taking photos (no pause with more than 2 players).` |
+| Your photo mode as a guest in a session of more than 2 players, once a session | `<host>'s game does not pause for photos with more than 2 players.` |
 | A Night Operation level picked at Roxanne's in a session of more than 2 players | `Night Operation does not run in a session of more than 2 players.` |
 | Leaving | `Left the session.`, `Not in a session.` or `Held invite dropped.` |
 | `coop match search` or `create` with a mode this version does not have | `No such mode: <mode>. Modes: <modes>.` |

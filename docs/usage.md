@@ -390,7 +390,7 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
   (not your Steam friend, or any player with `friends_ask=on`), in the order the native part asks about them. As a
   joiner who waits for the host's answer, a `wait=<seconds left> <host's name>` line. While a session list lasts, a
   `list=` line and a `session=` line per row ([The session list](internals/steam-link.md#the-session-list)). In an
-  online session, `host=<host's SteamID> pair=<pair's SteamID or 0>`
+  online session, `host=<host's SteamID> pair=<pair's SteamID or 0> max=<max_players, 0 before a guest heard it>`
   ([Sessions of more than 2 players](internals/steam-link.md#sessions-of-more-than-2-players)). Then a `peer=...` line
   per lobby member (handshake, lost flag, RTT), a `friend=<linked 0|1> <lost 0|1> <name>` line, after a
   [coop mark](#coop-mark) a `mark=<n> ours: <text>` or `mark=<n> from <name>: <text>` line (no `: <text>` for a mark
