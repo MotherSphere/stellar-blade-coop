@@ -90,10 +90,11 @@ bosses=on
 boss_hp_scale=2.0
 # Shared quests, experimental: on or off, on by default. On, while you and your friend both play a co-op save, a
 # quest step the host makes while you stand in the same zone, with that quest at the same point in your game, is made
-# in your game too (Epic, Sub and Request quests). A step made without you is never given to you. A kill step waits
-# for your own kill. A step that stands for an item waits for your own pickup. A Request waits until you hand it in at
-# your own request board. quest_deny, the host's: quests never shared, by name or number, separated by spaces or commas
-# (for example quest_deny=Quest_Epic_14_1).
+# in your game too (Epic, Sub and Request quests). A step made without you is never given to you. As the guest, a
+# step you make first in the host's zone, with that quest where his stands, is made in his game too (not a kill, item
+# or warp step). A kill step waits for your own kill. A step that stands for an item waits for your own pickup. A
+# Request waits until you hand it in at your own request board. quest_deny, the host's: quests never shared, by name
+# or number, separated by spaces or commas (for example quest_deny=Quest_Epic_14_1).
 shared_quests=on
 quest_deny=
 # Shared world, experimental: on or off, on by default, not tested in game yet. On, while you and your friend both

@@ -288,10 +288,10 @@ on by default and have not been tested in game yet. Back up your saves before yo
 They run while a friend is linked, both players play a co-op save and both have them on: Options > Saves > Shared
 quests (experimental) in the co-op menu, or `shared_quests=on` in [coop-settings.txt](settings.md#coop-settingstxt). The row asks
 `coop quests on` or `coop quests off` at once, and with the setting on the mod asks `coop quests on` by itself once a
-load. Only the host's steps count. Four times a second the host's game reads its own quests, and when an Epic, Sub or
-Request quest moves (the quest starts, one of its tasks is done, or a group of its tasks ends), it sends that quest's
-state to the guest. Her game makes the same step through the game's own quest functions, at most one step every
-250 ms, when both of these hold:
+load. Steps go from the host to the guest, except a step the guest makes first (see below). Four times a second the
+host's game reads its own quests, and when an Epic, Sub or Request quest moves (the quest starts, one of its tasks is
+done, or a group of its tasks ends), it sends that quest's state to the guest. Her game makes the same step through
+the game's own quest functions, at most one step every 250 ms, when both of these hold:
 
 - she stood in the same zone as the host when the step came;
 - her copy of the quest stood where the host's stood before the step.
@@ -303,10 +303,16 @@ forces.
 
 A step the host makes without her (she stood in another zone, or her quest stood at another point) is never given to
 her. She gets one notice, `You are behind <name> on <quest>. Finish it in your own game to share it again.`, and plays
-that quest herself; once her quest stands where the host's stands, the next step made together is shared again. The
-host's game never takes a step from the guest's. When her quest moves past the host's (she talked to a quest giver
-alone, for example), both players see a notice, nothing is undone, and the step stays in her save. Quest givers and
-the request board still work for the guest, and so do vendors.
+that quest herself; once her quest stands where the host's stands, the next step made together is shared again.
+
+A step the guest makes first goes the other way. When her quest stood where the host's last quest line stood and she
+stands in his zone, her game sends the step to the host's, which makes it in his co-op save through the same quest
+functions. Kill steps, item steps, steps that move the player and quests the host never shares are not sent. His game
+makes her step once he is in game with no cutscene playing and the game not paused. Up to 16 of her steps wait for
+that. A load on his side drops them. This is part of shared quests: it needs `shared_quests` on, whatever
+`shared_story` says. A step she makes apart from him (in another zone, or from another point of the quest) stays hers:
+both players see a notice, nothing is undone and the step stays in her save. Quest givers, the request board and
+vendors still work for the guest.
 
 Some steps wait in her game:
 

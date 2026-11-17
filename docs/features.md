@@ -149,14 +149,14 @@ spawns and shared bosses build on it. They are experimental and on by default to
 for both games. As guest, the Same place row of your co-op menu can still turn same place off on your screen. The
 experimental Shared quests option (Options, Saves) is on by default and untested in game. While both players play a
 co-op save, it makes the quest steps that the host and the guest make together in the guest's game too, through the
-game's own quest functions (see [playing-with-a-friend.md](playing-with-a-friend.md#shared-quests-experimental)). The
-experimental Shared world option (Options, Session) is on by default and untested in game. While both players play a
-co-op save, a door, lever, switch, crane, lift or shortcut that one player works changes in the other's game too,
+game's own quest functions (see [playing-with-a-friend.md](playing-with-a-friend.md#shared-quests-experimental)). A
+quest step the guest makes first moves the host's quest too, with Story together on or off. The experimental Shared
+world option (Options, Session) is on by default and untested in game. While both players play a co-op save, a door, lever, switch, crane, lift or shortcut that one player works changes in the other's game too,
 while chests, supply boxes and anything else that gives an item stay each player's own (see
 [shared-world.md](shared-world.md)). The experimental Story together option (Options, Session) is on by default and
 untested in game. While both players play a co-op save, a cutscene or a talk the host plays plays in the guest's game
-too, with the host's choices, QTE results and skips. A story trip the host starts takes the guest along. With shared
-quests on, a quest step the guest makes first moves the host's quest too (see [story-together.md](story-together.md)).
+too, with the host's choices, QTE results and skips. A story trip the host starts takes the guest along (see
+[story-together.md](story-together.md)).
 
 ## SBO lobby and matches
 
