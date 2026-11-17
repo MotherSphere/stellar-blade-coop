@@ -29,15 +29,18 @@ std::string story_line = "story=off";
 bool story_applying = false; // While a pass applies her lines: a talk her copy starts is hers, not ours to send.
 bool story_leading = false;  // We read our theater for her: hook 3 reads a block before its widget's next start.
 bool story_holding = false;  // Her copy follows his: hooks 2 and 3 take her presses on each new block.
+bool story_trip_lead = false; // The lead gates, in game or not: hook 4 keeps rows while they held at the last pass.
 std::vector<std::string> story_pending_out, story_pending_said; // Not handed over yet (the lock was busy).
-// Hook 4: set by the worker once the ZoneEvent action's slot holds the shared hook, cleared at coop off. While we lead,
-// each row that action runs and our zone then (FNames, index | number << 32), kept for the next pass in game; past
-// kStoryTrips in one frame they are counted.
+// Hook 4: set by the worker once the ZoneEvent action's slot holds the shared hook, cleared at coop off. While the
+// lead gates hold, each row that action runs and our zone then (FNames, index | number << 32), kept for the next pass
+// in game, kStoryTripKeepMs at most (since the first pass out of game that kept them); past kStoryTrips kept they are
+// counted. The limit lets a trip's own map load through (34 of the 70 story trips load another map).
 std::atomic<bool> story_trips_on{false};
 constexpr size_t kStoryTrips = 16;
+constexpr uint64_t kStoryTripKeepMs = 60000;
 std::array<std::pair<uint64_t, uint64_t>, kStoryTrips> story_trip_rows;
 size_t story_trip_count = 0;
-uint64_t story_trip_lost = 0;
+uint64_t story_trip_lost = 0, story_trip_since = 0;
 
 // story/engine.h's Game: the shared world's reads, writes and names, then SB's theater calls.
 struct WinStoryGame : WinWorldGame {
@@ -172,9 +175,10 @@ __declspec(noinline) void story_trip_read(const int64_t *action) {
   else
     ++story_trip_lost;
 }
-// Only while we lead, on the game thread, after the worker's swap, before a fault, never while her lines are applied.
+// Only while the lead gates held at the last pass (out of game too: the pass keeps the row for a pass in game), on the
+// game thread, after the worker's swap, before a fault, never while her lines are applied.
 void story_trip_root(const int64_t *action) {
-  if (!story_trips_on || !story_hooked || story_faulted || story_applying || !story_leading)
+  if (!story_trips_on || !story_hooked || story_faulted || story_applying || !story_trip_lead)
     return;
   if (GetCurrentThreadId() != story_thread) {
     ++story_elsewhere;
@@ -188,26 +192,32 @@ void story_trip_root(const int64_t *action) {
   }
 }
 // The rows hook 4 kept since the last pass: each story trip among them as a trip line while we lead, then none kept.
-// A pass out of game with the lead gates (lead) still on keeps them for the next pass in game: a trip runs once. With
-// those gates off each trip among them is said, not sent.
-void story_trips_pass(bool lead, uint64_t now) {
+// why: null while the lead gates hold. A pass out of game then keeps them for the next pass in game, kStoryTripKeepMs
+// at most: a trip runs once. Past that, with those gates off or once story together is off (why), each trip among them
+// is said, not sent.
+void story_trips_pass(const char *why, uint64_t now) {
   if (story_trip_lost)
     story_engine.log.push_back("story: " + std::to_string(story_trip_lost) + " ZoneEvent rows past " +
-                               std::to_string(kStoryTrips) + " ran in one frame and were not read: a story trip "
-                               "among them is not shared");
+                               std::to_string(kStoryTrips) + " ran before a pass took them and were not read: a "
+                               "story trip among them is not shared");
   story_trip_lost = 0;
-  if (lead && !story_leading)
-    return;
+  if (!why && !story_leading && story_trip_count) {
+    static const std::string late = "out of game " + std::to_string(kStoryTripKeepMs / 1000) + " s after it";
+    story_trip_since = story_trip_since ? story_trip_since : now;
+    if (now - story_trip_since < kStoryTripKeepMs)
+      return;
+    why = late.c_str();
+  }
   for (size_t k = 0; k < story_trip_count; ++k) {
     story::Message m;
     if (!story_engine.trip_line(story_trip_rows[k].first, story_trip_rows[k].second, m))
       continue;
-    if (story_leading)
-      story_sync.send(m, now);
+    if (why)
+      story_engine.log.push_back("story: trip " + m.name + " ran here, not sent: " + why);
     else
-      story_engine.log.push_back("story: trip " + m.name + " ran here, not sent: we no longer lead");
+      story_sync.send(m, now);
   }
-  story_trip_count = 0;
+  story_trip_count = 0, story_trip_since = 0;
 }
 
 // The shared quests' holds on a step of hers the host would make (quests_game.inc, under the quests' latch): out of
@@ -260,10 +270,11 @@ __declspec(noinline) void story_body(std::vector<std::string> &in, story::Gates 
     story_applying = false;
     // Read only with a friend who can take it; a pass out of game keeps the scene as it stood.
     const bool lead = gates.host && gates.setting && gates.partner && !gates.match && gates.coop_save;
-    story_leading = lead && in_game;
+    story_leading = lead && in_game, story_trip_lead = lead;
     if (story_leading)
       story_lead.pass(story_engine.theater(), story_engine.zone(), story_sync, now);
-    story_trips_pass(lead, now); // After the scene's lines: a talk's end goes before the trip its graph ran.
+    // After the scene's lines: a talk's end goes before the trip its graph ran.
+    story_trips_pass(lead ? nullptr : "we no longer lead", now);
     story_scene = story_sync.active() || story_sync.pending();
     for (std::string &l : story_sync.out)
       story_pending_out.push_back(std::move(l));
@@ -315,11 +326,13 @@ bool story_whole() { return !story_fault_code || fault_in_dll(story_fault_rva); 
 // Once in game: her skip byte and her menus' input put back, then the leash's pause played again, so her copy plays
 // on as hers. release() goes first as it only reads and writes memory: they come back even when hold(false)'s play
 // call faults. Her presses on a QTE or InputCounter block already unbound stay off until that block ends.
-// hold(false) forgets the paused player before it calls SB, so such a fault leaves that player paused.
+// hold(false) forgets the paused player before it calls SB, so such a fault leaves that player paused. Then the trips
+// hook 4 kept, each said: story_tick no longer runs to send them.
 __declspec(noinline) void story_undo_body() {
   try {
-    if (world_in_game())
+    if (story_engine.holding() && world_in_game())
       story_engine.release(), story_engine.hold(false);
+    story_trips_pass("story together is off", 0);
     for (std::string &l : story_engine.log)
       story_pending_said.push_back(std::move(l));
     story_engine.log.clear();
@@ -327,11 +340,12 @@ __declspec(noinline) void story_undo_body() {
     story_undo_faulted = true;
   }
 }
-// After coop off or the first fault, each frame. While her copy is still held, a try to give it back, unless the fault
-// was in the game's code or another module's (an SB call broken half way, which a second call could hang). Then the
-// lines said are handed over, as story_tick no longer runs.
+// After coop off or the first fault, each frame. While her copy is still held or trips are kept, a try to give it back
+// and say them, unless the fault was in the game's code or another module's (an SB call broken half way, which a
+// second call could hang). Then the lines said are handed over, as story_tick no longer runs.
 void story_undo() {
-  if (!story_undo_faulted && story_engine.holding() && (!story_faulted || story_whole())) {
+  if (!story_undo_faulted && (story_engine.holding() || story_trip_count || story_trip_lost) &&
+      (!story_faulted || story_whole())) {
     __try {
       story_undo_body();
     } __except (fault_filter(GetExceptionInformation(), story_undo_code, story_undo_rva, story_undo_address)) {
