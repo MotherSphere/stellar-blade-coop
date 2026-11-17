@@ -250,7 +250,8 @@ place. When the earlier load left her riding, `coop-bike.txt`'s restore puts her
 feet when her floor counts.
 
 `coop off` and `bike=off` take her off the bike, then remove the stand with `Doro.remove` and clear
-`coop-bike-stand.txt`; the place stays. The next pass with the bike on makes the stand again.
+`coop-bike-stand.txt`; the place stays. After `bike=off` the next pass with the bike on makes the stand again. `coop
+off` holds until the game restarts and no pass runs meanwhile, so the stand comes back at the next game start.
 
 ## The bike line
 

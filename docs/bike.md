@@ -96,8 +96,9 @@ Lua load.
 In the SBO lobby (the Xion lobby or one of the halls) the bike starts with no place, so her first ride there comes out
 under her. Nothing she parks there is written. When she leaves the lobby, her save's bike is back where she left it.
 
-`coop off` takes the bike out of the world and keeps its place; `coop on` brings it back. `bike=off` does the same
-(see [Settings](#settings)).
+`coop off` takes the bike out of the world and keeps its place. Since `coop off` holds until the game restarts, the bike
+comes back at the next game start. `bike=off` also takes it out and keeps its place; `bike=on` brings it back (see
+[Settings](#settings)).
 
 ## Bringing it back at Xion
 

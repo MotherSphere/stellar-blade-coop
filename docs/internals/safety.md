@@ -156,7 +156,11 @@ feature or drops the input.
   load puts her mesh back from `coop-bike.txt`; the native part turns the actions back on and stops the pose itself at
   a new Lua load. Its preload keeps a handle to SB's own async load of the bike's mesh and the riding clip, released at
   `bike=off` and `coop off`. All of it runs under its own SEH latch
-  ([The bike: how it works](bike.md#status-words-and-the-latch)).
+  ([The bike: how it works](bike.md#status-words-and-the-latch)). The parked bike adds a plain actor with the bike's
+  mesh to the level of its map. Each other player's parked bike on the map EVE stands on adds one more. Their paths go
+  to `coop-bike-stand.txt` and `coop-bike-copies.txt`, so the next Lua load removes them. They block EVE and enemies.
+  A mount at her parked bike moves EVE onto its seat with `K2_TeleportTo`, SB's own teleport
+  ([The parked bike](bike.md#the-parked-bike)).
 - The co-op save copies (`StellarBladeCoop00.sav` to `04.sav`) are made only on a `saves convert`, `saves coop` or
   `saves refresh N` request (the question on the title screen, `auto_coop_save=always` or `coop saves`), and only at the
   title: Lua reports the title screen (`world=title` in `coop-state.txt`), no save is loaded, Continue or Load Game
@@ -208,9 +212,10 @@ feature or drops the input.
 - Except for those copies, the mod never reads or writes a save, unlocks or equipment. It adds to the inventory only
   for a Night Operation shop buy (`coop nightop buy`, co-op saves only) and for `coop gift` (a take, or a gift coming
   back, co-op saves only), through the game's own request (`ServerRequest_ItemBucketItemAdd`) with an item of its list
-  and 1 to 10 of it. It removes from the inventory only for a `coop gift` send, through the game's own request
-  (`ServerRequest_ItemBucketItemRemove`) with one of seven consumables and 1 to 10 of it, after the native part read
-  that EVE carries that many. Apart from enemy stats with the
+  and 1 to 10 of it. It removes from the inventory only through the game's own request
+  (`ServerRequest_ItemBucketItemRemove`), after the native part read that EVE carries that many: for a `coop gift`
+  send, with one of seven consumables and 1 to 10 of it; for the bike's paid fetch at a Xion camp, on any save, with
+  500 `BetaCrystal` ([Bringing it back](bike.md#bringing-it-back)). Apart from enemy stats with the
   experimental shared enemies (`coop fight`, on by default, co-op saves only), their positions and animations with the
   experimental same place (on by default), the quest steps of the experimental shared quests (on by default, co-op
   saves only, made by the guest's game through its own quest functions) and a Night Operation run's state on the night

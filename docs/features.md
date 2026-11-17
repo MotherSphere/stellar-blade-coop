@@ -146,7 +146,8 @@ achievements, which cannot be taken back.
   `coop where` compares positions between two PCs.
 - The mod never writes your unlocks or equipment, and writes your own saves only when you export a co-op save over one
   of them (`coop saves export`, after a backup). It changes the inventory only when you buy in Night Operation's shop
-  or send and take a `coop gift`, on a co-op save. It reads your saves to make separate co-op copies of them (see
+  or send and take a `coop gift`, on a co-op save, or pay 500 betacrystal to bring the bike back at Xion, on any save
+  (see [docs/bike.md](bike.md#bringing-it-back-at-xion)). It reads your saves to make separate co-op copies of them (see
   [docs/saves.md](saves.md)).
 
 The ghost is display only, and items are not shared, except the consumables sent with `coop gift`. The experimental
