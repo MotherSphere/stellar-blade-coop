@@ -235,17 +235,20 @@ for _,what in ipairs({'up','select','down','back','left','click'}) do ask.nav(wh
 clock=10.99; ask.nav('up'); ask.nav('select'); ask.nav('click')
 q.rows[1].hover=nil
 assert(ask.is_open() and #ran==runs and #calls==n and shown_rows()=='Accept|normal Deny|focus','1 s: nothing')
--- Up and down move, left and right too (a pad's D-pad on SB's popup, whose buttons sit side by side); Enter on Accept
--- lets her in with SB's confirm cue; asked once: her line, until the native part drops it, opens nothing.
-clock=11; ask.nav('up'); assert(shown_rows()=='Accept|focus Deny|normal' and calls[#calls]=='sound move')
-ask.nav('left'); assert(shown_rows()=='Accept|normal Deny|focus' and calls[#calls]=='sound move')
-ask.nav('right'); assert(shown_rows()=='Accept|focus Deny|normal')
+-- Up and down move, left and right too (a pad's D-pad on SB's popup, whose buttons sit side by side), each 0.5 s at
+-- least after the last direction (the dead ones count): one sooner is a held key's repeat and moves nothing. Enter on
+-- Accept lets her in with SB's confirm cue; asked once: her line, until the native part drops it, opens nothing.
+clock=11; ask.nav('up'); assert(shown_rows()=='Accept|normal Deny|focus','0.01 s after a dead up: its repeat')
+clock=11.5; ask.nav('up'); assert(shown_rows()=='Accept|focus Deny|normal' and calls[#calls]=='sound move')
+clock=12; ask.nav('left'); assert(shown_rows()=='Accept|normal Deny|focus' and calls[#calls]=='sound move')
+ask.nav('right'); assert(shown_rows()=='Accept|normal Deny|focus','At once: a repeat')
+clock=12.5; ask.nav('right'); assert(shown_rows()=='Accept|focus Deny|normal')
 n=#calls
 ask.nav('select')
 assert(ran[#ran]=='allow 76561198000000009' and not ask.is_open() and since(n)=='show ask false|sound popup_confirm',
     since(n))
-clock=11.1; ask.tick(clock); assert(calls[#calls]=='sound popup_confirm')
-clock=11.2; ask.tick(clock); assert(calls[#calls]=='input false ask','The game gets its keys 150 ms after')
+clock=12.6; ask.tick(clock); assert(calls[#calls]=='sound popup_confirm')
+clock=12.7; ask.tick(clock); assert(calls[#calls]=='input false ask','The game gets its keys 150 ms after')
 runs=#ran
 for _=1,300 do ask.slow(true) end
 assert(not ask.is_open() and #ran==runs,'Answered: never asked again')
@@ -256,18 +259,18 @@ n=#calls
 ask.slow(true)
 assert(ask.is_open() and shown_rows()=='Accept|normal Deny|focus' and #logs==1
     and since(n)=='show ask true|input true ask|sound alert',since(n))
-clock=12.2; ask.nav('back'); assert(ran[#ran]=='deny 76561198000000008' and calls[#calls]=='sound popup_close')
+clock=13.7; ask.nav('back'); assert(ran[#ran]=='deny 76561198000000008' and calls[#calls]=='sound popup_close')
 link.waiting={id='76561198000000007',name='Three'}
-ask.slow(true); clock=13.2; ask.nav('down'); ask.nav('down'); ask.nav('select')
+ask.slow(true); clock=14.7; ask.nav('down'); clock=15.3; ask.nav('down'); ask.nav('select')
 assert(ran[#ran]=='deny 76561198000000007')
 -- The mouse: a left click on no row does nothing; on Deny it denies, on Accept it lets her in, wherever the focus is.
 link.waiting={id='76561198000000010',name='Mouse'}
-ask.slow(true); clock=14.2; runs=#ran
+ask.slow(true); clock=16.3; runs=#ran
 ask.nav('click'); assert(ask.is_open() and #ran==runs,'A click on no row: nothing')
 q.rows[2].hover=true; ask.nav('click'); q.rows[2].hover=nil
 assert(ran[#ran]=='deny 76561198000000010' and calls[#calls]=='sound popup_close')
 link.waiting={id='76561198000000011',name='Mouse Two'}
-ask.slow(true); clock=15.2
+ask.slow(true); clock=17.3
 q.rows[1].hover=true; ask.nav('click'); q.rows[1].hover=nil
 assert(ran[#ran]=='allow 76561198000000011' and calls[#calls]=='sound popup_confirm')
 -- Hidden while the chat box is open or the game is paused (the game's input given back), shown again after with Deny
@@ -495,6 +498,18 @@ local p9=w()
 clock=114; runs=#ran
 p9.over='no'; pa.nav('click')
 assert(ran[#ran]=='leave' and #ran==runs+1 and not pa.is_open())
+-- A stick held forward from before the question shows (running), as game/pad.h sends it: up every 0.12 s. Past the
+-- 1 s, its repeats never move the focus off Decline, so A still declines. Let go, a new push moves it once; held on,
+-- its first repeat 0.4 s later moves nothing.
+link.m,link.at,link.joined,link.waiting='host','7402',nil,{id='76561198000000013',name='Runner'}
+clock=120; pa.slow(true)
+local p10=w()
+assert(pa.is_open() and #p10.sent==5)
+for i=0,25 do clock=120+0.12*i; pa.nav('up') end -- 3 s held.
+assert(#p10.sent==5,'Held: the focus stays on Decline: '..sent(5,p10))
+clock=124; pa.nav('up'); assert(sent(5,p10)=='Image_Hover_Positive 3|Image_Hover_Negative 2',sent(5,p10))
+clock=124.4; pa.nav('up'); clock=124.52; pa.nav('up'); assert(#p10.sent==7,'Its repeats: nothing')
+clock=125; pa.nav('select'); assert(ran[#ran]=='allow 76561198000000013')
 assert(#logs==1,'No refusal from SB\'s popup: '..table.concat(logs,'|'))
 
 -- The feed's join and leave lines in SB's words, the name as the native part wrote it (a % in it kept). The others

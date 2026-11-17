@@ -1002,7 +1002,7 @@ end
 -- with our HUD shown, menu sits EVE down, stands her up or opens B in the lobby world (lobby_key) and opens the co-op
 -- menu elsewhere, as menu_key does, its refusals said the same way. The host's question and the joiner's wait, while
 -- one is open, take every word first (A is Jump and the D-pad uses items: for 1 s after it shows a press does nothing;
--- Decline has the focus, so a stray A declines). While the menu waits for a key only back acts: it stops the wait
+-- Decline has the focus, so a stray A declines; a held stick's or D-pad's repeats never move that focus). While the menu waits for a key only back acts: it stops the wait
 -- (menu.nav). The chat's box and the code box take only back, which closes them as Esc does: nothing is typed or sent.
 -- A pad alone is never stuck there. LB and RB (tab_left, tab_right) change C's tabs while C is open; nothing
 -- elsewhere.

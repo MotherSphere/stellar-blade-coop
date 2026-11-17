@@ -18,8 +18,9 @@
 -- move (the arrows, a pad's D-pad or left stick); select answers with the focused button (Enter, a pad's A); back
 -- declines or closes (Esc, a pad's B, a right click); a left click on a button answers with it. It opens on its own,
 -- while the player may be walking, fighting or in the menu: so every key, pad button and click does nothing for 1 s
--- after it shows. Decline has the focus, so a stray select declines. main.lua gives it the arrows but not W, S or
--- Space; the game ignores its pad while the popup holds its input. With no answer the native part refuses the player
+-- after it shows. Decline has the focus, so a stray select declines. A direction held moves the focus once: its
+-- repeats move nothing. main.lua gives it the arrows but not W, S or Space; the game ignores its pad while the popup
+-- holds its input. With no answer the native part refuses the player
 -- after 60 s (the seconds left show), open or not. Each player is asked once a lobby. When SB's popup cannot be made
 -- (logged once), the kit's panel shows the same words in its place. SBO's own words stand in for SB's while the game's
 -- string table has none (always under ui_language=english).
@@ -28,8 +29,9 @@ local T=require('ui.text')
 local Chat=require('session.chat')
 local Parts=require('ui.parts')
 local Join={}
--- Seconds: the game's input back after a close; the box focused again; the question's keys ignored after it shows.
-local BACK,REFOCUS,ARM=0.15,0.05,1
+-- Seconds: the game's input back after a close; the box focused again; the question's keys ignored after it shows; a
+-- direction this soon after the last one is a held stick's or D-pad's repeat (game/pad.h: 0.4 s, then every 0.12 s).
+local BACK,REFOCUS,ARM,HELD=0.15,0.05,1,0.5
 local WAIT,NAME=240,16 -- 250 ms ticks of the native part's 60 s for an answer, from our first read; characters.
 -- A Steam name for the screen: cleaned as a chat line (a name may hold anything) with no < or > (SB's popup reads
 -- its text as rich text, where they open a tag), at most 16 characters so the French title fits; nil when nothing is
@@ -144,6 +146,7 @@ local GONE,HIDDEN,SEEN=0.25,2,3
 function Join.ask(o)
     local kit,link,settings=o.kit,o.link,o.settings
     local self,open,cursor,back_at,stopped,words,ready_at={},false,2,nil,false,T.en,0
+    local moved_at=nil -- The last direction's os.clock, dead ones included.
     -- asking: who the popup is about: {id=, name=, ticks=, alerted=} a player asking us while we host, or {wait=true,
     -- name=the host's, left=} our own wait after we joined; answered: the SteamIDs answered in lobby (wait=true once
     -- our wait was closed there).
@@ -245,7 +248,7 @@ function Join.ask(o)
         if o.guide and o.guide.is_open() then
             o.guide.close(asking.wait and 'the wait for the host' or "the host's question")
         end
-        open,back_at,cursor,ready_at=true,nil,2,os.clock()+ARM
+        open,back_at,cursor,ready_at,moved_at=true,nil,2,os.clock()+ARM,nil
         pop=rec and {rec=rec,put={title=t.title,left=t.left}} or nil
         if rec then
             P.call(rec,'popup RefreshAll',function(w) w:EventNotification('RefreshAll') end)
@@ -339,9 +342,17 @@ function Join.ask(o)
     -- A key, a pad button or a mouse button while open, from 1 s after it showed. A player asking: 'up', 'down', 'left'
     -- or 'right' (the other button), 'select' (the focused button's answer), 'back' (deny), 'click' (a left click: the
     -- answer of the button under the mouse, else nothing). Our wait: 'select', 'back' or a click on Close closes it and
-    -- leaves the lobby.
+    -- leaves the lobby. A direction under HELD s after the last one moves nothing: a stick held to run or a D-pad held
+    -- in a fight repeats every 0.12 s and would flip the focus to Accept half the time.
     function self.nav(what)
-        if not open or kit.off() or os.clock()<ready_at then return end -- Unseen: the next slow hides it.
+        if not open or kit.off() then return end -- Unseen: the next slow hides it.
+        local now=os.clock()
+        if what=='up' or what=='down' or what=='left' or what=='right' then
+            local held=moved_at~=nil and now-moved_at<HELD
+            moved_at=now
+            if held then return end
+        end
+        if now<ready_at then return end
         if what=='click' then what=under() end
         if asking.wait then
             if what=='select' or what=='back' or what=='yes' or what=='no' then answer('leave') end
