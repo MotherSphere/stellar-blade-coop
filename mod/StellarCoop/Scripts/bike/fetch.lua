@@ -10,7 +10,9 @@
 -- how many she carries (its items request, game/items.h, answered in the engine line's items=); under PRICE nothing is
 -- removed (poor); else the remove, then reads every POLL s until the count fell by PRICE (paid), or SETTLE s of
 -- unpaused play pass (failed: the money may be gone, since SB's logic and its remove stop while the game is paused).
--- No answer to a read in READ s is failed too. One payment at a time; nothing of it is kept across Lua loads.
+-- No answer to a read in READ s is failed too. The engine line holds the last items answer only, which coop gift's
+-- reads share, so a read with no answer in LOST s goes again with its number. One payment at a time; nothing of it is
+-- kept across Lua loads.
 -- Called here: the player controller's ItemBucketItemRemove request, on bucket type 1, EVE's GUID, BetaCrystal and
 -- PRICE only. Never called: a save, a shop, an add.
 local Shop=require('nightop.shop')
@@ -24,8 +26,9 @@ Fetch.PRICE,Fetch.ALIAS=500,'BetaCrystal'
 Fetch.NAME_TABLE,Fetch.NAME_KEY='/Game/Local/Localize/ItemStringTable.ItemStringTable','Item_BetaCrystal_Name'
 Fetch.WORD,Fetch.NAME_MAX='betacrystal',32
 -- Seconds: the remove at most, time paused not counted; the native part's answer to a read at most; between two reads
--- after the remove; the offer's window for the second press (bike/ride.lua).
-Fetch.SETTLE,Fetch.READ,Fetch.POLL,Fetch.WINDOW=10,5,0.5,5
+-- after the remove; the offer's window for the second press (bike/ride.lua); a read with no answer, until it goes
+-- again.
+Fetch.SETTLE,Fetch.READ,Fetch.POLL,Fetch.WINDOW,Fetch.LOST=10,5,0.5,5,1
 -- The one remove call: SB's own request, bucket type 1, EVE's GUID, PRICE betacrystal, no pocket (-1).
 function Fetch.remove(pc,guid)
     pc:ServerRequest_ItemBucketItemRemove(1,guid,FName(Fetch.ALIAS),Fetch.PRICE,-1)
@@ -35,15 +38,21 @@ end
 function Fetch.new(o)
     local log,ask,status,name_of,paused=o.log,o.ask,o.status,o.name,o.paused
     local self={}
-    local s=nil -- The payment under way: step (count, gone), ask, at, next, index, number, before, played, last.
-    local asks=0
+    local s=nil -- The payment under way: step (count, gone), ask, at, asked, next, index, number, before, played, last.
+    -- coop gift's reads count from 1 (cut/mailbox.lua), ours from 32768, so an answer with our number is ours.
+    -- shortcut: the two meet after 32767 gift reads in one Lua load; one counter for both if that ever matters.
+    local asks=32767
     local function engine() return ('\n'..(status() or '')):match('\nengine=([^\r\n]*)') or '' end
     -- A new read of her count, its number never the one the engine line answers now (an earlier Lua load's maybe).
-    local function read(t)
-        local shown=math.tointeger(tonumber(engine():match(' items=(%d+) ')))
-        repeat asks=asks%65535+1 until asks~=shown
-        s.ask,s.at,s.next=asks,t,t+Fetch.POLL
-        return ask(('items %d %s %d %d'):format(asks,Fetch.ALIAS,s.index,s.number))
+    -- again: the same read once more, its answer lost under another items read.
+    local function read(t,again)
+        if not again then
+            local shown=math.tointeger(tonumber(engine():match(' items=(%d+) ')))
+            repeat asks=asks%65535+1 until asks~=shown
+            s.ask,s.at,s.next=asks,t,t+Fetch.POLL
+        end
+        s.asked=t
+        return ask(('items %d %s %d %d'):format(s.ask,Fetch.ALIAS,s.index,s.number))
     end
     local function done(...)
         s=nil
@@ -70,7 +79,10 @@ function Fetch.new(o)
         local line=engine()
         local have,none=line:match(' items='..s.ask..' (%d+)'),line:match(' items='..s.ask..' none (%a+)')
         if not have and not none then
-            if t-s.at<=Fetch.READ then return nil end
+            if t-s.at<=Fetch.READ then
+                if t-s.asked>=Fetch.LOST then read(t,true) end
+                return nil
+            end
             return done('failed',s.step=='count' and 'the native part did not read the inventory'
                 or 'the native part stopped reading the inventory after the remove (the betacrystal may be gone)')
         end

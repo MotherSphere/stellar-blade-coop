@@ -13,7 +13,7 @@
 -- the mailbox full or the file not written, and a key seen before answered as before; take, all or one, written before
 -- its grant and put back when the grant raises; the toast's end, its path kept for the next Lua load's sweep, and its
 -- first failure; a gift sent from another co-op slot coming back once that slot loads; a save whose rename failed,
--- written once the file itself is gone.
+-- written once the file itself is gone; a read whose answer was lost, asked again with its number.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 FName=function(text) return {ToString=function() return text end} end
 local removes,adds,remove_raise,add_raise={},{},nil,nil
@@ -288,6 +288,30 @@ with_items(asked[#asked]:match('^items (%d+) '),'none nobucket')
 tick()
 assert(says[#says]=='Gift not sent: your inventory could not be read after the remove (nobucket, the items may be '
     ..'gone)',says[#says])
+-- A read whose answer is lost (the bike's paid fetch read after it: the engine line holds one answer) goes again with
+-- its number after LOST s, before the remove and after it; the gift then goes.
+ask=start('1','3')
+with_items(40000,'800')
+local n0=#asked
+tick()
+assert(#removes==0 and #asked==n0,'Not lost yet')
+tick(0.75)
+assert(#asked==n0+1 and asked[n0+1]==asked[n0],'Asked again with its number')
+with_items(ask,'9')
+tick()
+tick(0.5)
+local ask2=asked[#asked]:match('^items (%d+) ')
+assert(#removes==1 and ask2~=ask)
+with_items(40000,'500')
+n0=#asked
+tick(0.5)
+assert(#asked==n0)
+tick(0.5)
+assert(#asked==n0+1 and asked[n0+1]==asked[n0],'Asked again after the remove')
+with_items(ask2,'6')
+tick()
+assert(says[#says]=="Gift sent: 3 HP_Potion. It waits for your friend's answer.",says[#says])
+mail.receive('a '..asked[#asked]:match('^gift s (%d+) '))
 -- The file cannot be written after the remove: the items come back at once through the shop's grant.
 ask=start('2','1')
 with_items(ask,'4')

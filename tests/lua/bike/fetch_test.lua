@@ -5,7 +5,8 @@
 -- cut/mailbox_test.lua fakes them; the real nightop.shop reads her GUID): the price and its timings; a start asks the
 -- native part for her betacrystal count; one payment at a time; too little money refuses with her count and removes
 -- nothing; an answer to an earlier ask never counts; the remove's five arguments; paid once the count fell by the
--- price; paused time not counted toward SETTLE; failed when it does not fall or when no answer comes.
+-- price; paused time not counted toward SETTLE; failed when it does not fall or when no answer comes; a read whose
+-- answer was lost asked again with its number.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 FName=function(text) return {ToString=function() return text end} end
 local removes={}
@@ -44,6 +45,19 @@ assert(F.start(40) and F.step(40+Fetch.READ+0.1)=='failed','No answer from the n
 -- A count the native part cannot read; no name for BetaCrystal; an ask the native part does not take.
 assert(F.start(50)); engine='engine=on items='..asked[#asked]:match('^items (%d+) ')..' none nobucket x=1'
 local r3,why3=F.step(50.5); assert(r3=='failed' and why3:find('nobucket',1,true) and #removes==2)
+-- A read whose answer is lost (coop gift's read answered after it: the engine line holds one answer) goes again with
+-- its number after LOST s, before the remove and after it; the fetch then pays. Our numbers start at 32768, so coop
+-- gift's, from 1, never answer for ours.
+assert(Fetch.LOST==1 and asked[1]:match('^items (%d+) ')=='32768')
+local function gift() engine='engine=on reason=pinned me=81 items=3 7 x=1' end
+assert(F.start(60)); gift(); local n=#asked
+assert(F.step(60.5)==nil and #asked==n,'Not lost yet')
+assert(F.step(61)==nil and #asked==n+1 and asked[n+1]==asked[n],'Asked again with its number')
+answer(900); assert(F.step(61.25)==nil and #removes==3)
+assert(F.step(61.75)==nil and #asked==n+2); n=#asked; gift()
+assert(F.step(62.5)==nil and #asked==n)
+assert(F.step(62.75)==nil and #asked==n+1 and asked[n+1]==asked[n],'Asked again after the remove')
+answer(400); assert(F.step(63)=='paid' and #removes==3)
 local G=Fetch.new({log=function() end,ask=function() return false,'the native part is off' end,
     status=function() return '' end,name=function() return nil end,paused=function() return false end})
 local ok,e=G.start(0); assert(not ok and e=='BetaCrystal has no FName' and not G.busy())

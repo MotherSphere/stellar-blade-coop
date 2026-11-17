@@ -332,7 +332,9 @@ The native part reads her count (`items <ask> BetaCrystal <FName index> <FName n
 (`bike fetch refused: you carry <n> betacrystal, 500 needed`). Else, unless the game is paused or shows one of its
 screens, Lua calls `ServerRequest_ItemBucketItemRemove(1, <EVE's GUID>, BetaCrystal, 500, -1)`
 (`remove asked: BetaCrystal x500 of <n> (guid <g>)`), then reads every 0.5 s until the count fell by 500. An `unread` or
-`noeve` answer after the remove is read again. 10 s of play without the fall (time paused, in photo mode or in the
+`noeve` answer after the remove is read again. The engine line holds only the last `items=` answer, which `coop gift`'s
+reads share, so a read with no answer after 1 s goes again with its number; the fetch numbers its reads from 32768,
+`coop gift` from 1. 10 s of play without the fall (time paused, in photo mode or in the
 friend's photo mode that pauses ours does not count) or no answer to a read within 5 s fails the payment:
 `bike fetch failed: <why>`, which says the betacrystal may be gone once the remove was asked.
 `tests/tools/matchmaking_scan_test.py` holds `bike/fetch.lua` to that one `ServerRequest_` call.

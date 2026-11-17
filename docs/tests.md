@@ -75,7 +75,8 @@ fails the test. The `main/` tests load
   timings, the count asked first, one payment at a time, too little money refused with the count and nothing removed,
   an answer to an earlier ask never counted, the remove's five arguments (`1`, her GUID, `BetaCrystal`, `500`, `-1`),
   paid once the count fell by 500, paused time not counted toward the 10 s, a failure when it does not fall or when no
-  answer comes;
+  answer comes, a read whose answer was lost (`coop gift`'s answered after it) asked again with its number after 1 s,
+  the numbers from 32768;
 - `partner/capture_test` also covers SBO's bike left out of the parts while EVE does not ride (`leave_out`, asked once
   a look): an outfit of 16 parts keeps them all; while she rides the bike is part 1 and the last follower goes; getting
   on or off starts a new generation; another component on the bike's mesh stays a part;
