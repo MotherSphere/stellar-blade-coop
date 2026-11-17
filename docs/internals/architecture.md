@@ -243,7 +243,8 @@ through XInput, a polling API that takes nothing from the game.
   closes them), the host's question gets none, and with nothing open, in a world with the HUD shown, View opens the
   lobby menu in the SBO lobby's world and the co-op menu elsewhere, through the same path as `menu_key`. LB and RB
   change the tab of the lobby's settings screen while it is open and do nothing anywhere else. The bike's event goes
-  the path of `bike_key` in a world with the HUD shown while none of these screens is open; it does nothing otherwise.
+  the path of `bike_key` in a world with the HUD shown while none of these screens is open and the game is neither
+  paused nor showing one of its screens; it does nothing otherwise (the log says why).
 - The worker logs each change of the connected slots (`pad: XInput pads connected: <slots>`, `pad: no XInput pad`).
 
 ### Mouse

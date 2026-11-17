@@ -2,9 +2,9 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Doro races' driving on the game thread: race/drive_model.lua's car model fed into EVE's own movement each frame while
--- a race drives (race/run.lua turns it on at GO and off at our result) or the drive probe runs (coop race drive probe),
--- and bike/model.lua's motorcycle model while EVE rides the bike (bike/ride.lua, why 'bike'). Each drive keeps its
--- model.
+-- a race drives (race/run.lua turns it on at GO and off at our result) or the drive probe runs (coop race drive probe).
+-- It also drives bike/model.lua's motorcycle model while EVE rides the bike (bike/ride.lua, why 'bike'). Each drive
+-- keeps its model.
 -- Her movement component's MaxAcceleration, GroundFriction, BrakingDecelerationWalking and BrakingFrictionFactor go to
 -- 0 meanwhile, so her movement neither accelerates, brakes nor turns the velocity it is given: each frame the model's
 -- velocity reaches it as an impulse (or, with coop race drive feed struct, a write of its Velocity), and her yaw is the

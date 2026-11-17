@@ -64,10 +64,10 @@ author of that code.
 dCharisma1 gave his written consent on 2026-11-16 to the use of his Eve On
 Wheels code in Stellar Blade Online under the SBO License, version 1.0 or
 any later version that the Licensor publishes. The adapted code is licensed
-here under those terms, with the additional permission above. The adapted
-functions are marked in mod/StellarCoop/Scripts/bike/model.lua and
-bike/ride.lua. Stellar Blade Online contains no file from Eve On Wheels:
-none of its assets, sounds or animations.
+here under those terms. The adapted functions are marked in
+mod/StellarCoop/Scripts/bike/model.lua and bike/ride.lua. Stellar Blade
+Online contains no file from Eve On Wheels: none of its assets, sounds or
+animations.
 
 THIRD-PARTY COMPONENTS
 

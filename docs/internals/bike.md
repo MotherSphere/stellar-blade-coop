@@ -110,15 +110,15 @@ passenger: 301 frames at 30 fps, no root motion. The ride asks `anim play <id> <
 `0x1420b7800` on slot 0 as [coop emote](cut-eve.md#emotes) plays, looped with count -1, priority 0, with the call's int
 30 at 2. `PlayCustomAnim` keeps it at the slot's `+0x68` and turns her foot IK off over the blend-in through
 `0x1421119c0`, under the key `ASBCharacter::PlayCustomAnim_29770`, at priority 100. Only a call at priority 100 or more
-can turn it back on. SB's stop (`0x1420b23f0`) does that, but only while the slot's `+0x68` still reads 1 or 2. When one
-of SB's clips takes slot 0, its own type replaces ours there, so SB's stop no longer turns her foot IK on. So once the
+can turn it back on. SB's stop (`0x1420b23f0`) does that only while the slot's `+0x68` still reads 1 or 2. When one of
+SB's clips takes slot 0, its own type replaces ours there, so SB's stop no longer turns her foot IK on. So once the
 ride's play is over without SB doing it (another clip took the slot, a replay was refused, or our stop found another
 clip there), the game thread does what SB's stop does. It does nothing when her foot IK is already on, or when the clip
 now in slot 0 is of type 1 or 2 (its own stop turns it on). Otherwise, when `0x142111440(character, 0)` allows it, it
 calls `0x1421119c0(character, "ASBCharacter::StopCustomAnim_29443", 1, 0.25, -1, 0, 0, 100)`. When it does not, it sets
-`+0x2b23` to 1, as SB's stop does; `0x1420fe2b0` later turns her foot IK on from it, at priority 100. `coop-link.log` says which (`anim: EVE's foot IK
-...`). Before the play, the game thread looks the clip up with `ResolveObject`; the log says whether it was in memory
-(`bike ride clip in memory before ride play <n>`) or whether SB's call loaded it.
+`+0x2b23` to 1, as SB's stop does; `0x1420fe2b0` later turns her foot IK on from it, at priority 100. `coop-link.log`
+says which (`anim: EVE's foot IK ...`). Before the play, the game thread looks the clip up with `ResolveObject`; the log
+says whether it was in memory (`bike ride clip in memory before ride play <n>`) or whether SB's call loaded it.
 
 Every 0.1 s the ride reads the status line's `anim=` word for its id. When SB ends the clip, the ride plays it again,
 unless photo mode is open, a skill runs or a root-motion move plays. Three ends within 1 s take her off the bike: SB

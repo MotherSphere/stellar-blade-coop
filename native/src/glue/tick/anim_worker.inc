@@ -33,8 +33,8 @@ std::string ask_anim(const coop::Request &request) {
                         (ask.ride ? " as the bike's ride (a loop, her foot IK off)" : ask.loop ? " in a loop" : " once");
 }
 
-// Each worker pass: a line for each change the game thread made and for each foot IK put-back after a ride, and its
-// fault once with a line for the screen.
+// Each worker pass: a line for each change the game thread made and for each foot IK put-back after a ride; its fault
+// once, with a line for the screen.
 std::string anim_pass() {
   if (const uint64_t w = anim_word; w != anim_logged) {
     anim_logged = w;
