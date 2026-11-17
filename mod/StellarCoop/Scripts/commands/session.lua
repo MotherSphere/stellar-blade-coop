@@ -45,7 +45,7 @@ function Session.new(o)
     -- coop host <word> hosts at once with that word. coop host alone opens the Create a session screen when it can
     -- open (o.create(): the screen once built, whose open() is true and a message when it opened), else hosts at once
     -- as who_can_join says. friends_ask=on adds ask under public and invitation: Steam friends wait for the host's
-    -- answer too.
+    -- answer too. While we host, the native part refuses a word other than the session's (leave first).
     function self.host(word,extra)
         if extra~=nil or word~=nil and not WHO[word] then
             return false,'Use: coop host [public|friends|invitation|closed]'
