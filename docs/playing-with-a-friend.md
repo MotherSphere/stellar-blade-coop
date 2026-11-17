@@ -64,7 +64,9 @@ goes to you only. With the [shared world](shared-world.md) (experimental, on by 
 lift or shortcut that one of you works changes in the other's world too, on co-op saves; with it off, they move only in
 the world of the player who uses them. Vendors, the request board and quest givers work for both players;
 [shared quests](#shared-quests-experimental) says which quest steps are shared. Nothing one player opens, buys or picks
-up is copied into the other player's game.
+up is copied into the other player's game. While you are linked, the game's tutorial and record popups are off in each
+game that has [`hide_popups`](settings.md#coop-settingstxt) on (the default). Each player's own values come back at
+the end of the session.
 
 ## More than 2 players
 

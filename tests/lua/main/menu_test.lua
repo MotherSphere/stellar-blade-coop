@@ -249,6 +249,19 @@ do
     quarter(); assert(#asked==asks+2,'Once')
     fight_asks=fight_asks+2
 end
+-- Hide popups online: On by default and asked at the load's first 250 ms pass (popups on); a change is saved at once
+-- and the next pass asks popups off or on, once each (the fixture keeps these asks in popup_asks).
+assert(popup_asks[1]=='popups on','The load asks popups on')
+to('Hide popups online'); assert(select(2,focus())=='On')
+do
+    local asks=#popup_asks
+    key('RETURN'); quarter()
+    assert(settings_text:find('\nhide_popups=off\n',1,true) and select(2,focus())=='Off'
+        and popup_asks[#popup_asks]=='popups off' and #popup_asks==asks+1)
+    quarter(); assert(#popup_asks==asks+1,'Once')
+    key('RETURN'); quarter()
+    assert(popup_asks[#popup_asks]=='popups on' and select(2,focus())=='On' and #popup_asks==asks+2)
+end
 -- The host's scaling in percent, 5 a step, written as the file holds it; kill credit a choice. Neither asks anything:
 -- each counts from the next start of shared enemies.
 to("Enemy HP (host's)"); assert(select(2,focus())=='135 %')

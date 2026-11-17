@@ -1690,6 +1690,19 @@ if link then
         local text='hud: '..line..' not asked: '..tostring(why)
         if text~=hud_refused then hud_refused=text; log(text) end
     end
+    -- An on or off setting the native part takes through its own ask (hide_popups: popups on or off), asked at the
+    -- first pass of a Lua load and at each change of the setting. A request that cannot be written is asked again at
+    -- each pass and logged once, as hud_pass does. switch_asked: the value last asked, by key.
+    local switch_asked,switch_refused={},{}
+    local function switch_pass(key,word)
+        local want=settings[key]==true
+        if want==switch_asked[key] then return end
+        local line=word..(want and ' on' or ' off')
+        local ok,why=link.request(line)
+        if ok then switch_asked[key],switch_refused[key]=want,nil; return end
+        local text=word..': '..line..' not asked: '..tostring(why)
+        if text~=switch_refused[key] then switch_refused[key]=text; log(text) end
+    end
     LoopInGameThreadWithDelay(250,function()
         local began=os.clock()
         took.slow,took.booth=0,0 -- Neither may run in this pass.
@@ -1697,6 +1710,7 @@ if link then
         for _,line in ipairs(link.changes()) do log('link: '..line) end
         guarded('daynight',o.daynight.slow,off) -- After coop off too: it asks sky off once.
         guarded('pause tab',pause_tab.slow) -- Asks pausetab on or off; nothing after coop off.
+        if not off then guarded('popups',switch_pass,'hide_popups','popups') end -- Asks popups on or off.
         if not off then guarded('nightop',night.tick) end -- Night Operation's run, if any: it logs its own lines.
         -- Roxanne's Night Operation choices: likewise; after coop off, only her two choices and the rows back.
         guarded('roxanne',o.roxanne.tick,off)

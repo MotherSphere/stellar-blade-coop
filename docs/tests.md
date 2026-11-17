@@ -50,8 +50,8 @@ fails the test. The `main/` tests load
   on or off starts a new generation; another component on the bike's mesh stays a part;
 - `core/link_test` also covers the status's `uidev=`, `me=`, `world=` and `story=` lines and the `owner=`, `room=`
   and `hall=` fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty)
-  and never from a player's name; the `shared_world`, `shared_story` and `daynight` settings (the `sky=` line kept out
-  of the `link:` lines); `bike` and `bike_key` (an older
+  and never from a player's name; the `shared_world`, `shared_story`, `daynight`, `pause_tab` and `hide_popups`
+  settings (the `sky=` line kept out of the `link:` lines); `bike` and `bike_key` (an older
   file whose keys hold F3 gets no bike key). It also reads the `dlcs=` line with the `dlc_missing=` and
   `dlc_extra=` lines after it, the session list's `list=` line with its `session=` rows (a row only after a `list=`
   line, `-` read as none) and a joiner's `wait=` line, logged once a wait. It covers `who_can_join` (`public` by
@@ -127,7 +127,9 @@ fails the test. The `main/` tests load
   address, no streaming level asked with no EVE) and its 250 ms pass with `coop off`. It also covers `coop daynight`
   with each word and its usage line for the rest. `main/menu_test` covers the Day and night row: On by default, a change
   saved at once with no request. It covers the Online tab in the pause menu row too: On by default, a change saved at
-  once, the next 250 ms pass asking `pausetab off` or `pausetab on`;
+  once, the next 250 ms pass asking `pausetab off` or `pausetab on`. The Hide popups online row: On by default, the
+  load's first 250 ms pass asking `popups on`, a change saved at once with the next pass asking `popups off` or
+  `popups on` once;
 - `ui/pause_tab_test` covers the pause menu's Online tab over fakes: nothing before the game is ready, the class loaded
   with its keeper and the Construct hook once, one button after the game's 8 with the word and the last button's
   style, none on a second Construct, the button again after a rebuild while paused, a click over the button or RB
@@ -322,7 +324,7 @@ The C++ tests cover the platform-free headers in `native/src`.
   bytes; `fly` and `slowmo` on or off; `anim play` with its id, path and `once`, `loop` or `ride`, and `anim stop`;
   `bike load <clip>`, `bike free`, `bike gate on` and `bike gate off`, a mesh, a package path or a mod's clip refused;
   `shortcut list` and `shortcut load <map> <1-4>`; `hud hide on` and `hud hide off`; `pausetab on` and
-  `pausetab off`; `loading lift`; `sky off`,
+  `pausetab off`; `popups on` and `popups off`; `loading lift`; `sky off`,
   `sky hold`, `sky cycle <hz> <H>` and `sky hour <minute> <hz> <H>` with their ranges; `world` and
   `scenes` with `on`, `off` or `status`; `nightshop`,
   `roxanne`, `lily`,
@@ -771,6 +773,12 @@ The C++ tests cover the platform-free headers in `native/src`.
   game's tab lock is off opens it; any other tab, action or lock passes the action on to the game; a tab list the game
   never builds passes too; a press and its release within 500 ms open once) and its pinned slot, function, FName
   global and offsets;
+- `options_test`: the game's Tutorial and RecordPopup options during online play (an option On at link forced Off with
+  On kept, the save slot handed the kept value while it is forced, the value back at unlink; an option already Off left
+  alone; the player's On during online play kept with no new force until unlink; a value the game never writes never
+  forced; the save slots held while either option is forced), their pinned keys, vtables and save slots, the
+  registry lookup over a fake map (on the heap and inline buckets, a key further along its chain, an empty map, no
+  bucket, an index out of range, a chain that loops, a read that fails) ending in 0, never in a hang;
 - `dev_panels_test`: `coop devinfo`'s guard (each read failing alone, refused with its own reason; a close needs
   neither the flow nor the phase), the plan over every mix of open panels and every ask (the other panel closes, the
   one asked opens unless it is open), and the two panels' logic types and names;

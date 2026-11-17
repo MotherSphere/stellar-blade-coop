@@ -547,7 +547,11 @@ assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for day
 -- The pause menu's Online tab: on by default, last in a new file, its comment right after sbo_lobby.
 assert(Link.parse_settings('').pause_tab==true and Link.parse_settings('pause_tab=OFF').pause_tab==false
     and Link.DEFAULT:find('\nsbo_lobby=on\n# Online tab: on or off, on by default.',1,true)
-    and Link.DEFAULT:find('\npause_tab=on\n$'))
+    and Link.DEFAULT:find('\npause_tab=on\n',1,true))
+-- The game's popups during online play: on by default, last in a new file, its comment right after pause_tab.
+assert(Link.parse_settings('').hide_popups==true and Link.parse_settings('hide_popups=off').hide_popups==false
+    and Link.DEFAULT:find('\npause_tab=on\n# Popups during online play: on or off, on by default.',1,true)
+    and Link.DEFAULT:find('\nhide_popups=on\n$'))
 assert(Link.DEFAULT:find('\ndaynight=on\n# Shortcut saves, a test tool: on or off, on by default.',1,true)
     and Link.DEFAULT:find('cannot be taken back',1,true) and Link.DEFAULT:find('\nshortcut_load=on\n'))
 assert(Link.parse_settings('shortcut_load=OFF').shortcut_load==false)

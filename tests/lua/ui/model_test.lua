@@ -214,7 +214,7 @@ assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key r
     ..'photo_freeze_max photo_ghost '
     ..'photo_name_tag photo_pause head:partner name_tag partner_bar partner_arrow partner_card card_details head:ghost cloth dyes '
     ..'effects collide send_rate head:session who_can_join max_players revive cutscene_wait follow_host shared_world '
-    ..'shared_story '
+    ..'shared_story hide_popups '
     ..'head:saves '
     ..'auto_coop_save '
     ..'shared_quests '

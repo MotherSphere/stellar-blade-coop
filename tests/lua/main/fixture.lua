@@ -111,6 +111,7 @@ fades.library={type=function() return 'UObject' end,IsValid=function() return tr
 Link=dofile('mod/StellarCoop/Scripts/core/link.lua') -- The real parser behind the fake link.
 LoopInGameThreadWithDelay=function(ms,f) loops[#loops+1]={ms=ms,f=f} end
 asked,huds,pausetabs,sessions,ticks,withdrawn,states,photos={},{},{},{},0,{},{},{}
+popup_asks={}
 status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
 link_mode='none' -- What link.mode() says, as of the last changes().
 ping_ms,write_refusal=nil,nil -- link.ping(); why link.write_settings fails (nil: it writes).
@@ -139,11 +140,12 @@ fake_link={
     slot=function(k) return {} end, -- A ghost slot's files (partner/ghosts.lua): no member holds one in these tests.
     remote_table=function() return nil end,
     -- The hud requests of the lobby's screens go to huds (tests/lua/main/sbo_test), the pause menu's Online tab's to
-    -- pausetabs, the others to asked. hud_refuse: a hud request is refused with that why, as link.request answers when
+    -- pausetabs, the popups ones (main.lua's switch_pass for hide_popups) to popup_asks, the others to asked. hud_refuse: a hud request is refused with that why, as link.request answers when
     -- coop-request.txt cannot be written.
     request=function(line)
         if hud_refuse and line:find('^hud ') then return false,hud_refuse end
-        local into=line:find('^hud ') and huds or line:find('^pausetab ') and pausetabs or asked
+        local into=line:find('^hud ') and huds or line:find('^pausetab ') and pausetabs
+            or line:find('^popups ') and popup_asks or asked
         into[#into+1]=line
         return true,'asked the native part: '..line
     end,
@@ -938,7 +940,7 @@ function load_main(with_native,no_folder,source)
     end
     pd.q,pd.calls,kit_lost={},0,nil
     printed,handler,loops,asked,huds,sessions,ticks,active,withdrawn,captured,states={},nil,{},{},{},{},0,false,{},{},{}
-    pausetabs={}
+    pausetabs,popup_asks={},{}
     state_names={} -- link.state's mod_names argument, each call.
     settles=0 -- link.settle() calls: the end of each 250 ms pass and the top of each frame.
     photos,veils,photo_veils={},{},{}

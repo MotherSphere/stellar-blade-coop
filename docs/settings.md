@@ -189,6 +189,10 @@ sbo_lobby=on
 # Online tab: on or off, on by default. On, the pause menu gets an Online tab after Settings. RB on Settings (E on
 # the keyboard) or a click on the tab closes the pause menu and opens the co-op menu.
 pause_tab=on
+# Popups during online play: on or off, on by default. On, the game's tutorial popups and record popups are off while
+# you play online with at least one other player. Your own values come back when you leave. The game's settings file
+# keeps them the whole time. Turn one on in the game's Settings during online play and it stays on.
+hide_popups=on
 ```
 
 | Setting | Values | Default |
@@ -229,6 +233,7 @@ pause_tab=on
 | `quest_deny` | quest names or numbers separated by spaces or commas, at most 200 characters: quests never shared; the host's value counts | empty |
 | `shared_world` | `on` or `off`: the [shared world](shared-world.md), experimental; doors, levers, lifts and shortcuts one player works change in the other's game too; each player's own, and both need it on | `on` |
 | `shared_story` | `on` or `off`: [story together](story-together.md), experimental; a cutscene or a talk the host plays plays in the guest's game too, with his choices, QTE results and skips; each player's own; both need it on | `on` |
+| `hide_popups` | `on` or `off`: the game's Tutorial and Record popups (its own Settings rows) are Off while at least one other player is linked with you. Only a value that was On is turned off. Your values come back when the last player leaves, when you set it off or at `coop off`. The game's settings file keeps your values the whole time. Turn one on in the game's Settings during online play and it stays on until you leave. Each player's own. Options, Session, Hide popups online; it applies at once | `on` |
 | `revive` | `on` or `off`: your friend may [revive](playing-with-a-friend.md#revive-by-your-friend-experimental) your EVE where she fell, experimental; in a co-op Night Operation run, your death is a [down](night-operation.md#down-and-revive) | `on` |
 | `photo_sync` | `both`, `notice` or `off`: the [synced photo mode](playing-with-a-friend.md#synced-photo-mode); a pause needs `both` on both PCs | `both` |
 | `photo_freeze_max` | `0` (no limit) or `30` to `3600`: the longest pause your friend's photo mode holds your game in, in seconds | `600` |

@@ -53,6 +53,9 @@ achievements, which cannot be taken back.
   included), View held for 1 s opens the menu. The mouse works in it too.
 - The game's pause menu gets an Online tab after Settings. RB on Settings (E on the keyboard) or a click on the tab
   closes the pause menu and opens the co-op menu. Not tested in game yet.
+- While at least one other player is linked with you, the game's tutorial popups and record popups are off in your
+  game (Hide popups online, on by default). Your own values come back when you leave. The game's settings file keeps
+  them the whole time. Not tested in game yet.
 - At a camp phone booth (any full camp, Xion's booths, the Wasteland and Great Desert warp phones), F5 opens the co-op
   line: the menu's session rows, Co-op menu and Hang up, and a sentence that says whether the line is free, open or
   linked with your friend. The booth's own fast travel works as before. The line is not tested in game yet.
