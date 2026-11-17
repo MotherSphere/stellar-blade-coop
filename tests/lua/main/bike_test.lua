@@ -4,9 +4,9 @@
 -- The bike through main.lua (fixture.lua's fake bike/ride.lua; bike/ride_test tests the ride): the load log line, what
 -- the ride is built with (its native asks, coop-bike.txt, the races' driving, the settings, the checks it reads), coop
 -- bike and its words, bike_key (F3) and the pad's D-pad Right held 1 s with a refusal on screen, the first tick's
--- restore, its frame before the native tick, its 250 ms pass, coop off, the Options rows; riding() as coop emote, the
--- race, the hall seats, coop fly on and coop glide on read it; its idle_part as the capture's leave_out; the menu's
--- words, a notice and the travel worlds for the parked bike.
+-- restore, its frame before the native tick, its 250 ms pass, coop off (the stop, then the parked bike out of the
+-- world), the Options rows; riding() as coop emote, the race, the hall seats, coop fly on and coop glide on read it;
+-- its idle_part as the capture's leave_out; the menu's words, a notice and the travel worlds for the parked bike.
 dofile('tests/lua/main/fixture.lua')
 -- coop fly's keys: cut/flight.lua for real, with fly_on in place of its active() (on() needs SB's player input).
 local Flight,fly_on=require('cut.flight'),nil
@@ -22,6 +22,8 @@ load_main(true)
 assert(logged('bike: on, bike_key F3'),table.concat(printed,'|'))
 local o=bk.o
 assert(o.store=='store coop-bike.txt' and o.drive.name=='drive' and o.settings.bike==true)
+-- The parked bike's path for the next Lua load (swept after a Ctrl+R).
+assert(o.stand_store=='store coop-bike-stand.txt',tostring(o.stand_store))
 -- The parked bike's words: the menu's, a notice in them and in English, the travel worlds for a map's name.
 assert(o.words().bike.not_back=='Your bike is not back yet.' and o.worlds.Xion=='/game/art/bg/worldmap/level_p/e04')
 o.tell(function(w) return w.bike.prompt:format('F3') end)
@@ -168,10 +170,10 @@ to('Get on or off the bike')
 assert(select(2,focus())=='F3')
 key('ESCAPE'); key('ESCAPE')
 
--- coop off: the ride's stop first, then the race's.
+-- coop off: the ride's stop first, then its parked bike out of the world (the place kept), then the race's stop.
 local stops=ra.stops
 coop('off')
-assert(bk.stops[#bk.stops]=='coop off' and ra.stops==stops+1)
+assert(bk.stops[#bk.stops]=='coop off' and bk.left=='coop off' and ra.stops==stops+1,tostring(bk.left))
 n=#bk.toggles
 key('F3')
 assert(#bk.toggles==n and last()=='[StellarCoop] STOP: coop off is active until the game restarts\n',last())

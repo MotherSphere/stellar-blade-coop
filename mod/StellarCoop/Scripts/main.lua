@@ -632,15 +632,17 @@ local o={link=link,settings=settings,sbo=sbo,puppet=puppet,native_tick=native_ti
 local flight=require('cut.flight').new({log=function(m) print('[StellarCoop][FL] '..tostring(m)..'\n') end})
 o.wear,o.scene,o.lines,o.flight,o.glide,o.emote=wear,scene,cut_lines,flight,glide,emote
 -- The bike (bike/ride.lua), logging [BK] lines: SB's own bike as a part on EVE and her ride on it with bike/model.lua
--- through the races' driving (drive), on any save. coop-bike.txt lets the next Lua load put her main mesh back. A mount
--- is refused, with its reason, while SBO's own state holds EVE (busy) or one of our screens is open. Its parked bike's
--- refusals and prompt come in the menu's words (words, tell), a map by its travel world's name (worlds). Its place is
--- kept per account and save beside coop-settings.txt (file), never while an SBO lobby is open (lobby).
+-- through the races' driving (drive), on any save. coop-bike.txt lets the next Lua load put her main mesh back and
+-- coop-bike-stand.txt sweep the parked bike an earlier load left (stand_store). A mount is refused, with its reason,
+-- while SBO's own state holds EVE (busy) or one of our screens is open. Its parked bike's refusals and prompt come in
+-- the menu's words (words, tell), a map by its travel world's name (worlds). Its place is kept per account and save
+-- beside coop-settings.txt (file), never while an SBO lobby is open (lobby).
 bike=require('bike.ride').new({log=function(m) print('[StellarCoop][BK] '..tostring(m)..'\n') end,
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end,
     words=words,tell=tell,worlds=require('session.travel').WORLDS,
     file=link and {read=link.read_file,write=link.write_file},lobby=function() return sbo~=nil and sbo.active() end,
-    store=link and link.store('coop-bike.txt'),drive=drive,settings=settings,
+    store=link and link.store('coop-bike.txt'),stand_store=link and link.store('coop-bike-stand.txt'),drive=drive,
+    settings=settings,
     paused=function() return kit~=nil and kit.paused(true) end,photo=photo_state,
     frozen=function() return link~=nil and link.paused() end,life=function() return link and link.life() end,
     armed=race.armed,
@@ -757,6 +759,8 @@ local commands={
             if not stopped then log('revive: '..tostring(e)) end
         end
         stopped,e=pcall(bike.stop,'coop off') -- Before the race's stop, which leaves a bike drive to it.
+        if not stopped then log('bike: '..tostring(e)) end
+        stopped,e=pcall(bike.leave) -- Her parked bike out of the world, its place kept.
         if not stopped then log('bike: '..tostring(e)) end
         stopped,e=pcall(race.stop)
         if not stopped then log('race: '..tostring(e)) end

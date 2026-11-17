@@ -514,7 +514,7 @@ end}
 -- The bike (bike/ride.lua; bike/ride_test tests it): what new got (o), the why of each toggle and stop, its steers,
 -- slows and restores, its tunes; whether she rides, what a toggle answers (answer: ok and a line; raise: an error),
 -- what a steer or a slow says (an end of the ride); what idle_part answers (idle_part), with the address it got
--- (idle_part_at).
+-- (idle_part_at); the last stop's why at its leave (left).
 bk={}
 package.loaded['bike.ride']={new=function(o)
     bk.o=o
@@ -525,7 +525,7 @@ package.loaded['bike.ride']={new=function(o)
             if bk.raise then error(bk.raise,0) end
             return table.unpack(bk.answer or {true,'On the bike: coop bike gets her off.'})
         end,
-        stop=function(why) bk.stops[#bk.stops+1]=why end,
+        stop=function(why) bk.stops[#bk.stops+1]=why end,leave=function() bk.left=bk.stops[#bk.stops] end,
         steer=function() bk.steers=bk.steers+1; if bk.says then return table.unpack(bk.says) end end,
         slow=function() bk.slows=bk.slows+1; if bk.slow_says then return table.unpack(bk.slow_says) end end,
         restore=function() bk.restores=bk.restores+1 end,status=function() return 'bike: preload ready' end,
@@ -917,7 +917,7 @@ function load_main(with_native,no_folder,source)
     ln.o,ln.cmds,ln.ticks,ln.stops,ln.says=nil,{},0,0,nil
     gl.o,gl.cmds,gl.restores,gl.ticks,gl.stops,gl.says=nil,{},0,0,0,nil
     em.o,em.cmds,em.restores,em.ticks,em.stops,em.says,em.active=nil,{},0,0,0,nil,nil
-    bk.o,bk.riding,bk.toggles,bk.stops,bk.steers,bk.slows,bk.restores,bk.tunes=nil,false,{},{},0,0,0,{}
+    bk.o,bk.riding,bk.toggles,bk.stops,bk.steers,bk.slows,bk.restores,bk.tunes,bk.left=nil,false,{},{},0,0,0,{},nil
     bk.answer,bk.raise,bk.says,bk.slow_says,bk.idle_part,bk.idle_part_at=nil,nil,nil,nil,nil,nil
     dr.active,gl.active=nil,nil
     ra.o,ra.cmds,ra.received,ra.ticks,ra.slows,ra.stops,ra.keys,ra.armed,ra.hud={},{},{},0,0,0,0,false,nil

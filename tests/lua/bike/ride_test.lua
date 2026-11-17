@@ -16,7 +16,9 @@
 -- after a forced one or where it stood before the mount, hidden while she rides or a cutscene holds her, removed for a
 -- new EVE; a mount refused far from it (the distance and the side), on another map or before it is back, else made
 -- onto it by a teleport; the prompt once she comes within reach; its place per account and save (o.file), kept out
--- of the record while an SBO lobby is open.
+-- of the record while an SBO lobby is open; its path kept for the next Lua load (o.stand_store), swept at that load's
+-- first tick, which parks at her feet after a Ctrl+R while she rode; removed at coop off and bike=off, put back at
+-- bike=on.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -220,6 +222,10 @@ local store={save=function(line)
         stored=line
         return true
     end,load=function() return stored end,clear=function() stored=nil end}
+-- o.stand_store: save(path) sets stand_stored, load() returns it, clear() sets it nil.
+local stand_stored
+local stand_store={save=function(path) stand_stored=path; return true end,load=function() return stand_stored end,
+    clear=function() stand_stored=nil end}
 local logs={}
 local function log(m) logs[#logs+1]=m end
 local function last() return logs[#logs] end
@@ -250,7 +256,7 @@ local Ride=require('bike.ride')
 local T=require('ui.text')
 local words,told=T.en,{}
 local function new()
-    return Ride.new({log=log,ask=ask,status=status,store=store,drive=drive,settings=settings,
+    return Ride.new({log=log,ask=ask,status=status,store=store,stand_store=stand_store,drive=drive,settings=settings,
         paused=function() return world.paused end,photo=function() return world.photo end,
         frozen=function() return world.frozen end,life=function() return world.life end,
         armed=function() return world.armed end,busy=function() return world.busy end,
@@ -888,4 +894,19 @@ lobby=false; clock=clock+0.25; R.slow(); assert(R.status():find('parked on /game
 -- Unreadable file: none, logged.
 use_key((ST:gsub('index=2','index=4'))); files['coop-bike-76561190000000000-coop4.txt']='junk'
 clock=clock+0.25; R.slow(); assert(find(': unreadable, read as none$'))
+
+-- 19. The stand's path kept for the next Lua load, swept at its first tick; Ctrl+R while riding parks at her feet when
+-- the floor counts; coop off removes the stand and keeps the place; bike=off removes it, bike=on puts it back.
+-- (o.stand_store: save(path) sets stand_stored, load() returns it, clear() sets it nil.)
+local kept=stand_stored
+assert(kept==st_made[#st_made].path)
+local R2=new(); R2.restore()
+assert(swept[#swept]==kept and swept_mesh[#swept]==MESH and stand_stored==nil)
+eve.mesh_at={X=0,Y=0,Z=0}; mount(); local R3=new(); eve.mesh_at={X=33,Y=0,Z=0}; R3.restore(); R=R3; settle()
+assert(find('^bike parked on /game/map/map at 33,0,0 %(here%)$') and written[#written].text:find('\t33\t'))
+settings.bike=false; clock=clock+0.25; R.slow()
+assert(st_made[#st_made].removed and R.status():find('parked on'))
+settings.bike=true; st.load='ready'; clock=clock+0.25; R.slow(); clock=clock+2; R.slow()
+assert(st_made[#st_made].shown and not st_made[#st_made].removed,'bike=on: put back at its place')
+R.leave(); assert(st_made[#st_made].removed and stand_stored==nil and R.status():find('parked on'))
 print('ride_test ok')
