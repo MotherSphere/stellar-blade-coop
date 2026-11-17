@@ -62,8 +62,9 @@ bike_key=F3
 # and B on the keyboard, which Stellar Blade leaves free.
 drift_keys=Gamepad_RightTrigger B
 # The bike: on or off, on by default. On, the mod keeps Stellar Blade's own bike loaded. bike_key, D-pad Right held 1 s
-# on a pad or the console command coop bike puts EVE on it or takes her off, on any save. Nothing of the ride is saved.
-# Off takes her off the bike and frees it.
+# on a pad or the console command coop bike puts EVE on it or takes her off, on any save. The bike stays where she gets
+# off: its place is kept for each save, in the mod folder. Off gets her off the bike, removes her parked bike from
+# every world (its place stays), hides the other players' parked bikes and frees the bike's files.
 bike=on
 # Who can join a session you host: public (any player of your version, from Find a session), friends (your Steam
 # friends, from their friends list or the Friends tab of Find a session), invitation (the friends you invite or anyone
@@ -599,6 +600,7 @@ function Link.new(folder,fs)
     local lobby,code,refused,pending,members,strangers,strangers_in=nil,nil,nil,{},{},{},nil
     local roster,session,vits={},nil,{}
     local players=nil -- The status's players= line: the host's count of its session's players (crowd()).
+    local bikes={} -- bikes(): each member's bike_of= payload by her SteamID, as of the last changes().
     local self={}
     local function put(name,text,keep)
         local final=path(name)
@@ -639,6 +641,9 @@ function Link.new(folder,fs)
     -- Night Operation's night line (nightop/run.lua): coop-night.txt, which the native part takes at every pass and
     -- sends to the partner. An untaken one is replaced: the newest state wins.
     function self.night(line) return put('coop-night.txt',line..'\n') end
+    -- Her parked bike's line (bike/ride.lua: park ... or none): coop-parked.txt, which the native part takes at every
+    -- pass and sends to every member. An untaken one is replaced: the newest state wins.
+    function self.bike(payload) return put('coop-parked.txt',payload..'\n') end
     -- coop-state.txt: whether a save is loaded (held invites wait for one) or else the title screen is shown
     -- (world=title: the only time the native part changes the co-op saves), the poses sent a second, and the synced
     -- photo mode's: ours ('0', '1' or 's'; 'c' while the host's cutscene plays, session/group.lua's), photo_sync and
@@ -769,7 +774,7 @@ function Link.new(folder,fs)
         if engine:find(' reason=build stamp ',1,true) or engine:find(' reason=code bytes differ',1,true) then
             saves.build=true
         end
-        lobby,code,refused,pending,members,roster,session,vits=nil,nil,nil,{},{},{},nil,{}
+        lobby,code,refused,pending,members,roster,session,vits,bikes=nil,nil,nil,{},{},{},nil,{},{}
         players=nil
         if not text then return new end
         listed,noted={},{}
@@ -780,6 +785,7 @@ function Link.new(folder,fs)
                 and not line:find('^match=') -- Its countdown changes each second.
                 and not (waited and line:find('^wait=')) -- Likewise: the first of a wait only.
                 and not line:find('^life=')
+                and not line:find('^bike_of=') -- bike/others.lua logs what it does with each.
                 and not line:find('^night=') -- nightop/run.lua logs each night line itself.
                 -- Their spawns= moves with every enemy; cut/enemy.lua logs what it reads for each.
                 and not line:find('^lion=') and not line:find('^gardener=') and not line:find('^tendril=')
@@ -830,6 +836,8 @@ function Link.new(folder,fs)
             end
             id=line:match('^peer=(%d+) ')
             if id then members[#members+1]=id end
+            local rider,parked=line:match('^bike_of=(%d+) (.+)$')
+            if rider then bikes[rider]=parked end
             local slot,on,gone,muted,rtt
             id,slot,on,gone,muted,rtt,name=line:match('^member=(%d+) (%d) ([01]) ([01]) ([01]) (%-?%d+) (.*)$')
             if id then
@@ -1059,6 +1067,9 @@ function Link.new(folder,fs)
     -- slot (0 to 6), linked=, lost=, muted=, rtt=her round trip in ms (-1 before the first pong), name=her Steam name
     -- as the native part cleaned it, maybe ''}.
     function self.members() return roster end
+    -- Each member's parked bike as of the last changes(): her SteamID (digits) to her bike line's payload ('none' or
+    -- 'park <map> <x> <y> <z> <pitch> <yaw> <roll>'), for those who sent one past the handshake.
+    function self.bikes() return bikes end
     -- How many members are past the handshake with us: more than 1 is a session of more than 2 players.
     function self.others()
         local n=0

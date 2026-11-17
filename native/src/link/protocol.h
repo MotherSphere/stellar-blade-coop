@@ -26,6 +26,8 @@
 //   SBC<protocol> race <text> (a Doro race line, race/model.lua's, printable ASCII; the link reads no further).
 //   SBC<protocol> gift <payload> (coop gift, cut/mailbox.lua: "s <id> <alias> <count>" a gift sent, "a <id>" kept in
 //   the friend's mailbox, "n <id> <why>" refused; gift_ok()).
+//   SBC<protocol> bike park <map> <x> <y> <z> <pitch> <yaw> <roll> or SBC<protocol> bike none (her parked bike,
+//   bike/ride.lua: its map, whole centimetres, hundredths of a degree; bike_ok()).
 //   From a match lobby's owner only (link/core.h): SBC<protocol> start <mode> <map> <seed> <id>,<id>,... (a round
 //   starts: its mode, map, 32-bit seed and players, host first), SBC<protocol> count <1-10|stop> (the countdown's
 //   seconds left, or its stop) and SBC<protocol> end (the round ended).
@@ -101,12 +103,13 @@ constexpr int kProtocol = 23; // Bump on any wire change. 1 was the first link (
                               // count malformed, so she would wait through his scenes as before; 23 adds online
                               // sessions of up to 4 players with the host's let and wait lines on channel 0, which a
                               // protocol-22 peer would count invalid; a protocol-22 game would also leave a lobby of
-                              // 3; 23 also adds the cycle line (each game's New Game+ count and difficulty), which a
-                              // protocol-22 peer would count invalid. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0,
-                              // 10: stage 2's builds, 11: v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1 to
-                              // beta.3, 14: v0.7.0-beta.1, 17: a v0.7.5 test build, 18: v0.7.5, 19: v0.8.0 to v0.10.0,
-                              // 20: v0.11.0; 15, 16, 21 and 22 were never released) is told why: the lobby tag, then
-                              // the hello's reject, name both.
+                              // 3; 23 also adds the cycle line (each game's New Game+ count and difficulty) and the
+                              // bike line on channel 0 (where each player's parked bike stands), which a protocol-22
+                              // peer would count invalid. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage
+                              // 2's builds, 11: v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14:
+                              // v0.7.0-beta.1, 17: a v0.7.5 test build, 18: v0.7.5, 19: v0.8.0 to v0.10.0, 20:
+                              // v0.11.0; 15, 16, 21 and 22 were never released) is told why: the lobby tag, then the
+                              // hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -259,7 +262,7 @@ inline Life life_of(const Vitals &v) {
 
 enum class Kind {
   invalid, hello, accept, reject, ping, pong, photo, say, vitals, pak, paks, dlc, dlcs, camps_ask, camps, night, mark,
-  race, gift, start, count, end, let, wait, cycle
+  race, gift, bike, start, count, end, let, wait, cycle
 };
 // The follow's camps lines (session/travel.lua): the guest asks with an id from 0 to kMaxCampId, the host answers that
 // id with his world and up to kMaxCamps ZoneCampTable aliases, nearest his EVE first, each with its distance in whole
@@ -303,7 +306,8 @@ struct Message {
                          // the container's name, mod_name_ok(). dlc: its name, chat_clean() to kMaxDlcName and never
                          // empty. camps: the host's world, or "none". night: the
                          // payload, night_ok(). mark: chat_clean() to kMaxMark, maybe empty. race: the text after
-                         // "race ", printable ASCII. gift: the payload, gift_ok(). start: the mode.
+                         // "race ", printable ASCII. gift: the payload, gift_ok(). bike: the payload, bike_ok().
+                         // start: the mode.
   Vitals vitals{};       // vitals: hers, plausible_vitals().
   std::string why;         // camps none: why.
   std::vector<Camp> camps; // camps: nearest first.
@@ -564,6 +568,39 @@ inline std::string gift_line(const std::string &payload) {
   return gift_ok(payload) ? "SBC" + std::to_string(kProtocol) + " gift " + payload : std::string();
 }
 
+// A map's package path as the pose table and the bike line carry it: '/' first, then a-z 0-9 '_' '/' '-', at most
+// kMaxMapWord bytes.
+constexpr size_t kMaxMapWord = 128;
+inline bool map_word(std::string_view map) {
+  if (map.empty() || map.size() > kMaxMapWord || map[0] != '/')
+    return false;
+  for (char c : map)
+    if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '/' || c == '-'))
+      return false;
+  return true;
+}
+// The bike line (bike/ride.lua), reliable: "none" (no parked bike), or "park <map> <x> <y> <z> <pitch> <yaw> <roll>":
+// the map as map_word() takes it, the place in whole centimetres within kMaxBikeAt, the angles in hundredths of a
+// degree within kMaxBikeAngle, each an optional '-' then digits.
+constexpr int64_t kMaxBikeAt = 10000000, kMaxBikeAngle = 36000;
+inline bool bike_ok(const std::string &payload) {
+  if (payload == "none")
+    return true;
+  std::string f[8];
+  if (!split(payload, f, 8, nullptr) || f[0] != "park" || !map_word(f[1]))
+    return false;
+  for (size_t i = 2; i < 8; ++i) {
+    const bool minus = f[i][0] == '-';
+    uint64_t v = 0;
+    if (!number(std::string_view(f[i]).substr(minus), v) || v > uint64_t(i < 5 ? kMaxBikeAt : kMaxBikeAngle))
+      return false;
+  }
+  return true;
+}
+// Empty when the payload is no bike line (nothing to send).
+inline std::string bike_line(const std::string &payload) {
+  return bike_ok(payload) ? "SBC" + std::to_string(kProtocol) + " bike " + payload : std::string();
+}
 // SteamIDs split on commas into out: 1 to max of them, distinct, none 0. False on anything else.
 inline bool id_list(std::string_view text, size_t max, std::vector<uint64_t> &out) {
   out.clear();
@@ -638,6 +675,11 @@ inline Message parse(const char *data, size_t size) {
   } else if (split(text, f, 2, &rest) && f[0] == versioned_tag && f[1] == "gift") {
     if (gift_ok(rest)) {
       m.kind = Kind::gift;
+      m.text = rest;
+    }
+  } else if (split(text, f, 2, &rest) && f[0] == versioned_tag && f[1] == "bike") {
+    if (bike_ok(rest)) {
+      m.kind = Kind::bike;
       m.text = rest;
     }
   } else if (split(text, f, 6, nullptr) && f[0] == versioned_tag && f[1] == "start") {

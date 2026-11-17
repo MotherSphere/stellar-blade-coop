@@ -427,9 +427,12 @@ end
 -- reflected getters (the library's default object, found once). The first failure turns it off for this Lua load
 -- ('0' from then on) with one log line.
 local U=require('core.unreal')
--- SB's own word for a StringTable_UI key in the game's language (core/unreal.lua's game_text), for the Sessions screen,
--- the join popups and the feed's join and leave lines; none under ui_language=english.
-local function game_words(key) if settings and settings.ui_language~='english' then return U.game_text(key) end end
+-- SB's own word for a StringTable_UI key (or a key of the string table at path) in the game's language
+-- (core/unreal.lua's game_text), for the Sessions screen, the join popups, the feed's join and leave lines and the
+-- bike's money name; none under ui_language=english.
+local function game_words(key,path)
+    if settings and settings.ui_language~='english' then return U.game_text(key,path) end
+end
 local Join=require('session.join')
 local photo_failed=false
 local function photo_state()
@@ -652,11 +655,34 @@ local o={link=link,settings=settings,sbo=sbo,puppet=puppet,native_tick=native_ti
 local flight=require('cut.flight').new({log=function(m) print('[StellarCoop][FL] '..tostring(m)..'\n') end})
 o.wear,o.scene,o.lines,o.flight,o.glide,o.emote=wear,scene,cut_lines,flight,glide,emote
 -- The bike (bike/ride.lua), logging [BK] lines: SB's own bike as a part on EVE and her ride on it with bike/model.lua
--- through the races' driving (drive), on any save. coop-bike.txt lets the next Lua load put her main mesh back. A mount
--- is refused, with its reason, while SBO's own state holds EVE (busy) or one of our screens is open.
+-- through the races' driving (drive), on any save. coop-bike.txt lets the next Lua load put her main mesh back and
+-- coop-bike-stand.txt sweep the parked bike an earlier load left (stand_store). A mount is refused, with its reason,
+-- while SBO's own state holds EVE (busy) or one of our screens is open. Its parked bike's refusals and prompt come in
+-- the menu's words (words, tell), a map by its travel world's name (worlds). Its place is kept per account and save
+-- beside coop-settings.txt (file), never while an SBO lobby is open (lobby). Its line goes to every member (send).
+-- At an activated Xion camp (camp: the follow's camp_near) its paid fetch spends betacrystal through bike/fetch.lua
+-- (fetch, with the Steam link only), as coop gift spends items: the same FName and pause rules. Its lines name the
+-- money with SB's word (game_text).
+-- An alias's FName is FNAME_Find's and must read back as the alias, as the follow's camps do.
+local function fname(alias)
+    local n=U.value_of(FName(alias,EFindName.FNAME_Find))
+    local index=n:GetComparisonIndex()
+    if not index or index==0 or U.text(n):lower()~=alias:lower() then return nil end
+    return {index=index,number=require('session.travel').number(alias)}
+end
+-- Paused also covers our photo mode and the friend's photo mode that pauses our game: SB's logic stops in both.
+local function logic_paused() return kit~=nil and kit.paused(true) or photo_state()~='0' or link.paused() end
 bike=require('bike.ride').new({log=function(m) print('[StellarCoop][BK] '..tostring(m)..'\n') end,
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end,
-    store=link and link.store('coop-bike.txt'),drive=drive,settings=settings,
+    words=words,tell=tell,game_text=game_words,worlds=require('session.travel').WORLDS,
+    file=link and {read=link.read_file,write=link.write_file},lobby=function() return sbo~=nil and sbo.active() end,
+    store=link and link.store('coop-bike.txt'),stand_store=link and link.store('coop-bike-stand.txt'),drive=drive,
+    send=link and function(p) return link.bike(p) end,
+    camp=link and function(world,m) return travel and travel.camp_near(world,m) end,
+    fetch=link and require('bike.fetch').new({log=function(m) print('[StellarCoop][BK] '..tostring(m)..'\n') end,
+        ask=function(line) return ask(line)() end,status=function() return link.status() end,name=fname,
+        paused=logic_paused}),
+    settings=settings,
     paused=function() return kit~=nil and kit.paused(true) end,photo=photo_state,
     frozen=function() return link~=nil and link.paused() end,life=function() return link and link.life() end,
     armed=race.armed,
@@ -673,8 +699,15 @@ bike=require('bike.ride').new({log=function(m) print('[StellarCoop][BK] '..tostr
         end
     end})
 o.bike=bike
+-- Other players' parked bikes (bike/others.lua), logging [BK] lines, with the link only: a copy of each member's bike
+-- (bikes, members for names, our SteamID left out) on the map our EVE stands on, as the bike's preload and setting
+-- allow (status, settings); coop-bike-copies.txt lets the next Lua load sweep them.
+local others=link and require('bike.others').new({log=function(m) print('[StellarCoop][BK] '..tostring(m)..'\n') end,
+    bikes=function() return link.bikes() end,members=link.members,me=function() return (link.saves() or {}).steamid end,
+    eve=function() return U.her(U.valid(require('UEHelpers').GetPlayer())) end,status=link.status,settings=settings,
+    store=link.store('coop-bike-copies.txt')})
 -- The capture leaves the bike's part out while EVE does not ride: hidden, it would take one of the ghost's 16 parts.
-capture.leave_out(bike.parked)
+capture.leave_out(bike.idle_part)
 -- The day/night cycle (sky/daynight.lua): the request for the native part's env writer (game/sky.h), decided in the
 -- 250 ms loop below from the map, the setting and SB's state; coop daynight reads and pins it (commands/daynight.lua).
 -- The lobby rule is Xion's training room only: a hall lobby has its own row.
@@ -723,20 +756,13 @@ o.story=require('story.snapshot').new({log=function(m) print('[StellarCoop][ST] 
     folder=folder})
 -- coop gift (cut/mailbox.lua), logging [GF] lines: SB's cut mailbox as a co-op gift box, with the Steam link only. Its
 -- tick runs in the 250 ms loop below, her gift lines come through inbox(), and coop gift runs on a co-op save only
--- (commands/cut.lua). An alias's FName is FNAME_Find's and must read back as the alias, as the follow's camps do.
--- Paused also covers our photo mode and the friend's photo mode that pauses our game: SB's logic stops in both.
+-- (commands/cut.lua). Its FName and pause rules are the bike's paid fetch's (fname, logic_paused above).
 local mailbox=link and require('cut.mailbox').new({log=function(m) print('[StellarCoop][GF] '..tostring(m)..'\n') end,
     say=function(text) say(text) end,status=function() return link.status() end,
     request=function(line) return link.request(line) end,read=function(name) return link.read_file(name) end,
     write=function(name,text) return link.write_file(name,text) end,friend=function() return link.friend() end,
     loopback=function() return link.loopback() end,store=link.store('coop-gift-toast.txt'),
-    paused=function() return kit~=nil and kit.paused(true) or photo_state()~='0' or link.paused() end,
-    name=function(alias)
-        local n=U.value_of(FName(alias,EFindName.FNAME_Find))
-        local index=n:GetComparisonIndex()
-        if not index or index==0 or U.text(n):lower()~=alias:lower() then return nil end
-        return {index=index,number=require('session.travel').number(alias)}
-    end}) or nil
+    paused=logic_paused,name=fname}) or nil
 o.mailbox=mailbox
 -- coop ui and coop off stay here: they reach the UI objects built below and the photo pause above.
 local commands={
@@ -811,6 +837,12 @@ local commands={
         end
         stopped,e=pcall(bike.stop,'coop off') -- Before the race's stop, which leaves a bike drive to it.
         if not stopped then log('bike: '..tostring(e)) end
+        stopped,e=pcall(bike.leave) -- Her parked bike out of the world, its place kept.
+        if not stopped then log('bike: '..tostring(e)) end
+        if others then -- The other players' copies too.
+            stopped,e=pcall(others.clear,'coop off')
+            if not stopped then log('bike: '..tostring(e)) end
+        end
         stopped,e=pcall(race.stop)
         if not stopped then log('race: '..tostring(e)) end
         stopped,e=pcall(doro.stop)
@@ -1246,6 +1278,7 @@ LoopInGameThreadWithDelay(1,function()
     guarded('glide',glide.restore) -- Likewise for a bGlide an earlier load left on.
     guarded('emote',emote.restore) -- Likewise for a pose's montage an earlier load left playing.
     guarded('bike',bike.restore) -- Likewise for her main mesh after a reload with her on the bike.
+    if others then guarded('bike',others.restore) end -- Likewise for the copies of other players' parked bikes.
     if off then if blocked and native_tick then native_tick() end return end
     local ok,message=guarded('ghost',puppet.tick)
     if message then report(ok,message) end
@@ -1938,6 +1971,7 @@ if link then
             -- The bike: the preload as bike says, her part, the ride's checks; an end said on screen.
             local rode,ended=guarded('bike',bike.slow)
             if ended then report(rode,ended); say(ended) end
+            guarded('bike',others.slow) -- Then the other players' parked bikes on our map.
         else -- After coop off, whether a save is loaded or the title is shown, and no photo mode: the native part's
             -- check of the SBO session records at each title visit still runs then (design-lobby 12.8).
             local world,title=guarded('ghost',puppet.world)

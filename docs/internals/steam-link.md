@@ -371,6 +371,8 @@ SBC23 race <text>
 SBC23 gift s <id> <item> <count>
 SBC23 gift a <id>
 SBC23 gift n <id> <why>
+SBC23 bike park <map> <x> <y> <z> <pitch> <yaw> <roll>
+SBC23 bike none
 SBC23 start <mode> <map> <seed> <id>,<id>,...
 SBC23 count <1-10|stop>
 SBC23 end
@@ -569,6 +571,24 @@ Lua gives the items back only when it was the gift's first line.
 Your friend's lines reach Lua in `coop-chat.txt` as `gift <payload>`, beside the chat and race lines. During
 `coop loopback` with no friend linked, your gift lines come back as your friend's.
 
+### The bike line
+
+The bike line carries where a player's [parked bike](bike.md#the-bike-line) stands, sent reliable: `park` with its map,
+place and angles, or `none` when she has no parked bike (she rides it, has `bike=off` or has no place yet). The map is a
+lower-case package path as the pose table carries it: `/` first, then `a-z`, `0-9`, `_`, `/` and `-`, at most 128
+bytes. `<x> <y> <z>` are whole centimetres and `<pitch> <yaw> <roll>` hundredths of a degree, each an optional `-` then
+digits, the place within 10,000,000 and the angles within 36,000. With a 128-byte map the line is at most 195 bytes. A
+line of another shape counts as an invalid message (`invalid message from <name>` in `coop-link.log`).
+
+Each player sends only her own bike. Her line is keyed by the Steam identity that Steam attaches to each message, so no
+member can move another player's bike. The line goes in co-op lobbies, match lobbies and the SBO lobby alike, with no
+owner role. The native part sends Lua's newest line (`coop-parked.txt`) to each member past the handshake who has not
+had it, then again after her hello and her return from lost, so a late joiner and a broken session get it with no
+timer. A send Steam refuses goes again at the next pass. Nothing goes before Lua's first line. The receiver keeps each
+member's latest line and lists it in `coop-status.txt` as `bike_of=<SteamID> <payload>` after the `member=` lines until
+she leaves the lobby. No rate limit applies beyond keeping the latest line. In a match lobby the flood rule of
+[In a match lobby](#in-a-match-lobby) counts it with her other channel-0 lines.
+
 ### The start, count and end lines
 
 These lines run a round in a [match lobby](#match-lobbies). Only the lobby's owner sends them, reliable, to each member
@@ -601,7 +621,7 @@ from the owner.
 
 ### Unlinked peers, pings and session requests
 
-Say, vit, pak, paks, camps, night, mark, race, gift, start, count and end lines from a friend who has not passed the handshake are ignored, without a log line.
+Say, vit, pak, paks, camps, night, mark, race, gift, bike, start, count and end lines from a friend who has not passed the handshake are ignored, without a log line.
 
 Accepted peers ping every 2 s. A game answers at most 4 pings a second from one player and sends no pong for the
 rest. A peer silent on channel 0 for 10 s is marked lost (`<name> silent for 10 s: lost`)
@@ -670,7 +690,7 @@ is refused instead of misread:
 | 20 | The PvP test's pvp line on channel 2: a drop of the attacker's stand-in for the victim, applied to the victim's EVE in her game, and the match lobbies' start, count and end lines on channel 0 |
 | 21 | Never released: development builds of the shared world's `SBW` lines on channel 2 and of the dlc and dlcs lines on channel 0 used it (see [Shared world: how it works](shared-world.md)) |
 | 22 | Never released: development builds of story together's `SBS` lines on channel 2 (the host's story scenes and story trips, followed in the guest's game; see [Story together: how it works](story-sync.md)) and of the guest's `SBQ22 step` line (a quest step she made first, made in the host's game) used it |
-| 23 | Online sessions of up to 4 players: the host's `let` and `wait` lines on channel 0, which a protocol-22 peer would count invalid; a protocol-22 game would also leave a lobby of 3. The cycle line (each game's New Game+ count and difficulty) on channel 0 (this version) |
+| 23 | Online sessions of up to 4 players: the host's `let` and `wait` lines on channel 0, which a protocol-22 peer would count invalid; a protocol-22 game would also leave a lobby of 3. The cycle line (each game's New Game+ count and difficulty) and the bike line (where each player's parked bike stands) on channel 0 (this version) |
 
 ## Link health in the log
 

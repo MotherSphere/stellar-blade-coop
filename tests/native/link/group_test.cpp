@@ -6,7 +6,7 @@
 // host lets her in, refused and removed members, the host's questions one at a time with each joiner's wait line, the
 // host leaving, a guest leaving, the follow's camps answers to the asker only, the features kept to 2 players (gifts,
 // Doro races, Night Operation, a guest's photo pause), the pair rule on channels 1 and 2 with its notice, max_players,
-// the pose rate past 2 and each member's vitals.
+// the pose rate past 2, each member's vitals and parked bike.
 #include "fake_steam.h"
 
 namespace {
@@ -127,6 +127,15 @@ int main() {
       assert(slot_of(m[i], kMe) == 0 && m[i].members().size() == 3 && m[i].leader() == kMe);
     assert(m[0].partner() == kFriend && m[2].partner() == 0 && m[3].partner() == 0);
     assert(sent_from(kMe, kPlayer[3], let_line(kFriend, {kFriend, kPlayer[2], kPlayer[3]}, kMaxMembers)) == 1);
+    // Each member's parked bike reaches the three others as a bike_of= line, guest to guest included (bike/others.lua
+    // draws one copy for each), never her own.
+    for (int i = 0; i < 4; ++i)
+      assert(m[i].bike("park /game/map " + id(i) + " 0 0 0 0 0"));
+    rounds(m, 100);
+    for (int i = 0; i < 4; ++i)
+      for (int j = 0; j < 4; ++j)
+        assert((m.status(i).find("\nbike_of=" + id(kPlayer[j]) + " park /game/map " + id(j) + " 0 0 0 0 0\n") != npos) ==
+               (i != j));
   }
 
   // A joiner who is not the host's Steam friend: every guest holds her (no hello, no session, nothing of hers read)

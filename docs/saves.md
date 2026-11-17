@@ -8,9 +8,11 @@ The step-by-step procedures for players are in [INSTALL.md](../INSTALL.md#saves-
   it with `coop saves export` (see [Co-op saves](#co-op-saves)), after a backup of that save. It never writes your
   unlocks or equipment. It changes the inventory only when you buy in Night Operation's shop (`coop nightop buy`) or
   send and take a gift (`coop gift`, see [cut-scenes-and-menus.md](cut-scenes-and-menus.md#cut-mailbox-coop-gift)), on a co-op save, so the items
-  land in or leave that co-op save.
-  The shop's points (see [night-operation-shop.md](night-operation-shop.md)) and the gifts' mailbox are kept in
-  the mod folder, not in a save, so restoring a save backup does not change them.
+  land in or leave that co-op save, or when you pay 500 betacrystal to bring the bike back at Xion, on any save (see
+  [bike.md](bike.md#bringing-it-back-at-xion)).
+  The shop's points (see [night-operation-shop.md](night-operation-shop.md)), the gifts' mailbox and the place where
+  you left the [bike](bike.md#where-the-bike-stays) (`coop-bike-<steamid>-<saves><index>.txt`, one file per Steam
+  account and save) are kept in the mod folder, not in a save, so restoring a save backup does not change them.
 - The native part reads your saves only to make their co-op copies, `StellarBladeCoop00.sav` to `04.sav`, on a
   `saves convert` or `saves coop` request at the title. The question on the title screen and `auto_coop_save=always`
   send `saves coop` (see [Co-op saves](#co-op-saves)); `coop saves convert` and `coop saves coop` send them by hand. It

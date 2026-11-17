@@ -3412,5 +3412,51 @@ int main() {
     assert(j.recent().size() == 100 && j.recent().back() == "T #203 e199");
   }
 
+  // One Link hosting Kaanta (linked_host): nothing before Lua's first payload; a payload bike_ok() refuses is not kept;
+  // ours goes once to her past the handshake, reliable on channel 0, and once at each change; a send Steam refuses goes
+  // at the next pass; her hello again and her return from lost send ours again; hers is her bike_of= line after the
+  // member= lines, the latest only; it goes when she leaves the lobby.
+  reset();
+  {
+    World w;
+    const std::string bike = "SBC" + std::to_string(kProtocol) + " bike ";
+    linked_host(w);
+    w.tick();
+    assert(sent_to(kFriend, bike) == 0 && !w.link.bike("park /a 1 2 3") && !w.link.bike(""));
+    assert(w.link.bike("park /game/map 1 2 3 4 5 6"));
+    w.tick();
+    w.tick();
+    assert(sent_to(kFriend, bike + "park /game/map 1 2 3 4 5 6") == 1);
+    for (auto &s : F.sent)
+      if (s.text.rfind(bike, 0) == 0)
+        assert(s.flags == kReliable && s.channel == kChannel);
+    assert(w.link.bike("none"));
+    F.send_result = 25;
+    w.tick();
+    F.send_result = 1;
+    w.tick();
+    assert(sent_to(kFriend, bike + "none") == 1);
+    F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    w.tick();
+    w.tick();
+    assert(sent_to(kFriend, bike + "none") == 2);
+    w.tick("", 0, 0, 10000);
+    assert(saw("Kaanta silent for 10 s: lost"));
+    F.inbox.push_back({kFriend, ping(5, 5)});
+    w.tick();
+    w.tick();
+    assert(saw("Kaanta is back") && sent_to(kFriend, bike + "none") == 3);
+    F.inbox.push_back({kFriend, bike + "park /game/b 0 0 0 0 0 0"});
+    F.inbox.push_back({kFriend, bike + "park /game/b 9 0 0 0 0 0"});
+    w.tick();
+    const std::string s = w.status();
+    assert(s.find("\nbike_of=" + std::to_string(kFriend) + " park /game/b 9 0 0 0 0 0\n") != std::string::npos &&
+           s.find(" park /game/b 0 0 0 0 0 0\n") == std::string::npos && s.rfind("\nmember=") < s.find("\nbike_of="));
+    auto &members = F.members[w.link.lobby()];
+    members.erase(std::remove(members.begin(), members.end(), kFriend), members.end());
+    w.tick();
+    assert(saw("Kaanta left the lobby") && w.status().find("\nbike_of=") == std::string::npos);
+  }
+
   std::puts("link_core_test: ok");
 }

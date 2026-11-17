@@ -213,7 +213,9 @@ file is written in full beside its final name and then renamed over it, so the r
   answered by the `guardtext=` line of `coop-status.txt`.
 - The [bike](bike.md)'s asks go as requests (`bike load <clip>`, `bike free`, `bike gate on`, `bike gate off`,
   `anim play <id> <clip> ride`), answered by the `bike=`, `bike_gate=` and `anim=` words of the engine line in
-  `coop-status.txt`. They stay on your PC: the link protocol does not change.
+  `coop-status.txt`. They stay on your PC. Her parked bike's line goes through `coop-parked.txt`, which the native part
+  takes and sends to each member as a `bike` message (see [The bike line](steam-link.md#the-bike-line)). The members'
+  lines come back as the `bike_of=` lines of `coop-status.txt`.
 - Two files are Lua's alone, for the [crash sentinel](ghost.md#cns-guard-and-crash-sentinel): `coop-cns-call.txt`, written in
   place with no temporary file to keep each write to one, and `coop-cns-aside.txt`, the set-aside list.
 

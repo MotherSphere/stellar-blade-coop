@@ -19,7 +19,9 @@
 -- within theirs, the pause menu's Online tab word within its tab and its notice within 200 bytes; no Thai word that
 -- ends on a leading vowel; each join Steam refused as link/core.h words it, in every language; the DLC notice
 -- (T.dlcs) within 200 bytes with 100-byte DLC names in every language; its English as main.lua says it; the New Game+
--- notice (T.cycle) within 200 bytes with every count word and difficulty on both sides; its English.
+-- notice (T.cycle) within 200 bytes with every count word and difficulty on both sides; its English; the bike's
+-- refusals with each side word and a six-digit distance or another map's 32-byte name, the paid fetch's offer after
+-- them with the longest key name and betacrystal, the fetch's other lines with a 32-byte money name, within 200 bytes.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
 local R=require('nightop.recruiter_text')
@@ -81,9 +83,18 @@ end
 local function notices(w)
     local lines={}
     for _,group in ipairs({'fight','spawns','group','ghost','refused','quests','world','story','travel','ue4ss',
-        'join_refused'}) do
+        'join_refused','bike'}) do
         for _,text in pairs(w[group]) do lines[#lines+1]=fill(text) end
     end
+    -- The bike's refusals (bike/ride.lua) with the paid fetch's offer after them, as its mount joins them: each side
+    -- word with a six-digit distance (positions reach 10,000,000 cm), another map with a 32-byte name; the offer with
+    -- the longest key name (Shift+F12, as long as coop bike when bike_key is none) and betacrystal, the word ride.lua
+    -- puts when SB's name would pass 200 bytes (fill gives the other fetch lines a 32-byte name, fetch.lua's NAME_MAX).
+    local offer=w.bike.offer:format('Shift+F12',500,'betacrystal')
+    for _,side in ipairs({'ahead','behind','left','right'}) do
+        lines[#lines+1]=w.bike.far:format(999999,w.bike[side])..' '..offer
+    end
+    lines[#lines+1]=w.bike.other_map:format(NAME)..' '..offer
     lines[#lines+1]=w.fight.on:format(16)..' '..w.fight.scale:format(200,200) -- The longest on.
     -- The DLC notice (T.dlcs): one sentence or both, with short names and with names of link/protocol.h's kMaxDlcName.
     local long,short={('d'):rep(100),('e'):rep(100),('f'):rep(100)},{'Twin Expansion Pack','NieR:Automata','x'}

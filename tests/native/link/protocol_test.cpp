@@ -330,8 +330,9 @@ int main() {
   // Protocol 21 (the shared world alone) was never released: its builds would count every story together line
   // malformed, so the guest would wait through the host's scenes as before. Protocol 22 refuses the link.
   // Protocol 22 (story together for two) was never released either: its builds would count the host's let and wait
-  // lines invalid and leave a lobby of 3. Protocol 23 refuses the link.
-  static_assert(kProtocol == 23, "23 adds sessions of up to 4 players with the let and wait lines; 22 story together's "
+  // lines invalid and leave a lobby of 3. Protocol 23 refuses the link. 23 also carries the bike line.
+  static_assert(kProtocol == 23, "23 adds sessions of up to 4 players with the let and wait lines, then the bike line; "
+                                 "22 story together's "
                                  "SBS lines on channel 2; 21 the shared world's SBW lines on "
                                  "channel 2; 20 the PvP test's pvp line on channel 2; 19 Matrix XIII's world rows; "
                                  "18 the table's fx lines and effect slots to 64; 17 the hide lines; 16 the value lines; 15 "
@@ -1449,6 +1450,36 @@ int main() {
   assert(connect_lobby(L"SB.exe +connect_lobby") == 0);
   assert(connect_lobby(L"SB.exe +connect_lobby abc") == 0);
   assert(connect_lobby(L"SB.exe +connect_lobbyX 42") == 0);
+
+  // The bike line: none, or park with the map rule, three positions within kMaxBikeAt and three angles within
+  // kMaxBikeAngle, signed whole numbers, single spaces.
+  assert(bike_ok("none") && bike_ok("park /game/art/bg/worldmap/level_p/e04 -64028 151214 -15800 0 -9000 35999"));
+  assert(bike_ok("park /a 10000000 -10000000 0 36000 -36000 0") && !bike_ok("park /a 10000001 0 0 0 0 0") &&
+         !bike_ok("park /a 0 0 0 36001 0 0") && !bike_ok("park /a 0 0 0 0 -36001 0"));
+  for (const char *bad : {"", "none ", " none", "park", "park /a 1 2 3 4 5", "park /a 1 2 3 4 5 6 7", "park a 1 2 3 4 5 6",
+                          "park /A 1 2 3 4 5 6", "park /a 1 2 3 4 5 +6", "park /a 1  2 3 4 5 6", "park /a 1 2 3 4 5 1.5",
+                          "park /a - 2 3 4 5 6", "park /a 1 2 3 4 5 6 ", "gone"})
+    assert(!bike_ok(bad) && bike_line(bad).empty());
+  assert(bike_ok("park /" + std::string(127, 'a') + " 0 0 0 0 0 0") &&
+         !bike_ok("park /" + std::string(128, 'a') + " 0 0 0 0 0 0"));
+  assert(map_word("/game/lobby/lobby") && !map_word("") && !map_word("game") && !map_word("/x y"));
+  m = parse_text(bike_line("park /game/lobby/lobby 1 -2 3 4 5 6"));
+  assert(m.kind == Kind::bike && m.text == "park /game/lobby/lobby 1 -2 3 4 5 6");
+  assert(parse_text(bike_line("none")).kind == Kind::bike && parse_text(bike_line("none")).text == "none");
+  assert(parse_text("SBC" + std::to_string(kProtocol - 1) + " bike none").kind == Kind::invalid);
+  assert(bike_line("park /" + std::string(127, 'a') + " -10000000 -10000000 -10000000 -36000 -36000 -36000").size() <
+         kMaxMessage);
+  { // Fuzz: random tails after the tag parse as bike only when bike_ok() takes them.
+    std::mt19937 rng(7);
+    const std::string alphabet = "parknoe /-0123456789az";
+    for (int i = 0; i < 20000; ++i) {
+      std::string tail;
+      for (int n = rng() % 40; n > 0; --n)
+        tail += alphabet[rng() % alphabet.size()];
+      const Message f = parse_text("SBC" + std::to_string(kProtocol) + " bike " + tail);
+      assert((f.kind == Kind::bike) == bike_ok(tail));
+    }
+  }
 
   std::puts("link_protocol_test: ok");
 }

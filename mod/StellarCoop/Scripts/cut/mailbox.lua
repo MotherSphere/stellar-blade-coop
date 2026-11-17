@@ -61,8 +61,9 @@ Mailbox.MOST=Shop.MOST -- Items in one gift: link/protocol.h's kMaxGiftCount.
 Mailbox.BOX,Mailbox.KEEP=20,64
 -- Seconds: her answer at most; between two sends of one gift; the game's remove at most, time paused not counted;
 -- between two reads after it; the native part's answer to a read at most; the toast on screen; between two tries of a
--- gift coming back that failed.
-Mailbox.WAIT,Mailbox.AGAIN,Mailbox.SETTLE,Mailbox.POLL,Mailbox.READ,Mailbox.TOAST,Mailbox.RETRY=60,10,10,0.5,5,4,10
+-- gift coming back that failed; a read with no answer, until it goes again.
+Mailbox.WAIT,Mailbox.AGAIN,Mailbox.SETTLE,Mailbox.POLL,Mailbox.READ,Mailbox.TOAST,Mailbox.RETRY,Mailbox.LOST=
+    60,10,10,0.5,5,4,10,1
 local MASK=0xFFFFFFFF
 local USE='Use: coop gift [send <item> [count 1-'..Mailbox.MOST..']|take [n]]'
 local TOAST='/Game/Art/UI/Widget/GameMenu/MailBox/WB_MailBox_Toast_GetGift.WB_MailBox_Toast_GetGift_C'
@@ -304,6 +305,12 @@ function Mailbox.new(o)
     -- sends nothing: with no proof the items left, a gift could make items out of none, so a lost gift is the risk
     -- taken (the log keeps the counts). A torn read there (the remove changes the very sets the worker walks: unread)
     -- or no EVE read for a moment (noeve) is asked again, as a count that has not fallen yet.
+    -- The read s.ask, sent again with its number when its answer was lost: the engine line holds the last items answer
+    -- only, which the bike's paid fetch reads share (bike/fetch.lua).
+    local function ask_count(s,t)
+        s.asked=t
+        return request(string.format('items %d %s %d %d',s.ask,s.alias,s.index,s.number))
+    end
     local function step(raw,t)
         local s=sending
         if s.step=='gone' then -- Time paused does not count: SB's logic, which runs the remove, stops with the game.
@@ -316,6 +323,8 @@ function Mailbox.new(o)
             if t-s.at>Mailbox.READ then
                 fail(s.step=='count' and 'the native part did not read the inventory'
                     or 'the native part stopped reading the inventory after the remove (the items may be gone)')
+            elseif t-s.asked>=Mailbox.LOST then
+                ask_count(s,t)
             end
             return
         end
@@ -340,7 +349,7 @@ function Mailbox.new(o)
         end
         if t>=s.next then -- The count has not fallen yet: read again.
             s.ask,s.at,s.next=next_ask(raw),t,t+Mailbox.POLL
-            request(string.format('items %d %s %d %d',s.ask,s.alias,s.index,s.number))
+            ask_count(s,t)
         end
     end
     -- The file's waiting entries, each tick while there are some: answers that never came, a friend who left, sends due
@@ -527,7 +536,7 @@ function Mailbox.new(o)
         if not n then return false,'this game holds no name '..alias..': nothing sent' end
         local t=clock()
         sending={alias=alias,count=c,to=to,step='count',ask=next_ask(raw),at=t,index=n.index,number=n.number}
-        local ok,qe=request(string.format('items %d %s %d %d',sending.ask,alias,n.index,n.number))
+        local ok,qe=ask_count(sending,t)
         if not ok then sending=nil; return false,'the native part was not asked: '..tostring(qe) end
         return true,string.format('reading how many %s you carry; the gift of %d follows',alias,c)
     end

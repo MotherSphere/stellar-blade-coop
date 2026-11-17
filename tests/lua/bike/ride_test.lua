@@ -10,9 +10,20 @@
 -- the ride, all read in the 250 ms pass (no frame reads the status); the 250 ms checks (combat stays, swimming and the
 -- gate not on end it); a new EVE, an error and bike=off; a
 -- mesh write that fails keeps the file; the next Lua load's restore; coop bike status and tune; the Doro look refused
--- while she rides; parked (the part the capture leaves out) before the part, off the bike, on it and at bike=off; the
--- part's tag (one that does not hold makes no part), found at a new Lua load's first tick whatever the bike= word,
--- removed by its first pass at bike=off; another mod's component on the same mesh never taken for it.
+-- while she rides; idle_part (the part the capture leaves out) before the part, off the bike, on it and at bike=off;
+-- the part's tag (one that does not hold makes no part), found at a new Lua load's first tick whatever the bike= word,
+-- removed by its first pass at bike=off; another mod's component on the same mesh never taken for it. The parked bike
+-- (a fake bike/stand.lua): made after the part, parked where a dismount by the key leaves her, at the last ground pose
+-- after a forced one or where it stood before the mount, hidden while she rides or a cutscene holds her, removed for a
+-- new EVE; a mount refused far from it (the distance and the side), on another map or before it is back, else made
+-- onto it by a teleport; the prompt once she comes within reach; its place per account and save (o.file), kept out
+-- of the record while an SBO lobby is open; its path kept for the next Lua load (o.stand_store), swept at that load's
+-- first tick, which parks at her feet after a Ctrl+R while she rode; removed at coop off and bike=off, put back at
+-- bike=on; its line for the link (o.send) at each change, sent again after a failed write. The paid fetch at a Xion
+-- camp (o.camp, o.fetch): offered after a far or another-map refusal, paid by a press within 5 s, every press refused
+-- while it runs, the place it gives, its notices; never within reach, in an SBO lobby or away from a camp. The money's
+-- name in them: SB's (o.game_text) on the screen's words, betacrystal in the English copy of another language, for a
+-- name over 32 bytes and in an offer it would take past the feed's 200 bytes.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -24,6 +35,7 @@ local function uobj(o)
 end
 local events={}
 local function event(e) events[#events+1]=e end
+local stand_order={} -- The fake stand's hides, in order with what the tests put beside them.
 local classes={}
 local function class(path)
     classes[path]=classes[path] or uobj({path=path})
@@ -35,7 +47,8 @@ local mathlib=uobj({IsValid=function() math_looks=math_looks+1 return true end,M
     ComposeRotators=function(_,a,b)
         composed[#composed+1]={a=a,b=b}
         return {Pitch=a.Pitch+b.Pitch,Yaw=a.Yaw+b.Yaw,Roll=a.Roll+b.Roll}
-    end})
+    end,
+    MakeRotFromZX=function(_,z,x) return {Pitch=0,Yaw=math.deg(math.atan(x.Y,x.X)),Roll=0} end})
 local MESH='/Game/Art/Character/ETC/Adam_vehicle_02/Adam_Vehicle_02.Adam_Vehicle_02'
 local function mesh_asset(path)
     return uobj({GetFullName=function() return 'SkeletalMesh '..path end,
@@ -55,8 +68,11 @@ local components=0
 local function component(owner,mesh)
     components=components+1
     local n=components
-    local c=uobj({SkeletalMesh=mesh,visible=true,ComponentTags={}})
+    local c=uobj({SkeletalMesh=mesh,visible=true,ComponentTags={},forward={X=0,Y=1,Z=0}})
     function c:GetAddress() return 0x7000+n end
+    function c:GetForwardVector() return self.forward end
+    function c:K2_GetComponentLocation() return {X=0,Y=0,Z=3} end
+    function c:K2_GetComponentRotation() return {Pitch=0,Yaw=0,Roll=0} end
     function c:ComponentHasTag(tag)
         for _,t in ipairs(self.ComponentTags) do if t:ToString()==tag:ToString() then return true end end
         return false
@@ -90,9 +106,11 @@ local function make_eve(name)
     addresses=addresses+1
     local address=addresses
     local e=uobj({name=name,list={},added=0,skill=false,battle=false,root=false,sequence=false,interaction=false,
-        block=false,fishing=0,tps=false,bEnableInteractionBlock=false,bFreeCamMode=false})
+        block=false,fishing=0,tps=false,bEnableInteractionBlock=false,bFreeCamMode=false,
+        mesh_at={X=0,Y=0,Z=0},base=nil,world_name='World /Game/Map/Map.Map',control_yaw=0,teleport_ok=true})
     local m=component(e,eve_mesh)
     m.RelativeRotation,m.RelativeLocation={Pitch=0,Yaw=-90,Roll=0},{X=0,Y=0,Z=-90}
+    function m:K2_GetComponentLocation() return e.mesh_at end
     function m:K2_SetRelativeRotation(rot,sweep,hit,teleport)
         assert(sweep==false and teleport==false,'Teleport off: cloth keeps its inertia')
         self.RelativeRotation=rot
@@ -105,7 +123,16 @@ local function make_eve(name)
         event('mesh back')
     end
     e.Mesh,e.list[1]=m,m
-    e.CharacterMovement=uobj({MovementMode=1})
+    e.CapsuleComponent=uobj({GetUnscaledCapsuleRadius=function() return 35 end})
+    -- A walkable flat floor; its read raises while floor_raises (a struct UE4SS would not read).
+    local floor={bWalkableFloor=true,HitResult={ImpactNormal={X=0,Y=0,Z=1}}}
+    e.CharacterMovement=setmetatable(uobj({MovementMode=1}),{__index=function(_,k)
+        if k~='CurrentFloor' then return nil end
+        if e.floor_raises then error('CurrentFloor unreadable',0) end
+        return floor
+    end})
+    function e:GetWorld() return {GetFullName=function() return e.world_name end} end
+    function e:GetMovementBase() return self.base and uobj(self.base) end
     function e:GetFullName() return 'CH_P_EVE_01_Blueprint_C /Game/Map.Map:PersistentLevel.'..name end
     function e:GetAddress() return address end
     function e:IsA(c) return c.path=='/Script/SB.SBCharacter' end
@@ -128,6 +155,14 @@ local function make_eve(name)
     function e:GetFishingModeType() return self.fishing end
     function e:IsTPSMode() return self.tps end
     function e:IsPlayingRootMotion() return self.root end
+    function e:K2_GetActorLocation() return {X=0,Y=0,Z=97} end
+    function e:K2_GetActorRotation() return {Pitch=0,Yaw=0,Roll=0} end
+    function e:GetControlRotation() return {Pitch=0,Yaw=self.control_yaw,Roll=0} end
+    function e:K2_TeleportTo(at,rot)
+        self.teleported={at=at,rot=rot}
+        stand_order[#stand_order+1]='teleport'
+        return self.teleport_ok
+    end
     by_path['/Game/Map.Map:PersistentLevel.'..name]=e
     return e
 end
@@ -138,13 +173,28 @@ package.loaded.UEHelpers={GetPlayer=function() return wrapper(eve) end}
 -- The native part: the asks (each an event) and the status line's words.
 local st={warp='idle',anim='idle',id=0,load='off',gate='off',life=1}
 local native=true
+-- The record's key: the mod= and slot= lines use_key puts before the engine line; no_key takes them out.
+local key_text=nil
+local function use_key(text) key_text=text end
+local function no_key() key_text=nil end
 local status_reads=0
 local function status()
     status_reads=status_reads+1
     if not native then return 'slot=coop x\n' end
-    return ('slot=coop x\nengine=on warp=%s me=1 travel=idle travel_calls=0 anim=%s anim_id=%d bike=%s bike_gate=%s%s\n')
+    return (key_text or 'slot=coop x\n')
+        ..('engine=on warp=%s me=1 travel=idle travel_calls=0 anim=%s anim_id=%d bike=%s bike_gate=%s%s\n')
         :format(st.warp,st.anim,st.id,st.load,st.gate,st.life and ' bike_life='..st.life or '')
 end
+-- o.file over files: a read counts in file_reads; a write lands in files and written, or fails with write_fails. lobby
+-- is what o.lobby answers.
+local files,written,file_reads,write_fails,lobby={},{},0,nil,false
+local file={read=function(name) file_reads=file_reads+1; return files[name] end,
+    write=function(name,text)
+        if write_fails then return false,write_fails end
+        files[name]=text
+        written[#written+1]={name=name,text=text}
+        return true
+    end}
 local asked,refuse={},{}
 local function ask(line)
     if refuse[line:match('^%S+ %S+')] then return false,'the native part is off' end
@@ -182,18 +232,82 @@ local store={save=function(line)
         stored=line
         return true
     end,load=function() return stored end,clear=function() stored=nil end}
+-- o.stand_store: save(path) sets stand_stored, load() returns it, clear() sets it nil.
+local stand_stored
+local stand_store={save=function(path) stand_stored=path; return true end,load=function() return stand_stored end,
+    clear=function() stand_stored=nil end}
+-- o.send: each bike line the ride hands the link, in sent; while send_fails it returns false and keeps nothing.
+local sent,send_fails={},false
+local function send(payload)
+    if send_fails then return false end
+    sent[#sent+1]=payload
+    return true
+end
 local logs={}
 local function log(m) logs[#logs+1]=m end
 local function last() return logs[#logs] end
 local function find(pattern) for _,l in ipairs(logs) do if l:find(pattern) then return l end end end
-local settings={}
+local settings={bike_key={name='F3'}}
 local world={paused=false,photo='0',frozen=false,life=nil,armed=false,busy=nil}
+-- bike/stand.lua (bike/stand_test tests it): each display made (st_made) with its place, shown, removed and path; a
+-- hide also goes to stand_order; sweep records what it was asked (swept, swept_mesh). It writes no event and no log.
+local st_made,swept,swept_mesh={},{},{}
+package.loaded['bike.stand']={CULL=20000,
+    make=function(w,mesh,cull)
+        assert(w and mesh==MESH,'In her world, with the bike mesh')
+        local d={shown=false,cull=cull,path='/Game/Map.Map:PersistentLevel.Actor_'..(#st_made+1)}
+        st_made[#st_made+1]=d
+        return d
+    end,
+    put=function(d,place) d.place=place end,
+    show=function(d,on)
+        d.shown=on
+        if not on then stand_order[#stand_order+1]='stand hide' end
+    end,
+    step=function() return nil end,
+    alive=function(d) return not d.removed and d or nil end,
+    remove=function(d) d.removed,d.shown=true,false end,
+    sweep=function(path,mesh) swept[#swept+1],swept_mesh[#swept_mesh+1]=path,mesh end}
 local Ride=require('bike.ride')
+-- The screen's words (T.en until a test picks another table) and the notices told in them, with their English copies
+-- (told_en, main.lua's for the line above EVE). o.game_text answers money and logs each ask (money_asks).
+local T=require('ui.text')
+local words,told,told_en=T.en,{},{}
+local money,money_asks=nil,{}
+-- o.camp: counts camp_asks, answers camp. o.fetch (bike/fetch.lua): start counts fetch.starts; with fetch.refuse set it
+-- returns false and fetch.refuse (busy() stays false), else busy() is true; step returns fetch.result once (then busy()
+-- is false).
+local camp,camp_asks=nil,0
+local fetch={starts=0}
+function fetch.start(t)
+    assert(t==clock,'Started at os.clock()')
+    fetch.starts=fetch.starts+1
+    if fetch.refuse then return false,fetch.refuse end
+    fetch.running=true
+    return true
+end
+function fetch.busy() return fetch.running==true end
+function fetch.step(t)
+    assert(t==clock and fetch.running,'Stepped at os.clock(), while it runs')
+    local r=fetch.result
+    if not r then return nil end
+    fetch.result,fetch.running=nil,false
+    return table.unpack(r)
+end
 local function new()
-    return Ride.new({log=log,ask=ask,status=status,store=store,drive=drive,settings=settings,
+    return Ride.new({log=log,ask=ask,status=status,store=store,stand_store=stand_store,drive=drive,settings=settings,
         paused=function() return world.paused end,photo=function() return world.photo end,
         frozen=function() return world.frozen end,life=function() return world.life end,
-        armed=function() return world.armed end,busy=function() return world.busy end})
+        armed=function() return world.armed end,busy=function() return world.busy end,
+        words=function() return words end,
+        tell=function(build) told[#told+1],told_en[#told_en+1]=build(words),build(T.en) end,
+        game_text=function(key,path) money_asks[#money_asks+1]=key..' '..path; return money end,
+        worlds={Xion='/game/art/bg/worldmap/level_p/e04'},file=file,lobby=function() return lobby end,send=send,
+        camp=function(w,m)
+            assert(w=='Xion' and m==10,'Xion within 10 m')
+            camp_asks=camp_asks+1
+            return camp
+        end,fetch=fetch})
 end
 local R=new()
 local CLIP='/Game/Art/Character/PC/CH_P_EVE_01/Animation/event/G03/MV_SD20_AfterBruteBattle_Main/eve/'
@@ -219,7 +333,7 @@ assert(asked[1]=='bike load '..CLIP and #asked==1 and last()=='bike=on: asked th
 st.load='loading'
 R.slow()
 assert(#asked==1 and eve.added==0,'Asked once')
-assert(R.parked(eve:GetAddress())==nil,'No part to leave out yet')
+assert(R.idle_part(eve:GetAddress())==nil,'No part to leave out yet')
 
 -- 3. The part: once bike=ready and EVE stood 2 s, made on her main mesh at the seat, hidden; then never again.
 st.load='ready'
@@ -232,7 +346,7 @@ R.slow()
 local part=eve.list[2]
 assert(eve.added==1 and part.SkeletalMesh==bike_mesh and part.parent==eve.Mesh and part.collision==0 and part.mode==1)
 assert(part.at.X==1.53 and part.at.Y==0.52 and part.at.Z==2.95 and part.rot.Pitch==0.69 and part.rot.Yaw==0)
-assert(part.scale.X==1 and part.visible==false and last():find('^bike part ready on EVE %(made in [%d.]+ ms%)$'),last())
+assert(part.scale.X==1 and part.visible==false and find('^bike part ready on EVE %(made in [%d.]+ ms%)$'),last())
 assert(#part.ComponentTags==1 and part.ComponentTags[1]:ToString()=='SBO_Bike' and Ride.TAG=='SBO_Bike',
     "Tagged as SBO's")
 -- The part never ticks: made with its tick off and OnlyTickPoseWhenRendered (its reference pose needs no tick).
@@ -241,7 +355,7 @@ clock=3
 R.slow()
 assert(eve.added==1 and #asked==1,'Made once')
 -- The capture's leave_out: the part's address while she does not ride, asked with her EVE's address.
-assert(R.parked(eve:GetAddress())==part:GetAddress() and R.parked(eve:GetAddress()+100)==nil)
+assert(R.idle_part(eve:GetAddress())==part:GetAddress() and R.idle_part(eve:GetAddress()+100)==nil)
 
 -- 4. The refusals, each with its reason, logged; nothing asked, saved or driven.
 local function refused(reason,set,unset)
@@ -310,7 +424,7 @@ do
     R.slow()
     clock=clock+2
     R.slow()
-    assert(last():find('^bike part ready on EVE %(found in'),last())
+    assert(find('^bike part ready on EVE %(found in'),last())
 end
 -- A tag that does not hold: the part kept for this Lua load, why logged once; only a Ctrl+R cannot find it.
 do
@@ -325,9 +439,9 @@ do
     R.slow()
     clock=clock+2
     R.slow()
-    assert(not lone.list[2].gone and last()=='bike part tag SBO_Bike not written (it did not hold): a Ctrl+R will not '
-        ..'find this part',last())
-    assert(logs[#logs-1]:find('^bike part ready on EVE %(made in'),logs[#logs-1])
+    assert(not lone.list[2].gone and logs[#logs-1]=='bike part tag SBO_Bike not written (it did not hold): a Ctrl+R '
+        ..'will not find this part',logs[#logs-1])
+    assert(logs[#logs-2]:find('^bike part ready on EVE %(made in'),logs[#logs-2])
     eve=real
     R.slow()
     clock=clock+2
@@ -346,7 +460,7 @@ assert(eve==real and eve.added==1 and #eve.list==2)
 events={}
 ok,why=R.toggle()
 assert(ok and why=='On the bike: coop bike gets her off.' and R.riding(),why)
-assert(R.parked(eve:GetAddress())==nil,'A part of the ghost while she rides')
+assert(R.idle_part(eve:GetAddress())==nil,'A part of the ghost while she rides')
 local id=tonumber(asked[#asked]:match('^anim play (%d+) '))
 assert(id and id>2000000000,'Apart from coop emote\'s ids')
 local order={'save','drive on bike','bike gate on','anim play '..id..' '..CLIP..' ride','show'}
@@ -363,7 +477,7 @@ order={'hide','anim stop','bike gate off','drive off','mesh back'}
 for k,e in ipairs(order) do assert(events[5+k]==e,k..': '..tostring(events[5+k])) end
 assert(not part.visible and stored==nil and eve.Mesh.RelativeRotation.Yaw==-90 and eve.Mesh.RelativeLocation.Z==-90)
 assert(last():find('^bike off %(coop bike%) after [%d.]+ s: her mesh back$'),last())
-assert(R.parked(eve:GetAddress())==part:GetAddress(),'Left out again once she is off')
+assert(R.idle_part(eve:GetAddress())==part:GetAddress(),'Left out again once she is off')
 assert(find('^drive off %(bike coop bike%)$'))
 
 -- The mount fails halfway: the drive refused (nothing else asked); the gate's ask refused (the drive off again).
@@ -451,7 +565,7 @@ assert(R.riding())
 clock=clock+0.2
 ok,why=R.slow()
 assert(not ok and why=='Off the bike: no answer from the native part for the riding clip' and not R.riding(),why)
-assert(R.parked(eve:GetAddress())==part:GetAddress(),'Left out again after a ride that ended on a fault')
+assert(R.idle_part(eve:GetAddress())==part:GetAddress(),'Left out again after a ride that ended on a fault')
 assert(asked[#asked-1]=='anim stop' and asked[#asked]=='bike gate off' and stored==nil)
 -- Three ends within 1 s: SB uses the slot.
 id=mount()
@@ -578,7 +692,7 @@ part.visible=true
 local R2=new()
 local n_logs=#logs
 R2.restore()
-assert(R2.parked(eve:GetAddress())==part:GetAddress(),"The earlier load's part, named from the first tick")
+assert(R2.idle_part(eve:GetAddress())==part:GetAddress(),"The earlier load's part, named from the first tick")
 assert(logs[n_logs+1]=="bike part found on EVE (an earlier Lua load's), hidden",tostring(logs[n_logs+1]))
 assert(stored==nil and eve.Mesh.RelativeRotation.Yaw==-90 and eve.Mesh.RelativeRotation.Roll==0)
 assert(eve.Mesh.RelativeLocation.Z==-90 and not part.visible)
@@ -593,8 +707,9 @@ n_logs=#logs
 R2.slow()
 clock=clock+2
 R2.slow()
-assert(eve.added==added and #logs==n_logs+1 and last()=='bike=on: asked the native part: bike load '..CLIP,last())
-assert(R2.parked(eve:GetAddress())==part:GetAddress(),'The part it found, left out')
+assert(eve.added==added and logs[n_logs+1]=='bike=on: asked the native part: bike load '..CLIP,logs[n_logs+1])
+for k=n_logs+2,#logs do assert(not logs[k]:find('^bike part'),logs[k]) end
+assert(R2.idle_part(eve:GetAddress())==part:GetAddress(),'The part it found, left out')
 -- A value the file cannot give clears it. A mesh write that fails keeps it: the next mount takes her base from it.
 stored='/Game/Map.Map:PersistentLevel.EVE_1\t0\tx\t0\t0\t0\t-90'
 new().restore()
@@ -616,7 +731,7 @@ id=mount()
 settings.bike=false
 R.slow()
 assert(not R.riding() and find('^bike off %(bike=off%)') and part.gone and asked[#asked]=='bike free')
-assert(R.parked(eve:GetAddress())==nil,'bike=off: no part')
+assert(R.idle_part(eve:GetAddress())==nil,'bike=off: no part')
 assert(last()=='bike=off: asked the native part: bike free',last())
 n=#asked
 R.slow()
@@ -644,7 +759,7 @@ st.load='ready'
 -- 13. coop bike status and tune.
 local said=R.status()
 assert(said=='bike: preload ready, part not made yet, not riding; top=2306 accel=1150 brake_hardness=48 '
-    ..'turn_angle=36',said)
+    ..'turn_angle=36; parked on /game/map/map, 0 m away',said)
 settle()
 id=mount()
 said=R.status()
@@ -662,38 +777,38 @@ assert(not R.tune('speed','1') and not R.tune('top','fast'))
 -- part is made beside it.
 local sbo=eve.list[#eve.list]
 assert(sbo.SkeletalMesh==bike_mesh and sbo.ComponentTags[1] and not sbo.gone)
-assert(R.parked(eve:GetAddress())==sbo:GetAddress())
+assert(R.idle_part(eve:GetAddress())==sbo:GetAddress())
 local theirs=component(eve,bike_mesh)
 table.insert(eve.list,2,theirs)
 st.load='fault'
 local R3=new()
 R3.restore()
-assert(R3.parked(eve:GetAddress())==sbo:GetAddress() and theirs.visible,'Its own part, by its tag')
+assert(R3.idle_part(eve:GetAddress())==sbo:GetAddress() and theirs.visible,'Its own part, by its tag')
 added=eve.added
 for _=1,12 do
     R3.slow()
     clock=clock+0.25
 end
-assert(R3.parked(eve:GetAddress())==sbo:GetAddress() and eve.added==added and not sbo.gone,'Named at a fault')
+assert(R3.idle_part(eve:GetAddress())==sbo:GetAddress() and eve.added==added and not sbo.gone,'Named at a fault')
 settings.bike=false
 local R4=new()
 R4.restore()
-assert(R4.parked(eve:GetAddress())==sbo:GetAddress())
+assert(R4.idle_part(eve:GetAddress())==sbo:GetAddress())
 n_logs=#logs
 R4.slow()
-assert(sbo.gone and not theirs.gone and theirs.visible and R4.parked(eve:GetAddress())==nil)
+assert(sbo.gone and not theirs.gone and theirs.visible and R4.idle_part(eve:GetAddress())==nil)
 assert(logs[n_logs+1]=='bike part removed from EVE' and logs[n_logs+2]=='bike=off: asked the native part: bike free')
 settings.bike=nil
 st.load='ready'
 local R5=new()
 R5.restore()
-assert(R5.parked(eve:GetAddress())==nil and theirs.visible,'Nothing of SBO\'s on her')
+assert(R5.idle_part(eve:GetAddress())==nil and theirs.visible,'Nothing of SBO\'s on her')
 R5.slow()
 clock=clock+2
 R5.slow()
 local made=eve.list[#eve.list]
 assert(made~=theirs and made.ComponentTags[1] and eve.added==added+1,'Made beside it')
-assert(last():find('^bike part ready on EVE %(made in') and R5.parked(eve:GetAddress())==made:GetAddress(),last())
+assert(find('^bike part ready on EVE %(made in') and R5.idle_part(eve:GetAddress())==made:GetAddress(),last())
 assert(theirs.visible and not theirs.gone)
 
 -- 15. The Doro look does not start while she rides (commands/race.lua).
@@ -706,4 +821,237 @@ ok,why=Cmd.race('look','on')
 assert(not ok and why=='EVE rides the bike: coop bike gets her off first' and looks==0,why)
 rides=false
 assert(Cmd.race('look','on') and looks==1)
+
+-- 16. The stand: one per EVE, made after her part under the same 2 s gate, hidden; a dismount by the key parks it
+-- where she stands, shown; a forced one at the last ground pose; none kept on a Movable base; no pose keeps the place
+-- before the mount; hidden while she rides or a cutscene holds her.
+R=new(); local before=#st_made; eve=make_eve('EVE_15'); settle()
+assert(#st_made==before+1 and st_made[#st_made].shown==false and find('^bike stand made in [%d.]+ ms$'))
+local s=st_made[#st_made]
+mount()
+eve.mesh_at={X=100,Y=200,Z=0}
+clock=clock+0.25; R.slow()
+R.toggle()
+assert(s.shown and s.place.map=='/game/map/map' and s.place.at.X==100 and s.place.rot.Yaw==90)
+assert(find('^bike parked on /game/map/map at 100,200,0 %(here%)$'))
+mount(); eve.mesh_at={X=500,Y=0,Z=0}; clock=clock+0.25; R.slow()
+assert(s.shown==false,'Hidden while she rides')
+eve.CharacterMovement.MovementMode=4; clock=clock+0.25
+assert(select(1,R.slow())==false and s.place.at.X==500 and find('^bike parked on /game/map/map at 500,0,0 %(last ground%)$'))
+eve.CharacterMovement.MovementMode=1
+mount(); eve.base={Mobility=2}; eve.mesh_at={X=900,Y=0,Z=0}; clock=clock+0.25; R.slow()
+eve.CharacterMovement.MovementMode=4; clock=clock+0.25; R.slow()
+assert(s.place.at.X==500 and find('%(before the mount%)$'),'A lift is never a ground pose')
+eve.CharacterMovement.MovementMode,eve.base=1,nil
+eve.sequence=true; clock=clock+0.25; R.slow(); assert(s.shown==false)
+eve.sequence=false; clock=clock+0.25; R.slow(); assert(s.shown==true)
+-- CurrentFloor that does not read: walking on a fixed base counts, the yaw alone kept, one log line.
+eve.mesh_at={X=500,Y=0,Z=0}; eve.floor_raises=true; mount(); clock=clock+0.25; R.slow(); R.toggle()
+assert(s.place.rot.Pitch==0 and s.place.rot.Roll==0 and find('^bike floor: CurrentFloor not read'))
+-- A new EVE on the same map (a respawn): the old stand removed before the new one is made.
+local n=#st_made; eve=make_eve('EVE_16'); settle()
+assert(s.removed and #st_made==n+1)
+
+-- A dismount at at with the part's forward at yaw: she stands on her bike's place first when it shows here, mounts,
+-- rides to at, gets off with the key, then walks back to the origin.
+local function park_at(at,yaw)
+    local shown=st_made[#st_made]
+    if shown.shown then eve.mesh_at=shown.place.at end
+    mount()
+    eve.mesh_at=at
+    eve.list[#eve.list].forward={X=math.cos(math.rad(yaw)),Y=math.sin(math.rad(yaw)),Z=0}
+    R.toggle()
+    eve.mesh_at={X=0,Y=0,Z=0}
+end
+-- A new Lua load whose EVE parks her bike where she stands on map, then a new EVE on /game/map/map, settled.
+local function place_on(map)
+    R=new()
+    eve=make_eve('EVE_P'..addresses)
+    eve.world_name='World '..map..'.Map'
+    settle()
+    mount()
+    R.toggle()
+    eve=make_eve('EVE_P'..addresses)
+    settle()
+end
+-- 17. A mount with a place: refused far away (distance and side), on another map or before it is back; within reach
+-- the stand hidden, her actor teleported so the part lands on it, then today's mount; a refused teleport mounts where
+-- she stands; a failed mount shows the stand again; the prompt once each time she comes within reach.
+park_at({X=4200,Y=0,Z=0},0)          -- helper: a dismount there, then she walks back to the origin
+eve.mesh_at,eve.control_yaw={X=0,Y=0,Z=0},180
+ok,why=R.toggle()
+assert(not ok and why=='Your bike is 42 m away, behind you.' and last()=='bike refused: Your bike is 42 m away, behind you.')
+-- Review Focus 4: one floor below, 0 cm across: out of reach, the 3D distance.
+park_at({X=0,Y=0,Z=-300},0); eve.mesh_at,eve.control_yaw={X=0,Y=0,Z=0},0
+ok,why=R.toggle(); assert(not ok and why=='Your bike is 3 m away, ahead of you.',why)
+place_on('/game/art/bg/worldmap/level_p/e04')
+ok,why=R.toggle()
+assert(not ok and why=='Your bike is on another map: Xion.')
+place_on('/game/map/map')
+eve=make_eve('EVE_2'); R.slow(); clock=clock+1; R.slow()  -- back on the map, seen 1 s ago: under 2 s
+ok,why=R.toggle(); assert(not ok and why=='Your bike is not back yet.')
+clock=clock+1; R.slow()
+park_at({X=100,Y=0,Z=0},90); eve.mesh_at={X=0,Y=0,Z=0}
+stand_order={}
+ok=R.toggle()
+assert(ok and R.riding() and stand_order[1]=='stand hide' and stand_order[2]=='teleport' and find('^bike mount: onto the parked bike$'))
+assert(eve.teleported.at.X==100 and eve.teleported.at.Y==0 and eve.teleported.at.Z==94 and eve.teleported.rot.Yaw==90)
+R.toggle(); eve.teleport_ok=false; R.toggle()
+assert(R.riding() and find('^bike mount: teleport refused, the bike came to her$')); eve.teleport_ok=true
+R.toggle(); dv.refuse='no'; ok=R.toggle(); dv.refuse=nil
+assert(not ok and st_made[#st_made].shown,'A failed mount shows the stand again')
+-- Touching its nose, its tail or the front of a flank reaches it: its solid body stops her there, so the reach counts
+-- from the body, not from the root.
+for _,at in ipairs({{X=433,Y=0,Z=0},{X=-216,Y=0,Z=0},{X=300,Y=120,Z=0}}) do
+    park_at({X=0,Y=0,Z=0},0); eve.mesh_at=at
+    ok,why=R.toggle(); assert(ok and R.riding(),why); R.toggle()
+end
+-- The prompt: once on entering reach.
+local n=#told
+eve.mesh_at={X=1000,Y=0,Z=0}; clock=clock+0.25; R.slow()
+eve.mesh_at={X=150,Y=0,Z=0}; clock=clock+0.25; R.slow(); clock=clock+0.25; R.slow()
+assert(#told==n+1 and told[#told]=='F3: get on the bike')
+-- Another language on screen, English in the log.
+words=T.fr; park_at({X=4200,Y=0,Z=0},0); eve.mesh_at={X=0,Y=0,Z=0}
+ok,why=R.toggle(); assert(why==T.fr.bike.far:format(42,T.fr.bike.ahead) and last():find('ahead of you'))
+
+-- 18. The place per save. Read once per key; absent, readable and unreadable logged; a park written once; a failed write
+-- kept in memory; put back on her return after 2 s; an SBO lobby starts with no place and writes nothing; status words.
+-- A new Lua load first: every park so far had no key, so the first key would keep the last one (Review Focus 1 below).
+R=new(); settle()
+local ST='mod=v proto=22 steam=ready steamid=76561190000000000\nslot=coop index=2 marker=none saves=coop\n'
+use_key(ST)
+files['coop-bike-76561190000000000-coop2.txt']='1\t/game/map/map\t100\t0\t0\t0\t0\t0\n'
+clock=clock+0.25; R.slow()
+assert(find('^bike place: coop%-bike%-76561190000000000%-coop2%.txt: /game/map/map$') and file_reads==1)
+clock=clock+0.25; R.slow(); assert(file_reads==1,'Read once per key')
+mount(); R.toggle()
+assert(written[1].name=='coop-bike-76561190000000000-coop2.txt' and written[1].text:find('^1\t/game/map/map\t'))
+write_fails='disk full'; mount(); R.toggle()
+assert(find('^bike place: write failed: disk full; kept in memory$') and not R.riding())
+write_fails=nil
+clock=math.ceil(clock) -- A whole clock, so 1.9 s then 0.1 s more make 2 s exactly in floating point.
+eve=make_eve('EVE_3'); R.slow(); clock=clock+1.9; R.slow(); assert(not st_made[#st_made].shown)
+clock=clock+0.1; R.slow(); assert(st_made[#st_made].shown and last():find('^bike put back on /game/map/map at '),last())
+assert(R.status():find('parked on /game/map/map, 0 m away$'))
+-- Review Focus 1: another save loads during a ride: her park goes to the old save's file.
+eve.mesh_at={X=0,Y=0,Z=0}; mount(); eve.mesh_at={X=300,Y=0,Z=0}; clock=clock+0.25; R.slow()
+use_key((ST:gsub('index=2','index=3'))); eve=make_eve('EVE_4'); clock=clock+0.25; R.slow()
+assert(written[#written].name=='coop-bike-76561190000000000-coop2.txt' and written[#written].text:find('\t300\t'),
+    'The forced park of the save she rode in')
+for _,w in ipairs(written) do assert(w.name~='coop-bike-76561190000000000-coop3.txt') end
+clock=clock+0.25; R.slow(); assert(find('^bike place: coop%-bike%-76561190000000000%-coop3%.txt: none$'))
+-- Review Focus 1 too: a park before any key is written at the first key read, not replaced by the file.
+R=new(); no_key(); settle(); park_at({X=7,Y=0,Z=0},0)
+files['coop-bike-76561190000000000-coop2.txt']='1\t/game/map/map\t100\t0\t0\t0\t0\t0\n'
+use_key(ST); clock=clock+0.25; R.slow()
+assert(written[#written].name=='coop-bike-76561190000000000-coop2.txt' and written[#written].text:find('^1\t/game/map/map\t7\t'))
+assert(find('kept the park made before the key'))
+-- An SBO lobby: no place (first ride under her), nothing written; leaving brings the save's place back.
+lobby=true; clock=clock+0.25; R.slow(); assert(R.status():find('no place yet$'))
+local n=#written; mount(); R.toggle(); assert(#written==n)
+lobby=false; clock=clock+0.25; R.slow(); assert(R.status():find('parked on /game/map/map'))
+-- Unreadable file: none, logged.
+use_key((ST:gsub('index=2','index=4'))); files['coop-bike-76561190000000000-coop4.txt']='junk'
+clock=clock+0.25; R.slow(); assert(find(': unreadable, read as none$'))
+
+-- 19. The stand's path kept for the next Lua load, swept at its first tick; Ctrl+R while riding parks at her feet when
+-- the floor counts; coop off removes the stand and keeps the place; bike=off removes it, bike=on puts it back.
+-- (o.stand_store: save(path) sets stand_stored, load() returns it, clear() sets it nil.)
+local kept=stand_stored
+assert(kept==st_made[#st_made].path)
+local R2=new(); R2.restore()
+assert(swept[#swept]==kept and swept_mesh[#swept]==MESH and stand_stored==nil)
+eve.mesh_at={X=0,Y=0,Z=0}; mount(); local R3=new(); eve.mesh_at={X=33,Y=0,Z=0}; R3.restore(); R=R3; settle()
+assert(find('^bike parked on /game/map/map at 33,0,0 %(here%)$') and written[#written].text:find('\t33\t'))
+settings.bike=false; clock=clock+0.25; R.slow()
+assert(st_made[#st_made].removed and R.status():find('parked on'))
+settings.bike=true; st.load='ready'; clock=clock+0.25; R.slow(); clock=clock+2; R.slow()
+assert(st_made[#st_made].shown and not st_made[#st_made].removed,'bike=on: put back at its place')
+R.leave(); assert(st_made[#st_made].removed and stand_stored==nil and R.status():find('parked on'))
+
+-- 20. Her bike line for the link (o.send): none first, park at a dismount, none at a mount, none at bike=off, the park
+-- again at bike=on; a send that fails goes again at the next pass; nothing when nothing changed.
+assert(sent[1]=='none')
+-- Section 19's state first: the earlier load's drive off (race/drive.lua's restore does it after a Ctrl+R), the
+-- stand R.leave took made again and shown at its place.
+dv.on=false; clock=clock+0.25; R.slow()
+eve.mesh_at={X=0,Y=0,Z=0}; mount(); R.toggle(); assert(sent[#sent]:find('^park /game/map/map 0 0 0 '))
+local n=#sent; clock=clock+0.25; R.slow(); assert(#sent==n)
+mount(); assert(sent[#sent]=='none')
+R.toggle(); send_fails=true; mount(); send_fails=false; clock=clock+0.25; R.slow(); assert(sent[#sent]=='none')
+R.toggle(); settings.bike=false; clock=clock+0.25; R.slow(); assert(sent[#sent]=='none')
+settings.bike=true; clock=clock+0.25; R.slow(); assert(sent[#sent]:find('^park /game/map/map '))
+
+-- 21. The paid fetch at a Xion camp (o.camp, o.fetch): a far or other-map refusal there offers it; a press within 5 s
+-- pays; presses while it runs refuse; paid moves the place to where she stood at the offer; too little money and a
+-- failure are said; never within reach, never in an SBO lobby, never away from a camp.
+words,camp_asks=T.en,0
+no_key(); eve.mesh_at={X=0,Y=0,Z=0}
+camp='Xion_Camp_10'; place_on('/game/other')
+ok,why=R.toggle()
+assert(not ok and why=='Your bike is on another map: other. Press F3 again within 5 s to pay 500 betacrystal to bring it here.')
+assert(camp_asks==1)
+clock=clock+4.9; ok,why=R.toggle()
+assert(ok and why=='Paying 500 betacrystal for your bike.' and fetch.starts==1)
+assert(told[#told]=='Paying 500 betacrystal for your bike.','On screen: F3 and the pad show only refusals')
+-- Review Focus 3: presses during the payment: no second start.
+ok,why=R.toggle(); assert(not ok and why=='Paying 500 betacrystal for your bike.' and fetch.starts==1)
+fetch.result={'paid'}; clock=clock+0.25; R.slow()
+assert(st_made[#st_made].shown and told[#told]=='Your bike was brought here for 500 betacrystal.')
+assert(find('^bike brought to Xion_Camp_10 for 500 betacrystal$') and sent[#sent]:find('^park /game/map/map 0 0 0 '))
+-- Review Focus 2: within reach at the camp: a plain mount, the camp never asked, no charge.
+local asks=camp_asks
+assert(R.toggle() and R.riding() and camp_asks==asks and fetch.starts==1); R.toggle()
+-- The window: a press after 5 s offers again; a press inside it pays; too little money and a failure are said.
+place_on('/game/other'); R.toggle(); clock=clock+5.1; ok=R.toggle(); assert(not ok and fetch.starts==1)
+assert(R.toggle()==true and fetch.starts==2)
+fetch.result={'poor',120}; clock=clock+0.25; R.slow()
+assert(told[#told]=='Not enough betacrystal: 500 needed, you carry 120.')
+R.toggle(); R.toggle(); fetch.result={'failed','no answer from the native part'}; clock=clock+0.25; R.slow()
+assert(fetch.starts==3 and told[#told]=='Your bike was not brought here. UE4SS.log says why.' and find('no answer from the native part'))
+-- A start the fetch refuses (no FName, the native part off): unpaid at once, the why logged, no payment running.
+R.toggle(); fetch.refuse='BetaCrystal has no FName'; ok,why=R.toggle(); fetch.refuse=nil
+assert(not ok and why=='Your bike was not brought here. UE4SS.log says why.' and fetch.starts==4 and not fetch.busy())
+assert(find('^bike fetch not started: BetaCrystal has no FName$'))
+-- Review Focus 2: an SBO lobby (its own place, far away here): refused with no offer, the camp never asked.
+lobby=true; clock=clock+0.25; R.slow(); park_at({X=4200,Y=0,Z=0},0); eve.mesh_at={X=0,Y=0,Z=0}; eve.control_yaw=0
+asks=camp_asks; ok,why=R.toggle()
+assert(not ok and why=='Your bike is 42 m away, ahead of you.' and camp_asks==asks and fetch.starts==4); lobby=false
+-- Not at a Xion camp: the plain refusal.
+camp=nil; place_on('/game/other'); ok,why=R.toggle(); assert(why=='Your bike is on another map: other.')
+-- Another language on screen, English in the log.
+words=T.fr; camp='Xion_Camp_10'; ok,why=R.toggle()
+assert(why==T.fr.bike.other_map:format('other')..' '..T.fr.bike.offer:format('F3',500,'betacrystal')
+    and last()=='bike refused: Your bike is on another map: other.',last())
+-- SB's name for the money on the screen's words, from ItemStringTable's Item_BetaCrystal_Name; the log and the English
+-- copy of another language keep betacrystal.
+money='Or'; clock=clock+6; ok,why=R.toggle()
+assert(why==T.fr.bike.other_map:format('other')..' '..T.fr.bike.offer:format('F3',500,'Or'),why)
+assert(money_asks[#money_asks]=='Item_BetaCrystal_Name /Game/Local/Localize/ItemStringTable.ItemStringTable')
+ok,why=R.toggle(); assert(ok and why=='Paiement de 500 Or pour votre moto.' and told[#told]==why)
+assert(told_en[#told_en]=='Paying 500 betacrystal for your bike.')
+assert(last()=='bike fetch asked at Xion_Camp_10 for 500 betacrystal')
+ok,why=R.toggle(); assert(not ok and why=='Paiement de 500 Or pour votre moto.')
+assert(last()=='bike refused: Paying 500 betacrystal for your bike.')
+fetch.result={'poor',120}; clock=clock+0.25; R.slow()
+assert(told[#told]=='Or insuffisant : 500 requis, vous en avez 120.')
+assert(told_en[#told_en]=='Not enough betacrystal: 500 needed, you carry 120.')
+-- A name over 32 bytes: betacrystal.
+words,money=T.en,('Ж'):rep(17); clock=clock+6; ok,why=R.toggle()
+assert(why=='Your bike is on another map: other. Press F3 again within 5 s to pay 500 betacrystal to bring it here.')
+-- A 32-byte name after a 32-byte map name passes Russian's 200 bytes: the offer says betacrystal.
+words,money=T.ru,('Ж'):rep(16); place_on('/game/'..('m'):rep(32)); ok,why=R.toggle()
+assert(why==T.ru.bike.other_map:format(('m'):rep(32))..' '..T.ru.bike.offer:format('F3',500,'betacrystal'),why)
+-- The English screen: SB's English name in both copies.
+words,money=T.en,'Gold'; place_on('/game/other'); ok,why=R.toggle()
+assert(why=='Your bike is on another map: other. Press F3 again within 5 s to pay 500 Gold to bring it here.',why)
+ok,why=R.toggle(); assert(ok and why=='Paying 500 Gold for your bike.' and told_en[#told_en]==why)
+fetch.result={'poor',120}; clock=clock+0.25; R.slow()
+assert(told[#told]=='Not enough Gold: 500 needed, you carry 120.' and told_en[#told_en]==told[#told])
+money=nil
+-- On a Movable base (no pose a park takes) the fetch brings it to her feet with her actor's yaw.
+clock=clock+6; eve.base={Mobility=2}; eve.mesh_at={X=5,Y=0,Z=0}; R.toggle(); eve.base=nil
+assert(R.toggle()==true); fetch.result={'paid'}; clock=clock+0.25; R.slow()
+assert(sent[#sent]=='park /game/map/map 5 0 0 0 0 0',sent[#sent])
 print('ride_test ok')

@@ -5,11 +5,11 @@
 // lobby by code, relay only, the host's countdown and round lines), the session list (the rows an online session's host
 // writes, the Public search, the friends' lobbies), members, the host's approval of a joiner who is not her Steam
 // friend (or of any joiner with friends_ask=on), handshake, liveness and status, the synced photo mode's line, the chat
-// and vitals lines, the follow's camps lines, Night Operation's night line, channel 1, where the pose path's tables and
-// poses and the pilot's enemy roots (SBE) travel, then channel 2, where the shared enemies' lines and the pilot's show
-// lines travel. Every Steam call goes through the Api table, so tests/native/link/core_test.cpp drives this file with a
-// fake Steam on the build machine; glue/steam.cpp fills the table from the game's steam_api64.dll (flat API, SDK
-// 1.59).
+// and vitals lines, the follow's camps lines, Night Operation's night line, each player's parked bike line, channel 1,
+// where the pose path's tables and poses and the pilot's enemy roots (SBE) travel, then channel 2, where the shared
+// enemies' lines and the pilot's show lines travel. Every Steam call goes through the Api table, so
+// tests/native/link/core_test.cpp drives this file with a fake Steam on the build machine; glue/steam.cpp fills the
+// table from the game's steam_api64.dll (flat API, SDK 1.59).
 #pragma once
 
 #include <algorithm>
@@ -515,6 +515,9 @@ struct Peer {
   bool photo_both = false, photo_off_said = false;
   std::string photo_sent;
   Window photo_window;
+  // Her parked bike: her last bike line's payload (her bike_of= line); our bike line as she last got it, sent again
+  // after each hello of hers and her return from lost, like the photo line.
+  std::string bike, bike_sent;
   Window say_window;       // Her chat lines.
   Window night_window;     // Her night lines.
   Window race_window;      // Her race lines.
@@ -660,6 +663,7 @@ public:
       send_let(); // Before channel 2: a guest learns she is the pair before the pair's first line reaches her.
       send_fight_queue();
       send_photo();
+      send_bike();
       send_paks();
       send_cycle(); // After send_paks(): our cycle line follows our dlcs line.
       ping_peers();
@@ -996,6 +1000,14 @@ public:
         sent = true;
     return sent;
   }
+  // Our parked bike's payload (bike/ride.lua, through coop-parked.txt), kept when bike_ok() takes it, in any lobby or
+  // none: send_bike() hands it to each member. False when refused. Worker thread, after tick().
+  bool bike(const std::string &payload) {
+    if (!bike_ok(payload))
+      return false;
+    bike_ = payload;
+    return true;
+  }
   // For coop-chat.txt (glue/steam.cpp), oldest first: "in <SteamID> <text>" (a member's, chat_clean(); ours in the
   // loopback), "fail" (ours could not go), "race <text>" (her race line) and "gift <payload>" (her gift line, or our
   // gift that could not go).
@@ -1148,6 +1160,10 @@ public:
       s += "member=" + std::to_string(p.id) + " " + std::to_string(p.slot) + " " +
            (p.compatible && p.accepted ? "1" : "0") + " " + (p.lost ? "1" : "0") + " " +
            (muted_.count(p.id) ? "1" : "0") + " " + std::to_string(p.rtt_ms) + " " + p.name + "\n";
+    // Each member's parked bike (bike/others.lua), once she sent one past the handshake: "bike_of=<SteamID> <payload>".
+    for (auto &p : peers_)
+      if (p.compatible && p.accepted && !p.bike.empty())
+        s += "bike_of=" + std::to_string(p.id) + " " + p.bike + "\n";
     // The member in slot 0 (friend co-op's only one), the name last.
     if (const Peer *p = slot_zero())
       s += std::string("friend=") + (p->compatible && p->accepted ? "1" : "0") + " " + (p->lost ? "1" : "0") + " " +
@@ -2679,6 +2695,7 @@ private:
         notice(peer->name + " is back.");
         peer->photo_sent.clear(); // Our last photo and let lines may have gone with a broken session: they go again.
         peer->let_sent.clear();
+        peer->bike_sent.clear();  // The same for our bike line.
         peer->paks_at = 0;
         peer->cycle_sent.clear();
       }
@@ -2950,6 +2967,7 @@ private:
       peer.compatible = true;
       peer.photo_sent.clear(); // Her session may be new: our photo and let lines go again once she accepts.
       peer.let_sent.clear();
+      peer.bike_sent.clear();  // The same for our bike line.
       if (peer.paks_at)        // The same for our pak, paks, dlc and dlcs lines (send_paks); hers start again too.
         peer.paks_again = true;
       peer.pak_in.clear();
@@ -3207,6 +3225,10 @@ private:
               ", seed " + std::to_string(round_.seed) + ", " + std::to_string(round_.ids.size()) + " players");
       }
       break;
+    case Kind::bike: // Her latest only, past the handshake; the flood rule bounds her rate.
+      if (peer.compatible && peer.accepted)
+        peer.bike = message.text;
+      break;
     // The host's let line (checked above): the members a guest may greet, then whether she is the pair. A member it no
     // longer names loses her link with us at the next pass (poll_members()).
     case Kind::let: {
@@ -3330,6 +3352,17 @@ private:
         p.photo_sent = line;
   }
 
+  // Our bike line to each member past the handshake when it changed, or after her hello or her return from lost; a
+  // refused send goes again at the next pass. Nothing before Lua's first payload. In every lobby, match lobbies too.
+  void send_bike() {
+    if (bike_.empty())
+      return;
+    const std::string line = bike_line(bike_);
+    for (auto &p : peers_)
+      if (p.compatible && p.accepted && p.bike_sent != line &&
+          send(p, line.data(), line.size(), kReliable) == kResultOk)
+        p.bike_sent = line;
+  }
   // An online session's host: our let line to each guest past the handshake when it changed, or after her hello; a
   // refused send goes again at the next pass. It names the pair (partner()), then the guests past our handshake in the
   // order they came, then our max_players. With slot 0 free, a guest past the handshake takes it at the next pass
@@ -3666,6 +3699,7 @@ private:
   bool vitals_sent_ = false, has_mate_ = false, has_own_ = false;
   // Night Operation: her last night line (empty: none in this session), our rate window and its drop line.
   std::string night_;
+  std::string bike_; // Our parked bike's payload from Lua (empty: none came yet), for send_bike().
   Window night_window_;
   bool night_logged_ = false;
 };

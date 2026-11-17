@@ -87,9 +87,9 @@ achievements, which cannot be taken back.
   [doro-races.md](doro-races.md)).
 - The bike: F3, D-pad Right held 1 s or `coop bike` puts EVE on a motorbike from the game's files, on any save. She
   rides it with the left stick, leans into turns, drifts with R2 or B and jumps with the game's Jump; her attacks and
-  items are off while she rides. Your friend's ghost of you and the match-lobby ghosts show the bike. Its riding model
-  adapts dCharisma1's Eve On Wheels, with his consent. Nothing of the ride is saved. It is not tested in game yet (see
-  [bike.md](bike.md)).
+  items are off while she rides. Your friend's ghost of you and the match-lobby ghosts show the bike. It stays where she
+  gets off, one place for each save, where the players linked with you see it too. Its riding model adapts dCharisma1's
+  Eve On Wheels, with his consent. It is not tested in game yet (see [bike.md](bike.md)).
 - Day and night: the sun moves across the sky on the maps that can show it, by one clock that every SBO player shares
   through UTC, so players on the same map see the same sky with no network message. One real hour is one game day; the
   night runs from about :52 to :12 past each hour. It runs in solo play, in online sessions, in the hall lobbies, in
@@ -164,7 +164,8 @@ achievements, which cannot be taken back.
   `coop where` compares positions between two PCs.
 - The mod never writes your unlocks or equipment, and writes your own saves only when you export a co-op save over one
   of them (`coop saves export`, after a backup). It changes the inventory only when you buy in Night Operation's shop
-  or send and take a `coop gift`, on a co-op save. It reads your saves to make separate co-op copies of them (see
+  or send and take a `coop gift`, on a co-op save, or pay 500 betacrystal to bring the bike back at Xion, on any save
+  (see [docs/bike.md](bike.md#bringing-it-back-at-xion)). It reads your saves to make separate co-op copies of them (see
   [docs/saves.md](saves.md)).
 
 The ghost is display only, and items are not shared, except the consumables sent with `coop gift`. The experimental

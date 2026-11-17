@@ -4,8 +4,13 @@
 -- The bike through main.lua (fixture.lua's fake bike/ride.lua; bike/ride_test tests the ride): the load log line, what
 -- the ride is built with (its native asks, coop-bike.txt, the races' driving, the settings, the checks it reads), coop
 -- bike and its words, bike_key (F3) and the pad's D-pad Right held 1 s with a refusal on screen, the first tick's
--- restore, its frame before the native tick, its 250 ms pass, coop off, the Options rows; riding() as coop emote, the
--- race, the hall seats, coop fly on and coop glide on read it; its parked as the capture's leave_out.
+-- restore, its frame before the native tick, its 250 ms pass, coop off (the stop, then the parked bike out of the
+-- world), the Options rows; riding() as coop emote, the race, the hall seats, coop fly on and coop glide on read it;
+-- its idle_part as the capture's leave_out; the menu's words, a notice, SB's text (game_text) and the travel worlds for
+-- the parked bike; its bike line through link.bike; its paid fetch at a Xion camp (a fake bike/fetch.lua: what it is
+-- built with, coop gift's FName and pause rules) and the follow's camp_near. Other players' parked bikes (fixture.lua's
+-- fake bike/others.lua): what they are built with, their restore at the first tick, their pass after the ride's,
+-- their clear at coop off.
 dofile('tests/lua/main/fixture.lua')
 -- coop fly's keys: cut/flight.lua for real, with fly_on in place of its active() (on() needs SB's player input).
 local Flight,fly_on=require('cut.flight'),nil
@@ -16,10 +21,61 @@ package.loaded['cut.flight']={new=function(o)
 end}
 local USE='[StellarCoop] STOP: Use: coop bike [status | tune [<name> <value>]]\n'
 settings_text,status_text,in_world='',plain,true
+package.loaded['session.travel'].WORLDS={Xion='/game/art/bg/worldmap/level_p/e04'}
+-- The paid fetch: what bike/fetch.lua's new got (fe.o); the follow answers camp_near with its arguments.
+local fe={}
+package.loaded['bike.fetch']={new=function(o) fe.o=o; return {name='fetch'} end}
+local travel_new=package.loaded['session.travel'].new
+package.loaded['session.travel'].new=function(o)
+    local t=travel_new(o)
+    t.camp_near=function(w,m) return w..' '..m end
+    return t
+end
 load_main(true)
 assert(logged('bike: on, bike_key F3'),table.concat(printed,'|'))
 local o=bk.o
 assert(o.store=='store coop-bike.txt' and o.drive.name=='drive' and o.settings.bike==true)
+-- The parked bike's path for the next Lua load (swept after a Ctrl+R).
+assert(o.stand_store=='store coop-bike-stand.txt',tostring(o.stand_store))
+-- The parked bike's words: the menu's, a notice in them and in English, the travel worlds for a map's name.
+assert(o.words().bike.not_back=='Your bike is not back yet.' and o.worlds.Xion=='/game/art/bg/worldmap/level_p/e04')
+o.tell(function(w) return w.bike.prompt:format('F3') end)
+assert(said[#said]=='F3: get on the bike' and said_en[#said]=='F3: get on the bike',tostring(said[#said]))
+-- The money's name for the paid fetch: SB's text for a key of the table at a path (core/unreal.lua's game_text).
+local unreal=require('core.unreal')
+local game_text=unreal.game_text
+unreal.game_text=function(key,path) return key..' '..tostring(path) end
+assert(o.game_text('Item_BetaCrystal_Name','/T.T')=='Item_BetaCrystal_Name /T.T')
+unreal.game_text=game_text
+-- Its place per save through the link's own files; none written while an SBO lobby is open.
+assert(o.file.read==fake_link.read_file and o.file.write==fake_link.write_file and o.lobby()==false)
+sb.active=true; assert(o.lobby()==true); sb.active=false
+-- Her bike line goes to the link (coop-parked.txt), its answer back to the ride.
+local parked={}
+fake_link.bike=function(payload) parked[#parked+1]=payload; return true end
+assert(o.send('none')==true and parked[1]=='none')
+fake_link.bike=function() return false,'cannot write' end
+assert(o.send('none')==false)
+fake_link.bike=nil
+-- The paid fetch: bike/fetch.lua with the native asks, the status and [BK] lines, coop gift's own FName and pause
+-- rules; the camp from the follow's camp_near.
+assert(o.fetch.name=='fetch' and fe.o.name==gf.o.name and fe.o.paused==gf.o.paused and fe.o.status()==status_text)
+assert(fe.o.ask('items 1 BetaCrystal 77 0') and asked[#asked]=='items 1 BetaCrystal 77 0')
+fe.o.log('x'); assert(last()=='[StellarCoop][BK] x\n',last())
+assert(o.camp('Xion',10)=='Xion 10')
+-- Other players' parked bikes: the members' bike lines, names and our SteamID from the link, our EVE, the native
+-- status, the settings, coop-bike-copies.txt for the next Lua load's sweep.
+local b=bo.o
+assert(b.store=='store coop-bike-copies.txt' and b.settings==o.settings and b.members==fake_link.members
+    and b.status==fake_link.status)
+fake_link.bikes=function() return {['2002']='none'} end
+assert(b.bikes()['2002']=='none')
+fake_link.bikes=nil
+saves_info.steamid='1'; assert(b.me()=='1'); saves_info.steamid=nil
+package.loaded.UEHelpers.GetPlayer=function() return nil end
+assert(b.eve()==nil,'No player: no EVE')
+package.loaded.UEHelpers.GetPlayer=nil
+b.log('x'); assert(last()=='[StellarCoop][BK] x\n',last())
 -- Its native asks and status, the game's checks.
 assert(o.ask('bike load x') and asked[#asked]=='bike load x' and o.status()==status_text)
 assert(o.paused()==false and o.photo()=='0' and o.frozen()==false and o.life()==nil and o.armed()==false)
@@ -45,11 +101,12 @@ bk.riding=true
 assert(em.o.riding()==true and sb.o.riding()==true)
 ra.o.dismount('the host started a race')
 assert(bk.stops[1]=='the host started a race')
--- The capture asks the ride at each look which part of hers to leave out: its parked (bike/ride_test, capture_test).
-assert(capture_leave_out(0x40)==nil and bk.parked_at==0x40)
-bk.parked=0x7100
+-- The capture asks the ride at each look which part of hers to leave out: its idle_part (bike/ride_test,
+-- capture_test).
+assert(capture_leave_out(0x40)==nil and bk.idle_part_at==0x40)
+bk.idle_part=0x7100
 assert(capture_leave_out(0x40)==0x7100)
-bk.parked=nil
+bk.idle_part=nil
 -- coop fly on and coop glide on are refused while she rides (on a co-op save, where both would start); off is not.
 status_text=COOP
 local n_asked,n_glide=#asked,#gl.cmds
@@ -94,18 +151,18 @@ bk.raise=nil
 
 -- The first tick restores; each frame its steer runs before the native tick; every 250 ms its slow. An end of the ride
 -- is logged and said.
-assert(bk.restores==0)
+assert(bk.restores==0 and bo.restores==0)
 loops[1].f()
-assert(bk.restores==1 and bk.steers==1)
+assert(bk.restores==1 and bk.steers==1 and bo.restores==1)
 bk.says={false,'Off the bike: EVE is swimming'}
 loops[1].f()
 assert(last()=='[StellarCoop] STOP: Off the bike: EVE is swimming\n' and said[#said]=='Off the bike: EVE is swimming')
 bk.says=nil
 quarter()
-assert(bk.slows==1)
+assert(bk.slows==1 and bo.slows==1)
 bk.slow_says={false,'Off the bike: a cutscene holds EVE'}
 quarter()
-assert(logged('STOP: Off the bike: a cutscene holds EVE') and said[#said]==bk.slow_says[2])
+assert(logged('STOP: Off the bike: a cutscene holds EVE') and said[#said]==bk.slow_says[2] and bo.slows==2)
 bk.slow_says=nil
 
 -- Our screens: the co-op menu, the lobby's screens, the guide in front of the co-op saves' question.
@@ -158,10 +215,12 @@ to('Get on or off the bike')
 assert(select(2,focus())=='F3')
 key('ESCAPE'); key('ESCAPE')
 
--- coop off: the ride's stop first, then the race's.
+-- coop off: the ride's stop first, then its parked bike out of the world (the place kept), the other players' copies
+-- with it, then the race's stop.
 local stops=ra.stops
 coop('off')
-assert(bk.stops[#bk.stops]=='coop off' and ra.stops==stops+1)
+assert(bk.stops[#bk.stops]=='coop off' and bk.left=='coop off' and ra.stops==stops+1,tostring(bk.left))
+assert(bo.cleared=='coop off',tostring(bo.cleared))
 n=#bk.toggles
 key('F3')
 assert(#bk.toggles==n and last()=='[StellarCoop] STOP: coop off is active until the game restarts\n',last())

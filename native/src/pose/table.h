@@ -319,14 +319,8 @@ inline bool hide_line(const Words &w, size_t i, uint64_t &hidden) {
   return true;
 }
 
-inline bool map_allowed(std::string_view map) {
-  if (map.size() > kMaxMap || map[0] != '/')
-    return false;
-  for (char c : map)
-    if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '/' || c == '-'))
-      return false;
-  return true;
-}
+static_assert(kMaxMap == kMaxMapWord);
+inline bool map_allowed(std::string_view map) { return coop::map_word(map); }
 } // namespace grammar
 
 // The wire form: no read or effect lines (fx lines go), floats as %.9g, so a table always reads back to the same bytes. The native

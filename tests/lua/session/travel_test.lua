@@ -725,6 +725,18 @@ for _,case in ipairs({{'none:flow','flow'},{false,'no read yet'},{'2:DED10_Camp_
     assert(camps==nil and why==case[2],tostring(why))
 end
 assert(#W.requests==0 and #W.fnames==0)
+-- camp_near, for the bike's paid fetch (bike/ride.lua): on Xion's map, an activated Xion camp's spawn point within
+-- 10 m; the spawn points walked once a map; nothing asked of the host or the native part.
+local c=world(function(w)
+    w.camps='2:Xion_Camp_10,Xion_Camp_20'; w.me={map=XION,at={X=0,Y=0,Z=0}}
+    w.spawns={{'Xion_Camp_10',900,0,0},{'Xion_Camp_00',100,0,0}}
+end)
+assert(c.camp_near('Xion',10)=='Xion_Camp_10' and W.finds==1,'Xion_Camp_00 is not activated')
+W.me.at={X=-200,Y=0,Z=0}; assert(c.camp_near('Xion',10)==nil and W.finds==1)
+W.me={map=DEDA,at={X=0,Y=0,Z=0}}; assert(c.camp_near('Xion',10)==nil)
+W.camps=nil; W.me={map=XION,at={X=0,Y=0,Z=0}}; assert(c.camp_near('Xion',10)==nil,'No read: no camp')
+W.me=nil; assert(c.camp_near('Xion',10)==nil,'No EVE: no camp')
+assert(#W.requests==0)
 -- A Lua error turns the follow off for the run, with one line.
 t=world(function(w) w.names={Xion_Camp_10=1} end)
 FName=nil
