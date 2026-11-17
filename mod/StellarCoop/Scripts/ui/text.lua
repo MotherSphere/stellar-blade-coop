@@ -979,7 +979,7 @@ T.de={
         follow_host='Dem Host folgen',follow_key='Zum Host reisen',
         photo_pause='Fotomodus-Pause (experimentell)',menu='Koop-Menü',hangup='Auflegen',status_overlay='Statuszeile',
         race_key='Renn-Checkpoint setzen',
-        bike='Motorrad',bike_key='Motorrad auf- oder absteigen'},
+        bike='Motorrad',bike_key='Motorrad besteigen oder verlassen'},
     value={on='An',off='Aus',both='Beide',notice='Nur Hinweis',game='Spielsprache',english='Englisch',
         friends='Freunde',code='Mit Code',private='Nur auf Einladung',ask='Fragen',always='Immer',
         together='Bekämpft oder bis 30 m',
