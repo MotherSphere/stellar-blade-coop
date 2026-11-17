@@ -14,7 +14,8 @@ Stellar Blade Online is an experimental beta, played in only a few sessions betw
 - `coop status` (console) or F6: the current state. See [usage.md](usage.md#status-lines).
 - `coop report` (console): writes `coop-report.txt` with versions, the save folder, where `xinput1_3.dll`,
   `dinput8.dll`, `dwmapi.dll` (UE4SS's loader) and `steam_api64.dll` were loaded from (other mods' DLLs can change
-  results), the status, a summary of save folder changes and the last 100 events.
+  results), the status, a summary of save folder changes and the last 100 events, with SteamIDs and join codes masked
+  (see [Which logs to send](#which-logs-to-send)).
 
 ## Install and the Steam link
 
@@ -50,6 +51,20 @@ Stellar Blade Online is an experimental beta, played in only a few sessions betw
 - `Could not join: that game is full.`: a co-op session holds 2 players, and a match lobby of the
   [SBO lobby](sbo-lobby.md) 8. `Left: the lobby has more than 2 players.` means the co-op lobby was not made by
   Stellar Blade Online (it holds more players than a Stellar Blade Online co-op lobby can), so the mod left it.
+- `Could not join: that game is closed (its match may have started).`: the match lobby of the
+  [SBO lobby](sbo-lobby.md) shut when its round started. It opens again when the round ends.
+- `Could not join: Steam had an unexpected error. Try again.`: Steam failed the join on its side.
+- `Could not join: too many tries in a short time. Wait a moment and try again.`: Steam limits how often an account
+  can try to join.
+- `Could not join: a player in that game has blocked you on Steam.` or `... you have blocked a player in that game on
+  Steam.`: Steam does not let two players into one lobby when one has blocked the other. Removing the block in Steam
+  lets the join through.
+- `Could not join: your Steam account is limited. Spending 5 USD on Steam lifts the limit.`: Steam does not let a
+  limited account join this lobby.
+- `Could not join: Steam has banned you from that game's lobby.`, `... your Steam account has a community ban.` or
+  `... that Steam group is locked or disabled.`: Steam refused the account. Stellar Blade Online cannot change that.
+- `Could not join: Steam response <n>.`: Steam gave an answer its documentation does not list. `coop-link.log` has the
+  same number in `joining lobby ... failed (response <n>)`. Send `coop-report.txt` (`coop report`) with a bug report.
 - `coop join` without an id logs `no friend is in a Stellar Blade lobby`: ask your friend to host, then accept their
   invite, or use `coop join <lobby id>`.
 - `You are in <host>'s game: leave it first.`: a guest cannot host. Press F8 first.
@@ -75,18 +90,31 @@ For the player who types the code:
   accept you. Your partner's ghost and card do not show until then. The host has 60 s to answer.
 - `<host> refused the link: <reason>`, with `you were not let in`, `no answer within 60 s`, `you were removed from
   this session` or `you cannot join this session again`: the host refused or removed you, and your game left. That
-  session stays closed to you. A new session the host starts has a new code, and the host is asked again.
+  session stays closed to you. A new session the host starts has a new code and the host is asked again. A removed
+  player stays on the host's [block list](playing-with-a-friend.md#block-list), so every later game of that host
+  refuses them too until the host types `coop unblock`. After a game restart the host needs your full SteamID for
+  that: send the number after `steamid=` in your `coop-status.txt`.
+- `Left <host>'s game: Steam would not set relay only.` or, in a match, `Left the match: Steam would not set relay
+  only.`: every match goes through Steam's relays only, as does a session with a player who is not your Steam friend.
+  Steam refused that setting 3 times, 1 s apart, so your game sent nothing and left. `coop-link.log` has each try
+  (`Steam refused relay only, try <n>/3`). Restart the game and try again. If it happens again, send the logs (see
+  [Which logs to send](#which-logs-to-send)).
 
 For the host:
 
 - The question does not show: it opens in a world only, while the game is not paused and shows no menu or mouse
   cursor, and while the chat box is closed. After `coop ui off` it never shows. From the console, `coop status` gives
-  the waiting player on its `pending=<SteamID> <name>` line; then type `coop allow <SteamID>` or
-  `coop deny <SteamID>`. With no answer, the player is refused after 60 s.
+  the waiting player on its `pending=***<4 digits> <name>` line, the SteamID masked as in every log (see
+  [Which logs to send](#which-logs-to-send)). Type `coop allow <4 digits>` or `coop deny <4 digits>`, or the full
+  SteamID from the `pending=` line of `coop-status.txt` in the mod folder. With no answer, the player is refused
+  after 60 s.
 - A refused player is still in the lobby. Steam cannot take a player out of a lobby: a Stellar Blade Online game leaves
   when it is refused, but a game that does not keeps the lobby's second place. It gets the refusal again every 10 s and
   never links. Host again: the new session has a new code.
 - Players you do not know keep asking: host again for a new code, and give it only to the player you expect.
+- `<name> was refused: Steam would not set relay only.`: a session with a player who is not your Steam friend goes
+  through Steam's relays only. Steam refused that setting 3 times, 1 s apart. Nothing went to that player. Restart
+  the game and host again.
 - `No join code to copy.`: you do not host, or you host with Friends or Invited only. Set Who can join to With a code,
   then host again.
 - `Could not copy the join code <code>.`: the Windows clipboard was busy. Select Copy my code again, or read the code
@@ -364,6 +392,9 @@ co-op menu. The `fight=` line of `coop status` says what is missing (see
 - `paks=differ` in `coop status`: the two games load different `.pak` mods. Each `coop-link.log` names its own in the
   `paks` line at the top; compare the two lists. When both players have `mod_names=on`, the `mods_missing=`,
   `mods_other=` and `mods_extra=` lines in `coop status` name the differences already.
+- `dlcs=differ` in `coop status`: the two PCs have different DLCs of the game installed. Each `dlc_missing=` line names
+  one your friend has and you lack, each `dlc_extra=` line one you have and they lack. Each `coop-link.log` lists its
+  own after `Steam ready` (`DLCs installed:`).
 - `fight kill held` in `coop-link.log`: a kill from the other game waits while this game's copy is in a grab or another
   state that takes no damage, or, on the host with same place, while the guest's takedown of that enemy runs (`her
   takedown`). It goes when the state or the takedown ends, or after 6 s (`fight held-expired`).
@@ -705,8 +736,12 @@ that do.
 - `Mods/StellarCoop/nightop-probe.txt`, only if you ran the Night Operation probe (`coop no`)
 - `Mods/StellarCoop/coop-quests.log`, only if shared quests were on
 
-They contain your Steam ID and Steam name, the other player's Steam ID and Steam name, lobby IDs and folder paths,
-which may include your Windows user name. They contain no passwords. You can read them before you send them.
+The mod masks SteamIDs and join codes in what it writes to these files. A SteamID shows as `***` and its last 4 digits
+(`***5678`), which still tell the players in one report apart. A join code shows its first 3 characters (`ABC-****`),
+as does a lobby ID, whose digits would give its code away. The files still contain your Steam name, the other players'
+Steam names and folder paths, which may include your Windows user name. They contain no passwords. Logs from an older
+version of the mod keep the full IDs, as does the `coop-link.old.log` of the first run after an update. You can read
+the files before you send them.
 
 When you test with a friend, the player who leads the test types `coop mark <step>` in the console before each step,
 for example `coop mark 3 lift`. Each mark puts a numbered line with that text in both players' `coop-link.log` and

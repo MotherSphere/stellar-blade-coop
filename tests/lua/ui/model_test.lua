@@ -5,8 +5,8 @@
 -- Steam friend included), the co-op line's (a camp phone booth's page: the same session rows, Co-op menu and
 -- Hang up), a cursor that skips section headers and wraps, Leave and Remove only on a second Select of
 -- that same row within 3 s, the Options tree (every co-op setting as a toggle, a choice, a range or a key),
--- its values read as the mod reads coop-settings.txt, each change as the one line to rewrite, and key rebinds checked
--- against the other keys.
+-- its values read as the mod reads coop-settings.txt, each change as the one line to rewrite, key rebinds checked
+-- against the other keys, Enter for a key's default and Reset all keys.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local M=require('ui.model')
 local SF=require('core.settings_file')
@@ -133,10 +133,11 @@ menu.point(CODE,rows[2])
 assert(menu.select(CODE,75)=='confirm_leave' and menu.point(CODE,rows[3]) and menu.point(CODE,rows[2])
     and menu.select(CODE,76)=='confirm_leave','Leave too')
 
--- The Options tree: every row a header or a setting with a unique name the file can hold, and a default it takes.
+-- The Options tree: every row a header, Reset all keys or a setting with a unique name the file can hold and a default
+-- it takes.
 local names={}
 for _,row in ipairs(M.OPTIONS) do
-    if not row.head then
+    if not row.head and row.id~='reset_keys' then
         assert(row.key:find('^[%w_]+$') and not names[row.key],row.key)
         names[row.key]=true
         local d=row.default
@@ -207,7 +208,7 @@ assert(menu.current(NONE).key=='menu_key' and menu.rows(NONE)[1].head=='controls
 assert(menu.back()==nil and menu.page()=='main' and menu.current(NONE).id=='options')
 menu.select(NONE,0)
 -- Every setting shows, under its header.
-assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key race_key bike bike_key head:photo '
+assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key race_key bike bike_key reset_keys head:photo '
     ..'photo_sync '
     ..'photo_freeze_max photo_ghost '
     ..'photo_name_tag photo_pause head:partner name_tag partner_bar partner_arrow partner_card card_details head:ghost cloth dyes '
@@ -392,5 +393,28 @@ action,key,text=M.rebind(values,'bike_key',K.text('F2','CONTROL'))
 assert(action=='set' and key=='bike_key' and text=='Ctrl+F2')
 assert(M.read('status_key=F3\n').bike_key=='none' and M.read('bike_key=none\n').bike_key=='none')
 assert(M.read('bike=OFF\n').bike=='off' and M.read('bike=maybe\n').bike=='on')
+-- Enter (no key setting takes it) puts back the key's default, checked as any key: refused while another holds it.
+values=M.read('menu_key=F11\nstatus_key=Shift+F6\nhost_key=F12\n')
+action,key,text=M.rebind(values,'status_key','Enter')
+assert(action=='set' and key=='status_key' and text=='F6')
+assert(select(3,M.rebind(values,'host_key','Enter'))=='none' and select(3,M.rebind(values,'menu_key','Enter'))=='F5')
+action,why,other=M.rebind(M.read('menu_key=F11\nstatus_key=F5\n'),'menu_key','Enter')
+assert(action==nil and why=='clash' and other=='status_key')
+-- Reset all keys: a second Select within 3 s, then every key line at its default (host_key too), the rest kept.
+menu=M.new()
+menu.select({},0)
+while menu.current(NONE).id~='reset_keys' do menu.move(NONE,1) end
+assert(menu.change(NONE,values,1)==nil,'No value to change')
+assert(menu.select(NONE,90,values)=='confirm_reset_keys' and menu.select(NONE,91,values)=='reset_keys')
+assert(menu.select(NONE,92,values)=='confirm_reset_keys' and menu.select(NONE,96,values)=='confirm_reset_keys',
+    'A second Select after 3 s asks again')
+file=assert(M.reset_keys('# keys\nmenu_key=F11\nstatus_key=F5\nhost_key=F12\nsend_rate=30\n'))
+assert(file=='# keys\nmenu_key=F5\nstatus_key=F6\nhost_key=none\nsend_rate=30\nleave_key=F8\nfollow_key=F7\n'
+    ..'race_key=F9\nbike_key=F3\n',file)
+s=Link.parse_settings(file)
+assert(s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name=='F6' and s.race_key.name=='F9'
+    and s.send_rate==30)
+assert(M.reset_keys('')=='host_key=none\nmenu_key=F5\nstatus_key=F6\nleave_key=F8\nfollow_key=F7\nrace_key=F9\n'
+    ..'bike_key=F3\n')
 
 print('ui_model_test ok')

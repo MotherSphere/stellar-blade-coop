@@ -14,6 +14,8 @@
 //   SBC<protocol> pak <hash> <name> (game/pak_list.h: one mod container her game loads, by name, with its hash in 16
 //   hex digits; up to kMaxMods of them, unless her mod_names=off), then SBC<protocol> paks <count> <hash> (the .pak
 //   mods her game loads, for a warning when they differ; it ends her list of pak lines),
+//   SBC<protocol> dlc <app id> <name> (one DLC of the game installed on her PC, as Steam names it, chat_clean() to
+//   kMaxDlcName; up to kMaxDlcs of them), then SBC<protocol> dlcs (it ends her list of dlc lines),
 //   SBC<protocol> camps? <id> (the guest's follow: the camps nearest the host, please), SBC<protocol> camps <id>
 //   <world> <alias>:<m> ... (the host's answer: his world and up to 8 camps by distance) or SBC<protocol> camps <id>
 //   none <why>.
@@ -41,6 +43,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iterator>
+#include <map>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -85,7 +88,9 @@ constexpr int kProtocol = 21; // Bump on any wire change. 1 was the first link (
                               // the match lobby keys sbo_mode, sbo_state and sbo_map, which a protocol-19 game never
                               // reads; 21 adds the shared world's SBW lines on channel 2 (doors, levers, lifts and
                               // other envs one player changes, changed in the other player's world), which a
-                              // protocol-20 peer would count malformed, so her world would stay as it was. An older
+                              // protocol-20 peer would count malformed, so her world would stay as it was; 21 also
+                              // adds the dlc and dlcs lines (the DLCs installed on each PC), which a protocol-20 peer
+                              // would count invalid. An older
                               // peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1,
                               // 12: v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14: v0.7.0-beta.1, 17: a v0.7.5 test
                               // build, 18: v0.7.5, 19: v0.8.0 to v0.10.0, 20: v0.11.0; 15 and 16 were never released)
@@ -224,8 +229,8 @@ inline Life life_of(const Vitals &v) {
 }
 
 enum class Kind {
-  invalid, hello, accept, reject, ping, pong, photo, say, vitals, pak, paks, camps_ask, camps, night, mark, race, gift,
-  start, count, end
+  invalid, hello, accept, reject, ping, pong, photo, say, vitals, pak, paks, dlc, dlcs, camps_ask, camps, night, mark,
+  race, gift, start, count, end
 };
 // The follow's camps lines (session/travel.lua): the guest asks with an id from 0 to kMaxCampId, the host answers that
 // id with his world and up to kMaxCamps ZoneCampTable aliases, nearest his EVE first, each with its distance in whole
@@ -251,10 +256,11 @@ struct Message {
   Kind kind = Kind::invalid;
   uint64_t a = 0, b = 0; // hello: protocol, game build. ping/pong: sequence, sender's clock in ms. photo: '0', '1',
                          // 's' or 'c', then 1 for both. pak: the container's hash. paks: the count of .pak mods,
-                         // their hash. camps?, camps: id. mark: its number, from 1. start: the seed. count: the
-                         // seconds, 0 for stop.
+                         // their hash. dlc: the DLC's app id. camps?, camps: id. mark: its number, from 1. start:
+                         // the seed. count: the seconds, 0 for stop.
   std::string text;      // hello: mod version. reject: the reason. say: the line, chat_clean() and never empty. pak:
-                         // the container's name, mod_name_ok(). camps: the host's world, or "none". night: the
+                         // the container's name, mod_name_ok(). dlc: its name, chat_clean() to kMaxDlcName and never
+                         // empty. camps: the host's world, or "none". night: the
                          // payload, night_ok(). mark: chat_clean() to kMaxMark, maybe empty. race: the text after
                          // "race ", printable ASCII. gift: the payload, gift_ok(). start: the mode.
   Vitals vitals{};       // vitals: hers, plausible_vitals().
@@ -310,6 +316,28 @@ inline std::string pak_line(const PakMod &mod) {
   for (int i = 15; i >= 0; --i)
     hex[static_cast<size_t>(i)] = digits[(mod.hash >> (4 * (15 - i))) & 15];
   return "SBC" + std::to_string(kProtocol) + " pak " + hex + " " + mod.name;
+}
+// The DLCs of the game installed on our PC (link/core.h reads them from Steam once), reliable after the paks line, to
+// each friend past the handshake: a dlc line each, by app id and name (chat_clean() to kMaxDlcName and not empty),
+// then the dlcs line that ends the list.
+constexpr size_t kMaxDlcs = 64, kMaxDlcName = 100;
+inline std::string dlc_line(uint32_t id, const std::string &name) {
+  return "SBC" + std::to_string(kProtocol) + " dlc " + std::to_string(id) + " " + name;
+}
+inline std::string dlcs_line() { return "SBC" + std::to_string(kProtocol) + " dlcs"; }
+// Her installed DLCs against ours, by app id: hers we lack (with her names) and ours she lacks (with ours).
+struct DlcDiff {
+  std::map<uint32_t, std::string> missing, extra;
+};
+inline DlcDiff compare_dlcs(const std::map<uint32_t, std::string> &ours, const std::map<uint32_t, std::string> &hers) {
+  DlcDiff d;
+  for (const auto &[id, name] : hers)
+    if (!ours.count(id))
+      d.missing.emplace(id, name);
+  for (const auto &[id, name] : ours)
+    if (!hers.count(id))
+      d.extra.emplace(id, name);
+  return d;
 }
 // The follow's camps lines, reliable (link/core.h relays them between Lua and the friend).
 inline std::string camps_ask_line(uint64_t id) {
@@ -488,6 +516,12 @@ inline Message parse(const char *data, size_t size) {
   } else if (split(text, f, 4, nullptr) && f[0] == versioned_tag && f[1] == "paks") {
     if (number(f[2], m.a) && m.a <= kMaxPaks && number(f[3], m.b))
       m.kind = Kind::paks;
+  } else if (split(text, f, 3, &rest) && f[0] == versioned_tag && f[1] == "dlc") {
+    m.text = chat_clean(rest, kMaxDlcName);
+    if (number(f[2], m.a) && m.a && m.a <= UINT32_MAX && !m.text.empty())
+      m.kind = Kind::dlc;
+  } else if (text == versioned_tag + " dlcs") {
+    m.kind = Kind::dlcs;
   } else if (split(text, f, 4, nullptr) && f[0] == versioned_tag && f[1] == "photo" &&
              (f[2] == "0" || f[2] == "1" || f[2] == "s" || f[2] == "c") && (f[3] == "both" || f[3] == "notice")) {
     m.kind = Kind::photo;
@@ -618,6 +652,45 @@ inline uint64_t code_lobby(std::string_view text) {
   const uint64_t low = value & 0xffffffff;
   return value >> 32 == low % 7 ? kCodeHigh << 32 | low : 0;
 }
+// A line as coop-link.log and coop-report.txt keep it, since players post them in public (core/mask.lua does the same
+// for UE4SS.log). A SteamID (a run of 17 or 18 digits with universe 1 and an individual or chat account type) becomes
+// *** and its last 4 digits, which still tell the players of one report apart. A join code as join_code() writes it
+// (capitals, with a check that matches) becomes its first 3 characters and ****, as does a lobby id with a join code.
+// A lobby id keeps none of its digits: its last 4 beside its code's first 3 would leave about 100 lobbies to try.
+inline std::string masked(std::string_view text) {
+  const auto alnum = [](char c) { return std::isalnum(static_cast<unsigned char>(c)) != 0; };
+  const auto capitals = [](std::string_view code) {
+    for (size_t i = 0; i < code.size(); ++i)
+      if (i != 3 && (!code[i] || !std::strchr(kCodeDigits, code[i])))
+        return false;
+    return true;
+  };
+  std::string out;
+  out.reserve(text.size());
+  for (size_t at = 0; at < text.size();) {
+    if (!alnum(text[at])) {
+      out += text[at++];
+      continue;
+    }
+    size_t end = at;
+    while (end < text.size() && alnum(text[end]))
+      ++end;
+    const std::string_view word = text.substr(at, end - at), code = text.substr(at, 8);
+    uint64_t id = 0;
+    if ((word.size() == 17 || word.size() == 18) && number(word, id) && (id >> 52 == 0x011 || id >> 52 == 0x018)) {
+      const std::string lobby = join_code(id);
+      out += lobby.empty() ? "***" + std::string(word.substr(word.size() - 4)) : lobby.substr(0, 3) + "-****";
+    } else if (word.size() == 3 && code.size() == 8 && code[3] == '-' && (at + 8 == text.size() || !alnum(text[at + 8])) &&
+               capitals(code) && code_lobby(code)) {
+      out += std::string(word) + "-****";
+      end = at + 8;
+    } else {
+      out += word;
+    }
+    at = end;
+  }
+  return out;
+}
 // A request from Lua (coop-request.txt): "host", "host code" (who_can_join=code: a lobby joined with its code),
 // "host private" (who_can_join=private: a lobby joined by invite only), "invite", "leave", "report", "join" (a
 // friend's lobby), "join <lobby id>", "join <code>" (code_lobby(); anything else after "join " that is no lobby id is
@@ -696,14 +769,15 @@ inline uint64_t code_lobby(std::string_view text) {
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
-  signal, match, mute, sbo, guardtext, hud, loading, world, bike
+  signal, match, mute, sbo, guardtext, hud, loading, world, bike, block, unblock
 };
 // match: "match search <mode> <room> <hall>" (quick match: join an open Public lobby of that mode and hall, or host
 // one), "match create <mode> <room> <hall>" (a private match lobby joined with its code), "match cancel" (forget the
 // search) and "match end" (the host ends the round in play). The mode is one word; the link checks it against kModes.
 // The room and hall are Lua's words for the lobby map and the lobby pak's version (kRoomKey, kHallKey). mute: "mute
 // <SteamID>" and "unmute <SteamID>", in any lobby: that member's chat lines are dropped here, or heard again, for the
-// rest of the game run.
+// rest of the game run. block: "block <SteamID>" (the block list, link/core.h: kept out of every lobby we host, across
+// game runs); unblock: "unblock <SteamID>" or "unblock all" (player 0).
 enum class MatchAsk : uint8_t { search, create, cancel, end };
 // shortcut load's maps, save/shortcut.h's kMapNames in its order (shortcut_load_test checks they match).
 constexpr const char *kShortcutMaps[4] = {"B07", "F02", "G03", "Matrix_XI"};
@@ -774,7 +848,7 @@ struct Request {
   bool rule = false;                     // nightop rule.
   Who who = Who::friends;                // host: who can join the lobby.
   bool code = false;                     // join: with a code; lobby 0 when it is no valid code.
-  uint64_t player = 0;                   // allow, deny, remove, mute, unmute: her SteamID.
+  uint64_t player = 0;                   // allow, deny, remove, mute, unmute, block, unblock: her SteamID (0: all).
   Fight fight = Fight::none;
   SavesAsk saves = SavesAsk::none; // saves: which.
   int slot = -1;                    // saves refresh: the slot; saves export: the co-op slot; 0 to 4. shortcut load:
@@ -1075,6 +1149,10 @@ inline Request parse_request(std::string text) {
     r.command = f[0] == "allow" ? Command::allow : f[0] == "deny" ? Command::deny : Command::remove;
   else if (split(text, f, 2, nullptr) && (f[0] == "mute" || f[0] == "unmute") && number(f[1], r.player) && r.player)
     r.command = Command::mute, r.off = f[0] == "unmute";
+  else if (text == "unblock all")
+    r.command = Command::unblock;
+  else if (split(text, f, 2, nullptr) && (f[0] == "block" || f[0] == "unblock") && number(f[1], r.player) && r.player)
+    r.command = f[0] == "block" ? Command::block : Command::unblock;
   else if (text == "record" || text == "record off" || text == "replay" || text == "replay off") {
     r.command = text[2] == 'c' ? Command::record : Command::replay;
     r.off = text.size() > 6;

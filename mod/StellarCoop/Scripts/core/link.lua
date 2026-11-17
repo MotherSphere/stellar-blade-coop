@@ -473,14 +473,15 @@ Link.files={
     rename=os.rename,
 }
 -- A join code as typed (the code box, coop join <code>): either case, the dash or a space after the third character or
--- nothing there, spaces around. Returned as the native part takes it, 'XXX-XXXX' in capitals; nil for anything else.
--- Its letters and its check digit are the native part's to judge (link/protocol.h's code_lobby), which answers a wrong
--- one on screen.
+-- nothing there, spaces around. Returned as the native part takes it, 'XXX-XXXX' in capitals with I and L read as 1
+-- and O as 0 (link/protocol.h's code_lobby does the same), so the request line UE4SS.log keeps is masked
+-- (core/mask.lua knows only the code's own characters); nil for anything else. Its letters and its check digit are the
+-- native part's to judge (code_lobby), which answers a wrong one on screen.
 local ALNUM=('[0-9A-Za-z]'):rep(3)
 function Link.join_code(text)
     if type(text)~='string' or #text>32 then return nil end
     local a,b=text:match('^[ \t]*('..ALNUM..')[- ]?('..ALNUM..'[0-9A-Za-z])[ \t]*$')
-    return a and (a..'-'..b):upper() or nil
+    return a and ((a..'-'..b):upper():gsub('[IL]','1'):gsub('O','0')) or nil
 end
 function Link.new(folder,fs)
     fs=fs or Link.files
@@ -493,11 +494,12 @@ function Link.new(folder,fs)
     -- peer=,frozen=}; mate: her vitals; life: our life state and HP (life()); ping: the first peer's RTT in ms;
     -- loopback: coop loopback runs; rejoined: a rejoin got her lobby back and waits for the handshake (kept across
     -- changes() until she is linked or we are no longer a guest); saves: the co-op saves' state (saves()); paks: her
-    -- .pak mods against ours (paks()); mods: her mod containers against ours by name (mods()); cns: our CNS packs
-    -- (cns()); quests: the shared quests' line; noted: their notes listed; noted_shown: the last note number handed
-    -- out; sbo: the SBO lobby's line (sbo()).
+    -- .pak mods against ours (paks()); mods: her mod containers against ours by name (mods()); dlcs: her installed
+    -- DLCs against ours (dlcs()); cns: our CNS packs (cns()); quests: the shared quests' line; noted: their notes
+    -- listed; noted_shown: the last note number handed out; sbo: the SBO lobby's line (sbo()).
     local mode,friend,listed,dead,held,rejoin,shown,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil,nil
     local mate,life,ping,loopback,rejoined,saves,paks,mods,cns=nil,nil,nil,false,false,{},nil,nil,nil
+    local dlcs=nil
     local quests,noted,noted_shown,sbo,world=nil,nil,nil,nil,nil
     local shared_version=0 -- The status's shared= line's version (shared_assets()); kept across changes().
     local camps_asked,camps_answer=nil,nil -- The follow's camps lines (camps()).
@@ -671,6 +673,7 @@ function Link.new(folder,fs)
         remote={tonumber(generation),tonumber(count),source}
         mode,friend,listed,dead,held,rejoin,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil
         mate,life,ping,loopback,saves,paks,mods,cns=nil,nil,nil,engine:find(' loopback=')~=nil,{},nil,nil,nil
+        dlcs=nil
         quests,noted,sbo,world=nil,nil,nil,nil
         camps_asked,camps_answer,match,round=nil,nil,nil,nil
         uidev,my_name,owner,room,hall=nil,nil,nil,nil,nil
@@ -767,6 +770,12 @@ function Link.new(folder,fs)
                 for name in list:gmatch('[^,]+') do names[#names+1]=name end
                 mods[kind]={n=tonumber(count),names=names}
             end
+            local differ,ours_d,hers_d=line:match('^dlcs=(%a+) (%d+) (%d+)$')
+            if differ=='same' or differ=='differ' then
+                dlcs={same=differ=='same',ours=tonumber(ours_d),hers=tonumber(hers_d),missing={},extra={}}
+            end
+            local side,dlc_name=line:match('^dlc_(%a+)=%d+ (.+)$')
+            if dlcs and (side=='missing' or side=='extra') then table.insert(dlcs[side],dlc_name) end
             local version_of=line:match('^shared=(%d+) %d+$')
             if version_of then shared_version=tonumber(version_of) end
             local packs,outfits=line:match('^cns=(%d+) (%d+)$')
@@ -829,6 +838,10 @@ function Link.new(folder,fs)
         for _,kind in ipairs({'missing','other','extra'}) do mods[kind]=mods[kind] or {n=0,names={}} end
         return mods
     end
+    -- Her installed DLCs against ours, once her game listed them (the dlcs= line and the dlc_ lines after it):
+    -- {same=, ours=, hers=, missing=, extra=}, the counts, then the names of hers we lack and of ours she lacks; nil
+    -- before her list.
+    function self.dlcs() return dlcs end
     -- Our CNS packs (the Custom Nanosuit System's .dekcns.json files under ~mods) in words, 'CNS detected (<n> packs,
     -- <m> outfits)', from the status's cns= line; nil without one.
     function self.cns() return cns end

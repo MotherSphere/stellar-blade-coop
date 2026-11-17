@@ -186,7 +186,7 @@ key('F5'); to('Copy my code'); assert(select(2,focus())=='0CS-CBMH')
 key('RETURN'); assert(asked[#asked]=='copy' and kit_shown.menu,'Copied: the menu stays')
 link_stranger={id='76561198000000009',name='Stranger'}
 key('DOWN_ARROW'); assert(focus()=='Remove Stranger')
-key('RETURN'); assert(menu_view.note.s=='Select again within 3 s to remove Stranger.' and asked[#asked]=='copy')
+key('RETURN'); assert(menu_view.note.s=='Select again within 3 s to remove and block Stranger.' and asked[#asked]=='copy')
 key('RETURN'); assert(asked[#asked]=='remove 76561198000000009')
 link_pending={id='76561198000000008',name='Two'}
 quarter()

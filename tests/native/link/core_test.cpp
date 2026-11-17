@@ -370,7 +370,7 @@ int main() {
     finish_all();
     w.tick();
     assert(saw("rejoin of lobby 7000 failed (response 5), next try in 10 s"));
-    assert(!noticed(w.status(), "Could not join: Steam response 5."));
+    assert(!noticed(w.status(), join_refusal(5)));
     w.to(lost + 11999);
     assert(joins() == 2);
     w.to(lost + 12000);
@@ -522,7 +522,7 @@ int main() {
     finish_all();
     w.tick();
     assert(saw("rejoin of lobby 7000 failed (response 5), next try in 10 s") &&
-           !noticed(w.status(), "Could not join: Steam response 5."));
+           !noticed(w.status(), join_refusal(5)));
     w.to(lost + 12000);
     assert(joins() == 3 && saw("joining lobby 7000 (rejoin, try 2/3)"));
   }
@@ -581,10 +581,22 @@ int main() {
                                    std::to_string(kProtocol) + ", build 24463856."));
   }
 
-  // A join Steam answers with a failure: the reason by response, and no lobby.
-  for (auto [response, text] : {std::pair<uint32_t, std::string>{2, "Could not join: that game no longer exists."},
-                                {4, "Could not join: that game is full."},
-                                {5, "Could not join: Steam response 5."}}) {
+  // A join Steam answers with a failure: the reason by response (each EChatRoomEnterResponse Steamworks documents; its
+  // number for any other) and no lobby.
+  for (auto [response, text] : {
+           std::pair<uint32_t, std::string>{2, "Could not join: that game no longer exists."},
+           {3, "Could not join: that game is closed (its match may have started)."},
+           {4, "Could not join: that game is full."},
+           {5, "Could not join: Steam had an unexpected error. Try again."},
+           {6, "Could not join: Steam has banned you from that game's lobby."},
+           {7, "Could not join: your Steam account is limited. Spending 5 USD on Steam lifts the limit."},
+           {8, "Could not join: that Steam group is locked or disabled."},
+           {9, "Could not join: your Steam account has a community ban."},
+           {10, "Could not join: a player in that game has blocked you on Steam."},
+           {11, "Could not join: you have blocked a player in that game on Steam."},
+           {12, "Could not join: Steam response 12."},
+           {15, "Could not join: too many tries in a short time. Wait a moment and try again."},
+           {16, "Could not join: Steam response 16."}}) {
     reset();
     World w;
     assert(w.link.ready(L"SB.exe") == Link::Ready::now);
@@ -2198,6 +2210,102 @@ int main() {
     assert(sent_to(kFriend, paks_line(2, 77)) == 2 && lacks() == 2);
   }
 
+  // Installed DLCs (protocol 21) between two Links: each side reads the game's DLCs from Steam once at ready (those
+  // installed only, the first kMaxDlcs, a name Steam leaves empty as the app id) and sends a dlc line for each after
+  // its paks line, then the dlcs line, reliable on channel 0, again after her next hello. The dlcs line ends her list:
+  // the status then compares it with ours by app id (dlcs=, dlc_missing=, dlc_extra=) and the log says it once a
+  // change.
+  reset();
+  {
+    Two t;
+    F.names[kMe] = "Me";
+    F.dlcs = {{100, "Alpha"}, {200, ""}, {300, "Gamma Pack"}, {400, "Delta, the second"}, {500, "Not installed"}};
+    F.client[0].installed = {100, 200, 300};
+    F.client[1].installed = {300, 400};
+    t.a.paks(0, 0);
+    t.b.paks(0, 0);
+    assert(t.a.ready(L"SB.exe") == Link::Ready::now && t.b.ready(L"SB.exe") == Link::Ready::now);
+    assert(saw("A: DLCs installed: 3 (Alpha; 200; Gamma Pack)") &&
+           saw("B: DLCs installed: 2 (Gamma Pack; Delta, the second)"));
+    t.tick(t.a, 50, "host");
+    finish_all();
+    t.tick(t.a, 50);
+    t.tick(t.b, 50, "join 5000");
+    finish_all();
+    assert(settle(t));
+    const auto passes = [&t] {
+      for (int i = 0; i < 3; ++i)
+        t.tick(t.a, 50), t.tick(t.b, 50);
+    };
+    passes();
+    std::vector<std::string> out;
+    for (auto &s : F.sent)
+      if (s.to == kFriend && (s.text.rfind("SBC" + std::to_string(kProtocol) + " paks", 0) == 0 ||
+                              s.text.rfind("SBC" + std::to_string(kProtocol) + " dlc", 0) == 0)) {
+        assert(s.flags == kReliable && s.channel == kChannel);
+        out.push_back(s.text);
+      }
+    assert((out == std::vector<std::string>{paks_line(0, 0), dlc_line(100, "Alpha"), dlc_line(200, "200"),
+                                            dlc_line(300, "Gamma Pack"), dlcs_line()}));
+    assert(t.a.status(Counters{}).find("\ndlcs=differ 3 2\ndlc_missing=400 Delta, the second\ndlc_extra=100 "
+                                       "Alpha\ndlc_extra=200 200\n") != std::string::npos);
+    assert(t.b.status(Counters{}).find("\ndlcs=differ 2 3\ndlc_missing=100 Alpha\ndlc_missing=200 200\n"
+                                       "dlc_extra=400 Delta, the second\n") != std::string::npos);
+    assert(count("A: Kaanta has 2 DLCs installed; we lack Delta, the second; she lacks Alpha; 200") == 1 &&
+           count("B: Me has 3 DLCs installed; we lack Alpha; 200; she lacks Delta, the second") == 1);
+    // Her next hello: ours go again, her list again changes nothing, so no new log line.
+    inbox(0, kChannel).push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    passes();
+    assert(sent_to(kFriend, dlcs_line()) == 2 && sent_to(kFriend, dlc_line(100, "Alpha")) == 2);
+    assert(count("A: Kaanta has 2 DLCs installed") == 1);
+  }
+  // One Link: her dlc lines before the handshake are ignored with no log line; past it, the same DLCs as ours read
+  // dlcs=same with no dlc_ line; a dlcs line alone is a list of none; she keeps kMaxDlcs of hers at most; we send
+  // the first kMaxDlcs Steam says are installed.
+  reset();
+  {
+    World w;
+    for (uint32_t id = 1; id <= kMaxDlcs + 6; ++id) {
+      F.dlcs.push_back({id, "DLC number " + std::to_string(id)});
+      F.client[0].installed.insert(id);
+    }
+    w.link.paks(0, 0);
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now && saw("DLCs installed: 64 (DLC number 1; "));
+    w.tick("host");
+    finish_all();
+    w.tick();
+    F.members[5000].push_back(kFriend);
+    w.tick("", 0, 0, 600);
+    F.inbox.push_back({kFriend, dlc_line(1, "DLC number 1")});
+    F.inbox.push_back({kFriend, dlcs_line()});
+    const size_t logged = events.size();
+    w.tick();
+    assert(sent_to(kFriend, dlcs_line()) == 0 && w.status().find("\ndlcs=") == std::string::npos &&
+           events.size() == logged);
+    F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    F.inbox.push_back({kFriend, accept()});
+    w.tick();
+    for (int pass = 0; pass < 10; ++pass)
+      w.tick();
+    assert(sent_to(kFriend, dlcs_line()) == 1 && sent_to(kFriend, dlc_line(kMaxDlcs, "DLC number 64")) == 1 &&
+           sent_to(kFriend, dlc_line(kMaxDlcs + 1, "DLC number 65")) == 0);
+    F.inbox.push_back({kFriend, dlcs_line()}); // No DLC on her side: all of ours she lacks.
+    w.tick();
+    std::string status = w.status();
+    assert(status.find("\ndlcs=differ 64 0\ndlc_extra=1 DLC number 1\ndlc_extra=2 DLC number 2\n") !=
+               std::string::npos &&
+           status.find("dlc_missing=") == std::string::npos && saw("Kaanta has 0 DLCs installed; we lack none;"));
+    for (uint32_t id = 1; id <= kMaxDlcs; ++id)
+      F.inbox.push_back({kFriend, dlc_line(id, "DLC number " + std::to_string(id))});
+    F.inbox.push_back({kFriend, dlc_line(kMaxDlcs + 1, "One too many")});
+    F.inbox.push_back({kFriend, dlcs_line()});
+    for (int pass = 0; pass < 10; ++pass)
+      w.tick();
+    status = w.status();
+    assert(status.find("\ndlcs=same 64 64\n") != std::string::npos && status.find("\ndlc_") == std::string::npos &&
+           saw("Kaanta has 64 DLCs installed, the same as ours"));
+  }
+
   // Vitals between two Links: ours go unreliable on change, at most one each 100 ms, and each second; hers show as the
   // status's mate= line while she is linked and her last one is under 3 s old; before the handshake they are ignored
   // with no log line; a malformed one is an invalid message. A session's end forgets hers.
@@ -2684,7 +2792,8 @@ int main() {
   // hello, nothing of hers read, pings so her game never calls us lost) in any kind of lobby; friends never wait.
   // Answers and removals go by SteamID: a stale one, one from a guest, or a deny for someone already linked is ignored.
   // Removing a friend sends her a reject and keeps her out of this lobby: never greeted again, a reject at once each
-  // time she comes back, her session requests ignored. A new lobby forgets every answer.
+  // time she comes back, her session requests ignored. A new lobby forgets every answer. The removal also put her on
+  // the block list, which keeps her out of that lobby before any hello, until coop unblock.
   reset();
   {
     World w;
@@ -2697,7 +2806,9 @@ int main() {
     w.tick("remove 2002");
     std::string s = w.status();
     assert(!w.link.linked() && sent_to(kFriend, "SBC reject you were removed from this session") == 1);
-    assert(saw("refused Kaanta (2002): you were removed from this session") && noticed(s, "Kaanta was removed."));
+    assert(saw("refused Kaanta (2002): you were removed from this session") &&
+           noticed(s, "Kaanta was removed and blocked."));
+    assert(s.find("\nblocked=1\n") != std::string::npos && !w.link.take_blocks().empty());
     assert(s.find("\ncode=none refused=1\n") != std::string::npos && s.find("\npeer=") == std::string::npos);
     assert(s.find("\nfriend=") == std::string::npos && saw("chat this session: 0 in, 0 out, 0 dropped"));
     // Her game has not left yet: no second reject within 10 s, no hello, her lines ignored and logged once, her session
@@ -2721,15 +2832,30 @@ int main() {
     assert(static_cast<size_t>(sent_to(kFriend, "SBC hello ")) == hellos &&
            w.status().find("\npending=") == std::string::npos);
     assert(count("Kaanta is in the lobby") == 1);
-    // A guest's answers are ignored; a new lobby forgets every answer, and she is greeted again.
+    // A guest's answers are ignored. A new lobby forgets every answer, yet the block list refuses her at once, her
+    // session request in the same pass too: one notice, never greeted. coop unblock lets her in at the same pass.
     w.tick("leave");
     w.tick("host");
     finish_all();
     w.tick();
     F.members[5001].push_back(kFriend);
-    w.tick();
+    w.tick("", 0, kFriend);
+    s = w.status();
+    assert(sent_to(kFriend, "SBC reject you cannot join this session again") == 3 && F.accepted.empty());
+    assert(saw("Kaanta (2002) is on the block list: refused") && count("refused Kaanta came back: told to leave") == 1);
+    assert(noticed(s, "A player on your block list tried to join and was refused."));
+    assert(s.find("\ncode=none refused=1\n") != std::string::npos &&
+           static_cast<size_t>(sent_to(kFriend, "SBC hello ")) == hellos);
+    w.tick("", 0, 0, 10000); // Still there 10 s later: told again, with no second notice.
+    assert(sent_to(kFriend, "SBC reject you cannot join this session again") == 4 &&
+           count("Kaanta (2002) is on the block list: refused") == 1);
+    w.tick("unblock 2002");
     assert(w.status().find("\ncode=none refused=0\n") != std::string::npos &&
+           w.status().find("\nblocked=0\n") != std::string::npos &&
            static_cast<size_t>(sent_to(kFriend, "SBC hello ")) == hellos + 1);
+    assert(saw("unblocked Kaanta (2002)") && noticed(w.status(), "Player unblocked.") && !w.link.take_blocks().empty());
+    w.tick("unblock 2002"); // Not on the list any more: said so, no write.
+    assert(noticed(w.status(), "That player is not on your block list.") && w.link.take_blocks().empty());
   }
   reset();
   {
@@ -2739,6 +2865,78 @@ int main() {
     w.tick("allow 2002");
     assert(saw("remove 2002 ignored: not hosting") && saw("allow 2002 ignored: not hosting") && w.link.linked());
     assert(w.status().find("\ncode=") == std::string::npos);
+  }
+
+  // The block list, one Link: block_hash() never changes, so coop-blocked.txt from an earlier run still matches. The
+  // file never holds the SteamID. coop block works in any state, once a player; the status counts the list;
+  // take_blocks() gives the file's text once for each change; blocks() reads it back with CRLF ends, skipping any other
+  // line. Blocking a member of the lobby we host removes her; unblock all empties the list with the refusals it made,
+  // so she is greeted again. A guest's list never applies: she stays linked to the host she blocked.
+  reset();
+  {
+    assert(block_hash(76561198000000009ull) == 0x7a46acb03c8829bbull);
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    assert(w.status().find("\nblocked=0\n") != std::string::npos && w.link.take_blocks().empty());
+    w.tick("block 76561198000000009");
+    const std::string file = w.link.take_blocks();
+    assert(file.rfind("# ", 0) == 0 && file.find("\n7a46acb03c8829bb\n") != std::string::npos);
+    assert(file.find("76561198000000009") == std::string::npos && w.link.take_blocks().empty());
+    assert(w.status().find("\nblocked=1\n") != std::string::npos && noticed(w.status(), "Player blocked."));
+    w.tick("block 76561198000000009");
+    assert(w.link.take_blocks().empty() && w.status().find("\nblocked=1\n") != std::string::npos);
+    // The status names each player blocked in this game run whole (coop unblock takes her last 4 digits from it).
+    assert(w.status().find("\nblocked=1\nblock=76561198000000009 \n") != std::string::npos);
+    w.tick("unblock 76561198000000009");
+    assert(w.status().find("\nblock=") == std::string::npos && !w.link.take_blocks().empty());
+    w.tick("block 76561198000000009");
+    assert(!w.link.take_blocks().empty());
+    std::string crlf = "junk\n7A46ACB03C8829BB\n";
+    for (char c : file)
+      crlf += c == '\n' ? std::string("\r\n") : std::string(1, c);
+    World v;
+    v.link.blocks(crlf + "7a46acb03c8829b\n");
+    assert(v.link.ready(L"SB.exe") == Link::Ready::now && v.status().find("\nblocked=1\n") != std::string::npos);
+    assert(v.link.take_blocks().empty());
+    // A file there but not read in full (another program held it, a read cut short): what was read applies, the file
+    // is never written in this game run, so the players it held that were not read stay on it.
+    World u;
+    u.link.blocks(file.substr(0, file.size() / 2), false);
+    assert(u.link.ready(L"SB.exe") == Link::Ready::now && saw("coop-blocked.txt could not be read in full"));
+    assert(noticed(u.status(), "Could not read the whole block list: changes to it are not saved until the game "
+                               "restarts."));
+    u.tick("block 2002");
+    assert(u.status().find("\nblocked=1\n") != std::string::npos && u.link.take_blocks().empty());
+    assert(noticed(u.status(), "Could not save the block list: it holds until the game closes."));
+  }
+  reset();
+  {
+    World w;
+    linked_host(w);
+    const int hellos = sent_to(kFriend, "SBC hello ");
+    w.tick("block 2002");
+    assert(!w.link.linked() && sent_to(kFriend, "SBC reject you were removed from this session") == 1);
+    assert(saw("blocked Kaanta (2002)") && noticed(w.status(), "Kaanta was removed and blocked."));
+    assert(w.status().find("\nblocked=1\nblock=2002 Kaanta\n") != std::string::npos && !w.link.take_blocks().empty());
+    w.tick("unblock all");
+    std::string s = w.status();
+    assert(s.find("\nblocked=0\n") != std::string::npos && s.find("\ncode=none refused=0\n") != std::string::npos);
+    assert(s.find("\nblock=") == std::string::npos); // Only the players still on the list.
+    assert(noticed(s, "Block list emptied.") && sent_to(kFriend, "SBC hello ") == hellos + 1);
+    const std::string emptied = w.link.take_blocks(); // The two comment lines alone.
+    assert(emptied.rfind("# ", 0) == 0 && std::count(emptied.begin(), emptied.end(), '\n') == 2);
+    assert(emptied.find("keep this file private") != std::string::npos); // Hashing every SteamID finds them.
+    w.tick("unblock all"); // Already empty: no write.
+    assert(w.link.take_blocks().empty());
+  }
+  reset();
+  {
+    World w;
+    linked_guest(w);
+    w.tick("block 2002");
+    for (int i = 0; i < 3; ++i)
+      w.tick("", 0, 0, 1000);
+    assert(w.link.linked() && sent_to(kFriend, "SBC reject ") == 0 && noticed(w.status(), "Player blocked."));
   }
   reset();
   {
@@ -2940,6 +3138,116 @@ int main() {
     t.tick(t.a, 50, "leave");
     t.tick(t.a, 50, "host");
     assert(ops_with("config 1001 104 -1") == 1 && ops_with("config ") == 3);
+  }
+  // Relay only refused (fail closed): ICE stays on, her session request waits and nothing goes to her, her answer
+  // included. The next try comes 1 s later; once Steam takes it, the hello goes out after it.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    w.tick("host");
+    finish_all();
+    w.tick();
+    F.refuse_ice = kMe;
+    F.members[5000].push_back(kStranger);
+    w.tick("", 0, kStranger);
+    assert(has_op("config 1001 104 0 refused") && !has_op("config 1001 104 0"));
+    assert(saw("Steam refused relay only, try 1/3: Stranger is not a Steam friend"));
+    assert(saw("session request from Stranger held: no relay only yet") && F.accepted.empty());
+    assert(noticed(w.status(), "A player who is not your Steam friend is asking to join."));
+    w.tick("allow 9009", 0, 0, 600); // Let in under 1 s after the try: no new try, no hello.
+    assert(ops_with("config 1001 104 0") == 1 && F.sent.empty() && F.sessions.empty());
+    F.refuse_ice = 0;
+    w.tick("", 0, 0, 400);
+    assert(op_index("config 1001 104 0") >= 0 && op_index("config 1001 104 0") < op_index("session 1001 9009"));
+    assert(saw("relay only (ICE off): Stranger is not a Steam friend") && sent_to(kStranger, "SBC hello ") == 1);
+    w.tick("", 0, kStranger);
+    assert(F.accepted == std::vector<uint64_t>{kStranger});
+  }
+  // Three refusals 1 s apart: the host refuses her with a notice. Nothing ever went to her, the reject included.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    w.tick("host");
+    finish_all();
+    w.tick();
+    F.refuse_ice = kMe;
+    F.members[5000].push_back(kStranger);
+    w.tick("", 0, kStranger);
+    w.tick("", 0, 0, 1000);
+    assert(ops_with("config 1001 104 0 refused") == 2 && w.status().find("\npending=9009 ") != std::string::npos);
+    w.tick("", 0, 0, 1000);
+    std::string s = w.status();
+    assert(ops_with("config 1001 104 0 refused") == 3 && s.find("\npending=") == std::string::npos);
+    assert(saw("no link with Stranger: Steam refused relay only 3 times") &&
+           saw("refused Stranger (9009): relay only failed"));
+    assert(noticed(s, "Stranger was refused: Steam would not set relay only."));
+    w.tick("", 0, kStranger, 10000); // Her new request and our reject 10 s later stay held too.
+    assert(F.sent.empty() && F.sessions.empty() && F.accepted.empty() && w.link.lobby() == 5000);
+    // Her rejects each 10 s ask Steam again, counted for nobody: once she leaves, the next stranger who joins gets her
+    // own 3 tries 1 s apart.
+    for (int i = 0; i < 4; ++i)
+      w.tick("", 0, 0, 10000);
+    assert(!saw("try 4/3") && count("Steam refused relay only: Stranger is not a Steam friend") >= 4);
+    F.members[5000] = {kMe, kOther};
+    w.tick("", 0, 0, 1000);
+    assert(saw("Steam refused relay only, try 1/3: Third is not a Steam friend"));
+    w.tick("", 0, 0, 1000);
+    assert(saw("try 2/3: Third") && !saw("no link with Third"));
+    w.tick("", 0, 0, 1000);
+    assert(saw("try 3/3: Third") && saw("no link with Third: Steam refused relay only 3 times"));
+  }
+  // Refusals outside any lobby (three cancelled match searches) count for none: the stranger who joins the lobby
+  // hosted next gets her 3 tries 1 s apart.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    F.refuse_ice = kMe;
+    for (int i = 0; i < 3; ++i) {
+      w.tick("match search ffa xion xion");
+      w.tick("match cancel");
+    }
+    assert(ops_with("config 1001 104 0 refused") == 3 && count("Steam refused relay only: match session") == 3);
+    w.tick("host");
+    finish_all();
+    w.tick("", 0, 0, 1000); // Past the 1 s after the last refusal.
+    F.members[5000].push_back(kStranger);
+    w.tick("", 0, kStranger);
+    assert(saw("Steam refused relay only, try 1/3: Stranger is not a Steam friend"));
+    w.tick("", 0, 0, 1000);
+    assert(ops_with("config 1001 104 0 refused") == 5 && w.status().find("\npending=9009 ") != std::string::npos);
+    w.tick("", 0, 0, 1000);
+    assert(saw("refused Stranger (9009): relay only failed") && !saw("try 4/3"));
+  }
+  // A friend needs no relay only: a Steam that refuses it changes nothing for her.
+  reset();
+  {
+    World w;
+    F.refuse_ice = kMe;
+    linked_host(w);
+    assert(w.link.linked() && ops_with("config ") == 0 && sent_to(kFriend, "SBC accept") == 1);
+  }
+  // Two Links, the joiner's Steam refusing relay only: she answers nothing of the host's (no session of hers opens),
+  // then leaves after 3 tries with a notice.
+  reset();
+  {
+    Two t;
+    F.refuse_ice = kStranger;
+    code_session(t);
+    assert(has_op("config 9009 104 0 refused") &&
+           saw("B: Steam refused relay only, try 1/3: Me is not a Steam friend"));
+    t.tick(t.a, 50, "allow 9009"); // The host's hello waits in her inbox.
+    t.tick(t.b, 1000);
+    assert(t.b.lobby() == kCodeLobby && ops_with("config 9009 104 0 refused") == 2);
+    t.tick(t.b, 1000);
+    assert(ops_with("config 9009 104 0 refused") == 3 && t.b.lobby() == 0);
+    assert(saw("B: no link with Me: Steam refused relay only 3 times"));
+    assert(noticed(t.b.status(Counters{}), "Left Me's game: Steam would not set relay only."));
+    assert(sent_to(kMe, "SBC hello ") == 0 && !F.sessions.count({kStranger, kMe}));
+    for (auto &sent : F.sent)
+      assert(sent.from != kStranger);
   }
   // A friend with the code: no question, the usual handshake, the usual notices on both sides.
   reset();

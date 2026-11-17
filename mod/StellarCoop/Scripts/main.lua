@@ -101,6 +101,10 @@
 -- coop sbo enter|leave|status|hop|back|view [set]|seq <alias>|parts, the SBO lobby in Xion by hand (session/sbo.lua,
 -- with sbo_lobby=on; left out of the usage line); the recruiter's Join enters it, or says what is missing. In its world
 -- the lobby's screens (ui/lobby.lua) open over the menu camera at the Agit, where menu_key and View held 1 s open them.
+-- Every line of ours in UE4SS.log goes through this print, with SteamIDs and join codes masked (core/mask.lua): players
+-- post that log in public. coop-status.txt keeps them whole.
+local mask=require('core.mask')
+local print=function(text) _G.print(mask(text)) end
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -238,7 +242,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | match search|create <mode>|cancel|end|join <code>|leave | mute|unmute <SteamID> | status | report | mark [text] | where | near [metres] | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | emote [list|<name>|off] | bike [status|tune [<name> <value>]] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | challenge [<name>|stop] | recruiter [off] | gift [send <item> [count]|take [n]] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | world on|off|status | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove|block <SteamID> | unblock <SteamID>|all | blocked | leave | match search|create <mode>|cancel|end|join <code>|leave | mute|unmute <SteamID> | status | report | mark [text] | where | near [metres] | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | emote [list|<name>|off] | bike [status|tune [<name> <value>]] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | challenge [<name>|stop] | recruiter [off] | gift [send <item> [count]|take [n]] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | world on|off|status | keys reset [<name>|all] | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
 local function ask(line)
     return function()
         if not link then return false,'the Steam link needs the native part' end
@@ -764,7 +768,7 @@ local commands={
     end,
 }
 -- The other commands, from Scripts/commands/.
-for _,file in ipairs({'session','partner','nightop','race','fight','cut','guide','story','world','bike'}) do
+for _,file in ipairs({'session','partner','nightop','race','fight','cut','guide','story','world','bike','keys'}) do
     for name,handler in pairs(require('commands.'..file).new(o)) do
         assert(commands[name]==nil,'coop '..name..' is defined twice')
         commands[name]=handler
@@ -879,6 +883,7 @@ if settings then
     o.guide=guide
     menu=require('ui.menu').new({kit=kit,link=link,settings=settings,look=look,puppet=puppet,run=run,log=log,
         version=VERSION,chat=box,code=code_box,guide=guide})
+    o.menu=menu -- For coop keys reset (commands/keys.lua).
     approval=Join.ask({kit=kit,link=link,settings=settings,run=run,say=say,menu=menu,chat=box,guide=guide})
     saves_ui=guide.front(require('session.saves').new({kit=kit,link=link,settings=settings,theme=Ui.THEME,say=say,
         log=log,wait=guide.waiting}))
@@ -1449,6 +1454,17 @@ if link then
             end
         end
     end
+    -- The DLCs installed on her PC against ours (link.dlcs()): when they differ, one notice a session names hers we
+    -- lack and ours she lacks (ui/text.lua's T.dlcs).
+    local dlcs_said=false
+    local function dlcs_notice()
+        local dlcs=link.dlcs()
+        if link.mode()=='none' then dlcs_said=false
+        elseif dlcs and not dlcs.same and not dlcs_said then
+            dlcs_said=true
+            tell(function(w) return T.dlcs(w,her_name(w),dlcs.missing,dlcs.extra) end)
+        end
+    end
     -- Our CNS packs, once a Lua load, in the log (coop status shows them too).
     local cns_said=false
     local shared_seen=0 -- link.shared_version() as last acted on.
@@ -1624,6 +1640,7 @@ if link then
         guarded('quests',quest_notices)
         guarded('world',world_notices)
         guarded('paks',paks_notice)
+        guarded('dlcs',dlcs_notice)
         if not cns_said and link.cns() then
             cns_said=true
             log(link.cns())
@@ -1633,7 +1650,10 @@ if link then
             if last_mode=='none' and mode~='none' and not off and not puppet.active() then report(puppet.toggle()) end
             last_mode=mode
         end
-        for _,text in ipairs(link.notices()) do say(text) end
+        for _,text in ipairs(link.notices()) do -- A join Steam refused in the menu's words, any other as it came.
+            local build=T.join_refused(text)
+            if build then tell(build) else say(text) end
+        end
         if not off then -- Whether a save is loaded (an accepted invite waits for one), the send rate, the photo mode.
             local world,title=guarded('ghost',puppet.world)
             if title==true and not at_title then guarded('sbo',sbo.title) end -- Each title visit: the rows as shipped.

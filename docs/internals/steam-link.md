@@ -87,6 +87,14 @@ them after `owner=` on its `link=` line.
   lobby sets it back to -1, the Steam client's own setting, and so does joining a co-op lobby whose host is a Steam
   friend, before the first session opens. A co-op host stays on relays only after a stranger has been in her lobby,
   until she hosts again or joins a friend's co-op lobby.
+- Relay only fails closed. When Steam refuses ICE off, the game keeps ICE marked on and logs `Steam refused relay
+  only, try <n>/3: <why>`. While it is on, no line goes to a player who needs relay only (every member of a match
+  lobby, any player who is not a Steam friend in a co-op lobby): the send returns EResult 15 and her session request
+  waits (`session request from <name> held: no relay only yet`). The next member pass at least 1 s later asks Steam
+  again. After 3 refusals in a row the log reads `no link with <name>: Steam refused relay only 3 times`. A co-op
+  host refuses her (`<name> was refused: Steam would not set relay only.`). A co-op guest leaves with `Left <host>'s
+  game: Steam would not set relay only.` In a match lobby every role leaves with `Left the match: Steam would not set
+  relay only.` A refused ICE back to -1 leaves relay only on.
 - In a match lobby, Steam's lobby owner is the host. An owner who leaves from the menu first hands the lobby to the
   member past the handshake who joined first (`SetLobbyOwner`), then leaves. When the owner changes during a round,
   every game ends it with `host_left`. Ten seconds of silence from the owner also end it, with `host_lost` and the
@@ -108,7 +116,7 @@ with native requests, which Lua writes to `coop-request.txt` like the others:
 - `allow <SteamID>` lets the player in. The handshake then runs as with a friend, and a rejoin after a drop is let in
   without a new question for as long as the lobby lasts.
 - `deny <SteamID>`, or 60 s with no answer, refuses the player, and so does leaving before the answer.
-  `remove <SteamID>` refuses any player already in, friends included.
+  `remove <SteamID>` refuses any player already in (friends included) and puts them on the block list.
 - A refused player gets a `SBC reject` with the reason (`you were not let in`, `no answer within 60 s`, `you were
   removed from this session`). Every build since protocol 9 shows it as `<host> refused the link: <reason>` and leaves. That
   player stays refused until the host creates a new lobby: the host never greets them again, ignores their session
@@ -117,6 +125,15 @@ with native requests, which Lua writes to `coop-request.txt` like the others:
   again every 10 s, and the host can create a new lobby, which gets a new code.
 - Answers go by SteamID, so an answer meant for a player who left never reaches the next one. A guest's answers, and
   an answer for a player who is not waiting, are ignored with a line in `coop-link.log`.
+- The block list (`block <SteamID>`, `unblock <SteamID>`, `unblock all`) lasts across lobbies and game runs. The
+  native part reads `coop-blocked.txt` once at start and writes it again after each change. Each line is FNV-1a 64 of a
+  fixed salt and the SteamID's digits, in 16 hex digits. While we host, a lobby member on the list is put on the
+  refused list of this lobby before any approval question, hello or accepted session. She gets the same
+  `you cannot join this session again` reject. When Steam makes us the owner of a match lobby, a member on our list
+  who linked while we were a guest is refused at once with the same reject. A guest's list applies only in a Public
+  match lobby, which a search or a regroup chose for her: with a member on it, she leaves and searches again. A guest
+  whose Public match lobby's host refuses her searches again too. Either way her searches skip that lobby for the rest
+  of the game run, so a regroup never takes her back to it.
 
 On the host, `session/join.lua` turns the first `pending=` line into a question on screen and writes the answer. It asks
 each player once a lobby; with no answer, the native part refuses the player after 60 s. The question opens without a
@@ -192,6 +209,8 @@ SBC21 say <text>
 SBC21 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
 SBC21 pak <hash> <name>
 SBC21 paks <count> <hash>
+SBC21 dlc <app id> <name>
+SBC21 dlcs
 SBC21 camps? <id>
 SBC21 camps <id> <world> <camp>:<m> ...
 SBC21 camps <id> none <title|loading|nocamp|busy>
@@ -284,6 +303,26 @@ with your own `mod_names=off`. The status's `shared=<version> <paths>` line coun
 file again when the version changes and rebuilds the ghost. The hash is FNV-1a over file names and sizes and your
 friend's game states it, so it says that both of you run one build of the mod, without proving it. The list only ever
 holds paths of your own containers.
+
+### The dlc and dlcs lines
+
+The dlc lines and the dlcs line are sent reliable right after the paks line, again after each hello of the other player
+as the pak lines are. Once Steam is ready, the native part asks Steam for the game's own DLCs (`GetDLCCount`, then
+`BGetDLCDataByIndex` for each) and keeps the first 64 that `BIsDlcInstalled` says are on this PC. No DLC id is written
+in the mod. `coop-link.log` lists them after its `Steam ready` line (`DLCs installed: <n> (<names>)`). A DLC installed
+while the game runs counts from the next start. Each one goes in a dlc line: its Steam app id, then its name as Steam
+gives it, cleaned like a chat line and cut to 100 bytes, or the app id when Steam gives no name. The dlcs line ends the
+list. In a match lobby every member gets them.
+
+Once your friend's list came, `coop status` has `dlcs=same <yours> <theirs>` or `dlcs=differ <yours> <theirs>`. A
+`dlc_missing=<app id> <name>` line follows for each DLC they have and you lack, then a `dlc_extra=<app id> <name>` line
+for each one you have and they lack. The two lists are compared by app id. `coop-link.log` says it each time their list
+changes (`<name> has <n> DLCs installed, the same as ours` or `<name> has <n> DLCs installed; we lack <names>; she lacks
+<names>`). When the lists differ, one notice a session names the DLCs your friend has and you lack, then the ones you
+have and they lack: `<name> has DLCs you don't have: <DLCs>. You have DLCs <name> doesn't have: <DLCs>.` A part whose
+list is empty is left out. The notice keeps to the feed's 200 bytes: each sentence names at most its first two DLCs
+when they fit, then `(+n)` for the others. When your friend's name is so long that the two counts alone
+pass 200 bytes, the notice cuts that name. Nothing is refused.
 
 ### The camps lines
 

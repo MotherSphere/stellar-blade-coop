@@ -181,7 +181,7 @@ void trace(Trace &log, const std::string &line) {
   char stamp[32];
   wsprintfA(stamp, "%04u-%02u-%02uT%02u:%02u:%02u.%03uZ ", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond,
             t.wMilliseconds);
-  std::string text = stamp + line + "\r\n";
+  std::string text = stamp + coop::masked(line) + "\r\n"; // Masked as coop-link.log is: bug reports bring these too.
   if (log.bytes + text.size() > kTraceCap) {
     text = std::string(stamp) + "capped at 4 MB: " + log.tail + "\r\n";
     log.bytes = kTraceCap;

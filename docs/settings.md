@@ -281,6 +281,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-settings.old.txt` | Lua, at the menu's first change since the mod loaded | `coop-settings.txt` as it was before that change |
 | `coop-guide.txt` | Lua, on the guide's Don't show again or a close on its last page | One line. While it exists, the [guide](interface.md#guide) does not open by itself |
 | `coop-records.txt` | Lua, after a challenge or Night Operation success that beats the best kept | Your best runs, one `best_<name>=<score> <seconds>` line each (see [challenges.md](challenges.md#best-runs-coop-recordstxt)). Written to `coop-records.txt.tmp` first, then renamed |
+| `coop-blocked.txt` | native, after `coop remove`, `coop block` or `coop unblock` | Your [block list](playing-with-a-friend.md#block-list): two comment lines, then a salted hash of each blocked SteamID, one a line |
 | `coop-status.txt` | native | The current state, as `coop status` shows it |
 | `coop-link.log` | native | This run's header and numbered events, in UTC like `UE4SS.log`, repeats counted, capped at 1 MB |
 | `coop-link.old.log` | native | The previous run's `coop-link.log`, moved there at start |

@@ -49,10 +49,13 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop join <code>` | Join the lobby of that [join code](playing-with-a-friend.md#join-codes), in capitals or not, with or without the dash |
 | `coop copy` | Put your join code on the clipboard while you host with one (the menu's Copy my code row) |
 | `coop allow <SteamID>` / `coop deny <SteamID>` | Let in or refuse the player who is not your Steam friend and waits for your answer |
-| `coop remove <SteamID>` | Remove a player from the session you host; they cannot come back to that lobby |
+| `coop remove <SteamID>` | Remove a player from the session you host and put them on your [block list](playing-with-a-friend.md#block-list): they cannot come back to any game you host |
+| `coop block <SteamID>` | Put a player on your block list without a session; a player in the game you host is removed as well |
+| `coop unblock <SteamID>`, `coop unblock all` | Take one player off your block list, or empty it |
+| `coop blocked` | Print how many players your block list holds (the file keeps only hashes, so it cannot name them) |
 | `coop leave` | Leave the session (F8) |
 | `coop match search\|create <mode>`, `coop match cancel`, `coop match end`, `coop match join <code>`, `coop match leave` | A [match lobby](sbo-lobby.md#search) of up to 8 players (experimental; the only mode is `ffa`, and a round's start does not take anyone to an arena yet). `search` joins an open public lobby of that mode, or hosts one when none is open; `create` hosts a private one that players join with its [join code](playing-with-a-friend.md#join-codes); `cancel` stops a search; `end` ends the round you host; `join <code>` and `leave` work like `coop join <code>` and `coop leave`. `search` and `create` are refused while you are in a lobby. They run from the console anywhere and on any save, not only in the SBO lobby; outside it they have not been tested in game |
-| `coop mute <SteamID>` / `coop unmute <SteamID>` | Drop that player's chat lines, or show them again, in any lobby until the game closes (experimental). The `member=` lines of `coop status` start with each member's SteamID |
+| `coop mute <SteamID>` / `coop unmute <SteamID>` | Drop that player's chat lines, or show them again, in any lobby until the game closes (experimental). The `member=` lines of `coop status` start with each member's SteamID, masked to its last 4 digits, which these commands take too |
 | `coop travel host` | As the guest, travel to the camp nearest the host (F7), or cancel the travel that `follow_host=always` is about to start ([Following the host](playing-with-a-friend.md#following-the-host)) |
 | `coop travel probe <camp>` | Solo test of the follow's travel: the game's own fast travel to one of its 120 camps that your save has activated (the `activated=` line of `coop status`), with no session and no host's answer; any other camp is refused, see [Following the host](playing-with-a-friend.md#following-the-host) (test command, co-op save only) |
 | `coop status` | Print the full state: link, friend, notices, pose path, save slot, ghost |
@@ -122,6 +125,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](playing-with-a-friend.md#synced-photo-mode)'s pause alone, 1 to 3600 s |
 | `coop revive test` | Solo test of the [revive](playing-with-a-friend.md#revive-by-your-friend-experimental): at the death screen, call the game's in-place respawn on your EVE once (co-op save only, no session, with `coop loopback 0 0 0` running so that your life state is read) |
 | `coop guide` | Open the [guide](interface.md#guide) on its first page, on the title screen or in the world |
+| `coop keys reset [<name>\|all]` | Put one key back to its default (`menu`, `host`, `status`, `leave`, `follow`, `race` or `bike`), or every key with `all` or no name, as the [co-op menu's Controls rows](interface.md#options) do. A key whose default another action holds stays as it is |
 | `coop ui reset` | Close the co-op menu and the chat box, and give the game its keys back at once |
 | `coop ui off` | Remove the co-op menu, the chat box, the feed, the partner HUD, Night Operation's card and result panel, the guide and the co-op saves' question until the mod reloads |
 | `coop saves probe` | Log what the mod reads of the save file name and the plan of the next copy pass; writes nothing |
@@ -140,7 +144,14 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
   there is none. A lobby id is digits only, and any other text is taken for a join code.
 - `coop leave` works like F8.
 - `coop report` writes `coop-report.txt` in the mod folder: versions, the save folder, DLLs loaded from other mods, the
-  status, a summary of save folder changes and the last 100 events.
+  status, a summary of save folder changes and the last 100 events. Its SteamIDs and join codes are masked, as in the
+  logs (see [Which logs to send](troubleshooting.md#which-logs-to-send)).
+- `coop allow`, `coop deny`, `coop remove`, `coop block`, `coop mute` and `coop unmute` take a full SteamID, or the 4
+  digits the logs show after `***` for one. With the 4 digits they act on the one player in your lobby whose SteamID
+  ends in them. When two players do, use the full SteamID from `coop-status.txt` in the mod folder, which keeps it
+  whole. `coop unblock` takes the 4 digits only for a player blocked in this game run: `coop-status.txt` lists each
+  one whole on a `block=<SteamID> <name>` line. For a player blocked in an earlier game run it needs the full SteamID,
+  which the player can give you ([Block list](playing-with-a-friend.md#block-list) says where they find it).
 
 ### Ghost commands
 
@@ -341,13 +352,18 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 
 ### `coop status`
 
-`coop status` prints the full state on one log line, its parts separated by ` | `:
+`coop status` prints the full state on one log line, its parts separated by ` | `. In that line each SteamID shows as
+`***` and its last 4 digits, the join code and the lobby id as the code's first 3 characters and `****`, as in every
+line the mod writes to its logs. `coop-status.txt` in the mod folder holds the same state with them whole.
 
 - Steam: `mod=<version> proto=21 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
-  availability and callback counts.
+  availability and callback counts, your Steam name on a `me=` line, then `blocked=<n>`: the players on your
+  [block list](playing-with-a-friend.md#block-list). A `block=<SteamID> <name>` line follows for each player you
+  blocked in this game run.
 - Link: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite held
   and `rejoin=<n>/3` while rejoining. While you host, a `code=<join code|none> refused=<n>` line follows: the join code
-  (`none` unless the lobby was made with `host code`) and the number of players refused for the rest of this lobby; then
+  (`none` unless the lobby was made with `host code`) and the number of players refused for the rest of this lobby,
+  blocked players who came in included; then
   a `pending=<SteamID> <name>` line for a player who is not your Steam friend and waits for your answer. Then a
   `peer=...` line per lobby member (handshake, lost flag, RTT), a `friend=<linked 0|1> <lost 0|1> <name>` line, after a
   [coop mark](#coop-mark) a `mark=<n> ours: <text>` or `mark=<n> from <name>: <text>` line (no `: <text>` for a mark

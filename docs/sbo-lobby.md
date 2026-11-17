@@ -88,6 +88,10 @@ When no lobby is open, you host a public one: `No ffa match found (SBO protocol 
 host alone in a public lobby searches again every 5 s and moves to an open lobby with a lower Steam lobby id, so two
 players who searched in the same second are in one lobby within about 5 s.
 
+Search never leaves you in a public lobby with a player on your [block list](playing-with-a-friend.md#block-list),
+nor outside matchmaking when a lobby's host has blocked you. Your game leaves that lobby with a notice, searches again
+and skips that lobby for the rest of the game run.
+
 ### Private match
 
 Private match hosts a match lobby that Search never returns, with a 7-character
@@ -98,12 +102,16 @@ Random.
 ### Match lobbies
 
 In a match lobby, public or private, nobody waits for the host's answer, Steam friend or not. The host can still send a
-player out with `coop remove <SteamID>`; the `member=` lines of `coop status` start with each member's SteamID. The
-host's game refuses a player whose game runs another protocol or game build (`<name> runs another version and was
-refused.`). A player who sends more messages than the link allows for 5 s is refused too (`<name> sent too many
-messages and was refused.`).
+player out with `coop remove <SteamID>`; the `member=` lines of `coop status` start with each member's SteamID, masked
+to its last 4 digits, which `coop remove` takes too. `coop remove` also puts the player on the host's
+[block list](playing-with-a-friend.md#block-list), so every later game that host runs refuses them until
+`coop unblock`. The host's game refuses a player whose game runs another protocol
+or game build (`<name> runs another version and was refused.`). A player who sends more messages than the link allows
+for 5 s is refused too (`<name> sent too many messages and was refused.`).
 
-- Match lobbies go through Steam's relays only, so no player learns another's IP address.
+- Match lobbies go through Steam's relays only, so no player learns another's IP address. If Steam refuses that
+  setting, your game sends nothing to the other players and asks again each second. After 3 refusals it leaves the
+  match with `Left the match: Steam would not set relay only.`
 - Chat stays on with players who are not your Steam friends. Mute a player in Settings > SBO, or with
   `coop mute <SteamID>`. A mute lasts until the game closes, in every lobby.
 - Gifts, Doro races, the photo pause, the cutscene wait, the travel to the host, Night Operation and shared quests do

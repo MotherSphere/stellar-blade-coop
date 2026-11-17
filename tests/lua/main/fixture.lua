@@ -117,6 +117,7 @@ ping_ms,write_refusal=nil,nil -- link.ping(); why link.write_settings fails (nil
 mate_v=nil -- link.mate(): her vitals.
 paks_v=nil -- link.paks(): her .pak mods against ours.
 mods_v,cns_v=nil,nil -- link.mods(): her mod containers against ours by name; link.cns(): our CNS packs in words.
+dlcs_v=nil -- link.dlcs(): her installed DLCs against ours.
 friend_name,friend_linked='Kaanta',true -- link.friend()'s name and linked (fake_link.lost: lost, below).
 fight_text,fight_reads=nil,0 -- What link.fight() says (the fight= line), and how often it was asked.
 pilot_text,pilot_reads=nil,0 -- What link.pilot() says (the pilot= line), and how often it was asked.
@@ -128,6 +129,7 @@ saves_info={} -- link.saves(): the slot line's verdict and saves=, the convert= 
 link_files={['coop-guide.txt']='The co-op guide opens by itself on the title screen while this file is missing.\n'}
 -- link.code() (our join code, the players refused), link.pending(), link.stranger(), link.lobby().
 link_code,link_refused,link_pending,link_stranger,link_lobby=nil,nil,nil,nil,'0'
+link_notices=nil -- link.notices() when set; nil: a friend's join and lost connection every pass.
 fake_link={
     session=function(token) sessions[#sessions+1]=token; return true end,
     components=function(text) if text==nil then withdrawn[#withdrawn+1]='components' end; return true end,
@@ -160,7 +162,7 @@ fake_link={
         said_lines[#said_lines+1]=text
         return true
     end,
-    notices=function() return {'Kaanta joined.','Kaanta: connection lost.'} end,
+    notices=function() return link_notices or {'Kaanta joined.','Kaanta: connection lost.'} end,
     summary=function(words) return words and words.summary.none or 'Co-op: not in a session.' end,
     paused=function() return false end,
     valid_lobby=function(text) return text:match('^%d+$')~=nil end,
@@ -173,6 +175,7 @@ fake_link={
     mate=function() return mate_v end,
     paks=function() return paks_v end,
     mods=function() return mods_v end,
+    dlcs=function() return dlcs_v end,
     cns=function() return cns_v end,
     shared_version=function() return shared_v or 0 end,
     -- coop-settings.txt for the menu: the same text the settings were read from at load, as written (so the menu
@@ -777,7 +780,8 @@ package.loaded['session.chat']={new=function(lines,on)
         enable=function() end,lines=function() return chat_feed or {} end,take=function() return table.remove(chat_out,1) end}
 end,view=Chat.view,clean=Chat.clean,wrap=Chat.wrap}
 package.loaded.version='v9-test'
-USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | '
+USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove|block <SteamID> | '
+    ..'unblock <SteamID>|all | blocked | leave | '
     ..'match search|create <mode>|cancel|end|join <code>|leave | mute|unmute <SteamID> | '
     ..'status | report | mark [text] | where | near [metres] | travel host | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
@@ -790,6 +794,7 @@ USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|de
     ..'gift [send <item> [count]|take [n]] | '
     ..'race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|'
     ..'spawn | quests on|off|status|probe|record|replay|force <number> | world on|off|status | '
+    ..'keys reset [<name>|all] | '
     ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
 
 -- The native part's pad export (coop_pad): each call hands back as many of its arguments as the next count queued
@@ -903,6 +908,14 @@ function mods_tick(paks,mods)
     local n,out=#said,{}
     loops[2].f()
     for i=n+1,#said do if said[i]:find('mod',1,true) then out[#out+1]=said[i] end end
+    return table.concat(out,'|')
+end
+-- One loop with link.dlcs() as given: the DLC notices said, in the menu's words.
+function dlcs_tick(v)
+    dlcs_v=v
+    local n,out=#said,{}
+    loops[2].f()
+    for i=n+1,#said do if said[i]:find('DLC',1,true) then out[#out+1]=said[i] end end
     return table.concat(out,'|')
 end
 function key(k,modifier) press(k,modifier); flush() end

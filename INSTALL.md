@@ -80,9 +80,9 @@ another version.
    by hand or in the menu's Options, `coop-guide.txt` (without it the guide opens again), `coop-records.txt` for your
    best challenge runs, every `coop-night-*.txt` (your Night Operation shop points, which no save holds), every
    `coop-gift-*.txt` (your `coop gift` mailbox: gifts that wait for you, gifts you sent that wait for an answer and
-   items on their way back to you, which no save holds either), every `coop-track-*.txt` (your Doro race tracks), and
-   any log you still want to send. The zip has no `coop-settings.txt`; when the file is missing, the mod writes the
-   defaults again.
+   items on their way back to you, which no save holds either), every `coop-track-*.txt` (your Doro race tracks),
+   `coop-blocked.txt` (your block list) and any log you still want to send. The zip has no `coop-settings.txt`; when
+   the file is missing, the mod writes the defaults again.
 3. Delete the old `StellarCoop` folder, so that no file of the old version remains.
 4. Install the new zip with install steps 2 to 4, and put the `coop-*.txt` files from step 2 back into the new folder.
    A file from version 0.2 says `shared_enemies=off`: shared enemies stay off until you turn them on in
@@ -136,8 +136,10 @@ menu's Copy my code row give a 7-character join code such as `CCS-CBMH`, and eac
 to the other player, who selects Join with a code in their co-op menu and types it. Your Steam friends get in at once.
 For a player who is not on your Steam friends list, in any session you host, a question asks whether to let them in:
 Accept or Deny. With no answer in 60 s, the player is refused. A refused player cannot come back to that session. To
-send out a player you let in, select Remove <name> in the menu, then select it again within 3 s. See
-[docs/playing-with-a-friend.md](docs/playing-with-a-friend.md#join-codes).
+send out a player you let in, select Remove <name> in the menu, then select it again within 3 s. Remove also puts that
+player on your block list, which keeps them out of every game you host later, after a game restart too, until
+`coop unblock`. See [docs/playing-with-a-friend.md](docs/playing-with-a-friend.md#join-codes) and its
+[block list](docs/playing-with-a-friend.md#block-list) section.
 
 The mod writes `Mods/StellarCoop/coop-settings.txt` the first time the game starts with it. The menu's Options page
 changes one line of the file at a time, and keeps the file as it was before its first change since the mod loaded as
@@ -338,8 +340,9 @@ Close the game first.
 
 - Installed from the zip (Windows or Linux): delete the `Mods/StellarCoop` folder. It holds the logs,
   `coop-settings.txt`, `coop-guide.txt`, `coop-records.txt`, the Night Operation shop points (`coop-night-*.txt`), the
-  `coop gift` mailbox (`coop-gift-*.txt`) and the Doro race tracks (`coop-track-*.txt`), so first copy out what you
-  want to keep. If you added a `StellarCoop` line to `Mods/mods.txt`, remove that line.
+  `coop gift` mailbox (`coop-gift-*.txt`), the Doro race tracks (`coop-track-*.txt`) and the block list
+  (`coop-blocked.txt`), so first copy out what you want to keep. If you added a `StellarCoop` line to
+  `Mods/mods.txt`, remove that line.
 - Installed with `tools/install.py` (Linux), from the Stellar Blade Online repository:
   `python3 tools/install.py --uninstall` (add `--dry-run` first to see what it would do, and
   `--game <Stellar Blade folder>` if the game is not in the script's default folder). It backs up the whole folder into
@@ -364,8 +367,12 @@ that do.
 - `Mods/StellarCoop/nightop-probe.txt`, only if you ran the Night Operation probe (`coop no`)
 - `Mods/StellarCoop/coop-quests.log`, only if shared quests were on
 
-They contain your Steam ID and Steam name, the other player's Steam ID and Steam name, lobby IDs and folder paths,
-which may include your Windows user name. They contain no passwords. You can read them before you send them.
+The mod masks SteamIDs and join codes in what it writes to these files. A SteamID shows as `***` and its last 4 digits
+(`***5678`), which still tell the players in one report apart. A join code shows its first 3 characters (`ABC-****`),
+as does a lobby ID, whose digits would give its code away. The files still contain your Steam name, the other players'
+Steam names and folder paths, which may include your Windows user name. They contain no passwords. Logs from an older
+version of the mod keep the full IDs, as does the `coop-link.old.log` of the first run after an update. You can read
+the files before you send them.
 
 When you test with a friend, the player who leads the test types `coop mark <step>` in the console before each step,
 for example `coop mark 3 lift`. Each mark puts a numbered line with that text in both players' `coop-link.log` and

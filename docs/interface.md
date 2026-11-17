@@ -29,7 +29,7 @@ The main page shows the rows that fit your session:
 | Leave the session | In a session | Runs `coop leave` when you select it a second time within 3 s |
 | Invite a friend (Steam) | While you host | Runs `coop invite`. The menu closes first. |
 | Copy my code | While you host with a [join code](playing-with-a-friend.md#join-codes) | Shows the code and runs `coop copy`, which puts it on the clipboard |
-| Remove <name> | While a player who is not your Steam friend is in the session you host | Runs `coop remove <SteamID>` when you select it a second time within 3 s |
+| Remove <name> | While a player who is not your Steam friend is in the session you host | Runs `coop remove <SteamID>` when you select it a second time within 3 s. The player goes on your [block list](playing-with-a-friend.md#block-list) too. |
 | Join a friend | Outside a session | Runs `coop join` |
 | Join with a code | Outside a session | Closes the menu and opens the [code box](playing-with-a-friend.md#join-codes) |
 | Chat | During a session, with chat on | Closes the menu and opens the [chat](#session-chat) box |
@@ -93,7 +93,8 @@ a world with none of the mod's screens or the game's menus open; the game still 
   are equal), as pressed past half of its range and as released under 30 %. Once an axis counts, it keeps counting
   until the other one is pushed more than 10 % further.
 - The mod reads the controller only while the game's window is in front.
-- While a key row waits for a key, only B acts: it stops the wait. A new key has to come from the keyboard.
+- While a key row waits for a key, only A and B act: A puts back that key's default and B stops the wait. A new key
+  has to come from the keyboard.
 - B closes the [chat](#session-chat) box and the [code box](playing-with-a-friend.md#join-codes) as Esc does: nothing is typed or sent. A
   controller cannot type in them.
 - The host's question (`<name> wants to join`) takes no controller input. A is Jump and the D-pad uses heal and
@@ -114,7 +115,7 @@ it says `Native pad unavailable (no controller in the co-op menu): <why>` once, 
 
 While the menu is open, it shows the mouse cursor. The row you move the mouse onto takes the focus (the mouse is read
 every 100 ms, and a mouse at rest never takes the focus back from the keys). A left click selects the row under the
-mouse, as Enter does: Leave the session and Remove <name> still need a second click within 3 s. A right click goes
+mouse, as Enter does: Leave the session, Remove <name> and Reset all keys still need a second click within 3 s. A right click goes
 back, then closes the menu. A click on a heading or on no row does nothing. On the Options page, the mouse on the first
 or last row shown scrolls the page by one row. While a key row waits for a key, the mouse moves nothing. The mouse in
 the menu has not been tested in game yet.
@@ -126,9 +127,9 @@ closes.
 
 ### Options
 
-Each row of the Options page is a setting of [coop-settings.txt](settings.md#coop-settingstxt). The rows are in groups: Controls
-(the menu, status, leave, travel and race checkpoint keys, the [bike](bike.md) on or off and its key), Photo mode,
-Partner (the name tag and the
+Each row of the Options page is a setting of [coop-settings.txt](settings.md#coop-settingstxt), except Reset all keys. The rows are
+in groups: Controls (the menu, status, leave, travel and race checkpoint keys, the [bike](bike.md) on or off and its key,
+then Reset all keys), Photo mode, Partner (the name tag and the
 [partner HUD](#partner-hud)), Ghost (the looks, the [solid partner](ghost.md#solid-partner-experimental) and the send rate),
 Session (who can join a session you host, the [revive](playing-with-a-friend.md#revive-by-your-friend-experimental), the
 [cutscene wait](playing-with-a-friend.md#cutscene-wait), [following the host](playing-with-a-friend.md#following-the-host) and the
@@ -139,7 +140,8 @@ Display (the [status strip](#status-strip-above-the-card) above the partner card
 the menu, the chat and the partner HUD) and Chat.
 
 Left and right change a value, and Enter does the same as right. Each change rewrites only that setting's line in
-`coop-settings.txt`; comments and other lines stay as they are. The first change since the mod loaded keeps the file as
+`coop-settings.txt`; comments and other lines stay as they are. Reset all keys rewrites the line of every key setting
+(`host_key` included) and adds those the file lacks. The first change since the mod loaded keeps the file as
 it was as `coop-settings.old.txt`. A change applies at once, except for the name tag, which says `Saved. It takes effect
 when the mod reloads (game start or Ctrl+R).`, and the Enemies attack, Same spawns, Extra enemies, Shared bosses,
 scaling and kill reward rows, which
@@ -148,15 +150,20 @@ Same place row applies at once while shared enemies wait or run, and otherwise f
 while they wait or run, and only on your screen).
 
 To change a key, select its row, then press the new key: `F1` to `F12` except `F10`, alone or with Shift, Ctrl or Alt.
-A key that another action already holds is refused, and the menu names that action. Esc stops waiting. The new key
-works at once.
+A key that another action already holds is refused: the menu names that action. Esc stops waiting. Enter (or Space)
+puts back that key's default; while the row waits, the Enter key hint reads Default. The default is refused the same
+way when another action holds it. Reset all keys, the last row of Controls, puts every key back to its default on a
+second Select within 3 s: `F5` for the menu, `F6` for the status, `F8` to leave, `F7` to travel, `F9` for race
+checkpoints, `F3` for the bike and `none` for `host_key`, which has no row. The new keys work at once. The console command
+`coop keys reset` does the same.
 
 The menu, the guide, the chat, the partner HUD, the code box, the host's question, the co-op saves' question and
 notices, the shared enemies', same place, same spawns and shared quests notices, Night Operation's card, result panel
 and notices, and the Doro race's panel, banners, results and notices use the game's text language, any of the 23 that
-the game ships. So do the status line (under the menu and on F6) and the ghost's notices. `ui_language=english` keeps
-them all in English. The notices of the Steam link (a friend joined or left, your join code) and `UE4SS.log` stay in
-English, and so do the error messages from the coop commands, shown in the menu or the code box.
+the game ships. So do the status line (under the menu and on F6), the ghost's notices and the notices of a join Steam
+refused (`Could not join: ...`). `ui_language=english` keeps them all in English. The other notices of the Steam link
+(a friend joined or left, your join code) and `UE4SS.log` stay in English. So do the error messages from the coop
+commands, shown in the menu or the code box.
 
 If the menu or the chat box ever leaves the game without its own keys, open the console (F10 or `~`) and type
 `coop ui reset`: the menu and the boxes close, an open [host's question](playing-with-a-friend.md#join-codes) is answered with Deny, and the
@@ -350,8 +357,9 @@ a Steam name or a chat line shows as `?`.
 | Joined | `Joined <host>'s game.`, with ` Waiting to be let in.` when the host is not your Steam friend |
 | A wrong join code | `That is not a join code: check its 7 characters.` or `Could not join: that is not a StellarCoop game.` |
 | A player who is not your Steam friend asks to join | `A player who is not your Steam friend is asking to join.` |
-| Your answer | `<name> was let in.`, `<name> was not let in.`, `<name> was not let in: no answer within 60 s.` or `<name> was removed.` |
-| Could not join | `Could not join: that game no longer exists.`, `... that game is closed (its match may have started).`, `... that game is full.` or `... Steam response <n>.` |
+| Your answer | `<name> was let in.`, `<name> was not let in.`, `<name> was not let in: no answer within 60 s.` or `<name> was removed and blocked.` |
+| Your [block list](playing-with-a-friend.md#block-list) | `A player on your block list tried to join and was refused.`, `<name> is on your block list and was removed.` (a match lobby that came to you), `Left the match: a player on your block list is in it. Searching again.` (quick match), `Player blocked.`, `Player unblocked.`, `That player is not on your block list.`, `Block list emptied.`, `Could not save the block list: it holds until the game closes.` or `Could not read the whole block list: changes to it are not saved until the game restarts.` |
+| Could not join | `Could not join: <reason>` for each answer Steam documents (listed in [Troubleshooting](troubleshooting.md#my-friend-cannot-join)), or `Could not join: Steam response <n>.` for any other |
 | A friend joined, left, came back | `<name> joined.`, `<name> left.`, `<name> is back.` |
 | Connection lost | `<name>: connection lost.` |
 | Version mismatch | `Version mismatch: that game runs protocol ..., build ...; yours runs ...` (on joining) or `Version mismatch with <name>: ...` |
@@ -377,6 +385,7 @@ a Steam name or a chat line shows as `?`.
 | `coop mute`, `coop unmute` | `Muted <name>.` or `Unmuted <name>.` |
 | A player on another protocol or game build joins the match lobby you host | `<name> runs another version and was refused.` |
 | A player in your match lobby stays over a channel's rate limit for 5 s; you keep the lobby | `<name> sent too many messages and was refused.` |
+| Steam refused relay only 3 times, 1 s apart (needed in a match and with a player who is not your Steam friend) | `<name> was refused: Steam would not set relay only.` (co-op host), `Left <host>'s game: Steam would not set relay only.` (co-op guest) or `Left the match: Steam would not set relay only.` |
 | The match host stays over a channel's rate limit for 5 s; you leave | `Left the match: <name> sent too many messages.` |
 | Friend on another map | `<name> is in <map>, you are in <map>.` |
 | [Following the host](playing-with-a-friend.md#following-the-host) (guest) | `<host> is in <map>. Press F7 to travel to the camp nearest them.`, `Following <host> in 5 s. Press F7 to stay.`, `Travelling to <host>.`, `No camp you have found is near <host>.`, `You cannot travel now. Try again in a moment.` or `The travel did not start. UE4SS.log says why.` |
@@ -393,6 +402,7 @@ a Steam name or a chat line shows as `?`.
 | Co-op saves not switched on (`auto_coop_save=always`, or the title screen left while the copies were made) | `Co-op saves off for this load: <why>. You play your own saves.` |
 | Co-op copies on with a manual co-op slot N, once a load | `Co-op now plays StellarBladeCoop0N.sav. With the game closed, you can move StellarCoopSlot.txt out of the save folder, and StellarBladeSave0N.sav unless you played it after that copy was made.` |
 | Another game version (a game update), on the title screen with `auto_coop_save=ask` or `always`, once a load | `Co-op saves are off: StellarCoop does not support this version of the game. You play your own saves until StellarCoop is updated.` |
+| Your friend's installed DLCs differ from yours, once a session | `<name> has DLCs you don't have: <DLCs>. You have DLCs <name> doesn't have: <DLCs>.`, either part alone when the other list is empty; see [The Steam link](internals/steam-link.md#the-dlc-and-dlcs-lines) |
 | Your friend's `.pak` mods differ from yours, once a session | `<name> uses mods you don't have: <mods>. ...`, `<name> uses other versions of mods you have: <mods>. ...` or `<name> loads other .pak mods than you (<n> there, <n> here). ...`; see [Shared enemies](shared-enemies.md#shared-enemies-experimental) |
 | Shared enemies started, stopped, or waiting for something | See [Shared enemies](shared-enemies.md#shared-enemies-experimental) |
 | Same place moving enemies, or stopped | See [Same place](shared-enemies.md#same-place-experimental) |

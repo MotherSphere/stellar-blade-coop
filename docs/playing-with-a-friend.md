@@ -85,16 +85,55 @@ join`, with Accept and Deny. It opens on its own, maybe while you walk or use th
   Until then it waits. It hides while the game pauses and comes back after.
 - With no answer for 60 s, the native part refuses the player, even if the question never showed (with
   `coop ui off`, for example). The question shows the seconds left.
-- A denied or removed player cannot come back to that lobby. Their game shows `<host> refused the link: you were not
-  let in` (or `you were removed from this session`) and leaves.
+- A denied player cannot come back to that lobby. Their game shows `<host> refused the link: you were not let in` and
+  leaves.
+- A removed player cannot come back to any game you host: Remove also puts them on your [block list](#block-list).
+  Their game shows `<host> refused the link: you were removed from this session` and leaves.
 - If players you do not know keep asking, host again: the new lobby gets a new code.
 - A session with a player who is not your Steam friend goes through Steam's relays only, on both games, so neither
   of you learns the other's IP address. The relay route can add ping. Once such a player has been in your lobby, your
   game stays on relays only until you host again or join a friend's game.
-- While a player who is not your Steam friend is in your session, the menu shows Remove <name>. After a Lua reload
-  (Ctrl+R) that row stays hidden for a player let in before the reload; `coop remove <SteamID>` still works.
+- If Steam refuses the relays-only setting, nothing goes to that player and your game asks Steam again each second.
+  After 3 refusals the link with that player stops. The host sees `<name> was refused: Steam would not set relay
+  only.` A guest's game leaves with `Left <host>'s game: Steam would not set relay only.`
+- While a player who is not your Steam friend is in your session, the menu shows Remove <name>, which also blocks
+  them. After a Lua reload (Ctrl+R) that row stays hidden for a player let in before the reload;
+  `coop remove <SteamID>` still works.
 - `coop allow <SteamID>` and `coop deny <SteamID>` answer from the console. `coop status` shows the waiting player on
-  its `pending=` line.
+  its `pending=` line, with the SteamID masked to `***` and its last 4 digits. These commands take the 4 digits too.
+
+### Block list
+
+Remove (the menu row or `coop remove <SteamID>`) keeps the player out of every game you host from then on, in later
+lobbies and after the game restarts. Deny only refuses them for the current lobby.
+
+- When a blocked player joins a later game of yours, the native part refuses them before any question or handshake.
+  Their game shows `<host> refused the link: you cannot join this session again` and leaves. Yours shows
+  `A player on your block list tried to join and was refused.` This works in a match lobby you host too. When a
+  match lobby comes to you because its host left, a blocked player in it is removed at that moment.
+- `coop block <SteamID>` blocks a player without a session. If that player is in the game you host, they are removed
+  as well.
+- `coop unblock <SteamID>` takes one player off the list and `coop unblock all` empties it. A player unblocked while
+  still in your lobby is greeted again (or asked about, if not your Steam friend) at once. For a player you blocked
+  in this game run, `coop unblock` also takes the 4 digits the logs show after `***`.
+- For a player blocked in an earlier game run, `coop unblock` needs the full SteamID, 17 digits. The logs and the
+  block list never hold it whole. Ask the player for it: their own `coop-status.txt` shows it after `steamid=` on its
+  first line. Their Steam profile shows it too, in the address `steamcommunity.com/profiles/<SteamID>`, unless they
+  set a custom one. While a player is in your lobby, your `coop-status.txt` has it on their `peer=` and `member=`
+  lines, so you can note it before a remove.
+- `coop blocked` prints how many players the list holds. It cannot name them.
+- The list is `coop-blocked.txt` in the mod folder. It holds a hash of each SteamID, so the SteamIDs do not show as
+  they are. The hash does not keep them secret. The salt is the same for every player. Steam has about 4 billion
+  personal accounts, few enough for one PC to hash them all in a few minutes. Anyone who gets your file can list every
+  SteamID on it that way, so do not share it. Keep it when you update the mod (see
+  [INSTALL.md](../INSTALL.md#update)).
+- When the file is there at game start but the mod cannot read all of it (another program holds it open, for
+  example), you see `Could not read the whole block list: changes to it are not saved until the game restarts.` The
+  players it read stay blocked. The file stays as it is until the next game start, so no player on it is lost.
+- The list applies to games you host. A game you join yourself, with a code or an invite, is up to you: you can
+  still join a blocked player's game. Quick match is the exception. Your game never stays in a public match lobby with
+  a player on your list: it leaves, then searches again and skips that lobby for the rest of the game run. A blocked
+  player whom quick match sends to your lobby is refused. Her game searches again the same way.
 
 ## Following the host
 
