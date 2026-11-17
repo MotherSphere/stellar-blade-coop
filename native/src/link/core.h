@@ -1062,10 +1062,11 @@ public:
           s += "pending=" + std::to_string(p.id) + " " + p.name + "\n";
     }
     // As a joiner the host has not let in yet (she is not the host's Steam friend, or the host asks friends too): the
-    // seconds left of the host's minute, rounded up, then the host's name last.
+    // seconds left of the host's minute, rounded up, then the host's name last, read from Steam each time (a
+    // stranger's may reach Steam a moment after we joined).
     if (wait_until_ && lobby_ && !host_)
-      s += "wait=" + std::to_string(wait_until_ > now_ ? (wait_until_ - now_ + 999) / 1000 : 0) + " " + wait_host_ +
-           "\n";
+      s += "wait=" + std::to_string(wait_until_ > now_ ? (wait_until_ - now_ + 999) / 1000 : 0) + " " +
+           name_of(host_id_) + "\n";
     // The session list (list public, list friends): "list=<public|friends> <searching|done|failed> <rows>", then each
     // row, best ping first once done: "session=<lobby> <host's SteamID> <n>/<max> <ping ms or -> <1 for a Steam friend,
     // else 0> <map segment or -> <camp alias or -> <rules or -> <host's name>", the name last.
@@ -2219,7 +2220,6 @@ private:
       const char *ask = api_.lobby_data(mm_, lobby, kAskKey);
       const bool asked = !match() && ask && std::string(ask) == "1", asking = !rejoin && (stranger || asked);
       wait_until_ = asking ? now_ + kApprovalMs : 0;
-      wait_host_ = host;
       event("joined lobby " + id + " hosted by " + host +
             (!asking   ? ""
              : stranger ? ", not a Steam friend: waiting to be let in"
@@ -3272,9 +3272,8 @@ private:
   size_t list_hidden_ = 0;
   uint64_t list_call_ = 0, list_at_ = 0;
   std::vector<std::pair<uint64_t, uint64_t>> walk_;
-  // As a joiner the host has not let in yet: when the host's minute ends (0: not waiting) and the host's name.
+  // As a joiner the host has not let in yet: when the host's minute ends (0: not waiting).
   uint64_t wait_until_ = 0;
-  std::string wait_host_;
   std::string code_, copy_;
   std::set<uint64_t> allowed_;
   std::map<uint64_t, uint64_t> refused_;

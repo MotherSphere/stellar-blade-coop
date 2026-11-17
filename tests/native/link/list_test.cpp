@@ -99,7 +99,7 @@ int main() {
   }
 
   // A player who is not the host's Steam friend joins from the list and waits: pending= on the host, wait= with the
-  // seconds left of the host's minute and her name on the joiner, 2/2 on the rows. Denied, she leaves and the rows say
+  // seconds left of the host's minute and her name as Steam has it now on the joiner, 2/2 on the rows. Denied, she leaves and the rows say
   // 1/2 again. The next one, let in, links and her wait= line goes. A Steam friend joins at once.
   reset();
   {
@@ -118,6 +118,9 @@ int main() {
     for (int i = 0; i < 20; ++i)
       m.round();
     assert(m.status(2).find("\nwait=59 P1\n") != npos);
+    F.names[kPlayer[0]] = "Neo"; // Steam learns a new name for the host: the wait shows it.
+    assert(m.status(2).find("\nwait=59 Neo\n") != npos);
+    F.names[kPlayer[0]] = "P1";
     m.tick(0, "deny 4003");
     m.round();
     m.round();

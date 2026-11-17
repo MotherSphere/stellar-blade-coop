@@ -190,7 +190,8 @@ holds the handshake: it sends no hello and reads none of the player's messages, 
 reports a lost connection. The host's status shows `pending=<SteamID> <name>` and a notice says that a player who is not
 a Steam friend is asking to join. The joiner's game shows `Joined <host>'s game. Waiting to be let in.` Until the host
 lets it in, its status has the line `wait=<seconds left> <host's name>`: the seconds left of the host's minute, counted
-from the join. With `friends_ask=on` (`host <who> ask`), the host's Steam friends wait the same way. The host's notice
+from the join, and the host's name as Steam has it at that moment (Steam may learn a stranger's name a moment after the
+join). With `friends_ask=on` (`host <who> ask`), the host's Steam friends wait the same way. The host's notice
 for one of them reads `<name> is asking to join.` The lobby's `sbo_ask=1` tells the friend's game that it waits. The
 host answers with native requests, which Lua writes to `coop-request.txt` like the others:
 
