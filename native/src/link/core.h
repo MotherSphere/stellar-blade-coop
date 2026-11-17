@@ -905,7 +905,7 @@ public:
   // "gift n <id> nolink", so the sender gets the items back without waiting for her answer (only for a first send:
   // cut/mailbox.lua ignores it for a send again). A gift line names no player: with 3 or more, every member would take
   // the items of a send. An answer (a or n) still goes to every member: a gift sent before a third player came in gets
-  // it, and only its sender's mailbox waits for that id.
+  // it. Only its sender's mailbox waits for that id.
   void gift(const std::string &payload) {
     const std::string line = gift_line(payload);
     const bool crowd = members().size() > 1 && payload.rfind("s ", 0) == 0;

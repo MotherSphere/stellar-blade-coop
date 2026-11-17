@@ -1368,8 +1368,8 @@ assert(#sent==512 and sent[1]=='cp 7 1 1 9' and sent[512]=='cp 7 1 1 520')
 files[RACE]=nil
 
 -- The HUD's fields, as of the last changes(): her vitals (mate=, never logged as they change up to 10 times a
--- second), the RTT of the member the status line names (her member= line's, past the handshake only), and whether a
--- chat session holds: a friend linked (lost or not), a rejoin under way, or the loopback.
+-- second), the RTT of the member the status line names (her member= line's, past the handshake only); whether a chat
+-- session holds: a friend linked (lost or not), a rejoin under way, or the loopback.
 local MATE='mate=900 1600 0 50 5 200 1000 0 0 0 0 1\n'
 files[STATUS]=HEAD..'peer=2 name=x rtt_ms=5 session=3 session_ping=4 hello=1 accepted=1 compatible=1 lost=0 '
     ..'invalid=0 rtt_ms=118 session=3 session_ping=40\nmember=2 0 1 0 0 118 x rtt_ms=5\nfriend=1 0 x\n'..MATE
