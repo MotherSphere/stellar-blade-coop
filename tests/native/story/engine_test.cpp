@@ -30,7 +30,7 @@ namespace {
 
 struct FakeGame {
   std::map<uint64_t, uint8_t> mem;
-  std::map<std::string, uint64_t> names;
+  std::map<std::string, uint64_t> names = {{"None", 0}}; // None's index is 0, as in game.
   std::vector<std::string> calls;
   uint64_t next = 0x30000000;
   int32_t frame_at = 40, talk_result = 9;
@@ -301,7 +301,7 @@ void test_start() {
   assert(w.e.trip_line(warp, zone, line) && line.type == Type::trip && line.name == "Xion_10_E_ZoneWarp_012" &&
          line.zone == "Zone_Xion_10" && allowed(line));
   assert(!w.e.trip_line(w.g.name(plain_row().row), zone, line) && w.e.log.empty());
-  assert(!w.e.trip_line(warp, 0, line) && w.e.log.size() == 1 &&
+  assert(!w.e.trip_line(warp, 0xdead, line) && w.e.log.size() == 1 &&
          w.e.log[0] == "story: trip Xion_10_E_ZoneWarp_012 ran here, not sent: our zone's name could not be read");
   // A trip a theater's end starts reads as one; Sync::send then keeps it from her.
   assert(w.e.trip_line(w.g.name("Xion_11_ZoneE_130"), zone, line) && !allowed(line));

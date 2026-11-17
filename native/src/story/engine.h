@@ -839,7 +839,7 @@ private:
     if (*condition || *group) {
       const uint64_t none = u32(at(kNoneName));
       const uint64_t c = *condition ? g_.find(condition) : none, gr = *group ? g_.find(group) : none;
-      if (!c || !gr)
+      if ((*condition && !c) || (*group && !gr)) // None's index is 0 in game: an empty half is no failed find.
         return "name";
       if (!g_.condition(c, gr, caster))
         return "condition";
