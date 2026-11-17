@@ -338,7 +338,9 @@ int main() {
          lobby_tag(24463856) != "17:24463856" && lobby_tag(24463856) != "18:24463856" &&
          lobby_tag(24463856) != "19:24463856" && lobby_tag(24463856) != "20:24463856" &&
          lobby_tag(24463856) != "21:24463856" && lobby_tag(24463856) != "22:24463856");
-  assert(parse_text("SBC22 ping 1 2").kind == Kind::invalid && parse_text("SBC22 let 0 1").kind == Kind::invalid);
+  // A well-formed let line under another protocol's tag: refused by its tag alone (the same line with ours is read).
+  assert(parse_text("SBC22 ping 1 2").kind == Kind::invalid && parse_text("SBC22 let 0 2002 4").kind == Kind::invalid &&
+         parse_text("SBC24 let 0 2002 4").kind == Kind::invalid && parse_text(let_line(0, {2002}, 4)).kind == Kind::let);
   assert(parse_text("SBC21 ping 1 2").kind == Kind::invalid && parse_text("SBC20 ping 1 2").kind == Kind::invalid &&
          parse_text("SBC19 ping 1 2").kind == Kind::invalid);
   assert(parse_text("SBC18 ping 1 2").kind == Kind::invalid && parse_text("SBC18 gift x").kind == Kind::invalid);
