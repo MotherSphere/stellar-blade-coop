@@ -15,9 +15,9 @@ build/host/pose_codec_test
 
 ## Lua tests
 
-The Lua tests (`bike/`: `model`, `ride`; `commands/`: `session`; `core/`: `actors_of`, `class_at`, `keybind`, `link`,
-`mask`, `pak_gate`, `settings_file`, `ue4ss_settings`, `unreal`; `cut/`: `chainspin`, `devmenu`, `emote`, `enemy`,
-`flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`,
+The Lua tests (`bike/`: `fetch`, `model`, `others`, `park`, `ride`, `stand`; `commands/`: `session`; `core/`:
+`actors_of`, `class_at`, `keybind`, `link`, `mask`, `pak_gate`, `settings_file`, `ue4ss_settings`, `unreal`; `cut/`:
+`chainspin`, `devmenu`, `emote`, `enemy`, `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`,
 `mailbox`, `scene`, `tendril`, `wear`; `main/`: `bike`, `boot`, `dlc`, `fight`, `fight_notices`, `guide`, `idle`, `input`, `match`,
 `menu`, `quests`, `sbo`, `scenes`, `session_ui`, `settings`, `story`, `world`; `matrix13/quest/`: `on_time`, `zone_talks`;
 `matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`;
@@ -39,10 +39,40 @@ fails the test. The `main/` tests load
   reason and nothing written, the mount's order and the dismount backward, the lean, the riding pose played again or
   ending the ride, the 250 ms checks (EVE down read from the status line's `bike_life=` with no session, or from the
   session's life state without that word), `coop-bike.txt` and its restore, `coop bike status` and `tune`, the Doro
-  look refused while she rides, `parked` (the part the capture leaves out) before the part, on and off the bike, after
-  a ride ended on a fault, after a reload and at `bike=off`, the part's `SBO_Bike` tag (a tag that does not hold makes
-  no part), the earlier load's part found at a reload's first tick with the preload at `fault` and removed by the
-  first pass at `bike=off`, another mod's component on the bike's mesh never hidden, used or removed;
+  look refused while she rides, `idle_part` (the part the capture leaves out) before the part, on and off the bike,
+  after a ride ended on a fault, after a reload and at `bike=off`, the part's `SBO_Bike` tag (a tag that does not hold
+  makes no part), the earlier load's part found at a reload's first tick with the preload at `fault` and removed by the
+  first pass at `bike=off`, another mod's component on the bike's mesh never hidden, used or removed. With a fake
+  `bike/stand.lua` it covers the parked bike: made after the part, parked where a dismount by the key leaves her, at the
+  last ground pose after a forced one (none kept on a `Movable` base) or where it stood before the mount, hidden while
+  she rides or a cutscene holds her, removed for a new EVE; a mount refused far from it (a bike 300 cm straight below
+  her is `3 m away, ahead of you`), on another map or before it is back, else made onto it by a teleport, or where she
+  stands when the teleport is refused; the prompt once each time she comes within reach; the record per account and
+  save (a Load Game during a ride writes the old save's record, a park made before the first key is written at that
+  key, an unreadable file, nothing read or written in an SBO lobby); the stand's path swept after a reload, a reload
+  while she rode parking at her feet, `coop off` and `bike=off` removing it with its place kept; its bike line at each
+  change, sent again after a failed write; the paid fetch at a Xion camp (offered after a far or another-map refusal,
+  paid by a press within 5 s, one start for every press during the payment, too little money and a failure said, never
+  within reach, in an SBO lobby or away from a camp);
+- `bike/park_test` checks `bike/park.lua` with `lua5.4` alone: the reach (200 cm across, 100 cm up or down, from any
+  side), the whole metres and the side from the camera's yaw (never `0 m`), the seat a mount lands her on, the spot a
+  dismount parks at, the clearance from her capsule to the bike's and the open-then-solid rule, a map's name, the
+  record's file from the status lines with its line read back (a line of another version, a bad map, a position past
+  10,000,000 cm, NaN or an angle past 360 degrees read as unreadable) and the bike line read back (none, or one the
+  native part would refuse, read as no place);
+- `bike/stand_test` covers `bike/stand.lua` with fake UE4SS objects: the parked bike made hidden and closed,
+  `WorldDynamic`, blocking every channel but the camera, no overlap events, never stepped on, a cull distance only when
+  given; placed by a teleport; shown and hidden with its collision; open while EVE stands inside it and solid once she
+  is 20 cm clear, with one log line; a sweep that takes only an actor whose root shows the bike;
+- `bike/others_test` covers `bike/others.lua` over a fake stand and EVE: other players' parked bikes as copies on our
+  map only once our EVE stood 2 s, one made a pass, moved in place, removed with their reason (none, another map, a
+  member gone), never ours, none with `bike=off` or the mesh not ready, hidden in a cutscene, solid against our EVE once
+  she is clear, their paths kept for the next Lua load's sweep, all removed at `coop off`;
+- `bike/fetch_test` covers `bike/fetch.lua` over a fake EVE, player controller and native part: the price and its
+  timings, the count asked first, one payment at a time, too little money refused with the count and nothing removed,
+  an answer to an earlier ask never counted, the remove's five arguments (`1`, her GUID, `BetaCrystal`, `500`, `-1`),
+  paid once the count fell by 500, paused time not counted toward the 10 s, a failure when it does not fall or when no
+  answer comes;
 - `partner/capture_test` also covers SBO's bike left out of the parts while EVE does not ride (`leave_out`, asked once
   a look): an outfit of 16 parts keeps them all; while she rides the bike is part 1 and the last follower goes; getting
   on or off starts a new generation; another component on the bike's mesh stays a part;
@@ -54,7 +84,8 @@ fails the test. The `main/` tests load
   line, `-` read as none) and a joiner's `wait=` line, logged once a wait. It covers `who_can_join` (`public` by
   default, the older `code` and `private` read as `invitation`) and `friends_ask`, the `where` and `rules` requests
   asked only on a change and never with a word the native part refuses. The rules word is built from the settings and
-  read back in that shape only;
+  read back in that shape only. The parked bike's line goes to `coop-parked.txt`, the newest replacing one the native
+  part has not taken. Each member's `bike_of=` line reads into `bikes()` by her SteamID and stays out of the log;
 - `commands/session_test` covers `coop host` with each of the four words (`ask` added under `public` and `invitation`
   with `friends_ask=on`), `coop host` alone (the Create a session screen when it opens, else `who_can_join`),
   `coop list` (a search by tab; alone, the last list numbered or a Public search) and `coop join <row>`;
@@ -64,7 +95,9 @@ fails the test. The `main/` tests load
   Invitation only;
 - `session/travel_test` covers the host's row in the session list: the rules word at each change, the map and nearest
   camp at once on each map and once a minute at most, from the follow's spawn point read (read again a minute later
-  when it found no camp), nothing in a load, as a guest or in a match lobby. A refusal is logged once;
+  when it found no camp), nothing in a load, as a guest or in a match lobby. A refusal is logged once. For the bike's
+  paid fetch, `camp_near` finds an activated Xion camp whose spawn point stands within 10 m on Xion's map, walking the
+  spawn points once a map;
 - `core/mask_test` checks the masking of `UE4SS.log` on the cases `link_protocol_test` checks for the native part's;
 - `core/pak_gate_test` finds the hall lobby pak `zSBO_Lobby` in `~mods`, else `LogicMods`, over fake files, checks its
   version (the `.utoc` size and the `.ucas` size from the `.utoc`'s compression blocks, joined by `_`) and that each
@@ -86,7 +119,11 @@ fails the test. The `main/` tests load
   `coop bike` and its words, F3 and the pad's D-pad Right hold with a refusal on screen, the hold ignored with its
   reason logged at the title, with one of our screens open or with the game paused, the restore, the frame and the
   250 ms pass with an end said on screen, the Options rows, `coop off`; `riding()` as `coop emote`, the race, the hall
-  seats, `coop fly on` and `coop glide on` read it; the ride's `parked` as the capture's `leave_out`;
+  seats, `coop fly on` and `coop glide on` read it; the ride's `idle_part` as the capture's `leave_out`; what the parked
+  bike gets (the menu's words, a notice, the travel worlds, its record through the link's files, `coop-bike-stand.txt`,
+  its bike line through `link.bike`, the paid fetch with `coop gift`'s FName and pause rules, the follow's
+  `camp_near`); the other players' parked bikes built, restored at the first tick, run after the ride's pass and
+  cleared at `coop off`;
 - `main/world_test` covers `coop world` (its words, on and off whatever `shared_world` says, status), the start once a
   load with `shared_world=on`, the end at a reload with `shared_world=off`, and the shared world's two notices;
 - `main/scenes_test` covers `coop scenes` (its words, on and off whatever `shared_story` says, status, an on or off
@@ -171,7 +208,9 @@ fails the test. The `main/` tests load
   words within theirs. The hall seats' Sit and Stand up hint stays within the booth hint's width. It
   also reads `link/core.h` to check that each join Steam refused has the same English line there and in
   `T.en.join_refused`, then that `T.join_refused` turns each one into every language's words. The DLC notice (`T.dlcs`)
-  stays within 200 bytes in every language with 100-byte DLC names;
+  stays within 200 bytes in every language with 100-byte DLC names. So do the bike's refusals with the paid fetch's
+  offer after them, with each side word and a six-digit distance or another map's 32-byte name and the longest key
+  name;
 - `session/arrival_test` covers the hold at a lobby arrival: nothing without a lobby warp or before its new
   controller; SB's black up and the kit veiled at the next pass; held while anything is missing, then lifted once with
   one line; the 8 s cap, which lifts whatever is missing and names it, also when the missing items cannot be read; a
@@ -264,7 +303,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   `unblock` and `unblock all`, the `host` words (`public`, `friends`, `invitation` with the older `code` and
   `private`, `closed`, then `ask`), `list public|friends|stop`, `where`, `rules` and the row cleaner,
   the match lines (start, count, end) with their bounds, the dlc and dlcs lines with their bounds and the DLC
-  comparison by app id, and protocol 22 refusing a protocol-21 lobby and line;
+  comparison by app id, the bike line (`none`, or `park` with the map rule, three places within 10,000,000 and three
+  angles within 36,000 as signed whole numbers) and protocol 22 refusing a protocol-21 lobby and line;
 - `link_core_test`: the link against the shared fake Steam, and two links through it with the handshake both ways,
   channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, an
   Invitation lobby (its code, the invite dialog, the older words `code` and `private`) joined with its code and the
@@ -278,7 +318,11 @@ The C++ tests cover the platform-free headers in `native/src`.
   removing a member of the lobby we host; `unblock` and `unblock all` greeting her again at once; a guest's list never
   applied. The installed DLCs: read from the fake Steam at ready (installed ones only, the first 64, the app id for a
   name Steam leaves empty), sent after the paks line and again after her hello, hers ignored before the handshake and
-  kept to 64, the status's `dlcs=`, `dlc_missing=` and `dlc_extra=` lines and one log line for each change;
+  kept to 64, the status's `dlcs=`, `dlc_missing=` and `dlc_extra=` lines and one log line for each change. The bike
+  line: nothing before Lua's first payload, a payload `bike_ok()` refuses not kept, ours sent once to each member past
+  the handshake and once at each change, a send Steam refuses sent at the next pass, ours sent again after her hello
+  and her return from lost, hers as her `bike_of=` line after the `member=` lines (the latest only), gone when she
+  leaves the lobby;
 - `link_pose_cap_test`: the adaptive pose rate (`PoseCap` in `link/core.h`), one reading a second: a calm link and
   a lone bad reading never step; two readings in a row over the line (queue time or pending bytes) step down 60, 30,
   20, to the first cap under the player's `send_rate`, never below 20; 10 calm readings step up one cap; a step up
@@ -317,7 +361,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   floods), the owner's round lines on a guest (a count line logged only when it moves her countdown, one notice for
   a start without her, past 8 a second dropped and logged once), the per-player chat mute kept for the run, per-peer
   pose caps (30 a second for a member of a match lobby, one peer's cap stepping down alone, one second of poses
-  reaching peers at 20, 30 and 60 a second, tables always sent) and the 60 s line of passes and full receive batches;
+  reaching peers at 20, 30 and 60 a second, tables always sent), the 60 s line of passes and full receive batches. Each
+  of eight members' bike lines reaches the seven others, one state per sender;
 - `link_list_test`: the session list through the same fake Steam, which follows Steamworks' read rules (no data for a
   lobby before a search returned it or `RequestLobbyData` was answered, `GetLobbyOwner` for members only, a result
   count, friends-only lobbies never in a search). A Public host's rows with `where` and `rules`, no relay only forced
