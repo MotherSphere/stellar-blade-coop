@@ -256,6 +256,31 @@ screen.nav('select')
 assert(acts[#acts].host=='public' and not screen.is_open())
 input.readable=true
 
+-- The mouse moved onto the 10th row (Enemy HP) and resting there: the list keeps still under it, one move sound; a
+-- click 0.7 s later changes Enemy HP and the list still keeps still. Keys that scroll the list under the resting mouse
+-- keep the cursor.
+clock=125
+screen.open()
+sounds={}
+zones[9].hover=true
+screen.tick(300)
+zones[9].hover,zones[10].hover=false,true
+for k=1,7 do screen.tick(300+0.1*k) end
+local window=list()
+local function ends(text,tail) return text:sub(-#tail)==tail end
+assert(window:find('#SESSION |',1,true)==1 and ends(window,'| >Enemy HP (host\'s)=135 %'),window)
+assert(#sounds==1 and sounds[1]=='move',#sounds)
+n=#acts
+screen.nav('click')
+assert(acts[n+1].set=='enemy_hp_scale' and ends(list(),'| >Enemy HP (host\'s)=140 %'),list())
+screen.nav('left')
+assert(ends(list(),'| >Enemy HP (host\'s)=135 %'),list())
+screen.nav('down') -- Boss HP; the list scrolls by two: Enemies attack under the mouse.
+screen.tick(302)
+assert(list():find('| >Boss HP (host\'s)=200 % | Enemies attack (host\'s)=',1,true),list())
+zones[10].hover=false
+screen.close()
+
 -- It closes by itself: no world, the game paused, in a lobby, the kit off.
 for _,case in ipairs({'world','paused','lobby','off'}) do
     clock=clock+10

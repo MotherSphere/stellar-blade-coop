@@ -40,7 +40,8 @@ function Create.new(o)
     local open,world,cur,top=false,false,0,0 -- world: the last slow's shown (a world, our HUD may show).
     local view,items=nil,{} -- As last drawn: what nav acts on.
     local list,pane,hints_p={},{},{} -- Parts by slot.
-    local back_at,hover,hover_at=nil,false,0
+    local back_at,hover,hover_at=nil,false,0 -- hover: the slot under the mouse at the last look.
+    local pointed=false -- The cursor came from the mouse: the list keeps still under it until a key moves the cursor.
     local P=Parts.new(kit,log,'create')
     local call,sync,look=P.call,P.sync,P.look
     for _,kind in ipairs(KINDS) do kit.warm_part(Parts.ASSET[kind]) end
@@ -81,7 +82,8 @@ function Create.new(o)
         read()
         if not items[cur] or items[cur].head then cur=Model.move(items,cur,1) end
         top=math.max(0,math.min(top,#items-WINDOW))
-        if cur<=top+1 then top=math.max(0,cur-2)
+        if pointed then top=math.max(0,math.min(math.max(top,cur-WINDOW),cur-1)) -- Moved only to keep cur shown.
+        elseif cur<=top+1 then top=math.max(0,cur-2)
         elseif cur>=top+WINDOW then top=math.min(#items-WINDOW,cur-WINDOW+1) end
         local specs={}
         for i=1,WINDOW do
@@ -129,13 +131,15 @@ function Create.new(o)
             h.set(shown[i] and not kit.alive(hints_p[i]) and shown[i][4]..'  '..shown[i][1] or '')
         end
     end
-    -- The item under the mouse (headers never), or nil.
+    -- The item under the mouse (headers never) or nil, then its slot.
     local function under()
         local v=kit.view('create')
         if not v then return nil end
         for i,zone in ipairs(v.zones) do
-            local item=items[top+i]
-            if item and not item.head and zone.hovered() then return top+i end
+            if zone.hovered() then
+                local item=items[top+i]
+                return item and not item.head and top+i or nil,i
+            end
         end
     end
     function self.is_open() return open end
@@ -151,7 +155,7 @@ function Create.new(o)
         if not open then
             kit.input(true,'create',true)
             kit.sound('open')
-            open,back_at,hover,cur,top=true,nil,false,0,0
+            open,back_at,hover,pointed,cur,top=true,nil,false,false,0,0
             log('create: open')
         end
         kit.show('create',true)
@@ -176,10 +180,11 @@ function Create.new(o)
         if what=='click' then
             local i=under()
             if not i then return end
-            cur,what=i,'select'
+            cur,what,pointed=i,'select',true
         end
         local item=items[cur]
         if what=='up' or what=='down' then
+            pointed=false
             cur=Model.move(items,cur,what=='up' and -1 or 1)
             kit.sound('move')
         elseif what=='left' or what=='right' or what=='select' then
@@ -215,8 +220,9 @@ function Create.new(o)
         if not (open or back_at) then kit.input(false,'create') end
         draw()
     end
-    -- Each frame: the input given back once due; every 100 ms while open, the row the mouse moved onto takes the cursor
-    -- (a resting mouse never does).
+    -- Each frame: the input given back once due; every 100 ms while open, the row the mouse moved onto (another slot
+    -- than at the last look) takes the cursor, the list kept still under it. A resting mouse never does, even while
+    -- the keys scroll the list under it.
     function self.tick(now)
         if back_at and now>=back_at then
             back_at=nil
@@ -224,11 +230,11 @@ function Create.new(o)
         end
         if open and now>=hover_at then
             hover_at=now+HOVER
-            local i=under()
-            local moved=hover~=false and i~=hover
-            hover=i
+            local i,slot=under()
+            local moved=hover~=false and slot~=hover
+            hover=slot
             if moved and i then
-                cur=i
+                cur,pointed=i,true
                 kit.sound('move')
                 draw()
             end
