@@ -474,12 +474,11 @@ private:
   // The host's side, each pass once armed: the Host of a guest who left goes (nothing to tell her). A guest who came
   // gets one on the record with our on line.
   void meet() {
-    const auto gone = std::remove_if(mates_.begin(), mates_.end(), [&](const Mate &m) {
-      return std::find(want_.begin(), want_.end(), m.id) == want_.end();
-    });
-    for (auto m = gone; m != mates_.end(); ++m)
-      log("quests: guest " + std::to_string(m->id) + " left the side");
-    mates_.erase(gone, mates_.end());
+    const auto left = [&](const Mate &m) { return std::find(want_.begin(), want_.end(), m.id) == want_.end(); };
+    for (const Mate &m : mates_) // Before remove_if, whose tail may hold the moved-from Mates of those who stay.
+      if (left(m))
+        log("quests: guest " + std::to_string(m.id) + " left the side");
+    mates_.erase(std::remove_if(mates_.begin(), mates_.end(), left), mates_.end());
     for (uint64_t id : want_)
       if (id && !mate(id)) {
         mates_.emplace_back(id, record_, side_.deny);

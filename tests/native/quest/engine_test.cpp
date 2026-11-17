@@ -1481,14 +1481,15 @@ struct Desk {
   }
 };
 // One PC as the glue runs it: the game thread's pass, then the worker's, every 250 ms. partner: her SteamID while she
-// is linked, else 0; others: on the host, the guests linked after her.
+// is linked, else 0; others: on the host, the guests linked after her; unpaired: the link names no pair (partner()
+// 0), as on the host for a pass at least after the pair left while other guests stay.
 struct Desktop {
   Pc pc;
   Engine e;
   Worker w{e};
   Desk io;
   std::string slot = kSlot;
-  bool hosting = false;
+  bool hosting = false, unpaired = false;
   uint64_t partner = 0;
   std::vector<uint64_t> others;
   std::vector<std::string> in;   // Channel 2's lines from her since the last pass.
@@ -1504,7 +1505,7 @@ struct Desktop {
       lines.push_back({partner, std::move(l)});
     lines.insert(lines.end(), others_in.begin(), others_in.end());
     in.clear(), others_in.clear();
-    w.pass(now, hosting, partners, partner, slot, lines, io);
+    w.pass(now, hosting, partners, unpaired ? 0 : partner, slot, lines, io);
     std::vector<std::string> fight;
     for (FightLine &l : lines)
       fight.push_back(std::move(l.line));
@@ -1768,6 +1769,78 @@ void workers() {
 }
 } // namespace
 
+// The worker on a host with two guests, as glue/steam.cpp drives it (partners: every guest past the handshake; pair:
+// the link's partner()): each guest gets the host's on and a snapshot, to her alone; each guest's SBQ lines reach the
+// engine under her own SteamID, so the second guest's step is not taken (not the pair) and the pair's is. On a guest,
+// an SBQ line from a member other than the host never reaches her engine. The pair gone while the second guest stays
+// (pair 0, as the link says for a pass at least): her step is not taken.
+void worker_guests() {
+  constexpr uint64_t kOtherId = 76561198000000003ull;
+  auto host = std::make_unique<Desktop>(), first = std::make_unique<Desktop>(), second = std::make_unique<Desktop>();
+  Desktop &h = *host, &a = *first, &b = *second;
+  h.hosting = true;
+  h.partner = kGuestId, h.others = {kOtherId};
+  a.partner = b.partner = kHostId;
+  const Request on = parse_request("quests on");
+  for (Desktop *d : {&h, &a, &b})
+    d->w.ask(on, d->io), d->pc.zone("Zone_WLA_30");
+  const size_t s1 = at("Quest_Sub_001");
+  uint64_t now = 1000;
+  std::vector<std::string> to_a, to_b; // Every line the host sent to each guest.
+  // Each PC passes; each hears what the others sent it at their passes, the host each guest's with her SteamID.
+  auto step = [&](int n = 1) {
+    while (n--) {
+      for (size_t i = 0; i < h.io.sent.size(); ++i) {
+        assert(h.io.sent_to[i] == kGuestId || h.io.sent_to[i] == kOtherId);
+        Desktop &d = h.io.sent_to[i] == kGuestId ? a : b;
+        (&d == &a ? to_a : to_b).push_back(h.io.sent[i]);
+        if (d.partner)
+          d.in.push_back(h.io.sent[i]);
+      }
+      for (auto [d, id] : {std::pair<Desktop *, uint64_t>{&a, kGuestId}, {&b, kOtherId}})
+        for (const std::string &l : d->io.sent) {
+          assert(d->io.sent_to.empty() || d->io.sent_to.front() == kHostId);
+          if (h.partner == id)
+            h.in.push_back(l);
+          else if (std::find(h.others.begin(), h.others.end(), id) != h.others.end())
+            h.others_in.push_back({id, l});
+        }
+      for (Desktop *d : {&h, &a, &b})
+        d->io.sent.clear(), d->io.sent_to.clear();
+      h.pass(now), a.pass(now), b.pass(now);
+      now += 250;
+    }
+  };
+  step(8);
+  assert(h.state() == "quests=on mode=on role=host partner=on with=" + std::to_string(kGuestId));
+  assert(a.state() == "quests=on mode=on role=guest partner=on" && b.state() == "quests=on mode=on role=guest partner=on");
+  assert(count(to_a, q("on 0")) == 1 && count(to_b, q("on 0")) == 1 && has(to_a, q("snap ")) && has(to_b, q("snap ")));
+  // On a guest: another member's off is not the host's.
+  a.others_in.push_back({kOtherId, q("off setting")});
+  step(2);
+  assert(a.state() == "quests=on mode=on role=guest partner=on" && !has(a.io.traced, "setting"));
+  h.pc.acquire(s1);
+  step(6);
+  assert(a.pc.w.tuple(s1) == h.pc.w.tuple(s1) && b.pc.w.tuple(s1) == h.pc.w.tuple(s1));
+  const std::string dropped =
+      "quests: a step line from guest " + std::to_string(kOtherId) + " not taken: her game is not the pair";
+  b.pc.play(s1);
+  step(6);
+  assert(h.pc.completes == 0 && count(h.io.traced, dropped) == 1);
+  a.pc.play(s1);
+  step(6);
+  assert(h.pc.completes == 1 && count(h.io.traced, dropped) == 1);
+  // The pair leaves (her Host goes, logged under her own SteamID); the second guest stays with no pair yet.
+  a.partner = 0;
+  h.partner = kOtherId, h.others.clear(), h.unpaired = true;
+  step(4);
+  assert(has(h.io.traced, "quests: guest " + std::to_string(kGuestId) + " left the side") &&
+         !has(h.io.traced, "quests: guest " + std::to_string(kOtherId) + " left the side"));
+  b.pc.play(s1);
+  step(6);
+  assert(h.pc.completes == 1 && count(h.io.traced, dropped) == 2);
+}
+
 int main() {
   walk();
   implausible();
@@ -1792,5 +1865,6 @@ int main() {
   lossy();
   record_replay();
   workers();
+  worker_guests();
   std::printf("quest_engine_test: ok\n");
 }
