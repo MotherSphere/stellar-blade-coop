@@ -76,7 +76,7 @@ int main() {
   // Three players: the pair is the host and the first guest (ghost slot 0 on both sides), the host holds slot 0 on
   // every guest. The host's let line names both guests, the pair first. The status says who hosts and who pairs.
   // Each member's vitals reach the others; mate= is the slot-0 member's. A peer that comes in once the lobby holds 3
-  // starts at 30 poses a second; a guest of a lobby of 2 starts at 60.
+  // starts at 30 poses a second; the pair's links, made at 60 in a lobby of 2, start again at 30 as the third comes in.
   reset();
   {
     Mesh m(3);
@@ -93,8 +93,10 @@ int main() {
     assert(m.status(0).find("\nhost=1001 pair=2002 max=4\n") != npos &&
            m.status(1).find("\nhost=1001 pair=1001 max=4\n") != npos &&
            m.status(2).find("\nhost=1001 pair=0 max=4\n") != npos && m.status(2).find("\nfriend=1 0 P1\n") != npos);
-    assert(peer_of(m[0], kFriend)->cap.cap() == 60 && peer_of(m[0], kPlayer[2])->cap.cap() == 30);
-    assert(peer_of(m[1], kMe)->cap.cap() == 60 && peer_of(m[1], kPlayer[2])->cap.cap() == 30);
+    assert(peer_of(m[0], kFriend)->cap.cap() == 30 && peer_of(m[0], kPlayer[2])->cap.cap() == 30);
+    assert(peer_of(m[1], kMe)->cap.cap() == 30 && peer_of(m[1], kPlayer[2])->cap.cap() == 30);
+    assert(saw("P1: pose rate cap 30 a second for P2: 3 players in the lobby") &&
+           saw("P2: pose rate cap 30 a second for P1: 3 players in the lobby"));
     assert(peer_of(m[2], kMe)->cap.cap() == 30 && peer_of(m[2], kFriend)->cap.cap() == 30);
     for (int i = 0; i < 3; ++i)
       m[i].vitals(Vitals{uint32_t(100 + i), 500, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1});
@@ -304,9 +306,9 @@ int main() {
     assert(saw("P1: camps line not sent: no guest asked for it") && sent_from(kMe, kFriend, v("camps 4")) == 0);
   }
 
-  // Past 2 players: a gift is refused at once (nolink, with a notice) and nothing goes; Doro races and Night
-  // Operation send nothing. A guest's photo mode no longer pauses the host's game, with a notice; the host's cutscene
-  // still pauses every guest who asked for it.
+  // Past 2 players: a gift is refused at once (nolink, with a notice) and nothing goes; an answer to a gift sent before
+  // still goes. Doro races and Night Operation send nothing. A guest's photo mode no longer pauses the host's game,
+  // with a notice on both screens; the host's cutscene still pauses every guest who asked for it.
   reset();
   {
     Mesh m(3);
@@ -315,6 +317,9 @@ int main() {
     const auto chat = m[0].take_chat();
     assert(std::find(chat.begin(), chat.end(), "gift n 12 nolink") != chat.end());
     assert(noticed(m.status(0), "Gifts need a session of 2 players.") && sent_from(kMe, kFriend, v("gift")) == 0);
+    m.tick(1, "gift a 12");
+    m.round();
+    assert(sent_from(kFriend, kMe, v("gift a 12")) == 1 && saw("P2: gift line sent: a 12"));
     assert(!m[0].race("cp 1 1 1 1") && !m[1].race("cp 1 1 1 1") && !m[0].night("h 1 2") && !m[1].night("g 1 2"));
     m[0].photo('c', Sync::both, 0);
     for (int i = 1; i < 3; ++i)
@@ -328,6 +333,8 @@ int main() {
     m.round();
     assert(!m[0].photo_freeze() && !m[1].photo_freeze() && !m[2].photo_freeze());
     assert(noticed(m.status(0), "P2 is taking photos (no pause with more than 2 players)."));
+    assert(noticed(m.status(1), "P1's game does not pause for photos with more than 2 players.") &&
+           !saw("P2: photo mode: P1's game is paused"));
   }
 
   // The pair rule (glue/steam.cpp sends the shared fight's, world's and story's channel-2 lines to partner() only and

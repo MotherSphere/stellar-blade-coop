@@ -901,13 +901,15 @@ public:
   // coop gift's line (cut/mailbox.lua, through a gift request): reliable to the friend past the handshake, or back as
   // hers ("gift <payload>" for Lua) in the loopback with no friend, at most kGiftPerSecond a second. Each one goes in
   // the log, as each of hers does: a gift moves items between two saves. A gift that cannot go (no session, a match
-  // lobby, more than 2 players, past the rate, Steam refused it) comes back to Lua at once as her refusal, "gift n <id>
-  // nolink", so the sender gets the items back without waiting for her answer (only for a first send: cut/mailbox.lua
-  // ignores it for a send again). A gift line names no player: with 3 or more, every member would take the items.
+  // lobby, a send with more than 2 players, past the rate, Steam refused it) comes back to Lua at once as her refusal,
+  // "gift n <id> nolink", so the sender gets the items back without waiting for her answer (only for a first send:
+  // cut/mailbox.lua ignores it for a send again). A gift line names no player: with 3 or more, every member would take
+  // the items of a send. An answer (a or n) still goes to every member: a gift sent before a third player came in gets
+  // it, and only its sender's mailbox waits for that id.
   void gift(const std::string &payload) {
     const std::string line = gift_line(payload);
-    const bool crowd = members().size() > 1;
-    if (crowd && !match() && payload.rfind("s ", 0) == 0)
+    const bool crowd = members().size() > 1 && payload.rfind("s ", 0) == 0;
+    if (crowd && !match())
       notice("Gifts need a session of 2 players.");
     bool ok = !match() && chatting() && !crowd && !line.empty() &&
               !over_rate(gift_window_, 1, kGiftPerSecond, kGiftPerSecond * kMaxMessage);
@@ -2398,6 +2400,17 @@ private:
       if (players != players_)
         put(kPlayersKey, players_ = players);
     }
+    // A third player in an online session's lobby: each link still at 60 poses a second starts again at 30, as a new
+    // one does (each upload now carries a stream per member). PoseCap steps it up again once Steam's queue stays calm.
+    const bool crowd = !match() && n > 2;
+    if (crowd && !crowd_)
+      for (auto &p : peers_)
+        if (p.cap.level == 0) {
+          p.cap.level = 1, p.cap.calm = 0;
+          event("pose rate cap " + std::to_string(p.cap.cap()) + " a second for " + p.name + ": " +
+                std::to_string(n) + " players in the lobby");
+        }
+    crowd_ = crowd;
     // On the host, the pair (slot 0) left at an earlier pass: the guest who came in first of those linked takes slot 0
     // and pairs with the host. Not in the pass that freed it, so the pose path drops the old pair's table there first
     // (slot0_seen_: glue/tick.h's peer() got no bit 0 since).
@@ -3266,12 +3279,15 @@ private:
                                                      : name + " is taking photos.");
     }
     if (sync_ != Sync::off && photo_ == '1' && mine_ != '1' && p && !p->lost) {
+      // The host pauses for nobody's photos past 2 players: his let line names more than us.
+      const bool crowd = !host_ && let_.size() > 1;
       // An event only: our notices wait for the end of our photo mode, when her pause ends too.
-      if (p->photo_both && sync_ == Sync::both)
+      if (p->photo_both && sync_ == Sync::both && !crowd)
         event("photo mode: " + p->name + "'s game is paused");
-      else if (!p->photo_both && !p->photo_off_said) {
+      else if ((!p->photo_both || crowd) && !p->photo_off_said) {
         p->photo_off_said = true; // Once a session.
-        notice(p->name + "'s game does not pause for photos.");
+        notice(crowd ? p->name + "'s game does not pause for photos with more than 2 players."
+                     : p->name + "'s game does not pause for photos.");
       }
     }
     if (want && !freeze_) {
@@ -3419,6 +3435,7 @@ private:
   // An online session: the players it holds at most (max_players: ours as we host it, from the host's let line on a
   // guest, 0 before it came); on a guest, the members the host's let line names with its pair (0: none).
   int max_players_ = 0;
+  bool crowd_ = false;      // More than 2 players in an online session's lobby at the last pass (poll_members()).
   bool slot0_seen_ = false; // slots()'s bit 0 at the end of the last tick(), as glue/tick.h's peer() got it.
   std::set<uint64_t> let_;
   uint64_t pair_ = 0;
