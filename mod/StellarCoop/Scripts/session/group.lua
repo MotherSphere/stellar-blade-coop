@@ -8,7 +8,7 @@
 -- warp=idle (no respawn or warp in flight, read by the native part), a member past the handshake with her vitals alive
 -- (life 1 or 6, HP above 0) and her ghost shown on our map within 2 m across and 1 m up or down of our EVE (with more
 -- than one, the nearest revives), the fight= line's boss=0 (the shared fight runs, which the native part allows on a
--- co-op save only, and no boss of ours is in battle), the
+-- co-op save only; no boss of ours is in battle), the
 -- game standalone (KismetSystemLibrary IsStandalone, as nightop/probe.lua reads it: in net mode 3 the call would go to
 -- a server instead), no nightop=rule on the engine line (with a rule row the respawn spends a life count and may not
 -- respawn at all), and revive=on. Then pc:ServerRequest_ActorRespawn(me, false), SB's own
@@ -120,8 +120,8 @@ function G.new(o)
     end
     -- Why the revive waits, or nil when every condition holds now; 'friend far' when only the distance fails. Then our
     -- EVE's GUID, the controller, the metres to the nearest member within 2 m and her name (with 'friend far', the
-    -- name of the first member alive on our map). probe: coop revive test's (life 3 to 5, and nothing of the friend's
-    -- or of the shared fight's).
+    -- name of the first member alive on our map). probe: coop revive test's (life 3 to 5; nothing of the friend's or
+    -- of the shared fight's).
     local function blocker(probe)
         if not probe and not settings.revive then return 'revive=off' end
         local life=link.life()

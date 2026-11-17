@@ -500,7 +500,7 @@ struct Peer {
   Window pose_window, fight_window; // Channels 1 and 2, received.
   // Our let line as she last got it (on an online session's host), sent again after each hello of hers.
   std::string let_sent;
-  // The follow on the host: her last camps? (an id), when it came, and whether it still waits for our answer.
+  // The follow on the host: her last camps? (an id), when it came, whether it still waits for our answer.
   bool camps_asked = false, camps_waiting = false;
   uint64_t camps_id = 0, camps_at = 0;
   // The synced photo mode: her state and whether her photo mode may pause our game, from her last photo line ('0' and
@@ -2341,7 +2341,7 @@ private:
   // lobby to one of them. Any other loss of her lobby may be ours (a network cut): the guest leaves and tries to get
   // back in for 60 s. A guest greets only the host and the members the host's let line names (held()); one the host
   // no longer names loses her link with us. In a match lobby, Steam's owner is the host: an owner change ends the
-  // round (owner_changed()), and a guest no longer listed leaves with no rejoin.
+  // round (owner_changed()); a guest no longer listed leaves with no rejoin.
   void poll_members() {
     if (!read_mode())
       return;
@@ -2457,7 +2457,7 @@ private:
           continue;
         peer.name = name_of(id);
         peer.last_heard = now_;
-        // 30 a second to start (my call 20, design 7.4) in a match lobby, and in an online session of more than 2
+        // 30 a second to start (my call 20, design 7.4) in a match lobby or in an online session of more than 2
         // players: each upload carries a stream per member.
         if (match() || n > 2)
           peer.cap.level = 1;
@@ -2676,7 +2676,7 @@ private:
   }
 
   // linked() and partner() change only before this point of a pass (requests, calls, members, channel 0): a session
-  // that starts or ends empties channel 2's queues both ways, and forgets her night line and the follow's camps lines;
+  // that starts or ends empties channel 2's queues both ways, then forgets her night line and the follow's camps lines;
   // a new pair (or none) empties them of all but the shared quests' lines.
   void fight_session() {
     const bool now_linked = linked();
@@ -3097,7 +3097,7 @@ private:
               ", seed " + std::to_string(round_.seed) + ", " + std::to_string(round_.ids.size()) + " players");
       }
       break;
-    // The host's let line (checked above): the members a guest may greet, and whether she is the pair. A member it no
+    // The host's let line (checked above): the members a guest may greet, then whether she is the pair. A member it no
     // longer names loses her link with us at the next pass (poll_members()).
     case Kind::let: {
       std::set<uint64_t> let(message.ids.begin(), message.ids.end());
@@ -3204,8 +3204,8 @@ private:
   }
 
   // An online session's host: our let line to each guest past the handshake when it changed, or after her hello; a
-  // refused send goes again at the next pass. It names the guests past our handshake in the order they came, and the
-  // pair (partner()).
+  // refused send goes again at the next pass. It names the pair (partner()), then the guests past our handshake in the
+  // order they came.
   void send_let() {
     if (!host_ || match())
       return;
@@ -3392,7 +3392,7 @@ private:
   bool cancel_ = false, report_ = false;                  // coop leave while a call was pending; coop report.
   uint64_t lobby_ = 0, host_id_ = 0;
   bool host_ = false;
-  // An online session: the players it holds at most as we host it (max_players), and on a guest the members the host's
+  // An online session: the players it holds at most as we host it (max_players); on a guest, the members the host's
   // let line names with its pair (0: none).
   int max_players_ = kMaxMembers;
   std::set<uint64_t> let_;

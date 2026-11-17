@@ -2264,7 +2264,7 @@ int main() {
     assert(until(off + 30100, "SBF23 own 1 101 G 2\n") && t == off + 30000);
     g.inbox.push_back(msg("SBF23 own-no 1 101 2 aggro"));
     frame(g, *e, t += 16);
-    g.inbox.push_back(msg("SBF23 world 1")); // Her world: the pause ends, and the epochs start over.
+    g.inbox.push_back(msg("SBF23 world 1")); // Her world: the pause ends; the epochs start over.
     frame(g, *e, t += 16);
     hers(t + 16);
     assert(until(t + 4100, "SBF23 own 1 101 G 1\n"));

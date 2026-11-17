@@ -29,8 +29,8 @@
 //   starts: its mode, map, 32-bit seed and players, host first), SBC<protocol> count <1-10|stop> (the countdown's
 //   seconds left, or its stop) and SBC<protocol> end (the round ended).
 //   From an online session's host only (link/core.h): SBC<protocol> let <pair> <id>,<id>,... (to each guest past the
-//   handshake: the members the host let in, and the one who plays the shared fight, world and story with the host, or
-//   0) and SBC<protocol> wait <seconds> (to a joiner who waits for the host's answer: the most it may take now).
+//   handshake: the one who plays the shared fight, world and story with the host, or 0, then the members the host let
+//   in) and SBC<protocol> wait <seconds> (to a joiner who waits for the host's answer: the most it may take now).
 // All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
 // (pose/table.h), its pose "SBP<protocol>" and its delta "SBD<protocol>" (pose/codec.h), and beside them the enemy
 // roots of same-place enemies, "SBE<protocol>" (fight/pilot.h). Channel 2 carries the shared enemies' text lines and
@@ -98,7 +98,7 @@ constexpr int kProtocol = 23; // Bump on any wire change. 1 was the first link (
                               // scenes and story trips, followed in the guest's game), which a protocol-21 peer would
                               // count malformed, so she would wait through his scenes as before; 23 adds online
                               // sessions of up to 4 players with the host's let and wait lines on channel 0, which a
-                              // protocol-22 peer would count invalid, and a protocol-22 game would leave a lobby of
+                              // protocol-22 peer would count invalid; a protocol-22 game would also leave a lobby of
                               // 3. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11:
                               // v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14: v0.7.0-beta.1, 17:
                               // a v0.7.5 test build, 18: v0.7.5, 19: v0.8.0 to v0.10.0, 20: v0.11.0; 15, 16, 21 and 22
@@ -436,7 +436,7 @@ inline std::string count_line(uint32_t seconds) {
 }
 inline std::string end_line() { return "SBC" + std::to_string(kProtocol) + " end"; }
 // An online session's host lines (link/core.h), reliable. let: to each guest past the handshake, the members the host
-// let in (past its handshake), in the order they came, and the pair: the one guest who plays the shared fight, the
+// let in (past its handshake), in the order they came, after the pair: the one guest who plays the shared fight, the
 // shared world and story together with the host (0: none now). A guest greets only the host and these members. wait:
 // to a joiner who waits for the host's answer, the seconds the answer may take at most from now: her own minute, or
 // the minutes of those asked before her too. kMaxWait covers kMaxRemote joiners asked in turn.

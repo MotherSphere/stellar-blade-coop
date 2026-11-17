@@ -368,7 +368,7 @@ int main() {
     assert(w.sent.empty());
     guest_step(g, ep, w, 5000 + kHaveAgainMs);
     assert(w.lines() == round); // Again every 5 s while shared.
-    g.heard(msg("SBF23 epoch 1 40 2"), 1); // A new epoch: at once, but 1 s after the last at least.
+    g.heard(msg("SBF23 epoch 1 40 2"), 1); // A new epoch: at once, yet 1 s after the last at least.
     guest_step(g, ep, w, 5000 + kHaveAgainMs + kHaveMs - 1);
     assert(w.sent.empty());
     guest_step(g, ep, w, 5000 + kHaveAgainMs + kHaveMs);

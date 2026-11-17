@@ -581,7 +581,7 @@ run(g,0.25)
 assert(#W.said==2 and W.said[2]==CUT)
 
 -- Three players. Down, with Kaanta (slot 0) on another map and Lucas (slot 1) alive 1 m away: Lucas revives, named in
--- the wait, the call and the revived notices. Lucas far too: the wait names him, as the member alive on our map, and
+-- the wait, the call and the revived notices. Lucas far too: the wait names him, as the member alive on our map;
 -- no call. Lucas down as well: no member alive.
 local THREE={{id='2',slot=0,linked=true,name='Kaanta'},{id='3',slot=1,linked=true,name='Lucas'}}
 g=world(function(w)

@@ -1547,7 +1547,7 @@ int main() {
     assert(g.lines() == "SBF23 hit 4 2 101 92 0 0 1492 0\n");
     gu.receive(msg("SBF23 hp 4 5 1 101:1492:91:200"), g); // Not yet taken.
     step(gu, g, 10, 850);
-    gu.receive(msg("SBF23 hp 4 6 2 102:1600:100:200"), g); // Taken, but these values are another enemy's.
+    gu.receive(msg("SBF23 hp 4 6 2 102:1600:100:200"), g); // Taken; these values are another enemy's.
     step(gu, g, 11, 900);
     assert(g.writes.empty());
     gu.receive(msg("SBF23 hp 4 7 2 101:1400:91:200"), g); // Taken, in its values.

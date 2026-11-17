@@ -282,7 +282,7 @@ int main() {
     assert(saw("left lobby 7000: incompatible player") && g.link.lobby() == 0 && F.left.size() == 1);
     assert(noticed(g.status(), "Version mismatch with Kaanta: " + why + "."));
   }
-  // A reject from the host: we leave, and say why. One from a guest says why and keeps our lobby: her game leaves it.
+  // A reject from the host: we leave with its reason. One from a guest says why and keeps our lobby: she leaves.
   reset();
   {
     World w;

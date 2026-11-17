@@ -74,7 +74,7 @@ void rounds(Mesh &m, uint64_t ms) {
 
 int main() {
   // Three players: the pair is the host and the first guest (ghost slot 0 on both sides), the host holds slot 0 on
-  // every guest, and the host's let line names both guests, the pair first. The status says who hosts and who pairs.
+  // every guest. The host's let line names both guests, the pair first. The status says who hosts and who pairs.
   // Each member's vitals reach the others; mate= is the slot-0 member's. A peer that comes in once the lobby holds 3
   // starts at 30 poses a second; a guest of a lobby of 2 starts at 60.
   reset();
@@ -171,7 +171,7 @@ int main() {
   // The host's questions one at a time: two strangers join at once, pending= lines in the order they came. Only the
   // first one's minute runs: wait 60 for her, 120 for the second. With no answer the first is refused at 60 s and the
   // second's minute starts then, so she is not refused at 60 s. A third joiner waits for the rest of that minute and
-  // her own; an answer starts her minute at once, and her wait line says so.
+  // her own; an answer starts her minute at once, which her wait line says.
   reset();
   {
     Mesh m(5);
@@ -218,7 +218,7 @@ int main() {
   }
 
   // A guest leaving is announced on the host and on the other guest. The pair leaving leaves no pair (slot 0 stays
-  // free): the let line says 0, and the next guest let in takes slot 0 and pairs with the host.
+  // free): the let line says 0. The next guest let in takes slot 0 and pairs with the host.
   reset();
   {
     Mesh m(4);
