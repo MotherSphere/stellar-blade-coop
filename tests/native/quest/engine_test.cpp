@@ -10,12 +10,12 @@
 // between two steps, partner lines in a mode with no partner, her ahead shown once; two PCs through
 // channel 2's text at 120 +/- 30 ms: steps made together applied once with SB's completion and reward once, a step
 // acting in another zone waiting for her there, a kill step waiting for her own kill, a denied quest never moving, her
-// Request handed in at her own board, her step made first taken by the host's game (kept through a hold of his,
-// dropped by his load), a guest away or behind getting nothing of that quest, her own quest shown as ahead on both
-// sides, a re-join snapshot, a host that comes on after her, coop quests force and status, and lost lines, loading
-// screens and reloads on both sides; a recording replayed into another save; and the worker's side as
-// the glue drives it (the gates that start and end a side, channel 2's SBQ lines beside the fight's, the record file,
-// the recording, coop-status.txt's lines).
+// Request handed in at her own board, her step made first taken by the host's game (kept through a hold of his, the
+// same step again made once, dropped by his load), a guest away or behind getting nothing of that quest, her own
+// quest shown as ahead on both sides, a re-join snapshot, a host that comes on after her, coop quests force and
+// status, and lost lines, loading screens and reloads on both sides; a recording replayed into another save; and the
+// worker's side as the glue drives it (the gates that start and end a side, channel 2's SBQ lines beside the fight's,
+// the record file, the recording, coop-status.txt's lines).
 #include "quest/engine.h"
 
 #include <array>
@@ -1038,9 +1038,13 @@ void her_steps() {
   const std::string full = "(1 - 0:t.0:t - . in Zone_WLA_30) refused: " + std::to_string(kMaxSteps) +
                            " of her steps wait already";
   assert(!held.empty() && count(k.host->log, full) == 1 && count(k.host->log, "waits: his cutscene") == kMaxSteps);
+  // The hold ends: one pass judges the 16 waiting. The first is made; the 15 others wait for his next walk, which
+  // finds that step made here already (no second call on his unit).
   k.host->e.host_hold = nullptr;
   k.steps(4);
   assert(k.h(s1) == k.g(s1) && k.h(s1).groups == 2 && h.completes == 2 && g.calls == 1);
+  assert(count(k.host->log, "(1 - 0:t.0:t - . in Zone_WLA_30): made here already") == kMaxSteps - 1);
+  assert(count(k.host->log, "(1 - 0:t.0:t - . in Zone_WLA_30) refused") == 1 && h.calls == 2);
   k.host->e.host_hold = +[]() -> const char * { return "his cutscene"; };
   g.play(s1);
   k.steps(3);

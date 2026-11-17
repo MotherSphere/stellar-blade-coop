@@ -667,6 +667,7 @@ private:
       const size_t waited = steps.size();
       for (Message &m : host_->take_steps())
         steps.push_back(std::move(m));
+      stepped_.reset();
       for (size_t n = 0; n < steps.size(); ++n)
         her_step(g, steps[n], load && !first_, n < waited);
       if (side_.mode == Mode::probe && (first_ || load))
@@ -734,10 +735,11 @@ private:
 
   // The host's side of her step line, after this pass's walk. While a hold of his game stands (host_hold's: out of
   // game, his cutscene, a menu) it waits, kMaxSteps at most, to be judged when the hold ends; past them the full queue
-  // refuses it. A load drops it, as his quests may have gone back. Then accept()'s rules on his quest as the walk read
-  // it, apply()'s re-reads and SB's call on his own unit. SB then runs the step's events with his EVE as caster. His
-  // next pass sends the change to her. A refusal drops the line; the quest stays shared. One log line each. A line that
-  // starts to wait gets one too.
+  // refuses it. A line of a quest this pass made a step of already waits the same way, as the walk's read of that
+  // quest is old: the next walk judges it (the same step again is then made here already). A load drops it, as his
+  // quests may have gone back. Then accept()'s rules on his quest as the walk read it, apply()'s re-reads and SB's
+  // call on his own unit. SB then runs the step's events with his EVE as caster. His next pass sends the change to
+  // her. A refusal drops the line; the quest stays shared. One log line each. A line that starts to wait gets one too.
   template <class Game> void her_step(Game &g, const Message &m, bool load, bool waited) {
     const size_t i = size_t(row_index(m.e.id)); // Host::receive took only a shared quest.
     const Row &r = kRows[i];
@@ -746,6 +748,8 @@ private:
     const std::string what = "quests: her step of " + std::string(r.alias) + " (" + fields(m.e) + " in " + m.text + ")";
     Plan p;
     const char *why = load ? "a load" : host_hold ? host_hold() : nullptr;
+    if (!why && stepped_[i])
+      why = "a step of it was made here since this pass read it";
     if (why && !load) {
       if (waiting_.size() < kMaxSteps) {
         waiting_.push_back(m);
@@ -763,6 +767,7 @@ private:
     if (!why) {
       const Step &s = kSteps[p.step];
       ++applied_;
+      stepped_.set(i);
       log(what + " applied here, mark " + std::string(1, s.mark) +
           (*s.events ? std::string(", events ") + s.events : std::string()));
       return;
@@ -1021,7 +1026,8 @@ private:
   std::string slot_, zone_, zone_text_, replay_at_, waited_;
   std::deque<std::string> feed_;
   std::vector<std::string> held_in_;
-  std::vector<Message> waiting_; // Her step lines a hold of the host's game keeps for a later pass.
+  std::vector<Message> waiting_; // Her step lines a hold of the host's game (or a step made this pass) keeps for later.
+  std::bitset<kRowCount> stepped_; // Quests her_step made a step of in this pass, after its walk.
   std::vector<uint64_t> list_[3], values_, listed_;
   std::vector<uint8_t> elements_;
   std::vector<uint64_t> objects_ = std::vector<uint64_t>(kRowCount), seen_ = std::vector<uint64_t>(kRowCount);
