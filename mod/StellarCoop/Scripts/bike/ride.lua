@@ -24,7 +24,11 @@
 -- A dismount by the key, the pad or coop bike leaves it where she stands when her floor counts (walkable, its base not
 -- Movable). Any other dismount leaves it at the last ground pose the 250 ms checks kept, else where it stood before
 -- the mount. Its place is kept in memory. It shows on its map once her EVE stood 2 s, while she does not ride and no
--- cutscene holds her.
+-- cutscene holds her. With a place, a mount after EVE's own checks is refused while the bike is on another map, not
+-- shown yet on hers or out of reach (200 cm across, 100 cm up or down: bike/park.lua), with its distance and side from
+-- her camera. Within reach the bike is hidden, then her actor is teleported so the part lands on its root and heading
+-- (a teleport SB refuses mounts her where she stands), then the mount above. A notice tells bike_key once each time she
+-- comes within reach of it.
 -- Each frame (self.steer, before the native tick): the drive's frame, then her lean and pitch on her main mesh's
 -- relative rotation, the base rotation then a turn about her actor's forward axis (lean) and side axis (pitch), through
 -- KismetMathLibrary's ComposeRotators, written with teleport off (a teleport clears cloth inertia). The ghosts get it
@@ -41,6 +45,7 @@ local B=require('bike.model')
 local Doro=require('race.doro')
 local Park=require('bike.park')
 local Stand=require('bike.stand')
+local T=require('ui.text')
 local valid,value_of,each,find,address,why_of=U.valid,U.value_of,U.each,U.find,U.address,U.why
 local Ride={}
 -- SB's bike (37 bones, no wheel bone; its skeleton, physics asset and four material instances come with it).
@@ -140,14 +145,16 @@ end
 -- partner's photo mode holds our game); life() (link.life's {state}, or nil; only the fallback for the status line's
 -- bike_life=, since it reads only in a session); armed() (race/run.lua's: a race is armed here; nil when there is none);
 -- busy() (why SBO's own state forbids a mount: the Doro look, coop emote, a hall seat, coop fly or glide, Night
--- Operation, an SBO menu or the chat; nil when none).
+-- Operation, an SBO menu or the chat; nil when none); words() (ui/text.lua's table for the screen); tell(build) (a
+-- notice build(words) puts together); worlds (session/travel.lua's WORLDS, for a map's name).
 function Ride.new(o)
     local log,ask,status,drive=o.log,o.ask,o.status,o.drive
     local store=o.store or {save=function() end,load=function() end,clear=function() end}
     local self={}
     local values=B.clamp(B.DEFAULTS) -- coop bike tune changes them for this Lua load.
     -- The part on the EVE seen last: {at, path, since (os.clock), part, part_path, failed}, with her parked bike there
-    -- (stand, or stand_failed) and the map it was made on (map).
+    -- (stand, or stand_failed), the map it was made on (map) and whether her feet were within its reach at the last
+    -- 250 ms pass (near; true while she rides, so getting off tells nothing).
     local here=nil
     local place=nil -- Her bike's place ({map, at, rot}), in memory.
     local ground=nil -- The last ground pose of this ride, kept every 250 ms.
@@ -293,6 +300,40 @@ function Ride.new(o)
         local rot=value_of(math_lib():MakeRotFromZX(normal,part:GetForwardVector()))
         return {map=U.map_of(e),at={X=at.X,Y=at.Y,Z=at.Z},rot={Pitch=rot.Pitch,Yaw=rot.Yaw,Roll=rot.Roll}}
     end
+    -- Her bike's place against her for a mount: a refusal as a function of a words table (o.words() for the screen,
+    -- T.en for the log) when it is on another map, not shown yet on hers or out of reach; else nil, with the stand to
+    -- get on when there is one. A stand that could not be made never holds the bike: it comes to her.
+    local function at_place(e)
+        if not place then return nil end
+        if place.map~=U.map_of(e) then
+            local name=Park.map_name(place.map,o.worlds)
+            return function(t) return t.bike.other_map:format(name) end
+        end
+        local h=here
+        if h and h.at==address(e) and h.stand_failed then return nil end
+        local d=h and h.at==address(e) and h.stand
+        if not (d and d.shown) then return function(t) return t.bike.not_back end end
+        local feet=value_of(valid(e.Mesh):K2_GetComponentLocation())
+        if Park.reach(feet,place) then return nil,d end
+        local metres,side=Park.where(feet,value_of(e:GetControlRotation()).Yaw,place)
+        return function(t) return t.bike.far:format(metres,t.bike[side]) end
+    end
+    -- Every 250 ms after sync: bike_key's notice once each time her feet come within reach of her shown bike.
+    local function prompt(e)
+        local h=here
+        if not (e and h and h.stand) then return end
+        if ride then
+            h.near=true
+            return
+        end
+        if not (h.stand.shown and place) then return end
+        local near=Park.reach(value_of(valid(e.Mesh):K2_GetComponentLocation()),place)
+        local key=o.settings and o.settings.bike_key
+        if near and not h.near and key and key.name~='none' then
+            o.tell(function(w) return w.bike.prompt:format(key.name) end)
+        end
+        h.near=near
+    end
     local function remove_part()
         local h=here
         here=nil
@@ -374,11 +415,30 @@ function Ride.new(o)
         local w=Ride.native(status())
         local why=o.settings and o.settings.bike==false and 'the bike is off (bike=off)'
             or not e and 'no EVE in the world' or blocked(e,w,true) or busy() or Ride.loaded(w.load)
-        local part
-        if not why then part,why=part_for(e) end
+        local part,stand
+        if not why then
+            local refusal
+            refusal,stand=at_place(e)
+            if refusal then
+                log('bike refused: '..refusal(T.en))
+                return false,refusal(o.words())
+            end
+            part,why=part_for(e)
+        end
         if why then
             log('bike refused: '..why)
             return false,why
+        end
+        if stand then
+            -- Onto the parked bike: hidden, then her actor moved so the part lands on its root and heading.
+            Stand.show(stand,false)
+            local went,said=pcall(function()
+                local at,yaw=Park.seat(value_of(e:K2_GetActorLocation()),value_of(e:K2_GetActorRotation()).Yaw,
+                    value_of(part:K2_GetComponentLocation()),value_of(part:K2_GetComponentRotation()).Yaw,place)
+                return e:K2_TeleportTo(at,{Pitch=0,Yaw=yaw,Roll=0})
+            end)
+            log(went and said~=false and 'bike mount: onto the parked bike'
+                or 'bike mount: teleport refused, the bike came to her'..(went and '' or ' ('..why_of(said)..')'))
         end
         local began=os.clock()
         local mesh=assert(valid(e.Mesh),'EVE has no main mesh')
@@ -395,6 +455,7 @@ function Ride.new(o)
         local saved,save_why=store.save(table.concat({r.path,number(rot.Pitch),number(rot.Yaw),number(rot.Roll),
             number(at.X),number(at.Y),number(at.Z)},'\t'))
         if saved==false then
+            if stand then pcall(sync,e,os.clock()) end
             log('bike refused: coop-bike.txt could not be written ('..tostring(save_why)..')')
             return false,'coop-bike.txt could not be written: '..tostring(save_why)
         end
@@ -553,6 +614,7 @@ function Ride.new(o)
             local why=ride and check(ride,e,w,now)
             if why then return why end
             sync(e,now)
+            prompt(e)
         end)
         if not ok then
             if ride then return off_line('an error: '..why_of(why)) end

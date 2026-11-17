@@ -14,7 +14,8 @@
 -- removed by its first pass at bike=off; another mod's component on the same mesh never taken for it. The parked bike
 -- (a fake bike/stand.lua): made after the part, parked where a dismount by the key leaves her, at the last ground pose
 -- after a forced one or where it stood before the mount, hidden while she rides or a cutscene holds her, removed for a
--- new EVE.
+-- new EVE; a mount refused far from it (the distance and the side), on another map or before it is back, else made
+-- onto it by a teleport; the prompt once she comes within reach.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -61,6 +62,8 @@ local function component(owner,mesh)
     local c=uobj({SkeletalMesh=mesh,visible=true,ComponentTags={},forward={X=0,Y=1,Z=0}})
     function c:GetAddress() return 0x7000+n end
     function c:GetForwardVector() return self.forward end
+    function c:K2_GetComponentLocation() return {X=0,Y=0,Z=3} end
+    function c:K2_GetComponentRotation() return {Pitch=0,Yaw=0,Roll=0} end
     function c:ComponentHasTag(tag)
         for _,t in ipairs(self.ComponentTags) do if t:ToString()==tag:ToString() then return true end end
         return false
@@ -94,7 +97,7 @@ local function make_eve(name)
     local address=addresses
     local e=uobj({name=name,list={},added=0,skill=false,battle=false,root=false,sequence=false,interaction=false,
         block=false,fishing=0,tps=false,bEnableInteractionBlock=false,bFreeCamMode=false,
-        mesh_at={X=0,Y=0,Z=0},base=nil,world_name='World /Game/Map/Map.Map'})
+        mesh_at={X=0,Y=0,Z=0},base=nil,world_name='World /Game/Map/Map.Map',control_yaw=0,teleport_ok=true})
     local m=component(e,eve_mesh)
     m.RelativeRotation,m.RelativeLocation={Pitch=0,Yaw=-90,Roll=0},{X=0,Y=0,Z=-90}
     function m:K2_GetComponentLocation() return e.mesh_at end
@@ -141,6 +144,14 @@ local function make_eve(name)
     function e:GetFishingModeType() return self.fishing end
     function e:IsTPSMode() return self.tps end
     function e:IsPlayingRootMotion() return self.root end
+    function e:K2_GetActorLocation() return {X=0,Y=0,Z=97} end
+    function e:K2_GetActorRotation() return {Pitch=0,Yaw=0,Roll=0} end
+    function e:GetControlRotation() return {Pitch=0,Yaw=self.control_yaw,Roll=0} end
+    function e:K2_TeleportTo(at,rot)
+        self.teleported={at=at,rot=rot}
+        stand_order[#stand_order+1]='teleport'
+        return self.teleport_ok
+    end
     by_path['/Game/Map.Map:PersistentLevel.'..name]=e
     return e
 end
@@ -197,7 +208,7 @@ local logs={}
 local function log(m) logs[#logs+1]=m end
 local function last() return logs[#logs] end
 local function find(pattern) for _,l in ipairs(logs) do if l:find(pattern) then return l end end end
-local settings={}
+local settings={bike_key={name='F3'}}
 local world={paused=false,photo='0',frozen=false,life=nil,armed=false,busy=nil}
 -- bike/stand.lua (bike/stand_test tests it): each display made (st_made) with its place, shown, removed and path; a
 -- hide also goes to stand_order; sweep records what it was asked (swept, swept_mesh). It writes no event and no log.
@@ -219,11 +230,16 @@ package.loaded['bike.stand']={CULL=20000,
     remove=function(d) d.removed=true end,
     sweep=function(path,mesh) swept[#swept+1],swept_mesh[#swept_mesh+1]=path,mesh end}
 local Ride=require('bike.ride')
+-- The screen's words (T.en until a test picks another table) and the notices told in them.
+local T=require('ui.text')
+local words,told=T.en,{}
 local function new()
     return Ride.new({log=log,ask=ask,status=status,store=store,drive=drive,settings=settings,
         paused=function() return world.paused end,photo=function() return world.photo end,
         frozen=function() return world.frozen end,life=function() return world.life end,
-        armed=function() return world.armed end,busy=function() return world.busy end})
+        armed=function() return world.armed end,busy=function() return world.busy end,
+        words=function() return words end,tell=function(build) told[#told+1]=build(words) end,
+        worlds={Xion='/game/art/bg/worldmap/level_p/e04'}})
 end
 local R=new()
 local CLIP='/Game/Art/Character/PC/CH_P_EVE_01/Animation/event/G03/MV_SD20_AfterBruteBattle_Main/eve/'
@@ -759,4 +775,61 @@ assert(s.place.rot.Pitch==0 and s.place.rot.Roll==0 and find('^bike floor: Curre
 -- A new EVE on the same map (a respawn): the old stand removed before the new one is made.
 local n=#st_made; eve=make_eve('EVE_16'); settle()
 assert(s.removed and #st_made==n+1)
+
+-- A dismount at at with the part's forward at yaw: she stands on her bike's place first when it shows here, mounts,
+-- rides to at, gets off with the key, then walks back to the origin.
+local function park_at(at,yaw)
+    local shown=st_made[#st_made]
+    if shown.shown then eve.mesh_at=shown.place.at end
+    mount()
+    eve.mesh_at=at
+    eve.list[#eve.list].forward={X=math.cos(math.rad(yaw)),Y=math.sin(math.rad(yaw)),Z=0}
+    R.toggle()
+    eve.mesh_at={X=0,Y=0,Z=0}
+end
+-- A new Lua load whose EVE parks her bike where she stands on map, then a new EVE on /game/map/map, settled.
+local function place_on(map)
+    R=new()
+    eve=make_eve('EVE_P'..addresses)
+    eve.world_name='World '..map..'.Map'
+    settle()
+    mount()
+    R.toggle()
+    eve=make_eve('EVE_P'..addresses)
+    settle()
+end
+-- 17. A mount with a place: refused far away (distance and side), on another map or before it is back; within reach
+-- the stand hidden, her actor teleported so the part lands on it, then today's mount; a refused teleport mounts where
+-- she stands; a failed mount shows the stand again; the prompt once each time she comes within reach.
+park_at({X=4200,Y=0,Z=0},0)          -- helper: a dismount there, then she walks back to the origin
+eve.mesh_at,eve.control_yaw={X=0,Y=0,Z=0},180
+ok,why=R.toggle()
+assert(not ok and why=='Your bike is 42 m away, behind you.' and last()=='bike refused: Your bike is 42 m away, behind you.')
+-- Review Focus 4: one floor below, 0 cm across: out of reach, the 3D distance.
+park_at({X=0,Y=0,Z=-300},0); eve.mesh_at,eve.control_yaw={X=0,Y=0,Z=0},0
+ok,why=R.toggle(); assert(not ok and why=='Your bike is 3 m away, ahead of you.',why)
+place_on('/game/art/bg/worldmap/level_p/e04')
+ok,why=R.toggle()
+assert(not ok and why=='Your bike is on another map: Xion.')
+place_on('/game/map/map')
+eve=make_eve('EVE_2'); R.slow(); clock=clock+1; R.slow()  -- back on the map, seen 1 s ago: under 2 s
+ok,why=R.toggle(); assert(not ok and why=='Your bike is not back yet.')
+clock=clock+1; R.slow()
+park_at({X=100,Y=0,Z=0},90); eve.mesh_at={X=0,Y=0,Z=0}
+stand_order={}
+ok=R.toggle()
+assert(ok and R.riding() and stand_order[1]=='stand hide' and stand_order[2]=='teleport' and find('^bike mount: onto the parked bike$'))
+assert(eve.teleported.at.X==100 and eve.teleported.at.Y==0 and eve.teleported.at.Z==94 and eve.teleported.rot.Yaw==90)
+R.toggle(); eve.teleport_ok=false; R.toggle()
+assert(R.riding() and find('^bike mount: teleport refused, the bike came to her$')); eve.teleport_ok=true
+R.toggle(); dv.refuse='no'; ok=R.toggle(); dv.refuse=nil
+assert(not ok and st_made[#st_made].shown,'A failed mount shows the stand again')
+-- The prompt: once on entering reach.
+local n=#told
+eve.mesh_at={X=1000,Y=0,Z=0}; clock=clock+0.25; R.slow()
+eve.mesh_at={X=150,Y=0,Z=0}; clock=clock+0.25; R.slow(); clock=clock+0.25; R.slow()
+assert(#told==n+1 and told[#told]=='F3: get on the bike')
+-- Another language on screen, English in the log.
+words=T.fr; park_at({X=4200,Y=0,Z=0},0); eve.mesh_at={X=0,Y=0,Z=0}
+ok,why=R.toggle(); assert(why==T.fr.bike.far:format(42,T.fr.bike.ahead) and last():find('ahead of you'))
 print('ride_test ok')

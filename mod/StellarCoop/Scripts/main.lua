@@ -633,9 +633,11 @@ local flight=require('cut.flight').new({log=function(m) print('[StellarCoop][FL]
 o.wear,o.scene,o.lines,o.flight,o.glide,o.emote=wear,scene,cut_lines,flight,glide,emote
 -- The bike (bike/ride.lua), logging [BK] lines: SB's own bike as a part on EVE and her ride on it with bike/model.lua
 -- through the races' driving (drive), on any save. coop-bike.txt lets the next Lua load put her main mesh back. A mount
--- is refused, with its reason, while SBO's own state holds EVE (busy) or one of our screens is open.
+-- is refused, with its reason, while SBO's own state holds EVE (busy) or one of our screens is open. Its parked bike's
+-- refusals and prompt come in the menu's words (words, tell), a map by its travel world's name (worlds).
 bike=require('bike.ride').new({log=function(m) print('[StellarCoop][BK] '..tostring(m)..'\n') end,
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end,
+    words=words,tell=tell,worlds=require('session.travel').WORLDS,
     store=link and link.store('coop-bike.txt'),drive=drive,settings=settings,
     paused=function() return kit~=nil and kit.paused(true) end,photo=photo_state,
     frozen=function() return link~=nil and link.paused() end,life=function() return link and link.life() end,
