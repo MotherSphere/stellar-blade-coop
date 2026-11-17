@@ -903,7 +903,7 @@ for _=1,4 do -- The tick that sees it reads no body.
 end
 assert(result_line():find('^result: failed waves=0/5 '),result_line())
 dying=false
--- The helper is core/unreal.lua's (session/group.lua reads the same screen): the live HUD's copy, never the class
+-- The helper is core/unreal.lua's (group/group.lua reads the same screen): the live HUD's copy, never the class
 -- default's.
 assert(require('core.unreal').death_screen()==dead_w)
 -- The death screen not found at the start, then found with its animation already playing: a death too.
@@ -1581,7 +1581,7 @@ local function side(name,mate_name,x,t)
             w.told_fr[#w.told_fr+1]=build(Tx.fr)
             w.told[#w.told+1]=build(Tx.en)
         end,friend=function() return mate_name end,
-        revive=function(by) -- session/group.lua's night_revive: its answer, and what was asked.
+        revive=function(by) -- group/group.lua's night_revive: its answer, and what was asked.
             w.revives[#w.revives+1]=by
             if w.revive_no then return false,w.revive_no end
             return true

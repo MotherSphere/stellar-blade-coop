@@ -5,7 +5,7 @@
 -- Enter, sends, cancels on Esc, hands its lines to the native part and takes the notices into its feed while the UI is
 -- up; join codes (session/join.lua: who_can_join=invitation, the menu's Copy my code, Join with a code and Remove
 -- rows, the code box and the host's question taking the keys); the partner HUD (partner/hud.lua); and the co-op saves'
--- question (session/saves.lua), which shows on the title screen and takes the menu's keys while open. While the chat
+-- question (save/saves.lua), which shows on the title screen and takes the menu's keys while open. While the chat
 -- box, the code box, the host's question or the saves' question is open, coop leviathan's free camera reads no key.
 dofile('tests/lua/main/fixture.lua')
 local n
@@ -221,7 +221,7 @@ settings_text,in_world,kit_ready='',false,false
 -- before the menu, which draws over it, the status strip after the card and before her marker and arrow, which draw
 -- over it; each 250 ms in a world its card follows the session and her vitals, and the ghost hides its name tag while
 -- the marker carries her name (partner_bar on, the root up); each frame only its marker and arrow, projected through
--- the kit each frame and never without her anchor; nothing after coop off. The guide (ui/guide.lua) under the menu,
+-- the kit each frame and never without her anchor; nothing after coop off. The guide (ui/kit/guide.lua) under the menu,
 -- which never shows with it. The members' rows (a session of more than 2 players) after the arrow.
 settings_text,status_text,link_mode='',plain,'host'
 load_main(true)
@@ -251,7 +251,7 @@ quarter(); clock=clock+0.1; loops[1].f()
 assert(#markers==n and kit_projects==0,'Nothing after coop off')
 chatting,in_world,kit_ready,link_mode,settings_text=false,false,false,'none',''
 
--- The co-op saves' question (session/saves.lua for real on the fake kit; saves_test tests it). On the title screen the
+-- The co-op saves' question (save/saves.lua for real on the fake kit; saves_test tests it). On the title screen the
 -- kit's root comes up too (the kit told it is the title); once the question shows, the navigation keys, Enter, Esc and
 -- a left click on a choice are its own (not the chat's, not the menu's); coop ui reset closes it as Decide later, coop
 -- off stops it; coop ui off leaves auto_coop_save=always asking.

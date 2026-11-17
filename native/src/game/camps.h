@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The camps the current save has activated, the native half, free of Windows: SB's own list, as its camp list screen
-// (the TeleportCamp list, FUN_141f69530) builds it, read on the game thread for session/travel.lua and
+// (the TeleportCamp list, FUN_141f69530) builds it, read on the game thread for group/travel.lua and
 // matrix13/world/travel.lua. This file names the calls and offsets, checks the guard over the game thread's reads, says
 // when to read and writes the status line (activated=). tests/native/game/camps_test.cpp checks it on the build
 // machine.
@@ -37,7 +37,7 @@ namespace coop::camps {
 constexpr uint64_t kCampList = 0x141d1f860, kFree = 0x1426207f0, kEnvRow = 0x141a9e680, kMallocAt = 0x1470703c0;
 // The world's zone manager, the FSBActor's respawn camp row, a ZoneEnvSpawn row's TargetCamp.
 constexpr size_t kZones = 0xe0, kRestedRow = 0x26d0, kTargetCamp = 0x270;
-// The travel types, ESBZoneCampType: SimplyCamp, FullCamp, Tetrapod, PhoneBooth (session/travel.lua's 120 camps).
+// The travel types, ESBZoneCampType: SimplyCamp, FullCamp, Tetrapod, PhoneBooth (group/travel.lua's 120 camps).
 constexpr uint8_t kTypes[] = {2, 3, 4, 5};
 // The guard each kCheckMs; a read at once when none is held or the world changed, else each kReadMs. A list longer
 // than kMaxCamps is not SB's (235 camp rows in all).

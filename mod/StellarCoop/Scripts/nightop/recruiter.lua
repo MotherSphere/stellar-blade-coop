@@ -165,7 +165,7 @@ local function edit(path,key,known,writes,keep,what)
 end
 -- For nightop/roxanne.lua: the same row edit, and the helpers its checks and its log take.
 Recruiter.edit,Recruiter.one,Recruiter.find_name,Recruiter.index_of,Recruiter.ascii=edit,one,find_name,index_of,ascii
-Recruiter.JOIN=JOIN -- For session/sbo.lua's Join count (main.lua arms it with this row's FName).
+Recruiter.JOIN=JOIN -- For lobby/sbo.lua's Join count (main.lua arms it with this row's FName).
 -- log(text) writes an [RC] line; on_ready() runs right after the spawn's zone event and when he is already here.
 function Recruiter.new(log,on_ready)
     local pending=nil -- The one follow-up: {sub=, at=os.clock() when due, f=}.

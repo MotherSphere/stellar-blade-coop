@@ -6,7 +6,7 @@
 -- revive test, coop travel, coop saves and coop sbo.
 -- main.lua builds them with new(o) at each Lua load and merges them into its command table, whose run() logs each
 -- result and, after coop off, refuses all but status and report. o: main.lua's link, settings, puppet, ask (a line for
--- the native part), coop_slot and sbo; group(), travel(), create() and lobby (ui/lobby.lua's), read at each call:
+-- the native part), coop_slot and sbo; group(), travel(), create() and lobby (lobby/ui/lobby.lua's), read at each call:
 -- the revive, the follow, the Create a session screen and the lobby's screens are built later, with the Steam link
 -- only.
 local Session={}
@@ -142,7 +142,7 @@ function Session.new(o)
     -- Matches: search <mode> (join an open public match lobby of that mode, or host one), create <mode> (a private
     -- match lobby joined with its code), cancel (the search), end (the host's round in play), join <code> and leave
     -- (as coop join and coop leave). The native part checks the mode; search and create name the SBO lobby's room and
-    -- hall (session/sbo.lua's lobby_words()).
+    -- hall (lobby/sbo.lua's lobby_words()).
     function self.match(sub,arg,extra)
         if extra==nil then
             if (sub=='search' or sub=='create') and arg~=nil then
@@ -155,7 +155,7 @@ function Session.new(o)
         end
         return false,'Use: coop match search|create <mode> | cancel | end | join <code> | leave'
     end
-    -- test: the revive's solo probe at the death screen, on a co-op save only (session/group.lua says why not).
+    -- test: the revive's solo probe at the death screen, on a co-op save only (group/group.lua says why not).
     function self.revive(sub,extra)
         if sub~='test' or extra~=nil then return false,'Use: coop revive test' end
         local group=o.group() -- main.lua builds it after the commands, with the Steam link only.
@@ -165,7 +165,7 @@ function Session.new(o)
         return group.test()
     end
     -- host: as follow_key (the travel to the camp nearest the host, or always's start cancelled); probe <camp>: its
-    -- solo test, the native call alone (session/travel.lua says why not).
+    -- solo test, the native call alone (group/travel.lua says why not).
     function self.travel(sub,arg,extra)
         local travel=o.travel() -- Likewise.
         if not travel then return false,'the Steam link needs the native part' end
@@ -214,13 +214,13 @@ function Session.new(o)
         end
         return ask('saves '..sub)()
     end
-    -- The SBO lobby by hand (session/sbo.lua, o.sbo: with the Steam link only): enter, leave, status, hop and back (the
+    -- The SBO lobby by hand (lobby/sbo.lua, o.sbo: with the Steam link only): enter, leave, status, hop and back (the
     -- arena round trip), view and view set (the menu camera's view), seq (a light sequence) and parts (the lobby's SB
     -- widget parts made once each). Every word says the lobby is off while sbo_lobby=off. Left out of coop's usage
     -- line, as a test tool.
     function self.sbo(word,extra,more)
         if not o.sbo then return false,'the Steam link needs the native part' end
-        if not settings.sbo_lobby then return false,require('session.sbo').OFF end
+        if not settings.sbo_lobby then return false,require('lobby.sbo').OFF end
         if more==nil then
             if extra==nil and ({enter=true,leave=true,status=true,hop=true,back=true,view=true})[word or ''] then
                 return o.sbo[word]()

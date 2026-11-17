@@ -10,7 +10,7 @@
 -- every second and her vitals (mate=) and our life state (life=) up to 10 times a second, so they stay in coop status,
 -- out of the log. The chat has two files of its own that live a moment only (coop-say.txt and coop-chat.txt, see
 -- say()), and the race one more (coop-race.txt, see race()); her race lines come in coop-chat.txt, and her gift lines
--- (coop gift, cut/mailbox.lua, whose own lines go as gift requests). The same read gives
+-- (coop gift, cut/menus/mailbox.lua, whose own lines go as gift requests). The same read gives
 -- the session's mode, the friend and the notices for the screen, each from the start of its own line: a Steam name is
 -- never at the start of one.
 -- While we host, the read also gives our join code and the joiners who wait for our answer, in the order the native
@@ -22,19 +22,19 @@
 -- same_place, aggro, same_spawns, enemy_extra, spawn_filter, bosses and boss_hp_scale (Phase 11, experimental) are
 -- commands/fight.lua's coop fight (main.lua's loop asks it on or off); its photo_sync, photo_freeze_max, photo_ghost
 -- and photo_name_tag the synced photo mode's (main.lua, and the native part through coop-state.txt), photo_pause
--- main.lua's own; its auto_coop_save the co-op saves' (session/saves.lua), which also read saves() here; its
+-- main.lua's own; its auto_coop_save the co-op saves' (save/saves.lua), which also read saves() here; its
 -- shared_quests and quest_deny commands/fight.lua's coop quests (Phase 12, experimental); main.lua's loop, which asks
 -- it on or off, reads quests() and quest_notes() here; its shared_world commands/world.lua's coop world (main.lua's
 -- loop asks it on or off and reads world() here); its shared_story commands/scenes.lua's coop scenes (main.lua's loop
--- asks it on or off and reads story() here); its revive and cutscene_wait session/group.lua's (the friend's
--- revive, the wait during the host's cutscene); its follow_host and follow_key session/travel.lua's and main.lua's (the
+-- asks it on or off and reads story() here); its revive and cutscene_wait group/group.lua's (the friend's
+-- revive, the wait during the host's cutscene); its follow_host and follow_key group/travel.lua's and main.lua's (the
 -- guest's travel to the camp nearest the host), which reads camps() here; its collide partner/puppet.lua's (the solid
 -- partner); its drift_keys the Doro races' driving (race/drive.lua); its mod_names the native part's (through
 -- coop-state.txt: names=0 keeps the names of our .pak mods from the friend); its shortcut_load commands/cut.lua's
 -- (coop shortcut load, a test tool with no menu row); its pvp_spike commands/fight.lua's (coop pvp, the PvP test, a
--- test tool with no menu row; main.lua's reload ends it when off); its sbo_lobby session/sbo.lua's (the SBO lobby in
+-- test tool with no menu row; main.lua's reload ends it when off); its sbo_lobby lobby/sbo.lua's (the SBO lobby in
 -- Xion, on by default, no menu row), which also reads sbo() here; its bike and bike_key bike/ride.lua's and
--- main.lua's (the bike). The co-op menu (ui/menu.lua) changes the file, one line at a time (D-UI4).
+-- main.lua's (the bike). The co-op menu (ui/kit/menu.lua) changes the file, one line at a time (D-UI4).
 local K=require('core.keybind')
 local SF=require('core.settings_file')
 local T=require('ui.text')
@@ -364,7 +364,7 @@ end
 -- has) that still says 20: its text with send_rate=60 and RATE_NOTE (in place of the old comment, else at the end), so
 -- it is changed once and a 20 picked later stays. nil for any other file, and nil, why when the line cannot be set.
 -- ponytail: an old file that kept another rate and gets 20 from the menu later is still changed at the next load; the
--- menu's write (ui/model.lua) could add RATE_NOTE too if that ever matters.
+-- menu's write (ui/kit/model.lua) could add RATE_NOTE too if that ever matters.
 local RATE_NOTE='# Poses sent to your friend a second: 10 to 60.'
 local OLD_RATE_NOTE='# Poses sent to your friend a second: 10 to 30.'
 function Link.migrate_rate(text)
@@ -646,7 +646,7 @@ function Link.new(folder,fs)
     function self.bike(payload) return put('coop-parked.txt',payload..'\n') end
     -- coop-state.txt: whether a save is loaded (held invites wait for one) or else the title screen is shown
     -- (world=title: the only time the native part changes the co-op saves), the poses sent a second, and the synced
-    -- photo mode's: ours ('0', '1' or 's'; 'c' while the host's cutscene plays, session/group.lua's), photo_sync and
+    -- photo mode's: ours ('0', '1' or 's'; 'c' while the host's cutscene plays, group/group.lua's), photo_sync and
     -- photo_freeze_max; then cut=1 while the guest asks for the pause during the host's cutscene (cut), and names=0
     -- with mod_names=off (names false: the native part then sends no pak line). Written when its text changes, and
     -- remembered only once written, so a failed write is tried again; returns the line it wrote.
@@ -770,7 +770,7 @@ function Link.new(folder,fs)
         local waited=wait~=nil
         search,found,wait=nil,{},nil
         -- The engine off on another game build (check_build's reasons): a game update, said at the title
-        -- (session/saves.lua).
+        -- (save/saves.lua).
         if engine:find(' reason=build stamp ',1,true) or engine:find(' reason=code bytes differ',1,true) then
             saves.build=true
         end
@@ -787,7 +787,7 @@ function Link.new(folder,fs)
                 and not line:find('^life=')
                 and not line:find('^bike_of=') -- bike/others.lua logs what it does with each.
                 and not line:find('^night=') -- nightop/run.lua logs each night line itself.
-                -- Their spawns= moves with every enemy; cut/enemy.lua logs what it reads for each.
+                -- Their spawns= moves with every enemy; core/enemy.lua logs what it reads for each.
                 and not line:find('^lion=') and not line:find('^gardener=') and not line:find('^tendril=')
                 and not line:find('^bolt=') and not line:find('^mxiii=')
                 -- Its sent= and received= move with each position of a shared scene; the native log has its events.
@@ -924,7 +924,7 @@ function Link.new(folder,fs)
             for _,m in ipairs(roster) do if m.linked then named=m; break end end
         end
         ping=named and named.linked and named.rtt>=0 and named.rtt or nil
-        if held then saves.held=true end -- The question at the title says an invite waits (session/saves.lua).
+        if held then saves.held=true end -- The question at the title says an invite waits (save/saves.lua).
         -- Back in her lobby, the native part drops rejoin= before the handshake: the rejoin holds until she is linked.
         if rejoin then rejoined=true elseif mode~='guest' or (friend and friend[2]) then rejoined=false end
         if lobby and lobby~=strangers_in then strangers,strangers_in={},lobby end
@@ -1101,7 +1101,7 @@ function Link.new(folder,fs)
     function self.me() return my_name end
     -- A match lobby's owner (her SteamID, digits), or nil outside a match lobby.
     function self.owner() return owner end
-    -- A match lobby's map (session/sbo.lua's key of a lobby target) and lobby pak version ('xion' without the pak), as
+    -- A match lobby's map (lobby/sbo.lua's key of a lobby target) and lobby pak version ('xion' without the pak), as
     -- its owner's lobby data names them; nil outside a match lobby or when it names none.
     function self.room() return room end
     function self.hall() return hall end

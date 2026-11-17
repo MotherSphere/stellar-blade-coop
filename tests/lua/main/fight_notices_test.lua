@@ -324,7 +324,7 @@ for _,lang in ipairs({'en','fr'}) do
     end
     local scaled=Words[lang].fight.on:format(16)..' '..Words[lang].fight.scale:format(200,200) -- The longest on.
     assert(Chat.clean(scaled)==scaled,lang..': '..#scaled..' bytes')
-    -- The co-op saves notices (session/saves.lua's o.say), with their own words or a slot digit.
+    -- The co-op saves notices (save/saves.lua's o.say), with their own words or a slot digit.
     for k,args in pairs({on={},off={Words[lang].saves.see_log},build={},manual={'4','4'}}) do
         local full=Words[lang].saves[k]:format(table.unpack(args))
         assert(Chat.clean(full)==full,lang..'.saves.'..k..': '..#full..' bytes')

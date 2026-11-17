@@ -1,7 +1,7 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// The SBO lobby arrival's black (session/arrival.lua) lifted early, the game's way. Lua puts it up with
+// The SBO lobby arrival's black (lobby/arrival.lua) lifted early, the game's way. Lua puts it up with
 // USBBlueprintLibrary::LoadingScreenFadeAuto (exec 0x1426641e0, impl FUN_14c91ad10), which adds an entry to the UI
 // manager's auto list (manager: the global kUiManager; list at +kAutoList, count at +kAutoCount, kEntry bytes each):
 // +0x10 ready (set once its start fade is over), +kLife its lifetime in s, +kTag the tag of its end fade. The loading

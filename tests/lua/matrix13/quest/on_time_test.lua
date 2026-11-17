@@ -7,25 +7,25 @@
 -- TaskAliasArray of FNames, FText fields), the language library, a text library whose PolyglotDataToText raises as
 -- UE4SS does on a Lua-table map, EVE's world and place, the select widget through the widget library's lookup
 -- (SelectIndex -1 until a pick, its DataArray lines' DisplayText), the test pak's files, coop mxiii's travel and the
--- talk player (story/subtitles.lua: play, arm, playing, cutscene, holds, stop). Covered: its 25 rows against rows.h's
--- kSignalRecipe and kSignalPatches (names, templates, IDs, each patched field's kind and value, no field more, the
--- quest rows last of their rows and the choice row patched in place last); the words in English and French (every line,
--- French for any French culture, English for the others); nothing off a co-op save; no test pak: no rows at the title
--- or in game, no quest unit read; with it, the title's batch with only the 5 tables its rows use; the words written
--- once the rows read back (no PolyglotDataToText call), a row that is not the one known stopping them and her choice
--- for the Lua load; the rows asked once in game when they are not in, also after a title batch refused by a shut gate
--- at all 4 tries; signal watch once the cheap gates hold (co-op save, solo, the test pak, the rows read back) and never
--- before; the prologue's gate (Quest_Epic_11 at M04 in progress, neither quest held, 20 s with no screen, no theater of
--- the game playing) and its acquire once a Lua load, never on a save that holds On Time; lily on only while every gate
--- holds and the prologue is at its task (label 1) or On Time at M06's (label 2, written into the row), off when one
--- fails, asked again while the native part reads otherwise, a load changing nothing; a pick only of the row's label on
--- a SelectIndex turning from -1 (her End Conversation, or a widget first seen on a line, do nothing), then after her
--- goodbye the prologue talk, signal talked, signal acquire once the prologue is complete (or refused, or after 15 s),
--- and the travel once the quest is held; the end talk and signal tell; a talk that does not play; the arrival talk
--- once a Lua load, after 3 s in Matrix XIII with no screen; the fallback's signal complete once a visit at M01 after
--- 10 s; the drive room's signal zone4 once a visit at M05 after 2 s inside its box; a refused acquire with no travel;
--- coop lily signal status, quest (refused with no test pak), travel, next and no word; coop lily talk and hold; coop
--- off.
+-- talk player (matrix13/quest/subtitles.lua: play, arm, playing, cutscene, holds, stop). Covered: its 25 rows against
+-- rows.h's kSignalRecipe and kSignalPatches (names, templates, IDs, each patched field's kind and value, no field more,
+-- the quest rows last of their rows and the choice row patched in place last); the words in English and French (every
+-- line, French for any French culture, English for the others); nothing off a co-op save; no test pak: no rows at the
+-- title or in game, no quest unit read; with it, the title's batch with only the 5 tables its rows use; the words
+-- written once the rows read back (no PolyglotDataToText call), a row that is not the one known stopping them and her
+-- choice for the Lua load; the rows asked once in game when they are not in, also after a title batch refused by a shut
+-- gate at all 4 tries; signal watch once the cheap gates hold (co-op save, solo, the test pak, the rows read back) and
+-- never before; the prologue's gate (Quest_Epic_11 at M04 in progress, neither quest held, 20 s with no screen, no
+-- theater of the game playing) and its acquire once a Lua load, never on a save that holds On Time; lily on only while
+-- every gate holds and the prologue is at its task (label 1) or On Time at M06's (label 2, written into the row), off
+-- when one fails, asked again while the native part reads otherwise, a load changing nothing; a pick only of the row's
+-- label on a SelectIndex turning from -1 (her End Conversation, or a widget first seen on a line, do nothing), then
+-- after her goodbye the prologue talk, signal talked, signal acquire once the prologue is complete (or refused, or
+-- after 15 s), and the travel once the quest is held; the end talk and signal tell; a talk that does not play; the
+-- arrival talk once a Lua load, after 3 s in Matrix XIII with no screen; the fallback's signal complete once a visit at
+-- M01 after 10 s; the drive room's signal zone4 once a visit at M05 after 2 s inside its box; a refused acquire with no
+-- travel; coop lily signal status, quest (refused with no test pak), travel, next and no word; coop lily talk and hold;
+-- coop off.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
@@ -56,7 +56,7 @@ local her=nil -- EVE (nil: none), set below.
 package.loaded['nightop.probe']={her=function() return her end}
 local Lily=require('matrix13.quest.on_time')
 local TEXT,culture_of=require('matrix13.quest.text'),require('matrix13.culture')
-local Enemy=require('cut.enemy')
+local Enemy=require('core.enemy')
 
 -- The rows against rows.h's hand-written batch.
 do

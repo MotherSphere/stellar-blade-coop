@@ -1,10 +1,11 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Lily's prologue talk, one entry per subtitle window of the sequence it borrows (story/subtitles.lua
+-- Lily's prologue talk, one entry per subtitle window of the sequence it borrows (matrix13/quest/subtitles.lua
 -- plays it): the speaker's StringTable_Seq key ('' for none), then the English and French line.
 -- It fills the first 17 of Subtitle_POD_1stMeetAdam_01's 21 windows.
--- A line longer than its window can be read at about 15 characters a second gets a reading hold (story/subtitles.lua).
+-- A line longer than its window can be read at about 15 characters a second gets a reading hold
+-- (matrix13/quest/subtitles.lua).
 local NBSP='\u{A0}' -- Inside the French quotes and before French ? and !.
 local LILY,EVE,PA='Seq_Actor_Lily','Seq_Actor_EVE','Seq_Actor_Announcement'
 local function q(s) return '«'..NBSP..s..NBSP..'»' end

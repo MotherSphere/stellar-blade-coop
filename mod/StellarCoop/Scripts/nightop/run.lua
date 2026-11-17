@@ -11,7 +11,7 @@
 -- the waves, the keys and the run's states, read from the run's definition; this file is the game side: the start
 -- checks and the census, the one spawn call and the navmesh ground of its spots, the bodies it tracks, their aggro and
 -- stuck moves, the abort watch and the end, and what the player sees: a card at the top centre and a result panel on
--- the Uplink kit (ui/kit.lua), or notices while the kit is off. The run has no rule row: its clock is game time and
+-- the Uplink kit (ui/kit/kit.lua), or notices while the kit is off. The run has no rule row: its clock is game time and
 -- it ends itself. Solo when no Steam session holds; linked, the host starts a Night Operation run for both players: the
 -- night line (one full state from each side through the native part, core/link.lua's night) carries his ask, her
 -- answer, his clock, waves, score and end, and her world's kills and bodies, so both worlds run the same seeded waves
@@ -20,7 +20,7 @@
 -- has not done to the pilot while same-place enemies draw at least one copy. In a co-op run a death is a down, the cut
 -- mode's revive, when the downed player's revive setting is on: the line carries each side's down time left and its
 -- revive of the other (the interact key held next to the downed EVE's ghost), and the downed side asks
--- session/group.lua for the game's in-place respawn, which a friend's full hold or coop nightop revive (the level's
+-- group/group.lua for the game's in-place respawn, which a friend's full hold or coop nightop revive (the level's
 -- self revives, for a body that lies where EVE last walked) starts; both down with no revive call that can still
 -- land, or the time out, ends the run as a death did. The card and the notices use the cut mode's own words for it (StringTable_UI). A solo run keeps the death.
 -- A run of ours that went from its countdown to a success or a time up credits its final score as points to this
@@ -30,7 +30,7 @@
 -- heal, EnterZone, a hide, a collision or pool flag write, a destroy, a save, inventory, equip or quest call,
 -- RegisterHook, NotifyOnNewObject. No console word reaches a game call here: start's words only set flags, a
 -- challenge's name only picks a definition; buy's words go through nightop/shop.lua's checked grant. Beyond the kit
--- (ui/kit.lua) and the board (nightop/board.lua), the HUD calls the game for one thing only: its own result words
+-- (ui/kit/kit.lua) and the board (nightop/board.lua), the HUD calls the game for one thing only: its own result words
 -- (StringTable_UI).
 -- Parts of this file adapt Survival Protocol by SchizoEffective (nexusmods.com/stellarblade/mods/4009), used with
 -- permission given on 2026-10-20. SchizoEffective agreed on 2026-11-14 to the project's license change, and they are
@@ -85,7 +85,7 @@ local WHY={['map change']='map',left='left',slot='slot',link='link',error='error
 -- same before the link counts as lost, ticks between two lines that say the same, and metres the guest may stand from
 -- his start point to join.
 local ASK,QUIET,EVERY_LINE,FAR=20,20,4,50
--- The revive: cm from our EVE's mesh to the downed partner's ghost feet, across and up or down (session/group.lua's
+-- The revive: cm from our EVE's mesh to the downed partner's ghost feet, across and up or down (group/group.lua's
 -- reach; the self revive's too, from the body to where EVE last stood on ground), and seconds within which a revive
 -- call must bring EVE up, which also keep the down open past W.DOWN (group.lua's 2 s, its fallback's 2 s, a read).
 local ACROSS,UP,CALL=200,100,5
@@ -254,12 +254,12 @@ local game_text=U.game_text
 -- shows one of its screens (the UI kit's), when no body is read; tell(build) a notice that build(words) puts together
 -- (main.lua's: the chat's feed, else the line above EVE), for what the HUD would show while the kit is off and for
 -- what the partner did; send(line) writes our night line (core/link.lua's night); friend() the partner's Steam name;
--- store(name) core/link.lua's one-line file, for the shop's wallet; rows(done, word) cut/lion.lua's Lion.rows, for the
--- shop's cut items and its screen's rows; ask(line) the native part's request, for the shop's screen. records: {read()
--- the text of coop-records.txt, nil when there is none (it raises when the file cannot be read), write(text) true once
--- written}, or nil for no bests. revive(by) asks session/group.lua for the in-place respawn of our downed EVE, by
--- 'friend' or 'self': true, or false and why not; ghost() the partner's ghost feet in our world (partner/puppet.lua's
--- anchor), or nil; settings: main.lua's (revive: a co-op run's down needs it on), or nil.
+-- store(name) core/link.lua's one-line file, for the shop's wallet; rows(done, word) cut/enemies/lion.lua's Lion.rows,
+-- for the shop's cut items and its screen's rows; ask(line) the native part's request, for the shop's screen. records:
+-- {read() the text of coop-records.txt, nil when there is none (it raises when the file cannot be read), write(text)
+-- true once written}, or nil for no bests. revive(by) asks group/group.lua for the in-place respawn of our downed EVE,
+-- by 'friend' or 'self': true, or false and why not; ghost() the partner's ghost feet in our world
+-- (partner/puppet.lua's anchor), or nil; settings: main.lua's (revive: a co-op run's down needs it on), or nil.
 function Run.new(o)
     local log,status,paused,tell,records,settings=o.log,o.status,o.paused,o.tell,o.records,o.settings
     local send,friend=o.send,o.friend or function() return nil end
@@ -728,7 +728,7 @@ function Run.new(o)
         return string.format('your EVE lies %.1f m across and %.1f m up or down from where she last walked (at most %d m '
             ..'and %d m)',across/100,up/100,ACROSS//100,UP//100)
     end
-    -- One revive call a down, through session/group.lua's guards (the death screen, life 3 to 5, no respawn or warp in
+    -- One revive call a down, through group/group.lua's guards (the death screen, life 3 to 5, no respawn or warp in
     -- flight, a standalone game, no probe rule). A refusal is logged once a reason; the friend's is asked again each
     -- tick while her line holds 100.
     local function ask(by)

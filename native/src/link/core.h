@@ -916,14 +916,14 @@ public:
     ++(ok ? race_out_ : race_dropped_);
     return ok;
   }
-  // coop gift's line (cut/mailbox.lua, through a gift request): reliable to the friend past the handshake, or back as
-  // hers ("gift <payload>" for Lua) in the loopback with no friend, at most kGiftPerSecond a second. Each one goes in
-  // the log, as each of hers does: a gift moves items between two saves. A gift that cannot go (no session, a match
-  // lobby, a send with more than 2 players, past the rate, Steam refused it) comes back to Lua at once as her refusal,
-  // "gift n <id> nolink", so the sender gets the items back without waiting for her answer (only for a first send:
-  // cut/mailbox.lua ignores it for a send again). A gift line names no player: with 3 or more, every member would take
-  // the items of a send. An answer (a or n) still goes to every member: a gift sent before a third player came in gets
-  // it. Only its sender's mailbox waits for that id.
+  // coop gift's line (cut/menus/mailbox.lua, through a gift request): reliable to the friend past the handshake, or
+  // back as hers ("gift <payload>" for Lua) in the loopback with no friend, at most kGiftPerSecond a second. Each one
+  // goes in the log, as each of hers does: a gift moves items between two saves. A gift that cannot go (no session, a
+  // match lobby, a send with more than 2 players, past the rate, Steam refused it) comes back to Lua at once as her
+  // refusal, "gift n <id> nolink", so the sender gets the items back without waiting for her answer (only for a first
+  // send: cut/menus/mailbox.lua ignores it for a send again). A gift line names no player: with 3 or more, every member
+  // would take the items of a send. An answer (a or n) still goes to every member: a gift sent before a third player
+  // came in gets it. Only its sender's mailbox waits for that id.
   void gift(const std::string &payload) {
     const std::string line = gift_line(payload);
     const bool crowd = members().size() > 1 && payload.rfind("s ", 0) == 0;
@@ -1215,7 +1215,7 @@ public:
     // read, which the partner card's line does not give).
     if (has_own_ && chatting() && now_ - own_at_ < kMateMs)
       s += "life=" + std::to_string(own_[vital::life]) + " " + std::to_string(own_[vital::hp]) + "\n";
-    // The follow (session/travel.lua), while linked: as the host, our number for the oldest camps? still waiting for
+    // The follow (group/travel.lua), while linked: as the host, our number for the oldest camps? still waiting for
     // our answer, else for the last one taken (Lua answers each number once); as the guest, the host's answer to our
     // last one, without its tag.
     const Peer *ask = nullptr, *last = nullptr;
@@ -1638,7 +1638,7 @@ private:
         notice(was ? "Player unblocked." : "That player is not on your block list.");
       }
       break;
-    // The follow's camps lines (session/travel.lua writes them; link/protocol.h checked their shape): reliable, on
+    // The follow's camps lines (group/travel.lua writes them; link/protocol.h checked their shape): reliable, on
     // channel 0, the guest's camps? to the host, the host's answer to the guest whose last camps? had the number it
     // answers (camps?= in our status), with her own id in place of that number, never in a match lobby. A camps? of
     // ours forgets the answer to the one before.

@@ -155,8 +155,8 @@ dofile('tests/lua/main/fixture.lua')
     pd.missing,in_world,kit_ready=false,false,false
 end)()
 
--- The mouse in the co-op menu (ui/menu.lua for real; the fake kit's rows say whether the mouse is over them). Each 100
--- ms the row the mouse moved onto takes the focus (the move sound, drawn); the row under it as the menu opens, or a
+-- The mouse in the co-op menu (ui/kit/menu.lua for real; the fake kit's rows say whether the mouse is over them). Each
+-- 100 ms the row the mouse moved onto takes the focus (the move sound, drawn); the row under it as the menu opens, or a
 -- mouse resting while the keys move, never takes it; a header or an empty slot, nothing. A left click selects the row
 -- under the mouse as Enter does (Leave still asks twice), on a header or no row nothing; a right click goes back,
 -- closing it on the main page. Closed, both buttons are the game's: nothing queued (the left one is the saves'
@@ -327,7 +327,7 @@ local function text(path) local f=assert(io.open(path)); local t=f:read('a'); f:
 for _,doc in ipairs({'INSTALL.md','docs/interface.md'}) do
     assert(text(doc):find('any controller the game reads',1,true),doc..' still says only XInput controllers work')
 end
-for _,lua in ipairs({'session/saves.lua','ui/guide.lua'}) do
+for _,lua in ipairs({'save/saves.lua','ui/kit/guide.lua'}) do
     assert(not text('mod/StellarCoop/Scripts/'..lua):find('not XInput',1,true),lua..': a stale XInput note')
 end
 io.stdout:write('input_test ok\n')

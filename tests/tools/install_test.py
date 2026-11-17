@@ -169,15 +169,17 @@ with tempfile.TemporaryDirectory() as tmp:
     docs = {'INSTALL.md', 'LICENSE', 'NOTICE', 'EXCLUDED-PARTIES.md', 'CHANGELOG.md', 'SHA256SUMS.txt'}
     shipped = {'enabled.txt', 'StellarCoop.dll', *docs,
                'Assets/MotherSphere.png',
-               *(f'Scripts/{name}.lua' for name in ('commands/guide', 'commands/keys', 'ui/guide', 'ui/guide_text')),
+               *(f'Scripts/{name}.lua' for name in ('commands/guide', 'commands/keys', 'ui/kit/guide',
+                                                    'ui/text/guide')),
                *(f'Scripts/{name}.lua'
                  for name in ('bike/fetch', 'bike/model', 'bike/others', 'bike/park', 'bike/ride', 'bike/stand', 'commands/bike',
                               'commands/cut', 'commands/daynight', 'commands/fight', 'commands/nightop', 'commands/partner', 'commands/race',
                               'commands/scenes', 'commands/session', 'commands/story', 'commands/world', 'core/keybind', 'core/link', 'core/mask', 'core/pak_gate', 'core/settings_file',
-                              'core/unreal', 'core/ue4ss_settings', 'cut/chainspin', 'cut/devmenu', 'cut/emote', 'cut/enemy', 'cut/flight',
-                              'cut/glide', 'cut/gardener', 'cut/leviathan',
-                              'cut/lines', 'cut/lion', 'cut/lion_rows', 'cut/mailbox',
-                              'cut/scene', 'cut/tendril', 'cut/wear', 'main',
+                              'core/unreal', 'core/ue4ss_settings', 'cut/eve/chainspin', 'cut/menus/devmenu',
+                              'cut/eve/emote', 'core/enemy', 'cut/eve/flight',
+                              'cut/eve/glide', 'cut/enemies/gardener', 'cut/enemies/leviathan',
+                              'cut/scenes/lines', 'cut/enemies/lion', 'core/lion_rows', 'cut/menus/mailbox',
+                              'cut/scenes/scene', 'cut/enemies/tendril', 'cut/eve/wear', 'main',
                               'matrix13/culture', 'matrix13/quest/on_time', 'matrix13/quest/text', 'matrix13/quest/zone_talks',
                               *(f'matrix13/talks/{talk}' for talk in ('prologue', 'arrival', 'finale', 'zone1',
                                                                        'zone2', 'zone3', 'zone4')),
@@ -193,11 +195,15 @@ with tempfile.TemporaryDirectory() as tmp:
                               'race/doro',
                               'race/drive',
                               'race/drive_model', 'race/model', 'race/run', 'session/booth', 'session/chat',
-                              'session/group', 'session/halls_rows', 'session/join', 'session/saves', 'session/sbo',
-                              'session/arrival', 'session/sbo_maps', 'session/travel', 'sky/daynight', 'sky/rule', 'story/snapshot',
-                              'story/subtitles', 'ui/create', 'ui/create_model', 'ui/kit', 'ui/lobby',
-                              'ui/lobby_model', 'ui/menu', 'ui/model', 'ui/notice', 'ui/parts', 'ui/pause_tab',
-                              'ui/region_tabs', 'ui/sessions', 'ui/sessions_model', 'ui/text', 'version'))}
+                              'group/group', 'lobby/halls_rows', 'session/join', 'save/saves', 'lobby/sbo',
+                              'lobby/arrival', 'lobby/sbo_maps', 'group/travel', 'sky/daynight', 'sky/rule',
+                              'story/snapshot',
+                              'matrix13/quest/subtitles', 'session/ui/create', 'session/ui/create_model', 'ui/kit/kit',
+                              'lobby/ui/lobby',
+                              'lobby/ui/lobby_model', 'ui/kit/menu', 'ui/kit/model', 'ui/kit/notice', 'ui/kit/parts',
+                              'ui/kit/pause_tab',
+                              'group/region_tabs', 'session/ui/sessions', 'session/ui/sessions_model', 'ui/text',
+                              'version'))}
     assert set(files) == shipped - docs, sorted(files)
     assert not [rel for rel in files
                 if any(fnmatch(Path(rel).name, bad) for bad in ('coop-*', '*.sav', 'steam_api*', '*.pak', '*.uasset'))]

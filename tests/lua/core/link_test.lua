@@ -88,7 +88,7 @@ files[STATUS]='mod=v\nengine=on remote=5 2 peer\nlast=#7 peer linked: poses and 
 link.changes()
 g,n,source=link.remote()
 assert(g==5 and n==2 and source=='peer','A linked friend\'s table')
--- The co-op saves' state (session/saves.lua), each from the start of its own line as of the last changes(): the slot
+-- The co-op saves' state (save/saves.lua), each from the start of its own line as of the last changes(): the slot
 -- line's verdict and saves=, the convert= line and our Steam ID; nothing from a peer's line, all nil once the status is
 -- gone.
 assert(next(link.saves())==nil,'None in these statuses')
@@ -521,7 +521,7 @@ assert(Link.DEFAULT:find(' or closed (nobody; Private in the co-op menu)',1,true
 assert(Link.parse_settings('').friends_ask==false)
 s,notes=Link.parse_settings('friends_ask=ON\n'); assert(#notes==0 and s.friends_ask==true)
 s,notes=Link.parse_settings('friends_ask=off\n'); assert(#notes==0 and s.friends_ask==false)
--- The co-op saves (session/saves.lua): ask (the default, and an old file's), always or off; a new file names it.
+-- The co-op saves (save/saves.lua): ask (the default, and an old file's), always or off; a new file names it.
 assert(Link.parse_settings('').auto_coop_save=='ask' and Link.DEFAULT:find('\nauto_coop_save=ask\n',1,true))
 s,notes=Link.parse_settings('Auto_Coop_Save=ALWAYS\n'); assert(#notes==0 and s.auto_coop_save=='always')
 s,notes=Link.parse_settings('auto_coop_save=off\n'); assert(#notes==0 and s.auto_coop_save=='off')
@@ -1247,7 +1247,7 @@ summary(HEAD..'friend=1 0 Kaanta\n') -- Back to the status the photo line's test
 files[STATUS]=HEAD..'friend=1 0 Kaanta\n'..PHOTO
 lines=fresh.changes()
 assert(#lines==1 and lines[1]=='photo=0 peer_photo=1 frozen=1 sync=both','A changed photo line is logged')
--- The photo line as read (session/group.lua's cutscene notice): ours, hers and our pause; nil without the line.
+-- The photo line as read (group/group.lua's cutscene notice): ours, hers and our pause; nil without the line.
 local seen=fresh.photo()
 assert(seen.mine=='0' and seen.peer=='1' and seen.frozen==true)
 files[STATUS]=HEAD..'friend=1 0 Kaanta\nphoto=0 peer_photo=c frozen=1 sync=both\n'
@@ -1287,7 +1287,7 @@ files[STATUS]=HEAD..'friend=1 0 Kaanta\nsky=cycle h=12.00 el=65.0 le=65.0 ly=0.0
     ..'ev=0.00 tint=1.00,1.00,1.00 n=114 lit=20 seen=1\n'
 for _,line in ipairs(fresh.changes()) do assert(not line:find('^sky='),'sky= stays out of the log') end
 -- coop lion's line, coop gardener fight's, coop tendril fight's, the Shock Bolt's and coop mxiii's too: their spawns=
--- moves with every enemy that spawns or goes, and cut/enemy.lua logs what it reads for each.
+-- moves with every enemy that spawns or goes, and core/enemy.lua logs what it reads for each.
 files[STATUS]=HEAD..'friend=1 0 Kaanta\nlion=rows added=78/78 asks=1 spawns=7 char=2/2 skills=15/15 stance=1/1\n'
     ..'gardener=waiting added=0/13 asks=0 spawns=7 why=busy ticks=2\ntendril=off\n'
     ..'bolt=rows added=4/4 asks=1 spawns=7 char=0/0 skills=1/1 stance=0/0\n'
@@ -1399,7 +1399,7 @@ chat=link.take_chat()
 assert(#chat==5 and chat[1].race=='track 7 2 1 0 0 0 90 /game/map' and not chat[1].text and chat[2].text=='Coucou'
     and not chat[2].race and chat[3].race=='cps 7 1 4000 0 0 1200 8000 0 0 1200' and chat[4].text=='race 9'
     and not chat[4].race and chat[5].race=='go 7 4000','Race lines apart from the chat, in order')
--- Gift lines (coop gift, cut/mailbox.lua): hers, or ours that could not go, apart from the chat and the race.
+-- Gift lines (coop gift, cut/menus/mailbox.lua): hers, or ours that could not go, apart from the chat and the race.
 files[CHAT]='gift s 17 HP_Potion 3\nin 2002 gift a 9\ngift \nrace gift a 1\ngift n 18 nolink\n'
 chat=link.take_chat()
 assert(#chat==4 and chat[1].gift=='s 17 HP_Potion 3' and not chat[1].text and chat[2].text=='gift a 9'

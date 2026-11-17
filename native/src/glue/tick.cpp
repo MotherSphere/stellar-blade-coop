@@ -45,7 +45,7 @@
 // first fault put SB's values back. sky_status() gives coop-status.txt's sky line; the worker logs each change of
 // state.
 //
-// The SBO lobby arrival's black (session/arrival.lua): at Lua's loading lift, coop_tick sets the lifetime of each
+// The SBO lobby arrival's black (lobby/arrival.lua): at Lua's loading lift, coop_tick sets the lifetime of each
 // LoadingScreenFadeAuto entry of tag Load to 0 in SB's UI manager (game/loading.h), under its own SEH latch, so SB's
 // loading controller ends that black with its own end fade.
 //
@@ -93,17 +93,17 @@
 // swaps them back too.
 //
 // The revive's guard: every 250 ms coop_tick reads, under its own SEH latch, whether a respawn or a warp is in flight
-// and our EVE's GUID, straight from two globals; status() puts them in the engine line for session/group.lua.
+// and our EVE's GUID, straight from two globals; status() puts them in the engine line for group/group.lua.
 //
 // The follow's travel (game/travel.h): the worker hands over a camp's FName from Lua's travel request; the game thread
 // calls SB's own fast travel with it once game/travel.h's guard passes, under its own SEH latch, and watches the warp
-// block every 250 ms; status() puts the watch's state in the engine line for session/travel.lua, and the worker logs
+// block every 250 ms; status() puts the watch's state in the engine line for group/travel.lua, and the worker logs
 // each call.
 //
 // The camps this save has activated (game/camps.h): every 250 ms, once the client is in game and no warp, respawn or
 // logic task is in flight, the game thread asks SB's own camp list for each travel type at most every 2 s, and reads
 // the camp EVE respawns at, under its own SEH latch; camps_status() gives both as coop-status.txt's activated line for
-// session/travel.lua and matrix13/world/travel.lua. A load drops the list until the next read.
+// group/travel.lua and matrix13/world/travel.lua. A load drops the list until the next read.
 //
 // Matrix XIII's camp names (game/camp_text.h): every 250 ms, at the title and with coop off too, the game thread adds
 // its 12 entries to StringTable_UI once the table has loaded, and rewrites them on a language change, under its own SEH
@@ -145,7 +145,7 @@
 // or in a loop) or anim stop; the game thread takes our EVE as the player controller's pawn and plays the clip through
 // SB's own custom animation call by path, or stops ours through SB's stop, under its own SEH latch, and reads her
 // custom animation slot every 100 ms while ours plays to tell when it ends. A new Lua load and coop off stop ours. status() puts the last
-// play's id and state in the engine line for cut/emote.lua, and the worker logs each change. The bike's ride plays
+// play's id and state in the engine line for cut/eve/emote.lua, and the worker logs each change. The bike's ride plays
 // the same way, as a loop with her foot IK off. Before it the game thread looks the clip up without a load; the worker
 // logs whether it was in memory.
 //
@@ -171,7 +171,7 @@
 // the worker logs each answer.
 //
 // The teleport screen's extra tabs (game/region_tabs.h): the worker swaps one pointer of the game's image once a run, the
-// Region logic's vtable +0x30, for a hook that adds a record for each tab ui/region_tabs.lua made, under its own SEH
+// Region logic's vtable +0x30, for a hook that adds a record for each tab group/region_tabs.lua made, under its own SEH
 // latch, on the game thread. It swaps back at coop off and after a fault, and logs the first screen once.
 //
 // The SBO lobby's Join (game/sbo.h): on Lua's sbo arm the worker swaps one pointer of the game's image once a run, the
@@ -197,7 +197,7 @@
 //
 // coop gift's inventory read (game/items.h) is the worker's alone: on Lua's items request it reads how many of one item
 // our EVE carries through ReadProcessMemory, her GUID too, and status() puts the answer in the engine
-// line for cut/mailbox.lua.
+// line for cut/menus/mailbox.lua.
 //
 // The pad (game/pad.h): once a run the worker finds the twelve controller key names PadKeys reads, checks that Slate's
 // application holds its message handler, then swaps the handler's three controller slots of the game's image (analog,

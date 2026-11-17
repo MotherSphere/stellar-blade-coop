@@ -318,7 +318,7 @@ package.loaded['core.link']={new=function() return fake_link end,parse_settings=
         return true
     end}}
 said,said_en,notice_ticks,notice_result,notice_stops={},{},0,nil,0 -- said_en: the English given with each.
-package.loaded['ui.notice']={new=function()
+package.loaded['ui.kit.notice']={new=function()
     the_notice={say=function(text,en) said[#said+1]=text; said_en[#said]=en end,stop=function() notice_stops=notice_stops+1 end,
         veil=function(on) veils[#veils+1]=on end,
         tick=function() notice_ticks=notice_ticks+1; if notice_result then return table.unpack(notice_result) end end}
@@ -326,15 +326,15 @@ package.loaded['ui.notice']={new=function()
 end}
 probe,probe_runs,probe_ticks=nil,{},0 -- What nightop.new got, coop no's arguments, its ticks.
 rt={o=nil,ticks=0,stops=0} -- The teleport tabs: what region_tabs.new got, its ticks and stops.
-package.loaded['ui.region_tabs']={new=function(o)
+package.loaded['group.region_tabs']={new=function(o)
     rt.o,rt.ticks,rt.stops=o,0,0
     return {tick=function() rt.ticks=rt.ticks+1 end,stop=function() rt.stops=rt.stops+1 end}
 end}
 -- The pause menu's Online tab: what pause_tab.new got, its ticks, the clocks of its events and clicks, its stops,
--- armed() (pt.armed) and the ask its slow writes when the setting changes, as ui/pause_tab.lua's does (pt.asked: the
--- last one written; tests/lua/ui/pause_tab_test.lua tests the module itself).
+-- armed() (pt.armed) and the ask its slow writes when the setting changes, as ui/kit/pause_tab.lua's does (pt.asked:
+-- the last one written; tests/lua/ui/kit/pause_tab_test.lua tests the module itself).
 pt={o=nil,ticks=0,events={},clicks={},stops=0,armed=false,asked=nil}
-package.loaded['ui.pause_tab']={new=function(o)
+package.loaded['ui.kit.pause_tab']={new=function(o)
     pt.o,pt.ticks,pt.events,pt.clicks,pt.stops,pt.armed,pt.asked=o,0,{},{},0,false,nil
     return {tick=function() pt.ticks=pt.ticks+1 end,
         slow=function()
@@ -352,21 +352,21 @@ end}
 -- Night Operation's run: what nightop_run.new got (o), coop nightop's and coop challenge's words, its ticks and stops,
 -- a stop that raises.
 nr={o=nil,runs={},chs={},ticks=0,stops={},raise=nil}
--- The friend's revive and the cutscene wait (session/group.lua): what group.new got (o), its ticks' clocks, coop revive
+-- The friend's revive and the cutscene wait (group/group.lua): what group.new got (o), its ticks' clocks, coop revive
 -- test's answer, the photo states main.lua hands it (owns) and what it gives back (wire, else the same), its cut, and
 -- the cut each state write got (cuts).
 gr={o=nil,ticks={},tests=0,owns={},cuts={},stops=0}
-package.loaded['session.group']={new=function(o)
+package.loaded['group.group']={new=function(o)
     gr.o=o
     return {tick=function(t) gr.ticks[#gr.ticks+1]=t end,stop=function() gr.stops=gr.stops+1 end,
         test=function() gr.tests=gr.tests+1; return true,'ServerRequest_ActorRespawn asked' end,
         photo=function(own) gr.owns[#gr.owns+1]=own; return gr.wire or own end,cut=function() return gr.cut end,
         cutscene_playing=function() return gr.playing==true end}
 end}
--- The follow (session/travel.lua): what travel.new got (o), its ticks' clocks, follow_key's presses and coop travel
+-- The follow (group/travel.lua): what travel.new got (o), its ticks' clocks, follow_key's presses and coop travel
 -- probe's camps.
 tv={o=nil,ticks={},presses=0,probes={}}
-package.loaded['session.travel']={new=function(o)
+package.loaded['group.travel']={new=function(o)
     tv.o=o
     return {tick=function(t) tv.ticks[#tv.ticks+1]=t end,
         press=function() tv.presses=tv.presses+1; return true,'asked the host for camps' end,
@@ -399,11 +399,11 @@ package.loaded['race.doro']={new=function(o)
         tick=function() dr.ticks=dr.ticks+1; if dr.says then return table.unpack(dr.says) end end,
         active=function() return dr.active==true end}
 end}
--- The cut model viewer's read, display and free camera (cut/leviathan.lua; leviathan_test tests it): what new got
--- (log, store, blocked), its commands (each with its creature's word as who), restores, ticks and stops, what a tick
--- says, whether its free camera is on.
+-- The cut model viewer's read, display and free camera (cut/enemies/leviathan.lua; leviathan_test tests it): what new
+-- got (log, store, blocked), its commands (each with its creature's word as who), restores, ticks and stops, what a
+-- tick says, whether its free camera is on.
 lv={}
-package.loaded['cut.leviathan']={new=function(o)
+package.loaded['cut.enemies.leviathan']={new=function(o)
     lv.o=o
     local commands={}
     for _,who in ipairs({'leviathan','gardener','tendril','mann','nier','orcal','enya'}) do
@@ -414,11 +414,11 @@ package.loaded['cut.leviathan']={new=function(o)
         tick=function() lv.ticks=lv.ticks+1; if lv.says then return table.unpack(lv.says) end end,
         stop=function() lv.stops=lv.stops+1 end,filming=function() return lv.filming==true end}
 end}
--- coop lion (cut/lion.lua; lion_test tests it): what new got (log, ask, status), its commands, ticks and stops, what a
--- tick says, a tick that raises, the seconds a tick takes on the fake clock (cost); its rows (the shop's cut items,
--- with the batch word it was given) answer done at once.
+-- coop lion (cut/enemies/lion.lua; lion_test tests it): what new got (log, ask, status), its commands, ticks and stops,
+-- what a tick says, a tick that raises, the seconds a tick takes on the fake clock (cost); its rows (the shop's cut
+-- items, with the batch word it was given) answer done at once.
 li={}
-package.loaded['cut.lion']={new=function(o)
+package.loaded['cut.enemies.lion']={new=function(o)
     li.o=o
     return {command=function(...) li.cmds[#li.cmds+1]={...}; return true,'li '..tostring((...)) end,
         rows=function(done,word) return done(true,'li rows'..(word and ' '..word or '')) end,
@@ -430,18 +430,18 @@ package.loaded['cut.lion']={new=function(o)
         end,
         stop=function() li.stops=li.stops+1 end}
 end}
--- coop gardener fight (cut/gardener.lua; gardener_test tests it): what new got (log, ask, status), its commands,
--- ticks and stops, what a tick says.
+-- coop gardener fight (cut/enemies/gardener.lua; gardener_test tests it): what new got (log, ask, status), its
+-- commands, ticks and stops, what a tick says.
 gd={}
-package.loaded['cut.gardener']={new=function(o)
+package.loaded['cut.enemies.gardener']={new=function(o)
     gd.o=o
     return {command=function(...) gd.cmds[#gd.cmds+1]=table.pack(...); return true,'gd '..tostring((...)) end,
         tick=function() gd.ticks=gd.ticks+1; if gd.says then return table.unpack(gd.says) end end,
         stop=function() gd.stops=gd.stops+1 end}
 end}
--- coop tendril fight (cut/tendril.lua; tendril_test tests it): the same as the Gardener's.
+-- coop tendril fight (cut/enemies/tendril.lua; tendril_test tests it): the same as the Gardener's.
 td={}
-package.loaded['cut.tendril']={new=function(o)
+package.loaded['cut.enemies.tendril']={new=function(o)
     td.o=o
     return {command=function(...) td.cmds[#td.cmds+1]=table.pack(...); return true,'td '..tostring((...)) end,
         tick=function() td.ticks=td.ticks+1; if td.says then return table.unpack(td.says) end end,
@@ -460,35 +460,35 @@ package.loaded['matrix13.world.travel']={
             stop=function() mx.stops=mx.stops+1 end,
             title=function(...) mx.titles[#mx.titles+1]=table.pack(...) end}
     end}
--- coop chainspin (cut/chainspin.lua; chainspin_test tests it): what new got (log, status, rows) and its commands.
+-- coop chainspin (cut/eve/chainspin.lua; chainspin_test tests it): what new got (log, status, rows) and its commands.
 cs={}
-package.loaded['cut.chainspin']={new=function(o)
+package.loaded['cut.eve.chainspin']={new=function(o)
     cs.o=o
     return {command=function(...) cs.cmds[#cs.cmds+1]=table.pack(...); return true,'cs '..tostring((...)) end}
 end}
--- coop devmenu (cut/devmenu.lua; devmenu_test tests it): what new got (log, status), its commands and stops, and how
--- many native asks there were at its last stop; heal is its one row here.
+-- coop devmenu (cut/menus/devmenu.lua; devmenu_test tests it): what new got (log, status), its commands and stops, and
+-- how many native asks there were at its last stop; heal is its one row here.
 dm={}
-package.loaded['cut.devmenu']={new=function(o)
+package.loaded['cut.menus.devmenu']={new=function(o)
     dm.o=o
     return {row=function(name) return name=='heal' and {} or nil end,
         command=function(...) dm.cmds[#dm.cmds+1]=table.pack(...); return true,'dm '..tostring((...)) end,
         stop=function() dm.stops=dm.stops+1; dm.asked_at_stop=#asked end}
 end}
--- coop wear (cut/wear.lua; wear_test tests it): what new got (log, store, paused), its commands, restores, ticks and
--- stops, what a tick says.
+-- coop wear (cut/eve/wear.lua; wear_test tests it): what new got (log, store, paused), its commands, restores, ticks
+-- and stops, what a tick says.
 wr={}
-package.loaded['cut.wear']={new=function(o)
+package.loaded['cut.eve.wear']={new=function(o)
     wr.o=o
     return {command=function(...) wr.cmds[#wr.cmds+1]={...}; return true,'wr '..tostring((...)) end,
         restore=function() wr.restores=wr.restores+1 end,
         tick=function() wr.ticks=wr.ticks+1; if wr.says then return table.unpack(wr.says) end end,
         stop=function() wr.stops=wr.stops+1 end}
 end}
--- coop scene (cut/scene.lua; scene_test tests it): what new got (log), its commands, restores, ticks and stops, what a
--- tick says; its scenes' words.
+-- coop scene (cut/scenes/scene.lua; scene_test tests it): what new got (log), its commands, restores, ticks and stops,
+-- what a tick says; its scenes' words.
 sc={}
-package.loaded['cut.scene']={new=function(o)
+package.loaded['cut.scenes.scene']={new=function(o)
     sc.o=o
     return {SCENES={emil=true,orcal=true,lily=true},
         command=function(...) sc.cmds[#sc.cmds+1]={...}; return true,'sc '..tostring((...)) end,
@@ -496,37 +496,38 @@ package.loaded['cut.scene']={new=function(o)
         tick=function() sc.ticks=sc.ticks+1; if sc.says then return table.unpack(sc.says) end end,
         stop=function() sc.stops=sc.stops+1 end}
 end}
--- coop lines (cut/lines.lua; lines_test tests it): what new got (log, say, ready), its commands, ticks and stops, what
--- a tick says.
+-- coop lines (cut/scenes/lines.lua; lines_test tests it): what new got (log, say, ready), its commands, ticks and
+-- stops, what a tick says.
 ln={}
-package.loaded['cut.lines']={new=function(o)
+package.loaded['cut.scenes.lines']={new=function(o)
     ln.o=o
     return {command=function(...) ln.cmds[#ln.cmds+1]={...}; return true,'ln '..tostring((...)) end,
         tick=function() ln.ticks=ln.ticks+1; if ln.says then return table.unpack(ln.says) end end,
         stop=function() ln.stops=ln.stops+1 end}
 end}
--- coop gift (cut/mailbox.lua; mailbox_test tests it): what new got, its commands, her gift lines, its ticks and stops.
+-- coop gift (cut/menus/mailbox.lua; mailbox_test tests it): what new got, its commands, her gift lines, its ticks and
+-- stops.
 gf={}
-package.loaded['cut.mailbox']={new=function(o)
+package.loaded['cut.menus.mailbox']={new=function(o)
     gf.o=o
     return {command=function(...) gf.cmds[#gf.cmds+1]=table.pack(...); return true,'gf '..tostring((...)) end,
         receive=function(line) gf.received[#gf.received+1]=line end,tick=function() gf.ticks=gf.ticks+1 end,
         stop=function() gf.stops=gf.stops+1 end}
 end}
--- coop glide (cut/glide.lua; glide_test tests it): what new got (log, slot), its commands, restores, ticks and stops,
--- what a tick says.
+-- coop glide (cut/eve/glide.lua; glide_test tests it): what new got (log, slot), its commands, restores, ticks and
+-- stops, what a tick says.
 gl={}
-package.loaded['cut.glide']={new=function(o)
+package.loaded['cut.eve.glide']={new=function(o)
     gl.o=o
     return {command=function(...) gl.cmds[#gl.cmds+1]={...}; return true,'gl '..tostring((...)) end,
         restore=function() gl.restores=gl.restores+1 end,
         tick=function() gl.ticks=gl.ticks+1; if gl.says then return table.unpack(gl.says) end end,
         stop=function() gl.stops=gl.stops+1 end,active=function() return gl.active==true end}
 end}
--- coop emote (cut/emote.lua; emote_test tests it): what new got (log, ask, status), its commands, restores, ticks and
--- stops, what a tick says.
+-- coop emote (cut/eve/emote.lua; emote_test tests it): what new got (log, ask, status), its commands, restores, ticks
+-- and stops, what a tick says.
 em={}
-package.loaded['cut.emote']={new=function(o)
+package.loaded['cut.eve.emote']={new=function(o)
     em.o=o
     return {command=function(...) em.cmds[#em.cmds+1]=table.pack(...); return true,'em '..tostring((...)) end,
         restore=function() em.restores=em.restores+1 end,
@@ -626,9 +627,9 @@ package.loaded['matrix13.quest.on_time']={new=function(o)
         talk=function(...) ly.talks[#ly.talks+1]=table.pack(...); return true,'talk '..tostring((...)) end,
         hold=function(on) ly.holds[#ly.holds+1]=on; return true,'hold '..tostring(on) end}
 end}
--- Lily's talks (story/subtitles.lua; subtitles_test tests it): what new got (o), the kit hud, its frame ticks.
+-- Lily's talks (matrix13/quest/subtitles.lua; subtitles_test tests it): what new got (o), the kit hud, its frame ticks.
 ts={o=nil,hud=nil,ticks=0}
-package.loaded['story.subtitles']={new=function(o)
+package.loaded['matrix13.quest.subtitles']={new=function(o)
     ts.o=o
     return {hud=function(h) ts.hud=h end,tick=function() ts.ticks=ts.ticks+1 end}
 end}
@@ -655,14 +656,14 @@ package.loaded['nightop.recruiter']={JOIN='MultiplayTest_ZoneE_059',find_name=fu
         stop=function() rc_stops=rc_stops+1; if rc_raise then error(rc_raise,0) end end,
         tick=function() rc_ticks=rc_ticks+1 end,auto=function() rc_autos=rc_autos+1 end}
 end}
--- The SBO lobby (session/sbo.lua; session/sbo_test tests it): what new got (o), its console words called, its sbo on
+-- The SBO lobby (lobby/sbo.lua; lobby/sbo_test tests it): what new got (o), its console words called, its sbo on
 -- calls, ticks, title passes, coop off calls, how many native asks there were at its last one, and what active() says;
 -- what hall() says (sb.hall, nil: 'xion') and the last Private match asked (created: its request and room); the hall
 -- lobby seats: the free seat within reach (sb.seat; seat_error: what near_seat raises), the seat EVE sits on
 -- (sb.sitting), the last seat sat on (sat), the stand-ups asked (stands) and whether SB's interaction runs on EVE
 -- (sb.busy); the arrival's hold: what unready() gives (sb.unready, nil: none); the lobby EVE stands in (sb.target).
 sb={}
-package.loaded['session.sbo']={OFF='the SBO lobby is off in coop-settings.txt (sbo_lobby=off)',new=function(o)
+package.loaded['lobby.sbo']={OFF='the SBO lobby is off in coop-settings.txt (sbo_lobby=off)',new=function(o)
     sb.o=o
     local function word(name) return function() sb.calls[#sb.calls+1]=name; return true,'sb '..name end end
     return {enter=word('enter'),leave=word('leave'),status=word('status'),hop=word('hop'),back=word('back'),
@@ -682,11 +683,11 @@ package.loaded['session.sbo']={OFF='the SBO lobby is off in coop-settings.txt (s
         on_load=function() sb.on_loads=sb.on_loads+1 end,tick=function() sb.ticks=sb.ticks+1 end,
         title=function() sb.titles=sb.titles+1 end,off=function() sb.offs=sb.offs+1; sb.asked_at_off=#asked end}
 end}
--- The lobby screens (ui/lobby.lua; ui/lobby_test tests them): what new got (o), its calls as words (lb.calls; each
--- frame's tick and each slow counted apart), the screen open ('menu', 'settings' or nil; refuse: why open fails) and,
--- while the leave question asks, its answer function (lb.ask).
+-- The lobby screens (lobby/ui/lobby.lua; lobby/ui/lobby_test tests them): what new got (o), its calls as words
+-- (lb.calls; each frame's tick and each slow counted apart), the screen open ('menu', 'settings' or nil; refuse: why
+-- open fails) and, while the leave question asks, its answer function (lb.ask).
 lb={}
-package.loaded['ui.lobby']={new=function(o)
+package.loaded['lobby.ui.lobby']={new=function(o)
     lb.o=o
     local function said(...)
         local w={}
@@ -711,10 +712,10 @@ package.loaded['ui.lobby']={new=function(o)
         tick=function(now) lb.ticks[#lb.ticks+1]=now end,
         parts_check=function() said('parts'); return true,'lobby parts: 6 of 6 made (the log has each)' end}
 end}
--- The Sessions screen (ui/sessions.lua; ui/sessions_test tests it): what new got (o), its calls as words (ss.calls;
--- each slow counted apart, with the shown it got), open or not (refuse: why open fails).
+-- The Sessions screen (session/ui/sessions.lua; session/ui/sessions_test tests it): what new got (o), its calls as
+-- words (ss.calls; each slow counted apart, with the shown it got), open or not (refuse: why open fails).
 ss={}
-package.loaded['ui.sessions']={new=function(o)
+package.loaded['session.ui.sessions']={new=function(o)
     ss.o=o
     local function said(...)
         local w={}
@@ -734,10 +735,11 @@ package.loaded['ui.sessions']={new=function(o)
         slow=function(shown) ss.slows[#ss.slows+1]=shown end,
         tick=function() end}
 end}
--- The Create a session screen (ui/create.lua; ui/create_test tests it), the same way: cr.o, cr.calls, cr.slows, cr.open
--- and cr.refuse. As the real one, it opens only once its last slow said a world shows and the kit is up.
+-- The Create a session screen (session/ui/create.lua; session/ui/create_test tests it), the same way: cr.o, cr.calls,
+-- cr.slows, cr.open and cr.refuse. As the real one, it opens only once its last slow said a world shows and the kit is
+-- up.
 cr={}
-package.loaded['ui.create']={new=function(o)
+package.loaded['session.ui.create']={new=function(o)
     cr.o=o
     local function said(...)
         local w={}
@@ -760,11 +762,11 @@ package.loaded['ui.create']={new=function(o)
         slow=function(shown) cr.slows[#cr.slows+1]=shown end,
         tick=function() end}
 end}
--- The kit (ui/kit.lua's Ui.kit; ui_kit_test tests it): its calls as words, its input on change only (as the kit makes
--- the engine call), every input asked counted; the menu's view built at once by a builder that keeps what each text and
--- row was last set to. kit_ready: its root is up; kit_whole: false while that root is a build whose look still warms
--- (nil: whole); kit_off: it turned off; kit_language: the game's culture, read only while on (once off the kit gives
--- the last one read). kit_slow_cost: the seconds its slow pass takes on the fake clock.
+-- The kit (ui/kit/kit.lua's Ui.kit; ui_kit_test tests it): its calls as words, its input on change only (as the kit
+-- makes the engine call), every input asked counted; the menu's view built at once by a builder that keeps what each
+-- text and row was last set to. kit_ready: its root is up; kit_whole: false while that root is a build whose look still
+-- warms (nil: whole); kit_off: it turned off; kit_language: the game's culture, read only while on (once off the kit
+-- gives the last one read). kit_slow_cost: the seconds its slow pass takes on the fake clock.
 kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
 language_reads=0 -- kit.language(): a game call.
 menu_place,kit_input,input_asks,input_refused=nil,false,0,false -- refused: the kit turns off as it takes it.
@@ -817,7 +819,7 @@ function builder(group)
     return b
 end
 function said_kit(word) return function(...) kit_calls[#kit_calls+1]=table.concat({word,tostring((...))},' ') end end
-package.loaded['ui.kit']={kit=function(opts)
+package.loaded['ui.kit.kit']={kit=function(opts)
     kit_opts=opts
     return {add=function(name,place,build)
             kit_order[#kit_order+1]=name

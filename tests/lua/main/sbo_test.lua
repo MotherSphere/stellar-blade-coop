@@ -1,12 +1,12 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- coop sbo and the SBO lobby's wiring in main.lua, with session/sbo.lua stubbed by the fixture (session/sbo_test tests
+-- coop sbo and the SBO lobby's wiring in main.lua, with lobby/sbo.lua stubbed by the fixture (lobby/sbo_test tests
 -- the module): what sbo.new gets, the console words and the gate, sbo on at load, the 250 ms tick, the title's
 -- put-back, coop off, the recruiter's Join armed once he stands there (with sbo_lobby=on only: the arm swaps a slot in
 -- the game's image), his auto spawn every 250 ms on any save, the say that turns a notice key into words, and
--- the ghost's collision off during a session. Then the lobby screens (ui/lobby.lua stubbed by the fixture,
--- ui/lobby_test tests them): their view and act, the input routed to them (keys, pad, mouse), the arrival, the
+-- the ghost's collision off during a session. Then the lobby screens (lobby/ui/lobby.lua stubbed by the fixture,
+-- lobby/ui/lobby_test tests them): their view and act, the input routed to them (keys, pad, mouse), the arrival, the
 -- countdown feed, the round's start line and the focus watchdog. Last, the arrival's hold under SB's black.
 dofile('tests/lua/main/fixture.lua')
 local T=require('ui.text')
@@ -20,7 +20,7 @@ local ue=sb.o.ue
 assert(ue and type(ue.pc)=='function' and type(ue.eve)=='function' and type(ue.game_instance)=='function')
 assert(type(ue.find_name)=='function' and type(ue.index_of)=='function' and type(ue.rows.read)=='function'
     and type(ue.rows.write)=='function')
--- The hall lobby pak gate's inputs (the Paks folder, files.read) and the hall rows (session/halls_rows.lua), whose own
+-- The hall lobby pak gate's inputs (the Paks folder, files.read) and the hall rows (lobby/halls_rows.lua), whose own
 -- gate is the SBO lobby's.
 assert(sb.o.paks=='mod/StellarCoop|paks' and sb.o.read==require('core.link').files.read
     and type(sb.o.halls.ok)=='function' and type(sb.o.halls.title)=='function')
@@ -276,7 +276,7 @@ lb.screen='menu'; lb.calls={}
 pad(8,9,2)
 assert(table.concat(lb.calls,',')=='nav down',table.concat(lb.calls,','))
 -- menu_key_sits_near_seat_else_opens_b: in the lobby world with no lobby screen open, menu_key and View held 1 s stand
--- EVE up while she sits, sit her on a seat within reach that SB's chairs left to menu_key (session/sbo.lua's
+-- EVE up while she sits, sit her on a seat within reach that SB's chairs left to menu_key (lobby/sbo.lua's
 -- near_seat), else open B. The hint at the bottom centre says Sit, or Stand up while she sits, after the menu key's
 -- name; none while B is open.
 lb.o.act({close='room'})
@@ -374,7 +374,7 @@ link_match={state='open',mode='ffa',members=2,limit=8}
 quarter()
 assert(lb.calls[#lb.calls]=='stop_count')
 -- Our round's start line over the leave question (Review Focus 5): the question, C and B closed, the countdown stopped,
--- the view back to EVE (the fence is session/sbo.lua's, which stops it for a round that lists us), logged once.
+-- the view back to EVE (the fence is lobby/sbo.lua's, which stops it for a round that lists us), logged once.
 key('F5'); lb.o.act({popup='leave'})
 to_rooms,lb.calls=sb.to_rooms,{}
 link_round={n=1,kind='start',mode='ffa',map='NK_Boss_Scarlet',seed=99,ids={ME,HER}}
@@ -398,7 +398,7 @@ lb.calls={}
 sb.here=false
 quarter()
 assert(table.concat(lb.calls,',')=='close,room false',table.concat(lb.calls,','))
--- The arrival's hold (session/arrival.lua, whose rules session/arrival_test tests): sbo gets it; ClientRestart's hook
+-- The arrival's hold (lobby/arrival.lua, whose rules lobby/arrival_test tests): sbo gets it; ClientRestart's hook
 -- after a lobby warp puts SB's black up at the next pass (LoadingScreenFadeAuto: lifetime 10 s, fade in 0.5 s from 0
 -- to 1, fade out 0.5 s from 1 to 0, tag 5 Load) and veils the kit. Under it the menu camera takes the view once and B
 -- waits; once sbo.unready() is empty with the kit's whole look, the native part's loading lift, the veil off and B

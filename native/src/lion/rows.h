@@ -23,23 +23,23 @@
 // shipped row (its own template, which the generator reads from the dump): the health potion's item, HP2Burst_Potion
 // and the health potion's drinking skill, with the few fields that make it the cut item.
 //
-// After them come EVE's cut Tachy Mode ChainSpin (coop chainspin, cut/chainspin.lua), near copies too: the SkillTable
-// row P_Eve_Tachy_Skill_ChainSpin1_1 (1004500, ChainStab1's row starting its own steps), its 9 steps (100450001 to
-// 100450009, ChainStab1's steps with the timing, moves and hit area of the Tachy NPC's version, which play the NPC's
-// shipped Show of EVE's own ChainSpin clip and take SB's shipped ChainSpin moves) and the EffectTable row
-// P_Eve_Tachy_Skill_ChainSpin1_Use (1004500), whose UseSkill action starts the skill while EVE is in Tachy Mode.
+// After them come EVE's cut Tachy Mode ChainSpin (coop chainspin, cut/eve/chainspin.lua), near copies too: the
+// SkillTable row P_Eve_Tachy_Skill_ChainSpin1_1 (1004500, ChainStab1's row starting its own steps), its 9 steps
+// (100450001 to 100450009, ChainStab1's steps with the timing, moves and hit area of the Tachy NPC's version, which
+// play the NPC's shipped Show of EVE's own ChainSpin clip and take SB's shipped ChainSpin moves) and the EffectTable
+// row P_Eve_Tachy_Skill_ChainSpin1_Use (1004500), whose UseSkill action starts the skill while EVE is in Tachy Mode.
 //
-// A second batch, the cut Gardener's (coop gardener fight, cut/gardener.lua; kGardenerRecipe), goes in on its own ask,
-// so a refusal in one batch never stops another: 13 near copies of shipped rows (the 3 steps of its ToxicBeam, its 3
-// skills and their commands, a stance that never moves and 3 CharacterTable rows over M_Maelstrom: M_Gardener 50010,
-// M_Gardener_Skulling 50011 and the half-scale M_Gardener_Half 50012). A third, the cut Tendril's (coop tendril fight,
-// cut/tendril.lua; kTendrilRecipe), is authored as the Lion's: 107 rows over the Lion's templates (11 skills on its own
-// clips with their commands and 45 steps, 28 target filters, 5 hit results, its turn toward EVE, 2 anim sets, a
-// stance, the dead and appearance rows and M_TendrilC 50060). Its steps and its death name Shows no pak holds, which
-// cut/tendril.lua builds in memory before a spawn. A fourth, the Shock Bolt's (kBoltRecipe), holds the 4 rows of EVE's
-// cut ammo the Night Operation shop sells, and only the shop asks for it (nightop/shop.lua through cut/lion.lua: a
-// Shock Bolt buy, and coop nightop shop before it opens the screen), so these rows never stand in front of the Lion's:
-// ItemTable Bullet_Shock (32, over Bullet_Scatter), the SkillTable row its consumable plays,
+// A second batch, the cut Gardener's (coop gardener fight, cut/enemies/gardener.lua; kGardenerRecipe), goes in on its
+// own ask, so a refusal in one batch never stops another: 13 near copies of shipped rows (the 3 steps of its ToxicBeam,
+// its 3 skills and their commands, a stance that never moves and 3 CharacterTable rows over M_Maelstrom: M_Gardener
+// 50010, M_Gardener_Skulling 50011 and the half-scale M_Gardener_Half 50012). A third, the cut Tendril's (coop tendril
+// fight, cut/enemies/tendril.lua; kTendrilRecipe), is authored as the Lion's: 107 rows over the Lion's templates (11
+// skills on its own clips with their commands and 45 steps, 28 target filters, 5 hit results, its turn toward EVE, 2
+// anim sets, a stance, the dead and appearance rows and M_TendrilC 50060). Its steps and its death name Shows no pak
+// holds, which cut/enemies/tendril.lua builds in memory before a spawn. A fourth, the Shock Bolt's (kBoltRecipe), holds
+// the 4 rows of EVE's cut ammo the Night Operation shop sells, and only the shop asks for it (nightop/shop.lua through
+// cut/enemies/lion.lua: a Shock Bolt buy, and coop nightop shop before it opens the screen), so these rows never stand
+// in front of the Lion's: ItemTable Bullet_Shock (32, over Bullet_Scatter), the SkillTable row its consumable plays,
 // P_Eve_Gun_ShootShockSlug1_1 (1003401, Scatter's skill on SB's shipped Shock steps), the projectile those steps fire,
 // ProjectileTable P_Eve_Gun_ShootShockSlug1_Projectile1 (1010051, the normal slug's), and its hit result with SB's
 // shock stun (SkillResultTable 100200801). What makes the ammo selectable and the gun fire it is no row: lion/shock.h
@@ -63,7 +63,7 @@
 // holds the mod's own quests, the prologue "A Second Signal" (Quest_Sub_MX13_00, 164) and "On Time" (Quest_Sub_MX13_01,
 // 163): 8 LevelTargetFilter rows, 7 tasks, 7 groups and the two quest rows last of them, and patches Lily's borrowed
 // choice row TS_GoToTest_2 in place, last. The hall lobbies' (kHallsRecipe, lion/halls_rows.h, which
-// tools/sbo_lobby_rows.py writes; session/halls_rows.lua) holds one WorldTable row and one type-5 ZoneTable row for
+// tools/sbo_lobby_rows.py writes; lobby/halls_rows.lua) holds one WorldTable row and one type-5 ZoneTable row for
 // each SBO hall lobby map, so SB's warp reaches the cooked maps of the local lobby pak, then one ZoneEnvSpawnTable row
 // for each kept seat of those maps, for the chair of SB's spawned there. A Batch names its rows, its patches and
 // the word its status line, log lines and request start with ("lion", "gardener", "tendril", "bolt", "mxiii", "shop",
@@ -6221,7 +6221,7 @@ constexpr Row kGardenerRecipe[] = {
 // The Tendril's own batch (coop tendril fight), added on its own ask after its own checks: 107 rows (character 1,
 // appearance 1, dead 1, stance 1, anim 2, command 11, skill 11, step 45, move 1, filter 28, result 5), 1281 fields,
 // every field authored over the Lion's template rows. M_TendrilC (50060) with M_Skulling_AI_Test. Its 11 skills
-// play its own clips through Shows cut/tendril.lua builds in memory (copies of
+// play its own clips through Shows cut/enemies/tendril.lua builds in memory (copies of
 // CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam in StellarCoop/Tendril, a package of its own); each Hit step is a
 // window of the clip where its chain ends strike (2500 cm/s or faster, 250 cm or farther out) and hits by area, a
 // 3D arc 200 cm high. Per skill, its range (straight ahead, the first hit's reach times 0.6087) and each hit: its
@@ -6578,9 +6578,9 @@ constexpr Row kSignalRecipe[] = {
     {Table::select, "TS_GoToTest_2", "TS_GoToTest_2", 0, 52, 5},
 };
 
-// ---- The hall lobbies' batch (session/halls_rows.lua), lion/halls_rows.h, written by tools/sbo_lobby_rows.py ----
-// One world row and one zone row for each SBO hall lobby map of session/sbo_maps.lua (Hotel, Station, Cloister,
-// Terrace, Foyer, in that order), so session/sbo.lua's warp (game/sbo.h: the zone row by name, its WorldAlias +0x14,
+// ---- The hall lobbies' batch (lobby/halls_rows.lua), lion/halls_rows.h, written by tools/sbo_lobby_rows.py ----
+// One world row and one zone row for each SBO hall lobby map of lobby/sbo_maps.lua (Hotel, Station, Cloister,
+// Terrace, Foyer, in that order), so lobby/sbo.lua's warp (game/sbo.h: the zone row by name, its WorldAlias +0x14,
 // that world row's UMapPath +0x18, type 5 at +0x25) reaches the maps of the local lobby pak zSBO_Lobby. The five worlds
 // come first, so no zone names a world row not in yet. Each world is a copy of CombatTestMapMk2 (1003: only UMapPath and
 // FileSuffix exist, and FileSuffix is None in every shipped row) with the cooked persistent level's path; each zone a
@@ -6956,10 +6956,10 @@ private:
   uint32_t count_ = 0;
 };
 
-// coop-status.txt's line for a batch (cut/lion.lua reads lion=, bolt= and shop=, cut/gardener.lua gardener=,
-// cut/tendril.lua tendril=, matrix13/world/travel.lua mxiii=, mxspawn=, mxenv=, mxupper=, mxmiddle= and mxlower=,
-// matrix13/quest/on_time.lua signal=), from its answer word, its read-back, the frames its ask waited, the spawn
-// manager's counter and, after the latch, where the fault was:
+// coop-status.txt's line for a batch (cut/enemies/lion.lua reads lion=, bolt= and shop=, cut/enemies/gardener.lua
+// gardener=, cut/enemies/tendril.lua tendril=, matrix13/world/travel.lua mxiii=, mxspawn=, mxenv=, mxupper=, mxmiddle=
+// and mxlower=, matrix13/quest/on_time.lua signal=), from its answer word, its read-back, the frames its ask waited,
+// the spawn manager's counter and, after the latch, where the fault was:
 //   <word>=off
 //   <word>=waiting added=<n>/<N> asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
 //   <word>=rows added=<N>/<N> asks=<a> spawns=<s> char=<k>/<n> skills=<k>/<n> stance=<k>/<n>

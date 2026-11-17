@@ -97,16 +97,16 @@ function Chat.new(lines,on)
     function self.lines() return feed end
     return self
 end
--- The feed and the chat box (UI-DESIGN 3.2, 4.2, 4.4) on the Uplink kit (ui/kit.lua). The feed sits under the partner
--- card and holds chat lines and notices, newest at the bottom: while the box is closed, the last 6 rows of the lines
--- under 8 s old; while open, the last 12 on the panel's glass, the box under them. Her lines are teal (the partner
--- colour), ours white, notices grey, a line not sent red; lines wrap at a space, 70 columns a row. Enter (main.lua's
--- bind) opens the box in a world during a session (or coop loopback, or in the SBO lobby) with chat on, never while the
--- game is paused or shows the mouse cursor; outside a session it says so, once per 10 s. While open the game ignores
--- its keys and the box has the keyboard (kit.input with the chat's field, focused again 50 ms later): Slate types the
--- characters, so any layout, accents and dead keys work. Enter sends the line (shown at once; an empty one closes the
--- box; one too fast stays in it), Esc cancels; the game's input comes back 150 ms after a close, so that key never
--- reaches the game.
+-- The feed and the chat box (UI-DESIGN 3.2, 4.2, 4.4) on the Uplink kit (ui/kit/kit.lua). The feed sits under the
+-- partner card and holds chat lines and notices, newest at the bottom: while the box is closed, the last 6 rows of the
+-- lines under 8 s old; while open, the last 12 on the panel's glass, the box under them. Her lines are teal (the
+-- partner colour), ours white, notices grey, a line not sent red; lines wrap at a space, 70 columns a row. Enter
+-- (main.lua's bind) opens the box in a world during a session (or coop loopback, or in the SBO lobby) with chat on,
+-- never while the game is paused or shows the mouse cursor; outside a session it says so, once per 10 s. While open the
+-- game ignores its keys and the box has the keyboard (kit.input with the chat's field, focused again 50 ms later):
+-- Slate types the characters, so any layout, accents and dead keys work. Enter sends the line (shown at once; an empty
+-- one closes the box; one too fast stays in it), Esc cancels; the game's input comes back 150 ms after a close, so that
+-- key never reaches the game.
 -- The box closes and empties by itself when the session ends (the history goes with it), chat turns off (her lines
 -- hide too), the game pauses or shows the mouse cursor (UI-DESIGN 7.4: a game screen keeps its keys; the friend's
 -- photo pause too), our HUD hides or the kit turns off. While the co-op menu covers the feed, the menu shows the newest

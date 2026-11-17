@@ -5,16 +5,17 @@
 -- "Talk to Lily to decide on the next destination" until "Leave for the Nest", Quest_Epic_11 M04), the mod's prologue
 -- "A Second Signal" (Quest_Sub_MX13_00, QuestTable 164) starts by itself and tracks Lily at every Tetrapod; Lily's
 -- choice list then offers one more line, "The other signal", above her Travel, Repair and End rows. Picking it plays
--- her goodbye, then the prologue talk (story/subtitles.lua), then completes the prologue and starts the mod's long
--- quest "On Time" (Quest_Sub_MX13_01, QuestTable 163) and sends EVE into Matrix XIII through coop mxiii's camp travel
--- (the Tetrapod camp DLC02_00_Camp_00, beside the dungeon's Lily, on the v4 pak). On Time has six steps: reach the station (M01) and zones 2 to 4
--- (M02 to M04, each SB's own EnterZone), the Fusion Drive room in zone 4 (M05, which this file completes), and telling
--- Lily (M06), when her row returns as "About Matrix 13" and plays the end talk. The pieces, in order:
--- - The signal rows (lion/rows.h's kSignalRecipe, through cut/enemy.lua's rows flow and read back): both quests' rows
+-- her goodbye, then the prologue talk (matrix13/quest/subtitles.lua), then completes the prologue and starts the mod's
+-- long quest "On Time" (Quest_Sub_MX13_01, QuestTable 163) and sends EVE into Matrix XIII through coop mxiii's camp
+-- travel (the Tetrapod camp DLC02_00_Camp_00, beside the dungeon's Lily, on the v4 pak). On Time has six steps: reach
+-- the station (M01) and zones 2 to 4 (M02 to M04, each SB's own EnterZone), the Fusion Drive room in zone 4 (M05, which
+-- this file completes), and telling Lily (M06), when her row returns as "About Matrix 13" and plays the end talk. The
+-- pieces, in order:
+-- - The signal rows (lion/rows.h's kSignalRecipe, through core/enemy.lua's rows flow and read back): both quests' rows
 --   (8 target filters, 7 tasks, 7 groups, the two quests), then Lily's borrowed choice row TS_GoToTest_2 patched in
 --   place (the game's own Phase 5 condition Xion_10_Condition_051, shown or hidden, priority 3, her goodbye's exec).
 --   Only with the test pak (looked for once a Lua load), since nothing else can use them and no row has gone into these
---   tables in game yet: at the title while the game uses the co-op save files (title(), cut/enemy.lua's title_batch),
+--   tables in game yet: at the title while the game uses the co-op save files (title(), core/enemy.lua's title_batch),
 --   so a co-op save that holds a quest loads with it; on a co-op save in game they are asked, or read back when already
 --   in, once a Lua load (also after a title batch that a shut gate refused), too late for a save that holds a quest.
 --   They stay for the game run, and nothing goes on until they read back.
@@ -53,9 +54,9 @@ local U=require('core.unreal')
 local N=require('nightop.probe')
 local R=require('nightop.recruiter')
 local Roxanne=require('nightop.roxanne')
-local Enemy=require('cut.enemy')
+local Enemy=require('core.enemy')
 local Mxiii=require('matrix13.world.travel')
-local Subtitles=require('story.subtitles')
+local Subtitles=require('matrix13.quest.subtitles')
 local Lily={}
 local DATA='/Game/Local/Data/'
 local LANGUAGE='/Script/Engine.Default__KismetInternationalizationLibrary'
@@ -85,7 +86,7 @@ function Lily.drive_room(v)
     end
     return true
 end
--- The signal rows as cut/enemy.lua reads them back (rows.h's kSignalRecipe and kSignalPatches;
+-- The signal rows as core/enemy.lua reads them back (rows.h's kSignalRecipe and kSignalPatches;
 -- matrix13/quest/on_time_test checks them against it): each patched field, changed when it differs from the template
 -- row's. The 8 filters (one per Tetrapod
 -- Lily: Xion, Eidos 7, Eidos 9 at the Tetrapod and near the atelier, the Wasteland, the Great Desert, the Matrix 11
@@ -159,7 +160,7 @@ end
 -- o: log (the [LY] lines), status() the native status text, ask(line) its request, mode() the link's mode ('none'
 -- when solo, nil before the link is ready), paused() whether the game is paused or shows one of its screens, travel()
 -- coop mxiii (commands/cut.lua's: ok, message), paks (SB/Content/Paks, nil when unknown), read (files.read), talks
--- (story/subtitles.lua's player), zones (matrix13/quest/zone_talks.lua's, or nil).
+-- (matrix13/quest/subtitles.lua's player), zones (matrix13/quest/zone_talks.lua's, or nil).
 function Lily.new(o)
     local log,status,ask,talks=o.log,o.status,o.ask,o.talks
     local TEXT,culture_of=require('matrix13.quest.text'),require('matrix13.culture')
@@ -307,7 +308,7 @@ function Lily.new(o)
             ..(with_travel and '; the travel follows once the quest is held' or ''))
         return true,'signal acquire asked: [LY] lines follow'..(with_travel and ', then the travel' or '')
     end
-    -- A talk (story/subtitles.lua), then: 'talked' or 'tell' asked once it ended, or nothing.
+    -- A talk (matrix13/quest/subtitles.lua), then: 'talked' or 'tell' asked once it ended, or nothing.
     local function talk(name,kit,after)
         flow={step='talk',name=name,after=after}
         local f=flow

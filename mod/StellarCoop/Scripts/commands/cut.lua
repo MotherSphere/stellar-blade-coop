@@ -2,26 +2,27 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop leviathan, coop gardener, coop tendril, coop mann, coop nier, coop orcal and coop enya, a read and a display of
--- cut models with a free camera to film them (cut/leviathan.lua; test tools, left out of the usage line): show and cam
--- turning the camera on (not off, not its speed) on a co-op save only, as coop race probe doro. coop lion, the cut Lion
--- spawned as an enemy to fight (cut/lion.lua, left out of the usage line too): the words that spawn (none, intro,
--- control) on a co-op save only; rows and brain on any. coop gardener fight, the cut Gardener spawned as an enemy
--- (cut/gardener.lua; every other coop gardener word is the viewer's): the words that spawn (none, intro, half,
--- skulling) on a co-op save only, after the viewer's display and free camera are put away, so the two models never
--- stand in the same place; rows on any. coop tendril fight, the cut Tendril spawned as an enemy (cut/tendril.lua;
--- every other coop tendril word is the viewer's), the same way: the spawn on a co-op save only, rows on any. coop
--- scene, two cut scenes through the game's theater (cut/scene.lua): a scene's name on a co-op save only (lily, Lily's
--- prologue talk, through o.lily); the list and stop on any. main.lua builds it with new(o) at each Lua load and merges
--- it into its command table. o: main.lua's coop_slot, leviathan (cut/leviathan.lua's, one command a creature), lion
--- (cut/lion.lua's), gardener (cut/gardener.lua's), tendril (cut/tendril.lua's), wear (cut/wear.lua's), scene
--- (cut/scene.lua's), lines (cut/lines.lua's), flight (cut/flight.lua's keys for coop fly), chainspin
--- (cut/chainspin.lua's), glide (cut/glide.lua's), ask (a native request; coop fly, coop slowmo, coop shortcut and coop
--- devinfo), devmenu (cut/devmenu.lua's) and riding (bike/ride.lua's: EVE rides the bike). coop chainspin, EVE's cut Tachy Mode ChainSpin (a test tool, left out of
--- the usage line), runs on a co-op save only. coop emote, one of EVE's clips (cut/emote.lua, o.emote), runs on any
--- save. coop devmenu, the developer menu's rows that still work (left out of the usage line too): its list on any save,
--- a row on a co-op save only. coop devinfo, two read-only panels of the game's developer UI (left out too), on any
--- save. coop gift, the cut mailbox as a co-op gift box (cut/mailbox.lua, o.mailbox, built with the Steam link only),
--- runs on a co-op save only: every word of it.
+-- cut models with a free camera to film them (cut/enemies/leviathan.lua; test tools, left out of the usage line): show
+-- and cam turning the camera on (not off, not its speed) on a co-op save only, as coop race probe doro. coop lion, the
+-- cut Lion spawned as an enemy to fight (cut/enemies/lion.lua, left out of the usage line too): the words that spawn
+-- (none, intro, control) on a co-op save only; rows and brain on any. coop gardener fight, the cut Gardener spawned as
+-- an enemy (cut/enemies/gardener.lua; every other coop gardener word is the viewer's): the words that spawn (none,
+-- intro, half, skulling) on a co-op save only, after the viewer's display and free camera are put away, so the two
+-- models never stand in the same place; rows on any. coop tendril fight, the cut Tendril spawned as an enemy
+-- (cut/enemies/tendril.lua; every other coop tendril word is the viewer's), the same way: the spawn on a co-op save
+-- only, rows on any. coop scene, two cut scenes through the game's theater (cut/scenes/scene.lua): a scene's name on a
+-- co-op save only (lily, Lily's prologue talk, through o.lily); the list and stop on any. main.lua builds it with
+-- new(o) at each Lua load and merges it into its command table. o: main.lua's coop_slot, leviathan
+-- (cut/enemies/leviathan.lua's, one command a creature), lion (cut/enemies/lion.lua's), gardener
+-- (cut/enemies/gardener.lua's), tendril (cut/enemies/tendril.lua's), wear (cut/eve/wear.lua's), scene
+-- (cut/scenes/scene.lua's), lines (cut/scenes/lines.lua's), flight (cut/eve/flight.lua's keys for coop fly), chainspin
+-- (cut/eve/chainspin.lua's), glide (cut/eve/glide.lua's), ask (a native request; coop fly, coop slowmo, coop shortcut
+-- and coop devinfo), devmenu (cut/menus/devmenu.lua's) and riding (bike/ride.lua's: EVE rides the bike). coop
+-- chainspin, EVE's cut Tachy Mode ChainSpin (a test tool, left out of the usage line), runs on a co-op save only. coop
+-- emote, one of EVE's clips (cut/eve/emote.lua, o.emote), runs on any save. coop devmenu, the developer menu's rows
+-- that still work (left out of the usage line too): its list on any save, a row on a co-op save only. coop devinfo, two
+-- read-only panels of the game's developer UI (left out too), on any save. coop gift, the cut mailbox as a co-op gift
+-- box (cut/menus/mailbox.lua, o.mailbox, built with the Steam link only), runs on a co-op save only: every word of it.
 -- coop mxiii, the camp travel into the cut Matrix XIII dungeon (matrix13/world/travel.lua, o.mxiii; a test tool left
 -- out of the usage line, needing the zMXIII_P test pak), coop mxiii 30, the same to its third zone's camp, and coop
 -- mxiii leave, its way out, and coop mxiii boss, the key-0 Lion or Gardener of the arena EVE stands in
@@ -31,12 +32,12 @@ local Cut={}
 function Cut.new(o)
     local coop_slot,leviathan,lion=o.coop_slot,o.leviathan,o.lion
     local self={}
-    -- coop wear (cut/wear.lua, o.wear): every word to it, on any save, as nothing of it is saved.
+    -- coop wear (cut/eve/wear.lua, o.wear): every word to it, on any save, as nothing of it is saved.
     function self.wear(...) return o.wear.command(...) end
-    -- coop lines (cut/lines.lua, o.lines): every word to it, on any save, as it only says lines in the feed and plays
-    -- voice takes.
+    -- coop lines (cut/scenes/lines.lua, o.lines): every word to it, on any save, as it only says lines in the feed and
+    -- plays voice takes.
     function self.lines(...) return o.lines.command(...) end
-    -- coop emote (cut/emote.lua, o.emote): every word to it, on any save, as nothing of it is saved.
+    -- coop emote (cut/eve/emote.lua, o.emote): every word to it, on any save, as nothing of it is saved.
     function self.emote(...) return o.emote.command(...) end
     -- coop fly and coop slowmo (the native part's game/debug_keys.h, test tools left out of the usage line): SB's
     -- developer flight and slow motion. on is asked on a co-op save only, off anywhere; coop off and the next Lua load
@@ -89,9 +90,9 @@ function Cut.new(o)
         if ok then why=tostring(why)..': its steps go to coop-link.log' end
         return ok,why
     end
-    -- coop glide (cut/glide.lua, o.glide, a test tool left out of the usage line): EVE's cut glide, on asked on a co-op
-    -- save only, off anywhere (cut/glide.lua checks the save again once a second while on). on is refused while EVE
-    -- rides the bike: Jump stays SB's in the saddle.
+    -- coop glide (cut/eve/glide.lua, o.glide, a test tool left out of the usage line): EVE's cut glide, on asked on a
+    -- co-op save only, off anywhere (cut/eve/glide.lua checks the save again once a second while on). on is refused
+    -- while EVE rides the bike: Jump stays SB's in the saddle.
     function self.glide(sub,extra)
         if sub=='on' and extra==nil then
             local ok,why=coop_slot('coop glide on')

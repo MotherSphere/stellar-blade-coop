@@ -1,9 +1,10 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- coop guide: the first-launch guide (ui/guide.lua) opened on its first page, on the title screen or in the game world,
--- as the co-op menu's Guide row opens it. main.lua builds it with new(o) at each Lua load and merges it into its
--- command table. o: main.lua's, whose guide (ui/guide.lua's) it sets once the UI is built, with the Steam link only.
+-- coop guide: the first-launch guide (ui/kit/guide.lua) opened on its first page, on the title screen or in the game
+-- world, as the co-op menu's Guide row opens it. main.lua builds it with new(o) at each Lua load and merges it into its
+-- command table. o: main.lua's, whose guide (ui/kit/guide.lua's) it sets once the UI is built, with the Steam link
+-- only.
 local Guide={}
 function Guide.new(o)
     local self={}

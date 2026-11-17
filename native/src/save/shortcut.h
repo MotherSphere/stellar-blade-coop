@@ -34,7 +34,7 @@ namespace coop::shortcut {
 
 constexpr int kMaps = 4, kPerMap = 4, kFiles = kMaps * kPerMap; // FUN_142295f40 reads slots 1 to 4.
 constexpr const char *kMapNames[kMaps] = {"B07", "F02", "G03", "Matrix_XI"};
-// WorldTable's row for each map (its UMapPath /Game/Art/BG/WorldMap/.../<map>), as session/travel.lua names worlds.
+// WorldTable's row for each map (its UMapPath /Game/Art/BG/WorldMap/.../<map>), as group/travel.lua names worlds.
 constexpr const char *kWorlds[kMaps] = {"SpaceElevator", "DrownedEidosDistrict", "Beach", "MatrixEleven"};
 constexpr size_t kMaxFile = 64 << 20; // These are 0.2 to 2 MB.
 constexpr size_t kMaxString = 1024;   // A key or value of the maps read: map and camp aliases.

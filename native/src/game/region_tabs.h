@@ -1,8 +1,9 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// The between-regions teleport screen's extra tabs (ui/region_tabs.lua makes them). WB_AreaTeleport_Set holds 7 tabs,
-// and SB's Region logic (type 0xBC, vtable 0x145c44948) serves only the tabs that have a child logic node of type 0xBD.
+// The between-regions teleport screen's extra tabs (group/region_tabs.lua makes them). WB_AreaTeleport_Set holds 7
+// tabs, and SB's Region logic (type 0xBC, vtable 0x145c44948) serves only the tabs that have a child logic node of type
+// 0xBD.
 // Nodes come from a list of 0x2C records that FUN_142533870 builds from the widget's class properties, so a tab made at
 // run time has none. FUN_141fc8f40 builds the root node, calls its vtable +0x30 and only then reads that list, so one
 // record added in that call gives a made tab its node, its place in the array and its camp through SB's own code. The

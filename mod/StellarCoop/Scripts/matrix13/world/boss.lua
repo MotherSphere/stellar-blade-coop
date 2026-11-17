@@ -2,11 +2,11 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Matrix XIII's Lion and Gardener when the game spawns them from their spawn rows (DLC02_40_E_CharS_051 and
--- DLC02_20_E_CharS_904, the mxspawn batch; matrix13/world/travel.lua ticks this file). cut/enemy.lua fixes only the
+-- DLC02_20_E_CharS_904, the mxspawn batch; matrix13/world/travel.lua ticks this file). core/enemy.lua fixes only the
 -- bodies its own spawn call made, so in world 2800, once a second, this file looks for a body of each boss's blueprint
--- within NEAR of its spawn point and fixes it once: the Lion through cut/lion.lua's adopt (the anim instance its mesh
--- lacks, else the hidden Behemoth leader), the Gardener's mesh turned -90 degrees about its root (its skeleton faces
--- +Y). While a boss it fixed lives, the boss bar's name reads its name instead of the row name (<M_LionC>,
+-- within NEAR of its spawn point and fixes it once: the Lion through cut/enemies/lion.lua's adopt (the anim instance
+-- its mesh lacks, else the hidden Behemoth leader), the Gardener's mesh turned -90 degrees about its root (its skeleton
+-- faces +Y). While a boss it fixed lives, the boss bar's name reads its name instead of the row name (<M_LionC>,
 -- <M_Gardener>). One [MXBOSS] line a fix. When EVE stands within ARENA of a boss point for WAIT s with no body there,
 -- one line says so and that coop mxiii boss spawns one; that command is the key-0 fallback: coop lion's or coop
 -- gardener fight's own spawn, with no spawn row (no saved death, no zone storage). It is never automatic: a boss killed
@@ -51,8 +51,8 @@ local BOSS_TEXT,LIVE='TextBlock_BossName','/Engine/Transient'
 local function far(a,b) return math.sqrt((a.X-b.X)^2+(a.Y-b.Y)^2+(a.Z-b.Z)^2) end
 local function xyz(t) return {X=t[1],Y=t[2],Z=t[3]} end
 
--- o: log (the [MXBOSS] lines), lion and gardener (cut/lion.lua's and cut/gardener.lua's instances; nil: no fix, no
--- fallback), points (matrix13/world/rows.lua's BOSS by default).
+-- o: log (the [MXBOSS] lines), lion and gardener (cut/enemies/lion.lua's and cut/enemies/gardener.lua's instances; nil:
+-- no fix, no fallback), points (matrix13/world/rows.lua's BOSS by default).
 function Boss.new(o)
     local log=o.log
     local points=o.points or Rows.BOSS

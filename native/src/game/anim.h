@@ -1,9 +1,10 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// coop emote's native backend (cut/emote.lua), free of Windows: one of EVE's animation clips played on the player's EVE
-// through SB's own custom animation call, the way the game plays her clips, and stopped again. glue/tick/anim_game.inc
-// makes the calls on the game thread; tests/native/game/anim_test.cpp checks this file on the build machine.
+// coop emote's native backend (cut/eve/emote.lua), free of Windows: one of EVE's animation clips played on the player's
+// EVE through SB's own custom animation call, the way the game plays her clips, and stopped again.
+// glue/tick/anim_game.inc makes the calls on the game thread; tests/native/game/anim_test.cpp checks this file on the
+// build machine.
 //
 // Why not a montage: CH_P_EVE_01_AnimBP_New has no AnimNode_Slot, so a dynamic montage plays with nothing shown. SB
 // plays her clips through SB's own nodes instead (SBAnimNode_SequenceBlendedPlayer, CustomAnimNode in that blueprint),

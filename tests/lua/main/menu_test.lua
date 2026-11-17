@@ -1,17 +1,17 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The co-op menu (ui/menu.lua, ui/model.lua and ui/text.lua for real on fixture.lua's fake kit): it opens, moves, runs
--- its rows, changes and applies settings (the shared enemies', shared quests', shared world's, story together's and
--- same place's rows ask the native part at once), rebinds keys and migrates an old file; and the co-op line, which
--- opens at a camp phone booth (session/booth.lua on a fake FindAllOf) with its hint shown there; Find a session, which
--- opens the Sessions screen and hands it the keys, the pad and the mouse; Host a session, which opens the Create a
--- session screen the same way.
+-- The co-op menu (ui/kit/menu.lua, ui/kit/model.lua and ui/text.lua for real on fixture.lua's fake kit): it opens,
+-- moves, runs its rows, changes and applies settings (the shared enemies', shared quests', shared world's, story
+-- together's and same place's rows ask the native part at once), rebinds keys and migrates an old file; and the co-op
+-- line, which opens at a camp phone booth (session/booth.lua on a fake FindAllOf) with its hint shown there; Find a
+-- session, which opens the Sessions screen and hands it the keys, the pad and the mouse; Host a session, which opens
+-- the Create a session screen the same way.
 dofile('tests/lua/main/fixture.lua')
--- The co-op menu (ui/menu.lua, ui/model.lua and ui/text.lua for real; the kit faked). menu_key opens it in a world
--- only, with its root up and the game not paused; its keys move, wrap over headers, select and go back; Host closes it
--- and, while the Create a session screen cannot open, hosts at once (the Steam overlay takes the focus); the game's
--- input comes back 150 ms after a close; it closes when the world or our HUD goes, also at coop off.
+-- The co-op menu (ui/kit/menu.lua, ui/kit/model.lua and ui/text.lua for real; the kit faked). menu_key opens it in a
+-- world only, with its root up and the game not paused; its keys move, wrap over headers, select and go back; Host
+-- closes it and, while the Create a session screen cannot open, hosts at once (the Steam overlay takes the focus); the
+-- game's input comes back 150 ms after a close; it closes when the world or our HUD goes, also at coop off.
 settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',false,false
 load_main(true)
 assert(kit_opts.scale==100 and kit_opts.sounds==true and kit_opts.store=='store coop-ui.txt'
@@ -19,7 +19,7 @@ assert(kit_opts.scale==100 and kit_opts.sounds==true and kit_opts.store=='store 
     'The kit gets the settings, the UI log and its own path store')
 assert(menu_view and #menu_view.rows==15,'The menu is added before the first slow')
 local top=menu_place.y+menu_place.h*menu_place.pivot.Y*(1-1.5)
-local hints_end=menu_view.hints.y+66 -- The key icons are 66 units high (ui/kit.lua's KEY_ICON).
+local hints_end=menu_view.hints.y+66 -- The key icons are 66 units high (ui/kit/kit.lua's KEY_ICON).
 assert(hints_end<=menu_view.hints.bottom,'The key hints stay inside the panel')
 assert(top+36*1.5>=0 and top+hints_end*1.5<=2160,'At ui_scale=150 the title and the key hints stay on the screen')
 -- Its rows end 24 units inside the panel, their value in the last 600 units (ui/text_test.lua's columns); at
@@ -334,7 +334,7 @@ assert(settings_text:find('\ndaynight=off\n',1,true) and select(2,focus())=='Off
     and logged('menu: daynight=off saved in coop-settings.txt'))
 key('RETURN'); assert(settings_text:find('\ndaynight=on\n',1,true) and select(2,focus())=='On')
 -- The Online tab: On by default; a change is saved at once and the next 250 ms pass asks the native part pausetab off
--- or on (ui/pause_tab.lua's slow; the fixture's stand-in asks as it does).
+-- or on (ui/kit/pause_tab.lua's slow; the fixture's stand-in asks as it does).
 to('Online tab in the pause menu'); assert(select(2,focus())=='On')
 key('RETURN'); quarter()
 assert(settings_text:find('\npause_tab=off\n',1,true) and pausetabs[#pausetabs]=='pausetab off'
@@ -499,13 +499,14 @@ coop('keys','reset')
 assert(last()=='[StellarCoop] STOP: coop keys needs the co-op UI, which needs the Steam link\n',last())
 settings_text,in_world,kit_ready='',false,false
 
--- The co-op line (session/booth.lua, ui/menu.lua, ui/model.lua and ui/text.lua for real on the fake kit; booth_test and
--- ui_model_test test them alone). Within 3 m of a camp phone booth the menu key opens the line: its header, the session
--- rows of the state, Co-op menu and Hang up, and a sentence by state; 3.1 m away, the main page as before. Co-op menu
--- turns to the main page; Hang up and Esc close; Leave still asks twice; Host and Invite run the same commands and
--- close as from the main page. The hint shows at a booth with nothing open. It hides with the menu, a box, a question,
--- the Sessions screen or the Create a session screen open, while paused and after coop off. No scan while the menu is open, while paused, nor after coop off,
--- with EVE 100 m from the last scan's spot and 30 s after it; none either back where it ran.
+-- The co-op line (session/booth.lua, ui/kit/menu.lua, ui/kit/model.lua and ui/text.lua for real on the fake kit;
+-- booth_test and ui_model_test test them alone). Within 3 m of a camp phone booth the menu key opens the line: its
+-- header, the session rows of the state, Co-op menu and Hang up, and a sentence by state; 3.1 m away, the main page as
+-- before. Co-op menu turns to the main page; Hang up and Esc close; Leave still asks twice; Host and Invite run the
+-- same commands and close as from the main page. The hint shows at a booth with nothing open. It hides with the menu, a
+-- box, a question, the Sessions screen or the Create a session screen open, while paused and after coop off. No scan
+-- while the menu is open, while paused, nor after coop off, with EVE 100 m from the last scan's spot and 30 s after it;
+-- none either back where it ran.
 (function()
     local CAMP='Env_Camp_TeleportMachine_C'
     local function lines_with(text)
@@ -642,11 +643,11 @@ settings_text,in_world,kit_ready='',false,false
     coop('off')
     bt.world,link_mode,in_world,kit_ready,settings_text={},'none',false,false,''
 end)()
--- Find a session (the main page and the co-op line): the menu closes and the Sessions screen opens (ui/sessions.lua,
--- faked; sessions_test tests it). While it is open it takes the keys, the pad and the mouse: the arrows, W, S, Enter,
--- Space and Esc; Q and E (A and E on AZERTY) its tabs; F and Y its Refresh; LB and RB; a left click; a right one as
--- Back. The pad's bike does nothing there. The menu key and View held close it. Each 250 ms it gets the HUD's shown;
--- coop ui reset closes it.
+-- Find a session (the main page and the co-op line): the menu closes and the Sessions screen opens
+-- (session/ui/sessions.lua, faked; sessions_test tests it). While it is open it takes the keys, the pad and the mouse:
+-- the arrows, W, S, Enter, Space and Esc; Q and E (A and E on AZERTY) its tabs; F and Y its Refresh; LB and RB; a left
+-- click; a right one as Back. The pad's bike does nothing there. The menu key and View held close it. Each 250 ms it
+-- gets the HUD's shown; coop ui reset closes it.
 ;(function()
     local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end
     local function navs(n) return table.concat(ss.calls,' ',n+1) end
@@ -706,10 +707,10 @@ end)()
     in_world,kit_ready=false,false
 end)()
 -- Host a session (the main page and the co-op line): the menu closes and the Create a session screen opens
--- (ui/create.lua, faked; create_test tests it) through coop host alone. While it is open it takes the keys, the pad
--- and the mouse: the arrows, W, S, A, D, Q, Enter, Space and Esc; E and F do nothing there. The menu key and View held close
--- it; coop ui reset closes it. Its view gives the settings in effect and whether coop-settings.txt reads; its act
--- writes a change as the Options page does and hosts Start's word. host_key hosts at once, never through it.
+-- (session/ui/create.lua, faked; create_test tests it) through coop host alone. While it is open it takes the keys, the
+-- pad and the mouse: the arrows, W, S, A, D, Q, Enter, Space and Esc; E and F do nothing there. The menu key and View
+-- held close it; coop ui reset closes it. Its view gives the settings in effect and whether coop-settings.txt reads;
+-- its act writes a change as the Options page does and hosts Start's word. host_key hosts at once, never through it.
 ;(function()
     local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end
     local function navs(n) return table.concat(cr.calls,' ',n+1) end

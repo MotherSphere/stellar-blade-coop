@@ -24,8 +24,8 @@
 //   guest, night_ok()).
 //   SBC<protocol> mark <n> [<text>] (coop mark: a numbered line in both players' logs).
 //   SBC<protocol> race <text> (a Doro race line, race/model.lua's, printable ASCII; the link reads no further).
-//   SBC<protocol> gift <payload> (coop gift, cut/mailbox.lua: "s <id> <alias> <count>" a gift sent, "a <id>" kept in
-//   the friend's mailbox, "n <id> <why>" refused; gift_ok()).
+//   SBC<protocol> gift <payload> (coop gift, cut/menus/mailbox.lua: "s <id> <alias> <count>" a gift sent, "a <id>" kept
+//   in the friend's mailbox, "n <id> <why>" refused; gift_ok()).
 //   SBC<protocol> bike park <map> <x> <y> <z> <pitch> <yaw> <roll> or SBC<protocol> bike none (her parked bike,
 //   bike/ride.lua: its map, whole centimetres, hundredths of a degree; bike_ok()).
 //   From a match lobby's owner only (link/core.h): SBC<protocol> start <mode> <map> <seed> <id>,<id>,... (a round
@@ -154,7 +154,7 @@ constexpr char kListKey[] = "sbo_list", kHostKey[] = "sbo_host", kOwnerKey[] = "
 constexpr char kPlayersKey[] = "sbo_players", kZoneKey[] = "sbo_zone", kCampKey[] = "sbo_camp";
 constexpr char kPingKey[] = "sbo_ping", kRulesKey[] = "sbo_rules", kAskKey[] = "sbo_ask";
 // A map segment takes up to 32 bytes: the Great Desert's, e05_greatdesert_p, is already 17. A camp alias takes 24: the
-// longest of session/travel.lua's table, ATL_Camp_Maelstrom, is 18.
+// longest of group/travel.lua's table, ATL_Camp_Maelstrom, is 18.
 constexpr size_t kRowName = 48, kMaxPlace = 32, kMaxCamp = 24, kMaxRules = 32, kMaxPingText = 1023;
 
 // Untrusted text made safe for one line of our status file: no control bytes, bounded, never cut inside a UTF-8
@@ -264,7 +264,7 @@ enum class Kind {
   invalid, hello, accept, reject, ping, pong, photo, say, vitals, pak, paks, dlc, dlcs, camps_ask, camps, night, mark,
   race, gift, bike, start, count, end, let, wait, cycle
 };
-// The follow's camps lines (session/travel.lua): the guest asks with an id from 0 to kMaxCampId, the host answers that
+// The follow's camps lines (group/travel.lua): the guest asks with an id from 0 to kMaxCampId, the host answers that
 // id with his world and up to kMaxCamps ZoneCampTable aliases, nearest his EVE first, each with its distance in whole
 // metres (0 to kMaxCampM), or with none and why (kCampsWhy). World and aliases: letters, digits and '_', kMaxAlias at
 // most.
@@ -545,10 +545,10 @@ inline bool split(const std::string &text, std::string *fields, size_t count, st
   return true;
 }
 
-// coop gift's line (cut/mailbox.lua), reliable: "s <id> <alias> <count>" (a gift sent: its id, 1 to 20 digits and not
-// 0, an item alias as alias_word() takes it, 1 to kMaxGiftCount items), "a <id>" (the gift is in the friend's mailbox)
-// or "n <id> <why>" (refused: why in 1 to 16 letters a-z). Lua checks the item against its own list; the link reads no
-// further.
+// coop gift's line (cut/menus/mailbox.lua), reliable: "s <id> <alias> <count>" (a gift sent: its id, 1 to 20 digits and
+// not 0, an item alias as alias_word() takes it, 1 to kMaxGiftCount items), "a <id>" (the gift is in the friend's
+// mailbox) or "n <id> <why>" (refused: why in 1 to 16 letters a-z). Lua checks the item against its own list; the link
+// reads no further.
 constexpr uint64_t kMaxGiftCount = 10;
 inline bool gift_ok(const std::string &payload) {
   std::string f[4];
@@ -860,11 +860,11 @@ inline std::string masked(std::string_view text) {
 // <seconds>" (1 to kMaxFreezeS: our pause held that long) and "freeze off"; for SB's two developer gates
 // (game/debug_keys.h, coop fly and coop slowmo) "fly on|off" and "slowmo on|off"; for SB's developer panels
 // (game/dev_panels.h, coop devinfo) "devinfo quest|player|off"; for SB's HUD under the SBO lobby's screens (main.lua,
-// glue/tick/hud_game.inc) "hud hide on|off"; for the pause menu's Online tab (ui/pause_tab.lua, game/pause_tab.h)
+// glue/tick/hud_game.inc) "hud hide on|off"; for the pause menu's Online tab (ui/kit/pause_tab.lua, game/pause_tab.h)
 // "pausetab on|off"; for the game's tutorial and record popups during online play (game/options.h) "popups on|off";
 // for the day/night cycle (game/sky.h, sky/daynight.lua) "sky off|hold",
 // "sky cycle <hz> <heading>" and "sky hour <minute> <hz> <heading>" (whole numbers: hz 0 to 30, heading 0 to 359,
-// minute 0 to 1439); for the SBO lobby arrival's black (session/arrival.lua,
+// minute 0 to 1439); for the SBO lobby arrival's black (lobby/arrival.lua,
 // glue/tick/loading_game.inc) "loading lift"; for the co-op saves (save/slot.h,
 // save/twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make
 // them, then switch to them), "saves main" (switch back to the player's own saves) and "saves refresh <0-4>" (that
@@ -875,31 +875,31 @@ inline std::string masked(std::string_view text) {
 // world (world/sync.h, glue/tick/world_worker.inc) "world on" and "world off" (shared_world, until the next ask) and
 // "world status" (its line in the log); for story together (story/sync.h, glue/tick/story_worker.inc) "scenes on" and
 // "scenes off" (shared_story, until the next ask) and "scenes status" (its line in the log); for the follow
-// (session/travel.lua) "camps? <id>" and "camps <id> <world> <alias>:<m> ..." or "camps <id> none <why>" (the camps
+// (group/travel.lua) "camps? <id>" and "camps <id> <world> <alias>:<m> ..." or "camps <id> none <why>" (the camps
 // lines, relayed to the friend by link/core.h), and "travel <alias> <FName index> <FName number>" (the call on the game
 // thread, glue/tick.cpp: an index above 0, both within 32 bits); "mark" or "mark <text>" (a numbered line in both
-// players' logs, the text chat_clean() to kMaxMark bytes, maybe empty); for coop gift (cut/mailbox.lua) "gift
+// players' logs, the text chat_clean() to kMaxMark bytes, maybe empty); for coop gift (cut/menus/mailbox.lua) "gift
 // <payload>" (a gift line for the friend, gift_ok()) and "items <ask> <alias> <FName index> <FName number>" (how many
 // of that item our EVE carries, read by the worker, game/items.h: ask 1 to 65535, answered in the engine line's items=;
-// index above 0, both within 32 bits); and for coop lion (cut/lion.lua) "lion rows
-// <Table>=0x<address> ...", for coop gardener fight (cut/gardener.lua) "gardener rows <Table>=0x<address> ...", for
-// coop tendril fight (cut/tendril.lua) "tendril rows <Table>=0x<address> ...", for the shop's Shock Bolt (through
-// cut/lion.lua) "bolt rows <Table>=0x<address> ...", for coop mxiii (matrix13/world/travel.lua) "mxiii rows
-// <Table>=0x<address> ..." and for the Night Operation shop's screen (nightop/shop.lua, through cut/lion.lua) "shop
-// rows <Table>=0x<address> ..." and for Lily's signal (matrix13/quest/on_time.lua) "signal rows <Table>=0x<address>
-// ..." and for Matrix XIII's other batches (matrix13/world/travel.lua) "mxspawn rows ...", "mxenv rows ...", "mxupper
-// rows ...", "mxmiddle rows ...", "mxlower rows ...", "mxnames rows ...", "mxlily rows ..." and "mxrecords rows ..."
-// and for the hall lobbies (session/halls_rows.lua) "halls rows ..."
+// index above 0, both within 32 bits); and for coop lion (cut/enemies/lion.lua) "lion rows
+// <Table>=0x<address> ...", for coop gardener fight (cut/enemies/gardener.lua) "gardener rows <Table>=0x<address> ...",
+// for coop tendril fight (cut/enemies/tendril.lua) "tendril rows <Table>=0x<address> ...", for the shop's Shock Bolt
+// (through cut/enemies/lion.lua) "bolt rows <Table>=0x<address> ...", for coop mxiii (matrix13/world/travel.lua) "mxiii
+// rows <Table>=0x<address> ..." and for the Night Operation shop's screen (nightop/shop.lua, through
+// cut/enemies/lion.lua) "shop rows <Table>=0x<address> ..." and for Lily's signal (matrix13/quest/on_time.lua) "signal
+// rows <Table>=0x<address> ..." and for Matrix XIII's other batches (matrix13/world/travel.lua) "mxspawn rows ...",
+// "mxenv rows ...", "mxupper rows ...", "mxmiddle rows ...", "mxlower rows ...", "mxnames rows ...", "mxlily rows ..."
+// and "mxrecords rows ..." and for the hall lobbies (lobby/halls_rows.lua) "halls rows ..."
 // (that batch of lion/rows.h for SB's AddRow, glue/tick/lion_game.inc: one word for each table the batch writes, 1 to
 // 39 of the kLionTables, in any order, each once, its address in 1 to 16 hex digits and plausible; a table left out
 // stays 0, and a batch that writes it refuses it as no UDataTable; Request::batch says which). Lua finds the tables
 // by their fixed paths, so no console argument reaches an address, and the native part trusts none before it checked
-// the table's vtable and row size (lion/rows.h). For coop emote (cut/emote.lua) "anim play <id> <path> once|loop" (one
-// of EVE's clips on her through SB's custom animation call, glue/tick/anim_game.inc: an id from 1 to 2^32-1, a path
-// game/anim.h's path_ok takes) and "anim stop" (ours, while it plays). For the bike (bike/ride.lua): "anim play <id>
-// <path> ride" (a loop with her foot IK off) and "bike load <path>" (the bike's mesh and that riding clip preloaded,
-// game/bike.h's clip_ok), "bike free" (the preload released), "bike gate on" and "bike gate off" (SB's actions off
-// while she rides, then back); for coop shortcut "shortcut list" (the cut
+// the table's vtable and row size (lion/rows.h). For coop emote (cut/eve/emote.lua) "anim play <id> <path> once|loop"
+// (one of EVE's clips on her through SB's custom animation call, glue/tick/anim_game.inc: an id from 1 to 2^32-1, a
+// path game/anim.h's path_ok takes) and "anim stop" (ours, while it plays). For the bike (bike/ride.lua): "anim play
+// <id> <path> ride" (a loop with her foot IK off) and "bike load <path>" (the bike's mesh and that riding clip
+// preloaded, game/bike.h's clip_ok), "bike free" (the preload released), "bike gate on" and "bike gate off" (SB's
+// actions off while she rides, then back); for coop shortcut "shortcut list" (the cut
 // Load Shortcut menu's saves, read through the game's file manager on the game thread and named in the log,
 // save/shortcut.h) and "shortcut load <map> <1-4>" (one of them cleaned and written as co-op slot 5's copy,
 // save/shortcut_load.h; map one of kShortcutMaps; Lua sends it only with shortcut_load=on, typed twice). For the

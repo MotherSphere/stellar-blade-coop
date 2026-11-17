@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Helpers over UE4SS objects, shared by the capture (partner/capture.lua), the ghost (partner/puppet.lua) and the
--- game-side scripts (nightop/run.lua, session/group.lua), with the game's own words (game_text) for the Lua screens.
+-- game-side scripts (nightop/run.lua, group/group.lua), with the game's own words (game_text) for the Lua screens.
 local U={}
 -- Made once: a function made in each call was 80 B of garbage, twice per U.valid. The method is looked up inside the
 -- pcall, so an object whose __index raises still gives nil (pcall(value.type,value) would raise out of U.kind).

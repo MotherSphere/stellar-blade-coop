@@ -1052,7 +1052,7 @@ int main() {
     }
   }
   // The Tendril's: each skill (MeleeAttack +0x80, its own first step +0x100 and range +0xb4) starts a step chain whose
-  // first step plays its run-time Show (ShowPath +0x160: the mod's own package, a dot, the Show cut/tendril.lua
+  // first step plays its run-time Show (ShowPath +0x160: the mod's own package, a dot, the Show cut/enemies/tendril.lua
   // builds) and turns it toward EVE (SelfMoveAliasArray +0x138), and whose Hit steps hit through a target filter
   // (HitDetectionType +0x1a5, 1) of their own (OverrideTargetFilterAlias +0x1b4). Each command's skill (+0x18) is its
   // own; the stance (+0x90) lists the 11 in order. The dead row plays the run-time death Show (+0x10), the

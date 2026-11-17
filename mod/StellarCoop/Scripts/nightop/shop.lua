@@ -12,11 +12,11 @@
 -- skips no story gate. The last three are cut items whose ItemTable rows the game lacks, the Burst Stimpack (HP for
 -- Burst gauge), the Beta Stimpack (HP for Beta energy) and the Shock Bolt (ammo for EVE's gun that stuns a common
 -- enemy), at our own prices: the native part adds the stimpacks' rows with the Lion's (the lion rows batch) and the
--- Shock Bolt's in a batch of their own (the bolt rows batch), both through cut/lion.lua's rows, so a buy of one asks
--- for its rows first, waits for them when they are not in yet, and grants only once they are (the answer then comes
--- from coop lion's tick); rows that cannot be added cost no point. The Shock Bolt also needs the status's shock line
--- to read in (once its rows are in, the native part grew EVE's gun stances and the ammo list, lion/shock.h): ammo the
--- gun cannot fire costs no point either. The wallet is one file per SteamID and co-op slot beside the mod,
+-- Shock Bolt's in a batch of their own (the bolt rows batch), both through cut/enemies/lion.lua's rows, so a buy of one
+-- asks for its rows first, waits for them when they are not in yet, and grants only once they are (the answer then
+-- comes from coop lion's tick); rows that cannot be added cost no point. The Shock Bolt also needs the status's shock
+-- line to read in (once its rows are in, the native part grew EVE's gun stances and the ammo list, lion/shock.h): ammo
+-- the gun cannot fire costs no point either. The wallet is one file per SteamID and co-op slot beside the mod,
 -- coop-night-<steamid>-<index>.txt, one line: the points. The game never reads it; a save restore does not take points
 -- back.
 -- The screen (open() and tick()): the wallet stays the record. Before the open, the bucket gets as many Beta Seeds as
@@ -61,7 +61,7 @@ local why=U.why
 local function whole(text) return type(text)=='string' and text:match('^%d+$') and math.tointeger(tonumber(text)) end
 -- The one grant call: an item alias, EVE's GUID and 1 to MOST items, into the inventory, with the game's pickup
 -- message; no stat level, no enhance message, not an event load, no saved instance. Shop.grant and coop gift
--- (cut/mailbox.lua) call it, each after checking the alias against its own list.
+-- (cut/menus/mailbox.lua) call it, each after checking the alias against its own list.
 function Shop.add(pc,guid,alias,count)
     assert(type(alias)=='string' and alias:match('^[%w_]+$'),'not an alias')
     assert(math.type(count)=='integer' and count>=1 and count<=Shop.MOST,'not a count')
@@ -112,9 +112,9 @@ function Shop.line(status)
 end
 -- log(text) writes an [NR] line; status() is the native part's status text; store(name) core/link.lua's one-line file;
 -- paused() whether the game is paused or shows one of its screens; busy() whether a run of ours is on (not in its
--- result); rows(done, word) cut/lion.lua's Lion.rows (nil: no cut item sells), which gets the cut items' rows in (the
--- Shock Bolt's with word bolt, the shop's screen's with word shop), then calls done(ok, message) and returns what done
--- returns, or returns ok, message, true while it waits (done follows); ask(line) the native part's request
+-- result); rows(done, word) cut/enemies/lion.lua's Lion.rows (nil: no cut item sells), which gets the cut items' rows
+-- in (the Shock Bolt's with word bolt, the shop's screen's with word shop), then calls done(ok, message) and returns
+-- what done returns, or returns ok, message, true while it waits (done follows); ask(line) the native part's request
 -- (core/link.lua's), for the screen; tell(build) a notice (main.lua's), for the screen's end when it fails.
 function Shop.new(o)
     local log,status,store=o.log,o.status,o.store or function() return nil end

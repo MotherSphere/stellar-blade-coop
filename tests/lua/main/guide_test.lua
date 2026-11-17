@@ -1,12 +1,12 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The first-launch guide through main.lua (ui/guide.lua, ui/menu.lua and session/saves.lua for real on fixture.lua's
--- fake kit; ui/guide_test tests the guide alone): at the mod's first run it opens on the title screen before the co-op
--- saves' question, which shows once it closes; coop-guide.txt stops it; the keys (arrows, W A S D and Z Q S D, Enter,
--- Space, Esc), the mouse and the pad go to it while it is open, and the game's input comes back after; the co-op
--- menu's Guide row and coop guide open it in the world, where menu_key and View held do nothing while it is open, but
--- never over another co-op panel; the art imported from the mod folder; coop ui reset and coop off.
+-- The first-launch guide through main.lua (ui/kit/guide.lua, ui/kit/menu.lua and save/saves.lua for real on
+-- fixture.lua's fake kit; ui/kit/guide_test tests the guide alone): at the mod's first run it opens on the title screen
+-- before the co-op saves' question, which shows once it closes; coop-guide.txt stops it; the keys (arrows, W A S D and
+-- Z Q S D, Enter, Space, Esc), the mouse and the pad go to it while it is open, and the game's input comes back after;
+-- the co-op menu's Guide row and coop guide open it in the world, where menu_key and View held do nothing while it is
+-- open, but never over another co-op panel; the art imported from the mod folder; coop ui reset and coop off.
 dofile('tests/lua/main/fixture.lua')
 local MAIN={saves='main',convert='idle',slot='none',steamid='76561198000000001'}
 local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end -- 1 up ... 7 View held.

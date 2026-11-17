@@ -13,8 +13,8 @@
 -- rest stop DLC02_30_Camp_01; 5 shipped ZoneTriggerTable rows patched in place, so the zone 20 waves and the zone 40
 -- chains of spawns fire without the cut map's gates and drain devices; then the map's other camps, their kits and
 -- coins, and zone 0's Tetrapod with Lily), added by SB's own row call with no logic task in flight,
--- through cut/enemy.lua's rows flow (the tables, the ask, the wait, the read-back); then SB's camp travel to the
--- Tetrapod camp DLC02_00_Camp_00, beside Lily, through the follow's probe (session/travel.lua; the native part's
+-- through core/enemy.lua's rows flow (the tables, the ask, the wait, the read-back); then SB's camp travel to the
+-- Tetrapod camp DLC02_00_Camp_00, beside Lily, through the follow's probe (group/travel.lua; the native part's
 -- game/travel.h). The travel activates no camp: only a coin at a vending machine does. coop mxiii 30 is
 -- the same with the travel to DLC02_30_Camp_01, which reaches the dungeon's upper half without the zone 20 climb (it
 -- runs on Matrix 11 triggers and sequences the test pak leaves out). Both ask nothing on a pak before v5: its two
@@ -54,7 +54,7 @@
 -- once both names are found. A .utoc whose header does not read as one gives the first window only.
 -- shortcut: an Oodle-compressed container (a compression method in the .utoc) reads as v1 or as what its compressed
 -- bytes happen to hold; retoc writes ours uncompressed.
-local Enemy=require('cut.enemy')
+local Enemy=require('core.enemy')
 local PakGate=require('core.pak_gate')
 local Mxiii={}
 Mxiii.CAMP='DLC02_10_Camp_01'
@@ -89,7 +89,7 @@ local function hint(camp,command)
     return 'if [TR] says SB refused '..camp..': SB lists the camps when its world starts, maybe before these rows; '
         ..'load the save or travel to a camp, then run '..command..' again (the rows stay in)'
 end
--- The rows as cut/enemy.lua reads them back: matrix13/world/rows.lua, which tools/mxiii_rows.py writes from
+-- The rows as core/enemy.lua reads them back: matrix13/world/rows.lua, which tools/mxiii_rows.py writes from
 -- data/mxiii-world.json with lion/mxiii_rows.h (matrix13/world/travel_test checks the two agree). The mxiii batch holds
 -- the camps and what they need (their env rows, coins, zone 0's Tetrapod and Lily); the dev rows come first, in their
 -- order.
@@ -119,8 +119,8 @@ Mxiii.BATCHES={
     {word='mxupper',name='Matrix XIII zones 0 to 2 mechanism',rows=Enemy.rows(Rows.MXUPPER)},
     {word='mxmiddle',name='Matrix XIII zone 3 mechanism',rows=Enemy.rows(Rows.MXMIDDLE)},
     {word='mxlower',name='Matrix XIII zone 4 mechanism',rows=Enemy.rows(Rows.MXLOWER)},
-    {word='lion',name='Lion',rows=require('cut.lion').ROWS},
-    {word='gardener',name='Gardener',rows=require('cut.gardener').ROWS},
+    {word='lion',name='Lion',rows=require('cut.enemies.lion').ROWS},
+    {word='gardener',name='Gardener',rows=require('cut.enemies.gardener').ROWS},
     {word='mxlily',name='Lily at the Matrix XIII Tetrapod',rows=Enemy.rows(Rows.MXLILY),optional=true},
     {word='mxnames',name='Matrix XIII camp names',rows=Enemy.rows(Rows.MXNAMES),optional=true,ready=function(status)
         local s=Enemy.parse(status,'camptext')
@@ -168,7 +168,7 @@ function Mxiii.find_map(paks,read)
 end
 
 -- o: log (the [MX] lines), ask(line) the native request, status() the native status text, travel() the follow
--- (session/travel.lua's, nil without the Steam link), paks (SB/Content/Paks, nil when unknown), read (files.read).
+-- (group/travel.lua's, nil without the Steam link), paks (SB/Content/Paks, nil when unknown), read (files.read).
 function Mxiii.new(o)
     local log=o.log
     local e=Enemy.new({log=log,ask=o.ask,status=o.status},
@@ -259,7 +259,7 @@ function Mxiii.new(o)
         end
         return e.rows(function(ok,message) return warp(camp,command,ok,message) end)
     end
-    -- The title's batch (cut/enemy.lua's title_batch): while the game uses the co-op save files and the test pak is
+    -- The title's batch (core/enemy.lua's title_batch): while the game uses the co-op save files and the test pak is
     -- there (looked for once a Lua load; with none there is nothing to add, and nothing is said: most players have
     -- none). A pak before v5 gets the rows all the same, for a co-op save that names them, and one line says so.
     local pak=nil

@@ -38,7 +38,7 @@
 -- stands), then the mount above. A notice tells bike_key once each time she comes within reach of it. Her bike line
 -- (bike/park.lua's wire) goes to the link at each change, from a mount, a dismount or the 250 ms pass: none while she
 -- rides, with bike=off or without a place.
--- At an activated Xion camp (session/travel.lua's camp_near, within CAMP m), outside an SBO lobby, the refusal for a
+-- At an activated Xion camp (group/travel.lua's camp_near, within CAMP m), outside an SBO lobby, the refusal for a
 -- bike out of reach or on another map offers the paid fetch (bike/fetch.lua): a second press within Fetch.WINDOW s
 -- pays Fetch.PRICE betacrystal. While it runs every press is refused with that; once paid the bike stands where she
 -- stood at the offer (her pose as a park takes it, else her feet with her actor's yaw), written and sent as a park.
@@ -168,10 +168,10 @@ end
 -- armed() (race/run.lua's: a race is armed here; nil when there is none); busy() (why SBO's own state forbids a mount:
 -- the Doro look, coop emote, a hall seat, coop fly or glide, Night Operation, an SBO menu or the chat; nil when none);
 -- words() (ui/text.lua's table for the screen); tell(build) (a notice build(words) puts together); worlds
--- (session/travel.lua's WORLDS, for a map's name); file (the place's record: read(name) and write(name, text),
+-- (group/travel.lua's WORLDS, for a map's name); file (the place's record: read(name) and write(name, text),
 -- link.read_file and link.write_file; nil without the link); lobby() (whether an SBO lobby is open); send(payload)
 -- (her bike line to the link, link.bike: true once written; nil without the link); camp(world, metres)
--- (session/travel.lua's camp_near, nil without the link); fetch (bike/fetch.lua's, nil without the link);
+-- (group/travel.lua's camp_near, nil without the link); fetch (bike/fetch.lua's, nil without the link);
 -- game_text(key, table) (SB's text for a string table's key in the game's language, nil when unread or with
 -- ui_language=english).
 function Ride.new(o)

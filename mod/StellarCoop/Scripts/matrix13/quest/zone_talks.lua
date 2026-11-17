@@ -16,13 +16,13 @@
 -- entered by, needs 4D). before names one that closes the scene (4K and 4L say nothing once 4M has shown the room). 3K
 -- ends Lily: a scene with a Lily line that has not played before it never plays. Lines with oblivion=true play only
 -- when the signalquest line reads oblivion=1 (native quest/own.h, the read of Quest_Sub_005 on Quest_Sub_030).
--- The lines go in the game's subtitle box (story/subtitles.lua's play_lines()): a borrowed subtitle sequence with
--- enough windows, through a theater whose template lets EVE walk only, as SB's own talks on the move; its fallbacks
--- are the sequence with no theater, then the kit. A fight seen while the talk waits for its theater or plays through
--- it cuts it (subtitles' cut(): the Stop row), and the scene plays again from its start once calm, RETRY s later at
--- the earliest; on the kit, a fight or a game screen hides the kit's group at the next look, and the line it cut short
--- shows again in full after. A talk that ends as none, failed (an end before its last line too) or cut is not marked
--- played and is tried again.
+-- The lines go in the game's subtitle box (matrix13/quest/subtitles.lua's play_lines()): a borrowed subtitle sequence
+-- with enough windows, through a theater whose template lets EVE walk only, as SB's own talks on the move; its
+-- fallbacks are the sequence with no theater, then the kit. A fight seen while the talk waits for its theater or plays
+-- through it cuts it (subtitles' cut(): the Stop row), and the scene plays again from its start once calm, RETRY s
+-- later at the earliest; on the kit, a fight or a game screen hides the kit's group at the next look, and the line it
+-- cut short shows again in full after. A talk that ends as none, failed (an end before its last line too) or cut is not
+-- marked played and is tried again.
 -- Looks: at most one a second, and only what is needed. EVE's position always; the engaged look (GetAllActorsOfClass,
 -- no object walk once U.actors_of proved its class hash) only while a scene is latched or playing; env actors only in
 -- zone 4 with their scene waiting, searched once and then held. No theater look of ours: subtitles' wait() makes it
@@ -118,7 +118,7 @@ local function has_lily(id)
     return false
 end
 -- Whether an enemy within near cm (NEAR unless given) of EVE fights: IsBattle, standing, shown, with a controller.
--- Also session/sbo.lua's fight check, through main.lua.
+-- Also lobby/sbo.lua's fight check, through main.lua.
 local function engaged(eve,near)
     local here=U.value_of(eve:K2_GetActorLocation())
     local mine=U.address(eve)
@@ -135,8 +135,8 @@ local function engaged(eve,near)
 end
 Zones.engaged=engaged
 
--- o: log (the [LY] lines), talks (story/subtitles.lua's player), plan (world cm to plan m), read(name) and write(name,
--- text) (a file of ours beside coop-settings.txt).
+-- o: log (the [LY] lines), talks (matrix13/quest/subtitles.lua's player), plan (world cm to plan m), read(name) and
+-- write(name, text) (a file of ours beside coop-settings.txt).
 function Zones.new(o)
     local log,talks=o.log,o.talks
     local self={}

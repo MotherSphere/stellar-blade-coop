@@ -3,7 +3,7 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop keys reset [<name>|all]: one key back to its default (menu, host, status, leave, follow, race or bike, or the setting's
 -- own name, menu_key and the like), or every key with all or no name, as the co-op menu's key rows and its Reset all
--- keys row do (ui/menu.lua's reset). main.lua builds it with new(o) at each Lua load and merges it into its command
+-- keys row do (ui/kit/menu.lua's reset). main.lua builds it with new(o) at each Lua load and merges it into its command
 -- table. o: main.lua's, whose menu it sets once the UI is built, with the Steam link only.
 local Keys={}
 local USE='Use: coop keys reset [menu|host|status|leave|follow|race|bike|all]'

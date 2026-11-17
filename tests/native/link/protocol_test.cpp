@@ -953,7 +953,7 @@ int main() {
                           "sky cycle -1 0", "sky hour 1440 8 0", "sky hour 12 8", "sky cycle 8 0 1", "sky cycle 8.5 0",
                           "Sky off", "sky  off", "sky hold now", "sky cycle 8 x", "sky hour 1 2 3 4", "sky off 1"})
     assert(parse_request(bad).command == Command::none);
-  // The SBO lobby arrival's black lifted (session/arrival.lua): loading lift, nothing else.
+  // The SBO lobby arrival's black lifted (lobby/arrival.lua): loading lift, nothing else.
   assert(parse_request("loading lift\n").command == Command::loading &&
          parse_request("loading lift\r\n").command == Command::loading);
   for (const char *bad : {"loading", "loading Lift", "loading lift now", "loading  lift", "loadinglift", "loading off"})

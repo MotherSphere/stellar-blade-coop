@@ -5,8 +5,8 @@
 -- component hung on a given parent (the ghost's main mesh), with collision off. No SB character, no table row, no AI,
 -- nothing that can die, so nothing of it reaches a quest, an achievement or a save. Doro's own anim Blueprint is never
 -- used: the engine's single-node instance plays its blend spaces and clips (SetAnimationMode 1), driven by Doro.pick.
--- The look (Doro.new): your EVE drawn as a Doro. Like coop wear (cut/wear.lua), it writes to the player actor: while
--- it is on, EVE's mesh components carry bHiddenInGame (only those that did not already) and her main mesh's
+-- The look (Doro.new): your EVE drawn as a Doro. Like coop wear (cut/eve/wear.lua), it writes to the player actor:
+-- while it is on, EVE's mesh components carry bHiddenInGame (only those that did not already) and her main mesh's
 -- VisibilityBasedAnimTickOption is 0, so her pose, notifies and root-motion moves still run while she is not drawn.
 -- Both are restored when it goes off (coop race look off, coop off, a map change, its first error), and by the next
 -- Lua load from coop-look.txt when this one could not (Ctrl+R, a dead Lua state). Never a pawn spawned or possessed.
@@ -14,8 +14,9 @@
 -- when it does not have it) and shows it again on the same ways out; it writes nothing else on it.
 -- Each Doro carries hidden keepers that hold its clips, so the engine never unloads one in the middle of a race.
 -- The probe (coop race probe doro): a Doro 3 m ahead of EVE plays each clip in turn, with a log line a step.
--- resolve, attach, spawn, sweep, remove, apply and same also show another mesh (cut/leviathan.lua's coop leviathan);
--- attach, spawn, sweep and remove also make and remove its free camera, a plain actor with one CameraComponent.
+-- resolve, attach, spawn, sweep, remove, apply and same also show another mesh (cut/enemies/leviathan.lua's coop
+-- leviathan); attach, spawn, sweep and remove also make and remove its free camera, a plain actor with one
+-- CameraComponent.
 local UE=require('UEHelpers')
 local U=require('core.unreal')
 local valid,value_of,each,text,find,address=U.valid,U.value_of,U.each,U.text,U.find,U.address

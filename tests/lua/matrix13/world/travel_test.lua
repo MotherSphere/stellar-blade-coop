@@ -57,7 +57,7 @@ end
 local player,pc
 package.loaded.UEHelpers={GetPlayer=function() return player end,GetPlayerController=function() return pc end}
 local M=require('matrix13.world.travel')
-local Enemy=require('cut.enemy')
+local Enemy=require('core.enemy')
 
 -- The rows against lion/mxiii_rows.h, batch by batch (both written by tools/mxiii_rows.py from one data file):
 -- names, templates, IDs, each patched field's kind and value, no field more. Then the dev rows first, in their order.
@@ -104,10 +104,11 @@ do
     end
     assert(table.concat(words,' ')=='mxspawn mxenv mxupper mxmiddle mxlower lion gardener mxlily mxnames mxrecords',
         'The title order after mxiii')
-    -- The Lion's and the Gardener's batches: the same row tables as cut/lion.lua's and cut/gardener.lua's, built once,
-    -- the rows of cut/lion_rows.lua in order.
-    local R,shared=require('cut.lion_rows'),0
-    local OWN={lion={require('cut.lion').ROWS,R.ROWS},gardener={require('cut.gardener').ROWS,R.GARDENER}}
+    -- The Lion's and the Gardener's batches: the same row tables as cut/enemies/lion.lua's and
+    -- cut/enemies/gardener.lua's, built once, the rows of core/lion_rows.lua in order.
+    local R,shared=require('core.lion_rows'),0
+    local OWN={lion={require('cut.enemies.lion').ROWS,R.ROWS},
+        gardener={require('cut.enemies.gardener').ROWS,R.GARDENER}}
     for _,b in ipairs(M.BATCHES) do
         local own=OWN[b.word]
         if own then

@@ -132,7 +132,7 @@ function P.status_rows(words,s)
     local first=table.concat(lead,' · ')..' · ' -- Whole: only the status line after it is cut (3 columns at least).
     return first..cut(s.summary,math.max(3,room-Chat.columns(first))),right,second
 end
--- The partner HUD (UI-DESIGN 3.2, 4.3, D-UI5) on the Uplink kit (ui/kit.lua), during a session (a friend linked or
+-- The partner HUD (UI-DESIGN 3.2, 4.3, D-UI5) on the Uplink kit (ui/kit/kit.lua), during a session (a friend linked or
 -- rejoining, or coop loopback). Her card at the top left: her name in teal, then her HP, shield and Beta rows stacked
 -- under it by the player cluster's rules above, and at the right end of her name's line her state: DOWN in red (life 3
 -- to 5, or no HP), elsewhere and her map, connection lost, or a dash when the native part has had no vitals from her
@@ -384,7 +384,7 @@ function P.hud(o)
         end
         gauges()
         if rebuilt then place() end -- A new root shows a shown marker or arrow at its corner: placed before it draws.
-        -- The other members' rows, at the kit's scale (ui/kit.lua's clamp of ui_scale).
+        -- The other members' rows, at the kit's scale (ui/kit/kit.lua's clamp of ui_scale).
         local i,seen=0,{}
         local scale=math.max(75,math.min(150,tonumber(settings.ui_scale) or 100))/100
         for _,m in ipairs(session and not link.match() and link.members() or {}) do

@@ -1,7 +1,7 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// The pause menu's Online tab (ui/pause_tab.lua draws it): SB's GameMenu logic takes its UI actions through its
+// The pause menu's Online tab (ui/kit/pause_tab.lua draws it): SB's GameMenu logic takes its UI actions through its
 // vtable slot 14, FUN_141d91500, which hands UI_RightShoulder to FUN_141d92440. That one walks the enabled tabs upward
 // from the current one and wraps to the first, so RB on the last tab (Settings) goes to Equipment. The hook in its slot
 // (glue/tick/pause_tab_game.inc) asks Gate first: on the highest enabled tab, with SB's tab lock off, RB opens SBO's

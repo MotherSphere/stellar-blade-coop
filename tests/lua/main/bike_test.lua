@@ -12,21 +12,21 @@
 -- fake bike/others.lua): what they are built with, their restore at the first tick, their pass after the ride's,
 -- their clear at coop off.
 dofile('tests/lua/main/fixture.lua')
--- coop fly's keys: cut/flight.lua for real, with fly_on in place of its active() (on() needs SB's player input).
-local Flight,fly_on=require('cut.flight'),nil
-package.loaded['cut.flight']={new=function(o)
+-- coop fly's keys: cut/eve/flight.lua for real, with fly_on in place of its active() (on() needs SB's player input).
+local Flight,fly_on=require('cut.eve.flight'),nil
+package.loaded['cut.eve.flight']={new=function(o)
     local f=Flight.new(o)
     f.active=function() return fly_on end
     return f
 end}
 local USE='[StellarCoop] STOP: Use: coop bike [status | tune [<name> <value>]]\n'
 settings_text,status_text,in_world='',plain,true
-package.loaded['session.travel'].WORLDS={Xion='/game/art/bg/worldmap/level_p/e04'}
+package.loaded['group.travel'].WORLDS={Xion='/game/art/bg/worldmap/level_p/e04'}
 -- The paid fetch: what bike/fetch.lua's new got (fe.o); the follow answers camp_near with its arguments.
 local fe={}
 package.loaded['bike.fetch']={new=function(o) fe.o=o; return {name='fetch'} end}
-local travel_new=package.loaded['session.travel'].new
-package.loaded['session.travel'].new=function(o)
+local travel_new=package.loaded['group.travel'].new
+package.loaded['group.travel'].new=function(o)
     local t=travel_new(o)
     t.camp_near=function(w,m) return w..' '..m end
     return t

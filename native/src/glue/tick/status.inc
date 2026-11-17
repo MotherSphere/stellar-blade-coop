@@ -50,26 +50,26 @@ std::string status() {
       s += " remote" + (k ? std::to_string(k) : std::string()) + "=" + std::to_string(r.table.generation) + " " +
            std::to_string(r.count) + (k ? std::string() : std::string(" ") + r.source);
   s += fight_worker.status();
-  // The revive's guard (session/group.lua): a respawn or a warp in flight, and our EVE's GUID, as of the game thread's
+  // The revive's guard (group/group.lua): a respawn or a warp in flight, and our EVE's GUID, as of the game thread's
   // last read; none before the first one, after coop off or after its fault.
   if (const int warp = warp_state; warp >= 0 && !blocked)
     s += std::string(warp ? " warp=busy" : " warp=idle") + " me=" + std::to_string(warp_me.load());
-  // The follow's travel (session/travel.lua): the watch's state and the asks the game thread handled so far, so Lua
+  // The follow's travel (group/travel.lua): the watch's state and the asks the game thread handled so far, so Lua
   // knows a new answer from an old one; refused:fault once its latch ended it.
   if (const uint64_t w = travel_watched; game_pinned && !blocked)
     s += " travel=" +
          (travel_faulted ? std::string("refused:fault")
                          : travel::state_text(travel::State((w >> 8) & 0xff), travel::Why(w & 0xff))) +
          " travel_calls=" + std::to_string(w >> 32);
-  // coop emote's native clips (cut/emote.lua): the last play's state and id, so Lua knows its own answer; fault once
-  // the latch ended them (Lua then plays the montage).
+  // coop emote's native clips (cut/eve/emote.lua): the last play's state and id, so Lua knows its own answer; fault
+  // once the latch ended them (Lua then plays the montage).
   if (game_pinned && !blocked) {
     const anim::Word a = anim::unpack(anim_word);
     s += " anim=" + (anim_faulted ? std::string("fault") : anim::state_text(a.state, a.why)) +
          " anim_id=" + std::to_string(a.id);
     s += bike_status(); // The bike (bike/ride.lua): the preload's state and the gate's.
   }
-  // coop gift's inventory read (cut/mailbox.lua): the last ask's answer, by its number.
+  // coop gift's inventory read (cut/menus/mailbox.lua): the last ask's answer, by its number.
   if (!items_line.empty() && !blocked)
     s += items_line;
   s += pad_slate ? " pad=slate" : " pad=xinput"; // coop_pad's source: the game's controller events, or XInput.

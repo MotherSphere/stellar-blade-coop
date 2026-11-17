@@ -78,7 +78,7 @@ local function fill(s)
     for p in s:gmatch('%%(.)') do if p~='%' then args[#args+1]=p=='s' and NAME or 16 end end
     return s:format(table.unpack(args))
 end
--- The lines that go to the feed, as main.lua, partner/puppet.lua, session/saves.lua, core/link.lua and session/join.lua
+-- The lines that go to the feed, as main.lua, partner/puppet.lua, save/saves.lua, core/link.lua and session/join.lua
 -- put them together.
 local function notices(w)
     local lines={}
@@ -145,7 +145,7 @@ local function notices(w)
     for _,k in ipairs({'stopped','waiting','held','rejoin','none','alone','connecting','hosting','guest'}) do
         lines[#lines+1]=fill(s[k])..fill(s.paused)..s.lost -- Paused and lost added to each, beyond what can happen.
     end
-    -- The SBO lobby's notices (session/sbo.lua): the save before the entry, each refusal and each failure.
+    -- The SBO lobby's notices (lobby/sbo.lua): the save before the entry, each refusal and each failure.
     lines[#lines+1]=w.sbo.saving
     for _,group in ipairs({'no','fail'}) do
         for _,text in pairs(w.sbo[group]) do lines[#lines+1]=text end
@@ -164,9 +164,9 @@ local function columns(s)
     return n
 end
 assert(columns('Ab')==2 and columns('日本')==4 and columns('한')==2 and columns('กิ')==1 and columns('é')==1)
--- The menu's columns (ui/menu.lua's rows, 1452 units wide, their value in the last 600; ui/kit.lua's row puts the label
--- 36 units in; Bold 40, about 23 units a column in the game's Latin face, a CJK character about two): a value within
--- its 600 units, a label within the 792 units from its start to 24 units before the value, a key hint within its
+-- The menu's columns (ui/kit/menu.lua's rows, 1452 units wide, their value in the last 600; ui/kit/kit.lua's row puts
+-- the label 36 units in; Bold 40, about 23 units a column in the game's Latin face, a CJK character about two): a value
+-- within its 600 units, a label within the 792 units from its start to 24 units before the value, a key hint within its
 -- 320-unit cell after the 78 units of its icon (Bold 30, about 17 units a column).
 local UNIT,ROW,CELL,GAP=23,1452,600,24
 local LABEL,VALUE,HINT=(ROW-CELL-36-GAP)//UNIT,CELL//UNIT,14 -- 34 and 26.
@@ -181,7 +181,7 @@ for name in pairs(R.TEXT) do
         fits(name..' value',text,VALUE)
     end
     for k,text in pairs(w.hint) do fits(name..'.hint.'..k,text,HINT) end
-    -- The co-op saves' question (session/saves.lua): its text within 5 body rows of 78 columns, as each phase shows it,
+    -- The co-op saves' question (save/saves.lua): its text within 5 body rows of 78 columns, as each phase shows it,
     -- the question with the invite line a held invite adds.
     local s=w.saves
     for _,texts in ipairs({{s.new,s.new_about,s.invite},{s.old,s.old_about,s.invite},{s.failed,s.see_log..'.'}}) do
@@ -212,9 +212,9 @@ for name in pairs(R.TEXT) do
     for _,text in ipairs({n.died,n.time_up,n.mate_died,n.you_died}) do fits(name..'.night: '..text,text,54) end
     for k,text in pairs(n.why) do fits(name..'.night.why.'..k,text,54) end
     for _,k in ipairs({'waves','kills','points','time'}) do fits(name..'.night.'..k,n[k],40) end
-    -- The co-op line (ui/menu.lua): the booth hint's word after the longest menu key name, within the hint's 700 units;
-    -- each sentence in the menu's note (the status style, 78 columns as the saves' question's body) with a 32-byte
-    -- name, and within the feed's line.
+    -- The co-op line (ui/kit/menu.lua): the booth hint's word after the longest menu key name, within the hint's 700
+    -- units; each sentence in the menu's note (the status style, 78 columns as the saves' question's body) with a
+    -- 32-byte name, and within the feed's line.
     fits(name..'.line.prompt','Shift+F12  '..w.line.prompt,700//UNIT)
     -- The hall lobby seats' hint, in the same place: Sit near a free seat, Stand up while EVE sits.
     fits(name..'.sit','Shift+F12  '..w.sit,700//UNIT)
@@ -261,9 +261,9 @@ for name in pairs(R.TEXT) do
     fits(name..'.race flags',r.fast..' · '..r.pause,54)
     for _,who in ipairs({w.chat.you,w.chat.partner,('W'):rep(20)..'…'}) do fits(name..'.race row: '..who,'2  '..who,27) end
     fits(name..'.race.dnf value',r.dnf,14)
-    -- The lobby menu (mockup B, ui/lobby.lua): a row and the mode's name within B's row box (Bold 55 in 512 units, 18
-    -- columns), the code row with a join code; a setting's title in C within 32 columns, Mute with a name cut as
-    -- Join.name cuts it; a value within 40, with a join code, a long version and protocol 20; the status line within
+    -- The lobby menu (mockup B, lobby/ui/lobby.lua): a row and the mode's name within B's row box (Bold 55 in 512
+    -- units, 18 columns), the code row with a join code; a setting's title in C within 32 columns, Mute with a name cut
+    -- as Join.name cuts it; a value within 40, with a join code, a long version and protocol 20; the status line within
     -- 40 (Mideum 36, about 19 units a column, ends before the members box at x 2660) at 8 of 8 and a 10 s countdown;
     -- the waiting room's notice with its key within the feed's line.
     for k,text in pairs(w.lobby.row) do fits(name..'.lobby.row.'..k,text:format('ABC-1234'),18) end
@@ -275,7 +275,7 @@ for name in pairs(R.TEXT) do
     for k,text in pairs(w.lobby.status) do fits(name..'.lobby.status.'..k,text:format(k=='start' and 10 or 8,8),40) end
     local room=w.lobby.room:format('F5')
     assert(Chat.clean(room)==room,name..'.lobby.room: '..#room..' bytes or a control')
-    -- Find a session (ui/sessions.lua): a key hint's label within the 420 units between two hints less the icon
+    -- Find a session (session/ui/sessions.lua): a key hint's label within the 420 units between two hints less the icon
     -- (Bold 30, 17 units a column); a status line on one line of the list's 1600 units (Bold 36, about 21 units a
     -- column); the version in the details pane on one line of its 1040 units (Mideum 34, 18 units a column), with a
     -- two-digit protocol and an 8-digit build; the footer within two lines of 2200 units (Mideum 30, 16 units a column).
@@ -286,16 +286,16 @@ for name in pairs(R.TEXT) do
     fits(name..'.sessions.friend',ss.friend,57)
     fits(name..'.sessions.version',ss.version:format('22','26123051'),57)
     fits(name..'.sessions.footer',ss.footer:format('22','26123051'),2*2200//16)
-    -- Create a session (ui/create.lua): its page title at the top right within 40 columns (Mideum 34, 18 units a
-    -- column); the rules header and the Start row within a setting's title column on C (32); a locked row's reason and
-    -- each Who can join word within four lines of the right pane's 1040 units (57 columns a line).
+    -- Create a session (session/ui/create.lua): its page title at the top right within 40 columns (Mideum 34, 18 units
+    -- a column); the rules header and the Start row within a setting's title column on C (32); a locked row's reason
+    -- and each Who can join word within four lines of the right pane's 1040 units (57 columns a line).
     local cr=w.create
     fits(name..'.create.title',cr.title,40)
     fits(name..'.create.rules',cr.rules,32)
     fits(name..'.create.start',cr.start,32)
     fits(name..'.create.locked',cr.locked,4*57)
     for k,text in pairs(cr.who) do fits(name..'.create.who.'..k,text,4*57) end
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word within SB's tab, whose TextWidthValue it copies (16
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word within SB's tab, whose TextWidthValue it copies (16
     -- columns, so Thai's marks count as nothing), the notice when the game stays paused within the feed's 200 bytes.
     local pt=w.pause_tab
     fits(name..'.pause_tab.tab',pt.tab,16)

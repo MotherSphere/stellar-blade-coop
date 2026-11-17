@@ -8,8 +8,8 @@
 -- T.en is English; another language's table sits under its game culture name as nightop/recruiter_text.lua's culture()
 -- gives it (T.fr, T.de, T['zh-Hans']...: the 23 text languages the game ships), with T.en's keys at every level. The
 -- game's language picks the table (GetCurrentLanguage) unless ui_language=english; a language with no table, or a word
--- missing from one, reads English. Row ids and setting names are ui/model.lua's; a value's word is its id's (on, both,
--- game...), or <setting>_<id> where one setting's value needs other words (aggro_game).
+-- missing from one, reads English. Row ids and setting names are ui/kit/model.lua's; a value's word is its id's (on,
+-- both, game...), or <setting>_<id> where one setting's value needs other words (aggro_game).
 local T={}
 T.en={
     title='CO-OP',
@@ -97,7 +97,7 @@ T.en={
         desc='They wait for your answer before they enter your game.',left='Declined in %d s if you do not answer.',
         wait_title="Waiting for %s's answer",host='the host',wait_desc='Close cancels your request to join.',
         wait_left='The host has %d s left to answer.',queue='Players waiting after this one: %d.',close='Close'},
-    -- The question at the title (session/saves.lua) and its notices.
+    -- The question at the title (save/saves.lua) and its notices.
     saves={title='CO-OP SAVES',new='Play co-op on copies of your saves?',
         new_about='StellarCoop copies your saves to separate co-op files, and Continue and Load Game then use those '
             ..'copies. Your own saves are not changed.',
@@ -123,7 +123,7 @@ T.en={
         none='Co-op: not in a session.',alone='Co-op: hosting, no friend yet.',connecting='Co-op: %s is connecting.',
         friend='your friend',hosting='Co-op: hosting %s.',guest="Co-op: in %s's game.",paused=' Paused by %s.',
         lost=' Connection lost.'},
-    -- Why the menu key did not open the menu (ui/menu.lua).
+    -- Why the menu key did not open the menu (ui/kit/menu.lua).
     refused={off='The co-op menu is off (the UI stopped, see UE4SS.log): use the coop commands.',
         world='The co-op menu opens in the game world only.',
         paused='The co-op menu does not open while the game is paused or shows a menu.'},
@@ -180,7 +180,7 @@ T.en={
         differ="Same spawns: some enemies differ between your game and %s's (other .pak mods or fight_chars) and "
             ..'stay as they are. coop-link.log names them.'},
     -- Camp rests in a shared area, as the guest (main.lua): the host's rest reset the area in their game, or ours
-    -- reset our own only. The revive by the friend (session/group.lua): she is down near us, we are down and she can
+    -- reset our own only. The revive by the friend (group/group.lua): she is down near us, we are down and she can
     -- revive us, she revived us, we revived her; and our game waiting while the host watches a cutscene. (%s: her name,
     -- or fight.friend.)
     group={rest="Enemies are back: the area reset in %s's game.",
@@ -190,7 +190,7 @@ T.en={
         revived='Revived by %s.',
         you_revived='You revived %s.',
         cutscene='%s is watching a cutscene. Your game waits until it ends.'},
-    -- The follow (session/travel.lua), the guest's: the offer when the host is on another map or far on hers (%s: her
+    -- The follow (group/travel.lua), the guest's: the offer when the host is on another map or far on hers (%s: her
     -- name, her map, follow_key), always's notice (her name, follow_key), the travel taken, no camp found, a
     -- guard of the moment, and the native part's refusal or a warp that never started.
     travel={offer='%s is in %s. Press %s to travel to the camp nearest them.',
@@ -289,7 +289,7 @@ T.en={
         too_close='Too close: 15 m at least between checkpoints.',full='64 checkpoints already: save the track.',
         other_map='This track is on another map.',
         saved='Track %s saved, %d checkpoints.'},
-    -- The SBO lobby's notices (session/sbo.lua): the co-op save before the entry, why an entry is refused (no),
+    -- The SBO lobby's notices (lobby/sbo.lua): the co-op save before the entry, why an entry is refused (no),
     -- and what failed (fail). nightop and boss use the game's own name for each mode in each language, its
     -- StringTable_UI rows UI_Night and UI_BossRush_Title.
     sbo={saving='Saving the co-op game. Leaving the lobby brings you back here.',
@@ -303,13 +303,13 @@ T.en={
             hall='Left the match: its lobby map is missing or a different version here.'},
         fail={save='The game did not save. Nothing changed.',warp='The lobby did not load. Nothing changed.',
             leave='Could not go back to Xion. Quit to the title: the co-op save is restored there.'}},
-    -- The lobby menu (mockup B, ui/lobby.lua): its sub and page lines, a mode's name and line (desc), the rows (more
-    -- and its tag for the modes not built yet), the status line under them, the members box and the waiting room's
-    -- notice (room, %s: the menu key); the settings (mockup C): tabs, each setting's title (set; arena waits for stage
-    -- 4) and value (val); the Leave question (pop). Outside English and French, Settings, Cancel, Difficulty, Equipment
-    -- and Change are the game's own StringTable_UI words (UI_Lobby_Options, UI_Cancel, UI_Setting_GamePlay_Mode,
-    -- UI_Equipment, UI_Setting_Rolling), and Search, Start and Normal Mode (UI_Interaction_T_Search, UI_BossRush_Start,
-    -- UI_NormalMode) where the game's word means the same thing there.
+    -- The lobby menu (mockup B, lobby/ui/lobby.lua): its sub and page lines, a mode's name and line (desc), the rows
+    -- (more and its tag for the modes not built yet), the status line under them, the members box and the waiting
+    -- room's notice (room, %s: the menu key); the settings (mockup C): tabs, each setting's title (set; arena waits for
+    -- stage 4) and value (val); the Leave question (pop). Outside English and French, Settings, Cancel, Difficulty,
+    -- Equipment and Change are the game's own StringTable_UI words (UI_Lobby_Options, UI_Cancel,
+    -- UI_Setting_GamePlay_Mode, UI_Equipment, UI_Setting_Rolling), and Search, Start and Normal Mode
+    -- (UI_Interaction_T_Search, UI_BossRush_Start, UI_NormalMode) where the game's word means the same thing there.
     lobby={sub='PvP LOBBY · SBO',page='LOBBY · SBO',mode={ffa='Free-for-all'},
         desc={ffa='2 to 8 players. First to 20 kills, or the best score after 10 minutes. You respawn after 4 s.',
             more='More modes come in later versions.'},row={search='Search',cancel='Cancel',private='Private match',
@@ -329,15 +329,16 @@ T.en={
             start='10 s from 2 players, 5 s when full',public='Public',private='Private, code %s',
             version='%s, protocol %d'},pop={leave_title='LEAVE THE LOBBY',
             leave='Go back to Xion? You return where you talked to the recruiter.'}},
-    -- Find a session (ui/sessions.lua): the Select and Refresh hints, the host's revive rule as the joiner reads it,
-    -- the status line, the friend mark, the version in the details (protocol, game build) and the footer with ours.
+    -- Find a session (session/ui/sessions.lua): the Select and Refresh hints, the host's revive rule as the joiner
+    -- reads it, the status line, the friend mark, the version in the details (protocol, game build) and the footer with
+    -- ours.
     sessions={ask='Ask to join',refresh='Refresh',empty='No open session.',
         revive='You can revive the host',
         failed='The search failed. Refresh to try again.',idle='Press Refresh to search.',
         wait='You can search again in %d s.',friend='Steam friend',version='Protocol %s, game build %s',
         footer='Your version: protocol %s, game build %s. Sessions of other versions are not listed.'},
-    -- Create a session (ui/create.lua): its page title, the rules header, the Start row, why a locked row cannot
-    -- change and Who can join's value explained in the right pane.
+    -- Create a session (session/ui/create.lua): its page title, the rules header, the Start row, why a locked row
+    -- cannot change and Who can join's value explained in the right pane.
     create={title='Create a session',rules='SESSION RULES',start='Start',
         locked='coop-settings.txt cannot be read: this setting cannot change now.',
         who={public='Listed in Find a session for players of your version. Players who are not your Steam friends ask '
@@ -345,7 +346,7 @@ T.en={
             friends='Only your Steam friends can join. They find it in Find a session or in Steam.',
             invitation='Not listed. Players join with a Steam invite or your join code.',
             closed='Nobody can join, not even with an invite or a code.'}},
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='The game stayed paused, so the co-op menu did not open.'},
 }
 T.fr={
@@ -633,7 +634,7 @@ T.fr={
             friends='Seuls vos amis Steam peuvent rejoindre. Ils la trouvent dans Trouver une session ou dans Steam.',
             invitation='Non listée. On rejoint avec une invitation Steam ou votre code.',
             closed='Personne ne peut rejoindre, même avec une invitation ou un code.'}},
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='En ligne',stuck='Le jeu est resté en pause : le menu co-op ne s\'est pas ouvert.'},
 }
 T.ar={
@@ -897,7 +898,7 @@ T.ar={
             friends='يمكن لأصدقائك على Steam فقط الانضمام. يجدونها في البحث عن جلسة أو في Steam.',
             invitation='لا تظهر في القائمة. ينضم اللاعبون بدعوة عبر Steam أو برمز الانضمام الخاص بك.',
             closed='لا يمكن لأحد الانضمام، ولا حتى بدعوة أو برمز.'}},
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='أونلاين',stuck='بقيت اللعبة متوقفة مؤقتًا، فلم تُفتح قائمة اللعب التعاوني.'},
 }
 T.da={
@@ -1172,7 +1173,7 @@ T.da={
             friends='Kun dine Steam-venner kan deltage. De finder den i Find en session eller i Steam.',
             invitation='Vises ikke. Spillere deltager med en Steam-invitation eller din kode.',
             closed='Ingen kan deltage, heller ikke med en invitation eller en kode.'}},
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='Spillet blev på pause, så co-op-menuen åbnede ikke.'},
 }
 T.de={
@@ -1469,7 +1470,7 @@ T.de={
             ..'Steam.',
             invitation='Nicht aufgeführt. Beitritt mit einer Steam-Einladung oder deinem Code.',
             closed='Niemand kann beitreten, auch nicht mit Einladung oder Code.'}},
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='Das Spiel blieb pausiert, daher hat sich das Koop-Menü nicht geöffnet.'},
 }
 T.es={
@@ -1755,7 +1756,7 @@ T.es={
             friends='Solo tus amigos de Steam pueden unirse. La encuentran en Buscar una sesión o en Steam.',
             invitation='No aparece en la lista. Se entra con una invitación de Steam o con tu código.',
             closed='Nadie puede unirse, ni siquiera con una invitación o un código.'}},
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='En línea',stuck='El juego siguió en pausa, así que el menú co-op no se abrió.'},
 }
 T['es-MX']={
@@ -2040,7 +2041,7 @@ T['es-MX']={
             friends='Solo tus amigos de Steam pueden unirse. La encuentran en Buscar una sesión o en Steam.',
             invitation='No aparece en la lista. Se entra con una invitación de Steam o con tu código.',
             closed='Nadie puede unirse, ni siquiera con una invitación o un código.'}},
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='En línea',stuck='El juego siguió en pausa, por eso el menú co-op no se abrió.'},
 }
 T.fi={
@@ -2328,7 +2329,7 @@ T.fi={
             friends='Vain Steam-kaverisi voivat liittyä. He löytävät istunnon Etsi istunto -listasta tai Steamista.',
             invitation='Ei listassa. Pelaajat liittyvät Steam-kutsulla tai koodillasi.',
             closed='Kukaan ei voi liittyä, ei edes kutsulla tai koodilla.'}},
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='Peli jäi tauolle, joten co-op-valikko ei avautunut.'},
 }
 T.it={
@@ -2616,7 +2617,7 @@ T.it={
             friends='Possono unirsi solo i tuoi amici di Steam. La trovano in Trova una sessione o su Steam.',
             invitation='Non elencata. Si entra con un invito di Steam o con il tuo codice.',
             closed='Nessuno può unirsi, nemmeno con un invito o un codice.'}},
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='Il gioco è rimasto in pausa, quindi il menu co-op non si è aperto.'},
 }
 T.ja={
@@ -2859,7 +2860,7 @@ T.ja={
             friends='Steamフレンドだけが参加できます。「セッションを探す」またはSteamから見つけられます。',
             invitation='一覧には表示されません。Steamの招待かあなたのコードで参加します。',
             closed='招待やコードがあっても、誰も参加できません。'}},
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='オンライン',stuck='ゲームが一時停止したままのため、協力プレイメニューを開けませんでした。'},
 }
 T.ko={
@@ -3100,7 +3101,7 @@ T.ko={
             friends='Steam 친구만 참가할 수 있습니다. 세션 찾기나 Steam에서 찾을 수 있습니다.',
             invitation='목록에 표시되지 않습니다. Steam 초대나 내 코드로 참가합니다.',
             closed='초대나 코드가 있어도 아무도 참가할 수 없습니다.'}},
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='온라인',stuck='게임이 일시 정지된 상태라 코옵 메뉴가 열리지 않았습니다.'},
 }
 T.nl={
@@ -3383,7 +3384,7 @@ T.nl={
             friends='Alleen je Steam-vrienden kunnen meedoen. Ze vinden de sessie via Een sessie zoeken of in Steam.',
             invitation='Staat niet in de lijst. Spelers doen mee met een Steam-uitnodiging of jouw code.',
             closed='Niemand kan meedoen, ook niet met een uitnodiging of een code.'}},
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='De game bleef gepauzeerd, dus het co-opmenu ging niet open.'},
 }
 T.no={
@@ -3660,7 +3661,7 @@ T.no={
             friends='Bare Steam-vennene dine kan bli med. De finner økten i Finn en økt eller i Steam.',
             invitation='Vises ikke i listen. Spillere blir med via en Steam-invitasjon eller koden din.',
             closed='Ingen kan bli med, heller ikke med en invitasjon eller en kode.'}},
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='Spillet ble stående på pause, så co-op-menyen åpnet seg ikke.'},
 }
 T.pl={
@@ -3937,7 +3938,7 @@ T.pl={
             friends='Dołączyć mogą tylko twoi znajomi ze Steam. Znajdą ją w Znajdź sesję lub w Steam.',
             invitation='Niewidoczna na liście. Dołącza się przez zaproszenie Steam lub twój kod.',
             closed='Nikt nie może dołączyć, nawet z zaproszeniem lub kodem.'}},
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='Gra pozostała wstrzymana, więc menu co-op się nie otworzyło.'},
 }
 T.pt={
@@ -4221,7 +4222,7 @@ T.pt={
             friends='Só os teus amigos no Steam podem entrar. Encontram-na em Procurar uma sessão ou no Steam.',
             invitation='Não aparece na lista. Entra-se com um convite do Steam ou com o teu código.',
             closed='Ninguém pode entrar, nem com um convite nem com um código.'}},
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='O jogo ficou em pausa, por isso o menu co-op não abriu.'},
 }
 T['pt-BR']={
@@ -4505,7 +4506,7 @@ T['pt-BR']={
             friends='Só seus amigos no Steam podem entrar. Eles a encontram em Encontrar uma sessão ou no Steam.',
             invitation='Não aparece na lista. Os jogadores entram com um convite do Steam ou com o seu código.',
             closed='Ninguém pode entrar, nem com convite nem com código.'}},
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='O jogo continuou pausado, então o menu co-op não abriu.'},
 }
 T.ru={
@@ -4783,7 +4784,7 @@ T.ru={
             friends='Присоединиться могут только ваши друзья в Steam. Они найдут ее в «Найти сессию» или в Steam.',
             invitation='Не видна в списке. Вход по приглашению Steam или по вашему коду.',
             closed='Никто не может присоединиться, даже по приглашению или коду.'}},
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Онлайн',stuck='Игра осталась на паузе, поэтому меню кооператива не открылось.'},
 }
 T.sv={
@@ -5057,7 +5058,7 @@ T.sv={
             friends='Bara dina Steam-vänner kan gå med. De hittar den i Hitta en session eller i Steam.',
             invitation='Visas inte i listan. Spelare går med via en Steam-inbjudan eller din kod.',
             closed='Ingen kan gå med, inte ens med en inbjudan eller en kod.'}},
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='Spelet förblev pausat, så co-op-menyn öppnades inte.'},
 }
 T.th={
@@ -5308,7 +5309,7 @@ T.th={
             friends='เฉพาะเพื่อนใน Steam ของคุณที่เข้าร่วมได้ โดยหาได้จากค้นหาเซสชันหรือใน Steam',
             invitation='ไม่แสดงในรายการ ผู้เล่นเข้าร่วมด้วยคำเชิญใน Steam หรือโค้ดของคุณ',
             closed='ไม่มีใครเข้าร่วมได้ แม้จะมีคำเชิญหรือโค้ด'}},
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='ออนไลน์',stuck='เกมยังหยุดชั่วคราวอยู่ เมนู co-op จึงไม่เปิด'},
 }
 T.tr={
@@ -5591,7 +5592,7 @@ T.tr={
             friends="Yalnızca Steam arkadaşların katılabilir. Oturumu Oturum bul listesinde ya da Steam'de bulurlar.",
             invitation='Listede görünmez. Oyuncular Steam davetiyle ya da senin kodunla katılır.',
             closed='Davet ya da kodla bile kimse katılamaz.'}},
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Çevrimiçi',stuck='Oyun duraklatılmış kaldığı için co-op menüsü açılmadı.'},
 }
 T['zh-Hans']={
@@ -5809,7 +5810,7 @@ T['zh-Hans']={
             friends='只有你的Steam好友可以加入。他们可在查找房间或Steam中找到它。',
             invitation='不会列出。玩家通过Steam邀请或你的房间码加入。',
             closed='任何人都无法加入，即使有邀请或房间码。'}},
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='在线',stuck='游戏仍处于暂停状态，因此合作菜单没有打开。'},
 }
 T['zh-Hant']={
@@ -6026,7 +6027,7 @@ T['zh-Hant']={
             friends='只有你的Steam好友可以加入。他們可在尋找房間或Steam中找到它。',
             invitation='不會列出。玩家透過Steam邀請或你的代碼加入。',
             closed='任何人都無法加入，即使有邀請或代碼。'}},
-    -- The pause menu's Online tab (ui/pause_tab.lua): its word and the notice when the game stays paused.
+    -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='線上',stuck='遊戲仍處於暫停狀態，因此合作選單沒有開啟。'},
 }
 local culture=require('nightop.recruiter_text').culture

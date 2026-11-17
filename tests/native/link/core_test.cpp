@@ -2473,7 +2473,7 @@ int main() {
     assert(w.status().find("\nmate=") == std::string::npos && saw("chat this session: 0 in, 0 out, 0 dropped"));
   }
 
-  // The follow's camps lines (session/travel.lua). Outside a session nothing goes. Between two Links, A hosting (Me)
+  // The follow's camps lines (group/travel.lua). Outside a session nothing goes. Between two Links, A hosting (Me)
   // and B (Kaanta): her camps? goes reliable on channel 0 to A, whose status keeps the last as camps?=<n>, A's own
   // number for it; another within 2 s is dropped there with a log line. A's answer to that number reaches B's status
   // as camps=<her id> ...; an answer with another id is dropped, as is one that comes after she asked again. The host
@@ -2721,10 +2721,10 @@ int main() {
     assert(!w.link.chat_waiting() && saw("race lines: 41 in, 41 out, 2 dropped") && !w.link.race("end 7"));
   }
 
-  // coop gift's lines (cut/mailbox.lua, through gift requests): reliable on channel 0 to the friend past the handshake,
-  // or back as hers in the loopback with no friend, 8 a second each way; each one in the log, ours and hers. A gift
-  // that cannot go (no session, past the rate, Steam refused it) comes back to Lua at once as her refusal, "gift n <id>
-  // nolink"; an answer that cannot go is only logged. Hers wait for Lua in the chat's inbox as "gift <payload>".
+  // coop gift's lines (cut/menus/mailbox.lua, through gift requests): reliable on channel 0 to the friend past the
+  // handshake, or back as hers in the loopback with no friend, 8 a second each way; each one in the log, ours and hers.
+  // A gift that cannot go (no session, past the rate, Steam refused it) comes back to Lua at once as her refusal, "gift
+  // n <id> nolink"; an answer that cannot go is only logged. Hers wait for Lua in the chat's inbox as "gift <payload>".
   reset();
   {
     World w;

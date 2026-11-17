@@ -7,14 +7,14 @@
 -- [off], coop replay [off]), in the outfit it was captured in (coop basesuit: on the base suit instead; coop look: its
 -- cloth, dyes or effects on or off until the mod reloads); the Steam link between two players (coop host, invite, list,
 -- join, leave, status, report, copy, allow, deny, remove; the co-op menu on F5, whose rows open the Create a session
--- screen to host (ui/create.lua), invite, leave, open the session list (ui/sessions.lua) and change the settings
--- (ui/menu.lua), within 3 m of a camp phone booth the
+-- screen to host (session/ui/create.lua), invite, leave, open the session list (session/ui/sessions.lua) and change the
+-- settings (ui/kit/menu.lua), within 3 m of a camp phone booth the
 -- co-op line instead (session/booth.lua), status and leave on F6 and F8, unless coop-settings.txt says otherwise; join
 -- codes and the host's question on a player who is not her Steam friend: session/join.lua), the session chat on Enter,
 -- alone in the SBO lobby too (session/chat.lua), its notices in the chat's feed (or, with the UI off, on a line above
 -- your EVE), your friend's card, marker and off-screen arrow (partner/hud.lua; the ghost's name tag is their fallback);
 -- the co-op saves' question on the title screen
--- (session/saves.lua, auto_coop_save in coop-settings.txt), with coop saves probe|convert|coop|main for the native
+-- (save/saves.lua, auto_coop_save in coop-settings.txt), with coop saves probe|convert|coop|main for the native
 -- part's copies and save name by hand, coop saves refresh <0-4> to replace one co-op copy and coop saves export <0-4>
 -- <0-4> to write a co-op copy over one of your own saves; and coop where, a line of
 -- coordinates to compare between the two PCs; coop mark [text], a numbered line in both players' logs (coop-link.log,
@@ -27,11 +27,11 @@
 -- [<name>|stop], the challenge runs on the same code (nightop/challenges.lua), solo but the Shooting Range, with each
 -- one's best run in coop-records.txt, on a co-op save only (stop anywhere); coop recruiter [off], the cut Night
 -- Operation recruiter on a Xion guard near Roxanne (nightop/recruiter.lua), on a co-op save only, who also comes by
--- himself at each Xion load on any save; the friend's revive (session/group.lua, revive
+-- himself at each Xion load on any save; the friend's revive (group/group.lua, revive
 -- in coop-settings.txt or the co-op menu, on by default), with coop revive test, its solo probe at the death screen
--- (co-op saves only, not in the usage line), and the guest's wait while the host watches a cutscene (session/group.lua
+-- (co-op saves only, not in the usage line), and the guest's wait while the host watches a cutscene (group/group.lua
 -- and the native part's photo pause, cutscene_wait in coop-settings.txt or the co-op menu); the guest's travel to the
--- camp nearest the host (session/travel.lua, follow_host and follow_key in coop-settings.txt or the co-op menu: F7
+-- camp nearest the host (group/travel.lua, follow_host and follow_key in coop-settings.txt or the co-op menu: F7
 -- unless set), with coop travel host (as follow_key) and coop travel probe <camp>, its solo test on a co-op save (not
 -- in the usage line); coop fight on|off|status|probe|test|record|replay, the shared enemies of Phase 11 (experimental:
 -- on only with shared_enemies=on in coop-settings.txt or the co-op menu, which also asks it by itself; the native part
@@ -64,28 +64,30 @@
 -- usage line; the probe on a co-op save only); coop leviathan [list]|show [body|a|b|tentacle|statue]
 -- [<distance m>|auto] [<height m>|auto] [<scale>]|move <distance m>|auto [<height m>|auto]|skin
 -- statue|hydra|default|cam [<m/s>]|play [<clip>]|off, a read of the cut Naytiba 10's assets, a display of it playing
--- its clips and a free camera to film it (cut/leviathan.lua; a test tool, left out of the usage line; show, and cam
--- turning the camera on, on a co-op save only); coop gardener, coop tendril, coop mann, coop nier, coop orcal and coop
--- enya, the same words for the cut Naytibas 1 and 6 and four cut models, one of them shown at a time; coop lion
+-- its clips and a free camera to film it (cut/enemies/leviathan.lua; a test tool, left out of the usage line; show, and
+-- cam turning the camera on, on a co-op save only); coop gardener, coop tendril, coop mann, coop nier, coop orcal and
+-- coop enya, the same words for the cut Naytibas 1 and 6 and four cut models, one of them shown at a time; coop lion
 -- [intro]|rows|control|brain skulling|lurker, the cut Lion spawned as an enemy to fight, its table rows added through
--- the native part (cut/lion.lua; left out of the usage line; the words that spawn on a co-op save only); coop gardener
--- fight [intro|half|skulling|rows], the cut Gardener spawned as an enemy the same way (cut/gardener.lua; left out of
--- the usage line; the words that spawn on a co-op save only); coop tendril fight [rows], the cut Tendril the same way,
--- with the Shows of its clips built in memory first (cut/tendril.lua; left out of the usage line; the spawn on a co-op
--- save only); coop chainspin, EVE's cut Tachy Mode ChainSpin, its rows
+-- the native part (cut/enemies/lion.lua; left out of the usage line; the words that spawn on a co-op save only); coop
+-- gardener fight [intro|half|skulling|rows], the cut Gardener spawned as an enemy the same way
+-- (cut/enemies/gardener.lua; left out of the usage line; the words that spawn on a co-op save only); coop tendril fight
+-- [rows], the cut Tendril the same way, with the Shows of its clips built in memory first (cut/enemies/tendril.lua;
+-- left out of the usage line; the spawn on a co-op save only); coop chainspin, EVE's cut Tachy Mode ChainSpin, its rows
 -- added with the Lion's and the skill started through SB's own effect call while she is in Tachy Mode
--- (cut/chainspin.lua; left out of the usage line; on a co-op save only). coop off stops everything until the game
+-- (cut/eve/chainspin.lua; left out of the usage line; on a co-op save only). coop off stops everything until the game
 -- restarts. An XInput pad, read by the native part, drives the co-op menu and the co-op saves' question: View held 1 s
 -- opens or closes the menu; D-pad Right held 1 s gets EVE on the bike or off it. The console commands' handlers are in
 -- Scripts/commands/ (session, partner, nightop, race, fight and cut), all but coop ui and coop off, which stay here.
--- coop wear [<name>|off [hair|suit]] puts cut hairs and suits on your EVE, display only and on any save (cut/wear.lua).
--- coop scene [emil|orcal|stop] plays two cut scenes through the game's own theater (cut/scene.lua; a scene on a co-op
--- save only). coop lines [<name>|stop] says the unvoiced lines of cut scenes in the chat's feed, and plays unused
--- voice takes with the subtitles the game has for them, on any save (cut/lines.lua).
--- coop glide on|off, EVE's cut glide while Jump is held in the air (cut/glide.lua; a test tool, left out of the usage
--- line; on on a co-op save only).
+-- coop wear [<name>|off [hair|suit]] puts cut hairs and suits on your EVE, display only and on any save
+-- (cut/eve/wear.lua).
+-- coop scene [emil|orcal|stop] plays two cut scenes through the game's own theater (cut/scenes/scene.lua; a scene on a
+-- co-op save only). coop lines [<name>|stop] says the unvoiced lines of cut scenes in the chat's feed, and plays unused
+-- voice takes with the subtitles the game has for them, on any save (cut/scenes/lines.lua).
+-- coop glide on|off, EVE's cut glide while Jump is held in the air (cut/eve/glide.lua; a test tool, left out of the
+-- usage line; on on a co-op save only).
 -- coop emote [list|<name>|off] plays one of EVE's clips on her (a photo-mode pose held until she moves, a wave, or a
--- clip of the Cut category played once), on any save (cut/emote.lua, through the native part's custom animation call).
+-- clip of the Cut category played once), on any save (cut/eve/emote.lua, through the native part's custom animation
+-- call).
 -- coop bike [status|tune [<name> <value>]] puts EVE on SB's own bike or takes her off it, as bike_key (F3 unless set)
 -- and D-pad Right held 1 s do, on any save (commands/bike.lua, bike/ride.lua; its riding model, bike/model.lua, adapts
 -- Eve On Wheels by dCharisma1).
@@ -95,18 +97,20 @@
 -- any save (left out of the usage line); coop shortcut load <map> <1-4> writes one, without its achievement data, as
 -- co-op slot 5's copy, only with shortcut_load=on and typed twice within 10 s (commands/cut.lua).
 -- coop devmenu [list|<row>], the rows of the game's developer cheat menu that still work, through the same Cheat
--- request as coop chainspin (cut/devmenu.lua; left out of the usage line; a row on a co-op save only; coop off runs
--- its clear and lockswitch rows once more when a row ran, even before a Lua reload). coop devinfo quest|player|off, the game's quest debugger
--- and player info panels, opened and closed by the native part through the game's UI manager (game/dev_panels.h; left
--- out of the usage line; any save, as both only read); coop off closes them.
+-- request as coop chainspin (cut/menus/devmenu.lua; left out of the usage line; a row on a co-op save only; coop off
+-- runs its clear and lockswitch rows once more when a row ran, even before a Lua reload). coop devinfo
+-- quest|player|off, the game's quest debugger and player info panels, opened and closed by the native part through the
+-- game's UI manager (game/dev_panels.h; left out of the usage line; any save, as both only read); coop off closes them.
 -- coop gift [send <item> [count]|take [n]], SB's cut mailbox as a co-op gift box: consumables sent to the linked
--- friend's mailbox and taken from yours, with the cut toast when one arrives (cut/mailbox.lua; on a co-op save only).
+-- friend's mailbox and taken from yours, with the cut toast when one arrives (cut/menus/mailbox.lua; on a co-op save
+-- only).
 -- coop story [dump|find], the story lines of the game's live save object written to StellarCoopStory.txt, to compare
 -- with a save through tools/story_lines.py, or a list of the objects that may hold them; coop-story.txt in the mod
 -- folder asks the same while a world is loaded (story/snapshot.lua; read only, any save, left out of the usage line).
--- coop sbo enter|leave|status|hop|back|view [set]|seq <alias>|parts, the SBO lobby in Xion by hand (session/sbo.lua,
+-- coop sbo enter|leave|status|hop|back|view [set]|seq <alias>|parts, the SBO lobby in Xion by hand (lobby/sbo.lua,
 -- with sbo_lobby=on; left out of the usage line); the recruiter's Join enters it, or says what is missing. In its world
--- the lobby's screens (ui/lobby.lua) open over the menu camera at the Agit, where menu_key and View held 1 s open them.
+-- the lobby's screens (lobby/ui/lobby.lua) open over the menu camera at the Agit, where menu_key and View held 1 s open
+-- them.
 -- Every line of ours in UE4SS.log goes through this print, with SteamIDs and join codes masked (core/mask.lua): players
 -- post that log in public. coop-status.txt keeps them whole.
 local mask=require('core.mask')
@@ -136,7 +140,7 @@ if loaded then
 end
 -- The DLL links no Lua: its event (0 for none) is how many of these twelve arguments it hands back.
 local function pad() return select('#',native_pad(0,0,0,0,0,0,0,0,0,0,0,0)) end
--- The pause menu's close for its Online tab (ui/pause_tab.lua): SB's own close, run by the native part on the game
+-- The pause menu's close for its Online tab (ui/kit/pause_tab.lua): SB's own close, run by the native part on the game
 -- thread. Its answer is how many of three arguments it hands back: 1 closed, 2 SB has no pause menu open, 3 off. An
 -- older DLL without it, or none: no close can work.
 local native_pause_close,pause_close_why=nil,why
@@ -195,7 +199,7 @@ end
 -- With mod_names=off, no mod's path goes in the capture either.
 local capture=require('partner.capture').new(link and link.components or nil,look,link and link.mod_assets or nil,
     settings~=nil and not settings.mod_names)
-local notice=require('ui.notice').new()
+local notice=require('ui.kit.notice').new()
 -- The UI kit, the co-op menu, the chat's box and feed, the partner HUD, the co-op saves' question, the code box, the
 -- host's question, the Sessions screen, the Create a session screen and the SBO lobby's screens: with the Steam link.
 -- The SBO lobby itself (sbo), its hall maps' rows (halls) and the hold at its arrivals (arrival) are built further
@@ -217,9 +221,9 @@ local function ui_reset(why)
     kit.reset()
     if why then log(why) end
 end
--- A notice: into the chat's feed while the UI's root is up, else on the line above EVE (ui/notice.lua), the fallback
--- when the UI is off or failed. en: the same line in English (T.en's words), which that line shows when its font cannot
--- draw the other.
+-- A notice: into the chat's feed while the UI's root is up, else on the line above EVE (ui/kit/notice.lua), the
+-- fallback when the UI is off or failed. en: the same line in English (T.en's words), which that line shows when its
+-- font cannot draw the other.
 local function say(text,en) if not (box and box.say(text)) then notice.say(text,en) end end
 -- The words for the screen (ui/text.lua): the game's language unless ui_language=english; English while unread. The
 -- log keeps English.
@@ -293,17 +297,18 @@ end
 -- Its one entry, commands.no, runs only on a co-op save (coop_slot).
 local nightop=require('nightop.probe').new(function(m) print('[StellarCoop][NO] '..tostring(m)..'\n') end,
     function(line) return ask(line)() end,function() return link and link.status() end)
--- coop lion (cut/lion.lua), logging [LI] lines: its rows asked of the native part, its status read back. Built before
--- Night Operation's run: the shop asks it for the cut items' rows (rows).
-local lion=require('cut.lion').new({log=function(m) print('[StellarCoop][LI] '..tostring(m)..'\n') end,
+-- coop lion (cut/enemies/lion.lua), logging [LI] lines: its rows asked of the native part, its status read back. Built
+-- before Night Operation's run: the shop asks it for the cut items' rows (rows).
+local lion=require('cut.enemies.lion').new({log=function(m) print('[StellarCoop][LI] '..tostring(m)..'\n') end,
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end})
--- coop gardener fight (cut/gardener.lua), logging [GD] lines: the same, for the cut Gardener's rows and spawn.
-local gardener=require('cut.gardener').new({log=function(m) print('[StellarCoop][GD] '..tostring(m)..'\n') end,
+-- coop gardener fight (cut/enemies/gardener.lua), logging [GD] lines: the same, for the cut Gardener's rows and spawn.
+local gardener=require('cut.enemies.gardener').new({log=function(m) print('[StellarCoop][GD] '..tostring(m)..'\n') end,
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end})
--- coop tendril fight (cut/tendril.lua), logging [TD] lines: the same, for the cut Tendril's rows, Shows and spawn.
-local tendril=require('cut.tendril').new({log=function(m) print('[StellarCoop][TD] '..tostring(m)..'\n') end,
+-- coop tendril fight (cut/enemies/tendril.lua), logging [TD] lines: the same, for the cut Tendril's rows, Shows and
+-- spawn.
+local tendril=require('cut.enemies.tendril').new({log=function(m) print('[StellarCoop][TD] '..tostring(m)..'\n') end,
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end})
--- The friend's revive (session/group.lua) and the follow (session/travel.lua), with the Steam link only: built and
+-- The friend's revive (group/group.lua) and the follow (group/travel.lua), with the Steam link only: built and
 -- ticked below.
 local group,travel=nil,nil
 -- Night Operation's run: commands.nightop starts it on a co-op save only; stop and coop off end it anywhere. It
@@ -350,14 +355,15 @@ local mxiii=require('matrix13.world.travel').new({log=function(m) print('[Stella
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end,
     travel=function() return travel end,paks=require('matrix13.world.travel').paks_of(folder),
     read=require('core.link').files.read,lion=lion,gardener=gardener})
--- The teleport screen's extra tabs (ui/region_tabs.lua), logging [RT] lines. Their records come from the native part.
-local region_tabs=require('ui.region_tabs').new({log=function(m) print('[StellarCoop][RT] '..tostring(m)..'\n') end,
+-- The teleport screen's extra tabs (group/region_tabs.lua), logging [RT] lines. Their records come from the native
+-- part.
+local region_tabs=require('group.region_tabs').new({log=function(m) print('[StellarCoop][RT] '..tostring(m)..'\n') end,
     ready=function() return link~=nil and require('core.unreal').controller()~=nil end})
-local pause_tab -- The pause menu's Online tab (ui/pause_tab.lua), made after pad_event below: it opens the menu.
+local pause_tab -- The pause menu's Online tab (ui/kit/pause_tab.lua), made after pad_event below: it opens the menu.
 -- commands.recruiter runs only on a co-op save; coop off despawns on any slot (cleanup). Once he is asked for (or found
 -- there already), his Join is armed, with sbo_lobby=on only: arming swaps a slot in the game's image, and a player who has not turned the lobby
 -- on gets no swap (his Join then does what the game's does). The native part counts each Join on the sbo line
--- (session/sbo.lua turns it into an entry, or a notice of what is missing).
+-- (lobby/sbo.lua turns it into an entry, or a notice of what is missing).
 local Recruiter=require('nightop.recruiter')
 local recruiter=Recruiter.new(function(m) print('[StellarCoop][RC] '..tostring(m)..'\n') end,function()
     if link and settings and settings.sbo_lobby then
@@ -368,10 +374,11 @@ local function ui_log(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end -- T
 -- The Doro look and probe (race/doro.lua), logging [DR] lines. coop-look.txt lets the next Lua load restore EVE.
 local doro=require('race.doro').new({log=function(m) print('[StellarCoop][DR] '..tostring(m)..'\n') end,
     store=link and link.store('coop-look.txt')})
--- The cut model viewer of coop leviathan and the other viewer commands (cut/leviathan.lua): its read, display and
--- free camera, logging [LV] lines. coop-leviathan.txt lets the next Lua load remove a display this one left and give
--- the player controller back. The free camera reads no key while the co-op menu or one of its boxes is open.
-local leviathan=require('cut.leviathan').new({log=function(m) print('[StellarCoop][LV] '..tostring(m)..'\n') end,
+-- The cut model viewer of coop leviathan and the other viewer commands (cut/enemies/leviathan.lua): its read, display
+-- and free camera, logging [LV] lines. coop-leviathan.txt lets the next Lua load remove a display this one left and
+-- give the player controller back. The free camera reads no key while the co-op menu or one of its boxes is open.
+local leviathan=require('cut.enemies.leviathan').new({
+    log=function(m) print('[StellarCoop][LV] '..tostring(m)..'\n') end,
     store=link and link.store('coop-leviathan.txt'),
     blocked=function()
         return menu~=nil and (menu.is_open() or box.is_open() or code_box.is_open() or approval.is_open()
@@ -380,26 +387,27 @@ local leviathan=require('cut.leviathan').new({log=function(m) print('[StellarCoo
 -- The races' driving (race/drive.lua), logging [DR] lines: coop-drive.txt lets the next Lua load put EVE's movement
 -- back.
 local drive=require('race.drive').new({log=doro.log,store=link and link.store('coop-drive.txt'),settings=settings})
--- coop wear (cut/wear.lua), logging [WR] lines: coop-wear.txt lets the next Lua load give EVE the game's meshes back.
+-- coop wear (cut/eve/wear.lua), logging [WR] lines: coop-wear.txt lets the next Lua load give EVE the game's meshes
+-- back.
 -- No look goes on again while the game is paused or shows one of its screens (its wardrobe among them).
-local wear=require('cut.wear').new({log=function(m) print('[StellarCoop][WR] '..tostring(m)..'\n') end,
+local wear=require('cut.eve.wear').new({log=function(m) print('[StellarCoop][WR] '..tostring(m)..'\n') end,
     store=link and link.store('coop-wear.txt'),paused=function() return kit~=nil and kit.paused(true) end})
--- coop scene (cut/scene.lua), logging [SC] lines: two cut scenes through two of SB's theater rows.
-local scene=require('cut.scene').new({log=function(m) print('[StellarCoop][SC] '..tostring(m)..'\n') end})
--- coop lines (cut/lines.lua), logging [LN] lines: cut scenes' unvoiced subtitles in the chat's feed, and unused voice
--- takes played as 2D sounds.
-local cut_lines=require('cut.lines').new({log=function(m) print('[StellarCoop][LN] '..tostring(m)..'\n') end,
+-- coop scene (cut/scenes/scene.lua), logging [SC] lines: two cut scenes through two of SB's theater rows.
+local scene=require('cut.scenes.scene').new({log=function(m) print('[StellarCoop][SC] '..tostring(m)..'\n') end})
+-- coop lines (cut/scenes/lines.lua), logging [LN] lines: cut scenes' unvoiced subtitles in the chat's feed, and unused
+-- voice takes played as 2D sounds.
+local cut_lines=require('cut.scenes.lines').new({log=function(m) print('[StellarCoop][LN] '..tostring(m)..'\n') end,
     say=function(text) return box~=nil and box.say(text) end,ready=function() return kit~=nil and kit.ready() end})
--- coop glide (cut/glide.lua), logging [GL] lines: EVE's bGlide set while Jump is held in the air, on a co-op save.
-local glide=require('cut.glide').new({log=function(m) print('[StellarCoop][GL] '..tostring(m)..'\n') end,
+-- coop glide (cut/eve/glide.lua), logging [GL] lines: EVE's bGlide set while Jump is held in the air, on a co-op save.
+local glide=require('cut.eve.glide').new({log=function(m) print('[StellarCoop][GL] '..tostring(m)..'\n') end,
     slot=function() return coop_slot('coop glide') end})
 -- The bike (bike/ride.lua), built below once coop fly's keys are: coop emote, the race, the hall seats and the Doro
 -- look read whether EVE rides through riding().
 local bike
 local function riding() return bike~=nil and bike.riding() end
--- coop emote (cut/emote.lua), logging [EM] lines: one of EVE's clips until she moves, played by the native part (its
--- anim request and the status line's anim field), else as a montage. None starts while she rides.
-local emote=require('cut.emote').new({log=function(m) print('[StellarCoop][EM] '..tostring(m)..'\n') end,
+-- coop emote (cut/eve/emote.lua), logging [EM] lines: one of EVE's clips until she moves, played by the native part
+-- (its anim request and the status line's anim field), else as a montage. None starts while she rides.
+local emote=require('cut.eve.emote').new({log=function(m) print('[StellarCoop][EM] '..tostring(m)..'\n') end,
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end,riding=riding})
 -- Doro races (race/run.lua), logging [DR] lines: the look above on EVE and the ghost's Doro mode while one runs, and
 -- the driving from GO. Its start and the guest's answer need a co-op save; it never arms during a Night Operation run.
@@ -543,7 +551,7 @@ end
 -- last acted on.
 local scenes_auto=settings~=nil
 local scenes_wanted=settings~=nil and settings.shared_story
--- The SBO lobby (session/sbo.lua), logging [SB] lines, with the Steam link only: the entry from the recruiter's Join or
+-- The SBO lobby (lobby/sbo.lua), logging [SB] lines, with the Steam link only: the entry from the recruiter's Join or
 -- coop sbo enter, the return, the waiting room, and the rows put back at each title and at coop off. Its notices are
 -- keys of ui/text.lua, said in the menu's words. Its engine: SB's game instance, the player controller, EVE, the first
 -- actor of a class, FNames, the table rows, each read through a fresh FindRow, and the menu camera (race/doro.lua's
@@ -558,11 +566,11 @@ if link then
         return her and her:IsA(U.find('/Script/SB.SBCharacter')) and her or nil
     end
     local function sbo_log(m) print('[StellarCoop][SB] '..tostring(m)..'\n') end
-    -- The hold at each lobby arrival (session/arrival.lua): SB's black (LoadingScreenFadeAuto, tag 5 Load, its fades
+    -- The hold at each lobby arrival (lobby/arrival.lua): SB's black (LoadingScreenFadeAuto, tag 5 Load, its fades
     -- 0.5 s each) from the new world's controller until the lobby is ready, the kit veiled under it, then SB's own end
     -- of it through the native part (loading lift). The controller is the one ClientRestart's hook sees (Engine's, as
     -- the warp's map load makes a new one); without the hook no lobby warp holds anything.
-    local Arrival=require('session.arrival')
+    local Arrival=require('lobby.arrival')
     arrival=Arrival.new({log=sbo_log,
         fade=function()
             U.find('/Script/SB.Default__SBBlueprintLibrary'):LoadingScreenFadeAuto(Arrival.LIFETIME,Arrival.FADE,0,1,
@@ -576,12 +584,12 @@ if link then
     if not hooked then
         sbo_log('arrival: no hold at the lobby arrivals: ClientRestart not hooked: '..tostring(unhooked))
     end
-    -- The hall lobby maps' world, zone and seat rows (session/halls_rows.lua), asked at the title on the co-op save
+    -- The hall lobby maps' world, zone and seat rows (lobby/halls_rows.lua), asked at the title on the co-op save
     -- files (the 250 ms loop below: halls.title) once the lobby pak gate passed (the SBO lobby's, built next).
-    halls=require('session.halls_rows').new({log=sbo_log,status=function() return link.status() end,
+    halls=require('lobby.halls_rows').new({log=sbo_log,status=function() return link.status() end,
         ask=function(line) return ask(line)() end,gate=function() return sbo.gate() end})
     -- The lobby pak gate's inputs: SB/Content/Paks from the mod folder and the file reader; the hall rows' ok().
-    sbo=require('session.sbo').new({link=link,settings=settings,recruiter=recruiter,nightop=night,halls=halls,
+    sbo=require('lobby.sbo').new({link=link,settings=settings,recruiter=recruiter,nightop=night,halls=halls,
         paks=require('matrix13.world.travel').paks_of(folder),read=require('core.link').files.read,
         log=sbo_log,emote=emote,arrival=arrival,riding=riding,
         say=function(key) tell(function(w) for part in key:gmatch('[^.]+') do w=w[part] end return w end) end,
@@ -651,8 +659,8 @@ local o={link=link,settings=settings,sbo=sbo,puppet=puppet,native_tick=native_ti
     travel=function() return travel end,
     fight_auto_off=function() fight_auto=false end,quests_auto_off=function() quests_auto=false end,
     world_auto_off=function() world_auto=false end,scenes_auto_off=function() scenes_auto=false end,riding=riding}
--- coop fly's keys (cut/flight.lua), logging [FL] lines: R2 alone flies, Shift with a direction evades.
-local flight=require('cut.flight').new({log=function(m) print('[StellarCoop][FL] '..tostring(m)..'\n') end})
+-- coop fly's keys (cut/eve/flight.lua), logging [FL] lines: R2 alone flies, Shift with a direction evades.
+local flight=require('cut.eve.flight').new({log=function(m) print('[StellarCoop][FL] '..tostring(m)..'\n') end})
 o.wear,o.scene,o.lines,o.flight,o.glide,o.emote=wear,scene,cut_lines,flight,glide,emote
 -- The bike (bike/ride.lua), logging [BK] lines: SB's own bike as a part on EVE and her ride on it with bike/model.lua
 -- through the races' driving (drive), on any save. coop-bike.txt lets the next Lua load put her main mesh back and
@@ -668,13 +676,13 @@ local function fname(alias)
     local n=U.value_of(FName(alias,EFindName.FNAME_Find))
     local index=n:GetComparisonIndex()
     if not index or index==0 or U.text(n):lower()~=alias:lower() then return nil end
-    return {index=index,number=require('session.travel').number(alias)}
+    return {index=index,number=require('group.travel').number(alias)}
 end
 -- Paused also covers our photo mode and the friend's photo mode that pauses our game: SB's logic stops in both.
 local function logic_paused() return kit~=nil and kit.paused(true) or photo_state()~='0' or link.paused() end
 bike=require('bike.ride').new({log=function(m) print('[StellarCoop][BK] '..tostring(m)..'\n') end,
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end,
-    words=words,tell=tell,game_text=game_words,worlds=require('session.travel').WORLDS,
+    words=words,tell=tell,game_text=game_words,worlds=require('group.travel').WORLDS,
     file=link and {read=link.read_file,write=link.write_file},lobby=function() return sbo~=nil and sbo.active() end,
     store=link and link.store('coop-bike.txt'),stand_store=link and link.store('coop-bike-stand.txt'),drive=drive,
     send=link and function(p) return link.bike(p) end,
@@ -744,20 +752,22 @@ o.daynight=require('sky.daynight').new({log=log,ask=function(line) return ask(li
         return f~=nil
     end,
     cps=folder and require('sky.rule').cps(folder)})
--- coop chainspin (cut/chainspin.lua), logging [CS] lines: the cut ChainSpin's rows through coop lion, then the request.
-o.chainspin=require('cut.chainspin').new({log=function(m) print('[StellarCoop][CS] '..tostring(m)..'\n') end,
+-- coop chainspin (cut/eve/chainspin.lua), logging [CS] lines: the cut ChainSpin's rows through coop lion, then the
+-- request.
+o.chainspin=require('cut.eve.chainspin').new({log=function(m) print('[StellarCoop][CS] '..tostring(m)..'\n') end,
     status=function() return link and link.status() end,rows=function(done) return lion.rows(done) end})
--- coop devmenu (cut/devmenu.lua), logging [DM] lines: the developer menu's working rows, through the same call.
-o.devmenu=require('cut.devmenu').new({log=function(m) print('[StellarCoop][DM] '..tostring(m)..'\n') end,
+-- coop devmenu (cut/menus/devmenu.lua), logging [DM] lines: the developer menu's working rows, through the same call.
+o.devmenu=require('cut.menus.devmenu').new({log=function(m) print('[StellarCoop][DM] '..tostring(m)..'\n') end,
     status=function() return link and link.status() end,store=link and link.store('coop-devmenu.txt')})
 -- coop story (story/snapshot.lua), logging [ST] lines: the live save object's story lines; its request file is
 -- polled in the 250 ms loop below, with the Steam link only.
 o.story=require('story.snapshot').new({log=function(m) print('[StellarCoop][ST] '..tostring(m)..'\n') end,
     folder=folder})
--- coop gift (cut/mailbox.lua), logging [GF] lines: SB's cut mailbox as a co-op gift box, with the Steam link only. Its
--- tick runs in the 250 ms loop below, her gift lines come through inbox(), and coop gift runs on a co-op save only
--- (commands/cut.lua). Its FName and pause rules are the bike's paid fetch's (fname, logic_paused above).
-local mailbox=link and require('cut.mailbox').new({log=function(m) print('[StellarCoop][GF] '..tostring(m)..'\n') end,
+-- coop gift (cut/menus/mailbox.lua), logging [GF] lines: SB's cut mailbox as a co-op gift box, with the Steam link
+-- only. Its tick runs in the 250 ms loop below, her gift lines come through inbox(), and coop gift runs on a co-op save
+-- only (commands/cut.lua). Its FName and pause rules are the bike's paid fetch's (fname, logic_paused above).
+local mailbox=link and require('cut.menus.mailbox').new({
+    log=function(m) print('[StellarCoop][GF] '..tostring(m)..'\n') end,
     say=function(text) say(text) end,status=function() return link.status() end,
     request=function(line) return link.request(line) end,read=function(name) return link.read_file(name) end,
     write=function(name,text) return link.write_file(name,text) end,friend=function() return link.friend() end,
@@ -904,10 +914,10 @@ local guard_text=require('nightop.guard_text').new({log=function(m) print('[Stel
 -- zMXIII_P test pak, in Phase 5 the mod's prologue starts and her choice list offers "The other signal"; its pick plays
 -- the prologue talk, starts the mod's quest "On Time" and runs coop mxiii's travel; coop lily signal|talk|hold by hand.
 -- Ticked in the 250 ms loop below (with the Steam link only), after coop off too: coop off puts her list back. Its rows
--- also go in at the title on the co-op save files, with the test pak only (lily.title). Its talks (story/subtitles.lua)
--- play through coop scene's rows, ticked each frame below.
+-- also go in at the title on the co-op save files, with the test pak only (lily.title). Its talks
+-- (matrix13/quest/subtitles.lua) play through coop scene's rows, ticked each frame below.
 local function lily_log(m) print('[StellarCoop][LY] '..tostring(m)..'\n') end
-local talks=require('story.subtitles').new({log=lily_log,scene=scene})
+local talks=require('matrix13.quest.subtitles').new({log=lily_log,scene=scene})
 -- Mila's body (matrix13/world/mila.lua): placed by the zone talks, posed by coop mxiii mila (commands/cut.lua).
 o.mila=require('matrix13.world.mila').new({log=lily_log,
     read=function(name) return link and link.read_file(name) end,
@@ -938,11 +948,11 @@ local function run(name,a,b,c,d,e,f)
     return ok,message
 end
 -- The chat's box and feed (session/chat.lua's view), the partner HUD (partner/hud.lua's), Night Operation's card and
--- result panel (nightop/run.lua's), the code box (session/join.lua), the co-op menu (ui/menu.lua), the host's question
--- (session/join.lua) and the co-op saves' question (session/saves.lua) on the Uplink kit (ui/kit.lua), with the Steam
--- link only: its root is built in a world or on the title screen, after one lookup a 250 ms tick. The feed and the HUDs
--- first: the menu draws over them, the questions over all. The camp phone booths near EVE (session/booth.lua): the menu
--- key opens the co-op line at one.
+-- result panel (nightop/run.lua's), the code box (session/join.lua), the co-op menu (ui/kit/menu.lua), the host's
+-- question (session/join.lua) and the co-op saves' question (save/saves.lua) on the Uplink kit (ui/kit/kit.lua), with
+-- the Steam link only: its root is built in a world or on the title screen, after one lookup a 250 ms tick. The feed
+-- and the HUDs first: the menu draws over them, the questions over all. The camp phone booths near EVE
+-- (session/booth.lua): the menu key opens the co-op line at one.
 local booth=require('session.booth').new(log)
 -- The lobby's screens closed, the view back to EVE and the room's overlay on (design-lobby 2.7): Back and "Waiting
 -- room" on B, menu_key or View held 1 s while B or C is open.
@@ -961,14 +971,14 @@ local function lobby_key()
     lobby_menu()
 end
 -- The hint for lobby_key at the bottom centre while no lobby screen is open: Stand up while EVE sits, Sit near a seat
--- SB's chairs left to menu_key (ui/menu.lua's booth hint, with this word).
+-- SB's chairs left to menu_key (ui/kit/menu.lua's booth hint, with this word).
 local function seat_hint()
     if not sbo.in_lobby() or lobby.is_open() then return nil end
     if sbo.seated() then return {word='stand'} end
     return sbo.near_seat() and {word='sit'} or nil
 end
 if settings then
-    local Ui=require('ui.kit')
+    local Ui=require('ui.kit.kit')
     kit=Ui.kit({log=ui_log,store=link.store('coop-ui.txt'),scale=settings.ui_scale,sounds=settings.ui_sounds,
         uidev=link.uidev})
     box=require('session.chat').view({kit=kit,model=chat,settings=settings,theme=Ui.THEME,
@@ -985,19 +995,19 @@ if settings then
         if ok and name=='join' then last='join' end
         return ok,why
     end})
-    -- The first-launch guide (ui/guide.lua): the menu's Guide row and coop guide open it; in front of the co-op saves'
-    -- question, it takes the question's keys, pad, clicks and loops first (front), and the question waits for it. It
-    -- never opens over another co-op panel (busy).
-    local guide=require('ui.guide').new({kit=kit,link=link,settings=settings,theme=Ui.THEME,log=log,folder=folder,
+    -- The first-launch guide (ui/kit/guide.lua): the menu's Guide row and coop guide open it; in front of the co-op
+    -- saves' question, it takes the question's keys, pad, clicks and loops first (front), and the question waits for
+    -- it. It never opens over another co-op panel (busy).
+    local guide=require('ui.kit.guide').new({kit=kit,link=link,settings=settings,theme=Ui.THEME,log=log,folder=folder,
         busy=function()
             return menu.is_open() or box.is_open() or code_box.is_open() or approval.is_open() or saves_ui.is_open()
                 or open_screen()~=nil
         end})
     o.guide=guide
-    -- The Sessions screen (ui/sessions.lua), which the menu's Find a session opens: the session list's rows read
-    -- fresh at each call, with our protocol and game build from the status's first line; its searches and joins go to
-    -- the native part as the lobby's requests do. SB's words in the game's language, none under ui_language=english.
-    sessions=require('ui.sessions').new({kit=kit,words=words,log=ui_log,
+    -- The Sessions screen (session/ui/sessions.lua), which the menu's Find a session opens: the session list's rows
+    -- read fresh at each call, with our protocol and game build from the status's first line; its searches and joins go
+    -- to the native part as the lobby's requests do. SB's words in the game's language, none under ui_language=english.
+    sessions=require('session.ui.sessions').new({kit=kit,words=words,log=ui_log,
         view=function()
             local first=('\n'..(link.status() or '')):match('\n(mod=[^\n]*)') or ''
             local search,rows=link.list()
@@ -1006,14 +1016,14 @@ if settings then
         end,
         act=function(a) report(link.request(a.request)) end,game_text=game_words})
     o.sessions=sessions
-    menu=require('ui.menu').new({kit=kit,link=link,settings=settings,look=look,puppet=puppet,run=run,log=log,
+    menu=require('ui.kit.menu').new({kit=kit,link=link,settings=settings,look=look,puppet=puppet,run=run,log=log,
         version=VERSION,chat=box,code=code_box,guide=guide,sessions=sessions})
     o.menu=menu -- For coop keys reset (commands/keys.lua).
-    -- The Create a session screen (ui/create.lua), which Host a session and coop host alone open (commands/session.lua
-    -- reads o.create): the settings in effect, written back as the Options page writes them; Start hosts with its Who
-    -- can join word through coop host.
-    local Options=require('ui.model')
-    create=require('ui.create').new({kit=kit,words=words,log=ui_log,
+    -- The Create a session screen (session/ui/create.lua), which Host a session and coop host alone open
+    -- (commands/session.lua reads o.create): the settings in effect, written back as the Options page writes them;
+    -- Start hosts with its Who can join word through coop host.
+    local Options=require('ui.kit.model')
+    create=require('session.ui.create').new({kit=kit,words=words,log=ui_log,
         view=function()
             return {values=Options.values(settings),readable=link.settings_text()~=nil,role=link.mode() or 'none'}
         end,
@@ -1024,10 +1034,10 @@ if settings then
     o.create=function() return create end
     approval=Join.ask({kit=kit,link=link,settings=settings,run=run,say=say,log=ui_log,game_text=game_words,menu=menu,
         chat=box,guide=guide})
-    saves_ui=guide.front(require('session.saves').new({kit=kit,link=link,settings=settings,theme=Ui.THEME,say=say,
+    saves_ui=guide.front(require('save.saves').new({kit=kit,link=link,settings=settings,theme=Ui.THEME,say=say,
         log=log,wait=guide.waiting}))
-    -- The SBO lobby's screens (ui/lobby.lua), over the rest: B and C, the leave question, the countdown and the room's
-    -- overlay. view: Model.view's input, read fresh at each call (L15 R25, L12-R1); act: what a row asks for.
+    -- The SBO lobby's screens (lobby/ui/lobby.lua), over the rest: B and C, the leave question, the countdown and the
+    -- room's overlay. view: Model.view's input, read fresh at each call (L15 R25, L12-R1); act: what a row asks for.
     local LAST={['match search']='search',['match create']='create',join='join'}
     local function view()
         local version,proto=('\n'..(link.status() or '')):match('\nmod=(%S+) proto=(%d+)')
@@ -1061,7 +1071,7 @@ if settings then
         elseif a.set then menu.set(a.set,a.value)
         elseif a.run then run(a.run) end
     end
-    lobby=require('ui.lobby').new({kit=kit,words=words,view=view,act=act,log=ui_log})
+    lobby=require('lobby.ui.lobby').new({kit=kit,words=words,view=view,act=act,log=ui_log})
     o.lobby=lobby
 end
 -- Enter with nothing open asks for the chat's box (chat_asked, os.clock), which opens 0.1 s later unless a coop command
@@ -1149,7 +1159,7 @@ end
 -- our screens open (the host's question, the Sessions screen and the Create a session screen included) and the game
 -- neither paused nor showing one of its own screens, such as its inventory or map; otherwise it logs why and does
 -- nothing. pause_tab (RB on the pause menu's last tab, E on the keyboard: the native part's event 12) goes to the
--- Online tab only (ui/pause_tab.lua), never to one of our screens.
+-- Online tab only (ui/kit/pause_tab.lua), never to one of our screens.
 local PAD={'up','down','left','right','select','back','menu','tab_left','tab_right','bike','refresh','pause_tab'}
 -- bike_key and the pad's bike: EVE on the bike or off it, logged as a command is. A refusal also goes on screen, in
 -- English as the bike gives it, since the press shows nothing else.
@@ -1216,7 +1226,7 @@ local function pad_event(what)
 end
 -- Logging [PT] lines. Its button and its open run on the game thread; RB comes as pad_event's pause_tab, a click
 -- through the LEFT_MOUSE_BUTTON bind below.
-pause_tab=require('ui.pause_tab').new({log=function(m) print('[StellarCoop][PT] '..tostring(m)..'\n') end,
+pause_tab=require('ui.kit.pause_tab').new({log=function(m) print('[StellarCoop][PT] '..tostring(m)..'\n') end,
     ready=function() return link~=nil and require('core.unreal').controller()~=nil end,
     enabled=function() return settings~=nil and settings.pause_tab==true end,
     word=function() return words().pause_tab.tab end,paused=function() return kit~=nil and kit.paused(true) end,
@@ -1422,13 +1432,13 @@ if link then
         name=require('session.chat').clean(name or (link.friend()) or '')
         return name~='' and name or w.fight.friend
     end
-    group=require('session.group').new({link=link,puppet=puppet,settings=settings,tell=tell,name=her_name,
+    group=require('group.group').new({link=link,puppet=puppet,settings=settings,tell=tell,name=her_name,
         log=function(m) print('[StellarCoop][GR] '..tostring(m)..'\n') end,night=function() return night.running() end,
         ghost=ghost_of})
     -- The follow waits while the game is paused, in photo mode or in the co-op menu, during a Night Operation run and
     -- during a cutscene in our game. follow=true: on since 2026-11-12 with every other mode, not yet tested in game.
     -- Its tick also gives the native part the host's place and rules words for the session list's row.
-    travel=require('session.travel').new({link=link,puppet=puppet,settings=settings,tell=tell,name=her_name,follow=true,
+    travel=require('group.travel').new({link=link,puppet=puppet,settings=settings,tell=tell,name=her_name,follow=true,
         ghost=ghost_of,
         log=function(m) print('[StellarCoop][TR] '..tostring(m)..'\n') end,
         paused=function() return kit.paused(true) or menu.is_open() or photo_state()~='0' end,
@@ -1678,14 +1688,14 @@ if link then
     local shared_seen=0 -- link.shared_version() as last acted on.
     -- The lobby's screens each 250 ms (design-lobby 2.2 step 5, 2.7, 2.8): the countdown from the match line; a new
     -- start line of a round that lists us closes them and gives the view back to EVE (stage 4 goes on from there; the
-    -- fence is session/sbo.lua's); the arrival in the lobby world opens B over the menu camera, once B can open on the
+    -- fence is lobby/sbo.lua's); the arrival in the lobby world opens B over the menu camera, once B can open on the
     -- UI root's whole look and while no round of ours plays (the kit builds no new root while B shows, so B on a build
     -- whose look still warms keeps the logo and shades missing); leaving that world closes them and the room's overlay.
     -- R25: a start is new when its number differs from the last one handled, or after an end line.
     local counting,start_n,round_kind,was_here,due=false,nil,nil,false,false
     local framed=false -- The menu camera asked under the arrival's hold, once an arrival in the lobby world.
     -- The arrival's hold, before lobby_pass: SB's black up at the pass after the new controller, lifted once the lobby
-    -- holds nothing back (session/sbo.lua's unready) and the kit's root has its whole look. A Lua load under an earlier
+    -- holds nothing back (lobby/sbo.lua's unready) and the kit's root has its whole look. A Lua load under an earlier
     -- load's hold (Ctrl+R) knows nothing of that black: the first pass of this load in the lobby world asks the lift
     -- unless a hold of its own was up before this pass or is up after it (the lift ends tag-5 entries only, which only
     -- this mod puts up). Read after arrival.pass: a black this pass put up is this load's, so no lift for it.
@@ -1914,7 +1924,7 @@ if link then
             guarded('ghost',puppet.photo,own and not settings.photo_ghost,own and not settings.photo_name_tag)
             -- The solid partner, as the co-op menu last set it; never in an SBO session (design-lobby 12.7).
             guarded('ghost',puppet.collide,settings.collide and not sbo.active())
-            -- The host's cutscene rides the photo state as 'c', and the guest asks for its pause (session/group.lua).
+            -- The host's cutscene rides the photo state as 'c', and the guest asks for its pause (group/group.lua).
             local line=link.state(world,settings.send_rate,group.photo(photo),settings.photo_sync,
                 settings.photo_freeze_max,title,group.cut(),settings.mod_names)
             if line then log('state: '..line) end
@@ -2012,7 +2022,7 @@ end
 -- answers with the button under the mouse, a right click declines or closes), then the lobby's screens' and the menu's
 -- (a left click selects the row under the mouse, a right click goes back), then the left one the co-op saves'
 -- question's (the choice under the mouse); closed, they are the game's. A left click over the pause menu's Online tab
--- closes the pause menu and opens the co-op menu (ui/pause_tab.lua). A key callback runs on UE4SS's key thread: it
+-- closes the pause menu and opens the co-op menu (ui/kit/pause_tab.lua). A key callback runs on UE4SS's key thread: it
 -- only hands the press to the game thread, where the console's checks (coop off included) apply. A modified F-key is
 -- bound before the plain one, so if UE4SS also calls the plain bind for a Shift+F5, the plain press that follows at
 -- once is the same press, dropped. The status key gives a one-line summary, in the log in English and on screen in the

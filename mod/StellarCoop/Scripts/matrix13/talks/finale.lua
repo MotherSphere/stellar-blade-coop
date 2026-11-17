@@ -1,9 +1,10 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The end talk, one entry per subtitle window of the sequence it borrows (story/subtitles.lua
+-- The end talk, one entry per subtitle window of the sequence it borrows (matrix13/quest/subtitles.lua
 -- plays it): the speaker's StringTable_Seq key ('' for none), then the English and French line.
--- A line longer than its window can be read at about 15 characters a second gets a reading hold (story/subtitles.lua).
+-- A line longer than its window can be read at about 15 characters a second gets a reading hold
+-- (matrix13/quest/subtitles.lua).
 -- Lily heard EVE up to the stair down into zone 4, where the comm cut for good: she knows Noa's and Yohan's calls,
 -- not what came after. All 19 windows of Subtitle_POD_1stMeetAdam_02; Mila's broadcast has no speaker.
 local NBSP='\u{A0}' -- Inside the French quotes and before French ? and !.

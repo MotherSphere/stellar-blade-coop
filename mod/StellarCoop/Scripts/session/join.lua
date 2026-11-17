@@ -1,8 +1,8 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Join codes on screen (UI-DESIGN 4.6, FEATURE-PARITY C5, C6 and Q7) on the Uplink kit (ui/kit.lua). The join popups
--- on SB's own WB_Common_Popup (ui/parts.lua). The code box: the co-op menu's Join with a code row closes the
+-- Join codes on screen (UI-DESIGN 4.6, FEATURE-PARITY C5, C6 and Q7) on the Uplink kit (ui/kit/kit.lua). The join
+-- popups on SB's own WB_Common_Popup (ui/kit/parts.lua). The code box: the co-op menu's Join with a code row closes the
 -- menu and opens it. It is a text box like the chat's: Slate types the characters, the game's input goes to the box
 -- (focused again 50 ms later) and comes back 150 ms after a close. Enter joins with the text when it is a join code
 -- (link.join_code: either case, with or without the dash) and closes; other text gets a line saying what a code looks
@@ -30,7 +30,7 @@
 -- A name shown is cleaned as a chat line with no < or >, which SB's rich text would read as a tag.
 local T=require('ui.text')
 local Chat=require('session.chat')
-local Parts=require('ui.parts')
+local Parts=require('ui.kit.parts')
 local Join={}
 -- Seconds: the game's input back after a close; the box focused again; the question's keys ignored after it shows; a
 -- direction this soon after the last one is a held stick's or D-pad's repeat (game/pad.h: 0.4 s, then every 0.12 s).
@@ -145,8 +145,8 @@ end
 -- too: tick puts ours back.
 local GONE,HIDDEN,SEEN=0.25,2,3
 -- o: {kit=, link=, settings=, run= (as Join.box's), say=function(text) (a notice), log=function(line) (the UI log),
--- game_text=function(key) SB's word or nil, menu=ui/menu.lua's and guide=ui/guide.lua's (closed as a popup opens),
--- chat=session/chat.lua's view (a popup waits while its box is open)}.
+-- game_text=function(key) SB's word or nil, menu=ui/kit/menu.lua's and guide=ui/kit/guide.lua's (closed as a popup
+-- opens), chat=session/chat.lua's view (a popup waits while its box is open)}.
 function Join.ask(o)
     local kit,link,settings=o.kit,o.link,o.settings
     local self,open,cursor,back_at,stopped,words,ready_at={},false,2,nil,false,T.en,0

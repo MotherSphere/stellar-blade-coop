@@ -175,7 +175,7 @@ inline std::string name_field(const std::string &field, const std::string &value
   return fstring(field) + fstring("NameProperty") + std::string(reinterpret_cast<const char *>(&size), 8) + '\0' +
          fstring(value);
 }
-// The items the mod's rows add to the game's ItemTable (cut/lion_rows.lua, the Night Operation shop's): none of them
+// The items the mod's rows add to the game's ItemTable (core/lion_rows.lua, the Night Operation shop's): none of them
 // is in the game's own tables.
 struct ModItem {
   const char *alias, *name;

@@ -12,7 +12,7 @@
 -- from the run's tick; the first error turns it off until the next Lua load, with one log line, and the card goes on
 -- alone. tests/lua/nightop/board_test.lua covers it over fakes.
 -- shortcut: a Lua reload (Ctrl+R) while it shows leaves that widget on screen until the next map change; sweep it by
--- its path as ui/kit.lua sweeps its root if a test shows it.
+-- its path as ui/kit/kit.lua sweeps its root if a test shows it.
 local U=require('core.unreal')
 local Board={}
 -- LoadAsset takes the Blueprint's object path (<package>.<asset>): UE4SS looks it up in the asset registry, where a
@@ -20,7 +20,7 @@ local Board={}
 local ASSET='/Game/Art/UI/Widget/Test/WB_ShootingTrainingTest.WB_ShootingTrainingTest'
 local CLASS=ASSET..'_C'
 local WIDGETS='/Script/UMG.Default__WidgetBlueprintLibrary'
-local Z=99 -- Under the Uplink kit's root (ui/kit.lua's 100).
+local Z=99 -- Under the Uplink kit's root (ui/kit/kit.lua's 100).
 local COLLAPSED,HIT_TEST_INVISIBLE=1,3 -- ESlateVisibility.
 -- o: {log=function(line)}.
 function Board.new(o)
