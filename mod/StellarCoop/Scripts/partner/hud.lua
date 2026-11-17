@@ -156,7 +156,8 @@ end
 -- handshake gets a compact row right of the card, in the kit's SB fonts and HUD dots: her name, an HP row and her
 -- state as on the card (DOWN, elsewhere, connection lost, a dash with no vitals; else the ping and her map with
 -- card_details), greyed as the card is, the alert once on DOWN and on a lost link. Rows show with partner_card, three
--- to a column, six at most (ghost slots 1 to 6: sized for 8 players); her HP is drawn as read, with no tween.
+-- to a column, six at most (ghost slots 1 to 6: sized for 8 players), placed for ui_scale right of the card as it is
+-- scaled; her HP is drawn as read, with no tween. None in a match lobby.
 local clean=Chat.clean
 local TWEEN,GREY,NAME=0.3,0.45,20 -- s a gauge moves; a greyed card's opacity; characters shown.
 local MW,MH,AW,AH,AC=320,120,160,180,80 -- Marker and arrow sizes in layout units; the arrow's diamond centre in it.
@@ -174,10 +175,12 @@ local MID,RIGHT={X=0,Y=0.5},{X=1,Y=0.5} -- A text centred on its line, from its 
 -- The members' rows: their count, size, the gap between two, the first one's place (right of the card, at its top) and
 -- how many go in a column (three fill the card's height).
 local ROWS,RW,RH,RGAP,COLUMN=6,640,60,8,3
-local RX,RY=CX+CW+16,CY
-function P.row_at(i) -- Row i's top left.
+-- Row i's top left at scale s (ui_scale over 100, 1 unless said): the kit scales each group from its own top left and
+-- leaves its place as it is, so the rows move right of the scaled card and apart by their scaled height.
+function P.row_at(i,s)
+    s=s or 1
     local col,line=(i-1)//COLUMN,(i-1)%COLUMN
-    return RX+col*(RW+16),RY+line*(RH+RGAP)
+    return CX+(CW+16)*s+col*(RW+16)*s,CY+line*(RH+RGAP)*s
 end
 local TWEENED={'hp','shield','beta'}
 -- o: {kit=ui.kit's, link= (chatting, friend, mate, ping, summary, paused, fight, pilot, quests, members, vitals),
@@ -381,9 +384,10 @@ function P.hud(o)
         end
         gauges()
         if rebuilt then place() end -- A new root shows a shown marker or arrow at its corner: placed before it draws.
-        -- The other members' rows.
+        -- The other members' rows, at the kit's scale (ui/kit.lua's clamp of ui_scale).
         local i,seen=0,{}
-        for _,m in ipairs(session and link.members() or {}) do
+        local scale=math.max(75,math.min(150,tonumber(settings.ui_scale) or 100))/100
+        for _,m in ipairs(session and not link.match() and link.members() or {}) do
             if m.linked and m.slot~=lead_slot and i<ROWS then
                 i=i+1
                 seen[m.id]=true
@@ -405,6 +409,7 @@ function P.hud(o)
                 if st and st~=row_alert[m.id] then kit.sound('alert') end
                 row_alert[m.id]=st
                 kit.show(group,not away and settings.partner_card~=false)
+                kit.move(group,P.row_at(i,scale))
                 kit.fade(group,dim and GREY or 1)
                 local v=kit.view(group)
                 if v then

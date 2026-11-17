@@ -213,6 +213,7 @@ local function setup()
     -- The member lines (link.roster: none unless a case sets them) and each one's vitals (link.vits by SteamID).
     function link.members() return link.roster or {} end
     function link.vitals(id) return link.vits and link.vits[id] end
+    function link.match() return link.match_v end -- The match line: nil outside a match lobby.
     puppet={at=at(1000,0,220),feet=at(1000,0,0),map=E04B,me_v={at=at(0,0,0),map=E04B}}
     function puppet.anchor() if puppet.at then return puppet.at,puppet.feet end end
     function puppet.her_map() return puppet.map end
@@ -688,8 +689,9 @@ assert(st.top.v[1]==T.fr.partner.lost..' · vous hébergez Kaanta.',st.top.v[1])
 
 -- More than 2 players: a compact row right of the card for each member past the handshake but the card's, three to a
 -- column, six groups made; each with her name, HP and state as on the card (DOWN in red, elsewhere, lost, a dash with
--- no vitals, else the ping and her map), greyed as the card is, the alert once on DOWN; hidden with partner_card off,
--- when paused and out of a session.
+-- no vitals, else the ping and her map), greyed as the card is, the alert once on DOWN and once on a lost link; hidden
+-- with partner_card off, when paused, out of a session and in a match lobby. Placed for ui_scale: right of the card as
+-- the kit scales it, never on it nor on each other.
 setup()
 for i=1,6 do assert(groups['member'..i] and not groups['member'..i].place.shown,i) end
 local x1,y1=P.row_at(1)
@@ -697,6 +699,15 @@ local x3,y3=P.row_at(3)
 local x4,y4=P.row_at(4)
 assert(x1==96+744+16 and y1==96 and x3==x1 and y3+groups.member3.place.h<=96+220 and x4>x1+groups.member1.place.w
     and y4==96,'Right of the card, three a column within its height')
+for _,s in ipairs({0.75,1.05,1.25,1.5}) do
+    local w,h=groups.member1.place.w*s,groups.member1.place.h*s
+    for i=1,6 do
+        local x,y=P.row_at(i,s)
+        assert(x>=96+744*s,s..': on the card')
+        if i%3~=0 then assert(select(2,P.row_at(i+1,s))>=y+h,s..': on the next row') end
+        if i<=3 then assert(P.row_at(i+3,s)>=x+w,s..': on the next column') end
+    end
+end
 link.roster={{id='2',slot=0,linked=true,lost=false,rtt=118,name='Kaanta'},
     {id='3',slot=1,linked=true,lost=false,rtt=40,name='Lucas'},{id='4',slot=2,linked=true,lost=false,rtt=60,name='Mo'},
     {id='5',slot=3,linked=false,lost=false,rtt=-1,name='Waits'}}
@@ -721,7 +732,18 @@ hud.slow()
 assert(row(2)[2].v[1]==T.en.partner.elsewhere:format('b07') and faded.member2==1,row(2)[2].v[1])
 link.roster[3].lost=true
 hud.slow()
-assert(row(2)[2].v[1]==T.en.partner.lost and faded.member2==0.45 and sounds[#sounds]=='alert')
+assert(row(2)[2].v[1]==T.en.partner.lost and faded.member2==0.45 and #sounds==2 and sounds[2]=='alert')
+hud.slow()
+assert(#sounds==2,'The lost alert once')
+settings.ui_scale='125'
+hud.slow()
+local x,y=P.row_at(2,1.25)
+assert(moved.member2[1]==x and moved.member2[2]==y and moved.member2[1]>=96+744*1.25,'Moved for ui_scale')
+settings.ui_scale=nil
+link.match_v={state='open'}
+hud.slow()
+assert(shown.member1==false and shown.member2==false,'None in a match lobby')
+link.match_v=nil
 settings.card_details=false
 hud.slow()
 assert(row(1)[2].v[1]=='','card_details off: no ping, no map')
