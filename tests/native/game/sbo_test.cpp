@@ -191,6 +191,11 @@ int main() {
   assert(loaded_action(1, rec, true, false) == Loaded::nothing); // L5-R2: the warp's own load is E10's
   rec.state = Record::closed;
   assert(loaded_action(1, rec, true, false) == Loaded::nothing);
+  // The New Game+ count: SB's progress object (0x1470373c8, made by 0x141a98bc0, which SBO never calls) and its int32
+  // at +0xe4, which IsPlayNewGamePlus (0x14265f740) reads as > 0. Counts 0 to 99, difficulties 0 to 2 only.
+  static_assert(coop::sbo::kCycleAt == 0x1470373c8 && coop::sbo::kCycleCount == 0xe4);
+  assert(coop::sbo::cycle_ok(0, 0) && coop::sbo::cycle_ok(99, 2) && !coop::sbo::cycle_ok(-1, 0) &&
+         !coop::sbo::cycle_ok(100, 0) && !coop::sbo::cycle_ok(0, 3) && !coop::sbo::cycle_ok(0, -1));
   std::puts("game_sbo_test: ok");
   return 0;
 }

@@ -38,6 +38,8 @@ bool travel_fault_logged = false, travel_globals_logged = false;
 bool camps_fault_logged = false; // The activated camps' read (camps_game.inc): its fault.
 bool camp_text_fault_logged = false; // Matrix XIII's camp names (camp_text_game.inc): their fault.
 bool uidev_fault_logged = false;     // SB's input device read (pad_game.inc): its fault.
+// The New Game+ read (cycle_game.inc): its fault and its first read out of range.
+bool cycle_fault_logged = false, cycle_odd_logged = false;
 uint32_t travel_logged = 0, travel_watch_logged = 0, travel_alias_ask = 0;
 std::string travel_alias;
 uint64_t next_poll = 0, next_counters = 0;
@@ -620,6 +622,26 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                   static_cast<unsigned long long>(uidev_fault_code.load()),
                   static_cast<unsigned long long>(uidev_fault_rva.load()),
                   static_cast<unsigned long long>(uidev_fault_address.load()));
+    event(text);
+  }
+  if (cycle_faulted && !cycle_fault_logged) {
+    cycle_fault_logged = true;
+    char text[200];
+    std::snprintf(text, sizeof text,
+                  "New Game+ read off: fault 0x%08llx at StellarCoop.dll+0x%llx reading 0x%llx; the cycle line keeps "
+                  "its last read until the game restarts",
+                  static_cast<unsigned long long>(cycle_fault_code.load()),
+                  static_cast<unsigned long long>(cycle_fault_rva.load()),
+                  static_cast<unsigned long long>(cycle_fault_address.load()));
+    event(text);
+  }
+  if (cycle_odd && !cycle_odd_logged) {
+    cycle_odd_logged = true;
+    char text[160];
+    std::snprintf(text, sizeof text,
+                  "New Game+ read refused: count %d, difficulty %d (0 to 99 and 0 to 2 expected); the cycle line keeps "
+                  "its last good read",
+                  int(cycle_odd_count.load()), int(cycle_odd_difficulty.load()));
     event(text);
   }
   if (travel_globals_read && !travel_globals_logged) { // Once: what the request carries at +0x3c and +0x48.

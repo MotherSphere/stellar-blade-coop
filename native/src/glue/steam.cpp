@@ -937,6 +937,9 @@ bool step() {
           for (size_t at = 0, end; (end = raced.find('\n', at)) != std::string::npos; at = end + 1)
             if (end > at)
               link->race(raced.substr(at, end - at));
+          // Our New Game+ count and difficulty, each pass once read, so ours is known before a link (the cycle line).
+          if (uint32_t count = 0, difficulty = 0; coop::pose::local_cycle(count, difficulty))
+            link->cycle(count, difficulty);
           coop::Vitals mine;
           if (const uint64_t now = GetTickCount64(); chatting && now >= next_vitals) {
             uint64_t took_us = 0;

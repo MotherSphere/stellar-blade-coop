@@ -58,6 +58,9 @@ bool loopback();
 // vitals()); false off the pinned build, after coop off, or when they cannot be read (no world, a load). took_us: the
 // read's time (0 when none ran), whose worst goes in a 60 s line (UI-DESIGN 7.3).
 bool local_vitals(coop::Vitals &out, uint64_t &took_us);
+// Worker thread: our game's New Game+ count (0 to 99) and difficulty (0 Normal, 1 Story, 2 Hard) for the link's cycle
+// line, as the game thread last read them in game (cycle_game.inc, once a second); false before the first good read.
+bool local_cycle(uint32_t &count, uint32_t &difficulty);
 // Worker thread, every 250 ms: the save slot the game entered (client +0x54, save/slot.h), or slot::kUnread on another
 // build or after coop off, which read nothing.
 int loaded_slot();

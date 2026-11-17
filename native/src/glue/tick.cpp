@@ -306,6 +306,7 @@
 #include "glue/tick/world_game.inc" // After lion_game.inc, freeze_game.inc and shortcut_game.inc; before sbo_game.inc.
 #include "glue/tick/story_game.inc" // After world_game.inc and quests_game.inc: their Game, in-game read and quests.
 #include "glue/tick/sbo_game.inc"
+#include "glue/tick/cycle_game.inc" // After sbo_game.inc: its sbo_global and DifficultyOf.
 #include "glue/tick/worker.inc"
 #include "glue/tick/saves_worker.inc"
 #include "glue/tick/fight_worker.inc"
@@ -416,6 +417,9 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // SB's input device byte, its own latch: a read each 250 ms, at the title too, none after its first fault.
   if (game_pinned && !uidev_faulted)
     uidev_tick();
+  // The New Game+ count and difficulty, their own latch: a read each second in game, none after coop off or its fault.
+  if (game_pinned && !cycle_faulted && !blocked)
+    cycle_tick();
   // The Xion guard's texts, their own latch: each frame, after coop off too, to write his Korean sources back.
   if (game_pinned && !guard_faulted)
     guard_text_tick();

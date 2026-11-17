@@ -537,6 +537,11 @@ struct Peer {
   // dlc_in: her dlc lines since then.
   bool has_dlcs = false;
   std::map<uint32_t, std::string> dlc_list, dlc_in;
+  // Her game's New Game+ count and difficulty from her last cycle line (has_cycle: one came past the handshake), and
+  // our last cycle line she got (empty: none yet, or her hello asked for ours again).
+  bool has_cycle = false;
+  uint32_t cycle_count = 0, cycle_difficulty = 0;
+  std::string cycle_sent;
   // Her last vitals (her vit line) and when they came: the partner card's and the shared fight's, for the partner.
   Vitals vitals{};
   uint64_t vitals_at = 0;
@@ -656,6 +661,7 @@ public:
       send_fight_queue();
       send_photo();
       send_paks();
+      send_cycle(); // After send_paks(): our cycle line follows our dlcs line.
       ping_peers();
     }
     photo_pass(); // Also once the session ended: a pause held for her goes.
@@ -932,6 +938,15 @@ public:
     if (!ok && payload.rfind("s ", 0) == 0)
       for_lua("gift n " + payload.substr(2, payload.find(' ', 2) - 2) + " nolink");
   }
+  // Our game's New Game+ count and difficulty (glue/tick.cpp's local_cycle(), each worker pass once read, linked or
+  // not), kept for our cycle line (send_cycle) and the mycycle= line; logged once a change. Worker thread, after
+  // tick().
+  void cycle(uint32_t count, uint32_t difficulty) {
+    if (has_cycle_ && count == cycle_count_ && difficulty == cycle_difficulty_)
+      return;
+    has_cycle_ = true, cycle_count_ = count, cycle_difficulty_ = difficulty;
+    event("our game: New Game+ " + std::to_string(count) + ", difficulty " + std::to_string(difficulty));
+  }
   // Our vitals (glue/tick.cpp's local_vitals(), every 100 ms in a session, 500 after a slow read), unreliable to the
   // friend past the handshake on change (at most once each kVitalsEveryMs) and each kVitalsAgainMs, which also heals
   // reordering; in the loopback with no friend, hers. Kept in a session for our life= line, sent or not. Worker thread,
@@ -1158,6 +1173,14 @@ public:
       for (const auto &[id, name] : d.extra)
         s += "dlc_extra=" + std::to_string(id) + " " + name + "\n";
     }
+    // Our game's New Game+ count and difficulty once read (cycle()): "mycycle=<count> <difficulty>"; then each
+    // member's past the handshake whose cycle line came: "cycle=<SteamID> <count> <difficulty> <name>", the name last.
+    if (has_cycle_)
+      s += "mycycle=" + std::to_string(cycle_count_) + " " + std::to_string(cycle_difficulty_) + "\n";
+    for (auto &p : peers_)
+      if (p.compatible && p.accepted && p.has_cycle)
+        s += "cycle=" + std::to_string(p.id) + " " + std::to_string(p.cycle_count) + " " +
+             std::to_string(p.cycle_difficulty) + " " + p.name + "\n";
     // The slot-0 member's vitals for the partner card (mate_vitals()): the host's on a guest, the pair's on the host.
     // Then each member's past the handshake, her SteamID first, for her row of the HUD. Neither in a match lobby.
     const auto numbers = [](const Vitals &v) {
@@ -2657,6 +2680,7 @@ private:
         peer->photo_sent.clear(); // Our last photo and let lines may have gone with a broken session: they go again.
         peer->let_sent.clear();
         peer->paks_at = 0;
+        peer->cycle_sent.clear();
       }
       on_message(*peer, message);
     }
@@ -2930,6 +2954,7 @@ private:
         peer.paks_again = true;
       peer.pak_in.clear();
       peer.dlc_in.clear();
+      peer.cycle_sent.clear(); // Our cycle line goes again too (send_cycle).
       send(peer, accept(), kReliable); // Every hello is answered: a peer whose first session broke greets again.
       // Ours may have been lost with that session. A repeated hello once ours was accepted may come from a guest who
       // rejoined before her leave showed here, so her new peer never had ours: it gets ours again, but only
@@ -3041,6 +3066,15 @@ private:
       }
       break;
     }
+    case Kind::cycle: // Her game's New Game+ count and difficulty, logged once a change.
+      if (!peer.compatible || !peer.accepted) // Before the handshake: ignored, with no log line.
+        break;
+      if (!peer.has_cycle || peer.cycle_count != message.a || peer.cycle_difficulty != message.b)
+        event(peer.name + "'s game: New Game+ " + std::to_string(message.a) + ", difficulty " +
+              std::to_string(message.b));
+      peer.has_cycle = true;
+      peer.cycle_count = static_cast<uint32_t>(message.a), peer.cycle_difficulty = static_cast<uint32_t>(message.b);
+      break;
     case Kind::vitals:
       if (peer.compatible && peer.accepted) // Before the handshake: ignored, with no log line.
         peer.vitals = message.vitals, peer.vitals_at = now_, peer.has_vitals = true;
@@ -3233,6 +3267,19 @@ private:
         ++p.paks_at;
       }
     }
+  }
+  // Our cycle line (cycle()) to each friend past the handshake once ours is read, after our pak, paks, dlc and dlcs
+  // lines when paks() said ours (send_paks), when her last one from us differs: again on a change and after her next
+  // hello. A refused send goes again at the next pass.
+  void send_cycle() {
+    if (!has_cycle_)
+      return;
+    const std::string line = cycle_line(cycle_count_, cycle_difficulty_);
+    const size_t paks_all = (names_ ? pak_lines_.size() : 0) + 1 + dlc_lines_.size();
+    for (auto &p : peers_)
+      if (p.compatible && p.accepted && p.cycle_sent != line && (!paks_on_ || p.paks_at >= paks_all) &&
+          send(p, line.data(), line.size(), kReliable) == kResultOk)
+        p.cycle_sent = line;
   }
   // The status lines of her mod containers against ours: "mods_missing=", "mods_other=" and "mods_extra=", each
   // mods_list() of kModsLine bytes at most.
@@ -3591,6 +3638,9 @@ private:
   // Our installed DLCs by app id with their names (read_dlcs()); their dlc lines with the dlcs line last.
   std::map<uint32_t, std::string> dlcs_;
   std::vector<std::string> dlc_lines_;
+  // Our game's New Game+ count and difficulty (cycle()), once read.
+  bool has_cycle_ = false;
+  uint32_t cycle_count_ = 0, cycle_difficulty_ = 0;
   bool names_ = true;
   char photo_ = '0', theirs_ = '0', mine_ = '0';
   Sync sync_ = Sync::off;

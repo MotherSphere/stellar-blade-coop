@@ -360,6 +360,7 @@ SBC23 pak <hash> <name>
 SBC23 paks <count> <hash>
 SBC23 dlc <app id> <name>
 SBC23 dlcs
+SBC23 cycle <count> <difficulty>
 SBC23 camps? <id>
 SBC23 camps <id> <world> <camp>:<m> ...
 SBC23 camps <id> none <title|loading|nocamp|busy>
@@ -475,6 +476,23 @@ have and they lack: `<name> has DLCs you don't have: <DLCs>. You have DLCs <name
 list is empty is left out. The notice keeps to the feed's 200 bytes: each sentence names at most its first two DLCs
 when they fit, then `(+n)` for the others. When your friend's name is so long that the two counts alone
 pass 200 bytes, the notice cuts that name. Nothing is refused.
+
+### The cycle line
+
+The cycle line gives your game's New Game+ count and difficulty: `SBC23 cycle 1 2` is New Game+ 1 on Hard. The count
+is 0 on a first playthrough and goes up to 99; the difficulty is 0 for Normal, 1 for Story and 2 for Hard. Any other
+value makes the line invalid. The game thread reads both once a second while you are in game: the count is the int32 at
+`+0xe4` of the game object at 0x1470373c8 (the value SB's IsPlayNewGamePlus tests); the difficulty is the one SB gives
+the client's difficulty alias. Nothing is read at the title or in a load. The native part never makes that object
+when it is not there yet. A fault in the read turns it off with one `New Game+ read off` line in `coop-link.log`; a
+value out of range is dropped with one `New Game+ read refused` line. Either way the last good read stays.
+
+The line is sent reliable once both values are read, after the dlcs line, to each player past the handshake. It goes
+again when a value changes (SB's Settings can change the difficulty during play) and after each hello of the other
+player. Until the first read, nothing is sent. `coop-link.log` names each change of yours (`our game: New Game+ <n>,
+difficulty <d>`) and of each other player (`<name>'s game: New Game+ <n>, difficulty <d>`). `coop status` has
+`mycycle=<count> <difficulty>` once yours is read, then `cycle=<SteamID> <count> <difficulty> <name>` for each player
+past the handshake whose line came. A cycle line that comes before the handshake is ignored without a log line.
 
 ### The camps lines
 
@@ -652,7 +670,7 @@ is refused instead of misread:
 | 20 | The PvP test's pvp line on channel 2: a drop of the attacker's stand-in for the victim, applied to the victim's EVE in her game, and the match lobbies' start, count and end lines on channel 0 |
 | 21 | Never released: development builds of the shared world's `SBW` lines on channel 2 and of the dlc and dlcs lines on channel 0 used it (see [Shared world: how it works](shared-world.md)) |
 | 22 | Never released: development builds of story together's `SBS` lines on channel 2 (the host's story scenes and story trips, followed in the guest's game; see [Story together: how it works](story-sync.md)) and of the guest's `SBQ22 step` line (a quest step she made first, made in the host's game) used it |
-| 23 | Online sessions of up to 4 players: the host's `let` and `wait` lines on channel 0, which a protocol-22 peer would count invalid; a protocol-22 game would also leave a lobby of 3 (this version) |
+| 23 | Online sessions of up to 4 players: the host's `let` and `wait` lines on channel 0, which a protocol-22 peer would count invalid; a protocol-22 game would also leave a lobby of 3. The cycle line (each game's New Game+ count and difficulty) on channel 0 (this version) |
 
 ## Link health in the log
 

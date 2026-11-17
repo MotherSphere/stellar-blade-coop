@@ -2330,6 +2330,84 @@ int main() {
            saw("Kaanta has 64 DLCs installed, the same as ours"));
   }
 
+  // The cycle line (protocol 23): each side sends its New Game+ count and difficulty once known, reliable on channel
+  // 0 after its dlcs line, again on a change and after her next hello, never while unknown; mycycle= is ours,
+  // cycle=<SteamID> <count> <difficulty> <name> hers, logged once a change.
+  reset();
+  {
+    Two t; // Linked as in the DLC block above.
+    F.names[kMe] = "Me";
+    F.dlcs = {{100, "Alpha"}};
+    F.client[0].installed = {100};
+    t.a.paks(0, 0);
+    t.b.paks(0, 0);
+    assert(t.a.ready(L"SB.exe") == Link::Ready::now && t.b.ready(L"SB.exe") == Link::Ready::now);
+    t.tick(t.a, 50, "host");
+    finish_all();
+    t.tick(t.a, 50);
+    t.tick(t.b, 50, "join 5000");
+    finish_all();
+    assert(settle(t));
+    const auto passes = [&t] {
+      for (int i = 0; i < 3; ++i)
+        t.tick(t.a, 50), t.tick(t.b, 50);
+    };
+    passes();
+    assert(sent_to(kFriend, cycle_line(0, 0)) == 0 && t.a.status(Counters{}).find("\nmycycle=") == std::string::npos);
+    t.a.cycle(1, 2), t.b.cycle(0, 0);
+    passes();
+    assert(sent_to(kFriend, cycle_line(1, 2)) == 1);
+    std::vector<std::string> out; // After our dlcs line.
+    for (auto &s : F.sent)
+      if (s.to == kFriend && (s.text == dlcs_line() || s.text == cycle_line(1, 2))) {
+        assert(s.flags == kReliable && s.channel == kChannel);
+        out.push_back(s.text);
+      }
+    assert((out == std::vector<std::string>{dlcs_line(), cycle_line(1, 2)}));
+    assert(t.a.status(Counters{}).find("\nmycycle=1 2\n") != std::string::npos &&
+           t.a.status(Counters{}).find("\ncycle=" + std::to_string(kFriend) + " 0 0 Kaanta\n") != std::string::npos);
+    assert(t.b.status(Counters{}).find("\ncycle=" + std::to_string(kMe) + " 1 2 Me\n") != std::string::npos);
+    assert(count("A: our game: New Game+ 1, difficulty 2") == 1 &&
+           count("B: Me's game: New Game+ 1, difficulty 2") == 1);
+    t.a.cycle(1, 2);
+    passes();
+    assert(sent_to(kFriend, cycle_line(1, 2)) == 1); // Unchanged: not again.
+    t.a.cycle(1, 0);
+    passes();
+    assert(sent_to(kFriend, cycle_line(1, 0)) == 1 && count("B: Me's game: New Game+ 1, difficulty 0") == 1 &&
+           t.b.status(Counters{}).find("\ncycle=" + std::to_string(kMe) + " 1 0 Me\n") != std::string::npos);
+    inbox(0, kChannel).push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    passes();
+    assert(sent_to(kFriend, cycle_line(1, 0)) == 2);
+    assert(count("A: Kaanta's game: New Game+ 0, difficulty 0") == 1);
+  }
+  // One Link: her cycle line before the handshake is ignored, with no log line and no cycle= line; with paks unknown
+  // ours goes once she is past the handshake.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    w.link.cycle(0, 1);
+    w.tick("host");
+    finish_all();
+    w.tick();
+    F.members[5000].push_back(kFriend);
+    w.tick("", 0, 0, 600);
+    F.inbox.push_back({kFriend, cycle_line(2, 2)});
+    const size_t logged = events.size();
+    w.tick();
+    assert(sent_to(kFriend, cycle_line(0, 1)) == 0 && w.status().find("\ncycle=") == std::string::npos &&
+           events.size() == logged);
+    F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    F.inbox.push_back({kFriend, accept()});
+    w.tick();
+    w.tick();
+    F.inbox.push_back({kFriend, cycle_line(2, 2)});
+    w.tick();
+    assert(sent_to(kFriend, cycle_line(0, 1)) == 1 && saw("Kaanta's game: New Game+ 2, difficulty 2") &&
+           w.status().find("\ncycle=" + std::to_string(kFriend) + " 2 2 Kaanta\n") != std::string::npos);
+  }
+
   // Vitals between two Links: ours go unreliable on change, at most one each 100 ms, and each second; hers show as the
   // status's mate= line while she is linked and her last one is under 3 s old; before the handshake they are ignored
   // with no log line; a malformed one is an invalid message. A session's end forgets hers.

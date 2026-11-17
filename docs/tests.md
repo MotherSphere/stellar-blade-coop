@@ -339,8 +339,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   `unblock` and `unblock all`, the `host` words (`public`, `friends`, `invitation` with the older `code` and
   `private`, `closed`, then `ask`, then `max_players` from 2 to 4), `list public|friends|stop`, `where`, `rules` and the
   row cleaner, the match lines (start, count, end) with their bounds, the host's let and wait lines with theirs, the
-  dlc and dlcs lines with their bounds, the DLC comparison by app id, then protocol 23 refusing a protocol-22 lobby and
-  line;
+  dlc and dlcs lines with their bounds, the DLC comparison by app id, the cycle line with its bounds (count 0 to 99,
+  difficulty 0 to 2) and a fuzz seed, then protocol 23 refusing a protocol-22 lobby and line;
 - `link_core_test`: the link against the shared fake Steam, and two links through it with the handshake both ways,
   channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, an
   Invitation lobby (its code, the invite dialog, the older words `code` and `private`) joined with its code and the
@@ -356,7 +356,10 @@ The C++ tests cover the platform-free headers in `native/src`.
   removing a member of the lobby we host; `unblock` and `unblock all` greeting her again at once; a guest's list never
   applied. The installed DLCs: read from the fake Steam at ready (installed ones only, the first 64, the app id for a
   name Steam leaves empty), sent after the paks line and again after her hello, hers ignored before the handshake and
-  kept to 64, the status's `dlcs=`, `dlc_missing=` and `dlc_extra=` lines and one log line for each change;
+  kept to 64, the status's `dlcs=`, `dlc_missing=` and `dlc_extra=` lines and one log line for each change. The cycle
+  line: nothing sent while ours is unread, ours after our dlcs line, once for the same values, again on a change and
+  after her hello, hers ignored before the handshake, the status's `mycycle=` and `cycle=` lines and one log line for
+  each change on either side;
 - `link_pose_cap_test`: the adaptive pose rate (`PoseCap` in `link/core.h`), one reading a second: a calm link and
   a lone bad reading never step; two readings in a row over the line (queue time or pending bytes) step down 60, 30,
   20, to the first cap under the player's `send_rate`, never below 20; 10 calm readings step up one cap; a step up
@@ -790,7 +793,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   entry at a time (`busy`, also while this run's warp still loads) and none while the slot's record is open (`record`),
   the save wait and its 30 s limit, the saved-file checks, the warp's guard, the arrival watch and its 60 s limit; the
   return's guard, the restore rule, the reload watch, SB's own reloads, the title recovery and the load of an open slot;
-  `seq_pick`, which lets `coop sbo seq` run only one of the four sequence names the native part made;
+  `seq_pick`, which lets `coop sbo seq` run only one of the four sequence names the native part made; the New Game+
+  read's pins (0x1470373c8 and `+0xe4`) and `cycle_ok`, which keeps counts 0 to 99 and difficulties 0 to 2;
 - `game_preset_test`: the match loadout's call order, the slots it empties, refusals and read-back;
 - `region_tabs_test`: the teleport screen's record list: the sanity check, the name lookup, the append.
 - `loading_test`: the lift of the lobby arrival's black over a copy of SB's auto list: each entry of tag 5 gets lifetime

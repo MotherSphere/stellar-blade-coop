@@ -48,6 +48,16 @@ constexpr uint64_t kDifficultyOf = 0x141cf41e0, kSave = 0x141ce8050, kIsType5 = 
 // 0x141ce8050 reads the client's zone: that save queues nothing for a row of type 3, 5 or 6. kIsType5 is its type-5
 // test, so E1 reads types 3 and 6 from this row (6: Zone_NKGame_01 to 05).
 constexpr uint64_t kCurrentZoneRow = 0x141d01910;
+// The New Game+ count (the cycle line, link/protocol.h) is the int32 at +0xe4 of the object at 0x1470373c8
+// (travel::kRegistryAt): 0 on the first playthrough, read as > 0 by IsPlayNewGamePlus 0x14265f740. 0x141a98bc0 makes
+// that object when the global is still 0; SBO never calls it (it allocates). The difficulty is kDifficultyOf's of the
+// client's kDifficultyAlias.
+constexpr uint64_t kCycleAt = travel::kRegistryAt;
+constexpr size_t kCycleCount = 0xe4;
+// A count and a difficulty as read are worth sending: count 0 to 99, difficulty 0 Normal, 1 Story or 2 Hard.
+inline bool cycle_ok(int64_t count, int64_t difficulty) {
+  return count >= 0 && count <= 99 && difficulty >= 0 && difficulty <= 2;
+}
 // coop sbo seq (design-lobby 2.6): SB's RunZoneEvent (world, actor id, &FName alias, depth 0), as the ZoneEvent
 // action's run 0x141b7a3c0 calls it. It runs any row by alias, so the native part hands it only one of the four names
 // below, made by itself. In the 26123051 table they are IDs 2703, 2705, 2704 and 2711, each of type

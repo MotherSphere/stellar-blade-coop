@@ -16,6 +16,7 @@
 //   mods her game loads, for a warning when they differ; it ends her list of pak lines),
 //   SBC<protocol> dlc <app id> <name> (one DLC of the game installed on her PC, as Steam names it, chat_clean() to
 //   kMaxDlcName; up to kMaxDlcs of them), then SBC<protocol> dlcs (it ends her list of dlc lines),
+//   SBC<protocol> cycle <count> <difficulty> (her game's New Game+ count and difficulty, 0 Normal, 1 Story, 2 Hard),
 //   SBC<protocol> camps? <id> (the guest's follow: the camps nearest the host, please), SBC<protocol> camps <id>
 //   <world> <alias>:<m> ... (the host's answer: his world and up to 8 camps by distance) or SBC<protocol> camps <id>
 //   none <why>.
@@ -100,10 +101,12 @@ constexpr int kProtocol = 23; // Bump on any wire change. 1 was the first link (
                               // count malformed, so she would wait through his scenes as before; 23 adds online
                               // sessions of up to 4 players with the host's let and wait lines on channel 0, which a
                               // protocol-22 peer would count invalid; a protocol-22 game would also leave a lobby of
-                              // 3. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11:
-                              // v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14: v0.7.0-beta.1, 17:
-                              // a v0.7.5 test build, 18: v0.7.5, 19: v0.8.0 to v0.10.0, 20: v0.11.0; 15, 16, 21 and 22
-                              // were never released) is told why: the lobby tag, then the hello's reject, name both.
+                              // 3; 23 also adds the cycle line (each game's New Game+ count and difficulty), which a
+                              // protocol-22 peer would count invalid. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0,
+                              // 10: stage 2's builds, 11: v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1 to
+                              // beta.3, 14: v0.7.0-beta.1, 17: a v0.7.5 test build, 18: v0.7.5, 19: v0.8.0 to v0.10.0,
+                              // 20: v0.11.0; 15, 16, 21 and 22 were never released) is told why: the lobby tag, then
+                              // the hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -256,7 +259,7 @@ inline Life life_of(const Vitals &v) {
 
 enum class Kind {
   invalid, hello, accept, reject, ping, pong, photo, say, vitals, pak, paks, dlc, dlcs, camps_ask, camps, night, mark,
-  race, gift, start, count, end, let, wait
+  race, gift, start, count, end, let, wait, cycle
 };
 // The follow's camps lines (session/travel.lua): the guest asks with an id from 0 to kMaxCampId, the host answers that
 // id with his world and up to kMaxCamps ZoneCampTable aliases, nearest his EVE first, each with its distance in whole
@@ -294,7 +297,8 @@ struct Message {
                          // 's' or 'c', then 1 for both. pak: the container's hash. paks: the count of .pak mods,
                          // their hash. dlc: the DLC's app id. camps?, camps: id. mark: its number, from 1. start:
                          // the seed. count: the seconds, 0 for stop. let: the pair's SteamID, 0 for none, then
-                         // max_players (2 to kMaxMembers). wait: the seconds, 1 to kMaxWait.
+                         // max_players (2 to kMaxMembers). wait: the seconds, 1 to kMaxWait. cycle: the New Game+
+                         // count (0 to kMaxCycle), then the difficulty (0 to kMaxDifficulty).
   std::string text;      // hello: mod version. reject: the reason. say: the line, chat_clean() and never empty. pak:
                          // the container's name, mod_name_ok(). dlc: its name, chat_clean() to kMaxDlcName and never
                          // empty. camps: the host's world, or "none". night: the
@@ -363,6 +367,10 @@ inline std::string dlc_line(uint32_t id, const std::string &name) {
   return "SBC" + std::to_string(kProtocol) + " dlc " + std::to_string(id) + " " + name;
 }
 inline std::string dlcs_line() { return "SBC" + std::to_string(kProtocol) + " dlcs"; }
+// Our game's New Game+ count (0 on the first playthrough) and difficulty (0 Normal, 1 Story, 2 Hard), reliable after
+// the dlcs line once both are read, to each friend past the handshake; again on a change and after her next hello.
+constexpr uint64_t kMaxCycle = 99, kMaxDifficulty = 2;
+inline std::string cycle_line(uint32_t count, uint32_t difficulty) { return versioned("cycle", count, difficulty); }
 // Her installed DLCs against ours, by app id: hers we lack (with her names) and ours she lacks (with ours).
 struct DlcDiff {
   std::map<uint32_t, std::string> missing, extra;
@@ -606,6 +614,9 @@ inline Message parse(const char *data, size_t size) {
       m.kind = Kind::dlc;
   } else if (text == versioned_tag + " dlcs") {
     m.kind = Kind::dlcs;
+  } else if (split(text, f, 4, nullptr) && f[0] == versioned_tag && f[1] == "cycle") {
+    if (number(f[2], m.a) && m.a <= kMaxCycle && number(f[3], m.b) && m.b <= kMaxDifficulty)
+      m.kind = Kind::cycle;
   } else if (split(text, f, 4, nullptr) && f[0] == versioned_tag && f[1] == "photo" &&
              (f[2] == "0" || f[2] == "1" || f[2] == "s" || f[2] == "c") && (f[3] == "both" || f[3] == "notice")) {
     m.kind = Kind::photo;
