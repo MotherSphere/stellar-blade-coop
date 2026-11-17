@@ -154,12 +154,14 @@ for i=1,12 do
         zone=i==1 and 'e04' or 'f01',camp=i==1 and 'Xion_Camp_01' or nil,rules=i==1 and 'ebwqr200' or 'x',
         name='Host'..i}
 end
+ROWS[3].ping=nil -- Steam could not estimate it.
 input.search,input.rows={tab='public',state='done',rows=3},{ROWS[1],ROWS[2],ROWS[3]}
 screen.slow(true)
 local opts=live(OPTION)
 assert(#opts==3 and opts[1].x==192 and opts[1].y==514 and opts[2].y==644 and opts[3].y==774)
 assert(opts[1].props.Text_TitleValue.text=='Host1' and opts[1].props.Text_ItemValue.text=='Xion · 1/2 · 41 ms')
 assert(opts[2].props.Text_ItemValue.text=='f01 · 1/2 · 42 ms','A zone with no key: its word as written')
+assert(opts[3].props.Text_ItemValue.text=='f01 · 1/2 · -','No ping known: -')
 assert(count_of(opts[1],'EventNotification','StateFocus')==1 and not has(opts[2],'EventNotification','StateFocus'))
 assert(text_at(228,1574)=='','Rows show: no status')
 local pane=live(HEADER,2600)
@@ -178,6 +180,7 @@ screen.nav('down')
 assert(count_of(opts[1],'EventNotification','StateNormal')==1 and count_of(opts[2],'EventNotification','StateFocus')==1)
 assert(sounds[1]=='move' and live(HEADER,2600)[1].props.Category_Name.text=='Host2')
 assert(text_at(2600,594)=='' and text_at(2600,734)=='' and text_at(2656,944)=='Steam friend')
+screen.nav('down'); assert(text_at(2600,664)=='1/2 · -','The third row: no ping known'); screen.nav('up')
 -- Refresh within 5 s of the last ask: nothing asked; after it, list public again.
 clock=104
 screen.nav('refresh')

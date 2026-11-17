@@ -100,7 +100,7 @@ function Sessions.new(o)
         end
         return r.zone or ''
     end
-    local function players(r) return r.players..(r.ping and ' · '..r.ping..' ms' or '') end
+    local function players(r) return r.players..' · '..(r.ping and r.ping..' ms' or '-') end -- '-': no ping known.
     local function value_of(r)
         local where=region(r)
         return (where~='' and where..' · ' or '')..players(r)

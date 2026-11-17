@@ -134,11 +134,11 @@ protocol or game build, sessions hosted by a player you blocked on Steam or on y
 [block list](playing-with-a-friend.md#block-list), or your own. A tab holds 50 rows at most, sorted by ping, best
 first, rows with no ping last.
 
-Each row shows the host's Steam name, then the region, the players (`1/2`) and the ping. Eight rows show at once and
-the list scrolls with the focus. The right pane shows the focused row: the host's name, the region, the travel camp
-nearest the host, the players and ping, the [session rules](settings.md) the host has on (shared enemies, shared
-bosses with the boss HP scale, shared world, shared quests, the revive), `Steam friend` when the host is one, then the
-version. The bottom left names your own protocol and game build, which a session must share to show. A region shows
+Each row shows the host's Steam name, then the region, the players (`1/2`) and the ping (Steam's estimate in ms, `-`
+when Steam has none). Eight rows show at once and the list scrolls with the focus. The right pane shows the focused
+row: the host's name, the region, the travel camp nearest the host, the players and ping, the
+[session rules](settings.md) the host has on (shared enemies, shared bosses with the boss HP scale, shared world, shared
+quests, the revive), `Steam friend` when the host is one, then the version. The bottom left names your own protocol and game build, which a session must share to show. A region shows
 in the game's words for the story regions; another map shows its short name, such as `f01`.
 
 The screen asks Steam for a search when it opens, when you change tabs and on Refresh. One search runs at a time, at
