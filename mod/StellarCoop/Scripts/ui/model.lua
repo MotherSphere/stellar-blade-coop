@@ -194,9 +194,9 @@ function M.new(start)
     local self,page,id,index,asked={},start or 'main',nil,1,nil -- asked: {id=, at=} the first Select of a confirm row.
     local function name(row) return row.member and 'mute '..row.member or row.id or row.key end
     function self.page() return page end
-    -- The page's rows shown in this state, headers included, but none with no row under it. Options ends with one mute
-    -- row per other player of the online session, under Chat: {id='mute', member=her SteamID, name=, muted=}, the same
-    -- table for her each call (the menu finds the cursor's row by identity).
+    -- The page's rows shown in this state, headers included. A header with no row under it is left out. Options ends
+    -- with one mute row per other player of the online session, under Chat: {id='mute', member=her SteamID, name=,
+    -- muted=}, the same table for her each call (the menu finds the cursor's row by identity).
     local mutes={}
     function self.rows(ctx)
         local rows={}
