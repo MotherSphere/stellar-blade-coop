@@ -88,8 +88,9 @@ is kept. After `coop recruiter off` he stays away until the next Xion load. Thes
    row at the cut spawn point (a Xion guard with the recruiter's dialogue, not marked for saving, no walking path), and
    points one unused test filter at that row, for the despawn. It edits each row in place, field by field, and reads
    it back. It adds and removes no rows.
-3. The game's Spawn event places him. 3 s later a line says whether he stands at the point
-   (`RECRUITER=yes: talk to him`).
+3. The game's Spawn event places him. His Join is armed right away, since he can arrive late while Xion is still
+   loading. From +3 s to +30 s the mod looks for him every 3 s. A line says when he stands at the point
+   (`RECRUITER=yes: talk to him`). If he never gets there, the +30 s line gives the nearest new guard's distance.
 
 The game spawns a row only once per game run, so after `coop recruiter off` another `coop recruiter` may need a game
 restart. The same goes for his automatic appearance at a later Xion load of the same run.

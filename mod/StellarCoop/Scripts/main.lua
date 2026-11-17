@@ -354,8 +354,8 @@ local mxiii=require('matrix13.world.travel').new({log=function(m) print('[Stella
 local region_tabs=require('ui.region_tabs').new({log=function(m) print('[StellarCoop][RT] '..tostring(m)..'\n') end,
     ready=function() return link~=nil and require('core.unreal').controller()~=nil end})
 local pause_tab -- The pause menu's Online tab (ui/pause_tab.lua), made after pad_event below: it opens the menu.
--- commands.recruiter runs only on a co-op save; coop off despawns on any slot (cleanup). Once he stands there, his Join
--- is armed, with sbo_lobby=on only: arming swaps a slot in the game's image, and a player who has not turned the lobby
+-- commands.recruiter runs only on a co-op save; coop off despawns on any slot (cleanup). Once he is asked for (or found
+-- there already), his Join is armed, with sbo_lobby=on only: arming swaps a slot in the game's image, and a player who has not turned the lobby
 -- on gets no swap (his Join then does what the game's does). The native part counts each Join on the sbo line
 -- (session/sbo.lua turns it into an entry, or a notice of what is missing).
 local Recruiter=require('nightop.recruiter')

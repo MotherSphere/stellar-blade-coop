@@ -7,8 +7,9 @@
 -- mode (for every row or one) a copy whose writes are lost; one field can be made to lose its write or to raise, and a
 -- row can be made to read as another one after the first FindRow. Covered: the gates before any read of a
 -- table; the zone event table count; the Join row's checks, its write and read-back (a copy stops there); the happy
--- path's exact writes, zone event and lines, and its +3 s check with on_ready after RECRUITER=yes only; a rerun with
--- someone at the point; the condition, spawn-row and filter faults; off and stop (also after Ctrl+R); one follow-up at
+-- path's exact writes, zone event and lines, on_ready right after the spawn line and at "already here" (never on a
+-- STOP before the spawn), its +3 s check and the looks every 3 s until +30 s (a guard who comes late, one who never
+-- comes, one off the point); a rerun with someone at the point; the condition, spawn-row and filter faults; off and stop (also after Ctrl+R); one follow-up at
 -- a time; idle ticks; the auto spawn at each Xion load (no save or session is asked: any save, solo or co-op); the
 -- guard; no text step on either path: no line about his text, and no call to a text, string or language library or to
 -- FText at any time (the text library's PolyglotDataToText raises as UE4SS does on a plain Lua-table map).
@@ -414,7 +415,7 @@ clock=t0+3; rc.tick()
 assert(#lines==2 and lines[1]==string.format('+3 s: CH_NPC_XionGuard_Blueprint_C@%.1f,%.1f,%.1f point_m=0.3',P.X,
     P.Y+30,P.Z),lines[1])
 assert(lines[2]=='RECRUITER=yes: talk to him' and effects()=='')
-assert(#readies==1 and readies[1]=='RECRUITER=yes: talk to him','on_ready once, after the line')
+assert(#readies==1 and readies[1]==LINES[5],'on_ready once, right after the spawn line')
 clock=t0+20; reset(); rc.tick(); assert(#calls==0,'Done')
 
 -- 7. A rerun with him at the point: the Join row again (0->0), then "already here" and nothing else.
@@ -425,6 +426,7 @@ assert(ok and message=='already here: CH_NPC_XionGuard_Blueprint_C stands 0.3 m 
 assert(effects()=='MultiplayTest_ZoneE_059.Type=0' and #lines==1,effects())
 assert(lines[1]=='join row: MultiplayTest_ZoneE_059 #1296 type 0->0, alias None; read back type 0; 1 zone event table '
     ..'in memory' and textless(),lines[1])
+assert(#readies==2 and readies[2]==lines[1],'on_ready at "already here": he stands there, his Join is armed')
 clock=t0+10; reset(); rc.tick(); assert(#calls==0,'No follow-up after "already here"')
 -- EVE at the point is nobody; the edited rows take the same values again (Equal is now NOT).
 loaded.SBCharacter={eve,roxanne}
@@ -436,9 +438,53 @@ assert(lines[1]:find('type 0->0',1,true) and lines[2]=='condition: MultiplayTest
     ..'NOT->NOT; read back NOT',lines[2])
 assert(lines[5]=='spawn: CreateSBZoneEvent(0, Test_Dialogue_01_E_CharS_021) called; the point is 0.5 m from EVE',
     lines[5])
+-- His Join is armed at the spawn, before any check: UE4SS.log 2026-11-17 20:26:19 had EVE 0.8 m from the point during
+-- a Xion load and nobody at +3 s, yet he stood there, and his Join, armed only after RECRUITER=yes, did nothing.
+assert(#readies==3 and readies[3]==lines[5],'on_ready right after the spawn line, before any check')
+local WAIT='+3 s: no new character within 1.5 m of TeleportPoint_Xion_MultiPlay yet: looked for every 3 s until +30 s'
+local NEVER='STOP: +30 s: no new character within 1.5 m of TeleportPoint_Xion_MultiPlay (RECRUITER=no; %s; SB spawns '
+    ..'a row once per game run, so a second try may need a game restart)'
+-- He never comes: one line at +3 s, a walk at each look and no line, then the STOP line at +30 s.
 clock=t0+3; reset(); rc.tick()
-assert(#lines==1 and lines[1]=='STOP: +3 s: no new character within 1.5 m of TeleportPoint_Xion_MultiPlay '
-    ..'(RECRUITER=no; SB spawns a row once per game run, so a second try may need a game restart)',lines[1])
+assert(#lines==1 and lines[1]==WAIT,lines[1])
+clock=t0+5.9; rc.tick(); assert(count('^FindAllOf$')==1,'The next look is not due')
+for s=6,27,3 do clock=t0+s; rc.tick() end
+assert(#lines==1 and count('^FindAllOf$')==9 and effects()=='','A walk at each look, no line before +30 s')
+-- A look holds no command, and a new try ends it (due at +30 s): only the new try's lines follow. He stands 4 m off
+-- the point: the STOP line at +30 s says so.
+t0=clock
+run(); assert(ok and message==ASKED,message)
+loaded.SBCharacter={eve,roxanne,(character('CH_NPC_XionGuard_Blueprint_C',off(400)))}
+reset()
+for s=3,27,3 do clock=t0+s; rc.tick() end
+assert(#lines==1 and lines[1]==WAIT,'Only the new try\'s +3 s line: '..tostring(lines[2]))
+clock=t0+30; rc.tick()
+assert(#lines==2 and lines[2]==NEVER:format('the nearest new guard stands 4.0 m from it'),tostring(lines[2]))
+clock=t0+60; reset(); rc.tick(); assert(#calls==0,'The look ends at +30 s')
+-- He comes at +9 s: missed at +3 s and +6 s, then his line and RECRUITER=yes, and the look ends.
+loaded.SBCharacter={eve,roxanne}
+vanilla()
+t0=clock
+run(); assert(ok and message==ASKED,message)
+local readied=#readies
+clock=t0+3; reset(); rc.tick(); assert(#lines==1 and lines[1]==WAIT,lines[1])
+clock=t0+6; rc.tick(); assert(#lines==1,'+6 s: nobody yet, no line')
+loaded.SBCharacter={eve,roxanne,guard}
+clock=t0+9; reset(); rc.tick()
+assert(#lines==2 and lines[1]==string.format('+9 s: CH_NPC_XionGuard_Blueprint_C@%.1f,%.1f,%.1f point_m=0.3',P.X,
+    P.Y+30,P.Z) and lines[2]=='RECRUITER=yes: talk to him',lines[1])
+assert(#readies==readied,'on_ready ran at the spawn, not again when he is seen')
+for s=12,60,3 do clock=t0+s; reset(); rc.tick(); assert(#calls==0,'Seen: no more looks') end
+-- coop recruiter off ends a look; coop off (stop) too.
+for _,ending in ipairs({'off','stop'}) do
+    loaded.SBCharacter={eve,roxanne}
+    vanilla()
+    t0=clock
+    run(); assert(ok and message==ASKED,message)
+    clock=t0+3; reset(); rc.tick(); assert(lines[1]==WAIT,lines[1])
+    if ending=='off' then run('off'); clock=t0+5; rc.tick() else rc.stop() end
+    for s=6,40,3 do clock=t0+s; reset(); rc.tick(); assert(count('^FindAllOf$')==0 and #lines==0,ending) end
+end
 eve_at=off(1000)
 -- Someone who was there before the command and walks to the point is not new.
 local walker,walker_at=character('BP_N_Roxane_C',off(379))
@@ -448,7 +494,7 @@ t0=clock
 run(); assert(ok and message==ASKED,message)
 walker_at.X=P.X+50
 clock=t0+3; reset(); rc.tick()
-assert(#lines==1 and lines[1]:find('^STOP: %+3 s: no new character'),lines[1])
+assert(#lines==1 and lines[1]==WAIT,lines[1])
 -- An animal of the scene 0.8 m from the point is not him: the spawn goes on (UE4SS.log 2026-11-12 20:10:53 read
 -- "already here: Animal_BP_C stands 0.8 m"), and another one there at +3 s is not him either.
 local cat=character('Animal_BP_C',off(0,80))
@@ -458,7 +504,9 @@ t0=clock
 run(); assert(ok and message==ASKED,message)
 loaded.SBCharacter={eve,roxanne,cat,(character('Animal_BP_C',off(0,40)))}
 clock=t0+3; reset(); rc.tick()
-assert(#lines==1 and lines[1]:find('^STOP: %+3 s: no new character'),lines[1])
+assert(#lines==1 and lines[1]==WAIT,lines[1])
+for s=6,30,3 do clock=t0+s; rc.tick() end
+assert(#lines==2 and lines[2]==NEVER:format('no new guard anywhere'),'An animal is no guard: '..lines[2])
 -- Four new ones at the point: three lines, then the verdict.
 vanilla()
 loaded.SBCharacter={eve,roxanne}
@@ -467,7 +515,7 @@ run(); assert(ok and message==ASKED,message)
 for i=1,4 do loaded.SBCharacter[#loaded.SBCharacter+1]=(character('CH_NPC_XionGuard_Blueprint_C',off(i*10))) end
 clock=t0+3; reset(); rc.tick()
 assert(#lines==4 and lines[3]:find('point_m=0.3$') and lines[4]:find('^RECRUITER=yes'),lines[4])
-assert(#readies==2,'Never on a STOP: line: only the two RECRUITER=yes runs')
+assert(#readies==10,'Each spawn call and each "already here": '..#readies)
 
 -- 8. Condition faults: a STOP before any spawn-row write and before the zone event.
 local function faults(cases,after)
@@ -666,7 +714,7 @@ assert(#lines==6 and lines[5]=='spawn: CreateSBZoneEvent(0, Test_Dialogue_01_E_C
     ..'from EVE' and lines[6]=='auto: '..ASKED and textless(),lines[6])
 loaded.SBCharacter={eve,roxanne,guard}
 clock=t1+3; reset(); auto.tick()
-assert(lines[2]=='RECRUITER=yes: talk to him' and readies[#readies]==lines[2],'on_ready on the auto path too')
+assert(lines[2]=='RECRUITER=yes: talk to him' and readies[#readies]==LINES[5],'on_ready on the auto path too')
 step(60); step(60); assert(effects()=='' and #lines==0 and count('FindAllOf')==0,'One spawn per load')
 -- A Lua reload with him there: the Join row again, then already here, and nothing more this load.
 auto=Recruiter.new(log)

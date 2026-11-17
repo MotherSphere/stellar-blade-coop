@@ -247,8 +247,9 @@ fails the test. The `main/` tests load
   once, at its first pass in the lobby world and not before, and none when that pass also puts up its own black (one
   fade); without the hook, one log line;
 - `nightop/recruiter_test` also covers the auto spawn at each Xion load (waits while the spawn point is not loaded or
-  EVE is too far, one spawn a load, a guard kept after a Lua reload, none after `coop recruiter off`) and the arm call
-  after `RECRUITER=yes`;
+  EVE is too far, one spawn a load, a guard kept after a Lua reload, none after `coop recruiter off`). It checks the
+  arm call right after the spawn and at a guard already there, before any check. It runs the looks every 3 s until
+  +30 s with a guard who comes at +9 s, one who never comes and one 4 m off the point;
 - `ui/kit_test` covers the veil (the root built and kept collapsed, the look warmed in one 250 ms pass, shown again at
   once, and a hidden world's root left collapsed), the menu's mouse cursor, the focus put back after a click, the focus
   watchdog and the focus line

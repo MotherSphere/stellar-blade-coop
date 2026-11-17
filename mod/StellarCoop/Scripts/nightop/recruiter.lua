@@ -31,6 +31,9 @@ local FILTER,FILTER_ID,FILTER_SHIPPED='LV_TempTestMap_LevelTargetFilter_002',660
 local POINT,ZONE='TeleportPoint_Xion_MultiPlay','Zone_Xion_10'
 local GRAPH='/Game/GameDesign/Level/ToolData/InteractionGraph/Xion/Xion01/Xion01_NPC_MultiPlay.Xion01_NPC_MultiPlay'
 local NEAR,FAR=1.5,50 -- metres: "at the point", and how far EVE may stand from it.
+-- Seconds: after a spawn, he is looked for every LOOK_EVERY until LOOK_UNTIL. A spawn asked during a Xion load can come
+-- later than +3 s (UE4SS.log 2026-11-17 20:26:19: no one at +3 s, yet he stood there).
+local LOOK_EVERY,LOOK_UNTIL=3,30
 -- The only zone events this module may fire: the guard's spawn row (0, Spawn) and its despawn filter (5, Despawn).
 function Recruiter.allowed(kind,name) return (kind==0 and name==SPAWN) or (kind==5 and name==FILTER) end
 local function find_name(text) return FName(text,EFindName.FNAME_Find) end -- None (index 0) when not a name yet.
@@ -163,10 +166,46 @@ end
 -- For nightop/roxanne.lua: the same row edit, and the helpers its checks and its log take.
 Recruiter.edit,Recruiter.one,Recruiter.find_name,Recruiter.index_of,Recruiter.ascii=edit,one,find_name,index_of,ascii
 Recruiter.JOIN=JOIN -- For session/sbo.lua's Join count (main.lua arms it with this row's FName).
--- log(text) writes an [RC] line; on_ready() runs after each RECRUITER=yes line (he stands there).
+-- log(text) writes an [RC] line; on_ready() runs right after the spawn's zone event and when he is already here.
 function Recruiter.new(log,on_ready)
     local pending=nil -- The one follow-up: {sub=, at=os.clock() when due, f=}.
     local function later(sub,delay,f) pending={sub=sub,at=os.clock()+delay,f=f} end
+    -- After a +3 s check that missed him: {at=os.clock() when due, after=seconds since the spawn, spot=the point,
+    -- before=the addresses there before}. Ticked apart from pending, so commands are not held for 30 s.
+    local look=nil
+    -- The new guards (GUARD's class, not in before) within NEAR of spot in list: up to three lines, then RECRUITER=yes.
+    -- Gives whether one stands there.
+    local function seen(after,list,spot,before)
+        local new=near(list,spot,before)
+        for k=1,math.min(#new,3) do
+            log(string.format('+%d s: %s@%s point_m=%.1f',after,class_of(new[k].c),xyz(new[k].at),new[k].d))
+        end
+        if #new==0 then return false end
+        log('RECRUITER=yes: talk to him')
+        return true
+    end
+    -- The look, when due: him there, else again in LOOK_EVERY s, else at LOOK_UNTIL the STOP line with the nearest new
+    -- guard at any distance (a spawn moved off the point shows there).
+    local function looked()
+        local l=look
+        look=nil
+        local list=guards(characters())
+        if seen(l.after,list,l.spot,l.before) then return end
+        if l.after<LOOK_UNTIL then
+            look={at=os.clock()+LOOK_EVERY,after=l.after+LOOK_EVERY,spot=l.spot,before=l.before}
+            return
+        end
+        local best=nil
+        for _,c in ipairs(list) do
+            if not l.before[U.address(c)] then
+                local d=metres(location(c),l.spot)
+                if not best or d<best then best=d end
+            end
+        end
+        log(string.format('STOP: +%d s: no new character within %.1f m of %s (RECRUITER=no; %s; SB spawns a row once '
+            ..'per game run, so a second try may need a game restart)',l.after,NEAR,POINT,
+            best and string.format('the nearest new guard stands %.1f m from it',best) or 'no new guard anywhere'))
+    end
     -- Stateless, so it works after Ctrl+R: the filter reads the spawn row only once a recruiter was asked this run.
     local function prepared()
         local s=index_of(find_name(SPAWN))
@@ -175,6 +214,7 @@ function Recruiter.new(log,on_ready)
     end
     -- On a command, with a +2 s check; for coop off, one line when it fires and none otherwise.
     local function despawn(asked)
+        look=nil -- He is sent away: no more looking for him.
         local eve=her()
         if not eve then return true,'no EVE in the world: nothing was called' end
         local map=U.map_of(eve)
@@ -215,8 +255,9 @@ function Recruiter.new(log,on_ready)
         end
         return at,far
     end
-    -- From the Join row on: the rows, the spawn and its +3 s check.
+    -- From the Join row on: the rows, the spawn, its +3 s check and the looks after it.
     local function spawn(at,far)
+        look=nil -- A new try ends the look of an earlier one.
         local zt=U.find(ZONE_TABLE)
         local count,shipped=zone_tables(zt)
         if count~=1 or not shipped then
@@ -243,6 +284,7 @@ function Recruiter.new(log,on_ready)
         local list=characters()
         local here=near(guards(list),at,{})[1]
         if here then
+            if on_ready then on_ready() end -- He stands there: his Join armed (again after a Lua reload).
             return true,string.format('already here: %s stands %.1f m from %s; nothing was spawned',class_of(here.c),
                 here.d,POINT)
         end
@@ -278,18 +320,14 @@ function Recruiter.new(log,on_ready)
         for _,c in ipairs(list) do before[U.address(c)]=true end
         zone_event(0,SPAWN)
         log(string.format('spawn: CreateSBZoneEvent(0, %s) called; the point is %.1f m from EVE',SPAWN,far))
-        later('coop recruiter',3,function()
-            local new=near(guards(characters()),at,before)
-            for k=1,math.min(#new,3) do
-                log(string.format('+3 s: %s@%s point_m=%.1f',class_of(new[k].c),xyz(new[k].at),new[k].d))
-            end
-            if #new>0 then
-                log('RECRUITER=yes: talk to him')
-                if on_ready then on_ready() end
-                return
-            end
-            log(string.format('STOP: +3 s: no new character within %.1f m of %s (RECRUITER=no; SB spawns a row once '
-                ..'per game run, so a second try may need a game restart)',NEAR,POINT))
+        -- His Join is armed now, not once a check sees him: he can come after any check, and a Join never armed does
+        -- nothing (UE4SS.log 2026-11-17 20:26:19). With no guard there, nobody can pick it.
+        if on_ready then on_ready() end
+        later('coop recruiter',LOOK_EVERY,function()
+            if seen(LOOK_EVERY,guards(characters()),at,before) then return end
+            look={at=os.clock()+LOOK_EVERY,after=2*LOOK_EVERY,spot=at,before=before}
+            log(string.format('+%d s: no new character within %.1f m of %s yet: looked for every %d s until +%d s',
+                LOOK_EVERY,NEAR,POINT,LOOK_EVERY,LOOK_UNTIL))
         end)
         return true,'recruiter asked: the +3 s line says whether he stands at '..POINT
     end
@@ -343,8 +381,12 @@ function Recruiter.new(log,on_ready)
         local ok,message=spawn(at,far)
         log('auto: '..(ok and '' or 'STOP: ')..message)
     end
-    -- Every game-thread tick: nothing unless a follow-up is due.
+    -- Every game-thread tick: nothing unless a follow-up or a look is due.
     local function tick()
+        if look and os.clock()>=look.at then
+            local ok,e=pcall(looked)
+            if not ok then look=nil; log('STOP: coop recruiter: '..why(e)) end
+        end
         if not pending or os.clock()<pending.at then return end
         local due=pending
         pending=nil
