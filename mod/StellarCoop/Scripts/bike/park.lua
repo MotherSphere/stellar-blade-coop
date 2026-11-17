@@ -3,7 +3,8 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The parked bike's rules, no engine call: whether her feet reach it for a mount, where it is from her camera when they
 -- do not, where a mount puts her so the part lands on it, which spot a dismount parks at, how far her capsule is from
--- the bike's and when the bike turns solid. tests/lua/bike/park_test.lua covers it with lua5.4 alone.
+-- the bike's, when the bike turns solid and its record per account and save (coop-bike-<steamid>-<saves><index>.txt).
+-- tests/lua/bike/park_test.lua covers it with lua5.4 alone.
 -- A place is {map=<package path>, at={X,Y,Z}, rot={Pitch,Yaw,Roll}}: the bike's root (her feet while she rides) and
 -- its heading, in centimetres and degrees, as the game's. UE's yaw grows from +X toward +Y.
 local P={}
@@ -63,5 +64,39 @@ end
 function P.map_name(map,worlds)
     for alias,path in pairs(worlds or {}) do if path==map then return alias end end
     return map:match('[^/]+$') or map
+end
+-- A number as text with a dot whatever the locale (coop-bike.txt's and the record's).
+function P.number(v) return (string.format('%.9g',v):gsub(',','.')) end
+-- The record's file for this account and save, from the status text: the mod= line's SteamID, the slot= line's index
+-- while its verdict is coop or main, its saves= word. nil while any of them does not read (the title, a load, an
+-- unpinned build, saves=off, the Steam link not ready).
+function P.key(status)
+    local raw='\n'..(status or '')
+    local slot,index,saves=raw:match('\nslot=(%a+) index=(%d) marker=%S+ saves=(%a+)')
+    local id=raw:match('\nmod=[^\r\n]* steamid=([1-9]%d*)')
+    if not (id and (slot=='coop' or slot=='main') and (saves=='coop' or saves=='main')) then return nil end
+    return ('coop-bike-%s-%s%s.txt'):format(id,saves,index)
+end
+-- The record's line (version 1, no newline): the map, then X Y Z, Pitch Yaw Roll, tab-separated.
+function P.line(place)
+    local at,rot=place.at,place.rot
+    return table.concat({'1',place.map,P.number(at.X),P.number(at.Y),P.number(at.Z),P.number(rot.Pitch),
+        P.number(rot.Yaw),P.number(rot.Roll)},'\t')
+end
+-- A place from the record's text, else nil and why: none (no file) or unreadable (not version 1, a map the wire would
+-- refuse, a field missing or not a number, a position past 10,000,000 cm or an angle past 360 degrees).
+function P.read(text)
+    if text==nil then return nil,'none' end
+    local f={}
+    for field in (text:match('^[^\r\n]*')..'\t'):gmatch('([^\t]*)\t') do f[#f+1]=field end
+    local map=f[2] or ''
+    if #f~=8 or f[1]~='1' or #map>128 or not map:find('^/[a-z0-9_/%-]*$') then return nil,'unreadable' end
+    local n={}
+    for k=3,8 do
+        n[k]=tonumber(f[k])
+        -- NaN fails the comparison too.
+        if not (n[k] and math.abs(n[k])<=(k<=5 and 1e7 or 360)) then return nil,'unreadable' end
+    end
+    return {map=map,at={X=n[3],Y=n[4],Z=n[5]},rot={Pitch=n[6],Yaw=n[7],Roll=n[8]}}
 end
 return P

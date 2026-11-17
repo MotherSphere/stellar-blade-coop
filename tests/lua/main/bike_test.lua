@@ -26,6 +26,9 @@ assert(o.store=='store coop-bike.txt' and o.drive.name=='drive' and o.settings.b
 assert(o.words().bike.not_back=='Your bike is not back yet.' and o.worlds.Xion=='/game/art/bg/worldmap/level_p/e04')
 o.tell(function(w) return w.bike.prompt:format('F3') end)
 assert(said[#said]=='F3: get on the bike' and said_en[#said]=='F3: get on the bike',tostring(said[#said]))
+-- Its place per save through the link's own files; none written while an SBO lobby is open.
+assert(o.file.read==fake_link.read_file and o.file.write==fake_link.write_file and o.lobby()==false)
+sb.active=true; assert(o.lobby()==true); sb.active=false
 -- Its native asks and status, the game's checks.
 assert(o.ask('bike load x') and asked[#asked]=='bike load x' and o.status()==status_text)
 assert(o.paused()==false and o.photo()=='0' and o.frozen()==false and o.life()==nil and o.armed()==false)

@@ -15,7 +15,8 @@
 -- (a fake bike/stand.lua): made after the part, parked where a dismount by the key leaves her, at the last ground pose
 -- after a forced one or where it stood before the mount, hidden while she rides or a cutscene holds her, removed for a
 -- new EVE; a mount refused far from it (the distance and the side), on another map or before it is back, else made
--- onto it by a teleport; the prompt once she comes within reach.
+-- onto it by a teleport; the prompt once she comes within reach; its place per account and save (o.file), kept out
+-- of the record while an SBO lobby is open.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -162,11 +163,26 @@ package.loaded.UEHelpers={GetPlayer=function() return wrapper(eve) end}
 -- The native part: the asks (each an event) and the status line's words.
 local st={warp='idle',anim='idle',id=0,load='off',gate='off',life=1}
 local native=true
+-- The record's key: the mod= and slot= lines use_key puts before the engine line; no_key takes them out.
+local key_text=nil
+local function use_key(text) key_text=text end
+local function no_key() key_text=nil end
 local function status()
     if not native then return 'slot=coop x\n' end
-    return ('slot=coop x\nengine=on warp=%s me=1 travel=idle travel_calls=0 anim=%s anim_id=%d bike=%s bike_gate=%s%s\n')
+    return (key_text or 'slot=coop x\n')
+        ..('engine=on warp=%s me=1 travel=idle travel_calls=0 anim=%s anim_id=%d bike=%s bike_gate=%s%s\n')
         :format(st.warp,st.anim,st.id,st.load,st.gate,st.life and ' bike_life='..st.life or '')
 end
+-- o.file over files: a read counts in file_reads; a write lands in files and written, or fails with write_fails. lobby
+-- is what o.lobby answers.
+local files,written,file_reads,write_fails,lobby={},{},0,nil,false
+local file={read=function(name) file_reads=file_reads+1; return files[name] end,
+    write=function(name,text)
+        if write_fails then return false,write_fails end
+        files[name]=text
+        written[#written+1]={name=name,text=text}
+        return true
+    end}
 local asked,refuse={},{}
 local function ask(line)
     if refuse[line:match('^%S+ %S+')] then return false,'the native part is off' end
@@ -227,7 +243,7 @@ package.loaded['bike.stand']={CULL=20000,
     end,
     step=function() return nil end,
     alive=function(d) return not d.removed and d or nil end,
-    remove=function(d) d.removed=true end,
+    remove=function(d) d.removed,d.shown=true,false end,
     sweep=function(path,mesh) swept[#swept+1],swept_mesh[#swept_mesh+1]=path,mesh end}
 local Ride=require('bike.ride')
 -- The screen's words (T.en until a test picks another table) and the notices told in them.
@@ -239,7 +255,7 @@ local function new()
         frozen=function() return world.frozen end,life=function() return world.life end,
         armed=function() return world.armed end,busy=function() return world.busy end,
         words=function() return words end,tell=function(build) told[#told+1]=build(words) end,
-        worlds={Xion='/game/art/bg/worldmap/level_p/e04'}})
+        worlds={Xion='/game/art/bg/worldmap/level_p/e04'},file=file,lobby=function() return lobby end})
 end
 local R=new()
 local CLIP='/Game/Art/Character/PC/CH_P_EVE_01/Animation/event/G03/MV_SD20_AfterBruteBattle_Main/eve/'
@@ -683,7 +699,7 @@ st.load='ready'
 -- 13. coop bike status and tune.
 local said=R.status()
 assert(said=='bike: preload ready, part not made yet, not riding; top=2306 accel=1150 brake_hardness=48 '
-    ..'turn_angle=36',said)
+    ..'turn_angle=36; parked on /game/map/map, 0 m away',said)
 settle()
 id=mount()
 said=R.status()
@@ -832,4 +848,44 @@ assert(#told==n+1 and told[#told]=='F3: get on the bike')
 -- Another language on screen, English in the log.
 words=T.fr; park_at({X=4200,Y=0,Z=0},0); eve.mesh_at={X=0,Y=0,Z=0}
 ok,why=R.toggle(); assert(why==T.fr.bike.far:format(42,T.fr.bike.ahead) and last():find('ahead of you'))
+
+-- 18. The place per save. Read once per key; absent, readable and unreadable logged; a park written once; a failed write
+-- kept in memory; put back on her return after 2 s; an SBO lobby starts with no place and writes nothing; status words.
+-- A new Lua load first: every park so far had no key, so the first key would keep the last one (Review Focus 1 below).
+R=new(); settle()
+local ST='mod=v proto=22 steam=ready steamid=76561190000000000\nslot=coop index=2 marker=none saves=coop\n'
+use_key(ST)
+files['coop-bike-76561190000000000-coop2.txt']='1\t/game/map/map\t100\t0\t0\t0\t0\t0\n'
+clock=clock+0.25; R.slow()
+assert(find('^bike place: coop%-bike%-76561190000000000%-coop2%.txt: /game/map/map$') and file_reads==1)
+clock=clock+0.25; R.slow(); assert(file_reads==1,'Read once per key')
+mount(); R.toggle()
+assert(written[1].name=='coop-bike-76561190000000000-coop2.txt' and written[1].text:find('^1\t/game/map/map\t'))
+write_fails='disk full'; mount(); R.toggle()
+assert(find('^bike place: write failed: disk full; kept in memory$') and not R.riding())
+write_fails=nil
+clock=math.ceil(clock) -- A whole clock, so 1.9 s then 0.1 s more make 2 s exactly in floating point.
+eve=make_eve('EVE_3'); R.slow(); clock=clock+1.9; R.slow(); assert(not st_made[#st_made].shown)
+clock=clock+0.1; R.slow(); assert(st_made[#st_made].shown and last():find('^bike put back on /game/map/map at '),last())
+assert(R.status():find('parked on /game/map/map, 0 m away$'))
+-- Review Focus 1: another save loads during a ride: her park goes to the old save's file.
+eve.mesh_at={X=0,Y=0,Z=0}; mount(); eve.mesh_at={X=300,Y=0,Z=0}; clock=clock+0.25; R.slow()
+use_key((ST:gsub('index=2','index=3'))); eve=make_eve('EVE_4'); clock=clock+0.25; R.slow()
+assert(written[#written].name=='coop-bike-76561190000000000-coop2.txt' and written[#written].text:find('\t300\t'),
+    'The forced park of the save she rode in')
+for _,w in ipairs(written) do assert(w.name~='coop-bike-76561190000000000-coop3.txt') end
+clock=clock+0.25; R.slow(); assert(find('^bike place: coop%-bike%-76561190000000000%-coop3%.txt: none$'))
+-- Review Focus 1 too: a park before any key is written at the first key read, not replaced by the file.
+R=new(); no_key(); settle(); park_at({X=7,Y=0,Z=0},0)
+files['coop-bike-76561190000000000-coop2.txt']='1\t/game/map/map\t100\t0\t0\t0\t0\t0\n'
+use_key(ST); clock=clock+0.25; R.slow()
+assert(written[#written].name=='coop-bike-76561190000000000-coop2.txt' and written[#written].text:find('^1\t/game/map/map\t7\t'))
+assert(find('kept the park made before the key'))
+-- An SBO lobby: no place (first ride under her), nothing written; leaving brings the save's place back.
+lobby=true; clock=clock+0.25; R.slow(); assert(R.status():find('no place yet$'))
+local n=#written; mount(); R.toggle(); assert(#written==n)
+lobby=false; clock=clock+0.25; R.slow(); assert(R.status():find('parked on /game/map/map'))
+-- Unreadable file: none, logged.
+use_key((ST:gsub('index=2','index=4'))); files['coop-bike-76561190000000000-coop4.txt']='junk'
+clock=clock+0.25; R.slow(); assert(find(': unreadable, read as none$'))
 print('ride_test ok')

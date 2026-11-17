@@ -3,7 +3,7 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- bike/park.lua with lua5.4 alone: the reach of a mount, where the bike is from her camera, the seat a mount lands her
 -- on, the spot a dismount parks at, the clearance from her capsule to the bike's, the open-then-solid rule and a map's
--- name.
+-- name; the record per account and save (its file, its line, read back).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local P=require('bike.park')
 local function near(a,b) return math.abs(a-b)<1e-6 end
@@ -39,3 +39,16 @@ assert(P.solid(k,-1)==false and P.solid({},5)==true,'A bike that appears beside 
 -- The map's name: the travel world's alias, else the path's last part.
 assert(P.map_name('/game/art/bg/worldmap/level_p/e04',{Xion='/game/art/bg/worldmap/level_p/e04'})=='Xion')
 assert(P.map_name('/game/sbo_lobby/lobby_garden',{})=='lobby_garden' and P.map_name('/game/x',nil)=='x')
+-- The record per account and save: its file from the status lines, its line, read back; a bad line reads as unreadable.
+local ST='mod=v proto=22 steam=ready steamid=76561190000000000\nslot=coop index=2 marker=none saves=coop\n'
+assert(P.key(ST)=='coop-bike-76561190000000000-coop2.txt')
+assert(P.key((ST:gsub('saves=coop','saves=main')))=='coop-bike-76561190000000000-main2.txt')
+for _,bad in ipairs({(ST:gsub('slot=coop','slot=none')),(ST:gsub('saves=coop','saves=off')),(ST:gsub('index=2','index=?')),
+        (ST:gsub('steamid=%d+','steamid=0')),'slot=coop index=2 marker=none saves=coop\n'}) do assert(P.key(bad)==nil,bad) end
+local p={map='/game/map/map',at={X=100.5,Y=-200,Z=0},rot={Pitch=1.25,Yaw=90,Roll=0}}
+assert(P.line(p)=='1\t/game/map/map\t100.5\t-200\t0\t1.25\t90\t0')
+local q=P.read(P.line(p)..'\n'); assert(q.map==p.map and q.at.X==100.5 and q.rot.Pitch==1.25)
+assert(select(2,P.read(nil))=='none')
+for _,bad in ipairs({'2\t/game/map/map\t0\t0\t0\t0\t0\t0','1\tgame\t0\t0\t0\t0\t0\t0','1\t/game/map/map\t1e8\t0\t0\t0\t0\t0',
+        '1\t/game/map/map\tnan\t0\t0\t0\t0\t0','1\t/game/map/map\t0\t0\t0\t0\t400\t0','1\t/game/map/map\t0\t0'}) do
+    assert(P.read(bad)==nil and select(2,P.read(bad))=='unreadable',bad) end

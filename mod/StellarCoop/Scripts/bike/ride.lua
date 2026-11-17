@@ -23,12 +23,17 @@
 -- The parked bike is a second actor (bike/stand.lua), one per EVE, made hidden after her part under the same 2 s gate.
 -- A dismount by the key, the pad or coop bike leaves it where she stands when her floor counts (walkable, its base not
 -- Movable). Any other dismount leaves it at the last ground pose the 250 ms checks kept, else where it stood before
--- the mount. Its place is kept in memory. It shows on its map once her EVE stood 2 s, while she does not ride and no
--- cutscene holds her. With a place, a mount after EVE's own checks is refused while the bike is on another map, not
--- shown yet on hers or out of reach (200 cm across, 100 cm up or down: bike/park.lua), with its distance and side from
--- her camera. Within reach the bike is hidden, then her actor is teleported so the part lands on its root and heading
--- (a teleport SB refuses mounts her where she stands), then the mount above. A notice tells bike_key once each time she
--- comes within reach of it.
+-- the mount. Its place is kept per Steam account and save in coop-bike-<steamid>-<saves><index>.txt (bike/park.lua's
+-- key and line), written at each park that moves it; the 250 ms pass reads it once each time that key changes, while
+-- she does not ride, so a park forced by a load writes the save she rode in. A park made before the first key is
+-- written at that key instead of read from it. Without a key (an unpinned build, saves=off, no link) the place lives in
+-- memory. While an SBO lobby is open no record is read or written: it starts with no place; leaving it reads the
+-- save's record again. It shows on its map once her EVE stood 2 s, while she does not ride and no cutscene holds her.
+-- With a place, a mount after EVE's own checks is refused while the bike is on another map, not shown yet on hers or
+-- out of reach (200 cm across, 100 cm up or down: bike/park.lua), with its distance and side from her camera. Within
+-- reach the bike is hidden, then her actor is teleported so the part lands on its root and heading (a teleport SB
+-- refuses mounts her where she stands), then the mount above. A notice tells bike_key once each time she comes within
+-- reach of it.
 -- Each frame (self.steer, before the native tick): the drive's frame, then her lean and pitch on her main mesh's
 -- relative rotation, the base rotation then a turn about her actor's forward axis (lean) and side axis (pitch), through
 -- KismetMathLibrary's ComposeRotators, written with teleport off (a teleport clears cloth inertia). The ghosts get it
@@ -130,7 +135,7 @@ local function make_part(e)
     end)
     return c,not tagged and why_of(tag_why) or nil
 end
-local function number(v) return (string.format('%.9g',v):gsub(',','.')) end
+local number=Park.number
 local function whole(v) return math.floor(v+0.5) end
 -- The tab-separated fields of a coop-bike.txt line (none for nil).
 local function fields(line)
@@ -146,7 +151,9 @@ end
 -- bike_life=, since it reads only in a session); armed() (race/run.lua's: a race is armed here; nil when there is none);
 -- busy() (why SBO's own state forbids a mount: the Doro look, coop emote, a hall seat, coop fly or glide, Night
 -- Operation, an SBO menu or the chat; nil when none); words() (ui/text.lua's table for the screen); tell(build) (a
--- notice build(words) puts together); worlds (session/travel.lua's WORLDS, for a map's name).
+-- notice build(words) puts together); worlds (session/travel.lua's WORLDS, for a map's name); file (the place's record:
+-- read(name) and write(name, text), link.read_file and link.write_file; nil without the link); lobby() (whether an SBO
+-- lobby is open).
 function Ride.new(o)
     local log,ask,status,drive=o.log,o.ask,o.status,o.drive
     local store=o.store or {save=function() end,load=function() end,clear=function() end}
@@ -157,6 +164,10 @@ function Ride.new(o)
     -- 250 ms pass (near; true while she rides, so getting off tells nothing).
     local here=nil
     local place=nil -- Her bike's place ({map, at, rot}), in memory.
+    local file,lobby=o.file,o.lobby or function() return false end
+    local key=nil -- The record's file read last (bike/park.lua's key), nil before the first and after an SBO lobby.
+    local dirty=false -- A park in memory that no record holds (no key yet, or its write failed).
+    local in_lobby=false -- lobby() at the last 250 ms pass with her off the bike.
     local ground=nil -- The last ground pose of this ride, kept every 250 ms.
     local floor_told=false
     -- While she rides: eve, path, at, mesh, part, part_path, base and base_at (her mesh's relative rotation and
@@ -259,14 +270,23 @@ function Ride.new(o)
     end
     -- Her parked bike as the state says, on a change only: put at its place and shown while that place is on this map,
     -- her EVE stood SETTLE s, she does not ride and no cutscene holds her; else hidden. While shown, its collision rule.
-    local function sync(e,now)
+    -- parked: called by a dismount, whose first show is no put back.
+    local function sync(e,now,parked)
         local h=here
         local d=h and h.stand
         if not (e and d and Stand.alive(d)) then return end
         local want=place~=nil and place.map==h.map and now-h.since>=SETTLE and not ride
             and e:IsAttachedToLevelSequenceWithoutPlayable()~=true
         if want and d.place~=place then Stand.put(d,place) end
-        if want~=d.shown then Stand.show(d,want) end
+        if want~=d.shown then
+            Stand.show(d,want)
+            -- Its first show on this EVE, unless a park just made it: put back from the place she left it.
+            if want and not h.back and not parked then
+                log(('bike put back on %s at %d,%d,%d'):format(place.map,whole(place.at.X),whole(place.at.Y),
+                    whole(place.at.Z)))
+            end
+            h.back=h.back or want
+        end
         if want then
             local line=Stand.step(d,e)
             if line then log(line) end
@@ -352,6 +372,35 @@ function Ride.new(o)
         log(('bike ride clip asked (anim %d)'):format(serial))
     end
 
+    -- The place into the record at the key read last. Not written: kept in memory (dirty), said when the write failed.
+    local function save()
+        local ok,why=false,nil
+        if file and key then ok,why=file.write(key,Park.line(place)..'\n') end
+        dirty=not ok
+        if key and not ok then log('bike place: write failed: '..tostring(why)..'; kept in memory') end
+    end
+    -- Every 250 ms with her off the bike: an SBO lobby opened (no place, no key) or left (the key read again); a new key
+    -- read once, or given the park made before any key. raw: the status text.
+    local function record(raw)
+        local open=lobby()==true
+        if open~=in_lobby then
+            in_lobby=open
+            place,key,dirty=nil,nil,false
+        end
+        local name=not open and file and Park.key(raw)
+        if not name or name==key then return end
+        local first=key==nil
+        key=name
+        if dirty and first then
+            save()
+            if not dirty then log('bike place: '..name..': kept the park made before the key') end
+            return
+        end
+        dirty=false
+        local why
+        place,why=Park.read(file.read(name))
+        log('bike place: '..name..': '..(place and place.map or why=='none' and 'none' or 'unreadable, read as none'))
+    end
     -- Off the bike, backward from the mount: the part hidden, the clip stopped, SB's actions back, the drive off, her
     -- mesh's rotation and location back (only on the EVE she rode), the file cleared unless that write failed. Then
     -- the bike parks at live (her pose at a dismount by the key), else at the ride's last ground pose, else it stays
@@ -390,14 +439,15 @@ function Ride.new(o)
             mesh=ok and 'her mesh back' or 'her mesh not written back ('..why_of(err)..'), coop-bike.txt kept'
         end
         if ok then store.clear() end
-        local word
-        place,word=Park.spot(live,ground,place)
+        local word,before
+        before,place,word=place,Park.spot(live,ground,place)
         ground=nil
         if word then
             log(('bike parked on %s at %d,%d,%d (%s)'):format(place.map,whole(place.at.X),whole(place.at.Y),
                 whole(place.at.Z),word))
         end
-        try('the parked bike',function() sync(her(),os.clock()) end)
+        if place~=before and not in_lobby then save() end
+        try('the parked bike',function() sync(her(),os.clock(),true) end)
         local line=('bike off (%s) after %.1f s: %s%s'):format(why,os.clock()-r.since,mesh,
             failed[1] and '; failed: '..table.concat(failed,'; ') or '')
         log(line)
@@ -603,7 +653,8 @@ function Ride.new(o)
         local now=os.clock()
         local ok,why=pcall(function()
             local e=her()
-            local w=Ride.native(status())
+            local raw=status()
+            local w=Ride.native(raw)
             -- The native part shows bike=off only when it would take the ask: the request was lost or never reached it.
             if w and w.load=='off' and now-load_asked>=LOAD_AGAIN then
                 load_asked=now
@@ -613,6 +664,8 @@ function Ride.new(o)
             if e then part_step(e,w,now) end
             local why=ride and check(ride,e,w,now)
             if why then return why end
+            -- After check: a park it forces is written at the key she rode under.
+            if not ride then record(raw) end
             sync(e,now)
             prompt(e)
         end)
@@ -661,7 +714,8 @@ function Ride.new(o)
         log('bike restored from coop-bike.txt: '..(ok and said or 'failed ('..why_of(said)..')')
             ..(kept and ', coop-bike.txt kept' or ''))
     end
-    -- coop bike status: the preload, the part, the ride and the values.
+    -- coop bike status: the preload, the part, the ride, the values and where the bike is (its distance only from her
+    -- feet on its map).
     function self.status()
         local w=Ride.native(status())
         local h=here
@@ -669,8 +723,18 @@ function Ride.new(o)
             or h and h.failed and 'not made ('..h.failed..')' or 'not made yet'
         local list={}
         for _,name in ipairs(B.NAMES) do list[#list+1]=name..'='..values[name] end
-        return ('bike: preload %s, part %s, %s; %s'):format(w and w.load or 'none (no native part)',part,
-            ride and ('riding for %.0f s'):format(os.clock()-ride.since) or 'not riding',table.concat(list,' '))
+        local at='no place yet'
+        if place then
+            local ok,metres=pcall(function()
+                local e=her()
+                if e and U.map_of(e)==place.map then
+                    return (Park.where(value_of(valid(e.Mesh):K2_GetComponentLocation()),0,place))
+                end
+            end)
+            at='parked on '..place.map..(ok and metres and (', %d m away'):format(metres) or '')
+        end
+        return ('bike: preload %s, part %s, %s; %s; %s'):format(w and w.load or 'none (no native part)',part,
+            ride and ('riding for %.0f s'):format(os.clock()-ride.since) or 'not riding',table.concat(list,' '),at)
     end
     -- coop bike tune [<name> <value>]: the values, or one changed (clamped) for the next rides of this Lua load.
     function self.tune(name,text)
