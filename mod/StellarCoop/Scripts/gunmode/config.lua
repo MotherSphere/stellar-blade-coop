@@ -27,8 +27,15 @@ Config.DEFAULTS={
     -- aim stance's animation set points at while the rifle is out.
     muzzle_every=0.09,muzzle_scale=0.45, -- the flash: at most this often (s), at this size (it stacked into a blaze, 12:07)
     muzzle_fx='/Game/DLC_2/Art/FX/MiniGame/NS_A_NikkeGunFire.NS_A_NikkeGunFire', -- the NIKKE rifle's flash
-    pak_probe='/Game/OutfitMods/NikkeGunMode/GM/NGM_GM_WalkF.NGM_GM_WalkF',
-    pak_bs='Animation/BlendSpace/P_Eve_GunNikkeHide_BS',
+    -- The animation pak (zNikkeGunModeAnim_P, 11-18 rebuild): EVE's rifle animation set, new assets only.
+    pak_probe='/Game/OutfitMods/NikkeGunMode/R/NGM_R_AimIdle.NGM_R_AimIdle',
+    pak_bs='Animation/BlendSpace/P_Eve_NGM_R_BS', -- aiming: 8-way walk + run (her lock-on layout), rifle shouldered
+    pak={aim_offset='Animation/Additive/NGM_R_Aim_BS', -- aiming up/down/left/right
+        carry='Animation/BlendSpace/P_Eve_NGM_RC_BS', -- rifle out, out of a fight (her IdleRun_BS_Peaceful2D layout)
+        carry_battle='Animation/BlendSpace/P_Eve_NGM_RCB_BS', -- rifle out, in a fight (her IdleRun_BS_Battle layout)
+        -- the aim stance's speeds while the pak is in (cm/s): EVE's own lock-on walk and run, the speeds her aim
+        -- clips' legs were animated for (no foot sliding)
+        speeds={WalkSpeed=150,RunSpeed=280,JoggingRunSpeed=280,LockOnWalkSpeed=150,LockOnRunSpeed=280}},
     aim_fov=66,fov_ease=0.2, -- Firing mode on the game's aim: its camera's field of view (SB's is 45), eased in.
     raise_time=0.2, -- Firing mode: the rifle's time to come up before the first shot.
     cam_offset={X=0,Y=60,Z=0}, -- CameraBoom.CustomOffset while the rifle is out: EVE left of centre.
