@@ -811,9 +811,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 ### Other native headers
 
 - `photo_photo_freeze_test`: the synced photo mode's pause against a fake pause set;
-- `game_globals_test`: SB's globals as build 26123051 lays them out, checked at compile time: the block offsets the fight
-  engine, the photo freeze, the lion gate and the Night Operation probe read land on the registry, the world, logic
-  and the net-mode cache, and every header that names one of these globals by address names the same one;
+- `game_globals_test`: SB's globals as build 26123051 lays them out, checked at compile time: the block offsets the
+  fight engine, the photo freeze, the lion gate and the Night Operation probe read land on the registry, the world,
+  logic and the net-mode cache, and every header that names one of these globals by address names the same one;
 - `cut_debug_keys_test`: `coop fly`'s and `coop slowmo`'s gates against fake memory laid out like the pinned build: the
   keys' hash, the lookup through inline and allocated buckets and along a chain of collisions, each refusal with no
   write, and the passes (a gate set with its old value kept, set again after the game built its map again, its old
@@ -829,10 +829,10 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   is still the object played on, over fake memory (no pawn, a pawn of another class, a pending kill, a new serial),
   what each frame does; the bike's `ride` play (a loop forever with foot IK type 2) and its foot IK put back as SB's
   stop does once the ride's play is over;
-- `game_bike_test`: the bike's native side (`game/bike.h`): the preload path rule, the 54 gated names, the gate over a fake
-  action map (each state kept and put back, an absent name back as on, a name SB changed during the ride left as SB set
-  it, a name the game never made skipped, a controller gone, a fault in the middle of turning it on, a fault), the words
-  packed for the worker and the status line, the ride plays' clip lookups and the log lines;
+- `game_bike_test`: the bike's native side (`game/bike.h`): the preload path rule, the 54 gated names, the gate over a
+  fake action map (each state kept and put back, an absent name back as on, a name SB changed during the ride left as SB
+  set it, a name the game never made skipped, a controller gone, a fault in the middle of turning it on, a fault), the
+  words packed for the worker and the status line, the ride plays' clip lookups and the log lines;
 - `sky_sky_test`: the day and night cycle (`sky/sky.h`): the clock at :02, :12, :32 and :52 and under 24 just before
   the hour's wrap, the ramps, the sun and moon at noon, sunrise, sunset, midnight and mid-morning, the dusk colour, the
   status line. Over a fake WorldSettings whose env array holds a sunlit element with its own exposure bias, a covered
@@ -860,10 +860,10 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   never builds passes too; a press and its release within 500 ms open once) and its pinned slot, function, FName
   global and offsets, the game's own close of the pause menu with the logic's vtable, type and entry offset, the
   answers Lua reads from `coop_pause_close`;
-- `session_options_test`: the game's Tutorial and RecordPopup options during online play (an option On at link forced Off with
-  On kept, the save slot handed the kept value while it is forced, the value back at unlink; an option already Off left
-  alone; the player's On during online play kept with no new force until unlink; a value the game never writes never
-  forced), the pass over both options with its fault latch (a fault in the second option's lookup right after the
+- `session_options_test`: the game's Tutorial and RecordPopup options during online play (an option On at link forced
+  Off with On kept, the save slot handed the kept value while it is forced, the value back at unlink; an option already
+  Off left alone; the player's On during online play kept with no new force until unlink; a value the game never writes
+  never forced), the pass over both options with its fault latch (a fault in the second option's lookup right after the
   first one's force, or inside SetValue, leaving that option shown forced so the save slots stay held; the next pass
   putting it back though online play still asks the popups off; a second fault stopping the pass with the option still
   shown forced; a first fault with nothing forced running no more passes), their pinned keys, vtables and save slots,
@@ -872,10 +872,10 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 - `game_dev_panels_test`: `coop devinfo`'s guard (each read failing alone, refused with its own reason; a close needs
   neither the flow nor the phase), the plan over every mix of open panels and every ask (the other panel closes, the
   one asked opens unless it is open), and the two panels' logic types and names;
-- `game_travel_test`: the follow's fast travel request, its bytes at each offset, each guard refusing with its own reason
-  (a respawn in flight included), the call count (three calls in 10 s, a 10 s wait after an accepted call, none after
-  a refused one) and the watch over the warp block (pending, warping, arrived, a block cleared before it ran, and one
-  that never ran: stuck);
+- `game_travel_test`: the follow's fast travel request, its bytes at each offset, each guard refusing with its own
+  reason (a respawn in flight included), the call count (three calls in 10 s, a 10 s wait after an accepted call, none
+  after a refused one) and the watch over the warp block (pending, warping, arrived, a block cleared before it ran, and
+  one that never ran: stuck);
 - `game_sbo_test`: the SBO lobby's Join match, record states, why words and status line; the entry's guard in order, one
   entry at a time (`busy`, also while this run's warp still loads) and none while the slot's record is open (`record`),
   the save wait and its 30 s limit, the saved-file checks, the warp's guard, the arrival watch and its 60 s limit; the
@@ -884,8 +884,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   read's pins (0x1470373c8 and `+0xe4`) and `cycle_ok`, which keeps counts 0 to 99 and difficulties 0 to 2;
 - `lobby_preset_test`: the match loadout's call order, the slots it empties, refusals and read-back;
 - `group_region_tabs_test`: the teleport screen's record list: the sanity check, the name lookup, the append.
-- `lobby_loading_test`: the lift of the lobby arrival's black over a copy of SB's auto list: each entry of tag 5 gets lifetime
-  0, SB's own entries and every other byte stay as they were, and a count out of range touches nothing;
+- `lobby_loading_test`: the lift of the lobby arrival's black over a copy of SB's auto list: each entry of tag 5 gets
+  lifetime 0, SB's own entries and every other byte stay as they were, and a count out of range touches nothing;
 - `game_camp_text_test`: Matrix XIII's camp names and the 25 records' words, the keys (unique, the region's ending in a
   letter), the language pick, when a pass is due and the `camptext=` and `recordtext=` lines;
 - `game_camps_test`: the activated camps' read, each guard refusing with its own reason (a warp, a respawn or a logic
@@ -906,59 +906,58 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   without its camera states, the hyperdrive without its story states, a supply box, the boss cores, a story-only door,
   an env whose On a quest task waits for, a Matrix XIII lever, a counter whose progress leads to an item, a quest's env
   control row, a monorail speed row whose chain plays a scene);
-- `game_world_sync_test`: `game/world/sync.h`'s lines through format and parse and back (the largest legal line, 50 malformed
-  lines and 20,000 fuzzed ones), the ring's capacity and wrap, the outbox that keeps the lines the link refuses, and
-  two players' sides wired over the parser with a fake engine: the on and off lines and the answer to an on, a rejoin
-  one side did not see, each gate on both sides, the lists on both sides (linked env lines part by part included),
-  names without text, sequence numbers, lost and old lines, a load that reads no save for a while, the queue's order
-  while loading and its overflow, the apply limit, the echo backstop, refusals logged once, a new partner and the
-  status line;
-- `game_world_engine_test`: `game/world/engine.h` over fake memory and fake game functions: the four roots read from their
-  nodes (a named target, `self` through the owner env, an ObjectState of 0, a linked env inside and outside its
+- `game_world_sync_test`: `game/world/sync.h`'s lines through format and parse and back (the largest legal line, 50
+  malformed lines and 20,000 fuzzed ones), the ring's capacity and wrap, the outbox that keeps the lines the link
+  refuses, and two players' sides wired over the parser with a fake engine: the on and off lines and the answer to an
+  on, a rejoin one side did not see, each gate on both sides, the lists on both sides (linked env lines part by part
+  included), names without text, sequence numbers, lost and old lines, a load that reads no save for a while, the
+  queue's order while loading and its overflow, the apply limit, the echo backstop, refusals logged once, a new partner
+  and the status line;
+- `game_world_engine_test`: `game/world/engine.h` over fake memory and fake game functions: the four roots read from
+  their nodes (a named target, `self` through the owner env, an ObjectState of 0, a linked env inside and outside its
   owner's list or not live in our zone, values no line carries), and her lines applied: A1 and each of its guards, a
-  Disable env changed as SB changes it, a tag that did not take, A2's records (found, made, a Disable one written),
-  A1b live and offline, A3's call and its list check, A4's order (a None tag, an env already in the tag, a refusing
-  guard), and the refusals for a missing world, player or name.
+  Disable env changed as SB changes it, a tag that did not take, A2's records (found, made, a Disable one written), A1b
+  live and offline, A3's call and its list check, A4's order (a None tag, an env already in the tag, a refusing guard),
+  and the refusals for a missing world, player or name.
 
 ### Story together
 
-- `game_story_rows_test`: `game/story/rows.h`'s lists sorted (scenes by path, trips by row), the lookups at both ends and on
-  near misses, rows of build 26123051: the camp talk six rows share (told apart by priority, then by zone, then by table
-  order), the Pod landing scene whose end warps the player, a two-event end chain, a shared quest's subtitle sequence, a
-  row whose condition is tested before the call, Lily's warp (sent), the lift's zone change (not sent) and the trips
-  left out.
-- `game_story_sync_test`: `game/story/sync.h`'s lines through format and parse and back (the largest legal line, 67 malformed
-  lines and 20,000 fuzzed ones, the hooks an on line carries, an InputCounter line's last bit), the lists, the leash,
-  the dialogue release, the story gate and the replay guard on their own. Then a host and a guest wired over the
+- `game_story_rows_test`: `game/story/rows.h`'s lists sorted (scenes by path, trips by row), the lookups at both ends
+  and on near misses, rows of build 26123051: the camp talk six rows share (told apart by priority, then by zone, then
+  by table order), the Pod landing scene whose end warps the player, a two-event end chain, a shared quest's subtitle
+  sequence, a row whose condition is tested before the call, Lily's warp (sent), the lift's zone change (not sent) and
+  the trips left out.
+- `game_story_sync_test`: `game/story/sync.h`'s lines through format and parse and back (the largest legal line, 67
+  malformed lines and 20,000 fuzzed ones, the hooks an on line carries, an InputCounter line's last bit), the lists, the
+  leash, the dialogue release, the story gate and the replay guard on their own. Then a host and a guest wired over the
   parser with a fake game on her side: the on and off lines with the host's hooks kept as `partner_hooks()`, a scene
   started and shared, the leash holding her and letting her go, results applied once in their take, dropped once her
   copy left it and applied again when her copy comes back to that take, a widget that comes late, a result her game
   refuses, her dialogue wait closed once, a skip, the host's end with her copy played out, the replay guard and its
   expiry, a first take that differs, a scene that never shows, a refused start, a busy game, a second start while her
   copy still starts, an attach, a quest row, a talk, trips that wait for her copy, the host's position rate, sequence
-  numbers, the queue while she loads and its overflow, a new partner, the feature off, her save not a co-op save and
-  the status line. The host's choice and QTE results go before his skip, his position and the end of a theater they
-  closed in; those of a play he does not share are logged once.
-- `game_story_engine_test`: `game/story/engine.h` over fake memory and fake SB functions. Host side: his theater, hook 1's
-  read, his menus read when they close (a menu of another play left out, ordinals counted by take), his QTE and
-  InputCounter blocks read once final (Flow results as bits, a widget read before its next start, a Flow's results
-  then kept from the last pass, the bit that says his take skip ran, set by his latch or by his take ending before
-  that read, one gone, one he did not lead), hook 4's trip line (a row that is no trip, a zone that cannot be read).
-  Guest side: her copy and the gate's reads, a play and a talk started, a trip run with her ID, the host's seek and
-  take skips, the leash, her dialogue closed, her skip blocked and given back, a choice line stored in her take
-  context (a name or alias she lacks refused) with her menu for it closed after its skip latch is taken, her
-  PlayerChoice answered through her OK, her QTE and InputCounter given the host's values (late, gone, a success
-  that finishes at once, its take skip only after his, Flow results), her presses taken when a block starts and her
-  menus held then given back.
+  numbers, the queue while she loads and its overflow, a new partner, the feature off, her save not a co-op save and the
+  status line. The host's choice and QTE results go before his skip, his position and the end of a theater they closed
+  in; those of a play he does not share are logged once.
+- `game_story_engine_test`: `game/story/engine.h` over fake memory and fake SB functions. Host side: his theater, hook
+  1's read, his menus read when they close (a menu of another play left out, ordinals counted by take), his QTE and
+  InputCounter blocks read once final (Flow results as bits, a widget read before its next start, a Flow's results then
+  kept from the last pass, the bit that says his take skip ran, set by his latch or by his take ending before that read,
+  one gone, one he did not lead), hook 4's trip line (a row that is no trip, a zone that cannot be read). Guest side:
+  her copy and the gate's reads, a play and a talk started, a trip run with her ID, the host's seek and take skips, the
+  leash, her dialogue closed, her skip blocked and given back, a choice line stored in her take context (a name or alias
+  she lacks refused) with her menu for it closed after its skip latch is taken, her PlayerChoice answered through her
+  OK, her QTE and InputCounter given the host's values (late, gone, a success that finishes at once, its take skip only
+  after his, Flow results), her presses taken when a block starts and her menus held then given back.
 
 ### Quests
 
-- `game_quest_sync_test`: the shared quests' quest table (its kill and item tasks), line format and parser (with a fuzz),
-  the host's and the guest's rules, the zone marks, the item hold, the steps made together and those that are not, the
-  record file, lost lines and reloads; a step the guest makes first: sent only from the host's line in his zone, sent
-  at a later pass when the line rate refused it, not sent while the host is off, never echoed back, taken by the host
-  under each rule of `accept()` (two tasks of one group done on both sides in one pass end with both in both games),
-  the host's checks on her step lines (one from the same line again taken, an older one dropped);
+- `game_quest_sync_test`: the shared quests' quest table (its kill and item tasks), line format and parser (with a
+  fuzz), the host's and the guest's rules, the zone marks, the item hold, the steps made together and those that are
+  not, the record file, lost lines and reloads; a step the guest makes first: sent only from the host's line in his
+  zone, sent at a later pass when the line rate refused it, not sent while the host is off, never echoed back, taken by
+  the host under each rule of `accept()` (two tasks of one group done on both sides in one pass end with both in both
+  games), the host's checks on her step lines (one from the same line again taken, an older one dropped);
 - `game_quest_engine_test`: the shared quests against a fake quest unit: the walk, the guards before each game call, the
   gate, a fault, two PCs through channel 2's text with delay and loss (her step made first taken by the host's game,
   kept through a hold of his game until 16 wait, the same step again made once, dropped by his load), three PCs (one

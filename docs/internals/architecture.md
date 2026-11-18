@@ -360,11 +360,11 @@ error that escapes it is logged once a Lua load; the modules after it still run 
 
 The DLL has no load isolation: `glue/tick.cpp` is one translation unit that includes every part. Each part's game calls
 run under its own SEH latch (77 `__try` blocks, 34 `*_faulted` flags): a fault there turns that feature off for the run.
-A part may read what the parts before it define, so `tick.cpp` includes them in a declared order, with a comment on each
-include that depends on an earlier one (`sky/sky_game.inc` comes after `glue/tick/freeze_game_shared.inc`, whose
-controller reach it uses). What another module's part reads of a part is in `glue/tick/<part>_shared.inc`, included
-right before that part. The headers that more than one module reads are in `game/`. No module's part, header or test
-includes another module's header or uses a name another module's part defines.
+A part may read what the parts before it define, so `tick.cpp` includes them in a declared order. Comments beside the
+includes name the parts one reads or must come before (`sky/sky_game.inc` comes after
+`glue/tick/freeze_game_shared.inc`, whose controller reach it uses). What another module's part reads of a part is in
+`glue/tick/<part>_shared.inc`, included right before that part. The headers that more than one module reads are in
+`game/`. No module's part, header or test includes another module's header or uses a name another module's part defines.
 
 ### The checks
 
