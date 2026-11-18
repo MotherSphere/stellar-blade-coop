@@ -109,6 +109,13 @@ function Stance.new(laser)
     pcall(function() len=anim:GetPlayLength() end)
     if len>0 and duration and duration>0 then pcall(function() donor:SetPlayRate(len/duration) end) end
     reloading,reloadAt,reloadLen=true,os.clock(),(duration and duration>0) and duration or 1
+    if aimNative and onReal then
+     pcall(function()
+      local ai=src:GetAnimInstance()
+      local rate=(len>0 and duration and duration>0) and len/duration or 1
+      ai:PlaySlotAnimationAsDynamicMontage(anim,FName('UpperBody'),0.15,0.15,rate,1,-1.0,0.0)
+     end)
+    end
    elseif reloading then
     reloading=false
     pcall(function() donor:SetPlayRate(1) end)
@@ -194,7 +201,9 @@ function Stance.new(laser)
     for i,b in ipairs(aimBones) do coverOffsets[i]=mathlib:MakeRelativeTransform(donor:GetSocketTransform(b,0),ref) end
    end
    local held=held_fn() -- gun mode: RMB / LT (and Luke's Alt, Ctrl), from gunmode/mode.lua.
-   if reloading then held=false end -- gun mode: the rifle comes down to reload (her arms then follow the donor's).
+   -- gun mode: the rifle comes down to reload (her arms then follow the donor's); with aimNative she stays on her
+   -- real body and the reload plays on its upper body (switching bodies mid-reload crashed, 11:27).
+   if reloading and not (aimNative and onReal) then held=false end
    -- gun mode (aimNative): while aim is held the game's own animation shows (the aim stance's upper body made the
    -- NIKKE rifle's by gunmode/data.lua): her real body visible, the rifle on its right hand, nothing posed; the
    -- posed copy comes back when aim is let go.
@@ -210,8 +219,26 @@ function Stance.new(laser)
      aimBlend=0
     end
     if onReal then
+     -- gun mode: the rifle on her hand turned (at most 12 degrees) so its barrel points where the rounds go: the
+     -- baked aim holds it along her facing, and from over her shoulder that missed the laser's end (11:27).
+     gun:K2_SetRelativeTransform(grip,false,{},true)
+     local t=beam_target()
+     if t then pcall(function()
+      local fire=FName('FX_Fire')
+      local m=gun:GetSocketLocation(fire)
+      local have=mathlib:GetForwardVector(gun:GetSocketRotation(fire))
+      local dx,dy,dz=t.X-m.X,t.Y-m.Y,t.Z-m.Z
+      local len=math.sqrt(dx*dx+dy*dy+dz*dz)
+      if len<50 then return end
+      local want={X=dx/len,Y=dy/len,Z=dz/len}
+      local dot=have.X*want.X+have.Y*want.Y+have.Z*want.Z
+      if dot<math.cos(math.rad(12)) or dot>0.99999 then return end
+      local d=mathlib:NormalizedDeltaRotator(mathlib:Conv_VectorToRotator(want),mathlib:Conv_VectorToRotator(have))
+      local r=gun:K2_GetComponentRotation()
+      gun:K2_SetWorldRotation({Pitch=r.Pitch+d.Pitch,Yaw=r.Yaw+d.Yaw,Roll=r.Roll},false,{},true)
+     end) end
      if not beam then beam,finish=laser(pawn,gun,mathlib) end
-     beam(beam_target())
+     beam(t)
      return
     end
    end
