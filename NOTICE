@@ -50,9 +50,9 @@ SchizoEffective gave permission to use this code in Stellar Blade Online on
 GPL-3.0 to a license that bans AyakaMods. The adapted code is licensed here
 under the SBO License, version 1.0 or any later version that the Licensor
 publishes, with the additional permission above. The adapted functions are
-marked in mod/StellarCoop/Scripts/online/modes/nightop/run.lua, online/modes/nightop/waves.lua
-and core/unreal.lua. Stellar Blade Online contains no file from Survival
-Protocol.
+marked in mod/StellarCoop/Scripts/online/modes/nightop/run.lua,
+online/modes/nightop/waves.lua and core/unreal.lua. Stellar Blade Online
+contains no file from Survival Protocol.
 
 EVE ON WHEELS
 
@@ -65,9 +65,9 @@ dCharisma1 gave his written consent on 2026-11-16 to the use of his Eve On
 Wheels code in Stellar Blade Online under the SBO License, version 1.0 or
 any later version that the Licensor publishes. The adapted code is licensed
 here under those terms. The adapted functions are marked in
-mod/StellarCoop/Scripts/vehicles/bike/model.lua and vehicles/bike/ride.lua. Stellar Blade
-Online contains no file from Eve On Wheels: none of its assets, sounds or
-animations.
+mod/StellarCoop/Scripts/vehicles/bike/model.lua and vehicles/bike/ride.lua.
+Stellar Blade Online contains no file from Eve On Wheels: none of its
+assets, sounds or animations.
 
 THIRD-PARTY COMPONENTS
 
