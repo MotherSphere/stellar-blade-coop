@@ -12,7 +12,7 @@ FName=function(text) return {ToString=function() return text end} end
 local removes={}
 local pc={ServerRequest_ItemBucketItemRemove=function(_,...) removes[#removes+1]=table.pack(...) end}
 local eve={BroadcastSpawnInfo={ActorGuid=0x51}}
-package.loaded['nightop.probe']={her=function() return eve end,controller=function() return pc end}
+package.loaded['core.player']={her=function() return eve end,controller=function() return pc end}
 local Fetch=require('bike.fetch')
 local asked,engine,paused={},'engine=on reason=pinned me=81',false
 -- items=<the last ask's id> <n> on the engine line.

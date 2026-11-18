@@ -1118,6 +1118,8 @@ assert(both()=='false false','No pawn at all')
 assert(ghost.me()==nil,'Nowhere')
 player=eve_of('EVE10',{GetFullName=function() error('world gone') end})
 assert(both()=='false false','An engine error is neither a world nor the title, never raised')
+-- That read lives in core/where.lua: these names are its functions.
+assert(ghost.world==require('core.where').world and ghost.me==require('core.where').me)
 
 -- Cloth (look.cloth, read at each build): a follower whose mesh has clothing assets, her ponytail, is a
 -- SkeletalMeshComponent that follows its Poseable leader, with no collision, simulated in its own space, never bound to
@@ -1534,7 +1536,7 @@ end
 -- Doro mode (coop race look): every part hidden and one Doro hung on part 0, her feet, never named in the display
 -- file; animated from her feet between poses (while a race drives, by its top speed, leaned by her yaw); a new table keeps the parts hidden and a rebuild the mode; off removes the
 -- Doro and shows the parts as the table says; a Doro that cannot be made leaves the ghost drawn as her.
-local DORO=require('race.doro').ASSETS
+local DORO=require('core.actors').ASSETS
 mesh(DORO.mesh,{'root','pelvis'})
 for key,path in pairs(DORO) do
     if key~='mesh' then

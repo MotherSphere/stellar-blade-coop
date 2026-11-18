@@ -9,7 +9,7 @@
 local UE=require('UEHelpers')
 local U=require('core.unreal')
 local valid,value_of,find=U.valid,U.value_of,U.find
-local Chat=require('session.chat')
+local Chat=require('core.line')
 local Notice={}
 local KEEP,SECONDS,WIDTH,SIZE,RISE=4,4,40,10,120 -- Notices queued, seconds each, columns a line, cm high, cm above EVE.
 -- Lines of at most WIDTH columns (a Chinese, Japanese or Korean character two), broken at a space, else between two

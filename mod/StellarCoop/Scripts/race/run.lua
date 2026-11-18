@@ -21,11 +21,12 @@
 -- drives, for the same.
 local UE=require('UEHelpers')
 local U=require('core.unreal')
+local Where=require('core.where')
 local R=require('race.model')
 local Doro=require('race.doro')
-local P=require('partner.hud')
+local P=require('ui.kit.hud_parts')
 local T=require('ui.text')
-local clean=require('session.chat').clean
+local clean=require('core.line').clean
 local valid,value_of,find=U.valid,U.value_of,U.find
 local Race={}
 local ABOVE=220 -- cm over a checkpoint's centre (EVE's feet there) for its marker: about her head.
@@ -426,7 +427,7 @@ function Race.new(o)
         if r.with and link.chatting()==false then r.left=true
         elseif r.with and link.crowd()>1 then r.left='crowd' end
         if r.loop and not link.loopback() then r.left=true end
-        local me=puppet.me()
+        local me=Where.me()
         r.gone=me and 0 or r.gone+0.25
         if not r.ending and (me and r.map and me.map~=r.map or r.gone>=GONE_FOR) then r.dnf,r.ending='map','map' end
         local m=r.m
@@ -597,7 +598,7 @@ function Race.new(o)
             log(drive.off('the host started a race'))
             pcall(look.drive,nil)
         end
-        local me=puppet.me()
+        local me=Where.me()
         r=new_race('guest',R.guest(),{map=me and me.map,with=true})
         r.inbox[1]=text
     end

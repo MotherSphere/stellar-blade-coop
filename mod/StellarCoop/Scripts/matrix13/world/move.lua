@@ -27,7 +27,7 @@
 -- Off (hidden) until their winch turns them On, and ladder gate 435's lowered ladder starts with its row 437 Off.
 -- [inference] Whether an SBZoneEnvActor spawned after its zone's rows were made registers with its row is untested.
 local U=require('core.unreal')
-local N=require('nightop.probe')
+local N=require('core.player')
 local Rows=require('matrix13.world.rows')
 local Move={}
 Move.MAP='/mxiii_p' -- The end of core/unreal.lua's map_of in world 2800.

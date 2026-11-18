@@ -25,7 +25,7 @@
 -- in the viewer. The boss bar shows <M_TendrilC> (no Tendril text in CharacterStringTable): core/enemy.lua writes
 -- Tendril there. No entrance: none of its clips is one.
 local U=require('core.unreal')
-local Doro=require('race.doro')
+local Doro=require('core.actors')
 local Enemy=require('core.enemy')
 local valid,value_of,text,why=U.valid,U.value_of,U.text,Enemy.why
 local Tendril={}

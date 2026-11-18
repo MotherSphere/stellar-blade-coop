@@ -50,8 +50,8 @@
 -- Shop.add (a take, or a gift coming back), both on bucket type 1 (the inventory), EVE's GUID, an alias of ITEMS and 1
 -- to 10 items. Never called here: a save, a consume, an equip, a quest or achievement call, the game's own mailbox
 -- logic.
-local Shop=require('nightop.shop')
-local N=require('nightop.probe')
+local Shop=require('core.items')
+local N=require('core.player')
 local U=require('core.unreal')
 local others_of=require('core.link').crowd
 local Mailbox={}

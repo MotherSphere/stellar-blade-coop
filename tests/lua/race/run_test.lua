@@ -45,6 +45,9 @@ local function make_eve()
 end
 local player=nil
 package.loaded.UEHelpers={GetPlayer=function() return player end}
+-- Where each side stands (core/where.lua holds one per game): the side whose EVE plays now.
+local sides={}
+package.loaded['core.where']={me=function() return sides[player].where.me() end}
 -- The display Doros (race/doro.lua's spawn, apply, remove and sweep): each spawned one with its path, its asset and
 -- whether it is gone; the paths swept (a Doro: those under /Doro/). remove_error makes remove raise.
 local doros,spawn_error,remove_error,swept={},nil,nil,{}
@@ -167,12 +170,14 @@ local function side(o)
             local f=s.ghost_feet
             if f then return {X=f.X,Y=f.Y,Z=f.Z+220},f end
         end,
-        her_map=function() return s.her_map end,me=function() return s.me end,
+        her_map=function() return s.her_map end,
         doro=function(on,log)
             assert(not on or log==s.look_api.log,'Its lines in the look\'s log')
             s.ghost.doro=on==true
         end,
         emote=function(e) s.ghost.emote=e end,drive=function(top) s.ghost.top=top end}
+    s.where={me=function() return s.me end}
+    sides[s.eve]=s
     s.settings={race_key={key='F9',name='F9'},ui_language='game'}
     s.stored=o.stored -- coop-race-doros.txt's line.
     s.store={save=function(line) s.stored=line; return true end,load=function() return s.stored end,
@@ -828,7 +833,7 @@ H,G=pair()
 player=H.eve
 H.race.command('start','quest')
 run({H,G},function() return G.go_at and clock-G.go_at>3 end)
-G.puppet.me=function() error('the ghost is gone',0) end
+G.where.me=function() error('the ghost is gone',0) end
 run({H,G},function() return #G.errors>0 end,10)
 assert(G.errors[1]=='the race stopped on an error until the mod reloads: the ghost is gone' and not G.race.armed())
 assert(G.sent[#G.sent]:find('^dnf %d+ quit$') and not G.look.on) -- Sent at the next frame.

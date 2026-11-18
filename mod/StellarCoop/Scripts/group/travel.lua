@@ -36,17 +36,11 @@
 -- ZoneEnvSpawn rows turned On, and none names its row. coop mxiii leave takes camps() (the read's travel camps and the
 -- camp EVE respawns at) and probes one of them as coop travel probe does. A Lua error turns the follow off for the run.
 local U=require('core.unreal')
+local Where=require('core.where')
 local Link=require('core.link')
+local Line=require('core.line')
 local Travel={}
--- Each story world's map, as core/unreal.lua's map_of() names it, from WorldTable's UMapPath.
-Travel.WORLDS={AbyssLab='/game/art/bg/worldmap/dungeon_p/abysslab_p',
-    AltesLab='/game/art/bg/worldmap/dungeon_p/alteslab_p',Arden='/game/art/bg/worldmap_dlc_01/level_p/ard_p',
-    DEDA='/game/art/bg/worldmap/level_p/f01',DrownedEidosDistrict='/game/art/bg/worldmap/level_p/f02',
-    MatrixEleven='/game/art/bg/worldmap/dungeon_p/matrix_xi',
-    Metropolitan='/game/art/bg/worldmap_dlc_01/level_p/met_p',Nest='/game/art/bg/worldmap/level_p/c05',
-    SpaceElevator='/game/art/bg/worldmap/level_p/b07',
-    WasteLandA='/game/art/bg/worldmap/e03_wasteland_p/e03_wasteland_p',
-    WasteLandB='/game/art/bg/worldmap/e05_greatdesert_p/e05_greatdesert_p',Xion='/game/art/bg/worldmap/level_p/e04'}
+Travel.WORLDS=require('core.worlds')
 -- The travel camps, {alias, type, world}: the ZoneCampTable rows of type FullCamp, SimplyCamp, PhoneBooth or Tetrapod
 -- whose ZoneEnvSpawnTable rows (TargetCamp), through each row's zone and ZoneTable's WorldAlias, lead to exactly one
 -- world, in the tables of the game's Steam build 26123051. Left out: the SaveVolume rows, the camps that lead to
@@ -125,15 +119,7 @@ local PLACE=60 -- s: the host's camp for the session list, chosen again at most 
 local CALLS,SENT=3,8 -- Calls a travel at most; camps an answer sends at most.
 -- The native part's refusals that pass by themselves (busy); any other is failed.
 local BUSY={wait=true,calls=true,warp=true,camp=true,respawn=true,flow=true,phase=true}
--- The FName number UE splits off a name: a trailing _<digits> with no leading zero (or a lone 0), plus 1;
--- Xion_Camp_10 is Xion_Camp with 11, Xion_Camp_10_01 keeps its digits (0).
-function Travel.number(alias)
-    local digits=alias:match('_(%d+)$')
-    if digits and #digits<=10 and (#digits==1 or digits:sub(1,1)~='0') and tonumber(digits)<2147483647 then
-        return math.tointeger(tonumber(digits)+1)
-    end
-    return 0
-end
+Travel.number=Line.number
 local why=U.why
 -- o: {link=, puppet=, settings= (follow_host, follow_key), tell(build), name(words) (her name, or the words' friend),
 -- log(text), paused() (the game paused, photo mode or a menu), night() (a Night Operation run), cutscene() (one plays
@@ -195,7 +181,7 @@ function Travel.new(o)
     -- The host's map, ours, and the metres between his ghost and our EVE when both are on one map and it shows.
     local function where()
         local ghost=host_ghost()
-        local me,host=puppet.me(),ghost.her_map()
+        local me,host=Where.me(),ghost.her_map()
         local mine=me and me.map
         if not (host and mine) or host~=mine then return host,mine,nil end
         local _,feet=ghost.anchor()
@@ -296,7 +282,7 @@ function Travel.new(o)
     -- cleared follows only an accepted call (the block went before it started: a quick warp, or SB dropped it).
     local function result(state,n)
         if state=='pending' or state=='warping' or state=='arrived' or state=='refused:cleared' then
-            accepted,watch,offer.quiet=now,{n=n,map=(puppet.me() or {}).map,probe=req.probe},true
+            accepted,watch,offer.quiet=now,{n=n,map=(Where.me() or {}).map,probe=req.probe},true
             log('travel accepted: '..req.alias..(state=='refused:cleared' and ', its warp block already gone' or ''))
             return finish('going','SB took the travel')
         end
@@ -330,7 +316,7 @@ function Travel.new(o)
                 stuck,watch=watch.map,nil
             elseif n~=watch.n or state~='pending' and state~='warping' then watch=nil end
         end
-        local me=puppet.me()
+        local me=Where.me()
         if stuck and me and me.map and me.map~=stuck then stuck=nil end
     end
     local function start()
@@ -417,8 +403,8 @@ function Travel.new(o)
         local asked=link.camps()
         if not asked or asked==answered then return end
         answered=asked
-        local _,title=puppet.world()
-        local me=puppet.me()
+        local _,title=Where.world()
+        local me=Where.me()
         local world=me and WORLD[me.map]
         local reason=title and 'title' or not me and 'loading' or not world and 'nocamp'
             or not line('engine'):find(' warp=idle',1,true) and 'busy' or nil
@@ -444,7 +430,7 @@ function Travel.new(o)
     local function rows()
         if link.mode()~='host' or link.match() then return end
         said('rules',link.rules(Link.rules(settings)))
-        local me=puppet.me()
+        local me=Where.me()
         if not me or placed and placed.map==me.map and now-placed.at<PLACE then return end
         placed={map=me.map,at=now}
         local world=WORLD[me.map]
@@ -518,7 +504,7 @@ function Travel.new(o)
     -- spawn points once a map, as nearest() does.
     function self.camp_near(world,metres)
         return guard(function()
-            local me=puppet.me()
+            local me=Where.me()
             if not (me and me.map==Travel.WORLDS[world]) then return nil end
             for _,c in ipairs(nearest(me,world)) do
                 if c.m>metres then return nil end

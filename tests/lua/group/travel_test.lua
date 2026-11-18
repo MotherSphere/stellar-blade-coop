@@ -45,6 +45,7 @@ FindAllOf=function(class)
     end
     return list
 end
+package.loaded['core.where']={me=function() return W.me end,world=function() return W.me~=nil,W.title==true end}
 local Travel=require('group.travel')
 local XION=Travel.WORLDS.Xion
 local DEDA=Travel.WORLDS.DrownedEidosDistrict
@@ -88,9 +89,8 @@ local function world(change)
             return W.refuse_where,W.refuse_where==false and 'not a word' or nil
         end,
         rules=function(word) W.rules[#W.rules+1]=word; return true end}
-    local puppet={me=function() return W.me end,her_map=function() return W.her_map end,
-        anchor=function() if W.ghost then return {X=W.ghost.X,Y=W.ghost.Y,Z=W.ghost.Z+220},W.ghost end end,
-        world=function() return W.me~=nil,W.title==true end}
+    local puppet={her_map=function() return W.her_map end,
+        anchor=function() if W.ghost then return {X=W.ghost.X,Y=W.ghost.Y,Z=W.ghost.Z+220},W.ghost end end}
     -- Ghost slot k's puppet (W.ghosts[k]: {map=, feet=}), as main.lua's ghost(k) gives it.
     local function ghost(k)
         local g=W.ghosts and W.ghosts[k]
@@ -745,4 +745,6 @@ W.answer=asked_id()..' Xion Xion_Camp_10:1'
 run(t,0.25)
 assert(logged('travel off for this run') and #W.requests==1)
 assert(not t.press())
+-- The FName number lives in core/line.lua, the worlds' maps in core/worlds.lua: these names are theirs.
+assert(Travel.number==require('core.line').number and Travel.WORLDS==require('core.worlds'))
 print('travel_test ok')

@@ -15,8 +15,8 @@
 -- kept across Lua loads.
 -- Called here: the player controller's ItemBucketItemRemove request, on bucket type 1, EVE's GUID, BetaCrystal and
 -- PRICE only. Never called: a save, a shop, an add.
-local Shop=require('nightop.shop')
-local N=require('nightop.probe')
+local Shop=require('core.items')
+local N=require('core.player')
 local U=require('core.unreal')
 local Fetch={}
 -- ItemTable's alias of the shops' money (ShopItemTable's MoneyItemAlias1 says betacrystal; FName ignores case).

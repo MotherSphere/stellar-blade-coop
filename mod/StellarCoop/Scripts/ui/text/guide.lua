@@ -1153,7 +1153,7 @@ G['zh-Hant']={
     },
     next='下一頁',back='上一頁',close='關閉',never='不再顯示',page='第%d頁，共%d頁',row='指南',
 }
-local culture=require('nightop.recruiter_text').culture
+local culture=require('ui.text.culture').culture
 -- A table and the tables in it read G.en's word for a key they lack.
 local function fallback(t,en)
     for k,v in pairs(t) do if type(v)=='table' and type(en[k])=='table' then fallback(v,en[k]) end end

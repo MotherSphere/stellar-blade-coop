@@ -34,7 +34,7 @@
 -- ahead of the sit.
 local UE=require('UEHelpers')
 local U=require('core.unreal')
-local Doro=require('race.doro')
+local Doro=require('core.actors')
 local valid,value_of,find,address,text=U.valid,U.value_of,U.find,U.address,U.text
 local Emote={}
 local ANIM='/Game/Art/Character/PC/CH_P_EVE_01/Animation/'

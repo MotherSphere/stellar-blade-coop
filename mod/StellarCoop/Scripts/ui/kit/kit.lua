@@ -38,7 +38,7 @@ local function load(path,via)
     pcall(LoadAsset,via or path)
     return valid(StaticFindObject(path))
 end
-local P=require('partner.hud')
+local P=require('ui.kit.hud_parts')
 local function linear(byte) local c=byte/255; return c<=0.04045 and c/12.92 or ((c+0.055)/1.055)^2.4 end
 -- A colour as Slate shows it ('ADD1C4') to the linear one the engine takes.
 local function hex(h,a)

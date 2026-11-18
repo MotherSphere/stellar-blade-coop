@@ -232,22 +232,4 @@ local TEXT={
         A3="目前無法連線至網路。請在設定中啟用。",
     },
 }
--- The game's text culture (GetCurrentLanguage) as one of TEXT's: its own name, else the game's fallbacks (en-* to
--- en-GB but en-US to en, es-* to es-MX but es-ES to es, zh by script or region, pt-BR, nb and nn to no), else the
--- base language, else English.
-local function culture(name)
-    if type(name)~='string' then return 'en' end
-    if TEXT[name] then return name end
-    local lang,rest=name:match('^(%a+)%-?(.*)$')
-    if not lang then return 'en' end
-    lang,rest=lang:lower(),rest:upper()
-    if lang=='zh' then
-        return (rest:find('HANT',1,true) or rest=='TW' or rest=='HK' or rest=='MO') and 'zh-Hant' or 'zh-Hans'
-    end
-    if lang=='en' then return (rest=='' or rest=='US') and 'en' or 'en-GB' end
-    if lang=='es' then return (rest=='' or rest=='ES') and 'es' or 'es-MX' end
-    if lang=='pt' then return rest=='BR' and 'pt-BR' or 'pt' end
-    if lang=='nb' or lang=='nn' then return 'no' end
-    return TEXT[lang] and lang or 'en'
-end
-return {KEYS=KEYS,TEXT=TEXT,culture=culture}
+return {KEYS=KEYS,TEXT=TEXT,culture=require('ui.text.culture').culture}

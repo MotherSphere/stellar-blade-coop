@@ -555,4 +555,6 @@ for _,line in ipairs({'Kaanta was not let in.','Session ended: Kaanta left.',' j
 end
 assert(Join.feed('Kaanta joined.',function() return nil end)==nil)
 assert(Join.feed('Kaanta joined.',function() return 'Joined.' end)==nil)
+-- The name and feed helpers live in core/line.lua: these names are its functions.
+assert(Join.name==require('core.line').name and Join.feed==require('core.line').feed)
 print('join_test ok')

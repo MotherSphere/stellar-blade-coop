@@ -8,7 +8,7 @@
 -- her out sideways) and solid once she is clear of it (bike/park.lua's rule). Her own bike and other players' copies
 -- are both made here; only a copy gets a cull distance. tests/lua/bike/stand_test.lua covers it.
 local U=require('core.unreal')
-local Doro=require('race.doro')
+local Doro=require('core.actors')
 local Park=require('bike.park')
 local Stand={}
 Stand.CULL=20000 -- cm: the copies' cull distance, 200 m.

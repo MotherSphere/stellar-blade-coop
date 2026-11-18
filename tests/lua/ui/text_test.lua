@@ -25,7 +25,7 @@
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
 local R=require('nightop.recruiter_text')
-local Chat=require('session.chat')
+local Chat=require('core.line')
 local C=require('nightop.challenges')
 local P=require('partner.hud')
 local function specs(s)
@@ -62,6 +62,10 @@ for id in pairs(T.en.challenge.names) do assert(ids[id],'T.en.challenge.names.'.
 assert(T.pick('fr-FR')==T.fr and T.pick('FR')==T.fr and T.pick('fr-FR','game')==T.fr)
 assert(T.pick('fr-FR','english')==T.en and T.pick(nil)==T.en and T.pick('xx-YY')==T.en and T.pick('en-US')==T.en)
 for name in pairs(R.TEXT) do assert(T.pick(name)==(T[name] or T.en),name) end
+-- ui/text/culture.lua's CULTURES: exactly the guard's TEXT cultures.
+local CULTURES=require('ui.text.culture').CULTURES
+for name in pairs(R.TEXT) do assert(CULTURES[name]==true,name..': not in CULTURES') end
+for name in pairs(CULTURES) do assert(R.TEXT[name],name..': not a culture of the guard\'s TEXT') end
 assert(T.pick('zh-TW')==(T['zh-Hant'] or T.en) and T.pick('nb-NO')==(T.no or T.en) and T.pick('pt-PT')==(T.pt or T.en))
 -- A word a table lacks reads English, at every level; one it has, its own.
 local had=T.de

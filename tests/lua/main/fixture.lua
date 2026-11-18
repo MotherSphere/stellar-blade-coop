@@ -273,6 +273,8 @@ FindAllOf=function(class)
     end
     return #list>0 and list or nil
 end
+-- Whether a save is loaded and the title shown (core/where.lua's world; core/where_test tests it): in_world, at_title.
+package.loaded['core.where']={world=function() return in_world,at_title end}
 package.loaded['partner.puppet']={new=function(link,capture,say,tag,looks)
     assert(link==(native_ok and fake_link or nil),'The ghost reads and writes its files through the link, if any')
     assert(capture==fake_capture,'The ghost gets the capture (its offset in loopback)')
@@ -288,7 +290,6 @@ package.loaded['partner.puppet']={new=function(link,capture,say,tag,looks)
         basesuit=function() basesuits=basesuits+1; return true,'base suit' end,
         cns=function(arg) cns_args=arg; return true,'cns '..tostring(arg) end,
         where=function() wheres=wheres+1; return true,'where map=/game/e04' end,
-        world=function() return in_world,at_title end,
         photo=function(ghost_off,tag_off) photo_veils[#photo_veils+1]={ghost_off,tag_off} end,
         anchor=function() return her_anchor,her_anchor end,her_map=function() return her_map_v end,
         me=function() return bt.me end,marker=function(on) markers[#markers+1]=on end,
@@ -448,11 +449,11 @@ package.loaded['cut.enemies.tendril']={new=function(o)
         stop=function() td.stops=td.stops+1 end}
 end}
 -- coop mxiii (matrix13/world/travel.lua; matrix13/world/travel_test tests it): what new got (log, ask, status, travel,
--- paks, read), the folder paks_of was given, its commands, ticks and stops, what a tick says, and its title calls'
--- arguments.
+-- paks, read), the folder core/pak_gate.lua's paks_of was given, its commands, ticks and stops, what a tick says, and
+-- its title calls' arguments.
 mx={}
+package.loaded['core.pak_gate']={paks_of=function(folder) mx.folder=folder; return folder and folder..'|paks' end}
 package.loaded['matrix13.world.travel']={
-    paks_of=function(folder) mx.folder=folder; return folder and folder..'|paks' end,
     new=function(o)
         mx.o=o
         return {command=function(...) mx.cmds[#mx.cmds+1]=table.pack(...); return true,'mx '..tostring((...)) end,

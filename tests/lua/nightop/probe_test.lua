@@ -472,4 +472,6 @@ assert(NightOp.her()==eve and NightOp.controller()==pc)
 reset(); assert(NightOp.rule_row()==true and effects()=='' and calls[#calls].what=='Table:FindRow')
 table_rows={}
 reset(); assert(NightOp.rule_row()==false and effects()=='' and calls[#calls].what=='Table:FindRow')
+-- EVE and her controller come from core/player.lua: these names are its functions.
+assert(NightOp.her==require('core.player').her and NightOp.controller==require('core.player').controller)
 print('nightop_test ok')

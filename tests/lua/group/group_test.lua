@@ -89,7 +89,8 @@ local function sequences()
     return {uobject('LevelSequenceActor /Game/Map.Map:PersistentLevel.Idle',{SequencePlayer=idle}),
         uobject('LevelSequenceActor /Game/Map.Map:PersistentLevel.Theater',{SequencePlayer=scene})}
 end
-package.loaded['nightop.probe']={her=function() return W.eve end,controller=function() return pc end}
+package.loaded['core.player']={her=function() return W.eve end,controller=function() return pc end}
+package.loaded['core.where']={me=function() return {at=W.at,map=W.map} end}
 local G=require('group.group')
 
 local GUEST='fight=on mode=on role=guest pairs=1 claims=0 corrections=0 kills=0 floored=0 desync=0 unpaired=0 maxhp=0 '
@@ -121,7 +122,7 @@ local function world(change)
         for _,m in ipairs(link.members()) do if m.linked then n=n+1 end end
         return n
     end
-    local puppet={her_map=function() return W.her_map end,me=function() return {at=W.at,map=W.map} end,
+    local puppet={her_map=function() return W.her_map end,
         anchor=function()
             if W.shown then return {X=W.ghost.X,Y=W.ghost.Y,Z=W.ghost.Z+220},W.ghost end
         end}
@@ -529,7 +530,7 @@ assert(not g.cutscene_playing() and not logged('off for this run'),'Read after a
     ..table.concat(W.logs,'|'))
 -- No EVE (the title screen, a load): the class hash takes our SB controller's world (the hash's proof is asked); with
 -- no controller either, no sequence actor is looked up at all (actors_of with no world walks every object).
-local probe=package.loaded['nightop.probe']
+local probe=package.loaded['core.player']
 g=world(function(w)
     w.mode,w.life,w.scene,w.eve='host',{state=1,hp=1600},false,nil
     w.observers,w.sequences={observer('Mann_Entrance',scene)},sequences()

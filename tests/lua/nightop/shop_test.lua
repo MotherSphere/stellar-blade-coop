@@ -623,4 +623,7 @@ after.tick()
 nightshop_is('closed','40',5,'close:none')
 after.tick()
 assert(not after.busy() and #removes==2)
+-- The grant and EVE's GUID live in core/items.lua: these names are its functions, with its limit.
+local Items=require('core.items')
+assert(Shop.add==Items.add and Shop.guid==Items.guid and Shop.MOST==Items.MOST)
 print('nightop_shop_test ok')

@@ -772,4 +772,9 @@ local card=texts('card')
 assert(card[1].v[1]=='Lucas' and card[2].v[1]=='40 ms · e04' and by('card','hp').v[1]==100,card[2].v[1])
 assert(shown.member1==true and row(1)[1].v[1]=='Mo' and not shown.member2)
 
+-- The marker's maths live in ui/kit/hud_parts.lua: these names are its own.
+local Parts=require('ui.kit.hud_parts')
+for _,k in ipairs({'OFF','ON','camera_space','edge','place','distance','where','hp_columns','shield_block','cube'}) do
+    assert(P[k]==Parts[k],k)
+end
 print('partner_test ok')

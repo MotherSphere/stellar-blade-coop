@@ -353,7 +353,7 @@ local night=require('nightop.run').new({log=function(m) print('[StellarCoop][NR]
 -- (a test fallback).
 local mxiii=require('matrix13.world.travel').new({log=function(m) print('[StellarCoop][MX] '..tostring(m)..'\n') end,
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end,
-    travel=function() return travel end,paks=require('matrix13.world.travel').paks_of(folder),
+    travel=function() return travel end,paks=require('core.pak_gate').paks_of(folder),
     read=require('core.link').files.read,lion=lion,gardener=gardener})
 -- The teleport screen's extra tabs (group/region_tabs.lua), logging [RT] lines. Their records come from the native
 -- part.
@@ -558,8 +558,9 @@ local scenes_wanted=settings~=nil and settings.shared_story
 -- free camera actor in EVE's world), and SB's chairs at the hall seats. A fight: EVE's, or an enemy within 30 m that
 -- fights. The hall seats SB's chairs leave to menu_key: coop emote plays their loop.
 if link then
-    local Zones=require('matrix13.quest.zone_talks')
-    local Doro=require('race.doro')
+    local Player=require('core.player')
+    local Doro=require('core.actors')
+    local Row=require('core.row_edit')
     local function row_of(t,name) return U.find('/Game/Local/Data/'..t..'.'..t):FindRow(name) end
     local function eve()
         local her=U.valid(require('UEHelpers').GetPlayer())
@@ -590,16 +591,16 @@ if link then
         ask=function(line) return ask(line)() end,gate=function() return sbo.gate() end})
     -- The lobby pak gate's inputs: SB/Content/Paks from the mod folder and the file reader; the hall rows' ok().
     sbo=require('lobby.sbo').new({link=link,settings=settings,recruiter=recruiter,nightop=night,halls=halls,
-        paks=require('matrix13.world.travel').paks_of(folder),read=require('core.link').files.read,
+        paks=require('core.pak_gate').paks_of(folder),read=require('core.link').files.read,
         log=sbo_log,emote=emote,arrival=arrival,riding=riding,
         say=function(key) tell(function(w) for part in key:gmatch('[^.]+') do w=w[part] end return w end) end,
         fight=function()
             local her=eve()
-            return her~=nil and (her:IsBattle()==true or Zones.engaged(her,3000))
+            return her~=nil and (her:IsBattle()==true or Player.engaged(her,3000))
         end,
         ue={game_instance=function() return FindFirstOf('SBGameInstance') end,pc=U.controller,eve=eve,
             first=function(class) return U.valid(FindFirstOf(class)) end,
-            find_name=Recruiter.find_name,index_of=Recruiter.index_of,
+            find_name=Row.find_name,index_of=Row.index_of,
             rows={read=function(t,name,field) local r=row_of(t,name); return r and U.value_of(r[field]) end,
                 write=function(t,name,field,v) local r=row_of(t,name); if r then r[field]=v end end},
             camera=function(at,rotation)
@@ -676,13 +677,13 @@ local function fname(alias)
     local n=U.value_of(FName(alias,EFindName.FNAME_Find))
     local index=n:GetComparisonIndex()
     if not index or index==0 or U.text(n):lower()~=alias:lower() then return nil end
-    return {index=index,number=require('group.travel').number(alias)}
+    return {index=index,number=require('core.line').number(alias)}
 end
 -- Paused also covers our photo mode and the friend's photo mode that pauses our game: SB's logic stops in both.
 local function logic_paused() return kit~=nil and kit.paused(true) or photo_state()~='0' or link.paused() end
 bike=require('bike.ride').new({log=function(m) print('[StellarCoop][BK] '..tostring(m)..'\n') end,
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end,
-    words=words,tell=tell,game_text=game_words,worlds=require('group.travel').WORLDS,
+    words=words,tell=tell,game_text=game_words,worlds=require('core.worlds'),
     file=link and {read=link.read_file,write=link.write_file},lobby=function() return sbo~=nil and sbo.active() end,
     store=link and link.store('coop-bike.txt'),stand_store=link and link.store('coop-bike-stand.txt'),drive=drive,
     send=link and function(p) return link.bike(p) end,
@@ -925,7 +926,7 @@ o.mila=require('matrix13.world.mila').new({log=lily_log,
 o.lily=require('matrix13.quest.on_time').new({log=lily_log,
     status=function() return link and link.status() end,ask=function(line) return ask(line)() end,
     mode=function() return link and link.mode() end,paused=function() return kit~=nil and kit.paused(true) end,
-    travel=function() return commands.mxiii() end,paks=require('matrix13.world.travel').paks_of(folder),
+    travel=function() return commands.mxiii() end,paks=require('core.pak_gate').paks_of(folder),
     read=require('core.link').files.read,talks=talks,
     zones=require('matrix13.quest.zone_talks').new({log=lily_log,talks=talks,plan=require('matrix13.quest.on_time').plan,
         read=function(name) return link and link.read_file(name) end,
@@ -1411,7 +1412,7 @@ if link then
     -- until it stops or the friend leaves, when the host has enemies we cannot pair for their MaxHP (the line's
     -- maxhp=: another difficulty or New Game+); and each time the host goes down (her vitals, as the partner card reads
     -- them) while enemies are linked: its respawn resets its enemies, and ours heal back to them.
-    local P=require('partner.hud')
+    local P=require('ui.kit.hud_parts')
     local FIGHT_HOLD=5
     local fight_was,fight_count,fight_told,fight_hold=nil,0,nil,0
     local fight_maxhp,host_down=false,false
@@ -1429,7 +1430,7 @@ if link then
     local REST_CALM,rest=10,{}
     -- That name, or the slot-0 member's, cleaned; '' (a stranger's unknown name) as your friend, in w's words.
     local function her_name(w,name)
-        name=require('session.chat').clean(name or (link.friend()) or '')
+        name=require('core.line').clean(name or (link.friend()) or '')
         return name~='' and name or w.fight.friend
     end
     group=require('group.group').new({link=link,puppet=puppet,settings=settings,tell=tell,name=her_name,
@@ -1910,10 +1911,10 @@ if link then
         -- above EVE), any other as it came.
         for _,text in ipairs(link.notices()) do
             local build=T.join_refused(text)
-            if build then tell(build) else say(Join.feed(text,game_words) or text,text) end
+            if build then tell(build) else say(require('core.line').feed(text,game_words) or text,text) end
         end
         if not off then -- Whether a save is loaded (an accepted invite waits for one), the send rate, the photo mode.
-            local world,title=guarded('ghost',puppet.world)
+            local world,title=guarded('ghost',require('core.where').world)
             if title==true and not at_title then guarded('sbo',sbo.title) end -- Each title visit: the rows as shipped.
             at_title=title==true
             local asked,why=guarded('story',o.story.poll,world==true) -- coop-story.txt, in a loaded world only.
@@ -1984,7 +1985,7 @@ if link then
             guarded('bike',others.slow) -- Then the other players' parked bikes on our map.
         else -- After coop off, whether a save is loaded or the title is shown, and no photo mode: the native part's
             -- check of the SBO session records at each title visit still runs then (design-lobby 12.8).
-            local world,title=guarded('ghost',puppet.world)
+            local world,title=guarded('ghost',require('core.where').world)
             local line=link.state(world,settings.send_rate,'0',settings.photo_sync,settings.photo_freeze_max,title,
                 false,settings.mod_names)
             if line then log('state: '..line) end

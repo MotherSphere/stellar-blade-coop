@@ -20,7 +20,7 @@
 -- far. Co-op: each PC spawns its own; a box broken on one PC stays whole on the other.
 -- [inference] Whether a ZoneEventActor spawned after its level loaded registers with its row and breaks is untested.
 local U=require('core.unreal')
-local N=require('nightop.probe')
+local N=require('core.player')
 local Rows=require('matrix13.world.rows')
 local Breakables={}
 Breakables.MAP=require('matrix13.world.move').MAP

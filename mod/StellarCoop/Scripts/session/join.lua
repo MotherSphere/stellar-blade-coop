@@ -29,22 +29,14 @@
 -- string table has none (always under ui_language=english).
 -- A name shown is cleaned as a chat line with no < or >, which SB's rich text would read as a tag.
 local T=require('ui.text')
-local Chat=require('session.chat')
+local Line=require('core.line')
 local Parts=require('ui.kit.parts')
 local Join={}
 -- Seconds: the game's input back after a close; the box focused again; the question's keys ignored after it shows; a
 -- direction this soon after the last one is a held stick's or D-pad's repeat (ui/pad.h: 0.4 s, then every 0.12 s).
 local BACK,REFOCUS,ARM,HELD=0.15,0.05,1,0.5
 local WAIT,NAME=240,16 -- 250 ms ticks of the native part's 60 s for an answer, from our first read; characters.
--- A Steam name for the screen: cleaned as a chat line (a name may hold anything) with no < or > (SB's popup reads
--- its text as rich text, where they open a tag), at most 16 characters so the French title fits; nil when nothing is
--- left.
-function Join.name(text)
-    local name=Chat.clean(((text or ''):gsub('[<>]','')))
-    if name=='' then return nil end
-    if utf8.len(name)>NAME then name=name:sub(1,utf8.offset(name,NAME+1)-1)..'...' end
-    return name
-end
+Join.name,Join.feed=Line.name,Line.feed
 -- o: {kit=ui.kit.kit's, link=, settings= (main.lua's: ui_language), theme=ui.THEME, run=function(name, arg) -> ok,
 -- message (main.lua's: the console's checks and log line)}.
 function Join.box(o)
@@ -121,24 +113,6 @@ function Join.box(o)
     -- coop off: closed (kit.stop gives the game its input back).
     function self.stop() open,back_at,refocus_at=false,nil,nil end
     return self
-end
--- The native part's join and leave notices that SB has words for: '<name> joined.' and '<name> was let in.' as
--- UI_Night_Message_ComeBackFriend ('{Name} has joined the game.'), '<name> left.' as UI_Night_Message_LeaveFriend
--- ('{Name} has left the game.'); the guest's 'Session ended: <host> left.' keeps its own words.
-local FEED={{' joined%.$','UI_Night_Message_ComeBackFriend'},{' was let in%.$','UI_Night_Message_ComeBackFriend'},
-    {' left%.$','UI_Night_Message_LeaveFriend'}}
--- A notice in SB's words, game=function(key) SB's word or nil: nil for any other notice, a nameless one, or when SB's
--- word is missing or has no {Name}.
-function Join.feed(text,game)
-    if text:find('^Session ended: ') then return nil end
-    for _,f in ipairs(FEED) do
-        local name=text:match('^(.+)'..f[1])
-        if name then
-            local line=game(f[2])
-            if not (line and line:find('{Name}',1,true)) then return nil end
-            return (line:gsub('{Name}',function() return name end))
-        end
-    end
 end
 -- Seconds from an answer to the SB popup removed (its Accept or close animation plays first); ESlateVisibility of the
 -- popup's hover images, which show its keyboard cursor: Hidden, HitTestInvisible. SB's mouse hover events write them

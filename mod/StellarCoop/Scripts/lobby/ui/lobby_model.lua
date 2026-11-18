@@ -5,7 +5,7 @@
 -- row asks for, its status line and members box, a cursor that wraps and visits locked rows, the settings screen's
 -- rows of both tabs, and the countdown's local clock. Rows, statuses and values are ids or keys of ui/text.lua's
 -- lobby table; lobby/ui/lobby.lua gives them their words.
-local Join=require('session.join')
+local Join=require('core.line')
 local Maps=require('lobby.sbo_maps')
 local M={}
 -- FFA's lobby size (N11's 8); an online session's while its max_players is not known (a guest before the host's let

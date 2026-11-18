@@ -475,4 +475,6 @@ assert(last()=='STOP: roxanne: closed (her list reads on: the 4 rows stay ours)'
 for _,r in ipairs(Roxanne.ROWS) do assert(exec(r.row)=='Success2',r.row..' stays ours') end
 unstuck=nil
 assert(polyglots==0,'Never a text registration')
+-- The pick watcher lives in core/picks.lua: this name is its function.
+assert(Roxanne.watcher==require('core.picks').watcher)
 print('nightop_roxanne_test ok')

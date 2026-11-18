@@ -25,7 +25,7 @@ local Model=require('lobby.ui.lobby_model')
 local T=require('ui.text')
 local Parts=require('ui.kit.parts')
 local THEME=require('ui.kit.kit').THEME
-local culture=require('nightop.recruiter_text').culture
+local culture=require('ui.text.culture').culture
 local Lobby={}
 local STATICS='/Script/Engine.Default__GameplayStatics'
 -- The six parts (L4 1.2), in the parts check's order (ui/kit/parts.lua's).

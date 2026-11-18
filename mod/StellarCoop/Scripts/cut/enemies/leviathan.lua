@@ -28,7 +28,7 @@
 -- actor gone.
 local UE=require('UEHelpers')
 local U=require('core.unreal')
-local Doro=require('race.doro')
+local Doro=require('core.actors')
 local valid,value_of,text,find=U.valid,U.value_of,U.text,U.find
 local Leviathan={}
 local MONSTER='/Game/Art/Character/Monster/'

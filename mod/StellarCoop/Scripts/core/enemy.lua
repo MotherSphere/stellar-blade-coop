@@ -46,8 +46,8 @@
 -- (once a second before the follow line, the mesh line said), frame(f) (each frame for each followed body) and alive
 -- ({name, run(now)}: once a second while a spawned body lives, timed in the frame part).
 local U=require('core.unreal')
-local N=require('nightop.probe')
-local Doro=require('race.doro')
+local N=require('core.player')
+local Doro=require('core.actors')
 local valid,value_of,text=U.valid,U.value_of,U.text
 local Enemy={}
 -- The native part's 39 tables, in its order (link/protocol.h's kLionTables), each at /Game/Local/Data/<T>.<T>; a

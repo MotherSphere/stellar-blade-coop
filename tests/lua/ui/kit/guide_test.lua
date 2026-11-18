@@ -15,8 +15,8 @@
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local G=require('ui.text.guide')
 local T=require('ui.text')
-local R=require('nightop.recruiter_text')
-local Chat=require('session.chat')
+local R=require('ui.text.culture')
+local Chat=require('core.line')
 local Guide=require('ui.kit.guide')
 local clock=0
 os.clock=function() return clock end
@@ -129,7 +129,7 @@ G.it=had
 -- within TITLE columns, each row label within LABEL, the page line, and Close as the Esc hint within its 400-unit
 -- cell after the icon's 78 units (Bold 30, about 17 units a column).
 local function fits(at,text,most) assert(Chat.columns(text)<=most,at..': '..Chat.columns(text)..' > '..most) end
-for name in pairs(R.TEXT) do
+for name in pairs(R.CULTURES) do
     local w=G.pick(name)
     for i=1,#G.en.pages do
         local p=w.pages[i]
@@ -335,7 +335,7 @@ for i,d in ipairs(v.dots) do
     assert(d.y>=v.page.y and d.y+d.h<=v.page.y+40,'Dot '..i..' by the page line')
 end
 assert(v.dots[#v.dots].x+v.dots[1].w<=right-24,'The dots inside the text column')
-for name in pairs(R.TEXT) do
+for name in pairs(R.CULTURES) do
     assert(v.page.x+Chat.columns(G.pick(name).page:format(9,9))*16+24<=v.dots[1].x,name..'.page: over the dots')
 end
 assert(Guide.WIDE*18<=right+24-48-v.title.x and Guide.TITLE*32<=right+24-48-v.title.x,'The columns fit')

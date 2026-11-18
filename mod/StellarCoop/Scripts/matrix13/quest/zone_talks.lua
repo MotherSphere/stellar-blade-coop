@@ -37,6 +37,7 @@
 -- never during the Lion's fight, until 4M played, then the drive room floor from 4N.
 local U=require('core.unreal')
 local Boss=require('matrix13.world.boss')
+local Player=require('core.player')
 local Zones={}
 -- s between two looks; calm before a scene starts; in the box before a fight scene with no fight; between two env
 -- searches. cm: an engaged enemy farther than this is no fight [inference].
@@ -117,22 +118,7 @@ local function has_lily(id)
     end
     return false
 end
--- Whether an enemy within near cm (NEAR unless given) of EVE fights: IsBattle, standing, shown, with a controller.
--- Also lobby/sbo.lua's fight check, through main.lua.
-local function engaged(eve,near)
-    local here=U.value_of(eve:K2_GetActorLocation())
-    local mine=U.address(eve)
-    for _,c in ipairs((U.actors_of(U.find('/Script/SB.SBCharacter'),'SBCharacter',eve))) do
-        local ok,fights=pcall(function()
-            if U.address(c)==mine or c:IsBattle()~=true or c.bCharacterHiddenInGame==true then return false end
-            local st,at=c.InteractionState,U.value_of(c:K2_GetActorLocation())
-            local d=math.sqrt((at.X-here.X)^2+(at.Y-here.Y)^2+(at.Z-here.Z)^2)
-            return (st==0 or st==1) and U.valid(c.Controller)~=nil and d<=(near or Zones.NEAR)
-        end)
-        if ok and fights then return true end
-    end
-    return false
-end
+local engaged=Player.engaged
 Zones.engaged=engaged
 
 -- o: log (the [LY] lines), talks (matrix13/quest/subtitles.lua's player), plan (world cm to plan m), read(name) and

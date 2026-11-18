@@ -38,7 +38,7 @@
 local K=require('core.keybind')
 local SF=require('core.settings_file')
 local T=require('ui.text')
-local clean=require('session.chat').clean
+local clean=require('core.line').clean
 local Link={}
 -- coop-settings.txt is the user's (N5): written with these defaults when absent, changed by the co-op menu one line at a
 -- time (write_settings) and once for the old default send rate (Link.migrate_rate), never shipped (an update would

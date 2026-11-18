@@ -18,7 +18,7 @@
 -- row, so no EventOnDead: its death read here fires the row's three events that enable the fan levers
 -- (CreateSBZoneEvent kind 10, as the row's ZoneEventTable rows say [inference: never run on these]).
 local U=require('core.unreal')
-local N=require('nightop.probe')
+local N=require('core.player')
 local Rows=require('matrix13.world.rows')
 local Boss={}
 Boss.MAP='/mxiii_p'

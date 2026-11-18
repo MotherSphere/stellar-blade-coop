@@ -21,7 +21,7 @@ package.loaded['cut.eve.flight']={new=function(o)
 end}
 local USE='[StellarCoop] STOP: Use: coop bike [status | tune [<name> <value>]]\n'
 settings_text,status_text,in_world='',plain,true
-package.loaded['group.travel'].WORLDS={Xion='/game/art/bg/worldmap/level_p/e04'}
+package.loaded['core.worlds']={Xion='/game/art/bg/worldmap/level_p/e04'}
 -- The paid fetch: what bike/fetch.lua's new got (fe.o); the follow answers camp_near with its arguments.
 local fe={}
 package.loaded['bike.fetch']={new=function(o) fe.o=o; return {name='fetch'} end}

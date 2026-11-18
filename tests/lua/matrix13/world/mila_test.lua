@@ -20,7 +20,7 @@ local function mesh()
         SetPlayRate=function(self,r) self.rate=r end,SetPosition=function(self,t,notify) self.at,self.notify=t,notify end,
         SetRelativeScale3D=function(self,v) self.scale=v end}
 end
-package.loaded['race.doro']={
+package.loaded['core.actors']={
     resolve=function(path) if fail=='clip' then return nil end; return {path=path} end,
     spawn=function(world,at,rot,look)
         if fail=='spawn' then error('no mesh') end

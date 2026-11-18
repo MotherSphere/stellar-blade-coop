@@ -43,7 +43,8 @@
 -- ghost (his member line's slot) is on her map (cut()). Her notice comes once each time her photo line says the pause
 -- holds for it.
 local U=require('core.unreal')
-local N=require('nightop.probe')
+local Where=require('core.where')
+local N=require('core.player')
 local G={}
 local HOLD,AFTER=3,2 -- s: every condition held; then a read of our life state after each call.
 local ACROSS,UP,NEAR=200,100,300 -- cm: her ghost from our EVE across and up or down; our EVE from hers, for our revive.
@@ -103,7 +104,7 @@ function G.new(o)
         return out
     end
     local function same_map(ghost)
-        local me=puppet.me()
+        local me=Where.me()
         return me~=nil and me.map~=nil and (ghost or puppet).her_map()==me.map
     end
     -- On a guest, the host's ghost (his member line's slot; the native part gives him slot 0).

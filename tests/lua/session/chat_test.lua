@@ -432,4 +432,7 @@ clock=20; view.tick(clock)
 assert(not view.is_open() and #calls==n)
 
 os.date=date
+-- The line helpers live in core/line.lua: these names are its functions.
+local Line=require('core.line')
+assert(Chat.clean==Line.clean and Chat.wrap==Line.wrap and Chat.columns==Line.columns)
 stdout:write('chat_test ok\n')

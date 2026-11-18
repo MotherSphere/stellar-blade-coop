@@ -42,8 +42,8 @@
 -- here: a warp, a quest, a save, another zone event, nor the trailers' interaction graphs or spawn rows (they acquire
 -- quests before they play).
 local U=require('core.unreal')
-local N=require('nightop.probe')
-local Doro=require('race.doro')
+local N=require('core.player')
+local Doro=require('core.actors')
 local valid,value_of,text=U.valid,U.value_of,U.text
 local Scene={}
 local TABLE='/Game/Local/Data/EventTheaterTable.EventTheaterTable'

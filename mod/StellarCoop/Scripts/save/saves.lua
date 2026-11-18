@@ -27,7 +27,7 @@
 -- needs; nothing is moved. The question waits while the first-launch guide (ui/kit/guide.lua) is open or still to open.
 -- No engine call here: the kit makes them.
 local T=require('ui.text')
-local Chat=require('session.chat')
+local Chat=require('core.line')
 local SF=require('core.settings_file')
 local Saves={}
 -- Seconds before the game's input comes back; 250 ms ticks: no answer, a pass at most, no key (then Decide later);

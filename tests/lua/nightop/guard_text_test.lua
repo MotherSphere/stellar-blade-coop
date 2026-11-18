@@ -25,7 +25,7 @@ local objects={
 StaticFindObject=function(path) return objects[path] end
 local G=require('nightop.guard_text')
 local R=require('nightop.recruiter_text')
-local clean=require('session.chat').clean
+local clean=require('core.line').clean
 
 -- The request: the culture, then his seven lines in G.LINES's order, each after a tab, each one the native part keeps.
 assert(table.concat(G.LINES,',')=='T,Q,J,C,A1,A2,A3')

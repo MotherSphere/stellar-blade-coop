@@ -57,7 +57,7 @@
 local UE=require('UEHelpers')
 local U=require('core.unreal')
 local B=require('bike.model')
-local Doro=require('race.doro')
+local Doro=require('core.actors')
 local Park=require('bike.park')
 local Stand=require('bike.stand')
 local Fetch=require('bike.fetch')

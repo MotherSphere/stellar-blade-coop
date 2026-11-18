@@ -27,7 +27,7 @@ local pc={ServerRequest_ItemBucketItemRemove=function(_,...)
     end}
 local eve={BroadcastSpawnInfo={ActorGuid=0x51}}
 local her,controller=eve,pc
-package.loaded['nightop.probe']={her=function() return her end,controller=function() return controller end}
+package.loaded['core.player']={her=function() return her end,controller=function() return controller end}
 local Mailbox=require('cut.menus.mailbox')
 local M=Mailbox
 

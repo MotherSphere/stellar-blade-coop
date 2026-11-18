@@ -118,4 +118,6 @@ for name in names:gmatch('"(.-)"') do
     seen[name]=true
 end
 exactly(seen,CULTURES,'guard_text.h kCultures')
+-- culture() lives in ui/text/culture.lua: this name is its function.
+assert(R.culture==require('ui.text.culture').culture)
 print('recruiter_text_test ok')

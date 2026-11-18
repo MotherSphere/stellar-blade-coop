@@ -921,4 +921,9 @@ assert(last():find(' reload=0/min reload_ms=0$'),last())
 racer.off('test')
 collect()
 assert(unloaded[Doro.ASSETS.four],'Its Doro gone: nothing holds the clips')
+-- The actor and display helpers live in core/actors.lua: these names are its own, its reload counts too.
+local Actors=require('core.actors')
+for _,k in ipairs({'ASSETS','same','reloads','resolve','attach','detach','spawn','sweep','remove','apply'}) do
+    assert(Doro[k]==Actors[k],k)
+end
 print('doro_test ok')

@@ -24,7 +24,7 @@
 -- every second, and these paths are in /Game/Art/Character, which the link takes).
 local UE=require('UEHelpers')
 local U=require('core.unreal')
-local Doro=require('race.doro')
+local Doro=require('core.actors')
 local valid,value_of,each,text,find=U.valid,U.value_of,U.each,U.text,U.find
 local Wear={}
 local MESH,CLASS='/Script/Engine.SkeletalMesh','/Script/Engine.AnimBlueprintGeneratedClass'

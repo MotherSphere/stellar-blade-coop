@@ -28,7 +28,7 @@
 -- enemyclear probably ends EVE's lasting rows too. coop off runs clear and lockswitch once more (stop, below), even
 -- after a Lua reload (coop-devmenu.txt).
 local U=require('core.unreal')
-local ChainSpin=require('cut.eve.chainspin')
+local ChainSpin=require('core.effect')
 local DevMenu={}
 local EFFECTS='/Game/Local/Data/EffectTable.EffectTable'
 -- The rows: a name, its effects in the menu's order (one menu entry may run two), and what it does. Lasting ones stay

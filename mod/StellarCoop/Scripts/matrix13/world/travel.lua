@@ -135,18 +135,14 @@ Mxiii.BATCHES={
         local s=Enemy.parse(status,'recordtext')
         if s and s.state=='wait' and not Mxiii.records_loaded then
             Mxiii.records_loaded=true
-            pcall(require('race.doro').resolve,'/Game/Local/Localize/StringTable_Records.StringTable_Records',
+            pcall(require('core.actors').resolve,'/Game/Local/Localize/StringTable_Records.StringTable_Records',
                 '/Script/CoreUObject.Object')
         end
         local names=Enemy.parse(status,'camptext') -- The memorystick group's header is the camp names' MX13_Region.
         return s~=nil and s.state=='ready' and names~=nil and names.state=='ready'
     end},
 }
--- SB/Content/Paks from the mod's folder (...\SB\Binaries\Win64\[ue4ss\]Mods\StellarCoop), or nil.
-function Mxiii.paks_of(folder)
-    local sb=type(folder)=='string' and folder:match('^(.*)[\\/][Bb]inaries[\\/][Ww]in64[\\/]')
-    return sb and sb..'\\Content\\Paks' or nil
-end
+Mxiii.paks_of=PakGate.paks_of
 -- The test pak's .utoc that names the map, beside its .pak and .ucas (core/pak_gate.lua's container), and its version
 -- (1 to 5), or nil and why. paks: SB/Content/Paks (nil: unknown); read(path, limit, offset): core/link.lua's files.read
 -- (the text, or nil when the file cannot be opened).
@@ -309,7 +305,7 @@ function Mxiii.new(o)
     -- EVE when she stands in world 2800 (matrix13/world/move.lua's map check), else nil; o.here replaces it in the
     -- tests.
     local here=o.here or function()
-        local U,N=require('core.unreal'),require('nightop.probe')
+        local U,N=require('core.unreal'),require('core.player')
         local ok,eve=pcall(function()
             local x=U.valid(N.her())
             local map=x and U.map_of(x)

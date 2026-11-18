@@ -11,7 +11,7 @@
 -- change. A failure says so once a Lua load and leaves her a voice. Her actor's path is kept in FILE, so the next Lua
 -- load (Ctrl+R) removes the one this load left. That sitting clip is dead Kara's corpse pose, so coop mxiii mila
 -- (command()) picks another of POSES and her scale by hand, for this Lua load only; vanilla Kara stands at scale 0.9.
-local Doro=require('race.doro')
+local Doro=require('core.actors')
 local Mila={}
 local DIR='/Game/Art/Character/NPC/'
 Mila.MESH=DIR..'CH_NPC_Kara/CH_NPC_Kara.CH_NPC_Kara'

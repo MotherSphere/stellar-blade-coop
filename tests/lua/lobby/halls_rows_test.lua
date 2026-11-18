@@ -24,7 +24,7 @@ local function object(t)
     return t
 end
 package.loaded.UEHelpers={}
-package.loaded['nightop.probe']={her=function() return nil end} -- At the title: no EVE.
+package.loaded['core.player']={her=function() return nil end} -- At the title: no EVE.
 local Halls=require('lobby.halls_rows')
 local Maps=require('lobby.sbo_maps')
 local Enemy=require('core.enemy')

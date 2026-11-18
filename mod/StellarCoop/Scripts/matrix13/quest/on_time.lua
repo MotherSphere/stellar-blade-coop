@@ -51,9 +51,9 @@
 -- (their rows are missing: "LoadQuest : QuestData Not Found"), and the aliases must never change, since the save keys
 -- quests, groups and tasks by alias.
 local U=require('core.unreal')
-local N=require('nightop.probe')
-local R=require('nightop.recruiter')
-local Roxanne=require('nightop.roxanne')
+local N=require('core.player')
+local R=require('core.row_edit')
+local Roxanne=require('core.picks')
 local Enemy=require('core.enemy')
 local Mxiii=require('matrix13.world.travel')
 local Subtitles=require('matrix13.quest.subtitles')

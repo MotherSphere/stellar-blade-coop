@@ -813,7 +813,7 @@ assert(#asked==n1+1 and asked[#asked]:find('^mxnames rows ZoneCampTable=0x%x+$')
 do
     mx=new(PAKS)
     local n2,loads=#asked,0
-    local Doro=require('race.doro')
+    local Doro=require('core.actors')
     local real=Doro.resolve
     Doro.resolve=function(path)
         assert(path=='/Game/Local/Localize/StringTable_Records.StringTable_Records',path)
@@ -908,4 +908,6 @@ do
         assert(not src:find(word,1,true),word)
     end
 end
+-- The Paks folder lives in core/pak_gate.lua: this name is its function.
+assert(M.paks_of==require('core.pak_gate').paks_of)
 print('matrix13/world/travel_test: ok')

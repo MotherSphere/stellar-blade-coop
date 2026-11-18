@@ -203,6 +203,17 @@ with tempfile.TemporaryDirectory() as tmp:
                               'lobby/ui/lobby_model', 'ui/kit/menu', 'ui/kit/model', 'ui/kit/notice', 'ui/kit/parts',
                               'ui/kit/pause_tab',
                               'group/region_tabs', 'session/ui/sessions', 'session/ui/sessions_model', 'ui/text',
+                              'core/line',
+                              'core/player',
+                              'core/actors',
+                              'core/where',
+                              'core/row_edit',
+                              'core/picks',
+                              'core/items',
+                              'core/effect',
+                              'core/worlds',
+                              'ui/kit/hud_parts',
+                              'ui/text/culture',
                               'version'))}
     assert set(files) == shipped - docs, sorted(files)
     assert not [rel for rel in files

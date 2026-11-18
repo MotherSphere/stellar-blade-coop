@@ -67,4 +67,9 @@ function PakGate.find(paks,read,name,umaps)
     if not size then return nil,path..' does not read as a .utoc header' end
     return #text..'_'..size
 end
+-- SB/Content/Paks from the mod's folder (...\SB\Binaries\Win64\[ue4ss\]Mods\StellarCoop), or nil.
+function PakGate.paks_of(folder)
+    local sb=type(folder)=='string' and folder:match('^(.*)[\\/][Bb]inaries[\\/][Ww]in64[\\/]')
+    return sb and sb..'\\Content\\Paks' or nil
+end
 return PakGate

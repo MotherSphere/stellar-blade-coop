@@ -6030,7 +6030,7 @@ T['zh-Hant']={
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='線上',stuck='遊戲仍處於暫停狀態，因此合作選單沒有開啟。'},
 }
-local culture=require('nightop.recruiter_text').culture
+local culture=require('ui.text.culture').culture
 -- A table and the tables in it read T.en's word for a key they lack.
 local function fallback(t,en)
     for k,v in pairs(t) do if type(v)=='table' and type(en[k])=='table' then fallback(v,en[k]) end end

@@ -772,4 +772,7 @@ for _,c in ipairs(every) do
 end
 assert(zone_events>=10,zone_events)
 
+-- The row edit lives in core/row_edit.lua: these names are its functions.
+local Row=require('core.row_edit')
+for _,k in ipairs({'edit','one','find_name','index_of','ascii'}) do assert(Recruiter[k]==Row[k],k) end
 print('recruiter_test ok')

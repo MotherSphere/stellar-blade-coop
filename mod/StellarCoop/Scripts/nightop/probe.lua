@@ -11,6 +11,7 @@
 -- rule ends only with the game: T6 kills it, on the co-op slot or a throwaway save with a save_guard backup.
 local U=require('core.unreal')
 local UE=require('UEHelpers')
+local Player=require('core.player')
 local NightOp={}
 local HEAL,RULE,ACTOR='SE_10_E_ActorEff_011','CoopProbeRule',50110
 local FAR,NEAR=60,20 -- metres: 6x M_Antlion's 10 m detection; a new character closer than NEAR stops the test.
@@ -41,14 +42,7 @@ local function try(f)
 end
 local function class_of(object) return U.text(object:GetFullName()):match('^%S+') end
 local function location(actor) return U.value_of(actor:K2_GetActorLocation()) end
-local function her()
-    local eve=U.valid(UE.GetPlayer())
-    return eve and eve:IsA(U.find('/Script/SB.SBCharacter')) and eve or nil
-end
-local function controller()
-    local pc=U.valid(UE.GetPlayerController())
-    return pc and pc:IsA(U.find('/Script/SB.SBNetworkPlayerController')) and pc or nil
-end
+local her,controller=Player.her,Player.controller
 -- FindAllOf walks every object: on a command or a follow-up only, never per tick.
 local function characters()
     local list={}

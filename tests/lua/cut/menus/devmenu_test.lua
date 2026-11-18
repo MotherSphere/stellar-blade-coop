@@ -17,7 +17,7 @@ local pc={ServerRequest_Cheat=function(_,...)
     if raise and #calls>=raise.at then error(raise.e) end
 end}
 local her,controller={},pc
-package.loaded['nightop.probe']={her=function() return her end,controller=function() return controller end}
+package.loaded['core.player']={her=function() return her end,controller=function() return controller end}
 local ids,table_raises={},nil
 local found={}
 package.loaded['core.unreal']={

@@ -449,4 +449,6 @@ do
     assert(#l==1 and l[1]=='STOP: zone talks: no location',l[1])
 end
 assert(walks<=1,'One FindAllOf: U.actors_of proving its class hash')
+-- The fight check lives in core/player.lua: this name is its function.
+assert(Z.engaged==require('core.player').engaged)
 print('matrix13/quest/zone_talks_test: ok')

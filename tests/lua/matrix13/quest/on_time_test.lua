@@ -53,7 +53,7 @@ local function object(t)
 end
 package.loaded.UEHelpers={}
 local her=nil -- EVE (nil: none), set below.
-package.loaded['nightop.probe']={her=function() return her end}
+package.loaded['core.player']={her=function() return her end}
 local Lily=require('matrix13.quest.on_time')
 local TEXT,culture_of=require('matrix13.quest.text'),require('matrix13.culture')
 local Enemy=require('core.enemy')

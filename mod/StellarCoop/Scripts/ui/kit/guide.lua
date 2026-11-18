@@ -24,7 +24,7 @@
 local U=require('core.unreal')
 local G=require('ui.text.guide')
 local T=require('ui.text')
-local Chat=require('session.chat')
+local Chat=require('core.line')
 local Parts=require('ui.kit.parts')
 local Guide={}
 local FILE,LINE='coop-guide.txt','The co-op guide opens by itself on the title screen while this file is missing.\n'

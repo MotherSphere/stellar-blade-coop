@@ -24,26 +24,27 @@ SITES = {'cut/scenes/scene.lua', 'matrix13/world/boss.lua', 'nightop/probe.lua',
 ADD_ROWS = {'nightop/probe.lua': 1}
 # Raw counts, comments and strings included, so a call no pattern below sees (obj['AddRow'](obj,...)) still shows. A
 # new mention, even in a log line, is a deliberate edit here. ServerRequest_*: coop no's ChangeRule and CreateActor,
-# coop nightop's one CreateActor (its spawn choke point), its shop's one ItemBucketItemAdd (its grant choke point) and
-# the Beta Seeds' ItemBucketItemAdd and ItemBucketItemRemove (the shop screen's one seed choke point), and
-# the friend's revive's ActorRespawn and ActorRevival on our own EVE (one call each, their log lines, the probe's
-# answer and the header). coop lion, coop gardener fight and coop tendril fight: core/enemy.lua's one CreateActor (their
-# spawn choke point) and its header, which also names SB's AddRow (the native part calls it) and UE4SS's (never called);
-# cut/enemies/lion.lua's header names SB's AddRow. coop scene: its guarded call (kind 6, its two theater
-# rows only), its header, its three log lines and one refusal. coop mxiii boss: its guarded call (kind 10, the Lion's
-# three lever rows only, on the fallback Lion's death) and its header. coop chainspin: its one Cheat request (SBApplyEffectMe
-# on our EVE, its choke point: its own effect, and the effects of coop devmenu's fixed list of 23 in
-# cut/menus/devmenu.lua, which only reaches it through ChainSpin.apply) and its header. coop gift: its one
-# ItemBucketItemRemove (a send's choke point; its grants go through the shop's) and its header. The bike's paid fetch:
-# its one ItemBucketItemRemove (BetaCrystal, its price only).
+# coop nightop's one CreateActor (its spawn choke point), the shop's one ItemBucketItemAdd (its grant choke point, in
+# core/items.lua) and the Beta Seeds' ItemBucketItemAdd and ItemBucketItemRemove (the shop screen's one seed choke
+# point), and the friend's revive's ActorRespawn and ActorRevival on our own EVE (one call each, their log lines, the
+# probe's answer and the header). coop lion, coop gardener fight and coop tendril fight: core/enemy.lua's one
+# CreateActor (their spawn choke point) and its header, which also names SB's AddRow (the native part calls it) and
+# UE4SS's (never called); cut/enemies/lion.lua's header names SB's AddRow. coop scene: its guarded call (kind 6, its two
+# theater rows only), its header, its three log lines and one refusal. coop mxiii boss: its guarded call (kind 10, the
+# Lion's three lever rows only, on the fallback Lion's death) and its header. coop chainspin: its header. The one Cheat
+# request (SBApplyEffectMe on our EVE, its choke point, in core/effect.lua) applies the ChainSpin's effect or one of
+# coop devmenu's fixed list of 23 in cut/menus/devmenu.lua, which only reaches it through ChainSpin.apply. coop gift:
+# its one ItemBucketItemRemove (a send's choke point; its grants go through core/items.lua's) and its header. The
+# bike's paid fetch: its one ItemBucketItemRemove (BetaCrystal, its price only).
 # The Join row: coop recruiter's constant only, which it reads and neutralizes, never fires.
 RATIONED = {'MultiplayTest_ZoneE_059': {'nightop/recruiter.lua': 1},
             'CreateSBZoneEvent': {'nightop/probe.lua': 3, 'nightop/recruiter.lua': 4, 'cut/scenes/scene.lua': 6,
                                   'matrix13/world/boss.lua': 2},
             'AddRow': {'nightop/probe.lua': 3, 'core/enemy.lua': 2, 'cut/enemies/lion.lua': 1},
-            'ServerRequest_': {'nightop/probe.lua': 10, 'nightop/run.lua': 1, 'nightop/shop.lua': 3,
-                               'group/group.lua': 7, 'core/enemy.lua': 2, 'cut/eve/chainspin.lua': 2,
-                               'cut/menus/mailbox.lua': 2, 'bike/fetch.lua': 1}}
+            'ServerRequest_': {'nightop/probe.lua': 10, 'nightop/run.lua': 1, 'nightop/shop.lua': 2,
+                               'core/items.lua': 1, 'group/group.lua': 7, 'core/enemy.lua': 2,
+                               'cut/eve/chainspin.lua': 1, 'core/effect.lua': 1, 'cut/menus/mailbox.lua': 2,
+                               'bike/fetch.lua': 1}}
 
 # Calls are matched with every string literal turned into '', so log prose such as 'heal: CreateSBZoneEvent(2, ...)' is
 # not one. Lua allows space after the ':' and a string or table argument without '(': obj: f(x), obj:f'x', obj:f{}.
@@ -146,6 +147,7 @@ WORLD_CALL = 'game_function<RunZoneEvent>(sbo::kRunZoneEvent)(world, caster, &ro
 
 CS, EN, MB = f'{SCRIPTS}/cut/eve/chainspin.lua', f'{SCRIPTS}/core/enemy.lua', f'{SCRIPTS}/cut/menus/mailbox.lua'
 BF = f'{SCRIPTS}/bike/fetch.lua'
+IT, EF = f'{SCRIPTS}/core/items.lua', f'{SCRIPTS}/core/effect.lua'
 GUARDED = ("local function zone_event(kind,name)\n\n    assert(NightOp.allowed(kind,name),'zone event refused')\n    "
            + FIRE + '\nend\n')
 
@@ -173,7 +175,8 @@ FETCH = padded('bike/fetch.lua', "pc:ServerRequest_ItemBucketItemRemove(1,guid,F
 CLEAN = {N: NIGHTOP, R: RECRUITER, NR: RUN, GR: GROUP, NS: SHOP, LI: LION, EN: ENEMY, SC: SCENE, BO: BOSS, CS: CHAINSPIN,
          MB: MAILBOX, BF: FETCH, M: 'local coop=1 -- Steam lobby, friends matchmaking later\n',
          H: 'get(api.create_lobby, "SteamAPI_ISteamMatchmaking_CreateLobby");\n', W: 'int main() { return 0; }\n',
-         SH: SEQ_CONST, SG: SEQ_CALL, WG: WORLD_CALL}
+         SH: SEQ_CONST, SG: SEQ_CALL, WG: WORLD_CALL,
+         IT: padded('core/items.lua', ''), EF: padded('core/effect.lua', '')}
 assert scan_of(CLEAN) == [], scan_of(CLEAN)  # A blank line in zone_event and Steam's Matchmaking are fine.
 PHOTO = f'{PAUSE}\n    {CONSOLE}\n'
 assert scan_of({**CLEAN, M: PHOTO}) == [], scan_of({**CLEAN, M: PHOTO})

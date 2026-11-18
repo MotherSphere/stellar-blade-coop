@@ -280,7 +280,7 @@ local function newest() local k=#spawned; return spawned[k],'/Game/Map.Map:Persi
 assert(tick_at(100)==nil and last()=='show body step 1/3 M_Leviathan_BattleIdle01 2.00 s twice',last())
 assert(tick_at(103.9)==nil and #m.calls==3,'4 s: the clip twice')
 -- A clip collected meanwhile is found again, and not counted as a reload of the Doro look's minute line.
-local Doro=require('race.doro')
+local Doro=require('core.actors')
 local ball=assets[path('M_Leviathan_LightningBall1_1')]
 ball.destroyed=true
 assets[path('M_Leviathan_LightningBall1_1')]=object({key=ball.key,GetFullName=ball.GetFullName,IsA=ball.IsA,

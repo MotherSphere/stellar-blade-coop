@@ -415,11 +415,11 @@ assert(fields()[1]=='/Game/Map.Map:PersistentLevel.EVE_2' and fields()[8]==eve08
 assert(old.Mesh.SkeletalMesh==iberis,'The old EVE is left alone')
 -- A check's first error takes every look off.
 eve2.Mesh.SkeletalMesh=eve09
-local resolve=require('race.doro').resolve
-require('race.doro').resolve=function() error('engine fault',0) end
+local resolve=require('core.actors').resolve
+require('core.actors').resolve=function() error('engine fault',0) end
 clock=clock+1
 local tick_ok,tick_why=wr4.tick()
-require('race.doro').resolve=resolve
+require('core.actors').resolve=resolve
 assert(tick_ok==false and tick_why:find('^coop wear stopped on an error: engine fault; suit nothing to give back'),
     tostring(tick_why))
 assert(stored==nil and select(2,wr4.command()):find('^Worn: hair none, suit none%.'))

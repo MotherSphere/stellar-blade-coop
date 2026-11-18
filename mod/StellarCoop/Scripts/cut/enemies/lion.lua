@@ -29,7 +29,7 @@
 -- spawns at once, and coop lion intro first plays Mon_LionC_Scene01_Appearance (the cut boss intro's clip) on a display
 -- copy with the Large mesh, then spawns the Lion where the copy's root ended.
 local U=require('core.unreal')
-local Doro=require('race.doro')
+local Doro=require('core.actors')
 local Enemy=require('core.enemy')
 local valid,value_of,why=U.valid,U.value_of,Enemy.why
 local Lion={}

@@ -52,8 +52,9 @@
 -- feet, animated from the speed of her feet between poses; the ghost's own hiding covers it too.
 local UE=require('UEHelpers')
 local U=require('core.unreal')
+local Where=require('core.where')
 local T=require('ui.text')
-local clean=require('session.chat').clean
+local clean=require('core.line').clean
 local valid,value_of,each,text,find,address,hex,word=U.valid,U.value_of,U.each,U.text,U.find,U.address,U.hex,U.word
 local Puppet={}
 -- cm: in loopback the ghost is yours, so it walks 2 m to your right. The side is taken each time it shows and kept
@@ -1373,26 +1374,7 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         if line then return true,line end
     end
     local her=U.her
-    -- Whether a save is loaded: EVE on any map but the title screen's. The link holds an accepted invite until then.
-    -- Second: whether the title screen is shown, a pawn of any class on its map (never during a loading screen, which
-    -- has no pawn); the native part changes the co-op saves only then. The same read keeps where she stands and her
-    -- map for the partner HUD (me()).
-    local me=nil
-    local TITLE='/game/lobby/lobby'
-    function self.world()
-        me=nil
-        local ok,loaded,title=pcall(function()
-            local pawn=valid(UE.GetPlayer())
-            local eve=her(pawn)
-            if not eve then return false,pawn~=nil and U.map_of(pawn)==TITLE end
-            local map,at=U.map_of(eve),value_of(eve:K2_GetActorLocation())
-            me={at={X=at.X,Y=at.Y,Z=at.Z},map=map}
-            return map~=TITLE,map==TITLE
-        end)
-        return ok and loaded,ok and title
-    end
-    -- Our EVE as of the last world(): {at={X,Y,Z}, map=}, or nil.
-    function self.me() return me end
+    self.world,self.me=Where.world,Where.me
     local CAMPS={'Env_VendingMachine_C','Env_VendingMachine_Simple_C','Env_Camp_TeleportMachine_C',
         'Env_Camp_TeleportMachine_Tetrapod_C'} -- Leaf classes: exact whether FindAllOf returns subclasses or not.
     local function xyz(v) return string.format('%.1f,%.1f,%.1f',v.X,v.Y,v.Z) end

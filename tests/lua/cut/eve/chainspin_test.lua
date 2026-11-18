@@ -14,7 +14,7 @@ local pc={ServerRequest_Cheat=function(_,...)
     if raise then error(raise) end
 end}
 local her,controller={},pc
-package.loaded['nightop.probe']={her=function() return her end,controller=function() return controller end}
+package.loaded['core.player']={her=function() return her end,controller=function() return controller end}
 local C=require('cut.eve.chainspin')
 
 -- 1. The effect: the generated EffectTable row, an EffectAction_UseSkill (69) of the ChainSpin skill while EVE has
@@ -83,4 +83,6 @@ assert(not later(true,'rows in') and #calls==0,'A warp started in the wait: noth
 status_with('idle',229)
 ok,why=later(true,'rows in')
 assert(ok and #calls==1 and calls[1][1]==229,why)
+-- The effect call and its target live in core/effect.lua: these names are its functions.
+assert(C.apply==require('core.effect').apply and C.target==require('core.effect').target)
 print('chainspin_test: ok')
