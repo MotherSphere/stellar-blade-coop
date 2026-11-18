@@ -42,8 +42,13 @@ function M.ghost_of(k) return M.ghosts and M.ghosts.get(k) end
         end
     end
 -- The capture leaves the bike's part out while EVE does not ride: hidden, it would take one of the ghost's 16 parts.
--- The bike's idle_part is read at each look: bike/wiring.lua builds the bike later.
-M.capture.leave_out(function(...) return M.bike.idle_part(...) end)
+-- The bike's idle_part is read at each look: bike/wiring.lua builds the bike later. While the bike module is off, the
+-- part an earlier Lua load left on EVE is found by partner/bike_part.lua, the partner's own copy.
+local BikePart=require('partner.bike_part')
+M.capture.leave_out(function(at)
+    if M.off_modules.bike then return BikePart.idle(at) end
+    return M.bike.idle_part(at)
+end)
 if M.link then
     -- The ghost turns on when a session starts (main/pass.lua calls this then): once, so coop puppet off holds
     -- until the next.

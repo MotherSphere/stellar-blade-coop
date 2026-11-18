@@ -21,7 +21,9 @@
 -- (T.dlcs) within 200 bytes with 100-byte DLC names in every language; its English as main.lua says it; the New Game+
 -- notice (T.cycle) within 200 bytes with every count word and difficulty on both sides; its English; the bike's
 -- refusals with each side word and a six-digit distance or another map's 32-byte name, the paid fetch's offer after
--- them with the longest key name and betacrystal, the fetch's other lines with a 32-byte money name, within 200 bytes.
+-- them with the longest key name and betacrystal, the fetch's other lines with a 32-byte money name, within 200 bytes;
+-- the 19 module names in every table, and the notice of a module that failed to load with the longest of them within
+-- 200 bytes.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
 local R=require('nightop.recruiter_text')
@@ -50,6 +52,18 @@ for name,t in pairs(T) do
     end
 end
 assert(T.fr and next(T.fr),'French stays complete')
+-- The modules' names for the off notice: exactly T.en's 19 keys in every table (tests/tools/modules_test.py checks
+-- them against main.lua's MODULES).
+local MODULE_KEYS=0
+for _ in pairs(T.en.modules) do MODULE_KEYS=MODULE_KEYS+1 end
+assert(MODULE_KEYS==19,'T.en.modules: '..MODULE_KEYS..' names')
+for name,t in pairs(T) do
+    if type(t)=='table' and next(t) then
+        local n=0
+        for k,v in pairs(t.modules) do n=n+1; assert(type(v)=='string' and T.en.modules[k],name..'.modules.'..k) end
+        assert(n==MODULE_KEYS,name..'.modules: '..n..' names')
+    end
+end
 -- A challenge name for each challenge, and no other.
 local ids={}
 for _,def in ipairs(C.LIST) do
@@ -154,6 +168,10 @@ local function notices(w)
     for _,group in ipairs({'no','fail'}) do
         for _,text in pairs(w.sbo[group]) do lines[#lines+1]=text end
     end
+    -- The notice of a module that failed to load (main/pass.lua), with this table's longest module name.
+    local longest=''
+    for _,name in pairs(w.modules) do if #name>#longest then longest=name end end
+    lines[#lines+1]=w.module_off:format(longest)
     return lines
 end
 -- Columns a word takes: an East Asian wide character two, a combining mark none, any other one.

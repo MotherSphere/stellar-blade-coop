@@ -116,15 +116,18 @@ if M.link then
             -- The root on the title screen too: the co-op saves' question, and the feed for its notices.
             local ok,message=M.peaked('slow','kit',M.kit.slow,shown or title==true,title==true)
             if message then M.report(ok,message) end
-            -- UE4SS-settings.ini's notices and the crash sentinel's, once: in the feed once the UI is up, or above EVE once
-            -- a save is loaded.
-            if (M.ue4ss_notes[1] or M.aside_note) and (M.kit.ready() or world==true) then
+            -- UE4SS-settings.ini's notices, the crash sentinel's and one for each module that failed to load
+            -- (main/loader.lua), once: in the feed once the UI is up, or above EVE once a save is loaded.
+            if (M.ue4ss_notes[1] or M.aside_note or M.off_notes[1]) and (M.kit.ready() or world==true) then
                 for _,word in ipairs(M.ue4ss_notes) do M.tell(function(w) return w.ue4ss[word] end) end
                 if M.aside_note then
                     local name=M.aside_note
                     M.tell(function(w) return w.ghost.aside:format(name) end)
                 end
-                M.ue4ss_notes,M.aside_note={},nil
+                for _,name in ipairs(M.off_notes) do
+                    M.tell(function(w) return w.module_off:format(w.modules[name] or name) end)
+                end
+                M.ue4ss_notes,M.aside_note,M.off_notes={},nil,{}
             end
             -- The focus watchdog fired: as coop ui reset, nothing said on screen.
             local dropped,who=M.guarded('kit',M.kit.lost)

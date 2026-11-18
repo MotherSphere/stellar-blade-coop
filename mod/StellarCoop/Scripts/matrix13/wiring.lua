@@ -28,7 +28,11 @@ M.mxiii=require('matrix13.world.travel').new({log=function(m) print('[StellarCoo
 -- back. Its rows also go in at the title on the co-op save files, with the test pak only (lily.title). Its talks
 -- (matrix13/quest/subtitles.lua) play through coop scene's rows, ticked each frame.
 local function lily_log(m) print('[StellarCoop][LY] '..tostring(m)..'\n') end
-M.talks=require('matrix13.quest.subtitles').new({log=lily_log,scene=require('main.loader').view(M,'scene')})
+-- While cut.scenes is off, talk refuses (not ours): the talks then show in the kit's lines.
+M.talks=require('matrix13.quest.subtitles').new({log=lily_log,scene=setmetatable({talk=function(...)
+    if M.off_modules['cut.scenes'] then return false,'coop scene is off until the mod reloads',false end
+    return M.scene.talk(...)
+end},{__index=require('main.loader').view(M,'scene')})})
 -- Mila's body (matrix13/world/mila.lua): placed by the zone talks, posed by coop mxiii mila (matrix13/commands.lua).
 local mila=require('matrix13.world.mila').new({log=lily_log,
     read=function(name) return M.link and M.link.read_file(name) end,

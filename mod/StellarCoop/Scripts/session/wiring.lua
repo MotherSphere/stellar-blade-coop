@@ -71,7 +71,7 @@ if M.link then
     end
 end
 return require('session.commands').new({link=M.link,settings=M.settings,
-    puppet={status=function() return M.puppet.status() end},ask=M.ask,create=function() return M.create end})
+    puppet={status=function() return M.puppet.status() or '' end},ask=M.ask,create=function() return M.create end})
 end,
 build={
 box=function(M,Ui)

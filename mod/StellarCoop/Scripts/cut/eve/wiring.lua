@@ -25,7 +25,10 @@ M.flight=require('cut.eve.flight').new({log=function(m) print('[StellarCoop][FL]
 -- coop chainspin (cut/eve/chainspin.lua), logging [CS] lines: the cut ChainSpin's rows through coop lion, then the
 -- request.
 local chainspin=require('cut.eve.chainspin').new({log=function(m) print('[StellarCoop][CS] '..tostring(m)..'\n') end,
-    status=function() return M.link and M.link.status() end,rows=function(done) return M.lion.rows(done) end})
+    status=function() return M.link and M.link.status() end,rows=function(done)
+        if M.off_modules['cut.enemies'] then return false,'coop lion is not loaded: its rows carry the ChainSpin' end
+        return M.lion.rows(done)
+    end})
 return require('cut.eve.commands').new({ask=M.ask,chainspin=chainspin,coop_slot=M.coop_slot,emote=M.emote,
     flight=M.flight,glide=M.glide,riding=function() return M.riding() end,wear=M.wear})
 end,

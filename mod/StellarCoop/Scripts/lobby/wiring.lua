@@ -38,6 +38,7 @@ if M.link then
         lift=function() return M.link.request('loading lift') end,
         veil=function(on) if M.kit then M.kit.veil(on) end end})
     local hooked,unhooked=pcall(RegisterHook,'/Script/Engine.PlayerController:ClientRestart',function()
+        if M.off_modules.lobby then return end -- The hook stays registered while the lobby is off.
         arrival.restart()
     end)
     if not hooked then
@@ -48,10 +49,17 @@ if M.link then
     M.halls=require('lobby.halls_rows').new({log=sbo_log,status=function() return M.link.status() end,
         ask=function(line) return M.ask(line)() end,gate=function() return M.sbo.gate() end})
     -- The lobby pak gate's inputs: SB/Content/Paks from the mod folder and the file reader; the hall rows' ok().
+    -- While Night Operation is off, the recruiter's run refuses; while EVE's cut moves are off, a seat's sit does.
     M.sbo=require('lobby.sbo').new({link=M.link,settings=M.settings,
-        recruiter=require('main.loader').view(M,'recruiter'),nightop=require('main.loader').view(M,'night'),
+        recruiter=setmetatable({run=function(...)
+            if M.off_modules.nightop then return false,'Night Operation is off until the mod reloads' end
+            return M.recruiter.run(...)
+        end},{__index=require('main.loader').view(M,'recruiter')}),nightop=require('main.loader').view(M,'night'),
         halls=M.halls,paks=require('core.pak_gate').paks_of(M.folder),read=require('core.link').files.read,
-        log=sbo_log,emote=require('main.loader').view(M,'emote'),arrival=arrival,
+        log=sbo_log,emote=setmetatable({sit=function(...)
+            if M.off_modules['cut.eve'] then return false,'coop emote is off until the mod reloads' end
+            return M.emote.sit(...)
+        end},{__index=require('main.loader').view(M,'emote')}),arrival=arrival,
         riding=function() return M.riding() end,
         say=function(key) M.tell(function(w) for part in key:gmatch('[^.]+') do w=w[part] end return w end) end,
         fight=function()

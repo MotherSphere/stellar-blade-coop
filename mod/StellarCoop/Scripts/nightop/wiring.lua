@@ -26,8 +26,15 @@ M.night=require('nightop.run').new({log=function(m) print('[StellarCoop][NR] '..
     tell=M.tell,send=function(line) if M.link then return M.link.night(line) end end,
     friend=function() return M.link and (M.link.friend()) end,
     store=function(name) return M.link and M.link.store(name) end,
-    rows=function(done,word) return M.lion.rows(done,word) end,ask=function(line) return M.ask(line)() end,
-    revive=function(by) if not M.group then return false,'no Steam link' end return M.group.night_revive(by) end,
+    rows=function(done,word)
+        if M.off_modules['cut.enemies'] then return false,'coop lion is off until the mod reloads' end
+        return M.lion.rows(done,word)
+    end,ask=function(line) return M.ask(line)() end,
+    revive=function(by)
+        if not M.group then return false,'no Steam link' end
+        if M.off_modules.group then return false,'group play is off until the mod reloads' end
+        return M.group.night_revive(by)
+    end,
     ghost=function() return select(2,M.puppet.anchor()) end,
     records=M.folder and {
         read=function()
