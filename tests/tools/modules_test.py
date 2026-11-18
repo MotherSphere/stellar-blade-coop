@@ -247,15 +247,17 @@ def check_lua(root, out):
            "print(name..'='..table.concat(ks,' ')) end end")
     run = subprocess.run(['lua5.4', '-e', lua], cwd=root, capture_output=True, text=True)
     if run.returncode: out.append(f'R9 {SCRIPTS}/ui/text.lua:1: does not load: {run.stderr.strip()}')
-    text = (base / 'ui/text.lua').read_text(encoding='utf-8')
     for row in run.stdout.split('\n'):
         if not row: continue
         culture, keys = row.split('=', 1)
         if keys.split() != sorted(mods):
-            m = re.search(r"(?m)^T(?:\." + re.escape(culture) + r"|\['" + re.escape(culture) + r"'\])=", text)
+            own = base / f'ui/text/{culture}.lua'  # The table's own file: its modules line, else its first.
+            text = own.read_text(encoding='utf-8') if own.exists() else ''
+            m = re.search(r'(?m)^\s*modules=', text)
             missing, extra = sorted(set(mods) - set(keys.split())), sorted(set(keys.split()) - set(mods))
-            out.append(f'R9 {SCRIPTS}/ui/text.lua:{line_of(text, m.start()) if m else 1}: T.{culture}.modules lacks '
-                       f'{" ".join(missing) or "nothing"}, has extra {" ".join(extra) or "nothing"}')
+            out.append(f'R9 {SCRIPTS}/ui/text/{culture}.lua:{line_of(text, m.start()) if m else 1}: '
+                       f'T.{culture}.modules lacks {" ".join(missing) or "nothing"}, has extra '
+                       f'{" ".join(extra) or "nothing"}')
 
 
 INC = re.compile(r'#include "([^"]+)"')
@@ -418,8 +420,9 @@ ALPHA = wiring([], ['alpha', 'alpha_hud'], "M.alpha=require('alpha.core').new()\
 BETA = wiring(['alpha'], ['beta'], "M.beta={f=function() return M.alpha.f() end}\n"
               "local hooked=pcall(RegisterHook,'/Script/X:Y',function()\n"
               "    if M.off_modules.beta then return end\nend)\n")
-TEXT = ("local T={}\nT.en={\n    modules={alpha='Alpha',beta='Beta'},\n}\n"
-        "T.fr={\n    modules={alpha='A',beta='B'},\n}\nT.de={}\nfunction T.pick() return T.en end\nreturn T\n")
+TEXT = ("local T={}\nT.en=require('ui.text.en')\nT.fr=require('ui.text.fr')\nT.de={}\n"
+        "function T.pick() return T.en end\nreturn T\n")
+TEXT_FR = "return {\n    modules={alpha='A',beta='B'},\n}\n"
 TICK = '#include "alpha/alpha_game.inc"\n#include "beta/beta_game.inc"\n'
 CLEAN = {
     f'{S}/main.lua': "local M={}\nlocal MODULES={'alpha','beta'}\nrequire('main.loader').run(M,MODULES)\n",
@@ -427,6 +430,8 @@ CLEAN = {
     f'{S}/main/ui.lua': "return function(M)\nrequire('main.loader').build(M,'alpha','hud',Ui)\nend\n",
     f'{S}/core/line.lua': 'return {}\n',
     f'{S}/ui/text.lua': TEXT,
+    f'{S}/ui/text/en.lua': "return {\n    modules={alpha='Alpha',beta='Beta'},\n}\n",
+    f'{S}/ui/text/fr.lua': TEXT_FR,
     f'{S}/alpha/wiring.lua': ALPHA, f'{S}/alpha/core.lua': "local U=require('core.line')\nreturn {}\n",
     f'{S}/beta/wiring.lua': BETA, f'{S}/beta/run.lua': 'return {}\n',
     'tests/lua/alpha/off_test.lua': "dofile('tests/lua/main/isolation.lua')('alpha')\n",
@@ -469,7 +474,6 @@ PLANTS = [
     ({'R7'}, {B: BETA.replace('M.off_modules.beta', 'M.off_modules.alpha')}),
     ({'R1'}, {'tests/lua/beta/off_test.lua': None}),
     ({'R1'}, {f'{S}/main.lua': "local MODULES={'alpha'}\n"}),
-    ({'R9'}, {f'{S}/ui/text.lua': TEXT.replace("modules={alpha='A',beta='B'}", "modules={alpha='A'}")}),
     ({'R8'}, {f'{SRC}/beta/beta_game.inc': 'namespace coop::pose {\nvoid beta_tick() { alpha_count = 2; }\n'
                                            '} // namespace coop::pose\n'}),
     ({'R8'}, {f'{SRC}/beta/beta_game.inc': 'namespace coop::pose {\nint beta_v() { return alpha::kAlphaOnly; }\n'
@@ -480,6 +484,9 @@ PLANTS = [
 for tags, change in PLANTS:
     got = scan_of({**CLEAN, **change})
     assert {v.split()[0] for v in got} == tags, (tags, change, got)
+
+R9_AT = scan_of({**CLEAN, f'{S}/ui/text/fr.lua': TEXT_FR.replace(",beta='B'", '')})
+assert R9_AT == [f'R9 {S}/ui/text/fr.lua:2: T.fr.modules lacks beta, has extra nothing'], R9_AT
 
 found = scan(ROOT)
 assert found == [], '\n'.join(found)
