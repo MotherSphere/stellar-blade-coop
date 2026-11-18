@@ -72,6 +72,7 @@ function GunMode.new(env)
         local p=g.try(function() return pc.Pawn end)
         if g.valid(p) then return p end
     end
+    if set.fire_key then Input.FIRE[#Input.FIRE+1]=set.fire_key end
     local aim,data=Aim.new(g),Data.new(g,set.native,{speed=cfg.native_speed,upper=set.upper and 'P_Eve_GunNikke' or nil,cool=cfg.fire_interval,bs=set.bs})
     local stance=Stance.new(Laser)
     local probe=set.probe and Probe.new(g)
@@ -480,6 +481,12 @@ function GunMode.new(env)
         g.log('on ('..why..')')
     end
 
+    -- (test harness) this instance off for good: gun mode put away, its loop idle; a fresh one takes over.
+    function self.kill()
+        if s.on then pcall(self.toggle,'reload') end
+        s.dead=true
+    end
+
     function self.toggle(why)
         local now=os.clock()
         if now-s.toggle_at<0.3 then return end
@@ -572,7 +579,19 @@ function GunMode.new(env)
                 end
             end
             if s.air_aim and inp.fire and ammo.left>0 and not ammo.reload_until then pcall(shoot,p,now) end
+            local before=ammo.left
             local ok_a,err_a=pcall(ammo.tick,s.zoom_held,inp.fire,now)
+            -- The muzzle flash on Luke's rifle, once a frame that rounds went out: the NIKKE shot's own flash is on
+            -- the NIKKE rifle of her hidden real body (the fire round her waist, 12:01), which the pak's show drops.
+            if ok_a and ammo.left<before and g.valid(s.rifle) and now-(s.flash_at or 0)>=cfg.muzzle_every then pcall(function()
+                s.flash_at=now
+                s.flash_lib=s.flash_lib or StaticFindObject('/Script/Niagara.Default__NiagaraFunctionLibrary')
+                s.flash_fx=s.flash_fx or LoadAsset(cfg.muzzle_fx)
+                if g.valid(s.flash_lib) and s.flash_fx then
+                    local fx=s.flash_lib:SpawnSystemAttached(s.flash_fx,s.rifle,FName('FX_Fire'),{X=0,Y=0,Z=0},{Pitch=0,Yaw=0,Roll=0},2,true,true,0,false)
+                    if g.valid(fx) then local k=cfg.muzzle_scale; fx:SetRelativeScale3D({X=k,Y=k,Z=k}) end
+                end
+            end) end
             if not ok_a and not s.ammo_err then s.ammo_err=true; g.log('ammo: '..tostring(err_a)) end
             if probe then pcall(probe.tick,pc,p,s.zoom_held,inp.fire,now) end
         elseif set.zoom_toggle then
@@ -609,7 +628,7 @@ function GunMode.new(env)
             local ok,e=pcall(f)
             if not ok and s.errors<5 then s.errors=s.errors+1; g.log('error: '..tostring(e)) end
         end
-        s.hooked=pcall(function() LoopInGameThreadWithDelay(1,function() guarded(tick) end) end)
+        s.hooked=pcall(function() LoopInGameThreadWithDelay(1,function() if not s.dead then guarded(tick) end end) end)
         return s.hooked
     end
 
