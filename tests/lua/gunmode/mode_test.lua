@@ -11,7 +11,7 @@ package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 
 local T=0
 os.clock=function() return T end
-local hooks,binds,loops,delayed,notify={},{},{},{},{}
+local hooks,game_loops,notify={},{},{}
 local fired={}
 local logs={}
 local function FNameOf(s) return {s=s,ToString=function() return s end} end
@@ -19,11 +19,12 @@ FName=FNameOf
 Key=setmetatable({},{__index=function(_,k) return k end})
 ModifierKey={CONTROL='CONTROL'}
 function RegisterHook(path,fn) hooks[path]=fn end
-function RegisterKeyBind(key,a,b) binds[#binds+1]={key=key,mods=b and a or nil,fn=b or a} end
 function NotifyOnNewObject(cls,fn) notify[cls]=fn end
-function ExecuteWithDelay(ms,fn) delayed[#delayed+1]={at=T+ms/1000,fn=fn} end
-function ExecuteInGameThread(fn) fn() end
-function LoopAsync(ms,fn) loops[#loops+1]=fn end
+function LoopInGameThreadWithDelay(ms,fn) game_loops[#game_loops+1]=fn end
+-- Nothing may run Lua off the game thread: these must never be called.
+function RegisterKeyBind() error('a key bind runs Lua off the game thread') end
+function ExecuteWithDelay() error('ExecuteWithDelay runs Lua off the game thread') end
+function LoopAsync() error('LoopAsync runs Lua off the game thread') end
 function LoadAsset() return nil end
 function FindAllOf() return {} end
 
@@ -62,13 +63,10 @@ function FindFirstOf(name) if name=='SBPlayerController' then return pc end end
 local function run(to)
     while T<to do
         T=T+1/60
-        local due={}
-        for i=#delayed,1,-1 do if delayed[i].at<=T then due[#due+1]=table.remove(delayed,i) end end
-        table.sort(due,function(a,b) return a.at<b.at end)
-        for _,d in ipairs(due) do d.fn() end
-        for path,fn in pairs(hooks) do if path:find(':ReceiveTick$') then fn() end end
+        for _,fn in ipairs(game_loops) do fn() end
     end
 end
+local function tap(key) down[key]=true; run(T+0.1); down[key]=nil; run(T+0.1) end
 local function count(name) local n=0 for _,r in ipairs(fired) do if r==name then n=n+1 end end return n end
 local function has(text) for _,l in ipairs(logs) do if l:find(text,1,true) then return true end end return false end
 
@@ -86,27 +84,26 @@ local function env()
         read_all=function(p) return p==FOLDER..'\\coop-settings.txt' and settings or nil end}
 end
 
--- 1. Off: gun_mode=off, or Survival Protocol's pak missing: no key, no hook.
+-- 1. Off: gun_mode=off, or Survival Protocol's pak missing: no loop.
 settings='gun_mode=off\n'
 M.new(env()).start()
-assert(#binds==0 and next(hooks)==nil and has('gun_mode=off'))
+assert(#game_loops==0 and has('gun_mode=off'))
 settings=''
 local saved=files; files={}
 for k in pairs(saved) do if not k:find('Roguelike',1,true) then files[k]=1 end end
 M.new(env()).start()
-assert(#binds==0 and has('pak is missing (no RoguelikeMode_P'))
+assert(#game_loops==0 and has('pak is missing (no RoguelikeMode_P'))
 files=saved
 
--- 2. On: G and Ctrl+G bound, the tick hooked, the pose loop armed; no standing pak noted.
+-- 2. On (the pose on too, gun_pose=on): one game-thread loop; no standing pak noted.
+settings='gun_pose=on\n'
 local gm=M.new(env())
 gm.start()
-assert(#binds==2 and binds[1].key=='G' and binds[2].mods[1]=='CONTROL' and #loops==1 and has('NIKKE kneel only'))
-local tick
-for path,fn in pairs(hooks) do if path:find(':ReceiveTick$') then tick=fn end end
-assert(tick)
+assert(#game_loops==1 and has('NIKKE kneel only') and has('ready: G'))
+run(T+4.5) -- Past the new-world pause a fresh controller would set.
 
 -- 3. G: the on rows in order, then standing, TPS mode 0, the camera, the NIKKE row on the drone frame.
-binds[1].fn()
+tap('G')
 assert(table.concat(fired,' ',1,6)=='NGM_ItemA_Ammo NGM_AE_Reload NGM_AE_GunOn NGM_AE_Beta NGM_AE_Ammo NGM_AE_Peace')
 assert(gm.state.on and pawn._stance=='P_Eve_GunNikkeHide')
 run(T+1.0)
@@ -145,14 +142,13 @@ assert(count('NGM_AE_GunOff')==1 and gm.state.roll_back)
 run(T+1.0)
 assert(not gm.state.roll_back and count('NGM_AE_GunOn')>ons)
 
--- 7. The pose loop: its errors (no components in this fake) stay inside it and leave gun mode on.
-loops[1]()
-assert(gm.state.on)
+-- 7. The pose: its errors (no components in this fake) stay inside it and leave gun mode on.
+assert(gm.state.on and gm.status():find('errors',1,true))
 
 -- 8. G: the off rows, the camera and the bullet back, the off rows again 1.2 s later.
 run(T+1.0)
 local offs=count('NGM_AE_PeaceOff')
-binds[1].fn()
+tap('G')
 assert(not gm.state.on and count('NGM_AE_PeaceOff')==offs+1 and pawn.CameraBoom.CustomOffset.Y==0)
 assert(pawn.CurrentBulletItemAlias.s=='Bullet_Missile' and not pawn.CustomLookAtActive and pawn.TPSModeType==2)
 run(T+1.5)
@@ -161,7 +157,7 @@ assert(count('NGM_AE_PeaceOff')==offs+2)
 -- 9. A tap of D-pad Right turns it on; a hold does not (the bike's).
 down.Gamepad_DPad_Right=true; run(T+0.1); down.Gamepad_DPad_Right=nil; run(T+0.5)
 assert(gm.state.on)
-binds[1].fn(); run(T+0.5)
+tap('G'); run(T+0.5)
 down.Gamepad_DPad_Right=true; run(T+1.0); down.Gamepad_DPad_Right=nil; run(T+0.5)
 assert(not gm.state.on)
 assert(gm.status():find('gun mode off',1,true))

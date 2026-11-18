@@ -49,12 +49,13 @@ laser while aiming.
 
 ## Settings
 
-Gun mode reads three lines of `coop-settings.txt` itself:
+Gun mode reads four lines of `coop-settings.txt` itself:
 
 | Line | Values | Default |
 | --- | --- | --- |
 | `gun_mode` | `on`, `off` (no key, no hook, nothing) | `on` |
 | `gun_key` | One letter A to Z, or F1 to F12 but F10 | `G` |
+| `gun_pose` | `on`: standing with the posed arms and the muzzle laser (experimental: it still crashes the game in its first frame); `off`: the stance's own animation | `off` |
 | `gun_real_ammo` | `on`: each shot spends one NIKKE round and gun mode ends when the bag is empty; `off`: unlimited | `off` |
 
 `gun_real_ammo=on` needs the real-ammo rows (`NGM_AE_RealAmmo` and its family) in `zNikkeGunMode_P`, which not every

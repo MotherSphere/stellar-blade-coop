@@ -18,7 +18,9 @@ do
     local s,bad=Config.parse(nil)
     assert(s.on and s.key=='G' and not s.real_ammo and #bad==0)
     s,bad=Config.parse('\239\187\191name=x\r\nGUN_KEY = f4\r\ngun_mode=off\r\ngun_mode=on\r\ngun_real_ammo=On\r\n')
-    assert(s.on and s.key=='F4' and s.real_ammo and #bad==0)
+    assert(s.on and s.key=='F4' and s.real_ammo and not s.pose and #bad==0)
+    assert(Config.parse('gun_pose=on').pose and not Config.parse('gun_pose=off').pose)
+    assert(#select(2,Config.parse('gun_pose=x'))==1)
     s,bad=Config.parse('gun_key=F10\ngun_mode=maybe\ngun_key=ab\ngun_real_ammo=1\n')
     assert(s.key=='G' and s.on and not s.real_ammo and #bad==3) -- gun_key: only its last line counts.
     assert(Config.key('g')=='G' and Config.key('F12')=='F12' and not Config.key('F13') and not Config.key('F0'))
