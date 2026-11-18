@@ -1732,8 +1732,8 @@ R.ROWS={
         {'OverrideCharacterSoundSet','s','SBCharacterSoundSet\'/Game/Sound/SoundAsset/CharacterSoundset/'..
             'CSS_MON_46_BEHEMOTH.CSS_MON_46_BEHEMOTH\'',true},}},
 }
--- The Gardener's batch (rows.h's kGardenerRecipe, the same recipe; tests/lua/cut/enemies/lion_test.lua checks the two
--- agree), for cut/enemies/gardener.lua's read-back, in the same form (279 checks, 102 of them changed).
+-- The Gardener's batch (rows.h's kGardenerRecipe, the same recipe; tests/lua/cut/enemies/lion_test.lua checks the
+-- two agree), for cut/enemies/gardener.lua's read-back, in the same form (279 checks, 102 of them changed).
 R.GARDENER={
     {'SkillActiveStepTable','M_GardenerC_ToxicBeam_Cast1',500100043,{{'Duration','f',1.86,true},
         {'NextStepAlias','n','M_GardenerC_ToxicBeam_Hit1',true},
@@ -2733,10 +2733,10 @@ R.SHOP={
             'NightOperation_PulseGrenade_Buy|NightOperation_ConcussionGrenade_Buy|NightOperation_HP2Burst_Potion_Buy|'..
             'NightOperation_Buff_HP2MP_Buy|NightOperation_Bullet_Shock_Buy',true},}},
 }
--- The Tendril's Shows, which no pak holds: cut/enemies/tendril.lua builds each before a spawn, a copy of template (a
--- ShowPath: /Game/Art/Show/<template>.<its last word> is the object) in the package /Game/Art/Show/<package>, under
--- name, with its own copy of the anim key key set to play folder..clip for seconds; its steps and death name it as
--- "<package>.<name>".
+-- The Tendril's Shows, which no pak holds: cut/enemies/tendril.lua builds each before a spawn, a copy of template
+-- (a ShowPath: /Game/Art/Show/<template>.<its last word> is the object) in the package /Game/Art/Show/<package>,
+-- under name, with its own copy of the anim key key set to play folder..clip for seconds; its steps and death name
+-- it as "<package>.<name>".
 R.TENDRIL_SHOWS={template='CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam',key='SBShowAnimKey_0',
     package='StellarCoop/Tendril',folder='/Game/Art/Character/Monster/CH_M_NA_06/Animation/',
     {name='M_TendrilC_SwingLeft',clip='M_Tendril_SwingAttack_L',seconds=2.5333},
