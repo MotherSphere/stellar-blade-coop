@@ -183,7 +183,7 @@ function P.row_at(i,s)
     return CX+(CW+16)*s+col*(RW+16)*s,CY+line*(RH+RGAP)*s
 end
 local TWEENED={'hp','shield','beta'}
--- o: {kit=ui.kit's, link= (chatting, friend, mate, ping, summary, paused, fight, pilot, quests, members, vitals),
+-- o: {kit=ui.kit.kit's, link= (chatting, friend, mate, ping, summary, paused, fight, pilot, quests, members, vitals),
 -- puppet= (anchor, her_map, me), settings= (main.lua's: the menu changes them in place), theme=ui.THEME, ghost(k)
 -- (ghost slot k's puppet, 1 to 6, or nil)}.
 function P.hud(o)

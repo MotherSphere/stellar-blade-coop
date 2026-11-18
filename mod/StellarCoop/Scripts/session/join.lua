@@ -45,7 +45,7 @@ function Join.name(text)
     if utf8.len(name)>NAME then name=name:sub(1,utf8.offset(name,NAME+1)-1)..'...' end
     return name
 end
--- o: {kit=ui.kit's, link=, settings= (main.lua's: ui_language), theme=ui.THEME, run=function(name, arg) -> ok,
+-- o: {kit=ui.kit.kit's, link=, settings= (main.lua's: ui_language), theme=ui.THEME, run=function(name, arg) -> ok,
 -- message (main.lua's: the console's checks and log line)}.
 function Join.box(o)
     local kit,link,settings=o.kit,o.link,o.settings

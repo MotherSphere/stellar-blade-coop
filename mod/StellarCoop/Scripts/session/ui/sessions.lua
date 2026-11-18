@@ -38,9 +38,9 @@ local TAB_X,TAB_STEP=236,360
 local HOVER,BACK=0.1,0.15 -- Seconds: between mouse looks; to the input given back.
 -- The hints' keyboard keys, in their fallback (right to left: Back, Refresh, Select).
 local KEYS={'Esc','F','Enter'}
--- o: {kit=ui.kit's, words=function() the ui/text.lua table to show, view=function() {search=, rows= (link.list()'s),
--- match=link.match(), role=link.mode() or 'none', proto=, build= (ours, from the status)}, act=function({request=})
--- (main.lua's: a link request, logged), game_text=function(key) SB's word or nil, log=}.
+-- o: {kit=ui.kit.kit's, words=function() the ui/text.lua table to show, view=function() {search=, rows=
+-- (link.list()'s), match=link.match(), role=link.mode() or 'none', proto=, build= (ours, from the status)},
+-- act=function({request=}) (main.lua's: a link request, logged), game_text=function(key) SB's word or nil, log=}.
 function Sessions.new(o)
     local kit,log=o.kit,o.log or function() end
     local self={}

@@ -64,8 +64,8 @@ local function word(t,key,args)
     if type(w)~='string' then return key end
     return args and #args>0 and w:format(table.unpack(args)) or w
 end
--- o: {kit=ui.kit's, words=function() the ui/text.lua table to show, view=function() Model.view's input (main.lua's),
--- act=function(action) (Model.act's shapes, and C's {set=, value=}, {request=}, {run='report'}), log=}.
+-- o: {kit=ui.kit.kit's, words=function() the ui/text.lua table to show, view=function() Model.view's input
+-- (main.lua's), act=function(action) (Model.act's shapes, and C's {set=, value=}, {request=}, {run='report'}), log=}.
 function Lobby.new(o)
     local kit,log=o.kit,o.log or function() end
     local self={}

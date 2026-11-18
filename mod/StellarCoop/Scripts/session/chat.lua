@@ -157,7 +157,7 @@ function Chat.columns(text)
     for _,c in utf8.codes(text) do n=n+columns(c) end
     return n
 end
--- o: {kit=ui.kit's, model=Chat.new's, settings= (main.lua's: chat, ui_language; the menu changes them in place),
+-- o: {kit=ui.kit.kit's, model=Chat.new's, settings= (main.lua's: chat, ui_language; the menu changes them in place),
 -- theme=ui.THEME, covered=function() -> true while the menu is open over the feed}.
 function Chat.view(o)
     local kit,model,settings,theme=o.kit,o.model,o.settings,o.theme

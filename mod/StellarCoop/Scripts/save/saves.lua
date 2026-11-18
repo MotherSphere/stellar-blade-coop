@@ -45,7 +45,7 @@ local function exists(path)
     f:close()
     return true
 end
--- o: {kit=ui.kit's, link=, settings= (main.lua's, changed in place: auto_coop_save, ui_language),
+-- o: {kit=ui.kit.kit's, link=, settings= (main.lua's, changed in place: auto_coop_save, ui_language),
 -- theme=ui.THEME, say=function(text,en) (a notice, en: the same in English), log=function(line),
 -- exists=function(path) and env=function(name) (io.open's and os.getenv's unless said: the tests' fakes),
 -- wait=function() -> true while the question waits (the guide's waiting), or nil}.

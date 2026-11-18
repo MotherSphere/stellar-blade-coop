@@ -31,7 +31,7 @@ local LIST_X,LIST_Y,PITCH,WINDOW=192,384,130,10 -- The lobby's settings list: a 
 local PANE_X,PANE_W=2600,1040 -- The right pane (the lobby's settings).
 local HINTS=2 -- Back, then Select or Change.
 local HOVER,BACK=0.1,0.15 -- Seconds: between mouse looks; to the input given back.
--- o: {kit=ui.kit's, words=function() the ui/text.lua table to show, view=function() {values= (ui/kit/model.lua's
+-- o: {kit=ui.kit.kit's, words=function() the ui/text.lua table to show, view=function() {values= (ui/kit/model.lua's
 -- values: the settings in effect), readable= (coop-settings.txt can be read), role=link.mode() or 'none'},
 -- act=function(a) (main.lua's: {set=, value=} written as Options writes, false, why and the player's note when not
 -- saved; {host=word} hosts with that word), log=}.

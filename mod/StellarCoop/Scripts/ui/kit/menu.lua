@@ -41,9 +41,10 @@ local OFF='the co-op menu is off (the UI stopped, see the log): use the coop com
 local HINT_ACTIONS={{'UI_DPad_Up','UI_DPad_Down'},{'Positive'},{'Negative'}}
 local ROW={} -- Options rows by setting name.
 for _,row in ipairs(M.OPTIONS) do if row.key then ROW[row.key]=row end end
--- o: {kit=ui.kit's, link=, settings= (main.lua's, changed in place), look= (the ghost's), puppet=, run=function(name,
--- arg) -> ok, message (main.lua's: the console's checks and log line), log=, version=, chat=session/chat.lua's view or
--- nil, code=session/join.lua's code box, guide=ui/kit/guide.lua's, sessions=session/ui/sessions.lua's}.
+-- o: {kit=ui.kit.kit's, link=, settings= (main.lua's, changed in place), look= (the ghost's), puppet=,
+-- run=function(name, arg) -> ok, message (main.lua's: the console's checks and log line), log=, version=,
+-- chat=session/chat.lua's view or nil, code=session/join.lua's code box, guide=ui/kit/guide.lua's,
+-- sessions=session/ui/sessions.lua's}.
 function Menu.new(o)
     local kit,link,settings=o.kit,o.link,o.settings
     local self,open,world,model,capturing,note,top,page,back_at={},false,false,nil,nil,nil,0,nil,nil

@@ -58,7 +58,7 @@ function Guide.rows(body)
     end
     return rows
 end
--- o: {kit=ui.kit's, link= (read_file, write_file), settings= (main.lua's: ui_language), theme=ui.THEME,
+-- o: {kit=ui.kit.kit's, link= (read_file, write_file), settings= (main.lua's: ui_language), theme=ui.THEME,
 -- log=function(line), folder= the mod folder (main.lua's), busy=function() -> true while another co-op panel is open,
 -- or nil}.
 function Guide.new(o)
