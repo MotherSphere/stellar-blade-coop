@@ -53,8 +53,25 @@ function Aim.new(g)
         if not (loc and rot) then return end
         local x,y,z=Aim.local_offset(target,loc,rot.Yaw)
         local ok=pcall(function() local v=self.row.DestTargetRelativeLocation; v.X=x; v.Y=y; v.Z=z end)
-        if self.writes<3 then self.writes=self.writes+1; g.log(('aim: shot at (%.0f, %.0f, %.0f) %s'):format(x,y,z,
+        if self.writes<6 then self.writes=self.writes+1; g.log(('aim: shot at (%.0f, %.0f, %.0f) %s'):format(x,y,z,
             ok and 'written' or 'refused')) end
+    end
+
+    -- Native fire: the bullet's start (gunmode/data.lua made it EVE's base and an offset in her yaw frame, like its
+    -- destination) put on the point muzzle (world), the rifle's FX_Fire socket.
+    -- A muzzle less than min_forward ahead of her (the rifle not up yet, or posed wrong: the shot then started on
+    -- her body, 02:06) gives way to fallback, a point at her right shoulder in her frame.
+    function self.write_start(p,muzzle,min_forward,fallback)
+        if not self.row then return end
+        local loc=g.try(function() return p:K2_GetActorLocation() end)
+        local rot=g.try(function() return p:K2_GetActorRotation() end)
+        if not (loc and rot) then return end
+        local x,y,z
+        if muzzle then x,y,z=Aim.local_offset(muzzle,loc,rot.Yaw) end
+        if not x or x<(min_forward or 0) then x,y,z=fallback.X,fallback.Y,fallback.Z end
+        local ok=pcall(function() local v=self.row.StartTargetRelativeLocation; v.X=x; v.Y=y; v.Z=z end)
+        if (self.starts or 0)<3 then self.starts=(self.starts or 0)+1
+            g.log(('aim: shot start (%.0f, %.0f, %.0f) %s'):format(x,y,z,ok and 'written' or 'refused')) end
     end
 
     local function mode(p) return tonumber(g.try(function() return p:GetTPSModeType() end)) end

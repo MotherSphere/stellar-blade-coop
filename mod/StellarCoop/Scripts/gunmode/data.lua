@@ -1,48 +1,41 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Gun mode's game data, without a pak of tables: SB's own rows, used as they are or borrowed while gun mode is on and
--- put back when it goes off. Only fields of rows FindRow gives are written (live data, as gunmode/aim.lua writes the
--- projectile row); no row is added: UE4SS's AddRow given a copied row crashed the game (11-17).
--- * EventActorEffectTable (fired as zone events by gunmode/rows.lua): SB's own NIKKE rows where one applies the effect
---   (the cover positions, the gun off, the drone); for the others, rows of the NIKKE missions' drone summons and a
---   spare position row, their ActorEffectAlias pointed at gun mode's effect while it is on.
--- * EffectTable: M_Scarlet_CounterLinkStart (0.1 s on self, one UseSkill action) starts P_Eve_GunNikke_ShootSlug1_1:
---   the shot, standing, without the stance's fire command (the standing stance has none). Its ActionValue1 is an
---   FString: an FName written there crashed the game (11-17). gun_fire_effect=off leaves EffectTable alone.
+-- Gun mode's shot, without a pak of tables: fields of SB's own rows (live data, as FindRow gives them), changed while
+-- gun mode is out and put back at put_back() (a new world), so the NIKKE missions find them as shipped. No row is
+-- added (UE4SS's AddRow is not used).
+-- * EventActorEffectTable: Nikke_01_E_ActorEff_015 (a NIKKE mission's cover row) applies M_Scarlet_CounterLinkStart;
+--   gunmode/mode.lua fires it as a zone event for each shot.
+-- * EffectTable: M_Scarlet_CounterLinkStart (0.1 s on self, one UseSkill action) starts P_Eve_GunNikke_ShootSlug1_1,
+--   the NIKKE shot. Its ActionValue1 is an FString: an FName written there crashed the game (11-17).
 -- * SkillCommandTable: the NIKKE fire commands ShootSlug1_1 and _2 take the burst shot's command type
 --   (RangedFireSkill: no check of the equipped bullet), as zNikkeGunMode_P did.
 -- * SkillActiveStepTable: the shot's Hit1 step takes its Cast1 step's type (fires its projectile, spends no round).
--- Everything goes back at put_back() (gun mode off, a new world), so the NIKKE missions find their rows as shipped.
--- Neither Survival Protocol's pak nor zNikkeGunMode_P is needed.
+-- * Native fire (gunmode/mode.lua's firing mode on the game's own aim): the drone's normal fire commands
+--   (P_Eve_Gun_Shoot*, every round's) start the NIKKE shot skill instead of the drone's, with the burst's command type
+--   (no round spent) and no "not while jumping" check (bJumping takes bWallRun's None).
+-- Neither Survival Protocol's pak nor any gun mode pak is needed.
 local Data={}
 
 local BASE='/Game/Local/Data/'
--- Rows used as SB ships them: logical name -> row (its effect, for the check).
-Data.OWN={
-    Pos2={'Nikke_01_E_ActorEff_012','P_Eve_GunNikke_Position2'},
-    PosOff={'Nikke_01_E_ActorEff_011','P_Eve_GunNikke_Position_Dispel'},
-    GunOff={'Nikke_03_E_ActorEff_021','P_Eve_GunNikke_Dispel'},
-    DroneFree={'Xion_11_E_ActorEff_001','P_EVE_DoNotSummonDrone_Dispel'},
-    Drone={'CGH_data_E_ActorEff_003','P_Eve_Sword_SummonDrone'},
-}
--- Rows borrowed while gun mode is on: logical name -> {row, the effect gun mode points it at}. All of them NIKKE
--- mission rows (drone summons and a spare position row), unused outside those missions.
+Data.OWN={} -- Rows used as SB ships them: logical name -> {row, its effect} (checked before use).
+-- Rows borrowed while gun mode is out: logical name -> {row, the effect it is pointed at}.
 Data.FIRE_EFFECT='M_Scarlet_CounterLinkStart'
-Data.BORROWED={
-    GunOn={'Nikke_01_E_ActorEff_041','P_Eve_GunNikke'},
-    Reload={'Nikke_06_E_ActorEff_041','P_Eve_GunNikke_ReloadStartDelay'},
-    Beta={'Nikke_00_Battle_E_ActorEff_002','P_Eve_GunNikke_MaxBetaGauge100'},
-    BetaOff={'Nikke_Stage01_E_ActorEff_002','P_Eve_GunNikke_MaxBetaGauge100_Dispel'},
-    Ammo={'Nikke_Stage02_E_ActorEff_002','P_Eve_GunNikke_BurstSkillReloadCompleted'},
-    Peace={'Nikke_03_E_ActorEff_002','PeacefulMode_Infinite'},
-    PeaceOff={'Nikke_05_E_ActorEff_017','PeacefulMode_Infinite_Dispel'},
-    Fire={'Nikke_01_E_ActorEff_015',Data.FIRE_EFFECT},
-}
-Data.BORROW_ORDER={'GunOn','Reload','Beta','BetaOff','Ammo','Peace','PeaceOff','Fire'} -- Fire: with fire only.
+Data.BORROWED={Fire={'Nikke_01_E_ActorEff_015',Data.FIRE_EFFECT}}
+Data.BORROW_ORDER={'Fire'}
 Data.FIRE_SKILL='P_Eve_GunNikke_ShootSlug1_1'
 Data.FIRE_COMMANDS={'P_Eve_GunNikke_ShootSlug1_1','P_Eve_GunNikke_ShootSlug1_2'}
 Data.BURST_COMMAND='P_Eve_GunNikke_ShootSlug2_1'
+-- Every drone fire command, of every round (the game loads the round the player picked each time she aims), the empty
+-- ones (Fail) included: each starts the NIKKE shot while the rifle is out.
+Data.AIM_STANCE='P_Eve_Gun'
+Data.SPEED_FIELDS={'WalkSpeed','RunSpeed','JoggingRunSpeed','LockOnWalkSpeed','LockOnRunSpeed'}
+Data.NIKKE_PROJECTILE,Data.DRONE_PROJECTILE='P_Eve_GunNikke_ShootSlug1_Projectile1','P_Eve_Gun_ShootSlug1_Projectile1'
+Data.DRONE_COMMANDS={}
+for _,kind in ipairs({'Slug1','Missile1','Railgun1','Railgun2','Railgun3','Railgun4','ScatterSlug1','ShockSlug1',
+        'ExplosiveSlug1','SlugFail1','ScatterSlugFail1','ShockSlugFail1','ExplosiveSlugFail1'}) do
+    for _,n in ipairs({'_1','_2'}) do Data.DRONE_COMMANDS[#Data.DRONE_COMMANDS+1]='P_Eve_Gun_Shoot'..kind..n end
+end
 Data.HIT_STEP,Data.CAST_STEP='P_Eve_GunNikke_ShootSlug1_1_Hit1','P_Eve_GunNikke_ShootSlug1_1_Cast1'
 
 -- The row name for logical name k ('GunOn', 'Fire', ...), or nil.
@@ -53,8 +46,9 @@ end
 
 -- g: gun mode's shared state (log, try, valid). Returns an object: take() points the rows at gun mode's data (true,
 -- or false and why), put_back() restores what take() changed.
-function Data.new(g,fire_effect)
-    local self={saved=nil,fire=fire_effect~=false}
+-- opts (native fire only): speed (the aim stance's speed factor), upper (an animation set for its upper body, or nil).
+function Data.new(g,native,opts)
+    local self={saved=nil,fire=true,native=native==true,opts=opts or {speed=1}}
     local function tbl(name)
         local t=g.try(function() return StaticFindObject(BASE..name..'.'..name) end)
         assert(g.valid(t),'no '..name)
@@ -118,6 +112,57 @@ function Data.new(g,fire_effect)
                 saved[#saved+1]={r,'CommandActionType',r.CommandActionType}
                 r.CommandActionType=kind
             end
+            if self.native then
+                for _,name in ipairs(Data.DRONE_COMMANDS) do
+                    local r=g.try(function() return cmd:FindRow(name) end)
+                    if r then
+                    saved[#saved+1]={r,'SkillAlias',FName(text(r.SkillAlias))}
+                    saved[#saved+1]={r,'CommandActionType',r.CommandActionType}
+                    saved[#saved+1]={r,'bJumping',r.bJumping}
+                    r.SkillAlias=FName(Data.FIRE_SKILL) -- An FName (NamePropertyData), as the JSON of the table shows.
+                    r.CommandActionType=kind
+                    r.bJumping=r.bWallRun
+                    end
+                end
+                -- The game's aim stance: faster (its own speed fields, so its walk and run play for the new speed),
+                -- and with opts.upper its upper body from that animation set (the NIKKE rifle's).
+                local st=row(tbl('CharacterStanceTable'),Data.AIM_STANCE)
+                for _,f in ipairs(Data.SPEED_FIELDS) do
+                    local v=g.try(function() return st[f] end)
+                    if type(v)=='number' then
+                        saved[#saved+1]={st,f,v}
+                        st[f]=v*self.opts.speed
+                    end
+                end
+                if self.opts.upper then
+                    for _,f in ipairs({'AnimSet_Battle_UpperBody','AnimSet_Peaceful_UpperBody'}) do
+                        saved[#saved+1]={st,f,FName(text(st[f]))}
+                        st[f]=FName(self.opts.upper)
+                    end
+                end
+            end
+            -- The NIKKE bullet starts from a point gunmode/mode.lua keeps on the rifle's muzzle: its start the
+            -- same kind of point as its destination (EVE's base and an offset in her yaw frame), not the
+            -- SC_GunShoot socket of the NIKKE rifle the game attaches only in the NIKKE stance (outside it the
+            -- shot left from the drone, 00:24).
+            local pt=tbl('ProjectileTable')
+            local nr=row(pt,Data.NIKKE_PROJECTILE)
+            local dr=row(pt,Data.DRONE_PROJECTILE)
+            for _,f in ipairs({'StartTargetTransformType','StartTargetRelativeAxisType','DestTargetTransformType',
+                    'DestTargetRelativeAxisType'}) do -- The Dest pair: gunmode/aim.lua sets it next.
+                saved[#saved+1]={nr,f,nr[f]}
+            end
+            local dl=nr.DestTargetRelativeLocation
+            saved[#saved+1]={nr,'DestTargetRelativeLocation',{X=dl.X,Y=dl.Y,Z=dl.Z}}
+            -- The NIKKE bullet's spread: its destination is shipped with a random range of 300 cm on each axis
+            -- (the drone's has none); zero while the rifle is out, so every round lands on the reticle.
+            local rr=nr.DestTargetRandomRange
+            saved[#saved+1]={nr,'DestTargetRandomRange',{X=rr.X,Y=rr.Y,Z=rr.Z}}
+            nr.DestTargetRandomRange={X=0,Y=0,Z=0}
+            local sl=nr.StartTargetRelativeLocation
+            saved[#saved+1]={nr,'StartTargetRelativeLocation',{X=sl.X,Y=sl.Y,Z=sl.Z}}
+            nr.StartTargetTransformType=dr.DestTargetTransformType
+            nr.StartTargetRelativeAxisType=dr.DestTargetRelativeAxisType
             local step=g.try(function() return tbl('SkillActiveStepTable') end)
             local hit=step and g.try(function() return step:FindRow(Data.HIT_STEP) end)
             local cast=step and g.try(function() return step:FindRow(Data.CAST_STEP) end)
