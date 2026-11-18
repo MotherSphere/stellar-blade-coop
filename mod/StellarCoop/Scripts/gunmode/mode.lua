@@ -72,7 +72,7 @@ function GunMode.new(env)
         local p=g.try(function() return pc.Pawn end)
         if g.valid(p) then return p end
     end
-    local aim,data=Aim.new(g),Data.new(g,set.native,{speed=cfg.native_speed,upper=set.upper and 'P_Eve_GunNikke' or nil,cool=cfg.fire_interval})
+    local aim,data=Aim.new(g),Data.new(g,set.native,{speed=cfg.native_speed,upper=set.upper and 'P_Eve_GunNikke' or nil,cool=cfg.fire_interval,bs=set.bs})
     local stance=Stance.new(Laser)
     local probe=set.probe and Probe.new(g)
     local keys=Input.state()
@@ -279,6 +279,14 @@ function GunMode.new(env)
                 if not hide and short and g.valid(skel) and g.try(function() return c:IsA(skel) end) then
                     for _,n in ipairs(cfg.follow_names) do if short:find(n,1,true) then follow=true end end
                 end
+                local copy=false
+                if not hide and not follow and short and g.valid(skel) and g.try(function() return c:IsA(skel) end) then
+                    for _,n in ipairs(cfg.copy_names) do if short:find(n,1,true) then copy=true end end
+                end
+                if copy then
+                    local ok,err=stance.copy(c)
+                    if ok==false then g.log('hide: '..short..' not copied ('..tostring(err)..')') end
+                end
                 if follow and not s.followed[addr] then
                     local body=stance.body()
                     if g.valid(body) and pcall(function() c:SetMasterPoseComponent(body,true) end) then
@@ -286,7 +294,7 @@ function GunMode.new(env)
                     end
                 end
                 if first then
-                    seen[#seen+1]=(hide and '*' or follow and '+' or '')..tostring(mesh and mesh:match('[^%.]+$'))
+                    seen[#seen+1]=(hide and '*' or follow and '+' or copy and '=' or '')..tostring(mesh and mesh:match('[^%.]+$'))
                 end
                 if hide then
                     local was=g.try(function() return c.bOwnerNoSee end)
@@ -295,7 +303,7 @@ function GunMode.new(env)
             end
         end
         if first then
-            g.log('hide: her meshes (* hidden from her camera, + following the posed copy): '..table.concat(seen,' '))
+            g.log('hide: her meshes (* hidden from her camera, + following the posed copy, = copied with it): '..table.concat(seen,' '))
         end
     end
     local function show_others()
@@ -434,6 +442,13 @@ function GunMode.new(env)
         if g.try(function() return p.TPSModeType~=0 or p.bTPSMode end) then
             g.log('not now: release the drone aim first'); return
         end
+        -- The gun mode animation pak (zNikkeGunMode_P): when it is installed, the aim stance's blend spaces point at
+        -- its firing-stance animations while the rifle is out, and her real body shows while aiming (nothing posed).
+        if s.pak==nil then
+            s.pak=g.try(function() return LoadAsset(cfg.pak_probe)~=nil end)==true
+            g.log('animation pak '..(s.pak and 'found' or 'not installed: posed aim'))
+        end
+        data.opts.bs=set.bs or (s.pak and cfg.pak_bs or nil)
         if not data.take() then g.log('off: SB\'s rows could not be taken (see above)'); return end
         aim.setup()
         local ok,err=pcall(function() s.mask=mask() end)
@@ -441,7 +456,7 @@ function GunMode.new(env)
         ok,err=pcall(function()
             s.rifle=stance.start(pc,function() return s.zoom_held end,function() return s.target end,
                 function() return s.air_aim==true end,
-                0,false,false,set.native and set.upper,set.native and not set.upper)
+                0,false,false,set.native and (set.upper or s.pak),set.native and not set.upper and not s.pak)
         end)
         if not ok then
             if s.mask then pcall(s.mask); s.mask=nil end

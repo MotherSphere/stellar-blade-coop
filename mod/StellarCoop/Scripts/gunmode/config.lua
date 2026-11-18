@@ -23,6 +23,10 @@ Config.DEFAULTS={
     reload_sounds={{'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_1_Cue.P_Eve_GunNikke_Reload_1_Cue',0.0},
         {'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_2_Cue.P_Eve_GunNikke_Reload_2_Cue',0.6},
         {'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_3_Cue.P_Eve_GunNikke_Reload_3_Cue',0.85}},
+    -- The gun mode animation pak (zNikkeGunMode_P): one of its animations (to find it) and its blend space, which the
+    -- aim stance's animation set points at while the rifle is out.
+    pak_probe='/Game/OutfitMods/NikkeGunMode/GM/NGM_GM_WalkF.NGM_GM_WalkF',
+    pak_bs='Animation/BlendSpace/P_Eve_GunNikkeHide_BS',
     aim_fov=66,fov_ease=0.2, -- Firing mode on the game's aim: its camera's field of view (SB's is 45), eased in.
     raise_time=0.2, -- Firing mode: the rifle's time to come up before the first shot.
     cam_offset={X=0,Y=60,Z=0}, -- CameraBoom.CustomOffset while the rifle is out: EVE left of centre.
@@ -53,6 +57,8 @@ Config.DEFAULTS={
     -- there): her other mesh components wearing her body's own mesh (Ultra Violence's blood layer, outfit overlays)
     -- and any whose mesh name has one of these (the sword). Co-op partners still see them.
     hide_names={'Sword','CH_W_'},
+    -- Head parts copied with the posed body (they lagged it by a frame: her neck through her collar, 09:25).
+    copy_names={'Face','HR_','Hair','HairPin','EAR'},
 }
 
 local LETTER_OR_F='^[A-Z]$'
@@ -93,6 +99,8 @@ function Config.parse(text)
         local k,why=Config.key(v)
         if k then out.key=k else bad[#bad+1]='gun_key: '..why end
     end
+    v=get(text,'gun_bs')
+    if v and v~='' then out.bs=v end
     v=get(text,'gun_probe')
     if v then out.probe=v:lower()=='on' end
     v=get(text,'gun_upper')
