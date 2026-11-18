@@ -4,8 +4,8 @@
 -- coop scene, two cut scenes through the game's theater (cut/scenes/scene.lua): a scene's name on a co-op save only
 -- (lily, Lily's prologue talk, through o.lily()); the list and stop on any. coop lines (cut/scenes/lines.lua).
 -- cut/scenes/wiring.lua builds it with new(o) at each Lua load and main/loader.lua merges it into the command table. o:
--- coop_slot, scene (cut/scenes/scene.lua's), lines (cut/scenes/lines.lua's) and lily(), Lily's signal (matrix13/'s,
--- read at each call: nil while it is not built).
+-- coop_slot, scene (cut/scenes/scene.lua's), lines (cut/scenes/lines.lua's) and lily(), Lily's signal
+-- (matrix13/quest/on_time.lua's, read at each call: nil while it is not built).
 local Scenes={}
 function Scenes.new(o)
     local coop_slot=o.coop_slot

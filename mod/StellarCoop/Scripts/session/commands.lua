@@ -5,8 +5,8 @@
 -- report, copy, mark, allow, deny and remove, block, unblock and blocked, mute and unmute. session/wiring.lua builds
 -- them with new(o) at each Lua load and main/loader.lua merges them into the command table, whose run()
 -- (main/commands.lua) logs each result and, after coop off, refuses all but status and report. o: link, settings,
--- puppet (its status(), partner/'s ghost read at each call) and ask (a line for the native part); create(), read at
--- each call: the Create a session screen is built later, with the Steam link only.
+-- puppet (the ghost's status(), partner/puppet.lua's, read at each call) and ask (a line for the native part);
+-- create(), read at each call: the Create a session screen is built later, with the Steam link only.
 local Session={}
 -- who_can_join's words, which the native part's host request takes as they are: public (a Public lobby the session
 -- list finds), friends (Friends only), invitation (a Steam invite or the join code) and closed (Private: nobody joins).

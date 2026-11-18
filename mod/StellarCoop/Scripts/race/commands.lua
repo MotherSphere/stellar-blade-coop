@@ -3,8 +3,9 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The Doro races' console command, coop race: look on|off and probe doro here (race/doro.lua), the co-op save check of
 -- start and drive probe, and the rest in race/run.lua's command. race/wiring.lua builds it with new(o) at each Lua load
--- and main/loader.lua merges it into the command table. o: puppet (partner/'s ghost, read at each call), doro,
--- coop_slot, race (race/run.lua's) and riding (main/base.lua's riding, read at each call: EVE rides the bike).
+-- and main/loader.lua merges it into the command table. o: puppet (the ghost, partner/puppet.lua's, read at each
+-- call), doro, coop_slot, race (race/run.lua's) and riding (main/base.lua's riding, read at each call: EVE rides the
+-- bike).
 local Race={}
 function Race.new(o)
     local puppet,doro,coop_slot,race=o.puppet,o.doro,o.coop_slot,o.race
