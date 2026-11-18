@@ -134,11 +134,12 @@ function Data.new(g,native,opts)
                 -- The game's aim stance: faster (its own speed fields, so its walk and run play for the new speed),
                 -- and with opts.upper its upper body from that animation set (the NIKKE rifle's).
                 local st=row(tbl('CharacterStanceTable'),Data.AIM_STANCE)
+                local pak=self.opts.pak
                 for _,f in ipairs(Data.SPEED_FIELDS) do
                     local v=g.try(function() return st[f] end)
                     if type(v)=='number' then
                         saved[#saved+1]={st,f,v}
-                        st[f]=v*self.opts.speed
+                        st[f]=(pak and pak.speeds and pak.speeds[f]) or v*self.opts.speed
                     end
                 end
                 -- Jumping in the aim (gunmode/mode.lua launches her): a jump no longer ends the aim stance
@@ -160,7 +161,26 @@ function Data.new(g,native,opts)
                             ar[f]=self.opts.bs
                         end
                         g.log('data: P_Eve_Gun_Battle blend spaces -> '..self.opts.bs)
+                        if pak and pak.aim_offset then
+                            saved[#saved+1]={ar,'AimOffsetBlendSpace',text(ar.AimOffsetBlendSpace)}
+                            ar.AimOffsetBlendSpace=pak.aim_offset
+                            g.log('data: P_Eve_Gun_Battle aim offset -> '..pak.aim_offset)
+                        end
                     else g.log('data: no CharacterAnimSetTable row P_Eve_Gun_Battle') end
+                end
+                -- The rifle carried (rifle out, not aiming): her own animation sets' run blend spaces pointed at the pak's
+                -- carry sets of the same layout (2D out of a fight, 1D in one), so she runs, jogs, walks and sprints with
+                -- the rifle in both hands.
+                if pak and pak.carry then
+                    local at=tbl('CharacterAnimSetTable')
+                    for _,e in ipairs({{'P_Eve_Peaceful','RunBlendSpace',pak.carry},{'P_Eve_Battle','RunBlendSpace',pak.carry_battle}}) do
+                        local r=g.try(function() return at:FindRow(e[1]) end)
+                        if r and e[3] then
+                            saved[#saved+1]={r,e[2],text(r[e[2]])}
+                            r[e[2]]=e[3]
+                            g.log('data: '..e[1]..' '..e[2]..' -> '..e[3])
+                        end
+                    end
                 end
                 if self.opts.upper then
                     for _,f in ipairs({'AnimSet_Battle_UpperBody','AnimSet_Peaceful_UpperBody'}) do

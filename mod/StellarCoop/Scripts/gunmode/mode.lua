@@ -18,6 +18,7 @@ local Config=require('gunmode.config')
 local Aim=require('gunmode.aim')
 local Input=require('gunmode.input')
 local Stance=require('gunmode.stance')
+local Rifle=require('gunmode.rifle')
 local Laser=require('gunmode.laser')
 local Data=require('gunmode.data')
 local Probe=require('gunmode.probe')
@@ -74,7 +75,11 @@ function GunMode.new(env)
     end
     if set.fire_key then Input.FIRE[#Input.FIRE+1]=set.fire_key end
     local aim,data=Aim.new(g),Data.new(g,set.native,{speed=cfg.native_speed,upper=set.upper and 'P_Eve_GunNikke' or nil,cool=cfg.fire_interval,bs=set.bs})
-    local stance=Stance.new(Laser,set.trace and g.log or nil)
+    -- The rifle: with the animation pak, gunmode/rifle.lua (the rifle in her real hand; the pak's rifle animations play on
+    -- her real body); without it, Luke's posed stance (gunmode/stance.lua).
+    local posed=Stance.new(Laser,set.trace and g.log or nil)
+    local single=Rifle.new(Laser,set.trace and g.log or nil)
+    local stance=posed
     local probe=set.probe and Probe.new(g)
     local keys=Input.state()
     local self={}
@@ -273,7 +278,7 @@ function GunMode.new(env)
                 elseif g.valid(static) and g.try(function() return c:IsA(static) end) then
                     mesh=g.try(function() return c.StaticMesh:GetFullName() end)
                 end
-                local hide=mesh~=nil and mesh==body
+                local hide=mesh~=nil and mesh==body and not stance.single
                 local short=mesh and mesh:match('[^%.]+$') -- The asset's own name: its path named the hairpin's folder.
                 for _,n in ipairs(cfg.hide_names) do
                     if short and short:find(n,1,true) then hide=true end
@@ -452,6 +457,8 @@ function GunMode.new(env)
             g.log('animation pak '..(s.pak and 'found' or 'not installed: posed aim'))
         end
         data.opts.bs=set.bs or (s.pak and cfg.pak_bs or nil)
+        data.opts.pak=s.pak and cfg.pak or nil
+        stance=s.pak and single or posed
         if not data.take() then g.log('off: SB\'s rows could not be taken (see above)'); return end
         aim.setup()
         local ok,err=pcall(function() s.mask=mask() end)
@@ -462,6 +469,11 @@ function GunMode.new(env)
             -- jump, a camp) his own turn to the camera keeps her facing the shot.
             -- With the animation pak her real body is shown while aiming, so held follows the game's aim stance
             -- (bridging its one-frame drops on shots: seen in the last 0.4 s with the key still down).
+            if stance.single then
+                s.rifle=stance.start(pc,function() return s.zoom_held or (s.key_held==true and s.aim_seen~=nil and os.clock()-s.aim_seen<0.4) end,
+                    function() return s.target end)
+                return
+            end
             s.rifle=stance.start(pc,function()
                     if s.pak then return s.zoom_held or (s.key_held==true and s.aim_seen~=nil and os.clock()-s.aim_seen<0.4) end
                     return s.zoom_held or (s.on and s.key_held==true) end,function() return s.target end,
