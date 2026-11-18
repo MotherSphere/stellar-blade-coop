@@ -84,7 +84,7 @@ constexpr uint64_t kRecordUs = 120'000'000;
 Table capture;
 std::string session_text, capture_text = "\x01", sent_table;
 const char kPeer[] = "peer";
-// One per ghost slot (link/core.h's Peer::slot), with its own files (game/core.h's slot_file): the remote table from
+// One per ghost slot (link/peer.h's Peer::slot), with its own files (game/core.h's slot_file): the remote table from
 // the wire and its text, written to the slot's coop-remote file (count times so far, by its source; unwritten: the
 // write failed, Lua had the file open, and is tried again at each pass); the ghost Lua built for it from the slot's
 // coop-display file, as last taken; renewal_us: when its last new ghost was taken. The loopback and the replay feed

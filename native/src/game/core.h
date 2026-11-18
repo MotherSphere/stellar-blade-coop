@@ -37,7 +37,7 @@ struct Part {
   bool leader = false; // Leaders own their pose; followers copy a leader (SetMasterPoseComponent).
 };
 
-// One ghost slot per other member of a match lobby, 0 to kMaxRemote - 1 (link/core.h's Peer::slot). Each has its own
+// One ghost slot per other member of a match lobby, 0 to kMaxRemote - 1 (link/peer.h's Peer::slot). Each has its own
 // files in the mod folder: slot 0 keeps the co-op names (coop-remote.txt), slot k from 1 adds -<k> (coop-remote-3.txt).
 using coop::kMaxRemote;
 inline std::string slot_file(std::string_view stem, size_t slot) {
