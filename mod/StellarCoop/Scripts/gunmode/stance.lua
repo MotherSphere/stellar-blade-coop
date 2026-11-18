@@ -143,6 +143,7 @@ function Stance.new(laser)
   local onReal=false -- gun mode: the rifle on her real body (aimNative, aim held)
   -- gun mode (upright): her spine bones, their frames from her facing in her normal stance, and her neck and head.
   local spineBones,spineRel,headBones={},{},{}
+  local thighL,thighR,hipRel,hipTurn,hipFollow=FName('Bip001-L-Thigh'),FName('Bip001-R-Thigh'),nil,0,0.65
   for _,n in ipairs({'Spine','Spine1','Spine2'}) do
    local b=FName('Bip001-'..n); if src:GetBoneIndex(b)>=0 then spineBones[#spineBones+1]=b end
   end
@@ -188,7 +189,8 @@ function Stance.new(laser)
    local turnNow=turn; if type(turn)=='function' then turnNow=turn() end -- gun mode: turn may be a test
    if held and turnNow then local r=pawn:K2_GetActorRotation();pawn:K2_SetActorRotation({Pitch=r.Pitch,Yaw=cam.Yaw,Roll=r.Roll},false) end
    local pitch=(cam.Pitch+180)%360-180
-   aimBlend=math.max(0,math.min(1,aimBlend+(held and 0.08 or -0.06)))
+   aimBlend=math.max(0,math.min(1,aimBlend+(held and 0.08 or -0.2))) -- gun mode: let go fast (arms wrapped round her back as
+   -- the aim eased out while the camera turned, 08:39)
    local right=pawn:GetActorRightVector()
    local freeAimMovement=true
    -- gun mode: in the game's aim its own pose turns her chest and shoulders to steer the drone, and Luke's arms,
@@ -216,11 +218,27 @@ function Stance.new(laser)
      -- between two poses (02:53); her actor's transform is steady, and in the game's aim her yaw follows the camera.
      if upright then
       local yaw=pawn:K2_GetActorRotation().Yaw
-      local frame=mathlib:MakeTransform(pawn:K2_GetActorLocation(),{Pitch=0,Yaw=yaw,Roll=0},{X=1,Y=1,Z=1})
+      -- gun mode: her hips' facing (the line between her thighs) from her actor's yaw, against what it was when her
+      -- spine was recorded. The game's aim turns her hips sideways to its strafing; a chest held to her actor's yaw
+      -- alone twisted her waist (08:39), so the chest follows her hips by hipFollow of that turn, eased.
+      local hipOff
+      pcall(function()
+       local l=body:GetBoneTransformByName(thighL,0).Translation
+       local r=body:GetBoneTransformByName(thighR,0).Translation
+       hipOff=math.deg(math.atan(-(r.X-l.X),r.Y-l.Y))-yaw
+      end)
       local speed=0
       pcall(function() local v=pawn:GetVelocity(); speed=math.sqrt(v.X*v.X+v.Y*v.Y) end)
-      if not held and aimBlend==0 and (#spineRel==0 or speed<20) then
-       for i,b in ipairs(spineBones) do spineRel[i]=mathlib:MakeRelativeTransform(body:GetBoneTransformByName(b,0),frame) end
+      local recording=not held and aimBlend==0 and (#spineRel==0 or speed<20)
+      if recording and hipOff then hipRel=hipOff end
+      if hipOff and hipRel then
+       local d=(hipOff-hipRel+180)%360-180
+       hipTurn=hipTurn+(d-hipTurn)*0.15
+      end
+      local frame=mathlib:MakeTransform(pawn:K2_GetActorLocation(),{Pitch=0,Yaw=yaw+hipTurn*hipFollow*aimBlend,Roll=0},{X=1,Y=1,Z=1})
+      if recording then
+       local rec=mathlib:MakeTransform(pawn:K2_GetActorLocation(),{Pitch=0,Yaw=yaw,Roll=0},{X=1,Y=1,Z=1})
+       for i,b in ipairs(spineBones) do spineRel[i]=mathlib:MakeRelativeTransform(body:GetBoneTransformByName(b,0),rec) end
       end
       if aimBlend>0 and #spineRel>0 then
        local keep={}
@@ -349,6 +367,10 @@ function Stance.new(laser)
       local x,y,z=1-2*(q.Y*q.Y+q.Z*q.Z),2*(q.X*q.Y+q.W*q.Z),2*(q.X*q.Z-q.W*q.Y)
       local cameraYaw=pc.PlayerCameraManager:GetCameraRotation().Yaw
       local yawDelta=(cameraYaw-math.deg(math.atan(y,x))+180)%360-180
+      -- gun mode: the turn toward the camera is held to 70 degrees either way, and dropped at once when the aim is let go
+      -- with the camera further round than that (her arms went behind her back, 08:39).
+      if not held and math.abs(yawDelta)>70 then aimBlend=0 end
+      yawDelta=math.max(-70,math.min(70,yawDelta))
       local targetYaw=math.rad(cameraYaw)
       local yawHalf=math.rad(yawDelta)*0.5
       local pitchHalf=(math.atan(z,math.sqrt(x*x+y*y))-math.rad(pitch))*0.5

@@ -70,6 +70,88 @@ function Probe.new(g)
         for i=1,#fns,25 do g.log('probe: fn '..table.concat(fns,' ',i,math.min(i+24,#fns))) end
     end
 
+    -- The HUD's item column (potion, D-pad marker, drone slot): every widget under Overlay_ItemSlot with its class,
+    -- visibility, opacity, slot and, for an image, its texture.
+    function self.item_tree()
+        local root
+        pcall(function()
+            for _,w in ipairs(FindAllOf('Overlay') or {}) do
+                local full=w:GetFullName()
+                if full:match('%.Overlay_ItemSlot$') and full:find('WB_MainHUD_Master',1,true) then root=w; break end
+            end
+        end)
+        if not root then g.log('probe: no Overlay_ItemSlot'); return end
+        local n=0
+        local function walk(w,depth)
+            n=n+1
+            if n>160 or depth>14 then return end
+            local cls=g.try(function() return w:GetClass():GetFName():ToString() end) or '?'
+            local name=g.try(function() return w:GetFName():ToString() end) or '?'
+            local vis=g.try(function() return w:GetVisibility() end)
+            local op=g.try(function() return w:GetRenderOpacity() end)
+            local slot=g.try(function() return w.Slot:GetClass():GetFName():ToString() end) or '-'
+            local extra=''
+            if cls=='Image' then
+                extra=' tex '..(g.try(function() return w.Brush.ResourceObject:GetFName():ToString() end) or '?')..
+                    (' size %s'):format(g.try(function() local s=w.Brush.ImageSize; return ('%.0fx%.0f'):format(s.X,s.Y) end) or '?')
+            elseif cls=='TextBlock' then
+                extra=' "'..(g.try(function() return w:GetText():ToString() end) or '?')..'"'
+            end
+            g.log(('probe: tree %s%s %s vis %s op %s slot %s%s'):format(string.rep('. ',depth),cls,name,tostring(vis),
+                tostring(op),slot,extra))
+            local count=g.try(function() return w:GetChildrenCount() end)
+            if count then for i=0,count-1 do local c=g.try(function() return w:GetChildAt(i) end); if c then walk(c,depth+1) end end end
+            local tree=g.try(function() return w.WidgetTree end)
+            local rw=tree and g.try(function() return tree.RootWidget end)
+            if rw and g.valid(rw) then walk(rw,depth+1) end
+        end
+        walk(root,0)
+    end
+
+    -- Functions about items, buckets and counts on the pawn, the controller, their states and every component of
+    -- theirs (to read and spend the NIKKE rounds she carries).
+    local function scan(label,c,words)
+        local fns={}
+        pcall(function()
+            local guard=0
+            while c and c:IsValid() and guard<8 do
+                guard=guard+1
+                c:ForEachFunction(function(f)
+                    local n=f:GetFName():ToString()
+                    for _,w in ipairs(words) do if n:find(w) then fns[#fns+1]=n; break end end
+                end)
+                c=c:GetSuperStruct()
+            end
+        end)
+        for i=1,#fns,16 do g.log('probe: '..label..' fn '..table.concat(fns,' ',i,math.min(i+15,#fns))) end
+    end
+    function self.item_fns()
+        local words={'Item','Bullet','Count','Inven','Bucket'}
+        pcall(function() scan('pawn',g.pawn():GetClass(),words) end)
+        pcall(function() scan('pc',g.pc():GetClass(),words) end)
+        pcall(function() scan('lib',StaticFindObject('/Script/SB.SBBlueprintLibrary'),words) end)
+    end
+
+    -- The heal item slot's and the D-pad's images and texts (names, textures, sizes) for the rifle's slot.
+    function self.slot_parts()
+        for _,kind in ipairs({'Image','TextBlock'}) do
+            pcall(function()
+                for _,w in ipairs(FindAllOf(kind) or {}) do
+                    local full=w:GetFullName()
+                    if full:find('WB_MainHUD_Master',1,true) and (full:find('WB_MainHUD_HealItem',1,true) or full:find('WB_MainHUD_Dpad',1,true)) then
+                        local extra=''
+                        if kind=='Image' then
+                            extra=' tex '..(g.try(function() return w.Brush.ResourceObject:GetFName():ToString() end) or '?')..
+                                (' size %s'):format(g.try(function() local s=w.Brush.ImageSize; return ('%.0fx%.0f'):format(s.X,s.Y) end) or '?')
+                        else extra=' "'..(g.try(function() return w:GetText():ToString() end) or '?')..'"' end
+                        g.log(('probe: part %s vis %s%s'):format(full:match('MainHUD_Master_C_%d+%.(.*)$') or full,
+                            tostring(g.try(function() return w:GetVisibility() end)),extra))
+                    end
+                end
+            end)
+        end
+    end
+
     -- Called every frame from the gun mode tick in the game's aim (aim: bTPSMode): logs only.
     function self.tick(pc,p,aim,firing,now)
         local cm=g.try(function() return pc.PlayerCameraManager end)
@@ -86,7 +168,7 @@ function Probe.new(g)
         end
         if not s.aim_at then s.aim_at=now end
         local t=now-s.aim_at
-        if t>2 and not s.hud_done then s.hud_done=true; hud(pc) end
+        if t>2 and not s.hud_done then s.hud_done=true; pcall(self.item_fns) end
         local run=g.try(function() return p:IsRunningSkill() end)
         if run and not s.run then s.edges=(s.edges or 0)+1 end
         s.run=run
