@@ -125,6 +125,57 @@ function Probe.new(g)
         end)
         for i=1,#fns,16 do g.log('probe: '..label..' fn '..table.concat(fns,' ',i,math.min(i+15,#fns))) end
     end
+    -- The rifle's rounds as the game's own item: the bullet-change function's parameters, a change to Bullet_Nikke,
+    -- and what the drone slot's count reads after it.
+    function self.bullet_test()
+        local pc,pawn=g.pc(),g.pawn()
+        for _,fname in ipairs({'ServerRequest_ChangeBulletItem','ClientBroadcast_ActorSetBulletItem'}) do
+            local f
+            for _,cls in ipairs({'SBPlayerController','SBPlayerControllerBase','SBBasePlayerController'}) do
+                f=f or StaticFindObject('/Script/SB.'..cls..':'..fname)
+            end
+            if f and f:IsValid() then
+                local ps={}
+                pcall(function() f:ForEachProperty(function(pr) ps[#ps+1]=pr:GetFName():ToString()..':'..pr:GetClass():GetFName():ToString() end) end)
+                g.log('probe: '..f:GetFullName()..'('..table.concat(ps,', ')..')')
+            else g.log('probe: no function object for '..fname) end
+        end
+        local before=g.try(function() return pawn:GetCurrentBulletItemAlias():ToString() end)
+        g.log('probe: current bullet '..tostring(before))
+        -- Each way in turn, read back after 0.3 s: the client-side set, then the server request with a drone round
+        -- (to see whether the request works at all), then with NIKKE rounds.
+        s.bullet_steps={
+            {'ClientBroadcast_ActorSetBulletItem(pawn, Bullet_Nikke)',function() pc:ClientBroadcast_ActorSetBulletItem(pawn,FName('Bullet_Nikke')) end},
+            {'ServerRequest_ChangeBulletItem(pawn, Bullet_Normal)',function() pc:ServerRequest_ChangeBulletItem(pawn,FName('Bullet_Normal')) end},
+            {'ServerRequest_ChangeBulletItem(pawn, Bullet_Nikke)',function() pc:ServerRequest_ChangeBulletItem(pawn,FName('Bullet_Nikke')) end},
+        }
+        s.bullet_check=os.clock()+0.2
+        s.bullet_before=before
+    end
+    function self.bullet_after()
+        if not s.bullet_check or os.clock()<s.bullet_check then return end
+        local function read()
+            local now=g.try(function() return g.pawn():GetCurrentBulletItemAlias():ToString() end)
+            local txt
+            pcall(function()
+                for _,t in ipairs(FindAllOf('TextBlock') or {}) do
+                    local full=t:GetFullName()
+                    if full:find('WB_MainHUD_Lower1Item.WidgetTree.WB_MainHUD_ItemSlotGeneral.WidgetTree.TextBlock_Item_Count',1,true) then
+                        txt=t:GetText():ToString()
+                    end
+                end
+            end)
+            return tostring(now)..', drone slot count "'..tostring(txt)..'"'
+        end
+        if s.bullet_pending then g.log('probe:   -> current bullet '..read()); s.bullet_pending=nil end
+        local step=s.bullet_steps and table.remove(s.bullet_steps,1)
+        if not step then s.bullet_check=nil; return end
+        local ok,err=pcall(step[2])
+        g.log('probe: '..step[1]..': '..(ok and 'called' or tostring(err)))
+        s.bullet_pending=true
+        s.bullet_check=os.clock()+0.4
+    end
+
     function self.item_fns()
         local words={'Item','Bullet','Count','Inven','Bucket'}
         pcall(function() scan('pawn',g.pawn():GetClass(),words) end)
@@ -166,9 +217,10 @@ function Probe.new(g)
             s.aim_at=nil
             return
         end
+        pcall(self.bullet_after)
         if not s.aim_at then s.aim_at=now end
         local t=now-s.aim_at
-        if t>2 and not s.hud_done then s.hud_done=true; pcall(self.item_fns) end
+        if t>2 and not s.hud_done then s.hud_done=true; pcall(self.item_fns); pcall(self.bullet_test) end
         local run=g.try(function() return p:IsRunningSkill() end)
         if run and not s.run then s.edges=(s.edges or 0)+1 end
         s.run=run

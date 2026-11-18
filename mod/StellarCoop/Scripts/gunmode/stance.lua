@@ -14,7 +14,7 @@ local function valid(o)return o and o:IsValid() end
 -- stop(), running()}.
 function Stance.new(laser)
  local grip={Translation={X=-2.110698699951172,Z=2.090805768966675,Y=-6.265880107879639},Rotation={X=-0.4851755201816559,W=-0.5130578875541687,Z=-0.4808891713619232,Y=-0.5197325944900513},Scale3D={X=1.000000238418579,Z=1.0000001192092896,Y=1}}
- local stop,frame,reloadFn
+ local stop,frame,reloadFn,copyPart
  local owned={} -- gun mode: the parts of the stance running now.
  local function begin(pc,held_fn,beam_target,turn,torso,camAnchor,chestFix,aimNative,upright) -- gun mode: turn false leaves EVE's facing to
   -- the game; torso (0 to 1): how much her spine takes the donor pose while aim is held; camAnchor: the arms along
@@ -32,6 +32,7 @@ function Stance.new(laser)
   local parts={}
   owned=parts -- gun mode
   local hide,tick=src.bOwnerNoSee,src.VisibilityBasedAnimTickOption
+  local extras={} -- gun mode: poseable copies of her head parts (face, hair, ear, hairpin): {real, copy, was, tick}
   local restoreInput
   local beam,finish
   stop=function()
@@ -39,9 +40,34 @@ function Stance.new(laser)
    if restoreInput then pcall(restoreInput);restoreInput=nil end
    if finish then pcall(finish) end
    if valid(src) then src:SetOwnerNoSee(hide);src.VisibilityBasedAnimTickOption=tick end
+   for _,e in ipairs(extras) do
+    if valid(e.real) then pcall(function() e.real:SetOwnerNoSee(e.was);e.real.VisibilityBasedAnimTickOption=e.tick end) end
+   end
+   extras={}
    for i=#parts,1,-1 do local c=parts[i];if valid(c) then c:K2_DestroyComponent(c) end end
    stop=nil
    reloadFn=nil
+   copyPart=nil
+  end
+  -- gun mode: the head parts copied like her body. They follow her real body's pose in the same frame while the
+  -- posed copy shows the pose one frame old (the game finishes her animation after this loop), so her neck went
+  -- through her collar while running with the rifle out (09:25); copied, the whole of her is the same frame.
+  copyPart=function(real)
+   if not valid(real) then return end
+   for _,e in ipairs(extras) do if e.real==real then return end end
+   local ok,err=pcall(function()
+    local id={Rotation={X=0,Y=0,Z=0,W=1},Translation={X=0,Y=0,Z=0},Scale3D={X=1,Y=1,Z=1}}
+    local c=pawn:AddComponentByClass(StaticFindObject('/Script/Engine.PoseableMeshComponent'),true,id,true)
+    assert(valid(c));parts[#parts+1]=c;c:SetVisibility(false,false);c:SetCollisionEnabled(0)
+    pawn:FinishAddComponent(c,true,id);c:SetSkeletalMesh(real.SkeletalMesh,true)
+    pcall(function() c.bPerBoneMotionBlur=false end)
+    for slot=0,real:GetNumMaterials()-1 do local m=real:GetMaterial(slot); if valid(m) then c:SetMaterial(slot,m) end end
+    c:K2_AttachToComponent(real,FName('None'),2,2,2,false)
+    pcall(function() c:SetCastShadow(real.CastShadow) end)
+    extras[#extras+1]={real=real,copy=c,was=real.bOwnerNoSee==true,tick=real.VisibilityBasedAnimTickOption}
+    real.VisibilityBasedAnimTickOption=0
+   end)
+   return ok,err
   end
   local function component(kind,asset)
    local id={Rotation={X=0,Y=0,Z=0,W=1},Translation={X=0,Y=0,Z=0},Scale3D={X=1,Y=1,Z=1}}
@@ -160,6 +186,9 @@ function Stance.new(laser)
    age=age+1;if age<3 then return end
    src.VisibilityBasedAnimTickOption=0
    body:CopyPoseFromSkeletalComponent(src)
+   for _,e in ipairs(extras) do
+    if valid(e.real) and valid(e.copy) then pcall(function() e.copy:CopyPoseFromSkeletalComponent(e.real) end) end
+   end
    if #coverOffsets==0 then
     local ref=donor:GetSocketTransform(tip,0)
     for i,b in ipairs(aimBones) do coverOffsets[i]=mathlib:MakeRelativeTransform(donor:GetSocketTransform(b,0),ref) end
@@ -174,6 +203,7 @@ function Stance.new(laser)
      onReal=true
      gun:K2_AttachToComponent(src,hand,2,2,2,false);gun:K2_SetRelativeTransform(grip,false,{},true)
      body:SetVisibility(false,false);src:SetOwnerNoSee(hide);gun:SetVisibility(true,false)
+     for _,e in ipairs(extras) do pcall(function() e.copy:SetVisibility(false,false);e.real:SetOwnerNoSee(e.was) end) end
     elseif not held and onReal then
      onReal=false
      gun:K2_AttachToComponent(body,hand,2,2,2,false);gun:K2_SetRelativeTransform(grip,false,{},true)
@@ -428,6 +458,7 @@ function Stance.new(laser)
       end
      end
      src:SetOwnerNoSee(true);body:SetVisibility(true,false);gun:SetVisibility(true,false)
+     for _,e in ipairs(extras) do pcall(function() e.real:SetOwnerNoSee(true);e.copy:SetVisibility(true,false) end) end
      if held then
       if not beam then beam,finish=laser(pawn,gun,mathlib) end
       beam(beam_target()) -- gun mode: its end on where the rounds go.
@@ -442,6 +473,8 @@ function Stance.new(laser)
  -- gun mode: the posed copy of her body (her hair and face can follow it), or nil.
  function self.body() return owned[1] end
  function self.frame() if frame then frame() end end
+ -- gun mode: one of her head parts (a skeletal mesh component following her body) copied with the posed body.
+ function self.copy(c) if copyPart and frame then return copyPart(c) end end
  -- gun mode: the reload animation on (for duration s) or off; false if it could not start.
  function self.reload(on,duration) if reloadFn and frame then return reloadFn(on,duration) end return false end
  function self.stop() if stop then stop() end end

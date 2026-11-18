@@ -149,6 +149,19 @@ function Data.new(g,native,opts)
                     saved[#saved+1]={st,'Condition_Jumping',st.Condition_Jumping}
                     st.Condition_Jumping=none
                 end
+                -- (test, opts.bs) the aim stance's animation set's blend spaces pointed elsewhere while the rifle is
+                -- out: whether the game reads them again each time she aims.
+                if self.opts.bs then
+                    local ar=g.try(function() return tbl('CharacterAnimSetTable'):FindRow('P_Eve_Gun_Battle') end)
+                    if ar then
+                        for _,f in ipairs({'RunBlendSpace','RunTiltBlendSpace','LockOnRunBlendSpace'}) do
+                            local was=text(ar[f])
+                            saved[#saved+1]={ar,f,was}
+                            ar[f]=self.opts.bs
+                        end
+                        g.log('data: P_Eve_Gun_Battle blend spaces -> '..self.opts.bs)
+                    else g.log('data: no CharacterAnimSetTable row P_Eve_Gun_Battle') end
+                end
                 if self.opts.upper then
                     for _,f in ipairs({'AnimSet_Battle_UpperBody','AnimSet_Peaceful_UpperBody'}) do
                         saved[#saved+1]={st,f,FName(text(st[f]))}
