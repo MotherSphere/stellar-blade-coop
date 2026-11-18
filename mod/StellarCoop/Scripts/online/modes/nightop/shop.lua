@@ -4,7 +4,7 @@
 -- coop nightop shop and coop nightop buy: Night Operation's reward shop, on a co-op save only. A run that ends in
 -- success or time up credits points to this player's wallet (online/modes/nightop/run.lua credits only a run of ours
 -- that went from its countdown to that end); the shop sells seven items for them. coop nightop shop opens SB's own shop
--- screen, the vending machine's, on the Night Operation shop's rows (the shop rows batch, lion/rows.h's kShop, which
+-- screen, the vending machine's, on the Night Operation shop's rows (the shop rows batch, rows/rows.h's kShop, which
 -- the native part adds with the stimpacks' and the Shock Bolt's: open() below), where the points are Beta Seeds for as
 -- long as the screen is open; coop nightop buy is the console's way, kept for a game whose screen cannot open. The
 -- first four are the rows of the game's cut Shop_NightOperation that every camp shop sells with no condition gate, at
@@ -15,7 +15,7 @@
 -- Shock Bolt's in a batch of their own (the bolt rows batch), both through fight/bosses/lion.lua's rows, so a buy of
 -- one asks for its rows first, waits for them when they are not in yet, and grants only once they are (the answer then
 -- comes from coop lion's tick); rows that cannot be added cost no point. The Shock Bolt also needs the status's shock
--- line to read in (once its rows are in, the native part grew EVE's gun stances and the ammo list, lion/shock.h): ammo
+-- line to read in (once its rows are in, the native part grew EVE's gun stances and the ammo list, rows/shock.h): ammo
 -- the gun cannot fire costs no point either. The wallet is one file per SteamID and co-op slot beside the mod,
 -- coop-night-<steamid>-<index>.txt, one line: the points. The game never reads it; a save restore does not take points
 -- back.
@@ -38,7 +38,7 @@ local N=require('online.modes.nightop.probe')
 local Items=require('core.items')
 local Shop={}
 local MASK=0xFFFFFFFF
--- The item number is the row's place here. cut: the native part adds its rows (lion/rows.h's cut items) before a buy;
+-- The item number is the row's place here. cut: the native part adds its rows (rows/rows.h's cut items) before a buy;
 -- shock: its rows are the bolt rows batch, and the shock line must read in too (a price per bolt). SB's bucket add
 -- (FUN_141bdbc20) keeps a capped item only up to its MaxAmount (30 bolts) and drops the rest; EVE's count lives in SB's
 -- unreflected item bucket and is not read here, so a buy past the cap still costs the dropped bolts' points (the docs
@@ -76,8 +76,9 @@ function Shop.seeds(pc,guid,n)
     if n>0 then pc:ServerRequest_ItemBucketItemAdd(1,guid,FName(Shop.SEED),n,0,false,false,false,{})
     else pc:ServerRequest_ItemBucketItemRemove(1,guid,FName(Shop.SEED),-n,-1) end
 end
--- coop-status.txt's nightshop line (nightop/shop_ui.h's status_line) as fields: state (off, open, closed, ?, fault),
--- seeds (a whole number, nil while unread), asks (a number), last (<ask>:<why>), where (a fault's); nil without one.
+-- coop-status.txt's nightshop line (online/modes/nightop/shop_ui.h's status_line) as fields: state (off, open, closed,
+-- ?, fault), seeds (a whole number, nil while unread), asks (a number), last (<ask>:<why>), where (a fault's); nil
+-- without one.
 function Shop.line(status)
     local line=('\n'..(status or '')):match('\nnightshop=([^\r\n]*)')
     if not line then return nil end

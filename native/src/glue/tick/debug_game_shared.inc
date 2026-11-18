@@ -1,7 +1,7 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// What other modules' parts read of cut/debug_game.inc, cut from it whole and in order.
+// What other modules' parts read of eve/debug_game.inc, cut from it whole and in order.
 // tick.cpp includes this file right before it.
 namespace coop::pose {
 namespace {
@@ -10,7 +10,7 @@ namespace {
 // the client and its UI manager, finds both panels, closes the one not wanted and opens the one asked, through the
 // game's own find, open and close, out of line under its own latch. It runs after coop off too, so coop off's own
 // devinfo off still closes them. The first fault ends coop devinfo for the run. The UI calls and ui_reads serve the
-// Night Operation shop's screen too (nightop/nightop_game.inc).
+// Night Operation shop's screen too (online/modes/nightop/nightop_game.inc).
 using FindUi = void *(*)(void *manager, int32_t type);
 struct EmptyName { // An FString with no data, which the open copies and frees only when it holds data.
   void *data;

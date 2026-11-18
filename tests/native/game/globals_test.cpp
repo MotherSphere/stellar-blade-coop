@@ -7,12 +7,12 @@
 // as an absolute address names the same one.
 #include "game/pilot.h"
 #include "game/types.h"
-#include "cut/debug_keys.h"
+#include "eve/debug_keys.h"
 #include "game/dev_panels.h"
 #include "game/memory.h"
 #include "game/travel.h"
-#include "nightop/roxanne.h"
-#include "game/quest/engine.h"
+#include "online/modes/nightop/roxanne.h"
+#include "game/quests/engine.h"
 #include "game/slot.h"
 
 #include <cassert>
@@ -30,7 +30,7 @@ int main() {
   static_assert(game::kGlobalsBlock + fight::kNetAt == kNet, "the net-mode cache");
   static_assert(game::kGlobalsBlock + 0x30 == kClient && game::kGlobalsBlock + 0x48 == kRules &&
                     game::kGlobalsBlock + 0x50 > kRules + 7,
-                "the client and the rule manager, inside the block (nightop/probe.h)");
+                "the client and the rule manager, inside the block (online/modes/nightop/probe.h)");
   // The two offsets from kGlobals that still hold.
   static_assert(debug::kSingleton == kConsts && game::kGlobals + 0x28 == kRules, "const store, rule manager");
   // The same globals, named absolutely elsewhere.

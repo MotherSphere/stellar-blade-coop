@@ -42,7 +42,7 @@
 #include "game/fight/sync.h"  // kMaxPairs, detail::id, and link/protocol.h's fight_tag, split, number, kMaxMessage
 #include "game/memory.h" // kImageBase, plausible
 #include "game/codec.h"  // codec::put/get, kMaxWorld
-#include "game/pose/engine.h" // UE's object array, UObject and transform offsets
+#include "game/partner/engine.h" // UE's object array, UObject and transform offsets
 #include "game/stream.h" // blend_transform
 
 namespace coop::pilot {
@@ -1177,7 +1177,7 @@ template <class T> T field(const uint8_t *bytes, size_t at) {
 }
 } // namespace detail
 
-// UE's object array (game/pose/engine.h's layout) through read: the item of index, or 0.
+// UE's object array (game/partner/engine.h's layout) through read: the item of index, or 0.
 template <class Read> uint64_t object_item(Read &&read, uint64_t objects, int32_t index) {
   int32_t count = 0;
   uint64_t chunks = 0, chunk = 0;
@@ -1187,7 +1187,8 @@ template <class Read> uint64_t object_item(Read &&read, uint64_t objects, int32_
     return 0;
   return chunk + pose::kItemBytes * uint64_t(index & 0xffff);
 }
-// game/pose/engine.h's alive() through read: a live UObject, its item holding it, neither pending kill nor unreachable.
+// game/partner/engine.h's alive() through read: a live UObject, its item holding it, neither pending kill nor
+// unreachable.
 // index and serial take its item's (serial 0: no weak pointer was ever made to it).
 template <class Read>
 bool live(Read &&read, uint64_t objects, uint64_t object, int32_t *index = nullptr, int32_t *serial = nullptr) {

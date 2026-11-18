@@ -123,7 +123,7 @@ bool rpm(uint64_t address, void *out, size_t n) {
   SIZE_T got = 0;
   return ReadProcessMemory(GetCurrentProcess(), reinterpret_cast<LPCVOID>(address), out, n, &got) && got == n;
 }
-// The shared fight's worker side (fight/engine.h's Worker), with channel 2 as the last fight_pass gave it.
+// The shared fight's worker side (fight/enemies/engine.h's Worker), with channel 2 as the last fight_pass gave it.
 fight::Worker fight_worker{fight_engine, fight_mail};
 bool (*fight_send)(const std::string &, bool) = nullptr;
 bool fight_fault_logged = false;

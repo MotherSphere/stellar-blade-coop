@@ -19,12 +19,13 @@ R5 Exports are unique across modules and the runtime's fields; a wiring assigns 
 R6 Each build(M,'<module>','<step>' in main/ui.lua names a step of that module's manifest; each step is built once.
 R7 A wiring that calls RegisterHook or NotifyOnNewObject guards each callback with M.off_modules: the hook outlives an
    off module.
-R8 Native: no header, part or test of a module folder reads another module folder's header, by an #include or by a
-   name through the header's namespace (world::kNoneName: tick.cpp includes every header once at its top, so a part
-   reads headers it never includes); a shared header (game, link, lion, ui) reads none either. Only glue/ (the hub)
-   and the tests of tests/native/game/globals_test.cpp and tests/native/link/ may; no module part
-   (native/src/<module>/*.inc, in glue/tick.cpp's order) uses a name another module folder's part defines at its top
-   level (whole tokens, comments and strings out, a local of the same name not counted).
+R8 Native: no header, part or test of a module's folder (its longest path: online/lobby, not online) reads another
+   module folder's header, by an #include or by a name through the header's namespace (world::kNoneName: tick.cpp
+   includes every header once at its top, so a part reads headers it never includes); a shared header (game, link, rows,
+   ui) reads none either. Only glue/ (the hub) and the tests of tests/native/game/globals_test.cpp and
+   tests/native/link/ may; no module part (native/src/<module>/*.inc, in glue/tick.cpp's order) uses a name another
+   module folder's part defines at its top level (whole tokens, comments and strings out, a local of the same name not
+   counted).
 R9 Each language table of ui/text.lua, loaded by lua5.4, names exactly the modules of MODULES in modules.
 It first runs on planted trees, one violation each, so no rule passes vacuously, then on this repository, which must
 be clean.
@@ -39,7 +40,7 @@ SCRIPTS = 'mod/StellarCoop/Scripts'
 SRC = 'native/src'
 SHARED_LUA = ('main.lua', 'main/', 'core/', 'ui/kit/', 'ui/text.lua', 'ui/text/')
 SHARED_LUA_TESTS = ('tests/lua/main/', 'tests/lua/ui/text_test.lua')
-SHARED_NATIVE = {'game', 'link', 'lion', 'ui', 'glue'}
+SHARED_NATIVE = {'game', 'link', 'rows', 'ui', 'glue'}
 NATIVE_TESTS_READING = ('tests/native/game/globals_test.cpp', 'tests/native/link/')
 RUNTIME_SET_BY = {'aside_note': 'online.partner'}  # A runtime value a module sets (MAP.md section 10).
 HOOKS = re.compile(r'\b(RegisterHook|NotifyOnNewObject)\b')
@@ -349,12 +350,18 @@ def reads(code, name):
 
 
 def check_native(root, out):
+    paths = set(lua_modules(root).values()) | SHARED_NATIVE
+
+    def of(rel):  # A native file's module: its longest module folder (online/lobby, not online), else its first folder.
+        best = max((p for p in paths if rel.startswith(p + '/')), key=len, default=None)
+        return best or rel.split('/')[0]
+
     files = []
     for p in sorted((root / SRC).rglob('*')):
         if p.suffix in ('.h', '.inc', '.cpp'): files.append((p, str(p.relative_to(root / SRC))))
     for p in sorted((root / 'tests/native').rglob('*.cpp')):
         files.append((p, str(p.relative_to(root / 'tests/native'))))
-    folders = {r.split('/')[0] for p, r in files if p.is_relative_to(root / SRC) and '/' in r} - SHARED_NATIVE
+    folders = {of(r) for p, r in files if p.is_relative_to(root / SRC) and '/' in r} - SHARED_NATIVE
     heads, spaces = {}, set()
     for p, rel in files:
         if p.suffix != '.h' or not p.is_relative_to(root / SRC): continue
@@ -366,28 +373,28 @@ def check_native(root, out):
             last.add(parts[-1])
         heads[rel] = (last, declared(code))
     for p, rel in files:
-        mine, name = rel.split('/')[0], str(p.relative_to(root))
+        mine, name = of(rel), str(p.relative_to(root))
         if mine == 'glue' and p.is_relative_to(root / SRC) or name.startswith(NATIVE_TESTS_READING): continue
         raw = p.read_text(encoding='utf-8')
         code = strip_c(raw)
         for m in INC.finditer(raw):
-            d = m.group(1).split('/')[0]
+            d = of(m.group(1))
             if d in folders and d != mine and '/' in m.group(1):
                 out.append(f'R8 {name}:{line_of(raw, m.start())}: includes {m.group(1)} of module folder {d}')
         for m in QUALIFIED.finditer(code):
             space, what = m.groups()
             if space in ('std', 'coop') or what in spaces: continue
             found = [h for h, (last, names) in heads.items() if space in last and what in names]
-            if found and not any(h.split('/')[0] == mine or h.split('/')[0] in SHARED_NATIVE for h in found):
+            if found and not any(of(h) == mine or of(h) in SHARED_NATIVE for h in found):
                 out.append(f'R8 {name}:{line_of(code, m.start())}: reads {space}::{what} of {found[0]}')
     tick = (root / SRC / 'glue/tick.cpp').read_text(encoding='utf-8')
-    order = [p for p in re.findall(r'^#include "([^"]+\.inc)"', tick, re.M) if p.split('/')[0] in folders]
+    order = [p for p in re.findall(r'^#include "([^"]+\.inc)"', tick, re.M) if of(p) in folders]
     parts = {p: strip_c((root / SRC / p).read_text(encoding='utf-8')) for p in order}
     defined = {p: part_names((root / SRC / p).read_text(encoding='utf-8')) for p in order}
     tokens = {p: set(re.findall(r'[A-Za-z_]\w*', c)) for p, c in parts.items()}
     for q in order:
         for p in order:
-            if p.split('/')[0] == q.split('/')[0]: continue
+            if of(p) == of(q): continue
             for n in sorted(defined[p] & tokens[q] - defined[q]):
                 if reads(parts[q], n):
                     pos = re.search(r'(?<![\w.>:])' + re.escape(n) + r'\b', parts[q]).start()
@@ -484,6 +491,31 @@ PLANTS = [
 for tags, change in PLANTS:
     got = scan_of({**CLEAN, **change})
     assert {v.split()[0] for v in got} == tags, (tags, change, got)
+
+# Nested module folders (online/lobby beside online/session): the native rule takes a file's longest module folder.
+NESTED = {k.replace('/alpha/', '/cat/alpha/'): v for k, v in CLEAN.items()}
+NESTED.update({
+    f'{S}/main.lua': ("local M={}\nlocal MODULES={'cat.alpha','beta','cat.delta'}\n"
+                     "require('main.loader').run(M,MODULES)\n"),
+    f'{S}/main/ui.lua': "return function(M)\nrequire('main.loader').build(M,'cat.alpha','hud',Ui)\nend\n",
+    f'{S}/ui/text/en.lua': "return {\n    modules={['cat.alpha']='Alpha',beta='Beta',['cat.delta']='Delta'},\n}\n",
+    f'{S}/ui/text/fr.lua': "return {\n    modules={['cat.alpha']='A',beta='B',['cat.delta']='D'},\n}\n",
+    f'{S}/cat/alpha/wiring.lua': ALPHA.replace("require('alpha.core')", "require('cat.alpha.core')"),
+    B: BETA.replace("uses={'alpha'}", "uses={'cat.alpha'}"),
+    f'{S}/cat/delta/wiring.lua': wiring([], ['delta']),
+    'tests/lua/cat/alpha/off_test.lua': "dofile('tests/lua/main/isolation.lua')('cat.alpha')\n",
+    'tests/lua/cat/delta/off_test.lua': "dofile('tests/lua/main/isolation.lua')('cat.delta')\n",
+    'tests/lua/main/fixture.lua': "package.loaded['cat.alpha.core']={}\n",
+    f'{SRC}/glue/tick.cpp': ('#include "cat/alpha/alpha_game.inc"\n#include "beta/beta_game.inc"\n'
+                            '#include "cat/delta/delta_game.inc"\n'),
+    f'{SRC}/cat/delta/delta_game.inc': 'namespace coop::pose {\nvoid delta_tick() {}\n} // namespace coop::pose\n',
+})
+assert scan_of(NESTED) == [], scan_of(NESTED)
+for change in ({f'{SRC}/cat/delta/delta_game.inc': 'namespace coop::pose {\nvoid delta_tick() { alpha_count = 2; }\n'
+                                                   '} // namespace coop::pose\n'},
+               {f'{SRC}/cat/delta/delta.h': '#pragma once\n#include "cat/alpha/alpha.h"\n'}):
+    got = scan_of({**NESTED, **change})
+    assert {v.split()[0] for v in got} == {'R8'}, (change, got)
 
 R9_AT = scan_of({**CLEAN, f'{S}/ui/text/fr.lua': TEXT_FR.replace(",beta='B'", '')})
 assert R9_AT == [f'R9 {S}/ui/text/fr.lua:2: T.fr.modules lacks beta, has extra nothing'], R9_AT

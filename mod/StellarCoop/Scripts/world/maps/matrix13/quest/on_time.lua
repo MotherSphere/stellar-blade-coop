@@ -11,7 +11,7 @@
 -- steps: reach the station (M01) and zones 2 to 4 (M02 to M04, each SB's own EnterZone), the Fusion Drive room in zone
 -- 4 (M05, which this file completes), and telling Lily (M06), when her row returns as "About Matrix 13" and plays the
 -- end talk. The pieces, in order:
--- - The signal rows (lion/rows.h's kSignalRecipe, through core/enemy.lua's rows flow and read back): both quests' rows
+-- - The signal rows (rows/rows.h's kSignalRecipe, through core/enemy.lua's rows flow and read back): both quests' rows
 --   (8 target filters, 7 tasks, 7 groups, the two quests), then Lily's borrowed choice row TS_GoToTest_2 patched in
 --   place (the game's own Phase 5 condition Xion_10_Condition_051, shown or hidden, priority 3, her goodbye's exec).
 --   Only with the test pak (looked for once a Lua load), since nothing else can use them and no row has gone into these
@@ -23,12 +23,14 @@
 -- 7 group
 --   lines, On Time's task lines 1 to 5 and her choice's first label, as FText in the game's language, each row checked first
 --   and read back (core/row_edit.lua's edit). The prologue's task and M06's keep the shipped "Talk to Lily" line.
--- - The quest unit's reads (quest/own.h): none until signal watch, asked once a Lua load when the cheap gates hold (a
+-- - The quest unit's reads (story/quests/own.h): none until signal watch, asked once a Lua load when the cheap gates
+-- hold (a
 --   co-op save, solo, the test pak, the rows read back), so no player without the pak calls SB's quest unit getter.
 -- - The prologue: once Quest_Epic_11 is at M04 in progress, with neither quest held, every gate holding, the game not
 --   paused and none of its screens shown for QUIET s, and no theater of the game playing (read once then): signal
 --   prologue, once a Lua load. A save that already holds On Time never gets it.
--- - Her list (nightop/roxanne.h's lily swap: lily on, lily off): on while every gate holds (the cheap ones, the words
+-- - Her list (online/modes/nightop/roxanne.h's lily swap: lily on, lily off): on while every gate holds (the cheap
+-- ones, the words
 --   written, the quest unit read, Quest_Epic_12 not held, Quest_Sub_005 complete: while it runs Lily can show six rows
 --   of her own, every slot of the choice box, so ours would make a seventh) and either the prologue is at its task
 --   (label L) or On Time is at M06's task (label L2, written into the row when the wanted label changes); off as soon
@@ -38,8 +40,8 @@
 --   on: the talk player armed (its hook in place for her goodbye), then the talk: once a theater of the game plays
 --   (her goodbye; looked for every 0.5 s, the talk player waits for its end), 0.5 s after one of its screens closed,
 --   or AFTER s after the pick when neither showed. After the prologue talk (played, fallen back or failed): signal talked (the prologue's
---   task's Complete), up to WAIT s for the prologue to complete, then signal acquire (quest/own.h, SB's acquire by ID)
---   and, once the quest unit holds it, coop mxiii (world/maps/matrix13/commands.lua's: the co-op save check, the
+--   task's Complete), up to WAIT s for the prologue to complete, then signal acquire (story/quests/own.h, SB's acquire
+--   by ID) and, once the quest unit holds it, coop mxiii (world/maps/matrix13/commands.lua's: the co-op save check, the
 --   follow's guards, the test pak, the mxiii rows, the travel). After the end talk: signal tell (M06's task), and On
 --   Time is complete. A failed talk or a refused ask logs a STOP line and the flow goes on.
 -- - In Matrix XIII: the arrival talk once a Lua load (Lua memory only, nothing saved), ARRIVAL s after EVE's map turns
@@ -141,7 +143,7 @@ end
 Lily.CHOICE={'TheaterSelectDataTable','TS_GoToTest_2',86,{{'DisplayText','L'}},'Success5'}
 Lily.TEXTS[#Lily.TEXTS+1]=Lily.CHOICE
 local why=U.why
--- The signalquest line (quest/own.h) as fields: held (unread, none, held, fault), state, group (0 is M01), task,
+-- The signalquest line (story/quests/own.h) as fields: held (unread, none, held, fault), state, group (0 is M01), task,
 -- epic12, sub005, pro (the prologue: unread, none, held), prostate, progroup, protask, epic11 (Quest_Epic_11's active
 -- group), epic11state, asks (numbers), want, why; nil without one.
 function Lily.quest_of(raw)

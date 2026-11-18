@@ -37,7 +37,7 @@
 //   SBSn end <seq> <scene>                             the host's scene ended
 //   SBSn trip <seq> <zone> <row>                       a story trip an interaction graph ran (game/story/rows.h
 //   trip_sent) SBSn on <hooks>, SBSn on reply <hooks>, SBSn off <reason>
-//                                                      the sender's feature state, as game/world/sync.h's; hooks: the
+//                                                      the sender's feature state, as game/objects/sync.h's; hooks: the
 //                                                      sender's hooks in (kHookTalk, kHookQte, kHookCounter added)
 // seq is 1 for the first line after each on and one more for each later one. The guest takes them in seq order: an
 // old seq is dropped and a gap is logged, so the leash never steps back. The host sends a scene's results before the

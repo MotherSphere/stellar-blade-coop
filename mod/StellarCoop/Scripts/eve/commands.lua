@@ -16,7 +16,7 @@ function Eve.new(o)
     function self.wear(...) return o.wear.command(...) end
     -- coop emote (eve/emote.lua, o.emote): every word to it, on any save, as nothing of it is saved.
     function self.emote(...) return o.emote.command(...) end
-    -- coop fly and coop slowmo (the native part's cut/debug_keys.h, test tools left out of the usage line): SB's
+    -- coop fly and coop slowmo (the native part's eve/debug_keys.h, test tools left out of the usage line): SB's
     -- developer flight and slow motion. on is asked on a co-op save only, off anywhere; coop off and the next Lua load
     -- end both in the native part. coop fly on is refused while EVE rides the bike: its R2 is the bike's drift key.
     local RIDING='EVE rides the bike: coop bike gets her off first'

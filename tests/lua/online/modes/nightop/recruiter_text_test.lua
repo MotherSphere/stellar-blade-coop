@@ -6,8 +6,8 @@
 -- invisible format or rich-text character, no format brace, nothing outside the BMP, no edge space); no Korean and no
 -- developer marker outside ko;
 -- the French no-break space; the 12 keys, their lines and their Korean sources against a copy of the asset text kept
--- here; culture()'s mapping of the names the game can report; and that nightop/guard_text.h holds the same 12 keys,
--- sources and lines and the same 23 cultures.
+-- here; culture()'s mapping of the names the game can report; and that online/modes/nightop/guard_text.h holds the same
+-- 12 keys, sources and lines and the same 23 cultures.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local R=require('online.modes.nightop.recruiter_text')
 local CULTURES={'ko','en','en-GB','fr','de','it','es','es-MX','pt','pt-BR','nl','da','no','sv','fi','pl','ru','tr','ar',
@@ -95,8 +95,9 @@ for _,case in ipairs({{'fr-FR','fr'},{'en-US','en'},{'en','en'},{'en-AU','en-GB'
     local got=R.culture(case[1])
     assert(got==case[2],string.format('culture(%s) is %s, not %s',tostring(case[1]),tostring(got),case[2]))
 end
--- The native part's copy (nightop/guard_text.h): a key, its source and its line there must be these, byte for byte.
-local f=assert(io.open('native/src/nightop/guard_text.h','rb'))
+-- The native part's copy (online/modes/nightop/guard_text.h): a key, its source and its line there must be these, byte
+-- for byte.
+local f=assert(io.open('native/src/online/modes/nightop/guard_text.h','rb'))
 local h=f:read('a')
 f:close()
 local index={}

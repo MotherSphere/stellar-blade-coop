@@ -172,8 +172,8 @@ public:
     if (sent)
       vitals_ = mine, vitals_at_ = now_, vitals_sent_ = true;
   }
-  // The pair's life for the shared fight (fight/engine.h's Worker), as of the last tick(): life_of() her vitals while a
-  // session holds and her last line is under kMateMs old (mate_vitals()), else unknown.
+  // The pair's life for the shared fight (fight/enemies/engine.h's Worker), as of the last tick(): life_of() her vitals
+  // while a session holds and her last line is under kMateMs old (mate_vitals()), else unknown.
   Life mate_life() const {
     const Vitals *v = mate_vitals(partner());
     return v ? life_of(*v) : Life::unknown;

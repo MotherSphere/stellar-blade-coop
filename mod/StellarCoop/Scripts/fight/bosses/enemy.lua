@@ -6,7 +6,7 @@
 -- gardener fight (fight/bosses/gardener.lua) and coop tendril fight (fight/bosses/tendril.lua) share, each giving its
 -- own spec (coop mxiii, world/maps/matrix13/level/travel.lua, uses its rows part only, as do the Night Operation shop's
 -- cut items, its Shock Bolt and its screen, through fight/bosses/lion.lua). The monster's rows
--- are a batch of the native part (lion/rows.h, lion/lion_game.inc: SB's own AddRow on the game thread with no
+-- are a batch of the native part (rows/rows.h, rows/rows_game.inc: SB's own AddRow on the game thread with no
 -- logic task in flight). This file finds the tables the spec's rows go into (of the native part's 39) by their fixed
 -- paths and sends their addresses (the spec's "<word> rows" request: no console word reaches an address), so a table
 -- no row of the batch uses never stops it; it waits for the answer in coop-status.txt's <word> line,
@@ -688,7 +688,7 @@ function Enemy.new(o,spec)
     -- the co-op save files, saves=coop; never your own saves). ready() gives the words the ask's log line names the
     -- files with ('the co-op save files and test pak v3'), or nil when there is nothing to add (then nothing is said);
     -- more names what adds them later. Asks at most TRIES times a visit of the title, each RETRY s after the last
-    -- answer, while the gate stays shut (GATE: the refusals of a gate that stayed shut, lion/rows.h's busy, net,
+    -- answer, while the gate stays shut (GATE: the refusals of a gate that stayed shut, rows/rows.h's busy, net,
     -- unread, which a later frame may open; any other refusal would come back the same). Once a game run: this batch's
     -- line already reading rows (a Lua reload, a command before a return to the title) ends it, and so do ready()
     -- giving nil, a fault, or an answer that is no shut gate. The rows flow is the commands' (the tables, the native

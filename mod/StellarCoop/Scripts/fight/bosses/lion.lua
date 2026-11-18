@@ -4,14 +4,14 @@
 -- coop lion: the cut Naytiba 02, the Lion (/Game/Art/Character/Monster/CH_M_NA_02/: blueprint, mesh, clips, collision
 -- data and 41 Shows, but no table row), spawned as a real enemy to fight, on the game thread (plan A of the Lion study,
 -- made native). Its 222 rows, each authored for it (core/lion_rows.lua lists them), go into SB's tables through the
--- native part (lion/rows.h, lion/lion_game.inc: SB's own AddRow on the game thread with no logic task in flight),
+-- native part (rows/rows.h, rows/rows_game.inc: SB's own AddRow on the game thread with no logic task in flight),
 -- after the 4 rows of the cut items the Night Operation shop sells (2 ItemTable rows, an ItemConsumableTable row and
 -- the SkillTable row they play) and the 11 of EVE's cut Tachy ChainSpin (its skill, 9 steps and the effect that starts
 -- it), 237 rows: the lion rows batch. The shop and coop chainspin ask for them through Lion.rows
 -- (online/modes/nightop/shop.lua, eve/chainspin.lua). The 4 rows of the Shock Bolt ammo the shop sells too (its item,
 -- skill, projectile and hit result) are a batch of their own, the bolt rows batch, which only the shop asks for through
 -- Lion.rows, so they never stand in front of the Lion's; once they are in, the native part also grows EVE's gun stances
--- and the ammo list for the Shock Bolt (lion/shock.h, the status's shock line). The Night Operation shop's 6 rows (the
+-- and the ammo list for the Shock Bolt (rows/shock.h, the status's shock line). The Night Operation shop's 6 rows (the
 -- Beta Seed's item, three shop items and two shops) are a sixth batch, the shop rows batch, which coop nightop shop
 -- asks for before it opens SB's shop screen, with the other two.
 -- The flow is fight/bosses/enemy.lua's, which coop gardener fight shares: the tables, the lion rows request, the wait
@@ -70,7 +70,7 @@ local ANIM_CLASSES={
 -- and ours (fight/bosses/enemy.lua writes it).
 local BOSS_SHOWN,BOSS_NAME='^<M_LionC[%w_]*>$','Lion'
 
--- The rows as the native part writes them: core/lion_rows.lua's R.ROWS, which the generator of lion/rows.h writes from
+-- The rows as the native part writes them: core/lion_rows.lua's R.ROWS, which the generator of rows/rows.h writes from
 -- the same recipe (tests/lua/fight/bosses/lion_test.lua checks the two agree), in Enemy.rows' form.
 Lion.ROWS=Enemy.rows(require('core.lion_rows').ROWS)
 -- The lion line's counts once every row is in: added=, and SB's lookups by ID (char=, skills=, stance=).

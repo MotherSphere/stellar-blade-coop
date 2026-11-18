@@ -20,7 +20,7 @@
 // at 3 (FUN_141d01910) and FUN_141cf29a0 true; their meaning is unknown and they are not read here, so a panel may open
 // where the game would not open its own. A close needs only the client and its manager. The client is read from its
 // global, never through FUN_141a987d0, which allocates it when it is null.
-// Pure, so tests/native/game/dev_panels_test.cpp checks the guard and the plan; cut/debug_game.inc makes the
+// Pure, so tests/native/game/dev_panels_test.cpp checks the guard and the plan; eve/debug_game.inc makes the
 // calls on the game thread under its own SEH latch, on the pinned build only.
 #pragma once
 

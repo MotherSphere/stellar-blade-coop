@@ -3,7 +3,7 @@
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // coop emote's native backend (eve/emote.lua), free of Windows: one of EVE's animation clips played on the player's
 // EVE through SB's own custom animation call, the way the game plays her clips, and stopped again.
-// cut/anim_game.inc makes the calls on the game thread; tests/native/game/anim_test.cpp checks this file on the
+// eve/anim_game.inc makes the calls on the game thread; tests/native/game/anim_test.cpp checks this file on the
 // build machine.
 //
 // Why not a montage: CH_P_EVE_01_AnimBP_New has no AnimNode_Slot, so a dynamic montage plays with nothing shown. SB
@@ -231,7 +231,7 @@ public:
     feet_ = feet_ || ride_;
     set(id, any(guid) ? State::playing : State::refused, any(guid) ? Why::none : Why::game);
   }
-  // The ride's foot IK off is owed back once no ride of ours plays (cut/anim_game.inc's anim_feet, game thread).
+  // The ride's foot IK off is owed back once no ride of ours plays (eve/anim_game.inc's anim_feet, game thread).
   bool owes_feet() const { return feet_ && !(live() && ride_); }
   void paid_feet() { feet_ = false; }
   void refused(uint32_t id, Why why) {
@@ -287,7 +287,7 @@ private:
   bool ride_ = false, feet_ = false; // ride_: the last play is a ride that played; feet_: a ride turned foot IK off.
 };
 
-// What the game thread does this frame (cut/anim_game.inc's anim_tick). got: an ask taken this frame, stop: it
+// What the game thread does this frame (eve/anim_game.inc's anim_tick). got: an ask taken this frame, stop: it
 // is a stop; blocked: coop off; drop: a new Lua load; live: ours plays; next: when the next watch is due. A play asked
 // is refused after coop off or at a new Lua load (why off or session: the Lua load that asked is gone), else played;
 // while ours plays, it stops first (stop_first). While ours plays, a stop asked, a new Lua load or coop off stop it

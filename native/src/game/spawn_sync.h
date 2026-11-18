@@ -13,7 +13,7 @@
 // census. Every line carries the host's epoch, and each side drops the others. The guest also keeps the keys the host
 // lacks as far as she knows, which the spawn filter (spawn_filter=on, BlockTable) refuses before her game spawns them
 // again. No SB call here: the engine
-// (fight/engine.h) reads the rows and the actors and makes the calls through an Io, so
+// (fight/enemies/engine.h) reads the rows and the actors and makes the calls through an Io, so
 // tests/native/game/spawn_sync_test.cpp drives this file with fake worlds. Fixed arrays only, no allocation.
 //
 // The Io both sides take:

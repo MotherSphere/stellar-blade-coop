@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The bike's native side (vehicles/bike/ride.lua), free of Windows: the preload of the bike's mesh and the riding clip;
-// SB's own per-action switch turned off while EVE rides. bike/bike_game.inc makes the calls on the game thread;
-// tests/native/game/bike_test.cpp checks this file on the build machine.
+// SB's own per-action switch turned off while EVE rides. vehicles/bike/bike_game.inc makes the calls on the game
+// thread; tests/native/game/bike_test.cpp checks this file on the build machine.
 //
 // The preload is SB's own async load, as SB loads EVE's custom animations (FUN_1420b4ed0, the call at 0x1420b5238):
 // FStreamableManager::RequestAsyncLoad's array form FUN_1445c5440(manager, &handle, paths, delegate, priority 100,

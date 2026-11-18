@@ -3,7 +3,7 @@
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The native pose path's shared pieces, free of Windows: its limits, one skeletal mesh component as Lua names it, one
 // effect slot, the hex addresses Lua writes, the ghost slots' file names and the native tick's gap line. The component
-// table is in game/table.h, engine memory access in game/pose/engine.h.
+// table is in game/table.h, engine memory access in game/partner/engine.h.
 #pragma once
 
 #include <cstddef>
@@ -44,14 +44,14 @@ inline std::string slot_file(std::string_view stem, size_t slot) {
   return std::string(stem) + (slot ? "-" + std::to_string(slot) : std::string()) + ".txt";
 }
 
-// The game thread's pose inbox (pose/pose_game.inc), one for all the ghost slots: 400 ms of poses at 60 a second
-// from each other member of a match lobby. When it is full, the worker drops the newest pose (wire_receive).
+// The game thread's pose inbox (online/partner/pose_game.inc), one for all the ghost slots: 400 ms of poses at 60 a
+// second from each other member of a match lobby. When it is full, the worker drops the newest pose (wire_receive).
 constexpr size_t kInbox = 24 * kMaxRemote;
 
-// The worker's line for one gap over 100 ms between two native ticks (pose/pose_game.inc's game_tick): when it
-// ended, in UTC (filetime: a FILETIME, 100 ns ticks since 1601-01-01), how long it was, the engine frame it ended in,
-// how long the coop_tick before it took, and how much vkd3d-proton.cache.write grew since the last gap line
-// (cache_grew < 0: no such file, so no field). tests/native/pose/gap_test.cpp checks it.
+// The worker's line for one gap over 100 ms between two native ticks (online/partner/pose_game.inc's game_tick): when
+// it ended, in UTC (filetime: a FILETIME, 100 ns ticks since 1601-01-01), how long it was, the engine frame it ended
+// in, how long the coop_tick before it took, and how much vkd3d-proton.cache.write grew since the last gap line
+// (cache_grew < 0: no such file, so no field). tests/native/online/partner/gap_test.cpp checks it.
 inline std::string gap_line(uint64_t filetime, uint64_t gap_us, uint64_t frame, uint64_t tick_us, int64_t cache_grew) {
   // 1601-01-01 begins at midnight, and FILETIME has no leap seconds.
   const uint64_t ms = filetime / 10'000 % 86'400'000;

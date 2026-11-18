@@ -9,7 +9,7 @@
 // leave cycles, the host leaving, a rejoin the host never saw, and the synced photo mode's line, pause, cap and notices
 // on both sides.
 #include "fake_steam.h"
-#include "fight/worker.h"
+#include "fight/enemies/worker.h"
 #include "link/core.h"
 #include "game/table.h"
 

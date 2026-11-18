@@ -60,7 +60,7 @@ local Enemy=require('core.enemy')
 
 -- The rows against rows.h's hand-written batch.
 do
-    local f=assert(io.open('native/src/lion/rows.h'))
+    local f=assert(io.open('native/src/rows/rows.h'))
     local src=f:read('a')
     f:close()
     -- A text as C++ writes it: adjacent literals joined; kLilyFilters by its definition.

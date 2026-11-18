@@ -5,7 +5,7 @@
 // grammar for Lua's capture file (coop-components.txt), the wire and the remote table the worker hands Lua; and the
 // display file Lua answers with, naming the ghost it built; and when our table goes to a linked friend again. No
 // Windows types: tests/native/game/table_test.cpp checks it on the build machine, fuzzing the table parser, and
-// tests/native/pose/resend_test.cpp the resends.
+// tests/native/online/partner/resend_test.cpp the resends.
 //
 // A table, every line ending in '\n', in this order, each where shown and nowhere else:
 //   SBT <protocol>                                    the wire form only

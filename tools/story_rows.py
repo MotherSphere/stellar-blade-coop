@@ -3,18 +3,18 @@
 # SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """Writes the generated block of native/src/game/story/rows.h from a game build's tables: the story scenes and trips
-that story sync may share. It reads the tables and the quest table of native/src/game/quest/sync.h only.
+that story sync may share. It reads the tables and the quest table of native/src/game/quests/sync.h only.
 
   python3 -I tools/story_rows.py JSON_DIR   JSON_DIR holds the <Table>.uasset.json exports of the pinned build
 
-Run it after tools/world_rows.py and after the quest table of game/quest/sync.h is written: a scene's quest flag comes
+Run it after tools/world_rows.py and after the quest table of game/quests/sync.h is written: a scene's quest flag comes
 from that table.
 
 Scenes: one entry per ZoneEventTable Theater row whose EventTheaterTable row plays (ControlType Play) a theater asset,
 or with none a level sequence alone (a subtitle sequence). Each holds the path the zone-event handler gives the theater
 manager (TheaterAssetPath, else LevelSeqAssetPath), the row, the zone its name gives (DED10_E_Theater_001: Zone_DED10),
 the priority as the manager keeps it (the EventTheaterTable Priority, 0 when below), its FinishEvents, the quest flag
-(a step of a shared quest runs it: game/quest/sync.h's kSteps names it) and, for a row with AddEvents, its
+(a step of a shared quest runs it: game/quests/sync.h's kSteps names it) and, for a row with AddEvents, its
 ZoneEventTable condition: RunZoneEvent runs AddEvents even when the condition fails. Entries are sorted by path, then in
 table order.
 
@@ -31,7 +31,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 HEADER = ROOT / 'native/src/game/story/rows.h'
-QUESTS = ROOT / 'native/src/game/quest/sync.h'
+QUESTS = ROOT / 'native/src/game/quests/sync.h'
 BUILD = '26123051'  # The build whose tables the block is written from; change it with the tables.
 BEGIN = '// ---- story rows: generated, begin ----'
 END = '// ---- story rows: generated, end ----'
@@ -72,7 +72,7 @@ def load(folder):
 
 
 def quest_events(text):
-    """The names kSteps of a game/quest/sync.h text lists as the events of a shared quest's steps."""
+    """The names kSteps of a game/quests/sync.h text lists as the events of a shared quest's steps."""
     block = text[text.index(QUEST_BEGIN):text.index(QUEST_END)]
     steps = block[block.index('constexpr Step kSteps[]'):]
     steps = steps[:steps.index('};')]
@@ -200,7 +200,7 @@ def render(entries, trip_list, counts):
     if not (entries and trip_list):
         raise ValueError('an empty list would make a zero-size C++ array')
     note = (f"Written by tools/story_rows.py from build {BUILD}'s {', '.join(TABLES[:-1])} and {TABLES[-1]}, with "
-            "game/quest/sync.h's quest table. Another build needs it written again from that build's tables.")
+            "game/quests/sync.h's quest table. Another build needs it written again from that build's tables.")
     b = lambda v: 'true' if v else 'false'
     out = [BEGIN, *(f'// {line}' for c in [note, *counts] for line in textwrap.wrap(c, 117)),
            'constexpr Scene kScenes[] = {']

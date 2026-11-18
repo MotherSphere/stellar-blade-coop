@@ -1,14 +1,15 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// What other modules' parts read of photo/freeze_game.inc, cut from it whole and in order.
+// What other modules' parts read of online/photo/freeze_game.inc, cut from it whole and in order.
 // tick.cpp includes this file right before it.
 namespace coop::pose {
 namespace {
-// ---- The synced photo mode's pause (photo/photo_freeze.h) ----
+// ---- The synced photo mode's pause (online/photo/photo_freeze.h) ----
 // SB's on the pinned build (FEATURE-PARITY.md 6.2): the pause-tag function photo mode pauses with, the player
 // controller getter it pauses through, and FName's MakeWithNumber (FUN_14293dde0, which SB calls for "PhotoMode"; our
-// name has no number suffix, so ParseNumber's 0 goes as it is). The set's singleton is fight/engine.h's kPauseAt.
+// name has no number suffix, so ParseNumber's 0 goes as it is). The set's singleton is fight/enemies/engine.h's
+// kPauseAt.
 constexpr uint64_t kPauseTag = 0x1422b07b0, kController = 0x142321ee0, kMakeName = 0x14293dde0;
 // FUN_1422b0af0's reads, null-checked here: the controller's GetWorld (virtual +0x158), the world's persistent level,
 // the level's WorldSettings, and their PauserPlayerState.

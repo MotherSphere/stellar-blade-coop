@@ -5,7 +5,7 @@
 -- shows the cycle has a row: its horizon hz (the sun's light goes under it), its noon heading (from the map's main
 -- preset, so noon shadows fall the way SB's artists drew them) and how its sky is dressed. A map with no row, or a
 -- fixed one, keeps Stellar Blade's own light. The hour and the sun come from the native part's sky= status line
--- (sky/sky.h): Lua never computes the clock.
+-- (world/daynight/sky.h): Lua never computes the clock.
 local Rule={}
 
 local BG='/Game/Art/BG/WorldMap/SubLevel/'
@@ -63,7 +63,7 @@ Rule.MAPS={
 Rule.STARS='/Game/Art/BG/WorldMap/SubLevel/C05/C05_Material/Ending/001_A_MI_C05_Star_SKY.001_A_MI_C05_Star_SKY'
 Rule.CREATOR='/Script/SkyCreatorPlugin.SkyCreator'
 Rule.STARS_AT=-8 -- The sun's elevation under which the stars show: the sky is dark by then.
-Rule.NIGHT_DOME_AT=-4 -- Where the moon takes over from the sun (sky/sky.h).
+Rule.NIGHT_DOME_AT=-4 -- Where the moon takes over from the sun (world/daynight/sky.h).
 
 function Rule.row(map) return map and Rule.MAPS[map] or nil end
 

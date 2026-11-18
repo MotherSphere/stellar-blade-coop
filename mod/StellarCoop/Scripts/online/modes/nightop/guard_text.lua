@@ -2,9 +2,10 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The Xion guard's lines (coop recruiter's, online/modes/nightop/recruiter_text.lua) in the game's language: one
--- culture's seven lines go to the native part (nightop/guard_text.h) as one guardtext request, and it writes them into
--- the game's text manager under his 12 text keys. Asked again when the game's language changes. coop off: main.lua
--- stops ticking this, and the native part puts his Korean sources back. No log line holds one of his lines.
+-- culture's seven lines go to the native part (online/modes/nightop/guard_text.h) as one guardtext request, and it
+-- writes them into the game's text manager under his 12 text keys. Asked again when the game's language changes. coop
+-- off: main.lua stops ticking this, and the native part puts his Korean sources back. No log line holds one of his
+-- lines.
 local U=require('core.unreal')
 local R=require('online.modes.nightop.recruiter_text')
 local G={}

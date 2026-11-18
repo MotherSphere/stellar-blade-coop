@@ -4,7 +4,7 @@
 -- coop gardener fight: the cut Naytiba 1, the Gardener (/Game/Art/Character/Monster/CH_M_NA_01/), an artillery tower
 -- about 20 m tall that never walks, spawned as a real enemy to fight, on the game thread. The game ships its blueprint,
 -- Shows, skill kit, shells, appearance, dead and detect rows but no CharacterTable row and no tree; its 13 rows
--- (core/lion_rows.lua's R.GARDENER, the native part's second batch, lion/rows.h's kGardenerRecipe) are near copies of
+-- (core/lion_rows.lua's R.GARDENER, the native part's second batch, rows/rows.h's kGardenerRecipe) are near copies of
 -- shipped ones: three skills the flag trees pick (SingleShot and MultipleShot on their shipped steps, ToxicBeam on
 -- three new steps that play its Show), their commands, a stance at speed 0, and three CharacterTable rows over the
 -- Maelstrom's: M_Gardener (50010, the Tentacle tree, made for monsters that stay put), M_Gardener_Half (50012, the

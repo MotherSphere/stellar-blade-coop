@@ -2,12 +2,12 @@
 # Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 # SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-"""Writes the generated block of native/src/game/world/rows.h from a game build's tables: what shared world sync may
+"""Writes the generated block of native/src/game/objects/rows.h from a game build's tables: what shared world sync may
 send and apply. It reads the tables and data/mxiii-world.json only.
 
   python3 -I tools/world_rows.py JSON_DIR   JSON_DIR holds the <Table>.uasset.json exports of the pinned build
 
-Matrix XIII's rows go through the same rules as the game's: the tool puts them into the tables first as lion/rows.h
+Matrix XIII's rows go through the same rules as the game's: the tool puts them into the tables first as rows/rows.h
 does at run time, each a copy of its donor row with every field the file sets (a row named as its donor changes the
 game's row in place).
 
@@ -44,7 +44,7 @@ from collections import Counter, deque
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-HEADER = ROOT / 'native/src/game/world/rows.h'
+HEADER = ROOT / 'native/src/game/objects/rows.h'
 MXIII = ROOT / 'data/mxiii-world.json'
 BUILD = '26123051'  # The build whose tables the block is written from; change it with the tables.
 BEGIN = '// ---- world rows: generated, begin ----'
@@ -75,7 +75,7 @@ QUEST_EVENTS = (('QuestTable', ('AcquireEventArray', 'CompleteEventArray')),
                 ('QuestTaskTable', ('TaskStartEventSpawnAliasList', 'TaskCompleteEventSpawnAliasList',
                                     'TaskProgressEventSpawnAliasList')))
 NAME = re.compile(r'[A-Za-z0-9_\-]+')  # What a name may hold to go into a C++ string literal and sort as in C++.
-# The enum fields this tool reads that data/mxiii-world.json sets as numbers (lion/rows.h writes the byte), by table,
+# The enum fields this tool reads that data/mxiii-world.json sets as numbers (rows/rows.h writes the byte), by table,
 # in the names of the table exports. Another number stops the tool.
 MXIII_ENUMS = {
     ('ZoneEventTable', 'Type'): {10: 'ESBZoneEventType::ZoneEvent_ZoneEnvControl'},

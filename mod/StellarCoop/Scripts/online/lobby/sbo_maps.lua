@@ -7,7 +7,7 @@
 -- ground plus 100 cm), the seats (Z: the floor under the seat, the seat top minus its sit loop's
 -- seat height; approach: where EVE stands up, a point the editor traces found clear for her standing
 -- capsule, its Z the Pawn floor under the seat marker plus 100 cm; row, id: its
--- ZoneEnvSpawnTable row in lion/halls_rows.h, none for a camp seat), the terminal, the menu camera and
+-- ZoneEnvSpawnTable row in rows/halls_rows.h, none for a camp seat), the terminal, the menu camera and
 -- the fence (centre X, Y, radius R, Z range). Units: cm and degrees.
 local M={order={'hotel','station','cloister','terrace','foyer'},maps={}}
 M.maps.hotel={name='Hotel',world='SBO_Hotel',zone='Zone_SBO_Hotel',point='SBO_Hotel',world_id=7121,zone_id=1000121,

@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- world/maps/matrix13/level/travel.lua with fake UE4SS objects and a fake follow. Its rows match
--- native/src/lion/mxiii_rows.h's recipes and patches batch by batch (names, templates, IDs, each patched field's kind
+-- native/src/rows/mxiii_rows.h's recipes and patches batch by batch (names, templates, IDs, each patched field's kind
 -- and value, no field more). The dev rows first: the camp, then 7 env-spawn rows that all name it, the kit's 6 each
 -- bound by its own name to a placed object, then zone 30's camp and its one row in Zone_DLC02_30, then zone 40's two
 -- shipped trigger rows patched in place to start enabled. The Paks folder comes from the mod folder; the test pak
@@ -59,7 +59,7 @@ package.loaded.UEHelpers={GetPlayer=function() return player end,GetPlayerContro
 local M=require('world.maps.matrix13.level.travel')
 local Enemy=require('core.enemy')
 
--- The rows against lion/mxiii_rows.h, batch by batch (both written by tools/mxiii_rows.py from one data file):
+-- The rows against rows/mxiii_rows.h, batch by batch (both written by tools/mxiii_rows.py from one data file):
 -- names, templates, IDs, each patched field's kind and value, no field more. Then the dev rows first, in their order.
 local TABLES={character='CharacterTable',camp='ZoneCampTable',env='ZoneEnvSpawnTable',trigger='ZoneTriggerTable',
     spawn='EventSpawnTable',eitem='EventItemTable',zevent='ZoneEventTable',transition='WorldTransitionTable',
@@ -93,7 +93,7 @@ local function check_batch(src,cname,rows)
     return n,#patches
 end
 do
-    local f=assert(io.open('native/src/lion/mxiii_rows.h'))
+    local f=assert(io.open('native/src/rows/mxiii_rows.h'))
     local src=f:read('a')
     f:close()
     assert(check_batch(src,'kMxiii',M.ROWS)==75)

@@ -3,7 +3,7 @@
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The link's text protocol and its Lua requests, checked on the build machine (no Windows, no Steam).
 #include "link/protocol.h"
-#include "quest/own.h" // kAskWords: the signal words in its order
+#include "story/quests/own.h" // kAskWords: the signal words in its order
 
 #include <cassert>
 #include <cctype>
@@ -959,7 +959,7 @@ int main() {
          parse_request("loading lift\r\n").command == Command::loading);
   for (const char *bad : {"loading", "loading Lift", "loading lift now", "loading  lift", "loadinglift", "loading off"})
     assert(parse_request(bad).command == Command::none);
-  // The shared world's setting and status (game/world/sync.h): world on, off or status, nothing else.
+  // The shared world's setting and status (game/objects/sync.h): world on, off or status, nothing else.
   assert(parse_request("world on\n").command == Command::world && parse_request("world on").world == WorldAsk::on &&
          parse_request("world off\r\n").world == WorldAsk::off &&
          parse_request("world status").world == WorldAsk::status && parse_request("world status").command == Command::world);
@@ -1419,12 +1419,13 @@ int main() {
   assert(parse_request("lily on").command == Command::roxanne && parse_request("lily on").on &&
          parse_request("lily on").lily && parse_request("lily off\r\n").command == Command::roxanne &&
          !parse_request("lily off").on && parse_request("lily off").lily);
-  // The Xion guard's lines: guardtext and what follows it, which nightop/guard_text.h's parse checks in the glue.
+  // The Xion guard's lines: guardtext and what follows it, which online/modes/nightop/guard_text.h's parse checks in
+  // the glue.
   assert(parse_request("guardtext fr\ta\tb\tc\td\te\tf\tg\r\n").command == Command::guardtext &&
          parse_request("guardtext fr\ta\tb\tc\td\te\tf\tg").text == "fr\ta\tb\tc\td\te\tf\tg");
   for (const char *bad : {"guardtext", "guardtext ", "guardtextfr", "Guardtext fr\ta", "guard fr\ta"})
     assert(parse_request(bad).command == Command::none);
-  // Every signal word, in quest/own.h's Ask order (the glue casts the index to an Ask), and only those.
+  // Every signal word, in story/quests/own.h's Ask order (the glue casts the index to an Ask), and only those.
   static_assert(kSignalWordCount == coop::quest::own::kAsks, "one word for each ask");
   for (size_t w = 0; w < kSignalWordCount; ++w) {
     assert(!std::strcmp(kSignalWords[w], coop::quest::own::kAskWords[w]));

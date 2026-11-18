@@ -1,5 +1,5 @@
 {
- "about": "Matrix XIII world rows (tools/mxiii_rows.py writes lion/mxiii_rows.h and world/maps/matrix13/level/rows.lua from this file). Each row copies its donor row; set holds [field, value, changed], changed meaning the value differs from the donor's in the build 24463856 dumps. A ZoneEventTable row's ID is its zone's ID times 1,000,000, plus 60,000, plus the number in its name (DLC02_20_ZoneE_033 is 2805060033): the game numbers its own ZoneEvent rows from 1 up, and build 26123051 took 8480 and 8481.",
+ "about": "Matrix XIII world rows (tools/mxiii_rows.py writes rows/mxiii_rows.h and world/maps/matrix13/level/rows.lua from this file). Each row copies its donor row; set holds [field, value, changed], changed meaning the value differs from the donor's in the build 24463856 dumps. A ZoneEventTable row's ID is its zone's ID times 1,000,000, plus 60,000, plus the number in its name (DLC02_20_ZoneE_033 is 2805060033): the game numbers its own ZoneEvent rows from 1 up, and build 26123051 took 8480 and 8481.",
  "batches": [
   {
    "word": "mxiii",

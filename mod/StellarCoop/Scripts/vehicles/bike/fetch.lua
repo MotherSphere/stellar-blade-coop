@@ -7,7 +7,7 @@
 -- the remove by alias (FUN_141bdfb10). The player controller's ItemBucketItemRemove request (FUN_1423bfa00) queues that
 -- same remove for SB's logic thread, as coop gift calls it (tools/mailbox.lua); asked for more than she has, it takes
 -- what there is, so the count comes first. The steps are coop gift's for one alias and one price: the native part reads
--- how many she carries (its items request, cut/items.h, answered in the engine line's items=); under PRICE nothing is
+-- how many she carries (its items request, tools/items.h, answered in the engine line's items=); under PRICE nothing is
 -- removed (poor); else the remove, then reads every POLL s until the count fell by PRICE (paid), or SETTLE s of
 -- unpaused play pass (failed: the money may be gone, since SB's logic and its remove stop while the game is paused).
 -- No answer to a read in READ s is failed too. The engine line holds the last items answer only, which coop gift's

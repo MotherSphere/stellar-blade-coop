@@ -706,10 +706,10 @@ int main() {
     p.hguid = 12, p.no_until = 80000;
     assert(!rule(p, mine, 79000, false) && p.owner == kHost && rule(p, mine, 80000, false) && p.owner == kGuest);
   }
-  // A down EVE (fight/engine.h's hand_over, from her vitals and our EVE's life state). Hers down: force on every turn,
-  // so a pair of hers is the host's at once through every guard, and stays his through a 20 s down although her last
-  // hit is under kLastHitMs. His down with hers alive: give on every turn, so a pair of his goes to her once the 4 s
-  // hold and the busy guard let it, never before her own-no pause ends; a boss (host_only) stays his. Her state
+  // A down EVE (fight/enemies/engine.h's hand_over, from her vitals and our EVE's life state). Hers down: force on
+  // every turn, so a pair of hers is the host's at once through every guard, and stays his through a 20 s down although
+  // her last hit is under kLastHitMs. His down with hers alive: give on every turn, so a pair of his goes to her once
+  // the 4 s hold and the busy guard let it, never before her own-no pause ends; a boss (host_only) stays his. Her state
   // unknown: neither, the rule as always. Back up, the rule runs as before.
   {
     Facts hers, busy, calm, ours;

@@ -11,19 +11,19 @@
 -- a co-op save after an off).
 -- No text key is registered: this UE4SS build cannot pass the 23 languages as a map inside PolyglotDataToText's struct
 -- parameter. Then the native part points her choice list's entry in SB's select cache at those four and her two
--- (nightop/roxanne.h: roxanne on). A pick is read from the select widgets (SBSequencerInteractionSelectWidget, looked
--- for at each tick through the widget library's class lookup, never by walking every object each tick): a SelectIndex
--- turning from -1 to a line, that line's text matched against our labels. A level is booked and starts on its own once
--- EVE is out of Xion with no one within 40 m (Night Operation never starts in Xion: its people and quests stay out of a
--- fight); in a co-op session only the host's pick books, and the booking holds until the partner joins (an ask the
--- partner could not join is asked again later). The supplies open the Night Operation shop's screen once her goodbye
--- is over. Everything goes back on coop off and on a save that is not a co-op save: roxanne off (asked again every 10 s
--- while the native part reads on), then the rows' shipped values once it reads her list off or absent (while it reads
--- on, or after a fault, the rows stay ours: their exec only plays her goodbye). A load (the title, a map: leaving Xion
--- is one) reads slot=none or unknown for a while: her choices hold through it, a booking through a map load, a
--- supplies pick its SHOP_WAIT at most. coop nightop stop drops a booking, and the title screen or another co-op save
--- (its index) drops it and a supplies pick. No quest, item, achievement, save or story state is touched here: talking
--- to her still runs her own graph as without the mod.
+-- (online/modes/nightop/roxanne.h: roxanne on). A pick is read from the select widgets
+-- (SBSequencerInteractionSelectWidget, looked for at each tick through the widget library's class lookup, never by
+-- walking every object each tick): a SelectIndex turning from -1 to a line, that line's text matched against our
+-- labels. A level is booked and starts on its own once EVE is out of Xion with no one within 40 m (Night Operation
+-- never starts in Xion: its people and quests stay out of a fight); in a co-op session only the host's pick books, and
+-- the booking holds until the partner joins (an ask the partner could not join is asked again later). The supplies open
+-- the Night Operation shop's screen once her goodbye is over. Everything goes back on coop off and on a save that is
+-- not a co-op save: roxanne off (asked again every 10 s while the native part reads on), then the rows' shipped values
+-- once it reads her list off or absent (while it reads on, or after a fault, the rows stay ours: their exec only plays
+-- her goodbye). A load (the title, a map: leaving Xion is one) reads slot=none or unknown for a while: her choices hold
+-- through it, a booking through a map load, a supplies pick its SHOP_WAIT at most. coop nightop stop drops a booking,
+-- and the title screen or another co-op save (its index) drops it and a supplies pick. No quest, item, achievement,
+-- save or story state is touched here: talking to her still runs her own graph as without the mod.
 local U=require('core.unreal')
 local N=require('online.modes.nightop.probe')
 local R=require('online.modes.nightop.recruiter')
@@ -32,7 +32,7 @@ local Roxanne={}
 local CHOICES='/Game/Local/Data/TheaterSelectDataTable.TheaterSelectDataTable'
 local XION='/game/art/bg/worldmap/level_p/e04'
 local LANGUAGE='/Script/Engine.Default__KismetInternationalizationLibrary'
--- The four rows, in the native part's order (nightop/roxanne.h's kRows): ID, select list, the shipped
+-- The four rows, in the native part's order (online/modes/nightop/roxanne.h's kRows): ID, select list, the shipped
 -- InteractionGraphExec and NextTaskTagName (put back when off, with its Korean source of
 -- online/modes/nightop/roxanne_text.lua's KEYS as plain text in DisplayText, not the asset's keyed text), its line of
 -- online/modes/nightop/roxanne_text.lua and its pick.

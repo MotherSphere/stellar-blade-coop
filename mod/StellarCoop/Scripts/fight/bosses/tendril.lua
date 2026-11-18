@@ -4,7 +4,7 @@
 -- coop tendril fight: the cut Naytiba 6, the Tendril (/Game/Art/Character/Monster/CH_M_NA_06/: a test mesh whose one
 -- material slot is empty, its skeleton, physics asset, blueprint, AnimBP and 42 clips, but no table row and no Show),
 -- spawned as a real enemy to fight, on the game thread. Its 107 rows (core/lion_rows.lua's R.TENDRIL, the native part's
--- third batch, lion/rows.h's kTendrilRecipe) are authored as the Lion's: 11 skills on its own clips with their
+-- third batch, rows/rows.h's kTendrilRecipe) are authored as the Lion's: 11 skills on its own clips with their
 -- commands and steps, the areas their hits strike, a stance, two anim sets, its dead, appearance and CharacterTable
 -- rows (M_TendrilC, 50060, the Lion's Skulling test tree).
 -- No pak holds a Show of its clips, so before a spawn this file builds the 12 Shows its steps and its death name

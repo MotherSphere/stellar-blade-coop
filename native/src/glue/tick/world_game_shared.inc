@@ -1,7 +1,7 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// What other modules' parts read of world/world_game.inc, cut from it whole and in order.
+// What other modules' parts read of world/objects/world_game.inc, cut from it whole and in order.
 // tick.cpp includes this file right before it.
 namespace coop::pose {
 namespace {
@@ -11,7 +11,7 @@ std::atomic<uint64_t> world_fault_code{0}, world_fault_rva{0}, world_fault_addre
 std::atomic<bool> world_hooked{false};
 // The FName "self" (index | number << 32) as the worker found it before the swaps; 0 when the game has none.
 std::atomic<uint64_t> world_self{0};
-// The game thread's ID as of the last pass. game/world/sync.h's Ring has no lock: a hook on another thread pushes
+// The game thread's ID as of the last pass. game/objects/sync.h's Ring has no lock: a hook on another thread pushes
 // nothing and is counted.
 std::atomic<uint32_t> world_thread{0};
 std::atomic<uint64_t> world_elsewhere{0};
@@ -19,7 +19,7 @@ std::atomic<uint64_t> world_elsewhere{0};
 world::Ring world_ring;
 bool world_applying = false; // While a pass applies her lines: anything they set off in a hook is hers, not ours.
 uint64_t world_global(uint64_t image_address) { return at<uintptr_t>(base + (image_address - game::kImageBase)); }
-// game/world/engine.h's Game: plain reads and writes (a fault is the SEH guard's, and latches), SB's functions.
+// game/objects/engine.h's Game: plain reads and writes (a fault is the SEH guard's, and latches), SB's functions.
 struct WinWorldGame {
   bool read(uint64_t address, void *out, size_t n) {
     std::memcpy(out, reinterpret_cast<const void *>(address), n);

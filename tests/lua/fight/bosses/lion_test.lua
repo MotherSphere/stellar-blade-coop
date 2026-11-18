@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- fight/bosses/lion.lua with fake UE4SS objects. Its row list (core/lion_rows.lua, generated with rows.h) matches
--- native/src/lion/rows.h's generated recipe row for row (names, IDs, each patched field's kind and value, no field
+-- native/src/rows/rows.h's generated recipe row for row (names, IDs, each patched field's kind and value, no field
 -- more), and so do the Gardener's (R.GARDENER, kGardenerRecipe), the Tendril's (R.TENDRIL, kTendrilRecipe), the Shock
 -- Bolt's (R.BOLT, kBoltRecipe) and the Night Operation shop's (R.SHOP, kShopRecipe); its tables are kLionTables in
 -- order. The rows are the Lion's own: no value names a Behemoth row or asset but the sound set, every reference lands
@@ -60,11 +60,11 @@ local player,pc -- EVE (nil: none) and her player controller, set below.
 package.loaded.UEHelpers={GetPlayer=function() return player end,GetPlayerController=function() return pc end}
 local L=require('fight.bosses.lion')
 
--- Lion.ROWS against native/src/lion/rows.h: its kPatches entries (a field's name is the comment after the entry, or
+-- Lion.ROWS against native/src/rows/rows.h: its kPatches entries (a field's name is the comment after the entry, or
 -- the comment line just before it; a comment line naming an M_LionC or M_TendrilC row only heads a group) and
 -- kRecipe.
 do
-    local f=assert(io.open('native/src/lion/rows.h'))
+    local f=assert(io.open('native/src/rows/rows.h'))
     local src=f:read('a')
     f:close()
     local enum={}
@@ -348,7 +348,7 @@ do
         and f[6].ShopItems==f[5].ShopItems..'|NightOperation_Bullet_Shock_Buy')
 end
 
--- The lion line in each of its forms (lion/rows.h's status_line).
+-- The lion line in each of its forms (rows/rows.h's status_line).
 assert(L.parse('mod=v\nfight=off\n')==nil and L.parse(nil)==nil,'No line: nil')
 local s=L.parse('mod=v\nlion=off\nlast=x\n')
 assert(s.state=='off' and s.asks==0 and s.spawns==nil and s.line=='lion=off')

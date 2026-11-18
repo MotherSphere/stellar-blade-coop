@@ -4,10 +4,10 @@
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """No script or native source of the mod can reach Stellar Blade's matchmaking. The cut recruiter's Join fires zone
 event MultiplayTest_ZoneE_059 (type 15) -> RunEvent_StartMatchMaking -> RequestMatchRequest, an HTTP client to Shift
-Up's stage servers; types 16 and 19 sit on the same path. Native code calls RunZoneEvent at two sites, with its
-address held once in game/sbo.h: sbo_game.inc, for coop sbo seq's four PlayLevelSeq rows, with the native part's own
-FNames, and world_game_shared.inc. That one serves the shared world's env control rows, which game/world/engine.h checks
-against game/world/rows.h's list (kind 10 rows whose chains are kind 10) right before the call. It also serves story
+Up's stage servers; types 16 and 19 sit on the same path. Native code calls RunZoneEvent at two sites, with its address
+held once in game/sbo.h: sbo_game.inc, for coop sbo seq's four PlayLevelSeq rows, with the native part's own FNames, and
+world_game_shared.inc. That one serves the shared world's env control rows, which game/objects/engine.h checks against
+game/objects/rows.h's list (kind 10 rows whose chains are kind 10) right before the call. It also serves story
 together's scene starts and trips (game/story/engine.h), whose rows are on game/story/rows.h's lists (scene_row(),
 trip_sent()). A text scan: scan(root) lists the violations. It first runs on planted trees, one violation each, so no
 rule passes vacuously, then on this repository, which must be clean.
@@ -75,7 +75,7 @@ NATIVE_NAMES = re.compile('MatchMaking|RequestMatch')  # Case-sensitive: Steam's
 # constant there and at each call. The address is counted case-insensitively.
 RUN_ZONE_EVENT = '1ca5790'
 NATIVE_RATIONED = {RUN_ZONE_EVENT: {'native/src/game/sbo.h': 1},
-                   'kRunZoneEvent': {'native/src/game/sbo.h': 1, 'native/src/lobby/sbo_game.inc': 1,
+                   'kRunZoneEvent': {'native/src/game/sbo.h': 1, 'native/src/online/lobby/sbo_game.inc': 1,
                                      'native/src/glue/tick/world_game_shared.inc': 1}}
 
 
@@ -150,7 +150,8 @@ R, NR, GR = (f'{SCRIPTS}/online/modes/nightop/recruiter.lua', f'{SCRIPTS}/online
 NS, LI, SC = (f'{SCRIPTS}/online/modes/nightop/shop.lua', f'{SCRIPTS}/fight/bosses/lion.lua',
               f'{SCRIPTS}/story/scenes/scene.lua')
 BO = f'{SCRIPTS}/world/maps/matrix13/level/boss.lua'
-SH, SG, WG = 'native/src/game/sbo.h', 'native/src/lobby/sbo_game.inc', 'native/src/glue/tick/world_game_shared.inc'
+SH, SG, WG = ('native/src/game/sbo.h', 'native/src/online/lobby/sbo_game.inc',
+              'native/src/glue/tick/world_game_shared.inc')
 SEQ_CONST, SEQ_CALL = ('constexpr uint64_t kRunZoneEvent = 0x141ca5790;\n',
                        'game_function<RunZoneEvent>(sbo::kRunZoneEvent)(world, id, &sbo_seq_names[k], 0);\n')
 WORLD_CALL = 'game_function<RunZoneEvent>(sbo::kRunZoneEvent)(world, caster, &row, 0);\n'
@@ -270,7 +271,7 @@ PLANTS = [({'L1'}, {N: NIGHTOP.replace("    assert(NightOp.allowed(kind,name),'z
           ({'N3'}, {WG: WORLD_CALL * 2}),
           ({'N3'}, {WG: 'void world_tick();\n'}),
           ({'N1'}, {WG: WORLD_CALL + '// FUN_141ca5790\n'}),
-          ({'N3'}, {'native/src/game/world/engine.h': '// kRunZoneEvent\n'}),
+          ({'N3'}, {'native/src/game/objects/engine.h': '// kRunZoneEvent\n'}),
           ({'N2'}, {H: 'void StartMatchMaking();\n'}),
           ({'N2'}, {W: '// RequestMatchRequest\n'}),
           ({'N0', 'N3'}, {H: None, SH: None, SG: None, WG: None}),

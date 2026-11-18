@@ -40,8 +40,8 @@
 // (game/table.h), its pose "SBP<protocol>" and its delta "SBD<protocol>" (game/codec.h), and beside them the enemy
 // roots of same-place enemies, "SBE<protocol>" (game/pilot.h). Channel 2 carries the shared enemies' text lines and
 // the pilot's show lines, which start with fight_tag() (game/fight/sync.h and game/pilot.h parse them), the shared
-// quests' lines, which start with quest_tag() (game/quest/sync.h parses them), and the shared world's lines, which
-// start with world_tag() (game/world/sync.h parses them). Story together's lines go there too, after story_tag()
+// quests' lines, which start with quest_tag() (game/quests/sync.h parses them), and the shared world's lines, which
+// start with world_tag() (game/objects/sync.h parses them). Story together's lines go there too, after story_tag()
 // (game/story/sync.h parses them).
 #pragma once
 
@@ -88,7 +88,7 @@ constexpr int kProtocol = 23; // Bump on any wire change. 1 was the first link (
                               // hide lines (hidden material sections), which a protocol-16 peer would refuse the same
                               // way; 18 adds the table's fx lines (effects named by path, indexes past the fixed list)
                               // and effect slots up to index 64, which a protocol-17 peer would refuse with the whole
-                              // table and the pose; 19 adds Matrix XIII's world rows (lion/mxiii_rows.h: spawn rows,
+                              // table and the pose; 19 adds Matrix XIII's world rows (rows/mxiii_rows.h: spawn rows,
                               // camps, warps), and shared Naytibas key an enemy by its spawn row's ID, so a protocol-18
                               // peer, without those rows, would never match the host's new enemies; 20 adds the PvP
                               // test's pvp line on channel 2 (a hit on the stand-in of the other player in the
@@ -253,7 +253,7 @@ constexpr uint64_t kMateMs = 3000;
 // A player's life as her vitals say it, by the partner card's rule (online/partner/hud.lua): down in life state 3-5 or
 // at 0 HP of a MaxHP above 0, alive in 1 or 6, unknown in any other state. link/core.h's mate_life() says unknown too
 // without her vitals or kMateMs after her last line; the shared fight's job hears it as a local message
-// (fight/engine.h).
+// (fight/enemies/engine.h).
 enum class Life : uint8_t { unknown, alive, down };
 inline Life life_of(const Vitals &v) {
   const uint32_t state = v[vital::life];
@@ -474,7 +474,7 @@ inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
 inline std::string world_tag() { return "SBW" + std::to_string(kProtocol); }
 inline std::string story_tag() { return "SBS" + std::to_string(kProtocol); }
 // A channel-2 line as link/core.h's take_fight() hands it on: its sender's SteamID and the line as it came. The shared
-// quests take theirs from every partner by sender (game/quest/engine.h's Worker); the shared fight, the shared world
+// quests take theirs from every partner by sender (game/quests/engine.h's Worker); the shared fight, the shared world
 // and story together take the pair's only (lines_from).
 struct FightLine {
   uint64_t from;
@@ -844,14 +844,14 @@ inline std::string masked(std::string_view text) {
 // "rules <word>" (each a word alias_word() takes, kMaxPlace, kMaxCamp and kMaxRules bytes at most); for the pose path
 // "off", "loopback <one-way delay ms> <jitter ms> <segment loss %>", "loopback off", "record", "record off", "replay"
 // and "replay off"; for the Night Operation probe (Phase 6, T6 only) "nightop" (start the read-only poller) and
-// "nightop rule" (start it if needed and arm the verdict, once a run); for the shared fight (Phase 11, fight/engine.h's
-// Worker) "fight on|probe|record|replay [confirmed] [fought] [scale <hp %> <balance %>] [place] [aggro-host] [bosses
-// <boss %>] [spawns] [extra <n>] [filter] [<charId> ...]" (guest_kills=confirmed; kill_credit=fought; the host's
-// two-player scaling, kMinScale to kMaxScale each; the host's same_place=on; the host's aggro=host; the host's
-// bosses=on with its boss_hp_scale, kMinScale to kMaxScale; the host's same_spawns=on, or with probe coop fight spawn
-// probe; the host's enemy_extra, 1 to kMaxExtra; filter, with on and probe only: our spawn_filter=on, a word of this
-// request and never a line on the wire; fight_chars, at most kMaxFightChars, none: every Monster),
-// "fight off", "fight status", "fight test
+// "nightop rule" (start it if needed and arm the verdict, once a run); for the shared fight (Phase 11,
+// fight/enemies/engine.h's Worker) "fight on|probe|record|replay [confirmed] [fought] [scale <hp %> <balance %>]
+// [place] [aggro-host] [bosses <boss %>] [spawns] [extra <n>] [filter] [<charId> ...]" (guest_kills=confirmed;
+// kill_credit=fought; the host's two-player scaling, kMinScale to kMaxScale each; the host's same_place=on; the host's
+// aggro=host; the host's bosses=on with its boss_hp_scale, kMinScale to kMaxScale; the host's same_spawns=on, or with
+// probe coop fight spawn probe; the host's enemy_extra, 1 to kMaxExtra; filter, with on and probe only: our
+// spawn_filter=on, a word of this request and never a line on the wire; fight_chars, at most kMaxFightChars, none:
+// every Monster), "fight off", "fight status", "fight test
 // hp|sh|st <change>" (whole units, with or without a sign), "fight test kill", and for same-place enemies
 // (glue/tick.cpp's) "fight pilot probe" (the lines this side sends, into coop-fight.log), "fight pilot on" (our
 // same_place on now, the co-op menu's row), "fight pilot off" (the probe off, and same-place enemies off until the next
@@ -861,62 +861,63 @@ inline std::string masked(std::string_view text) {
 // test bstart|phase|finish|summon" (stage 5's solo probes on the frozen boss copy of a replay);
 // for the synced photo mode's solo tests "freeze
 // <seconds>" (1 to kMaxFreezeS: our pause held that long) and "freeze off"; for SB's two developer gates
-// (cut/debug_keys.h, coop fly and coop slowmo) "fly on|off" and "slowmo on|off"; for SB's developer panels
+// (eve/debug_keys.h, coop fly and coop slowmo) "fly on|off" and "slowmo on|off"; for SB's developer panels
 // (game/dev_panels.h, coop devinfo) "devinfo quest|player|off"; for SB's HUD under the SBO lobby's screens (main.lua,
-// lobby/hud_game.inc) "hud hide on|off"; for the pause menu's Online tab (ui/kit/pause_tab.lua, ui/pause_tab.h)
-// "pausetab on|off"; for the game's tutorial and record popups during online play (session/options.h) "popups on|off";
-// for the day/night cycle (sky/sky.h, world/daynight/daynight.lua) "sky off|hold",
+// online/lobby/hud_game.inc) "hud hide on|off"; for the pause menu's Online tab (ui/kit/pause_tab.lua, ui/pause_tab.h)
+// "pausetab on|off"; for the game's tutorial and record popups during online play (online/session/options.h) "popups
+// on|off"; for the day/night cycle (world/daynight/sky.h, world/daynight/daynight.lua) "sky off|hold",
 // "sky cycle <hz> <heading>" and "sky hour <minute> <hz> <heading>" (whole numbers: hz 0 to 30, heading 0 to 359,
 // minute 0 to 1439); for the SBO lobby arrival's black (online/lobby/arrival.lua,
-// lobby/loading_game.inc) "loading lift"; for the co-op saves (game/slot.h,
+// online/lobby/loading_game.inc) "loading lift"; for the co-op saves (game/slot.h,
 // game/twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make
 // them, then switch to them), "saves main" (switch back to the player's own saves) and "saves refresh <0-4>" (that
 // slot's copy replaced by a new copy of the player's save, the old one backed up first) and "saves export <0-4> <0-4>"
 // (that co-op slot's copy written over that save of the player's, the save backed up first); for the shared quests
-// (game/quest/engine.h's Worker) "quests on|probe|record [deny <list>]" (deny: quest_deny's aliases or IDs, separated
+// (game/quests/engine.h's Worker) "quests on|probe|record [deny <list>]" (deny: quest_deny's aliases or IDs, separated
 // by spaces or commas, at most kMaxDeny bytes), "quests off|status|replay" and "quests force <quest ID>"; for the
-// shared world (game/world/sync.h, world/world_worker.inc) "world on" and "world off" (shared_world, until the next
-// ask) and "world status" (its line in the log); for story together (game/story/sync.h, story/story_worker.inc) "scenes
-// on" and "scenes off" (shared_story, until the next ask) and "scenes status" (its line in the log); for the follow
-// (online/group/travel.lua) "camps? <id>" and "camps <id> <world> <alias>:<m> ..." or "camps <id> none <why>" (the
-// camps lines, relayed to the friend by link/core.h), and "travel <alias> <FName index> <FName number>" (the call on
-// the game thread, glue/tick.cpp: an index above 0, both within 32 bits); "mark" or "mark <text>" (a numbered line in
-// both players' logs, the text chat_clean() to kMaxMark bytes, maybe empty); for coop gift (tools/mailbox.lua) "gift
-// <payload>" (a gift line for the friend, gift_ok()) and "items <ask> <alias> <FName index> <FName number>" (how many
-// of that item our EVE carries, read by the worker, cut/items.h: ask 1 to 65535, answered in the engine line's items=;
-// index above 0, both within 32 bits); and for coop lion (fight/bosses/lion.lua) "lion rows
-// <Table>=0x<address> ...", for coop gardener fight (fight/bosses/gardener.lua) "gardener rows <Table>=0x<address>
-// ...", for coop tendril fight (fight/bosses/tendril.lua) "tendril rows <Table>=0x<address> ...", for the shop's Shock
-// Bolt (through fight/bosses/lion.lua) "bolt rows <Table>=0x<address> ...", for coop mxiii
+// shared world (game/objects/sync.h, world/objects/world_worker.inc) "world on" and "world off" (shared_world, until
+// the next ask) and "world status" (its line in the log); for story together (game/story/sync.h,
+// story/together/story_worker.inc) "scenes on" and "scenes off" (shared_story, until the next ask) and "scenes status"
+// (its line in the log); for the follow (online/group/travel.lua) "camps? <id>" and "camps <id> <world> <alias>:<m>
+// ..." or "camps <id> none <why>" (the camps lines, relayed to the friend by link/core.h), and "travel <alias> <FName
+// index> <FName number>" (the call on the game thread, glue/tick.cpp: an index above 0, both within 32 bits); "mark" or
+// "mark <text>" (a numbered line in both players' logs, the text chat_clean() to kMaxMark bytes, maybe empty); for coop
+// gift (tools/mailbox.lua) "gift <payload>" (a gift line for the friend, gift_ok()) and "items <ask> <alias> <FName
+// index> <FName number>" (how many of that item our EVE carries, read by the worker, tools/items.h: ask 1 to 65535,
+// answered in the engine line's items=; index above 0, both within 32 bits); and for coop lion (fight/bosses/lion.lua)
+// "lion rows <Table>=0x<address> ...", for coop gardener fight (fight/bosses/gardener.lua) "gardener rows
+// <Table>=0x<address> ...", for coop tendril fight (fight/bosses/tendril.lua) "tendril rows <Table>=0x<address> ...",
+// for the shop's Shock Bolt (through fight/bosses/lion.lua) "bolt rows <Table>=0x<address> ...", for coop mxiii
 // (world/maps/matrix13/level/travel.lua) "mxiii rows <Table>=0x<address> ..." and for the Night Operation shop's screen
 // (online/modes/nightop/shop.lua, through fight/bosses/lion.lua) "shop rows <Table>=0x<address> ..." and for Lily's
 // signal (world/maps/matrix13/quest/on_time.lua) "signal rows <Table>=0x<address> ..." and for Matrix XIII's other
 // batches (world/maps/matrix13/level/travel.lua) "mxspawn rows ...", "mxenv rows ...", "mxupper rows ...", "mxmiddle
 // rows ...", "mxlower rows ...", "mxnames rows ...", "mxlily rows ..." and "mxrecords rows ..." and for the hall
-// lobbies (online/lobby/halls_rows.lua) "halls rows ..." (that batch of lion/rows.h for SB's AddRow,
-// lion/lion_game.inc: one word for each table the batch writes, 1 to 39 of the kLionTables, in any order, each once,
+// lobbies (online/lobby/halls_rows.lua) "halls rows ..." (that batch of rows/rows.h for SB's AddRow,
+// rows/rows_game.inc: one word for each table the batch writes, 1 to 39 of the kLionTables, in any order, each once,
 // its address in 1 to 16 hex digits and plausible; a table left out stays 0, and a batch that writes it refuses it as
 // no UDataTable; Request::batch says which). Lua finds the tables by their fixed paths, so no console argument reaches
-// an address, and the native part trusts none before it checked the table's vtable and row size (lion/rows.h). For coop
+// an address, and the native part trusts none before it checked the table's vtable and row size (rows/rows.h). For coop
 // emote (eve/emote.lua) "anim play <id> <path> once|loop" (one of EVE's clips on her through SB's custom animation
-// call, cut/anim_game.inc: an id from 1 to 2^32-1, a path game/anim.h's path_ok takes) and "anim stop" (ours, while it
+// call, eve/anim_game.inc: an id from 1 to 2^32-1, a path game/anim.h's path_ok takes) and "anim stop" (ours, while it
 // plays). For the bike (vehicles/bike/ride.lua): "anim play <id> <path> ride" (a loop with her foot IK off) and "bike
 // load <path>" (the bike's mesh and that riding clip preloaded, game/bike.h's clip_ok), "bike free" (the preload
 // released), "bike gate on" and "bike gate off" (SB's actions off while she rides, then back); for coop shortcut
 // "shortcut list" (the cut Load Shortcut menu's saves, read through the game's file manager on the game thread and
 // named in the log, game/shortcut.h) and "shortcut load <map> <1-4>" (one of them cleaned and written as co-op slot 5's
 // copy, game/shortcut_load.h; map one of kShortcutMaps; Lua sends it only with shortcut_load=on, typed twice). For the
-// Night Operation shop in SB's own shop screen (online/modes/nightop/shop.lua, nightop/shop_ui.h)
+// Night Operation shop in SB's own shop screen (online/modes/nightop/shop.lua, online/modes/nightop/shop_ui.h)
 // "nightshop open" (Shop_NightOperation_Coop), "nightshop open bolt" (Shop_NightOperation_CoopBolt), "nightshop close"
 // and "nightshop watch" (the reads only); for Roxanne's Night Operation choices (online/modes/nightop/roxanne.lua,
-// nightop/roxanne.h) "roxanne on" and "roxanne off"; for Lily's signal choice (world/maps/matrix13/quest/on_time.lua,
-// the same header) "lily on" and "lily off"; for the mod's own quests (world/maps/matrix13/quest/on_time.lua,
-// quest/own.h) "signal watch" (the reads only, from then on), "signal acquire" (acquire On Time), "signal complete"
-// (its M01 task's Complete), "signal prologue" (acquire the prologue), "signal talked" (the prologue's task's
-// Complete), "signal zone4" and "signal tell" (On Time's M05 and M06 tasks' Complete) and "signal next" (a test word:
-// the task of On Time's active group); for the Xion guard's lines (online/modes/nightop/guard_text.lua,
-// nightop/guard_text.h) "guardtext <culture>" and his seven lines, each after a tab, checked in the glue and never
-// logged. No console argument reaches any of them: the words are fixed, and so are each word's quest ID and group.
+// online/modes/nightop/roxanne.h) "roxanne on" and "roxanne off"; for Lily's signal choice
+// (world/maps/matrix13/quest/on_time.lua, the same header) "lily on" and "lily off"; for the mod's own quests
+// (world/maps/matrix13/quest/on_time.lua, story/quests/own.h) "signal watch" (the reads only, from then on), "signal
+// acquire" (acquire On Time), "signal complete" (its M01 task's Complete), "signal prologue" (acquire the prologue),
+// "signal talked" (the prologue's task's Complete), "signal zone4" and "signal tell" (On Time's M05 and M06 tasks'
+// Complete) and "signal next" (a test word: the task of On Time's active group); for the Xion guard's lines
+// (online/modes/nightop/guard_text.lua, online/modes/nightop/guard_text.h) "guardtext <culture>" and his seven lines,
+// each after a tab, checked in the glue and never logged. No console argument reaches any of them: the words are fixed,
+// and so are each word's quest ID and group.
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
@@ -933,14 +934,14 @@ enum class Command {
 enum class MatchAsk : uint8_t { search, create, cancel, end };
 // shortcut load's maps, game/shortcut.h's kMapNames in its order (shortcut_load_test checks they match).
 constexpr const char *kShortcutMaps[4] = {"B07", "F02", "G03", "Matrix_XI"};
-// The words of the rows requests, one a batch of lion/rows.h (kLion, kGardener, kTendril, kBolt, kMxiii, kShop,
+// The words of the rows requests, one a batch of rows/rows.h (kLion, kGardener, kTendril, kBolt, kMxiii, kShop,
 // kSignal, kMxspawn, kMxenv, kMxupper, kMxmiddle, kMxlower, kMxnames, kMxlily, kMxrecords, kHalls), in Request::batch's
 // order.
 constexpr size_t kRowWordCount = 16;
 constexpr const char *kRowWords[kRowWordCount] = {"lion",   "gardener", "tendril", "bolt",    "mxiii",    "shop",
                                                   "signal", "mxspawn",  "mxenv",   "mxupper", "mxmiddle", "mxlower",
                                                   "mxnames", "mxlily", "mxrecords", "halls"};
-// The tables the rows of every batch go into (lion/rows.h's Table, in this order), as their assets are named.
+// The tables the rows of every batch go into (rows/rows.h's Table, in this order), as their assets are named.
 constexpr size_t kLionTableCount = 39;
 constexpr const char *kLionTables[kLionTableCount] = {
     "CharacterTable",        "CharacterAppearanceTable", "CharacterDeadTable", "CharacterStanceTable",
@@ -956,12 +957,12 @@ constexpr const char *kLionTables[kLionTableCount] = {
 // coop-request.txt's bytes the native part reads (glue/steam.cpp): the longest rows request, 16 digits to each of its
 // 39 addresses, and its line end fit (protocol_test: 1411 bytes).
 constexpr size_t kMaxRequestFile = 2048;
-// nightshop: what nightop/shop_ui.h is asked: SB's shop screen opened on Shop_NightOperation_Coop or on
+// nightshop: what online/modes/nightop/shop_ui.h is asked: SB's shop screen opened on Shop_NightOperation_Coop or on
 // Shop_NightOperation_CoopBolt, closed, or no call but the reads.
 enum class ShopAsk : uint8_t { open, open_bolt, close, watch };
 // sbo: the SBO lobby's requests (game/sbo.h), each its word after "sbo ".
 enum class SboAsk : uint8_t { on, arm, enter, warp, abort, leave, seq };
-// signal: the words after "signal ", in quest/own.h's Ask order (protocol_test checks both lists match).
+// signal: the words after "signal ", in story/quests/own.h's Ask order (protocol_test checks both lists match).
 constexpr size_t kSignalWordCount = 8;
 constexpr const char *kSignalWords[kSignalWordCount] = {"watch",  "acquire", "complete", "prologue",
                                                         "talked", "zone4",   "tell",     "next"};
@@ -970,7 +971,7 @@ constexpr const char *kSignalWords[kSignalWordCount] = {"watch",  "acquire", "co
 enum class Who { friends, everyone, invitation, closed };
 // pvp: the PvP test (design 13), fight pvp off its end.
 enum class Fight { none, on, off, status, probe, test, record, replay, pilot, pvp };
-// fight pilot ...; bstart to summon: stage 5's probes (fight/engine.h's Engine::boss_test).
+// fight pilot ...; bstart to summon: stage 5's probes (fight/enemies/engine.h's Engine::boss_test).
 enum class PilotAsk : uint8_t { probe, on, off, status, test, target, exec, bstart, phase, finish, summon };
 // fight pilot test: how far the drawn side goes, each adding to the one before: our freeze only; its movement component
 // out of the game's manager too; its root, speed and Velocity driven from the stream too; the owner's Shows replayed
@@ -980,7 +981,8 @@ enum class SavesAsk { none, probe, convert, coop, main, refresh, export_ };
 enum class Quests { none, on, off, status, probe, record, replay, force };
 enum class WorldAsk : uint8_t { on, off, status };
 enum class BikeAsk : uint8_t { load, free, gate_on, gate_off };
-// sky: SB's light back, the minute shown kept (photo mode), the shared clock, or a pinned minute (sky/sky.h's Mode).
+// sky: SB's light back, the minute shown kept (photo mode), the shared clock, or a pinned minute
+// (world/daynight/sky.h's Mode).
 enum class SkyAsk : uint8_t { off, cycle, hour, hold };
 constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500, kMaxFreezeS = 3600;
 constexpr size_t kMaxFightChars = 16;
@@ -995,7 +997,7 @@ struct Request {
                                          // the seconds in ms.
   bool off = false;                      // loopback off, record off, replay off, freeze off, a gate off, anim stop,
                                          // fight pvp off, unmute, list stop.
-  uint8_t gate = 0;                      // gate: cut/debug_keys.h's Gate, 0 for fly, 1 for slowmo.
+  uint8_t gate = 0;                      // gate: eve/debug_keys.h's Gate, 0 for fly, 1 for slowmo.
   uint8_t panel = 0;                     // devinfo: game/dev_panels.h's Panel, 0 off, 1 quest, 2 player.
   ShopAsk shop = ShopAsk::close;         // nightshop: open, open bolt, close or watch.
   bool on = false;                       // roxanne on, lily on, hud hide on, pausetab on, popups on (true) or off;

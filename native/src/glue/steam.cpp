@@ -38,7 +38,7 @@
 #include "game/shortcut_load.h" // kSlot
 #include "game/slot.h"
 #include "game/twins.h"
-#include "save/watch.h"
+#include "online/saves/watch.h"
 
 #ifndef STELLARCOOP_VERSION
 #define STELLARCOOP_VERSION "dev"

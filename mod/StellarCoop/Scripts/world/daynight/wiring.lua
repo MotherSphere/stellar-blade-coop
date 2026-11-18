@@ -8,9 +8,9 @@ exports={'daynight'},
 new=function(M)
 local print,log=M.print,M.log
 local U=require('core.unreal')
--- The day/night cycle (world/daynight/daynight.lua): the request for the native part's env writer (sky/sky.h), decided
--- in the 250 ms loop of main/pass.lua from the map, the setting and SB's state; coop daynight reads and pins it
--- (world/daynight/commands.lua).
+-- The day/night cycle (world/daynight/daynight.lua): the request for the native part's env writer
+-- (world/daynight/sky.h), decided in the 250 ms loop of main/pass.lua from the map, the setting and SB's state; coop
+-- daynight reads and pins it (world/daynight/commands.lua).
 -- The lobby rule is Xion's training room only: a hall lobby has its own row.
 -- coop-sky.txt keeps the originals of the world's lights, so a Lua reload does not take the dimmed ones for them.
 M.daynight=require('world.daynight.daynight').new({log=log,ask=function(line) return M.ask(line)() end,

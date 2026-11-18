@@ -1030,7 +1030,7 @@ function Link.new(folder,fs)
         return merged
     end
     -- The shared quests' line ("quests=on mode=on role=guest partner=on", "quests=waiting mode=on why=save",
-    -- "quests=off", "quests=stopped"; native game/quest/engine.h's Worker::status()), from the start of its own line;
+    -- "quests=off", "quests=stopped"; native game/quests/engine.h's Worker::status()), from the start of its own line;
     -- nil without one.
     function self.quests() return quests end
     -- The shared world's line ("world=on sent=3 ...", "world=waiting why=save sent=0 ...", "world=off ...",

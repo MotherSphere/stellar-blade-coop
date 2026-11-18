@@ -66,7 +66,7 @@
 // may restart.
 // Same-place enemies (game/pilot.h) send their show, show-set and show-stop lines on this channel with the same tag,
 // from the side that owns an enemy; pilot_line() tells them apart, and game/pilot.h parses them. own and own-no are
-// the engine's (fight/engine.h keeps the owners), never Host's or Guest's; so are same spawns' four
+// the engine's (fight/enemies/engine.h keeps the owners), never Host's or Guest's; so are same spawns' four
 // (game/spawn_sync.h), and bstart and phase (Guest::boss_line checks them for the engine).
 #pragma once
 
@@ -272,7 +272,7 @@ inline bool floor_row(int32_t id) { return id >= kFirstFloor && id <= kLastFloor
 
 // world..cc: the host's lines a recording keeps; hit, own-no, exec and have: the guest's; own, epoch, spawn, drop,
 // bstart and phase: the host's, never recorded; pvp: either side's, never recorded. mate: the worker's own to the job
-// (fight/engine.h), never a line.
+// (fight/enemies/engine.h), never a line.
 enum class Type : uint8_t {
   invalid, on, off, world, scale, place, aggro, bosses, up, down, dead, hp, cc, hit, own, own_no, exec, have, spawn,
   drop, epoch, bstart, phase, pvp, mate
@@ -739,7 +739,7 @@ inline std::string line(const Event &e) {
 
 // A copy whose kill was the other side's alone back to its full HP, with no cause and no number: the HP the other
 // side's hits took off it (her claims, or the host's values) is not ours to finish with one hit. A boss copy of the
-// guest's then keeps its Immortal: the finish guard's lift (fight/engine.h) dispels it only at 1 HP.
+// guest's then keeps its Immortal: the finish guard's lift (fight/enemies/engine.h) dispels it only at 1 HP.
 template <class Io> void heal(uint32_t guid, const float *max, const int32_t *value, Io &io) {
   int32_t after = value[kHp];
   if (whole(max[kHp]) > value[kHp])

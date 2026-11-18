@@ -3,7 +3,7 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The hall lobbies' world, zone and seat rows (online/lobby/halls_rows.lua) over fakes: the status text (its halls=
 -- line as the native part writes it), ZoneEnvSpawnTable, WorldTable and ZoneTable with the rows as the native part
--- writes them, the lobby pak gate and the clock. Covered: its 181 rows against lion/halls_rows.h's kHallsRecipe and
+-- writes them, the lobby pak gate and the clock. Covered: its 181 rows against rows/halls_rows.h's kHallsRecipe and
 -- kHallsPatches (names, templates, IDs, each patched field's kind and value, no field more) and against
 -- online/lobby/sbo_maps.lua (names, IDs, the cooked map's path, each kept seat's row but the camp ones, with its zone
 -- and the donor of its sit loop); no pak: nothing asked or said at the title, the gate read once a Lua load; with it,
@@ -29,9 +29,9 @@ local Halls=require('online.lobby.halls_rows')
 local Maps=require('online.lobby.sbo_maps')
 local Enemy=require('core.enemy')
 
--- The rows against lion/halls_rows.h and online/lobby/sbo_maps.lua.
+-- The rows against rows/halls_rows.h and online/lobby/sbo_maps.lua.
 do
-    local f=assert(io.open('native/src/lion/halls_rows.h'))
+    local f=assert(io.open('native/src/rows/halls_rows.h'))
     local src=f:read('a')
     f:close()
     local patches={}

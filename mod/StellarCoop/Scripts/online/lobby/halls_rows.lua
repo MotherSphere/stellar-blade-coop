@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The hall lobbies' world, zone and seat rows: the native part's halls batch (lion/halls_rows.h's kHallsRecipe, added
+-- The hall lobbies' world, zone and seat rows: the native part's halls batch (rows/halls_rows.h's kHallsRecipe, added
 -- on the game thread), one WorldTable row and one type-5 ZoneTable row for each map of online/lobby/sbo_maps.lua, so
 -- SB's warp reaches the maps of the local lobby pak, then one ZoneEnvSpawnTable row for each of its seats with a row,
 -- the row the chair of SB's spawned at that seat binds to by name. Asked at the title on the co-op save files
@@ -12,7 +12,7 @@
 local Enemy=require('core.enemy')
 local Maps=require('online.lobby.sbo_maps')
 local Halls={}
--- The rows as core/enemy.lua reads them back (online/lobby/halls_rows_test checks them against lion/halls_rows.h's
+-- The rows as core/enemy.lua reads them back (online/lobby/halls_rows_test checks them against rows/halls_rows.h's
 -- kHallsRecipe and kHallsPatches): the five worlds first, with the cooked persistent level's UMapPath, then the five
 -- zones, each naming its world row and its spawn point, ZoneType 5 as in the template row, AdditiveDesignLevel emptied,
 -- then the seats, maps in order, each in its hall's zone, named after itself, InitStateTag FirstInteraction and
@@ -34,7 +34,7 @@ for _,key in ipairs(Maps.order) do
     end
 end
 Halls.ROWS=Enemy.rows(rows)
--- lion/rows.h's refusals of a gate that stayed shut (busy, net, unread): the title asks again, so nothing is decided.
+-- rows/rows.h's refusals of a gate that stayed shut (busy, net, unread): the title asks again, so nothing is decided.
 local SHUT={busy=true,net=true,unread=true}
 
 -- o: log, status() the native status text, ask(line) its request (ok, message), gate() the lobby pak's version, or nil

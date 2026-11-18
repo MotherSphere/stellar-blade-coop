@@ -15,7 +15,7 @@
 -- needs names one that must have played before the trigger counts at all (4E's lamp, beside the door the Lion's room is
 -- entered by, needs 4D). before names one that closes the scene (4K and 4L say nothing once 4M has shown the room). 3K
 -- ends Lily: a scene with a Lily line that has not played before it never plays. Lines with oblivion=true play only
--- when the signalquest line reads oblivion=1 (native quest/own.h, the read of Quest_Sub_005 on Quest_Sub_030).
+-- when the signalquest line reads oblivion=1 (native story/quests/own.h, the read of Quest_Sub_005 on Quest_Sub_030).
 -- The lines go in the game's subtitle box (world/maps/matrix13/quest/subtitles.lua's play_lines()): a borrowed subtitle
 -- sequence with enough windows, through a theater whose template lets EVE walk only, as SB's own talks on the move; its
 -- fallbacks are the sequence with no theater, then the kit. A fight seen while the talk waits for its theater or plays

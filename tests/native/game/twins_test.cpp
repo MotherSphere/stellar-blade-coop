@@ -14,7 +14,7 @@
 // places and is no developer save (the scans, on save bodies laid out as a released-game save lays out its fields).
 #include "game/twins.h"
 
-#include "lion/shock.h" // kShippedBullets, for the ammo count's check
+#include "rows/shock.h" // kShippedBullets, for the ammo count's check
 
 #include <cassert>
 #include <cstdio>
@@ -458,7 +458,7 @@ int main() {
   // A file that ends before a camp field's value starts.
   assert(mod_only(fstring("CampAlias")).empty() && mod_only(fstring("CampAlias") + "ab").empty() &&
          mod_only(fstring("CampEnvSpawnAlias") + fstring("NameProperty") + std::string(5, '\0')).empty());
-  // The ammo count matches the list lion/shock.h checks before it appends the Shock Bolt.
+  // The ammo count matches the list rows/shock.h checks before it appends the Shock Bolt.
   static_assert(sizeof(coop::lion::kShippedBullets) / sizeof(coop::lion::kShippedBullets[0]) == kShippedBullets);
 
   // A developer save coop shortcut load wrote: a stored CRC-32 of one of the cleaned files (shortcut_load_test checks
@@ -743,7 +743,7 @@ int main() {
   said = run(e, empty);
   assert(e.ready() && backups(empty) == 1 && logged(said, "a backup of 2 files first"));
 
-  // The shared quests' record (game/quest/engine.h's Worker) beside a co-op slot: written beside as .coop-tmp, then
+  // The shared quests' record (game/quests/engine.h's Worker) beside a co-op slot: written beside as .coop-tmp, then
   // renamed over the old one; a failed rename leaves the old record and no temporary file. put() takes no other name,
   // so a record can never land on a save. A conversion never copies, backs up or removes a record.
   HostFs q;

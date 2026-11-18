@@ -30,7 +30,7 @@ struct Scene {
   const char *group;     // None), else "": RunZoneEvent runs AddEvents even when the condition fails
   int priority;          // as the manager keeps it (P+0x1e0): the EventTheaterTable Priority, 0 when below
   bool sequence;         // keyed by LevelSeqAssetPath
-  bool quest;            // a step of a shared quest runs it: game/quest/sync.h's kSteps names it
+  bool quest;            // a step of a shared quest runs it: game/quests/sync.h's kSteps names it
 };
 struct Trip {
   const char *row;      // a ZoneEventTable PlayerWarp or ChangeZone row
@@ -44,7 +44,7 @@ struct Trip {
 // ---- story rows: generated, begin ----
 // Written by tools/story_rows.py from build 26123051's ZoneEventTable, EventTheaterTable, EventZoneWarpTable,
 // ZoneTable, ZoneTriggerTable, WorldTransitionTable, ZoneEnvSpawnTable, ZoneEnvTable, QuestTable, QuestTaskGroupTable
-// and QuestTaskTable, with game/quest/sync.h's quest table. Another build needs it written again from that build's
+// and QuestTaskTable, with game/quests/sync.h's quest table. Another build needs it written again from that build's
 // tables.
 // Scenes: 847 rows over 761 paths, 146 of them a level sequence alone, 27 run by a shared quest step.
 // Still ambiguous after the filters: 44 paths keep rows equal in priority and FinishEvents, 17 of them with the same
