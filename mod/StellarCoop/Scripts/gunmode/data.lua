@@ -142,6 +142,18 @@ function Data.new(g,native,opts)
                         st[f]=(pak and pak.speeds and pak.speeds[f]) or v*self.opts.speed
                     end
                 end
+                -- With the pak: no drone summon/dismiss show when the aim starts and ends (it played the drone's
+                -- raise pose for a moment before her rifle aim, 13:00); her default stance has none either.
+                if pak then
+                    for _,f in ipairs({'StartShowPathWhenPeaceful','StartShowPathWhenBattle','EndShowPathWhenPeaceful','EndShowPathWhenBattle'}) do
+                        local v=g.try(function() return text(st[f]) end)
+                        if v and v~='' and v~='None' then
+                            saved[#saved+1]={st,f,v}
+                            local ok=pcall(function() st[f]='' end)
+                            g.log('data: aim stance '..f..(ok and ' cleared (was '..v..')' or ' could not be cleared'))
+                        end
+                    end
+                end
                 -- Jumping in the aim (gunmode/mode.lua launches her): a jump no longer ends the aim stance
                 -- (Condition_Jumping as EVE's default stance has it).
                 local def=g.try(function() return tbl('CharacterStanceTable'):FindRow('P_Eve_Default') end)
@@ -179,6 +191,17 @@ function Data.new(g,native,opts)
                             saved[#saved+1]={r,e[2],text(r[e[2]])}
                             r[e[2]]=e[3]
                             g.log('data: '..e[1]..' '..e[2]..' -> '..e[3])
+                            local n=0
+                            for _,f in ipairs(pak.carry_fields or {}) do
+                                local v=g.try(function() return text(r[f]) end)
+                                local x=v and v:match('^Animation/Proto_(.+)$')
+                                if x then
+                                    saved[#saved+1]={r,f,v}
+                                    r[f]='Animation/NGM/NGM_R_C_'..x
+                                    n=n+1
+                                end
+                            end
+                            g.log('data: '..e[1]..' '..n..' jump/fall/stop clips -> rifle versions')
                         end
                     end
                 end
