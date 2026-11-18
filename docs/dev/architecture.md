@@ -1,7 +1,8 @@
 # Architecture
 
-The other internals pages go feature by feature, each beside its player page; [How it works](../README.md#how-stellar-blade-online-works)
-lists them. The repository layout is in [Building](building.md#repository-layout).
+The other internals pages go feature by feature, each beside its player page; [How it
+works](../README.md#how-stellar-blade-online-works) lists them. The repository layout is in
+[Building](building.md#repository-layout).
 
 ## Lua and native parts
 
@@ -19,7 +20,8 @@ Stellar Blade Online has two parts, both in the mod folder `Mods/StellarCoop/`:
   - `coop_pad`, an exported function that the Lua loop calls each frame for the controller's events (see
     [Controller](#controller)).
   - `coop_pause_close`, an exported function that Lua calls on the game thread when the pause menu's Online tab closes
-    the pause menu. It runs the game's own close, the one Back uses (see [Pause menu](../players/interface.md#pause-menu)).
+    the pause menu. It runs the game's own close, the one Back uses (see [Pause
+    menu](../players/interface.md#pause-menu)).
 
 ```
    your game                                                      friend's game
@@ -128,7 +130,9 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `world/maps/matrix13/quest/zone_talks.lua` | The zone talks in game: a trigger for each of the 36 scenes, the order rules, the fight gate, one file per co-op slot for the played scenes ([Lily's signal](../world/lily-signal-internals.md)) |
 | `world/maps/matrix13/quest/subtitles.lua` | Lily's talks: an unused subtitle sequence played through `story/scenes/scene.lua`'s talk, a hook on the subtitle slot's `UpdateText` that writes the mod's lines, the reading holds, the fallbacks and the kit version ([Lily's signal](../world/lily-signal-internals.md)) |
 | `story/together/snapshot.lua` | `coop story` and `coop-story.txt`: the story lines of the fullest live `SBSaveGame`, written to `StellarCoopStory.txt` part by part, or a list of the objects that may hold them; reads only ([Story dump](story-dump.md)) |
-| `fight/bosses/lion_rows.lua` | The rows as `fight/bosses/lion_rows.h` writes them, for the read-back: the lion rows batch (`R.ROWS`), the Gardener's (`R.GARDENER`), the Tendril's (`R.TENDRIL`, with the Shows to build in `R.TENDRIL_SHOWS`) and the Shock Bolt's (`R.BOLT`); written by the rows' generator |
+| `fight/bosses/lion_rows.lua` | The rows as `fight/bosses/lion_rows.h` writes them, for the read-back: the lion rows batch (`R.ROWS`), the Gardener's (`R.GARDENER`), the Tendril's (`R.TENDRIL`, with the Shows to build in `R.TENDRIL_SHOWS`), the Shock Bolt's (`R.BOLT`, as `eve/bolt_rows.h` writes them) and the Night Operation shop's (`R.SHOP`, as `online/modes/nightop/shop_rows.h` writes them); written by the rows' generator |
+| `eve/chainspin_rows.lua` | EVE's copy of the ChainSpin rows of `fight/bosses/lion_rows.lua` (`R.CHAINSPIN`), where `eve/chainspin.lua` reads the effect's ID; written by the rows' generator, checked by `tests/tools/row_copies_test.py` |
+| `world/maps/matrix13/level/boss_rows.lua` | Matrix XIII's copy of the Lion's and the Gardener's rows (`R.ROWS`, `R.GARDENER`) for its title batches; written by the rows' generator, checked by `tests/tools/row_copies_test.py` |
 | `story/scenes/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times; and Quest_Sub_008's unused voice takes, loaded when `enya` starts, played one after another through `SpawnSound2D` (each 1 s after the one before ends, from its SoundWave's `Duration`) with the subtitles the table has for them |
 | `eve/glide.lua` | `coop glide`: sets EVE's `bGlide` while Jump is held in the air past the top of her jump, and clears it ([Cut glide](../eve/eve-internals.md#cut-glide)) |
 | `eve/emote.lua` | `coop emote`: one of EVE's clips (a looped photo-mode pose, a wave, a clip of the Cut category played once), played by the native part through SB's custom animation call or else as a dynamic montage in `DefaultSlot`, stopped when she moves, jumps or starts a skill ([Emotes](../eve/eve-internals.md#emotes)); also, for `online/lobby/sbo.lua`, the sit loop of a hall lobby seat that SB's chairs leave to the menu key (the fallback to SB's own sit), which `preload` looks up ahead of the sit so the first sit finds the clip in memory |
@@ -153,10 +157,10 @@ the remote table and the day and night cycle's request and sky.
 The [co-op line](../players/interface.md#co-op-line) opens at the camp phone booths that the levels place, actors of two
 classes: `Env_Camp_TeleportMachine_C` (the booth of every full camp, and Xion's five booths) and
 `Env_Camp_TeleportMachine_Standalone_C` (the warp phones). In the Wasteland they stream in and out with distance, so
-`online/session/booth.lua` looks for them again. A booth never moves, so each one a scan finds is kept until the map changes,
-and a scan runs only where it may find a new one: both classes at once after a map change, then once EVE is 100 m from
-where the last scan ran, at most every 30 s. Scans run only while the on-screen UI is up, the world shows, the game is
-not paused and the menu is closed.
+`online/session/booth.lua` looks for them again. A booth never moves, so each one a scan finds is kept until the map
+changes, and a scan runs only where it may find a new one: both classes at once after a map change, then once EVE is 100
+m from where the last scan ran, at most every 30 s. Scans run only while the on-screen UI is up, the world shows, the
+game is not paused and the menu is closed.
 
 A scan asks the engine for the actors of each class (`GetAllActorsOfClass`, which reads its class hash).
 Up to 0.6.0-beta.1 it used `FindAllOf`, which walks every object: 60 to 79 ms on the game thread at each scan, a freeze
@@ -208,40 +212,42 @@ file is written in full beside its final name and then renamed over it, so the r
   same way (`items ...`, answered in `coop-status.txt`). Your friend's gift lines, and a gift of yours that could not
   go, come in `coop-chat.txt` as `gift <payload>` ([Cut mailbox](../tools/menus-internals.md#cut-mailbox)).
 - The SBO lobby's screens (the lobby menu, its settings and the Leave question) hide Stellar Blade's HUD. Every 250 ms
-  `online/lobby/wiring.lua` asks `hud hide on` when one of them has opened and `hud hide off` when the last one has closed, and
-  `hud hide off` once after each Lua load. On the game thread the native part passes its own key, `SBOLobby`, to the
-  game's keyed HUD request (`FUN_141fca0f0` on build 26123051). The game hides the HUD while any key is in its set, so
-  our key and the keys of photo mode and the game's menus never undo each other. The DLL remembers whether our key is
-  in: an `off` with nothing hidden calls nothing, and `coop off` takes the key out. `coop-link.log` has
-  `hud: SB's HUD hidden for the lobby (key SBOLobby)` and `hud: SB's HUD shown again`.
+  `online/lobby/wiring.lua` asks `hud hide on` when one of them has opened and `hud hide off` when the last one has
+  closed, and `hud hide off` once after each Lua load. On the game thread the native part passes its own key,
+  `SBOLobby`, to the game's keyed HUD request (`FUN_141fca0f0` on build 26123051). The game hides the HUD while any key
+  is in its set, so our key and the keys of photo mode and the game's menus never undo each other. The DLL remembers
+  whether our key is in: an `off` with nothing hidden calls nothing, and `coop off` takes the key out. `coop-link.log`
+  has `hud: SB's HUD hidden for the lobby (key SBOLobby)` and `hud: SB's HUD shown again`.
 - The day and night cycle asks `sky off`, `sky cycle`, `sky hour` or `sky hold` in `coop-request.txt` only when its
   decision changes. It reads its state, hour and sun from the `sky=` line of `coop-status.txt`
   ([Day and night](../world/daynight-internals.md#the-request-and-the-status-line)).
-- Each warp into an SBO lobby (the entry, a guest's warp to her host's hall, a Private match on another hall,
-  `coop sbo back`) arms the arrival's hold (`online/lobby/arrival.lua`). Stellar Blade hides its travel screen at the end
-  of its own arrival flow and has no setting that keeps it up, so the hold uses the game's second loading screen:
-  at the 250 ms pass after the new world's `PlayerController:ClientRestart` (a UE4SS hook), Lua calls
+- Each warp into an SBO lobby (the entry, a guest's warp to her host's hall, a Private match on another hall, `coop sbo
+  back`) arms the arrival's hold (`online/lobby/arrival.lua`). Stellar Blade hides its travel screen at the end of its
+  own arrival flow and has no setting that keeps it up, so the hold uses the game's second loading screen: at the 250 ms
+  pass after the new world's `PlayerController:ClientRestart` (a UE4SS hook), Lua calls
   `USBBlueprintLibrary::LoadingScreenFadeAuto` (a 10 s lifetime, 0.5 s fades, tag 5) and collapses the UI root, whose
-  z-order of 100 would draw over the black's 10. Under it the lobby gets ready: EVE on her spot, a hall's chairs
-  spawned on a 100 ms budget and their bind check, the UI's whole look (warmed on a 100 ms budget too) and the menu
-  camera. From the arrival on, Lua also asks `hud hide on` under the black, so SB's HUD is already hidden when the
-  black fades out. Then Lua asks `loading lift`, shows the UI root and opens the lobby menu in the same pass. On the
-  game thread the native part sets the lifetime of each tag-5 entry in the game's UI manager to 0 (`online/lobby/loading.h`),
-  and the game's loading controller runs its own end fade at its next tick. Lua lifts the hold 8 s after the black went
-  up whatever is missing, with the missing items in the log; the game ends the black 10 s after its fade-in even with
-  no Lua. A Lua reload during the hold loses track of the black, so the new Lua load asks `loading lift` once at its
-  first pass in the lobby world, unless that pass or an earlier one of the same load put up its own black; with no
-  black up the lift ends nothing, since only this mod puts up tag-5 entries.
-  `coop-link.log` has `loading lift: <n> of SB's black screens set to end`; the Lua lines start with `arrival:`.
+  z-order of 100 would draw over the black's 10. Under it the lobby gets ready: EVE on her spot, a hall's chairs spawned
+  on a 100 ms budget and their bind check, the UI's whole look (warmed on a 100 ms budget too) and the menu camera. From
+  the arrival on, Lua also asks `hud hide on` under the black, so SB's HUD is already hidden when the black fades out.
+  Then Lua asks `loading lift`, shows the UI root and opens the lobby menu in the same pass. On the game thread the
+  native part sets the lifetime of each tag-5 entry in the game's UI manager to 0 (`online/lobby/loading.h`), and the
+  game's loading controller runs its own end fade at its next tick. Lua lifts the hold 8 s after the black went up
+  whatever is missing, with the missing items in the log; the game ends the black 10 s after its fade-in even with no
+  Lua. A Lua reload during the hold loses track of the black, so the new Lua load asks `loading lift` once at its first
+  pass in the lobby world, unless that pass or an earlier one of the same load put up its own black; with no black up
+  the lift ends nothing, since only this mod puts up tag-5 entries. `coop-link.log` has `loading lift: <n> of SB's black
+  screens set to end`; the Lua lines start with `arrival:`.
 - The recruiter's lines go as one request too (`guardtext`, the culture and his seven lines, each after a tab),
   answered by the `guardtext=` line of `coop-status.txt`.
-- The [bike](../vehicles/bike-internals.md)'s asks go as requests (`bike load <clip>`, `bike free`, `bike gate on`, `bike gate off`,
-  `anim play <id> <clip> ride`), answered by the `bike=`, `bike_gate=` and `anim=` words of the engine line in
-  `coop-status.txt`. They stay on your PC. Her parked bike's line goes through `coop-parked.txt`, which the native part
-  takes and sends to each member as a `bike` message (see [The bike line](../online/steam-link-internals.md#the-bike-line)). The members'
-  lines come back as the `bike_of=` lines of `coop-status.txt`.
-- Two files are Lua's alone, for the [crash sentinel](../online/partner-internals.md#cns-guard-and-crash-sentinel): `coop-cns-call.txt`, written in
-  place with no temporary file to keep each write to one, and `coop-cns-aside.txt`, the set-aside list.
+- The [bike](../vehicles/bike-internals.md)'s asks go as requests (`bike load <clip>`, `bike free`, `bike gate on`,
+  `bike gate off`, `anim play <id> <clip> ride`), answered by the `bike=`, `bike_gate=` and `anim=` words of the engine
+  line in `coop-status.txt`. They stay on your PC. Her parked bike's line goes through `coop-parked.txt`, which the
+  native part takes and sends to each member as a `bike` message (see [The bike
+  line](../online/steam-link-internals.md#the-bike-line)). The members' lines come back as the `bike_of=` lines of
+  `coop-status.txt`.
+- Two files are Lua's alone, for the [crash sentinel](../online/partner-internals.md#cns-guard-and-crash-sentinel):
+  `coop-cns-call.txt`, written in place with no temporary file to keep each write to one, and `coop-cns-aside.txt`, the
+  set-aside list.
 
 The full list is in [Settings](../players/settings.md#files-in-the-mod-folder).
 
@@ -252,16 +258,16 @@ that fails to load is off until the mod reloads; the other modules stay on.
 
 ### The manifest
 
-Each module's `wiring.lua` returns its manifest, here `race/wiring.lua`'s, shortened:
+Each module's `wiring.lua` returns its manifest, here `online/modes/race/wiring.lua`'s, shortened:
 
 ```lua
 return {
-uses={'partner','nightop','bike'}, -- the modules it reads later, never while it loads
-exports={'doro','drive','race'},   -- every M field its new and its build steps set
-new=function(M)                    -- its share of the startup; returns its coop words
-    M.doro=require('race.doro').new({...})
+uses={'online.partner','online.modes.nightop','vehicles.bike'}, -- the modules it reads later, never while it loads
+exports={'doro','drive','race'},                                 -- every M field its new and its build steps set
+new=function(M)                                                  -- its share of the startup; returns its coop words
+    M.doro=require('online.modes.race.doro').new({...})
     ...
-    return require('race.commands').new({...})
+    return require('online.modes.race.commands').new({...})
 end,
 build={hud=function(M,Ui) M.race.hud({kit=M.kit,theme=Ui.THEME,settings=M.settings}) end},
 }
@@ -296,7 +302,7 @@ mod reloads:
 - `M.off_modules` holds its name and the error.
 
 No other module is touched. A hook that a wiring registers with UE4SS outlives an off module, so its callback starts
-with `if M.off_modules.<module> then return end` (the lobby's `ClientRestart` hook).
+with `if M.off_modules['<module>'] then return end` (the lobby's `ClientRestart` hook).
 
 ### Late reads
 
@@ -307,7 +313,7 @@ reader lists the module it reads in its `uses`.
   gives nil: no run.
 - A view, `require('main.loader').view(M,'puppet')`, for a constructor that keeps an object: each field read reads
   `M.puppet` at that moment, so an off module answers as its stub.
-- A getter, `require('main.loader').get(M,'cut.enemies','lion')`, for code that tests whether the object is there: it
+- A getter, `require('main.loader').get(M,'fight.bosses','lion')`, for code that tests whether the object is there: it
   returns the export, or nil while the module is off.
 
 Most late reads of an off module give a state that already exists: no run, no ghost, not riding. Where nil would make
@@ -363,8 +369,10 @@ run under its own SEH latch (77 `__try` blocks, 34 `*_faulted` flags): a fault t
 A part may read what the parts before it define, so `tick.cpp` includes them in a declared order. Comments beside the
 includes name the parts one reads or must come before (`world/daynight/sky_game.inc` comes after
 `glue/tick/freeze_game_shared.inc`, whose controller reach it uses). What another module's part reads of a part is in
-`glue/tick/<part>_shared.inc`, included right before that part. The headers that more than one module reads are in
-`game/`. No module's part, header or test includes another module's header or uses a name another module's part defines.
+`glue/tick/<part>_shared.inc`, included right before that part. Each module's table rows are a header of its own that
+`tick.cpp` includes right after `rows/rows.h` ([Row tables](structure.md#row-tables)). The headers that more than one
+module reads are in `game/`. No module's part, header or test includes another module's header or uses a name another
+module's part defines.
 
 ### The checks
 
@@ -417,13 +425,13 @@ from the game.
   While another process's window is in front nothing is read and the held state counts as released: XInput answers
   whatever window has the focus. Slate may never deliver the release of a button held across an alt-tab, so `PadKeys`
   forgets its holds then.
-- `ui/pad.h` turns the reads into events: up, down, left and right from the D-pad or the left stick (pressed at 50 %
-  of its range, released under 30 %), a D-pad diagonal read as up or down and the stick along its main axis (up or down
-  when both are equal; an axis already pressed stays until the other is more than 10 % larger, so a stick held near
-  45 degrees does not switch at each read), up and down repeating after 400 ms then every 120 ms, A for select, B for
-  back, View held 1000 ms for the menu, once a hold, LB and RB for the tab to the left and right and Y for the
-  Sessions screen's Refresh, once a press. D-pad Right held 1000 ms gives the [bike](../vehicles/bike-internals.md)'s event, once a hold,
-  after its right. A ring of 8 holds them; a full ring drops the newest.
+- `ui/pad.h` turns the reads into events: up, down, left and right from the D-pad or the left stick (pressed at 50 % of
+  its range, released under 30 %), a D-pad diagonal read as up or down and the stick along its main axis (up or down
+  when both are equal; an axis already pressed stays until the other is more than 10 % larger, so a stick held near 45
+  degrees does not switch at each read), up and down repeating after 400 ms then every 120 ms, A for select, B for back,
+  View held 1000 ms for the menu, once a hold, LB and RB for the tab to the left and right and Y for the Sessions
+  screen's Refresh, once a press. D-pad Right held 1000 ms gives the [bike](../vehicles/bike-internals.md)'s event, once
+  a hold, after its right. A ring of 8 holds them; a full ring drops the newest.
 - The DLL links no Lua, so each event travels as a result count. Lua calls
   `select('#', native_pad(0,0,0,0,0,0,0,0,0,0,0))`: `coop_pad`, called as a Lua C function, returns n. Lua hands back
   the top n of the 11 arguments on its stack. n is the event, 1 to 11, or 0 when the ring is empty. `main/frame.lua`
@@ -472,12 +480,12 @@ button moving the focus does.
 
 ### Line breaks
 
-Every text the mod wraps goes through `online/session/chat.lua`'s `wrap`: the chat feed and history, the notice line above EVE
-and the co-op saves' question. The kit's UMG texts never wrap on their own. A row breaks at the last space within reach,
-else between two characters (Chinese, Japanese and Thai put no space between words), and a mark that takes no column
-(Thai and Arabic vowel and tone marks) stays with the letter before it. Thai writes the vowels U+0E40 to U+0E44 (เ แ โ ใ
-ไ) before the consonant they follow in speech, so a row never ends on one: between two characters the cut moves back
-before such a vowel, unless the row would be left empty.
+Every text the mod wraps goes through `online/session/chat.lua`'s `wrap`: the chat feed and history, the notice line
+above EVE and the co-op saves' question. The kit's UMG texts never wrap on their own. A row breaks at the last space
+within reach, else between two characters (Chinese, Japanese and Thai put no space between words), and a mark that takes
+no column (Thai and Arabic vowel and tone marks) stays with the letter before it. Thai writes the vowels U+0E40 to
+U+0E44 (เ แ โ ใ ไ) before the consonant they follow in speech, so a row never ends on one: between two characters the
+cut moves back before such a vowel, unless the row would be left empty.
 
 ## Loopback, record and replay
 

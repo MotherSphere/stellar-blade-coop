@@ -1,5 +1,8 @@
 # Moving a fork to the November 2026 layout
 
+The sections up to [Forks on e4d10663](#forks-on-e4d10663-category-folders) describe the move to `e4d10663` with that
+commit's paths and module names. That last section takes a fork from `e4d10663` to the category folders.
+
 Between `38bd9dfe` and `8da078ab` the code moved into one folder per module with no links between modules.
 `main.lua`, `ui/text.lua` and `native/src/link/core.h` were split into smaller files. Behaviour did not change, except
 that a module that fails to load is now off alone and one message of the save check names `docs/players/saves.md`.
@@ -311,7 +314,7 @@ The Part column gives each part's path now; its old path is in [Every moved file
 
 ## Every moved file
 
-Each file once, from its path at `38bd9dfe` to its path now. The copies above are new files, not moves.
+Each file once, from its path at `38bd9dfe` to its path at `e4d10663`. The copies above are new files, not moves.
 
 <details><summary>233 moves</summary>
 
@@ -552,3 +555,180 @@ Each file once, from its path at `38bd9dfe` to its path now. The copies above ar
 | `tests/native/world/sync_test.cpp` | `tests/native/game/world/sync_test.cpp` |
 
 </details>
+
+## Forks on e4d10663 (category folders)
+
+After `e4d10663` the modules moved into category folders: `online/`, `fight/`, `world/`, `story/`, `vehicles/`, `eve/`
+and `tools/`. Each module's runtime name follows its folder, each module holds its own table rows, the docs follow the
+same categories. Behaviour did not change: the same tests pass, the call trace of `main.lua` is the same up to module
+names and every row batch dumps the same rows and patches.
+
+### Lua folders
+
+Under `mod/StellarCoop/Scripts/`; the same under `tests/lua/`, where `tests/lua/main/` stays. A file keeps its name in
+its new folder. `main.lua`, `main/`, `core/` and `ui/` stay.
+
+| Before | After |
+| --- | --- |
+| `session/` | `online/session/` |
+| `lobby/` | `online/lobby/` |
+| `partner/` | `online/partner/` |
+| `group/` | `online/group/` |
+| `save/` | `online/saves/` |
+| `photo/` | `online/photo/` |
+| `nightop/` | `online/modes/nightop/` |
+| `race/` | `online/modes/race/` |
+| `fight/` | `fight/enemies/` |
+| `cut/enemies/` | `fight/bosses/` |
+| `matrix13/` | `world/maps/matrix13/` |
+| `matrix13/world/` | `world/maps/matrix13/level/` |
+| `world/` | `world/objects/` |
+| `sky/` | `world/daynight/` |
+| `story/` | `story/together/` |
+| `quest/` | `story/quests/` |
+| `cut/scenes/` | `story/scenes/` |
+| `bike/` | `vehicles/bike/` |
+| `cut/eve/` | `eve/` |
+| `cut/menus/` | `tools/` |
+| `core/lion_rows.lua` | `fight/bosses/lion_rows.lua` |
+
+### Module names
+
+A module's name is its Scripts folder with dots. Every place that names a module follows: `MODULES` in `main.lua`,
+each `uses` list, `M.off_modules['<name>']` (the code writes the bracket form now), `Loader.get(M,'<name>',...)` and
+`Loader.build(M,'<name>',...)`, each `off_test.lua`, the keys of `modules` in the 22 files of `ui/text/` (the names
+players read stay), `tests/lua/main/isolation.lua` and `RUNTIME_SET_BY` in `tests/tools/modules_test.py`.
+
+| Before | After |
+| --- | --- |
+| `partner` | `online.partner` |
+| `nightop` | `online.modes.nightop` |
+| `cut.enemies` | `fight.bosses` |
+| `group` | `online.group` |
+| `race` | `online.modes.race` |
+| `cut.eve` | `eve` |
+| `cut.scenes` | `story.scenes` |
+| `matrix13` | `world.maps.matrix13` |
+| `session` | `online.session` |
+| `photo` | `online.photo` |
+| `fight` | `fight.enemies` |
+| `quest` | `story.quests` |
+| `world` | `world.objects` |
+| `story` | `story.together` |
+| `lobby` | `online.lobby` |
+| `bike` | `vehicles.bike` |
+| `sky` | `world.daynight` |
+| `cut.menus` | `tools` |
+| `save` | `online.saves` |
+
+### Native folders
+
+Under `native/src/`; the same under `tests/native/`, where `lion/rows_test.cpp` and `lion/shock_test.cpp` go to `rows/`,
+`cut/debug_keys_test.cpp` to `eve/` and `cut/items_test.cpp` to `tools/`. `game/`, `glue/`, `link/` and `ui/` stay but
+for the three `game/` subfolders below. Includes name the new paths.
+
+| Before | After |
+| --- | --- |
+| `bike/` | `vehicles/bike/` |
+| `cut/anim_*` | `eve/` |
+| `cut/debug_*` | `eve/` |
+| `cut/items*` | `tools/` |
+| `fight/` | `fight/enemies/` |
+| `game/pose/` | `game/partner/` |
+| `game/quest/` | `game/quests/` |
+| `game/world/` | `game/objects/` |
+| `group/` | `online/group/` |
+| `lobby/` | `online/lobby/` |
+| `nightop/` | `online/modes/nightop/` |
+| `photo/` | `online/photo/` |
+| `session/` | `online/session/` |
+| `save/` | `online/saves/` |
+| `pose/` | `online/partner/` |
+| `matrix13/` | `world/maps/matrix13/` |
+| `sky/` | `world/daynight/` |
+| `world/` | `world/objects/` |
+| `quest/` | `story/quests/` |
+| `story/` | `story/together/` |
+| `lion/rows.h` | `rows/rows.h` |
+| `lion/lion_game.inc` | `rows/rows_game.inc` |
+| `lion/shock.h` | `rows/shock.h` |
+| `lion/halls_rows.h` | `online/lobby/halls_rows.h` |
+| `lion/mxiii_rows.h` | `world/maps/matrix13/mxiii_rows.h` |
+
+### Row tables
+
+`rows/rows.h` keeps the row engine, `kTables` and `struct Batch`; each batch's rows moved to a header of its module:
+
+- `lion`, `gardener`, `tendril`: `native/src/fight/bosses/lion_rows.h`, one `kPatches` as before.
+- `bolt`: `native/src/eve/bolt_rows.h`, with `kBoltPatches` of its own (its rows' `first` counted from 0).
+- `shop`: `native/src/online/modes/nightop/shop_rows.h`, with `kShopPatches` of its own.
+- The nine Matrix XIII batches: `native/src/world/maps/matrix13/mxiii_rows.h`.
+- `signal`: `native/src/world/maps/matrix13/signal_rows.h`, cut from `rows/rows.h` as it was.
+- `halls`: `native/src/online/lobby/halls_rows.h`.
+
+`Batch` lost its default `patches`: a fork that adds a batch names its patch array. `glue/tick.cpp` includes the six
+headers right after `rows/rows.h`. The Lua list `core/lion_rows.lua` is now `fight/bosses/lion_rows.lua` with the same
+keys. Two generated copies are new: `eve/chainspin_rows.lua` (`CHAINSPIN`, which `eve/chainspin.lua` reads) and
+`world/maps/matrix13/level/boss_rows.lua` (`ROWS` and `GARDENER`, which `world/maps/matrix13/level/travel.lua` reads).
+`tests/tools/row_copies_test.py` checks them, with the shop's cut items that `shop_test.lua` checked before.
+
+### Docs
+
+| Before | After |
+| --- | --- |
+| `docs/features/sbo-lobby.md` | `docs/online/lobby.md` |
+| `docs/features/ghost.md` | `docs/online/partner.md` |
+| `docs/internals/ghost.md` | `docs/online/partner-internals.md` |
+| `docs/internals/group-play.md` | `docs/online/group-internals.md` |
+| `docs/internals/steam-link.md` | `docs/online/steam-link-internals.md` |
+| `docs/modes/night-operation.md` | `docs/online/modes/nightop.md` |
+| `docs/modes/night-operation-previews.md` | `docs/online/modes/nightop-previews.md` |
+| `docs/modes/challenges.md` | `docs/online/modes/challenges.md` |
+| `docs/modes/night-operation-shop.md` | `docs/online/modes/nightop-shop.md` |
+| `docs/internals/night-operation-shop.md` | `docs/online/modes/nightop-shop-internals.md` |
+| `docs/features/doro-races.md` | `docs/online/modes/race.md` |
+| `docs/internals/doro-races.md` | `docs/online/modes/race-internals.md` |
+| `docs/features/shared-enemies.md` | `docs/fight/enemies.md` |
+| `docs/internals/shared-enemies.md` | `docs/fight/enemies-internals.md` |
+| `docs/cut-content/cut-enemies.md` | `docs/fight/bosses.md` |
+| `docs/internals/cut-enemies.md` | `docs/fight/bosses-internals.md` |
+| `docs/modes/matrix-xiii.md` | `docs/world/matrix13.md` |
+| `docs/internals/matrix-xiii.md` | `docs/world/matrix13-internals.md` |
+| `docs/modes/lily-signal.md` | `docs/world/lily-signal.md` |
+| `docs/internals/lily-signal.md` | `docs/world/lily-signal-internals.md` |
+| `docs/features/shared-world.md` | `docs/world/objects.md` |
+| `docs/internals/shared-world.md` | `docs/world/objects-internals.md` |
+| `docs/internals/daynight.md` | `docs/world/daynight-internals.md` |
+| `docs/features/story-together.md` | `docs/story/together.md` |
+| `docs/internals/story-sync.md` | `docs/story/together-internals.md` |
+| `docs/cut-content/cut-scenes-and-menus.md` | `docs/story/scenes.md` (the scenes) and `docs/tools/menus.md` (the menus and the mailbox) |
+| `docs/features/bike.md` | `docs/vehicles/bike.md` |
+| `docs/internals/bike.md` | `docs/vehicles/bike-internals.md` |
+| `docs/cut-content/cut-eve.md` | `docs/eve/eve.md` |
+| `docs/internals/cut-eve.md` | `docs/eve/eve-internals.md` |
+| `docs/internals/cut-menus.md` | `docs/tools/menus-internals.md` |
+| `docs/internals/architecture.md` | `docs/dev/architecture.md` |
+| `docs/internals/safety.md` | `docs/dev/safety.md` |
+| `docs/dev/story.md` | `docs/dev/story-dump.md` |
+| `docs/internals/README.md` | the section [How Stellar Blade Online works](../README.md#how-stellar-blade-online-works) of `docs/README.md` |
+
+### Replaying a branch
+
+`git rebase` (or `git merge`) finds most moves, so an edit to a moved file lands at its new path. Git pairs these
+wrongly or not at all; re-apply an edit to one of them at the path in the right column by hand:
+
+| Before | After | What git does |
+| --- | --- | --- |
+| `mod/StellarCoop/Scripts/cut/eve/wiring.lua` | `mod/StellarCoop/Scripts/eve/wiring.lua` | a delete and an add |
+| `mod/StellarCoop/Scripts/cut/scenes/wiring.lua` | `mod/StellarCoop/Scripts/story/scenes/wiring.lua` | a delete and an add |
+| `mod/StellarCoop/Scripts/matrix13/wiring.lua` | `mod/StellarCoop/Scripts/world/maps/matrix13/wiring.lua` | a delete and an add |
+| `mod/StellarCoop/Scripts/race/wiring.lua` | `mod/StellarCoop/Scripts/online/modes/race/wiring.lua` | a delete and an add |
+| `native/src/lion/rows.h` | `native/src/rows/rows.h` (the engine) | paired with `native/src/fight/bosses/lion_rows.h`, which took most of its lines |
+| `docs/cut-content/cut-scenes-and-menus.md` | `docs/story/scenes.md` and `docs/tools/menus.md` | paired with `docs/tools/menus.md`, the larger half |
+| `docs/internals/README.md` | `docs/README.md` | a delete: the page is a section of `docs/README.md` now |
+
+A module name in a fork's own new code takes its new name by hand: `M.off_modules.bike` becomes
+`M.off_modules['vehicles.bike']`, `uses={'bike'}` becomes `uses={'vehicles.bike'}`, `require('bike.ride')` becomes
+`require('vehicles.bike.ride')`. A fork's new module goes in its category (see
+[Structure](structure.md#adding-a-module)). Then run `python3 tools/install.py --dry-run`, which checks and builds
+without installing.

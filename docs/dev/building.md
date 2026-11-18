@@ -1,7 +1,8 @@
 # Building from source
 
 Stellar Blade Online is developed on Linux. The Lua scripts need no build, and the Windows DLL is cross-compiled with
-clang-cl. For the design, see [README.md](../README.md#how-stellar-blade-online-works). The tests are listed in [tests.md](tests.md).
+clang-cl. For the design, see [README.md](../README.md#how-stellar-blade-online-works). The tests are listed in
+[tests.md](tests.md).
 
 ## Toolchain
 
@@ -41,7 +42,8 @@ Except with `--zip`, the game's UE4SS `Mods` folder must exist. `--pak` also nee
 A run does these steps in order:
 
 1. runs the Lua tests (`tests/lua/**/*_test.lua`), the Python tests (`tests/tools/*_test.py`) and the native tests
-   (`tests/native/**/*_test.cpp`, built and run on this machine as `build/host/<folder>_<name>_test`);
+   (`tests/native/**/*_test.cpp`, built and run on this machine as `build/host/<its path with _>_test`:
+   `tests/native/online/lobby/loading_test.cpp` builds `online_lobby_loading_test` there);
 2. configures and builds the DLL in `build/windows` with the clang-cl toolchain, and writes the version
    (`git describe`) into it;
 3. installs, writes a dry-run report, or writes the zip.
@@ -186,7 +188,7 @@ it 0.8.0, but write its notes by hand in step 2.
 mod/StellarCoop/            the UE4SS mod folder
   enabled.txt               makes UE4SS start the mod
   Assets/                   MotherSphere.png, the guide's art by timediffer24 (not covered by the SBO License)
-  Scripts/                  the Lua side (see internals/architecture.md)
+  Scripts/                  the Lua side (see dev/architecture.md); category folders group the modules
     main.lua                the entry UE4SS runs: the state table M, the module list, the runtime's steps in order
     main/                   the runtime every module plugs into: boot, base, the module loader, coop ui and coop off,
                             the UI's build order, input, the frame loop, the 250 ms loop, the key binds
@@ -196,30 +198,34 @@ mod/StellarCoop/            the UE4SS mod folder
                             Online tab, coop guide and coop keys
     ui/text.lua             the text tables' entry: each language's words from ui/text/<language>.lua
     ui/text/                one file per language, the guide's words, the game language's culture pick
-    partner/                the ghost: capture, the drawn model, its HUD marker, the crash sentinel
-    nightop/                Night Operation: the probe, the run, its waves, shop and challenges, the recruiter
-    cut/enemies/            the cut model viewer (coop leviathan and six more); coop lion, gardener fight, tendril
-                            fight
-    group/                  group play: the revive, the follow, the teleport screen's tabs
-    race/                   Doro races: the run, the track model, the Doro look, the driving
-    cut/eve/                coop chainspin, wear, emote, fly, slowmo and glide
-    cut/scenes/             coop scene and coop lines
-    matrix13/               the cut Matrix XIII dungeon, by place then quest: world/ (coop mxiii's travel, rows,
-                            ladders, bosses, drone light), quest/ ("On Time" and its words, the talk player
-                            subtitles.lua), talks/ (the talks' lines, one file per talk or zone), culture.lua
-    session/                hosting and joining, the chat, the code box, the camp booths, the Sessions and Create a
+    online/                 what the link shares or runs between players:
+      session/              hosting and joining, the chat, the code box, the camp booths, the Sessions and Create a
                             session screens
-    photo/                  the synced photo mode's pause setting
-    fight/                  shared enemies: coop fight and their notices
-    quest/                  shared quests: coop quests
-    world/                  shared world: coop world
-    story/                  story together's coop scenes, the story dump (snapshot.lua, see story.md)
-    lobby/                  the SBO lobby, its hall maps' rows, the arrival's hold, its screens, coop match and sbo
-    bike/                   the bike: the ride, its riding model and its own copy of the races' drive, the parked
+      lobby/                the SBO lobby, its hall maps' rows, the arrival's hold, its screens, coop match and sbo
+      partner/              the ghost: capture, the drawn model, its HUD marker, the crash sentinel
+      group/                group play: the revive, the follow, the teleport screen's tabs
+      saves/                the co-op saves and their question, coop shortcut
+      photo/                the synced photo mode's pause setting
+      modes/nightop/        Night Operation: the probe, the run, its waves, shop and challenges, the recruiter
+      modes/race/           Doro races: the run, the track model, the Doro look, the driving
+    fight/
+      enemies/              shared enemies: coop fight and their notices
+      bosses/               the cut model viewer (coop leviathan and six more); coop lion, gardener fight, tendril
+                            fight; lion_rows.lua, the Lua list of the lion, gardener, tendril, bolt and shop rows
+    world/
+      maps/matrix13/        the cut Matrix XIII dungeon, by place then quest: level/ (coop mxiii's travel, rows,
+                            boss_rows.lua, ladders, bosses, drone light), quest/ ("On Time" and its words, the talk
+                            player subtitles.lua), talks/ (the talks' lines, one file per talk or zone), culture.lua
+      objects/              shared world: coop world
+      daynight/             the day and night cycle
+    story/
+      together/             story together's coop scenes, the story dump (snapshot.lua, see story-dump.md)
+      quests/               shared quests: coop quests
+      scenes/               coop scene and coop lines
+    vehicles/bike/          the bike: the ride, its riding model and its own copy of the races' drive, the parked
                             bike, the fetch, the other players' bikes
-    sky/                    the day and night cycle
-    cut/menus/              coop devmenu, devinfo and gift (the cut mailbox)
-    save/                   the co-op saves and their question, coop shortcut
+    eve/                    coop chainspin, wear, emote, fly, slowmo and glide; chainspin_rows.lua
+    tools/                  the tools module (cut menus): coop devmenu, devinfo and gift (the cut mailbox)
 native/                     the DLL (CMake)
   CMakeLists.txt
   src/                      platform-free headers, tested on the build machine; glue/ is the Windows side
@@ -227,10 +233,10 @@ native/                     the DLL (CMake)
     glue/tick/              worker.inc and status.inc; <part>_shared.inc, what other modules' parts read of a part
     game/                   memory.h and the headers that more than one module reads
     link/                   the Steam link: core.h with its member functions in core/, protocol.h and the rest
-    lion/                   the table row batches and their game part
+    rows/                   the row engine every batch shares, the batch flow and the Shock Bolt's list grower
     ui/                     the controller's events and the pause menu's Online tab
-    <module>/               one folder per module with native code: the headers no other module reads, its
-                            <part>_game.inc and <part>_worker.inc
+    <module path>/          one folder per module with native code, at its Lua path (online/lobby/, eve/...): the
+                            headers no other module reads, its row tables, its <part>_game.inc and <part>_worker.inc
 tests/
   lua/                      Lua tests, in the scripts' folders, with each module's off_test.lua
   native/                   C++ tests of the platform-free headers, in their folders
@@ -286,7 +292,9 @@ Platform-free headers, tested on the build machine:
 | `online/modes/nightop/probe.h` | The `coop no` poller's reads, lines and verdict |
 | `online/modes/nightop/roxanne.h` | Roxanne's Night Operation choices and Lily's signal choice: a choice list's entry in SB's select cache pointed at rows of ours followed by the list's own, and put back; the checks and the `roxanne=` and `lily=` lines |
 | `online/modes/nightop/shop_ui.h` | The Night Operation shop in SB's own shop screen: the guard, the answer word, the `nightshop=` line and the log lines |
-| `fight/bosses/lion_rows.h` | Sixteen batches of rows (the first four and the shop's with their data part written by a generator outside the repository, which also describes the first 25 tables): `coop lion`'s 237, the Lion's 222, the cut stimpacks' 4 and the cut Tachy ChainSpin's 11, `coop gardener fight`'s 13, `coop tendril fight`'s 107, the cut Shock Bolt's 4, the Night Operation shop screen's 6, Lily's signal's 24 quest rows and 1 shipped choice row patched in place, written by hand, Matrix XIII's nine from `world/maps/matrix13/mxiii_rows.h` and the SBO hall lobbies' 181 from `online/lobby/halls_rows.h`; their build and AddRow call, the read-back, the answer word, the `lion=`, `gardener=`, `tendril=`, `bolt=`, `mxiii=`, `shop=`, `signal=`, `mxspawn=`, `mxenv=`, `mxupper=`, `mxmiddle=`, `mxlower=`, `mxnames=`, `mxlily=`, `mxrecords=` and `halls=` lines and the log lines |
+| `rows/rows.h` | The row engine of the sixteen batches: the tables they write (`kTables`, its first 25 described by a generator outside the repository), the build of each row and its AddRow call, the read-back, the answer word, the `lion=`, `gardener=`, `tendril=`, `bolt=`, `mxiii=`, `shop=`, `signal=`, `mxspawn=`, `mxenv=`, `mxupper=`, `mxmiddle=`, `mxlower=`, `mxnames=`, `mxlily=`, `mxrecords=` and `halls=` lines and the log lines; one line per batch word naming the header that holds it |
+| `fight/bosses/lion_rows.h`, `eve/bolt_rows.h`, `online/modes/nightop/shop_rows.h` | Batches written by that generator: `coop lion`'s 237 (the Lion's 222, the cut stimpacks' 4 and the cut Tachy ChainSpin's 11), `coop gardener fight`'s 13, `coop tendril fight`'s 107; the cut Shock Bolt's 4; the Night Operation shop screen's 6 |
+| `world/maps/matrix13/signal_rows.h` | Lily's signal's 24 quest rows and 1 shipped choice row patched in place, written by hand |
 | `world/maps/matrix13/mxiii_rows.h` | Matrix XIII's nine batches (`mxiii` 75 rows, `mxspawn` 51, `mxenv` 172, `mxupper` 168, `mxmiddle` 106, `mxlower` 105, `mxlily` 6, `mxnames` 11, `mxrecords` 100), written by `tools/mxiii_rows.py` from `data/mxiii-world.json`: do not edit it by hand |
 | `online/lobby/halls_rows.h` | The SBO hall lobbies' `halls` batch: 5 WorldTable rows, 5 ZoneTable rows, then 171 ZoneEnvSpawnTable rows, one per kept seat but the 2 camp seats, written by `tools/sbo_lobby_rows.py` from `data/sbo-lobby.json`: do not edit it by hand |
 | `rows/shock.h` | The Shock Bolt's two lists grown in place once its bolt rows are in: the fire commands at the end of EVE's two gun stances' `CommandArray` and `Bullet_Shock` at the end of the const ammo list and the slot manager's list; the checks, the answer word, the `shock=` line and the log line |
