@@ -98,7 +98,9 @@ function GunMode.new(env)
             if not s.reload_logged then s.reload_logged=true; g.log('reload animation: '..(ok and 'playing' or 'not found')) end
         else s.sounds=nil end
     end
-    local ammo=Ammo.new(g,cfg,function(v) data.cool(v) end,on_reload,Dpad.new(g))
+    -- No D-pad slot widget for now: the runtime widget never drew, and as nothing held it the engine could free it
+    -- while its text was still being set every frame (a likely cause of the crashes at 11:27).
+    local ammo=Ammo.new(g,cfg,function(v) data.cool(v) end,on_reload,nil)
 
     local function fire_row(row)
         local lib=StaticFindObject(LIB)

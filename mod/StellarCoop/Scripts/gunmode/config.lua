@@ -57,8 +57,9 @@ Config.DEFAULTS={
     -- there): her other mesh components wearing her body's own mesh (Ultra Violence's blood layer, outfit overlays)
     -- and any whose mesh name has one of these (the sword). Co-op partners still see them.
     hide_names={'Sword','CH_W_'},
-    -- Head parts copied with the posed body (they lagged it by a frame: her neck through her collar, 09:25).
-    copy_names={'Face','HR_','Hair','HairPin','EAR'},
+    -- Head parts copied with the posed body: none. They follow her body through its leader pose and hold no pose of
+    -- their own, and copying a pose from one crashed the game (11:03).
+    copy_names={},
 }
 
 local LETTER_OR_F='^[A-Z]$'
