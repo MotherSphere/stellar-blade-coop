@@ -29,10 +29,10 @@ local View=require('gunmode.view')
 local Input=require('gunmode.input')
 local Pose=require('gunmode.pose')
 local Laser=require('gunmode.laser')
+local Data=require('gunmode.data')
 
 local GunMode={}
 
-GunMode.PAKS={'RoguelikeMode_P','zNikkeGunMode_P'} -- Needed: the rows, and the shot without a bullet check.
 GunMode.STAND_PAK='zNikkeGunStand_P'
 local EVE='/Game/Art/Character/PC/CH_P_EVE_01/Blueprints/CH_P_EVE_01_Blueprint.CH_P_EVE_01_Blueprint_C'
 local LIB='/Script/SB.Default__SBBlueprintLibrary'
@@ -82,11 +82,6 @@ function GunMode.new(env)
     local set,bad=Config.parse(env.folder and whole(env.folder..'\\coop-settings.txt'))
     local sb=env.folder and env.folder:match('^(.*)[\\/][Bb]inaries[\\/][Ww]in64[\\/]')
     local paks=sb and sb..'\\Content\\Paks'
-    env.pak=true
-    for _,name in ipairs(GunMode.PAKS) do
-        local ok,why=GunMode.find_pak(paks,read,name)
-        if not ok then env.pak,env.pak_why=false,why; break end
-    end
     env.stand,env.stand_why=GunMode.find_pak(paks,read,GunMode.STAND_PAK)
     env.say=env.say or function(text) env.log(text) end
     local g={}
@@ -111,6 +106,7 @@ function GunMode.new(env)
     function g.stance(p) return g.try(function() return p:GetCurrentStanceName():ToString() end) end
     local aim,view=Aim.new(g),View.new(g)
     local laser=Laser.new(g)
+    local data=Data.new(g,set.fire_effect or nil)
     local pose=Pose.new(g,cfg.laser and laser or nil)
     local keys=Input.state()
     local self={}
@@ -148,11 +144,11 @@ function GunMode.new(env)
     local function posture(tag)
         local p=g.pawn(); if not p then return end
         if s.crouched then
-            fire_row({2,'NGM_AE_Pos2'})
+            fire_row(Rows.one(s.ns,'Pos2'))
             pcall(function() p:ActiveCustomMovingStanceData({ForceType=0,OverrideStanceAnim=FName(cfg.crouch_anim),
                 NormalAnimRangeDegree=180.0}) end)
         else
-            fire_row({2,'NGM_AE_PosOff'})
+            fire_row(Rows.one(s.ns,'PosOff'))
             pcall(function() p:DeactiveCustomMovingStanceData() end)
         end
         g.log('posture: '..(s.crouched and 'crouched' or 'standing')..' ('..tag..')')
@@ -172,8 +168,8 @@ function GunMode.new(env)
         if now-s.guard_last<cfg.stance_cooldown or s.guard_fails>=5 then return end
         s.guard_fails,s.guard_last,s.guard_n=s.guard_fails+1,now,s.guard_n+1
         if set.real_ammo then fire_row({2,'NGM_AE_GunOnAmmo'}); fire_row({2,'NGM_AE_ZeroOff'})
-        else fire_row({2,'NGM_AE_GunOn'}) end
-        if s.crouched then fire_row({2,'NGM_AE_Pos2'}) end
+        else fire_row(Rows.one(s.ns,'GunOn')) end
+        if s.crouched then fire_row(Rows.one(s.ns,'Pos2')) end
         if s.guard_n<=10 or s.guard_n%10==0 then
             g.log(('stance guard #%d: %s, TPS %s mode %s: gun stance put back'):format(s.guard_n,stance,
                 tostring(tps(p)),
@@ -223,13 +219,35 @@ function GunMode.new(env)
         end
     end
 
+    -- The rows gun mode fires: SB's own, taken by gunmode/data.lua (GM), else a Survival Protocol pak's (NGM) when
+    -- that has them; false: neither, gun mode cannot start. SB's rows go back at a new controller (tick).
+    local function rows_ready()
+        if s.ns then return true end
+        if data.take() then s.ns='GM'
+        elseif g.try(function()
+                local t=StaticFindObject('/Game/Local/Data/EventActorEffectTable.EventActorEffectTable')
+                return t:FindRow('NGM_AE_GunOn')
+            end) then
+            s.ns='NGM'; g.log('rows: Survival Protocol\'s NGM rows')
+        else
+            g.log('off: no rows (SB\'s could not be taken, and no Survival Protocol pak carries gun mode\'s)')
+            return false
+        end
+        if set.real_ammo and s.ns~='NGM' then
+            set.real_ammo=false
+            g.log('real ammo off: its rows come only with a Survival Protocol pak built with gun mode\'s patches')
+        end
+        return true
+    end
+
     local function enable()
         if not g.pawn() then return end
+        if not rows_ready() then return end
         if set.real_ammo and s.bag_empty then
             env.say('Out of NIKKE rounds: buy more at a camp shop.'); return
         end
         if cfg.keep_hud then pcall(view.hud_snapshot) end
-        fire_rows(Rows.on(set))
+        fire_rows(Rows.on(set,s.ns))
         local p=g.pawn()
         local b=p and g.try(function() return p.CurrentBulletItemAlias:ToString() end)
         if b and b~=NIKKE then s.prev=b end
@@ -278,12 +296,12 @@ function GunMode.new(env)
         if p then pcall(function() p:DeactiveCustomMovingStanceData() end) end
         aim.set_mode(2,'exit')
         aim.camera_off()
-        fire_rows(Rows.OFF)
+        fire_rows(Rows.off(s.ns))
         -- An off soon after an on can land before the on rows: send the off rows again unless gun mode came back on.
         s.off_serial=s.off_serial+1
         local mine=s.off_serial
         for _,ms in ipairs({1200,3000}) do
-            later(ms,function() if not s.on and mine==s.off_serial then fire_rows(Rows.OFF) end end)
+            later(ms,function() if not s.on and mine==s.off_serial then fire_rows(Rows.off(s.ns)) end end)
         end
         s.on,s.firing,s.roll_back=false,false,nil
         view.reticle_scale(1.0)
@@ -308,12 +326,11 @@ function GunMode.new(env)
         return p~=nil and tps(p)==true and (m==2 or m==0)
     end
     function self.toggle(src)
-        if not env.pak then return end
         local now=os.clock()
         if now-s.toggle_at<0.4 then return end -- One press can reach both the key and Ctrl+key binds.
         if not s.on and stuck() then -- Off, yet still in the NIKKE stance: the key always sends the off rows again.
             s.toggle_at=now
-            fire_rows(Rows.OFF)
+            fire_rows(Rows.off(s.ns))
             g.log('toggle ('..src..'): the NIKKE stance was still on: off rows sent again')
             return
         end
@@ -345,7 +362,11 @@ function GunMode.new(env)
         end
         local target=g.try(function() return p:GetTPSLookAtWorldLocation(true) end)
         if target then aim.write(p,target) end
-        local ok=fire_row({2,cfg.fire_row})
+        if s.ns=='GM' and not data.fire then -- The stance's own command fires (aimed); the row aimed it.
+            if s.fire_n<=3 or s.fire_n%50==0 then g.log('aim #'..s.fire_n..' (the stance fires)') end
+            return
+        end
+        local ok=fire_row(Rows.one(s.ns,'Fire'))
         if s.fire_n<=3 or s.fire_n%50==0 then g.log('shot #'..s.fire_n..(ok and '' or ' failed')) end
     end
     local function fire_step(now,inp)
@@ -390,7 +411,7 @@ function GunMode.new(env)
         end
         if inp.roll and not s.roll_back and now>=s.roll_ready then
             s.roll_back,s.since=now+cfg.roll_time,now -- The guards stay quiet during the roll.
-            later(1,function() if s.on then fire_row({2,'NGM_AE_GunOff'}); fire_row({2,'NGM_AE_PosOff'}) end end)
+            later(1,function() if s.on then fire_row(Rows.one(s.ns,'GunOff')); fire_row(Rows.one(s.ns,'PosOff')) end end)
         end
         local standing=not s.crouched
         if (standing and inp.fire) or (inp.fire_ctrl and not s.firing) then
@@ -404,9 +425,9 @@ function GunMode.new(env)
         s.roll_back,s.since,s.roll_ready=nil,now,now+cfg.roll_cooldown
         later(1,function()
             if not s.on then return end
-            fire_rows(Rows.on(set))
+            fire_rows(Rows.on(set,s.ns))
             if set.real_ammo then fire_row({2,'NGM_AE_ZeroOff'}) end
-            if s.crouched then fire_row({2,'NGM_AE_Pos2'}) end
+            if s.crouched then fire_row(Rows.one(s.ns,'Pos2')) end
         end)
     end
 
@@ -430,12 +451,13 @@ function GunMode.new(env)
     local function tick()
         local now=os.clock()
         if now<s.pause then return end
+        if s.give_back then s.give_back=false; s.ns=nil; pcall(data.put_back) end
         run_timers(now)
         if not g.valid(cached) or not g.valid(g.try(function() return cached.Pawn end)) then
             cached=nil
             if not g.pawn() then s.pause=now+2.0; return end -- Player objects going away: stay out a moment.
         end
-        if now-t.pad>=0.05 then t.pad=now; pcall(poll,now) end
+        pcall(poll,now) -- Every frame: a quick tap lasts less than 50 ms.
         if not s.on then return end
         local p=g.pawn(); if not p then return end
         fire_step(now,last)
@@ -449,7 +471,7 @@ function GunMode.new(env)
         local standing=not s.crouched and not s.roll_back
         if standing and aim.mode0 and now-t.cam>=2.0 then t.cam=now; pcall(aim.camera_on,cfg.cam_offset) end
         if s.crouched and now-t.mode>=0.25 then t.mode=now; pcall(aim.crouch_tick)
-        elseif standing and now-s.since>1.5 and now-t.mode>=1.0 then t.mode=now; pcall(aim.stand_tick,fire_row) end
+        elseif standing and now-s.since>1.5 and now-t.mode>=1.0 then t.mode=now; pcall(aim.stand_tick,function() fire_row(Rows.one(s.ns,'GunOn')) end) end
         pcall(empty_check,p,now)
         if cfg.keep_hud and now>=s.hud_at then
             s.hud_at=now+1.5
@@ -480,7 +502,6 @@ function GunMode.new(env)
     function self.start()
         for _,why in ipairs(bad) do g.log('coop-settings.txt: '..why) end
         if not set.on then g.log('off (gun_mode=off in coop-settings.txt)'); return end
-        if env.pak~=true then g.log('off: a gun mode pak is missing ('..tostring(env.pak_why)..')'); return end
         if env.stand~=true then
             g.log('no standing animations ('..tostring(env.stand_why)..'): the NIKKE kneel only')
         end
@@ -491,6 +512,7 @@ function GunMode.new(env)
         NotifyOnNewObject('/Script/SB.SBPlayerController',function(pc)
             cached=pc
             s.pause=os.clock()+4.0
+            s.give_back=true
             s.on,s.firing,s.roll_back,s.bag_empty,s.prev=false,false,nil,false,nil
             aim.cam_saved=nil
         end)
@@ -499,11 +521,12 @@ function GunMode.new(env)
     end
 
     function self.status()
-        return ('gun mode %s%s, key %s, real ammo %s, pose %s%s, pak %s, standing animations %s'):format(
+        return ('gun mode %s%s, key %s, real ammo %s, pose %s%s, rows %s, standing animations %s'):format(
             s.on and 'on' or 'off',s.on and (s.crouched and ' (crouched)' or ' (standing)') or '',set.key,
             set.real_ammo and 'on' or 'off',pose.on and 'on' or 'off',
             pose.failed and (' ('..pose.failed..' errors)') or '',
-            env.pak and 'found' or 'missing',env.stand and 'found' or 'missing')
+            s.ns=='GM' and 'its own' or s.ns=='NGM' and 'Survival Protocol\'s' or 'not made yet',
+            env.stand and 'found' or 'missing')
     end
     self.toggle_now=function() self.toggle('command') end
     self.state=s

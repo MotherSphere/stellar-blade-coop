@@ -2,29 +2,42 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The zone-event rows gun mode fires on EVE through SBBlueprintLibrary.CreateSBZoneEvent(type, row): type 2 attaches
--- an EventActorEffectTable effect, type 13 runs an EventItemActionTable action. The NGM_* rows are added to Survival
--- Protocol's pak RoguelikeMode_P by tools/gunmode/build/build_sp_rows.py (data/gunmode/patches, and EffectTable's
--- NGM_Fire); the two others are SB's own (the drone's lock lifted, the drone summoned again). The order of on() copies
--- a NIKKE stage's start: the ammo item first, the opening reload, then the mode and the stat bars.
+-- an EventActorEffectTable effect, type 13 runs an EventItemActionTable action. Namespace 'GM': SB's own rows, used or
+-- borrowed by gunmode/data.lua (Data.row names them); 'NGM': the NGM_AE_* rows a Survival Protocol pak built with gun
+-- mode's patches carries (with its +60 NIKKE rounds item). The order of on() copies a NIKKE stage's start: the ammo
+-- first, the opening reload, then the mode and the stat bars.
 local Rows={}
+local Data=require('gunmode.data')
 
 Rows.EFFECT,Rows.ITEM=2,13
 
--- The rows that turn gun mode on, for settings s ({real_ammo=bool}).
-function Rows.on(s)
+local function row(ns,k)
+    if ns=='GM' then return {2,Data.row(k)} end
+    return {2,ns..'_AE_'..k}
+end
+
+-- The rows that turn gun mode on, for settings s ({real_ammo=bool}) and rows of namespace ns ('GM' or 'NGM').
+function Rows.on(s,ns)
+    ns=ns or 'GM'
     local rows={}
-    if not s.real_ammo then rows[#rows+1]={13,'NGM_ItemA_Ammo'} end -- +60 rounds; with real ammo, a starter once.
-    rows[#rows+1]={2,'NGM_AE_Reload'}
-    rows[#rows+1]={2,'NGM_AE_GunOn'}
-    rows[#rows+1]={2,'NGM_AE_Beta'}
-    if not s.real_ammo then rows[#rows+1]={2,'NGM_AE_Ammo'} end -- The magazine kept at 60.
-    if s.real_ammo then rows[#rows+1]={2,'NGM_AE_RealAmmo'} end -- The NIKKE auto-reload waits while this is on.
-    rows[#rows+1]={2,'NGM_AE_Peace'} -- PeacefulMode_Infinite, as a stage applies (no sword flash on battle start).
+    if ns=='NGM' and not s.real_ammo then rows[#rows+1]={13,'NGM_ItemA_Ammo'} end -- +60 rounds (that pak's item).
+    rows[#rows+1]=row(ns,'Reload')
+    rows[#rows+1]=row(ns,'GunOn')
+    rows[#rows+1]=row(ns,'Beta')
+    if not s.real_ammo then rows[#rows+1]=row(ns,'Ammo') end -- The magazine kept full.
+    if s.real_ammo and ns=='NGM' then rows[#rows+1]={2,'NGM_AE_RealAmmo'} end -- Its reload waits while this is on.
+    rows[#rows+1]=row(ns,'Peace') -- PeacefulMode_Infinite, as a stage applies (no sword flash on battle start).
     return rows
 end
 
--- The rows that turn it off, the drone given back last.
-Rows.OFF={{2,'NGM_AE_PeaceOff'},{2,'NGM_AE_GunOff'},{2,'NGM_AE_PosOff'},{2,'NGM_AE_BetaOff'},
-    {2,'NGM_AE_DroneFree'},{2,'Xion_11_E_ActorEff_001'},{2,'CGH_data_E_ActorEff_003'}}
+-- The rows that turn it off, the drone given back last (SB's own rows: its lock lifted, the drone summoned).
+function Rows.off(ns)
+    ns=ns or 'GM'
+    return {row(ns,'PeaceOff'),row(ns,'GunOff'),row(ns,'PosOff'),row(ns,'BetaOff'),row(ns,'DroneFree'),
+        {2,'Xion_11_E_ActorEff_001'},{2,'CGH_data_E_ActorEff_003'}}
+end
+
+-- A single row of the namespace: 'Pos2', 'PosOff', 'GunOn', 'Fire', ...
+function Rows.one(ns,k) return row(ns or 'GM',k) end
 
 return Rows

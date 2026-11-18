@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Gun mode's polled input, read every 50 ms from its game-thread loop with PlayerController:IsInputKeyDown (a key
+-- Gun mode's polled input, read every frame from its game-thread loop with PlayerController:IsInputKeyDown (a key
 -- bind's callback runs on another thread, key repeat waits and stutters, and a bind only sees its exact modifiers).
 -- Edges and taps are worked out here from the keys' down states, so they can be tested without the game.
 local Input={}

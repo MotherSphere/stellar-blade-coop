@@ -6,6 +6,8 @@
 --   gun_key=<key>         the keyboard toggle, G unless set: one letter A to Z or F1 to F12 but F10 (Ctrl+<key> toggles
 --                         too, so it can be left while aiming)
 --   gun_pose=on|off       standing: the posed arms and the muzzle laser (gunmode/pose.lua; off by default for now)
+--   gun_fire_effect=on|off  test only: standing hip fire through an EffectTable row (gunmode/data.lua; off: UE4SS's
+--                         FindRow on EffectTable can crash the game). Off, the rifle fires aimed (Ctrl / L2 + LMB / R2)
 --   gun_real_ammo=on|off  each shot spends one NIKKE round and gun mode ends when the bag is empty (off by default: the
 --                         rows that make that work, NGM_AE_RealAmmo and its family, are not in every build of the pak)
 -- On a pad, a tap of D-pad Right (released within pad_tap s) toggles: a hold of it is the bike's (bike/ride.lua).
@@ -20,7 +22,6 @@ Config.DEFAULTS={
     crouch_keys={'CapsLock','Y','Gamepad_RightThumbstick'},
     -- Firing: the NIKKE shot skill's own cool time, a short wait for the gun to come up before a burst's first shot.
     fire_interval=0.11,first_shot_delay=0.12,aim_ready=0.35,
-    fire_row='NGM_AE_Fire', -- EventActorEffectTable: applies NGM_Fire, whose action is UseSkill ShootSlug1_1.
     -- The reticle: the NIKKE pin enlarged, and the reference aspect its X is clamped to made the screen's.
     reticle_scale=1.6,wide_reticle=true,
     keep_hud=true, -- Put back what the NIKKE mode hides of the main HUD (HP, skills, enemy info).
@@ -62,7 +63,8 @@ end
 -- lines it refused, as 'name: why'.
 function Config.parse(text)
     local get=Config.get
-    local out,bad={on=true,key=Config.DEFAULTS.key,real_ammo=Config.DEFAULTS.real_ammo,pose=Config.DEFAULTS.pose},{}
+    local out,bad={on=true,key=Config.DEFAULTS.key,real_ammo=Config.DEFAULTS.real_ammo,pose=Config.DEFAULTS.pose,
+        fire_effect=false},{}
     if not text then return out,bad end
     local v=get(text,'gun_mode')
     if v then
@@ -76,6 +78,10 @@ function Config.parse(text)
     v=get(text,'gun_pose')
     if v then
         if onoff(v) then out.pose=v:lower()=='on' else bad[#bad+1]='gun_pose: use on or off' end
+    end
+    v=get(text,'gun_fire_effect')
+    if v then
+        if onoff(v) then out.fire_effect=v:lower()=='on' else bad[#bad+1]='gun_fire_effect: use on or off' end
     end
     v=get(text,'gun_real_ammo')
     if v then

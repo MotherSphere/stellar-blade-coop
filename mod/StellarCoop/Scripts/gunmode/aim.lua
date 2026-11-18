@@ -67,14 +67,14 @@ function Aim.new(g)
         return now==m
     end
     -- Standing, once a second: NIKKE's mode 2 to 0; mode 0 with the gun stance gone puts 2 back for good.
-    function self.stand_tick(fire_row)
+    function self.stand_tick(gun_on)
         if self.dead then return end
         local p=g.pawn(); if not p then return end
         local m=mode(p)
         local stance=g.stance(p) or '?'
         if m==0 and not stance:find('GunNikke',1,true) then
             g.log('aim: TPS mode 0 lost the gun stance ('..stance..'): back to 2 for this Lua load')
-            self.dead=true; self.set_mode(2,'revert'); fire_row({2,'NGM_AE_GunOn'})
+            self.dead=true; self.set_mode(2,'revert'); gun_on()
             return
         end
         self.mode0=m==0

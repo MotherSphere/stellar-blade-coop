@@ -11,8 +11,10 @@
 --   8 degrees when the barrel points down; the left elbow out 12 degrees; then the whole arm set turned about Spine2 so
 --   the muzzle (FX_Fire) yaws and pitches with the camera, blended in over about 12 frames; last, an exact turn of the
 --   muzzle axis onto the camera's forward vector.
--- * Her main mesh and SB's own rifle are hidden from her own camera only (SetOwnerNoSee): co-op partners and the
---   ghost capture still read them, so they see the stance's animation with the real rifle.
+-- * Her main mesh is hidden from her own camera only (SetOwnerNoSee): co-op partners and the ghost capture still read
+--   it, so they see the stance's animation; so is SB's own rifle, found among her main mesh's attach children
+--   (K2_GetComponentsByClass from here crashed the game in the first frame, 11-17). Per-bone motion blur is off on
+--   the copies: with their bones set every frame it smeared the arms and the rifle.
 -- A step of gun mode's game-thread loop each frame (RifleStance's 16 ms LoopAsync ran Lua on another thread, which
 -- with gun mode's tick in the same Lua state crashed UE4SS). Any error stops it and puts her mesh back: gun mode
 -- carries on with the stance's own animation.
@@ -75,23 +77,40 @@ function Pose.new(g,laser)
         assert(g.valid(c),'cannot add a '..kind)
         parts[#parts+1]=c
         c:SetVisibility(false,false); c:SetCollisionEnabled(0)
+        pcall(function() c.bPerBoneMotionBlur=false end) -- Bones set each frame: no smear from per-bone blur.
         pawn:FinishAddComponent(c,true,id)
         c:SetSkeletalMesh(asset,true)
         return c
     end
-    -- SB's own NIKKE rifle on her: any skeletal mesh component of hers with GunNikke (no attached-actor walk: its out
-    -- parameter from Lua is a crash risk).
-    local function real_guns()
+    -- The game's rifle on her: her skeletal mesh components (K2_GetComponentsByClass on the pawn with the class, as
+    -- the ghost capture asks it), each read only as a SkeletalMeshComponent. The walk of AttachChildren reading
+    -- SkeletalMesh or StaticMesh on every child crashed the game (11-17); trace (the first scan) logs each step.
+    local SKEL='/Script/Engine.SkeletalMeshComponent'
+    local function real_guns(pawn,trace)
         local out={}
-        local cls=StaticFindObject('/Script/Engine.SkeletalMeshComponent')
-        local function scan(actor)
-            for _,e in ipairs(g.try(function() return actor:K2_GetComponentsByClass(cls) end) or {}) do
-                local c=g.try(function() return e:get() end) or e
-                local mesh=g.valid(c) and g.try(function() return c.SkeletalMesh:GetFName():ToString() end)
-                if mesh and mesh:find('GunNikke',1,true) and c~=gun then out[#out+1]=c end
+        local cls=StaticFindObject(SKEL)
+        if not g.valid(cls) then return out end
+        local list=pawn:K2_GetComponentsByClass(cls)
+        local function each(fn)
+            if type(list)=='table' and rawget(list,'ForEach')==nil then
+                for i,c in ipairs(list) do fn(i,c) end
+            elseif list then
+                list:ForEach(function(i,e) fn(i,e:get()) end)
             end
         end
-        scan(pawn)
+        each(function(i,c)
+            if type(c)=='userdata' and not g.valid(c) then -- A wrapped element: its object.
+                local ok,v=pcall(function() return c:get() end)
+                if ok and v then c=v end
+            end
+            if trace then g.log('pose: rifle scan '..i..' '..tostring(g.valid(c))) end
+            if not g.valid(c) or c==body or c==gun or c==donor or c==src then return end
+            if not g.try(function() return c:IsA(cls) end) then return end
+            local mesh=g.try(function() return c.SkeletalMesh end)
+            local name=g.valid(mesh) and g.try(function() return mesh:GetFName():ToString() end)
+            if trace then g.log('pose: rifle scan '..i..' '..tostring(name)) end
+            if name and (name:find('GunNikke',1,true) or name:find('Gun_Nikke',1,true)) then out[#out+1]=c end
+        end)
         return out
     end
 
@@ -246,14 +265,17 @@ function Pose.new(g,laser)
         end
         mark('show')
         src:SetOwnerNoSee(true); body:SetVisibility(true,false); gun:SetVisibility(true,false)
-        mark('the game rifle')
-        -- SB's rifle looked for at the first frame, then every 2 s (a component walk each frame is too much).
         local now=os.clock()
-        if now>=(self.guns_at or 0) then
+        if now>=(self.guns_at or 0) then -- The game's rifle: looked for at the first frame, then every 2 s.
             self.guns_at=now+2.0
-            for _,c in ipairs(real_guns()) do
+            mark('the game rifle')
+            local first=not self.scanned; self.scanned=true
+            for _,c in ipairs(real_guns(pawn,first)) do
                 local key=c:GetFullName()
-                if not hidden[key] then hidden[key]=true; hidden[#hidden+1]=c; c:SetOwnerNoSee(true) end
+                if not hidden[key] then
+                    hidden[key]=true; hidden[#hidden+1]=c; c:SetOwnerNoSee(true)
+                    g.log('pose: the game rifle hidden from her camera ('..key:match('[^.:]+$')..')')
+                end
             end
         end
         mark('laser')
