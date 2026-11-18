@@ -180,30 +180,56 @@ function Data.new(g,native,opts)
                         end
                     else g.log('data: no CharacterAnimSetTable row P_Eve_Gun_Battle') end
                 end
-                -- The rifle carried (rifle out, not aiming): her own animation sets' run blend spaces pointed at the pak's
-                -- carry sets of the same layout (2D out of a fight, 1D in one), so she runs, jogs, walks and sprints with
-                -- the rifle in both hands.
-                if pak and pak.carry then
+                -- The rifle carried, by a custom moving stance (gunmode/mode.lua): its OverrideStanceAnim names an
+                -- animation set row she has never loaded (the game keeps a set once loaded, so her own rows can't be
+                -- changed in play). A spare NPC row is filled with P_Eve_Peaceful's fields and the rifle swaps.
+                if pak and pak.carry and self.opts.carry_ovr=='auto' then
                     local at=tbl('CharacterAnimSetTable')
-                    for _,e in ipairs({{'P_Eve_Peaceful','RunBlendSpace',pak.carry},{'P_Eve_Battle','RunBlendSpace',pak.carry_battle}}) do
-                        local r=g.try(function() return at:FindRow(e[1]) end)
-                        if r and e[3] then
-                            saved[#saved+1]={r,e[2],text(r[e[2]])}
-                            r[e[2]]=e[3]
-                            g.log('data: '..e[1]..' '..e[2]..' -> '..e[3])
-                            local n=0
-                            for _,f in ipairs(pak.carry_fields or {}) do
-                                local v=g.try(function() return text(r[f]) end)
-                                local x=v and v:match('^Animation/Proto_(.+)$')
-                                if x then
-                                    saved[#saved+1]={r,f,v}
-                                    r[f]='Animation/NGM/NGM_R_C_'..x
-                                    n=n+1
-                                end
+                    local src=row(at,'P_Eve_Peaceful')
+                    -- Spare rows: NPC death sets (never loaded by EVE). opts.carry_spare picks the nth (testing: a row
+                    -- once loaded keeps its first contents for the rest of the session).
+                    local cands={}
+                    g.try(function() at:ForEachRow(function(rn)
+                        local n=text(rn)
+                        if n:match('^N_.+_Dead$') then cands[#cands+1]=n end
+                    end) end)
+                    table.sort(cands)
+                    local name=cands[(self.opts.carry_spare or 0)+1]
+                    g.log('data: '..#cands..' spare animation set rows, carry uses '..tostring(name))
+                    assert(name,'no spare animation set row for the carry')
+                    local dst=row(at,name)
+                    local n,bad=0,0
+                    local fields={}
+                    g.try(function() at.RowStruct:ForEachProperty(function(pr) fields[#fields+1]=pr:GetFName():ToString() end) end)
+                    for _,f in ipairs(fields) do
+                        local ok=pcall(function()
+                            local v=src[f]
+                            local was=dst[f]
+                            if type(v)=='userdata' then
+                                local t=g.try(function() return v:ToString() end)
+                                if t==nil then error('skip') end
+                                local isname=g.try(function() return v:GetComparisonIndex() end)~=nil
+                                saved[#saved+1]={dst,f,isname and FName(text(was)) or text(was)}
+                                dst[f]=isname and FName(t) or t
+                            else
+                                saved[#saved+1]={dst,f,was}
+                                dst[f]=v
                             end
-                            g.log('data: '..e[1]..' '..n..' jump/fall/stop clips -> rifle versions')
-                        end
+                        end)
+                        if ok then n=n+1 else bad=bad+1 end
                     end
+                    dst.RunBlendSpace=pak.carry
+                    saved[#saved+1]={dst,'RunTiltBlendSpace',text(dst.RunTiltBlendSpace)}
+                    dst.RunTiltBlendSpace=pak.carry
+                    dst.IdleAnimType=self.opts.carry_idle_type or 1 -- battle type: her idle is the blend space's centre (the rifle idle)
+                    local c=0
+                    for _,f in ipairs(pak.carry_fields or {}) do
+                        local v=g.try(function() return text(dst[f]) end)
+                        local x=v and v:match('^Animation/Proto_(.+)$')
+                        if x then dst[f]='Animation/NGM/NGM_R_C_'..x; c=c+1 end
+                    end
+                    self.carry_ovr_row=name
+                    g.log('data: carry row '..name..': '..n..' fields from P_Eve_Peaceful ('..bad..' skipped), '..c..' clips -> rifle, run -> '..pak.carry..', rows '..#fields)
                 end
                 if self.opts.upper then
                     for _,f in ipairs({'AnimSet_Battle_UpperBody','AnimSet_Peaceful_UpperBody'}) do

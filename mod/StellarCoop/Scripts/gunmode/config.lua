@@ -114,6 +114,10 @@ function Config.parse(text)
     end
     v=get(text,'gun_bs')
     if v and v~='' then out.bs=v end
+    v=get(text,'gun_carry_ovr') -- auto (default with the pak): the rifle carry set; off: her own walk; or an animation set row (testing)
+    if v and v:match('^[%w_]+$') then out.carry_ovr=v end
+    v=get(text,'gun_carry_spare'); if v and tonumber(v) then out.carry_spare=tonumber(v) end
+    v=get(text,'gun_carry_idle'); if v and tonumber(v) then out.carry_idle_type=tonumber(v) end
     v=get(text,'gun_probe')
     if v then out.probe=v:lower()=='on' end
     v=get(text,'gun_trace') -- (testing) step log around reloads and aim changes
