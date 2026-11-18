@@ -15,9 +15,6 @@ std::atomic<int> fx_fault_part{-1};
 std::atomic<uint32_t> loopback_delay{0}, loopback_jitter{0}, loopback_loss{0};
 std::atomic<uint32_t> loopback_epoch{0}; // Bumped by every settings change: the playback's clock starts again.
 
-
-
-
 // An encoded pose on its way: bytes (sized kMaxPose once, by the worker, before the engine goes on; only swapped after
 // that), its size, when it was read (outgoing) or received (incoming), in µs, and the ghost slot it came for
 // (incoming).
@@ -72,7 +69,6 @@ size_t game_inbox_count = 0;
 // 60), and never more than the link's cap (link/core.h PoseCap). The worker stores it, the game thread reads it.
 std::atomic<uint64_t> send_us{50'000};
 
-
 // Cost counters, game thread writes, worker reads and resets every 60 s.
 std::atomic<uint64_t> window_ticks{0}, window_us{0}, window_max_us{0}, window_max_gap_us{0}, window_long_gaps{0};
 // The stream's, the same way (the worker's own among them).
@@ -99,7 +95,6 @@ void raise_max(std::atomic<uint64_t> &slot, uint64_t value) {
     ;
 }
 
-
 // EVE now: her main mesh's world transform and her leaders' local poses, back to back.
 Io read_eve(const Table &capture, float *root, uint8_t *bones) {
   if (!published(objects, capture.eve[0]))
@@ -118,7 +113,6 @@ Io read_eve(const Table &capture, float *root, uint8_t *bones) {
   }
   return Io::ok;
 }
-
 
 // Effects under their own latch. clang-cl catches a fault only in a function the __try calls, never in code inlined
 // into the __try's own frame, so the accesses stay out of line; the guarded functions hold plain data only.

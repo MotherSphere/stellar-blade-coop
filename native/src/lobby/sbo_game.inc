@@ -11,7 +11,6 @@ namespace {
 // sbo on: the co-op saves' copies (decision 9) run for this game run.
 std::atomic<bool> sbo_copies{false};
 
-
 // ---- The co-op saves' copies before each of SB's saves (game/rotation.h, decision 9), the game thread's half ----
 // Each frame while sbo on asked for them: SB's save manager found as its save call finds it (a pass with any pointer
 // on the way implausible does nothing), its queue's count watched. Once it falls to 0, SB's last write is complete and

@@ -8,8 +8,6 @@
 namespace coop::pose {
 
 namespace {
-
-
 // coop fight pilot probe|on|off|status|test <how far>|test target|test exec. probe: while on, same-place enemies' lines
 // this side sends go to coop-fight.log; on: our same_place on now (the co-op menu's row; as host, the guest hears it),
 // and a pilot off lifted; off: the probe off and same-place enemies off on this side until the next coop fight on,

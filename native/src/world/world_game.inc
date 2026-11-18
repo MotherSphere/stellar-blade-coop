@@ -17,7 +17,6 @@ world::Gates world_gates;
 std::string world_line = "world=off";
 std::vector<std::string> world_pending_out, world_pending_said; // Not handed over yet (the lock was busy).
 
-
 world::Sync world_sync{world_engine};
 
 using GraphRun = void (*)(int64_t *node);

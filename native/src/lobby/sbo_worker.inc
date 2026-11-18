@@ -14,7 +14,6 @@ std::string sbo_alias_text(uint64_t alias) {
   return std::to_string(uint32_t(alias)) + ":" + std::to_string(uint32_t(alias >> 32));
 }
 
-
 // sbo arm, on the pinned build before coop off: the slot swapped to the hook with the alias kept, or a new alias for a
 // hook already in it (the shared world may have swapped it first). Its result word, and the log line in line.
 sbo::Why sbo_arm(const coop::Request &request, std::string &line) {
