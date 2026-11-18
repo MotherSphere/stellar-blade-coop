@@ -12,7 +12,8 @@ local function valid(o)return o and o:IsValid() end
 
 -- laser: gunmode/laser.lua's function. Returns {start(pc,held_fn,beam_target) -> the rifle component, frame(),
 -- stop(), running()}.
-function Stance.new(laser)
+function Stance.new(laser,trace)
+ local function crumb(t) if trace then trace('crumb '..t) end end -- (gun_probe=on) steps around reloads and aim changes
  local grip={Translation={X=-2.110698699951172,Z=2.090805768966675,Y=-6.265880107879639},Rotation={X=-0.4851755201816559,W=-0.5130578875541687,Z=-0.4808891713619232,Y=-0.5197325944900513},Scale3D={X=1.000000238418579,Z=1.0000001192092896,Y=1}}
  local stop,frame,reloadFn,copyPart
  local owned={} -- gun mode: the parts of the stance running now.
@@ -168,6 +169,7 @@ function Stance.new(laser)
   local camOffsets={} -- gun mode: the donor's arm bones from its yaw-only Spine2 frame (camAnchor)
   local chestRel -- gun mode: the donor's Spine2 from its facing frame (chestFix)
   local onReal=false -- gun mode: the rifle on her real body (aimNative, aim held)
+  local realAt=0 -- gun mode: when aim went to her real body (the laser waits for the rifle to come up)
   local muzzleRel -- gun mode: the rifle's muzzle socket from the rifle (constant)
   -- gun mode (upright): her spine bones, their frames from her facing in her normal stance, and her neck and head.
   local spineBones,spineRel,headBones={},{},{}
@@ -208,20 +210,25 @@ function Stance.new(laser)
    -- posed copy comes back when aim is let go.
    if aimNative then
     if held and not onReal then
+     crumb('to real'..(reloading and ' (reloading)' or ''))
      onReal=true
+     realAt=os.clock()
+     if finish then finish();beam,finish=nil,nil end
      gun:K2_AttachToComponent(src,hand,2,2,2,false);gun:K2_SetRelativeTransform(grip,false,{},true)
      body:SetVisibility(false,false);src:SetOwnerNoSee(hide);gun:SetVisibility(true,false)
      for _,e in ipairs(extras) do pcall(function() e.copy:SetVisibility(false,false);e.real:SetOwnerNoSee(e.was) end) end
     elseif not held and onReal then
+     crumb('to copy'..(reloading and ' (reloading)' or ''))
      onReal=false
      gun:K2_AttachToComponent(body,hand,2,2,2,false);gun:K2_SetRelativeTransform(grip,false,{},true)
      aimBlend=0
     end
     if onReal then
-     -- gun mode: the rifle on her hand turned (at most 12 degrees) so its barrel points where the rounds go: the
+     -- gun mode: the rifle on her hand turned (at most 30 degrees) so its barrel points where the rounds go: the
      -- baked aim holds it along her facing, and from over her shoulder that missed the laser's end (11:27).
      gun:K2_SetRelativeTransform(grip,false,{},true)
      local t=beam_target()
+     local onTarget=false
      if t then pcall(function()
       local fire=FName('FX_Fire')
       local m=gun:GetSocketLocation(fire)
@@ -231,19 +238,34 @@ function Stance.new(laser)
       if len<50 then return end
       local want={X=dx/len,Y=dy/len,Z=dz/len}
       local dot=have.X*want.X+have.Y*want.Y+have.Z*want.Z
-      if dot<math.cos(math.rad(12)) or dot>0.99999 then return end
-      local d=mathlib:NormalizedDeltaRotator(mathlib:Conv_VectorToRotator(want),mathlib:Conv_VectorToRotator(have))
-      local r=gun:K2_GetComponentRotation()
-      gun:K2_SetWorldRotation({Pitch=r.Pitch+d.Pitch,Yaw=r.Yaw+d.Yaw,Roll=r.Roll},false,{},true)
+      if dot<math.cos(math.rad(30)) then return end
+      onTarget=dot>=math.cos(math.rad(10)) -- the stance's own barrel already close: the rifle is up
+      if dot>0.99999 then return end
+      -- the turn that takes the barrel's line onto the target's, applied to the rifle in world space about its own
+      -- origin (adding pitch and yaw to its rotator turned it about the wrong axes and stood it upright, 12:30)
+      local one={X=1,Y=1,Z=1}
+      local th=mathlib:MakeTransform({X=0,Y=0,Z=0},mathlib:Conv_VectorToRotator(have),one)
+      local tw=mathlib:MakeTransform({X=0,Y=0,Z=0},mathlib:Conv_VectorToRotator(want),one)
+      local turn=mathlib:ComposeTransforms(mathlib:InvertTransform(th),tw)
+      local gt=gun:K2_GetComponentToWorld()
+      local r=mathlib:ComposeTransforms({Translation={X=0,Y=0,Z=0},Rotation=gt.Rotation,Scale3D=one},turn)
+      gt.Rotation=r.Rotation
+      gun:K2_SetWorldTransform(gt,false,{},true)
      end) end
      -- gun mode: a reload while aiming on her real body: the rifle tilts in her hands, out and back over the reload
      if reloading then
+      crumb('real tilt')
       local k=math.max(0,math.min(1,(os.clock()-reloadAt)/reloadLen))
       local w=math.sin(math.pi*k)
       gun:K2_AddLocalRotation({Pitch=-22*w,Yaw=8*w,Roll=55*w},false,{},true)
      end
-     if not beam then beam,finish=laser(pawn,gun,mathlib) end
-     beam(t)
+     -- gun mode: no laser until the rifle is up: while the game's aim stance blends in the rifle is at her hip and
+     -- the beam started low and swung up (12:50). It comes on once the barrel is within 10 degrees of the target
+     -- before the turn and then stays on (the reload's tilt turns it away) until aim is let go.
+     if beam or (onTarget and os.clock()-realAt>=0.1) or os.clock()-realAt>=0.8 then
+      if not beam then beam,finish=laser(pawn,gun,mathlib) end
+      beam(t)
+     end
      return
     end
    end
@@ -494,6 +516,7 @@ function Stance.new(laser)
      -- spine turns in the NIKKE squad's reload, and arms taken from the chest itself held the rifle out to her
      -- right), put at her chest turned to her facing; eased in and out over the first and last 15 % of the reload.
      if reloading and aimReload then
+      crumb('copy tilt')
       local t=math.max(0,math.min(1,(os.clock()-reloadAt)/reloadLen))
       local w=math.sin(math.pi*t) -- out and back in over the reload
       gun:K2_SetRelativeTransform(grip,false,{},true)
@@ -517,7 +540,7 @@ function Stance.new(laser)
      if held then
       if not beam then beam,finish=laser(pawn,gun,mathlib) end
       beam(beam_target()) -- gun mode: its end on where the rounds go.
-     elseif finish then finish();beam,finish=nil,nil end
+     elseif finish then crumb('laser off');finish();beam,finish=nil,nil;crumb('laser off done') end
   end
   return gun
  end

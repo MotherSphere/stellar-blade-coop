@@ -106,6 +106,8 @@ function Config.parse(text)
     if v and v~='' then out.bs=v end
     v=get(text,'gun_probe')
     if v then out.probe=v:lower()=='on' end
+    v=get(text,'gun_trace') -- (testing) step log around reloads and aim changes
+    if v then out.trace=v:lower()=='on' end
     v=get(text,'gun_fire_key') -- (testing) one more fire key, as F
     if v and v:match('^%w+$') then out.fire_key=v end
     v=get(text,'gun_upper')

@@ -74,7 +74,7 @@ function GunMode.new(env)
     end
     if set.fire_key then Input.FIRE[#Input.FIRE+1]=set.fire_key end
     local aim,data=Aim.new(g),Data.new(g,set.native,{speed=cfg.native_speed,upper=set.upper and 'P_Eve_GunNikke' or nil,cool=cfg.fire_interval,bs=set.bs})
-    local stance=Stance.new(Laser)
+    local stance=Stance.new(Laser,set.trace and g.log or nil)
     local probe=set.probe and Probe.new(g)
     local keys=Input.state()
     local self={}
