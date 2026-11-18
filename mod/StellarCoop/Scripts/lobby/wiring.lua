@@ -48,9 +48,9 @@ if M.link then
     M.halls=require('lobby.halls_rows').new({log=sbo_log,status=function() return M.link.status() end,
         ask=function(line) return M.ask(line)() end,gate=function() return M.sbo.gate() end})
     -- The lobby pak gate's inputs: SB/Content/Paks from the mod folder and the file reader; the hall rows' ok().
-    M.sbo=require('lobby.sbo').new({link=M.link,settings=M.settings,recruiter=require('main.loader').view(M,
-        'recruiter'),nightop=require('main.loader').view(M,'night'),halls=M.halls,
-        paks=require('core.pak_gate').paks_of(M.folder),read=require('core.link').files.read,
+    M.sbo=require('lobby.sbo').new({link=M.link,settings=M.settings,
+        recruiter=require('main.loader').view(M,'recruiter'),nightop=require('main.loader').view(M,'night'),
+        halls=M.halls,paks=require('core.pak_gate').paks_of(M.folder),read=require('core.link').files.read,
         log=sbo_log,emote=require('main.loader').view(M,'emote'),arrival=arrival,
         riding=function() return M.riding() end,
         say=function(key) M.tell(function(w) for part in key:gmatch('[^.]+') do w=w[part] end return w end) end,

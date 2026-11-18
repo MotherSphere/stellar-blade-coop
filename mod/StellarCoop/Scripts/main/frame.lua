@@ -154,7 +154,7 @@ LoopInGameThreadWithDelay(1,function()
                     ..'frame (%d frames); longest frame %.1f ms (%d over 16 ms, %d over 50 ms): mxiii %.1f ms, lion '
                     ..'%.1f ms, scene %.1f ms; longest 250 ms pass %.1f ms (%d over 16 ms, %d over 50 ms): booth %.1f '
                     ..'ms, kit.slow %.1f ms',ms(M.timed.ghost),ms(M.timed.doro),ms(M.timed.race),ms(M.timed.ui),
-                        M.timed.frames,
+                    M.timed.frames,
                     f[1]*1000,f[2],f[3],M.timed.mxiii*1000,M.timed.lion*1000,M.timed.scene*1000,p[1]*1000,p[2],p[3],
                     M.timed.booth*1000,M.timed.slow*1000))
             end

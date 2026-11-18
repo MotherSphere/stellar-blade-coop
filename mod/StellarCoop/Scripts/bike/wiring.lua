@@ -26,7 +26,7 @@ M.bike=require('bike.ride').new({log=function(m) print('[StellarCoop][BK] '..tos
     store=M.link and M.link.store('coop-bike.txt'),stand_store=M.link and M.link.store('coop-bike-stand.txt'),
     drive=require('bike.drive').new({log=function(m) print('[StellarCoop][DR] '..tostring(m)..'\n') end,
         store=M.link and M.link.store('coop-drive.txt'),settings=M.settings}),
-        drove=function() return M.drive.active() end,
+    drove=function() return M.drive.active() end,
     send=M.link and function(p) return M.link.bike(p) end,
     camp=M.link and function(world,m) return M.travel and M.travel.camp_near(world,m) end,
     fetch=M.link and require('bike.fetch').new({log=function(m) print('[StellarCoop][BK] '..tostring(m)..'\n') end,

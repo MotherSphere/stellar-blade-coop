@@ -133,8 +133,8 @@ if M.link then
                     ..'back')
             end
             M.guarded('menu',M.menu.slow,shown,not (M.box.is_open() or M.code_box.is_open() or M.approval.is_open()
-                or M.saves_ui.is_open() or M.open_screen()) and (M.booth.near(M.puppet.me()) or M.guarded('sbo',
-                    M.seat_hint))
+                or M.saves_ui.is_open() or M.open_screen())
+                and (M.booth.near(M.puppet.me()) or M.guarded('sbo',M.seat_hint))
                 or nil)
             M.guarded('lobby',M.lobby.slow)
             M.guarded('sessions',M.sessions.slow,shown)
