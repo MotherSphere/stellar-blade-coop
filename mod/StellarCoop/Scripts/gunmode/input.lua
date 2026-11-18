@@ -22,16 +22,14 @@ function Input.tap(s,down,now,limit)
     return tapped
 end
 
--- The polled keys, as IsInputKeyDown names them.
-Input.FIRE_MOUSE,Input.FIRE_PAD='LeftMouseButton','Gamepad_RightTrigger'
-Input.AIM_PAD='Gamepad_LeftTrigger'
-Input.CTRL={'LeftControl','RightControl'}
-Input.ROLL={'LeftShift','Gamepad_FaceButton_Right'}
+-- The polled keys, as IsInputKeyDown names them. Zoom: RMB / LT, and Luke's aim keys (Left Alt, Left Ctrl).
+Input.FIRE={'LeftMouseButton','Gamepad_RightTrigger'}
+Input.ZOOM={'RightMouseButton','Gamepad_LeftTrigger','LeftAlt','LeftControl'}
 Input.TOGGLE_PAD,Input.PAD_SHOULDER='Gamepad_DPad_Right','Gamepad_RightShoulder'
 
 -- What the player asks this poll, from down(name) (the key's state) and the previous states in s: {toggle (D-pad
--- Right's tap), key (gun_key pressed, with or without Ctrl), crouch, roll, fire, ...} (each true once per press), for
--- cfg (gunmode/config.lua's DEFAULTS) and key (UE's key name, 'G' or 'F4').
+-- Right's tap), key (gun_key pressed), fire (held), zoom (held)}, for cfg (gunmode/config.lua's DEFAULTS) and key
+-- (UE's key name, 'G' or 'F4').
 function Input.read(s,down,now,cfg,key)
     local function any(names) for _,n in ipairs(names) do if down(n) then return true end end return false end
     local out={}
@@ -39,18 +37,12 @@ function Input.read(s,down,now,cfg,key)
     -- D-pad Right: a tap, not while R1 is held (Unified Projection Suit's R1+D-pad). Held, it is the bike's.
     local dr=down(Input.TOGGLE_PAD) and not down(Input.PAD_SHOULDER)
     out.toggle=Input.tap(s.dpad,dr,now,cfg.pad_tap)
-    out.crouch=Input.edge(s.crouch,any(cfg.crouch_keys))
-    out.roll=Input.edge(s.roll,any(Input.ROLL))
-    local ctrl=any(Input.CTRL)
-    local trigger=down(Input.FIRE_PAD)
-    out.fire_held=down(Input.FIRE_MOUSE) or trigger
-    out.fire_ctrl=(down(Input.FIRE_MOUSE) and ctrl) or (trigger and down(Input.AIM_PAD))
-    out.fire=Input.edge(s.fire,out.fire_held)
-    out.aim=ctrl or down(Input.AIM_PAD)
-    out.aim_start=Input.edge(s.aim,out.aim)
+    out.fire=any(Input.FIRE)
+    out.zoom=any(Input.ZOOM)
+    out.zoom_press=Input.edge(s.zoom,out.zoom)
     return out
 end
 
-function Input.state() return {dpad={},key={},crouch={},roll={},fire={},aim={}} end
+function Input.state() return {dpad={},key={},zoom={}} end
 
 return Input

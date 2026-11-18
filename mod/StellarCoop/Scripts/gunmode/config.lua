@@ -3,37 +3,47 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode's settings: its fixed values (DEFAULTS) and the coop-settings.txt lines it reads itself (parse):
 --   gun_mode=on|off       the module at all (on by default; off: no key, no hook, nothing)
---   gun_key=<key>         the keyboard toggle, G unless set: one letter A to Z or F1 to F12 but F10 (Ctrl+<key> toggles
---                         too, so it can be left while aiming)
---   gun_pose=on|off       standing: the posed arms and the muzzle laser (gunmode/pose.lua; off by default for now)
---   gun_fire_effect=on|off  standing fire through an EffectTable row (gunmode/data.lua; on by default). Off leaves
---                         EffectTable alone: then only the crouched NIKKE aim (Ctrl / L2 + LMB / R2) fires
---   gun_real_ammo=on|off  each shot spends one NIKKE round and gun mode ends when the bag is empty (off by default: the
---                         rows that make that work, NGM_AE_RealAmmo and its family, are not in every build of the pak)
+--   gun_key=<key>         the keyboard toggle, G unless set: one letter A to Z or F1 to F12 but F10
+--   gun_aim_key=<key>    the keyboard key the game's aim moves to while the rifle is out (UE's name; RightMouseButton)
+--   gun_upper=nikke|off   test: firing mode shows the game's aim with the NIKKE rifle's upper-body animations
+--                         (nikke) instead of Luke's aim on her normal stance's spine (off, the default)
+--   gun_zoom=hold|toggle  firing mode while RMB / LT is held (default), or turned on and off by a press
 -- On a pad, a tap of D-pad Right (released within pad_tap s) toggles: a hold of it is the bike's (bike/ride.lua).
 local Config={}
 
 Config.DEFAULTS={
     key='G',
     pad_tap=0.4,
-    real_ammo=false,
-    -- Crouch <-> stand: keys polled with IsInputKeyDown (Caps Lock, Y and R3; Y because Caps Lock cannot be sent by
-    -- every test tool, and SB binds plain Y to nothing).
-    crouch_keys={'CapsLock','Y','Gamepad_RightThumbstick'},
-    -- Firing: the NIKKE shot skill's own cool time, a short wait for the gun to come up before a burst's first shot.
-    fire_interval=0.11,first_shot_delay=0.12,aim_ready=0.35,
-    -- The reticle: the NIKKE pin enlarged, and the reference aspect its X is clamped to made the screen's.
-    reticle_scale=1.6,wide_reticle=true,
-    keep_hud=true, -- Put back what the NIKKE mode hides of the main HUD (HP, skills, enemy info).
-    pose=false, -- Standing: the arms posed so the rifle follows the camera (gunmode/pose.lua). Off until its first
-                -- frame stops crashing in game (11-17); gun_pose=on turns it on.
-    laser=true, -- Standing: the laser sight from the rifle's muzzle to where the rounds go (gunmode/laser.lua).
-    cam_offset={X=0,Y=60,Z=0}, -- CameraBoom.CustomOffset while standing (over the shoulder).
-    -- Guards: the gun stance re-applied when the game drops it, the sword montage stopped after a battle state change.
-    stance_check=0.25,stance_cooldown=1.0,battle_window=2.5,hold_ms=250,
-    roll_time=0.9,roll_cooldown=1.2, -- A roll lifts the gun this long; no new roll this long after it comes back.
-    crouch_anim='P_Eve_GunNikkeHide', -- The NIKKE kneel animset, forced while crouched.
-    starter_ammo=60,
+    fire_interval=0.11, -- The NIKKE shot skill's own cool time.
+    raise_time=0.2, -- Firing mode: the rifle's time to come up before the first shot.
+    cam_offset={X=0,Y=60,Z=0}, -- CameraBoom.CustomOffset while the rifle is out: EVE left of centre.
+    -- Firing mode (RMB / LT held): CameraBoom.CustomOffset this (X: toward her, so the camera comes in over her right
+    -- shoulder, short of cutting her hips out of the frame), eased in and out at this share of the way each frame.
+    zoom_offset={X=95,Y=55,Z=10},zoom_ease=0.18,
+    zoom_arm=0.55, -- Firing mode on her normal stance: the camera arm this share of the game's, SocketOffset +Y/+Z above.
+    trace_range=10000, -- How far the crosshair's trace looks for what the rounds hit.
+    -- Masked while the rifle is out (in memory only, put back when it goes away, never saved): the sword's attacks and
+    -- the drone's aim, fire and pad combat keys on the fire and zoom keys (mask_keys), and the drone's aim and fire on
+    -- any key (Luke masked TPSMode). Menus, pick-ups, fishing and the death screen keep their keys.
+    mask_keys={'LeftMouseButton','RightMouseButton','Gamepad_LeftTrigger','Gamepad_RightTrigger'},
+    mask_on_keys={'AttackLight','AttackStrong','SpecialCommand1','SpecialCommand2','CommandKey7','CommandKey8',
+        'LeftTriggerKey','RightTriggerKey','Item_UseBullet'},
+    mask_actions={'TPSMode','TPSFire'},
+    -- gun_fire=native (a test): firing mode is the game's own aim (TPSMode on its own keys, Ctrl / LT, and TPSFire,
+    -- LMB / RT: the drone's shot), with its strafing movement, camera and reticle; only the sword is masked.
+    native_mask_on_keys={'AttackLight','AttackStrong','SpecialCommand1','SpecialCommand2','Item_UseBullet'},
+    aim_from='LeftControl',aim_to='RightMouseButton', -- The game's keyboard aim key, moved while the rifle is out.
+    native_torso=0, -- In the game's aim: how much her spine takes the NIKKE pose (gunmode/stance.lua; off: the arms
+                    -- are placed along the camera instead, and her head stays the real one's).
+    start_min_forward=25, -- The shot starts at the rifle's muzzle only when it is this far ahead of her (cm),
+    start_fallback={X=45,Y=22,Z=55}, -- else here: forward, right, up from her centre (her right shoulder).
+    follow_names={}, -- Parts made to follow the posed copy: none (her face moved off her head that way, 02:20).
+    pose_time=0.08, -- Firing mode between shots: the NIKKE shot montage held at this time (s).
+    native_speed=1.4, -- In the game's aim: its stance's walk and run speeds times this (CharacterStanceTable).
+    -- Hidden from the player's own camera while the rifle is out (Luke's stance shows a posed copy of EVE's body
+    -- there): her other mesh components wearing her body's own mesh (Ultra Violence's blood layer, outfit overlays)
+    -- and any whose mesh name has one of these (the sword). Co-op partners still see them.
+    hide_names={'Sword','CH_W_'},
 }
 
 local LETTER_OR_F='^[A-Z]$'
@@ -59,12 +69,11 @@ function Config.get(text,key)
     return found
 end
 
--- The settings from coop-settings.txt's text (nil: the file is missing): {on, key, pose, real_ammo} and the
--- lines it refused, as 'name: why'.
+-- The settings from coop-settings.txt's text (nil: the file is missing): {on, key} and the lines it refused, as
+-- 'name: why'.
 function Config.parse(text)
     local get=Config.get
-    local out,bad={on=true,key=Config.DEFAULTS.key,real_ammo=Config.DEFAULTS.real_ammo,pose=Config.DEFAULTS.pose,
-        fire_effect=true},{}
+    local out,bad={on=true,key=Config.DEFAULTS.key,zoom_toggle=false,native=true,aim_key=Config.DEFAULTS.aim_to,upper=false},{}
     if not text then return out,bad end
     local v=get(text,'gun_mode')
     if v then
@@ -75,17 +84,24 @@ function Config.parse(text)
         local k,why=Config.key(v)
         if k then out.key=k else bad[#bad+1]='gun_key: '..why end
     end
-    v=get(text,'gun_pose')
+    v=get(text,'gun_upper')
     if v then
-        if onoff(v) then out.pose=v:lower()=='on' else bad[#bad+1]='gun_pose: use on or off' end
+        local l=v:lower()
+        if l=='nikke' or l=='off' then out.upper=l=='nikke' else bad[#bad+1]='gun_upper: use nikke or off' end
     end
-    v=get(text,'gun_fire_effect')
+    v=get(text,'gun_aim_key')
     if v then
-        if onoff(v) then out.fire_effect=v:lower()=='on' else bad[#bad+1]='gun_fire_effect: use on or off' end
+        if v:match('^%w+$') then out.aim_key=v else bad[#bad+1]='gun_aim_key: one UE key name, as RightMouseButton' end
     end
-    v=get(text,'gun_real_ammo')
+    v=get(text,'gun_fire')
     if v then
-        if onoff(v) then out.real_ammo=v:lower()=='on' else bad[#bad+1]='gun_real_ammo: use on or off' end
+        local l=v:lower()
+        if l=='native' or l=='own' then out.native=l=='native' else bad[#bad+1]='gun_fire: use native or own' end
+    end
+    v=get(text,'gun_zoom')
+    if v then
+        local l=v:lower()
+        if l=='hold' or l=='toggle' then out.zoom_toggle=l=='toggle' else bad[#bad+1]='gun_zoom: use hold or toggle' end
     end
     return out,bad
 end

@@ -1,71 +1,32 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Gun mode: the NIKKE DLC's rifle outside its missions, as a standing third-person shooter, on any save. G (gun_key)
--- or a tap of D-pad Right turns it on or off; standing, LMB / R2 fires full auto at the screen-centre crosshair with a
--- laser sight; Caps Lock / Y / R3 crouches into the NIKKE cover kneel (Ctrl+LMB / L2+R2 fires there); Shift / Circle
--- rolls (the gun is lifted for the game's own evade, then put back). Logged as [StellarCoop][GM].
--- How: the NIKKE stage's effects put on EVE through zone-event rows (gunmode/rows.lua) that the gun mode build adds
--- to Survival Protocol's pak RoguelikeMode_P (its EventActorEffectTable, EventItemActionTable and EffectTable), the
--- shot made to fire without a bullet check by zNikkeGunMode_P (SkillCommandTable, SkillActiveStepTable), and the
--- standing animations (Eve's own legs, a rifle upper body, the aim offset) from zNikkeGunStand_P. All three are built
--- from the game's files on the player's PC (tools/gunmode/), never shipped here. Without RoguelikeMode_P or
--- zNikkeGunMode_P the module stays off and says why; without zNikkeGunStand_P it runs with the NIKKE kneel only. The
--- rows themselves cannot be seen from Lua before use: a RoguelikeMode_P built without them leaves gun mode doing
--- nothing.
--- Standing, luke77's posed arms carry the rifle along the camera with a laser sight from its muzzle (gunmode/pose.lua,
--- gunmode/laser.lua), and every round goes to the crosshair point (gunmode/aim.lua).
--- Gun mode is a module of its own: it reads its own coop-settings.txt lines and finds its own paks, and uses nothing
--- of the rest of the mod; main.lua only builds and starts it, inside a pcall. All of it runs on the game thread, from
--- one LoopInGameThreadWithDelay loop (every frame), as main.lua's own loop does: the keys polled there, its delays a
--- queue that loop works through, the pose a step of it. No LoopAsync, ExecuteWithDelay or key bind: their callbacks run
--- Lua on another thread, and two threads in one Lua state corrupted it ("FindFirstOf cannot be called with 0
--- parameters") and crashed UE4SS (11-17, the pose's 16 ms LoopAsync against the tick). Every step is wrapped, so an
--- error in gun mode never reaches the rest of the mod.
+-- Gun mode: the NIKKE DLC's rifle in EVE's hands on any save, on luke77's rifle stance. G (gun_key) or a tap of
+-- D-pad Right brings the rifle out or puts it away. Out, EVE runs and jumps as Luke's stance has her (gunmode/
+-- stance.lua: her own animation, the rifle at her chest). Holding RMB / LT is firing mode: the camera comes in over her
+-- right shoulder, she turns to the camera and brings the rifle up with its laser sight on, and LMB / RT fires full
+-- auto at the point under the screen centre. Letting go goes back to Luke's movement. Logged as [StellarCoop][GM].
+-- How: each shot is the NIKKE shot skill, started by a zone event through SB's own rows (gunmode/data.lua), its
+-- bullet sent to the crosshair's point (gunmode/aim.lua). While the rifle is out the sword's attacks and the drone's
+-- aim on the fire and zoom keys are masked in memory (never saved; put back when it goes away).
+-- Gun mode is a module of its own: it reads its own coop-settings.txt lines and uses nothing of the rest of the mod;
+-- main.lua only builds and starts it, inside a pcall. All of it runs on the game thread, from one
+-- LoopInGameThreadWithDelay loop (every frame): no LoopAsync, ExecuteWithDelay or key bind, whose callbacks run Lua on
+-- another thread (two threads in one Lua state crashed UE4SS, 11-17). Every step is wrapped, so an error in gun mode
+-- never reaches the rest of the mod.
 local Config=require('gunmode.config')
-local Rows=require('gunmode.rows')
 local Aim=require('gunmode.aim')
-local View=require('gunmode.view')
 local Input=require('gunmode.input')
-local Pose=require('gunmode.pose')
+local Stance=require('gunmode.stance')
 local Laser=require('gunmode.laser')
 local Data=require('gunmode.data')
 
 local GunMode={}
 
-GunMode.STAND_PAK='zNikkeGunStand_P'
-local EVE='/Game/Art/Character/PC/CH_P_EVE_01/Blueprints/CH_P_EVE_01_Blueprint.CH_P_EVE_01_Blueprint_C'
 local LIB='/Script/SB.Default__SBBlueprintLibrary'
-local NIKKE='Bullet_Nikke'
+local SETTINGS='/Script/Engine.Default__InputSettings'
+local TRACE='/Script/Engine.Default__KismetSystemLibrary'
 
--- Whether a montage is the gun's own (the battle guard stops every other one for a moment after a battle change).
-function GunMode.gun_montage(name)
-    local n=name:lower()
-    return n:find('gun',1,true) or n:find('nikke',1,true) or n:find('tps',1,true) or n:find('shoot',1,true)
-end
-
--- Whether container name (a .utoc, .ucas and .pak) is in ~mods or LogicMods under paks (SB/Content/Paks): true, or
--- false and why. read(path): the file's first bytes, or nil.
-function GunMode.find_pak(paks,read,name)
-    if not paks then return false,'the game folder is unknown' end
-    for _,dir in ipairs({'~mods','LogicMods'}) do
-        local base=paks..'\\'..dir..'\\'..name
-        if read(base..'.utoc') then
-            for _,ext in ipairs({'.ucas','.pak'}) do
-                if not read(base..ext) then return false,'no '..base..ext end
-            end
-            return true
-        end
-    end
-    return false,'no '..name..' in ~mods or LogicMods'
-end
-local function read_start(path)
-    local f=io.open(path,'rb')
-    if not f then return nil end
-    local text=f:read(4096) or ''
-    f:close()
-    return text
-end
 local function read_all(path)
     local f=io.open(path,'rb')
     if not f then return nil end
@@ -74,16 +35,21 @@ local function read_all(path)
     return text
 end
 
--- env: {log, folder (the mod folder: coop-settings.txt, the starter-ammo flag, SB/Content/Paks above it), say (a
--- line on screen, optional), read and read_all (a file's first bytes, and all of it; io.open's unless given)}.
+-- A point along a camera's forward: loc + forward(rot) * d.
+function GunMode.ahead(loc,rot,d)
+    local p,y=math.rad(rot.Pitch),math.rad(rot.Yaw)
+    local c=math.cos(p)
+    return {X=loc.X+math.cos(y)*c*d,Y=loc.Y+math.sin(y)*c*d,Z=loc.Z+math.sin(p)*d}
+end
+
+-- a eased toward b by share k.
+function GunMode.ease(a,b,k) return a+(b-a)*k end
+
+-- env: {log, folder (the mod folder: coop-settings.txt), read_all (a file's text; io.open's unless given)}.
 function GunMode.new(env)
     local cfg=Config.DEFAULTS
-    local read,whole=env.read or read_start,env.read_all or read_all
+    local whole=env.read_all or read_all
     local set,bad=Config.parse(env.folder and whole(env.folder..'\\coop-settings.txt'))
-    local sb=env.folder and env.folder:match('^(.*)[\\/][Bb]inaries[\\/][Ww]in64[\\/]')
-    local paks=sb and sb..'\\Content\\Paks'
-    env.stand,env.stand_why=GunMode.find_pak(paks,read,GunMode.STAND_PAK)
-    env.say=env.say or function(text) env.log(text) end
     local g={}
     function g.log(m) env.log(m) end
     function g.valid(o)
@@ -103,403 +69,435 @@ function GunMode.new(env)
         local p=g.try(function() return pc.Pawn end)
         if g.valid(p) then return p end
     end
-    function g.stance(p) return g.try(function() return p:GetCurrentStanceName():ToString() end) end
-    local aim,view=Aim.new(g),View.new(g)
-    local laser=Laser.new(g)
-    local data=Data.new(g,set.fire_effect)
-    local pose=Pose.new(g,cfg.laser and laser or nil)
+    local aim,data=Aim.new(g),Data.new(g,set.native,{speed=cfg.native_speed,upper=set.upper and 'P_Eve_GunNikke' or nil})
+    local stance=Stance.new(Laser)
     local keys=Input.state()
     local self={}
-    local s={on=false,crouched=false,since=0,pause=0,prev=nil,set_up=false,
-        firing=false,next_shot=0,shots=0,aim_since=0,wait=nil,fire_n=0,last_fire=-1,
-        guard_at=0,guard_last=0,guard_fails=0,guard_n=0,battle_until=0,
-        roll_back=nil,roll_ready=0,ammo=nil,bag_empty=false,empty_hits=0,tps_hits=0,
-        hud_at=0,off_serial=0,toggle_at=-1,blocked_at=0,hooked=false,battle_hooked=false,ammo_hooked=false}
-    local t={pad=0,hold=0,battle=0,cam=0,mode=0,empty=0,tps=0}
+    local s={hidden={},followed={},on=false,pause=0,next_shot=0,shots=0,zoom=0,zoom_held=false,target=nil,cam=nil,mask=nil,
+        toggle_at=-1,hooked=false,errors=0}
 
-    -- fn, on the game thread, ms from now (worked through by the loop; a delay of 0 is the next frame).
-    s.timers={}
-    local function later(ms,fn) s.timers[#s.timers+1]={at=os.clock()+ms/1000,fn=fn} end
-    local function run_timers(now)
-        if #s.timers==0 then return end
-        local due,keep={},{}
-        for _,e in ipairs(s.timers) do if e.at<=now then due[#due+1]=e else keep[#keep+1]=e end end
-        s.timers=keep
-        table.sort(due,function(a,b) return a.at<b.at end)
-        for _,e in ipairs(due) do pcall(e.fn) end
-    end
-    local function fire_row(e)
+    local function fire_row(row)
         local lib=StaticFindObject(LIB)
         if not g.valid(lib) then return false end
-        local ok,err=pcall(function() lib:CreateSBZoneEvent(e[1],FName(e[2])) end)
-        if not ok then g.log('row '..e[2]..' failed: '..tostring(err)) end
+        local ok,err=pcall(function() lib:CreateSBZoneEvent(2,FName(row)) end)
+        if not ok then g.log('row '..row..' failed: '..tostring(err)) end
         return ok
     end
-    local function fire_rows(rows) for _,r in ipairs(rows) do fire_row(r) end end
-    local function mode_type(p) return tonumber(g.try(function() return p:GetTPSModeType() end)) end
-    local function tps(p) return g.try(function() return p:IsTPSMode() end) end
 
-    -- Crouched: the NIKKE centre cover and its kneel animset; standing: neither (zNikkeGunStand_P makes the cover
-    -- stance P_Eve_GunNikkeHide the standing one, gun out, with the stand animations).
-    local function posture(tag)
-        local p=g.pawn(); if not p then return end
-        if s.crouched then
-            fire_row(Rows.one(s.ns,'Pos2'))
-            pcall(function() p:ActiveCustomMovingStanceData({ForceType=0,OverrideStanceAnim=FName(cfg.crouch_anim),
-                NormalAnimRangeDegree=180.0}) end)
-        else
-            fire_row(Rows.one(s.ns,'PosOff'))
-            pcall(function() p:DeactiveCustomMovingStanceData() end)
-        end
-        g.log('posture: '..(s.crouched and 'crouched' or 'standing')..' ('..tag..')')
-    end
-
-    -- The gun stance put back when the game drops it (combat draws the sword), at most once a cooldown, and not past 5
-    -- tries in a row (EVE down: nothing brings it back until she is up).
-    local function stance_guard(p,now)
-        if now-s.guard_at<cfg.stance_check or now-s.since<1.5 then return end
-        s.guard_at=now
-        local stance=g.stance(p) or '?'
-        local m=mode_type(p)
-        -- Mode 0 is ours while standing; crouched, aim.crouch_tick puts 2 back within 0.25 s.
-        if stance:find('GunNikke',1,true) and tps(p) and (m==2 or (m==0 and not aim.dead)) then
-            s.guard_fails=0; return
-        end
-        if now-s.guard_last<cfg.stance_cooldown or s.guard_fails>=5 then return end
-        s.guard_fails,s.guard_last,s.guard_n=s.guard_fails+1,now,s.guard_n+1
-        if set.real_ammo then fire_row({2,'NGM_AE_GunOnAmmo'}); fire_row({2,'NGM_AE_ZeroOff'})
-        else fire_row(Rows.one(s.ns,'GunOn')) end
-        if s.crouched then fire_row(Rows.one(s.ns,'Pos2')) end
-        if s.guard_n<=10 or s.guard_n%10==0 then
-            g.log(('stance guard #%d: %s, TPS %s mode %s: gun stance put back'):format(s.guard_n,stance,
-                tostring(tps(p)),
-                tostring(m)))
-        end
-    end
-    -- Every hold_ms: the NIKKE bullet and the look-at kept (plain property writes, as a real stage has them).
-    local function hold(p,now)
-        pcall(function()
-            if p.CurrentBulletItemAlias:ToString()~=NIKKE then p.CurrentBulletItemAlias=FName(NIKKE) end
+    -- The input mask, as Luke's maskAim makes it: cfg.mask_on_keys on cfg.mask_keys, and cfg.mask_actions on any key,
+    -- set to key None and the keymaps rebuilt; restore() puts each one back. Axis mappings on those keys are only
+    -- logged (the first time) so a later build can mask them if the game reads one.
+    local function mask()
+        local settings=StaticFindObject(SETTINGS)
+        assert(g.valid(settings),'input settings unavailable')
+        local masked_key,on_keys,masked_name={},{},{}
+        for _,k in ipairs(cfg.mask_keys) do masked_key[k]=true end
+        for _,n in ipairs(set.native and cfg.native_mask_on_keys or cfg.mask_on_keys) do on_keys[n]=true end
+        if not set.native then for _,n in ipairs(cfg.mask_actions) do masked_name[n]=true end end
+        local saved,names={},{}
+        settings.ActionMappings:ForEach(function(_,wrapped)
+            local row=wrapped:get()
+            local name,key=row.ActionName:ToString(),row.Key.KeyName:ToString()
+            if key~='None' and ((masked_key[key] and on_keys[name]) or masked_name[name]) then
+                saved[#saved+1]={row=row,key=key,name=name}
+                names[#names+1]=name..'('..key..')'
+            elseif set.native and name=='TPSMode' and key==cfg.aim_from then -- The game's aim moved to RMB.
+                saved[#saved+1]={row=row,key=key,name=name,to=set.aim_key}
+                names[#names+1]=name..'('..key..' -> '..set.aim_key..')'
+            end
         end)
-        pcall(function() if not p.CustomLookAtActive then p.CustomLookAtActive=true end end)
-        stance_guard(p,now)
+        assert(#saved<=64,'unexpected action mappings: '..#saved)
+        if not s.axes_logged then
+            s.axes_logged=true
+            local axes={}
+            pcall(function() settings.AxisMappings:ForEach(function(_,wrapped)
+                local row=wrapped:get()
+                local key=row.Key.KeyName:ToString()
+                if masked_key[key] then axes[#axes+1]=row.AxisName:ToString()..'('..key..')' end
+            end) end)
+            g.log('input: axes on the fire and zoom keys (not masked): '..(#axes>0 and table.concat(axes,' ') or 'none'))
+        end
+        local function restore()
+            for _,e in ipairs(saved) do
+                if e.changed then
+                    pcall(function() e.row.Key.KeyName=FName(e.key) end)
+                    e.changed=false
+                end
+            end
+            pcall(function() settings:ForceRebuildKeymaps() end)
+            g.log('input: '..#saved..' mappings put back')
+        end
+        local ok,err=pcall(function()
+            for _,e in ipairs(saved) do e.changed=true; e.row.Key.KeyName=FName(e.to or 'None') end
+            settings:ForceRebuildKeymaps()
+        end)
+        if not ok then restore(); error(err) end
+        g.log('input: masked '..table.concat(names,' '))
+        return restore
     end
-    local function battle(p)
+
+    -- The point under the screen centre: the camera's line traced (visibility and camera channels, EVE ignored), or
+    -- the far end of it.
+    local function crosshair(pc,p)
+        local cm=g.try(function() return pc.PlayerCameraManager end)
+        if not g.valid(cm) then return nil end
+        local loc,rot=cm:GetCameraLocation(),cm:GetCameraRotation()
+        s.cam_loc,s.cam_rot=loc,rot
+        local from=GunMode.ahead(loc,rot,0)
+        local to=GunMode.ahead(loc,rot,cfg.trace_range)
+        local trace=StaticFindObject(TRACE)
+        if not g.valid(trace) then return to end
+        local clear={R=0,G=0,B=0,A=0}
+        local best,dist=to,cfg.trace_range
+        for channel=0,1 do
+            local hit={}
+            local ok,blocked=pcall(function()
+                return trace:LineTraceSingle(p,from,to,channel,false,{p},0,hit,true,clear,clear,0)
+            end)
+            if ok and blocked and hit.ImpactPoint then
+                local q=hit.ImpactPoint
+                local d=math.sqrt((q.X-from.X)^2+(q.Y-from.Y)^2+(q.Z-from.Z)^2)
+                if d<dist then best,dist={X=q.X,Y=q.Y,Z=q.Z},d end
+            end
+        end
+        return best
+    end
+
+    -- The camera: CameraBoom.CustomOffset, the rifle-out offset eased toward the zoom offset while zoom is held.
+    local function camera(p)
+        local boom=g.try(function() return p.CameraBoom end)
+        if not g.valid(boom) then return end
+        if not s.cam then
+            local c=boom.CustomOffset
+            s.cam={boom=boom,X=c.X,Y=c.Y,Z=c.Z}
+        end
+        s.zoom=GunMode.ease(s.zoom,s.zoom_held and 1 or 0,cfg.zoom_ease)
+        local a,b=cfg.cam_offset,cfg.zoom_offset
+        -- Her normal camera ignores CustomOffset (00:22): its arm length (the game sets it, so taken again whenever
+        -- the zoom is out) and SocketOffset (right, up) are eased instead.
+        if not s.cam.socket then
+            local so=g.try(function() return boom.SocketOffset end)
+            s.cam.socket=so and {X=so.X,Y=so.Y,Z=so.Z}
+        end
+        if s.zoom<0.01 then
+            s.cam.arm=g.try(function() return boom.TargetArmLength end) or s.cam.arm
+            return
+        end
+        local so=s.cam.socket
+        local ok,err=pcall(function()
+            if s.cam.arm then boom.TargetArmLength=s.cam.arm*GunMode.ease(1,cfg.zoom_arm,s.zoom) end
+            if so then
+                boom.SocketOffset={X=so.X,Y=GunMode.ease(so.Y,so.Y+b.Y,s.zoom),Z=GunMode.ease(so.Z,so.Z+b.Z,s.zoom)}
+            end
+        end)
+        if not s.cam_logged and s.zoom>0.9 then
+            s.cam_logged=true
+            local now_arm=g.try(function() return boom.TargetArmLength end)
+            local c=g.try(function() return boom.SocketOffset end)
+            g.log(('camera: zoom %s, arm %s (base %s), socket (%s, %s, %s)'):format(ok and 'written' or tostring(err),
+                tostring(now_arm),tostring(s.cam.arm),tostring(c and c.X),tostring(c and c.Y),tostring(c and c.Z)))
+        end
+    end
+    local function camera_back()
+        local c=s.cam
+        s.cam,s.zoom=nil,0
+        if c and g.valid(c.boom) then
+            pcall(function() c.boom.CustomOffset={X=c.X,Y=c.Y,Z=c.Z} end)
+            if c.socket then pcall(function() c.boom.SocketOffset={X=c.socket.X,Y=c.socket.Y,Z=c.socket.Z} end) end
+            if c.arm then pcall(function() c.boom.TargetArmLength=c.arm end) end
+        end
+    end
+
+    -- Her other mesh components hidden from the player's own camera while the rifle is out: Luke's stance hides her
+    -- real body there and shows a posed copy, so a layer on the real body (Ultra Violence's blood, an overlay wearing
+    -- her body's mesh) or the sword drawn in a fight showed as a ghost doing the real animation (00:12). Looked for
+    -- again every second (the sword comes out with a fight); each one put back as it was when the rifle goes away.
+    local MESH,SKEL,STATIC='/Script/Engine.MeshComponent','/Script/Engine.SkeletalMeshComponent',
+        '/Script/Engine.StaticMeshComponent'
+    local function hide_others(p,first)
+        local src=g.try(function() return p.Mesh end)
+        if not g.valid(src) then return end
+        local body=g.try(function() return src.SkeletalMesh:GetFullName() end)
+        local cls,skel,static=StaticFindObject(MESH),StaticFindObject(SKEL),StaticFindObject(STATIC)
+        if not g.valid(cls) then return end
+        local list=g.try(function() return p:K2_GetComponentsByClass(cls) end)
+        if not list then return end
+        local items={}
+        local function unwrap(c) -- An element of the array: its object (wrapped, as the rifle scan found, 11-17).
+            if c~=nil and not g.valid(c) then
+                local ok,v=pcall(function() return c:get() end)
+                if ok then return v end
+            end
+            return c
+        end
+        if type(list)=='table' and rawget(list,'ForEach')==nil then
+            for _,c in ipairs(list) do items[#items+1]=unwrap(c) end
+        else
+            pcall(function() list:ForEach(function(_,e) items[#items+1]=unwrap(e) end) end)
+        end
+        if first then g.log('hide: '..#items..' mesh components') end
+        local seen={}
+        for _,c in ipairs(items) do
+            local addr=g.valid(c) and g.try(function() return c:GetAddress() end)
+            if addr and not s.hidden[addr] and c~=src and not stance.owns(c) then
+                local mesh
+                if g.valid(skel) and g.try(function() return c:IsA(skel) end) then
+                    mesh=g.try(function() return c.SkeletalMesh:GetFullName() end)
+                elseif g.valid(static) and g.try(function() return c:IsA(static) end) then
+                    mesh=g.try(function() return c.StaticMesh:GetFullName() end)
+                end
+                local hide=mesh~=nil and mesh==body
+                local short=mesh and mesh:match('[^%.]+$') -- The asset's own name: its path named the hairpin's folder.
+                for _,n in ipairs(cfg.hide_names) do
+                    if short and short:find(n,1,true) then hide=true end
+                end
+                local follow=false
+                if not hide and short and g.valid(skel) and g.try(function() return c:IsA(skel) end) then
+                    for _,n in ipairs(cfg.follow_names) do if short:find(n,1,true) then follow=true end end
+                end
+                if follow and not s.followed[addr] then
+                    local body=stance.body()
+                    if g.valid(body) and pcall(function() c:SetMasterPoseComponent(body,true) end) then
+                        s.followed[addr]={c=c}
+                    end
+                end
+                if first then
+                    seen[#seen+1]=(hide and '*' or follow and '+' or '')..tostring(mesh and mesh:match('[^%.]+$'))
+                end
+                if hide then
+                    local was=g.try(function() return c.bOwnerNoSee end)
+                    if pcall(function() c:SetOwnerNoSee(true) end) then s.hidden[addr]={c=c,was=was==true} end
+                end
+            end
+        end
+        if first then
+            g.log('hide: her meshes (* hidden from her camera, + following the posed copy): '..table.concat(seen,' '))
+        end
+    end
+    local function show_others()
+        for _,e in pairs(s.hidden) do
+            if g.valid(e.c) then pcall(function() e.c:SetOwnerNoSee(e.was) end) end
+        end
+        s.hidden={}
+        local p=g.pawn()
+        local src=p and g.try(function() return p.Mesh end)
+        for _,e in pairs(s.followed) do
+            if g.valid(e.c) and g.valid(src) then pcall(function() e.c:SetMasterPoseComponent(src,true) end) end
+        end
+        s.followed={}
+    end
+
+    -- The drone (it fires the shots in the game's aim) hidden while the rifle is out: its mesh components
+    -- bHiddenInGame, as race/doro.lua hides it; put back as they were. FindAllOf walks every object, so it is looked
+    -- for when the rifle comes out and again only when the one held goes.
+    local DRONE='CH_Drone_BP_C'
+    local function hide_drone(p)
+        if s.drone and g.valid(s.drone.actor) then return end
+        local best,best_d
+        local loc=g.try(function() return p:K2_GetActorLocation() end)
+        if not loc then return end
+        local all=g.try(function() return FindAllOf(DRONE) end) or {}
+        for _,d in ipairs(all) do
+            local q=g.valid(d) and g.try(function() return d:K2_GetActorLocation() end)
+            if q then
+                local dist=math.sqrt((q.X-loc.X)^2+(q.Y-loc.Y)^2+(q.Z-loc.Z)^2)
+                if dist<3000 and (not best_d or dist<best_d) then best,best_d=d,dist end
+            end
+        end
+        if not best then return end
+        local cls=StaticFindObject(MESH)
+        local parts={}
+        local list=g.try(function() return best:K2_GetComponentsByClass(cls) end)
+        local function each(fn)
+            if type(list)=='table' and rawget(list,'ForEach')==nil then for _,c in ipairs(list) do fn(c) end
+            elseif list then pcall(function() list:ForEach(function(_,e) fn(e) end) end) end
+        end
+        each(function(c)
+            if not g.valid(c) then local ok,v=pcall(function() return c:get() end); if ok then c=v end end
+            if g.valid(c) and g.try(function() return c.bHiddenInGame end)~=true then
+                if pcall(function() c:SetHiddenInGame(true,false) end) then parts[#parts+1]=c end
+            end
+        end)
+        s.drone={actor=best,parts=parts}
+        g.log('drone: '..#parts..' parts hidden ('..#all..' drones)')
+    end
+    local function show_drone()
+        if s.drone then
+            for _,c in ipairs(s.drone.parts) do if g.valid(c) then pcall(function() c:SetHiddenInGame(false,false) end) end end
+        end
+        s.drone=nil
+    end
+
+    -- Firing mode's pose between shots: the NIKKE shot's own animation (its montage, learnt from the first shot
+    -- fired: it looked right while firing, 02:34) held near its start while aim is held and no shot is playing, so
+    -- she keeps the rifle up instead of the drone aim's pointing pose; stopped when aim is let go.
+    local function hold_pose(p,firing)
         local ai=g.try(function() return p.Mesh:GetAnimInstance() end)
-        local m=g.valid(ai) and g.try(function() return ai:GetCurrentActiveMontage() end)
-        if not g.valid(m) then return end
-        local name=m:GetFName():ToString()
-        if not GunMode.gun_montage(name) then pcall(function() ai:Montage_Stop(0.15,m) end) end
-    end
-
-    local function hook_battle()
-        if s.battle_hooked then return end
-        s.battle_hooked=pcall(function()
-            RegisterHook(EVE..':Event_ChangeBattleState',function()
-                if s.on then s.battle_until=os.clock()+cfg.battle_window end
-            end)
-        end)
-    end
-    -- With real ammo: the NIKKE round count from the item broadcasts (add and update carry the item with its total).
-    local function hook_ammo()
-        if s.ammo_hooked or not set.real_ammo then return end
-        s.ammo_hooked=true
-        for _,fn in ipairs({'ClientBroadcast_ItemBucketItemAdd','ClientBroadcast_ItemBucketItemUpdate'}) do
+        if not g.valid(ai) then return end
+        local cur=g.try(function() return ai:GetCurrentActiveMontage() end)
+        local name=g.valid(cur) and g.try(function() return cur:GetFName():ToString() end)
+        if name and name:find('GunNikke',1,true) and name:find('Shoot',1,true) and not s.pose_m then
+            s.pose_m=cur
+            g.log('pose: the NIKKE shot montage is '..name)
+        end
+        if not g.valid(s.pose_m) then return end
+        if s.zoom_held and not firing and not g.valid(cur) then
             pcall(function()
-                RegisterHook('/Script/SB.SBNetworkPlayerController:'..fn,function(_,_,_,inst)
-                    pcall(function()
-                        local i=inst:get()
-                        if i.ItemAlias:ToString()==NIKKE then
-                            s.ammo=tonumber(i.ItemCount)
-                            if s.ammo and s.ammo>0 then s.bag_empty=false end
-                        end
-                    end)
-                end)
+                ai:Montage_Play(s.pose_m,0.0,0,cfg.pose_time,false)
             end)
+            s.pose_on=true
+        elseif s.zoom_held and firing and s.pose_on and cur==s.pose_m then
+            pcall(function() ai:Montage_SetPlayRate(s.pose_m,1.0) end) -- The shot's own play takes over.
+            s.pose_on=false
+        elseif not s.zoom_held and s.pose_on then
+            pcall(function() ai:Montage_Stop(0.2,s.pose_m) end)
+            s.pose_on=false
         end
     end
 
-    -- The rows gun mode fires: SB's own, taken by gunmode/data.lua (GM), else a Survival Protocol pak's (NGM) when
-    -- that has them; false: neither, gun mode cannot start. SB's rows go back at a new controller (tick).
-    local function rows_ready()
-        if s.ns then return true end
-        if data.take() then s.ns='GM'
-        elseif g.try(function()
-                local t=StaticFindObject('/Game/Local/Data/EventActorEffectTable.EventActorEffectTable')
-                return t:FindRow('NGM_AE_GunOn')
-            end) then
-            s.ns='NGM'; g.log('rows: Survival Protocol\'s NGM rows')
-        else
-            g.log('off: no rows (SB\'s could not be taken, and no Survival Protocol pak carries gun mode\'s)')
-            return false
+    -- Firing mode (Luke's aim on her normal stance): the game itself keeps her facing the camera, through her
+    -- movement's own settings (no yaw written from Lua each frame: two writers made her legs twitch, 00:27).
+    local function face(p,on)
+        local cm=g.try(function() return p.CharacterMovement end)
+        if not g.valid(cm) then return end
+        if on and not s.facing then
+            s.facing={cm=cm,orient=cm.bOrientRotationToMovement,desired=cm.bUseControllerDesiredRotation}
+            pcall(function() cm.bOrientRotationToMovement=false; cm.bUseControllerDesiredRotation=true end)
+        elseif not on and s.facing then
+            local f=s.facing
+            pcall(function() f.cm.bOrientRotationToMovement=f.orient; f.cm.bUseControllerDesiredRotation=f.desired end)
+            s.facing=nil
         end
-        if set.real_ammo and s.ns~='NGM' then
-            set.real_ammo=false
-            g.log('real ammo off: its rows come only with a Survival Protocol pak built with gun mode\'s patches')
-        end
-        return true
     end
 
-    local function enable()
-        if not g.pawn() then return end
-        if not rows_ready() then return end
-        if set.real_ammo and s.bag_empty then
-            env.say('Out of NIKKE rounds: buy more at a camp shop.'); return
-        end
-        if cfg.keep_hud then pcall(view.hud_snapshot) end
-        fire_rows(Rows.on(set,s.ns))
-        local p=g.pawn()
-        local b=p and g.try(function() return p.CurrentBulletItemAlias:ToString() end)
-        if b and b~=NIKKE then s.prev=b end
-        local now=os.clock()
-        s.on,s.crouched,s.since,s.set_up=true,false,now,false
-        s.guard_n,s.guard_fails,s.empty_hits,s.tps_hits=0,0,0,0
-        self.hook()
-        later(700,function() if s.on then posture('entry') end end)
-        for _,ms in ipairs({1000,2500}) do
-            later(ms,function() if s.on and cfg.keep_hud then view.hud_restore() end end)
-        end
-        s.hud_at=now+4.0
-        later(800,function() if s.on then view.reticle_scale(cfg.reticle_scale) end end)
-        if cfg.wide_reticle then later(900,function() if s.on then view.wide(true) end end) end
-        hook_battle()
-        hook_ammo()
-        if set.real_ammo then
-            local flag=env.folder and env.folder..'\\coop-gunmode-starter.txt'
-            local f=flag and io.open(flag,'r')
-            if f then f:close()
-            elseif fire_row({13,'NGM_ItemA_Ammo'}) and flag then
-                local w=io.open(flag,'w'); if w then w:write(os.date()); w:close() end
-                g.log('ammo: starter rounds given')
-            end
-            for _,ms in ipairs({600,1600}) do
-                later(ms,function() if s.on then fire_row({2,'NGM_AE_ZeroOff'}) end end)
-            end
-            later(2200,function() if s.on then fire_row({2,'NGM_AE_EmptyExit'}) end end)
-        end
-        g.log('on')
-        later(700,function()
-            local p2=g.pawn()
-            if p2 then g.log(('engaged: TPS %s mode %s'):format(tostring(tps(p2)),tostring(mode_type(p2)))) end
-        end)
-    end
-
-    local function disable()
-        if set.real_ammo then -- A NIKKE reload still pending would refill the bag the moment RealAmmo comes off.
-            fire_row({2,'NGM_AE_ReloadCancel'})
-            later(1500,function() if not s.on then fire_row({2,'NGM_AE_ReloadCancel'}) end end)
-            later(4000,function()
-                if not s.on then fire_row({2,'NGM_AE_ReloadCancel'}); fire_row({2,'NGM_AE_RealAmmoOff'}) end
-            end)
-        end
-        local p=g.pawn()
-        if p then pcall(function() p:DeactiveCustomMovingStanceData() end) end
-        aim.set_mode(2,'exit')
-        aim.camera_off()
-        fire_rows(Rows.off(s.ns))
-        -- An off soon after an on can land before the on rows: send the off rows again unless gun mode came back on.
-        s.off_serial=s.off_serial+1
-        local mine=s.off_serial
-        for _,ms in ipairs({1200,3000}) do
-            later(ms,function() if not s.on and mine==s.off_serial then fire_rows(Rows.off(s.ns)) end end)
-        end
-        s.on,s.firing,s.roll_back=false,false,nil
-        view.reticle_scale(1.0)
-        view.wide(false)
-        if p then
-            if s.prev and s.prev~='None' then pcall(function() p.CurrentBulletItemAlias=FName(s.prev) end) end
-            pcall(function() p.CustomLookAtActive=false end)
-        end
-        g.log('off')
-    end
-
-    local function in_menu()
-        local pc=g.pc()
-        if not pc then return true end
-        if g.try(function() return pc.bShowMouseCursor end) then return true end
-        local stats=StaticFindObject('/Script/Engine.Default__GameplayStatics')
-        return g.try(function() return stats:IsGamePaused(pc) end)==true
-    end
-    local function stuck()
-        local p=g.pawn()
-        local m=p and mode_type(p)
-        return p~=nil and tps(p)==true and (m==2 or m==0)
-    end
-    function self.toggle(src)
-        local now=os.clock()
-        if now-s.toggle_at<0.4 then return end -- One press can reach both the key and Ctrl+key binds.
-        if not s.on and stuck() then -- Off, yet still in the NIKKE stance: the key always sends the off rows again.
-            s.toggle_at=now
-            fire_rows(Rows.off(s.ns))
-            g.log('toggle ('..src..'): the NIKKE stance was still on: off rows sent again')
-            return
-        end
-        if in_menu() then
-            if now-s.blocked_at>2 then s.blocked_at=now; g.log('toggle ('..src..') ignored: a menu or pause is up') end
-            return
-        end
-        s.toggle_at=now
-        local ok,err=pcall(s.on and disable or enable)
-        if not ok then g.log('toggle error: '..tostring(err)) end
-    end
-
-    -- Firing. Only in the aim stance, or standing in the cover stance (its gun is out with zNikkeGunStand_P): the shot
-    -- starts at the muzzle socket, and with the gun folded away the game read a null pointer and crashed.
-    local function fire_once(p)
-        local now=os.clock()
-        if now-s.last_fire<cfg.fire_interval then return end
-        s.last_fire=now
-        if set.real_ammo and s.ammo and s.ammo<=0 then
-            g.log('ammo: out of NIKKE rounds')
-            later(200,function() if s.on then self.toggle('empty') end end)
-            return
-        end
-        s.fire_n=s.fire_n+1
-        if set.real_ammo then
-            fire_row({13,'NGM_ItemA_Spend'})
-            fire_row({2,'NGM_AE_EmptyExit'}) -- Applies only once the bag is empty.
-            if s.ammo then s.ammo=s.ammo-1 end
-        end
-        local target=g.try(function() return p:GetTPSLookAtWorldLocation(true) end)
-        if target then aim.write(p,target) end
-        if s.ns=='GM' and not data.fire then -- The stance's own command fires (aimed); the row aimed it.
-            if s.fire_n<=3 or s.fire_n%50==0 then g.log('aim #'..s.fire_n..' (the stance fires)') end
-            return
-        end
-        local ok=fire_row(Rows.one(s.ns,'Fire'))
-        if s.fire_n<=3 or s.fire_n%50==0 then g.log('shot #'..s.fire_n..(ok and '' or ' failed')) end
-    end
-    local function fire_step(now,inp)
-        if not s.firing then return end
-        if now<s.next_shot then return end
-        local held=(not s.crouched and inp.fire_held) or inp.fire_ctrl
-        if s.shots>0 and not held then s.firing=false; return end
-        local p=g.pawn()
-        local stance=p and g.stance(p)
-        if not (stance=='P_Eve_GunNikke' or (stance=='P_Eve_GunNikkeHide' and not s.crouched)) then
-            s.wait=s.wait or now
-            if now-s.wait>1.0 then s.firing,s.wait=false,nil end
-            return
-        end
-        s.wait=nil
-        s.shots=s.shots+1
-        pcall(fire_once,p)
-        s.next_shot=now+cfg.fire_interval
-    end
-    local function start_firing(now)
-        if not s.on or s.firing then return end
-        s.firing,s.shots=true,0
-        s.next_shot=math.max(now+cfg.first_shot_delay,s.aim_since+cfg.aim_ready)
-    end
-
-    local last={}
-    local function poll(now)
-        local pc=g.pc(); if not pc then return end
-        local function down(name)
-            local ok,d=pcall(function() return pc:IsInputKeyDown({KeyName=FName(name)}) end)
-            return ok and d==true
-        end
-        local inp=Input.read(keys,down,now,cfg,set.key)
-        last=inp
-        if inp.toggle then self.toggle('D-pad Right') end
-        if inp.key then self.toggle(set.key) end
-        if inp.aim_start then s.aim_since=now end
+    local function disable(why)
         if not s.on then return end
-        if inp.crouch then
-            s.crouched=not s.crouched
-            later(10,function() if s.on then posture('key') end end)
+        s.on=false
+        pcall(stance.stop)
+        if s.mask then pcall(s.mask); s.mask=nil end
+        camera_back()
+        if s.facing then
+            local f=s.facing
+            pcall(function() f.cm.bOrientRotationToMovement=f.orient; f.cm.bUseControllerDesiredRotation=f.desired end)
+            s.facing=nil
         end
-        if inp.roll and not s.roll_back and now>=s.roll_ready then
-            s.roll_back,s.since=now+cfg.roll_time,now -- The guards stay quiet during the roll.
-            later(1,function()
-                if s.on then fire_row(Rows.one(s.ns,'GunOff')); fire_row(Rows.one(s.ns,'PosOff')) end
-            end)
-        end
-        local standing=not s.crouched
-        if (standing and inp.fire) or (inp.fire_ctrl and not s.firing) then
-            if standing then s.aim_since=math.min(s.aim_since,now-cfg.aim_ready) end -- Standing always aims.
-            start_firing(now)
-        end
+        show_others()
+        show_drone()
+        if s.native_taken then pcall(data.put_back); s.native_taken=false; aim.row=nil end
+        g.log('off ('..why..'), '..s.shots..' shots')
     end
 
-    -- The roll is over: the full on rows again (the gun alone left IsTPSMode false), the posture's row after them.
-    local function roll_back(now)
-        s.roll_back,s.since,s.roll_ready=nil,now,now+cfg.roll_cooldown
-        later(1,function()
-            if not s.on then return end
-            fire_rows(Rows.on(set,s.ns))
-            if set.real_ammo then fire_row({2,'NGM_AE_ZeroOff'}) end
-            if s.crouched then fire_row(Rows.one(s.ns,'Pos2')) end
+    local function enable(why)
+        local pc,p=g.pc(),g.pawn()
+        if not (pc and p) then g.log('not now: no EVE'); return end
+        if g.try(function() return p.TPSModeType~=0 or p.bTPSMode end) then
+            g.log('not now: release the drone aim first'); return
+        end
+        if not data.take() then g.log('off: SB\'s rows could not be taken (see above)'); return end
+        aim.setup()
+        local ok,err=pcall(function() s.mask=mask() end)
+        if not ok then g.log('off: the input mask failed ('..tostring(err)..')'); return end
+        ok,err=pcall(function()
+            s.rifle=stance.start(pc,function() return s.zoom_held end,function() return s.target end,false,
+                0,false,false,set.native and set.upper,set.native and not set.upper)
         end)
+        if not ok then
+            if s.mask then pcall(s.mask); s.mask=nil end
+            pcall(stance.stop)
+            g.log('off: Luke\'s stance did not start ('..tostring(err)..')')
+            return
+        end
+        s.on,s.shots,s.next_shot,s.zoom_held,s.held_since=true,0,0,false,nil
+        pcall(hide_others,p,true)
+        s.hide_at=os.clock()
+        if set.native then pcall(hide_drone,p); s.native_taken=true end
+        g.log('on ('..why..')')
     end
 
-    -- With real ammo: the gun stance gone (NGM_AE_EmptyExit applies once the bag is empty) ends gun mode.
-    local function empty_check(p,now)
-        if not set.real_ammo or now-s.since<=1.5 or now-t.tps<0.2 then return end
-        t.tps=now
-        local m=mode_type(p)
-        if tps(p)==false or (m and m~=2 and not (m==0 and not aim.dead)) then
-            s.tps_hits=s.tps_hits+1
-            if s.tps_hits>=3 then
-                s.tps_hits,s.bag_empty=0,true
-                env.say('Out of NIKKE rounds.')
-                later(100,function() if s.on then self.toggle('empty') end end)
+    function self.toggle(why)
+        local now=os.clock()
+        if now-s.toggle_at<0.3 then return end
+        s.toggle_at=now
+        if s.on then disable(why) else enable(why) end
+    end
+
+    -- Each shot: the bullet's destination made the crosshair point, then the shot's row.
+    local function shoot(p,now)
+        if now<s.next_shot then return end
+        s.next_shot=now+cfg.fire_interval
+        aim.write(p,s.target)
+        if fire_row(Data.row('Fire')) then
+            s.shots=s.shots+1
+            if s.shots<=3 or s.shots%50==0 then
+                local l,r,t,e=s.cam_loc,s.cam_rot,s.target,g.try(function() return p:K2_GetActorLocation() end)
+                local function v(a) return a and ('(%.0f, %.0f, %.0f)'):format(a.X,a.Y,a.Z) or '?' end
+                g.log(('shot #%d: camera %s pitch %.1f yaw %.1f, target %s, EVE %s%s'):format(s.shots,v(l),
+                    r and r.Pitch or 0,r and r.Yaw or 0,v(t),v(e),s.zoom_held and ', zoomed' or ''))
             end
-        else
-            s.tps_hits=0
         end
     end
 
     local function tick()
         local now=os.clock()
         if now<s.pause then return end
-        if s.give_back then s.give_back=false; s.ns=nil; pcall(data.put_back) end
-        run_timers(now)
-        if not g.valid(cached) or not g.valid(g.try(function() return cached.Pawn end)) then
-            cached=nil
-            if not g.pawn() then s.pause=now+2.0; return end -- Player objects going away: stay out a moment.
+        if s.give_back then s.give_back=false; pcall(data.put_back); aim.row=nil end
+        if s.stop_stance then s.stop_stance=false; pcall(stance.stop) end
+        if s.show_back then s.show_back=false; show_others() end
+        local pc=g.pc(); if not pc then return end
+        if g.try(function() return StaticFindObject('/Script/Engine.Default__GameplayStatics'):IsGamePaused(pc) end) then
+            return
         end
-        pcall(poll,now) -- Every frame: a quick tap lasts less than 50 ms.
+        local function down(name) return g.try(function() return pc:IsInputKeyDown({KeyName=FName(name)}) end)==true end
+        local inp=Input.read(keys,down,now,cfg,set.key)
+        if inp.key then self.toggle(set.key) elseif inp.toggle then self.toggle('D-pad Right') end
         if not s.on then return end
-        local p=g.pawn(); if not p then return end
-        fire_step(now,last)
-        if now-t.hold>=cfg.hold_ms/1000 then t.hold=now; pcall(hold,p,now) end
-        if now<s.battle_until and now-t.battle>=0.05 then t.battle=now; pcall(battle,p) end
-        if not s.set_up and now-s.since>1.0 then
-            s.set_up=true
-            pcall(aim.setup)
-            pcall(view.reticle_show)
+        local p=g.pawn()
+        if not p then disable('no EVE'); return end
+        if set.native then -- Firing mode is the game's own aim: held while EVE is in it.
+            s.zoom_held=g.try(function() return p.bTPSMode end)==true
+            if now-(s.probe_at or 0)>=1.0 then
+                s.probe_at=now
+                local function rd(f) local ok,v=pcall(f); return ok and tostring(v) or '?' end
+                local line=('native: aim %s mode %s stance %s bullet %s fire %s'):format(rd(function() return p.bTPSMode end),
+                    rd(function() return p.TPSModeType end),rd(function() return p:GetCurrentStanceName():ToString() end),
+                    rd(function() return p.CurrentBulletItemAlias:ToString() end),tostring(inp.fire))
+                if line~=s.probe_last then s.probe_last=line; g.log(line) end
+            end
+        elseif set.zoom_toggle then
+            if inp.zoom_press then s.zoom_held=not s.zoom_held end
+        else s.zoom_held=inp.zoom end
+        s.target=crosshair(pc,p)
+        local ok,err=pcall(stance.frame)
+        if not ok then g.log('stance: '..tostring(err)); disable('stance error'); return end
+        if not stance.running() then disable('the stance stopped'); return end
+        if not set.native then camera(p) end
+        if now-s.hide_at>=1.0 then
+            s.hide_at=now
+            pcall(hide_others,p,false)
+            if set.native then pcall(hide_drone,p) end
         end
-        local standing=not s.crouched and not s.roll_back
-        if standing and aim.mode0 and now-t.cam>=2.0 then t.cam=now; pcall(aim.camera_on,cfg.cam_offset) end
-        if s.crouched and now-t.mode>=0.25 then t.mode=now; pcall(aim.crouch_tick)
-        elseif standing and now-s.since>1.5 and now-t.mode>=1.0 then
-            t.mode=now
-            pcall(aim.stand_tick,function() fire_row(Rows.one(s.ns,'GunOn')) end)
+        if set.native and set.upper then pcall(hold_pose,p,inp.fire) end
+        -- In firing mode, ten times a second: the NIKKE bullet's start put on the rifle's muzzle and its destination
+        -- on the crosshair point (each shot writes the destination again).
+        if s.zoom_held and now-(s.aim_w or 0)>=0.1 then
+            s.aim_w=now
+            local m=g.valid(s.rifle) and g.try(function() return s.rifle:GetSocketLocation(FName('FX_Fire')) end)
+            aim.write_start(p,m or nil,cfg.start_min_forward,cfg.start_fallback)
+            aim.write(p,s.target)
         end
-        pcall(empty_check,p,now)
-        if cfg.keep_hud and now>=s.hud_at then
-            s.hud_at=now+1.5
-            later(10,function() if s.on then view.hud_restore() end end)
-        end
-        if s.roll_back and now>=s.roll_back then roll_back(now) end
-    end
-    -- The pose: on and aimed while standing, set up and not rolling; a step of every frame.
-    local function pose_step()
-        if not set.pose then return end
-        local want=s.on and s.set_up and not s.crouched and not s.roll_back
-        pose.step(want,want)
+        if not set.native then face(p,s.zoom_held) end
+        -- Firing mode: fire once the rifle has had a moment to come up (Luke's raise eases in over ~12 frames).
+        if s.zoom_held then s.held_since=s.held_since or now else s.held_since=nil end
+        if not set.native and inp.fire and s.held_since and now-s.held_since>=cfg.raise_time then shoot(p,now) end
     end
 
-    -- The loop, once a Lua load: gun mode's tick, then the pose, every frame on the game thread.
     function self.hook()
         if s.hooked then return true end
-        s.errors=0
         local function guarded(f)
             local ok,e=pcall(f)
             if not ok and s.errors<5 then s.errors=s.errors+1; g.log('error: '..tostring(e)) end
         end
-        s.hooked=pcall(function() LoopInGameThreadWithDelay(1,function() guarded(tick); guarded(pose_step) end) end)
+        s.hooked=pcall(function() LoopInGameThreadWithDelay(1,function() guarded(tick) end) end)
         return s.hooked
     end
 
@@ -507,31 +505,27 @@ function GunMode.new(env)
     function self.start()
         for _,why in ipairs(bad) do g.log('coop-settings.txt: '..why) end
         if not set.on then g.log('off (gun_mode=off in coop-settings.txt)'); return end
-        if env.stand~=true then
-            g.log('no standing animations ('..tostring(env.stand_why)..'): the NIKKE kneel only')
-        end
-        -- A new controller (map load, death, camp warp) starts with gun mode off. Its controller is cached at once:
-        -- FindFirstOf could hand back the previous world's for ~2 s, and per-frame key reads then touched freed memory.
-        -- Nothing here calls into the game: the controller is still being built (reading its pawn from this callback
-        -- crashed UE4SS on the title screen). The new pawn's camera boom is a fresh one, so the saved offset just goes.
+        -- A new controller (map load, death, camp warp): the rifle goes away and SB's rows go back. Nothing here calls
+        -- into the game: the controller is still being built (reading its pawn from this callback crashed UE4SS).
         NotifyOnNewObject('/Script/SB.SBPlayerController',function(pc)
             cached=pc
             s.pause=os.clock()+4.0
             s.give_back=true
-            s.on,s.firing,s.roll_back,s.bag_empty,s.prev=false,false,nil,false,nil
-            aim.cam_saved=nil
+            if s.on then
+                s.on=false
+                if s.mask then pcall(s.mask); s.mask=nil end
+                s.cam,s.zoom=nil,0
+                s.stop_stance=true
+                s.show_back=true
+            end
         end)
         if not self.hook() then g.log('off: this UE4SS has no LoopInGameThreadWithDelay'); return end
         g.log('ready: '..set.key..' or a tap of D-pad Right')
     end
 
     function self.status()
-        return ('gun mode %s%s, key %s, real ammo %s, pose %s%s, rows %s, standing animations %s'):format(
-            s.on and 'on' or 'off',s.on and (s.crouched and ' (crouched)' or ' (standing)') or '',set.key,
-            set.real_ammo and 'on' or 'off',pose.on and 'on' or 'off',
-            pose.failed and (' ('..pose.failed..' errors)') or '',
-            s.ns=='GM' and 'its own' or s.ns=='NGM' and 'Survival Protocol\'s' or 'not made yet',
-            env.stand and 'found' or 'missing')
+        return ('gun mode %s%s, key %s, %d shots'):format(s.on and 'on' or 'off',
+            s.on and (s.zoom_held and ' (firing mode)' or ' (moving)') or '',set.key,s.shots)
     end
     self.toggle_now=function() self.toggle('command') end
     self.state=s
