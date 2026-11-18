@@ -108,7 +108,7 @@ function Glide.new(o)
         return was and 'glide off' or 'glide off already'
     end
     function self.active() return on end
-    -- coop glide on|off (main.lua's commands/cut.lua checks the co-op save before on).
+    -- coop glide on|off (cut/eve/commands.lua checks the co-op save before on).
     function self.command(sub,extra)
         if extra~=nil or (sub~='on' and sub~='off') then return false,'Use: coop glide on|off' end
         if sub=='off' then return true,self.off('coop glide off') end

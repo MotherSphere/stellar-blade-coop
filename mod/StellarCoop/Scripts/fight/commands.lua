@@ -1,12 +1,10 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The shared enemies' and the shared quests' console commands (Phases 11 and 12, experimental): coop fight, with its
--- pilot and spawn probe, and coop quests; and coop pvp, the PvP test (a test tool). main.lua builds them with new(o)
--- at each Lua load and merges them into its command table; its 250 ms loop runs coop fight on and coop quests on by
--- itself for shared_enemies=on and shared_quests=on. o: main.lua's link, settings, native_tick, ask (a line for the
--- native part) and coop_slot, and fight_auto_off() and quests_auto_off(): coop fight off and coop quests off cancel
--- those asks.
+-- The shared enemies' console commands (Phase 11, experimental): coop fight with its pilot and spawn probe; coop pvp,
+-- the PvP test (a test tool). main.lua builds them with new(o) at each Lua load and merges them into its command
+-- table; its 250 ms loop runs coop fight on by itself for shared_enemies=on. o: main.lua's link, settings,
+-- native_tick, ask (a line for the native part), coop_slot and fight_auto_off() (coop fight off cancels that ask).
 local Fight={}
 -- coop fight (Phase 11, experimental): its line for the native part, or nil when the arguments are off. A change is
 -- whole units, signed or not, never 0, at most 10000000 (the native part's cap).
@@ -26,13 +24,6 @@ end
 local PILOT_ALONE={status=true,probe=true,on=true,off=true}
 local PILOT_TESTS={freeze=true,cmc=true,drive=true,replay=true,target=true,exec=true,bstart=true,phase=true,
     finish=true,summon=true}
--- coop quests (Phase 12, experimental): on (needs shared_quests=on; the native part waits for a friend and a co-op
--- save), off, status (the quests= line, while the native part's whole answer follows in the log as quests_status
--- lines), probe, record and replay (the solo tools, on a co-op save only), and force <number>: the step that quest
--- holds for your own kill, or for a place the host's game could not read, made where you stand, once typed twice for
--- the same quest within 10 s (it can unlock that quest's trophies). on, probe and record carry quest_deny.
-local QUESTS_USE='Use: coop quests on | off | status | probe | record | replay | force <quest number>'
-local QUESTS_ALONE={on=true,off=true,status=true,probe=true,record=true,replay=true}
 -- coop pvp (the PvP test, a test tool with no menu row, out of the usage line): on (needs pvp_spike=on and
 -- shared_enemies=off, as both run in the shared fight's job; the native part waits for a friend and a co-op save),
 -- off and status (the fight= line), which check nothing.
@@ -41,7 +32,6 @@ local PVP_WORDS={on=true,off=true,status=true}
 function Fight.new(o)
     local link,settings,native_tick,ask,coop_slot=o.link,o.settings,o.native_tick,o.ask,o.coop_slot
     local self={}
-    local force_asked=nil -- coop quests force: the number typed and when ({id=, at=}), until typed again.
     -- coop fight pilot (same-place enemies, stages 3a to 3c): status (the pilot= line, after asking the native part,
     -- which then logs its stats lines), probe, on (needs same_place=on), off (a kill switch: no other check), or test
     -- and how far the drawn side goes, test target (the game's force target once, on an enemy this side owns), test
@@ -110,43 +100,6 @@ function Fight.new(o)
         local ok,why=ask(line)()
         if not ok or sub~='status' then return ok,why end
         return true,link.fight() or 'no shared fight status yet'
-    end
-    function self.quests(sub,a,extra)
-        if extra~=nil or not (QUESTS_ALONE[sub or ''] and a==nil or sub=='force' and a~=nil) then
-            return false,QUESTS_USE
-        end
-        if sub=='force' then
-            local id=a:match('^%d+$') and tonumber(a)
-            if not id or id<1 or id>65535 then return false,QUESTS_USE end
-            local now=os.clock()
-            if not (force_asked and force_asked.id==id and now-force_asked.at<=10) then
-                force_asked={id=id,at=now}
-                return false,'coop quests force '..id..' makes the step that quest '..id..' holds for your own kill, '
-                    ..'or for a place the host\'s game could not read, where you stand now; the game may then unlock '
-                    ..'that quest\'s trophies: type it again within 10 s to go on'
-            end
-            force_asked=nil
-            return ask('quests force '..id)()
-        end
-        if sub=='off' then o.quests_auto_off() end
-        if sub~='off' and sub~='status' then
-            if not native_tick then return false,'the native tick is unavailable' end
-            if sub=='on' and not settings.shared_quests then
-                return false,'shared quests are off in coop-settings.txt (shared_quests=off)'
-            end
-            if sub~='on' then
-                local ok,why=coop_slot('coop quests')
-                if not ok then return false,why end
-            end
-        end
-        local line='quests '..sub
-        if (sub=='on' or sub=='probe' or sub=='record') and settings.quest_deny~='' then
-            line=line..' deny '..settings.quest_deny
-        end
-        local ok,why=ask(line)()
-        if not ok or sub~='status' then return ok,why end
-        return true,(link.quests() or 'no shared quests status yet')
-            ..' (the whole status follows in this log as quests_status lines)'
     end
     function self.pvp(sub,extra)
         if extra~=nil or not PVP_WORDS[sub or ''] then return false,PVP_USE end

@@ -3,7 +3,7 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop scene [emil|orcal|stop]: two scenes cut from the game, played through SB's own theater on the game thread, and
 -- Lily's talks (matrix13/quest/subtitles.lua, through talk(); coop scene lily is coop lily talk prologue,
--- commands/cut.lua).
+-- cut/scenes/commands.lua).
 -- emil: Emil's farewell, /Game/DLC_1/Art/Cinema/MV_DLC_Ending_E03, a 48 s level sequence of the first DLC's ending that
 -- no theater or table row plays: EVE and the drone at Emil's Wasteland spot, a blockout Emil, 15 cans, its own cameras,
 -- no sound. orcal: Orcal's monologue from the 2022 trailer, /Game/Cinematics/Trailer_2022/

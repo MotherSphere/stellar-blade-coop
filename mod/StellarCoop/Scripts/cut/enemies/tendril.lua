@@ -139,8 +139,8 @@ function Tendril.new(o)
         boss={shown='^<M_TendrilC[%w_]*>$',name='Tendril'},skipped='none of its clips is an entrance',
         prepare=prepare,alive={name='shows',run=watch}})
     local self={}
-    -- The words after coop tendril fight (commands/cut.lua hands them over): none spawns one (the co-op save check is
-    -- commands/cut.lua's), rows asks for the rows, reads them back and builds the Shows only.
+    -- The words after coop tendril fight (cut/enemies/commands.lua hands them over): none spawns one (the co-op save
+    -- check is cut/enemies/commands.lua's), rows asks for the rows, reads them back and builds the Shows only.
     function self.command(sub,extra)
         if extra~=nil or not (sub==nil or sub=='rows') then return false,USE end
         local busy=e.busy()

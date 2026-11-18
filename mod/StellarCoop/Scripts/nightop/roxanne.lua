@@ -63,7 +63,7 @@ Roxanne.watcher=require('core.picks').watcher
 -- log(text) writes an [NR] line; status() the native part's status text; ask(line) its request; paused() whether the
 -- game is paused or shows one of its screens (the UI kit's); title() whether the title screen is shown (main.lua's
 -- last puppet.world, optional); tell(build) a notice; start(level) coop nightop start <level> and shop() coop nightop
--- shop, through commands/nightop.lua (its co-op save and race checks; an error they raise is their refusal here);
+-- shop, through nightop/commands.lua (its co-op save and race checks; an error they raise is their refusal here);
 -- phase() the phase of nightop/run.lua's run, nil when none ('ask' while a host's run waits for the partner).
 function Roxanne.new(o)
     local log,status,ask,paused,tell=o.log,o.status,o.ask,o.paused,o.tell

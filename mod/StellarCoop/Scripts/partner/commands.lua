@@ -1,10 +1,9 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The ghost's console commands: coop puppet, basesuit, where, near, look, cns, loopback, record and replay, and coop
--- freeze, the photo pause alone. main.lua builds them with new(o) at each Lua load and merges them into its command
--- table. o: main.lua's puppet, native_tick (nil without the native part), ask (a line for the native part), look (the
--- table the ghost holds) and looks.
+-- The ghost's console commands: coop puppet, basesuit, where, near, look, cns, loopback, record and replay. main.lua
+-- builds them with new(o) at each Lua load and merges them into its command table. o: main.lua's puppet, native_tick
+-- (nil without the native part), ask (a line for the native part), look (the table the ghost holds) and looks.
 local Partner={}
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
@@ -40,16 +39,6 @@ function Partner.new(o)
         puppet.rebuild('look')
         return true,named..' '..state..' until the mod reloads (game start or Ctrl+R; coop-settings.txt unchanged); '
             ..'the ghost is built again.'
-    end
-    -- The photo pause alone (the solo tests): our pause tag held for 1 to 3600 s, or until off; the native part refuses
-    -- it off the pinned build and says why in the log.
-    function self.freeze(arg,extra)
-        local seconds=arg~='off' and whole(arg,3600)
-        if extra~=nil or not (arg=='off' or seconds and seconds>0) then
-            return false,'Use: coop freeze <1-3600 seconds> | off'
-        end
-        if not native_tick then return false,'the native tick is unavailable' end
-        return ask(seconds and 'freeze '..seconds or 'freeze off')()
     end
     -- coop record and coop replay: on (with the ghost on, which publishes her capture) or off.
     for _,name in ipairs({'record','replay'}) do

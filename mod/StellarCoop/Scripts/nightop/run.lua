@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- coop nightop: Night Operation's run on a co-op save (commands/nightop.lua checks the slot), on the game thread. Five
+-- coop nightop: Night Operation's run on a co-op save (nightop/commands.lua checks the slot), on the game thread. Five
 -- timed waves of the game's base monsters come at EVE where she stands, at one of four levels (nightop/waves.lua's
 -- W.LEVELS: the monsters a wave holds, the time limit, the shop points; the host's level in a co-op run, which his
 -- night line carries). coop challenge runs the challenges of nightop/challenges.lua the same way, each with its best

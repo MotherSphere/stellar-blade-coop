@@ -5,7 +5,8 @@
 -- (the native part then waits for a friend and a co-op save). status answers with the story= line and its counters
 -- (the native part's answer follows in the log). main.lua builds it with new(o) at each Lua load and merges it into its
 -- command table; its 250 ms loop asks the native part by itself for shared_story. o: main.lua's link, native_tick, ask
--- (a line for the native part) and scenes_auto_off(): coop scenes on or off cancels that ask.
+-- (a line for the native part) and scenes_auto_off(): coop scenes on or off cancels that ask. coop story [dump|find]
+-- (story/snapshot.lua, read only, any save); o.story: the story dump.
 local Scenes={}
 local USE='Use: coop scenes on | off | status'
 local WORDS={on=true,off=true,status=true}
@@ -19,6 +20,7 @@ function Scenes.new(o)
         if not ok or sub~='status' then return ok,why end
         return true,o.link.story() or 'no story together status yet'
     end
+    function self.story(sub,extra) return o.story.command(sub,extra) end
     return self
 end
 return Scenes

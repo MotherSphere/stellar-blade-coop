@@ -38,8 +38,8 @@
 --   (her goodbye; looked for every 0.5 s, the talk player waits for its end), 0.5 s after one of its screens closed,
 --   or AFTER s after the pick when neither showed. After the prologue talk (played, fallen back or failed): signal talked (the prologue's
 --   task's Complete), up to WAIT s for the prologue to complete, then signal acquire (quest/own.h, SB's acquire by ID)
---   and, once the quest unit holds it, coop mxiii (commands/cut.lua's: the co-op save check, the follow's guards, the
---   test pak, the mxiii rows, the travel). After the end talk: signal tell (M06's task), and On Time is complete. A
+--   and, once the quest unit holds it, coop mxiii (matrix13/commands.lua's: the co-op save check, the follow's guards,
+--   the test pak, the mxiii rows, the travel). After the end talk: signal tell (M06's task), and On Time is complete. A
 --   failed talk or a refused ask logs a STOP line and the flow goes on.
 -- - In Matrix XIII: the arrival talk once a Lua load (Lua memory only, nothing saved), ARRIVAL s after EVE's map turns
 --   to Matrix XIII's with On Time held and no screen shown, never during another talk; the M01 fallback (EVE there
@@ -159,7 +159,7 @@ end
 
 -- o: log (the [LY] lines), status() the native status text, ask(line) its request, mode() the link's mode ('none'
 -- when solo, nil before the link is ready), paused() whether the game is paused or shows one of its screens, travel()
--- coop mxiii (commands/cut.lua's: ok, message), paks (SB/Content/Paks, nil when unknown), read (files.read), talks
+-- coop mxiii (matrix13/commands.lua's: ok, message), paks (SB/Content/Paks, nil when unknown), read (files.read), talks
 -- (matrix13/quest/subtitles.lua's player), zones (matrix13/quest/zone_talks.lua's, or nil).
 function Lily.new(o)
     local log,status,ask,talks=o.log,o.status,o.ask,o.talks

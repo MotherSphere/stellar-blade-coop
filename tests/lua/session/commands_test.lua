@@ -1,13 +1,13 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- commands/session.lua over a fake link: coop host with a word hosts at once with it, ask added under public and
+-- session/commands.lua over a fake link: coop host with a word hosts at once with it, ask added under public and
 -- invitation while friends_ask=on; coop host alone opens the Create a session screen when it opens, else hosts as
 -- who_can_join says; any other word is refused. coop list public|friends asks for a search; coop list alone numbers
 -- the last list's rows, or searches the Public sessions when there is none; coop join <row> joins that row's lobby,
 -- a lobby id and a join code as before.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
-local Session=require('commands.session')
+local Session=require('session.commands')
 local Link=require('core.link')
 local asked={}
 local search,rows=nil,{} -- What link.list() says.
@@ -72,4 +72,4 @@ for _,bad in ipairs({'3','0','99'}) do
 end
 assert(s.join('109775241234567890') and asked[#asked]=='join 109775241234567890')
 assert(s.join('0cs-cbmh') and asked[#asked]=='join 0CS-CBMH' and s.join() and asked[#asked]=='join')
-print('commands_session_test ok')
+print('session_commands_test ok')

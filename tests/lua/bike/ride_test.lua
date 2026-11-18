@@ -9,8 +9,8 @@
 -- played again after an end or held in photo mode; three ends within 1 s, no weight, a refusal or no answer ending
 -- the ride, all read in the 250 ms pass (no frame reads the status); the 250 ms checks (combat stays, swimming and the
 -- gate not on end it); a new EVE, an error and bike=off; a
--- mesh write that fails keeps the file; the next Lua load's restore; coop bike status and tune; the Doro look refused
--- while she rides; idle_part (the part the capture leaves out) before the part, off the bike, on it and at bike=off;
+-- mesh write that fails keeps the file; the next Lua load's restore; coop bike status and tune; idle_part (the part
+-- the capture leaves out) before the part, off the bike, on it and at bike=off;
 -- the part's tag (one that does not hold makes no part), found at a new Lua load's first tick whatever the bike= word,
 -- removed by its first pass at bike=off; another mod's component on the same mesh never taken for it. The parked bike
 -- (a fake bike/stand.lua): made after the part, parked where a dismount by the key leaves her, at the last ground pose
@@ -824,17 +824,6 @@ local made=eve.list[#eve.list]
 assert(made~=theirs and made.ComponentTags[1] and eve.added==added+1,'Made beside it')
 assert(find('^bike part ready on EVE %(made in') and R5.idle_part(eve:GetAddress())==made:GetAddress(),last())
 assert(theirs.visible and not theirs.gone)
-
--- 15. The Doro look does not start while she rides (commands/race.lua).
-local looks=0
-local rides=true
-local Cmd=require('commands.race').new({puppet={doro=function() return true end},
-    doro={on=function() looks=looks+1; return true,'look on' end,off=function() return true,'look off' end},
-    coop_slot=function() return true end,race={command=function() return true end},riding=function() return rides end})
-ok,why=Cmd.race('look','on')
-assert(not ok and why=='EVE rides the bike: coop bike gets her off first' and looks==0,why)
-rides=false
-assert(Cmd.race('look','on') and looks==1)
 
 -- 16. The stand: one per EVE, made after her part under the same 2 s gate, hidden; a dismount by the key parks it
 -- where she stands, shown; a forced one at the last ground pose; none kept on a Movable base; no pose keeps the place

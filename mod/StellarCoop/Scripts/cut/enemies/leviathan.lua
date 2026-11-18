@@ -704,7 +704,7 @@ function Leviathan.new(o)
         local dist,up,scale=where(a,0,FAR),where(b,-FAR,FAR),c==nil and who.scale or num(c,0.01,100)
         if d==nil and dist and up and scale then return which,dist,up,scale end
     end
-    -- Is the free camera on (commands/cut.lua: turning it off is never refused).
+    -- Is the free camera on (cut/enemies/commands.lua: turning it off is never refused).
     function self.filming() return cam~=nil end
     -- One creature's console words. off removes the display whichever creature it shows.
     local function command(who,sub,a,b,c,d,e)
@@ -733,8 +733,8 @@ function Leviathan.new(o)
         end
         return false,who.USE
     end
-    -- Each creature's command, by its word (commands/cut.lua makes coop leviathan, coop gardener, coop tendril, coop
-    -- mann, coop nier, coop orcal and coop enya).
+    -- Each creature's command, by its word (cut/enemies/commands.lua makes coop leviathan, coop gardener, coop tendril,
+    -- coop mann, coop nier, coop orcal and coop enya).
     self.commands={}
     for name,who in pairs(Leviathan.CREATURES) do
         self.commands[name]=function(sub,a,b,c,d,e) return command(who,sub,a,b,c,d,e) end

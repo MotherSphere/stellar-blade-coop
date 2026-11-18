@@ -29,7 +29,7 @@
 -- the host and the pair can be revived (phase 7b1): the boss=0 read comes from the shared fight, which runs between
 -- them alone, so another guest's game never makes the call and nobody is told to revive her.
 -- coop revive test, the solo probe: refused while linked, it makes the same call at the death screen with life 3 to 5,
--- with the same lines (commands/session.lua runs it on a co-op save only).
+-- with the same lines (group/commands.lua runs it on a co-op save only).
 -- During a Night Operation run (o.night()), the run owns the revive (nightop/run.lua): the 3 s rule and its notices
 -- wait, our revive of her too (the run says it when its hold was full), and night_revive(by) makes the call with
 -- revive=on and coop revive test's guards, when her interact key was held next to our EVE ('friend', on her night line)

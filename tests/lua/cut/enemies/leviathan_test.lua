@@ -1043,7 +1043,7 @@ assert(ok and why=='Orcal prototype removed.' and newest().destroyed and stored=
 -- save, possession, console command, spawn or destroy call of their own (core/actors.lua's spawn and remove do both).
 for k,c in ipairs(spawn_classes) do assert(c=='/Script/Engine.Actor',k..': '..c) end
 assert(#spawn_classes==#spawned)
-for _,name in ipairs({'cut/enemies/leviathan','commands/cut'}) do
+for _,name in ipairs({'cut/enemies/leviathan','cut/enemies/commands'}) do
     local f=assert(io.open('mod/StellarCoop/Scripts/'..name..'.lua','rb'))
     local src=f:read('a')
     f:close()

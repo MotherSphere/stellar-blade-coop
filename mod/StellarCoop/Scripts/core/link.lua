@@ -20,18 +20,18 @@
 -- host's place and rules for the list's rows with where() and rules(), each sent only when it changed.
 -- coop-settings.txt's shared_enemies, fight_chars, guest_kills, enemy_hp_scale, enemy_balance_scale, kill_credit,
 -- same_place, aggro, same_spawns, enemy_extra, spawn_filter, bosses and boss_hp_scale (Phase 11, experimental) are
--- commands/fight.lua's coop fight (main.lua's loop asks it on or off); its photo_sync, photo_freeze_max, photo_ghost
+-- fight/commands.lua's coop fight (main.lua's loop asks it on or off); its photo_sync, photo_freeze_max, photo_ghost
 -- and photo_name_tag the synced photo mode's (main.lua, and the native part through coop-state.txt), photo_pause
 -- main.lua's own; its auto_coop_save the co-op saves' (save/saves.lua), which also read saves() here; its
--- shared_quests and quest_deny commands/fight.lua's coop quests (Phase 12, experimental); main.lua's loop, which asks
--- it on or off, reads quests() and quest_notes() here; its shared_world commands/world.lua's coop world (main.lua's
--- loop asks it on or off and reads world() here); its shared_story commands/scenes.lua's coop scenes (main.lua's loop
+-- shared_quests and quest_deny quest/commands.lua's coop quests (Phase 12, experimental); main.lua's loop, which asks
+-- it on or off, reads quests() and quest_notes() here; its shared_world world/commands.lua's coop world (main.lua's
+-- loop asks it on or off and reads world() here); its shared_story story/commands.lua's coop scenes (main.lua's loop
 -- asks it on or off and reads story() here); its revive and cutscene_wait group/group.lua's (the friend's
 -- revive, the wait during the host's cutscene); its follow_host and follow_key group/travel.lua's and main.lua's (the
 -- guest's travel to the camp nearest the host), which reads camps() here; its collide partner/puppet.lua's (the solid
 -- partner); its drift_keys the Doro races' driving (race/drive.lua); its mod_names the native part's (through
--- coop-state.txt: names=0 keeps the names of our .pak mods from the friend); its shortcut_load commands/cut.lua's
--- (coop shortcut load, a test tool with no menu row); its pvp_spike commands/fight.lua's (coop pvp, the PvP test, a
+-- coop-state.txt: names=0 keeps the names of our .pak mods from the friend); its shortcut_load save/commands.lua's
+-- (coop shortcut load, a test tool with no menu row); its pvp_spike fight/commands.lua's (coop pvp, the PvP test, a
 -- test tool with no menu row; main.lua's reload ends it when off); its sbo_lobby lobby/sbo.lua's (the SBO lobby in
 -- Xion, on by default, no menu row), which also reads sbo() here; its bike and bike_key bike/ride.lua's and
 -- main.lua's (the bike). The co-op menu (ui/kit/menu.lua) changes the file, one line at a time (D-UI4).
@@ -294,7 +294,7 @@ end
 -- auto_coop_save, aggro, photo_pause, follow_host, status_overlay) one of its words; photo_freeze_max a whole number of
 -- seconds; ui_scale one of percent; max_players a whole number from 2 to 4; the scales a number from 1 to 4, digits
 -- with a decimal point or none
--- (commands/fight.lua sends them in whole percents); quest_deny its text, letters, digits, '_', spaces and commas only,
+-- (fight/commands.lua sends them in whole percents); quest_deny its text, letters, digits, '_', spaces and commas only,
 -- at most 200 bytes (the native part's request limit; it names the entries that are no shared quest); drift_keys a list
 -- of Unreal key names (race/drive.lua reads them with IsInputKeyDown), at most 4, empty for none.
 local function setting(name,text)

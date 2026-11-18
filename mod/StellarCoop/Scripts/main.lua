@@ -77,7 +77,8 @@
 -- (cut/eve/chainspin.lua; left out of the usage line; on a co-op save only). coop off stops everything until the game
 -- restarts. An XInput pad, read by the native part, drives the co-op menu and the co-op saves' question: View held 1 s
 -- opens or closes the menu; D-pad Right held 1 s gets EVE on the bike or off it. The console commands' handlers are in
--- Scripts/commands/ (session, partner, nightop, race, fight and cut), all but coop ui and coop off, which stay here.
+-- each module's commands.lua (coop guide and coop keys in ui/kit/commands.lua), all but coop ui and coop off, which
+-- stay here.
 -- coop wear [<name>|off [hair|suit]] puts cut hairs and suits on your EVE, display only and on any save
 -- (cut/eve/wear.lua).
 -- coop scene [emil|orcal|stop] plays two cut scenes through the game's own theater (cut/scenes/scene.lua; a scene on a
@@ -89,13 +90,13 @@
 -- clip of the Cut category played once), on any save (cut/eve/emote.lua, through the native part's custom animation
 -- call).
 -- coop bike [status|tune [<name> <value>]] puts EVE on SB's own bike or takes her off it, as bike_key (F3 unless set)
--- and D-pad Right held 1 s do, on any save (commands/bike.lua, bike/ride.lua; its riding model, bike/model.lua, adapts
+-- and D-pad Right held 1 s do, on any save (bike/commands.lua, bike/ride.lua; its riding model, bike/model.lua, adapts
 -- Eve On Wheels by dCharisma1).
--- coop daynight [on|off|status|hour <h>], the day/night cycle's test words (sky/daynight.lua, commands/daynight.lua;
+-- coop daynight [on|off|status|hour <h>], the day/night cycle's test words (sky/daynight.lua, sky/commands.lua;
 -- left out of the usage line); daynight in coop-settings.txt or the co-op menu turns the cycle on or off.
 -- coop shortcut lists the cut Load Shortcut menu's developer saves, read from the game's paks by the native part, on
 -- any save (left out of the usage line); coop shortcut load <map> <1-4> writes one, without its achievement data, as
--- co-op slot 5's copy, only with shortcut_load=on and typed twice within 10 s (commands/cut.lua).
+-- co-op slot 5's copy, only with shortcut_load=on and typed twice within 10 s (save/commands.lua).
 -- coop devmenu [list|<row>], the rows of the game's developer cheat menu that still work, through the same Cheat
 -- request as coop chainspin (cut/menus/devmenu.lua; left out of the usage line; a row on a co-op save only; coop off
 -- runs its clear and lockswitch rows once more when a row ran, even before a Lua reload). coop devinfo
@@ -653,8 +654,9 @@ if link then
             end}})
     if settings.sbo_lobby and not off then sbo.on_load() end
 end
--- What the console commands in Scripts/commands/ take from here. group and travel are built later, with the Steam link
--- only, so they are read at each call; coop fight off and coop quests off set fight_auto and quests_auto to false.
+-- What the console commands (each module's commands.lua) take from here. group and travel are built later, with the
+-- Steam link only, so they are read at each call; coop fight off and coop quests off set fight_auto and quests_auto to
+-- false.
 local o={link=link,settings=settings,sbo=sbo,puppet=puppet,native_tick=native_tick,look=look,looks=looks,ask=ask,
     coop_slot=coop_slot,nightop=nightop,night=night,race=race,doro=doro,recruiter=recruiter,leviathan=leviathan,
     lion=lion,gardener=gardener,tendril=tendril,mxiii=mxiii,group=function() return group end,
@@ -722,7 +724,7 @@ local others=link and require('bike.others').new({log=function(m) print('[Stella
 -- The capture leaves the bike's part out while EVE does not ride: hidden, it would take one of the ghost's 16 parts.
 capture.leave_out(bike.idle_part)
 -- The day/night cycle (sky/daynight.lua): the request for the native part's env writer (sky/sky.h), decided in the
--- 250 ms loop below from the map, the setting and SB's state; coop daynight reads and pins it (commands/daynight.lua).
+-- 250 ms loop below from the map, the setting and SB's state; coop daynight reads and pins it (sky/commands.lua).
 -- The lobby rule is Xion's training room only: a hall lobby has its own row.
 -- coop-sky.txt keeps the originals of the world's lights, so a Lua reload does not take the dimmed ones for them.
 o.daynight=require('sky.daynight').new({log=log,ask=function(line) return ask(line)() end,
@@ -770,7 +772,7 @@ o.story=require('story.snapshot').new({log=function(m) print('[StellarCoop][ST] 
     folder=folder})
 -- coop gift (cut/menus/mailbox.lua), logging [GF] lines: SB's cut mailbox as a co-op gift box, with the Steam link
 -- only. Its tick runs in the 250 ms loop below, her gift lines come through inbox(), and coop gift runs on a co-op save
--- only (commands/cut.lua). Its FName and pause rules are the bike's paid fetch's (fname, logic_paused above).
+-- only (cut/menus/commands.lua). Its FName and pause rules are the bike's paid fetch's (fname, logic_paused above).
 local mailbox=link and require('cut.menus.mailbox').new({
     log=function(m) print('[StellarCoop][GF] '..tostring(m)..'\n') end,
     say=function(text) say(text) end,status=function() return link.status() end,
@@ -894,10 +896,12 @@ local commands={
         return ask('off')()
     end,
 }
--- The other commands, from Scripts/commands/.
-for _,file in ipairs({'session','partner','nightop','race','fight','cut','guide','story','world','scenes','bike','keys',
-        'daynight'}) do
-    for name,handler in pairs(require('commands.'..file).new(o)) do
+-- The other commands, from each module's commands.lua and ui/kit/commands.lua.
+for _,file in ipairs({'session.commands','lobby.commands','group.commands','save.commands','partner.commands',
+        'photo.commands','nightop.commands','race.commands','fight.commands','quest.commands',
+        'cut.enemies.commands','cut.eve.commands','cut.scenes.commands','cut.menus.commands','matrix13.commands',
+        'ui.kit.commands','story.commands','world.commands','bike.commands','sky.commands'}) do
+    for name,handler in pairs(require(file).new(o)) do
         assert(commands[name]==nil,'coop '..name..' is defined twice')
         commands[name]=handler
     end
@@ -923,7 +927,7 @@ local guard_text=require('nightop.guard_text').new({log=function(m) print('[Stel
 -- (matrix13/quest/subtitles.lua) play through coop scene's rows, ticked each frame below.
 local function lily_log(m) print('[StellarCoop][LY] '..tostring(m)..'\n') end
 local talks=require('matrix13.quest.subtitles').new({log=lily_log,scene=scene})
--- Mila's body (matrix13/world/mila.lua): placed by the zone talks, posed by coop mxiii mila (commands/cut.lua).
+-- Mila's body (matrix13/world/mila.lua): placed by the zone talks, posed by coop mxiii mila (matrix13/commands.lua).
 o.mila=require('matrix13.world.mila').new({log=lily_log,
     read=function(name) return link and link.read_file(name) end,
     write=function(name,text) if link then return link.write_file(name,text) end end})
@@ -1023,9 +1027,9 @@ if settings then
     o.sessions=sessions
     menu=require('ui.kit.menu').new({kit=kit,link=link,settings=settings,look=look,puppet=puppet,run=run,log=log,
         version=VERSION,chat=box,code=code_box,guide=guide,sessions=sessions})
-    o.menu=menu -- For coop keys reset (commands/keys.lua).
+    o.menu=menu -- For coop keys reset (ui/kit/commands.lua).
     -- The Create a session screen (session/ui/create.lua), which Host a session and coop host alone open
-    -- (commands/session.lua reads o.create): the settings in effect, written back as the Options page writes them;
+    -- (session/commands.lua reads o.create): the settings in effect, written back as the Options page writes them;
     -- Start hosts with its Who can join word through coop host.
     local Options=require('ui.kit.model')
     create=require('session.ui.create').new({kit=kit,words=words,log=ui_log,

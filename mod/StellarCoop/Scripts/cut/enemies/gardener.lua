@@ -44,8 +44,8 @@ function Gardener.new(o)
         skipped='off by default: a clip on its mesh would replace the anim instance SB plays its skills on; coop '
             ..'gardener fight intro plays Mon_Gardener_C_Appear on a display copy before the spawn'})
     local self={}
-    -- The words after coop gardener fight (commands/cut.lua hands them over): none, intro, half or skulling spawn one
-    -- (the co-op save check is commands/cut.lua's), rows asks and reads back the rows only.
+    -- The words after coop gardener fight (cut/enemies/commands.lua hands them over): none, intro, half or skulling
+    -- spawn one (the co-op save check is cut/enemies/commands.lua's), rows asks and reads back the rows only.
     function self.command(sub,extra)
         if extra~=nil or not (sub==nil or sub=='intro' or sub=='rows' or IDS[sub]) then return false,USE end
         local busy=e.busy()
