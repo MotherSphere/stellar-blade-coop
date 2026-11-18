@@ -55,6 +55,7 @@ left. The pages still name build 24463856 where a fact was read on that build, s
 | --- | --- |
 | [Building](dev/building.md) | Toolchain, `tools/install.py`, `tools/wine_smoke.py`, the reproducible build, releases, repository layout |
 | [Structure](dev/structure.md) | How the code is organised into modules and the rules that keep them apart |
+| [Migration](dev/migration.md) | Where each file of the November 2026 restructure went, for forks |
 | [Tests](dev/tests.md) | The Lua, C++ and Python tests and what each one checks |
 | [How it works](internals/README.md) | Index of the internals pages, and where each section of the old single page went |
 | [Architecture](internals/architecture.md) | The Lua and native parts, the Lua scripts, the files they share, the modules and their isolation, the co-op UI's input, loopback, record and replay |

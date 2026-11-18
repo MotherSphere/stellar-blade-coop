@@ -266,7 +266,7 @@ version.txt                 the last released version, bumped by Release Please
 ```
 
 [Structure](structure.md) gives the rules that keep the modules apart and the steps to add one. Forks that change files
-from before the November 2026 restructure find each old path in the migration note, docs/dev/migration.md.
+from before the November 2026 restructure find each old path in the migration note, [Migration](migration.md).
 
 ### Native sources
 
