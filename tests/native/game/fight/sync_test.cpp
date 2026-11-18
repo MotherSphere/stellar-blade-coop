@@ -5,7 +5,7 @@
 // host's announces, values, claims and death rules, and its checks of every claim (R33); the guest's pairing, claims
 // (R35), corrections and death rules; the crowd control told and mirrored both ways; the world fence and the clearing
 // on both sides; two fake worlds linked through a delayed, lossy line until every enemy died once on each side; and
-// record and replay. The pilot's show lines are only told apart here (fight/pilot_test.cpp parses them); stage 3b's
+// record and replay. The pilot's show lines are only told apart here (game/pilot_test.cpp parses them); stage 3b's
 // aggro, own and own-no lines round-trip here, and only the right side takes each (the owners are fight/engine.h's).
 // Stage 5: the boss table, the bstart and phase lines and a summon's spawn line, and the guest's checks of them (R33).
 #include "game/fight/sync.h"
