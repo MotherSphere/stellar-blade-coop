@@ -424,6 +424,19 @@ function GunMode.new(env)
         end
     end
 
+    -- The rifle carried: a custom moving stance with no force whose OverrideStanceAnim is the carry animation set
+    -- (gunmode/data.lua fills it); off while she aims, so the aim stance's own set plays.
+    local function carry(p,on)
+        if on and s.ovr_row and not s.ovr then
+            s.ovr=pcall(function()
+                p:ActiveCustomMovingStanceData({OverrideStanceAnim=FName(s.ovr_row),NormalAnimRangeDegree=180.0,ApplySpeedForIdleAnimScale=1.0})
+            end)
+        elseif not on and s.ovr then
+            pcall(function() p:DeactiveCustomMovingStanceData() end)
+            s.ovr=false
+        end
+    end
+
     local function disable(why)
         if not s.on then return end
         s.on=false
@@ -435,6 +448,9 @@ function GunMode.new(env)
             pcall(function() f.cm.bOrientRotationToMovement=f.orient; f.cm.bUseControllerDesiredRotation=f.desired end)
             s.facing=nil
         end
+        local pw=g.pawn()
+        if pw then carry(pw,false) end
+        s.ovr_row=nil
         show_others()
         show_drone()
         pcall(ammo.stop)
@@ -458,6 +474,9 @@ function GunMode.new(env)
         end
         data.opts.bs=set.bs or (s.pak and cfg.pak_bs or nil)
         data.opts.pak=s.pak and cfg.pak or nil
+        data.opts.carry_ovr=s.pak and (set.carry_ovr or 'auto') or nil
+        data.opts.carry_spare=set.carry_spare
+        data.opts.carry_idle_type=set.carry_idle_type
         stance=s.pak and single or posed
         if not data.take() then g.log('off: SB\'s rows could not be taken (see above)'); return end
         aim.setup()
@@ -488,6 +507,75 @@ function GunMode.new(env)
             pcall(stance.stop)
             g.log('off: Luke\'s stance did not start ('..tostring(err)..')')
             return
+        end
+        if set.trace and not s.funcs_logged then -- (testing) the pawn's and its anim instance's stance / anim set functions
+            s.funcs_logged=true
+            pcall(function()
+                local function scan(obj,label)
+                    local names={}
+                    local cls=obj:GetClass()
+                    local depth=0
+                    while cls and cls:IsValid() and depth<8 do
+                        pcall(function() cls:ForEachFunction(function(f)
+                            local n=f:GetFName():ToString()
+                            local l=n:lower()
+                            if l:find('stance') or l:find('animset') or l:find('anim_set') or l:find('refresh') then names[#names+1]=n end
+                        end) end)
+                        cls=cls:GetSuperStruct(); depth=depth+1
+                    end
+                    g.log('funcs '..label..': '..table.concat(names,' '))
+                end
+                scan(p,'pawn')
+                local function params(fname)
+                    local cls=p:GetClass(); local f
+                    local depth=0
+                    while cls and cls:IsValid() and depth<8 and not f do
+                        pcall(function() cls:ForEachFunction(function(fn) if fn:GetFName():ToString()==fname then f=fn end end) end)
+                        cls=cls:GetSuperStruct(); depth=depth+1
+                    end
+                    if not f then g.log('params '..fname..': not found'); return end
+                    local out={}
+                    pcall(function() f:ForEachProperty(function(pr)
+                        local t=g.try(function() return pr:GetClass():GetFName():ToString() end) or '?'
+                        local extra=''
+                        pcall(function() local st=pr:GetStruct(); if st then extra=' '..st:GetFName():ToString() end end)
+                        out[#out+1]=pr:GetFName():ToString()..':'..t..extra
+                    end) end)
+                    g.log('params '..fname..': '..table.concat(out,', '))
+                    return f
+                end
+                params('ActiveCustomMovingStanceData'); params('DeactiveCustomMovingStanceData'); params('IsActiveCustomMovingStanceData')
+                -- the struct's fields
+                pcall(function()
+                    local st
+                    for _,n in ipairs({'/Script/SB.SBCharMovingStanceData','/Script/SB.SBCharacterMovingStanceData'}) do
+                        local o=StaticFindObject(n); if o and o:IsValid() then st=st or o end
+                    end
+                    if st and st:IsValid() then
+                        local out={}
+                        local function walk(stt,pre,d)
+                            stt:ForEachProperty(function(pr)
+                                local t=g.try(function() return pr:GetClass():GetFName():ToString() end) or '?'
+                                local inner
+                                pcall(function() inner=pr:GetStruct() end)
+                                local iname=inner and (g.try(function() return inner:GetFName():ToString() end) or '') or ''
+                                out[#out+1]=pre..pr:GetFName():ToString()..':'..t..(iname~='' and ('<'..iname..'>') or '')
+                                if inner and d<2 then pcall(walk,inner,pre..pr:GetFName():ToString()..'.',d+1) end
+                            end)
+                        end
+                        walk(st,'',0)
+                        g.log('struct '..st:GetFullName()..': '..table.concat(out,', '))
+                    else g.log('struct: not found by guessed names') end
+                end)
+                local ai=g.try(function() return p.Mesh:GetAnimInstance() end)
+                if ai then scan(ai,'anim') end
+            end)
+        end
+        local co=data.opts.carry_ovr
+        s.ovr_row=(co=='auto' and data.carry_ovr_row) or (co and co~='auto' and co~='off' and co) or nil
+        if s.ovr_row then
+            carry(p,true)
+            g.log('carry override '..s.ovr_row..': '..(s.ovr and 'on' or 'failed')..', active='..tostring(g.try(function() return p:IsActiveCustomMovingStanceData() end)))
         end
         s.on,s.shots,s.next_shot,s.zoom_held,s.held_since=true,0,0,false,nil
         pcall(hide_others,p,true)
@@ -635,6 +723,7 @@ function GunMode.new(env)
         if not set.native then face(p,s.zoom_held) end
         -- Firing mode: fire once the rifle has had a moment to come up (Luke's raise eases in over ~12 frames).
         if s.zoom_held then s.held_since=s.held_since or now else s.held_since=nil end
+        if s.ovr_row then carry(p,not s.zoom_held) end
         if not set.native and inp.fire and s.held_since and now-s.held_since>=cfg.raise_time then shoot(p,now) end
     end
 
