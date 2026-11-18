@@ -14,7 +14,16 @@ local Config={}
 Config.DEFAULTS={
     key='G',
     pad_tap=0.4,
-    fire_interval=0.11, -- The NIKKE shot skill's own cool time.
+    fire_interval=0.045, -- The NIKKE shot skill's cool time while the rifle is out (SB ships 0.11 s).
+    -- The rifle's round (gunmode/ammo.lua): its name on the reticle's round slot, the magazine, the reload.
+    round_name='NIKKE RAPID',reload_text='RELOADING',empty_text='NO AMMO',round_color={0.35,0.85,1.0},
+    reload_color={1.0,0.62,0.15},
+    mag_size=60,spare_mags=5,reload_time=1.6,reload_delay=1.0,
+    -- The reload's sounds (the NIKKE squad's), each at this share of the reload time.
+    reload_sounds={{'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_1_Cue.P_Eve_GunNikke_Reload_1_Cue',0.0},
+        {'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_2_Cue.P_Eve_GunNikke_Reload_2_Cue',0.6},
+        {'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_3_Cue.P_Eve_GunNikke_Reload_3_Cue',0.85}},
+    aim_fov=66,fov_ease=0.2, -- Firing mode on the game's aim: its camera's field of view (SB's is 45), eased in.
     raise_time=0.2, -- Firing mode: the rifle's time to come up before the first shot.
     cam_offset={X=0,Y=60,Z=0}, -- CameraBoom.CustomOffset while the rifle is out: EVE left of centre.
     -- Firing mode (RMB / LT held): CameraBoom.CustomOffset this (X: toward her, so the camera comes in over her right
@@ -84,6 +93,8 @@ function Config.parse(text)
         local k,why=Config.key(v)
         if k then out.key=k else bad[#bad+1]='gun_key: '..why end
     end
+    v=get(text,'gun_probe')
+    if v then out.probe=v:lower()=='on' end
     v=get(text,'gun_upper')
     if v then
         local l=v:lower()

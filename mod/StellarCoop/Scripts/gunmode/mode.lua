@@ -20,6 +20,8 @@ local Input=require('gunmode.input')
 local Stance=require('gunmode.stance')
 local Laser=require('gunmode.laser')
 local Data=require('gunmode.data')
+local Probe=require('gunmode.probe')
+local Ammo=require('gunmode.ammo')
 
 local GunMode={}
 
@@ -69,12 +71,33 @@ function GunMode.new(env)
         local p=g.try(function() return pc.Pawn end)
         if g.valid(p) then return p end
     end
-    local aim,data=Aim.new(g),Data.new(g,set.native,{speed=cfg.native_speed,upper=set.upper and 'P_Eve_GunNikke' or nil})
+    local aim,data=Aim.new(g),Data.new(g,set.native,{speed=cfg.native_speed,upper=set.upper and 'P_Eve_GunNikke' or nil,cool=cfg.fire_interval})
     local stance=Stance.new(Laser)
+    local probe=set.probe and Probe.new(g)
     local keys=Input.state()
     local self={}
     local s={hidden={},followed={},on=false,pause=0,next_shot=0,shots=0,zoom=0,zoom_held=false,target=nil,cam=nil,mask=nil,
         toggle_at=-1,hooked=false,errors=0}
+
+    -- The reload: the NIKKE squad's reload animation on the rifle stance, and its sounds at their times.
+    local function sound(path)
+        local ok,err=pcall(function()
+            local cue=LoadAsset(path)
+            assert(cue,'no '..path)
+            StaticFindObject('/Script/Engine.Default__GameplayStatics'):PlaySound2D(g.pawn(),cue,1.0,1.0,0.0,nil,nil,false)
+        end)
+        if not s.sound_logged then s.sound_logged=true; g.log('reload sound: '..(ok and 'played' or tostring(err))) end
+    end
+    local function on_reload(on,duration)
+        local ok=stance.reload(on,duration)
+        if on then
+            s.sounds={}
+            local now=os.clock()
+            for _,e in ipairs(cfg.reload_sounds) do s.sounds[#s.sounds+1]={at=now+e[2]*duration,path=e[1]} end
+            if not s.reload_logged then s.reload_logged=true; g.log('reload animation: '..(ok and 'playing' or 'not found')) end
+        else s.sounds=nil end
+    end
+    local ammo=Ammo.new(g,cfg,function(v) data.cool(v) end,on_reload)
 
     local function fire_row(row)
         local lib=StaticFindObject(LIB)
@@ -370,6 +393,20 @@ function GunMode.new(env)
         end
     end
 
+    -- Firing mode on the game's aim: its camera's field of view eased to cfg.aim_fov (the game's 45 shows her from the
+    -- chest up), held by the camera manager's FOV lock and unlocked (0) when the aim ends.
+    local function fov(pc,aiming)
+        if aiming then
+            local cm=g.try(function() return pc.PlayerCameraManager end)
+            if not s.fov then s.fov=g.try(function() return cm:GetFOVAngle() end) or cfg.aim_fov end
+            s.fov=GunMode.ease(s.fov,cfg.aim_fov,cfg.fov_ease)
+            if pcall(function() pc:FOV(s.fov) end) then s.fov_locked=true end
+        elseif s.fov_locked or s.fov then
+            pcall(function() pc:FOV(0) end)
+            s.fov_locked,s.fov=false,nil
+        end
+    end
+
     local function disable(why)
         if not s.on then return end
         s.on=false
@@ -383,6 +420,9 @@ function GunMode.new(env)
         end
         show_others()
         show_drone()
+        pcall(ammo.stop)
+        local pc=g.pc()
+        if pc then pcall(fov,pc,false) end
         if s.native_taken then pcall(data.put_back); s.native_taken=false; aim.row=nil end
         g.log('off ('..why..'), '..s.shots..' shots')
     end
@@ -398,7 +438,8 @@ function GunMode.new(env)
         local ok,err=pcall(function() s.mask=mask() end)
         if not ok then g.log('off: the input mask failed ('..tostring(err)..')'); return end
         ok,err=pcall(function()
-            s.rifle=stance.start(pc,function() return s.zoom_held end,function() return s.target end,false,
+            s.rifle=stance.start(pc,function() return s.zoom_held end,function() return s.target end,
+                function() return s.air_aim==true end,
                 0,false,false,set.native and set.upper,set.native and not set.upper)
         end)
         if not ok then
@@ -411,6 +452,7 @@ function GunMode.new(env)
         pcall(hide_others,p,true)
         s.hide_at=os.clock()
         if set.native then pcall(hide_drone,p); s.native_taken=true end
+        pcall(ammo.sync)
         g.log('on ('..why..')')
     end
 
@@ -443,6 +485,7 @@ function GunMode.new(env)
         if s.give_back then s.give_back=false; pcall(data.put_back); aim.row=nil end
         if s.stop_stance then s.stop_stance=false; pcall(stance.stop) end
         if s.show_back then s.show_back=false; show_others() end
+        if s.ammo_reset then s.ammo_reset=false; pcall(ammo.stop); pcall(ammo.refill) end
         local pc=g.pc(); if not pc then return end
         if g.try(function() return StaticFindObject('/Script/Engine.Default__GameplayStatics'):IsGamePaused(pc) end) then
             return
@@ -454,15 +497,59 @@ function GunMode.new(env)
         local p=g.pawn()
         if not p then disable('no EVE'); return end
         if set.native then -- Firing mode is the game's own aim: held while EVE is in it.
-            s.zoom_held=g.try(function() return p.bTPSMode end)==true
+            -- Firing mode: the game's aim, or a jump out of it with the aim key still held (the game drops its aim
+            -- stance in the air and takes it up again only at a new press): from the jump until the key is let go the
+            -- rifle stays up and gun mode fires the NIKKE shot itself (shoot), on the ground again too.
+            local tps=g.try(function() return p.bTPSMode end)==true
+            if tps then s.aim_seen=now end
+            local key_held=down(set.aim_key) or down('Gamepad_LeftTrigger')
+            local falling=g.try(function() return p.CharacterMovement:IsFalling() end)==true
+            s.air_aim=not tps and key_held and s.aim_seen~=nil and (s.air_aim or (falling and now-s.aim_seen<1))
+            s.zoom_held=tps or s.air_aim
             if now-(s.probe_at or 0)>=1.0 then
                 s.probe_at=now
                 local function rd(f) local ok,v=pcall(f); return ok and tostring(v) or '?' end
-                local line=('native: aim %s mode %s stance %s bullet %s fire %s'):format(rd(function() return p.bTPSMode end),
+                local cam=''
+                pcall(function()
+                    local b=p.CameraBoom
+                    local cm=pc.PlayerCameraManager
+                    local cl,el=cm:GetCameraLocation(),p:K2_GetActorLocation()
+                    local d=math.sqrt((cl.X-el.X)^2+(cl.Y-el.Y)^2+(cl.Z-el.Z)^2)
+                    cam=(' cam: arm %.0f socket (%.0f,%.0f,%.0f) target (%.0f,%.0f,%.0f) custom (%.0f,%.0f,%.0f) dist %.0f fov %.0f')
+                        :format(b.TargetArmLength,b.SocketOffset.X,b.SocketOffset.Y,b.SocketOffset.Z,b.TargetOffset.X,
+                        b.TargetOffset.Y,b.TargetOffset.Z,b.CustomOffset.X,b.CustomOffset.Y,b.CustomOffset.Z,d,
+                        cm:GetFOVAngle())
+                end)
+                local line=('native: aim %s mode %s stance %s bullet %s fire %s'..cam):format(rd(function() return p.bTPSMode end),
                     rd(function() return p.TPSModeType end),rd(function() return p:GetCurrentStanceName():ToString() end),
                     rd(function() return p.CurrentBulletItemAlias:ToString() end),tostring(inp.fire))
                 if line~=s.probe_last then s.probe_last=line; g.log(line) end
             end
+            pcall(fov,pc,s.zoom_held)
+            -- Jumping in firing mode: the game's aim takes no jump input, so a press of the jump key (Space / pad A)
+            -- makes her jump (her movement's jump speed, launched); the aim stance stays through the jump (gunmode/data.lua).
+            local jump=down('SpaceBar') or down('Gamepad_FaceButton_Bottom')
+            if jump and not s.jump_down and s.zoom_held then
+                -- SB's movement refuses ACharacter::Jump in its aim: the jump's own launch instead, on the ground only.
+                local ok,err=pcall(function()
+                    local cm=p.CharacterMovement
+                    if cm:IsFalling() then return end
+                    local z=cm.JumpZVelocity
+                    if not z or z<=0 then z=700 end
+                    p:LaunchCharacter({X=0,Y=0,Z=z},false,true)
+                end)
+                if not s.jump_logged then s.jump_logged=true; g.log('jump in the aim: '..(ok and 'done' or tostring(err))) end
+            end
+            s.jump_down=jump
+            if s.sounds then
+                for i=#s.sounds,1,-1 do
+                    if now>=s.sounds[i].at then sound(s.sounds[i].path); table.remove(s.sounds,i) end
+                end
+            end
+            if s.air_aim and inp.fire and ammo.left>0 and not ammo.reload_until then pcall(shoot,p,now) end
+            local ok_a,err_a=pcall(ammo.tick,s.zoom_held,inp.fire,now)
+            if not ok_a and not s.ammo_err then s.ammo_err=true; g.log('ammo: '..tostring(err_a)) end
+            if probe then pcall(probe.tick,pc,p,s.zoom_held,inp.fire,now) end
         elseif set.zoom_toggle then
             if inp.zoom_press then s.zoom_held=not s.zoom_held end
         else s.zoom_held=inp.zoom end
@@ -515,6 +602,8 @@ function GunMode.new(env)
                 s.on=false
                 if s.mask then pcall(s.mask); s.mask=nil end
                 s.cam,s.zoom=nil,0
+                s.fov,s.fov_locked=nil,false
+                s.ammo_reset=true
                 s.stop_stance=true
                 s.show_back=true
             end

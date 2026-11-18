@@ -1,81 +1,82 @@
 # Gun mode
 
-Gun mode puts EVE in the NIKKE DLC's rifle mode outside its missions, on any save, as a standing third-person
-shooter. It is experimental: it has been played on one PC only, not yet between two players.
+Gun mode gives EVE the NIKKE DLC's rifle outside its missions, on any save, as a third-person shooter. It is
+experimental: it has been played on one PC only, not yet between two players.
 
 ## What you need
 
-Gun mode runs on SBO alone: no Survival Protocol and no data pak. While it is on, it borrows a few of the game's own
-NIKKE mission rows (`EventActorEffectTable`) and points them at the NIKKE stage's effects, it starts the NIKKE shot
-from a spare effect (`EffectTable`), and it lets the shot fire without checking the equipped bullet
-(`SkillCommandTable`, `SkillActiveStepTable`). Everything it changed goes back at the next map load, so the NIKKE
-missions find their rows as shipped.
+Gun mode runs on SBO alone, with no paks. While it is on, it changes a few fields of the game's own data tables in
+memory. Everything it changed goes back when the rifle is put away or at the next map load, so the NIKKE missions and
+the drone find their rows as shipped:
 
-One pak is optional:
-
-| Pak | What it adds | Without it |
-| --- | --- | --- |
-| `zNikkeGunStand_P` | The standing animations: EVE's own legs and hips with a rifle upper body, the aim offset, the shot's recoil | Gun mode runs with the NIKKE kneel only |
-
-It is built on your PC from the game's files, so it does not come with the mod ([Building the paks](#building-the-paks)).
-A Survival Protocol pak built with gun mode's rows (`NGM_*`) is still used when gun mode cannot borrow the game's rows,
-and only that pak makes `gun_real_ammo` work.
+- `EventActorEffectTable`, `EffectTable`: the NIKKE shot, started from a borrowed row.
+- `SkillCommandTable`: the drone's fire commands start the NIKKE shot.
+- `SkillTable`: its cool time (the rate of fire).
+- `ProjectileTable`: the round leaves the rifle's muzzle and goes to the crosshair with no spread.
+- `CharacterStanceTable`: the aim stance is faster, and a jump does not end it.
 
 ## Keys
 
 | Key | Pad | What it does |
 | --- | --- | --- |
-| G (`gun_key`) | A tap of D-pad Right | Gun mode on or off. Ctrl+G works too, so it can be left while aiming. A hold of D-pad Right is the bike's |
-| LMB | R2 | Standing: full auto at the crosshair |
-| Ctrl+LMB | L2+R2 | Crouched: aim and fire |
-| Caps Lock, Y | R3 | Crouch into the NIKKE cover kneel, or stand up again |
-| Shift | Circle | Roll: the rifle is lifted for EVE's own dodge, then comes back |
+| G (`gun_key`) | A tap of D-pad Right | Rifle out or away. A hold of D-pad Right is the bike's |
+| RMB (held) | LT (held) | Firing mode: the camera comes over her shoulder, the laser sight and the reticle come up |
+| LMB | RT | In firing mode: full auto |
+| Space | A | In firing mode: jump, still firing |
 
-Gun mode never turns on in a menu or on the pause screen. A new map, a death or a camp warp ends it.
+With the rifle out and no button held, EVE moves as usual with luke77's rifle carry. The sword's attacks are off
+until the rifle is put away. A new map, a death or a camp warp puts the rifle away.
 
-## Standing
+## Firing mode
 
-Standing, the camera follows the mouse or the right stick over EVE's shoulder. Her arms carry the rifle along the
-camera, up and down included, and a laser sight runs from the muzzle to where the rounds go. Every round flies to the
-point under the screen-centre crosshair. The main HUD (health, skills, enemy info) stays on screen.
+Firing mode is the game's own drone aim, with these changes:
 
-The posed arms and the rifle you see are drawn for your own camera only. A co-op partner sees EVE's standing
-animation with the game's own rifle.
+- **Pose:** her upper body takes luke77's rifle aim on her normal standing spine.
+- **Camera:** the field of view is 66 (the game's aim uses 45), so her hips and the rifle stay in frame.
+- **Movement:** she runs, strafes and backpedals at the aim stance's speed, times 1.4.
+- **Rounds:** every round is the NIKKE shot, whatever drone round is selected, and spends no drone ammo. Each round
+  flies from the muzzle to the point under the reticle.
 
-## Crouched
+A jump drops the game's aim stance in the air. Gun mode keeps the rifle up, keeps her turned to the camera and fires
+the NIKKE shot itself until the aim button is let go, after landing as well. Press RMB / LT again to get the game's
+strafing aim back.
 
-Crouched is the NIKKE missions' own mode: the cover kneel, the fixed camera, Ctrl / L2 to aim and the NIKKE guide
-laser while aiming.
+The posed body and the rifle you see are drawn for your own camera only.
+
+## Rounds
+
+The rifle fires NIKKE RAPID rounds: about 20 a second.
+
+| | |
+| --- | --- |
+| Magazine | 60 rounds |
+| Spare magazines | 5 |
+| Reload | 1.6 s, the NIKKE squad's reload animation and sounds |
+
+The magazine reloads when it runs dry, and also a second after the rifle is lowered with a part-spent magazine. No
+round fires while it reloads. With the magazine and every spare empty, the reticle reads NO AMMO. A new map, a death
+or a camp warp gives full magazines again.
+
+Two HUD elements show the rounds:
+
+- **Bottom left**, beside the D-pad Right slot, while the rifle is out: `rounds | magazines`.
+- **Under the reticle**, in firing mode: the round's name (RELOADING while reloading) and the rounds in the magazine.
 
 ## coop gun
 
 | Command | What it does |
 | --- | --- |
-| `coop gun` | Gun mode on or off, as G does |
-| `coop gun status` | On or off, standing or crouched, the key, real ammo, the pose, and whether its paks were found |
+| `coop gun` | Rifle out or away, as G does |
+| `coop gun status` | On or off, firing mode or not, the key, the rounds fired |
 
 ## Settings
 
-Gun mode reads five lines of `coop-settings.txt` itself:
+Gun mode reads these lines of `coop-settings.txt` itself:
 
 | Line | Values | Default |
 | --- | --- | --- |
 | `gun_mode` | `on`, `off` (no key, no hook, nothing) | `on` |
 | `gun_key` | One letter A to Z, or F1 to F12 but F10 | `G` |
-| `gun_pose` | `on`: standing with the posed arms and the muzzle laser (experimental); `off`: the stance's own animation | `off` |
-| `gun_fire_effect` | `on`: the standing shot, started through an `EffectTable` row; `off`: `EffectTable` is left alone and only the crouched aim fires | `on` |
-| `gun_real_ammo` | `on`: each shot spends one NIKKE round and gun mode ends when the bag is empty; `off`: unlimited | `off` |
-
-`gun_real_ammo=on` needs the real-ammo rows (`NGM_AE_RealAmmo` and its family) of a Survival Protocol pak built with
-gun mode's patches.
-
-## Building the paks
-
-[`tools/gunmode/`](../tools/gunmode/README.md) has the scripts: the Blender retarget and export of the standing
-animations, their Unreal 4.26 import, the pak builds, and the Ghidra scripts used to find how a NIKKE stage
-starts. The table patches the Survival Protocol rebuild applies are in `data/gunmode/patches/`.
-
-## Credits
-
-Gun mode by SchizoEffective. The standing rifle pose and the muzzle laser are luke77's RifleStance. The NIKKE stage
-research used MotherSphere's Stellar Blade Ghidra project.
+| `gun_aim_key` | The UE key name firing mode moves to | `RightMouseButton` |
+| `gun_zoom` | `hold`, `toggle` | `hold` |
+| `gun_probe` | `on`: development logging | off |

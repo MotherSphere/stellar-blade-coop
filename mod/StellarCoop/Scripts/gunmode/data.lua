@@ -105,6 +105,13 @@ function Data.new(g,native,opts)
                 saved[#saved+1]={fire,'ActionValue1',was}
                 fire.ActionValue1=Data.FIRE_SKILL
             end
+            -- The NIKKE shot's cool time: the rifle's rate of fire (opts.cool s between rounds).
+            if self.opts.cool then
+                local sk=row(tbl('SkillTable'),Data.FIRE_SKILL)
+                saved[#saved+1]={sk,'CoolTime',sk.CoolTime}
+                sk.CoolTime=self.opts.cool
+                self.cool_row=sk
+            end
             local cmd=tbl('SkillCommandTable')
             local kind=row(cmd,Data.BURST_COMMAND).CommandActionType
             for _,name in ipairs(Data.FIRE_COMMANDS) do
@@ -133,6 +140,14 @@ function Data.new(g,native,opts)
                         saved[#saved+1]={st,f,v}
                         st[f]=v*self.opts.speed
                     end
+                end
+                -- Jumping in the aim (gunmode/mode.lua launches her): a jump no longer ends the aim stance
+                -- (Condition_Jumping as EVE's default stance has it).
+                local def=g.try(function() return tbl('CharacterStanceTable'):FindRow('P_Eve_Default') end)
+                local none=def and g.try(function() return def.Condition_Jumping end)
+                if none~=nil then
+                    saved[#saved+1]={st,'Condition_Jumping',st.Condition_Jumping}
+                    st.Condition_Jumping=none
                 end
                 if self.opts.upper then
                     for _,f in ipairs({'AnimSet_Battle_UpperBody','AnimSet_Peaceful_UpperBody'}) do
@@ -181,7 +196,13 @@ function Data.new(g,native,opts)
         return true
     end
 
+    -- The shot's cool time now (the rate of fire, or a reload's wait); put back with the rest at put_back().
+    function self.cool(v)
+        if self.saved and self.cool_row then self.cool_row.CoolTime=v end
+    end
+
     function self.put_back()
+        self.cool_row=nil
         local saved=self.saved
         self.saved=nil
         if not saved then return end
