@@ -9,20 +9,19 @@ R1 main.lua's MODULES names exactly the folders with a wiring.lua; each has test
 R2 No manifest has a needs key.
 R3 No file of a module (code or test) requires, fakes (package.loaded or package.preload) or patches
    (require('<name>').<field>=) a file of another module, or runs one with dofile; main.lua, main/, core/, ui/kit/,
-   ui/text.lua and ui/text/ read no module, and their tests none either, but tests/lua/main/ and
+   ui/text.lua and ui/text/ read no module. Their tests read none either, except tests/lua/main/ and
    tests/lua/ui/text_test.lua, which check the runtime and the text tables against what modules put through them.
 R4 Each M.<field> a wiring.lua reads that another module exports, each view(M,'<field>') of one and each
    get(M,'<module>',...) names that module in uses; uses names nothing else (a module's other files get what its new
    hands them).
 R5 Exports are unique across modules and the runtime's fields; a wiring assigns only its own exports (partner sets
    the runtime's aside_note, the crash sentinel's note).
-R6 Each build(M,'<module>','<step>' in main/ui.lua names a step of that module's manifest, and each step is built
-   once.
+R6 Each build(M,'<module>','<step>' in main/ui.lua names a step of that module's manifest; each step is built once.
 R7 A wiring that calls RegisterHook or NotifyOnNewObject guards each callback with M.off_modules: the hook outlives an
    off module.
 R8 Native: no header, part or test of a module folder reads another module folder's header, by an #include or by a
    name through the header's namespace (world::kNoneName: tick.cpp includes every header once at its top, so a part
-   reads headers it never includes); a shared header (game, link, lion, ui) reads none either, and only glue/ (the hub)
+   reads headers it never includes); a shared header (game, link, lion, ui) reads none either. Only glue/ (the hub)
    and the tests of tests/native/game/globals_test.cpp and tests/native/link/ may; no module part
    (native/src/<module>/*.inc, in glue/tick.cpp's order) uses a name another module folder's part defines at its top
    level (whole tokens, comments and strings out, a local of the same name not counted).
@@ -126,7 +125,7 @@ def owner(name, mods):  # The module a dotted file name belongs to (the longest 
 
 
 def manifest(text):
-    """uses, exports, build steps of a wiring.lua (comments out), and the position of a needs key."""
+    """uses, exports, build steps of a wiring.lua (comments out) with the position of a needs key."""
     code = strip_lua(text, False)
     def names(key):
         m = re.search(r'(?m)^\s*' + key + r'=(\{.*?\})', code, re.S)

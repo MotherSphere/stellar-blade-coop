@@ -4,7 +4,7 @@
 -- The module loader: each module's wiring.lua in main.lua's order, its words merged, its kit groups built.
 local Loader={}
 -- What an off module's exports read as, so a late read of it never raises: every field is a function that does nothing
--- and returns nothing, and so is a call of the stub itself.
+-- and returns nothing; a call of the stub itself does the same.
 local NOOP=function() end
 Loader.STUB=setmetatable({},{__index=function() return NOOP end,__call=NOOP})
 local STUB=Loader.STUB

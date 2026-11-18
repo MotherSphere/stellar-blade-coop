@@ -4,7 +4,7 @@
 -- main/loader.lua alone, with fake modules in package.preload: before any new runs, every export of every manifest is
 -- the stub (also those of a module whose require raises, read from its wiring.lua's exports through
 -- package.searchpath); the modules load in list order; an on module's exports are what its new left in M, nil
--- included, and its words go into M.commands (a word defined twice raises); a require, a new (at its start or after it
+-- included; its words go into M.commands (a word defined twice raises); a require, a new (at its start or after it
 -- set its exports) or a build step that raises turns that module alone off: one log line, the traceback on the next,
 -- its name in off_notes, its exports back to the stub, its words gone, its later build steps skipped; a manifest with
 -- needs raises; view reads the field at each read, get gives nil while the module is off; M.off is kept.
