@@ -182,7 +182,7 @@ local function key_of(c) -- BroadcastSpawnInfo.EventSpawnId, which the spawn set
     return k and k&MASK
 end
 -- Killed: InteractionState not 0 with no controller; a dying body loses its controller at once. A key-0 body reads 1
--- from its first second (docs/internals/README.md), so this rule and the adopt at 0 below hold only while the game
+-- from its first second (docs/README.md), so this rule and the adopt at 0 below hold only while the game
 -- gives it a controller at spawn, as it did on 2026-10-23.
 local function killed(c) return c.InteractionState~=0 and valid(c.Controller)==nil end
 

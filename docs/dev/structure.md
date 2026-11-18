@@ -9,29 +9,29 @@ A module owns, in its own folders, its logic, its screens in `ui/`, its console 
 the startup in `wiring.lua`, its tests under `tests/lua/<module>/` with `off_test.lua`, its native parts
 (`<part>_game.inc`, `<part>_worker.inc`) and the headers no other module reads. Lua folders are under
 `mod/StellarCoop/Scripts/`, native folders under `native/src/`. A module named with a dot has nested folders:
-`cut.enemies` is `cut/enemies/`.
+`cut.enemies` is `fight/bosses/`.
 
 | Module | Players see it as | Lua | Native | Docs | Also owns |
 | --- | --- | --- | --- | --- | --- |
-| `partner` | The ghost | `partner/` | `pose/` | [Ghost](../features/ghost.md) | `partner/doro_pick.lua` and `partner/bike_part.lua`, its copies |
-| `nightop` | Night Operation | `nightop/` | `nightop/` | [Night Operation](../modes/night-operation.md) | The shop's rows in `lion/rows.h` |
-| `cut.enemies` | Cut enemies | `cut/enemies/` | none | [Cut enemies](../cut-content/cut-enemies.md) | `cut/enemies/enemy.lua`, its copy; the Lion's, the Gardener's and the Tendril's rows in `lion/rows.h` |
-| `group` | Group play | `group/` | `group/` | [Following the host](../players/playing-with-a-friend.md#following-the-host) | |
-| `race` | Doro races | `race/` | none | [Doro races](../features/doro-races.md) | |
-| `cut.eve` | EVE's cut moves | `cut/eve/` | `cut/` (`debug_keys.h`, the anim and debug parts) | [EVE's cut moves](../cut-content/cut-eve.md) | |
-| `cut.scenes` | Cut scenes | `cut/scenes/` | none | [Cut scenes and menus](../cut-content/cut-scenes-and-menus.md) | |
-| `matrix13` | Matrix XIII | `matrix13/` | `matrix13/` | [Matrix XIII](../modes/matrix-xiii.md), [Lily's signal](../modes/lily-signal.md) | Its rows in `lion/mxiii_rows.h` |
-| `session` | Online sessions | `session/` | `session/` | [Playing with a friend](../players/playing-with-a-friend.md) | |
-| `photo` | Synced photo mode | `photo/` | `photo/` | [Synced photo mode](../players/playing-with-a-friend.md#synced-photo-mode) | |
-| `fight` | Shared enemies | `fight/` | `fight/` | [Shared enemies](../features/shared-enemies.md) | |
-| `quest` | Shared quests | `quest/` | `quest/` | [Shared quests](../players/playing-with-a-friend.md#shared-quests-experimental) | |
-| `world` | Shared world | `world/` | `world/` | [Shared world](../features/shared-world.md) | |
-| `story` | Story together | `story/` | `story/` | [Story together](../features/story-together.md) | |
-| `lobby` | The SBO lobby | `lobby/` | `lobby/` | [SBO lobby and matches](../features/sbo-lobby.md) | Its rows in `lion/halls_rows.h`; its own copy of `coop join` for `coop match join` |
-| `bike` | The bike | `bike/` | `bike/` | [The bike](../features/bike.md) | `bike/drive.lua` and `bike/drive_model.lua`, its copies |
-| `sky` | Day and night | `sky/` | `sky/` | [Day and night](../internals/daynight.md) | |
-| `cut.menus` | Cut menus | `cut/menus/` | `cut/` (`items.h` and its part) | [Cut scenes and menus](../cut-content/cut-scenes-and-menus.md) | |
-| `save` | Co-op saves | `save/` | `save/` | [Saves](../players/saves.md) | |
+| `partner` | The ghost | `online/partner/` | `online/partner/` | [Ghost](../online/partner.md) | `online/partner/doro_pick.lua` and `online/partner/bike_part.lua`, its copies |
+| `nightop` | Night Operation | `online/modes/nightop/` | `online/modes/nightop/` | [Night Operation](../online/modes/nightop.md) | The shop's rows in `fight/bosses/lion_rows.h` |
+| `cut.enemies` | Cut enemies | `fight/bosses/` | none | [Cut enemies](../fight/bosses.md) | `fight/bosses/enemy.lua`, its copy; the Lion's, the Gardener's and the Tendril's rows in `fight/bosses/lion_rows.h` |
+| `group` | Group play | `online/group/` | `online/group/` | [Following the host](../players/playing-with-a-friend.md#following-the-host) | |
+| `race` | Doro races | `race/` | none | [Doro races](../online/modes/race.md) | |
+| `cut.eve` | EVE's cut moves | `cut/eve/` | `cut/` (`debug_keys.h`, the anim and debug parts) | [EVE's cut moves](../eve/eve.md) | |
+| `cut.scenes` | Cut scenes | `cut/scenes/` | none | [Cut scenes](../story/scenes.md) | |
+| `matrix13` | Matrix XIII | `matrix13/` | `matrix13/` | [Matrix XIII](../world/matrix13.md), [Lily's signal](../world/lily-signal.md) | Its rows in `world/maps/matrix13/mxiii_rows.h` |
+| `session` | Online sessions | `online/session/` | `online/session/` | [Playing with a friend](../players/playing-with-a-friend.md) | |
+| `photo` | Synced photo mode | `online/photo/` | `online/photo/` | [Synced photo mode](../players/playing-with-a-friend.md#synced-photo-mode) | |
+| `fight` | Shared enemies | `fight/enemies/` | `fight/enemies/` | [Shared enemies](../fight/enemies.md) | |
+| `quest` | Shared quests | `story/quests/` | `story/quests/` | [Shared quests](../players/playing-with-a-friend.md#shared-quests-experimental) | |
+| `world` | Shared world | `world/objects/` | `world/objects/` | [Shared world](../world/objects.md) | |
+| `story` | Story together | `story/together/` | `story/together/` | [Story together](../story/together.md) | |
+| `lobby` | The SBO lobby | `online/lobby/` | `online/lobby/` | [SBO lobby and matches](../online/lobby.md) | Its rows in `online/lobby/halls_rows.h`; its own copy of `coop join` for `coop match join` |
+| `bike` | The bike | `vehicles/bike/` | `vehicles/bike/` | [The bike](../vehicles/bike.md) | `vehicles/bike/drive.lua` and `vehicles/bike/drive_model.lua`, its copies |
+| `sky` | Day and night | `world/daynight/` | `world/daynight/` | [Day and night](../world/daynight-internals.md) | |
+| `cut.menus` | Cut menus | `tools/` | `cut/` (`items.h` and its part) | [Cut menus and the mailbox](../tools/menus.md) | |
+| `save` | Co-op saves | `online/saves/` | `online/saves/` | [Saves](../players/saves.md) | |
 
 ## Shared pieces
 
@@ -75,9 +75,9 @@ modules put through it.
 ## Copy, do not share
 
 Feature code that another module needs is copied into it with its tests. The copy's first line after the license says
-whose copy it is. From then on each module fixes its own. The bike drives with `bike/drive.lua`, its copy of the
-races' `race/drive.lua`, so a fix to the races' driving does not reach the bike. The ghost picks its Doro's clip with
-`partner/doro_pick.lua`, its copy of the race's Doro pick in `race/doro.lua`.
+whose copy it is. From then on each module fixes its own. The bike drives with `vehicles/bike/drive.lua`, its copy of the
+races' `online/modes/race/drive.lua`, so a fix to the races' driving does not reach the bike. The ghost picks its Doro's clip with
+`online/partner/doro_pick.lua`, its copy of the race's Doro pick in `online/modes/race/doro.lua`.
 
 Code that only reads the game, a row batch or a text is infrastructure: it goes to the shared pieces instead, as
 `core/actors.lua`, `core/line.lua` and `ui/text/culture.lua` did. A plain value that two files read (a clock, a flag)

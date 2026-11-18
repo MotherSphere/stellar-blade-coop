@@ -9,7 +9,7 @@
   python3 tools/save_read.py diff OLD NEW         + path only in NEW, - path only in OLD, ~ changed, sorted by path
   python3 tools/save_read.py selftest             reads back a body built in memory
 
-The layout and the path rules are in docs/dev/story.md. tools/story_lines.py reads saves through this file.
+The layout and the path rules are in docs/dev/story-dump.md. tools/story_lines.py reads saves through this file.
 """
 import struct
 import sys

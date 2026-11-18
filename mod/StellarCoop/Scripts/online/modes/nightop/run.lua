@@ -68,7 +68,7 @@ local MATCH=5
 local NAV='/Script/NavigationSystem.Default__NavigationSystemV1'
 local EXTENT,TALL={X=100,Y=100,Z=500},{X=100,Y=100,Z=1500}
 -- Metres: a character up before a wave that stands this far or more from where it stood then is one the game took back
--- from its pool for a spawn (a Lion body came back from 466 m on 2026-10-23, docs/internals/README.md), so it can be
+-- from its pool for a spawn (a Lion body came back from 466 m on 2026-10-23, docs/README.md), so it can be
 -- new.
 local REUSED=50
 -- Seconds after a body is found: a controller if it has none, before the aggro so that a new one gets the focus and the

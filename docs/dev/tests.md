@@ -15,47 +15,47 @@ build/host/game_codec_test
 
 ## Lua tests
 
-The Lua tests (`bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`, `others`, `park`, `ride`, `stand`; `core/`:
+The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`, `others`, `park`, `ride`, `stand`; `core/`:
 `actors`, `actors_of`, `class_at`, `effect`, `enemy`, `items`, `keybind`, `line`, `link`, `mask`, `pak_gate`, `picks`,
-`player`, `row_edit`, `settings_file`, `ue4ss_settings`, `unreal`, `where`, `worlds`; `cut/enemies/`: `enemy`,
+`player`, `row_edit`, `settings_file`, `ue4ss_settings`, `unreal`, `where`, `worlds`; `fight/bosses/`: `enemy`,
 `gardener`, `leviathan`, `lion`, `off`, `tendril`; `cut/eve/`: `chainspin`, `emote`, `flight`, `glide`, `off`, `wear`;
-`cut/menus/`: `devmenu`, `mailbox`, `off`; `cut/scenes/`: `lines`, `off`, `scene`; `fight/`: `off`, `wiring`,
-`wiring_notices`; `group/`: `group`, `off`, `region_tabs`, `travel`; `lobby/`: `arrival`, `commands`, `halls_rows`,
-`off`, `sbo`, `wiring`; `lobby/ui/`: `lobby`, `lobby_model`; `main/`: `bike`, `boot`, `collide`, `guide`, `idle`,
-`input`, `loader`, `match`, `menu`, `session_ui`, `settings`; `matrix13/`: `off`; `matrix13/quest/`: `on_time`,
-`subtitles`, `zone_talks`; `matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `breakables`, `drone`, `fans`, `mila`,
-`move`, `travel`; `nightop/`: `board`, `challenges`, `guard_text`, `off`, `probe`, `recruiter`, `recruiter_text`,
-`roxanne`, `run`, `shop`, `waves`; `partner/`: `bike_part`, `capture`, `doro_pick`, `ghosts`, `hud`, `off`, `puppet`,
-`sentinel`; `photo/`: `off`; `quest/`: `off`, `wiring`; `race/`: `commands`, `doro`, `drive`, `drive_model`, `model`,
-`off`, `run`; `save/`: `off`, `saves`; `session/`: `booth`, `chat`, `commands`, `join`, `off`, `wiring_cycle`,
-`wiring_dlc`; `session/ui/`: `create`, `create_model`, `sessions`, `sessions_model`; `sky/`: `daynight`, `off`, `rule`,
-`wiring`; `story/`: `off`, `snapshot`, `wiring`, `wiring_dump`; `ui/`: `text`; `ui/kit/`: `guide`, `hud_parts`, `kit`,
-`model`, `notice`, `pause_tab`; `ui/text/`: `culture`; `world/`: `off`, `wiring`) run the scripts, with fake UE4SS
+`tools/`: `devmenu`, `mailbox`, `off`; `cut/scenes/`: `lines`, `off`, `scene`; `fight/enemies/`: `off`, `wiring`,
+`wiring_notices`; `online/group/`: `group`, `off`, `region_tabs`, `travel`; `online/lobby/`: `arrival`, `commands`, `halls_rows`,
+`off`, `sbo`, `wiring`; `online/lobby/ui/`: `lobby`, `lobby_model`; `main/`: `bike`, `boot`, `collide`, `guide`, `idle`,
+`input`, `loader`, `match`, `menu`, `session_ui`, `settings`; `matrix13/`: `off`; `world/maps/matrix13/quest/`: `on_time`,
+`subtitles`, `zone_talks`; `world/maps/matrix13/talks/`: `zones`; `world/maps/matrix13/level/`: `boss`, `breakables`, `drone`, `fans`, `mila`,
+`move`, `travel`; `online/modes/nightop/`: `board`, `challenges`, `guard_text`, `off`, `probe`, `recruiter`, `recruiter_text`,
+`roxanne`, `run`, `shop`, `waves`; `online/partner/`: `bike_part`, `capture`, `doro_pick`, `ghosts`, `hud`, `off`, `puppet`,
+`sentinel`; `online/photo/`: `off`; `story/quests/`: `off`, `wiring`; `race/`: `commands`, `doro`, `drive`, `drive_model`, `model`,
+`off`, `run`; `online/saves/`: `off`, `saves`; `online/session/`: `booth`, `chat`, `commands`, `join`, `off`, `wiring_cycle`,
+`wiring_dlc`; `online/session/ui/`: `create`, `create_model`, `sessions`, `sessions_model`; `world/daynight/`: `daynight`, `off`, `rule`,
+`wiring`; `story/together/`: `off`, `snapshot`, `wiring`, `wiring_dump`; `ui/`: `text`; `ui/kit/`: `guide`, `hud_parts`, `kit`,
+`model`, `notice`, `pause_tab`; `ui/text/`: `culture`; `world/objects/`: `off`, `wiring`) run the scripts, with fake UE4SS
 objects for those that call the engine. In the capture test, any write to the fake EVE fails the test. The `main/` tests
 load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua`
 with its name.
 
-- `race/commands_test` covers `coop race look on` refused while EVE rides the bike, with nothing asked of the Doro look,
-  then started once she is off; `race/drive_test` covers the races' drive probe and its off refused while she rides;
-- the copies' tests (`bike/drive_test`, `bike/drive_model_test`, `partner/doro_pick_test`, `cut/enemies/enemy_test`)
-  hold their originals' cases for the module's own copy; `partner/bike_part_test` covers the tagged bike part found by
+- `online/modes/race/commands_test` covers `coop race look on` refused while EVE rides the bike, with nothing asked of the Doro look,
+  then started once she is off; `online/modes/race/drive_test` covers the races' drive probe and its off refused while she rides;
+- the copies' tests (`vehicles/bike/drive_test`, `vehicles/bike/drive_model_test`, `online/partner/doro_pick_test`, `fight/bosses/enemy_test`)
+  hold their originals' cases for the module's own copy; `online/partner/bike_part_test` covers the tagged bike part found by
   EVE's address; nothing for another mesh, no tag or another EVE. The tests of the helpers moved to `core/`,
   `ui/kit/hud_parts.lua` and `ui/text/culture.lua` hold one case each from the tests of the files they left;
-- `bike/model_test` rides `bike/model.lua` on flat ground with Eve On Wheels' default values: 90% of the top speed
+- `vehicles/bike/model_test` rides `vehicles/bike/model.lua` on flat ground with Eve On Wheels' default values: 90% of the top speed
   after 3.9 s, a real top of about 2252 cm/s, 15.8 m of braking from the top, reverse after 0.3 s at a stop, the yaw
   rate and lean at full lock at five speeds, the drift's 42-degree slip cap, a wall, the air, a ramp launch only after
   0.12 s of climb, the pitch, root motion holding the state and the values' bounds;
-- `bike/ride_test` covers `bike/ride.lua` over a fake EVE and native part: the preload asked once and released at
+- `vehicles/bike/ride_test` covers `vehicles/bike/ride.lua` over a fake EVE and native part: the preload asked once and released at
   `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every mount refusal
   with its reason and nothing written, the mount's order and the dismount backward, the lean (the math library looked up
   once a ride), the riding pose played again or ending the ride (read in the 250 ms pass only: no frame reads the
   status), the 250 ms checks (EVE down read from the status line's `bike_life=` with no session, or from the session's
-  life state without that word), `coop-bike.txt` and its restore after its own drive's (`bike/drive.lua`),
+  life state without that word), `coop-bike.txt` and its restore after its own drive's (`vehicles/bike/drive.lua`),
   `coop bike status` and `tune`, a mount refused while the races' drive runs, `idle_part` (the part the capture leaves
   out) before the part, on and off the bike, after a ride ended on a fault, after a reload and at `bike=off`, the part's
   `SBO_Bike` tag (a tag that does not hold makes no part), the earlier load's part found at a reload's first tick with
   the preload at `fault` and removed by the first pass at `bike=off`, another mod's component on the bike's mesh never
-  hidden, used or removed. With a fake `bike/stand.lua` it covers the parked bike: made after the part, parked where a
+  hidden, used or removed. With a fake `vehicles/bike/stand.lua` it covers the parked bike: made after the part, parked where a
   dismount by the key leaves her, at the last ground pose after a forced one (none kept on a `Movable` base) or where it
   stood before the mount, hidden while she rides or a cutscene holds her, removed for a new EVE; a mount refused far
   from it (a bike 300 cm straight below her is `3 m away, ahead of you`), on another map or before it is back, else made
@@ -68,27 +68,27 @@ with its name.
   and a failure said, never within reach, in an SBO lobby or away from a camp; the money's name from `game_text` on the
   screen's words, `betacrystal` in the English copy of another language, for a name over 32 bytes and in an offer past
   200 bytes);
-- `bike/park_test` checks `bike/park.lua` with `lua5.4` alone: the reach (200 cm across, 100 cm up or down, from any
+- `vehicles/bike/park_test` checks `vehicles/bike/park.lua` with `lua5.4` alone: the reach (200 cm across, 100 cm up or down, from any
   side), the whole metres and the side from the camera's yaw (never `0 m`), the seat a mount lands her on, the spot a
   dismount parks at, the clearance from her capsule to the bike's and the open-then-solid rule, a map's name, the
   record's file from the status lines with its line read back (a line of another version, a bad map, a position past
   10,000,000 cm, NaN or an angle past 360 degrees read as unreadable) and the bike line read back (none, or one the
   native part would refuse, read as no place);
-- `bike/stand_test` covers `bike/stand.lua` with fake UE4SS objects: the parked bike made hidden and closed,
+- `vehicles/bike/stand_test` covers `vehicles/bike/stand.lua` with fake UE4SS objects: the parked bike made hidden and closed,
   `WorldDynamic`, blocking every channel but the camera, no overlap events, never stepped on, a cull distance only when
   given; placed by a teleport; shown and hidden with its collision; open while EVE stands inside it and solid once she
   is 20 cm clear, with one log line; a sweep that takes only an actor whose root shows the bike;
-- `bike/others_test` covers `bike/others.lua` over a fake stand and EVE: other players' parked bikes as copies on our
+- `vehicles/bike/others_test` covers `vehicles/bike/others.lua` over a fake stand and EVE: other players' parked bikes as copies on our
   map only once our EVE stood 2 s, one made a pass, moved in place, removed with their reason (none, another map, a
   member gone), never ours, none with `bike=off` or the mesh not ready, hidden in a cutscene, solid against our EVE once
   she is clear, their paths kept for the next Lua load's sweep, all removed at `coop off`;
-- `bike/fetch_test` covers `bike/fetch.lua` over a fake EVE, player controller and native part: the price and its
+- `vehicles/bike/fetch_test` covers `vehicles/bike/fetch.lua` over a fake EVE, player controller and native part: the price and its
   timings, the count asked first, one payment at a time, too little money refused with the count and nothing removed,
   an answer to an earlier ask never counted, the remove's five arguments (`1`, her GUID, `BetaCrystal`, `500`, `-1`),
   paid once the count fell by 500, paused time not counted toward the 10 s, a failure when it does not fall or when no
   answer comes, a read whose answer was lost (`coop gift`'s answered after it) asked again with its number after 1 s,
   the numbers from 32768;
-- `partner/capture_test` also covers SBO's bike left out of the parts while EVE does not ride (`leave_out`, asked once
+- `online/partner/capture_test` also covers SBO's bike left out of the parts while EVE does not ride (`leave_out`, asked once
   a look): an outfit of 16 parts keeps them all; while she rides the bike is part 1 and the last follower goes; getting
   on or off starts a new generation; another component on the bike's mesh stays a part;
 - `core/link_test` also covers the status's `uidev=`, `me=`, `world=` and `story=` lines and the `owner=`, `room=`
@@ -110,31 +110,31 @@ with its name.
   with us is made), `cap()` from the `host=` line's `max=` (none for `max=0`, read again after a Lua reload), the status
   line with ` +<n>` (`Paused by` naming the host alone), the first member past the handshake standing in on a host whose
   pair left, `ping()` the round trip of the member the status line names once she is past the handshake;
-  `session/commands_test`, `main/boot_test`, `main/menu_test` and `main/session_ui_test` the host request ending with
+  `online/session/commands_test`, `main/boot_test`, `main/menu_test` and `main/session_ui_test` the host request ending with
   `max_players` (`main/session_ui_test` also the members' rows after the arrow in the kit's order); `ui/kit/model_test`
   the Players row on the Options page and its mute rows (one per other member past the handshake, under Chat, the same
   row each call, Select giving `mute`, her SteamID and whether she is muted); `main/menu_test` a mute row's words and
-  its `coop mute` or `coop unmute`; `session/ui/create_model_test` and `session/ui/create_test` the Players row of the
-  Create a session screen (held at 2 and 4, the scroll window one row longer); `lobby/ui/lobby_model_test` a session
-  counted against its host's `max_players`, against 4 while it is not known; `session/join_test` the host's queue (one
+  its `coop mute` or `coop unmute`; `online/session/ui/create_model_test` and `online/session/ui/create_test` the Players row of the
+  Create a session screen (held at 2 and 4, the scroll window one row longer); `online/lobby/ui/lobby_model_test` a session
+  counted against its host's `max_players`, against 4 while it is not known; `online/session/join_test` the host's queue (one
   question about the first joiner with the players waiting after her on the seconds' line, then the next one's own
-  question with its keys dead again for 1 s); `partner/hud_test` the members' rows (right of the card, three to a
+  question with its keys dead again for 1 s); `online/partner/hud_test` the members' rows (right of the card, three to a
   column, six made, clear of the card and of each other at every `ui_scale` from 75 to 150 and moved for it; her name,
   HP and state as on the card, greyed, the alert once on DOWN and once on a lost link; hidden with `partner_card` off,
   while paused, out of a session and in a match lobby) and the card following the first member past the handshake on a
-  host whose pair left; `group/group_test` the revive with three players (the nearest member alive within 2 m named in
+  host whose pair left; `online/group/group_test` the revive with three players (the nearest member alive within 2 m named in
   the wait, the call and the revived notice; the wait naming the member alive on our map when she is far; no member
   alive), each member's down notice with our revive of her, no down notice nor revived notice for a guest outside the
   pair on the host and on the pair, her own game waiting on no shared fight, then the guest's cutscene pause read from
-  the host's slot; `group/travel_test` the host answering `camps?` while any guest is linked and the guest reading the
+  the host's slot; `online/group/travel_test` the host answering `camps?` while any guest is linked and the guest reading the
   host's map from his member line's slot (no offer while that slot has no ghost or the host is not linked);
-  `partner/ghosts_test` `get(k)`; `cut/menus/mailbox_test`, `race/run_test`, `nightop/run_test`, `nightop/roxanne_test`
-  and `fight/wiring_test` a gift, a race, a run, Roxanne's pick and the PvP test refused with 3 players, `race/run_test`
-  and `nightop/run_test` also a race and a run under way ending with their reason when a third player gets in, on the
+  `online/partner/ghosts_test` `get(k)`; `tools/mailbox_test`, `online/modes/race/run_test`, `online/modes/nightop/run_test`, `online/modes/nightop/roxanne_test`
+  and `fight/enemies/wiring_test` a gift, a race, a run, Roxanne's pick and the PvP test refused with 3 players, `online/modes/race/run_test`
+  and `online/modes/nightop/run_test` also a race and a run under way ending with their reason when a third player gets in, on the
   pair too while her own link with that player is not made; `ui/kit/guide_test` the first page's player count, the
-  default `max_players`, in every language; `quest/wiring_test` the host's quest notices naming the guest whose side
+  default `max_players`, in every language; `story/quests/wiring_test` the host's quest notices naming the guest whose side
   came on first and the guest whose ahead line it is;
-- `session/commands_test` covers `coop host` with each of the four words (`ask` added under `public` and `invitation`
+- `online/session/commands_test` covers `coop host` with each of the four words (`ask` added under `public` and `invitation`
   with `friends_ask=on`), `coop host` alone (the Create a session screen when it opens, else `who_can_join`),
   `coop list` (a search by tab; alone, the last list numbered or a Public search) and `coop join <row>`;
 - `core/unreal_test` covers `game_text`: nothing asked while the string table is not loaded or its id is no name, nil
@@ -142,7 +142,7 @@ with its name.
 - `ui/kit/model_test` covers the four Who can join values and the Friends join without asking row, shown under Public
   and Invitation only, then the Online tab row named in `docs/players/interface.md`'s Options paragraph between the
   bike's key and Reset all keys;
-- `group/travel_test` covers the host's row in the session list: the rules word at each change, the map and nearest
+- `online/group/travel_test` covers the host's row in the session list: the rules word at each change, the map and nearest
   camp at once on each map and once a minute at most, from the follow's spawn point read (read again a minute later
   when it found no camp), nothing in a load, as a guest or in a match lobby. A refusal is logged once. For the bike's
   paid fetch, `camp_near` finds an activated Xion camp whose spawn point stands within 10 m on Xion's map, walking the
@@ -153,20 +153,20 @@ with its name.
   read is bounded,
   and refuses a missing game folder, `.utoc`, `.pak` or `.ucas`, a map or folder missing from the directory index, and a
   `.utoc` whose header does not read as one;
-- `fight/wiring_test` also covers `coop fight pilot` (its `test target` and boss tests included), `coop fight spawn
+- `fight/enemies/wiring_test` also covers `coop fight pilot` (its `test target` and boss tests included), `coop fight spawn
   probe`, the `spawn_filter` setting with the `filter` word it adds, and the `same_place`, `aggro`, `same_spawns`,
   `enemy_extra`, `bosses` and `boss_hp_scale` settings, whose rows `main/menu_test` covers with the `shared_quests`,
   `shared_world` and `shared_story` rows, and `coop pvp` (its words, the `pvp_spike` and `shared_enemies` refusals,
   status, and `pvp_spike=off` ending an earlier load's PvP test at a reload);
-- `fight/wiring_notices_test` covers the same place and same spawns notices in both languages;
-- `session/wiring_dlc_test` covers the DLC notice: once a session when the two lists of installed DLCs differ, in the
+- `fight/enemies/wiring_notices_test` covers the same place and same spawns notices in both languages;
+- `online/session/wiring_dlc_test` covers the DLC notice: once a session when the two lists of installed DLCs differ, in the
   menu's language with its English beside. The same DLCs, or no list yet, give none;
-- `session/wiring_cycle_test` covers the New Game+ notice: the guest compares with the host, the host with each member;
+- `online/session/wiring_cycle_test` covers the New Game+ notice: the guest compares with the host, the host with each member;
   one notice a member while the values differ, one more on a change, in the menu's language with its English beside. The
   same values, ours not read yet, a match lobby or the SBO lobby give none;
-- `quest/wiring_test` covers `coop quests` with the `shared_quests` and `quest_deny` settings and the shared quests'
+- `story/quests/wiring_test` covers `coop quests` with the `shared_quests` and `quest_deny` settings and the shared quests'
   notices;
-- `main/bike_test` covers the bike's wiring (`bike/wiring.lua`) through `main.lua` with a fake `bike/ride.lua`: the load
+- `main/bike_test` covers the bike's wiring (`vehicles/bike/wiring.lua`) through `main.lua` with a fake `vehicles/bike/ride.lua`: the load
   line, what the ride gets (its asks, `coop-bike.txt`, the driving, the settings, SBO's busy reasons with coop fly and
   our open screens), `coop bike` and its words, F3 and the pad's D-pad Right hold with a refusal on screen, the hold
   ignored with its reason logged at the title, with one of our screens open or with the game paused, the restore, the
@@ -176,8 +176,8 @@ with its name.
   the link's files, `coop-bike-stand.txt`, its bike line through `link.bike`, the paid fetch with `coop gift`'s FName
   and pause rules, the follow's `camp_near`); the other players' parked bikes built, restored at the first tick, run
   after the ride's pass and cleared at `coop off`;
-- `sky/wiring_test` covers the day and night cycle's wiring (`sky/wiring.lua`) through `main.lua` with a fake
-  `sky/daynight.lua`: what it is built with (the native asks and status, the `daynight` setting, the cutscene, SB's
+- `world/daynight/wiring_test` covers the day and night cycle's wiring (`world/daynight/wiring.lua`) through `main.lua` with a fake
+  `world/daynight/daynight.lua`: what it is built with (the native asks and status, the `daynight` setting, the cutscene, SB's
   screens, photo mode, Night Operation, the SBO lobby in Xion's training room only, the third-party plugin's path,
   `coop-sky.txt`, the world's address, no streaming level asked with no EVE) and its 250 ms pass with `coop off`. It
   also covers `coop daynight` with each word and its usage line for the rest. `main/menu_test` covers the Day and night
@@ -193,13 +193,13 @@ with its name.
   nothing opened, a close that can never work stopping the tab with one STOP line and `pausetab off`, `pause_tab=off`
   making nothing and asking `pausetab off`, a refused ask asked again and logged once, a pause menu of another shape
   stopping the tab with one STOP line and `pausetab off`, then `coop off` stopping it;
-- `sky/rule_test` covers `sky/rule.lua`: every row of the map table (keys in lower case, each open row complete for its
+- `world/daynight/rule_test` covers `world/daynight/rule.lua`: every row of the map table (keys in lower case, each open row complete for its
   kind of sky, the fixed maps, an unknown map), the rules in their order (a cutscene before photo mode, photo mode's
   hold whatever the hour and while SB's photo mode pauses the game, a test pin before Night Operation's midnight), the
   `sky=` line read into numbers (none from an older DLL), the command's hour (`24`, `-1`, `abc`, an empty word, `13,5`,
   `1e9`, `0x10`, `inf` and `nan` refused with the accepted range), the sky dressing and the star fade for an elevation,
   a SkyCreator's time, the real minutes to the night and the third-party plugin's path;
-- `sky/daynight_test` covers `sky/daynight.lua` over a fake engine: one request per change, the map read once per EVE,
+- `world/daynight/daynight_test` covers `world/daynight/daynight.lua` over a fake engine: one request per change, the map read once per EVE,
   the setting, each rule's case (Xion's story night read every 2 s), the command's words, a fixed map and the title, the
   status with an older DLL (no request loop), `coop off`, a refused ask and the third-party plugin's line once. Then the
   sky dressing: each dome looked up once per world and hidden once, a missing one logged once, the star layer made once
@@ -215,9 +215,9 @@ with its name.
   after it went and came back between two reads, a SkyCreator sublevel with no dome, nothing read off the live passes
   and a sublevel that came meanwhile looked up at the first live pass, a streaming level whose read raises; the Terrace
   hall left alone;
-- `world/wiring_test` covers `coop world` (its words, on and off whatever `shared_world` says, status), the start once a
+- `world/objects/wiring_test` covers `coop world` (its words, on and off whatever `shared_world` says, status), the start once a
   load with `shared_world=on`, the end at a reload with `shared_world=off`, and the shared world's two notices;
-- `story/wiring_test` covers `coop scenes` (its words, on and off whatever `shared_story` says, status, an on or off
+- `story/together/wiring_test` covers `coop scenes` (its words, on and off whatever `shared_story` says, status, an on or off
   before the load's request that cancels it), the request once a load only where the `story=` line and
   `shared_story` differ (none off the pinned build or after `coop off`) and story together's two notices;
 - `main/idle_test` counts the FindAllOf and StaticFindObject calls of the two loops (`main/frame.lua`, `main/pass.lua`)
@@ -230,12 +230,12 @@ with its name.
   exports as its `new` left them, its words in `M.commands` (a word defined twice raises), a require, a `new` or a build
   step that raises turning that module alone off (one log line, its traceback, its exports back to the stub, its words
   gone, its later build steps skipped), a manifest with `needs` raising, `view` and `get`;
-- each module's `off_test` (`bike/off_test`, `partner/off_test` and the rest) runs `main/isolation.lua` with its name:
+- each module's `off_test` (`vehicles/bike/off_test`, `online/partner/off_test` and the rest) runs `main/isolation.lua` with its name:
   its require, the start and the end of its `new` and each of its build steps raise in turn. Each time `main.lua` must
   load with every other module on, run three frames and four passes, then a linked session with the UI up, every key
   bind and hook, `coop ui reset`, `coop off` and `coop status`, with no other module's off line, no `OK: nil` or
   `STOP: nil`, the off notice with the module's English name and each guarded late read refused. The same run with every
-  module on comes first. `bike/off_test` also checks that the capture leaves out an earlier load's tagged bike part
+  module on comes first. `vehicles/bike/off_test` also checks that the capture leaves out an earlier load's tagged bike part
   while the bike module is off;
 - `main/input_test` covers the controller's events from a fake `coop_pad` (routed to the menu, the co-op saves' question,
   the two boxes and the host's question, which ignores them for 1 s and never takes View held; LB, RB and Y taken and
@@ -253,7 +253,7 @@ with its name.
   player or more, or no status yet); a SteamID and a join code
   masked in the log; the 4 digits shown after `***` taken for the one member whose SteamID ends in them (by
   `coop mute` and `coop remove`) and refused when two members or none have them;
-- `lobby/wiring_test` covers `coop sbo` and the SBO lobby's wiring (the arm at the recruiter, the tick, the title's
+- `online/lobby/wiring_test` covers `coop sbo` and the SBO lobby's wiring (the arm at the recruiter, the tick, the title's
   put-back, coop off) and the recruiter's auto spawn pass every 250 ms on any save; then the lobby's input routing
   (menu_key, the pad's View, LB and RB, the keys with C's tabs on QWERTY and AZERTY, the mouse), the hall seats
   (menu_key and View held 1 s stand EVE up while she sits, sit her near a seat SB's chairs left to menu_key, else open
@@ -271,7 +271,7 @@ with its name.
   B waits, and once nothing is missing `loading lift` is asked, the veil goes and B opens in that pass with SB's HUD
   still hidden; a Lua load under an earlier load's hold asks `loading lift` once, at its first pass in the lobby world
   and not before, and none when that pass also puts up its own black (one fade); without the hook, one log line;
-- `nightop/recruiter_test` also covers the auto spawn at each Xion load (waits while the spawn point is not loaded or
+- `online/modes/nightop/recruiter_test` also covers the auto spawn at each Xion load (waits while the spawn point is not loaded or
   EVE is too far, one spawn a load, a guard kept after a Lua reload, none after `coop recruiter off`). It checks the
   arm call right after the spawn and at a guard already there, before any check. It runs the looks every 3 s until
   +30 s with a guard who comes at +9 s, one who never comes and one 4 m off the point;
@@ -280,28 +280,28 @@ with its name.
   focus watchdog and the focus line it logs as it fires, text shadows and wrap, fixed groups, SB parts and the keyboard
   layout from the game's device. It also checks that a root built while its look warms holds each texture it wanted once
   warmed, so a GC before the next build frees none of them;
-- `lobby/ui/lobby_test` covers the lobby menu and settings on fake SB parts: layout, rows, focus looks, the leave
+- `online/lobby/ui/lobby_test` covers the lobby menu and settings on fake SB parts: layout, rows, focus looks, the leave
   question, the countdown, the kit drawing that stands in for a part the game cannot make (row labels, settings items,
   the leave question with Yes and No, the countdown's seconds), the lines logged as the screens open and close and the
   question is asked and answered, the Map row of a Private match (left and right, the pick shown by its name), and that
   no part is ever focused, clicked through or sent a call outside the allowed list;
-- `lobby/ui/lobby_model_test` covers the lobby menu's rows, actions, status and members by state, the settings rows (the
+- `online/lobby/ui/lobby_model_test` covers the lobby menu's rows, actions, status and members by state, the settings rows (the
   Map row only with no lobby open and the hall lobbies in use) and the countdown's resync;
-- `session/ui/sessions_test` covers the Sessions screen on fake SB parts: the search asked as it opens, the status line
+- `online/session/ui/sessions_test` covers the Sessions screen on fake SB parts: the search asked as it opens, the status line
   (SB's search word, the wait), Refresh and its stop, the 5 s gap, the tabs (SB's Comrades), the rows and their scroll
   window, the details pane and footer, Select asking to join, the mouse (a resting mouse moves neither the cursor nor
   the list), the closes by itself, the input given back, parts made again after a root build, the kit drawing for a part
   the game cannot make (rows, headers, hints, the tab keys) and the log lines. No part is focused or sent a call outside
   the allowed list;
-- `session/ui/sessions_model_test` covers a tab's rows and status from the native part's list, what Refresh and Select
+- `online/session/ui/sessions_model_test` covers a tab's rows and status from the native part's list, what Refresh and Select
   ask for, the cursor, the region and camp keys and the rules word read back (any other shape gives none);
-- `session/ui/create_test` covers the Create a session screen on fake SB parts: it opens in a world on the values in
+- `online/session/ui/create_test` covers the Create a session screen on fake SB parts: it opens in a world on the values in
   effect, its rows, headers, right pane and hints, Left, Right and Select changing a value with the rows that come and
   go with it, the scroll window, Start and Back, the mouse (a resting mouse moves neither the cursor nor the list), a
   change not saved with its reason, the locked look and reason while `coop-settings.txt` cannot be read, the closes by
   itself and the refusals to open, the input given back, parts made again after a root build, the kit drawing for a part
   the game cannot make and the log lines. No part is focused or sent a call outside the allowed list;
-- `session/ui/create_model_test` covers its rows for each Who can join value (Friends join without asking under Public
+- `online/session/ui/create_model_test` covers its rows for each Who can join value (Friends join without asking under Public
   and Invitation only), Shared enemies' sub-rows only while it is on, Shared story between Shared world and Shared
   quests, a setting Options does not define left out, a change written through `settings_file.set` and read back, Start
   and Back, the cursor and every setting locked with its reason while the file cannot be read;
@@ -320,14 +320,14 @@ with its name.
   stays within 200 bytes in every language with 100-byte DLC names. So do the bike's refusals with the paid fetch's
   offer after them, with each side word and a six-digit distance or another map's 32-byte name and the longest key
   name;
-- `lobby/arrival_test` covers the hold at a lobby arrival: nothing without a lobby warp or before its new
+- `online/lobby/arrival_test` covers the hold at a lobby arrival: nothing without a lobby warp or before its new
   controller; SB's black up and the kit veiled at the next pass; held while anything is missing, then lifted once with
   one line; the 8 s cap, which lifts whatever is missing and names it, also when the missing items cannot be read; a
   second warp under the hold (a guest following her host), which keeps the black and counts the cap from its own
   controller; a disarm (a refused warp, coop off); the 60 s arm cap; a black that does not show; and a lift the native
   part cannot take, which still removes the veil;
-- `session/chat_test` covers the Thai leading vowels at a row's end;
-- `session/join_test` covers the code box, then the join popups on a fake SB popup and on the kit panel that stands in
+- `online/session/chat_test` covers the Thai leading vowels at a row's end;
+- `online/session/join_test` covers the code box, then the join popups on a fake SB popup and on the kit panel that stands in
   for it. For the host's question: the popup filled before its Construct, SB's Accept and Decline, the cursor as its
   hover look, the seconds and a late name written on change only, the alert then SB's popup cues, the 1 s with no keys,
   pad buttons or clicks, left and right moving as up and down do, a left click answering with the button under the
@@ -335,11 +335,11 @@ with its name.
   lobby, the 60 s left to the native part. For the joiner's wait: Close (a key or a click) leaving the lobby, a let in
   or a refusal closing it. Then `coop ui reset`, `coop off` and a name with `<` or `>`. It also covers the feed's
   join and leave lines in SB's words (`Join.feed`);
-- `lobby/halls_rows_test` checks the hall lobbies' 181 rows (5 worlds, 5 zones, 171 seats) against
-  `lion/halls_rows.h` and `lobby/sbo_maps.lua`, then the title's ask: none without the lobby pak, once with it on the
+- `online/lobby/halls_rows_test` checks the hall lobbies' 181 rows (5 worlds, 5 zones, 171 seats) against
+  `online/lobby/halls_rows.h` and `online/lobby/sbo_maps.lua`, then the title's ask: none without the lobby pak, once with it on the
   co-op save files, read back; a refusal, a fault or rows that read back wrong keep the lobby in Xion with one log line,
   also after a Lua reload, and a shut gate's refusal is asked again;
-- `lobby/sbo_test` covers the lobby's spots, fence, row sets, notices and entry checks, and the entry and return from
+- `online/lobby/sbo_test` covers the lobby's spots, fence, row sets, notices and entry checks, and the entry and return from
   the status line, a double Join, a late arrival, coop off while warping and a Lua load in the middle of an entry, and a
   Join that enters again after SB's own reload cut an entry short (record open or warping); then the room shown, the
   spots and their re-place, the fence, hop and back, and a Lua reload in the lobby, with the log lines for the room, for
@@ -383,7 +383,7 @@ with its name.
   part ends without an arrival, SB's own reload and coop off disarm it; `unready()` lists the arrival, EVE's spot, a
   hall's bind check and the menu camera until each is done (no chairs in Xion); under the hold the chairs spawn on the
   100 ms budget;
-- `story/snapshot_test` holds the in-game story dump to `tests/tools/story_case.txt` and its floats to
+- `story/together/snapshot_test` holds the in-game story dump to `tests/tools/story_case.txt` and its floats to
   `tests/tools/float_repr.txt`, the files `story_lines_test.py` checks the save side against.
 
 ## C++ tests
@@ -404,7 +404,7 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   `sky hold`, `sky cycle <hz> <H>` and `sky hour <minute> <hz> <H>` with their ranges; `world` and
   `scenes` with `on`, `off` or `status`; `nightshop`,
   `roxanne`, `lily`,
-  `guardtext` and the 8 `signal` words, in `quest/own.h`'s order; the `sbo` requests (`on`, `arm`, `enter`, `warp`,
+  `guardtext` and the 8 `signal` words, in `story/quests/own.h`'s order; the `sbo` requests (`on`, `arm`, `enter`, `warp`,
   `abort`, `leave`, `seq`) and their refusals),
   Night Operation's night line (its round trip, its refusals and a fuzz seed), and the join
   codes (both real lobby ids, loose typing, malformed codes, and the share of one-character typos the check turns away),
@@ -581,7 +581,7 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 ### Night Operation
 
 - `nightop_probe_test`: the Night Operation poller's reads, lines and verdict against a fake image;
-- `nightop_roxanne_test`: Roxanne's and Lily's choice lists in SB's select cache (`nightop/roxanne.h`) against fake
+- `nightop_roxanne_test`: Roxanne's and Lily's choice lists in SB's select cache (`online/modes/nightop/roxanne.h`) against fake
   memory laid out like the pinned build: on (our six rows in a GMalloc array, the pointer written before the count,
   her old array never written), off (her pointer, count and max back), a second on, an element array moved by a
   rehash, an entry the game rebuilt, the refusals (no world, no holder, her list absent or of another shape, no
@@ -590,7 +590,7 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 - `nightop_guard_text_test`: the Xion guard's 12 text keys and the 23 cultures, a `guardtext` request's culture and
   seven lines into UTF-16 (Korean, the French no-break space, a character outside the BMP) and each refusal, what the
   game thread writes before and after coop off, and the `guardtext=` line;
-- `nightop_shop_ui_test`: the Night Operation shop screen's guard (`nightop/shop_ui.h`: a client and its UI manager
+- `nightop_shop_ui_test`: the Night Operation shop screen's guard (`online/modes/nightop/shop_ui.h`: a client and its UI manager
   always, in game and playing for an open only), its answer word's round trip, the `nightshop=` line and the log
   lines;
 
@@ -833,7 +833,7 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   fake action map (each state kept and put back, an absent name back as on, a name SB changed during the ride left as SB
   set it, a name the game never made skipped, a controller gone, a fault in the middle of turning it on, a fault), the
   words packed for the worker and the status line, the ride plays' clip lookups and the log lines;
-- `sky_sky_test`: the day and night cycle (`sky/sky.h`): the clock at :02, :12, :32 and :52 and under 24 just before
+- `sky_sky_test`: the day and night cycle (`world/daynight/sky.h`): the clock at :02, :12, :32 and :52 and under 24 just before
   the hour's wrap, the ramps, the sun and moon at noon, sunrise, sunset, midnight and mid-morning, the dusk colour, the
   status line. Over a fake WorldSettings whose env array holds a sunlit element with its own exposure bias, a covered
   one and a sunlit one without the bias bit: noon and midnight written from the originals with the covered one given
@@ -900,20 +900,20 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 
 ### Shared world
 
-- `game_world_rows_test`: `game/world/rows.h`'s four lists strictly sorted, every SetEnvActive and no-progress row with
+- `game_world_rows_test`: `game/objects/rows.h`'s four lists strictly sorted, every SetEnvActive and no-progress row with
   states of its own, the lookups at both ends of each list and on near misses, and rows of build 26123051 each rule
   keeps or leaves out (a door and a lift with every state, the monorail without its camp-bound garage run, the crane
   without its camera states, the hyperdrive without its story states, a supply box, the boss cores, a story-only door,
   an env whose On a quest task waits for, a Matrix XIII lever, a counter whose progress leads to an item, a quest's env
   control row, a monorail speed row whose chain plays a scene);
-- `game_world_sync_test`: `game/world/sync.h`'s lines through format and parse and back (the largest legal line, 50
+- `game_world_sync_test`: `game/objects/sync.h`'s lines through format and parse and back (the largest legal line, 50
   malformed lines and 20,000 fuzzed ones), the ring's capacity and wrap, the outbox that keeps the lines the link
   refuses, and two players' sides wired over the parser with a fake engine: the on and off lines and the answer to an
   on, a rejoin one side did not see, each gate on both sides, the lists on both sides (linked env lines part by part
   included), names without text, sequence numbers, lost and old lines, a load that reads no save for a while, the
   queue's order while loading and its overflow, the apply limit, the echo backstop, refusals logged once, a new partner
   and the status line;
-- `game_world_engine_test`: `game/world/engine.h` over fake memory and fake game functions: the four roots read from
+- `game_world_engine_test`: `game/objects/engine.h` over fake memory and fake game functions: the four roots read from
   their nodes (a named target, `self` through the owner env, an ObjectState of 0, a linked env inside and outside its
   owner's list or not live in our zone, values no line carries), and her lines applied: A1 and each of its guards, a
   Disable env changed as SB changes it, a tag that did not take, A2's records (found, made, a Disable one written), A1b
@@ -971,7 +971,7 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   each guest's lines to the engine under her own SteamID, the second guest's step dropped and the pair's taken, another
   member's line never reaching a guest's engine, the pair gone with pair 0 while the second guest stays, the left guest
   logged under her own SteamID);
-- `quest_own_test`: the mod's own quests in a fake quest unit (`quest/own.h`): nothing read off a co-op save, on SB's
+- `quest_own_test`: the mod's own quests in a fake quest unit (`story/quests/own.h`): nothing read off a co-op save, on SB's
   logic thread or before the world and the manager exist; the ID map through its inline and heap bits; the prologue
   and Quest_Epic_11 read beside "On Time"; each request word's one call (an acquire once, never when held; a first
   task's Complete only at that word's group with its task in progress, through SB's Complete and no other address);
@@ -994,7 +994,7 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   editor's in `data/mxiii-climb.json`, and every ladder lands. The check refuses what the move list held before
   2026-10-31 (ladders lifted by their own height, sunk feet, other stacks, the landing on the wrong side) and the
   editor's stack at the 20 ladders where it does not land;
-- `sbo_lobby_rows_test.py`: `tools/sbo_lobby_rows.py`'s two outputs, `lobby/sbo_maps.lua` and `lion/halls_rows.h`,
+- `sbo_lobby_rows_test.py`: `tools/sbo_lobby_rows.py`'s two outputs, `online/lobby/sbo_maps.lua` and `online/lobby/halls_rows.h`,
   match `data/sbo-lobby.json`, the module loads in Lua, the halls batch holds one seat row per kept seat but the camp
   ones (unique names that never end in `_<digits>`, unique IDs above build 26123051's highest), and its checks refuse
   bad spots, seats, names, IDs, fences and a batch of more than 255 rows. After a change to the data file, run
@@ -1006,7 +1006,7 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   each ZoneEvent rule, the no-progress list, unknown names and loops in chains, Matrix XIII's rows from its data file,
   the written block (sorted, between its markers, the rest of the header untouched, a name that cannot go into a
   C++ literal refused). After new table exports, run `python3 -I tools/world_rows.py <folder>` and commit
-  `native/src/game/world/rows.h`;
+  `native/src/game/objects/rows.h`;
 - `story_rows_test.py`: `tools/story_rows.py` on small made-up tables: the quest events read from a quest table block,
   the zone a row's name gives, each scene rule (a theater path, a level sequence alone, Stop rows, rows with no theater
   row or no path, the priority as the theater manager keeps it, the condition kept only beside AddEvents, the quest
@@ -1022,11 +1022,11 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   header or part; each language table names the modules of `MODULES`. It first runs on planted trees, one fault each, so
   no rule passes vacuously;
 - `matchmaking_scan_test.py`: a scan that fails if any script or native source could reach the game's matchmaking (see
-  [modes/night-operation-previews.md](../modes/night-operation-previews.md#how-the-original-matchmaking-is-blocked)).
+  [online/modes/nightop-previews.md](../online/modes/nightop-previews.md#how-the-original-matchmaking-is-blocked)).
   Stellar Blade's RunZoneEvent address is held once in `native/src/game/sbo.h` and called at two sites: once in
-  `native/src/lobby/sbo_game.inc` for `coop sbo seq`, and once in `native/src/glue/tick/world_game_shared.inc`. That
-  second site serves the shared world's env control rows, which `game/world/engine.h` checks against
-  `game/world/rows.h`'s list right before the call. It also serves story together's scene starts and trips
+  `native/src/online/lobby/sbo_game.inc` for `coop sbo seq`, and once in `native/src/glue/tick/world_game_shared.inc`. That
+  second site serves the shared world's env control rows, which `game/objects/engine.h` checks against
+  `game/objects/rows.h`'s list right before the call. It also serves story together's scene starts and trips
   (`game/story/engine.h`), whose rows are on `game/story/rows.h`'s lists (`scene_row()`, `trip_sent()`);
 - `sbo_difficulty_scan_test.py`: a scan that fails unless `native/src` calls Stellar Blade's difficulty setter
   (`sbo::kSetDifficulty`, 0x141cf3180) exactly once, in R8 after the return's reload. Called in game outside a

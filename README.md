@@ -52,7 +52,7 @@ Two-PC co-op was first played on 2026-10-17, between a Linux PC with Proton and 
 PCs yet. The SBO lobby has run on one PC only, and no match lobby has held two players in game yet. Leave and the
 return to Xion have not run in game, nor has the restore at the title after a failed return. In the lobby EVE wears
 Stellar Blade's `Preset_Eve_Max` build, and only that return or restore gives the co-op save its own skills and
-equipment back ([SBO lobby: Leaving](docs/features/sbo-lobby.md#leaving)).
+equipment back ([SBO lobby: Leaving](docs/online/lobby.md#leaving)).
 
 This version uses link protocol 23 and does not link with 0.11.0 or older, so every player has to update. Every on/off
 setting is now on by default, the experimental ones included; most of them have not been tested in game
@@ -67,23 +67,23 @@ setting is now on by default, the experimental ones included; most of them have 
   you can join. See [Playing with a friend](docs/players/playing-with-a-friend.md).
 - Your friend's EVE appears in your world as a ghost: a display-only copy that moves as she moves, wears her outfit and
   has your friend's Steam name above it. Items are not shared, except the consumables sent with `coop gift`. See
-  [Ghost](docs/features/ghost.md).
+  [Ghost](docs/online/partner.md).
 - Your friend's card at the top left shows their ping, map, HP, shield and Beta. During a session, Enter opens a chat
   box. See [Interface](docs/players/interface.md#partner-hud).
 - The SBO lobby (a test) is a waiting room in Xion's training room for matches of up to 8 players. On a co-op save,
   talk to the recruiter near Roxanne and choose Join. Its menu searches for a public free-for-all match, hosts a
   private one with a join code, or joins one by code, and a countdown starts once 2 players have linked. The
   free-for-all itself is not built yet, so a round's start takes nobody to an arena. `coop pvp` tests PvP damage
-  between two linked friends. See [SBO lobby and matches](docs/features/sbo-lobby.md).
+  between two linked friends. See [SBO lobby and matches](docs/online/lobby.md).
 - Shared enemies (experimental, on by default) give each common enemy one HP bar and one death in both games, while
   both players play a co-op save. Same place, same spawns and shared bosses build on them, and the host's settings
-  apply to both games. See [Shared enemies](docs/features/shared-enemies.md).
+  apply to both games. See [Shared enemies](docs/fight/enemies.md).
 - The shared world (experimental, on by default, not tested in game yet) makes a door, lever, switch, crane, lift or
   shortcut that one player works change in the other's game too, while both play a co-op save. Chests, supply boxes
-  and other loot stay each player's own. See [Shared world](docs/features/shared-world.md).
+  and other loot stay each player's own. See [Shared world](docs/world/objects.md).
 - Story together (experimental, on by default, not tested in game yet) plays the host's story scenes in the guest's
   game too, with his choices, QTE results and skips, while both play a co-op save. See
-  [Story together](docs/features/story-together.md).
+  [Story together](docs/story/together.md).
 - Co-op saves (`StellarBladeCoop00.sav` to `04.sav`) are copies of your own saves that the mod makes on the title
   screen. Night Operation, the challenges, shared enemies, shared quests, the shared world and story together run on
   them only. Nothing goes back to your own saves unless you export it. See
@@ -92,20 +92,20 @@ setting is now on by default, the experimental ones included; most of them have 
   cutscene plays in the host's game, and travel to the camp nearest the host (F7, not tested in game yet). See
   [Playing with a friend](docs/players/playing-with-a-friend.md).
 - In Doro races you record a track with F9 checkpoints, then race it alone or against your friend, each racer drawn
-  as a Doro. See [Doro races](docs/features/doro-races.md).
+  as a Doro. See [Doro races](docs/online/modes/race.md).
 - The bike (not tested in game yet): F3, D-pad Right held 1 s or `coop bike` puts EVE on a motorbike from the game's
-  files, on any save. Your friend's ghost of you rides it too. See [The bike](docs/features/bike.md).
+  files, on any save. Your friend's ghost of you rides it too. See [The bike](docs/vehicles/bike.md).
 - Night Operation is a multiplayer wave-survival mode that Shift Up cut before release. `coop nightop` runs five timed
   waves alone or for both players, and the points buy items in a reward shop. `coop challenge` runs five short fights
-  on the same code. See [Night Operation](docs/modes/night-operation.md).
+  on the same code. See [Night Operation](docs/online/modes/nightop.md).
 - The mod brings back content that was cut from the game, or shipped switched off, and is still in its files: a viewer
   for Leviathan and other cut models, the cut Lion (`coop lion`), the Gardener and the Tendril to fight, cut hairs and
   suits (`coop wear`), emotes, the developer flight and slow motion, the cut glide, cut scenes and subtitles, the Load
   Shortcut saves and the developer menu. See [Cut content](docs/README.md#cut-content).
 - `coop mxiii` (experimental) travels to a camp in Matrix XIII, a dungeon cut before release. It needs the zMXIII_P
-  test pak, which does not come with the mod. See [Matrix XIII](docs/modes/matrix-xiii.md).
+  test pak, which does not come with the mod. See [Matrix XIII](docs/world/matrix13.md).
 - Lily's signal adds two quests of the mod's own near the end of the story. The second leads through Matrix XIII and
-  needs the same test pak. See [Lily's signal](docs/modes/lily-signal.md).
+  needs the same test pak. See [Lily's signal](docs/world/lily-signal.md).
 - Solo test tools run the whole ghost pipeline on one PC: a network loopback, and a recording with its replay. See
   [Keys and commands](docs/usage.md#solo-testing-loopback-record-replay).
 
@@ -128,12 +128,12 @@ features; Matrix XIII and Lily's signal have their own pages.
 | --- | --- |
 | [Install](INSTALL.md) | Install, update and uninstall on Windows, Linux and Steam Deck |
 | [Playing with a friend](docs/players/playing-with-a-friend.md) | Hosting, joining, join codes and the co-op saves |
-| [SBO lobby and matches](docs/features/sbo-lobby.md) | The recruiter's Join, the lobby menu, match lobbies of up to 8 players, the hall lobbies, the PvP test |
+| [SBO lobby and matches](docs/online/lobby.md) | The recruiter's Join, the lobby menu, match lobbies of up to 8 players, the hall lobbies, the PvP test |
 | [Keys and commands](docs/usage.md) | Every key and `coop` console command, and the F6 and `coop status` lines |
 | [Features and test status](docs/features.md) | What the features do and when each was tested |
 | [Troubleshooting](docs/players/troubleshooting.md) | Common problems and which logs to send |
 | [Building](docs/dev/building.md) | Building from source: the toolchain, `tools/install.py` and releases |
-| [How it works](docs/internals/README.md) | The internals pages, for anyone who reads the code |
+| [How it works](docs/README.md#how-stellar-blade-online-works) | The internals pages, for anyone who reads the code |
 
 [The documentation index](docs/README.md) lists every page, Night Operation and the cut content included.
 
@@ -149,7 +149,7 @@ Night Operation's run (`coop nightop`), the challenges (`coop challenge`, which 
 revive adapt code from [Survival Protocol](https://www.nexusmods.com/stellarblade/mods/4009) by SchizoEffective (Nexus
 Mods, Stellar Blade mod 4009). The author gave permission, and the code is distributed here under the SBO License (see
 [NOTICE](NOTICE)). The challenge list follows Survival Protocol's graded stages: five difficulty stages picked from a
-list before a fight. [Night Operation: Credits](docs/modes/night-operation.md#credits) lists the adapted parts and the files
+list before a fight. [Night Operation: Credits](docs/online/modes/nightop.md#credits) lists the adapted parts and the files
 that mark them.
 
 The bike's riding model and its lean adapt code from [Eve On Wheels](https://www.nexusmods.com/stellarblade/mods/4165)

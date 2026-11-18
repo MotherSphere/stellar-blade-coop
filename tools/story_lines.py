@@ -2,8 +2,8 @@
 # Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 # SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-"""Turns a Stellar Blade save into its story lines (docs/dev/story.md): one sorted `key = value` line per quest, task,
-mission record, zone, zone object and event actor value, in the format the mod's `coop story` writes to
+"""Turns a Stellar Blade save into its story lines (docs/dev/story-dump.md): one sorted `key = value` line per quest,
+task, mission record, zone, zone object and event actor value, in the format the mod's `coop story` writes to
 StellarCoopStory.txt, so two saves, or a save and an in-game dump, can be compared line by line. Read only.
 
   python3 tools/story_lines.py snapshot SAVE [PREFIX]  the lines, those whose key starts with PREFIX

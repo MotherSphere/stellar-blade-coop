@@ -119,12 +119,12 @@ changes the file.
   [docs/players/interface.md](docs/players/interface.md#controller).
 - `F6` (status) shows one line on screen and writes it to `UE4SS.log`, for example `Co-op: hosting Alex.`
 - `F8` leaves the session. When the host leaves, the guest leaves too.
-- `F9` sets a checkpoint while you record a Doro race track. See [docs/features/doro-races.md](docs/features/doro-races.md).
+- `F9` sets a checkpoint while you record a Doro race track. See [docs/online/modes/race.md](docs/online/modes/race.md).
 - `Enter`, during a session or in the SBO lobby, opens the chat box. See
   [docs/players/interface.md](docs/players/interface.md#session-chat).
 - On a co-op save in Xion, the recruiter near Roxanne in the Scrap Market takes you to the SBO lobby when you choose
   Join: a test lobby for matches of up to 8 players, where `F5` opens the lobby menu. See
-  [docs/features/sbo-lobby.md](docs/features/sbo-lobby.md).
+  [docs/online/lobby.md](docs/online/lobby.md).
 
 Your friend accepts the invite in Steam, or selects your session in Find a session. If their game is closed when they
 accept an invite, Steam starts it. They join once they have loaded a save. Both ghosts then turn on automatically.

@@ -37,7 +37,7 @@
 -- in ItemTable. No key, story, quest or equipment item; not the Tumbler (Recovery_HP_Potion, whose charges are stats);
 -- not drone ammo (SaveType None: the game does not keep it as these items); not the cut stimpacks, whose rows only
 -- the shop adds. Their AchievementTable rows (Acquire_Item_Grenade, Ach_Reward_Acquire_Item_ConcussionGrenade and the
--- two category guides) lead to no trophy (docs/internals/README.md, Achievements: nothing here moves progress).
+-- two category guides) lead to no trophy (docs/README.md, Achievements: nothing here moves progress).
 -- The file, per SteamID and co-op slot like the shop's wallet: coop-gift-<steamid>-<index>.txt beside the mod, one
 -- entry a line, written whole through link.write_file:
 --   out <id> <alias> <count> <to> <at> <sent>   sent, waiting for her answer (to: her SteamID, 0 in the loopback; at

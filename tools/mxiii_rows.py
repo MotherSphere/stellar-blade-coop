@@ -160,7 +160,7 @@ def check(data):
 HEAD = [
     ("Matrix XIII's batches (coop mxiii, world/maps/matrix13/level/travel.lua): each row a copy of its "
      'donor (a shipped row; donor equal to name: that row patched in place) with the fields below. '
-     'docs/internals/README.md, "Matrix XIII\'s world rows", says what each batch holds.'),
+     'docs/README.md, "Matrix XIII\'s world rows", says what each batch holds.'),
     '',
     ("The mxiii batch (kMxiiiRecipe, with its own patches) holds the 8 rows the cut dungeon's first zone "
      'lacks for a camp of its own (coop mxiii, world/maps/matrix13/level/travel.lua): ZoneCampTable '

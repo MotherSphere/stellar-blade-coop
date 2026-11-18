@@ -7,11 +7,11 @@ The step-by-step procedures for players are in [INSTALL.md](../../INSTALL.md#sav
 - The mod writes one of your own saves (`StellarBladeSave00.sav` to `04.sav`) only when you export a co-op save over
   it with `coop saves export` (see [Co-op saves](#co-op-saves)), after a backup of that save. It never writes your
   unlocks or equipment. It changes the inventory only when you buy in Night Operation's shop (`coop nightop buy`) or
-  send and take a gift (`coop gift`, see [cut-content/cut-scenes-and-menus.md](../cut-content/cut-scenes-and-menus.md#cut-mailbox-coop-gift)), on a co-op save, so the items
+  send and take a gift (`coop gift`, see [tools/menus.md](../tools/menus.md#cut-mailbox-coop-gift)), on a co-op save, so the items
   land in or leave that co-op save, or when you pay 500 betacrystal to bring the bike back at Xion, on any save (see
-  [features/bike.md](../features/bike.md#bringing-it-back-at-xion)).
-  The shop's points (see [modes/night-operation-shop.md](../modes/night-operation-shop.md)), the gifts' mailbox and the place where
-  you left the [bike](../features/bike.md#where-the-bike-stays) (`coop-bike-<steamid>-<saves><index>.txt`, one file per Steam
+  [vehicles/bike.md](../vehicles/bike.md#bringing-it-back-at-xion)).
+  The shop's points (see [online/modes/nightop-shop.md](../online/modes/nightop-shop.md)), the gifts' mailbox and the place where
+  you left the [bike](../vehicles/bike.md#where-the-bike-stays) (`coop-bike-<steamid>-<saves><index>.txt`, one file per Steam
   account and save) are kept in the mod folder, not in a save, so restoring a save backup does not change them.
 - The native part reads your saves only to make their co-op copies, `StellarBladeCoop00.sav` to `04.sav`, on a
   `saves convert` or `saves coop` request at the title. The question on the title screen and `auto_coop_save=always`
@@ -20,7 +20,7 @@ The step-by-step procedures for players are in [INSTALL.md](../../INSTALL.md#sav
   exist yet, a backup of every `StellarBlade*.sav` of the account in
   `%LOCALAPPDATA%\SB\Saved\StellarCoopBackups\<UTC time>\`, before the first copy. On a `saves export` request it
   reads a co-op copy and writes it over the save you named, after a backup of that save in the same folder. The rules
-  are in [internals/safety.md](../internals/safety.md#safety-design).
+  are in [dev/safety.md](../dev/safety.md#safety-design).
 - With the experimental shared quests on (the default), the native part also writes `StellarCoopQuests00.txt` to
   `04.txt` beside the co-op copies: the record of the quest steps shared on that co-op slot, through the same name
   check. On the guest's side, her game makes the host's quest steps through its own quest functions, in the co-op save
@@ -127,7 +127,7 @@ The question and `always` show their result as a notice: `Co-op saves on: you pl
 own saves are not changed.`, or `Co-op saves off for this load: <why>. You play your own saves.` While the game uses
 the copies, the title screen shows `CO-OP SAVES` at the top right. In a session on your
 own save with shared enemies on, a notice says how to switch to the co-op copy (see
-[shared-enemies.md: Shared enemies](../features/shared-enemies.md#shared-enemies-experimental)).
+[shared-enemies.md: Shared enemies](../fight/enemies.md#shared-enemies-experimental)).
 
 A copy pass:
 
@@ -157,7 +157,7 @@ The `convert=` line shows the pass as any other, and `coop-link.log` has `slot N
 `coop saves coop` is refused until that pass ends, since the other slots may have no copy or an older one; once it has
 ended, `coop saves coop` runs its own pass over every slot first.
 
-`coop shortcut load` ([cut-content/cut-scenes-and-menus.md](../cut-content/cut-scenes-and-menus.md#loading-one-coop-shortcut-load), with `shortcut_load=on`, the default) writes a
+`coop shortcut load` ([tools/menus.md](../tools/menus.md#loading-one-coop-shortcut-load), with `shortcut_load=on`, the default) writes a
 cleaned developer save as `StellarBladeCoop04.sav` through the same kind of pass, while the game uses the copies: the
 old copy goes to a new folder of `StellarCoopBackups` first, and the new one gets no line in `StellarCoopSaves.txt`, so
 later passes keep it as played. Before the save, it writes `StellarCoopShortcut04.txt` beside it, a mark that names
@@ -195,7 +195,7 @@ copies, and switches neither. As with a refresh, the first time it only says wha
   saved death, an opened box, a door's state or a pickup. None of the user's 15 released-game saves holds such a name.
   The game keeps a world's zone state for good, so such a save can never be exported, and the refusal says so;
 - refuses it, before it writes anything, when the save names one of the mod's quests, A Second Signal
-  (`Quest_Sub_MX13_00`) or On Time (`Quest_Sub_MX13_01`, both from Lily's signal, see [modes/lily-signal.md](../modes/lily-signal.md)),
+  (`Quest_Sub_MX13_00`) or On Time (`Quest_Sub_MX13_01`, both from Lily's signal, see [world/lily-signal.md](../world/lily-signal.md)),
   anywhere. The save keeps a quest's alias even once it is complete, so there is no way to clear it by playing, and the
   refusal says so;
 - refuses it, before it writes anything, when the save names one of the Matrix XIII records (`Ach_Album_Unlock_MX13_...`
@@ -333,4 +333,4 @@ The full steps are in [INSTALL.md: Recovery](../../INSTALL.md#recovery).
 - New Game and New Game+ ask which slot to overwrite, among the co-op copies while the game uses them. That prompt
   comes from the game, not from the mod.
 - After a Night Operation preview, kill the game instead of quitting from the menu (which saves), then check and
-  restore your backup. See [modes/night-operation-previews.md](../modes/night-operation-previews.md#after-a-preview-run).
+  restore your backup. See [online/modes/nightop-previews.md](../online/modes/nightop-previews.md#after-a-preview-run).
