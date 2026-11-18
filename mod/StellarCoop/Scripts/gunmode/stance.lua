@@ -450,6 +450,16 @@ function Stance.new(laser)
      if held and aimBlend>=1 then
       local axis=mathlib:GetForwardVector(gun:GetSocketRotation(FName('FX_Fire')))
       local goal=mathlib:GetForwardVector(cam)
+      -- gun mode: the barrel on the line from its muzzle to where the rounds go (the laser's end, under the
+      -- reticle), not parallel to the camera: from over her shoulder a parallel barrel and the laser it carries
+      -- crossed (11:36). Far points (the sky) keep the camera's line.
+      local t=beam_target()
+      if t then
+       local m=gun:GetSocketLocation(FName('FX_Fire'))
+       local dx,dy,dz=t.X-m.X,t.Y-m.Y,t.Z-m.Z
+       local len=math.sqrt(dx*dx+dy*dy+dz*dz)
+       if len>100 then goal={X=dx/len,Y=dy/len,Z=dz/len} end
+      end
       local dot=axis.X*goal.X+axis.Y*goal.Y+axis.Z*goal.Z
       if dot<0.9999 then
        local x,y,z=axis.Y*goal.Z-axis.Z*goal.Y,axis.Z*goal.X-axis.X*goal.Z,axis.X*goal.Y-axis.Y*goal.X
