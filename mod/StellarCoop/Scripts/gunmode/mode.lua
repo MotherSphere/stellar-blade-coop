@@ -458,7 +458,10 @@ function GunMode.new(env)
         ok,err=pcall(function()
             s.rifle=stance.start(pc,function() return s.zoom_held end,function() return s.target end,
                 function() return s.air_aim==true end,
-                0,false,false,set.native and (set.upper or s.pak),set.native and not set.upper and not s.pak)
+                -- With the animation pak her body under the posed copy is the pak's rifle stance (upright, strafing),
+                -- so Luke's own aim runs on it unchanged: his arms from her chest, turned to the camera, the rifle
+                -- squared on the camera's line (the user's call, 11:32: Luke's aim is the look to keep).
+                0,false,false,set.native and set.upper and not s.pak,set.native and not set.upper and not s.pak)
         end)
         if not ok then
             if s.mask then pcall(s.mask); s.mask=nil end
