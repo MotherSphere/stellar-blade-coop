@@ -6,8 +6,8 @@
 --   gun_key=<key>         the keyboard toggle, G unless set: one letter A to Z or F1 to F12 but F10 (Ctrl+<key> toggles
 --                         too, so it can be left while aiming)
 --   gun_pose=on|off       standing: the posed arms and the muzzle laser (gunmode/pose.lua; off by default for now)
---   gun_fire_effect=on|off  test only: standing hip fire through an EffectTable row (gunmode/data.lua; off: UE4SS's
---                         FindRow on EffectTable can crash the game). Off, the rifle fires aimed (Ctrl / L2 + LMB / R2)
+--   gun_fire_effect=on|off  standing fire through an EffectTable row (gunmode/data.lua; on by default). Off leaves
+--                         EffectTable alone: then only the crouched NIKKE aim (Ctrl / L2 + LMB / R2) fires
 --   gun_real_ammo=on|off  each shot spends one NIKKE round and gun mode ends when the bag is empty (off by default: the
 --                         rows that make that work, NGM_AE_RealAmmo and its family, are not in every build of the pak)
 -- On a pad, a tap of D-pad Right (released within pad_tap s) toggles: a hold of it is the bike's (bike/ride.lua).
@@ -64,7 +64,7 @@ end
 function Config.parse(text)
     local get=Config.get
     local out,bad={on=true,key=Config.DEFAULTS.key,real_ammo=Config.DEFAULTS.real_ammo,pose=Config.DEFAULTS.pose,
-        fire_effect=false},{}
+        fire_effect=true},{}
     if not text then return out,bad end
     local v=get(text,'gun_mode')
     if v then

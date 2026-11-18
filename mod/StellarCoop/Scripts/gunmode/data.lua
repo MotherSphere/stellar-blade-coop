@@ -7,10 +7,9 @@
 -- * EventActorEffectTable (fired as zone events by gunmode/rows.lua): SB's own NIKKE rows where one applies the effect
 --   (the cover positions, the gun off, the drone); for the others, rows of the NIKKE missions' drone summons and a
 --   spare position row, their ActorEffectAlias pointed at gun mode's effect while it is on.
--- * EffectTable, only with fire_effect (gun_fire_effect=on, a test): M_Scarlet_CounterLinkStart (0.1 s on self, one
---   UseSkill action) starts P_Eve_GunNikke_ShootSlug1_1: the shot, started without the stance's fire command. Off by
---   default: UE4SS's FindRow on EffectTable crashed the game in its copy of the row, some times out of some (11-17).
---   Without it the stance's own fire command shoots (aimed: Ctrl / L2 held, LMB / R2).
+-- * EffectTable: M_Scarlet_CounterLinkStart (0.1 s on self, one UseSkill action) starts P_Eve_GunNikke_ShootSlug1_1:
+--   the shot, standing, without the stance's fire command (the standing stance has none). Its ActionValue1 is an
+--   FString: an FName written there crashed the game (11-17). gun_fire_effect=off leaves EffectTable alone.
 -- * SkillCommandTable: the NIKKE fire commands ShootSlug1_1 and _2 take the burst shot's command type
 --   (RangedFireSkill: no check of the equipped bullet), as zNikkeGunMode_P did.
 -- * SkillActiveStepTable: the shot's Hit1 step takes its Cast1 step's type (fires its projectile, spends no round).
@@ -40,7 +39,7 @@ Data.BORROWED={
     PeaceOff={'Nikke_05_E_ActorEff_017','PeacefulMode_Infinite_Dispel'},
     Fire={'Nikke_01_E_ActorEff_015',Data.FIRE_EFFECT},
 }
-Data.BORROW_ORDER={'GunOn','Reload','Beta','BetaOff','Ammo','Peace','PeaceOff','Fire'} -- Fire: fire_effect only.
+Data.BORROW_ORDER={'GunOn','Reload','Beta','BetaOff','Ammo','Peace','PeaceOff','Fire'} -- Fire: with fire only.
 Data.FIRE_SKILL='P_Eve_GunNikke_ShootSlug1_1'
 Data.FIRE_COMMANDS={'P_Eve_GunNikke_ShootSlug1_1','P_Eve_GunNikke_ShootSlug1_2'}
 Data.BURST_COMMAND='P_Eve_GunNikke_ShootSlug2_1'
@@ -55,16 +54,14 @@ end
 -- g: gun mode's shared state (log, try, valid). Returns an object: take() points the rows at gun mode's data (true,
 -- or false and why), put_back() restores what take() changed.
 function Data.new(g,fire_effect)
-    local self={saved=nil,fire=fire_effect==true}
+    local self={saved=nil,fire=fire_effect~=false}
     local function tbl(name)
         local t=g.try(function() return StaticFindObject(BASE..name..'.'..name) end)
         assert(g.valid(t),'no '..name)
         return t
     end
     local function text(v) return g.try(function() return v:ToString() end) or tostring(v) end
-    local trace=true -- The first take logs each row it reads (a crash in one showed no line, 11-17).
     local function row(t,name)
-        if trace then g.log('data: row '..name) end
         local r=g.try(function() return t:FindRow(name) end)
         assert(r,'no row '..name)
         return r
@@ -96,7 +93,6 @@ function Data.new(g,fire_effect)
             for _,e in pairs(Data.BORROWED) do used[e[1]]=true end
             for _,k in ipairs(Data.BORROW_ORDER) do
                 local e=(k~='Fire' or self.fire) and Data.BORROWED[k]
-                if e and trace then g.log('data: has '..e[1]) end
                 if e and not g.try(function() return eae:FindRow(e[1]) end) then
                     local n=take_spare(used)
                     assert(n,'no spare row for '..k)
@@ -111,8 +107,9 @@ function Data.new(g,fire_effect)
             end
             if self.fire then
                 local fire=row(tbl('EffectTable'),Data.FIRE_EFFECT)
-                saved[#saved+1]={fire,'ActionValue1',FName(text(fire.ActionValue1))}
-                fire.ActionValue1=FName(Data.FIRE_SKILL)
+                local was=text(fire.ActionValue1)
+                saved[#saved+1]={fire,'ActionValue1',was}
+                fire.ActionValue1=Data.FIRE_SKILL
             end
             local cmd=tbl('SkillCommandTable')
             local kind=row(cmd,Data.BURST_COMMAND).CommandActionType
@@ -121,7 +118,6 @@ function Data.new(g,fire_effect)
                 saved[#saved+1]={r,'CommandActionType',r.CommandActionType}
                 r.CommandActionType=kind
             end
-            if trace then g.log('data: steps') end
             local step=g.try(function() return tbl('SkillActiveStepTable') end)
             local hit=step and g.try(function() return step:FindRow(Data.HIT_STEP) end)
             local cast=step and g.try(function() return step:FindRow(Data.CAST_STEP) end)
@@ -136,7 +132,6 @@ function Data.new(g,fire_effect)
             return false,err
         end
         self.saved=saved
-        trace=false
         g.log('data: '..#saved..' fields of SB\'s rows taken for gun mode')
         return true
     end
