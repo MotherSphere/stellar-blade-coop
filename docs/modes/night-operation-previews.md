@@ -159,7 +159,7 @@ leaving your game in these ways:
   reach the matchmaking path. The Join row may appear only as the recruiter's constant, which the recruiter neutralizes
   and never fires. The test also sets how many calls each file may make that fire zone events, add table rows or make
   game requests: the run has one spawn request and the shop one item request. The only console call it allows is
-  main.lua's photo pause, which sets `SB.PhotoMode.PauseMethod` to 0 or 1. It first runs on planted violations, so no
-  rule passes vacuously.
+  `photo/wiring.lua`'s photo pause, which sets `SB.PhotoMode.PauseMethod` to 0 or 1. It first runs on planted
+  violations, so no rule passes vacuously.
 - The mod has no code that talks to Shift Up's services. Its only network use is the Steam link between friends,
   through the Steam client the game already runs (see [internals/steam-link.md](../internals/steam-link.md)).

@@ -5,15 +5,16 @@ default) has not run in game yet. Every address and offset below is build 261230
 
 The code is split as for the [shared world](shared-world.md):
 
-- `native/src/story/rows.h`: the scene and trip lists, written by `tools/story_rows.py`;
-- `native/src/story/sync.h`: the lines, the host's reader (`Lead`), both players' sides (`Sync`), the story gate, the
-  leash and the status line, with no Windows types and no game call;
-- `native/src/story/engine.h`: the theater reads and the game calls, through a `Game` that is SB's memory on Windows
-  and fake memory in the tests;
-- `native/src/glue/tick/story_game.inc`: the hooks and each frame's pass on the game thread;
-- `native/src/glue/tick/story_worker.inc`: Lua's request, the slot swaps, channel 2 and the status line on the worker;
-- `native/src/quest/sync.h` and `quest/engine.h`: the guest's quest steps the host makes (`SBQ23 step`);
-- `mod/StellarCoop/Scripts/commands/scenes.lua` and `main.lua`: the setting, `coop scenes` and the notices.
+- `native/src/game/story/rows.h`: the scene and trip lists, written by `tools/story_rows.py`;
+- `native/src/game/story/sync.h`: the lines, the host's reader (`Lead`), both players' sides (`Sync`), the story gate,
+  the leash and the status line, with no Windows types and no game call;
+- `native/src/game/story/engine.h`: the theater reads and the game calls, through a `Game` that is SB's memory on
+  Windows and fake memory in the tests;
+- `native/src/story/story_game.inc`: the hooks and each frame's pass on the game thread, with its state and latch that
+  other modules' parts read in `native/src/glue/tick/story_game_shared.inc`;
+- `native/src/story/story_worker.inc`: Lua's request, the slot swaps, channel 2 and the status line on the worker;
+- `native/src/game/quest/sync.h` and `game/quest/engine.h`: the guest's quest steps the host makes (`SBQ23 step`);
+- `mod/StellarCoop/Scripts/story/commands.lua` and `story/wiring.lua`: the setting, `coop scenes` and the notices.
 
 ## Model
 
@@ -34,9 +35,9 @@ theater that plays (P). P's `+0x28` is the take context (C), made for each take;
 
 - A new P sends its root once its first take started. When hook 1 saw an ActionTheater node start that play id, the root
   is a `talk` line: the path (P `+0xf8`), its priority (`+0x1e0`), where it plays (`+0x114`, `+0x120`) and the first
-  take. Otherwise `story/rows.h`'s `scene()` finds the ZoneEventTable row from the path, the priority, the FinishEvents
-  (P `+0x158`) and his zone; the host sends it in a `play` line. A path that is neither came from one of SB's other
-  theater starts; it is logged once and not shared.
+  take. Otherwise `game/story/rows.h`'s `scene()` finds the ZoneEventTable row from the path, the priority, the
+  FinishEvents (P `+0x158`) and his zone; the host sends it in a `play` line. A path that is neither came from one of
+  SB's other theater starts; it is logged once and not shared.
 - While P plays: the results his widgets committed, a skip that moved it (a rise of one of three skip latches, then a
   new take or a jump of 5 frames or more), then his position: take, sequence asset (the sequence player `+0x468`) and
   frame (`0x1424d32e0`). A position that changed only its frame goes at most every 100 ms.
@@ -68,14 +69,14 @@ PlayerChoice's index.
 
 ## Tables
 
-`tools/story_rows.py` reads the table exports of the pinned build and writes the generated block of `story/rows.h`:
+`tools/story_rows.py` reads the table exports of the pinned build and writes the generated block of `game/story/rows.h`:
 
 ```
 python3 -I tools/story_rows.py <folder of <Table>.uasset.json exports>
 ```
 
 It reads ZoneEventTable, EventTheaterTable, EventZoneWarpTable, ZoneTable, ZoneTriggerTable, WorldTransitionTable,
-ZoneEnvSpawnTable, ZoneEnvTable and the three quest tables, with `quest/sync.h`'s quest table:
+ZoneEnvSpawnTable, ZoneEnvTable and the three quest tables, with `game/quest/sync.h`'s quest table:
 
 - 847 scene rows over 761 paths, 146 of them a level sequence alone, 27 run by a shared quest step. Several rows can
   share a path. The priority and the FinishEvents tell most apart; the host's zone tells the rest. 44 paths keep rows
@@ -113,12 +114,12 @@ sequence.
 | `SBS23 trip <seq> <zone> <row>` | a story trip a graph ran |
 | `SBS23 on <hooks>`, `SBS23 on reply <hooks>`, `SBS23 off <reason>` | the sender's state, as the shared world's; hooks: 1, 2 and 4 added for hooks 1 to 3 in |
 
-`seq` is 1 for the first line after each `on` and one more for each later one. The guest takes them in order: an old
-one is counted as bad and a gap is logged once, so the leash never steps back. Before a line is sent, the sender writes
-it, parses it back and checks the lists. The worker hands our lines to `send_fight()`; a refused one waits with the
-lines after it for the next pass, up to 1,024 (the shared world's `Outbox`). `link/core.h` refuses `SBS` lines in match
-lobbies both ways. One that arrives there is dropped with `dropped fight data from <name>: story together is off in a
-match lobby` in the log.
+`seq` is 1 for the first line after each `on` and one more for each later one. The guest takes them in order: an old one
+is counted as bad and a gap is logged once, so the leash never steps back. Before a line is sent, the sender writes it,
+parses it back and checks the lists. The worker hands our lines to `send_fight()`; a refused one waits with the lines
+after it for the next pass, up to 1,024 (the shared world's `Outbox`). `link/core.h` (in `link/core/channels.inc`)
+refuses `SBS` lines in match lobbies both ways. One that arrives there is dropped with
+`dropped fight data from <name>: story together is off in a match lobby` in the log.
 
 ## The guest's side
 
@@ -265,8 +266,8 @@ after a fault. The line moves with every position of a shared scene, so `core/li
 
 ## Lua side
 
-`shared_story` is a switch in `core/link.lua`'s settings, on by default. The native part starts with it on. Once a
-load, as soon as the native part has judged the save slot, `main.lua` sends `scenes off` for `shared_story=off`, or
+`shared_story` is a switch in `core/link.lua`'s settings, on by default. The native part starts with it on. Once a load,
+as soon as the native part has judged the save slot, `story/wiring.lua` sends `scenes off` for `shared_story=off`, or
 `scenes on` for `shared_story=on` while the `story=` line reads off by the setting (`story=off scene=`). It sends
 nothing while that line already agrees, or while it reads `story=off why=`, where the native part refuses any request.
 The Options row sends `scenes on` or `scenes off` at once. `coop scenes on|off` sends the request itself, leaves the

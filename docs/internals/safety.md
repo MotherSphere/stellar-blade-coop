@@ -118,9 +118,10 @@ feature or drops the input.
   line gives the reason the worker stopped. The rows batches (the cut Naytibas, the Shock Bolt, Matrix XIII and the
   Night Operation shop) share one latch;
   [The Gardener's batch in the native part](cut-enemies.md#the-gardeners-batch-in-the-native-part) says why.
-- On the Lua side, `main.lua` calls each module's work in its two loops (every frame and every 250 ms) through an
-  `xpcall` guard. An error that escapes one, for example `cut/lion.lua`'s tick, is logged with the module's name, the
-  message and its stack traceback:
+- On the Lua side, a module that fails to load is off alone until the mod reloads
+  ([Modules and isolation](architecture.md#modules-and-isolation)). `main/frame.lua` and `main/pass.lua` call each
+  module's work in the two loops (every frame and every 250 ms) through an `xpcall` guard. An error that escapes one,
+  for example `cut/enemies/lion.lua`'s tick, is logged with the module's name, the message and its stack traceback:
   `[StellarCoop] lion: error (logged once until the mod reloads; the other modules go on): <message>`, then
   `stack traceback:` and its lines. The traceback gives the script and the line, which the message alone lacks for
   most of the mod's errors (raised with `error(why,0)`) and for UE4SS's own. Each guarded call logs its first error

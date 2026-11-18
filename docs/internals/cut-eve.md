@@ -36,22 +36,22 @@ condition names a shipped effect. There is no SkillCommandTable or AcquisitionSk
 commands are taken in Tachy Mode. A fifth command would go into the `P_Eve_Tachy` stance row; it could be appended in
 place, as `lion/shock.h` does for the gun stances (see [The cut Shock Bolt](night-operation-shop.md#the-cut-shock-bolt)), and was not added.
 
-`coop chainspin` (`cut/chainspin.lua`) starts it. It gets the rows in through `Lion.rows`, as the shop does, then calls
-`ServerRequest_Cheat(<EVE's GUID>, 0, "SBApplyEffectMe", "1004500")` on the player controller. The request's
+`coop chainspin` (`cut/eve/chainspin.lua`) starts it. It gets the rows in through `Lion.rows`, as the shop does, then
+calls `ServerRequest_Cheat(<EVE's GUID>, 0, "SBApplyEffectMe", "1004500")` on the player controller. The request's
 implementation queues an `FSBCheat` logic request (`0x141aff820`); its `Simulate` (`0x141b12a40`) finds the actor by
 GUID, reads the first argument as a number and calls the effect function `0x141ad1af0` (the one the shared fight's job
 calls) with the actor as target and caster. The effect's action 69 turns its `ActionValue1` into an FName, finds the
 SkillTable row by that name (`0x141a9b530`) and calls `FSBActorLogicObject::UseSkill` (`0x141ba3600`) with the row's ID.
 The effect's condition keeps all of it to Tachy Mode. Two other ways were ruled out in the disassembly:
-`ServerRequest_UseSkill` builds an `FSBUseSkill` request whose `Simulate` looks for a command node in the actor's
-stance and global command lists and does nothing without one ("skillCommandNode is null"), and the cheat manager's
+`ServerRequest_UseSkill` builds an `FSBUseSkill` request whose `Simulate` looks for a command node in the actor's stance
+and global command lists and does nothing without one ("skillCommandNode is null"), and the cheat manager's
 `SBPlayerUseSkill` only reads its argument in this build. EVE's GUID comes from the engine line's `me=` (the key of the
 world's player map, which the revive uses too); nothing is asked while `warp=` says busy. None of this has run in game.
 
 ## Developer flight and slow motion
 
-`coop fly` and `coop slowmo` switch on two developer gates that the game ships off (`game/debug_keys.h`, run by
-`glue/tick/debug_game.inc`; not tested in game yet). EVE's character tick reads the flight key (R2 or Z) only through
+`coop fly` and `coop slowmo` switch on two developer gates that the game ships off (`cut/debug_keys.h`, run by
+`cut/debug_game.inc`; not tested in game yet). EVE's character tick reads the flight key (R2 or Z) only through
 one function (`0x1423cf670`) and the time-control key (R1) only through another (`0x1423cf760`), and each passes its key
 on only while its gate reads true. A gate is one bool in a settings singleton of the game's, not a UObject: the pointer
 at `0x147037400` (`+0x18` from the net-mode cache `0x1470373e8`) leads to a `TMap<int32, bool>` at `+0xa8`, keyed by the
@@ -77,7 +77,7 @@ mode) and the time pool allows it (`RemainFlyingActionTime` at least `FlyingActi
 cooldown), and ends it when the key is released. With the slow-motion gate on, holding R1 sets the time dilation to
 `TimeControlKeyScale` (0.2), and every tick without it sets 1 again, so slow motion ends by itself.
 
-The start and the level flight (`Hold` in `game/debug_keys.h`) set the flight key's flag after the game's key pass. The
+The start and the level flight (`Hold` in `cut/debug_keys.h`) set the flight key's flag after the game's key pass. The
 player controller's input pass (`0x1423c9f70`, its `ProcessPlayerInput(dt, paused)`) recomputes `USBPlayerInput`'s
 `bPushedFlyingActionKey` (`+0x193`) from the keys held each frame, through `0x1423cdec0`, and EVE's tick, which runs
 after the controller's, starts a flight while the flight flag reads true in the air and ends it when the flag reads
@@ -116,7 +116,7 @@ the hook writes 1, so she flies level. The press that armed the start is no pres
 down. The next press stops the writes until the flight ends, so the space bar drops her, and the count starts over at
 0. Once a second, when a count changed, `coop-link.log` gets a line such as `fly hold: 5400 steps, 7 presses, 1 armed,
 12 armed writes, 1 takeoffs`: the hook's runs, the space bar presses it saw, the starts it armed, the frames it wrote
-the flag outside a flight and the flights it saw start. While `coop fly` is on, `cut/flight.lua` writes R2
+the flag outside a flight and the flights it saw start. While `coop fly` is on, `cut/eve/flight.lua` writes R2
 over Z (and over any third slot) in `DefinedFlyActionKeyLists` (`+0xC0`), so Z and S, which walk forward and back on an
 AZERTY keyboard, no longer start a flight; it puts Z back at `off`, `coop off` and the next Lua load. The reads go
 through `ReadProcessMemory`; the write runs under the hook's own SEH latch, and a fault puts both slots back for the
@@ -124,7 +124,7 @@ run. `coop off` puts them back too. The pass recomputes the flag each frame, so 
 
 ## Cut glide
 
-`coop glide` (`cut/glide.lua`, not tested in game yet) plays the part of a cut piece of EVE's movement code. In the
+`coop glide` (`cut/eve/glide.lua`, not tested in game yet) plays the part of a cut piece of EVE's movement code. In the
 pinned build, `ASBCharacter`'s `bGlide` (`+0x1100`) has four readers and no writer. The movement component's gravity
 (`0x142152100`, its `GetGravityZ` slot) checks it before the flight and the wall run and scales gravity by
 `GlideGravityScale` (`+0xC80`, 0.1). Its air control (`0x142159d00`) scales by `GlideAirControlScale` (`+0xC8C`, 1.0,
@@ -149,7 +149,7 @@ on the player's EVE when it reads true. The property is transient: nothing of it
 
 ## Emotes
 
-`coop emote` (`cut/emote.lua`, not tested in game yet) plays one of 39 clips under
+`coop emote` (`cut/eve/emote.lua`, not tested in game yet) plays one of 39 clips under
 `/Game/Art/Character/PC/CH_P_EVE_01/Animation/`: the 31 of `PhotoMode/` that are not in `Bear/` and not a `_Selfie`
 file, each a still (7 frames over 0.2 s, or 2 frames over 0.033 s) played in a loop; and, played once, the two selfie
 waves `PhotoMode/Hello_Selfie_L` and `_R` (3 s each, not additive) and six clips made for two enemies with no
@@ -173,7 +173,7 @@ player's custom animation. Photo mode's own poses do not use these clips either:
 writes `PoseName_PhotoMode` and hands a pose snapshot baked from them to the animation instance, which the blueprint
 reads only in photo mode.
 
-So the native part plays the clip (`game/anim.h`, `glue/tick/anim_game.inc`). Lua asks `anim play <id> <path> once|loop`
+So the native part plays the clip (`game/anim.h`, `cut/anim_game.inc`). Lua asks `anim play <id> <path> once|loop`
 (the id counts up from the load's start time; the path must start with `/Game/Art/Character/PC/CH_P_EVE_01/Animation/`).
 
 On its next frame the game thread takes our EVE as the pawn (`AController::Pawn`, `+0x2f8`) of the player controller

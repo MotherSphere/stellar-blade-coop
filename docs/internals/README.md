@@ -5,16 +5,16 @@ who reads or changes the code. The commands are in [usage.md](../usage.md), and 
 [dev/building.md](../dev/building.md#repository-layout).
 
 Code comments still cite sections of this page by name, for example `native/src/lion/mxiii_rows.h` and
-`tools/mxiii_rows.py` ("Matrix XIII's world rows") and `mod/StellarCoop/Scripts/cut/mailbox.lua` ("Achievements"), so
-[Where each section went](#where-each-section-went) gives the new place of every section that used to be here.
-`cut/enemy.lua` and `nightop/run.lua` cite this page for how a spawned body reads its state and how the game reuses Lion
-bodies, which is in [internals/cut-enemies.md: The spawn](cut-enemies.md#the-spawn).
+`tools/mxiii_rows.py` ("Matrix XIII's world rows") and `mod/StellarCoop/Scripts/cut/menus/mailbox.lua` ("Achievements"),
+so [Where each section went](#where-each-section-went) gives the new place of every section that used to be here.
+`core/enemy.lua`, its copy `cut/enemies/enemy.lua` and `nightop/run.lua` cite this page for how a spawned body reads its
+state and how the game reuses Lion bodies, which is in [internals/cut-enemies.md: The spawn](cut-enemies.md#the-spawn).
 
 ## The internals pages
 
 | Page | What it covers |
 | --- | --- |
-| [architecture.md](architecture.md) | The Lua and native parts, the Lua scripts, the files they share, the co-op UI's input, loopback, record and replay |
+| [architecture.md](architecture.md) | The Lua and native parts, the Lua scripts, the files they share, the modules and their isolation, the co-op UI's input, loopback, record and replay |
 | [steam-link.md](steam-link.md) | Lobby and invites, players who are not Steam friends, the handshake, channels 0 and 1, protocol versions, link health in the log |
 | [ghost.md](ghost.md) | The ghost pipeline in seven steps, looks, the CNS guard and crash sentinel, the solid partner |
 | [shared-enemies.md](shared-enemies.md) | Same-place enemies, same spawns and the spawn filter, extra enemies, shared bosses |

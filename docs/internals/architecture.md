@@ -36,45 +36,66 @@ Both games run the same pipeline in both directions, so each player sees the oth
 
 | Script | Role |
 | --- | --- |
-| `main.lua` | Entry point: loads the DLL, reads the settings, registers the `coop` command and the keys, runs the loops |
-| `commands/session.lua` | The session's `coop` commands: `host` (the Create a session screen, or a host at once with a Who can join word), `invite`, `join` (a lobby id, a join code or a row of the session list), `list`, `leave`, `status`, `report`, `copy`, `mark`, `allow`, `deny`, `remove`, `revive test`, `travel` and `saves` |
-| `commands/partner.lua` | The ghost's `coop` commands: `puppet`, `basesuit`, `where`, `look`, `loopback`, `record`, `replay` and `freeze` |
-| `commands/nightop.lua` | `coop no`, `coop nightop`, `coop challenge` and `coop recruiter`, with their co-op save check |
-| `commands/race.lua` | `coop race`: the Doro look and probe, and the co-op save check before `race/run.lua`'s command |
-| `commands/fight.lua` | `coop fight` (its pilot and spawn probe included) and `coop quests`: their lines for the native part |
-| `commands/cut.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop gardener fight`, handed to `cut/gardener.lua` with the co-op save check and the viewer's display put away before the words that spawn; `coop tendril fight`, handed to `cut/tendril.lua` the same way; `coop wear`; `coop scene`, with the co-op save check before a scene's name (`coop scene lily` handed to `matrix13/quest/on_time.lua`'s talk); `coop lines`; `coop emote`; `coop fly`, `coop slowmo` and `coop glide`, with the co-op save check before `on`; `coop gift`, with the co-op save check before every word |
-| `commands/guide.lua` | `coop guide`, which opens the guide |
-| `commands/world.lua` | `coop world`: on and off for the [shared world](shared-world.md) until the mod reloads, and its status line |
-| `commands/scenes.lua` | `coop scenes`: on and off for [story together](story-sync.md) until the mod reloads; its status line |
-| `commands/daynight.lua` | `coop daynight`: its words handed to `sky/daynight.lua` ([Day and night](daynight.md)) |
-| `commands/bike.lua` | `coop bike`, `coop bike status` and `coop bike tune`, handed to `bike/ride.lua` ([The bike](bike.md)) |
+| `main.lua` | Entry point: the state table `M` the runtime and the modules share, the module list (`MODULES`), then the runtime's files in order and the `Loaded version` line |
+| `main/boot.lua` | Loads the DLL and its entry points, starts the Steam link's Lua side, reads the settings, writes a new session token |
+| `main/base.lua` | What the runtime and the modules share: notices, words, `ask`, the co-op save check, `riding()` and the plain values several files read (`chat_clock`, `at_title` and the rest) |
+| `main/loader.lua` | The module loader: each module's `wiring.lua` in list order, the stubs, the off line and its notice, the build steps, `view` and `get` (see [Modules and isolation](#modules-and-isolation)) |
+| `main/commands.lua` | `coop ui` and `coop off`, `coop guide` and `coop keys` from `ui/kit/commands.lua`, then `report` and `run`, which every `coop` word goes through |
+| `main/ui.lua` | The UI kit, the guide and the menu (`ui/kit/menu.lua`), with each module's build steps between them in the kit's build order |
+| `main/input.lua` | The frame and pass timing line, the pad's events routed to the open screen, the Online tab, the console command |
+| `main/frame.lua` | The frame loop: each module's frame work under `guarded()`, the UI's ticks and the pad's events |
+| `main/pass.lua` | The 250 ms loop, with the Steam link only: each module's pass work under `guarded()`, the link's notices and the off notices |
+| `main/keys.lua` | The key binds, with the Steam link only: the F-keys, Enter, the navigation keys, Esc and the mouse buttons |
+| `<module>/wiring.lua` | A module's manifest: the modules it reads later (`uses`), the `M` fields it sets (`exports`), its share of the startup (`new`) and its kit groups (`build`) |
+| `<module>/commands.lua` | A module's `coop` words: its `new` returns them and the loader adds them to `M.commands` |
+| `session/commands.lua` | The session's `coop` commands: `host` (the Create a session screen, or a host at once with a Who can join word), `invite`, `join` (a lobby id, a join code or a row of the session list), `list`, `leave`, `status`, `report`, `copy`, `mark`, `allow`, `deny`, `remove`, `mute`, `unmute`, `block`, `unblock` and `blocked` |
+| `group/commands.lua` | `coop revive test` and `coop travel` |
+| `lobby/commands.lua` | `coop match` and `coop sbo`, with its own copy of `coop join` for `coop match join` |
+| `save/commands.lua` | `coop saves` and `coop shortcut` |
+| `partner/commands.lua` | The ghost's `coop` commands: `puppet`, `basesuit`, `where`, `near`, `cns`, `look`, `loopback`, `record` and `replay` |
+| `photo/commands.lua` | `coop freeze` |
+| `nightop/commands.lua` | `coop no`, `coop nightop`, `coop challenge` and `coop recruiter`, with their co-op save check |
+| `race/commands.lua` | `coop race`: the Doro look and probe, and the co-op save check before `race/run.lua`'s command |
+| `fight/commands.lua` | `coop fight` (its pilot and spawn probe included) and `coop pvp`: their lines for the native part |
+| `quest/commands.lua` | `coop quests`: its lines for the native part |
+| `cut/enemies/commands.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop gardener fight`, handed to `cut/enemies/gardener.lua` with the co-op save check and the viewer's display put away before the words that spawn; `coop tendril fight`, handed to `cut/enemies/tendril.lua` the same way |
+| `cut/eve/commands.lua` | `coop wear`; `coop emote`; `coop fly`, `coop slowmo` and `coop glide`, with the co-op save check before `on`; `coop chainspin` |
+| `cut/scenes/commands.lua` | `coop scene`, with the co-op save check before a scene's name (`coop scene lily` handed to `matrix13/quest/on_time.lua`'s talk); `coop lines` |
+| `cut/menus/commands.lua` | `coop gift`, with the co-op save check before every word; `coop devmenu` and `coop devinfo` |
+| `matrix13/commands.lua` | `coop mxiii` and `coop lily` |
+| `ui/kit/commands.lua` | `coop guide` (it opens the guide) and `coop keys reset` |
+| `world/commands.lua` | `coop world`: on and off for the [shared world](shared-world.md) until the mod reloads, and its status line |
+| `story/commands.lua` | `coop scenes`: on and off for [story together](story-sync.md) until the mod reloads; its status line. `coop story`, handed to `story/snapshot.lua` |
+| `sky/commands.lua` | `coop daynight`: its words handed to `sky/daynight.lua` ([Day and night](daynight.md)) |
+| `bike/commands.lua` | `coop bike`, `coop bike status` and `coop bike tune`, handed to `bike/ride.lua` ([The bike](bike.md)) |
 | `bike/ride.lua` | The bike on EVE: the preload asked of the native part, the bike part on her actor, the checks, the mount and the dismount in their order with `coop-bike.txt`, the gate, the riding pose kept playing, the lean on her main mesh ([The bike](bike.md)) |
-| `bike/model.lua` | The bike's riding model, adapted from Eve On Wheels by dCharisma1, in `race/drive_model.lua`'s table shape so `race/drive.lua` drives it ([Riding](bike.md#riding)) |
+| `bike/model.lua` | The bike's riding model, adapted from Eve On Wheels by dCharisma1, in `bike/drive_model.lua`'s table shape so `bike/drive.lua` drives it ([Riding](bike.md#riding)). Both are the bike's copies of the races' `race/drive_model.lua` and `race/drive.lua` |
 | `sky/rule.lua` | The day and night cycle's map table and rules, the native status line's `sky=` reader, the command's hour, with no engine call ([Day and night](daynight.md)) |
 | `sky/daynight.lua` | The day and night cycle in the 250 ms pass: the `sky` request on change, the sky dressing (domes, SkyCreator time, SBO's star layer, Xion's night dome) and the lights of SBO's own maps, all put back at an off, with their originals kept in `coop-sky.txt` for a Lua reload ([Day and night](daynight.md)) |
 | `core/link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
 | `partner/capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
 | `partner/puppet.lua` | The ghost: builds it from a table, places it, its name tag, effects, its Doro mode in a race, `coop where` |
-| `ui/notice.lua` | The line of notices above your EVE, used while the on-screen UI is not up |
+| `ui/kit/notice.lua` | The line of notices above your EVE, used while the on-screen UI is not up |
 | `session/chat.lua` | The session chat: its history (memory only), the feed of chat lines and notices, and the text box |
 | `session/join.lua` | The code box. The join popups on SB's `WB_Common_Popup` with a kit panel as fallback: the host's question about a player who asks to join, the joiner's wait for the host's answer. The feed's join and leave lines in SB's words |
-| `session/sbo.lua` | The SBO lobby (`sbo_lobby`), in Xion or, with the hall lobby pak, in one of the five hall lobbies of `session/sbo_maps.lua`: where it is, its eight spots and fence, the table rows it edits and puts back, the checks before the recruiter's Join takes you there, its menu camera (Xion's at the Agit, each hall's in the hall), and the hall seats: at each hall arrival it spawns SB's chair blueprint at every seat with a row; SB binds the chair to that seat's `ZoneEnvSpawnTable` row, then shows its Rest prompt and seats EVE itself. The menu key sits EVE only on a seat within 1.5 m where no chair bound, and on the two Cloister camp seats, with her collision off and her movement held. Another player's EVE on a seat does not block it. On stand-up it teleports EVE to the seat's approach point before her collision and walking come back |
-| `session/arrival.lua` | The hold at each SBO lobby arrival: from the new world's player controller until the lobby is ready, Stellar Blade's own black screen covers the hall and the on-screen UI stays hidden, then the black fades out over the open lobby menu; the time-outs that lift it whatever is missing. No engine call |
-| `partner/hud.lua` | Your friend's card, marker and off-screen arrow, and the maths that places them |
+| `lobby/sbo.lua` | The SBO lobby (`sbo_lobby`), in Xion or, with the hall lobby pak, in one of the five hall lobbies of `lobby/sbo_maps.lua`: where it is, its eight spots and fence, the table rows it edits and puts back, the checks before the recruiter's Join takes you there, its menu camera (Xion's at the Agit, each hall's in the hall), and the hall seats: at each hall arrival it spawns SB's chair blueprint at every seat with a row; SB binds the chair to that seat's `ZoneEnvSpawnTable` row, then shows its Rest prompt and seats EVE itself. The menu key sits EVE only on a seat within 1.5 m where no chair bound, and on the two Cloister camp seats, with her collision off and her movement held. Another player's EVE on a seat does not block it. On stand-up it teleports EVE to the seat's approach point before her collision and walking come back |
+| `lobby/arrival.lua` | The hold at each SBO lobby arrival: from the new world's player controller until the lobby is ready, Stellar Blade's own black screen covers the hall and the on-screen UI stays hidden, then the black fades out over the open lobby menu; the time-outs that lift it whatever is missing. No engine call |
+| `partner/hud.lua` | Your friend's card, marker and off-screen arrow |
+| `ui/kit/hud_parts.lua` | The maths that places your friend's marker and arrow, the distance, whether she is on your map and her gauges, with no engine call; the partner HUD, the kit, the race's HUD and the fight's notices read it |
 | `session/booth.lua` | The camp phone booths near EVE, for the co-op line |
-| `ui/menu.lua` | The co-op menu: draws its pages, takes its keys, runs its rows as `coop` commands, writes and applies settings |
-| `ui/model.lua` | The menu's rows and settings, with no engine call |
-| `ui/lobby_model.lua` | The SBO lobby menu's rows, status and members by lobby state, and its settings screen's rows, with no engine call |
-| `ui/lobby.lua` | The SBO lobby menu and its settings screen drawn with Stellar Blade's own widget parts, the Leave question, the countdown and the waiting room's line |
-| `ui/parts.lua` | Stellar Blade's widget parts that the lobby's screens, the Sessions screen, the Create a session screen and the join popups make: their classes, specs and the calls that make and drive them, each refusal logged once |
-| `ui/sessions_model.lua` | The Sessions screen's rows, status line, Refresh and Select from the native part's session list, with no engine call |
-| `ui/sessions.lua` | The Sessions screen (Find a session) drawn with Stellar Blade's own widget parts: its two tabs, rows, details pane and key hints |
-| `ui/create_model.lua` | The Create a session screen's rows (Who can join and the session rules, Options' own settings), with no engine call |
-| `ui/create.lua` | The Create a session screen (Host a session) drawn with Stellar Blade's own widget parts; Start hosts |
-| `ui/guide.lua` | The first-launch guide: its pages, keys, mouse and pad, `coop-guide.txt`, and the Mother Sphere art imported from `Assets/MotherSphere.png` at run time (`ImportFileAsTexture2D`) |
-| `ui/guide_text.lua` | The guide's words and its menu row's, in the same languages as `ui/text.lua` |
-| `ui/text.lua` | The words of the menu, the chat, the partner HUD, the co-op saves, the join codes, the status line, the Doro race's HUD and the notices written in Lua, in the game's 23 text languages |
-| `ui/kit.lua` | The UI kit (runtime UMG widgets in the game's look) that draws the menu, the chat and the partner HUD |
+| `ui/kit/menu.lua` | The co-op menu: draws its pages, takes its keys, runs its rows as `coop` commands, writes and applies settings |
+| `ui/kit/model.lua` | The menu's rows and settings, with no engine call |
+| `lobby/ui/lobby_model.lua` | The SBO lobby menu's rows, status and members by lobby state, and its settings screen's rows, with no engine call |
+| `lobby/ui/lobby.lua` | The SBO lobby menu and its settings screen drawn with Stellar Blade's own widget parts, the Leave question, the countdown and the waiting room's line |
+| `ui/kit/parts.lua` | Stellar Blade's widget parts that the lobby's screens, the Sessions screen, the Create a session screen and the join popups make: their classes, specs and the calls that make and drive them, each refusal logged once |
+| `session/ui/sessions_model.lua` | The Sessions screen's rows, status line, Refresh and Select from the native part's session list, with no engine call |
+| `session/ui/sessions.lua` | The Sessions screen (Find a session) drawn with Stellar Blade's own widget parts: its two tabs, rows, details pane and key hints |
+| `session/ui/create_model.lua` | The Create a session screen's rows (Who can join and the session rules, Options' own settings), with no engine call |
+| `session/ui/create.lua` | The Create a session screen (Host a session) drawn with Stellar Blade's own widget parts; Start hosts |
+| `ui/kit/guide.lua` | The first-launch guide: its pages, keys, mouse and pad, `coop-guide.txt`, and the Mother Sphere art imported from `Assets/MotherSphere.png` at run time (`ImportFileAsTexture2D`) |
+| `ui/text/guide.lua` | The guide's words and its menu row's, in the same languages as `ui/text.lua` |
+| `ui/text.lua`, `ui/text/en.lua` and the other languages | The words of the menu, the chat, the partner HUD, the co-op saves, the join codes, the status line, the Doro race's HUD and the notices written in Lua, in the game's 23 text languages: one table per language in `ui/text/`, gathered by `ui/text.lua`, which picks the game language's table. Each table's `modules` holds the modules' names the off notice uses |
+| `ui/kit/kit.lua` | The UI kit (runtime UMG widgets in the game's look) that draws the menu, the chat and the partner HUD |
 | `core/keybind.lua` | The key settings' grammar and their clash check |
 | `core/settings_file.lua` | Rewrites one line of `coop-settings.txt` and keeps the rest of the file |
 | `core/ue4ss_settings.lua` | Checks `HookBeginPlay` and `bUseUObjectArrayCache` in `UE4SS-settings.ini` (read only) |
@@ -85,46 +106,49 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `nightop/challenges.lua` | The challenges' waves and rules, the `coop challenge` list and the best runs in `coop-records.txt`, with no engine call |
 | `nightop/board.lua` | The Shooting Range's score on the cut test widget `WB_ShootingTrainingTest`, beside the run's card |
 | `nightop/recruiter.lua` | The `coop recruiter` preview |
-| `nightop/recruiter_text.lua` | The recruiter's lines in the game's 23 languages, and `culture()`, the game language's culture for the other text modules |
+| `nightop/recruiter_text.lua` | The recruiter's lines in the game's 23 languages |
+| `ui/text/culture.lua` | `culture()`, the game language's culture for the text tables, the guide's words, the lobby and Matrix XIII |
 | `nightop/guard_text.lua` | The recruiter's lines for the native part: the game language's seven lines as one `guardtext` request, sent again when the language changes, and the `[RC] text:` line |
-| `race/doro.lua` | The display Doro (a plain actor with Doro's mesh, animated by the engine's single-node animation), the Doro look on your EVE, and `coop race probe doro` |
+| `race/doro.lua` | The display Doro (a plain actor with Doro's mesh, animated by the engine's single-node animation, made through `core/actors.lua`), the Doro look on your EVE, and `coop race probe doro` |
 | `race/model.lua` | Doro races with no engine call: the track file, the rules, the start slots, the host's and the guest's race over the race lines, and the ranking |
 | `race/run.lua` | Doro races in game: recording a track, the race run from EVE's feet, its HUD, its Doros and its notices |
-| `cut/leviathan.lua` | `coop leviathan` and the other viewer commands: one table of seven cut models (Naytibas 10, 1 and 6, the early Mann, the NieR machines, Orcal's and Enya's prototypes: their meshes, animations, default distance, height and scale, skins) and one viewer for them. It reads a creature's assets and CharacterTable rows, shows one of its meshes playing its animations on a display like the Doro's (one creature at a time) and flies a free camera to film it |
-| `cut/enemy.lua` | The flow `coop lion`, `coop gardener fight` and `coop tendril fight` share, each from its own spec: a batch's rows asked of the native part and read back, the spawn, the entrance on a display copy, the material and the boss bar's name, the lines that follow the body ([The cut Lion](cut-enemies.md#the-cut-lion)); `coop mxiii` uses its rows part |
-| `cut/lion.lua` | `coop lion`: the Lion's spec for `cut/enemy.lua` and its own parts (the anim instance repair, `unfreeze`, `brain`, `control`); `Lion.rows`, the lion rows batch for the shop's stimpacks and `coop chainspin`, or the bolt rows batch for the shop's Shock Bolt ([The cut Shock Bolt](night-operation-shop.md#the-cut-shock-bolt)) |
-| `cut/gardener.lua` | `coop gardener fight`: the Gardener's spec for `cut/enemy.lua` ([The cut Gardener](cut-enemies.md#the-cut-gardener)) |
-| `cut/tendril.lua` | `coop tendril fight`: the Tendril's spec for `cut/enemy.lua` and the Shows of its clips, built in memory ([The cut Tendril](cut-enemies.md#the-cut-tendril)) |
-| `matrix13/world/travel.lua` | `coop mxiii [30\|leave\|boss]`: the test pak's check (v1 to v5, the `.ucas` read window by window through the `.utoc`'s block table; anything before v5 refused), Matrix XIII's camp batch through `cut/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_00_Camp_00`, or with 30 to `DLC02_30_Camp_01`; at the title its four batches and the Lion's and the Gardener's ([Matrix XIII: how it works](matrix-xiii.md)) |
+| `cut/enemies/leviathan.lua` | `coop leviathan` and the other viewer commands: one table of seven cut models (Naytibas 10, 1 and 6, the early Mann, the NieR machines, Orcal's and Enya's prototypes: their meshes, animations, default distance, height and scale, skins) and one viewer for them. It reads a creature's assets and CharacterTable rows, shows one of its meshes playing its animations on a display like the Doro's (one creature at a time) and flies a free camera to film it |
+| `cut/enemies/enemy.lua` | The cut enemies' copy of `core/enemy.lua`: the flow `coop lion`, `coop gardener fight` and `coop tendril fight` share, each from its own spec: a batch's rows asked of the native part and read back, the spawn, the entrance on a display copy, the material and the boss bar's name, the lines that follow the body ([The cut Lion](cut-enemies.md#the-cut-lion)) |
+| `core/enemy.lua` | The same flow as the cut enemies' copy; Matrix XIII's batches (`matrix13/world/travel.lua`, `matrix13/quest/on_time.lua`) and the hall lobbies' (`lobby/halls_rows.lua`) use its rows part only |
+| `cut/enemies/lion.lua` | `coop lion`: the Lion's spec for `cut/enemies/enemy.lua` and its own parts (the anim instance repair, `unfreeze`, `brain`, `control`); `Lion.rows`, the lion rows batch for the shop's stimpacks and `coop chainspin`, or the bolt rows batch for the shop's Shock Bolt ([The cut Shock Bolt](night-operation-shop.md#the-cut-shock-bolt)) |
+| `cut/enemies/gardener.lua` | `coop gardener fight`: the Gardener's spec for `cut/enemies/enemy.lua` ([The cut Gardener](cut-enemies.md#the-cut-gardener)) |
+| `cut/enemies/tendril.lua` | `coop tendril fight`: the Tendril's spec for `cut/enemies/enemy.lua` and the Shows of its clips, built in memory ([The cut Tendril](cut-enemies.md#the-cut-tendril)) |
+| `matrix13/world/travel.lua` | `coop mxiii [30\|leave\|boss]`: the test pak's check (v1 to v5, the `.ucas` read window by window through the `.utoc`'s block table; anything before v5 refused), Matrix XIII's camp batch through `core/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_00_Camp_00`, or with 30 to `DLC02_30_Camp_01`; at the title its four batches and the Lion's and the Gardener's ([Matrix XIII: how it works](matrix-xiii.md)) |
 | `matrix13/world/rows.lua` | Matrix XIII's rows as `lion/mxiii_rows.h` writes them, the ladders, ledges and ropes, the boxes and barrels, the boss points and `coop mxiii warp`'s points, written by `tools/mxiii_rows.py` ([Matrix XIII's world rows](matrix-xiii.md#matrix-xiiis-world-rows)) |
-| `matrix13/world/mila.lua` | Mila's body, a display only (`race/doro.lua`): Kara's mesh in the sitting clip at the cooked markers, placed by `zone_talks.lua` after scenes 4E and 4N ([Lily's signal](lily-signal.md)) |
+| `matrix13/world/mila.lua` | Mila's body, a display only (`core/actors.lua`): Kara's mesh in the sitting clip at the cooked markers, placed by `zone_talks.lua` after scenes 4E and 4N ([Lily's signal](lily-signal.md)) |
 | `matrix13/world/breakables.lua` | In world 2800: the 317 boxes and barrels spawned at run time in place of the cooked proxies, which it hides ([Matrix XIII's world rows](matrix-xiii.md#matrix-xiiis-world-rows)) |
 | `matrix13/world/move.lua`, `matrix13/world/boss.lua`, `matrix13/world/fans.lua` | In world 2800: the ladders, ledges and ropes spawned at run time, the fixes on the Lion and Gardener the game spawns from their rows, with `coop mxiii boss` as the key-0 fallback, and the fan rotors held still until their levers read On ([Matrix XIII's world rows](matrix-xiii.md#matrix-xiiis-world-rows)) |
 | `matrix13/quest/on_time.lua`, `matrix13/quest/text.lua`, `matrix13/culture.lua` | Lily's signal: the signal rows asked and read back, the words written, the prologue's acquire, her choice list's swap asked on and off with its two labels, the picks, the talks, the quests' asks and `coop mxiii`'s travel, the M01 fallback, the drive room check, and `coop lily signal\|talk\|hold` ([Lily's signal](lily-signal.md)); `culture.lua` maps the game's culture to `fr` or `en` for the words and the talks |
 | `matrix13/talks/prologue.lua`, `arrival.lua`, `finale.lua`, `zone1.lua` to `zone4.lua` | The talks' lines, one module per talk and one per zone (1A to 1E, 2A to 2G, 3A to 3K, 4A to 4N), each line its speaker, English and French |
 | `matrix13/quest/zone_talks.lua` | The zone talks in game: a trigger for each of the 36 scenes, the order rules, the fight gate, one file per co-op slot for the played scenes ([Lily's signal](lily-signal.md)) |
-| `story/subtitles.lua` | Lily's talks: an unused subtitle sequence played through `cut/scene.lua`'s talk, a hook on the subtitle slot's `UpdateText` that writes the mod's lines, the reading holds, the fallbacks and the kit version ([Lily's signal](lily-signal.md)) |
+| `matrix13/quest/subtitles.lua` | Lily's talks: an unused subtitle sequence played through `cut/scenes/scene.lua`'s talk, a hook on the subtitle slot's `UpdateText` that writes the mod's lines, the reading holds, the fallbacks and the kit version ([Lily's signal](lily-signal.md)) |
 | `story/snapshot.lua` | `coop story` and `coop-story.txt`: the story lines of the fullest live `SBSaveGame`, written to `StellarCoopStory.txt` part by part, or a list of the objects that may hold them; reads only ([Story dump](../dev/story.md)) |
-| `cut/lion_rows.lua` | The rows as `lion/rows.h` writes them, for the read-back: the lion rows batch (`R.ROWS`), the Gardener's (`R.GARDENER`), the Tendril's (`R.TENDRIL`, with the Shows to build in `R.TENDRIL_SHOWS`) and the Shock Bolt's (`R.BOLT`); written by the rows' generator |
-| `cut/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times; and Quest_Sub_008's unused voice takes, loaded when `enya` starts, played one after another through `SpawnSound2D` (each 1 s after the one before ends, from its SoundWave's `Duration`) with the subtitles the table has for them |
-| `cut/glide.lua` | `coop glide`: sets EVE's `bGlide` while Jump is held in the air past the top of her jump, and clears it ([Cut glide](cut-eve.md#cut-glide)) |
-| `cut/emote.lua` | `coop emote`: one of EVE's clips (a looped photo-mode pose, a wave, a clip of the Cut category played once), played by the native part through SB's custom animation call or else as a dynamic montage in `DefaultSlot`, stopped when she moves, jumps or starts a skill ([Emotes](cut-eve.md#emotes)); also, for `session/sbo.lua`, the sit loop of a hall lobby seat that SB's chairs leave to the menu key (the fallback to SB's own sit), which `preload` looks up ahead of the sit so the first sit finds the clip in memory |
-| `cut/mailbox.lua` | `coop gift`: the inventory read asked of the native part, the game's remove request, the gift file, the gift lines and their answers, the items coming back and the take through the shop's grant, and the cut toast ([Cut mailbox](cut-menus.md#cut-mailbox)) |
-| `cut/wear.lua` | `coop wear`: sets the mesh of EVE's body or hair component (with the hair's animation Blueprint and physics asset) to a cut suit or hair and keeps the game's own look in `coop-wear.txt` to give it back. It puts the worn look on again when the game sets its own |
-| `cut/scene.lua` | `coop scene`: two unused rows of the game's theater table pointed at a cut scene's theater and read back, the Emil farewell's take lent to E03, E03's subtitles left in Korean and Japanese (no text registration), the theater observer it follows once a second and the Stop row that ends it; Lily's talks through Quinn's theater, its take lent the same way, or through the rows' level sequence with no theater |
+| `core/lion_rows.lua` | The rows as `lion/rows.h` writes them, for the read-back: the lion rows batch (`R.ROWS`), the Gardener's (`R.GARDENER`), the Tendril's (`R.TENDRIL`, with the Shows to build in `R.TENDRIL_SHOWS`) and the Shock Bolt's (`R.BOLT`); written by the rows' generator |
+| `cut/scenes/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times; and Quest_Sub_008's unused voice takes, loaded when `enya` starts, played one after another through `SpawnSound2D` (each 1 s after the one before ends, from its SoundWave's `Duration`) with the subtitles the table has for them |
+| `cut/eve/glide.lua` | `coop glide`: sets EVE's `bGlide` while Jump is held in the air past the top of her jump, and clears it ([Cut glide](cut-eve.md#cut-glide)) |
+| `cut/eve/emote.lua` | `coop emote`: one of EVE's clips (a looped photo-mode pose, a wave, a clip of the Cut category played once), played by the native part through SB's custom animation call or else as a dynamic montage in `DefaultSlot`, stopped when she moves, jumps or starts a skill ([Emotes](cut-eve.md#emotes)); also, for `lobby/sbo.lua`, the sit loop of a hall lobby seat that SB's chairs leave to the menu key (the fallback to SB's own sit), which `preload` looks up ahead of the sit so the first sit finds the clip in memory |
+| `cut/menus/mailbox.lua` | `coop gift`: the inventory read asked of the native part, the game's remove request, the gift file, the gift lines and their answers, the items coming back and the take through the shop's grant, and the cut toast ([Cut mailbox](cut-menus.md#cut-mailbox)) |
+| `cut/eve/wear.lua` | `coop wear`: sets the mesh of EVE's body or hair component (with the hair's animation Blueprint and physics asset) to a cut suit or hair and keeps the game's own look in `coop-wear.txt` to give it back. It puts the worn look on again when the game sets its own |
+| `cut/scenes/scene.lua` | `coop scene`: two unused rows of the game's theater table pointed at a cut scene's theater and read back, the Emil farewell's take lent to E03, E03's subtitles left in Korean and Japanese (no text registration), the theater observer it follows once a second and the Stop row that ends it; Lily's talks through Quinn's theater, its take lent the same way, or through the rows' level sequence with no theater |
 | `core/unreal.lua` | Small helpers over UE4SS objects |
 | `core/pak_gate.lua` | Finds a pak of ours (the Matrix XIII test pak, the hall lobby pak) in `SB/Content/Paks` from its `.utoc`, with its `.pak` and `.ucas` beside it, without loading anything |
+| `core/line.lua`, `core/player.lua`, `core/actors.lua`, `core/where.lua`, `core/worlds.lua`, `core/row_edit.lua`, `core/picks.lua`, `core/items.lua`, `core/effect.lua` | Helpers cut out of the modules for every module to read: text lines and names, EVE and her controller, the display actors, our EVE's world and place, the story worlds' maps, a table row edited in place and read back, the select widgets' picks, the shop's item grant, the ChainSpin's effect call ([Modules and isolation](#modules-and-isolation)) |
 
-`main.lua` runs two game-thread loops. One runs every frame: the ghost's build step, `coop_tick`, placing the ghost, the
-Doro look, the cut model display and free camera, `coop lion`'s, `coop gardener fight`'s and `coop tendril fight`'s
-waits and lines, a Doro race (with the incoming lines while one is armed), the notice line, the previews' follow-ups,
-the `coop wear` check (once a second), the `coop lines` scene's due lines, the `coop glide` and `coop emote` checks,
-the UI's open and close animations, the game's input given back after the menu or the chat box closes, the
-controller's events, the row under the mouse (every 100 ms while the menu is open), and your friend's marker and
-gauges. The other runs every 250 ms: link status changes, session start, notices to show, chat lines in and out, Night
-Operation's run, the race's session and map checks, the UI's root and its focus watchdog, the menu's rows and status
-line, the phone booth scan, the chat's feed, your friend's card, the capture, the remote table and the day and night
-cycle's request and sky.
+The runtime runs two game-thread loops, which call each module's work. One runs every frame (`main/frame.lua`): the
+ghost's build step, `coop_tick`, placing the ghost, the Doro look, the cut model display and free camera, `coop lion`'s,
+`coop gardener fight`'s and `coop tendril fight`'s waits and lines, a Doro race (with the incoming lines while one is
+armed), the notice line, the previews' follow-ups, the `coop wear` check (once a second), the `coop lines` scene's due
+lines, the `coop glide` and `coop emote` checks, the UI's open and close animations, the game's input given back after
+the menu or the chat box closes, the controller's events, the row under the mouse (every 100 ms while the menu is open),
+and your friend's marker and gauges. The other runs every 250 ms (`main/pass.lua`): link status changes, session start,
+notices to show, chat lines in and out, Night Operation's run, the race's session and map checks, the UI's root and its
+focus watchdog, the menu's rows and status line, the phone booth scan, the chat's feed, your friend's card, the capture,
+the remote table and the day and night cycle's request and sky.
 
 The [co-op line](../players/interface.md#co-op-line) opens at the camp phone booths that the levels place, actors of two
 classes: `Env_Camp_TeleportMachine_C` (the booth of every full camp, and Xion's five booths) and
@@ -184,7 +208,7 @@ file is written in full beside its final name and then renamed over it, so the r
   same way (`items ...`, answered in `coop-status.txt`). Your friend's gift lines, and a gift of yours that could not
   go, come in `coop-chat.txt` as `gift <payload>` ([Cut mailbox](cut-menus.md#cut-mailbox)).
 - The SBO lobby's screens (the lobby menu, its settings and the Leave question) hide Stellar Blade's HUD. Every 250 ms
-  `main.lua` asks `hud hide on` when one of them has opened and `hud hide off` when the last one has closed, and
+  `lobby/wiring.lua` asks `hud hide on` when one of them has opened and `hud hide off` when the last one has closed, and
   `hud hide off` once after each Lua load. On the game thread the native part passes its own key, `SBOLobby`, to the
   game's keyed HUD request (`FUN_141fca0f0` on build 26123051). The game hides the HUD while any key is in its set, so
   our key and the keys of photo mode and the game's menus never undo each other. The DLL remembers whether our key is
@@ -194,7 +218,7 @@ file is written in full beside its final name and then renamed over it, so the r
   decision changes. It reads its state, hour and sun from the `sky=` line of `coop-status.txt`
   ([Day and night](daynight.md#the-request-and-the-status-line)).
 - Each warp into an SBO lobby (the entry, a guest's warp to her host's hall, a Private match on another hall,
-  `coop sbo back`) arms the arrival's hold (`session/arrival.lua`). Stellar Blade hides its travel screen at the end
+  `coop sbo back`) arms the arrival's hold (`lobby/arrival.lua`). Stellar Blade hides its travel screen at the end
   of its own arrival flow and has no setting that keeps it up, so the hold uses the game's second loading screen:
   at the 250 ms pass after the new world's `PlayerController:ClientRestart` (a UE4SS hook), Lua calls
   `USBBlueprintLibrary::LoadingScreenFadeAuto` (a 10 s lifetime, 0.5 s fades, tag 5) and collapses the UI root, whose
@@ -202,7 +226,7 @@ file is written in full beside its final name and then renamed over it, so the r
   spawned on a 100 ms budget and their bind check, the UI's whole look (warmed on a 100 ms budget too) and the menu
   camera. From the arrival on, Lua also asks `hud hide on` under the black, so SB's HUD is already hidden when the
   black fades out. Then Lua asks `loading lift`, shows the UI root and opens the lobby menu in the same pass. On the
-  game thread the native part sets the lifetime of each tag-5 entry in the game's UI manager to 0 (`game/loading.h`),
+  game thread the native part sets the lifetime of each tag-5 entry in the game's UI manager to 0 (`lobby/loading.h`),
   and the game's loading controller runs its own end fade at its next tick. Lua lifts the hold 8 s after the black went
   up whatever is missing, with the missing items in the log; the game ends the black 10 s after its fade-in even with
   no Lua. A Lua reload during the hold loses track of the black, so the new Lua load asks `loading lift` once at its
@@ -221,14 +245,148 @@ file is written in full beside its final name and then renamed over it, so the r
 
 The full list is in [Settings](../players/settings.md#files-in-the-mod-folder).
 
+## Modules and isolation
+
+The Lua side is cut into 19 modules, one folder each ([Structure](../dev/structure.md#modules) lists them). A module
+that fails to load is off until the mod reloads; the other modules stay on.
+
+### The manifest
+
+Each module's `wiring.lua` returns its manifest, here `race/wiring.lua`'s, shortened:
+
+```lua
+return {
+uses={'partner','nightop','bike'}, -- the modules it reads later, never while it loads
+exports={'doro','drive','race'},   -- every M field its new and its build steps set
+new=function(M)                    -- its share of the startup; returns its coop words
+    M.doro=require('race.doro').new({...})
+    ...
+    return require('race.commands').new({...})
+end,
+build={hud=function(M,Ui) M.race.hud({kit=M.kit,theme=Ui.THEME,settings=M.settings}) end},
+}
+```
+
+No manifest has a `needs` field: no module needs another. `main.lua`'s `MODULES` lists the 19 in the order their
+constructors run, the order they had before the modules were cut apart, so every constructor, native request and hook
+runs in the same order. No module reads another module's export while it loads, so the order is not a dependency.
+
+### Loading
+
+`main/loader.lua` first requires every `wiring.lua` and sets each export of every manifest to the stub. For a
+`wiring.lua` that does not load, it reads the exports from the file's `exports={...}` text, so other modules' late
+reads still find a stub. Then, in list order, it runs each `new(M)` under `xpcall`. On success each export is what
+`new` left in `M`, `nil` included: without the Steam link some are nil by design. The words `new` returns join
+`M.commands`, where a word defined twice raises.
+
+A stub is a table whose every field is a function that does nothing and returns nothing. An export is a function or a
+table of functions. A plain value that two files read (a clock, a flag) belongs to the runtime, in `main/base.lua`
+(`M.chat_clock`, `M.at_title` and the rest), so no module that goes off can turn it into a stub.
+
+### When a module fails
+
+A `require` of its `wiring.lua`, its `new` or one of its build steps that raises turns that module off alone until the
+mod reloads:
+
+- its exports go back to the stub and its words leave `M.commands`;
+- `UE4SS.log` gets `[StellarCoop] <module>: off until the mod reloads: <error>`, then the error's traceback;
+- with the Steam link, the 250 ms loop says one notice in the menu's language once the UI is ready or a world is
+  loaded: `T.<culture>.module_off` with the module's name from `T.<culture>.modules`, in English
+  `The bike is off until the mod reloads: it failed to load. UE4SS.log says why.`;
+- `M.off_modules` holds its name and the error.
+
+No other module is touched. A hook that a wiring registers with UE4SS outlives an off module, so its callback starts
+with `if M.off_modules.<module> then return end` (the lobby's `ClientRestart` hook).
+
+### Late reads
+
+A module reads another module's state only after loading, through that module's exports, in one of three forms. Each
+reader lists the module it reads in its `uses`.
+
+- A call through `M` at call time: `night=function() return M.night.running() end`. While Night Operation is off it
+  gives nil: no run.
+- A view, `require('main.loader').view(M,'puppet')`, for a constructor that keeps an object: each field read reads
+  `M.puppet` at that moment, so an off module answers as its stub.
+- A getter, `require('main.loader').get(M,'cut.enemies','lion')`, for code that tests whether the object is there: it
+  returns the export, or nil while the module is off.
+
+Most late reads of an off module give a state that already exists: no run, no ghost, not riding. Where nil would make
+the reader raise or log `nil`, the reader's wiring returns its own refusal while the module it reads is off. Night
+Operation's cut items, for one, answer `coop lion is off until the mod reloads`. The capture goes further, as a user
+decision rests on it: while the bike module is off, it leaves out the hidden bike part an earlier Lua load left on EVE
+through its own copy, `partner/bike_part.lua`, so the ghost never shows a bike while EVE does not ride.
+
+### Copies
+
+Feature code that two modules used is copied into each, with its tests. Each copy's first line after the license says
+whose copy it is; from then on each module fixes its own.
+
+| Copy | Of | For |
+| --- | --- | --- |
+| `bike/drive.lua`, `bike/drive_model.lua` | `race/drive.lua`, `race/drive_model.lua` | The bike's riding |
+| `partner/doro_pick.lua` | `race/doro.lua`'s clip pick and tilt | The ghost's Doro mode |
+| `cut/enemies/enemy.lua` | `core/enemy.lua` | The cut monsters' flow; Matrix XIII's and the hall lobbies' batches keep `core/enemy.lua` |
+| `partner/bike_part.lua` | `bike/ride.lua`'s `find_part` | The capture while the bike module is off |
+
+`matrix13/world/travel.lua` also asks the Lion's and the Gardener's rows itself, where it read them from
+`cut/enemies/lion.lua` and `cut/enemies/gardener.lua`.
+
+While the races and the bike shared one drive, the drive gave four cross-checks. Each is now a late read of
+`M.riding()` or the races' drive: no race start, drive probe or drive off while EVE rides; the guest taken off the
+bike at a track line; no ride while the races' drive runs. Two pieces of state stay apart. `coop race drive feed`
+sets the races' drive only (the bike's stays `impulse`). A failed drift-key read latches in each copy on its own. Both
+copies keep EVE's movement values in `coop-drive.txt`: the races' restore runs first in the frame loop, the bike's
+after it. With both modules on, the first puts the values back and clears the file; with one off, the other does it.
+
+Code that only reads the game, a row batch or a text is no feature code. It moved to `core/` (`core/actors.lua`,
+`core/line.lua`, `core/player.lua` and the rest), `ui/kit/hud_parts.lua` and `ui/text/culture.lua`, where every module
+reads it.
+
+### Build steps
+
+A module's screens and HUDs are kit groups. The kit draws its groups in the order they are built: the feed and the HUDs
+first, the menu over them, the questions over all. `main/ui.lua` builds the kit, the guide and the menu, with each
+module's build steps between them at their place in that order
+(`require('main.loader').build(M,'session','box',Ui)`). A build step of an off module is skipped. One that raises turns
+its module off, with its later steps skipped.
+
+### The loops
+
+`main/frame.lua` and `main/pass.lua` reach the modules only through their exports, each call under `guarded()`: an
+error that escapes it is logged once a Lua load; the modules after it still run in that pass
+([Safety design](safety.md#safety-design)).
+
+### Native parts
+
+The DLL has no load isolation: `glue/tick.cpp` is one translation unit that includes every part. Each part's game calls
+run under its own SEH latch (77 `__try` blocks, 34 `*_faulted` flags): a fault there turns that feature off for the run.
+A part may read what the parts before it define, so `tick.cpp` includes them in a declared order, with a comment on each
+include that depends on an earlier one (`sky/sky_game.inc` comes after `glue/tick/freeze_game_shared.inc`, whose
+controller reach it uses). What another module's part reads of a part is in `glue/tick/<part>_shared.inc`, included
+right before that part. The headers that more than one module reads are in `game/`. No module's part, header or test
+includes another module's header or uses a name another module's part defines.
+
+### The checks
+
+- `tests/tools/modules_test.py` fails on a `needs` key; on a module's file or test that requires, fakes or patches a
+  file of another module; on a late read missing from `uses`; on an export that two modules set; on a build step that
+  `main/ui.lua` does not build; on a hook callback without its `M.off_modules` check; on a native file of a module that
+  reads another module's header or part; on a language table whose `modules` differs from `MODULES`.
+- Each module's `tests/lua/<module>/off_test.lua` makes its require, the start and the end of its `new` and each of
+  its build steps raise in turn. Each time the mod must load with every other module on and run its frames, passes,
+  binds, hooks, `coop ui reset` and `coop off` with no other module's off line and no `OK: nil` in the log.
+- `tests/lua/main/loader_test.lua` tests the loader alone.
+
+[Tests](../dev/tests.md#lua-tests) says more about each.
+
 ## The co-op UI's input
 
 The co-op menu, the guide, the co-op saves' question, the host's question, the chat box and the code box take the game's
-input while they are open. The kit (`ui/kit.lua`) calls `SetInputMode_UIOnlyEx` with its root focused, or with the box's
-text field for the chat box and the code box. The game's viewport then ignores every key and controller button, so EVE
-stands still. The menu's keys are UE4SS key binds, which read the keyboard and the mouse buttons whatever has the focus.
-When the UI closes, the kit gives the input back 150 ms later, so the key that closed it never reaches the game (Esc
-would open the pause menu): `SetInputMode_GameOnly` in a world, and at the title `SetInputMode_GameAndUIEx` with no
+input while they are open. The kit (`ui/kit/kit.lua`) calls `SetInputMode_UIOnlyEx` with its root focused, or with the
+box's text field for the chat box and the code box. The game's viewport then ignores every key and controller button, so
+EVE stands still. The menu's keys are UE4SS key binds, which read the keyboard and the mouse buttons whatever has the
+focus. When the UI closes, the kit gives the input back 150 ms later, so the key that closed it never reaches the game
+(Esc would open the pause menu): `SetInputMode_GameOnly` in a world, and at the title `SetInputMode_GameAndUIEx` with no
 mouse capture, so the title menu keeps its cursor. The game reads the keys of its own screens as player controller
 actions (`UI_DPad_*`, `UI_FaceButton_*` and `UI_GameMenu` in its `DefaultInput.ini`), which need the viewport's input,
 so its screens work again after the give-back.
@@ -242,12 +400,12 @@ from the game.
 - Slate's message handler (the Slate application at `0x146faa4d0`, its handler at `+0x118` with the vtable
   `0x145fe5430`) has three controller slots: analog `+0x88`, button pressed `+0x90` and released `+0x98`. The engine's
   XInput poll and SB's DualSense module both call them, so they see every controller the game reads. Once a run the
-  worker finds the twelve key names `game/pad.h`'s `PadKeys` reads (`Gamepad_DPad_Up` to `Gamepad_LeftY`) with FName's
+  worker finds the twelve key names `ui/pad.h`'s `PadKeys` reads (`Gamepad_DPad_Up` to `Gamepad_LeftY`) with FName's
   find, which never makes a name, checks the handler's vtable, then swaps the three slots by compare-and-swap, all or
   none. Each hook records the key into `PadKeys` (relaxed atomics) and runs the game's function with the same
   arguments; it never drops or changes an event. `PadKeys` keeps each controller's held buttons in XInput's bit layout
   and its left stick, ids 0 to 7; a read gives the held buttons of every controller ORed with the presses since the
-  last read, so a press and its release inside one 8 ms poll still count. A repeat is no press: `game/pad.h` makes its
+  last read, so a press and its release inside one 8 ms poll still count. A repeat is no press: `ui/pad.h` makes its
   own. A missing name, another vtable or a slot holding anything else leaves XInput as the source, with one log line.
   coop off gives the slots back by compare-and-swap from our hooks only; XInput is the source again.
 - The worker loads `xinput1_4.dll`, else `xinput9_1_0.dll`, with `LoadLibraryExW(..., LOAD_LIBRARY_SEARCH_SYSTEM32)`,
@@ -259,7 +417,7 @@ from the game.
   While another process's window is in front nothing is read and the held state counts as released: XInput answers
   whatever window has the focus. Slate may never deliver the release of a button held across an alt-tab, so `PadKeys`
   forgets its holds then.
-- `game/pad.h` turns the reads into events: up, down, left and right from the D-pad or the left stick (pressed at 50 %
+- `ui/pad.h` turns the reads into events: up, down, left and right from the D-pad or the left stick (pressed at 50 %
   of its range, released under 30 %), a D-pad diagonal read as up or down and the stick along its main axis (up or down
   when both are equal; an axis already pressed stays until the other is more than 10 % larger, so a stick held near
   45 degrees does not switch at each read), up and down repeating after 400 ms then every 120 ms, A for select, B for
@@ -267,18 +425,18 @@ from the game.
   Sessions screen's Refresh, once a press. D-pad Right held 1000 ms gives the [bike](bike.md)'s event, once a hold,
   after its right. A ring of 8 holds them; a full ring drops the newest.
 - The DLL links no Lua, so each event travels as a result count. Lua calls
-  `select('#', native_pad(0,0,0,0,0,0,0,0,0,0,0))`: `coop_pad`, called as a Lua C function, returns n. Lua hands
-  back the top n of the 11 arguments on its stack. n is the event, 1 to 11, or 0 when the ring is empty. `main.lua`
-  takes at most 8 events a frame and routes them as the keys route theirs: the join popups get every word first while
-  one is open, the SBO lobby's screens get the six navigation words while one is open and View closes it to the waiting
-  room, the Sessions screen and the Create a session screen get every word while one is open (Y is the Sessions screen's
-  Refresh) and View closes it, the open menu gets the six navigation words and View closes it, the co-op saves' question
-  gets up, down, select and back (the guide gets them first while it is open), the chat box and the code box get back
-  only (it closes them). With nothing open, in a world with the HUD shown, View opens the lobby menu in the SBO lobby's
-  world and the co-op menu elsewhere, through the same path as `menu_key`. LB and RB change the tab of the lobby's
-  settings screen or of the Sessions screen while one is open and do nothing anywhere else. The bike's event goes the
-  path of `bike_key` in a world with the HUD shown while none of these screens is open and the game is neither paused
-  nor showing one of its screens; it does nothing otherwise (the log says why).
+  `select('#', native_pad(0,0,0,0,0,0,0,0,0,0,0))`: `coop_pad`, called as a Lua C function, returns n. Lua hands back
+  the top n of the 11 arguments on its stack. n is the event, 1 to 11, or 0 when the ring is empty. `main/frame.lua`
+  takes at most 8 events a frame and `main/input.lua` routes them as the keys route theirs: the join popups get every
+  word first while one is open, the SBO lobby's screens get the six navigation words while one is open and View closes
+  it to the waiting room, the Sessions screen and the Create a session screen get every word while one is open (Y is the
+  Sessions screen's Refresh) and View closes it, the open menu gets the six navigation words and View closes it, the
+  co-op saves' question gets up, down, select and back (the guide gets them first while it is open), the chat box and
+  the code box get back only (it closes them). With nothing open, in a world with the HUD shown, View opens the lobby
+  menu in the SBO lobby's world and the co-op menu elsewhere, through the same path as `menu_key`. LB and RB change the
+  tab of the lobby's settings screen or of the Sessions screen while one is open and do nothing anywhere else. The
+  bike's event goes the path of `bike_key` in a world with the HUD shown while none of these screens is open and the
+  game is neither paused nor showing one of its screens; it does nothing otherwise (the log says why).
 - The worker logs each change of the connected slots (`pad: XInput pads connected: <slots>`, `pad: no XInput pad`).
 
 ### Mouse
@@ -299,11 +457,11 @@ button has the kit focus its root (or the box's field) again 50 ms later.
 
 The kit makes its root focusable (`bIsFocusable`) before it adds it to the viewport, so the input mode focuses the root
 itself. Every 250 ms while the UI holds the input, it reads `HasAnyUserFocus` or `HasFocusedDescendants` on the root.
-The watchdog arms at the first yes since the input was taken; armed, 1 s of no fires it once. `main.lua` then runs the
-same function as `coop ui reset`: the menu, the chat box and the code box closed, an open host's question denied (which
-fails closed), the co-op saves' question closed as Decide later (a copy pass already asked for keeps running and is
-followed on, where `coop ui reset` withdraws it), the input given back at once and the menu's cursor put back. One log
-line names the holder; nothing shows on screen. Just before it, a second line lists the class of each top-level
+The watchdog arms at the first yes since the input was taken; armed, 1 s of no fires it once. `main/pass.lua` then runs
+the same function as `coop ui reset`: the menu, the chat box and the code box closed, an open host's question denied
+(which fails closed), the co-op saves' question closed as Decide later (a copy pass already asked for keeps running and
+is followed on, where `coop ui reset` withdraws it), the input given back at once and the menu's cursor put back. One
+log line names the holder; nothing shows on screen. Just before it, a second line lists the class of each top-level
 `UserWidget` other than the root that holds the focus (`none` when the game's viewport, a Slate-only widget or another
 window has it), whether the game is paused or shows its own cursor, and the seconds since the last mouse button; a
 lookup that raises logs `focus not read (<why>)` instead. The worker logs each change of the window in front to

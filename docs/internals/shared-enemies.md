@@ -175,7 +175,7 @@ on by default, not tested in game) has her game refuse those spawns instead. Lua
 fight on` request (and to the spawn probe's); it is a word of that request, never a line on the wire, so the protocol
 stays 12.
 
-- The keys (`SpawnGuest` in `fight/spawn_sync.h`): a key she despawned on the host's drop, a key she answered with no
+- The keys (`SpawnGuest` in `game/spawn_sync.h`): a key she despawned on the host's drop, a key she answered with no
   enemy of hers left (refused, or killed while not paired) that the host's drop names, and the key of each paired copy
   of hers that died on the host's `dead` line, when its row takes part in the host's zone. A copy whose fight she took
   no part in does not die there ([Achievements](safety.md#achievements)) and is not listed; the host's next drop removes it

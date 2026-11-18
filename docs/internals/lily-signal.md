@@ -31,7 +31,7 @@ of Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s ca
      TheaterSelectDataTable ID (`kTables`' id false: whether SB's ID map holds that table's IDs is not known).
    - The native part knows 39 tables, the 5 quest ones after the first 20; the signal request names those 5 only.
 2. When: only with the test pak, since nothing else uses the rows and AddRow on these tables has not run in game. At the
-   title while the game uses the co-op save files (`cut/enemy.lua`'s `title_batch`, which `matrix13/world/travel.lua`
+   title while the game uses the co-op save files (`core/enemy.lua`'s `title_batch`, which `matrix13/world/travel.lua`
    uses too), so a co-op save that holds a quest finds its rows when it loads; in game on a co-op save, once a Lua load,
    asked or, when already in, read back, also after a title batch that a shut gate (`busy`, `net`, `unread`) refused at
    each try. Rows added in game come after the save loaded, too late for a quest it holds. Nothing else runs until the
@@ -108,8 +108,8 @@ of Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s ca
      fight seen in their box, or 25 s in it, and let go of the latch when EVE leaves with neither.
    - 3B comes before 3C, 3I before 3J, 4E before 4F before 4G, 4K before 4L, 4M before 4N. 4E's lamp counts only once 4D
      has played, and 4M closes 4K and 4L. Once 3K has played, a scene with a Lily line never plays.
-   - The lines go through `story/subtitles.lua`'s `play_lines()`: the talk with the fewest windows that holds them
-     (arrival 9, finale 19, prologue 21) is borrowed and played through a theater that lets EVE walk only, with the
+   - The lines go through `matrix13/quest/subtitles.lua`'s `play_lines()`: the talk with the fewest windows that holds
+     them (arrival 9, finale 19, prologue 21) is borrowed and played through a theater that lets EVE walk only, with the
      sequence alone and then the kit as fallbacks. A fight cuts it (the Stop row) and the scene plays again from its
      start 30 s later at the earliest; a scene that ends as none, failed (also an end before its last line) or cut is
      not marked. On the kit, a fight or a screen hides the group within a second, and the line it cut short shows again
@@ -120,10 +120,10 @@ of Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s ca
      (ID 69) the way it reads Quest_Sub_005.
    - The played scenes go in `coop-mxiii-talks-<co-op slot index>.txt` beside `coop-settings.txt`, cleared when "On
      Time" is acquired again.
-9. The talks: `story/subtitles.lua` plays a talk by name. A talk is its unused subtitle-only sequence
+9. The talks: `matrix13/quest/subtitles.lua` plays a talk by name. A talk is its unused subtitle-only sequence
    (`Subtitle_POD_1stMeetAdam_01`, `_ArriveDED_01` or `_1stMeetAdam_02`, read offline: no binding, camera or audio
    track) with its windows' lengths, and its lines in `matrix13/talks/<name>.lua`, one per window.
-   - `cut/scene.lua`'s `talk` points its two borrowed EventTheaterTable rows at Quinn's unused theater
+   - `cut/scenes/scene.lua`'s `talk` points its two borrowed EventTheaterTable rows at Quinn's unused theater
      `Subtitle_NPC_Quinn_Common_Condition1` and sets that theater's take's `TemplateSequence` to the talk's sequence in
      memory, as `coop scene emil` does with the farewell's take, and puts it back on Quinn's own sequence when the talk
      ends.
@@ -137,12 +137,12 @@ of Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s ca
      capture saw that speaker's colour, then calls `UpdateText` again under a re-entry guard. Windows past the lines get
      an empty author and message, and the Stop row fires once the last line's window is over.
    - A line that needs more than its window (0.5 s plus 15 characters a second) pauses the theater observer's sequence
-     player 0.15 s before the window ends and plays it again after the difference; `cut/scene.lua` counts a paused
-     player as still playing.
+     player 0.15 s before the window ends and plays it again after the difference; `cut/scenes/scene.lua` counts a
+     paused player as still playing.
    - The theater plays a copy of the sequence named with a GUID added (`Subtitle_POD_ArriveDED_01_566E...C6E5` in game),
-     so `cut/scene.lua` matches an observer's sequence by that name or the plain one, finds the hold's sequence player
-     the same way before its once-a-second look has seen the observer, and takes a rewritten window as proof the talk
-     plays (no 10 s failure until 10 s after the last one).
+     so `cut/scenes/scene.lua` matches an observer's sequence by that name or the plain one, finds the hold's sequence
+     player the same way before its once-a-second look has seen the observer, and takes a rewritten window as proof the
+     talk plays (no 10 s failure until 10 s after the last one).
    - Before the theater, a talk waits while a theater of the game plays, looked for every 0.5 s, and is asked 0.5 s
      after it ended, or after 20 s anyway. A talk refused because a talk's own sequence still plays gets no fallback. A
      Pause or Play that is missing or raises ends the holds for the talk; a sequence with no new window 2 s past a hold
@@ -150,10 +150,10 @@ of Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s ca
    - Fallbacks, in order: Quinn's own sequence seen or no observer in 10 s, the same rows with `TheaterAssetPath` empty
      and `LevelSeqAssetPath` the sequence, as 148 shipped rows play subtitle sequences (no Stop is known for that, so it
      runs to its end); window 1 not rewritten 1 s after the observer showed, or the hook not registered, the Stop row
-     and the kit version (`ui/kit.lua`: the speaker and the line at the bottom centre, each for its window or its
+     and the kit version (`ui/kit/kit.lua`: the speaker and the line at the bottom centre, each for its window or its
      reading time); no kit, no talk.
-   - `cut/scene.lua`'s donor row check accepts an empty theater and the talks' level sequences, and every play writes
-     both fields.
+   - `cut/scenes/scene.lua`'s donor row check accepts an empty theater and the talks' level sequences, and every play
+     writes both fields.
 
 ## In Matrix XIII
 
@@ -167,7 +167,7 @@ of Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s ca
 
 ## Export
 
-10. Export: `save/twins.h`'s `mod_only` refuses a co-op save that names `Quest_Sub_MX13_00` or `Quest_Sub_MX13_01`
+10. Export: `game/twins.h`'s `mod_only` refuses a co-op save that names `Quest_Sub_MX13_00` or `Quest_Sub_MX13_01`
     anywhere (an FString in a released-game save, the tracked quest and `CompleteQuestList` included). The save keeps
     a finished quest's alias, so the refusal says the save cannot be exported, with no "export it again".
 

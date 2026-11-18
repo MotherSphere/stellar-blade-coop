@@ -187,5 +187,5 @@ lobbies. Every player has to update (see [INSTALL.md: Update](../../INSTALL.md#u
   matches, join codes for match lobbies, the countdown, the round's start, ghosts of several members, mutes and the
   rules for players who are not Steam friends are checked only by the tests, which run the link against a fake Steam
   with up to 8 games (see [Tests](../dev/tests.md)).
-- The PvP test has not run in game, on one PC or on two. Its limits are checked by the native tests `fight_pvp_test`
+- The PvP test has not run in game, on one PC or on two. Its limits are checked by the native tests `game_pvp_test`
   and `fight_engine_test`.

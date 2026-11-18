@@ -77,7 +77,7 @@ other Matrix 11 camps in its levels: two more in Area03, two in Area04 and one i
 The two zone tables are the sixteenth and seventeenth of the 39 tables every rows request names (`kLionTables`), and
 only Matrix XIII's batches write them; their struct sizes (0xa8 and 0x508) and offsets come from the SDK, as the generator reads
 them for the other tables, and neither struct has a Transient field. The batch's line is `mxiii=`, in the `lion=`
-line's forms (`mxiii=rows added=15/15 asks=<a> spawns=<s> char=0/0 skills=0/0 stance=0/0`), and `cut/enemy.lua` reads
+line's forms (`mxiii=rows added=15/15 asks=<a> spawns=<s> char=0/0 skills=0/0 stance=0/0`), and `core/enemy.lua` reads
 its 41 patched fields back (the 36 of the camp rows and the 5 of the trigger rows below), `EnvBPPath` as text and
 `LinkEnvSpawnList`, `ZoneList` and `TouchEvents` as lists of names. The read-back compares an ID
 on its 32 bits, so 2800032900 matches whether UE4SS reads it as signed or not.
@@ -127,7 +127,7 @@ starting there could write Matrix 11 zone state into the save, so the third zone
 
 ## The command
 
-`matrix13/world/travel.lua` runs on a co-op save only (`commands/cut.lua`). It first asks the follow for
+`matrix13/world/travel.lua` runs on a co-op save only (`matrix13/commands.lua`). It first asks the follow for
 `coop travel probe`'s guards (solo, a co-op save, the native travel there, not stopped by a fault, with no warp under
 way and no travel accepted in the last 10 s), then looks for the test pak: `zMXIII_P.utoc` in `SB/Content/Paks/~mods` or
 `SB/Content/Paks/LogicMods`, whose directory index must name `WorldMap_DLC_01`, `Level_P` and `MXIII_P.umap` (plain text
@@ -136,7 +136,7 @@ IoStore container through its `.pak`. It reads the live folder, so a pak copied 
 check although the engine mounts paks only at start. It reads those files once a command and never looks the map up with
 `StaticFindObject`, which finds only loaded packages and costs 4 to 35 ms a miss.
 
-Then the rows go in through `cut/enemy.lua`'s rows part, and once they read back, the follow's probe calls the camp
+Then the rows go in through `core/enemy.lua`'s rows part, and once they read back, the follow's probe calls the camp
 travel for the Tetrapod camp `DLC02_00_Camp_00` (`DLC02_30_Camp_01` for `coop mxiii 30`), a camp in none of its tables
 (`probe(alias, true)`). Both commands stop before the rows unless the pak is v5. The zone 10 camps' 11 kit rows set
 no `EnvBPPath`, and only v5's `MXIII_Camps_A` holds actors with their names. With an older pak `FUN_142281550` finds
@@ -251,16 +251,16 @@ rows exist only once `coop mxiii` has run in the game run.
 
 ## At the title
 
-`matrix13/world/travel.lua`'s `title()`, called from `main.lua`'s 250 ms loop, asks the batch when three things hold:
-the title screen shows with no save loaded, the slot line reads `saves=coop` (the co-op save switch of
-`session/saves.lua`, so never on the player's own saves), and the pak check finds zMXIII_P. The pak is looked for once a
+`matrix13/world/travel.lua`'s `title()`, called from `main/pass.lua`'s 250 ms loop, asks the batch when three things
+hold: the title screen shows with no save loaded, the slot line reads `saves=coop` (the co-op save switch of
+`save/saves.lua`, so never on the player's own saves), and the pak check finds zMXIII_P. The pak is looked for once a
 Lua load, and nothing is logged without it. The request goes through `coop mxiii`'s rows flow with no EVE and no map to
 keep: the tables found by path, the `mxiii rows` request, the native gate (the game thread, net mode 0, no logic task in
 flight), the shared fault latch and the read-back, and no travel after. Once the `mxiii=` line reads `rows`, nothing is
 asked again in the game run, and `coop mxiii` then reads the rows back and only travels. A gate that stayed shut for its
 300 frames (`busy`, `net` or `unread`), no answer, or an end before the request (a table not loaded) is asked again 10 s
-later while the title shows, at most four times a visit of the title. Any other refusal leaves the rows to
-`coop mxiii`. `coop off` drops the wait without an end, and the next call at the title asks again. The end's line says
+later while the title shows, at most four times a visit of the title. Any other refusal leaves the rows to `coop mxiii`.
+`coop off` drops the wait without an end, and the next call at the title asks again. The end's line says
 `before any save loads` only when the last call, at most 250 ms earlier, still saw the title with no save loaded;
 otherwise it says the title closed and that a save may have loaded first.
 
@@ -518,12 +518,12 @@ on each of those frames and never held between them.
 ### Bosses
 
 `matrix13/world/boss.lua` looks, once a second while EVE is within 80 m of a boss point, for a body of the Lion's or the
-Gardener's blueprint within 30 m of it, and fixes it once: the Lion through `cut/lion.lua`'s `adopt` (its anim instance,
-else the hidden Behemoth leader that `coop lion` uses), the Gardener's mesh turned -90 degrees. While one lives, the
-boss bar shows its name. EVE standing 20 s within 25 m of a boss point with no body there gets one `[MXBOSS]` line
-naming `coop mxiii boss`, which spawns that arena's boss through `coop lion` or `coop gardener fight` (key 0, no saved
-death). It never runs by itself: a boss killed before stays dead through its row's SaveType, and an automatic spawn
-would bring it back at each visit.
+Gardener's blueprint within 30 m of it, and fixes it once: the Lion through `cut/enemies/lion.lua`'s `adopt` (its anim
+instance, else the hidden Behemoth leader that `coop lion` uses), the Gardener's mesh turned -90 degrees. While one
+lives, the boss bar shows its name. EVE standing 20 s within 25 m of a boss point with no body there gets one `[MXBOSS]`
+line naming `coop mxiii boss`, which spawns that arena's boss through `coop lion` or `coop gardener fight` (key 0, no
+saved death). It never runs by itself: a boss killed before stays dead through its row's SaveType, and an automatic
+spawn would bring it back at each visit.
 
 ### Breakable boxes
 
@@ -559,7 +559,7 @@ Whether a ZoneEventActor spawned after its level loaded registers with its row a
 
 ### Export
 
-The export check (`save/twins.h`) refuses a co-op save holding any FString that starts with `DLC02_` outside the camp
+The export check (`game/twins.h`) refuses a co-op save holding any FString that starts with `DLC02_` outside the camp
 fields it already reads (names that start with `Zone_DLC02_` excepted, every save holds them). None of the user's 15
 released-game saves holds one; a save that played the dungeon keeps its zones' rows for good, so it can never be
 exported.
@@ -586,7 +586,7 @@ is `MX13_Region`, and a camp's is `MX13_Camp_<row>`:
 
 The rows hold keys of `StringTable_UI`, so the names go in two steps, in this order:
 
-1. `game/camp_text.h` and `glue/tick/camp_text_game.inc` add the 12 entries to the live table from `coop_tick`. Each 250
+1. `game/camp_text.h` and `matrix13/camp_text_game.inc` add the 12 entries to the live table from `coop_tick`. Each 250
    ms, at the title and with coop off too, the game thread reads the culture and, while a pass is due, looks for the
    table. It waits until the table's loaded byte is set: the table is registered in its constructor, and `Serialize`
    empties it later. `coop-status.txt` then goes from `camptext=wait` to `camptext=ready`.

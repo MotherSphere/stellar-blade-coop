@@ -3,8 +3,8 @@
 The player page is [features/bike.md](../features/bike.md). The bike is `bike/ride.lua` (the part, the checks, the mount and the dismount,
 the lean, the pose, the parked bike's place), `bike/model.lua` (the riding model), `bike/park.lua` (the parked bike's
 rules, its record and its line), `bike/stand.lua` (the parked bike's actor), `bike/others.lua` (the other players'
-parked bikes), `bike/fetch.lua` (the paid fetch at Xion), `commands/bike.lua` (`coop bike`) and the native part's
-`game/bike.h` with `glue/tick/bike_game.inc` and `bike_worker.inc` (the preload and the gate). It is not tested in game
+parked bikes), `bike/fetch.lua` (the paid fetch at Xion), `bike/commands.lua` (`coop bike`) and the native part's
+`game/bike.h` with `bike/bike_game.inc` and `bike_worker.inc` (the preload and the gate). It is not tested in game
 yet. The addresses are build 26123051's.
 
 ## The preload
@@ -32,15 +32,16 @@ was lost on the way and the ride asks again. The same clip asked again while it 
 ## The part on EVE
 
 Once `bike=ready` and an EVE has been in the world for 2 s (the capture's own wait), `bike/ride.lua` calls
-`race/doro.lua`'s `Doro.attach`: one `SkeletalMeshComponent` showing `Adam_Vehicle_02`, attached KeepRelative to her
-main mesh, collision off, single-node mode with no clip, so it keeps its reference pose. It sits at (1.53, 0.52, 2.95)
-cm with a pitch of 0.69 degrees relative to her main mesh, from the attach tracks of the game's SD20 scene (riders on
-the bike's bone `Base`). It starts hidden, with its component tick off and `VisibilityBasedAnimTickOption` 3
+`core/actors.lua`'s `attach`: one `SkeletalMeshComponent` showing `Adam_Vehicle_02`, attached KeepRelative to her main
+mesh, collision off, single-node mode with no clip, so it keeps its reference pose. It sits at (1.53, 0.52, 2.95) cm
+with a pitch of 0.69 degrees relative to her main mesh, from the attach tracks of the game's SD20 scene (riders on the
+bike's bone `Base`). It starts hidden, with its component tick off and `VisibilityBasedAnimTickOption` 3
 (`OnlyTickPoseWhenRendered`): its reference pose needs no tick and her mesh moves it, so it costs no tick a frame on
-every EVE with `bike=on`. It carries the component tag `SBO_Bike` (`Ride.TAG`), written into its
-empty `ComponentTags` and read back with `ComponentHasTag`. A tag that does not hold leaves the part in use for this
-Lua load. The log then says `bike part tag SBO_Bike not written (<why>): a Ctrl+R will not find this part`. The log line `bike part ready on EVE (made in <ms> ms)` gives the time. A part that cannot be made
-is not tried again on that EVE; a mount says why.
+every EVE with `bike=on`. It carries the component tag `SBO_Bike` (`Ride.TAG`), written into its empty `ComponentTags`
+and read back with `ComponentHasTag`. A tag that does not hold leaves the part in use for this Lua load. The log then
+says `bike part tag SBO_Bike not written (<why>): a Ctrl+R will not find this part`. The log line
+`bike part ready on EVE (made in <ms> ms)` gives the time. A part that cannot be made is not tried again on that EVE; a
+mount says why.
 
 After Ctrl+R the part is already there. The new Lua load's first tick (`self.restore`) looks among her components
 (`K2_GetComponentsByClass`) for one that shows the bike's mesh and carries that tag. It hides it, keeps it as this
@@ -69,9 +70,9 @@ Then, in this order:
 1. `coop-bike.txt` (through `link.store`): EVE's object path, her main mesh's relative rotation and location. A file
    this Lua load kept for her (a dismount that could not write her mesh back) gives the base instead, since her mesh may
    still lean. A file that cannot be written refuses the mount.
-2. `race/drive.lua`'s drive with `bike/model.lua` (why `bike`). It keeps her movement component's `MaxAcceleration`,
-   `GroundFriction`, `BrakingDecelerationWalking` and `BrakingFrictionFactor` in `coop-drive.txt`, then sets them to 0
-   ([Driving](doro-races.md#driving)).
+2. `bike/drive.lua`'s drive (the bike's copy of the races' `race/drive.lua`) with `bike/model.lua` (why `bike`). It
+   keeps her movement component's `MaxAcceleration`, `GroundFriction`, `BrakingDecelerationWalking` and
+   `BrakingFrictionFactor` in `coop-drive.txt`, then sets them to 0 ([Driving](doro-races.md#driving)).
 3. `bike gate on` (below).
 4. `anim play <id> <clip> ride` (below).
 5. The part shown.
@@ -140,8 +141,8 @@ uses the slot.
 
 ## Riding
 
-`bike/model.lua` adapts the motorcycle model of Eve On Wheels' `handling.lua` to `race/drive_model.lua`'s table shape,
-so `race/drive.lua` feeds it the same input (`GetLastMovementInputVector`, the drift keys, her velocity) and gives her
+`bike/model.lua` adapts the motorcycle model of Eve On Wheels' `handling.lua` to `bike/drive_model.lua`'s table shape,
+so `bike/drive.lua` feeds it the same input (`GetLastMovementInputVector`, the drift keys, her velocity) and gives her
 what it returns (a velocity or a launch, then her yaw), as for a race ([Driving](doro-races.md#driving)). No move block
 is set while she rides: SB's move handler (`0x142059df0`) still reaches `AddMovementInput`, so the stick keeps working.
 
@@ -167,7 +168,7 @@ rotation for that.
 
 ## The parked bike
 
-`bike/stand.lua` makes the parked bike with `race/doro.lua`'s `Doro.spawn`: a plain `Actor` whose root is one
+`bike/stand.lua` makes the parked bike with `core/actors.lua`'s `spawn`: a plain `Actor` whose root is one
 `SkeletalMeshComponent` showing `Adam_Vehicle_02` at scale 1 in its reference pose. `bike/ride.lua` makes one for each
 EVE right after her part, under the same gate (`bike=ready`, EVE in the world for 2 s). It starts hidden with its
 collision off. The log says `bike stand made in <ms> ms`. A new EVE (a map change, a respawn) has the old EVE's stand
@@ -204,7 +205,7 @@ park caused logs `bike put back on <map> at <x>,<y>,<z>`.
 With a place, a mount that passed the checks of [Mount and dismount](#mount-and-dismount) compares it with her, from
 the cached place and her main mesh's location:
 
-- on another map: `Your bike is on another map: <name>.`, the name from `session/travel.lua`'s `WORLDS`, else the
+- on another map: `Your bike is on another map: <name>.`, the name from `core/worlds.lua`'s table, else the
   path's last part;
 - on her map with the stand not shown: `Your bike is not back yet.`;
 - out of reach (`bike/park.lua`'s `reach`: her capsule more than 50 cm from the bike's body by the clearance rule
@@ -242,7 +243,7 @@ line not read yet at game start, a Ctrl+R while she rode) waits in memory and is
 is not read: `bike place: <file>: kept the park made before the key`. With no key at all (a build other than the
 pinned one, `saves=off`, no native part) the place lives in memory for the Lua load.
 
-While an SBO lobby is open (`session/sbo.lua`'s `active()`) the place and the key are dropped and nothing is read or
+While an SBO lobby is open (`lobby/sbo.lua`'s `active()`) the place and the key are dropped and nothing is read or
 written. The lobby plays a session copy of the save, which a record written there would outlive. Leaving the lobby
 drops them again, so the next pass reads the save's record.
 
@@ -291,7 +292,7 @@ with the part comes as late, so no bike shows for about as long. The grouped gam
 ## Bringing it back
 
 `bike/ride.lua`'s mount offers the paid fetch only after the far and another-map refusals, only outside an SBO lobby
-and only when `session/travel.lua`'s `camp_near('Xion', 10)` names a camp. That is the nearest Xion camp of the
+and only when `group/travel.lua`'s `camp_near('Xion', 10)` names a camp. That is the nearest Xion camp of the
 follow's camp table whose spawn point stands within 10 m of our EVE on Xion's map and which the `activated=` read lists.
 The spawn points are walked with `FindAllOf('SBSpawnPoint')` once a map, as the follow does, on this refusal only. A
 mount within reach never asks.
@@ -305,11 +306,11 @@ and sent: `bike brought to <camp> for 500 betacrystal`. Nothing of a payment is 
 
 The on-screen lines put the money's name in a `%s`. On the screen's words it is SB's own: the ItemTable row
 `BetaCrystal` names the key `Item_BetaCrystal_Name`, read from `/Game/Local/Localize/ItemStringTable.ItemStringTable`
-through `core/unreal.lua`'s `game_text` (Gold in English, Or in French, 골드 in Korean). main.lua's `game_words` reads
-nothing under `ui_language=english`. The English copy of another language (the line above EVE), the log, a name that
-does not read and a name over 32 bytes (`Fetch.NAME_MAX`) take `betacrystal`. So does an offer whose refusal and name
-pass the feed's 200 bytes: `ui/text_test` fits every refusal and offer with `betacrystal` and the other lines with a
-32-byte name.
+through `core/unreal.lua`'s `game_text` (Gold in English, Or in French, 골드 in Korean). `main/base.lua`'s `game_words`
+reads nothing under `ui_language=english`. The English copy of another language (the line above EVE), the log, a name
+that does not read and a name over 32 bytes (`Fetch.NAME_MAX`) take `betacrystal`. So does an offer whose refusal and
+name pass the feed's 200 bytes: `ui/text_test` fits every refusal and offer with `betacrystal` and the other lines with
+a 32-byte name.
 
 `bike/fetch.lua` spends the money as SB's shops spend it. Read in Ghidra on build 26123051:
 
@@ -319,7 +320,7 @@ pass the feed's 200 bytes: `ui/text_test` fits every refusal and offer with `bet
 - The player controller's `ServerRequest_ItemBucketItemRemove` (`0x1423bfa00`), which `coop gift` already calls, queues
   SB's remove request (type 0x16), whose `Simulate` (`0x141b0cc60`) runs the same `0x141ad8490` and `0x141bdfb10` with
   no category or SaveType filter. Asked for more than she has, it takes what there is, so the count comes first.
-- `0x141be1580` walks the sets that `game/items.h` reads (the bucket's alias map at `+0x90`, the manager's instance map
+- `0x141be1580` walks the sets that `cut/items.h` reads (the bucket's alias map at `+0x90`, the manager's instance map
   at `+0x210`, each item's count at `+0x6c`), so the native part's read reaches the betacrystal whatever its ItemTable
   SaveType.
 - SB's code builds the FName `BetaCrystal`; ShopItemTable writes `betacrystal`. FNames compare without case, so
@@ -347,16 +348,18 @@ mesh's transform. This works for the friend in ghost slot 0 and for each member 
 online session of more than 2 players). While she does not ride, her parked bike travels as its own line
 ([The bike line](#the-bike-line)).
 
-The part stays on her, hidden, while `bike=on`. While she does not ride, the capture leaves it out. `main.lua` gives
-`capture.leave_out` the ride's `idle_part`, which the capture asks once a look (once a second) with her actor's address.
-`idle_part` answers the address of the part this Lua load made, or found by its tag, on that EVE. It answers nothing
-while she rides, before the part exists and after `bike=off`. It makes no engine call. The capture compares that address
-with each component's. Only SBO's own part is left out: another mod's component on the same mesh has no `SBO_Bike` tag
-and stays a part. The part list changes at each mount and dismount, so each one starts a new capture generation and
-every ghost is built again with or without the bike. A ride that ends on a fault, `coop off`, `bike=off` and a new Lua
-load each leave `riding()` false, which the next look follows. After a Lua load the first tick names the earlier load's
-part, before the capture's first look and whatever the `bike=` word reads. With `bike=off` the first 250 ms pass removes
-it.
+The part stays on her, hidden, while `bike=on`. While she does not ride, the capture leaves it out. `partner/wiring.lua`
+gives `capture.leave_out` the ride's `idle_part`, which the capture asks once a look (once a second) with her actor's
+address. `idle_part` answers the address of the part this Lua load made, or found by its tag, on that EVE. It answers
+nothing while she rides, before the part exists and after `bike=off`. It makes no engine call. The capture compares that
+address with each component's. Only SBO's own part is left out: another mod's component on the same mesh has no
+`SBO_Bike` tag and stays a part. The part list changes at each mount and dismount, so each one starts a new capture
+generation and every ghost is built again with or without the bike. A ride that ends on a fault, `coop off`, `bike=off`
+and a new Lua load each leave `riding()` false, which the next look follows. After a Lua load the first tick names the
+earlier load's part, before the capture's first look and whatever the `bike=` word reads. With `bike=off` the first 250
+ms pass removes it. While the bike module is off (it failed to load), no ride can show the part. One an earlier Lua load
+left may still be on her: `partner/bike_part.lua`, the partner's own copy of the ride's part lookup, answers that part's
+address by its tag ([Modules and isolation](architecture.md#modules-and-isolation)).
 
 While she rides, the part has no `MasterPoseComponent`, so `capture.lua` ranks it with the leaders, ahead of every
 follower. With `MAX_PARTS` at 16, an EVE with 16 skeletal parts or more loses the last follower of her outfit from every

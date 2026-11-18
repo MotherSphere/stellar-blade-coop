@@ -42,7 +42,7 @@ ItemTable AddRow leaves that table in an unknown state for each of them.
 
 ### The opener
 
-`nightop/shop_ui.h` (free of Windows, tested on the build machine) and `glue/tick/nightop_game.inc` make the calls the
+`nightop/shop_ui.h` (free of Windows, tested on the build machine) and `nightop/nightop_game.inc` make the calls the
 vending machine's interaction node makes (`SBInteractionNode_ShopUI`, its execute `FUN_141b8aec0`), on the game thread
 under their own SEH latch. The UI manager is the client's `+0x48` (client global `0x1470373f8`, read directly and never
 through its getter, which allocates).
@@ -124,7 +124,7 @@ either.
    value or ours is accepted, so a Lua reload goes on. A row that does not read back stops the arm, and every row is
    put back, that one included. The exception is a Lua reload while the `roxanne=` line still reads `on`: her list
    may show the rows, so they stay ours until the off of step 5.
-3. The list: `nightop/roxanne.h` (free of Windows, tested against fake memory) and `glue/tick/nightop_game.inc` point
+3. The list: `nightop/roxanne.h` (free of Windows, tested against fake memory) and `nightop/nightop_game.inc` point
    her entry at a new array of six FNames, the four rows then her two, allocated with the game's GMalloc
    (`0x1470703c0`, Malloc at its vtable's `+0x10`) so the game may free it like its own. From the moment the entry
    points at it, the array is the game's: it is used again only after off took it back, and an entry the game rebuilt
@@ -179,11 +179,11 @@ with a few fields changed, and the generator restates every other field from tha
 | `HP2Burst_Potion` | ItemTable | 300013 | `HP_Potion` | text keys, consumable, icon `Item/Burst`, pickup blueprint `BP_Item_HP2Burst_Potion`, no drop pool, 2 charges with no stat override (as `HealGrenade`) |
 | `Buff_HP2MP` | ItemTable | 300014 | `HP_Potion` | text keys, consumable, icon `Item/Buff_HP2MP`, no drop pool, 2 charges with no stat override |
 
-The generator checks that each consumable, condition group, effect, skill, icon, blueprint and Show the rows name
-exists in the dumps or the pak listing. `nightop/shop.lua` sells both items. Before a buy of one, it calls
-`cut/lion.lua`'s `Lion.rows`, which takes the same steps as `coop lion rows` (the tables, the request or the rows
-already in, the wait, the read-back) and then hands the end to the shop: the shop checks the buy again and grants it,
-or says why the rows are not in. The answer of a buy that waited comes from `coop lion`'s tick.
+The generator checks that each consumable, condition group, effect, skill, icon, blueprint and Show the rows name exists
+in the dumps or the pak listing. `nightop/shop.lua` sells both items. Before a buy of one, it calls
+`cut/enemies/lion.lua`'s `Lion.rows`, which takes the same steps as `coop lion rows` (the tables, the request or the
+rows already in, the wait, the read-back) and then hands the end to the shop: the shop checks the buy again and grants
+it, or says why the rows are not in. The answer of a buy that waited comes from `coop lion`'s tick.
 
 ## The cut Shock Bolt
 
@@ -203,14 +203,14 @@ table's numbering:
 | `P_Eve_Gun_ShootShockSlug1_Projectile1` | ProjectileTable | 1010051 | `P_Eve_Gun_ShootSlug1_Projectile1` | the shock blueprint and the hit result below |
 | `P_Eve_Gun_ShootShockSlug1_Projectile1_Hit1` | SkillResultTable | 100200801 | `P_Eve_Gun_ShootSlug1_Projectile1_Hit1` | `ShockSlugStun` added to the effects on the target |
 
-ProjectileTable is the fifteenth table every rows request names, and only this batch has a row in it. The batch is
-apart from the Lion's because nothing in it had run in game when it was added: a refusal stops a batch at its first
-row that fails, and the Lua read-back stops at its first value that differs, so in the lion rows batch a Shock Bolt row
-would have stopped `coop lion`, `coop chainspin` and the stimpack buys. Only the shop (`nightop/shop.lua`, through
-`Lion.rows` with the word `bolt`) asks for it: a Shock Bolt buy, and `coop nightop shop` before it opens the screen.
-Its line in `coop-status.txt` is `bolt=`, in the same forms as `lion=`
-(`bolt=rows added=4/4 asks=<a> spawns=<s> char=0/0 skills=<k>/1 stance=0/0`), and `cut/lion.lua` reads its 87 fields
-back as it does the Lion's.
+ProjectileTable is the fifteenth table every rows request names, and only this batch has a row in it. The batch is apart
+from the Lion's because nothing in it had run in game when it was added: a refusal stops a batch at its first row that
+fails, and the Lua read-back stops at its first value that differs, so in the lion rows batch a Shock Bolt row would
+have stopped `coop lion`, `coop chainspin` and the stimpack buys. Only the shop (`nightop/shop.lua`, through `Lion.rows`
+with the word `bolt`) asks for it: a Shock Bolt buy, and `coop nightop shop` before it opens the screen. Its line in
+`coop-status.txt` is `bolt=`, in the same forms as `lion=`
+(`bolt=rows added=4/4 asks=<a> spawns=<s> char=0/0 skills=<k>/1 stance=0/0`), and `cut/enemies/lion.lua` reads its 87
+fields back as it does the Lion's.
 
 With no stat override (`ActorStatType_None`) the game reads the cap from the row's `MaxAmount`; all six
 `ItemStackBullet` stats belong to shipped ammo. The skill has no acquisition because the game refuses a skill whose

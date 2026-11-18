@@ -65,7 +65,7 @@ rules of [In a match lobby](#in-a-match-lobby) never lapse for her. `sbo_state` 
 only: `open` while players can join, `playing` during a round. `sbo_map` names the round's map. `sbo_room` and
 `sbo_hall` are the last two words of the request that created the lobby: the SBO lobby map its players wait in
 (`xion`, or a hall lobby's key such as `hotel`) and the version of the hall lobby pak `zSBO_Lobby` (its `.utoc` and
-`.ucas` sizes joined by `_`, or `xion` without the pak). Lua's `session/sbo.lua` picks both words (`lobby_words()`):
+`.ucas` sizes joined by `_`, or `xion` without the pak). Lua's `lobby/sbo.lua` picks both words (`lobby_words()`):
 the lobby map the player stands in, or one drawn at random outside it, and the pak's version. Every member reads both
 keys each pass, keeps a word only when it holds letters, digits and `_` and is 40 bytes at most, and the status shows
 them after `owner=` on its `link=` line.
@@ -84,7 +84,7 @@ them after `owner=` on its `link=` line.
 - `match create <mode> <room> <hall>` creates a private match lobby: Invisible like a code lobby, with a join code,
   and without `sbo_state`, so no search returns it. Friends join it with `join <code>`. With the hall lobbies in use,
   the host picks the room on the Map row of the lobby settings screen, or Random for a draw (`create()` in
-  `session/sbo.lua`). When the room is a hall other than the one she stands in, she warps there first and the request
+  `lobby/sbo.lua`). When the room is a hall other than the one she stands in, she warps there first and the request
   goes out when she arrives.
 - In the SBO lobby, a guest of a match lobby whose `sbo_room` names another of the lobby maps her entries use (the
   halls with the lobby pak, else Xion) warps there, once per arrival and joined lobby, so a refused warp is not asked
@@ -226,11 +226,10 @@ host answers with native requests, which Lua writes to `coop-request.txt` like t
 
 On the host, `session/join.lua` turns the first `pending=` line into a question on screen and writes the answer. While
 more lines follow, its seconds line adds how many players wait after this one. Once the first player is answered or
-gone, the next `pending=` line gets its own question. It asks each player once a lobby; with no answer, the native
-part refuses the player 60 s after her question became the first one. The question opens without a
-key press, so it ignores every key for 1 s after it shows, and `main.lua` gives it the arrow keys but not W, S or Space.
-`core/link.lua` keeps in memory which lobby members waited for an answer, for the menu's Remove row, so a Lua reload
-forgets them.
+gone, the next `pending=` line gets its own question. It asks each player once a lobby; with no answer, the native part
+refuses the player 60 s after her question became the first one. The question opens without a key press, so it ignores
+every key for 1 s after it shows, and `main/keys.lua` gives it the arrow keys but not W, S or Space. `core/link.lua`
+keeps in memory which lobby members waited for an answer, for the menu's Remove row, so a Lua reload forgets them.
 
 Apart from the wait line, this uses the hello's timing, the ping and the reject.
 

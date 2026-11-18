@@ -4,7 +4,7 @@ The commands are in [Cut scenes and menus](../cut-content/cut-scenes-and-menus.m
 
 ## The cut Load Shortcut menu
 
-`coop shortcut` (`save/shortcut.h`, `glue/tick/shortcut_game.inc`, not tested in game yet) lists the saves of a cut
+`coop shortcut` (`game/shortcut.h`, `save/shortcut_game.inc`, not tested in game yet) lists the saves of a cut
 chapter loader. What the pinned build keeps of it:
 
 - The title screen's widget `WB_Lobby_Menu_Set` has a `WB_Lobby_Menu_Btn_ShortCut` button, collapsed, whose text key
@@ -35,10 +35,10 @@ line. A fault ends `coop shortcut` for the run.
 
 ### Loading one
 
-`coop shortcut load <map> <1-4>` (`save/shortcut_load.h`, `Convert::plant` in `save/twins.h`, not tested in game yet)
+`coop shortcut load <map> <1-4>` (`game/shortcut_load.h`, `Convert::plant` in `game/twins.h`, not tested in game yet)
 writes one of the 15 files, cleaned, as co-op slot 5 (`StellarBladeCoop04.sav`). The player then loads it with the
 game's own Load Game. It is refused unless `coop-settings.txt` has `shortcut_load=on` (on by default), and
-`commands/cut.lua` sends the request only when the same words come twice within 10 s.
+`save/commands.lua` sends the request only when the same words come twice within 10 s.
 
 What the files are, against a save of the released game (2026-10-26):
 
@@ -114,7 +114,7 @@ which the 15 files hold. The game's save builder (`FUN_1421d9480`) copies the ru
    `DataMap_SBItem` that parses, and none of the six gears anywhere in the body (any whole string, case ignored). A
    save that names a gear outside the inventory, in `PlayerActor`'s equipment or quick slots, is refused.
 
-`tests/native/save/shortcut_load_test.cpp` cleans the 15 files themselves when the machine holds the research copies:
+`tests/native/game/shortcut_load_test.cpp` cleans the 15 files themselves when the machine holds the research copies:
 each passes that check, holds none of the strings `Achievement`, `Trophy` or `Ach_`, and is the file without its
 `SBAchievement` bytes, byte for byte. Against the table's dump, the only inventory items with no `ItemTable` row are
 the seven above. A parse of the 15 results (EVAS, CRC, header and every property, 2026-10-27) read them whole.
@@ -179,9 +179,9 @@ What still runs is the controller's `ServerRequest_Cheat`, whose logic job (`FSB
 table uses three: `SBApplyEffectMe` in 82 rows (64 effects, 62 of them in the shipped EffectTable), `SBPlayerSP` in 4
 and `SBPlayerRevival` in 1.
 
-`coop devmenu` (`cut/devmenu.lua`) keeps 20 rows of 23 effects, which 35 table rows call (Common 25, Battle 7,
+`coop devmenu` (`cut/menus/devmenu.lua`) keeps 20 rows of 23 effects, which 35 table rows call (Common 25, Battle 7,
 CombatTestMapMk2 2, System 1). Each is applied as the menu's rows would have been:
-`ServerRequest_Cheat(<EVE's GUID>, 0, "SBApplyEffectMe", "<ID>")`, through `cut/chainspin.lua`'s one call
+`ServerRequest_Cheat(<EVE's GUID>, 0, "SBApplyEffectMe", "<ID>")`, through `core/effect.lua`'s one call
 (`ChainSpin.apply`) after its checks (`ChainSpin.target`: `warp=idle`, `me=` not 0, EVE in the world, the controller).
 The menu passes effect names, and the job reads a number, so the module reads the ID from the EffectTable row of that
 name (`FindRow`) at each use.
@@ -211,7 +211,7 @@ see [Achievements](safety.md#achievements)), the TPS unlock (`ActorStatType_Unlo
 (all actors), and the five lasting effects no dispel row reaches (`NoDamageNoHitImmuneAbnormal_Infinite`, the two
 `Test_Final*DamageReduce_080p`, `T_Drone_NoCoolScan` and `Test_EnemyEffectGroggy`).
 
-`coop devinfo` (`game/dev_panels.h`, run by `glue/tick/debug_game.inc`) opens the two registered read-only panels
+`coop devinfo` (`game/dev_panels.h`, run by `cut/debug_game.inc`) opens the two registered read-only panels
 through the client's UI manager (`FSBUMGManager`, the client global `0x1470373f8` at `+0x48`). The quest debugger's
 logic (vtable `0x145c37fc8`) builds its text in its tick (`0x141e9bd80`, the vtable's `+0x48`, which the manager's tick
 `0x141fc9660` calls for each open UI) from the quest manager's quests, task groups and tasks, and sends it to the widget
@@ -236,7 +236,8 @@ number, the panel, the reason for a refusal and what it opened and closed. Lua's
 
 ## Cut mailbox
 
-`coop gift` (`cut/mailbox.lua`, not tested in game yet) carries consumables from one player's co-op save to the other's.
+`coop gift` (`cut/menus/mailbox.lua`, not tested in game yet) carries consumables from one player's co-op save to the
+other's.
 
 ### Why the game's mailbox is not used
 
@@ -260,7 +261,7 @@ load's first tick takes off a toast an earlier load left on screen.
 ### The inventory read
 
 SB has no reflected function that returns how many of an item EVE carries, and its remove by alias takes what there is
-when asked for more, so the native part reads the count itself (`game/items.h`, `glue/tick/items_worker.inc`). Lua asks
+when asked for more, so the native part reads the count itself (`cut/items.h`, `cut/items_worker.inc`). Lua asks
 `items <ask> <alias> <FName index> <FName number>`; the worker reads at once through `ReadProcessMemory`, EVE's GUID
 (client `+0x58`) included, apart from the revive guard and its latch, and the engine line of `coop-status.txt` gets
 `items=<ask> <count>` or `items=<ask> none <why>` (`unpinned`, `noeve`, `nomanager`, `nobucket`, `unread`; after
@@ -303,7 +304,7 @@ digits. The receiving game answers `gift a <id>` once the gift is in its file (`
 (`slot`, `full`, `item`, `store`). A refusal, no answer in 60 s, the friend gone from the lobby (not one whose link is
 lost and may come back) or the native part's own `n <id> nolink` turns the entry into `back <id> <alias> <count>`,
 and the next tick with EVE in the world and the game playing grants it through the shop's call
-(`ServerRequest_ItemBucketItemAdd`, nightop/shop.lua's `Shop.add`). The entry leaves the file before the grant, as a
+(`ServerRequest_ItemBucketItemAdd`, `core/items.lua`'s `Shop.add`). The entry leaves the file before the grant, as a
 take's does, and goes back if the grant raises, so a file that cannot be written gives nothing back until it can. A
 grant that raises, or a write that fails, is tried again after 10 s.
 Until an answer, the gift line goes again every 10 s with the same id while the friend is linked. A `nolink` for one of

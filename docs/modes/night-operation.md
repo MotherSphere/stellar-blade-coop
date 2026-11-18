@@ -492,7 +492,7 @@ permission (see [Credits](../../README.md#credits) in the README). The adapted p
 
 `mod/StellarCoop/Scripts/nightop/run.lua`, `nightop/waves.lua` and `core/unreal.lua` mark each adapted function. The
 death screen lookup is `U.death_screen()` in `core/unreal.lua`, used by the solo run and by the revive in
-`session/group.lua`. Stellar Blade Online contains no file from Survival Protocol.
+`group/group.lua`. Stellar Blade Online contains no file from Survival Protocol.
 
 ## Sections that moved
 

@@ -5,14 +5,15 @@ default) has not run in game yet. Every address and offset below is build 261230
 
 The code is split as for the shared quests:
 
-- `native/src/world/rows.h`: the four lists of what may be shared, written by `tools/world_rows.py`;
-- `native/src/world/sync.h`: the lines, the ring, both players' sides and the status line, with no Windows types and
-  no game call;
-- `native/src/world/engine.h`: the root reads and the game calls, through a `Game` that is SB's memory on Windows and
-  fake memory in the tests;
-- `native/src/glue/tick/world_game.inc`: the hooks and each frame's pass on the game thread;
-- `native/src/glue/tick/world_worker.inc`: Lua's request, the slot swaps, channel 2 and the status line on the worker;
-- `mod/StellarCoop/Scripts/commands/world.lua` and `main.lua`: the setting, `coop world` and the notices.
+- `native/src/game/world/rows.h`: the four lists of what may be shared, written by `tools/world_rows.py`;
+- `native/src/game/world/sync.h`: the lines, the ring, both players' sides and the status line, with no Windows types
+  and no game call;
+- `native/src/game/world/engine.h`: the root reads and the game calls, through a `Game` that is SB's memory on Windows
+  and fake memory in the tests;
+- `native/src/world/world_game.inc`: the hooks and each frame's pass on the game thread, with its state, latch and
+  game calls that other modules' parts read in `native/src/glue/tick/world_game_shared.inc`;
+- `native/src/world/world_worker.inc`: Lua's request, the slot swaps, channel 2 and the status line on the worker;
+- `mod/StellarCoop/Scripts/world/commands.lua` and `world/wiring.lua`: the setting, `coop world` and the notices.
 
 ## Roots
 
@@ -51,7 +52,7 @@ drops the new root and counts it.
 
 ## Filter
 
-`tools/world_rows.py` reads the table exports of the pinned build and writes the generated block of `world/rows.h`:
+`tools/world_rows.py` reads the table exports of the pinned build and writes the generated block of `game/world/rows.h`:
 
 ```
 python3 -I tools/world_rows.py <folder of <Table>.uasset.json exports>
@@ -128,10 +129,11 @@ lists.
 
 The worker hands our lines to `send_fight()` for the pair only (`Link::partner()`, the host and the guest in ghost slot
 0 in an online session of more than 2 players), which refuses a line while its channel 2 queue holds 256. A refused line
-waits with the lines after it for the next pass, up to 1,024 (`world/sync.h`'s `Outbox`); a new partner, or none,
+waits with the lines after it for the next pass, up to 1,024 (`game/world/sync.h`'s `Outbox`); a new partner, or none,
 drops what waits, as the link drops its own queue then.
 
-`link/core.h` refuses `SBW` lines in match lobbies both ways, as it does `SBQ` lines; one that arrives there is dropped. The log says `dropped fight data from <name>: the shared world is off in a match lobby`.
+`link/core.h` (in `link/core/channels.inc`) refuses `SBW` lines in match lobbies both ways, as it does `SBQ` lines; one
+that arrives there is dropped. The log says `dropped fight data from <name>: the shared world is off in a match lobby`.
 
 A last check stops echoes that the applying rule above would miss: the value she sent for an env or a row stops one
 root of ours with the same value for that env or row within 3 s, for her last 32 values. Any other root of ours for
@@ -217,11 +219,12 @@ The line changes with its counters. Each change goes to `UE4SS.log` as a `[Stell
 ## Lua side
 
 `shared_world` is a switch in `core/link.lua`'s settings, on by default. Once a load, as soon as the native part has
-judged the save slot, `main.lua` sends the request `world on` when the setting is on; the native part starts off. The
-Options row sends `world on` at once, or `world off` each time it turns off (the `world=` line lags a `world on` by a
-worker pass and a frame, so it is not read there). `shared_world=off` at a reload sends `world off` when an
-earlier load turned it on. `coop world on|off` sends the request itself and leaves the setting alone. The notices
-come from the `world=` line: on with her each time it reads `on` after anything else and stopped when it changes to `stopped`.
+judged the save slot, `world/wiring.lua` sends the request `world on` when the setting is on; the native part starts
+off. The Options row sends `world on` at once, or `world off` each time it turns off (the `world=` line lags a
+`world on` by a worker pass and a frame, so it is not read there). `shared_world=off` at a reload sends `world off` when
+an earlier load turned it on. `coop world on|off` sends the request itself and leaves the setting alone. The notices
+come from the `world=` line: on with her each time it reads `on` after anything else and stopped when it changes to
+`stopped`.
 
 ## Limits
 

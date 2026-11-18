@@ -235,7 +235,7 @@ It uses UE4SS reads only: `FindAllOf`, `StaticFindObject`, property reads, `ForE
 ## The save file
 
 A Stellar Blade save is an EVAS wrapper around an Unreal Engine 4.26 GVAS body: `EVAS`, a version byte (1), three zero
-bytes, the body, and the CRC-32 of the body, little endian. `tools/save_guard.py` and `native/src/save/twins.h` check
+bytes, the body, and the CRC-32 of the body, little endian. `tools/save_guard.py` and `native/src/game/twins.h` check
 the same wrapper. `tools/save_read.py` refuses a file without `EVAS` and `GVAS` or with a wrong CRC-32, and refuses an
 FString longer than 1 MiB as a misread. It reads the tagged properties of the body, including arrays, sets, maps,
 structs (tagged, or `Vector`, `Rotator`, `Quat`, `LinearColor`, `Vector2D`, `Color`, `IntPoint`, `DateTime`,

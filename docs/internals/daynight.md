@@ -6,13 +6,13 @@ cycle is not tested in game yet. Every address and offset below is build 2612305
 
 The code:
 
-- `native/src/game/sky.h`: the clock, the sun and moon, the light factors, the writer of SB's env array and the status
+- `native/src/sky/sky.h`: the clock, the sun and moon, the light factors, the writer of SB's env array and the status
   line, with no Windows types, tested on the build machine;
-- `native/src/glue/tick/sky_game.inc`: the game thread's pass inside `coop_tick`, under its own SEH latch;
-- `native/src/glue/tick/sky_worker.inc`: Lua's request, the log lines and the `sky=` line of `coop-status.txt`;
+- `native/src/sky/sky_game.inc`: the game thread's pass inside `coop_tick`, under its own SEH latch;
+- `native/src/sky/sky_worker.inc`: Lua's request, the log lines and the `sky=` line of `coop-status.txt`;
 - `mod/StellarCoop/Scripts/sky/rule.lua`: the map table and the rules, with no engine call;
 - `mod/StellarCoop/Scripts/sky/daynight.lua`: the request in the 250 ms pass, the sky dressing and SBO's own maps;
-- `mod/StellarCoop/Scripts/commands/daynight.lua`: `coop daynight`.
+- `mod/StellarCoop/Scripts/sky/commands.lua`: `coop daynight`.
 
 The list of features follows the README of dCharisma1's "Activate Day Night Cycle" plugin for CPS. SBO uses none of its
 code or values.
@@ -237,9 +237,9 @@ that refuses a write gets one line, once per world.
 
 ## Lua's part
 
-`main.lua` calls `daynight.slow(off)` in its 250 ms loop, after `coop off` too, so the cycle asks `sky off` once then.
-The pass reads the map with `U.map_of` only when EVE's address changes, never on a timer. It reads SB's state only on a
-map whose row is on, decides the request and sends it only when it changes. Then it dresses the sky from the status
+`main/pass.lua` calls `daynight.slow(off)` in the 250 ms loop, after `coop off` too, so the cycle asks `sky off` once
+then. The pass reads the map with `U.map_of` only when EVE's address changes, never on a timer. It reads SB's state only
+on a map whose row is on, decides the request and sends it only when it changes. Then it dresses the sky from the status
 line's values while the native state is one where the sky follows our sun (`cycle`, `pinned`, `held` or `forced`).
 
 Each part of the dressing is looked up once per world: the domes by their full object path, the SkyCreators and

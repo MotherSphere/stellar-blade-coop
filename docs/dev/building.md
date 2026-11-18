@@ -187,27 +187,54 @@ mod/StellarCoop/            the UE4SS mod folder
   enabled.txt               makes UE4SS start the mod
   Assets/                   MotherSphere.png, the guide's art by timediffer24 (not covered by the SBO License)
   Scripts/                  the Lua side (see internals/architecture.md)
-    main.lua                the entry UE4SS runs: settings, keys, the coop console command, the per-frame loop
-    commands/               the coop console commands' handlers, by feature, merged into main.lua's command table
-    core/                   the files shared with the native part, settings, keys, UE4SS helpers
-    partner/                the friend's EVE: capture, the drawn model, its HUD marker
-    session/                hosting and joining, co-op saves, chat, revive, follow, the camp booths
-    ui/                     the on-screen kit, the co-op menu and its model, the guide, notices, the 23 languages' text
+    main.lua                the entry UE4SS runs: the state table M, the module list, the runtime's steps in order
+    main/                   the runtime every module plugs into: boot, base, the module loader, coop ui and coop off,
+                            the UI's build order, input, the frame loop, the 250 ms loop, the key binds
+    core/                   helpers that read no module: the files shared with the native part, settings, keys,
+                            UE4SS helpers, EVE and her world, the display actors, text lines, the row batches' flow
+    ui/kit/                 the on-screen kit, the co-op menu and its model, the guide, notices, the pause menu's
+                            Online tab, coop guide and coop keys
+    ui/text.lua             the text tables' entry: each language's words from ui/text/<language>.lua
+    ui/text/                one file per language, the guide's words, the game language's culture pick
+    partner/                the ghost: capture, the drawn model, its HUD marker, the crash sentinel
     nightop/                Night Operation: the probe, the run, its waves, shop and challenges, the recruiter
+    cut/enemies/            the cut model viewer (coop leviathan and six more); coop lion, gardener fight, tendril
+                            fight
+    group/                  group play: the revive, the follow, the teleport screen's tabs
     race/                   Doro races: the run, the track model, the Doro look, the driving
-    cut/                    the cut model viewer (coop leviathan and six more); coop lion, gardener fight, tendril
-                            fight, wear, scene and lines
+    cut/eve/                coop chainspin, wear, emote, fly, slowmo and glide
+    cut/scenes/             coop scene and coop lines
     matrix13/               the cut Matrix XIII dungeon, by place then quest: world/ (coop mxiii's travel, rows,
-                            ladders, bosses, drone light), quest/ ("On Time" and its words),
-                            talks/ (the talks' lines, one file per talk or zone), culture.lua
-    story/                  the talk player (subtitles.lua), the story dump (snapshot.lua, see story.md)
+                            ladders, bosses, drone light), quest/ ("On Time" and its words, the talk player
+                            subtitles.lua), talks/ (the talks' lines, one file per talk or zone), culture.lua
+    session/                hosting and joining, the chat, the code box, the camp booths, the Sessions and Create a
+                            session screens
+    photo/                  the synced photo mode's pause setting
+    fight/                  shared enemies: coop fight and their notices
+    quest/                  shared quests: coop quests
+    world/                  shared world: coop world
+    story/                  story together's coop scenes, the story dump (snapshot.lua, see story.md)
+    lobby/                  the SBO lobby, its hall maps' rows, the arrival's hold, its screens, coop match and sbo
+    bike/                   the bike: the ride, its riding model and its own copy of the races' drive, the parked
+                            bike, the fetch, the other players' bikes
+    sky/                    the day and night cycle
+    cut/menus/              coop devmenu, devinfo and gift (the cut mailbox)
+    save/                   the co-op saves and their question, coop shortcut
 native/                     the DLL (CMake)
   CMakeLists.txt
-  src/                      platform-free headers by feature, tested on the build machine; glue/ is the Windows side
+  src/                      platform-free headers, tested on the build machine; glue/ is the Windows side
+    glue/                   steam.cpp, version.rc and tick.cpp, the one translation unit that includes every part
+    glue/tick/              worker.inc and status.inc; <part>_shared.inc, what other modules' parts read of a part
+    game/                   memory.h and the headers that more than one module reads
+    link/                   the Steam link: core.h with its member functions in core/, protocol.h and the rest
+    lion/                   the table row batches and their game part
+    ui/                     the controller's events and the pause menu's Online tab
+    <module>/               one folder per module with native code: the headers no other module reads, its
+                            <part>_game.inc and <part>_worker.inc
 tests/
-  lua/                      Lua tests, in the scripts' folders
+  lua/                      Lua tests, in the scripts' folders, with each module's off_test.lua
   native/                   C++ tests of the platform-free headers, in their folders
-  tools/                    Python tests of tools/
+  tools/                    Python tests of tools/; modules_test.py, the rules that keep the modules apart
   wine/smoke.cpp            the Wine smoke test's program
 data/
   mxiii-climb.json          the editor's ladders, ledges and ropes of Matrix XIII, read by tools/mxiii_climb.py
@@ -220,7 +247,7 @@ tools/
   release.py                builds a tagged release's zip, attaches it and publishes the release (see Releases)
   save_guard.py             save backups and the manual co-op slot
   save_read.py              every value of a .sav file, and the values two saves differ in (see story.md)
-  sbo_lobby_rows.py         writes session/sbo_maps.lua and native/src/lion/halls_rows.h from data/sbo-lobby.json
+  sbo_lobby_rows.py         writes lobby/sbo_maps.lua and native/src/lion/halls_rows.h from data/sbo-lobby.json
   story_lines.py            a save's story lines, their digest, and a save against an in-game dump (see story.md)
   wine_smoke.py             loads the DLL under Wine
 .github/workflows/
@@ -238,19 +265,23 @@ release-please-config.json  Release Please's settings
 version.txt                 the last released version, bumped by Release Please
 ```
 
+[Structure](structure.md) gives the rules that keep the modules apart and the steps to add one. Forks that change files
+from before the November 2026 restructure find each old path in the migration note, docs/dev/migration.md.
+
 ### Native sources
 
 Platform-free headers, tested on the build machine:
 
 | File | Contents |
 | --- | --- |
-| `link/core.h` | The Steam link's logic: lobby, invites, join codes, members, the host's approval, handshake, liveness, status, channels 1 and 2, chat and vitals |
+| `link/core.h` | The Steam link's logic: lobby, invites, join codes, members, the host's approval, handshake, liveness, status, channels 1 and 2, chat and vitals. The class `Link` keeps its tuning constants, its data members and `join_refusal` there; its member functions are in `link/core/`, one file per concern (`tick.inc`, `members.inc`, `match.inc`, `channels.inc`, `lines.inc`, `status.inc`, `approvals.inc`, `messages.inc`, `lobby.inc`, `list.inc`, `requests.inc`), included inside the class |
+| `link/steam.h`, `link/journal.h`, `link/pose_cap.h`, `link/peer.h` | What the link reads of Steamworks 1.59 and its flat API loader; the link's numbered events; the adaptive pose rate (`PoseCap`); a member as the link holds her |
 | `link/protocol.h` | The link's text protocol, the join code's encoding and the requests Lua sends |
-| `pose/core.h` | The pose path's limits, one part, one effect slot, hex addresses |
-| `pose/table.h` | The component table, the mesh path rule and the display file |
-| `pose/engine.h` | Engine memory reads and writes, and the build pin |
-| `pose/codec.h` | The pose's wire format: keyframes and deltas |
-| `pose/stream.h` | The loopback's delay line, the receiving clock and interpolation |
+| `game/core.h` | The pose path's limits, one part, one effect slot, hex addresses |
+| `game/table.h` | The component table, the mesh path rule and the display file |
+| `game/pose/engine.h` | Engine memory reads and writes, and the build pin |
+| `game/codec.h` | The pose's wire format: keyframes and deltas |
+| `game/stream.h` | The loopback's delay line, the receiving clock and interpolation |
 | `pose/record.h` | The recording, its check and its replay |
 | `nightop/probe.h` | The `coop no` poller's reads, lines and verdict |
 | `nightop/roxanne.h` | Roxanne's Night Operation choices and Lily's signal choice: a choice list's entry in SB's select cache pointed at rows of ours followed by the list's own, and put back; the checks and the `roxanne=` and `lily=` lines |
@@ -260,36 +291,36 @@ Platform-free headers, tested on the build machine:
 | `lion/halls_rows.h` | The SBO hall lobbies' `halls` batch: 5 WorldTable rows, 5 ZoneTable rows, then 171 ZoneEnvSpawnTable rows, one per kept seat but the 2 camp seats, written by `tools/sbo_lobby_rows.py` from `data/sbo-lobby.json`: do not edit it by hand |
 | `lion/shock.h` | The Shock Bolt's two lists grown in place once its bolt rows are in: the fire commands at the end of EVE's two gun stances' `CommandArray` and `Bullet_Shock` at the end of the const ammo list and the slot manager's list; the checks, the answer word, the `shock=` line and the log line |
 | `save/watch.h` | The save watcher |
-| `save/slot.h` | The entered slot's read, the marker's grammar, the save file name's lookup and switch, the probe and the `slot=` line |
-| `save/twins.h` | The co-op save copies, their manifest and backup, the export to a save of the player's with its scan for the mod's items and Matrix XIII, and the `saves` requests |
-| `save/shortcut.h` | `coop shortcut`: the cut Load Shortcut menu's 16 paths, the read of each save's map, camp and date, and the lines |
-| `save/rotation.h` | The SBO lobby's copies before each save: the rotation folder's names, the keep-10 drop, the save queue's fall |
-| `save/sbo_record.h` | The SBO session record beside each co-op save: its text, its write with backup and read-back, `NewGameCreateTime` |
-| `save/shortcut_load.h` | `coop shortcut load`: the 15 files' CRC-32 pin, the GVAS walk that drops `SBAchievement` and six gears, the EVAS wrap, the check and the log line |
-| `fight/sync.h` | The shared enemies' host and guest rules, and channel 2's text |
+| `game/slot.h` | The entered slot's read, the marker's grammar, the save file name's lookup and switch, the probe and the `slot=` line |
+| `game/twins.h` | The co-op save copies, their manifest and backup, the export to a save of the player's with its scan for the mod's items and Matrix XIII, and the `saves` requests |
+| `game/shortcut.h` | `coop shortcut`: the cut Load Shortcut menu's 16 paths, the read of each save's map, camp and date, and the lines |
+| `game/rotation.h` | The SBO lobby's copies before each save: the rotation folder's names, the keep-10 drop, the save queue's fall |
+| `game/sbo_record.h` | The SBO session record beside each co-op save: its text, its write with backup and read-back, `NewGameCreateTime` |
+| `game/shortcut_load.h` | `coop shortcut load`: the 15 files' CRC-32 pin, the GVAS walk that drops `SBAchievement` and six gears, the EVAS wrap, the check and the log line |
+| `game/fight/sync.h` | The shared enemies' host and guest rules, and channel 2's text |
 | `fight/engine.h` | The shared enemies' side inside the game (`Engine`), and the vitals read for the partner card. The class holds the declarations; the bodies are in `fight/engine_run.h` (settings, arming, the turn), `engine_read.h` (reads of the game), `engine_write.h` (stat writes, crowd controls, captures), `engine_pilot.h` (same-place enemies), `engine_spawns.h` (same spawns, extra enemies), `engine_bosses.h` (shared bosses), `engine_trial.h` (the solo boss trial) and `engine_lines.h` (her lines) |
-| `fight/types.h` | The types around `Engine`: the pair table, the job, its counts and snapshot, the logic actors, the ring queues |
+| `game/types.h` | The types around `Engine`: the pair table, the job, its counts and snapshot, the logic actors, the ring queues |
 | `fight/worker.h` | `Mail` between the logic thread, the game thread and the worker, and the worker's side of the shared fight |
-| `quest/sync.h` | The shared quests' line format, the quest table built from the game's tables, and the host's and the guest's rules |
-| `quest/engine.h` | The shared quests' side on the game's quest data (reads, guards and calls), and the worker's side |
+| `game/quest/sync.h` | The shared quests' line format, the quest table built from the game's tables, and the host's and the guest's rules |
+| `game/quest/engine.h` | The shared quests' side on the game's quest data (reads, guards and calls), and the worker's side |
 | `quest/own.h` | Lily's signal's two quests in the quest unit: the read, the request words, the acquire by ID, a fixed group's first task's Complete, the answer word and the `signalquest=` line |
-| `fight/pilot.h` | Same-place enemies: `SBE` and the show lines, an enemy's samples, the drawn copy's states, the owner's capture and the drawn side's writes and Show replay |
-| `fight/spawn_sync.h` | Same spawns: the rows that take part, each side's epoch, the host's and the guest's rounds, extra enemies' keys, and the spawn filter's blocked keys and table |
-| `game/photo_freeze.h` | The synced photo mode's pause |
-| `game/debug_keys.h` | `coop fly` and `coop slowmo`: the lookup of SB's two developer gates in its settings map and the passes that set them and put them back; the level flight's hold of the flight key |
-| `game/items.h` | `coop gift`'s inventory read: how many of one item EVE carries, through `ReadProcessMemory` along SB's item bucket manager and its hash sets |
-| `game/pad.h` | The controller's events for the co-op menu, the game's controller key events as one read (`PadKeys`), Slate's handler slots and which XInput slots each read asks |
+| `game/pilot.h` | Same-place enemies: `SBE` and the show lines, an enemy's samples, the drawn copy's states, the owner's capture and the drawn side's writes and Show replay |
+| `game/spawn_sync.h` | Same spawns: the rows that take part, each side's epoch, the host's and the guest's rounds, extra enemies' keys, and the spawn filter's blocked keys and table |
+| `photo/photo_freeze.h` | The synced photo mode's pause |
+| `cut/debug_keys.h` | `coop fly` and `coop slowmo`: the lookup of SB's two developer gates in its settings map and the passes that set them and put them back; the level flight's hold of the flight key |
+| `cut/items.h` | `coop gift`'s inventory read: how many of one item EVE carries, through `ReadProcessMemory` along SB's item bucket manager and its hash sets |
+| `ui/pad.h` | The controller's events for the co-op menu, the game's controller key events as one read (`PadKeys`), Slate's handler slots and which XInput slots each read asks |
 | `game/memory.h` | The game image's base and globals block, `plausible()` and `get()` |
 | `game/travel.h` | The follow's fast travel request, its guard, its calls and the warp watch |
-| `game/region_tabs.h` | The teleport screen's extra tabs: the slot, the calls and offsets, the record list's layout and append |
-| `game/loading.h` | The SBO lobby arrival's black: the game's UI manager and its list of timed loading screens, and the lift that sets their lifetime to 0 |
+| `group/region_tabs.h` | The teleport screen's extra tabs: the slot, the calls and offsets, the record list's layout and append |
+| `lobby/loading.h` | The SBO lobby arrival's black: the game's UI manager and its list of timed loading screens, and the lift that sets their lifetime to 0 |
 | `game/sbo.h` | The SBO lobby: the Join slot and the action's offsets, SB's save manager and its queue, the Join match, the session record's states, the why words and the `sbo=` line |
 | `game/camp_text.h` | Matrix XIII's camp names: the 12 entries added to the live `StringTable_UI`, the calls and offsets, the language pick, when a pass is due and the `camptext=` and `recordtext=` status lines |
 | `game/record_text.h` | The 25 records' words for the `mxrecords` batch: the 50 entries added to the live `StringTable_Records` |
 | `game/camps.h` | The camps the save has activated, as SB's own camp list builds them, and the camp EVE respawns at: the calls and offsets, the guard, when to read and the `activated=` status line |
 | `game/dev_panels.h` | `coop devinfo`: the guard, the plan that opens one of SB's two read-only developer panels (the quest debugger, the player info) and closes the other, and their logic types and names |
 | `game/anim.h` | `coop emote`'s native clips: which clip paths pass, the path as the game's string, the call's arguments, the custom animation slot as read, our EVE and the check that she is still the object played on, what each frame does, and the track of the last play (its answer, the watch, the stop) with its log lines |
-| `game/pak_list.h` | The `.pak` mods a game loads beyond the base game, as a count and a hash and as mod containers by name; the CNS packs, their outfits and the assets they declare; the assets a mod's `.utoc` indexes and those of the mods both players have |
+| `link/pak_list.h` | The `.pak` mods a game loads beyond the base game, as a count and a hash and as mod containers by name; the CNS packs, their outfits and the assets they declare; the assets a mod's `.utoc` indexes and those of the mods both players have |
 
 The Windows side:
 
@@ -297,5 +328,5 @@ The Windows side:
 | --- | --- |
 | `glue/steam.cpp` | Steam callbacks, the worker thread, files and fault containment |
 | `glue/version.rc` | The DLL's version resource: the release (`git describe`) and "SBO License 1.0 or later" |
-| `glue/tick.cpp`, `glue/tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua; `coop_pad` and its XInput reads; the spawn filter's slot swap and hook; the Lion's, the Gardener's and the Tendril's rows through the game's AddRow (`glue/tick/lion_game.inc`); SB's developer gates and the level flight's slot swap and hook in the player controller's input pass (`glue/tick/debug_game.inc`); `coop emote`'s clips through SB's custom animation play and stop (`glue/tick/anim_game.inc`); `coop shortcut`'s reads through the game's file manager, and the one file a load keeps (`glue/tick/shortcut_game.inc`); `coop gift`'s inventory read on the worker (`glue/tick/items_worker.inc`); the read of the camps the save has activated (`glue/tick/camps_game.inc`); Matrix XIII's camp names (`glue/tick/camp_text_game.inc`); the teleport screen's slot swap and hook (`glue/tick/region_tabs_worker.inc`); the SBO lobby's Join slot swap and hook, and the copies of the co-op saves before each game save, from SB's save queue to the rotation folder (`glue/tick/sbo_game.inc`, `glue/tick/sbo_worker.inc`); the lift of the SBO lobby arrival's black (`glue/tick/loading_game.inc`, `glue/tick/loading_worker.inc`). `tick.cpp` is one translation unit made of the parts in `glue/tick/`, in order: `*_game.inc` run on the game thread (or SB's logic thread), `*_worker.inc` on our worker |
+| `glue/tick.cpp`, `glue/tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua; `coop_pad` and its XInput reads; the spawn filter's slot swap and hook; the Lion's, the Gardener's and the Tendril's rows through the game's AddRow (`lion/lion_game.inc`); SB's developer gates and the level flight's slot swap and hook in the player controller's input pass (`cut/debug_game.inc`); `coop emote`'s clips through SB's custom animation play and stop (`cut/anim_game.inc`); `coop shortcut`'s reads through the game's file manager, and the one file a load keeps (`save/shortcut_game.inc`); `coop gift`'s inventory read on the worker (`cut/items_worker.inc`); the read of the camps the save has activated (`group/camps_game.inc`); Matrix XIII's camp names (`matrix13/camp_text_game.inc`); the teleport screen's slot swap and hook (`group/region_tabs_worker.inc`); the SBO lobby's Join slot swap and hook, and the copies of the co-op saves before each game save, from SB's save queue to the rotation folder (`lobby/sbo_game.inc`, `lobby/sbo_worker.inc`); the lift of the SBO lobby arrival's black (`lobby/loading_game.inc`, `lobby/loading_worker.inc`). `tick.cpp` is one translation unit made of the parts, in order: each module's `<part>_game.inc` and `<part>_worker.inc` in its own folder, `glue/tick/worker.inc` and `glue/tick/status.inc`. `*_game.inc` run on the game thread (or SB's logic thread), `*_worker.inc` on our worker. What another module's part reads of a part is in `glue/tick/<part>_shared.inc`, which `tick.cpp` includes right before that part. The DLL has no load isolation like the Lua modules' (see [Structure](structure.md)): a part's game calls run under its own SEH latch (77 `__try` blocks, 34 `*_faulted` flags): a fault there turns that feature off for the run |
 | `glue/clipboard.h` | The `copy` request's clipboard call, also built into the Wine smoke test |
