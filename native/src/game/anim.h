@@ -88,7 +88,7 @@ inline Path widen(std::string_view p) {
 
 // Our EVE, the actor Lua's UEHelpers.GetPlayer gives: the pawn of the player controller pc (AController::Pawn, as
 // execK2_GetPawn 0x144729020 reads it), when live(pawn, &index, &serial) says it is a live object (index and serial
-// take its object item's) and is_a(pawn) that it is an ASBCharacter; else 0. The glue passes fight/pilot.h's live and
+// take its object item's) and is_a(pawn) that it is an ASBCharacter; else 0. The glue passes game/pilot.h's live and
 // is_a, which this header cannot include (pilot.h reaches link/protocol.h, which includes this file).
 constexpr size_t kPawn = 0x2f8;
 template <class Read, class Live, class IsA>

@@ -8,39 +8,14 @@
 namespace coop::pose {
 
 namespace {
-// Why the shared fight may not run now, or empty: the pinned build, before coop off, on a co-op save (a save loaded
-// from the co-op copies, or the slot the game entered is the one StellarCoopSlot.txt names: slot=coop). Off a co-op
-// save the reason starts with fight::kNoCoopSave, which coop fight on waits out.
-std::string fight_gate(int marker) {
-  if (!pinned)
-    return engine_reason;
-  if (blocked)
-    return "coop off";
-  const std::string where = slot::line(loaded_slot(), marker, lua.world, saves_now());
-  return where.rfind("slot=coop ", 0) == 0 ? std::string() : std::string(fight::kNoCoopSave) + " (" + where + ")";
-}
 
-// Where a fault (fault_filter's rva) was: in an SB call, its address as the decompiles name it; in this DLL, its
-// offset; else (ntdll under ApplyStat's heap, say) the address itself.
-std::string fault_where(uint64_t rva) {
-  const uint64_t at_address = rva + reinterpret_cast<uintptr_t>(&__ImageBase);
-  char where[64];
-  if (at_address - base < kSizeOfImage)
-    std::snprintf(where, sizeof where, "the game at 0x%llx",
-                  static_cast<unsigned long long>(at_address - base + game::kImageBase));
-  else if (fault_in_dll(rva))
-    std::snprintf(where, sizeof where, "StellarCoop.dll+0x%llx", static_cast<unsigned long long>(rva));
-  else
-    std::snprintf(where, sizeof where, "0x%llx (another module)", static_cast<unsigned long long>(at_address));
-  return where;
-}
 
 // coop fight pilot probe|on|off|status|test <how far>|test target|test exec. probe: while on, same-place enemies' lines
 // this side sends go to coop-fight.log; on: our same_place on now (the co-op menu's row; as host, the guest hears it),
 // and a pilot off lifted; off: the probe off and same-place enemies off on this side until the next coop fight on,
 // probe, record or replay, or pilot on (each drawn copy goes back to the game, and the host tells her); status: the
 // pilot line, and the stats lines at the next pass; test: how far the drawn side goes from now on, until coop fight on;
-// test target: SB's force target once, on the first enemy this side owns (fight/pilot.h's Taker::test); test exec: the
+// test target: SB's force target once, on the first enemy this side owns (game/pilot.h's Taker::test); test exec: the
 // first frozen copy this side draws loses its balance at the job's next turn, so it can be taken down
 // (Engine::exec_test); test bstart|phase|finish|summon: stage 5's solo probes at the job's next turn, only while a
 // replay runs (Engine::boss_test).
@@ -334,7 +309,6 @@ using Execute = void *(*)(void *request);
 // none is made), an unused argument and the row's name: the EventSpawnTable row, or null. It runs the row's lazy init,
 // as Execute's own first call does.
 using RowByName = void *(*)(void *holder, uint64_t unused, const void *name);
-enum class Filter : uint8_t { untried, on, refused, off };
 Filter filter_state = Filter::untried; // The worker's.
 std::atomic<bool> filter_faulted{false};
 std::atomic<uint64_t> filter_fault_code{0}, filter_fault_rva{0}, filter_fault_address{0};
@@ -394,27 +368,6 @@ void *filter_execute(void *request) {
 }
 // The slot's address in the game, as the decompiles name it, and what a value in it points at.
 const char kSlotName[] = "0x145c15ea0";
-std::string slot_value(uint64_t value) {
-  char text[64];
-  if (value - base < kSizeOfImage)
-    std::snprintf(text, sizeof text, "0x%llx in the game",
-                  static_cast<unsigned long long>(value - base + game::kImageBase));
-  else
-    std::snprintf(text, sizeof text, "0x%llx outside the game", static_cast<unsigned long long>(value));
-  return text;
-}
-// The compare-and-swap of a slot (its address as the decompiles name it) from from to to, its page writable for the
-// store only: what the slot held (from when the swap was made), or false when the page's protection would not change.
-bool swap_slot(uint64_t at, uint64_t from, uint64_t to, uint64_t &held) {
-  void *const slot = reinterpret_cast<void *>(base + (at - game::kImageBase));
-  DWORD old = 0;
-  if (!VirtualProtect(slot, sizeof(uint64_t), PAGE_READWRITE, &old))
-    return false;
-  held = static_cast<uint64_t>(InterlockedCompareExchange64(static_cast<volatile LONG64 *>(slot),
-                                                            static_cast<LONG64>(to), static_cast<LONG64>(from)));
-  VirtualProtect(slot, sizeof(uint64_t), old, &old);
-  return true;
-}
 uint64_t execute_address() { return base + (kExecute - game::kImageBase); }
 uint64_t hook_address() { return reinterpret_cast<uintptr_t>(&filter_execute); }
 // Once a run, on the worker thread, when the gate first opens on the pinned build before coop off and before a fault

@@ -8,35 +8,11 @@
 
 namespace coop::pose {
 namespace {
-// The armed alias, index | number << 32: the worker's, read by the hook. 0: not armed (an FName index is never 0).
-std::atomic<uint64_t> sbo_alias{0};
-// What the hook saw: how many Joins, and the last one's alias and owner node, written before the count, for the log.
-std::atomic<uint32_t> sbo_joins{0};
-std::atomic<uint64_t> sbo_join_alias{0}, sbo_join_owner{0};
 // sbo on: the co-op saves' copies (decision 9) run for this game run.
 std::atomic<bool> sbo_copies{false};
 
-using JoinRun = void (*)(int64_t *action);
-// The slot's target once swapped, on the game thread inside the graph tick. No SB call, no allocation, no lock: the
-// shared world's root read (world_game.inc) and story together's trip read (story_game.inc), each under its own latch
-// while its hooks are on, three reads of the action, which the game's own function reads too, then that function,
-// which finishes the graph node.
-void sbo_join_hook(int64_t *action) {
-  world_event_root(action);
-  story_trip_root(action);
-  const auto *const bytes = reinterpret_cast<const uint8_t *>(action);
-  const uint64_t want = sbo_alias;
-  if (sbo::join_match(want != 0, *reinterpret_cast<const uint32_t *>(bytes + sbo::kAliasIndex),
-                      *reinterpret_cast<const uint32_t *>(bytes + sbo::kAliasNumber), uint32_t(want),
-                      uint32_t(want >> 32))) {
-    sbo_join_alias = want;
-    sbo_join_owner = *reinterpret_cast<const uint64_t *>(bytes + sbo::kOwnerNode);
-    ++sbo_joins;
-  }
-  return game_function<JoinRun>(sbo::kJoinOriginal)(action);
-}
 
-// ---- The co-op saves' copies before each of SB's saves (save/rotation.h, decision 9), the game thread's half ----
+// ---- The co-op saves' copies before each of SB's saves (game/rotation.h, decision 9), the game thread's half ----
 // Each frame while sbo on asked for them: SB's save manager found as its save call finds it (a pass with any pointer
 // on the way implausible does nothing), its queue's count watched. Once it falls to 0, SB's last write is complete and
 // no other has started, so in that same call: one stat per co-op slot, and for a slot whose .sav changed since the
@@ -169,7 +145,6 @@ using UrlWarp = uint8_t (*)(void *client, const void *url, uint8_t net, const ui
 using SetDifficulty = void (*)(void *client, uint32_t type, uint8_t reload);
 using ReloadSave = uint8_t (*)(void *client, uint64_t, uint64_t, uint8_t difficulty, uint8_t, uint8_t);
 using OneArg = void (*)(void *object);
-using RunZoneEvent = void (*)(void *world, int32_t actor_id, const uint64_t *alias, int32_t depth);
 sbo::ArrivalReads sbo_arrival_reads(uintptr_t client, uintptr_t &logic, uintptr_t &fsb); // Below, with the watch.
 
 uintptr_t sbo_global(uint64_t where) { return at<uintptr_t>(base + (where - game::kImageBase)); }
@@ -213,7 +188,7 @@ sbo::Reads sbo_reads(uintptr_t client) {
                                                                        at<int32_t>(client + slot::kPlayerGuid));
   return r;
 }
-// save/twins.h's stat and read on the game thread, in the account's folder, for Convert::read_whole.
+// game/twins.h's stat and read on the game thread, in the account's folder, for Convert::read_whole.
 struct SboGameFs {
   const std::wstring &folder;
   std::wstring path(const std::string &name) const { return folder + std::wstring(name.begin(), name.end()); }

@@ -2,8 +2,8 @@
 # Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 # SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-"""Writes the generated block of native/src/world/rows.h from a game build's tables: what shared world sync may send
-and apply. It reads the tables and data/mxiii-world.json only.
+"""Writes the generated block of native/src/game/world/rows.h from a game build's tables: what shared world sync may
+send and apply. It reads the tables and data/mxiii-world.json only.
 
   python3 -I tools/world_rows.py JSON_DIR   JSON_DIR holds the <Table>.uasset.json exports of the pinned build
 
@@ -44,7 +44,7 @@ from collections import Counter, deque
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-HEADER = ROOT / 'native/src/world/rows.h'
+HEADER = ROOT / 'native/src/game/world/rows.h'
 MXIII = ROOT / 'data/mxiii-world.json'
 BUILD = '26123051'  # The build whose tables the block is written from; change it with the tables.
 BEGIN = '// ---- world rows: generated, begin ----'

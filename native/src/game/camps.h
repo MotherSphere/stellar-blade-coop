@@ -61,7 +61,7 @@ struct Reads {
   int32_t flow = 0, phase = 0;
   uint8_t warp = 0, asked = 0, waits = 0;
   int32_t respawn = 0;
-  bool logic = false; // A logic task in flight (fight/pilot.h's logic_busy).
+  bool logic = false; // A logic task in flight (game/pilot.h's logic_busy).
 };
 // The first guard that fails, or Why::none.
 inline Why refuse(const Reads &r) {

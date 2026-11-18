@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- EVE's capture: what a ghost of her is made of, published for the native part as coop-components.txt (the grammar of
--- native/src/pose/table.h, with read lines naming her leaders' memory). The native part sends it on as the wire table
+-- native/src/game/table.h, with read lines naming her leaders' memory). The native part sends it on as the wire table
 -- and, while the loopback runs or a recording is made, her pose in its layout.
 -- It runs while the ghost is on (coop puppet) and EVE has been in the world 2 s. Per generation (a new EVE, or a new
 -- mesh on one of her parts) it reads each part's mesh path, the part it follows and the part and socket it hangs from
@@ -47,8 +47,8 @@ local MAX_POSE,POSE_BASE,BONE_BYTES=16384,29+4*15+24,18
 -- per leader, as its effect read does.
 local MAX_EFFECT_ASSETS,MAX_CHILDREN=64,256
 -- Stellar Blade's Niagara systems a ghost can show: EVE's own seen in combat (the Cascade trails are left out, as they
--- need her animation's BeginTrails). The wire carries an entry's index (pose/codec.h's effect slots), never its path,
--- so changing this list needs a protocol bump (native/src/pose/core.h's kFixedEffects). Indexes past it are the fx
+-- need her animation's BeginTrails). The wire carries an entry's index (game/codec.h's effect slots), never its path,
+-- so changing this list needs a protocol bump (native/src/game/core.h's kFixedEffects). Indexes past it are the fx
 -- lines' systems, named by path.
 Capture.EFFECTS={}
 for _,p in ipairs({'Skill/Attack/NS_A_ParTrail_SwordDefaultAtk_01','Skill/Attack/NS_A_ParTrail_SwordThrustAtk_01',
@@ -61,7 +61,7 @@ for _,p in ipairs({'Skill/Attack/NS_A_ParTrail_SwordDefaultAtk_01','Skill/Attack
     'Skill/Evade/NS_A_EvadeBody_01','Skill/Evade/NS_A_EvadeParticle_02','Skill/Parry/NS_JustParry_02'}) do
     Capture.EFFECTS[#Capture.EFFECTS+1]='/Game/Art/FX/Char/PC/'..p..'.'..p:match('[^/]+$')
 end
--- The game's own character assets (native/src/pose/table.h's first family):
+-- The game's own character assets (native/src/game/table.h's first family):
 -- /Game/[DLC_<1 or 2 digits>/]Art/Character/<folder>/.../<asset>.<asset>, each name of A-Z a-z 0-9 _, at most 255
 -- bytes. Any other path a table carries is a mod's, which partner/puppet.lua loads only when your own CNS packs
 -- declare it.

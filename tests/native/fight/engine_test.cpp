@@ -1560,7 +1560,7 @@ int main() {
     assert(battles() == 2 && mail.table(table, stream) && !table.on);
   }
   // The rows the game thread drives (drawn(): the pairs this side draws while the table is on, with what the job read
-  // on each copy). A copy the game thread refused to drive (its movement component is not the game's: fight/pilot.h's
+  // on each copy). A copy the game thread refused to drive (its movement component is not the game's: game/pilot.h's
   // Driver) comes back in its word: the job lets it go as if its freeze were lost (BlockAI_Dispel, local while the pair
   // lasts), whatever the word says after.
   {
@@ -2524,7 +2524,7 @@ int main() {
     assert(lines(g) == "SBF23 own-no 1 101 9 unpaired\n" && g.table.count == 0 && e->counts.own_nos == 6);
     assert(!e->latched());
   }
-  // Her game thread refused the take-over (fight/pilot.h's Taker: SB's force target needs net mode 0 and no logic task
+  // Her game thread refused the take-over (game/pilot.h's Taker: SB's force target needs net mode 0 and no logic task
   // in flight): the pair goes back with own-no target at her epoch, drawn and frozen again in that turn. A refusal that
   // names another epoch changes nothing.
   {
@@ -5852,7 +5852,7 @@ int main() {
     assert(w.status() == " fight=waiting" && ask("fight on 900") == "shared fight is already on (on)");
     assert(w.detail() == "fight=waiting mode=on why=no friend linked");
     asked = 0;
-    // A same-place enemies' show line (fight/pilot.h) from her is neither malformed nor the job's.
+    // A same-place enemies' show line (game/pilot.h) from her is neither malformed nor the job's.
     w.pass(t, true, false, true, {"SBF23 show-stop 1 101 0 1 1000"}, gate, io);
     assert(e->on() && asked == 1 && io.lines() == "SBF23 on\n" && io.said.back() == "shared fight on: as guest");
     assert(w.status() == " fight=on 0" && !io.saying("malformed") && mail.exchange(s) && !mail.receive(m));

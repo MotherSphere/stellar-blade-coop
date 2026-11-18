@@ -11,7 +11,7 @@
 #include "fake_steam.h"
 #include "fight/worker.h"
 #include "link/core.h"
-#include "pose/table.h"
+#include "game/table.h"
 
 #include <algorithm>
 #include <cassert>
@@ -995,7 +995,7 @@ int main() {
                "25.0 ms"));
     assert(saw("B: Me, last 60 s: in 21 (2.6 KB/s), out 21 (3.5 KB/s), 0 dropped, 0 failed (last result 1); rtt avg "));
 
-    // e. 250 messages of 100 B over 16 passes 1 ms apart, two poses then an SBE (fight/pilot.h) in turn: 240 pass (her
+    // e. 250 messages of 100 B over 16 passes 1 ms apart, two poses then an SBE (game/pilot.h) in turn: 240 pass (her
     // 60 poses and 30 SBE a second with their table, 2.6 times over), handed on as they are, in order; the rest are
     // over the rate limit, whatever their kind. A new second lets them through again.
     sink[0].clear();

@@ -5,36 +5,14 @@
 
 namespace coop::pose {
 namespace {
-// ---- The shared fight's job ----
-// SB's own functions on the pinned build (PHASE11-DESIGN.md 4.7): SendJob from the game thread to arm and from inside
-// our job to push it again (never with param_3 = 1); the actor lookup, ApplyStat and the effect call (stage 2,
-// PHASE11-STAGE2-RE 2) only from inside our job. Same spawns (stage 4, PHASE11-STAGE3 9.2; M3-8: the game's own spawn
-// and despawn, no patch), only from inside our job too: the EventSpawnTable row by EventSpawnId, the ZoneTable row by
-// alias, the spawn of a key on SB's spawn manager (as FSBCreateActor::Simulate makes it) and the despawn job (as SB's
-// ZoneEvent Despawn sends it). Extra enemies (stage 4b, PHASE11-STAGE3 9.3, M3-7), only from inside our job: NewActor,
-// as SpawnRequest::Execute calls it. Bosses (stage 5), only from inside our job: SetBattleMode's wrapper, as
-// FSBActor::AddTargetedByEnemy calls it and as SB's own battle-off calls do (NewActor again for a boss's summons, and
-// the effect call for its rows). The PvP test (design 13), only from inside our job: NewActor and the effect call for
-// its stand-in, the relocation thunk as FSBActorRespawn::Simulate calls it, the skill lookup, and the SkillTable row by
-// ID as FSBLogicSimulation::NewSkillLogic finds it.
-constexpr uint64_t kSendJob = 0x141af4b70, kFindActor = 0x141ad7cf0, kApplyStat = 0x141ba9960,
-                   kApplyEffect = 0x141ad1af0, kSpawnRow = 0x141a9eba0, kZoneRow = 0x141a9c8c0,
-                   kSpawnByKey = 0x141c1dbf0, kDespawn = 0x141b08a30, kNewActor = 0x141ad24d0,
-                   kSetBattleMode = 0x141a7db20, kRelocate = 0x141a51f60, kFindSkill = 0x141ad7bb0,
-                   kSkillTableRow = 0x141a9e920;
 constexpr uint64_t kLogicThreadId = 0x1470683b0; // DAT_1470683b0: the logic worker's thread ID during its tick, else 0.
 using SendJob = uint8_t (*)(void *, fight::Job *job, uint8_t unlocked_queue);
-using FindActor = void *(*)(void *logic, int32_t guid);
 using ApplyStat = void (*)(void *la, int32_t stat, uint64_t key, float delta, uint32_t, void *cause, uint32_t,
                            int32_t skill_guid, uint32_t, uint8_t notify, uint8_t ignore_nodamage);
 // The logic singleton, the target, the caster, the EffectTable ID, where (a zero vector: the target's place), 0 to
 // start it now, and the skill's GUIDs (none). The effect started, or null when its row or the target refused it.
 using ApplyEffect = void *(*)(void *logic, void *target, void *caster, int32_t id, const float *at, uint8_t deferred,
                               const int32_t *skill);
-// The tables, an unused argument and the EventSpawnId: the row, or null. The tables, whether the alias is None (never
-// asked: the engine refuses a 0 alias first) and the alias, an FName by value: the row, or null.
-using SpawnRow = void *(*)(void *tables, uint64_t unused, uint32_t id);
-using ZoneRow = void *(*)(void *tables, uint8_t none, uint64_t alias);
 // The spawn manager, the EventSpawnId, the SpawnIndex, where, the rotation (pitch, yaw, roll), an unused argument, no
 // extra request data and its flag 0 (its use not known yet). The key spawns now: the function itself passes
 // RequestSpawn (FUN_141c1dc90) a delay of 0.
@@ -62,9 +40,6 @@ using FindSkill = void *(*)(void *logic, int32_t guid);
 // The tables, an unused argument and the SkillTable ID: the row, or null. A map lookup with no allocation, the
 // EventSpawnTable getter's sibling (table index 0 in place of 0x13); the row's first-use call is left to SB.
 using SkillRow = void *(*)(void *tables, uint64_t unused, int32_t id);
-template <class F> F game_function(uint64_t address) {
-  return reinterpret_cast<F>(base + (address - game::kImageBase));
-}
 
 fight::Engine fight_engine; // Its ring of 8 jobs is never freed: SB's queue may hold one, and the DLL is pinned.
 fight::Mail fight_mail;
@@ -149,12 +124,6 @@ __declspec(noinline) void simulate_body(fight::Job &job) {
   const uint64_t took = clock_us() - start;
   ++sim_runs, sim_us += took, sim_max_us = std::max(sim_max_us, took);
   fight_mail.exchange(fight_snapshot());
-}
-// A fault (fault_filter's rva) in this DLL's code.
-bool fault_in_dll(uint64_t rva) {
-  const auto *ours = reinterpret_cast<const IMAGE_NT_HEADERS *>(reinterpret_cast<const char *>(&__ImageBase) +
-                                                                __ImageBase.e_lfanew);
-  return rva < ours->OptionalHeader.SizeOfImage;
 }
 __declspec(noinline) void lift_body() {
   WinGame g;

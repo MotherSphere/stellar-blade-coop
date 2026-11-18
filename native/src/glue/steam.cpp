@@ -14,11 +14,11 @@
 // Night Operation's line from Lua's coop-night.txt to the link (hers comes back in the status), our parked bike's line
 // from Lua's coop-parked.txt to the link (the members' come back in the status), the race lines Lua writes into
 // coop-race.txt and coop gift's lines from Lua's gift requests (hers of both reach Lua through coop-chat.txt). It
-// makes the co-op save copies at the title and switches the game's save name to them on request (save/twins.h), and
+// makes the co-op save copies at the title and switches the game's save name to them on request (game/twins.h), and
 // puts our join code on the clipboard on the copy request (glue/clipboard.h). The follow's camps lines go through the
 // link (link/core.h), its travel request to the game thread (glue/tick.cpp).
 #define WIN32_LEAN_AND_MEAN
-#define NOMINMAX // std::min in pose/table.h.
+#define NOMINMAX // std::min in game/table.h.
 #include <windows.h>
 
 #include <algorithm>
@@ -33,11 +33,11 @@
 #include "glue/clipboard.h"
 #include "glue/tick.h"
 #include "link/core.h"
-#include "pose/table.h" // path_allowed
-#include "save/rotation.h"      // rotation_name(), stamped()
-#include "save/shortcut_load.h" // kSlot
-#include "save/slot.h"
-#include "save/twins.h"
+#include "game/table.h" // path_allowed
+#include "game/rotation.h"      // rotation_name(), stamped()
+#include "game/shortcut_load.h" // kSlot
+#include "game/slot.h"
+#include "game/twins.h"
 #include "save/watch.h"
 
 #ifndef STELLARCOOP_VERSION
@@ -296,7 +296,7 @@ void list_saves(const std::wstring &dir, const std::string &prefix, std::vector<
 // "<path> <outfit>" line each, sorted, written at every start (empty without CNS packs): the only paths of a mod
 // partner/puppet.lua loads when a friend's table names one, and the outfits partner/capture.lua tags her parts with.
 // The .uasset paths each mod container's .utoc indexes (utoc_assets, kMaxUtocBytes read of each), by container name,
-// kMaxModAssets in all, each path one pose/table.h's path_allowed takes: what coop-shared-assets.txt lists of the
+// kMaxModAssets in all, each path one game/table.h's path_allowed takes: what coop-shared-assets.txt lists of the
 // containers a friend has in the same version.
 coop::Paks game_paks;
 std::vector<coop::PakMod> game_mods;
@@ -381,7 +381,7 @@ void watch_saves(uint64_t now_ms, uint64_t steam_id) {
   }
 }
 
-// The co-op saves' file functions (save/twins.h): names in this account's save folder, and in a new folder of the
+// The co-op saves' file functions (game/twins.h): names in this account's save folder, and in a new folder of the
 // backups' folder. Reads share everything, so the game's own writes are never blocked; writes are flushed before
 // their rename. The SBO lobby's (glue/tick.h's SboFs) add each co-op slot's rotation folder,
 // StellarCoopBackups\autosave\StellarBladeCoop0N\, and its sidecar backups' folder,
@@ -553,11 +553,11 @@ std::wstring command_line;
 bool loaded = false, streaming = false; // streaming: the loopback, a recording, a replay or a friend: a pass each 5 ms.
 std::string written;
 
-// The co-op saves (save/twins.h): this account's file functions once the SteamID is known, and the requests and
+// The co-op saves (game/twins.h): this account's file functions once the SteamID is known, and the requests and
 // passes, against the game as glue/tick.cpp reads it.
 std::unique_ptr<WinFs> account;
 coop::twins::Switch coop_saves;
-// The shared quests' record beside co-op slot n (StellarCoopQuests0N.txt), through save/twins.h's name check and put.
+// The shared quests' record beside co-op slot n (StellarCoopQuests0N.txt), through game/twins.h's name check and put.
 const coop::pose::QuestFiles quest_files{
     [](int slot, std::string &text, size_t max) {
       text.clear();

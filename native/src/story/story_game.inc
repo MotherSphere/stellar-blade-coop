@@ -2,47 +2,28 @@
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Part of glue/tick.cpp, one translation unit with it (see there).
-// Story together (story/engine.h, story/sync.h) on the game thread: hook 1 in the ActionTheater node's slot, hooks 2
-// and 3 in the QTE's and the InputCounter's OnStartBlock slots, hook 4 called by the SBO lobby's hook in the ZoneEvent
-// action's slot. Each frame's pass takes her lines in, follows her copy, then reads and sends our theater and our story
-// trips while we host. Also the shared quests' holds on a step of hers the host would make (quest_host_hold).
+// Story together (game/story/engine.h, game/story/sync.h) on the game thread: hook 1 in the ActionTheater node's slot,
+// hooks 2 and 3 in the QTE's and the InputCounter's OnStartBlock slots, hook 4 called by the SBO lobby's hook in the
+// ZoneEvent action's slot. Each frame's pass takes her lines in, follows her copy, then reads and sends our theater and
+// our story trips while we host. Also the shared quests' holds on a step of hers the host would make (quest_host_hold).
 
 namespace coop::pose {
 namespace {
-std::atomic<bool> story_faulted{false};
-std::atomic<uint64_t> story_fault_code{0}, story_fault_rva{0}, story_fault_address{0};
 // story_undo's own latch, said once by the worker.
 std::atomic<bool> story_undo_faulted{false};
 std::atomic<uint64_t> story_undo_code{0}, story_undo_rva{0}, story_undo_address{0};
-// Set by the worker once its swap is made, cleared at coop off: the hook records only then.
-std::atomic<bool> story_hooked{false};
-// The game thread's ID as of the last pass; a hook on another thread records nothing and is counted.
-std::atomic<uint32_t> story_thread{0};
-std::atomic<uint64_t> story_elsewhere{0};
 // The hand-over, under story_m, which the game thread only try_locks: her lines and the gates from the worker; our
 // lines, log lines and the status line from the game thread.
 std::mutex story_m;
 std::vector<std::string> story_in, story_out, story_said;
 story::Gates story_gates;
 std::string story_line = "story=off";
-// The game thread's own.
-bool story_applying = false; // While a pass applies her lines: a talk her copy starts is hers, not ours to send.
 bool story_leading = false;  // We read our theater for her: hook 3 reads a block before its widget's next start.
 bool story_holding = false;  // Her copy follows his: hooks 2 and 3 take her presses on each new block.
-bool story_trip_lead = false; // The lead gates, in game or not: hook 4 keeps rows while they held at the last pass.
 std::vector<std::string> story_pending_out, story_pending_said; // Not handed over yet (the lock was busy).
-// Hook 4: set by the worker once the ZoneEvent action's slot holds the shared hook, cleared at coop off. While the
-// lead gates hold, each row that action runs and our zone then (FNames, index | number << 32), kept for the next pass
-// in game, kStoryTripKeepMs at most (since the first pass out of game that kept them); past kStoryTrips kept they are
-// counted. The limit lets a trip's own map load through (34 of the 70 story PlayerWarp rows load another map).
-std::atomic<bool> story_trips_on{false};
-constexpr size_t kStoryTrips = 16;
 constexpr uint64_t kStoryTripKeepMs = 60000;
-std::array<std::pair<uint64_t, uint64_t>, kStoryTrips> story_trip_rows;
-size_t story_trip_count = 0;
-uint64_t story_trip_lost = 0, story_trip_since = 0;
 
-// story/engine.h's Game: the shared world's reads, writes and names, then SB's theater calls.
+// game/story/engine.h's Game: the shared world's reads, writes and names, then SB's theater calls.
 struct WinStoryGame : WinWorldGame {
   int32_t frame(uint64_t listener) { return game_function<int32_t (*)(uintptr_t)>(story::kFrame)(listener); }
   bool finished(uint64_t theater) { return game_function<bool (*)(uintptr_t)>(story::kFinished)(theater); }
@@ -165,36 +146,6 @@ void story_block_hook(story::Type type, uint64_t start, int64_t *widget) {
 void story_qte_hook(int64_t *widget) { story_block_hook(story::Type::qte, story::kQteStart, widget); }
 void story_counter_hook(int64_t *widget) { story_block_hook(story::Type::cnt, story::kCounterStart, widget); }
 
-// ---- Hook 4: from the SBO lobby's hook in the ZoneEvent action's slot, before it runs the game's function ----
-// Two reads the game's run makes too (the action's row) or the pass makes each frame (our zone), out of line for the
-// latch as hook 1. No SB call, no allocation, no lock.
-__declspec(noinline) void story_trip_read(const int64_t *action) {
-  const uint64_t row = *reinterpret_cast<const uint64_t *>(reinterpret_cast<const uint8_t *>(action) + sbo::kAliasIndex);
-  const uintptr_t client = world_global(story::kClientAt);
-  const uint64_t zone = game::plausible(client) ? at<uint64_t>(client + story::kClientZone) : 0;
-  if (story_trip_count < kStoryTrips)
-    story_trip_rows[story_trip_count++] = {row, zone};
-  else
-    ++story_trip_lost;
-}
-// Only while the lead gates held at the last pass (out of game too: the pass keeps the row for a pass in game), on the
-// game thread, after the worker's swap, before a fault, never while her lines are applied.
-void story_trip_root(const int64_t *action) {
-  if (!story_trips_on || !story_hooked || story_faulted)
-    return;
-  if (GetCurrentThreadId() != story_thread) {
-    ++story_elsewhere;
-    return;
-  }
-  if (story_applying || !story_trip_lead) // Plain game-thread bools: read on that thread only.
-    return;
-  __try {
-    story_trip_read(action);
-  } __except (fault_filter(GetExceptionInformation(), story_fault_code, story_fault_rva, story_fault_address)) {
-    story_faulted = true;
-    story_scene = false; // story_tick no longer runs to clear it: the photo freeze holds again.
-  }
-}
 // The rows hook 4 kept since the last pass: each story trip among them as a trip line while we lead, then none kept.
 // why: null while the lead gates hold. A pass out of game then keeps them for the next pass in game, kStoryTripKeepMs
 // at most: a trip runs once. Past that, with those gates off or once story together is off (why), each trip among them

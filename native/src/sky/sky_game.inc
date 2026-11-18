@@ -47,8 +47,8 @@ uint64_t utc_ms() {
 }
 
 // A cutscene or a talk scene plays, by SB's own test (FUN_141e0f720 and FUN_142554300 make it): the theater manager's
-// theater (story/engine.h: the global 0x1470375a0, +0x18) set and FUN_1424d70c0 saying it has not finished. The global
-// is read, never made: its getter allocates. Every mode reads it, solo included, with no Lua object search.
+// theater (game/story/engine.h: the global 0x1470375a0, +0x18) set and FUN_1424d70c0 saying it has not finished. The
+// global is read, never made: its getter allocates. Every mode reads it, solo included, with no Lua object search.
 bool sky_theater() {
   const uintptr_t manager = at<uintptr_t>(base + (story::kManagerAt - game::kImageBase));
   const uintptr_t theater = game::plausible(manager) ? at<uintptr_t>(manager + story::kCurrent) : 0;

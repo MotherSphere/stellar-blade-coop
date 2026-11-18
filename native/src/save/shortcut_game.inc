@@ -5,7 +5,7 @@
 
 namespace coop::pose {
 namespace {
-// ---- coop shortcut: the cut Load Shortcut menu's saves, read through SB's file manager (save/shortcut.h) ----
+// ---- coop shortcut: the cut Load Shortcut menu's saves, read through SB's file manager (game/shortcut.h) ----
 // The calls FUN_142295f40 makes for the menu's own list: IFileManager::Get()'s object (FUN_1428269c0 returns its
 // function-local static at 0x14710f6b8, made at startup, vtable 0x145f62d70), its CreateFileReader at vtable +0x18
 // (FUN_142817a00: flags 0, so a file that is not there gives null and no fatal error), then the reader's
@@ -34,11 +34,7 @@ int shortcut_next = shortcut::kFiles;
 std::atomic<uint32_t> shortcut_load_asked{0}, shortcut_load_done{0};
 shortcut::Entry shortcut_load_entry;
 std::string shortcut_load_bytes;
-// The function in an object's vtable at offset.
-template <class F> F virtual_at(uintptr_t object, size_t offset) {
-  return reinterpret_cast<F>(at<uintptr_t>(at<uintptr_t>(object) + offset));
-}
-// One file into its entry: opened, its bytes read into our buffer, the reader closed and freed, then save/shortcut.h's
+// One file into its entry: opened, its bytes read into our buffer, the reader closed and freed, then game/shortcut.h's
 // parse; the bytes kept in *keep when asked (a load), else dropped. Out of line, since clang-cl catches a fault only
 // in a function the __try calls.
 __declspec(noinline) void shortcut_read(int file, shortcut::Entry &e, std::string *keep = nullptr) {

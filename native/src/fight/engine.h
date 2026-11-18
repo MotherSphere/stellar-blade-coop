@@ -1,13 +1,13 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// Shared Naytibas, stages 1 and 2 (Phase 11), and stage 3a's logic side: fight/sync.h's sides inside the game. SB's
-// logic thread runs a job of ours once a turn (Simulate): it reads the logic actor map, hands Host or Guest this turn's
-// enemies and turns their writes into SB's ApplyStat and their mirrored crowd controls into SB's effect call; with
-// same_place on, it freezes the copies this side draws through the same effect call and hands the game thread the
-// pair table (fight/pilot.h's sides), and in stage 3b the host hands enemies to her and back by its rule (own and
-// own-no lines, fight/pilot.h's Owners), and in stage 4 the guest's game holds the host's common enemies where both
-// stand (fight/spawn_sync.h), and in stage 5 the host tells her its bosses' battle mode, phases and summons, which her
+// Shared Naytibas, stages 1 and 2 (Phase 11), and stage 3a's logic side: game/fight/sync.h's sides inside the game.
+// SB's logic thread runs a job of ours once a turn (Simulate): it reads the logic actor map, hands Host or Guest this
+// turn's enemies and turns their writes into SB's ApplyStat and their mirrored crowd controls into SB's effect call;
+// with same_place on, it freezes the copies this side draws through the same effect call and hands the game thread the
+// pair table (game/pilot.h's sides), and in stage 3b the host hands enemies to her and back by its rule (own and
+// own-no lines, game/pilot.h's Owners), and in stage 4 the guest's game holds the host's common enemies where both
+// stand (game/spawn_sync.h), and in stage 5 the host tells her its bosses' battle mode, phases and summons, which her
 // frozen copies would never start, and a boss in its Finish stance waits for the host's finisher; then it pushes itself
 // for the next turn. The game thread arms the job after a world
 // load and again when it stopped running. Every access goes through a Game (the glue on Windows, under its SEH
@@ -24,7 +24,7 @@
 //   uint64_t find(uint64_t logic, uint32_t guid): FUN_141ad7cf0(logic, guid), the logic actor or 0;
 //   void apply(uint64_t la, int type, float delta, uint64_t cause, bool notify, bool ignore_nodamage = true):
 //     FUN_141ba9960(la, type, 0, delta, 0, cause, 0, 0, 0, notify, ignore_nodamage): the PvP test's victim write passes
-//     0, every other write 1, so NoDamage never blocks the shared fight's writes (fight/sync.h);
+//     0, every other write 1, so NoDamage never blocks the shared fight's writes (game/fight/sync.h);
 //   uint64_t effect(uint64_t logic, uint64_t la, uint64_t caster, int32_t id):
 //     FUN_141ad1af0(logic, la, caster, id, &zero vector, 0, nullptr): the effect started, or 0 when refused;
 //   void push(Job *job): FUN_141af4b70(nullptr, job, 0), never param_3 = 1;
@@ -58,7 +58,7 @@
 //     FUN_141a59970, the safe-location warp FUN_141bb1e40); from the logic thread SB queues it for its game thread.
 #pragma once
 
-#include "fight/types.h" // Job, Actor, Snapshot, PilotTable, Ring and the stage headers
+#include "game/types.h" // Job, Actor, Snapshot, PilotTable, Ring and the stage headers
 
 namespace coop::fight {
 
@@ -162,8 +162,8 @@ public:
   // leave the map), and how many, for the log.
   size_t forget();
 
-  // This turn's enemies into seen() in fight/sync.h's order: each followed GUID found again by SB's lookup, dying or
-  // not, then on a census every other eligible enemy; at most kMaxSeen. The census goes in two phases: the map is
+  // This turn's enemies into seen() in game/fight/sync.h's order: each followed GUID found again by SB's lookup, dying
+  // or not, then on a census every other eligible enemy; at most kMaxSeen. The census goes in two phases: the map is
   // walked and copied with reads only, then the copies are tested. No pointer outlives the turn (actors are pooled),
   // and every write finds its actor again (write()). Latches and returns 0 on an implausible map or actor.
   template <class Game> size_t pass(Game &g, uint64_t logic, bool census, const uint32_t *followed, size_t count);
@@ -174,7 +174,7 @@ public:
   Snapshot snapshot() const;
 
 private:
-  template <class Game> struct Io { // fight/sync.h's Io.
+  template <class Game> struct Io { // game/fight/sync.h's Io.
     Engine &e;
     Game &g;
     uint64_t logic;
@@ -188,7 +188,7 @@ private:
     }
     void event(const Event &ev) { g.event(ev); }
   };
-  // fight/spawn_sync.h's Io. A latch inside a step (an unreadable row) lets the step run on through its keys, so from
+  // game/spawn_sync.h's Io. A latch inside a step (an unreadable row) lets the step run on through its keys, so from
   // then on its lines and log lines go nowhere: a row it could not read would be logged as no row, a drop it can no
   // longer call as gone. The step's counts of that turn may still take those refusals.
   template <class Game> struct SpawnIo {
@@ -307,9 +307,10 @@ private:
   // A copy the host gave up (Io::unshare): its kill was hers alone. Never taken in again, nor same spawns' Monster.
   bool given_up(uint32_t guid) const;
 
-  // One of the side's mirrored crowd controls (fight/sync.h's Io::effect): its actor found again and tested as for a
-  // write, then SB's effect call as SB's ApplyStat makes it for an attacker's effects, our EVE the caster as for a hit
-  // of hers: SB then weighs the copy's immunities (ImmuneDown and the like) and runs the effect's chain and end itself.
+  // One of the side's mirrored crowd controls (game/fight/sync.h's Io::effect): its actor found again and tested as for
+  // a write, then SB's effect call as SB's ApplyStat makes it for an attacker's effects, our EVE the caster as for a
+  // hit of hers: SB then weighs the copy's immunities (ImmuneDown and the like) and runs the effect's chain and end
+  // itself.
   // No EVE of ours found: not started. Noted for this turn: SB starts it inside the call, so this pass's marks are old
   // for that copy, and our freeze waits (hold_freeze). A copy whose last player (+0x638) the call made our EVE is noted
   // too, and logged once: that crowd control was the other side's, not our EVE's part in its fight (lent()).
@@ -438,7 +439,7 @@ private:
   // not name.
   bool shares(uint32_t chr) const;
   // Each census, after the side's step (the host's world and up lines go first): our epoch, then the host's epoch line
-  // and answers, or her rounds and calls (fight/spawn_sync.h). Nothing while same spawns do not run here: our
+  // and answers, or her rounds and calls (game/spawn_sync.h). Nothing while same spawns do not run here: our
   // same_spawns off or her side off or ignored, on the host's side; before the host's epoch line, on hers. Close: the
   // other EVE (as its ghost stands in our world) within 100 m of ours; never after the pilot's latch, since the game
   // thread that tells where the ghost stands no longer does.
@@ -593,12 +594,12 @@ private:
   // IDs joined by commas into out ("-" for none), cut where out ends.
   static const char *ids_note(char *out, size_t size, const int32_t *ids, size_t n);
   // ---- Stage 3b: whose AI runs a pair (PHASE11-STAGE3 3.8) ----
-  // Where both sides count epochs again (fight/pilot.h's Owners), seen in the lines as they go out (Io::send) and come
+  // Where both sides count epochs again (game/pilot.h's Owners), seen in the lines as they go out (Io::send) and come
   // in, so each side sees them at the same point of the host's stream: a world line, an on or off (her list dropped,
   // a new session of hers or ours) start over; place 0 (same place off) gives every pair back to the host, epochs
   // kept; an enemy gone (down, dead) takes its entry. On her side her queued own lines go too: the host started over.
   void saw(const Message &m);
-  // The host: her own-no, at once. Taken when she held the pair at that epoch (fight/pilot.h's refused): ours again, so
+  // The host: her own-no, at once. Taken when she held the pair at that epoch (game/pilot.h's refused): ours again, so
   // this turn's table captures it and our freeze comes off, and that pair not hers for kHerOffMs; else stale (lines
   // that crossed). Not from an ignored peer, an old world or a side that is off. Taken with off or aggro, her side does
   // not run same-place enemies: none goes to her for kHerOffMs (or until her next on, off or world), so her claims do
@@ -611,7 +612,7 @@ private:
   // her exec 1, goes to its executor through the guards (stage 3c). A change goes to her as an own line at once. No
   // table, no change. A pair whose copy we cannot draw (freeze lost, or refused by the game thread) is ours at once,
   // guards or not, and never hers: its AI already runs on our copy. So is every pair once her lines are ignored. After
-  // her own-no off or aggro, none goes to her for a while (refused()); after any other, not that pair (fight/pilot.h's
+  // her own-no off or aggro, none goes to her for a while (refused()); after any other, not that pair (game/pilot.h's
   // Own::no_until).
   template <class Game> void hand_over(Game &g, const uint32_t *guids, size_t count, size_t n, uint64_t now);
   // The guest: the host's own lines in order, each about a pair of the host's current list (its generation), the pair
@@ -621,7 +622,7 @@ private:
   // take-over the game thread refused at that epoch) goes back with own-no.
   template <class Game>
   void answer(Game &g, const uint32_t *local, const uint32_t *hguids, size_t count, size_t n, uint64_t now);
-  // The guest: her takedowns told the host (stage 3c, fight/pilot.h's Execs): exec 1 when a marker shows on her copy of
+  // The guest: her takedowns told the host (stage 3c, game/pilot.h's Execs): exec 1 when a marker shows on her copy of
   // a pair while same-place enemies run here with aggro=game, exec 0 once the copy has held none for 200 ms, or at once
   // when it dies or goes, same place stops here or its pair ends. Logged.
   template <class Game>

@@ -134,7 +134,7 @@ inline uint64_t block_hash(uint64_t id) {
 constexpr size_t kMaxBlockFile = 1 << 20; // coop-blocked.txt's bytes read at start: about 60000 players.
 constexpr int kReliable = 8 | 32, kUnreliable = 1 | 32; // Reliable or Unreliable|NoNagle, |AutoRestartBrokenSession.
 constexpr int kChannel = 0, kPoseChannel = 1, kFightChannel = 2;
-constexpr size_t kMaxBinary = 65536; // pose/table.h kMaxTable
+constexpr size_t kMaxBinary = 65536; // game/table.h kMaxTable
 // ~91/s (60 poses, 30 SBE, a table) and ~200 KB/s at most expected.
 constexpr uint64_t kBinaryPerSecond = 240, kBinaryBytesPerSecond = 1 << 20;
 // Channel 2, per member: lines waiting each way, and lines a second (each within kMaxMessage). The host's busiest
@@ -803,7 +803,7 @@ public:
     return true;
   }
   // The members' channel-2 lines since the last call, oldest first, each with its sender. The link never parses
-  // them: fight/sync.h does, strictly.
+  // them: game/fight/sync.h does, strictly.
   std::vector<FightLine> take_fight() { return std::exchange(fight_in_, {}); }
 
   // Our .pak mods beyond the base game's and our mod containers (link/pak_list.h), once, before the first tick(): each
@@ -2752,7 +2752,7 @@ private:
   }
 
   // Per member and channel, one window a second. Channel 1: 240 messages and 1 MiB, 2.6 times her 60 poses and 30 SBE
-  // a second with her table, and 5 times her byte budget (pose/codec.h); channel 2: kFightPerSecond lines. Only what
+  // a second with her table, and 5 times her byte budget (game/codec.h); channel 2: kFightPerSecond lines. Only what
   // passes counts.
   bool over_rate(Window &w, size_t size, uint64_t count, uint64_t bytes) {
     if (now_ - w.at >= 1000) {

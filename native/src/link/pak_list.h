@@ -44,7 +44,7 @@ struct PakMod {
 // The containers sent to a friend and kept of hers, at most; a name's bytes, at most.
 constexpr size_t kMaxMods = 256, kMaxModName = 100;
 // CNS packs read at start, at most, and the bytes read of each; the assets they declare kept, at most, and the bytes
-// of a path (pose/table.h's kMaxPath) and of an outfit's name (its kMaxWord).
+// of a path (game/table.h's kMaxPath) and of an outfit's name (its kMaxWord).
 constexpr size_t kMaxCnsPacks = 256, kMaxCnsBytes = 1 << 20, kMaxCnsAssets = 8192, kMaxCnsPath = 255, kMaxCnsFit = 64;
 
 namespace paks_detail {
@@ -245,7 +245,7 @@ inline void cns_assets(std::string_view json, std::map<std::string, std::string>
 // The assets an IoStore mod container holds, from its .utoc's directory index (UE 4.26 to 4.27 TOC versions 2 and 3):
 // each "../../../SB/Content/<p>.uasset" as the object path "/Game/<p>.<name>", appended to out up to max in all, in
 // the index's order. Nothing for a TOC that is cut short, encrypted, unindexed or of another version; the rest of a
-// broken index is dropped. Maps (.umap) and files outside SB/Content never: the paths still need pose/table.h's
+// broken index is dropped. Maps (.umap) and files outside SB/Content never: the paths still need game/table.h's
 // path_allowed before any use. glue/steam.cpp reads the first kMaxUtocBytes of each mod's .utoc once at start.
 // shortcut: legacy .pak-only mods (no .utoc) give nothing; parse the .pak index if such a mod ever needs sharing.
 constexpr size_t kMaxUtocBytes = 1 << 20, kMaxModAssets = 8192;

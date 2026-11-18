@@ -29,11 +29,6 @@ struct WorldSlot {
 WorldSlot world_slots[] = {{world::kStateSlot, world::kStateRun, &world_state_hook, "ChangeEnvState", Filter::untried},
                            {world::kActiveSlot, world::kActiveRun, &world_active_hook, "SetEnvActive", Filter::untried},
                            {world::kLinkSlot, world::kLinkRun, &world_link_hook, "linked env", Filter::untried}};
-std::string world_hex(uint64_t value) {
-  char text[24];
-  std::snprintf(text, sizeof text, "0x%llx", static_cast<unsigned long long>(value));
-  return text;
-}
 // FName's find (FNAME_Find: never a new name) for "self", which R1 and R2 compare their target with. Under the world's
 // latch: a fault leaves it 0 and turns the shared world off.
 __declspec(noinline) uint64_t world_find_self_body() {

@@ -9,8 +9,8 @@
 // coop-record.bin, little-endian:
 //   "SBR" (3 bytes), protocol (u8, kProtocol)
 //   then entries: kind (u8, 'T' a table, 'P' a pose (a keyframe), 'D' a delta, 'E' an SBE or 'S' a show line), size
-//   (u32), the exact wire bytes (SBT text, an SBP pose or an SBD delta, pose/codec.h; an SBE or a show line's text,
-//   fight/pilot.h)
+//   (u32), the exact wire bytes (SBT text, an SBP pose or an SBD delta, game/codec.h; an SBE or a show line's text,
+//   game/pilot.h)
 // The first entry is a table, and each pose or delta is of the latest table's generation, published after the one
 // before it; a delta's keyframe is the latest pose since that table's first entry. Protocol 9 added the deltas.
 // Protocol 11 added same-place enemies' SBE and show lines, on the poses' clock: after the first pose, an SBE published
@@ -27,8 +27,8 @@
 #include <utility>
 #include <vector>
 
-#include "fight/pilot.h" // decode_sbe, parse_show, format
-#include "pose/codec.h"  // codec::get and put, kPoseHeader, kMaxPose, parse_table, kProtocol
+#include "game/pilot.h" // decode_sbe, parse_show, format
+#include "game/codec.h"  // codec::get and put, kPoseHeader, kMaxPose, parse_table, kProtocol
 
 namespace coop::pose {
 

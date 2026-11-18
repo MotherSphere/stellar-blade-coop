@@ -7,12 +7,11 @@
 namespace coop::pose {
 
 namespace {
-// The shared quests' worker side (quest/engine.h's Worker), with channel 2 and the record files as the last
+// The shared quests' worker side (game/quest/engine.h's Worker), with channel 2 and the record files as the last
 // quest_pass gave them.
 quest::Worker quest_worker{quest_engine};
 bool quest_fault_logged = false;
 uint64_t quest_slot_at = 0; // When the save-slot line was last read for the game thread.
-std::string quest_slot_line = "slot=unknown ";
 constexpr size_t kMaxQuestRecording = size_t(16) << 20; // quest::kMaxRecording lines of about 100 bytes, and more.
 struct QuestIo {
   bool (*out)(const std::string &, uint64_t) = nullptr;

@@ -35,19 +35,6 @@ void camps_set(std::string w) {
   camps_pending = true;
 }
 
-// One FName as text, read from SB's name pool (fight/pilot.h's fname), or empty.
-std::string camps_name(uint64_t name) {
-  char text[128];
-  size_t n = 0;
-  const auto read = [](uint64_t at, void *out, size_t size) {
-    std::memcpy(out, reinterpret_cast<const void *>(at), size);
-    return true;
-  };
-  return pilot::fname(read, base + (pilot::kNamePool - game::kImageBase), uint32_t(name), uint32_t(name >> 32), text,
-                      sizeof text, n)
-             ? std::string(text, n)
-             : std::string();
-}
 __declspec(noinline) void camps_body(uint64_t now) {
   const auto global = [](uint64_t where) { return at<uintptr_t>(base + (where - game::kImageBase)); };
   const auto read = [](uint64_t at, void *out, size_t size) {

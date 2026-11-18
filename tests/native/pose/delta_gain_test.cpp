@@ -1,7 +1,7 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// What the sender's delta tolerance (pose/codec.h kTolerance) saves, measured on a recording. Each table, keyframe and
+// What the sender's delta tolerance (game/codec.h kTolerance) saves, measured on a recording. Each table, keyframe and
 // delta of a coop-record.bin is read back to the full poses that were sent (a delta rebuilt on its keyframe), and the
 // poses go again through KeyedEncoder with no tolerance and with kTolerance: keyframes, deltas, their mean sizes and
 // the stream's KiB/s over the recording's span, for each. coop-record.bin holds the stream we sent, and only a

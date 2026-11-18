@@ -1,10 +1,10 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// The native tick's gap line (pose/core.h's gap_line), from fixed values: the UTC time of day out of a FILETIME, the
+// The native tick's gap line (game/core.h's gap_line), from fixed values: the UTC time of day out of a FILETIME, the
 // gap in whole ms, the frame, the tick before it in hundredths of a ms, and vkd3d-proton.cache.write's growth when the
 // file exists.
-#include "pose/core.h"
+#include "game/core.h"
 
 #include <cassert>
 #include <cstdio>

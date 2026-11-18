@@ -6,11 +6,11 @@
 event MultiplayTest_ZoneE_059 (type 15) -> RunEvent_StartMatchMaking -> RequestMatchRequest, an HTTP client to Shift
 Up's stage servers; types 16 and 19 sit on the same path. Native code calls RunZoneEvent at two sites, with its
 address held once in game/sbo.h: sbo_game.inc, for coop sbo seq's four PlayLevelSeq rows, with the native part's own
-FNames, and world_game.inc. That one serves the shared world's env control rows, which world/engine.h checks against
-world/rows.h's list (kind 10 rows whose chains are kind 10) right before the call. It also serves story together's
-scene starts and trips (story/engine.h), whose rows are on story/rows.h's lists (scene_row(), trip_sent()). A text
-scan: scan(root) lists the violations. It first runs on planted trees, one violation each, so no rule passes
-vacuously, then on this repository, which must be clean.
+FNames, and world_game_shared.inc. That one serves the shared world's env control rows, which game/world/engine.h checks
+against game/world/rows.h's list (kind 10 rows whose chains are kind 10) right before the call. It also serves story
+together's scene starts and trips (game/story/engine.h), whose rows are on game/story/rows.h's lists (scene_row(),
+trip_sent()). A text scan: scan(root) lists the violations. It first runs on planted trees, one violation each, so no
+rule passes vacuously, then on this repository, which must be clean.
 Run: python3 tests/tools/matchmaking_scan_test.py"""
 import re
 import tempfile
@@ -63,13 +63,13 @@ ADD_ROW = re.compile(r"[:.]\s*AddRow\s*[('{]")
 # StartMatchMaking, RequestMatchRequest, RunEvent, RunZoneEvent and the CreateSBZoneEvent job, as image offsets.
 ADDRESSES = re.compile('1ca3ea0|230b090|1ca5a10|1ca5790|1abdd80', re.I)
 NATIVE_NAMES = re.compile('MatchMaking|RequestMatch')  # Case-sensitive: Steam's Matchmaking lobby API stays allowed.
-# RunZoneEvent's two sites, coop sbo seq's (L15-R3) and world_game.inc's (the shared world's env rows, story together's
-# scene and trip rows), raw counts with comments: its address only in game/sbo.h (N1 anywhere else), its constant there
-# and at each call. The address is counted case-insensitively.
+# RunZoneEvent's two sites, coop sbo seq's (L15-R3) and world_game_shared.inc's (the shared world's env rows, story
+# together's scene and trip rows), raw counts with comments: its address only in game/sbo.h (N1 anywhere else), its
+# constant there and at each call. The address is counted case-insensitively.
 RUN_ZONE_EVENT = '1ca5790'
 NATIVE_RATIONED = {RUN_ZONE_EVENT: {'native/src/game/sbo.h': 1},
                    'kRunZoneEvent': {'native/src/game/sbo.h': 1, 'native/src/lobby/sbo_game.inc': 1,
-                                     'native/src/world/world_game.inc': 1}}
+                                     'native/src/glue/tick/world_game_shared.inc': 1}}
 
 
 def scan(root):
@@ -139,7 +139,7 @@ N, M, H, W = f'{SCRIPTS}/nightop/probe.lua', f'{SCRIPTS}/main.lua', 'native/src/
 R, NR, GR = f'{SCRIPTS}/nightop/recruiter.lua', f'{SCRIPTS}/nightop/run.lua', f'{SCRIPTS}/group/group.lua'
 NS, LI, SC = f'{SCRIPTS}/nightop/shop.lua', f'{SCRIPTS}/cut/enemies/lion.lua', f'{SCRIPTS}/cut/scenes/scene.lua'
 BO = f'{SCRIPTS}/matrix13/world/boss.lua'
-SH, SG, WG = 'native/src/game/sbo.h', 'native/src/lobby/sbo_game.inc', 'native/src/world/world_game.inc'
+SH, SG, WG = 'native/src/game/sbo.h', 'native/src/lobby/sbo_game.inc', 'native/src/glue/tick/world_game_shared.inc'
 SEQ_CONST, SEQ_CALL = ('constexpr uint64_t kRunZoneEvent = 0x141ca5790;\n',
                        'game_function<RunZoneEvent>(sbo::kRunZoneEvent)(world, id, &sbo_seq_names[k], 0);\n')
 WORLD_CALL = 'game_function<RunZoneEvent>(sbo::kRunZoneEvent)(world, caster, &row, 0);\n'
@@ -251,7 +251,7 @@ PLANTS = [({'L1'}, {N: NIGHTOP.replace("    assert(NightOp.allowed(kind,name),'z
           ({'N3'}, {WG: WORLD_CALL * 2}),
           ({'N3'}, {WG: 'void world_tick();\n'}),
           ({'N1'}, {WG: WORLD_CALL + '// FUN_141ca5790\n'}),
-          ({'N3'}, {'native/src/world/engine.h': '// kRunZoneEvent\n'}),
+          ({'N3'}, {'native/src/game/world/engine.h': '// kRunZoneEvent\n'}),
           ({'N2'}, {H: 'void StartMatchMaking();\n'}),
           ({'N2'}, {W: '// RequestMatchRequest\n'}),
           ({'N0', 'N3'}, {H: None, SH: None, SG: None, WG: None}),

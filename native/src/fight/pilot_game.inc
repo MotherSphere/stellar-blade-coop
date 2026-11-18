@@ -5,13 +5,6 @@
 
 namespace coop::pose {
 namespace {
-// ---- Same-place enemies: the owner's capture (fight/pilot.h's Capturer), the game thread's read half ----
-// SB's two read-only lookups by GUID (stage 3a's allowlist, PHASE11-STAGE3 3.4): FSBActorManager::FindActor, an
-// ActorGUID's FSBActor (it logs, and so allocates, only when its two maps disagree), and the registry's character of
-// an FSBActor's FGuid (none when pending kill or not an ASBCharacter). fight/pilot.h calls them only with no logic task
-// in flight (pilot::logic_busy()): a spawn in that task grows both maps.
-constexpr uint64_t kFindFsb = 0x141aae0d0, kFindCharacter = 0x14201d4e0;
-using FindFsb = void *(*)(void *manager, int32_t guid);
 using FindCharacter = void *(*)(void *map, const int32_t *guid);
 constexpr uint64_t kSbeUs = 1'000'000 / pilot::kSbeHz;
 constexpr size_t kPilotLines = 64;
@@ -63,7 +56,7 @@ fight::Event pilot_events[pilot::Driver::kEvents]; // The Driver's event lines, 
 size_t pilot_events_n = 0;
 uint64_t drive_add_max_us = 0;
 std::atomic<bool> drift_reset{false}; // The worker's ask: the drift probe's maxima start again.
-// Stage 3b's take-over (fight/pilot.h's Taker), the game thread's: its notes and counts go to the worker under pilot_m.
+// Stage 3b's take-over (game/pilot.h's Taker), the game thread's: its notes and counts go to the worker under pilot_m.
 pilot::Taker taker;
 std::atomic<bool> pilot_target_ask{false}; // coop fight pilot test target, for the next frame.
 std::atomic<uint32_t> pilot_drawn{0};      // The pairs the last frame drew.
@@ -75,7 +68,7 @@ pilot::Taker::Counts take_counts;
 // under the pilot latch: SB's Show handle API, the sequence SB's own skill presentation runs (FUN_14228a1b0 a new stage
 // and its handle, FUN_14228a790 SetMainActor, FUN_14228ab60 AddShow, and the setters FUN_14228a980 SetStep,
 // FUN_14228a9f0 SetRate and FUN_14228aa70 Stop, keyed by that handle), and SB's own SetComponentTickEnabled of its
-// movement component (pilot::kCmcTick, 14215dcc0, vtable slot 0x350), called only once fight/pilot.h checked the
+// movement component (pilot::kCmcTick, 14215dcc0, vtable slot 0x350), called only once game/pilot.h checked the
 // component's vtable and that slot. The root's MoveComponent is called through the root's vtable (+0x4a0), as SB's
 // SetActorLocation calls it. Never SB's SetLocation or 14227d070, never the engine base 140f32de0, never a write to
 // APawn::LastControlInputVector.
@@ -97,13 +90,13 @@ using MoveComponent = uint8_t (*)(void *root, const float *delta, const float *q
                                   uint32_t flags, uint8_t teleport);
 uint64_t pilot_add_max_us = 0; // The game thread's: AddShow's longest call (a Show's first load is synchronous).
 // Stage 3b's call (PHASE11-STAGE3 3.8, M3-4), on the game thread only, under the pilot latch: SB's force target,
-// FUN_141a361b0(the copy's FSBActor + 0x710, our EVE's FSBActor, unused, the hold in XMM3), which fight/pilot.h's Taker
+// FUN_141a361b0(the copy's FSBActor + 0x710, our EVE's FSBActor, unused, the hold in XMM3), which game/pilot.h's Taker
 // makes only with the cached net mode 0 and no logic task in flight (logic + 0x5c0 == 0): in net mode 3 its senders
 // become ServerRequest_ActorAdd/RemoveTargetedByEnemy, which the mod never sends.
 constexpr uint64_t kForceTarget = 0x141a361b0;
 using ForceTarget = void (*)(void *ai, void *target, uint64_t unused, float hold);
 
-// fight/pilot.h's Game: plain reads and writes (a fault is the latch's), the two lookups, and the drawn side's calls.
+// game/pilot.h's Game: plain reads and writes (a fault is the latch's), the two lookups, and the drawn side's calls.
 struct PilotGame {
   struct Handle { // A stage handle as SB's functions take it.
     int32_t w[4];

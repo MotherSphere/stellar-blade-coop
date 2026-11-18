@@ -5,15 +5,15 @@
 // the lion gate and the Night Operation probe read land on the globals their getters read (0x141a98bc0 the registry,
 // 0x141a98b50 the world, 0x141a98a30 logic, 0x141a989b0 the net-mode cache), and every header that names one of them
 // as an absolute address names the same one.
-#include "fight/pilot.h"
-#include "fight/types.h"
+#include "game/pilot.h"
+#include "game/types.h"
 #include "cut/debug_keys.h"
 #include "game/dev_panels.h"
 #include "game/memory.h"
 #include "game/travel.h"
 #include "nightop/roxanne.h"
-#include "quest/engine.h"
-#include "save/slot.h"
+#include "game/quest/engine.h"
+#include "game/slot.h"
 
 #include <cassert>
 

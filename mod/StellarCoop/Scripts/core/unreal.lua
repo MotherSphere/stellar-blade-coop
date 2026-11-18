@@ -121,7 +121,7 @@ function U.actors_of(cls,name,ctx)
 end
 function U.address(object) return U.value_of(object):GetAddress() end
 function U.hex(object) return string.format('0x%x',U.address(object)) end
--- A word of the component table (native/src/pose/table.h): printable ASCII, '_' for any other byte, at most max bytes
+-- A word of the component table (native/src/game/table.h): printable ASCII, '_' for any other byte, at most max bytes
 -- (64 unless said), '-' when empty.
 function U.word(value,max)
     local w=tostring(value or ''):gsub('[^!-~]','_'):sub(1,max or 64)

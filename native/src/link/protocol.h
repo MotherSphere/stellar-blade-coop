@@ -36,12 +36,12 @@
 //   let in, then the players the session holds at most) and SBC<protocol> wait <seconds> (to a joiner who waits for
 //   the host's answer: the most it may take now).
 // All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
-// (pose/table.h), its pose "SBP<protocol>" and its delta "SBD<protocol>" (pose/codec.h), and beside them the enemy
-// roots of same-place enemies, "SBE<protocol>" (fight/pilot.h). Channel 2 carries the shared enemies' text lines and
-// the pilot's show lines, which start with fight_tag() (fight/sync.h and fight/pilot.h parse them), the shared
-// quests' lines, which start with quest_tag() (quest/sync.h parses them), and the shared world's lines, which start
-// with world_tag() (world/sync.h parses them). Story together's lines go there too, after story_tag() (story/sync.h
-// parses them).
+// (game/table.h), its pose "SBP<protocol>" and its delta "SBD<protocol>" (game/codec.h), and beside them the enemy
+// roots of same-place enemies, "SBE<protocol>" (game/pilot.h). Channel 2 carries the shared enemies' text lines and
+// the pilot's show lines, which start with fight_tag() (game/fight/sync.h and game/pilot.h parse them), the shared
+// quests' lines, which start with quest_tag() (game/quest/sync.h parses them), and the shared world's lines, which
+// start with world_tag() (game/world/sync.h parses them). Story together's lines go there too, after story_tag()
+// (game/story/sync.h parses them).
 #pragma once
 
 #include <algorithm>
@@ -239,7 +239,7 @@ namespace vital {
 enum : size_t { hp, max_hp, shield, max_shield, blocks, beta, max_beta, burst, max_burst, tachy, max_tachy, life };
 }
 using Vitals = std::array<uint32_t, vital::life + 1>;
-constexpr uint32_t kMaxVital = 10'000'000; // fight/sync.h's kMaxStat.
+constexpr uint32_t kMaxVital = 10'000'000; // game/fight/sync.h's kMaxStat.
 // Every value at most kMaxVital, HP at most MaxHP, at most 64 shield blocks, a life state that fits a byte.
 inline bool plausible_vitals(const Vitals &v) {
   for (uint32_t x : v)
@@ -471,8 +471,8 @@ inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
 inline std::string world_tag() { return "SBW" + std::to_string(kProtocol); }
 inline std::string story_tag() { return "SBS" + std::to_string(kProtocol); }
 // A channel-2 line as link/core.h's take_fight() hands it on: its sender's SteamID and the line as it came. The shared
-// quests take theirs from every partner by sender (quest/engine.h's Worker); the shared fight, the shared world and
-// story together take the pair's only (lines_from).
+// quests take theirs from every partner by sender (game/quest/engine.h's Worker); the shared fight, the shared world
+// and story together take the pair's only (lines_from).
 struct FightLine {
   uint64_t from;
   std::string line;
@@ -865,16 +865,16 @@ inline std::string masked(std::string_view text) {
 // for the day/night cycle (sky/sky.h, sky/daynight.lua) "sky off|hold",
 // "sky cycle <hz> <heading>" and "sky hour <minute> <hz> <heading>" (whole numbers: hz 0 to 30, heading 0 to 359,
 // minute 0 to 1439); for the SBO lobby arrival's black (lobby/arrival.lua,
-// lobby/loading_game.inc) "loading lift"; for the co-op saves (save/slot.h,
-// save/twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make
+// lobby/loading_game.inc) "loading lift"; for the co-op saves (game/slot.h,
+// game/twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make
 // them, then switch to them), "saves main" (switch back to the player's own saves) and "saves refresh <0-4>" (that
 // slot's copy replaced by a new copy of the player's save, the old one backed up first) and "saves export <0-4> <0-4>"
 // (that co-op slot's copy written over that save of the player's, the save backed up first); for the shared quests
-// (quest/engine.h's Worker) "quests on|probe|record [deny <list>]" (deny: quest_deny's aliases or IDs, separated by
-// spaces or commas, at most kMaxDeny bytes), "quests off|status|replay" and "quests force <quest ID>"; for the shared
-// world (world/sync.h, world/world_worker.inc) "world on" and "world off" (shared_world, until the next ask) and
-// "world status" (its line in the log); for story together (story/sync.h, story/story_worker.inc) "scenes on" and
-// "scenes off" (shared_story, until the next ask) and "scenes status" (its line in the log); for the follow
+// (game/quest/engine.h's Worker) "quests on|probe|record [deny <list>]" (deny: quest_deny's aliases or IDs, separated
+// by spaces or commas, at most kMaxDeny bytes), "quests off|status|replay" and "quests force <quest ID>"; for the
+// shared world (game/world/sync.h, world/world_worker.inc) "world on" and "world off" (shared_world, until the next
+// ask) and "world status" (its line in the log); for story together (game/story/sync.h, story/story_worker.inc) "scenes
+// on" and "scenes off" (shared_story, until the next ask) and "scenes status" (its line in the log); for the follow
 // (group/travel.lua) "camps? <id>" and "camps <id> <world> <alias>:<m> ..." or "camps <id> none <why>" (the camps
 // lines, relayed to the friend by link/core.h), and "travel <alias> <FName index> <FName number>" (the call on the game
 // thread, glue/tick.cpp: an index above 0, both within 32 bits); "mark" or "mark <text>" (a numbered line in both
@@ -901,8 +901,8 @@ inline std::string masked(std::string_view text) {
 // preloaded, game/bike.h's clip_ok), "bike free" (the preload released), "bike gate on" and "bike gate off" (SB's
 // actions off while she rides, then back); for coop shortcut "shortcut list" (the cut
 // Load Shortcut menu's saves, read through the game's file manager on the game thread and named in the log,
-// save/shortcut.h) and "shortcut load <map> <1-4>" (one of them cleaned and written as co-op slot 5's copy,
-// save/shortcut_load.h; map one of kShortcutMaps; Lua sends it only with shortcut_load=on, typed twice). For the
+// game/shortcut.h) and "shortcut load <map> <1-4>" (one of them cleaned and written as co-op slot 5's copy,
+// game/shortcut_load.h; map one of kShortcutMaps; Lua sends it only with shortcut_load=on, typed twice). For the
 // Night Operation shop in SB's own shop screen (nightop/shop.lua, nightop/shop_ui.h)
 // "nightshop open" (Shop_NightOperation_Coop), "nightshop open bolt" (Shop_NightOperation_CoopBolt), "nightshop close"
 // and "nightshop watch" (the reads only); for Roxanne's Night Operation choices (nightop/roxanne.lua,
@@ -928,7 +928,7 @@ enum class Command {
 // rest of the game run. block: "block <SteamID>" (the block list, link/core.h: kept out of every lobby we host, across
 // game runs); unblock: "unblock <SteamID>" or "unblock all" (player 0).
 enum class MatchAsk : uint8_t { search, create, cancel, end };
-// shortcut load's maps, save/shortcut.h's kMapNames in its order (shortcut_load_test checks they match).
+// shortcut load's maps, game/shortcut.h's kMapNames in its order (shortcut_load_test checks they match).
 constexpr const char *kShortcutMaps[4] = {"B07", "F02", "G03", "Matrix_XI"};
 // The words of the rows requests, one a batch of lion/rows.h (kLion, kGardener, kTendril, kBolt, kMxiii, kShop,
 // kSignal, kMxspawn, kMxenv, kMxupper, kMxmiddle, kMxlower, kMxnames, kMxlily, kMxrecords, kHalls), in Request::batch's
@@ -981,7 +981,7 @@ enum class BikeAsk : uint8_t { load, free, gate_on, gate_off };
 enum class SkyAsk : uint8_t { off, cycle, hour, hold };
 constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500, kMaxFreezeS = 3600;
 constexpr size_t kMaxFightChars = 16;
-constexpr uint64_t kMaxFightChange = 10'000'000; // fight/sync.h's kMaxStat.
+constexpr uint64_t kMaxFightChange = 10'000'000; // game/fight/sync.h's kMaxStat.
 constexpr uint16_t kMinScale = 100, kMaxScale = 400; // Two-player scaling in percent: none, four times.
 constexpr uint64_t kMaxExtra = 3;                     // enemy_extra: extra enemies a common enemy, at most.
 constexpr size_t kMaxDeny = 200;                      // quests ... deny: the list's bytes, at most.
@@ -1021,7 +1021,7 @@ struct Request {
   bool filter = false;         // fight on, probe: spawn_filter=on (the guest's own; with probe, its pass-through test).
   PilotAsk pilot = PilotAsk::probe;      // fight pilot: what.
   PilotTest test = PilotTest::replay;    // fight pilot test: how far.
-  int stat = 0;                // fight test: 0 HP, 1 Shield, 2 Stamina (fight/sync.h's Stat), or -1: a kill.
+  int stat = 0;                // fight test: 0 HP, 1 Shield, 2 Stamina (game/fight/sync.h's Stat), or -1: a kill.
   int32_t change = 0;          // fight test: never 0.
   Quests quests = Quests::none; // quests: what.
   uint16_t quest = 0;           // quests force: the QuestTable ID.

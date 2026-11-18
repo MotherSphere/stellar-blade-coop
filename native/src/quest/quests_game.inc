@@ -5,22 +5,22 @@
 
 namespace coop::pose {
 namespace {
-// ---- The shared quests (quest/engine.h), the game thread's pass ----
+// ---- The shared quests (game/quest/engine.h), the game thread's pass ----
 // SB's on the pinned build: the local player's quest unit (FUN_141c5fad0) and the acquire by ID that a quest zone event
 // makes (FUN_141c5e170, false when SB refused it); the engine's other two calls, the Request vtable's +0x10 and a task
-// vtable's +0x60, go to the addresses quest/engine.h names, and QuestGame::call refuses any other.
+// vtable's +0x60, go to the addresses game/quest/engine.h names, and QuestGame::call refuses any other.
 constexpr uint64_t kQuestUnit = 0x141c5fad0, kQuestAcquire = 0x141c5e170;
 using QuestUnit = void *(*)(void *manager);
 using QuestAcquire = bool (*)(void *manager, uint32_t owner, uint32_t quest);
 using QuestCall = void (*)(void *object);
-quest::Engine quest_engine;
 std::atomic<bool> quest_faulted{false};
 std::atomic<uint64_t> quest_fault_code{0}, quest_fault_rva{0}, quest_fault_address{0};
 std::mutex quest_m;                       // The save-slot line, from the worker, and when it was read.
 std::string quest_slot = "slot=unknown "; // Its gate pauses on it until the worker's first line.
 uint64_t quest_slot_ms = 0;
 uint64_t quest_next = 0; // The game thread's: its next pass.
-// quest/engine.h's Game: plain reads (a fault is the SEH guard's, and latches), this thread's ID and SB's functions.
+// game/quest/engine.h's Game: plain reads (a fault is the SEH guard's, and latches), this thread's ID and SB's
+// functions.
 struct QuestGame {
   bool read(uint64_t address, void *out, size_t n) {
     std::memcpy(out, reinterpret_cast<const void *>(address), n);

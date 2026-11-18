@@ -902,7 +902,7 @@ int main() {
         std::string("anim play 1 /Game/Art/Character/PC/CH_P_EVE_01/Animation/../X.X once"), "anim  play 1 " + clip +
         " once", std::string("anim"), std::string("anim stop now"), std::string("anim play")})
     assert(parse_request(bad).command == Command::none);
-  // coop shortcut: the list (slot -1), or a load of one file: a map of the four, slot 1 to 4, as save/shortcut.h counts
+  // coop shortcut: the list (slot -1), or a load of one file: a map of the four, slot 1 to 4, as game/shortcut.h counts
   // them (map * 4 + slot - 1).
   Request sc = parse_request("shortcut list\r\n");
   assert(sc.command == Command::shortcut && sc.slot == -1);
@@ -958,14 +958,14 @@ int main() {
          parse_request("loading lift\r\n").command == Command::loading);
   for (const char *bad : {"loading", "loading Lift", "loading lift now", "loading  lift", "loadinglift", "loading off"})
     assert(parse_request(bad).command == Command::none);
-  // The shared world's setting and status (world/sync.h): world on, off or status, nothing else.
+  // The shared world's setting and status (game/world/sync.h): world on, off or status, nothing else.
   assert(parse_request("world on\n").command == Command::world && parse_request("world on").world == WorldAsk::on &&
          parse_request("world off\r\n").world == WorldAsk::off &&
          parse_request("world status").world == WorldAsk::status && parse_request("world status").command == Command::world);
   for (const char *bad :
        {"world", "world On", "world on now", "world  off", "worldoff", "world stat", "world statuses"})
     assert(parse_request(bad).command == Command::none);
-  // Story together's setting and status (story/sync.h): scenes on, off or status, nothing else.
+  // Story together's setting and status (game/story/sync.h): scenes on, off or status, nothing else.
   assert(parse_request("scenes on\n").command == Command::scenes && parse_request("scenes on").world == WorldAsk::on &&
          parse_request("scenes off\r\n").world == WorldAsk::off &&
          parse_request("scenes status").world == WorldAsk::status &&

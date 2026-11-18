@@ -6,9 +6,9 @@
 // (deltas too: their keyframe's age stays right; same-place enemies' SBE and show lines on the poses' clock), and a
 // recording of keyframes and deltas played through the receiver's own path (parse_table, KeyedDecoder, Playback) with
 // no stall at the loop seams.
-#include "fight/pilot.h"
+#include "game/pilot.h"
 #include "pose/record.h"
-#include "pose/stream.h"
+#include "game/stream.h"
 
 #include <cassert>
 #include <cstdio>
@@ -98,7 +98,7 @@ struct Delivered {
   std::string bytes;
 };
 
-// Same-place enemies' messages (fight/pilot.h): an SBE of two enemies (x cm), and a show line of enemy 4100.
+// Same-place enemies' messages (game/pilot.h): an SBE of two enemies (x cm), and a show line of enemy 4100.
 std::string sbe(uint32_t seq, uint64_t publication, float x = 100) {
   coop::pilot::SbeHeader h;
   h.gen = 7, h.seq = seq, h.publication = publication;

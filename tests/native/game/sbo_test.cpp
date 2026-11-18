@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // game/sbo.h on the build machine: the Join slot's addresses, the Join match on the action's alias, the record states
-// and why words by name, the status line and coop sbo seq's pick; with save/sbo_record.h's loaded_action (C2), which
+// and why words by name, the status line and coop sbo seq's pick; with game/sbo_record.h's loaded_action (C2), which
 // reads a record.
 #include "game/sbo.h"
-#include "save/sbo_record.h"
+#include "game/sbo_record.h"
 
 #include <cassert>
 #include <cstdio>

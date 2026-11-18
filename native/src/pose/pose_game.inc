@@ -6,83 +6,17 @@
 
 namespace coop::pose {
 namespace {
-uintptr_t base = 0, objects = 0;
-std::atomic<bool> engine_on{false}, blocked{false}, faulted{false};
-std::string engine_reason = "not checked yet"; // Worker only.
-std::atomic<uint64_t> ticks{0}, doubles{0};
-std::atomic<uint64_t> fault_code{0}, fault_rva{0}, fault_address{0};
 std::atomic<int> current_part{-1}; // The part being read or written, for the fault line.
 // Effects' own latch (ROADMAP 4.8): the game thread turns them off at their first fault, the worker logs it once.
 std::atomic<bool> effects_on{true};
 std::atomic<uint64_t> fx_fault_code{0}, fx_fault_rva{0}, fx_fault_address{0};
 std::atomic<int> fx_fault_part{-1};
-// The XInput pads (coop_pad): the worker loads XInputGetState once, the game thread polls it. pad_seen is the game
-// thread's last read for the worker's log: the slots connected as bits, kPadUnread before the first poll, kPadMissing
-// when System32 has no XInput.
-using XInputGetStateFn = DWORD(WINAPI *)(DWORD, XINPUT_STATE *);
-std::atomic<XInputGetStateFn> xinput_get{nullptr};
-constexpr int kPadUnread = -1, kPadMissing = -2;
-std::atomic<int> pad_seen{kPadUnread};
-// Whether coop_pad reads the game's own controller events (pad_game.inc's hooks on Slate's handler) in place of XInput:
-// the worker sets it once the three slots are ours and clears it before it gives them back.
-std::atomic<bool> pad_slate{false};
-// SB's input device as the game thread last read it (pad_game.inc's uidev_tick): -1 before the first read and after
-// its latch's fault.
-std::atomic<int> uidev_value{-1};
-std::atomic<bool> uidev_faulted{false};
-std::atomic<uint64_t> uidev_fault_code{0}, uidev_fault_rva{0}, uidev_fault_address{0};
 
-// What the worker asks the game thread to send: EVE's pose while the loopback runs (with its settings), while a
-// recording is made or while a friend is linked.
-std::atomic<bool> loopback_on{false}, record_on{false}, peer_on{false};
 std::atomic<uint32_t> loopback_delay{0}, loopback_jitter{0}, loopback_loss{0};
 std::atomic<uint32_t> loopback_epoch{0}; // Bumped by every settings change: the playback's clock starts again.
 
-size_t leader_bytes(const Table &t) {
-  size_t bytes = 0;
-  for (const Part &p : t.eve)
-    bytes += p.leader ? size_t(p.bones) * kTransformBytes : 0;
-  return bytes;
-}
 
-// One ghost slot's side, as the worker hands it over: the slot's remote table (the layout her poses arrive in) with
-// the playback and the pose drawn this frame, and the ghost Lua built for the table, drawn only when it is of the
-// table's generation.
-struct Drawn {
-  Table remote;
-  Display display;
-  Playback playback;
-  KeyedDecoder decoder; // Her keyframe held: a new Live waits for the next one (250 ms at most).
-  std::vector<uint8_t> draw;
-  float draw_root[10] = {};
-  Effect draw_fx[kEffectSlots], fx_drawn[kEffectSlots]; // Her effect slots drawn this frame, and as last written.
-  // Game thread: only the first refused write on this ghost is logged; Lua destroyed this ghost, so nothing is drawn
-  // until its display is dropped.
-  bool refusal_logged = false, ghost_gone = false;
-  Drawn(Table r, Display d) : remote(std::move(r)), display(std::move(d)) {
-    decoder.reset(pose_size(remote));
-    playback.reset(leader_bytes(remote));
-    draw.assign(leader_bytes(remote), 0);
-    for (Effect &e : fx_drawn)
-      e.asset = 0xff; // No slot's: the first frame drawn writes every box.
-  }
-  bool drawn() const { return display.generation && display.generation == remote.generation; }
-};
 
-// What the worker hands the game thread, all sized off the game thread: EVE's capture table with her pose and effect
-// slots as read for sending, and each ghost slot holding a remote table (null for an empty slot).
-struct Live {
-  Table capture;
-  std::vector<uint8_t> capture_bones;
-  float capture_root[10] = {};
-  Effect capture_fx[kEffectSlots];
-  KeyedEncoder encoder; // Her keyframe and the byte budget: a new Live starts with a keyframe.
-  std::array<std::unique_ptr<Drawn>, kMaxRemote> remotes;
-  explicit Live(Table c) : capture(std::move(c)) {
-    capture_bones.assign(leader_bytes(capture), 0);
-    encoder.reset(pose_size(capture));
-  }
-};
 
 // An encoded pose on its way: bytes (sized kMaxPose once, by the worker, before the engine goes on; only swapped after
 // that), its size, when it was read (outgoing) or received (incoming), in µs, and the ghost slot it came for
@@ -110,7 +44,7 @@ Message out_mid;
 bool out_fresh = false;
 std::array<Message, kInbox> inbox;
 size_t inbox_count = 0;
-// Each native tick gap over 100 ms, for the worker's line (pose/core.h's gap_line): its end as a FILETIME, its length,
+// Each native tick gap over 100 ms, for the worker's line (game/core.h's gap_line): its end as a FILETIME, its length,
 // the frame it ended in and the coop_tick before it, in µs. The worker takes them every 250 ms, with the outbox.
 struct Gap {
   uint64_t filetime, gap_us, frame, tick_us;
@@ -118,10 +52,6 @@ struct Gap {
 std::array<Gap, 8> gaps;
 size_t gap_count = 0;
 
-// Game thread only.
-std::unique_ptr<Live> session;
-std::vector<std::string> pending; // Results not handed over yet (the lock was busy, or the worker had not read them).
-LARGE_INTEGER frequency{}, last_call{};
 uint64_t last_frame = 0, next_capture = 0;
 uint64_t coop_tick_us = 0; // The last coop_tick's own time, entry to exit.
 Gap gap_waiting{};         // A gap not in gaps yet (the lock was busy, or gaps was full)...
@@ -141,13 +71,7 @@ size_t game_inbox_count = 0;
 // The send interval: 20 poses a second (N4) until coop-state.txt says otherwise (send_rate, 10 to 60; Lua's default is
 // 60), and never more than the link's cap (link/core.h PoseCap). The worker stores it, the game thread reads it.
 std::atomic<uint64_t> send_us{50'000};
-// GFrameCounter (PHASE2-RE.md): incremented once per frame by FEngineLoop::Tick, and on some loading paths; compare
-// "different from the last call", never "last + 1".
-constexpr uint32_t kFrameCounterRva = 0x70703c8;
 
-// Same-place enemies' SBE goes to her (the pilot capture's, below): the poses give up kSbeBytesPerSecond of their
-// budget meanwhile. Game thread.
-bool pilot_sending = false;
 
 // Cost counters, game thread writes, worker reads and resets every 60 s.
 std::atomic<uint64_t> window_ticks{0}, window_us{0}, window_max_us{0}, window_max_gap_us{0}, window_long_gaps{0};
@@ -159,26 +83,15 @@ std::atomic<uint64_t> window_sent{0}, window_sent_bytes{0}, window_clamped{0}, w
     window_keyframes{0}, window_deltas{0}, window_delta_bytes{0}, window_held{0}, window_keyless{0};
 std::atomic<uint64_t> window_fx_started{0}, window_fx_over{0}, window_fx_unlisted{0}, window_fx_written{0};
 std::atomic<int64_t> window_lag_us{0}, window_behind_us{0};
-std::atomic<int> last_refusal{0};              // An Io value, for the counter line.
 std::atomic<const char *> last_reject{"none"}; // decode_pose's reason.
 
 // The encoded pose to the worker (m held): replaces one it has not taken yet, which the receiver counts missing; but a
-// keyframe not taken yet stays and a delta, which names it, is dropped instead (keeps_waiting, in pose/codec.h's
+// keyframe not taken yet stays and a delta, which names it, is dropped instead (keeps_waiting, in game/codec.h's
 // hand_over, which stream_test runs on the build machine).
 void give_out() { hand_over(out_back, out_mid, out_fresh, out_ready); }
 
 uint64_t micros_between(LARGE_INTEGER a, LARGE_INTEGER b) {
   return frequency.QuadPart ? uint64_t((b.QuadPart - a.QuadPart) * 1000000 / frequency.QuadPart) : 0;
-}
-uint64_t micros_now(LARGE_INTEGER now) {
-  return frequency.QuadPart ? uint64_t(now.QuadPart / frequency.QuadPart * 1000000 +
-                                       now.QuadPart % frequency.QuadPart * 1000000 / frequency.QuadPart)
-                            : 0;
-}
-uint64_t clock_us() {
-  LARGE_INTEGER now;
-  QueryPerformanceCounter(&now);
-  return micros_now(now);
 }
 void raise_max(std::atomic<uint64_t> &slot, uint64_t value) {
   uint64_t seen = slot.load();
@@ -186,19 +99,6 @@ void raise_max(std::atomic<uint64_t> &slot, uint64_t value) {
     ;
 }
 
-extern "C" IMAGE_DOS_HEADER __ImageBase; // This DLL: every instruction the native tick runs is ours.
-// A fault's code, offset in this DLL and address into the latch's own fields.
-int fault_filter(EXCEPTION_POINTERS *info, std::atomic<uint64_t> &code, std::atomic<uint64_t> &rva,
-                 std::atomic<uint64_t> &address) {
-  auto *exception = info->ExceptionRecord;
-  if (passed_on(exception->ExceptionCode)) // UE's fatal error or a stack overflow: the game's handlers take it.
-    return EXCEPTION_CONTINUE_SEARCH;
-  code = exception->ExceptionCode;
-  rva = reinterpret_cast<uintptr_t>(exception->ExceptionAddress) - reinterpret_cast<uintptr_t>(&__ImageBase);
-  if (exception->NumberParameters >= 2) // Access violations: the address read or written.
-    address = exception->ExceptionInformation[1];
-  return EXCEPTION_EXECUTE_HANDLER;
-}
 
 // EVE now: her main mesh's world transform and her leaders' local poses, back to back.
 Io read_eve(const Table &capture, float *root, uint8_t *bones) {
@@ -219,22 +119,6 @@ Io read_eve(const Table &capture, float *root, uint8_t *bones) {
   return Io::ok;
 }
 
-// A write the gate refused: counted, and logged the first time on this ghost (part -1: the mailbox, -2: an effect box).
-void refused(Drawn &ghost, int part, Io r) {
-  last_refusal = static_cast<int>(r);
-  if (ghost.refusal_logged)
-    return;
-  ghost.refusal_logged = true;
-  char line[160];
-  char what[24] = "mailbox";
-  if (part == -2)
-    std::snprintf(what, sizeof what, "effect box");
-  else if (part >= 0)
-    std::snprintf(what, sizeof what, "part %d", part);
-  std::snprintf(line, sizeof line, "write refused: %s %s (table %llu)", what, describe(r),
-                static_cast<unsigned long long>(ghost.remote.generation));
-  pending.push_back(line);
-}
 
 // Effects under their own latch. clang-cl catches a fault only in a function the __try calls, never in code inlined
 // into the __try's own frame, so the accesses stay out of line; the guarded functions hold plain data only.

@@ -8,10 +8,10 @@
 // logged with its code, the DLL offset, the address and the part.
 //
 // The ghost (Phase 3b), one path whatever its source. Lua publishes EVE's capture (coop-components.txt); the worker
-// sends it as the wire table (pose/table.h), and while the loopback runs, a recording is made or a friend is linked the
+// sends it as the wire table (game/table.h), and while the loopback runs, a recording is made or a friend is linked the
 // game thread reads EVE every send interval (send_rate, within the byte budget) and encodes her pose as a keyframe or a
-// delta against the last keyframe (pose/codec.h, protocol 9) for the worker to send. All that is sent goes through
-// wire_send: into the loopback's delay line (pose/stream.h), into the recording (pose/record.h) and to the linked
+// delta against the last keyframe (game/codec.h, protocol 9) for the worker to send. All that is sent goes through
+// wire_send: into the loopback's delay line (game/stream.h), into the recording (pose/record.h) and to the linked
 // friend over Steam (Phase 4, glue/steam.cpp). All that is received comes back through wire_receive, from the delay
 // line, a replayed recording or the friend: a table is checked and handed to Lua as coop-remote.txt, Lua builds the
 // ghost from it and names what it built in coop-display.txt (in a match lobby each other member has a ghost slot of
@@ -49,7 +49,7 @@
 // LoadingScreenFadeAuto entry of tag Load to 0 in SB's UI manager (lobby/loading.h), under its own SEH latch, so SB's
 // loading controller ends that black with its own end fade.
 //
-// Same-place enemies (stage 3a, fight/pilot.h), the owner's read half: each frame coop_tick takes the job's newest pair
+// Same-place enemies (stage 3a, game/pilot.h), the owner's read half: each frame coop_tick takes the job's newest pair
 // table (Mail, try_lock), and every 33 ms of clock, for the pairs this side owns while same_place is on or the pilot
 // probe runs, reads each enemy (found by GUID through SB's two read-only lookups) and SB's show manager into one SBE
 // message and the show lines, under its own SEH latch, pilot, whose first fault also asks the job to let every frozen
@@ -57,11 +57,11 @@
 // them in a recording being made, and logs them to coop-fight.log while the probe runs, with a stats line a second
 // while same-place enemies run. The write half, under the same latch: her SBE and show lines (from her, or from a
 // replayed recording) come to the game thread through the same lock, and each frame every copy this side draws is found
-// again by its GUID and driven at the ghost's draw time (fight/pilot.h's Driver): its movement component out of SB's
+// again by its GUID and driven at the ghost's draw time (game/pilot.h's Driver): its movement component out of SB's
 // manager, the speed override, the root moved, Velocity set, her Shows replayed through SB's Show handle API, as far as
 // coop fight pilot test lets it (all of it unless asked). Stage 3b moves pairs between the two sides: in the frame a
 // pair becomes ours at a new epoch, its copy put back first, SB's force target points its AI at our EVE
-// (fight/pilot.h's Taker), only in net mode 0 with no logic task in flight; a refusal goes back to the job, which gives
+// (game/pilot.h's Taker), only in net mode 0 with no logic task in flight; a refusal goes back to the job, which gives
 // the pair back. The first fault stops all of it for the run and, when it was in this DLL, puts every copy back once.
 // coop fight pilot off turns it off on this side until the next start.
 //
@@ -76,21 +76,21 @@
 // task, and runs Lua's signal asks (an acquire by ID, or one fixed group's first task's Complete) under its own SEH
 // latch; status() gives the signalquest line, and the worker logs each answer.
 //
-// The shared quests (Phase 12, quest/engine.h): every 250 ms coop_tick runs the engine's pass on the game thread, where
-// SB's quest manager runs, under their own SEH latch: it reads the quest unit and, on the guest, makes at most one step
-// through SB's own quest functions. The worker's side (the Worker) takes her SBQ lines out of channel 2, hands the game
-// thread the save-slot line its gate reads, starts and stops the side, and writes coop-quests.log, the record beside
-// the co-op slot (through glue/steam.cpp's save folder) and coop-quests-record.txt. A fault turns them off for the run;
-// the ghost, the link and the shared fight go on.
+// The shared quests (Phase 12, game/quest/engine.h): every 250 ms coop_tick runs the engine's pass on the game thread,
+// where SB's quest manager runs, under their own SEH latch: it reads the quest unit and, on the guest, makes at most
+// one step through SB's own quest functions. The worker's side (the Worker) takes her SBQ lines out of channel 2, hands
+// the game thread the save-slot line its gate reads, starts and stops the side, and writes coop-quests.log, the record
+// beside the co-op slot (through glue/steam.cpp's save folder) and coop-quests-record.txt. A fault turns them off for
+// the run; the ghost, the link and the shared fight go on.
 //
-// The shared world (world/engine.h, world/sync.h): once its gates first open (shared_world on, a friend linked, a
-// co-op save, no match lobby) the worker swaps three vtable slots of the game's image, the ChangeEnvState action's run,
-// the SetEnvActive action's run and the linked env node's run, for hooks that read the node's change and push it into
-// a ring before they run the game's function; the ZoneEvent action's slot holds the SBO lobby's hook, which does the
-// same for its rows. Each frame coop_tick drains the ring under the shared world's SEH latch and makes channel 2's SBW
-// lines of what world/rows.h allows; her lines wait in order until we are in game (lion_gate open), then go through
-// SB's own functions with our player as caster. A fault turns it off for the run and swaps the slots back; coop off
-// swaps them back too.
+// The shared world (game/world/engine.h, game/world/sync.h): once its gates first open (shared_world on, a friend
+// linked, a co-op save, no match lobby) the worker swaps three vtable slots of the game's image, the ChangeEnvState
+// action's run, the SetEnvActive action's run and the linked env node's run, for hooks that read the node's change and
+// push it into a ring before they run the game's function; the ZoneEvent action's slot holds the SBO lobby's hook,
+// which does the same for its rows. Each frame coop_tick drains the ring under the shared world's SEH latch and makes
+// channel 2's SBW lines of what game/world/rows.h allows; her lines wait in order until we are in game (lion_gate
+// open), then go through SB's own functions with our player as caster. A fault turns it off for the run and swaps the
+// slots back; coop off swaps them back too.
 //
 // The revive's guard: every 250 ms coop_tick reads, under its own SEH latch, whether a respawn or a warp is in flight
 // and our EVE's GUID, straight from two globals; status() puts them in the engine line for group/group.lua.
@@ -160,10 +160,10 @@
 // preload's state and the gate's in the engine line for bike/ride.lua. The worker logs each change with the load's
 // time.
 //
-// coop shortcut (save/shortcut.h): the worker hands over Lua's ask; the game thread reads the cut Load Shortcut menu's
+// coop shortcut (game/shortcut.h): the worker hands over Lua's ask; the game thread reads the cut Load Shortcut menu's
 // 16 paths through SB's own file manager, one a frame, under its own SEH latch, into entries the worker turns into log
 // lines. It writes nothing and keeps no bytes. coop shortcut load reads one of them the same way and keeps its bytes;
-// the worker cleans them (save/shortcut_load.h) and glue/steam.cpp writes the result as a co-op copy (save/twins.h).
+// the worker cleans them (game/shortcut_load.h) and glue/steam.cpp writes the result as a co-op copy (game/twins.h).
 //
 // coop devinfo (game/dev_panels.h): the worker hands over the developer panel Lua asked for (the quest debugger or the
 // player info) or off; the next frame the game thread finds both through SB's UI manager, closes the one not wanted and
@@ -177,10 +177,10 @@
 // The SBO lobby's Join (game/sbo.h): on Lua's sbo arm the worker swaps one pointer of the game's image once a run, the
 // ZoneEvent action's vtable +0x88, for a hook on the game thread that counts the action whose alias is the recruiter's
 // Join and always runs the game's function; the worker logs the first Join, swaps back at coop off and puts the count
-// in coop-status.txt's sbo line. After sbo on, the co-op saves' copies (save/rotation.h): each frame the game thread
+// in coop-status.txt's sbo line. After sbo on, the co-op saves' copies (game/rotation.h): each frame the game thread
 // watches SB's save queue, under its own SEH latch, and once it falls to 0 reads SB's _Old.sav of each co-op save SB
 // just rewrote; the worker writes it into that slot's rotation folder, reads it back, then removes all but the 10
-// newest there, never the open session's copies (save/sbo_record.h's record), and logs each copy. Lua's sbo enter runs
+// newest there, never the open session's copies (game/sbo_record.h's record), and logs each copy. Lua's sbo enter runs
 // the entry: the game thread checks the guards, reads the co-op save before, asks SB for a full save and waits for its
 // queue, reads the save after; the worker writes the session record and the two session copies between those steps.
 // sbo warp makes SB's URL warp into a type-5 zone on the game thread, and the worker writes the record warping. While
@@ -228,7 +228,7 @@
 // order: a part sees what the parts before it declare, and the game thread's parts share one anonymous namespace. Each
 // part is named for the thread it runs on: *_game.inc for the game (or SB's logic) thread, *_worker.inc for our worker.
 #define WIN32_LEAN_AND_MEAN
-#define NOMINMAX // std::min and std::max in pose/stream.h.
+#define NOMINMAX // std::min and std::max in game/stream.h.
 #include <windows.h>
 #include <xinput.h>
 
@@ -272,66 +272,88 @@
 #include "nightop/probe.h"
 #include "nightop/roxanne.h"
 #include "nightop/shop_ui.h"
-#include "pose/codec.h"
-#include "pose/engine.h"
+#include "game/codec.h"
+#include "game/pose/engine.h"
 #include "pose/record.h"
-#include "pose/stream.h"
-#include "quest/engine.h"
+#include "game/stream.h"
+#include "game/quest/engine.h"
 #include "quest/own.h"
-#include "save/rotation.h"
-#include "save/sbo_record.h"
-#include "save/shortcut.h"
-#include "save/shortcut_load.h"
-#include "save/slot.h"
-#include "story/engine.h"
-#include "world/engine.h"
+#include "game/rotation.h"
+#include "game/sbo_record.h"
+#include "game/shortcut.h"
+#include "game/shortcut_load.h"
+#include "game/slot.h"
+#include "game/story/engine.h"
+#include "game/world/engine.h"
 
+#include "glue/tick/pose_game_shared.inc"
 #include "pose/pose_game.inc"
+#include "glue/tick/fight_game_shared.inc"
 #include "fight/fight_game.inc"
+#include "glue/tick/freeze_game_shared.inc"
 #include "photo/freeze_game.inc"
 #include "session/options_game.inc"
-#include "lobby/hud_game.inc" // After freeze_game.inc: its MakeName.
-#include "sky/sky_game.inc" // After freeze_game.inc: its controller reach.
+#include "lobby/hud_game.inc" // After freeze_game_shared.inc: its MakeName.
+#include "sky/sky_game.inc" // After freeze_game_shared.inc: its controller reach.
 #include "lobby/loading_game.inc"
+#include "glue/tick/quests_game_shared.inc"
 #include "quest/quests_game.inc"
 #include "group/warp_game.inc"
+#include "glue/tick/pilot_game_shared.inc"
 #include "fight/pilot_game.inc"
 #include "group/travel_game.inc"
+#include "glue/tick/camps_game_shared.inc"
 #include "group/camps_game.inc"
 #include "lion/lion_game.inc"
-#include "cut/debug_game.inc" // Before nightop_game.inc, which takes its UI calls and ui_reads.
-#include "ui/pause_tab_game.inc" // After debug_game.inc: its UI calls and ui_reads.
+#include "glue/tick/debug_game_shared.inc" // Before nightop_game.inc, which takes its UI calls and ui_reads.
+#include "cut/debug_game.inc"
+#include "ui/pause_tab_game.inc" // After debug_game_shared.inc: its UI calls and ui_reads.
 #include "nightop/nightop_game.inc"
+#include "glue/tick/anim_game_shared.inc"
 #include "cut/anim_game.inc"
-#include "bike/bike_game.inc" // After anim_game.inc, freeze_game.inc and lion_game.inc: their calls and GMalloc.
-#include "matrix13/camp_text_game.inc" // After anim_game.inc and freeze_game.inc: their FStringArg and MakeName.
-#include "nightop/guard_text_game.inc" // After camp_text_game.inc: its calls and camp_text_view.
+// After anim_game_shared.inc, freeze_game_shared.inc and lion_game.inc: their calls and GMalloc.
+#include "bike/bike_game.inc"
+#include "glue/tick/camp_text_game_shared.inc"
+// After anim_game_shared.inc and freeze_game_shared.inc: their FStringArg and MakeName.
+#include "matrix13/camp_text_game.inc"
+#include "nightop/guard_text_game.inc" // After camp_text_game_shared.inc: its calls and camp_text_view.
+#include "glue/tick/shortcut_game_shared.inc"
 #include "save/shortcut_game.inc"
-#include "world/world_game.inc" // After lion_game.inc, freeze_game.inc and shortcut_game.inc; before sbo_game.inc.
-#include "story/story_game.inc" // After world_game.inc and quests_game.inc: their Game, in-game read and quests.
+#include "glue/tick/world_game_shared.inc" // Before sbo_game_shared.inc: its world_game and world_event_root.
+#include "world/world_game.inc" // After lion_game.inc, freeze_game_shared.inc and shortcut_game_shared.inc.
+#include "glue/tick/story_game_shared.inc"
+// After world_game_shared.inc and quests_game_shared.inc: their Game, in-game read and quests.
+#include "story/story_game.inc"
+#include "glue/tick/sbo_game_shared.inc"
 #include "lobby/sbo_game.inc"
 #include "lobby/cycle_game.inc" // After sbo_game.inc: its sbo_global and DifficultyOf.
 #include "glue/tick/worker.inc"
+#include "glue/tick/saves_worker_shared.inc"
 #include "save/saves_worker.inc"
+#include "glue/tick/fight_worker_shared.inc"
 #include "fight/fight_worker.inc"
 #include "group/region_tabs_worker.inc"
 #include "ui/pause_tab_worker.inc" // After pause_tab_game.inc: its hook and flags.
+#include "glue/tick/sbo_worker_shared.inc"
 #include "lobby/sbo_worker.inc"
 #include "nightop/nightop_worker.inc"
 #include "group/travel_worker.inc"
 #include "save/shortcut_worker.inc"
 #include "cut/items_worker.inc"
+#include "glue/tick/quests_worker_shared.inc"
 #include "quest/quests_worker.inc"
-#include "world/world_worker.inc" // After sbo_worker.inc and quests_worker.inc: the shared slot, the slot line.
-#include "story/story_worker.inc" // After world_worker.inc: its hex, its outbox and slot verdict.
+#include "glue/tick/world_worker_shared.inc"
+// After sbo_worker_shared.inc and quests_worker_shared.inc: the shared slot, the slot line.
+#include "world/world_worker.inc"
+#include "story/story_worker.inc" // After world_worker_shared.inc: its hex, its outbox and slot verdict.
 #include "photo/freeze_worker.inc"
 #include "cut/debug_worker.inc"
 #include "cut/anim_worker.inc"
 #include "bike/bike_worker.inc"
-#include "lobby/hud_worker.inc" // After fight_worker.inc: its fault_where.
+#include "lobby/hud_worker.inc" // After fight_worker_shared.inc: its fault_where.
 #include "lobby/loading_worker.inc" // Likewise.
 #include "sky/sky_worker.inc" // Likewise.
-#include "session/options_worker.inc" // After options_game.inc and world_worker.inc: its flags and hex.
+#include "session/options_worker.inc" // After options_game.inc and world_worker_shared.inc: its flags and hex.
 #include "glue/tick/status.inc"
 #include "ui/pad_game.inc"
 #include "ui/pad_worker.inc" // After pad_game.inc: its hooks and pad_keys.

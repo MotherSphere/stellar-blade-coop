@@ -7,16 +7,16 @@
 // build. Every 250 ms on a co-op save, once Lua's signal watch came, the game thread reads whether the unit's ID map
 // holds each of them, Quest_Epic_11 (ID 24, Phase 5: its state and active group; group M04, index 3, is "Talk to Lily
 // to decide on the next destination") and Quest_Epic_12 (ID 25, which Lily's "Follow the bike signal and leave" starts:
-// past the point of no return), Quest_Sub_005's state (ID 44, quest/sync.h: while it runs, Lily shows six rows of her
-// own, every slot of the choice box, so ours stays off), whether Quest_Sub_030 (ID 69, Oblivion) is complete (the
+// past the point of no return), Quest_Sub_005's state (ID 44, game/quest/sync.h: while it runs, Lily shows six rows of
+// her own, every slot of the choice box, so ours stays off), whether Quest_Sub_030 (ID 69, Oblivion) is complete (the
 // zone talks' oblivion lines), and for each of our two quests its state, active group and that group's first task's
 // state. On Lua's ask it acquires one of them through the acquire by ID a quest zone event
 // makes (FUN_141c5e170: the ID's row name through the QuestTable ID map that AddRow filled, then AcquireQuest and
 // PushQuest, which refuses an ID already held), or completes the first task of one fixed group through the task
-// vtable's +0x60, the Complete the shared quests' guest calls (quest/engine.h's kComplete or kCompleteParent; the
+// vtable's +0x60, the Complete the shared quests' guest calls (game/quest/engine.h's kComplete or kCompleteParent; the
 // glue's QuestGame::call refuses any other). Each ask is a fixed word mapped to one fixed quest and group (kAskWords,
-// run()); no console argument reaches a call. The offsets and functions are quest/engine.h's, for Stellar Blade's Steam
-// build 26123051. The Game is the engine's: read, thread, unit, acquire, call.
+// run()); no console argument reaches a call. The offsets and functions are game/quest/engine.h's, for Stellar Blade's
+// Steam build 26123051. The Game is the engine's: read, thread, unit, acquire, call.
 #pragma once
 
 #include <cstddef>
@@ -26,7 +26,7 @@
 #include <string_view>
 
 #include "game/memory.h"
-#include "quest/engine.h"
+#include "game/quest/engine.h"
 
 namespace coop::quest::own {
 

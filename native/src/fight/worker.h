@@ -194,7 +194,7 @@ public:
     paused_ = paused && (!running_ || now_ms >= turns_ms_ + kStallMs);
     own_session();
     for (const std::string &text : lines) {
-      if (pilot_line(text)) // Same-place enemies' (fight/pilot.h): never the job's.
+      if (pilot_line(text)) // Same-place enemies' (game/pilot.h): never the job's.
         continue;
       std::string reason;
       Message m = parse(text.data(), text.size(), &reason);
@@ -636,7 +636,7 @@ private:
   }
   // Same spawns (stage 4): " spawns=off", " spawns=on", or " spawns=stopped" (on, but the pilot's latch stopped them:
   // where the other EVE stands is no longer told), and on the guest's side while not off what she created, despawned,
-  // and refused, undid or kept because the two games differ (fight/spawn_sync.h's differs()). The probe: "
+  // and refused, undid or kept because the two games differ (game/spawn_sync.h's differs()). The probe: "
   // spawns=probe" while coop fight spawn probe reads, else nothing.
   std::string spawns_field(const Snapshot &s) const {
     if (ran_ == Fight::probe) // coop fight spawn probe.
@@ -650,7 +650,7 @@ private:
               " spawns_differ=" + std::to_string(s.spawns.differ);
     return text;
   }
-  // The PvP test's stats line before the job's: the attacker's counts, then the victim's (fight/pvp.h's Counts).
+  // The PvP test's stats line before the job's: the attacker's counts, then the victim's (game/pvp.h's Counts).
   static std::string pvp_stats(const pvp::Counts &c) {
     using u = unsigned long long;
     const auto refused = [&](pvp::Refusal r) { return u(c.refusals[size_t(r)]); };

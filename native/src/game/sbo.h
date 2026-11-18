@@ -19,7 +19,7 @@
 #include <string_view>
 
 #include "game/travel.h" // kInGame, kPlaying
-#include "save/slot.h"   // kSlots
+#include "game/slot.h"   // kSlots
 
 namespace coop::sbo {
 
@@ -297,7 +297,7 @@ constexpr Title title_action(Record r, bool created_equal, bool same_stat) {
          : same_stat             ? Title::close_same
                                  : Title::restore;
 }
-// C2, after a load of a slot whose record is open (save/sbo_record.h's loaded_action): repair (R8, then closed) while
+// C2, after a load of a slot whose record is open (game/sbo_record.h's loaded_action): repair (R8, then closed) while
 // the .sav is the session save, keep (C1 restores at the title) when it moved.
 enum class Loaded : uint8_t { nothing, repair, keep };
 

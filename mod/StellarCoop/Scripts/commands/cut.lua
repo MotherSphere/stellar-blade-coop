@@ -57,9 +57,9 @@ function Cut.new(o)
             return ok,why
         end
     end
-    -- coop shortcut (the native part's save/shortcut.h, left out of the usage line): the cut Load Shortcut menu's
+    -- coop shortcut (the native part's game/shortcut.h, left out of the usage line): the cut Load Shortcut menu's
     -- saves, read from the game's paks and listed in coop-link.log, on any save, as nothing is written. coop shortcut
-    -- load <map> <1-4> (save/shortcut_load.h): one of them, without its achievement data, written as co-op slot 5's
+    -- load <map> <1-4> (game/shortcut_load.h): one of them, without its achievement data, written as co-op slot 5's
     -- copy for the game's own Load Game. Refused unless coop-settings.txt has shortcut_load=on (developer saves with
     -- boss achievements done: docs/how-it-works.md), and asked of the native part only when the same words come twice
     -- within 10 s; the first says what it does. The native part checks the rest (the title, co-op saves on, the file).

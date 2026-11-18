@@ -84,7 +84,7 @@ constexpr uint64_t kRecordUs = 120'000'000;
 Table capture;
 std::string session_text, capture_text = "\x01", sent_table;
 const char kPeer[] = "peer";
-// One per ghost slot (link/core.h's Peer::slot), with its own files (pose/core.h's slot_file): the remote table from
+// One per ghost slot (link/core.h's Peer::slot), with its own files (game/core.h's slot_file): the remote table from
 // the wire and its text, written to the slot's coop-remote file (count times so far, by its source; unwritten: the
 // write failed, Lua had the file open, and is tried again at each pass); the ghost Lua built for it from the slot's
 // coop-display file, as last taken; renewal_us: when its last new ghost was taken. The loopback and the replay feed
@@ -290,7 +290,7 @@ void write_remote(size_t slot) {
   }
 }
 
-// One note a run: value lines (pose/table.h) left out of a table. They cost a colour, never the table.
+// One note a run: value lines (game/table.h) left out of a table. They cost a colour, never the table.
 void note_ignored(const Table &t) {
   static bool said = false;
   if (t.ignored && !said) {
@@ -852,7 +852,7 @@ void peer(uint8_t slots, uint64_t now_ms, void (*send)(const uint8_t *, size_t, 
   // in the pass that completes the handshake went before her), and so to every member: one table goes to all.
   if (added)
     table_resend = TableResend();
-  // At once, then 5, 10, 20, 40 and 60 s apart (pose/table.h TableResend). To them only: never looped back or recorded.
+  // At once, then 5, 10, 20, 40 and 60 s apart (game/table.h TableResend). To them only: never looped back or recorded.
   if (!sent_table.empty() && table_resend.due(now_ms))
     send(reinterpret_cast<const uint8_t *>(sent_table.data()), sent_table.size(), true);
 }
