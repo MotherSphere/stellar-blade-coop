@@ -225,7 +225,10 @@ local drive={
         if dv.gone then dv.on=false return nil end
         return dv.look
     end,
-    slow=function() dv.slows=dv.slows+1 end,restore=function() dv.restores=(dv.restores or 0)+1 end}
+    slow=function() dv.slows=dv.slows+1 end,restore=function()
+        dv.restores=(dv.restores or 0)+1
+        if dv.raise then error(dv.raise,0) end
+    end}
 local stored
 local store={save=function(line)
         event('save')
@@ -705,6 +708,14 @@ R2.restore()
 assert(stored~=nil,'Once a Lua load')
 new().restore()
 assert(stored==nil and last()=='bike restored from coop-bike.txt: her EVE is gone',last())
+-- Its own drive comes back first (bike/drive.lua's restore); one that raises is logged and the rest goes on.
+local restores=dv.restores or 0
+dv.raise,n_logs='coop-drive.txt unreadable',#logs
+new().restore()
+dv.raise=nil
+assert((dv.restores or 0)==restores+1 and logs[n_logs+1]=='bike drive not restored: coop-drive.txt unreadable',
+    tostring(logs[n_logs+1]))
+assert(logs[n_logs+2]=="bike part found on EVE (an earlier Lua load's), hidden",tostring(logs[n_logs+2]))
 local added=eve.added
 n_logs=#logs
 R2.slow()
