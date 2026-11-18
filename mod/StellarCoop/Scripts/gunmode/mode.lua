@@ -456,8 +456,11 @@ function GunMode.new(env)
         local ok,err=pcall(function() s.mask=mask() end)
         if not ok then g.log('off: the input mask failed ('..tostring(err)..')'); return end
         ok,err=pcall(function()
-            s.rifle=stance.start(pc,function() return s.zoom_held end,function() return s.target end,
-                function() return s.air_aim==true end,
+            -- Held for Luke's aim: the aim key itself, not the game's aim stance, which drops for a frame now and
+            -- then (each shot's skill, a jump) and made his arms jerk between carry and aim (11:39). Off the stance (a
+            -- jump, a camp) his own turn to the camera keeps her facing the shot.
+            s.rifle=stance.start(pc,function() return s.zoom_held or (s.on and s.key_held==true) end,function() return s.target end,
+                function() return s.air_aim==true or (s.key_held==true and not s.tps) end,
                 -- With the animation pak her body under the posed copy is the pak's rifle stance (upright, strafing),
                 -- so Luke's own aim runs on it unchanged: his arms from her chest, turned to the camera, the rifle
                 -- squared on the camera's line (the user's call, 11:32: Luke's aim is the look to keep).
@@ -524,6 +527,7 @@ function GunMode.new(env)
             local tps=g.try(function() return p.bTPSMode end)==true
             if tps then s.aim_seen=now end
             local key_held=down(set.aim_key) or down('Gamepad_LeftTrigger')
+            s.key_held,s.tps=key_held,tps
             local falling=g.try(function() return p.CharacterMovement:IsFalling() end)==true
             s.air_aim=not tps and key_held and s.aim_seen~=nil and (s.air_aim or (falling and now-s.aim_seen<1))
             s.zoom_held=tps or s.air_aim
