@@ -2,20 +2,20 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Matrix XIII's Lion and Gardener when the game spawns them from their spawn rows (DLC02_40_E_CharS_051 and
--- DLC02_20_E_CharS_904, the mxspawn batch; matrix13/world/travel.lua ticks this file). core/enemy.lua fixes only the
--- bodies its own spawn call made, so in world 2800, once a second, this file looks for a body of each boss's blueprint
--- within NEAR of its spawn point and fixes it once: the Lion through cut/enemies/lion.lua's adopt (the anim instance
--- its mesh lacks, else the hidden Behemoth leader), the Gardener's mesh turned -90 degrees about its root (its skeleton
--- faces +Y). While a boss it fixed lives, the boss bar's name reads its name instead of the row name (<M_LionC>,
--- <M_Gardener>). One [MXBOSS] line a fix. When EVE stands within ARENA of a boss point for WAIT s with no body there,
--- one line says so and that coop mxiii boss spawns one; that command is the key-0 fallback: coop lion's or coop
--- gardener fight's own spawn, with no spawn row (no saved death, no zone storage). It is never automatic: a boss killed
--- in an earlier session stays dead through its row's SaveType, and an automatic spawn would bring it back at every
--- visit. The Stalker is a plain row-backed character and needs neither: it is listed for its death alone. A body of the
--- three seen near its point is followed wherever it goes, and its death (not standing, no controller; a dying body
--- loses its controller at once) sets Boss.dead[row] and logs one line; matrix13/quest/zone_talks.lua reads that. A body
--- that disappears without that read (a camp rest resets the zone) counts as no death. The fallback Lion has no spawn
--- row, so no EventOnDead: its death read here fires the row's three events that enable the fan levers
+-- DLC02_20_E_CharS_904, the mxspawn batch; matrix13/world/travel.lua ticks this file). cut/enemies/enemy.lua fixes only
+-- the bodies its own spawn call made, so in world 2800, once a second, this file looks for a body of each boss's
+-- blueprint within NEAR of its spawn point and fixes it once: the Lion through cut/enemies/lion.lua's adopt (the anim
+-- instance its mesh lacks, else the hidden Behemoth leader), the Gardener's mesh turned -90 degrees about its root (its
+-- skeleton faces +Y). While a boss it fixed lives, the boss bar's name reads its name instead of the row name
+-- (<M_LionC>, <M_Gardener>). One [MXBOSS] line a fix. When EVE stands within ARENA of a boss point for WAIT s with no
+-- body there, one line says so and that coop mxiii boss spawns one; that command is the key-0 fallback: coop lion's or
+-- coop gardener fight's own spawn, with no spawn row (no saved death, no zone storage). It is never automatic: a boss
+-- killed in an earlier session stays dead through its row's SaveType, and an automatic spawn would bring it back at
+-- every visit. The Stalker is a plain row-backed character and needs neither: it is listed for its death alone. A body
+-- of the three seen near its point is followed wherever it goes, and its death (not standing, no controller; a dying
+-- body loses its controller at once) sets Boss.dead[row] and logs one line; matrix13/quest/zone_talks.lua reads that. A
+-- body that disappears without that read (a camp rest resets the zone) counts as no death. The fallback Lion has no
+-- spawn row, so no EventOnDead: its death read here fires the row's three events that enable the fan levers
 -- (CreateSBZoneEvent kind 10, as the row's ZoneEventTable rows say [inference: never run on these]).
 local U=require('core.unreal')
 local N=require('core.player')

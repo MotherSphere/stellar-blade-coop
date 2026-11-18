@@ -787,7 +787,7 @@ function Link.new(folder,fs)
                 and not line:find('^life=')
                 and not line:find('^bike_of=') -- bike/others.lua logs what it does with each.
                 and not line:find('^night=') -- nightop/run.lua logs each night line itself.
-                -- Their spawns= moves with every enemy; core/enemy.lua logs what it reads for each.
+                -- Their spawns= moves with every enemy; cut/enemies/enemy.lua and core/enemy.lua log what they read.
                 and not line:find('^lion=') and not line:find('^gardener=') and not line:find('^tendril=')
                 and not line:find('^bolt=') and not line:find('^mxiii=')
                 -- Its sent= and received= move with each position of a shared scene; the native log has its events.

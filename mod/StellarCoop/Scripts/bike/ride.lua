@@ -173,7 +173,7 @@ end
 -- (her bike line to the link, link.bike: true once written; nil without the link); camp(world, metres)
 -- (group/travel.lua's camp_near, nil without the link); fetch (bike/fetch.lua's, nil without the link);
 -- game_text(key, table) (SB's text for a string table's key in the game's language, nil when unread or with
--- ui_language=english).
+-- ui_language=english); drove() (race/drive.lua's active: whether the races' drive runs).
 function Ride.new(o)
     local log,ask,status,drive=o.log,o.ask,o.status,o.drive
     local none={save=function() end,load=function() end,clear=function() end}

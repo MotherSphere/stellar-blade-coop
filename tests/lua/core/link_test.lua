@@ -1287,7 +1287,7 @@ files[STATUS]=HEAD..'friend=1 0 Kaanta\nsky=cycle h=12.00 el=65.0 le=65.0 ly=0.0
     ..'ev=0.00 tint=1.00,1.00,1.00 n=114 lit=20 seen=1\n'
 for _,line in ipairs(fresh.changes()) do assert(not line:find('^sky='),'sky= stays out of the log') end
 -- coop lion's line, coop gardener fight's, coop tendril fight's, the Shock Bolt's and coop mxiii's too: their spawns=
--- moves with every enemy that spawns or goes, and core/enemy.lua logs what it reads for each.
+-- moves with every enemy that spawns or goes; cut/enemies/enemy.lua and core/enemy.lua log what they read.
 files[STATUS]=HEAD..'friend=1 0 Kaanta\nlion=rows added=78/78 asks=1 spawns=7 char=2/2 skills=15/15 stance=1/1\n'
     ..'gardener=waiting added=0/13 asks=0 spawns=7 why=busy ticks=2\ntendril=off\n'
     ..'bolt=rows added=4/4 asks=1 spawns=7 char=0/0 skills=1/1 stance=0/0\n'

@@ -7,7 +7,7 @@
 -- nothing while the world's time stands still, nor under root motion; the drift keys (a change logged, a read that
 -- fails said once, no controller this frame skips this frame only); a stance push undone at the next 250 ms; off writes the values back on that EVE only, and
 -- clears the file; a failing write keeps it; the next Lua load's restore; the probe's two feeds and its free drive;
--- coop race drive's words; and the bike's drive with its own model, lean and pitch, the probe and its off refused.
+-- coop race drive's words; the probe and its off refused while EVE rides the bike (riding()).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local function fname(t) return {type=function() return 'FName' end,ToString=function() return t end} end
 FName=fname

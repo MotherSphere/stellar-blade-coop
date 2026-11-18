@@ -1,10 +1,10 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- A cut monster spawned as a real enemy to fight, on the game thread: the flow coop lion (cut/enemies/lion.lua), coop
--- gardener fight (cut/enemies/gardener.lua) and coop tendril fight (cut/enemies/tendril.lua) share, each giving its own
--- spec (coop mxiii, matrix13/world/travel.lua, uses its rows part only, as do the Night Operation shop's cut items, its
--- Shock Bolt and its screen, through cut/enemies/lion.lua). The monster's rows
+-- A cut monster spawned as a real enemy to fight, on the game thread: the flow coop lion, coop gardener fight and coop
+-- tendril fight shared until November 2026, when they took their own copy (cut/enemies/enemy.lua). This file stays
+-- for the row batches of matrix13/world/travel.lua, matrix13/quest/on_time.lua and lobby/halls_rows.lua, which use
+-- its rows part only. The monster's rows
 -- are a batch of the native part (lion/rows.h, lion/lion_game.inc: SB's own AddRow on the game thread with no
 -- logic task in flight). This file finds the tables the spec's rows go into (of the native part's 39) by their fixed
 -- paths and sends their addresses (the spec's "<word> rows" request: no console word reaches an address), so a table
