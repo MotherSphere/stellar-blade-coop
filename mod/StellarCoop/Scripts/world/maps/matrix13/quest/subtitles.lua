@@ -39,14 +39,13 @@
 -- - Our own sequence: a rewritten window tells scene.lua the talk plays (alive), and a talk refused because a talk's
 --   own sequence still plays gets no fallback (failed): the kit would show its lines under SB's.
 -- - Lines of a caller (play_lines()): the zone talks of world/maps/matrix13/quest/zone_talks.lua, as a talk with the
--- sequence and
---   windows of the talk with the fewest windows that holds them all (Subtitles.borrow: arrival 9, finale 19, prologue
---   21) and the same fallbacks, its kit lines 3 s at least; the Stop row ends the theater after the last line, and a
---   theater or sequence that ends before it ends as failed, so the caller plays it again. cut() ends one that waits
---   for its theater or plays through it (the Stop row, done('cut'), then its windows blanked until the scene ends): the
---   theater lets EVE walk only, so the caller cuts it when a fight starts; one whose Stop row was sent is ending
---   already and gets no second one. One on the sequence with no theater runs on through a fight: with no Stop row,
---   ending it would leave SB's own lines of the borrowed sequence on screen. More lines than 21: the kit version.
+--   sequence and windows of the talk with the fewest windows that holds them all (Subtitles.borrow: arrival 9, finale
+--   19, prologue 21) and the same fallbacks, its kit lines 3 s at least; the Stop row ends the theater after the last
+--   line, and a theater or sequence that ends before it ends as failed, so the caller plays it again. cut() ends one
+--   that waits for its theater or plays through it (the Stop row, done('cut'), then its windows blanked until the scene
+--   ends): the theater lets EVE walk only, so the caller cuts it when a fight starts; one whose Stop row was sent is
+--   ending already and gets no second one. One on the sequence with no theater runs on through a fight: with no Stop
+--   row, ending it would leave SB's own lines of the borrowed sequence on screen. More lines than 21: the kit version.
 -- - The kit-only lines (lines()): on the kit with no theater and no sequence, so nothing blocks EVE's input. Each
 --   line lasts its window or 3 s, or its reading time; a line that ends while the caller's gate is shut hides the kit's
 --   group and the next waits for the gate (the kit version of play_lines() too). A speaker that is no StringTable_Seq

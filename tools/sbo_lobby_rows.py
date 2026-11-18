@@ -5,9 +5,8 @@
 """Writes two files from data/sbo-lobby.json: mod/StellarCoop/Scripts/online/lobby/sbo_maps.lua, the five hall lobby
 maps online/lobby/sbo.lua sends SBO match players to, with their world and zone rows' names and IDs, the 8 arrival
 spots, the seats with their ZoneEnvSpawnTable rows' names and IDs, the terminal, the menu camera and the fence; and
-native/src/online/lobby/halls_rows.h,
-the native part's halls batch (rows/rows.h): the five world rows, the five zone rows, then
-one ZoneEnvSpawnTable row per kept seat (online/lobby/halls_rows.lua reads them back).
+native/src/online/lobby/halls_rows.h, the native part's halls batch for the row engine of rows/rows.h: the five world
+rows, the five zone rows, then one ZoneEnvSpawnTable row per kept seat (online/lobby/halls_rows.lua reads them back).
 
   python3 -I tools/sbo_lobby_rows.py          write both files
   python3 -I tools/sbo_lobby_rows.py --check  exit 1 when either file differs from what the data gives

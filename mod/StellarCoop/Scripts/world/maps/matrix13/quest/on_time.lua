@@ -12,31 +12,29 @@
 -- 4 (M05, which this file completes), and telling Lily (M06), when her row returns as "About Matrix 13" and plays the
 -- end talk. The pieces, in order:
 -- - The signal rows (world/maps/matrix13/signal_rows.h's kSignalRecipe, through core/enemy.lua's rows flow and read
--- back): both quests' rows
---   (8 target filters, 7 tasks, 7 groups, the two quests), then Lily's borrowed choice row TS_GoToTest_2 patched in
---   place (the game's own Phase 5 condition Xion_10_Condition_051, shown or hidden, priority 3, her goodbye's exec).
---   Only with the test pak (looked for once a Lua load), since nothing else can use them and no row has gone into these
---   tables in game yet: at the title while the game uses the co-op save files (title(), core/enemy.lua's title_batch),
---   so a co-op save that holds a quest loads with it; on a co-op save in game they are asked, or read back when already
---   in, once a Lua load (also after a title batch that a shut gate refused), too late for a save that holds a quest.
---   They stay for the game run, and nothing goes on until they read back.
+--   back): both quests' rows (8 target filters, 7 tasks, 7 groups, the two quests), then Lily's borrowed choice row
+--   TS_GoToTest_2 patched in place (the game's own Phase 5 condition Xion_10_Condition_051, shown or hidden, priority
+--   3, her goodbye's exec). Only with the test pak (looked for once a Lua load), since nothing else can use them and no
+--   row has gone into these tables in game yet: at the title while the game uses the co-op save files (title(),
+--   core/enemy.lua's title_batch), so a co-op save that holds a quest loads with it; on a co-op save in game they are
+--   asked, or read back when already in, once a Lua load (also after a title batch that a shut gate refused), too late
+--   for a save that holds a quest. They stay for the game run, and nothing goes on until they read back.
 -- - The words (world/maps/matrix13/quest/text.lua), once the rows read back: both quests' titles and descriptions, the
--- 7 group
---   lines, On Time's task lines 1 to 5 and her choice's first label, as FText in the game's language, each row checked first
---   and read back (core/row_edit.lua's edit). The prologue's task and M06's keep the shipped "Talk to Lily" line.
+--   7 group lines, On Time's task lines 1 to 5 and her choice's first label, as FText in the game's language, each row
+--   checked first and read back (core/row_edit.lua's edit). The prologue's task and M06's keep the shipped "Talk to
+--   Lily" line.
 -- - The quest unit's reads (story/quests/own.h): none until signal watch, asked once a Lua load when the cheap gates
--- hold (a
---   co-op save, solo, the test pak, the rows read back), so no player without the pak calls SB's quest unit getter.
+--   hold (a co-op save, solo, the test pak, the rows read back), so no player without the pak calls SB's quest unit
+--   getter.
 -- - The prologue: once Quest_Epic_11 is at M04 in progress, with neither quest held, every gate holding, the game not
 --   paused and none of its screens shown for QUIET s, and no theater of the game playing (read once then): signal
 --   prologue, once a Lua load. A save that already holds On Time never gets it.
 -- - Her list (online/modes/nightop/roxanne.h's lily swap: lily on, lily off): on while every gate holds (the cheap
--- ones, the words
---   written, the quest unit read, Quest_Epic_12 not held, Quest_Sub_005 complete: while it runs Lily can show six rows
---   of her own, every slot of the choice box, so ours would make a seventh) and either the prologue is at its task
---   (label L) or On Time is at M06's task (label L2, written into the row when the wanted label changes); off as soon
---   as one fails; asked again every ASK_EVERY s while the native part reads otherwise. A load (slot none or unknown)
---   changes nothing. The game's condition on the row hides it outside Phase 5 by itself.
+--   ones, the words written, the quest unit read, Quest_Epic_12 not held, Quest_Sub_005 complete: while it runs Lily
+--   can show six rows of her own, every slot of the choice box, so ours would make a seventh) and either the prologue
+--   is at its task (label L) or On Time is at M06's task (label L2, written into the row when the wanted label
+--   changes); off as soon as one fails; asked again every ASK_EVERY s while the native part reads otherwise. A load
+--   (slot none or unknown) changes nothing. The game's condition on the row hides it outside Phase 5 by itself.
 -- - The pick, read from the select widgets as Roxanne's (core/picks.lua's watcher), only while her list reads
 --   on: the talk player armed (its hook in place for her goodbye), then the talk: once a theater of the game plays
 --   (her goodbye; looked for every 0.5 s, the talk player waits for its end), 0.5 s after one of its screens closed,
