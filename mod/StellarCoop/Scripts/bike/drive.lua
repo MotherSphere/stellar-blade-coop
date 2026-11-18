@@ -8,9 +8,10 @@
 -- keeps its model.
 -- Her movement component's MaxAcceleration, GroundFriction, BrakingDecelerationWalking and BrakingFrictionFactor go to
 -- 0 meanwhile, so her movement neither accelerates, brakes nor turns the velocity it is given: each frame the model's
--- velocity reaches it as an impulse (or, with coop race drive feed struct, a write of its Velocity), and her yaw is the
--- model's heading. Floor, walls, slopes and gravity stay the game's. Nothing moves while the world's time stands still
--- (the pause menu): impulses would pile up. A dodge or a hit (root motion) holds the model and writes nothing.
+-- velocity reaches it as an impulse and her yaw is the model's heading. coop race drive feed struct, which writes the
+-- Velocity instead, sets the races' copy only: this copy's feed stays the impulse. Floor, walls, slopes and gravity
+-- stay the game's. Nothing moves while the world's time stands still (the pause menu): impulses would pile up. A dodge
+-- or a hit (root motion) holds the model and writes nothing.
 -- The four values are kept in coop-drive.txt before they change and written back at every end (our result, quit, a
 -- DNF, coop off, a map change, a Lua error), or by the next Lua load (Ctrl+R) when this one could not. That and the
 -- velocity and yaw are all it writes, on the player's own EVE: never a pawn spawned or possessed, never a save.

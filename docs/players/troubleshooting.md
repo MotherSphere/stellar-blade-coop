@@ -337,8 +337,8 @@ mod could not read the file, so check the two lines by hand.
 
 A Lua error escaped one part of the mod. The name before the colon says which (`lion`, `race`, `menu`, `ghost`...).
 The message follows the parenthesis, and the `stack traceback:` lines under it give the script and the line
-(`cut/lion.lua:<line>: in ...`). Each call of that part logs its first error once until the next Lua load (game start
-or Ctrl+R), even when the error comes back every frame, so the same name can show more than once. The other parts
+(`cut/enemies/lion.lua:<line>: in ...`). Each call of that part logs its first error once until the next Lua load (game
+start or Ctrl+R), even when the error comes back every frame, so the same name can show more than once. The other parts
 keep running, and the named part is still called at each pass, so it can recover by itself. If it stays broken, a Lua
 reload builds it again. Send `UE4SS.log` either way.
 

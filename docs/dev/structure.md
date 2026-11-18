@@ -66,7 +66,9 @@ modules put through it.
   `require('main.loader').get(M,'<module>','<field>')`. Its manifest lists that module in `uses`.
 - An off module's exports are stubs that return nothing. Each late read says what nothing means for it (no run, no
   ghost, not riding), or guards it with the reader's own answer for "absent", such as a refusal.
-- A module sets only its own exports.
+- A module sets only its own exports. The one exception is the runtime's `aside_note` (declared in `main/base.lua`),
+  which partner sets for the crash sentinel's notice. `RUNTIME_SET_BY` in `tests/tools/modules_test.py` lists it; a new
+  exception goes there too, or rule R5 fails.
 - Natively, no header, part or test of a module folder includes another module's header or names its declarations; no
   part uses a name that another module's part defines.
 
@@ -109,7 +111,8 @@ What `main/loader.lua` does with each field:
 
 A `require`, a `new` or a build step that raises turns that module off until the mod reloads. Its exports go back to
 the stub and its words leave `M.commands`. `UE4SS.log` gets one line, `<module>: off until the mod reloads: <error>`,
-then the traceback. A notice in the menu's language names the module by its name in `T.<culture>.modules`.
+then the traceback. With the Steam link, the 250 ms loop (`main/pass.lua`) also says a notice in the menu's language
+that names the module by its name in `T.<culture>.modules`. Without the link, the log line is all there is.
 
 ## Adding a module
 

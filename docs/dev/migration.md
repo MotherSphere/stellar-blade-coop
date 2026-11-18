@@ -3,6 +3,7 @@
 Between `38bd9dfe` and `8da078ab` the code moved into one folder per module with no links between modules.
 `main.lua`, `ui/text.lua` and `native/src/link/core.h` were split into smaller files. Behaviour did not change, except
 that a module that fails to load is now off alone and one message of the save check names `docs/players/saves.md`.
+The bike's copy of the races' drive also keeps its own feed and drift-key state (see [Copies](#copies)).
 
 ## Merging
 
@@ -231,11 +232,15 @@ says whose copy it is. Paths are under `mod/StellarCoop/Scripts/`.
 | `core/enemy.lua` (before: `cut/enemy.lua`), whole | `cut/enemies/enemy.lua` | `tests/lua/core/enemy_test.lua` copied to `tests/lua/cut/enemies/enemy_test.lua` |
 | `bike/ride.lua`'s `find_part` with `Ride.MESH`, `Ride.TAG`, `SKINNED`, `path_of`, `her` | `partner/bike_part.lua` | new: `tests/lua/partner/bike_part_test.lua` |
 | The Lion's and the Gardener's row batch expressions of `cut/enemies/lion.lua` and `cut/enemies/gardener.lua` | `matrix13/world/travel.lua`'s `BATCHES` | `tests/lua/matrix13/world/travel_test.lua` |
-| `commands/session.lua`'s `join` | `lobby/commands.lua`'s local `join`, for `coop match join` | none |
+| `commands/session.lua`'s `join` | `lobby/commands.lua`'s local `join`, for `coop match join` | new: `tests/lua/lobby/commands_test.lua` |
 
 Section 9 of `tests/lua/race/drive_test.lua`, which drove `bike/model.lua` through the race's drive, is now only in
 the bike's copy, `tests/lua/bike/drive_test.lua`. The race's section 9 now checks that `coop race drive probe` and
 `coop race drive off` are refused while EVE rides.
+
+The two drives no longer share their state. `coop race drive feed struct` sets the races' drive only: the bike's feed
+stays `impulse`, so a fork that tested the bike's feed through that command sees no change. A failed drift-key read
+latches in the copy that read it.
 
 A fork's fix to `race/drive.lua`, `race/drive_model.lua` or the Doro pick goes to both copies when it concerns both. A
 fix to `cut/enemy.lua` goes to `core/enemy.lua` when it concerns the row batches of the lobby or Matrix XIII, to
