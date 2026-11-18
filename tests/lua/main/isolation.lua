@@ -4,15 +4,15 @@
 -- The load-failure test each module's tests/lua/<module>/off_test.lua runs with its name (not a test file itself):
 -- with the main tests' fixture, the module's require, the start of its new, the end of its new and each step of its
 -- build raise in turn. Each time main.lua loads; the console handler, both loops and the key binds are registered;
--- the log has that module's off line and no other's, and every other module is on (its exports are not the stub);
+-- the log has that module's off line and no other's; every other module is on (its exports are not the stub);
 -- three frames and four passes, then a linked session in a world with the UI up for a frame and two passes, run with
 -- no raised error and no "error (logged once" line; each key bind and each hook, called once, raise nothing; coop ui
--- reset and coop off raise nothing, and coop off still asks the native part off; no line reads "OK: nil" or
+-- reset and coop off raise nothing; coop off still asks the native part off; no line reads "OK: nil" or
 -- "STOP: nil"; a pass with the kit ready says the notice with the module's English name; each late read with a guard
--- in its reader's wiring.lua gives a refusal while the module it reads is off; coop status runs. The same run with
--- every module on comes first, with the same checks and no off line. For bike, one more case: with bike off and the
--- tagged bike part of an earlier Lua load on EVE, the capture's leave_out gives that part's address (partner's copy),
--- so the ghost never shows a bike while EVE does not ride.
+-- in its reader's wiring.lua (the menu's in main/ui.lua) gives a refusal while the module it reads is off; coop status
+-- runs. The same run with every module on comes first, with the same checks and no off line. For bike, one more case:
+-- with bike off and the tagged bike part of an earlier Lua load on EVE, the capture's leave_out gives that part's
+-- address (partner's copy), so the ghost never shows a bike while EVE does not ride.
 local real_print=print
 dofile('tests/lua/main/fixture.lua')
 local Loader=require('main.loader')
@@ -21,12 +21,18 @@ local M -- main.lua's state table, as main.lua hands it to the loader.
 local run=Loader.run
 Loader.run=function(state,list) M=state; return run(state,list) end
 local MODULES -- main.lua's list.
+local menu -- The co-op menu's options, as main/ui.lua builds it (ui/kit/menu.lua).
+local Menu=require('ui.kit.menu')
+local menu_new=Menu.new
+Menu.new=function(o) menu=o; return menu_new(o) end
 local START={status_text=status_text,link_mode=link_mode,chatting=chatting,friend_linked=friend_linked,
     in_world=in_world,at_title=at_title,settings_text=settings_text}
--- The late reads with a guard in their reader's wiring.lua, by the module they read: while it is off, a refusal.
+-- The late reads with a guard in their reader's wiring.lua (the menu's in main/ui.lua), by the module they read: while
+-- it is off, a refusal.
 local GUARDED={['cut.enemies']={function() return nr.o.rows(function() end,'buy') end,
         function() return cs.o.rows(function() end) end},
     group={function() return nr.o.revive('Kaanta') end},
+    session={function() return menu.sessions.open() end}, -- The menu's Find a session row.
     ['cut.scenes']={function() return ts.o.scene.talk('Sequence',{}) end},
     nightop={function() return sb.o.recruiter.run() end},
     ['cut.eve']={function() return sb.o.emote.sit('chair') end}}
@@ -36,7 +42,7 @@ local function count(list,pattern)
     for _,line in ipairs(list) do if tostring(line):find(pattern,1,true) then n=n+1 end end
     return n
 end
--- One load with name broken as how says (nil: every module on), and every check above.
+-- One load with name broken as how says (nil: every module on), then every check above.
 local function case(name,how)
     local at=(name or 'every module on')..', '..(how or 'nothing broken')
     for k,v in pairs(START) do _G[k]=v end

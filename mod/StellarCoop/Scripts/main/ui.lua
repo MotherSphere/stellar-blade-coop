@@ -30,10 +30,14 @@ if M.settings then
                 or M.saves_ui.is_open() or M.open_screen()~=nil
         end})
     require('main.loader').build(M,'session','sessions',Ui)
+    -- While the online sessions are off, Find a session's open refuses: the menu logs why.
     M.menu=require('ui.kit.menu').new({kit=M.kit,link=M.link,settings=M.settings,look=M.look,
         puppet=require('main.loader').view(M,'puppet'),run=M.run,log=log,version=M.VERSION,
         chat=require('main.loader').view(M,'box'),code=require('main.loader').view(M,'code_box'),guide=M.guide,
-        sessions=require('main.loader').view(M,'sessions')})
+        sessions=setmetatable({open=function(...)
+            if M.off_modules.session then return false,'online sessions are off until the mod reloads' end
+            return M.sessions.open(...)
+        end},{__index=require('main.loader').view(M,'sessions')})})
     require('main.loader').build(M,'session','create',Ui)
     require('main.loader').build(M,'save','saves',Ui)
     require('main.loader').build(M,'lobby','screens',Ui)
