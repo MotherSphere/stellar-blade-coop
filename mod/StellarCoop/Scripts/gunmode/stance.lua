@@ -14,7 +14,7 @@ local function valid(o)return o and o:IsValid() end
 -- stop(), running()}.
 function Stance.new(laser)
  local grip={Translation={X=-2.110698699951172,Z=2.090805768966675,Y=-6.265880107879639},Rotation={X=-0.4851755201816559,W=-0.5130578875541687,Z=-0.4808891713619232,Y=-0.5197325944900513},Scale3D={X=1.000000238418579,Z=1.0000001192092896,Y=1}}
- local stop,frame
+ local stop,frame,reloadFn
  local owned={} -- gun mode: the parts of the stance running now.
  local function begin(pc,held_fn,beam_target,turn,torso,camAnchor,chestFix,aimNative,upright) -- gun mode: turn false leaves EVE's facing to
   -- the game; torso (0 to 1): how much her spine takes the donor pose while aim is held; camAnchor: the arms along
@@ -41,6 +41,7 @@ function Stance.new(laser)
    if valid(src) then src:SetOwnerNoSee(hide);src.VisibilityBasedAnimTickOption=tick end
    for i=#parts,1,-1 do local c=parts[i];if valid(c) then c:K2_DestroyComponent(c) end end
    stop=nil
+   reloadFn=nil
   end
   local function component(kind,asset)
    local id={Rotation={X=0,Y=0,Z=0,W=1},Translation={X=0,Y=0,Z=0},Scale3D={X=1,Y=1,Z=1}}
@@ -66,8 +67,29 @@ function Stance.new(laser)
   gun:K2_AttachToComponent(body,hand,2,2,2,false);gun:K2_SetRelativeTransform(grip,false,{},true)
   local donor=component('SkeletalMeshComponent',src.SkeletalMesh)
   donor.VisibilityBasedAnimTickOption=0
-  donor:PlayAnimation(assert(LoadAsset('/Game/DLC_2/Art/Character/PC/CH_P_EVE_01/Animation/P_Eve_GunNikke_Hide.P_Eve_GunNikke_Hide')),false)
+  local hideAnim=assert(LoadAsset('/Game/DLC_2/Art/Character/PC/CH_P_EVE_01/Animation/P_Eve_GunNikke_Hide.P_Eve_GunNikke_Hide'))
+  donor:PlayAnimation(hideAnim,false)
   donor:Stop();donor:SetPosition(0,false)
+  -- gun mode: the reload. The donor plays the NIKKE squad's reload (P_Eve_GunNikke_Reload) at the rate that fits
+  -- the reload time, and her arms (and the rifle in her right hand) follow the donor's arms from its chest each frame
+  -- instead of the held hide pose; the rifle comes down from the aim while it plays. Then the hide pose again.
+  local reloading,reloadAt,reloadLen=false,0,1
+  reloadFn=function(on,duration)
+   if on then
+    local anim=LoadAsset('/Game/DLC_2/Art/Character/PC/CH_P_EVE_01/Animation/P_Eve_GunNikke_Reload.P_Eve_GunNikke_Reload')
+    if not anim then return false end
+    donor:PlayAnimation(anim,false)
+    local len=0
+    pcall(function() len=anim:GetPlayLength() end)
+    if len>0 and duration and duration>0 then pcall(function() donor:SetPlayRate(len/duration) end) end
+    reloading,reloadAt,reloadLen=true,os.clock(),(duration and duration>0) and duration or 1
+   elseif reloading then
+    reloading=false
+    pcall(function() donor:SetPlayRate(1) end)
+    donor:PlayAnimation(hideAnim,false);donor:Stop();donor:SetPosition(0,false)
+   end
+   return true
+  end
    local leftElbowAngle=12
    local function turnLeftElbow(shoulder,elbow,wrist,right)
     local a,b,c=shoulder.Translation,elbow.Translation,wrist.Translation
@@ -142,6 +164,7 @@ function Stance.new(laser)
     for i,b in ipairs(aimBones) do coverOffsets[i]=mathlib:MakeRelativeTransform(donor:GetSocketTransform(b,0),ref) end
    end
    local held=held_fn() -- gun mode: RMB / LT (and Luke's Alt, Ctrl), from gunmode/mode.lua.
+   if reloading then held=false end -- gun mode: the rifle comes down to reload (her arms then follow the donor's).
    -- gun mode (aimNative): while aim is held the game's own animation shows (the aim stance's upper body made the
    -- NIKKE rifle's by gunmode/data.lua): her real body visible, the rifle on its right hand, nothing posed; the
    -- posed copy comes back when aim is let go.
@@ -162,7 +185,8 @@ function Stance.new(laser)
     end
    end
    local cam=pc.PlayerCameraManager:GetCameraRotation()
-   if held and turn then local r=pawn:K2_GetActorRotation();pawn:K2_SetActorRotation({Pitch=r.Pitch,Yaw=cam.Yaw,Roll=r.Roll},false) end
+   local turnNow=turn; if type(turn)=='function' then turnNow=turn() end -- gun mode: turn may be a test
+   if held and turnNow then local r=pawn:K2_GetActorRotation();pawn:K2_SetActorRotation({Pitch=r.Pitch,Yaw=cam.Yaw,Roll=r.Roll},false) end
    local pitch=(cam.Pitch+180)%360-180
    aimBlend=math.max(0,math.min(1,aimBlend+(held and 0.08 or -0.06)))
    local right=pawn:GetActorRightVector()
@@ -201,11 +225,28 @@ function Stance.new(laser)
       if aimBlend>0 and #spineRel>0 then
        local keep={}
        for i,b in ipairs(headBones) do keep[i]=src:GetSocketTransform(b,0) end
+       -- Her neck from her Spine2 as the copied pose has it, so the upright chest can be moved to meet her real
+       -- neck: a neck pinned to her real one alone stretched while the two differed (03:38, as the aim came up).
+       local top=spineBones[#spineBones]
+       local neckRel=#headBones>0 and top and mathlib:MakeRelativeTransform(body:GetBoneTransformByName(headBones[1],0),
+        body:GetBoneTransformByName(top,0))
+       local goals={}
        for i,b in ipairs(spineBones) do
         local goal=mathlib:ComposeTransforms(spineRel[i],frame)
         if aimBlend<1 then goal=mathlib:TLerp(body:GetBoneTransformByName(b,0),goal,aimBlend,0) end
-        body:SetBoneTransformByName(b,goal,0)
+        goals[i]=goal
        end
+       if neckRel and #goals>0 then
+        local want=keep[1].Translation
+        local got=mathlib:ComposeTransforms(neckRel,goals[#goals]).Translation
+        local dx,dy,dz=want.X-got.X,want.Y-got.Y,want.Z-got.Z
+        for i=1,#goals do
+         local w=i/#goals
+         local t=goals[i].Translation
+         goals[i].Translation={X=t.X+dx*w,Y=t.Y+dy*w,Z=t.Z+dz*w}
+        end
+       end
+       for i,b in ipairs(spineBones) do body:SetBoneTransformByName(b,goals[i],0) end
        for i,b in ipairs(headBones) do body:SetBoneTransformByName(b,keep[i],0) end
       end
      end
@@ -347,6 +388,23 @@ function Stance.new(laser)
        gun:K2_SetRelativeTransform(grip,false,{},true)
       end
      end
+     -- gun mode: the reload. Her arms take the donor's, from a frame at its chest turned only to its facing (its
+     -- spine turns in the NIKKE squad's reload, and arms taken from the chest itself held the rifle out to her
+     -- right), put at her chest turned to her facing; eased in and out over the first and last 15 % of the reload.
+     if reloading then
+      local t=(os.clock()-reloadAt)/reloadLen
+      local w=math.max(0,math.min(1,t/0.15,(1-t)/0.15))
+      if w>0 then
+       local dRef=mathlib:MakeTransform(donor:GetSocketLocation(tip),{Pitch=0,Yaw=donor:K2_GetComponentRotation().Yaw,Roll=0},{X=1,Y=1,Z=1})
+       local bRef=mathlib:MakeTransform(body:GetBoneTransformByName(tip,0).Translation,{Pitch=0,Yaw=src:K2_GetComponentRotation().Yaw,Roll=0},{X=1,Y=1,Z=1})
+       for _,b in ipairs(aimBones) do
+        local goal=mathlib:ComposeTransforms(mathlib:MakeRelativeTransform(donor:GetSocketTransform(b,0),dRef),bRef)
+        if w<1 then goal=mathlib:TLerp(body:GetBoneTransformByName(b,0),goal,w,0) end
+        body:SetBoneTransformByName(b,goal,0)
+       end
+       gun:K2_SetRelativeTransform(grip,false,{},true)
+      end
+     end
      src:SetOwnerNoSee(true);body:SetVisibility(true,false);gun:SetVisibility(true,false)
      if held then
       if not beam then beam,finish=laser(pawn,gun,mathlib) end
@@ -357,11 +415,13 @@ function Stance.new(laser)
  end
  local self={}
  function self.start(pc,held_fn,beam_target,turn,torso,camAnchor,chestFix,aimNative,upright)
-  return begin(pc,held_fn,beam_target,turn~=false,torso,camAnchor,chestFix,aimNative,upright)
+  return begin(pc,held_fn,beam_target,type(turn)=='function' and turn or turn~=false,torso,camAnchor,chestFix,aimNative,upright)
  end
  -- gun mode: the posed copy of her body (her hair and face can follow it), or nil.
  function self.body() return owned[1] end
  function self.frame() if frame then frame() end end
+ -- gun mode: the reload animation on (for duration s) or off; false if it could not start.
+ function self.reload(on,duration) if reloadFn and frame then return reloadFn(on,duration) end return false end
  function self.stop() if stop then stop() end end
  function self.running() return frame~=nil end
  -- gun mode: whether component c is one of the stance's own (its poseable body and rifle, the donor).
