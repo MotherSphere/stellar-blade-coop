@@ -106,7 +106,7 @@ function GunMode.new(env)
     function g.stance(p) return g.try(function() return p:GetCurrentStanceName():ToString() end) end
     local aim,view=Aim.new(g),View.new(g)
     local laser=Laser.new(g)
-    local data=Data.new(g,set.fire_effect or nil)
+    local data=Data.new(g,set.fire_effect)
     local pose=Pose.new(g,cfg.laser and laser or nil)
     local keys=Input.state()
     local self={}
@@ -411,7 +411,9 @@ function GunMode.new(env)
         end
         if inp.roll and not s.roll_back and now>=s.roll_ready then
             s.roll_back,s.since=now+cfg.roll_time,now -- The guards stay quiet during the roll.
-            later(1,function() if s.on then fire_row(Rows.one(s.ns,'GunOff')); fire_row(Rows.one(s.ns,'PosOff')) end end)
+            later(1,function()
+                if s.on then fire_row(Rows.one(s.ns,'GunOff')); fire_row(Rows.one(s.ns,'PosOff')) end
+            end)
         end
         local standing=not s.crouched
         if (standing and inp.fire) or (inp.fire_ctrl and not s.firing) then
@@ -471,7 +473,10 @@ function GunMode.new(env)
         local standing=not s.crouched and not s.roll_back
         if standing and aim.mode0 and now-t.cam>=2.0 then t.cam=now; pcall(aim.camera_on,cfg.cam_offset) end
         if s.crouched and now-t.mode>=0.25 then t.mode=now; pcall(aim.crouch_tick)
-        elseif standing and now-s.since>1.5 and now-t.mode>=1.0 then t.mode=now; pcall(aim.stand_tick,function() fire_row(Rows.one(s.ns,'GunOn')) end) end
+        elseif standing and now-s.since>1.5 and now-t.mode>=1.0 then
+            t.mode=now
+            pcall(aim.stand_tick,function() fire_row(Rows.one(s.ns,'GunOn')) end)
+        end
         pcall(empty_check,p,now)
         if cfg.keep_hud and now>=s.hud_at then
             s.hud_at=now+1.5

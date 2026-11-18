@@ -6,9 +6,10 @@ shooter. It is experimental: it has been played on one PC only, not yet between 
 ## What you need
 
 Gun mode runs on SBO alone: no Survival Protocol and no data pak. While it is on, it borrows a few of the game's own
-NIKKE mission rows (`EventActorEffectTable`) and points them at the NIKKE stage's effects, and it lets the NIKKE fire
-command shoot without checking the equipped bullet (`SkillCommandTable`, `SkillActiveStepTable`). Everything it changed
-goes back at the next map load, so the NIKKE missions find their rows as shipped.
+NIKKE mission rows (`EventActorEffectTable`) and points them at the NIKKE stage's effects, it starts the NIKKE shot
+from a spare effect (`EffectTable`), and it lets the shot fire without checking the equipped bullet
+(`SkillCommandTable`, `SkillActiveStepTable`). Everything it changed goes back at the next map load, so the NIKKE
+missions find their rows as shipped.
 
 One pak is optional:
 
@@ -25,7 +26,8 @@ and only that pak makes `gun_real_ammo` work.
 | Key | Pad | What it does |
 | --- | --- | --- |
 | G (`gun_key`) | A tap of D-pad Right | Gun mode on or off. Ctrl+G works too, so it can be left while aiming. A hold of D-pad Right is the bike's |
-| Ctrl+LMB | L2+R2 | Aim and fire, full auto at the crosshair. Standing hip fire (LMB alone) needs `gun_fire_effect=on` (a test setting) |
+| LMB | R2 | Standing: full auto at the crosshair |
+| Ctrl+LMB | L2+R2 | Crouched: aim and fire |
 | Caps Lock, Y | R3 | Crouch into the NIKKE cover kneel, or stand up again |
 | Shift | Circle | Roll: the rifle is lifted for EVE's own dodge, then comes back |
 
@@ -61,7 +63,7 @@ Gun mode reads five lines of `coop-settings.txt` itself:
 | `gun_mode` | `on`, `off` (no key, no hook, nothing) | `on` |
 | `gun_key` | One letter A to Z, or F1 to F12 but F10 | `G` |
 | `gun_pose` | `on`: standing with the posed arms and the muzzle laser (experimental); `off`: the stance's own animation | `off` |
-| `gun_fire_effect` | `on`: standing hip fire through an `EffectTable` row (a test: reading that table through UE4SS can crash the game); `off`: the rifle fires aimed | `off` |
+| `gun_fire_effect` | `on`: the standing shot, started through an `EffectTable` row; `off`: `EffectTable` is left alone and only the crouched aim fires | `on` |
 | `gun_real_ammo` | `on`: each shot spends one NIKKE round and gun mode ends when the bag is empty; `off`: unlimited | `off` |
 
 `gun_real_ammo=on` needs the real-ammo rows (`NGM_AE_RealAmmo` and its family) of a Survival Protocol pak built with

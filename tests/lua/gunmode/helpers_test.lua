@@ -37,7 +37,8 @@ do
     assert(names(Rows.on({real_ammo=false},'GM'))==table.concat(want,' '))
     assert(names(Rows.on({real_ammo=false},'NGM'))==
         'NGM_ItemA_Ammo NGM_AE_Reload NGM_AE_GunOn NGM_AE_Beta NGM_AE_Ammo NGM_AE_Peace')
-    assert(names(Rows.on({real_ammo=true},'NGM'))=='NGM_AE_Reload NGM_AE_GunOn NGM_AE_Beta NGM_AE_RealAmmo NGM_AE_Peace')
+    assert(names(Rows.on({real_ammo=true},'NGM'))==
+        'NGM_AE_Reload NGM_AE_GunOn NGM_AE_Beta NGM_AE_RealAmmo NGM_AE_Peace')
     local off=Rows.off('GM')
     assert(off[1][2]==Data.row('PeaceOff') and off[#off][2]=='CGH_data_E_ActorEff_003')
     assert(Rows.one('GM','Fire')[2]==Data.row('Fire'))

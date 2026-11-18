@@ -61,9 +61,11 @@ end
 local tables={
     EffectTable=datatable({M_Scarlet_CounterLinkStart={ID=5961071,ActionValue1=FNameOf('M_Scarlet_GroggyCounter')}}),
     EventActorEffectTable=datatable(eae_rows),
-    SkillCommandTable=datatable({P_Eve_GunNikke_ShootSlug1_1={CommandActionType=2},P_Eve_GunNikke_ShootSlug1_2={CommandActionType=2},
+    SkillCommandTable=datatable({P_Eve_GunNikke_ShootSlug1_1={CommandActionType=2},
+        P_Eve_GunNikke_ShootSlug1_2={CommandActionType=2},
         P_Eve_GunNikke_ShootSlug2_1={CommandActionType=5}}),
-    SkillActiveStepTable=datatable({P_Eve_GunNikke_ShootSlug1_1_Hit1={StepType=3},P_Eve_GunNikke_ShootSlug1_1_Cast1={StepType=1}}),
+    SkillActiveStepTable=datatable({P_Eve_GunNikke_ShootSlug1_1_Hit1={StepType=3},
+        P_Eve_GunNikke_ShootSlug1_1_Cast1={StepType=1}}),
 }
 local row=obj({DestTargetTransformType=1,DestTargetRelativeAxisType=1,DestTargetRelativeLocation={X=0,Y=0,Z=0}})
 local drone=obj({DestTargetTransformType=0,DestTargetRelativeAxisType=2})
@@ -119,7 +121,7 @@ M.new(env()).start()
 assert(#game_loops==0 and has('gun_mode=off'))
 
 -- 2. On (the pose on too, gun_pose=on): one game-thread loop; no standing pak noted.
-settings='gun_pose=on\ngun_fire_effect=on\n'
+settings='gun_pose=on\n'
 local gm=M.new(env())
 gm.start()
 assert(#game_loops==1 and has('NIKKE kneel only') and has('ready: G'))
@@ -131,12 +133,14 @@ run(T+4.5) -- Past the new-world pause a fresh controller would set.
 tap('G')
 local D=require('gunmode.data')
 local eff,eae=tables.EffectTable.rows,tables.EventActorEffectTable.rows
-assert(eff.M_Scarlet_CounterLinkStart.ActionValue1.s=='P_Eve_GunNikke_ShootSlug1_1')
-assert(eae[D.row('GunOn')].ActorEffectAlias.s=='P_Eve_GunNikke' and eae[D.row('Fire')].ActorEffectAlias.s==D.FIRE_EFFECT)
+assert(eff.M_Scarlet_CounterLinkStart.ActionValue1=='P_Eve_GunNikke_ShootSlug1_1') -- An FString: written as a string.
+assert(eae[D.row('GunOn')].ActorEffectAlias.s=='P_Eve_GunNikke')
+assert(eae[D.row('Fire')].ActorEffectAlias.s==D.FIRE_EFFECT)
 assert(D.row('Peace')=='Nikke_99_E_ActorEff_001' and eae[D.row('GunOff')].ActorEffectAlias.s=='P_Eve_GunNikke_Dispel')
 assert(tables.SkillCommandTable.rows.P_Eve_GunNikke_ShootSlug1_2.CommandActionType==5)
 assert(tables.SkillActiveStepTable.rows.P_Eve_GunNikke_ShootSlug1_1_Hit1.StepType==1)
-assert(table.concat(fired,' ',1,5)=='GM_AE_Reload GM_AE_GunOn GM_AE_Beta GM_AE_Ammo GM_AE_Peace',table.concat(fired,' '))
+assert(table.concat(fired,' ',1,5)=='GM_AE_Reload GM_AE_GunOn GM_AE_Beta GM_AE_Ammo GM_AE_Peace',
+    table.concat(fired,' '))
 assert(gm.state.on and pawn._stance=='P_Eve_GunNikkeHide')
 run(T+1.0)
 assert(count('GM_AE_PosOff')==1 and custom[#custom]=='off')
