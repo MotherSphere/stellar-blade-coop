@@ -30,7 +30,7 @@
 // ghost and the link go on. The job reaches the worker only through Mail (try_lock on the logic thread: it never waits,
 // allocates or writes a file); the worker turns its lines into channel 2's text and its events into the log.
 //
-// The synced photo mode's pause (game/photo_freeze.h) is the game thread's too: while the friend's photo mode asks for
+// The synced photo mode's pause (photo/photo_freeze.h) is the game thread's too: while the friend's photo mode asks for
 // it (the link's photo line) or coop freeze runs, coop_tick holds a pause tag of ours in SB's set through SB's own
 // pause-tag function, under its own SEH latch, and releases it on every way out, coop off included.
 //
@@ -38,7 +38,7 @@
 // HUD's set of hiding keys through SB's own keyed request, under its own SEH latch, and takes it out at hud hide off
 // and at coop off.
 //
-// The day/night cycle (game/sky.h, sky/daynight.lua): every 100 ms coop_tick reaches the world's WorldSettings through
+// The day/night cycle (sky/sky.h, sky/daynight.lua): every 100 ms coop_tick reaches the world's WorldSettings through
 // SB's player controller and writes the light of the shared clock's hour into SB's env array, from each element's own
 // values, under its own SEH latch; SB's blend does the per-frame work. Lua's sky request picks the map's horizon and
 // heading, a pinned hour or a hold; an off, coop off, SB's theater (a cutscene or a talk scene, in every mode) and the
@@ -46,7 +46,7 @@
 // state.
 //
 // The SBO lobby arrival's black (lobby/arrival.lua): at Lua's loading lift, coop_tick sets the lifetime of each
-// LoadingScreenFadeAuto entry of tag Load to 0 in SB's UI manager (game/loading.h), under its own SEH latch, so SB's
+// LoadingScreenFadeAuto entry of tag Load to 0 in SB's UI manager (lobby/loading.h), under its own SEH latch, so SB's
 // loading controller ends that black with its own end fade.
 //
 // Same-place enemies (stage 3a, fight/pilot.h), the owner's read half: each frame coop_tick takes the job's newest pair
@@ -111,12 +111,12 @@
 // The Xion guard's 12 texts (nightop/guard_text.h) are written on the game thread from Lua's guardtext request, under
 // their own SEH latch. coop off writes their Korean sources back.
 //
-// coop fly and coop slowmo (game/debug_keys.h): the worker hands over which of SB's two developer gates Lua asked for
+// coop fly and coop slowmo (cut/debug_keys.h): the worker hands over which of SB's two developer gates Lua asked for
 // (on a co-op save; slow motion with no friend linked); every 250 ms the game thread sets each wanted gate's byte in
 // SB's settings map and puts back the value from before once it is no longer wanted (an off, coop off, the next Lua
 // load), under its own SEH latch; the worker logs each change and says a refusal or a fault on screen. coop fly's level
 // flight swaps the two vtable slots of the player controller's input pass, once a run, for a hook that runs the pass
-// and then sets the flight key again while EVE flies with none held (game/debug_keys.h's Hold), under its own latch;
+// and then sets the flight key again while EVE flies with none held (cut/debug_keys.h's Hold), under its own latch;
 // the worker swaps them back at coop off and after a fault.
 //
 // The Lion's rows, the Gardener's, the Tendril's, the Shock Bolt's, Matrix XIII's, the Night Operation shop's and
@@ -170,9 +170,9 @@
 // opens the one asked with the game's own calls, under its own SEH latch, after coop off too (coop off asks off first);
 // the worker logs each answer.
 //
-// The teleport screen's extra tabs (game/region_tabs.h): the worker swaps one pointer of the game's image once a run, the
-// Region logic's vtable +0x30, for a hook that adds a record for each tab group/region_tabs.lua made, under its own SEH
-// latch, on the game thread. It swaps back at coop off and after a fault, and logs the first screen once.
+// The teleport screen's extra tabs (group/region_tabs.h): the worker swaps one pointer of the game's image once a run,
+// the Region logic's vtable +0x30, for a hook that adds a record for each tab group/region_tabs.lua made, under its own
+// SEH latch, on the game thread. It swaps back at coop off and after a fault, and logs the first screen once.
 //
 // The SBO lobby's Join (game/sbo.h): on Lua's sbo arm the worker swaps one pointer of the game's image once a run, the
 // ZoneEvent action's vtable +0x88, for a hook on the game thread that counts the action whose alias is the recruiter's
@@ -186,7 +186,8 @@
 // sbo warp makes SB's URL warp into a type-5 zone on the game thread, and the worker writes the record warping. While
 // the record reads warping or arrived, the game thread watches SB's loader each frame, under its own SEH latch: at
 // each type-5 arrival it resets EVE's effects and puts the match loadout on her with SB's own functions
-// (game/preset.h), and the worker writes the record arrived; 60 s after a warp with no arrival, the sbo line reads late.
+// (lobby/preset.h), and the worker writes the record arrived; 60 s after a warp with no arrival, the sbo line reads
+// late.
 // sbo leave writes the record leaving; the game thread puts the session copy back over the co-op save when it moved,
 // sets T and asks SB's own reload of the slot, watches it for 60 s and sets T again when the load left another; the
 // worker then closes the record. SB's own reload during a session is accepted the same way (sb running, then sb done).
@@ -195,11 +196,11 @@
 // reads sb record. coop off logs an open record and leaves it for C1: a job then running ends off with nothing
 // written, and only C1 runs after it.
 //
-// coop gift's inventory read (game/items.h) is the worker's alone: on Lua's items request it reads how many of one item
+// coop gift's inventory read (cut/items.h) is the worker's alone: on Lua's items request it reads how many of one item
 // our EVE carries through ReadProcessMemory, her GUID too, and status() puts the answer in the engine
 // line for cut/menus/mailbox.lua.
 //
-// The pad (game/pad.h): once a run the worker finds the twelve controller key names PadKeys reads, checks that Slate's
+// The pad (ui/pad.h): once a run the worker finds the twelve controller key names PadKeys reads, checks that Slate's
 // application holds its message handler, then swaps the handler's three controller slots of the game's image (analog,
 // button pressed, button released), all or none, for hooks on the game thread that record the key and run the game's
 // function with the same arguments. coop_pad then reads that record, so any controller the game reads drives the menu;
@@ -207,14 +208,14 @@
 // slots back.
 // status() says which source runs (pad=slate or pad=xinput).
 //
-// The pause menu's Online tab (game/pause_tab.h): once a run the worker swaps the GameMenu logic's input slot of the
+// The pause menu's Online tab (ui/pause_tab.h): once a run the worker swaps the GameMenu logic's input slot of the
 // game's image for a hook on the game thread. RB on the highest enabled tab (Settings), while SB's tab lock is off and
 // Lua's pausetab is on, becomes coop_pad's event 12 in place of SB's wrap to Equipment; every other action runs SB's
 // function with the same arguments. Coop off and a fault of the hook give the slot back. coop_pause_close closes the
 // pause menu for the tab with SB's own close, the one SB's Back runs, so its menu-close save and the shown tab's
 // deactivate run as in the game.
 //
-// The game's tutorial and record popups during online play (game/options.h): once a run the worker swaps the save
+// The game's tutorial and record popups during online play (session/options.h): once a run the worker swaps the save
 // slots of SB's Tutorial and RecordPopup options, both or neither, for wrappers. Every 250 ms in game, while a peer is
 // linked and Lua's popups is on, coop_tick finds each option in SB's option registry under its own SEH latch, checks
 // its vtable and turns an option that is On to Off through SB's SetValue, the player's On kept. The wrappers hand SB's
@@ -249,19 +250,19 @@
 #include "game/camps.h"
 #include "game/anim.h"
 #include "game/bike.h"
-#include "game/debug_keys.h"
+#include "cut/debug_keys.h"
 #include "game/dev_panels.h"
-#include "game/items.h"
-#include "game/loading.h"
+#include "cut/items.h"
+#include "lobby/loading.h"
 #include "game/memory.h"
-#include "game/options.h"
-#include "game/pad.h"
-#include "game/pause_tab.h"
-#include "game/photo_freeze.h"
-#include "game/preset.h"
-#include "game/region_tabs.h"
+#include "session/options.h"
+#include "ui/pad.h"
+#include "ui/pause_tab.h"
+#include "photo/photo_freeze.h"
+#include "lobby/preset.h"
+#include "group/region_tabs.h"
 #include "game/sbo.h"
-#include "game/sky.h"
+#include "sky/sky.h"
 #include "game/travel.h"
 #include "glue/tick.h"
 #include "link/protocol.h"
@@ -285,60 +286,60 @@
 #include "story/engine.h"
 #include "world/engine.h"
 
-#include "glue/tick/pose_game.inc"
-#include "glue/tick/fight_game.inc"
-#include "glue/tick/freeze_game.inc"
-#include "glue/tick/options_game.inc"
-#include "glue/tick/hud_game.inc" // After freeze_game.inc: its MakeName.
-#include "glue/tick/sky_game.inc" // After freeze_game.inc: its controller reach.
-#include "glue/tick/loading_game.inc"
-#include "glue/tick/quests_game.inc"
-#include "glue/tick/warp_game.inc"
-#include "glue/tick/pilot_game.inc"
-#include "glue/tick/travel_game.inc"
-#include "glue/tick/camps_game.inc"
-#include "glue/tick/lion_game.inc"
-#include "glue/tick/debug_game.inc" // Before nightop_game.inc, which takes its UI calls and ui_reads.
-#include "glue/tick/pause_tab_game.inc" // After debug_game.inc: its UI calls and ui_reads.
-#include "glue/tick/nightop_game.inc"
-#include "glue/tick/anim_game.inc"
-#include "glue/tick/bike_game.inc" // After anim_game.inc, freeze_game.inc and lion_game.inc: their calls and GMalloc.
-#include "glue/tick/camp_text_game.inc" // After anim_game.inc and freeze_game.inc: their FStringArg and MakeName.
-#include "glue/tick/guard_text_game.inc" // After camp_text_game.inc: its calls and camp_text_view.
-#include "glue/tick/shortcut_game.inc"
-#include "glue/tick/world_game.inc" // After lion_game.inc, freeze_game.inc and shortcut_game.inc; before sbo_game.inc.
-#include "glue/tick/story_game.inc" // After world_game.inc and quests_game.inc: their Game, in-game read and quests.
-#include "glue/tick/sbo_game.inc"
-#include "glue/tick/cycle_game.inc" // After sbo_game.inc: its sbo_global and DifficultyOf.
+#include "pose/pose_game.inc"
+#include "fight/fight_game.inc"
+#include "photo/freeze_game.inc"
+#include "session/options_game.inc"
+#include "lobby/hud_game.inc" // After freeze_game.inc: its MakeName.
+#include "sky/sky_game.inc" // After freeze_game.inc: its controller reach.
+#include "lobby/loading_game.inc"
+#include "quest/quests_game.inc"
+#include "group/warp_game.inc"
+#include "fight/pilot_game.inc"
+#include "group/travel_game.inc"
+#include "group/camps_game.inc"
+#include "lion/lion_game.inc"
+#include "cut/debug_game.inc" // Before nightop_game.inc, which takes its UI calls and ui_reads.
+#include "ui/pause_tab_game.inc" // After debug_game.inc: its UI calls and ui_reads.
+#include "nightop/nightop_game.inc"
+#include "cut/anim_game.inc"
+#include "bike/bike_game.inc" // After anim_game.inc, freeze_game.inc and lion_game.inc: their calls and GMalloc.
+#include "matrix13/camp_text_game.inc" // After anim_game.inc and freeze_game.inc: their FStringArg and MakeName.
+#include "nightop/guard_text_game.inc" // After camp_text_game.inc: its calls and camp_text_view.
+#include "save/shortcut_game.inc"
+#include "world/world_game.inc" // After lion_game.inc, freeze_game.inc and shortcut_game.inc; before sbo_game.inc.
+#include "story/story_game.inc" // After world_game.inc and quests_game.inc: their Game, in-game read and quests.
+#include "lobby/sbo_game.inc"
+#include "lobby/cycle_game.inc" // After sbo_game.inc: its sbo_global and DifficultyOf.
 #include "glue/tick/worker.inc"
-#include "glue/tick/saves_worker.inc"
-#include "glue/tick/fight_worker.inc"
-#include "glue/tick/region_tabs_worker.inc"
-#include "glue/tick/pause_tab_worker.inc" // After pause_tab_game.inc: its hook and flags.
-#include "glue/tick/sbo_worker.inc"
-#include "glue/tick/nightop_worker.inc"
-#include "glue/tick/travel_worker.inc"
-#include "glue/tick/shortcut_worker.inc"
-#include "glue/tick/items_worker.inc"
-#include "glue/tick/quests_worker.inc"
-#include "glue/tick/world_worker.inc" // After sbo_worker.inc and quests_worker.inc: the shared slot, the slot line.
-#include "glue/tick/story_worker.inc" // After world_worker.inc: its hex, its outbox and slot verdict.
-#include "glue/tick/freeze_worker.inc"
-#include "glue/tick/debug_worker.inc"
-#include "glue/tick/anim_worker.inc"
-#include "glue/tick/bike_worker.inc"
-#include "glue/tick/hud_worker.inc" // After fight_worker.inc: its fault_where.
-#include "glue/tick/loading_worker.inc" // Likewise.
-#include "glue/tick/sky_worker.inc" // Likewise.
-#include "glue/tick/options_worker.inc" // After options_game.inc and world_worker.inc: its flags and hex.
+#include "save/saves_worker.inc"
+#include "fight/fight_worker.inc"
+#include "group/region_tabs_worker.inc"
+#include "ui/pause_tab_worker.inc" // After pause_tab_game.inc: its hook and flags.
+#include "lobby/sbo_worker.inc"
+#include "nightop/nightop_worker.inc"
+#include "group/travel_worker.inc"
+#include "save/shortcut_worker.inc"
+#include "cut/items_worker.inc"
+#include "quest/quests_worker.inc"
+#include "world/world_worker.inc" // After sbo_worker.inc and quests_worker.inc: the shared slot, the slot line.
+#include "story/story_worker.inc" // After world_worker.inc: its hex, its outbox and slot verdict.
+#include "photo/freeze_worker.inc"
+#include "cut/debug_worker.inc"
+#include "cut/anim_worker.inc"
+#include "bike/bike_worker.inc"
+#include "lobby/hud_worker.inc" // After fight_worker.inc: its fault_where.
+#include "lobby/loading_worker.inc" // Likewise.
+#include "sky/sky_worker.inc" // Likewise.
+#include "session/options_worker.inc" // After options_game.inc and world_worker.inc: its flags and hex.
 #include "glue/tick/status.inc"
-#include "glue/tick/pad_game.inc"
-#include "glue/tick/pad_worker.inc" // After pad_game.inc: its hooks and pad_keys.
+#include "ui/pad_game.inc"
+#include "ui/pad_worker.inc" // After pad_game.inc: its hooks and pad_keys.
 
 
 // Called by Lua for each pad event it takes (package.loadlib(dll, "coop_pad")), in lua_CFunction's shape, the Lua state
 // ignored. The DLL links no Lua, so the event is the result count: Lua passes 12 arguments and gets that many of them
-// back, 0 for none or game/pad.h's event 1 to 12, so this never returns more than 12. Event 12 is the Online tab's (RB
+// back, 0 for none or ui/pad.h's event 1 to 12, so this never returns more than 12. Event 12 is the Online tab's (RB
 // on the pause menu's last tab, pause_tab_game.inc's hook), posted before the pads' next one. Polls the pads at most
 // once per 8 ms, so Lua can take several events in one frame. Never throws, never waits.
 extern "C" __declspec(dllexport) int coop_pad(void *) noexcept {
@@ -356,7 +357,7 @@ extern "C" __declspec(dllexport) int coop_pad(void *) noexcept {
 
 // Called by Lua on the game thread when the pause menu's Online tab closes the pause menu (package.loadlib(dll,
 // "coop_pause_close")), in lua_CFunction's shape, the Lua state ignored. The DLL links no Lua, so the answer is the
-// result count, game/pause_tab.h's Close: Lua passes 3 arguments and gets back 1 when SB's own close ran, 2 when SB has
+// result count, ui/pause_tab.h's Close: Lua passes 3 arguments and gets back 1 when SB's own close ran, 2 when SB has
 // no pause menu open, 3 when the tab is off (not the pinned build, or after its fault). Never throws, never waits.
 extern "C" __declspec(dllexport) int coop_pause_close(void *) noexcept {
   using namespace coop::pose;

@@ -184,7 +184,7 @@ std::string ask_shortcut_load(int file);
 // Worker, every pass: once the game thread read the file asked, true with the cleaned save in save (empty when it was
 // refused) and the line for the log; false while nothing is asked or the read is still to come.
 bool shortcut_load_pass(std::string &save, std::string &line);
-// Worker thread, coop gift (game/items.h): Lua's items request, how many of one item our EVE carries, read now through
+// Worker thread, coop gift (cut/items.h): Lua's items request, how many of one item our EVE carries, read now through
 // ReadProcessMemory; the answer goes in the engine line's items= (status()). Refused off the pinned build, after coop
 // off and with no EVE read. Returns the line for the log.
 std::string ask_items(const coop::Request &request);
@@ -245,7 +245,7 @@ void sbo_files(SboFs *fs);
 // "pilot=off why=<word>", "pilot=stopped" or "pilot=refused why=<why>", with " probe=on" and " test=<how far>" before
 // the why.
 std::string pilot_status();
-// The synced photo mode's pause (game/photo_freeze.h), which the game thread holds as our own tag in SB's pause set.
+// The synced photo mode's pause (photo/photo_freeze.h), which the game thread holds as our own tag in SB's pause set.
 // Worker thread. Whether this game can hold it: the pinned build, before coop off, no fault so far.
 bool can_freeze();
 // Every pass after the link's tick. sync: the friend's photo mode asks for our pause (Link::photo_freeze()). Ends a
@@ -257,7 +257,7 @@ bool frozen();
 // The coop freeze request (the solo tests): on, our pause tag held for ms, until coop freeze off, coop off or the
 // world it paused is gone (a load); or off. On the pinned build only. Returns the line for the log.
 std::string ask_freeze(bool on, uint64_t ms, uint64_t now_ms);
-// SB's developer gates (game/debug_keys.h), worker thread. The coop fly or coop slowmo request (Command::gate): on
+// SB's developer gates (cut/debug_keys.h), worker thread. The coop fly or coop slowmo request (Command::gate): on
 // until off, coop off or the next Lua load; refused off the pinned build, after coop off and after the gates' fault.
 // Returns the line for the log.
 std::string ask_gate(const coop::Request &request);
@@ -287,36 +287,36 @@ std::string ask_bike(const coop::Request &request);
 // gate on with each action's earlier state, off, refused; each ride play's clip in memory or not) and returns a line
 // for the player's screen (the fault's), or empty.
 std::string bike_pass();
-// SB's HUD under the SBO lobby's screens (glue/tick/hud_game.inc), worker thread. Lua's hud hide on or off
+// SB's HUD under the SBO lobby's screens (lobby/hud_game.inc), worker thread. Lua's hud hide on or off
 // (Command::hud): our key in the HUD's set of hiding keys from the game thread's next frame, or out of it; coop off
 // takes it out too.
 void ask_hud(bool hide);
 // Every pass: logs each change the game thread made, a hide it could not make (once an ask) and its fault.
 void hud_pass();
-// The pause menu's Online tab (glue/tick/pause_tab_game.inc, game/pause_tab.h), worker thread. Lua's pausetab on or off
+// The pause menu's Online tab (ui/pause_tab_game.inc, ui/pause_tab.h), worker thread. Lua's pausetab on or off
 // (Command::pausetab): RB on the pause menu's last tab opens the Online tab only while on (on until Lua says off). A
 // change is logged.
 void ask_pause_tab(bool on);
-// The game's tutorial and record popups during online play (glue/tick/options_game.inc, game/options.h), worker
+// The game's tutorial and record popups during online play (session/options_game.inc, session/options.h), worker
 // thread. Lua's popups on or off (Command::popups): the game thread turns both options Off while a peer is linked only
 // while on (on until Lua says off). A change is logged.
 void ask_popups(bool on);
 // Every pass: the save slots swapped once a run, the game thread's want from linked (a peer past the handshake), its
 // changes and refusals logged, the slots back once nothing is forced after coop off or a fault.
 void options_pass(bool linked);
-// The SBO lobby arrival's black (glue/tick/loading_game.inc, game/loading.h), worker thread. Lua's loading lift
+// The SBO lobby arrival's black (lobby/loading_game.inc, lobby/loading.h), worker thread. Lua's loading lift
 // (Command::loading): SB's end fade for that black from the game thread's next frame; refused off the pinned build and
 // after its fault. Returns the line for the log.
 std::string ask_loading();
 // Every pass: logs the game thread's answer to the last lift and its fault.
 void loading_pass();
-// The day/night cycle (glue/tick/sky_game.inc, game/sky.h), worker thread. Lua's sky request (Command::sky): SB's light
+// The day/night cycle (sky/sky_game.inc, sky/sky.h), worker thread. Lua's sky request (Command::sky): SB's light
 // back (off), the shared clock (cycle), a pinned minute (hour) or the hour shown kept (hold), with the map's horizon
 // and noon heading, from the game thread's next 100 ms pass; coop off puts SB's light back too.
 void ask_sky(const coop::Request &request);
 // Every pass: logs each state the game thread reached, a refusal once an ask and its fault once.
 void sky_pass();
-// coop-status.txt's sky line (game/sky.h's line) and its newline: the state, the light of the hour asked, the
+// coop-status.txt's sky line (sky/sky.h's line) and its newline: the state, the light of the hour asked, the
 // elements written and whether EVE stands in env sunlight; refused off the pinned build.
 std::string sky_status();
 // "engine=on" (plus " loopback=on <delay> <jitter> <loss>" or " loopback=waiting", " record=on", " replay=on",

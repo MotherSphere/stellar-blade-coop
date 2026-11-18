@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- coop fly's keys, beside the native part's gate and level flight (game/debug_keys.h, through commands/cut.lua),
+-- coop fly's keys, beside the native part's gate and level flight (cut/debug_keys.h, through commands/cut.lua),
 -- logging [FL] lines. SB's developer flight lasts while a key of USBPlayerInput's DefinedFlyActionKeyLists is held in
 -- the air (R2, or Z, which also moves forward on an AZERTY keyboard): its input pass sets bPushedFlyingActionKey each
 -- frame, and EVE's tick ends the flight once it reads false. It flies along the camera's heading at
@@ -9,7 +9,7 @@
 -- (FlyingActionVerticalMoveAttenuation), which no key gives. Its four evades are bound to the pad's face buttons only
 -- (the flight research of 2026-10-24). While coop fly is on, the list holds R2 alone (R2 written over Z and over any
 -- third slot), so walking and jumping no longer take off. The start and the level flight are the native part's
--- (game/debug_keys.h's Hold, in a hook on the player controller's input pass): the third press of the space bar (EVE's
+-- (cut/debug_keys.h's Hold, in a hook on the player controller's input pass): the third press of the space bar (EVE's
 -- jump key) in the air starts a flight, which then holds with no key until the next press of it or the game's own end
 -- (landing, its 90 s pool). Here: Z held climbs and S held descends, through a movement input straight up or down each
 -- frame while EVE flies. Shift with Q, D, Z or S fires the evade left, right, up or down, through four action mappings

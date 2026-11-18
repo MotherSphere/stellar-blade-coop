@@ -5,7 +5,7 @@
 -- gardener fight (cut/enemies/gardener.lua) and coop tendril fight (cut/enemies/tendril.lua) share, each giving its own
 -- spec (coop mxiii, matrix13/world/travel.lua, uses its rows part only, as do the Night Operation shop's cut items, its
 -- Shock Bolt and its screen, through cut/enemies/lion.lua). The monster's rows
--- are a batch of the native part (lion/rows.h, glue/tick/lion_game.inc: SB's own AddRow on the game thread with no
+-- are a batch of the native part (lion/rows.h, lion/lion_game.inc: SB's own AddRow on the game thread with no
 -- logic task in flight). This file finds the tables the spec's rows go into (of the native part's 39) by their fixed
 -- paths and sends their addresses (the spec's "<word> rows" request: no console word reaches an address), so a table
 -- no row of the batch uses never stops it; it waits for the answer in coop-status.txt's <word> line,

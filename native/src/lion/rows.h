@@ -72,7 +72,7 @@
 //
 // SB reads CharacterTable, SkillTable and CharacterStanceTable by ID through maps that only its own AddRow fills (the
 // table's vtable slot +0x2b0), so every row goes in through that call, on the game thread with no logic task in flight
-// (glue/tick/lion_game.inc's gate: no lock guards the tables). For each row not added yet, in order: the table must be
+// (lion/lion_game.inc's gate: no lock guards the tables). For each row not added yet, in order: the table must be
 // SB's UDataTable with its row struct of the size the SDK gives; the new name must be free in RowMap; the template is
 // found by name; the new ID must be free in the table's ID map; then the row is built in a block the glue owns
 // (InitializeStruct, CopyScriptStruct from the template, the ID at +0x10, the patches) and handed to AddRow, which
@@ -6707,7 +6707,7 @@ inline uint32_t rows_of(const Batch &b, Table t) {
   return n;
 }
 
-// rows.h's Game: the glue's (glue/tick/lion_game.inc) or a test's. read (the tables' headers only, false when
+// rows.h's Game: the glue's (lion/lion_game.inc) or a test's. read (the tables' headers only, false when
 // unmapped) and write (the block only); name(text, len, number): FName's MakeWithNumber with FNAME_Add, as a word
 // (ComparisonIndex, then Number in the high half; 0 is None); find(table, name): the row by name in the table's
 // RowMap, whatever its row struct (not SB's FindRow FUN_141aa99a0, which knows CharacterTable's only), or 0;

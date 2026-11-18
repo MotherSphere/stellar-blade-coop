@@ -15,7 +15,7 @@
 --   coop gift: what waits in your mailbox, what you sent that waits for an answer, and the items you can send;
 --   coop gift send <item> [count]: 1 to 10 of one of ITEMS (its number or its alias) to the linked friend;
 --   coop gift take [n]: every gift that waits, or the nth.
--- A send: the native part reads how many she carries (its items request, game/items.h, answered in the engine line's
+-- A send: the native part reads how many she carries (its items request, cut/items.h, answered in the engine line's
 -- items=); the game's own remove request takes them out (ServerRequest_ItemBucketItemRemove, FUN_1423bfa00, which
 -- queues SB's remove by alias for its logic thread: asked for more than she has, that remove takes what there is, so
 -- the count comes first); the native part reads again until the count fell by the gift's (SETTLE s of play at most:

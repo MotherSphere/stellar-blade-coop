@@ -33,7 +33,7 @@ local Chat=require('session.chat')
 local Parts=require('ui.kit.parts')
 local Join={}
 -- Seconds: the game's input back after a close; the box focused again; the question's keys ignored after it shows; a
--- direction this soon after the last one is a held stick's or D-pad's repeat (game/pad.h: 0.4 s, then every 0.12 s).
+-- direction this soon after the last one is a held stick's or D-pad's repeat (ui/pad.h: 0.4 s, then every 0.12 s).
 local BACK,REFOCUS,ARM,HELD=0.15,0.05,1,0.5
 local WAIT,NAME=240,16 -- 250 ms ticks of the native part's 60 s for an answer, from our first read; characters.
 -- A Steam name for the screen: cleaned as a chat line (a name may hold anything) with no < or > (SB's popup reads

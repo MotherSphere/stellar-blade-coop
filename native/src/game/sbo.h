@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The SBO lobby (design-lobby 3), the native half, free of Windows: the recruiter's Join seen through its action's
-// vtable slot, the session record's states, the why words and coop-status.txt's sbo line. glue/tick/sbo_game.inc and
+// vtable slot, the session record's states, the why words and coop-status.txt's sbo line. lobby/sbo_game.inc and
 // sbo_worker.inc make the swap and the asks; tests/native/game/sbo_test.cpp checks this file on the build machine.
 //
 // SB builds a ZoneEvent action (FUN_141b31280 case 1) with vtable 0x145bfec60, in .link. Its slot +0x20,

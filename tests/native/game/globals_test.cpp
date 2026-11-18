@@ -7,7 +7,7 @@
 // as an absolute address names the same one.
 #include "fight/pilot.h"
 #include "fight/types.h"
-#include "game/debug_keys.h"
+#include "cut/debug_keys.h"
 #include "game/dev_panels.h"
 #include "game/memory.h"
 #include "game/travel.h"

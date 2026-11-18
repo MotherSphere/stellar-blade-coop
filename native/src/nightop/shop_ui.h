@@ -22,7 +22,7 @@
 // call (FUN_141c3f910 on FUN_141cc4020 of the player data, the world's +0xe8), inside the rows' gate (net mode 0, no
 // logic task in flight: a purchase is a logic task), and whether a shop screen is open.
 // Pure, so tests/native/nightop/shop_ui_test.cpp checks the guard, the answer word and the status line;
-// glue/tick/nightop_game.inc makes the calls on the game thread under its own SEH latch, on the pinned build only.
+// nightop/nightop_game.inc makes the calls on the game thread under its own SEH latch, on the pinned build only.
 #pragma once
 
 #include <cstddef>

@@ -16,7 +16,7 @@
 // next time she enters the stance (aiming again, if she aimed while they went in). AddRow under a live stance's name
 // would free the row SB hands out.
 //
-// The ammo list. SB's const store (the singleton at 0x147037400, game/debug_keys.h's) holds BulletItemSlotArray, a
+// The ammo list. SB's const store (the singleton at 0x147037400, cut/debug_keys.h's) holds BulletItemSlotArray, a
 // TArray<FString> in its string-array map at +0x288 (the gates' map layout, 0x20-byte elements: key, the array at +8,
 // the next element's index at +0x18), keyed by Strihash_DEPRECATED of the name (SB's FUN_14117c560, called, not
 // copied): Bullet_Normal, Bullet_Scatter, Bullet_Railgun, Bullet_Missile, Bullet_Explosive. The item slot manager
@@ -32,7 +32,7 @@
 // Num and Max in range, each FName made, the const list and the slot manager's list exactly the five SB ships (or those
 // five and Bullet_Shock: grown already, left as it is), every element read. Then the writes, in that order; an
 // allocation that fails stops there and keeps the writes before it (an array left longer than its Num, never an entry
-// half written). Runs once a game run, on the game thread in the rows' gate (glue/tick/lion_game.inc: no logic task in
+// half written). Runs once a game run, on the game thread in the rows' gate (lion/lion_game.inc: no logic task in
 // flight, and none can start before the call returns), right after the bolt rows batch's last row went in, under a
 // latch of its own. Only the shop asks for that batch (nightop/shop.lua: a Shock Bolt buy, and coop nightop shop before
 // it opens the screen, which Roxanne's supplies choice runs too), so a player who opens that screen grows the lists

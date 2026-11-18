@@ -29,7 +29,7 @@
 #include <string>
 #include <vector>
 
-#include "game/pak_list.h"
+#include "link/pak_list.h"
 #include "glue/clipboard.h"
 #include "glue/tick.h"
 #include "link/core.h"
@@ -288,7 +288,7 @@ void list_saves(const std::wstring &dir, const std::string &prefix, std::vector<
   FindClose(h);
 }
 
-// The .pak mods the game loads beyond the base game's (game/pak_list.h), from SB\Content\Paks next to the exe's
+// The .pak mods the game loads beyond the base game's (link/pak_list.h), from SB\Content\Paks next to the exe's
 // SB\Binaries\Win64 and its folders 8 levels down (4096 files at most; the engine mounts paks at any depth), read once
 // at start: a header line names them, and each friend gets their count and hash, and our mod containers by name. The
 // CNS packs among the files (.dekcns.json under ~mods, kMaxCnsPacks read, kMaxCnsBytes each) are counted with their
@@ -581,7 +581,7 @@ struct GameView {
   }
 };
 
-// coop-shared-assets.txt (game/pak_list.h's shared_assets): rewritten when her containers of our version change, its
+// coop-shared-assets.txt (link/pak_list.h's shared_assets): rewritten when her containers of our version change, its
 // version bumped, which the status's shared= line gives Lua: "shared=<version> <paths>".
 std::vector<std::string> shared_mods;
 uint64_t shared_version = 0;

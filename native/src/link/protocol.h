@@ -11,7 +11,7 @@
 //   SBC<protocol> photo <0|1|s|c> <both|notice> (the synced photo mode: ours, and whether she may pause our game for
 //   it; c: the host's cutscene plays),
 //   SBC<protocol> say <text> (a chat line, chat_clean()), SBC<protocol> vit <12 whole numbers> (her partner card),
-//   SBC<protocol> pak <hash> <name> (game/pak_list.h: one mod container her game loads, by name, with its hash in 16
+//   SBC<protocol> pak <hash> <name> (link/pak_list.h: one mod container her game loads, by name, with its hash in 16
 //   hex digits; up to kMaxMods of them, unless her mod_names=off), then SBC<protocol> paks <count> <hash> (the .pak
 //   mods her game loads, for a warning when they differ; it ends her list of pak lines),
 //   SBC<protocol> dlc <app id> <name> (one DLC of the game installed on her PC, as Steam names it, chat_clean() to
@@ -59,7 +59,7 @@
 #include "game/anim.h"   // path_ok: the anim request's clip
 #include "game/bike.h"   // clip_ok: the bike preload's clip
 #include "game/memory.h" // plausible: the rows requests' addresses
-#include "game/pak_list.h"
+#include "link/pak_list.h"
 
 namespace coop {
 constexpr int kProtocol = 23; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
@@ -350,11 +350,11 @@ inline std::string vit_line(const Vitals &v) {
     line += " " + std::to_string(x);
   return line;
 }
-// The .pak mods our game loads beyond the base game's (game/pak_list.h), reliable, once to each friend past the
+// The .pak mods our game loads beyond the base game's (link/pak_list.h), reliable, once to each friend past the
 // handshake.
 constexpr uint64_t kMaxPaks = 100000;
 inline std::string paks_line(uint32_t count, uint64_t hash) { return versioned("paks", count, hash); }
-// One of our mod containers (game/pak_list.h's mods()), reliable, before the paks line: its hash in 16 lower-case hex
+// One of our mod containers (link/pak_list.h's mods()), reliable, before the paks line: its hash in 16 lower-case hex
 // digits, then its name (mod_name_ok(), so the line stays within kMaxMessage).
 inline std::string pak_line(const PakMod &mod) {
   static const char digits[] = "0123456789abcdef";
@@ -858,29 +858,29 @@ inline std::string masked(std::string_view text) {
 // test bstart|phase|finish|summon" (stage 5's solo probes on the frozen boss copy of a replay);
 // for the synced photo mode's solo tests "freeze
 // <seconds>" (1 to kMaxFreezeS: our pause held that long) and "freeze off"; for SB's two developer gates
-// (game/debug_keys.h, coop fly and coop slowmo) "fly on|off" and "slowmo on|off"; for SB's developer panels
+// (cut/debug_keys.h, coop fly and coop slowmo) "fly on|off" and "slowmo on|off"; for SB's developer panels
 // (game/dev_panels.h, coop devinfo) "devinfo quest|player|off"; for SB's HUD under the SBO lobby's screens (main.lua,
-// glue/tick/hud_game.inc) "hud hide on|off"; for the pause menu's Online tab (ui/kit/pause_tab.lua, game/pause_tab.h)
-// "pausetab on|off"; for the game's tutorial and record popups during online play (game/options.h) "popups on|off";
-// for the day/night cycle (game/sky.h, sky/daynight.lua) "sky off|hold",
+// lobby/hud_game.inc) "hud hide on|off"; for the pause menu's Online tab (ui/kit/pause_tab.lua, ui/pause_tab.h)
+// "pausetab on|off"; for the game's tutorial and record popups during online play (session/options.h) "popups on|off";
+// for the day/night cycle (sky/sky.h, sky/daynight.lua) "sky off|hold",
 // "sky cycle <hz> <heading>" and "sky hour <minute> <hz> <heading>" (whole numbers: hz 0 to 30, heading 0 to 359,
 // minute 0 to 1439); for the SBO lobby arrival's black (lobby/arrival.lua,
-// glue/tick/loading_game.inc) "loading lift"; for the co-op saves (save/slot.h,
+// lobby/loading_game.inc) "loading lift"; for the co-op saves (save/slot.h,
 // save/twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make
 // them, then switch to them), "saves main" (switch back to the player's own saves) and "saves refresh <0-4>" (that
 // slot's copy replaced by a new copy of the player's save, the old one backed up first) and "saves export <0-4> <0-4>"
 // (that co-op slot's copy written over that save of the player's, the save backed up first); for the shared quests
 // (quest/engine.h's Worker) "quests on|probe|record [deny <list>]" (deny: quest_deny's aliases or IDs, separated by
 // spaces or commas, at most kMaxDeny bytes), "quests off|status|replay" and "quests force <quest ID>"; for the shared
-// world (world/sync.h, glue/tick/world_worker.inc) "world on" and "world off" (shared_world, until the next ask) and
-// "world status" (its line in the log); for story together (story/sync.h, glue/tick/story_worker.inc) "scenes on" and
+// world (world/sync.h, world/world_worker.inc) "world on" and "world off" (shared_world, until the next ask) and
+// "world status" (its line in the log); for story together (story/sync.h, story/story_worker.inc) "scenes on" and
 // "scenes off" (shared_story, until the next ask) and "scenes status" (its line in the log); for the follow
 // (group/travel.lua) "camps? <id>" and "camps <id> <world> <alias>:<m> ..." or "camps <id> none <why>" (the camps
 // lines, relayed to the friend by link/core.h), and "travel <alias> <FName index> <FName number>" (the call on the game
 // thread, glue/tick.cpp: an index above 0, both within 32 bits); "mark" or "mark <text>" (a numbered line in both
 // players' logs, the text chat_clean() to kMaxMark bytes, maybe empty); for coop gift (cut/menus/mailbox.lua) "gift
 // <payload>" (a gift line for the friend, gift_ok()) and "items <ask> <alias> <FName index> <FName number>" (how many
-// of that item our EVE carries, read by the worker, game/items.h: ask 1 to 65535, answered in the engine line's items=;
+// of that item our EVE carries, read by the worker, cut/items.h: ask 1 to 65535, answered in the engine line's items=;
 // index above 0, both within 32 bits); and for coop lion (cut/enemies/lion.lua) "lion rows
 // <Table>=0x<address> ...", for coop gardener fight (cut/enemies/gardener.lua) "gardener rows <Table>=0x<address> ...",
 // for coop tendril fight (cut/enemies/tendril.lua) "tendril rows <Table>=0x<address> ...", for the shop's Shock Bolt
@@ -890,12 +890,12 @@ inline std::string masked(std::string_view text) {
 // rows <Table>=0x<address> ..." and for Matrix XIII's other batches (matrix13/world/travel.lua) "mxspawn rows ...",
 // "mxenv rows ...", "mxupper rows ...", "mxmiddle rows ...", "mxlower rows ...", "mxnames rows ...", "mxlily rows ..."
 // and "mxrecords rows ..." and for the hall lobbies (lobby/halls_rows.lua) "halls rows ..."
-// (that batch of lion/rows.h for SB's AddRow, glue/tick/lion_game.inc: one word for each table the batch writes, 1 to
+// (that batch of lion/rows.h for SB's AddRow, lion/lion_game.inc: one word for each table the batch writes, 1 to
 // 39 of the kLionTables, in any order, each once, its address in 1 to 16 hex digits and plausible; a table left out
 // stays 0, and a batch that writes it refuses it as no UDataTable; Request::batch says which). Lua finds the tables
 // by their fixed paths, so no console argument reaches an address, and the native part trusts none before it checked
 // the table's vtable and row size (lion/rows.h). For coop emote (cut/eve/emote.lua) "anim play <id> <path> once|loop"
-// (one of EVE's clips on her through SB's custom animation call, glue/tick/anim_game.inc: an id from 1 to 2^32-1, a
+// (one of EVE's clips on her through SB's custom animation call, cut/anim_game.inc: an id from 1 to 2^32-1, a
 // path game/anim.h's path_ok takes) and "anim stop" (ours, while it plays). For the bike (bike/ride.lua): "anim play
 // <id> <path> ride" (a loop with her foot IK off) and "bike load <path>" (the bike's mesh and that riding clip
 // preloaded, game/bike.h's clip_ok), "bike free" (the preload released), "bike gate on" and "bike gate off" (SB's
@@ -977,7 +977,7 @@ enum class SavesAsk { none, probe, convert, coop, main, refresh, export_ };
 enum class Quests { none, on, off, status, probe, record, replay, force };
 enum class WorldAsk : uint8_t { on, off, status };
 enum class BikeAsk : uint8_t { load, free, gate_on, gate_off };
-// sky: SB's light back, the minute shown kept (photo mode), the shared clock, or a pinned minute (game/sky.h's Mode).
+// sky: SB's light back, the minute shown kept (photo mode), the shared clock, or a pinned minute (sky/sky.h's Mode).
 enum class SkyAsk : uint8_t { off, cycle, hour, hold };
 constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500, kMaxFreezeS = 3600;
 constexpr size_t kMaxFightChars = 16;
@@ -992,7 +992,7 @@ struct Request {
                                          // the seconds in ms.
   bool off = false;                      // loopback off, record off, replay off, freeze off, a gate off, anim stop,
                                          // fight pvp off, unmute, list stop.
-  uint8_t gate = 0;                      // gate: game/debug_keys.h's Gate, 0 for fly, 1 for slowmo.
+  uint8_t gate = 0;                      // gate: cut/debug_keys.h's Gate, 0 for fly, 1 for slowmo.
   uint8_t panel = 0;                     // devinfo: game/dev_panels.h's Panel, 0 off, 1 quest, 2 player.
   ShopAsk shop = ShopAsk::close;         // nightshop: open, open bolt, close or watch.
   bool on = false;                       // roxanne on, lily on, hud hide on, pausetab on, popups on (true) or off;

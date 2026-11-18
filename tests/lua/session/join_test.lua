@@ -526,7 +526,7 @@ local p9=w()
 clock=114; runs=#ran
 p9.over='no'; pa.nav('click')
 assert(ran[#ran]=='leave' and #ran==runs+1 and not pa.is_open())
--- A stick held forward from before the question shows (running), as game/pad.h sends it: up every 0.12 s. Past the
+-- A stick held forward from before the question shows (running), as ui/pad.h sends it: up every 0.12 s. Past the
 -- 1 s, its repeats never move the focus off Decline, so A still declines. Let go, a new push moves it once; held on,
 -- its first repeat 0.4 s later moves nothing.
 link.m,link.at,link.joined,link.waiting='host','7402',nil,{id='76561198000000013',name='Runner'}

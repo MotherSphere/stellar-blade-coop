@@ -7,7 +7,7 @@
 -- of its enter-game flow (state 0xd, FUN_141cd2f50) whatever we do, so the black is SB's second loading screen,
 -- USBBlueprintLibrary::LoadingScreenFadeAuto (exec 0x1426641e0): a WB_Loading_Basic at z-order 10, under our kit (100),
 -- that SB's loading controller ends with its own end fade LIFETIME s after its fade-in, Lua or not; the native part's
--- loading lift ends it earlier the same way (glue/tick/loading_game.inc). The rules here, with no engine call:
+-- loading lift ends it earlier the same way (lobby/loading_game.inc). The rules here, with no engine call:
 -- o.fade() puts the black up (raises when it cannot), o.lift() asks its end (ok, why), o.veil(on) collapses the kit's
 -- root or shows it again, o.log(line), o.clock() (s). Time-outs: CAP s after the black went up it lifts whatever is
 -- missing; a lobby warp with no new controller ARM_CAP s later (the native part's arrival time-out) is dropped.

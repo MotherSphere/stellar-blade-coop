@@ -685,7 +685,7 @@ private:
 public:
   // A file of the account read whole between two equal stats, once more when it changed meanwhile (the game writing
   // it) or, for a save, failed the game's own check (a torn read): empty, or why not. Also the SBO entry's reads of a
-  // co-op save (glue/tick/sbo_game.inc, E3 and E5).
+  // co-op save (lobby/sbo_game.inc, E3 and E5).
   template <class Fs>
   static std::string read_whole(Fs &fs, const std::string &name, std::string &bytes, Stat &stat, bool save) {
     std::string why;

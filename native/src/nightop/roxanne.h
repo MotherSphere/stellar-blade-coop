@@ -25,7 +25,7 @@
 // elements), and it is changed only when it holds exactly the list's own rows.
 // The writes: the pointer before the count when the list grows, the count before the pointer when it shrinks, so a
 // reader between two writes never reads past an array; they run on the game thread under the rows' gate (net mode 0,
-// no logic task in flight), glue/tick/nightop_game.inc, under each list's own SEH latch.
+// no logic task in flight), nightop/nightop_game.inc, under each list's own SEH latch.
 #pragma once
 
 #include <cstddef>

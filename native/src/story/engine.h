@@ -3,7 +3,7 @@
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Story together in the game: the host's theater read for story/sync.h's Lead. The guest's copy is started, held and
 // skipped through SB's own functions. Addresses and offsets are for Stellar Blade's Steam build 26123051, each read in
-// Ghidra; the glue runs this only on the pinned build. Every access goes through a Game (glue/tick/story_game.inc on
+// Ghidra; the glue runs this only on the pinned build. Every access goes through a Game (story/story_game.inc on
 // Windows, under the story's SEH latch; fake memory in tests/native/story/engine_test.cpp), so nothing here is
 // Windows-specific.
 //

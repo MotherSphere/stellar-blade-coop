@@ -68,8 +68,8 @@ NATIVE_NAMES = re.compile('MatchMaking|RequestMatch')  # Case-sensitive: Steam's
 # and at each call. The address is counted case-insensitively.
 RUN_ZONE_EVENT = '1ca5790'
 NATIVE_RATIONED = {RUN_ZONE_EVENT: {'native/src/game/sbo.h': 1},
-                   'kRunZoneEvent': {'native/src/game/sbo.h': 1, 'native/src/glue/tick/sbo_game.inc': 1,
-                                     'native/src/glue/tick/world_game.inc': 1}}
+                   'kRunZoneEvent': {'native/src/game/sbo.h': 1, 'native/src/lobby/sbo_game.inc': 1,
+                                     'native/src/world/world_game.inc': 1}}
 
 
 def scan(root):
@@ -139,7 +139,7 @@ N, M, H, W = f'{SCRIPTS}/nightop/probe.lua', f'{SCRIPTS}/main.lua', 'native/src/
 R, NR, GR = f'{SCRIPTS}/nightop/recruiter.lua', f'{SCRIPTS}/nightop/run.lua', f'{SCRIPTS}/group/group.lua'
 NS, LI, SC = f'{SCRIPTS}/nightop/shop.lua', f'{SCRIPTS}/cut/enemies/lion.lua', f'{SCRIPTS}/cut/scenes/scene.lua'
 BO = f'{SCRIPTS}/matrix13/world/boss.lua'
-SH, SG, WG = 'native/src/game/sbo.h', 'native/src/glue/tick/sbo_game.inc', 'native/src/glue/tick/world_game.inc'
+SH, SG, WG = 'native/src/game/sbo.h', 'native/src/lobby/sbo_game.inc', 'native/src/world/world_game.inc'
 SEQ_CONST, SEQ_CALL = ('constexpr uint64_t kRunZoneEvent = 0x141ca5790;\n',
                        'game_function<RunZoneEvent>(sbo::kRunZoneEvent)(world, id, &sbo_seq_names[k], 0);\n')
 WORLD_CALL = 'game_function<RunZoneEvent>(sbo::kRunZoneEvent)(world, caster, &row, 0);\n'

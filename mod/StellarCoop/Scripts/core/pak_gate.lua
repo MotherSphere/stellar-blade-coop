@@ -7,7 +7,7 @@
 -- must name the names asked in its directory index (plain text in a .utoc that is not encrypted, as retoc writes it),
 -- with its .pak and .ucas beside it (UE 4.26 mounts an IoStore container through its .pak).
 -- shortcut: the live folder, not what the engine mounted at start, so a pak copied in while the game runs passes;
--- upgrade to the native part's start list (game/pak_list.h) if that happens in a test.
+-- upgrade to the native part's start list (link/pak_list.h) if that happens in a test.
 local PakGate={}
 PakGate.DIRS={'~mods','LogicMods'}
 local LIMIT=1<<20 -- Bytes read of a .utoc: its directory index comes last, 18 KB of the full map's 47 KB .utoc.

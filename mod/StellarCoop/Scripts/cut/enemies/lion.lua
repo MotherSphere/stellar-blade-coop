@@ -4,7 +4,7 @@
 -- coop lion: the cut Naytiba 02, the Lion (/Game/Art/Character/Monster/CH_M_NA_02/: blueprint, mesh, clips, collision
 -- data and 41 Shows, but no table row), spawned as a real enemy to fight, on the game thread (plan A of the Lion study,
 -- made native). Its 222 rows, each authored for it (core/lion_rows.lua lists them), go into SB's tables through the
--- native part (lion/rows.h, glue/tick/lion_game.inc: SB's own AddRow on the game thread with no logic task in flight),
+-- native part (lion/rows.h, lion/lion_game.inc: SB's own AddRow on the game thread with no logic task in flight),
 -- after the 4 rows of the cut items the Night Operation shop sells (2 ItemTable rows, an ItemConsumableTable row and
 -- the SkillTable row they play) and the 11 of EVE's cut Tachy ChainSpin (its skill, 9 steps and the effect that starts
 -- it), 237 rows: the lion rows batch. The shop and coop chainspin ask for them through Lion.rows (nightop/shop.lua,

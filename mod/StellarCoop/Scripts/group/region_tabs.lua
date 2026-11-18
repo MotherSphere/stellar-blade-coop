@@ -3,7 +3,7 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The between-regions teleport screen's extra tabs. WB_AreaTeleport_Set has 7 tabs, and SB's Region logic drops every
 -- active Tetrapod past them. This makes tabs 8 and 9 when the screen is built, and SB fills them: the native part
--- (game/region_tabs.h) gives each one the logic node a class-property tab gets, so its camp, thumbnail, unlock and
+-- (group/region_tabs.h) gives each one the logic node a class-property tab gets, so its camp, thumbnail, unlock and
 -- travel all run SB's own code. Each tab starts collapsed and only that logic shows it, so a tab without a node (the
 -- native hook refused or faulted, coop off, the screen built in another order) is never seen and can take no focus; SB
 -- collapses the tabs it has no camp for. The row clips and shows a horizontal bar once it overflows, which 9 tabs do

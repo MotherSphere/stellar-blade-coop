@@ -716,7 +716,7 @@ local others=link and require('bike.others').new({log=function(m) print('[Stella
     store=link.store('coop-bike-copies.txt')})
 -- The capture leaves the bike's part out while EVE does not ride: hidden, it would take one of the ghost's 16 parts.
 capture.leave_out(bike.idle_part)
--- The day/night cycle (sky/daynight.lua): the request for the native part's env writer (game/sky.h), decided in the
+-- The day/night cycle (sky/daynight.lua): the request for the native part's env writer (sky/sky.h), decided in the
 -- 250 ms loop below from the map, the setting and SB's state; coop daynight reads and pins it (commands/daynight.lua).
 -- The lobby rule is Xion's training room only: a hall lobby has its own row.
 -- coop-sky.txt keeps the originals of the world's lights, so a Lua reload does not take the dimmed ones for them.

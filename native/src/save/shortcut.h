@@ -3,7 +3,7 @@
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // coop shortcut: the cut "Load Shortcut" menu's saves, listed. The paks still hold developer saves at
 // SB/Content/System/Waypoint/<map>/ShortCut0N.sav (B07 4, F02 3, G03 4, Matrix_XI 4); the game thread reads them
-// through SB's own file manager (glue/tick/shortcut_game.inc), one a frame, and this file names what each one holds.
+// through SB's own file manager (save/shortcut_game.inc), one a frame, and this file names what each one holds.
 // Nothing is written: no save slot, no file, and the bytes are never kept (coop shortcut load keeps one file's bytes:
 // save/shortcut_load.h).
 //

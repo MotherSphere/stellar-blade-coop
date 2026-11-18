@@ -187,7 +187,7 @@ int main() {
   assert(!plausible_vitals(over) && parse_text(vit_line(over)).kind == Kind::invalid);
 
   // The paks line, reliable: how many .pak mods her game loads beyond the base game's, and their hash
-  // (game/pak_list.h).
+  // (link/pak_list.h).
   assert(paks_line(2, 18446744073709551615ull) == p + " paks 2 18446744073709551615");
   m = parse_text(paks_line(2, 18446744073709551615ull));
   assert(m.kind == Kind::paks && m.a == 2 && m.b == 18446744073709551615ull);
@@ -197,7 +197,7 @@ int main() {
                                  p + " paks 1 -5", p + " paks 1 18446744073709551616", std::string("SBC9 paks 1 5")})
     assert(parse_text(bad).kind == Kind::invalid);
   // The pak lines before it (protocol 13): one mod container each, its hash in 16 lower-case hex digits and its name
-  // as game/pak_list.h's mod_name() makes it. The longest fits kMaxMessage. Anything else is invalid.
+  // as link/pak_list.h's mod_name() makes it. The longest fits kMaxMessage. Anything else is invalid.
   assert(pak_line({"logicmods/menu_p", 91239, 0x0123456789abcdefull}) == p + " pak 0123456789abcdef logicmods/menu_p");
   assert(pak_line({"a", 0, 0}) == p + " pak 0000000000000000 a");
   m = parse_text(pak_line({"logicmods/hd-atool_p/hd-atool_p", 1, 18446744073709551615ull}));

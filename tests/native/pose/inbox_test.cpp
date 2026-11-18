@@ -4,7 +4,7 @@
 // The game thread's pose inbox (kInbox in pose/core.h) in a match lobby, in simulated time: kMaxRemote members each
 // send 60 or 30 poses a second, a keyframe every kKeyEveryUs and deltas on it. Each pose arrives 40 ms after it was
 // sent; the worker puts it in the inbox at its next 5 ms pass, or drops it when the inbox is full (glue/tick/worker.inc
-// wire_receive), and the game thread empties the inbox once a 16.7 ms frame (glue/tick/pose_game.inc). The game thread
+// wire_receive), and the game thread empties the inbox once a 16.7 ms frame (pose/pose_game.inc). The game thread
 // stalls once, as long as a stall of steady play on 2026-11-12 (coop-link.log, the native tick line's max gap, 102 to
 // 361 ms): no pose may be dropped and no delta may come without its keyframe.
 #include "pose/codec.h" // kKeyEveryUs

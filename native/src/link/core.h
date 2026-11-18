@@ -525,7 +525,7 @@ struct Peer {
   Window ping_window;      // Her pings.
   Window line_window;      // All her channel-0 lines, for the flood rule only.
   Window round_window;     // Her start, count and end lines, from a match lobby's owner.
-  // Her .pak mods beyond the base game's (game/pak_list.h) from her paks line, once one came; her mod containers by
+  // Her .pak mods beyond the base game's (link/pak_list.h) from her paks line, once one came; her mod containers by
   // name with their hashes, from the pak lines her last paks line ended (named: some came, or she loads no .pak mod;
   // mod_names=off on her side sends none), and the pak lines since then; the status lines comparing them with ours,
   // made when her paks line came; how many of our lines (pak lines, then the paks line) she got, sent again from the
@@ -806,7 +806,7 @@ public:
   // them: fight/sync.h does, strictly.
   std::vector<FightLine> take_fight() { return std::exchange(fight_in_, {}); }
 
-  // Our .pak mods beyond the base game's and our mod containers (game/pak_list.h), once, before the first tick(): each
+  // Our .pak mods beyond the base game's and our mod containers (link/pak_list.h), once, before the first tick(): each
   // friend past the handshake gets them, and status() compares hers. No paks line goes before this call.
   void paks(uint32_t count, uint64_t hash, const std::vector<PakMod> &mods = {}) {
     paks_on_ = true;
@@ -821,7 +821,7 @@ public:
         pak_lines_.push_back(pak_line(m));
   }
   // Our mod containers that every member past the handshake whose last paks line ended a named list (her
-  // mod_names=on) has with the same hash, sorted: what the ghosts may load from (game/pak_list.h's shared_assets()).
+  // mod_names=on) has with the same hash, sorted: what the ghosts may load from (link/pak_list.h's shared_assets()).
   // None unless one such member is linked and our mod_names is on.
   std::vector<std::string> same_mods() const {
     std::vector<std::string> out;

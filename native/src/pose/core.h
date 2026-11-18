@@ -44,11 +44,11 @@ inline std::string slot_file(std::string_view stem, size_t slot) {
   return std::string(stem) + (slot ? "-" + std::to_string(slot) : std::string()) + ".txt";
 }
 
-// The game thread's pose inbox (glue/tick/pose_game.inc), one for all the ghost slots: 400 ms of poses at 60 a second
+// The game thread's pose inbox (pose/pose_game.inc), one for all the ghost slots: 400 ms of poses at 60 a second
 // from each other member of a match lobby. When it is full, the worker drops the newest pose (wire_receive).
 constexpr size_t kInbox = 24 * kMaxRemote;
 
-// The worker's line for one gap over 100 ms between two native ticks (glue/tick/pose_game.inc's game_tick): when it
+// The worker's line for one gap over 100 ms between two native ticks (pose/pose_game.inc's game_tick): when it
 // ended, in UTC (filetime: a FILETIME, 100 ns ticks since 1601-01-01), how long it was, the engine frame it ended in,
 // how long the coop_tick before it took, and how much vkd3d-proton.cache.write grew since the last gap line
 // (cache_grew < 0: no such file, so no field). tests/native/pose/gap_test.cpp checks it.

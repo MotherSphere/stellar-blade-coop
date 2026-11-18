@@ -47,7 +47,7 @@
 -- Tetrapod camp's spawn point DLC02_00_Camp_00, and v5 a v4 pak whose .utoc also names MXIII_Camps_A.umap, the level
 -- that places the two zone 10 camps' kits, in its directory index.
 -- shortcut: the live folder, not what the engine mounted at start, so a pak copied in while the game runs passes;
--- upgrade to the native part's start list (game/pak_list.h) if that happens in a test.
+-- upgrade to the native part's start list (link/pak_list.h) if that happens in a test.
 -- The .ucas is read in windows of 16 MB up to its end as the .utoc's compression blocks give it (the header's block
 -- count and entry size, after the chunk IDs and offsets; UE 4.26's FIoStoreTocHeader, version 2 as retoc writes it),
 -- so a full map's container of 30 MB or more is read whole, never more than a window at a time, and the reads stop

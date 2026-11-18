@@ -5,7 +5,7 @@
 // sources, the 23 cultures, the guardtext request's check, what the game thread writes and the guardtext= line.
 // tests/native/nightop/guard_text_test.cpp checks it on the build machine; tests/lua/nightop/recruiter_text_test.lua
 // checks that the keys, sources, lines and cultures match nightop/recruiter_text.lua. The glue is
-// glue/tick/guard_text_game.inc.
+// nightop/guard_text_game.inc.
 //
 // His 12 texts (speaker title, question, Join, Cancel, three replies) are keyed FText literals in namespace "", and no
 // Game.locres of the 23 cultures names them, so every culture shows the Korean source. Each one's live display string

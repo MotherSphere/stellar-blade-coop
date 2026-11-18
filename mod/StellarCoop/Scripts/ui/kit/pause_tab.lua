@@ -4,7 +4,7 @@
 -- The pause menu's Online tab. SB's pause menu (WB_GameMenu_Master) has 8 tabs; this adds a 9th button after them that
 -- opens the co-op menu. SB's GameMenu logic serves 8 tabs only, so the button has no tab data: it is HitTestInvisible
 -- (SB's click code never sees it) and only shows the word. RB on Settings reaches it through the native part
--- (game/pause_tab.h: RB on the highest enabled tab becomes coop_pad's event 12, E on the keyboard too, as SB maps it
+-- (ui/pause_tab.h: RB on the highest enabled tab becomes coop_pad's event 12, E on the keyboard too, as SB maps it
 -- to the same action), a left click through main.lua's mouse bind and the button's cached geometry. Either closes the
 -- pause menu through the native part's coop_pause_close, which runs SB's own close (what SB's Back runs, with its
 -- menu-close save and the shown tab's deactivate), then opens the co-op menu once the game is unpaused, as menu_key

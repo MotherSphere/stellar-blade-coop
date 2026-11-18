@@ -4,7 +4,7 @@
 -- The day/night cycle's engine side (tests/lua/sky/daynight_test.lua). main.lua's 250 ms loop calls slow(off): it reads
 -- the map when EVE's address changes (a new world), decides the native part's request with sky/rule.lua and sends it
 -- only when it changes. One log line per change of the request or its reason. coop off asks sky off once, then
--- nothing. The hour and the sun come from the native part's sky= status line (game/sky.h); coop daynight status reads
+-- nothing. The hour and the sun come from the native part's sky= status line (sky/sky.h); coop daynight status reads
 -- it. o: log, ask(line) -> ok and why, status() -> the native status text, settings (daynight), her() -> EVE or nil,
 -- address(eve), map_of(eve), cutscene(), screen() (SB's pause menu or one of its screens), photo() -> '0', '1' or 's',
 -- frozen() (our pause tag held for another player's photo mode or the host's cutscene), night() (Night Operation
