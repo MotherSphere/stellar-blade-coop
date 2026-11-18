@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- core/enemy.lua's parts that need no world (lion_test and gardener_test run its flow through both specs): its 39
+-- core/enemy.lua's parts that need no world (the cut enemies run their own copy, cut/enemies/enemy.lua): its 39
 -- tables are link/protocol.h's kLionTables in order, a batch's line parses by its word only (from the start of its own
 -- line, each of its forms), the generated rows take their named form, the counts a batch's line gives once its rows are
 -- in, and an error's text loses its file and line.
@@ -49,4 +49,23 @@ local IN=Enemy.counts(rows)
 assert(IN.added=='4/4' and IN.char=='1/1' and IN.skills=='1/1' and IN.stance=='1/1')
 assert(Enemy.why('Scripts/core/enemy.lua:12: no EVE in the world')=='no EVE in the world'
     and Enemy.why('plain')=='plain')
+-- The source names no achievement, reward, item, quest, save, possession, console command, destroy or row call of its
+-- own. Its only spawn words are its one CreateActor and its one SpawnDefaultController (lion_test checks the cut
+-- enemies' copy the same way).
+do
+    local f=assert(io.open('mod/StellarCoop/Scripts/core/enemy.lua','rb'))
+    local src=f:read('a')
+    f:close()
+    local allowed,seen={ServerRequest_CreateActor=true,SpawnDefaultController=true},{}
+    for call in src:gmatch('[:.]([%a_][%w_]*)%s*%(') do
+        if allowed[call] then seen[call]=(seen[call] or 0)+1
+        else
+            for _,word in ipairs({'Achiev','Reward','Item','Quest','Save','ExecuteConsoleCommand','Possess','Spawn',
+                'CreateActor','Destroy','AddRow','RemoveRow','EmptyTable'}) do
+                assert(not call:find(word),'core/enemy: '..call)
+            end
+        end
+    end
+    assert(seen.ServerRequest_CreateActor==1 and seen.SpawnDefaultController==1,'One spawn call, one controller')
+end
 print('enemy_test: ok')
