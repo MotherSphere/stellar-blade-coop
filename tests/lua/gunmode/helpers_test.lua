@@ -27,13 +27,35 @@ do
     assert(Config.get('a=1\nb=2\na=3','a')=='3' and Config.get('a=1','b')==nil)
 end
 
--- 2. Rows: the free magazine without real ammo; RealAmmo and no free rounds with it; Peace last; the drone given back.
+-- 2. Rows: SB's rows data.lua names (no item: the shot needs no round); a Survival Protocol pak's NGM rows with their
+-- +60 item, RealAmmo only there; Peace last; the drone given back by SB's own rows.
 do
+    local Data=require('gunmode.data')
     local names=function(rows) local t={} for _,r in ipairs(rows) do t[#t+1]=r[2] end return table.concat(t,' ') end
-    assert(names(Rows.on({real_ammo=false}))==
+    local want={}
+    for _,k in ipairs({'Reload','GunOn','Beta','Ammo','Peace'}) do want[#want+1]=Data.row(k) end
+    assert(names(Rows.on({real_ammo=false},'GM'))==table.concat(want,' '))
+    assert(names(Rows.on({real_ammo=false},'NGM'))==
         'NGM_ItemA_Ammo NGM_AE_Reload NGM_AE_GunOn NGM_AE_Beta NGM_AE_Ammo NGM_AE_Peace')
-    assert(names(Rows.on({real_ammo=true}))=='NGM_AE_Reload NGM_AE_GunOn NGM_AE_Beta NGM_AE_RealAmmo NGM_AE_Peace')
-    assert(Rows.on({})[1][1]==13 and Rows.OFF[#Rows.OFF][2]=='CGH_data_E_ActorEff_003')
+    assert(names(Rows.on({real_ammo=true},'NGM'))=='NGM_AE_Reload NGM_AE_GunOn NGM_AE_Beta NGM_AE_RealAmmo NGM_AE_Peace')
+    local off=Rows.off('GM')
+    assert(off[1][2]==Data.row('PeaceOff') and off[#off][2]=='CGH_data_E_ActorEff_003')
+    assert(Rows.one('GM','Fire')[2]==Data.row('Fire'))
+end
+
+-- 2b. data.lua: every row gun mode fires has a name; the borrowed rows are all NIKKE mission rows, none twice.
+do
+    local Data=require('gunmode.data')
+    for _,k in ipairs({'Reload','GunOn','Beta','Ammo','Peace','PeaceOff','GunOff','PosOff','BetaOff','DroneFree','Pos2',
+            'Fire','Drone'}) do
+        assert(Data.row(k),'data.lua lacks '..k)
+    end
+    local seen,n={},0
+    for k,e in pairs(Data.BORROWED) do
+        assert(e[1]:match('^Nikke_') and not seen[e[1]],k); seen[e[1]]=true; n=n+1
+    end
+    for _,e in pairs(Data.OWN) do assert(not seen[e[1]]) end
+    assert(n==#Data.BORROW_ORDER)
 end
 
 -- 3. Input: an edge once per press; a tap only on a short press's release; D-pad Right with R1 held is no tap.

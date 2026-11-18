@@ -5,23 +5,28 @@ shooter. It is experimental: it has been played on one PC only, not yet between 
 
 ## What you need
 
-Gun mode needs three paks in `SB\Content\Paks\~mods` (or `LogicMods`). All three are built on your PC from the
-game's files, so none comes with the mod ([Building the paks](#building-the-paks)).
+Gun mode runs on SBO alone: no Survival Protocol and no data pak. While it is on, it borrows a few of the game's own
+NIKKE mission rows (`EventActorEffectTable`) and points them at the NIKKE stage's effects, and it lets the NIKKE fire
+command shoot without checking the equipped bullet (`SkillCommandTable`, `SkillActiveStepTable`). Everything it changed
+goes back at the next map load, so the NIKKE missions find their rows as shipped.
+
+One pak is optional:
 
 | Pak | What it adds | Without it |
 | --- | --- | --- |
-| `RoguelikeMode_P` | Survival Protocol's pak, rebuilt with gun mode's rows: the NGM rows of `EventActorEffectTable` and `EventItemActionTable` that put the NIKKE stage's effects on EVE, and `EffectTable`'s `NGM_Fire` that fires the rifle | Gun mode stays off; `UE4SS.log` says why on a `[StellarCoop][GM]` line. A `RoguelikeMode_P` built without the rows leaves gun mode doing nothing |
-| `zNikkeGunMode_P` | `SkillCommandTable` and `SkillActiveStepTable`: the NIKKE shot fires without checking the equipped bullet | Gun mode stays off, as above |
 | `zNikkeGunStand_P` | The standing animations: EVE's own legs and hips with a rifle upper body, the aim offset, the shot's recoil | Gun mode runs with the NIKKE kneel only |
+
+It is built on your PC from the game's files, so it does not come with the mod ([Building the paks](#building-the-paks)).
+A Survival Protocol pak built with gun mode's rows (`NGM_*`) is still used when gun mode cannot borrow the game's rows,
+and only that pak makes `gun_real_ammo` work.
 
 ## Keys
 
 | Key | Pad | What it does |
 | --- | --- | --- |
 | G (`gun_key`) | A tap of D-pad Right | Gun mode on or off. Ctrl+G works too, so it can be left while aiming. A hold of D-pad Right is the bike's |
-| LMB | R2 | Standing: full auto at the crosshair |
+| Ctrl+LMB | L2+R2 | Aim and fire, full auto at the crosshair. Standing hip fire (LMB alone) needs `gun_fire_effect=on` (a test setting) |
 | Caps Lock, Y | R3 | Crouch into the NIKKE cover kneel, or stand up again |
-| Ctrl+LMB | L2+R2 | Crouched: aim and fire |
 | Shift | Circle | Roll: the rifle is lifted for EVE's own dodge, then comes back |
 
 Gun mode never turns on in a menu or on the pause screen. A new map, a death or a camp warp ends it.
@@ -49,22 +54,23 @@ laser while aiming.
 
 ## Settings
 
-Gun mode reads four lines of `coop-settings.txt` itself:
+Gun mode reads five lines of `coop-settings.txt` itself:
 
 | Line | Values | Default |
 | --- | --- | --- |
 | `gun_mode` | `on`, `off` (no key, no hook, nothing) | `on` |
 | `gun_key` | One letter A to Z, or F1 to F12 but F10 | `G` |
-| `gun_pose` | `on`: standing with the posed arms and the muzzle laser (experimental: it still crashes the game in its first frame); `off`: the stance's own animation | `off` |
+| `gun_pose` | `on`: standing with the posed arms and the muzzle laser (experimental); `off`: the stance's own animation | `off` |
+| `gun_fire_effect` | `on`: standing hip fire through an `EffectTable` row (a test: reading that table through UE4SS can crash the game); `off`: the rifle fires aimed | `off` |
 | `gun_real_ammo` | `on`: each shot spends one NIKKE round and gun mode ends when the bag is empty; `off`: unlimited | `off` |
 
-`gun_real_ammo=on` needs the real-ammo rows (`NGM_AE_RealAmmo` and its family) in `zNikkeGunMode_P`, which not every
-build of the pak has.
+`gun_real_ammo=on` needs the real-ammo rows (`NGM_AE_RealAmmo` and its family) of a Survival Protocol pak built with
+gun mode's patches.
 
 ## Building the paks
 
 [`tools/gunmode/`](../tools/gunmode/README.md) has the scripts: the Blender retarget and export of the standing
-animations, their Unreal 4.26 import, the three pak builds, and the Ghidra scripts used to find how a NIKKE stage
+animations, their Unreal 4.26 import, the pak builds, and the Ghidra scripts used to find how a NIKKE stage
 starts. The table patches the Survival Protocol rebuild applies are in `data/gunmode/patches/`.
 
 ## Credits
