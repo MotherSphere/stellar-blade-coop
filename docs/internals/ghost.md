@@ -1,6 +1,6 @@
 # The ghost pipeline
 
-The player's side is in [Ghost](../ghost.md).
+The player's side is in [Ghost](../features/ghost.md).
 
 The ghost goes through the same pipeline whatever its source: a linked friend, the loopback or a replay.
 
@@ -185,7 +185,7 @@ replacer you lack still shows the original head. A part with no fallback is left
 `coop basesuit` forces the base suit for the body and hair.
 
 When a part with a mod tag ends up on a fallback or left out, the ghost names the tags once per generation, on screen
-in the menu's language (see [Ghost](../ghost.md#mods-and-cns-outfits)), and in the build line
+in the menu's language (see [Ghost](../features/ghost.md#mods-and-cns-outfits)), and in the build line
 (`mod parts not shown: ...`).
 
 ## 7. Map gate
@@ -220,7 +220,7 @@ Drawing them would need a SkeletalMeshComponent leader.
 
 Effects fill the pose's four slots, and the native part writes the drawn slots into four boxes beside the mailbox, from
 which Lua starts and moves the effects. Effects have their own fault latch, so a fault there turns effects off for the
-run and the ghost stays. See [Ghost](../ghost.md#looks).
+run and the ghost stays. See [Ghost](../features/ghost.md#looks).
 
 Indexes 1 to 19 are `Capture.EFFECTS`, which both sides compile in. Once a second the capture also reads the
 NiagaraComponents attached directly to her leader parts (the ones the native read walks, 256 children a part at most)

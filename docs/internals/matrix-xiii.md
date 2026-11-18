@@ -1,6 +1,6 @@
 # Matrix XIII: how it works
 
-The player's side of the dungeon is in [Matrix XIII](../matrix-xiii.md), and the quests that lead into it in
+The player's side of the dungeon is in [Matrix XIII](../modes/matrix-xiii.md), and the quests that lead into it in
 [Lily's signal: how it works](lily-signal.md).
 
 WorldTable row `DLCMatrix13` (ID 2800) points to `/Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P`, a map that no pak of
@@ -639,7 +639,7 @@ it goes in at the title only while the game uses the co-op save files and the te
 not wait for it. The entries reach every player's live table but no row outside the batch names them.
 
 The save keeps the unlocks and red dots by alias, so `coop saves export` refuses a save that holds one
-([saves.md](../saves.md#co-op-saves)), and these aliases must never change. Rows the title batch added stay until the game
+([players/saves.md](../players/saves.md#co-op-saves)), and these aliases must never change. Rows the title batch added stay until the game
 exits: after `coop saves main` at the title, your own save's Data Bank would list them locked until a restart, as with
 every row of this batch family.
 

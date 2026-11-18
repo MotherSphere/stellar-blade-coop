@@ -2,7 +2,7 @@
 
 The rows of the shop, the cut stimpacks and the Shock Bolt go in through the row batches of `lion/rows.h` (see
 [The cut Lion](cut-enemies.md#the-cut-lion)): the stimpacks' with the Lion's own rows, the shop's and the Shock Bolt's
-as batches of their own. The player's side is in [Reward shop](../night-operation-shop.md).
+as batches of their own. The player's side is in [Reward shop](../modes/night-operation-shop.md).
 
 ## The Night Operation shop screen
 

@@ -203,39 +203,39 @@ hide_popups=on
 | `status_key` | same as `menu_key` | `F6` |
 | `leave_key` | same as `menu_key` | `F8` |
 | `follow_key` | same as `menu_key`, or `none`: as the guest, travel to the host ([Following the host](playing-with-a-friend.md#following-the-host)) | `F7` |
-| `race_key` | same, or `none`: a key that sets a [Doro race](doro-races.md) checkpoint while you record a track | `F9` |
-| `bike_key` | same, or `none`: a key that puts EVE on the [bike](bike.md) or takes her off it | `F3` |
-| `drift_keys` | up to 4 Unreal key names separated by spaces, or `none`: the keys held to [drift](doro-races.md#driving) in a race or on the [bike](bike.md#riding) | `Gamepad_RightTrigger B` |
-| `bike` | `on` or `off`: the [bike](bike.md), on any save; off takes EVE off the bike, removes it from her, takes her parked bike out of every world (its place is kept), hides the other players' parked bikes and frees its loaded files | `on` |
+| `race_key` | same, or `none`: a key that sets a [Doro race](../features/doro-races.md) checkpoint while you record a track | `F9` |
+| `bike_key` | same, or `none`: a key that puts EVE on the [bike](../features/bike.md) or takes her off it | `F3` |
+| `drift_keys` | up to 4 Unreal key names separated by spaces, or `none`: the keys held to [drift](../features/doro-races.md#driving) in a race or on the [bike](../features/bike.md#riding) | `Gamepad_RightTrigger B` |
+| `bike` | `on` or `off`: the [bike](../features/bike.md), on any save; off takes EVE off the bike, removes it from her, takes her parked bike out of every world (its place is kept), hides the other players' parked bikes and frees its loaded files | `on` |
 | `pause_tab` | `on` or `off`: the [Online tab](interface.md#pause-menu) after Settings in the game's pause menu, which opens the co-op menu. Off, RB on Settings goes to Equipment as in the game. Options, Controls, Online tab in the pause menu; it applies from the next pause menu | `on` |
 | `who_can_join` | `public`, `friends`, `invitation` or `closed`: who can join an online session you host. `public`: any player of your version, who finds it in the session list. `friends`: your Steam friends. `invitation`: the friends you invite or anyone with your [join code](playing-with-a-friend.md#join-codes). `closed`: nobody (Private in the co-op menu). The words `code` and `private` from 0.11 and older read as `invitation`; the file keeps them | `public` |
 | `friends_ask` | `on` or `off`, with `public` or `invitation`: `on` makes your Steam friends wait for your answer like other players. The co-op menu shows it as Friends join without asking, On while `friends_ask=off` | `off` |
 | `max_players` | `2` to `4`: the players an online session you host holds, you included (Players on the Options page and the Create a session screen), from the next session you host. Past 2, shared enemies, the shared world and story together run between you and one guest only ([More than 2 players](playing-with-a-friend.md#more-than-2-players)) | `4` |
 | `auto_coop_save` | `ask`, `always` or `off`: the [co-op saves](playing-with-a-friend.md#co-op-saves) at the title | `ask` |
 | `name_tag` | `on` or `off`: your friend's Steam name above their ghost | `on` |
-| `send_rate` | `10` to `60` poses sent a second at most (a link that cannot keep up lowers it to 30 or 20 for a while: [link health](internals/steam-link.md#link-health-in-the-log)) | `60` |
+| `send_rate` | `10` to `60` poses sent a second at most (a link that cannot keep up lowers it to 30 or 20 for a while: [link health](../internals/steam-link.md#link-health-in-the-log)) | `60` |
 | `cloth` | `on` or `off`: her ponytail as cloth on the ghost you see | `on` |
 | `dyes` | `on` or `off` | `on` |
 | `effects` | `on` or `off` | `on` |
-| `shared_enemies` | `on` or `off`: [shared enemies](shared-enemies.md#shared-enemies-experimental), experimental | `on` |
+| `shared_enemies` | `on` or `off`: [shared enemies](../features/shared-enemies.md#shared-enemies-experimental), experimental | `on` |
 | `fight_chars` | `auto` (every common enemy), or at most 16 enemy character ids, whole numbers separated by spaces | `auto` |
-| `guest_kills` | `at_once` or `confirmed`: as the guest, whether an enemy your hit kills dies at once on your screen or waits for the host's game (see [shared enemies](shared-enemies.md#shared-enemies-experimental)) | `at_once` |
+| `guest_kills` | `at_once` or `confirmed`: as the guest, whether an enemy your hit kills dies at once on your screen or waits for the host's game (see [shared enemies](../features/shared-enemies.md#shared-enemies-experimental)) | `at_once` |
 | `enemy_hp_scale` | `1.0` to `4.0`: the host's multiplier for a shared enemy's maximum HP, used in both games | `1.35` |
 | `enemy_balance_scale` | `1.0` to `4.0`: the host's multiplier for a shared enemy's balance gauge, used in both games | `1.15` |
-| `kill_credit` | `together` or `fought`: when a shared enemy dies in your game, with its rewards and achievements: you hit it, it targeted you, or (`together` only) you stood within 30 m when it died (see [shared enemies](shared-enemies.md#shared-enemies-experimental)) | `together` |
-| `same_place` | `on` or `off`: [same place](shared-enemies.md#same-place-experimental), experimental; the host's value counts for both games | `on` |
+| `kill_credit` | `together` or `fought`: when a shared enemy dies in your game, with its rewards and achievements: you hit it, it targeted you, or (`together` only) you stood within 30 m when it died (see [shared enemies](../features/shared-enemies.md#shared-enemies-experimental)) | `together` |
+| `same_place` | `on` or `off`: [same place](../features/shared-enemies.md#same-place-experimental), experimental; the host's value counts for both games | `on` |
 | `aggro` | `game` or `host`: with same place, whether each enemy fights the player who hit it last (or else the nearer one) or the host only; the host's value counts for both games | `game` |
-| `same_spawns` | `on` or `off`: [same spawns](shared-enemies.md#same-spawns-experimental), experimental; the host's value counts for both games | `on` |
-| `enemy_extra` | `0` to `3`: [extra enemies](shared-enemies.md#extra-enemies-experimental) for each common enemy, experimental, with same spawns only; the host's value counts for both games | `0` |
-| `spawn_filter` | `on` or `off`: the [spawn filter](shared-enemies.md#spawn-filter-experimental), experimental; your own, used when you are the guest; no menu row | `on` |
-| `bosses` | `on` or `off`: [shared bosses](shared-enemies.md#shared-bosses-experimental), experimental; the host's value counts for both games | `on` |
+| `same_spawns` | `on` or `off`: [same spawns](../features/shared-enemies.md#same-spawns-experimental), experimental; the host's value counts for both games | `on` |
+| `enemy_extra` | `0` to `3`: [extra enemies](../features/shared-enemies.md#extra-enemies-experimental) for each common enemy, experimental, with same spawns only; the host's value counts for both games | `0` |
+| `spawn_filter` | `on` or `off`: the [spawn filter](../features/shared-enemies.md#spawn-filter-experimental), experimental; your own, used when you are the guest; no menu row | `on` |
+| `bosses` | `on` or `off`: [shared bosses](../features/shared-enemies.md#shared-bosses-experimental), experimental; the host's value counts for both games | `on` |
 | `boss_hp_scale` | `1.0` to `4.0`: the host's multiplier for a shared boss's maximum HP, used in both games | `2.0` |
 | `shared_quests` | `on` or `off`: [shared quests](playing-with-a-friend.md#shared-quests-experimental), experimental; both players need it on | `on` |
 | `quest_deny` | quest names or numbers separated by spaces or commas, at most 200 characters: quests never shared; the host's value counts | empty |
-| `shared_world` | `on` or `off`: the [shared world](shared-world.md), experimental; doors, levers, lifts and shortcuts one player works change in the other's game too; each player's own, and both need it on | `on` |
-| `shared_story` | `on` or `off`: [story together](story-together.md), experimental; a cutscene or a talk the host plays plays in the guest's game too, with his choices, QTE results and skips; each player's own; both need it on | `on` |
+| `shared_world` | `on` or `off`: the [shared world](../features/shared-world.md), experimental; doors, levers, lifts and shortcuts one player works change in the other's game too; each player's own, and both need it on | `on` |
+| `shared_story` | `on` or `off`: [story together](../features/story-together.md), experimental; a cutscene or a talk the host plays plays in the guest's game too, with his choices, QTE results and skips; each player's own; both need it on | `on` |
 | `hide_popups` | `on` or `off`: the game's Tutorial and Record popups (its own Settings rows) are Off while at least one other player is linked with you. Only a value that was On is turned off. Your values come back when the last player leaves, when you set it off or at `coop off`. The game's settings file keeps your values the whole time. Turn one on in the game's Settings during online play and it stays on until you leave. Each player's own. Options, Session, Hide popups online; it applies at once | `on` |
-| `revive` | `on` or `off`: your friend may [revive](playing-with-a-friend.md#revive-by-your-friend-experimental) your EVE where she fell, experimental; in a co-op Night Operation run, your death is a [down](night-operation.md#down-and-revive) | `on` |
+| `revive` | `on` or `off`: your friend may [revive](playing-with-a-friend.md#revive-by-your-friend-experimental) your EVE where she fell, experimental; in a co-op Night Operation run, your death is a [down](../modes/night-operation.md#down-and-revive) | `on` |
 | `photo_sync` | `both`, `notice` or `off`: the [synced photo mode](playing-with-a-friend.md#synced-photo-mode); a pause needs `both` on both PCs | `both` |
 | `photo_freeze_max` | `0` (no limit) or `30` to `3600`: the longest pause your friend's photo mode holds your game in, in seconds | `600` |
 | `photo_ghost` | `on` or `off`: your friend's ghost in your own photos | `on` |
@@ -243,21 +243,21 @@ hide_popups=on
 | `photo_pause` | `full` or `scenery`: how your own photo mode [pauses your game](playing-with-a-friend.md#photo-mode-pause-experimental), experimental, from your next photo mode | `full` |
 | `cutscene_wait` | `on` or `off`: as the guest, your game [waits](playing-with-a-friend.md#cutscene-wait) while a cutscene plays in the host's game | `on` |
 | `follow_host` | `ask`, `always` or `off`: as the guest, the offer to [travel to the host](playing-with-a-friend.md#following-the-host) | `ask` |
-| `collide` | `on` or `off`: the [solid partner](ghost.md#solid-partner-experimental), experimental | `on` |
+| `collide` | `on` or `off`: the [solid partner](../features/ghost.md#solid-partner-experimental), experimental | `on` |
 | `ui_scale` | `75` to `150`: the size of the menu, the chat and the partner HUD, in percent | `100` |
 | `ui_sounds` | `on` or `off`: the game's UI sounds in the menu, the chat and the partner HUD | `on` |
 | `ui_language` | `game` (the game's text language) or `english` | `game` |
 | `chat` | `on` or `off`: the [session chat](interface.md#session-chat); off hides your friend's lines and sends none | `on` |
-| `mod_names` | `on` or `off`: the names of your `.pak` mods go to your friend, for the [notice](shared-enemies.md#shared-enemies-experimental) of the mods one of you lacks; off sends their count and hash only, and no path from a mod's own folder goes in your capture (see [Mods and CNS outfits](ghost.md#mods-and-cns-outfits)); no menu row | `on` |
+| `mod_names` | `on` or `off`: the names of your `.pak` mods go to your friend, for the [notice](../features/shared-enemies.md#shared-enemies-experimental) of the mods one of you lacks; off sends their count and hash only, and no path from a mod's own folder goes in your capture (see [Mods and CNS outfits](../features/ghost.md#mods-and-cns-outfits)); no menu row | `on` |
 | `partner_bar` | `on` or `off`: the [marker](interface.md#partner-hud) over your friend's ghost; on, it carries their name instead of the name tag | `on` |
 | `partner_arrow` | `on` or `off`: the arrow toward your friend when they are out of view | `on` |
 | `partner_card` | `on` or `off`: your friend's card at the top left | `on` |
 | `card_details` | `on` or `off`: the ping and your friend's map on the card | `on` |
 | `status_overlay` | `off`, `compact` or `detailed`: the [status strip](interface.md#status-strip-above-the-card) above the card | `compact` |
-| `daynight` | `on` or `off`: the [day and night cycle](internals/daynight.md). On, the sun moves on the open maps and SBO's own maps by one clock that every player shares: one real hour is one game day and the night runs from about :52 to :12 past each hour (UTC). Off gives each map Stellar Blade's own fixed light, as before. The Terrace hall stays a night hall either way. Options, Display, Day and night; it applies at once | `on` |
-| `shortcut_load` | `on` or `off`: lets `coop shortcut load` write a [cut developer save](cut-scenes-and-menus.md#loading-one-coop-shortcut-load) as co-op slot 5; it can unlock Steam achievements; no menu row | `on` |
-| `pvp_spike` | `on` or `off`: lets `coop pvp on` start the [PvP test](sbo-lobby.md#the-pvp-test) with your friend: a stand-in enemy at their ghost takes your hits for their game, down to 1 HP; needs `shared_enemies=off`; no menu row | `on` |
-| `sbo_lobby` | `on` or `off`: the [SBO lobby](sbo-lobby.md), a test. On, the recruiter's Join saves the co-op game and takes you to the lobby in Xion's training room (a hall lobby with the hall lobby pak), and each co-op save is copied before the game rewrites it (10 copies kept per slot). At each arrival in the lobby the screen stays black until the lobby menu is ready, 8 s at most, then fades onto the open menu. No menu row | `on` |
+| `daynight` | `on` or `off`: the [day and night cycle](../internals/daynight.md). On, the sun moves on the open maps and SBO's own maps by one clock that every player shares: one real hour is one game day and the night runs from about :52 to :12 past each hour (UTC). Off gives each map Stellar Blade's own fixed light, as before. The Terrace hall stays a night hall either way. Options, Display, Day and night; it applies at once | `on` |
+| `shortcut_load` | `on` or `off`: lets `coop shortcut load` write a [cut developer save](../cut-content/cut-scenes-and-menus.md#loading-one-coop-shortcut-load) as co-op slot 5; it can unlock Steam achievements; no menu row | `on` |
+| `pvp_spike` | `on` or `off`: lets `coop pvp on` start the [PvP test](../features/sbo-lobby.md#the-pvp-test) with your friend: a stand-in enemy at their ghost takes your hits for their game, down to 1 HP; needs `shared_enemies=off`; no menu row | `on` |
+| `sbo_lobby` | `on` or `off`: the [SBO lobby](../features/sbo-lobby.md), a test. On, the recruiter's Join saves the co-op game and takes you to the lobby in Xion's training room (a hall lobby with the hall lobby pak), and each co-op save is copied before the game rewrites it (10 copies kept per slot). At each arrival in the lobby the screen stays black until the lobby menu is ready, 8 s at most, then fades onto the open menu. No menu row | `on` |
 
 Rules:
 
@@ -310,7 +310,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-settings.txt` | Lua, once, then the co-op menu | Your settings (see above) |
 | `coop-settings.old.txt` | Lua, at the menu's first change since the mod loaded | `coop-settings.txt` as it was before that change |
 | `coop-guide.txt` | Lua, on the guide's Don't show again or a close on its last page | One line. While it exists, the [guide](interface.md#guide) does not open by itself |
-| `coop-records.txt` | Lua, after a challenge or Night Operation success that beats the best kept | Your best runs, one `best_<name>=<score> <seconds>` line each (see [challenges.md](challenges.md#best-runs-coop-recordstxt)). Written to `coop-records.txt.tmp` first, then renamed |
+| `coop-records.txt` | Lua, after a challenge or Night Operation success that beats the best kept | Your best runs, one `best_<name>=<score> <seconds>` line each (see [modes/challenges.md](../modes/challenges.md#best-runs-coop-recordstxt)). Written to `coop-records.txt.tmp` first, then renamed |
 | `coop-blocked.txt` | native, after `coop remove`, `coop block` or `coop unblock` | Your [block list](playing-with-a-friend.md#block-list): two comment lines, then a salted hash of each blocked SteamID, one a line |
 | `coop-status.txt` | native | The current state, as `coop status` shows it |
 | `coop-link.log` | native | This run's header and numbered events, in UTC like `UE4SS.log`, repeats counted, capped at 1 MB |
@@ -330,8 +330,8 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-components.txt` | Lua | Your EVE's capture (the component table) |
 | `coop-remote.txt` | native | The remote table the ghost is built from. In a match lobby or an online session of more than 2 players, `coop-remote-<k>.txt` holds the table of the member in ghost slot k, 1 to 6 |
 | `coop-cns.txt` | native, at start | The assets your CNS packs declare, one `<path> <outfit>` line each (empty without CNS packs): with `coop-shared-assets.txt`, the only paths from a mod's folder the ghost loads |
-| `coop-cns-call.txt` | Lua | The crash sentinel's marker: `<path> <outfit>` while the ghost hands the engine an asset your CNS packs declare or a mod you both have holds (the container name in place of the outfit), empty otherwise. Written in place, with no `.tmp` file (see [When a mod asset fails](ghost.md#when-a-mod-asset-fails)) |
-| `coop-shared-assets.txt` | native, when the list changes | The assets of the mods you and your friend both have in one version, one `<path> <container>` line each: loaded by the ghost as CNS paths are (see [Mods you both have](ghost.md#mods-you-both-have)) |
+| `coop-cns-call.txt` | Lua | The crash sentinel's marker: `<path> <outfit>` while the ghost hands the engine an asset your CNS packs declare or a mod you both have holds (the container name in place of the outfit), empty otherwise. Written in place, with no `.tmp` file (see [When a mod asset fails](../features/ghost.md#when-a-mod-asset-fails)) |
+| `coop-shared-assets.txt` | native, when the list changes | The assets of the mods you and your friend both have in one version, one `<path> <container>` line each: loaded by the ghost as CNS paths are (see [Mods you both have](../features/ghost.md#mods-you-both-have)) |
 | `coop-cns-aside.txt` | Lua | The mod assets set aside after a crash: `version <mod version>`, then one `<path> <outfit>` line each. Cleared by `coop cns reset` and by another mod version |
 | `coop-display.txt` | Lua | The ghost Lua built for that table |
 | `coop-state.txt` | Lua | Whether a save is loaded or the title screen is shown, the send rate, your photo mode and the photo settings |
@@ -339,19 +339,19 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-ui.txt` | Lua | The co-op UI's on-screen root, so the next Lua load (Ctrl+R) can remove it and, if the menu was open, give the game its keys back |
 | `coop-say.txt` | Lua | A chat line you typed, for a moment: the native part takes and deletes it at its next pass |
 | `coop-chat.txt` | native | Your friend's chat lines and race lines, for a moment: Lua takes and deletes the file within 250 ms, or within a frame while a race is armed |
-| `StellarCoopStory.txt` | Lua, on `coop story` | The [story dump](story.md#the-file), replaced at each run |
-| `coop-story.txt` | you | A [story dump request](story.md#the-request-file-coop-storytxt): the mod removes it and runs the dump once a world is loaded |
+| `StellarCoopStory.txt` | Lua, on `coop story` | The [story dump](../dev/story.md#the-file), replaced at each run |
+| `coop-story.txt` | you | A [story dump request](../dev/story.md#the-request-file-coop-storytxt): the mod removes it and runs the dump once a world is loaded |
 | `coop-night.txt` | Lua | Your side of a Night Operation run, for a moment: the native part takes and deletes it at its next pass and sends it to your friend |
-| `coop-night-<steamid>-<index>.txt` | Lua | Your Night Operation shop points on that co-op slot, one line (see [night-operation-shop.md](night-operation-shop.md)) |
-| `coop-gift-<steamid>-<index>.txt` | Lua | Your mailbox on that co-op slot: the gifts that wait, the ones you sent that wait for an answer or come back, and the last 64 gifts taken (see [Cut mailbox](cut-scenes-and-menus.md#cut-mailbox-coop-gift)) |
+| `coop-night-<steamid>-<index>.txt` | Lua | Your Night Operation shop points on that co-op slot, one line (see [modes/night-operation-shop.md](../modes/night-operation-shop.md)) |
+| `coop-gift-<steamid>-<index>.txt` | Lua | Your mailbox on that co-op slot: the gifts that wait, the ones you sent that wait for an answer or come back, and the last 64 gifts taken (see [Cut mailbox](../cut-content/cut-scenes-and-menus.md#cut-mailbox-coop-gift)) |
 | `coop-gift-toast.txt` | Lua | While a gift's toast shows: its object path, so the next Lua load (Ctrl+R) can take it off |
-| `coop-race.txt` | Lua | Your [Doro race](doro-races.md) lines, for a moment: the native part takes and deletes the file at its next pass |
+| `coop-race.txt` | Lua | Your [Doro race](../features/doro-races.md) lines, for a moment: the native part takes and deletes the file at its next pass |
 | `coop-track-<name>.txt` | Lua, on `coop race save` | A Doro race track |
 | `coop-look.txt` | Lua | While the Doro look is on: EVE's object path, her main mesh's animation option before the look, the Doro's object path, the names of the parts the look hid and, once the look hid the drone's body, the drone's object path, so the next Lua load (Ctrl+R) can show both again |
 | `coop-race-doros.txt` | Lua | While a race shows Doros: their object paths, so the next Lua load (Ctrl+R) can remove them |
-| `coop-drive.txt` | Lua | While a race, the drive probe or the [bike](bike.md) drives EVE: her object path and her movement's four values from before, so the next Lua load (Ctrl+R) can put them back |
-| `coop-bike.txt` | Lua | While EVE rides the [bike](bike.md): her object path and her main mesh's relative rotation and location from before, so the next Lua load (Ctrl+R) can put her mesh back and hide the bike |
-| `coop-bike-<steamid>-<saves><index>.txt` | Lua, each time the bike is parked at a new place, never in the SBO lobby | Where your [bike](bike.md#where-the-bike-stays) stands for that Steam account and save, one line: version 1, the map, its position and its rotation (see [The place per save](internals/bike.md#the-place-per-save)) |
+| `coop-drive.txt` | Lua | While a race, the drive probe or the [bike](../features/bike.md) drives EVE: her object path and her movement's four values from before, so the next Lua load (Ctrl+R) can put them back |
+| `coop-bike.txt` | Lua | While EVE rides the [bike](../features/bike.md): her object path and her main mesh's relative rotation and location from before, so the next Lua load (Ctrl+R) can put her mesh back and hide the bike |
+| `coop-bike-<steamid>-<saves><index>.txt` | Lua, each time the bike is parked at a new place, never in the SBO lobby | Where your [bike](../features/bike.md#where-the-bike-stays) stands for that Steam account and save, one line: version 1, the map, its position and its rotation (see [The place per save](../internals/bike.md#the-place-per-save)) |
 | `coop-bike-stand.txt` | Lua | While your parked bike stands in the world: its actor path, so the next Lua load (Ctrl+R) can remove it |
 | `coop-bike-copies.txt` | Lua | While the other players' parked bikes show: their actor paths, tab-separated, so the next Lua load (Ctrl+R) can remove them |
 | `coop-parked.txt` | Lua | Your parked bike's line (`park <map> <x> <y> <z> <pitch> <yaw> <roll>` or `none`), for a moment: the native part takes and deletes it at its next pass and sends it to the players linked with you |

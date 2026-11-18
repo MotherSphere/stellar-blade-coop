@@ -2,9 +2,9 @@
 
 One player hosts a session and the others join it through Steam. An online session holds 2 to 4 players, the host
 included ([More than 2 players](#more-than-2-players)); the match lobbies of up to 8 players start from the
-[SBO lobby](sbo-lobby.md) instead. Shared enemies and your friend's EVE have their own pages,
-[Shared enemies](shared-enemies.md) and [Ghost](ghost.md). How the link and the features below work is in
-[The Steam link](internals/steam-link.md) and [Group play: how it works](internals/group-play.md).
+[SBO lobby](../features/sbo-lobby.md) instead. Shared enemies and your friend's EVE have their own pages,
+[Shared enemies](../features/shared-enemies.md) and [Ghost](../features/ghost.md). How the link and the features below work is in
+[The Steam link](../internals/steam-link.md) and [Group play: how it works](../internals/group-play.md).
 
 1. The host presses F5 and selects Host a session. The [Create a session screen](interface.md#create-a-session-screen)
    opens on the values in effect: Who can join, Players, then the session rules. Start creates a Steam lobby for as
@@ -47,20 +47,20 @@ More about sessions:
   [Notices](interface.md#notices)).
 
 The ghost is display only. Items, unlocks and progress are not copied between your two games, except the consumables
-you send with [`coop gift`](cut-scenes-and-menus.md#cut-mailbox-coop-gift), which leave one co-op save and go into the other. The experimental
-[shared enemies](shared-enemies.md#shared-enemies-experimental) are on by default and run on [co-op saves](#co-op-saves) only.
+you send with [`coop gift`](../cut-content/cut-scenes-and-menus.md#cut-mailbox-coop-gift), which leave one co-op save and go into the other. The experimental
+[shared enemies](../features/shared-enemies.md#shared-enemies-experimental) are on by default and run on [co-op saves](#co-op-saves) only.
 
 Achievements follow one rule: a shared enemy you fight together counts for both of you, and nothing done without you
 reaches your save. The mod never unlocks an achievement itself. Your game unlocks them from what happens in your own
 world, and a shared enemy dies there only if you took part in its fight (`kill_credit` under
-[shared enemies](shared-enemies.md#shared-enemies-experimental)). An enemy or a boss your friend kills in a fight you were not in does
+[shared enemies](../features/shared-enemies.md#shared-enemies-experimental)). An enemy or a boss your friend kills in a fight you were not in does
 not die in your game, so it gives you no kill, rewards, drops, quest progress or trophy.
 
 ## Your world and your friend's
 
 Each of you plays in your own world, from your own save. Supply boxes, collectibles, passcode doors and camps are each
 player's own: a box you open stays closed and full in your friend's world until they open it there, and what is in it
-goes to you only. With the [shared world](shared-world.md) (experimental, on by default), a door, lever, switch, crane,
+goes to you only. With the [shared world](../features/shared-world.md) (experimental, on by default), a door, lever, switch, crane,
 lift or shortcut that one of you works changes in the other's world too, on co-op saves; with it off, they move only in
 the world of the player who uses them. Vendors, the request board and quest givers work for both players;
 [shared quests](#shared-quests-experimental) says which quest steps are shared. Nothing one player opens, buys or picks
@@ -83,7 +83,7 @@ session of 3 or 4 players has not been tested in game yet.
   A guest who comes in while there is no pair sees `Shared enemies, the shared world and story together are off for
   you in <host>'s session. Your game keeps its own.`
 - [Shared quests](#shared-quests-experimental) run between the host and each guest. A quest step a guest makes first
-  is made in the host's game too only when she is the pair: it belongs to [story together](story-together.md).
+  is made in the host's game too only when she is the pair: it belongs to [story together](../features/story-together.md).
 - The host's game asks about one joiner at a time, in the order they joined. Its question adds `Players waiting after
   this one: <n>.` to the seconds line. A joiner's 60 s start when her question is the first one. Her wait popup counts
   down the most the host's answer may take: what is left of the current question's minute, plus a minute for each
@@ -125,7 +125,7 @@ and on Refresh (F, or Y on a controller), 5 s apart at least. It never searches 
 Select a row to join that session. A Steam friend of the host gets in at once, unless the host set Friends join
 without asking to Off. Anyone else waits for the host's answer (see [Asking to join](#asking-to-join)). The console
 reads the same list: `coop list public` or `coop list friends` searches, `coop list` prints the rows and
-`coop join <row>` joins one (see [Session commands](usage.md#session-commands)).
+`coop join <row>` joins one (see [Session commands](../usage.md#session-commands)).
 
 ## Join codes
 
@@ -145,7 +145,7 @@ It works like the chat box: any keyboard layout, the game ignores its own keys, 
 
 The box closes when a session starts, when the game pauses or shows the mouse cursor, and outside a world. The native
 part checks the code: most codes with a wrong character get `That is not a join code: check its 7 characters.` (see
-[internals/steam-link.md](internals/steam-link.md#lobby-and-invites)), and a code that leads to no game gets one of the
+[internals/steam-link.md](../internals/steam-link.md#lobby-and-invites)), and a code that leads to no game gets one of the
 `Could not join: ...` notices.
 
 ## Asking to join
@@ -214,7 +214,7 @@ lobbies and after the game restarts. Deny only refuses them for the current lobb
   they are. The hash does not keep them secret. The salt is the same for every player. Steam has about 4 billion
   personal accounts, few enough for one PC to hash them all in a few minutes. Anyone who gets your file can list every
   SteamID on it that way, so do not share it. Keep it when you update the mod (see
-  [INSTALL.md](../INSTALL.md#update)).
+  [INSTALL.md](../../INSTALL.md#update)).
 - When the file is there at game start but the mod cannot read all of it (another program holds it open, for
   example), you see `Could not read the whole block list: changes to it are not saved until the game restarts.` The
   players it read stay blocked. The file stays as it is until the next game start, so no player on it is lost.
@@ -254,9 +254,9 @@ list would show. `coop status` lists them on its `activated=` line.
 
 ## A player down
 
-When one EVE dies, the other player keeps playing (see [internals/group-play.md](internals/group-play.md#a-player-down)):
+When one EVE dies, the other player keeps playing (see [internals/group-play.md](../internals/group-play.md#a-player-down)):
 
-- With [same place](shared-enemies.md#same-place-experimental) on and `aggro=game` (the defaults), the shared enemies near the living
+- With [same place](../features/shared-enemies.md#same-place-experimental) on and `aggro=game` (the defaults), the shared enemies near the living
   EVE fight it. While the guest is on the death screen, the host's game takes back each shared enemy that her game ran
   and that stands within 30 m of the host's EVE, and keeps it until she is up. While the host is on the death screen,
   the guest's game takes the host's common enemies within 30 m of her EVE. Bosses stay the host's.
@@ -280,7 +280,7 @@ The revive also needs shared enemies running (`shared_enemies=on`, both on co-op
 no boss fight on your side and no respawn under way. Only the downed player's setting counts.
 
 During a co-op Night Operation run this revive and its notices stand aside: with `revive=on` the run has its own
-revive, with the interact key and a 30 s limit (see [Down and revive](night-operation.md#down-and-revive)). With
+revive, with the interact key and a 30 s limit (see [Down and revive](../modes/night-operation.md#down-and-revive)). With
 `revive=off` a death there ends the run.
 
 ## Camp rests in a shared area
@@ -317,7 +317,7 @@ guest's rest works as in solo play.
 On the title screen, once the on-screen UI has loaded (a few seconds), the mod asks whether to play on co-op copies of
 your saves, while the game uses your own saves (`auto_coop_save=ask`, the default). At the mod's first run the
 [guide](interface.md#guide) comes first.
-[INSTALL.md: Co-op saves](../INSTALL.md#co-op-saves) lists the choices; [saves.md](saves.md#co-op-saves) has the files
+[INSTALL.md: Co-op saves](../../INSTALL.md#co-op-saves) lists the choices; [saves.md](saves.md#co-op-saves) has the files
 and the rules.
 
 | Key | In the question |
@@ -352,7 +352,7 @@ Bolts as the selected ammo, or names the cut Matrix XIII dungeon as its map, its
 simple camp, and `coop-link.log` says what to use up, sell or switch, or to rest at a full camp (one with a phone booth)
 outside the dungeon. A co-op save that started New Game+ with any of these keeps them in a copy that playing does not
 change: the export keeps refusing it. It also refuses a developer save that
-[`coop shortcut load`](cut-scenes-and-menus.md#loading-one-coop-shortcut-load) wrote in co-op slot 5 (`StellarBladeCoop04.sav`, so N is 4),
+[`coop shortcut load`](../cut-content/cut-scenes-and-menus.md#loading-one-coop-shortcut-load) wrote in co-op slot 5 (`StellarBladeCoop04.sav`, so N is 4),
 played or not, since the developer's progress and cut items would land in your own save. The rules are in
 [saves.md](saves.md#co-op-saves). The export has not been tested in game yet.
 
@@ -407,7 +407,7 @@ guest's game running. Only the host's cutscenes pause the other game.
 Each game looks for the game's own cutscene player once a second while linked. Whether every story scene, dialogue and
 boss intro counts as a cutscene there has not been checked in game yet.
 
-With [story together](story-together.md) on, a story scene the host plays plays in the guest's game too, so she
+With [story together](../features/story-together.md) on, a story scene the host plays plays in the guest's game too, so she
 watches it instead of waiting. The cutscene wait covers the scenes her game cannot play with him.
 
 ## Shared quests (experimental)

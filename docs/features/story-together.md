@@ -3,9 +3,9 @@
 With story together on, a story scene that the host plays also plays in the guest's game: the cutscenes a zone of the
 game starts and the talks with its characters. The guest's copy takes the host's choices, QTE results and skips. It is
 on by default and has not been tested in game yet. Back up your saves before you play a co-op save with it on (see
-[saves.md](saves.md)). Keep Steam Cloud off.
+[players/saves.md](../players/saves.md)). Keep Steam Cloud off.
 
-How the code does it is in [Story together: how it works](internals/story-sync.md).
+How the code does it is in [Story together: how it works](../internals/story-sync.md).
 
 ## What is shared
 
@@ -31,7 +31,7 @@ waits for a press closes once the host is past it. When the host's scene ends, w
 the link drops, her copy plays out on its own with the results it already had.
 
 While a shared scene starts or plays in her game, her game does not hold the pause that the
-[cutscene wait](playing-with-a-friend.md#cutscene-wait) and photo sync use.
+[cutscene wait](../players/playing-with-a-friend.md#cutscene-wait) and photo sync use.
 
 ### Story trips
 
@@ -43,7 +43,7 @@ shared quests are on and her main story quests stand where his stand. Otherwise 
 
 ### Quest steps the guest makes first
 
-This is part of [shared quests](playing-with-a-friend.md#shared-quests-experimental): it needs `shared_quests` on,
+This is part of [shared quests](../players/playing-with-a-friend.md#shared-quests-experimental): it needs `shared_quests` on,
 whatever `shared_story` says. A quest step that the guest makes first is sent to the host and made in his game, so
 either player can lead a step. The guest's game sends it only when her quest stood where the host's last quest line
 stood and she stands in his zone. A kill task, an item task, a step that moves the player and a quest the host never
@@ -55,7 +55,7 @@ use, then sends it back as one of his own quest lines.
 
 ## When a scene is not shared
 
-The guest then waits as before: the [cutscene wait](playing-with-a-friend.md#cutscene-wait) pauses her game while the
+The guest then waits as before: the [cutscene wait](../players/playing-with-a-friend.md#cutscene-wait) pauses her game while the
 host's scene plays. This happens when:
 
 - she stands in another zone, or the host's ghost is not on her map;
@@ -91,12 +91,12 @@ in the world.
 ## The setting
 
 Options > Session > Story together (experimental) in the co-op menu turns it on or off at once. The same row on the
-[Create a session screen](interface.md#create-a-session-screen) does too. So does `shared_story=on` or `off` in
-[coop-settings.txt](settings.md#coop-settingstxt). Each player has their own. Off, your game sends no scene and plays
+[Create a session screen](../players/interface.md#create-a-session-screen) does too. So does `shared_story=on` or `off` in
+[coop-settings.txt](../players/settings.md#coop-settingstxt). Each player has their own. Off, your game sends no scene and plays
 none of the host's. The host's cutscenes then pause the guest as before.
 
 `coop scenes on` and `coop scenes off` change it until the mod reloads (game start or Ctrl+R), whatever the setting
-says. `coop scenes status` answers with the `story=` line of [coop status](usage.md#coop-status).
+says. `coop scenes status` answers with the `story=` line of [coop status](../usage.md#coop-status).
 
 Two notices come in the feed: `Story together on with <name>.` each time both sides come on, `Story together stopped
 until the game restarts. coop-link.log says why.` after an error. The ghost, the link and the other shared features go
@@ -116,7 +116,7 @@ on after such an error.
 host's) or `out` (the host's scene ended and hers plays out). Then come counters: `sent=` the host's lines sent,
 `received=` the lines the guest got, `started=` and `attached=` her copies started or followed, `fallbacks=` the
 scenes she waited through as before, `applied=` the host's results her game took and `trips=` the trips run. The
-others are described in [Story together: how it works](internals/story-sync.md#status-line).
+others are described in [Story together: how it works](../internals/story-sync.md#status-line).
 
 ## Not shared yet
 

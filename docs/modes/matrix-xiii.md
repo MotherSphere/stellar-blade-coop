@@ -5,11 +5,11 @@ enemies of each, but no pak holds its map and no camp or warp leads there. `coop
 first zone a camp; `coop mxiii 30` goes to a second camp, in the third zone. It needs the zMXIII_P test pak, which does
 not come with the mod: a map at the path the game's world table names, built from shipped Matrix 11 levels. Without that
 pak the command refuses and changes nothing. It is a test command, left out of the usage line, and runs only alone (not
-in a session) on a [co-op save](playing-with-a-friend.md#co-op-saves). Its lines go to `UE4SS.log` as
+in a session) on a [co-op save](../players/playing-with-a-friend.md#co-op-saves). Its lines go to `UE4SS.log` as
 `[StellarCoop][MX]`, the travel's as `[StellarCoop][TR]`.
 
 [Lily's signal](lily-signal.md) leads into the same dungeon through two quests of the mod's own. The rows and the camp
-travel behind the command are described in [internals/matrix-xiii.md](internals/matrix-xiii.md).
+travel behind the command are described in [internals/matrix-xiii.md](../internals/matrix-xiii.md).
 
 ## The test pak
 
@@ -155,7 +155,7 @@ in for them. `coop mxiii 30` goes around that climb.
   four times each time the title shows; after that `coop mxiii` adds them as above. They then stay for the game run,
   even if you switch back to your own saves: nothing in the main game leads to the dungeon or its camps. The two camp
   trophies count only named camps of the main game, so these rows can neither unlock nor block them
-  ([How it works](internals/safety.md#achievements)).
+  ([How it works](../internals/safety.md#achievements)).
 - The rows go in through the same native calls as `coop lion` and the shop's cut items. A fault in those calls during
   `coop mxiii` or at the title stops them all until the game restarts: `coop lion`, `coop gardener fight`,
   `coop tendril fight`, and the shop's stimpacks, ChainSpin and Shock Bolt that are not in yet then answer that the
@@ -194,7 +194,7 @@ game spawned none there. The fan levers wait for the Lion's death: a save whose 
 levers needs a new run. A boss that never spawns locks nothing: its doors lock on its first fight.
 
 The link protocol is 19: both players need a build with the same rows. A co-op save that played in the dungeon can no
-longer be exported to your own saves ([saves.md](saves.md)).
+longer be exported to your own saves ([players/saves.md](../players/saves.md)).
 
 ## Status lines
 

@@ -1,7 +1,7 @@
 # Sends the zip of a published GitHub release to Nexus Mods as a new version of the mod's main file.
 # python3 tools/release.py <tag> builds the zip locally (the DLL needs the clang-cl and xwin toolchain), attaches it to
 # the draft release as StellarCoop-<tag>.zip and publishes the release with the user's gh token. A release published
-# with the GITHUB_TOKEN would not start this workflow. See docs/building.md, Releases.
+# with the GITHUB_TOKEN would not start this workflow. See docs/dev/building.md, Releases.
 # Settings: secret NEXUSMODS_API_KEY in the release environment, whose runs wait for MotherSphere's approval and come
 # only from v* tags or main; repository variables NEXUS_MOD_ID (the mod's API ID, 33517924781995) and
 # NEXUS_FILE_ID (the main file's API ID, 8255901). Neither is the number in the mod page's URL or the file's uid there.

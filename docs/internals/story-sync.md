@@ -1,6 +1,6 @@
 # Story together: how it works
 
-The player's side is in [Story together](../story-together.md). Story together (`shared_story`, experimental, on by
+The player's side is in [Story together](../features/story-together.md). Story together (`shared_story`, experimental, on by
 default) has not run in game yet. Every address and offset below is build 26123051's, read in Ghidra.
 
 The code is split as for the [shared world](shared-world.md):
@@ -24,7 +24,7 @@ Each result is written once into her copy, keyed by its take (a TakeUID), its wi
 take. A leash pauses her copy where his last position stands. SBO never stops or skips her copy through SB's do-skip:
 it always ends through its last take into End. When his scene ends, the link drops or he starts another scene, the
 leash and her input holds go. Her copy then plays out. A scene she cannot play keeps the
-[cutscene wait](../playing-with-a-friend.md#cutscene-wait).
+[cutscene wait](../players/playing-with-a-friend.md#cutscene-wait).
 
 ## The host's side
 

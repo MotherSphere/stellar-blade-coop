@@ -1,7 +1,7 @@
 # Keys and console commands
 
 To install the mod, see [INSTALL.md](../INSTALL.md). The other player pages are listed in the
-[documentation index](README.md), and what happens behind each feature is in [How it works](how-it-works.md). The mod's
+[documentation index](README.md), and what happens behind each feature is in [How it works](internals/README.md). The mod's
 `coop shortcut` messages, its `coop-settings.txt` and some code comments still name this page for sections that have
 moved; [Sections that moved](#sections-that-moved), at the end, gives the new place of each one.
 
@@ -13,21 +13,21 @@ The keys work with or without the console. They need the native part (`StellarCo
 
 | Key (default) | Action | Console equivalent |
 | --- | --- | --- |
-| F5 | Open or close the [co-op menu](interface.md#co-op-menu); its first row hosts a session. Within 3 m of a camp phone booth, open the [co-op line](interface.md#co-op-line) instead. In the [SBO lobby](sbo-lobby.md#the-lobby-menu), open the lobby menu, or sit on a hall seat within 1.5 m that has no chair | (none) |
-| View held 1 s, on a [controller](interface.md#controller) | Open or close the co-op menu, the co-op line at a booth, or the lobby menu in the SBO lobby | (none) |
-| LB, RB, on a controller | Change the tab of the SBO lobby's Settings screen or of the [Sessions screen](interface.md#sessions-screen) | (none) |
-| RB or E on the Settings tab of the game's pause menu, or a click on its Online tab | Close the pause menu and open the co-op menu ([Pause menu](interface.md#pause-menu)) | (none) |
+| F5 | Open or close the [co-op menu](players/interface.md#co-op-menu); its first row hosts a session. Within 3 m of a camp phone booth, open the [co-op line](players/interface.md#co-op-line) instead. In the [SBO lobby](features/sbo-lobby.md#the-lobby-menu), open the lobby menu, or sit on a hall seat within 1.5 m that has no chair | (none) |
+| View held 1 s, on a [controller](players/interface.md#controller) | Open or close the co-op menu, the co-op line at a booth, or the lobby menu in the SBO lobby | (none) |
+| LB, RB, on a controller | Change the tab of the SBO lobby's Settings screen or of the [Sessions screen](players/interface.md#sessions-screen) | (none) |
+| RB or E on the Settings tab of the game's pause menu, or a click on its Online tab | Close the pause menu and open the co-op menu ([Pause menu](players/interface.md#pause-menu)) | (none) |
 | Y, on a controller | Refresh the Sessions screen's list, or stop the search that runs | `coop list public\|friends` |
-| F6 | Show the status: one line on screen (see [Notices](interface.md#notices)) and in `UE4SS.log` | (a short form of `coop status`) |
-| F7 | As the guest, travel to the camp nearest the host, or cancel the travel that `follow_host=always` is about to start ([Following the host](playing-with-a-friend.md#following-the-host)) | `coop travel host` |
+| F6 | Show the status: one line on screen (see [Notices](players/interface.md#notices)) and in `UE4SS.log` | (a short form of `coop status`) |
+| F7 | As the guest, travel to the camp nearest the host, or cancel the travel that `follow_host=always` is about to start ([Following the host](players/playing-with-a-friend.md#following-the-host)) | `coop travel host` |
 | F8 | Leave the session | `coop leave` |
-| F9 | While you record a [Doro race](doro-races.md) track, set a checkpoint where EVE stands; nothing otherwise | `coop race cp` |
-| F3 | Put EVE on the [bike](bike.md) or take her off it; a refusal shows its reason on screen | `coop bike` |
+| F9 | While you record a [Doro race](features/doro-races.md) track, set a checkpoint where EVE stands; nothing otherwise | `coop race cp` |
+| F3 | Put EVE on the [bike](features/bike.md) or take her off it; a refusal shows its reason on screen | `coop bike` |
 | D-pad Right held 1 s, on a controller | The same as F3, in a world with none of the mod's screens or the game's menus open | `coop bike` |
-| Enter | During a session or in the SBO lobby, open the [chat](interface.md#session-chat) box, then send a line; Esc closes the box | (none) |
+| Enter | During a session or in the SBO lobby, open the [chat](players/interface.md#session-chat) box, then send a line; Esc closes the box | (none) |
 | none | Host a session at once, or open the Steam invite dialog again while you host (`host_key`) | `coop host` |
 
-You can change F3, F5, F6, F7, F8 and F9 in the menu's Options page or in [coop-settings.txt](settings.md#coop-settingstxt), and
+You can change F3, F5, F6, F7, F8 and F9 in the menu's Options page or in [coop-settings.txt](players/settings.md#coop-settingstxt), and
 `host_key` in the file only. A key passes its action to the game thread, where the same checks as for the console
 command apply (`coop off` included). The log says `key F5: menu`. The other keys then log the usual `OK:` or `STOP:`
 line; the menu key logs one only when the menu cannot open.
@@ -44,26 +44,26 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 
 | Command | What it does |
 | --- | --- |
-| `coop host` | Open the [Create a session screen](interface.md#create-a-session-screen), as the menu's Host a session row does. Where it cannot open, host an online session at once as `who_can_join`, `friends_ask` and `max_players` say: a Public or Friends only session, an Invitation session with a [join code](playing-with-a-friend.md#join-codes), or a Private one nobody can join |
+| `coop host` | Open the [Create a session screen](players/interface.md#create-a-session-screen), as the menu's Host a session row does. Where it cannot open, host an online session at once as `who_can_join`, `friends_ask` and `max_players` say: a Public or Friends only session, an Invitation session with a [join code](players/playing-with-a-friend.md#join-codes), or a Private one nobody can join |
 | `coop host public\|friends\|invitation\|closed` | Host at once with that word in place of `who_can_join`; `friends_ask` applies under `public` and `invitation` |
 | `coop invite` | Open the Steam invite dialog again while you are in a lobby |
 | `coop join` | Join the first Steam friend found in a Stellar Blade lobby |
 | `coop join <lobby id>` | Join that lobby (digits only) |
-| `coop join <code>` | Join the lobby of that [join code](playing-with-a-friend.md#join-codes), in capitals or not, with or without the dash |
+| `coop join <code>` | Join the lobby of that [join code](players/playing-with-a-friend.md#join-codes), in capitals or not, with or without the dash |
 | `coop list public\|friends` | Search the session list's Public online sessions, or your Steam friends' ones |
 | `coop list` | Print the last session list's rows, numbered; with no list yet, search the Public sessions |
 | `coop join <row>` | Join the online session of that row of `coop list` (1 to 99) |
 | `coop copy` | Put your join code on the clipboard while you host with one (the menu's Copy my code row) |
 | `coop allow <SteamID>` / `coop deny <SteamID>` | Let in or refuse the player who is not your Steam friend and waits for your answer |
-| `coop remove <SteamID>` | Remove a player from the session you host and put them on your [block list](playing-with-a-friend.md#block-list): they cannot come back to any game you host |
+| `coop remove <SteamID>` | Remove a player from the session you host and put them on your [block list](players/playing-with-a-friend.md#block-list): they cannot come back to any game you host |
 | `coop block <SteamID>` | Put a player on your block list without a session; a player in the game you host is removed as well |
 | `coop unblock <SteamID>`, `coop unblock all` | Take one player off your block list, or empty it |
 | `coop blocked` | Print how many players your block list holds (the file keeps only hashes, so it cannot name them) |
 | `coop leave` | Leave the session (F8) |
-| `coop match search\|create <mode>`, `coop match cancel`, `coop match end`, `coop match join <code>`, `coop match leave` | A [match lobby](sbo-lobby.md#search) of up to 8 players (experimental; the only mode is `ffa`, and a round's start does not take anyone to an arena yet). `search` joins an open public lobby of that mode, or hosts one when none is open; `create` hosts a private one that players join with its [join code](playing-with-a-friend.md#join-codes); `cancel` stops a search; `end` ends the round you host; `join <code>` and `leave` work like `coop join <code>` and `coop leave`. `search` and `create` are refused while you are in a lobby. They run from the console anywhere and on any save, not only in the SBO lobby; outside it they have not been tested in game |
+| `coop match search\|create <mode>`, `coop match cancel`, `coop match end`, `coop match join <code>`, `coop match leave` | A [match lobby](features/sbo-lobby.md#search) of up to 8 players (experimental; the only mode is `ffa`, and a round's start does not take anyone to an arena yet). `search` joins an open public lobby of that mode, or hosts one when none is open; `create` hosts a private one that players join with its [join code](players/playing-with-a-friend.md#join-codes); `cancel` stops a search; `end` ends the round you host; `join <code>` and `leave` work like `coop join <code>` and `coop leave`. `search` and `create` are refused while you are in a lobby. They run from the console anywhere and on any save, not only in the SBO lobby; outside it they have not been tested in game |
 | `coop mute <SteamID>` / `coop unmute <SteamID>` | Drop that player's chat lines, or show them again, in any lobby until the game closes (experimental). The `member=` lines of `coop status` start with each member's SteamID, masked to its last 4 digits, which these commands take too |
-| `coop travel host` | As the guest, travel to the camp nearest the host (F7), or cancel the travel that `follow_host=always` is about to start ([Following the host](playing-with-a-friend.md#following-the-host)) |
-| `coop travel probe <camp>` | Solo test of the follow's travel: the game's own fast travel to one of its 120 camps that your save has activated (the `activated=` line of `coop status`), with no session and no host's answer; any other camp is refused, see [Following the host](playing-with-a-friend.md#following-the-host) (test command, co-op save only) |
+| `coop travel host` | As the guest, travel to the camp nearest the host (F7), or cancel the travel that `follow_host=always` is about to start ([Following the host](players/playing-with-a-friend.md#following-the-host)) |
+| `coop travel probe <camp>` | Solo test of the follow's travel: the game's own fast travel to one of its 120 camps that your save has activated (the `activated=` line of `coop status`), with no session and no host's answer; any other camp is refused, see [Following the host](players/playing-with-a-friend.md#following-the-host) (test command, co-op save only) |
 | `coop status` | Print the full state: link, friend, notices, pose path, save slot, ghost |
 | `coop report` | Write `coop-report.txt`, to send with a bug report |
 | `coop mark [text]` | Write a numbered line in your logs and your friend's, to line up the steps of a [test played together](#coop-mark) |
@@ -75,72 +75,72 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop look <cloth\|dyes\|effects> <on\|off>` | Turn one look on or off until the mod reloads |
 | `coop cns` | Show whether the ghost's CNS part is on and which mod assets the crash sentinel set aside |
 | `coop cns reset` | Clear the set-aside list, turn the CNS part on again and build the ghost again |
-| `coop wear [<name>\|off [hair\|suit]]` | Put a [cut hair or suit](cut-eve.md#cut-hairs-and-suits-coop-wear) on your EVE (display only, untested in game), or give the game's back |
-| `coop lines [<name>\|stop]` | Show the subtitles of a [scene cut before it was voiced](cut-scenes-and-menus.md#cut-scene-lines-coop-lines) in the chat's feed, or play unused voice takes, or end it (untested in game) |
-| `coop emote [list\|<name>\|off]` | Play one of [EVE's clips](cut-eve.md#emotes-coop-emote) (a photo-mode pose held until she moves, a wave, a clip of the Cut category; untested in game), list them or end it |
-| `coop bike` | Put EVE on the [bike](bike.md) or take her off it, on any save (untested in game) |
-| `coop bike status` | The bike's preload, whether it is on EVE, whether she rides, its four riding values, where it is [parked](bike.md#where-the-bike-stays) (`parked on <map>`, with `<n> m away` on her map, or `no place yet`) |
-| `coop bike tune [<name> <value>]` | The four [riding values](bike.md#coop-bike), or one changed for your next rides until the mod reloads |
+| `coop wear [<name>\|off [hair\|suit]]` | Put a [cut hair or suit](cut-content/cut-eve.md#cut-hairs-and-suits-coop-wear) on your EVE (display only, untested in game), or give the game's back |
+| `coop lines [<name>\|stop]` | Show the subtitles of a [scene cut before it was voiced](cut-content/cut-scenes-and-menus.md#cut-scene-lines-coop-lines) in the chat's feed, or play unused voice takes, or end it (untested in game) |
+| `coop emote [list\|<name>\|off]` | Play one of [EVE's clips](cut-content/cut-eve.md#emotes-coop-emote) (a photo-mode pose held until she moves, a wave, a clip of the Cut category; untested in game), list them or end it |
+| `coop bike` | Put EVE on the [bike](features/bike.md) or take her off it, on any save (untested in game) |
+| `coop bike status` | The bike's preload, whether it is on EVE, whether she rides, its four riding values, where it is [parked](features/bike.md#where-the-bike-stays) (`parked on <map>`, with `<n> m away` on her map, or `no place yet`) |
+| `coop bike tune [<name> <value>]` | The four [riding values](features/bike.md#coop-bike), or one changed for your next rides until the mod reloads |
 | `coop loopback <delay ms> <jitter ms> <loss %>` | Run your own ghost through a simulated network on one PC |
 | `coop loopback off` | Stop the loopback |
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
 | `coop replay` / `coop replay off` | Play `coop-record.bin` back as a ghost, in a loop |
-| `coop nightop [start [easy\|normal\|hard\|nightmare] [noaggro\|nomove]\|stop]` | [Night Operation's run](night-operation.md#the-solo-run-coop-nightop) at one of four [levels](night-operation.md#levels), solo or, started by the host at his level, [for both players](night-operation.md#the-co-op-run) (one solo run in game, on 2026-10-28, tracked none of its monsters and spawned some inside walls; the fixes for the tracking and for the spawn points are untested in game; co-op save only; `stop` on any save) |
-| `coop nightop revive` | In a co-op run with `revive=on`, while your EVE is down: revive her yourself, a few times a run ([Down and revive](night-operation.md#down-and-revive)) (untested in game, co-op save only) |
-| `coop nightop shop` | Night Operation's [reward shop](night-operation-shop.md#the-shop-screen-coop-nightop-shop) in the game's own shop screen, your points as Beta Seeds, with its seven items (two cut stimpacks and the cut [Shock Bolt](night-operation-shop.md#cut-ammo-shock-bolt) ammo among them; the Shock Bolt only once EVE's gun can fire it) (the screen opened in game; buying from it is untested; co-op save only) |
+| `coop nightop [start [easy\|normal\|hard\|nightmare] [noaggro\|nomove]\|stop]` | [Night Operation's run](modes/night-operation.md#the-solo-run-coop-nightop) at one of four [levels](modes/night-operation.md#levels), solo or, started by the host at his level, [for both players](modes/night-operation.md#the-co-op-run) (one solo run in game, on 2026-10-28, tracked none of its monsters and spawned some inside walls; the fixes for the tracking and for the spawn points are untested in game; co-op save only; `stop` on any save) |
+| `coop nightop revive` | In a co-op run with `revive=on`, while your EVE is down: revive her yourself, a few times a run ([Down and revive](modes/night-operation.md#down-and-revive)) (untested in game, co-op save only) |
+| `coop nightop shop` | Night Operation's [reward shop](modes/night-operation-shop.md#the-shop-screen-coop-nightop-shop) in the game's own shop screen, your points as Beta Seeds, with its seven items (two cut stimpacks and the cut [Shock Bolt](modes/night-operation-shop.md#cut-ammo-shock-bolt) ammo among them; the Shock Bolt only once EVE's gun can fire it) (the screen opened in game; buying from it is untested; co-op save only) |
 | `coop nightop buy [<n> [count]]` | The same shop from the console: your points and its seven items, or a buy of 1 to 10 of one of them (untested in game, co-op save only) |
-| `coop challenge [<name>\|stop]` | [Challenges](challenges.md): the list with each best run, a start by name or number (1 to 5), or the end of the run that is on (untested in game, co-op save only; solo but the [Shooting Range](challenges.md#shooting-range), which the host can start for both players; `stop` on any save) |
+| `coop challenge [<name>\|stop]` | [Challenges](modes/challenges.md): the list with each best run, a start by name or number (1 to 5), or the end of the run that is on (untested in game, co-op save only; solo but the [Shooting Range](modes/challenges.md#shooting-range), which the host can start for both players; `stop` on any save) |
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only). He also appears by himself at each Xion load, on any save; `off` keeps him away until the next one |
-| `coop scene [emil\|orcal\|stop]` | Play a [cut scene](cut-scenes-and-menus.md#cut-scenes-coop-scene) through the game's cutscene player (untested in game, co-op save only), list the scenes or stop the one that plays |
-| `coop leviathan`, `coop gardener`, `coop tendril`, `coop mann`, `coop nier`, `coop orcal`, `coop enya`, each with `[list]\|show\|move\|skin\|cam\|play\|off` | Read a [cut model](cut-enemies.md#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)'s assets, or show it in front of EVE with a [free camera](cut-enemies.md#free-camera) to film it, one model at a time and no enemy spawned (test commands; `show` and the camera turned on on a co-op save only) |
-| `coop lion [intro]\|rows\|control`, `coop lion brain skulling\|lurker`, `coop lion unfreeze [init]` | The [cut Lion](cut-enemies.md#cut-boss-coop-lion) as an enemy to fight (test command; fought in game on 2026-10-24): spawn one, with its entrance first; add its rows only; spawn an Antlion through the same call; pick the tree of the next Lions; put back the engine switches that can freeze its mesh (spawns on a co-op save only) |
-| `coop gardener fight [intro\|half\|skulling\|rows]` | The [cut Gardener](cut-enemies.md#cut-enemy-coop-gardener-fight) as an enemy to fight (test command, untested in game): spawn one, with its entrance first, at half size, or with the Lion's tree; add its rows only (spawns on a co-op save only) |
-| `coop tendril fight [rows]` | The [cut Tendril](cut-enemies.md#cut-enemy-coop-tendril-fight) as an enemy to fight (test command, untested in game): spawn one, with the Shows of its attacks built in memory first; add its rows and build its Shows only (spawns on a co-op save only) |
-| `coop chainspin` | EVE's [cut Tachy Mode ChainSpin](cut-eve.md#cut-tachy-skill-coop-chainspin), started once while she is in Tachy Mode (test command, untested in game, co-op save only) |
-| `coop mxiii` | A camp travel into the [cut Matrix XIII dungeon](matrix-xiii.md) and a camp there (experimental test command; the travel arrived in game with test pak v2 after a reload, the rows at the title are untested; needs the v5 zMXIII_P test pak, which the mod does not ship; solo, co-op save only) |
+| `coop scene [emil\|orcal\|stop]` | Play a [cut scene](cut-content/cut-scenes-and-menus.md#cut-scenes-coop-scene) through the game's cutscene player (untested in game, co-op save only), list the scenes or stop the one that plays |
+| `coop leviathan`, `coop gardener`, `coop tendril`, `coop mann`, `coop nier`, `coop orcal`, `coop enya`, each with `[list]\|show\|move\|skin\|cam\|play\|off` | Read a [cut model](cut-content/cut-enemies.md#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)'s assets, or show it in front of EVE with a [free camera](cut-content/cut-enemies.md#free-camera) to film it, one model at a time and no enemy spawned (test commands; `show` and the camera turned on on a co-op save only) |
+| `coop lion [intro]\|rows\|control`, `coop lion brain skulling\|lurker`, `coop lion unfreeze [init]` | The [cut Lion](cut-content/cut-enemies.md#cut-boss-coop-lion) as an enemy to fight (test command; fought in game on 2026-10-24): spawn one, with its entrance first; add its rows only; spawn an Antlion through the same call; pick the tree of the next Lions; put back the engine switches that can freeze its mesh (spawns on a co-op save only) |
+| `coop gardener fight [intro\|half\|skulling\|rows]` | The [cut Gardener](cut-content/cut-enemies.md#cut-enemy-coop-gardener-fight) as an enemy to fight (test command, untested in game): spawn one, with its entrance first, at half size, or with the Lion's tree; add its rows only (spawns on a co-op save only) |
+| `coop tendril fight [rows]` | The [cut Tendril](cut-content/cut-enemies.md#cut-enemy-coop-tendril-fight) as an enemy to fight (test command, untested in game): spawn one, with the Shows of its attacks built in memory first; add its rows and build its Shows only (spawns on a co-op save only) |
+| `coop chainspin` | EVE's [cut Tachy Mode ChainSpin](cut-content/cut-eve.md#cut-tachy-skill-coop-chainspin), started once while she is in Tachy Mode (test command, untested in game, co-op save only) |
+| `coop mxiii` | A camp travel into the [cut Matrix XIII dungeon](modes/matrix-xiii.md) and a camp there (experimental test command; the travel arrived in game with test pak v2 after a reload, the rows at the title are untested; needs the v5 zMXIII_P test pak, which the mod does not ship; solo, co-op save only) |
 | `coop mxiii 30` | The same with a travel to a second camp, in the dungeon's third zone (experimental test command, untested in game; needs the v5 test pak; solo, co-op save only) |
 | `coop mxiii leave` | The way out of Matrix XIII: a travel back to the camp where EVE respawned before `coop mxiii`, or to another camp your save has activated (test command, untested in game; solo, co-op save only) |
-| `coop lily signal` | [Lily's signal](lily-signal.md) by hand: the mod's quest "On Time", then `coop mxiii`'s camp travel (experimental test command, untested in game; needs the zMXIII_P test pak; solo, co-op save only) |
+| `coop lily signal` | [Lily's signal](modes/lily-signal.md) by hand: the mod's quest "On Time", then `coop mxiii`'s camp travel (experimental test command, untested in game; needs the zMXIII_P test pak; solo, co-op save only) |
 | `coop lily signal quest\|travel\|next\|status` | The quest alone, the travel alone, the task of the step "On Time" is at (a test word), or one status line (the status on any save) |
 | `coop lily talk prologue\|arrival\|finale [kit]` | One of Lily's talks by hand, in the game's subtitle box or, with `kit`, in the mod's own subtitles; `coop scene lily` is the prologue talk (same conditions as `coop lily signal`) |
 | `coop lily hold on\|off` | The talks' reading holds on or off until the next Lua load (any save) |
-| `coop fly on\|off`, `coop slowmo on\|off` | The game's [developer flight and slow motion](cut-eve.md#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo): a third press of the space bar in the air flies (test commands, untested in game; on on a co-op save only) |
-| `coop glide on\|off` | EVE's [cut glide](cut-eve.md#cut-glide-coop-glide) while Jump is held in the air (test command, untested in game; on on a co-op save only) |
-| `coop shortcut` | List the [cut Load Shortcut menu's saves](cut-scenes-and-menus.md#cut-load-shortcut-saves-coop-shortcut) in `coop-link.log` (test command, untested in game, any save) |
-| `coop shortcut load <map> <1-4>` | Write one of those saves, without its achievement list, as [co-op slot 5](cut-scenes-and-menus.md#loading-one-coop-shortcut-load) for Load Game (test command, untested in game; needs `shortcut_load=on`, typed twice within 10 s, at the title with co-op saves on; can unlock Steam achievements) |
-| `coop devmenu [list\|<row>]` | The rows of the game's [developer menu](cut-scenes-and-menus.md#developer-menu-coop-devmenu-and-coop-devinfo) that still work: the list, or one row on EVE or the enemies near her (test command, untested in game; a row on a co-op save only) |
-| `coop devinfo quest\|player\|off` | The game's [quest debugger or player info panel](cut-scenes-and-menus.md#developer-menu-coop-devmenu-and-coop-devinfo), opened or closed (test command, untested in game, any save) |
-| `coop story [dump\|find]` | Write the [story dump](story.md) to `StellarCoopStory.txt` in the mod folder: the story lines of the game's live save object, or with `find` a list of the objects that may hold them; a `coop-story.txt` file in the mod folder asks the same while a world is loaded (test command, untested in game, any save, read only) |
-| `coop gift [send <item> [count]\|take [n]]` | The [cut mailbox as a gift box](cut-scenes-and-menus.md#cut-mailbox-coop-gift): what waits in yours, a gift of 1 to 10 consumables to your linked friend, or the gifts that wait put into your inventory (untested in game, co-op save on both sides) |
-| `coop race record <name>\|cp\|save [laps]\|cancel` | Record a [Doro race](doro-races.md) track (untested in game) |
+| `coop fly on\|off`, `coop slowmo on\|off` | The game's [developer flight and slow motion](cut-content/cut-eve.md#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo): a third press of the space bar in the air flies (test commands, untested in game; on on a co-op save only) |
+| `coop glide on\|off` | EVE's [cut glide](cut-content/cut-eve.md#cut-glide-coop-glide) while Jump is held in the air (test command, untested in game; on on a co-op save only) |
+| `coop shortcut` | List the [cut Load Shortcut menu's saves](cut-content/cut-scenes-and-menus.md#cut-load-shortcut-saves-coop-shortcut) in `coop-link.log` (test command, untested in game, any save) |
+| `coop shortcut load <map> <1-4>` | Write one of those saves, without its achievement list, as [co-op slot 5](cut-content/cut-scenes-and-menus.md#loading-one-coop-shortcut-load) for Load Game (test command, untested in game; needs `shortcut_load=on`, typed twice within 10 s, at the title with co-op saves on; can unlock Steam achievements) |
+| `coop devmenu [list\|<row>]` | The rows of the game's [developer menu](cut-content/cut-scenes-and-menus.md#developer-menu-coop-devmenu-and-coop-devinfo) that still work: the list, or one row on EVE or the enemies near her (test command, untested in game; a row on a co-op save only) |
+| `coop devinfo quest\|player\|off` | The game's [quest debugger or player info panel](cut-content/cut-scenes-and-menus.md#developer-menu-coop-devmenu-and-coop-devinfo), opened or closed (test command, untested in game, any save) |
+| `coop story [dump\|find]` | Write the [story dump](dev/story.md) to `StellarCoopStory.txt` in the mod folder: the story lines of the game's live save object, or with `find` a list of the objects that may hold them; a `coop-story.txt` file in the mod folder asks the same while a world is loaded (test command, untested in game, any save, read only) |
+| `coop gift [send <item> [count]\|take [n]]` | The [cut mailbox as a gift box](cut-content/cut-scenes-and-menus.md#cut-mailbox-coop-gift): what waits in yours, a gift of 1 to 10 consumables to your linked friend, or the gifts that wait put into your inventory (untested in game, co-op save on both sides) |
+| `coop race record <name>\|cp\|save [laps]\|cancel` | Record a [Doro race](features/doro-races.md) track (untested in game) |
 | `coop race start <name>\|quit` | Start a Doro race on that track as the host or alone (co-op save only), or leave it |
-| `coop race look on\|off`, `coop race probe doro`, `coop race drive [probe\|off\|feed impulse\|struct\|<name> <value>]` | [Doro race](doro-races.md) test and tuning commands: the Doro look with no race, a Doro that plays each of its animations, the drive probe, and the driving values (test commands; `look on`, `probe doro` and `drive probe` on a co-op save only) |
+| `coop race look on\|off`, `coop race probe doro`, `coop race drive [probe\|off\|feed impulse\|struct\|<name> <value>]` | [Doro race](features/doro-races.md) test and tuning commands: the Doro look with no race, a Doro that plays each of its animations, the drive probe, and the driving values (test commands; `look on`, `probe doro` and `drive probe` on a co-op save only) |
 | `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
 | `coop fight probe\|record\|replay`, `coop fight test hp\|sh\|st <change>`, `coop fight test kill` | Shared enemies' solo test tools (experimental, co-op save only) |
-| `coop fight pilot status\|probe\|on\|off`, `coop fight pilot test freeze\|cmc\|drive\|replay\|target\|exec` | [Same place](shared-enemies.md#same-place-experimental) (experimental, on by default) and its solo test steps |
-| `coop fight pilot test bstart\|phase\|finish\|summon` | Solo tests of [shared bosses](shared-enemies.md#shared-bosses-experimental) on the boss copy of a replay (experimental) |
-| `coop fight spawn probe` | Solo probe of [same spawns](shared-enemies.md#same-spawns-experimental) (experimental, co-op save only) |
-| `coop pvp on\|off\|status` | The [PvP test](sbo-lobby.md#the-pvp-test) with your linked friend, who types it too: a stand-in at their ghost takes your hits for their game, down to 1 HP (test command, untested in game; needs `pvp_spike=on` and `shared_enemies=off`, co-op save only) |
-| `coop sbo enter\|leave\|status` | The [SBO lobby](sbo-lobby.md) by hand: `enter` saves the co-op game and takes you to the lobby, as the recruiter's Join does; `leave` brings you back to where you stood; `status` prints one line (test command, untested in game; needs `sbo_lobby=on`, co-op save only) |
+| `coop fight pilot status\|probe\|on\|off`, `coop fight pilot test freeze\|cmc\|drive\|replay\|target\|exec` | [Same place](features/shared-enemies.md#same-place-experimental) (experimental, on by default) and its solo test steps |
+| `coop fight pilot test bstart\|phase\|finish\|summon` | Solo tests of [shared bosses](features/shared-enemies.md#shared-bosses-experimental) on the boss copy of a replay (experimental) |
+| `coop fight spawn probe` | Solo probe of [same spawns](features/shared-enemies.md#same-spawns-experimental) (experimental, co-op save only) |
+| `coop pvp on\|off\|status` | The [PvP test](features/sbo-lobby.md#the-pvp-test) with your linked friend, who types it too: a stand-in at their ghost takes your hits for their game, down to 1 HP (test command, untested in game; needs `pvp_spike=on` and `shared_enemies=off`, co-op save only) |
+| `coop sbo enter\|leave\|status` | The [SBO lobby](features/sbo-lobby.md) by hand: `enter` saves the co-op game and takes you to the lobby, as the recruiter's Join does; `leave` brings you back to where you stood; `status` prints one line (test command, untested in game; needs `sbo_lobby=on`, co-op save only) |
 | `coop sbo hop\|back\|view [set]\|seq <alias>\|parts` | The SBO lobby's test commands: `hop` goes from the lobby to the NK_Boss_Scarlet arena when no match lobby is open, and `back` returns to the lobby from there; `view` prints the camera's location, rotation and FOV, and `view set` uses that view for the lobby menu's camera until the mod reloads; `seq` plays one of Xion's light sequences, `Xion_10_E_Seq_011`, `_013`, `_012` or `_019`, in the lobby; `seq done` and the native `called` line only say that Stellar Blade was asked, because the game first checks the row's condition against EVE's save and plays nothing, with no log line, when it fails or when that sequence already plays (`_011` plays only before Xion's phase 2, `_019` only once `Quest_Epic_11` is done); `parts` makes each Stellar Blade widget part of the lobby screens once and logs the result (test command, untested in game; needs `sbo_lobby=on`, co-op save only) |
-| `coop quests on\|off\|status` | [Shared quests](playing-with-a-friend.md#shared-quests-experimental) (experimental, on by default, co-op save only) |
+| `coop quests on\|off\|status` | [Shared quests](players/playing-with-a-friend.md#shared-quests-experimental) (experimental, on by default, co-op save only) |
 | `coop quests probe\|record\|replay` | Shared quests' solo test tools (experimental, co-op save only) |
 | `coop quests force <number>` | As the guest, make the step that quest holds for your own kill, or for a place the game's tables cannot give, where you stand; type it twice within 10 s |
-| `coop world on\|off\|status` | The [shared world](shared-world.md) (experimental, on by default): `on` and `off` until the mod reloads, whatever `shared_world` says; `status` prints the `world=` line |
+| `coop world on\|off\|status` | The [shared world](features/shared-world.md) (experimental, on by default): `on` and `off` until the mod reloads, whatever `shared_world` says; `status` prints the `world=` line |
 | `coop daynight [on\|off\|status\|hour <h>]` | The [day and night cycle](internals/daynight.md) (on by default, untested in game; a test tool, never written to `coop-settings.txt`): alone or `status`, one line with the request and its reason, the map's row, the native part's hour and sun and the real minutes until the next night; `off` gives Stellar Blade's own light and `on` the clock again, until another word or a Lua reload; `hour <h>` pins the hour, 0 to under 24 with decimals (`13.5` is 13:30), until `on`, `off` or a Lua reload, refused while `daynight=off`; any save |
-| `coop scenes on\|off\|status` | [Story together](story-together.md) (experimental, on by default): `on` and `off` until the mod reloads, whatever `shared_story` says; `status` prints the `story=` line |
-| `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](playing-with-a-friend.md#synced-photo-mode)'s pause alone, 1 to 3600 s |
-| `coop revive test` | Solo test of the [revive](playing-with-a-friend.md#revive-by-your-friend-experimental): at the death screen, call the game's in-place respawn on your EVE once (co-op save only, no session, with `coop loopback 0 0 0` running so that your life state is read) |
-| `coop guide` | Open the [guide](interface.md#guide) on its first page, on the title screen or in the world |
-| `coop keys reset [<name>\|all]` | Put one key back to its default (`menu`, `host`, `status`, `leave`, `follow`, `race` or `bike`), or every key with `all` or no name, as the [co-op menu's Controls rows](interface.md#options) do. A key whose default another action holds stays as it is |
+| `coop scenes on\|off\|status` | [Story together](features/story-together.md) (experimental, on by default): `on` and `off` until the mod reloads, whatever `shared_story` says; `status` prints the `story=` line |
+| `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](players/playing-with-a-friend.md#synced-photo-mode)'s pause alone, 1 to 3600 s |
+| `coop revive test` | Solo test of the [revive](players/playing-with-a-friend.md#revive-by-your-friend-experimental): at the death screen, call the game's in-place respawn on your EVE once (co-op save only, no session, with `coop loopback 0 0 0` running so that your life state is read) |
+| `coop guide` | Open the [guide](players/interface.md#guide) on its first page, on the title screen or in the world |
+| `coop keys reset [<name>\|all]` | Put one key back to its default (`menu`, `host`, `status`, `leave`, `follow`, `race` or `bike`), or every key with `all` or no name, as the [co-op menu's Controls rows](players/interface.md#options) do. A key whose default another action holds stays as it is |
 | `coop ui reset` | Close the co-op menu and the chat box, and give the game its keys back at once |
 | `coop ui off` | Remove the co-op menu, the chat box, the feed, the partner HUD, Night Operation's card and result panel, the guide and the co-op saves' question until the mod reloads |
 | `coop saves probe` | Log what the mod reads of the save file name and the plan of the next copy pass; writes nothing |
-| `coop saves convert` / `coop saves coop` | At the title: make the [co-op copies](playing-with-a-friend.md#co-op-saves); `coop` then switches the game to them |
+| `coop saves convert` / `coop saves coop` | At the title: make the [co-op copies](players/playing-with-a-friend.md#co-op-saves); `coop` then switches the game to them |
 | `coop saves main` | At the title: switch back to your own saves, while no co-op save has been loaded since the game started |
 | `coop saves refresh <0-4>` | At the title, while the game uses your own saves: replace that slot's co-op copy, even one played in co-op, with a new copy of your save. Type it twice within 10 s; the old copy goes to `StellarCoopBackups` first |
-| `coop saves export <0-4> <0-4>` | At the title, while the game uses your own saves or the co-op copies: write that co-op copy over that save of yours, to play it without the mod (untested in game). Type it twice within 10 s; your save goes to `StellarCoopBackups` first, and a co-op copy that holds the mod's items, stands in Matrix XIII or is a shortcut save is refused ([saves.md](saves.md#co-op-saves)) |
+| `coop saves export <0-4> <0-4>` | At the title, while the game uses your own saves or the co-op copies: write that co-op copy over that save of yours, to play it without the mod (untested in game). Type it twice within 10 s; your save goes to `StellarCoopBackups` first, and a co-op copy that holds the mod's items, stands in Matrix XIII or is a shortcut save is refused ([players/saves.md](players/saves.md#co-op-saves)) |
 | `coop off` | Stop everything until the game restarts |
 
 ### Session commands
@@ -168,13 +168,13 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 - `coop leave` works like F8.
 - `coop report` writes `coop-report.txt` in the mod folder: versions, the save folder, DLLs loaded from other mods, the
   status, a summary of save folder changes and the last 100 events. Its SteamIDs and join codes are masked, as in the
-  logs (see [Which logs to send](troubleshooting.md#which-logs-to-send)).
+  logs (see [Which logs to send](players/troubleshooting.md#which-logs-to-send)).
 - `coop allow`, `coop deny`, `coop remove`, `coop block`, `coop mute` and `coop unmute` take a full SteamID, or the 4
   digits the logs show after `***` for one. With the 4 digits they act on the one player in your lobby whose SteamID
   ends in them. When two players do, use the full SteamID from `coop-status.txt` in the mod folder, which keeps it
   whole. `coop unblock` takes the 4 digits only for a player blocked in this game run: `coop-status.txt` lists each
   one whole on a `block=<SteamID> <name>` line. For a player blocked in an earlier game run it needs the full SteamID,
-  which the player can give you ([Block list](playing-with-a-friend.md#block-list) says where they find it).
+  which the player can give you ([Block list](players/playing-with-a-friend.md#block-list) says where they find it).
 
 ### Ghost commands
 
@@ -186,10 +186,10 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
   again to go back to each part's own mesh.
 - `coop look` with no arguments prints the same `look:` line that each load logs, for example
   `look: cloth=on dyes=off effects=off`. `coop look <cloth|dyes|effects> <on|off>` changes one look until the mod
-  reloads (game start or Ctrl+R) and rebuilds the ghost. It does not change `coop-settings.txt`. See [Looks](ghost.md#looks).
+  reloads (game start or Ctrl+R) and rebuilds the ghost. It does not change `coop-settings.txt`. See [Looks](features/ghost.md#looks).
 - `coop cns` prints one line: `CNS part on` (or `off (<error>)`), then the mod assets set aside after a crash, each with
   its outfit, or `none`. `coop cns reset` clears both and builds the ghost again. See [When a mod asset
-  fails](ghost.md#when-a-mod-asset-fails).
+  fails](features/ghost.md#when-a-mod-asset-fails).
 
 ### `coop where`
 
@@ -271,8 +271,8 @@ See [internals/architecture.md](internals/architecture.md#loopback-record-and-re
 ### Commands that need a co-op save
 
 `coop no` (the probe) and `coop recruiter` (the cut recruiter) are research previews of the cut Night Operation mode,
-not a playable mode. They run only on a [co-op save](playing-with-a-friend.md#co-op-saves) and need preparation first: read
-[night-operation-previews.md](night-operation-previews.md) before you use them. The recruiter also appears by himself
+not a playable mode. They run only on a [co-op save](players/playing-with-a-friend.md#co-op-saves) and need preparation first: read
+[modes/night-operation-previews.md](modes/night-operation-previews.md) before you use them. The recruiter also appears by himself
 at each Xion load, on any save. Otherwise they stop with:
 
 ```
@@ -283,40 +283,40 @@ STOP: coop no runs only on a co-op save (INSTALL.md: Co-op saves); now <the slot
 
 `coop nightop`, Night Operation's run and its shop, and `coop challenge`, the challenges, run only on a co-op save too,
 with the same `STOP:` line under their own names, except `coop nightop stop` and `coop challenge stop`, which work on
-any save. See [night-operation.md](night-operation.md#the-solo-run-coop-nightop) and
-[Challenges](challenges.md).
+any save. See [modes/night-operation.md](modes/night-operation.md#the-solo-run-coop-nightop) and
+[Challenges](modes/challenges.md).
 
 - With no Steam session, `coop nightop start` starts a solo run. A level may follow `start`: `easy`, `normal` (the
   same as none), `hard` or `nightmare`. It sets the number of monsters in each wave (15 to 40 in all), the time limit
-  (9:00 to 7:00) and the shop points (50 % to 200 %). See [Levels](night-operation.md#levels).
+  (9:00 to 7:00) and the shop points (50 % to 200 %). See [Levels](modes/night-operation.md#levels).
 - In a session, only the host starts a run, at his level, and it is for both players. The guest's game checks her
   side and joins without a question, or the host gets a notice with the reason she cannot. On the guest's game the
-  command answers `STOP: the host starts a co-op run`. See [night-operation.md](night-operation.md#the-co-op-run).
+  command answers `STOP: the host starts a co-op run`. See [modes/night-operation.md](modes/night-operation.md#the-co-op-run).
 - In a co-op run, a dead EVE whose player has `revive=on` is down for 30 s. Her partner revives her by holding the
   interact key (F, or the pad's right trigger) for 3 s next to her, or she types `coop nightop revive` (3 times a run
-  at easy, 2 at normal, 1 at hard, none at nightmare). See [Down and revive](night-operation.md#down-and-revive).
+  at easy, 2 at normal, 1 at hard, none at nightmare). See [Down and revive](modes/night-operation.md#down-and-revive).
 - `coop nightop shop` opens the game's own shop screen with the seven items, your points as Beta Seeds while it is
-  open (see [night-operation-shop.md](night-operation-shop.md#status-lines)). `coop nightop buy` lists the points your runs
+  open (see [modes/night-operation-shop.md](modes/night-operation-shop.md#status-lines)). `coop nightop buy` lists the points your runs
   gave and the seven items, and `coop nightop buy <n> [count]` buys 1 to 10 of item n into the co-op save. Items 5 and
   6, the cut Burst and Beta Stimpacks, need table rows the native part adds with the Lion's (see
-  [Cut boss](cut-enemies.md#cut-boss-coop-lion)), and item 7, the cut [Shock Bolt](night-operation-shop.md#cut-ammo-shock-bolt) ammo, rows of its own: a buy
+  [Cut boss](cut-content/cut-enemies.md#cut-boss-coop-lion)), and item 7, the cut [Shock Bolt](modes/night-operation-shop.md#cut-ammo-shock-bolt) ammo, rows of its own: a buy
   of one asks for them first, and the screen asks for both. Your points are in `coop-night-<steamid>-<index>.txt` in the
-  mod folder, one file per Steam ID and co-op slot. See [night-operation-shop.md](night-operation-shop.md).
+  mod folder, one file per Steam ID and co-op slot. See [modes/night-operation-shop.md](modes/night-operation-shop.md).
 - `coop challenge range` (or `coop challenge 5`) starts the Shooting Range: three rounds of 3, 4 and 5 of the game's
   target dummies, all around EVE, in 2:00. It is made for the drone's ranged mode, which needs the gun the story
   unlocks; the sword reaches the dummies too. Alone it needs no Steam session; in a session the host starts it for
   both players, as a co-op Night Operation run. Its score also shows on the cut test widget `WB_ShootingTrainingTest`.
-  See [challenges.md](challenges.md#shooting-range).
+  See [modes/challenges.md](modes/challenges.md#shooting-range).
 - On a co-op save, Roxanne in Xion offers Night Operation (Easy, Normal, Hard) and its supplies in her dialogue. See
-  [night-operation-shop.md](night-operation-shop.md#night-operation-at-roxannes).
+  [modes/night-operation-shop.md](modes/night-operation-shop.md#night-operation-at-roxannes).
 
-The ghost, the link and every other command except `coop fight` (see [Shared enemies](shared-enemies.md#shared-enemies-experimental)), `coop race start`, `coop race look on`,
-`coop race probe doro` and `coop race drive probe` (see [Doro races](doro-races.md)), `coop leviathan show`,
+The ghost, the link and every other command except `coop fight` (see [Shared enemies](features/shared-enemies.md#shared-enemies-experimental)), `coop race start`, `coop race look on`,
+`coop race probe doro` and `coop race drive probe` (see [Doro races](features/doro-races.md)), `coop leviathan show`,
 `coop leviathan cam` when it turns the camera on (and the same two in the six other
-[viewer commands](cut-enemies.md#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)), `coop lion`, `coop lion intro`,
+[viewer commands](cut-content/cut-enemies.md#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)), `coop lion`, `coop lion intro`,
 `coop lion control`, `coop gardener fight` with no word, `intro`, `half` or `skulling`, `coop tendril fight` with no
 word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`, `coop glide on`, a row of
-`coop devmenu` and `coop gift` (see [cut-scenes-and-menus.md](cut-scenes-and-menus.md#cut-mailbox-coop-gift)) run on any save.
+`coop devmenu` and `coop gift` (see [cut-content/cut-scenes-and-menus.md](cut-content/cut-scenes-and-menus.md#cut-mailbox-coop-gift)) run on any save.
 `coop fight pilot` runs on any save too, since same place only moves enemies while shared enemies run.
 
 ### `coop off`
@@ -345,7 +345,7 @@ word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`
 - the `coop wear` look (your EVE's own hair and suit come back) and a `coop lines` scene;
 - the game's developer flight and slow motion (`coop fly` and `coop slowmo`: the game's values come back), the cut glide
   (`coop glide`: EVE's glide flag is cleared) and a `coop emote` clip (it blends out);
-- the [bike](bike.md) (EVE gets off: the game's actions, her movement values and her mesh come back; the native part
+- the [bike](features/bike.md) (EVE gets off: the game's actions, her movement values and her mesh come back; the native part
   frees the bike's loaded files);
 - the day and night cycle (Stellar Blade's own light, sky domes and SkyCreator time come back);
 - the game's developer panels (`coop devinfo`: closed);
@@ -353,7 +353,7 @@ word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`
 
 When a `coop devmenu` row ran, `coop off` runs its `clear` and `lockswitch` rows once more, but that `clear` reaches
 only the enemies near EVE at that moment, and both are skipped while a respawn or a warp is under way (see
-[Developer menu](cut-scenes-and-menus.md#developer-menu-coop-devmenu-and-coop-devinfo)). A `coop gift send` caught after
+[Developer menu](cut-content/cut-scenes-and-menus.md#developer-menu-coop-devmenu-and-coop-devinfo)). A `coop gift send` caught after
 the items left your inventory and before the gift reached your mailbox file stops there, and those items are lost. Gift
 lines from your friend that arrive after `coop off` are dropped without an answer. Afterwards only `coop status` and
 `coop report` answer. Every other command answers `STOP: coop off is active until the game restarts`, and so do the
@@ -385,7 +385,7 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
 
 - Steam: `mod=<version> proto=23 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts, your Steam name on a `me=` line, then `blocked=<n>`: the players on your
-  [block list](playing-with-a-friend.md#block-list). A `block=<SteamID> <name>` line follows for each player you
+  [block list](players/playing-with-a-friend.md#block-list). A `block=<SteamID> <name>` line follows for each player you
   blocked in this game run.
 - Link: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite held
   and `rejoin=<n>/3` while rejoining. While you host, a `code=<join code|none> refused=<n>` line follows: the join code
@@ -409,7 +409,7 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
   host, `camps?=<n>` is your game's number for the oldest request for the camps nearest you still waiting for an
   answer, else for the last one (your answer to that number goes to that guest alone, with her own id); as the guest,
   `camps=<id> <answer>` is the host's last answer
-  ([Following the host](playing-with-a-friend.md#following-the-host)).
+  ([Following the host](players/playing-with-a-friend.md#following-the-host)).
 - Pose path: `engine=on` (then `loopback=on <delay> <jitter> <loss>` or `loopback=waiting` until EVE's capture comes,
   `record=on`, `replay=on`, `remote=<generation> <count> <loopback|replay|peer>`, then in a match lobby or an
   online session of more than 2 players `remote<k>=<generation> <count>` for each other member's ghost slot k from 1 to
@@ -418,10 +418,10 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
   travel_calls=<n>` (the last travel's state: `idle`, `pending`, `warping`, `arrived` or `refused:<why>`, and the travel
   requests handled so far), `anim=<state> anim_id=<n>` (the last `coop emote` clip or bike pose the native part took
   and what became of it: `idle`, `playing`, `ended`, `ended:weight`, `stopped`, `refused:<why>` or `fault`, see
-  [Emotes](cut-eve.md#emotes-coop-emote)), `bike=<off|loading|ready|failed:<why>|fault> bike_gate=<on|off|refused:<why>>`
+  [Emotes](cut-content/cut-eve.md#emotes-coop-emote)), `bike=<off|loading|ready|failed:<why>|fault> bike_gate=<on|off|refused:<why>>`
   and `bike_life=<n>` (the [bike](internals/bike.md#status-words-and-the-latch)'s preload, the game's actions while EVE
   rides, her life state), `items=<ask> <count>` or `items=<ask> none <why>` (the answer to
-  [`coop gift`](cut-scenes-and-menus.md#cut-mailbox-coop-gift)'s last inventory read, by its number; why is `unpinned`, `noeve`, `nomanager`,
+  [`coop gift`](cut-content/cut-scenes-and-menus.md#cut-mailbox-coop-gift)'s last inventory read, by its number; why is `unpinned`, `noeve`, `nomanager`,
   `nobucket` or `unread`), and `nightop=on` or `nightop=rule` while the probe's poller runs.
 - Activated camps: `activated=<n>:<camp>,<camp>,...` lists the camps of the game's camp table (simple and full camps,
   phone booths, tetrapods) that the game's own camp list would show for this save, read every 2 s while you play,
@@ -430,9 +430,9 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
   `fault` once a fault stopped the read until the game restarts, and another word for a part of the game the mod found
   missing. After a fault, `coop-link.log` has `camps read off: fault 0x... at StellarCoop.dll+0x... reading 0x...;
   coop travel probe and coop mxiii leave refused until the game restarts`, once.
-  [`coop travel probe`](playing-with-a-friend.md#following-the-host) and `coop mxiii leave` take only camps from this list.
+  [`coop travel probe`](players/playing-with-a-friend.md#following-the-host) and `coop mxiii leave` take only camps from this list.
 - Save slot: `slot=<coop|main|none|unknown> index=<n|?> marker=<n|none|bad|?> saves=<coop|main|off|?>` (see
-  [saves.md](saves.md#co-op-saves)). `saves=` names the save files the game uses: `main` for your own,
+  [players/saves.md](players/saves.md#co-op-saves)). `saves=` names the save files the game uses: `main` for your own,
   `coop` for the co-op copies (`StellarBladeCoop00.sav` to `04`), `off` when the mod cannot read the file name (another
   game build, or a check failed), and `?` before the first read or once the name moved in the game's memory (no switch
   until the game restarts). `coop-link.log` logs each change as `save name: saves=<value>`, with the reason for `off`
@@ -440,35 +440,35 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
 - Co-op save copies: `convert=<idle|busy <done>/<jobs>|done|error:<why>>`, the last copy pass (`idle` before any).
 - Shared enemies: `fight=on mode=<on|probe|record|replay> ...` with its counts, `fight=waiting mode=<mode> why=<what it
   waits for>`, `fight=stopped why=<why>` or `fight=off`, with `her=<state>` while a friend is linked (see [Shared
-  enemies](shared-enemies.md#shared-enemies-experimental)). While it runs, the line ends with `boss=<0|1>` (a boss fight on your side),
+  enemies](features/shared-enemies.md#shared-enemies-experimental)). While it runs, the line ends with `boss=<0|1>` (a boss fight on your side),
   `battle=<n>` (enemies in battle within 30 m of your EVE) and `epoch=<zone>/<n>/<resets>` (same spawns' zone and epoch,
   and how often your own zone reset this run).
 - Same place: `pilot=on piloted=<n>`, `pilot=off why=<why>`, `pilot=stopped` or `pilot=refused why=<why>` (see
-  [Same place](shared-enemies.md#same-place-experimental)).
+  [Same place](features/shared-enemies.md#same-place-experimental)).
 - Shared quests: `quests=off`, `quests=waiting mode=<mode> why=<friend|save|game>`, `quests=on mode=<mode>
   role=<role> partner=<on|off>` (on a host with several guests, then `with=<SteamID>` of the first guest whose side is
-  on) or `quests=stopped` (see [Shared quests](playing-with-a-friend.md#shared-quests-experimental)), then the last 8
+  on) or `quests=stopped` (see [Shared quests](players/playing-with-a-friend.md#shared-quests-experimental)), then the last 8
   quest notices as `quest_note=<n> <kind> <number> <name> <zone or ->`, with the guest's SteamID after a host's
   `ahead` note, then the last `coop quests status` answer as `quests_status=<n> <line>` lines.
 - Shared world: `world=off`, `world=waiting why=<friend|match|save|partner>`, `world=on`, then its counters, or
-  `world=stopped`, `world=off why=build` or `world=off why=coop_off` (see [Shared world](shared-world.md#status-line)
+  `world=stopped`, `world=off why=build` or `world=off why=coop_off` (see [Shared world](features/shared-world.md#status-line)
   and the counters in [Shared world: how it works](internals/shared-world.md#status-line)).
 - Story together: `story=off`, `story=waiting why=<friend|match|save|partner>`, `story=on`, then `scene=` and its
   counters, or `story=stopped`, `story=off why=build` or `story=off why=coop_off` (see
-  [Story together](story-together.md#status-line) and the counters in
+  [Story together](features/story-together.md#status-line) and the counters in
   [Story together: how it works](internals/story-sync.md#status-line)). Its changes are not logged as `link:` lines:
   its counters move with each position of a shared scene.
 - Day and night: `sky=<state> h=<hour> el=<sun's elevation> ...`, the [day and night cycle](internals/daynight.md#the-request-and-the-status-line)'s
   state, hour, sun and moon, light factors and env volumes. Its changes are not logged as `link:` lines: its hour moves
   each second.
 - Photo mode: `photo=<0|1|s|c> peer_photo=<0|1|s|c> frozen=<0|1> sync=<both|notice|off>`: yours and your friend's (`s`
-  for selfie mode, `c` on the host while a cutscene plays: the [cutscene wait](playing-with-a-friend.md#cutscene-wait)), whether your game holds
+  for selfie mode, `c` on the host while a cutscene plays: the [cutscene wait](players/playing-with-a-friend.md#cutscene-wait)), whether your game holds
   the photo pause (`coop freeze` holds it too), and the `photo_sync` your friend gets (`notice` when your game cannot
   pause).
 - Last event: `last=<the last coop-link.log event>`.
 - Ghost: `ghost=on parts=<n> leaders=<n> basesuit=<0|1> left_out=<n> table=<generation> source=<source>
   collide=<on|off|failed>`, `ghost=waiting`, `ghost=hidden map` or `ghost=off`, plus `stray_parts=<n>` if ghost parts
-  that are not this load's ghost stand in the world. Once the [solid partner](ghost.md#solid-partner-experimental)'s capsule
+  that are not this load's ghost stand in the world. Once the [solid partner](features/ghost.md#solid-partner-experimental)'s capsule
   exists, `collide=` adds `solid=<0|1>` and `changes=`, the times it turned solid and the times each rule let your EVE
   through (`a` hidden or off, `b` overlap, `c` height, `d` movement mode, `e` 2 s of contact, `g` your friend down).
 
@@ -483,73 +483,73 @@ Each section that left this page is listed under its old name, with its new plac
 
 | Section | Now in |
 | --- | --- |
-| Co-op menu | [interface.md](interface.md#co-op-menu) |
-| Co-op line | [interface.md](interface.md#co-op-line) |
-| Controller | [interface.md](interface.md#controller) |
-| Mouse | [interface.md](interface.md#mouse) |
-| Options | [interface.md](interface.md#options) |
-| Focus watchdog | [interface.md](interface.md#focus-watchdog) |
-| Session chat | [interface.md](interface.md#session-chat) |
-| Partner HUD | [interface.md](interface.md#partner-hud) |
-| Status strip above the card | [interface.md](interface.md#status-strip-above-the-card) |
-| Playing with a friend | [playing-with-a-friend.md](playing-with-a-friend.md) |
-| Your world and your friend's | [playing-with-a-friend.md](playing-with-a-friend.md#your-world-and-your-friends) |
-| Join codes | [playing-with-a-friend.md](playing-with-a-friend.md#join-codes) |
-| Following the host | [playing-with-a-friend.md](playing-with-a-friend.md#following-the-host) |
-| A player down | [playing-with-a-friend.md](playing-with-a-friend.md#a-player-down) |
-| Revive by your friend (experimental) | [playing-with-a-friend.md](playing-with-a-friend.md#revive-by-your-friend-experimental) |
-| Camp rests in a shared area | [playing-with-a-friend.md](playing-with-a-friend.md#camp-rests-in-a-shared-area) |
-| Known limits | [playing-with-a-friend.md](playing-with-a-friend.md#known-limits) |
-| Guide | [interface.md](interface.md#guide) |
-| Co-op saves | [playing-with-a-friend.md](playing-with-a-friend.md#co-op-saves) |
-| Synced photo mode | [playing-with-a-friend.md](playing-with-a-friend.md#synced-photo-mode) |
-| Photo mode pause (experimental) | [playing-with-a-friend.md](playing-with-a-friend.md#photo-mode-pause-experimental) |
-| Cutscene wait | [playing-with-a-friend.md](playing-with-a-friend.md#cutscene-wait) |
-| Doro races | [doro-races.md](doro-races.md) |
-| Recording a track | [doro-races.md](doro-races.md#recording-a-track) |
-| Starting a race | [doro-races.md](doro-races.md#starting-a-race) |
-| Slots and countdown | [doro-races.md](doro-races.md#slots-and-countdown) |
-| Driving | [doro-races.md](doro-races.md#driving) |
-| Rules | [doro-races.md](doro-races.md#rules) |
-| Results | [doro-races.md](doro-races.md#results) |
-| The Doro look | [doro-races.md](doro-races.md#the-doro-look) |
-| Limits | [doro-races.md](doro-races.md#limits) |
-| Track files | [doro-races.md](doro-races.md#track-files) |
-| Teleport screen | [interface.md](interface.md#teleport-screen) |
+| Co-op menu | [players/interface.md](players/interface.md#co-op-menu) |
+| Co-op line | [players/interface.md](players/interface.md#co-op-line) |
+| Controller | [players/interface.md](players/interface.md#controller) |
+| Mouse | [players/interface.md](players/interface.md#mouse) |
+| Options | [players/interface.md](players/interface.md#options) |
+| Focus watchdog | [players/interface.md](players/interface.md#focus-watchdog) |
+| Session chat | [players/interface.md](players/interface.md#session-chat) |
+| Partner HUD | [players/interface.md](players/interface.md#partner-hud) |
+| Status strip above the card | [players/interface.md](players/interface.md#status-strip-above-the-card) |
+| Playing with a friend | [players/playing-with-a-friend.md](players/playing-with-a-friend.md) |
+| Your world and your friend's | [players/playing-with-a-friend.md](players/playing-with-a-friend.md#your-world-and-your-friends) |
+| Join codes | [players/playing-with-a-friend.md](players/playing-with-a-friend.md#join-codes) |
+| Following the host | [players/playing-with-a-friend.md](players/playing-with-a-friend.md#following-the-host) |
+| A player down | [players/playing-with-a-friend.md](players/playing-with-a-friend.md#a-player-down) |
+| Revive by your friend (experimental) | [players/playing-with-a-friend.md](players/playing-with-a-friend.md#revive-by-your-friend-experimental) |
+| Camp rests in a shared area | [players/playing-with-a-friend.md](players/playing-with-a-friend.md#camp-rests-in-a-shared-area) |
+| Known limits | [players/playing-with-a-friend.md](players/playing-with-a-friend.md#known-limits) |
+| Guide | [players/interface.md](players/interface.md#guide) |
+| Co-op saves | [players/playing-with-a-friend.md](players/playing-with-a-friend.md#co-op-saves) |
+| Synced photo mode | [players/playing-with-a-friend.md](players/playing-with-a-friend.md#synced-photo-mode) |
+| Photo mode pause (experimental) | [players/playing-with-a-friend.md](players/playing-with-a-friend.md#photo-mode-pause-experimental) |
+| Cutscene wait | [players/playing-with-a-friend.md](players/playing-with-a-friend.md#cutscene-wait) |
+| Doro races | [features/doro-races.md](features/doro-races.md) |
+| Recording a track | [features/doro-races.md](features/doro-races.md#recording-a-track) |
+| Starting a race | [features/doro-races.md](features/doro-races.md#starting-a-race) |
+| Slots and countdown | [features/doro-races.md](features/doro-races.md#slots-and-countdown) |
+| Driving | [features/doro-races.md](features/doro-races.md#driving) |
+| Rules | [features/doro-races.md](features/doro-races.md#rules) |
+| Results | [features/doro-races.md](features/doro-races.md#results) |
+| The Doro look | [features/doro-races.md](features/doro-races.md#the-doro-look) |
+| Limits | [features/doro-races.md](features/doro-races.md#limits) |
+| Track files | [features/doro-races.md](features/doro-races.md#track-files) |
+| Teleport screen | [players/interface.md](players/interface.md#teleport-screen) |
 | Night Operation previews | [this page: Commands that need a co-op save](#commands-that-need-a-co-op-save) |
-| Night Operation's shop screen and Roxanne's choices | [night-operation-shop.md: Status lines](night-operation-shop.md#status-lines) |
-| Cut enemy preview: `coop leviathan`, `coop gardener` and `coop tendril` | [cut-enemies.md](cut-enemies.md#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril) |
-| Other cut models: `coop mann`, `coop nier`, `coop orcal` and `coop enya` | [cut-enemies.md](cut-enemies.md#other-cut-models-coop-mann-coop-nier-coop-orcal-and-coop-enya) |
-| Free camera | [cut-enemies.md](cut-enemies.md#free-camera) |
-| Cut boss: `coop lion` | [cut-enemies.md](cut-enemies.md#cut-boss-coop-lion) |
-| Cut enemy: `coop gardener fight` | [cut-enemies.md](cut-enemies.md#cut-enemy-coop-gardener-fight) |
-| Cut enemy: `coop tendril fight` | [cut-enemies.md](cut-enemies.md#cut-enemy-coop-tendril-fight) |
-| Cut Tachy skill: `coop chainspin` | [cut-eve.md](cut-eve.md#cut-tachy-skill-coop-chainspin) |
-| Cut ammo: Shock Bolt | [night-operation-shop.md](night-operation-shop.md#cut-ammo-shock-bolt) |
-| Cut dungeon: `coop mxiii` (experimental) | [matrix-xiii.md](matrix-xiii.md) |
-| Lily's signal (experimental) | [lily-signal.md: Status lines](lily-signal.md#status-lines) |
-| Cut hairs and suits: `coop wear` | [cut-eve.md](cut-eve.md#cut-hairs-and-suits-coop-wear) |
-| Cut scenes: `coop scene` | [cut-scenes-and-menus.md](cut-scenes-and-menus.md#cut-scenes-coop-scene) |
-| Cut scene lines: `coop lines` | [cut-scenes-and-menus.md](cut-scenes-and-menus.md#cut-scene-lines-coop-lines) |
-| Emotes: `coop emote` | [cut-eve.md](cut-eve.md#emotes-coop-emote) |
-| Debug flight and slow motion: `coop fly` and `coop slowmo` | [cut-eve.md](cut-eve.md#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo) |
-| Cut glide: `coop glide` | [cut-eve.md](cut-eve.md#cut-glide-coop-glide) |
-| Cut Load Shortcut saves: `coop shortcut` | [cut-scenes-and-menus.md](cut-scenes-and-menus.md#cut-load-shortcut-saves-coop-shortcut) |
-| Loading one: `coop shortcut load` | [cut-scenes-and-menus.md](cut-scenes-and-menus.md#loading-one-coop-shortcut-load) |
-| Developer menu: `coop devmenu` and `coop devinfo` | [cut-scenes-and-menus.md](cut-scenes-and-menus.md#developer-menu-coop-devmenu-and-coop-devinfo) |
-| Cut mailbox: `coop gift` | [cut-scenes-and-menus.md](cut-scenes-and-menus.md#cut-mailbox-coop-gift) |
-| Shared enemies (experimental) | [shared-enemies.md](shared-enemies.md#shared-enemies-experimental) |
-| Same place (experimental) | [shared-enemies.md](shared-enemies.md#same-place-experimental) |
-| Same spawns (experimental) | [shared-enemies.md](shared-enemies.md#same-spawns-experimental) |
-| Spawn filter (experimental) | [shared-enemies.md](shared-enemies.md#spawn-filter-experimental) |
-| Extra enemies (experimental) | [shared-enemies.md](shared-enemies.md#extra-enemies-experimental) |
-| Shared bosses (experimental) | [shared-enemies.md](shared-enemies.md#shared-bosses-experimental) |
-| Shared quests (experimental) | [playing-with-a-friend.md](playing-with-a-friend.md#shared-quests-experimental) |
-| coop-settings.txt | [settings.md](settings.md#coop-settingstxt) |
-| Looks | [ghost.md](ghost.md#looks) |
-| Mods and CNS outfits | [ghost.md](ghost.md#mods-and-cns-outfits) |
-| Mods you both have | [ghost.md](ghost.md#mods-you-both-have) |
-| When a mod asset fails | [ghost.md](ghost.md#when-a-mod-asset-fails) |
-| Solid partner (experimental) | [ghost.md](ghost.md#solid-partner-experimental) |
-| Notices | [interface.md](interface.md#notices) |
-| Files in the mod folder | [settings.md](settings.md#files-in-the-mod-folder) |
+| Night Operation's shop screen and Roxanne's choices | [night-operation-shop.md: Status lines](modes/night-operation-shop.md#status-lines) |
+| Cut enemy preview: `coop leviathan`, `coop gardener` and `coop tendril` | [cut-content/cut-enemies.md](cut-content/cut-enemies.md#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril) |
+| Other cut models: `coop mann`, `coop nier`, `coop orcal` and `coop enya` | [cut-content/cut-enemies.md](cut-content/cut-enemies.md#other-cut-models-coop-mann-coop-nier-coop-orcal-and-coop-enya) |
+| Free camera | [cut-content/cut-enemies.md](cut-content/cut-enemies.md#free-camera) |
+| Cut boss: `coop lion` | [cut-content/cut-enemies.md](cut-content/cut-enemies.md#cut-boss-coop-lion) |
+| Cut enemy: `coop gardener fight` | [cut-content/cut-enemies.md](cut-content/cut-enemies.md#cut-enemy-coop-gardener-fight) |
+| Cut enemy: `coop tendril fight` | [cut-content/cut-enemies.md](cut-content/cut-enemies.md#cut-enemy-coop-tendril-fight) |
+| Cut Tachy skill: `coop chainspin` | [cut-content/cut-eve.md](cut-content/cut-eve.md#cut-tachy-skill-coop-chainspin) |
+| Cut ammo: Shock Bolt | [modes/night-operation-shop.md](modes/night-operation-shop.md#cut-ammo-shock-bolt) |
+| Cut dungeon: `coop mxiii` (experimental) | [modes/matrix-xiii.md](modes/matrix-xiii.md) |
+| Lily's signal (experimental) | [lily-signal.md: Status lines](modes/lily-signal.md#status-lines) |
+| Cut hairs and suits: `coop wear` | [cut-content/cut-eve.md](cut-content/cut-eve.md#cut-hairs-and-suits-coop-wear) |
+| Cut scenes: `coop scene` | [cut-content/cut-scenes-and-menus.md](cut-content/cut-scenes-and-menus.md#cut-scenes-coop-scene) |
+| Cut scene lines: `coop lines` | [cut-content/cut-scenes-and-menus.md](cut-content/cut-scenes-and-menus.md#cut-scene-lines-coop-lines) |
+| Emotes: `coop emote` | [cut-content/cut-eve.md](cut-content/cut-eve.md#emotes-coop-emote) |
+| Debug flight and slow motion: `coop fly` and `coop slowmo` | [cut-content/cut-eve.md](cut-content/cut-eve.md#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo) |
+| Cut glide: `coop glide` | [cut-content/cut-eve.md](cut-content/cut-eve.md#cut-glide-coop-glide) |
+| Cut Load Shortcut saves: `coop shortcut` | [cut-content/cut-scenes-and-menus.md](cut-content/cut-scenes-and-menus.md#cut-load-shortcut-saves-coop-shortcut) |
+| Loading one: `coop shortcut load` | [cut-content/cut-scenes-and-menus.md](cut-content/cut-scenes-and-menus.md#loading-one-coop-shortcut-load) |
+| Developer menu: `coop devmenu` and `coop devinfo` | [cut-content/cut-scenes-and-menus.md](cut-content/cut-scenes-and-menus.md#developer-menu-coop-devmenu-and-coop-devinfo) |
+| Cut mailbox: `coop gift` | [cut-content/cut-scenes-and-menus.md](cut-content/cut-scenes-and-menus.md#cut-mailbox-coop-gift) |
+| Shared enemies (experimental) | [features/shared-enemies.md](features/shared-enemies.md#shared-enemies-experimental) |
+| Same place (experimental) | [features/shared-enemies.md](features/shared-enemies.md#same-place-experimental) |
+| Same spawns (experimental) | [features/shared-enemies.md](features/shared-enemies.md#same-spawns-experimental) |
+| Spawn filter (experimental) | [features/shared-enemies.md](features/shared-enemies.md#spawn-filter-experimental) |
+| Extra enemies (experimental) | [features/shared-enemies.md](features/shared-enemies.md#extra-enemies-experimental) |
+| Shared bosses (experimental) | [features/shared-enemies.md](features/shared-enemies.md#shared-bosses-experimental) |
+| Shared quests (experimental) | [players/playing-with-a-friend.md](players/playing-with-a-friend.md#shared-quests-experimental) |
+| coop-settings.txt | [players/settings.md](players/settings.md#coop-settingstxt) |
+| Looks | [features/ghost.md](features/ghost.md#looks) |
+| Mods and CNS outfits | [features/ghost.md](features/ghost.md#mods-and-cns-outfits) |
+| Mods you both have | [features/ghost.md](features/ghost.md#mods-you-both-have) |
+| When a mod asset fails | [features/ghost.md](features/ghost.md#when-a-mod-asset-fails) |
+| Solid partner (experimental) | [features/ghost.md](features/ghost.md#solid-partner-experimental) |
+| Notices | [players/interface.md](players/interface.md#notices) |
+| Files in the mod folder | [players/settings.md](players/settings.md#files-in-the-mod-folder) |

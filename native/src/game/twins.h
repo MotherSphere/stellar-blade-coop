@@ -317,7 +317,7 @@ inline std::string mod_only(const std::string &b) {
   if (!stuck.empty())
     add(why,
         stuck + " in its New Game+ snapshot: playing does not change that snapshot, so only a copy by hand takes this "
-                "save out (docs/saves.md)",
+                "save out (docs/players/saves.md)",
         "; ");
   // Any other FString that starts with the dungeon's prefix: the rows of its zones the save keeps once played there
   // (an enemy's death, a box opened, an env state, a pickup), which no released-game save holds (none of the user's 15

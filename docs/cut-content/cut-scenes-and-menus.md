@@ -4,7 +4,7 @@ The commands on this page bring back scenes, lines and menus that the game's fil
 cutscene trigger plays (`coop scene`), subtitles of cut scenes and voice takes that nothing plays (`coop lines`), the
 saves of the cut Load Shortcut menu (`coop shortcut`), the developers' cheat menu and two debug panels (`coop devmenu`
 and `coop devinfo`), and the cut mailbox, used for gifts between two players (`coop gift`). How the menus and the
-mailbox work is in [internals/cut-menus.md](internals/cut-menus.md).
+mailbox work is in [internals/cut-menus.md](../internals/cut-menus.md).
 
 ## Cut scenes: `coop scene`
 
@@ -18,7 +18,7 @@ characters are hidden. It has not been tried in game yet. Its lines go to `UE4SS
 | `orcal` | Orcal's monologue from the 2022 trailer (`/Game/Cinematics/Trailer_2022/Trailer_Resource_2022_Theater`), 39 s in his room, with his Korean voice and one Korean subtitle line that the game has no translation for | Xion, within 50 m of Orcal's room (34095, -1075, -34663) |
 
 - `coop scene` lists the scenes and where each plays. Any save.
-- `coop scene <name>` plays one. It runs only on a [co-op save](playing-with-a-friend.md#co-op-saves), with EVE on the scene's map within 50 m
+- `coop scene <name>` plays one. It runs only on a [co-op save](../players/playing-with-a-friend.md#co-op-saves), with EVE on the scene's map within 50 m
   of its spot (`coop where` prints where you stand) and not while a cutscene of the game plays. The scene moves EVE to
   its own spot.
 - `coop scene stop` ends the scene. The game gives the camera, your input and the HUD back as after a skipped
@@ -146,7 +146,7 @@ achievements do not matter to you, with Steam Cloud off for the game.
 
 These are saves of development builds from 2021 and 2022. Two of them (F02 2 and 3, and their copies G03 3 and 4)
 hold six boss achievements as already done. Before it writes anything, the mod removes the save's achievement list
-([How it works](internals/cut-menus.md#loading-one) lists what the game reads from a loaded save and why that is enough for
+([How it works](../internals/cut-menus.md#loading-one) lists what the game reads from a loaded save and why that is enough for
 the load itself). What stays is a developer's progress: quests, opened doors and chests, skills, items and camps you
 did not earn. Each new skill, item or kill you add to it in game can still complete an achievement, collection
 achievements included, so the warning above holds for the whole time you play it.
@@ -185,7 +185,7 @@ What else to know:
   played, by its CRC-32, and one that holds `BS_Defender`, `Gear_NarrowVision_Rare`, `DesignPattern_Blue_Suit`,
   `DesignPattern_Sailor_Jean` or `DesignPattern_Black_Leather_bikini`. A played save from `B07`, `F02 1`, `G03 1` or
   `G03 2` holds none of them, so the export takes it without that file, and takes a New Game+ you started from it in
-  another co-op slot: do not export those ([saves.md](saves.md#co-op-saves) lists the cases).
+  another co-op slot: do not export those ([players/saves.md](../players/saves.md#co-op-saves) lists the cases).
 - The co-op saves count the new slot 5 as played in co-op, so no automatic copy replaces it.
 - Load Game lists the slots as they were when the title screen appeared, so the fifth slot may still show the old
   save's details. The game reads the file when you pick it. A slot that was empty then may not be offered: load
@@ -208,7 +208,7 @@ neither has been tried in game yet.
 
 `coop devmenu` gives back the rows among those 87 that grant nothing by themselves and whose lasting effects a row of
 its own can end. `coop devmenu` or `coop devmenu list` lists them,
-and `coop devmenu <row>` runs one, on a [co-op save](playing-with-a-friend.md#co-op-saves) only. The mod reads each effect's ID from the
+and `coop devmenu <row>` runs one, on a [co-op save](../players/playing-with-a-friend.md#co-op-saves) only. The mod reads each effect's ID from the
 game's EffectTable by name and asks the game to apply it on EVE, through the same request as
 [`coop chainspin`](cut-eve.md#cut-tachy-skill-coop-chainspin). Its lines go to `UE4SS.log` as `[StellarCoop][DM]`, one per
 effect: `devmenu attack30: SBApplyEffectMe Test_ShieldDamageUpMe30 (9000178) on EVE (guid 228)`.
@@ -233,7 +233,7 @@ effect: `devmenu attack30: SBApplyEffectMe Test_ShieldDamageUpMe30 (9000178) on 
 | `clear` | The lasting effects above come off EVE and the enemies near her |
 
 - "Near EVE" is the range the game's test effects use. Run the row again after you move to reach other enemies.
-- Only your game runs a row. With [shared enemies](shared-enemies.md#shared-enemies-experimental) on, the health that `attack5` and
+- Only your game runs a row. With [shared enemies](../features/shared-enemies.md#shared-enemies-experimental) on, the health that `attack5` and
   `attack30` take off a shared enemy and the balance that `enemybalance1` takes come off its shared HP bar and balance
   gauge, so they count in your friend's game too, and a shared enemy that dies that way gives your friend the kill if
   they took part in its fight (`kill_credit`). The other enemy rows change your copies only, so they may act
@@ -289,7 +289,7 @@ in its table turn a mailbox on only for an object of a test map that is not in t
 written. The menu's code is still in the game, but it only lists those rows, and taking one of its gifts writes that
 gift into the save. `coop gift` uses the mailbox for gifts between two players instead: your linked friend sends you
 consumables from her inventory, they wait in your mailbox, and you take them when you want. Both of you must play a
-[co-op save](playing-with-a-friend.md#co-op-saves). None of it has been tried in game yet.
+[co-op save](../players/playing-with-a-friend.md#co-op-saves). None of it has been tried in game yet.
 
 | Command | What it does |
 | --- | --- |
@@ -325,7 +325,7 @@ a stat), drone ammo and the cut stimpacks are left out, and none of the seven co
   write its mailbox file. The items then come back to you: `Gift refused (full): the 2 PulseGrenade come back.`
 - The items also come back when she leaves the session before answering, when no answer came in 60 s, or when the
   gift could not be sent at all. They come back through the same request the
-  [Night Operation shop](night-operation-shop.md) adds items with, as soon as EVE is in the world and the
+  [Night Operation shop](../modes/night-operation-shop.md) adds items with, as soon as EVE is in the world and the
   game is not paused, and only on the co-op save they left.
   `Gift returned: 2 PulseGrenade are back in your inventory.` says it.
 - While she is linked and has not answered, the gift is sent again every 10 s under the same number. Her game keeps

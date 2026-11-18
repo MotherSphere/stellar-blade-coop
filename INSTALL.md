@@ -91,7 +91,7 @@ another version.
    status strip) are turned on once at the first load, since every on/off setting is now on by default. The old file
    is kept as `coop-settings.old.txt` until your first change in Options in a later game run writes over it, so copy it
    elsewhere to keep it. Turn a setting off again in Options or in the file (see
-   [docs/settings.md](docs/settings.md#coop-settingstxt)).
+   [docs/players/settings.md](docs/players/settings.md#coop-settingstxt)).
 5. Do install step 5, with your status key if you changed it.
 
 ## Other mods
@@ -113,18 +113,18 @@ changes the file.
   Invitation open the Steam invite dialog, where you pick your friend. Find a session lists the online sessions you
   can join. While you host, the menu has Invite a friend and Leave the session instead. The arrow keys (or WASD, or
   ZQSD) move, Enter selects and Esc goes back. Within 3 m of a camp phone booth, `F5` opens the co-op line instead, a
-  page with the same session rows. See [docs/interface.md](docs/interface.md#co-op-menu).
+  page with the same session rows. See [docs/players/interface.md](docs/players/interface.md#co-op-menu).
 - On a controller, hold View for 1 s to open or close the co-op menu. The D-pad or the left stick moves, A selects
   and B goes back. The mouse works in the menu too: move onto a row, left click to select, right click to go back. See
-  [docs/interface.md](docs/interface.md#controller).
+  [docs/players/interface.md](docs/players/interface.md#controller).
 - `F6` (status) shows one line on screen and writes it to `UE4SS.log`, for example `Co-op: hosting Alex.`
 - `F8` leaves the session. When the host leaves, the guest leaves too.
-- `F9` sets a checkpoint while you record a Doro race track. See [docs/doro-races.md](docs/doro-races.md).
+- `F9` sets a checkpoint while you record a Doro race track. See [docs/features/doro-races.md](docs/features/doro-races.md).
 - `Enter`, during a session or in the SBO lobby, opens the chat box. See
-  [docs/interface.md](docs/interface.md#session-chat).
+  [docs/players/interface.md](docs/players/interface.md#session-chat).
 - On a co-op save in Xion, the recruiter near Roxanne in the Scrap Market takes you to the SBO lobby when you choose
   Join: a test lobby for matches of up to 8 players, where `F5` opens the lobby menu. See
-  [docs/sbo-lobby.md](docs/sbo-lobby.md).
+  [docs/features/sbo-lobby.md](docs/features/sbo-lobby.md).
 
 Your friend accepts the invite in Steam, or selects your session in Find a session. If their game is closed when they
 accept an invite, Steam starts it. They join once they have loaded a save. Both ghosts then turn on automatically.
@@ -140,8 +140,8 @@ the game's popup asks whether to let them in: Accept or Decline. With no answer 
 refused player cannot come back to that session. To send out a player you let in, select Remove <name> in the menu, then
 select it again within 3 s. Remove also puts that player on your block list, which keeps them out of every game you host
 later, after a game restart too, until `coop unblock`. See
-[docs/playing-with-a-friend.md](docs/playing-with-a-friend.md#asking-to-join) and its
-[block list](docs/playing-with-a-friend.md#block-list) section.
+[docs/players/playing-with-a-friend.md](docs/players/playing-with-a-friend.md#asking-to-join) and its
+[block list](docs/players/playing-with-a-friend.md#block-list) section.
 
 The mod writes `Mods/StellarCoop/coop-settings.txt` the first time the game starts with it. The menu's Options page
 changes one line of the file at a time, and keeps the file as it was before its first change since the mod loaded as
@@ -172,7 +172,7 @@ changes one line of the file at a time, and keeps the file as it was before its 
   - `dyes=off` and `effects=off` each also stop your game from sending your own, so the ghost of you in your friend's
     game lacks them too.
 - `auto_coop_save`: see "Co-op saves" below. The photo, menu, chat, partner HUD and shared enemies settings are
-  listed in [docs/settings.md](docs/settings.md#coop-settingstxt).
+  listed in [docs/players/settings.md](docs/players/settings.md#coop-settingstxt).
 
 If the mod rejects a value, that setting keeps its default, and `UE4SS.log` gives the reason in a line that starts with
 `[StellarCoop] settings:`. The `[StellarCoop] keys:` line lists the keys in use, and the `[StellarCoop] look:` line
@@ -196,7 +196,7 @@ or Ctrl+R) and builds the ghost again; `coop-settings.txt` does not change. `coo
 
 The mod reads your own saves to make separate co-op copies, and writes one of them only when you export a co-op save
 over it, after a backup of that save (see "Co-op saves" below and
-[docs/saves.md](docs/saves.md#what-the-mod-reads-and-writes)). Back up the saves anyway before you play with any mod:
+[docs/players/saves.md](docs/players/saves.md#what-the-mod-reads-and-writes)). Back up the saves anyway before you play with any mod:
 
 1. Close the game.
 2. Copy the save folder to a place outside the game and Steam folders.
@@ -228,7 +228,7 @@ choice under the mouse. On a controller, the D-pad or the left stick moves, A se
 after the question shows, Enter, Space, A and a click do nothing, so a press meant for the title screen does not
 answer it. The mod reads any controller the game reads, a DualSense with Steam Input off included. If the mod cannot
 use the game's input, it reads XInput controllers only; a DualSense then needs Steam Input on for Stellar Blade
-(see [docs/interface.md](docs/interface.md#controller)). With no answer for 60 s, the question closes as Decide later.
+(see [docs/players/interface.md](docs/players/interface.md#controller)). With no answer for 60 s, the question closes as Decide later.
 
 - Convert and play co-op (Play co-op once copies exist): the mod copies your saves, then switches the game to the
   copies. Before the first copies, it backs up every `StellarBlade*.sav` of your account into
@@ -269,7 +269,7 @@ More about the copies:
   dungeon. It also refuses a developer save that `coop shortcut load` wrote in co-op slot 4
   (`StellarBladeCoop04.sav`, the title's fifth slot), played or not. Quit the game afterwards: until it restarts, the
   title's slot list shows the slot's old details. The export has not been tried in game yet. See
-  [docs/saves.md](docs/saves.md#co-op-saves).
+  [docs/players/saves.md](docs/players/saves.md#co-op-saves).
 - A co-op save that started New Game+ while it held any of these keeps them in the game's New Game+ copy of the
   inventory and camps, which playing does not change, so the export keeps refusing it. Only the copy by hand below
   takes it out.
@@ -283,7 +283,7 @@ With `auto_coop_save=off`, the mod asks nothing and makes no copies by itself. T
 slots: a copy of your save under a free name from `StellarBladeSave00.sav` to `StellarBladeSave04.sav`, made with the
 game closed, and named on one line of `StellarCoopSlot.txt` (UTF-8) in the same folder. On Linux,
 `python3 tools/save_guard.py slot SOURCE TARGET` makes both and backs up first. Load that slot: `coop status` shows
-`slot=coop index=N marker=N`. See [docs/saves.md](docs/saves.md#manual-co-op-slot).
+`slot=coop index=N marker=N`. See [docs/players/saves.md](docs/players/saves.md#manual-co-op-slot).
 
 ### Recovery
 

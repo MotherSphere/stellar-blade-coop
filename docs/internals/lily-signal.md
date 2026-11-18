@@ -1,7 +1,7 @@
 # Lily's signal: how it works
 
 `matrix13/quest/on_time.lua` starts a prologue quest of the mod's own in Phase 5, adds a choice to Lily's menu, starts a
-longer quest of the mod's own and plays three talks (player's side: [Lily's signal](../lily-signal.md)). Nothing of it has
+longer quest of the mod's own and plays three talks (player's side: [Lily's signal](../modes/lily-signal.md)). Nothing of it has
 run in game yet. It joins pieces that exist for other features: a rows batch through SB's AddRow, the select cache swap
 of Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s camp travel.
 

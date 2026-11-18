@@ -11,7 +11,7 @@ Stellar Blade Online is an experimental beta, played in only a few sessions betw
   `[StellarCoop] link: ...`.
 - `Mods/StellarCoop/coop-link.log`: the native part's numbered events, in UTC. The previous run's log is
   `coop-link.old.log`.
-- `coop status` (console) or F6: the current state. See [usage.md](usage.md#status-lines).
+- `coop status` (console) or F6: the current state. See [usage.md](../usage.md#status-lines).
 - `coop report` (console): writes `coop-report.txt` with versions, the save folder, where `xinput1_3.dll`,
   `dinput8.dll`, `dwmapi.dll` (UE4SS's loader) and `steam_api64.dll` were loaded from (other mods' DLLs can change
   results), the status, a summary of save folder changes and the last 100 events, with SteamIDs and join codes masked
@@ -23,9 +23,9 @@ Stellar Blade Online is an experimental beta, played in only a few sessions betw
 
 - No `[StellarCoop]` line in `UE4SS.log`: UE4SS did not start the mod. Check that the folder is
   `Mods/StellarCoop/Scripts/main.lua`, with `enabled.txt` and `StellarCoop.dll` next to `Scripts/` (Windows "Extract
-  All" may add one folder level). See [INSTALL.md](../INSTALL.md#install).
+  All" may add one folder level). See [INSTALL.md](../../INSTALL.md#install).
 - `Native part not loaded`: `StellarCoop.dll` is missing or was quarantined. The keys and the Steam link need it. See
-  [INSTALL.md: Windows Defender and SmartScreen](../INSTALL.md#windows-defender-and-smartscreen).
+  [INSTALL.md: Windows Defender and SmartScreen](../../INSTALL.md#windows-defender-and-smartscreen).
 - `Native tick unavailable`: the DLL loaded but its per-frame entry did not. Without it no pose is read or drawn, so
   no ghost shows, and the loopback, record and replay refuse to start.
 - A `settings:` line: a value in `coop-settings.txt` was refused and keeps its default. `F10` is never allowed, and
@@ -46,14 +46,14 @@ Stellar Blade Online is an experimental beta, played in only a few sessions betw
 ### My friend cannot join
 
 - `Version mismatch: ...`: you run different Stellar Blade Online protocols or game builds. Both players update
-  together: see [INSTALL.md: Update](../INSTALL.md#update).
+  together: see [INSTALL.md: Update](../../INSTALL.md#update).
 - `Invite held: joining once your save has loaded.`: they join once their save has loaded. This is normal.
 - `Could not join: that game is full.`: an online session holds as many players as its host's `max_players` (2 to 4);
-  a match lobby of the [SBO lobby](sbo-lobby.md) holds 8. `Left: the lobby has more than 4 players.` means the lobby
+  a match lobby of the [SBO lobby](../features/sbo-lobby.md) holds 8. `Left: the lobby has more than 4 players.` means the lobby
   was not made by Stellar Blade Online (it holds more players than a Stellar Blade Online session can), so the mod
   left it.
 - `Could not join: that game is closed (a private session, or a match that started).`: the host's online session is
-  Private (`who_can_join=closed`), which nobody can join, or the match lobby of the [SBO lobby](sbo-lobby.md) shut when
+  Private (`who_can_join=closed`), which nobody can join, or the match lobby of the [SBO lobby](../features/sbo-lobby.md) shut when
   its round started. A match lobby opens again when the round ends. A Private session stays shut: the host has to host
   again with another Who can join value.
 - `Could not join: Steam had an unexpected error. Try again.`: Steam failed the join on its side.
@@ -82,7 +82,7 @@ Stellar Blade Online is an experimental beta, played in only a few sessions betw
   never show. Ask the host which Who can join value they used.
 - A session of another protocol or game build is never listed. The bottom left of the Sessions screen names yours
   (`Your version: protocol <n>, game build <n>.`). The host's `coop status` names theirs on its first line (`proto=`
-  and `build=`). Both players update together: see [INSTALL.md: Update](../INSTALL.md#update). A host on a build of
+  and `build=`). Both players update together: see [INSTALL.md: Update](../../INSTALL.md#update). A host on a build of
   the mod from before the session list writes no rows, so it is not listed either: join it with an invite or a code.
 - A full session is not listed. An online session holds as many players as its host's `max_players` (2 to 4). A
   player who waits for the host's answer takes a place, so a session she fills leaves the list until the host
@@ -93,7 +93,7 @@ Stellar Blade Online is an experimental beta, played in only a few sessions betw
 - `The search failed. Refresh to try again.`: Steam refused or failed the search (`coop-link.log`: `Steam refused the
   lobby search` or `lobby search failed`).
 - `You can search again in <n> s.`: one search every 5 s at most. Refresh once the count ends. While a match search of
-  the [SBO lobby](sbo-lobby.md) runs, the status line shows the search and Refresh does nothing: Steam runs one lobby
+  the [SBO lobby](../features/sbo-lobby.md) runs, the status line shows the search and Refresh does nothing: Steam runs one lobby
   search at a time.
 - From the console, `coop list public` or `coop list friends` gets `Leave this game first.` in a lobby,
   `A search is already running.` while a search runs and `Wait 5 s between two searches.` under 5 s after the last
@@ -207,7 +207,7 @@ effects off until the game restarts; the ghost stays, without effects.
 
 ### EVE is invisible, or only a Doro shows
 
-During a [Doro race](doro-races.md), and after `coop race look on`, the Doro look hides EVE's parts and the drone
+During a [Doro race](../features/doro-races.md), and after `coop race look on`, the Doro look hides EVE's parts and the drone
 that follows her, and draws a Doro at her feet. The race's end, `coop race quit`, `coop off` and a map change show both
 again. If EVE or the drone stays hidden:
 
@@ -224,12 +224,12 @@ A Doro left standing alone where a race was (at a checkpoint or the start line) 
 `[StellarCoop][DR] race: <n> display Doros an earlier Lua load left destroyed`.
 
 While your look is on, your friend sees your ghost with no body unless their game takes part in the race (see
-[internals/doro-races.md](internals/doro-races.md#the-doro-look)).
+[internals/doro-races.md](../internals/doro-races.md#the-doro-look)).
 
 ### EVE does not speed up or stop after a race
 
-During a [Doro race](doro-races.md), the race sets four values of EVE's movement to 0 so it can drive her (see
-[Driving](doro-races.md#driving)). Her result, `coop race quit`, `coop off` and a map change put them back. If she keeps
+During a [Doro race](../features/doro-races.md), the race sets four values of EVE's movement to 0 so it can drive her (see
+[Driving](../features/doro-races.md#driving)). Her result, `coop race quit`, `coop off` and a map change put them back. If she keeps
 sliding or does not move with the stick after a race or `coop race drive probe`:
 
 - Type `coop race drive off` if the probe still runs.
@@ -330,7 +330,7 @@ Look in `UE4SS.log` for a `[StellarCoop] UE4SS-settings.ini:` line. With `HookBe
 `ue4ss/UE4SS-settings.ini`, the game can crash when EVE lets go of a movable crate; with `bUseUObjectArrayCache` on, it
 can stutter and crash at startup. Close the game, set `HookBeginPlay = 0` and `bUseUObjectArrayCache = false` (the
 Stellar Blade UE4SS 1.3 values), and start it again. The usual cause is another mod's `UE4SS-settings.ini` copied over
-the 1.3 one. See [INSTALL.md: Other mods](../INSTALL.md#other-mods). `UE4SS-settings.ini not checked: <why>` means the
+the 1.3 one. See [INSTALL.md: Other mods](../../INSTALL.md#other-mods). `UE4SS-settings.ini not checked: <why>` means the
 mod could not read the file, so check the two lines by hand.
 
 ### `<name>: error (logged once until the mod reloads; the other modules go on)`
@@ -350,12 +350,12 @@ reload builds it again. Send `UE4SS.log` either way.
   [saves.md](saves.md#co-op-saves).
 - `STOP: text: this UE4SS build cannot pass a Lua table as a map inside a struct parameter ...` comes from
   `coop scene emil` and is expected: the Emil scene's subtitles stay in Korean and Japanese, and the scene goes on (see
-  [cut-scenes-and-menus.md](cut-scenes-and-menus.md#cut-scenes-coop-scene)).
+  [cut-content/cut-scenes-and-menus.md](../cut-content/cut-scenes-and-menus.md#cut-scenes-coop-scene)).
 - `[RC] STOP: text: the native part stopped at a fault ...`: the recruiter's lines stay as they are until the game
-  restarts, and the rest goes on (see [night-operation-previews.md](night-operation-previews.md#his-language)).
+  restarts, and the rest goes on (see [modes/night-operation-previews.md](../modes/night-operation-previews.md#his-language)).
 - Most other `STOP:` lines from the previews give the reason, and many say that nothing was changed. If the probe logs
   `STOP: a new character is ... m from EVE: kill the game now`, kill the game at once. See
-  [night-operation-previews.md](night-operation-previews.md).
+  [modes/night-operation-previews.md](../modes/night-operation-previews.md).
 
 ### `coop devmenu` or `coop devinfo` does nothing
 
@@ -415,7 +415,7 @@ game with Stellar Blade Online yet.
 ### A save looks wrong
 
 Do not start the game again. Turn Steam Cloud off for Stellar Blade first, then restore your backup. See
-[saves.md](saves.md#steam-cloud) and [INSTALL.md: Recovery](../INSTALL.md#recovery).
+[saves.md](saves.md#steam-cloud) and [INSTALL.md: Recovery](../../INSTALL.md#recovery).
 
 ## Shared enemies and group play
 
@@ -423,7 +423,7 @@ Do not start the game again. Turn Steam Cloud off for Stellar Blade first, then 
 
 Shared enemies are on by default. Both players need Options > Combat > Shared enemies (experimental) set to On in the
 co-op menu. The `fight=` line of `coop status` says what is missing (see
-[shared-enemies.md: Shared enemies](shared-enemies.md#shared-enemies-experimental)):
+[shared-enemies.md: Shared enemies](../features/shared-enemies.md#shared-enemies-experimental)):
 
 - `fight=off` with no `why=`, and `shared enemies: off (experimental)` in `UE4SS.log` at load: shared enemies are off
   in your game. A `coop-settings.txt` from version 0.2 says `shared_enemies=off`.
@@ -488,7 +488,7 @@ Shared quests are experimental and on by default, and both players need Options 
 ### Same place does not start, or stops
 
 Same place is experimental and on by default, and only the host's setting counts. `coop fight pilot status` prints
-the `pilot=` line of `coop status` (see [shared-enemies.md: Same place](shared-enemies.md#same-place-experimental)):
+the `pilot=` line of `coop status` (see [shared-enemies.md: Same place](../features/shared-enemies.md#same-place-experimental)):
 
 - `pilot=refused why=...`: another game build, or `coop off`.
 - `pilot=off why=fight`: shared enemies are not running. See [Enemies are not shared](#enemies-are-not-shared).
@@ -537,7 +537,7 @@ moves it.
 
 Shared bosses (`bosses`) are experimental, on by default and not tested in game yet, and only the host's setting counts.
 With same place on, the guest's copy of a boss follows the host's through the lines in
-[internals/shared-enemies.md: Shared bosses](internals/shared-enemies.md#shared-bosses). Look in the guest's `coop-link.log` first:
+[internals/shared-enemies.md: Shared bosses](../internals/shared-enemies.md#shared-bosses). Look in the guest's `coop-link.log` first:
 
 - No arena walls on her side: there is no `fight bstart hguid=<n>` line. Her game calls the boss start only for a copy
   it draws: check `pilot=` in `coop status` and the `fight paired` and `fight frozen` lines for that boss. The host
@@ -577,7 +577,7 @@ With same place on, the guest's copy of a boss follows the host's through the li
 ### A kill or an achievement did not count
 
 A shared enemy dies in your game only if you took part in its fight
-([shared-enemies.md: Shared enemies](shared-enemies.md#shared-enemies-experimental)). When the other player kills one
+([shared-enemies.md: Shared enemies](../features/shared-enemies.md#shared-enemies-experimental)). When the other player kills one
 that you never hit, that never targeted you and that stood more than 30 m from your EVE (`kill_credit=together`, the
 default), your copy stays alive at full HP, and its kill, loot and achievements do not reach your save. Fight it
 yourself to get them. As the guest, while same spawns run (within 100 m of each other in one zone), the host's next drop
@@ -640,7 +640,7 @@ After a call, the `revive result` line gives the life state, HP and death screen
 stays up over a living EVE, the mod hides it.
 
 During a co-op Night Operation run the run's own revive applies instead (see
-[Down and revive](night-operation.md#down-and-revive)). It needs the downed player's `revive=on` too, but none of the
+[Down and revive](../modes/night-operation.md#down-and-revive)). It needs the downed player's `revive=on` too, but none of the
 friend's distance, the shared fight or the boss rule above. Its `[StellarCoop][NR]` lines say what happened:
 
 - No `down (life 3): ...` line after a death, and the run failed at once: the dead player's `revive` setting is off,
@@ -676,7 +676,7 @@ vanish without dying and without rewards. Both happen only where the two players
 one zone, and only to enemies of rows the zone resets anyway (bosses, quest and event enemies and the enemies a save
 records are never touched). To go back, turn off Options > Combat > Same spawns (experimental) in the host's menu, then
 turn Shared enemies off and on again or restart the game: the setting counts from the next start of shared enemies.
-[shared-enemies.md](shared-enemies.md#same-spawns-experimental) has the details.
+[features/shared-enemies.md](../features/shared-enemies.md#same-spawns-experimental) has the details.
 
 Read the `spawns=` part of the `fight=` line in `coop status` on both PCs:
 
@@ -704,7 +704,7 @@ An enemy that the host's game lacks still appears for a moment on the guest's sc
 then vanishes: that is same spawns with the spawn filter off. With `spawn_filter=on` (the default) on her PC it stays
 away after the first entry into the zone, unless her reset is also a world change (`fight world <why>` in her
 `coop-link.log`; see [Turn the spawn filter off](#turn-the-spawn-filter-off) and
-[shared-enemies.md: Spawn filter](shared-enemies.md#spawn-filter-experimental)).
+[shared-enemies.md: Spawn filter](../features/shared-enemies.md#spawn-filter-experimental)).
 
 ### Turn the spawn filter off
 
@@ -715,7 +715,7 @@ until the game restarts. Send the guest's `coop-link.log` and `coop-fight.log`: 
 enemy it refused (`spawn filter refused <spawnId>:<index>`), and the `fight stats:` lines count `filter <n> seen, <n>
 refused`. `spawn filter refused: ...` with no key means the filter never started (another mod holds the same pointer,
 or the page would not become writable), and every spawn went on as with it off. See
-[shared-enemies.md: Spawn filter](shared-enemies.md#spawn-filter-experimental).
+[shared-enemies.md: Spawn filter](../features/shared-enemies.md#spawn-filter-experimental).
 
 ## Reading the 60 s lines
 
@@ -795,7 +795,7 @@ the files before you send them.
 
 When you test with a friend, the player who leads the test types `coop mark <step>` in the console before each step,
 for example `coop mark 3 lift`. Each mark puts a numbered line with that text in both players' `coop-link.log` and
-`UE4SS.log` (see [usage.md](usage.md#coop-mark)), so the four logs line up step by step. The text of each mark stays
+`UE4SS.log` (see [usage.md](../usage.md#coop-mark)), so the four logs line up step by step. The text of each mark stays
 in the logs you send.
 
-This list is the same as in [INSTALL.md](../INSTALL.md#which-logs-to-send).
+This list is the same as in [INSTALL.md](../../INSTALL.md#which-logs-to-send).

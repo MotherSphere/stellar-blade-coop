@@ -13,12 +13,12 @@ save. Neither writes a game file, but their changes stay in the running game unt
 
 ## Before you try a preview
 
-1. Load a co-op save: at the title, choose Play co-op (see [INSTALL.md: Co-op saves](../INSTALL.md#co-op-saves)), then
+1. Load a co-op save: at the title, choose Play co-op (see [INSTALL.md: Co-op saves](../../INSTALL.md#co-op-saves)), then
    load your save. `coop status` must then show `slot=coop`. Both previews refuse to run on any other save.
 2. Back up your saves, with the game closed: `python3 tools/save_guard.py backup` on Linux, or a copy of the save
-   folder on Windows. See [saves.md](saves.md#backups).
+   folder on Windows. See [players/saves.md](../players/saves.md#backups).
 3. Keep Steam Cloud off for Stellar Blade during preview runs, so nothing from the run replaces the good copy in the
-   cloud. See [saves.md](saves.md#steam-cloud).
+   cloud. See [players/saves.md](../players/saves.md#steam-cloud).
 4. End the run by killing the game, not with Quit from the menu, which saves. On Linux:
    `pkill -9 -f SB-Win64-Shipping`. On Windows: Task Manager, End task. Never load another save in that run.
 5. Afterwards, with the game closed, check and restore your backup (see
@@ -59,7 +59,7 @@ While the probe runs:
   killing the game.
 
 If you ran the probe, send `nightop-probe.txt` with the other logs (see
-[troubleshooting.md](troubleshooting.md#which-logs-to-send)).
+[players/troubleshooting.md](../players/troubleshooting.md#which-logs-to-send)).
 
 ## Preview 2: the recruiter (`coop recruiter`)
 
@@ -82,7 +82,7 @@ is kept. After `coop recruiter off` he stays away until the next Xion load. Thes
    command sets that zone event (`MultiplayTest_ZoneE_059`) to a harmless type and reads it back. If the row is not the
    one expected, or the write does not read back, it stops with `STOP:` and spawns nothing. Join never reaches Shift
    Up's servers. With `sbo_lobby=on` in `coop-settings.txt` (the default) it saves the co-op game and takes you to the
-   [SBO lobby](sbo-lobby.md); otherwise, or when something else is missing, a notice says what.
+   [SBO lobby](../features/sbo-lobby.md); otherwise, or when something else is missing, a notice says what.
 2. If someone already stands at the spawn point, the command says so and spawns nothing. Otherwise, in memory only, it
    flips the recruiter's network condition (so the question and its two choices show), points one unused test spawn
    row at the cut spawn point (a Xion guard with the recruiter's dialogue, not marked for saving, no walking path), and
@@ -142,7 +142,7 @@ Only these files may differ: the co-op save you played (`StellarBladeCoop0N.sav`
 `Backup/` copy, the game's `StellarBladeSetting.sav` and its `Backup/` copy, the `steam_autocloud.vdf` files and other
 mods' saves. Any other `StellarBladeSave0N.sav`, or its `Backup/` copy, means the run wrote one of your own slots. The
 restore puts it back; please send the logs in that case. The full recovery steps are in
-[INSTALL.md: Recovery](../INSTALL.md#recovery).
+[INSTALL.md: Recovery](../../INSTALL.md#recovery).
 
 ## How the original matchmaking is blocked
 
@@ -162,4 +162,4 @@ leaving your game in these ways:
   main.lua's photo pause, which sets `SB.PhotoMode.PauseMethod` to 0 or 1. It first runs on planted violations, so no
   rule passes vacuously.
 - The mod has no code that talks to Shift Up's services. Its only network use is the Steam link between friends,
-  through the Steam client the game already runs (see [internals/steam-link.md](internals/steam-link.md)).
+  through the Steam client the game already runs (see [internals/steam-link.md](../internals/steam-link.md)).

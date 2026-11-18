@@ -1,6 +1,6 @@
 # Shared enemies: how they work
 
-The player's side, with the settings of each part, is in [Shared enemies](../shared-enemies.md). The rule for kills and
+The player's side, with the settings of each part, is in [Shared enemies](../features/shared-enemies.md). The rule for kills and
 achievements is in [Achievements and safety](safety.md#achievements).
 
 The shared fight runs between two games: the host and its partner (`Link::partner()`). In an online session of more
@@ -100,7 +100,7 @@ HP, Shield, balance and death stay with the host's game whoever owns the pair.
   `coop fight pilot test exec` empties the balance of the first frozen copy this game draws at the job's next turn
   (a stamina drop, as a hit of its EVE), so the copy goes groggy and can be taken down.
 
-The commands, the notices and the solo test are in [Shared enemies](../shared-enemies.md#same-place-experimental).
+The commands, the notices and the solo test are in [Shared enemies](../features/shared-enemies.md#same-place-experimental).
 
 ## Same spawns
 
@@ -165,7 +165,7 @@ pairs through its spawn key like any other.
   game, and logs the outcome for each shared Monster once an epoch, 32 a census at most so that one hand-over's 128 log
   lines are enough. It sends no line and calls neither the spawn nor the despawn function.
 
-The log lines are in [Shared enemies](../shared-enemies.md#same-spawns-experimental).
+The log lines are in [Shared enemies](../features/shared-enemies.md#same-spawns-experimental).
 
 ### The spawn filter
 
@@ -219,7 +219,7 @@ stays 12.
   her game. Sending the host's absent keys with its epoch line would cover the first entry too; it needs a walk of the
   EventSpawn table by zone, not reverse-engineered yet.
 
-The log lines are in [Shared enemies](../shared-enemies.md#spawn-filter-experimental).
+The log lines are in [Shared enemies](../features/shared-enemies.md#spawn-filter-experimental).
 
 ## Extra enemies
 
@@ -266,7 +266,7 @@ guest's game like any other key of the host's that she lacks.
   `FUN_141a98bc0` for the last two). An extra whose GUID cannot be read right after `NewActor` stops the shared fight
   for the run and is logged as kept, since no capture can take it off.
 
-The log lines are in [Shared enemies](../shared-enemies.md#extra-enemies-experimental).
+The log lines are in [Shared enemies](../features/shared-enemies.md#extra-enemies-experimental).
 
 ## Shared bosses
 
@@ -341,4 +341,4 @@ applies them to her copy:
 - Every call runs inside the shared fight's job on the logic thread, under its fault latch. The host's side makes no
   new game call: it reads, and her claims go through ApplyStat as before. Recordings keep none of these lines.
 
-The log lines are in [troubleshooting.md](../troubleshooting.md#a-shared-boss-differs-between-the-two-games).
+The log lines are in [players/troubleshooting.md](../players/troubleshooting.md#a-shared-boss-differs-between-the-two-games).

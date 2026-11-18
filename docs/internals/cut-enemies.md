@@ -2,7 +2,7 @@
 
 The cut Lion, Gardener and Tendril get the table rows they lack from the row batches of `lion/rows.h`, which
 [The cut Lion](#the-cut-lion) describes. The cut stimpacks, the ChainSpin, the Shock Bolt, Matrix XIII, the Night
-Operation shop and Lily's signal use the same batches. The commands are in [Cut enemies](../cut-enemies.md).
+Operation shop and Lily's signal use the same batches. The commands are in [Cut enemies](../cut-content/cut-enemies.md).
 
 ## The cut Lion
 

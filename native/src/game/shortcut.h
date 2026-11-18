@@ -13,7 +13,7 @@
 // (FUN_141f62840) keeps only GetBestSaveSlotNum (0x1422962d0), whose result it drops: the load was compiled out, and
 // the lobby gives no button to the menu. These are saves of 2021 and 2022 development builds, and two of them carry
 // boss achievements already done (trophies 3 to 5, 8 to 10): coop shortcut load (game/shortcut_load.h) takes their
-// achievement data out first, and only with shortcut_load=on (docs/how-it-works.md).
+// achievement data out first, and only with shortcut_load=on (docs/internals/README.md).
 //
 // Each file is GVAS (UE 4.25 or 4.26 tagged properties, no EVAS header and no CRC); the game strips an EVAS header
 // first when there is one, as it does for its own slots, and so does parse(). parse() reads the header's engine branch

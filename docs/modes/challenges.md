@@ -37,7 +37,7 @@ line: in a session it starts for both players (see [The Shooting Range for two](
 exists at a time, so a start while a challenge or Night Operation is on gets
 `STOP: a run is on: coop challenge stop ends it`. A word that is neither a challenge's name nor its number gets
 `STOP: unknown challenge: coop challenge lists them`. On a save that is not a co-op save, every form except
-`coop challenge stop` gets the co-op save line (see [usage.md](usage.md#commands-that-need-a-co-op-save)).
+`coop challenge stop` gets the co-op save line (see [usage.md](../usage.md#commands-that-need-a-co-op-save)).
 
 A start answers `OK: Target Practice starts in 5 s (run 0x2A)`, and its `start:` line in `UE4SS.log` names the
 challenge after the map (`... map <map> challenge targets; census: ...`).
@@ -223,7 +223,7 @@ read gives a `record: cannot read coop-records.txt (...)` line, and nothing is w
 
 The file stays on this PC and never goes over the Steam link. `tools/install.py` keeps it, as it keeps every
 `coop-*.txt` file, and `--uninstall` backs it up with the folder. When you update from the zip, copy it out and back
-with `coop-settings.txt` (see [INSTALL.md: Update](../INSTALL.md#update)).
+with `coop-settings.txt` (see [INSTALL.md: Update](../../INSTALL.md#update)).
 
 ## What a challenge touches
 

@@ -1,6 +1,6 @@
 # Shared world: how it works
 
-The player's side is in [Shared world](../shared-world.md). The shared world (`shared_world`, experimental, on by
+The player's side is in [Shared world](../features/shared-world.md). The shared world (`shared_world`, experimental, on by
 default) has not run in game yet. Every address and offset below is build 26123051's, read in Ghidra.
 
 The code is split as for the shared quests:
@@ -101,7 +101,7 @@ build needs the block written again from that build's tables.
 
 The sender checks its lists before a root becomes a line. The receiver checks them again when the line arrives.
 A3 checks the ZoneEvent list a third time right before it calls RunZoneEvent, since SB's RunEvent reaches its
-matchmaking from some row types (see `tests/tools/matchmaking_scan_test.py` in [Tests](../tests.md#python-tests)).
+matchmaking from some row types (see `tests/tools/matchmaking_scan_test.py` in [Tests](../dev/tests.md#python-tests)).
 
 ## Wire
 

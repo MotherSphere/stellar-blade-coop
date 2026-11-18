@@ -1,8 +1,8 @@
 # Your friend's ghost
 
 Your friend's EVE shows in your game as a ghost, built from the table of her mesh parts and the poses that their game
-sends. Problems are in [troubleshooting.md](troubleshooting.md#the-ghost-and-its-looks), and the pipeline that builds
-the ghost in [internals/ghost.md](internals/ghost.md).
+sends. Problems are in [players/troubleshooting.md](../players/troubleshooting.md#the-ghost-and-its-looks), and the pipeline that builds
+the ghost in [internals/ghost.md](../internals/ghost.md).
 
 ## Looks
 
@@ -12,7 +12,7 @@ the menu's Options > Ghost. A file that already says `cloth=off` keeps it off. `
 one until the mod reloads. With one on, the `Ghost ... built` log line ends with `; look: ...`.
 
 The three looks have not been tested in game yet. Back up your saves before you play with one on (see
-[saves.md](saves.md)), and turn it off if the game crashes or the ghost looks wrong.
+[players/saves.md](../players/saves.md)), and turn it off if the game crashes or the ghost looks wrong.
 
 - `cloth`: her ponytail moves as in solo. In solo, the strands you see are an NvCloth simulation of the ponytail mesh,
   pinned at the scalp; the bones that the poses carry only anchor it. Without cloth, the ghost's ponytail follows those
@@ -169,5 +169,5 @@ The ghost lets your EVE through:
 - while the ghost is hidden.
 
 A dodge into the ghost stops at it, where it would pass through an enemy. Turn it off in the menu if it gets in your
-way (see [troubleshooting.md](troubleshooting.md#stuck-at-a-doorway-with-the-solid-partner)). `coop status` shows
+way (see [players/troubleshooting.md](../players/troubleshooting.md#stuck-at-a-doorway-with-the-solid-partner)). `coop status` shows
 `collide=` on the ghost's line.

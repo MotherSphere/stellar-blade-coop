@@ -1,6 +1,6 @@
 # The bike: how it works
 
-The player page is [bike.md](../bike.md). The bike is `bike/ride.lua` (the part, the checks, the mount and the dismount,
+The player page is [features/bike.md](../features/bike.md). The bike is `bike/ride.lua` (the part, the checks, the mount and the dismount,
 the lean, the pose, the parked bike's place), `bike/model.lua` (the riding model), `bike/park.lua` (the parked bike's
 rules, its record and its line), `bike/stand.lua` (the parked bike's actor), `bike/others.lua` (the other players'
 parked bikes), `bike/fetch.lua` (the paid fetch at Xion), `commands/bike.lua` (`coop bike`) and the native part's
@@ -55,7 +55,7 @@ when a new EVE appears.
 
 ## Mount and dismount
 
-A mount first runs the checks that [bike.md](../bike.md#getting-on-and-off) lists, on EVE's reflected state:
+A mount first runs the checks that [features/bike.md](../features/bike.md#getting-on-and-off) lists, on EVE's reflected state:
 `IsAttachedToLevelSequenceWithoutPlayable`, `IsRunningInteraction`, `bEnableInteractionBlock`, `IsMoveInputBlock`, the
 movement component's `MovementMode` (swimming, a custom mode for the ladders, ropes, beams, wires and event moves, the
 air, or anything but walking), `IsRunningSkill`, `IsBattle`, `GetFishingModeType`, `IsTPSMode`, `bFreeCamMode`,

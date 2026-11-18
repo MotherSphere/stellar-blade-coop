@@ -3,7 +3,7 @@
 The commands on this page change what your own EVE can do or wear: a Tachy Mode skill cut before release (`coop
 chainspin`), two hairs and four suits that no item gives (`coop wear`), animation clips played as emotes (`coop emote`),
 two developer tools the game ships switched off, flight and slow motion (`coop fly` and `coop slowmo`), and a cut glide
-(`coop glide`). How they work, except `coop wear`, is in [internals/cut-eve.md](internals/cut-eve.md). Cut enemies are
+(`coop glide`). How they work, except `coop wear`, is in [internals/cut-eve.md](../internals/cut-eve.md). Cut enemies are
 in [cut-enemies.md](cut-enemies.md).
 
 ## Cut Tachy skill: `coop chainspin`
@@ -18,7 +18,7 @@ animation (3.25 s, nine steps) and takes the two moves.
 `coop chainspin` adds EVE's version to the game's tables in memory with the [cut Lion's rows](cut-enemies.md#cut-boss-coop-lion) (11
 of the 237: the skill `P_Eve_Tachy_Skill_ChainSpin1_1`, its nine steps and an effect), then asks the game to apply that
 effect on EVE. The effect starts the skill only while she is in Tachy Mode; outside it, nothing happens. It is a test
-command, left out of the usage line, and runs only on a [co-op save](playing-with-a-friend.md#co-op-saves). Its lines go to `UE4SS.log` as
+command, left out of the usage line, and runs only on a [co-op save](../players/playing-with-a-friend.md#co-op-saves). Its lines go to `UE4SS.log` as
 `[StellarCoop][CS]`.
 
 - The steps are copies of ChainStab's, the first of EVE's four Tachy skills, with the Tachy NPC's timing and moves. Its
@@ -28,7 +28,7 @@ command, left out of the usage line, and runs only on a [co-op save](playing-wit
   a logic job on EVE. It goes out once the rows are in (the first time in a game run it waits for them, 30 s at most),
   and never while a respawn or a warp is under way.
 - No button starts it. EVE's four Tachy skill buttons are taken. A fifth command could go at the end of the Tachy
-  stance's command list, written in place as for the [Shock Bolt](night-operation-shop.md#cut-ammo-shock-bolt)'s gun stances; none was added.
+  stance's command list, written in place as for the [Shock Bolt](../modes/night-operation-shop.md#cut-ammo-shock-bolt)'s gun stances; none was added.
 - Nothing is saved: the skill has no skill tree entry, slot or achievement tag, and the rows stay in memory until the
   game exits.
 - The Tachy NPC's Show plays no wing animation, so EVE's Tachy wings keep their own pose during the spin. The game has
@@ -167,8 +167,8 @@ The game's code holds two developer tools that it ships switched off: a flight m
 waits on a setting of the game's (`UseFlyingActionKey`, `UseTimeControlKey`) that only a cheat command sets, and that
 command does nothing in the released game. `coop fly on` and `coop slowmo on` have the native part set the setting in
 the game's memory, and `off` puts the game's value back. These test commands are left out of the usage line, need the
-native part and run on a [co-op save](playing-with-a-friend.md#co-op-saves) only. `coop fly on` is refused while EVE
-rides the [bike](bike.md), whose drift key R2 is also the flight key. The flight was tried in game once, with the game's
+native part and run on a [co-op save](../players/playing-with-a-friend.md#co-op-saves) only. `coop fly on` is refused while EVE
+rides the [bike](../features/bike.md), whose drift key R2 is also the flight key. The flight was tried in game once, with the game's
 Z key.
 The first space bar start was tried on 2026-10-26 and started no flight, since it read a flag the game never sets; the
 current one has not been tried in game.
@@ -226,8 +226,8 @@ flies only while held. A fault in the hook takes the hook out for the rest of th
 EVE's movement code still holds the end of a glide that was cut: a flag that makes her fall at a tenth of the normal
 gravity while it is set. Nothing in the game sets the flag any more. Its config keeps a Jump hold time for it (0.2 s)
 that no code reads, so no setting or cheat turns it on. `coop glide on` has the mod set the flag itself, with that hold
-time. This test command is left out of the usage line, runs on a [co-op save](playing-with-a-friend.md#co-op-saves) only and has not been tried
-in game yet. `coop glide on` is refused while EVE rides the [bike](bike.md).
+time. This test command is left out of the usage line, runs on a [co-op save](../players/playing-with-a-friend.md#co-op-saves) only and has not been tried
+in game yet. `coop glide on` is refused while EVE rides the [bike](../features/bike.md).
 
 - With `coop glide on`, hold Jump (Space, or A/Cross on a controller) in the air. Once Jump has been held for 0.2 s and
   EVE is past the top of her jump, she glides until you release Jump or she lands. To glide after a double jump, hold

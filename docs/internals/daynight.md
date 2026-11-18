@@ -1,7 +1,7 @@
 # Day and night: how it works
 
 The player's side is in [Features](../features.md#features), the `daynight` setting in
-[Settings](../settings.md#coop-settingstxt) and `coop daynight` in [Keys and commands](../usage.md#console-commands). The
+[Settings](../players/settings.md#coop-settingstxt) and `coop daynight` in [Keys and commands](../usage.md#console-commands). The
 cycle is not tested in game yet. Every address and offset below is build 26123051's, read in Ghidra.
 
 The code:

@@ -5,20 +5,20 @@ one or join one with a code. The mod's notices and menu call it the PvP lobby. I
 lobby, the search and the countdown run, but no match mode is built yet, so when a countdown ends nobody travels to an
 arena and nothing is scored. What has been tried in game is listed under [Test status](#test-status).
 
-An online session with friends holds 2 to 4 players (see [Playing with a friend](playing-with-a-friend.md)). Join
+An online session with friends holds 2 to 4 players (see [Playing with a friend](../players/playing-with-a-friend.md)). Join
 refuses while you are in one.
 
 ## Getting there
 
-1. Load a co-op save (see [INSTALL.md: Co-op saves](../INSTALL.md#co-op-saves)). `coop status` shows `slot=coop`.
+1. Load a co-op save (see [INSTALL.md: Co-op saves](../../INSTALL.md#co-op-saves)). `coop status` shows `slot=coop`.
 2. In Xion, walk to Roxanne in the Scrap Market. At each Xion load the mod brings back the recruiter that Shift Up cut
    from the game, a Xion guard, once EVE is within 50 m of his spot next to her (see
-   [Night Operation previews](night-operation-previews.md#preview-2-the-recruiter-coop-recruiter)).
+   [Night Operation previews](../modes/night-operation-previews.md#preview-2-the-recruiter-coop-recruiter)).
 3. Talk to him and choose Join. The notice `Saving the co-op game. Leaving the lobby brings you back here.` shows, the
    game saves your co-op save where you stand, and EVE travels to the lobby.
 
 `coop sbo enter` does the same from the console. The mod never sends the Join choice to Shift Up's servers (see
-[How the original matchmaking is blocked](night-operation-previews.md#how-the-original-matchmaking-is-blocked)).
+[How the original matchmaking is blocked](../modes/night-operation-previews.md#how-the-original-matchmaking-is-blocked)).
 
 When Join cannot start, a notice says why and nothing changes:
 
@@ -46,7 +46,7 @@ of 8 m. If EVE goes more than 30 m from its centre, the mod puts her back on her
   Stellar Blade's HUD stays hidden while a lobby screen is open.
 - The mod puts Stellar Blade's own equipment preset `Preset_Eve_Max` on EVE, so every player in the lobby has the same
   build. Your difficulty stays as you set it. Your own equipment comes back with your save when you leave.
-- Enter opens the [chat](interface.md#session-chat). In a match lobby your lines go to every member who has finished
+- Enter opens the [chat](../players/interface.md#session-chat). In a match lobby your lines go to every member who has finished
   connecting. With nobody connected, a line stays on your screen and is not sent.
 - In a match lobby you see each other member's EVE as a [ghost](ghost.md), each with her own pose rate, 30 poses a
   second at most.
@@ -88,14 +88,14 @@ When no lobby is open, you host a public one: `No ffa match found (SBO protocol 
 host alone in a public lobby searches again every 5 s and moves to an open lobby with a lower Steam lobby id, so two
 players who searched in the same second are in one lobby within about 5 s.
 
-Search never leaves you in a public lobby with a player on your [block list](playing-with-a-friend.md#block-list),
+Search never leaves you in a public lobby with a player on your [block list](../players/playing-with-a-friend.md#block-list),
 nor outside matchmaking when a lobby's host has blocked you. Your game leaves that lobby with a notice, searches again
 and skips that lobby for the rest of the game run.
 
 ### Private match
 
 Private match hosts a match lobby that Search never returns, with a 7-character
-[join code](playing-with-a-friend.md#join-codes): `Hosting a private ffa match. Your join code is <code>.` The other
+[join code](../players/playing-with-a-friend.md#join-codes): `Hosting a private ffa match. Your join code is <code>.` The other
 players choose Join with a code and type it. With the hall lobby pak, the Map row of Settings picks the hall first, or
 Random.
 
@@ -104,7 +104,7 @@ Random.
 In a match lobby, public or private, nobody waits for the host's answer, Steam friend or not. The host can still send a
 player out with `coop remove <SteamID>`; the `member=` lines of `coop status` start with each member's SteamID, masked
 to its last 4 digits, which `coop remove` takes too. `coop remove` also puts the player on the host's
-[block list](playing-with-a-friend.md#block-list), so every later game that host runs refuses them until
+[block list](../players/playing-with-a-friend.md#block-list), so every later game that host runs refuses them until
 `coop unblock`. The host's game refuses a player whose game runs another protocol
 or game build (`<name> runs another version and was refused.`). A player who sends more messages than the link allows
 for 5 s is refused too (`<name> sent too many messages and was refused.`).
@@ -131,7 +131,7 @@ the host.
 Leave in the menu, or `coop sbo leave`, asks first. It then leaves the match lobby and reloads the co-op save that the
 game wrote at Join, so EVE is back where you talked to the recruiter. If the game saved again while you were in the
 lobby, the mod puts the save from Join back first, and keeps the file it replaces as `<UTC time>-replaced.sav` in
-`StellarCoopBackups\autosave\StellarBladeCoop0N\` (see [Copies before each save](saves.md#copies-before-each-save)).
+`StellarCoopBackups\autosave\StellarBladeCoop0N\` (see [Copies before each save](../players/saves.md#copies-before-each-save)).
 
 If the return fails, the notice reads `Could not go back to Xion. Quit to the title: the co-op save is restored there.`
 At the title the mod checks the co-op save and puts the save from Join back if the game wrote over it.
@@ -150,7 +150,7 @@ apart, and a join by code to a hall you lack ends with
 places Stellar Blade's own chairs on them, so the game's Rest prompt (F or the right trigger) seats EVE as on Xion's
 chairs. On a seat whose chair the game did not bind, and on the Cloister's two camp seats, F5 within 1.5 m seats her.
 Built from source, `tools/install.py --pak <folder>` installs a pak kept on your PC (see
-[Building](building.md#toolsinstallpy)).
+[Building](../dev/building.md#toolsinstallpy)).
 
 ## The PvP test
 
@@ -171,7 +171,7 @@ parry or dodge does not stop it. `coop pvp status` prints the test's counts and 
 
 The match lobbies and the PvP test added lines to the Steam link in protocol 20 (0.11.0). This version uses protocol 23
 and does not link with 0.11.0 or older versions, with a friend or in a match lobby. Search never finds their
-lobbies. Every player has to update (see [INSTALL.md: Update](../INSTALL.md#update)).
+lobbies. Every player has to update (see [INSTALL.md: Update](../../INSTALL.md#update)).
 
 ## Test status
 
@@ -186,6 +186,6 @@ lobbies. Every player has to update (see [INSTALL.md: Update](../INSTALL.md#upda
 - Two or more players in one match lobby have never been tested in game. Search finding another player, private
   matches, join codes for match lobbies, the countdown, the round's start, ghosts of several members, mutes and the
   rules for players who are not Steam friends are checked only by the tests, which run the link against a fake Steam
-  with up to 8 games (see [Tests](tests.md)).
+  with up to 8 games (see [Tests](../dev/tests.md)).
 - The PvP test has not run in game, on one PC or on two. Its limits are checked by the native tests `fight_pvp_test`
   and `fight_engine_test`.

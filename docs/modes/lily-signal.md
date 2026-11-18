@@ -3,7 +3,7 @@
 Lily's signal adds two quests of the mod's own near the end of the story. A short prologue, "A Second Signal" ("Un
 second signal"), sends EVE to Lily. A longer quest, "On Time" ("À l'heure"), leads through the cut Matrix XIII dungeon
 and back to her. Three talks between EVE and Lily play in the game's own subtitle box. None of it has been tried in
-game yet. How the mod does it is in [internals/lily-signal.md](internals/lily-signal.md).
+game yet. How the mod does it is in [internals/lily-signal.md](../internals/lily-signal.md).
 
 In Phase 5, after the first Raven fight in burning Xion, Lily asks EVE where to go next. One of her choices, "Follow the
 bike signal and leave", is the point of no return: after it the game goes to the Nest and nothing comes back. Before
@@ -21,7 +21,7 @@ but not built: the pak has no such map yet.
 
 Everything below needs all of these:
 
-- a [co-op save](playing-with-a-friend.md#co-op-saves), never one of your own saves;
+- a [co-op save](../players/playing-with-a-friend.md#co-op-saves), never one of your own saves;
 - no Steam session (solo);
 - the zMXIII_P test pak in `SB/Content/Paks/~mods` or `SB/Content/Paks/LogicMods` (looked for once a Lua load, and at
   each `coop lily` command);
@@ -259,7 +259,7 @@ line. The status lines and the native part's own lines are listed in
 The native part reports Lily's signal in `coop-status.txt`:
 
 - `signal=`, the quests' rows and the borrowed choice row, in the same forms as the `lion=` line (see
-  [Cut boss](cut-enemies.md#cut-boss-coop-lion)): `signal=off` before an ask, `signal=rows added=25/25 asks=1 spawns=? char=0/0
+  [Cut boss](../cut-content/cut-enemies.md#cut-boss-coop-lion)): `signal=off` before an ask, `signal=rows added=25/25 asks=1 spawns=? char=0/0
   skills=0/0 stance=0/0` once the 25 rows are in.
 - `lily=`, her choice list, in the forms of the `roxanne=` line (see
   [Night Operation's shop screen and Roxanne's choices](night-operation-shop.md#status-lines)): `on` is

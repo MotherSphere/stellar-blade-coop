@@ -1,9 +1,9 @@
 # Shared world (experimental)
 
 With the shared world on, a door, lever, switch, crane, lift or shortcut that you work in your game changes in your friend's game too. The same goes the other way. It is on by default and has not been tested in game yet. Back up
-your saves before you play a co-op save with it on (see [saves.md](saves.md)). Keep Steam Cloud off.
+your saves before you play a co-op save with it on (see [players/saves.md](../players/saves.md)). Keep Steam Cloud off.
 
-How the code does it is in [Shared world: how it works](internals/shared-world.md).
+How the code does it is in [Shared world: how it works](../internals/shared-world.md).
 
 ## What is shared
 
@@ -38,7 +38,7 @@ The list of what can be shared comes from the game's own tables of build 2612305
 ## Story doors
 
 A door or gate that a quest step opens is not shared by the shared world. It opens in each game when that game's quest
-reaches the step, as in solo play. With [shared quests](playing-with-a-friend.md#shared-quests-experimental) on, a step
+reaches the step, as in solo play. With [shared quests](../players/playing-with-a-friend.md#shared-quests-experimental) on, a step
 the two of you make together opens it in both games.
 
 ## When it works
@@ -60,12 +60,12 @@ link again.
 
 ## The setting
 
-Options > Session > Shared world (experimental) in the co-op menu turns it on or off at once. So does `shared_world=on` or `off` in [coop-settings.txt](settings.md#coop-settingstxt). Each player has their own: off, your
+Options > Session > Shared world (experimental) in the co-op menu turns it on or off at once. So does `shared_world=on` or `off` in [coop-settings.txt](../players/settings.md#coop-settingstxt). Each player has their own: off, your
 changes are not sent and your friend's are not made in your game. With the setting on, the mod turns it on by itself
 once a load.
 
 `coop world on` and `coop world off` change it until the mod reloads (game start or Ctrl+R), whatever the setting
-says. `coop world status` answers with the `world=` line of [coop status](usage.md#coop-status).
+says. `coop world status` answers with the `world=` line of [coop status](../usage.md#coop-status).
 
 Two notices come in the feed: `Shared world on with <name>.` each time both sides come on, `Shared world stopped
 until the game restarts. coop-link.log says why.` after an error. The ghost, the link and the other shared features go
@@ -82,7 +82,7 @@ on after such an error.
 - `world=off why=build`: another game build. `world=off why=coop_off`: after `coop off`.
 
 The line goes on with counters: `sent=` your changes sent, `received=` and `applied=` hers, `refused=` the ones your game did not make and `queued=` those that wait while you load. The others are described in
-[Shared world: how it works](internals/shared-world.md#status-line).
+[Shared world: how it works](../internals/shared-world.md#status-line).
 
 ## Not shared yet
 

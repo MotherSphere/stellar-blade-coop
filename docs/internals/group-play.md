@@ -1,7 +1,7 @@
 # Group play: how it works
 
-The player's side is in [Playing with a friend](../playing-with-a-friend.md), and the teleport screen in
-[Interface](../interface.md#teleport-screen).
+The player's side is in [Playing with a friend](../players/playing-with-a-friend.md), and the teleport screen in
+[Interface](../players/interface.md#teleport-screen).
 
 ## Shared quests
 
@@ -245,7 +245,7 @@ alive within the distance revives; the wait notice names the first member alive 
   within 2 m across and 1 m up or down of the last place where the EVE's movement read walking. The call then has
   `revive=on` and the guards of `coop revive test` (life 3 to 5, the death screen, `warp=idle`, standalone, no probe
   rule), none of the friend's distance or the shared fight, and the same fallback, result line and hidden death
-  screen. See [Down and revive](../night-operation.md#down-and-revive).
+  screen. See [Down and revive](../modes/night-operation.md#down-and-revive).
 
 ## Camp rests in a shared area
 

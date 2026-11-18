@@ -14,7 +14,7 @@ It has three parts:
 - `tools/save_read.py` prints every value of a `.sav` file, for looking past the story lines.
 
 The tools run on the build machine with Python 3 and are not in the release zip. The save files are where
-[saves.md](saves.md#where-the-saves-are) says. Copy one out before reading it while the game runs.
+[players/saves.md](../players/saves.md#where-the-saves-are) says. Copy one out before reading it while the game runs.
 
 ## In game: `coop story`
 

@@ -1,6 +1,6 @@
 # Achievements and safety design
 
-What the mod writes in the save folder is listed in [Saves](../saves.md#what-the-mod-reads-and-writes).
+What the mod writes in the save folder is listed in [Saves](../players/saves.md#what-the-mod-reads-and-writes).
 
 ## Achievements
 
@@ -193,7 +193,7 @@ feature or drops the input.
     worker writes it into `StellarCoopBackups\autosave\StellarBladeCoop0N\` through a `.coop-tmp` file and reads it
     back; only then does it remove the oldest copies there past the 10 newest, by a name check that passes only those
     copies' names, and never the two copies an open SBO session's record names
-    ([saves.md](../saves.md#copies-before-each-save)).
+    ([players/saves.md](../players/saves.md#copies-before-each-save)).
 - Five slots in the game's image, rather than in memory the game allocated, can hold the mod's value, for four hooks.
   Each one is an 8-byte pointer in `.rdata`. Each swap is a compare-and-swap from the game's own value only, with the
   page writable for that store alone. A slot that holds another value is never written.
@@ -221,7 +221,7 @@ feature or drops the input.
   saves only, made by the guest's game through its own quest functions) and a Night Operation run's state on the night
   line and `coop gift`'s consumables, nothing is copied between the two players' games. Beside
   the saves it reads only the co-op marker `StellarCoopSlot.txt` and the copies' manifest `StellarCoopSaves.txt`; Lua
-  only checks whether a copy exists, opening none of your own saves. See [saves.md](../saves.md).
+  only checks whether a copy exists, opening none of your own saves. See [players/saves.md](../players/saves.md).
 - The follow and the revive call the game's own functions on the local player only. A travel runs on the guest's own
   request, on a co-op save, for a camp of her own table that her game already knows by name, under its own SEH latch:
   a fault turns it off until the game restarts. The revive calls the game's respawn on the downed player's own EVE,

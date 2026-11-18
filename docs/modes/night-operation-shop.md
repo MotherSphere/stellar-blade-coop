@@ -2,7 +2,7 @@
 
 Night Operation's other pages are [the run](night-operation.md), [the challenges](challenges.md) and [the
 previews](night-operation-previews.md). How the shop's rows, screen and wallet work is in
-[internals/night-operation-shop.md](internals/night-operation-shop.md).
+[internals/night-operation-shop.md](../internals/night-operation-shop.md).
 
 A run of yours that goes from its countdown to a success or a time up gives you points: 1 for each 25 of its final score
 at the normal level, times the level's percent at the others (50 % at easy, 150 % at hard, 200 % at nightmare), rounded
@@ -45,7 +45,7 @@ row, so it cannot hold them. Their prices are the mod's own starting values.
 The two stimpacks play the health potion's drinking animation and have a charge count of 2 that no upgrade raises, like
 the Heal Grenade. The native part adds the rows of all three through the game's own AddRow, in memory for the game
 run: the stimpacks' (two ItemTable rows, the Beta Stimpack's ItemConsumableTable row and the skill both play, which the
-game names but never shipped) in the same batch as the [cut Lion's](cut-enemies.md#cut-boss-coop-lion) rows, and the Shock
+game names but never shipped) in the same batch as the [cut Lion's](../cut-content/cut-enemies.md#cut-boss-coop-lion) rows, and the Shock
 Bolt's (its item, skill, projectile and hit result) in a batch of their own, so a Shock Bolt row the game refuses
 leaves the Lion and the stimpacks alone. A buy of item 5, 6 or 7 asks for its rows first. When they are already in, the
 buy goes through at once. Otherwise the answer is `OK: Buff_HP2MP x1: its rows are asked of the native part; the buy
@@ -274,9 +274,9 @@ projectile or hit result row, EVE's gun stances list only its failed shot, and t
 The reward shop sells it as item 7, 5 points a bolt: `coop nightop buy 7 10`, or
 on the shop screen of `coop nightop shop`. The buy (or the screen) gets the Shock Bolt's 4 rows in first, a batch of
 their own (`bolt rows`), apart from the
-[cut Lion's rows](cut-enemies.md#cut-boss-coop-lion). In the same frame as the last of the 4, the native part adds the two fire
+[cut Lion's rows](../cut-content/cut-enemies.md#cut-boss-coop-lion). In the same frame as the last of the 4, the native part adds the two fire
 commands the game ships (`P_Eve_Gun_ShootShockSlug1_1` and `_1_2`) to EVE's gun stances and `Bullet_Shock` as a sixth
-entry of the game's ammo list, without replacing a row (see [internals/night-operation-shop.md](internals/night-operation-shop.md#the-cut-shock-bolt)).
+entry of the game's ammo list, without replacing a row (see [internals/night-operation-shop.md](../internals/night-operation-shop.md#the-cut-shock-bolt)).
 The buy goes through only when that worked, and the screen sells the Shock Bolt only then. Nothing else adds these
 rows or the sixth slot: `coop lion`, `coop chainspin` and the stimpack buys leave EVE's gun as the game ships it.
 
@@ -328,7 +328,7 @@ normally after you switch ammo.
 [Night Operation at Roxanne's](#night-operation-at-roxannes). Both run on a co-op save only. The native part
 reports them in `coop-status.txt`:
 
-- `shop=`, the shop's rows batch, in the same forms as the `lion=` line (see [Cut boss](cut-enemies.md#cut-boss-coop-lion)):
+- `shop=`, the shop's rows batch, in the same forms as the `lion=` line (see [Cut boss](../cut-content/cut-enemies.md#cut-boss-coop-lion)):
   `shop=off` before an ask, `shop=rows added=6/6 asks=1 spawns=? char=0/0 skills=0/0 stance=0/0` once the 6 rows are
   in.
 - `nightshop=`, the shop screen: `nightshop=off` before the first ask, then

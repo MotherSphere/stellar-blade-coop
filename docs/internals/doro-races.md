@@ -3,7 +3,7 @@
 A Doro race runs in Lua: `race/run.lua` on the game side, `race/model.lua` for the rules and the race lines,
 `race/doro.lua` for the Doros, `race/drive.lua` and `race/drive_model.lua` for the driving. Its only SB calls are two
 reads on EVE, `IsSprint` and `GetSBSpeedForAnimGraph` (for a log line); the rest are engine functions. The native
-part only carries the race lines. The commands and rules are in [Doro races](../doro-races.md).
+part only carries the race lines. The commands and rules are in [Doro races](../features/doro-races.md).
 
 ## The display Doro
 

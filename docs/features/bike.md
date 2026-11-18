@@ -5,7 +5,7 @@ When she gets off, the bike stays where she left it. To ride again she walks bac
 riding model comes from dCharisma1's Eve On Wheels (see [Credits](#credits)). The bike has not been tested in game yet.
 
 How the mod loads the bike, puts it on EVE, parks it and turns the game's actions off is in
-[internals/bike.md](internals/bike.md).
+[internals/bike.md](../internals/bike.md).
 
 ## Getting on and off
 
@@ -58,7 +58,7 @@ and `coop glide on` are refused. Each of these leaves the bike on the ground (se
 [Where the bike stays](#where-the-bike-stays)).
 
 While she rides, 54 of the game's actions are off: attacks, dodge, guard, the Beta and Burst skills, scan, aiming,
-sprint, the D-pad's own actions and the others listed in [internals/bike.md](internals/bike.md#the-gate). She cannot
+sprint, the D-pad's own actions and the others listed in [internals/bike.md](../internals/bike.md#the-gate). She cannot
 fight from the saddle. Jump stays the game's. A few keys still work. D-pad Up and Down still use items. R2, also a drift
 key, still picks up an item in reach. The interaction key still starts a talk, a box or a pickup in reach, which takes
 her off the bike. Photo mode works while she rides; her riding pose comes back when it closes.
@@ -86,7 +86,7 @@ The bike stays on its map. While she plays another map, F3 says where it is. Bac
 arrives.
 
 Where it stands is kept for each save and each Steam account, in a small file in the mod folder
-(`coop-bike-<steamid>-<saves><index>.txt`, see [saves.md](saves.md#what-the-mod-reads-and-writes)). It survives map
+(`coop-bike-<steamid>-<saves><index>.txt`, see [players/saves.md](../players/saves.md#what-the-mod-reads-and-writes)). It survives map
 changes, a Lua reload (Ctrl+R) and a game restart. A co-op save and the solo save it was copied from each have their
 own bike. Restoring a save backup does not move it. A New Game started over a used slot finds the old save's bike, on
 the map where it was left: F3 then says it is on another map until she brings it to Xion. While the mod cannot read
@@ -203,5 +203,5 @@ listed last are left out first. While you ride, the bike may be one of them.
 
 The riding model (`bike/model.lua`) and the lean adapt Eve On Wheels 1.2.1 by dCharisma1 ([Nexus Mods, Stellar Blade mod
 4165](https://www.nexusmods.com/stellarblade/mods/4165)). dCharisma1 gave his written consent on 2026-11-16 for his code
-to be used in Stellar Blade Online under the SBO License 1.0 or any later version (see [NOTICE](../NOTICE)). No file of
+to be used in Stellar Blade Online under the SBO License 1.0 or any later version (see [NOTICE](../../NOTICE)). No file of
 Eve On Wheels ships with Stellar Blade Online: none of its assets, sounds or animations.

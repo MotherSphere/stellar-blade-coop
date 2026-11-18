@@ -58,11 +58,11 @@ parts exist:
 These parts do not exist yet:
 
 - The recruiter's Join choice starting a Night Operation match. Today the host types `coop nightop start`, and Join
-  takes you to the [SBO lobby](sbo-lobby.md), whose match lobbies have no Night Operation mode yet.
+  takes you to the [SBO lobby](../features/sbo-lobby.md), whose match lobbies have no Night Operation mode yet.
 - More players, up to six. A run holds two, though an online session holds up to 4.
 - A boss wave.
 
-The Steam link connects the players of a session and shows each player the others' ghosts (see [playing-with-a-friend.md](playing-with-a-friend.md)). The previews
+The Steam link connects the players of a session and shows each player the others' ghosts (see [players/playing-with-a-friend.md](../players/playing-with-a-friend.md)). The previews
 test how the cut mode's parts behave.
 
 ## The solo run (`coop nightop`)
@@ -84,7 +84,7 @@ new body` for that key, report it: her game looks for each copy at its own point
 
 The run keeps its own timer in the mod. It adds no row to the game's rule table and starts none of the cut mode's
 rules, so a death goes through the game's usual death screen and respawn. Parts of the run adapt code from Survival
-Protocol, with its author's permission (see [Credits](../README.md#credits)).
+Protocol, with its author's permission (see [Credits](../../README.md#credits)).
 
 | Command | What it does |
 | --- | --- |
@@ -292,7 +292,7 @@ When the run ends, a result panel takes the card's place for 10 s. Its heading i
 Operation Successful or Operation Failed in the game's language. The line under it says why a run did not succeed, or
 reads `New personal best.` after a success that set one. The rows give the waves cleared, the kills, the score, the time
 and the best run kept on this PC (`-` when none is). The card and the panel follow the game's language, or English with
-`ui_language=english` (see [interface.md](interface.md#options)).
+`ui_language=english` (see [players/interface.md](../players/interface.md#options)).
 
 With `coop ui off`, the same facts come as notices: the start, each wave, each wave cleared, and the result.
 
@@ -317,7 +317,7 @@ at the same points around the host's start point, and both cards show one timer 
 the run's: the waves, the score for each kill, the heals and the time limit are those of a solo run at that level. A
 run has two players at most, each on a co-op save: in an online session of more than 2 players, the host cannot start
 one. A run under way when a third player gets in ends on both games with `Night Operation does not run in a session
-of more than 2 players.` ([More than 2 players](playing-with-a-friend.md#more-than-2-players)). The guest's game ends
+of more than 2 players.` ([More than 2 players](../players/playing-with-a-friend.md#more-than-2-players)). The guest's game ends
 it as soon as the host's game names the third player, even before its own link with that player is made.
 
 ### Starting a run together
@@ -356,7 +356,7 @@ the run is on. Her notice and card do not.
 
 - The host's game decides when each wave starts and when and how the run ends. The guest's game follows the host's
   night line, which comes at least once a second (see
-  [internals/steam-link.md](internals/steam-link.md#channel-0-text)).
+  [internals/steam-link.md](../internals/steam-link.md#channel-0-text)).
 - A monster scores once, when it dies in either world. With shared enemies on, a death in both worlds also scores
   once.
 - A wave is down once each of its monsters is down, written off, missing or no longer tracked in both worlds, so the
@@ -383,7 +383,7 @@ did before the revive.
   `Resuscitate [F]` and her time left, then the percent of the hold. Letting go, stepping away or a pause starts the hold over. Only the game's
   default interact keys count, not a key rebound in the game's options.
 - Once the hold is full, her game calls the game's in-place respawn on her EVE, the call that `coop revive test` makes
-  (see [playing-with-a-friend.md](playing-with-a-friend.md#revive-by-your-friend-experimental)). She gets up where she fell with full health and her
+  (see [players/playing-with-a-friend.md](../players/playing-with-a-friend.md#revive-by-your-friend-experimental)). She gets up where she fell with full health and her
   recovery items refilled, as after a camp respawn, and the zone does not reset. She reads `Revived by <partner>.`,
   her partner reads `You revived <name>.` and `<name> has joined the game.`
 - She can revive herself with `coop nightop revive`: 3 times a run at easy, 2 at normal, 1 at hard and none at
@@ -413,7 +413,7 @@ The run fails when:
 The down also needs each game's own life state, the `life=` line that `coop status` shows while a session holds.
 Without it, a death ends the run as in a solo run. A revive call also needs `revive=on` at the time of the call, the
 death screen up, a life state of 3 to 5, no respawn or warp under way, a standalone game and no `coop no` probe rule.
-During a run the [friend's revive](playing-with-a-friend.md#revive-by-your-friend-experimental) (3 s next to the downed EVE with no
+During a run the [friend's revive](../players/playing-with-a-friend.md#revive-by-your-friend-experimental) (3 s next to the downed EVE with no
 key) and its notices stand aside, so a revive comes only from the run.
 
 `UE4SS.log` has `[StellarCoop][NR]` lines for each step: on the downed side `down (life 3): 30 s for a revive, 2 self
@@ -454,15 +454,15 @@ result.
 
 ### Shared waves
 
-With shared enemies on (the default, see [shared-enemies.md](shared-enemies.md#shared-enemies-experimental)), each wave monster pairs
+With shared enemies on (the default, see [features/shared-enemies.md](../features/shared-enemies.md#shared-enemies-experimental)), each wave monster pairs
 with its copy in the other game by its spawn key, like a field enemy: one HP bar, balance gauge and death, decided by
 the host's game, with the host's `enemy_hp_scale` and `enemy_balance_scale`. A copy dies in your world only if you took
-part in its fight (see [internals/safety.md](internals/safety.md#achievements)). A copy that stays alive in your world for that
+part in its fight (see [internals/safety.md](../internals/safety.md#achievements)). A copy that stays alive in your world for that
 reason keeps your wave open until you kill it, it is still out of reach after its two moves (as in the solo run), or
 the time runs out.
 
 With same place on (the default), a pair's two copies stand in the same place on both screens: one game runs the
-monster's AI and the other draws its copy (see [shared-enemies.md](shared-enemies.md#same-place-experimental)). The guest's game then
+monster's AI and the other draws its copy (see [features/shared-enemies.md](../features/shared-enemies.md#same-place-experimental)). The guest's game then
 leaves the push towards her EVE and the stuck moves of a monster to same place while all of these hold: her shared
 enemies run as the guest, same place draws at least one copy (`pilot=on piloted=1` or more in `coop status`), and the
 host's night line lists that monster as found and not yet down, killed, written off or lost in his world. `UE4SS.log`
@@ -479,7 +479,7 @@ wave starts, the timer and the score are still shared.
 
 Night Operation's run, the challenges and the friend's revive adapt code from
 [Survival Protocol](https://www.nexusmods.com/stellarblade/mods/4009) by SchizoEffective, used with the author's
-permission (see [Credits](../README.md#credits) in the README). The adapted parts are:
+permission (see [Credits](../../README.md#credits) in the README). The adapted parts are:
 
 - sending a new monster at EVE;
 - giving a monster with no AI controller its default one;

@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- coop story [dump|find] and the request file coop-story.txt: the story lines (docs/story.md) of the game's live
+-- coop story [dump|find] and the request file coop-story.txt: the story lines (docs/dev/story.md) of the game's live
 -- SBSaveGame, written to StellarCoopStory.txt in the mod folder in the format of tools/story_lines.py, so that a dump
 -- and a save compare line by line (story_lines.py compare). find lists the objects that may hold the story state
 -- instead. Read only: UE4SS property reads and lookups, no game function, no setter; the output file is the only file
@@ -18,7 +18,7 @@ local USE='Use: coop story [dump|find]'
 
 -- A p-digit decimal n*10^q that reads back as x>0, or nil. C's printf gives the nearest one. When that one lies below
 -- x, the one above is tried too: rounding to the nearest alone gets some values next to powers of two wrong
--- (docs/story.md, Values).
+-- (docs/dev/story.md, Values).
 local function decimal(x,p)
     local lead,rest,e=string.format('%.'..(p-1)..'e',x):match('^(%d)%.?(%d*)e([-+]%d+)$')
     local n,q=tonumber(lead..rest),tonumber(e)-p+1
@@ -26,7 +26,7 @@ local function decimal(x,p)
     if back==x then return n,q end
     if back<x and tonumber((n+1)..'e'..q)==x then return n+1,q end
 end
--- Python's repr of a double (docs/story.md, Values).
+-- Python's repr of a double (docs/dev/story.md, Values).
 function S.repr(x)
     if x~=x then return 'nan' end
     if math.abs(x)==math.huge then return x>0 and 'inf' or '-inf' end

@@ -1,9 +1,9 @@
 # Shared enemies and bosses
 
 Shared enemies and every option that builds on them are experimental. Their settings are in
-[coop-settings.txt](settings.md#coop-settingstxt), problems in
-[troubleshooting.md](troubleshooting.md#shared-enemies-and-group-play), and how each part works in
-[internals/shared-enemies.md](internals/shared-enemies.md).
+[coop-settings.txt](../players/settings.md#coop-settingstxt), problems in
+[players/troubleshooting.md](../players/troubleshooting.md#shared-enemies-and-group-play), and how each part works in
+[internals/shared-enemies.md](../internals/shared-enemies.md).
 
 ## Shared enemies (experimental)
 
@@ -13,7 +13,7 @@ balance gauge and death, decided by the host. Each player who took part in its f
 their own game (`kill_credit` below). Each screen's enemy still fights only its own EVE, and positions are not shared
 unless [same place](#same-place-experimental) is on.
 It changes enemy stats through the game's own code, so it shares enemies only on a co-op save, and kills count in the
-co-op save. Back up your saves first (see [saves.md](saves.md)). When an enemy becomes shared, or shared again after a
+co-op save. Back up your saves first (see [players/saves.md](../players/saves.md)). When an enemy becomes shared, or shared again after a
 death, a load or photo mode, the guest's copy takes the host's HP without a damage number; later drops from the host's
 hits show one.
 
@@ -81,7 +81,7 @@ fighting it. Damage dealt before an enemy became shared does not count as yours,
 it. When a knockdown the other player started, mirrored on your copy, makes the game record your EVE as that enemy's
 last player, the log says `fight last player <key> set by a mirrored crowd control` and that record no longer counts for
 this enemy: your hit or the 30 m still do. `kill_credit=all` from 0.4.0-beta.1, which gave you every shared kill
-wherever you stood, is gone (see [coop-settings.txt](settings.md#coop-settingstxt)).
+wherever you stood, is gone (see [coop-settings.txt](../players/settings.md#coop-settingstxt)).
 
 ### Slow motion
 
@@ -95,10 +95,10 @@ How the two screens compare during slow motion has not been tested in game yet.
 
 ### Turning it on and off
 
-It is on by default. Options > Combat > Shared enemies (experimental) in the [co-op menu](interface.md#options) shows On, and a
-new [coop-settings.txt](settings.md#coop-settingstxt) has `shared_enemies=on`; a file with no `shared_enemies` line counts as on
+It is on by default. Options > Combat > Shared enemies (experimental) in the [co-op menu](../players/interface.md#options) shows On, and a
+new [coop-settings.txt](../players/settings.md#coop-settingstxt) has `shared_enemies=on`; a file with no `shared_enemies` line counts as on
 too. A file from version 0.2 says `shared_enemies=off` and keeps it off until you turn the row on. It starts by itself
-once you are linked and both play a [co-op save](playing-with-a-friend.md#co-op-saves), and changes no enemy on your own save. Enemies get
+once you are linked and both play a [co-op save](../players/playing-with-a-friend.md#co-op-saves), and changes no enemy on your own save. Enemies get
 linked only while you are on the same map. Turning the row off (`shared_enemies=off`) stops it at once, but not the
 solo test tools below.
 
@@ -168,7 +168,7 @@ copies follow them back to full health. A respawn on another map leaves your cop
 Once both games have read their New Game+ cycle and difficulty, each compares them: the guest with the host, the host
 with each member. When they differ, one notice says so, for example `Kaanta is on New Game+ 1 (Hard); you are on your
 first playthrough (Normal). Enemies with another max HP stay unshared.` It shows again only when one of the values
-changes. [The cycle line](internals/steam-link.md#the-cycle-line) carries them.
+changes. [The cycle line](../internals/steam-link.md#the-cycle-line) carries them.
 
 ### Commands
 
@@ -239,10 +239,10 @@ out of the game's movement manager, writes its position every frame from the oth
 game's Shows (the game's animation sequences) on it. A copy that is knocked down, groggy or in the air moves by the
 game's own rules until that ends. When an enemy changes hands, the game that takes it removes BlockAI, puts the movement
 component back and points the enemy at its own EVE with the game's force target function.
-[internals/shared-enemies.md](internals/shared-enemies.md#same-place-enemies) has the details.
+[internals/shared-enemies.md](../internals/shared-enemies.md#same-place-enemies) has the details.
 
 - It needs shared enemies running, and only the host's value counts, as with the scaling: Options > Combat > Same
-  place (experimental) in the host's co-op menu, or `same_place=on` in its [coop-settings.txt](settings.md#coop-settingstxt).
+  place (experimental) in the host's co-op menu, or `same_place=on` in its [coop-settings.txt](../players/settings.md#coop-settingstxt).
 - `aggro` is the host's too, and counts from the next start of shared enemies: Options > Combat > Enemies attack
   (host's), Both players (`aggro=game`) or The host only (`aggro=host`).
 - While shared enemies wait or run, turning the row off stops same place at once on your side (as host, on both
@@ -335,7 +335,7 @@ a few seconds later. The same happens after each reset of her zone, unless she t
 
 - It needs shared enemies running. Only the host's value counts, from the next `coop fight on`: Options > Combat >
   Same spawns (experimental) in the host's co-op menu, or `same_spawns=on` in its
-  [coop-settings.txt](settings.md#coop-settingstxt). Record, replay and the probe never use it.
+  [coop-settings.txt](../players/settings.md#coop-settingstxt). Record, replay and the probe never use it.
 - A zone counts as shared from 3 s after either game entered it or reset its enemies (a camp rest, a death), so the
   game's own spawns come in first. Where the other player stands comes from the same-place code, so after its error
   on either PC (`pilot=stopped`) same spawns stop in both games until that PC's game restarts.
@@ -383,7 +383,7 @@ probe reads two game tables and calls neither the spawn function nor the despawn
 
 `spawn_filter=on` in the guest's own coop-settings.txt keeps away, in her game, enemies that the host's game no longer
 has. It is on by default, has no row in the co-op menu, and has not been tested in game. On, the mod changes one
-pointer in the game's memory on her PC ([internals/shared-enemies.md](internals/shared-enemies.md#the-spawn-filter)).
+pointer in the game's memory on her PC ([internals/shared-enemies.md](../internals/shared-enemies.md#the-spawn-filter)).
 
 With it off, [same spawns](#same-spawns-experimental) work as above: when her zone resets (her death, a camp rest),
 her game spawns its own enemies again, the ones the host's game lacks among them, and the host's next drop lines remove
@@ -438,7 +438,7 @@ once both players are more than 120 m from it, and every extra goes when shared 
 not been tested in game yet, and the default is 0.
 
 - Only the host's value counts, from the next `coop fight on`, and only with `same_spawns=on`: Options > Combat >
-  Extra enemies (host's) in the host's co-op menu, or `enemy_extra` in its [coop-settings.txt](settings.md#coop-settingstxt).
+  Extra enemies (host's) in the host's co-op menu, or `enemy_extra` in its [coop-settings.txt](../players/settings.md#coop-settingstxt).
 - `coop-link.log` names each extra by its key: `3758096641:1` is the first enemy's first extra. In both games: `fight
   extra made <key>` and, at the end, `fight extra despawned <key> end`. On the host: `fight extra refused <key> <why>`
   (`full`: 48 extras already; `not made`: the game made none), `fight extra despawned <key> far` (both players more than
@@ -474,12 +474,12 @@ When the host's boss dies, her copy dies too if she took part in its fight (`kil
 [shared enemies](#shared-enemies-experimental)), its thresholds taken off first. Otherwise her copy stays alive in her
 game, so the boss's trophy and story events come only when she fights it herself. Her game starts the boss fight on her
 copy (the arena events) only while her EVE stands within 30 m of it or has hit it.
-[How it works](internals/shared-enemies.md#shared-bosses) has the details, and
-[troubleshooting](troubleshooting.md#a-shared-boss-differs-between-the-two-games) the log lines.
+[How it works](../internals/shared-enemies.md#shared-bosses) has the details, and
+[troubleshooting](../players/troubleshooting.md#a-shared-boss-differs-between-the-two-games) the log lines.
 
 - Only the host's values count, from the next `coop fight on`: Options > Combat > Shared bosses (experimental) and
   Boss HP (host's) in the host's co-op menu, or `bosses` and `boss_hp_scale` in its
-  [coop-settings.txt](settings.md#coop-settingstxt). `coop fight record` keeps them in its file, and `coop fight replay` uses the
+  [coop-settings.txt](../players/settings.md#coop-settingstxt). `coop fight record` keeps them in its file, and `coop fight replay` uses the
   recorded ones.
 - `boss_hp_scale` (default `2.0`, from `1.0` to `4.0`) multiplies a shared boss's maximum HP in place of
   `enemy_hp_scale`, the Alpha Naytibas' too; `enemy_balance_scale` still sets its balance gauge. The mod does not adjust
@@ -528,7 +528,7 @@ copy goes. A test asked while another one runs is refused (`another test runs`).
   2001102=<0|1> state27=<0|1> state3=<0|1>` (Passive_DeathReady and Passive_FinishReady on the copy, then its
   Immortal and NoDamageNoHit states), each change as `after <ms> ms: HP <n> ...`, and `done: <n> guard turns, HP <n>;
   the host's HP from the next turn`. Run it after `phase`, so no threshold holds the copy above 1 HP. Back up your
-  saves first ([saves.md](saves.md)): a boss that dies here stays dead in that save once the game saves, and its kill,
+  saves first ([players/saves.md](../players/saves.md)): a boss that dies here stays dead in that save once the game saves, and its kill,
   trophy and story events count there. Hit the copy once, and only after a line shows `state27=1` (its Immortal): with
   the finish guard working, it stays at 1 HP. If the test stops before its `done` line (`coop fight off`, or the copy
   no longer drawn), the copy gets back the HP it had when the test started.

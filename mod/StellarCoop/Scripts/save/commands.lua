@@ -53,8 +53,9 @@ function Save.new(o)
     -- saves, read from the game's paks and listed in coop-link.log, on any save, as nothing is written. coop shortcut
     -- load <map> <1-4> (game/shortcut_load.h): one of them, without its achievement data, written as co-op slot 5's
     -- copy for the game's own Load Game. Refused unless coop-settings.txt has shortcut_load=on (developer saves with
-    -- boss achievements done: docs/how-it-works.md), and asked of the native part only when the same words come twice
-    -- within 10 s; the first says what it does. The native part checks the rest (the title, co-op saves on, the file).
+    -- boss achievements done: docs/internals/README.md), and asked of the native part only when the same words come
+    -- twice within 10 s; the first says what it does. The native part checks the rest (the title, co-op saves on, the
+    -- file).
     local SHORTCUT_MAPS={B07=true,F02=true,G03=true,Matrix_XI=true}
     local load_at,load_what=nil,nil -- The first of the two: when (os.clock) and which file.
     function self.shortcut(a,map,n,extra)

@@ -2,8 +2,8 @@
 
 Test commands show cut enemies and other cut models from the game's files in a viewer with a free camera, or spawn three
 cut enemies to fight: the Lion, the Gardener and the Tendril. How the mod adds their table rows is in
-[internals/cut-enemies.md](internals/cut-enemies.md). The other cut content is in [cut-eve.md](cut-eve.md),
-[cut-scenes-and-menus.md](cut-scenes-and-menus.md) and [matrix-xiii.md](matrix-xiii.md).
+[internals/cut-enemies.md](../internals/cut-enemies.md). The other cut content is in [cut-eve.md](cut-eve.md),
+[cut-scenes-and-menus.md](cut-scenes-and-menus.md) and [modes/matrix-xiii.md](../modes/matrix-xiii.md).
 
 ## Cut enemy preview: `coop leviathan`, `coop gardener` and `coop tendril`
 
@@ -36,7 +36,7 @@ nothing of it can fight, die or reach a save. Their lines go to `UE4SS.log` as `
 - `coop leviathan show [body|a|b|tentacle|statue] [<distance m>|auto] [<height m>|auto] [<scale>]` puts one mesh in
   front of EVE, facing her, and turns on the [free camera](#free-camera). `body` (the default) is `CH_M_NA_10`, `a` and
   `b` are `Leviathan_A` and `Leviathan_B`, `tentacle` is `M_LeviathanTentacleA` and `statue` is `C_Reviathan`, a static
-  mesh from the game's secret room assets. It runs only on a [co-op save](playing-with-a-friend.md#co-op-saves).
+  mesh from the game's secret room assets. It runs only on a [co-op save](../players/playing-with-a-friend.md#co-op-saves).
   - The distance is in metres, up to 5000; `auto`, the default, is 1.6 times the radius of the mesh's bounding sphere,
     and at least 6 m.
   - The height is in metres above EVE's feet, and a negative one lowers the mesh; `auto`, the default, lifts the mesh
@@ -150,9 +150,9 @@ The game's files hold a boss that was cut before release: Naytiba 02, the Lion, 
 `/Game/Art/Character/Monster/CH_M_NA_02/`. Its blueprint, meshes, animations, hit data and skill presentations (Shows)
 ship, but no table row names it, so the game cannot spawn it. `coop lion` adds the 222 rows it lacks to the game's
 tables in memory and spawns it as an enemy to fight. The same batch starts with 4 rows for the cut stimpacks of the
-[reward shop](night-operation-shop.md) and 11 for EVE's [cut ChainSpin](cut-eve.md#cut-tachy-skill-coop-chainspin),
+[reward shop](../modes/night-operation-shop.md) and 11 for EVE's [cut ChainSpin](cut-eve.md#cut-tachy-skill-coop-chainspin),
 237 rows in 14 tables, and a buy of a stimpack, the shop screen or `coop chainspin` asks for it as `coop lion rows`
-does. The cut [Shock Bolt](night-operation-shop.md#cut-ammo-shock-bolt) ammo's 4 rows are a batch of their own that only the shop asks for: a
+does. The cut [Shock Bolt](../modes/night-operation-shop.md#cut-ammo-shock-bolt) ammo's 4 rows are a batch of their own that only the shop asks for: a
 Shock Bolt buy, and `coop nightop shop` (or Roxanne's supplies choice) before it opens the shop screen. Every row of
 the Lion's is written for it: its stats, its skills, the timing of its hits and the moves that follow its own
 animations. It is a test command, left out of the usage line. Its lines go to `UE4SS.log` as `[StellarCoop][LI]`; the
@@ -160,7 +160,7 @@ native part's go to `coop-link.log` as `lion rows ...`.
 
 - `coop lion` spawns a Lion 10 m in front of EVE and 1 m up, facing her. The first time in a game run it asks the native
   part to add the rows and waits for the answer, 30 s at most. Each time it reads every row back first and stops at the
-  first value that differs, with no spawn. It runs only on a [co-op save](playing-with-a-friend.md#co-op-saves).
+  first value that differs, with no spawn. It runs only on a [co-op save](../players/playing-with-a-friend.md#co-op-saves).
 - `coop lion intro` first plays the Lion's entrance from the cut boss intro (`Mon_LionC_Scene01_Appearance`, 13 s) on a
   copy of its mesh where it will stand, then spawns the Lion where the copy's root ended (at the 10 m spot when that is
   more than 20 m away) and removes the copy as soon as the Lion is there. The copy is a display only, like the Doros of
@@ -257,7 +257,7 @@ The log lines, in `UE4SS.log` unless marked:
 A refusal names its reason in `coop-link.log` (`lion rows refused <row>: <why>; <n>/237 added`) and ends with a `STOP:`
 line in `UE4SS.log`. Asking again skips the rows already added. Ask in a loaded save: on the title screen the native
 part can wait for a game state that never comes and refuse after 300 frames. See
-[internals/cut-enemies.md](internals/cut-enemies.md#the-cut-lion) for how the rows go in.
+[internals/cut-enemies.md](../internals/cut-enemies.md#the-cut-lion) for how the rows go in.
 
 In the tests of 2026-10-23 and 2026-10-24 the Lion fought like a boss, but its body stayed on the first frame of its
 idle pose: its mesh had no animation instance. The cause: the Lion's three meshes hang the `Bip001` bone under `Root`,
@@ -280,7 +280,7 @@ to `UE4SS.log` as `[StellarCoop][GD]`; the native part's go to `coop-link.log` a
 - `coop gardener fight` spawns the Gardener (row `M_Gardener`, 50010) 25 m in front of EVE and 7.5 m above her feet,
   facing her. The first time in a game run it asks the native part to add the rows and waits for the answer, 30 s at
   most. Each time it reads the 13 rows back first and stops at the first value that differs, with no spawn. It runs
-  only on a [co-op save](playing-with-a-friend.md#co-op-saves).
+  only on a [co-op save](../players/playing-with-a-friend.md#co-op-saves).
 - `coop gardener fight half` spawns `M_Gardener_Half` (50012), the same at half size, 12.5 m away. Co-op save only.
 - `coop gardener fight skulling` spawns `M_Gardener_Skulling` (50011), which runs the Lion's tree
   (`M_Skulling_AI_Test`) instead of `M_Tentacle_AI`. Try it if the default Gardener never attacks. Co-op save only.
@@ -338,7 +338,7 @@ The log lines, in `UE4SS.log` unless marked:
 
 A refusal names its reason in `coop-link.log` (`gardener rows refused <row>: <why>; <n>/13 added`) and ends with a
 `STOP:` line in `UE4SS.log`. A refusal of the Gardener's rows leaves the Lion's batch alone, and the other way round.
-See [internals/cut-enemies.md](internals/cut-enemies.md#the-cut-gardener) for how the rows are made.
+See [internals/cut-enemies.md](../internals/cut-enemies.md#the-cut-gardener) for how the rows are made.
 
 ## Cut enemy: `coop tendril fight`
 
@@ -353,7 +353,7 @@ lines go to `UE4SS.log` as `[StellarCoop][TD]`; the native part's go to `coop-li
 - `coop tendril fight` spawns the Tendril (row `M_TendrilC`, 50060) 8 m in front of EVE, facing her. The first time in a
   game run it asks the native part to add the rows and waits for the answer, 30 s at most. Each time it reads the 107
   rows back and builds the Shows first, and a value that differs or a Show it cannot build stops it with no spawn. It
-  runs only on a [co-op save](playing-with-a-friend.md#co-op-saves).
+  runs only on a [co-op save](../players/playing-with-a-friend.md#co-op-saves).
 - `coop tendril fight rows` adds the rows, reads them back and builds the Shows, with no spawn. Any save.
 
 The spawn first puts away a viewer display and the free camera. While a command waits for its rows or its body, another
@@ -398,4 +398,4 @@ The log lines, in `UE4SS.log` unless marked:
 
 A refusal names its reason in `coop-link.log` (`tendril rows refused <row>: <why>; <n>/107 added`) and ends with a
 `STOP:` line in `UE4SS.log`. A refusal of one batch leaves the others alone. See
-[internals/cut-enemies.md](internals/cut-enemies.md#the-cut-tendril) for how the rows and the Shows are made.
+[internals/cut-enemies.md](../internals/cut-enemies.md#the-cut-tendril) for how the rows and the Shows are made.

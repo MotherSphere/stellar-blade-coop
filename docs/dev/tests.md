@@ -992,7 +992,7 @@ The C++ tests cover the platform-free headers in `native/src`.
   cannot go into a C++ literal refused). After new table exports or a new quest table, run
   `python3 -I tools/story_rows.py <folder>` and commit `native/src/story/rows.h`;
 - `matchmaking_scan_test.py`: a scan that fails if any script or native source could reach the game's matchmaking
-  (see [night-operation-previews.md](night-operation-previews.md#how-the-original-matchmaking-is-blocked)). Stellar
+  (see [modes/night-operation-previews.md](../modes/night-operation-previews.md#how-the-original-matchmaking-is-blocked)). Stellar
   Blade's RunZoneEvent address is held once in `native/src/game/sbo.h` and called at two sites: once in
   `native/src/glue/tick/sbo_game.inc` for `coop sbo seq`, and once in `native/src/glue/tick/world_game.inc`. That
   second site serves the shared world's env control rows, which `world/engine.h` checks against `world/rows.h`'s list

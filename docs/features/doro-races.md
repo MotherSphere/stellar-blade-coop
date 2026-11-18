@@ -4,8 +4,8 @@ A Doro race is a run along a track of checkpoints that you record, for one playe
 Doro (Dororong): your EVE on your screen, and your ghost on your friend's. From GO, EVE drives like a rally car (see
 [Driving](#driving)); her jumps, dodges and camera stay the game's. Doro races have not been tested in game yet.
 
-How the mod draws the Doros and drives EVE is in [internals/doro-races.md](internals/doro-races.md), and problems are in
-[troubleshooting.md](troubleshooting.md#doro-races).
+How the mod draws the Doros and drives EVE is in [internals/doro-races.md](../internals/doro-races.md), and problems are in
+[players/troubleshooting.md](../players/troubleshooting.md#doro-races).
 
 ## Recording a track
 
@@ -177,7 +177,7 @@ also hides the body of the drone that follows EVE, when it is within 30 m of her
 and signals keep working. The race's end, `coop race quit`, `coop off`, a map change and the look's first error undo
 these changes. While the look is on, `coop-look.txt` holds what it changed, so the next Lua load (Ctrl+R) undoes them
 when this one could not. If EVE or the drone stays hidden, see
-[troubleshooting.md](troubleshooting.md#eve-is-invisible-or-only-a-doro-shows).
+[players/troubleshooting.md](../players/troubleshooting.md#eve-is-invisible-or-only-a-doro-shows).
 
 Each Doro keeps its animations loaded while it stands. The first Doro of a race loads them all at once, so it can take
 a moment to appear, and none loads during the race. While the look is on, `UE4SS.log` has a line once a minute,

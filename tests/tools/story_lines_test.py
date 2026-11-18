@@ -2,8 +2,8 @@
 # Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 # SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-"""tools/story_lines.py: the story lines of docs/story.md from parsed saves held in memory and from saves written into
-a temporary folder, their digest, and the snapshot, diff, digest, digest-lines and compare commands. The expected
+"""tools/story_lines.py: the story lines of docs/dev/story.md from parsed saves held in memory and from saves written
+into a temporary folder, their digest, and the snapshot, diff, digest, digest-lines and compare commands. The expected
 lines of story_case.json are in story_case.txt, which tests/lua/story/snapshot_test.lua holds the in-game dump to as
 well; float_repr.txt holds Python's repr of many doubles for the same test.
 Run: python3 tests/tools/story_lines_test.py (--write rewrites float_repr.txt)"""
@@ -53,7 +53,7 @@ def env(zones=(), worlds=()):
     return {'DataMap_SBEnv': Map([('Env', {'ZoneContainerList': list(zones), 'WorldContainerList': list(worlds)})])}
 
 
-# 1. The example of docs/story.md, built from its description: the same 29 lines and digest as the old tool printed.
+# 1. The example of docs/dev/story.md, built from its description: the same 29 lines and digest as the old tool printed.
 example = {
     **quest(ProgressQuestList=[
         {'QuestAlias': 'Quest_Example_07', 'QuestState': 1, 'QuestTaskGroupList': [
@@ -115,7 +115,7 @@ assert not [x for x in expected if 'Location' in x or 'Rotation' in x or 'Timest
             or 'Zone_Case_B env' in x or 'Case_Lost' in x or 'EnvPosition' in x or 'bZoneReset' in x or 'TaskList' in x]
 assert 'quest  complete = True' not in expected and 'quest Quest_Elsewhere tracked = False' not in expected
 
-# 3. What docs/story.md leaves out keeps the digest and gives an empty diff: positions, bZoneReset, the timestamps,
+# 3. What docs/dev/story.md leaves out keeps the digest and gives an empty diff: positions, bZoneReset, the timestamps,
 # TaskList and the order of zones and worlds. Each story change gives its own ~ line and another digest.
 moved = copy.deepcopy(case)
 e = moved['DataMap_SBEnv'][0][1]

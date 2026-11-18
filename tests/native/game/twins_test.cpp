@@ -411,7 +411,7 @@ int main() {
   // The New Game+ snapshot: what it holds is said apart, with no promise that playing clears it; what follows it counts
   // as the save as played.
   const std::string stuck = " in its New Game+ snapshot: playing does not change that snapshot, so only a copy by hand "
-                            "takes this save out (docs/saves.md)";
+                            "takes this save out (docs/players/saves.md)";
   const std::string kept = snapshot_field(name_field("ItemAlias", "HP2Burst_Potion") +
                                           names_field("ItemQuickSlotArray", "ArrayProperty", {"Bullet_Shock"}) +
                                           shock + name_field("LastFullCampEnvSpawnAlias", "DLC02_10_EnvS_900"));

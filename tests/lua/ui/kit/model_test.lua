@@ -461,13 +461,14 @@ assert(s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name==
 assert(M.reset_keys('')=='host_key=none\nmenu_key=F5\nstatus_key=F6\nleave_key=F8\nfollow_key=F7\nrace_key=F9\n'
     ..'bike_key=F3\n')
 
--- docs/interface.md's Options paragraph names the Controls rows in the model's order: the bike's key, the Online tab,
--- then Reset all keys.
-local f=assert(io.open('docs/interface.md'))
+-- docs/players/interface.md's Options paragraph names the Controls rows in the model's order: the bike's key, the
+-- Online tab, then Reset all keys.
+local f=assert(io.open('docs/players/interface.md'))
 local doc=f:read('a'):match('### Options\n(.-)\n### ')
 f:close()
 local bike,tab=doc:find('off and its key',1,true),doc:find(require('ui.text').en.row.pause_tab,1,true)
 local reset=doc:find('then Reset all keys)',1,true)
-assert(bike and tab and reset and bike<tab and tab<reset,'docs/interface.md: the Options Controls rows out of order')
+assert(bike and tab and reset and bike<tab and tab<reset,
+    'docs/players/interface.md: the Options Controls rows out of order')
 
 print('ui_model_test ok')

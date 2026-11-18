@@ -1,8 +1,8 @@
 # The co-op menu, chat and HUD
 
-The keys and console commands are in [Keys and commands](usage.md), and the settings file that the Options pages write
+The keys and console commands are in [Keys and commands](../usage.md), and the settings file that the Options pages write
 is in [Settings](settings.md). How the menu takes the game's input is in
-[Architecture](internals/architecture.md#the-co-op-uis-input).
+[Architecture](../internals/architecture.md#the-co-op-uis-input).
 
 ## Co-op menu
 
@@ -96,7 +96,7 @@ and key hints. `coop host` typed alone opens it too. Nothing is hosted until you
 | Who can join | Always | Public, Friends only, Invitation or Private (`who_can_join`, see [Settings](settings.md)) |
 | Friends join without asking | Under Public and Invitation | On lets your Steam friends in at once. Off makes them wait for your answer like other players (`friends_ask=on`). |
 | Players | Always | 2 to 4: the players the session holds, you included (`max_players`) |
-| Shared enemies | Always, under SESSION RULES | [Shared enemies](shared-enemies.md) on or off |
+| Shared enemies | Always, under SESSION RULES | [Shared enemies](../features/shared-enemies.md) on or off |
 | Same place, Same spawns, Extra enemies, Shared bosses, Enemy HP, Boss HP, Enemies attack | While Shared enemies is On | The same values as on the Options page |
 | Shared world, Story together, Shared quests, Friend can revive me | Always | On or Off |
 | Start | Always | Closes the screen and hosts with the Who can join value shown |
@@ -154,7 +154,7 @@ Each row shows the host's Steam name, then the region, the players (`1/4`) and t
 when Steam has none). Eight rows show at once and the list scrolls with the focus. The right pane shows the focused
 row: the host's name, the region, the travel camp nearest the host, the players and ping, the
 [session rules](settings.md) the host has on (shared enemies, shared bosses with the boss HP scale, shared world,
-[story together](story-together.md), shared quests; the host's `revive` shows as `You can revive the host`, since it
+[story together](../features/story-together.md), shared quests; the host's `revive` shows as `You can revive the host`, since it
 covers the host's EVE only), `Steam friend` when the host is your Steam friend and Steam shows them in that session,
 then the version. The bottom left names your own protocol and game build, which a session must share to show. A region
 shows in the game's words for the story regions; another map shows its short name, such as `f01`.
@@ -190,7 +190,7 @@ If one of the game's widgets cannot be made, the screen draws the same rows, hea
 parts. `UE4SS.log` then says `[StellarCoop][UI] sessions: part <class>: <why>; left out until the mod reloads` once.
 It also says `[StellarCoop][UI] sessions: open public` (or `friends`), `sessions: ask to join lobby <id>` and
 `sessions: closed`. Each search shows as `[StellarCoop] OK: asked the native part: list public`. The console's
-`coop list` and `coop join <row>` read the same list ([Keys and commands](usage.md)). The Sessions screen has not been
+`coop list` and `coop join <row>` read the same list ([Keys and commands](../usage.md)). The Sessions screen has not been
 tested in game yet.
 
 ### Join popups
@@ -243,7 +243,7 @@ A controller drives the co-op menu, the [join popups](#join-popups) and the
 [co-op saves' question](playing-with-a-friend.md#co-op-saves). Hold View (Back on an Xbox 360
 pad) for 1 s to open the menu, in a world with the game's HUD shown, and hold it again to close the menu. View is also
 the game's Scan button, and the game still gets the press that opens the menu. The controller in the menu has not been
-tested in game yet. Outside the menu, D-pad Right held for 1 s puts EVE on the [bike](bike.md) or takes her off it, in
+tested in game yet. Outside the menu, D-pad Right held for 1 s puts EVE on the [bike](../features/bike.md) or takes her off it, in
 a world with none of the mod's screens or the game's menus open; the game still gets the press as D-pad Right.
 
 | Button | In the menu |
@@ -304,19 +304,19 @@ closes.
 ### Options
 
 Each row of the Options page is a setting of [coop-settings.txt](settings.md#coop-settingstxt), except Reset all keys.
-The rows are in groups: Controls (the menu, status, leave, travel and race checkpoint keys, the [bike](bike.md) on or
+The rows are in groups: Controls (the menu, status, leave, travel and race checkpoint keys, the [bike](../features/bike.md) on or
 off and its key, the [Online tab in the pause menu](#pause-menu), then Reset all keys), Photo mode, Partner (the name
-tag and the [partner HUD](#partner-hud)), Ghost (the looks, the [solid partner](ghost.md#solid-partner-experimental)
+tag and the [partner HUD](#partner-hud)), Ghost (the looks, the [solid partner](../features/ghost.md#solid-partner-experimental)
 and the send rate), Session (who can join a session you host, whether your Steam friends join without asking, the
 players it holds (Players, 2 to 4), the [revive](playing-with-a-friend.md#revive-by-your-friend-experimental), the
 [cutscene wait](playing-with-a-friend.md#cutscene-wait),
-[following the host](playing-with-a-friend.md#following-the-host), the [shared world](shared-world.md),
-[story together](story-together.md) and Hide popups online, which turns the game's tutorial and record popups off
+[following the host](playing-with-a-friend.md#following-the-host), the [shared world](../features/shared-world.md),
+[story together](../features/story-together.md) and Hide popups online, which turns the game's tutorial and record popups off
 during online play), Saves (the [co-op saves](playing-with-a-friend.md#co-op-saves) at the title and
 [shared quests](playing-with-a-friend.md#shared-quests-experimental)), Combat (shared enemies, same place, who
 same-place enemies attack, same spawns, extra enemies, shared bosses, the host's enemy and boss scaling and your kill
 rewards), Display (the [status strip](#status-strip-above-the-card) above the partner card; the size, sounds and
-language of the menu, the chat and the partner HUD; the [day and night cycle](internals/daynight.md)) and Chat. In a
+language of the menu, the chat and the partner HUD; the [day and night cycle](../internals/daynight.md)) and Chat. In a
 session, Chat ends with a row for each other member past the handshake, `Mute <name>` with On or Off: Enter runs
 `coop mute` or `coop unmute` for her, for the game run.
 
@@ -470,7 +470,7 @@ shop, a dialogue choice). Your own photo mode hides them too, like the rest of t
 
 Options > Display > Status line (`status_overlay`) adds a status strip above the card: Off, Compact (the default) or
 Detailed. Each player's setting is their own, and a change shows at once. The strip shows whenever the
-[status line](usage.md#the-status-key-f6) says something other than `not in a session` or `waiting for Steam`: while you host
+[status line](../usage.md#the-status-key-f6) says something other than `not in a session` or `waiting for Steam`: while you host
 (alone too), while a friend connects or you play in their game, while an invite is held or you rejoin, and after the
 Steam link stopped.
 
@@ -646,12 +646,12 @@ a Steam name or a chat line shows as `?`.
 | Co-op saves not switched on (`auto_coop_save=always`, or the title screen left while the copies were made) | `Co-op saves off for this load: <why>. You play your own saves.` |
 | Co-op copies on with a manual co-op slot N, once a load | `Co-op now plays StellarBladeCoop0N.sav. With the game closed, you can move StellarCoopSlot.txt out of the save folder, and StellarBladeSave0N.sav unless you played it after that copy was made.` |
 | Another game version (a game update), on the title screen with `auto_coop_save=ask` or `always`, once a load | `Co-op saves are off: StellarCoop does not support this version of the game. You play your own saves until StellarCoop is updated.` |
-| Another player's New Game+ cycle or difficulty differs from yours (the guest: the host's; the host: each member's), once and again on a change | `<name> is on New Game+ <n> (<difficulty>); you are on your first playthrough (<difficulty>). Enemies with another max HP stay unshared.`; see [The Steam link](internals/steam-link.md#the-cycle-line) |
-| Your friend's installed DLCs differ from yours, once a session | `<name> has DLCs you don't have: <DLCs>. You have DLCs <name> doesn't have: <DLCs>.`, either part alone when the other list is empty; see [The Steam link](internals/steam-link.md#the-dlc-and-dlcs-lines) |
-| Your friend's `.pak` mods differ from yours, once a session | `<name> uses mods you don't have: <mods>. ...`, `<name> uses other versions of mods you have: <mods>. ...` or `<name> loads other .pak mods than you (<n> there, <n> here). ...`; see [Shared enemies](shared-enemies.md#shared-enemies-experimental) |
-| Shared enemies started, stopped, or waiting for something | See [Shared enemies](shared-enemies.md#shared-enemies-experimental) |
-| Same place moving enemies, or stopped | See [Same place](shared-enemies.md#same-place-experimental) |
+| Another player's New Game+ cycle or difficulty differs from yours (the guest: the host's; the host: each member's), once and again on a change | `<name> is on New Game+ <n> (<difficulty>); you are on your first playthrough (<difficulty>). Enemies with another max HP stay unshared.`; see [The Steam link](../internals/steam-link.md#the-cycle-line) |
+| Your friend's installed DLCs differ from yours, once a session | `<name> has DLCs you don't have: <DLCs>. You have DLCs <name> doesn't have: <DLCs>.`, either part alone when the other list is empty; see [The Steam link](../internals/steam-link.md#the-dlc-and-dlcs-lines) |
+| Your friend's `.pak` mods differ from yours, once a session | `<name> uses mods you don't have: <mods>. ...`, `<name> uses other versions of mods you have: <mods>. ...` or `<name> loads other .pak mods than you (<n> there, <n> here). ...`; see [Shared enemies](../features/shared-enemies.md#shared-enemies-experimental) |
+| Shared enemies started, stopped, or waiting for something | See [Shared enemies](../features/shared-enemies.md#shared-enemies-experimental) |
+| Same place moving enemies, or stopped | See [Same place](../features/shared-enemies.md#same-place-experimental) |
 | Shared quests on, off or waiting for a co-op save, and quest steps that wait or that were made apart | See [Shared quests](playing-with-a-friend.md#shared-quests-experimental) |
-| Shared world on with your friend, or stopped after an error | `Shared world on with <name>.` or `Shared world stopped until the game restarts. coop-link.log says why.` ([shared world](shared-world.md)) |
-| Story together on with your friend, or stopped after an error | `Story together on with <name>.` or `Story together stopped until the game restarts. coop-link.log says why.` ([story together](story-together.md)) |
-| Night Operation: a partner's run starting, a partner who cannot join, the points a run gave | See [night-operation.md](night-operation.md#the-co-op-run) and [the reward shop](night-operation-shop.md) |
+| Shared world on with your friend, or stopped after an error | `Shared world on with <name>.` or `Shared world stopped until the game restarts. coop-link.log says why.` ([shared world](../features/shared-world.md)) |
+| Story together on with your friend, or stopped after an error | `Story together on with <name>.` or `Story together stopped until the game restarts. coop-link.log says why.` ([story together](../features/story-together.md)) |
+| Night Operation: a partner's run starting, a partner who cannot join, the points a run gave | See [modes/night-operation.md](../modes/night-operation.md#the-co-op-run) and [the reward shop](../modes/night-operation-shop.md) |

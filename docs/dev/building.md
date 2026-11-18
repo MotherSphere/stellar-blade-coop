@@ -1,7 +1,7 @@
 # Building from source
 
 Stellar Blade Online is developed on Linux. The Lua scripts need no build, and the Windows DLL is cross-compiled with
-clang-cl. For the design, see [how-it-works.md](how-it-works.md). The tests are listed in [tests.md](tests.md).
+clang-cl. For the design, see [internals/README.md](../internals/README.md). The tests are listed in [tests.md](tests.md).
 
 ## Toolchain
 
@@ -102,7 +102,7 @@ CMake build writes `dev`.
 
 The release zip is reproducible too: the same commit gives the same zip, with every entry dated from the commit and in
 sorted order. Anyone with the repository can rebuild a release and compare its `SHA256SUMS.txt` (see
-[INSTALL.md: Check the files](../INSTALL.md#check-the-files)).
+[INSTALL.md: Check the files](../../INSTALL.md#check-the-files)).
 
 ## Releases
 

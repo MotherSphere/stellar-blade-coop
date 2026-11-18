@@ -1,7 +1,7 @@
 # The Steam link
 
-The player's side of a session is in [Playing with a friend](../playing-with-a-friend.md), and
-[Troubleshooting](../troubleshooting.md#reading-the-60-s-lines) explains the link's 60 s log lines.
+The player's side of a session is in [Playing with a friend](../players/playing-with-a-friend.md), and
+[Troubleshooting](../players/troubleshooting.md#reading-the-60-s-lines) explains the link's 60 s log lines.
 
 The link runs in the native worker, through the Steamworks API that the game itself loaded and started (the game's
 `steam_api64.dll`, flat API, SDK 1.59). Stellar Blade Online does not start Steam or call `SteamAPI_Init`, and linking
@@ -386,7 +386,7 @@ The photo line is sent reliable. It carries the sender's photo mode (`1`, `s` fo
 game may be paused for the other player's photo mode (`both`). It is sent after each handshake and on each change, and
 the receiver takes at most 8 a second. While your friend's line says `1 both` and your setting is `photo_sync=both`,
 the game thread holds a pause tag of the mod's own in the game's pause set. It sets the tag through the function that
-the game's photo mode pauses with (build 26123051 only). [Playing with a friend](../playing-with-a-friend.md#synced-photo-mode) lists when the pause is
+the game's photo mode pauses with (build 26123051 only). [Playing with a friend](../players/playing-with-a-friend.md#synced-photo-mode) lists when the pause is
 released. A host's line says `c` while a cutscene plays in its game and its own photo state is `0`
 ([Cutscene wait](group-play.md#cutscene-wait)).
 
@@ -430,7 +430,7 @@ lack), `mods_other=<n> <names>` (the same name with another hash: another versio
 `coop-link.log` names the ones you lack and the other versions each time their list changes
 (`<name> has mods we lack (<n> <names>) and mods we have in another version (<n> <names>)`). Once a session, a notice
 names the mods you lack and then the other versions, up to two file names each (see
-[Shared enemies](../shared-enemies.md#shared-enemies-experimental)). Without names, or with only mods of yours that they lack, the notice
+[Shared enemies](../features/shared-enemies.md#shared-enemies-experimental)). Without names, or with only mods of yours that they lack, the notice
 gives the two counts. Nothing is refused: enemies that differ already stay unshared (same character id and maximum HP
 for each pair).
 
@@ -511,7 +511,7 @@ session ends: `camps=` on the guest, `camps?=` on the host.
 ### The night line
 
 The night line carries a Night Operation run between the two games (see
-[night-operation.md](../night-operation.md#the-co-op-run)). It is sent reliable, and each line holds the whole state of
+[modes/night-operation.md](../modes/night-operation.md#the-co-op-run)). It is sent reliable, and each line holds the whole state of
 one side, so a lost line is repaired by the next.
 
 The host's `h` line has a counter, the run number and seed, the phase (`ask`, `count`, `wave`, `rest` or `end`), the
@@ -523,7 +523,7 @@ slots a wave, so it covers the largest level's waves and the range's three round
 
 The guest's `g` line has a counter, the run number, her state (`ready`, `refuse`, `run`, `dead` or `abort`), her
 monsters still up, masks of the ones killed and done in her world, and a refusal or abort word. Both lines end with the
-[revive](../night-operation.md#down-and-revive)'s two words: the seconds the side's downed EVE still waits (1 to 30, 0
+[revive](../modes/night-operation.md#down-and-revive)'s two words: the seconds the side's downed EVE still waits (1 to 30, 0
 while she stands) and the side's revive of the other, the percent of the 3 s its interact key has been held next to her
 (0 to 100). The downed game makes its call once the other line says 100. The host's run fails as `failed:both` once his
 down and her down word above 0 have held together for 6 s with no call of his under way: her line does not show a call

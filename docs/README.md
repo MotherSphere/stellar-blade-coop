@@ -1,7 +1,7 @@
 # Documentation
 
 To install the mod, start with [Install](../INSTALL.md); to play, with
-[Playing with a friend](playing-with-a-friend.md). The pages under [Building and internals](#building-and-internals)
+[Playing with a friend](players/playing-with-a-friend.md). The pages under [Building and internals](#building-and-internals)
 describe the code, for anyone who builds the mod or changes it. Stellar Blade Online was first called StellarCoop, and
 its folder, its DLL, its `[StellarCoop]` log tags and its release zip keep that name; its console commands still
 start with `coop`.
@@ -12,38 +12,38 @@ start with `coop`.
 | --- | --- |
 | [Install](../INSTALL.md) | Install, update and uninstall on Windows, Linux and the Steam Deck; saves and Steam Cloud; which logs to send |
 | [Features and test status](features.md) | The features with their test status, the dated two-PC tests and which versions link together |
-| [Playing with a friend](playing-with-a-friend.md) | Hosting and joining, join codes, following the host, the revive, co-op saves, synced photo mode, shared quests |
-| [Shared world](shared-world.md) | Doors, levers, lifts and shortcuts one player works changing in the other's game; what stays each player's own; the setting and `coop world` |
-| [Story together](story-together.md) | The host's cutscenes and talks played in the guest's game with his choices, QTE results and skips; story trips; quest steps the guest makes first; the setting and `coop scenes` |
-| [SBO lobby and matches](sbo-lobby.md) | The recruiter's Join, the lobby menu, Search, private matches, the countdown, leaving, the hall lobbies, the PvP test, the link protocol |
-| [Interface](interface.md) | The co-op menu, the session chat, the partner HUD, the guide, the teleport screen, notices |
-| [Ghost](ghost.md) | The ghost's looks, .pak mods and CNS outfits, the solid partner |
-| [Shared enemies](shared-enemies.md) | Shared enemies, same place, same spawns, the spawn filter, extra enemies, shared bosses |
-| [Doro races](doro-races.md) | Recording a track, starting a race, driving, rules, results, the Doro look, track files |
-| [The bike](bike.md) | Getting on and off, the refusals, riding, `coop bike`, the settings, the ghosts, credits to Eve On Wheels |
-| [Settings](settings.md) | `coop-settings.txt` as the mod writes it, the files in the mod folder |
+| [Playing with a friend](players/playing-with-a-friend.md) | Hosting and joining, join codes, following the host, the revive, co-op saves, synced photo mode, shared quests |
+| [Shared world](features/shared-world.md) | Doors, levers, lifts and shortcuts one player works changing in the other's game; what stays each player's own; the setting and `coop world` |
+| [Story together](features/story-together.md) | The host's cutscenes and talks played in the guest's game with his choices, QTE results and skips; story trips; quest steps the guest makes first; the setting and `coop scenes` |
+| [SBO lobby and matches](features/sbo-lobby.md) | The recruiter's Join, the lobby menu, Search, private matches, the countdown, leaving, the hall lobbies, the PvP test, the link protocol |
+| [Interface](players/interface.md) | The co-op menu, the session chat, the partner HUD, the guide, the teleport screen, notices |
+| [Ghost](features/ghost.md) | The ghost's looks, .pak mods and CNS outfits, the solid partner |
+| [Shared enemies](features/shared-enemies.md) | Shared enemies, same place, same spawns, the spawn filter, extra enemies, shared bosses |
+| [Doro races](features/doro-races.md) | Recording a track, starting a race, driving, rules, results, the Doro look, track files |
+| [The bike](features/bike.md) | Getting on and off, the refusals, riding, `coop bike`, the settings, the ghosts, credits to Eve On Wheels |
+| [Settings](players/settings.md) | `coop-settings.txt` as the mod writes it, the files in the mod folder |
 | [Keys and commands](usage.md) | Every key and `coop` console command, the F6 and `coop status` lines, and the new place of each section that moved |
-| [Saves](saves.md) | What the mod reads and writes, backups, Steam Cloud, the co-op saves, recovery |
-| [Troubleshooting](troubleshooting.md) | Where to look, problems grouped by topic, the 60 s link lines, which logs to send |
+| [Saves](players/saves.md) | What the mod reads and writes, backups, Steam Cloud, the co-op saves, recovery |
+| [Troubleshooting](players/troubleshooting.md) | Where to look, problems grouped by topic, the 60 s link lines, which logs to send |
 
 ## Night Operation
 
 | Page | What it covers |
 | --- | --- |
-| [Night Operation](night-operation.md) | The cut mode, the plan, the solo run, the co-op run, credits |
-| [Reward shop](night-operation-shop.md) | The points, the seven items, the shop screen, Roxanne's choices, the cut Shock Bolt |
-| [Challenges](challenges.md) | `coop challenge`, Target Practice, the Shooting Range alone and for two, score, best runs |
-| [Night Operation previews](night-operation-previews.md) | The probe (`coop no`), the recruiter (`coop recruiter`), how the original matchmaking is blocked |
+| [Night Operation](modes/night-operation.md) | The cut mode, the plan, the solo run, the co-op run, credits |
+| [Reward shop](modes/night-operation-shop.md) | The points, the seven items, the shop screen, Roxanne's choices, the cut Shock Bolt |
+| [Challenges](modes/challenges.md) | `coop challenge`, Target Practice, the Shooting Range alone and for two, score, best runs |
+| [Night Operation previews](modes/night-operation-previews.md) | The probe (`coop no`), the recruiter (`coop recruiter`), how the original matchmaking is blocked |
 
 ## Cut content
 
 | Page | What it covers |
 | --- | --- |
-| [Cut enemies](cut-enemies.md) | The cut model viewer and its free camera, the Lion as a boss, the Gardener and Tendril fights |
-| [EVE's cut moves](cut-eve.md) | `coop chainspin`, `coop wear`, `coop emote`, `coop fly`, `coop slowmo`, `coop glide` |
-| [Cut scenes and menus](cut-scenes-and-menus.md) | `coop scene`, `coop lines`, `coop shortcut`, `coop devmenu` and `coop devinfo`, `coop gift` |
-| [Matrix XIII](matrix-xiii.md) | The cut dungeon, `coop mxiii` and its test pak |
-| [Lily's signal](lily-signal.md) | The mod's two quests that lead through Matrix XIII, their talks, lines and status lines |
+| [Cut enemies](cut-content/cut-enemies.md) | The cut model viewer and its free camera, the Lion as a boss, the Gardener and Tendril fights |
+| [EVE's cut moves](cut-content/cut-eve.md) | `coop chainspin`, `coop wear`, `coop emote`, `coop fly`, `coop slowmo`, `coop glide` |
+| [Cut scenes and menus](cut-content/cut-scenes-and-menus.md) | `coop scene`, `coop lines`, `coop shortcut`, `coop devmenu` and `coop devinfo`, `coop gift` |
+| [Matrix XIII](modes/matrix-xiii.md) | The cut dungeon, `coop mxiii` and its test pak |
+| [Lily's signal](modes/lily-signal.md) | The mod's two quests that lead through Matrix XIII, their talks, lines and status lines |
 
 ## Building and internals
 
@@ -53,9 +53,9 @@ left. The pages still name build 24463856 where a fact was read on that build, s
 
 | Page | What it covers |
 | --- | --- |
-| [Building](building.md) | Toolchain, `tools/install.py`, `tools/wine_smoke.py`, the reproducible build, releases, repository layout |
-| [Tests](tests.md) | The Lua, C++ and Python tests and what each one checks |
-| [How it works](how-it-works.md) | Index of the internals pages, and where each section of the old single page went |
+| [Building](dev/building.md) | Toolchain, `tools/install.py`, `tools/wine_smoke.py`, the reproducible build, releases, repository layout |
+| [Tests](dev/tests.md) | The Lua, C++ and Python tests and what each one checks |
+| [How it works](internals/README.md) | Index of the internals pages, and where each section of the old single page went |
 | [Architecture](internals/architecture.md) | The Lua and native parts, the Lua scripts, the files they share, the co-op UI's input, loopback, record and replay |
 | [The Steam link](internals/steam-link.md) | Lobby and invites, the handshake, channels 0 and 1, protocol versions, link health |
 | [The ghost pipeline](internals/ghost.md) | The ghost in seven steps, looks, the CNS guard and crash sentinel, the solid partner |
@@ -73,4 +73,4 @@ left. The pages still name build 24463856 where a fact was read on that build, s
 | [Matrix XIII: how it works](internals/matrix-xiii.md) | The cut dungeon's rows, event spawns, arrival, camps, save, title and world rows |
 | [Lily's signal: how it works](internals/lily-signal.md) | The rows, quests and talks of Lily's signal |
 | [Achievements and safety design](internals/safety.md) | Which kills and achievements count for each player, the safety design |
-| [Story dump](story.md) | `coop story`, `tools/story_lines.py` and `tools/save_read.py`: the story state of a save or of the running game, one line per value |
+| [Story dump](dev/story.md) | `coop story`, `tools/story_lines.py` and `tools/save_read.py`: the story state of a save or of the running game, one line per value |

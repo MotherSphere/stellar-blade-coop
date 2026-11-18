@@ -321,10 +321,11 @@ coop('ui','off')
 assert(kit_calls[#kit_calls]=='stop nil' and last():find('OK: co-op UI off until the mod reloads',1,true),last())
 in_world=false
 
--- The controllers the mod reads, said the same way in INSTALL.md and docs/interface.md (any controller the game reads,
--- XInput only as the fallback); no comment still says only an XInput pad can answer the saves' question or the guide.
+-- The controllers the mod reads, said the same way in INSTALL.md and docs/players/interface.md (any controller the game
+-- reads, XInput only as the fallback); no comment still says only an XInput pad can answer the saves' question or the
+-- guide.
 local function text(path) local f=assert(io.open(path)); local t=f:read('a'); f:close(); return t end
-for _,doc in ipairs({'INSTALL.md','docs/interface.md'}) do
+for _,doc in ipairs({'INSTALL.md','docs/players/interface.md'}) do
     assert(text(doc):find('any controller the game reads',1,true),doc..' still says only XInput controllers work')
 end
 for _,lua in ipairs({'save/saves.lua','ui/kit/guide.lua'}) do
