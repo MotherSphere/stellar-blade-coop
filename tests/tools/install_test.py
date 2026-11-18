@@ -219,6 +219,13 @@ with tempfile.TemporaryDirectory() as tmp:
                               'core/worlds',
                               'ui/kit/hud_parts',
                               'ui/text/culture',
+                              *(f'main/{name}' for name in ('boot', 'base', 'loader', 'commands', 'ui', 'input',
+                                                             'frame', 'pass', 'keys')),
+                              *(f'{module}/wiring' for module in ('partner', 'nightop', 'cut/enemies', 'group',
+                                                                   'race', 'cut/eve', 'cut/scenes', 'matrix13',
+                                                                   'session', 'photo', 'fight', 'quest', 'world',
+                                                                   'story', 'lobby', 'bike', 'sky', 'cut/menus',
+                                                                   'save')),
                               'version'))}
     assert set(files) == shipped - docs, sorted(files)
     assert not [rel for rel in files

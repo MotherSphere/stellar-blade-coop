@@ -7,9 +7,9 @@
 -- (matrix13/world/boss.lua), run on a co-op save only. coop mxiii mila, Mila's pose and scale (matrix13/world/mila.lua,
 -- o.mila), runs on any save: a display only, nothing of it is saved. Lily's signal by hand: coop lily signal
 -- [status|quest|travel|next], coop lily talk prologue|arrival|finale [kit] and coop lily hold on|off
--- (matrix13/quest/on_time.lua, experimental). main.lua builds it with new(o) at each Lua load and merges it into its
--- command table. o: main.lua's coop_slot (its co-op save check), mxiii, mila and lily (Lily's signal, set after this is
--- built, so read at each call).
+-- (matrix13/quest/on_time.lua, experimental). matrix13/wiring.lua builds it with new(o) at each Lua load and
+-- main/loader.lua merges it into the command table. o: coop_slot (its co-op save check), mxiii, mila and lily (Lily's
+-- signal).
 local USE='Use: coop lily signal [status|quest|travel|next] | talk prologue|arrival|finale [kit] | hold on|off'
 local Matrix13={}
 function Matrix13.new(o)

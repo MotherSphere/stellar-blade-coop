@@ -1,8 +1,8 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The co-op saves' console commands: coop saves and coop shortcut. main.lua builds them with new(o) at each Lua load
--- and merges them into its command table. o: main.lua's ask (a line for the native part) and settings.
+-- The co-op saves' console commands: coop saves and coop shortcut. save/wiring.lua builds them with new(o) at each Lua
+-- load and main/loader.lua merges them into the command table. o: ask (a line for the native part) and settings.
 local Save={}
 function Save.new(o)
     local ask=o.ask

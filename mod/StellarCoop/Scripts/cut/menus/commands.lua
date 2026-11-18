@@ -4,9 +4,9 @@
 -- The cut menus' console commands. coop devmenu, the developer menu's rows that still work (left out of the usage
 -- line): its list on any save, a row on a co-op save only. coop devinfo, two read-only panels of the game's developer
 -- UI (left out too), on any save. coop gift, the cut mailbox as a co-op gift box (cut/menus/mailbox.lua, o.mailbox,
--- built with the Steam link only), runs on a co-op save only: every word of it. main.lua builds it with new(o) at each
--- Lua load and merges it into its command table. o: main.lua's coop_slot, ask (a native request; coop devinfo),
--- devmenu (cut/menus/devmenu.lua's) and mailbox.
+-- built with the Steam link only), runs on a co-op save only: every word of it. cut/menus/wiring.lua builds it with
+-- new(o) at each Lua load and main/loader.lua merges it into the command table. o: coop_slot, ask (a native request;
+-- coop devinfo), devmenu (cut/menus/devmenu.lua's) and mailbox.
 local Menus={}
 function Menus.new(o)
     local coop_slot=o.coop_slot

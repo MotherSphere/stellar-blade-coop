@@ -4,9 +4,9 @@
 -- coop guide: the first-launch guide (ui/kit/guide.lua) opened on its first page, on the title screen or in the game
 -- world, as the co-op menu's Guide row opens it. coop keys reset [<name>|all]: one key back to its default (menu, host,
 -- status, leave, follow, race or bike, or the setting's own name, menu_key and the like), or every key with all or no
--- name, as the co-op menu's key rows and its Reset all keys row do (ui/kit/menu.lua's reset). main.lua builds them with
--- new(o) at each Lua load and merges them into its command table. o: main.lua's, whose guide (ui/kit/guide.lua's) and
--- menu it sets once the UI is built, with the Steam link only.
+-- name, as the co-op menu's key rows and its Reset all keys row do (ui/kit/menu.lua's reset). main/commands.lua builds
+-- them with new(M) at each Lua load and merges them into the command table. M: main.lua's state, whose guide
+-- (ui/kit/guide.lua's) and menu main/ui.lua sets once the UI is built, with the Steam link only; read at each call.
 local Kit={}
 local USE='Use: coop keys reset [menu|host|status|leave|follow|race|bike|all]'
 local NAMES={menu=true,host=true,status=true,leave=true,follow=true,race=true,bike=true,all=true}

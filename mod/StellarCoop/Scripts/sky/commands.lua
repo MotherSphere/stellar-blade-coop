@@ -3,8 +3,8 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop daynight (a test tool, left out of the usage line): alone or status, the cycle's state, hour, sun and map; on
 -- and off, the clock or Stellar Blade's own light until another word or a Lua reload; hour <h>, the hour pinned (0 to
--- under 24, decimals allowed). Never written to coop-settings.txt. main.lua builds it with new(o) at each Lua load and
--- merges it into its command table. o: main.lua's daynight (sky/daynight.lua's).
+-- under 24, decimals allowed). Never written to coop-settings.txt. sky/wiring.lua builds it with new(o) at each Lua
+-- load and main/loader.lua merges it into the command table. o: daynight (sky/daynight.lua's).
 local Daynight={}
 local USE='Use: coop daynight [on | off | status | hour <h>]'
 function Daynight.new(o)

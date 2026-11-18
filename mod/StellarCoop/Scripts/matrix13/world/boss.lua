@@ -51,8 +51,9 @@ local BOSS_TEXT,LIVE='TextBlock_BossName','/Engine/Transient'
 local function far(a,b) return math.sqrt((a.X-b.X)^2+(a.Y-b.Y)^2+(a.Z-b.Z)^2) end
 local function xyz(t) return {X=t[1],Y=t[2],Z=t[3]} end
 
--- o: log (the [MXBOSS] lines), lion and gardener (cut/enemies/lion.lua's and cut/enemies/gardener.lua's instances; nil:
--- no fix, no fallback), points (matrix13/world/rows.lua's BOSS by default).
+-- o: log (the [MXBOSS] lines), lion() and gardener() (cut/enemies/lion.lua's and cut/enemies/gardener.lua's
+-- instances, read at each call; nil, or nil from the call: no fix, no fallback), points (matrix13/world/rows.lua's
+-- BOSS by default).
 function Boss.new(o)
     local log=o.log
     local points=o.points or Rows.BOSS
@@ -75,8 +76,9 @@ function Boss.new(o)
     local function fix(b,c)
         if not b.fix then return 'no fix needed' end
         if b.fix=='lion' then
-            if not o.lion or not o.lion.adopt then return 'no coop lion to fix it' end
-            return o.lion.adopt(c)
+            local lion=o.lion and o.lion()
+            if not lion or not lion.adopt then return 'no coop lion to fix it' end
+            return lion.adopt(c)
         end
         local m=assert(U.valid(c.Mesh),'no mesh on the body')
         m:K2_SetRelativeRotation({Pitch=0,Yaw=b.mesh_yaw,Roll=0},false,{},false)
@@ -188,11 +190,13 @@ function Boss.new(o)
         log('fallback: '..best.name..' by its own command, key 0, no saved death')
         state[best.row].fallback=true
         if best.fix=='lion' then
-            if not o.lion then return false,'coop mxiii boss: no coop lion' end
-            return o.lion.command()
+            local lion=o.lion and o.lion()
+            if not lion then return false,'coop mxiii boss: no coop lion' end
+            return lion.command()
         end
-        if not o.gardener then return false,'coop mxiii boss: no coop gardener fight' end
-        return o.gardener.command()
+        local gardener=o.gardener and o.gardener()
+        if not gardener then return false,'coop mxiii boss: no coop gardener fight' end
+        return gardener.command()
     end
     return self
 end

@@ -50,7 +50,8 @@ local lion={adopt=function(c) adopted[#adopted+1]=c; return 'leader: the Lion An
     command=function() spawns[#spawns+1]='lion'; return true,'Lion asked' end}
 local gardener={command=function() spawns[#spawns+1]='gardener'; return true,'Gardener asked' end}
 local points={DLC02_40_E_CharS_051={at={10000,0,0},yaw=0},DLC02_20_E_CharS_904={at={-10000,0,0},yaw=0}}
-local b=Boss.new({log=function(m) lines[#lines+1]=m end,lion=lion,gardener=gardener,points=points})
+local b=Boss.new({log=function(m) lines[#lines+1]=m end,lion=function() return lion end,
+    gardener=function() return gardener end,points=points})
 
 -- Away from both points: no body search at all.
 clock=1; b.tick()
@@ -157,7 +158,8 @@ assert(#zone_events==0,'A Lion from its row: its EventOnDead enables the levers'
 -- The fallback Lion has no EventOnDead: its death fires the three lever events, and only its own.
 do
     Boss.dead={}
-    local s=Boss.new({log=function() end,lion=lion,points={DLC02_40_E_CharS_051={at={10000,0,0},yaw=0}}})
+    local s=Boss.new({log=function() end,lion=function() return lion end,
+        points={DLC02_40_E_CharS_051={at={10000,0,0},yaw=0}}})
     here={X=10000,Y=0,Z=0}
     bodies={}
     assert(s.command())

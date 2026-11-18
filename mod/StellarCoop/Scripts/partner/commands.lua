@@ -1,9 +1,10 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The ghost's console commands: coop puppet, basesuit, where, near, look, cns, loopback, record and replay. main.lua
--- builds them with new(o) at each Lua load and merges them into its command table. o: main.lua's puppet, native_tick
--- (nil without the native part), ask (a line for the native part), look (the table the ghost holds) and looks.
+-- The ghost's console commands: coop puppet, basesuit, where, near, look, cns, loopback, record and replay.
+-- partner/wiring.lua builds them with new(o) at each Lua load and main/loader.lua merges them into the command table.
+-- o: puppet, native_tick (nil without the native part), ask (a line for the native part), look (the table the ghost
+-- holds) and looks.
 local Partner={}
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)

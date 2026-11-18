@@ -1,10 +1,10 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The shared quests' console command (Phase 12, experimental): coop quests. main.lua builds it with new(o) at each Lua
--- load and merges it into its command table; its 250 ms loop runs coop quests on by itself for shared_quests=on. o:
--- main.lua's link, settings, native_tick, ask (a line for the native part), coop_slot and quests_auto_off() (coop
--- quests off cancels that ask).
+-- The shared quests' console command (Phase 12, experimental): coop quests. quest/wiring.lua builds it with new(o) at
+-- each Lua load and main/loader.lua merges it into the command table; main/pass.lua runs coop quests on by itself for
+-- shared_quests=on (quest/wiring.lua's quests_asks). o: link, settings, native_tick, ask (a line for the native part),
+-- coop_slot and quests_auto_off() (coop quests off cancels that ask).
 local Quest={}
 -- coop quests (Phase 12, experimental): on (needs shared_quests=on; the native part waits for a friend and a co-op
 -- save), off, status (the quests= line, while the native part's whole answer follows in the log as quests_status

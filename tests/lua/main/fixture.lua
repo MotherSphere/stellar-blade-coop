@@ -140,9 +140,10 @@ fake_link={
     remote=function(k) if (k or 0)==0 then return 3,1,'loopback' end end, -- No table in ghost slots 1 to 6.
     slot=function(k) return {} end, -- A ghost slot's files (partner/ghosts.lua): no member holds one in these tests.
     remote_table=function() return nil end,
-    -- The hud requests of the lobby's screens go to huds (tests/lua/main/sbo_test), the pause menu's Online tab's to
-    -- pausetabs, the popups ones (main.lua's switch_pass for hide_popups) to popup_asks, the others to asked. hud_refuse: a hud request is refused with that why, as link.request answers when
-    -- coop-request.txt cannot be written.
+    -- The hud requests of the lobby's screens go to huds (tests/lua/lobby/wiring_test), the pause menu's Online tab's
+    -- to pausetabs, the popups ones (main/pass.lua's switch_pass for hide_popups) to popup_asks, the others to asked.
+    -- hud_refuse: a hud request is refused with that why, as link.request answers when coop-request.txt cannot be
+    -- written.
     request=function(line)
         if hud_refuse and line:find('^hud ') then return false,hud_refuse end
         local into=line:find('^hud ') and huds or line:find('^pausetab ') and pausetabs

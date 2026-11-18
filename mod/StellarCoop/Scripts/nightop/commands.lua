@@ -2,10 +2,10 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Night Operation's console commands: coop no (the T6 probe), coop nightop, coop challenge and coop recruiter, all on a
--- co-op save only but coop nightop stop and coop challenge stop. main.lua builds them with new(o) at each Lua load and
--- merges them into its command table. o: main.lua's coop_slot, nightop (nightop/probe.lua's), night
--- (nightop/run.lua's), race (race/run.lua's: no run starts while a Doro race is armed), recruiter, and roxanne
--- (nightop/roxanne.lua's, set after this is built, so read at each call: coop nightop stop drops her booking).
+-- co-op save only but coop nightop stop and coop challenge stop. nightop/wiring.lua builds them with new(o) at each Lua
+-- load and main/loader.lua merges them into the command table. o: coop_slot, nightop (nightop/probe.lua's), night
+-- (nightop/run.lua's), race (its armed(), race/run.lua's read at each call: no run starts while a Doro race is armed),
+-- recruiter, and roxanne (nightop/roxanne.lua's: coop nightop stop drops her booking).
 local NightOp={}
 function NightOp.new(o)
     local coop_slot,nightop,night,race,recruiter=o.coop_slot,o.nightop,o.night,o.race,o.recruiter

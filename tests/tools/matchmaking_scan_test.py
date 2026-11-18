@@ -58,7 +58,8 @@ FIRE = "U.find('/Script/SB.Default__SBBlueprintLibrary'):CreateSBZoneEvent(kind,
 # Zone events run directly (bypassing CreateSBZoneEvent's guard), table wipes, the console, anything matchmaking.
 CALL = re.compile(r'[:.]\s*(RunZoneEvent|NotifyClientRunEvent|EnterZone|ServerRequest_EnterZone|RemoveRow|EmptyTable|'
                   r"SetRemainTime|ExecuteConsoleCommand|\w*RunEvent\w*|\w*[Mm]atch[Mm]ak\w*)\s*[('{]")
-# The one console call: main.lua's photo pause sets SB.PhotoMode.PauseMethod (a constant assigned once) to 0 or 1.
+# The one console call: photo/wiring.lua's photo pause sets SB.PhotoMode.PauseMethod (a constant assigned once)
+# to 0 or 1.
 PAUSE = "local PAUSE_METHOD='SB.PhotoMode.PauseMethod'"
 CONSOLE = "library:ExecuteConsoleCommand(pc,PAUSE_METHOD..' '..want,pc)"  # The whole line.
 NAMES = ('Develop_NetworkPlay', 'DED10_ZoneE_13')  # The network-play option and the vanilla matchmaking rows.
@@ -94,7 +95,7 @@ def scan(root):
             if (len(before) < 2 or not GUARD.fullmatch(before[-1]) or before[-2] != HEADER
                     or lines[row].strip() != FIRE):
                 out.append(f'L1 {at(m)}: CreateSBZoneEvent is not the guarded call of zone_event(kind,name)')
-        allow = (name == 'main.lua' and [line.strip() for line in lines].count(PAUSE) == 1
+        allow = (name == 'photo/wiring.lua' and [line.strip() for line in lines].count(PAUSE) == 1
                  and len(re.findall(r'\bPAUSE_METHOD\s*=(?!=)', code)) == 1)
         for m in CALL.finditer(code):
             if allow and lines[code.count('\n', 0, m.start())].strip() == CONSOLE: allow = False  # The first one only.
@@ -139,6 +140,7 @@ def scan_of(files):
 
 
 N, M, H, W = f'{SCRIPTS}/nightop/probe.lua', f'{SCRIPTS}/main.lua', 'native/src/link/core.h', 'tests/wine/smoke.cpp'
+P = f'{SCRIPTS}/photo/wiring.lua'
 R, NR, GR = f'{SCRIPTS}/nightop/recruiter.lua', f'{SCRIPTS}/nightop/run.lua', f'{SCRIPTS}/group/group.lua'
 NS, LI, SC = f'{SCRIPTS}/nightop/shop.lua', f'{SCRIPTS}/cut/enemies/lion.lua', f'{SCRIPTS}/cut/scenes/scene.lua'
 BO = f'{SCRIPTS}/matrix13/world/boss.lua'
@@ -183,7 +185,7 @@ CE = f'{SCRIPTS}/cut/enemies/enemy.lua'
 CLEAN[CE] = padded('cut/enemies/enemy.lua', '')  # cut.enemies' copy of core/enemy.lua (November 2026).
 assert scan_of(CLEAN) == [], scan_of(CLEAN)  # A blank line in zone_event and Steam's Matchmaking are fine.
 PHOTO = f'{PAUSE}\n    {CONSOLE}\n'
-assert scan_of({**CLEAN, M: PHOTO}) == [], scan_of({**CLEAN, M: PHOTO})
+assert scan_of({**CLEAN, P: PHOTO}) == [], scan_of({**CLEAN, P: PHOTO})
 
 calls = ['x:RunZoneEvent(1)', 'x.NotifyClientRunEvent(1)', 'x:EnterZone(1)', 'x:RemoveRow(n)', 'x . EmptyTable ()',
          'x:\n  SetRemainTime\n(0)', "x:ExecuteConsoleCommand('a')", 'w:RunEvent_StartMatchMaking()',
@@ -218,11 +220,12 @@ PLANTS = [({'L1'}, {N: NIGHTOP.replace("    assert(NightOp.allowed(kind,name),'z
           *[({'L2'}, {M: f'{call}\n'}) for call in calls],
           ({'L2', 'L5'}, {N: NIGHTOP + 'pc:ServerRequest_EnterZone(1)\n'}),
           ({'L2', 'L5'}, {M: 'pc:ServerRequest_EnterZone(1)\n'}),
-          ({'L2'}, {M: PHOTO + CONSOLE + '\n'}),
-          ({'L2'}, {M: PHOTO.replace('PauseMethod', 'Pause')}),
-          ({'L2'}, {M: PHOTO + "PAUSE_METHOD='open x'\n"}),
-          ({'L2'}, {M: PAUSE + '\n' + CONSOLE.replace("' '", "' 1;'") + '\n'}),
+          ({'L2'}, {P: PHOTO + CONSOLE + '\n'}),
+          ({'L2'}, {P: PHOTO.replace('PauseMethod', 'Pause')}),
+          ({'L2'}, {P: PHOTO + "PAUSE_METHOD='open x'\n"}),
+          ({'L2'}, {P: PAUSE + '\n' + CONSOLE.replace("' '", "' 1;'") + '\n'}),
           ({'L2'}, {M: 'local x=1\n', N: NIGHTOP + PHOTO}),
+          ({'L2'}, {M: PHOTO}),
           ({'L3'}, {M: '-- Develop_NetworkPlay\n'}),
           *[({'L3'}, {N: NIGHTOP + f"local row='DED10_ZoneE_13{i}'\n"}) for i in (6, 7, 8)],
           ({'L4'}, {N: NIGHTOP.replace('-- AddRow\n', 'dt: AddRow (B,row)\n')}),

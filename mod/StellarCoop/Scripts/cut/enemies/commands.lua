@@ -10,9 +10,9 @@
 -- intro, half, skulling) on a co-op save only, after the viewer's display and free camera are put away, so the two
 -- models never stand in the same place; rows on any. coop tendril fight, the cut Tendril spawned as an enemy
 -- (cut/enemies/tendril.lua; every other coop tendril word is the viewer's), the same way: the spawn on a co-op save
--- only, rows on any. main.lua builds it with new(o) at each Lua load and merges it into its command table. o:
--- main.lua's coop_slot, leviathan (cut/enemies/leviathan.lua's, one command a creature), lion (cut/enemies/lion.lua's),
--- gardener (cut/enemies/gardener.lua's) and tendril (cut/enemies/tendril.lua's).
+-- only, rows on any. cut/enemies/wiring.lua builds it with new(o) at each Lua load and main/loader.lua merges it into
+-- the command table. o: coop_slot, leviathan (cut/enemies/leviathan.lua's, one command a creature), lion
+-- (cut/enemies/lion.lua's), gardener (cut/enemies/gardener.lua's) and tendril (cut/enemies/tendril.lua's).
 local Cut={}
 function Cut.new(o)
     local coop_slot,leviathan,lion=o.coop_slot,o.leviathan,o.lion

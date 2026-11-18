@@ -2,11 +2,12 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- EVE's cut moves' console commands: coop wear, coop emote, coop fly, coop slowmo, coop glide and coop chainspin.
--- main.lua builds it with new(o) at each Lua load and merges it into its command table. o: main.lua's coop_slot, wear
--- (cut/eve/wear.lua's), flight (cut/eve/flight.lua's keys for coop fly), chainspin (cut/eve/chainspin.lua's), glide
--- (cut/eve/glide.lua's), ask (a native request; coop fly and coop slowmo) and riding (bike/ride.lua's: EVE rides the
--- bike). coop chainspin, EVE's cut Tachy Mode ChainSpin (a test tool, left out of the usage line), runs on a co-op save
--- only. coop emote, one of EVE's clips (cut/eve/emote.lua, o.emote), runs on any save.
+-- cut/eve/wiring.lua builds it with new(o) at each Lua load and main/loader.lua merges it into the command table. o:
+-- coop_slot, wear (cut/eve/wear.lua's), flight (cut/eve/flight.lua's keys for coop fly), chainspin
+-- (cut/eve/chainspin.lua's), glide (cut/eve/glide.lua's), ask (a native request; coop fly and coop slowmo) and riding
+-- (main/base.lua's riding, read at each call: EVE rides the bike). coop chainspin, EVE's cut Tachy Mode ChainSpin (a
+-- test tool, left out of the usage line), runs on a co-op save only. coop emote, one of EVE's clips (cut/eve/emote.lua,
+-- o.emote), runs on any save.
 local Eve={}
 function Eve.new(o)
     local coop_slot=o.coop_slot

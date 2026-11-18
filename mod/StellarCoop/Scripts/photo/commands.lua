@@ -1,9 +1,9 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The photo pause's console command: coop freeze, the photo pause alone. main.lua builds it with new(o) at each Lua
--- load and merges it into its command table. o: main.lua's native_tick (nil without the native part) and ask (a line
--- for the native part).
+-- The photo pause's console command: coop freeze, the photo pause alone. photo/wiring.lua builds it with new(o) at each
+-- Lua load and main/loader.lua merges it into the command table. o: native_tick (nil without the native part) and ask
+-- (a line for the native part).
 local Photo={}
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)

@@ -1,9 +1,9 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The SBO lobby's console commands: coop match and coop sbo. main.lua builds them with new(o) at each Lua load and
--- merges them into its command table. o: main.lua's link, settings, ask (a line for the native part) and sbo; lobby
--- (lobby/ui/lobby.lua's), read at each call: the lobby's screens are built later, with the Steam link only.
+-- The SBO lobby's console commands: coop match and coop sbo. lobby/wiring.lua builds them with new(o) at each Lua load
+-- and main/loader.lua merges them into the command table. o: link, settings, ask (a line for the native part) and sbo;
+-- lobby(), lobby/ui/lobby.lua's screens, read at each call: they are built later, with the Steam link only.
 local Lobby={}
 function Lobby.new(o)
     local link,settings,ask=o.link,o.settings,o.ask
@@ -53,7 +53,7 @@ function Lobby.new(o)
             end
             if word=='view' and extra=='set' then return o.sbo.view_set() end
             if word=='seq' and extra then return o.sbo.seq(extra) end
-            if word=='parts' and extra==nil and o.lobby then return o.lobby.parts_check() end
+            if word=='parts' and extra==nil and o.lobby() then return o.lobby().parts_check() end
         end
         return false,'Use: coop sbo enter | leave | status | hop | back | view [set] | seq <alias> | parts'
     end

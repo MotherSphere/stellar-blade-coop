@@ -1,12 +1,12 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The session's console commands: coop host (as who_can_join says, or by its word), invite, join, list, leave,
--- status, report, copy, mark, allow, deny and remove, block, unblock and blocked, mute and unmute.
--- main.lua builds them with new(o) at each Lua load and merges them into its command table, whose run() logs each
--- result and, after coop off, refuses all but status and report. o: main.lua's link, settings, puppet and ask (a line
--- for the native part); create(), read at each call: the Create a session screen is built later, with the Steam link
--- only.
+-- The session's console commands: coop host (as who_can_join says, or by its word), invite, join, list, leave, status,
+-- report, copy, mark, allow, deny and remove, block, unblock and blocked, mute and unmute. session/wiring.lua builds
+-- them with new(o) at each Lua load and main/loader.lua merges them into the command table, whose run()
+-- (main/commands.lua) logs each result and, after coop off, refuses all but status and report. o: link, settings,
+-- puppet (its status(), partner/'s ghost read at each call) and ask (a line for the native part); create(), read at
+-- each call: the Create a session screen is built later, with the Steam link only.
 local Session={}
 -- who_can_join's words, which the native part's host request takes as they are: public (a Public lobby the session
 -- list finds), friends (Friends only), invitation (a Steam invite or the join code) and closed (Private: nobody joins).

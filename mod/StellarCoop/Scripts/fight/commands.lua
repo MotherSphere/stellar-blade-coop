@@ -2,9 +2,10 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The shared enemies' console commands (Phase 11, experimental): coop fight with its pilot and spawn probe; coop pvp,
--- the PvP test (a test tool). main.lua builds them with new(o) at each Lua load and merges them into its command
--- table; its 250 ms loop runs coop fight on by itself for shared_enemies=on. o: main.lua's link, settings,
--- native_tick, ask (a line for the native part), coop_slot and fight_auto_off() (coop fight off cancels that ask).
+-- the PvP test (a test tool). fight/wiring.lua builds them with new(o) at each Lua load and main/loader.lua merges them
+-- into the command table; main/pass.lua runs coop fight on by itself for shared_enemies=on (fight/wiring.lua's
+-- fight_asks). o: link, settings, native_tick, ask (a line for the native part), coop_slot and fight_auto_off() (coop
+-- fight off cancels that ask).
 local Fight={}
 -- coop fight (Phase 11, experimental): its line for the native part, or nil when the arguments are off. A change is
 -- whole units, signed or not, never 0, at most 10000000 (the native part's cap).

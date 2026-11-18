@@ -2,11 +2,11 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop scenes (story together, experimental): on and off change it until the mod reloads, whatever shared_story says
--- (the native part then waits for a friend and a co-op save). status answers with the story= line and its counters
--- (the native part's answer follows in the log). main.lua builds it with new(o) at each Lua load and merges it into its
--- command table; its 250 ms loop asks the native part by itself for shared_story. o: main.lua's link, native_tick, ask
--- (a line for the native part) and scenes_auto_off(): coop scenes on or off cancels that ask. coop story [dump|find]
--- (story/snapshot.lua, read only, any save); o.story: the story dump.
+-- (the native part then waits for a friend and a co-op save). status answers with the story= line and its counters (the
+-- native part's answer follows in the log). story/wiring.lua builds it with new(o) at each Lua load and main/loader.lua
+-- merges it into the command table; main/pass.lua asks the native part by itself for shared_story (story/wiring.lua's
+-- scenes_asks). o: link, native_tick, ask (a line for the native part) and scenes_auto_off(): coop scenes on or off
+-- cancels that ask. coop story [dump|find] (story/snapshot.lua, read only, any save); o.story: the story dump.
 local Scenes={}
 local USE='Use: coop scenes on | off | status'
 local WORDS={on=true,off=true,status=true}

@@ -1,13 +1,14 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- coop sbo and the SBO lobby's wiring in main.lua, with lobby/sbo.lua stubbed by the fixture (lobby/sbo_test tests
--- the module): what sbo.new gets, the console words and the gate, sbo on at load, the 250 ms tick, the title's
+-- coop sbo and the SBO lobby's wiring (lobby/wiring.lua), with lobby/sbo.lua stubbed by the fixture (lobby/sbo_test
+-- tests the module): what sbo.new gets, the console words and the gate, sbo on at load, the 250 ms tick, the title's
 -- put-back, coop off, the recruiter's Join armed once he stands there (with sbo_lobby=on only: the arm swaps a slot in
--- the game's image), his auto spawn every 250 ms on any save, the say that turns a notice key into words, and
--- the ghost's collision off during a session. Then the lobby screens (lobby/ui/lobby.lua stubbed by the fixture,
--- lobby/ui/lobby_test tests them): their view and act, the input routed to them (keys, pad, mouse), the arrival, the
--- countdown feed, the round's start line and the focus watchdog. Last, the arrival's hold under SB's black.
+-- the game's image), his auto spawn every 250 ms on any save and the say that turns a notice key into words
+-- (main/collide_test tests the ghost's collision during a session). Then the lobby screens (lobby/ui/lobby.lua stubbed
+-- by the fixture, lobby/ui/lobby_test tests them): their view and act, the input routed to them (keys, pad, mouse), the
+-- arrival, the countdown feed, the round's start line and the focus watchdog. Last, the arrival's hold under SB's
+-- black.
 dofile('tests/lua/main/fixture.lua')
 local T=require('ui.text')
 local OFF='the SBO lobby is off in coop-settings.txt (sbo_lobby=off)'
@@ -150,14 +151,6 @@ sb.o.say('sbo.no.partner')
 assert(said_en[#said]==T.en.sbo.no.partner,tostring(said_en[#said]))
 sb.o.say('sbo.no.lobby')
 assert(said_en[#said]==T.en.sbo.no.lobby and said[#said]==T.en.sbo.no.lobby)
--- The ghost's collision: off while a session is active, even with collide=on (design-lobby 12.7).
-sb.o.settings.collide=true
-quarter()
-assert(package.loaded['partner.puppet'].collide==true)
-sb.active=true
-quarter()
-assert(package.loaded['partner.puppet'].collide==false,'No solid ghost in a session')
-sb.active,sb.o.settings.collide=false,false
 -- The recruiter's Join armed once he stands there.
 asked={}
 rc_ready()
