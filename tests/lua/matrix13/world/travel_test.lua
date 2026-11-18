@@ -104,16 +104,15 @@ do
     end
     assert(table.concat(words,' ')=='mxspawn mxenv mxupper mxmiddle mxlower lion gardener mxlily mxnames mxrecords',
         'The title order after mxiii')
-    -- The Lion's and the Gardener's batches: the same row tables as cut/enemies/lion.lua's and
-    -- cut/enemies/gardener.lua's, built once, the rows of core/lion_rows.lua in order.
+    -- The Lion's and the Gardener's batches: the rows of core/lion_rows.lua in order, built here as
+    -- cut/enemies/lion.lua and gardener.lua build theirs (Matrix XIII's copy of those two lines, November 2026).
     local R,shared=require('core.lion_rows'),0
-    local OWN={lion={require('cut.enemies.lion').ROWS,R.ROWS},
-        gardener={require('cut.enemies.gardener').ROWS,R.GARDENER}}
+    local OWN={lion=R.ROWS,gardener=R.GARDENER}
     for _,b in ipairs(M.BATCHES) do
         local own=OWN[b.word]
         if own then
-            assert(b.rows==own[1] and #b.rows==#own[2] and #b.rows>0,b.word..': not the module\'s own rows')
-            for i,r in ipairs(own[2]) do
+            assert(#b.rows==#own and #b.rows>0,b.word..': not the rows of core/lion_rows.lua')
+            for i,r in ipairs(own) do
                 local row=b.rows[i]
                 assert(row.table==r[1] and row.name==r[2] and row.id==r[3] and row.checks==r[4],b.word..' '..r[2])
             end

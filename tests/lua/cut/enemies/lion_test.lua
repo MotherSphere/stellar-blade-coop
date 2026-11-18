@@ -1207,13 +1207,14 @@ do
     on_create=nil
 end
 
--- The source (cut/enemies/lion.lua and the flow it runs, core/enemy.lua) names no achievement, reward, item, quest,
--- save, possession, console command, destroy or row call of its own, and its only spawn words are its one CreateActor
--- and its one SpawnDefaultController (core/actors.lua's spawn and remove make and drop the display copy); its one
--- destroy call drops the component it added itself, when the leader fails.
+-- The source (cut/enemies/lion.lua and the flow it runs, cut/enemies/enemy.lua) names no achievement, reward, item,
+-- quest, save, possession, console command, destroy or row call of its own, and its only spawn words are its one
+-- CreateActor and its one SpawnDefaultController (core/actors.lua's spawn and remove make and drop the display copy);
+-- its one destroy call drops the component it added itself, when the leader fails.
 do
     local src=''
-    for _,p in ipairs({'mod/StellarCoop/Scripts/cut/enemies/lion.lua','mod/StellarCoop/Scripts/core/enemy.lua'}) do
+    for _,p in ipairs({'mod/StellarCoop/Scripts/cut/enemies/lion.lua',
+        'mod/StellarCoop/Scripts/cut/enemies/enemy.lua'}) do
         local f=assert(io.open(p,'rb'))
         src=src..f:read('a')
         f:close()

@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- bike/ride.lua over a fake EVE with her components, the native part's asks and status line, race/drive.lua: the
+-- bike/ride.lua over a fake EVE with her components, the native part's asks and status line, bike/drive.lua: the
 -- status words; the preload asked once and released at bike=off; the part made once bike=ready and EVE stood 2 s (on
 -- her main mesh, at the seat, hidden, its tick off), found again by a new Lua load; every mount refusal with its reason, nothing
 -- asked or written; the mount in its order (coop-bike.txt first, the drive, the gate, the riding clip, the part shown)
@@ -202,7 +202,7 @@ local function ask(line)
     event(line)
     return true,'asked the native part: '..line
 end
--- race/drive.lua: on and off with why, its frames (the look it gives), its 250 ms checks.
+-- bike/drive.lua: on and off with why, its frames (the look it gives), its 250 ms checks.
 local B=require('bike.model')
 local dv={on=false,ticks=0,slows=0,look={top=2306,stumble=false,lean=0,pitch=0}}
 local drive={
@@ -225,7 +225,7 @@ local drive={
         if dv.gone then dv.on=false return nil end
         return dv.look
     end,
-    slow=function() dv.slows=dv.slows+1 end}
+    slow=function() dv.slows=dv.slows+1 end,restore=function() dv.restores=(dv.restores or 0)+1 end}
 local stored
 local store={save=function(line)
         event('save')
@@ -299,6 +299,7 @@ local function new()
         paused=function() return world.paused end,photo=function() return world.photo end,
         frozen=function() return world.frozen end,life=function() return world.life end,
         armed=function() return world.armed end,busy=function() return world.busy end,
+        drove=function() return world.drove end,
         words=function() return words end,
         tell=function(build) told[#told+1],told_en[#told_en+1]=build(words),build(T.en) end,
         game_text=function(key,path) money_asks[#money_asks+1]=key..' '..path; return money end,
@@ -398,6 +399,8 @@ refused("EVE is on one of the game's lifts or trains",function() eve.VehicleActo
 refused('EVE is down',function() st.life=4 end,function() st.life=1 end)
 refused('EVE is down',function() st.life,world.life=nil,{state=4,hp=0} end,function() st.life,world.life=1,nil end)
 refused('a race or the drive probe drives EVE',function() dv.on='probe' end,function() dv.on=false end)
+-- The race's own drive (its copy since November 2026), read through drove().
+refused('a race or the drive probe drives EVE',function() world.drove=true end,function() world.drove=false end)
 -- A race armed before GO (a guest's whose Doro look failed): its drive would replace the bike's at GO.
 refused('a race is armed: coop race quit leaves it',function() world.armed=true end,function() world.armed=false end)
 refused('coop emote plays',function() world.busy='coop emote plays' end,function() world.busy=nil end)
@@ -973,7 +976,7 @@ R.leave(); assert(st_made[#st_made].removed and stand_stored==nil and R.status()
 -- 20. Her bike line for the link (o.send): none first, park at a dismount, none at a mount, none at bike=off, the park
 -- again at bike=on; a send that fails goes again at the next pass; nothing when nothing changed.
 assert(sent[1]=='none')
--- Section 19's state first: the earlier load's drive off (race/drive.lua's restore does it after a Ctrl+R), the
+-- Section 19's state first: the earlier load's drive off (bike/drive.lua's restore does it after a Ctrl+R), the
 -- stand R.leave took made again and shown at its place.
 dv.on=false; clock=clock+0.25; R.slow()
 eve.mesh_at={X=0,Y=0,Z=0}; mount(); R.toggle(); assert(sent[#sent]:find('^park /game/map/map 0 0 0 '))
@@ -1054,4 +1057,5 @@ money=nil
 clock=clock+6; eve.base={Mobility=2}; eve.mesh_at={X=5,Y=0,Z=0}; R.toggle(); eve.base=nil
 assert(R.toggle()==true); fetch.result={'paid'}; clock=clock+0.25; R.slow()
 assert(sent[#sent]=='park /game/map/map 5 0 0 0 0 0',sent[#sent])
+assert((dv.restores or 0)>=1,'Each ride\'s restore puts its own drive back first')
 print('ride_test ok')

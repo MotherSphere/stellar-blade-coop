@@ -69,7 +69,8 @@ local KEEP_RELATIVE=0 -- EAttachmentRule::KeepRelative
 local BASE_BODY='/Game/Art/Character/PC/CH_P_EVE_08/CH_P_EVE_08.CH_P_EVE_08'
 local BASE_HAIR='/Game/Art/Character/PC/00_HR/EVE_HR_01/EVE_HR_01.EVE_HR_01'
 local function fallback(part) return part.i==0 and BASE_BODY or part.name=='SBHair' and BASE_HAIR or nil end
-local Doro=require('race.doro')
+local Doro=require('core.actors')
+local Pick=require('partner.doro_pick')
 local Capture=require('partner.capture')
 local EFFECTS=Capture.EFFECTS -- What the wire's effect indexes name, for both players.
 local MAX_EFFECT_ASSETS=64 -- The native part's kMaxEffectAssets: past EFFECTS, the indexes the table's fx lines name.
@@ -993,7 +994,7 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         pcall(doro_dress,g)
         return false,'Doro mode off on the ghost: '..tostring(why)
     end
-    -- The race's results on her Doro: 'win' or 'lose' while she stands (Doro.pick), nil for none.
+    -- The race's results on her Doro: 'win' or 'lose' while she stands (Pick.pick), nil for none.
     function self.emote(e) doro_emote=e end
     -- While a race drives: its top speed, so her Doro dashes, plays and leans by it as yours does; nil after.
     function self.drive(top) doro_top=top end
@@ -1250,17 +1251,17 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         local c,speed
         if jump or not from then
             g.doro_state,g.doro_from={},{X=f.X,Y=f.Y,Z=f.Z,at=now}
-            c=Doro.pick(g.doro_state,{speed=0,vz=0,emote=doro_emote,now=now,drive=drive})
+            c=Pick.pick(g.doro_state,{speed=0,vz=0,emote=doro_emote,now=now,drive=drive})
         else
             local dt=now-from.at
             if dt<0.05 then return end
             speed=math.sqrt((f.X-from.X)^2+(f.Y-from.Y)^2)/dt
             g.doro_from={X=f.X,Y=f.Y,Z=f.Z,at=now}
-            c=Doro.pick(g.doro_state,{speed=speed,vz=(f.Z-from.Z)/dt,emote=doro_emote,now=now,drive=drive})
+            c=Pick.pick(g.doro_state,{speed=speed,vz=(f.Z-from.Z)/dt,emote=doro_emote,now=now,drive=drive})
         end
         Doro.apply(g.doro,c)
         if c.tilt or g.doro_tilted then
-            g.doro.mesh:K2_SetRelativeRotation(Doro.tilted({Pitch=0,Yaw=0,Roll=0},c.tilt),false,{},false)
+            g.doro.mesh:K2_SetRelativeRotation(Pick.tilted({Pitch=0,Yaw=0,Roll=0},c.tilt),false,{},false)
             g.doro_tilted=c.tilt~=nil
         end
         if speed and doro_log and now>=(g.doro_said or 0) then

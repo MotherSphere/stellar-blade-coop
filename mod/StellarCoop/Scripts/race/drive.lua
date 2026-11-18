@@ -46,7 +46,7 @@ local function list(values,model)
 end
 
 -- o: log (the [DR] lines), store (coop-drive.txt through link.store; nil without the native part: no restore) and
--- settings (main.lua's: drift_keys).
+-- settings (main.lua's: drift_keys); riding() whether EVE rides the bike (the bike drives with its own copy).
 function Drive.new(o)
     local log=o.log
     local store=o.store or {save=function() end,load=function() end,clear=function() end}
@@ -266,7 +266,7 @@ function Drive.new(o)
     -- probe while a race is armed; the probe and its off wait while EVE rides the bike (bike/ride.lua ends that drive).
     function self.command(a,b)
         if a==nil then return true,'drive: '..list(values)..' feed='..feed end
-        if (a=='probe' or a=='off') and b==nil and drive and drive.why=='bike' then
+        if (a=='probe' or a=='off') and b==nil and (drive and drive.why=='bike' or o.riding and o.riding()) then
             return false,'EVE rides the bike: coop bike gets her off first'
         end
         if a=='probe' and b==nil then

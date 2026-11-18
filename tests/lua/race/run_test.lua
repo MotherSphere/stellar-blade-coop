@@ -186,8 +186,8 @@ local function side(o)
         drive=s.drive_api,
         tell=function(build) s.told[#s.told+1]=build(T.en) end,night=function() return s.night end,
         slot=function() if s.slot_ok then return true end return false,'not a co-op save' end,
-        paused=function() return s.paused end,settings=s.settings,
-        dismount=function(why) s.dismounted=why; s.drive.on,s.drive.why=false,'bike '..why end})
+        paused=function() return s.paused end,settings=s.settings,riding=function() return s.riding end,
+        dismount=function(why) s.dismounted,s.riding=why,false end})
     return s
 end
 local function has(list,text) for _,l in ipairs(list) do if l==text then return true end end end
@@ -902,27 +902,27 @@ do
     S.race.stop()
     assert(not S.drive.on and S.drive.why=='coop off')
 end
--- 14d. A bike drive (bike/ride.lua's): no race starts during it; the race's steer, its 250 ms check and coop off leave
--- it to the ride; a track line from the host takes her off the bike through dismount before her race arms.
+-- 14d. While EVE rides the bike (riding(); the bike drives with its own copy of race/drive.lua): no race starts; a
+-- track line from the host takes her off the bike through dismount before her race arms.
 do
     local S=side()
     S.files[FILE],S.move=TEXT,racer(0)
     player=S.eve
-    S.drive_api.on({top=2306},'bike')
+    S.riding=true
     ok,message=S.race.command('start','quest')
     assert(not ok and message=='EVE rides the bike: coop bike gets her off first' and not S.race.armed())
     S.race.steer()
     S.race.slow()
     S.race.stop()
-    assert(S.drive.ticks==0 and S.drive.slows==0 and S.drive.on=='bike' and S.dismounted==nil)
+    assert(S.drive.ticks==0 and not S.drive.on and S.dismounted==nil and S.riding)
 end
 do
     local H,G=pair()
-    G.drive_api.on({top=2306},'bike')
+    G.riding=true
     player=H.eve
     H.race.command('start','quest')
     frames({H,G},4)
-    assert(G.race.armed() and G.dismounted=='the host started a race' and not G.drive.on)
+    assert(G.race.armed() and G.dismounted=='the host started a race' and not G.riding and not G.drive.on)
     H.race.command('quit')
     step({H,G})
 end

@@ -192,6 +192,8 @@ with tempfile.TemporaryDirectory() as tmp:
                               'nightop/run', 'nightop/shop',
                               'nightop/waves',
                               'partner/capture', 'partner/ghosts', 'partner/hud', 'partner/puppet', 'partner/sentinel',
+                              'bike/drive', 'bike/drive_model', 'cut/enemies/enemy', 'partner/bike_part',
+                              'partner/doro_pick',
                               'race/doro',
                               'race/drive',
                               'race/drive_model', 'race/model', 'race/run', 'session/booth', 'session/chat',

@@ -384,9 +384,14 @@ local leviathan=require('cut.enemies.leviathan').new({
         return menu~=nil and (menu.is_open() or box.is_open() or code_box.is_open() or approval.is_open()
             or saves_ui.is_open() or open_screen()~=nil)
     end})
+-- The bike (bike/ride.lua), built below once coop fly's keys are: coop emote, the race, the races' driving, the hall
+-- seats and the Doro look read whether EVE rides through riding().
+local bike
+local function riding() return bike~=nil and bike.riding() end
 -- The races' driving (race/drive.lua), logging [DR] lines: coop-drive.txt lets the next Lua load put EVE's movement
 -- back.
-local drive=require('race.drive').new({log=doro.log,store=link and link.store('coop-drive.txt'),settings=settings})
+local drive=require('race.drive').new({log=doro.log,store=link and link.store('coop-drive.txt'),settings=settings,
+    riding=riding})
 -- coop wear (cut/eve/wear.lua), logging [WR] lines: coop-wear.txt lets the next Lua load give EVE the game's meshes
 -- back.
 -- No look goes on again while the game is paused or shows one of its screens (its wardrobe among them).
@@ -401,10 +406,6 @@ local cut_lines=require('cut.scenes.lines').new({log=function(m) print('[Stellar
 -- coop glide (cut/eve/glide.lua), logging [GL] lines: EVE's bGlide set while Jump is held in the air, on a co-op save.
 local glide=require('cut.eve.glide').new({log=function(m) print('[StellarCoop][GL] '..tostring(m)..'\n') end,
     slot=function() return coop_slot('coop glide') end})
--- The bike (bike/ride.lua), built below once coop fly's keys are: coop emote, the race, the hall seats and the Doro
--- look read whether EVE rides through riding().
-local bike
-local function riding() return bike~=nil and bike.riding() end
 -- coop emote (cut/eve/emote.lua), logging [EM] lines: one of EVE's clips until she moves, played by the native part
 -- (its anim request and the status line's anim field), else as a montage. None starts while she rides.
 local emote=require('cut.eve.emote').new({log=function(m) print('[StellarCoop][EM] '..tostring(m)..'\n') end,
@@ -416,7 +417,7 @@ local race=require('race.run').new({log=doro.log,link=link,puppet=puppet,look=do
     night=night.running,
     slot=function() return coop_slot('coop race') end,paused=function() return kit~=nil and kit.paused(true) end,
     settings=settings,store=link and link.store('coop-race-doros.txt'),
-    dismount=function(why) return bike.stop(why) end})
+    dismount=function(why) return bike.stop(why) end,riding=riding})
 -- The session chat's model (session/chat.lua, memory only, never logged): her lines come from coop-chat.txt, taken
 -- every 250 ms so the file never stays on disk, session or not, and each frame while a race is armed (her race lines
 -- come in it too); ours leave through coop-say.txt in the 250 ms loop, or stay on our screen alone in the SBO lobby.
@@ -664,8 +665,9 @@ local o={link=link,settings=settings,sbo=sbo,puppet=puppet,native_tick=native_ti
 local flight=require('cut.eve.flight').new({log=function(m) print('[StellarCoop][FL] '..tostring(m)..'\n') end})
 o.wear,o.scene,o.lines,o.flight,o.glide,o.emote=wear,scene,cut_lines,flight,glide,emote
 -- The bike (bike/ride.lua), logging [BK] lines: SB's own bike as a part on EVE and her ride on it with bike/model.lua
--- through the races' driving (drive), on any save. coop-bike.txt lets the next Lua load put her main mesh back and
--- coop-bike-stand.txt sweep the parked bike an earlier load left (stand_store). A mount is refused, with its reason,
+-- through its own copy of the races' driving (bike/drive.lua; drove: whether the races' drive runs), on any save.
+-- coop-bike.txt lets the next Lua load put her main mesh back and coop-bike-stand.txt sweep the parked bike an
+-- earlier load left (stand_store). A mount is refused, with its reason,
 -- while SBO's own state holds EVE (busy) or one of our screens is open. Its parked bike's refusals and prompt come in
 -- the menu's words (words, tell), a map by its travel world's name (worlds). Its place is kept per account and save
 -- beside coop-settings.txt (file), never while an SBO lobby is open (lobby). Its line goes to every member (send).
@@ -685,7 +687,9 @@ bike=require('bike.ride').new({log=function(m) print('[StellarCoop][BK] '..tostr
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end,
     words=words,tell=tell,game_text=game_words,worlds=require('core.worlds'),
     file=link and {read=link.read_file,write=link.write_file},lobby=function() return sbo~=nil and sbo.active() end,
-    store=link and link.store('coop-bike.txt'),stand_store=link and link.store('coop-bike-stand.txt'),drive=drive,
+    store=link and link.store('coop-bike.txt'),stand_store=link and link.store('coop-bike-stand.txt'),
+    drive=require('bike.drive').new({log=function(m) print('[StellarCoop][DR] '..tostring(m)..'\n') end,
+        store=link and link.store('coop-drive.txt'),settings=settings}),drove=drive.active,
     send=link and function(p) return link.bike(p) end,
     camp=link and function(world,m) return travel and travel.camp_near(world,m) end,
     fetch=link and require('bike.fetch').new({log=function(m) print('[StellarCoop][BK] '..tostring(m)..'\n') end,

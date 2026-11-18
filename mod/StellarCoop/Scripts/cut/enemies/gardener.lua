@@ -9,15 +9,15 @@
 -- three new steps that play its Show), their commands, a stance at speed 0, and three CharacterTable rows over the
 -- Maelstrom's: M_Gardener (50010, the Tentacle tree, made for monsters that stay put), M_Gardener_Half (50012, the
 -- same at half scale) and M_Gardener_Skulling (50011, the Lion's Skulling test tree).
--- The flow is core/enemy.lua's, as coop lion's: the tables, the gardener rows request, the wait on the gardener line,
--- the read-back, then one spawn call 25 m ahead of EVE (12.5 m for the half-scale row) and 7.5 m above her feet (the
--- blueprint's unscaled capsule half-height plus 50 cm, so the capsule never starts underground), facing her, and the
--- lines that follow the body. Its skeleton faces +Y where SB's monsters face +X, so once found its mesh turns -90
+-- The flow is cut/enemies/enemy.lua's, as coop lion's: the tables, the gardener rows request, the wait on the gardener
+-- line, the read-back, then one spawn call 25 m ahead of EVE (12.5 m for the half-scale row) and 7.5 m above her feet
+-- (the blueprint's unscaled capsule half-height plus 50 cm, so the capsule never starts underground), facing her, and
+-- the lines that follow the body. Its skeleton faces +Y where SB's monsters face +X, so once found its mesh turns -90
 -- degrees about its root (and again if the game turns it back), which brings its front and the shells' socket to EVE.
 -- The entrance: as for the Lion, a clip on the real mesh would replace the anim instance SB plays its skills on, so
 -- coop gardener fight intro plays Mon_Gardener_C_Appear on a display copy first (coop gardener play in the viewer
 -- previews the other spawn clips), then spawns where the copy stands. No Hide or UnHide: no Show plays them.
-local Enemy=require('core.enemy')
+local Enemy=require('cut.enemies.enemy')
 local Gardener={}
 -- The only IDs the spawn call takes, with what each is.
 Gardener.IDS={[50010]='M_Gardener',[50011]='M_Gardener_Skulling',[50012]='M_Gardener_Half'}

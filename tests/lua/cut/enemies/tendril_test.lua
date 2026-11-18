@@ -1,8 +1,8 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- cut/enemies/tendril.lua (and the parts of core/enemy.lua the other specs never reach) with fake UE4SS objects. Its
--- 107 rows are R.TENDRIL (tests/lua/cut/enemies/lion_test.lua checks them against rows.h's kTendrilRecipe): 11
+-- cut/enemies/tendril.lua (and the parts of cut/enemies/enemy.lua the other specs never reach) with fake UE4SS objects.
+-- Its 107 rows are R.TENDRIL (tests/lua/cut/enemies/lion_test.lua checks them against rows.h's kTendrilRecipe): 11
 -- MeleeAttack skills, each whose first step plays the run-time Show of its name and turns it toward EVE, whose steps
 -- last as long as that Show's clip and whose Hit steps hit through areas of its own; its stance lists the 11 commands;
 -- its dead row plays the run-time death Show; its CharacterTable row names its stance, dead, appearance and the
@@ -53,7 +53,7 @@ end
 local player,pc
 package.loaded.UEHelpers={GetPlayer=function() return player end,GetPlayerController=function() return pc end}
 local T=require('cut.enemies.tendril')
-local Enemy=require('core.enemy')
+local Enemy=require('cut.enemies.enemy')
 
 -- The rows: 107, the counts the tendril line gives once they are in, and what they hold.
 assert(#T.ROWS==107 and T.IN.added=='107/107' and T.IN.char=='1/1' and T.IN.skills=='11/11' and T.IN.stance=='1/1')
@@ -429,8 +429,8 @@ assert(last()=='coop off: the search for its body ended',last())
 at(406); assert(td3.tick()==nil and #calls==2,'Nothing after coop off')
 
 -- The source names no spawn, destroy, save, quest, item, reward, achievement, possession, console, object walk or row
--- call of its own: its one spawn call and controller are core/enemy.lua's (lion_test counts those), and its object
--- calls are the Shows' and their package's (StaticConstructObject, StaticFindObject).
+-- call of its own: its one spawn call and controller are cut/enemies/enemy.lua's (lion_test counts those), and its
+-- object calls are the Shows' and their package's (StaticConstructObject, StaticFindObject).
 do
     local f=assert(io.open('mod/StellarCoop/Scripts/cut/enemies/tendril.lua','rb'))
     local src=f:read('a')

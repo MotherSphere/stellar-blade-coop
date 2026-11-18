@@ -34,7 +34,9 @@ end
 load_main(true)
 assert(logged('bike: on, bike_key F3'),table.concat(printed,'|'))
 local o=bk.o
-assert(o.store=='store coop-bike.txt' and o.drive.name=='drive' and o.settings.bike==true)
+assert(o.store=='store coop-bike.txt' and o.drive.name=='bike drive' and o.settings.bike==true)
+assert(o.drove()==false and bdv.o.store=='store coop-drive.txt' and bdv.o.settings==o.settings,
+    'Its own drive: coop-drive.txt through the link, the drift keys; the races\' drive read through drove')
 -- The parked bike's path for the next Lua load (swept after a Ctrl+R).
 assert(o.stand_store=='store coop-bike-stand.txt',tostring(o.stand_store))
 -- The parked bike's words: the menu's, a notice in them and in English, the travel worlds for a map's name.

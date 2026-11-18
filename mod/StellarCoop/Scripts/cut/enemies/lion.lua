@@ -14,12 +14,12 @@
 -- the Shock Bolt (lion/shock.h, the status's shock line). The Night Operation shop's 6 rows (the Beta Seed's item,
 -- three shop items and two shops) are a sixth batch, the shop rows batch, which coop nightop shop asks for before it
 -- opens SB's shop screen, with the other two.
--- The flow is core/enemy.lua's, which coop gardener fight shares: the tables, the lion rows request, the wait on the
--- lion line, the read-back, the one spawn call (10 m ahead of EVE and 1 m up, facing her) and the lines that follow
+-- The flow is cut/enemies/enemy.lua's, which coop gardener fight shares: the tables, the lion rows request, the wait on
+-- the lion line, the read-back, the one spawn call (10 m ahead of EVE and 1 m up, facing her) and the lines that follow
 -- the body. This file holds the Lion's spec and its own parts. The IDs: 50020 (M_LionC, the Skulling test tree), 50021
 -- after coop lion brain lurker (M_LionC_Lurker, the Lesser Lurker tree), or for coop lion control 50110 (M_Antlion, a
 -- shipped Naytiba, which tells a broken call from broken rows), its body the nearest new SB character. While a Lion
--- lives, core/enemy.lua sets the boss bar's name, which the game shows as <M_LionC> (no Lion text in
+-- lives, cut/enemies/enemy.lua sets the boss bar's name, which the game shows as <M_LionC> (no Lion text in
 -- CharacterStringTable), to Lion. coop lion unfreeze puts the mesh's engine switches back to their running values
 -- on each living Lion (the test of a body whose pose stays on frame 1); a body whose mesh has no anim instance runs the
 -- Lion's AnimBP on a hidden Behemoth mesh that the Lion's mesh copies (LEADER_MESH says why), or a single-node stand-in
@@ -30,7 +30,7 @@
 -- copy with the Large mesh, then spawns the Lion where the copy's root ended.
 local U=require('core.unreal')
 local Doro=require('core.actors')
-local Enemy=require('core.enemy')
+local Enemy=require('cut.enemies.enemy')
 local valid,value_of,why=U.valid,U.value_of,Enemy.why
 local Lion={}
 Lion.TABLES=Enemy.TABLES -- The native part's 39 tables, in its order (link/protocol.h's kLionTables).
@@ -67,7 +67,7 @@ local ANIM_CLASSES={
     {name='CH_M_NA_46_AnimBP_C',class=BEHEMOTH..'CH_M_NA_46_AnimBP.CH_M_NA_46_AnimBP_C',
         package=BEHEMOTH..'CH_M_NA_46_AnimBP.CH_M_NA_46_AnimBP'}}
 -- The boss bar's name: the text the game shows for the Lion (its row name, as CharacterStringTable has no Lion text),
--- and ours (core/enemy.lua writes it).
+-- and ours (cut/enemies/enemy.lua writes it).
 local BOSS_SHOWN,BOSS_NAME='^<M_LionC[%w_]*>$','Lion'
 
 -- The rows as the native part writes them: core/lion_rows.lua's R.ROWS, which the generator of lion/rows.h writes from
@@ -89,7 +89,7 @@ function Lion.new(o)
     local log=o.log
     local self={}
     local brain=BRAINS.skulling
-    local e -- core/enemy.lua's, made below with the hooks that use it.
+    local e -- cut/enemies/enemy.lua's, made below with the hooks that use it.
     -- A mesh with no anim instance gets one: with its own anim class, then each of ANIM_CLASSES (found by path, its
     -- package loaded first when it is not yet), the class written into AnimClass, then SetAnimationMode 1 and 0, until
     -- the mesh has an instance. Returns what each try gave, as words (an error's first line only).
@@ -296,9 +296,9 @@ function Lion.new(o)
         return true,string.format('unfreeze on %d Lion%s: see its mesh and hand moved lines ([LI] lines).',n,
             n>1 and 's' or '')
     end
-    -- Lion.rows, for the Night Operation shop's cut items (nightop/shop.lua) and coop chainspin: core/enemy.lua's rows
-    -- with the lion rows batch, with word bolt the bolt rows batch (the shop's Shock Bolt: a buy of it, and the shop's
-    -- screen), with word shop the shop rows batch (the shop's screen only).
+    -- Lion.rows, for the Night Operation shop's cut items (nightop/shop.lua) and coop chainspin:
+    -- cut/enemies/enemy.lua's rows with the lion rows batch, with word bolt the bolt rows batch (the shop's Shock Bolt:
+    -- a buy of it, and the shop's screen), with word shop the shop rows batch (the shop's screen only).
     function self.rows(done,word) return (word=='bolt' and bolt or word=='shop' and shop or e).rows(done,brain) end
     -- A Lion body the game spawned from a spawn row (matrix13/world/boss.lua, Matrix XIII's DLC02_40_E_CharS_051): the
     -- fix a body of ours gets in follow, once, when its mesh has no anim instance (its own class again, then the

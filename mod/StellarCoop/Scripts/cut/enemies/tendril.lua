@@ -17,16 +17,16 @@
 -- anim key (not the template's), the clip and lengths as set, and found by the path its steps name. A Lua reload finds
 -- the package and the Shows already built and sets them again. Once a second while a Tendril lives, a Show the game
 -- collected is built again.
--- The flow is core/enemy.lua's, as coop lion's: the tables, the tendril rows request, the wait on the tendril line, the
--- read-back, the Shows, then one spawn call 8 m ahead of EVE and 1 m above her middle, facing her, and the lines that
--- follow the body. Once found, its mesh turns to yaw 0: its skeleton faces +X (its head in front of its pelvis, a
--- planted foot sliding toward -X in its Walk clip), and its blueprint turns the mesh -90 degrees as for a skeleton
--- facing +Y, so it would show its side. Its mesh takes the Hydra's tentacle material, as coop tendril skin hydra does
--- in the viewer. The boss bar shows <M_TendrilC> (no Tendril text in CharacterStringTable): core/enemy.lua writes
--- Tendril there. No entrance: none of its clips is one.
+-- The flow is cut/enemies/enemy.lua's, as coop lion's: the tables, the tendril rows request, the wait on the tendril
+-- line, the read-back, the Shows, then one spawn call 8 m ahead of EVE and 1 m above her middle, facing her, and the
+-- lines that follow the body. Once found, its mesh turns to yaw 0: its skeleton faces +X (its head in front of its
+-- pelvis, a planted foot sliding toward -X in its Walk clip), and its blueprint turns the mesh -90 degrees as for a
+-- skeleton facing +Y, so it would show its side. Its mesh takes the Hydra's tentacle material, as coop tendril skin
+-- hydra does in the viewer. The boss bar shows <M_TendrilC> (no Tendril text in CharacterStringTable):
+-- cut/enemies/enemy.lua writes Tendril there. No entrance: none of its clips is one.
 local U=require('core.unreal')
 local Doro=require('core.actors')
-local Enemy=require('core.enemy')
+local Enemy=require('cut.enemies.enemy')
 local valid,value_of,text,why=U.valid,U.value_of,U.text,Enemy.why
 local Tendril={}
 -- The only ID the spawn call takes, with what it is.
@@ -117,7 +117,7 @@ function Tendril.new(o)
         end
         return made,kept
     end
-    -- core/enemy.lua's prepare: every Show ready before the spawn.
+    -- cut/enemies/enemy.lua's prepare: every Show ready before the spawn.
     local function prepare()
         local made,kept=ready()
         log(string.format('shows: %d/%d ready (%d made, %d found built), each with its own anim key on its clip and '

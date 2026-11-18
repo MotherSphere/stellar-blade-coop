@@ -541,7 +541,13 @@ end}
 dv={restores=0}
 package.loaded['race.drive']={new=function(o)
     dv.o=o
-    return {name='drive',restore=function() dv.restores=dv.restores+1 end}
+    return {name='drive',restore=function() dv.restores=dv.restores+1 end,active=function() return dv.active==true end}
+end}
+-- The bike's driving (bike/drive.lua, its own copy of race/drive.lua; bike/drive_test tests it): what drive.new got.
+bdv={}
+package.loaded['bike.drive']={new=function(o)
+    bdv.o=o
+    return {name='bike drive'}
 end}
 -- The bike (bike/ride.lua; bike/ride_test tests it): what new got (o), the why of each toggle and stop, its steers,
 -- slows and restores, its tunes; whether she rides, what a toggle answers (answer: ok and a line; raise: an error),

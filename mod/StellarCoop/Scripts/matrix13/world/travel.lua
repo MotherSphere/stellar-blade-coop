@@ -119,8 +119,8 @@ Mxiii.BATCHES={
     {word='mxupper',name='Matrix XIII zones 0 to 2 mechanism',rows=Enemy.rows(Rows.MXUPPER)},
     {word='mxmiddle',name='Matrix XIII zone 3 mechanism',rows=Enemy.rows(Rows.MXMIDDLE)},
     {word='mxlower',name='Matrix XIII zone 4 mechanism',rows=Enemy.rows(Rows.MXLOWER)},
-    {word='lion',name='Lion',rows=require('cut.enemies.lion').ROWS},
-    {word='gardener',name='Gardener',rows=require('cut.enemies.gardener').ROWS},
+    {word='lion',name='Lion',rows=Enemy.rows(require('core.lion_rows').ROWS)},
+    {word='gardener',name='Gardener',rows=Enemy.rows(require('core.lion_rows').GARDENER)},
     {word='mxlily',name='Lily at the Matrix XIII Tetrapod',rows=Enemy.rows(Rows.MXLILY),optional=true},
     {word='mxnames',name='Matrix XIII camp names',rows=Enemy.rows(Rows.MXNAMES),optional=true,ready=function(status)
         local s=Enemy.parse(status,'camptext')

@@ -27,9 +27,10 @@ ADD_ROWS = {'nightop/probe.lua': 1}
 # coop nightop's one CreateActor (its spawn choke point), the shop's one ItemBucketItemAdd (its grant choke point, in
 # core/items.lua) and the Beta Seeds' ItemBucketItemAdd and ItemBucketItemRemove (the shop screen's one seed choke
 # point), and the friend's revive's ActorRespawn and ActorRevival on our own EVE (one call each, their log lines, the
-# probe's answer and the header). coop lion, coop gardener fight and coop tendril fight: core/enemy.lua's one
+# probe's answer and the header). coop lion, coop gardener fight and coop tendril fight: cut/enemies/enemy.lua's one
 # CreateActor (their spawn choke point) and its header, which also names SB's AddRow (the native part calls it) and
-# UE4SS's (never called); cut/enemies/lion.lua's header names SB's AddRow. coop scene: its guarded call (kind 6, its two
+# UE4SS's (never called); core/enemy.lua, which the row batches keep, holds the same lines.
+# cut/enemies/lion.lua's header names SB's AddRow. coop scene: its guarded call (kind 6, its two
 # theater rows only), its header, its three log lines and one refusal. coop mxiii boss: its guarded call (kind 10, the
 # Lion's three lever rows only, on the fallback Lion's death) and its header. coop chainspin: its header. The one Cheat
 # request (SBApplyEffectMe on our EVE, its choke point, in core/effect.lua) applies the ChainSpin's effect or one of
@@ -40,11 +41,12 @@ ADD_ROWS = {'nightop/probe.lua': 1}
 RATIONED = {'MultiplayTest_ZoneE_059': {'nightop/recruiter.lua': 1},
             'CreateSBZoneEvent': {'nightop/probe.lua': 3, 'nightop/recruiter.lua': 4, 'cut/scenes/scene.lua': 6,
                                   'matrix13/world/boss.lua': 2},
-            'AddRow': {'nightop/probe.lua': 3, 'core/enemy.lua': 2, 'cut/enemies/lion.lua': 1},
+            'AddRow': {'nightop/probe.lua': 3, 'core/enemy.lua': 2, 'cut/enemies/enemy.lua': 2,
+                       'cut/enemies/lion.lua': 1},
             'ServerRequest_': {'nightop/probe.lua': 10, 'nightop/run.lua': 1, 'nightop/shop.lua': 2,
                                'core/items.lua': 1, 'group/group.lua': 7, 'core/enemy.lua': 2,
-                               'cut/eve/chainspin.lua': 1, 'core/effect.lua': 1, 'cut/menus/mailbox.lua': 2,
-                               'bike/fetch.lua': 1}}
+                               'cut/enemies/enemy.lua': 2, 'cut/eve/chainspin.lua': 1, 'core/effect.lua': 1,
+                               'cut/menus/mailbox.lua': 2, 'bike/fetch.lua': 1}}
 
 # Calls are matched with every string literal turned into '', so log prose such as 'heal: CreateSBZoneEvent(2, ...)' is
 # not one. Lua allows space after the ':' and a string or table argument without '(': obj: f(x), obj:f'x', obj:f{}.
@@ -177,6 +179,8 @@ CLEAN = {N: NIGHTOP, R: RECRUITER, NR: RUN, GR: GROUP, NS: SHOP, LI: LION, EN: E
          H: 'get(api.create_lobby, "SteamAPI_ISteamMatchmaking_CreateLobby");\n', W: 'int main() { return 0; }\n',
          SH: SEQ_CONST, SG: SEQ_CALL, WG: WORLD_CALL,
          IT: padded('core/items.lua', ''), EF: padded('core/effect.lua', '')}
+CE = f'{SCRIPTS}/cut/enemies/enemy.lua'
+CLEAN[CE] = padded('cut/enemies/enemy.lua', '')  # cut.enemies' copy of core/enemy.lua (November 2026).
 assert scan_of(CLEAN) == [], scan_of(CLEAN)  # A blank line in zone_event and Steam's Matchmaking are fine.
 PHOTO = f'{PAUSE}\n    {CONSOLE}\n'
 assert scan_of({**CLEAN, M: PHOTO}) == [], scan_of({**CLEAN, M: PHOTO})

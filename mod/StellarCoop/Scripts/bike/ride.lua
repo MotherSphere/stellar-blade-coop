@@ -14,7 +14,7 @@
 -- would take one of the ghost's 16 parts.
 -- A mount (self.toggle) checks EVE first and refuses with its reason; then, in this order: coop-bike.txt (her object
 -- path, her main mesh's relative rotation and location, or those of a file this Lua load kept for her),
--- race/drive.lua's drive with bike/model.lua (why 'bike'), "bike gate on" (SB's actions off on her controller, Jump
+-- bike/drive.lua's drive with bike/model.lua (why 'bike'), "bike gate on" (SB's actions off on her controller, Jump
 -- left on), "anim play <id> <clip> ride" (the riding clip looped, her foot IK off) and the part shown. A dismount runs
 -- it backward: the part hidden, "anim stop", "bike gate off", the drive off, her mesh's rotation and location back, the
 -- file cleared. A dismount comes from the key, the pad, coop bike, coop off, bike=off, a new EVE, a check every 250 ms
@@ -50,7 +50,7 @@
 -- again when SB ended it, unless the photo mode, a skill or a root-motion move holds her; three ends within 1 s take
 -- her off the bike (SB uses the slot).
 -- What it writes on the player's own EVE: the part, her main mesh's relative rotation (and its location back at the
--- end), what race/drive.lua writes; through the native part SB's per-action switches and the custom animation slot.
+-- end), what bike/drive.lua writes; through the native part SB's per-action switches and the custom animation slot.
 -- Parts of this file adapt Eve On Wheels 1.2.1 by dCharisma1 (nexusmods.com/stellarblade/mods/4165), used with his
 -- written consent given on 2026-11-16. They are licensed here under the SBO License 1.0 or any later version the
 -- Licensor publishes (NOTICE). No file of Eve On Wheels ships with Stellar Blade Online.
@@ -162,7 +162,7 @@ end
 
 -- o: log (the [BK] lines); ask(line) (a native request: ok and its line); status() (the native status text); store
 -- (coop-bike.txt through link.store); stand_store (coop-bike-stand.txt, her parked bike's path); drive
--- (race/drive.lua's); settings (main.lua's: bike, false for off); paused() (the game paused or on one of its screens);
+-- (bike/drive.lua's); settings (main.lua's: bike, false for off); paused() (the game paused or on one of its screens);
 -- photo() ('0', '1' in photo mode, 's' in the selfie mode); frozen() (the partner's photo mode holds our game); life()
 -- (link.life's {state}, or nil; only the fallback for the status line's bike_life=, since it reads only in a session);
 -- armed() (race/run.lua's: a race is armed here; nil when there is none); busy() (why SBO's own state forbids a mount:
@@ -497,7 +497,7 @@ function Ride.new(o)
     end
     -- The SBO and native refusals that come after EVE's own checks.
     local function busy()
-        if drive.active() then return 'a race or the drive probe drives EVE' end
+        if drive.active() or o.drove and o.drove() then return 'a race or the drive probe drives EVE' end
         -- At GO the race's drive would replace the bike's.
         if o.armed and o.armed() then return 'a race is armed: coop race quit leaves it' end
         return o.busy and o.busy() or nil
@@ -811,10 +811,12 @@ function Ride.new(o)
     -- bike=off removes it with no bike= word read. Then an earlier load's coop-bike.txt (it left EVE on the bike) puts
     -- her main mesh's rotation and location back on that EVE if she still is one and hides the bike part, then the file
     -- is cleared unless that mesh write failed; once her mesh is back the bike parks where she stands when her floor
-    -- counts. Its drive comes back through coop-drive.txt (race/drive.lua's restore).
+    -- counts. Its drive comes back first, through coop-drive.txt (its own bike/drive.lua's restore).
     function self.restore()
         if restored then return end
         restored=true
+        local back,back_why=pcall(drive.restore)
+        if not back then log('bike drive not restored: '..why_of(back_why)) end
         local stand=stand_store.load()
         if stand then
             local swept,why=pcall(Stand.sweep,stand,Ride.MESH)

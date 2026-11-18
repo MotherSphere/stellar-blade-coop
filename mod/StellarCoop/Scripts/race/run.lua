@@ -78,8 +78,8 @@ local why_of=U.why
 -- (a Night Operation run is on), slot() (true on a co-op save, else false and why), paused() (the game paused or on one
 -- of its screens, read every 250 ms), settings (main.lua's: race_key, ui_language), store (coop-race-doros.txt
 -- through link.store; nil without the native part) and dismount(why) (bike/ride.lua's stop: EVE off the bike, which
--- also ends its drive). A bike drive is the ride's: no race starts during it; the guest's answer to a track line takes
--- her off the bike first; neither the race's steer and 250 ms check nor coop off here touch it.
+-- also ends its drive), riding() (whether EVE rides the bike, which drives with its own copy of race/drive.lua). No
+-- race starts while she rides; the guest's answer to a track line takes her off the bike first.
 function Race.new(o)
     local log,link,puppet,look,tell,drive=o.log,o.link,o.puppet,o.look,o.tell,o.drive
     local store=o.store or {save=function() end,load=function() end,clear=function() end}
@@ -458,7 +458,9 @@ function Race.new(o)
         local others=link.crowd()
         if others>1 then return false,'Doro races are for 2 players at most; this session has '..(others+1) end
         if o.night() then return false,'Night Operation is running: coop nightop stop ends it' end
-        if drive.why()=='bike' then return false,'EVE rides the bike: coop bike gets her off first' end
+        if drive.why()=='bike' or o.riding and o.riding() then
+            return false,'EVE rides the bike: coop bike gets her off first'
+        end
         if drive.active() then return false,'the drive probe runs: coop race drive off ends it' end
         local e=eve()
         if not e then return false,'no EVE in the world' end
@@ -593,7 +595,7 @@ function Race.new(o)
             return tell(function(w) return w.race.declined.save:format(her_name(w)) end)
         end
         -- Her movement whole until GO: off the bike, or the probe off and the look out of its driving.
-        if drive.why()=='bike' then o.dismount('the host started a race')
+        if drive.why()=='bike' or o.riding and o.riding() then o.dismount('the host started a race')
         elseif drive.active() then
             log(drive.off('the host started a race'))
             pcall(look.drive,nil)

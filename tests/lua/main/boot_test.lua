@@ -204,6 +204,7 @@ assert(ra.o.store=='store coop-race-doros.txt','coop-race-doros.txt through the 
 assert(ra.o.drive.name=='drive' and dv.o.log==dr.log and dv.o.store=='store coop-drive.txt'
     and dv.o.settings.drift_keys[1]=='Gamepad_RightTrigger',
     'The driving: [DR] lines, coop-drive.txt through the link, the drift keys')
+assert(dv.o.riding==ra.o.riding and not ra.o.riding(),'The race and its drive read whether EVE rides')
 -- coop race drive reaches race/run.lua on any slot; its probe on a co-op save only.
 coop('race','drive','top','2600')
 assert(ra.cmds[#ra.cmds][1]=='drive' and ra.cmds[#ra.cmds][2]=='top' and ra.cmds[#ra.cmds][3]=='2600')

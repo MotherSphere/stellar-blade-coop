@@ -1,16 +1,17 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- cut/enemies/gardener.lua (and the parts of core/enemy.lua the Lion's spec never reaches) with fake UE4SS objects. Its
--- 13 rows are R.GARDENER (tests/lua/cut/enemies/lion_test.lua checks them against rows.h's kGardenerRecipe):
--- ToxicBeam's steps last its Show's 5.4 s, its three skills are MeleeAttack, its stance never moves, its CharacterTable
--- rows name its own dead, appearance and detect rows, its trees and scales. The gardener line parses apart from the
--- lion line. coop gardener fight asks "gardener rows" with its 5 addresses, reads the 13 rows back (the first value
--- that differs stops before the spawn), then makes the one spawn call for 50010 (50012 with half, 50011 with skulling)
--- 25 m ahead of EVE (12.5 m for half) and 7.5 m above her feet, facing her, cheat on, key 0. The body's mesh turns -90
--- degrees once found (S3), and again when the game turns it back; it is followed until its death and despawn. intro
--- plays Mon_Gardener_C_Appear on a display copy of its mesh turned the same way. Usage, busy and coop off as coop
--- lion's; the source names no spawn, destroy, save or row call of its own, and no engine call comes from a coroutine.
+-- cut/enemies/gardener.lua (and the parts of cut/enemies/enemy.lua the Lion's spec never reaches) with fake UE4SS
+-- objects. Its 13 rows are R.GARDENER (tests/lua/cut/enemies/lion_test.lua checks them against rows.h's
+-- kGardenerRecipe): ToxicBeam's steps last its Show's 5.4 s, its three skills are MeleeAttack, its stance never moves,
+-- its CharacterTable rows name its own dead, appearance and detect rows, its trees and scales. The gardener line parses
+-- apart from the lion line. coop gardener fight asks "gardener rows" with its 5 addresses, reads the 13 rows back (the
+-- first value that differs stops before the spawn), then makes the one spawn call for 50010 (50012 with half, 50011
+-- with skulling) 25 m ahead of EVE (12.5 m for half) and 7.5 m above her feet, facing her, cheat on, key 0. The body's
+-- mesh turns -90 degrees once found (S3), and again when the game turns it back; it is followed until its death and
+-- despawn. intro plays Mon_Gardener_C_Appear on a display copy of its mesh turned the same way. Usage, busy and coop
+-- off as coop lion's; the source names no spawn, destroy, save or row call of its own, and no engine call comes from a
+-- coroutine.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -43,7 +44,7 @@ end
 local player,pc
 package.loaded.UEHelpers={GetPlayer=function() return player end,GetPlayerController=function() return pc end}
 local G=require('cut.enemies.gardener')
-local Enemy=require('core.enemy')
+local Enemy=require('cut.enemies.enemy')
 
 -- The rows: 13, the counts the gardener line gives once they are in, and what they hold.
 assert(#G.ROWS==13 and G.IN.added=='13/13' and G.IN.char=='3/3' and G.IN.skills=='3/3' and G.IN.stance=='1/1')
@@ -383,7 +384,7 @@ assert(copy.destroyed and last()=='coop off: the entrance ended; 3 Gardener bodi
 at(616); assert(gd.tick()==nil and #calls==4,'Nothing after coop off')
 
 -- The source names no spawn, destroy, save, quest, item, reward, achievement, possession, console or row call of its
--- own: its one spawn call and controller are core/enemy.lua's (lion_test counts those).
+-- own: its one spawn call and controller are cut/enemies/enemy.lua's (lion_test counts those).
 do
     local f=assert(io.open('mod/StellarCoop/Scripts/cut/enemies/gardener.lua','rb'))
     local src=f:read('a')

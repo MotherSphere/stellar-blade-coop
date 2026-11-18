@@ -1,9 +1,10 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The bike's riding without a game call: dCharisma1's motorcycle model from Eve On Wheels in race/drive_model.lua's
--- table shape, so race/drive.lua can feed it the same input (EVE's stick, the drift keys and her velocity) and gives her
--- what it returns (a velocity or a launch, then her yaw). tests/lua/bike/model_test.lua covers it with lua5.4 alone.
+-- The bike's riding without a game call: dCharisma1's motorcycle model from Eve On Wheels in bike/drive_model.lua's
+-- table shape, so bike/drive.lua can feed it the same input (EVE's stick, the drift keys and her velocity) and gives
+-- her what it returns (a velocity or a launch, then her yaw). tests/lua/bike/model_test.lua covers it with lua5.4
+-- alone.
 -- The model keeps one signed speed along a path (the track) and a nose (the heading) apart from it. The nose turns by
 -- a bicycle yaw rate that the lateral grip caps. On grip the path is the nose; in a slide (the drift key) the path
 -- follows the nose slowly, at most 42 degrees behind. The velocity returned runs along the path and her yaw is the
@@ -196,7 +197,7 @@ local function tilt(s,track_rate,vz,vmag,dt)
     s.pitch=s.pitch+(pitch-s.pitch)*math.min(PITCH_RATE*dt,1)
 end
 
--- One frame. s is the caller's table, kept for the ride. input as race/drive_model.lua's step takes it: stick {x, y}
+-- One frame. s is the caller's table, kept for the ride. input as bike/drive_model.lua's step takes it: stick {x, y}
 -- (world, length 1 at most: GetLastMovementInputVector), drift (the drift key held: his handbrake), v {x, y, z} (her
 -- velocity read back; z from her height between frames), falling, root (root motion or a game move holds her) and yaw
 -- (her actor's, degrees). P: B.values'. dt in seconds. Returns {heading (the nose, degrees; nil: write no yaw), vx, vy

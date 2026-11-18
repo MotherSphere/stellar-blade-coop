@@ -272,34 +272,17 @@ ok,message=d.command('off')
 assert(not ok and message=='a race drives: coop race quit leaves it')
 d.off('done')
 
--- 9. The bike (bike/ride.lua): its own model per drive, why 'bike'. The log lists the bike's four values; each frame
--- bike/model.lua's step drives her and the look carries its lean and pitch; every 10 s the line adds them with the
--- stick and SB's raw axes. coop race drive probe and off wait while she rides; the race's model is untouched.
-local B=require('bike.model')
-eve.LastMoveFowardInput,eve.LastMoveRightInput=0.75,-0.25
-eve.yaw,eve.velocity,eve.stick=0,{X=0,Y=0,Z=0},{X=1,Y=0,Z=0}
-assert(d.why()==nil)
-assert(d.on(B.DEFAULTS,'bike',B) and d.active() and not d.racing() and d.why()=='bike')
-assert(logs[#logs]:find('kept; top=2306 accel=1150 brake_hardness=48 turn_angle=36$'),logs[#logs])
-d.tick()
-eve.time,eve.velocity=eve.time+1,{X=500,Y=0,Z=0}
-local fed=#eve.impulses
-look=d.tick()
-assert(look.top==2306 and look.lean==0 and look.pitch==0,'Straight ahead: no lean')
-assert(#eve.impulses==fed+1 and eve.impulses[fed+1].X>0,'The bike model\'s speed fed as an impulse')
-assert(logs[#logs]:find(' lean=0%.0 pitch=0%.0 stick=1%.00,0%.00 raw=0%.75,%-0%.25$'),logs[#logs])
-eve.time,eve.stick=eve.time+0.1,{X=0.5,Y=0.86,Z=0}
-for _=1,10 do
-    eve.time=eve.time+1/60
-    look=d.tick()
-end
-assert(look.lean>0,'A right turn (the yaw growing) leans right: '..tostring(look.lean))
-for _,word in ipairs({'probe','off'}) do
-    ok,message=d.command(word)
-    assert(not ok and message=='EVE rides the bike: coop bike gets her off first' and d.why()=='bike')
-end
-assert(d.values().top==2600,'The race values stay the races\'')
-assert(d.off('bike coop bike'):find('^drive off %(bike coop bike%)') and d.why()==nil)
+-- 9. While EVE rides the bike (its own copy of this drive since November 2026, riding()), coop race drive probe
+-- and its off wait.
+local riding=true
+local r9=Drive.new({log=log,store=store,settings=settings,riding=function() return riding end})
+ok,message=r9.command('probe')
+assert(not ok and message=='EVE rides the bike: coop bike gets her off first',message)
+ok,message=r9.command('off')
+assert(not ok and message=='EVE rides the bike: coop bike gets her off first',message)
+riding=false
+ok,message=r9.command('off')
+assert(not ok and message=='no drive probe runs',message)
 
 -- 10. One speed line every 10 s, not every second (players post UE4SS.log in public): 12 s at 60 fps give two.
 assert(d.on(M.DEFAULTS,'race'))
