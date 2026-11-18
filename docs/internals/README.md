@@ -1,7 +1,7 @@
 # How Stellar Blade Online works
 
 Each internals topic has its own page in `docs/internals/`: how the code does what the player pages describe, for anyone
-who reads or changes the code. The commands are in [usage.md](../usage.md), and the code layout in
+who reads or changes the code. The commands are in [usage.md](../usage.md). The code layout is in
 [dev/building.md](../dev/building.md#repository-layout).
 
 Code comments still cite sections of this page by name, for example `native/src/lion/mxiii_rows.h` and
@@ -30,7 +30,7 @@ state and how the game reuses Lion bodies, which is in [internals/cut-enemies.md
 | [night-operation-shop.md](night-operation-shop.md) | The shop screen (its rows, the opener, the wallet), Roxanne's choices, the cut stimpacks, the cut Shock Bolt |
 | [matrix-xiii.md](matrix-xiii.md) | The cut dungeon's rows and event spawns, the command, the arrival, Lily's menu, the camps, the save, the title, its world rows, the records |
 | [lily-signal.md](lily-signal.md) | The rows, quests and talks of Lily's signal |
-| [safety.md](safety.md) | Which kills and achievements count for each player, and the safety design |
+| [safety.md](safety.md) | Which kills and achievements count for each player; the safety design |
 
 ## Where each section went
 
