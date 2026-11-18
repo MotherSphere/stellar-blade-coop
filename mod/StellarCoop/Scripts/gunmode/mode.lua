@@ -460,12 +460,16 @@ function GunMode.new(env)
             -- Held for Luke's aim: the aim key itself, not the game's aim stance, which drops for a frame now and
             -- then (each shot's skill, a jump) and made his arms jerk between carry and aim (11:39). Off the stance (a
             -- jump, a camp) his own turn to the camera keeps her facing the shot.
-            s.rifle=stance.start(pc,function() return s.zoom_held or (s.on and s.key_held==true) end,function() return s.target end,
+            -- With the animation pak her real body is shown while aiming, so held follows the game's aim stance
+            -- (bridging its one-frame drops on shots: seen in the last 0.4 s with the key still down).
+            s.rifle=stance.start(pc,function()
+                    if s.pak then return s.zoom_held or (s.key_held==true and s.aim_seen~=nil and os.clock()-s.aim_seen<0.4) end
+                    return s.zoom_held or (s.on and s.key_held==true) end,function() return s.target end,
                 function() return s.air_aim==true or (s.key_held==true and not s.tps) end,
                 -- With the animation pak her body under the posed copy is the pak's rifle stance (upright, strafing),
                 -- so Luke's own aim runs on it unchanged: his arms from her chest, turned to the camera, the rifle
                 -- squared on the camera's line (the user's call, 11:32: Luke's aim is the look to keep).
-                0,false,false,set.native and set.upper and not s.pak,set.native and not set.upper and not s.pak)
+                0,false,false,set.native and (set.upper or s.pak),set.native and not set.upper and not s.pak)
         end)
         if not ok then
             if s.mask then pcall(s.mask); s.mask=nil end
