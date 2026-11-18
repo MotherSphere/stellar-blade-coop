@@ -1,8 +1,8 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// EVE's cut Shock Bolt ammo made usable once its rows are in (rows/rows.h's bolt rows batch: ItemTable Bullet_Shock,
-// SkillTable P_Eve_Gun_ShootShockSlug1_1, its projectile and its hit result), free of Windows:
+// EVE's cut Shock Bolt ammo made usable once its rows are in (eve/bolt_rows.h's bolt rows batch: ItemTable
+// Bullet_Shock, SkillTable P_Eve_Gun_ShootShockSlug1_1, its projectile and its hit result), free of Windows:
 // tests/native/rows/shock_test.cpp checks it on the build machine against fake memory. What the rows cannot do is make
 // the ammo selectable and the gun fire it. Two of SB's lists do that, and each is grown in place, never through AddRow:
 //

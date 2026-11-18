@@ -2,8 +2,8 @@
 # Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 # SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-"""Writes Matrix XIII's rows from data/mxiii-world.json: native/src/rows/mxiii_rows.h (the batches' recipes and patches
-for rows/rows.h) and mod/StellarCoop/Scripts/world/maps/matrix13/level/rows.lua (the same rows for
+"""Writes Matrix XIII's rows from data/mxiii-world.json: native/src/world/maps/matrix13/mxiii_rows.h (the batches'
+recipes and patches for rows/rows.h) and mod/StellarCoop/Scripts/world/maps/matrix13/level/rows.lua (the same rows for
 world/maps/matrix13/level/travel.lua's read-back, the ladders and ledges world/maps/matrix13/level/move.lua spawns, the
 boxes and barrels world/maps/matrix13/level/breakables.lua spawns, the boss points world/maps/matrix13/level/boss.lua
 watches).
@@ -16,11 +16,12 @@ rows/rows.h and the check kind of core/enemy.lua's read-back.
 """
 import json
 import sys
+import textwrap
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / 'data/mxiii-world.json'
-HEADER = ROOT / 'native/src/rows/mxiii_rows.h'
+HEADER = ROOT / 'native/src/world/maps/matrix13/mxiii_rows.h'
 LUA = ROOT / 'mod/StellarCoop/Scripts/world/maps/matrix13/level/rows.lua'
 
 # The license header both written files start with, after the comment mark.
@@ -154,15 +155,88 @@ def check(data):
         assert m['alias'] in want and ('delay' in m) == (m['cls'] == 'barrel'), m['key']
 
 
+# The header's head after the generated line, a paragraph a string ('' a blank comment line): what the batches
+# hold.
+HEAD = [
+    ("Matrix XIII's batches (coop mxiii, world/maps/matrix13/level/travel.lua): each row a copy of its "
+     'donor (a shipped row; donor equal to name: that row patched in place) with the fields below. '
+     'docs/internals/README.md, "Matrix XIII\'s world rows", says what each batch holds.'),
+    '',
+    ("The mxiii batch (kMxiiiRecipe, with its own patches) holds the 8 rows the cut dungeon's first zone "
+     'lacks for a camp of its own (coop mxiii, world/maps/matrix13/level/travel.lua): ZoneCampTable '
+     'DLC02_10_Camp_01 (280001, a copy of ME01_Camp_03 that the camp list shows once activated) and 7 '
+     'ZoneEnvSpawnTable rows in Zone_DLC02_10 whose TargetCamp names that camp (2800032900 to 2800032906, '
+     "copies of the DLC02_10 camp kit's rows 420 to 426): DLC02_10_EnvS_900 leads SB's camp travel there, "
+     "and the camp's 7 rows bind by name the kit the test pak places in its MXIII_Camps_A level, in the "
+     'two zone tables only it writes. Then 2 rows give zone 30 a camp with no kit (coop mxiii 30): '
+     'ZoneCampTable DLC02_30_Camp_01 (281001, a copy of ME03_Camp_03) and DLC02_30_EnvS_900 (2810032900, '
+     "DLC02_10_EnvS_900's recipe in Zone_DLC02_30). After them it patches 5 shipped ZoneTriggerTable rows "
+     'in place, the table only it reads, so the zone 20 waves and the zone 40 chains of spawns fire '
+     "without the dungeon's own props."),
+    '',
+    ('Nine batches, each its own ask so a refusal in one never stops another: mxrecords (last), mxiii, '
+     "mxspawn, mxenv, mxupper, mxmiddle, mxlower, mxlily (Lily's menu in this world: three IsInWorld "
+     'conditions and three groups of her Tetrapod graph, shipped rows patched in place) and mxnames (the '
+     "camps' display keys, patched last in place on the mxiii batch's own rows, and only once "
+     "game/camp_text.h's entries exist). They go in at the title on the co-op save files with the zMXIII_P"
+     ' pak there (world/maps/matrix13/level/travel.lua), so a co-op save that names one of their rows '
+     'loads with it. Each row copies a shipped row of its table; a row whose donor is itself is that '
+     'shipped row patched in place.'),
+    ('mxiii: the camps and what they need. Zone_DLC02_10 (ZoneTable 2800, world DLCMatrix13) has no camp, '
+     "so SB's camp travel (game/travel.h) cannot reach it without these. DLC02_10_Camp_01 and its first "
+     "env row DLC02_10_EnvS_900 (the camp base; FUN_141cdfbd0 reads only a camp's first env row, its Zone "
+     "or ZoneList[0], to find the world), then its kit 901 to 906. When the zone's env rows are created, "
+     'FUN_141d207c0 reads EnvBPPath: empty (Num below 2), it binds the placed SBZoneEnvActor whose '
+     "EnvActorName equals the row's (FUN_142281550); set, it spawns that class at the SBSpawnPoint named "
+     'SpawnPointName (FUN_1422925c0). The shipped DLC02 kit rows have none and look for placed actors no '
+     "shipped pak holds. The zone 10 camps' 11 rows (900 to 906 and 420, 421, 423, 426) keep their donor's"
+     ' empty EnvBPPath and None SpawnPointName and bind by their own name the kit actors the test pak '
+     'places in its MXIII_Camps_A level; every other kit row gets a blueprint and the spawn point of its '
+     "own name. Each kit row's TargetCamp names its own camp instead of the placeholders WLB10_Camp_05 and"
+     " SE02_Camp_02. A vending machine's LinkEnvSpawnList switches its kit objects on once a coin "
+     "activates the camp; a full camp's lists its base row too, in the shipped order (not yet run in "
+     "game). Then zone 30's rest stop DLC02_30_Camp_01 (a simple camp now; the alias stays) with its "
+     "travel row, zone 40's triggers 001 and 002 (enabled from the start), the other 9 camps of the map "
+     '(Tetrapod, simple and full), their kits (34 shipped rows patched, 14 new), the three new coins, and '
+     "zone 0's Tetrapod: machine DLC02_00_EnvS_960, Lily DLC02_00_E_CharS_960 and WorldTransitionTable "
+     'WT_T_MX13.'),
+    ('mxspawn: the Naytibas. The killable Stalker MX13_M_Sawshark (CharacterTable 50071, '
+     'CHAL_UME_M_Sawshark_01 without Passive_Immortal) first, then the 8 M_DummyC rows patched to shipped '
+     'Naytibas, the zone 4 trio 035, 036 and 042 made ZoneEvent spawns, 25 new enemy rows and the three '
+     'bosses (Gardener M_Gardener and Lion M_LionC come from the gardener and lion batches, which '
+     'world/maps/matrix13/level/travel.lua asks first), the 4 zone events that spawn the Gardener and the '
+     'trio, and the two trigger rows that run them. SB binds a spawn row to the placed SBSpawnPoint whose '
+     "name equals the row's SpawnPointName field (FUN_1422925c0); every name here is one the cooked map "
+     'places.'),
+    ('mxenv: loot, kill volumes and the shipped device rows dev already patched: the one-way doors 050, '
+     '051 and 037 (an empty arrow at their point, our own sequences moving the cooked leaf), the R29 gate '
+     'and its card switch listing zone 1 and 2, the 55 m lift waiting at the top with our sequences, the '
+     "74 m lift's call switches (the lift controller, disabled until the first ride up as Shift Up wired "
+     'them), two kill volumes under the lift shafts.'),
+    ('mxupper, mxmiddle, mxlower: the mechanisms of zones 0 to 2, of zone 3 and of zone 4, the way Matrix '
+     '11 builds its own. A door is an Env_Countdown_Gate row with an empty arrow at its point, closed at '
+     'the start, whose four LevelSequences (ToOpen, Closed, Opened, ToClose, in /Game/MXIII_Editor/Seq) '
+     'move the cooked leaf; one opener row per side (ME_Area01_ShotCutDoor) fires the EventEnvControlTable'
+     " row that opens it, and a one-way door's other side has the _Opposite graph. Gates keep their "
+     'shipped switch chains with our sequences; lifts are their shipped Env_Lift rows with our sequences '
+     "and call switches that send the cab to their landing. Arenas lock and unlock through the spawn rows'"
+     ' EventOnBattle, EventFirstTimeOnBattle and EventOnDead: the first fight shuts the doors and disables'
+     ' their openers, each death adds 1 to an Env_<N>CountProgress row whose On state opens them again '
+     "(SE_08's pattern), and the Lion's own death opens the fan door and D7. The zone 2 wave triggers 601 "
+     'to 603 also shut the arena gate behind EVE, and trigger 601 of zone 3 shuts the pressure door behind'
+     " her for good. Zone 4's water device keeps its shipped P1, P2 and P3 states with our sequences, "
+     'driven by its drain and pipe panels, with two toxic effect volumes.'),
+    ('Free names and IDs in the build 26123051 dumps; struct sizes and offsets from the SDK '
+     '(stellar-sdk-647527f).'),
+]
+
+
 def header(data):
     out = [*(f'// {line}' for line in LICENSE_HEADER),
            '// Generated by tools/mxiii_rows.py from data/mxiii-world.json: do not edit by hand.',
-           '// Matrix XIII\'s batches (coop mxiii, world/maps/matrix13/level/travel.lua), included by rows/rows.h '
-           'after its Table,',
-           '// Patch and Row: each row a copy of its donor (a shipped row; donor equal to name: that row patched in',
-           '// place) with the fields below. docs/internals/README.md, "Matrix XIII\'s world rows", says what each',
-           '// batch holds.',
-           '#pragma once', '']
+           *('// ' + line if line else '//'
+             for p in HEAD for line in textwrap.wrap(p, 117, break_on_hyphens=False) or ['']),
+           '#pragma once', '', '#include "rows/rows.h"', '', 'namespace coop::lion {', '']
     for b in data['batches']:
         word = cname(b['word'])
         out.append(f'constexpr Patch {word}Patches[] = {{')
@@ -188,6 +262,19 @@ def header(data):
             first += len(r['set'])
         out.append('};')
         out.append('')
+    words = [cname(b['word']) for b in data['batches']]
+    out += [f'constexpr size_t {w}Rows = sizeof {w}Recipe / sizeof {w}Recipe[0];' for w in words]
+    line = 'static_assert('
+    for i, w in enumerate(words):
+        part = f'{w}Rows < 256' + (' &&' if i < len(words) - 1 else ',')
+        if len(line) + len(part) + 1 > 120:
+            out.append(line.rstrip())
+            line = '              '
+        line += part + ' '
+    out += [line.rstrip(), '              "a row index fits a byte");']
+    batches = [f'{w}{{"{b["word"]}", {w}Recipe, {w}Rows, {w}Patches}}' for w, b in zip(words, data['batches'])]
+    out.append('constexpr Batch ' + ',\n    '.join(batches) + ';')
+    out += ['', '} // namespace coop::lion']
     return '\n'.join(out)
 
 
@@ -204,7 +291,7 @@ def lua_value(kind, value):
 def lua(data):
     out = [*(f'-- {line}' for line in LICENSE_HEADER),
            '-- Generated by tools/mxiii_rows.py from data/mxiii-world.json: do not edit by hand.',
-           '-- Matrix XIII\'s rows as native/src/rows/mxiii_rows.h writes them, batch by batch, for',
+           '-- Matrix XIII\'s rows as native/src/world/maps/matrix13/mxiii_rows.h writes them, batch by batch, for',
            '-- world/maps/matrix13/level/travel.lua\'s read-back: {table, name, ID, checks}, each check {field, kind, '
            'value,',
            '-- changed} (core/enemy.lua\'s kinds). MOVE: the ladders, ledges and ropes '

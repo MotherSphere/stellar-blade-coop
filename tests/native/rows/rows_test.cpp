@@ -28,11 +28,17 @@
 // rows (8 target filters, 7 tasks, 7 groups, the two quest rows last of them) in the four quest tables no other batch
 // writes, its group rows' task containers (a TArray of structs of FName arrays, built in the pool), the 8 filters'
 // list on both "Talk to Lily" tasks, then her borrowed choice row patched in place in TheaterSelectDataTable with no ID
-// check, last, so a refusal there leaves the quest rows in. The hall lobbies' batch (rows/halls_rows.h, patches of its
-// own): five WorldTable rows, then five ZoneTable rows naming them, in the two tables no other batch writes, then 171
-// ZoneEnvSpawnTable seat rows over Xion's chair rows, each naming its own row and its hall's zone; a taken zone ID
-// stops it after the worlds, a taken seat ID at that seat, a ZoneTable of another row size before any row.
+// check, last, so a refusal there leaves the quest rows in. The hall lobbies' batch (online/lobby/halls_rows.h, patches
+// of its own): five WorldTable rows, then five ZoneTable rows naming them, in the two tables no other batch writes,
+// then 171 ZoneEnvSpawnTable seat rows over Xion's chair rows, each naming its own row and its hall's zone; a taken
+// zone ID stops it after the worlds, a taken seat ID at that seat, a ZoneTable of another row size before any row.
 #include "rows/rows.h"
+#include "fight/bosses/lion_rows.h"
+#include "eve/bolt_rows.h"
+#include "online/modes/nightop/shop_rows.h"
+#include "world/maps/matrix13/mxiii_rows.h"
+#include "world/maps/matrix13/signal_rows.h"
+#include "online/lobby/halls_rows.h"
 
 #include <algorithm>
 #include <cassert>
@@ -397,7 +403,7 @@ int main() {
   assert(kTendrilRecipe[kTendrilRows - 1].table == Table::character &&
          !std::strcmp(kTendrilRecipe[kTendrilRows - 1].name, "M_TendrilC") &&
          kTendrilRecipe[kTendrilRows - 1].id == 50060);
-  std::vector<Row> all(kRecipe, kRecipe + kRows); // Every batch, in kPatches' order.
+  std::vector<Row> all(kRecipe, kRecipe + kRows); // Every batch of the Lion's generator, in its order.
   all.insert(all.end(), kGardenerRecipe, kGardenerRecipe + kGardenerRows);
   all.insert(all.end(), kTendrilRecipe, kTendrilRecipe + kTendrilRows);
   all.insert(all.end(), kBoltRecipe, kBoltRecipe + kBoltRows);
@@ -412,32 +418,42 @@ int main() {
         assert(std::strcmp(r.name, r.donor) != 0);
       }
   }
-  size_t patches = 0;
-  for (const Row &r : all) {
-    const TableInfo &info = table_info(r.table);
-    // The zone tables are Matrix XIII's alone.
-    assert(r.table != Table::camp && r.table != Table::env && r.table != Table::trigger);
-    assert(r.first == patches && r.count > 0);
-    patches += r.count;
-    for (size_t p = r.first; p < size_t(r.first) + r.count; ++p) {
-      const Patch &x = kPatches[p];
-      // Inside the struct, past the vtable, the lazy-init flag and the ID, clear of every Transient array.
-      assert(x.at >= kIdAt + (info.id ? 4 : 0) && x.at + kind_size(x.kind) <= info.size);
-      for (uint16_t at : info.transient)
-        assert(!at || x.at + kind_size(x.kind) <= at || x.at >= at + 16u);
-      const bool number = x.kind == Kind::f32 || x.kind == Kind::i32 || x.kind == Kind::u8;
-      assert(number ? x.text == nullptr : x.text != nullptr);
-      // An int32 or a byte is a whole number its float holds exactly; a byte fits.
-      assert(x.kind == Kind::f32 || (x.f == float(int32_t(x.f)) && x.f > -16777216.0f && x.f < 16777216.0f));
-      assert(x.kind != Kind::u8 || (x.f >= 0 && x.f <= 255));
-      // No field names a Behemoth row or asset, but the sound set the Lion has no copy of (CharacterTable +0x520).
-      assert(!x.text || (!std::strstr(x.text, "Behemoth") && !std::strstr(x.text, "CH_M_NA_46")) ||
-             (r.table == Table::character && x.at == 0x520));
-      for (size_t q = r.first; q < p; ++q) // No two patches of a row on the same bytes.
-        assert(kPatches[q].at + kind_size(kPatches[q].kind) <= x.at || x.at + kind_size(x.kind) <= kPatches[q].at);
+  // Each patch array walked whole from 0: the three bosses' rows over kPatches, the bolt's and the shop's over their
+  // own.
+  const auto walk = [](const std::vector<Row> &rows, const Patch *ps, size_t count) {
+    size_t patches = 0;
+    for (const Row &r : rows) {
+      const TableInfo &info = table_info(r.table);
+      // The zone tables are Matrix XIII's alone.
+      assert(r.table != Table::camp && r.table != Table::env && r.table != Table::trigger);
+      assert(r.first == patches && r.count > 0);
+      patches += r.count;
+      for (size_t p = r.first; p < size_t(r.first) + r.count; ++p) {
+        const Patch &x = ps[p];
+        // Inside the struct, past the vtable, the lazy-init flag and the ID, clear of every Transient array.
+        assert(x.at >= kIdAt + (info.id ? 4 : 0) && x.at + kind_size(x.kind) <= info.size);
+        for (uint16_t at : info.transient)
+          assert(!at || x.at + kind_size(x.kind) <= at || x.at >= at + 16u);
+        const bool number = x.kind == Kind::f32 || x.kind == Kind::i32 || x.kind == Kind::u8;
+        assert(number ? x.text == nullptr : x.text != nullptr);
+        // An int32 or a byte is a whole number its float holds exactly; a byte fits.
+        assert(x.kind == Kind::f32 || (x.f == float(int32_t(x.f)) && x.f > -16777216.0f && x.f < 16777216.0f));
+        assert(x.kind != Kind::u8 || (x.f >= 0 && x.f <= 255));
+        // No field names a Behemoth row or asset, but the sound set the Lion has no copy of (CharacterTable +0x520).
+        assert(!x.text || (!std::strstr(x.text, "Behemoth") && !std::strstr(x.text, "CH_M_NA_46")) ||
+               (r.table == Table::character && x.at == 0x520));
+        for (size_t q = r.first; q < p; ++q) // No two patches of a row on the same bytes.
+          assert(ps[q].at + kind_size(ps[q].kind) <= x.at || x.at + kind_size(x.kind) <= ps[q].at);
+      }
     }
-  }
-  assert(patches == sizeof kPatches / sizeof kPatches[0]);
+    assert(patches == count);
+  };
+  std::vector<Row> bosses(kRecipe, kRecipe + kRows);
+  bosses.insert(bosses.end(), kGardenerRecipe, kGardenerRecipe + kGardenerRows);
+  bosses.insert(bosses.end(), kTendrilRecipe, kTendrilRecipe + kTendrilRows);
+  walk(bosses, kPatches, sizeof kPatches / sizeof kPatches[0]);
+  walk({kBoltRecipe, kBoltRecipe + kBoltRows}, kBoltPatches, sizeof kBoltPatches / sizeof kBoltPatches[0]);
+  walk({kShopRecipe, kShopRecipe + kShopRows}, kShopPatches, sizeof kShopPatches / sizeof kShopPatches[0]);
   for (size_t t = 0; t < kTableCount; ++t) {
     const TableInfo &info = table_info(Table(t));
     assert(info.name && info.size && info.size <= kRowBytes);
@@ -578,17 +594,17 @@ int main() {
            at(choice, 0x58).f == 1 && at(choice, 0x80).kind == Kind::i32 && at(choice, 0x80).f == 3 &&
            !std::strcmp(at(choice, 0x84).text, "Success5") && !std::strcmp(at(choice, 0x78).text, "None"));
   }
-  // The hall lobbies' batch (rows/halls_rows.h, generated from data/sbo-lobby.json) with patches of its own: the five
-  // world rows first (World 7121-7125, copies of CombatTestMapMk2 with the cooked map's UMapPath), then the five zone
-  // rows (Zone 1000121-1000125, copies of Zone_Xion_Boss_Mann whose WorldAlias names the world row of the same map,
-  // ZoneType 5, StartPointAlias the spawn point, named after the world row, AdditiveDesignLevel emptied), in the map
-  // order Hotel, Station, Cloister, Terrace, Foyer, then one ZoneEnvSpawnTable row per kept seat but the camp ones (25,
-  // 40, 24, 38 and 44, maps in the same order, seats by number): SBO_<Map>_Seat<nnn>, ID 39m0032nnn over every shipped
-  // ID of build 26123051 (3305032001), a copy of Xion's outdoor, bar or table chair row with ZoneList its zone,
-  // EnvActorName its own name, InitStateTag FirstInteraction and SaveType None. No name ends in _<digits> (the warp
-  // sends FName number 0, and the chair spawned for a seat names its row), every patch inside its struct past the ID,
-  // no two on the same bytes, the world and zone tables written by no other batch, and no seat row's name or ID one of
-  // Matrix XIII's.
+  // The hall lobbies' batch (online/lobby/halls_rows.h, generated from data/sbo-lobby.json) with patches of its own:
+  // the five world rows first (World 7121-7125, copies of CombatTestMapMk2 with the cooked map's UMapPath), then the
+  // five zone rows (Zone 1000121-1000125, copies of Zone_Xion_Boss_Mann whose WorldAlias names the world row of the
+  // same map, ZoneType 5, StartPointAlias the spawn point, named after the world row, AdditiveDesignLevel emptied), in
+  // the map order Hotel, Station, Cloister, Terrace, Foyer, then one ZoneEnvSpawnTable row per kept seat but the camp
+  // ones (25, 40, 24, 38 and 44, maps in the same order, seats by number): SBO_<Map>_Seat<nnn>, ID 39m0032nnn over
+  // every shipped ID of build 26123051 (3305032001), a copy of Xion's outdoor, bar or table chair row with ZoneList its
+  // zone, EnvActorName its own name, InitStateTag FirstInteraction and SaveType None. No name ends in _<digits> (the
+  // warp sends FName number 0, and the chair spawned for a seat names its row), every patch inside its struct past the
+  // ID, no two on the same bytes, the world and zone tables written by no other batch, and no seat row's name or ID one
+  // of Matrix XIII's.
   static_assert(kHallsRows == 181, "five worlds, five zones, then 171 seats");
   {
     const char *const kMaps[] = {"Hotel", "Station", "Cloister", "Terrace", "Foyer"};
@@ -655,10 +671,11 @@ int main() {
         assert(r.table != Table::env || (!names.count(r.name) && !ids.count(r.id)));
       }
   }
-  // Matrix XIII's eight batches (rows/mxiii_rows.h, generated from data/mxiii-world.json): each under 256 rows with its
-  // own patches; names unique per table across the first six, IDs unique per table, and mxnames only the mxiii batch's
-  // rows again, patched in place, under the same names and IDs; each row's patches in order, inside its
-  // struct past the ID, none on the same bytes; a shipped row patched in place only in a table with no Transient array.
+  // Matrix XIII's eight batches (world/maps/matrix13/mxiii_rows.h, generated from data/mxiii-world.json): each under
+  // 256 rows with its own patches; names unique per table across the first six, IDs unique per table, and mxnames only
+  // the mxiii batch's rows again, patched in place, under the same names and IDs; each row's patches in order, inside
+  // its struct past the ID, none on the same bytes; a shipped row patched in place only in a table with no Transient
+  // array.
   // Then the rows the cooked map and the other batches rely on: the camp rows dev already had (280001 with its coin and
   // kit, the zone 30 rest stop now a simple camp with its coin), zone 40's two triggers, the killable Stalker first in
   // mxspawn, every new spawn row bound to the spawn point of its own name, the bosses saved once dead, no warp switch
@@ -675,7 +692,9 @@ int main() {
     assert(kMxiii.patches == kMxiiiPatches && kMxspawn.patches == kMxspawnPatches &&
            kMxenv.patches == kMxenvPatches && kMxupper.patches == kMxupperPatches &&
            kMxmiddle.patches == kMxmiddlePatches && kMxlower.patches == kMxlowerPatches &&
-           kMxnames.patches == kMxnamesPatches && kMxlily.patches == kMxlilyPatches && kMxrecords.patches == kMxrecordsPatches && kLion.patches == kPatches && kBolt.patches == kPatches && kShop.patches == kPatches);
+           kMxnames.patches == kMxnamesPatches && kMxlily.patches == kMxlilyPatches &&
+           kMxrecords.patches == kMxrecordsPatches && kLion.patches == kPatches && kBolt.patches == kBoltPatches &&
+           kShop.patches == kShopPatches);
     std::set<std::pair<size_t, std::string>> names;
     std::set<std::pair<size_t, uint32_t>> ids;
     const size_t sizes[] = {sizeof kMxiiiPatches / sizeof kMxiiiPatches[0],
@@ -881,10 +900,10 @@ int main() {
   // Every reference among the new rows lands on a new row: the steps' chains and moves, the skills' first steps and
   // target filters, the commands' skills, the stances' commands and anim sets, the CharacterTable rows' stances, dead
   // row and appearance.
-  const auto patched = [](const Row &r, uint16_t at) -> const char * {
+  const auto patched = [](const Row &r, uint16_t at, const Patch *ps = kPatches) -> const char * {
     for (size_t p = r.first; p < size_t(r.first) + r.count; ++p)
-      if (kPatches[p].at == at)
-        return kPatches[p].text;
+      if (ps[p].at == at)
+        return ps[p].text;
     return nullptr;
   };
   const auto has = [](Table t, const char *name) {
@@ -928,10 +947,10 @@ int main() {
   // The stances: phase 1 lists 17 commands, phase 2 (HP under 60%: Condition_ActorStat HP +0x30, UnderRate +0x31, 60 at
   // +0x34, Priority 10 at +0x14) all 21 with the phase-2 roar, and its start runs M_LionC_PhaseRoar, the effect whose
   // action (+0x2fc, EffectAction_UseSkill 69) uses that roar (+0x300). Neither holds HP at 60%.
-  const auto value = [](const Row &r, uint16_t at) {
+  const auto value = [](const Row &r, uint16_t at, const Patch *ps = kPatches) {
     for (size_t p = r.first; p < size_t(r.first) + r.count; ++p)
-      if (kPatches[p].at == at)
-        return kPatches[p].f;
+      if (ps[p].at == at)
+        return ps[p].f;
     return -1.0f;
   };
   {
@@ -982,15 +1001,16 @@ int main() {
       assert(kBoltRecipe[i].table == kShockTables[i] && !std::strcmp(kBoltRecipe[i].name, kShock[i]) &&
              kBoltRecipe[i].id == kShockIds[i]);
     const Row &item = kBoltRecipe[0], &skill = kBoltRecipe[1], &shot = kBoltRecipe[2], &hit = kBoltRecipe[3];
-    assert(!std::strcmp(patched(item, 0x14c), "Bullet_Shock_Consume") &&
-           !std::strcmp(patched(item, 0x180), "Bullet_Shock") && value(item, 0x84) == 30 && value(item, 0x88) == 0 &&
-           value(item, 0x90) == 0);
-    assert(!std::strcmp(patched(skill, 0x100), "P_Eve_Gun_ShootShockSlug1_1_Cast1") &&
-           !std::strcmp(patched(skill, 0x17c), "None"));
-    assert(!std::strcmp(patched(shot, 0x18),
+    assert(!std::strcmp(patched(item, 0x14c, kBoltPatches), "Bullet_Shock_Consume") &&
+           !std::strcmp(patched(item, 0x180, kBoltPatches), "Bullet_Shock") && value(item, 0x84, kBoltPatches) == 30 &&
+           value(item, 0x88, kBoltPatches) == 0 &&
+           value(item, 0x90, kBoltPatches) == 0);
+    assert(!std::strcmp(patched(skill, 0x100, kBoltPatches), "P_Eve_Gun_ShootShockSlug1_1_Cast1") &&
+           !std::strcmp(patched(skill, 0x17c, kBoltPatches), "None"));
+    assert(!std::strcmp(patched(shot, 0x18, kBoltPatches),
                         "/Game/Art/Character/PC/CH_P_EVE_01/Projectile/P_Eve_Gun_ShootShockSlug1_Projectile1") &&
-           !std::strcmp(patched(shot, 0xcc), hit.name));
-    assert(std::strstr(patched(hit, 0x28), "{\"Alias\":\"ShockSlugStun\"}"));
+           !std::strcmp(patched(shot, 0xcc, kBoltPatches), hit.name));
+    assert(std::strstr(patched(hit, 0x28, kBoltPatches), "{\"Alias\":\"ShockSlugStun\"}"));
   }
   // A move of the Lion's own clip travel: the low jump's leap, up to 615.5 cm toward EVE (LocalAxis 6 at +0x3a,
   // InsideTargetOrSelf 3 at +0x3b, SelfToTarget 2 at +0x60, ForwardValue +0x94), stopping 150 cm short of her

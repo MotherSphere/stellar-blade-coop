@@ -21,7 +21,7 @@ local C=require('eve.chainspin')
 -- P_Eve_TachyMode, and the one call that applies it.
 do
     local found
-    for _,r in ipairs(require('core.lion_rows').ROWS) do
+    for _,r in ipairs(require('eve.chainspin_rows').CHAINSPIN) do
         if r[1]=='EffectTable' and r[2]=='P_Eve_Tachy_Skill_ChainSpin1_Use' then found=r end
     end
     assert(found and C.ID==found[3] and C.ID==1004500,'The generated row\'s ID')

@@ -175,8 +175,8 @@ inline std::string name_field(const std::string &field, const std::string &value
   return fstring(field) + fstring("NameProperty") + std::string(reinterpret_cast<const char *>(&size), 8) + '\0' +
          fstring(value);
 }
-// The items the mod's rows add to the game's ItemTable (core/lion_rows.lua, the Night Operation shop's): none of them
-// is in the game's own tables.
+// The items the mod's rows add to the game's ItemTable (fight/bosses/lion_rows.lua, the Night Operation shop's): none
+// of them is in the game's own tables.
 struct ModItem {
   const char *alias, *name;
 };
@@ -186,8 +186,8 @@ constexpr ModItem kModItems[] = {{"HP2Burst_Potion", "Burst Stimpack"},
                                  {"Money_NightOperation", "Beta Seed"}};
 // coop mxiii's place: the Matrix XIII dungeon's map, and how every name of its rows starts. The game's tables have 162
 // ZoneEnvSpawnTable rows named DLC02_, all in Zone_DLC02_10 to 40, and no ZoneCampTable row; the mod's camp there
-// (DLC02_10_Camp_01, a full camp: rows/rows.h's kMxiiiPatches keep its CampType 3) and its rows (DLC02_10_EnvS_900, the
-// kit 901 to 906) are named the same way, so no released-game save holds such a name as a camp.
+// (DLC02_10_Camp_01, a full camp: world/maps/matrix13/mxiii_rows.h's kMxiiiPatches keep its CampType 3) and its rows
+// (DLC02_10_EnvS_900, the kit 901 to 906) are named the same way, so no released-game save holds such a name as a camp.
 constexpr char kMxiiiMap[] = "MXIII_P", kMxiiiRows[] = "DLC02_";
 // The ammo SB ships in its const BulletItemSlotArray (rows/shock.h's kShippedBullets); rows/shock.h appends the Shock
 // Bolt after them, so a selected ammo index of 5 or more is the Shock Bolt.
@@ -221,9 +221,9 @@ inline std::pair<size_t, size_t> snapshot(const std::string &b) {
 // hold DLC02_10_EnvS_906, not the mod's first row. Every world and zone of the
 // game's tables, Matrix XIII's DLCMatrix13 and Zone_DLC02_10 to 40 included, is in every save, and ItemOtaineSet keeps
 // every item ever held, so neither counts. What the New Game+ snapshot holds is said apart: playing cannot clear it.
-// The mod's quests, the prologue A Second Signal (Quest_Sub_MX13_00) and On Time (Quest_Sub_MX13_01, rows/rows.h's
-// signal batch), count wherever their alias is: the save keys quests by alias, the tracked one included, and keeps a
-// finished one's in CompleteQuestList, so no play takes them out.
+// The mod's quests, the prologue A Second Signal (Quest_Sub_MX13_00) and On Time (Quest_Sub_MX13_01,
+// world/maps/matrix13/signal_rows.h's signal batch), count wherever their alias is: the save keys quests by alias, the
+// tracked one included, and keeps a finished one's in CompleteQuestList, so no play takes them out.
 // Matrix XIII's records (the mxrecords batch) count as well: the save keeps their unlock achievements and red dots by
 // alias, and nothing takes a record out.
 inline std::string mod_only(const std::string &b) {

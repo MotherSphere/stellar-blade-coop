@@ -88,10 +88,10 @@ constexpr int kProtocol = 23; // Bump on any wire change. 1 was the first link (
                               // hide lines (hidden material sections), which a protocol-16 peer would refuse the same
                               // way; 18 adds the table's fx lines (effects named by path, indexes past the fixed list)
                               // and effect slots up to index 64, which a protocol-17 peer would refuse with the whole
-                              // table and the pose; 19 adds Matrix XIII's world rows (rows/mxiii_rows.h: spawn rows,
-                              // camps, warps), and shared Naytibas key an enemy by its spawn row's ID, so a protocol-18
-                              // peer, without those rows, would never match the host's new enemies; 20 adds the PvP
-                              // test's pvp line on channel 2 (a hit on the stand-in of the other player in the
+                              // table and the pose; 19 adds Matrix XIII's world rows (world/maps/matrix13/mxiii_rows.h:
+                              // spawn rows, camps, warps), and shared Naytibas key an enemy by its spawn row's ID, so a
+                              // protocol-18 peer, without those rows, would never match the host's new enemies; 20 adds
+                              // the PvP test's pvp line on channel 2 (a hit on the stand-in of the other player in the
                               // attacker's game, applied to the victim's EVE in hers), which a protocol-19 peer would
                               // count malformed, and stage 1's match lines (start, count and end on channel 0) and
                               // the match lobby keys sbo_mode, sbo_state and sbo_map, which a protocol-19 game never
@@ -893,7 +893,7 @@ inline std::string masked(std::string_view text) {
 // signal (world/maps/matrix13/quest/on_time.lua) "signal rows <Table>=0x<address> ..." and for Matrix XIII's other
 // batches (world/maps/matrix13/level/travel.lua) "mxspawn rows ...", "mxenv rows ...", "mxupper rows ...", "mxmiddle
 // rows ...", "mxlower rows ...", "mxnames rows ...", "mxlily rows ..." and "mxrecords rows ..." and for the hall
-// lobbies (online/lobby/halls_rows.lua) "halls rows ..." (that batch of rows/rows.h for SB's AddRow,
+// lobbies (online/lobby/halls_rows.lua) "halls rows ..." (that batch of online/lobby/halls_rows.h for SB's AddRow,
 // rows/rows_game.inc: one word for each table the batch writes, 1 to 39 of the kLionTables, in any order, each once,
 // its address in 1 to 16 hex digits and plausible; a table left out stays 0, and a batch that writes it refuses it as
 // no UDataTable; Request::batch says which). Lua finds the tables by their fixed paths, so no console argument reaches
@@ -934,9 +934,9 @@ enum class Command {
 enum class MatchAsk : uint8_t { search, create, cancel, end };
 // shortcut load's maps, game/shortcut.h's kMapNames in its order (shortcut_load_test checks they match).
 constexpr const char *kShortcutMaps[4] = {"B07", "F02", "G03", "Matrix_XI"};
-// The words of the rows requests, one a batch of rows/rows.h (kLion, kGardener, kTendril, kBolt, kMxiii, kShop,
-// kSignal, kMxspawn, kMxenv, kMxupper, kMxmiddle, kMxlower, kMxnames, kMxlily, kMxrecords, kHalls), in Request::batch's
-// order.
+// The words of the rows requests, one a batch of a module's row header (rows/rows.h names each one's: kLion, kGardener,
+// kTendril, kBolt, kMxiii, kShop, kSignal, kMxspawn, kMxenv, kMxupper, kMxmiddle, kMxlower, kMxnames, kMxlily,
+// kMxrecords, kHalls), in Request::batch's order.
 constexpr size_t kRowWordCount = 16;
 constexpr const char *kRowWords[kRowWordCount] = {"lion",   "gardener", "tendril", "bolt",    "mxiii",    "shop",
                                                   "signal", "mxspawn",  "mxenv",   "mxupper", "mxmiddle", "mxlower",

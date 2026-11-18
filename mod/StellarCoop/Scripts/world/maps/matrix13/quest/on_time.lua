@@ -11,7 +11,8 @@
 -- steps: reach the station (M01) and zones 2 to 4 (M02 to M04, each SB's own EnterZone), the Fusion Drive room in zone
 -- 4 (M05, which this file completes), and telling Lily (M06), when her row returns as "About Matrix 13" and plays the
 -- end talk. The pieces, in order:
--- - The signal rows (rows/rows.h's kSignalRecipe, through core/enemy.lua's rows flow and read back): both quests' rows
+-- - The signal rows (world/maps/matrix13/signal_rows.h's kSignalRecipe, through core/enemy.lua's rows flow and read
+-- back): both quests' rows
 --   (8 target filters, 7 tasks, 7 groups, the two quests), then Lily's borrowed choice row TS_GoToTest_2 patched in
 --   place (the game's own Phase 5 condition Xion_10_Condition_051, shown or hidden, priority 3, her goodbye's exec).
 --   Only with the test pak (looked for once a Lua load), since nothing else can use them and no row has gone into these
@@ -89,7 +90,7 @@ function Lily.drive_room(v)
     end
     return true
 end
--- The signal rows as core/enemy.lua reads them back (rows.h's kSignalRecipe and kSignalPatches;
+-- The signal rows as core/enemy.lua reads them back (signal_rows.h's kSignalRecipe and kSignalPatches;
 -- world/maps/matrix13/quest/on_time_test checks them against it): each patched field, changed when it differs from the
 -- template row's. The 8 filters (one per Tetrapod
 -- Lily: Xion, Eidos 7, Eidos 9 at the Tetrapod and near the atelier, the Wasteland, the Great Desert, the Matrix 11

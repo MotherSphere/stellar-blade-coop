@@ -5,25 +5,26 @@
 -- its two moves and an icon, but no skill row, no step of hers and no Show in her folder; the prologue's Tachy NPC kept
 -- a Show that plays her clip (CH_NPC_TachyNPC/Skill/N_TachyNPC_SwingChain). The native part adds the skill
 -- P_Eve_Tachy_Skill_ChainSpin1_1, its 9 steps on that Show and the effect P_Eve_Tachy_Skill_ChainSpin1_Use that starts
--- it (rows/rows.h, the lion rows batch: Lion.rows gets them in as for the shop's cut items). This file then asks SB to
--- apply that effect on EVE through the player controller's Cheat request: its logic job (FSBCheat::Simulate, the
--- SBApplyEffectMe word) finds the actor by GUID and runs SB's effect call (0x141ad1af0, the call the shared fight's job
--- makes) with EVE as target and caster. The effect's UseSkill action starts the skill by its SkillTable name, and only
--- while EVE has P_Eve_TachyMode: outside Tachy Mode the request changes nothing. No button starts it: the four Tachy
--- skill commands (BetaSkill1-4) are taken; a fifth could be appended to the P_Eve_Tachy stance's CommandArray in place,
--- as rows/shock.h does for the gun stances, and none was added. Nothing of it is saved: no acquisition, no skill slot,
--- no trophy tag.
+-- it (fight/bosses/lion_rows.h, the lion rows batch: Lion.rows gets them in as for the shop's cut items). This file
+-- then asks SB to apply that effect on EVE through the player controller's Cheat request: its logic job
+-- (FSBCheat::Simulate, the SBApplyEffectMe word) finds the actor by GUID and runs SB's effect call (0x141ad1af0, the
+-- call the shared fight's job makes) with EVE as target and caster. The effect's UseSkill action starts the skill by
+-- its SkillTable name, and only while EVE has P_Eve_TachyMode: outside Tachy Mode the request changes nothing. No
+-- button starts it: the four Tachy skill commands (BetaSkill1-4) are taken; a fifth could be appended to the
+-- P_Eve_Tachy stance's CommandArray in place, as rows/shock.h does for the gun stances, and none was added. Nothing of
+-- it is saved: no acquisition, no skill slot, no trophy tag.
 -- Called here: ServerRequest_Cheat(EVE's GUID, 0, 'SBApplyEffectMe', an effect's ID) once a command, after the rows
 -- are in, and for coop devmenu (tools/devmenu.lua) once for each effect of the row asked, from its fixed list (its
 -- clear and lockswitch rows also at coop off). Never called here: another cheat word.
 local Effect=require('core.effect')
 local ChainSpin={}
 ChainSpin.EFFECT='P_Eve_Tachy_Skill_ChainSpin1_Use'
--- The effect's ID as the generator wrote it (core/lion_rows.lua, from the same recipe as rows/rows.h).
-for _,r in ipairs(require('core.lion_rows').ROWS) do
+-- The effect's ID as the generator wrote it (eve/chainspin_rows.lua, its copy of the ChainSpin rows of
+-- fight/bosses/lion_rows.lua, from the same recipe as fight/bosses/lion_rows.h).
+for _,r in ipairs(require('eve.chainspin_rows').CHAINSPIN) do
     if r[1]=='EffectTable' and r[2]==ChainSpin.EFFECT then ChainSpin.ID=r[3] end
 end
-assert(math.type(ChainSpin.ID)=='integer','core/lion_rows.lua lacks '..ChainSpin.EFFECT)
+assert(math.type(ChainSpin.ID)=='integer','eve/chainspin_rows.lua lacks '..ChainSpin.EFFECT)
 local USE='Use: coop chainspin'
 local why=require('core.unreal').why
 ChainSpin.apply,ChainSpin.target=Effect.apply,Effect.target

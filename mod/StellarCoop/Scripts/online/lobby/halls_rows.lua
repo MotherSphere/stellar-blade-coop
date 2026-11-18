@@ -1,10 +1,10 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The hall lobbies' world, zone and seat rows: the native part's halls batch (rows/halls_rows.h's kHallsRecipe, added
--- on the game thread), one WorldTable row and one type-5 ZoneTable row for each map of online/lobby/sbo_maps.lua, so
--- SB's warp reaches the maps of the local lobby pak, then one ZoneEnvSpawnTable row for each of its seats with a row,
--- the row the chair of SB's spawned at that seat binds to by name. Asked at the title on the co-op save files
+-- The hall lobbies' world, zone and seat rows: the native part's halls batch (online/lobby/halls_rows.h's kHallsRecipe,
+-- added on the game thread), one WorldTable row and one type-5 ZoneTable row for each map of online/lobby/sbo_maps.lua,
+-- so SB's warp reaches the maps of the local lobby pak, then one ZoneEnvSpawnTable row for each of its seats with a
+-- row, the row the chair of SB's spawned at that seat binds to by name. Asked at the title on the co-op save files
 -- (core/enemy.lua's title_batch, from main.lua's 250 ms loop), once a game run, and only once the lobby pak gate
 -- passed: with no pak there is nothing to add, and nothing is said here. ok() tells online/lobby/sbo.lua whether the
 -- hall maps can be used: a refusal (an ID a later SB update took, a row size that changed, a fault, rows that read back
@@ -12,11 +12,11 @@
 local Enemy=require('core.enemy')
 local Maps=require('online.lobby.sbo_maps')
 local Halls={}
--- The rows as core/enemy.lua reads them back (online/lobby/halls_rows_test checks them against rows/halls_rows.h's
--- kHallsRecipe and kHallsPatches): the five worlds first, with the cooked persistent level's UMapPath, then the five
--- zones, each naming its world row and its spawn point, ZoneType 5 as in the template row, AdditiveDesignLevel emptied,
--- then the seats, maps in order, each in its hall's zone, named after itself, InitStateTag FirstInteraction and
--- SaveType None (0), all four other than in Xion's chair row it copies.
+-- The rows as core/enemy.lua reads them back (online/lobby/halls_rows_test checks them against
+-- online/lobby/halls_rows.h's kHallsRecipe and kHallsPatches): the five worlds first, with the cooked persistent
+-- level's UMapPath, then the five zones, each naming its world row and its spawn point, ZoneType 5 as in the template
+-- row, AdditiveDesignLevel emptied, then the seats, maps in order, each in its hall's zone, named after itself,
+-- InitStateTag FirstInteraction and SaveType None (0), all four other than in Xion's chair row it copies.
 local rows,n={},#Maps.order
 for i,key in ipairs(Maps.order) do
     local m=Maps.maps[key]

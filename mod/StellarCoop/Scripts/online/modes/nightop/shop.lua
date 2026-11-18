@@ -4,11 +4,11 @@
 -- coop nightop shop and coop nightop buy: Night Operation's reward shop, on a co-op save only. A run that ends in
 -- success or time up credits points to this player's wallet (online/modes/nightop/run.lua credits only a run of ours
 -- that went from its countdown to that end); the shop sells seven items for them. coop nightop shop opens SB's own shop
--- screen, the vending machine's, on the Night Operation shop's rows (the shop rows batch, rows/rows.h's kShop, which
--- the native part adds with the stimpacks' and the Shock Bolt's: open() below), where the points are Beta Seeds for as
--- long as the screen is open; coop nightop buy is the console's way, kept for a game whose screen cannot open. The
--- first four are the rows of the game's cut Shop_NightOperation that every camp shop sells with no condition gate, at
--- that table's prices, so a buy
+-- screen, the vending machine's, on the Night Operation shop's rows (the shop rows batch,
+-- online/modes/nightop/shop_rows.h's kShop, which the native part adds with the stimpacks' and the Shock Bolt's: open()
+-- below), where the points are Beta Seeds for as long as the screen is open; coop nightop buy is the console's way,
+-- kept for a game whose screen cannot open. The first four are the rows of the game's cut Shop_NightOperation that
+-- every camp shop sells with no condition gate, at that table's prices, so a buy
 -- skips no story gate. The last three are cut items whose ItemTable rows the game lacks, the Burst Stimpack (HP for
 -- Burst gauge), the Beta Stimpack (HP for Beta energy) and the Shock Bolt (ammo for EVE's gun that stuns a common
 -- enemy), at our own prices: the native part adds the stimpacks' rows with the Lion's (the lion rows batch) and the
@@ -38,11 +38,11 @@ local N=require('online.modes.nightop.probe')
 local Items=require('core.items')
 local Shop={}
 local MASK=0xFFFFFFFF
--- The item number is the row's place here. cut: the native part adds its rows (rows/rows.h's cut items) before a buy;
--- shock: its rows are the bolt rows batch, and the shock line must read in too (a price per bolt). SB's bucket add
--- (FUN_141bdbc20) keeps a capped item only up to its MaxAmount (30 bolts) and drops the rest; EVE's count lives in SB's
--- unreflected item bucket and is not read here, so a buy past the cap still costs the dropped bolts' points (the docs
--- say so).
+-- The item number is the row's place here. cut: the native part adds its rows (fight/bosses/lion_rows.h's cut items)
+-- before a buy; shock: its rows are the bolt rows batch, and the shock line must read in too (a price per bolt). SB's
+-- bucket add (FUN_141bdbc20) keeps a capped item only up to its MaxAmount (30 bolts) and drops the rest; EVE's count
+-- lives in SB's unreflected item bucket and is not read here, so a buy past the cap still costs the dropped bolts'
+-- points (the docs say so).
 -- ponytail: the cut items' prices are starting values (a full normal run credits 42 points at most); tune them in game.
 Shop.ITEMS={{alias='HP_Potion',price=15},{alias='HP_Potion_Small',price=10},{alias='PulseGrenade',price=6},
     {alias='ConcussionGrenade',price=8},{alias='HP2Burst_Potion',price=20,cut=true},

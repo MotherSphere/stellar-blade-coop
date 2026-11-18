@@ -5,7 +5,8 @@
 """Writes two files from data/sbo-lobby.json: mod/StellarCoop/Scripts/online/lobby/sbo_maps.lua, the five hall lobby
 maps online/lobby/sbo.lua sends SBO match players to, with their world and zone rows' names and IDs, the 8 arrival
 spots, the seats with their ZoneEnvSpawnTable rows' names and IDs, the terminal, the menu camera and the fence; and
-native/src/rows/halls_rows.h, the native part's halls batch (rows/rows.h): the five world rows, the five zone rows, then
+native/src/online/lobby/halls_rows.h,
+the native part's halls batch (rows/rows.h): the five world rows, the five zone rows, then
 one ZoneEnvSpawnTable row per kept seat (online/lobby/halls_rows.lua reads them back).
 
   python3 -I tools/sbo_lobby_rows.py          write both files
@@ -20,12 +21,13 @@ import json
 import math
 import re
 import sys
+import textwrap
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / 'data/sbo-lobby.json'
 LUA = ROOT / 'mod/StellarCoop/Scripts/online/lobby/sbo_maps.lua'
-HEADER = ROOT / 'native/src/rows/halls_rows.h'
+HEADER = ROOT / 'native/src/online/lobby/halls_rows.h'
 
 # The license header both written files start with, after the comment mark.
 LICENSE_HEADER = ('Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors',
@@ -138,7 +140,8 @@ def render_lua(data):
            f'-- ground plus {STAND} cm), the seats (Z: the floor under the seat, the seat top minus its sit loop\'s',
            '-- seat height; approach: where EVE stands up, a point the editor traces found clear for her standing',
            f'-- capsule, its Z the Pawn floor under the seat marker plus {STAND} cm; row, id: its',
-           '-- ZoneEnvSpawnTable row in rows/halls_rows.h, none for a camp seat), the terminal, the menu camera and',
+           '-- ZoneEnvSpawnTable row in online/lobby/halls_rows.h, none for a camp seat), the terminal, the menu '
+           'camera and',
            '-- the fence (centre X, Y, radius R, Z range). Units: cm and degrees.',
            f"local M={{order={{{','.join(repr(k) for k in ORDER)}}},maps={{}}}}"]
     rows = seat_rows(data)
@@ -175,12 +178,47 @@ def render_lua(data):
     return '\n'.join(out) + '\n'
 
 
+# The header's head after the generated line, a paragraph a string ('' a blank comment line): what the rows hold.
+HEAD = [
+    ("The hall lobbies' batch (kHallsRecipe, which tools/sbo_lobby_rows.py writes; "
+     'online/lobby/halls_rows.lua) holds one WorldTable row and one type-5 ZoneTable row for each SBO hall'
+     " lobby map, so SB's warp reaches the cooked maps of the local lobby pak, then one ZoneEnvSpawnTable "
+     "row for each kept seat of those maps, for the chair of SB's spawned there."),
+    '',
+    ('One world row and one zone row for each SBO hall lobby map of online/lobby/sbo_maps.lua (Hotel, '
+     "Station, Cloister, Terrace, Foyer, in that order), so online/lobby/sbo.lua's warp (game/sbo.h: the "
+     "zone row by name, its WorldAlias +0x14, that world row's UMapPath +0x18, type 5 at +0x25) reaches "
+     'the maps of the local lobby pak zSBO_Lobby. The five worlds come first, so no zone names a world row'
+     ' not in yet. Each world is a copy of CombatTestMapMk2 (1003: only UMapPath and FileSuffix exist, and'
+     " FileSuffix is None in every shipped row) with the cooked persistent level's path; each zone a copy "
+     'of Zone_Xion_Boss_Mann (1692, the zone the SBO lobby uses in Xion: type 5 BossChallenge, PS5_Default'
+     ' graphics, no events) with WorldAlias naming its world row, ZoneType 5 kept as a guard, '
+     "StartPointAlias the map's spawn point (named after its world row, as the cooked SBSpawnPoint is) and"
+     " AdditiveDesignLevel emptied (the donor's E04_LD_Mann is Xion's). IDs World 7121-7125 and Zone "
+     '1000121-1000125, above every shipped ID on build 26123051 (World max 7000, Zone max 999992). Then '
+     'one ZoneEnvSpawnTable row for each kept seat but the camp ones (171), maps in the same order: '
+     "SBO_<Map>_Seat<nnn>, the row the chair of SB's spawned at that seat binds to by its EnvActorName. "
+     "Each is a copy of Xion's chair row of the seat's sit loop (Xion_10_EnvS_035 outdoor, _021 bar, _025 "
+     'table: the InteractionGraph and the alias Env_Camp_Chair come with it, EnvBPPath stays empty, Zone '
+     "None and the range fields 0) with ZoneList its hall's zone (+0x20), EnvActorName its own name "
+     "(+0x30), InitStateTag FirstInteraction (+0x64: SB's graph runs the sit from there without the first "
+     "use's camp-rest effect) and SaveType None (+0x6c: nothing goes into the save)."),
+    ("IDs 39m0032nnn (m the map's place, nnn the seat), above ZoneEnvSpawnTable's highest on build "
+     '26123051 (3305032001, 4430 rows). No name ends in _<digits>: the warp sends FName number 0, and Lua '
+     "names the chair's row by its text. An update that takes an ID refuses the batch (Why::id) and the "
+     'lobby stays in Xion. Struct sizes and offsets from the SDK (stellar-sdk-647527f): '
+     'SBWorldTableProperty 0x30, SBZoneTableProperty 0x150, neither with a Transient field, '
+     'SBZoneEnvSpawnTableProperty 0x508.'),
+]
+
+
 def render_header(data):
     out = [*(f'// {line}' for line in LICENSE_HEADER),
            '// Generated by tools/sbo_lobby_rows.py from data/sbo-lobby.json: do not edit by hand.',
-           "// The hall lobbies' batch (online/lobby/halls_rows.lua), included by rows/rows.h after its Table, Patch",
-           "// and Row; the comment above the include says what the rows hold.",
-           '#pragma once', '', 'constexpr Patch kHallsPatches[] = {']
+           *('// ' + line if line else '//'
+             for p in HEAD for line in textwrap.wrap(p, 117, break_on_hyphens=False) or ['']),
+           '#pragma once', '', '#include "rows/rows.h"', '', 'namespace coop::lion {', '',
+           'constexpr Patch kHallsPatches[] = {']
     for m in data['maps']:
         n = names(m)
         out.append(f'    {{0x18, Kind::string, 0, "{n["umap"]}.Lobby_{m["name"]}"}}, // UMapPath ({n["world"]})')
@@ -207,7 +245,10 @@ def render_header(data):
         out.append(f'    {{Table::zone, "{zone}", "Zone_Xion_Boss_Mann", {m["zone_id"]}u, {k + 4 * i}, 4}},')
     for j, (_, s, name, i) in enumerate(rows):
         out.append(f'    {{Table::env, "{name}", "{DONORS[s["kind"]]}", {i}u, {5 * k + 4 * j}, 4}},')
-    out.append('};')
+    out += ['};', 'constexpr size_t kHallsRows = sizeof kHallsRecipe / sizeof kHallsRecipe[0];',
+            'static_assert(kHallsRows < 256, "a row index fits a byte");',
+            'constexpr Batch kHalls{"halls", kHallsRecipe, kHallsRows, kHallsPatches};', '',
+            '} // namespace coop::lion']
     return '\n'.join(out) + '\n'
 
 

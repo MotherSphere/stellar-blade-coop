@@ -4,11 +4,11 @@
 -- coop gardener fight: the cut Naytiba 1, the Gardener (/Game/Art/Character/Monster/CH_M_NA_01/), an artillery tower
 -- about 20 m tall that never walks, spawned as a real enemy to fight, on the game thread. The game ships its blueprint,
 -- Shows, skill kit, shells, appearance, dead and detect rows but no CharacterTable row and no tree; its 13 rows
--- (core/lion_rows.lua's R.GARDENER, the native part's second batch, rows/rows.h's kGardenerRecipe) are near copies of
--- shipped ones: three skills the flag trees pick (SingleShot and MultipleShot on their shipped steps, ToxicBeam on
--- three new steps that play its Show), their commands, a stance at speed 0, and three CharacterTable rows over the
--- Maelstrom's: M_Gardener (50010, the Tentacle tree, made for monsters that stay put), M_Gardener_Half (50012, the
--- same at half scale) and M_Gardener_Skulling (50011, the Lion's Skulling test tree).
+-- (fight/bosses/lion_rows.lua's R.GARDENER, the native part's second batch, fight/bosses/lion_rows.h's kGardenerRecipe)
+-- are near copies of shipped ones: three skills the flag trees pick (SingleShot and MultipleShot on their shipped
+-- steps, ToxicBeam on three new steps that play its Show), their commands, a stance at speed 0, and three
+-- CharacterTable rows over the Maelstrom's: M_Gardener (50010, the Tentacle tree, made for monsters that stay put),
+-- M_Gardener_Half (50012, the same at half scale) and M_Gardener_Skulling (50011, the Lion's Skulling test tree).
 -- The flow is fight/bosses/enemy.lua's, as coop lion's: the tables, the gardener rows request, the wait on the gardener
 -- line, the read-back, then one spawn call 25 m ahead of EVE (12.5 m for the half-scale row) and 7.5 m above her feet
 -- (the blueprint's unscaled capsule half-height plus 50 cm, so the capsule never starts underground), facing her, and
@@ -25,9 +25,10 @@ local IDS={half=50012,skulling=50011} -- fight half and fight skulling; any othe
 local GARDENER=50010
 local DIR='/Game/Art/Character/Monster/CH_M_NA_01/'
 local USE='Use: coop gardener fight [intro|half|skulling|rows]'
--- The rows as the native part writes them: core/lion_rows.lua's R.GARDENER (tests/lua/fight/bosses/lion_test.lua checks
--- it against rows.h's kGardenerRecipe), in Enemy.rows' form, and the gardener line's counts once they are in.
-Gardener.ROWS=Enemy.rows(require('core.lion_rows').GARDENER)
+-- The rows as the native part writes them: fight/bosses/lion_rows.lua's R.GARDENER
+-- (tests/lua/fight/bosses/lion_test.lua checks it against lion_rows.h's kGardenerRecipe), in Enemy.rows' form, and the
+-- gardener line's counts once they are in.
+Gardener.ROWS=Enemy.rows(require('fight.bosses.lion_rows').GARDENER)
 Gardener.IN=Enemy.counts(Gardener.ROWS)
 -- The gardener line (glue's rows_status) as fields (Enemy.parse).
 function Gardener.parse(status) return Enemy.parse(status,'gardener') end

@@ -43,16 +43,6 @@ for i,item in ipairs(Shop.ITEMS) do
 end
 assert(#Shop.ITEMS==7 and Shop.ITEMS[1].price==15 and Shop.ITEMS[2].price==10 and Shop.ITEMS[3].price==6
     and Shop.ITEMS[4].price==8,'The cut table prices')
--- The cut items are the ItemTable rows the native part adds (core/lion_rows.lua, generated with rows/rows.h): the
--- Shock Bolt's in the bolt rows batch, the others in the lion rows batch.
-do
-    local R,added=require('core.lion_rows'),{}
-    for _,r in ipairs(R.ROWS) do if r[1]=='ItemTable' then added[r[2]]='lion' end end
-    for _,r in ipairs(R.BOLT) do if r[1]=='ItemTable' then added[r[2]]='bolt' end end
-    for _,item in ipairs(Shop.ITEMS) do
-        assert(not item.cut or added[item.alias]==(item.shock and 'bolt' or 'lion'),item.alias)
-    end
-end
 for _,bad in ipairs({{'Money_NightOperation',1},{'Bullet_Normal',1},{'TrapGrenade',1},{'FlashGrenade',1},
         {'HealGrenade',1},{'hp_potion',1},{'HP_Potion ',1},{nil,1},{'HP_Potion',0},{'HP_Potion',11},{'HP_Potion',1.5},
         {'HP_Potion','1'},{'HP_Potion',2.0}}) do

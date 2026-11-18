@@ -22,9 +22,10 @@ R7 A wiring that calls RegisterHook or NotifyOnNewObject guards each callback wi
 R8 Native: no header, part or test of a module's folder (its longest path: online/lobby, not online) reads another
    module folder's header, by an #include or by a name through the header's namespace (world::kNoneName: tick.cpp
    includes every header once at its top, so a part reads headers it never includes); a shared header (game, link, rows,
-   ui) reads none either. Only glue/ (the hub) and the tests of tests/native/game/globals_test.cpp and
-   tests/native/link/ may; no module part (native/src/<module>/*.inc, in glue/tick.cpp's order) uses a name another
-   module folder's part defines at its top level (whole tokens, comments and strings out, a local of the same name not
+   ui) reads none either. Only the hubs, glue/ and rows/rows_game.inc (the batch flow reads every module's Batch), and
+   the tests of tests/native/game/globals_test.cpp, tests/native/link/ and tests/native/rows/ (the engine's test over
+   every batch) may; no module part (native/src/<module>/*.inc, in glue/tick.cpp's order) uses a name another module
+   folder's part defines at its top level (whole tokens, comments and strings out, a local of the same name not
    counted).
 R9 Each language table of ui/text.lua, loaded by lua5.4, names exactly the modules of MODULES in modules.
 It first runs on planted trees, one violation each, so no rule passes vacuously, then on this repository, which must
@@ -41,7 +42,8 @@ SRC = 'native/src'
 SHARED_LUA = ('main.lua', 'main/', 'core/', 'ui/kit/', 'ui/text.lua', 'ui/text/')
 SHARED_LUA_TESTS = ('tests/lua/main/', 'tests/lua/ui/text_test.lua')
 SHARED_NATIVE = {'game', 'link', 'rows', 'ui', 'glue'}
-NATIVE_TESTS_READING = ('tests/native/game/globals_test.cpp', 'tests/native/link/')
+NATIVE_TESTS_READING = ('tests/native/game/globals_test.cpp', 'tests/native/link/', 'tests/native/rows/')
+NATIVE_HUB = (f'{SRC}/glue/', f'{SRC}/rows/rows_game.inc')  # The batch flow reads every module's Batch.
 RUNTIME_SET_BY = {'aside_note': 'online.partner'}  # A runtime value a module sets (MAP.md section 10).
 HOOKS = re.compile(r'\b(RegisterHook|NotifyOnNewObject)\b')
 FUNCTION = re.compile(r'\bfunction\s*\(')
@@ -374,7 +376,7 @@ def check_native(root, out):
         heads[rel] = (last, declared(code))
     for p, rel in files:
         mine, name = of(rel), str(p.relative_to(root))
-        if mine == 'glue' and p.is_relative_to(root / SRC) or name.startswith(NATIVE_TESTS_READING): continue
+        if name.startswith(NATIVE_HUB) or name.startswith(NATIVE_TESTS_READING): continue
         raw = p.read_text(encoding='utf-8')
         code = strip_c(raw)
         for m in INC.finditer(raw):

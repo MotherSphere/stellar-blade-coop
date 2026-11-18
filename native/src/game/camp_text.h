@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Matrix XIII's camp names and records, the native half, free of Windows: 12 entries added to SB's live StringTable_UI,
-// so the keys the mxnames rows name (rows/mxiii_rows.h) read as our names on every camp surface, and 50 to
-// StringTable_Records (game/record_text.h), the titles and texts the mxrecords rows name. This file names the calls and
-// offsets, holds the names, picks the language, says when a pass is due and writes the status lines (camptext=,
+// so the keys the mxnames rows name (world/maps/matrix13/mxiii_rows.h) read as our names on every camp surface, and 50
+// to StringTable_Records (game/record_text.h), the titles and texts the mxrecords rows name. This file names the calls
+// and offsets, holds the names, picks the language, says when a pass is due and writes the status lines (camptext=,
 // recordtext=). The records' entries are text only and no row of a save without the mxrecords batch names them.
 // tests/native/game/camp_text_test.cpp checks it on the build machine. All read from build 24463856's code and matched
 // to build 26123051's; it has not run in game.

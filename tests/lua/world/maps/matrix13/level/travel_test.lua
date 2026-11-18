@@ -2,16 +2,16 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- world/maps/matrix13/level/travel.lua with fake UE4SS objects and a fake follow. Its rows match
--- native/src/rows/mxiii_rows.h's recipes and patches batch by batch (names, templates, IDs, each patched field's kind
--- and value, no field more). The dev rows first: the camp, then 7 env-spawn rows that all name it, the kit's 6 each
--- bound by its own name to a placed object, then zone 30's camp and its one row in Zone_DLC02_30, then zone 40's two
--- shipped trigger rows patched in place to start enabled. The Paks folder comes from the mod folder; the test pak
--- counts only when its .utoc in ~mods or LogicMods names WorldMap_DLC_01, Level_P and MXIII_P.umap, with its .pak and
--- .ucas beside it; it is v5 when its .utoc also names MXIII_Camps_A.umap and its .ucas DLC02_00_Camp_00, v4 with that
--- name alone, v3 when its .ucas names DLC02_30_Camp_01, v2 when it names DLC02_10_EnvS, else v1. coop mxiii: usage;
--- busy; without the follow, with a follow guard failing, without the test pak or with one before v5 it asks nothing
--- (the pak looked for once a command, by its file, never by StaticFindObject) or with another batch not in (mxspawn,
--- mxenv, mxupper, mxmiddle, mxlower, lion, gardener: those go
+-- native/src/world/maps/matrix13/mxiii_rows.h's recipes and patches batch by batch (names, templates, IDs, each patched
+-- field's kind and value, no field more). The dev rows first: the camp, then 7 env-spawn rows that all name it, the
+-- kit's 6 each bound by its own name to a placed object, then zone 30's camp and its one row in Zone_DLC02_30, then
+-- zone 40's two shipped trigger rows patched in place to start enabled. The Paks folder comes from the mod folder; the
+-- test pak counts only when its .utoc in ~mods or LogicMods names WorldMap_DLC_01, Level_P and MXIII_P.umap, with its
+-- .pak and .ucas beside it; it is v5 when its .utoc also names MXIII_Camps_A.umap and its .ucas DLC02_00_Camp_00, v4
+-- with that name alone, v3 when its .ucas names DLC02_30_Camp_01, v2 when it names DLC02_10_EnvS, else v1. coop mxiii:
+-- usage; busy; without the follow, with a follow guard failing, without the test pak or with one before v5 it asks
+-- nothing (the pak looked for once a command, by its file, never by StaticFindObject) or with another batch not in
+-- (mxspawn, mxenv, mxupper, mxmiddle, mxlower, lion, gardener: those go
 -- in at the title only) it asks nothing; with all of them it asks the mxiii rows with the 20 addresses, waits for the
 -- mxiii line, reads the 15 rows back, then asks the follow's probe for DLC02_00_Camp_00 (a camp in no table) and names
 -- the way out; a native refusal, a row that reads back wrong or a probe the follow refuses ends it with no travel; rows
@@ -59,8 +59,9 @@ package.loaded.UEHelpers={GetPlayer=function() return player end,GetPlayerContro
 local M=require('world.maps.matrix13.level.travel')
 local Enemy=require('core.enemy')
 
--- The rows against rows/mxiii_rows.h, batch by batch (both written by tools/mxiii_rows.py from one data file):
--- names, templates, IDs, each patched field's kind and value, no field more. Then the dev rows first, in their order.
+-- The rows against world/maps/matrix13/mxiii_rows.h, batch by batch (both written by tools/mxiii_rows.py from one data
+-- file): names, templates, IDs, each patched field's kind and value, no field more. Then the dev rows first, in their
+-- order.
 local TABLES={character='CharacterTable',camp='ZoneCampTable',env='ZoneEnvSpawnTable',trigger='ZoneTriggerTable',
     spawn='EventSpawnTable',eitem='EventItemTable',zevent='ZoneEventTable',transition='WorldTransitionTable',
     envc='EventEnvControlTable',warp='EventZoneWarpTable',effvol='EffectVolumeTable',condition='ConditionTable',
@@ -93,7 +94,7 @@ local function check_batch(src,cname,rows)
     return n,#patches
 end
 do
-    local f=assert(io.open('native/src/rows/mxiii_rows.h'))
+    local f=assert(io.open('native/src/world/maps/matrix13/mxiii_rows.h'))
     local src=f:read('a')
     f:close()
     assert(check_batch(src,'kMxiii',M.ROWS)==75)
@@ -104,14 +105,15 @@ do
     end
     assert(table.concat(words,' ')=='mxspawn mxenv mxupper mxmiddle mxlower lion gardener mxlily mxnames mxrecords',
         'The title order after mxiii')
-    -- The Lion's and the Gardener's batches: the rows of core/lion_rows.lua in order, built here as
-    -- fight/bosses/lion.lua and gardener.lua build theirs (Matrix XIII's copy of those two lines, November 2026).
-    local R,shared=require('core.lion_rows'),0
+    -- The Lion's and the Gardener's batches: the rows of world/maps/matrix13/level/boss_rows.lua (its copy of
+    -- fight/bosses/lion_rows.lua's) in order, built here as fight/bosses/lion.lua and gardener.lua build theirs (Matrix
+    -- XIII's copy of those two lines, November 2026).
+    local R,shared=require('world.maps.matrix13.level.boss_rows'),0
     local OWN={lion=R.ROWS,gardener=R.GARDENER}
     for _,b in ipairs(M.BATCHES) do
         local own=OWN[b.word]
         if own then
-            assert(#b.rows==#own and #b.rows>0,b.word..': not the rows of core/lion_rows.lua')
+            assert(#b.rows==#own and #b.rows>0,b.word..': not the rows of world/maps/matrix13/level/boss_rows.lua')
             for i,r in ipairs(own) do
                 local row=b.rows[i]
                 assert(row.table==r[1] and row.name==r[2] and row.id==r[3] and row.checks==r[4],b.word..' '..r[2])

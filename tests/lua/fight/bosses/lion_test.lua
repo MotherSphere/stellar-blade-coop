@@ -1,25 +1,26 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- fight/bosses/lion.lua with fake UE4SS objects. Its row list (core/lion_rows.lua, generated with rows.h) matches
--- native/src/rows/rows.h's generated recipe row for row (names, IDs, each patched field's kind and value, no field
--- more), and so do the Gardener's (R.GARDENER, kGardenerRecipe), the Tendril's (R.TENDRIL, kTendrilRecipe), the Shock
--- Bolt's (R.BOLT, kBoltRecipe) and the Night Operation shop's (R.SHOP, kShopRecipe); its tables are kLionTables in
--- order. The rows are the Lion's own: no value names a Behemoth row or asset but the sound set, every reference lands
--- on a Lion row or a shipped generic one, the steps' moves are Lion moves, the phase-2 stance turns at HP under 60% and
--- starts the roar's effect, which uses the phase-2 roar skill. The lion line parses in each of its forms. coop lion
--- finds the 14 tables its rows go into (a missing one, no EVE or no lion line asks nothing; a table it never writes may
--- be missing), asks the rows once with their addresses in the native order, waits for the answer (a waiting line, or a
--- refusal from before the ask, is no answer; a map change, a refusal, a fault, 30 s or SB's lookups finding fewer rows
--- stop it), reads every row back through FindRow (the first value that differs stops before any spawn), then makes the
--- one spawn call: 50020 (50021 after brain lurker, 50110 for control, no rows needed) 10 m ahead and 1 m up, facing
--- EVE, cheat on, key 0. Rows already in are read back without an ask. Lion.rows with word bolt runs the Shock Bolt's
--- batch the same way on a job of its own, and a frame where both end says both; with word shop, the Night Operation
--- shop's batch. The body is the new one nearest the spot (or one SB sent far away and moved back, whose old follow ends
--- as recycled), given its default controller when it still has none 1.5 s after the call, then followed: a line a
--- second (its place, anim speed, skill and custom anim alphas, a failed read as ?), its death and its body's despawn
--- with the spawn counts; none after 5 s stops. While a Lion lives, the boss name (only the live TextBlock_BossName
--- reading <M_LionC> set to Lion, again after the game writes it back; FindAllOf at most every 10 s while none is held).
+-- fight/bosses/lion.lua with fake UE4SS objects. Its row list (fight/bosses/lion_rows.lua, generated with lion_rows.h)
+-- matches native/src/fight/bosses/lion_rows.h's generated recipe row for row (names, IDs, each patched field's kind and
+-- value, no field more), and so do the Gardener's (R.GARDENER, kGardenerRecipe), the Tendril's (R.TENDRIL,
+-- kTendrilRecipe), the Shock Bolt's (R.BOLT, kBoltRecipe) and the Night Operation shop's (R.SHOP, kShopRecipe); its
+-- tables are kLionTables in order. The rows are the Lion's own: no value names a Behemoth row or asset but the sound
+-- set, every reference lands on a Lion row or a shipped generic one, the steps' moves are Lion moves, the phase-2
+-- stance turns at HP under 60% and starts the roar's effect, which uses the phase-2 roar skill. The lion line parses in
+-- each of its forms. coop lion finds the 14 tables its rows go into (a missing one, no EVE or no lion line asks
+-- nothing; a table it never writes may be missing), asks the rows once with their addresses in the native order, waits
+-- for the answer (a waiting line, or a refusal from before the ask, is no answer; a map change, a refusal, a fault, 30
+-- s or SB's lookups finding fewer rows stop it), reads every row back through FindRow (the first value that differs
+-- stops before any spawn), then makes the one spawn call: 50020 (50021 after brain lurker, 50110 for control, no rows
+-- needed) 10 m ahead and 1 m up, facing EVE, cheat on, key 0. Rows already in are read back without an ask. Lion.rows
+-- with word bolt runs the Shock Bolt's batch the same way on a job of its own, and a frame where both end says both;
+-- with word shop, the Night Operation shop's batch. The body is the new one nearest the spot (or one SB sent far away
+-- and moved back, whose old follow ends as recycled), given its default controller when it still has none 1.5 s after
+-- the call, then followed: a line a second (its place, anim speed, skill and custom anim alphas, a failed read as ?),
+-- its death and its body's despawn with the spawn counts; none after 5 s stops. While a Lion lives, the boss name (only
+-- the live TextBlock_BossName reading <M_LionC> set to Lion, again after the game writes it back; FindAllOf at most
+-- every 10 s while none is held).
 -- coop lion intro plays the entrance on a display copy first and spawns where its root ended (at the spot when that is
 -- too far), removing the copy as soon as the body shows; a map change during it spawns nothing; a copy that cannot be
 -- made spawns at once. A second command waits while one runs (brain does not); coop off ends the job and the copy.
@@ -60,13 +61,18 @@ local player,pc -- EVE (nil: none) and her player controller, set below.
 package.loaded.UEHelpers={GetPlayer=function() return player end,GetPlayerController=function() return pc end}
 local L=require('fight.bosses.lion')
 
--- Lion.ROWS against native/src/rows/rows.h: its kPatches entries (a field's name is the comment after the entry, or
--- the comment line just before it; a comment line naming an M_LionC or M_TendrilC row only heads a group) and
--- kRecipe.
+-- Lion.ROWS against native/src/fight/bosses/lion_rows.h: its kPatches entries (a field's name is the comment after the
+-- entry, or the comment line just before it; a comment line naming an M_LionC or M_TendrilC row only heads a group)
+-- and kRecipe; the tables against native/src/rows/rows.h; the bolt and shop batches against eve/bolt_rows.h and
+-- online/modes/nightop/shop_rows.h, each over its own patches.
 do
-    local f=assert(io.open('native/src/rows/rows.h'))
-    local src=f:read('a')
-    f:close()
+    local function read(path)
+        local f=assert(io.open(path))
+        local text=f:read('a')
+        f:close()
+        return text
+    end
+    local src=read('native/src/rows/rows.h')
     local enum={}
     for w in assert(src:match('enum class Table : uint8_t {([^}]+)}')):gmatch('%a+') do enum[#enum+1]=w end
     local names={}
@@ -75,48 +81,53 @@ do
     end
     assert(#enum==39 and #names==39,'39 tables')
     for i,n in ipairs(names) do assert(L.TABLES[i]==n,'kLionTables order: '..n) end
-    local block=assert(src:match('constexpr Patch kPatches%[%] = {\n(.-)\n};'))
-    local patches,pending,line,closed_at={},nil,1,nil
-    local i=1
-    while i<=#block do
-        local ch=block:sub(i,i)
-        if ch=='\n' then line=line+1; i=i+1
-        elseif block:sub(i,i+1)=='//' then
-            local e=block:find('\n',i) or #block+1
-            local c=block:sub(i+2,e-1):match('^%s*(.-)%s*$')
-            if closed_at==line then patches[#patches].field=c
-            elseif not c:find('^M_LionC') and not c:find('^M_TendrilC') and not c:find('^[%w_]+ %(%w+, [%a ]+%)$') then
-                pending=c -- No heading.
-            end
-            i=e
-        elseif ch=='{' then
-            local text,bare,depth,j,s='', '',0,i,nil
-            repeat
-                local cj=block:sub(j,j)
-                if s then
-                    if cj=='\\' then text=text..block:sub(j+1,j+1); j=j+1
-                    elseif cj=='"' then s=nil
-                    else text=text..cj end
-                elseif cj=='"' then s=true
-                else
-                    if cj=='{' then depth=depth+1 elseif cj=='}' then depth=depth-1 end
-                    if cj=='\n' then line=line+1 end
-                    bare=bare..cj
+    -- A header's patch array, in order.
+    local function parse(text,array)
+        local block=assert(text:match('constexpr Patch '..array..'%[%] = {\n(.-)\n};'),array)
+        local patches,pending,line,closed_at={},nil,1,nil
+        local i=1
+        while i<=#block do
+            local ch=block:sub(i,i)
+            if ch=='\n' then line=line+1; i=i+1
+            elseif block:sub(i,i+1)=='//' then
+                local e=block:find('\n',i) or #block+1
+                local c=block:sub(i+2,e-1):match('^%s*(.-)%s*$')
+                if closed_at==line then patches[#patches].field=c
+                elseif not c:find('^M_LionC') and not c:find('^M_TendrilC')
+                    and not c:find('^[%w_]+ %(%w+, [%a ]+%)$') then
+                    pending=c -- No heading.
                 end
-                j=j+1
-            until depth==0 and not s
-            local w={}
-            for x in bare:sub(2,-2):gmatch('[^,]+') do w[#w+1]=x:match('^%s*(.-)%s*$') end
-            patches[#patches+1]={kind=w[2]:match('Kind::(%w+)'),f=tonumber((w[3]:gsub('f$',''))),text=text,
-                field=pending}
-            pending,closed_at,i=nil,line,j
-        else i=i+1 end
+                i=e
+            elseif ch=='{' then
+                local text,bare,depth,j,s='', '',0,i,nil
+                repeat
+                    local cj=block:sub(j,j)
+                    if s then
+                        if cj=='\\' then text=text..block:sub(j+1,j+1); j=j+1
+                        elseif cj=='"' then s=nil
+                        else text=text..cj end
+                    elseif cj=='"' then s=true
+                    else
+                        if cj=='{' then depth=depth+1 elseif cj=='}' then depth=depth-1 end
+                        if cj=='\n' then line=line+1 end
+                        bare=bare..cj
+                    end
+                    j=j+1
+                until depth==0 and not s
+                local w={}
+                for x in bare:sub(2,-2):gmatch('[^,]+') do w[#w+1]=x:match('^%s*(.-)%s*$') end
+                patches[#patches+1]={kind=w[2]:match('Kind::(%w+)'),f=tonumber((w[3]:gsub('f$',''))),text=text,
+                    field=pending}
+                pending,closed_at,i=nil,line,j
+            else i=i+1 end
+        end
+        return patches
     end
     local KINDS={f32='f',i32='i',name='n',string='s',names='N',strings='S'}
-    -- One recipe array of rows.h against its Lua rows; returns how many it holds.
-    local function compare(array,rows)
+    -- One recipe array of a header against its Lua rows over that header's patches; returns how many it holds.
+    local function compare(text,patches,array,rows)
         local n=0
-        local recipe=assert(src:match('constexpr Row '..array..'%[%] = {\n(.-)\n};'),array)
+        local recipe=assert(text:match('constexpr Row '..array..'%[%] = {\n(.-)\n};'),array)
         local ROW='{Table::(%a+), "([%w_]+)", "([%w_]+)",%s+(%d+),%s+(%d+),%s+(%d+)}'
         for t,name,_,id,first,count in recipe:gmatch(ROW) do
             n=n+1
@@ -141,23 +152,29 @@ do
         end
         return n
     end
-    local n=compare('kRecipe',L.ROWS)
+    local lion=read('native/src/fight/bosses/lion_rows.h')
+    local patches=parse(lion,'kPatches')
+    local n=compare(lion,patches,'kRecipe',L.ROWS)
     local gardener={}
-    for _,r in ipairs(require('core.lion_rows').GARDENER) do
+    for _,r in ipairs(require('fight.bosses.lion_rows').GARDENER) do
         gardener[#gardener+1]={table=r[1],name=r[2],id=r[3],checks=r[4]}
     end
-    local g=compare('kGardenerRecipe',gardener)
+    local g=compare(lion,patches,'kGardenerRecipe',gardener)
     local tendril={}
-    for _,r in ipairs(require('core.lion_rows').TENDRIL) do
+    for _,r in ipairs(require('fight.bosses.lion_rows').TENDRIL) do
         tendril[#tendril+1]={table=r[1],name=r[2],id=r[3],checks=r[4]}
     end
-    local t=compare('kTendrilRecipe',tendril)
-    local b=compare('kBoltRecipe',L.BOLT)
-    local sh=compare('kShopRecipe',L.SHOP)
+    local t=compare(lion,patches,'kTendrilRecipe',tendril)
+    local bolt=read('native/src/eve/bolt_rows.h')
+    local bolt_patches=parse(bolt,'kBoltPatches')
+    local b=compare(bolt,bolt_patches,'kBoltRecipe',L.BOLT)
+    local shop=read('native/src/online/modes/nightop/shop_rows.h')
+    local shop_patches=parse(shop,'kShopPatches')
+    local sh=compare(shop,shop_patches,'kShopRecipe',L.SHOP)
     assert(n==237 and #L.ROWS==237 and g==13 and #gardener==13 and t==107 and #tendril==107 and b==4 and #L.BOLT==4
-        and sh==6 and #L.SHOP==6 and #patches==3178+279+1281+87+33,
+        and sh==6 and #L.SHOP==6 and #patches==3178+279+1281 and #bolt_patches==87 and #shop_patches==33,
         n..' rows, '..g..' Gardener rows, '..t..' Tendril rows, '..b..' Shock Bolt rows, '..sh..' shop rows, '
-        ..#patches..' patches')
+        ..#patches..', '..#bolt_patches..' and '..#shop_patches..' patches')
     assert(L.IN.added=='237/237' and L.IN.char=='2/2' and L.IN.skills=='23/23' and L.IN.stance=='2/2')
 end
 -- The Lion's own rows: no value names a Behemoth row or asset but its sound set (the Lion has none of its own); each

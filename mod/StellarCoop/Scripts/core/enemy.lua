@@ -86,9 +86,9 @@ local MATERIAL='/Script/Engine.MaterialInterface'
 
 Enemy.why=U.why
 local why=Enemy.why
--- The generated rows (core/lion_rows.lua's R.ROWS or R.GARDENER, {table, name, ID, checks}) as {table=, name=, id=
--- <nil in the dead table>, checks={{field, kind, value, changed}}}. kind: f a float, i an int32, b a bool (0 or 1), e
--- an enum's number, n an FName (compared in any case: its text is whichever casing the game registered first), N a
+-- The generated rows (fight/bosses/lion_rows.lua's R.ROWS or R.GARDENER, {table, name, ID, checks}) as {table=, name=,
+-- id= <nil in the dead table>, checks={{field, kind, value, changed}}}. kind: f a float, i an int32, b a bool (0 or 1),
+-- e an enum's number, n an FName (compared in any case: its text is whichever casing the game registered first), N a
 -- list of FNames, s an FString, S a list of FStrings (lists joined by |), C a list of quest task containers (each
 -- one's TaskAliasArray of FNames joined by |, the containers by ;, compared in any case). changed: the value differs
 -- from the row's template (the shipped row the native part copies before its patches), so reading it back proves the

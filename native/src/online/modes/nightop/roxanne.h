@@ -14,10 +14,11 @@
 // graph lists (Temp_TS_Select_Test_1 to _3 and TS_GoToTest_1, which online/modes/nightop/roxanne.lua edits and gives
 // its text), so End Conversation stays the last slot (the cancel input picks the last one) whether the widget sorts by
 // priority (all six read 0) or not, and the select widget's six slots hold them all. Lily's is one, TS_GoToTest_2,
-// which rows/rows.h's signal batch patches in place (priority 3: sorted by priority it stands below her bike signal and
-// above her Travel, Repair and End rows; unsorted it stands first, End staying last either way); the game hides the
-// rows whose conditions fail before the widget fills, as it does for her own eight. Roxanne's two rows must be in her
-// order; Lily's eight are checked as a set, since the cache's order of them is not known, and kept in that order.
+// which world/maps/matrix13/signal_rows.h's signal batch patches in place (priority 3: sorted by priority it stands
+// below her bike signal and above her Travel, Repair and End rows; unsorted it stands first, End staying last either
+// way); the game hides the rows whose conditions fail before the widget fills, as it does for her own eight. Roxanne's
+// two rows must be in her order; Lily's eight are checked as a set, since the cache's order of them is not known, and
+// kept in that order.
 // The new array is SB's GMalloc's (FMalloc at 0x1470703c0, Malloc at its vtable's +0x10), so SB may free it like
 // its own: from the moment the entry points at it, it is SB's, reused only once off took it back, and an entry the game
 // rebuilt meanwhile gets a new one. The old one is kept untouched, and off puts the old pointer, count and max back

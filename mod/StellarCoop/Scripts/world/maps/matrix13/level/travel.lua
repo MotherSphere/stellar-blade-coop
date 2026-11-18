@@ -6,8 +6,8 @@
 -- holds its map, /Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P, and no row of the game leads to its world. The zMXIII_P
 -- test pak, built outside the mod and never shipped with it, adds a map at that path. On the game thread, in order: the
 -- checks the travel needs, once a command (the follow's own guards: solo, a co-op save, the native travel there and
--- none under way; then the test pak, v5); the native part's mxiii rows batch (rows/mxiii_rows.h, written by
--- tools/mxiii_rows.py from data/mxiii-world.json: the zone 10 camp DLC02_10_Camp_01 with DLC02_10_EnvS_900, which
+-- none under way; then the test pak, v5); the native part's mxiii rows batch (world/maps/matrix13/mxiii_rows.h, written
+-- by tools/mxiii_rows.py from data/mxiii-world.json: the zone 10 camp DLC02_10_Camp_01 with DLC02_10_EnvS_900, which
 -- leads the travel there and is the camp base, and its kit 901 to 906, which SB binds by name to the objects the pak
 -- places in its MXIII_Camps_A level, as it does the zone 10 simple camp's 420, 421, 423 and 426; zone 30's
 -- rest stop DLC02_30_Camp_01; 5 shipped ZoneTriggerTable rows patched in place, so the zone 20 waves and the zone 40
@@ -90,9 +90,9 @@ local function hint(camp,command)
         ..'load the save or travel to a camp, then run '..command..' again (the rows stay in)'
 end
 -- The rows as core/enemy.lua reads them back: world/maps/matrix13/level/rows.lua, which tools/mxiii_rows.py writes from
--- data/mxiii-world.json with rows/mxiii_rows.h (world/maps/matrix13/level/travel_test checks the two agree). The mxiii
--- batch holds the camps and what they need (their env rows, coins, zone 0's Tetrapod and Lily); the dev rows come
--- first, in their order.
+-- data/mxiii-world.json with world/maps/matrix13/mxiii_rows.h (world/maps/matrix13/level/travel_test checks the two
+-- agree). The mxiii batch holds the camps and what they need (their env rows, coins, zone 0's Tetrapod and Lily); the
+-- dev rows come first, in their order.
 local Rows=require('world.maps.matrix13.level.rows')
 Mxiii.ROWS=Enemy.rows(Rows.MXIII)
 -- coop mxiii warp's points: the arrival points the cooked map keeps from the removed warp switches.
@@ -107,9 +107,10 @@ function Mxiii.warp_point(point)
 end
 -- The other batches, each its own ask: Matrix XIII's spawn rows, loot (supply boxes and pickups) with the device
 -- rows dev patched first, the doors, gates, lifts, arena locks and water of zones 0 to 2, of zone 3 and of zone 4
--- (rows/mxiii_rows.h), then the Lion's and the Gardener's own batches, whose CharacterTable rows M_LionC and
--- M_Gardener the boss spawn rows name, then Lily's menu in this world, then the camps' display keys. At the title they go in once the mxiii rows are
--- in, one after the other, and coop mxiii travels only once every one of them but an optional one reads rows.
+-- (world/maps/matrix13/mxiii_rows.h), then the Lion's and the Gardener's own batches, whose CharacterTable rows M_LionC
+-- and M_Gardener the boss spawn rows name, then Lily's menu in this world, then the camps' display keys. At the title
+-- they go in once the mxiii rows are in, one after the other, and coop mxiii travels only once every one of them but an
+-- optional one reads rows.
 -- optional: the travel never waits for it. ready: the title asks it only when this holds on the status text, here once
 -- the native part has made the keys' entries (game/camp_text.h), so a row can never name a key with no text: SB would
 -- show <key>. A fault, or a table that never loads, leaves the rows with their donors' names.
@@ -119,8 +120,8 @@ Mxiii.BATCHES={
     {word='mxupper',name='Matrix XIII zones 0 to 2 mechanism',rows=Enemy.rows(Rows.MXUPPER)},
     {word='mxmiddle',name='Matrix XIII zone 3 mechanism',rows=Enemy.rows(Rows.MXMIDDLE)},
     {word='mxlower',name='Matrix XIII zone 4 mechanism',rows=Enemy.rows(Rows.MXLOWER)},
-    {word='lion',name='Lion',rows=Enemy.rows(require('core.lion_rows').ROWS)},
-    {word='gardener',name='Gardener',rows=Enemy.rows(require('core.lion_rows').GARDENER)},
+    {word='lion',name='Lion',rows=Enemy.rows(require('world.maps.matrix13.level.boss_rows').ROWS)},
+    {word='gardener',name='Gardener',rows=Enemy.rows(require('world.maps.matrix13.level.boss_rows').GARDENER)},
     {word='mxlily',name='Lily at the Matrix XIII Tetrapod',rows=Enemy.rows(Rows.MXLILY),optional=true},
     {word='mxnames',name='Matrix XIII camp names',rows=Enemy.rows(Rows.MXNAMES),optional=true,ready=function(status)
         local s=Enemy.parse(status,'camptext')

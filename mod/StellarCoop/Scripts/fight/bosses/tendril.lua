@@ -3,10 +3,10 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop tendril fight: the cut Naytiba 6, the Tendril (/Game/Art/Character/Monster/CH_M_NA_06/: a test mesh whose one
 -- material slot is empty, its skeleton, physics asset, blueprint, AnimBP and 42 clips, but no table row and no Show),
--- spawned as a real enemy to fight, on the game thread. Its 107 rows (core/lion_rows.lua's R.TENDRIL, the native part's
--- third batch, rows/rows.h's kTendrilRecipe) are authored as the Lion's: 11 skills on its own clips with their
--- commands and steps, the areas their hits strike, a stance, two anim sets, its dead, appearance and CharacterTable
--- rows (M_TendrilC, 50060, the Lion's Skulling test tree).
+-- spawned as a real enemy to fight, on the game thread. Its 107 rows (fight/bosses/lion_rows.lua's R.TENDRIL, the
+-- native part's third batch, fight/bosses/lion_rows.h's kTendrilRecipe) are authored as the Lion's: 11 skills on its
+-- own clips with their commands and steps, the areas their hits strike, a stance, two anim sets, its dead, appearance
+-- and CharacterTable rows (M_TendrilC, 50060, the Lion's Skulling test tree).
 -- No pak holds a Show of its clips, so before a spawn this file builds the 12 Shows its steps and its death name
 -- (R.TENDRIL_SHOWS): each a copy of the Gardener's one-clip Show M_Gardener_ToxicBeam, made by StaticConstructObject
 -- with that Show as its template and in the root set (never collected), with its own copy of the anim key set to play
@@ -33,9 +33,9 @@ local Tendril={}
 Tendril.IDS={[50060]='M_TendrilC'}
 local TENDRIL=50060
 local USE='Use: coop tendril fight [rows]'
-local ROWS=require('core.lion_rows')
--- The rows as the native part writes them: core/lion_rows.lua's R.TENDRIL (tests/lua/fight/bosses/lion_test.lua checks
--- it against rows.h's kTendrilRecipe), in Enemy.rows' form, and the tendril line's counts once they are in.
+local ROWS=require('fight.bosses.lion_rows')
+-- The rows as the native part writes them: fight/bosses/lion_rows.lua's R.TENDRIL (tests/lua/fight/bosses/lion_test.lua
+-- checks it against lion_rows.h's kTendrilRecipe), in Enemy.rows' form, and the tendril line's counts once they are in.
 Tendril.ROWS=Enemy.rows(ROWS.TENDRIL)
 Tendril.IN=Enemy.counts(Tendril.ROWS)
 -- The Shows to build: {template=<a ShowPath>, key=<its anim key's name>, package=<theirs, as a ShowPath>,

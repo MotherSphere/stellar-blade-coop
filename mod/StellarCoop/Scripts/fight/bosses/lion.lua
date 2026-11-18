@@ -3,8 +3,8 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop lion: the cut Naytiba 02, the Lion (/Game/Art/Character/Monster/CH_M_NA_02/: blueprint, mesh, clips, collision
 -- data and 41 Shows, but no table row), spawned as a real enemy to fight, on the game thread (plan A of the Lion study,
--- made native). Its 222 rows, each authored for it (core/lion_rows.lua lists them), go into SB's tables through the
--- native part (rows/rows.h, rows/rows_game.inc: SB's own AddRow on the game thread with no logic task in flight),
+-- made native). Its 222 rows, each authored for it (fight/bosses/lion_rows.lua lists them), go into SB's tables through
+-- the native part (rows/rows.h, rows/rows_game.inc: SB's own AddRow on the game thread with no logic task in flight),
 -- after the 4 rows of the cut items the Night Operation shop sells (2 ItemTable rows, an ItemConsumableTable row and
 -- the SkillTable row they play) and the 11 of EVE's cut Tachy ChainSpin (its skill, 9 steps and the effect that starts
 -- it), 237 rows: the lion rows batch. The shop and coop chainspin ask for them through Lion.rows
@@ -70,20 +70,21 @@ local ANIM_CLASSES={
 -- and ours (fight/bosses/enemy.lua writes it).
 local BOSS_SHOWN,BOSS_NAME='^<M_LionC[%w_]*>$','Lion'
 
--- The rows as the native part writes them: core/lion_rows.lua's R.ROWS, which the generator of rows/rows.h writes from
--- the same recipe (tests/lua/fight/bosses/lion_test.lua checks the two agree), in Enemy.rows' form.
-Lion.ROWS=Enemy.rows(require('core.lion_rows').ROWS)
+-- The rows as the native part writes them: fight/bosses/lion_rows.lua's R.ROWS, which the generator of
+-- fight/bosses/lion_rows.h writes from the same recipe (tests/lua/fight/bosses/lion_test.lua checks the two agree), in
+-- Enemy.rows' form.
+Lion.ROWS=Enemy.rows(require('fight.bosses.lion_rows').ROWS)
 -- The lion line's counts once every row is in: added=, and SB's lookups by ID (char=, skills=, stance=).
 Lion.IN=Enemy.counts(Lion.ROWS)
 -- The lion line (glue's rows_status) as fields (Enemy.parse).
 function Lion.parse(status) return Enemy.parse(status,'lion') end
--- The Shock Bolt's 4 rows, the bolt rows batch: core/lion_rows.lua's R.BOLT (lion_test checks it against rows.h's
--- kBoltRecipe), in Enemy.rows' form.
-Lion.BOLT=Enemy.rows(require('core.lion_rows').BOLT)
--- The Night Operation shop's 6 rows, the shop rows batch: core/lion_rows.lua's R.SHOP (the Beta Seed's ItemTable row,
--- three ShopItemTable rows and two ShopTable rows), which online/modes/nightop/shop.lua asks for before it opens SB's
--- shop screen.
-Lion.SHOP=Enemy.rows(require('core.lion_rows').SHOP)
+-- The Shock Bolt's 4 rows, the bolt rows batch: fight/bosses/lion_rows.lua's R.BOLT (lion_test checks it against
+-- eve/bolt_rows.h's kBoltRecipe), in Enemy.rows' form.
+Lion.BOLT=Enemy.rows(require('fight.bosses.lion_rows').BOLT)
+-- The Night Operation shop's 6 rows, the shop rows batch: fight/bosses/lion_rows.lua's R.SHOP (the Beta Seed's
+-- ItemTable row, three ShopItemTable rows and two ShopTable rows), which online/modes/nightop/shop.lua asks for before
+-- it opens SB's shop screen.
+Lion.SHOP=Enemy.rows(require('fight.bosses.lion_rows').SHOP)
 
 -- o: log (the [LI] lines), ask(line) the native request (ok, message), status() the native status text.
 function Lion.new(o)

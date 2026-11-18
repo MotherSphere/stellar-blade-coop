@@ -3,8 +3,8 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- fight/bosses/tendril.lua (and the parts of fight/bosses/enemy.lua the other specs never reach) with fake UE4SS
 -- objects.
--- Its 107 rows are R.TENDRIL (tests/lua/fight/bosses/lion_test.lua checks them against rows.h's kTendrilRecipe): 11
--- MeleeAttack skills, each whose first step plays the run-time Show of its name and turns it toward EVE, whose steps
+-- Its 107 rows are R.TENDRIL (tests/lua/fight/bosses/lion_test.lua checks them against lion_rows.h's kTendrilRecipe):
+-- 11 MeleeAttack skills, each whose first step plays the run-time Show of its name and turns it toward EVE, whose steps
 -- last as long as that Show's clip and whose Hit steps hit through areas of its own; its stance lists the 11 commands;
 -- its dead row plays the run-time death Show; its CharacterTable row names its stance, dead, appearance and the
 -- Skulling test tree, with no link flag and no name. R.TENDRIL_SHOWS lists exactly the Shows the rows name. The tendril
