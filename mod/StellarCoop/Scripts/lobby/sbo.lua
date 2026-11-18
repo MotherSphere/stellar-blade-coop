@@ -189,9 +189,9 @@ local CHECK=1
 -- Stage 2 at run time (the 250 ms loop), from link.sbo(), link.members() and link.round(). o: link, settings,
 -- log(line), say(key) (a notice by its dotted key in ui/text.lua, 'sbo.saving'), ue (the engine: game_instance(),
 -- pc(), eve(), first(class) (its first actor or nil), find_name(text), index_of(fname), rows={read=,write=} as
--- edit_set takes them, camera(at, rotation) (a camera actor: race/doro.lua's spawn, {actor=, path=, mesh=}, raises when
--- it cannot be made), alive(camera) (its actor while it is still that camera) and sweep(path) (a camera an earlier Lua
--- load left, gone), and the hall chairs: chair_class(asset) (its class, in memory or loaded; raises when neither),
+-- edit_set takes them, camera(at, rotation) (a camera actor: core/actors.lua's spawn, {actor=, path=, mesh=}, raises
+-- when it cannot be made), alive(camera) (its actor while it is still that camera) and sweep(path) (a camera an earlier
+-- Lua load left, gone), and the hall chairs: chair_class(asset) (its class, in memory or loaded; raises when neither),
 -- chair(class, row, at, parts) (SB's chair spawned at {X, Y, Z, Yaw} for that ZoneEnvSpawnTable row, its parts hidden
 -- with their collision off; raises when a step fails) and bound(actor) (the zone and row SB bound it to: its
 -- BindZoneAlias and EnvSpawnAlias, nil when it is gone)), recruiter (its run()), nightop (its running()) and fight() (a

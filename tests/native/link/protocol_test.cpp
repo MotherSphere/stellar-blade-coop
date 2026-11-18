@@ -63,7 +63,7 @@ int main() {
   for (const char *bad : {" photo x both", " photo C both", " photo cc notice", " photo c", " photo c off"})
     assert(parse_text("SBC" + std::to_string(kProtocol) + bad).kind == Kind::invalid);
 
-  // Chat (UI-DESIGN 4.2, 5.1): the line both players see, cleaned as session/chat.lua's Chat.clean cleans it.
+  // Chat (UI-DESIGN 4.2, 5.1): the line both players see, cleaned as core/line.lua's clean cleans it.
   // Well-formed UTF-8 only; C0, DEL, C1, the bidi and zero-width controls dropped (a ZWJ too); ASCII spaces trimmed;
   // 200 bytes at most, never cut inside a character, then trimmed again.
   assert(chat_clean("Bonjour é à ç") == "Bonjour é à ç" && chat_clean("  hi  ") == "hi");

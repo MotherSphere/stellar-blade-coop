@@ -1040,7 +1040,7 @@ ok,why=enya('off')
 assert(ok and why=='Orcal prototype removed.' and newest().destroyed and stored==nil,why)
 
 -- Never another class than a plain Actor: here, and in the sources, which name no achievement, reward, item, quest,
--- save, possession, console command, spawn or destroy call of their own (race/doro.lua's spawn and remove do both).
+-- save, possession, console command, spawn or destroy call of their own (core/actors.lua's spawn and remove do both).
 for k,c in ipairs(spawn_classes) do assert(c=='/Script/Engine.Actor',k..': '..c) end
 assert(#spawn_classes==#spawned)
 for _,name in ipairs({'cut/enemies/leviathan','commands/cut'}) do

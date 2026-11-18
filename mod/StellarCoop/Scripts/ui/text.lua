@@ -5,7 +5,7 @@
 -- enemies', same place's, same spawns', the shared quests', the shared world's, story together's, the follow's, Night
 -- Operation's, the challenges', the status line's, the status strip's above the partner card (overlay) and the
 -- notices' words that the Lua side writes.
--- T.en is English; another language's table sits under its game culture name as nightop/recruiter_text.lua's culture()
+-- T.en is English; another language's table sits under its game culture name as ui/text/culture.lua's culture()
 -- gives it (T.fr, T.de, T['zh-Hans']...: the 23 text languages the game ships), with T.en's keys at every level. The
 -- game's language picks the table (GetCurrentLanguage) unless ui_language=english; a language with no table, or a word
 -- missing from one, reads English. Row ids and setting names are ui/kit/model.lua's; a value's word is its id's (on,

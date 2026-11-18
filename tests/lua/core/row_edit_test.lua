@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- core/row_edit.lua: a set of accepted values, and engine text in a log line as printable ASCII (the Korean label
+-- core/row_edit.lua: a set of accepted values; engine text in a log line as printable ASCII (the Korean label
 -- nightop/roxanne_test.lua reads back escaped).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local R=require('core.row_edit')

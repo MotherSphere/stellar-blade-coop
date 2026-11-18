@@ -61,7 +61,7 @@ function P.solid(k,clear)
     if clear<0 then k.open=true elseif clear>P.LEAVE then k.open=nil end
     return not k.open
 end
--- A map's name for the screen: its travel world's alias (group/travel.lua's WORLDS), else the path's last part.
+-- A map's name for the screen: its travel world's alias (core/worlds.lua), else the path's last part.
 function P.map_name(map,worlds)
     for alias,path in pairs(worlds or {}) do if path==map then return alias end end
     return map:match('[^/]+$') or map

@@ -955,7 +955,7 @@ end
 
 -- 15. Together only: race/run.lua, race/model.lua, race/doro.lua, race/drive.lua and race/drive_model.lua name no
 -- achievement, reward, item, quest, save, possession or console command call, and spawn a plain /Script/Engine.Actor
--- only (race/doro.lua's one SpawnActor).
+-- only (core/actors.lua's one SpawnActor through Doro.spawn, checked in tests/lua/core/actors_test.lua).
 for _,name in ipairs({'race/run','race/model','race/doro','race/drive','race/drive_model'}) do
     local f=assert(io.open('mod/StellarCoop/Scripts/'..name..'.lua','rb'))
     local src=f:read('a')

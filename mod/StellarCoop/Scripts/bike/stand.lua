@@ -1,12 +1,12 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The parked bike as an actor: race/doro.lua's spawn (a plain Actor, one SkeletalMeshComponent with the bike's mesh at
--- scale 1, its reference pose) whose component blocks as WorldDynamic, so EVE and enemies stop at it while the camera
--- passes. Its body is the mesh's own physics asset; no capsule is added. Made hidden and closed, placed by a teleport,
--- shown with its collision. Each pass while shown it is open while she stands inside it (a blocking overlap would shove
--- her out sideways) and solid once she is clear of it (bike/park.lua's rule). Her own bike and other players' copies
--- are both made here; only a copy gets a cull distance. tests/lua/bike/stand_test.lua covers it.
+-- The parked bike as an actor: core/actors.lua's spawn (a plain Actor, one SkeletalMeshComponent with the bike's mesh
+-- at scale 1, its reference pose) whose component blocks as WorldDynamic, so EVE and enemies stop at it while the
+-- camera passes. Its body is the mesh's own physics asset; no capsule is added. Made hidden and closed, placed by a
+-- teleport, shown with its collision. Each pass while shown it is open while she stands inside it (a blocking overlap
+-- would shove her out sideways) and solid once she is clear of it (bike/park.lua's rule). Her own bike and other
+-- players' copies are both made here; only a copy gets a cull distance. tests/lua/bike/stand_test.lua covers it.
 local U=require('core.unreal')
 local Doro=require('core.actors')
 local Park=require('bike.park')

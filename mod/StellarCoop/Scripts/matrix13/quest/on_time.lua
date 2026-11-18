@@ -21,7 +21,7 @@
 --   They stay for the game run, and nothing goes on until they read back.
 -- - The words (matrix13/quest/text.lua), once the rows read back: both quests' titles and descriptions, the 7 group
 --   lines, On Time's task lines 1 to 5 and her choice's first label, as FText in the game's language, each row checked first
---   and read back (nightop/recruiter.lua's edit). The prologue's task and M06's keep the shipped "Talk to Lily" line.
+--   and read back (core/row_edit.lua's edit). The prologue's task and M06's keep the shipped "Talk to Lily" line.
 -- - The quest unit's reads (quest/own.h): none until signal watch, asked once a Lua load when the cheap gates hold (a
 --   co-op save, solo, the test pak, the rows read back), so no player without the pak calls SB's quest unit getter.
 -- - The prologue: once Quest_Epic_11 is at M04 in progress, with neither quest held, every gate holding, the game not
@@ -33,7 +33,7 @@
 --   (label L) or On Time is at M06's task (label L2, written into the row when the wanted label changes); off as soon
 --   as one fails; asked again every ASK_EVERY s while the native part reads otherwise. A load (slot none or unknown)
 --   changes nothing. The game's condition on the row hides it outside Phase 5 by itself.
--- - The pick, read from the select widgets as Roxanne's (nightop/roxanne.lua's watcher), only while her list reads
+-- - The pick, read from the select widgets as Roxanne's (core/picks.lua's watcher), only while her list reads
 --   on: the talk player armed (its hook in place for her goodbye), then the talk: once a theater of the game plays
 --   (her goodbye; looked for every 0.5 s, the talk player waits for its end), 0.5 s after one of its screens closed,
 --   or AFTER s after the pick when neither showed. After the prologue talk (played, fallen back or failed): signal talked (the prologue's

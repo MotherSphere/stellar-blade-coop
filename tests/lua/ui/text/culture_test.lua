@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- ui/text/culture.lua: the game's 23 text cultures each as itself, and culture()'s mapping of the names the game can
+-- ui/text/culture.lua: the game's 23 text cultures each as itself; culture()'s mapping of the names the game can
 -- report, the cases of nightop/recruiter_text_test.lua.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local C=require('ui.text.culture')

@@ -2,8 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop devmenu (cut/menus/devmenu.lua) over fakes: the game's EffectTable (FindRow by name, an ID field, a raising
--- lookup), the native status text, EVE and the player controller (nightop/probe.lua's her and controller, through the
--- real cut/eve/chainspin.lua) and the controller's Cheat request, recorded or raising. Covered: the rows' names are
+-- lookup), the native status text, EVE and the player controller (core/player.lua's her and controller, through the
+-- real core/effect.lua) and the controller's Cheat request, recorded or raising. Covered: the rows' names are
 -- unique and none sends an effect left out on purpose; the list names every row; a bare word, list, an unknown name and
 -- an extra word ask nothing; a row sends SBApplyEffectMe with each of its effects' IDs as read from the table, on EVE's
 -- GUID, in the menu's order; a row with an effect the table lacks, or a table that cannot be read, asks nothing;

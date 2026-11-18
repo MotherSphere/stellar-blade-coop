@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop chainspin (cut/eve/chainspin.lua) over fakes: the native status text, EVE and the player controller
--- (nightop/probe.lua's her and controller), the controller's Cheat request, recorded or raising, and Lion.rows (in at
+-- (core/player.lua's her and controller), the controller's Cheat request, recorded or raising, and Lion.rows (in at
 -- once, refused, or waiting with its answer later). Covered: the effect's ID is the generated row's; only a GUID of 1 to
 -- 2^32-1 reaches the call, with SBApplyEffectMe, no player ID and that ID; each refusal (an extra word, no coop lion,
 -- rows that cannot be added, no warp read, a warp under way, a GUID of 0, no EVE, no controller, a call that raises)

@@ -10,7 +10,7 @@
 -- (FSBCheat::Simulate), which knows six words; the table uses three of them in 87 rows: SBApplyEffectMe (82),
 -- SBPlayerSP (4) and SBPlayerRevival (1). This file offers the SBApplyEffectMe rows that grant nothing by themselves
 -- (no item, skill, quest step or trophy) and whose lasting effects a clear row ends, under names of its own, and sends
--- each through cut/eve/chainspin.lua's one call (ChainSpin.apply, after ChainSpin.target's checks), as the menu's own
+-- each through core/effect.lua's one call (ChainSpin.apply, after ChainSpin.target's checks), as the menu's own
 -- rows would have. Kills made with the help of the attack, gauge or enemy rows are still EVE's own: they count toward
 -- the kill trophies (Trophy_CharKill_Beta, _Burst and _TachySkill among them) in the co-op save, as any kill does.
 -- Left out, with why: the enemy kills and HP cuts (Test_EnemyKill, Test_EnemyKillToBoss, Test_EnemyHP1ToBoss, the

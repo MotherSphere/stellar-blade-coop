@@ -188,7 +188,7 @@ constexpr bool chat_control(uint32_t c) {
   return c < 0x20 || (c >= 0x7F && c <= 0x9F) || c == 0x061C || (c >= 0x200B && c <= 0x200F) ||
          (c >= 0x2028 && c <= 0x202E) || (c >= 0x2060 && c <= 0x206F) || c == 0xFEFF;
 }
-// The same cleaning as session/chat.lua's Chat.clean, byte for byte (tests/native/link/protocol_test.cpp and
+// The same cleaning as core/line.lua's clean, byte for byte (tests/native/link/protocol_test.cpp and
 // tests/lua/session/chat_test.lua check one digest): well-formed UTF-8 only, a byte that starts no valid character
 // dropped alone (overlongs, surrogates and anything past U+10FFFF included); chat_control() characters dropped (a ZWJ
 // too, so a joined emoji shows as its parts); ASCII spaces trimmed; at most max bytes, never cut inside a character,

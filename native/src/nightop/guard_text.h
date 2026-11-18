@@ -48,7 +48,7 @@ constexpr Key kKeys[kKeyCount] = {
     {u"D476C7694FDE4C24A96661809D99F648", u"(\uc784\uc2dc) \uc900\ube44\uac00 \ub418\uba74 \ub2e4\uc2dc \uc54c\ub824\uc8fc\uc138\uc694.", 5},
 };
 
-// The game's text cultures (its 23 Game.locres), the names nightop/recruiter_text.lua's culture() gives.
+// The game's text cultures (its 23 Game.locres), the names ui/text/culture.lua's culture() gives.
 constexpr const char *kCultures[kCultureCount] = {
     "ar", "da", "de", "en", "en-GB", "es", "es-MX", "fi", "fr", "it", "ja", "ko",
     "nl", "no", "pl", "pt", "pt-BR", "ru", "sv", "th", "tr", "zh-Hans", "zh-Hant"};

@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- core/where.lua: whether a save is loaded and the title screen shown, and where our EVE stands, as
+-- core/where.lua: whether a save is loaded, the title screen shown and where our EVE stands, as
 -- partner/puppet_test.lua reads them through the ghost.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local function object(fields)

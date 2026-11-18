@@ -3,7 +3,7 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- nightop/guard_text.lua over fakes: the native part's status text, the language library (its reads counted; a nil
 -- language raises) and the asks. Covered: every culture's guardtext request (its seven lines in order, under the
--- native part's 2048 bytes, each line as session/chat.lua's clean() leaves it, the twin of the native check); nothing,
+-- native part's 2048 bytes, each line as core/line.lua's clean() leaves it, the twin of the native check); nothing,
 -- not even a language read, without a guardtext= line or while it reads off; the game's language asked once while the
 -- native part waits, fr-FR as fr, an unreadable one as en, asked again after a language change (back to one asked
 -- before too); the TEXT=yes line once a culture; the fault line once, with no ask; a failed ask said once and not asked
