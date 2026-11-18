@@ -174,6 +174,7 @@ function Stance.new(laser)
   local camOffsets={} -- gun mode: the donor's arm bones from its yaw-only Spine2 frame (camAnchor)
   local chestRel -- gun mode: the donor's Spine2 from its facing frame (chestFix)
   local onReal=false -- gun mode: the rifle on her real body (aimNative, aim held)
+  local muzzleRel -- gun mode: the rifle's muzzle socket from the rifle (constant)
   -- gun mode (upright): her spine bones, their frames from her facing in her normal stance, and her neck and head.
   local spineBones,spineRel,headBones={},{},{}
   local thighL,thighR,hipRel,hipTurn,hipFollow=FName('Bip001-L-Thigh'),FName('Bip001-R-Thigh'),nil,0,0.65
@@ -203,7 +204,11 @@ function Stance.new(laser)
    local held=held_fn() -- gun mode: RMB / LT (and Luke's Alt, Ctrl), from gunmode/mode.lua.
    -- gun mode: the rifle comes down to reload (her arms then follow the donor's); with aimNative she stays on her
    -- real body and the reload plays on its upper body (switching bodies mid-reload crashed, 11:27).
-   if reloading and not (aimNative and onReal) then held=false end
+   -- gun mode: a reload while aim is held keeps the aim and gives the rifle a quick tilt in her hands (below); the
+   -- NIKKE squad's reload on the donor, with the rifle out of the aim, is for a reload without aim (11:39, 12:08: the
+   -- donor's reload over the aim stance turned her and held the rifle across her body).
+   local aimReload=reloading and held
+   if reloading and not held and not (aimNative and onReal) then held=false end
    -- gun mode (aimNative): while aim is held the game's own animation shows (the aim stance's upper body made the
    -- NIKKE rifle's by gunmode/data.lua): her real body visible, the rifle on its right hand, nothing posed; the
    -- posed copy comes back when aim is let go.
@@ -448,20 +453,28 @@ function Stance.new(laser)
      end
      gun:K2_SetRelativeTransform(grip,false,{},true)
      if held and aimBlend>=1 then
-      local axis=mathlib:GetForwardVector(gun:GetSocketRotation(FName('FX_Fire')))
+      -- gun mode: the muzzle worked out from the right hand's pose just set (grip, then the muzzle socket on the
+      -- rifle), not read back from the rifle: the rifle follows the hand only on the next frame, so the stale reading
+      -- overcorrected every frame and swung the rifle round behind her (11:50).
+      if not muzzleRel then
+       muzzleRel=mathlib:MakeRelativeTransform(gun:GetSocketTransform(FName('FX_Fire'),0),gun:K2_GetComponentToWorld())
+      end
+      local muzzle=mathlib:ComposeTransforms(muzzleRel,mathlib:ComposeTransforms(grip,body:GetBoneTransformByName(hand,0)))
+      local q=muzzle.Rotation
+      local axis={X=1-2*(q.Y*q.Y+q.Z*q.Z),Y=2*(q.X*q.Y+q.W*q.Z),Z=2*(q.X*q.Z-q.W*q.Y)}
       local goal=mathlib:GetForwardVector(cam)
       -- gun mode: the barrel on the line from its muzzle to where the rounds go (the laser's end, under the
       -- reticle), not parallel to the camera: from over her shoulder a parallel barrel and the laser it carries
       -- crossed (11:36). Far points (the sky) keep the camera's line.
       local t=beam_target()
       if t then
-       local m=gun:GetSocketLocation(FName('FX_Fire'))
+       local m=muzzle.Translation
        local dx,dy,dz=t.X-m.X,t.Y-m.Y,t.Z-m.Z
        local len=math.sqrt(dx*dx+dy*dy+dz*dz)
        if len>100 then goal={X=dx/len,Y=dy/len,Z=dz/len} end
       end
       local dot=axis.X*goal.X+axis.Y*goal.Y+axis.Z*goal.Z
-      if dot<0.9999 then
+      if dot<0.9999 and dot>math.cos(math.rad(45)) then -- small turns only: a big one means the pose is off, not the aim
        local x,y,z=axis.Y*goal.Z-axis.Z*goal.Y,axis.Z*goal.X-axis.X*goal.Z,axis.X*goal.Y-axis.Y*goal.X
        local w=1+dot
        if w<0.000001 then x,y,z=-axis.Y,axis.X,0;if x*x+y*y<0.000001 then x,y,z=1,0,0 end;w=0 end
@@ -480,7 +493,12 @@ function Stance.new(laser)
      -- gun mode: the reload. Her arms take the donor's, from a frame at its chest turned only to its facing (its
      -- spine turns in the NIKKE squad's reload, and arms taken from the chest itself held the rifle out to her
      -- right), put at her chest turned to her facing; eased in and out over the first and last 15 % of the reload.
-     if reloading then
+     if reloading and aimReload then
+      local t=math.max(0,math.min(1,(os.clock()-reloadAt)/reloadLen))
+      local w=math.sin(math.pi*t) -- out and back in over the reload
+      gun:K2_SetRelativeTransform(grip,false,{},true)
+      gun:K2_AddLocalRotation({Pitch=-22*w,Yaw=8*w,Roll=55*w},false,{},true)
+     elseif reloading then
       local t=(os.clock()-reloadAt)/reloadLen
       local w=math.max(0,math.min(1,t/0.15,(1-t)/0.15))
       if w>0 then

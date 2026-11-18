@@ -25,6 +25,8 @@ Config.DEFAULTS={
         {'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_3_Cue.P_Eve_GunNikke_Reload_3_Cue',0.85}},
     -- The gun mode animation pak (zNikkeGunMode_P): one of its animations (to find it) and its blend space, which the
     -- aim stance's animation set points at while the rifle is out.
+    muzzle_every=0.09,muzzle_scale=0.45, -- the flash: at most this often (s), at this size (it stacked into a blaze, 12:07)
+    muzzle_fx='/Game/DLC_2/Art/FX/MiniGame/NS_A_NikkeGunFire.NS_A_NikkeGunFire', -- the NIKKE rifle's flash
     pak_probe='/Game/OutfitMods/NikkeGunMode/GM/NGM_GM_WalkF.NGM_GM_WalkF',
     pak_bs='Animation/BlendSpace/P_Eve_GunNikkeHide_BS',
     aim_fov=66,fov_ease=0.2, -- Firing mode on the game's aim: its camera's field of view (SB's is 45), eased in.
@@ -104,6 +106,8 @@ function Config.parse(text)
     if v and v~='' then out.bs=v end
     v=get(text,'gun_probe')
     if v then out.probe=v:lower()=='on' end
+    v=get(text,'gun_fire_key') -- (testing) one more fire key, as F
+    if v and v:match('^%w+$') then out.fire_key=v end
     v=get(text,'gun_upper')
     if v then
         local l=v:lower()
