@@ -8,7 +8,7 @@
 -- * Reticle: WB_NikkeHUD_Aim_C and WB_Tps_Aim_C scaled up, the live (transient) ones made visible standing; the
 --   player cameras' AspectRatio set to the screen's with bConstrainAspectRatio, so the pin's X is clamped to the whole
 --   screen and not to a 16:9 part of it.
--- All of it runs from one-off game-thread calls, never inside EVE's tick.
+-- All of it runs from one-off calls of gun mode's delay queue, never every frame.
 local View={}
 
 local AIMS={'WB_NikkeHUD_Aim_C','WB_Tps_Aim_C'}

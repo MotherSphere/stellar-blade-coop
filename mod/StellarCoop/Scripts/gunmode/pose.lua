@@ -13,8 +13,9 @@
 --   muzzle axis onto the camera's forward vector.
 -- * Her main mesh and SB's own rifle are hidden from her own camera only (SetOwnerNoSee): co-op partners and the
 --   ghost capture still read them, so they see the stance's animation with the real rifle.
--- Runs from a 16 ms LoopAsync handed to the game thread, as RifleStance does, not from EVE's tick. Any error stops it
--- and puts her mesh back: gun mode carries on with the stance's own animation.
+-- A step of gun mode's game-thread loop each frame (RifleStance's 16 ms LoopAsync ran Lua on another thread, which
+-- with gun mode's tick in the same Lua state crashed UE4SS). Any error stops it and puts her mesh back: gun mode
+-- carries on with the stance's own animation.
 local Pose={}
 
 Pose.GRIP={Translation={X=-2.110698699951172,Y=-6.265880107879639,Z=2.090805768966675},
@@ -65,7 +66,7 @@ end
 -- g: gun mode's shared state (gunmode/mode.lua). laser: gunmode/laser.lua's (or nil).
 function Pose.new(g,laser)
     local self={on=false}
-    local parts,src,pawn,pc,body,gun,donor,bones,offsets,blend,age,saved,hidden,M,running
+    local parts,src,pawn,pc,body,gun,donor,bones,offsets,blend,age,saved,hidden,M
     local hand,chest_bone,muzzle=FName('Bip001-R-Hand'),FName('Bip001-Spine2'),FName('FX_Fire')
 
     local function add(kind,asset)
@@ -78,7 +79,8 @@ function Pose.new(g,laser)
         c:SetSkeletalMesh(asset,true)
         return c
     end
-    -- SB's own NIKKE rifle on her: any skeletal mesh component of hers (or of an actor attached to her) with GunNikke.
+    -- SB's own NIKKE rifle on her: any skeletal mesh component of hers with GunNikke (no attached-actor walk: its out
+    -- parameter from Lua is a crash risk).
     local function real_guns()
         local out={}
         local cls=StaticFindObject('/Script/Engine.SkeletalMeshComponent')
@@ -90,10 +92,6 @@ function Pose.new(g,laser)
             end
         end
         scan(pawn)
-        for _,a in ipairs(g.try(function() return pawn:GetAttachedActors({},true) end) or {}) do
-            local o=g.try(function() return a:get() end) or a
-            if g.valid(o) then scan(o) end
-        end
         return out
     end
 
@@ -119,7 +117,8 @@ function Pose.new(g,laser)
         M=StaticFindObject('/Script/Engine.Default__KismetMathLibrary')
         assert(g.valid(M),'no math library')
         src=pawn.Mesh
-        parts,hidden,blend,age,offsets={},{},0,0,nil
+        parts,hidden,blend,age={},{},0,0
+        self.guns_at=0
         saved={hide=src.bOwnerNoSee,tick=src.VisibilityBasedAnimTickOption}
         body=add('PoseableMeshComponent',src.SkeletalMesh)
         body:K2_AttachToComponent(src,FName('None'),2,2,2,false)
@@ -135,10 +134,13 @@ function Pose.new(g,laser)
         gun:K2_AttachToComponent(body,hand,2,2,2,false)
         gun:K2_SetRelativeTransform(Pose.GRIP,false,{},true)
         assert(gun:DoesSocketExist(muzzle),'the rifle has no FX_Fire socket')
-        donor=add('SkeletalMeshComponent',src.SkeletalMesh)
-        donor.VisibilityBasedAnimTickOption=0
-        local anim=LoadAsset(Pose.DONOR_ANIM); assert(g.valid(anim),'no NIKKE cover clip')
-        donor:PlayAnimation(anim,false); donor:Stop(); donor:SetPosition(0,false)
+        offsets=self.offsets -- Read once a Lua load, from a donor that lives three frames.
+        if not offsets then
+            donor=add('SkeletalMeshComponent',src.SkeletalMesh)
+            donor.VisibilityBasedAnimTickOption=0
+            local anim=LoadAsset(Pose.DONOR_ANIM); assert(g.valid(anim),'no NIKKE cover clip')
+            donor:PlayAnimation(anim,false); donor:Stop(); donor:SetPosition(0,false)
+        end
         bones={}
         for _,side in ipairs({'L','R'}) do
             local names={'Clavicle','UpperArm','Forearm','Hand'}
@@ -158,6 +160,8 @@ function Pose.new(g,laser)
         return Pose.forward(M:ComposeTransforms(muzzle_local,w).Rotation)
     end
 
+    -- The first full frame logs each step, so a crash in it shows which call it was.
+    local function mark(n) if not self.frames then g.log('pose: first frame, '..n) end end
     -- One frame. held: aiming (standing gun mode: always).
     local function frame(held)
         if not (g.valid(pawn) and g.valid(src) and g.valid(pc) and g.valid(pc.Pawn))
@@ -167,12 +171,20 @@ function Pose.new(g,laser)
         if StaticFindObject('/Script/Engine.Default__GameplayStatics'):IsGamePaused(pc) then return end
         age=age+1; if age<3 then return end
         src.VisibilityBasedAnimTickOption=0
+        mark('copy pose')
         body:CopyPoseFromSkeletalComponent(src)
+        mark('cover offsets')
         if not offsets then
             offsets={}
             local ref=donor:GetSocketTransform(chest_bone,0)
             for i,b in ipairs(bones) do offsets[i]=M:MakeRelativeTransform(donor:GetSocketTransform(b,0),ref) end
+            -- The donor's mesh goes at once: a skeletal mesh of hers, the ghost capture (partner/capture.lua)
+            -- would take it for a part of her outfit; with none it skips it. The component goes with the others at
+            -- stop (destroying it mid-frame is avoided). The offsets stay for the rest of the Lua load.
+            self.offsets,self.bones=offsets,bones
+            pcall(function() donor:SetSkeletalMesh(nil,false) end)
         end
+        mark('arms')
         local cam=pc.PlayerCameraManager:GetCameraRotation()
         local pitch=(cam.Pitch+180)%360-180
         blend=math.max(0,math.min(1,blend+(held and Pose.BLEND_IN or -Pose.BLEND_OUT)))
@@ -210,6 +222,7 @@ function Pose.new(g,laser)
             body:SetBoneTransformByName(b,M:ComposeTransforms(M:MakeRelativeTransform(poses[i],pivot),target),0)
         end
         gun:K2_SetRelativeTransform(Pose.GRIP,false,{},true)
+        mark('muzzle onto the camera')
         -- Fully aimed: the muzzle axis turned exactly onto the camera's forward vector.
         if held and blend>=1 then
             local axis=M:GetForwardVector(gun:GetSocketRotation(muzzle))
@@ -231,36 +244,36 @@ function Pose.new(g,laser)
                 gun:K2_SetRelativeTransform(Pose.GRIP,false,{},true)
             end
         end
+        mark('show')
         src:SetOwnerNoSee(true); body:SetVisibility(true,false); gun:SetVisibility(true,false)
-        for _,c in ipairs(real_guns()) do
-            local key=c:GetFullName()
-            if not hidden[key] then hidden[key]=true; hidden[#hidden+1]=c; c:SetOwnerNoSee(true) end
+        mark('the game rifle')
+        -- SB's rifle looked for at the first frame, then every 2 s (a component walk each frame is too much).
+        local now=os.clock()
+        if now>=(self.guns_at or 0) then
+            self.guns_at=now+2.0
+            for _,c in ipairs(real_guns()) do
+                local key=c:GetFullName()
+                if not hidden[key] then hidden[key]=true; hidden[#hidden+1]=c; c:SetOwnerNoSee(true) end
+            end
         end
+        mark('laser')
         if laser then
             if held then laser.on(pawn,gun); laser.update() else laser.off() end
         end
+        self.frames=(self.frames or 0)+1
+        if self.frames==1 or self.frames%300==0 then g.log('pose: frame '..self.frames..', blend '..blend) end
     end
 
-    -- The 16 ms loop, armed once a Lua load; want() says whether the pose should be on and held this frame.
-    function self.run(want)
-        if running then return end
-        running=true
-        local pending=false
-        LoopAsync(16,function()
-            if pending then return false end
-            pending=true
-            ExecuteInGameThread(function()
-                local ok,err=pcall(function()
-                    local on,held=want()
-                    if on and not self.on then self.start() end
-                    if not on and self.on then self.stop() end
-                    if self.on then frame(held) end
-                end)
-                if not ok then pcall(self.stop,'error: '..tostring(err)); self.failed=(self.failed or 0)+1 end
-                pending=false
-            end)
-            return false
+    -- One frame of the loop (gunmode/mode.lua's, on the game thread): on says whether the pose should be on, held
+    -- whether it aims. An error stops it and puts her mesh back.
+    function self.step(on,held)
+        if not (on or self.on) then return end
+        local ok,err=pcall(function()
+            if on and not self.on then self.start() end
+            if not on and self.on then self.stop() end
+            if self.on then frame(held) end
         end)
+        if not ok then pcall(self.stop,'error: '..tostring(err)); self.failed=(self.failed or 0)+1 end
     end
 
     return self

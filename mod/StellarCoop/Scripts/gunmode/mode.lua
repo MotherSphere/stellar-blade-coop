@@ -16,9 +16,12 @@
 -- Standing, luke77's posed arms carry the rifle along the camera with a laser sight from its muzzle (gunmode/pose.lua,
 -- gunmode/laser.lua), and every round goes to the crosshair point (gunmode/aim.lua).
 -- Gun mode is a module of its own: it reads its own coop-settings.txt lines and finds its own paks, and uses nothing
--- of the rest of the mod; main.lua only builds and starts it, inside a pcall. Every periodic step runs from one
--- post-hook on EVE's ReceiveTick (no timer chains: several re-arming every 50-110 ms crashed UE4SS during long
--- bursts), the pose from its own 16 ms loop; each is wrapped so an error in gun mode never reaches the rest of the mod.
+-- of the rest of the mod; main.lua only builds and starts it, inside a pcall. All of it runs on the game thread, from
+-- one LoopInGameThreadWithDelay loop (every frame), as main.lua's own loop does: the keys polled there, its delays a
+-- queue that loop works through, the pose a step of it. No LoopAsync, ExecuteWithDelay or key bind: their callbacks run
+-- Lua on another thread, and two threads in one Lua state corrupted it ("FindFirstOf cannot be called with 0
+-- parameters") and crashed UE4SS (11-17, the pose's 16 ms LoopAsync against the tick). Every step is wrapped, so an
+-- error in gun mode never reaches the rest of the mod.
 local Config=require('gunmode.config')
 local Rows=require('gunmode.rows')
 local Aim=require('gunmode.aim')
@@ -118,7 +121,17 @@ function GunMode.new(env)
         hud_at=0,off_serial=0,toggle_at=-1,blocked_at=0,hooked=false,battle_hooked=false,ammo_hooked=false}
     local t={pad=0,hold=0,battle=0,cam=0,mode=0,empty=0,tps=0}
 
-    local function later(ms,fn) ExecuteWithDelay(ms,function() ExecuteInGameThread(function() pcall(fn) end) end) end
+    -- fn, on the game thread, ms from now (worked through by the loop; a delay of 0 is the next frame).
+    s.timers={}
+    local function later(ms,fn) s.timers[#s.timers+1]={at=os.clock()+ms/1000,fn=fn} end
+    local function run_timers(now)
+        if #s.timers==0 then return end
+        local due,keep={},{}
+        for _,e in ipairs(s.timers) do if e.at<=now then due[#due+1]=e else keep[#keep+1]=e end end
+        s.timers=keep
+        table.sort(due,function(a,b) return a.at<b.at end)
+        for _,e in ipairs(due) do pcall(e.fn) end
+    end
     local function fire_row(e)
         local lib=StaticFindObject(LIB)
         if not g.valid(lib) then return false end
@@ -365,9 +378,10 @@ function GunMode.new(env)
             local ok,d=pcall(function() return pc:IsInputKeyDown({KeyName=FName(name)}) end)
             return ok and d==true
         end
-        local inp=Input.read(keys,down,now,cfg)
+        local inp=Input.read(keys,down,now,cfg,set.key)
         last=inp
         if inp.toggle then self.toggle('D-pad Right') end
+        if inp.key then self.toggle(set.key) end
         if inp.aim_start then s.aim_since=now end
         if not s.on then return end
         if inp.crouch then
@@ -416,6 +430,7 @@ function GunMode.new(env)
     local function tick()
         local now=os.clock()
         if now<s.pause then return end
+        run_timers(now)
         if not g.valid(cached) or not g.valid(g.try(function() return cached.Pawn end)) then
             cached=nil
             if not g.pawn() then s.pause=now+2.0; return end -- Player objects going away: stay out a moment.
@@ -442,20 +457,26 @@ function GunMode.new(env)
         end
         if s.roll_back and now>=s.roll_back then roll_back(now) end
     end
+    -- The pose: on and aimed while standing, set up and not rolling; a step of every frame.
+    local function pose_step()
+        if not set.pose then return end
+        local want=s.on and s.set_up and not s.crouched and not s.roll_back
+        pose.step(want,want)
+    end
 
+    -- The loop, once a Lua load: gun mode's tick, then the pose, every frame on the game thread.
     function self.hook()
         if s.hooked then return true end
-        s.errors=s.errors or 0
-        s.hooked=pcall(function()
-            RegisterHook(EVE..':ReceiveTick',function()
-                local ok,e=pcall(tick)
-                if not ok and s.errors<5 then s.errors=s.errors+1; g.log('tick error: '..tostring(e)) end
-            end)
-        end)
+        s.errors=0
+        local function guarded(f)
+            local ok,e=pcall(f)
+            if not ok and s.errors<5 then s.errors=s.errors+1; g.log('error: '..tostring(e)) end
+        end
+        s.hooked=pcall(function() LoopInGameThreadWithDelay(1,function() guarded(tick); guarded(pose_step) end) end)
         return s.hooked
     end
 
-    -- The keys, the new-controller reset and the first try at EVE's tick hook. Nothing at all with gun_mode=off.
+    -- The new-controller reset and the loop. Nothing at all with gun_mode=off.
     function self.start()
         for _,why in ipairs(bad) do g.log('coop-settings.txt: '..why) end
         if not set.on then g.log('off (gun_mode=off in coop-settings.txt)'); return end
@@ -463,29 +484,17 @@ function GunMode.new(env)
         if env.stand~=true then
             g.log('no standing animations ('..tostring(env.stand_why)..'): the NIKKE kneel only')
         end
-        local key=Key[set.key]
-        if key then
-            RegisterKeyBind(key,function() ExecuteInGameThread(function() self.toggle(set.key) end) end)
-            RegisterKeyBind(key,{ModifierKey.CONTROL},function()
-                ExecuteInGameThread(function() self.toggle('Ctrl+'..set.key) end)
-            end)
-        end
         -- A new controller (map load, death, camp warp) starts with gun mode off. Its controller is cached at once:
         -- FindFirstOf could hand back the previous world's for ~2 s, and per-frame key reads then touched freed memory.
+        -- Nothing here calls into the game: the controller is still being built (reading its pawn from this callback
+        -- crashed UE4SS on the title screen). The new pawn's camera boom is a fresh one, so the saved offset just goes.
         NotifyOnNewObject('/Script/SB.SBPlayerController',function(pc)
-            cached=nil
-            pcall(function() if pc:IsValid() then cached=pc end end)
+            cached=pc
             s.pause=os.clock()+4.0
             s.on,s.firing,s.roll_back,s.bag_empty,s.prev=false,false,nil,false,nil
-            aim.camera_off()
-            later(8000,function() self.hook() end)
+            aim.cam_saved=nil
         end)
-        self.hook()
-        -- Standing, set up, not rolling: the pose on and aimed.
-        if cfg.pose then pose.run(function()
-            local want=s.on and s.set_up and not s.crouched and not s.roll_back
-            return want,want
-        end) end
+        if not self.hook() then g.log('off: this UE4SS has no LoopInGameThreadWithDelay'); return end
         g.log('ready: '..set.key..' or a tap of D-pad Right')
     end
 
