@@ -109,13 +109,7 @@ function Stance.new(laser)
     pcall(function() len=anim:GetPlayLength() end)
     if len>0 and duration and duration>0 then pcall(function() donor:SetPlayRate(len/duration) end) end
     reloading,reloadAt,reloadLen=true,os.clock(),(duration and duration>0) and duration or 1
-    if aimNative and onReal then
-     pcall(function()
-      local ai=src:GetAnimInstance()
-      local rate=(len>0 and duration and duration>0) and len/duration or 1
-      ai:PlaySlotAnimationAsDynamicMontage(anim,FName('UpperBody'),0.15,0.15,rate,1,-1.0,0.0)
-     end)
-    end
+
    elseif reloading then
     reloading=false
     pcall(function() donor:SetPlayRate(1) end)
@@ -207,8 +201,8 @@ function Stance.new(laser)
    -- gun mode: a reload while aim is held keeps the aim and gives the rifle a quick tilt in her hands (below); the
    -- NIKKE squad's reload on the donor, with the rifle out of the aim, is for a reload without aim (11:39, 12:08: the
    -- donor's reload over the aim stance turned her and held the rifle across her body).
-   local aimReload=reloading and held
-   if reloading and not held and not (aimNative and onReal) then held=false end
+   -- (12:17: the donor's reload while running put her arms behind her back; every reload is the tilt now)
+   local aimReload=reloading
    -- gun mode (aimNative): while aim is held the game's own animation shows (the aim stance's upper body made the
    -- NIKKE rifle's by gunmode/data.lua): her real body visible, the rifle on its right hand, nothing posed; the
    -- posed copy comes back when aim is let go.
@@ -242,6 +236,12 @@ function Stance.new(laser)
       local r=gun:K2_GetComponentRotation()
       gun:K2_SetWorldRotation({Pitch=r.Pitch+d.Pitch,Yaw=r.Yaw+d.Yaw,Roll=r.Roll},false,{},true)
      end) end
+     -- gun mode: a reload while aiming on her real body: the rifle tilts in her hands, out and back over the reload
+     if reloading then
+      local k=math.max(0,math.min(1,(os.clock()-reloadAt)/reloadLen))
+      local w=math.sin(math.pi*k)
+      gun:K2_AddLocalRotation({Pitch=-22*w,Yaw=8*w,Roll=55*w},false,{},true)
+     end
      if not beam then beam,finish=laser(pawn,gun,mathlib) end
      beam(t)
      return
