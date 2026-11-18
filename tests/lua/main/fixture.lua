@@ -258,7 +258,7 @@ her_map_v='/game/e04' -- puppet.her_map(): her map, from her table (yours is /ga
 -- The camp phone booths (session/booth.lua for real): FindAllOf of the two booth classes gives bt.world's booths of
 -- that class (none by default, so every case scans an empty world) and counts the calls in bt.scans; PlayerController
 -- gives none (core/unreal.lua's actors_of then walks, never deciding on the class hash); any other class raises.
--- bt.me: puppet.me().
+-- bt.me: core/where.lua's me(), which puppet.me() also gives.
 bt={world={},scans=0,me={at={X=0,Y=0,Z=0},map='/game/e04'}}
 FindAllOf=function(class)
     finds.all=finds.all+1
@@ -275,7 +275,8 @@ FindAllOf=function(class)
     return #list>0 and list or nil
 end
 -- Whether a save is loaded and the title shown (core/where.lua's world; core/where_test tests it): in_world, at_title.
-package.loaded['core.where']={world=function() return in_world,at_title end}
+-- Where EVE stands (its me): bt.me.
+package.loaded['core.where']={world=function() return in_world,at_title end,me=function() return bt.me end}
 package.loaded['partner.puppet']={new=function(link,capture,say,tag,looks)
     assert(link==(native_ok and fake_link or nil),'The ghost reads and writes its files through the link, if any')
     assert(capture==fake_capture,'The ghost gets the capture (its offset in loopback)')

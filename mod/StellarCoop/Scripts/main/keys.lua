@@ -67,7 +67,7 @@ if M.settings then
                 elseif M.open_screen() then M.open_screen().close()
                 elseif M.sbo.in_lobby() and not M.menu.is_open() then M.lobby_key()
                 else
-                    local ok,why,shown,en=M.menu.toggle(M.booth.near(M.puppet.me()))
+                    local ok,why,shown,en=M.menu.toggle(M.booth.near(require('core.where').me()))
                     if why then M.report(ok,why); M.say(shown or why,en) end
                 end
                 return

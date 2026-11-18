@@ -137,7 +137,7 @@ if M.link then
             end
             M.guarded('menu',M.menu.slow,shown,not (M.box.is_open() or M.code_box.is_open() or M.approval.is_open()
                 or M.saves_ui.is_open() or M.open_screen())
-                and (M.booth.near(M.puppet.me()) or M.guarded('sbo',M.seat_hint))
+                and (M.booth.near(require('core.where').me()) or M.guarded('sbo',M.seat_hint))
                 or nil)
             M.guarded('lobby',M.lobby.slow)
             M.guarded('sessions',M.sessions.slow,shown)
@@ -147,7 +147,7 @@ if M.link then
             M.guarded('lobby',M.hud_pass) -- After lobby_pass and ui_reset above: the screens as this pass left them.
             M.peaked('booth','booth',M.booth.tick,os.clock(),
                 shown and M.kit.ready() and not M.kit.off() and not M.kit.paused()
-                and not M.menu.is_open() and M.puppet.me() or nil)
+                and not M.menu.is_open() and require('core.where').me() or nil)
             M.guarded('chat',M.box.slow,M.chat_clock)
             M.guarded('join',M.code_box.slow,shown)
             M.guarded('join',M.approval.slow,shown) -- After the chat's: it waits while the box is open.

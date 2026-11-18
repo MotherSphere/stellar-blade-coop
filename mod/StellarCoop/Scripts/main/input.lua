@@ -90,7 +90,8 @@ M.PAD={'up','down','left','right','select','back','menu','tab_left','tab_right',
 -- English as the bike gives it, since the press shows nothing else.
 function M.bike_press(by)
     if M.off then return M.report(false,M.OFF) end
-    local ran,ok,message=pcall(M.bike.toggle,by)
+    local ran,ok,message=true,false,'the bike is off until the mod reloads' -- Bike off: its stub would say nil.
+    if not M.off_modules.bike then ran,ok,message=pcall(M.bike.toggle,by) end
     if not ran then ok,message=false,ok end
     M.report(ok,message)
     if not ok then M.say(tostring(message)) end
@@ -98,7 +99,7 @@ end
 -- menu_key's path with nothing open in a world: B in the lobby world, the co-op menu elsewhere, its refusals said.
 local function open_menu()
     if M.sbo.in_lobby() then return M.lobby_key() end
-    local ok,why,shown,en=M.menu.toggle(M.booth.near(M.puppet.me()))
+    local ok,why,shown,en=M.menu.toggle(M.booth.near(require('core.where').me()))
     if why then M.report(ok,why); M.say(shown or why,en) end
 end
 function M.pad_event(what)

@@ -8,11 +8,14 @@
 -- three frames and four passes, then a linked session in a world with the UI up for a frame and two passes, run with
 -- no raised error and no "error (logged once" line; each key bind and each hook, called once, raise nothing; coop ui
 -- reset and coop off raise nothing; coop off still asks the native part off; no line reads "OK: nil" or
--- "STOP: nil"; a pass with the kit ready says the notice with the module's English name; each late read with a guard
--- in its reader's wiring.lua (the menu's in main/ui.lua) gives a refusal while the module it reads is off; coop status
--- runs. The same run with every module on comes first, with the same checks and no off line. For bike, one more case:
--- with bike off and the tagged bike part of an earlier Lua load on EVE, the capture's leave_out gives that part's
--- address (partner's copy), so the ghost never shows a bike while EVE does not ride.
+-- "STOP: nil"; a pass with the kit ready says the notice with the module's English name; unless session (the booths'
+-- module) is off, a camp phone booth 2.5 m from EVE gives the menu its hint in the session and menu_key opens the co-op
+-- line there (the runtime reads her place from core/where.lua, not from partner); each late read with a guard
+-- in its reader's wiring.lua (the menu's in main/ui.lua, the bike press's in main/input.lua) gives a refusal while the
+-- module it reads is off; coop status runs. The same run with every module on comes first, with the same checks and no
+-- off line. For bike, one more case: with bike off and the tagged bike part of an earlier Lua load on EVE, the
+-- capture's leave_out gives that part's address (partner's copy), so the ghost never shows a bike while EVE does not
+-- ride.
 local real_print=print
 dofile('tests/lua/main/fixture.lua')
 local Loader=require('main.loader')
@@ -27,15 +30,23 @@ local menu_new=Menu.new
 Menu.new=function(o) menu=o; return menu_new(o) end
 local START={status_text=status_text,link_mode=link_mode,chatting=chatting,friend_linked=friend_linked,
     in_world=in_world,at_title=at_title,settings_text=settings_text}
--- The late reads with a guard in their reader's wiring.lua (the menu's in main/ui.lua), by the module they read: while
--- it is off, a refusal.
+-- The late reads with a guard in their reader's wiring.lua (the menu's in main/ui.lua, the bike press's in
+-- main/input.lua), by the module they read: while it is off, a refusal.
 local GUARDED={['cut.enemies']={function() return nr.o.rows(function() end,'buy') end,
         function() return cs.o.rows(function() end) end},
     group={function() return nr.o.revive('Kaanta') end},
     session={function() return menu.sessions.open() end}, -- The menu's Find a session row.
     ['cut.scenes']={function() return ts.o.scene.talk('Sequence',{}) end},
     nightop={function() return sb.o.recruiter.run() end},
-    ['cut.eve']={function() return sb.o.emote.sit('chair') end}}
+    ['cut.eve']={function() return sb.o.emote.sit('chair') end},
+    bike={function() -- The pad's bike hold (bike_key runs the same bike_press), past the keys' own filters.
+        local n=#printed
+        M.pad_event('bike')
+        for i=n+1,#printed do
+            local why=printed[i]:match('%] STOP: (.-)\n$')
+            if why then return false,why end
+        end
+    end}}
 local BINDS -- How many key binds the load with every module on registers.
 local function count(list,pattern)
     local n=0
@@ -49,6 +60,8 @@ local function case(name,how)
     local files={}
     for k,v in pairs(link_files) do files[k]=v end
     local heard=#said
+    bt.world,bt.me={{class='Env_Camp_TeleportMachine_C',id='Xion_10_EnvS_016',at={X=250,Y=0,Z=0}}},
+        {at={X=0,Y=0,Z=0},map='/game/e04'}
     local ok,why=pcall(load_main,true)
     assert(ok,at..': the load raised: '..tostring(why))
     BINDS=BINDS or #binds
@@ -65,6 +78,13 @@ local function case(name,how)
     link_mode,chatting,friend_linked,in_world,at_title,kit_ready='host',true,true,true,false,true
     step('a frame in a session',loops[1].f)
     for _=1,2 do step('a pass in a session',quarter) end
+    if name~='session' then
+        assert(kit_shown.line_hint,at..': no booth hint 2.5 m from a booth')
+        step('menu_key at a booth',function() key('F5') end)
+        assert(logged('line: booth Xion_10_EnvS_016 (Env_Camp_TeleportMachine_C) at 2.5 m'),
+            at..': menu_key at a booth did not open the co-op line')
+        step('Esc on the co-op line',function() key('ESCAPE') end)
+    end
     for _,f in ipairs(name and GUARDED[name] or {}) do
         local refused,why=f()
         assert(refused==false and type(why)=='string',at..': a guarded late read gave '..tostring(refused)..', '
@@ -111,7 +131,7 @@ local function case(name,how)
         for _,line in ipairs(chat_calls) do told=told or line:find('system '..text,1,true)==1 end
         assert(told,at..': no notice "'..text..'"')
     end
-    link_files,settings_text=files,START.settings_text
+    link_files,settings_text,bt.world=files,START.settings_text,{}
 end
 
 return function(name)

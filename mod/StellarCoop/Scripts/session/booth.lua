@@ -27,7 +27,7 @@ Booth.NEAR,Booth.EVERY,Booth.SLOW=3,30,5 -- metres; least seconds between two sc
 Booth.FAR=100 -- metres from the last scan's spot before a scan may find a booth that streamed in since
 Booth.PACE=300 -- cm/s: a scan that is due waits while EVE moves faster (her run is 500)
 local metres=U.metres
--- me, in tick and near: puppet.me(), {at={X,Y,Z},map=}, or nil.
+-- me, in tick and near: core/where.lua's me(), {at={X,Y,Z},map=}, or nil.
 function Booth.new(log)
     -- The booths found on this map ({id,class,at}, each once by its position), the map, the last good scan's spot, the
     -- next scan's earliest time, and the last line's '<n> on <map>' (or 'scan failed on <map>: <why>').
