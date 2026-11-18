@@ -31,13 +31,13 @@ end
 -- g: gun mode's shared state (log, try, valid). cfg: mag_size, reload_time, fire_interval, round_name, round_color,
 -- reload_text. cool(v): sets the shot's cool time (gunmode/data.lua).
 -- on_reload(on, duration): the reload's animation and sound (gunmode/mode.lua).
-function Ammo.new(g,cfg,cool,on_reload)
+function Ammo.new(g,cfg,cool,on_reload,dpad)
     local self={left=cfg.mag_size,reserve=cfg.mag_size*cfg.spare_mags,reload_until=nil,acc=0,dt=1/60,held=false}
     on_reload=on_reload or function() end
     local ui={} -- name, count: the slot's text blocks; saved: their own text and colour.
 
     local function find()
-        if g.valid(ui.name) and g.valid(ui.count) and g.valid(ui.lower) then return true end
+        if g.valid(ui.name) and g.valid(ui.count) then return true end
         ui.name,ui.count,ui.lower=nil,nil,nil
         if (ui.retry or 0)>os.clock() then return false end
         ui.retry=os.clock()+1.0 -- FindAllOf walks every text block: once a second at most.
@@ -52,7 +52,6 @@ function Ammo.new(g,cfg,cool,on_reload)
                     local txt=g.try(function() return t:GetText():ToString() end)
                     ui.lower_all=ui.lower_all or {}
                     ui.lower_all[#ui.lower_all+1]=full:match('Lower1Item%.(.*)$')..'="'..tostring(txt)..'"'
-                    if leaf==Ammo.LOWER_TEXT and full:find('%.WB_MainHUD_ItemSlotGeneral%.WidgetTree%.') then ui.lower=t end
                 end
             end
         end)
@@ -73,6 +72,11 @@ function Ammo.new(g,cfg,cool,on_reload)
 
     -- The slot showing the rifle's round (firing mode held).
     local function show()
+        if dpad then
+            local empty=self.left<=0 and self.reserve<=0
+            pcall(dpad.show,Ammo.lower_text(math.max(0,self.left),self.reserve,cfg.mag_size),
+                (empty or self.reload_until) and cfg.reload_color or cfg.round_color)
+        end
         if not find() then return end
         if not ui.saved then
             ui.saved={}
@@ -141,6 +145,7 @@ function Ammo.new(g,cfg,cool,on_reload)
 
     -- The game's own text and colour back in the slot.
     function self.restore()
+        if dpad then pcall(dpad.hide) end
         if ui.saved then
             for _,k in ipairs({'name','count','lower'}) do
                 local t,sv=ui[k],ui.saved[k]

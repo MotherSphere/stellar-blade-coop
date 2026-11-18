@@ -22,6 +22,7 @@ local Laser=require('gunmode.laser')
 local Data=require('gunmode.data')
 local Probe=require('gunmode.probe')
 local Ammo=require('gunmode.ammo')
+local Dpad=require('gunmode.dpad')
 
 local GunMode={}
 
@@ -97,7 +98,7 @@ function GunMode.new(env)
             if not s.reload_logged then s.reload_logged=true; g.log('reload animation: '..(ok and 'playing' or 'not found')) end
         else s.sounds=nil end
     end
-    local ammo=Ammo.new(g,cfg,function(v) data.cool(v) end,on_reload)
+    local ammo=Ammo.new(g,cfg,function(v) data.cool(v) end,on_reload,Dpad.new(g))
 
     local function fire_row(row)
         local lib=StaticFindObject(LIB)
