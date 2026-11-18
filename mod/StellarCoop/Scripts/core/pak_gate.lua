@@ -1,11 +1,12 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- A pak of ours in SB/Content/Paks, found with no engine call: the Matrix XIII test pak (matrix13/world/travel.lua)
--- and the hall lobby pak (lobby/sbo.lua). No StaticFindObject: a package that is not loaded is never found that way,
--- and each miss costs 4 to 35 ms. The container's .utoc in ~mods, else LogicMods, read once a call (its first 1 MB),
--- must name the names asked in its directory index (plain text in a .utoc that is not encrypted, as retoc writes it),
--- with its .pak and .ucas beside it (UE 4.26 mounts an IoStore container through its .pak).
+-- A pak of ours in SB/Content/Paks, found with no engine call: the Matrix XIII test pak
+-- (world/maps/matrix13/level/travel.lua) and the hall lobby pak (online/lobby/sbo.lua). No StaticFindObject: a package
+-- that is not loaded is never found that way, and each miss costs 4 to 35 ms. The container's .utoc in ~mods, else
+-- LogicMods, read once a call (its first 1 MB), must name the names asked in its directory index (plain text in a .utoc
+-- that is not encrypted, as retoc writes it), with its .pak and .ucas beside it (UE 4.26 mounts an IoStore container
+-- through its .pak).
 -- shortcut: the live folder, not what the engine mounted at start, so a pak copied in while the game runs passes;
 -- upgrade to the native part's start list (link/pak_list.h) if that happens in a test.
 local PakGate={}

@@ -1,11 +1,12 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// The Xion guard's lines (nightop/guard_text.lua), the native half, free of Windows: his 12 keys with their Korean
-// sources, the 23 cultures, the guardtext request's check, what the game thread writes and the guardtext= line.
-// tests/native/nightop/guard_text_test.cpp checks it on the build machine; tests/lua/nightop/recruiter_text_test.lua
-// checks that the keys, sources, lines and cultures match nightop/recruiter_text.lua. The glue is
-// nightop/guard_text_game.inc.
+// The Xion guard's lines (online/modes/nightop/guard_text.lua), the native half, free of Windows: his 12 keys with
+// their Korean sources, the 23 cultures, the guardtext request's check, what the game thread writes and the guardtext=
+// line.
+// tests/native/nightop/guard_text_test.cpp checks it on the build machine;
+// tests/lua/online/modes/nightop/recruiter_text_test.lua checks that the keys, sources, lines and cultures match
+// online/modes/nightop/recruiter_text.lua. The glue is nightop/guard_text_game.inc.
 //
 // His 12 texts (speaker title, question, Join, Cancel, three replies) are keyed FText literals in namespace "", and no
 // Game.locres of the 23 cultures names them, so every culture shows the Korean source. Each one's live display string

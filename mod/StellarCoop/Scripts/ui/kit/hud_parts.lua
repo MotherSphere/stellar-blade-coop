@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The partner marker's maths and gauges, moved out of partner/hud.lua for the kit and every module to read.
+-- The partner marker's maths and gauges, moved out of online/partner/hud.lua for the kit and every module to read.
 -- The partner marker's maths (UI-DESIGN 4.3), no engine call: where her marker goes on screen, or the arrow on the
 -- screen's edge that points at her when she is off screen or behind you, the distance it shows, whether she is on
 -- your map, and her gauges by the player cluster's own rules (sb-layout.md 0). Screen positions are in the caller's

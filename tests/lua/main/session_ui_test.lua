@@ -1,17 +1,18 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The session UI on fixture.lua's fake kit, through main.lua: the session chat (session/chat.lua's view) opens on
--- Enter, sends, cancels on Esc, hands its lines to the native part and takes the notices into its feed while the UI is
--- up; join codes (session/join.lua: who_can_join=invitation, the menu's Copy my code, Join with a code and Remove
--- rows, the code box and the host's question taking the keys); the partner HUD (partner/hud.lua); and the co-op saves'
--- question (save/saves.lua), which shows on the title screen and takes the menu's keys while open. While the chat
--- box, the code box, the host's question or the saves' question is open, coop leviathan's free camera reads no key.
+-- The session UI on fixture.lua's fake kit, through main.lua: the session chat (online/session/chat.lua's view) opens
+-- on Enter, sends, cancels on Esc, hands its lines to the native part and takes the notices into its feed while the UI
+-- is up; join codes (online/session/join.lua: who_can_join=invitation, the menu's Copy my code, Join with a code and
+-- Remove rows, the code box and the host's question taking the keys); the partner HUD (online/partner/hud.lua); and the
+-- co-op saves' question (online/saves/saves.lua), which shows on the title screen and takes the menu's keys while open.
+-- While the chat box, the code box, the host's question or the saves' question is open, coop leviathan's free camera
+-- reads no key.
 dofile('tests/lua/main/fixture.lua')
 local n
--- The session chat (session/chat.lua's view for real on the fake kit; its model a spy). Enter, queued to the game
--- thread: outside a session it says why on screen (into the feed, its root up; never in the log); in one it opens the
--- box with the game's input on it; Enter sends what was typed, Esc cancels and the game's input comes back 150 ms
+-- The session chat (online/session/chat.lua's view for real on the fake kit; its model a spy). Enter, queued to the
+-- game thread: outside a session it says why on screen (into the feed, its root up; never in the log); in one it opens
+-- the box with the game's input on it; Enter sends what was typed, Esc cancels and the game's input comes back 150 ms
 -- later; our F-keys do nothing while it is open. Each 250 ms a line waiting goes to the native part (a refused write
 -- marks it not sent, nothing logged). Notices go into the feed while the root is up, else to the line above EVE. The
 -- menu hides the feed while open, and its Chat row opens the box, the input passing from the menu to the box. coop off
@@ -160,8 +161,8 @@ coop('off'); quarter()
 assert(last_session()=='false','coop off: no session')
 chat_active,in_world,kit_ready,sb.here=false,false,false,false
 
--- Join codes (session/join.lua for real on the fake kit; join_test tests it). who_can_join=invitation hosts with a code
--- (0.11's code reads as invitation). Join
+-- Join codes (online/session/join.lua for real on the fake kit; join_test tests it). who_can_join=invitation hosts with
+-- a code (0.11's code reads as invitation). Join
 -- with a code closes the menu and opens the code box, the input passing from the menu to the box; while it is open the
 -- navigation keys and our F-keys do nothing; Enter joins, Esc cancels. While we host, Copy my code shows our code and
 -- asks the native part to copy it (the menu stays), Remove <name> asks a second Select. The host's question closes the
@@ -217,8 +218,8 @@ assert(#asked==n and not kit_shown.ask,'Nothing after coop off')
 link_mode,link_code,link_refused,link_pending,link_stranger,link_lobby='none',nil,nil,nil,nil,'0'
 settings_text,in_world,kit_ready='',false,false
 
--- The partner HUD (partner/hud.lua's view for real on the fake kit; partner_test tests it): added after the feed and
--- before the menu, which draws over it, the status strip after the card and before her marker and arrow, which draw
+-- The partner HUD (online/partner/hud.lua's view for real on the fake kit; partner_test tests it): added after the feed
+-- and before the menu, which draws over it, the status strip after the card and before her marker and arrow, which draw
 -- over it; each 250 ms in a world its card follows the session and her vitals, and the ghost hides its name tag while
 -- the marker carries her name (partner_bar on, the root up); each frame only its marker and arrow, projected through
 -- the kit each frame and never without her anchor; nothing after coop off. The guide (ui/kit/guide.lua) under the menu,
@@ -251,10 +252,10 @@ quarter(); clock=clock+0.1; loops[1].f()
 assert(#markers==n and kit_projects==0,'Nothing after coop off')
 chatting,in_world,kit_ready,link_mode,settings_text=false,false,false,'none',''
 
--- The co-op saves' question (save/saves.lua for real on the fake kit; saves_test tests it). On the title screen the
--- kit's root comes up too (the kit told it is the title); once the question shows, the navigation keys, Enter, Esc and
--- a left click on a choice are its own (not the chat's, not the menu's); coop ui reset closes it as Decide later, coop
--- off stops it; coop ui off leaves auto_coop_save=always asking.
+-- The co-op saves' question (online/saves/saves.lua for real on the fake kit; saves_test tests it). On the title screen
+-- the kit's root comes up too (the kit told it is the title); once the question shows, the navigation keys, Enter, Esc
+-- and a left click on a choice are its own (not the chat's, not the menu's); coop ui reset closes it as Decide later,
+-- coop off stops it; coop ui off leaves auto_coop_save=always asking.
 settings_text,status_text,link_mode,in_world,at_title,chatting,chat_active='',plain,'none',false,true,true,true
 saves_info={saves='main',convert='idle',slot='none',steamid='76561198000000001'}
 load_main(true)

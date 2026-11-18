@@ -115,12 +115,12 @@ public:
     ++(ok ? race_out_ : race_dropped_);
     return ok;
   }
-  // coop gift's line (cut/menus/mailbox.lua, through a gift request): reliable to the friend past the handshake, or
+  // coop gift's line (tools/mailbox.lua, through a gift request): reliable to the friend past the handshake, or
   // back as hers ("gift <payload>" for Lua) in the loopback with no friend, at most kGiftPerSecond a second. Each one
   // goes in the log, as each of hers does: a gift moves items between two saves. A gift that cannot go (no session, a
   // match lobby, a send with more than 2 players, past the rate, Steam refused it) comes back to Lua at once as her
   // refusal, "gift n <id> nolink", so the sender gets the items back without waiting for her answer (only for a first
-  // send: cut/menus/mailbox.lua ignores it for a send again). A gift line names no player: with 3 or more, every member
+  // send: tools/mailbox.lua ignores it for a send again). A gift line names no player: with 3 or more, every member
   // would take the items of a send. An answer (a or n) still goes to every member: a gift sent before a third player
   // came in gets it. Only its sender's mailbox waits for that id.
   void gift(const std::string &payload) {
@@ -178,11 +178,11 @@ public:
     const Vitals *v = mate_vitals(partner());
     return v ? life_of(*v) : Life::unknown;
   }
-  // Night Operation's line (nightop/run.lua, through coop-night.txt): reliable on channel 0 to the friend past the
-  // handshake, an "h" line only while we own the lobby and a "g" line only as her guest, at most kNightPerSecond a
-  // second (one log line a minute past it). False when it cannot go, in a match lobby and with more than 2 players
-  // (Night Operation's run is for two). Her last one is the status's night= line while the session holds. Worker
-  // thread, after tick().
+  // Night Operation's line (online/modes/nightop/run.lua, through coop-night.txt): reliable on channel 0 to the friend
+  // past the handshake, an "h" line only while we own the lobby and a "g" line only as her guest, at most
+  // kNightPerSecond a second (one log line a minute past it). False when it cannot go, in a match lobby and with more
+  // than 2 players (Night Operation's run is for two). Her last one is the status's night= line while the session
+  // holds. Worker thread, after tick().
   bool night(const std::string &payload) {
     if (match() || !linked() || members().size() > 1 || !night_ok(payload) || payload[0] != (host_ ? 'h' : 'g'))
       return false;
@@ -199,8 +199,8 @@ public:
         sent = true;
     return sent;
   }
-  // Our parked bike's payload (bike/ride.lua, through coop-parked.txt), kept when bike_ok() takes it, in any lobby or
-  // none: send_bike() hands it to each member. False when refused. Worker thread, after tick().
+  // Our parked bike's payload (vehicles/bike/ride.lua, through coop-parked.txt), kept when bike_ok() takes it, in any
+  // lobby or none: send_bike() hands it to each member. False when refused. Worker thread, after tick().
   bool bike(const std::string &payload) {
     if (!bike_ok(payload))
       return false;

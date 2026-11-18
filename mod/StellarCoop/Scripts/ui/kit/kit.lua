@@ -358,7 +358,7 @@ function Ui.kit(opts)
                 end
             end}
         end
-        -- Her HP (the player cluster's rule, partner/hud.lua): set(hp, max).
+        -- Her HP (the player cluster's rule, online/partner/hud.lua): set(hp, max).
         function b.hp(x,y,cols,rows,size,tint)
             local d=b.dots(x,y,cols,rows,size,tint)
             return {set=function(hp,max) d.set(P.hp_columns(hp,max,cols)) end}
@@ -779,8 +779,8 @@ function Ui.kit(opts)
     -- Turned off for this Lua load: only then do the callers go back to the notice line above EVE and the name tag.
     function self.off() return off end
     -- The root collapsed (on) or shown again, at once when it is up in a world shown, and so at each build and slow
-    -- until veil(false); the build and the warm-up go on, faster (VEIL_BUDGET). lobby/arrival.lua's hold: our root
-    -- (z-order 100) would draw over SB's black (10).
+    -- until veil(false); the build and the warm-up go on, faster (VEIL_BUDGET). online/lobby/arrival.lua's hold: our
+    -- root (z-order 100) would draw over SB's black (10).
     function self.veil(on)
         veiled=on==true
         local v=built and (veiled and COLLAPSED or built.root.on)

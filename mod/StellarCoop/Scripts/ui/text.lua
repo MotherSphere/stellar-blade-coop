@@ -53,9 +53,9 @@ local function fit(fmt,name,names,n,max)
     if rest>0 then text=text..(text~='' and ' ' or '')..'(+'..rest..')' end
     return fmt:format(name,text)
 end
--- A notice naming mods (main.lua's about her .pak mods, partner/puppet.lua's about her outfit's parts): fmt with name
--- and the last part ('/'-separated) of each of the first two of list.names ({n=, names=}) that fit the feed's 200 bytes
--- (session/chat.lua), then (+n) for the others.
+-- A notice naming mods (main.lua's about her .pak mods, online/partner/puppet.lua's about her outfit's parts): fmt with
+-- name and the last part ('/'-separated) of each of the first two of list.names ({n=, names=}) that fit the feed's 200
+-- bytes (online/session/chat.lua), then (+n) for the others.
 function T.mods(fmt,name,list)
     local short={}
     for i=1,math.min(2,#list.names) do short[i]=list.names[i]:match('[^/]*$') end

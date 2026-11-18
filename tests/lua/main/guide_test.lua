@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The first-launch guide through main.lua (ui/kit/guide.lua, ui/kit/menu.lua and save/saves.lua for real on
+-- The first-launch guide through main.lua (ui/kit/guide.lua, ui/kit/menu.lua and online/saves/saves.lua for real on
 -- fixture.lua's fake kit; ui/kit/guide_test tests the guide alone): at the mod's first run it opens on the title screen
 -- before the co-op saves' question, which shows once it closes; coop-guide.txt stops it; the keys (arrows, W A S D and
 -- Z Q S D, Enter, Space, Esc), the mouse and the pad go to it while it is open, and the game's input comes back after;

@@ -16,9 +16,9 @@
 -- the row the mouse moves onto takes the focus, and a left click runs the row under it. The game's input comes back
 -- 150 ms after a close. It closes by itself when the place it opened in goes (the title left, a map change), the kit's
 -- root hides or turns off, the game pauses in the world, or after 3 minutes with no key (a pad the native part cannot
--- read cannot answer); the host's question (session/join.lua) closes it as it opens, as it does the menu. The art, by
--- timediffer24 and given to this project (not covered by the SBO License), is Assets\MotherSphere.png in the mod
--- folder, imported once with the engine's ImportFileAsTexture2D (again only once the engine freed it: a root built
+-- read cannot answer); the host's question (online/session/join.lua) closes it as it opens, as it does the menu. The
+-- art, by timediffer24 and given to this project (not covered by the SBO License), is Assets\MotherSphere.png in the
+-- mod folder, imported once with the engine's ImportFileAsTexture2D (again only once the engine freed it: a root built
 -- again drops the old image); an import that fails is logged once and the guide shows without it. That import is its
 -- only engine call: the kit makes the others.
 local U=require('core.unreal')
@@ -292,9 +292,9 @@ function Guide.new(o)
     function self.close(why) close(why or 'coop ui reset') end
     -- coop off: nothing more (kit.stop gives the game its input back).
     function self.stop() stopped,open,back_at=true,false,nil end
-    -- The guide in front of the co-op saves' question (save/saves.lua), for main.lua, which routes that question's
-    -- keys, pad events, left clicks, ticks, slows, closes and stops to the pair: a key to the guide while it is open,
-    -- else to the question; each slow the guide's first, so the question sees it open or still to open.
+    -- The guide in front of the co-op saves' question (online/saves/saves.lua), for main.lua, which routes that
+    -- question's keys, pad events, left clicks, ticks, slows, closes and stops to the pair: a key to the guide while it
+    -- is open, else to the question; each slow the guide's first, so the question sees it open or still to open.
     function self.front(saves)
         return {is_open=function() return open or saves.is_open() end,
             nav=function(what) if open then return self.nav(what) end return saves.nav(what) end,

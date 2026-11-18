@@ -1,0 +1,2387 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
+-- The ghost with fake UE4SS objects: built from the remote table one mesh a frame, each part on the mesh the table names
+-- (LoadAsset, never SetMaterial) or on the base suit with a bone remap, left out with its followers when it has no
+-- fallback; your EVE's render flags on each part; the display file; hidden until the first pose and after a second
+-- without one; the root teleported only as it shows or steps over 2 m, so a cloth part keeps its inertia; the
+-- loopback's offset; the map gate; the same table re-dressed in place; level change, comeback, the remote table gone,
+-- basesuit, the sweep; a
+-- mesh resolved and added in one frame, a cached mesh checked again, a failed table tried again (2 s apart, 3 times,
+-- then said on screen), the strict table read; every UE4SS call on UE4SS's own Lua state, never in a coroutine;
+-- a friend's ghost exactly at the mailbox, coop where's line, and whether a save is loaded; the name tag (whose ghost,
+-- turned to the camera at each pose, left out alone when it fails), our photo mode hiding the ghost or its tag, the map
+-- notice on screen, a title round trip; with
+-- cloth on, the ponytail on a SkeletalMeshComponent with her outfit's collision (said when it cannot have it),
+-- simulated only while drawn, its reset as the ghost shows, and a plain part when that fails;
+-- with dyes on, the table's materials on the parts drawn on their own mesh, each resolved and set in one frame; with
+-- effects on, the listed systems, the slot boxes beside the mailbox, and the effects started, moved and stopped from
+-- them in place(), within their budget; with collide on, the solid partner's capsule and the rules that open it.
+-- Doro mode: its Doro on part 0 with its keepers (gone with it) and every part hidden until it goes off, and the race's
+-- emote on it. Mods: a path outside the game's own folders looked up or loaded only when our CNS packs declare it
+-- (GetAsset for one LoadAsset misses), its materials with dyes off, the cloth line's collision, the outfits not shown
+-- said once a generation; a leader with other bones and no fallback drawn on its own mesh by name. Hidden slots on
+-- the parts drawn on their own mesh.
+package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
+local clock=0
+os.clock=function() return clock end
+-- UE4SS refuses any call from a lua_State it did not create (process_lua_function, lua_instances): a coroutine is one.
+-- The tests run on the main thread, which stands for UE4SS's own states (its hook thread's callbacks). Level 3: the
+-- error names the mod's line that called the fake, as the game's names core/unreal.lua:41.
+local function ue4ss()
+    local _,main=coroutine.running()
+    if main then return end
+    error('[process_lua_function] The lua state has no instance inside lua_instances unordered map',3)
+end
+local function fname(text) return {type=function() return 'FName' end,ToString=function() return text end} end
+FName=function(text) ue4ss(); return fname(text) end
+local next_address=0x1000
+-- A fake UObject: each of its methods checks the Lua state first, whether given in fields, added or replaced later. The
+-- methods live in a table of their own, so every assignment of one goes through __newindex.
+local function object(name,fields,class_address)
+    local methods={}
+    local o=setmetatable({},{__index=methods,__newindex=function(t,k,v)
+        if type(v)~='function' then return rawset(t,k,v) end
+        methods[k]=function(...) ue4ss(); return v(...) end
+    end})
+    for k,v in pairs(fields or {}) do o[k]=v end
+    next_address=next_address+0x100
+    local at=next_address
+    o.type=function() return 'UObject' end
+    o.IsValid=function(self) return not self.destroyed end
+    o.GetFName=function() return fname(name) end
+    o.GetAddress=function() return at end
+    o.GetClass=function() return {GetAddress=function() return class_address or 0xc1 end,type=function() return 'UObject' end} end
+    return o
+end
+local invalid=object('Invalid',{destroyed=true}) -- What UE4SS returns for nothing found.
+local BODY='/Game/Art/Character/PC/CH_P_EVE_52/CH_P_EVE_52_TypeB.CH_P_EVE_52_TypeB'
+local FACE='/Game/Art/Character/PC/CH_P_EVE_Head/CH_P_EVE_Face_Jali3.CH_P_EVE_Face_Jali3'
+local HAIR='/Game/DLC_2/Art/Character/PC/EVE_HR_Nikke_02/EVE_HR_Nikke_02.EVE_HR_Nikke_02'
+local PONY='/Game/Art/Character/PC/CH_P_EVE_Hair/CH_P_EVE_Hair_PonyTail_2.CH_P_EVE_Hair_PonyTail_2'
+local BLADE='/Game/Art/Character/Weapon/Sword/CH_W_Sword_01/CH_W_Sword_01.CH_W_Sword_01'
+local NIER='/Game/DLC_1/Art/Character/PC/EVE_HR_Nier_01/EVE_HR_Nier_01.EVE_HR_Nier_01' -- A DLC this PC lacks.
+local BASE_BODY='/Game/Art/Character/PC/CH_P_EVE_08/CH_P_EVE_08.CH_P_EVE_08'
+local BASE_HAIR='/Game/Art/Character/PC/00_HR/EVE_HR_01/EVE_HR_01.EVE_HR_01'
+local STATIC='/Game/Art/Character/PC/Rock/Rock.Rock'
+local LONG_HAIR='/Game/Art/Character/PC/00_HR/EVE_HR_09/EVE_HR_09.EVE_HR_09'
+local TWO_BLADE='/Game/Art/Character/Weapon/Sword/CH_W_Sword_02/CH_W_Sword_02.CH_W_Sword_02'
+-- Meshes by path, with their bones; the body is in memory already, the rest only through LoadAsset.
+local meshes,in_memory={},{[BODY]=true}
+local function mesh(path,bones,skeletal)
+    meshes[path]=object(path,{path=path,bones=bones or {},Skeleton=object('Skeleton')})
+    meshes[path].IsA=function(_,class) return class.path=='/Script/Engine.SkeletalMesh' and skeletal~=false end
+    meshes[path].GetFullName=function() return (skeletal~=false and 'SkeletalMesh ' or 'StaticMesh ')..path end
+end
+mesh(BODY,{'Root','Bip001','Bip001-Pelvis'})
+mesh(FACE)
+mesh(HAIR,{'Bip001-Head','Hair_01'})
+mesh(PONY)
+mesh(BLADE,{'Root'})
+mesh(BASE_BODY,{'Root','Bip001','Spine','Bip001-Pelvis'})
+mesh(BASE_HAIR,{'Bip001-Head','Other','Hair_01'})
+mesh(STATIC,{},false)
+mesh(LONG_HAIR,{'a','b','c','d','e'})
+mesh(TWO_BLADE,{'Root','Tip'})
+-- Materials: assets of another class, found by path the same way.
+local SKIN='/Game/Art/Character/PC/CH_P_EVE_52/MI_EVE_52_Skin.MI_EVE_52_Skin'
+local TYPE_B='/Game/Art/Character/PC/00_HR/EVE_HR_01/MI_EVE_HR_01_TypeB.MI_EVE_HR_01_TypeB'
+local TYPE_C='/Game/Art/Character/PC/00_HR/EVE_HR_01/MI_EVE_HR_01_TypeC.MI_EVE_HR_01_TypeC'
+for _,path in ipairs({SKIN,TYPE_B,TYPE_C}) do
+    meshes[path]=object(path,{path=path})
+    meshes[path].IsA=function(_,class) return class.path=='/Script/Engine.MaterialInterface' end
+    meshes[path].GetFullName=function() return 'MaterialInstanceConstant '..path end
+end
+-- Her outfit's ponytail collision, a PhysicsAsset beside her body mesh; the base suit's is missing on this PC.
+local COLLISION='/Game/Art/Character/PC/CH_P_EVE_52/CH_P_EVE_52_TypeB_PonytailPhysicsAsset.'
+    ..'CH_P_EVE_52_TypeB_PonytailPhysicsAsset'
+meshes[COLLISION]=object(COLLISION,{path=COLLISION})
+meshes[COLLISION].IsA=function(_,class) return class.path=='/Script/Engine.PhysicsAsset' end
+meshes[COLLISION].GetFullName=function() return 'PhysicsAsset '..COLLISION end
+-- Clothing assets: the ponytail, a follower, and her hair, a leader.
+meshes[PONY].MeshClothingAssets={object('ClothingAsset')}
+meshes[HAIR].MeshClothingAssets={object('ClothingAsset')}
+local lookups,loads=0,{} -- Mesh lookups (StaticFindObject on a /Game path) and LoadAsset's paths.
+local finds,gets,unregistered={},{},{} -- Their /Game paths, GetAsset's; assets LoadAsset misses (a mod's added ones).
+-- When set: called with each load, SetSkeletalMesh and SetMaterial and its asset's path (the crash sentinel's tests).
+local marker_spy=nil
+local fail_mesh,fail_material=nil,nil -- SetSkeletalMesh or SetMaterial raises a Lua error for this path.
+local frame=0 -- Each ghost.tick() reads the player once: the frame it runs in. A mesh keeps the frame it was resolved in.
+LoadAsset=function(path)
+    ue4ss()
+    loads[#loads+1]=path
+    if marker_spy then marker_spy('LoadAsset',path) end
+    if unregistered[path] then return invalid end
+    if meshes[path] then meshes[path].resolved_at=frame end
+    return meshes[path] or invalid
+end
+
+local spawned={}
+local fail_mid=nil -- 'make': CreateDynamicMaterialInstance refuses; 'set', 'texture': that setter does.
+local dyeable=false -- Parts take materials only once dyes are tested: until then a SetMaterial fails the build.
+local fail_depth=false -- SetRenderCustomDepth refuses: the other render flags are still set.
+local fail_section=false -- ShowMaterialSection refuses.
+local function poseable(actor)
+    local p=object('Poseable',{calls={}},0xc2)
+    function p:SetLightingChannels(a,b,c) self.channels={a,b,c} end
+    function p:K2_IsCollisionEnabled() return self.calls.SetCollisionEnabled~=0 end
+    function p:SetRenderCustomDepth(on) if fail_depth then error('no custom depth') end self.custom_depth=on end
+    function p:SetCustomDepthStencilValue(v) self.stencil=v end
+    for _,f in ipairs({'SetCollisionEnabled','SetMasterPoseComponent','SetForcedLOD'}) do
+        p[f]=function(self,a) self.calls[f]=a end
+    end
+    function p:SetSkeletalMesh(m)
+        if marker_spy then marker_spy('SetSkeletalMesh',m.path) end
+        if fail_mesh==m.path then error('bad mod mesh') end
+        self.mesh,self.added_at=m,frame
+    end
+    function p:GetNumBones() return #self.mesh.bones end
+    function p:GetBoneName(j) return fname(self.mesh.bones[j+1]) end
+    function p:SetVisibility(v) self.visible=v end
+    function p:K2_SetWorldLocationAndRotation(at,r,sweep,_,teleport)
+        assert(sweep==false,'Never a sweep')
+        self.at,self.rot,self.teleport=at,r,teleport; self.moves=(self.moves or 0)+1
+    end
+    function p:K2_AttachToComponent(parent,socket,a,b,c) self.attached={parent=parent,socket=socket:ToString(),rules={a,b,c}} end
+    function p:K2_SetRelativeTransform(t) self.relative=t end
+    function p:K2_DestroyComponent(owner) assert(owner==actor,'DestroyComponent takes the owner'); self.destroyed=true end
+    function p:IsA(class) return class.path=='/Script/Engine.PoseableMeshComponent' end
+    function p:GetOwner() return actor end
+    -- Its slots hidden at LOD 0, as set; each call counted in calls.sections.
+    function p:ShowAllMaterialSections(lod)
+        assert(lod==0)
+        self.hidden,self.calls.sections={},(self.calls.sections or 0)+1
+    end
+    function p:ShowMaterialSection(slot,section,show,lod)
+        assert(section==0 and show==false and lod==0)
+        if fail_section then error('no section call') end
+        self.hidden[slot],self.calls.sections=true,self.calls.sections+1
+    end
+    if dyeable then
+        function p:GetNumMaterials() return 2 end
+        function p:SetMaterial(slot,m)
+            if marker_spy then marker_spy('SetMaterial',m.path) end
+            if fail_material==m.path then error('bad mod material') end
+            self.dyes=self.dyes or {}
+            self.dyes[#self.dyes+1]={slot=slot,material=m,at=frame}
+        end
+        -- As the engine's: the source set on the slot, then a dynamic instance of it put there.
+        function p:CreateDynamicMaterialInstance(slot,m,name)
+            if fail_mid=='make' then error('no instance') end
+            assert(name:ToString()=='None')
+            local mid=object('MID',{set={},parent=m})
+            function mid:SetVectorParameterValue(n,c)
+                if fail_mid=='set' then error('no such setter') end
+                self.set[#self.set+1]={'v',n:ToString(),c.R,c.G,c.B,c.A}
+            end
+            function mid:SetScalarParameterValue(n,x) self.set[#self.set+1]={'s',n:ToString(),x} end
+            function mid:SetTextureParameterValue(n,a)
+                if fail_mid=='texture' then error('no texture setter') end
+                self.set[#self.set+1]={'t',n:ToString(),a,frame}
+            end
+            self.mids=self.mids or {}
+            self.mids[slot]=mid
+            return mid
+        end
+    end
+    return p -- No SetMaterial unless dyeable: a call fails the build, so the test.
+end
+-- A cloth part: a SkeletalMeshComponent with the same calls, plus the cloth reset; never bound to its leader's cloth.
+-- order: its collision bones (the first written), its collision asset, its leader and its mesh, as they were set.
+local fail_cloth,fail_reset,fail_array,skeletal_adds=nil,false,false,0 -- fail_cloth: 'add' or 'set'.
+local function cloth_part(actor)
+    local s=poseable(actor)
+    s.cloth,s.order=true,{}
+    local mt=getmetatable(s)
+    local set=mt.__newindex
+    mt.__newindex=function(t,k,v)
+        if k=='OverrideClothPhysicsAsset' then t.order[#t.order+1]='override' end
+        return set(t,k,v)
+    end
+    -- UE4SS's TArray: indexed from 1, resized when written past its end.
+    s.AdditiveMasterBoneArray=setmetatable({},{__newindex=function(t,k,v)
+        ue4ss()
+        if fail_array then error('no array write') end
+        assert(k==#t+1 and v:type()=='FName','Written in order, an FName each')
+        if k==1 then s.order[#s.order+1]='bones' end
+        rawset(t,k,v)
+    end})
+    function s:IsA(class) return class.path=='/Script/Engine.SkeletalMeshComponent' end
+    function s:SetMasterPoseComponent(lead)
+        self.calls.SetMasterPoseComponent=lead
+        self.order[#self.order+1]='master'
+    end
+    function s:SetSkeletalMesh(m)
+        if fail_cloth=='set' then error('no cloth mesh') end
+        self.mesh,self.added_at=m,frame
+        self.order[#self.order+1]='mesh'
+    end
+    function s:ForceClothNextUpdateTeleportAndReset()
+        if fail_reset then error('no reset') end
+        self.resets=(self.resets or 0)+1
+    end
+    function s:BindClothToMasterPoseComponent() error('a Poseable leader has no cloth to bind to') end
+    -- A Doro (online/modes/race/doro.lua) is one too: its scale, the single-node mode and its animation calls.
+    function s:SetRelativeScale3D(v) self.scale=v end
+    function s:SetAnimationMode(n) self.mode=n end
+    function s:SetAnimation(a) self.anim=a end -- A Doro's keeper: the clip it holds.
+    function s:SetComponentTickEnabled(on) self.ticks=on end
+    function s:PlayAnimation(a,loop) self.playing={asset=a,loop=loop} end
+    function s:GetAnimInstance() return {SetBlendSpaceInput=function(_,v) s.input=v.X end} end
+    function s:SetPlayRate(r) self.rate=r end
+    function s:SetPosition(at,notifies) assert(notifies==false); self.position=at end
+    function s:K2_SetRelativeRotation(r,sweep,_,teleport)
+        assert(sweep==false and teleport==false)
+        self.turned=r
+    end
+    return s
+end
+local fail_text,fail_color=false,false -- FText or FColor refuses its table: Lua to either is unproven in the game.
+FText=function(text) ue4ss(); if fail_text then error('no FText') end return {text=text} end
+local function text_render(actor)
+    local l=object('TextRender',{},0xc3)
+    for _,f in ipairs({'SetWorldSize','SetHorizontalAlignment','SetTextRenderColor','SetAbsolute',
+        'SetCollisionEnabled'}) do
+        l[f]=function(self,a) if f=='SetTextRenderColor' and fail_color then error('no FColor') end self[f]=a end
+    end
+    function l:K2_AttachToComponent(parent,socket) self.attached={parent=parent,socket=socket:ToString()} end
+    function l:K2_SetRelativeLocation(at) self.relative=at end
+    function l:K2_SetText(t) self.text=t.text end
+    function l:K2_SetWorldRotation(r) self.rot=r; self.turns=(self.turns or 0)+1 end
+    function l:SetVisibility(v,children) assert(children==false); self.visible=v; self.shows=(self.shows or 0)+1 end
+    function l:K2_DestroyComponent(owner) assert(owner==actor,'DestroyComponent takes the owner'); self.destroyed=true end
+    function l:K2_IsCollisionEnabled() return self.SetCollisionEnabled~=0 end -- The call's value once it was made.
+    return l
+end
+-- The solid partner's capsule: every call kept in order, with its arguments; collision as last set. fail_capsule:
+-- SetCapsuleSize refuses.
+local fail_capsule=false
+local function capsule_part(actor)
+    local c=object('Capsule',{order={},args={},enabled={}},0xc4)
+    for _,f in ipairs({'K2_SetRelativeLocation','SetAbsolute','SetCapsuleSize','SetGenerateOverlapEvents',
+        'SetCollisionObjectType','SetCollisionResponseToAllChannels','SetCollisionResponseToChannel'}) do
+        c[f]=function(self,...)
+            if f=='SetCapsuleSize' and fail_capsule then error('no capsule size') end
+            self.order[#self.order+1]=f; self.args[f]=table.pack(...)
+        end
+    end
+    function c:SetCollisionEnabled(v)
+        self.order[#self.order+1]='SetCollisionEnabled'
+        self.enabled[#self.enabled+1]=v
+    end
+    function c:K2_IsCollisionEnabled() return (self.enabled[#self.enabled] or 1)~=0 end
+    function c:K2_DestroyComponent(owner)
+        assert(owner==actor,'DestroyComponent takes the owner')
+        self.destroyed=true
+    end
+    return c
+end
+local fail_add,fail_label=false,false
+local box_reads=0 -- Reads of an effect box's relative fields: place() reads them only on a new effects stamp.
+local function effect_box()
+    local fields={RelativeScale3D={X=1,Y=1,Z=1},RelativeLocation={X=0,Y=0,Z=0},RelativeRotation={Pitch=0,Yaw=0,Roll=0}}
+    local box=object('EffectBox',{fields=fields},0x5c0)
+    local mt=getmetatable(box)
+    local methods=mt.__index
+    mt.__index=function(_,key)
+        if key:find('^Relative') then box_reads=box_reads+1; return fields[key] end
+        return methods[key]
+    end
+    return box
+end
+local world=object('World',{SpawnActor=function(_,class,at)
+    assert(class.path=='/Script/Engine.Actor' and at.X==1)
+    local a=object('Ghost',{parts={},components={}})
+    function a:SetActorEnableCollision(on,fast) self.collision={on,fast} end
+    function a:SetActorHiddenInGame(hidden) self.hidden=hidden end
+    function a:K2_GetComponentsByClass(c) -- Its primitives: the parts, the tag and the capsule.
+        assert(c.path=='/Script/Engine.PrimitiveComponent')
+        local list={}
+        for _,added in ipairs(self.components) do if added.K2_IsCollisionEnabled then list[#list+1]=added end end
+        return list
+    end
+    function a:AddComponentByClass(c,manual)
+        if fail_add then return nil end
+        local added
+        if c.path=='/Script/Engine.CapsuleComponent' then
+            assert(manual==false,'The capsule hangs on the root')
+            added=capsule_part(self)
+            self.capsule=added
+        elseif c.path=='/Script/Engine.SceneComponent' then
+            assert(manual==true,'The mailbox and the effect boxes are never attached')
+            if self.mailbox then -- After it: an effect box.
+                added=effect_box()
+                self.boxes=self.boxes or {}
+                self.boxes[#self.boxes+1]=added
+            else
+                added=object('Mailbox',{RelativeScale3D={X=1,Y=1,Z=1},RelativeLocation={X=0,Y=0,Z=0},
+                    RelativeRotation={Pitch=0,Yaw=0,Roll=0}},0x5c0)
+                self.mailbox=added
+            end
+        elseif c.path=='/Script/Engine.TextRenderComponent' then
+            assert(manual==false)
+            if fail_label then return nil end
+            added=text_render(self)
+            self.label=added
+        elseif c.path=='/Script/Engine.SkeletalMeshComponent' and manual==true then -- A Doro's keeper, unattached.
+            added=cloth_part(self)
+            self.keepers=self.keepers or {}
+            self.keepers[#self.keepers+1]=added
+        elseif c.path=='/Script/Engine.SkeletalMeshComponent' then
+            assert(manual==false)
+            skeletal_adds=skeletal_adds+1
+            if fail_cloth=='add' then return nil end
+            added=cloth_part(self); self.parts[#self.parts+1]=added
+        else
+            assert(c.path=='/Script/Engine.PoseableMeshComponent' and manual==false)
+            added=poseable(self); self.parts[#self.parts+1]=added
+        end
+        self.components[#self.components+1]=added
+        return added
+    end
+    function a:K2_DestroyActor() self.destroyed=true end
+    function a:K2_GetRootComponent() return self.components[1] end -- The first added, whatever its class.
+    function a:GetFullName() return 'Actor /Game/Map.Map:PersistentLevel.Actor_'..#spawned end
+    spawned[#spawned+1]=a
+    return a
+end,GetFullName=function() return 'World /Game/Art/BG/WorldMap/Level_P/E04.E04' end,
+K2_GetWorldSettings=function() return {bEnableWorldComposition=false,bEnableWorldOriginRebasing=false} end})
+-- EVE reads only: the ghost never writes to her.
+local function eve_of(name,map_world,at)
+    map_world=map_world and object('World',map_world)
+    local e=object(name)
+    if at then e.GetAddress=function() return at end end -- Where a freed EVE was.
+    function e:IsA(class) return class.path=='/Script/SB.SBCharacter' end
+    function e:GetWorld() return map_world or world end
+    function e:K2_GetActorLocation() return {X=1,Y=2,Z=3} end
+    function e:K2_GetActorRotation() return {Pitch=0,Yaw=90,Roll=0} end
+    e.Mesh=object('CharacterMesh0',{K2_GetComponentLocation=function() return {X=1,Y=2,Z=-87} end,
+        K2_GetComponentRotation=function() return {Pitch=0,Yaw=0,Roll=0} end}) -- Her actor's yaw minus 90.
+    return setmetatable({},{__index=e,__newindex=function(_,key) error('the ghost wrote '..key..' on EVE',2) end})
+end
+local eve=eve_of('EVE')
+local player=eve
+local camera,camera_fails={X=-100,Y=100,Z=0},false
+package.loaded.UEHelpers={GetPlayer=function() ue4ss(); frame=frame+1; return player end,GetPlayerController=function()
+    ue4ss()
+    if camera_fails then error('no player controller') end
+    return {PlayerCameraManager={GetCameraLocation=function() return camera end}}
+end}
+local found_by_path={}
+local niagara_lookups=0 -- Lookups of anything of Niagara: its classes, its library, the listed systems.
+StaticFindObject=function(path)
+    ue4ss()
+    if path:find('Niagara',1,true) or path:find('^/Game/Art/FX/') then niagara_lookups=niagara_lookups+1 end
+    if found_by_path[path] then return found_by_path[path] end
+    if path:find('^/Game/') then
+        lookups=lookups+1
+        finds[#finds+1]=path
+        if not in_memory[path] then return invalid end
+        meshes[path].resolved_at=frame
+        return meshes[path]
+    end
+    local c=object(path,{path=path})
+    if path=='/Script/Engine.Default__KismetMathLibrary' then c.MakeTransform=function() return 'identity' end end
+    if path=='/Script/AssetRegistry.Default__AssetRegistryHelpers' then
+        c.GetAsset=function(_,data) -- An asset data with its path only: loaded by that path, in the registry or not.
+            local asked=data.ObjectPath:ToString()
+            gets[#gets+1]=asked
+            if marker_spy then marker_spy('GetAsset',asked) end
+            if meshes[asked] then meshes[asked].resolved_at=frame end
+            return meshes[asked] or invalid
+        end
+    end
+    return c
+end
+
+-- The remote table as the native part writes it.
+local function her_parts(o)
+    o=o or {}
+    return {
+        {name='CharacterMesh0',path=o.body or BODY,names={'Root','Bip001','Bip001-Pelvis'},materials=o.body_materials},
+        {name='Mesh_Face',lead=0,parent=0,path=FACE},
+        {name='SBHair',parent=0,socket='Bip001-Head',path=o.hair or HAIR,names={'Bip001-Head','Hair_01'},
+            place='0 0 0.707106769 0.707106769 1.5 -2 0.25 1 1 1',materials=o.hair_materials},
+        {name='SBPonytail',lead=2,parent=2,shown=false,path=PONY},
+        {name='SBSkeletalMeshComponent_7',parent=0,socket=o.socket or 'SC_SwordingPoint',shown=o.blade_shown,
+            path=o.blade or BLADE,names={'Root'},place='0 0 0 1 10.25 0 1 1 1 1'},
+        {name='Scabbard',lead=4,parent=4,path=PONY}, -- Follows the blade.
+    }
+end
+local function remote_text(generation,parts,map)
+    local lines={'SBT 9','generation '..generation,'map '..(map or '/game/art/bg/worldmap/level_p/e04')}
+    for i,p in ipairs(parts) do
+        lines[#lines+1]=string.format('part %d %s %s %s %d %d %s %s',i-1,p.lead or '-',p.parent or '-',p.socket or '-',
+            p.shown==false and 0 or 1,p.names and #p.names or 0,p.name,p.path or '-')
+        if i>1 then lines[#lines+1]='place '..(i-1)..' '..(p.place or '0 0 0 1 0 0 0 1 1 1') end
+        for _,m in ipairs(p.materials or {}) do lines[#lines+1]=string.format('material %d %d %s',i-1,m[1],m[2]) end
+        for _,m in ipairs(p.materials or {}) do
+            for _,v in ipairs(m[3] or {}) do lines[#lines+1]=string.format('value %d %d %s',i-1,m[1],v) end
+        end
+        if p.hide then lines[#lines+1]=string.format('hide %d %s',i-1,table.concat(p.hide,' ')) end
+        if p.cloth then lines[#lines+1]=string.format('cloth %d %s',i-1,p.cloth) end
+        if p.label then lines[#lines+1]=string.format('mod %d %s',i-1,p.label) end
+        if p.names then lines[#lines+1]='names '..(i-1)..' '..table.concat(p.names,' ') end
+    end
+    return table.concat(lines,'\n')..'\n'
+end
+local remote_file,displays,stored,requests,said,said_en=nil,{},nil,{},{},{} -- said_en: the English given with each.
+local friend_name='Kaanta' -- Her Steam name, as the link gives it.
+local store={save=function(p) stored=p end,load=function() return stored end,clear=function() stored=nil end}
+local cns={} -- The assets our CNS packs declare, path to outfit (core/link.lua's cns_assets()).
+local link={remote_table=function() return remote_file end,store=function() return store end,
+    mod_assets=function() return cns end,
+    display=function(text) displays[#displays+1]=text or 'withdrawn'; return true end,
+    friend=function() return friend_name,true,false end,
+    request=function(line) requests[#requests+1]=line; return true end} -- The ghost never asks the link anything.
+local capture={yaw_delta=function() return 90 end} -- Her actor faces yaw 90 more than her mesh.
+local Words=require('ui.text')
+local words=Words.en -- The words for the screen (main.lua's: the game's language).
+local function new(path_left,name_tag,look,sentinel)
+    stored=path_left
+    package.loaded['online.partner.puppet']=nil
+    return require('online.partner.puppet').new(link,capture,function(text,
+        en) said[#said+1]=text; said_en[#said]=en end,
+        name_tag~=false,look,function() return words end,sentinel)
+end
+local ghost=new(nil)
+local count=0
+local function send(generation,parts,source,map) -- The native part writes a table: a new count in its status.
+    remote_file=remote_text(generation,parts,map)
+    count=count+1
+    return ghost.remote(generation,count,source or 'loopback')
+end
+-- Ticks until the build ends, checking that no frame resolves more than one mesh; returns its line.
+local function build()
+    for _=1,60 do
+        local before=lookups
+        local ok,message=ghost.tick()
+        assert(lookups-before<=1,'One mesh resolved a frame at most')
+        if message then return ok,message end
+    end
+    error('the build never ended')
+end
+local GAVE_UP='Ghost failed 3 times: the reason is in UE4SS.log.'
+-- Fails the table's build 3 times, 2 s apart: then it is said on screen once and never tried again by itself.
+local function give_up(gave_up)
+    local said_before=#said
+    fail_add=true
+    for k=1,3 do
+        local ok,message=build()
+        assert(ok==false and message:find('^Ghost not built: '),message)
+        clock=clock+2.5 -- Past the 2 s, never on their edge.
+        assert(#said==said_before+(k<3 and 0 or 1),'Said once, after the 3rd')
+    end
+    fail_add=false
+    assert(said[#said]==(gave_up or GAVE_UP),said[#said])
+    assert(said_en[#said]==GAVE_UP,'Its English too, for the line above EVE')
+    local spawned_before=#spawned
+    for _=1,5 do assert(ghost.tick()==nil); clock=clock+2 end
+    assert(#spawned==spawned_before,'Never a 4th time by itself')
+end
+
+assert(ghost.tick()==nil and ghost.status()=='ghost=off','Off: nothing')
+send(500,her_parts())
+assert(ghost.tick()==nil and #spawned==0,'Off: no ghost, even with a table')
+local ok,message=ghost.toggle()
+assert(ok and message:find('^Ghost on: ') and not message:find('runs coop puppet'),message)
+assert(ghost.status()=='ghost=waiting')
+assert(ghost.tick()==nil and #spawned==0,'EVE must have been in the world 2 s')
+clock=clock+2
+local frames=0
+local before=lookups
+repeat
+    frames=frames+1
+    local lookups_before=lookups
+    ok,message=ghost.tick()
+    assert(lookups-lookups_before<=1,'One mesh resolved a frame at most')
+until message
+assert(frames==7 and lookups-before==5,'Six parts, one a frame (the second ponytail mesh cached), then the hanging')
+assert(ok and message:find('^Ghost 500 built: 6 parts %(3 leaders%), 5 loaded in %d+ ms, 0 on the base suit, 0 left out %(%d+ ms in all%)%.$'),message)
+-- The body was in memory; every other mesh came through LoadAsset, by its path.
+assert(table.concat(loads,' ')==table.concat({FACE,HAIR,PONY,BLADE},' '),table.concat(loads,' '))
+local actor=spawned[1]
+assert(actor.hidden==true,'Hidden until the first pose')
+local root,face,hair,pony,blade,scabbard=table.unpack(actor.parts)
+-- Each mesh is added in the frame it was found or loaded in, one frame after the other: nothing holds a fresh mesh
+-- between two frames. The scabbard's is the ponytail's, cached.
+for k,p in ipairs({root,face,hair,pony,blade}) do
+    assert(p.added_at==p.mesh.resolved_at and p.added_at==root.added_at+k-1,'Resolved and added in the same frame: '..k)
+end
+assert(root.mesh==meshes[BODY] and root.calls.SetForcedLOD==1 and root.attached==nil and root.visible==true)
+assert(face.calls.SetMasterPoseComponent==root and face.bUseBoundsFromMasterPoseComponent==true)
+assert(face.attached.parent==root and face.attached.socket=='None' and face.relative.Rotation.W==1)
+assert(hair.mesh==meshes[HAIR] and hair.attached.parent==root and hair.attached.socket=='Bip001-Head')
+assert(hair.attached.rules[1]==0 and hair.attached.rules[2]==0 and hair.attached.rules[3]==0,'KeepRelative')
+local r=hair.relative
+assert(r.Rotation.Z==0.707106769 and r.Translation.X==1.5 and r.Translation.Y==-2 and r.Scale3D.Z==1)
+assert(pony.calls.SetMasterPoseComponent==hair and pony.attached.parent==hair and pony.visible==false)
+assert(blade.attached.socket=='SC_SwordingPoint' and blade.relative.Translation.X==10.25 and scabbard.attached.parent==blade)
+assert(stored=='/Game/Map.Map:PersistentLevel.Actor_1','The path is kept for the next Lua load')
+-- Each part drawn with your EVE's render flags: lighting channels 0 and 1, custom depth with stencil 10 (the player's).
+for k,p in ipairs(actor.parts) do
+    assert(p.channels[1]==true and p.channels[2]==true and p.channels[3]==false and p.custom_depth==true
+        and p.stencil==10,'Render flags: part '..k)
+end
+-- The display file: each leader driven as it came.
+local d=displays[#displays]:gsub('0x%x+','0xX')
+assert(d=='display 500\nmailbox 0xX 0xX\ndrive 0 0xX 0xX 0xX 3\ndrive 2 0xX 0xX 0xX 2\ndrive 4 0xX 0xX 0xX 1\n',d)
+assert(displays[#displays]:find('\nmailbox 0x%x+ 0x5c0\ndrive 0 '..string.format('0x%x',root.GetAddress())..' 0xc2 '
+    ..string.format('0x%x',meshes[BODY].GetAddress())..' 3\n'),'The loaded mesh, not hers')
+assert(ghost.status()=='ghost=on parts=6 leaders=3 basesuit=0 left_out=0 table=500 source=loopback collide=off',
+    ghost.status())
+-- The name tag: whose ghost (here her own, through the loopback), 2 m above the main mesh, never a part.
+local tag=actor.label
+assert(tag and tag.text=='loopback' and tag.attached.parent==root and tag.attached.socket=='None','Hung on the main mesh')
+assert(tag.relative.X==0 and tag.relative.Y==0 and tag.relative.Z==200 and tag.SetWorldSize==18 and not tag.destroyed)
+assert(actor.components[1]==root and actor.components[#actor.components]==actor.mailbox,'Before the mailbox, never root')
+FindAllOf=function(class) assert(class=='PoseableMeshComponent'); return actor.parts end
+assert(ghost.status():find('left_out=0 table=500 source=loopback collide=off$'),'No stray part: the tag is none')
+FindAllOf=nil
+
+-- Shown at the first pose, placed from the mailbox 2 m to her right in loopback; hidden a second after the last pose.
+assert(ghost.place()==nil and actor.hidden and not root.moves,'No stamp yet: nothing')
+assert(ghost.anchor()==nil,'Hidden: no anchor for the UI marker')
+assert(ghost.her_map()=='/game/art/bg/worldmap/level_p/e04','Her map: the table\'s')
+local box=actor.mailbox
+box.RelativeScale3D.Z=5
+box.RelativeLocation={X=100,Y=0,Z=30}
+box.RelativeRotation={Pitch=0,Yaw=0,Roll=0}
+ghost.place()
+assert(actor.hidden==false and root.moves==1 and root.teleport==true,'Shown at the first stamp, by a teleport')
+assert(math.abs(root.at.X-(100-200))<1e-6 and math.abs(root.at.Y)<1e-6 and root.at.Z==30,'Her right: mesh yaw 0 plus 90')
+-- The UI marker's anchor: 2.2 m over where the root was put (the tag's 2 m and 20 cm), and her feet there.
+local top,feet=ghost.anchor()
+assert(math.abs(top.X+100)<1e-6 and math.abs(top.Y)<1e-6 and top.Z==250 and math.abs(feet.X+100)<1e-6 and feet.Z==30)
+assert(tag.turns==1 and math.abs(tag.rot.Yaw-90)<1e-9 and tag.rot.Pitch==0 and tag.rot.Roll==0,'The tag faces the camera')
+clock=clock+0.9
+ghost.place()
+assert(actor.hidden==false and root.moves==1,'The same stamp: not moved again, still shown')
+clock=clock+0.1
+ghost.place()
+assert(actor.hidden==true,'A second without a pose: hidden, never frozen in view')
+assert(ghost.anchor()==nil,'Hidden: no anchor')
+box.RelativeScale3D.Z=6
+camera={X=-100,Y=-100,Z=0}
+ghost.place()
+assert(actor.hidden==false and root.moves==2)
+assert(tag.turns==2 and math.abs(tag.rot.Yaw+90)<1e-9,'Turned again at each new pose, only then')
+-- Our own photo mode: photo_ghost=off hides the ghost while it lasts, poses or not, and photo_name_tag=off its tag; the
+-- ghost comes back with the next pose once it ends, the tag at once. Never veiled, the tag was never touched.
+assert(not tag.shows)
+ghost.photo(true,true)
+ghost.place()
+assert(actor.hidden==true and tag.visible==false and root.moves==2,'At once, no pose needed')
+box.RelativeScale3D.Z=6.5
+ghost.place()
+assert(actor.hidden==true and root.moves==3 and root.teleport==true and tag.shows==1,'Still placed, still hidden')
+ghost.photo(false,true)
+box.RelativeScale3D.Z=6.6
+ghost.place()
+assert(actor.hidden==false and tag.visible==false and tag.shows==1,'The ghost in the shot, its tag not')
+ghost.photo(false,false)
+ghost.place()
+assert(tag.visible==true and tag.shows==2)
+-- The UI marker up (main.lua: partner_bar on, the UI's root shown) carries her name: the tag hides, and is back at
+-- once when the marker goes (the UI off or failed, partner_bar off). The photo veil still counts.
+ghost.marker(true)
+ghost.place()
+assert(tag.visible==false and tag.shows==3 and actor.hidden==false)
+ghost.place()
+assert(tag.shows==3,'On change only')
+ghost.photo(false,true)
+ghost.marker(false)
+ghost.place()
+assert(tag.visible==false and tag.shows==3,'Still veiled')
+ghost.photo(false,false)
+ghost.place()
+assert(tag.visible==true and tag.shows==4)
+-- Shown, the root moves without a teleport, which would clear a cloth part's inertia at each pose; the first pose after
+-- a hide (above) and a step over 2 m in one pose (a fast travel, a respawn) are teleports.
+assert(root.teleport==true,'Shown again after the photo: a teleport')
+local function pose_at(stamp,at) box.RelativeScale3D.Z,box.RelativeLocation=stamp,at; ghost.place() end
+pose_at(6.7,{X=105,Y=0,Z=30})
+assert(root.teleport==false and math.abs(root.at.X+95)<1e-6,'5 cm on: moved, no teleport')
+pose_at(6.8,{X=105,Y=0,Z=230})
+assert(root.teleport==false and root.at.Z==230,'2 m up: not over 2 m, no teleport')
+pose_at(6.9,{X=606,Y=0,Z=230})
+assert(root.teleport==true and math.abs(root.at.X-406)<1e-6,'5.01 m on: a teleport')
+pose_at(6.93,{X=606,Y=0,Z=30})
+assert(root.teleport==false,'Back to small steps')
+pose_at(6.96,{X=100,Y=0,Z=30})
+assert(root.teleport==true,'Back where it was, 5 m away: a teleport')
+-- In loopback the side is kept while the ghost shows: her turn moves it neither around her nor by a teleport. The side
+-- is taken again when it shows again.
+box.RelativeRotation={Pitch=0,Yaw=90,Roll=0}
+pose_at(6.98,{X=100,Y=0,Z=30})
+assert(root.teleport==false and math.abs(root.at.X+100)<1e-6 and math.abs(root.at.Y)<1e-6,'Her turn: the same side')
+clock=clock+1
+ghost.place()
+assert(actor.hidden==true)
+pose_at(6.99,{X=100,Y=0,Z=30})
+assert(root.teleport==true and math.abs(root.at.X-100)<1e-6 and math.abs(root.at.Y+200)<1e-6,'Shown again: her right now')
+box.RelativeRotation={Pitch=0,Yaw=0,Roll=0}
+
+-- The same generation with the blade sheathed and shown otherwise: applied in place, no rebuild.
+local displays_before=#displays
+assert(send(500,her_parts({socket='SC_Back',blade_shown=false}))==nil)
+assert(#spawned==1 and not actor.destroyed and #displays==displays_before,'No rebuild, the display stays')
+assert(blade.attached.socket=='SC_Back' and blade.visible==false and hair.attached.socket=='Bip001-Head')
+assert(ghost.tick()==nil,'Nothing to build')
+-- One change at a time: the socket alone hangs the blade elsewhere, shown alone shows it.
+send(500,her_parts({socket='SC_Hip',blade_shown=false}))
+assert(blade.attached.socket=='SC_Hip' and blade.visible==false,'The socket alone')
+send(500,her_parts({socket='SC_Hip'}))
+assert(blade.visible==true and blade.attached.socket=='SC_Hip','Shown alone')
+
+-- A replay: placed where it was, no offset.
+send(500,her_parts({socket='SC_Back',blade_shown=false}),'replay')
+box.RelativeScale3D.Z=7
+ghost.place()
+assert(math.abs(root.at.X-100)<1e-6 and math.abs(root.at.Y)<1e-6,'No offset off the loopback')
+assert(ghost.status():find(' source=replay collide=off$'),ghost.status())
+
+-- A new generation, every fallback reason: part 0 has no path ('-'), the hair is missing (a DLC this PC lacks), the
+-- blade has another bone count and no fallback: it is drawn on that mesh after all, its bones by name, so its scabbard
+-- stays too (a head replacer this PC lacks still shows a head). Only the body and hair count on the base suit.
+loads={}
+meshes[TWO_BLADE].bones={'Root','Tip'}
+ok,message=send(501,her_parts({body='-',hair=NIER,blade=TWO_BLADE}))
+assert(ok and message=='Ghost 500 removed (a new table).' and actor.destroyed and displays[#displays]=='withdrawn',message)
+assert(stored==nil)
+ok,message=build()
+assert(ok and message:find('^Ghost 501 built: 6 parts %(3 leaders%), %d+ loaded in %d+ ms, 2 on the base suit, '
+    ..'0 left out'),message)
+assert(message:find('; CharacterMesh0: %- missing, drawn as '..BASE_BODY:gsub('%p','%%%0')..' %(3 of 4 bones follow%)'),message)
+assert(message:find('; SBHair: '..NIER:gsub('%p','%%%0')..' missing, drawn as '..BASE_HAIR:gsub('%p','%%%0')..' %(2 of 3 bones follow%)'),message)
+assert(table.concat(loads,' ')==table.concat({BASE_BODY,NIER,BASE_HAIR,TWO_BLADE},' '),table.concat(loads,' '))
+actor=spawned[#spawned]
+assert(actor.parts[1].mesh==meshes[BASE_BODY] and actor.parts[3].mesh==meshes[BASE_HAIR])
+assert(actor.parts[1].added_at==meshes[BASE_BODY].resolved_at and actor.parts[3].added_at==meshes[BASE_HAIR].resolved_at,
+    'A fallback mesh too is resolved and added in the same frame')
+local destroyed=0
+for _,p in ipairs(actor.parts) do destroyed=destroyed+(p.destroyed and 1 or 0) end
+assert(destroyed==1,'The blade on 2 bones was added, found wrong and destroyed, never re-pointed')
+local blade_again=actor.parts[6]
+assert(actor.parts[5].destroyed and blade_again.mesh==meshes[TWO_BLADE] and not blade_again.destroyed)
+assert(blade_again.added_at==actor.parts[5].added_at,'Drawn again in the same frame, on the mesh it had')
+assert(actor.parts[7].calls.SetMasterPoseComponent==blade_again,'Its scabbard follows it')
+assert(message:find('; SBSkeletalMeshComponent_7: '..TWO_BLADE:gsub('%p','%%%0')..' has 2 bones, not 1, drawn as '
+    ..TWO_BLADE:gsub('%p','%%%0')..' %(1 of 2 bones follow%)'),message)
+assert(actor.parts[1].mesh==meshes[BASE_BODY] and actor.parts[1].calls.SetForcedLOD==1)
+d=displays[#displays]:gsub('0x%x+','0xX')
+assert(d=='display 501\nmailbox 0xX 0xX\ndrive 0 0xX 0xX 0xX 4\nremap 0 0 1 -1 2\ndrive 2 0xX 0xX 0xX 3\n'
+    ..'remap 2 0 -1 1\ndrive 4 0xX 0xX 0xX 2\nremap 4 0 -1\n',d)
+assert(ghost.status():find('^ghost=on parts=6 leaders=3 basesuit=0 left_out=0 table=501 '),ghost.status())
+
+-- The other two reasons: part 0's path is not a skeletal mesh, the hair's mesh has other bones than hers.
+ok,message=send(502,her_parts({body=STATIC,hair=LONG_HAIR}))
+ok,message=build()
+assert(message:find('CharacterMesh0: '..STATIC:gsub('%p','%%%0')..' missing, drawn as '),message)
+assert(message:find('SBHair: '..LONG_HAIR:gsub('%p','%%%0')..' has 5 bones, not 2, drawn as '),message)
+assert(displays[#displays]:find('\nremap 0 0 1 %-1 2\n') and displays[#displays]:find('\nremap 2 0 %-1 1\n'))
+-- The missing DLC mesh is never loaded twice in a Lua load.
+loads={}
+send(503,her_parts({hair=NIER}))
+build()
+for _,path in ipairs(loads) do assert(path~=NIER,'A missing mesh is remembered') end
+
+-- basesuit: the body and the hair on the base suit even when hers load, rebuilt at once; then off again.
+ok,message=ghost.basesuit()
+assert(ok and message:find('^Base suit on') and spawned[#spawned].destroyed)
+ok,message=build()
+assert(message:find('^Ghost 503 built: 6 parts %(3 leaders%), %d+ loaded in %d+ ms, 2 on the base suit, 0 left out'),message)
+assert(message:find('CharacterMesh0: '..BODY:gsub('%p','%%%0')..' replaced %(basesuit%)'),message)
+assert(ghost.status():find(' basesuit=1 '),ghost.status())
+ghost.basesuit()
+ok,message=build()
+assert(message:find(', 1 on the base suit, '),message) -- Only the missing NieR hair now.
+
+-- Another map: no build, said once; back on hers, it is built.
+send(504,her_parts(),nil,'/game/art/bg/worldmap/level_p/f01')
+local pending_ghost=spawned[#spawned]
+assert(pending_ghost.destroyed)
+ok,message=ghost.tick()
+assert(ok and message=='Ghost hidden: she is on /game/art/bg/worldmap/level_p/f01, you are on /game/art/bg/worldmap/level_p/e04.',message)
+local spawned_count=#spawned
+assert(ghost.tick()==nil and ghost.tick()==nil and #spawned==spawned_count,'Said once, never built')
+assert(ghost.status()=='ghost=hidden map',ghost.status())
+assert(#said==0,'Her own loopback: nothing on screen')
+-- A friend on another map: on screen too, once per pair of maps, by the maps' last segments.
+send(540,her_parts(),'peer','/game/art/bg/worldmap/level_p/f01')
+ok,message=ghost.tick()
+assert(ok and message:find('^Ghost hidden: she is on .*/f01, you are on .*/e04%.$'),message)
+assert(#said==1 and said[1]=='Kaanta is in f01, you are in e04.',tostring(said[1]))
+ghost.tick(); ghost.tick()
+assert(#said==1,'Once per pair')
+send(541,her_parts(),'peer','/game/art/bg/worldmap/level_p/b07')
+ghost.tick()
+assert(#said==2 and said[2]=='Kaanta is in b07, you are in e04.',tostring(said[2]))
+send(542,her_parts(),'peer','/game/art/bg/worldmap/level_p/b07') -- A new outfit, or a new EVE, on the same map.
+ghost.tick()
+assert(#said==2,'A new table on the same pair: not said again')
+words=Words.fr
+send(543,her_parts(),'peer','/game/art/bg/worldmap/level_p/a01')
+ghost.tick()
+assert(#said==3 and said[3]=='Kaanta est dans a01, vous êtes dans e04.',tostring(said[3]))
+assert(said_en[3]=='Kaanta is in a01, you are in e04.',tostring(said_en[3]))
+words=Words.en
+send(505,her_parts())
+ok,message=build()
+assert(message:find('^Ghost 505 built'),message)
+
+-- A level change: the ghost goes, then comes back once EVE has been in the world 2 s, on the new map's gate.
+actor=spawned[#spawned]
+player=eve_of('EVE2')
+assert(ghost.tick()==nil and actor.destroyed and displays[#displays]=='withdrawn' and stored==nil)
+assert(ghost.status()=='ghost=waiting')
+spawned_count=#spawned
+assert(ghost.tick()==nil and #spawned==spawned_count,'Waits 2 s')
+clock=clock+2
+ok,message=build()
+assert(message:find('^Ghost 505 built'),message)
+-- A pawn that is not EVE (title screen): the comeback waits, it never gives up.
+local menu=object('MenuPawn')
+function menu:IsA() return false end
+player=menu
+ghost.tick()
+clock=clock+3
+ghost.tick()
+assert(ghost.active() and ghost.status()=='ghost=waiting','Still waiting for EVE')
+player=eve
+ghost.tick()
+clock=clock+2
+build()
+-- Travel to another map, her new EVE where the freed one was: the gate reads the new map, never one kept for that
+-- address.
+actor=spawned[#spawned]
+actor.destroyed=true -- With the old world.
+player=eve_of('EVE3',{GetFullName=function() return 'World /Game/Art/BG/WorldMap/Level_P/F01.F01' end},eve.GetAddress())
+assert(ghost.tick()==nil and displays[#displays]=='withdrawn')
+clock=clock+2
+ok,message=ghost.tick()
+assert(ok and message=='Ghost hidden: she is on /game/art/bg/worldmap/level_p/e04, you are on /game/art/bg/worldmap/level_p/f01.',
+    tostring(message))
+player=eve -- Back on hers, at that address again.
+ok,message=build()
+assert(message:find('^Ghost 505 built'),message)
+
+-- The remote table gone (loopback off, replay off): the ghost goes and its display file is withdrawn.
+actor=spawned[#spawned]
+ok,message=ghost.remote(nil,nil,nil)
+assert(ok and message=='Ghost 505 removed (her table is gone).' and actor.destroyed and displays[#displays]=='withdrawn',message)
+assert(ghost.tick()==nil and ghost.status()=='ghost=waiting','No table: no ghost')
+assert(ghost.remote(nil,nil,nil)==nil,'Said once')
+
+-- A failed build says why and leaves nothing behind; it is tried again 2 s later, never before.
+send(506,her_parts())
+fail_add=true
+ok,message=build()
+assert(ok==false and message:find('^Ghost not built: .*could not be added') and spawned[#spawned].destroyed,message)
+fail_add=false
+spawned_count=#spawned
+clock=clock+1.5
+assert(ghost.tick()==nil and #spawned==spawned_count,'Not before 2 s')
+clock=clock+1
+ok,message=build()
+assert(message:find('^Ghost 506 built'),message)
+-- One failing each time: 3 tries in all, then said on screen once; a new table tries again at once.
+send(510,her_parts())
+give_up()
+send(507,her_parts())
+ok,message=build()
+assert(message:find('^Ghost 507 built'),message)
+
+-- Toggled off: removed; the table is kept for the next toggle.
+actor=spawned[#spawned]
+ok,message=ghost.toggle()
+assert(ok and message=='Ghost 507 removed (coop puppet).' and actor.destroyed and stored==nil,message)
+assert(ghost.status()=='ghost=off')
+ghost.toggle()
+build()
+assert(not spawned[#spawned].destroyed)
+ghost.toggle()
+
+-- The next Lua load sweeps a ghost left standing, once it checks it is ours (its root, never its tag); a stranger at
+-- that path is left alone.
+local left=spawned[1]
+assert(left.label,'A tagged ghost')
+left.destroyed=false
+found_by_path['/Game/Map.Map:PersistentLevel.Actor_1']=left
+ghost=new('/Game/Map.Map:PersistentLevel.Actor_1')
+assert(not left.destroyed,'Not while the Lua state loads: on the game thread only')
+local _,first=ghost.toggle()
+assert(left.destroyed and first:find('^Removed a ghost left by an earlier Lua load%. Ghost on'),first)
+local stranger=object('Stranger')
+function stranger:K2_GetRootComponent() return object('Capsule2',{IsA=function() return false end}) end
+function stranger:K2_DestroyActor() self.destroyed=true end
+found_by_path['/Game/Map.Map:PersistentLevel.Actor_9']=stranger
+new('/Game/Map.Map:PersistentLevel.Actor_9').tick()
+assert(not stranger.destroyed and stored==nil,'Not ours: left alone')
+
+-- A cached mesh collected since, its address reused, is never drawn: the path is resolved again, whether the address
+-- now holds another skeletal mesh or an object of another class (its name alone would pass).
+send(600,her_parts())
+ghost.tick()
+clock=clock+2
+build()
+local stale=meshes[FACE]
+stale.GetFullName=function() return 'SkeletalMesh '..PONY end
+mesh(FACE)
+loads={}
+send(601,her_parts())
+build()
+assert(spawned[#spawned].parts[2].mesh==meshes[FACE] and table.concat(loads,' ')==FACE,'Another skeletal mesh there')
+stale=meshes[FACE]
+stale.IsA=function() return false end
+stale.GetFullName=function() return 'Texture2D '..FACE end
+mesh(FACE)
+loads={}
+send(602,her_parts())
+build()
+assert(spawned[#spawned].parts[2].mesh==meshes[FACE] and table.concat(loads,' ')==FACE,'Another class there')
+-- A new EVE (travel, a load) drops the assets found: one of the old world is never read again, not even by IsValid
+-- (freed memory, or a new object at its address, passes it). A missing DLC stays missing.
+send(610,her_parts({hair=NIER}))
+build()
+meshes[FACE].IsValid=function() error('an asset of the old world was read') end
+mesh(FACE)
+player=eve_of('EVE4')
+ghost.tick()
+clock=clock+2
+loads={}
+ok,message=build()
+assert(ok and spawned[#spawned].parts[2].mesh==meshes[FACE],tostring(message))
+for _,path in ipairs(loads) do assert(path~=NIER,'A missing DLC stays missing') end
+player=eve
+ghost.tick()
+clock=clock+2
+build()
+-- The same with the ghost off: off, travel, a new EVE where the old one stood, on.
+ghost.toggle()
+meshes[FACE].IsValid=function() error('an asset of the old world was read') end
+mesh(FACE)
+player=eve_of('EVE5',nil,eve.GetAddress())
+ghost.toggle()
+ghost.tick()
+clock=clock+2
+loads={}
+ok,message=build()
+assert(ok and spawned[#spawned].parts[2].mesh==meshes[FACE],tostring(message))
+for _,path in ipairs(loads) do assert(path~=NIER,'A missing DLC stays missing after off and on') end
+player=eve
+
+-- A built part whose parent part was left out hangs on part 0, at its socket.
+local charmed=her_parts({blade='/Game/Art/Character/Weapon/Gone/Gone.Gone'}) -- Missing, and no fallback.
+charmed[7]={name='Charm',parent=4,socket='SC_Tip',path=BLADE,names={'Root'},place='0 0 0 1 2 0 0 1 1 1'}
+send(603,charmed)
+ok,message=build()
+assert(ok and message:find('^Ghost 603 built: 5 parts %(3 leaders%), .*, 2 left out'),message)
+assert(message:find('; SBSkeletalMeshComponent_7: /Game/Art/Character/Weapon/Gone/Gone%.Gone missing, left out'),
+    message)
+actor=spawned[#spawned]
+local charm=actor.parts[#actor.parts]
+assert(charm.mesh==meshes[BLADE] and charm.attached.parent==actor.parts[1] and charm.attached.socket=='SC_Tip')
+
+-- A table with no generation line is refused, never raised on.
+remote_file=remote_text(604,her_parts()):gsub('generation 604\n','')
+count=count+1
+local read,refused,why=pcall(ghost.remote,604,count,'loopback')
+assert(read and refused==false and why=='The remote table could not be read.',tostring(refused))
+-- Read again at each call with that count (her same table sent again makes no new one), said once.
+assert(ghost.remote(604,count,'loopback')==nil,'Said once')
+remote_file=remote_text(604,her_parts())
+ok,message=ghost.remote(604,count,'loopback')
+assert(ok and message=='Ghost 603 removed (a new table).',tostring(message))
+
+-- A table given up is tried again with a new EVE, even with no ghost left to remove.
+send(605,her_parts())
+give_up()
+player=eve_of('EVE5')
+assert(ghost.tick()==nil,'Waits 2 s')
+clock=clock+2
+ok,message=build()
+assert(message:find('^Ghost 605 built'),message)
+-- A new EVE before her 2 s are up, no ghost yet: they start again.
+player=eve_of('EVE6')
+ghost.tick()
+clock=clock+1.5
+player=eve_of('EVE7')
+ghost.tick()
+spawned_count=#spawned
+clock=clock+0.5
+assert(ghost.tick()==nil and #spawned==spawned_count,'The 2 s start again with each new EVE')
+clock=clock+1.5
+ok,message=build()
+assert(message:find('^Ghost 605 built'),message)
+-- Toggled off and on again: a table given up is tried again at once.
+send(606,her_parts())
+words=Words.fr
+give_up('Le fantôme a échoué 3 fois : la raison est dans UE4SS.log.') -- In the game's language.
+words=Words.en
+ghost.toggle()
+ghost.toggle()
+ok,message=build()
+assert(message:find('^Ghost 606 built'),message)
+
+-- A tag that cannot be added leaves the ghost built without one, and the build line says why; so does a text Lua cannot
+-- convert, and the tag made so far goes (it would read the engine's default text).
+send(650,her_parts())
+fail_label=true
+ok,message=build()
+fail_label=false
+actor=spawned[#spawned]
+assert(ok and message:find('^Ghost 650 built: 6 parts .*; name tag off: .*a text line could not be added'),message)
+assert(not actor.destroyed and not actor.label and ghost.status():find('^ghost=on '),'The ghost stays')
+send(651,her_parts())
+fail_text=true
+ok,message=build()
+fail_text=false
+actor=spawned[#spawned]
+assert(ok and message:find('; name tag off: .*no FText') and actor.label.destroyed and not actor.destroyed,message)
+box=actor.mailbox
+box.RelativeScale3D.Z=8
+assert(ghost.place()==nil and actor.parts[1].moves==1 and not actor.label.turns,'No tag to turn')
+-- A setter that fails once the line is added (the colour): U.label takes the line off again.
+send(653,her_parts())
+fail_color=true
+ok,message=build()
+fail_color=false
+actor=spawned[#spawned]
+assert(ok and message:find('; name tag off: .*no FColor') and actor.label.destroyed and not actor.destroyed,message)
+-- With name_tag off in the settings: no tag at all.
+ghost.toggle()
+ghost=new(nil,false)
+ghost.toggle()
+send(652,her_parts(),'peer')
+ghost.tick()
+clock=clock+2
+ok,message=build()
+assert(message:find('^Ghost 652 built') and not message:find('name tag') and not spawned[#spawned].label,message)
+ghost.toggle()
+ghost=new(nil)
+ghost.toggle()
+
+-- A friend's ghost (source peer): her Steam name above it.
+send(607,her_parts(),'peer')
+ghost.tick()
+clock=clock+2
+ok,message=build()
+actor=spawned[#spawned]
+assert(message:find('^Ghost 607 built') and actor.label.text=='Kaanta',message)
+-- A title round trip (Esc to the title, a save loaded): the ghost goes with her EVE and comes back with its tag, and
+-- no request is ever written (the link holds or keeps the session on its own).
+player=menu
+assert(ghost.tick()==nil and actor.destroyed and displays[#displays]=='withdrawn','Removed on the title')
+player=eve
+assert(ghost.tick()==nil)
+clock=clock+2
+ok,message=build()
+assert(message:find('^Ghost 607 built') and spawned[#spawned]~=actor and spawned[#spawned].label.text=='Kaanta',message)
+assert(#requests==0,'No request')
+-- The tag sets no font, so the engine's default draws it, Latin-1 only: a character past U+00FF shows as '?', and a
+-- name that loses more than half its characters gives way to the partner card's word for her, in the player's language
+-- when that one draws whole, else in English. Cleaned as the card cleans her name.
+local tag_text=require('online.partner.puppet').tag_text
+assert(tag_text('Zoë Ünal','Partner')=='Zoë Ünal' and tag_text(' \1Kaanta\n ','Partner')=='Kaanta')
+assert(tag_text('Ann日本','Partner')=='Ann??' and tag_text('ab日本','Partner')=='ab??','Half lost: still hers')
+assert(tag_text('日本a','Partenaire','Partner')=='Partenaire' and tag_text('','Partenaire','Partner')=='Partenaire')
+assert(tag_text(nil,'Partenaire','Partner')=='Partenaire')
+assert(tag_text('カンタ','パートナー','Partner')=='Partner' and tag_text('カンタ','Takım arkadaşı','Partner')=='Partner')
+friend_name='カンタ'
+player=menu
+ghost.tick()
+player=eve
+ghost.tick()
+clock=clock+2
+ok,message=build()
+assert(message:find('^Ghost 607 built') and spawned[#spawned].label.text=='Partner',message)
+friend_name='Kaanta'
+-- A camera that cannot be read stops the tag turning, once, and never the ghost.
+actor=spawned[#spawned]
+tag,box=actor.label,actor.mailbox
+camera_fails=true
+box.RelativeScale3D.Z=8
+ok,message=ghost.place()
+assert(ok==false and message:find('^Name tag no longer turned to the camera: .*no player controller'),tostring(message))
+assert(not actor.destroyed and actor.hidden==false and actor.parts[1].moves==1 and not tag.turns,'The ghost stays, shown')
+box.RelativeScale3D.Z=8.5
+assert(ghost.place()==nil and actor.parts[1].moves==2,'Said once, the ghost still placed')
+camera_fails=false
+box.RelativeScale3D.Z=8.75
+ghost.place()
+assert(not tag.turns,'Turned no more on that ghost')
+-- The tag still hides for a photo and shows again after it.
+ghost.photo(false,true)
+ghost.place()
+assert(tag.visible==false,'Veiled after a failed turn')
+ghost.photo(false,false)
+ghost.place()
+assert(tag.visible==true and not tag.turns,'Shown again, still not turned')
+-- No offset, the root exactly where her mesh is.
+root=actor.parts[1]
+box.RelativeScale3D.Z=9
+box.RelativeLocation={X=1,Y=402,Z=-87}
+box.RelativeRotation={Pitch=1,Yaw=45,Roll=2}
+ghost.place()
+assert(root.at.X==1 and root.at.Y==402 and root.at.Z==-87 and root.rot.Yaw==45 and root.rot.Pitch==1 and
+    root.rot.Roll==2 and actor.hidden==false,'Exactly at the mailbox')
+
+-- coop where: the nearest camp of the leaf classes (an invalid one skipped; the nearest neither first nor last, so
+-- neither the first nor the last found passes for it), the world origin and flags, her ghost.
+local function camp(id,at) return object('Camp',{EnvActorName=fname(id),K2_GetActorLocation=function() return at end}) end
+local camps={Env_VendingMachine_C={camp('Xion_10_EnvS_007',{X=1,Y=-498,Z=3})},Env_VendingMachine_Simple_C={invalid},
+    Env_Camp_TeleportMachine_C={camp('Xion_10_EnvS_016',{X=301,Y=2,Z=3})},
+    Env_Camp_TeleportMachine_Tetrapod_C={camp('Xion_10_EnvS_020',{X=1,Y=2,Z=903})}}
+-- Spawn points: the nearest is neither the first nor the last valid one either.
+local function spawn_point(id,at) return object('Spawn',{SpawnPointName=fname(id),K2_GetActorLocation=function() return at end}) end
+camps.SBSpawnPoint={invalid,spawn_point('Xion_SP_far',{X=1,Y=2,Z=2003}),spawn_point('Xion_10_Camp_SV1',{X=1,Y=2,Z=203}),
+    spawn_point('Xion_SP_mid',{X=1,Y=2,Z=1003})}
+FindAllOf=function(class) return camps[class] end -- nil for a class with no object, as UE4SS does.
+local STATICS='/Script/Engine.Default__GameplayStatics'
+found_by_path[STATICS]=invalid -- Not in this build: that field says why, the rest of the line stays.
+clock=clock+0.5
+ok,message=ghost.where()
+assert(ok and message:find(' origin=?(/Script/Engine.Default__GameplayStatics is unavailable in th) composition=false ',1,true),
+    message)
+found_by_path[STATICS]=object('GameplayStatics',{GetWorldOriginLocation=function(_,context)
+    assert(context==player,'Asked for her world'); return {X=0,Y=0,Z=0}
+end})
+ok,message=ghost.where()
+assert(ok and message=='where map=/game/art/bg/worldmap/level_p/e04 eve=1.0,2.0,3.0 yaw=0.0 mesh=1.0,2.0,-87.0 '
+    ..'camp=Xion_10_EnvS_016:Env_Camp_TeleportMachine_C@301.0,2.0,3.0 camp_m=3.0 '
+    ..'spawn=Xion_10_Camp_SV1:SBSpawnPoint@1.0,2.0,203.0 spawn_m=2.0 origin=0,0,0 composition=false '
+    ..'rebasing=false ghost=peer@1.0,402.0,-87.0 ghost_yaw=45.0 ghost_m=4.00 ghost_age=0.5',message)
+-- In loopback: where her mesh is, before the 2 m offset.
+ghost.remote(607,count,'loopback') -- The same count: only the source changes.
+box.RelativeScale3D.Z=10
+ghost.place()
+assert(root.at.Y~=402 and select(2,ghost.where()):find(' ghost=loopback@1.0,402.0,-87.0 ',1,true),'Hers, not offset')
+-- No ghost: her table on this map (waiting), on another, or none.
+send(608,her_parts(),'peer')
+assert(select(2,ghost.where()):find(' ghost=waiting$'))
+send(609,her_parts(),'peer','/game/art/bg/worldmap/level_p/f01')
+assert(select(2,ghost.where()):find(' ghost=elsewhere:/game/art/bg/worldmap/level_p/f01$'))
+ghost.remote(nil,nil,nil)
+ghost.toggle()
+ok,message=ghost.where()
+assert(ok and message:find(' ghost=none$') and message:find(' camp=Xion_10_EnvS_016:'),'No link, no ghost: still a line')
+camps.SBSpawnPoint=nil -- None loaded: the field says so, the line stays.
+assert(select(2,ghost.where()):find(' spawn=none origin=',1,true),'No spawn point')
+-- coop near: the zone objects within range, nearest first, each once though SBZoneEnvActor also returns them; a
+-- breakable named by its alias; a field that fails says why in place; the camps of where count too (teleport 3 m,
+-- vending machine 5 m; the Tetrapod at 9 m is out of the default 8 m).
+do
+    local near_switch=object('Switch',{EnvSpawnAlias=fname('DLC02_20_EnvS_663'),StateTagName=fname('B'),bHidden=false,
+        K2_GetActorLocation=function() return {X=1,Y=402,Z=3} end,GetActorEnableCollision=function() return true end})
+    local near_box=object('Box',{EnvSpawnAlias=fname('None'),ZoneEventActorTableAlias=fname('ME_01_ZEA_003'),
+        StateTagName=fname('None'),bHidden=true,K2_GetActorLocation=function() return {X=1,Y=102,Z=3} end})
+    local near_far=object('Far',{EnvSpawnAlias=fname('DLC02_20_EnvS_999'),
+        K2_GetActorLocation=function() return {X=1,Y=2,Z=1503} end})
+    camps.Env_MatrixXIII_DoorSwitch_01_C={near_switch}
+    camps.SBZoneEnvActor={invalid,near_far,near_switch}
+    camps.BP_Destruction_Box_01_C={near_box}
+    ok,message=ghost.near()
+    assert(ok and message:find('^near 8 m of 1.0,2.0,3.0: 4 %('
+        ..'ME_01_ZEA_003:BP_Destruction_Box_01_C@1.0,102.0,3.0 m=1.0 state=None hidden=true collide=%?%(.- | '
+        ..'%?%(.-%):Env_Camp_TeleportMachine_C@301.0,2.0,3.0 m=3.0 .- | '
+        ..'DLC02_20_EnvS_663:Env_MatrixXIII_DoorSwitch_01_C@1.0,402.0,3.0 m=4.0 state=B hidden=false collide=true | '
+        ..'%?%(.-%):Env_VendingMachine_C@1.0,%-498.0,3.0 m=5.0 .-%)$'),message)
+    ok,message=ghost.near('20')
+    assert(ok and message:find('^near 20 m of 1.0,2.0,3.0: 6 %(')
+        and message:find(' | DLC02_20_EnvS_999:SBZoneEnvActor@',1,true)
+        and select(2,message:gsub('DLC02_20_EnvS_663:',''))==1,message)
+    assert(not ghost.near('0') and not ghost.near('101') and not ghost.near('x') and not ghost.near('8','m'),
+        'Bad range')
+    camps.Env_MatrixXIII_DoorSwitch_01_C,camps.SBZoneEnvActor,camps.BP_Destruction_Box_01_C=nil,nil,nil
+end
+player=menu
+ok,message=ghost.where()
+assert(ok==false and message=='no EVE in the world',message)
+
+-- A save is loaded once EVE stands on a map other than the title screen's: held invites wait for it. The second value
+-- says the title screen is shown: any pawn on its map, never without one (a loading screen) nor on another map.
+local function both() local w,t=ghost.world(); return tostring(w)..' '..tostring(t) end
+player=object('MenuPawn',{IsA=function() return false end,
+    GetWorld=function() return {GetFullName=function() return 'World /Game/Art/BG/WorldMap/Level_P/B07.B07' end} end})
+assert(both()=='false false','Not EVE, even on a world map')
+player=object('MenuPawn',{IsA=function() return false end,
+    GetWorld=function() return {GetFullName=function() return 'World /Game/Lobby/Lobby.Lobby' end} end})
+assert(both()=='false true','Another pawn on the title map: the title')
+player=eve_of('EVE8',{GetFullName=function() return 'World /Game/Lobby/Lobby.Lobby' end})
+assert(both()=='false true','EVE on the title map')
+player=eve_of('EVE9',{GetFullName=function() return 'World /Game/Art/BG/WorldMap/Level_P/B07.B07' end})
+assert(both()=='true false','EVE on Spire IV')
+-- The same read keeps where we are for the partner HUD (her distance, whether she is on our map).
+assert(ghost.me().map=='/game/art/bg/worldmap/level_p/b07' and ghost.me().at.X==1 and ghost.me().at.Z==3)
+player=nil
+assert(both()=='false false','No pawn at all')
+assert(ghost.me()==nil,'Nowhere')
+player=eve_of('EVE10',{GetFullName=function() error('world gone') end})
+assert(both()=='false false','An engine error is neither a world nor the title, never raised')
+-- That read lives in core/where.lua: these names are its functions.
+assert(ghost.world==require('core.where').world and ghost.me==require('core.where').me)
+
+-- Cloth (look.cloth, read at each build): a follower whose mesh has clothing assets, her ponytail, is a
+-- SkeletalMeshComponent that follows its Poseable leader, with no collision, simulated in its own space, never bound to
+-- the leader's cloth; a leader stays Poseable whatever its mesh, and a mesh whose assets cannot be read has none. Every
+-- ghost above was built with cloth off: none had one, though the ponytail and the hair have clothing assets.
+assert(skeletal_adds==0,'Cloth off: Poseables only')
+player=eve
+local look={cloth=true}
+ghost=new(nil,true,look)
+ghost.toggle()
+local clothed=her_parts()
+clothed[6].path=BLADE -- The scabbard on a mesh without cloth: the ponytail is the one cloth part.
+local face_methods=getmetatable(meshes[FACE]).__index
+getmetatable(meshes[FACE]).__index=function(_,key)
+    if key=='MeshClothingAssets' then error('no such property') end
+    return face_methods[key]
+end
+send(700,clothed)
+ghost.tick()
+clock=clock+2
+ok,message=build()
+assert(ok and message:find('^Ghost 700 built: 6 parts %(3 leaders%), %d+ loaded in %d+ ms, 0 on the base suit, 0 left out; '
+    ..'look: cloth parts 1 %(%d+ ms in all%)%.$'),message)
+actor=spawned[#spawned]
+root,face,hair,pony,blade,scabbard=table.unpack(actor.parts)
+assert(pony.cloth and pony.mesh==meshes[PONY] and pony.calls.SetCollisionEnabled==0 and pony.bLocalSpaceSimulation==true)
+assert(pony.calls.SetMasterPoseComponent==hair and pony.bUseBoundsFromMasterPoseComponent==true,'It follows its leader')
+assert(pony.attached.parent==hair and pony.visible==false,'Hung and shown as the table says')
+-- Her outfit's collision, set up as SB does for her ponytail: the 18 body bones its collision bodies hang on, the
+-- outfit's asset (named from her body mesh, resolved in a step of its own before), then the leader, then the mesh,
+-- which creates the cloth. keep() names the leader again: the engine ignores the same one.
+assert(table.concat(pony.order,' ')=='bones override master mesh master',table.concat(pony.order,' '))
+assert(pony.OverrideClothPhysicsAsset==meshes[COLLISION] and pony.bLocalSpaceSimulation==true)
+local bones={}
+for k,name in ipairs(pony.AdditiveMasterBoneArray) do bones[k]=name:ToString() end
+assert(table.concat(bones,' ')=='Bip001-R-Thigh Bip001-L-Thigh Bip001-L-UpperArm Bip001-L-Forearm Bip001-R-UpperArm '
+    ..'Bip001-R-Forearm Bip001-Neck Bip001-L-Calf Bip001-R-Calf Bip001-L-Foot Bip001-R-Foot Bip001-Head Bip001-Pelvis '
+    ..'Bip001-Spine Bip001-Spine1 Bip001-Spine2 Ab-L-Thigh-Tw0 Ab-R-Thigh-Tw0',table.concat(bones,' '))
+assert(table.concat(loads,' ',#loads-4)==table.concat({COLLISION,FACE,HAIR,PONY,BLADE},' '),
+    'Loaded in the frame after her body\'s, before the ponytail\'s')
+-- The asset's name from her body mesh's path, as SB builds it.
+local Puppet=require('online.partner.puppet')
+assert(Puppet.collision_path(BODY)==COLLISION)
+assert(Puppet.collision_path(BASE_BODY)=='/Game/Art/Character/PC/CH_P_EVE_08/CH_P_EVE_08_PonytailPhysicsAsset.'
+    ..'CH_P_EVE_08_PonytailPhysicsAsset')
+assert(Puppet.collision_path('/Game/Art/Character/PC/CH_P_EVE_08/CH_P_EVE_08')==nil,'Not dir/name.object: none')
+assert(not (root.cloth or face.cloth or hair.cloth or blade.cloth or scabbard.cloth),'The rest are Poseables')
+-- Its cloth simulates only while it is drawn (OnlyTickPoseWhenRendered); the Poseables keep their default.
+assert(pony.VisibilityBasedAnimTickOption==3)
+for _,p in ipairs({root,face,hair,blade,scabbard}) do assert(p.VisibilityBasedAnimTickOption==nil) end
+assert(hair.calls.SetForcedLOD==1 and face.calls.SetMasterPoseComponent==root)
+d=displays[#displays]:gsub('0x%x+','0xX')
+assert(d=='display 700\nmailbox 0xX 0xX\ndrive 0 0xX 0xX 0xX 3\ndrive 2 0xX 0xX 0xX 2\ndrive 4 0xX 0xX 0xX 1\n',d)
+-- Its cloth starts again from the pose each time the ghost shows: the first pose, and after a hide.
+box=actor.mailbox
+assert(ghost.place()==nil and actor.hidden and not pony.resets,'No pose yet: hidden, no reset')
+box.RelativeScale3D.Z=20
+assert(ghost.place()==nil and actor.hidden==false and pony.resets==1,'Reset as it first shows')
+box.RelativeScale3D.Z=21
+ghost.place()
+assert(pony.resets==1,'Shown already: not at each pose')
+clock=clock+1
+ghost.place()
+assert(actor.hidden==true and pony.resets==1)
+box.RelativeScale3D.Z=22
+ghost.place()
+assert(actor.hidden==false and pony.resets==2,'Again as it shows after a hide')
+-- A reset that fails is said once and leaves the ghost shown; its cloth is never reset again.
+fail_reset=true
+clock=clock+1
+ghost.place()
+box.RelativeScale3D.Z=23
+ok,message=ghost.place()
+assert(ok==false and message:find('^Cloth reset failed: .*no reset; this ghost\'s cloth still simulates but is never reset again '
+    ..'%(coop look cloth off removes it%)$'),tostring(message))
+assert(actor.hidden==false and not actor.destroyed,'The ghost stays, shown')
+clock=clock+1
+ghost.place()
+box.RelativeScale3D.Z=24
+assert(ghost.place()==nil and actor.hidden==false and pony.resets==2,'Said once')
+fail_reset=false
+-- coop look: the ghost removed and built again at once with what the look says now.
+look.cloth=false
+assert(ghost.rebuild('look')=='Ghost 700 removed (look).' and actor.destroyed and displays[#displays]=='withdrawn')
+ok,message=build()
+actor=spawned[#spawned]
+assert(message:find('^Ghost 700 built: 6 parts .* 0 left out %(%d+ ms in all%)%.$') and not actor.parts[4].cloth,message)
+-- A cloth part that cannot be added, or fails once added (then it goes): the ponytail is a plain part, and says why.
+look.cloth=true
+fail_cloth='add'
+ghost.rebuild('look')
+ok,message=build()
+actor=spawned[#spawned]
+pony=actor.parts[4]
+assert(ok and not pony.cloth and pony.calls.SetMasterPoseComponent==actor.parts[3] and #actor.parts==6,message)
+assert(message:find('; look: cloth parts 0; SBPonytail: cloth not used %(.*a cloth part could not be added%), drawn as a '
+    ..'plain part %('),message)
+fail_cloth='set'
+ghost.rebuild('look')
+ok,message=build()
+actor=spawned[#spawned]
+assert(#actor.parts==7 and actor.parts[4].cloth and actor.parts[4].destroyed,'Added, failed, destroyed')
+assert(not actor.parts[5].cloth and actor.parts[5].mesh==meshes[PONY] and actor.parts[5].calls.SetMasterPoseComponent==actor.parts[3])
+assert(message:find('; look: cloth parts 0; SBPonytail: cloth not used %(.*no cloth mesh%), drawn as a plain part %('),message)
+fail_cloth=nil
+-- Her body on the base suit (no path): the base suit's collision, missing on this PC, is said and the cloth stays,
+-- with its collision bones and the clothing asset's own collision. A clothed follower that is no ponytail (the
+-- scabbard on the ponytail's mesh here) has cloth and no collision of hers.
+local bare=her_parts({body='-'})
+send(701,bare)
+ok,message=build()
+actor=spawned[#spawned]
+pony,scabbard=actor.parts[4],actor.parts[6]
+assert(ok and pony.cloth and pony.OverrideClothPhysicsAsset==nil and #pony.AdditiveMasterBoneArray==18,message)
+assert(table.concat(pony.order,' ')=='bones master mesh master')
+assert(table.concat(scabbard.order,' ')=='master mesh master')
+assert(message:find('; look: cloth parts 2; .*; SBPonytail: outfit collision not used %(/Game/Art/Character/PC/'
+    ..'CH_P_EVE_08/CH_P_EVE_08_PonytailPhysicsAsset%.CH_P_EVE_08_PonytailPhysicsAsset missing%) %('),message)
+-- Its collision bones refused: said, and neither they nor the asset are used.
+fail_array=true
+send(702,her_parts())
+ok,message=build()
+pony=spawned[#spawned].parts[4]
+assert(ok and pony.cloth and pony.OverrideClothPhysicsAsset==nil and table.concat(pony.order,' ')=='master mesh master')
+assert(message:find('; look: cloth parts 2; SBPonytail: outfit collision not used %(.*no array write%) %('),message)
+fail_array=false
+-- A render flag refused: said once, the others still set, the ghost built.
+fail_depth=true
+ghost.rebuild('look')
+ok,message=build()
+assert(ok and message:find('; look: cloth parts 2; solo render flags not set %(.*no custom depth%) %(')
+    and not message:find('render flags.*render flags'),message)
+for _,p in ipairs(spawned[#spawned].parts) do assert(p.channels[2]==true and p.stencil==10 and p.custom_depth==nil) end
+fail_depth=false
+send(700,clothed)
+-- A rebuild tries a table given up again at once.
+ghost.rebuild('look')
+give_up()
+assert(ghost.rebuild('look')==nil,'No ghost to remove')
+ok,message=build()
+assert(message:find('^Ghost 700 built: .*; look: cloth parts 1 %('),message)
+
+-- Dyes (look.dyes, read at each build). Off, a table's material lines are read and nothing is done with them: no
+-- material resolved, and no SetMaterial (these parts have none).
+local dyed={body_materials={{1,SKIN}},hair_materials={{0,TYPE_B},{1,FACE},{5,TYPE_C}}}
+look.cloth=false
+loads,before={},lookups
+send(800,her_parts(dyed))
+ok,message=build()
+assert(ok and message:find('^Ghost 800 built: 6 parts .* 0 left out %(%d+ ms in all%)%.$'),message)
+for _,path in ipairs(loads) do assert(not meshes[path]:IsA({path='/Script/Engine.MaterialInterface'}),path) end
+assert(spawned[#spawned].parts[1].SetMaterial==nil,'Dyes off: the fakes still have no SetMaterial')
+-- On: each part on its own mesh takes its slots below GetNumMaterials (2 here), one material a frame, resolved and set
+-- in the same frame; a path that is no MaterialInterface (a mesh) or a slot past the mesh's keeps the default, said.
+look.dyes,dyeable=true,true
+ghost.rebuild('look')
+ok,message=build()
+assert(ok and message:find('^Ghost 800 built: 6 parts %(3 leaders%), .* 0 left out; look: dyed slots 2; SBHair: slot 1 '
+    ..'material '..FACE:gsub('%p','%%%0')..' missing, default kept; SBHair: slot 5 material '..TYPE_C:gsub('%p','%%%0')
+    ..' missing, default kept %(%d+ ms in all%)%.$'),message)
+actor=spawned[#spawned]
+root,face,hair=actor.parts[1],actor.parts[2],actor.parts[3]
+assert(#root.dyes==1 and root.dyes[1].slot==1 and root.dyes[1].material==meshes[SKIN])
+assert(#hair.dyes==1 and hair.dyes[1].slot==0 and hair.dyes[1].material==meshes[TYPE_B])
+assert(root.dyes[1].at==meshes[SKIN].resolved_at and hair.dyes[1].at==meshes[TYPE_B].resolved_at,'Resolved, set: one frame')
+assert(not face.dyes and face.mesh==meshes[FACE],'The face is still its mesh')
+-- The face's path refused as a material is remembered as such only: the next build still draws the face on it.
+ghost.rebuild('look')
+build()
+assert(spawned[#spawned].parts[2].mesh==meshes[FACE],'A mesh named as a material spoils neither')
+-- A part on a fallback mesh is never dyed: its slots are another mesh's.
+send(801,her_parts({hair=NIER,hair_materials={{0,TYPE_B}}}))
+ok,message=build()
+actor=spawned[#spawned]
+assert(actor.parts[3].mesh==meshes[BASE_HAIR] and not actor.parts[3].dyes,'On the base suit')
+assert(message:find('; look: dyed slots 0; ') and not message:find('slot 0 material'),message)
+-- The table read stays strict: a material line of another part, a slot not rising, one over 63, a 17th, or an unknown
+-- line refuses the whole table.
+local good=remote_text(802,her_parts(dyed))
+for _,bad in ipairs({good:gsub('\nmaterial 2 0 ','\nmaterial 1 0 '),good:gsub('\nmaterial 2 1 ','\nmaterial 2 0 '),
+    good:gsub('\nmaterial 2 5 ','\nmaterial 2 64 '),good..'bogus\n'}) do
+    remote_file=bad
+    count=count+1
+    ok,message=ghost.remote(802,count,'loopback')
+    assert(ok==false and message=='The remote table could not be read.',bad)
+end
+local sixteen={}
+for k=1,17 do sixteen[k]={k,TYPE_B} end
+remote_file=remote_text(802,her_parts({hair_materials=sixteen}))
+count=count+1
+assert(select(2,ghost.remote(802,count,'loopback'))=='The remote table could not be read.','17 on one part')
+table.remove(sixteen)
+send(802,her_parts({hair_materials=sixteen}))
+ok,message=build()
+-- All 16 read: slot 1, below this mesh's 2, is set; the 15 above it are said.
+assert(message:find('^Ghost 802 built: .*; look: dyed slots 1; ') and select(2,message:gsub(' default kept',''))==15,message)
+
+-- Effects (look.effects, read at each build). Off, every ghost above: nothing of Niagara looked up, no effect box, and
+-- the display file and the build line as they were.
+assert(niagara_lookups==0,'Effects off: no Niagara lookup')
+for _,a in ipairs(spawned) do assert(not a.boxes,'Effects off: no effect box') end
+-- The listed systems, one this PC lacks; the library that starts them, each instance's calls in one list.
+local E=require('online.partner.capture').EFFECTS
+for k,path in ipairs(E) do
+    if k~=7 then
+        meshes[path]=object(path,{path=path})
+        meshes[path].IsA=function(_,class) return class.path=='/Script/Niagara.NiagaraSystem' end
+        meshes[path].GetFullName=function() return 'NiagaraSystem '..path end
+    end
+end
+local LIBRARY='/Script/Niagara.Default__NiagaraFunctionLibrary'
+local events,spawns,spawn_fails={},{},false
+local library=object('NiagaraFunctionLibrary',{SpawnSystemAttached=function(_,...)
+    if spawn_fails then error('no Niagara on a Poseable') end
+    local fx=object('NiagaraComponent')
+    function fx:Deactivate() events[#events+1]='Deactivate'; self.stopped=true end
+    function fx:SetCollisionEnabled(v) self.collision=v end -- Only on a ghost with the solid partner's capsule.
+    function fx:K2_SetRelativeLocationAndRotation(at,rotation,sweep,hit,teleport)
+        events[#events+1]='K2_SetRelativeLocationAndRotation'
+        self.moved={at=at,rotation=rotation,sweep=sweep,hit=hit,teleport=teleport}
+    end
+    events[#events+1]='SpawnSystemAttached'
+    spawns[#spawns+1]={args=table.pack(...),fx=fx}
+    return fx
+end})
+-- No library in this build: the ghost is built without effects, and says why.
+found_by_path[LIBRARY]=invalid
+look.dyes,look.effects=false,true
+send(900,her_parts())
+before=lookups
+ok,message=build()
+actor=spawned[#spawned]
+assert(ok and message:find('^Ghost 900 built: 6 parts %(3 leaders%), %d+ loaded in %d+ ms, 0 on the base suit, 0 left out; '
+    ..'look: effects off %(.*Default__NiagaraFunctionLibrary is unavailable in this game build%.%) %(%d+ ms in all%)%.$'),
+    message)
+assert(lookups-before>=19 and not actor.boxes and not actor.destroyed,'Each system looked up, one a frame; no box')
+d=displays[#displays]:gsub('0x%x+','0xX')
+assert(d=='display 900\nmailbox 0xX 0xX\ndrive 0 0xX 0xX 0xX 3\ndrive 2 0xX 0xX 0xX 2\ndrive 4 0xX 0xX 0xX 1\n',d)
+-- With it: four boxes after the mailbox, named in the display file right after it.
+found_by_path[LIBRARY]=library
+ghost.rebuild('look')
+ok,message=build()
+actor=spawned[#spawned]
+assert(ok and message:find('^Ghost 900 built: 6 parts .* 0 left out; look: effects loaded 18 of 19 %(%d+ ms in all%)%.$'),
+    message)
+assert(#actor.boxes==4,'Four boxes')
+d=displays[#displays]
+local named=string.format('\nmailbox 0x%x 0x5c0\neffects 0x%x 0x%x 0x%x 0x%x\ndrive 0 ',actor.mailbox.GetAddress(),
+    actor.boxes[1].GetAddress(),actor.boxes[2].GetAddress(),actor.boxes[3].GetAddress(),actor.boxes[4].GetAddress())
+assert(d:find(named,1,true),d)
+-- place(): the boxes are read only when the mailbox's effects stamp (its scale X) changes.
+root,hair=actor.parts[1],actor.parts[3]
+box=actor.mailbox
+box_reads=0
+box.RelativeScale3D.Z=30
+assert(ghost.place()==nil and actor.hidden==false and box_reads==0,'A pose alone: no box read')
+local function slot(n,asset,part,serial,at,rotation) -- As the native part writes a box.
+    local f=actor.boxes[n].fields
+    f.RelativeScale3D={X=asset+1,Y=part+1,Z=serial+1}
+    f.RelativeLocation=at or {X=0,Y=0,Z=0}
+    f.RelativeRotation=rotation or {Pitch=0,Yaw=0,Roll=0}
+end
+slot(1,2,2,1,{X=1,Y=2,Z=3},{Pitch=10,Yaw=20,Roll=30}) -- The second system, on her hair.
+box.RelativeScale3D.X=2
+assert(ghost.place()==nil and box_reads>0,'A new effects stamp: the boxes are read')
+local a=spawns[1].args
+assert(#spawns==1 and a.n==10 and a[1]==meshes[E[2]] and a[2]==hair and a[3]:ToString()=='None','Its system, its part')
+assert(a[4].X==1 and a[4].Y==2 and a[4].Z==3 and a[5].Pitch==10 and a[5].Yaw==20 and a[5].Roll==30,'At its place there')
+assert(a[6]==0 and a[7]==true and a[8]==true and a[9]==0 and a[10]==true,'Kept relative, auto destroyed, no pooling')
+box_reads=0
+box.RelativeScale3D.Z=31
+assert(ghost.place()==nil and box_reads==0 and #spawns==1,'The same effects stamp: nothing read again')
+-- A new key in that slot (a new instance): the old one stopped, then the new one started.
+events={}
+slot(1,3,0,2)
+box.RelativeScale3D.X=3
+ghost.place()
+assert(table.concat(events,' ')=='Deactivate SpawnSystemAttached' and spawns[1].fx.stopped and #spawns==2,
+    table.concat(events,' '))
+assert(spawns[2].args[1]==meshes[E[3]] and spawns[2].args[2]==root,'On her main mesh')
+-- The same key with a new place: the instance moves, nothing else.
+events={}
+slot(1,3,0,2,{X=5,Y=0,Z=0},{Pitch=0,Yaw=90,Roll=0})
+box.RelativeScale3D.X=4
+ghost.place()
+local moved=spawns[2].fx.moved
+assert(table.concat(events,' ')=='K2_SetRelativeLocationAndRotation' and #spawns==2,table.concat(events,' '))
+assert(moved.at.X==5 and moved.rotation.Yaw==90 and moved.sweep==false and moved.teleport==true,'Teleported there')
+-- At most 8 starts a second on a ghost: the 9th is refused, said once.
+clock=clock+1
+local function round(serial,stamp) -- Four new instances at once.
+    for n=1,4 do slot(n,n,0,serial) end
+    box.RelativeScale3D.X=stamp
+    return ghost.place()
+end
+assert(round(10,5)==nil and round(11,6)==nil and #spawns==10,'8 in a second')
+ok,message=round(12,7)
+assert(ok==false and message=='Effect not shown: over 8 a second' and #spawns==10,tostring(message))
+assert(round(13,8)==nil and #spawns==10,'Said once a ghost')
+clock=clock+1
+assert(round(14,9)==nil and #spawns==14,'A second later: started again')
+-- The same table changed while the build resolves its systems: the parts hang as it says once built.
+ghost.rebuild('look')
+for _=1,10 do assert(ghost.tick()==nil,'Still building') end
+assert(send(900,her_parts({socket='SC_Back',blade_shown=false}))==nil)
+build()
+actor=spawned[#spawned]
+assert(actor.parts[5].attached.socket=='SC_Back' and actor.parts[5].visible==false,'The blade as the table is now')
+-- A peer's index past the list, or a part this ghost did not draw: nothing started, one line; the slot after them
+-- in the same stamp still starts.
+box=actor.mailbox
+for n=1,4 do slot(n,0,0,0) end
+slot(2,40,0,1)
+slot(3,1,9,1)
+slot(4,1,0,1)
+box.RelativeScale3D.X=10
+ok,message=ghost.place()
+assert(ok==false and message=='Effect not shown: asset 40 is not in the list' and #spawns==15,tostring(message))
+assert(spawns[15].args[2]==actor.parts[1],'Slot 4 on her main mesh')
+slot(2,7,0,2)
+box.RelativeScale3D.X=11
+assert(ghost.place()==nil and #spawns==15,'This PC lacks the 7th: said once already')
+-- A spawn that raises: effects off on this ghost (its instances stopped), the ghost goes on.
+slot(1,1,0,5)
+box.RelativeScale3D.X=12
+assert(ghost.place()==nil and #spawns==16)
+spawn_fails=true
+slot(4,2,0,2)
+box.RelativeScale3D.X=13
+ok,message=ghost.place()
+assert(ok==false and message:find('^Effects off on this ghost: .*no Niagara on a Poseable$'),tostring(message))
+assert(spawns[15].fx.stopped and spawns[16].fx.stopped and not actor.destroyed and ghost.status():find('^ghost=on '),
+    'Stopped; the ghost stays')
+box_reads=0
+box.RelativeScale3D.X=14
+box.RelativeScale3D.Z=40
+assert(ghost.place()==nil and box_reads==0 and actor.hidden==false,'No box read again')
+spawn_fails=false
+
+-- Systems named by path (the table's fx lines): one of the game's FX folders and one mod_assets() names (a mod both
+-- players have) are loaded in the build, a step each; another mod's is never looked up. A slot naming one starts it as
+-- a listed one; one named since the build is loaded by a tick, never in place(), and its first instance is skipped;
+-- a miss is said once.
+do
+local function fx_system(path)
+    meshes[path]=object(path,{path=path})
+    meshes[path].IsA=function(_,class) return class.path=='/Script/Niagara.NiagaraSystem' end
+    meshes[path].GetFullName=function() return 'NiagaraSystem '..path end
+end
+local RAVEN='/Game/Art/FX/Char/Monster/RavenHuman/NS_Raven_Aura.NS_Raven_Aura'
+local QUEEN,STRAY='/Game/Mods/Queen/NS_Q.NS_Q','/Game/Mods/Other/NS_S.NS_S'
+local LATE='/Game/DLC_2/Art/FX/Scarlet/NS_Scarlet_Cut.NS_Scarlet_Cut'
+for _,p in ipairs({RAVEN,QUEEN,STRAY,LATE}) do fx_system(p) end
+unregistered[QUEEN]=true -- A mod's added asset: LoadAsset misses it, GetAsset finds it.
+cns[QUEEN]='~mods/queen_p'
+local function send_fx(fx)
+    remote_file=remote_text(901,her_parts())..fx
+    count=count+1
+    return ghost.remote(901,count,'loopback')
+end
+local function asked(path)
+    for _,list in ipairs({finds,loads,gets}) do for _,p in ipairs(list) do if p==path then return true end end end
+end
+finds,loads,gets={},{},{}
+local three='fx 20 '..RAVEN..'\nfx 21 '..QUEEN..'\nfx 22 '..STRAY..'\n'
+send_fx(three)
+ok,message=build()
+assert(ok and message:find('; look: effects loaded 18 of 19, 2 of 3 named by path'),message)
+assert(asked(RAVEN) and asked(QUEEN) and gets[#gets]==QUEEN and not asked(STRAY),'Two loaded, another mod\'s never')
+actor=spawned[#spawned]
+box=actor.mailbox
+clock=clock+1
+local before_spawns=#spawns
+slot(1,20,2,1)
+slot(2,21,0,1)
+box.RelativeScale3D.X=20
+assert(ghost.place()==nil and #spawns==before_spawns+2,'Both started')
+assert(spawns[#spawns-1].args[1]==meshes[RAVEN] and spawns[#spawns-1].args[2]==actor.parts[3] and
+    spawns[#spawns].args[1]==meshes[QUEEN],'Each its system, on its part')
+slot(3,22,0,1)
+box.RelativeScale3D.X=21
+ok,message=ghost.place()
+assert(ok==false and message=='Effect not shown: spawn failed: asset 22 is missing' and #spawns==before_spawns+2,
+    tostring(message))
+-- Named since: the same table with one fx line more, applied in place; its first instance waits for the load.
+assert(send_fx(three..'fx 23 '..LATE..'\n')==nil and spawned[#spawned]==actor,'In place')
+local loads_before=#loads
+slot(4,23,0,1)
+box.RelativeScale3D.X=22
+assert(ghost.place()==nil and #spawns==before_spawns+2 and #loads==loads_before,'Not loaded in place(), nothing said')
+assert(ghost.tick()==nil and loads[#loads]==LATE,'Loaded by a tick')
+slot(4,23,0,2)
+box.RelativeScale3D.X=23
+assert(ghost.place()==nil and #spawns==before_spawns+3 and spawns[#spawns].args[1]==meshes[LATE],'Then started')
+-- Collected since its load (nothing of this game held it): never loaded again in place(); a tick does, then it starts.
+meshes[RAVEN].destroyed=true
+fx_system(RAVEN)
+finds,loads,gets={},{},{}
+slot(1,20,2,2)
+box.RelativeScale3D.X=24
+assert(ghost.place()==nil and #spawns==before_spawns+3 and not asked(RAVEN),'Not loaded in place()')
+assert(ghost.tick()==nil and asked(RAVEN),'Loaded again by a tick')
+slot(1,20,2,3)
+box.RelativeScale3D.X=25
+assert(ghost.place()==nil and #spawns==before_spawns+4 and spawns[#spawns].args[1]==meshes[RAVEN],'Then started')
+-- One a mod you no longer share: not loaded by the tick, said once.
+assert(send_fx(three..'fx 23 '..LATE..'\nfx 24 /Game/Mods/Gone/NS_G.NS_G\n')==nil)
+ok,message=ghost.tick()
+assert(ok==false and message=='Effect named by path not loaded: /Game/Mods/Gone/NS_G.NS_G (not declared by your CNS '
+    ..'packs or a mod you both have)',tostring(message))
+cns[QUEEN]=nil
+end
+
+-- Doro mode (coop race look): every part hidden and one Doro hung on part 0, her feet, never named in the display
+-- file; animated from her feet between poses (while a race drives, by its top speed, leaned by her yaw); a new table keeps the parts hidden and a rebuild the mode; off removes the
+-- Doro and shows the parts as the table says; a Doro that cannot be made leaves the ghost drawn as her.
+local DORO=require('core.actors').ASSETS
+mesh(DORO.mesh,{'root','pelvis'})
+for key,path in pairs(DORO) do
+    if key~='mesh' then
+        meshes[path]=object(path,{path=path})
+        meshes[path].IsA=function(_,class) return class.path=='/Script/Engine.AnimationAsset' end
+        meshes[path].GetFullName=function() return 'AnimSequence '..path end
+    end
+end
+ghost=new(nil)
+local dr={}
+assert(ghost.doro(true,function(m) dr[#dr+1]=m end)==nil,'No ghost yet: the mode alone')
+ghost.toggle()
+send(950,her_parts())
+ghost.tick()
+clock=clock+2
+ok,message=build() -- One mesh a frame at most: the Doro's in a step of its own.
+assert(ok and message:find('^Ghost 950 built: 6 parts %(3 leaders%)'),message)
+actor=spawned[#spawned]
+local doro=actor.parts[7]
+assert(#actor.parts==7 and doro.mesh==meshes[DORO.mesh] and doro.attached.parent==actor.parts[1]
+    and doro.attached.socket=='None' and doro.scale.X==1.5 and doro.mode==1 and doro.calls.SetCollisionEnabled==0,
+    'One Doro, on part 0')
+-- Its keepers (online/modes/race/doro.lua): one a clip on the ghost's actor, hidden, not ticking, collision off,
+-- holding the clip.
+local function keepers(list)
+    local held={}
+    for _,k in ipairs(list) do
+        assert(k.visible==false and k.ticks==false and k.VisibilityBasedAnimTickOption==3 and k.mode==1
+            and k.calls.SetCollisionEnabled==0 and k.mesh==meshes[DORO.mesh] and not k.attached,'A keeper')
+        held[k.anim.path]=true
+    end
+    for key,path in pairs(DORO) do assert(held[path]==(key~='mesh' or nil),key) end
+end
+assert(#actor.keepers==9)
+keepers(actor.keepers)
+for k=1,6 do assert(actor.parts[k].visible==false,'Every part hidden: '..k) end
+assert(not displays[#displays]:find(string.format('0x%x',doro.GetAddress()),1,true),'The native part never drives it')
+-- At each pose: standing at the first (a teleport), then her speed from her feet over 50 ms at least, smoothed.
+box=actor.mailbox
+pose_at(50,{X=0,Y=0,Z=30})
+assert(doro.playing.asset==meshes[DORO.two] and doro.playing.loop==true and doro.input==0 and doro.rate==1)
+clock=clock+0.1
+pose_at(51,{X=50,Y=0,Z=30})
+assert(math.abs(doro.input-500*(1-math.exp(-1)))<1e-6 and dr[1]=='ghost doro speed=500',tostring(dr[1]))
+clock=clock+0.02
+pose_at(52,{X=60,Y=0,Z=30})
+assert(math.abs(doro.input-500*(1-math.exp(-1)))<1e-6 and #dr==1,'Under 50 ms: waits')
+clock=clock+0.08
+pose_at(53,{X=110,Y=0,Z=90}) -- 60 cm up in 0.1 s: a take-off.
+assert(doro.playing.asset==meshes[DORO.evade] and doro.playing.loop==false and doro.position==0 and #dr==1)
+-- The same table with the blade shown elsewhere: still hidden.
+send(950,her_parts({socket='SC_Back'}))
+assert(actor.parts[5].attached.socket=='SC_Back' and actor.parts[5].visible==false,'Hung there, hidden')
+-- A rebuild keeps the mode.
+ghost.rebuild('look')
+build()
+actor=spawned[#spawned]
+doro=actor.parts[7]
+assert(doro and doro.attached.parent==actor.parts[1] and actor.parts[1].visible==false,'Doro again')
+-- The race's results: standing, her Doro plays the emote it is given (lose: Exhaust), and her blend space once cleared.
+box=actor.mailbox
+ghost.emote('lose')
+pose_at(60,{X=110,Y=0,Z=90})
+assert(doro.playing.asset==meshes[DORO.exhaust] and doro.playing.loop==true,'lose: Exhaust')
+ghost.emote(nil)
+clock=clock+0.1
+pose_at(61,{X=110,Y=0,Z=90})
+assert(doro.playing.asset==meshes[DORO.two],'Cleared: her blend space again')
+-- While a race drives: all fours from 60% of its top speed, her yaw turning leans the Doro on her main mesh; turned
+-- back once it no longer drives.
+ghost.drive(2200)
+local x=110
+local function run(yaw)
+    clock,x=clock+0.1,x+150
+    box.RelativeRotation={Pitch=0,Yaw=yaw,Roll=0}
+    pose_at(62+x/1000,{X=x,Y=0,Z=90})
+end
+for k=1,10 do run(k*3) end -- 1500 cm/s, turning right at 30 deg/s.
+assert(doro.playing.asset==meshes[DORO.four] and math.abs(doro.rate-3)<1e-3,tostring(doro.rate))
+assert(doro.turned and doro.turned.Pitch>0 and doro.turned.Yaw==0 and doro.turned.Roll==0,'Leaned right')
+ghost.drive(nil)
+run(33)
+assert(doro.turned.Pitch==0 and doro.turned.Roll==0,'Upright again')
+doro.turned=nil
+run(36)
+assert(doro.turned==nil,'Once')
+box.RelativeRotation={Pitch=0,Yaw=0,Roll=0}
+-- Off: the Doro and its keepers gone, each part shown as the table says (her ponytail hidden there).
+assert(ghost.doro(false)==nil and doro.destroyed)
+for _,k in ipairs(actor.keepers) do assert(k.destroyed,'Its keepers gone') end
+for k=1,6 do assert(actor.parts[k].visible==(k~=4),'As the table says: '..k) end
+-- A Doro call that fails at a pose: Doro mode off, its Doro gone, the parts as the table says, the ghost kept.
+assert(ghost.doro(true)==nil and actor.parts[1].visible==false)
+doro=actor.parts[#actor.parts]
+doro.SetPlayRate=function() error('no rate') end
+box=actor.mailbox
+clock=clock+0.1
+box.RelativeScale3D.Z,box.RelativeLocation=54,{X=160,Y=0,Z=30}
+ok,message=ghost.place()
+assert(ok==false and message:find('^Doro mode off on the ghost: .*no rate'),tostring(message))
+assert(doro.destroyed and not actor.destroyed and actor.hidden==false and ghost.active(),'The ghost kept')
+for k=1,6 do assert(actor.parts[k].visible==(k~=4),'As the table says: '..k) end
+-- No Doro mesh on this PC: the ghost stays her.
+meshes[DORO.mesh].destroyed=true
+local doro_mesh=meshes[DORO.mesh]
+meshes[DORO.mesh]=nil
+ok,message=ghost.doro(true)
+assert(ok==false and message:find('^Doro mode off on the ghost: .*the Doro mesh is missing on this PC'),tostring(message))
+assert(actor.parts[1].visible==true and #actor.parts==8,'Drawn as her, no Doro added')
+meshes[DORO.mesh],doro_mesh.destroyed=doro_mesh,nil
+
+-- The solid partner (collide=on, on by default). Puppet.solid's rules a to g as a table, one case each, then the
+-- latches of b and e and their reset by a. Then on fakes: no capsule while off; built the first time the ghost shows
+-- with collide on, from your EVE's capsule (size, height, object type), blocking her type alone, never a step, with
+-- the tag's collision off and the actor's on; closed or opened only on a change; one line at each contact; the
+-- friend's vitals (g) for a friend's ghost only; WorldDynamic when her capsule does not block its own type; an
+-- effect started on it without collision; a capsule that cannot be built said once and never tried again on that
+-- ghost, which stays.
+local Solid=package.loaded['online.partner.puppet'].solid
+local function rule(k,over) -- Two capsules of radius 40 and half height 95, 1 m apart across, level.
+    local i={on=true,shown=true,h=100,v=0,r=80,hh=190,mode=1,down=false,now=0}
+    for key,v in pairs(over or {}) do i[key]=v end
+    return Solid(k or {},i)
+end
+for _,case in ipairs({
+    {{},true},
+    {{on=false},false,'a'},{{shown=false},false,'a'},
+    {{h=78.9},false,'b'},{{h=79},true},
+    {{h=50,v=190},false,'c'}, -- Across her, but a capsule's height apart: not inside her, and c opens.
+    {{v=59.9},true},{{v=60},false,'c'},
+    {{mode=2},true},{{mode=3},true},{{mode=0},false,'d'},{{mode=5},false,'d'},{{mode=6},false,'d'},
+    {{down=true},false,'g'},
+    {{on=false,h=10,down=true},false,'a'}, -- The first rule that opens it is the one named.
+}) do
+    local solid,why=rule(nil,case[1])
+    local named={}
+    for key,v in pairs(case[1]) do named[#named+1]=key..'='..tostring(v) end
+    assert(solid==case[2] and why==case[3],table.concat(named,' ')..': '..tostring(solid)..' '..tostring(why))
+end
+-- Two rules open: the first one, b before c, c before d, d before e, e before g.
+assert(select(2,rule(nil,{h=50,v=100}))=='b' and select(2,rule(nil,{v=60,mode=5}))=='c')
+assert(select(2,rule({stuck=true},{mode=5}))=='d' and select(2,rule({stuck=true},{down=true}))=='e')
+-- b: once inside her, open until more than 20 cm past touching.
+local k={}
+assert(select(2,rule(k,{h=70}))=='b' and select(2,rule(k,{h=100}))=='b' and rule(k,{h=100.1})==true)
+-- e: 2 s of contact (within 5 cm) with no gap of 0.5 s, then open until 50 cm apart.
+k={}
+assert(rule(k,{h=82,now=0})==true and rule(k,{h=82,now=1.99})==true and select(2,rule(k,{h=82,now=2}))=='e')
+assert(select(2,rule(k,{h=129.9,now=3}))=='e' and rule(k,{h=130,now=4})==true)
+k={}
+rule(k,{h=82,now=0})
+rule(k,{h=85,now=1}) -- 5 cm apart: a gap, under 0.5 s, so the 2 s go on (a ghost stepping back for one pose).
+assert(rule(k,{h=82,now=1.49})==true and rule(k,{h=82,now=1.99})==true and select(2,rule(k,{h=82,now=2}))=='e')
+k={}
+rule(k,{h=82,now=0})
+rule(k,{h=85,now=1})
+rule(k,{h=90,now=1.5}) -- A gap of 0.5 s: the 2 s start again.
+assert(rule(k,{h=82,now=1.6})==true and rule(k,{h=82,now=3.59})==true and select(2,rule(k,{h=82,now=3.6}))=='e')
+-- a: hidden or off forgets both.
+k={}
+assert(select(2,rule(k,{h=70,now=0}))=='b' and select(2,rule(k,{h=82,now=2}))=='b','Inside, and 2 s of contact')
+assert(select(2,rule(k,{shown=false,now=2.1}))=='a' and rule(k,{h=90,now=2.2})==true,'Both forgotten')
+
+-- On fakes: your EVE with her capsule (object type 24, blocking it unless blocks says otherwise), her movement and her
+-- camera boom; her capsule's centre at her_at (the ghost spawns where she stands: X=1).
+local blocks,her_at=2,{X=1,Y=2,Z=3}
+local movement=object('CharMoveComp',{MovementMode=1,Velocity={X=300,Y=400,Z=50},
+    RootMotionData={pRootMotionData=invalid}})
+function movement:GetMaxSpeed() return 600 end
+local cylinder=object('CollisionCylinder')
+function cylinder:GetCollisionObjectType() return 24 end
+function cylinder:GetCollisionResponseToChannel(channel) return channel==24 and blocks or 0 end
+function cylinder:GetUnscaledCapsuleRadius() return 40 end
+function cylinder:GetUnscaledCapsuleHalfHeight() return 95 end
+local boom=object('CameraBoom',{ProbeChannel=4})
+local function solid_eve(name,capsule)
+    local her=eve_of(name)
+    local e=getmetatable(her).__index
+    e.CapsuleComponent,e.CharacterMovement=capsule,movement
+    e.K2_GetActorLocation=function() return her_at end
+    e.GetComponentByClass=function(_,class)
+        return class.path=='/Script/Engine.SpringArmComponent' and boom or invalid
+    end
+    e.Mesh.RelativeLocation={X=0,Y=0,Z=-97}
+    return her
+end
+local mate={life=1,hp=100,max_hp=100} -- Her vitals, as link.mate() gives them.
+link.mate=function() return mate end
+player=solid_eve('EVE8',cylinder)
+ghost=new(nil,true,look) -- Effects on (above).
+ghost.toggle()
+send(910,her_parts(),'peer')
+ghost.tick()
+clock=clock+2
+ok,message=build()
+assert(ok and message:find('^Ghost 910 built: '),message)
+actor=spawned[#spawned]
+box=actor.mailbox
+local function stand(stamp,x) -- A pose: the ghost's feet at (x, 0, 0), hers where her_at says.
+    box.RelativeScale3D.Z,box.RelativeLocation=stamp,{X=x,Y=0,Z=0}
+    return ghost.place()
+end
+her_at={X=600,Y=0,Z=97} -- 1 m from the ghost's feet across, level with its capsule.
+assert(stand(60,500)==nil and actor.hidden==false and not actor.capsule,'Off: no capsule')
+assert(ghost.status():find(' source=peer collide=off$'),ghost.status())
+-- On: built at the next frame, then solid in that frame (1 m apart, level, walking, her vitals alive).
+ghost.collide(true)
+ok,message=ghost.place()
+assert(ok==true and message=='Solid partner built: her capsule type 24 response 2, radius 40, half height 95, 97 cm '
+    ..'above her feet; ours type 24; camera probe channel 4; other parts with collision 0.',tostring(message))
+local cap=actor.capsule
+assert(table.concat(cap.order,' ')=='SetCollisionEnabled K2_SetRelativeLocation SetAbsolute SetCapsuleSize '
+    ..'SetGenerateOverlapEvents SetCollisionObjectType SetCollisionResponseToAllChannels '
+    ..'SetCollisionResponseToChannel SetCollisionEnabled',table.concat(cap.order,' '))
+local args=cap.args
+assert(args.K2_SetRelativeLocation[1].X==0 and args.K2_SetRelativeLocation[1].Z==97,'As high as her capsule')
+assert(args.SetAbsolute[1]==false and args.SetAbsolute[2]==true and args.SetAbsolute[3]==false,'Upright')
+assert(args.SetCapsuleSize[1]==40 and args.SetCapsuleSize[2]==95 and args.SetGenerateOverlapEvents[1]==false)
+assert(args.SetCollisionObjectType[1]==24 and args.SetCollisionResponseToAllChannels[1]==0
+    and args.SetCollisionResponseToChannel[1]==24 and args.SetCollisionResponseToChannel[2]==2,'Hers, blocked alone')
+assert(cap.CanCharacterStepUpOn==0 and actor.label.SetCollisionEnabled==0,'Never a step; the tag has no collision')
+assert(actor.collision[1]==true and actor.collision[2]==false,"The actor's collision on")
+assert(#cap.enabled==2 and cap.enabled[1]==0 and cap.enabled[2]==1,'Built closed, then solid')
+assert(ghost.place()==nil and stand(61,500)==nil and #cap.enabled==2,'Nothing changed: nothing called')
+-- b: the ghost steps into her (its stream lags hers): open in that frame, with the contact's line.
+ok,message=stand(62,560)
+assert(ok==true and message=='Solid partner contact: speed=500 max=600 mode=1 root_motion=none solid=0',
+    tostring(message))
+assert(#cap.enabled==3 and cap.enabled[3]==0)
+assert(stand(63,505)==nil and #cap.enabled==3,'95 cm apart: still open, the same contact')
+assert(stand(64,499)==nil and #cap.enabled==4 and cap.enabled[4]==1,'Past 1 m: solid again')
+-- c: her feet 60 cm higher than the ghost's, or 60 cm lower. Across her while 1 m higher, the ghost is inside her (b:
+-- under the two half heights apart), so it stays open once level until more than 20 cm past touching.
+her_at={X=600,Y=0,Z=157}
+assert(ghost.place()==nil and cap.enabled[5]==0)
+her_at={X=600,Y=0,Z=37}
+assert(ghost.place()==nil and #cap.enabled==5,'60 cm lower: open')
+her_at={X=550,Y=0,Z=197}
+ok,message=ghost.place()
+assert(ok==true and message:find('^Solid partner contact: .* solid=0$') and #cap.enabled==5,tostring(message))
+her_at={X=590,Y=0,Z=97}
+assert(ghost.place()==nil and #cap.enabled==5,'Level, 91 cm apart: still inside her')
+her_at={X=600,Y=0,Z=38}
+assert(ghost.place()==nil and cap.enabled[6]==1)
+her_at={X=600,Y=0,Z=156}
+assert(ghost.place()==nil and #cap.enabled==6,'59 cm higher: solid')
+-- d: she swims, climbs or flies; falling still blocks.
+movement.MovementMode=5
+ghost.place()
+assert(cap.enabled[7]==0)
+movement.MovementMode=3
+ghost.place()
+assert(cap.enabled[8]==1 and #cap.enabled==8)
+movement.MovementMode=1
+-- g: no vitals from her, or down (life 3 to 5, or 0 HP), opens it; alive again closes it.
+mate=nil
+ghost.place()
+assert(cap.enabled[9]==0)
+for _,m in ipairs({{life=3,hp=50,max_hp=100},{life=5,hp=50,max_hp=100},{life=1,hp=0,max_hp=100}}) do
+    mate=m
+    ghost.place()
+    assert(#cap.enabled==9,'Down')
+end
+mate={life=6,hp=100,max_hp=100}
+ghost.place()
+assert(cap.enabled[10]==1)
+-- e: in contact with her for 2 s (her walking into it in a doorway): open until 50 cm apart. The contact's line says
+-- her move's root motion data.
+movement.RootMotionData={pRootMotionData=object('RMD_Evade_F')}
+her_at={X=582,Y=0,Z=97}
+ok,message=ghost.place()
+assert(ok==true and message=='Solid partner contact: speed=500 max=600 mode=1 root_motion=RMD_Evade_F solid=1',
+    tostring(message))
+clock=clock+0.75; stand(65,499)
+clock=clock+0.75; stand(66,499)
+assert(#cap.enabled==10,'1.5 s: still solid')
+clock=clock+0.75; stand(67,499)
+assert(cap.enabled[11]==0,'2.25 s: open')
+her_at={X=628,Y=0,Z=97}
+assert(ghost.place()==nil and #cap.enabled==11,'49 cm apart: still open')
+her_at={X=630,Y=0,Z=97}
+assert(ghost.place()==nil and cap.enabled[12]==1)
+movement.RootMotionData={pRootMotionData=invalid}
+-- a: collide off; the ghost hidden a second after her last pose. Off forgets the contact: the next one has its line.
+clock=clock+0.5
+her_at={X=582,Y=0,Z=97}
+ok,message=ghost.place()
+assert(ok==true and message:find('^Solid partner contact: .* solid=1$') and #cap.enabled==12,tostring(message))
+ghost.collide(false)
+ghost.place()
+assert(cap.enabled[13]==0)
+ghost.collide(true)
+ok,message=ghost.place()
+assert(ok==true and message:find('^Solid partner contact: .* solid=1$') and cap.enabled[14]==1,tostring(message))
+clock=clock+1
+ghost.place()
+assert(actor.hidden and cap.enabled[15]==0 and #cap.enabled==15)
+assert(ghost.status():find(' source=peer collide=on solid=0 changes=solid:7,a:2,b:1,c:1,d:1,e:1,g:1$'),ghost.status())
+-- A replay has no vitals: g does not apply to it.
+mate=nil
+send(910,her_parts(),'replay')
+stand(68,499)
+assert(actor.hidden==false and #cap.enabled==16 and cap.enabled[16]==1,'Solid without vitals')
+-- An effect started on this ghost has no collision; one started on a ghost without the capsule was left as it was.
+local spawned_fx=#spawns
+slot(1,1,0,1)
+box.RelativeScale3D.X=2
+ghost.place()
+assert(#spawns==spawned_fx+1 and spawns[#spawns].fx.collision==0 and spawns[1].fx.collision==nil)
+-- Her capsule not blocking its own type: WorldDynamic (1), which hers blocks, still blocking her type alone.
+blocks=0
+her_at={X=1,Y=2,Z=3}
+ghost.rebuild('test')
+build()
+actor=spawned[#spawned]
+box=actor.mailbox
+her_at={X=600,Y=0,Z=97}
+ok,message=stand(70,500)
+assert(ok==true and message:find(' response 0, .*; ours type 1; '),tostring(message))
+assert(actor.capsule.args.SetCollisionObjectType[1]==1 and actor.capsule.args.SetCollisionResponseToChannel[1]==24)
+blocks=2
+-- A frame that fails while it is solid (her movement unreadable): closed, said once, never tried again on this ghost.
+cap=actor.capsule
+assert(cap.enabled[#cap.enabled]==1,'Solid')
+getmetatable(player).__index.CharacterMovement=nil
+ok,message=stand(71,500)
+assert(ok==false and message:find('^Solid partner off on this ghost: '),tostring(message))
+assert(cap.enabled[#cap.enabled]==0 and not cap.destroyed and not actor.destroyed,'Closed, the ghost kept')
+assert(stand(72,500)==nil and ghost.status():find(' collide=failed$'),ghost.status())
+getmetatable(player).__index.CharacterMovement=movement
+-- One that fails while it is set up: removed, said once, never tried again on this ghost, which stays.
+fail_capsule=true
+her_at={X=1,Y=2,Z=3}
+ghost.rebuild('test')
+build()
+actor=spawned[#spawned]
+box=actor.mailbox
+her_at={X=600,Y=0,Z=97}
+ok,message=stand(71,500)
+assert(ok==false and message:find('^Solid partner off on this ghost: .*no capsule size$'),tostring(message))
+assert(actor.capsule.destroyed and #actor.capsule.enabled==1 and not actor.destroyed,'Removed, never with collision')
+assert(stand(72,500)==nil and ghost.status():find(' collide=failed$'),ghost.status())
+fail_capsule=false
+-- No capsule on her EVE at all: the same, nothing added.
+her_at={X=1,Y=2,Z=3}
+player=solid_eve('EVE9',nil)
+ghost.tick()
+clock=clock+2
+build()
+actor=spawned[#spawned]
+box=actor.mailbox
+her_at={X=600,Y=0,Z=97}
+ok,message=stand(73,500)
+assert(ok==false and message:find('^Solid partner off on this ghost: '),tostring(message))
+assert(not actor.capsule and not actor.destroyed and stand(74,500)==nil,'Said once, never tried again')
+link.mate=nil
+
+-- Mods. A path outside the game's own folders is looked up, loaded or fetched only when our CNS packs declare that
+-- exact path: her suit (a body of the same bones, outside the cooked registry, so LoadAsset misses it and GetAsset
+-- loads it), its material (in the registry) and her ponytail's collision are declared; her ATOOL hair, her ears, a
+-- second material and the collision named from her suit are not. The hair falls back to the base hair, the ears are
+-- left out, the material keeps the default, each with its reason. With dyes off, a mod's mesh still takes its declared
+-- materials. Her cloth line's collision goes on her ponytail, in a step of its own. The outfits not shown are said once
+-- a generation, rebuilds included.
+local SUIT,SUIT_MAT='/Game/OutfitMods/FooSuit/SK_Foo.SK_Foo','/Game/OutfitMods/FooSuit/MI_Foo.MI_Foo'
+local HACK,PA='/Game/OutfitMods/FooSuit/MI_Hack.MI_Hack','/Game/OutfitMods/FooSuit/PA_Tail.PA_Tail'
+local ATOOL,EARS='/Game/Mods/HD-ATOOL_P/hair/SK_Hair.SK_Hair','/Game/OutfitMods/Ears/SK_Ears.SK_Ears'
+mesh(SUIT,{'Root','Bip001','Bip001-Pelvis'})
+mesh(ATOOL,{'Bip001-Head','Hair_01'})
+mesh(EARS,{'Root'})
+for path,class in pairs({[SUIT_MAT]='MaterialInterface',[HACK]='MaterialInterface',[PA]='PhysicsAsset'}) do
+    meshes[path]=object(path,{path=path})
+    meshes[path].IsA=function(_,c) return c.path=='/Script/Engine.'..class end
+    meshes[path].GetFullName=function() return class..' '..path end
+end
+unregistered[SUIT],unregistered[PA]=true,true
+cns={[SUIT]='Foo_Suit',[SUIT_MAT]='Foo_Suit',[PA]='Foo_Suit',['/Game/Mods/DekCNS_P/T/T_A.T_A']='-'}
+local function modded(generation)
+    return {
+        {name='CharacterMesh0',path=SUIT,names={'Root','Bip001','Bip001-Pelvis'},materials={{0,SUIT_MAT},{1,HACK}},
+            label='Foo_Suit'},
+        {name='Mesh_Face',lead=0,parent=0,path=FACE},
+        {name='SBHair',parent=0,socket='Bip001-Head',path=ATOOL,names={'Bip001-Head','Hair_01'},
+            label='Mods/HD-ATOOL_P'},
+        {name='SBPonytail',lead=2,parent=2,path=PONY,cloth=PA},
+        {name='SBAccSlot1',parent=0,path=EARS,names={'Root'},label='Cat_Ears'},
+        {name='Charm',lead=4,parent=4,path=PONY}, -- Follows the ears: left out with them, said once.
+    },generation
+end
+player=eve
+look={cloth=true}
+ghost=new(nil,true,look)
+ghost.toggle()
+finds,loads,gets={},{},{}
+local said_before=#said
+send(900,modded(),'peer')
+ghost.tick()
+clock=clock+2
+ok,message=build()
+assert(ok and message:find('^Ghost 900 built: 4 parts %(2 leaders%), %d+ loaded in %d+ ms, 1 on the base suit, 2 left '
+    ..'out; look: cloth parts 1; '),message)
+local function seen(list,path) for _,p in ipairs(list) do if p==path then return true end end return false end
+for _,path in ipairs({ATOOL,EARS,HACK,Puppet.collision_path(SUIT)}) do
+    assert(not (seen(finds,path) or seen(loads,path) or seen(gets,path)),'Never looked up or loaded: '..path)
+end
+assert(seen(finds,SUIT) and seen(loads,SUIT) and seen(gets,SUIT),'Her suit: memory, LoadAsset, then GetAsset')
+assert(not seen(gets,SUIT_MAT) and seen(loads,SUIT_MAT),'In the registry: LoadAsset finds it')
+assert(seen(gets,PA),'Her collision too')
+actor=spawned[#spawned]
+root,face,hair,pony=table.unpack(actor.parts)
+assert(root.mesh==meshes[SUIT] and hair.mesh==meshes[BASE_HAIR] and pony.cloth and #actor.parts==4)
+assert(#root.dyes==1 and root.dyes[1].slot==0 and root.dyes[1].material==meshes[SUIT_MAT],'Dyes off: hers all the same')
+assert(pony.OverrideClothPhysicsAsset==meshes[PA],'Her cloth line\'s collision, not the one named from her body')
+local function plain(p) return p:gsub('%p','%%%0') end
+assert(message:find('; SBHair: '..plain(ATOOL)..' not declared by your CNS packs or a mod you both have, drawn as '..plain(BASE_HAIR)),message)
+assert(message:find('; CharacterMesh0: slot 1 material '..plain(HACK)..' not declared by your CNS packs or a mod you both have, default kept'),
+    message)
+assert(message:find('; SBAccSlot1: '..plain(EARS)..' not declared by your CNS packs or a mod you both have, left out'),message)
+assert(message:find('; mod assets: '..plain(SUIT)..' by GetAsset, '..plain(SUIT_MAT)..' by LoadAsset, '..plain(PA)
+    ..' by GetAsset; mod parts not shown: Mods/HD%-ATOOL_P, Cat_Ears %('),message)
+local MODS='Kaanta wears parts from mods your game cannot load: HD-ATOOL_P, Cat_Ears. They show on the base suit or '
+    ..'are left out.'
+assert(#said==said_before+1 and said[#said]==MODS and said_en[#said]==MODS,tostring(said[#said]))
+-- The same generation built again: not said again. A new one: said again, in the player's language.
+ghost.rebuild('look')
+build()
+assert(#said==said_before+1,'Once a generation')
+words=Words.fr
+send(901,modded(),'peer')
+build()
+assert(#said==said_before+2 and said[#said]:find('^Kaanta porte des pièces de mods ') and said_en[#said]==MODS,
+    said[#said])
+words=Words.en
+-- basesuit asks for the base suit: nothing said for it.
+ghost.basesuit()
+send(902,{modded()[1],modded()[2]},'peer')
+build()
+assert(#said==said_before+2,'basesuit: not said')
+ghost.basesuit()
+-- A mesh of her pack with no Skeleton would crash the game on a Poseable: it counts as missing, on the base body.
+local NO_SKELETON='/Game/Mods/Foo/No_Skeleton.No_Skeleton'
+mesh(NO_SKELETON,{'Root','Bip001','Bip001-Pelvis'})
+meshes[NO_SKELETON].Skeleton=nil
+cns[NO_SKELETON]='Foo_Suit'
+send(9021,{{name='CharacterMesh0',path=NO_SKELETON,names={'Root','Bip001','Bip001-Pelvis'},materials={},label='Foo_Suit'}},
+    'peer')
+ok,message=build()
+assert(ok and spawned[#spawned].parts[1].mesh==meshes[BASE_BODY],message)
+assert(message:find(NO_SKELETON:gsub('%p','%%%0')..' has no skeleton'),message)
+-- A game path a pak mod replaced with no Skeleton: missing as well, and named although no CNS pack declares it.
+do
+    local GAME_NO_SKELETON='/Game/Art/Character/PC/CH_P_EVE_Broken/CH_P_EVE_Broken.CH_P_EVE_Broken'
+    mesh(GAME_NO_SKELETON,{'Root','Bip001','Bip001-Pelvis'})
+    meshes[GAME_NO_SKELETON].Skeleton=nil
+    send(9022,{{name='CharacterMesh0',path=GAME_NO_SKELETON,names={'Root','Bip001','Bip001-Pelvis'},materials={}}},'peer')
+    ok,message=build()
+    assert(ok and spawned[#spawned].parts[1].mesh==meshes[BASE_BODY],message)
+    assert(message:find(plain(GAME_NO_SKELETON)..' has no skeleton'),message)
+end
+said_before=#said
+-- No CNS pack declares her suit: on the base body, said; never looked up.
+cns={}
+finds,loads,gets={},{},{}
+send(903,{modded()[1],modded()[2]},'peer')
+ok,message=build()
+assert(spawned[#spawned].parts[1].mesh==meshes[BASE_BODY] and not seen(finds,SUIT) and not seen(gets,SUIT),message)
+assert(said[#said]=='Kaanta wears parts from mods your game cannot load: Foo_Suit. They show on the base suit or are '
+    ..'left out.',said[#said])
+-- The table read stays strict about them too: a cloth or mod line of another part, the two in the other order, twice.
+local strict=remote_text(904,modded())
+for _,bad in ipairs({strict:gsub('\ncloth 3 ','\ncloth 2 '),strict:gsub('\nmod 4 ','\nmod 3 '),
+    strict:gsub('\nmod 0 Foo_Suit\n','\nmod 0 Foo_Suit\nmod 0 x\n'),
+    strict:gsub('\ncloth 3 ([^\n]*)\n','\ncloth 3 %1\ncloth 3 %1\n'),
+    (strict:gsub('(\ncloth 3 [^\n]*)','\nmod 3 x%1'))}) do
+    remote_file=bad
+    count=count+1
+    ok,message=ghost.remote(904,count,'peer')
+    assert(ok==false and message=='The remote table could not be read.',bad)
+end
+-- Her cloth line's collision not declared, nor the one named from her suit: her ponytail keeps its own, said with why.
+cns={[SUIT]='Foo_Suit',[SUIT_MAT]='Foo_Suit'}
+finds,loads,gets={},{},{}
+send(905,modded(),'peer')
+ok,message=build()
+assert(ok and message:find('; SBPonytail: outfit collision not used %('..plain(PA)
+    ..' not declared by your CNS packs or a mod you both have%)'),message)
+assert(not (seen(finds,PA) or seen(loads,PA) or seen(gets,PA)),'Never looked up or loaded: '..PA)
+
+do
+-- The crash sentinel (online/partner/sentinel.lua, with fake files): each load, SetSkeletalMesh and SetMaterial of an
+-- asset our CNS packs declare runs with the marker naming it and its outfit; a game asset's with none; the marker empty
+-- after.
+local Sentinel=require('online.partner.sentinel')
+local sdisk={}
+local sfiles={read_file=function(n) return sdisk[n] end,write_file=function(n,t) sdisk[n]=t; return true end,
+    write_now=function(n,t) sdisk[n]=t; return true end,mod_assets=function() return cns end}
+cns={[SUIT]='Foo_Suit',[SUIT_MAT]='Foo_Suit',[PA]='Foo_Suit'}
+local marked={}
+marker_spy=function(call,path) marked[call..' '..tostring(path)]=sdisk[Sentinel.MARKER] or '' end
+local function fresh(generation,sentinel)
+    ghost=new(nil,true,{cloth=true},sentinel)
+    ghost.toggle()
+    finds,loads,gets={},{},{}
+    send(generation,modded(),'peer')
+    ghost.tick()
+    clock=clock+2
+    return build()
+end
+ok,message=fresh(906,Sentinel.new(sfiles,'v1'))
+marker_spy=nil
+local SUIT_MARK,MAT_MARK=SUIT..' Foo_Suit\n',SUIT_MAT..' Foo_Suit\n'
+assert(ok and spawned[#spawned].parts[1].mesh==meshes[SUIT],message)
+for call,mark in pairs({['LoadAsset '..SUIT]=SUIT_MARK,['GetAsset '..SUIT]=SUIT_MARK,['SetSkeletalMesh '..SUIT]=SUIT_MARK,
+    ['LoadAsset '..SUIT_MAT]=MAT_MARK,['SetMaterial '..SUIT_MAT]=MAT_MARK,['LoadAsset '..FACE]='',
+    ['SetSkeletalMesh '..FACE]=''}) do
+    assert(marked[call]==mark,call..': '..tostring(marked[call]))
+end
+assert(sdisk[Sentinel.MARKER]=='','Empty once the calls returned')
+-- The game died inside SetSkeletalMesh with her suit: the next Lua load sets it aside. Never looked up again, her body
+-- on the base suit with the reason, said with the outfits not shown; coop cns names it; coop cns reset brings it back.
+sdisk[Sentinel.MARKER]=SUIT_MARK
+local sentinel,crashed=Sentinel.new(sfiles,'v1')
+assert(crashed and crashed.path==SUIT and sdisk[Sentinel.MARKER]=='')
+ok,message=fresh(907,sentinel)
+assert(ok and spawned[#spawned].parts[1].mesh==meshes[BASE_BODY],message)
+assert(not (seen(finds,SUIT) or seen(loads,SUIT) or seen(gets,SUIT)),'A set-aside asset is never looked up')
+assert(message:find('; CharacterMesh0: '..plain(SUIT)..' set aside after a crash %(coop cns reset%), drawn as '
+    ..plain(BASE_BODY)),message)
+assert(said[#said]:find('Foo_Suit',1,true),said[#said])
+ok,message=ghost.cns()
+assert(ok and message=='CNS part on; set aside after a crash: '..SUIT..' (Foo_Suit) (coop cns reset clears both).',
+    message)
+assert(ghost.cns('now')==false and ghost.cns('reset','x')==false)
+ok,message=ghost.cns('reset')
+assert(ok and message=='CNS reset: 1 set-aside asset cleared, the CNS part is on; the ghost is built again.',message)
+ok,message=build()
+assert(ok and spawned[#spawned].parts[1].mesh==meshes[SUIT],message)
+-- A mod you both have can hold a game path: her base suit, set aside as well, is never loaded as a fallback either.
+-- Her body cannot be drawn: the build fails.
+cns[BASE_BODY]='queen-lite_p'
+sdisk[Sentinel.LIST]='version v1\n'..SUIT..' Foo_Suit\n'..BASE_BODY..' queen-lite_p\n'
+ok,message=fresh(9071,Sentinel.new(sfiles,'v1'))
+assert(ok==false and message:find('her body could not be drawn',1,true),message)
+assert(not (seen(finds,BASE_BODY) or seen(loads,BASE_BODY) or seen(gets,BASE_BODY)),'A set-aside fallback: not loaded')
+cns[BASE_BODY],sdisk[Sentinel.LIST]=nil,'version v1\n'
+-- The CNS part's own guard. A Lua error while her suit is set on its part: the ghost is not failed (no try counted)
+-- but built again without the CNS part, her body on the base suit, no mod material; one line says it. Later tables
+-- too, until coop cns reset.
+fail_mesh=SUIT
+local tries_said=#said
+ok,message=fresh(908,Sentinel.new(sfiles,'v1'))
+assert(ok==false and message:find('^CNS part of the ghost off until coop cns reset or the next Lua load %(.*bad mod mesh%):')
+    ,message)
+assert(sdisk[Sentinel.MARKER]=='','The marker emptied on the error too')
+ok,message=build()
+local body=spawned[#spawned].parts[1]
+assert(ok and message:find('^Ghost 908 built: ') and body.mesh==meshes[BASE_BODY] and not body.dyes,message)
+assert(message:find(plain(SUIT)..' not loaded with the CNS part off, drawn as '),message)
+-- With the CNS part off, an error in a fallback fails the ghost as before (a try counted), never a rebuild each tick.
+fail_mesh=BASE_BODY
+send(9081,modded(),'peer')
+ok,message=build()
+assert(ok==false and message:find('^Ghost not built: .*bad mod mesh'),message)
+clock=clock+2.5
+fail_mesh=nil
+send(909,modded(),'peer')
+ok,message=build()
+assert(ok and spawned[#spawned].parts[1].mesh==meshes[BASE_BODY],message)
+assert(select(2,ghost.cns()):find('^CNS part off %(.*bad mod mesh%); set aside after a crash: none'))
+ghost.cns('reset')
+ok,message=build()
+assert(ok and spawned[#spawned].parts[1].mesh==meshes[SUIT],message)
+for k=tries_said+1,#said do assert(said[k]~=GAVE_UP,'Never counted as a failed try') end
+-- The same for a mod material's step.
+fail_material=SUIT_MAT
+ok,message=fresh(9101,Sentinel.new(sfiles,'v1'))
+assert(ok==false and message:find('%(.*bad mod material%)'),message)
+ok,message=build()
+assert(ok and spawned[#spawned].parts[1].mesh==meshes[BASE_BODY],message)
+fail_material=nil
+end
+cns={}
+
+-- Values (a dynamic material's, the table's value lines). On a dyed slot of a part on its own mesh: a dynamic instance
+-- of the slot's material, colours when the build ends, a name's '~' a space again; the build line as without them.
+local T_BASE,T_MOD,T_OUT,T_MESH='/Game/Art/Character/PC/T/T_A.T_A','/Game/Mods/DekCNS_P/Textures/T_Iris.T_Iris',
+    '/Game/Mods/Other/T_B.T_B',BLADE
+for _,path in ipairs({T_BASE,T_MOD,T_OUT}) do
+    meshes[path]=object(path,{path=path})
+    meshes[path].IsA=function(_,c) return c.path=='/Script/Engine.Texture' end
+    meshes[path].GetFullName=function() return 'Texture2D '..path end
+end
+cns={[T_MOD]='-'}
+look={cloth=false,dyes=true}
+dyeable=true
+ghost=new(nil,true,look)
+ghost.toggle()
+local function tinted(values,slot_material)
+    return her_parts({hair_materials={{0,slot_material or TYPE_B,values}}})
+end
+loads,finds={},{}
+local colours={'v RootColor 1 0.25 0 1','s Iris~UV~Radius 0.5','t Iris '..T_MOD,'t Base '..T_BASE,'t Out '..T_OUT,
+    't Mesh '..T_MESH}
+send(910,tinted(colours))
+ghost.tick()
+clock=clock+2
+ok,message=build()
+assert(ok and message:find('^Ghost 910 built: ') and not message:find('Material'),message)
+actor=spawned[#spawned]
+hair=actor.parts[3]
+local mid=hair.mids[0]
+assert(mid.parent==meshes[TYPE_B] and hair.dyes[1].material==meshes[TYPE_B])
+assert(mid.set[1][1]=='v' and mid.set[1][2]=='RootColor' and mid.set[1][4]==0.25 and mid.set[1][6]==1)
+assert(mid.set[2][1]=='s' and mid.set[2][2]=='Iris UV Radius' and mid.set[2][3]==0.5 and #mid.set==2,'Textures later')
+-- Textures: one each 0.25 s, after the build, resolved and set in one frame. One no CNS pack here declares is never
+-- looked up; one of another class is not set. Neither says a word: that pack is only missing here.
+for _=1,4 do clock=clock+0.3; assert(ghost.tick()==nil) end
+assert(#mid.set==4 and mid.set[3][2]=='Iris' and mid.set[3][3]==meshes[T_MOD] and mid.set[4][2]=='Base'
+    and mid.set[4][3]==meshes[T_BASE],'The two this PC may load')
+for _,list in ipairs({finds,loads,gets}) do
+    for _,path in ipairs(list) do assert(path~=T_OUT,'Never looked up: '..path) end
+end
+-- A colour changed under the same generation: only it is set again, on the same instance, with no new ghost.
+local ghosts=#spawned
+colours[1],colours[2]='v RootColor 0 0 1 1','s Iris~UV~Radius 0.5'
+local before_set=#mid.set
+ok,message=send(910,tinted(colours))
+assert(ok==nil and message==nil and #spawned==ghosts and hair.mids[0]==mid and #mid.set==before_set+1)
+assert(mid.set[#mid.set][1]=='v' and mid.set[#mid.set][3]==0 and mid.set[#mid.set][5]==1)
+-- A changed texture waits for its turn too, never in the table's own call.
+local loads_now=#loads
+colours[4]='t Base '..T_MOD
+send(910,tinted(colours))
+assert(#loads==loads_now and #mid.set==before_set+1,'Not loaded in the table\'s own call')
+clock=clock+0.3
+ghost.tick()
+assert(mid.set[#mid.set][2]=='Base' and mid.set[#mid.set][3]==meshes[T_MOD])
+-- A table changed during the build: its colours are on the ghost when it is done.
+send(911,tinted({'s A 1'}))
+ghost.tick()
+send(911,tinted({'s A 2'}))
+ok,message=build()
+assert(spawned[#spawned].parts[3].mids[0].set[#spawned[#spawned].parts[3].mids[0].set][3]==2,message)
+-- Values for another material under the same generation (the sender's key forbids it) are not set on this one.
+do
+    local set_now=#spawned[#spawned].parts[3].mids[0].set
+    send(911,tinted({'s A 3'},TYPE_C))
+    assert(#spawned[#spawned].parts[3].mids[0].set==set_now,'Not this slot\'s material')
+end
+-- A line format_table never writes refuses the file, as any other line does. The ghost stays.
+ghosts=#spawned
+ok,message=send(911,tinted({'s A 3','s B nan'}))
+assert(ok==false and message=='The remote table could not be read.' and #spawned==ghosts,tostring(message))
+-- No material here for that slot (a pack missing on this PC, a slot past the mesh's): no instance, no error, no value.
+ghost=new(nil,true,look)
+ghost.toggle()
+send(912,her_parts({hair_materials={{1,FACE,{'s A 1'}},{5,TYPE_C,{'s B 1'}}}}))
+ghost.tick()
+clock=clock+2
+ok,message=build()
+assert(ok and message:find('^Ghost 912 built: 6 parts ') and not spawned[#spawned].parts[3].mids,message)
+-- On a fallback mesh: never, its slots are another mesh's.
+send(913,her_parts({hair=NIER,hair_materials={{0,TYPE_B,{'s A 1'}}}}))
+ok,message=build()
+assert(ok and spawned[#spawned].parts[3].mesh==meshes[BASE_HAIR] and not spawned[#spawned].parts[3].mids,message)
+-- Dyes off on the game's own mesh: read and nothing done, as the materials.
+look.dyes=false
+send(914,tinted({'s A 1'}))
+ok,message=build()
+assert(ok and not spawned[#spawned].parts[3].mids and not spawned[#spawned].parts[3].dyes,message)
+look.dyes=true
+-- An instance refused, then a setter refusing: the slot back on its plain material, the ghost drawn, said once.
+fail_mid='make'
+send(915,tinted({'v A 1 1 1 1'}))
+ok,message=build()
+actor=spawned[#spawned]
+assert(ok and message:find('^Ghost 915 built: .* Material values not set %(.*no instance%)%.'),message)
+assert(actor.parts[3].dyes[#actor.parts[3].dyes].material==meshes[TYPE_B],'Back on the plain material')
+fail_mid='set'
+ghost=new(nil,true,look)
+ghost.toggle()
+send(916,tinted({'v A 1 1 1 1'}))
+ghost.tick()
+clock=clock+2
+ok,message=build()
+actor=spawned[#spawned]
+assert(ok and message:find('Material values not set %(.*no such setter%)%.'),message)
+assert(#actor.parts[3].dyes==2 and actor.parts[3].dyes[2].material==meshes[TYPE_B])
+-- Once failed, a later table does not try that slot again, and its ghost stays.
+ok,message=send(916,tinted({'v A 0 0 0 1'}))
+assert(ok==nil and #actor.parts[3].dyes==2 and spawned[#spawned]==actor)
+fail_mid=nil
+-- A peer's new names cannot grow the name table without end: 1024 a Lua load, then one note.
+local names_made=0
+local real_FName=FName
+FName=function(text) names_made=names_made+(text=='None' and 0 or 1); return real_FName(text) end -- None exists already.
+ghost=new(nil,true,look)
+ghost.toggle()
+send(917,tinted({'s First 1'}))
+ghost.tick()
+clock=clock+2
+build()
+local noted
+for round=1,40 do
+    local batch={}
+    for k=1,32 do batch[k]=string.format('s N%d_%d 1',round,k) end
+    local _,said_now=send(917,tinted(batch))
+    noted=said_now or noted
+end
+FName=real_FName
+assert(noted=='Material values ignored: over 1024 names.',tostring(noted))
+assert(names_made<=1024+8,'Past the budget no name is made: '..names_made)
+do
+    -- A value gone from a table of the same generation: the plain material back, what is left on a new instance, a texture
+    -- still waiting dropped, no new ghost.
+    ghost=new(nil,true,look)
+    ghost.toggle()
+    send(918,tinted({'s A 1','s B 2','t Base '..T_BASE}))
+    ghost.tick()
+    clock=clock+2
+    build()
+    actor=spawned[#spawned]
+    hair=actor.parts[3]
+    local first=hair.mids[0]
+    local dyed_before=#hair.dyes
+    send(918,tinted({'s B 2'}))
+    assert(spawned[#spawned]==actor and #hair.dyes==dyed_before+1 and hair.dyes[#hair.dyes].material==meshes[TYPE_B])
+    local second=hair.mids[0]
+    assert(second~=first and #second.set==1 and second.set[1][2]=='B' and second.set[1][3]==2)
+    clock=clock+0.3
+    ghost.tick()
+    assert(#first.set==2 and #second.set==1,'The waiting texture went with its values')
+    -- No value left: plain, no instance made for nothing. A value back: a new instance.
+    send(918,tinted())
+    assert(#hair.dyes==dyed_before+2 and hair.dyes[#hair.dyes].material==meshes[TYPE_B] and hair.mids[0]==second)
+    send(918,tinted())
+    assert(#hair.dyes==dyed_before+2,'Plain already: nothing to do')
+    send(918,tinted({'s A 9'}))
+    assert(hair.mids[0]~=second and hair.mids[0].set[1][3]==9)
+    -- A texture setter that fails: the plain material back for this ghost, said once at that tick, other textures dropped.
+    ghost=new(nil,true,look)
+    ghost.toggle()
+    send(919,tinted({'s A 1','t Base '..T_BASE,'t Iris '..T_MOD}))
+    ghost.tick()
+    clock=clock+2
+    build()
+    hair=spawned[#spawned].parts[3]
+    dyed_before=#hair.dyes
+    fail_mid='texture'
+    clock=clock+0.3
+    ok,message=ghost.tick()
+    assert(ok==false and message:find('^Material texture not set %(.*no texture setter%)%.$'),tostring(message))
+    assert(#hair.dyes==dyed_before+1 and hair.dyes[#hair.dyes].material==meshes[TYPE_B])
+    fail_mid=nil
+    local failed_mid=hair.mids[0]
+    for _=1,3 do clock=clock+0.3; assert(ghost.tick()==nil) end
+    send(919,tinted({'s A 2'}))
+    assert(#failed_mid.set==1 and hair.mids[0]==failed_mid,'Stays plain for this ghost')
+    -- Over the waiting textures: said once, and those left over come once none waits, with no new table.
+    ghost=new(nil,true,look)
+    ghost.toggle()
+    local many={}
+    for k=1,65 do many[k]='t T'..k..' '..T_BASE end
+    send(920,tinted(many))
+    ghost.tick()
+    clock=clock+2
+    ok,message=build()
+    assert(ok and message:find('Material textures waiting: over 64 at once%.'),message)
+    local full_mid=spawned[#spawned].parts[3].mids[0]
+    assert(#full_mid.set==0)
+    for _=1,64 do clock=clock+0.3; ghost.tick() end
+    assert(#full_mid.set==64)
+    clock=clock+0.3
+    ghost.tick()
+    assert(#full_mid.set==65 and full_mid.set[65][2]=='T65')
+end
+
+-- Hidden slots (hide lines), on parts drawn on their own mesh by the dyes rule: the slots the hide line names hidden at
+-- LOD 0 (one past the mesh's slots left alone). A change is set again on the same ghost, an unchanged table calls
+-- nothing, and every follower stays a Poseable (no cloth here).
+do
+look={cloth=false,dyes=true}
+dyeable=true
+local function shaped(o)
+    local parts=her_parts()
+    parts[1].hide=o.hide
+    return parts
+end
+ghost=new(nil,true,look)
+ghost.toggle()
+local adds_before=skeletal_adds
+send(930,shaped({hide={1,5}}))
+ghost.tick()
+clock=clock+2
+ok,message=build()
+actor=spawned[#spawned]
+local body_part=actor.parts[1]
+assert(ok and message:find('^Ghost 930 built: 6 parts '),message)
+assert(body_part.hidden[1] and not body_part.hidden[5] and body_part.calls.sections==2,'Slot 5 is past the mesh\'s 2')
+assert(skeletal_adds==adds_before)
+assert(not actor.parts[3].calls.sections and not actor.parts[4].calls.sections,'Nothing to hide: no call')
+ghosts=#spawned
+ok,message=send(930,shaped({hide={0}}))
+assert(ok==nil and #spawned==ghosts and body_part.hidden[0] and not body_part.hidden[1] and body_part.calls.sections==4)
+send(930,shaped({hide={0}}))
+assert(body_part.calls.sections==4,'The same: nothing called')
+send(930,shaped({}))
+assert(not body_part.hidden[0] and body_part.calls.sections==5,'No hide line: every slot shown again')
+-- Dyes off on the game's own mesh: read and nothing done.
+look.dyes=false
+send(931,shaped({hide={1}}))
+ok,message=build()
+assert(ok and not spawned[#spawned].parts[1].calls.sections,message)
+look.dyes=true
+-- A call that fails: every slot shown, the ghost built, said once.
+fail_section=true
+ghost=new(nil,true,look) -- A note is said once a Lua load.
+ghost.toggle()
+send(932,shaped({hide={1}}))
+ghost.tick()
+clock=clock+2
+ok,message=build()
+assert(ok and message:find('Hidden slots not set %(.*no section call%)%.') and not next(spawned[#spawned].parts[1].hidden),
+    message)
+fail_section=false
+end
+cns={}
+dyeable=false
+
+-- Each fake method refuses a coroutine: an object's own, one added, one replaced, one given in fields, the controller.
+local part=cloth_part(object('Owner'))
+for what,f in pairs({own=part.GetAddress,added=part.SetVisibility,replaced=part.IsA,given=world.GetFullName,
+    controller=package.loaded.UEHelpers.GetPlayerController}) do
+    local ok,why=coroutine.resume(coroutine.create(f),part,{path='x'})
+    assert(not ok and why:find('lua_instances',1,true),what..' answered from a coroutine')
+end
+-- No coroutine anywhere in the mod: UE4SS refuses every call made from one (ue4ss() above), and fakes of other
+-- modules may lack that check.
+local scripts=0
+for path in io.popen("find mod/StellarCoop/Scripts -name '*.lua'"):lines() do
+    local file=assert(io.open(path))
+    assert(not file:read('a'):find('coroutine%.'),path..' uses a coroutine')
+    file:close()
+    scripts=scripts+1
+end
+assert(scripts>=9,'The scripts were listed')
+print('puppet_test ok')

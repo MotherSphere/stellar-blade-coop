@@ -5,7 +5,7 @@
 
 namespace coop::pose {
 namespace {
-// ---- The day/night cycle (sky/sky.h, sky/daynight.lua's sky request), the game thread's writes ----
+// ---- The day/night cycle (sky/sky.h, world/daynight/daynight.lua's sky request), the game thread's writes ----
 // Every sky::kPassMs: SB's player controller (kController, FUN_142321EE0: GEngine's first local player's, null before
 // one exists; it makes nothing), its GetWorld (virtual +0x158), the world's persistent level (+0x30) and the level's
 // WorldSettings (+0x268), the reach of freeze_game.inc's FreezeGame::paused, each pointer checked, then whether SB plays

@@ -127,8 +127,8 @@ int main() {
       assert(slot_of(m[i], kMe) == 0 && m[i].members().size() == 3 && m[i].leader() == kMe);
     assert(m[0].partner() == kFriend && m[2].partner() == 0 && m[3].partner() == 0);
     assert(sent_from(kMe, kPlayer[3], let_line(kFriend, {kFriend, kPlayer[2], kPlayer[3]}, kMaxMembers)) == 1);
-    // Each member's parked bike reaches the three others as a bike_of= line, guest to guest included (bike/others.lua
-    // draws one copy for each), never her own.
+    // Each member's parked bike reaches the three others as a bike_of= line, guest to guest included
+    // (vehicles/bike/others.lua draws one copy for each), never her own.
     for (int i = 0; i < 4; ++i)
       assert(m[i].bike("park /game/map " + id(i) + " 0 0 0 0 0"));
     rounds(m, 100);
@@ -352,7 +352,8 @@ int main() {
     const std::string s1 = m.status(1);
     assert(m[1].lobby() == L && linked_with(m[1], kMe) && !linked_with(m[1], kPlayer[2]) && m[1].partner() == kMe);
     assert(noticed(s1, "No link with P3: Steam would not set relay only.") && s1.find("Left ") == npos);
-    // The host's count still names her (nightop/run.lua and race/run.lua end a run past 2 players on it).
+    // The host's count still names her (online/modes/nightop/run.lua and online/modes/race/run.lua end a run past 2
+    // players on it).
     assert(s1.find("\nplayers=3\n") != npos && s1.find("\nmember=4003 1 0 ") != npos);
     assert(saw("P2: no link with P3: Steam refused relay only 3 times") && count("P2: Steam refused relay only") == 3);
     assert(linked_with(m[0], kFriend) && linked_with(m[0], kPlayer[2]) && m[2].lobby() == L);

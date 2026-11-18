@@ -32,14 +32,15 @@ local START={status_text=status_text,link_mode=link_mode,chatting=chatting,frien
     in_world=in_world,at_title=at_title,settings_text=settings_text}
 -- The late reads with a guard in their reader's wiring.lua (the menu's in main/ui.lua, the bike press's in
 -- main/input.lua), by the module they read: while it is off, a refusal.
-local GUARDED={['cut.enemies']={function() return nr.o.rows(function() end,'buy') end,
+local GUARDED={['fight.bosses']={function() return nr.o.rows(function() end,'buy') end,
         function() return cs.o.rows(function() end) end},
-    group={function() return nr.o.revive('Kaanta') end},
-    session={function() return menu.sessions.open() end}, -- The menu's Find a session row.
-    ['cut.scenes']={function() return ts.o.scene.talk('Sequence',{}) end},
-    nightop={function() return sb.o.recruiter.run() end},
-    ['cut.eve']={function() return sb.o.emote.sit('chair') end},
-    bike={function() -- The pad's bike hold (bike_key runs the same bike_press), past the keys' own filters.
+    ['online.group']={function() return nr.o.revive('Kaanta') end},
+    ['online.session']={function() return menu.sessions.open() end}, -- The menu's Find a session row.
+    ['story.scenes']={function() return ts.o.scene.talk('Sequence',{}) end},
+    ['online.modes.nightop']={function() return sb.o.recruiter.run() end},
+    ['eve']={function() return sb.o.emote.sit('chair') end},
+    ['vehicles.bike']={function() -- The pad's bike hold (bike_key runs the same bike_press), past the keys' own
+    -- filters.
         local n=#printed
         M.pad_event('bike')
         for i=n+1,#printed do
@@ -78,7 +79,7 @@ local function case(name,how)
     link_mode,chatting,friend_linked,in_world,at_title,kit_ready='host',true,true,true,false,true
     step('a frame in a session',loops[1].f)
     for _=1,2 do step('a pass in a session',quarter) end
-    if name~='session' then
+    if name~='online.session' then
         assert(kit_shown.line_hint,at..': no booth hint 2.5 m from a booth')
         step('menu_key at a booth',function() key('F5') end)
         assert(logged('line: booth Xion_10_EnvS_016 (Env_Camp_TeleportMachine_C) at 2.5 m'),
@@ -169,7 +170,7 @@ return function(name)
         build[step]=function() error('injected: '..name..' build step '..step..' raises') end
         inject('its build step '..step..' raises',with('build',build))
     end
-    if name=='bike' then
+    if name=='vehicles.bike' then
         -- An earlier Lua load's bike part on EVE, tagged: the ghost's capture leaves it out through partner's copy.
         local function uobj(o)
             o.type=function() return 'UObject' end
@@ -188,9 +189,9 @@ return function(name)
         StaticFindObject=function(path) return planted[path] or find(path) end
         UE.GetPlayer=function() return eve end
         package.loaded[wiring]=nil
-        package.preload[wiring]=function() error('injected: bike/wiring.lua does not load') end
+        package.preload[wiring]=function() error('injected: vehicles/bike/wiring.lua does not load') end
         load_main(true)
-        assert(M.off_modules.bike and capture_leave_out,'bike off, partner gave the capture its leave_out')
+        assert(M.off_modules['vehicles.bike'] and capture_leave_out,'bike off, partner gave the capture its leave_out')
         assert(capture_leave_out(0x100)==0x203,'With bike off, the capture leaves out the bike part on EVE')
         assert(capture_leave_out(0x999)==nil,'Another EVE: nothing left out')
         package.preload[wiring],package.loaded[wiring]=nil,real

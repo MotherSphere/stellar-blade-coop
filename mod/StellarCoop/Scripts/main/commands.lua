@@ -4,7 +4,8 @@
 -- coop ui and coop off with the guide's and the keys' words, then report and run, which every word goes through.
 return function(M)
 local print,log=M.print,M.log
--- coop ui and coop off stay here: they reach the UI objects main/ui.lua builds and the photo pause (photo/wiring.lua).
+-- coop ui and coop off stay here: they reach the UI objects main/ui.lua builds and the photo pause
+-- (online/photo/wiring.lua).
 -- ui/kit/commands.lua's coop guide and coop keys join them; each module's words are in M.commands already.
 for _,list in ipairs({{
     -- reset, the escape hatch (UI-DESIGN 7.5): the menu and the chat's box closed, the game's input back now; off
@@ -24,7 +25,7 @@ for _,list in ipairs({{
     end,
     off=function()
         M.off=true
-        M.ghosts_off() -- The ghost and the members' ghosts off, each line they say logged (partner/wiring.lua).
+        M.ghosts_off() -- The ghost and the members' ghosts off, each line they say logged (online/partner/wiring.lua).
         M.notice.stop()
         if M.menu then M.menu.stop() end
         if M.box then M.box.stop() end
@@ -32,7 +33,7 @@ for _,list in ipairs({{
         if M.code_box then M.code_box.stop(); M.approval.stop() end
         if M.kit then M.kit.stop() end -- The game's input back, the menu's root gone.
         M.chat.clear()
-        M.photo_off() -- The game's own photo pause back (photo/wiring.lua).
+        M.photo_off() -- The game's own photo pause back (online/photo/wiring.lua).
         -- A failing despawn or run end is logged and never stops the rest of coop off.
         local stopped,e=pcall(M.recruiter.stop)
         if not stopped then log('recruiter: '..tostring(e)) end
@@ -112,7 +113,7 @@ for _,list in ipairs({{
     end
 end
 function M.report(ok,message) log((ok and 'OK: ' or 'STOP: ')..tostring(message)) end
--- What partner/ghosts.lua's calls said: a list of {ok, message}.
+-- What online/partner/ghosts.lua's calls said: a list of {ok, message}.
 function M.report_each(said) for _,r in ipairs(said or {}) do M.report(r[1],r[2]) end end
 -- A console command, a key or a menu row, on the game thread: logged, and its result returned.
 function M.run(name,a,b,c,d,e,f)

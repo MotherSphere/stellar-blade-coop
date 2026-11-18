@@ -22,7 +22,7 @@ local U=require('core.unreal')
 local Tab={WAIT=2}
 local MASTER='/Game/Art/UI/Widget/GameMenu/WB_GameMenu_Master.WB_GameMenu_Master'
 local KEEPER=MASTER..'.StellarCoop_PauseTabKeeper'
-local PUBLIC,ROOT_SET=0x1,0x40000000 -- As group/region_tabs.lua: RF_Public; EInternalObjectFlags::RootSet.
+local PUBLIC,ROOT_SET=0x1,0x40000000 -- As online/group/region_tabs.lua: RF_Public; EInternalObjectFlags::RootSet.
 local HIT_TEST_INVISIBLE=3 -- ESlateVisibility.
 local STYLE={'TextWidthValue','MinTextMargin','TextColor','TextFont','TextShadowColor'}
 local LAYOUT,SLATE='/Script/UMG.Default__WidgetLayoutLibrary','/Script/UMG.Default__SlateBlueprintLibrary'

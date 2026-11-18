@@ -77,10 +77,11 @@ int main() {
   assert(chat_clean(a199 + "é") == a199 && chat_clean(a199.substr(1) + "é") == a199.substr(1) + "é");
   assert(chat_clean(std::string(197, 'a') + "\xf0\x9f\x98\x80") == std::string(197, 'a'));
   assert(chat_clean(a199 + " b") == a199 && chat_clean(std::string(50, '\0') + std::string(250, 'a')).size() == 200);
-  // The same cleaning as Lua's over 20,000 generated lines: tests/lua/session/chat_test.lua makes the same lines with
-  // the same generator and asserts the same digest of Chat.clean's results, so neither side can drift alone.
+  // The same cleaning as Lua's over 20,000 generated lines: tests/lua/online/session/chat_test.lua makes the same lines
+  // with the same generator and asserts the same digest of Chat.clean's results, so neither side can drift alone.
   {
-    // session/chat_test.lua's TOKENS, in its decimal escapes' order; the NUL one apart, as a C string cannot hold it.
+    // online/session/chat_test.lua's TOKENS, in its decimal escapes' order; the NUL one apart, as a C string cannot
+    // hold it.
     const char *const tokens[] = {" ", "a", "A", "", "\t", "\n", "\x1b", "\x7f", "\302\205", "\302\240", "\303\251",
                                   "\342\202\254", "\360\237\230\200", "\342\200\215", "\342\200\256", "\330\234",
                                   "\357\273\277", "\355\240\200", "\300\257", "\364\220\200\200", "\200", "\277",
@@ -953,7 +954,7 @@ int main() {
                           "sky cycle -1 0", "sky hour 1440 8 0", "sky hour 12 8", "sky cycle 8 0 1", "sky cycle 8.5 0",
                           "Sky off", "sky  off", "sky hold now", "sky cycle 8 x", "sky hour 1 2 3 4", "sky off 1"})
     assert(parse_request(bad).command == Command::none);
-  // The SBO lobby arrival's black lifted (lobby/arrival.lua): loading lift, nothing else.
+  // The SBO lobby arrival's black lifted (online/lobby/arrival.lua): loading lift, nothing else.
   assert(parse_request("loading lift\n").command == Command::loading &&
          parse_request("loading lift\r\n").command == Command::loading);
   for (const char *bad : {"loading", "loading Lift", "loading lift now", "loading  lift", "loadinglift", "loading off"})

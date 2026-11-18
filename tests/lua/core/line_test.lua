@@ -2,7 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- core/line.lua: a chat line cleaned, wrapped and measured, a Steam name for the screen, a feed line in SB's words and
--- an FName's number, one case each from the tests of session/chat.lua, session/join.lua and group/travel.lua.
+-- an FName's number, one case each from the tests of online/session/chat.lua, online/session/join.lua and
+-- online/group/travel.lua.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Line=require('core.line')
 assert(Line.clean('  hi  ')=='hi')

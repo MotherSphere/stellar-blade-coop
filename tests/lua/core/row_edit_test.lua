@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- core/row_edit.lua: a set of accepted values; engine text in a log line as printable ASCII (the Korean label
--- nightop/roxanne_test.lua reads back escaped).
+-- online/modes/nightop/roxanne_test.lua reads back escaped).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local R=require('core.row_edit')
 local set=R.one(1,2)

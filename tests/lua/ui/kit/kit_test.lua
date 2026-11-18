@@ -1408,7 +1408,7 @@ assert(T.shade.A>0 and T.shade.A<1,'See-through')
 k.slow(false)
 assert(not k.whole() and not k.ready(),'Hidden')
 
--- The veil (lobby/arrival.lua's hold under SB's black): the root built and checked as usual, but collapsed; the
+-- The veil (online/lobby/arrival.lua's hold under SB's black): the root built and checked as usual, but collapsed; the
 -- warm-up takes as many lookups a tick as VEIL_BUDGET allows (this fake clock stands still: all in one tick), so the
 -- whole look is in two ticks after the classes; whole() while veiled. veil(false) shows the root at once, veil(true)
 -- collapses a root already up, and a hidden world's root stays collapsed.

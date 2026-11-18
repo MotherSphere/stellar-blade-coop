@@ -1052,13 +1052,13 @@ int main() {
     }
   }
   // The Tendril's: each skill (MeleeAttack +0x80, its own first step +0x100 and range +0xb4) starts a step chain whose
-  // first step plays its run-time Show (ShowPath +0x160: the mod's own package, a dot, the Show cut/enemies/tendril.lua
-  // builds) and turns it toward EVE (SelfMoveAliasArray +0x138), and whose Hit steps hit through a target filter
-  // (HitDetectionType +0x1a5, 1) of their own (OverrideTargetFilterAlias +0x1b4). Each command's skill (+0x18) is its
-  // own; the stance (+0x90) lists the 11 in order. The dead row plays the run-time death Show (+0x10), the
-  // CharacterTable row names its stance, dead row and appearance (+0x3a8, +0x298, +0x420), the Skulling test tree
-  // (+0x3e8), 64960 HP (+0x78), immunity to the states it has no anim set for (+0x220), no link flag (+0x60) and no
-  // name
+  // first step plays its run-time Show (ShowPath +0x160: the mod's own package, a dot, the Show
+  // fight/bosses/tendril.lua builds) and turns it toward EVE (SelfMoveAliasArray +0x138), and whose Hit steps hit
+  // through a target filter (HitDetectionType +0x1a5, 1) of their own (OverrideTargetFilterAlias +0x1b4). Each
+  // command's skill (+0x18) is its own; the stance (+0x90) lists the 11 in order. The dead row plays the run-time death
+  // Show (+0x10), the CharacterTable row names its stance, dead row and appearance (+0x3a8, +0x298, +0x420), the
+  // Skulling test tree (+0x3e8), 64960 HP (+0x78), immunity to the states it has no anim set for (+0x220), no link flag
+  // (+0x60) and no name
   // (+0x508).
   {
     const auto has_t = [](Table t, const char *name) {
@@ -1839,7 +1839,7 @@ int main() {
     a = Answer(), a.state = State::rows, a.added = 4;
     bs.word = pack(a, 1), bs.read = {0, 1, 0};
     assert(status_line(kBolt, bs) == "bolt=rows added=4/4 asks=1 spawns=? char=0/0 skills=1/1 stance=0/0");
-    // Matrix XIII's line (matrix13/world/travel.lua reads it): no row SB's lookups by ID count.
+    // Matrix XIII's line (world/maps/matrix13/level/travel.lua reads it): no row SB's lookups by ID count.
     Status ms;
     assert(status_line(kMxiii, ms) == "mxiii=off");
     a = Answer(), a.state = State::rows, a.added = 75;

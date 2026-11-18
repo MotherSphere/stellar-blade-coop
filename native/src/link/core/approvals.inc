@@ -94,10 +94,10 @@ private:
     notice(text);
     peers_.erase(peers_.begin() + (p - peers_.data()));
   }
-  // The host's questions, one at a time (session/join.lua shows the first pending= line): the first joiner waiting for
-  // an answer, in the order they came, gets her minute from now. Then each one waiting is told the most her answer may
-  // take (a wait line): what is left of the first one's minute, then a minute for each one after the first, hers
-  // included. A change goes to her again.
+  // The host's questions, one at a time (online/session/join.lua shows the first pending= line): the first joiner
+  // waiting for an answer, in the order they came, gets her minute from now. Then each one waiting is told the most her
+  // answer may take (a wait line): what is left of the first one's minute, then a minute for each one after the first,
+  // hers included. A change goes to her again.
   void ask_next() {
     uint64_t end = 0;
     for (auto &p : peers_) {

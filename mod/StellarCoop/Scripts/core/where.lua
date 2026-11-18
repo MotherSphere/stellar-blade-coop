@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Our EVE's world, the title screen and her place, moved out of partner/puppet.lua for every module to read.
+-- Our EVE's world, the title screen and her place, moved out of online/partner/puppet.lua for every module to read.
 local UE=require('UEHelpers')
 local U=require('core.unreal')
 local valid,value_of=U.valid,U.value_of

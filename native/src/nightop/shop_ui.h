@@ -1,26 +1,27 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// The Night Operation shop in SB's own shop screen (coop nightop shop, nightop/shop.lua): the vending machine's screen
-// (ESBUILogicType_Shop, 171) opened on one of the two ShopTable rows the shop rows batch adds (lion/rows.h's kShop:
-// Shop_NightOperation_Coop, or Shop_NightOperation_CoopBolt once the Shock Bolt can fire), with the calls SB's
-// vending machine node makes (SBInteractionNode_ShopUI's execute, FUN_141b8aec0): the UI manager (the client's +0x48)
-// finds an open shop screen (FUN_141fc93f0, by its logic's type) or opens one (FUN_141fc8cc0: the manager, the type, no
-// child list, no parent, 0, an empty FString, 0; the new entry), then the shop logic (the entry's +0x60) takes the shop
-// alias, the instance alias (the same: the row keeps UnionLimitedItem) and the title tag (None, as the cut Night
-// Operation machine WLAN10_VendingMachine leaves it) through FUN_141f49ab0. A close goes through FUN_141fc9340 with the
-// entry's own type (the virtual at +0x38 of its +0x10), as that node closes an open shop. The client, its UI manager,
-// those three calls and the guard are coop devinfo's (game/dev_panels.h): the client in game (flow 2) and playing
-// (phase 0xe), as the client tick checks before it opens a UI of its own; a shop screen already open refuses an open.
+// The Night Operation shop in SB's own shop screen (coop nightop shop, online/modes/nightop/shop.lua): the vending
+// machine's screen (ESBUILogicType_Shop, 171) opened on one of the two ShopTable rows the shop rows batch adds
+// (lion/rows.h's kShop: Shop_NightOperation_Coop, or Shop_NightOperation_CoopBolt once the Shock Bolt can fire), with
+// the calls SB's vending machine node makes (SBInteractionNode_ShopUI's execute, FUN_141b8aec0): the UI manager (the
+// client's +0x48) finds an open shop screen (FUN_141fc93f0, by its logic's type) or opens one (FUN_141fc8cc0: the
+// manager, the type, no child list, no parent, 0, an empty FString, 0; the new entry), then the shop logic (the entry's
+// +0x60) takes the shop alias, the instance alias (the same: the row keeps UnionLimitedItem) and the title tag (None,
+// as the cut Night Operation machine WLAN10_VendingMachine leaves it) through FUN_141f49ab0. A close goes through
+// FUN_141fc9340 with the entry's own type (the virtual at +0x38 of its +0x10), as that node closes an open shop. The
+// client, its UI manager, those three calls and the guard are coop devinfo's (game/dev_panels.h): the client in game
+// (flow 2) and playing (phase 0xe), as the client tick checks before it opens a UI of its own; a shop screen already
+// open refuses an open.
 // The client is read from its global, never through FUN_141a987d0, which allocates it when it is null.
 // The game does the rest: the screen lists the shop's goods (Lua opens it only once every item row they name is in;
 // what the screen does with a missing one is not checked), prices them in Beta Seeds
 // (Money_NightOperation, ItemTable 9011, the same batch), and a purchase is SB's own local job (FSBActorBuyItem): it
 // checks the seeds in the bucket, removes them and adds the item, with no server in net mode 0. The seeds come from
-// nightop/shop.lua, which adds this player's wallet to the bucket before the open and takes what is left back to the
-// wallet after the close; for that the game thread reads the bucket's seed count every kReadMs through the UI's own
-// call (FUN_141c3f910 on FUN_141cc4020 of the player data, the world's +0xe8), inside the rows' gate (net mode 0, no
-// logic task in flight: a purchase is a logic task), and whether a shop screen is open.
+// online/modes/nightop/shop.lua, which adds this player's wallet to the bucket before the open and takes what is left
+// back to the wallet after the close; for that the game thread reads the bucket's seed count every kReadMs through the
+// UI's own call (FUN_141c3f910 on FUN_141cc4020 of the player data, the world's +0xe8), inside the rows' gate (net mode
+// 0, no logic task in flight: a purchase is a logic task), and whether a shop screen is open.
 // Pure, so tests/native/nightop/shop_ui_test.cpp checks the guard, the answer word and the status line;
 // nightop/nightop_game.inc makes the calls on the game thread under its own SEH latch, on the pinned build only.
 #pragma once
@@ -82,7 +83,7 @@ inline Answer unpack(uint64_t w) {
   return a;
 }
 
-// coop-status.txt's nightshop line (nightop/shop.lua reads it):
+// coop-status.txt's nightshop line (online/modes/nightop/shop.lua reads it):
 //   nightshop=off                                             (never asked this game run)
 //   nightshop=<open|closed|?> seeds=<n|?> asks=<a> last=<ask>:<why>
 //   nightshop=fault asks=<a> where=<text, maybe with spaces>

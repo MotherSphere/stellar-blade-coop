@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """No module depends on another (docs/dev/structure.md). A module is a folder of mod/StellarCoop/Scripts with a
-wiring.lua (cut/enemies/ is cut.enemies), with its tests under tests/lua/<its path>/ and its native part in its folder
+wiring.lua (fight/bosses/ is fight.bosses), with its tests under tests/lua/<its path>/ and its native part in its folder
 of native/src. scan(root) lists the violations, each as '<rule> <file>:<line>: <what>':
 R1 main.lua's MODULES names exactly the folders with a wiring.lua; each has tests/lua/<path>/off_test.lua.
 R2 No manifest has a needs key.
@@ -41,7 +41,7 @@ SHARED_LUA = ('main.lua', 'main/', 'core/', 'ui/kit/', 'ui/text.lua', 'ui/text/'
 SHARED_LUA_TESTS = ('tests/lua/main/', 'tests/lua/ui/text_test.lua')
 SHARED_NATIVE = {'game', 'link', 'lion', 'ui', 'glue'}
 NATIVE_TESTS_READING = ('tests/native/game/globals_test.cpp', 'tests/native/link/')
-RUNTIME_SET_BY = {'aside_note': 'partner'}  # A runtime value a module sets (MAP.md section 10).
+RUNTIME_SET_BY = {'aside_note': 'online.partner'}  # A runtime value a module sets (MAP.md section 10).
 HOOKS = re.compile(r'\b(RegisterHook|NotifyOnNewObject)\b')
 FUNCTION = re.compile(r'\bfunction\s*\(')
 GUARD = re.compile(r"function\s*\([^)]*\)\s*if\s+M\.off_modules(?:\.(\w+)|\['([\w.]+)'\])\s+then\s+return\s+end")

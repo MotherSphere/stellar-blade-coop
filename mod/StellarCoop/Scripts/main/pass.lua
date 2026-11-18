@@ -67,10 +67,11 @@ if M.link then
         if typed and alone then
             if not alone_told then alone_told=true; M.tell(function(w) return w.chat.alone end) end
         elseif typed and not M.link.say(typed) then M.chat.fail() end
-        M.fight_asks() -- The menu's shared_enemies and same_place rows, coop fight on once a load (fight/wiring.lua).
-        M.quests_asks() -- The menu's shared_quests row, coop quests on once a load (quest/wiring.lua).
-        M.world_asks() -- The menu's shared_world row, coop world on once a load (world/wiring.lua).
-        M.scenes_asks() -- The menu's shared_story row, coop scenes on or off once a load (story/wiring.lua).
+        M.fight_asks() -- The menu's shared_enemies and same_place rows, coop fight on once a load
+        -- (fight/enemies/wiring.lua).
+        M.quests_asks() -- The menu's shared_quests row, coop quests on once a load (story/quests/wiring.lua).
+        M.world_asks() -- The menu's shared_world row, coop world on once a load (world/objects/wiring.lua).
+        M.scenes_asks() -- The menu's shared_story row, coop scenes on or off once a load (story/together/wiring.lua).
         M.guarded('fight',M.fight_notices)
         M.guarded('pilot',M.pilot_notices)
         M.guarded('quests',M.quest_notices)
@@ -107,7 +108,8 @@ if M.link then
             M.guarded('ghost',M.puppet.photo,own and not M.settings.photo_ghost,own and not M.settings.photo_name_tag)
             -- The solid partner, as the co-op menu last set it; never in an SBO session (design-lobby 12.7).
             M.guarded('ghost',M.puppet.collide,M.settings.collide and not M.sbo.active())
-            -- The host's cutscene rides the photo state as 'c', and the guest asks for its pause (group/group.lua).
+            -- The host's cutscene rides the photo state as 'c', and the guest asks for its pause
+            -- (online/group/group.lua).
             local line=M.link.state(world,M.settings.send_rate,M.group.photo(photo) or photo,M.settings.photo_sync,
                 M.settings.photo_freeze_max,title,M.group.cut(),M.settings.mod_names)
             if line then log('state: '..line) end
@@ -154,7 +156,7 @@ if M.link then
             M.guarded('hud',M.hud.slow)
             M.guarded('saves',M.saves_ui.slow,world==true,title==true)
             -- Matrix XIII's rows at the title with the co-op save files, so a co-op save that names its camp loads
-            -- with them (matrix13/world/travel.lua: once a game run, with the test pak only).
+            -- with them (world/maps/matrix13/level/travel.lua: once a game run, with the test pak only).
             M.guarded('mxiii',M.mxiii.title,title==true and world~=true,(M.link.saves() or {}).saves=='coop')
             -- Lily's signal's rows likewise (test pak only), so a co-op save that holds the quest keeps it.
             M.guarded('lily',M.lily.title,title==true and world~=true,(M.link.saves() or {}).saves=='coop')

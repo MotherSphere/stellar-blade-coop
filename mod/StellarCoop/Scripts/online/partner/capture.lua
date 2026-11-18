@@ -1,0 +1,530 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
+-- EVE's capture: what a ghost of her is made of, published for the native part as coop-components.txt (the grammar of
+-- native/src/game/table.h, with read lines naming her leaders' memory). The native part sends it on as the wire table
+-- and, while the loopback runs or a recording is made, her pose in its layout.
+-- It runs while the ghost is on (coop puppet) and EVE has been in the world 2 s. Per generation (a new EVE, or a new
+-- mesh on one of her parts) it reads each part's mesh path, the part it follows and the part and socket it hangs from
+-- (as indexes), its placement there, whether it is shown, a leader's bone names, and the map she is on. Once a second
+-- it looks again: a new mesh is a new generation; a part hung elsewhere (a blade drawn) or shown or hidden is published
+-- again under the same generation. Placement alone never is: a part placed relative to her main mesh moves with every
+-- animation. With dyes on (dyes=on in coop-settings.txt, or coop look), each part's overridden materials go too (her
+-- hair colour): a dynamic instance as the asset it was made from, so only a dye change is a new generation, with the
+-- values set on it (value lines: the colours CNS sets); and each part's material slots hidden at LOD 0 (hide lines:
+-- CNS's toggles and hidden slots, read from the component, never from CNS). Shape keys are not read: no ghost part can
+-- draw them (puppet.lua). A look reads one part's values, a new generation all of them; a change is published again
+-- under the same generation, one such table per VALUE_WAIT seconds, geometry first and values only while the table has
+-- room. With
+-- effects on, it also names, for the native effect read, the NiagaraComponent class, its Asset field's offset and which
+-- systems of Capture.EFFECTS are in memory: looked up one a tick on each new EVE and as effects turn on, and published
+-- only once all are looked up, so the list never changes under one generation. At each look it also reads which
+-- NiagaraSystems play on her leaders (their direct attach children, as the native read sees them): one outside the list
+-- from the game's FX folders (Capture.fx_path) or among the assets of a mod both players have in one version (assets()
+-- names them) gets the next free index, as an fx line by path; at most MAX_FX of them for one EVE, never renumbered, a
+-- new one published at the next look (once a second). With mod_names=off, none of a mod's. A part on a mod's mesh (outside the
+-- game's own folders, Capture.base_path) is tagged with the outfit it comes from (Capture.label) and sends its
+-- overridden materials, values and hidden slots with dyes off too; any part sends its cloth's collision
+-- asset (her ponytail's OverrideClothPhysicsAsset). Leaders whose bones would make a pose too big for the native part
+-- go, the last first. The component leave_out() names at each look is no part (main.lua: SBO's bike while EVE does not
+-- ride, vehicles/bike/ride.lua's idle_part), so getting on or off the bike is a new generation.
+-- Read-only: nothing here changes EVE or any of her components.
+local UE=require('UEHelpers')
+local U=require('core.unreal')
+local valid,value_of,each,text,find,address,hex,word=U.valid,U.value_of,U.each,U.text,U.find,U.address,U.hex,U.word
+local Capture={}
+local MAX_PARTS,MAX_BONES=16,1024 -- The native part's kMaxParts and kMaxBones: past them it refuses the whole table.
+local MAX_MATERIALS,MAX_SLOTS=16,64 -- Its kMaxMaterials and kMaxSlots too.
+local MAX_VALUES,MAX_SLOT_VALUES,MAX_NUMBER=512,32,1e5 -- Its kMaxValues, kMaxSlotValues and kMaxValue.
+-- Value lines stop here: past the native part's 64 KiB it would refuse the whole table, and the ghost with it.
+local VALUES_ROOM=56000
+-- s between tables only a value changed: a value the game animates must not send the whole table at every look.
+local VALUE_WAIT=5
+-- Its kMaxPose, then what pose_size() counts in every pose (the header, 4 effect slots of 15 bytes, her world
+-- transform) and per bone of a leader: past MAX_POSE it refuses the whole table.
+local MAX_POSE,POSE_BASE,BONE_BYTES=16384,29+4*15+24,18
+-- Its kMaxEffectAssets less the fixed list: the systems named by path for one EVE, at most; and the attach children read
+-- per leader, as its effect read does.
+local MAX_EFFECT_ASSETS,MAX_CHILDREN=64,256
+-- Stellar Blade's Niagara systems a ghost can show: EVE's own seen in combat (the Cascade trails are left out, as they
+-- need her animation's BeginTrails). The wire carries an entry's index (game/codec.h's effect slots), never its path,
+-- so changing this list needs a protocol bump (native/src/game/core.h's kFixedEffects). Indexes past it are the fx
+-- lines' systems, named by path.
+Capture.EFFECTS={}
+for _,p in ipairs({'Skill/Attack/NS_A_ParTrail_SwordDefaultAtk_01','Skill/Attack/NS_A_ParTrail_SwordThrustAtk_01',
+    'Skill/HoldBurst/NS_A_HoldBurst_Signal','Skill/HoldBurst/NS_A_HoldBurst_SwordFX',
+    'WeaponFX/NS_A_Weapon_Signal_Sword','WeaponFX/NS_A_Weapon_Electric_01','WeaponFX/NS_A_WeaponFX_SwordFlame_01',
+    'WeaponFX/NS_A_Weapon_FastDraw_01','WeaponFX/NS_A_Weapon_Fold_02','Common/SkillFX/Wind/NS_PC_SpinTrail_01',
+    'Common/SkillFX/Wind/NS_MeshWind_02','Common/SkillFX/MeshTrails/NS_A_MeshTrail_03',
+    'Common/SkillFX/Kick/NS_PC_KickTrail_02','Skill/ShieldBreakKick/NS_A_KickCharge',
+    'Skill/ShieldBreakKick/NS_A_ChargeKickTrail','Skill/ChargeSlash/NS_ChargeSlash_MeshTrail_02',
+    'Skill/Evade/NS_A_EvadeBody_01','Skill/Evade/NS_A_EvadeParticle_02','Skill/Parry/NS_JustParry_02'}) do
+    Capture.EFFECTS[#Capture.EFFECTS+1]='/Game/Art/FX/Char/PC/'..p..'.'..p:match('[^/]+$')
+end
+-- The game's own character assets (native/src/game/table.h's first family):
+-- /Game/[DLC_<1 or 2 digits>/]Art/Character/<folder>/.../<asset>.<asset>, each name of A-Z a-z 0-9 _, at most 255
+-- bytes. Any other path a table carries is a mod's, which online/partner/puppet.lua loads only when your own CNS packs
+-- declare it.
+function Capture.base_path(path)
+    if type(path)~='string' or #path>255 then return false end
+    local rest=path:match('^/Game/Art/Character/(.*)$') or path:match('^/Game/DLC_%d%d?/Art/Character/(.*)$')
+    local folders,asset,object=(rest or ''):match('^([%w_/]+)/([%w_]+)%.([%w_]+)$')
+    return folders~=nil and asset==object and not ('/'..folders..'/'):find('//',1,true)
+end
+-- A Niagara system of the game's FX folders: /Game/[DLC_<1 or 2 digits>/]Art/FX/.../<asset>.<asset>, by the same rule.
+-- What an fx line may name without a shared mod, and the viewer loads as the game's own.
+function Capture.fx_path(path)
+    if type(path)~='string' or #path>255 then return false end
+    local rest=path:match('^/Game/Art/FX/(.*)$') or path:match('^/Game/DLC_%d%d?/Art/FX/(.*)$')
+    local folders,asset,object=(rest or ''):match('^([%w_/]+)/([%w_]+)%.([%w_]+)$')
+    return folders~=nil and asset==object and not ('/'..folders..'/'):find('//',1,true)
+end
+-- A part's mod line (table.h): for a mesh under /Game outside the game's own folders, the outfit it comes from, as a
+-- word: the UniqueFitID your CNS packs give that path (assets: core/link.lua's mod_assets()), else the path's first
+-- two folders ('OutfitMods/FooSuit'). nil for any other path.
+function Capture.label(path,assets)
+    if type(path)~='string' or Capture.base_path(path) or not path:find('^/Game/') then return nil end
+    local fit=assets and assets[path]
+    if fit and fit~='-' then return word(fit) end
+    return word(path:match('^/Game/([^/]+/[^/]+)/') or path:match('^/Game/([^/]+)/') or path:sub(7))
+end
+-- EVE's skeletal mesh components that have a mesh: her main mesh first, then leaders, then followers; each with the
+-- component it follows and the one it hangs from, by address. skip: the address of a component left out, or nil.
+local function parts_of(eve,skip)
+    local main=valid(eve.Mesh)
+    local list={}
+    each(eve:K2_GetComponentsByClass(find('/Script/Engine.SkeletalMeshComponent')),function(_,component)
+        component=valid(component)
+        local mesh=component and valid(component.SkeletalMesh)
+        if not mesh or skip and address(component)==skip then return end
+        local found,leader=pcall(function() return valid(value_of(component.MasterPoseComponent):Get()) end)
+        local parent=valid(component:GetAttachParent())
+        list[#list+1]={handle=component,mesh=mesh,leader=found and leader and address(leader) or nil,
+            main=main~=nil and address(component)==address(main),parent=parent and address(parent) or nil,order=#list}
+    end)
+    local function rank(c) return c.main and 0 or (c.leader==nil and 1 or 2) end
+    table.sort(list,function(a,b) return rank(a)<rank(b) or rank(a)==rank(b) and a.order<b.order end) -- Stable.
+    return list
+end
+-- %.9g reads back as the same float (std::from_chars on the native side): never nan or inf, never a decimal comma.
+local function real(v)
+    v=tonumber(v) or 0
+    if v~=v or v==math.huge or v==-math.huge then v=0 end
+    return (string.format('%.9g',v):gsub(',','.'))
+end
+local function place_of(transform)
+    transform=value_of(transform)
+    local q,t,s=value_of(transform.Rotation),value_of(transform.Translation),value_of(transform.Scale3D)
+    return table.concat({real(q.X),real(q.Y),real(q.Z),real(q.W),real(t.X),real(t.Y),real(t.Z),real(s.X),real(s.Y),
+        real(s.Z)},' ')
+end
+-- A part's overridden materials, slots rising: {slot=, object=, dynamic=}, and how many were dynamic instances. A
+-- dynamic one (made at run time, so no peer can load it) goes as its parent, up to 4 levels; dynamic lists those
+-- levels, nearest first, for values_of.
+local function materials_of(component)
+    local list,dynamic={},0
+    local mid=find('/Script/Engine.MaterialInstanceDynamic')
+    each(component.OverrideMaterials,function(index,material)
+        material=valid(material)
+        if not material or #list==MAX_MATERIALS or index>MAX_SLOTS then return end
+        local made=material:IsA(mid)
+        local levels={}
+        for _=1,4 do
+            if not (material and material:IsA(mid)) then break end
+            levels[#levels+1]=material
+            material=valid(material.Parent)
+        end
+        if material then
+            list[#list+1]={slot=index-1,object=material,dynamic=levels}
+            dynamic=dynamic+(made and 1 or 0)
+        end
+    end)
+    return list,dynamic
+end
+-- A number a value line may carry: finite, within the native part's bound, and one from_chars reads back. nil else.
+local function value_number(v)
+    v=tonumber(value_of(v))
+    if not v or v~=v or math.abs(v)>MAX_NUMBER then return nil end
+    return math.abs(v)<1e-30 and 0 or v
+end
+-- The values set on dynamic instances, nearest instance first and each name once, as value lines' last words ('v name r
+-- g b a', 's name x', 't name path') up to the slot's cap, and a key of them rounded, so a flicker in the last digits is
+-- not a change. A name that is not a word once its spaces are '~' is left out, as is a texture the viewer's fetch rule
+-- could not load: the game's own folders or a path our CNS packs declare (they name a mod's for both players, or it
+-- stays out), and no mod's path at all when private.
+local function values_of(levels,declared,private)
+    local list,key,seen={},{},{}
+    local function add(kind,name,line,rounded)
+        name=text(name)
+        if #list==MAX_SLOT_VALUES or #name>64 or not name:find('^[ -}]+$') then return end
+        name=name:gsub(' ','~')
+        if seen[kind..name] then return end
+        seen[kind..name]=true
+        list[#list+1]=kind..' '..name..' '..line
+        key[#key+1]=kind..name..rounded
+    end
+    for _,mid in ipairs(levels) do
+        each(mid.VectorParameterValues,function(_,v)
+            local c=value_of(v.ParameterValue)
+            local r,g,b,a=value_number(c.R),value_number(c.G),value_number(c.B),value_number(c.A)
+            if r and g and b and a then
+                add('v',value_of(v.ParameterInfo).Name,table.concat({real(r),real(g),real(b),real(a)},' '),
+                    string.format('%.3g %.3g %.3g %.3g',r,g,b,a))
+            end
+        end)
+        each(mid.ScalarParameterValues,function(_,v)
+            local x=value_number(v.ParameterValue)
+            if x then add('s',value_of(v.ParameterInfo).Name,real(x),string.format('%.3g',x)) end
+        end)
+        each(mid.TextureParameterValues,function(_,v)
+            local texture=valid(v.ParameterValue)
+            local path=texture and texture:GetFullName():match('^%S+ (.+)$')
+            if path and (Capture.base_path(path) or not private and declared[path]) then
+                add('t',value_of(v.ParameterInfo).Name,path,path)
+            end
+        end)
+    end
+    return list,table.concat(key,',')
+end
+-- A part's material slots hidden at LOD 0 (ShowMaterialSection, which CNS's toggles and hidden slots call): {hidden=
+-- (slots rising), key=}.
+local function shapes_of(component)
+    local hidden={}
+    for slot=0,math.min(component:GetNumMaterials(),MAX_SLOTS)-1 do
+        if component:IsMaterialSectionShown(slot,0)==false then hidden[#hidden+1]=slot end
+    end
+    return {hidden=hidden,key=table.concat(hidden,',')}
+end
+local NO_SHAPES={hidden={},key=''}
+-- The native effect read's layout: the NiagaraComponent class and its Asset field's offset, found up the class's supers
+-- (no SDK file covers Niagara). Raises when there is none within the native part's bounds, which would refuse the
+-- whole table.
+local function effect_layout()
+    local class=find('/Script/Niagara.NiagaraComponent')
+    local layout,offset={cls=class},nil
+    while class and not offset do
+        class:ForEachProperty(function(p)
+            if text(p:GetFName())=='Asset' then offset=tonumber(value_of(p:GetOffset_Internal())) end
+        end)
+        class=valid(class:GetSuperStruct())
+    end
+    if not offset then error('NiagaraComponent has no Asset property',0) end
+    if offset<0x100 or offset>0x1000 or offset%8~=0 then
+        error(string.format('the Asset offset 0x%x is outside 0x100 to 0x1000 or unaligned',offset),0)
+    end
+    layout.asset=offset
+    return layout
+end
+-- publish(text) hands the capture to the native part, publish(nil) withdraws it; both return ok, why. looks: what the
+-- ghost shows ({dyes=,effects=true|false}, read at each look; nil: nothing more). assets() gives our CNS packs' assets
+-- and those of the mods both players have (core/link.lua's mod_assets(); none when nil). private (mod_names=off): no path outside the game's own folders goes,
+-- so no mod's folder or outfit name reaches the friend: such a mesh goes as '-' (her ghost of you draws its fallback)
+-- with no mod line, and such a material or cloth asset is left out.
+function Capture.new(publish,looks,assets,private)
+    publish=publish or function() return false,'no native part' end
+    looks=looks or {}
+    assets=assets or function() return {} end
+    local self={}
+    -- Started from the clock, so a Lua reload never reuses a number the native part may still hold.
+    local generation=os.time()*100
+    local published=nil -- What was published: {generation, key (meshes), dress (hanging, shown), names, map}.
+    local seen,since,next_look=nil,nil,0
+    local yaw_delta=0
+    local unread -- Why materials could not be read, until said (then false): once per Lua load.
+    local tints,turn={},0 -- A part's values as last read, by its address; the part this look reads.
+    local fx -- The effect read's layout: nil until effects are first on, false when it could not be found (this load).
+    local systems,scan,effects_were={},nil,false -- Capture.EFFECTS found, by index; the next index the scan looks up.
+    -- The systems named by path for this EVE ({path=, system=}, index #Capture.EFFECTS + n), and their paths; why the
+    -- read of her playing systems failed, until said (then false).
+    local named,named_at,named_unread={},{},nil
+    local fixed={}
+    for k,path in ipairs(Capture.EFFECTS) do fixed[path]=k end
+    local leave_out=nil -- f(her address): the address of a component of hers that is no part, or nil. Asked each look.
+    function self.leave_out(f) leave_out=f end
+    local function withdraw()
+        if published then publish(nil); published=nil end
+    end
+    -- Her actor's yaw minus her main mesh's, as of the last generation: the mailbox carries the mesh's yaw, her right
+    -- (the loopback's offset) comes from the actor's.
+    function self.yaw_delta() return yaw_delta end
+    -- One step of the scan: a system found before that is still itself is kept, then one path is looked up (about 4 ms
+    -- each). Never LoadAsset: a system that is not in memory cannot be playing on her.
+    local function scan_step()
+        while scan do
+            local k=scan
+            scan=k<#Capture.EFFECTS and k+1 or nil
+            local system=valid(systems[k])
+            if not (system and system:GetFullName():match('^%S+ (.+)$')==Capture.EFFECTS[k]) then
+                systems[k]=valid(StaticFindObject(Capture.EFFECTS[k]))
+                return
+            end
+        end
+    end
+    -- The NiagaraSystems playing on her leaders that the list lacks and an fx line may name: each new one gets the next
+    -- index, up to MAX_EFFECT_ASSETS. A system seen again is checked to be still itself.
+    local function name_playing(parts,declared)
+        local class=find('/Script/Niagara.NiagaraComponent')
+        for _,c in ipairs(parts) do
+            if not c.lead then
+                local n=0
+                each(c.handle.AttachChildren,function(_,child)
+                    n=n+1
+                    child=n<=MAX_CHILDREN and valid(child)
+                    if not (child and child:IsA(class) and child:IsActive()) then return end
+                    local system=valid(child.Asset)
+                    local path=system and system:GetFullName():match('^%S+ (.+)$')
+                    if not path or fixed[path] or not path:find('^/Game/[%w_/%-]+%.[%w_%-]+$') then return end
+                    local mod=declared[path]~=nil
+                    if not (Capture.fx_path(path) and not (private and mod) or mod and not private) then return end
+                    local k=named_at[path]
+                    if k then
+                        named[k].system=system
+                    elseif #Capture.EFFECTS+#named<MAX_EFFECT_ASSETS then
+                        named[#named+1]={path=path,system=system}
+                        named_at[path]=#named
+                    end
+                end)
+            end
+        end
+    end
+    local function look(eve,effects)
+        local started=os.clock()
+        local list=parts_of(eve,leave_out and leave_out(address(eve)))
+        if not (list[1] and list[1].main) then return end
+        -- The parts the table can take: a follower of a part left out is left out too. While a pose of them would be
+        -- over MAX_POSE, the last leader goes, with its followers.
+        local parts,by_address,over,dropped
+        local function take()
+            parts,by_address={},{}
+            for _,c in ipairs(list) do
+                local lead=c.leader and by_address[c.leader]
+                local bones=not c.leader and c.handle:GetNumBones() or 0
+                if not (over and over[c]) and #parts<MAX_PARTS
+                    and (c.leader==nil and bones>=1 and bones<=MAX_BONES or lead and lead.lead==nil) then
+                    c.index,c.lead,c.bones=#parts,lead and lead.index or nil,bones
+                    parts[#parts+1]=c
+                    by_address[address(c.handle)]=c
+                end
+            end
+        end
+        take()
+        while true do
+            local size=POSE_BASE
+            for _,c in ipairs(parts) do size=size+1+BONE_BYTES*c.bones end
+            if size<=MAX_POSE then break end
+            local last
+            for k=#parts,2,-1 do if parts[k].lead==nil then last=parts[k]; break end end
+            if not last then return end -- Her main mesh alone is over it: no table.
+            over,dropped=over or {},(dropped or 0)+1
+            over[last]=true
+            take()
+        end
+        if parts[1]~=list[1] then return end
+        local key,dress={},{}
+        local slots,dynamic=0,0
+        local declared=assets()
+        for i,c in ipairs(parts) do
+            local parent=c.parent and by_address[c.parent]
+            c.hung=i==1 or (parent~=nil and parent.index<c.index) -- Else at its offset from her main mesh.
+            c.parent_index=i==1 and '-' or c.hung and parent.index or 0
+            c.socket=c.hung and i>1 and text(c.handle:GetAttachSocketName()) or 'None'
+            c.socket=c.socket=='None' and '-' or word(c.socket)
+            c.shown=c.handle:IsVisible() and c.handle.bHiddenInGame~=true and 1 or 0
+            key[i]=address(c.handle)..':'..address(c.mesh)
+            dress[i]=c.parent_index..' '..c.socket..' '..c.shown
+            c.path=c.mesh:GetFullName():match('^%S+ (.+)$')
+            c.label=not private and Capture.label(c.path,declared) or nil
+            -- Her cloth's collision (her ponytail's): a property this build may lack, read as none.
+            local read_cloth,cloth=pcall(function() return valid(c.handle.OverrideClothPhysicsAsset) end)
+            c.cloth=read_cloth and cloth or nil
+            if c.cloth then key[i]=key[i]..'~'..address(c.cloth) end
+            c.materials={}
+            -- A mod's mesh sends its materials with dyes off too: CNS puts the outfit's own on at run time, and the
+            -- mesh's defaults are not them.
+            if looks.dyes or c.label then -- Addresses only: a path is read when published.
+                local read,list,made=pcall(materials_of,c.handle)
+                if read then c.materials,dynamic=list,dynamic+made
+                elseif unread==nil then unread=tostring(list) end
+                local of={}
+                for k,m in ipairs(c.materials) do of[k]=m.slot..'='..address(m.object) end
+                key[i]=key[i]..'/'..table.concat(of,',')
+                slots=slots+#c.materials
+            end
+        end
+        key,dress=table.concat(key,' ')..(effects and ' fx' or ''),table.concat(dress,' ')
+        local fx_key=''
+        if effects then
+            local read,why=pcall(name_playing,parts,declared)
+            if not read and named_unread==nil then named_unread=tostring(why) end
+            local of={}
+            for k,e in ipairs(named) do
+                e.found=valid(e.system) and e.system:GetFullName():match('^%S+ (.+)$')==e.path and e.system or nil
+                of[k]=e.found and address(e.found) or '-'
+            end
+            fx_key=table.concat(of,',')
+        end
+        local renewed=not published or published.key~=key
+        if renewed then tints={} end
+        turn=turn%#parts+1
+        local tint,value_count,hidden_count={},0,0
+        for i,c in ipairs(parts) do
+            local at=address(c.handle)
+            if i==turn or not tints[at] then
+                local read,got=pcall(function()
+                    local read_slots,keys={},{}
+                    for _,m in ipairs(c.materials) do
+                        if m.dynamic[1] then
+                            local values,value_key=values_of(m.dynamic,declared,private)
+                            read_slots[m.slot]=values
+                            keys[#keys+1]=m.slot..':'..value_key
+                        end
+                    end
+                    return {slots=read_slots,key=table.concat(keys,';')}
+                end)
+                if not read and unread==nil then unread=tostring(got) end
+                tints[at]=read and got or {slots={},key=''}
+                tints[at].shapes=NO_SHAPES
+                if looks.dyes or c.label then -- The materials' rule.
+                    local read_shapes,shapes=pcall(shapes_of,c.handle)
+                    if read_shapes then tints[at].shapes=shapes
+                    elseif unread==nil then unread='hidden slots: '..tostring(shapes) end
+                end
+            end
+            c.values,c.shapes=tints[at].slots,tints[at].shapes
+            tint[i]=tints[at].key..'|'..tints[at].shapes.key
+        end
+        tint=table.concat(tint,' ')
+        if not renewed and published.dress==dress and published.fx==fx_key
+            and (published.tint==tint or started<published.at+VALUE_WAIT) then return end -- Held: tint stays what was sent.
+        local names,map=published and published.names,published and published.map
+        if renewed then
+            generation=generation+1
+            names,map={},U.map_of(eve)
+            for _,c in ipairs(parts) do
+                if not c.lead then
+                    local list_of={}
+                    for b=0,c.bones-1 do list_of[#list_of+1]=word(text(c.handle:GetBoneName(b))) end
+                    names[c.index]=table.concat(list_of,' ')
+                end
+            end
+            yaw_delta=value_of(eve:K2_GetActorRotation()).Yaw-value_of(parts[1].handle:K2_GetComponentRotation()).Yaw
+        end
+        local lines,count={'generation '..generation,'map '..map},0
+        local math_library=find('/Script/Engine.Default__KismetMathLibrary')
+        local function sent(path) return path and (not private or Capture.base_path(path)) and path or nil end
+        for i,c in ipairs(parts) do
+            local path=sent(c.path)
+            lines[#lines+1]=string.format('part %d %s %s %s %d %d %s %s',c.index,c.lead or '-',c.parent_index,c.socket,
+                c.shown,c.bones,word(text(c.handle:GetFName())),path and path:gsub('[^!-~]','_') or '-')
+            if i>1 then
+                local relative=c.hung and c.handle:GetRelativeTransform() or math_library:MakeRelativeTransform(
+                    value_of(c.handle:K2_GetComponentToWorld()),value_of(parts[1].handle:K2_GetComponentToWorld()))
+                lines[#lines+1]=string.format('place %d %s',c.index,place_of(relative))
+            end
+            for _,m in ipairs(c.materials) do
+                local material=sent(m.object:GetFullName():match('^%S+ (.+)$'))
+                material=material and material:gsub('[^!-~]','_')
+                -- A longer one would refuse the whole table: never one of the game's.
+                if material and #material<=255 then
+                    lines[#lines+1]=string.format('material %d %d %s',c.index,m.slot,material)
+                    m.sent=true
+                end
+            end
+            for _,m in ipairs(c.materials) do -- Each in a table of its own: geometry first, below.
+                for _,value in ipairs(m.sent and c.values[m.slot] or {}) do
+                    lines[#lines+1]={string.format('value %d %d %s',c.index,m.slot,value)}
+                end
+            end
+            if c.shapes.hidden[1] then
+                lines[#lines+1]=string.format('hide %d %s',c.index,table.concat(c.shapes.hidden,' '))
+                hidden_count=hidden_count+#c.shapes.hidden
+            end
+            local cloth=c.cloth and sent(c.cloth:GetFullName():match('^%S+ (.+)$'))
+            cloth=cloth and cloth:gsub('[^!-~]','_')
+            if cloth and #cloth<=255 then lines[#lines+1]=string.format('cloth %d %s',c.index,cloth) end
+            if c.label then lines[#lines+1]=string.format('mod %d %s',c.index,c.label) end
+            if not c.lead then
+                lines[#lines+1]=string.format('names %d %s',c.index,names[c.index])
+                lines[#lines+1]=string.format('read %d %s %s %s',c.index,hex(c.handle),hex(c.handle:GetClass()),hex(c.mesh))
+                count=count+c.bones
+            end
+        end
+        local found=0
+        if effects then
+            for n,e in ipairs(named) do lines[#lines+1]=string.format('fx %d %s',#Capture.EFFECTS+n,e.path) end
+            lines[#lines+1]=string.format('effects %s 0x%x',hex(effects.cls),effects.asset)
+            for k=1,#Capture.EFFECTS do
+                if systems[k] then lines[#lines+1]=string.format('effect %d %s',k,hex(systems[k])); found=found+1 end
+            end
+            for n,e in ipairs(named) do
+                if e.found then lines[#lines+1]=string.format('effect %d %s',#Capture.EFFECTS+n,hex(e.found)) end
+            end
+        end
+        local size,left_out=0,0
+        for _,line in ipairs(lines) do size=size+(type(line)=='string' and #line+1 or 0) end
+        local final={}
+        for _,line in ipairs(lines) do
+            if type(line)=='string' then
+                final[#final+1]=line
+            elseif value_count<MAX_VALUES and size+#line[1]+1<=VALUES_ROOM then
+                final[#final+1]=line[1]
+                size,value_count=size+#line[1]+1,value_count+1
+            else
+                left_out=left_out+1
+            end
+        end
+        local ok,why=publish(table.concat(final,'\n')..'\n')
+        if not ok then return false,'Capture not published: '..tostring(why) end
+        local named_new=published and effects and #named>(published.named or 0)
+        published={generation=generation,key=key,dress=dress,tint=tint,names=names,map=map,at=started,fx=fx_key,
+            named=#named}
+        if renewed then
+            local tail=(looks.dyes and string.format('; dyes: %d slots (%d dynamic)',slots,dynamic) or '')
+                ..(value_count>0 and string.format('; values: %d',value_count) or '')
+                ..(hidden_count>0 and string.format('; hidden slots: %d',hidden_count) or '')
+                ..(left_out>0 and string.format('; %d values left out, over the table size',left_out) or '')
+                ..(effects and string.format('; effects: %d of %d found',found,#Capture.EFFECTS) or '')
+                ..(effects and #named>0 and string.format('; %d named by path',#named) or '')
+                ..(dropped and string.format('; %d leaders left out, over the pose size',dropped) or '')
+            return true,string.format('Capture %d: %d parts, %d bone names, map %s, %.1f ms%s',generation,#parts,count,
+                map,(os.clock()-started)*1000,tail)
+        end
+        if named_new then
+            return true,string.format('Capture %d: %d effects named by path, the last %s',generation,#named,
+                named[#named].path)
+        end
+    end
+    -- Every 250 ms from main.lua with on = the ghost is on; returns ok, message when there is something to say.
+    function self.tick(on)
+        local eve=on and valid(UE.GetPlayer())
+        if not (eve and eve:IsA(find('/Script/SB.SBCharacter'))) then -- Off, or no EVE (title screen, a menu pawn).
+            withdraw()
+            seen=nil
+            return
+        end
+        local at=address(eve)
+        if at~=seen then -- A new EVE: the old addresses mean nothing, and the old world's systems may be freed.
+            seen,since,scan,systems,named,named_at=at,os.clock(),1,{},{},{}
+            withdraw()
+        end
+        if looks.effects and fx==nil then
+            local ok,layout=pcall(effect_layout)
+            fx=ok and layout
+            if not ok then return false,'Effects not captured: '..tostring(layout) end
+        end
+        local effects=looks.effects and fx or nil
+        if effects and not effects_were then scan=1 end
+        effects_were=effects~=nil
+        if effects then scan_step() end
+        if os.clock()-since<2 or os.clock()<next_look or effects and scan then return end -- Never half a scan.
+        next_look=os.clock()+1
+        local ok,message=look(eve,effects)
+        if message==nil and unread then ok,message,unread=false,'Capture: materials not read: '..unread,false end
+        if message==nil and named_unread then
+            ok,message,named_unread=false,'Capture: playing effects not read: '..named_unread,false
+        end
+        return ok,message
+    end
+    return self
+end
+return Capture

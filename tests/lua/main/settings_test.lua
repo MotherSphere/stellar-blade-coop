@@ -39,11 +39,12 @@ assert(logged('photo sync: notice, longest pause no limit, ghost in your photos 
 in_world,photo_mode=true,true; loops[2].f()
 assert(photos[#photos]=='1 notice 0' and veils[#veils]==true)
 assert(photo_veils[#photo_veils][1]==true and photo_veils[#photo_veils][2]==false,'The ghost goes, its tag would stay')
-assert(package.loaded['partner.puppet'].collide==false,'collide=off as fixture.lua reads it, to the ghost each 250 ms')
+assert(package.loaded['online.partner.puppet'].collide==false,
+    'collide=off as fixture.lua reads it, to the ghost each 250 ms')
 settings_text='collide=on\n'
 load_main(true)
 loops[2].f()
-assert(package.loaded['partner.puppet'].collide==true,'collide=on')
+assert(package.loaded['online.partner.puppet'].collide==true,'collide=on')
 -- A new list of mods both players have (the status's shared= version): the ghost built again, once a version.
 local rebuilt=#rebuilds
 shared_v=3

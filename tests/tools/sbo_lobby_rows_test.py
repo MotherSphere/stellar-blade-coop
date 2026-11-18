@@ -1,7 +1,7 @@
 # Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 # SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-"""tools/sbo_lobby_rows.py: lobby/sbo_maps.lua and lion/halls_rows.h are what data/sbo-lobby.json gives (--check
+"""tools/sbo_lobby_rows.py: online/lobby/sbo_maps.lua and lion/halls_rows.h are what data/sbo-lobby.json gives (--check
 passes on the tree, and fails once either file is edited by hand), the render is the same twice and loads in Lua with
 the shape sbo.lua reads, the halls batch holds the five worlds, the five zones, then one ZoneEnvSpawnTable row per kept
 seat but the camp ones (171: unique zero-padded names that never end in _<digits>, unique IDs over build 26123051's
@@ -24,7 +24,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 TOOL = ROOT / 'tools/sbo_lobby_rows.py'
-LUA = 'mod/StellarCoop/Scripts/lobby/sbo_maps.lua'
+LUA = 'mod/StellarCoop/Scripts/online/lobby/sbo_maps.lua'
 HEADER = 'native/src/lion/halls_rows.h'
 spec = importlib.util.spec_from_file_location('sbo_lobby_rows', TOOL)
 gen = importlib.util.module_from_spec(spec)

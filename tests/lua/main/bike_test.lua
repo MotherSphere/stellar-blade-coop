@@ -1,20 +1,20 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The bike through main.lua (fixture.lua's fake bike/ride.lua; bike/ride_test tests the ride): the load log line, what
--- the ride is built with (its native asks, coop-bike.txt, the races' driving, the settings, the checks it reads), coop
--- bike and its words, bike_key (F3) and the pad's D-pad Right held 1 s with a refusal on screen, the first tick's
--- restore, its frame before the native tick, its 250 ms pass, coop off (the stop, then the parked bike out of the
--- world), the Options rows; riding() as coop emote, the race, the hall seats, coop fly on and coop glide on read it;
--- its idle_part as the capture's leave_out; the menu's words, a notice, SB's text (game_text) and the travel worlds for
--- the parked bike; its bike line through link.bike; its paid fetch at a Xion camp (a fake bike/fetch.lua: what it is
--- built with, coop gift's FName and pause rules) and the follow's camp_near. Other players' parked bikes (fixture.lua's
--- fake bike/others.lua): what they are built with, their restore at the first tick, their pass after the ride's,
--- their clear at coop off.
+-- The bike through main.lua (fixture.lua's fake vehicles/bike/ride.lua; vehicles/bike/ride_test tests the ride): the
+-- load log line, what the ride is built with (its native asks, coop-bike.txt, the races' driving, the settings, the
+-- checks it reads), coop bike and its words, bike_key (F3) and the pad's D-pad Right held 1 s with a refusal on screen,
+-- the first tick's restore, its frame before the native tick, its 250 ms pass, coop off (the stop, then the parked bike
+-- out of the world), the Options rows; riding() as coop emote, the race, the hall seats, coop fly on and coop glide on
+-- read it; its idle_part as the capture's leave_out; the menu's words, a notice, SB's text (game_text) and the travel
+-- worlds for the parked bike; its bike line through link.bike; its paid fetch at a Xion camp (a fake
+-- vehicles/bike/fetch.lua: what it is built with, coop gift's FName and pause rules) and the follow's camp_near. Other
+-- players' parked bikes (fixture.lua's fake vehicles/bike/others.lua): what they are built with, their restore at the
+-- first tick, their pass after the ride's, their clear at coop off.
 dofile('tests/lua/main/fixture.lua')
--- coop fly's keys: cut/eve/flight.lua for real, with fly_on in place of its active() (on() needs SB's player input).
-local Flight,fly_on=require('cut.eve.flight'),nil
-package.loaded['cut.eve.flight']={new=function(o)
+-- coop fly's keys: eve/flight.lua for real, with fly_on in place of its active() (on() needs SB's player input).
+local Flight,fly_on=require('eve.flight'),nil
+package.loaded['eve.flight']={new=function(o)
     local f=Flight.new(o)
     f.active=function() return fly_on end
     return f
@@ -22,11 +22,11 @@ end}
 local USE='[StellarCoop] STOP: Use: coop bike [status | tune [<name> <value>]]\n'
 settings_text,status_text,in_world='',plain,true
 package.loaded['core.worlds']={Xion='/game/art/bg/worldmap/level_p/e04'}
--- The paid fetch: what bike/fetch.lua's new got (fe.o); the follow answers camp_near with its arguments.
+-- The paid fetch: what vehicles/bike/fetch.lua's new got (fe.o); the follow answers camp_near with its arguments.
 local fe={}
-package.loaded['bike.fetch']={new=function(o) fe.o=o; return {name='fetch'} end}
-local travel_new=package.loaded['group.travel'].new
-package.loaded['group.travel'].new=function(o)
+package.loaded['vehicles.bike.fetch']={new=function(o) fe.o=o; return {name='fetch'} end}
+local travel_new=package.loaded['online.group.travel'].new
+package.loaded['online.group.travel'].new=function(o)
     local t=travel_new(o)
     t.camp_near=function(w,m) return w..' '..m end
     return t
@@ -59,8 +59,8 @@ assert(o.send('none')==true and parked[1]=='none')
 fake_link.bike=function() return false,'cannot write' end
 assert(o.send('none')==false)
 fake_link.bike=nil
--- The paid fetch: bike/fetch.lua with the native asks, the status and [BK] lines, coop gift's own FName and pause
--- rules; the camp from the follow's camp_near.
+-- The paid fetch: vehicles/bike/fetch.lua with the native asks, the status and [BK] lines, coop gift's own FName and
+-- pause rules; the camp from the follow's camp_near.
 assert(o.fetch.name=='fetch' and fe.o.name==gf.o.name and fe.o.paused==gf.o.paused and fe.o.status()==status_text)
 assert(fe.o.ask('items 1 BetaCrystal 77 0') and asked[#asked]=='items 1 BetaCrystal 77 0')
 fe.o.log('x'); assert(last()=='[StellarCoop][BK] x\n',last())
@@ -103,7 +103,7 @@ bk.riding=true
 assert(em.o.riding()==true and sb.o.riding()==true)
 ra.o.dismount('the host started a race')
 assert(bk.stops[1]=='the host started a race')
--- The capture asks the ride at each look which part of hers to leave out: its idle_part (bike/ride_test,
+-- The capture asks the ride at each look which part of hers to leave out: its idle_part (vehicles/bike/ride_test,
 -- capture_test).
 assert(capture_leave_out(0x40)==nil and bk.idle_part_at==0x40)
 bk.idle_part=0x7100
@@ -171,7 +171,7 @@ bk.slow_says=nil
 kit_ready=true; quarter()
 local SCREEN='an SBO menu or the chat is open'
 key('F5'); assert(kit_shown.menu and o.busy()==SCREEN,tostring(o.busy()))
--- F3 with the menu open still reaches the ride, which refuses a mount while busy() says why (bike/ride_test).
+-- F3 with the menu open still reaches the ride, which refuses a mount while busy() says why (vehicles/bike/ride_test).
 key('F3'); assert(kit_shown.menu and bk.toggles[#bk.toggles]=='bike_key' and o.busy()==SCREEN)
 key('F5'); assert(not kit_shown.menu and o.busy()==nil)
 lb.screen='menu'; assert(o.busy()==SCREEN); lb.screen=nil

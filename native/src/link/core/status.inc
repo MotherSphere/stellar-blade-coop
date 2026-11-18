@@ -83,7 +83,8 @@ public:
            " max=" + std::to_string(max_players_) + "\n";
     // Then the players in it as the host counts them, us and the host included: the host and each member past the
     // handshake with it (on a guest, those its let line names, maybe not linked with us yet; 0 before one came).
-    // Past 2, a Night Operation run or a Doro race ends on both sides at once (nightop/run.lua, race/run.lua).
+    // Past 2, a Night Operation run or a Doro race ends on both sides at once (online/modes/nightop/run.lua,
+    // online/modes/race/run.lua).
     if (lobby_ && !match()) {
       const size_t players = host_ ? members().size() + 1 : let_.empty() ? 0 : let_.size() + 1;
       s += "players=" + std::to_string(players) + "\n";
@@ -111,7 +112,8 @@ public:
       s += "member=" + std::to_string(p.id) + " " + std::to_string(p.slot) + " " +
            (p.compatible && p.accepted ? "1" : "0") + " " + (p.lost ? "1" : "0") + " " +
            (muted_.count(p.id) ? "1" : "0") + " " + std::to_string(p.rtt_ms) + " " + p.name + "\n";
-    // Each member's parked bike (bike/others.lua), once she sent one past the handshake: "bike_of=<SteamID> <payload>".
+    // Each member's parked bike (vehicles/bike/others.lua), once she sent one past the handshake: "bike_of=<SteamID>
+    // <payload>".
     for (auto &p : peers_)
       if (p.compatible && p.accepted && !p.bike.empty())
         s += "bike_of=" + std::to_string(p.id) + " " + p.bike + "\n";
@@ -166,9 +168,9 @@ public:
     // read, which the partner card's line does not give).
     if (has_own_ && chatting() && now_ - own_at_ < kMateMs)
       s += "life=" + std::to_string(own_[vital::life]) + " " + std::to_string(own_[vital::hp]) + "\n";
-    // The follow (group/travel.lua), while linked: as the host, our number for the oldest camps? still waiting for
-    // our answer, else for the last one taken (Lua answers each number once); as the guest, the host's answer to our
-    // last one, without its tag.
+    // The follow (online/group/travel.lua), while linked: as the host, our number for the oldest camps? still waiting
+    // for our answer, else for the last one taken (Lua answers each number once); as the guest, the host's answer to
+    // our last one, without its tag.
     const Peer *ask = nullptr, *last = nullptr;
     for (auto &p : peers_)
       if (host_ && p.camps_asked) {
@@ -181,7 +183,8 @@ public:
       s += "camps?=" + std::to_string((ask ? ask : last)->camps_n) + "\n";
     if (linked() && !camps_answer_.empty())
       s += "camps=" + camps_answer_ + "\n";
-    // Her last night line (nightop/run.lua's), while a session holds; gone when she is lost or the session ends.
+    // Her last night line (online/modes/nightop/run.lua's), while a session holds; gone when she is lost or the session
+    // ends.
     if (!night_.empty() && linked())
       s += "night=" + night_ + "\n";
     uint64_t n = notice_count_ - notices_.size();

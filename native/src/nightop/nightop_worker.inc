@@ -8,9 +8,9 @@
 
 namespace coop::pose {
 
-// coop nightop shop (nightop/shop.lua): SB's shop screen opened on Shop_NightOperation_Coop or _CoopBolt, or closed,
-// at the game thread's next frame, or watch (the reads only, which every ask starts); an ask it has not taken yet is
-// replaced. Refused off the pinned build and after the latch's fault; after coop off, only close is taken.
+// coop nightop shop (online/modes/nightop/shop.lua): SB's shop screen opened on Shop_NightOperation_Coop or _CoopBolt,
+// or closed, at the game thread's next frame, or watch (the reads only, which every ask starts); an ask it has not
+// taken yet is replaced. Refused off the pinned build and after the latch's fault; after coop off, only close is taken.
 std::string ask_nightshop(const coop::Request &request) {
   const uint8_t ask = uint8_t(request.shop) % shopui::kAsks;
   const std::string word = std::string("nightshop ") + shopui::kAskWords[ask];
@@ -26,9 +26,9 @@ std::string ask_nightshop(const coop::Request &request) {
   return word + " asked: at the game thread's next frame";
 }
 
-// Roxanne's choices (nightop/roxanne.lua) or Lily's signal choice (matrix13/quest/on_time.lua, request.lily): on or off
-// at the first frame the rows' gate holds. Refused off the pinned build and after that list's latch's fault; after coop
-// off, only off is taken.
+// Roxanne's choices (online/modes/nightop/roxanne.lua) or Lily's signal choice (world/maps/matrix13/quest/on_time.lua,
+// request.lily): on or off at the first frame the rows' gate holds. Refused off the pinned build and after that list's
+// latch's fault; after coop off, only off is taken.
 std::string ask_roxanne(const coop::Request &request) {
   SwapSide &side = request.lily ? lily_side : roxanne_side;
   const std::string word = std::string(side.list.word) + (request.on ? " on" : " off");
@@ -45,9 +45,9 @@ std::string ask_roxanne(const coop::Request &request) {
          std::to_string(lion::kGateTicks) + " frames)";
 }
 
-// The Xion guard's lines (nightop/guard_text.lua): written into his 12 texts at the game thread's next frame; a request
-// it has not taken yet is replaced. Refused off the pinned build, after its fault, after coop off and when the request
-// fails guard_text::parse. The line never holds his lines.
+// The Xion guard's lines (online/modes/nightop/guard_text.lua): written into his 12 texts at the game thread's next
+// frame; a request it has not taken yet is replaced. Refused off the pinned build, after its fault, after coop off and
+// when the request fails guard_text::parse. The line never holds his lines.
 std::string ask_guard(const coop::Request &request) {
   if (!game_pinned || guard_faulted || blocked)
     return std::string("guardtext refused: ") +

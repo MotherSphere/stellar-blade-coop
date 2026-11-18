@@ -4,9 +4,9 @@
 -- The co-op menu (ui/kit/menu.lua, ui/kit/model.lua and ui/text.lua for real on fixture.lua's fake kit): it opens,
 -- moves, runs its rows, changes and applies settings (the shared enemies', shared quests', shared world's, story
 -- together's and same place's rows ask the native part at once), rebinds keys and migrates an old file; and the co-op
--- line, which opens at a camp phone booth (session/booth.lua on a fake FindAllOf) with its hint shown there; Find a
--- session, which opens the Sessions screen and hands it the keys, the pad and the mouse; Host a session, which opens
--- the Create a session screen the same way.
+-- line, which opens at a camp phone booth (online/session/booth.lua on a fake FindAllOf) with its hint shown there;
+-- Find a session, which opens the Sessions screen and hands it the keys, the pad and the mouse; Host a session, which
+-- opens the Create a session screen the same way.
 dofile('tests/lua/main/fixture.lua')
 -- The co-op menu (ui/kit/menu.lua, ui/kit/model.lua and ui/text.lua for real; the kit faked). menu_key opens it in a
 -- world only, with its root up and the game not paused; its keys move, wrap over headers, select and go back; Host
@@ -326,7 +326,8 @@ loops[2].f(); assert(#asked==fight_asks+5,'The next start carries them')
 status_text=plain
 to('Menu size'); key('RIGHT_ARROW'); assert(kit_calls[#kit_calls]=='scale 105' and select(2,focus())=='105 %')
 to('Menu sounds'); key('Q'); assert(kit_calls[#kit_calls]=='sounds false')
--- Day and night: On by default; a change is saved at once and asks nothing (sky/daynight.lua reads it every 250 ms).
+-- Day and night: On by default; a change is saved at once and asks nothing (world/daynight/daynight.lua reads it every
+-- 250 ms).
 to('Day and night'); assert(select(2,focus())=='On')
 local day_asks=#asked
 key('RETURN')
@@ -499,7 +500,7 @@ coop('keys','reset')
 assert(last()=='[StellarCoop] STOP: coop keys needs the co-op UI, which needs the Steam link\n',last())
 settings_text,in_world,kit_ready='',false,false
 
--- The co-op line (session/booth.lua, ui/kit/menu.lua, ui/kit/model.lua and ui/text.lua for real on the fake kit;
+-- The co-op line (online/session/booth.lua, ui/kit/menu.lua, ui/kit/model.lua and ui/text.lua for real on the fake kit;
 -- booth_test and ui_model_test test them alone). Within 3 m of a camp phone booth the menu key opens the line: its
 -- header, the session rows of the state, Co-op menu and Hang up, and a sentence by state; 3.1 m away, the main page as
 -- before. Co-op menu turns to the main page; Hang up and Esc close; Leave still asks twice; Host and Invite run the
@@ -644,10 +645,10 @@ settings_text,in_world,kit_ready='',false,false
     bt.world,link_mode,in_world,kit_ready,settings_text={},'none',false,false,''
 end)()
 -- Find a session (the main page and the co-op line): the menu closes and the Sessions screen opens
--- (session/ui/sessions.lua, faked; sessions_test tests it). While it is open it takes the keys, the pad and the mouse:
--- the arrows, W, S, Enter, Space and Esc; Q and E (A and E on AZERTY) its tabs; F and Y its Refresh; LB and RB; a left
--- click; a right one as Back. The pad's bike does nothing there. The menu key and View held close it. Each 250 ms it
--- gets the HUD's shown; coop ui reset closes it.
+-- (online/session/ui/sessions.lua, faked; sessions_test tests it). While it is open it takes the keys, the pad and the
+-- mouse: the arrows, W, S, Enter, Space and Esc; Q and E (A and E on AZERTY) its tabs; F and Y its Refresh; LB and RB;
+-- a left click; a right one as Back. The pad's bike does nothing there. The menu key and View held close it. Each 250
+-- ms it gets the HUD's shown; coop ui reset closes it.
 ;(function()
     local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end
     local function navs(n) return table.concat(ss.calls,' ',n+1) end
@@ -707,10 +708,11 @@ end)()
     in_world,kit_ready=false,false
 end)()
 -- Host a session (the main page and the co-op line): the menu closes and the Create a session screen opens
--- (session/ui/create.lua, faked; create_test tests it) through coop host alone. While it is open it takes the keys, the
--- pad and the mouse: the arrows, W, S, A, D, Q, Enter, Space and Esc; E and F do nothing there. The menu key and View
--- held close it; coop ui reset closes it. Its view gives the settings in effect and whether coop-settings.txt reads;
--- its act writes a change as the Options page does and hosts Start's word. host_key hosts at once, never through it.
+-- (online/session/ui/create.lua, faked; create_test tests it) through coop host alone. While it is open it takes the
+-- keys, the pad and the mouse: the arrows, W, S, A, D, Q, Enter, Space and Esc; E and F do nothing there. The menu key
+-- and View held close it; coop ui reset closes it. Its view gives the settings in effect and whether coop-settings.txt
+-- reads; its act writes a change as the Options page does and hosts Start's word. host_key hosts at once, never through
+-- it.
 ;(function()
     local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end
     local function navs(n) return table.concat(cr.calls,' ',n+1) end

@@ -13,7 +13,7 @@ StellarCoopStory.txt, so two saves, or a save and an in-game dump, can be compar
   python3 tools/story_lines.py compare SAVE FILE       each digest, the unmatched lines; exit 0 if all match, else 1
   python3 tools/story_lines.py selftest
 
-mod/StellarCoop/Scripts/story/snapshot.lua builds the same lines from the game's memory; both are held to
+mod/StellarCoop/Scripts/story/together/snapshot.lua builds the same lines from the game's memory; both are held to
 tests/tools/story_case.txt.
 """
 import hashlib

@@ -20,14 +20,15 @@
 //   SBC<protocol> camps? <id> (the guest's follow: the camps nearest the host, please), SBC<protocol> camps <id>
 //   <world> <alias>:<m> ... (the host's answer: his world and up to 8 camps by distance) or SBC<protocol> camps <id>
 //   none <why>.
-//   SBC<protocol> night <payload> (Night Operation's run, nightop/run.lua: "h ..." from the host, "g ..." from the
-//   guest, night_ok()).
+//   SBC<protocol> night <payload> (Night Operation's run, online/modes/nightop/run.lua: "h ..." from the host, "g ..."
+//   from the guest, night_ok()).
 //   SBC<protocol> mark <n> [<text>] (coop mark: a numbered line in both players' logs).
-//   SBC<protocol> race <text> (a Doro race line, race/model.lua's, printable ASCII; the link reads no further).
-//   SBC<protocol> gift <payload> (coop gift, cut/menus/mailbox.lua: "s <id> <alias> <count>" a gift sent, "a <id>" kept
+//   SBC<protocol> race <text> (a Doro race line, online/modes/race/model.lua's, printable ASCII; the link reads no
+//   further).
+//   SBC<protocol> gift <payload> (coop gift, tools/mailbox.lua: "s <id> <alias> <count>" a gift sent, "a <id>" kept
 //   in the friend's mailbox, "n <id> <why>" refused; gift_ok()).
 //   SBC<protocol> bike park <map> <x> <y> <z> <pitch> <yaw> <roll> or SBC<protocol> bike none (her parked bike,
-//   bike/ride.lua: its map, whole centimetres, hundredths of a degree; bike_ok()).
+//   vehicles/bike/ride.lua: its map, whole centimetres, hundredths of a degree; bike_ok()).
 //   From a match lobby's owner only (link/core.h): SBC<protocol> start <mode> <map> <seed> <id>,<id>,... (a round
 //   starts: its mode, map, 32-bit seed and players, host first), SBC<protocol> count <1-10|stop> (the countdown's
 //   seconds left, or its stop) and SBC<protocol> end (the round ended).
@@ -154,7 +155,7 @@ constexpr char kListKey[] = "sbo_list", kHostKey[] = "sbo_host", kOwnerKey[] = "
 constexpr char kPlayersKey[] = "sbo_players", kZoneKey[] = "sbo_zone", kCampKey[] = "sbo_camp";
 constexpr char kPingKey[] = "sbo_ping", kRulesKey[] = "sbo_rules", kAskKey[] = "sbo_ask";
 // A map segment takes up to 32 bytes: the Great Desert's, e05_greatdesert_p, is already 17. A camp alias takes 24: the
-// longest of group/travel.lua's table, ATL_Camp_Maelstrom, is 18.
+// longest of online/group/travel.lua's table, ATL_Camp_Maelstrom, is 18.
 constexpr size_t kRowName = 48, kMaxPlace = 32, kMaxCamp = 24, kMaxRules = 32, kMaxPingText = 1023;
 
 // Untrusted text made safe for one line of our status file: no control bytes, bounded, never cut inside a UTF-8
@@ -189,10 +190,10 @@ constexpr bool chat_control(uint32_t c) {
          (c >= 0x2028 && c <= 0x202E) || (c >= 0x2060 && c <= 0x206F) || c == 0xFEFF;
 }
 // The same cleaning as core/line.lua's clean, byte for byte (tests/native/link/protocol_test.cpp and
-// tests/lua/session/chat_test.lua check one digest): well-formed UTF-8 only, a byte that starts no valid character
-// dropped alone (overlongs, surrogates and anything past U+10FFFF included); chat_control() characters dropped (a ZWJ
-// too, so a joined emoji shows as its parts); ASCII spaces trimmed; at most max bytes, never cut inside a character,
-// then trimmed again. Empty when nothing is left.
+// tests/lua/online/session/chat_test.lua check one digest): well-formed UTF-8 only, a byte that starts no valid
+// character dropped alone (overlongs, surrogates and anything past U+10FFFF included); chat_control() characters
+// dropped (a ZWJ too, so a joined emoji shows as its parts); ASCII spaces trimmed; at most max bytes, never cut inside
+// a character, then trimmed again. Empty when nothing is left.
 inline std::string chat_clean(std::string_view text, size_t max = kMaxChat) {
   std::string out;
   for (size_t at = 0; at < text.size();) {
@@ -249,9 +250,10 @@ inline bool plausible_vitals(const Vitals &v) {
 }
 // Her vitals count this long after her last line (link/core.h).
 constexpr uint64_t kMateMs = 3000;
-// A player's life as her vitals say it, by the partner card's rule (partner/hud.lua): down in life state 3-5 or at 0 HP
-// of a MaxHP above 0, alive in 1 or 6, unknown in any other state. link/core.h's mate_life() says unknown too without
-// her vitals or kMateMs after her last line; the shared fight's job hears it as a local message (fight/engine.h).
+// A player's life as her vitals say it, by the partner card's rule (online/partner/hud.lua): down in life state 3-5 or
+// at 0 HP of a MaxHP above 0, alive in 1 or 6, unknown in any other state. link/core.h's mate_life() says unknown too
+// without her vitals or kMateMs after her last line; the shared fight's job hears it as a local message
+// (fight/engine.h).
 enum class Life : uint8_t { unknown, alive, down };
 inline Life life_of(const Vitals &v) {
   const uint32_t state = v[vital::life];
@@ -264,10 +266,10 @@ enum class Kind {
   invalid, hello, accept, reject, ping, pong, photo, say, vitals, pak, paks, dlc, dlcs, camps_ask, camps, night, mark,
   race, gift, bike, start, count, end, let, wait, cycle
 };
-// The follow's camps lines (group/travel.lua): the guest asks with an id from 0 to kMaxCampId, the host answers that
-// id with his world and up to kMaxCamps ZoneCampTable aliases, nearest his EVE first, each with its distance in whole
-// metres (0 to kMaxCampM), or with none and why (kCampsWhy). World and aliases: letters, digits and '_', kMaxAlias at
-// most.
+// The follow's camps lines (online/group/travel.lua): the guest asks with an id from 0 to kMaxCampId, the host answers
+// that id with his world and up to kMaxCamps ZoneCampTable aliases, nearest his EVE first, each with its distance in
+// whole metres (0 to kMaxCampM), or with none and why (kCampsWhy). World and aliases: letters, digits and '_',
+// kMaxAlias at most.
 constexpr size_t kMaxCamps = 8, kMaxAlias = 64;
 constexpr uint64_t kMaxCampId = 65535, kMaxCampM = 65535;
 struct Camp {
@@ -408,9 +410,10 @@ inline std::string camps_line(const Message &m) {
          : m.text == "none"        ? camps_none_line(m.a, m.why)
                                    : camps_line(m.a, m.text, m.camps);
 }
-// Night Operation's line (nightop/run.lua), reliable: the whole state of a run, "h ..." from the lobby owner, "g ..."
-// from the guest. Lua checks every field; here only 1 to kMaxNight bytes of 0-9, a-z, '/', '_', ':' and '-' with single
-// spaces between words, the first word "h" or "g". A night line carries no other byte, so it cannot break the status.
+// Night Operation's line (online/modes/nightop/run.lua), reliable: the whole state of a run, "h ..." from the lobby
+// owner, "g ..." from the guest. Lua checks every field; here only 1 to kMaxNight bytes of 0-9, a-z, '/', '_', ':' and
+// '-' with single spaces between words, the first word "h" or "g". A night line carries no other byte, so it cannot
+// break the status.
 constexpr size_t kMaxNight = 300;
 inline bool night_ok(std::string_view payload) {
   if (payload.size() < 3 || payload.size() > kMaxNight || (payload[0] != 'h' && payload[0] != 'g') ||
@@ -545,7 +548,7 @@ inline bool split(const std::string &text, std::string *fields, size_t count, st
   return true;
 }
 
-// coop gift's line (cut/menus/mailbox.lua), reliable: "s <id> <alias> <count>" (a gift sent: its id, 1 to 20 digits and
+// coop gift's line (tools/mailbox.lua), reliable: "s <id> <alias> <count>" (a gift sent: its id, 1 to 20 digits and
 // not 0, an item alias as alias_word() takes it, 1 to kMaxGiftCount items), "a <id>" (the gift is in the friend's
 // mailbox) or "n <id> <why>" (refused: why in 1 to 16 letters a-z). Lua checks the item against its own list; the link
 // reads no further.
@@ -579,9 +582,9 @@ inline bool map_word(std::string_view map) {
       return false;
   return true;
 }
-// The bike line (bike/ride.lua), reliable: "none" (no parked bike), or "park <map> <x> <y> <z> <pitch> <yaw> <roll>":
-// the map as map_word() takes it, the place in whole centimetres within kMaxBikeAt, the angles in hundredths of a
-// degree within kMaxBikeAngle, each an optional '-' then digits.
+// The bike line (vehicles/bike/ride.lua), reliable: "none" (no parked bike), or "park <map> <x> <y> <z> <pitch> <yaw>
+// <roll>": the map as map_word() takes it, the place in whole centimetres within kMaxBikeAt, the angles in hundredths
+// of a degree within kMaxBikeAngle, each an optional '-' then digits.
 constexpr int64_t kMaxBikeAt = 10000000, kMaxBikeAngle = 36000;
 inline bool bike_ok(const std::string &payload) {
   if (payload == "none")
@@ -862,9 +865,9 @@ inline std::string masked(std::string_view text) {
 // (game/dev_panels.h, coop devinfo) "devinfo quest|player|off"; for SB's HUD under the SBO lobby's screens (main.lua,
 // lobby/hud_game.inc) "hud hide on|off"; for the pause menu's Online tab (ui/kit/pause_tab.lua, ui/pause_tab.h)
 // "pausetab on|off"; for the game's tutorial and record popups during online play (session/options.h) "popups on|off";
-// for the day/night cycle (sky/sky.h, sky/daynight.lua) "sky off|hold",
+// for the day/night cycle (sky/sky.h, world/daynight/daynight.lua) "sky off|hold",
 // "sky cycle <hz> <heading>" and "sky hour <minute> <hz> <heading>" (whole numbers: hz 0 to 30, heading 0 to 359,
-// minute 0 to 1439); for the SBO lobby arrival's black (lobby/arrival.lua,
+// minute 0 to 1439); for the SBO lobby arrival's black (online/lobby/arrival.lua,
 // lobby/loading_game.inc) "loading lift"; for the co-op saves (game/slot.h,
 // game/twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make
 // them, then switch to them), "saves main" (switch back to the player's own saves) and "saves refresh <0-4>" (that
@@ -875,45 +878,45 @@ inline std::string masked(std::string_view text) {
 // shared world (game/world/sync.h, world/world_worker.inc) "world on" and "world off" (shared_world, until the next
 // ask) and "world status" (its line in the log); for story together (game/story/sync.h, story/story_worker.inc) "scenes
 // on" and "scenes off" (shared_story, until the next ask) and "scenes status" (its line in the log); for the follow
-// (group/travel.lua) "camps? <id>" and "camps <id> <world> <alias>:<m> ..." or "camps <id> none <why>" (the camps
-// lines, relayed to the friend by link/core.h), and "travel <alias> <FName index> <FName number>" (the call on the game
-// thread, glue/tick.cpp: an index above 0, both within 32 bits); "mark" or "mark <text>" (a numbered line in both
-// players' logs, the text chat_clean() to kMaxMark bytes, maybe empty); for coop gift (cut/menus/mailbox.lua) "gift
+// (online/group/travel.lua) "camps? <id>" and "camps <id> <world> <alias>:<m> ..." or "camps <id> none <why>" (the
+// camps lines, relayed to the friend by link/core.h), and "travel <alias> <FName index> <FName number>" (the call on
+// the game thread, glue/tick.cpp: an index above 0, both within 32 bits); "mark" or "mark <text>" (a numbered line in
+// both players' logs, the text chat_clean() to kMaxMark bytes, maybe empty); for coop gift (tools/mailbox.lua) "gift
 // <payload>" (a gift line for the friend, gift_ok()) and "items <ask> <alias> <FName index> <FName number>" (how many
 // of that item our EVE carries, read by the worker, cut/items.h: ask 1 to 65535, answered in the engine line's items=;
-// index above 0, both within 32 bits); and for coop lion (cut/enemies/lion.lua) "lion rows
-// <Table>=0x<address> ...", for coop gardener fight (cut/enemies/gardener.lua) "gardener rows <Table>=0x<address> ...",
-// for coop tendril fight (cut/enemies/tendril.lua) "tendril rows <Table>=0x<address> ...", for the shop's Shock Bolt
-// (through cut/enemies/lion.lua) "bolt rows <Table>=0x<address> ...", for coop mxiii (matrix13/world/travel.lua) "mxiii
-// rows <Table>=0x<address> ..." and for the Night Operation shop's screen (nightop/shop.lua, through
-// cut/enemies/lion.lua) "shop rows <Table>=0x<address> ..." and for Lily's signal (matrix13/quest/on_time.lua) "signal
-// rows <Table>=0x<address> ..." and for Matrix XIII's other batches (matrix13/world/travel.lua) "mxspawn rows ...",
-// "mxenv rows ...", "mxupper rows ...", "mxmiddle rows ...", "mxlower rows ...", "mxnames rows ...", "mxlily rows ..."
-// and "mxrecords rows ..." and for the hall lobbies (lobby/halls_rows.lua) "halls rows ..."
-// (that batch of lion/rows.h for SB's AddRow, lion/lion_game.inc: one word for each table the batch writes, 1 to
-// 39 of the kLionTables, in any order, each once, its address in 1 to 16 hex digits and plausible; a table left out
-// stays 0, and a batch that writes it refuses it as no UDataTable; Request::batch says which). Lua finds the tables
-// by their fixed paths, so no console argument reaches an address, and the native part trusts none before it checked
-// the table's vtable and row size (lion/rows.h). For coop emote (cut/eve/emote.lua) "anim play <id> <path> once|loop"
-// (one of EVE's clips on her through SB's custom animation call, cut/anim_game.inc: an id from 1 to 2^32-1, a
-// path game/anim.h's path_ok takes) and "anim stop" (ours, while it plays). For the bike (bike/ride.lua): "anim play
-// <id> <path> ride" (a loop with her foot IK off) and "bike load <path>" (the bike's mesh and that riding clip
-// preloaded, game/bike.h's clip_ok), "bike free" (the preload released), "bike gate on" and "bike gate off" (SB's
-// actions off while she rides, then back); for coop shortcut "shortcut list" (the cut
-// Load Shortcut menu's saves, read through the game's file manager on the game thread and named in the log,
-// game/shortcut.h) and "shortcut load <map> <1-4>" (one of them cleaned and written as co-op slot 5's copy,
-// game/shortcut_load.h; map one of kShortcutMaps; Lua sends it only with shortcut_load=on, typed twice). For the
-// Night Operation shop in SB's own shop screen (nightop/shop.lua, nightop/shop_ui.h)
+// index above 0, both within 32 bits); and for coop lion (fight/bosses/lion.lua) "lion rows
+// <Table>=0x<address> ...", for coop gardener fight (fight/bosses/gardener.lua) "gardener rows <Table>=0x<address>
+// ...", for coop tendril fight (fight/bosses/tendril.lua) "tendril rows <Table>=0x<address> ...", for the shop's Shock
+// Bolt (through fight/bosses/lion.lua) "bolt rows <Table>=0x<address> ...", for coop mxiii
+// (world/maps/matrix13/level/travel.lua) "mxiii rows <Table>=0x<address> ..." and for the Night Operation shop's screen
+// (online/modes/nightop/shop.lua, through fight/bosses/lion.lua) "shop rows <Table>=0x<address> ..." and for Lily's
+// signal (world/maps/matrix13/quest/on_time.lua) "signal rows <Table>=0x<address> ..." and for Matrix XIII's other
+// batches (world/maps/matrix13/level/travel.lua) "mxspawn rows ...", "mxenv rows ...", "mxupper rows ...", "mxmiddle
+// rows ...", "mxlower rows ...", "mxnames rows ...", "mxlily rows ..." and "mxrecords rows ..." and for the hall
+// lobbies (online/lobby/halls_rows.lua) "halls rows ..." (that batch of lion/rows.h for SB's AddRow,
+// lion/lion_game.inc: one word for each table the batch writes, 1 to 39 of the kLionTables, in any order, each once,
+// its address in 1 to 16 hex digits and plausible; a table left out stays 0, and a batch that writes it refuses it as
+// no UDataTable; Request::batch says which). Lua finds the tables by their fixed paths, so no console argument reaches
+// an address, and the native part trusts none before it checked the table's vtable and row size (lion/rows.h). For coop
+// emote (eve/emote.lua) "anim play <id> <path> once|loop" (one of EVE's clips on her through SB's custom animation
+// call, cut/anim_game.inc: an id from 1 to 2^32-1, a path game/anim.h's path_ok takes) and "anim stop" (ours, while it
+// plays). For the bike (vehicles/bike/ride.lua): "anim play <id> <path> ride" (a loop with her foot IK off) and "bike
+// load <path>" (the bike's mesh and that riding clip preloaded, game/bike.h's clip_ok), "bike free" (the preload
+// released), "bike gate on" and "bike gate off" (SB's actions off while she rides, then back); for coop shortcut
+// "shortcut list" (the cut Load Shortcut menu's saves, read through the game's file manager on the game thread and
+// named in the log, game/shortcut.h) and "shortcut load <map> <1-4>" (one of them cleaned and written as co-op slot 5's
+// copy, game/shortcut_load.h; map one of kShortcutMaps; Lua sends it only with shortcut_load=on, typed twice). For the
+// Night Operation shop in SB's own shop screen (online/modes/nightop/shop.lua, nightop/shop_ui.h)
 // "nightshop open" (Shop_NightOperation_Coop), "nightshop open bolt" (Shop_NightOperation_CoopBolt), "nightshop close"
-// and "nightshop watch" (the reads only); for Roxanne's Night Operation choices (nightop/roxanne.lua,
-// nightop/roxanne.h) "roxanne on" and "roxanne off"; for Lily's signal choice (matrix13/quest/on_time.lua, the same
-// header) "lily on" and "lily off"; for the mod's own quests (matrix13/quest/on_time.lua, quest/own.h) "signal watch"
-// (the reads only, from then on), "signal acquire" (acquire On Time), "signal complete" (its M01 task's Complete),
-// "signal prologue" (acquire the prologue), "signal talked" (the prologue's task's Complete), "signal zone4" and
-// "signal tell" (On Time's M05 and M06 tasks' Complete) and "signal next" (a test word: the task of On Time's active
-// group); for the Xion guard's lines (nightop/guard_text.lua, nightop/guard_text.h) "guardtext <culture>" and his seven
-// lines, each after a tab, checked in the glue and never logged. No console argument reaches any of them: the words are
-// fixed, and so are each word's quest ID and group.
+// and "nightshop watch" (the reads only); for Roxanne's Night Operation choices (online/modes/nightop/roxanne.lua,
+// nightop/roxanne.h) "roxanne on" and "roxanne off"; for Lily's signal choice (world/maps/matrix13/quest/on_time.lua,
+// the same header) "lily on" and "lily off"; for the mod's own quests (world/maps/matrix13/quest/on_time.lua,
+// quest/own.h) "signal watch" (the reads only, from then on), "signal acquire" (acquire On Time), "signal complete"
+// (its M01 task's Complete), "signal prologue" (acquire the prologue), "signal talked" (the prologue's task's
+// Complete), "signal zone4" and "signal tell" (On Time's M05 and M06 tasks' Complete) and "signal next" (a test word:
+// the task of On Time's active group); for the Xion guard's lines (online/modes/nightop/guard_text.lua,
+// nightop/guard_text.h) "guardtext <culture>" and his seven lines, each after a tab, checked in the glue and never
+// logged. No console argument reaches any of them: the words are fixed, and so are each word's quest ID and group.
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,

@@ -20,33 +20,36 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS = 'mod/StellarCoop/Scripts'
 NATIVE = ('native/src', 'tests/wine')
 # The one guarded CreateSBZoneEvent per file that has one, and what each file may hold of the rationed calls and names.
-SITES = {'cut/scenes/scene.lua', 'matrix13/world/boss.lua', 'nightop/probe.lua', 'nightop/recruiter.lua'}
-ADD_ROWS = {'nightop/probe.lua': 1}
+SITES = {'story/scenes/scene.lua', 'world/maps/matrix13/level/boss.lua', 'online/modes/nightop/probe.lua',
+         'online/modes/nightop/recruiter.lua'}
+ADD_ROWS = {'online/modes/nightop/probe.lua': 1}
 # Raw counts, comments and strings included, so a call no pattern below sees (obj['AddRow'](obj,...)) still shows. A
 # new mention, even in a log line, is a deliberate edit here. ServerRequest_*: coop no's ChangeRule and CreateActor,
 # coop nightop's one CreateActor (its spawn choke point), the shop's one ItemBucketItemAdd (its grant choke point, in
 # core/items.lua) and the Beta Seeds' ItemBucketItemAdd and ItemBucketItemRemove (the shop screen's one seed choke
 # point), and the friend's revive's ActorRespawn and ActorRevival on our own EVE (one call each, their log lines, the
-# probe's answer and the header). coop lion, coop gardener fight and coop tendril fight: cut/enemies/enemy.lua's one
+# probe's answer and the header). coop lion, coop gardener fight and coop tendril fight: fight/bosses/enemy.lua's one
 # CreateActor (their spawn choke point) and its header, which also names SB's AddRow (the native part calls it) and
 # UE4SS's (never called); core/enemy.lua, which the row batches keep, holds the same lines.
-# cut/enemies/lion.lua's header names SB's AddRow. coop scene: its guarded call (kind 6, its two
+# fight/bosses/lion.lua's header names SB's AddRow. coop scene: its guarded call (kind 6, its two
 # theater rows only), its header, its three log lines and one refusal. coop mxiii boss: its guarded call (kind 10, the
 # Lion's three lever rows only, on the fallback Lion's death) and its header. coop chainspin: its header. The one Cheat
 # request (SBApplyEffectMe on our EVE, its choke point, in core/effect.lua) applies the ChainSpin's effect or one of
-# coop devmenu's fixed list of 23 in cut/menus/devmenu.lua, which only reaches it through ChainSpin.apply. coop gift:
+# coop devmenu's fixed list of 23 in tools/devmenu.lua, which only reaches it through ChainSpin.apply. coop gift:
 # its one ItemBucketItemRemove (a send's choke point; its grants go through core/items.lua's) and its header. The
 # bike's paid fetch: its one ItemBucketItemRemove (BetaCrystal, its price only).
 # The Join row: coop recruiter's constant only, which it reads and neutralizes, never fires.
-RATIONED = {'MultiplayTest_ZoneE_059': {'nightop/recruiter.lua': 1},
-            'CreateSBZoneEvent': {'nightop/probe.lua': 3, 'nightop/recruiter.lua': 4, 'cut/scenes/scene.lua': 6,
-                                  'matrix13/world/boss.lua': 2},
-            'AddRow': {'nightop/probe.lua': 3, 'core/enemy.lua': 2, 'cut/enemies/enemy.lua': 2,
-                       'cut/enemies/lion.lua': 1},
-            'ServerRequest_': {'nightop/probe.lua': 10, 'nightop/run.lua': 1, 'nightop/shop.lua': 2,
-                               'core/items.lua': 1, 'group/group.lua': 7, 'core/enemy.lua': 2,
-                               'cut/enemies/enemy.lua': 2, 'cut/eve/chainspin.lua': 1, 'core/effect.lua': 1,
-                               'cut/menus/mailbox.lua': 2, 'bike/fetch.lua': 1}}
+RATIONED = {'MultiplayTest_ZoneE_059': {'online/modes/nightop/recruiter.lua': 1},
+            'CreateSBZoneEvent': {'online/modes/nightop/probe.lua': 3, 'online/modes/nightop/recruiter.lua': 4,
+                                  'story/scenes/scene.lua': 6,
+                                  'world/maps/matrix13/level/boss.lua': 2},
+            'AddRow': {'online/modes/nightop/probe.lua': 3, 'core/enemy.lua': 2, 'fight/bosses/enemy.lua': 2,
+                       'fight/bosses/lion.lua': 1},
+            'ServerRequest_': {'online/modes/nightop/probe.lua': 10, 'online/modes/nightop/run.lua': 1,
+                               'online/modes/nightop/shop.lua': 2,
+                               'core/items.lua': 1, 'online/group/group.lua': 7, 'core/enemy.lua': 2,
+                               'fight/bosses/enemy.lua': 2, 'eve/chainspin.lua': 1, 'core/effect.lua': 1,
+                               'tools/mailbox.lua': 2, 'vehicles/bike/fetch.lua': 1}}
 
 # Calls are matched with every string literal turned into '', so log prose such as 'heal: CreateSBZoneEvent(2, ...)' is
 # not one. Lua allows space after the ':' and a string or table argument without '(': obj: f(x), obj:f'x', obj:f{}.
@@ -58,7 +61,7 @@ FIRE = "U.find('/Script/SB.Default__SBBlueprintLibrary'):CreateSBZoneEvent(kind,
 # Zone events run directly (bypassing CreateSBZoneEvent's guard), table wipes, the console, anything matchmaking.
 CALL = re.compile(r'[:.]\s*(RunZoneEvent|NotifyClientRunEvent|EnterZone|ServerRequest_EnterZone|RemoveRow|EmptyTable|'
                   r"SetRemainTime|ExecuteConsoleCommand|\w*RunEvent\w*|\w*[Mm]atch[Mm]ak\w*)\s*[('{]")
-# The one console call: photo/wiring.lua's photo pause sets SB.PhotoMode.PauseMethod (a constant assigned once)
+# The one console call: online/photo/wiring.lua's photo pause sets SB.PhotoMode.PauseMethod (a constant assigned once)
 # to 0 or 1.
 PAUSE = "local PAUSE_METHOD='SB.PhotoMode.PauseMethod'"
 CONSOLE = "library:ExecuteConsoleCommand(pc,PAUSE_METHOD..' '..want,pc)"  # The whole line.
@@ -95,7 +98,7 @@ def scan(root):
             if (len(before) < 2 or not GUARD.fullmatch(before[-1]) or before[-2] != HEADER
                     or lines[row].strip() != FIRE):
                 out.append(f'L1 {at(m)}: CreateSBZoneEvent is not the guarded call of zone_event(kind,name)')
-        allow = (name == 'photo/wiring.lua' and [line.strip() for line in lines].count(PAUSE) == 1
+        allow = (name == 'online/photo/wiring.lua' and [line.strip() for line in lines].count(PAUSE) == 1
                  and len(re.findall(r'\bPAUSE_METHOD\s*=(?!=)', code)) == 1)
         for m in CALL.finditer(code):
             if allow and lines[code.count('\n', 0, m.start())].strip() == CONSOLE: allow = False  # The first one only.
@@ -139,18 +142,21 @@ def scan_of(files):
         return scan(Path(tmp))
 
 
-N, M, H, W = f'{SCRIPTS}/nightop/probe.lua', f'{SCRIPTS}/main.lua', 'native/src/link/core.h', 'tests/wine/smoke.cpp'
-P = f'{SCRIPTS}/photo/wiring.lua'
-R, NR, GR = f'{SCRIPTS}/nightop/recruiter.lua', f'{SCRIPTS}/nightop/run.lua', f'{SCRIPTS}/group/group.lua'
-NS, LI, SC = f'{SCRIPTS}/nightop/shop.lua', f'{SCRIPTS}/cut/enemies/lion.lua', f'{SCRIPTS}/cut/scenes/scene.lua'
-BO = f'{SCRIPTS}/matrix13/world/boss.lua'
+N, M, H, W = (f'{SCRIPTS}/online/modes/nightop/probe.lua', f'{SCRIPTS}/main.lua', 'native/src/link/core.h',
+              'tests/wine/smoke.cpp')
+P = f'{SCRIPTS}/online/photo/wiring.lua'
+R, NR, GR = (f'{SCRIPTS}/online/modes/nightop/recruiter.lua', f'{SCRIPTS}/online/modes/nightop/run.lua',
+             f'{SCRIPTS}/online/group/group.lua')
+NS, LI, SC = (f'{SCRIPTS}/online/modes/nightop/shop.lua', f'{SCRIPTS}/fight/bosses/lion.lua',
+              f'{SCRIPTS}/story/scenes/scene.lua')
+BO = f'{SCRIPTS}/world/maps/matrix13/level/boss.lua'
 SH, SG, WG = 'native/src/game/sbo.h', 'native/src/lobby/sbo_game.inc', 'native/src/glue/tick/world_game_shared.inc'
 SEQ_CONST, SEQ_CALL = ('constexpr uint64_t kRunZoneEvent = 0x141ca5790;\n',
                        'game_function<RunZoneEvent>(sbo::kRunZoneEvent)(world, id, &sbo_seq_names[k], 0);\n')
 WORLD_CALL = 'game_function<RunZoneEvent>(sbo::kRunZoneEvent)(world, caster, &row, 0);\n'
 
-CS, EN, MB = f'{SCRIPTS}/cut/eve/chainspin.lua', f'{SCRIPTS}/core/enemy.lua', f'{SCRIPTS}/cut/menus/mailbox.lua'
-BF = f'{SCRIPTS}/bike/fetch.lua'
+CS, EN, MB = f'{SCRIPTS}/eve/chainspin.lua', f'{SCRIPTS}/core/enemy.lua', f'{SCRIPTS}/tools/mailbox.lua'
+BF = f'{SCRIPTS}/vehicles/bike/fetch.lua'
 IT, EF = f'{SCRIPTS}/core/items.lua', f'{SCRIPTS}/core/effect.lua'
 GUARDED = ("local function zone_event(kind,name)\n\n    assert(NightOp.allowed(kind,name),'zone event refused')\n    "
            + FIRE + '\nend\n')
@@ -160,29 +166,32 @@ def padded(name, text):  # The rest of a file's rationed counts, as comments.
     return text + ''.join(f'-- {w}\n' * (n.get(name, 0) - text.count(w)) for w, n in RATIONED.items())
 
 
-NIGHTOP = padded('nightop/probe.lua', GUARDED + "dt:AddRow(RULE,row)\npc:ServerRequest_MultiPlayChangeRule(name)\n"
+NIGHTOP = padded('online/modes/nightop/probe.lua',
+                 GUARDED + "dt:AddRow(RULE,row)\npc:ServerRequest_MultiPlayChangeRule(name)\n"
                  "log('heal: CreateSBZoneEvent(2, x) called; no RemoveRow, EnterZone or AddRow here')\n")
-RECRUITER = padded('nightop/recruiter.lua',
+RECRUITER = padded('online/modes/nightop/recruiter.lua',
                    GUARDED.replace('NightOp', 'Recruiter') + "local JOIN='MultiplayTest_ZoneE_059'\n")
-RUN = padded('nightop/run.lua', "pc:ServerRequest_CreateActor(id,at,rot,false,true,0,key,key&0xFF,n,false)\n")
-GROUP = padded('group/group.lua',
+RUN = padded('online/modes/nightop/run.lua',
+             "pc:ServerRequest_CreateActor(id,at,rot,false,true,0,key,key&0xFF,n,false)\n")
+GROUP = padded('online/group/group.lua',
                'pc:ServerRequest_ActorRespawn(me,false)\npc:ServerRequest_ActorRevival(me,false)\n')
-SHOP = padded('nightop/shop.lua',
+SHOP = padded('online/modes/nightop/shop.lua',
               "pc:ServerRequest_ItemBucketItemAdd(1,guid,FName(alias),count,0,true,false,false,{})\n")
 ENEMY = padded('core/enemy.lua', "pc:ServerRequest_CreateActor(id,at,rot,false,true,0,0,0,n,false)\n")
-LION = padded('cut/enemies/lion.lua', '')
-SCENE = padded('cut/scenes/scene.lua', GUARDED.replace('NightOp', 'Scene'))
-BOSS = padded('matrix13/world/boss.lua', GUARDED.replace('NightOp', 'Boss'))
-CHAINSPIN = padded('cut/eve/chainspin.lua', "pc:ServerRequest_Cheat(guid,0,'SBApplyEffectMe',tostring(ChainSpin.ID))\n")
-MAILBOX = padded('cut/menus/mailbox.lua', "pc:ServerRequest_ItemBucketItemRemove(1,guid,FName(alias),count,-1)\n")
-FETCH = padded('bike/fetch.lua', "pc:ServerRequest_ItemBucketItemRemove(1,guid,FName(Fetch.ALIAS),Fetch.PRICE,-1)\n")
+LION = padded('fight/bosses/lion.lua', '')
+SCENE = padded('story/scenes/scene.lua', GUARDED.replace('NightOp', 'Scene'))
+BOSS = padded('world/maps/matrix13/level/boss.lua', GUARDED.replace('NightOp', 'Boss'))
+CHAINSPIN = padded('eve/chainspin.lua', "pc:ServerRequest_Cheat(guid,0,'SBApplyEffectMe',tostring(ChainSpin.ID))\n")
+MAILBOX = padded('tools/mailbox.lua', "pc:ServerRequest_ItemBucketItemRemove(1,guid,FName(alias),count,-1)\n")
+FETCH = padded('vehicles/bike/fetch.lua',
+               "pc:ServerRequest_ItemBucketItemRemove(1,guid,FName(Fetch.ALIAS),Fetch.PRICE,-1)\n")
 CLEAN = {N: NIGHTOP, R: RECRUITER, NR: RUN, GR: GROUP, NS: SHOP, LI: LION, EN: ENEMY, SC: SCENE, BO: BOSS, CS: CHAINSPIN,
          MB: MAILBOX, BF: FETCH, M: 'local coop=1 -- Steam lobby, friends matchmaking later\n',
          H: 'get(api.create_lobby, "SteamAPI_ISteamMatchmaking_CreateLobby");\n', W: 'int main() { return 0; }\n',
          SH: SEQ_CONST, SG: SEQ_CALL, WG: WORLD_CALL,
          IT: padded('core/items.lua', ''), EF: padded('core/effect.lua', '')}
-CE = f'{SCRIPTS}/cut/enemies/enemy.lua'
-CLEAN[CE] = padded('cut/enemies/enemy.lua', '')  # cut.enemies' copy of core/enemy.lua (November 2026).
+CE = f'{SCRIPTS}/fight/bosses/enemy.lua'
+CLEAN[CE] = padded('fight/bosses/enemy.lua', '')  # fight.bosses' copy of core/enemy.lua (November 2026).
 assert scan_of(CLEAN) == [], scan_of(CLEAN)  # A blank line in zone_event and Steam's Matchmaking are fine.
 PHOTO = f'{PAUSE}\n    {CONSOLE}\n'
 assert scan_of({**CLEAN, P: PHOTO}) == [], scan_of({**CLEAN, P: PHOTO})

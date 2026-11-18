@@ -1,7 +1,8 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- EVE, her controller and the fight check, moved out of nightop/probe.lua and matrix13/quest/zone_talks.lua.
+-- EVE, her controller and the fight check, moved out of online/modes/nightop/probe.lua and
+-- world/maps/matrix13/quest/zone_talks.lua.
 local U=require('core.unreal')
 local UE=require('UEHelpers')
 local Player={}
@@ -16,7 +17,7 @@ end
 -- cm: an engaged enemy farther than this is no fight [inference].
 Player.NEAR=5000
 -- Whether an enemy within near cm (NEAR unless given) of EVE fights: IsBattle, standing, shown, with a controller.
--- Also lobby/sbo.lua's fight check, through main.lua.
+-- Also online/lobby/sbo.lua's fight check, through main.lua.
 local function engaged(eve,near)
     local here=U.value_of(eve:K2_GetActorLocation())
     local mine=U.address(eve)

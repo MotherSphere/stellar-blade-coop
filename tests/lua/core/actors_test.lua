@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- core/actors.lua: the Doro look's assets by key, its reload counts starting at 0 and the display helpers
--- race/doro_test.lua drives through race/doro.lua.
+-- online/modes/race/doro_test.lua drives through online/modes/race/doro.lua.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Doro=require('core.actors')
 local DIR='/Game/DLC_2/Art/Character/NPC/CH_NPC_Dororong/'
@@ -13,7 +13,8 @@ for _,k in ipairs({'same','resolve','attach','detach','spawn','sweep','remove','
     assert(type(Doro[k])=='function',k)
 end
 -- The source names no achievement, reward, item, quest, save, possession or console command call; its one SpawnActor
--- spawns a plain /Script/Engine.Actor (race/run_test.lua's section 15 checks the race files that reach it).
+-- spawns a plain /Script/Engine.Actor (online/modes/race/run_test.lua's section 15 checks the race files that reach
+-- it).
 do
     local f=assert(io.open('mod/StellarCoop/Scripts/core/actors.lua','rb'))
     local src=f:read('a')

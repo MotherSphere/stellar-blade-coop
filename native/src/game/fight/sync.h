@@ -255,8 +255,8 @@ inline const Summon *summon_row(int32_t effect) {
 // SpawnIndex 0, n from a counter the host keeps for the run, 1 to kMaxSummons, one per summon GUID. Pair slots move
 // (a list is compacted when an enemy goes) and summons outlive their owner, so neither the owner's slot nor a count
 // per owner keys one: the owner goes in the line. This build's highest EventSpawnId is 0xD42B5F51, Night Operation's
-// wave monsters key 0xD8000000 | run << 16 | wave << 8 | slot (nightop/waves.lua's W.key; no row holds one, so same
-// spawns leave them out), and extras (game/spawn_sync.h) stay below kSummonBase.
+// wave monsters key 0xD8000000 | run << 16 | wave << 8 | slot (online/modes/nightop/waves.lua's W.key; no row holds
+// one, so same spawns leave them out), and extras (game/spawn_sync.h) stay below kSummonBase.
 constexpr uint32_t kSummonBase = 0xF0000000, kMaxSummons = ~kSummonBase;
 inline bool is_summon(uint32_t id) { return id >= kSummonBase; }
 inline SpawnKey summon_key(uint32_t n) { return SpawnKey{kSummonBase | n, 0}; }

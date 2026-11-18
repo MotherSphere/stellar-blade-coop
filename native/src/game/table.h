@@ -37,7 +37,7 @@
 //                                                     asset k names, by path (1 to 255 bytes; one path_allowed refuses
 //                                                     is dropped, and a slot naming k draws nothing). Lua only names
 //                                                     the game's FX folders and the assets of a mod both players have
-//                                                     in one version, and the viewer loads only those (partner/
+//                                                     in one version, and the viewer loads only those (online/partner/
 //                                                     puppet.lua); k is never given another path under one generation
 //   then, in the capture file only:
 //   effects 0x<class> 0x<offset>                      the NiagaraComponent class and its Asset field's offset
@@ -173,10 +173,10 @@ inline size_t pose_size(const Table &t) {
 // A mesh, material or cloth asset a peer may name: /Game/<folder>/.../<asset>.<asset>, each name of A-Z a-z 0-9 _ -,
 // at most 255 bytes. So no '..', '//', '\' or sub-object, and the object is the package's own asset, which a Blueprint
 // class (X.X_C) never is. Two families pass: the game's own, /Game/[DLC_<1 or 2 digits>/]Art/Character/... with no '-'
-// (partner/capture.lua's Capture.base_path), which the viewer loads as before, and any other, an added-asset mod's
-// (/Game/OutfitMods/<Mod>/..., /Game/Mods/HD-ATOOL_P/...), which partner/puppet.lua looks up only when the viewer's own
-// CNS packs declare that path. This rule is syntax only, and cannot tell a map from a mesh: the Lua gate and the class
-// check after loading decide what is used.
+// (online/partner/capture.lua's Capture.base_path), which the viewer loads as before, and any other, an added-asset
+// mod's (/Game/OutfitMods/<Mod>/..., /Game/Mods/HD-ATOOL_P/...), which online/partner/puppet.lua looks up only when the
+// viewer's own CNS packs declare that path. This rule is syntax only, and cannot tell a map from a mesh: the Lua gate
+// and the class check after loading decide what is used.
 inline bool path_allowed(std::string_view path) {
   const std::string_view root = "/Game/";
   if (path.size() > kMaxPath || path.substr(0, root.size()) != root)
@@ -551,7 +551,7 @@ inline std::optional<Table> parse_table(const std::string &text, bool local) {
 }
 
 // Whether a ghost built for one table fits the other: the same parts, each with the same leader, bones and mesh path,
-// as partner/puppet.lua's layout() compares. Never the values or hidden slots: Lua applies a change to the
+// as online/partner/puppet.lua's layout() compares. Never the values or hidden slots: Lua applies a change to the
 // ghost it has. Lua builds a new ghost for another layout even under the same generation,
 // and a display checked against one layout must never be paired with another (write_puppet indexes it by the remote
 // parts).

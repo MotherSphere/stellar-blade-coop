@@ -10,8 +10,9 @@ namespace {
 uint32_t bike_load_logged = 0, bike_gate_logged = 0;
 uint64_t bike_ride_logged = 0;
 bool bike_fault_logged = false;
-// EVE's life state for bike/ride.lua's down check, which link.life() gives only in a session: fight::vitals' read of
-// our FSBActor (ReadProcessMemory, which fails instead of faulting) at most each bike::kLifeMs; -1 when it did not read.
+// EVE's life state for vehicles/bike/ride.lua's down check, which link.life() gives only in a session: fight::vitals'
+// read of our FSBActor (ReadProcessMemory, which fails instead of faulting) at most each bike::kLifeMs; -1 when it did
+// not read.
 std::atomic<int32_t> bike_life{-1};
 std::atomic<uint64_t> bike_life_next{0};
 

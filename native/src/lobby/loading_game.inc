@@ -5,7 +5,7 @@
 
 namespace coop::pose {
 namespace {
-// ---- The SBO lobby arrival's black lifted (lobby/arrival.lua's loading lift), the game thread's write ----
+// ---- The SBO lobby arrival's black lifted (online/lobby/arrival.lua's loading lift), the game thread's write ----
 // lobby/loading.h: each tag-Load entry of the UI manager's auto list gets lifetime 0, so SB's loading controller runs
 // its own end fade at its next tick, on this thread too. The manager is read from its global, never through its getter
 // FUN_1421343b0, which makes one when the global is null.

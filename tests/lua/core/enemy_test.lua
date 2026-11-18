@@ -1,12 +1,12 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- core/enemy.lua's parts that need no world (the cut enemies run their own copy, cut/enemies/enemy.lua): its 39
+-- core/enemy.lua's parts that need no world (the cut enemies run their own copy, fight/bosses/enemy.lua): its 39
 -- tables are link/protocol.h's kLionTables in order, a batch's line parses by its word only (from the start of its own
 -- line, each of its forms), the generated rows take their named form, the counts a batch's line gives once its rows are
 -- in, and an error's text loses its file and line.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
-package.loaded.UEHelpers={} -- nightop/probe.lua's, for EVE and her controller: never called here.
+package.loaded.UEHelpers={} -- online/modes/nightop/probe.lua's, for EVE and her controller: never called here.
 local Enemy=require('core.enemy')
 
 do

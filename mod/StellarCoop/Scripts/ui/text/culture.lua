@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The game's text culture pick, moved out of nightop/recruiter_text.lua; CULTURES holds its TEXT's names.
+-- The game's text culture pick, moved out of online/modes/nightop/recruiter_text.lua; CULTURES holds its TEXT's names.
 local CULTURES={ko=true,en=true,['en-GB']=true,fr=true,de=true,it=true,es=true,['es-MX']=true,pt=true,['pt-BR']=true,
     nl=true,da=true,no=true,sv=true,fi=true,pl=true,ru=true,tr=true,ar=true,th=true,ja=true,['zh-Hans']=true,
     ['zh-Hant']=true}

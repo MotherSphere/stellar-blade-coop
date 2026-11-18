@@ -328,7 +328,7 @@ local function text(path) local f=assert(io.open(path)); local t=f:read('a'); f:
 for _,doc in ipairs({'INSTALL.md','docs/players/interface.md'}) do
     assert(text(doc):find('any controller the game reads',1,true),doc..' still says only XInput controllers work')
 end
-for _,lua in ipairs({'save/saves.lua','ui/kit/guide.lua'}) do
+for _,lua in ipairs({'online/saves/saves.lua','ui/kit/guide.lua'}) do
     assert(not text('mod/StellarCoop/Scripts/'..lua):find('not XInput',1,true),lua..': a stale XInput note')
 end
 io.stdout:write('input_test ok\n')

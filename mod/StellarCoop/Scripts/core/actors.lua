@@ -1,8 +1,8 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The Doro look's actor and display helpers, moved out of race/doro.lua for every module to read.
--- resolve, attach, spawn, sweep, remove, apply and same also show another mesh (cut/enemies/leviathan.lua's coop
+-- The Doro look's actor and display helpers, moved out of online/modes/race/doro.lua for every module to read.
+-- resolve, attach, spawn, sweep, remove, apply and same also show another mesh (fight/bosses/leviathan.lua's coop
 -- leviathan); attach, spawn, sweep and remove also make and remove its free camera, a plain actor with one
 -- CameraComponent.
 local U=require('core.unreal')
@@ -39,7 +39,7 @@ Doro.same=same
 Doro.reloads={n=0,ms=0}
 local cache={}
 -- An asset by its object path: in memory already, else loaded (LoadAsset, synchronous); nil when neither gives one of
--- that class. A cached one is used again only while it is still that object (partner/puppet.lua's rule), and its
+-- that class. A cached one is used again only while it is still that object (online/partner/puppet.lua's rule), and its
 -- class is checked at each call: coop leviathan list caches a path as any Object before show asks for a mesh.
 function Doro.resolve(path,class)
     local a=same(cache[path],path)

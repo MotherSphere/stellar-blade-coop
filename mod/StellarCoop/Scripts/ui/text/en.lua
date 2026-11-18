@@ -59,11 +59,11 @@ return {
         off='Chat is off (Options > Chat).',not_sent=' (not sent)',
         ui_off='The chat box is off (the UI stopped, see UE4SS.log).'},
     partner={partner='Partner',down='DOWN',lost='connection lost',elsewhere='elsewhere · %s'},
-    -- The status strip above the partner card (partner/hud.lua, status_overlay): its second row (detailed) holds the
-    -- shared enemies, the same-place enemies (%d: how many), shared quests on and the poses sent a second (%d); its top
-    -- row starts with paused while her photo mode pauses your game.
+    -- The status strip above the partner card (online/partner/hud.lua, status_overlay): its second row (detailed) holds
+    -- the shared enemies, the same-place enemies (%d: how many), shared quests on and the poses sent a second (%d); its
+    -- top row starts with paused while her photo mode pauses your game.
     overlay={enemies='Enemies %d',place='Same place %d',quests='Quests on',rate='%d/s',paused='paused'},
-    -- The code box and the host's question (session/join.lua).
+    -- The code box and the host's question (online/session/join.lua).
     join={title='JOIN WITH A CODE',hint='XXX-XXXX',join='Join',cancel='Cancel',
         bad='A join code is 7 letters and digits, like XXX-XXXX.'},
     -- A join Steam refused (T.join_refused, link/core.h's join_refusal() by EChatRoomEnterResponse): 2 gone, 3 closed,
@@ -81,14 +81,14 @@ return {
         you_blocked='Could not join: you have blocked a player in that game on Steam.',
         rate='Could not join: too many tries in a short time. Wait a moment and try again.',
         other='Could not join: Steam response %d.'},
-    -- The join popups (session/join.lua): the host's question (title, desc, left, accept and deny when SB's own words
-    -- are missing) and the joiner's wait (wait_title with host when the host's name is empty, wait_desc, wait_left,
-    -- close when SB's Close is missing).
+    -- The join popups (online/session/join.lua): the host's question (title, desc, left, accept and deny when SB's own
+    -- words are missing) and the joiner's wait (wait_title with host when the host's name is empty, wait_desc,
+    -- wait_left, close when SB's Close is missing).
     ask={title='%s wants to join',someone='A player',accept='Accept',deny='Deny',
         desc='They wait for your answer before they enter your game.',left='Declined in %d s if you do not answer.',
         wait_title="Waiting for %s's answer",host='the host',wait_desc='Close cancels your request to join.',
         wait_left='The host has %d s left to answer.',queue='Players waiting after this one: %d.',close='Close'},
-    -- The question at the title (save/saves.lua) and its notices.
+    -- The question at the title (online/saves/saves.lua) and its notices.
     saves={title='CO-OP SAVES',new='Play co-op on copies of your saves?',
         new_about='StellarCoop copies your saves to separate co-op files, and Continue and Load Game then use those '
             ..'copies. Your own saves are not changed.',
@@ -118,7 +118,7 @@ return {
     refused={off='The co-op menu is off (the UI stopped, see UE4SS.log): use the coop commands.',
         world='The co-op menu opens in the game world only.',
         paused='The co-op menu does not open while the game is paused or shows a menu.'},
-    -- The ghost's notices (partner/puppet.lua): her name, her map, yours.
+    -- The ghost's notices (online/partner/puppet.lua): her name, her map, yours.
     ghost={failed='Ghost failed 3 times: the reason is in UE4SS.log.',away='%s is in %s, you are in %s.',
         mods='%s wears parts from mods your game cannot load: %s. They show on the base suit or are left out.',
         aside='The game crashed last time while the ghost used the mod asset %s. It stays off the ghost until coop cns '
@@ -131,11 +131,13 @@ return {
     -- The notice for a module that failed to load (main/loader.lua), said once by main/pass.lua: %s is its name in
     -- modules, which holds one for each module of main.lua's list.
     module_off='%s is off until the mod reloads: it failed to load. UE4SS.log says why.',
-    modules={partner='The ghost',nightop='Night Operation',['cut.enemies']='Cut enemies',group='Group play',
-        race='Doro races',['cut.eve']="EVE's cut moves",['cut.scenes']='Cut scenes',matrix13='Matrix XIII',
-        session='Online sessions',photo='Synced photo mode',fight='Shared enemies',quest='Shared quests',
-        world='Shared world',story='Story together',lobby='The SBO lobby',bike='The bike',sky='Day and night',
-        ['cut.menus']='Cut menus',save='Co-op saves'},
+    modules={['online.partner']='The ghost',['online.modes.nightop']='Night Operation',['fight.bosses']='Cut enemies',
+        ['online.group']='Group play',['online.modes.race']='Doro races',['eve']="EVE's cut moves",
+        ['story.scenes']='Cut scenes',['world.maps.matrix13']='Matrix XIII',['online.session']='Online sessions',
+        ['online.photo']='Synced photo mode',['fight.enemies']='Shared enemies',['story.quests']='Shared quests',
+        ['world.objects']='Shared world',['story.together']='Story together',['online.lobby']='The SBO lobby',
+        ['vehicles.bike']='The bike',['world.daynight']='Day and night',['tools']='Cut menus',
+        ['online.saves']='Co-op saves'},
     -- The shared enemies' notices (main.lua): on, off, stopped, and what keeps coop fight on from sharing (%s: her
     -- name). The title question's buttons are saves.convert and saves.play.
     fight={on='Shared enemies on: %d enemies linked.',one='Shared enemies on: 1 enemy linked.',
@@ -179,9 +181,9 @@ return {
         differ="Same spawns: some enemies differ between your game and %s's (other .pak mods or fight_chars) and "
             ..'stay as they are. coop-link.log names them.'},
     -- Camp rests in a shared area, as the guest (main.lua): the host's rest reset the area in their game, or ours
-    -- reset our own only. The revive by the friend (group/group.lua): she is down near us, we are down and she can
-    -- revive us, she revived us, we revived her; and our game waiting while the host watches a cutscene. (%s: her name,
-    -- or fight.friend.)
+    -- reset our own only. The revive by the friend (online/group/group.lua): she is down near us, we are down and she
+    -- can revive us, she revived us, we revived her; and our game waiting while the host watches a cutscene. (%s: her
+    -- name, or fight.friend.)
     group={rest="Enemies are back: the area reset in %s's game.",
         rest_guest="Shared area: only %s's camp rest brings its enemies back.",
         down='%s is down. Stand next to them for 3 s to revive them.',
@@ -189,19 +191,19 @@ return {
         revived='Revived by %s.',
         you_revived='You revived %s.',
         cutscene='%s is watching a cutscene. Your game waits until it ends.'},
-    -- The follow (group/travel.lua), the guest's: the offer when the host is on another map or far on hers (%s: her
-    -- name, her map, follow_key), always's notice (her name, follow_key), the travel taken, no camp found, a
+    -- The follow (online/group/travel.lua), the guest's: the offer when the host is on another map or far on hers (%s:
+    -- her name, her map, follow_key), always's notice (her name, follow_key), the travel taken, no camp found, a
     -- guard of the moment, and the native part's refusal or a warp that never started.
     travel={offer='%s is in %s. Press %s to travel to the camp nearest them.',
         auto='Following %s in 5 s. Press %s to stay.',going='Travelling to %s.',
         none='No camp you have found is near %s.',busy='You cannot travel now. Try again in a moment.',
         failed='The travel did not start. UE4SS.log says why.'},
-    -- The parked bike (bike/ride.lua): a mount refused with the bike's distance and side from her camera (%d metres,
-    -- then one of the four side words), refused before it is back on her map (2 s after her arrival) or while it is
-    -- on another (%s: the map's name); the prompt once she comes within reach of it (%s: bike_key). At a Xion camp the
-    -- paid fetch (bike/fetch.lua): its offer after the far or another-map refusal (%s: bike_key, %d: the price, %s: the
-    -- money's name as SB writes it in the game's language, else betacrystal), the payment under way and paid (the
-    -- price, the name), too little money (the name, the price, then her count) and a failure.
+    -- The parked bike (vehicles/bike/ride.lua): a mount refused with the bike's distance and side from her camera (%d
+    -- metres, then one of the four side words), refused before it is back on her map (2 s after her arrival) or while
+    -- it is on another (%s: the map's name); the prompt once she comes within reach of it (%s: bike_key). At a Xion
+    -- camp the paid fetch (vehicles/bike/fetch.lua): its offer after the far or another-map refusal (%s: bike_key, %d:
+    -- the price, %s: the money's name as SB writes it in the game's language, else betacrystal), the payment under way
+    -- and paid (the price, the name), too little money (the name, the price, then her count) and a failure.
     bike={far='Your bike is %d m away, %s.',ahead='ahead of you',behind='behind you',left='to your left',
         right='to your right',not_back='Your bike is not back yet.',other_map='Your bike is on another map: %s.',
         prompt='%s: get on the bike',
@@ -209,15 +211,15 @@ return {
         paying='Paying %d %s for your bike.',paid='Your bike was brought here for %d %s.',
         poor='Not enough %s: %d needed, you carry %d.',
         unpaid='Your bike was not brought here. UE4SS.log says why.'},
-    -- Night Operation's run (nightop/run.lua): its card at the top centre (the title, then the countdown, the wave or
-    -- the next wave's countdown, each with the time left and the score), its result panel (the heading, the line under
-    -- it, the rows) and its notices while the UI is off. success, fail and died are the game's own words, its
-    -- StringTable_UI rows UI_Night_OperationSuccess, UI_Night_OperationFail and UI_Night_OperationFail_Des, which the
-    -- panel reads from the game when it can; why: what ended a stopped run, by its reason. A run for two linked
+    -- Night Operation's run (online/modes/nightop/run.lua): its card at the top centre (the title, then the countdown,
+    -- the wave or the next wave's countdown, each with the time left and the score), its result panel (the heading, the
+    -- line under it, the rows) and its notices while the UI is off. success, fail and died are the game's own words,
+    -- its StringTable_UI rows UI_Night_OperationSuccess, UI_Night_OperationFail and UI_Night_OperationFail_Des, which
+    -- the panel reads from the game when it can; why: what ended a stopped run, by its reason. A run for two linked
     -- players: the host's card while he waits for her answer, her notice when his countdown starts (%s his name), his
     -- notice when she cannot join (%s her name, then refuse's word), and whose EVE died (named, so no word agrees with
-    -- a player's gender). earned: the points a run gave for the shop (nightop/shop.lua), then the player's total;
-    -- unpaid: a run's points that could not be credited (UE4SS.log says why).
+    -- a player's gender). earned: the points a run gave for the shop (online/modes/nightop/shop.lua), then the player's
+    -- total; unpaid: a run's points that could not be credited (UE4SS.log says why).
     -- panel reads from the game when it can; why: what ended a stopped run, by its reason. A challenge (coop challenge)
     -- uses the same card, panel and end notice, with challenge's words: names, its name, the card's title in place of
     -- night.title and the %s of its notices (start, wave, clear); best, the panel's fifth row, which Night Operation
@@ -270,9 +272,10 @@ return {
         stopped='Shared world stopped until the game restarts. coop-link.log says why.'},
     story={on='Story together on with %s.',
         stopped='Story together stopped until the game restarts. coop-link.log says why.'},
-    -- The Doro race's words (race/run.lua): its panel, banners and results on the HUD, its notices (the feed, or the
-    -- line above EVE), and why a race ended early for you (why), was raced alone (refused: the host's, her answer) or
-    -- was not joined (declined: the guest's, the host's track); %s: her name, a track's name or a key's, in order.
+    -- The Doro race's words (online/modes/race/run.lua): its panel, banners and results on the HUD, its notices (the
+    -- feed, or the line above EVE), and why a race ended early for you (why), was raced alone (refused: the host's, her
+    -- answer) or was not joined (declined: the guest's, the host's track); %s: her name, a track's name or a key's, in
+    -- order.
     race={title='DORO RACE',cp='CP %d/%d',lap='LAP %d/%d',pos='POS %d/%d',go='GO!',wrong_way='WRONG WAY',
         missed='MISSED CHECKPOINT %d',finished='FINISHED',dnf='DNF',slot='Your start',waiting='Waiting for %s',
         results='RESULTS',fast='fast run',pause='paused',why={teleport='Moved more than 20 m at once.',
@@ -288,7 +291,7 @@ return {
         too_close='Too close: 15 m at least between checkpoints.',full='64 checkpoints already: save the track.',
         other_map='This track is on another map.',
         saved='Track %s saved, %d checkpoints.'},
-    -- The SBO lobby's notices (lobby/sbo.lua): the co-op save before the entry, why an entry is refused (no),
+    -- The SBO lobby's notices (online/lobby/sbo.lua): the co-op save before the entry, why an entry is refused (no),
     -- and what failed (fail). nightop and boss use the game's own name for each mode in each language, its
     -- StringTable_UI rows UI_Night and UI_BossRush_Title.
     sbo={saving='Saving the co-op game. Leaving the lobby brings you back here.',
@@ -302,8 +305,8 @@ return {
             hall='Left the match: its lobby map is missing or a different version here.'},
         fail={save='The game did not save. Nothing changed.',warp='The lobby did not load. Nothing changed.',
             leave='Could not go back to Xion. Quit to the title: the co-op save is restored there.'}},
-    -- The lobby menu (mockup B, lobby/ui/lobby.lua): its sub and page lines, a mode's name and line (desc), the rows
-    -- (more and its tag for the modes not built yet), the status line under them, the members box and the waiting
+    -- The lobby menu (mockup B, online/lobby/ui/lobby.lua): its sub and page lines, a mode's name and line (desc), the
+    -- rows (more and its tag for the modes not built yet), the status line under them, the members box and the waiting
     -- room's notice (room, %s: the menu key); the settings (mockup C): tabs, each setting's title (set; arena waits for
     -- stage 4) and value (val); the Leave question (pop). Outside English and French, Settings, Cancel, Difficulty,
     -- Equipment and Change are the game's own StringTable_UI words (UI_Lobby_Options, UI_Cancel,
@@ -328,16 +331,16 @@ return {
             start='10 s from 2 players, 5 s when full',public='Public',private='Private, code %s',
             version='%s, protocol %d'},pop={leave_title='LEAVE THE LOBBY',
             leave='Go back to Xion? You return where you talked to the recruiter.'}},
-    -- Find a session (session/ui/sessions.lua): the Select and Refresh hints, the host's revive rule as the joiner
-    -- reads it, the status line, the friend mark, the version in the details (protocol, game build) and the footer with
-    -- ours.
+    -- Find a session (online/session/ui/sessions.lua): the Select and Refresh hints, the host's revive rule as the
+    -- joiner reads it, the status line, the friend mark, the version in the details (protocol, game build) and the
+    -- footer with ours.
     sessions={ask='Ask to join',refresh='Refresh',empty='No open session.',
         revive='You can revive the host',
         failed='The search failed. Refresh to try again.',idle='Press Refresh to search.',
         wait='You can search again in %d s.',friend='Steam friend',version='Protocol %s, game build %s',
         footer='Your version: protocol %s, game build %s. Sessions of other versions are not listed.'},
-    -- Create a session (session/ui/create.lua): its page title, the rules header, the Start row, why a locked row
-    -- cannot change and Who can join's value explained in the right pane.
+    -- Create a session (online/session/ui/create.lua): its page title, the rules header, the Start row, why a locked
+    -- row cannot change and Who can join's value explained in the right pane.
     create={title='Create a session',rules='SESSION RULES',start='Start',
         locked='coop-settings.txt cannot be read: this setting cannot change now.',
         who={public='Listed in Find a session for players of your version. Players who are not your Steam friends ask '

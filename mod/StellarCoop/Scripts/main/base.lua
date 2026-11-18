@@ -8,7 +8,7 @@ M.notice=require('ui.kit.notice').new()
 -- The UI kit (M.kit), the co-op menu, the chat's box and feed, the partner HUD, the co-op saves' question, the code
 -- box, the host's question, the Sessions screen, the Create a session screen and the SBO lobby's screens: with the
 -- Steam link, built by main/ui.lua and the modules' build steps. The SBO lobby itself (M.sbo) and its hall maps' rows
--- (M.halls) are built by lobby/wiring.lua.
+-- (M.halls) are built by online/lobby/wiring.lua.
 -- The screen the co-op menu opened in its place, while one is open: the Sessions screen or the Create a session screen.
 function M.open_screen() return M.sessions.is_open() and M.sessions or M.create.is_open() and M.create or nil end
 -- coop ui reset and the focus watchdog: the menu, the chat's box, the code box, the Sessions and Create a session
@@ -54,7 +54,7 @@ do
         end
     end
 end
-M.aside_note=nil -- The set-aside asset's name for the notice, until said (partner/wiring.lua sets it).
+M.aside_note=nil -- The set-aside asset's name for the notice, until said (online/partner/wiring.lua sets it).
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 -- Read from the pose path's line only, as a peer's Steam name could say the same.
 function M.native_off()
@@ -83,8 +83,8 @@ function M.coop_slot(what)
     return false,what..' runs only on a co-op save (INSTALL.md: Co-op saves); now '..(line or 'no slot status')
 end
 function M.ui_log(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end -- The UI kit's lines.
--- The bike (bike/ride.lua), built by bike/wiring.lua: coop emote, the race, the races' driving, the hall
--- seats and the Doro look read whether EVE rides through riding().
+-- The bike (vehicles/bike/ride.lua), built by vehicles/bike/wiring.lua: coop emote, the race, the races' driving, the
+-- hall seats and the Doro look read whether EVE rides through riding().
 function M.riding() return M.bike~=nil and M.bike.riding() end
 -- The session chat's clock: the 250 ms loop's ticks, which main/pass.lua counts. os.clock is CPU time under some C
 -- runtimes, os.time whole seconds.
@@ -121,7 +121,7 @@ function M.fname(alias)
 end
 -- Paused also covers our photo mode and the friend's photo mode that pauses our game: SB's logic stops in both.
 function M.logic_paused() return M.kit~=nil and M.kit.paused(true) or M.photo_state()~='0' or M.link.paused() end
--- Roxanne's booking (nightop/wiring.lua) reads it; main/pass.lua sets it at each 250 ms pass.
+-- Roxanne's booking (online/modes/nightop/wiring.lua) reads it; main/pass.lua sets it at each 250 ms pass.
 M.at_title=false -- The title screen shown at the last tick's puppet.world: it drops her booking.
 M.OFF='coop off is active until the game restarts'
 -- Enter with nothing open asks for the chat's box (chat_asked, os.clock), which opens 0.1 s later unless a coop command

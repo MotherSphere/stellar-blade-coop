@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- A table row edited in place and read back, moved out of nightop/recruiter.lua for every module to read.
+-- A table row edited in place and read back, moved out of online/modes/nightop/recruiter.lua for every module to read.
 local U=require('core.unreal')
 local why=U.why
 local function find_name(text) return FName(text,EFindName.FNAME_Find) end -- None (index 0) when not a name yet.
@@ -33,7 +33,7 @@ local function get(row,field,kind)
     return v,shown
 end
 local KNOWN,DIFFERS='%s is not the row we know at %s (%s): no recruiter','%s read back differs at %s (%s): no recruiter'
--- Those two lines for another user of edit() (nightop/roxanne.lua): what stops instead of the recruiter.
+-- Those two lines for another user of edit() (online/modes/nightop/roxanne.lua): what stops instead of the recruiter.
 local function lines_for(what)
     if not what then return KNOWN,DIFFERS end
     return (KNOWN:gsub('no recruiter$','no '..what)),(DIFFERS:gsub('no recruiter$','no '..what))

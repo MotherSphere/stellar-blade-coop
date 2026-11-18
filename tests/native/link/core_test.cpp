@@ -2473,8 +2473,8 @@ int main() {
     assert(w.status().find("\nmate=") == std::string::npos && saw("chat this session: 0 in, 0 out, 0 dropped"));
   }
 
-  // The follow's camps lines (group/travel.lua). Outside a session nothing goes. Between two Links, A hosting (Me)
-  // and B (Kaanta): her camps? goes reliable on channel 0 to A, whose status keeps the last as camps?=<n>, A's own
+  // The follow's camps lines (online/group/travel.lua). Outside a session nothing goes. Between two Links, A hosting
+  // (Me) and B (Kaanta): her camps? goes reliable on channel 0 to A, whose status keeps the last as camps?=<n>, A's own
   // number for it; another within 2 s is dropped there with a log line. A's answer to that number reaches B's status
   // as camps=<her id> ...; an answer with another id is dropped, as is one that comes after she asked again. The host
   // never asks and the guest never answers: both requests are refused. Such a line from the friend is dropped. A
@@ -2617,9 +2617,10 @@ int main() {
       assert(e.find("écho") == std::string::npos);
   }
 
-  // Race lines (race/model.lua's, from coop-race.txt): reliable on channel 0 to the friend past the handshake only, or
-  // back as hers in the loopback with no friend; anything parse() would not read as a race line never goes. 40 a
-  // second each way: our 41st is dropped and counted, hers past 40 too, with one log line a minute and never a text.
+  // Race lines (online/modes/race/model.lua's, from coop-race.txt): reliable on channel 0 to the friend past the
+  // handshake only, or back as hers in the loopback with no friend; anything parse() would not read as a race line
+  // never goes. 40 a second each way: our 41st is dropped and counted, hers past 40 too, with one log line a minute and
+  // never a text.
   // Hers wait for Lua in the chat's inbox as "race <text>", kChatInbox lines with the chat's; the session's end
   // empties them and logs the counts.
   reset();
@@ -2721,7 +2722,7 @@ int main() {
     assert(!w.link.chat_waiting() && saw("race lines: 41 in, 41 out, 2 dropped") && !w.link.race("end 7"));
   }
 
-  // coop gift's lines (cut/menus/mailbox.lua, through gift requests): reliable on channel 0 to the friend past the
+  // coop gift's lines (tools/mailbox.lua, through gift requests): reliable on channel 0 to the friend past the
   // handshake, or back as hers in the loopback with no friend, 8 a second each way; each one in the log, ours and hers.
   // A gift that cannot go (no session, past the rate, Steam refused it) comes back to Lua at once as her refusal, "gift
   // n <id> nolink"; an answer that cannot go is only logged. Hers wait for Lua in the chat's inbox as "gift <payload>".

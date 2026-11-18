@@ -106,8 +106,8 @@ constexpr uint64_t kPhotoPerSecond = 8;
 // reading, so the link's can see two reads up to a clock tick (15.6 ms on Windows) closer, and a change would wait a
 // whole read more.
 constexpr uint64_t kSayPerSecond = 3, kHeardPerSecond = 10, kVitalsEveryMs = 90, kVitalsAgainMs = 1000;
-// Race lines (race/model.lua's): ours a second, and hers kept a second. A race sends a few a second, the host's
-// busiest a track line and its six cps lines at once. The lines waiting for Lua hold hers beside the chat's.
+// Race lines (online/modes/race/model.lua's): ours a second, and hers kept a second. A race sends a few a second, the
+// host's busiest a track line and its six cps lines at once. The lines waiting for Lua hold hers beside the chat's.
 constexpr uint64_t kRacePerSecond = 40;
 constexpr size_t kChatInbox = 64;
 // Night Operation's lines a second, each way: Lua writes one a tick (4 a second) at most.

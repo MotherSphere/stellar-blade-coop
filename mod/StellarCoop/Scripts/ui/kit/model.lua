@@ -24,7 +24,7 @@ M.MAIN={
     {id='invite',show=function(c) return c.mode=='host' end},
     {id='copy',show=function(c) return c.code~=nil end},
     {id='remove',confirm=true,show=function(c) return c.stranger~=nil end},
-    {id='find',show=none}, -- Find a session: the Sessions screen (session/ui/sessions.lua).
+    {id='find',show=none}, -- Find a session: the Sessions screen (online/session/ui/sessions.lua).
     {id='join_code',show=none},
     {id='chat',show=function(c) return c.chat end},
     {head='settings'},
@@ -47,7 +47,7 @@ local function reload(row) row.reload=true; return row end -- The mod takes it a
 M.OPTIONS={
     {head='controls'},
     bind('menu_key','F5'),bind('status_key','F6'),bind('leave_key','F8'),bind('follow_key','F7'),bind('race_key','F9'),
-    toggle('bike','on'),bind('bike_key','F3'), -- bike at once: bike/ride.lua reads it every 250 ms.
+    toggle('bike','on'),bind('bike_key','F3'), -- bike at once: vehicles/bike/ride.lua reads it every 250 ms.
     toggle('pause_tab','on'), -- At once: ui/kit/pause_tab.lua asks the native part pausetab on or off.
     {id='reset_keys',confirm=true}, -- Every key back to its default (reset_keys), host_key too.
     {head='photo'},
@@ -61,7 +61,7 @@ M.OPTIONS={
     toggle('card_details','on'), -- Ping and the friend's map on the card.
     {head='ghost'},
     toggle('cloth','on'),toggle('dyes','on'),toggle('effects','on'),
-    toggle('collide','on'), -- Yours, at once: the solid partner (partner/puppet.lua).
+    toggle('collide','on'), -- Yours, at once: the solid partner (online/partner/puppet.lua).
     range('send_rate',10,60,5,60), -- 5 a step.
     {head='session'},
     -- At the next host. closed shows as Private. friends_ask under public and invitation only: its row reads Friends
@@ -72,10 +72,10 @@ M.OPTIONS={
         return who=='public' or who=='invitation'
     end},
     range('max_players',2,4,1,4), -- At the next host: the players the session holds, the host included.
-    toggle('revive','on'), -- Yours, at once: the friend's revive of your EVE (group/group.lua).
+    toggle('revive','on'), -- Yours, at once: the friend's revive of your EVE (online/group/group.lua).
     toggle('cutscene_wait','on'), -- Yours as the guest, at once: the pause during the host's cutscene.
-    -- Yours as the guest, at once: the travel to the camp nearest the host (group/travel.lua), offered (ask), started
-    -- by itself (always) or neither (off).
+    -- Yours as the guest, at once: the travel to the camp nearest the host (online/group/travel.lua), offered (ask),
+    -- started by itself (always) or neither (off).
     {key='follow_host',values={'ask','always','off'},default='ask'},
     toggle('shared_world','on'), -- At once: main.lua asks coop world on or off.
     toggle('shared_story','on'), -- At once: main.lua asks coop scenes on or off.
@@ -101,7 +101,7 @@ M.OPTIONS={
     {key='status_overlay',values={'off','compact','detailed'},default='compact'}, -- At once: the HUD reads it each 250 ms.
     range('ui_scale',75,150,5,100),toggle('ui_sounds','on'),
     {key='ui_language',values={'game','english'},default='game'},
-    toggle('daynight','on'), -- At once: sky/daynight.lua reads it every 250 ms.
+    toggle('daynight','on'), -- At once: world/daynight/daynight.lua reads it every 250 ms.
     {head='chat'},
     toggle('chat','on'),
 }

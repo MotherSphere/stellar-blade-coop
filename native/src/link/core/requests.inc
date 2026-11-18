@@ -159,7 +159,7 @@ private:
         notice(was ? "Player unblocked." : "That player is not on your block list.");
       }
       break;
-    // The follow's camps lines (group/travel.lua writes them; link/protocol.h checked their shape): reliable, on
+    // The follow's camps lines (online/group/travel.lua writes them; link/protocol.h checked their shape): reliable, on
     // channel 0, the guest's camps? to the host, the host's answer to the guest whose last camps? had the number it
     // answers (camps?= in our status), with her own id in place of that number, never in a match lobby. A camps? of
     // ours forgets the answer to the one before.

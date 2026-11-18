@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- ui/kit/hud_parts.lua: the partner marker's maths and gauges, one case each from partner/hud_test.lua.
+-- ui/kit/hud_parts.lua: the partner marker's maths and gauges, one case each from online/partner/hud_test.lua.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local P=require('ui.kit.hud_parts')
 local function near(a,b) return math.abs(a-b)<1e-6 end

@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The ChainSpin's effect call and its target, moved out of cut/eve/chainspin.lua for every module to read.
+-- The ChainSpin's effect call and its target, moved out of eve/chainspin.lua for every module to read.
 local N=require('core.player')
 local ChainSpin={}
 local MASK=0xFFFFFFFF

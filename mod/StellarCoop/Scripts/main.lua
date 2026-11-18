@@ -18,8 +18,9 @@ local folder=debug.getinfo(1,'S').source:match('^@(.*)[\\/]Scripts[\\/][^\\/]*$'
 -- M: what the runtime files and the modules share (each wiring.lua lists the fields its module sets).
 local M={print=print,log=log,VERSION=VERSION,folder=folder,commands={}}
 -- The modules in the order their constructors run (the same as before the split; no module depends on it).
-local MODULES={'partner','nightop','cut.enemies','group','race','cut.eve','cut.scenes','matrix13','session','photo',
-    'fight','quest','world','story','lobby','bike','sky','cut.menus','save'}
+local MODULES={'online.partner','online.modes.nightop','fight.bosses','online.group','online.modes.race','eve',
+    'story.scenes','world.maps.matrix13','online.session','online.photo','fight.enemies','story.quests','world.objects',
+    'story.together','online.lobby','vehicles.bike','world.daynight','tools','online.saves'}
 require('main.boot')(M)
 require('main.base')(M)
 require('main.loader').run(M,MODULES)

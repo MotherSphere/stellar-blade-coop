@@ -88,9 +88,9 @@ files[STATUS]='mod=v\nengine=on remote=5 2 peer\nlast=#7 peer linked: poses and 
 link.changes()
 g,n,source=link.remote()
 assert(g==5 and n==2 and source=='peer','A linked friend\'s table')
--- The co-op saves' state (save/saves.lua), each from the start of its own line as of the last changes(): the slot
--- line's verdict and saves=, the convert= line and our Steam ID; nothing from a peer's line, all nil once the status is
--- gone.
+-- The co-op saves' state (online/saves/saves.lua), each from the start of its own line as of the last changes(): the
+-- slot line's verdict and saves=, the convert= line and our Steam ID; nothing from a peer's line, all nil once the
+-- status is gone.
 assert(next(link.saves())==nil,'None in these statuses')
 files[STATUS]='mod=v proto=8 steam=ready steamid=76561198000000001 appid=3489700 build=24463856\nengine=on\n'
     ..'slot=coop index=2 marker=none saves=coop\nconvert=busy 2/6\nlast=#9 co-op saves: slot 1 copied\n'
@@ -388,8 +388,9 @@ assert(#notes==1 and notes[1]=='settings: F9 is set for two actions: default key
     and s.leave_key.name=='F8' and s.race_key.name=='F9',notes[1])
 s,notes=Link.parse_settings('race_key=F6\n')
 assert(#notes==1 and s.status_key.name=='F6' and s.race_key.name=='F9',notes[1])
--- The bike (bike/ride.lua): bike on unless off, bike_key F3 unless set, or none; a file from before bike_key whose own
--- keys hold F3: bike_key has none, the player's keys stay; one that names it on a taken key: all the keys go back.
+-- The bike (vehicles/bike/ride.lua): bike on unless off, bike_key F3 unless set, or none; a file from before bike_key
+-- whose own keys hold F3: bike_key has none, the player's keys stay; one that names it on a taken key: all the keys go
+-- back.
 s,notes=Link.parse_settings('')
 assert(s.bike==true and s.bike_key.key=='F3' and s.bike_key.mod==nil and s.bike_key.name=='F3')
 s,notes=Link.parse_settings('bike=OFF\nbike_key=Alt+F2\n')
@@ -521,7 +522,7 @@ assert(Link.DEFAULT:find(' or closed (nobody; Private in the co-op menu)',1,true
 assert(Link.parse_settings('').friends_ask==false)
 s,notes=Link.parse_settings('friends_ask=ON\n'); assert(#notes==0 and s.friends_ask==true)
 s,notes=Link.parse_settings('friends_ask=off\n'); assert(#notes==0 and s.friends_ask==false)
--- The co-op saves (save/saves.lua): ask (the default, and an old file's), always or off; a new file names it.
+-- The co-op saves (online/saves/saves.lua): ask (the default, and an old file's), always or off; a new file names it.
 assert(Link.parse_settings('').auto_coop_save=='ask' and Link.DEFAULT:find('\nauto_coop_save=ask\n',1,true))
 s,notes=Link.parse_settings('Auto_Coop_Save=ALWAYS\n'); assert(#notes==0 and s.auto_coop_save=='always')
 s,notes=Link.parse_settings('auto_coop_save=off\n'); assert(#notes==0 and s.auto_coop_save=='off')
@@ -549,8 +550,8 @@ assert(Link.parse_settings(Link.DEFAULT).status_overlay=='compact')
 -- shortcut_load (coop shortcut load, a test tool, no menu row): on or off in any case, on by default, in a new file
 -- (after its comment, which names the achievement risk) and in an old one; a bad value keeps on, with a line.
 assert(Link.parse_settings('').shortcut_load==true and Link.parse_settings(Link.DEFAULT).shortcut_load==true)
--- daynight (sky/daynight.lua): on or off in any case, on by default, in a new file after status_overlay with its
--- comment and in an old one; a bad value keeps on, with a line.
+-- daynight (world/daynight/daynight.lua): on or off in any case, on by default, in a new file after status_overlay with
+-- its comment and in an old one; a bad value keeps on, with a line.
 assert(Link.parse_settings('').daynight==true and Link.parse_settings(Link.DEFAULT).daynight==true)
 assert(Link.DEFAULT:find('\nstatus_overlay=compact\n# Day and night: on or off, on by default.',1,true)
     and Link.DEFAULT:find('\ndaynight=on\n',1,true))
@@ -1144,8 +1145,9 @@ do
     link.changes()
     assert(link.room()==nil and link.hall()==nil,'Not from a name')
 end
--- A ghost slot's files (slot k from 1, partner/ghosts.lua): her table, our display and the ghost's path, each with -<k>;
--- her name from the member line holding slot k; her table's generation and count from the engine line's remote<k>=.
+-- A ghost slot's files (slot k from 1, online/partner/ghosts.lua): her table, our display and the ghost's path, each
+-- with -<k>; her name from the member line holding slot k; her table's generation and count from the engine line's
+-- remote<k>=.
 do
     local s=link.slot(3)
     assert(s.display('x') and files['C:\\Mod\\coop-display-3.txt']=='x' and not files['C:\\Mod\\coop-display.txt'])
@@ -1247,7 +1249,7 @@ summary(HEAD..'friend=1 0 Kaanta\n') -- Back to the status the photo line's test
 files[STATUS]=HEAD..'friend=1 0 Kaanta\n'..PHOTO
 lines=fresh.changes()
 assert(#lines==1 and lines[1]=='photo=0 peer_photo=1 frozen=1 sync=both','A changed photo line is logged')
--- The photo line as read (group/group.lua's cutscene notice): ours, hers and our pause; nil without the line.
+-- The photo line as read (online/group/group.lua's cutscene notice): ours, hers and our pause; nil without the line.
 local seen=fresh.photo()
 assert(seen.mine=='0' and seen.peer=='1' and seen.frozen==true)
 files[STATUS]=HEAD..'friend=1 0 Kaanta\nphoto=0 peer_photo=c frozen=1 sync=both\n'
@@ -1261,7 +1263,7 @@ assert(fresh.photo()==nil)
 files[STATUS]=nil
 
 -- Night Operation's line: coop-night.txt, written whole (beside, then renamed), the newest replacing one the native
--- part has not taken; her line in the status (night=) stays out of the log, as nightop/run.lua logs it.
+-- part has not taken; her line in the status (night=) stays out of the log, as online/modes/nightop/run.lua logs it.
 local NIGHT='C:\\Mod\\coop-night.txt'
 assert(link.night('h 1 42 ask') and files[NIGHT]=='h 1 42 ask\n' and not files[NIGHT..'.tmp'])
 assert(link.night('h 2 42 count') and files[NIGHT]=='h 2 42 count\n','The newest wins')
@@ -1287,7 +1289,7 @@ files[STATUS]=HEAD..'friend=1 0 Kaanta\nsky=cycle h=12.00 el=65.0 le=65.0 ly=0.0
     ..'ev=0.00 tint=1.00,1.00,1.00 n=114 lit=20 seen=1\n'
 for _,line in ipairs(fresh.changes()) do assert(not line:find('^sky='),'sky= stays out of the log') end
 -- coop lion's line, coop gardener fight's, coop tendril fight's, the Shock Bolt's and coop mxiii's too: their spawns=
--- moves with every enemy that spawns or goes; cut/enemies/enemy.lua and core/enemy.lua log what they read.
+-- moves with every enemy that spawns or goes; fight/bosses/enemy.lua and core/enemy.lua log what they read.
 files[STATUS]=HEAD..'friend=1 0 Kaanta\nlion=rows added=78/78 asks=1 spawns=7 char=2/2 skills=15/15 stance=1/1\n'
     ..'gardener=waiting added=0/13 asks=0 spawns=7 why=busy ticks=2\ntendril=off\n'
     ..'bolt=rows added=4/4 asks=1 spawns=7 char=0/0 skills=1/1 stance=0/0\n'
@@ -1399,7 +1401,7 @@ chat=link.take_chat()
 assert(#chat==5 and chat[1].race=='track 7 2 1 0 0 0 90 /game/map' and not chat[1].text and chat[2].text=='Coucou'
     and not chat[2].race and chat[3].race=='cps 7 1 4000 0 0 1200 8000 0 0 1200' and chat[4].text=='race 9'
     and not chat[4].race and chat[5].race=='go 7 4000','Race lines apart from the chat, in order')
--- Gift lines (coop gift, cut/menus/mailbox.lua): hers, or ours that could not go, apart from the chat and the race.
+-- Gift lines (coop gift, tools/mailbox.lua): hers, or ours that could not go, apart from the chat and the race.
 files[CHAT]='gift s 17 HP_Potion 3\nin 2002 gift a 9\ngift \nrace gift a 1\ngift n 18 nolink\n'
 chat=link.take_chat()
 assert(#chat==4 and chat[1].gift=='s 17 HP_Potion 3' and not chat[1].text and chat[2].text=='gift a 9'
@@ -1735,7 +1737,8 @@ do
     local text,e,code=require('core.link').files.read('tests/no such file.txt')
     assert(text==nil and type(e)=='string' and code==2,tostring(code))
 end
--- The real read with a limit and an offset (matrix13/world/travel.lua reads a container's .ucas window by window).
+-- The real read with a limit and an offset (world/maps/matrix13/level/travel.lua reads a container's .ucas window by
+-- window).
 do
     local path=os.tmpname()
     local f=assert(io.open(path,'wb'))

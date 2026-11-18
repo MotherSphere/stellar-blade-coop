@@ -7,12 +7,12 @@
 -- binds hand it the navigation keys: up, down, left and right to move and change, select and back (each a no-op while
 -- it is closed); and the mouse, which the kit shows: the row it moves onto takes the focus, a left click selects the
 -- row under it, a right click goes back. Its rows run the console commands (Host and Invite close it first: Host's coop
--- host opens the Create a session screen, session/ui/create.lua; Invite's Steam overlay takes the focus); Leave and
--- Remove <name> (a player let in who is not our Steam friend) ask for a second Select; a mute row (one per other player
--- of an online session, at the end of Options) runs coop mute or coop unmute; Copy my code
+-- host opens the Create a session screen, online/session/ui/create.lua; Invite's Steam overlay takes the focus); Leave
+-- and Remove <name> (a player let in who is not our Steam friend) ask for a second Select; a mute row (one per other
+-- player of an online session, at the end of Options) runs coop mute or coop unmute; Copy my code
 -- shows our join code and asks the native part to copy it; Chat (in a session), Join with a code and Find a session
--- close it and open the chat's box, the code box (session/join.lua) or the Sessions screen (session/ui/sessions.lua);
--- Guide closes it and opens the first-launch guide (ui/kit/guide.lua),
+-- close it and open the chat's box, the code box (online/session/join.lua) or the Sessions screen
+-- (online/session/ui/sessions.lua); Guide closes it and opens the first-launch guide (ui/kit/guide.lua),
 -- and menu_key does nothing while that is open. A setting changed on the Options page rewrites its own line of
 -- coop-settings.txt (core/link.lua keeps the file as it was as coop-settings.old.txt) and applies at once, but the name
 -- tag, at the next load; a key row takes the next F-key pressed (capture), checked against the other keys, or with
@@ -21,9 +21,9 @@
 -- feed hides under the menu); the world gone, the game paused or showing the mouse cursor (UI-DESIGN 7.4), or the kit
 -- off, it closes. The game's input comes back 150 ms after a close, so the key that closed it (Esc would open the pause
 -- menu) never reaches the game, and is asked again each 250 ms while closed until the kit has given it. Within 3 m of a
--- camp phone booth (session/booth.lua) a hint shows the menu key, which opens the co-op line instead: the main page's
--- session rows, Co-op menu (the main page) and Hang up, over a sentence that says whether the line is free, open or
--- linked. No engine call here: the kit makes them.
+-- camp phone booth (online/session/booth.lua) a hint shows the menu key, which opens the co-op line instead: the main
+-- page's session rows, Co-op menu (the main page) and Hang up, over a sentence that says whether the line is free, open
+-- or linked. No engine call here: the kit makes them.
 local M=require('ui.kit.model')
 local Link=require('core.link')
 local T=require('ui.text')
@@ -36,15 +36,15 @@ local HINT_W,HINT_Y=700,1830 -- The booth hint's width and top, in the kit's 384
 local HOVER=0.1 -- Seconds between two looks at the row under the mouse.
 local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key','bike_key'}
 local OFF='the co-op menu is off (the UI stopped, see the log): use the coop commands'
--- The key hints' resource actions in SB's hint widget (as lobby/ui/lobby.lua and session/ui/sessions.lua): move,
--- select, back. The widget shows the icon of the player's last device.
+-- The key hints' resource actions in SB's hint widget (as online/lobby/ui/lobby.lua and
+-- online/session/ui/sessions.lua): move, select, back. The widget shows the icon of the player's last device.
 local HINT_ACTIONS={{'UI_DPad_Up','UI_DPad_Down'},{'Positive'},{'Negative'}}
 local ROW={} -- Options rows by setting name.
 for _,row in ipairs(M.OPTIONS) do if row.key then ROW[row.key]=row end end
 -- o: {kit=ui.kit.kit's, link=, settings= (main.lua's, changed in place), look= (the ghost's), puppet=,
 -- run=function(name, arg) -> ok, message (main.lua's: the console's checks and log line), log=, version=,
--- chat=session/chat.lua's view or nil, code=session/join.lua's code box, guide=ui/kit/guide.lua's,
--- sessions=session/ui/sessions.lua's}.
+-- chat=online/session/chat.lua's view or nil, code=online/session/join.lua's code box, guide=ui/kit/guide.lua's,
+-- sessions=online/session/ui/sessions.lua's}.
 function Menu.new(o)
     local kit,link,settings=o.kit,o.link,o.settings
     local self,open,world,model,capturing,note,top,page,back_at={},false,false,nil,nil,nil,0,nil,nil
@@ -190,7 +190,7 @@ function Menu.new(o)
         if ROW[key or ''] and ROW[key].reload then note=words.reload else apply(new,key) end
         return true
     end
-    self.set=set -- The lobby's settings screen (lobby/ui/lobby.lua, through main.lua) writes the same way.
+    self.set=set -- The lobby's settings screen (online/lobby/ui/lobby.lua, through main.lua) writes the same way.
     -- coop keys reset: one key setting back to its default, as Enter while its row waits for a key, or every key with
     -- key nil, as the Reset all keys row; true and the keys now, or false and why, in English.
     function self.reset(key)

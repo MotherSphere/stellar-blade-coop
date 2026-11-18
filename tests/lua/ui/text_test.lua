@@ -1,35 +1,35 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- ui/text.lua, pure (no fakes): a language's table only under one of the 23 culture names nightop/recruiter_text.lua's
--- culture() gives, and either empty or with exactly T.en's keys at every level, each word with T.en's format
--- placeholders in T.en's order (Lua's format has no positional arguments; a percent sign, %%, may stand anywhere, as
--- Turkish puts it first); T.pick's choice (the game's culture through culture(), English with ui_language=english,
--- for a culture with no table and for a word a table lacks); in every language, every notice within the feed's 200
--- bytes a line (Chat.clean) with a 32-byte name, every menu row, value and key hint within its column, the co-op
--- saves' question, with its invite line, within its 5 rows (Chat.wrap), Night Operation's card and result panel within
--- their columns, the challenges' words: a name for each of nightop/challenges.lua's ids, as the card's title, the Best
--- row and the lines under the heading within their columns, the notices with the longest name within 200 bytes (the
--- co-op one with a partner's 32-byte name too), the
--- co-op line's hint and sentences within theirs, the status strip's rows (partner/hud.lua): the second with every fact
--- within its columns, the top one with its connection lost and paused words whole before the status line, which comes
--- without its prefix, the race's panel, marker, banner and results within theirs, the lobby menu's rows, settings,
--- values and status within their columns and its waiting-room notice within 200 bytes, Find a session's hints, status
--- lines, version and footer within theirs, Create a session's title, rules header, Start row and right-pane words
--- within theirs, the pause menu's Online tab word within its tab and its notice within 200 bytes; no Thai word that
--- ends on a leading vowel; each join Steam refused as link/core.h words it, in every language; the DLC notice
--- (T.dlcs) within 200 bytes with 100-byte DLC names in every language; its English as main.lua says it; the New Game+
--- notice (T.cycle) within 200 bytes with every count word and difficulty on both sides; its English; the bike's
+-- ui/text.lua, pure (no fakes): a language's table only under one of the 23 culture names
+-- online/modes/nightop/recruiter_text.lua's culture() gives, and either empty or with exactly T.en's keys at every
+-- level, each word with T.en's format placeholders in T.en's order (Lua's format has no positional arguments; a percent
+-- sign, %%, may stand anywhere, as Turkish puts it first); T.pick's choice (the game's culture through culture(),
+-- English with ui_language=english, for a culture with no table and for a word a table lacks); in every language, every
+-- notice within the feed's 200 bytes a line (Chat.clean) with a 32-byte name, every menu row, value and key hint within
+-- its column, the co-op saves' question, with its invite line, within its 5 rows (Chat.wrap), Night Operation's card
+-- and result panel within their columns, the challenges' words: a name for each of
+-- online/modes/nightop/challenges.lua's ids, as the card's title, the Best row and the lines under the heading within
+-- their columns, the notices with the longest name within 200 bytes (the co-op one with a partner's 32-byte name too),
+-- the co-op line's hint and sentences within theirs, the status strip's rows (online/partner/hud.lua): the second with
+-- every fact within its columns, the top one with its connection lost and paused words whole before the status line,
+-- which comes without its prefix, the race's panel, marker, banner and results within theirs, the lobby menu's rows,
+-- settings, values and status within their columns and its waiting-room notice within 200 bytes, Find a session's
+-- hints, status lines, version and footer within theirs, Create a session's title, rules header, Start row and
+-- right-pane words within theirs, the pause menu's Online tab word within its tab and its notice within 200 bytes; no
+-- Thai word that ends on a leading vowel; each join Steam refused as link/core.h words it, in every language; the DLC
+-- notice (T.dlcs) within 200 bytes with 100-byte DLC names in every language; its English as main.lua says it; the New
+-- Game+ notice (T.cycle) within 200 bytes with every count word and difficulty on both sides; its English; the bike's
 -- refusals with each side word and a six-digit distance or another map's 32-byte name, the paid fetch's offer after
 -- them with the longest key name and betacrystal, the fetch's other lines with a 32-byte money name, within 200 bytes;
 -- the 19 module names in every table; the notice of a module that failed to load with the longest of them within
 -- 200 bytes.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
-local R=require('nightop.recruiter_text')
+local R=require('online.modes.nightop.recruiter_text')
 local Chat=require('core.line')
-local C=require('nightop.challenges')
-local P=require('partner.hud')
+local C=require('online.modes.nightop.challenges')
+local P=require('online.partner.hud')
 local function specs(s)
     local list={}
     for p in s:gmatch('%%.') do if p~='%%' then list[#list+1]=p end end -- %% takes no argument: anywhere.
@@ -96,18 +96,19 @@ local function fill(s)
     for p in s:gmatch('%%(.)') do if p~='%' then args[#args+1]=p=='s' and NAME or 16 end end
     return s:format(table.unpack(args))
 end
--- The lines that go to the feed, as main.lua, partner/puppet.lua, save/saves.lua, core/link.lua and session/join.lua
--- put them together.
+-- The lines that go to the feed, as main.lua, online/partner/puppet.lua, online/saves/saves.lua, core/link.lua and
+-- online/session/join.lua put them together.
 local function notices(w)
     local lines={}
     for _,group in ipairs({'fight','spawns','group','ghost','refused','quests','world','story','travel','ue4ss',
         'join_refused','bike'}) do
         for _,text in pairs(w[group]) do lines[#lines+1]=fill(text) end
     end
-    -- The bike's refusals (bike/ride.lua) with the paid fetch's offer after them, as its mount joins them: each side
-    -- word with a six-digit distance (positions reach 10,000,000 cm), another map with a 32-byte name; the offer with
-    -- the longest key name (Shift+F12, as long as coop bike when bike_key is none) and betacrystal, the word ride.lua
-    -- puts when SB's name would pass 200 bytes (fill gives the other fetch lines a 32-byte name, fetch.lua's NAME_MAX).
+    -- The bike's refusals (vehicles/bike/ride.lua) with the paid fetch's offer after them, as its mount joins them:
+    -- each side word with a six-digit distance (positions reach 10,000,000 cm), another map with a 32-byte name; the
+    -- offer with the longest key name (Shift+F12, as long as coop bike when bike_key is none) and betacrystal, the word
+    -- ride.lua puts when SB's name would pass 200 bytes (fill gives the other fetch lines a 32-byte name, fetch.lua's
+    -- NAME_MAX).
     local offer=w.bike.offer:format('Shift+F12',500,'betacrystal')
     for _,side in ipairs({'ahead','behind','left','right'}) do
         lines[#lines+1]=w.bike.far:format(999999,w.bike[side])..' '..offer
@@ -130,10 +131,10 @@ local function notices(w)
     for _,text in ipairs({w.saves.on,fill(w.saves.off),w.saves.off:format(w.saves.see_log),w.saves.build,
         w.saves.manual:format('4','4'),w.chat.no_session,w.chat.alone,
         w.chat.off,w.chat.ui_off,w.join.bad}) do lines[#lines+1]=text end
-    -- Night Operation's notices (nightop/run.lua, with the UI off): the start, a wave, a clear, the end and why; for
-    -- two players, her notice of his start and his of each refusal, and whose EVE died; the points a run earned, or
-    -- could not credit; a level picked from Roxanne, by the host or alone and by a guest (nightop/roxanne.lua); the
-    -- shop's screen that could not open (nightop/shop.lua).
+    -- Night Operation's notices (online/modes/nightop/run.lua, with the UI off): the start, a wave, a clear, the end
+    -- and why; for two players, her notice of his start and his of each refusal, and whose EVE died; the points a run
+    -- earned, or could not credit; a level picked from Roxanne, by the host or alone and by a guest
+    -- (online/modes/nightop/roxanne.lua); the shop's screen that could not open (online/modes/nightop/shop.lua).
     local n=w.night
     for _,text in ipairs({n.start_notice:format(5),n.wave_notice:format(5,5),n.clear_notice:format(5),n.died,
         n.time_up,n.end_notice:format(n.success,5,5,20,9999,'8:00'),n.end_notice:format(n.fail,5,5,20,9999,'8:00'),
@@ -150,7 +151,7 @@ local function notices(w)
         c.record,c.stopped,c.coop_notice:format(long,NAME,5)}) do
         lines[#lines+1]=text
     end
-    -- The race's notices (race/run.lua): its banners too, which come as notices with the UI off.
+    -- The race's notices (online/modes/race/run.lua): its banners too, which come as notices with the UI off.
     local r=w.race
     for _,group in ipairs({'why','refused','declined'}) do
         for _,text in pairs(r[group]) do lines[#lines+1]=fill(text) end
@@ -163,7 +164,7 @@ local function notices(w)
     for _,k in ipairs({'stopped','waiting','held','rejoin','none','alone','connecting','hosting','guest'}) do
         lines[#lines+1]=fill(s[k])..fill(s.paused)..s.lost -- Paused and lost added to each, beyond what can happen.
     end
-    -- The SBO lobby's notices (lobby/sbo.lua): the save before the entry, each refusal and each failure.
+    -- The SBO lobby's notices (online/lobby/sbo.lua): the save before the entry, each refusal and each failure.
     lines[#lines+1]=w.sbo.saving
     for _,group in ipairs({'no','fail'}) do
         for _,text in pairs(w.sbo[group]) do lines[#lines+1]=text end
@@ -203,18 +204,18 @@ for name in pairs(R.TEXT) do
         fits(name..' value',text,VALUE)
     end
     for k,text in pairs(w.hint) do fits(name..'.hint.'..k,text,HINT) end
-    -- The co-op saves' question (save/saves.lua): its text within 5 body rows of 78 columns, as each phase shows it,
-    -- the question with the invite line a held invite adds.
+    -- The co-op saves' question (online/saves/saves.lua): its text within 5 body rows of 78 columns, as each phase
+    -- shows it, the question with the invite line a held invite adds.
     local s=w.saves
     for _,texts in ipairs({{s.new,s.new_about,s.invite},{s.old,s.old_about,s.invite},{s.failed,s.see_log..'.'}}) do
         local rows=0
         for _,text in ipairs(texts) do rows=rows+#Chat.wrap(text,78) end
         assert(rows<=5,name..'.saves: '..rows..' rows, at most 5: '..texts[1])
     end
-    -- Night Operation's card (nightop/run.lua: 1040 units wide, 24 in from each side; title Bold 36, its line Bold 40,
-    -- about 23 units a column), with the longest numbers (Gauntlet's 12:00); its result panel: the heading Bold 56
-    -- (about 32 units a column), the line under it and the row labels Mideum 34 (18 units a column, as the feed's) from
-    -- 96 units in, a label before its value's 5 Bold 40 columns at the right end.
+    -- Night Operation's card (online/modes/nightop/run.lua: 1040 units wide, 24 in from each side; title Bold 36, its
+    -- line Bold 40, about 23 units a column), with the longest numbers (Gauntlet's 12:00); its result panel: the
+    -- heading Bold 56 (about 32 units a column), the line under it and the row labels Mideum 34 (18 units a column, as
+    -- the feed's) from 96 units in, a label before its value's 5 Bold 40 columns at the right end.
     local n=w.night
     fits(name..'.night.title',n.title,43)
     fits(name..'.night.waiting',n.waiting,43)
@@ -267,11 +268,11 @@ for name in pairs(R.TEXT) do
     local lead=w.partner.lost..' · '..o.paused
     local top=P.status_rows(w,{mode='compact',summary=S.hosting:format(NAME),lost=true,paused=true,rate=60})
     assert(top:sub(1,#lead)==lead,name..'.overlay.paused: cut to '..top)
-    -- The race (race/run.lua): its panel as the night card (title, then the time, CP, LAP and POS two spaces apart, or
-    -- the wait for her name of 20 characters and an ellipsis); the marker's label over your start (Bold 30, 17 units a
-    -- column in 320); a banner (Bold 56, 32 units a column, in 1600 less 24 a side); the results as the night panel,
-    -- the heading, the flags line under it, and two rows: the place and a name of 21 columns at the left (Mideum 34),
-    -- the time or DNF at the right (Bold 40) in 14 columns.
+    -- The race (online/modes/race/run.lua): its panel as the night card (title, then the time, CP, LAP and POS two
+    -- spaces apart, or the wait for her name of 20 characters and an ellipsis); the marker's label over your start
+    -- (Bold 30, 17 units a column in 320); a banner (Bold 56, 32 units a column, in 1600 less 24 a side); the results
+    -- as the night panel, the heading, the flags line under it, and two rows: the place and a name of 21 columns at the
+    -- left (Mideum 34), the time or DNF at the right (Bold 40) in 14 columns.
     local r=w.race
     fits(name..'.race.title',r.title,43)
     fits(name..'.race line','9:59.99  '..r.cp:format(64,64)..'  '..r.lap:format(9,9)..'  '..r.pos:format(2,2),43)
@@ -283,11 +284,11 @@ for name in pairs(R.TEXT) do
     fits(name..'.race flags',r.fast..' · '..r.pause,54)
     for _,who in ipairs({w.chat.you,w.chat.partner,('W'):rep(20)..'…'}) do fits(name..'.race row: '..who,'2  '..who,27) end
     fits(name..'.race.dnf value',r.dnf,14)
-    -- The lobby menu (mockup B, lobby/ui/lobby.lua): a row and the mode's name within B's row box (Bold 55 in 512
-    -- units, 18 columns), the code row with a join code; a setting's title in C within 32 columns, Mute with a name cut
-    -- as Join.name cuts it; a value within 40, with a join code, a long version and protocol 20; the status line within
-    -- 40 (Mideum 36, about 19 units a column, ends before the members box at x 2660) at 8 of 8 and a 10 s countdown;
-    -- the waiting room's notice with its key within the feed's line.
+    -- The lobby menu (mockup B, online/lobby/ui/lobby.lua): a row and the mode's name within B's row box (Bold 55 in
+    -- 512 units, 18 columns), the code row with a join code; a setting's title in C within 32 columns, Mute with a name
+    -- cut as Join.name cuts it; a value within 40, with a join code, a long version and protocol 20; the status line
+    -- within 40 (Mideum 36, about 19 units a column, ends before the members box at x 2660) at 8 of 8 and a 10 s
+    -- countdown; the waiting room's notice with its key within the feed's line.
     for k,text in pairs(w.lobby.row) do fits(name..'.lobby.row.'..k,text:format('ABC-1234'),18) end
     fits(name..'.lobby.mode.ffa',w.lobby.mode.ffa,18)
     for k,text in pairs(w.lobby.set) do fits(name..'.lobby.set.'..k,text:format(('W'):rep(16)..'...'),32) end
@@ -297,10 +298,11 @@ for name in pairs(R.TEXT) do
     for k,text in pairs(w.lobby.status) do fits(name..'.lobby.status.'..k,text:format(k=='start' and 10 or 8,8),40) end
     local room=w.lobby.room:format('F5')
     assert(Chat.clean(room)==room,name..'.lobby.room: '..#room..' bytes or a control')
-    -- Find a session (session/ui/sessions.lua): a key hint's label within the 420 units between two hints less the icon
-    -- (Bold 30, 17 units a column); a status line on one line of the list's 1600 units (Bold 36, about 21 units a
-    -- column); the version in the details pane on one line of its 1040 units (Mideum 34, 18 units a column), with a
-    -- two-digit protocol and an 8-digit build; the footer within two lines of 2200 units (Mideum 30, 16 units a column).
+    -- Find a session (online/session/ui/sessions.lua): a key hint's label within the 420 units between two hints less
+    -- the icon (Bold 30, 17 units a column); a status line on one line of the list's 1600 units (Bold 36, about 21
+    -- units a column); the version in the details pane on one line of its 1040 units (Mideum 34, 18 units a column),
+    -- with a two-digit protocol and an 8-digit build; the footer within two lines of 2200 units (Mideum 30, 16 units a
+    -- column).
     local ss=w.sessions
     for _,k in ipairs({'ask','refresh'}) do fits(name..'.sessions.'..k,ss[k],20) end
     for _,k in ipairs({'empty','failed','idle'}) do fits(name..'.sessions.'..k,ss[k],76) end
@@ -308,9 +310,9 @@ for name in pairs(R.TEXT) do
     fits(name..'.sessions.friend',ss.friend,57)
     fits(name..'.sessions.version',ss.version:format('22','26123051'),57)
     fits(name..'.sessions.footer',ss.footer:format('22','26123051'),2*2200//16)
-    -- Create a session (session/ui/create.lua): its page title at the top right within 40 columns (Mideum 34, 18 units
-    -- a column); the rules header and the Start row within a setting's title column on C (32); a locked row's reason
-    -- and each Who can join word within four lines of the right pane's 1040 units (57 columns a line).
+    -- Create a session (online/session/ui/create.lua): its page title at the top right within 40 columns (Mideum 34, 18
+    -- units a column); the rules header and the Start row within a setting's title column on C (32); a locked row's
+    -- reason and each Who can join word within four lines of the right pane's 1040 units (57 columns a line).
     local cr=w.create
     fits(name..'.create.title',cr.title,40)
     fits(name..'.create.rules',cr.rules,32)

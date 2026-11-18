@@ -1,14 +1,14 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The shop's item grant and EVE's GUID, moved out of nightop/shop.lua for every module to read.
+-- The shop's item grant and EVE's GUID, moved out of online/modes/nightop/shop.lua for every module to read.
 local U=require('core.unreal')
 local Shop={}
 local MASK=0xFFFFFFFF
 Shop.MOST=10 -- Items in one buy.
 -- The one grant call: an item alias, EVE's GUID and 1 to MOST items, into the inventory, with the game's pickup
 -- message; no stat level, no enhance message, not an event load, no saved instance. Shop.grant and coop gift
--- (cut/menus/mailbox.lua) call it, each after checking the alias against its own list.
+-- (tools/mailbox.lua) call it, each after checking the alias against its own list.
 function Shop.add(pc,guid,alias,count)
     assert(type(alias)=='string' and alias:match('^[%w_]+$'),'not an alias')
     assert(math.type(count)=='integer' and count>=1 and count<=Shop.MOST,'not a count')

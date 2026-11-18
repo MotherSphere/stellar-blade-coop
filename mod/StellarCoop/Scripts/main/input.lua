@@ -91,7 +91,7 @@ M.PAD={'up','down','left','right','select','back','menu','tab_left','tab_right',
 function M.bike_press(by)
     if M.off then return M.report(false,M.OFF) end
     local ran,ok,message=true,false,'the bike is off until the mod reloads' -- Bike off: its stub would say nil.
-    if not M.off_modules.bike then ran,ok,message=pcall(M.bike.toggle,by) end
+    if not M.off_modules['vehicles.bike'] then ran,ok,message=pcall(M.bike.toggle,by) end
     if not ran then ok,message=false,ok end
     M.report(ok,message)
     if not ok then M.say(tostring(message)) end

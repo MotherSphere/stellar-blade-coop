@@ -16,59 +16,60 @@
 // the game run; nothing is written to disk, and no shipped row changes except the 5 ZoneTriggerTable rows that
 // Matrix XIII's batch patches in place (see below).
 //
-// The same batch carries, first, the rows of the cut items the Night Operation shop sells (nightop/shop.lua asks for
-// them before a buy): the ItemTable rows of the Burst Stimpack (300013, over SB's own consumable HP2Burst_Potion) and
-// the Beta Stimpack (300014), the Beta Stimpack's ItemConsumableTable row (1032) and the SkillTable row both play,
-// P_Eve_Sword_Normal_Buff_1 (6000101), which HP2Burst_Potion names and SB never shipped. Each is a near copy of a
-// shipped row (its own template, which the generator reads from the dump): the health potion's item, HP2Burst_Potion
-// and the health potion's drinking skill, with the few fields that make it the cut item.
+// The same batch carries, first, the rows of the cut items the Night Operation shop sells
+// (online/modes/nightop/shop.lua asks for them before a buy): the ItemTable rows of the Burst Stimpack (300013, over
+// SB's own consumable HP2Burst_Potion) and the Beta Stimpack (300014), the Beta Stimpack's ItemConsumableTable row
+// (1032) and the SkillTable row both play, P_Eve_Sword_Normal_Buff_1 (6000101), which HP2Burst_Potion names and SB
+// never shipped. Each is a near copy of a shipped row (its own template, which the generator reads from the dump): the
+// health potion's item, HP2Burst_Potion and the health potion's drinking skill, with the few fields that make it the
+// cut item.
 //
-// After them come EVE's cut Tachy Mode ChainSpin (coop chainspin, cut/eve/chainspin.lua), near copies too: the
+// After them come EVE's cut Tachy Mode ChainSpin (coop chainspin, eve/chainspin.lua), near copies too: the
 // SkillTable row P_Eve_Tachy_Skill_ChainSpin1_1 (1004500, ChainStab1's row starting its own steps), its 9 steps
 // (100450001 to 100450009, ChainStab1's steps with the timing, moves and hit area of the Tachy NPC's version, which
 // play the NPC's shipped Show of EVE's own ChainSpin clip and take SB's shipped ChainSpin moves) and the EffectTable
 // row P_Eve_Tachy_Skill_ChainSpin1_Use (1004500), whose UseSkill action starts the skill while EVE is in Tachy Mode.
 //
-// A second batch, the cut Gardener's (coop gardener fight, cut/enemies/gardener.lua; kGardenerRecipe), goes in on its
+// A second batch, the cut Gardener's (coop gardener fight, fight/bosses/gardener.lua; kGardenerRecipe), goes in on its
 // own ask, so a refusal in one batch never stops another: 13 near copies of shipped rows (the 3 steps of its ToxicBeam,
 // its 3 skills and their commands, a stance that never moves and 3 CharacterTable rows over M_Maelstrom: M_Gardener
 // 50010, M_Gardener_Skulling 50011 and the half-scale M_Gardener_Half 50012). A third, the cut Tendril's (coop tendril
-// fight, cut/enemies/tendril.lua; kTendrilRecipe), is authored as the Lion's: 107 rows over the Lion's templates (11
+// fight, fight/bosses/tendril.lua; kTendrilRecipe), is authored as the Lion's: 107 rows over the Lion's templates (11
 // skills on its own clips with their commands and 45 steps, 28 target filters, 5 hit results, its turn toward EVE, 2
 // anim sets, a stance, the dead and appearance rows and M_TendrilC 50060). Its steps and its death name Shows no pak
-// holds, which cut/enemies/tendril.lua builds in memory before a spawn. A fourth, the Shock Bolt's (kBoltRecipe), holds
-// the 4 rows of EVE's cut ammo the Night Operation shop sells, and only the shop asks for it (nightop/shop.lua through
-// cut/enemies/lion.lua: a Shock Bolt buy, and coop nightop shop before it opens the screen), so these rows never stand
-// in front of the Lion's: ItemTable Bullet_Shock (32, over Bullet_Scatter), the SkillTable row its consumable plays,
-// P_Eve_Gun_ShootShockSlug1_1 (1003401, Scatter's skill on SB's shipped Shock steps), the projectile those steps fire,
-// ProjectileTable P_Eve_Gun_ShootShockSlug1_Projectile1 (1010051, the normal slug's), and its hit result with SB's
-// shock stun (SkillResultTable 100200801). What makes the ammo selectable and the gun fire it is no row: lion/shock.h
-// grows two lists in place once these rows are in. A fifth, Matrix XIII's
+// holds, which fight/bosses/tendril.lua builds in memory before a spawn. A fourth, the Shock Bolt's (kBoltRecipe),
+// holds the 4 rows of EVE's cut ammo the Night Operation shop sells, and only the shop asks for it
+// (online/modes/nightop/shop.lua through fight/bosses/lion.lua: a Shock Bolt buy, and coop nightop shop before it opens
+// the screen), so these rows never stand in front of the Lion's: ItemTable Bullet_Shock (32, over Bullet_Scatter), the
+// SkillTable row its consumable plays, P_Eve_Gun_ShootShockSlug1_1 (1003401, Scatter's skill on SB's shipped Shock
+// steps), the projectile those steps fire, ProjectileTable P_Eve_Gun_ShootShockSlug1_Projectile1 (1010051, the normal
+// slug's), and its hit result with SB's shock stun (SkillResultTable 100200801). What makes the ammo selectable and the
+// gun fire it is no row: lion/shock.h grows two lists in place once these rows are in. A fifth, Matrix XIII's
 // (kMxiiiRecipe, written by hand below the generated part with its own patches), holds the 8 rows the cut dungeon's
-// first zone lacks for a camp of its own (coop mxiii, matrix13/world/travel.lua): ZoneCampTable DLC02_10_Camp_01
-// (280001, a copy of ME01_Camp_03 that the camp list shows once activated) and 7 ZoneEnvSpawnTable rows in
-// Zone_DLC02_10 whose TargetCamp names that camp (2800032900 to 2800032906, copies of the DLC02_10 camp kit's rows 420
-// to 426): DLC02_10_EnvS_900 leads SB's camp travel there, and the camp's 7 rows bind by name the kit the test pak
-// places in its MXIII_Camps_A level, in the two zone tables only it writes. Then 2 rows give zone 30 a camp with no
+// first zone lacks for a camp of its own (coop mxiii, world/maps/matrix13/level/travel.lua): ZoneCampTable
+// DLC02_10_Camp_01 (280001, a copy of ME01_Camp_03 that the camp list shows once activated) and 7 ZoneEnvSpawnTable
+// rows in Zone_DLC02_10 whose TargetCamp names that camp (2800032900 to 2800032906, copies of the DLC02_10 camp kit's
+// rows 420 to 426): DLC02_10_EnvS_900 leads SB's camp travel there, and the camp's 7 rows bind by name the kit the test
+// pak places in its MXIII_Camps_A level, in the two zone tables only it writes. Then 2 rows give zone 30 a camp with no
 // kit (coop mxiii 30):
 // ZoneCampTable DLC02_30_Camp_01 (281001, a copy of ME03_Camp_03) and DLC02_30_EnvS_900 (2810032900,
 // DLC02_10_EnvS_900's recipe in Zone_DLC02_30). After them it patches 5 shipped ZoneTriggerTable rows in place, the
 // table only it reads, so the zone 20 waves and the zone 40 chains of spawns fire without the dungeon's own props. A
-// sixth, the Night Operation shop's (kShopRecipe), holds the 6 rows SB's own shop screen needs for it (nightop/shop.lua
-// asks for it before it opens that screen): the Beta Seed's ItemTable row (Money_NightOperation 9011, over Clyde's
-// currency FishingPoint, with the seed's shipped text keys), ShopItemTable rows for the two stimpacks and the Shock
-// Bolt (3571-3573, over the shipped Night Operation rows) and two ShopTable rows, Shop_NightOperation_Coop (1061) and
-// _CoopBolt (1062, the same with the Shock Bolt), over the cut Shop_NightOperation with the Beta Seed as currency and
-// no tag. A seventh, Lily's signal (kSignalRecipe, written by hand like Matrix XIII's, matrix13/quest/on_time.lua),
-// holds the mod's own quests, the prologue "A Second Signal" (Quest_Sub_MX13_00, 164) and "On Time" (Quest_Sub_MX13_01,
-// 163): 8 LevelTargetFilter rows, 7 tasks, 7 groups and the two quest rows last of them, and patches Lily's borrowed
-// choice row TS_GoToTest_2 in place, last. The hall lobbies' (kHallsRecipe, lion/halls_rows.h, which
-// tools/sbo_lobby_rows.py writes; lobby/halls_rows.lua) holds one WorldTable row and one type-5 ZoneTable row for
-// each SBO hall lobby map, so SB's warp reaches the cooked maps of the local lobby pak, then one ZoneEnvSpawnTable row
-// for each kept seat of those maps, for the chair of SB's spawned there. A Batch names its rows, its patches and
-// the word its status line, log lines and request start with ("lion", "gardener", "tendril", "bolt", "mxiii", "shop",
-// "signal", "halls": coop-status.txt's shock line is lion/shock.h's); every batch shares the table checks, the block
-// and the rules below, and each keeps its own Builder.
+// sixth, the Night Operation shop's (kShopRecipe), holds the 6 rows SB's own shop screen needs for it
+// (online/modes/nightop/shop.lua asks for it before it opens that screen): the Beta Seed's ItemTable row
+// (Money_NightOperation 9011, over Clyde's currency FishingPoint, with the seed's shipped text keys), ShopItemTable
+// rows for the two stimpacks and the Shock Bolt (3571-3573, over the shipped Night Operation rows) and two ShopTable
+// rows, Shop_NightOperation_Coop (1061) and _CoopBolt (1062, the same with the Shock Bolt), over the cut
+// Shop_NightOperation with the Beta Seed as currency and no tag. A seventh, Lily's signal (kSignalRecipe, written by
+// hand like Matrix XIII's, world/maps/matrix13/quest/on_time.lua), holds the mod's own quests, the prologue "A Second
+// Signal" (Quest_Sub_MX13_00, 164) and "On Time" (Quest_Sub_MX13_01, 163): 8 LevelTargetFilter rows, 7 tasks, 7 groups
+// and the two quest rows last of them, and patches Lily's borrowed choice row TS_GoToTest_2 in place, last. The hall
+// lobbies' (kHallsRecipe, lion/halls_rows.h, which tools/sbo_lobby_rows.py writes; online/lobby/halls_rows.lua) holds
+// one WorldTable row and one type-5 ZoneTable row for each SBO hall lobby map, so SB's warp reaches the cooked maps of
+// the local lobby pak, then one ZoneEnvSpawnTable row for each kept seat of those maps, for the chair of SB's spawned
+// there. A Batch names its rows, its patches and the word its status line, log lines and request start with ("lion",
+// "gardener", "tendril", "bolt", "mxiii", "shop", "signal", "halls": coop-status.txt's shock line is lion/shock.h's);
+// every batch shares the table checks, the block and the rules below, and each keeps its own Builder.
 //
 // SB reads CharacterTable, SkillTable and CharacterStanceTable by ID through maps that only its own AddRow fills (the
 // table's vtable slot +0x2b0), so every row goes in through that call, on the game thread with no logic task in flight
@@ -6221,7 +6222,7 @@ constexpr Row kGardenerRecipe[] = {
 // The Tendril's own batch (coop tendril fight), added on its own ask after its own checks: 107 rows (character 1,
 // appearance 1, dead 1, stance 1, anim 2, command 11, skill 11, step 45, move 1, filter 28, result 5), 1281 fields,
 // every field authored over the Lion's template rows. M_TendrilC (50060) with M_Skulling_AI_Test. Its 11 skills
-// play its own clips through Shows cut/enemies/tendril.lua builds in memory (copies of
+// play its own clips through Shows fight/bosses/tendril.lua builds in memory (copies of
 // CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam in StellarCoop/Tendril, a package of its own); each Hit step is a
 // window of the clip where its chain ends strike (2500 cm/s or faster, 250 cm or farther out) and hits by area, a
 // 3D arc 200 cm high. Per skill, its range (straight ahead, the first hit's reach times 0.6087) and each hit: its
@@ -6360,9 +6361,9 @@ constexpr Row kBoltRecipe[] = {
     {Table::result, "P_Eve_Gun_ShootShockSlug1_Projectile1_Hit1", "P_Eve_Gun_ShootSlug1_Projectile1_Hit1", 100200801,
      4812, 13},
 };
-// The Night Operation shop's own batch (nightop/shop.lua asks for it before it opens SB's shop screen), added on
-// its own ask after its own checks: 6 near copies of shipped rows (item 1, shop 2, shopitem 3), 33 fields, 17 of
-// them changed from the template's value. The Beta Seed first, the two ShopTable rows last, once every row they
+// The Night Operation shop's own batch (online/modes/nightop/shop.lua asks for it before it opens SB's shop screen),
+// added on its own ask after its own checks: 6 near copies of shipped rows (item 1, shop 2, shopitem 3), 33 fields, 17
+// of them changed from the template's value. The Beta Seed first, the two ShopTable rows last, once every row they
 // name is in.
 constexpr Row kShopRecipe[] = {
     {Table::item, "Money_NightOperation", "FishingPoint", 9011, 4825, 13},
@@ -6379,8 +6380,8 @@ constexpr Row kShopRecipe[] = {
 // mxlower, mxlily (Lily's menu in this world: three IsInWorld conditions and three groups of her Tetrapod graph,
 // shipped rows patched in place) and mxnames (the camps' display keys, patched last in place on the mxiii batch's own
 // rows, and only once game/camp_text.h's entries exist). They go in at the title on the co-op save files with the
-// zMXIII_P pak there (matrix13/world/travel.lua), so a co-op save that names one of their rows loads with it. Each row
-// copies a shipped row of its table; a row whose donor is itself is that shipped row patched in place.
+// zMXIII_P pak there (world/maps/matrix13/level/travel.lua), so a co-op save that names one of their rows loads with
+// it. Each row copies a shipped row of its table; a row whose donor is itself is that shipped row patched in place.
 // mxiii: the camps and what they need. Zone_DLC02_10 (ZoneTable 2800, world DLCMatrix13) has no camp, so SB's camp
 // travel (game/travel.h) cannot reach it without these. DLC02_10_Camp_01 and its first env row DLC02_10_EnvS_900 (the
 // camp base; FUN_141cdfbd0 reads only a camp's first env row, its Zone or ZoneList[0], to find the world), then its kit
@@ -6399,9 +6400,9 @@ constexpr Row kShopRecipe[] = {
 // mxspawn: the Naytibas. The killable Stalker MX13_M_Sawshark (CharacterTable 50071, CHAL_UME_M_Sawshark_01 without
 // Passive_Immortal) first, then the 8 M_DummyC rows patched to shipped Naytibas, the zone 4 trio 035, 036 and 042 made
 // ZoneEvent spawns, 25 new enemy rows and the three bosses (Gardener M_Gardener and Lion M_LionC come from the gardener
-// and lion batches, which matrix13/world/travel.lua asks first), the 4 zone events that spawn the Gardener and the
-// trio, and the two trigger rows that run them. SB binds a spawn row to the placed SBSpawnPoint whose name equals the
-// row's SpawnPointName field (FUN_1422925c0); every name here is one the cooked map places.
+// and lion batches, which world/maps/matrix13/level/travel.lua asks first), the 4 zone events that spawn the Gardener
+// and the trio, and the two trigger rows that run them. SB binds a spawn row to the placed SBSpawnPoint whose name
+// equals the row's SpawnPointName field (FUN_1422925c0); every name here is one the cooked map places.
 // mxenv: loot, kill volumes and the shipped device rows dev already patched: the one-way doors 050, 051 and 037 (an
 // empty arrow at their point, our own sequences moving the cooked leaf), the R29 gate and its card switch listing zone
 // 1 and 2, the 55 m lift waiting at the top with our sequences, the 74 m lift's call switches (the lift controller,
@@ -6422,35 +6423,36 @@ static_assert(kTables[kTableCount - 1].name, "the generated kTables describes ev
 constexpr const TableInfo &table_info(Table t) { return kTables[size_t(t)]; }
 #include "lion/mxiii_rows.h"
 
-// ---- Lily's signal batch (matrix13/quest/on_time.lua), written by hand: the generator holds no quest table ----
-// The mod's own quests. The prologue "A Second Signal" (Quest_Sub_MX13_00, QuestTable 164, a Sub quest), which
-// matrix13/quest/on_time.lua acquires through quest/own.h in the Phase 5 window: one group whose one task is the
-// shipped "Talk to Lily" (Quest_Epic_11_M04_T01's counter, its keyed text in every language), tracking Lily at every
-// Tetrapod. Then "On Time" (Quest_Sub_MX13_01, QuestTable 163, a Sub quest), acquired once the prologue's talk is done:
-// six groups of one task each. M01 to M04 enter Zone_DLC02_10 to Zone_DLC02_40, the four zones of the cut Matrix XIII
-// (EnterZone, as Quest_Epic_06_M01_T01 enters Zone_ME_01); M05 is a counter with no marker that
-// matrix13/quest/on_time.lua completes once EVE stands in the zone 4 drive room; M06 is "Talk to Lily" again, tracking
-// her at every Tetrapod, completed after the end talk. Groups run in list order, so M06 starts only once M05 ends. The
-// markers are 8 LevelTargetFilter rows of ours, one per Tetrapod Lily (Eidos 9 has two spawns, only one live at a
-// time), each a copy of the one Quest_Epic_11_M04_T01 tracks with another EventSpawnAlias, all listed in both "Talk to
-// Lily" tasks. New names and IDs only, every one free in the build 26123051 dumps (shipped IDs end at 162, 334, 482): a
-// save that names a quest and loads without these rows drops it (FUN_141c5c740 logs "LoadQuest : QuestData Not Found"
-// and returns 0), where a borrowed shipped quest would stay half there. The save keys quests, groups and tasks by
-// alias, so these aliases must never change. Templates: each quest is Quest_Sub_WLB_001 (a shipped Sub with no reward,
-// no event, no fail condition, no next quest), each group Quest_Sub_002_M01 (one container, no event, no warp), each
-// task the shipped task its type comes from (neither has task events). Their FText (titles, descriptions, group lines,
-// the lines of On Time's tasks 1 to 5) is the templates' until matrix13/quest/on_time.lua writes ours in the game's
-// language. Filters first, then tasks, groups and the two quest rows last of them, so a quest exists only once the rows
-// it names are all in. Then Lily's borrowed choice row, TS_GoToTest_2 (TheaterSelectDataTable 86, in the test list
-// TS_GoToTest that no story graph shows), patched in place for the game run: Conditions [Xion_10_Condition_051]
-// (QuestState Quest_Epic_11 M04 in progress: the game shows the row from "Talk to Lily to decide on the next
-// destination" until "Leave for the Nest"), shown or hidden rather than greyed, priority 3 (above her Travel, Repair
-// and End rows: the cancel input picks the last slot, End's), and her goodbye's exec, Success5 (Success runs her bike
-// signal's point of no return on every Lily node). nightop/roxanne.h's lily swap lists it in her choice list;
-// matrix13/quest/on_time.lua writes its label. It comes last, but that only helps with a refusal at its own row step
-// (no template, an FName not made): the 24 quest rows stay in. The table checks (class, AddRow slot, row size) run for
-// every table of the batch before any row, so a TheaterSelectDataTable that fails them stops the whole batch with no
-// row in. Struct sizes and offsets from the SDK (stellar-sdk-647527f); none of the five structs has a Transient field.
+// ---- Lily's signal batch (world/maps/matrix13/quest/on_time.lua), written by hand: the generator holds no quest table
+// ---- The mod's own quests. The prologue "A Second Signal" (Quest_Sub_MX13_00, QuestTable 164, a Sub quest), which
+// world/maps/matrix13/quest/on_time.lua acquires through quest/own.h in the Phase 5 window: one group whose one task is
+// the shipped "Talk to Lily" (Quest_Epic_11_M04_T01's counter, its keyed text in every language), tracking Lily at
+// every Tetrapod. Then "On Time" (Quest_Sub_MX13_01, QuestTable 163, a Sub quest), acquired once the prologue's talk is
+// done: six groups of one task each. M01 to M04 enter Zone_DLC02_10 to Zone_DLC02_40, the four zones of the cut Matrix
+// XIII (EnterZone, as Quest_Epic_06_M01_T01 enters Zone_ME_01); M05 is a counter with no marker that
+// world/maps/matrix13/quest/on_time.lua completes once EVE stands in the zone 4 drive room; M06 is "Talk to Lily"
+// again, tracking her at every Tetrapod, completed after the end talk. Groups run in list order, so M06 starts only
+// once M05 ends. The markers are 8 LevelTargetFilter rows of ours, one per Tetrapod Lily (Eidos 9 has two spawns, only
+// one live at a time), each a copy of the one Quest_Epic_11_M04_T01 tracks with another EventSpawnAlias, all listed in
+// both "Talk to Lily" tasks. New names and IDs only, every one free in the build 26123051 dumps (shipped IDs end at
+// 162, 334, 482): a save that names a quest and loads without these rows drops it (FUN_141c5c740 logs "LoadQuest :
+// QuestData Not Found" and returns 0), where a borrowed shipped quest would stay half there. The save keys quests,
+// groups and tasks by alias, so these aliases must never change. Templates: each quest is Quest_Sub_WLB_001 (a shipped
+// Sub with no reward, no event, no fail condition, no next quest), each group Quest_Sub_002_M01 (one container, no
+// event, no warp), each task the shipped task its type comes from (neither has task events). Their FText (titles,
+// descriptions, group lines, the lines of On Time's tasks 1 to 5) is the templates' until
+// world/maps/matrix13/quest/on_time.lua writes ours in the game's language. Filters first, then tasks, groups and the
+// two quest rows last of them, so a quest exists only once the rows it names are all in. Then Lily's borrowed choice
+// row, TS_GoToTest_2 (TheaterSelectDataTable 86, in the test list TS_GoToTest that no story graph shows), patched in
+// place for the game run: Conditions [Xion_10_Condition_051] (QuestState Quest_Epic_11 M04 in progress: the game shows
+// the row from "Talk to Lily to decide on the next destination" until "Leave for the Nest"), shown or hidden rather
+// than greyed, priority 3 (above her Travel, Repair and End rows: the cancel input picks the last slot, End's), and her
+// goodbye's exec, Success5 (Success runs her bike signal's point of no return on every Lily node). nightop/roxanne.h's
+// lily swap lists it in her choice list; world/maps/matrix13/quest/on_time.lua writes its label. It comes last, but
+// that only helps with a refusal at its own row step (no template, an FName not made): the 24 quest rows stay in. The
+// table checks (class, AddRow slot, row size) run for every table of the batch before any row, so a
+// TheaterSelectDataTable that fails them stops the whole batch with no row in. Struct sizes and offsets from the SDK
+// (stellar-sdk-647527f); none of the five structs has a Transient field.
 // Both "Talk to Lily" tasks' TrackingTargetFilter: the 8 filters below, one per Tetrapod Lily.
 constexpr const char kLilyFilters[] = "Quest_Sub_MX13_01_LevelTargetFilter_001|Quest_Sub_MX13_01_LevelTargetFilter_002|"
                                       "Quest_Sub_MX13_01_LevelTargetFilter_003|Quest_Sub_MX13_01_LevelTargetFilter_004|"
@@ -6578,22 +6580,23 @@ constexpr Row kSignalRecipe[] = {
     {Table::select, "TS_GoToTest_2", "TS_GoToTest_2", 0, 52, 5},
 };
 
-// ---- The hall lobbies' batch (lobby/halls_rows.lua), lion/halls_rows.h, written by tools/sbo_lobby_rows.py ----
-// One world row and one zone row for each SBO hall lobby map of lobby/sbo_maps.lua (Hotel, Station, Cloister,
-// Terrace, Foyer, in that order), so lobby/sbo.lua's warp (game/sbo.h: the zone row by name, its WorldAlias +0x14,
-// that world row's UMapPath +0x18, type 5 at +0x25) reaches the maps of the local lobby pak zSBO_Lobby. The five worlds
-// come first, so no zone names a world row not in yet. Each world is a copy of CombatTestMapMk2 (1003: only UMapPath and
-// FileSuffix exist, and FileSuffix is None in every shipped row) with the cooked persistent level's path; each zone a
-// copy of Zone_Xion_Boss_Mann (1692, the zone the SBO lobby uses in Xion: type 5 BossChallenge, PS5_Default graphics,
-// no events) with WorldAlias naming its world row, ZoneType 5 kept as a guard, StartPointAlias the map's spawn point
-// (named after its world row, as the cooked SBSpawnPoint is) and AdditiveDesignLevel emptied (the donor's E04_LD_Mann
-// is Xion's). IDs World 7121-7125 and Zone 1000121-1000125, above every shipped ID on build 26123051 (World max 7000,
-// Zone max 999992). Then one ZoneEnvSpawnTable row for each kept seat but the camp ones (171), maps in the same order:
-// SBO_<Map>_Seat<nnn>, the row the chair of SB's spawned at that seat binds to by its EnvActorName. Each is a copy of
-// Xion's chair row of the seat's sit loop (Xion_10_EnvS_035 outdoor, _021 bar, _025 table: the InteractionGraph and
-// the alias Env_Camp_Chair come with it, EnvBPPath stays empty, Zone None and the range fields 0) with ZoneList its
-// hall's zone (+0x20), EnvActorName its own name (+0x30), InitStateTag FirstInteraction (+0x64: SB's graph runs the
-// sit from there without the first use's camp-rest effect) and SaveType None (+0x6c: nothing goes into the save).
+// ---- The hall lobbies' batch (online/lobby/halls_rows.lua), lion/halls_rows.h, written by tools/sbo_lobby_rows.py
+// ---- One world row and one zone row for each SBO hall lobby map of online/lobby/sbo_maps.lua (Hotel, Station,
+// Cloister, Terrace, Foyer, in that order), so online/lobby/sbo.lua's warp (game/sbo.h: the zone row by name, its
+// WorldAlias +0x14, that world row's UMapPath +0x18, type 5 at +0x25) reaches the maps of the local lobby pak
+// zSBO_Lobby. The five worlds come first, so no zone names a world row not in yet. Each world is a copy of
+// CombatTestMapMk2 (1003: only UMapPath and FileSuffix exist, and FileSuffix is None in every shipped row) with the
+// cooked persistent level's path; each zone a copy of Zone_Xion_Boss_Mann (1692, the zone the SBO lobby uses in Xion:
+// type 5 BossChallenge, PS5_Default graphics, no events) with WorldAlias naming its world row, ZoneType 5 kept as a
+// guard, StartPointAlias the map's spawn point (named after its world row, as the cooked SBSpawnPoint is) and
+// AdditiveDesignLevel emptied (the donor's E04_LD_Mann is Xion's). IDs World 7121-7125 and Zone 1000121-1000125, above
+// every shipped ID on build 26123051 (World max 7000, Zone max 999992). Then one ZoneEnvSpawnTable row for each kept
+// seat but the camp ones (171), maps in the same order: SBO_<Map>_Seat<nnn>, the row the chair of SB's spawned at that
+// seat binds to by its EnvActorName. Each is a copy of Xion's chair row of the seat's sit loop (Xion_10_EnvS_035
+// outdoor, _021 bar, _025 table: the InteractionGraph and the alias Env_Camp_Chair come with it, EnvBPPath stays empty,
+// Zone None and the range fields 0) with ZoneList its hall's zone (+0x20), EnvActorName its own name (+0x30),
+// InitStateTag FirstInteraction (+0x64: SB's graph runs the sit from there without the first use's camp-rest effect)
+// and SaveType None (+0x6c: nothing goes into the save).
 // IDs 39m0032nnn (m the map's place, nnn the seat), above ZoneEnvSpawnTable's highest on build 26123051 (3305032001,
 // 4430 rows). No name ends in _<digits>: the warp sends FName number 0, and Lua names the chair's row by its text. An
 // update that takes an ID refuses the batch (Why::id) and the lobby stays in Xion. Struct sizes and offsets from the
@@ -6956,10 +6959,10 @@ private:
   uint32_t count_ = 0;
 };
 
-// coop-status.txt's line for a batch (cut/enemies/lion.lua reads lion=, bolt= and shop=, cut/enemies/gardener.lua
-// gardener=, cut/enemies/tendril.lua tendril=, matrix13/world/travel.lua mxiii=, mxspawn=, mxenv=, mxupper=, mxmiddle=
-// and mxlower=, matrix13/quest/on_time.lua signal=), from its answer word, its read-back, the frames its ask waited,
-// the spawn manager's counter and, after the latch, where the fault was:
+// coop-status.txt's line for a batch (fight/bosses/lion.lua reads lion=, bolt= and shop=, fight/bosses/gardener.lua
+// gardener=, fight/bosses/tendril.lua tendril=, world/maps/matrix13/level/travel.lua mxiii=, mxspawn=, mxenv=,
+// mxupper=, mxmiddle= and mxlower=, world/maps/matrix13/quest/on_time.lua signal=), from its answer word, its
+// read-back, the frames its ask waited, the spawn manager's counter and, after the latch, where the fault was:
 //   <word>=off
 //   <word>=waiting added=<n>/<N> asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
 //   <word>=rows added=<N>/<N> asks=<a> spawns=<s> char=<k>/<n> skills=<k>/<n> stance=<k>/<n>

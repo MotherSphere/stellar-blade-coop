@@ -1,23 +1,23 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// Roxanne's Night Operation choices (nightop/roxanne.lua) and Lily's signal choice (matrix13/quest/on_time.lua), free
-// of Windows: tests/native/nightop/roxanne_test.cpp checks it against fake memory. Roxanne's dialogue's choice list,
-// TS_Xion_Roxane_Choice, holds two TheaterSelectDataTable rows, Shop and End Conversation; Lily's, TS_Xion_Lily_Choice,
-// holds eight (the bike signal, four About Enya rows, Travel to Another Region, Repair Console, End Conversation). SB
-// does not read a list from the table when a dialogue starts: it reads a cache built before play, a TMap from a select
-// list's name to the TArray of its row names, at the world singleton's (the global at 0x1470373d0) +0xe0 object's
-// +0x5f0 (FUN_141b422d0 finds the list with FUN_1417024c0 there, then fetches each listed row by name and reads its
-// fields live). So a row of ours never shows by its SelectDataName, and AddRow would not list it either. Here a list's
-// own entry in that cache is pointed at a TArray of names: our rows first, then the list's own rows as the entry held
-// them. Roxanne's are four shipped test rows no story graph lists (Temp_TS_Select_Test_1 to _3 and TS_GoToTest_1,
-// which nightop/roxanne.lua edits and gives its text), so End Conversation stays the last slot (the cancel input picks
-// the last one) whether the widget sorts by priority (all six read 0) or not, and the select widget's six slots hold
-// them all. Lily's is one, TS_GoToTest_2, which lion/rows.h's signal batch patches in place (priority 3: sorted by
-// priority it stands below her bike signal and above her Travel, Repair and End rows; unsorted it stands first, End
-// staying last either way); the game hides the rows whose conditions fail before the widget fills, as it does for her
-// own eight. Roxanne's two rows must be in her order; Lily's eight are checked as a set, since the cache's order of
-// them is not known, and kept in that order.
+// Roxanne's Night Operation choices (online/modes/nightop/roxanne.lua) and Lily's signal choice
+// (world/maps/matrix13/quest/on_time.lua), free of Windows: tests/native/nightop/roxanne_test.cpp checks it against
+// fake memory. Roxanne's dialogue's choice list, TS_Xion_Roxane_Choice, holds two TheaterSelectDataTable rows, Shop and
+// End Conversation; Lily's, TS_Xion_Lily_Choice, holds eight (the bike signal, four About Enya rows, Travel to Another
+// Region, Repair Console, End Conversation). SB does not read a list from the table when a dialogue starts: it reads a
+// cache built before play, a TMap from a select list's name to the TArray of its row names, at the world singleton's
+// (the global at 0x1470373d0) +0xe0 object's +0x5f0 (FUN_141b422d0 finds the list with FUN_1417024c0 there, then
+// fetches each listed row by name and reads its fields live). So a row of ours never shows by its SelectDataName, and
+// AddRow would not list it either. Here a list's own entry in that cache is pointed at a TArray of names: our rows
+// first, then the list's own rows as the entry held them. Roxanne's are four shipped test rows no story graph lists
+// (Temp_TS_Select_Test_1 to _3 and TS_GoToTest_1, which online/modes/nightop/roxanne.lua edits and gives its text), so
+// End Conversation stays the last slot (the cancel input picks the last one) whether the widget sorts by priority (all
+// six read 0) or not, and the select widget's six slots hold them all. Lily's is one, TS_GoToTest_2, which
+// lion/rows.h's signal batch patches in place (priority 3: sorted by priority it stands below her bike signal and above
+// her Travel, Repair and End rows; unsorted it stands first, End staying last either way); the game hides the rows
+// whose conditions fail before the widget fills, as it does for her own eight. Roxanne's two rows must be in her order;
+// Lily's eight are checked as a set, since the cache's order of them is not known, and kept in that order.
 // The new array is SB's GMalloc's (FMalloc at 0x1470703c0, Malloc at its vtable's +0x10), so SB may free it like
 // its own: from the moment the entry points at it, it is SB's, reused only once off took it back, and an entry the game
 // rebuilt meanwhile gets a new one. The old one is kept untouched, and off puts the old pointer, count and max back
@@ -186,8 +186,8 @@ template <class Game> bool disarm(Game &g, uint64_t base, const List &l, Swap &s
   return true;
 }
 
-// coop-status.txt's roxanne and lily lines (nightop/roxanne.lua and matrix13/quest/on_time.lua read them), <word>
-// the list's:
+// coop-status.txt's roxanne and lily lines (online/modes/nightop/roxanne.lua and world/maps/matrix13/quest/on_time.lua
+// read them), <word> the list's:
 //   <word>=<unread|absent|on|off|other> asks=<a> want=<on|off> why=<word>
 //   <word>=fault asks=<a> where=<text, maybe with spaces>
 // The entry's shape as of the game thread's last look (every 250 ms after the first ask; off: the list's own rows,

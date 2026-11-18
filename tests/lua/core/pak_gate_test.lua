@@ -6,7 +6,7 @@
 -- in its directory index, its .pak and .ucas beside it, each read bounded; its version from the .utoc's size and the
 -- .ucas's size as the .utoc's compression blocks give it. Refused: no game folder, no .utoc, a missing .pak or .ucas,
 -- a map missing from the index, a .utoc whose header does not read as one. The size reader itself (shared with
--- matrix13/world/travel.lua) is checked in matrix13/world/travel_test.
+-- world/maps/matrix13/level/travel.lua) is checked in world/maps/matrix13/level/travel_test.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local PakGate=require('core.pak_gate')
 local PAKS='C:\\G\\SB\\Content\\Paks'
@@ -73,7 +73,7 @@ assert(version==nil and why==MODS..' does not hold SBO_Lobby',why)
 put(MODS,'-==--==--==--==-\0'..table.concat(ALL,'\0')..'\0')
 version,why=PakGate.find(PAKS,read,'zSBO_Lobby',UMAPS)
 assert(version==nil and why==MODS..' does not read as a .utoc header',why)
--- SB/Content/Paks from the mod's folder, as matrix13/world/travel_test.lua read it.
+-- SB/Content/Paks from the mod's folder, as world/maps/matrix13/level/travel_test.lua read it.
 assert(PakGate.paks_of('C:\\G\\SB\\Binaries\\Win64\\ue4ss\\Mods\\StellarCoop')=='C:\\G\\SB\\Content\\Paks')
 assert(PakGate.paks_of('D:/Steam/SB/Binaries/Win64/Mods/StellarCoop')=='D:/Steam/SB\\Content\\Paks')
 assert(PakGate.paks_of('mod/StellarCoop')==nil and PakGate.paks_of(nil)==nil)

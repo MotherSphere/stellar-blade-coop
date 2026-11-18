@@ -11,7 +11,7 @@ namespace {
 // byte of the game changes. The worker makes it once a run by a compare-and-swap from kInit only, and undoes it at coop
 // off and after a fault by a compare-and-swap from our hook only, so another mod's value is never overwritten. The DLL
 // is pinned, so a thread still inside the hook after the undo is safe. A tab that got no record stays collapsed:
-// group/region_tabs.lua makes every tab collapsed and only SB's camp list, through the logic, shows one.
+// online/group/region_tabs.lua makes every tab collapsed and only SB's camp list, through the logic, shows one.
 using RegionInit = void *(*)(void *logic, void *arg);
 using RegionManagers = uintptr_t (*)();
 using RegionWidget = uintptr_t (*)(uintptr_t manager, const region_tabs::Guid *guid);

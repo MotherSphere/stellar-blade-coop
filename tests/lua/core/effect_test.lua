@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- core/effect.lua: SB's cheat request with an effect ID on EVE's GUID; its target from the native status text
--- (cut/eve/chainspin_test.lua's cases), over a fake core/player.lua.
+-- (eve/chainspin_test.lua's cases), over a fake core/player.lua.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local her,controller={},{}
 package.loaded['core.player']={her=function() return her end,controller=function() return controller end}

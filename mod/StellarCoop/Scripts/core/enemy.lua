@@ -2,37 +2,38 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- A cut monster spawned as a real enemy to fight, on the game thread: the flow coop lion, coop gardener fight and coop
--- tendril fight shared until November 2026, when they took their own copy (cut/enemies/enemy.lua). This file stays
--- for the row batches of matrix13/world/travel.lua, matrix13/quest/on_time.lua and lobby/halls_rows.lua, which use
--- its rows part only. The monster's rows
+-- tendril fight shared until November 2026, when they took their own copy (fight/bosses/enemy.lua). This file stays
+-- for the row batches of world/maps/matrix13/level/travel.lua, world/maps/matrix13/quest/on_time.lua and
+-- online/lobby/halls_rows.lua, which use its rows part only. The monster's rows
 -- are a batch of the native part (lion/rows.h, lion/lion_game.inc: SB's own AddRow on the game thread with no
 -- logic task in flight). This file finds the tables the spec's rows go into (of the native part's 39) by their fixed
 -- paths and sends their addresses (the spec's "<word> rows" request: no console word reaches an address), so a table
 -- no row of the batch uses never stops it; it waits for the answer in coop-status.txt's <word> line,
 -- then reads every row of the batch back through FindRow by field name, independent of the SDK's offsets, and stops at
 -- the first value that differs, then runs the spec's prepare (the Tendril's Shows). Then one spawn call,
--- nightop/run.lua's ServerRequest_CreateActor with cheat on and key 0 (no EventSpawn row: no zone storage, no quest
--- event, no respawn, nothing saved), the spec's distance ahead of EVE and height, facing her, for one of the spec's
--- CharacterTable IDs only. Its body is the new character nearest the spot (of the spec's blueprint class), or a body SB
--- sent far away and moved back there (it reuses one: a Lion at 466 m came back for the next spawn on 2026-10-23), given
--- its default controller when it has none, its mesh turned by the spec's yaw when it has one (turned again, and said,
--- if the game turns it back) and given the spec's material on every slot when it has one, then followed: a line a
--- second while it lives (distance, place, the anim graph's speed, a skill running, the custom anim alphas the AnimBP
--- blends a Show's clip by, how far a hand moved in the body's own frame, with its mesh's engine switches before the
--- first line and at each change), its death (InteractionState not 0 with no controller, killed below) and its body's
--- despawn, with the spawn manager's counter (the line's spawns=) before, while it lives and after. While one lives,
--- once a second, the boss bar's name where it reads <row name> (no text of the monster in CharacterStringTable) set to
--- the spec's (the TextBlock SB writes once a boss bind, through FText::FromStringTable on the row's Name;
--- FindAllOf('TextBlock') walks every object, so the live blocks found are kept and looked for again at most every
--- BOSS_LOOK s while none is held). Nothing looks its Shows or clips up: a StaticFindObject of one took about 30 ms
--- here, a 50 ms frame each second (the frame rate check of 2026-10-24). Never called here: UE4SS's AddRow or RemoveRow
--- (a raw RowMap insert or free that SB's ID maps miss), a despawn, a save, quest or inventory call. The monster goes
--- when it dies or with the map; the rows stay for the game run, and a later command only reads them back. coop off ends
--- what this file does (a wait, a search, the lines) and leaves a living monster to the game. The entrance: a
--- single-node clip on the real mesh would replace the anim instance SB plays its skills on while its AI runs, so the
--- spawn comes at once, or, with intro, after the spec's entrance clip played on a display copy (race/doro.lua's plain
--- actor with the spec's mesh, as cut/enemies/leviathan.lua shows its meshes); the monster then spawns where the copy's
--- root ended and the copy goes as soon as the body shows. A map change during the entrance spawns nothing.
+-- online/modes/nightop/run.lua's ServerRequest_CreateActor with cheat on and key 0 (no EventSpawn row: no zone storage,
+-- no quest event, no respawn, nothing saved), the spec's distance ahead of EVE and height, facing her, for one of the
+-- spec's CharacterTable IDs only. Its body is the new character nearest the spot (of the spec's blueprint class), or a
+-- body SB sent far away and moved back there (it reuses one: a Lion at 466 m came back for the next spawn on
+-- 2026-10-23), given its default controller when it has none, its mesh turned by the spec's yaw when it has one (turned
+-- again, and said, if the game turns it back) and given the spec's material on every slot when it has one, then
+-- followed: a line a second while it lives (distance, place, the anim graph's speed, a skill running, the custom anim
+-- alphas the AnimBP blends a Show's clip by, how far a hand moved in the body's own frame, with its mesh's engine
+-- switches before the first line and at each change), its death (InteractionState not 0 with no controller, killed
+-- below) and its body's despawn, with the spawn manager's counter (the line's spawns=) before, while it lives and
+-- after. While one lives, once a second, the boss bar's name where it reads <row name> (no text of the monster in
+-- CharacterStringTable) set to the spec's (the TextBlock SB writes once a boss bind, through FText::FromStringTable on
+-- the row's Name; FindAllOf('TextBlock') walks every object, so the live blocks found are kept and looked for again at
+-- most every BOSS_LOOK s while none is held). Nothing looks its Shows or clips up: a StaticFindObject of one took about
+-- 30 ms here, a 50 ms frame each second (the frame rate check of 2026-10-24). Never called here: UE4SS's AddRow or
+-- RemoveRow (a raw RowMap insert or free that SB's ID maps miss), a despawn, a save, quest or inventory call. The
+-- monster goes when it dies or with the map; the rows stay for the game run, and a later command only reads them back.
+-- coop off ends what this file does (a wait, a search, the lines) and leaves a living monster to the game. The
+-- entrance: a single-node clip on the real mesh would replace the anim instance SB plays its skills on while its AI
+-- runs, so the spawn comes at once, or, with intro, after the spec's entrance clip played on a display copy
+-- (online/modes/race/doro.lua's plain actor with the spec's mesh, as fight/bosses/leviathan.lua shows its meshes); the
+-- monster then spawns where the copy's root ended and the copy goes as soon as the body shows. A map change during the
+-- entrance spawns nothing.
 --
 -- spec: word (the status line's, the request's and the follow lines' word: lion, gardener, tendril), name (its
 -- messages: Lion), command (its console words: coop lion), tag (its log tag: [LI]), rows (its batch, as Enemy.rows
@@ -667,11 +668,11 @@ function Enemy.new(o,spec)
         if not ok then return false,'No spawn: '..why(e) end
         return true,string.format('%s %d asked: %s lines follow.',spec.ids[id],id,tag)
     end
-    -- The rows only, for another file's own use of them (the Night Operation shop's cut items, nightop/shop.lua): the
-    -- rows-only steps (the tables, the rows already in or the ask, the wait, the read-back), then done(ok, message)
-    -- with how they ended; what done returns is the end said. Returns done's ok, message when it ends at once, or ok,
-    -- message, true while it waits: done then follows from tick() (not after coop off, which drops the wait). title:
-    -- start()'s (matrix13/world/travel.lua's batch at the title).
+    -- The rows only, for another file's own use of them (the Night Operation shop's cut items,
+    -- online/modes/nightop/shop.lua): the rows-only steps (the tables, the rows already in or the ask, the wait, the
+    -- read-back), then done(ok, message) with how they ended; what done returns is the end said. Returns done's ok,
+    -- message when it ends at once, or ok, message, true while it waits: done then follows from tick() (not after coop
+    -- off, which drops the wait). title: start()'s (world/maps/matrix13/level/travel.lua's batch at the title).
     function self.rows(done,id,title)
         if job then return done(false,self.busy()) end
         local ok,message=self.start(id,false,true,title)
@@ -681,20 +682,20 @@ function Enemy.new(o,spec)
         end
         return done(ok,message)
     end
-    -- The rows alone at the title, from main.lua's 250 ms loop (matrix13/world/travel.lua's batch,
-    -- matrix13/quest/on_time.lua's): at_title (the title screen shown, no save loaded) and coop (the game on the co-op
-    -- save files, saves=coop; never your own saves). ready() gives the words the ask's log line names the files with
-    -- ('the co-op save files and test pak v3'), or nil when there is nothing to add (then nothing is said); more names
-    -- what adds them later. Asks at most TRIES times a visit of the title, each RETRY s after the last answer, while
-    -- the gate stays shut (GATE: the refusals of a gate that stayed shut, lion/rows.h's busy, net, unread, which a
-    -- later frame may open; any other refusal would come back the same). Once a game run: this batch's line already
-    -- reading rows (a Lua reload, a command before a return to the title) ends it, and so do ready() giving nil, a
-    -- fault, or an answer that is no shut gate. The rows flow is the commands' (the tables, the native part's gate and
-    -- latch, the read-back), with no EVE and no map to keep, and nothing after. The end says whether the title still
-    -- showed at the last call (shown), at most 250 ms before it; a save loads for longer than that. Returns
-    -- title(at_title, coop) and stop() for coop off, which ends the wait without its end, so a batch asked is free to
-    -- ask again at the next call. after(ok), when given, hears how each asked batch ended (true once the rows are in
-    -- and read back).
+    -- The rows alone at the title, from main.lua's 250 ms loop (world/maps/matrix13/level/travel.lua's batch,
+    -- world/maps/matrix13/quest/on_time.lua's): at_title (the title screen shown, no save loaded) and coop (the game on
+    -- the co-op save files, saves=coop; never your own saves). ready() gives the words the ask's log line names the
+    -- files with ('the co-op save files and test pak v3'), or nil when there is nothing to add (then nothing is said);
+    -- more names what adds them later. Asks at most TRIES times a visit of the title, each RETRY s after the last
+    -- answer, while the gate stays shut (GATE: the refusals of a gate that stayed shut, lion/rows.h's busy, net,
+    -- unread, which a later frame may open; any other refusal would come back the same). Once a game run: this batch's
+    -- line already reading rows (a Lua reload, a command before a return to the title) ends it, and so do ready()
+    -- giving nil, a fault, or an answer that is no shut gate. The rows flow is the commands' (the tables, the native
+    -- part's gate and latch, the read-back), with no EVE and no map to keep, and nothing after. The end says whether
+    -- the title still showed at the last call (shown), at most 250 ms before it; a save loads for longer than that.
+    -- Returns title(at_title, coop) and stop() for coop off, which ends the wait without its end, so a batch asked is
+    -- free to ask again at the next call. after(ok), when given, hears how each asked batch ended (true once the rows
+    -- are in and read back).
     local TRIES,RETRY=4,10
     local GATE={busy=true,net=true,unread=true}
     function self.title_batch(ready,more,after)

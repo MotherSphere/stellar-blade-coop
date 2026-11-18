@@ -1,7 +1,8 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Text helpers moved out of session/chat.lua, session/join.lua and group/travel.lua for every module to read.
+-- Text helpers moved out of online/session/chat.lua, online/session/join.lua and online/group/travel.lua for every
+-- module to read.
 local Line={}
 local MAX=200 -- Bytes a line.
 local WIDE=70 -- Columns a row.

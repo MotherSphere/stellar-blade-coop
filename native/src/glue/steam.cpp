@@ -294,7 +294,8 @@ void list_saves(const std::wstring &dir, const std::string &prefix, std::vector<
 // CNS packs among the files (.dekcns.json under ~mods, kMaxCnsPacks read, kMaxCnsBytes each) are counted with their
 // outfits for the log and the status's cns= line, and the assets they declare (cns_assets) go to coop-cns.txt, a
 // "<path> <outfit>" line each, sorted, written at every start (empty without CNS packs): the only paths of a mod
-// partner/puppet.lua loads when a friend's table names one, and the outfits partner/capture.lua tags her parts with.
+// online/partner/puppet.lua loads when a friend's table names one, and the outfits online/partner/capture.lua tags her
+// parts with.
 // The .uasset paths each mod container's .utoc indexes (utoc_assets, kMaxUtocBytes read of each), by container name,
 // kMaxModAssets in all, each path one game/table.h's path_allowed takes: what coop-shared-assets.txt lists of the
 // containers a friend has in the same version.
@@ -677,11 +678,12 @@ bool step() {
     std::string request = take_text(folder + L"coop-request.txt", DWORD(coop::kMaxRequestFile));
     // Taken at every pass, even when it cannot go, so a typed line never stays on disk. Never logged.
     const std::string typed = take_text(folder + L"coop-say.txt");
-    // Night Operation's line (nightop/run.lua), taken at every pass too: the newest state goes, an old one never waits.
+    // Night Operation's line (online/modes/nightop/run.lua), taken at every pass too: the newest state goes, an old one
+    // never waits.
     std::string night = take_text(folder + L"coop-night.txt");
     while (!night.empty() && (night.back() == '\n' || night.back() == '\r'))
       night.pop_back();
-    // Our parked bike's line (bike/ride.lua), taken the same way: the newest state wins.
+    // Our parked bike's line (vehicles/bike/ride.lua), taken the same way: the newest state wins.
     std::string parked = take_text(folder + L"coop-parked.txt");
     while (!parked.empty() && (parked.back() == '\n' || parked.back() == '\r'))
       parked.pop_back();

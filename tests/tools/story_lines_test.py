@@ -4,8 +4,8 @@
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """tools/story_lines.py: the story lines of docs/dev/story.md from parsed saves held in memory and from saves written
 into a temporary folder, their digest, and the snapshot, diff, digest, digest-lines and compare commands. The expected
-lines of story_case.json are in story_case.txt, which tests/lua/story/snapshot_test.lua holds the in-game dump to as
-well; float_repr.txt holds Python's repr of many doubles for the same test.
+lines of story_case.json are in story_case.txt, which tests/lua/story/together/snapshot_test.lua holds the in-game dump
+to as well; float_repr.txt holds Python's repr of many doubles for the same test.
 Run: python3 tests/tools/story_lines_test.py (--write rewrites float_repr.txt)"""
 import contextlib
 import copy

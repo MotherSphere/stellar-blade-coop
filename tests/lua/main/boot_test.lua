@@ -8,37 +8,38 @@
 -- raises), coop nightop reaches Night Operation's run (its shop too, with link.store for the wallets) on the co-op save
 -- slot only, its stop on any slot (ticked every 250 ms until coop off, which ends it even when that raises), coop
 -- challenge reaches the same run on the co-op save slot only, its stop on any slot, with coop-records.txt in the mod
--- folder (none when the folder is unknown), the friend's revive (group/group.lua) is built with the link and ticked
--- every 250 ms until coop off (its photo state and cut go into the state), coop revive test reaches its probe, the
--- follow (group/travel.lua) is built and ticked the same way, coop look changes what the ghost shows and builds it
--- again, the photo mode is read every 250 ms with a save loaded and goes into the state while our own veils the
--- notices, the ghost and its tag as set, coop freeze checks its arguments, coop race look and coop race probe doro
+-- folder (none when the folder is unknown), the friend's revive (online/group/group.lua) is built with the link and
+-- ticked every 250 ms until coop off (its photo state and cut go into the state), coop revive test reaches its probe,
+-- the follow (online/group/travel.lua) is built and ticked the same way, coop look changes what the ghost shows and
+-- builds it again, the photo mode is read every 250 ms with a save loaded and goes into the state while our own veils
+-- the notices, the ghost and its tag as set, coop freeze checks its arguments, coop race look and coop race probe doro
 -- reach the Doro look (restored and ticked every frame, ended by coop off), coop race reaches the Doro race
--- (race/run.lua: its start on the co-op save slot only; ticked every frame and every 250 ms, its HUD on the kit,
--- race_key's checkpoint on F9, ended by coop off; coop nightop start refused while it is armed), coop leviathan reaches
--- cut/enemies/leviathan.lua with all six words after it (show and cam turning the camera on, on the co-op save slot
--- only; cam turning it off and cam's speed on any; restored and ticked every frame, ended by coop off), coop gardener,
--- coop tendril, coop mann, coop nier, coop orcal and coop enya reach it too, each as its own creature's command, coop
--- lion reaches cut/enemies/lion.lua (the words that spawn on the co-op save slot only; ticked every frame, ended by
--- coop off), coop gardener fight reaches cut/enemies/gardener.lua (the words that spawn on the co-op save slot only,
--- after the viewer's off; ticked every frame, ended by coop off), coop tendril fight reaches cut/enemies/tendril.lua
--- the same way, coop chainspin reaches cut/eve/chainspin.lua on the co-op save slot only (its rows through coop
--- lion's), coop mxiii reaches matrix13/world/travel.lua on the co-op save slot only (with the follow, the Paks folder
--- from the mod folder; ticked every frame, ended by coop off), coop wear reaches cut/eve/wear.lua with all its words on
--- any slot (restored and ticked every frame, waiting while the game is paused, ended by coop off), coop scene reaches
--- cut/scenes/scene.lua (a scene on the co-op save slot only, the list and stop on any; restored and ticked every frame,
--- ended by coop off), coop lines reaches cut/scenes/lines.lua with all its words on any slot (its lines into the chat's
--- feed only while the kit's root is up; ticked every frame, ended by coop off), coop gift reaches cut/menus/mailbox.lua
--- on the co-op save slot only (her gift lines in coop-chat.txt to it, ticked every 250 ms, paused with the game, photo
--- mode or the friend's, its toast's path in coop-gift-toast.txt and off at coop off), coop fly and coop slowmo ask the
--- native part (on from the co-op save slot only), coop shortcut asks it for its list (on any slot), coop glide reaches
--- cut/eve/glide.lua (on from the co-op save slot only, its own check on that slot; restored and ticked every frame,
--- ended by coop off), coop emote reaches cut/eve/emote.lua with all its words on any slot (restored and ticked every
--- frame, ended by coop off), coop-chat.txt is taken every 250 ms (session or not, coop off included; each frame instead
--- while a race is armed, her race lines to the race) and its text never logged, coop saves reaches the native part,
--- coop no, coop recruiter and coop challenge accept the co-op saves (slot=coop saves=coop), coop off holds across a Lua
--- reload, the pose path's commands need the native tick export, an error that escapes a module's tick is logged once
--- and the modules after it still tick, and the link is optional (no native part, no Steam link, no keys, no menu).
+-- (online/modes/race/run.lua: its start on the co-op save slot only; ticked every frame and every 250 ms, its HUD on
+-- the kit, race_key's checkpoint on F9, ended by coop off; coop nightop start refused while it is armed), coop
+-- leviathan reaches fight/bosses/leviathan.lua with all six words after it (show and cam turning the camera on, on the
+-- co-op save slot only; cam turning it off and cam's speed on any; restored and ticked every frame, ended by coop off),
+-- coop gardener, coop tendril, coop mann, coop nier, coop orcal and coop enya reach it too, each as its own creature's
+-- command, coop lion reaches fight/bosses/lion.lua (the words that spawn on the co-op save slot only; ticked every
+-- frame, ended by coop off), coop gardener fight reaches fight/bosses/gardener.lua (the words that spawn on the co-op
+-- save slot only, after the viewer's off; ticked every frame, ended by coop off), coop tendril fight reaches
+-- fight/bosses/tendril.lua the same way, coop chainspin reaches eve/chainspin.lua on the co-op save slot only (its rows
+-- through coop lion's), coop mxiii reaches world/maps/matrix13/level/travel.lua on the co-op save slot only (with the
+-- follow, the Paks folder from the mod folder; ticked every frame, ended by coop off), coop wear reaches eve/wear.lua
+-- with all its words on any slot (restored and ticked every frame, waiting while the game is paused, ended by coop
+-- off), coop scene reaches story/scenes/scene.lua (a scene on the co-op save slot only, the list and stop on any;
+-- restored and ticked every frame, ended by coop off), coop lines reaches story/scenes/lines.lua with all its words on
+-- any slot (its lines into the chat's feed only while the kit's root is up; ticked every frame, ended by coop off),
+-- coop gift reaches tools/mailbox.lua on the co-op save slot only (her gift lines in coop-chat.txt to it, ticked every
+-- 250 ms, paused with the game, photo mode or the friend's, its toast's path in coop-gift-toast.txt and off at coop
+-- off), coop fly and coop slowmo ask the native part (on from the co-op save slot only), coop shortcut asks it for its
+-- list (on any slot), coop glide reaches eve/glide.lua (on from the co-op save slot only, its own check on that slot;
+-- restored and ticked every frame, ended by coop off), coop emote reaches eve/emote.lua with all its words on any slot
+-- (restored and ticked every frame, ended by coop off), coop-chat.txt is taken every 250 ms (session or not, coop off
+-- included; each frame instead while a race is armed, her race lines to the race) and its text never logged, coop saves
+-- reaches the native part, coop no, coop recruiter and coop challenge accept the co-op saves (slot=coop saves=coop),
+-- coop off holds across a Lua reload, the pose path's commands need the native tick export, an error that escapes a
+-- module's tick is logged once and the modules after it still tick, and the link is optional (no native part, no Steam
+-- link, no keys, no menu).
 dofile('tests/lua/main/fixture.lua')
 load_main(true)
 assert(last()=='[StellarCoop] Loaded version v9-test. '..USAGE..'\n',last())
@@ -185,9 +186,9 @@ cv.pc=nil; assert(rt.o.ready()==false,'No player controller yet'); cv.pc=cv.stal
 assert(rt.o.ready()==false,'Another object at the old address'); cv.pc=cv.PC
 assert(pt.o.ready()==true and pt.o.enabled()==true,'The pause menu\'s Online tab: as the teleport tabs, on by default')
 assert(ra.steers==2 and ra.steered_at==1,'The driving each frame, before the native tick: the pose has its yaw')
--- coop race: its words to race/run.lua (record, cp, save, cancel, quit on any slot), its start on the co-op save slot
--- only; race.new got the [DR] logger, the link, the ghost, the Doro look, the notices, Night Operation's run, the slot
--- check and the kit's pause.
+-- coop race: its words to online/modes/race/run.lua (record, cp, save, cancel, quit on any slot), its start on the
+-- co-op save slot only; race.new got the [DR] logger, the link, the ghost, the Doro look, the notices, Night
+-- Operation's run, the slot check and the kit's pause.
 do
 for _,args in ipairs({{'record','quest'},{'cp'},{'save','2'},{'cancel'},{'quit'},{},{'start'},{'go','a','b'}}) do
     coop('race',table.unpack(args,1,3))
@@ -205,7 +206,7 @@ assert(ra.o.drive.name=='drive' and dv.o.log==dr.log and dv.o.store=='store coop
     and dv.o.settings.drift_keys[1]=='Gamepad_RightTrigger',
     'The driving: [DR] lines, coop-drive.txt through the link, the drift keys')
 assert(dv.o.riding==ra.o.riding and not ra.o.riding(),'The race and its drive read whether EVE rides')
--- coop race drive reaches race/run.lua on any slot; its probe on a co-op save only.
+-- coop race drive reaches online/modes/race/run.lua on any slot; its probe on a co-op save only.
 coop('race','drive','top','2600')
 assert(ra.cmds[#ra.cmds][1]=='drive' and ra.cmds[#ra.cmds][2]=='top' and ra.cmds[#ra.cmds][3]=='2600')
 raced=#ra.cmds
@@ -470,8 +471,8 @@ in_world=false; loops[2].f(); assert(states[#states]=='world=0 rate=60')
 at_title=true; loops[2].f(); assert(states[#states]=='world=title rate=60','The title screen goes along')
 at_title=false
 in_world=true; loops[2].f(); assert(states[#states]=='world=1 rate=60' and #asked==before,'No request written')
--- Matrix XIII's rows at the title (matrix13/world/travel.lua's title): every 250 ms with whether the title shows with
--- no save loaded and whether the game uses the co-op save files (saves=coop).
+-- Matrix XIII's rows at the title (world/maps/matrix13/level/travel.lua's title): every 250 ms with whether the title
+-- shows with no save loaded and whether the game uses the co-op save files (saves=coop).
 local function titled() local t=mx.titles[#mx.titles]; return t.n==2 and t[1],t[2] end
 local a,b=titled(); assert(a==false and b==false,'A world, saves unread')
 in_world,at_title,saves_info=false,true,{saves='coop'}
@@ -480,8 +481,8 @@ saves_info={saves='main'}
 loops[2].f(); a,b=titled(); assert(a==true and b==false,'Your own saves')
 in_world,saves_info=true,{saves='coop'}
 loops[2].f(); a,b=titled(); assert(a==false and b==true,'A save loaded')
--- Lily's signal's rows at the title the same way (matrix13/quest/on_time.lua's title), with each of Matrix XIII's
--- calls.
+-- Lily's signal's rows at the title the same way (world/maps/matrix13/quest/on_time.lua's title), with each of Matrix
+-- XIII's calls.
 assert(#ly.titles==#mx.titles and ly.titles[#ly.titles][1]==false and ly.titles[#ly.titles][2]==true,
     "Lily's signal's title batch with the same arguments")
 at_title,saves_info=false,{}
@@ -510,8 +511,8 @@ photo_error,photo_mode,reads=nil,true,photo_reads
 loops[2].f(); loops[2].f()
 assert(photo_reads==reads and photos[#photos]=='0 both 600' and veils[#veils]==false,'Off for this load')
 photo_mode=false
--- The host's cutscene and the guest's ask for its pause (group/group.lua decides both): our own photo state goes to
--- group/group.lua, what it gives back to the state with its cut, and our veils keep our own.
+-- The host's cutscene and the guest's ask for its pause (online/group/group.lua decides both): our own photo state goes
+-- to online/group/group.lua, what it gives back to the state with its cut, and our veils keep our own.
 gr.wire,gr.cut=nil,false
 loops[2].f()
 assert(gr.owns[#gr.owns]=='0' and photos[#photos]=='0 both 600' and gr.cuts[#gr.cuts]==false)
@@ -573,7 +574,8 @@ end
 status_text=plain
 dr.log('look hid=4 tick=3->0 rehid=0/min')
 assert(last()=='[StellarCoop][DR] look hid=4 tick=3->0 rehid=0/min\n',last())
--- Each frame: the restore (done once, inside race/doro.lua) and the look's tick, whose message is reported.
+-- Each frame: the restore (done once, inside online/modes/race/doro.lua) and the look's tick, whose message is
+-- reported.
 dr.r,dr.t=dr.restores,dr.ticks
 dr.says={false,'Doro look stopped until the mod reloads: x'}
 loops[1].f()
@@ -581,7 +583,7 @@ assert(dr.restores==dr.r+1 and dr.ticks==dr.t+1,'Both each frame')
 assert(last()=='[StellarCoop] STOP: Doro look stopped until the mod reloads: x\n',last())
 dr.says=nil
 assert(notice_stops==0)
--- coop leviathan: a test tool, out of the usage line. list, play and off reach cut/enemies/leviathan.lua on any save,
+-- coop leviathan: a test tool, out of the usage line. list, play and off reach fight/bosses/leviathan.lua on any save,
 -- show on a co-op save only. Each frame its restore (done once, inside it) and its tick, whose message is reported.
 assert(lv.o.store=='store coop-leviathan.txt' and lv.o.log,'coop-leviathan.txt through the link')
 lv.o.log('list mesh CH_M_NA_10: missing')
@@ -641,7 +643,7 @@ loops[1].f()
 assert(lv.restores==lv.r+1 and lv.ticks==lv.t+1,'Both each frame')
 assert(last()=='[StellarCoop] OK: Leviathan b removed: map change.\n',last())
 lv.says=nil
--- coop lion: out of the usage line too. The words that spawn (none, intro, control) reach cut/enemies/lion.lua on a
+-- coop lion: out of the usage line too. The words that spawn (none, intro, control) reach fight/bosses/lion.lua on a
 -- co-op save only, rows and brain on any. Its asks are native requests and its status the link's. Each frame its tick,
 -- whose message is reported.
 li.o.log('tables: 8/8 found'); assert(last()=='[StellarCoop][LI] tables: 8/8 found\n',last())
@@ -694,9 +696,9 @@ do
         "The race's tick logs its own error after its steer's, both once")
 end
 -- coop gardener fight: out of the usage line too. The words that spawn (none, intro, half, skulling) reach
--- cut/enemies/gardener.lua on a co-op save only, after the viewer's off (its display and free camera put away); rows on
--- any, and any other word reaches it to be refused there. Every other coop gardener word stays the viewer's. Its asks
--- are native requests and its status the link's; each frame its tick, whose message is reported.
+-- fight/bosses/gardener.lua on a co-op save only, after the viewer's off (its display and free camera put away); rows
+-- on any, and any other word reaches it to be refused there. Every other coop gardener word stays the viewer's. Its
+-- asks are native requests and its status the link's; each frame its tick, whose message is reported.
 gd.o.log('tables: 14/14 found'); assert(last()=='[StellarCoop][GD] tables: 14/14 found\n',last())
 assert(gd.o.status()==status_text,'The native status, as the link reads it')
 assert(gd.o.ask('gardener rows SkillTable=0x10000') and asked[#asked]=='gardener rows SkillTable=0x10000',asked[#asked])
@@ -756,7 +758,7 @@ assert(#cs.cmds==2 and cs.cmds[1].n==1 and cs.cmds[1][1]==nil and cs.cmds[2][1]=
     and last()=='[StellarCoop] OK: cs x\n','On a co-op save: its word reaches it, an extra one to be refused there')
 status_text=plain
 -- coop devmenu: out of the usage line, its lines are [DM] lines and its status is the link's; a row on a co-op save
--- only, the list, an unknown word and an extra word on any (cut/menus/devmenu.lua answers them).
+-- only, the list, an unknown word and an extra word on any (tools/devmenu.lua answers them).
 dm.o.log('asked'); assert(last()=='[StellarCoop][DM] asked\n',last())
 assert(dm.o.status()==status_text,'The native status, as the link reads it')
 assert(dm.o.store=='store coop-devmenu.txt','coop-devmenu.txt through the link')
@@ -782,7 +784,7 @@ do
         assert(#asked==n and last()=='[StellarCoop] STOP: Use: coop devinfo quest|player|off\n',last())
     end
 end
--- coop gift: every word to cut/menus/mailbox.lua on a co-op save only; its lines are [GF] lines, its notices go on
+-- coop gift: every word to tools/mailbox.lua on a co-op save only; its lines are [GF] lines, its notices go on
 -- screen, its status, requests, files and friend are the link's; her gift lines in coop-chat.txt reach it, and it ticks
 -- every 250 ms.
 gf.o.log('sent 1'); assert(last()=='[StellarCoop][GF] sent 1\n',last())
@@ -822,7 +824,7 @@ assert(mx.folder=='mod/StellarCoop' and mx.o.paks=='mod/StellarCoop|paks'
 assert(type(mx.o.travel().probe)=='function','The follow')
 coop('mxiii')
 assert(#mx.cmds==0 and last():find('^%[StellarCoop%] STOP: coop mxiii runs only on a co%-op save'),last())
--- coop mxiii mila: Mila's pose (matrix13/world/mila.lua), on any save, its words never to the travel.
+-- coop mxiii mila: Mila's pose (world/maps/matrix13/level/mila.lua), on any save, its words never to the travel.
 coop('mxiii','mila','9')
 assert(#mx.cmds==0 and last():find('^%[StellarCoop%] STOP: Use: coop mxiii mila '),last())
 coop('mxiii','mila','scale','1.0')
@@ -833,10 +835,10 @@ assert(#mx.cmds==3 and mx.cmds[1].n==2 and mx.cmds[1][1]==nil and mx.cmds[2][1]=
     and mx.cmds[3][1]=='warp' and mx.cmds[3][2]=='12' and last()=='[StellarCoop] OK: mx warp\n',
     'On a co-op save: its words reach it (coop mxiii warp <n> with its point), an extra one to be refused there')
 status_text=plain
--- coop lily signal (matrix13/quest/on_time.lua): status on any save, the rest on a co-op save only; its lines [LY]
--- lines, its status and requests the link's, its travel coop mxiii's command (with that command's co-op save check),
--- its Paks folder and file reads coop mxiii's, its talk player matrix13/quest/subtitles.lua's, built with the same log
--- and coop scene.
+-- coop lily signal (world/maps/matrix13/quest/on_time.lua): status on any save, the rest on a co-op save only; its
+-- lines [LY] lines, its status and requests the link's, its travel coop mxiii's command (with that command's co-op save
+-- check), its Paks folder and file reads coop mxiii's, its talk player world/maps/matrix13/quest/subtitles.lua's, built
+-- with the same log and coop scene.
 ly.o.log('picked'); assert(last()=='[StellarCoop][LY] picked\n',last())
 assert(ly.o.status()==status_text and ly.o.ask('lily on') and asked[#asked]=='lily on' and ly.o.mode()=='none'
     and ly.o.paks=='mod/StellarCoop|paks' and ly.o.read==require('core.link').files.read)
@@ -872,7 +874,7 @@ loops[1].f()
 assert(mx.ticks==mx.t+1 and last()=='[StellarCoop] OK: coop mxiii: the rows are in and the travel to DLC02_00_Camp_00 '
     ..'is asked\n',last())
 mx.says=nil
--- coop wear: all its words to cut/eve/wear.lua on any save, coop-wear.txt through the link; each frame its restore
+-- coop wear: all its words to eve/wear.lua on any save, coop-wear.txt through the link; each frame its restore
 -- (done once, inside it) and its tick, whose message is reported; it waits while the game is paused or shows a screen.
 assert(wr.o.store=='store coop-wear.txt' and wr.o.log,'coop-wear.txt through the link')
 wr.o.log('wear nyaaa: SBHair EVE_HR_14')
@@ -908,8 +910,8 @@ loops[1].f()
 assert(sc.restores==sc.r+1 and sc.ticks==sc.t+1,'Both each frame')
 assert(last()=="[StellarCoop] OK: Emil's farewell ended after 48 s.\n",last())
 sc.says=nil
--- coop lines: all its words to cut/scenes/lines.lua on any save; its lines go into the chat's feed while the kit's root
--- is up (never to the line above EVE); each frame its tick, whose message is reported.
+-- coop lines: all its words to story/scenes/lines.lua on any save; its lines go into the chat's feed while the kit's
+-- root is up (never to the line above EVE); each frame its tick, whose message is reported.
 ln.o.log('quinn ended'); assert(last()=='[StellarCoop][LN] quinn ended\n',last())
 coop('lines')
 assert(#ln.cmds==1 and ln.cmds[1][1]==nil and last()=='[StellarCoop] OK: ln nil\n',last())
@@ -982,7 +984,7 @@ do
     assert(#asked==n+2 and last():find('load B07 2 again',1,true),last())
     ra.o.settings.shortcut_load=was
 end
--- coop glide: on on a co-op save only, off and anything else on any (its usage is cut/eve/glide.lua's); its own check
+-- coop glide: on on a co-op save only, off and anything else on any (its usage is eve/glide.lua's); its own check
 -- of the slot is main.lua's coop_slot; restored and ticked every frame, a tick's line reported.
 gl.o.log('glide on'); assert(last()=='[StellarCoop][GL] glide on\n',last())
 assert(gl.o.slot()==false,'Its slot check: not a co-op save here')
@@ -1000,7 +1002,7 @@ loops[1].f()
 assert(gl.restores==gl.r+1 and gl.ticks==gl.t+1 and last()=='[StellarCoop] STOP: coop glide stopped: no velocity\n',
     last())
 gl.says=nil
--- coop emote: all its words to cut/eve/emote.lua on any save; each frame its restore (done once, inside it) and its
+-- coop emote: all its words to eve/emote.lua on any save; each frame its restore (done once, inside it) and its
 -- tick, whose message is reported. Its native requests go through the link, and it reads the native status the link
 -- holds.
 em.o.log('emote clap ended (movement input) after 2.0 s')
@@ -1273,8 +1275,8 @@ assert(rt.ticks==1 and rt.o.ready()==false,'The teleport tabs tick and stay off 
 coop('no','rule'); assert(#probe_runs==0 and last()==STOP..'no slot status\n','No native part, no co-op slot: '..last())
 coop('ui','reset'); assert(last()=='[StellarCoop] STOP: the co-op UI needs the Steam link\n',last())
 coop('revive','test'); assert(gr.o==nil and last()=='[StellarCoop] STOP: the Steam link needs the native part\n',last())
--- The crash sentinel (partner/sentinel.lua): a marker the last Lua load left full is logged at the next load, emptied,
--- and its asset set aside under this version.
+-- The crash sentinel (online/partner/sentinel.lua): a marker the last Lua load left full is logged at the next load,
+-- emptied, and its asset set aside under this version.
 local MARKED='/Game/OutfitMods/Foo/SK_Foo.SK_Foo'
 fake_link.write_now=function(name,text) link_files[name]=text; return true end
 link_files['coop-cns-call.txt']=MARKED..' Foo_Suit\n'

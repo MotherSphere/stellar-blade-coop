@@ -138,7 +138,8 @@ fake_link={
     display=function(text) if text==nil then withdrawn[#withdrawn+1]='display' end; return true end,
     store=function(name) return 'store '..name end,
     remote=function(k) if (k or 0)==0 then return 3,1,'loopback' end end, -- No table in ghost slots 1 to 6.
-    slot=function(k) return {} end, -- A ghost slot's files (partner/ghosts.lua): no member holds one in these tests.
+    slot=function(k) return {} end, -- A ghost slot's files (online/partner/ghosts.lua): no member holds one in these
+    -- tests.
     remote_table=function() return nil end,
     -- The hud requests of the lobby's screens go to huds (tests/lua/lobby/wiring_test), the pause menu's Online tab's
     -- to pausetabs, the popups ones (main/pass.lua's switch_pass for hide_popups) to popup_asks, the others to asked.
@@ -243,7 +244,7 @@ captured,remoted={},nil
 fake_capture={tick=function(on) captured[#captured+1]=on; return true,'Capture 7: 3 parts' end,
     yaw_delta=function() return 0 end,leave_out=function(f) capture_leave_out=f end}
 capture_look=nil
-package.loaded['partner.capture']={new=function(publish,looks)
+package.loaded['online.partner.capture']={new=function(publish,looks)
     assert(publish==(native_ok and fake_link.components or nil),'The capture publishes through the link, if any')
     capture_look=looks
     return fake_capture
@@ -255,9 +256,10 @@ the_notice,name_tag,look,rebuilds=nil
 veils,photo_veils={},{} -- notice.veil's and puppet.photo's arguments, each 250 ms.
 her_anchor,markers=nil,{} -- puppet.anchor(); puppet.marker's arguments (the name tag left to the UI marker).
 her_map_v='/game/e04' -- puppet.her_map(): her map, from her table (yours is /game/e04).
--- The camp phone booths (session/booth.lua for real): FindAllOf of the two booth classes gives bt.world's booths of
--- that class (none by default, so every case scans an empty world) and counts the calls in bt.scans; PlayerController
--- gives none (core/unreal.lua's actors_of then walks, never deciding on the class hash); any other class raises.
+-- The camp phone booths (online/session/booth.lua for real): FindAllOf of the two booth classes gives bt.world's booths
+-- of that class (none by default, so every case scans an empty world) and counts the calls in bt.scans;
+-- PlayerController gives none (core/unreal.lua's actors_of then walks, never deciding on the class hash); any other
+-- class raises.
 -- bt.me: core/where.lua's me(), which puppet.me() also gives.
 bt={world={},scans=0,me={at={X=0,Y=0,Z=0},map='/game/e04'}}
 FindAllOf=function(class)
@@ -277,7 +279,7 @@ end
 -- Whether a save is loaded and the title shown (core/where.lua's world; core/where_test tests it): in_world, at_title.
 -- Where EVE stands (its me): bt.me.
 package.loaded['core.where']={world=function() return in_world,at_title end,me=function() return bt.me end}
-package.loaded['partner.puppet']={new=function(link,capture,say,tag,looks)
+package.loaded['online.partner.puppet']={new=function(link,capture,say,tag,looks)
     assert(link==(native_ok and fake_link or nil),'The ghost reads and writes its files through the link, if any')
     assert(capture==fake_capture,'The ghost gets the capture (its offset in loopback)')
     assert(the_notice and type(say)=='function','The map notice goes on screen')
@@ -296,7 +298,7 @@ package.loaded['partner.puppet']={new=function(link,capture,say,tag,looks)
         anchor=function() return her_anchor,her_anchor end,her_map=function() return her_map_v end,
         me=function() return bt.me end,marker=function(on) markers[#markers+1]=on end,
         -- Each 250 ms; the last value kept on the module table.
-        collide=function(on) package.loaded['partner.puppet'].collide=on end,
+        collide=function(on) package.loaded['online.partner.puppet'].collide=on end,
         doro=function(on,log) dr.ghost,dr.ghost_log=on,log; if dr.ghost_why then return false,dr.ghost_why end end}
 end}
 -- The real parser; files: the records file on an in-memory disk (disk.files), which say the paths they got (in nr).
@@ -329,7 +331,7 @@ package.loaded['ui.kit.notice']={new=function()
 end}
 probe,probe_runs,probe_ticks=nil,{},0 -- What nightop.new got, coop no's arguments, its ticks.
 rt={o=nil,ticks=0,stops=0} -- The teleport tabs: what region_tabs.new got, its ticks and stops.
-package.loaded['group.region_tabs']={new=function(o)
+package.loaded['online.group.region_tabs']={new=function(o)
     rt.o,rt.ticks,rt.stops=o,0,0
     return {tick=function() rt.ticks=rt.ticks+1 end,stop=function() rt.stops=rt.stops+1 end}
 end}
@@ -347,7 +349,7 @@ package.loaded['ui.kit.pause_tab']={new=function(o)
         event=function(now) pt.events[#pt.events+1]=now end,click=function(now) pt.clicks[#pt.clicks+1]=now end,
         armed=function() return pt.armed end,stop=function() pt.stops=pt.stops+1 end}
 end}
-package.loaded['nightop.probe']={new=function(log,ask,status)
+package.loaded['online.modes.nightop.probe']={new=function(log,ask,status)
     probe={log=log,ask=ask,status=status}
     return {run=function(sub,extra) probe_runs[#probe_runs+1]={sub,extra}; return true,'probe '..tostring(sub) end,
         tick=function() probe_ticks=probe_ticks+1 end}
@@ -355,27 +357,27 @@ end}
 -- Night Operation's run: what nightop_run.new got (o), coop nightop's and coop challenge's words, its ticks and stops,
 -- a stop that raises.
 nr={o=nil,runs={},chs={},ticks=0,stops={},raise=nil}
--- The friend's revive and the cutscene wait (group/group.lua): what group.new got (o), its ticks' clocks, coop revive
--- test's answer, the photo states main.lua hands it (owns) and what it gives back (wire, else the same), its cut, and
--- the cut each state write got (cuts).
+-- The friend's revive and the cutscene wait (online/group/group.lua): what group.new got (o), its ticks' clocks, coop
+-- revive test's answer, the photo states main.lua hands it (owns) and what it gives back (wire, else the same), its
+-- cut, and the cut each state write got (cuts).
 gr={o=nil,ticks={},tests=0,owns={},cuts={},stops=0}
-package.loaded['group.group']={new=function(o)
+package.loaded['online.group.group']={new=function(o)
     gr.o=o
     return {tick=function(t) gr.ticks[#gr.ticks+1]=t end,stop=function() gr.stops=gr.stops+1 end,
         test=function() gr.tests=gr.tests+1; return true,'ServerRequest_ActorRespawn asked' end,
         photo=function(own) gr.owns[#gr.owns+1]=own; return gr.wire or own end,cut=function() return gr.cut end,
         cutscene_playing=function() return gr.playing==true end}
 end}
--- The follow (group/travel.lua): what travel.new got (o), its ticks' clocks, follow_key's presses and coop travel
--- probe's camps.
+-- The follow (online/group/travel.lua): what travel.new got (o), its ticks' clocks, follow_key's presses and coop
+-- travel probe's camps.
 tv={o=nil,ticks={},presses=0,probes={}}
-package.loaded['group.travel']={new=function(o)
+package.loaded['online.group.travel']={new=function(o)
     tv.o=o
     return {tick=function(t) tv.ticks[#tv.ticks+1]=t end,
         press=function() tv.presses=tv.presses+1; return true,'asked the host for camps' end,
         probe=function(camp) tv.probes[#tv.probes+1]=camp; return true,'travel '..camp..' asked' end}
 end}
-package.loaded['nightop.run']={new=function(o)
+package.loaded['online.modes.nightop.run']={new=function(o)
     nr.o=o
     return {command=function(sub,a,b,c) nr.runs[#nr.runs+1]={sub,a,b,c}; return true,'nightop '..tostring(sub) end,
         challenge=function(sub,extra) nr.chs[#nr.chs+1]={sub,extra}; return true,'challenge '..tostring(sub) end,
@@ -386,11 +388,11 @@ package.loaded['nightop.run']={new=function(o)
             if nr.raise then error(nr.raise,0) end
         end}
 end}
--- The Doro look and probe (race/doro.lua; doro_test tests them): what doro.new got (log, store), its calls as words,
--- its restores and ticks, what a tick says, a stop that raises; and the ghost's Doro mode as puppet.doro was last given
--- it, with what it answers.
+-- The Doro look and probe (online/modes/race/doro.lua; doro_test tests them): what doro.new got (log, store), its calls
+-- as words, its restores and ticks, what a tick says, a stop that raises; and the ghost's Doro mode as puppet.doro was
+-- last given it, with what it answers.
 dr={calls={},restores=0,ticks=0}
-package.loaded['race.doro']={new=function(o)
+package.loaded['online.modes.race.doro']={new=function(o)
     dr.log,dr.store=o.log,o.store
     return {log=o.log,
         on=function() dr.calls[#dr.calls+1]='on'; if dr.no_eve then return false,'no EVE in the world' end
@@ -402,11 +404,11 @@ package.loaded['race.doro']={new=function(o)
         tick=function() dr.ticks=dr.ticks+1; if dr.says then return table.unpack(dr.says) end end,
         active=function() return dr.active==true end}
 end}
--- The cut model viewer's read, display and free camera (cut/enemies/leviathan.lua; leviathan_test tests it): what new
+-- The cut model viewer's read, display and free camera (fight/bosses/leviathan.lua; leviathan_test tests it): what new
 -- got (log, store, blocked), its commands (each with its creature's word as who), restores, ticks and stops, what a
 -- tick says, whether its free camera is on.
 lv={}
-package.loaded['cut.enemies.leviathan']={new=function(o)
+package.loaded['fight.bosses.leviathan']={new=function(o)
     lv.o=o
     local commands={}
     for _,who in ipairs({'leviathan','gardener','tendril','mann','nier','orcal','enya'}) do
@@ -417,11 +419,11 @@ package.loaded['cut.enemies.leviathan']={new=function(o)
         tick=function() lv.ticks=lv.ticks+1; if lv.says then return table.unpack(lv.says) end end,
         stop=function() lv.stops=lv.stops+1 end,filming=function() return lv.filming==true end}
 end}
--- coop lion (cut/enemies/lion.lua; lion_test tests it): what new got (log, ask, status), its commands, ticks and stops,
--- what a tick says, a tick that raises, the seconds a tick takes on the fake clock (cost); its rows (the shop's cut
--- items, with the batch word it was given) answer done at once.
+-- coop lion (fight/bosses/lion.lua; lion_test tests it): what new got (log, ask, status), its commands, ticks and
+-- stops, what a tick says, a tick that raises, the seconds a tick takes on the fake clock (cost); its rows (the shop's
+-- cut items, with the batch word it was given) answer done at once.
 li={}
-package.loaded['cut.enemies.lion']={new=function(o)
+package.loaded['fight.bosses.lion']={new=function(o)
     li.o=o
     return {command=function(...) li.cmds[#li.cmds+1]={...}; return true,'li '..tostring((...)) end,
         rows=function(done,word) return done(true,'li rows'..(word and ' '..word or '')) end,
@@ -433,29 +435,29 @@ package.loaded['cut.enemies.lion']={new=function(o)
         end,
         stop=function() li.stops=li.stops+1 end}
 end}
--- coop gardener fight (cut/enemies/gardener.lua; gardener_test tests it): what new got (log, ask, status), its
+-- coop gardener fight (fight/bosses/gardener.lua; gardener_test tests it): what new got (log, ask, status), its
 -- commands, ticks and stops, what a tick says.
 gd={}
-package.loaded['cut.enemies.gardener']={new=function(o)
+package.loaded['fight.bosses.gardener']={new=function(o)
     gd.o=o
     return {command=function(...) gd.cmds[#gd.cmds+1]=table.pack(...); return true,'gd '..tostring((...)) end,
         tick=function() gd.ticks=gd.ticks+1; if gd.says then return table.unpack(gd.says) end end,
         stop=function() gd.stops=gd.stops+1 end}
 end}
--- coop tendril fight (cut/enemies/tendril.lua; tendril_test tests it): the same as the Gardener's.
+-- coop tendril fight (fight/bosses/tendril.lua; tendril_test tests it): the same as the Gardener's.
 td={}
-package.loaded['cut.enemies.tendril']={new=function(o)
+package.loaded['fight.bosses.tendril']={new=function(o)
     td.o=o
     return {command=function(...) td.cmds[#td.cmds+1]=table.pack(...); return true,'td '..tostring((...)) end,
         tick=function() td.ticks=td.ticks+1; if td.says then return table.unpack(td.says) end end,
         stop=function() td.stops=td.stops+1 end}
 end}
--- coop mxiii (matrix13/world/travel.lua; matrix13/world/travel_test tests it): what new got (log, ask, status, travel,
--- paks, read), the folder core/pak_gate.lua's paks_of was given, its commands, ticks and stops, what a tick says, and
--- its title calls' arguments.
+-- coop mxiii (world/maps/matrix13/level/travel.lua; world/maps/matrix13/level/travel_test tests it): what new got (log,
+-- ask, status, travel, paks, read), the folder core/pak_gate.lua's paks_of was given, its commands, ticks and stops,
+-- what a tick says, and its title calls' arguments.
 mx={}
 package.loaded['core.pak_gate']={paks_of=function(folder) mx.folder=folder; return folder and folder..'|paks' end}
-package.loaded['matrix13.world.travel']={
+package.loaded['world.maps.matrix13.level.travel']={
     new=function(o)
         mx.o=o
         return {command=function(...) mx.cmds[#mx.cmds+1]=table.pack(...); return true,'mx '..tostring((...)) end,
@@ -463,35 +465,35 @@ package.loaded['matrix13.world.travel']={
             stop=function() mx.stops=mx.stops+1 end,
             title=function(...) mx.titles[#mx.titles+1]=table.pack(...) end}
     end}
--- coop chainspin (cut/eve/chainspin.lua; chainspin_test tests it): what new got (log, status, rows) and its commands.
+-- coop chainspin (eve/chainspin.lua; chainspin_test tests it): what new got (log, status, rows) and its commands.
 cs={}
-package.loaded['cut.eve.chainspin']={new=function(o)
+package.loaded['eve.chainspin']={new=function(o)
     cs.o=o
     return {command=function(...) cs.cmds[#cs.cmds+1]=table.pack(...); return true,'cs '..tostring((...)) end}
 end}
--- coop devmenu (cut/menus/devmenu.lua; devmenu_test tests it): what new got (log, status), its commands and stops, and
+-- coop devmenu (tools/devmenu.lua; devmenu_test tests it): what new got (log, status), its commands and stops, and
 -- how many native asks there were at its last stop; heal is its one row here.
 dm={}
-package.loaded['cut.menus.devmenu']={new=function(o)
+package.loaded['tools.devmenu']={new=function(o)
     dm.o=o
     return {row=function(name) return name=='heal' and {} or nil end,
         command=function(...) dm.cmds[#dm.cmds+1]=table.pack(...); return true,'dm '..tostring((...)) end,
         stop=function() dm.stops=dm.stops+1; dm.asked_at_stop=#asked end}
 end}
--- coop wear (cut/eve/wear.lua; wear_test tests it): what new got (log, store, paused), its commands, restores, ticks
+-- coop wear (eve/wear.lua; wear_test tests it): what new got (log, store, paused), its commands, restores, ticks
 -- and stops, what a tick says.
 wr={}
-package.loaded['cut.eve.wear']={new=function(o)
+package.loaded['eve.wear']={new=function(o)
     wr.o=o
     return {command=function(...) wr.cmds[#wr.cmds+1]={...}; return true,'wr '..tostring((...)) end,
         restore=function() wr.restores=wr.restores+1 end,
         tick=function() wr.ticks=wr.ticks+1; if wr.says then return table.unpack(wr.says) end end,
         stop=function() wr.stops=wr.stops+1 end}
 end}
--- coop scene (cut/scenes/scene.lua; scene_test tests it): what new got (log), its commands, restores, ticks and stops,
--- what a tick says; its scenes' words.
+-- coop scene (story/scenes/scene.lua; scene_test tests it): what new got (log), its commands, restores, ticks and
+-- stops, what a tick says; its scenes' words.
 sc={}
-package.loaded['cut.scenes.scene']={new=function(o)
+package.loaded['story.scenes.scene']={new=function(o)
     sc.o=o
     return {SCENES={emil=true,orcal=true,lily=true},
         command=function(...) sc.cmds[#sc.cmds+1]={...}; return true,'sc '..tostring((...)) end,
@@ -499,38 +501,38 @@ package.loaded['cut.scenes.scene']={new=function(o)
         tick=function() sc.ticks=sc.ticks+1; if sc.says then return table.unpack(sc.says) end end,
         stop=function() sc.stops=sc.stops+1 end}
 end}
--- coop lines (cut/scenes/lines.lua; lines_test tests it): what new got (log, say, ready), its commands, ticks and
+-- coop lines (story/scenes/lines.lua; lines_test tests it): what new got (log, say, ready), its commands, ticks and
 -- stops, what a tick says.
 ln={}
-package.loaded['cut.scenes.lines']={new=function(o)
+package.loaded['story.scenes.lines']={new=function(o)
     ln.o=o
     return {command=function(...) ln.cmds[#ln.cmds+1]={...}; return true,'ln '..tostring((...)) end,
         tick=function() ln.ticks=ln.ticks+1; if ln.says then return table.unpack(ln.says) end end,
         stop=function() ln.stops=ln.stops+1 end}
 end}
--- coop gift (cut/menus/mailbox.lua; mailbox_test tests it): what new got, its commands, her gift lines, its ticks and
+-- coop gift (tools/mailbox.lua; mailbox_test tests it): what new got, its commands, her gift lines, its ticks and
 -- stops.
 gf={}
-package.loaded['cut.menus.mailbox']={new=function(o)
+package.loaded['tools.mailbox']={new=function(o)
     gf.o=o
     return {command=function(...) gf.cmds[#gf.cmds+1]=table.pack(...); return true,'gf '..tostring((...)) end,
         receive=function(line) gf.received[#gf.received+1]=line end,tick=function() gf.ticks=gf.ticks+1 end,
         stop=function() gf.stops=gf.stops+1 end}
 end}
--- coop glide (cut/eve/glide.lua; glide_test tests it): what new got (log, slot), its commands, restores, ticks and
+-- coop glide (eve/glide.lua; glide_test tests it): what new got (log, slot), its commands, restores, ticks and
 -- stops, what a tick says.
 gl={}
-package.loaded['cut.eve.glide']={new=function(o)
+package.loaded['eve.glide']={new=function(o)
     gl.o=o
     return {command=function(...) gl.cmds[#gl.cmds+1]={...}; return true,'gl '..tostring((...)) end,
         restore=function() gl.restores=gl.restores+1 end,
         tick=function() gl.ticks=gl.ticks+1; if gl.says then return table.unpack(gl.says) end end,
         stop=function() gl.stops=gl.stops+1 end,active=function() return gl.active==true end}
 end}
--- coop emote (cut/eve/emote.lua; emote_test tests it): what new got (log, ask, status), its commands, restores, ticks
+-- coop emote (eve/emote.lua; emote_test tests it): what new got (log, ask, status), its commands, restores, ticks
 -- and stops, what a tick says.
 em={}
-package.loaded['cut.eve.emote']={new=function(o)
+package.loaded['eve.emote']={new=function(o)
     em.o=o
     return {command=function(...) em.cmds[#em.cmds+1]=table.pack(...); return true,'em '..tostring((...)) end,
         restore=function() em.restores=em.restores+1 end,
@@ -539,24 +541,25 @@ package.loaded['cut.eve.emote']={new=function(o)
         sit=function(kind) return true,'em sit '..tostring(kind) end,active=function() return em.active==true end,
         preload=function() return true end}
 end}
--- The races' driving (race/drive.lua; drive_test tests it): what drive.new got, its restores.
+-- The races' driving (online/modes/race/drive.lua; drive_test tests it): what drive.new got, its restores.
 dv={restores=0}
-package.loaded['race.drive']={new=function(o)
+package.loaded['online.modes.race.drive']={new=function(o)
     dv.o=o
     return {name='drive',restore=function() dv.restores=dv.restores+1 end,active=function() return dv.active==true end}
 end}
--- The bike's driving (bike/drive.lua, its own copy of race/drive.lua; bike/drive_test tests it): what drive.new got.
+-- The bike's driving (vehicles/bike/drive.lua, its own copy of online/modes/race/drive.lua; vehicles/bike/drive_test
+-- tests it): what drive.new got.
 bdv={}
-package.loaded['bike.drive']={new=function(o)
+package.loaded['vehicles.bike.drive']={new=function(o)
     bdv.o=o
     return {name='bike drive'}
 end}
--- The bike (bike/ride.lua; bike/ride_test tests it): what new got (o), the why of each toggle and stop, its steers,
--- slows and restores, its tunes; whether she rides, what a toggle answers (answer: ok and a line; raise: an error),
--- what a steer or a slow says (an end of the ride); what idle_part answers (idle_part), with the address it got
--- (idle_part_at); the last stop's why at its leave (left).
+-- The bike (vehicles/bike/ride.lua; vehicles/bike/ride_test tests it): what new got (o), the why of each toggle and
+-- stop, its steers, slows and restores, its tunes; whether she rides, what a toggle answers (answer: ok and a line;
+-- raise: an error), what a steer or a slow says (an end of the ride); what idle_part answers (idle_part), with the
+-- address it got (idle_part_at); the last stop's why at its leave (left).
 bk={}
-package.loaded['bike.ride']={new=function(o)
+package.loaded['vehicles.bike.ride']={new=function(o)
     bk.o=o
     return {riding=function() return bk.riding==true end,
         idle_part=function(at) bk.idle_part_at=at; return bk.idle_part end,
@@ -571,27 +574,27 @@ package.loaded['bike.ride']={new=function(o)
         restore=function() bk.restores=bk.restores+1 end,status=function() return 'bike: preload ready' end,
         tune=function(name,value) bk.tunes[#bk.tunes+1]={name,value}; return true,'bk tune '..tostring(name) end}
 end}
--- Other players' parked bikes (bike/others.lua; bike/others_test tests it): what new got (o), its slows and restores,
--- the why of its clear (cleared).
+-- Other players' parked bikes (vehicles/bike/others.lua; vehicles/bike/others_test tests it): what new got (o), its
+-- slows and restores, the why of its clear (cleared).
 bo={}
-package.loaded['bike.others']={new=function(o)
+package.loaded['vehicles.bike.others']={new=function(o)
     bo.o=o
     return {slow=function() bo.slows=bo.slows+1 end,restore=function() bo.restores=bo.restores+1 end,
         clear=function(why) bo.cleared=why end}
 end}
--- The day/night cycle (sky/daynight.lua; sky/daynight_test tests it): what new got (o), each 250 ms pass's off,
--- coop daynight's words.
+-- The day/night cycle (world/daynight/daynight.lua; world/daynight/daynight_test tests it): what new got (o), each 250
+-- ms pass's off, coop daynight's words.
 dn={}
-package.loaded['sky.daynight']={new=function(o)
+package.loaded['world.daynight.daynight']={new=function(o)
     dn.o=o
     return {slow=function(off) dn.slows[#dn.slows+1]=off end,status=function() return 'daynight: test' end,
         command=function(word,arg) dn.words[#dn.words+1]={word,arg}; return true,'dn '..word end}
 end}
--- The Doro race (race/run.lua; race_test tests it): what race.new got, coop race's words, her race lines, its ticks,
--- slows, stops and keys, whether it is armed, what a tick or the key answers, a stop, a steer or a tick that raises,
--- its HUD; its steers and the native ticks made before the last one.
+-- The Doro race (online/modes/race/run.lua; race_test tests it): what race.new got, coop race's words, her race lines,
+-- its ticks, slows, stops and keys, whether it is armed, what a tick or the key answers, a stop, a steer or a tick that
+-- raises, its HUD; its steers and the native ticks made before the last one.
 ra={}
-package.loaded['race.run']={new=function(o)
+package.loaded['online.modes.race.run']={new=function(o)
     ra.o=o
     return {command=function(sub,a,extra) ra.cmds[#ra.cmds+1]={sub,a,extra}; return true,'race '..tostring(sub) end,
         receive=function(text) ra.received[#ra.received+1]=text end,
@@ -609,10 +612,10 @@ package.loaded['race.run']={new=function(o)
         key=function() ra.keys=ra.keys+1; return ra.key_ok,ra.key_why end,
         armed=function() return ra.armed==true end,hud=function(h) ra.hud=h end}
 end}
--- Roxanne's choices (nightop/roxanne.lua; roxanne_test tests them): what roxanne.new got (o), its ticks (the last
--- one's stopped) and stops, a booking cancel gives back (booked), a stop or a tick that raises.
+-- Roxanne's choices (online/modes/nightop/roxanne.lua; roxanne_test tests them): what roxanne.new got (o), its ticks
+-- (the last one's stopped) and stops, a booking cancel gives back (booked), a stop or a tick that raises.
 rx={o=nil,ticks=0,stops=0,booked=nil,raise=nil}
-package.loaded['nightop.roxanne']={new=function(o)
+package.loaded['online.modes.nightop.roxanne']={new=function(o)
     rx.o=o
     return {tick=function(stopped)
             rx.ticks,rx.stopped=rx.ticks+1,stopped
@@ -621,13 +624,15 @@ package.loaded['nightop.roxanne']={new=function(o)
         stop=function() rx.stops=rx.stops+1; if rx.raise then error(rx.raise,0) end end,
         cancel=function() local b=rx.booked; rx.booked=nil; return b end}
 end}
--- The Xion guard's lines (nightop/guard_text.lua; guard_text_test tests it): what guard_text.new got (o), its ticks.
+-- The Xion guard's lines (online/modes/nightop/guard_text.lua; guard_text_test tests it): what guard_text.new got (o),
+-- its ticks.
 gt={o=nil,ticks=0}
-package.loaded['nightop.guard_text']={new=function(o) gt.o=o; return {tick=function() gt.ticks=gt.ticks+1 end} end}
--- Lily's signal (matrix13/quest/on_time.lua; matrix13/quest/on_time_test tests it): what lily.new got (o), its ticks
--- (the last one's stopped), title calls, stops and commands.
+package.loaded['online.modes.nightop.guard_text']={new=function(o) gt.o=o; return {
+    tick=function() gt.ticks=gt.ticks+1 end} end}
+-- Lily's signal (world/maps/matrix13/quest/on_time.lua; world/maps/matrix13/quest/on_time_test tests it): what lily.new
+-- got (o), its ticks (the last one's stopped), title calls, stops and commands.
 ly={o=nil,ticks=0,stops=0,titles={},cmds={},talks={},holds={}}
-package.loaded['matrix13.quest.on_time']={new=function(o)
+package.loaded['world.maps.matrix13.quest.on_time']={new=function(o)
     ly.o=o
     return {tick=function(stopped) ly.ticks,ly.stopped=ly.ticks+1,stopped end,
         title=function(...) ly.titles[#ly.titles+1]=table.pack(...) end,
@@ -636,16 +641,17 @@ package.loaded['matrix13.quest.on_time']={new=function(o)
         talk=function(...) ly.talks[#ly.talks+1]=table.pack(...); return true,'talk '..tostring((...)) end,
         hold=function(on) ly.holds[#ly.holds+1]=on; return true,'hold '..tostring(on) end}
 end}
--- Lily's talks (matrix13/quest/subtitles.lua; subtitles_test tests it): what new got (o), the kit hud, its frame ticks.
+-- Lily's talks (world/maps/matrix13/quest/subtitles.lua; subtitles_test tests it): what new got (o), the kit hud, its
+-- frame ticks.
 ts={o=nil,hud=nil,ticks=0}
-package.loaded['matrix13.quest.subtitles']={new=function(o)
+package.loaded['world.maps.matrix13.quest.subtitles']={new=function(o)
     ts.o=o
     return {hud=function(h) ts.hud=h end,tick=function() ts.ticks=ts.ticks+1 end}
 end}
--- coop story (story/snapshot.lua; story/snapshot_test tests it): what new got (o), its commands, each poll's world
--- flag, what the next poll answers.
+-- coop story (story/together/snapshot.lua; story/together/snapshot_test tests it): what new got (o), its commands, each
+-- poll's world flag, what the next poll answers.
 st={o=nil,cmds={},polls={},says=nil}
-package.loaded['story.snapshot']={new=function(o)
+package.loaded['story.together.snapshot']={new=function(o)
     st.o=o
     return {command=function(...) st.cmds[#st.cmds+1]=table.pack(...); return true,'st '..tostring((...)) end,
         poll=function(world)
@@ -658,21 +664,22 @@ end}
 -- recruiter.new's logger and on_ready, coop recruiter's arguments, its stops, ticks and auto spawn passes. The Join's
 -- FName: index 4242.
 rc_log,rc_ready,rc_runs,rc_stops,rc_ticks,rc_autos,rc_raise=nil,nil,{},0,0,0,nil
-package.loaded['nightop.recruiter']={JOIN='MultiplayTest_ZoneE_059',find_name=function(text) return 'FName '..text end,
+package.loaded['online.modes.nightop.recruiter']={JOIN='MultiplayTest_ZoneE_059',
+    find_name=function(text) return 'FName '..text end,
     index_of=function(name) return name=='FName MultiplayTest_ZoneE_059' and 4242 or 0 end,new=function(log,on_ready)
     rc_log,rc_ready=log,on_ready
     return {run=function(sub,extra) rc_runs[#rc_runs+1]={sub,extra}; return true,'recruiter '..tostring(sub) end,
         stop=function() rc_stops=rc_stops+1; if rc_raise then error(rc_raise,0) end end,
         tick=function() rc_ticks=rc_ticks+1 end,auto=function() rc_autos=rc_autos+1 end}
 end}
--- The SBO lobby (lobby/sbo.lua; lobby/sbo_test tests it): what new got (o), its console words called, its sbo on
--- calls, ticks, title passes, coop off calls, how many native asks there were at its last one, and what active() says;
--- what hall() says (sb.hall, nil: 'xion') and the last Private match asked (created: its request and room); the hall
--- lobby seats: the free seat within reach (sb.seat; seat_error: what near_seat raises), the seat EVE sits on
+-- The SBO lobby (online/lobby/sbo.lua; online/lobby/sbo_test tests it): what new got (o), its console words called, its
+-- sbo on calls, ticks, title passes, coop off calls, how many native asks there were at its last one, and what active()
+-- says; what hall() says (sb.hall, nil: 'xion') and the last Private match asked (created: its request and room); the
+-- hall lobby seats: the free seat within reach (sb.seat; seat_error: what near_seat raises), the seat EVE sits on
 -- (sb.sitting), the last seat sat on (sat), the stand-ups asked (stands) and whether SB's interaction runs on EVE
 -- (sb.busy); the arrival's hold: what unready() gives (sb.unready, nil: none); the lobby EVE stands in (sb.target).
 sb={}
-package.loaded['lobby.sbo']={OFF='the SBO lobby is off in coop-settings.txt (sbo_lobby=off)',new=function(o)
+package.loaded['online.lobby.sbo']={OFF='the SBO lobby is off in coop-settings.txt (sbo_lobby=off)',new=function(o)
     sb.o=o
     local function word(name) return function() sb.calls[#sb.calls+1]=name; return true,'sb '..name end end
     return {enter=word('enter'),leave=word('leave'),status=word('status'),hop=word('hop'),back=word('back'),
@@ -692,11 +699,11 @@ package.loaded['lobby.sbo']={OFF='the SBO lobby is off in coop-settings.txt (sbo
         on_load=function() sb.on_loads=sb.on_loads+1 end,tick=function() sb.ticks=sb.ticks+1 end,
         title=function() sb.titles=sb.titles+1 end,off=function() sb.offs=sb.offs+1; sb.asked_at_off=#asked end}
 end}
--- The lobby screens (lobby/ui/lobby.lua; lobby/ui/lobby_test tests them): what new got (o), its calls as words
--- (lb.calls; each frame's tick and each slow counted apart), the screen open ('menu', 'settings' or nil; refuse: why
--- open fails) and, while the leave question asks, its answer function (lb.ask).
+-- The lobby screens (online/lobby/ui/lobby.lua; online/lobby/ui/lobby_test tests them): what new got (o), its calls as
+-- words (lb.calls; each frame's tick and each slow counted apart), the screen open ('menu', 'settings' or nil; refuse:
+-- why open fails) and, while the leave question asks, its answer function (lb.ask).
 lb={}
-package.loaded['lobby.ui.lobby']={new=function(o)
+package.loaded['online.lobby.ui.lobby']={new=function(o)
     lb.o=o
     local function said(...)
         local w={}
@@ -721,10 +728,10 @@ package.loaded['lobby.ui.lobby']={new=function(o)
         tick=function(now) lb.ticks[#lb.ticks+1]=now end,
         parts_check=function() said('parts'); return true,'lobby parts: 6 of 6 made (the log has each)' end}
 end}
--- The Sessions screen (session/ui/sessions.lua; session/ui/sessions_test tests it): what new got (o), its calls as
--- words (ss.calls; each slow counted apart, with the shown it got), open or not (refuse: why open fails).
+-- The Sessions screen (online/session/ui/sessions.lua; online/session/ui/sessions_test tests it): what new got (o), its
+-- calls as words (ss.calls; each slow counted apart, with the shown it got), open or not (refuse: why open fails).
 ss={}
-package.loaded['session.ui.sessions']={new=function(o)
+package.loaded['online.session.ui.sessions']={new=function(o)
     ss.o=o
     local function said(...)
         local w={}
@@ -744,11 +751,11 @@ package.loaded['session.ui.sessions']={new=function(o)
         slow=function(shown) ss.slows[#ss.slows+1]=shown end,
         tick=function() end}
 end}
--- The Create a session screen (session/ui/create.lua; session/ui/create_test tests it), the same way: cr.o, cr.calls,
--- cr.slows, cr.open and cr.refuse. As the real one, it opens only once its last slow said a world shows and the kit is
--- up.
+-- The Create a session screen (online/session/ui/create.lua; online/session/ui/create_test tests it), the same way:
+-- cr.o, cr.calls, cr.slows, cr.open and cr.refuse. As the real one, it opens only once its last slow said a world shows
+-- and the kit is up.
 cr={}
-package.loaded['session.ui.create']={new=function(o)
+package.loaded['online.session.ui.create']={new=function(o)
     cr.o=o
     local function said(...)
         local w={}
@@ -871,10 +878,10 @@ package.loaded['ui.kit.kit']={kit=function(opts)
         azerty=function() return opts.uidev~=nil and opts.uidev()==2 end, -- SB's last keyboard (no language here).
         lost=function() local who=kit_lost; kit_lost=nil; return who~=nil,who end,
         move=function() end,fade=function() end,
-        -- SB's widget parts (session/join.lua's popups, the menu's and the guide's key hints): while kit_parts_ok,
-        -- each made is kept in kit_parts ({group=, class=, text=, actions={a1, a2}}) and alive. Else a popup is not in
-        -- this build, so its kit fallback shows (join_test tests the popup itself), and a key hint cannot be made yet
-        -- (the UI not up): its kind is never left out here, so a test turns the hints on and off.
+        -- SB's widget parts (online/session/join.lua's popups, the menu's and the guide's key hints): while
+        -- kit_parts_ok, each made is kept in kit_parts ({group=, class=, text=, actions={a1, a2}}) and alive. Else a
+        -- popup is not in this build, so its kit fallback shows (join_test tests the popup itself), and a key hint
+        -- cannot be made yet (the UI not up): its kind is never left out here, so a test turns the hints on and off.
         warm_part=function() end,
         part=function(group,class,_,_,_,_,fill)
             local short=class:match('[^.]+$')
@@ -897,12 +904,13 @@ package.loaded['ui.kit.kit']={kit=function(opts)
             return {camera={X=0,Y=0,Z=0},rotation={Pitch=0,Yaw=0},fov=90,anchor=anchor,width=3840,height=2160}
         end}
 end,THEME={text='white',grey='grey',teal='teal',error='red'}}
--- session/chat.lua's model calls as main.lua and the real view make them, each as its words (chat_test tests the model
--- and the view): a session (chat_active), her line given back for the screen, ours queued (chat_out: what take gives).
+-- online/session/chat.lua's model calls as main.lua and the real view make them, each as its words (chat_test tests the
+-- model and the view): a session (chat_active), her line given back for the screen, ours queued (chat_out: what take
+-- gives).
 chat_calls,chat_active,chat_out,chat_new={},false,{},nil
 chat_feed=nil -- The model's lines: its notices, once a test asks for them (nil: none kept).
-Chat=dofile('mod/StellarCoop/Scripts/session/chat.lua')
-package.loaded['session.chat']={new=function(lines,on)
+Chat=dofile('mod/StellarCoop/Scripts/online/session/chat.lua')
+package.loaded['online.session.chat']={new=function(lines,on)
     chat_new={lines,on}
     local function spy(name,back)
         return function(...)

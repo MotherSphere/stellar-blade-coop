@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The select widgets' pick watcher, moved out of nightop/roxanne.lua for every module to read.
+-- The select widgets' pick watcher, moved out of online/modes/nightop/roxanne.lua for every module to read.
 local U=require('core.unreal')
 local Roxanne={}
 local SELECT='/Script/SB.SBSequencerInteractionSelectWidget'
@@ -9,12 +9,12 @@ local WIDGETS='/Script/UMG.Default__WidgetBlueprintLibrary'
 -- s between two looks for the widget through FindAllOf (the class lookup looks at each tick).
 Roxanne.FIND_EVERY=2
 local why=U.why
--- The select widgets' picks (nightop/roxanne.lua's and matrix13/quest/on_time.lua's): o.log(text) logs, o.paused()
--- whether the game is paused or shows one of its screens. watch(eve, now, pick) looks for the widgets of EVE's world
--- again at each call (every FIND_EVERY through FindAllOf), so a box the game builds for a later dialogue is watched
--- while an older one is still valid; a widget seen before keeps its last SelectIndex. A pick: a SelectIndex turning
--- from -1 to a line (a widget first seen on a line holds an old pick), pick(text) called with that line's text. reset()
--- forgets the widgets.
+-- The select widgets' picks (online/modes/nightop/roxanne.lua's and world/maps/matrix13/quest/on_time.lua's):
+-- o.log(text) logs, o.paused() whether the game is paused or shows one of its screens. watch(eve, now, pick) looks for
+-- the widgets of EVE's world again at each call (every FIND_EVERY through FindAllOf), so a box the game builds for a
+-- later dialogue is watched while an older one is still valid; a widget seen before keeps its last SelectIndex. A pick:
+-- a SelectIndex turning from -1 to a line (a widget first seen on a line holds an old pick), pick(text) called with
+-- that line's text. reset() forgets the widgets.
 function Roxanne.watcher(o)
     local log,paused=o.log,o.paused
     local held,look_at,walk=nil,-math.huge,false -- The select widgets {obj, last}; the next look; FindAllOf's route.

@@ -10,31 +10,32 @@
 -- every second and her vitals (mate=) and our life state (life=) up to 10 times a second, so they stay in coop status,
 -- out of the log. The chat has two files of its own that live a moment only (coop-say.txt and coop-chat.txt, see
 -- say()), and the race one more (coop-race.txt, see race()); her race lines come in coop-chat.txt, and her gift lines
--- (coop gift, cut/menus/mailbox.lua, whose own lines go as gift requests). The same read gives
+-- (coop gift, tools/mailbox.lua, whose own lines go as gift requests). The same read gives
 -- the session's mode, the friend and the notices for the screen, each from the start of its own line: a Steam name is
 -- never at the start of one.
 -- While we host, the read also gives our join code and the joiners who wait for our answer, in the order the native
--- part asks about them (session/join.lua asks the host about the first). It keeps who waited in this lobby (the
+-- part asks about them (online/session/join.lua asks the host about the first). It keeps who waited in this lobby (the
 -- menu's Remove row); as a joiner, the seconds left of the host's answer (wait()); the session list's rows (list());
 -- in an online session, its host and pair (host()) and each member's vitals (vitals()). Lua tells the native part the
 -- host's place and rules for the list's rows with where() and rules(), each sent only when it changed.
 -- coop-settings.txt's shared_enemies, fight_chars, guest_kills, enemy_hp_scale, enemy_balance_scale, kill_credit,
 -- same_place, aggro, same_spawns, enemy_extra, spawn_filter, bosses and boss_hp_scale (Phase 11, experimental) are
--- fight/commands.lua's coop fight (main.lua's loop asks it on or off); its photo_sync, photo_freeze_max, photo_ghost
--- and photo_name_tag the synced photo mode's (main.lua, and the native part through coop-state.txt), photo_pause
--- main.lua's own; its auto_coop_save the co-op saves' (save/saves.lua), which also read saves() here; its
--- shared_quests and quest_deny quest/commands.lua's coop quests (Phase 12, experimental); main.lua's loop, which asks
--- it on or off, reads quests() and quest_notes() here; its shared_world world/commands.lua's coop world (main.lua's
--- loop asks it on or off and reads world() here); its shared_story story/commands.lua's coop scenes (main.lua's loop
--- asks it on or off and reads story() here); its revive and cutscene_wait group/group.lua's (the friend's
--- revive, the wait during the host's cutscene); its follow_host and follow_key group/travel.lua's and main.lua's (the
--- guest's travel to the camp nearest the host), which reads camps() here; its collide partner/puppet.lua's (the solid
--- partner); its drift_keys the Doro races' driving (race/drive.lua); its mod_names the native part's (through
--- coop-state.txt: names=0 keeps the names of our .pak mods from the friend); its shortcut_load save/commands.lua's
--- (coop shortcut load, a test tool with no menu row); its pvp_spike fight/commands.lua's (coop pvp, the PvP test, a
--- test tool with no menu row; main.lua's reload ends it when off); its sbo_lobby lobby/sbo.lua's (the SBO lobby in
--- Xion, on by default, no menu row), which also reads sbo() here; its bike and bike_key bike/ride.lua's and
--- main.lua's (the bike). The co-op menu (ui/kit/menu.lua) changes the file, one line at a time (D-UI4).
+-- fight/enemies/commands.lua's coop fight (main.lua's loop asks it on or off); its photo_sync, photo_freeze_max,
+-- photo_ghost and photo_name_tag the synced photo mode's (main.lua, and the native part through coop-state.txt),
+-- photo_pause main.lua's own; its auto_coop_save the co-op saves' (online/saves/saves.lua), which also read saves()
+-- here; its shared_quests and quest_deny story/quests/commands.lua's coop quests (Phase 12, experimental); main.lua's
+-- loop, which asks it on or off, reads quests() and quest_notes() here; its shared_world world/objects/commands.lua's
+-- coop world (main.lua's loop asks it on or off and reads world() here); its shared_story story/together/commands.lua's
+-- coop scenes (main.lua's loop asks it on or off and reads story() here); its revive and cutscene_wait
+-- online/group/group.lua's (the friend's revive, the wait during the host's cutscene); its follow_host and follow_key
+-- online/group/travel.lua's and main.lua's (the guest's travel to the camp nearest the host), which reads camps() here;
+-- its collide online/partner/puppet.lua's (the solid partner); its drift_keys the Doro races' driving
+-- (online/modes/race/drive.lua); its mod_names the native part's (through coop-state.txt: names=0 keeps the names of
+-- our .pak mods from the friend); its shortcut_load online/saves/commands.lua's (coop shortcut load, a test tool with
+-- no menu row); its pvp_spike fight/enemies/commands.lua's (coop pvp, the PvP test, a test tool with no menu row;
+-- main.lua's reload ends it when off); its sbo_lobby online/lobby/sbo.lua's (the SBO lobby in Xion, on by default, no
+-- menu row), which also reads sbo() here; its bike and bike_key vehicles/bike/ride.lua's and main.lua's (the bike). The
+-- co-op menu (ui/kit/menu.lua) changes the file, one line at a time (D-UI4).
 local K=require('core.keybind')
 local SF=require('core.settings_file')
 local T=require('ui.text')
@@ -245,7 +246,7 @@ local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=tr
     card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true,mod_names=true,shortcut_load=true,
     pvp_spike=true,sbo_lobby=true,shared_world=true,shared_story=true,friends_ask=true,bike=true,daynight=true,
     pause_tab=true,hide_popups=true}
-local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (partner/puppet.lua), each on or off.
+local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (online/partner/puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key','bike_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
     kill_credit={'together','fought'},who_can_join={'public','friends','invitation','closed'},
@@ -294,9 +295,10 @@ end
 -- auto_coop_save, aggro, photo_pause, follow_host, status_overlay) one of its words; photo_freeze_max a whole number of
 -- seconds; ui_scale one of percent; max_players a whole number from 2 to 4; the scales a number from 1 to 4, digits
 -- with a decimal point or none
--- (fight/commands.lua sends them in whole percents); quest_deny its text, letters, digits, '_', spaces and commas only,
--- at most 200 bytes (the native part's request limit; it names the entries that are no shared quest); drift_keys a list
--- of Unreal key names (race/drive.lua reads them with IsInputKeyDown), at most 4, empty for none.
+-- (fight/enemies/commands.lua sends them in whole percents); quest_deny its text, letters, digits, '_', spaces and
+-- commas only, at most 200 bytes (the native part's request limit; it names the entries that are no shared quest);
+-- drift_keys a list of Unreal key names (online/modes/race/drive.lua reads them with IsInputKeyDown), at most 4, empty
+-- for none.
 local function setting(name,text)
     if name=='drift_keys' then
         local keys,why={},'use none, or at most 4 Unreal key names separated by spaces, such as Gamepad_RightTrigger B'
@@ -638,16 +640,16 @@ function Link.new(folder,fs)
         return true,'asked the native part: '..line
     end
     function self.session(token) return put('coop-session.txt',token..'\n') end
-    -- Night Operation's night line (nightop/run.lua): coop-night.txt, which the native part takes at every pass and
-    -- sends to the partner. An untaken one is replaced: the newest state wins.
+    -- Night Operation's night line (online/modes/nightop/run.lua): coop-night.txt, which the native part takes at every
+    -- pass and sends to the partner. An untaken one is replaced: the newest state wins.
     function self.night(line) return put('coop-night.txt',line..'\n') end
-    -- Her parked bike's line (bike/ride.lua: park ... or none): coop-parked.txt, which the native part takes at every
-    -- pass and sends to every member. An untaken one is replaced: the newest state wins.
+    -- Her parked bike's line (vehicles/bike/ride.lua: park ... or none): coop-parked.txt, which the native part takes
+    -- at every pass and sends to every member. An untaken one is replaced: the newest state wins.
     function self.bike(payload) return put('coop-parked.txt',payload..'\n') end
     -- coop-state.txt: whether a save is loaded (held invites wait for one) or else the title screen is shown
     -- (world=title: the only time the native part changes the co-op saves), the poses sent a second, and the synced
-    -- photo mode's: ours ('0', '1' or 's'; 'c' while the host's cutscene plays, group/group.lua's), photo_sync and
-    -- photo_freeze_max; then cut=1 while the guest asks for the pause during the host's cutscene (cut), and names=0
+    -- photo mode's: ours ('0', '1' or 's'; 'c' while the host's cutscene plays, online/group/group.lua's), photo_sync
+    -- and photo_freeze_max; then cut=1 while the guest asks for the pause during the host's cutscene (cut), and names=0
     -- with mod_names=off (names false: the native part then sends no pak line). Written when its text changes, and
     -- remembered only once written, so a failed write is tried again; returns the line it wrote.
     local state=nil
@@ -678,8 +680,8 @@ function Link.new(folder,fs)
     -- written through a temporary file (true, or false and why).
     function self.read_file(name) return fs.read(path(name)) end
     function self.write_file(name,text) return put(name,text) end
-    -- A small file of ours written in place, with no temporary file: one write (partner/sentinel.lua's marker, paid at
-    -- each call it covers).
+    -- A small file of ours written in place, with no temporary file: one write (online/partner/sentinel.lua's marker,
+    -- paid at each call it covers).
     function self.write_now(name,text) return fs.write(path(name),text) end
     -- An object path kept across Lua loads, so a reload can sweep what an earlier one left: the ghost's in
     -- coop-puppet.txt unless named (the UI root's: coop-ui.txt).
@@ -716,11 +718,11 @@ function Link.new(folder,fs)
         fs.remove(temp)
         return false,'cannot write'
     end
-    -- Race lines (race/model.lua's). The native part takes coop-race.txt at every pass and sends each line, in order;
-    -- a write before it took the last file would replace it, so a cp and a fin sent close together lost the cp. So
-    -- race() queues each line, and race_flush() writes every pending one into one new file once the last is gone:
-    -- changes() calls it, and the race each frame. It never removes the last: one the native part holds open while it
-    -- takes it cannot be read, so the rename fails while it is there and the lines wait for the next flush.
+    -- Race lines (online/modes/race/model.lua's). The native part takes coop-race.txt at every pass and sends each
+    -- line, in order; a write before it took the last file would replace it, so a cp and a fin sent close together lost
+    -- the cp. So race() queues each line, and race_flush() writes every pending one into one new file once the last is
+    -- gone: changes() calls it, and the race each frame. It never removes the last: one the native part holds open
+    -- while it takes it cannot be read, so the rename fails while it is there and the lines wait for the next flush.
     -- ponytail: 512 lines at most, the oldest dropped, for a native part that never takes them (a fault, another
     -- build); glue/steam.cpp reads that many.
     local race_queue={}
@@ -770,7 +772,7 @@ function Link.new(folder,fs)
         local waited=wait~=nil
         search,found,wait=nil,{},nil
         -- The engine off on another game build (check_build's reasons): a game update, said at the title
-        -- (save/saves.lua).
+        -- (online/saves/saves.lua).
         if engine:find(' reason=build stamp ',1,true) or engine:find(' reason=code bytes differ',1,true) then
             saves.build=true
         end
@@ -785,9 +787,9 @@ function Link.new(folder,fs)
                 and not line:find('^match=') -- Its countdown changes each second.
                 and not (waited and line:find('^wait=')) -- Likewise: the first of a wait only.
                 and not line:find('^life=')
-                and not line:find('^bike_of=') -- bike/others.lua logs what it does with each.
-                and not line:find('^night=') -- nightop/run.lua logs each night line itself.
-                -- Their spawns= moves with every enemy; cut/enemies/enemy.lua and core/enemy.lua log what they read.
+                and not line:find('^bike_of=') -- vehicles/bike/others.lua logs what it does with each.
+                and not line:find('^night=') -- online/modes/nightop/run.lua logs each night line itself.
+                -- Their spawns= moves with every enemy; fight/bosses/enemy.lua and core/enemy.lua log what they read.
                 and not line:find('^lion=') and not line:find('^gardener=') and not line:find('^tendril=')
                 and not line:find('^bolt=') and not line:find('^mxiii=')
                 -- Its sent= and received= move with each position of a shared scene; the native log has its events.
@@ -924,7 +926,7 @@ function Link.new(folder,fs)
             for _,m in ipairs(roster) do if m.linked then named=m; break end end
         end
         ping=named and named.linked and named.rtt>=0 and named.rtt or nil
-        if held then saves.held=true end -- The question at the title says an invite waits (save/saves.lua).
+        if held then saves.held=true end -- The question at the title says an invite waits (online/saves/saves.lua).
         -- Back in her lobby, the native part drops rejoin= before the handshake: the rejoin holds until she is linked.
         if rejoin then rejoined=true elseif mode~='guest' or (friend and friend[2]) then rejoined=false end
         if lobby and lobby~=strangers_in then strangers,strangers_in={},lobby end
@@ -949,8 +951,8 @@ function Link.new(folder,fs)
     function self.ping() return ping end
     -- A chat session holds once Steam is ready: a friend linked (lost or not; the slot-0 member, or any member past the
     -- handshake while slot 0 is free), a rejoin under way (until she is linked again), or coop loopback. Its end clears
-    -- the chat (session/chat.lua's session()); the native part's own ends with the link, so a line typed during a
-    -- rejoin fails. nil when the status was not read: that ends nothing.
+    -- the chat (online/session/chat.lua's session()); the native part's own ends with the link, so a line typed during
+    -- a rejoin fails. nil when the status was not read: that ends nothing.
     function self.chatting()
         if not listed then return nil end
         return mode~=nil and ((friend~=nil and friend[2]) or self.others()>0 or rejoin~=nil or rejoined or loopback)
@@ -985,9 +987,9 @@ function Link.new(folder,fs)
     -- <m> outfits)', from the status's cns= line; nil without one.
     function self.cns() return cns end
     -- The assets our CNS packs declare, from coop-cns.txt (the native part writes it once at its start, a
-    -- '<path> <outfit>' line each): path to outfit ('-' for none), read once found, {} until then. partner/puppet.lua
-    -- loads a mod's asset a friend's table names only when it is here; partner/capture.lua tags her parts with these
-    -- outfits.
+    -- '<path> <outfit>' line each): path to outfit ('-' for none), read once found, {} until then.
+    -- online/partner/puppet.lua loads a mod's asset a friend's table names only when it is here;
+    -- online/partner/capture.lua tags her parts with these outfits.
     local declared,none=nil,{}
     function self.cns_assets()
         if declared then return declared end
@@ -1016,8 +1018,8 @@ function Link.new(folder,fs)
         return shared
     end
     function self.shared_version() return shared_version end
-    -- What a ghost may load of a mod (partner/puppet.lua, partner/sentinel.lua) and the capture may name: the assets
-    -- our CNS packs declare (their outfit), then those of a mod both players have (its container).
+    -- What a ghost may load of a mod (online/partner/puppet.lua, online/partner/sentinel.lua) and the capture may name:
+    -- the assets our CNS packs declare (their outfit), then those of a mod both players have (its container).
     local merged,merged_of,merged_cns=nil,nil,nil
     function self.mod_assets()
         local cns_now,shared_now=self.cns_assets(),self.shared_assets()
@@ -1101,11 +1103,11 @@ function Link.new(folder,fs)
     function self.me() return my_name end
     -- A match lobby's owner (her SteamID, digits), or nil outside a match lobby.
     function self.owner() return owner end
-    -- A match lobby's map (lobby/sbo.lua's key of a lobby target) and lobby pak version ('xion' without the pak), as
-    -- its owner's lobby data names them; nil outside a match lobby or when it names none.
+    -- A match lobby's map (online/lobby/sbo.lua's key of a lobby target) and lobby pak version ('xion' without the
+    -- pak), as its owner's lobby data names them; nil outside a match lobby or when it names none.
     function self.room() return room end
     function self.hall() return hall end
-    -- Ghost slot k's files (1 to 6, partner/ghosts.lua), shaped as partner/puppet.lua reads this link:
+    -- Ghost slot k's files (1 to 6, online/partner/ghosts.lua), shaped as online/partner/puppet.lua reads this link:
     -- coop-remote-<k>.txt, coop-display-<k>.txt and coop-puppet-<k>.txt, and the name of the member holding slot k.
     function self.slot(k)
         local function file(stem) return stem..'-'..k..'.txt' end

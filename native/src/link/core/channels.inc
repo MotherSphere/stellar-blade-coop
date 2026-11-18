@@ -335,7 +335,7 @@ private:
         peer.last_heard = now_;
       else if (!peer.lost && now_ - peer.last_heard >= kLostAfterMs) {
         peer.lost = true;
-        night_.clear(); // Her night line is stale now: nightop/run.lua's watch sees it gone.
+        night_.clear(); // Her night line is stale now: online/modes/nightop/run.lua's watch sees it gone.
         event(peer.name + " silent for 10 s: lost");
         notice(peer.name + ": connection lost.");
         if (match() && peer.id == host_id_ && round_.playing) { // Review Focus 5: the owner hangs and stays owner.

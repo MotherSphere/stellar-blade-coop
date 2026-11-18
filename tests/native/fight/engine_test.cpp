@@ -947,8 +947,8 @@ int main() {
     n = e->pass(g, g.logic, true, one, 1);
     assert((guids(*e, n) == std::vector<uint32_t>{112, 101}) && !e->latched());
   }
-  // Night Operation's wave monsters (keys 0xD8..., nightop/waves.lua's W.key) are enemies of stage 1 like any keyed
-  // Monster, with the allowlist or without.
+  // Night Operation's wave monsters (keys 0xD8..., online/modes/nightop/waves.lua's W.key) are enemies of stage 1 like
+  // any keyed Monster, with the allowlist or without.
   for (bool list : {true, false}) {
     Game g;
     auto e = engine(false, true);

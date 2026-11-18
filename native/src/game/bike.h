@@ -1,8 +1,8 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// The bike's native side (bike/ride.lua), free of Windows: the preload of the bike's mesh and the riding clip; SB's own
-// per-action switch turned off while EVE rides. bike/bike_game.inc makes the calls on the game thread;
+// The bike's native side (vehicles/bike/ride.lua), free of Windows: the preload of the bike's mesh and the riding clip;
+// SB's own per-action switch turned off while EVE rides. bike/bike_game.inc makes the calls on the game thread;
 // tests/native/game/bike_test.cpp checks this file on the build machine.
 //
 // The preload is SB's own async load, as SB loads EVE's custom animations (FUN_1420b4ed0, the call at 0x1420b5238):
@@ -74,7 +74,7 @@ inline bool clip_ok(std::string_view p) { return anim::path_ok(p) && object_path
 // FUN_1420473b0 gives those bindings the predicate), except Jump, which stays SB's. The four CombinationCross names stay
 // out too: SB itself turns them on and off. So does Interaction_Key: the interaction manager's tick FUN_141b35720
 // writes it every frame through FUN_141b3cdd0 and FUN_14228df50 (1 while something is in reach, else 0), so a 0 of
-// ours would not hold. An interaction ends the ride instead (bike/ride.lua's 250 ms check).
+// ours would not hold. An interaction ends the ride instead (vehicles/bike/ride.lua's 250 ms check).
 constexpr const char *kGated[] = {
     "AttackLight",       "AttackStrong",     "Evade",          "Guard",          "SpecialCommand1",
     "SpecialCommand2",   "Scan",             "BetaSkillPreCommand", "BetaSkill1", "BetaSkill2",

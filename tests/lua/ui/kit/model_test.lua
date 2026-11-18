@@ -259,7 +259,7 @@ assert(M.read('auto_coop_save=OFF\n').auto_coop_save=='off' and M.read('auto_coo
 on('shared_quests')
 assert(values.shared_quests=='on' and select(3,menu.change(NONE,values,1))=='off' and not menu.current(NONE).reload)
 assert(M.read('shared_quests=OFF\n').shared_quests=='off' and M.read('shared_quests=x\n').shared_quests=='on')
--- Revive by the friend: on by default, a toggle in effect at once (group/group.lua reads it at each tick).
+-- Revive by the friend: on by default, a toggle in effect at once (online/group/group.lua reads it at each tick).
 on('revive')
 assert(values.revive=='on' and select(3,menu.change(NONE,values,1))=='off' and not menu.current(NONE).reload)
 assert(M.read('revive=OFF\n').revive=='off' and M.read('revive=x\n').revive=='on')
