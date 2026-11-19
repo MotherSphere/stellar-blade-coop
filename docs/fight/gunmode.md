@@ -40,7 +40,8 @@ the drone find their rows as shipped:
 | Space | A | In firing mode: jump, still firing |
 
 With the rifle out and no button held, EVE moves as usual with luke77's rifle carry. The sword's attacks are off
-until the rifle is put away. A new map, a death or a camp warp puts the rifle away.
+until the rifle is put away. Their keys come back while the game is paused, so the game's key options never save them
+off. A new map, a death or a camp warp puts the rifle away.
 
 `coop off` puts the rifle away too. The table fields, the keys and her body's own post-process class go back, then
 gun mode does nothing until the game restarts. Until everything is back, `coop-gun.txt` lists what gun mode changed.

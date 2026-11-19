@@ -8,7 +8,8 @@
 -- auto at the point under the screen centre. Letting go goes back to Luke's movement. Logged as [StellarCoop][GM].
 -- How: each shot is the NIKKE shot skill, started by a zone event through SB's own rows (fight/gunmode/data.lua), its
 -- bullet sent to the crosshair's point (fight/gunmode/aim.lua). While the rifle is out the sword's attacks and the drone's
--- aim on the fire and zoom keys are masked in memory (never saved; put back when it goes away).
+-- aim on the fire and zoom keys are masked in memory (lifted while the game is paused, where SB's key options can save
+-- the mappings; put back when it goes away).
 -- Gun mode is a module of its own: it reads its own coop-settings.txt lines and uses no other module (only the shared
 -- core/unreal.lua); fight/gunmode/wiring.lua builds it and registers its controller hook. All of it runs on the game
 -- thread, from main/frame.lua's loop (every frame) and the hook: no LoopAsync, ExecuteWithDelay or key bind, whose
@@ -750,9 +751,23 @@ function GunMode.new(env)
         if s.show_back then s.show_back=false; show_others(); show_drone(); unface() end
         if s.ammo_reset then s.ammo_reset=false; pcall(ammo.stop); pcall(ammo.refill) end
         local pc=g.pc(); if not pc then return end
+        -- Paused (the pause menu and its options among others): the mask lifted until the game runs again. SB's
+        -- KeyMapping option (its save 0x14222dec0 on 26123051) writes the player input's mappings (+0x140 and +0x150,
+        -- through 0x1423d04d0) into its settings, and ForceRebuildKeymaps (0x144664bb0) copies them there from the
+        -- input settings: a masked key would be saved as the player's own.
         if g.try(function() return StaticFindObject('/Script/Engine.Default__GameplayStatics'):IsGamePaused(pc) end) then
+            if s.mask then
+                pcall(s.mask)
+                s.mask,s.keys=nil,nil
+                keep()
+            end
             if s.armed_until then s.armed_until=math.max(s.armed_until,now+cfg.arm_hold) end -- SB's events wait too
             return
+        end
+        if s.on and not s.mask then
+            local ok,err=pcall(function() s.mask,s.keys=mask() end)
+            if not ok then disable('the input mask failed ('..tostring(err)..')'); return end
+            keep()
         end
         -- The shot's borrowed rows back once its last zone event has had its time (M4).
         if s.armed_until and now>=s.armed_until then

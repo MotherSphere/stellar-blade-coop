@@ -54,9 +54,10 @@ Config.DEFAULTS={
     zoom_offset={X=95,Y=55,Z=10},zoom_ease=0.18,
     zoom_arm=0.55, -- Firing mode on her normal stance: the camera arm this share of the game's, SocketOffset +Y/+Z above.
     trace_range=10000, -- How far the crosshair's trace looks for what the rounds hit.
-    -- Masked while the rifle is out (in memory only, put back when it goes away, never saved): the sword's attacks and
-    -- the drone's aim, fire and pad combat keys on the fire and zoom keys (mask_keys), and the drone's aim and fire on
-    -- any key (Luke masked TPSMode). Menus, pick-ups, fishing and the death screen keep their keys.
+    -- Masked while the rifle is out (in memory only, lifted while the game is paused, put back when it goes away; SB's
+    -- key options save the mappings, see fight/gunmode/mode.lua's tick): the sword's attacks and the drone's aim, fire
+    -- and pad combat keys on the fire and zoom keys (mask_keys), and the drone's aim and fire on any key (Luke masked
+    -- TPSMode). Menus, pick-ups, fishing and the death screen keep their keys.
     mask_keys={'LeftMouseButton','RightMouseButton','Gamepad_LeftTrigger','Gamepad_RightTrigger'},
     mask_on_keys={'AttackLight','AttackStrong','SpecialCommand1','SpecialCommand2','CommandKey7','CommandKey8',
         'LeftTriggerKey','RightTriggerKey','Item_UseBullet'},

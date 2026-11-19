@@ -73,7 +73,8 @@ fake UE4SS objects for those that call the engine. In the capture test, any writ
   shot's Hit1 step has its Cast1 step's `Type`. The shipped value comes back when the rifle goes away. The shot's two
   borrowed fields keep their shipped values while the rifle is only out. They change at the first shot through the zone
   event (kind 2 on the borrowed row) and go back 1 s after the last one, later after a pause. `coop-gun.txt` lists them
-  while they are changed, so a Lua reload puts them back;
+  while they are changed, so a Lua reload puts them back. A pause gives the masked keys back (`coop-gun.txt` drops
+  them); the first frame after it masks them again;
 - `vehicles/bike/ride_test` covers `vehicles/bike/ride.lua` over a fake EVE and native part: the preload asked once and
   released at `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every
   mount refusal with its reason and nothing written, the mount's order and the dismount backward, the lean (the math

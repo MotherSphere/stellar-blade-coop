@@ -99,4 +99,26 @@ do
     toggle(gun,false)
 end
 
+-- 3. M3: the input mask is lifted while the game is paused and put back at the first frame after it. SB's KeyMapping
+--    option saves the player input's mappings (0x14222dec0 through 0x1423d04d0 on 26123051), which ForceRebuildKeymaps
+--    (0x144664bb0) copies from the input settings: a save in the pause menu must not see a masked key.
+do
+    local w=Fake.new(); w.install()
+    local keys,store=w.keys(),file()
+    local gun=new(nil,store)
+    toggle(gun,true)
+    local masked=w.keys()
+    assert(masked~=keys and store.peek():find('key|',1,true))
+    w.paused=true
+    frames(gun,2)
+    assert(w.keys()==keys,'the keys back while paused: '..w.keys())
+    assert(gun.state.on and not store.peek():find('key|',1,true),'coop-gun.txt keeps no masked key: '..store.peek())
+    w.paused=false
+    frames(gun,1)
+    assert(w.keys()==masked,'masked again: '..w.keys())
+    assert(store.peek():find('key|',1,true),'coop-gun.txt lists the masked keys again')
+    toggle(gun,false)
+    assert(w.keys()==keys)
+end
+
 print('gunmode state: ok')
