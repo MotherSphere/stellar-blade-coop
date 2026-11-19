@@ -190,7 +190,11 @@ with tempfile.TemporaryDirectory() as tmp:
                               'story/scenes/lines', 'fight/bosses/lion', 'fight/bosses/lion_rows', 'tools/mailbox',
                               'eve/chainspin_rows', 'world/maps/matrix13/level/boss_rows',
                               'story/scenes/scene', 'fight/bosses/tendril', 'eve/wear', 'main',
-                              'world/maps/matrix13/culture', 'world/maps/matrix13/quest/on_time',
+                              'world/maps/matrix13/culture', 'world/maps/matrix13/words',
+                              *(f'world/maps/matrix13/text/{c}'
+                                for c in ('ko', 'en-GB', 'de', 'it', 'es', 'es-MX', 'pt', 'pt-BR', 'nl', 'da', 'no',
+                                          'sv', 'fi', 'pl', 'ru', 'tr', 'ar', 'th', 'ja', 'zh-Hans', 'zh-Hant')),
+                              'world/maps/matrix13/quest/on_time',
                               'world/maps/matrix13/quest/text', 'world/maps/matrix13/quest/zone_talks',
                               *(f'world/maps/matrix13/talks/{talk}' for talk in ('prologue', 'arrival', 'finale',
                                                                                  'zone1', 'zone2', 'zone3', 'zone4')),
