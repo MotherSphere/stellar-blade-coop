@@ -38,6 +38,9 @@ struct Fake : Engine {
   std::map<uint32_t, std::string> names;
   std::vector<Message> applied;
   std::map<std::string, const char *> refusal; // key() -> why
+  std::map<std::pair<std::string, std::string>, Value> values; // (zone, alias) -> what read() answers
+  std::string here; // the client's zone; empty: zone() answers false, so no ask goes out
+  size_t reads = 0; // calls to read()
   Name name(const std::string &text) {
     for (const auto &[i, t] : names)
       if (t == text)
@@ -57,6 +60,17 @@ struct Fake : Engine {
     applied.push_back(m);
     const auto it = refusal.find(key(m));
     return it == refusal.end() ? nullptr : it->second;
+  }
+  Value read(const std::string &zone, const std::string &alias) override {
+    ++reads;
+    const auto it = values.find({zone, alias});
+    return it == values.end() ? Value() : it->second;
+  }
+  bool zone(std::string &out) override {
+    if (here.empty())
+      return false;
+    out = here;
+    return true;
   }
 };
 

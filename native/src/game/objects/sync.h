@@ -259,6 +259,14 @@ inline bool slot_coop(std::string_view slot, bool &was) {
   return was;
 }
 
+// Where an env's value was read: its live env, its stored record in the zone, or nowhere.
+enum class Where : uint8_t { none, live, record };
+struct Value {
+  Where where = Where::none;
+  std::string tag;    // FName text of the tag
+  uint8_t object = 0; // ObjectState 1 or 2; 0 for any other value
+};
+
 // The game side, behind game/objects/engine.h.
 class Engine {
 public:
@@ -268,6 +276,12 @@ public:
   // One of her s, a, e or l lines, applied in our game with our player as caster. Null when done, else a short word
   // that says why the game refused it (a name it lacks, a guard). A refused line is not tried again.
   virtual const char *apply(const Message &m) = 0;
+  // An env's tag and ObjectState: live (vtable checked, tag +0x1f4, ObjectState +0x28), else its record in zone
+  // (record +0x28, +0x20), else none. Never makes a record or a name.
+  virtual Value read(const std::string &zone, const std::string &alias) = 0;
+  // The client's current zone (+0x68) as text; false when there is no client, when the FName is None (index
+  // kNoneName, number 0) or when it has no text.
+  virtual bool zone(std::string &out) = 0;
 };
 
 constexpr size_t kQueue = 256;       // Her lines that wait while we load; past that the newest are dropped.
