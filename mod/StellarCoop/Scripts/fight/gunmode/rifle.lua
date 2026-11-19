@@ -7,8 +7,11 @@
 -- strafes and aims with the rifle in her hands and her left hand on it, on one skeleton, for her and for co-op partners.
 -- Same interface as fight/gunmode/stance.lua (start, frame, stop, running, reload, owns, copy, body) so fight/gunmode/mode.lua
 -- drives it unchanged.
+local U=require('core.unreal')
 local Rifle={}
 local function valid(o) return o~=nil and pcall(function() return o:IsValid() end) and o:IsValid() end
+-- The rifle component's tag, so the next Lua load finds a rifle this one left on her (sweep).
+Rifle.TAG='SBO_Gun'
 
 -- The grip: the rifle in her right hand (Bip001-R-Hand) as the pak's animations were made with it (Blender
 -- ngm_bl_rifle1: the NIKKE shot's grip, the barrel through her support hand). UE units (cm), the bone's frame.
@@ -34,6 +37,9 @@ function Rifle.new(laser,trace,grip)
         assert(valid(gun),'rifle component')
         gun:SetCollisionEnabled(0)
         pawn:FinishAddComponent(gun,true,id)
+        -- A new component's ComponentTags is empty: UE4SS 3.0.1 lands a write at 1 there (vehicles/bike/ride.lua's
+        -- part; proven for uint8 arrays only). A tag that does not hold costs only the sweep after a Ctrl+R.
+        pcall(function() gun.ComponentTags[1]=FName(Rifle.TAG) end)
         gun:SetSkeletalMesh(weapon,true)
         pcall(function() gun.bPerBoneMotionBlur=false end)
         pcall(function() gun:SetCastShadow(src.CastShadow) end)
@@ -115,5 +121,15 @@ function Rifle.new(laser,trace,grip)
         end
     end
     return self
+end
+
+-- The rifles an earlier Lua load left on her pawn (skeletal mesh components tagged Rifle.TAG), destroyed: how many.
+function Rifle.sweep(pawn)
+    if not valid(pawn) then return 0 end
+    local n,tag=0,FName(Rifle.TAG)
+    U.each(pawn:K2_GetComponentsByClass(StaticFindObject('/Script/Engine.SkeletalMeshComponent')),function(_,c)
+        if valid(c) and c:ComponentHasTag(tag)==true then c:K2_DestroyComponent(c); n=n+1 end
+    end)
+    return n
 end
 return Rifle

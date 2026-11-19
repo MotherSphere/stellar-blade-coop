@@ -95,6 +95,8 @@ for _,list in ipairs({{
         if not stopped then log('glide: '..tostring(e)) end
         stopped,e=pcall(M.emote.stop) -- Her clip stopped: anim stop, asked before off, or the montage's stop.
         if not stopped then log('emote: '..tostring(e)) end
+        stopped,e=pcall(M.gun.stop,'coop off') -- The rifle away, SB's rows and her keys back (fight/gunmode/mode.lua).
+        if not stopped then log('gun: '..tostring(e)) end
         stopped,e=pcall(M.devmenu.stop) -- clear and lockswitch, while the engine line still names EVE.
         if not stopped then log('devmenu: '..tostring(e)) end
         if M.mailbox then -- The gift toast off the screen.

@@ -15,6 +15,7 @@
 --   (P_Eve_Gun_Shoot*, every round's) start the NIKKE shot skill instead of the drone's, with the burst's command type
 --   (no round spent) and no "not while jumping" check (bJumping takes bWallRun's None).
 -- Neither Survival Protocol's pak nor any gun mode pak is needed.
+local Journal=require('fight.gunmode.journal')
 local Data={}
 
 local BASE='/Game/Local/Data/'
@@ -49,17 +50,20 @@ end
 -- opts (native fire only): speed (the aim stance's speed factor), upper (an animation set for its upper body, or nil).
 function Data.new(g,native,opts)
     local self={saved=nil,fire=true,native=native==true,opts=opts or {speed=1}}
+    local names=setmetatable({},{__mode='k'}) -- A table's name, a row's {table, row}: coop-gun.txt names them.
     local function tbl(name)
         local t=g.try(function() return StaticFindObject(BASE..name..'.'..name) end)
         assert(g.valid(t),'no '..name)
+        names[t]=name
         return t
     end
     local function text(v) return g.try(function() return v:ToString() end) or tostring(v) end
-    local function row(t,name)
+    local function find(t,name) -- The row, or nil.
         local r=g.try(function() return t:FindRow(name) end)
-        assert(r,'no row '..name)
+        if r then names[r]={names[t],name} end
         return r
     end
+    local function row(t,name) return assert(find(t,name),'no row '..name) end
 
     function self.take()
         if self.saved then return true end
@@ -121,7 +125,7 @@ function Data.new(g,native,opts)
             end
             if self.native then
                 for _,name in ipairs(Data.DRONE_COMMANDS) do
-                    local r=g.try(function() return cmd:FindRow(name) end)
+                    local r=find(cmd,name)
                     if r then
                     saved[#saved+1]={r,'SkillAlias',FName(text(r.SkillAlias))}
                     saved[#saved+1]={r,'CommandActionType',r.CommandActionType}
@@ -165,7 +169,7 @@ function Data.new(g,native,opts)
                 -- (test, opts.bs) the aim stance's animation set's blend spaces pointed elsewhere while the rifle is
                 -- out: whether the game reads them again each time she aims.
                 if self.opts.bs then
-                    local ar=g.try(function() return tbl('CharacterAnimSetTable'):FindRow('P_Eve_Gun_Battle') end)
+                    local ar=find(tbl('CharacterAnimSetTable'),'P_Eve_Gun_Battle')
                     if ar then
                         for _,f in ipairs({'RunBlendSpace','RunTiltBlendSpace','LockOnRunBlendSpace'}) do
                             local was=text(ar[f])
@@ -261,8 +265,8 @@ function Data.new(g,native,opts)
             nr.StartTargetTransformType=dr.DestTargetTransformType
             nr.StartTargetRelativeAxisType=dr.DestTargetRelativeAxisType
             local step=g.try(function() return tbl('SkillActiveStepTable') end)
-            local hit=step and g.try(function() return step:FindRow(Data.HIT_STEP) end)
-            local cast=step and g.try(function() return step:FindRow(Data.CAST_STEP) end)
+            local hit=step and find(step,Data.HIT_STEP)
+            local cast=step and find(step,Data.CAST_STEP)
             if hit and cast then
                 saved[#saved+1]={hit,'StepType',hit.StepType}
                 hit.StepType=cast.StepType
@@ -292,7 +296,38 @@ function Data.new(g,native,opts)
         g.log('data: SB\'s rows put back')
     end
 
+    -- coop-gun.txt's row records (fight/gunmode/journal.lua) for what take() changed: none when nothing is taken.
+    -- Raises on a value it cannot keep.
+    function self.records()
+        local out={}
+        for _,e in ipairs(self.saved or {}) do
+            local at=assert(names[e[1]],'a row with no name')
+            local kind,value=Journal.value(e[3])
+            out[#out+1]={'row',at[1],at[2],e[2],kind,value}
+        end
+        return out
+    end
+
     return self
+end
+
+-- An earlier Lua load's row records written back, the last first as put_back() does (fight/gunmode/mode.lua's
+-- restore): how many were written, and why the first one that failed did.
+function Data.put_back_records(g,records)
+    local n,failed=0,nil
+    for i=#records,1,-1 do
+        local r=records[i]
+        if r[1]=='row' then
+            local ok,why=pcall(function()
+                local t=StaticFindObject(BASE..r[2]..'.'..r[2])
+                assert(g.valid(t),'no '..r[2])
+                local found=assert(t:FindRow(r[3]),'no row '..r[3])
+                found[r[4]]=Journal.parse(r[5],r[6])
+            end)
+            if ok then n=n+1 else failed=failed or r[3]..'.'..r[4]..': '..tostring(why) end
+        end
+    end
+    return n,failed
 end
 
 return Data

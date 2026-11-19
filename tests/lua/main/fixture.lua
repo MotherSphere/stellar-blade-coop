@@ -578,12 +578,13 @@ package.loaded['vehicles.bike.ride']={new=function(o)
         restore=function() bk.restores=bk.restores+1 end,status=function() return 'bike: preload ready' end,
         tune=function(name,value) bk.tunes[#bk.tunes+1]={name,value}; return true,'bk tune '..tostring(name) end}
 end}
--- Gun mode (fight/gunmode/mode.lua; fight/gunmode/helpers_test tests its parts): what new got (o), its ticks, the
--- controllers its hook passed on, its toggles.
+-- Gun mode (fight/gunmode/mode.lua; fight/gunmode/helpers_test and stop_test test it): what new got (o), its ticks,
+-- its restores, the why of each stop, the controllers its hook passed on, its toggles.
 gm={}
 package.loaded['fight.gunmode.mode']={new=function(o)
     gm.o=o
-    return {tick=function() gm.ticks=gm.ticks+1 end,
+    return {tick=function() gm.ticks=gm.ticks+1 end,restore=function() gm.restores=gm.restores+1 end,
+        stop=function(why) gm.stops[#gm.stops+1]=why end,
         new_controller=function(pc) gm.controllers[#gm.controllers+1]=pc end,
         toggle_now=function() gm.toggles=gm.toggles+1 end,status=function() return 'gun mode off' end}
 end}
@@ -1004,7 +1005,7 @@ function load_main(with_native,no_folder,source)
     sb.to_menus,sb.to_rooms,sb.here,sb.hall,sb.created,sb.unready=0,0,false,nil,nil,nil
     sb.target=nil
     hooks,news,fades.calls={},{},{}
-    gm.o,gm.ticks,gm.controllers,gm.toggles=nil,0,{},0
+    gm.o,gm.ticks,gm.controllers,gm.toggles,gm.restores,gm.stops=nil,0,{},0,0,{}
     sb.seat,sb.seat_error,sb.sitting,sb.sat,sb.stands,sb.busy=nil,nil,nil,nil,0,false
     lb.o,lb.calls,lb.screen,lb.ask,lb.refuse,lb.slows,lb.ticks=nil,{},nil,nil,nil,0,{}
     ss.o,ss.calls,ss.open,ss.refuse,ss.slows=nil,{},false,nil,{}

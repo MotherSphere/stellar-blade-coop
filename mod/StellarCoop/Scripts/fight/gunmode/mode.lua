@@ -24,6 +24,7 @@ local Data=require('fight.gunmode.data')
 local Probe=require('fight.gunmode.probe')
 local Ammo=require('fight.gunmode.ammo')
 local Overlay=require('fight.gunmode.overlay')
+local Journal=require('fight.gunmode.journal')
 local U=require('core.unreal')
 
 local GunMode={}
@@ -63,7 +64,8 @@ end
 function GunMode.ease(a,b,k) return a+(b-a)*k end
 
 -- env: {log, folder (the mod folder: coop-settings.txt), read_all (a file's text; io.open's unless given), notice (the
--- rebuilding notice on screen)}.
+-- rebuilding notice on screen), store (coop-gun.txt through core/link.lua's store: save, load, clear; nil without the
+-- native part, so a Lua reload then cannot put back what an earlier load changed)}.
 function GunMode.new(env)
     local cfg=Config.DEFAULTS
     local whole=env.read_all or read_all
@@ -102,6 +104,10 @@ function GunMode.new(env)
     local self={}
     local s={hidden={},followed={},on=false,pause=0,next_shot=0,shots=0,zoom=0,zoom_held=false,target=nil,cam=nil,mask=nil,
         toggle_at=-1,hooked=false,errors=0}
+    -- What belongs to one pawn and its controller, cleared on a new controller with no game call (new_controller).
+    local PER_PAWN={'ovr_row','flash_fx','rifle','pose_m','pose_on','ik','layer_clip','reload_until','turn','turnq',
+        'want','move','sounds','aim_seen','air_aim','key_held','held_since','jump_down','tps'}
+    local restored=false -- coop-gun.txt read this Lua load (self.restore).
 
     -- The reload: the NIKKE squad's reload animation on the rifle stance, and its sounds at their times.
     local function sound(path)
@@ -148,14 +154,14 @@ function GunMode.new(env)
         for _,n in ipairs(set.native and cfg.native_mask_on_keys or cfg.mask_on_keys) do on_keys[n]=true end
         if not set.native then for _,n in ipairs(cfg.mask_actions) do masked_name[n]=true end end
         local saved,names={},{}
-        settings.ActionMappings:ForEach(function(_,wrapped)
+        settings.ActionMappings:ForEach(function(at,wrapped)
             local row=wrapped:get()
             local name,key=row.ActionName:ToString(),row.Key.KeyName:ToString()
             if key~='None' and ((masked_key[key] and on_keys[name]) or masked_name[name]) then
-                saved[#saved+1]={row=row,key=key,name=name}
+                saved[#saved+1]={row=row,key=key,name=name,at=at}
                 names[#names+1]=name..'('..key..')'
             elseif set.native and name=='TPSMode' and key==cfg.aim_from then -- The game's aim moved to RMB.
-                saved[#saved+1]={row=row,key=key,name=name,to=set.aim_key}
+                saved[#saved+1]={row=row,key=key,name=name,to=set.aim_key,at=at}
                 names[#names+1]=name..'('..key..' -> '..set.aim_key..')'
             end
         end)
@@ -186,7 +192,33 @@ function GunMode.new(env)
         end)
         if not ok then restore(); error(err) end
         g.log('input: masked '..table.concat(names,' '))
-        return restore
+        return restore,saved -- saved: coop-gun.txt's key records (keep)
+    end
+    -- The keys an earlier Lua load masked (coop-gun.txt's key records), each on a mapping of its action that still has
+    -- the masked key: the one at its index, else the first not yet given back. Then the keymaps rebuilt. How many.
+    local function keys_back(records)
+        local want={}
+        for _,r in ipairs(records) do
+            if r[1]=='key' then want[#want+1]={name=r[2],key=r[3],masked=r[4],at=tonumber(r[5])} end
+        end
+        if #want==0 then return 0 end
+        local settings=StaticFindObject(SETTINGS)
+        assert(g.valid(settings),'input settings unavailable')
+        local rows={}
+        settings.ActionMappings:ForEach(function(at,wrapped)
+            local row=wrapped:get()
+            rows[#rows+1]={at=at,row=row,name=row.ActionName:ToString(),key=row.Key.KeyName:ToString()}
+        end)
+        local n=0
+        for _,k in ipairs(want) do
+            local pick
+            for _,m in ipairs(rows) do
+                if not m.used and m.name==k.name and m.key==k.masked and (not pick or m.at==k.at) then pick=m end
+            end
+            if pick then pick.used=true; pick.row.Key.KeyName=FName(k.key); n=n+1 end
+        end
+        settings:ForceRebuildKeymaps()
+        return n
     end
 
     -- The point under the screen centre: the camera's line traced (visibility and camera channels, EVE ignored), or
@@ -420,17 +452,20 @@ function GunMode.new(env)
 
     -- Firing mode (Luke's aim on her normal stance): the game itself keeps her facing the camera, through her
     -- movement's own settings (no yaw written from Lua each frame: two writers made her legs twitch, 00:27).
+    local function unface()
+        local f=s.facing
+        s.facing=nil
+        if f and g.valid(f.cm) then
+            pcall(function() f.cm.bOrientRotationToMovement=f.orient; f.cm.bUseControllerDesiredRotation=f.desired end)
+        end
+    end
     local function face(p,on)
         local cm=g.try(function() return p.CharacterMovement end)
         if not g.valid(cm) then return end
         if on and not s.facing then
             s.facing={cm=cm,orient=cm.bOrientRotationToMovement,desired=cm.bUseControllerDesiredRotation}
             pcall(function() cm.bOrientRotationToMovement=false; cm.bUseControllerDesiredRotation=true end)
-        elseif not on and s.facing then
-            local f=s.facing
-            pcall(function() f.cm.bOrientRotationToMovement=f.orient; f.cm.bUseControllerDesiredRotation=f.desired end)
-            s.facing=nil
-        end
+        elseif not on and s.facing then unface() end
     end
 
     -- Firing mode on the game's aim: its camera's field of view eased to cfg.aim_fov (the game's 45 shows her from the
@@ -460,20 +495,40 @@ function GunMode.new(env)
         end
     end
 
-    local function disable(why)
-        if not s.on then return end
+    -- coop-gun.txt as gun mode's changes stand now (fight/gunmode/journal.lua): SB's rows (data.lua), the masked keys,
+    -- the body meshes under the rifle layer (overlay.lua) and out while the rifle is out; gone when nothing is changed.
+    -- true when written (or with no file at all), else false and why, logged.
+    local function keep()
+        if not env.store then return true end
+        local ok,why=pcall(function()
+            local list=data.records()
+            for _,k in ipairs(s.keys or {}) do list[#list+1]={'key',k.name,k.key,k.to or 'None',tostring(k.at)} end
+            for _,r in ipairs(layer.records()) do list[#list+1]=r end
+            if s.on then list[#list+1]={'out'} end
+            if #list==0 then env.store.clear(); return end
+            local done,e=env.store.save(Journal.line(list))
+            assert(done~=false,e or 'not written')
+        end)
+        if not ok then g.log('coop-gun.txt not written: '..tostring(why)) end
+        return ok,why
+    end
+    -- The rifle layer off every body mesh it went on (overlay.lua's list), her own post-process class back.
+    local function layer_off(p)
+        local ran,ok,e=pcall(layer.uninstall,p)
+        if not (ran and ok~=false) then g.log('layer off: '..tostring(ran and e or ok)) end
+    end
+    -- What the rifle out changes, put back; also the parts a start took before it failed. SB's rows are the callers'.
+    local function put_away()
         s.on=false
         pcall(stance.stop)
-        if s.mask then pcall(s.mask); s.mask=nil end
+        if s.mask then pcall(s.mask) end
+        s.mask,s.keys=nil,nil
         camera_back()
-        if s.facing then
-            local f=s.facing
-            pcall(function() f.cm.bOrientRotationToMovement=f.orient; f.cm.bUseControllerDesiredRotation=f.desired end)
-            s.facing=nil
-        end
+        unface()
         local pw=g.pawn()
         if pw then carry(pw,false) end
-        if s.layer and pw then pcall(layer.stop,pw); local ok,e=pcall(layer.uninstall,pw); if not ok then g.log('layer off: '..tostring(e)) end end
+        if s.layer and pw then pcall(layer.stop,pw) end
+        layer_off(pw)
         s.layer,s.layer_clip,s.reload_until,s.turn,s.turnq=false,nil,nil,nil,nil
         s.ovr_row=nil
         show_others()
@@ -481,11 +536,23 @@ function GunMode.new(env)
         pcall(ammo.stop)
         local pc=g.pc()
         if pc then pcall(fov,pc,false) end
+    end
+    local function disable(why)
+        if not s.on then return end
+        put_away()
         if s.native_taken then pcall(data.put_back); s.native_taken=false; aim.row=nil end
+        keep()
         g.log('off ('..why..'), '..s.shots..' shots')
+    end
+    -- Everything back, SB's rows too, and coop-gun.txt with it: a start that failed (L2), or stop.
+    local function give_all_back()
+        put_away()
+        pcall(data.put_back); s.native_taken=false; aim.row=nil
+        keep()
     end
 
     local function enable(why)
+        self.restore() -- An earlier Lua load's changes back before this one reads the rows as they are.
         local pc,p=g.pc(),g.pawn()
         if not (pc and p) then g.log('not now: no EVE'); return end
         if g.try(function() return p.TPSModeType~=0 or p.bTPSMode end) then
@@ -508,13 +575,14 @@ function GunMode.new(env)
         data.opts.carry_idle_type=set.carry_idle_type
         stance=(s.pak or s.layer) and single or posed
         single.no_turn=s.layer==true
+        -- Each way out below gives back all it took (L2).
         if not data.take() then
-            if s.layer then pcall(layer.uninstall,p); s.layer=false end
+            give_all_back()
             g.log('off: SB\'s rows could not be taken (see above)'); return
         end
         aim.setup()
-        local ok,err=pcall(function() s.mask=mask() end)
-        if not ok then g.log('off: the input mask failed ('..tostring(err)..')'); return end
+        local ok,err=pcall(function() s.mask,s.keys=mask() end)
+        if not ok then give_all_back(); g.log('off: the input mask failed ('..tostring(err)..')'); return end
         ok,err=pcall(function()
             -- Held for Luke's aim: the aim key itself, not the game's aim stance, which drops for a frame now and
             -- then (each shot's skill, a jump) and made his arms jerk between carry and aim (11:39). Off the stance (a
@@ -536,9 +604,7 @@ function GunMode.new(env)
                 0,false,false,set.native and (set.upper or s.pak),set.native and not set.upper and not s.pak)
         end)
         if not ok then
-            if s.mask then pcall(s.mask); s.mask=nil end
-            pcall(stance.stop)
-            if s.layer then pcall(layer.uninstall,p); s.layer=false end
+            give_all_back()
             g.log('off: Luke\'s stance did not start ('..tostring(err)..')')
             return
         end
@@ -616,16 +682,21 @@ function GunMode.new(env)
         s.hide_at=os.clock()
         if set.native then pcall(hide_drone,p); s.native_taken=true end
         pcall(ammo.sync)
+        if not keep() then give_all_back(); g.log('off: coop-gun.txt could not be written (see above)'); return end
         g.log('on ('..why..')')
     end
 
-    -- (test harness) this instance off for good: gun mode put away, its loop idle; a fresh one takes over.
-    function self.kill()
-        if s.on then pcall(self.toggle,'reload') end
+    -- coop off (main/commands.lua): the rifle away, everything back, SB's rows and coop-gun.txt too; from then on gun
+    -- mode does nothing (no key, no toggle, no reset) until the mod reloads.
+    function self.stop(why)
+        local was=s.on
         s.dead=true
+        give_all_back()
+        g.log('stopped ('..tostring(why)..')'..(was and ', '..s.shots..' shots' or ''))
     end
 
     function self.toggle(why)
+        if s.dead then return end
         local now=os.clock()
         if now-s.toggle_at<0.3 then return end
         s.toggle_at=now
@@ -637,7 +708,9 @@ function GunMode.new(env)
             if not (s.notice_at and now-s.notice_at<3) and env.notice and pcall(env.notice) then s.notice_at=now end
             return
         end
-        if s.on then disable(why) else enable(why) end
+        if s.on then disable(why); return end
+        local ok,e=pcall(enable,why)
+        if not ok then give_all_back(); g.log('off: the start failed'); error(e,0) end
     end
 
     -- Each shot: the bullet's destination made the crosshair point, then the shot's row.
@@ -659,9 +732,13 @@ function GunMode.new(env)
     local function tick()
         local now=os.clock()
         if now<s.pause then return end
-        if s.give_back then s.give_back=false; pcall(data.put_back); aim.row=nil end
+        if s.give_back then -- A new controller's deferred reset: the rows and the layer back (L3), the file with them.
+            s.give_back=false; pcall(data.put_back); aim.row=nil
+            layer_off(g.pawn())
+            keep()
+        end
         if s.stop_stance then s.stop_stance=false; pcall(stance.stop) end
-        if s.show_back then s.show_back=false; show_others() end
+        if s.show_back then s.show_back=false; show_others(); show_drone(); unface() end
         if s.ammo_reset then s.ammo_reset=false; pcall(ammo.stop); pcall(ammo.refill) end
         local pc=g.pc(); if not pc then return end
         if g.try(function() return StaticFindObject('/Script/Engine.Default__GameplayStatics'):IsGamePaused(pc) end) then
@@ -765,6 +842,7 @@ function GunMode.new(env)
                 if not layer.active(p) then
                     local ok,inst=pcall(layer.install,p); s.layer_clip=nil
                     if not (ok and inst==true) then disable('rifle layer lost'); return end
+                    keep() -- Her new body mesh listed.
                 end
             end
             if s.reload_until and now>=s.reload_until then s.reload_until=nil end
@@ -894,19 +972,53 @@ function GunMode.new(env)
     -- away and SB's rows go back. Nothing here calls into the game: the controller is still being built (reading its
     -- pawn from this callback crashed UE4SS). Nothing at all with gun_mode=off.
     function self.new_controller(pc)
-        if not set.on then return end
+        if not set.on or s.dead then return end
         cached=pc
         s.pause=os.clock()+4.0
         s.give_back=true
         if s.on then
             s.on=false
             if s.mask then pcall(s.mask); s.mask=nil end
+            s.keys=nil
             s.cam,s.zoom=nil,0
             s.fov,s.fov_locked=nil,false
             s.ammo_reset=true
             s.stop_stance=true
             s.show_back=true
         end
+        -- The old pawn's state goes with it (L3): the next start begins clean on the new one. Its drone parts and her
+        -- facing go back at the deferred reset (show_back); its layer comes off there (give_back).
+        for _,k in ipairs(PER_PAWN) do s[k]=nil end
+        s.ovr,s.layer,s.zoom_held=false,false,false
+    end
+
+    -- Once a Lua load, at main/frame.lua's first tick (coop off or not) and before a start: what coop-gun.txt says an
+    -- earlier load left changed goes back (H4): SB's rows, the masked keys, her body meshes' own post-process class
+    -- (the one she wears rebuilt with it) and, when the rifle was out, its tagged rifle and the FOV lock. Then the file
+    -- holds only what could not go back.
+    function self.restore()
+        if restored or not env.store then return end
+        restored=true
+        local list=Journal.records(env.store.load())
+        if #list==0 then return end
+        local said={}
+        local n,why=Data.put_back_records(g,list)
+        said[#said+1]=n..' fields of SB\'s rows back'..(why and ' (failed: '..why..')' or '')
+        local ok,keys=pcall(keys_back,list)
+        said[#said+1]=ok and keys..' keys back' or 'keys not put back ('..tostring(keys)..')'
+        local out=false
+        for _,r in ipairs(list) do
+            if r[1]=='pp' then layer.adopt(r[2],r[3]) elseif r[1]=='out' then out=true end
+        end
+        layer_off(g.pawn())
+        if out then
+            local swept,count=pcall(Rifle.sweep,g.pawn())
+            said[#said+1]=swept and count..' rifles removed' or 'rifle not removed ('..tostring(count)..')'
+            local pc=g.pc()
+            said[#said+1]=pc and pcall(function() pc:FOV(0) end) and 'FOV lock off' or 'FOV lock not reached'
+        end
+        keep()
+        g.log('restore from coop-gun.txt: '..table.concat(said,', '))
     end
 
     for _,why in ipairs(bad) do g.log('coop-settings.txt: '..why) end

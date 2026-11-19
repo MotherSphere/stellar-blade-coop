@@ -37,7 +37,9 @@ end
 
 function Overlay.new(g)
     local self={}
-    local st={}   -- strings and numbers only
+    -- strings and numbers only. meshes: each body mesh the layer went on (its path) -> its own post-process class's
+    -- path ('' for none), until it is put back; coop-gun.txt keeps them (records, adopt).
+    local st={meshes={}}
     local function valid(o) return o~=nil and g.try(function() return o:IsValid() end)==true end
     local function name(o) return g.try(function() return o:GetFullName() end) or tostring(o) end
     local function path_of(o) local f=g.try(function() return o:GetFullName() end); return f and f:match('^%S+ (.+)$') end
@@ -77,26 +79,60 @@ function Overlay.new(g)
         if not cls then return false,'layer class not found (pak missing?)' end
         local cur=g.try(function() return sk.PostProcessAnimBlueprint end)
         local cur_path=valid(cur) and path_of(cur) or nil
-        if cur_path~=Overlay.CLASS then st.orig_cls,st.orig_mesh=cur_path,path_of(sk) end
+        local mine=path_of(sk)
+        if cur_path~=Overlay.CLASS then st.meshes[mine]=cur_path or '' end
+        local orig=st.meshes[mine]
         local ok,e=rebuild(mesh,sk,cls); if not ok then return false,e end
         local pp=pp_of(mesh)
         if not pp then return false,'no post-process instance after rebuild' end
         -- the graph's default linked class is the vanilla BtoB; relink when her outfit had another one (or none)
-        local link=st.orig_cls and find(st.orig_cls) or nil
+        local link=orig and orig~='' and find(orig) or nil
         local okl,el=pcall(function() pp:LinkAnimGraphByTag(FName('Orig'),link) end)
-        g.log('overlay installed: '..name(pp)..', Orig -> '..tostring(st.orig_cls)..(okl and '' or (' (link error '..tostring(el)..')')))
+        g.log('overlay installed: '..name(pp)..', Orig -> '..tostring(orig)..(okl and '' or (' (link error '..tostring(el)..')')))
         return true
     end
 
+    -- Every body mesh the layer went on gets its own post-process class back. The one this pawn wears is rebuilt with
+    -- it, the layer's arms let go first (ArmsAlpha 0, in case the rebuild fails); the others get it on the asset, if
+    -- still loaded. p may be nil (no pawn yet: the assets only). A mesh that fails stays listed. true, or false and
+    -- why.
     function self.uninstall(p)
-        local mesh=p.Mesh; local sk=mesh.SkeletalMesh
-        if not self.active(p) then return true end
-        if path_of(sk)~=st.orig_mesh then g.log('overlay: outfit changed, not restoring '..tostring(st.orig_cls)) end
-        local cls=st.orig_cls and find(st.orig_cls) or nil
-        local ok,e=rebuild(mesh,sk,cls)
-        g.log('overlay removed: post-process now '..name(g.try(function() return pp_of(mesh):GetClass() end))..(ok and '' or (' error '..tostring(e))))
-        return ok,e
+        local mesh=p and g.try(function() return p.Mesh end)
+        mesh=valid(mesh) and mesh or nil
+        local worn=mesh and g.try(function() return mesh.SkeletalMesh end)
+        local worn_path=valid(worn) and path_of(worn) or nil
+        local ok,why=true,nil
+        for path,orig in pairs(st.meshes) do
+            local done,e=pcall(function()
+                local cls=orig~='' and find(orig) or nil
+                assert(orig=='' or cls,'its class '..orig..' was not found')
+                if path==worn_path and self.active(p) then
+                    local pp=pp_of(mesh)
+                    pcall(function() pp.ArmsAlpha=0 end)
+                    local r,re=rebuild(mesh,worn,cls)
+                    assert(r,re)
+                    local now=g.try(function() return pp_of(mesh):GetClass() end)
+                    g.log('overlay removed: post-process now '..name(now))
+                    return
+                end
+                local sk=path==worn_path and worn or StaticFindObject(path)
+                if valid(sk) and path_of(g.try(function() return sk.PostProcessAnimBlueprint end))==Overlay.CLASS then
+                    sk.PostProcessAnimBlueprint=cls
+                    g.log('overlay: '..path..' has '..(orig~='' and orig or 'no post-process class')..' again')
+                end
+            end)
+            if done then st.meshes[path]=nil else ok,why=false,path..': '..tostring(e) end
+        end
+        return ok,why
     end
+    -- coop-gun.txt's records for the meshes still listed (fight/gunmode/journal.lua).
+    function self.records()
+        local out={}
+        for path,orig in pairs(st.meshes) do out[#out+1]={'pp',path,orig} end
+        return out
+    end
+    -- An earlier Lua load's record: that mesh listed with its own class, unless this load listed it already.
+    function self.adopt(path,orig) if st.meshes[path]==nil then st.meshes[path]=orig end end
 
     -- play one of Overlay.CLIPS (or a full object path) on the layer's DefaultSlot; loops<=0 holds it indefinitely
     function self.play(p,clip,rate,loops,blend_in,blend_out)

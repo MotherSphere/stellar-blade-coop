@@ -22,7 +22,7 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `tools/`: `devmenu`, `mailbox`, `off`; `story/scenes/`: `lines`, `off`, `scene`; `fight/enemies/`: `off`, `wiring`,
 `wiring_notices`; `online/group/`: `group`, `off`, `region_tabs`, `travel`; `online/lobby/`: `arrival`, `commands`,
 `halls_rows`, `off`, `sbo`, `wiring`; `online/lobby/ui/`: `lobby`, `lobby_model`; `main/`: `bike`, `boot`, `collide`,
-`guide`, `idle`, `input`, `loader`, `match`, `menu`, `session_ui`, `settings`; `world/maps/matrix13/`: `off`;
+`guide`, `gun`, `idle`, `input`, `loader`, `match`, `menu`, `session_ui`, `settings`; `world/maps/matrix13/`: `off`;
 `world/maps/matrix13/quest/`: `on_time`, `subtitles`, `zone_talks`; `world/maps/matrix13/talks/`: `zones`;
 `world/maps/matrix13/level/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`; `online/modes/nightop/`:
 `board`, `challenges`, `guard_text`, `off`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
@@ -32,10 +32,10 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `wiring_cycle`, `wiring_dlc`; `online/session/ui/`: `create`, `create_model`, `sessions`, `sessions_model`;
 `world/daynight/`: `daynight`, `off`, `rule`, `wiring`; `story/together/`: `off`, `snapshot`, `wiring`, `wiring_dump`;
 `ui/`: `text`; `ui/kit/`: `guide`, `hud_parts`, `kit`, `model`, `notice`, `pause_tab`; `ui/text/`: `culture`;
-`world/objects/`: `off`, `wiring`; `fight/gunmode/`: `helpers`, `off`) run the scripts, with fake UE4SS objects for
-those that call the engine. In the capture test, any write to the fake EVE fails the test. The `main/` tests load
-`main/fixture.lua` first, with UE4SS stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with its
-name.
+`world/objects/`: `off`, `wiring`; `fight/gunmode/`: `helpers`, `off`, `stop`) run the scripts, with fake UE4SS
+objects for those that call the engine. In the capture test, any write to the fake EVE fails the test. The `main/`
+tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. Each module's `off_test` runs
+`main/isolation.lua` with its name.
 
 - `online/modes/race/commands_test` covers `coop race look on` refused while EVE rides the bike, with nothing asked of
   the Doro look, then started once she is off; `online/modes/race/drive_test` covers the races' drive probe and its off
@@ -53,6 +53,14 @@ name.
   winning, refusals), the polled keys' edges and D-pad Right's tap (a hold is the bike's), the crosshair point in EVE's
   frame and the rifle's magazine (a round per cool time, the reload when empty or lowered part-spent, the HUD count, no
   round once the spares are spent, a refill);
+- `fight/gunmode/stop_test` runs gun mode over a fake UE4SS (`fight/gunmode/fake.lua`) on the rifle layer's path.
+  `stop` (coop off) gives back the table fields, the keys, the rifle, her body's own post-process class, the FOV lock
+  and the layer's arms; with `gun_fire=own` too, where the fields stay changed after the rifle goes away. After it no
+  key, toggle or new controller does anything. A second load over the same game and `coop-gun.txt` puts back what the
+  first left with the rifle out. Its own rifle then takes and gives back the shipped values. `coop-gun.txt` keeps
+  floats, integers, booleans, strings, FNames and vectors exactly. A start whose input mask or rifle fails gives back
+  what it took. A new controller clears the old pawn's state at once; its deferred reset shows the drone, puts her
+  facing back and takes the layer off her new body;
 - `vehicles/bike/ride_test` covers `vehicles/bike/ride.lua` over a fake EVE and native part: the preload asked once and
   released at `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every
   mount refusal with its reason and nothing written, the mount's order and the dismount backward, the lean (the math
@@ -177,6 +185,9 @@ name.
   beside. The same values, ours not read yet, a match lobby or the SBO lobby give none;
 - `story/quests/wiring_test` covers `coop quests` with the `shared_quests` and `quest_deny` settings and the shared
   quests' notices;
+- `main/gun_test` covers gun mode's wiring through `main.lua` with a fake `fight/gunmode/mode.lua`: `coop-gun.txt`
+  through the link's store (none without the native part), the restore at the first tick, `coop off`'s stop, the
+  restore alone after a Lua reload with `coop off` still on;
 - `main/bike_test` covers the bike's wiring (`vehicles/bike/wiring.lua`) through `main.lua` with a fake
   `vehicles/bike/ride.lua`: the load line, what the ride gets (its asks, `coop-bike.txt`, the driving, the settings,
   SBO's busy reasons with coop fly and our open screens), `coop bike` and its words, F3 and the pad's D-pad Right hold

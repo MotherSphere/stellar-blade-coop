@@ -40,6 +40,11 @@ the drone find their rows as shipped:
 With the rifle out and no button held, EVE moves as usual with luke77's rifle carry. The sword's attacks are off
 until the rifle is put away. A new map, a death or a camp warp puts the rifle away.
 
+`coop off` puts the rifle away too. The table fields, the keys and her body's own post-process class go back, then
+gun mode does nothing until the game restarts. Until everything is back, `coop-gun.txt` lists what gun mode changed.
+After a Lua reload (Ctrl+R) the next load puts those changes back at its first frame and removes the rifle it finds on
+her.
+
 ## Firing mode
 
 Firing mode is the game's own drone aim, with these changes:
