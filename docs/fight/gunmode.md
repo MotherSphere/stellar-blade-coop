@@ -3,7 +3,18 @@
 Gun mode gives EVE the NIKKE DLC's rifle outside its missions, on any save, as a third-person shooter. It is
 experimental: it has been played on one PC only, not yet between two players.
 
-Gun mode is parked while it is rebuilt: G shows a notice and does nothing else.
+Gun mode is parked while it is rebuilt. G shows a notice and does nothing else, unless the game finds the rifle
+layer's class (`ABP_NGM_Spike`, in the test pak `zNGMSpike_P`). With that pak installed, G brings the rifle out on the
+rifle layer. The sections below describe gun mode as it ran before it was parked.
+
+The rebuild adds three files. `fight/gunmode/overlay.lua` swaps her body mesh's post-process anim blueprint for gun
+mode's layer. The layer runs the outfit's original post-process graph first, then a two-bone IK on each arm. Her main
+animation, springs and outfit physics are left as they are. `fight/gunmode/ik.lua` places the rifle in her mesh's
+component space each tick (aiming: the bore on the camera's line; carrying: low ready). It solves her right hand from
+the rifle's grip and puts her left palm on the handguard. `fight/gunmode/g0.lua` runs only with the dev setting
+`gun_g0=on`: it logs the palm-to-handguard distance, the arms' reach, the bore against the camera and her facing. It
+also saves side, front and top pictures from a hidden SceneCapture2D. The Windows scripts in `tools/gunmode/rebuild/`
+build the layer's pak and send test input to the game.
 
 ## What you need
 

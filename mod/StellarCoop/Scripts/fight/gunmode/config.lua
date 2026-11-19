@@ -13,7 +13,7 @@ local Config={}
 
 Config.DEFAULTS={
     -- false while gun mode is being rebuilt (2026-11-18): the toggle only says so and nothing of gun mode runs, unless
-    -- the rifle layer (gunmode/overlay.lua's class, in gunmode's pak) is installed, which is the rebuilt path.
+    -- the rifle layer (fight/gunmode/overlay.lua's class, in gunmode's pak) is installed, which is the rebuilt path.
     enabled=false,
     key='G',
     pad_tap=0.4,
@@ -126,7 +126,7 @@ function Config.parse(text)
     if v then out.probe=v:lower()=='on' end
     v=get(text,'gun_facts') -- (dev only) the Phase 0 facts probe, fight/gunmode/facts.lua
     if v=='on' then out.facts=true end
-    v=get(text,'gun_g0') -- (dev only) the v2 plan's G0 measurements and capture pictures, gunmode/g0.lua
+    v=get(text,'gun_g0') -- (dev only) the v2 plan's G0 measurements and capture pictures, fight/gunmode/g0.lua
     if v=='on' then out.g0=true end
     v=get(text,'gun_trace') -- (testing) step log around reloads and aim changes
     if v then out.trace=v:lower()=='on' end

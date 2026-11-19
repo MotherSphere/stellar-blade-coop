@@ -1,3 +1,6 @@
+# Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+# SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+# SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 # Dev test input: turns the game camera by moving the mouse sideways (SendInput relative moves), NGM_DX px in total
 # (read from camturn_dx.txt next to this script, default 600), over about a second.
 import ctypes, time, os

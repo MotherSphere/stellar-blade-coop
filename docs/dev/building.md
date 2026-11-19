@@ -248,7 +248,8 @@ data/
   mxiii-world.json          Matrix XIII's world rows, the one source of tools/mxiii_rows.py
   sbo-lobby.json            the five hall lobby maps, the one source of tools/sbo_lobby_rows.py
 tools/
-  gunmode/                  the Blender and Unreal scripts that made an earlier gun mode build's standing rifle set
+  gunmode/                  the Blender and Unreal scripts that made an earlier gun mode build's standing rifle set;
+                            rebuild/ holds the Windows scripts that build the rifle layer's test pak and send test input
   install.py                checks, build, install, uninstall, release zip
   mxiii_climb.py            places Matrix XIII's ladders on the editor's in data/mxiii-world.json, and checks them
   mxiii_rows.py             writes native/src/world/maps/matrix13/mxiii_rows.h and world/maps/matrix13/level/rows.lua

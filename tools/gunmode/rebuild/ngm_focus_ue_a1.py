@@ -1,3 +1,6 @@
+# Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+# SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+# SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 # Bring the UE 4.26 editor window to the front, moved onto a non-primary monitor (SteamVR's window sits on the primary)
 # and maximized there. Arg-free; writes NikkeGunBuild\focus_ue.txt with the monitors seen.
 import ctypes, ctypes.wintypes as W, os, subprocess, sys

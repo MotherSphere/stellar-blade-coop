@@ -120,7 +120,7 @@ function Facts.new(g)
         if pn~=st.pawn then st.pawn,st.seen_at,st.done,st.d8=pn,now,false,3 end
         if not st.done and now-st.seen_at>=5 then st.done=true; local ok,e=pcall(snapshot,p); if not ok then g.log('facts snapshot: '..tostring(e)) end end
         local ai=g.try(function() return p.Mesh:GetAnimInstance() end)
-        -- F14 (M1 layer test, replaces the F13 spike): gunmode/overlay.lua installs the post-process layer at +15 s on a
+        -- F14 (M1 layer test, replaces the F13 spike): fight/gunmode/overlay.lua installs the post-process layer at +15 s on a
         -- non-lobby pawn, then plays rifle clips on its arms-only slot on a timer so screenshots can be matched to the
         -- logged times, with the rifle in her right hand (rifle.lua's grip) from +18 s: carry (ShootReady_Start nearly
         -- frozen) +20 s, aim (Shoot_Idle looped) +35 s, reload looped +50 s, stop +65 s, rifle and layer removed +72 s.

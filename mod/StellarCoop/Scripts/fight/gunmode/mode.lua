@@ -82,7 +82,7 @@ function GunMode.new(env)
     local single=Rifle.new(Laser,set.trace and g.log or nil)
     local stance=posed
     local probe=set.probe and Probe.new(g)
-    -- M1 (11-18 rebuild): the post-process layer (gunmode/overlay.lua, ABP in gunmode's pak) plays the NIKKE rifle clips
+    -- M1 (11-18 rebuild): the post-process layer (fight/gunmode/overlay.lua, ABP in gunmode's pak) plays the NIKKE rifle clips
     -- on her arms over her own finished pose; nothing of her main animation, springs or outfit physics is touched.
     local layer=Overlay.new(g)
     local keys=Input.state()
@@ -828,7 +828,7 @@ function GunMode.new(env)
             end
             -- the game stops montages when its stances change (its aim among them): the clip is checked four times a
             -- second and played again when it was stopped
-            -- v2: the rifle-first solver places the rifle and puts both hands on it (gunmode/ik.lua)
+            -- v2: the rifle-first solver places the rifle and puts both hands on it (fight/gunmode/ik.lua)
             s.ik=s.ik or require('fight.gunmode.ik').new(g)
             local ppi=g.try(function() return p.Mesh:GetPostProcessInstance() end)
             local mode_ik=(want=='aim') and 'aim' or ((want=='carry' or want=='reload') and 'carry' or 'off')

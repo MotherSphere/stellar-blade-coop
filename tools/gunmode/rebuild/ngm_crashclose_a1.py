@@ -1,3 +1,6 @@
+# Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+# SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+# SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 # After a game crash: copy the newest crash folder's log into NikkeGunBuild\crash_spike.txt, then end the crash handler
 # without reporting (same as "Don't report") and confirm the game is gone.
 import os, subprocess, time, glob

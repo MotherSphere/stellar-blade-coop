@@ -1,3 +1,6 @@
+# Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+# SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+# SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 # Rifle layer pak: cook SBOutfitProject, stage /Game/Mods/NGM (the layer) and CH_P_EVE_01/Animation/NGM (the rifle clips), retoc to-zen -> zNGMSpike_P, install into a
 # ~mods subfolder (NGM_SUB; only if the game is closed). Report NikkeGunBuild\spike_build.txt (ends FINISHED; SPIKE OK on success).
 import os, glob, shutil, subprocess, time

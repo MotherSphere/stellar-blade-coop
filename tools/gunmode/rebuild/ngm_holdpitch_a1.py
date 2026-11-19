@@ -1,3 +1,6 @@
+# Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+# SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+# SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 # Dev test input: holds the right mouse button (aim) for 12 s and pitches the camera: up, down past centre, back.
 import ctypes, time, os
 B = os.path.join(os.path.expanduser("~"), r"Downloads\Modding Tools\NikkeGunBuild")
