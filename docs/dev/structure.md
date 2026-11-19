@@ -1,8 +1,9 @@
 # How the code is organised
 
-The Lua scripts and the native sources have one folder per module in each tree, sorted into category folders:
-`online/`, `fight/`, `world/`, `story/`, `vehicles/`, `eve/` and `tools/`. Modules do not depend on each other, so a
-module that fails to load is off alone while the rest of Stellar Blade Online keeps working.
+The Lua scripts and the native sources have one folder per module in each tree. Most modules sit in the category
+folders `online/`, `fight/`, `world/`, `story/` and `vehicles/`. Two modules have a folder of their own at the top of
+each tree: `eve/` and `tools/`. Modules do not depend on each other, so a module that fails to load is off alone while
+the rest of Stellar Blade Online keeps working.
 
 ## Modules
 
@@ -97,8 +98,8 @@ items against the lion and bolt rows, a check no module test may make.
 - An off module's exports are stubs that return nothing. Each late read says what nothing means for it (no run, no
   ghost, not riding), or guards it with the reader's own answer for "absent", such as a refusal.
 - A module sets only its own exports. The one exception is the runtime's `aside_note` (declared in `main/base.lua`),
-  which partner sets for the crash sentinel's notice. `RUNTIME_SET_BY` in `tests/tools/modules_test.py` lists it; a new
-  exception goes there too, or rule R5 fails.
+  which `online.partner` sets for the crash sentinel's notice. `RUNTIME_SET_BY` in `tests/tools/modules_test.py` lists
+  it; a new exception goes there too, or rule R5 fails.
 - Natively, no header, part or test of a module folder includes another module's header or names its declarations; no
   part uses a name that another module's part defines. A module's folder is its longest module path: `online/lobby/`
   and `online/session/` are two modules, not one `online`.

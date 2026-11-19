@@ -558,10 +558,11 @@ Each file once, from its path at `38bd9dfe` to its path at `e4d10663`. The copie
 
 ## Forks on e4d10663 (category folders)
 
-After `e4d10663` the modules moved into category folders: `online/`, `fight/`, `world/`, `story/`, `vehicles/`, `eve/`
-and `tools/`. Each module's runtime name follows its folder, each module holds its own table rows, the docs follow the
-same categories. Behaviour did not change: the same tests pass, the call trace of `main.lua` is the same up to module
-names and every row batch dumps the same rows and patches.
+After `e4d10663` most modules moved into the category folders `online/`, `fight/`, `world/`, `story/` and `vehicles/`.
+The `eve` and `tools` modules moved out of `cut/` to folders of their own at the top: `eve/` and `tools/`. Each module's
+runtime name follows its folder, each module holds its own table rows, the docs follow the same categories. Behaviour
+did not change: the same tests pass, the call trace of `main.lua` is the same up to module names and every row batch
+dumps the same rows and patches.
 
 ### Lua folders
 
@@ -723,6 +724,7 @@ wrongly or not at all; re-apply an edit to one of them at the path in the right 
 | `mod/StellarCoop/Scripts/cut/scenes/wiring.lua` | `mod/StellarCoop/Scripts/story/scenes/wiring.lua` | a delete and an add |
 | `mod/StellarCoop/Scripts/matrix13/wiring.lua` | `mod/StellarCoop/Scripts/world/maps/matrix13/wiring.lua` | a delete and an add |
 | `mod/StellarCoop/Scripts/race/wiring.lua` | `mod/StellarCoop/Scripts/online/modes/race/wiring.lua` | a delete and an add |
+| `tests/lua/<module>/off_test.lua`, all 19 | `off_test.lua` in the module's new folder under `tests/lua/` (see [Lua folders](#lua-folders)) | a delete and an add, or paired with another module's off test: the 19 files differ only in the module name, so an edit can land in the wrong module's test |
 | `native/src/lion/rows.h` | `native/src/rows/rows.h` (the engine) | paired with `native/src/fight/bosses/lion_rows.h`, which took most of its lines |
 | `docs/cut-content/cut-scenes-and-menus.md` | `docs/story/scenes.md` and `docs/tools/menus.md` | paired with `docs/tools/menus.md`, the larger half |
 | `docs/internals/README.md` | `docs/README.md` | a delete: the page is a section of `docs/README.md` now |

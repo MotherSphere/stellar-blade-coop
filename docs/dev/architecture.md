@@ -353,8 +353,8 @@ reads it.
 A module's screens and HUDs are kit groups. The kit draws its groups in the order they are built: the feed and the HUDs
 first, the menu over them, the questions over all. `main/ui.lua` builds the kit, the guide and the menu, with each
 module's build steps between them at their place in that order
-(`require('main.loader').build(M,'session','box',Ui)`). A build step of an off module is skipped. One that raises turns
-its module off, with its later steps skipped.
+(`require('main.loader').build(M,'online.session','box',Ui)`). A build step of an off module is skipped. One that
+raises turns its module off, with its later steps skipped.
 
 ### The loops
 

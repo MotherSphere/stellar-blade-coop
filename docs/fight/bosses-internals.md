@@ -1,8 +1,11 @@
 # Cut enemies: how they are added
 
 The cut Lion, Gardener and Tendril get the table rows they lack from the row batches of `fight/bosses/lion_rows.h`,
-which [The cut Lion](#the-cut-lion) describes. The cut stimpacks, the ChainSpin, the Shock Bolt, Matrix XIII, the Night
-Operation shop and Lily's signal use the same batches. The commands are in [Cut enemies](bosses.md).
+which [The cut Lion](#the-cut-lion) describes. The lion batch also holds the rows of the cut stimpacks and the
+ChainSpin. The Shock Bolt, Matrix XIII, the Night Operation shop and Lily's signal have batches of their own in
+`eve/bolt_rows.h`, `world/maps/matrix13/mxiii_rows.h`, `online/modes/nightop/shop_rows.h` and
+`world/maps/matrix13/signal_rows.h`. Every batch goes in through the row engine of `rows/rows.h`. The commands are in
+[Cut enemies](bosses.md).
 
 ## The cut Lion
 
@@ -126,13 +129,15 @@ blueprint names none.
 
 ### The generator
 
-The generator writes the data part of `fight/bosses/lion_rows.h` and the whole of `fight/bosses/lion_rows.lua` from the
-offline reader's dumps of the tables, the Lion Shows and the collision data, the pak listing, the SDK and the clip
-measurements. It refuses a taken ID or name (in any case, as the game compares names), a missing template, a field the
-SDK does not place where its patch writes, and a template value the recipe does not set. It also refuses a value naming
-a Behemoth row or asset other than the sound set, and a reference that lands on no Lion or shipped row: steps, skills,
-commands, stances, moves, target filters, results, anim sets, effects (also inside JSON effect strings), Shows, clips,
-blueprint, tree and sound set.
+The generator writes `kTables` in `rows/rows.h` (the list of every table the batches write) and the whole of
+`fight/bosses/lion_rows.h`, `eve/bolt_rows.h`, `online/modes/nightop/shop_rows.h` and `fight/bosses/lion_rows.lua`. It
+also writes the two Lua copies of those rows, `eve/chainspin_rows.lua` and `world/maps/matrix13/level/boss_rows.lua`. It
+reads the offline reader's dumps of the tables, the Lion Shows and the collision data, the pak listing, the SDK and the
+clip measurements. It refuses a taken ID or name (in any case, as the game compares names), a missing template, a field
+the SDK does not place where its patch writes, and a template value the recipe does not set. It also refuses a value
+naming a Behemoth row or asset other than the sound set, and a reference that lands on no Lion or shipped row: steps,
+skills, commands, stances, moves, target filters, results, anim sets, effects (also inside JSON effect strings), Shows,
+clips, blueprint, tree and sound set.
 
 Steps must match their Show's steps, each Hit step must hold its striking peak (0.1 s early or 0.05 s late at most), and
 each collision group must exist with every socket tracked for the clip playing.
