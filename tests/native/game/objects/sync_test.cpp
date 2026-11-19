@@ -957,10 +957,14 @@ void test_receive_rule() {
     c.g.host = host, c.f.values[{"Zone_AYL_02", "AYL_02_EnvS_002"}] = Value{Where::live, "Off", 1};
     c.s.receive(T + "c 1 Zone_AYL_02 AYL_02_EnvS_002 On 1", c.g), c.pass();
     assert(c.s.counters.caught == 1);
-    Side k;  // ours in a state held out for us (the passcode door typed open): kept, host or not
-    k.g.host = host, k.f.values[{"Zone_DED10", "DED10_EnvS_040"}] = Value{Where::live, "On", 1};
-    k.s.receive(T + "c 1 Zone_DED10 DED10_EnvS_040 CallPuzzle 0", k.g), k.pass();
-    assert(k.s.counters.kept == 1 && k.f.applied.empty());
+    Side k;  // ours in a state held out for us (the passcode door typed open): kept, host or not, nothing sent back
+    k.g.host = host, k.f.here = "Zone_DED10";
+    k.f.values[{"Zone_DED10", "DED10_EnvS_040"}] = Value{Where::live, "On", 1};
+    k.pass(), k.now = 3100, k.pass(0);                               // Zone_DED10 asked: a host could send back
+    assert(k.take() == std::vector<std::string>{T + "c ask Zone_DED10"});
+    k.s.receive(T + "c 1 Zone_DED10 DED10_EnvS_040 CallPuzzle 0", k.g);
+    k.s.receive(T + "c end Zone_DED10 1", k.g), k.pass();
+    assert(k.s.counters.kept == 1 && k.f.applied.empty() && k.take().empty());
   }
 }
 void test_receive_applies() {
