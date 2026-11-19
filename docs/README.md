@@ -70,6 +70,7 @@ start with `coop`.
 | Page | What it covers |
 | --- | --- |
 | [Cut menus and the mailbox](tools/menus.md) | `coop shortcut`, `coop devmenu` and `coop devinfo`, `coop gift` |
+
 ## Building and internals
 
 The game addresses in the internals pages are build 26123051's, the build the code pins. They were read on build
