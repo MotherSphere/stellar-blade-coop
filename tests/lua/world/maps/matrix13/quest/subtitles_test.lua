@@ -25,7 +25,8 @@
 -- Stop leaves it going; after a cut's Stop row the talk kept and a new window blanked until the scene ends, with no
 -- fallback after; after window 1's guard, cut with no kit; an end before the last line failed; a cut during a hold
 -- plays the player before the Stop row; scene.talk raising leads to the fallbacks; its kit lines under the caller's
--- gate and 3 s at least; 22 lines on the kit.
+-- gate and 3 s at least; 22 lines on the kit. Another culture: a talk line by its id, a caller's line with no id in
+-- English, a plain speaker name on the kit in the game's language.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -76,6 +77,12 @@ for name,n in pairs(COUNTS) do
     end
     assert(S.entry(lines,n[2]+1,'fr')==nil,'Past the lines: blank')
 end
+-- Another culture: its line by id; a line with no id (a caller's own list): the English.
+local Words=require('world.maps.matrix13.words')
+assert(LINES.prologue[1].id=='talk.prologue.01'
+    and select(2,S.entry(LINES.prologue,1,'ja'))==Words.TEXT.ja['talk.prologue.01'])
+assert(select(2,S.entry(LINES.finale,19,'ar'))==Words.TEXT.ar['talk.finale.19'])
+assert(select(2,S.entry({{'Noa','Mom?','Maman ?'}},1,'ja'))=='Mom?')
 assert(S.TALKS.prologue.sequence:find('1stMeetAdam_01') and S.TALKS.arrival.sequence:find('ArriveDED_01')
     and S.TALKS.finale.sequence:find('1stMeetAdam_02'))
 -- The window of a call: the next, never skipped; the same again only with its text still in the slot, in its time.
@@ -476,6 +483,20 @@ do
     kit_up,done=false,nil
     L.lines('zone 1A',list,function() return true end,finished)
     assert(done=='none' and logged('STOP: talk zone 1A: the kit is not up'))
+    language='fr-FR'
+end
+-- The kit-only lines in another culture: a plain name in the game's language; a line with no id in English.
+kit_up=true
+do
+    local L=S.new({log=function(m) logs[#logs+1]=m end,scene=scene})
+    L.hud({kit=kit,theme=THEME})
+    talks,done={},nil
+    language='ja-JP'
+    at(6000); assert(L.lines('zone 3B',{{'Noa','Mom?','Maman ?'}},function() return true end,finished))
+    L.tick()
+    assert(view.speaker.text==Words.TEXT.ja['speaker.Noa'] and view.line.text=='Mom?',tostring(view.speaker.text))
+    L.stop('out of Matrix XIII')
+    assert(last()=='out of Matrix XIII: talk zone 3B dropped' and L.playing()==nil,last())
     language='fr-FR'
 end
 -- A caller's lines in SB's box (play_lines): the talk with the fewest windows that holds them, through the theater;

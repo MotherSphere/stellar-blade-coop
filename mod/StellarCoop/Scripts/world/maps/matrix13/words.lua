@@ -13,4 +13,14 @@ function W.line(c,id,en,fr)
     if c=='fr' and fr then return fr end
     return W.TEXT[c] and W.TEXT[c][id] or en
 end
+-- A talk's lines, each given its id <prefix>.NN (NN counts every line from 01).
+function W.ids(lines,prefix)
+    for k,l in ipairs(lines) do l.id=('%s.%02d'):format(prefix,k) end
+    return lines
+end
+-- A zone file's scenes, each line given its id talk.zone.<scene>.NN.
+function W.zone(scenes)
+    for name,lines in pairs(scenes) do W.ids(lines,'talk.zone.'..name) end
+    return scenes
+end
 return W

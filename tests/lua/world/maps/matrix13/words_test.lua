@@ -2,7 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- world/maps/matrix13/words.lua: every game culture but English and French has its generated file with exactly the ids
--- the code reads (derived here from the hand-written sources), each a line; line() picks French and English as given.
+-- the code reads (derived here from the hand-written sources), each a line; each talk line carries its id; line() picks
+-- French and English as given (the Gardener's French is SB's La guivre).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 package.loaded.UEHelpers={} -- world/maps/matrix13/level/boss.lua's requires read it at load.
 FName=function(t) return t end
@@ -15,6 +16,7 @@ for k in pairs(require('world.maps.matrix13.quest.text').en) do need('quest.'..k
 local function talk(prefix,lines)
     for k,l in ipairs(lines) do
         need(('%s.%02d'):format(prefix,k))
+        assert(l.id==('%s.%02d'):format(prefix,k),prefix..' '..k..': id '..tostring(l.id))
         if l[1]~='' and not l[1]:find('^Seq_Actor_') then speakers[l[1]]=true end
     end
 end
@@ -44,4 +46,5 @@ assert(W.line('fr','quest.T','On Time',"À l'heure")=="À l'heure" and W.line('e
 assert(W.line('ja','quest.T','On Time','x')==W.TEXT.ja['quest.T'] and W.TEXT.ja['quest.T']~='On Time')
 assert(W.line('ja','no.such','On Time','x')=='On Time' and W.line('xx','quest.T','On Time','x')=='On Time')
 assert(W.line('fr','boss.Lion','Lion',nil)=='Lion')
+assert(W.line('fr','boss.Gardener','Gardener',require('world.maps.matrix13.level.boss').LIST[2].fr)=='La guivre')
 print('world/maps/matrix13/words_test: ok')

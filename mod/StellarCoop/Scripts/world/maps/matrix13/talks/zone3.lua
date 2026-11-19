@@ -4,9 +4,11 @@
 -- The zone 3 talks of Matrix XIII (3A to 3K; 3E was cut), scene by scene in play order
 -- (world/maps/matrix13/quest/zone_talks.lua plays them): the speaker (a StringTable_Seq key, or a plain name for the
 -- dungeon's own people), then the English and French line.
+-- Each line gets its id talk.zone.<scene>.NN (world/maps/matrix13/words.lua), the key of its line in the other
+-- cultures.
 -- oblivion=true: only when Quest_Sub_030 (Oblivion) is complete. No line plays during a fight.
 local LILY,EVE='Seq_Actor_Lily','Seq_Actor_EVE'
-return {
+return require('world.maps.matrix13.words').zone({
     ['3A']={
         {LILY,"That's the pump shaft... Can you see the bottom?",
             "C'est le puits de pompage... Tu vois le fond, toi\u{A0}?"},
@@ -159,4 +161,4 @@ return {
         {'Noa',"I can still hear you. My radio's right below you.",
             "Moi je t'entends encore. Ma radio est juste en dessous de toi."},
     },
-}
+})

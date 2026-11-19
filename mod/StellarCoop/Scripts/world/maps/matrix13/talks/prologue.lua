@@ -4,13 +4,14 @@
 -- Lily's prologue talk, one entry per subtitle window of the sequence it borrows
 -- (world/maps/matrix13/quest/subtitles.lua plays it): the speaker's StringTable_Seq key ('' for none), then the English
 -- and French line.
+-- Each line gets its id talk.prologue.NN (world/maps/matrix13/words.lua), the key of its line in the other cultures.
 -- It fills the first 17 of Subtitle_POD_1stMeetAdam_01's 21 windows.
 -- A line longer than its window can be read at about 15 characters a second gets a reading hold
 -- (world/maps/matrix13/quest/subtitles.lua).
 local NBSP='\u{A0}' -- Inside the French quotes and before French ? and !.
 local LILY,EVE,PA='Seq_Actor_Lily','Seq_Actor_EVE','Seq_Actor_Announcement'
 local function q(s) return '«'..NBSP..s..NBSP..'»' end
-return {
+return require('world.maps.matrix13.words').ids({
     {LILY,"EVE, wait a second.","EVE, attends une seconde."},
     {LILY,"While I was tracking the bike's signal, I picked up something else on an old railway band.",
         "En cherchant le signal de la moto, j'ai capté autre chose sur une vieille fréquence ferroviaire."},
@@ -33,4 +34,4 @@ return {
         .."entendu."},
     {EVE,"... All right.","... D'accord."},
     {EVE,"Send the location to the Tetrapod. We'll be quick.","Envoie la position au tétrapode, on fera vite."},
-}
+},'talk.prologue')
