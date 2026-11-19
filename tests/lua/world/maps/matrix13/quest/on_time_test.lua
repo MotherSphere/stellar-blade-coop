@@ -94,8 +94,8 @@ do
         and Lily.ROWS[24].id==Lily.PROLOGUE_ID and Lily.ROWS[25].id==nil)
     assert(consts.kLilyFilters==Lily.FILTERS and select(2,Lily.FILTERS:gsub('|',''))==7)
 end
--- The words: every line in English and French; French for any French culture, English for the rest.
-for _,c in ipairs({'en','fr'}) do
+-- The words: every line in each of the game's 23 cultures.
+for c in pairs(require('ui.text.culture').CULTURES) do
     for _,k in ipairs({'L','L2','PT','PD','PM','T','D','M1','M2','M3','M4','M5','M6','K1','K2','K3','K4','K5'}) do
         assert(type(TEXT[c][k])=='string' and TEXT[c][k]~='',c..k)
     end
@@ -118,8 +118,13 @@ for _,v in ipairs({{-96,-130,-155},{-79,-130,-155},{-87.5,-151,-155},{-87.5,-109
     {-87.5,-130,-139}}) do
     assert(not Lily.drive_room(world_of(v[1],v[2],v[3])),table.concat(v,' '))
 end
-assert(culture_of('fr-FR')=='fr' and culture_of('fr')=='fr' and culture_of('de-DE')=='en' and culture_of(nil)=='en'
-    and culture_of('ja')=='en')
+assert(culture_of('fr-FR')=='fr' and culture_of('fr')=='fr' and culture_of('ja')=='ja' and culture_of('de-DE')=='de'
+    and culture_of('en-AU')=='en-GB' and culture_of('zh-TW')=='zh-Hant' and culture_of(nil)=='en')
+assert(TEXT.ja.T==require('world.maps.matrix13.words').TEXT.ja['quest.T'])
+-- Her pick reads its label in any culture: no culture's L2 is another's L.
+local firsts={}
+for _,t in pairs(TEXT) do firsts[t.L]=true end
+for c,t in pairs(TEXT) do assert(not firsts[t.L2],c..': its L2 reads as an L') end
 assert(TEXT.en.D:find('"This lift stays in service so that those who left can come home."',1,true))
 
 -- The tables, each row as the native part writes it: FNames, arrays of FNames, the containers, numbers.

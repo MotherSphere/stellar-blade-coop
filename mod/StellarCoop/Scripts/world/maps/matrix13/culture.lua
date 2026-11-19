@@ -1,7 +1,6 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The game's text culture (GetCurrentLanguage) as 'fr' or 'en', the two cultures of
--- world/maps/matrix13/quest/text.lua's TEXT and of the talks' lines (world/maps/matrix13/talks/): French for any French
--- culture, else English.
-return function(name) return require('ui.text.culture').culture(name)=='fr' and 'fr' or 'en' end
+-- The game's text culture (GetCurrentLanguage) as one of the game's 23 (ui/text/culture.lua), the key of
+-- world/maps/matrix13/quest/text.lua's tables and of world/maps/matrix13/words.lua.
+return require('ui.text.culture').culture
