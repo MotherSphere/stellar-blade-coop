@@ -121,5 +121,38 @@ do
     end)
 end
 
+-- 4. The page as the code runs: it names every table fight/gunmode/data.lua changes and the notice the parked key
+--    shows. Neither the page nor ammo.lua's header promises the bottom-left round count while mode.lua builds the
+--    rounds with no D-pad slot. The page and the docs index row speak of no crouching. Plain prose on the page: no
+--    ", and" or ", but", no bold-label bullets, no "co-op session".
+do
+    local seen={}
+    for t in read(S..'data.lua'):gmatch("tbl%('([%w_]+)'%)") do
+        if not seen[t] and not page:find('`'..t..'`',1,true) then fail(PAGE..' does not name '..t) end
+        seen[t]=true
+    end
+    assert(next(seen),'data.lua opens tables')
+    if not page:find(require('ui.text').en.gun.rebuilding,1,true) then fail(PAGE..' does not quote the parked notice') end
+    if read(S..'mode.lua'):find('Ammo.new(g,cfg,function(v) data.cool(v) end,on_reload,nil)',1,true) then
+        local head=read(S..'ammo.lua'):match('^(.-)\nlocal Ammo')
+        for _,w in ipairs({{PAGE,page},{S..'ammo.lua (header)',head}}) do
+            if w[2]:find('rounds | magazines',1,true) then fail(w[1]..' promises a bottom-left count no code draws') end
+        end
+    end
+    local row=read('docs/README.md'):match('\n(| %[Gun mode%][^\n]*)')
+    assert(row,'docs/README.md has a gun mode row')
+    for _,w in ipairs({{PAGE,page},{'docs/README.md (gun mode)',row},{S..'commands.lua',read(S..'commands.lua')}}) do
+        if w[2]:lower():find('crouch',1,true) then fail(w[1]..' speaks of crouching') end
+    end
+    local flat=page:gsub('%s+',' ')
+    for _,j in ipairs({', and ',', but '}) do
+        if flat:find(j,1,true) then fail(PAGE..': "'..j..'" joins two clauses') end
+    end
+    lines({PAGE},function(p,n,l)
+        if l:find('^%s*[-*] %*%*[^*]+:%*%*') then fail(('%s:%d: a bold-label bullet'):format(p,n)) end
+        if l:lower():find('co-op session',1,true) then fail(('%s:%d: "co-op session"'):format(p,n)) end
+    end)
+end
+
 if #bad>0 then error('\n'..table.concat(bad,'\n'),0) end
 print('gunmode texts: ok')

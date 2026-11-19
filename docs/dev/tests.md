@@ -109,7 +109,11 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `export_stand.py` opens by default the `.blend` that `retarget_mixamo_stand.py` writes. The tools' README names each
   script, the rifle layer, the `NGM_R_` clips and `SBOutfitProject`. Gun mode's code, tests, tools and page hold no
   clock time of a play session unless it names its log (`UE4SS.log 2026-11-12 21:49`). They cite neither
-  `NGM_FACTS.md` nor the rebuild's plan, which are not in this repository;
+  `NGM_FACTS.md` nor the rebuild's plan, which are not in this repository. The gun mode page names every table
+  `fight/gunmode/data.lua` changes and the notice the parked key shows. Neither the page nor `ammo.lua`'s header
+  promises the bottom-left round count while `mode.lua` passes the rounds no D-pad slot. The page, its docs index row
+  and `coop gun`'s comment speak of no crouching. The page has no ", and" or ", but", no bold-label bullet and no
+  "co-op session";
 - `vehicles/bike/ride_test` covers `vehicles/bike/ride.lua` over a fake EVE and native part: the preload asked once and
   released at `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every
   mount refusal with its reason and nothing written, the mount's order and the dismount backward, the lean (the math

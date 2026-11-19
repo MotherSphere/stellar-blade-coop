@@ -1,9 +1,9 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- coop gun: gun mode on or off, as its key does; coop gun status: on or off, standing or crouched, its key, real ammo,
--- the pose and whether its paks were found. The loader merges this into M.commands. o.gun(): fight/gunmode/mode.lua's
--- object, or nil when gun mode failed to build.
+-- coop gun: gun mode on or off, as its key does; coop gun status: on or off, firing mode or moving, its key and the
+-- shots fired (fight/gunmode/mode.lua's status). The loader merges this into M.commands. o.gun():
+-- fight/gunmode/mode.lua's object, or nil when gun mode failed to build.
 local Commands={}
 local USE='Use: coop gun [status]'
 function Commands.new(o)

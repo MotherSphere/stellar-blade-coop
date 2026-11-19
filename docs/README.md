@@ -37,7 +37,7 @@ start with `coop`.
 | --- | --- |
 | [Shared enemies](fight/enemies.md) | Shared enemies, same place, same spawns, the spawn filter, extra enemies, shared bosses |
 | [Cut enemies](fight/bosses.md) | The cut model viewer and its free camera, the Lion as a boss, the Gardener and Tendril fights |
-| [Gun mode](fight/gunmode.md) | The NIKKE rifle outside its missions: standing and crouched, firing, the laser sight, the keys, `coop gun`, the settings, building its paks, credits |
+| [Gun mode](fight/gunmode.md) | The NIKKE rifle outside its missions: parked while it is rebuilt, the rifle layer and its pak, the tables it changes, the keys, firing mode, the rounds, `coop gun`, the settings, credits |
 
 ## World
 
