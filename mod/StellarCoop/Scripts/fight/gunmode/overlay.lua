@@ -15,10 +15,13 @@ local Overlay={}
 Overlay.CLASS='/Game/Mods/NGM/ABP_NGM_Spike.ABP_NGM_Spike_C'
 -- the body briefly swapped in to make the engine rebuild the post-process instance (any body but hers will do)
 Overlay.BASES={'/Game/Art/Character/PC/CH_P_EVE_29/CH_P_EVE_29.CH_P_EVE_29','/Game/Art/Character/PC/CH_P_EVE_01/CH_P_EVE_01.CH_P_EVE_01'}
+-- the two-handed rifle clips made on her skeleton for this rifle (Blender Rifle10: both hands on the rifle by IK, the
+-- sight at her right eye); only the arms are used, from the clavicles down
+local NGM='/Game/Art/Character/PC/CH_P_EVE_01/Animation/NGM/'
 Overlay.CLIPS={
-    carry='/Game/DLC_2/Art/Character/PC/CH_P_EVE_01/Animation/P_Eve_GunNikke_ShootReady_Start.P_Eve_GunNikke_ShootReady_Start',
-    aim='/Game/DLC_2/Art/Character/PC/CH_P_EVE_01/Animation/P_Eve_GunNikke_Shoot_Idle.P_Eve_GunNikke_Shoot_Idle',
-    reload='/Game/DLC_2/Art/Character/PC/CH_P_EVE_01/Animation/P_Eve_GunNikke_Reload.P_Eve_GunNikke_Reload',
+    carry=NGM..'NGM_R_C_Idle.NGM_R_C_Idle',
+    aim=NGM..'NGM_R_AimIdle.NGM_R_AimIdle',
+    reload=NGM..'NGM_R_C_Idle.NGM_R_C_Idle',
 }
 
 -- the layer's class is loadable (gunmode's pak is installed)

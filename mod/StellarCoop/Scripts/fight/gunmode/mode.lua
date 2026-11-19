@@ -666,6 +666,11 @@ function GunMode.new(env)
         end
         if not s.on then return end
         local p=g.pawn()
+        if set.g0 and p and g.valid(s.rifle) then
+            s.g0=s.g0 or require('fight.gunmode.g0').new(g)
+            local ok,e=pcall(s.g0.tick,pc,p,s.rifle,s.want or 'carry',now)
+            if not ok and not s.g0_err then s.g0_err=true; g.log('g0: '..tostring(e)) end
+        end
         if not p then disable('no EVE'); return end
         if set.native then -- Firing mode is the game's own aim: held while EVE is in it.
             -- Firing mode: the game's aim, or a jump out of it with the aim key still held (the game drops its aim
@@ -753,6 +758,21 @@ function GunMode.new(env)
             end
             if s.reload_until and now>=s.reload_until then s.reload_until=nil end
             local want=s.reload_until and 'reload' or (s.zoom_held and 'aim' or 'carry')
+            -- the game's own moves (dodges, evades, hit reactions, knockdowns) get her arms back: the layer's clip
+            -- stops and the aim turn eases out until the move ends
+            if now-(s.move_at or 0)>=0.1 then
+                s.move_at=now
+                local nm=g.try(function()
+                    local m=p.Mesh:GetAnimInstance():GetCurrentActiveMontage()
+                    return m and m:IsValid() and m:GetFName():ToString() or nil
+                end)
+                s.move=nm and (nm:find('[Ee]vade') or nm:find('[Dd]odge') or nm:find('[Aa]void') or nm:find('[Hh]it')
+                    or nm:find('[Dd]amage') or nm:find('[Dd]own') or nm:find('[Kk]nock') or nm:find('[Ss]tun') or nm:find('[Rr]oll')
+                    or nm:find('[Ff]lip') or nm:find('[Dd]ash') or nm:find('[Pp]arry') or nm:find('[Gg]uard') or nm:find('[Ss]lide')) and nm or nil
+                if set.trace and nm~=s.last_montage then s.last_montage=nm; g.log('layer: montage '..tostring(nm)..(s.move and ' (layer steps aside)' or '')) end
+            end
+            if s.move then want='none' end
+            s.want=want
             -- the game's aim stance (P_Eve_Gun) may switch her post-process graph off and hide what her hands hold: both
             -- are put back while the rifle is out (property reads and plain setters only, nothing on the instance itself)
             local mesh=g.try(function() return p.Mesh end)
@@ -808,78 +828,13 @@ function GunMode.new(env)
             end
             -- the game stops montages when its stances change (its aim among them): the clip is checked four times a
             -- second and played again when it was stopped
-            -- The aim follows the reticle: the clip holds the rifle at a fixed angle to her body, so her upper body is
-            -- turned (the layer's AimRot on Bip001-Spine1) until the barrel lies on the line from the rifle to the
-            -- reticle's point; eased back to straight when she is not aiming.
-            local ok_t,err_t=pcall(function()
-                local ml=StaticFindObject('/Script/Engine.Default__KismetMathLibrary')
-                s.turn_n=(s.turn_n or 0)+1
-                local Q=s.turnq or {0,0,0,1} -- x, y, z, w (component space)
-                local function mul(a,b) -- a after b
-                    return {a[4]*b[1]+a[1]*b[4]+a[2]*b[3]-a[3]*b[2], a[4]*b[2]-a[1]*b[3]+a[2]*b[4]+a[3]*b[1],
-                        a[4]*b[3]+a[1]*b[2]-a[2]*b[1]+a[3]*b[4], a[4]*b[4]-a[1]*b[1]-a[2]*b[2]-a[3]*b[3]}
-                end
-                local function norm(q) local n=math.sqrt(q[1]^2+q[2]^2+q[3]^2+q[4]^2); return {q[1]/n,q[2]/n,q[3]/n,q[4]/n} end
-                local function part(q,k) -- the fraction k of rotation q (from identity)
-                    if q[4]<0 then q={-q[1],-q[2],-q[3],-q[4]} end
-                    local a=2*math.acos(math.min(1,q[4])); local sn=math.sin(a/2)
-                    if sn<1e-6 then return {0,0,0,1} end
-                    local h=a*k/2; local f=math.sin(h)/sn
-                    return {q[1]*f,q[2]*f,q[3]*f,math.cos(h)}
-                end
-                local step
-                if want=='aim' and g.valid(s.rifle) then
-                    local root=s.rifle:K2_GetComponentLocation()
-                    local bf=ml:GetForwardVector(s.rifle:GetSocketRotation(FName('FX_Fire')))
-                    -- the point 20 m down the camera's line (the crosshair trace can hit her own arm once she turns)
-                    local cm=pc.PlayerCameraManager
-                    local cl=cm:GetCameraLocation()
-                    local f=ml:GetForwardVector(cm:GetCameraRotation())
-                    local t={X=cl.X+f.X*2000,Y=cl.Y+f.Y*2000,Z=cl.Z+f.Z*2000}
-                    local dx,dy,dz=t.X-root.X,t.Y-root.Y,t.Z-root.Z
-                    local L=math.sqrt(dx*dx+dy*dy+dz*dz)
-                    if L>100 then
-                        local ct=p.Mesh:K2_GetComponentToWorld()
-                        local a=ml:InverseTransformDirection(ct,bf)
-                        local b=ml:InverseTransformDirection(ct,{X=dx/L,Y=dy/L,Z=dz/L})
-                        local na=math.sqrt(a.X^2+a.Y^2+a.Z^2); local nb=math.sqrt(b.X^2+b.Y^2+b.Z^2)
-                        local ax,ay,az,bx,by,bz=a.X/na,a.Y/na,a.Z/na,b.X/nb,b.Y/nb,b.Z/nb
-                        local d=ax*bx+ay*by+az*bz
-                        if d>-0.99 then
-                            -- the shortest turn from the barrel onto the line, a quarter of it this frame
-                            local q=norm({ay*bz-az*by, az*bx-ax*bz, ax*by-ay*bx, 1+d})
-                            step=part(q,0.25)
-                            Q=norm(mul(step,Q))
-                            s.turn_steps=(s.turn_steps or 0)+1
-                        end
-                        s.turn_dbg=('barrel %.2f %.2f %.2f line %.2f %.2f %.2f'):format(ax,ay,az,bx,by,bz)
-                    end
-                end
-                if not step and want~='aim' then
-                    -- back to straight
-                    local inv={-Q[1],-Q[2],-Q[3],Q[4]}
-                    Q=norm(mul(part(inv,0.15),Q))
-                end
-                -- never more than 70 degrees away from straight
-                local ang=2*math.deg(math.acos(math.min(1,math.abs(Q[4]))))
-                if ang>70 then Q=part(Q,70/ang) end
-                s.turnq=Q
-                -- UE's FQuat::Rotator
-                local X,Y,Z,W=Q[1],Q[2],Q[3],Q[4]
-                local st=Z*X-W*Y
-                local yaw=math.deg(math.atan(2*(W*Z+X*Y),1-2*(Y*Y+Z*Z)))
-                local pitch,roll
-                if st<-0.4999995 then pitch=-90; roll=-yaw-2*math.deg(math.atan(X,W))
-                elseif st>0.4999995 then pitch=90; roll=yaw-2*math.deg(math.atan(X,W))
-                else pitch=math.deg(math.asin(2*st)); roll=math.deg(math.atan(-2*(W*X+Y*Z),1-2*(X*X+Y*Y))) end
-                local r={Pitch=pitch,Yaw=yaw,Roll=roll}
-                s.turn=r
-                local ok1,e1=layer.set_turn(p,r)
-                s.turn_ok=ok1 and 'yes' or tostring(e1)
-            end)
-            if not ok_t then s.turn_lasterr=tostring(err_t) end
-            if not ok_t and not s.turn_err then s.turn_err=true; g.log('layer turn error: '..tostring(err_t)) end
-            if s.layer_clip and now-(s.layer_seen or 0)>=0.25 then
+            -- v2: the rifle-first solver places the rifle and puts both hands on it (gunmode/ik.lua)
+            s.ik=s.ik or require('fight.gunmode.ik').new(g)
+            local ppi=g.try(function() return p.Mesh:GetPostProcessInstance() end)
+            local mode_ik=(want=='aim') and 'aim' or ((want=='carry' or want=='reload') and 'carry' or 'off')
+            local ok_i,err_i=pcall(s.ik.tick,pc,p,s.rifle,mode_ik,ppi)
+            if not ok_i and not s.ik_err then s.ik_err=true; g.log('ik: '..tostring(err_i)) end
+            if s.layer_clip and s.layer_clip~='none' and now-(s.layer_seen or 0)>=0.25 then
                 s.layer_seen=now
                 if not layer.playing(p,s.layer_clip) then
                     s.layer_stops=(s.layer_stops or 0)+1
@@ -889,9 +844,10 @@ function GunMode.new(env)
             end
             if want~=s.layer_clip then
                 local m,e
-                if want=='carry' then m,e=layer.play(p,'carry',0.001,0,0.2,0.2)
+                if want=='carry' then m,e=layer.play(p,'carry',1.0,0,0.2,0.2)
                 elseif want=='aim' then m,e=layer.play(p,'aim',1.0,0,0.12,0.15)
-                else m,e=layer.play(p,'reload',1.0/math.max(0.2,s.reload_len or 1),1,0.1,0.15) end
+                elseif want=='none' then layer.stop(p,0.12); m=true
+                else m,e=layer.play(p,'reload',1.0,0,0.1,0.15) end
                 if m then s.layer_clip=want elseif not s.layer_err then s.layer_err=true; g.log('layer clip '..want..': '..tostring(e)) end
             end
         end
