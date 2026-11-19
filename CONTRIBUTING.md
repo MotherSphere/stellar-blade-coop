@@ -14,25 +14,33 @@ credits.
 
 ## How we work
 
-`main` holds the released versions. Release Please opens the release pull
-request there and MotherSphere merges it. Nobody else pushes to `main`.
+`main` holds the released versions. Only MotherSphere pushes to `main`.
 
 `dev` is where the next version is prepared. Everyone with write access
 works from it:
 
 1. Update `dev` before you start: `git switch dev`, then `git pull`.
 2. Make a branch named after the task, for example `gun-mode` or
-   `bike-paint`: `git switch -c gun-mode`.
+   `bike-paint`: `git switch -c gun-mode`. The name needs no prefix.
 3. Say on Discord what you are working on, so two people do not change the
    same files.
 4. Commit as you go (see Commits below) and push your branch:
    `git push -u origin gun-mode`.
-5. When the work is tested, merge it into `dev` and push `dev`. Ask the
-   others to `git pull`.
+5. When the work is tested, open a pull request from your branch into
+   `dev`: `gh pr create --base dev`, or on GitHub with `dev` as the base.
+   Never choose `main` as the base.
+6. MotherSphere or a reviewer reads it and merges it into `dev`. Fix what
+   the review asks on the same branch and push again: the pull request
+   follows the branch.
+7. After a merge, everyone runs `git switch dev` and `git pull`. A branch
+   still in progress takes the new `dev` with `git merge dev`.
 
-Force pushes and branch deletions are refused on `main` and `dev`. If
-GitHub refuses your push of `dev`, run `git pull`, fix any conflict, run the
-tests again and push.
+When `dev` holds a version ready to ship, MotherSphere moves `main` to
+`dev`. Release Please then opens the release pull request on `main`, with
+the version number and the changelog made from the commit subjects.
+Merging it creates the tag and a draft release.
+
+Force pushes and branch deletions are refused on `main` and `dev`.
 
 ## Where the code goes
 

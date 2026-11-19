@@ -93,11 +93,16 @@ When you split work between subagents or run a workflow:
 
 ## Git
 
-- Work on a branch made from `dev`, named after the task (`gun-mode`). Never
-  put `claude/`, `codex/`, `cursor/` or any AI or vendor name in a branch
-  name.
-- Never push to `main`, never force-push, never delete a branch you did
-  not create. Merge into `dev` only when the user asks.
+- Work on a branch made from `dev`, named after the task (`gun-mode`), with
+  no prefix. Never put `claude/`, `codex/`, `cursor/` or any AI or vendor
+  name in a branch name.
+- Push the task branch. When the user asks, open a pull request into `dev`
+  (`gh pr create --base dev`). Never open one into `main`.
+- Never push to `main`. Push to `dev` or merge into `dev` only when the
+  user asks. Never force-push. Never delete a branch you did not create.
+- `main` moves to `dev` only for a release. Release Please then opens the
+  release pull request. Only that pull request changes `CHANGELOG.md` and
+  the version.
 - Conventional Commits in English, scope = the module:
   `fix(lobby): keep the room key after a warp`.
 - No AI attribution anywhere: no `Co-authored-by` line for an AI, no
