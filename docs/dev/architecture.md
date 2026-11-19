@@ -246,6 +246,10 @@ file is written in full beside its final name and then renamed over it, so the r
   native part takes and sends to each member as a `bike` message (see [The bike
   line](../online/steam-link-internals.md#the-bike-line)). The members' lines come back as the `bike_of=` lines of
   `coop-status.txt`.
+- The keep's list goes through `coop-keep.txt`: the object paths of the assets the mod keeps in memory, one a line,
+  the whole list each time it grows. The native part takes the file at every pass and asks the game's own async loader
+  for the new paths. The `keep=<asked> <settled> <in>` word of the engine line in `coop-status.txt` answers, or
+  `keep=fault`.
 - Two files are Lua's alone, for the [crash sentinel](../online/partner-internals.md#cns-guard-and-crash-sentinel):
   `coop-cns-call.txt`, written in place with no temporary file to keep each write to one, and `coop-cns-aside.txt`, the
   set-aside list.
