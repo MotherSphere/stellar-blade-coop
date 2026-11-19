@@ -8,7 +8,7 @@ local MASK=0xFFFFFFFF
 Shop.MOST=10 -- Items in one buy.
 -- The one grant call: an item alias, EVE's GUID and 1 to MOST items, into the inventory, with the game's pickup
 -- message; no stat level, no enhance message, not an event load, no saved instance. Shop.grant and coop gift
--- (tools/mailbox.lua) call it, each after checking the alias against its own list.
+-- (cutmenus/mailbox.lua) call it, each after checking the alias against its own list.
 function Shop.add(pc,guid,alias,count)
     assert(type(alias)=='string' and alias:match('^[%w_]+$'),'not an alias')
     assert(math.type(count)=='integer' and count>=1 and count<=Shop.MOST,'not a count')

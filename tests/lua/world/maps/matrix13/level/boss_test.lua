@@ -4,9 +4,10 @@
 -- world/maps/matrix13/level/boss.lua with fake UE4SS objects: outside world 2800 nothing; in it, a Lion body of the
 -- Large blueprint near its spawn point is fixed once through coop lion's adopt, a Gardener body's mesh turned -90
 -- degrees once, each with one [MXBOSS] line; a body far from the point is not the row's; bodies are looked for only
--- near a boss point; the boss bar's <M_LionC> reads Lion while the fixed Lion lives; EVE in an arena with no body for
--- 20 s gets one line naming coop mxiii boss, and nothing is spawned by itself; coop mxiii boss spawns the nearest
--- arena's boss by its own command, and refuses outside Matrix XIII or away from any arena.
+-- near a boss point; the boss bar's <M_LionC> reads the Lion's name in the game's language while the fixed Lion
+-- lives (the Gardener's in French is La guivre; a language read that raises gives the English name); EVE in an arena
+-- with no body for 20 s gets one line naming coop mxiii boss. Nothing is spawned by itself; coop mxiii boss spawns
+-- the nearest arena's boss by its own command. It refuses outside Matrix XIII or away from any arena.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -37,8 +38,10 @@ local function body(class,at)
     return c
 end
 local zone_events={}
+local language='en-US'
 StaticFindObject=function(path) return object({path=path,
-    CreateSBZoneEvent=function(_,kind,name) zone_events[#zone_events+1]=kind..' '..name end}) end
+    CreateSBZoneEvent=function(_,kind,name) zone_events[#zone_events+1]=kind..' '..name end,
+    GetCurrentLanguage=function() if language==false then error('no language') end return language end}) end
 FindAllOf=function(name)
     if name=='TextBlock' then return blocks end
     walks=walks+1
@@ -81,8 +84,10 @@ local bar=object({GetFName=function() return 'TextBlock_BossName' end,
 blocks={bar}
 clock=6; b.tick()
 assert(shown=='<M_LionC>','The blocks looked for again 10 s after the last look')
+language='ja-JP'
 clock=14; b.tick()
-assert(shown=='Lion' and lines[#lines]=='boss name: <M_LionC> -> Lion',lines[#lines])
+local ja=require('world.maps.matrix13.words').TEXT.ja['boss.Lion']
+assert(shown==ja and lines[#lines]=='boss name: <M_LionC> -> '..ja,lines[#lines])
 -- The Gardener: its mesh turned once.
 here={X=-10000,Y=0,Z=0}
 local g1=body('CH_M_NA_01_BluePrint_C',{X=-10500,Y=0,Z=0})
@@ -123,7 +128,7 @@ local bar2=object({GetFName=function() return 'TextBlock_BossName' end,
 blocks={bar2}
 clock=62; b.tick()
 assert(#adopted==2,'Fixed again after a map change')
-assert(bar_text=='Lion' and not lines[#lines]:find('pass failed',1,true),lines[#lines])
+assert(bar_text==ja and not lines[#lines]:find('pass failed',1,true),lines[#lines])
 -- World 2800 loaded again with no tick out of it (a death, a save made there): nothing of the freed world is read, and
 -- a new body at a freed body's address is fixed.
 freed(l1); freed(bar2)
@@ -190,6 +195,24 @@ do
     st.InteractionState,st.Controller=3,nil
     clock=126; s.tick()
     assert(Boss.dead.DLC02_30_E_CharS_029)
+end
+-- The boss bar in French: the Gardener reads SB's La guivre; a language read that raises: the English name.
+do
+    local l={}
+    local s=Boss.new({log=function(m) l[#l+1]=m end,points={DLC02_20_E_CharS_904={at={-10000,0,0},yaw=0}}})
+    here={X=-10000,Y=0,Z=0}
+    bodies={body('CH_M_NA_01_BluePrint_C',{X=-10000,Y=0,Z=0})}
+    local text='<M_Gardener>'
+    blocks={object({GetFName=function() return 'TextBlock_BossName' end,
+        GetFullName=function() return 'TextBlock /Engine/Transient.GameEngine.BossBar.TextBlock_BossName' end,
+        GetText=function() return text end,SetText=function(_,t) text=t.text end})}
+    language='fr-FR'
+    clock=130; s.tick()
+    assert(text=='La guivre' and l[#l]=='boss name: <M_Gardener> -> La guivre',l[#l])
+    text,language='<M_Gardener>',false
+    clock=131; s.tick()
+    assert(text=='Gardener' and l[#l]=='boss name: <M_Gardener> -> Gardener',l[#l])
+    language='en-US'
 end
 -- The generated points: the three bosses of the mxspawn batch.
 local Rows=require('world.maps.matrix13.level.rows')

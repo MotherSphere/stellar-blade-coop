@@ -6,9 +6,10 @@ commit's paths and module names. That last section takes a fork from `e4d10663` 
 Between `38bd9dfe` and `8da078ab` the code moved into one folder per module with no links between modules.
 `main.lua`, `ui/text.lua` and `native/src/link/core.h` were split into smaller files. Behaviour did not change, except
 that a module that fails to load is now off alone and one message of the save check names `docs/players/saves.md`.
-The bike's copy of the races' drive also keeps its own feed and drift-key state (see [Copies](#copies)).
+The bike's copy of the races' drive also keeps its own feed and drift-key state (see
+[Copies](#copies-paths-of-e4d10663)).
 
-## Merging
+## Merging (paths of e4d10663)
 
 `git merge` detects renames, so an edit to a moved file usually lands at its new path. An edit to `main.lua`, a file of
 `commands/`, `ui/text.lua` or `link/core.h` does not: re-apply it in the file the tables below name. Then run
@@ -20,7 +21,7 @@ new links. `native/src/glue/tick/world_game.inc` is now `native/src/world/world_
 `tests/lua/core/enemy_test.lua`: git pairs it with the cut enemies' copy, `tests/lua/cut/enemies/enemy_test.lua`,
 because core's test gained a scan of its own source.
 
-## Modules
+## Modules (paths of e4d10663)
 
 Lua folders are under `mod/StellarCoop/Scripts/`, native folders under `native/src/`. The console words are typed as
 `coop <word>`. `ui` and `off` stay in the runtime (`main/commands.lua`); `guide` and `keys` are in
@@ -48,7 +49,7 @@ Lua folders are under `mod/StellarCoop/Scripts/`, native folders under `native/s
 | `cut.menus` | `cut/menus/` | `cut/` (`items.h` and its part) | `gift`, `devmenu`, `devinfo` |
 | `save` | `save/` | `save/` | `saves`, `shortcut` |
 
-## Lua module names
+## Lua module names (paths of e4d10663)
 
 Each `require` name that changed:
 
@@ -114,12 +115,12 @@ alias lines; a caller in another module now requires the new file.
 | `cut.chainspin`'s `apply`, `target` | `core.effect` |
 | `nightop.recruiter_text`'s `culture` | `ui.text.culture` |
 
-## Split files
+## Split files (paths of e4d10663)
 
 Git does not follow an edit to these files: they were cut by hand. Paths are under `mod/StellarCoop/Scripts/`, or
 `native/src/` for `link/`.
 
-### main.lua
+### main.lua (paths of e4d10663)
 
 The old `main.lua` ran from top to bottom in 18 sections. Each section is now in the runtime (`main.lua`, `main/`) or
 in a module's `wiring.lua`, which holds what the module builds, what it reads later of other modules and the fields of
@@ -146,11 +147,12 @@ in a module's `wiring.lua`, which holds what the module builds, what it reads la
 | Key binds | `main/keys.lua` | |
 | The `Loaded version` line | `main.lua` | |
 
-The tests of one module's wiring moved to that module's folder ([Every moved file](#every-moved-file) lists them).
+The tests of one module's wiring moved to that module's folder
+([Every moved file](#every-moved-file-paths-of-e4d10663) lists them).
 `tests/lua/main/sbo_test.lua` is now `tests/lua/lobby/wiring_test.lua`, except its case of the ghost's collision in an
 SBO session, which stayed with the runtime as `tests/lua/main/collide_test.lua`.
 
-### Console commands
+### Console commands (paths of e4d10663)
 
 Each handler of `commands/<file>.lua` moved, with the comment lines above it, into the `commands.lua` of the module its
 word drives. The words did not change.
@@ -185,7 +187,7 @@ word drives. The words did not change.
 In the tests, `tests/lua/commands/session_test.lua` is now `tests/lua/session/commands_test.lua`. Section 15 of
 `tests/lua/bike/ride_test.lua` (`coop race look` refused while EVE rides) is now in `tests/lua/race/commands_test.lua`.
 
-### ui/text.lua
+### ui/text.lua (paths of e4d10663)
 
 `ui/text.lua` keeps its helpers and requires one file per language. Each `T.<culture>={...}` table moved whole to
 `ui/text/<culture>.lua`, for the 22 cultures `ar`, `da`, `de`, `en`, `es`, `es-MX`, `fi`, `fr`, `it`, `ja`, `ko`, `nl`,
@@ -193,7 +195,7 @@ In the tests, `tests/lua/commands/session_test.lua` is now `tests/lua/session/co
 the modules' names that the notice of a module that failed to load says. The guide's table moved from
 `ui/guide_text.lua` to `ui/text/guide.lua`; the guard's `culture()` is now in `ui/text/culture.lua`.
 
-### link/core.h
+### link/core.h (paths of e4d10663)
 
 `link/core.h` keeps the tuning constants, `Match`, `Round`, `splitmix64`, `block_hash`, `join_refusal` and the data
 members of class `Link`. Its member functions moved, each with the comment above it, into `link/core/<concern>.inc`,
@@ -222,7 +224,7 @@ The blocks before the class went into four headers:
 | `link/pose_cap.h` | The adaptive pose rate: each member's cap |
 | `link/peer.h` | A member as the link holds her, her rate windows, the callback counters |
 
-## Copies
+## Copies (paths of e4d10663)
 
 Feature code two modules used was copied into each of them with its tests. Each copy's first line after the license
 says whose copy it is. Paths are under `mod/StellarCoop/Scripts/`.
@@ -249,7 +251,7 @@ A fork's fix to `race/drive.lua`, `race/drive_model.lua` or the Doro pick goes t
 fix to `cut/enemy.lua` goes to `core/enemy.lua` when it concerns the row batches of the lobby or Matrix XIII, to
 `cut/enemies/enemy.lua` when it concerns the cut enemies.
 
-## Shared native parts
+## Shared native parts (paths of e4d10663)
 
 Paths are under `native/src/`. These headers moved to `game/` because another module reads them. Their tests moved to
 the same place under `tests/native/game/`.
@@ -306,13 +308,13 @@ to the shared part.
 | `quest/quests_worker.inc` | `glue/tick/quests_worker_shared.inc` | `quest_slot_line` |
 | `world/world_worker.inc` | `glue/tick/world_worker_shared.inc` | `world_hex` |
 
-The Part column gives each part's path now; its old path is in [Every moved file](#every-moved-file).
+The Part column gives each part's path now; its old path is in [Every moved file](#every-moved-file-paths-of-e4d10663).
 
 ## Adding a module
 
 [Structure](structure.md#adding-a-module) gives the steps.
 
-## Every moved file
+## Every moved file (paths of e4d10663)
 
 Each file once, from its path at `38bd9dfe` to its path at `e4d10663`. The copies above are new files, not moves.
 
@@ -563,6 +565,13 @@ The `eve` and `tools` modules moved out of `cut/` to folders of their own at the
 runtime name follows its folder, each module holds its own table rows, the docs follow the same categories. Behaviour
 did not change: the same tests pass, the call trace of `main.lua` is the same up to module names and every row batch
 dumps the same rows and patches.
+
+A later commit renamed the `tools` module to `cutmenus`, so its folders no longer read like the repository's own
+`tools/` folder. Its four folders and its docs moved: `mod/StellarCoop/Scripts/tools/` to
+`mod/StellarCoop/Scripts/cutmenus/`, `native/src/tools/` to `native/src/cutmenus/`, `tests/lua/tools/` to
+`tests/lua/cutmenus/`, `tests/native/tools/` to `tests/native/cutmenus/`, `docs/tools/` to `docs/cutmenus/`. The
+rest of this section gives the paths and the module name before that rename. Where it names the `tools` module, its
+folders or its docs, read `cutmenus`.
 
 ### Lua folders
 

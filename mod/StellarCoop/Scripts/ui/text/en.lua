@@ -136,7 +136,7 @@ return {
         ['story.scenes']='Cut scenes',['world.maps.matrix13']='Matrix XIII',['online.session']='Online sessions',
         ['online.photo']='Synced photo mode',['fight.enemies']='Shared enemies',['story.quests']='Shared quests',
         ['world.objects']='Shared world',['story.together']='Story together',['online.lobby']='The SBO lobby',
-        ['vehicles.bike']='The bike',['world.daynight']='Day and night',['tools']='Cut menus',
+        ['vehicles.bike']='The bike',['world.daynight']='Day and night',['cutmenus']='Cut menus',
         ['online.saves']='Co-op saves'},
     -- The shared enemies' notices (main.lua): on, off, stopped, and what keeps coop fight on from sharing (%s: her
     -- name). The title question's buttons are saves.convert and saves.play.

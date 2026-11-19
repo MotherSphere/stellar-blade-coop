@@ -12,8 +12,8 @@ std::string items_line;
 } // namespace
 
 // coop gift (Lua's items <ask> <alias> <index> <number>): how many of the item our EVE carries, read now through
-// ReadProcessMemory (tools/items.h), her GUID too (client +0x58): never the revive guard's warp_me, whose latch would
-// refuse every read after its first fault. Refused off the pinned build, after coop off and with no EVE read; the
+// ReadProcessMemory (cutmenus/items.h), her GUID too (client +0x58): never the revive guard's warp_me, whose latch
+// would refuse every read after its first fault. Refused off the pinned build, after coop off and with no EVE read; the
 // answer replaces the last one in the engine line.
 std::string ask_items(const coop::Request &request) {
   const char *why = !game_pinned ? "unpinned" : blocked ? "off" : nullptr;

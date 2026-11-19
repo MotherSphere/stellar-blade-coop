@@ -69,7 +69,7 @@ std::string status() {
          " anim_id=" + std::to_string(a.id);
     s += bike_status(); // The bike (vehicles/bike/ride.lua): the preload's state and the gate's.
   }
-  // coop gift's inventory read (tools/mailbox.lua): the last ask's answer, by its number.
+  // coop gift's inventory read (cutmenus/mailbox.lua): the last ask's answer, by its number.
   if (!items_line.empty() && !blocked)
     s += items_line;
   s += pad_slate ? " pad=slate" : " pad=xinput"; // coop_pad's source: the game's controller events, or XInput.

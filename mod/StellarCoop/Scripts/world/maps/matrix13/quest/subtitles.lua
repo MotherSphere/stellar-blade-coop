@@ -15,7 +15,7 @@
 --   in game (2026-10-30), and the talks repeat lengths (1.26 twice, 2.56 and 2.61, 4.03 and 4.09), so matching it
 --   jumped from window 3 to 6 and 13. Each window gets author (+0x688) from StringTable_Seq
 --   (SB's own localized speaker names: Seq_Actor_Lily, Seq_Actor_EVE, Seq_Actor_Announcement; '' an empty author),
---   Message (+0x6A0) the line in the game's language (French for a French culture, else English), Type (+0x680) 0
+--   Message (+0x6A0) the line in the game's language, read when the talk starts, Type (+0x680) 0
 --   (shown at once) for a line longer than its window at READ characters a second, and AuthorColor (+0x76C) once a
 --   capture saw that speaker's colour; then UpdateText again under a re-entry guard.
 -- - The reading hold: a window whose line needs SPARE + its length / READ seconds, more than the window gives, has the
@@ -49,10 +49,11 @@
 -- - The kit-only lines (lines()): on the kit with no theater and no sequence, so nothing blocks EVE's input. Each
 --   line lasts its window or 3 s, or its reading time; a line that ends while the caller's gate is shut hides the kit's
 --   group and the next waits for the gate (the kit version of play_lines() too). A speaker that is no StringTable_Seq
---   key (Noa, Yohan, Mila) shows as written.
+--   key (Noa, Yohan, Mila) shows its name in the talk's culture (world/maps/matrix13/words.lua's speaker.<name>).
 -- Nothing here reaches the save: the take, the rows and the slot's fields live in memory.
 local U=require('core.unreal')
 local culture_of=require('world.maps.matrix13.culture')
+local W=require('world.maps.matrix13.words')
 local Subtitles={}
 local HOOK='/Game/Art/UI/Widget/Theater/WB_Theater_Subtitle3_Slot.WB_Theater_Subtitle3_Slot_C:UpdateText'
 local SEQ_TABLE='/Game/Local/Localize/StringTable_Seq.StringTable_Seq'
@@ -94,11 +95,12 @@ function Subtitles.window(windows,w,shown,now)
     if w.k>0 and shown~=nil and (shown==w.sb or shown==w.ours) and now<w.until_at then return w.k end
     return math.min(w.k+1,#windows)
 end
--- Window k's speaker key and line in culture ('en' or 'fr'), or nil past the talk's lines.
+-- Window k's speaker key and line in the talk's culture (the English and French as written, another culture's the
+-- generated line of its id; a line with no id, a caller's own, in English), or nil past the talk's lines.
 function Subtitles.entry(lines,k,culture)
     local e=lines[k]
     if not e then return nil end
-    return e[1],e[culture=='fr' and 3 or 2]
+    return e[1],W.line(culture,e.id,e[2],e[3])
 end
 -- The reading hold for a line shown in a window of length s: how many seconds more it needs, or nil.
 function Subtitles.hold(line,length)
@@ -128,7 +130,7 @@ function Subtitles.new(o)
     -- empty one, said once a talk.
     local function speaker(c,key)
         if key=='' then return FText('') end
-        if not key:find('^Seq_Actor_') then return FText(key) end
+        if not key:find('^Seq_Actor_') then return FText(W.line(c.culture,'speaker.'..key,key,key)) end
         if c.names[key]==nil then
             local ok,text=pcall(function() return U.find(TEXT_LIB):TextFromStringTable(FName(SEQ_TABLE),key) end)
             c.names[key]=ok and text or false

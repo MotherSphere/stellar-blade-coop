@@ -179,7 +179,7 @@ What still runs is the controller's `ServerRequest_Cheat`, whose logic job (`FSB
 table uses three: `SBApplyEffectMe` in 82 rows (64 effects, 62 of them in the shipped EffectTable), `SBPlayerSP` in 4
 and `SBPlayerRevival` in 1.
 
-`coop devmenu` (`tools/devmenu.lua`) keeps 20 rows of 23 effects, which 35 table rows call (Common 25, Battle 7,
+`coop devmenu` (`cutmenus/devmenu.lua`) keeps 20 rows of 23 effects, which 35 table rows call (Common 25, Battle 7,
 CombatTestMapMk2 2, System 1). Each is applied as the menu's rows would have been:
 `ServerRequest_Cheat(<EVE's GUID>, 0, "SBApplyEffectMe", "<ID>")`, through `core/effect.lua`'s one call
 (`ChainSpin.apply`) after its checks (`ChainSpin.target`: `warp=idle`, `me=` not 0, EVE in the world, the controller).
@@ -236,7 +236,7 @@ number, the panel, the reason for a refusal and what it opened and closed. Lua's
 
 ## Cut mailbox
 
-`coop gift` (`tools/mailbox.lua`, not tested in game yet) carries consumables from one player's co-op save to the
+`coop gift` (`cutmenus/mailbox.lua`, not tested in game yet) carries consumables from one player's co-op save to the
 other's.
 
 ### Why the game's mailbox is not used
@@ -261,9 +261,9 @@ load's first tick takes off a toast an earlier load left on screen.
 ### The inventory read
 
 SB has no reflected function that returns how many of an item EVE carries, and its remove by alias takes what there is
-when asked for more, so the native part reads the count itself (`tools/items.h`, `tools/items_worker.inc`). Lua asks
-`items <ask> <alias> <FName index> <FName number>`; the worker reads at once through `ReadProcessMemory`, EVE's GUID
-(client `+0x58`) included, apart from the revive guard and its latch, and the engine line of `coop-status.txt` gets
+when asked for more, so the native part reads the count itself (`cutmenus/items.h`, `cutmenus/items_worker.inc`). Lua
+asks `items <ask> <alias> <FName index> <FName number>`; the worker reads at once through `ReadProcessMemory`, EVE's
+GUID (client `+0x58`) included, apart from the revive guard and its latch, and the engine line of `coop-status.txt` gets
 `items=<ask> <count>` or `items=<ask> none <why>` (`unpinned`, `noeve`, `nomanager`, `nobucket`, `unread`; after
 `coop off` the status leaves `items=` out and only the worker's log line has `none off`).
 The read follows the game's own lookups on build 26123051:

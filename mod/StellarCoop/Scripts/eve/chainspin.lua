@@ -14,7 +14,7 @@
 -- P_Eve_Tachy stance's CommandArray in place, as rows/shock.h does for the gun stances, and none was added. Nothing of
 -- it is saved: no acquisition, no skill slot, no trophy tag.
 -- Called here: ServerRequest_Cheat(EVE's GUID, 0, 'SBApplyEffectMe', an effect's ID) once a command, after the rows
--- are in, and for coop devmenu (tools/devmenu.lua) once for each effect of the row asked, from its fixed list (its
+-- are in, and for coop devmenu (cutmenus/devmenu.lua) once for each effect of the row asked, from its fixed list (its
 -- clear and lockswitch rows also at coop off). Never called here: another cheat word.
 local Effect=require('core.effect')
 local ChainSpin={}

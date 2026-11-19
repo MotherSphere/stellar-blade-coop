@@ -560,7 +560,7 @@ lines past that are dropped, with at most one line a minute per friend in `coop-
 
 ### The gift line
 
-The gift line carries a [cut mailbox](../tools/menus-internals.md#cut-mailbox) gift and its answer, sent reliable: `s` with the gift's id (1
+The gift line carries a [cut mailbox](../cutmenus/menus-internals.md#cut-mailbox) gift and its answer, sent reliable: `s` with the gift's id (1
 to 20 digits, not 0), an item name (letters, digits and `_`, at most 64) and a count from 1 to 10; `a` when the
 receiver kept it; `n` and a word of 1 to 16 lowercase letters when it refused it. The link checks that shape and no
 more: Lua checks the item. At most 8 lines a second go each way, and each one, sent, refused or received, has a line in

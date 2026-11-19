@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- coop gift (tools/mailbox.lua) over fakes: the native status (slot, SteamID, peer, the engine line's items=), the
+-- coop gift (cutmenus/mailbox.lua) over fakes: the native status (slot, SteamID, peer, the engine line's items=), the
 -- gift file in memory, the requests to the native part, the friend and the loopback, EVE and the player controller with
 -- its remove and add requests, the clocks and the toast. Covered: the line shapes link/protocol.h takes and the file's;
 -- the remove call's five arguments; a send's refusals with nothing asked, its read, the remove, the reads until the
@@ -28,7 +28,7 @@ local pc={ServerRequest_ItemBucketItemRemove=function(_,...)
 local eve={BroadcastSpawnInfo={ActorGuid=0x51}}
 local her,controller=eve,pc
 package.loaded['core.player']={her=function() return her end,controller=function() return controller end}
-local Mailbox=require('tools.mailbox')
+local Mailbox=require('cutmenus.mailbox')
 local M=Mailbox
 
 -- 1. Shapes: her lines as link/protocol.h's gift_ok() takes them, the file's lines, the items.

@@ -10,13 +10,16 @@
 -- talk player (world/maps/matrix13/quest/subtitles.lua: play, arm, playing, cutscene, holds, stop). Covered: its 25
 -- rows against signal_rows.h's kSignalRecipe and kSignalPatches (names, templates, IDs, each patched field's kind and
 -- value, no field more, the quest rows last of their rows and the choice row patched in place last); the words in
--- English and French (every line, French for any French culture, English for the others); nothing off a co-op save; no
+-- each of the game's 23 cultures (every line, a culture with a region or script read as its own, English with no
+-- language, no culture's L2 equal to any L); nothing off a co-op save; no
 -- test pak: no rows at the title or in game, no quest unit read; with it, the title's batch with only the 5 tables its
 -- rows use; the words written once the rows read back (no PolyglotDataToText call), a row that is not the one known
--- stopping them and her choice for the Lua load; the rows asked once in game when they are not in, also after a title
--- batch refused by a shut gate at all 4 tries; signal watch once the cheap gates hold (co-op save, solo, the test pak,
--- the rows read back) and never before; the prologue's gate (Quest_Epic_11 at M04 in progress, neither quest held, 20 s
--- with no screen, no theater of the game playing) and its acquire once a Lua load, never on a save that holds On Time;
+-- stopping them and her choice for the Lua load; the words written again on a change of the game's language, at the
+-- title and at M06 (her label L2 in the new culture), none on the same language or a failed read; the rows asked once
+-- in game when they are not in, also after a title batch refused by a shut gate at all 4 tries; signal watch once the
+-- cheap gates hold (co-op save, solo, the test pak, the rows read back) and never before; the prologue's gate
+-- (Quest_Epic_11 at M04 in progress, neither quest held, 20 s with no screen, no theater of the game playing) and its
+-- acquire once a Lua load, never on a save that holds On Time;
 -- lily on only while every gate holds and the prologue is at its task (label 1) or On Time at M06's (label 2, written
 -- into the row), off when one fails, asked again while the native part reads otherwise, a load changing nothing; a pick
 -- only of the row's label on a SelectIndex turning from -1 (her End Conversation, or a widget first seen on a line, do
@@ -94,8 +97,8 @@ do
         and Lily.ROWS[24].id==Lily.PROLOGUE_ID and Lily.ROWS[25].id==nil)
     assert(consts.kLilyFilters==Lily.FILTERS and select(2,Lily.FILTERS:gsub('|',''))==7)
 end
--- The words: every line in English and French; French for any French culture, English for the rest.
-for _,c in ipairs({'en','fr'}) do
+-- The words: every line in each of the game's 23 cultures.
+for c in pairs(require('ui.text.culture').CULTURES) do
     for _,k in ipairs({'L','L2','PT','PD','PM','T','D','M1','M2','M3','M4','M5','M6','K1','K2','K3','K4','K5'}) do
         assert(type(TEXT[c][k])=='string' and TEXT[c][k]~='',c..k)
     end
@@ -118,8 +121,13 @@ for _,v in ipairs({{-96,-130,-155},{-79,-130,-155},{-87.5,-151,-155},{-87.5,-109
     {-87.5,-130,-139}}) do
     assert(not Lily.drive_room(world_of(v[1],v[2],v[3])),table.concat(v,' '))
 end
-assert(culture_of('fr-FR')=='fr' and culture_of('fr')=='fr' and culture_of('de-DE')=='en' and culture_of(nil)=='en'
-    and culture_of('ja')=='en')
+assert(culture_of('fr-FR')=='fr' and culture_of('fr')=='fr' and culture_of('ja')=='ja' and culture_of('de-DE')=='de'
+    and culture_of('en-AU')=='en-GB' and culture_of('zh-TW')=='zh-Hant' and culture_of(nil)=='en')
+assert(TEXT.ja.T==require('world.maps.matrix13.words').TEXT.ja['quest.T'])
+-- Her pick reads its label in any culture: no culture's L2 is another's L.
+local firsts={}
+for _,t in pairs(TEXT) do firsts[t.L]=true end
+for c,t in pairs(TEXT) do assert(not firsts[t.L2],c..': its L2 reads as an L') end
 assert(TEXT.en.D:find('"This lift stays in service so that those who left can come home."',1,true))
 
 -- The tables, each row as the native part writes it: FNames, arrays of FNames, the containers, numbers.
@@ -306,6 +314,21 @@ assert(tables.QuestTable.rows[Lily.PROLOGUE].TitleName_:ToString()=='Un second s
 for i=1,6 do assert(group['Quest_Sub_MX13_01_M0'..i].Description:ToString()==TEXT.fr['M'..i],'M'..i) end
 for i=1,5 do assert(task['Quest_Sub_MX13_01_M0'..i..'_T01'].Description:ToString()==TEXT.fr['K'..i],'K'..i) end
 assert(label('TS_GoToTest_2')=="L'autre signal")
+-- A language change: every row written again in the new language within one tick; the same language or a failed read
+-- writes nothing.
+local function texts() local n=0; for _,l in ipairs(logs) do if l:find('text: game language',1,true) then n=n+1 end end
+    return n end
+local before=texts()
+culture='ja'; clock=clock+0.25; ly.tick()
+assert(texts()==before+1 and logged('text: game language ja -> ja;'),last())
+assert(quest.TitleName_:ToString()==TEXT.ja.T and quest.Description_:ToString()==TEXT.ja.D
+    and task.Quest_Sub_MX13_01_M01_T01.Description:ToString()==TEXT.ja.K1 and label('TS_GoToTest_2')==TEXT.ja.L)
+clock=clock+0.25; ly.tick()
+assert(texts()==before+1,'The same language: nothing written')
+culture=nil; clock=clock+0.25; ly.tick()
+assert(texts()==before+1 and quest.TitleName_:ToString()==TEXT.ja.T,'A failed read: the words stay')
+culture='fr-FR'; clock=clock+0.25; ly.tick()
+assert(texts()==before+2 and quest.TitleName_:ToString()=="À l'heure" and label('TS_GoToTest_2')=="L'autre signal")
 assert(task.Quest_Sub_MX13_01_M06_T01.Description==nil and task.Quest_Sub_MX13_00_M01_T01.Description==nil,
     'M06 and the prologue keep the shipped Talk to Lily')
 assert(#asked==1,'No quest unit read at the title')
@@ -468,6 +491,11 @@ lines.quest=quest_line({held='held',state=1,group=5,task=1,pro='held',prostate=3
 clock=clock+0.25; ly.tick()
 assert(label('TS_GoToTest_2')=='À propos de la Matrice 13'
     and logged('label: her choice reads À propos de la Matrice 13') and count('lily on')==3,last())
+culture='de-DE'; clock=clock+0.25; ly.tick()
+assert(label('TS_GoToTest_2')==TEXT.de.L2 and logged('label: her choice reads '..TEXT.de.L2)
+    and quest.TitleName_:ToString()==TEXT.de.T,last())
+culture='fr-FR'; clock=clock+0.25; ly.tick()
+assert(label('TS_GoToTest_2')=='À propos de la Matrice 13',last())
 lines.lily='lily=on asks=4 want=on why=none'
 widget.SelectIndex=-1
 lines_of("L'autre signal",'Fin de la conversation')

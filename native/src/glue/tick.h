@@ -188,9 +188,9 @@ std::string ask_shortcut_load(int file);
 // Worker, every pass: once the game thread read the file asked, true with the cleaned save in save (empty when it was
 // refused) and the line for the log; false while nothing is asked or the read is still to come.
 bool shortcut_load_pass(std::string &save, std::string &line);
-// Worker thread, coop gift (tools/items.h): Lua's items request, how many of one item our EVE carries, read now through
-// ReadProcessMemory; the answer goes in the engine line's items= (status()). Refused off the pinned build, after coop
-// off and with no EVE read. Returns the line for the log.
+// Worker thread, coop gift (cutmenus/items.h): Lua's items request, how many of one item our EVE carries, read now
+// through ReadProcessMemory; the answer goes in the engine line's items= (status()). Refused off the pinned build,
+// after coop off and with no EVE read. Returns the line for the log.
 std::string ask_items(const coop::Request &request);
 // Worker thread, the Night Operation shop's screen (online/modes/nightop/shop_ui.h): Lua's nightshop request, SB's shop
 // screen opened on Shop_NightOperation_Coop or _CoopBolt, or closed, at the game thread's next frame. Refused off the

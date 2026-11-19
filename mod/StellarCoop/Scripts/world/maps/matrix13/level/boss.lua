@@ -7,7 +7,8 @@
 -- looks for a body of each boss's blueprint within NEAR of its spawn point and fixes it once: the Lion through
 -- fight/bosses/lion.lua's adopt (the anim instance its mesh lacks, else the hidden Behemoth leader), the Gardener's
 -- mesh turned -90 degrees about its root (its skeleton faces +Y). While a boss it fixed lives, the boss bar's name
--- reads its name instead of the row name (<M_LionC>, <M_Gardener>). One [MXBOSS] line a fix. When EVE stands within
+-- reads its name in the game's language (world/maps/matrix13/words.lua's boss.<name>; in French as LIST's fr) instead
+-- of the row name (<M_LionC>, <M_Gardener>). One [MXBOSS] line a fix. When EVE stands within
 -- ARENA of a boss point for WAIT s with no body there, one line says so and that coop mxiii boss spawns one; that
 -- command is the key-0 fallback: coop lion's or coop gardener fight's own spawn, with no spawn row (no saved death, no
 -- zone storage). It is never automatic: a boss killed in an earlier session stays dead through its row's SaveType, and
@@ -21,13 +22,16 @@
 local U=require('core.unreal')
 local N=require('core.player')
 local Rows=require('world.maps.matrix13.level.rows')
+local W=require('world.maps.matrix13.words')
+local culture_of=require('world.maps.matrix13.culture')
 local Boss={}
 Boss.MAP='/mxiii_p'
+-- fr: the French name on the boss bar (the Lion has none in SB; the Gardener is SB's Char_M_Gardener_AlbumName).
 Boss.LIST={
-    {row='DLC02_40_E_CharS_051',name='Lion',class='CH_M_NA_02_BluePrint_Large_C',shown='^<M_LionC[%w_]*>$',fix='lion',
-        on_dead={'DLC02_40_E_EnvC_631','DLC02_40_E_EnvC_632','DLC02_40_E_EnvC_633'}},
-    {row='DLC02_20_E_CharS_904',name='Gardener',class='CH_M_NA_01_BluePrint_C',shown='^<M_Gardener[%w_]*>$',
-        fix='gardener',mesh_yaw=-90},
+    {row='DLC02_40_E_CharS_051',name='Lion',fr='Lion',class='CH_M_NA_02_BluePrint_Large_C',shown='^<M_LionC[%w_]*>$',
+        fix='lion',on_dead={'DLC02_40_E_EnvC_631','DLC02_40_E_EnvC_632','DLC02_40_E_EnvC_633'}},
+    {row='DLC02_20_E_CharS_904',name='Gardener',fr='La guivre',class='CH_M_NA_01_BluePrint_C',
+        shown='^<M_Gardener[%w_]*>$',fix='gardener',mesh_yaw=-90},
     -- [inference] The class of CharacterAppearanceTable's M_Sawshark row, which its donor row's look is taken to use.
     {row='DLC02_30_E_CharS_029',name='Stalker',class='CH_M_NA_13_Blueprint_C'},
 }
@@ -49,6 +53,7 @@ local function zone_event(kind,name)
     U.find('/Script/SB.Default__SBBlueprintLibrary'):CreateSBZoneEvent(kind,find_name(name))
 end
 local BOSS_TEXT,LIVE='TextBlock_BossName','/Engine/Transient'
+local LANGUAGE='/Script/Engine.Default__KismetInternationalizationLibrary'
 
 local function far(a,b) return math.sqrt((a.X-b.X)^2+(a.Y-b.Y)^2+(a.Z-b.Z)^2) end
 local function xyz(t) return {X=t[1],Y=t[2],Z=t[3]} end
@@ -92,7 +97,7 @@ function Boss.new(o)
             log('fallback '..b.name..' dead: '..event..(ok and ' fired' or ' not fired ('..tostring(e)..')'))
         end
     end
-    -- The boss bar's name, while a fixed boss lives.
+    -- The boss bar's name in the game's language (English when the language read fails), while a fixed boss lives.
     local function names(now,living)
         if not next(living) then return end
         local held=false
@@ -110,8 +115,10 @@ function Boss.new(o)
             local shown=U.valid(t) and U.text(t:GetText())
             for _,b in ipairs(Boss.LIST) do
                 if shown and living[b.row] and b.shown and shown:find(b.shown) then
-                    t:SetText(FText(b.name))
-                    log(string.format('boss name: %s -> %s',shown,b.name))
+                    local read,raw=pcall(function() return U.text(U.find(LANGUAGE):GetCurrentLanguage()) end)
+                    local name=W.line(culture_of(read and raw or nil),'boss.'..b.name,b.name,b.fr)
+                    t:SetText(FText(name))
+                    log(string.format('boss name: %s -> %s',shown,name))
                 end
             end
         end

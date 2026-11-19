@@ -567,8 +567,8 @@ exported.
 
 ## The camp names
 
-The camps have names of their own in French and English, and every other language shows the English. The region's key
-is `MX13_Region`, and a camp's is `MX13_Camp_<row>`:
+The camps have names of their own in the game's 23 text languages (`game/camp_text.h`'s `kCultures`). The table gives
+the French and English ones. The region's key is `MX13_Region`. A camp's is `MX13_Camp_<row>`:
 
 | Row | French | English |
 | --- | --- | --- |

@@ -1,13 +1,13 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// coop gift's inventory read (tools/items.h) against a fake memory image laid out like the pinned build: the manager's
-// bucket map, the owner's bucket, the alias map and the instance map, each a TSet with its hash chains. Covered: the
-// two hashes against the game's (CityHash64 emulated in Ghidra on FUN_14283b5f0; the FName hash as FUN_140ecc9d0 writes
-// it); a count over two instances and over chains with collisions; an alias she does not carry; no bucket, no owner, no
-// manager; an instance the manager no longer holds; and hostile memory (a chain that loops, an index past the array, a
-// hash size that is no power of two, an unreadable item) ending in unread, never in a hang.
-#include "tools/items.h"
+// coop gift's inventory read (cutmenus/items.h) against a fake memory image laid out like the pinned build: the
+// manager's bucket map, the owner's bucket, the alias map and the instance map, each a TSet with its hash chains.
+// Covered: the two hashes against the game's (CityHash64 emulated in Ghidra on FUN_14283b5f0; the FName hash as
+// FUN_140ecc9d0 writes it); a count over two instances and over chains with collisions; an alias she does not carry; no
+// bucket, no owner, no manager; an instance the manager no longer holds; and hostile memory (a chain that loops, an
+// index past the array, a hash size that is no power of two, an unreadable item) ending in unread, never in a hang.
+#include "cutmenus/items.h"
 
 #include <cassert>
 #include <cstdio>

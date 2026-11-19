@@ -132,7 +132,7 @@ return {
         ['online.session']='Online-Sitzungen',['online.photo']='Synchroner Fotomodus',
         ['fight.enemies']='Gemeinsame Gegner',['story.quests']='Gemeinsame Quests',['world.objects']='Gemeinsame Welt',
         ['story.together']='Gemeinsame Story',['online.lobby']='Die SBO-Lobby',['vehicles.bike']='Das Motorrad',
-        ['world.daynight']='Tag und Nacht',['tools']='Entfernte Menüs',['online.saves']='Koop-Speicherstände'},
+        ['world.daynight']='Tag und Nacht',['cutmenus']='Entfernte Menüs',['online.saves']='Koop-Speicherstände'},
     fight={on='Gemeinsame Gegner aktiv: %d Gegner verbunden.',one='Gemeinsame Gegner aktiv: 1 Gegner verbunden.',
         scale='LP der Gegner %d %%, Gleichgewicht %d %% (Einstellung des Hosts).',
         off='Gemeinsame Gegner aus. Der Grund steht in coop-link.log.',

@@ -10,7 +10,7 @@
 -- every second and her vitals (mate=) and our life state (life=) up to 10 times a second, so they stay in coop status,
 -- out of the log. The chat has two files of its own that live a moment only (coop-say.txt and coop-chat.txt, see
 -- say()), and the race one more (coop-race.txt, see race()); her race lines come in coop-chat.txt, and her gift lines
--- (coop gift, tools/mailbox.lua, whose own lines go as gift requests). The same read gives
+-- (coop gift, cutmenus/mailbox.lua, whose own lines go as gift requests). The same read gives
 -- the session's mode, the friend and the notices for the screen, each from the start of its own line: a Steam name is
 -- never at the start of one.
 -- While we host, the read also gives our join code and the joiners who wait for our answer, in the order the native

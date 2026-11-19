@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- vehicles/bike/fetch.lua over fakes (EVE, the player controller with its remove request and nightop.probe as
--- tools/mailbox_test.lua fakes them; the real nightop.shop reads her GUID): the price and its timings; a start asks
+-- cutmenus/mailbox_test.lua fakes them; the real nightop.shop reads her GUID): the price and its timings; a start asks
 -- the native part for her betacrystal count; one payment at a time; too little money refuses with her count and removes
 -- nothing; an answer to an earlier ask never counts; the remove's five arguments; paid once the count fell by the
 -- price; paused time not counted toward SETTLE; failed when it does not fall or when no answer comes; a read whose

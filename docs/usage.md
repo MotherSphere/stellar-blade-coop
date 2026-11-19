@@ -107,12 +107,12 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop lily hold on\|off` | The talks' reading holds on or off until the next Lua load (any save) |
 | `coop fly on\|off`, `coop slowmo on\|off` | The game's [developer flight and slow motion](eve/eve.md#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo): a third press of the space bar in the air flies (test commands, untested in game; on on a co-op save only) |
 | `coop glide on\|off` | EVE's [cut glide](eve/eve.md#cut-glide-coop-glide) while Jump is held in the air (test command, untested in game; on on a co-op save only) |
-| `coop shortcut` | List the [cut Load Shortcut menu's saves](tools/menus.md#cut-load-shortcut-saves-coop-shortcut) in `coop-link.log` (test command, untested in game, any save) |
-| `coop shortcut load <map> <1-4>` | Write one of those saves, without its achievement list, as [co-op slot 5](tools/menus.md#loading-one-coop-shortcut-load) for Load Game (test command, untested in game; needs `shortcut_load=on`, typed twice within 10 s, at the title with co-op saves on; can unlock Steam achievements) |
-| `coop devmenu [list\|<row>]` | The rows of the game's [developer menu](tools/menus.md#developer-menu-coop-devmenu-and-coop-devinfo) that still work: the list, or one row on EVE or the enemies near her (test command, untested in game; a row on a co-op save only) |
-| `coop devinfo quest\|player\|off` | The game's [quest debugger or player info panel](tools/menus.md#developer-menu-coop-devmenu-and-coop-devinfo), opened or closed (test command, untested in game, any save) |
+| `coop shortcut` | List the [cut Load Shortcut menu's saves](cutmenus/menus.md#cut-load-shortcut-saves-coop-shortcut) in `coop-link.log` (test command, untested in game, any save) |
+| `coop shortcut load <map> <1-4>` | Write one of those saves, without its achievement list, as [co-op slot 5](cutmenus/menus.md#loading-one-coop-shortcut-load) for Load Game (test command, untested in game; needs `shortcut_load=on`, typed twice within 10 s, at the title with co-op saves on; can unlock Steam achievements) |
+| `coop devmenu [list\|<row>]` | The rows of the game's [developer menu](cutmenus/menus.md#developer-menu-coop-devmenu-and-coop-devinfo) that still work: the list, or one row on EVE or the enemies near her (test command, untested in game; a row on a co-op save only) |
+| `coop devinfo quest\|player\|off` | The game's [quest debugger or player info panel](cutmenus/menus.md#developer-menu-coop-devmenu-and-coop-devinfo), opened or closed (test command, untested in game, any save) |
 | `coop story [dump\|find]` | Write the [story dump](dev/story-dump.md) to `StellarCoopStory.txt` in the mod folder: the story lines of the game's live save object, or with `find` a list of the objects that may hold them; a `coop-story.txt` file in the mod folder asks the same while a world is loaded (test command, untested in game, any save, read only) |
-| `coop gift [send <item> [count]\|take [n]]` | The [cut mailbox as a gift box](tools/menus.md#cut-mailbox-coop-gift): what waits in yours, a gift of 1 to 10 consumables to your linked friend, or the gifts that wait put into your inventory (untested in game, co-op save on both sides) |
+| `coop gift [send <item> [count]\|take [n]]` | The [cut mailbox as a gift box](cutmenus/menus.md#cut-mailbox-coop-gift): what waits in yours, a gift of 1 to 10 consumables to your linked friend, or the gifts that wait put into your inventory (untested in game, co-op save on both sides) |
 | `coop race record <name>\|cp\|save [laps]\|cancel` | Record a [Doro race](online/modes/race.md) track (untested in game) |
 | `coop race start <name>\|quit` | Start a Doro race on that track as the host or alone (co-op save only), or leave it |
 | `coop race look on\|off`, `coop race probe doro`, `coop race drive [probe\|off\|feed impulse\|struct\|<name> <value>]` | [Doro race](online/modes/race.md) test and tuning commands: the Doro look with no race, a Doro that plays each of its animations, the drive probe, and the driving values (test commands; `look on`, `probe doro` and `drive probe` on a co-op save only) |
@@ -316,7 +316,7 @@ The ghost, the link and every other command except `coop fight` (see [Shared ene
 [viewer commands](fight/bosses.md#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)), `coop lion`, `coop lion intro`,
 `coop lion control`, `coop gardener fight` with no word, `intro`, `half` or `skulling`, `coop tendril fight` with no
 word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`, `coop glide on`, a row of
-`coop devmenu` and `coop gift` (see [tools/menus.md](tools/menus.md#cut-mailbox-coop-gift)) run on any save.
+`coop devmenu` and `coop gift` (see [cutmenus/menus.md](cutmenus/menus.md#cut-mailbox-coop-gift)) run on any save.
 `coop fight pilot` runs on any save too, since same place only moves enemies while shared enemies run.
 
 ### `coop off`
@@ -353,7 +353,7 @@ word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`
 
 When a `coop devmenu` row ran, `coop off` runs its `clear` and `lockswitch` rows once more, but that `clear` reaches
 only the enemies near EVE at that moment, and both are skipped while a respawn or a warp is under way (see
-[Developer menu](tools/menus.md#developer-menu-coop-devmenu-and-coop-devinfo)). A `coop gift send` caught after
+[Developer menu](cutmenus/menus.md#developer-menu-coop-devmenu-and-coop-devinfo)). A `coop gift send` caught after
 the items left your inventory and before the gift reached your mailbox file stops there, and those items are lost. Gift
 lines from your friend that arrive after `coop off` are dropped without an answer. Afterwards only `coop status` and
 `coop report` answer. Every other command answers `STOP: coop off is active until the game restarts`, and so do the
@@ -419,7 +419,7 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
   bike_gate=<on|off|refused:<why>>` and `bike_life=<n>` (the
   [bike](vehicles/bike-internals.md#status-words-and-the-latch)'s preload, the game's actions while EVE rides, her life
   state), `items=<ask> <count>` or `items=<ask> none <why>` (the answer to [`coop
-  gift`](tools/menus.md#cut-mailbox-coop-gift)'s last inventory read, by its number; why is `unpinned`, `noeve`,
+  gift`](cutmenus/menus.md#cut-mailbox-coop-gift)'s last inventory read, by its number; why is `unpinned`, `noeve`,
   `nomanager`, `nobucket` or `unread`), and `nightop=on` or `nightop=rule` while the probe's poller runs.
 - Activated camps: `activated=<n>:<camp>,<camp>,...` lists the camps of the game's camp table (simple and full camps,
   phone booths, tetrapods) that the game's own camp list would show for this save, read every 2 s while you play,
@@ -532,10 +532,10 @@ Each section that left this page is listed under its old name, with its new plac
 | Emotes: `coop emote` | [eve/eve.md](eve/eve.md#emotes-coop-emote) |
 | Debug flight and slow motion: `coop fly` and `coop slowmo` | [eve/eve.md](eve/eve.md#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo) |
 | Cut glide: `coop glide` | [eve/eve.md](eve/eve.md#cut-glide-coop-glide) |
-| Cut Load Shortcut saves: `coop shortcut` | [tools/menus.md](tools/menus.md#cut-load-shortcut-saves-coop-shortcut) |
-| Loading one: `coop shortcut load` | [tools/menus.md](tools/menus.md#loading-one-coop-shortcut-load) |
-| Developer menu: `coop devmenu` and `coop devinfo` | [tools/menus.md](tools/menus.md#developer-menu-coop-devmenu-and-coop-devinfo) |
-| Cut mailbox: `coop gift` | [tools/menus.md](tools/menus.md#cut-mailbox-coop-gift) |
+| Cut Load Shortcut saves: `coop shortcut` | [cutmenus/menus.md](cutmenus/menus.md#cut-load-shortcut-saves-coop-shortcut) |
+| Loading one: `coop shortcut load` | [cutmenus/menus.md](cutmenus/menus.md#loading-one-coop-shortcut-load) |
+| Developer menu: `coop devmenu` and `coop devinfo` | [cutmenus/menus.md](cutmenus/menus.md#developer-menu-coop-devmenu-and-coop-devinfo) |
+| Cut mailbox: `coop gift` | [cutmenus/menus.md](cutmenus/menus.md#cut-mailbox-coop-gift) |
 | Shared enemies (experimental) | [fight/enemies.md](fight/enemies.md#shared-enemies-experimental) |
 | Same place (experimental) | [fight/enemies.md](fight/enemies.md#same-place-experimental) |
 | Same spawns (experimental) | [fight/enemies.md](fight/enemies.md#same-spawns-experimental) |

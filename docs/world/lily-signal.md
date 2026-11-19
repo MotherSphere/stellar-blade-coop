@@ -82,10 +82,11 @@ full map is cooked, `coop lily signal next` stands in for step 5 too.
 Steps run in order, so the end talk is only offered once step 5 is done. The talk is offered in Phase 5 only, at any
 Tetrapod Lily; nothing marks Lily inside Matrix XIII.
 
-The titles, descriptions, step lines and the lines of tasks 1 to 5 are the mod's words, in English or French (any other
-game language shows the English). The prologue's task and step 6 reuse the game's own "Talk to Lily" line, which shows
-in your language. The words are written when the mod's scripts load, in the game's language at that moment; after a
-language change they stay in the old one until the next Lua load (Ctrl+R or a game start).
+The titles, descriptions, step lines and the lines of tasks 1 to 5 are the mod's words, in each of the game's 23 text
+languages. The prologue's task and step 6 reuse the game's own "Talk to Lily" line, which shows in your language. The
+words are written when the mod's scripts load, in the game's language at that moment. When you change the game's
+language they are written again within a quarter of a second. Whether a quest log left open shows the new words at
+once has not been checked in game.
 
 ## The talks
 
@@ -99,7 +100,7 @@ Each talk borrows an unused sequence of the game that holds only subtitles: no c
 mod plays it through an unused theater of the game (Quinn's, `Subtitle_NPC_Quinn_Common_Condition1`), whose take is
 pointed at that sequence in memory and put back afterwards. Each time the game updates the subtitle box, the mod writes
 its own speaker and line into it. The speaker names come from the game's own table (`StringTable_Seq`), so "Lily" and
-"EVE" read as the game writes them. A line shows in French for a French game language and in English for any other.
+"EVE" read as the game writes them. A line shows in the game's language as it was when the talk started.
 Windows past the last line stay empty, and once the last line's window is over the theater stops. The prologue uses
 the first 17 of its sequence's 21 windows.
 

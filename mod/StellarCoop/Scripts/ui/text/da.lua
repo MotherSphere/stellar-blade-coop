@@ -124,7 +124,7 @@ return {
         ['story.scenes']='Fjernede scener',['world.maps.matrix13']='Matrix XIII',['online.session']='Onlinesessioner',
         ['online.photo']='Fotosynkronisering',['fight.enemies']='Delte fjender',['story.quests']='Delte quests',
         ['world.objects']='Delt verden',['story.together']='Delt historie',['online.lobby']='SBO-lobbyen',
-        ['vehicles.bike']='Motorcyklen',['world.daynight']='Dag og nat',['tools']='Fjernede menuer',
+        ['vehicles.bike']='Motorcyklen',['world.daynight']='Dag og nat',['cutmenus']='Fjernede menuer',
         ['online.saves']='Gemte co-op-spil'},
     fight={on='Delte fjender slået til: %d fjender forbundet.',one='Delte fjender slået til: 1 fjende forbundet.',
         scale='Fjendernes HP %d %%, balance %d %% (værtens indstilling).',

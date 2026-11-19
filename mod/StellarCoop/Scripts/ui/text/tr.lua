@@ -127,7 +127,7 @@ return {
         ['world.maps.matrix13']='Matrix XIII',['online.session']='Çevrim içi oturumlar',
         ['online.photo']='Fotoğraf modu eşitleme',['fight.enemies']='Ortak düşmanlar',['story.quests']='Ortak görevler',
         ['world.objects']='Ortak dünya',['story.together']='Ortak hikâye',['online.lobby']='SBO lobisi',
-        ['vehicles.bike']='Motosiklet',['world.daynight']='Gündüz ve gece',['tools']='Kesilmiş menüler',
+        ['vehicles.bike']='Motosiklet',['world.daynight']='Gündüz ve gece',['cutmenus']='Kesilmiş menüler',
         ['online.saves']='Co-op kayıtları'},
     fight={on='Ortak düşmanlar açık: %d düşman bağlandı.',one='Ortak düşmanlar açık: 1 düşman bağlandı.',
         scale='Düşman canı %%%d, denge %%%d (ev sahibinin ayarı).',
