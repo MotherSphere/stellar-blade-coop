@@ -595,6 +595,17 @@ function GunMode.new(env)
         local now=os.clock()
         if now-s.toggle_at<0.3 then return end
         s.toggle_at=now
+        -- Parked while it is rebuilt: the toggle says so on screen and nothing else of gun mode runs (no rows taken,
+        -- no rifle, no posed copy).
+        if cfg.enabled==false then
+            if s.on then disable(why) end
+            g.log('toggle ('..why..'): gun mode is being rebuilt, off')
+            if not s.notice_off then
+                local ok,off=pcall(function() return require('cut.mailbox').toast('Gun mode: rebuilding') end)
+                if ok and type(off)=='function' then s.notice_off,s.notice_at=off,now end
+            end
+            return
+        end
         if s.on then disable(why) else enable(why) end
     end
 
@@ -628,6 +639,7 @@ function GunMode.new(env)
         local function down(name) return g.try(function() return pc:IsInputKeyDown({KeyName=FName(name)}) end)==true end
         local inp=Input.read(keys,down,now,cfg,set.key)
         if inp.key then self.toggle(set.key) elseif inp.toggle then self.toggle('D-pad Right') end
+        if s.notice_off and now-s.notice_at>=3 then pcall(s.notice_off); s.notice_off=nil end
         if not s.on then return end
         local p=g.pawn()
         if not p then disable('no EVE'); return end
