@@ -848,7 +848,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   a glide moving each value over 2000 ms with no step above a frame's share; an off during a glide putting the
   originals back; the direction a unit vector through the moon's swap; the light the status line prints during a
   glide; a new world, a clock that steps back and an element that comes during a glide; a glide with no element; a
-  change under SB's forced settings gliding once they end, a forced pass stopping a running glide;
+  change under SB's forced settings gliding once they end, a forced pass stopping a running glide; a change drawn at
+  once in a world no pass drew in yet; a waiting array stopping a running glide;
 - `cutmenus_items_test`: `coop gift`'s inventory read against a fake image laid out like the pinned build: the FName and
   CityHash64 hashes checked against the game's, a count over two instances and along chains of collisions, an item
   EVE does not carry, no manager, bucket or owner, an instance the manager no longer holds, and hostile memory (a

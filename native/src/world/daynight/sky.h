@@ -239,9 +239,11 @@ public:
         gliding_ = false, pending_ = true;
       return State::waiting;
     }
-    const bool starting = pending_;
+    // A world no pass drew in yet (its first passes forced or waiting) has no light of ours to glide from: at once.
+    const bool starting = pending_ && drew_;
     if (starting)
-      gliding_ = true, glide_ms_ = utc_ms, start_ = drawn_, pending_ = false;
+      gliding_ = true, glide_ms_ = utc_ms, start_ = drawn_;
+    pending_ = false;
     const double s = gliding_ ? ramp(double(utc_ms - glide_ms_), 0, double(kGlideMs)) : 1;
     const Entry *old = cache_[cur_];
     Entry *next = cache_[cur_ ^ 1];
@@ -260,6 +262,7 @@ public:
       sunlit_ += c.lit;
     }
     drawn_ = gliding_ ? mix_light(start_, light_, s) : light_; // Only a pass that gets here: start_ is a drawn light.
+    drew_ = true;
     cur_ ^= 1;
     count_ = elements_ = n;
     holding_ = n > 0;
@@ -406,7 +409,7 @@ private:
 
   void drop() {
     count_ = 0;
-    holding_ = gliding_ = pending_ = false;
+    holding_ = gliding_ = pending_ = drew_ = false;
   }
 
   Entry cache_[2][kMaxElements]; // Last pass's entries and this pass's, swapped each pass: no heap.
@@ -419,6 +422,7 @@ private:
   double held_hour_ = 0;
   uint64_t glide_ms_ = 0; // The UTC ms the running glide started.
   bool held_ = false, holding_ = false, seen_ = false, gliding_ = false, pending_ = false;
+  bool drew_ = false; // A pass of this world and WorldSettings reached the elements: drawn_ is a light of this world.
 };
 
 } // namespace coop::sky

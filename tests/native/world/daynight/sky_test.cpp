@@ -304,5 +304,22 @@ int main() {
   put<uint8_t>(ws, kForcedFlag, 0), put<uint64_t>(ws, kForced, 0);
   sky.pass(0xF200, ws, Want{Mode::pinned, 1200, 8, 0}, t0 + 50000);
   assert(sky.gliding() && near(get<float>(e0, kSun), 9)); // From what the element held when forced came.
+  // 25. A world whose passes all stopped before the elements (SB's forced settings on arrival) draws a change at once:
+  //     the printed light never glides from the last world's (k 0.5 here). A waiting array stops a running glide like
+  //     a forced pass; the first pass after it glides on from what the elements hold.
+  put<uint8_t>(ws, kForcedFlag, 1), put<uint64_t>(ws, kForced, 0x5000), put<float>(e0, kSun, 18);
+  assert(sky.pass(0xF300, ws, Want{Mode::pinned, 1080, 8, 0}, t0 + 60000) == State::forced);
+  sky.pass(0xF300, ws, Want{Mode::pinned, 1200, 8, 0}, t0 + 60100);
+  put<uint8_t>(ws, kForcedFlag, 0), put<uint64_t>(ws, kForced, 0);
+  assert(sky.pass(0xF300, ws, Want{Mode::pinned, 1200, 8, 0}, t0 + 60200) == State::pinned && !sky.gliding());
+  assert(near(sky.drawn().k, b.k) && near(sky.drawn().hour, 20) && get<float>(e0, kSun) == 0);
+  sky.pass(0xF300, ws, noon_pin, t0 + 61000);
+  sky.pass(0xF300, ws, noon_pin, t0 + 62000);
+  assert(sky.gliding() && near(get<float>(e0, kSun), 9));
+  put<uint64_t>(ws, kArray, 0);
+  assert(sky.pass(0xF300, ws, noon_pin, t0 + 62500) == State::waiting && !sky.gliding());
+  put<uint64_t>(ws, kArray, e0);
+  sky.pass(0xF300, ws, noon_pin, t0 + 70000);
+  assert(sky.gliding() && near(get<float>(e0, kSun), 9));
   return 0;
 }

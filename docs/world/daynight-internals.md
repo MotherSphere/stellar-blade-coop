@@ -202,7 +202,9 @@ The rules of a pass (`sky::Sky::pass`):
   the next one from the mix. An element read as new during a glide gets the new hour at once. A hold that starts during
   a glide keeps its target hour. A map with no element glides the light the status line prints. A change seen under
   SB's forced settings glides once they end; a pass under them stops a running glide, which goes on from what the
-  elements hold once they end. An off, `coop off`, a fault, another world or a clock that steps back end it at once.
+  elements hold once they end. A waiting array does the same. A world where no pass reached the elements yet (SB's
+  forced settings on arrival) draws a change at once: there is no light of that world to glide from. An off, `coop off`,
+  a fault, another world or a clock that steps back end it at once.
 - An off (the request or `coop off`): each element of the current world that still holds our value or its original gets
   its originals back once, then nothing is written.
 - The first fault: one try to put SB's values back, then the cycle stays off for the game run (state `fault`).
