@@ -97,6 +97,13 @@ function Stance.new(laser,trace)
   local hideAnim=assert(LoadAsset('/Game/DLC_2/Art/Character/PC/CH_P_EVE_01/Animation/P_Eve_GunNikke_Hide.P_Eve_GunNikke_Hide'))
   donor:PlayAnimation(hideAnim,false)
   donor:Stop();donor:SetPosition(0,false)
+  -- gun mode: the hide clip held while the donor plays the reload. Nothing else holds it then, so the engine could
+  -- collect it and the reload's end would play a freed clip. A keeper as core/actors.lua's Doro keepers: never drawn,
+  -- never ticking, its single-node instance's CurrentAsset holds the clip (UAnimSingleNodeInstance's object property
+  -- at +0x2c8, its params at 0x1464efa58 on 26123051).
+  local keeper=component('SkeletalMeshComponent',src.SkeletalMesh)
+  keeper:SetComponentTickEnabled(false);keeper.VisibilityBasedAnimTickOption=3
+  keeper:SetAnimationMode(1);keeper:SetAnimation(hideAnim)
   -- gun mode: the reload. The donor plays the NIKKE squad's reload (P_Eve_GunNikke_Reload) at the rate that fits
   -- the reload time, and her arms (and the rifle in her right hand) follow the donor's arms from its chest each frame
   -- instead of the held hide pose; the rifle comes down from the aim while it plays. Then the hide pose again.
@@ -557,7 +564,7 @@ function Stance.new(laser,trace)
  function self.reload(on,duration) if reloadFn and frame then return reloadFn(on,duration) end return false end
  function self.stop() if stop then stop() end end
  function self.running() return frame~=nil end
- -- gun mode: whether component c is one of the stance's own (its poseable body and rifle, the donor).
+ -- gun mode: whether component c is one of the stance's own (its poseable body and rifle, the donor, the keeper).
  function self.owns(c)
   for _,part in ipairs(owned) do if part==c then return true end end
   return false
