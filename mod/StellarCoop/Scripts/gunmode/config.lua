@@ -126,6 +126,8 @@ function Config.parse(text)
     if v then out.probe=v:lower()=='on' end
     v=get(text,'gun_facts') -- (dev only) the Phase 0 facts probe, gunmode/facts.lua
     if v=='on' then out.facts=true end
+    v=get(text,'gun_g0') -- (dev only) the v2 plan's G0 measurements and capture pictures, gunmode/g0.lua
+    if v=='on' then out.g0=true end
     v=get(text,'gun_trace') -- (testing) step log around reloads and aim changes
     if v then out.trace=v:lower()=='on' end
     v=get(text,'gun_fire_key') -- (testing) one more fire key, as F
