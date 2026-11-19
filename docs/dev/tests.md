@@ -76,7 +76,8 @@ fake UE4SS objects for those that call the engine. In the capture test, any writ
   while they are changed, so a Lua reload puts them back. A pause gives the masked keys back (`coop-gun.txt` drops
   them); the first frame after it masks them again. The rifle does not come out in a cutscene, an interaction or its
   block, with her movement held, in a swim, a flight or a custom movement mode, or in the photo or selfie mode. Each of
-  these puts it away within 0.25 s with everything back. A jump keeps it out;
+  these puts it away within 0.25 s with everything back. A jump keeps it out. Another module's hold on EVE (`busy`)
+  refuses the rifle or puts it away the same way; `out()` says whether it is out;
 - `vehicles/bike/ride_test` covers `vehicles/bike/ride.lua` over a fake EVE and native part: the preload asked once and
   released at `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every
   mount refusal with its reason and nothing written, the mount's order and the dismount backward, the lean (the math
@@ -202,18 +203,19 @@ fake UE4SS objects for those that call the engine. In the capture test, any writ
 - `story/quests/wiring_test` covers `coop quests` with the `shared_quests` and `quest_deny` settings and the shared
   quests' notices;
 - `main/gun_test` covers gun mode's wiring through `main.lua` with a fake `fight/gunmode/mode.lua`: `coop-gun.txt`
-  through the link's store (none without the native part), the photo and selfie modes as the runtime reads them, the
-  restore at the first tick, `coop off`'s stop, the restore alone after a Lua reload with `coop off` still on;
+  through the link's store (none without the native part), the photo and selfie modes as the runtime reads them, its
+  `busy` reasons (the bike, the Doro look, `coop emote`, a hall seat, `coop fly`, `coop glide`), the restore at the
+  first tick, `coop off`'s stop, the restore alone after a Lua reload with `coop off` still on;
 - `main/bike_test` covers the bike's wiring (`vehicles/bike/wiring.lua`) through `main.lua` with a fake
   `vehicles/bike/ride.lua`: the load line, what the ride gets (its asks, `coop-bike.txt`, the driving, the settings,
-  SBO's busy reasons with coop fly and our open screens), `coop bike` and its words, F3 and the pad's D-pad Right hold
-  with a refusal on screen, the hold ignored with its reason logged at the title, with one of our screens open or with
-  the game paused, the restore, the frame and the 250 ms pass with an end said on screen, the Options rows, `coop off`;
-  `riding()` as `coop emote`, the race, the hall seats, `coop fly on` and `coop glide on` read it; the ride's
-  `idle_part` as the capture's `leave_out`; what the parked bike gets (the menu's words, a notice, SB's text by table
-  path, the travel worlds, its record through the link's files, `coop-bike-stand.txt`, its bike line through
-  `link.bike`, the paid fetch with `coop gift`'s FName and pause rules, the follow's `camp_near`); the other players'
-  parked bikes built, restored at the first tick, run after the ride's pass and cleared at `coop off`;
+  SBO's busy reasons with coop fly, gun mode's rifle and our open screens), `coop bike` and its words, F3 and the pad's
+  D-pad Right hold with a refusal on screen, the hold ignored with its reason logged at the title, with one of our
+  screens open or with the game paused, the restore, the frame and the 250 ms pass with an end said on screen, the
+  Options rows, `coop off`; `riding()` as `coop emote`, the race, the hall seats, `coop fly on` and `coop glide on` read
+  it; the ride's `idle_part` as the capture's `leave_out`; what the parked bike gets (the menu's words, a notice, SB's
+  text by table path, the travel worlds, its record through the link's files, `coop-bike-stand.txt`, its bike line
+  through `link.bike`, the paid fetch with `coop gift`'s FName and pause rules, the follow's `camp_near`); the other
+  players' parked bikes built, restored at the first tick, run after the ride's pass and cleared at `coop off`;
 - `world/daynight/wiring_test` covers the day and night cycle's wiring (`world/daynight/wiring.lua`) through `main.lua`
   with a fake `world/daynight/daynight.lua`: what it is built with (the native asks and status, the `daynight` setting,
   the cutscene, SB's screens, photo mode, Night Operation, the SBO lobby in Xion's training room only, the third-party

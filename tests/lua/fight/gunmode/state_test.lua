@@ -1,8 +1,9 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Gun mode and the game's state, over a fake UE4SS (fake.lua) on the rifle layer's path: what it writes into SB's rows
--- while the rifle is out.
+-- Gun mode and the game's state, over a fake UE4SS (fake.lua) on the rifle layer's path: the shot step's Type, the
+-- shot's borrowed rows armed only around its shots, the input mask lifted while the game is paused, the game's own
+-- states and the other modules' holds on EVE that keep the rifle away.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Fake=dofile('tests/lua/fight/gunmode/fake.lua')
 -- The laser sight needs Niagara's objects, which the fake lacks: here a laser that draws nothing.
@@ -163,6 +164,30 @@ do
     frames(gun,20)
     assert(gun.state.on,'a jump keeps the rifle out')
     toggle(gun,false)
+end
+
+-- 5. M7: what another module holds EVE in (env.busy: the bike, the Doro look, an emote, a hall seat, coop fly or
+--    glide) refuses the rifle with its reason. Starting with the rifle out, it puts the rifle away within 0.25 s.
+--    out() says whether the rifle is out (the bike's busy check reads it).
+do
+    local w=Fake.new(); w.install()
+    local keys,busy,logs=w.keys(),nil,{}
+    local gun=GunMode.new({log=function(m) logs[#logs+1]=m end,busy=function() return busy end})
+    local function said(text)
+        for _,l in ipairs(logs) do if l:find(text,1,true) then return true end end
+        return false
+    end
+    busy='EVE rides the bike'
+    clock=clock+1; gun.toggle_now()
+    assert(not gun.state.on and not gun.out() and said('not now: EVE rides the bike'),table.concat(logs,'|'))
+    assert(#w.changed()==0 and w.keys()==keys)
+    busy=nil
+    toggle(gun,true)
+    assert(gun.out())
+    busy='the Doro look is on'
+    frames(gun,20)
+    assert(not gun.state.on and not gun.out() and said('off (the Doro look is on'),table.concat(logs,'|'))
+    assert(#w.changed()==0 and w.keys()==keys)
 end
 
 print('gunmode state: ok')

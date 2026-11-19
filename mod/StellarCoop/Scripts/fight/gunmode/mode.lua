@@ -89,7 +89,7 @@ function GunMode.ease(a,b,k) return a+(b-a)*k end
 -- env: {log, folder (the mod folder: coop-settings.txt), read_all (a file's text; io.open's unless given), notice (the
 -- rebuilding notice on screen), store (coop-gun.txt through core/link.lua's store: save, load, clear; nil without the
 -- native part, so a Lua reload then cannot put back what an earlier load changed), photo (main/base.lua's photo_state;
--- '0' when not given)}.
+-- '0' when not given), busy (why another module holds EVE now, or nil: fight/gunmode/wiring.lua reads them)}.
 function GunMode.new(env)
     local cfg=Config.DEFAULTS
     local whole=env.read_all or read_all
@@ -579,9 +579,11 @@ function GunMode.new(env)
         keep()
     end
 
-    -- Why EVE cannot hold the rifle now (GunMode.blocked), or nil. A state it cannot read is a reason too.
+    -- Why EVE cannot hold the rifle now (GunMode.blocked, then env.busy), or nil. A state it cannot read is a reason too.
     local function held(p)
-        local ok,why=pcall(GunMode.blocked,p,env.photo and env.photo() or '0')
+        local ok,why=pcall(function()
+            return GunMode.blocked(p,env.photo and env.photo() or '0') or (env.busy and env.busy())
+        end)
         if not ok then return 'her state is unreadable ('..tostring(why)..')' end
         return why
     end
@@ -822,7 +824,8 @@ function GunMode.new(env)
             if not ok and not s.g0_err then s.g0_err=true; g.log('g0: '..tostring(e)) end
         end
         if not p then disable('no EVE'); return end
-        -- A cutscene, a talk, a swim or another of the game's own states that starts puts the rifle away (M6).
+        -- A cutscene, a talk, a swim or another of the game's own states that starts puts the rifle away (M6), as does
+        -- another module that takes EVE (M7: the Doro look, an emote...).
         if now-(s.held_at or 0)>=0.25 then
             s.held_at=now
             local busy=held(p)
@@ -1103,6 +1106,7 @@ function GunMode.new(env)
             s.on and (s.zoom_held and ' (firing mode)' or ' (moving)') or '',set.key,s.shots)
     end
     self.toggle_now=function() self.toggle('command') end
+    function self.out() return s.on==true end -- The bike's busy check reads it (vehicles/bike/wiring.lua).
     self.state=s
     return self
 end

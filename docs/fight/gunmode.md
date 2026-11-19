@@ -45,7 +45,9 @@ off. A new map, a death or a camp warp puts the rifle away.
 
 The rifle does not come out during a cutscene, a talk or another interaction, while the game holds her movement,
 while she swims or is in one of the game's own moves, or in the photo and selfie modes. If one of these starts with the
-rifle out, the rifle goes away within a quarter of a second. `UE4SS.log` names the reason on a `[GM]` line.
+rifle out, the rifle goes away within a quarter of a second. The same holds while EVE rides the bike, wears the Doro
+look, plays a `coop emote`, sits on a hall seat or uses `coop fly` or `coop glide`. The bike does not mount while the
+rifle is out. `UE4SS.log` names the reason on a `[GM]` line.
 
 `coop off` puts the rifle away too. The table fields, the keys and her body's own post-process class go back, then
 gun mode does nothing until the game restarts. Until everything is back, `coop-gun.txt` lists what gun mode changed.

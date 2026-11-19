@@ -2,10 +2,17 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode through main.lua (fixture.lua's fake fight/gunmode/mode.lua; fight/gunmode/stop_test tests the mode): its
--- coop-gun.txt through the link's store (none without the native part), the photo mode as the runtime reads it, its
--- restore at the first tick before its tick, coop off's stop and after a Lua reload with coop off still on its restore
--- alone.
+-- coop-gun.txt through the link's store (none without the native part), the photo mode as the runtime reads it, the
+-- other modules' states that hold EVE (busy), its restore at the first tick before its tick, coop off's stop and after
+-- a Lua reload with coop off still on its restore alone.
 dofile('tests/lua/main/fixture.lua')
+-- coop fly's keys: eve/flight.lua for real, with fly_on in place of its active() (on() needs SB's player input).
+local Flight,fly_on=require('eve.flight'),nil
+package.loaded['eve.flight']={new=function(o)
+    local f=Flight.new(o)
+    f.active=function() return fly_on end
+    return f
+end}
 settings_text,status_text,in_world='',plain,true
 load_main(true)
 assert(gm.o.store=='store coop-gun.txt',tostring(gm.o.store))
@@ -14,6 +21,19 @@ assert(gm.o.photo()=='0')
 photo_mode=true; assert(gm.o.photo()=='1')
 selfie_mode=true; assert(gm.o.photo()=='s')
 photo_mode,selfie_mode=false,false
+-- What other modules hold EVE in, each with its reason; none when nothing does.
+assert(gm.o.busy()==nil)
+for _,case in ipairs({{function(on) bk.riding=on end,'EVE rides the bike'},
+        {function(on) dr.active=on end,'the Doro look is on'},
+        {function(on) em.active=on end,'coop emote plays'},
+        {function(on) sb.sitting=on end,'EVE sits on a hall seat'},
+        {function(on) fly_on=on end,'coop fly is on'},
+        {function(on) gl.active=on end,'coop glide is on'}}) do
+    case[1](true)
+    assert(gm.o.busy()==case[2],tostring(gm.o.busy()))
+    case[1](nil)
+end
+assert(gm.o.busy()==nil)
 assert(gm.restores==0 and gm.ticks==0)
 loops[1].f()
 assert(gm.restores==1 and gm.ticks==1)

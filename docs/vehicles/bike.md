@@ -35,7 +35,7 @@ A mount is refused, with the reason on screen and in `UE4SS.log` (`[StellarCoop]
 - she stands on one of the game's lifts or trains;
 - she is down;
 - a race is armed or drives her, the Doro look is on, `coop emote` plays, she sits on a hall seat, `coop fly` or
-  `coop glide` is on, or a Night Operation run is on;
+  `coop glide` is on, a Night Operation run is on, or she holds gun mode's rifle;
 - the co-op menu, the chat box or another of the mod's screens is open;
 - `bike=off`.
 

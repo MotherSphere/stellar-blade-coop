@@ -3,7 +3,8 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The bike's wiring (vehicles/bike/): the ride with its own drive and paid fetch, the other players' parked bikes.
 return {
-uses={'online.lobby','online.group','online.modes.race','eve','online.modes.nightop','online.session','online.saves'},
+uses={'online.lobby','online.group','online.modes.race','eve','online.modes.nightop','online.session','online.saves',
+    'fight.gunmode'},
 exports={'bike','others'},
 new=function(M)
 local print,log=M.print,M.log
@@ -45,6 +46,7 @@ M.bike=require('vehicles.bike.ride').new({log=function(m) print('[StellarCoop][B
         if M.flight.active() then return 'coop fly is on: coop fly off ends it' end
         if M.glide.active() then return 'coop glide is on: coop glide off ends it' end
         if M.night.running() then return 'Night Operation is running: coop nightop stop ends it' end
+        if M.gun.out() then return 'the rifle is out: put it away first' end
         if M.menu and (M.menu.is_open() or M.box.is_open() or M.code_box.is_open() or M.approval.is_open()
             or M.saves_ui.is_open() or M.lobby.is_open() or M.open_screen()~=nil) then
             return 'an SBO menu or the chat is open'
