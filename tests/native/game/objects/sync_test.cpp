@@ -9,8 +9,9 @@
 // lost and old lines, a load that reads no save for a while, the queue's order while loading and its overflow, the
 // apply limit per pass, the echo backstop, refusals logged once per env, a new partner, the status line, tags compared
 // without case, the watcher that sends the AltesLab trap floor's end and the catch-up by zone: when an env counts as
-// touched, the ask and its hold, the walk and its resume after a load, an ask for an unknown zone, the receiver rule
-// with the host's value winning and sent back, a close in the middle of an answer and a partner that never answers.
+// touched, the ask and its hold (asked again after a load or a close), the walk and its resume after a load, an ask
+// for an unknown zone, the receiver rule with the host's value winning and sent back, a close in the middle of an
+// answer and a partner that never answers.
 #include "game/objects/sync.h"
 
 #include <algorithm>
@@ -887,6 +888,12 @@ void test_ask_timing() {
   assert(x.take().empty());
   x.now += 1, x.pass(0);
   assert(x.take() == std::vector<std::string>{T + "c ask Zone_DED20"}); // the load forgot the zone asked
+  x.g.setting = false, x.pass();                                        // our side closed for one pass
+  x.g.setting = true, x.pass(0), x.s.receive(T + "on reply", x.g), x.take(); // her answer to our on: on reply only
+  x.now += 1999, x.pass(0);
+  assert(x.take().empty());
+  x.now += 1, x.pass(0);
+  assert(x.take() == std::vector<std::string>{T + "c ask Zone_DED20"}); // the close forgot the zone asked
 }
 void test_walk() {
   Side x;
