@@ -838,9 +838,9 @@ struct Counts {
 // none either, through the game's own call (Io::effect), so its chain and its end run as for a hit of ours. Our mirror
 // showing up on our copy at a later pass (an effect may start a turn late) is the one rise never told back. Rule A
 // (phase 8): the other side's starts only when its hit level passes SB's poise compare on our copy at that pass.
-// A flinch (phase 8) is told only when it starts on a copy that held no reaction at all, and the other side's starts
-// only on such a copy, for the time its line carries, while hit_reactions is on, on a copy this side moves itself
-// (never one it draws). A crowd control still starts on a copy that only flinches.
+// A flinch (phase 8) is told only when it starts on a copy that held no reaction at all. The other side's starts only
+// on such a copy, for the time its line carries, while hit_reactions is on, on a copy this side moves itself (never one
+// it draws). A crowd control still starts on a copy that only flinches.
 struct Rise {
   int32_t id = 0;     // The effect that rose this pass, or 0.
   bool echo = false;  // Our own mirror showing up: never told.
@@ -858,8 +858,8 @@ struct Mirror {
   uint64_t mine_ms = 0;
 
   void start(const Seen &s) { *this = Mirror(), held = s.cc, stunned = s.stunned; }
-  // The other side's cc line, for our next pass: a later one replaces an earlier one, but a flinch never replaces a
-  // crowd control still waiting (dropped, counted).
+  // The other side's cc line, for our next pass: a later one replaces an earlier one. A flinch never replaces a crowd
+  // control still waiting: it is dropped and counted.
   void hear(const Message &m, Counts &c) {
     if (m.effect == kFlinch && cc_effect(uint64_t(want))) {
       ++c.flinch_refused;

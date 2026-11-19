@@ -1202,11 +1202,40 @@ int main() {
     frame(g, *e, t += 16);
     assert(g.timed.size() == 1 && std::get<0>(g.timed[0]) == 2003000 && std::get<1>(g.timed[0]) == 0.2f &&
            std::get<2>(g.timed[0]) == 0.0f && g.casts.empty() && e->host.counts.flinch_mirrored == 1);
-    for (const uint64_t end = t + 400; t < end;) // HitStun ends (12 turns).
+    bool flinched = false; // Engine::effects reads HitStun as Seen::cc's flinch bit while it runs.
+    for (const uint64_t end = t + 400; t < end;) { // HitStun ends (12 turns).
       frame(g, *e, t += 16);
+      flinched = flinched || (e->seen()[0].guid == 101 && e->seen()[0].cc == 1 << kFlinchBit);
+    }
+    assert(flinched && e->seen()[0].cc == 0 && e->host.counts.flinch_told == 0); // Our echo: never told back.
     g.inbox.push_back(msg("SBF23 cc 1 101 3000300 1 0"));
     frame(g, *e, t += 16);
     assert(g.timed.size() == 1 && g.cast_ids(101).back() == 3000300);
+  }
+  { // Same place, Io::owns: a mirrored flinch starts on a copy this side owns (on the host's side, each enemy at epoch
+    // 0). The guest's side draws that copy by the host's stream, so it refuses one there ("drawn").
+    Game h;
+    auto eh = engine(false, true);
+    eh->same_place(true);
+    eh->set(true, true);
+    h.spawn(101, 5001, 0);
+    h.inbox.push_back(msg("SBF23 on"));
+    frame(h, *eh, 0);
+    h.inbox.push_back(msg("SBF23 cc 1 101 2003000 1 200"));
+    frame(h, *eh, 16);
+    assert(h.timed.size() == 1 && eh->host.counts.flinch_mirrored == 1 && eh->host.counts.flinch_refused == 0);
+    Game g;
+    auto eg = engine(false, false);
+    eg->same_place(true);
+    eg->set(true, false);
+    g.spawn(501, 5001, 0);
+    for (const char *line :
+         {"SBF23 world 1", "SBF23 place 1 1", "SBF23 stagger 1 1 1", "SBF23 up 1 101 5001 0 900 1600"})
+      g.inbox.push_back(msg(line));
+    frame(g, *eg, 0);
+    g.inbox.push_back(msg("SBF23 cc 1 101 2003000 1 200"));
+    frame(g, *eg, 16);
+    assert(g.timed.empty() && eg->guest.counts.flinch_refused == 1 && count(g, "flinch refused", "drawn") == 1);
   }
 
   // ---- guest_kills=confirmed: the 1 HP floor, ApplyStat(107, +1) on every paired copy, comes off on every way out:
