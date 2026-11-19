@@ -527,8 +527,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 - `online_partner_delta_gain_test`: what the sender's delta tolerance (`kTolerance` in `game/codec.h`) saves. With no
   argument, as `tools/install.py` runs it, it encodes two synthetic recordings (idle and running) made by the real
   sender with no tolerance and with it, checks that the tolerance saves bytes on both and prints keyframes, deltas,
-  their mean sizes and KiB/s for each. `build/host/pose_delta_gain_test path/to/coop-record.bin` measures a recording
-  of the current protocol instead;
+  their mean sizes and KiB/s for each. `build/host/online_partner_delta_gain_test path/to/coop-record.bin` measures a
+  recording of the current protocol instead;
 - `game_table_test`: the component table and the display file, with a parser fuzz, and the per-slot file names
   (`slot_file`);
 - `online_partner_resend_test`: our component table's resends (`TableResend` in `game/table.h`) on a worker passing

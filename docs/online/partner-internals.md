@@ -102,15 +102,15 @@ like a keyframe. A delta whose keyframe was lost on the way is dropped and count
 next keyframe, at most 250 ms later. In tests a delta was 26 % (idle) to 41 % (combat) of the full pose.
 
 A bone's rotation, translation or scale counts as changed only when it is more than a small tolerance away from the
-keyframe, in the codec's own steps: 2 steps on each rotation component (0.035° at most), 1 step of translation
-(1/32 cm) and 1 step of scale (1/4096). Until it moves further, the receiver keeps the keyframe's value, for 250 ms
-at most. This drops the fields that only flip their last step from float noise, and needs no change on the receiving
-side. The test build `build/host/pose_delta_gain_test` reads a `coop-record.bin` and prints the stream's keyframes,
-deltas and KiB/s with and without the tolerance: `build/host/pose_delta_gain_test coop-record.bin`. A recording holds
-the stream you sent. The tool reads only a recording of its own protocol (23): a recording from an older protocol fails its check (`protocol`). Every build since protocol 14
-has the tolerance, so its recording already holds the keyframe's values for those fields and both lines show the same KiB/s, the stream's
-rate with the tolerance. With no file the tool measures two synthetic recordings; they show how the tool works, not
-what a real outfit saves.
+keyframe, in the codec's own steps: 2 steps on each rotation component (0.035° at most), 1 step of translation (1/32 cm)
+and 1 step of scale (1/4096). Until it moves further, the receiver keeps the keyframe's value, for 250 ms at most. This
+drops the fields that only flip their last step from float noise, and needs no change on the receiving side. The test
+build `build/host/online_partner_delta_gain_test` reads a `coop-record.bin` and prints the stream's keyframes, deltas
+and KiB/s with and without the tolerance: `build/host/online_partner_delta_gain_test coop-record.bin`. A recording holds
+the stream you sent. The tool reads only a recording of its own protocol (23): a recording from an older protocol fails
+its check (`protocol`). Every build since protocol 14 has the tolerance, so its recording already holds the keyframe's
+values for those fields and both lines show the same KiB/s, the stream's rate with the tolerance. With no file the tool
+measures two synthetic recordings; they show how the tool works, not what a real outfit saves.
 
 ## 4. Playback clock and interpolation
 

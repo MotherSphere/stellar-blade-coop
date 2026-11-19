@@ -188,4 +188,4 @@ lobbies. Every player has to update (see [INSTALL.md: Update](../../INSTALL.md#u
   rules for players who are not Steam friends are checked only by the tests, which run the link against a fake Steam
   with up to 8 games (see [Tests](../dev/tests.md)).
 - The PvP test has not run in game, on one PC or on two. Its limits are checked by the native tests `game_pvp_test`
-  and `fight_engine_test`.
+  and `fight_enemies_engine_test`.

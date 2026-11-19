@@ -9,7 +9,7 @@
 // refused. Every build since protocol 14 has the tolerance, so its recording already holds the keyframe's values within it,
 // and both lines come out the same.
 //
-//   build/host/pose_delta_gain_test path/to/coop-record.bin
+//   build/host/online_partner_delta_gain_test path/to/coop-record.bin
 //
 // tools/install.py builds and runs it with no argument, like every test: then it measures two synthetic recordings
 // (idle and running, below) made by the real sender, checks that the tolerance saves bytes on both, and prints both.
