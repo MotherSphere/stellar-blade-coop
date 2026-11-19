@@ -47,4 +47,10 @@ assert(W.line('ja','quest.T','On Time','x')==W.TEXT.ja['quest.T'] and W.TEXT.ja[
 assert(W.line('ja','no.such','On Time','x')=='On Time' and W.line('xx','quest.T','On Time','x')=='On Time')
 assert(W.line('fr','boss.Lion','Lion',nil)=='Lion')
 assert(W.line('fr','boss.Gardener','Gardener',require('world.maps.matrix13.level.boss').LIST[2].fr)=='La guivre')
+-- The native part's cultures (game/camp_text.h's kCultures) are the game's 23.
+local h=assert(io.open('native/src/game/camp_text.h','rb')):read('a')
+local list=assert(h:match('kCultures%[kCultureCount%] = {(.-)};'),'no kCultures in camp_text.h')
+local seen=0
+for c in list:gmatch('u"([^"]+)"') do assert(CULTURES[c],c); seen=seen+1 end
+assert(seen==23,seen..' native cultures')
 print('world/maps/matrix13/words_test: ok')

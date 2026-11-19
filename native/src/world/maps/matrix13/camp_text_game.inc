@@ -59,8 +59,8 @@ __declspec(noinline) void camp_text_body() {
   const uintptr_t culture = game::plausible(intl) ? at<uintptr_t>(intl + camp_text::kCulture) : 0;
   if (!game::plausible(culture))
     return;
-  const bool french = camp_text::french(at<const char16_t *>(culture + camp_text::kCultureName),
-                                        at<int32_t>(culture + camp_text::kCultureNameNum));
+  const size_t pick = camp_text::culture(at<const char16_t *>(culture + camp_text::kCultureName),
+                                         at<int32_t>(culture + camp_text::kCultureNameNum));
   const uintptr_t holder = game_function<SingletonGet>(camp_text::kManagerHolder)();
   const uintptr_t manager = game::plausible(holder) ? at<uintptr_t>(holder + camp_text::kManager) : 0;
   const uintptr_t registry = game_function<SingletonGet>(camp_text::kRegistry)();
@@ -82,12 +82,12 @@ __declspec(noinline) void camp_text_body() {
       holds_first = found.object != 0;
       camp_text_release(found.controller);
     }
-    if (loaded && camp_text_passes[w].due(french, holds_first)) {
+    if (loaded && camp_text_passes[w].due(pick, holds_first)) {
       camp_text_table_lock = reinterpret_cast<void *>(table.object + camp_text::kTableLock);
       EnterCriticalSection(static_cast<LPCRITICAL_SECTION>(camp_text_table_lock));
       for (size_t i = 0; i < write.count; ++i) {
         const camp_text::Entry &e = write.entries[i];
-        const FStringArg key = camp_text_view(e.key), text = camp_text_view(french ? e.french : e.english);
+        const FStringArg key = camp_text_view(e.key), text = camp_text_view(e.text[pick]);
         SharedRef found;
         game_function<FindEntry>(camp_text::kFindEntry)(reinterpret_cast<void *>(table.object), &found, &key);
         if (found.object)
@@ -98,7 +98,7 @@ __declspec(noinline) void camp_text_body() {
       }
       LeaveCriticalSection(static_cast<LPCRITICAL_SECTION>(camp_text_table_lock));
       camp_text_table_lock = nullptr;
-      camp_text_passes[w].done(french);
+      camp_text_passes[w].done(pick);
       camp_text_ready[w] = true;
     }
     camp_text_release(table.controller);
