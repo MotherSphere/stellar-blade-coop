@@ -2909,7 +2909,8 @@ int main() {
     assert(g.windows.size() == 1 && gu.counts.stale == stale + 2);
   }
   { // Same place, the host draws: the guest owns 101 at epoch 3; her poise line starts the same row on our drawn copy
-    // at that epoch only; at another epoch, or for an enemy we own (102), stale.
+    // at that epoch only; at another epoch, or for an enemy we own (102), stale. So is one of another world, one
+    // with stagger_resist off at our step and one after her off.
     World w;
     Host h;
     h.set_stagger(true, true);
@@ -2929,6 +2930,16 @@ int main() {
     h.receive(msg("SBF23 poise 1 102 3 1 2100"), 30, w);
     step(h, w, 4, 30);
     assert(w.windows.size() == 1 && h.counts.stale == stale + 2);
+    h.receive(msg("SBF23 poise 2 101 3 1 2100"), 40, w);
+    step(h, w, 5, 40);
+    h.receive(msg("SBF23 poise 1 101 3 1 2100"), 50, w);
+    h.set_stagger(true, false);
+    step(h, w, 6, 50);
+    h.set_stagger(true, true);
+    h.receive(msg("SBF23 off busy"), 60, w);
+    h.receive(msg("SBF23 poise 1 101 3 1 2100"), 70, w);
+    step(h, w, 7, 70);
+    assert(w.windows.size() == 1 && h.counts.stale == stale + 5);
   }
   { // stagger_resist off (the host's): no window; turning it off while one runs starts no other and calls nothing on
     // the running one.
@@ -2995,6 +3006,61 @@ int main() {
     step(h, w, ++turn, 400);
     ours(h, w, turn, 500);
     assert(w.windows.empty());
+  }
+
+  { // Same place on the guest's side, the owner: she owns 101 at epoch 4; her window goes out as a poise line at that
+    // epoch. When the host owns 101 again, her rises start no window.
+    World g;
+    g.add(501, 5001, 0).s.type = 3;
+    Guest gu;
+    uint32_t turn = 0;
+    gu.receive(msg("SBF23 world 1"), g);
+    gu.receive(msg("SBF23 up 1 101 5001 0 900 1600"), g);
+    gu.receive(msg("SBF23 place 1 1"), g);
+    gu.receive(msg("SBF23 stagger 1 1 1"), g);
+    g.owned = {101}, g.epoch = 4;
+    step(gu, g, ++turn, 0);
+    g.lines();
+    g.react = Reaction{1, 600, false};
+    const auto round = [&](uint64_t t) { // The host's cc line refused on our copy (its poise), then a rise of ours.
+      g.actor(501)->s.poise = 5.0f;
+      gu.receive(msg("SBF23 cc 1 101 3000300 1 0"), g);
+      step(gu, g, ++turn, t);
+      g.actor(501)->s.poise = 0, g.actor(501)->s.cc = 1;
+      step(gu, g, ++turn, t + 50);
+      g.actor(501)->s.cc = 0;
+      step(gu, g, ++turn, t + 100);
+    };
+    round(100);
+    assert(has(g.lines(), "SBF23 poise 1 101 4 1 2100\n") && g.windows.size() == 1 && gu.counts.windows == 1);
+    g.owned.clear();
+    round(20000);
+    assert(!has(g.lines(), "poise") && g.windows.size() == 1 && gu.counts.windows == 1);
+  }
+  { // On the guest's side, the host's reaction alone (its cc line taken, then its echo on our copy) starts no window.
+    // The host's world line forgets the host's reactions: our next rise alone starts none either.
+    World g;
+    g.add(501, 5001, 0).s.type = 3;
+    Guest gu;
+    gu.receive(msg("SBF23 world 1"), g);
+    gu.receive(msg("SBF23 up 1 101 5001 0 900 1600"), g);
+    gu.receive(msg("SBF23 stagger 1 1 1"), g);
+    step(gu, g, 1, 0);
+    g.react = Reaction{1, 600, false};
+    gu.receive(msg("SBF23 cc 1 101 3000300 1 0"), g);
+    step(gu, g, 2, 100);
+    g.actor(501)->s.cc = 1 << 1;
+    step(gu, g, 3, 150);
+    g.actor(501)->s.cc = 0;
+    step(gu, g, 4, 200);
+    assert(gu.counts.cc_mirrored == 1 && g.windows.empty());
+    gu.receive(msg("SBF23 world 2"), g);
+    gu.receive(msg("SBF23 up 2 101 5001 0 900 1600"), g);
+    gu.receive(msg("SBF23 stagger 2 1 1"), g);
+    step(gu, g, 5, 300);
+    g.actor(501)->s.cc = 1;
+    step(gu, g, 6, 400);
+    assert(g.windows.empty());
   }
 
   std::puts("fight_sync_test: ok");

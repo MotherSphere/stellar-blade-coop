@@ -2218,6 +2218,14 @@ int main() {
     }
     assert(until(4496 + 30100, "SBF23 own 1 101 G 2\n") && t == 4496 + 30000);
     const uint64_t g2 = t;
+    // Her poise line as the owner (phase 8 Rule B): stale at an older epoch; at hers, the window on our drawn copy.
+    const size_t timed = g.timed.size();
+    g.inbox.push_back(msg("SBF23 poise 1 101 1 1 2100"));
+    frame(g, *e, t += 16);
+    assert(g.timed.size() == timed);
+    g.inbox.push_back(msg("SBF23 poise 1 101 2 1 2100"));
+    frame(g, *e, t += 16);
+    assert(g.timed.size() == timed + 1 && g.timed.back() == std::make_tuple(int32_t(1001400), 2.1f, 1.0f));
     // Ours by our hit once she held it 4 s; her stream's kSkill holds it back meanwhile.
     frame(g, *e, t += 16);
     casts();
