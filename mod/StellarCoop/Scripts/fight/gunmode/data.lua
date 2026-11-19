@@ -267,9 +267,12 @@ function Data.new(g,native,opts)
             local step=g.try(function() return tbl('SkillActiveStepTable') end)
             local hit=step and find(step,Data.HIT_STEP)
             local cast=step and find(step,Data.CAST_STEP)
+            -- The step's kind is Type, an ESBSkillActiveStepType byte (SBSkillActiveStepTableProperty, params at
+            -- 0x146db3c00 on 26123051: Type at 0x145df6348; the struct has no StepType).
             if hit and cast then
-                saved[#saved+1]={hit,'StepType',hit.StepType}
-                hit.StepType=cast.StepType
+                saved[#saved+1]={hit,'Type',hit.Type}
+                g.log('data: '..Data.HIT_STEP..' Type '..tostring(hit.Type)..' -> '..tostring(cast.Type))
+                hit.Type=cast.Type
             end
         end)
         if not ok then
@@ -297,9 +300,7 @@ function Data.new(g,native,opts)
     end
 
     -- coop-gun.txt's row records (fight/gunmode/journal.lua) for what take() changed: none when nothing is taken.
-    -- A field that read nil has nothing to put back: take() saves StepType, which SkillActiveStepTable's rows do not
-    -- have on 26123051 (SBSkillActiveStepTableProperty, params 0x146db3c00: Type, no StepType). Raises on a value it
-    -- cannot keep.
+    -- A field that read nil has nothing to put back. Raises on a value it cannot keep.
     function self.records()
         local out={}
         for _,e in ipairs(self.saved or {}) do

@@ -5,8 +5,8 @@
 -- (coop off) gives back the input mask, SB's rows, the rifle, her body's own post-process class, the FOV lock and the
 -- layer's arms, then nothing more runs; the next Lua load puts back what coop-gun.txt says an earlier one left; a start
 -- that fails gives back what it took; a new controller resets the old pawn's state and the deferred reset takes the
--- layer off her body. fake.lua's rows have the kinds of 26123051's: the Hit1 step has no StepType, so take() saves a
--- nil there that coop-gun.txt must skip, else no rifle comes out.
+-- layer off her body. fake.lua's rows have the kinds of 26123051's: the Hit1 step's Type is a byte, kept in
+-- coop-gun.txt as a number.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Fake=dofile('tests/lua/fight/gunmode/fake.lua')
 local GunMode=require('fight.gunmode.mode')

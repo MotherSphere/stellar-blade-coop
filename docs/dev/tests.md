@@ -32,8 +32,8 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `wiring_cycle`, `wiring_dlc`; `online/session/ui/`: `create`, `create_model`, `sessions`, `sessions_model`;
 `world/daynight/`: `daynight`, `off`, `rule`, `wiring`; `story/together/`: `off`, `snapshot`, `wiring`, `wiring_dump`;
 `ui/`: `text`; `ui/kit/`: `guide`, `hud_parts`, `kit`, `model`, `notice`, `pause_tab`; `ui/text/`: `culture`;
-`world/objects/`: `off`, `wiring`; `fight/gunmode/`: `engine`, `helpers`, `off`, `stop`) run the scripts, with fake
-UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE fails the test. The
+`world/objects/`: `off`, `wiring`; `fight/gunmode/`: `engine`, `helpers`, `off`, `state`, `stop`) run the scripts, with
+fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE fails the test. The
 `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. Each module's `off_test` runs
 `main/isolation.lua` with its name.
 
@@ -59,16 +59,18 @@ UE4SS objects for those that call the engine. In the capture test, any write to 
   loaded again once collected. It is never spawned freed or through a reference kept from an earlier flash. Over a
   fake of its own, the posed stance keeps the hide clip held by a component of its own (in single-node mode) while the
   donor plays the reload;
-- `fight/gunmode/stop_test` runs gun mode over a fake UE4SS (`fight/gunmode/fake.lua`) on the rifle layer's path.
-  The fake's row fields have the kinds read in Ghidra on 26123051, so the shot's Hit1 step has no `StepType`.
+- `fight/gunmode/stop_test` runs gun mode over a fake UE4SS (`fight/gunmode/fake.lua`) on the rifle layer's path. The
+  fake's row fields have the kinds read in Ghidra on 26123051: the shot's Hit1 step has a byte `Type` and no `StepType`.
   `stop` (coop off) gives back the table fields, the keys, the rifle, her body's own post-process class, the FOV lock
   and the layer's arms; with `gun_fire=own` too, where the fields stay changed after the rifle goes away. After it no
   key, toggle or new controller does anything. A second load over the same game and `coop-gun.txt` puts back what the
   first left with the rifle out. Its own rifle then takes and gives back the shipped values. A start puts back what an
   earlier load left before it reads the rows. `coop-gun.txt` keeps floats, integers, booleans, strings, FNames and
-  vectors exactly. A start whose input mask or rifle fails gives back what it took, as does a start that raises once
-  the rifle layer is on. A new controller clears the old pawn's state at once; its deferred reset shows the drone,
-  puts her facing back and takes the layer off her new body;
+  vectors exactly. A start whose input mask or rifle fails gives back what it took, as does a start that raises once the
+  rifle layer is on. A new controller clears the old pawn's state at once; its deferred reset shows the drone, puts her
+  facing back and takes the layer off her new body;
+- `fight/gunmode/state_test` runs gun mode over the same fake against the game's state. While the rifle is out the
+  shot's Hit1 step has its Cast1 step's `Type`. The shipped value comes back when the rifle goes away;
 - `vehicles/bike/ride_test` covers `vehicles/bike/ride.lua` over a fake EVE and native part: the preload asked once and
   released at `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every
   mount refusal with its reason and nothing written, the mount's order and the dismount backward, the lean (the math
