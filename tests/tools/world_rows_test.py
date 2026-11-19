@@ -8,7 +8,8 @@ task events through chains and the states they set), each that keeps a state out
 directly, through AddEvents and FinishEvents, through the StateZoneEventList, through another env's state that an env
 control row sets, and through a progress control's change tags; the crane's camera tags; a ChangeState achievement on
 the state, on any state of its env, or on a state its events set; an EnvState quest task waiting for the state or for
-a state its events set), the SetEnvActive list (all states kept), each
+a state its events set), the map-progress achievements and the hint completions that hold no state out, the
+SetEnvActive list (all states kept), each
 ZoneEvent rule (chain, missing control row, camp, target pair, target row, progress tags, Disable), unknown names and
 loops in chains, the envs whose progress count leads off the list, Matrix XIII's rows (copies, in-place changes,
 numbered enums), and the written block: sorted, between its markers, the rest of the header untouched, a name that
@@ -155,10 +156,29 @@ def test_story():
     assert {a for a, _ in pairs} == {'free'} and events == ['free switch']
 
 
+def test_map_progress():
+    row = achievement('door')
+    assert gen.map_progress('ME_ChangeStateZoneEnv_Door_On', row)
+    assert gen.map_progress('ChangeState_ZoneEnv_ME_04_Guide', row)
+    assert not gen.map_progress('ChangeState_ZoneEnv_ME_04_Guide_2', row)
+    assert not gen.map_progress('Ach_Album_Unlock_Item_Records_DED_Passcode_1_Used', row)
+    for field in ('ProgressAchievementOnCompleted', 'ProgressAchievementOnCompleted2',
+                  'ProgressAchievementArrayOnCompleted'):
+        assert not gen.map_progress('ME_ChangeStateZoneEnv_Door_On', achievement('door', 'Trophy_Open_AllBox', field))
+    t = world({'door': spawn(), 'album': spawn(), 'box': spawn()},
+              achievements={'ME_ChangeStateZoneEnv_Door_On': achievement('door'),
+                            'Ach_Album_Unlock_Item_Records_X_Passcode_1_Used': achievement('album'),
+                            'ChangeState_ZoneEnv_WLB_20_EnvS_099_SupplyBox': achievement('box', 'Trophy_Open_AllBox')})
+    assert gen.state_reasons(t, 'door', 'Open') == []
+    assert gen.state_reasons(t, 'album', 'Open') == ['achievement']
+    assert gen.state_reasons(t, 'box', 'Open') == ['achievement']
+
+
 def test_player_events():
-    assert gen.PLAYER_EVENTS == {'Theater', 'UIAction', 'GuideAction', 'CompleteHint', 'ActivateHint', 'Item',
-                                 'AcquireQuest', 'InteractCamp', 'FinishBossChallenge', 'PlayerWarp', 'ChangeZone',
-                                 'ItemAction', 'StartMatchMaking', 'StopMatchMaking', 'ReturnToSinglePlay'}
+    assert 'CompleteHint' not in gen.PLAYER_EVENTS
+    assert gen.PLAYER_EVENTS == {'Theater', 'UIAction', 'GuideAction', 'ActivateHint', 'Item', 'AcquireQuest',
+                                 'InteractCamp', 'FinishBossChallenge', 'PlayerWarp', 'ChangeZone', 'ItemAction',
+                                 'StartMatchMaking', 'StopMatchMaking', 'ReturnToSinglePlay'}
     for kind in sorted(gen.PLAYER_EVENTS):
         t = world({'lever': spawn(events={'On': ['shown']})}, events={'shown': event(kind)})
         assert gen.state_reasons(t, 'lever', 'On') == [kind] and gen.state_reasons(t, 'lever', 'Off') == []
@@ -167,21 +187,24 @@ def test_player_events():
         assert gen.state_reasons(t, 'lever', 'On') == []
     t = world({'lever': spawn(events={'On': ['set door'], 'Off': ['seq']}), 'door': spawn(events={'On': ['warp']}),
                'counter': spawn('Env_Count'), 'add': spawn(events={'On': ['add one']}), 'zone': spawn('Env_Zone'),
-               'effect': spawn('Env_Effect'), 'crane': spawn('Env_Crane'), 'gate': spawn(events={'On': ['loop a']})},
+               'effect': spawn('Env_Effect'), 'crane': spawn('Env_Crane'), 'gate': spawn(events={'On': ['loop a']}),
+               'hint and scene': spawn(events={'On': ['hint', 'scene']})},
               envs={'Env_Count': env(('Off', 'Full'), progress={'Off': 'Full'}, effects={'Full': ['hint']}),
                     'Env_Zone': env(zone={'On': ['hint']}), 'Env_Effect': env(effects={'On': ['ui']}),
                     'Env_Crane': env(('Off', 'On', 'ResetCam', 'ChangeCam'))},
               events={'set door': event('ZoneEnvControl', 'c door', finish=['done']), 'done': event('PlayLevelSeq'),
                       'warp': event('PlayerWarp'), 'seq': event('PlayLevelSeq', add=['later']),
                       'later': event('UIAction'), 'add one': event('ZoneEnvControl', 'c add'),
-                      'hint': event('CompleteHint'), 'ui': event('UIAction'), 'loop a': event('Spawn', add=['loop b']),
+                      'hint': event('CompleteHint'), 'scene': event('Theater'), 'ui': event('UIAction'),
+                      'loop a': event('Spawn', add=['loop b']),
                       'loop b': event('Spawn', add=['loop a', 'Not_A_Row'])},
               controls={'c door': control('door', 'On'), 'c add': control('counter', kind='StateProgress')})
     assert gen.state_reasons(t, 'door', 'On') == ['PlayerWarp']
     assert gen.state_reasons(t, 'lever', 'On') == ['PlayerWarp']  # Through the door it opens.
     assert gen.state_reasons(t, 'lever', 'Off') == ['UIAction']  # Through AddEvents.
-    assert gen.state_reasons(t, 'add', 'On') == ['CompleteHint']  # The counter's Full, at its count.
-    assert gen.state_reasons(t, 'zone', 'On') == ['CompleteHint']  # StateZoneEventList.
+    assert gen.state_reasons(t, 'add', 'On') == []  # The counter's Full, at its count, closes a hint only.
+    assert gen.state_reasons(t, 'zone', 'On') == []  # StateZoneEventList, a hint only.
+    assert gen.state_reasons(t, 'hint and scene', 'On') == ['Theater']  # The scene holds it out, not the hint.
     assert gen.state_reasons(t, 'effect', 'On') == ['UIAction']  # StateEffectList, with no TagEventList for On.
     assert gen.state_reasons(t, 'crane', 'ResetCam') == ['camera'] == gen.state_reasons(t, 'crane', 'ChangeCam')
     assert gen.state_reasons(t, 'gate', 'On') == []  # A loop and a name with no row end the walk.

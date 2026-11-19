@@ -6,7 +6,8 @@
 // misses; and rows of build 26123051 each rule keeps or leaves out: a door and a lift with every state, the monorail
 // without its camp-bound garage run, the crane without its camera states, the hyperdrive without its story states, a
 // supply box, the boss cores, a story-only door, an env whose On a quest task waits for, a Matrix XIII lever, a
-// quest's env control row, a monorail speed row whose chain plays a scene.
+// quest's env control row, a monorail speed row whose chain plays a scene; the 40 states a map-progress achievement or
+// a hint completion held out before, the passcode doors and other states that stay out.
 #include "game/objects/rows.h"
 
 #include <algorithm>
@@ -14,6 +15,7 @@
 #include <cstdio>
 #include <iterator>
 #include <string_view>
+#include <utility>
 
 using namespace coop::world;
 using std::string_view;
@@ -68,8 +70,8 @@ void test_rules() {
   // The monorail: its run to the garage interacts with a camp, so that state stays local, and with it Disable.
   assert(state_allowed("DED20_EnvS_151", "N_1_Go_Station1") && state_allowed("DED20_EnvS_151", "N_4_Stop_Station2"));
   assert(!state_allowed("DED20_EnvS_151", "N_5_Go_Garage2") && !object_state_allowed("DED20_EnvS_151"));
-  // The crane: its camera states stay out, and CallPuzzle, which a ChangeState achievement credits.
-  assert(state_allowed("DED20_E_EnvC_001", "On") && !state_allowed("DED20_E_EnvC_001", "CallPuzzle"));
+  // The crane: its camera states stay out. CallPuzzle travels: its ChangeState achievement marks map progress only.
+  assert(state_allowed("DED20_E_EnvC_001", "On") && state_allowed("DED20_E_EnvC_001", "CallPuzzle"));
   assert(!state_allowed("DED20_E_EnvC_001", "ResetCam") && !state_allowed("DED20_E_EnvC_001", "ChangeCam"));
   assert(!object_state_allowed("DED20_E_EnvC_001"));
   // Xion's hyperdrive: A and B credit Xion_Phase_2 and Xion_Phase_3, so only C and Off travel.
@@ -102,12 +104,45 @@ void test_rules() {
   assert(!event_allowed("Quest_Epic_02_E_EnvC__013_001") && !event_allowed("DED20_E_EnvC_056"));
 }
 
+void test_progress_and_hints() {
+  // Map progress only (DESIGN 1): these 16 travel now.
+  const std::pair<const char *, const char *> map[] = {
+      {"DED10_EnvS_159", "On"}, {"DED20_E_EnvC_001", "CallPuzzle"}, {"DED20_E_EnvC_002", "CallTrain"},
+      {"DED20_EnvS_045", "On"}, {"DED20_EnvS_099", "On"}, {"DED30_EnvS_015", "A"}, {"DED30_EnvS_015", "B"},
+      {"ME_03_EnvS_029", "On"}, {"ME_04_EnvS_001", "On"}, {"ME_04_EnvS_032", "On"}, {"ME_04_EnvS_051", "On"},
+      {"SD_10_EnvS_060", "On"}, {"SE_01_EnvS_023", "On"}, {"SE_07_EnvS_054", "On"}, {"SE_09_EnvS_012", "On"},
+      {"SE_09_EnvS_016", "On"}};
+  // Their state also closes a hint: these 24 travel now, the hint with them.
+  const std::pair<const char *, const char *> hint[] = {
+      {"ATL_01_EnvS_074", "On"}, {"ATL_02_EnvS_009", "On"}, {"ATL_02_EnvS_066", "On"}, {"AYL_04_EnvS_009", "On"},
+      {"DED10_E_EnvC_006", "On"}, {"DED10_EnvS_026", "On"}, {"DED10_EnvS_044", "B"}, {"ME_01_EnvS_047", "On"},
+      {"ME_04_EnvS_045", "On"}, {"ME_04_EnvS_098", "On"}, {"ME_04_EnvS_099", "On"}, {"SE_02_EnvS_029", "On"},
+      {"SE_06_EnvS_001", "On"}, {"SE_06_EnvS_033", "B"}, {"SE_09_EnvS_014", "On"}, {"WLB_20_EnvS_002", "On"},
+      {"WLB_20_EnvS_040", "On"}, {"WLB_20_EnvS_117", "On"}, {"WLB_30_EnvS_066", "On"}, {"WLB_50_EnvS_016", "On"},
+      {"WLB_50_EnvS_095", "On"}, {"WLB_50_EnvS_112", "On"}, {"WLB_50_EnvS_233", "On"}, {"Xion_10_EnvS_195", "On"}};
+  for (const auto &[a, t] : map)
+    assert(state_allowed(a, t));
+  for (const auto &[a, t] : hint)
+    assert(state_allowed(a, t));
+  // The pipe puzzle's water gate opens and enables; the trap floor's scaffolding.
+  assert(object_state_allowed("ME_04_EnvS_099") && state_allowed("ATL_01_EnvS_134", "On") &&
+         state_allowed("ATL_01_EnvS_146", "On"));
+  // Still out: the passcode doors (album), Xion_10_EnvS_101's A (Teddy's storage door, the WLB passcode album entry),
+  // Xion_22_EnvS_002's A (the hyperdrive, achievement Xion_Phase_2), an ActivateHint, a GuideAction.
+  for (const char *a : {"ATL_03_EnvS_090", "DED10_EnvS_040", "DED10_EnvS_122", "DED20_EnvS_077", "DED20_EnvS_215",
+                        "ME_05_EnvS_014", "SE_01_EnvS_027", "SE_01_EnvS_048", "SE_06_EnvS_020"})
+    assert(!state_allowed(a, "On"));
+  assert(!state_allowed("Xion_10_EnvS_101", "A") && !state_allowed("Xion_22_EnvS_002", "A") &&
+         !state_allowed("SE_09_EnvS_017", "A") && !state_allowed("DED10_EnvS_155", "On"));
+}
+
 } // namespace
 
 int main() {
   test_sorted();
   test_ends_and_misses();
   test_rules();
+  test_progress_and_hints();
   std::printf("world rows: %zu pairs, %zu SetEnvActive rows, %zu ZoneEvent rows, ok\n", std::size(kPairs),
               std::size(kObjectState), std::size(kEvents));
 }

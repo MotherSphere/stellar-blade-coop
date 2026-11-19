@@ -28,7 +28,10 @@ ChangeState runs for it, followed through AddEvents, FinishEvents and the events
 among them sets, reach a type that acts on the player, her items or her story (PLAYER_EVENTS), or when that state, or
 one an env control row among them sets, has a ChangeState achievement: ChangeState credits it to the caster, and the
 receiver applies with her own player as caster. The same holds when an EnvState quest task waits for that state: the
-task tests only the env and its state, so a line would complete it outside the shared quests' rules. A row goes on the
+task tests only the env and its state, so a line would complete it outside the shared quests' rules. A ChangeState
+achievement whose name marks map progress (MAP_PROGRESS) and that progresses no other achievement holds nothing out:
+the receiver credits it to her own player only while she is in that zone. A hint completion (CompleteHint) holds
+nothing out either: a shared door closes its hint in both games. A row goes on the
 SetEnvActive list only when every one of its states is kept, so a forwarded Disable never locks a lever whose state
 change stayed local. A ZoneEvent row is kept when it and every row it chains to are env control rows, none names a
 camp, each names a kept row, every tag it can set (its TagName, and for a progress control its env's progress change
@@ -61,11 +64,15 @@ TYPES = {'ESBENV_Camp', 'ESBENV_Can', 'ESBENV_NikkeDefenseArea', 'ESBENV_NikkeLo
          'ESBENV_NikkeLostGoods_Request'}
 TROPHIES = {'Trophy_Open_AllBox', 'Trophy_Acquire_AllRecords'}
 CAMP = re.compile(r'Env_(Camp_|SaveCamp)')
-# Zone event types that move the player (PlayerWarp, ChangeZone), play a scene, the UI or a hint on her screen, change
-# her items, her quests, her camps or her boss challenge, or her session.
-PLAYER_EVENTS = {'Theater', 'UIAction', 'GuideAction', 'CompleteHint', 'ActivateHint', 'Item', 'AcquireQuest',
-                 'InteractCamp', 'FinishBossChallenge', 'PlayerWarp', 'ChangeZone', 'ItemAction', 'StartMatchMaking',
+# Zone event types that move the player (PlayerWarp, ChangeZone), play a scene, the UI or a new hint on her screen,
+# change her items, her quests, her camps or her boss challenge, or her session. CompleteHint is not one: a shared door
+# closes its hint in both games.
+PLAYER_EVENTS = {'Theater', 'UIAction', 'GuideAction', 'ActivateHint', 'Item', 'AcquireQuest', 'InteractCamp',
+                 'FinishBossChallenge', 'PlayerWarp', 'ChangeZone', 'ItemAction', 'StartMatchMaking',
                  'StopMatchMaking', 'ReturnToSinglePlay'}
+# The ChangeState achievements that mark map progress by name: an env's own (..._ChangeStateZoneEnv_...) or a zone's
+# guide (ChangeState_ZoneEnv_..._Guide).
+MAP_PROGRESS = re.compile(r'_ChangeStateZoneEnv_|^ChangeState_ZoneEnv_.*_Guide$')
 CAMERA = {'ResetCam', 'ChangeCam'}
 ENV_CONTROL = 'ZoneEnvControl'
 STATE_CONTROL = {'ESBZoneEnvCtrlType_BaseState'}  # Every other control type but a camp's may move progress.
@@ -188,11 +195,20 @@ def story_aliases(t):
             if kind(row) == ENV_CONTROL and row['EventAlias'] in controls} - {'None'}
 
 
+def map_progress(name, row):
+    """True when an AchievementTable row marks map progress only: its name matches MAP_PROGRESS and it progresses no
+    other achievement."""
+    return (bool(MAP_PROGRESS.search(name)) and row['ProgressAchievementOnCompleted'] == 'None'
+            and row['ProgressAchievementOnCompleted2'] == 'None'
+            and all(x == 'None' for x in row['ProgressAchievementArrayOnCompleted']))
+
+
 def change_state_achievements(t):
-    """The ChangeState achievements by (EnvSpawnAlias, tag): the tag None when the row names no state."""
+    """The ChangeState achievements by (EnvSpawnAlias, tag): the tag None when the row names no state. Map progress
+    (map_progress) is left out."""
     out = set()
-    for r in t['AchievementTable'].values():
-        if enum(r['EventType']) != 'ESBAchievementEventType_ChangeState':
+    for name, r in t['AchievementTable'].items():
+        if enum(r['EventType']) != 'ESBAchievementEventType_ChangeState' or map_progress(name, r):
             continue
         params = [(enum(r[f'ParamType{n}']), r[f'ParamValue{n}']) for n in range(1, 5)]
         tags = [v for k, v in params if k == 'ESBAchievementParamType_EnvState'] or [None]
