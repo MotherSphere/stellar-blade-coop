@@ -17,7 +17,7 @@ Config.DEFAULTS={
     key='G',
     pad_tap=0.4,
     fire_interval=0.045, -- The NIKKE shot skill's cool time while the rifle is out (SB ships 0.11 s).
-    -- The rifle's round (gunmode/ammo.lua): its name on the reticle's round slot, the magazine, the reload.
+    -- The rifle's round (fight/gunmode/ammo.lua): its name on the reticle's round slot, the magazine, the reload.
     round_name='NIKKE RAPID',reload_text='RELOADING',empty_text='NO AMMO',round_color={0.35,0.85,1.0},
     reload_color={1.0,0.62,0.15},
     mag_size=60,spare_mags=5,reload_time=1.6,reload_delay=1.0,
@@ -60,7 +60,7 @@ Config.DEFAULTS={
     -- LMB / RT: the drone's shot), with its strafing movement, camera and reticle; only the sword is masked.
     native_mask_on_keys={'AttackLight','AttackStrong','SpecialCommand1','SpecialCommand2','Item_UseBullet'},
     aim_from='LeftControl',aim_to='RightMouseButton', -- The game's keyboard aim key, moved while the rifle is out.
-    native_torso=0, -- In the game's aim: how much her spine takes the NIKKE pose (gunmode/stance.lua; off: the arms
+    native_torso=0, -- In the game's aim: how much her spine takes the NIKKE pose (fight/gunmode/stance.lua; off: the arms
                     -- are placed along the camera instead, and her head stays the real one's).
     start_min_forward=25, -- The shot starts at the rifle's muzzle only when it is this far ahead of her (cm),
     start_fallback={X=45,Y=22,Z=55}, -- else here: forward, right, up from her centre (her right shoulder).
@@ -122,7 +122,7 @@ function Config.parse(text)
     v=get(text,'gun_carry_idle'); if v and tonumber(v) then out.carry_idle_type=tonumber(v) end
     v=get(text,'gun_probe')
     if v then out.probe=v:lower()=='on' end
-    v=get(text,'gun_facts') -- (dev only) the Phase 0 facts probe, gunmode/facts.lua
+    v=get(text,'gun_facts') -- (dev only) the Phase 0 facts probe, fight/gunmode/facts.lua
     if v=='on' then out.facts=true end
     v=get(text,'gun_trace') -- (testing) step log around reloads and aim changes
     if v then out.trace=v:lower()=='on' end

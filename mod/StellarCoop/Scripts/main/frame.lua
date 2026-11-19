@@ -98,6 +98,8 @@ LoopInGameThreadWithDelay(1,function()
     if message then M.report(ok,message) end
     ok,message=M.guarded('emote',M.emote.tick)
     if message then M.report(ok,message) end
+    ok,message=M.guarded('gun',M.gun.tick)
+    if message then M.report(ok,message) end
     local raced=os.clock()
     if M.link and M.race.armed() then M.guarded('inbox',M.inbox) end
     ok,message=M.guarded('race',M.race.tick) -- After the look: its Doros and HUD from where EVE is drawn this frame.

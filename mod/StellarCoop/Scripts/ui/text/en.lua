@@ -137,7 +137,7 @@ return {
         ['online.photo']='Synced photo mode',['fight.enemies']='Shared enemies',['story.quests']='Shared quests',
         ['world.objects']='Shared world',['story.together']='Story together',['online.lobby']='The SBO lobby',
         ['vehicles.bike']='The bike',['world.daynight']='Day and night',['tools']='Cut menus',
-        ['online.saves']='Co-op saves'},
+        ['online.saves']='Co-op saves',['fight.gunmode']='Gun mode'},
     -- The shared enemies' notices (main.lua): on, off, stopped, and what keeps coop fight on from sharing (%s: her
     -- name). The title question's buttons are saves.convert and saves.play.
     fight={on='Shared enemies on: %d enemies linked.',one='Shared enemies on: 1 enemy linked.',
@@ -211,6 +211,8 @@ return {
         paying='Paying %d %s for your bike.',paid='Your bike was brought here for %d %s.',
         poor='Not enough %s: %d needed, you carry %d.',
         unpaid='Your bike was not brought here. UE4SS.log says why.'},
+    -- Gun mode's notice (fight/gunmode/mode.lua) while it is parked for its rebuild: G shows it and does nothing else.
+    gun={rebuilding='Gun mode: rebuilding'},
     -- Night Operation's run (online/modes/nightop/run.lua): its card at the top centre (the title, then the countdown,
     -- the wave or the next wave's countdown, each with the time left and the score), its result panel (the heading, the
     -- line under it, the rows) and its notices while the UI is off. success, fail and died are the game's own words,

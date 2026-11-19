@@ -4,10 +4,10 @@
 -- Gun mode's pure parts with lua5.4 alone: its settings lines, the polled keys' edges and taps, the crosshair point in
 -- EVE's frame, and the rifle's magazine (rounds, reloads, the HUD count, running dry, a refill).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
-local Config=require('gunmode.config')
-local Input=require('gunmode.input')
-local Aim=require('gunmode.aim')
-local Ammo=require('gunmode.ammo')
+local Config=require('fight.gunmode.config')
+local Input=require('fight.gunmode.input')
+local Aim=require('fight.gunmode.aim')
+local Ammo=require('fight.gunmode.ammo')
 local close=function(a,b,eps) return math.abs(a-b)<=(eps or 1e-6) end
 
 -- 1. Settings: defaults with no file; the last line wins, names in any case, a BOM and CRLF; bad values refused.

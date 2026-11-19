@@ -37,7 +37,7 @@ return function(pawn,gun,mathlib)
  end
  local pawnClass=StaticFindObject('/Script/Engine.Pawn')
  local function update(target)
-  -- gun mode: the end on where the rounds go (the crosshair's point), when gunmode/mode.lua has it.
+  -- gun mode: the end on where the rounds go (the crosshair's point), when fight/gunmode/mode.lua has it.
   if target then instance:SetVectorParameter('LaserPosition',target);return end
 
   local origin=gun:GetSocketLocation(socket)

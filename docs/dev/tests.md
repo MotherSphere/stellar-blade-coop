@@ -32,8 +32,8 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `wiring_cycle`, `wiring_dlc`; `online/session/ui/`: `create`, `create_model`, `sessions`, `sessions_model`;
 `world/daynight/`: `daynight`, `off`, `rule`, `wiring`; `story/together/`: `off`, `snapshot`, `wiring`, `wiring_dump`;
 `ui/`: `text`; `ui/kit/`: `guide`, `hud_parts`, `kit`, `model`, `notice`, `pause_tab`; `ui/text/`: `culture`;
-`world/objects/`: `off`, `wiring`; `gunmode/`: `helpers`, `mode`) run the scripts, with fake UE4SS objects for those
-that call the engine. In the capture test, any write to the fake EVE fails the test. The `main/` tests load
+`world/objects/`: `off`, `wiring`; `fight/gunmode/`: `helpers`, `off`) run the scripts, with fake UE4SS objects for
+those that call the engine. In the capture test, any write to the fake EVE fails the test. The `main/` tests load
 `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with its
 name.
 
@@ -49,14 +49,10 @@ name.
   the top speed after 3.9 s, a real top of about 2252 cm/s, 15.8 m of braking from the top, reverse after 0.3 s at a
   stop, the yaw rate and lean at full lock at five speeds, the drift's 42-degree slip cap, a wall, the air, a ramp
   launch only after 0.12 s of climb, the pitch, root motion holding the state and the values' bounds;
-- `gunmode/helpers_test` covers gun mode's pure parts: its three `coop-settings.txt` lines (defaults, the last line
-  winning, refusals), the rows it fires with and without real ammo, the polled keys' edges and D-pad Right's tap (a
-  hold is the bike's), the crosshair point in EVE's frame, the laser's nearest hit, the pose's quaternion helpers and
-  elbow turn, the montage filter and the pak search;
-- `gunmode/mode_test` runs `gunmode/mode.lua` over a fake UE4SS and a fake EVE whose stance follows the rows: off
-  without its pak or with `gun_mode=off`; G on (the rows in order, standing, TPS mode 0, the shoulder camera, the
-  NIKKE row on the drone frame), LMB full auto with each round at the crosshair point, Y crouched and back, Shift's
-  roll, the pose loop's error kept inside it, G off (everything put back, the off rows again) and D-pad Right's tap;
+- `fight/gunmode/helpers_test` covers gun mode's pure parts: its `coop-settings.txt` lines (defaults, the last line
+  winning, refusals), the polled keys' edges and D-pad Right's tap (a hold is the bike's), the crosshair point in EVE's
+  frame and the rifle's magazine (a round per cool time, the reload when empty or lowered part-spent, the HUD count, no
+  round once the spares are spent, a refill);
 - `vehicles/bike/ride_test` covers `vehicles/bike/ride.lua` over a fake EVE and native part: the preload asked once and
   released at `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every
   mount refusal with its reason and nothing written, the mount's order and the dismount backward, the lean (the math

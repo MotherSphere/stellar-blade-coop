@@ -5,13 +5,13 @@
 -- gun mode is out and put back at put_back() (a new world), so the NIKKE missions find them as shipped. No row is
 -- added (UE4SS's AddRow is not used).
 -- * EventActorEffectTable: Nikke_01_E_ActorEff_015 (a NIKKE mission's cover row) applies M_Scarlet_CounterLinkStart;
---   gunmode/mode.lua fires it as a zone event for each shot.
+--   fight/gunmode/mode.lua fires it as a zone event for each shot.
 -- * EffectTable: M_Scarlet_CounterLinkStart (0.1 s on self, one UseSkill action) starts P_Eve_GunNikke_ShootSlug1_1,
 --   the NIKKE shot. Its ActionValue1 is an FString: an FName written there crashed the game (11-17).
 -- * SkillCommandTable: the NIKKE fire commands ShootSlug1_1 and _2 take the burst shot's command type
 --   (RangedFireSkill: no check of the equipped bullet), as zNikkeGunMode_P did.
 -- * SkillActiveStepTable: the shot's Hit1 step takes its Cast1 step's type (fires its projectile, spends no round).
--- * Native fire (gunmode/mode.lua's firing mode on the game's own aim): the drone's normal fire commands
+-- * Native fire (fight/gunmode/mode.lua's firing mode on the game's own aim): the drone's normal fire commands
 --   (P_Eve_Gun_Shoot*, every round's) start the NIKKE shot skill instead of the drone's, with the burst's command type
 --   (no round spent) and no "not while jumping" check (bJumping takes bWallRun's None).
 -- Neither Survival Protocol's pak nor any gun mode pak is needed.
@@ -154,7 +154,7 @@ function Data.new(g,native,opts)
                         end
                     end
                 end
-                -- Jumping in the aim (gunmode/mode.lua launches her): a jump no longer ends the aim stance
+                -- Jumping in the aim (fight/gunmode/mode.lua launches her): a jump no longer ends the aim stance
                 -- (Condition_Jumping as EVE's default stance has it).
                 local def=g.try(function() return tbl('CharacterStanceTable'):FindRow('P_Eve_Default') end)
                 local none=def and g.try(function() return def.Condition_Jumping end)
@@ -180,7 +180,7 @@ function Data.new(g,native,opts)
                         end
                     else g.log('data: no CharacterAnimSetTable row P_Eve_Gun_Battle') end
                 end
-                -- The rifle carried, by a custom moving stance (gunmode/mode.lua): its OverrideStanceAnim names an
+                -- The rifle carried, by a custom moving stance (fight/gunmode/mode.lua): its OverrideStanceAnim names an
                 -- animation set row she has never loaded (the game keeps a set once loaded, so her own rows can't be
                 -- changed in play). A spare NPC row is filled with P_Eve_Peaceful's fields and the rifle swaps.
                 if pak and pak.carry and self.opts.carry_ovr=='auto' then
@@ -238,7 +238,7 @@ function Data.new(g,native,opts)
                     end
                 end
             end
-            -- The NIKKE bullet starts from a point gunmode/mode.lua keeps on the rifle's muzzle: its start the
+            -- The NIKKE bullet starts from a point fight/gunmode/mode.lua keeps on the rifle's muzzle: its start the
             -- same kind of point as its destination (EVE's base and an offset in her yaw frame), not the
             -- SC_GunShoot socket of the NIKKE rifle the game attaches only in the NIKKE stance (outside it the
             -- shot left from the drone, 00:24).
@@ -246,7 +246,7 @@ function Data.new(g,native,opts)
             local nr=row(pt,Data.NIKKE_PROJECTILE)
             local dr=row(pt,Data.DRONE_PROJECTILE)
             for _,f in ipairs({'StartTargetTransformType','StartTargetRelativeAxisType','DestTargetTransformType',
-                    'DestTargetRelativeAxisType'}) do -- The Dest pair: gunmode/aim.lua sets it next.
+                    'DestTargetRelativeAxisType'}) do -- The Dest pair: fight/gunmode/aim.lua sets it next.
                 saved[#saved+1]={nr,f,nr[f]}
             end
             local dl=nr.DestTargetRelativeLocation

@@ -28,7 +28,7 @@ Input.ZOOM={'RightMouseButton','Gamepad_LeftTrigger','LeftAlt','LeftControl'}
 Input.TOGGLE_PAD,Input.PAD_SHOULDER='Gamepad_DPad_Right','Gamepad_RightShoulder'
 
 -- What the player asks this poll, from down(name) (the key's state) and the previous states in s: {toggle (D-pad
--- Right's tap), key (gun_key pressed), fire (held), zoom (held)}, for cfg (gunmode/config.lua's DEFAULTS) and key
+-- Right's tap), key (gun_key pressed), fire (held), zoom (held)}, for cfg (fight/gunmode/config.lua's DEFAULTS) and key
 -- (UE's key name, 'G' or 'F4').
 function Input.read(s,down,now,cfg,key)
     local function any(names) for _,n in ipairs(names) do if down(n) then return true end end return false end

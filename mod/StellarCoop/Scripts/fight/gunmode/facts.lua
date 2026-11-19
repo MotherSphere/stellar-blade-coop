@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Phase 0 facts probe (dev builds only: gun_facts=on in coop-settings.txt; release_check.lua refuses it). Read-only
--- except F8, which plays one vanilla clip through a montage slot on a key press. Runs from gunmode/mode.lua's tick
+-- except F8, which plays one vanilla clip through a montage slot on a key press. Runs from fight/gunmode/mode.lua's tick
 -- (the game thread), never from a key bind. Logs [GM] facts ... lines.
 --   F5/F6  once, 5 s after EVE is in the world: her mesh components, anim classes (with parents), the post-process
 --          instance and asset, and properties named like invincibility on the pawn and the anim instance.

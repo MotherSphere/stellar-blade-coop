@@ -2,14 +2,14 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop gun: gun mode on or off, as its key does; coop gun status: on or off, standing or crouched, its key, real ammo,
--- the pose and whether its paks were found. main.lua merges this into its command table. gun(): gunmode/mode.lua's
+-- the pose and whether its paks were found. The loader merges this into M.commands. o.gun(): fight/gunmode/mode.lua's
 -- object, or nil when gun mode failed to build.
 local Commands={}
 local USE='Use: coop gun [status]'
-function Commands.new(gun)
+function Commands.new(o)
     local self={}
     function self.gun(sub,extra)
-        local g=gun()
+        local g=o.gun()
         if not g then return false,'gun mode did not start: see [StellarCoop][GM] in UE4SS.log' end
         if sub==nil then
             local ok,e=pcall(g.toggle_now)

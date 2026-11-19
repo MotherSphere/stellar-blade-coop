@@ -72,11 +72,12 @@ assets, sounds or animations.
 GUN MODE
 
 Gun mode's rifle stance and laser sight
-(mod/StellarCoop/Scripts/gunmode/stance.lua and gunmode/laser.lua) are
-luke77's RifleStance, which Lucas (luke77) contributed to this project in
-the commit "feat: add standing rifle stance and aiming laser". Gun mode
-around them is by SchizoEffective. gunmode/nikke_rifle.png is the rifle of
-the game's NIKKE minigame and belongs to SHIFT UP.
+(mod/StellarCoop/Scripts/fight/gunmode/stance.lua and
+fight/gunmode/laser.lua) are luke77's RifleStance, which Lucas (luke77)
+contributed to this project in the commit "feat: add standing rifle stance
+and aiming laser". Gun mode around them is by SchizoEffective.
+gunmode/nikke_rifle.png is the rifle of the game's NIKKE minigame and
+belongs to SHIFT UP.
 
 THIRD-PARTY COMPONENTS
 

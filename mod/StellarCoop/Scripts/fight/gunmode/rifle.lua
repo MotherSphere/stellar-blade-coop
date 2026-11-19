@@ -3,9 +3,9 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode (11-18 rebuild): the NIKKE rifle in EVE's real right hand, nothing else. Her body is never copied or posed:
 -- while the rifle is out the animation pak's rifle set plays on her real body through the game's own animation
--- blueprint (gunmode/data.lua points her animation sets' blend spaces and aim offset at it), so she carries, runs,
+-- blueprint (fight/gunmode/data.lua points her animation sets' blend spaces and aim offset at it), so she carries, runs,
 -- strafes and aims with the rifle in her hands and her left hand on it, on one skeleton, for her and for co-op partners.
--- Same interface as gunmode/stance.lua (start, frame, stop, running, reload, owns, copy, body) so gunmode/mode.lua
+-- Same interface as fight/gunmode/stance.lua (start, frame, stop, running, reload, owns, copy, body) so fight/gunmode/mode.lua
 -- drives it unchanged.
 local Rifle={}
 local function valid(o) return o~=nil and pcall(function() return o:IsValid() end) and o:IsValid() end
@@ -14,7 +14,7 @@ local function valid(o) return o~=nil and pcall(function() return o:IsValid() en
 -- ngm_bl_rifle1: the NIKKE shot's grip, the barrel through her support hand). UE units (cm), the bone's frame.
 Rifle.GRIP={Translation={X=-1.17,Y=-5.68,Z=2.09},Rotation={X=0.3426,Y=0.5891,Z=0.4513,W=0.5761},Scale3D={X=1,Y=1,Z=1}}
 
--- laser: gunmode/laser.lua's function (pawn, rifle, mathlib) -> beam(target), finish().
+-- laser: fight/gunmode/laser.lua's function (pawn, rifle, mathlib) -> beam(target), finish().
 function Rifle.new(laser,trace,grip)
     local function crumb(t) if trace then trace('crumb '..t) end end
     local self={single=true}
@@ -56,7 +56,7 @@ function Rifle.new(laser,trace,grip)
     function self.copy() return true end
     function self.body() return nil end
 
-    -- The reload: a quick tilt of the rifle in her hands while the reload runs (sounds and timing are gunmode/mode.lua's).
+    -- The reload: a quick tilt of the rifle in her hands while the reload runs (sounds and timing are fight/gunmode/mode.lua's).
     function self.reload(on,duration)
         if not st then return false end
         if on then st.reloading,st.reloadAt,st.reloadLen=true,os.clock(),(duration and duration>0) and duration or 1

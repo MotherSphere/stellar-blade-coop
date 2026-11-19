@@ -39,6 +39,7 @@ category folders (`online/`, `online/modes/`, `fight/`, `world/`, `world/maps/`,
 | `world.daynight` | Day and night | `world/daynight/` | `world/daynight/` | [Day and night](../world/daynight-internals.md) | |
 | `tools` | Cut menus | `tools/` | `tools/` (`items.h` and its part) | [Cut menus and the mailbox](../tools/menus.md) | |
 | `online.saves` | Co-op saves | `online/saves/` | `online/saves/` | [Saves](../players/saves.md) | |
+| `fight.gunmode` | Gun mode | `fight/gunmode/` | none | [Gun mode](../fight/gunmode.md) | |
 
 ## Shared pieces
 

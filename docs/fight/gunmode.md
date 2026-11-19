@@ -3,6 +3,8 @@
 Gun mode gives EVE the NIKKE DLC's rifle outside its missions, on any save, as a third-person shooter. It is
 experimental: it has been played on one PC only, not yet between two players.
 
+Gun mode is parked while it is rebuilt: G shows a notice and does nothing else.
+
 ## What you need
 
 Gun mode runs on SBO alone, with no paks. While it is on, it changes a few fields of the game's own data tables in
@@ -83,8 +85,9 @@ Gun mode reads these lines of `coop-settings.txt` itself:
 
 ## Credits
 
-- The rifle stance (`gunmode/stance.lua`) and the laser sight (`gunmode/laser.lua`) started as luke77's RifleStance,
-  which Lucas (luke77) contributed to this project in the commit "feat: add standing rifle stance and aiming laser".
+- The rifle stance (`fight/gunmode/stance.lua`) and the laser sight (`fight/gunmode/laser.lua`) started as luke77's
+  RifleStance, which Lucas (luke77) contributed to this project in the commit "feat: add standing rifle stance and
+  aiming laser".
 - Gun mode around them is by SchizoEffective.
 - The NIKKE rifle, its icon (`gunmode/nikke_rifle.png`), its shot, its animations and its sounds are the game's own
   and belong to SHIFT UP.

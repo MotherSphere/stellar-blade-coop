@@ -29,8 +29,8 @@ function Ammo.step(c,dt)
 end
 
 -- g: gun mode's shared state (log, try, valid). cfg: mag_size, reload_time, fire_interval, round_name, round_color,
--- reload_text. cool(v): sets the shot's cool time (gunmode/data.lua).
--- on_reload(on, duration): the reload's animation and sound (gunmode/mode.lua).
+-- reload_text. cool(v): sets the shot's cool time (fight/gunmode/data.lua).
+-- on_reload(on, duration): the reload's animation and sound (fight/gunmode/mode.lua).
 function Ammo.new(g,cfg,cool,on_reload,dpad)
     local self={left=cfg.mag_size,reserve=cfg.mag_size*cfg.spare_mags,reload_until=nil,acc=0,dt=1/60,held=false}
     on_reload=on_reload or function() end

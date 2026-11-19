@@ -1,6 +1,6 @@
 # Gun mode tools
 
-The mod does not run these scripts (see [Gun mode](../../docs/gun-mode.md)). They made the standing rifle set of an earlier build from the game's files on your own PC. Nothing they make goes
+The mod does not run these scripts (see [Gun mode](../../docs/fight/gunmode.md)). They made the standing rifle set of an earlier build from the game's files on your own PC. Nothing they make goes
 into this repository. They expect a tools folder laid out as `NGM_TOOLS` (default `%USERPROFILE%\Downloads\Modding
 Tools`): `NikkeGunBuild\` for gun mode's work files, `OutfitWork\` for the shared Blender FBX exporter (`sbfbx_5`).
 
@@ -13,5 +13,6 @@ Tools`): `NikkeGunBuild\` for gun mode's work files, `OutfitWork\` for the share
 The Mixamo animations are Adobe's and come under Mixamo's terms. They are not in this repository: the script reads
 them from your own download.
 
-`data/gunmode/patches/` holds the row changes (`EventActorEffectTable`, `EventItemActionTable`, `SkillCommandTable`)
-that an earlier build packed into paks. `gunmode/data.lua` makes its row changes in memory.
+The row changes an earlier build packed into paks (`EventActorEffectTable`, `EventItemActionTable`,
+`SkillCommandTable`) are not in this repository: they are Stellar Blade's own table rows. `fight/gunmode/data.lua` makes
+its row changes in memory.

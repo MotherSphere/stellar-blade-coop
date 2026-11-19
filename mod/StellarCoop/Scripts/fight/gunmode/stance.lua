@@ -5,12 +5,12 @@
 -- her own animation (her own legs, hips and movement), a poseable copy of her mesh takes the arms of the NIKKE hide
 -- pose so the rifle (a poseable GunNikke_Weapon at the grip) rides at her chest, and while aim is held she turns to
 -- the camera and the rifle comes up to it. Only these changed, each marked "gun mode:": begin takes the controller,
--- the held test and the laser's end from gunmode/mode.lua; the input mask is mode.lua's. His F7 key bind and LoopAsync are gone: mode.lua calls start, frame and stop from its game-thread
+-- the held test and the laser's end from fight/gunmode/mode.lua; the input mask is mode.lua's. His F7 key bind and LoopAsync are gone: mode.lua calls start, frame and stop from its game-thread
 -- loop (two threads in one Lua state crashed UE4SS).
 local Stance={}
 local function valid(o)return o and o:IsValid() end
 
--- laser: gunmode/laser.lua's function. Returns {start(pc,held_fn,beam_target) -> the rifle component, frame(),
+-- laser: fight/gunmode/laser.lua's function. Returns {start(pc,held_fn,beam_target) -> the rifle component, frame(),
 -- stop(), running()}.
 function Stance.new(laser,trace)
  local function crumb(t) if trace then trace('crumb '..t) end end -- (gun_probe=on) steps around reloads and aim changes
@@ -79,7 +79,7 @@ function Stance.new(laser,trace)
    return c
   end
   assert(not pawn.bTPSMode,"Release campaign aim before enabling")
-  -- gun mode: the input mask is gunmode/mode.lua's (TPSMode and the fire and zoom keys).
+  -- gun mode: the input mask is fight/gunmode/mode.lua's (TPSMode and the fire and zoom keys).
   local body=component('PoseableMeshComponent',src.SkeletalMesh)
   body:K2_AttachToComponent(src,FName('None'),2,2,2,false)
   for slot=0,src:GetNumMaterials()-1 do
@@ -197,7 +197,7 @@ function Stance.new(laser,trace)
     local ref=donor:GetSocketTransform(tip,0)
     for i,b in ipairs(aimBones) do coverOffsets[i]=mathlib:MakeRelativeTransform(donor:GetSocketTransform(b,0),ref) end
    end
-   local held=held_fn() -- gun mode: RMB / LT (and Luke's Alt, Ctrl), from gunmode/mode.lua.
+   local held=held_fn() -- gun mode: RMB / LT (and Luke's Alt, Ctrl), from fight/gunmode/mode.lua.
    -- gun mode: the rifle comes down to reload (her arms then follow the donor's); with aimNative she stays on her
    -- real body and the reload plays on its upper body (switching bodies mid-reload crashed, 11:27).
    -- gun mode: a reload while aim is held keeps the aim and gives the rifle a quick tilt in her hands (below); the
@@ -206,7 +206,7 @@ function Stance.new(laser,trace)
    -- (12:17: the donor's reload while running put her arms behind her back; every reload is the tilt now)
    local aimReload=reloading
    -- gun mode (aimNative): while aim is held the game's own animation shows (the aim stance's upper body made the
-   -- NIKKE rifle's by gunmode/data.lua): her real body visible, the rifle on its right hand, nothing posed; the
+   -- NIKKE rifle's by fight/gunmode/data.lua): her real body visible, the rifle on its right hand, nothing posed; the
    -- posed copy comes back when aim is let go.
    if aimNative then
     if held and not onReal then

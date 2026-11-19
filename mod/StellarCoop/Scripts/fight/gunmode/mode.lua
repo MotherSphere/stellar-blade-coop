@@ -2,28 +2,27 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode: the NIKKE DLC's rifle in EVE's hands on any save, on luke77's rifle stance. G (gun_key) or a tap of
--- D-pad Right brings the rifle out or puts it away. Out, EVE runs and jumps as Luke's stance has her (gunmode/
+-- D-pad Right brings the rifle out or puts it away. Out, EVE runs and jumps as Luke's stance has her (fight/gunmode/
 -- stance.lua: her own animation, the rifle at her chest). Holding RMB / LT is firing mode: the camera comes in over her
 -- right shoulder, she turns to the camera and brings the rifle up with its laser sight on, and LMB / RT fires full
 -- auto at the point under the screen centre. Letting go goes back to Luke's movement. Logged as [StellarCoop][GM].
--- How: each shot is the NIKKE shot skill, started by a zone event through SB's own rows (gunmode/data.lua), its
--- bullet sent to the crosshair's point (gunmode/aim.lua). While the rifle is out the sword's attacks and the drone's
+-- How: each shot is the NIKKE shot skill, started by a zone event through SB's own rows (fight/gunmode/data.lua), its
+-- bullet sent to the crosshair's point (fight/gunmode/aim.lua). While the rifle is out the sword's attacks and the drone's
 -- aim on the fire and zoom keys are masked in memory (never saved; put back when it goes away).
 -- Gun mode is a module of its own: it reads its own coop-settings.txt lines and uses nothing of the rest of the mod;
--- main.lua only builds and starts it, inside a pcall. All of it runs on the game thread, from one
--- LoopInGameThreadWithDelay loop (every frame): no LoopAsync, ExecuteWithDelay or key bind, whose callbacks run Lua on
--- another thread (two threads in one Lua state crashed UE4SS, 11-17). Every step is wrapped, so an error in gun mode
+-- fight/gunmode/wiring.lua builds it and registers its controller hook. All of it runs on the game thread, from
+-- main/frame.lua's loop (every frame) and the hook: no LoopAsync, ExecuteWithDelay or key bind, whose callbacks run Lua
+-- on another thread (two threads in one Lua state crashed UE4SS, 11-17). Every step is wrapped, so an error in gun mode
 -- never reaches the rest of the mod.
-local Config=require('gunmode.config')
-local Aim=require('gunmode.aim')
-local Input=require('gunmode.input')
-local Stance=require('gunmode.stance')
-local Rifle=require('gunmode.rifle')
-local Laser=require('gunmode.laser')
-local Data=require('gunmode.data')
-local Probe=require('gunmode.probe')
-local Ammo=require('gunmode.ammo')
-local Dpad=require('gunmode.dpad')
+local Config=require('fight.gunmode.config')
+local Aim=require('fight.gunmode.aim')
+local Input=require('fight.gunmode.input')
+local Stance=require('fight.gunmode.stance')
+local Rifle=require('fight.gunmode.rifle')
+local Laser=require('fight.gunmode.laser')
+local Data=require('fight.gunmode.data')
+local Probe=require('fight.gunmode.probe')
+local Ammo=require('fight.gunmode.ammo')
 
 local GunMode={}
 
@@ -49,7 +48,8 @@ end
 -- a eased toward b by share k.
 function GunMode.ease(a,b,k) return a+(b-a)*k end
 
--- env: {log, folder (the mod folder: coop-settings.txt), read_all (a file's text; io.open's unless given)}.
+-- env: {log, folder (the mod folder: coop-settings.txt), read_all (a file's text; io.open's unless given), notice (the
+-- rebuilding notice on screen)}.
 function GunMode.new(env)
     local cfg=Config.DEFAULTS
     local whole=env.read_all or read_all
@@ -75,8 +75,8 @@ function GunMode.new(env)
     end
     if set.fire_key then Input.FIRE[#Input.FIRE+1]=set.fire_key end
     local aim,data=Aim.new(g),Data.new(g,set.native,{speed=cfg.native_speed,upper=set.upper and 'P_Eve_GunNikke' or nil,cool=cfg.fire_interval,bs=set.bs})
-    -- The rifle: with the animation pak, gunmode/rifle.lua (the rifle in her real hand; the pak's rifle animations play on
-    -- her real body); without it, Luke's posed stance (gunmode/stance.lua).
+    -- The rifle: with the animation pak, fight/gunmode/rifle.lua (the rifle in her real hand; the pak's rifle animations play on
+    -- her real body); without it, Luke's posed stance (fight/gunmode/stance.lua).
     local posed=Stance.new(Laser,set.trace and g.log or nil)
     local single=Rifle.new(Laser,set.trace and g.log or nil)
     local stance=posed
@@ -425,7 +425,7 @@ function GunMode.new(env)
     end
 
     -- The rifle carried: a custom moving stance with no force whose OverrideStanceAnim is the carry animation set
-    -- (gunmode/data.lua fills it); off while she aims, so the aim stance's own set plays.
+    -- (fight/gunmode/data.lua fills it); off while she aims, so the aim stance's own set plays.
     local function carry(p,on)
         if on and s.ovr_row and not s.ovr then
             s.ovr=pcall(function()
@@ -600,10 +600,7 @@ function GunMode.new(env)
         if cfg.enabled==false then
             if s.on then disable(why) end
             g.log('toggle ('..why..'): gun mode is being rebuilt, off')
-            if not s.notice_off then
-                local ok,off=pcall(function() return require('cut.mailbox').toast('Gun mode: rebuilding') end)
-                if ok and type(off)=='function' then s.notice_off,s.notice_at=off,now end
-            end
+            if not (s.notice_at and now-s.notice_at<3) and env.notice and pcall(env.notice) then s.notice_at=now end
             return
         end
         if s.on then disable(why) else enable(why) end
@@ -639,9 +636,8 @@ function GunMode.new(env)
         local function down(name) return g.try(function() return pc:IsInputKeyDown({KeyName=FName(name)}) end)==true end
         local inp=Input.read(keys,down,now,cfg,set.key)
         if inp.key then self.toggle(set.key) elseif inp.toggle then self.toggle('D-pad Right') end
-        if s.notice_off and now-s.notice_at>=3 then pcall(s.notice_off); s.notice_off=nil end
         if set.facts then
-            s.facts=s.facts or require('gunmode.facts').new(g)
+            s.facts=s.facts or require('fight.gunmode.facts').new(g)
             local ok,e=pcall(s.facts.tick,pc,g.pawn(),down,now)
             if not ok and not s.facts_err then s.facts_err=true; g.log('facts: '..tostring(e)) end
         end
@@ -680,7 +676,7 @@ function GunMode.new(env)
             end
             pcall(fov,pc,s.zoom_held)
             -- Jumping in firing mode: the game's aim takes no jump input, so a press of the jump key (Space / pad A)
-            -- makes her jump (her movement's jump speed, launched); the aim stance stays through the jump (gunmode/data.lua).
+            -- makes her jump (her movement's jump speed, launched); the aim stance stays through the jump (fight/gunmode/data.lua).
             local jump=down('SpaceBar') or down('Gamepad_FaceButton_Bottom')
             if jump and not s.jump_down and s.zoom_held then
                 -- SB's movement refuses ACharacter::Jump in its aim: the jump's own launch instead, on the ground only.
@@ -744,39 +740,35 @@ function GunMode.new(env)
         if not set.native and inp.fire and s.held_since and now-s.held_since>=cfg.raise_time then shoot(p,now) end
     end
 
-    function self.hook()
-        if s.hooked then return true end
-        local function guarded(f)
-            local ok,e=pcall(f)
-            if not ok and s.errors<5 then s.errors=s.errors+1; g.log('error: '..tostring(e)) end
-        end
-        s.hooked=pcall(function() LoopInGameThreadWithDelay(1,function() if not s.dead then guarded(tick) end end) end)
-        return s.hooked
+    -- The tick main/frame.lua runs each frame. Nothing at all with gun_mode=off.
+    function self.tick()
+        if not set.on or s.dead then return end
+        local ok,e=pcall(tick)
+        if not ok and s.errors<5 then s.errors=s.errors+1; g.log('error: '..tostring(e)) end
     end
 
-    -- The new-controller reset and the loop. Nothing at all with gun_mode=off.
-    function self.start()
-        for _,why in ipairs(bad) do g.log('coop-settings.txt: '..why) end
-        if not set.on then g.log('off (gun_mode=off in coop-settings.txt)'); return end
-        -- A new controller (map load, death, camp warp): the rifle goes away and SB's rows go back. Nothing here calls
-        -- into the game: the controller is still being built (reading its pawn from this callback crashed UE4SS).
-        NotifyOnNewObject('/Script/SB.SBPlayerController',function(pc)
-            cached=pc
-            s.pause=os.clock()+4.0
-            s.give_back=true
-            if s.on then
-                s.on=false
-                if s.mask then pcall(s.mask); s.mask=nil end
-                s.cam,s.zoom=nil,0
-                s.fov,s.fov_locked=nil,false
-                s.ammo_reset=true
-                s.stop_stance=true
-                s.show_back=true
-            end
-        end)
-        if not self.hook() then g.log('off: this UE4SS has no LoopInGameThreadWithDelay'); return end
-        g.log('ready: '..set.key..' or a tap of D-pad Right')
+    -- A new controller (map load, death, camp warp), from fight/gunmode/wiring.lua's NotifyOnNewObject: the rifle goes
+    -- away and SB's rows go back. Nothing here calls into the game: the controller is still being built (reading its
+    -- pawn from this callback crashed UE4SS). Nothing at all with gun_mode=off.
+    function self.new_controller(pc)
+        if not set.on then return end
+        cached=pc
+        s.pause=os.clock()+4.0
+        s.give_back=true
+        if s.on then
+            s.on=false
+            if s.mask then pcall(s.mask); s.mask=nil end
+            s.cam,s.zoom=nil,0
+            s.fov,s.fov_locked=nil,false
+            s.ammo_reset=true
+            s.stop_stance=true
+            s.show_back=true
+        end
     end
+
+    for _,why in ipairs(bad) do g.log('coop-settings.txt: '..why) end
+    if set.on then g.log('ready: '..set.key..' or a tap of D-pad Right')
+    else g.log('off (gun_mode=off in coop-settings.txt)') end
 
     function self.status()
         return ('gun mode %s%s, key %s, %d shots'):format(s.on and 'on' or 'off',

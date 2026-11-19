@@ -25,7 +25,7 @@ local ROW='P_Eve_GunNikke_ShootSlug1_Projectile1'
 local DRONE_ROW='P_Eve_Gun_ShootSlug1_Projectile1'
 local TABLE='/Game/Local/Data/ProjectileTable.ProjectileTable'
 
--- g: gun mode's shared state (gunmode/mode.lua): log, try, valid, pawn().
+-- g: gun mode's shared state (fight/gunmode/mode.lua): log, try, valid, pawn().
 function Aim.new(g)
     local self={row=nil,dead=false,mode0=false,cam_saved=nil,writes=0}
 
@@ -57,7 +57,7 @@ function Aim.new(g)
             ok and 'written' or 'refused')) end
     end
 
-    -- Native fire: the bullet's start (gunmode/data.lua made it EVE's base and an offset in her yaw frame, like its
+    -- Native fire: the bullet's start (fight/gunmode/data.lua made it EVE's base and an offset in her yaw frame, like its
     -- destination) put on the point muzzle (world), the rifle's FX_Fire socket.
     -- A muzzle less than min_forward ahead of her (the rifle not up yet, or posed wrong: the shot then started on
     -- her body, 02:06) gives way to fallback, a point at her right shoulder in her frame.
