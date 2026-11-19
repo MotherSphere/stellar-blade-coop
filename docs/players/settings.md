@@ -19,7 +19,7 @@ The file the mod writes:
 # Keys: F1 to F12 except F10, optionally with Shift+, Ctrl+ or Alt+ in front (for example Shift+F7). menu_key opens
 # the co-op menu, whose first row hosts; host_key hosts at once, or none. follow_key travels to the host (follow_host
 # below), or none. race_key drops a checkpoint while you record a race track (coop race record). bike_key gets EVE on
-# the bike or off it (bike below), or none.
+# the bike or off it (bike below), or none. gun_key brings the rifle out or puts it away (gun_mode below), or none.
 menu_key=F5
 host_key=none
 status_key=F6
@@ -27,6 +27,7 @@ leave_key=F8
 follow_key=F7
 race_key=F9
 bike_key=F3
+gun_key=F4
 # The keys you hold to drift in a Doro race: Unreal key names separated by spaces (at most 4), or none. Steering hard
 # at speed drifts too, with no key. The defaults are R2 on a pad (it still picks up items in reach, as outside a race)
 # and B on the keyboard, which Stellar Blade leaves free.
@@ -36,6 +37,9 @@ drift_keys=Gamepad_RightTrigger B
 # off: its place is kept for each save, in the mod folder. Off gets her off the bike, removes her parked bike from
 # every world (its place stays), hides the other players' parked bikes and frees the bike's files.
 bike=on
+# Gun mode: on or off, on by default. On, gun_key or a tap of D-pad Right gives EVE the NIKKE rifle on any save, or
+# puts it away. Off, gun mode does nothing. Both are read when the mod loads.
+gun_mode=on
 # Who can join a session you host: public (any player of your version, from Find a session), friends (your Steam
 # friends, from their friends list or the Friends tab of Find a session), invitation (the friends you invite or anyone
 # you give your join code to; the co-op menu shows and copies it) or closed (nobody; Private in the co-op menu). A
@@ -207,6 +211,8 @@ hide_popups=on
 | `bike_key` | same, or `none`: a key that puts EVE on the [bike](../vehicles/bike.md) or takes her off it | `F3` |
 | `drift_keys` | up to 4 Unreal key names separated by spaces, or `none`: the keys held to [drift](../online/modes/race.md#driving) in a race or on the [bike](../vehicles/bike.md#riding) | `Gamepad_RightTrigger B` |
 | `bike` | `on` or `off`: the [bike](../vehicles/bike.md), on any save; off takes EVE off the bike, removes it from her, takes her parked bike out of every world (its place is kept), hides the other players' parked bikes and frees its loaded files | `on` |
+| `gun_key` | same, or `none`: a key that brings the [gun mode](../fight/gunmode.md) rifle out or puts it away; read when the mod loads | `F4` |
+| `gun_mode` | `on` or `off`: [gun mode](../fight/gunmode.md); off, its key and D-pad Right tap do nothing; read when the mod loads. Its other `gun_` lines are test lines, listed on its page | `on` |
 | `pause_tab` | `on` or `off`: the [Online tab](interface.md#pause-menu) after Settings in the game's pause menu, which opens the co-op menu. Off, RB on Settings goes to Equipment as in the game. Options, Controls, Online tab in the pause menu; it applies from the next pause menu | `on` |
 | `who_can_join` | `public`, `friends`, `invitation` or `closed`: who can join an online session you host. `public`: any player of your version, who finds it in the session list. `friends`: your Steam friends. `invitation`: the friends you invite or anyone with your [join code](playing-with-a-friend.md#join-codes). `closed`: nobody (Private in the co-op menu). The words `code` and `private` from 0.11 and older read as `invitation`; the file keeps them | `public` |
 | `friends_ask` | `on` or `off`, with `public` or `invitation`: `on` makes your Steam friends wait for your answer like other players. The co-op menu shows it as Friends join without asking, On while `friends_ask=off` | `off` |
@@ -266,7 +272,7 @@ Rules:
 - A refused value keeps its default, and `UE4SS.log` gives the reason in a `[StellarCoop] settings:` line. An unknown
   setting is ignored with a note.
 - If two actions share one key, all the keys go back to their defaults: `F5` for the menu, `none` to host, `F6`, `F7`,
-  `F8`, `F9` and `F3`.
+  `F8`, `F9`, `F3` and `F4`.
 - A file written before `follow_key` existed that already holds `F7` for another action keeps it there: `follow_key`
   then reads `none`, with no log line.
 - A file with no `race_key` line (one written before Doro races) whose other keys already use `F9`: `race_key` reads
@@ -275,6 +281,8 @@ Rules:
 - A file with no `bike_key` line (one written before the bike) whose other keys already use `F3`: `bike_key` reads
   `none` the same way, for example `[StellarCoop] settings: F3 is status_key: bike_key has no key`. `coop bike` still
   works.
+- A file with no `gun_key` line whose other keys already use `F4`: `gun_key` reads `none` the same way, for example
+  `[StellarCoop] settings: F4 is leave_key: gun_key has no key`. `coop gun` and a tap of D-pad Right still work.
 - A file with no `menu_key` line (one written before the menu existed): the menu takes `host_key`'s key, and
   `host_key` counts as `none`. The first `menu_key` that the menu writes into such a file also writes `host_key=none`.
 - A file from a version that sent at most 30 poses a second and still says `send_rate=20`, the old default, reads

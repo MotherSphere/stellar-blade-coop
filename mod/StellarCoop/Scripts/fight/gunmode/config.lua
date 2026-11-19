@@ -1,9 +1,13 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Gun mode's settings: its fixed values (DEFAULTS) and the coop-settings.txt lines it reads itself (parse):
+-- Gun mode's settings: its fixed values (DEFAULTS) and its coop-settings.txt lines as main.lua read them (from):
 --   gun_mode=on|off       the module at all (on by default; off: no key, no hook, nothing)
---   gun_key=<key>         the keyboard toggle, G unless set: one letter A to Z or F1 to F12 but F10
+--   gun_key=<key>         the keyboard toggle, F4 unless set: core/keybind.lua's F-key, or none. G is Stellar
+--                         Blade's: its DefaultInput.ini on 26123051 maps the action UI_RightThumbstick (name at
+--                         0x145c4ec00, read by the photo mode UI, 0x141f09c80) to G, both layouts, and maps no F-key.
+-- Both are SBO's own settings (core/link.lua: the template, Options rows, the two-actions rule). The lines below are
+-- test lines: core/link.lua keeps them as written and gun mode checks them here.
 --   gun_aim_key=<key>    the keyboard key the game's aim moves to while the rifle is out (UE's name; RightMouseButton)
 --   gun_upper=nikke|off   test: firing mode shows the game's aim with the NIKKE rifle's upper-body animations
 --                         (nikke) instead of Luke's aim on her normal stance's spine (off, the default)
@@ -15,16 +19,15 @@ Config.DEFAULTS={
     -- false while gun mode is being rebuilt (2026-11-18): the toggle only says so and nothing of gun mode runs, unless
     -- the rifle layer (fight/gunmode/overlay.lua's class, in gunmode's pak) is installed, which is the rebuilt path.
     enabled=false,
-    key='G',
     pad_tap=0.4,
     fire_interval=0.045, -- The NIKKE shot skill's cool time while the rifle is out (SB ships 0.11 s).
     -- s the shot's borrowed rows stay armed after its last zone event (fight/gunmode/data.lua's arm). On 26123051 the
     -- blueprint library's zone event call (exec 0x142669a50) only queues the event (made by 0x1422d7de0, pushed under
     -- a lock); SB runs it later (0x141abdd80 calls RunEvent 0x141ca5a10), so the rows must still read armed then.
     arm_hold=1.0,
-    -- The rifle's round (fight/gunmode/ammo.lua): its name on the reticle's round slot, the magazine, the reload.
-    round_name='NIKKE RAPID',reload_text='RELOADING',empty_text='NO AMMO',round_color={0.35,0.85,1.0},
-    reload_color={1.0,0.62,0.15},
+    -- The rifle's round (fight/gunmode/ammo.lua): its colours on the reticle's round slot (its words: ui/text.lua's
+    -- gun round, reload and empty), the magazine, the reload.
+    round_color={0.35,0.85,1.0},reload_color={1.0,0.62,0.15},
     mag_size=60,spare_mags=5,reload_time=1.6,reload_delay=1.0,
     -- The reload's sounds (the NIKKE squad's), each at this share of the reload time.
     reload_sounds={{'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_1_Cue.P_Eve_GunNikke_Reload_1_Cue',0.0},
@@ -83,75 +86,45 @@ Config.DEFAULTS={
     copy_names={},
 }
 
-local LETTER_OR_F='^[A-Z]$'
--- A key name as UE4SS's Key table spells it ('G', 'F4'), or nil and why.
-function Config.key(text)
-    local t=text:upper()
-    if t:find(LETTER_OR_F) then return t end
-    local n=tonumber(t:match('^F([1-9]%d?)$'))
-    if n and n<=12 and n~=10 then return 'F'..n end
-    if n==10 then return nil,'F10 opens the console' end
-    return nil,'use one letter A to Z or F1 to F12'
-end
-
-local function onoff(v) local l=v:lower(); return l=='on' or l=='off' end
--- The value of the last line naming key in a settings text (name=value, names in any case, a BOM, CRs and spaces
--- around the value ignored), or nil. Gun mode reads its own lines: it uses nothing of the rest of the mod.
-function Config.get(text,key)
-    local found
-    for line in (text:gsub('^\239\187\191','')..'\n'):gmatch('([^\n]*)\n') do
-        local name,value=line:gsub('\r',''):match('^%s*([%w_]+)%s*=%s*(.-)%s*$')
-        if name and name:lower()==key then found=value end
-    end
-    return found
-end
-
--- The settings from coop-settings.txt's text (nil: the file is missing): {on, key} and the lines it refused, as
--- 'name: why'.
-function Config.parse(text)
-    local get=Config.get
-    local out,bad={on=true,key=Config.DEFAULTS.key,zoom_toggle=false,native=true,aim_key=Config.DEFAULTS.aim_to,upper=false},{}
-    if not text then return out,bad end
-    local v=get(text,'gun_mode')
-    if v then
-        if onoff(v) then out.on=v:lower()=='on' else bad[#bad+1]='gun_mode: use on or off' end
-    end
-    v=get(text,'gun_key')
-    if v then
-        local k,why=Config.key(v)
-        if k then out.key=k else bad[#bad+1]='gun_key: '..why end
-    end
-    v=get(text,'gun_bs')
-    if v and v~='' then out.bs=v end
-    v=get(text,'gun_carry_ovr') -- auto (default with the pak): the rifle carry set; off: her own walk; or an animation set row (testing)
+-- The settings from core/link.lua's parse_settings (main.lua's M.settings; nil without the native part: the defaults):
+-- {on, key (core/keybind.lua's: {key='F4', mod=nil, name='F4'}, key nil for none), ...} and the test lines it refused,
+-- as 'name: why'.
+function Config.from(settings)
+    settings=settings or require('core.link').parse_settings('')
+    local function get(name) local v=settings[name]; if v~='' then return v end end
+    local out,bad={on=settings.gun_mode,key=settings.gun_key,zoom_toggle=false,native=true,
+        aim_key=Config.DEFAULTS.aim_to,upper=false},{}
+    local v=get('gun_bs')
+    if v then out.bs=v end
+    v=get('gun_carry_ovr') -- auto (default with the pak): the rifle carry set; off: her own walk; or an animation set row (testing)
     if v and v:match('^[%w_]+$') then out.carry_ovr=v end
-    v=get(text,'gun_carry_spare'); if v and tonumber(v) then out.carry_spare=tonumber(v) end
-    v=get(text,'gun_carry_idle'); if v and tonumber(v) then out.carry_idle_type=tonumber(v) end
-    v=get(text,'gun_probe')
+    v=get('gun_carry_spare'); if v and tonumber(v) then out.carry_spare=tonumber(v) end
+    v=get('gun_carry_idle'); if v and tonumber(v) then out.carry_idle_type=tonumber(v) end
+    v=get('gun_probe')
     if v then out.probe=v:lower()=='on' end
-    v=get(text,'gun_facts') -- (dev only) the Phase 0 facts probe, fight/gunmode/facts.lua
+    v=get('gun_facts') -- (dev only) the Phase 0 facts probe, fight/gunmode/facts.lua
     if v=='on' then out.facts=true end
-    v=get(text,'gun_g0') -- (dev only) the v2 plan's G0 measurements and capture pictures, fight/gunmode/g0.lua
+    v=get('gun_g0') -- (dev only) the v2 plan's G0 measurements and capture pictures, fight/gunmode/g0.lua
     if v=='on' then out.g0=true end
-    v=get(text,'gun_trace') -- (testing) step log around reloads and aim changes
+    v=get('gun_trace') -- (testing) step log around reloads and aim changes
     if v then out.trace=v:lower()=='on' end
-    v=get(text,'gun_fire_key') -- (testing) one more fire key, as F
+    v=get('gun_fire_key') -- (testing) one more fire key, as F
     if v and v:match('^%w+$') then out.fire_key=v end
-    v=get(text,'gun_upper')
+    v=get('gun_upper')
     if v then
         local l=v:lower()
         if l=='nikke' or l=='off' then out.upper=l=='nikke' else bad[#bad+1]='gun_upper: use nikke or off' end
     end
-    v=get(text,'gun_aim_key')
+    v=get('gun_aim_key')
     if v then
         if v:match('^%w+$') then out.aim_key=v else bad[#bad+1]='gun_aim_key: one UE key name, as RightMouseButton' end
     end
-    v=get(text,'gun_fire')
+    v=get('gun_fire')
     if v then
         local l=v:lower()
         if l=='native' or l=='own' then out.native=l=='native' else bad[#bad+1]='gun_fire: use native or own' end
     end
-    v=get(text,'gun_zoom')
+    v=get('gun_zoom')
     if v then
         local l=v:lower()
         if l=='hold' or l=='toggle' then out.zoom_toggle=l=='toggle' else bad[#bad+1]='gun_zoom: use hold or toggle' end

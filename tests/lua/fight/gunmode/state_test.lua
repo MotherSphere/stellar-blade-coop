@@ -17,10 +17,11 @@ local function file()
     return {save=function(text) f.text=text; return true end,load=function() return f.text end,
         clear=function() f.text=nil end,peek=function() return f.text or '' end}
 end
+-- settings: coop-settings.txt's text, read as main.lua reads it (core/link.lua's parse_settings).
 local function new(settings,store)
     local logs={}
-    local gun=GunMode.new({log=function(m) logs[#logs+1]=m end,folder=settings and 'mod',
-        read_all=function() return settings end,store=store})
+    local gun=GunMode.new({log=function(m) logs[#logs+1]=m end,
+        settings=settings and require('core.link').parse_settings(settings),store=store})
     return gun,logs
 end
 local function frames(gun,n) for _=1,n do clock=clock+1/60; gun.tick() end end
@@ -188,6 +189,63 @@ do
     frames(gun,20)
     assert(not gun.state.on and not gun.out() and said('off (the Doro look is on'),table.concat(logs,'|'))
     assert(#w.changed()==0 and w.keys()==keys)
+end
+
+-- 6. L4: a refused toggle says why on screen (env.notice, by its word in ui/text.lua's gun), not only in the log: no
+--    EVE, the drone aim held, a state of hers or another module that holds her, a start that fails. The log keeps the
+--    reason in English.
+do
+    local w=Fake.new(); w.install()
+    local logs,notices={},{}
+    local gun=GunMode.new({log=function(m) logs[#logs+1]=m end,
+        notice=function(key) notices[#notices+1]=tostring(key) end})
+    local function refused(set,unset,word)
+        set()
+        clock=clock+5; gun.toggle_now()
+        unset()
+        assert(not gun.state.on and notices[#notices]==word,word..': '..table.concat(notices,'|')..' / '
+            ..table.concat(logs,'|'))
+    end
+    refused(function() w.pc.Pawn=nil end,function() w.pc.Pawn=w.pawn end,'eve')
+    refused(function() w.pawn.bTPSMode=true end,function() w.pawn.bTPSMode=false end,'aim')
+    refused(function() w.pawn.talk=true end,function() w.pawn.talk=false end,'busy')
+    refused(function() w.no_settings=true end,function() w.no_settings=nil end,'failed')
+    assert(#notices==4,table.concat(notices,'|'))
+    assert(#w.changed()==0,table.concat(w.changed(),'; '))
+    toggle(gun,true)
+    assert(#notices==4,'no notice when the rifle comes out')
+    toggle(gun,false)
+end
+
+-- 7. M8: gun_key is F4 unless set. Stellar Blade binds G (its DefaultInput.ini on 26123051 maps UI_RightThumbstick to
+--    G), F4 none. G alone does nothing; F4, or another F-key with its modifier when set, toggles the rifle.
+do
+    local w=Fake.new(); w.install()
+    local function press(gun,...)
+        local keys={...}
+        for _,k in ipairs(keys) do w.down[k]=true end
+        frames(gun,2)
+        for _,k in ipairs(keys) do w.down[k]=nil end
+        frames(gun,2)
+        clock=clock+1
+    end
+    local gun=new()
+    press(gun,'G')
+    assert(not gun.state.on,'G is not the key')
+    press(gun,'F4')
+    assert(gun.state.on,'F4 brings the rifle out')
+    press(gun,'F4')
+    assert(not gun.state.on,'F4 puts it away')
+    gun=new('gun_key=Ctrl+F2\n')
+    press(gun,'F2')
+    assert(not gun.state.on,'F2 without Ctrl')
+    press(gun,'LeftControl','F2')
+    assert(gun.state.on,'Ctrl+F2')
+    press(gun,'RightControl','F2')
+    assert(not gun.state.on,'Ctrl+F2 with the right Ctrl puts it away')
+    gun=new('gun_key=none\n')
+    press(gun,'F4')
+    assert(not gun.state.on,'none: no key')
 end
 
 print('gunmode state: ok')

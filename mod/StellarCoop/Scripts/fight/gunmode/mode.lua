@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Gun mode: the NIKKE DLC's rifle in EVE's hands on any save, on luke77's rifle stance. G (gun_key) or a tap of
+-- Gun mode: the NIKKE DLC's rifle in EVE's hands on any save, on luke77's rifle stance. F4 (gun_key) or a tap of
 -- D-pad Right brings the rifle out or puts it away. Out, EVE runs and jumps as Luke's stance has her (fight/gunmode/
 -- stance.lua: her own animation, the rifle at her chest). Holding RMB / LT is firing mode: the camera comes in over her
 -- right shoulder, she turns to the camera and brings the rifle up with its laser sight on, and LMB / RT fires full
@@ -10,11 +10,11 @@
 -- bullet sent to the crosshair's point (fight/gunmode/aim.lua). While the rifle is out the sword's attacks and the drone's
 -- aim on the fire and zoom keys are masked in memory (lifted while the game is paused, where SB's key options can save
 -- the mappings; put back when it goes away).
--- Gun mode is a module of its own: it reads its own coop-settings.txt lines and uses no other module (only the shared
--- core/unreal.lua); fight/gunmode/wiring.lua builds it and registers its controller hook. All of it runs on the game
--- thread, from main/frame.lua's loop (every frame) and the hook: no LoopAsync, ExecuteWithDelay or key bind, whose
--- callbacks run Lua on another thread (two threads in one Lua state crashed UE4SS, 11-17). Every step is wrapped, so an
--- error in gun mode never reaches the rest of the mod.
+-- Gun mode is a module of its own: it reads its coop-settings.txt lines as main.lua read them (core/link.lua) and uses
+-- no other module (only the shared core/ and ui/text); fight/gunmode/wiring.lua builds it and registers its controller
+-- hook. All of it runs on the game thread, from main/frame.lua's loop (every frame) and the hook: no LoopAsync,
+-- ExecuteWithDelay or key bind, whose callbacks run Lua on another thread (two threads in one Lua state crashed UE4SS,
+-- 11-17). Every step is wrapped, so an error in gun mode never reaches the rest of the mod.
 local Config=require('fight.gunmode.config')
 local Aim=require('fight.gunmode.aim')
 local Input=require('fight.gunmode.input')
@@ -68,14 +68,6 @@ end
 local SETTINGS='/Script/Engine.Default__InputSettings'
 local TRACE='/Script/Engine.Default__KismetSystemLibrary'
 
-local function read_all(path)
-    local f=io.open(path,'rb')
-    if not f then return nil end
-    local text=f:read('a')
-    f:close()
-    return text
-end
-
 -- A point along a camera's forward: loc + forward(rot) * d.
 function GunMode.ahead(loc,rot,d)
     local p,y=math.rad(rot.Pitch),math.rad(rot.Yaw)
@@ -86,17 +78,17 @@ end
 -- a eased toward b by share k.
 function GunMode.ease(a,b,k) return a+(b-a)*k end
 
--- env: {log, folder (the mod folder: coop-settings.txt), read_all (a file's text; io.open's unless given), notice (a
--- notice on screen, by its key in ui/text.lua's gun: rebuilding when nil), store (coop-gun.txt through core/link.lua's
--- store: save, load, clear; nil without the native part, so a Lua reload then cannot put back what an earlier load
--- changed), photo (main/base.lua's photo_state; '0' when not given), busy (why another module holds EVE now, or nil:
+-- env: {log, settings (main.lua's, as core/link.lua parses coop-settings.txt; nil: the defaults), words (the menu's
+-- words, ui/text.lua's table in the player's language; English unless given), notice (a notice on screen, by its key
+-- in ui/text.lua's gun: rebuilding when nil), store (coop-gun.txt through core/link.lua's store: save, load, clear; nil
+-- without the native part, so a Lua reload then cannot put back what an earlier load changed), photo (main/base.lua's photo_state; '0' when not given), busy (why another module holds EVE now, or nil:
 -- fight/gunmode/wiring.lua reads them), match (true while an SBO match runs: fight/gunmode/wiring.lua reads the link)}.
 function GunMode.new(env)
     local cfg=Config.DEFAULTS
-    local whole=env.read_all or read_all
-    local set,bad=Config.parse(env.folder and whole(env.folder..'\\coop-settings.txt'))
+    local set,bad=Config.from(env.settings)
     local g={}
     function g.log(m) env.log(m) end
+    function g.words() return (env.words and env.words() or require('ui.text').en).gun end
     function g.valid(o)
         if o==nil then return false end
         local ok,r=pcall(function() return o:IsValid() end)
@@ -602,14 +594,15 @@ function GunMode.new(env)
     local function enable(why)
         self.restore() -- An earlier Lua load's changes back before this one reads the rows as they are.
         local pc,p=g.pc(),g.pawn()
-        if not (pc and p) then g.log('not now: no EVE'); return end
+        -- Each refusal says why on screen too (L4), in a word of ui/text.lua's gun; the log keeps the reason.
+        if not (pc and p) then g.log('not now: no EVE'); notice(os.clock(),'eve'); return end
         if g.try(function() return p.TPSModeType~=0 or p.bTPSMode end) then
-            g.log('not now: release the drone aim first'); return
+            g.log('not now: release the drone aim first'); notice(os.clock(),'aim'); return
         end
         local busy=held(p)
         if busy then
             g.log('not now: '..busy)
-            if busy==MATCH then notice(os.clock(),'match') end
+            notice(os.clock(),busy==MATCH and 'match' or 'busy')
             return
         end
         -- The gun mode animation pak (zNikkeGunMode_P): when it is installed, the aim stance's blend spaces point at
@@ -632,11 +625,14 @@ function GunMode.new(env)
         -- Each way out below gives back all it took (L2).
         if not data.take() then
             give_all_back()
-            g.log('off: SB\'s rows could not be taken (see above)'); return
+            g.log('off: SB\'s rows could not be taken (see above)'); notice(os.clock(),'failed'); return
         end
         aim.setup()
         local ok,err=pcall(function() s.mask,s.keys=mask() end)
-        if not ok then give_all_back(); g.log('off: the input mask failed ('..tostring(err)..')'); return end
+        if not ok then
+            give_all_back(); g.log('off: the input mask failed ('..tostring(err)..')'); notice(os.clock(),'failed')
+            return
+        end
         ok,err=pcall(function()
             -- Held for Luke's aim: the aim key itself, not the game's aim stance, which drops for a frame now and
             -- then (each shot's skill, a jump) and made his arms jerk between carry and aim (11:39). Off the stance (a
@@ -660,6 +656,7 @@ function GunMode.new(env)
         if not ok then
             give_all_back()
             g.log('off: Luke\'s stance did not start ('..tostring(err)..')')
+            notice(os.clock(),'failed')
             return
         end
         if set.trace and not s.funcs_logged then -- (testing) the pawn's and its anim instance's stance / anim set functions
@@ -736,7 +733,10 @@ function GunMode.new(env)
         s.hide_at=os.clock()
         if set.native then pcall(hide_drone,p); s.native_taken=true end
         pcall(ammo.sync)
-        if not keep() then give_all_back(); g.log('off: coop-gun.txt could not be written (see above)'); return end
+        if not keep() then
+            give_all_back(); g.log('off: coop-gun.txt could not be written (see above)'); notice(os.clock(),'failed')
+            return
+        end
         g.log('on ('..why..')')
     end
 
@@ -764,7 +764,7 @@ function GunMode.new(env)
         end
         if s.on then disable(why); return end
         local ok,e=pcall(enable,why)
-        if not ok then give_all_back(); g.log('off: the start failed'); error(e,0) end
+        if not ok then give_all_back(); g.log('off: the start failed'); notice(now,'failed'); error(e,0) end
     end
 
     -- Each shot: the bullet's destination made the crosshair point, then the shot's row.
@@ -825,7 +825,7 @@ function GunMode.new(env)
         end
         local function down(name) return g.try(function() return pc:IsInputKeyDown({KeyName=FName(name)}) end)==true end
         local inp=Input.read(keys,down,now,cfg,set.key)
-        if inp.key then self.toggle(set.key) elseif inp.toggle then self.toggle('D-pad Right') end
+        if inp.key then self.toggle(set.key.name) elseif inp.toggle then self.toggle('D-pad Right') end
         if set.facts then
             s.facts=s.facts or require('fight.gunmode.facts').new(g)
             local ok,e=pcall(s.facts.tick,pc,g.pawn(),down,now)
@@ -1117,12 +1117,12 @@ function GunMode.new(env)
     end
 
     for _,why in ipairs(bad) do g.log('coop-settings.txt: '..why) end
-    if set.on then g.log('ready: '..set.key..' or a tap of D-pad Right')
+    if set.on then g.log('ready: '..(set.key.key and set.key.name..' or ' or '')..'a tap of D-pad Right')
     else g.log('off (gun_mode=off in coop-settings.txt)') end
 
     function self.status()
         return ('gun mode %s%s, key %s, %d shots'):format(s.on and 'on' or 'off',
-            s.on and (s.zoom_held and ' (firing mode)' or ' (moving)') or '',set.key,s.shots)
+            s.on and (s.zoom_held and ' (firing mode)' or ' (moving)') or '',set.key.name,s.shots)
     end
     self.toggle_now=function() self.toggle('command') end
     function self.out() return s.on==true end -- The bike's busy check reads it (vehicles/bike/wiring.lua).

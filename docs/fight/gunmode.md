@@ -3,9 +3,9 @@
 Gun mode gives EVE the NIKKE DLC's rifle outside its missions, on any save, as a third-person shooter. It is
 experimental: it has been played on one PC only, not yet between two players.
 
-Gun mode is parked while it is rebuilt. G shows a notice and does nothing else, unless the game finds the rifle
-layer's class (`ABP_NGM_Spike`, in the test pak `zNGMSpike_P`). With that pak installed, G brings the rifle out on the
-rifle layer. The sections below describe gun mode as it ran before it was parked.
+Gun mode is parked while it is rebuilt. `gun_key` (F4) shows a notice and does nothing else, unless the game finds
+the rifle layer's class (`ABP_NGM_Spike`, in the test pak `zNGMSpike_P`). With that pak installed, `gun_key` brings the
+rifle out on the rifle layer. The sections below describe gun mode as it ran before it was parked.
 
 The rebuild adds three files. `fight/gunmode/overlay.lua` swaps her body mesh's post-process anim blueprint for gun
 mode's layer. The layer runs the outfit's original post-process graph first, then a two-bone IK on each arm. Her main
@@ -34,7 +34,7 @@ the drone find their rows as shipped:
 
 | Key | Pad | What it does |
 | --- | --- | --- |
-| G (`gun_key`) | A tap of D-pad Right | Rifle out or away. A hold of D-pad Right is the bike's |
+| F4 (`gun_key`) | A tap of D-pad Right | Rifle out or away. A hold of D-pad Right is the bike's |
 | RMB (held) | LT (held) | Firing mode: the camera comes over her shoulder, the laser sight and the reticle come up |
 | LMB | RT | In firing mode: full auto |
 | Space | A | In firing mode: jump, still firing |
@@ -47,7 +47,9 @@ The rifle does not come out during a cutscene, a talk or another interaction, wh
 while she swims or is in one of the game's own moves, or in the photo and selfie modes. If one of these starts with the
 rifle out, the rifle goes away within a quarter of a second. The same holds while EVE rides the bike, wears the Doro
 look, plays a `coop emote`, sits on a hall seat or uses `coop fly` or `coop glide`. The bike does not mount while the
-rifle is out. `UE4SS.log` names the reason on a `[GM]` line.
+rifle is out. `UE4SS.log` names the reason on a `[GM]` line. A key press or D-pad tap that the rifle refuses also shows
+a notice on screen: release the drone aim, EVE is not in the game world, EVE cannot take the rifle now, or the start
+failed.
 
 During an SBO match (a round in play, or the PvP test of `coop pvp`) the rifle stays away too, with a notice. SBO's
 PvP rule counts a hit only from 15 m or closer, whatever the move. The rifle's rounds reach 100 m: a hit from farther
@@ -88,7 +90,8 @@ The rifle fires NIKKE RAPID rounds: about 20 a second.
 
 The magazine reloads when it runs dry, and also a second after the rifle is lowered with a part-spent magazine. No
 round fires while it reloads. With the magazine and every spare empty, the reticle reads NO AMMO. A new map, a death
-or a camp warp gives full magazines again.
+or a camp warp gives full magazines again. RELOADING and NO AMMO show in the co-op menu's language; NIKKE RAPID stays
+as it is.
 
 Two HUD elements show the rounds:
 
@@ -99,20 +102,40 @@ Two HUD elements show the rounds:
 
 | Command | What it does |
 | --- | --- |
-| `coop gun` | Rifle out or away, as G does |
+| `coop gun` | Rifle out or away, as `gun_key` does |
 | `coop gun status` | On or off, firing mode or not, the key, the rounds fired |
 
 ## Settings
 
-Gun mode reads these lines of `coop-settings.txt` itself:
+`gun_mode` and `gun_key` are SBO settings. A new `coop-settings.txt` has both lines. The co-op menu's Options page has
+a row for each under Controls. Gun mode reads them when the mod loads (game start or Ctrl+R).
 
 | Line | Values | Default |
 | --- | --- | --- |
 | `gun_mode` | `on`, `off` (no key, no hook, nothing) | `on` |
-| `gun_key` | One letter A to Z, or F1 to F12 but F10 | `G` |
+| `gun_key` | F1 to F12 but F10, with at most one of `Shift+`, `Ctrl+`, `Alt+`, or `none` | `F4` |
+
+`gun_key` follows the rules of SBO's other keys. Options refuses a key that another SBO action holds. A file that gives
+one key to two actions gets every key back at its default. A file written before `gun_key` whose own keys hold F4
+gets no gun key. Stellar Blade's input settings bind no F-key. They bind G to a menu action (`UI_RightThumbstick`),
+which is why G is no longer the default.
+
+The lines below are test lines. A new file does not have them and Options has no row for them. Gun mode checks them
+and logs a bad value on a `[GM]` line, which then keeps its default.
+
+| Line | Values | Default |
+| --- | --- | --- |
 | `gun_aim_key` | The UE key name firing mode moves to | `RightMouseButton` |
 | `gun_zoom` | `hold`, `toggle` | `hold` |
-| `gun_probe` | `on`: development logging | off |
+| `gun_fire` | `native` (the game's aim), `own` | `native` |
+| `gun_upper` | `nikke` (the NIKKE rifle's upper-body animations in firing mode), `off` | `off` |
+| `gun_probe`, `gun_trace` | `on`: development logging | off |
+| `gun_facts`, `gun_g0` | `on`: development probes (`fight/gunmode/facts.lua`, `fight/gunmode/g0.lua`) | off |
+| `gun_bs` | A blend space for the aim stance's animation set | none |
+| `gun_carry_ovr` | `auto`, `off` (her own walk) or an animation set row | `auto` with the animation pak |
+| `gun_carry_spare` | Which spare animation set row the rifle carry takes, from 0 | 0 |
+| `gun_carry_idle` | The rifle carry's idle type | 1 |
+| `gun_fire_key` | One more fire key, as a UE key name | none |
 
 ## Credits
 

@@ -45,11 +45,25 @@ for _,case in ipairs({{{state='playing',mode='ffa'},nil,true},{{state='countdown
     assert(gm.o.match()==case[3],tostring(fight_text or link_match.state))
 end
 link_match,fight_text=nil,nil
--- Its notices in the menu's words: the rebuilding one by default, the match one by its key.
+-- Its notices in the menu's words: the rebuilding one by default, the match one and each refusal by its key.
 gm.o.notice()
 assert(said_en[#said_en]=='Gun mode: rebuilding',tostring(said_en[#said_en]))
 gm.o.notice('match')
 assert(said_en[#said_en]:find('^Gun mode: not during a match%.'),tostring(said_en[#said_en]))
+for _,key in ipairs({'aim','eve','busy','failed'}) do
+    gm.o.notice(key)
+    assert(said_en[#said_en]==require('ui.text').en.gun[key],key..': '..tostring(said_en[#said_en]))
+end
+-- Its settings as main.lua read them (gun_mode and gun_key among SBO's own; no unknown-setting line for its test lines)
+-- and the menu's words for its HUD.
+assert(gm.o.settings.gun_key.name=='F4' and gm.o.settings.gun_mode==true,'gun mode gets M.settings')
+assert(gm.o.words().gun.reload=='RELOADING','gun mode gets the menu\'s words')
+settings_text='gun_key=F11\ngun_zoom=toggle\ngun_trace=on\n'
+load_main(true)
+assert(gm.o.settings.gun_key.name=='F11' and gm.o.settings.gun_zoom=='toggle')
+assert(not logged('unknown setting'),table.concat(printed,'|'))
+settings_text=''
+load_main(true)
 assert(gm.restores==0 and gm.ticks==0)
 loops[1].f()
 assert(gm.restores==1 and gm.ticks==1)

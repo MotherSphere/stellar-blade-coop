@@ -167,7 +167,7 @@ assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.na
     and values.boss_hp_scale=='2.0' and values.shared_quests=='on' and values.revive=='on'
     and values.follow_host=='ask' and values.follow_key=='F7' and values.collide=='on' and values.race_key=='F9'
     and values.photo_name_tag=='on' and values.status_overlay=='compact' and values.bike=='on'
-    and values.bike_key=='F3')
+    and values.bike_key=='F3' and values.gun_mode=='on' and values.gun_key=='F4')
 
 -- Values as the mod reads the file: the last line it takes, any case; a refused value leaves the default.
 values=M.read('send_rate=25\nsend_rate=99\nNAME_TAG=Off\nphoto_sync=NOTICE\nstatus_key=shift+f7\nui_scale=7\n'
@@ -208,7 +208,8 @@ assert(menu.current(NONE).key=='menu_key' and menu.rows(NONE)[1].head=='controls
 assert(menu.back()==nil and menu.page()=='main' and menu.current(NONE).id=='options')
 menu.select(NONE,0)
 -- Every setting shows, under its header.
-assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key race_key bike bike_key pause_tab reset_keys '
+assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key race_key bike bike_key gun_mode gun_key '
+    ..'pause_tab reset_keys '
     ..'head:photo '
     ..'photo_sync '
     ..'photo_freeze_max photo_ghost '
@@ -224,10 +225,11 @@ assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key r
     ..'aggro same_spawns enemy_extra bosses enemy_hp_scale enemy_balance_scale boss_hp_scale kill_credit head:display '
     ..'status_overlay ui_scale ui_sounds ui_language daynight head:chat chat',
     ids(menu,NONE))
--- The one the mod takes at its next load only: the name tag is part of the ghost's build. The shared enemies apply at
--- once (main.lua asks coop fight on or off).
+-- The ones the mod takes at its next load only: the name tag is part of the ghost's build; gun mode reads gun_mode and
+-- gun_key when it starts (fight/gunmode/mode.lua). The shared enemies apply at once (main.lua asks coop fight on or off).
+local AT_LOAD={name_tag=true,gun_mode=true,gun_key=true}
 for _,row in ipairs(M.OPTIONS) do
-    assert((row.reload==true)==(row.key=='name_tag'),tostring(row.key))
+    assert((row.reload==true)==(AT_LOAD[row.key]==true),tostring(row.key))
 end
 -- Each change is the one value to write: toggles flip, choices wrap, ranges stop at their ends.
 values=M.read('')
@@ -437,6 +439,20 @@ action,key,text=M.rebind(values,'bike_key',K.text('F2','CONTROL'))
 assert(action=='set' and key=='bike_key' and text=='Ctrl+F2')
 assert(M.read('status_key=F3\n').bike_key=='none' and M.read('bike_key=none\n').bike_key=='none')
 assert(M.read('bike=OFF\n').bike=='off' and M.read('bike=maybe\n').bike=='on')
+-- Gun mode's key (Controls): F4 by default, rebound and checked like the others, both ways; none in a file whose keys
+-- held F4. Gun mode's row: on or off.
+action,why,other=M.rebind(values,'bike_key','F4')
+assert(action==nil and why=='clash' and other=='gun_key')
+action,why,other=M.rebind(values,'gun_key','F3')
+assert(action==nil and why=='clash' and other=='bike_key')
+action,why=M.rebind(values,'gun_key','G')
+assert(action==nil and why=='use F1 to F12, with at most one of Shift+, Ctrl+, Alt+',why)
+action,key,text=M.rebind(values,'gun_key',K.text('F11','SHIFT'))
+assert(action=='set' and key=='gun_key' and text=='Shift+F11')
+assert(select(3,M.rebind(values,'gun_key','Enter'))=='F4')
+assert(M.read('leave_key=F4\n').gun_key=='none' and M.read('gun_key=none\n').gun_key=='none')
+assert(M.read('gun_mode=OFF\n').gun_mode=='off' and M.read('gun_mode=maybe\n').gun_mode=='on')
+assert(M.reset_keys('gun_key=F11\n'):find('^gun_key=F4\n'),'Reset all keys puts F4 back')
 -- Enter (no key setting takes it) puts back the key's default, checked as any key: refused while another holds it.
 values=M.read('menu_key=F11\nstatus_key=Shift+F6\nhost_key=F12\n')
 action,key,text=M.rebind(values,'status_key','Enter')
@@ -454,21 +470,22 @@ assert(menu.select(NONE,92,values)=='confirm_reset_keys' and menu.select(NONE,96
     'A second Select after 3 s asks again')
 file=assert(M.reset_keys('# keys\nmenu_key=F11\nstatus_key=F5\nhost_key=F12\nsend_rate=30\n'))
 assert(file=='# keys\nmenu_key=F5\nstatus_key=F6\nhost_key=none\nsend_rate=30\nleave_key=F8\nfollow_key=F7\n'
-    ..'race_key=F9\nbike_key=F3\n',file)
+    ..'race_key=F9\nbike_key=F3\ngun_key=F4\n',file)
 s=Link.parse_settings(file)
 assert(s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name=='F6' and s.race_key.name=='F9'
-    and s.send_rate==30)
+    and s.gun_key.name=='F4' and s.send_rate==30)
 assert(M.reset_keys('')=='host_key=none\nmenu_key=F5\nstatus_key=F6\nleave_key=F8\nfollow_key=F7\nrace_key=F9\n'
-    ..'bike_key=F3\n')
+    ..'bike_key=F3\ngun_key=F4\n')
 
--- docs/players/interface.md's Options paragraph names the Controls rows in the model's order: the bike's key, the
--- Online tab, then Reset all keys.
+-- docs/players/interface.md's Options paragraph names the Controls rows in the model's order: the bike's key, gun
+-- mode's, the Online tab, then Reset all keys.
 local f=assert(io.open('docs/players/interface.md'))
 local doc=f:read('a'):match('### Options\n(.-)\n### ')
 f:close()
 local bike,tab=doc:find('off and its key',1,true),doc:find(require('ui.text').en.row.pause_tab,1,true)
+local gun=doc:find('[gun mode](../fight/gunmode.md) on or off and its key',1,true)
 local reset=doc:find('then Reset all keys)',1,true)
-assert(bike and tab and reset and bike<tab and tab<reset,
+assert(bike and gun and tab and reset and bike<gun and gun<tab and tab<reset,
     'docs/players/interface.md: the Options Controls rows out of order')
 
 print('ui_model_test ok')

@@ -30,7 +30,8 @@ return {
         collide='Solid partner',
         follow_host='Follow the host',follow_key='Travel to the host',menu='Co-op menu',hangup='Hang up',
         status_overlay='Status line',race_key='Set a race checkpoint',
-        bike='Bike',bike_key='Get on or off the bike',daynight='Day and night',
+        bike='Bike',bike_key='Get on or off the bike',
+        gun_mode='Gun mode',gun_key='Bring out or put away the rifle',daynight='Day and night',
         pause_tab='Online tab in the pause menu',
         hide_popups='Hide popups online',
         reset_keys='Reset all keys'},
@@ -211,9 +212,18 @@ return {
         paying='Paying %d %s for your bike.',paid='Your bike was brought here for %d %s.',
         poor='Not enough %s: %d needed, you carry %d.',
         unpaid='Your bike was not brought here. UE4SS.log says why.'},
-    -- Gun mode's notice (fight/gunmode/mode.lua) while it is parked for its rebuild: G shows it and does nothing else.
+    -- Gun mode (fight/gunmode/mode.lua): its notices while it is parked for its rebuild (gun_key shows it and does
+    -- nothing else) or during an SBO match; one for each refused toggle: the drone aim held, no EVE, a state of hers or
+    -- another module that holds her, a start that failed. round, reload and empty go on the reticle's round slot
+    -- (fight/gunmode/ammo.lua): the round's name (NIKKE RAPID, a name, kept in every language), the reload, no round
+    -- left.
     gun={rebuilding='Gun mode: rebuilding',
-        match='Gun mode: not during a match. Rifle hits past 15 m do not count there yet.'},
+        match='Gun mode: not during a match. Rifle hits past 15 m do not count there yet.',
+        round='NIKKE RAPID',reload='RELOADING',empty='NO AMMO',
+        aim='Gun mode: release the drone aim first.',
+        eve='Gun mode: EVE is not in the game world.',
+        busy='Gun mode: EVE cannot take the rifle now. UE4SS.log says why.',
+        failed='Gun mode: the start failed. UE4SS.log says why.'},
     -- Night Operation's run (online/modes/nightop/run.lua): its card at the top centre (the title, then the countdown,
     -- the wave or the next wave's countdown, each with the time left and the score), its result panel (the heading, the
     -- line under it, the rows) and its notices while the UI is off. success, fail and died are the game's own words,

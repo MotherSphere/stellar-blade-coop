@@ -18,13 +18,14 @@ local function file()
     return {save=function(text) f.text=text; return true end,load=function() return f.text end,
         clear=function() f.text=nil end,peek=function() return f.text end}
 end
--- fail: a log line that raises once when it starts with this text (an unexpected raise inside a start).
+-- settings: coop-settings.txt's text, read as main.lua reads it (core/link.lua's parse_settings). fail: a log line that
+-- raises once when it starts with this text (an unexpected raise inside a start).
 local function new(store,settings,fail)
     local logs={}
     local gun=GunMode.new({log=function(m)
             logs[#logs+1]=m
             if fail and m:sub(1,#fail)==fail then fail=nil; error('test raise',0) end
-        end,store=store,folder=settings and 'mod',read_all=function() return settings end})
+        end,store=store,settings=settings and require('core.link').parse_settings(settings)})
     return gun,logs
 end
 local function said(logs,text)
@@ -65,9 +66,9 @@ do
     local function still()
         assert(not gun.state.on and #w.rifles()==0 and w.keys()==keys and #w.changed()==0 and store.peek()==nil)
     end
-    w.down.G=true
+    w.down.F4=true -- gun_key's default
     for _=1,10 do clock=clock+0.1; gun.tick() end
-    w.down.G=nil
+    w.down.F4=nil
     still()
     clock=clock+1; gun.toggle_now()
     still()

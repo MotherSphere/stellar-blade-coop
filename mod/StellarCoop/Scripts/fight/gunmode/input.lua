@@ -27,13 +27,17 @@ Input.FIRE={'LeftMouseButton','Gamepad_RightTrigger'}
 Input.ZOOM={'RightMouseButton','Gamepad_LeftTrigger','LeftAlt','LeftControl'}
 Input.TOGGLE_PAD,Input.PAD_SHOULDER='Gamepad_DPad_Right','Gamepad_RightShoulder'
 
+-- A modifier as core/keybind.lua names it, then the keys IsInputKeyDown names for it (either side).
+Input.MOD={SHIFT={'LeftShift','RightShift'},CONTROL={'LeftControl','RightControl'},ALT={'LeftAlt','RightAlt'}}
+
 -- What the player asks this poll, from down(name) (the key's state) and the previous states in s: {toggle (D-pad
--- Right's tap), key (gun_key pressed), fire (held), zoom (held)}, for cfg (fight/gunmode/config.lua's DEFAULTS) and key
--- (UE's key name, 'G' or 'F4').
+-- Right's tap), key (gun_key pressed, with its modifier held when it has one), fire (held), zoom (held)}, for cfg
+-- (fight/gunmode/config.lua's DEFAULTS) and key (gun_key as core/keybind.lua parses it: {key='F4', mod=nil}; key nil
+-- for none).
 function Input.read(s,down,now,cfg,key)
     local function any(names) for _,n in ipairs(names) do if down(n) then return true end end return false end
     local out={}
-    out.key=key~=nil and Input.edge(s.key,down(key))
+    out.key=key~=nil and key.key~=nil and Input.edge(s.key,down(key.key) and (key.mod==nil or any(Input.MOD[key.mod])))
     -- D-pad Right: a tap, not while R1 is held (Unified Projection Suit's R1+D-pad). Held, it is the bike's.
     local dr=down(Input.TOGGLE_PAD) and not down(Input.PAD_SHOULDER)
     out.toggle=Input.tap(s.dpad,dr,now,cfg.pad_tap)

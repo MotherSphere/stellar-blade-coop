@@ -404,6 +404,38 @@ assert(#notes==1 and notes[1]=='settings: F3 is status_key: bike_key has no key'
 s,notes=Link.parse_settings('status_key=F3\nbike_key=F3\n')
 assert(#notes==1 and notes[1]=='settings: F3 is set for two actions: default keys used' and s.status_key.name=='F6'
     and s.bike_key.name=='F3',notes[1])
+-- Gun mode (fight/gunmode/): gun_mode on unless off; gun_key F4 unless set, or none, an F-key as every key setting (G
+-- refused: Stellar Blade binds it), in the two-actions rule both ways; a file from before gun_key whose own keys hold
+-- F4: gun_key has none. Its test lines, kept as written for gun mode to check, with no note.
+s,notes=Link.parse_settings('')
+assert(s.gun_mode==true and s.gun_key.key=='F4' and s.gun_key.mod==nil and s.gun_key.name=='F4')
+s,notes=Link.parse_settings('gun_mode=OFF\ngun_key=Shift+F11\n')
+assert(#notes==0 and s.gun_mode==false and s.gun_key.key=='F11' and s.gun_key.mod=='SHIFT',notes[1])
+s,notes=Link.parse_settings('gun_key=G\n')
+assert(#notes==1 and notes[1]=="settings: line 1: 'G' is not allowed for gun_key (use F1 to F12, with at most one of "
+    .."Shift+, Ctrl+, Alt+); gun_key stays F4" and s.gun_key.name=='F4',notes[1])
+s,notes=Link.parse_settings('gun_key=none\n')
+assert(#notes==0 and s.gun_key.key==nil and s.gun_key.name=='none',notes[1])
+s,notes=Link.parse_settings('leave_key=F4\n')
+assert(#notes==1 and notes[1]=='settings: F4 is leave_key: gun_key has no key' and s.gun_key.name=='none'
+    and s.leave_key.name=='F4',notes[1])
+s,notes=Link.parse_settings('leave_key=F4\ngun_key=F4\n')
+assert(#notes==1 and notes[1]=='settings: F4 is set for two actions: default keys used' and s.leave_key.name=='F8'
+    and s.gun_key.name=='F4',notes[1])
+s,notes=Link.parse_settings('bike_key=F3\ngun_key=F3\n')
+assert(#notes==1 and notes[1]=='settings: F3 is set for two actions: default keys used' and s.gun_key.name=='F4',
+    notes[1])
+local GUN_TESTS={gun_aim_key='LeftMouseButton',gun_zoom='toggle',gun_upper='nikke',gun_fire='own',gun_probe='on',
+    gun_trace='on',gun_facts='on',gun_g0='on',gun_bs='X_BS',gun_carry_ovr='off',gun_carry_spare='2',gun_carry_idle='1',
+    gun_fire_key='F'}
+local gun_lines={}
+for k,v in pairs(GUN_TESTS) do gun_lines[#gun_lines+1]=k..'='..v end
+s,notes=Link.parse_settings(table.concat(gun_lines,'\n')..'\n')
+assert(#notes==0,notes[1])
+for k,v in pairs(GUN_TESTS) do
+    assert(s[k]==v and Link.parse_settings('')[k]=='',k)
+    assert(not Link.DEFAULT:find('\n'..k..'=',1,true),k..': a test line, not in a new file')
+end
 -- drift_keys: the Unreal key names held for a drift in a Doro race, at most 4, or none; R2 and B unless set.
 s,notes=Link.parse_settings('')
 assert(#s.drift_keys==2 and s.drift_keys[1]=='Gamepad_RightTrigger' and s.drift_keys[2]=='B')
@@ -442,8 +474,8 @@ for _,refused in ipairs({{'F10','F10 opens the console'},{'Ctrl+F10','F10 opens 
     local want="settings: line 2: '"..refused[1].."' is not allowed for leave_key ("..refused[2].."); leave_key stays F8"
     assert(#notes==1 and notes[1]==want and s.leave_key.key=='F8' and s.leave_key.mod==nil,notes[1])
 end
-s,notes=Link.parse_settings('host_key=F2\nstatus_key=F4\nleave_key=F4\n')
-assert(#notes==1 and notes[1]=='settings: F4 is set for two actions: default keys used',notes[1])
+s,notes=Link.parse_settings('host_key=F2\nstatus_key=F11\nleave_key=F11\n')
+assert(#notes==1 and notes[1]=='settings: F11 is set for two actions: default keys used',notes[1])
 assert(s.menu_key.key=='F5' and s.host_key.name=='none' and s.status_key.key=='F6' and s.leave_key.key=='F8',
     'A shared key: all four go back')
 s,notes=Link.parse_settings('status_key=Alt+F7\nleave_key=Ctrl+F7\n')
@@ -478,10 +510,13 @@ assert(#notes==0 and s.menu_key.name=='F7','A UTF-8 BOM is skipped')
 local keys=0
 for name,value in Link.DEFAULT:gmatch('\n(%w+_key)=([^\n]*)') do keys=keys+1; assert(not value:upper():find('F10'),name) end
 s,notes=Link.parse_settings(Link.DEFAULT)
-assert(keys==7 and #notes==0 and s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name=='F6'
-    and s.leave_key.name=='F8' and s.follow_key.name=='F7' and s.race_key.name=='F9' and s.bike_key.name=='F3')
-assert(Link.DEFAULT:find('\nleave_key=F8\nfollow_key=F7\nrace_key=F9\nbike_key=F3\n',1,true),
-    'A new file names the race key and the bike key')
+assert(keys==8 and #notes==0 and s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name=='F6'
+    and s.leave_key.name=='F8' and s.follow_key.name=='F7' and s.race_key.name=='F9' and s.bike_key.name=='F3'
+    and s.gun_key.name=='F4')
+assert(Link.DEFAULT:find('\nleave_key=F8\nfollow_key=F7\nrace_key=F9\nbike_key=F3\ngun_key=F4\n',1,true),
+    'A new file names the race key, the bike key and the gun key')
+assert(s.gun_mode==true and Link.DEFAULT:find('\nbike=on\n# Gun mode: on or off, on by default.',1,true)
+    and Link.DEFAULT:find('\ngun_mode=on\n',1,true),'A new file has gun mode on')
 assert(s.bike==true and Link.DEFAULT:find('\ndrift_keys=Gamepad_RightTrigger B\n# The bike: on or off, on by default.',1,true)
     and Link.DEFAULT:find('\nbike=on\n',1,true),'A new file has the bike on')
 assert(Link.DEFAULT:find('\ndrift_keys=Gamepad_RightTrigger B\n',1,true),'A new file names the drift keys')

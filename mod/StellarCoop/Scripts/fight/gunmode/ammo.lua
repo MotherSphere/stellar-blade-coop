@@ -28,8 +28,9 @@ function Ammo.step(c,dt)
     return math.max(1,math.ceil(c/dt-1e-6))*dt
 end
 
--- g: gun mode's shared state (log, try, valid). cfg: mag_size, reload_time, fire_interval, round_name, round_color,
--- reload_text. cool(v): sets the shot's cool time (fight/gunmode/data.lua).
+-- g: gun mode's shared state (log, try, valid; words: ui/text.lua's gun in the player's language, whose round, reload
+-- and empty go on the slot). cfg: mag_size, reload_time, fire_interval, round_color, reload_color. cool(v): sets the
+-- shot's cool time (fight/gunmode/data.lua).
 -- on_reload(on, duration): the reload's animation and sound (fight/gunmode/mode.lua).
 function Ammo.new(g,cfg,cool,on_reload,dpad)
     local self={left=cfg.mag_size,reserve=cfg.mag_size*cfg.spare_mags,reload_until=nil,acc=0,dt=1/60,held=false}
@@ -90,7 +91,8 @@ function Ammo.new(g,cfg,cool,on_reload,dpad)
             end
         end
         local empty=self.left<=0 and self.reserve<=0
-        local name=self.reload_until and cfg.reload_text or empty and cfg.empty_text or cfg.round_name
+        local w=g.words()
+        local name=self.reload_until and w.reload or empty and w.empty or w.round
         local count=tostring(math.max(0,math.floor(self.left)))
         if ui.shown_name~=name or (ui.check or 0)<os.clock() then
             if set_text(ui.name,name) then ui.shown_name=name end
