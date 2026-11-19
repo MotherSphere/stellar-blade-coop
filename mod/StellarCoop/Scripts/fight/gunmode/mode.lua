@@ -823,8 +823,10 @@ function GunMode.new(env)
             if ok_a and ammo.left<before and g.valid(s.rifle) and now-(s.flash_at or 0)>=cfg.muzzle_every then pcall(function()
                 s.flash_at=now
                 s.flash_lib=s.flash_lib or StaticFindObject('/Script/Niagara.Default__NiagaraFunctionLibrary')
-                -- Found again when the engine has collected it (nothing of the game holds it between shots), as
-                -- laser.lua finds its own.
+                -- Found by its path at each flash, else loaded again, as laser.lua finds its own: nothing of the game
+                -- holds it between shots, so the engine can collect it. A reference kept from an earlier flash then
+                -- still passes IsValid once another object sits at the freed address.
+                s.flash_fx=StaticFindObject(cfg.muzzle_fx)
                 if not g.valid(s.flash_fx) then s.flash_fx=LoadAsset(cfg.muzzle_fx) end
                 if g.valid(s.flash_lib) and g.valid(s.flash_fx) then
                     local fx=s.flash_lib:SpawnSystemAttached(s.flash_fx,s.rifle,FName('FX_Fire'),{X=0,Y=0,Z=0},{Pitch=0,Yaw=0,Roll=0},2,true,true,0,false)

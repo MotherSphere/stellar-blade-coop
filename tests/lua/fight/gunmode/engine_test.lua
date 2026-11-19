@@ -38,31 +38,37 @@ do
     assert(w.keys()==keys..' FlyUp=SpaceBar',w.keys())
 end
 
--- 2. H5: the muzzle flash's Niagara system collected between two shots is loaded again, never spawned freed.
+-- 2. H5: the muzzle flash's Niagara system collected between two shots is found again by its path or loaded again,
+--    never spawned freed, nor through a kept reference that another object now sits behind.
 do
     local w=Fake.new(); w.install()
-    local spawned,live={},nil
+    local spawned={}
+    local live -- the flash asset in memory under its path; nil once collected
     local niagara={IsValid=function() return true end,SpawnSystemAttached=function(_,fx) spawned[#spawned+1]=fx end}
-    local find=w.find
+    local find,load=w.find,LoadAsset
+    local function flash(path) return path:find('NS_A_NikkeGunFire',1,true) end
     w.find=function(path)
         if path=='/Script/Niagara.Default__NiagaraFunctionLibrary' then return niagara end
-        if path:find('NS_A_NikkeGunFire',1,true) then
-            if not live or live.dead then
-                live={IsValid=function(o) return not o.dead end,GetFullName=function() return 'NiagaraSystem '..path end}
-            end
-            return live
-        end
+        if flash(path) then return live end
         return find(path)
+    end
+    LoadAsset=function(path)
+        if flash(path) then live=live or {IsValid=function(o) return not o.dead end}; return live end
+        return load(path)
     end
     local gun=GunMode.new({log=function() end})
     out(gun)
     w.pawn.bTPSMode=true; w.down.LeftMouseButton=true -- firing mode, fire held
     clock=clock+0.2; gun.tick()
-    assert(#spawned==1 and spawned[1]:IsValid(),'the first flash')
-    spawned[1].dead=true -- the engine's collector
+    assert(#spawned==1 and spawned[1]==live,'the first flash')
+    live.dead=true; live=nil -- the engine's collector
     clock=clock+0.2; gun.tick()
     assert(#spawned==2,'the second flash')
     assert(spawned[2]:IsValid(),'a collected flash asset spawned')
+    live=nil -- collected again, another object at its address: the old reference still passes IsValid
+    clock=clock+0.2; gun.tick()
+    assert(#spawned==3,'the third flash')
+    assert(spawned[3]==live and spawned[3]~=spawned[2],'a kept flash reference spawned')
 end
 
 -- 3. M14: the posed stance's hide clip is held by one of its components while the donor plays the reload, so a
@@ -79,8 +85,15 @@ do
     local function clip(path) return object({path=path,GetPlayLength=function() return 1.6 end}) end
     local function component()
         local c=object({VisibilityBasedAnimTickOption=0,GetBoneIndex=function() return 0 end})
-        local function hold(o,a) if not a:IsValid() then freed=true end; rawset(o,'clip',a) end
-        c.PlayAnimation,c.SetAnimation=hold,hold
+        -- As read in Ghidra on 26123051: SetAnimation (0x1528d7340) gives the clip only to a single-node instance;
+        -- SetAnimationMode (0x14411b630) drops the instance when the mode changes. PlayAnimation does both.
+        local function hold(o,a)
+            if not a:IsValid() then freed=true end
+            if rawget(o,'mode')==1 then rawset(o,'clip',a) end
+        end
+        c.SetAnimationMode=function(o,m) if rawget(o,'mode')~=m then rawset(o,'clip',nil) end; rawset(o,'mode',m) end
+        c.SetAnimation=hold
+        c.PlayAnimation=function(o,a) o:SetAnimationMode(1); hold(o,a) end
         c.K2_DestroyComponent=function(o) o.dead=true end
         comps[#comps+1]=c
         return c
