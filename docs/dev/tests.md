@@ -55,7 +55,8 @@ UE4SS objects for those that call the engine. In the capture test, any write to 
   round once the spares are spent, a refill);
 - `fight/gunmode/engine_test` covers the engine objects gun mode keeps across frames, over `fight/gunmode/fake.lua`.
   Masked keys go back into the action mappings as they are when the rifle goes away, after coop fly's mappings moved
-  the array to a new buffer; nothing is written into the old one;
+  the array to a new buffer; nothing is written into the old one. The muzzle flash's asset is loaded again once
+  collected, never spawned freed;
 - `fight/gunmode/stop_test` runs gun mode over a fake UE4SS (`fight/gunmode/fake.lua`) on the rifle layer's path.
   The fake's row fields have the kinds read in Ghidra on 26123051, so the shot's Hit1 step has no `StepType`.
   `stop` (coop off) gives back the table fields, the keys, the rifle, her body's own post-process class, the FOV lock

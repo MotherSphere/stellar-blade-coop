@@ -823,8 +823,10 @@ function GunMode.new(env)
             if ok_a and ammo.left<before and g.valid(s.rifle) and now-(s.flash_at or 0)>=cfg.muzzle_every then pcall(function()
                 s.flash_at=now
                 s.flash_lib=s.flash_lib or StaticFindObject('/Script/Niagara.Default__NiagaraFunctionLibrary')
-                s.flash_fx=s.flash_fx or LoadAsset(cfg.muzzle_fx)
-                if g.valid(s.flash_lib) and s.flash_fx then
+                -- Found again when the engine has collected it (nothing of the game holds it between shots), as
+                -- laser.lua finds its own.
+                if not g.valid(s.flash_fx) then s.flash_fx=LoadAsset(cfg.muzzle_fx) end
+                if g.valid(s.flash_lib) and g.valid(s.flash_fx) then
                     local fx=s.flash_lib:SpawnSystemAttached(s.flash_fx,s.rifle,FName('FX_Fire'),{X=0,Y=0,Z=0},{Pitch=0,Yaw=0,Roll=0},2,true,true,0,false)
                     if g.valid(fx) then local k=cfg.muzzle_scale; fx:SetRelativeScale3D({X=k,Y=k,Z=k}) end
                 end
