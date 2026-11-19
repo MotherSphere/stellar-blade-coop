@@ -24,6 +24,7 @@ local Data=require('gunmode.data')
 local Probe=require('gunmode.probe')
 local Ammo=require('gunmode.ammo')
 local Dpad=require('gunmode.dpad')
+local Overlay=require('gunmode.overlay')
 
 local GunMode={}
 
@@ -81,6 +82,9 @@ function GunMode.new(env)
     local single=Rifle.new(Laser,set.trace and g.log or nil)
     local stance=posed
     local probe=set.probe and Probe.new(g)
+    -- M1 (11-18 rebuild): the post-process layer (gunmode/overlay.lua, ABP in gunmode's pak) plays the NIKKE rifle clips
+    -- on her arms over her own finished pose; nothing of her main animation, springs or outfit physics is touched.
+    local layer=Overlay.new(g)
     local keys=Input.state()
     local self={}
     local s={hidden={},followed={},on=false,pause=0,next_shot=0,shots=0,zoom=0,zoom_held=false,target=nil,cam=nil,mask=nil,
@@ -97,6 +101,12 @@ function GunMode.new(env)
     end
     local function on_reload(on,duration)
         local ok=stance.reload(on,duration)
+        if s.layer then
+            s.reload_until=on and os.clock()+((duration and duration>0) and duration or 1) or nil
+            s.reload_len=(duration and duration>0) and duration or 1
+            s.layer_clip=nil
+            ok=true
+        end
         if on then
             s.sounds={}
             local now=os.clock()
@@ -303,6 +313,8 @@ function GunMode.new(env)
                 end
                 if first then
                     seen[#seen+1]=(hide and '*' or follow and '+' or copy and '=' or '')..tostring(mesh and mesh:match('[^%.]+$'))
+                        ..(g.try(function() return c:IsVisible() end)==false and '(invisible)' or '')
+                        ..(g.try(function() return c.bOwnerNoSee end)==true and '(ownernosee)' or '')
                 end
                 if hide then
                     local was=g.try(function() return c.bOwnerNoSee end)
@@ -450,6 +462,8 @@ function GunMode.new(env)
         end
         local pw=g.pawn()
         if pw then carry(pw,false) end
+        if s.layer and pw then pcall(layer.stop,pw); local ok,e=pcall(layer.uninstall,pw); if not ok then g.log('layer off: '..tostring(e)) end end
+        s.layer,s.layer_clip,s.reload_until,s.turn,s.turnq=false,nil,nil,nil,nil
         s.ovr_row=nil
         show_others()
         show_drone()
@@ -468,6 +482,10 @@ function GunMode.new(env)
         end
         -- The gun mode animation pak (zNikkeGunMode_P): when it is installed, the aim stance's blend spaces point at
         -- its firing-stance animations while the rifle is out, and her real body shows while aiming (nothing posed).
+        local okl,inst,why_not=pcall(layer.install,p)
+        s.layer=okl and inst==true
+        g.log('rifle layer '..(s.layer and 'on' or ('not available: '..tostring(okl and why_not or inst))))
+        if s.layer then s.pak=false end
         if s.pak==nil then
             s.pak=g.try(function() return LoadAsset(cfg.pak_probe)~=nil end)==true
             g.log('animation pak '..(s.pak and 'found' or 'not installed: posed aim'))
@@ -477,8 +495,12 @@ function GunMode.new(env)
         data.opts.carry_ovr=s.pak and (set.carry_ovr or 'auto') or nil
         data.opts.carry_spare=set.carry_spare
         data.opts.carry_idle_type=set.carry_idle_type
-        stance=s.pak and single or posed
-        if not data.take() then g.log('off: SB\'s rows could not be taken (see above)'); return end
+        stance=(s.pak or s.layer) and single or posed
+        single.no_turn=s.layer==true
+        if not data.take() then
+            if s.layer then pcall(layer.uninstall,p); s.layer=false end
+            g.log('off: SB\'s rows could not be taken (see above)'); return
+        end
         aim.setup()
         local ok,err=pcall(function() s.mask=mask() end)
         if not ok then g.log('off: the input mask failed ('..tostring(err)..')'); return end
@@ -505,6 +527,7 @@ function GunMode.new(env)
         if not ok then
             if s.mask then pcall(s.mask); s.mask=nil end
             pcall(stance.stop)
+            if s.layer then pcall(layer.uninstall,p); s.layer=false end
             g.log('off: Luke\'s stance did not start ('..tostring(err)..')')
             return
         end
@@ -597,7 +620,7 @@ function GunMode.new(env)
         s.toggle_at=now
         -- Parked while it is rebuilt: the toggle says so on screen and nothing else of gun mode runs (no rows taken,
         -- no rifle, no posed copy).
-        if cfg.enabled==false then
+        if cfg.enabled==false and not Overlay.available() then
             if s.on then disable(why) end
             g.log('toggle ('..why..'): gun mode is being rebuilt, off')
             if not s.notice_off then
@@ -723,6 +746,159 @@ function GunMode.new(env)
         if not ok then g.log('stance: '..tostring(err)); disable('stance error'); return end
         if not stance.running() then disable('the stance stopped'); return end
         if not set.native then camera(p) end
+        if s.layer then
+            -- her outfit changed (a new body mesh drops the layer): put it back, at most once a second
+            if now-(s.layer_check or 0)>=1.0 then
+                s.layer_check=now
+                if not layer.active(p) then
+                    local ok,inst=pcall(layer.install,p); s.layer_clip=nil
+                    if not (ok and inst==true) then disable('rifle layer lost'); return end
+                end
+            end
+            if s.reload_until and now>=s.reload_until then s.reload_until=nil end
+            local want=s.reload_until and 'reload' or (s.zoom_held and 'aim' or 'carry')
+            -- the game's aim stance (P_Eve_Gun) may switch her post-process graph off and hide what her hands hold: both
+            -- are put back while the rifle is out (property reads and plain setters only, nothing on the instance itself)
+            local mesh=g.try(function() return p.Mesh end)
+            if g.try(function() return mesh.bDisablePostProcessBlueprint end)==true then
+                local ok=pcall(function() mesh:SetDisablePostProcessBlueprint(false) end)
+                if not s.pp_logged then s.pp_logged=true; g.log('layer: the game disabled post-process ('..want..'), re-enabled: '..tostring(ok)) end
+            end
+            if g.valid(s.rifle) then
+                local vis=g.try(function() return s.rifle:IsVisible() end)
+                local hid=g.try(function() return s.rifle.bHiddenInGame end)
+                if vis==false or hid==true then
+                    pcall(function() s.rifle:SetHiddenInGame(false,false) end); pcall(function() s.rifle:SetVisibility(true,false) end)
+                    if not s.vis_logged then s.vis_logged=true; g.log(('layer: rifle hidden by the game (%s, visible %s hidden %s), shown again'):format(want,tostring(vis),tostring(hid))) end
+                end
+            end
+            -- (testing) the aim's geometry, once a second while aiming: the barrel against the camera's line, the
+            -- muzzle from her right shoulder, her left hand from the rifle
+            if set.trace and want=='aim' and g.valid(s.rifle) and now-(s.geo_at or 0)>=1.0 then
+                s.geo_at=now
+                pcall(function()
+                    local ml=StaticFindObject('/Script/Engine.Default__KismetMathLibrary')
+                    local cm=pc.PlayerCameraManager
+                    local cf=ml:GetForwardVector(cm:GetCameraRotation())
+                    local fire=FName('FX_Fire')
+                    local mz=s.rifle:GetSocketLocation(fire)
+                    local bf=ml:GetForwardVector(s.rifle:GetSocketRotation(fire))
+                    local root=s.rifle:K2_GetComponentLocation()
+                    local mesh=p.Mesh
+                    local sh=mesh:GetSocketLocation(FName('Bip001-R-UpperArm'))
+                    local lh=mesh:GetSocketLocation(FName('Bip001-L-Hand'))
+                    local rh=mesh:GetSocketLocation(FName('Bip001-R-Hand'))
+                    local function d(a,b) return math.sqrt((a.X-b.X)^2+(a.Y-b.Y)^2+(a.Z-b.Z)^2) end
+                    -- the left hand's distance to the rifle's line (root to muzzle)
+                    local ax,ay,az=mz.X-root.X,mz.Y-root.Y,mz.Z-root.Z
+                    local L=math.sqrt(ax*ax+ay*ay+az*az); ax,ay,az=ax/L,ay/L,az/L
+                    local px,py,pz=lh.X-root.X,lh.Y-root.Y,lh.Z-root.Z
+                    local t=px*ax+py*ay+pz*az
+                    local qx,qy,qz=px-t*ax,py-t*ay,pz-t*az
+                    local dot=cf.X*bf.X+cf.Y*bf.Y+cf.Z*bf.Z
+                    g.log(('layer geo: barrel vs camera %.0f deg, muzzle %.0f cm from her right shoulder, rifle %.0f cm long, left hand %.0f cm off the rifle line at %.0f cm along, right hand %.0f cm from the rifle root, actor yaw %.0f camera yaw %.0f'):format(
+                        math.deg(math.acos(math.max(-1,math.min(1,dot)))),d(mz,sh),L,math.sqrt(qx*qx+qy*qy+qz*qz),t,d(rh,root),
+                        p:K2_GetActorRotation().Yaw,cm:GetCameraRotation().Yaw))
+                    local t=s.turn or {Pitch=0,Yaw=0,Roll=0}
+                    local rb=g.try(function() local r=p.Mesh:GetPostProcessInstance().AimRot; return ('(%.1f, %.1f, %.1f)'):format(r.Pitch,r.Yaw,r.Roll) end)
+                    g.log(('layer turn: computed (%.1f, %.1f, %.1f), on the layer %s, set ok %s, %s, passes %s steps %s err %s'):format(t.Pitch,t.Yaw,t.Roll,tostring(rb),tostring(s.turn_ok),tostring(s.turn_dbg),tostring(s.turn_n),tostring(s.turn_steps),tostring(s.turn_lasterr)))
+                end)
+            end
+            if set.trace and want~=(s.trace_want or '') then
+                s.trace_want=want
+                g.log(('layer: %s, post-process disabled %s, rifle visible %s'):format(want,
+                    tostring(g.try(function() return mesh.bDisablePostProcessBlueprint end)),
+                    tostring(g.valid(s.rifle) and g.try(function() return s.rifle:IsVisible() end))))
+            end
+            -- the game stops montages when its stances change (its aim among them): the clip is checked four times a
+            -- second and played again when it was stopped
+            -- The aim follows the reticle: the clip holds the rifle at a fixed angle to her body, so her upper body is
+            -- turned (the layer's AimRot on Bip001-Spine1) until the barrel lies on the line from the rifle to the
+            -- reticle's point; eased back to straight when she is not aiming.
+            local ok_t,err_t=pcall(function()
+                local ml=StaticFindObject('/Script/Engine.Default__KismetMathLibrary')
+                s.turn_n=(s.turn_n or 0)+1
+                local Q=s.turnq or {0,0,0,1} -- x, y, z, w (component space)
+                local function mul(a,b) -- a after b
+                    return {a[4]*b[1]+a[1]*b[4]+a[2]*b[3]-a[3]*b[2], a[4]*b[2]-a[1]*b[3]+a[2]*b[4]+a[3]*b[1],
+                        a[4]*b[3]+a[1]*b[2]-a[2]*b[1]+a[3]*b[4], a[4]*b[4]-a[1]*b[1]-a[2]*b[2]-a[3]*b[3]}
+                end
+                local function norm(q) local n=math.sqrt(q[1]^2+q[2]^2+q[3]^2+q[4]^2); return {q[1]/n,q[2]/n,q[3]/n,q[4]/n} end
+                local function part(q,k) -- the fraction k of rotation q (from identity)
+                    if q[4]<0 then q={-q[1],-q[2],-q[3],-q[4]} end
+                    local a=2*math.acos(math.min(1,q[4])); local sn=math.sin(a/2)
+                    if sn<1e-6 then return {0,0,0,1} end
+                    local h=a*k/2; local f=math.sin(h)/sn
+                    return {q[1]*f,q[2]*f,q[3]*f,math.cos(h)}
+                end
+                local step
+                if want=='aim' and g.valid(s.rifle) then
+                    local root=s.rifle:K2_GetComponentLocation()
+                    local bf=ml:GetForwardVector(s.rifle:GetSocketRotation(FName('FX_Fire')))
+                    -- the point 20 m down the camera's line (the crosshair trace can hit her own arm once she turns)
+                    local cm=pc.PlayerCameraManager
+                    local cl=cm:GetCameraLocation()
+                    local f=ml:GetForwardVector(cm:GetCameraRotation())
+                    local t={X=cl.X+f.X*2000,Y=cl.Y+f.Y*2000,Z=cl.Z+f.Z*2000}
+                    local dx,dy,dz=t.X-root.X,t.Y-root.Y,t.Z-root.Z
+                    local L=math.sqrt(dx*dx+dy*dy+dz*dz)
+                    if L>100 then
+                        local ct=p.Mesh:K2_GetComponentToWorld()
+                        local a=ml:InverseTransformDirection(ct,bf)
+                        local b=ml:InverseTransformDirection(ct,{X=dx/L,Y=dy/L,Z=dz/L})
+                        local na=math.sqrt(a.X^2+a.Y^2+a.Z^2); local nb=math.sqrt(b.X^2+b.Y^2+b.Z^2)
+                        local ax,ay,az,bx,by,bz=a.X/na,a.Y/na,a.Z/na,b.X/nb,b.Y/nb,b.Z/nb
+                        local d=ax*bx+ay*by+az*bz
+                        if d>-0.99 then
+                            -- the shortest turn from the barrel onto the line, a quarter of it this frame
+                            local q=norm({ay*bz-az*by, az*bx-ax*bz, ax*by-ay*bx, 1+d})
+                            step=part(q,0.25)
+                            Q=norm(mul(step,Q))
+                            s.turn_steps=(s.turn_steps or 0)+1
+                        end
+                        s.turn_dbg=('barrel %.2f %.2f %.2f line %.2f %.2f %.2f'):format(ax,ay,az,bx,by,bz)
+                    end
+                end
+                if not step and want~='aim' then
+                    -- back to straight
+                    local inv={-Q[1],-Q[2],-Q[3],Q[4]}
+                    Q=norm(mul(part(inv,0.15),Q))
+                end
+                -- never more than 70 degrees away from straight
+                local ang=2*math.deg(math.acos(math.min(1,math.abs(Q[4]))))
+                if ang>70 then Q=part(Q,70/ang) end
+                s.turnq=Q
+                -- UE's FQuat::Rotator
+                local X,Y,Z,W=Q[1],Q[2],Q[3],Q[4]
+                local st=Z*X-W*Y
+                local yaw=math.deg(math.atan(2*(W*Z+X*Y),1-2*(Y*Y+Z*Z)))
+                local pitch,roll
+                if st<-0.4999995 then pitch=-90; roll=-yaw-2*math.deg(math.atan(X,W))
+                elseif st>0.4999995 then pitch=90; roll=yaw-2*math.deg(math.atan(X,W))
+                else pitch=math.deg(math.asin(2*st)); roll=math.deg(math.atan(-2*(W*X+Y*Z),1-2*(X*X+Y*Y))) end
+                local r={Pitch=pitch,Yaw=yaw,Roll=roll}
+                s.turn=r
+                local ok1,e1=layer.set_turn(p,r)
+                s.turn_ok=ok1 and 'yes' or tostring(e1)
+            end)
+            if not ok_t then s.turn_lasterr=tostring(err_t) end
+            if not ok_t and not s.turn_err then s.turn_err=true; g.log('layer turn error: '..tostring(err_t)) end
+            if s.layer_clip and now-(s.layer_seen or 0)>=0.25 then
+                s.layer_seen=now
+                if not layer.playing(p,s.layer_clip) then
+                    s.layer_stops=(s.layer_stops or 0)+1
+                    if s.layer_stops<=3 or s.layer_stops%50==0 then g.log('layer: '..s.layer_clip..' was stopped ('..s.layer_stops..'), played again') end
+                    s.layer_clip=nil
+                end
+            end
+            if want~=s.layer_clip then
+                local m,e
+                if want=='carry' then m,e=layer.play(p,'carry',0.001,0,0.2,0.2)
+                elseif want=='aim' then m,e=layer.play(p,'aim',1.0,0,0.12,0.15)
+                else m,e=layer.play(p,'reload',1.0/math.max(0.2,s.reload_len or 1),1,0.1,0.15) end
+                if m then s.layer_clip=want elseif not s.layer_err then s.layer_err=true; g.log('layer clip '..want..': '..tostring(e)) end
+            end
+        end
         if now-s.hide_at>=1.0 then
             s.hide_at=now
             pcall(hide_others,p,false)
