@@ -127,7 +127,7 @@ return {
         ['online.session']='Sesiones en línea',['online.photo']='Modo fotografía sincronizado',
         ['fight.enemies']='Enemigos compartidos',['story.quests']='Misiones compartidas',
         ['world.objects']='Mundo compartido',['story.together']='Historia compartida',['online.lobby']='El lobby SBO',
-        ['vehicles.bike']='La moto',['world.daynight']='Día y noche',['tools']='Menús cortados',
+        ['vehicles.bike']='La moto',['world.daynight']='Día y noche',['cutmenus']='Menús cortados',
         ['online.saves']='Partidas guardadas co-op'},
     fight={on='Enemigos compartidos activados: %d enemigos vinculados.',
         one='Enemigos compartidos activados: 1 enemigo vinculado.',

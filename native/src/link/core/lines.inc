@@ -115,12 +115,12 @@ public:
     ++(ok ? race_out_ : race_dropped_);
     return ok;
   }
-  // coop gift's line (tools/mailbox.lua, through a gift request): reliable to the friend past the handshake, or
+  // coop gift's line (cutmenus/mailbox.lua, through a gift request): reliable to the friend past the handshake, or
   // back as hers ("gift <payload>" for Lua) in the loopback with no friend, at most kGiftPerSecond a second. Each one
   // goes in the log, as each of hers does: a gift moves items between two saves. A gift that cannot go (no session, a
   // match lobby, a send with more than 2 players, past the rate, Steam refused it) comes back to Lua at once as her
   // refusal, "gift n <id> nolink", so the sender gets the items back without waiting for her answer (only for a first
-  // send: tools/mailbox.lua ignores it for a send again). A gift line names no player: with 3 or more, every member
+  // send: cutmenus/mailbox.lua ignores it for a send again). A gift line names no player: with 3 or more, every member
   // would take the items of a send. An answer (a or n) still goes to every member: a gift sent before a third player
   // came in gets it. Only its sender's mailbox waits for that id.
   void gift(const std::string &payload) {

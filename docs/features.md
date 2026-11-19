@@ -142,7 +142,7 @@ achievements, which cannot be taken back.
   that still work (no damage, speed, attack, gauges, enemy rows), and `coop devinfo` opens its quest debugger or
   player info panel. These test commands have not been tried in game yet (see
   [eve/eve.md](eve/eve.md#cut-tachy-skill-coop-chainspin) and
-  [tools/menus.md](tools/menus.md#developer-menu-coop-devmenu-and-coop-devinfo)).
+  [cutmenus/menus.md](cutmenus/menus.md#developer-menu-coop-devmenu-and-coop-devinfo)).
 - `coop emote <name>` plays one of EVE's clips through the game's own animation call: 31 photo-mode poses held until
   she moves (grouped under the categories of the game's cut Social Action menu), two waves, and six clips of hers made
   for two enemies with no character in the game files: the Chariot, which was cut (its struggle and her takedown on
@@ -152,7 +152,7 @@ achievements, which cannot be taken back.
   camp each one starts at. `coop shortcut load` writes one as co-op slot 5 for Load Game, without its achievement
   list. It needs `shortcut_load=on` (the default), and what is left of the developer's progress can still unlock
   Steam achievements. Neither has been tried in game yet (see
-  [tools/menus.md](tools/menus.md#cut-load-shortcut-saves-coop-shortcut)).
+  [cutmenus/menus.md](cutmenus/menus.md#cut-load-shortcut-saves-coop-shortcut)).
 - At its first run the mod opens a guide of nine pages, with art of Mother Sphere by timediffer24. The Guide row of the
   co-op menu and `coop guide` open it again (see [players/interface.md](players/interface.md#guide)).
 - Each player's .pak mods are named over the link, and a notice says which ones the other player lacks. A friend's CNS

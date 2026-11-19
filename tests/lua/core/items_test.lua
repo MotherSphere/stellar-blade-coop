@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- core/items.lua: the grant call with its checks; EVE's GUID from her spawn info (0x51 as vehicles/bike/fetch_test.lua
--- and tools/mailbox_test.lua give it), 10 items a buy at most.
+-- and cutmenus/mailbox_test.lua give it), 10 items a buy at most.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 FName=function(text) return {ToString=function() return text end} end
 local Shop=require('core.items')

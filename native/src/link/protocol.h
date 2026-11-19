@@ -25,7 +25,7 @@
 //   SBC<protocol> mark <n> [<text>] (coop mark: a numbered line in both players' logs).
 //   SBC<protocol> race <text> (a Doro race line, online/modes/race/model.lua's, printable ASCII; the link reads no
 //   further).
-//   SBC<protocol> gift <payload> (coop gift, tools/mailbox.lua: "s <id> <alias> <count>" a gift sent, "a <id>" kept
+//   SBC<protocol> gift <payload> (coop gift, cutmenus/mailbox.lua: "s <id> <alias> <count>" a gift sent, "a <id>" kept
 //   in the friend's mailbox, "n <id> <why>" refused; gift_ok()).
 //   SBC<protocol> bike park <map> <x> <y> <z> <pitch> <yaw> <roll> or SBC<protocol> bike none (her parked bike,
 //   vehicles/bike/ride.lua: its map, whole centimetres, hundredths of a degree; bike_ok()).
@@ -548,7 +548,7 @@ inline bool split(const std::string &text, std::string *fields, size_t count, st
   return true;
 }
 
-// coop gift's line (tools/mailbox.lua), reliable: "s <id> <alias> <count>" (a gift sent: its id, 1 to 20 digits and
+// coop gift's line (cutmenus/mailbox.lua), reliable: "s <id> <alias> <count>" (a gift sent: its id, 1 to 20 digits and
 // not 0, an item alias as alias_word() takes it, 1 to kMaxGiftCount items), "a <id>" (the gift is in the friend's
 // mailbox) or "n <id> <why>" (refused: why in 1 to 16 letters a-z). Lua checks the item against its own list; the link
 // reads no further.
@@ -882,8 +882,8 @@ inline std::string masked(std::string_view text) {
 // ..." or "camps <id> none <why>" (the camps lines, relayed to the friend by link/core.h), and "travel <alias> <FName
 // index> <FName number>" (the call on the game thread, glue/tick.cpp: an index above 0, both within 32 bits); "mark" or
 // "mark <text>" (a numbered line in both players' logs, the text chat_clean() to kMaxMark bytes, maybe empty); for coop
-// gift (tools/mailbox.lua) "gift <payload>" (a gift line for the friend, gift_ok()) and "items <ask> <alias> <FName
-// index> <FName number>" (how many of that item our EVE carries, read by the worker, tools/items.h: ask 1 to 65535,
+// gift (cutmenus/mailbox.lua) "gift <payload>" (a gift line for the friend, gift_ok()) and "items <ask> <alias> <FName
+// index> <FName number>" (how many of that item our EVE carries, read by the worker, cutmenus/items.h: ask 1 to 65535,
 // answered in the engine line's items=; index above 0, both within 32 bits); and for coop lion (fight/bosses/lion.lua)
 // "lion rows <Table>=0x<address> ...", for coop gardener fight (fight/bosses/gardener.lua) "gardener rows
 // <Table>=0x<address> ...", for coop tendril fight (fight/bosses/tendril.lua) "tendril rows <Table>=0x<address> ...",

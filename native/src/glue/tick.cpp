@@ -200,9 +200,9 @@
 // reads sb record. coop off logs an open record and leaves it for C1: a job then running ends off with nothing
 // written, and only C1 runs after it.
 //
-// coop gift's inventory read (tools/items.h) is the worker's alone: on Lua's items request it reads how many of one
+// coop gift's inventory read (cutmenus/items.h) is the worker's alone: on Lua's items request it reads how many of one
 // item our EVE carries through ReadProcessMemory, her GUID too, and status() puts the answer in the engine
-// line for tools/mailbox.lua.
+// line for cutmenus/mailbox.lua.
 //
 // The pad (ui/pad.h): once a run the worker finds the twelve controller key names PadKeys reads, checks that Slate's
 // application holds its message handler, then swaps the handler's three controller slots of the game's image (analog,
@@ -256,7 +256,7 @@
 #include "game/bike.h"
 #include "eve/debug_keys.h"
 #include "game/dev_panels.h"
-#include "tools/items.h"
+#include "cutmenus/items.h"
 #include "online/lobby/loading.h"
 #include "game/memory.h"
 #include "online/session/options.h"
@@ -349,7 +349,7 @@
 #include "online/modes/nightop/nightop_worker.inc"
 #include "online/group/travel_worker.inc"
 #include "online/saves/shortcut_worker.inc"
-#include "tools/items_worker.inc"
+#include "cutmenus/items_worker.inc"
 #include "glue/tick/quests_worker_shared.inc"
 #include "story/quests/quests_worker.inc"
 #include "glue/tick/world_worker_shared.inc"

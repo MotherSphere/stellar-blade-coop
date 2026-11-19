@@ -2,7 +2,7 @@
 
 The commands on this page bring back scenes and lines that the game's files still hold: two scenes that no cutscene
 trigger plays (`coop scene`) and subtitles of cut scenes and voice takes that nothing plays (`coop lines`). The cut
-menus and the mailbox are in [tools/menus.md](../tools/menus.md).
+menus and the mailbox are in [cutmenus/menus.md](../cutmenus/menus.md).
 
 ## Cut scenes: `coop scene`
 

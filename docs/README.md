@@ -69,7 +69,7 @@ start with `coop`.
 
 | Page | What it covers |
 | --- | --- |
-| [Cut menus and the mailbox](tools/menus.md) | `coop shortcut`, `coop devmenu` and `coop devinfo`, `coop gift` |
+| [Cut menus and the mailbox](cutmenus/menus.md) | `coop shortcut`, `coop devmenu` and `coop devinfo`, `coop gift` |
 
 ## Building and internals
 
@@ -99,7 +99,7 @@ left. The pages still name build 24463856 where a fact was read on that build, s
 | [Story together: how it works](story/together-internals.md) | The host's theater reads and hooks, the scene and trip tables, the SBS lines, the guest's gate, leash and results, the guest's quest steps, the status line, the addresses |
 | [The bike: how it works](vehicles/bike-internals.md) | The preload, the part on EVE, mount and dismount, the gate, the riding pose, the riding model, the lean, the ghosts |
 | [EVE's cut moves: how they work](eve/eve-internals.md) | The cut ChainSpin, developer flight and slow motion, the cut glide, emotes |
-| [Cut menus and the mailbox: how they work](tools/menus-internals.md) | The cut Load Shortcut menu, the developer menu and panels, the cut mailbox |
+| [Cut menus and the mailbox: how they work](cutmenus/menus-internals.md) | The cut Load Shortcut menu, the developer menu and panels, the cut mailbox |
 | [Achievements and safety design](dev/safety.md) | Which kills and achievements count for each player, the safety design |
 | [Story dump](dev/story-dump.md) | `coop story`, `tools/story_lines.py` and `tools/save_read.py`: the story state of a save or of the running game, one line per value |
 
@@ -110,8 +110,8 @@ for anyone who reads or changes the code. The commands are in [usage.md](usage.m
 [dev/building.md](dev/building.md#repository-layout).
 
 Code comments still cite sections of this page by name, for example `native/src/world/maps/matrix13/mxiii_rows.h` and
-`tools/mxiii_rows.py` ("Matrix XIII's world rows") and `mod/StellarCoop/Scripts/tools/mailbox.lua` ("Achievements"), so
-[Where each section went](#where-each-section-went) gives the new place of every section that used to be here.
+`tools/mxiii_rows.py` ("Matrix XIII's world rows") and `mod/StellarCoop/Scripts/cutmenus/mailbox.lua` ("Achievements"),
+so [Where each section went](#where-each-section-went) gives the new place of every section that used to be here.
 `core/enemy.lua`, its copy `fight/bosses/enemy.lua` and `online/modes/nightop/run.lua` cite this page for how a spawned
 body reads its state and how the game reuses Lion bodies, which is in
 [fight/bosses-internals.md: The spawn](fight/bosses-internals.md#the-spawn).
@@ -132,7 +132,7 @@ body reads its state and how the game reuses Lion bodies, which is in
 | [vehicles/bike-internals.md](vehicles/bike-internals.md) | The bike: the preload, the part on EVE, mount and dismount, the gate, the riding pose, the riding model, the lean |
 | [fight/bosses-internals.md](fight/bosses-internals.md) | The cut Lion with the row batches, the cut Gardener, the cut Tendril |
 | [eve/eve-internals.md](eve/eve-internals.md) | The cut ChainSpin, developer flight and slow motion, the cut glide, emotes |
-| [tools/menus-internals.md](tools/menus-internals.md) | The cut Load Shortcut menu and loading one of its saves, the developer menu and panels, the cut mailbox |
+| [cutmenus/menus-internals.md](cutmenus/menus-internals.md) | The cut Load Shortcut menu and loading one of its saves, the developer menu and panels, the cut mailbox |
 | [online/modes/nightop-shop-internals.md](online/modes/nightop-shop-internals.md) | The shop screen (its rows, the opener, the wallet), Roxanne's choices, the cut stimpacks, the cut Shock Bolt |
 | [world/matrix13-internals.md](world/matrix13-internals.md) | The cut dungeon's rows and event spawns, the command, the arrival, Lily's menu, the camps, the save, the title, its world rows, the records |
 | [world/lily-signal-internals.md](world/lily-signal-internals.md) | The rows, quests and talks of Lily's signal |
@@ -228,13 +228,13 @@ body reads its state and how the game reuses Lion bodies, which is in
 | Developer flight and slow motion | [eve/eve-internals.md](eve/eve-internals.md#developer-flight-and-slow-motion) |
 | Cut glide | [eve/eve-internals.md](eve/eve-internals.md#cut-glide) |
 | Emotes | [eve/eve-internals.md](eve/eve-internals.md#emotes) |
-| The cut Load Shortcut menu | [tools/menus-internals.md](tools/menus-internals.md#the-cut-load-shortcut-menu) |
-| The cut Load Shortcut menu: Loading one | [tools/menus-internals.md](tools/menus-internals.md#loading-one) |
-| Developer menu and panels | [tools/menus-internals.md](tools/menus-internals.md#developer-menu-and-panels) |
-| Cut mailbox | [tools/menus-internals.md](tools/menus-internals.md#cut-mailbox) |
-| Cut mailbox: Why the game's mailbox is not used | [tools/menus-internals.md](tools/menus-internals.md#why-the-games-mailbox-is-not-used) |
-| Cut mailbox: The inventory read | [tools/menus-internals.md](tools/menus-internals.md#the-inventory-read) |
-| Cut mailbox: The remove, the gift and its answer | [tools/menus-internals.md](tools/menus-internals.md#the-remove-the-gift-and-its-answer) |
+| The cut Load Shortcut menu | [cutmenus/menus-internals.md](cutmenus/menus-internals.md#the-cut-load-shortcut-menu) |
+| The cut Load Shortcut menu: Loading one | [cutmenus/menus-internals.md](cutmenus/menus-internals.md#loading-one) |
+| Developer menu and panels | [cutmenus/menus-internals.md](cutmenus/menus-internals.md#developer-menu-and-panels) |
+| Cut mailbox | [cutmenus/menus-internals.md](cutmenus/menus-internals.md#cut-mailbox) |
+| Cut mailbox: Why the game's mailbox is not used | [cutmenus/menus-internals.md](cutmenus/menus-internals.md#why-the-games-mailbox-is-not-used) |
+| Cut mailbox: The inventory read | [cutmenus/menus-internals.md](cutmenus/menus-internals.md#the-inventory-read) |
+| Cut mailbox: The remove, the gift and its answer | [cutmenus/menus-internals.md](cutmenus/menus-internals.md#the-remove-the-gift-and-its-answer) |
 | Achievements | [dev/safety.md](dev/safety.md#achievements) |
 | Safety design | [dev/safety.md](dev/safety.md#safety-design) |
 | Loopback, record and replay | [dev/architecture.md](dev/architecture.md#loopback-record-and-replay) |

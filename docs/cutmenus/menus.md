@@ -3,7 +3,7 @@
 The commands on this page bring back menus that the game's files still hold: the saves of the cut Load Shortcut menu
 (`coop shortcut`), the developers' cheat menu with two debug panels (`coop devmenu`, `coop devinfo`) and the cut
 mailbox, used for gifts between two players (`coop gift`). How the menus and the mailbox work is in
-[tools/menus-internals.md](menus-internals.md).
+[cutmenus/menus-internals.md](menus-internals.md).
 
 ## Cut Load Shortcut saves: `coop shortcut`
 

@@ -7,7 +7,7 @@ The step-by-step procedures for players are in [INSTALL.md](../../INSTALL.md#sav
 - The mod writes one of your own saves (`StellarBladeSave00.sav` to `04.sav`) only when you export a co-op save over
   it with `coop saves export` (see [Co-op saves](#co-op-saves)), after a backup of that save. It never writes your
   unlocks or equipment. It changes the inventory only when you buy in Night Operation's shop (`coop nightop buy`) or
-  send and take a gift (`coop gift`, see [tools/menus.md](../tools/menus.md#cut-mailbox-coop-gift)), on a co-op save, so the items
+  send and take a gift (`coop gift`, see [cutmenus/menus.md](../cutmenus/menus.md#cut-mailbox-coop-gift)), on a co-op save, so the items
   land in or leave that co-op save, or when you pay 500 betacrystal to bring the bike back at Xion, on any save (see
   [vehicles/bike.md](../vehicles/bike.md#bringing-it-back-at-xion)).
   The shop's points (see [online/modes/nightop-shop.md](../online/modes/nightop-shop.md)), the gifts' mailbox and the place where
@@ -157,7 +157,7 @@ The `convert=` line shows the pass as any other, and `coop-link.log` has `slot N
 `coop saves coop` is refused until that pass ends, since the other slots may have no copy or an older one; once it has
 ended, `coop saves coop` runs its own pass over every slot first.
 
-`coop shortcut load` ([tools/menus.md](../tools/menus.md#loading-one-coop-shortcut-load), with `shortcut_load=on`, the default) writes a
+`coop shortcut load` ([cutmenus/menus.md](../cutmenus/menus.md#loading-one-coop-shortcut-load), with `shortcut_load=on`, the default) writes a
 cleaned developer save as `StellarBladeCoop04.sav` through the same kind of pass, while the game uses the copies: the
 old copy goes to a new folder of `StellarCoopBackups` first, and the new one gets no line in `StellarCoopSaves.txt`, so
 later passes keep it as played. Before the save, it writes `StellarCoopShortcut04.txt` beside it, a mark that names

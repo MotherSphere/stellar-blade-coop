@@ -2,8 +2,8 @@
 
 The Lua scripts and the native sources have one folder per module in each tree. Most modules sit in the category
 folders `online/`, `fight/`, `world/`, `story/` and `vehicles/`. Two modules have a folder of their own at the top of
-each tree: `eve/` and `tools/`. Modules do not depend on each other, so a module that fails to load is off alone while
-the rest of Stellar Blade Online keeps working.
+each tree: `eve/` and `cutmenus/`. Modules do not depend on each other, so a module that fails to load is off alone
+while the rest of Stellar Blade Online keeps working.
 
 ## Modules
 
@@ -15,8 +15,7 @@ path.
 
 A module's name is its Scripts folder with dots: `online.modes.nightop` is `online/modes/nightop/`, `eve` is `eve/`. The
 category folders (`online/`, `online/modes/`, `fight/`, `world/`, `world/maps/`, `story/`, `vehicles/`) hold no
-`wiring.lua` and no code of their own: they only group modules. The `tools` module is `mod/StellarCoop/Scripts/tools/`
-(the cut menus), not the repository's `tools/` folder.
+`wiring.lua` and no code of their own: they only group modules.
 
 | Module | Players see it as | Lua | Native | Docs | Also owns |
 | --- | --- | --- | --- | --- | --- |
@@ -37,7 +36,7 @@ category folders (`online/`, `online/modes/`, `fight/`, `world/`, `world/maps/`,
 | `online.lobby` | The SBO lobby | `online/lobby/` | `online/lobby/` | [SBO lobby and matches](../online/lobby.md) | Its rows in `online/lobby/halls_rows.h`; its own copy of `coop join` for `coop match join` |
 | `vehicles.bike` | The bike | `vehicles/bike/` | `vehicles/bike/` | [The bike](../vehicles/bike.md) | `vehicles/bike/drive.lua` and `vehicles/bike/drive_model.lua`, its copies |
 | `world.daynight` | Day and night | `world/daynight/` | `world/daynight/` | [Day and night](../world/daynight-internals.md) | |
-| `tools` | Cut menus | `tools/` | `tools/` (`items.h` and its part) | [Cut menus and the mailbox](../tools/menus.md) | |
+| `cutmenus` | Cut menus | `cutmenus/` | `cutmenus/` (`items.h` and its part) | [Cut menus and the mailbox](../cutmenus/menus.md) | |
 | `online.saves` | Co-op saves | `online/saves/` | `online/saves/` | [Saves](../players/saves.md) | |
 
 ## Shared pieces

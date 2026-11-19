@@ -255,7 +255,7 @@ hide_popups=on
 | `card_details` | `on` or `off`: the ping and your friend's map on the card | `on` |
 | `status_overlay` | `off`, `compact` or `detailed`: the [status strip](interface.md#status-strip-above-the-card) above the card | `compact` |
 | `daynight` | `on` or `off`: the [day and night cycle](../world/daynight-internals.md). On, the sun moves on the open maps and SBO's own maps by one clock that every player shares: one real hour is one game day and the night runs from about :52 to :12 past each hour (UTC). Off gives each map Stellar Blade's own fixed light, as before. The Terrace hall stays a night hall either way. Options, Display, Day and night; it applies at once | `on` |
-| `shortcut_load` | `on` or `off`: lets `coop shortcut load` write a [cut developer save](../tools/menus.md#loading-one-coop-shortcut-load) as co-op slot 5; it can unlock Steam achievements; no menu row | `on` |
+| `shortcut_load` | `on` or `off`: lets `coop shortcut load` write a [cut developer save](../cutmenus/menus.md#loading-one-coop-shortcut-load) as co-op slot 5; it can unlock Steam achievements; no menu row | `on` |
 | `pvp_spike` | `on` or `off`: lets `coop pvp on` start the [PvP test](../online/lobby.md#the-pvp-test) with your friend: a stand-in enemy at their ghost takes your hits for their game, down to 1 HP; needs `shared_enemies=off`; no menu row | `on` |
 | `sbo_lobby` | `on` or `off`: the [SBO lobby](../online/lobby.md), a test. On, the recruiter's Join saves the co-op game and takes you to the lobby in Xion's training room (a hall lobby with the hall lobby pak), and each co-op save is copied before the game rewrites it (10 copies kept per slot). At each arrival in the lobby the screen stays black until the lobby menu is ready, 8 s at most, then fades onto the open menu. No menu row | `on` |
 
@@ -343,7 +343,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-story.txt` | you | A [story dump request](../dev/story-dump.md#the-request-file-coop-storytxt): the mod removes it and runs the dump once a world is loaded |
 | `coop-night.txt` | Lua | Your side of a Night Operation run, for a moment: the native part takes and deletes it at its next pass and sends it to your friend |
 | `coop-night-<steamid>-<index>.txt` | Lua | Your Night Operation shop points on that co-op slot, one line (see [online/modes/nightop-shop.md](../online/modes/nightop-shop.md)) |
-| `coop-gift-<steamid>-<index>.txt` | Lua | Your mailbox on that co-op slot: the gifts that wait, the ones you sent that wait for an answer or come back, and the last 64 gifts taken (see [Cut mailbox](../tools/menus.md#cut-mailbox-coop-gift)) |
+| `coop-gift-<steamid>-<index>.txt` | Lua | Your mailbox on that co-op slot: the gifts that wait, the ones you sent that wait for an answer or come back, and the last 64 gifts taken (see [Cut mailbox](../cutmenus/menus.md#cut-mailbox-coop-gift)) |
 | `coop-gift-toast.txt` | Lua | While a gift's toast shows: its object path, so the next Lua load (Ctrl+R) can take it off |
 | `coop-race.txt` | Lua | Your [Doro race](../online/modes/race.md) lines, for a moment: the native part takes and deletes the file at its next pass |
 | `coop-track-<name>.txt` | Lua, on `coop race save` | A Doro race track |

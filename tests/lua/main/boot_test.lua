@@ -29,17 +29,17 @@
 -- off), coop scene reaches story/scenes/scene.lua (a scene on the co-op save slot only, the list and stop on any;
 -- restored and ticked every frame, ended by coop off), coop lines reaches story/scenes/lines.lua with all its words on
 -- any slot (its lines into the chat's feed only while the kit's root is up; ticked every frame, ended by coop off),
--- coop gift reaches tools/mailbox.lua on the co-op save slot only (her gift lines in coop-chat.txt to it, ticked every
--- 250 ms, paused with the game, photo mode or the friend's, its toast's path in coop-gift-toast.txt and off at coop
--- off), coop fly and coop slowmo ask the native part (on from the co-op save slot only), coop shortcut asks it for its
--- list (on any slot), coop glide reaches eve/glide.lua (on from the co-op save slot only, its own check on that slot;
--- restored and ticked every frame, ended by coop off), coop emote reaches eve/emote.lua with all its words on any slot
--- (restored and ticked every frame, ended by coop off), coop-chat.txt is taken every 250 ms (session or not, coop off
--- included; each frame instead while a race is armed, her race lines to the race) and its text never logged, coop saves
--- reaches the native part, coop no, coop recruiter and coop challenge accept the co-op saves (slot=coop saves=coop),
--- coop off holds across a Lua reload, the pose path's commands need the native tick export, an error that escapes a
--- module's tick is logged once and the modules after it still tick, and the link is optional (no native part, no Steam
--- link, no keys, no menu).
+-- coop gift reaches cutmenus/mailbox.lua on the co-op save slot only (her gift lines in coop-chat.txt to it, ticked
+-- every 250 ms, paused with the game, photo mode or the friend's, its toast's path in coop-gift-toast.txt and off at
+-- coop off), coop fly and coop slowmo ask the native part (on from the co-op save slot only), coop shortcut asks it for
+-- its list (on any slot), coop glide reaches eve/glide.lua (on from the co-op save slot only, its own check on that
+-- slot; restored and ticked every frame, ended by coop off), coop emote reaches eve/emote.lua with all its words on any
+-- slot (restored and ticked every frame, ended by coop off), coop-chat.txt is taken every 250 ms (session or not, coop
+-- off included; each frame instead while a race is armed, her race lines to the race) and its text never logged, coop
+-- saves reaches the native part, coop no, coop recruiter and coop challenge accept the co-op saves (slot=coop
+-- saves=coop), coop off holds across a Lua reload, the pose path's commands need the native tick export, an error that
+-- escapes a module's tick is logged once and the modules after it still tick, and the link is optional (no native part,
+-- no Steam link, no keys, no menu).
 dofile('tests/lua/main/fixture.lua')
 load_main(true)
 assert(last()=='[StellarCoop] Loaded version v9-test. '..USAGE..'\n',last())
@@ -758,7 +758,7 @@ assert(#cs.cmds==2 and cs.cmds[1].n==1 and cs.cmds[1][1]==nil and cs.cmds[2][1]=
     and last()=='[StellarCoop] OK: cs x\n','On a co-op save: its word reaches it, an extra one to be refused there')
 status_text=plain
 -- coop devmenu: out of the usage line, its lines are [DM] lines and its status is the link's; a row on a co-op save
--- only, the list, an unknown word and an extra word on any (tools/devmenu.lua answers them).
+-- only, the list, an unknown word and an extra word on any (cutmenus/devmenu.lua answers them).
 dm.o.log('asked'); assert(last()=='[StellarCoop][DM] asked\n',last())
 assert(dm.o.status()==status_text,'The native status, as the link reads it')
 assert(dm.o.store=='store coop-devmenu.txt','coop-devmenu.txt through the link')
@@ -784,7 +784,7 @@ do
         assert(#asked==n and last()=='[StellarCoop] STOP: Use: coop devinfo quest|player|off\n',last())
     end
 end
--- coop gift: every word to tools/mailbox.lua on a co-op save only; its lines are [GF] lines, its notices go on
+-- coop gift: every word to cutmenus/mailbox.lua on a co-op save only; its lines are [GF] lines, its notices go on
 -- screen, its status, requests, files and friend are the link's; her gift lines in coop-chat.txt reach it, and it ticks
 -- every 250 ms.
 gf.o.log('sent 1'); assert(last()=='[StellarCoop][GF] sent 1\n',last())

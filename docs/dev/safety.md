@@ -91,8 +91,8 @@ claim the host accepts):
 - `coop shortcut load` writes a cut Load Shortcut developer save as a co-op copy only after it drops the save's
   achievement list and the six gears from which a load-time fix-up makes achievement entries, and only with
   `shortcut_load=on`, since the developer's progress left in it can still complete an achievement in play
-  ([Loading one](../tools/menus-internals.md#loading-one)).
-- A [gift](../tools/menus-internals.md#cut-mailbox) moves consumables between two co-op saves and nothing else. Its seven items lead to no trophy
+  ([Loading one](../cutmenus/menus-internals.md#loading-one)).
+- A [gift](../cutmenus/menus-internals.md#cut-mailbox) moves consumables between two co-op saves and nothing else. Its seven items lead to no trophy
   in the AchievementTable: their acquire rows (`Acquire_Item_Grenade`, `Ach_Reward_Acquire_Item_ConcussionGrenade` and
   the potion and grenade category guides) open guides only. A gift that arrives can open those guides early, as a shop
   buy can.
