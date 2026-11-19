@@ -18,6 +18,10 @@ Config.DEFAULTS={
     key='G',
     pad_tap=0.4,
     fire_interval=0.045, -- The NIKKE shot skill's cool time while the rifle is out (SB ships 0.11 s).
+    -- s the shot's borrowed rows stay armed after its last zone event (fight/gunmode/data.lua's arm). On 26123051 the
+    -- blueprint library's zone event call (exec 0x142669a50) only queues the event (made by 0x1422d7de0, pushed under
+    -- a lock); SB runs it later (0x141abdd80 calls RunEvent 0x141ca5a10), so the rows must still read armed then.
+    arm_hold=1.0,
     -- The rifle's round (fight/gunmode/ammo.lua): its name on the reticle's round slot, the magazine, the reload.
     round_name='NIKKE RAPID',reload_text='RELOADING',empty_text='NO AMMO',round_color={0.35,0.85,1.0},
     reload_color={1.0,0.62,0.15},

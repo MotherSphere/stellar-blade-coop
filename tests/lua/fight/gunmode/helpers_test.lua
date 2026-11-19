@@ -65,7 +65,7 @@ do
     assert(a.left==10 and a.reserve==19,'lowered reload '..a.left..' '..a.reserve)
 end
 
--- 5. The one zone event gun mode may fire: kind 2 on the shot's row, also once take() borrowed a spare NIKKE row in its
+-- 5. The one zone event gun mode may fire: kind 2 on the shot's row, also once arm() borrowed a spare NIKKE row in its
 --    place. Never matchmaking's kinds 15, 16 or 19, another kind or another row.
 do
     local GunMode=require('fight.gunmode.mode')

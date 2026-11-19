@@ -21,6 +21,12 @@ local function object(full,t)
     return t
 end
 
+-- SB's blueprint library (core/unreal.lua's U.find asks it its type): each zone event as {kind, row} in Fake.events,
+-- which Fake.new() empties.
+Fake.events={}
+local library=object('SBBlueprintLibrary /Script/SB.Default__SBBlueprintLibrary',{type=function() return 'UObject' end,
+    CreateSBZoneEvent=function(_,kind,row) Fake.events[#Fake.events+1]={kind=kind,row=row:ToString()} end})
+
 Fake.LAYER='/Game/Mods/NGM/ABP_NGM_Spike.ABP_NGM_Spike_C' -- fight/gunmode/overlay.lua's Overlay.CLASS
 Fake.OWN_CLASS='/Game/Test/ABP_Own_Post.ABP_Own_Post_C'
 Fake.BODY='/Game/Test/CH_P_EVE_Test.CH_P_EVE_Test'
@@ -70,6 +76,7 @@ end
 
 function Fake.new()
     local w={down={},fovs={},rebuilt=0,added={}}
+    Fake.events={}
     w.layer_class=object('AnimBlueprintGeneratedClass '..Fake.LAYER)
     w.own_class=object('AnimBlueprintGeneratedClass '..Fake.OWN_CLASS)
     w.body=object('SkeletalMesh '..Fake.BODY,{PostProcessAnimBlueprint=w.own_class})
@@ -178,6 +185,7 @@ function Fake.new()
         if path==Fake.BASE then return w.base end
         if path=='/Script/Engine.Default__InputSettings' then return not w.no_settings and w.settings or nil end
         if path=='/Script/Engine.Default__GameplayStatics' then return statics end
+        if path=='/Script/SB.Default__SBBlueprintLibrary' then return library end
         if path=='/Script/AssetRegistry.Default__AssetRegistryHelpers' then return registry end
         if path=='/Script/Engine.SkeletalMeshComponent' then return skeletal end
         if path=='/Script/Engine.Default__KismetMathLibrary' then return object('KismetMathLibrary '..path) end

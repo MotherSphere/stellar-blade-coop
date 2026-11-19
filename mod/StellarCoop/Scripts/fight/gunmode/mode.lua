@@ -33,7 +33,7 @@ local GunMode={}
 -- (0x141ca5a10) hands it to 0x141c9e690, which applies the row's actor effect; no chain of direct calls from it reaches
 -- RunEvent, RunZoneEvent (0x141ca5790) or StartMatchMaking (0x141ca3ea0, RunEvent's kind 15). Kinds 16 and 19 stop
 -- matchmaking or go back to single play. The only zone event gun mode fires: kind 2 on the shot's row
--- (Data.row('Fire'), read at the call: take() can borrow a spare NIKKE row in its place).
+-- (Data.row('Fire'), read at the call: arm() can borrow a spare NIKKE row in its place).
 local ATTACH_ACTOR_EFFECT=2
 function GunMode.allowed(kind,name) return kind==ATTACH_ACTOR_EFFECT and name~=nil and name==Data.row('Fire') end
 local function find_name(t) return FName(t,EFindName.FNAME_Find) end -- None (index 0) when not a name yet.
@@ -721,6 +721,11 @@ function GunMode.new(env)
     local function shoot(p,now)
         if now<s.next_shot then return end
         s.next_shot=now+cfg.fire_interval
+        if not data.armed then
+            if not data.arm() then s.next_shot=now+cfg.arm_hold; return end -- Tried again a second later, not each shot.
+            keep()
+        end
+        s.armed_until=now+cfg.arm_hold
         aim.write(p,s.target)
         if fire_row(Data.row('Fire')) then
             s.shots=s.shots+1
@@ -746,7 +751,13 @@ function GunMode.new(env)
         if s.ammo_reset then s.ammo_reset=false; pcall(ammo.stop); pcall(ammo.refill) end
         local pc=g.pc(); if not pc then return end
         if g.try(function() return StaticFindObject('/Script/Engine.Default__GameplayStatics'):IsGamePaused(pc) end) then
+            if s.armed_until then s.armed_until=math.max(s.armed_until,now+cfg.arm_hold) end -- SB's events wait too
             return
+        end
+        -- The shot's borrowed rows back once its last zone event has had its time (M4).
+        if s.armed_until and now>=s.armed_until then
+            s.armed_until=nil
+            if data.armed then data.disarm(); keep() end
         end
         local function down(name) return g.try(function() return pc:IsInputKeyDown({KeyName=FName(name)}) end)==true end
         local inp=Input.read(keys,down,now,cfg,set.key)

@@ -8,6 +8,7 @@
 --   fight/gunmode/mode.lua fires it as a zone event for each shot.
 -- * EffectTable: M_Scarlet_CounterLinkStart (0.1 s on self, one UseSkill action) starts P_Eve_GunNikke_ShootSlug1_1,
 --   the NIKKE shot. Its ActionValue1 is an FString: an FName written there crashed the game (11-17).
+--   These two are armed (arm, disarm) only around the zone event shots, not for as long as the rifle is out.
 -- * SkillCommandTable: the NIKKE fire commands ShootSlug1_1 and _2 take the burst shot's command type
 --   (RangedFireSkill: no check of the equipped bullet), as zNikkeGunMode_P did.
 -- * SkillActiveStepTable: the shot's Hit1 step takes its Cast1 step's type (fires its projectile, spends no round).
@@ -46,7 +47,7 @@ function Data.row(k)
 end
 
 -- g: gun mode's shared state (log, try, valid). Returns an object: take() points the rows at gun mode's data (true,
--- or false and why), put_back() restores what take() changed.
+-- or false and why), arm() the shot's borrowed fields too; disarm() puts those back, put_back() all of them.
 -- opts (native fire only): speed (the aim stance's speed factor), upper (an animation set for its upper body, or nil).
 function Data.new(g,native,opts)
     local self={saved=nil,fire=true,native=native==true,opts=opts or {speed=1}}
@@ -64,10 +65,16 @@ function Data.new(g,native,opts)
         return r
     end
     local function row(t,name) return assert(find(t,name),'no row '..name) end
+    local function undo(list) for i=#list,1,-1 do local e=list[i]; pcall(function() e[1][e[2]]=e[3] end) end end
 
-    function self.take()
-        if self.saved then return true end
-        local saved={}
+    -- The shot's borrowed fields: Data.BORROWED's EventActorEffectTable row pointed at Data.FIRE_EFFECT, whose
+    -- ActionValue1 starts the NIKKE shot. SB's own tables name both (M4: 26123051's exported ZoneEventTable has
+    -- Nikke_01_E_ActorEff_015 as an AttachActorEffect event; a Scarlet counter step starts the effect). Pak rows are
+    -- not in the exe, so Ghidra cannot list every user: fight/gunmode/mode.lua arms them around its zone event shots
+    -- only. true, or false and why.
+    function self.arm()
+        if self.armed then return true end
+        local armed={}
         local ok,err=pcall(function()
             local eae=tbl('EventActorEffectTable')
             for k,e in pairs(Data.OWN) do
@@ -99,16 +106,38 @@ function Data.new(g,native,opts)
                 end
                 if e then
                     local r=row(eae,e[1])
-                    saved[#saved+1]={r,'ActorEffectAlias',FName(text(r.ActorEffectAlias))}
+                    armed[#armed+1]={r,'ActorEffectAlias',FName(text(r.ActorEffectAlias))}
                     r.ActorEffectAlias=FName(e[2])
                 end
             end
             if self.fire then
                 local fire=row(tbl('EffectTable'),Data.FIRE_EFFECT)
                 local was=text(fire.ActionValue1)
-                saved[#saved+1]={fire,'ActionValue1',was}
+                armed[#armed+1]={fire,'ActionValue1',was}
                 fire.ActionValue1=Data.FIRE_SKILL
             end
+        end)
+        if not ok then
+            undo(armed)
+            g.log('data: the shot\'s rows not armed ('..tostring(err)..')')
+            return false,err
+        end
+        self.armed=armed
+        g.log('data: the shot\'s rows armed')
+        return true
+    end
+    function self.disarm()
+        local armed=self.armed
+        self.armed=nil
+        if not armed then return end
+        undo(armed)
+        g.log('data: the shot\'s rows disarmed')
+    end
+
+    function self.take()
+        if self.saved then return true end
+        local saved={}
+        local ok,err=pcall(function()
             -- The NIKKE shot's cool time: the rifle's rate of fire (opts.cool s between rounds).
             if self.opts.cool then
                 local sk=row(tbl('SkillTable'),Data.FIRE_SKILL)
@@ -276,7 +305,7 @@ function Data.new(g,native,opts)
             end
         end)
         if not ok then
-            for i=#saved,1,-1 do local e=saved[i]; pcall(function() e[1][e[2]]=e[3] end) end
+            undo(saved)
             g.log('data: not taken ('..tostring(err)..')')
             return false,err
         end
@@ -291,23 +320,26 @@ function Data.new(g,native,opts)
     end
 
     function self.put_back()
+        self.disarm()
         self.cool_row=nil
         local saved=self.saved
         self.saved=nil
         if not saved then return end
-        for i=#saved,1,-1 do local e=saved[i]; pcall(function() e[1][e[2]]=e[3] end) end
+        undo(saved)
         g.log('data: SB\'s rows put back')
     end
 
-    -- coop-gun.txt's row records (fight/gunmode/journal.lua) for what take() changed: none when nothing is taken.
+    -- coop-gun.txt's row records (fight/gunmode/journal.lua) for what take() and arm() changed: none when nothing is.
     -- A field that read nil has nothing to put back. Raises on a value it cannot keep.
     function self.records()
         local out={}
-        for _,e in ipairs(self.saved or {}) do
-            if e[3]~=nil then
-                local at=assert(names[e[1]],'a row with no name')
-                local kind,value=Journal.value(e[3])
-                out[#out+1]={'row',at[1],at[2],e[2],kind,value}
+        for _,list in ipairs({self.saved or {},self.armed or {}}) do
+            for _,e in ipairs(list) do
+                if e[3]~=nil then
+                    local at=assert(names[e[1]],'a row with no name')
+                    local kind,value=Journal.value(e[3])
+                    out[#out+1]={'row',at[1],at[2],e[2],kind,value}
+                end
             end
         end
         return out

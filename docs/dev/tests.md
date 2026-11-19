@@ -70,7 +70,10 @@ fake UE4SS objects for those that call the engine. In the capture test, any writ
   rifle layer is on. A new controller clears the old pawn's state at once; its deferred reset shows the drone, puts her
   facing back and takes the layer off her new body;
 - `fight/gunmode/state_test` runs gun mode over the same fake against the game's state. While the rifle is out the
-  shot's Hit1 step has its Cast1 step's `Type`. The shipped value comes back when the rifle goes away;
+  shot's Hit1 step has its Cast1 step's `Type`. The shipped value comes back when the rifle goes away. The shot's two
+  borrowed fields keep their shipped values while the rifle is only out. They change at the first shot through the zone
+  event (kind 2 on the borrowed row) and go back 1 s after the last one, later after a pause. `coop-gun.txt` lists them
+  while they are changed, so a Lua reload puts them back;
 - `vehicles/bike/ride_test` covers `vehicles/bike/ride.lua` over a fake EVE and native part: the preload asked once and
   released at `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every
   mount refusal with its reason and nothing written, the mount's order and the dismount backward, the lean (the math

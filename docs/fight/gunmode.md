@@ -22,7 +22,9 @@ Gun mode runs on SBO alone, with no paks. While it is on, it changes a few field
 memory. Everything it changed goes back when the rifle is put away or at the next map load, so the NIKKE missions and
 the drone find their rows as shipped:
 
-- `EventActorEffectTable`, `EffectTable`: the NIKKE shot, started from a borrowed row.
+- `EventActorEffectTable`, `EffectTable`: the NIKKE shot, started from a borrowed row. The game's own tables use these
+  two rows too (a NIKKE mission's zone event, the Scarlet fight's counter), so they change only from a shot that needs
+  them until 1 s after the last one.
 - `SkillCommandTable`: the drone's fire commands start the NIKKE shot.
 - `SkillTable`: its cool time (the rate of fire).
 - `ProjectileTable`: the round leaves the rifle's muzzle and goes to the crosshair with no spread.
