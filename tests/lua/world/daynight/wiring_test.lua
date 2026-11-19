@@ -16,11 +16,12 @@ assert(o.level('/Game/Art/BG/WorldMap/SubLevel/B07/B07_Skysphere_02')==nil)
 package.loaded.UEHelpers.GetPlayer=nil
 assert(o.ask('sky off') and asked[#asked]=='sky off')
 assert(o.cps=='mod/StellarCoop\\..\\..\\..\\CPS\\Plugins\\activate_day_night_cycle.cps',o.cps)
--- SB's state it reads: a cutscene, its screens, photo mode, Night Operation, the lobby in Xion's training room only.
-assert(o.cutscene()==false and o.screen()==false and o.photo()=='0' and o.night()==false and o.lobby()==false)
-gr.playing,kit_paused,photo_mode,nr.running=true,true,true,true
-assert(o.cutscene()==true and o.screen()==true and o.photo()=='1' and o.night()==true)
-gr.playing,kit_paused,photo_mode,nr.running=nil,false,false,nil
+-- SB's state it reads: photo mode, Night Operation, the lobby in Xion's training room only.
+assert(o.cutscene==nil and o.screen==nil)
+assert(o.photo()=='0' and o.night()==false and o.lobby()==false)
+photo_mode,nr.running=true,true
+assert(o.photo()=='1' and o.night()==true)
+photo_mode,nr.running=false,nil
 sb.target={key='xion'}; assert(o.lobby()==true)
 sb.target={key='hotel'}; assert(o.lobby()==false,'A hall lobby has its own row')
 sb.target=nil

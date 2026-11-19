@@ -128,17 +128,16 @@ How each kind of sky is dressed:
 | A map with no row or a fixed one | the table | `sky off` |
 | The SBO lobby in Xion's training room | `sbo.in_lobby()` with no hall | `sky off` |
 | Xion's story night (Burning Xion) | `bActiveVolume` of `E04_Area_02_Global_ENV_01_NIGHT`, read every 2 s on Xion | `sky off`, Xion's domes left to SB |
-| An SB cutscene or dialogue scene, in an online session | `group.cutscene_playing()`, read once a second while a friend is linked | `sky off` |
 | Photo mode | `photo_state()` | `sky hold`: the hour it opened at, a pinned one included |
 | Our game paused for another player's photo mode or the host's cutscene | `link.photo().frozen` | `sky hold`, as in photo mode |
-| SB's pause menu or one of its screens | `kit.paused(true)` | `sky off`: their studio scenes are env volumes too |
 | `coop daynight hour <h>` | the command | `sky hour <minute> <hz> <H>` |
 | Night Operation runs | `night.running()` | `sky hour 0 <hz> <H>`: midnight |
 | Anything else | | `sky cycle <hz> <H>` |
 
-Photo mode comes before SB's screens because SB's photo mode pauses the game (its Pauser, which `kit.paused(true)`
-reads) for as long as it is open with `photo_pause=full`. The pause that photo sync or `cutscene_wait=on` puts on a
-guest is SB's own pause tag too (`frozen=1` on the status's photo line), so it holds the hour the same way.
+SB's menus and screens (the pause menu, choice boxes, shops, the map) change nothing: the world stays in view behind
+them, so the cycle's light stays. The menu studio's preset (`UIStudio_NEW_ENV`) has no sun and no fog, so it looks as in
+vanilla under the cycle. The pause that photo sync or `cutscene_wait=on` puts on a guest is SB's own pause tag
+(`frozen=1` on the status's photo line): it holds the hour as photo mode does.
 
 A covered spot in an open map (a cave, a room, a lab) keeps its own light at any hour: see the sunlit rule below.
 
@@ -196,8 +195,8 @@ The rules of a pass (`sky::Sky::pass`):
   the value the last pass wrote. Anything else (SB copied other values in, or a new world reused the address) is read
   as new, so cached originals never land on an element they do not belong to.
 - Another world or WorldSettings, or none: the cache is dropped, since the old array died with its world.
-- An off (the request, `coop off`, a cutscene in an online session, SB's screens): each element of the current world
-  that still holds our value or its original gets its originals back once, then nothing is written.
+- An off (the request or `coop off`): each element of the current world that still holds our value or its original gets
+  its originals back once, then nothing is written.
 - The first fault: one try to put SB's values back, then the cycle stays off for the game run (state `fault`).
 
 Two caches of 256 elements swap each pass, so a pass allocates nothing. WorldSettings `+0x1420` (the main view's copy
@@ -242,6 +241,11 @@ that refuses a write gets one line, once per world.
 then. The pass reads the map with `U.map_of` only when EVE's address changes, never on a timer. It reads SB's state only
 on a map whose row is on, decides the request and sends it only when it changes. Then it dresses the sky from the status
 line's values while the native state is one where the sky follows our sun (`cycle`, `pinned`, `held` or `forced`).
+Every 2 s while it does, the pass reads each dome it hid (the mesh's `bVisible`, or the actor's `bHidden` for Xion's
+night dome). A dome SB showed again, as a sequence may, is hidden again in the same pass with one line, `daynight: SB
+showed <dome>, hidden again`, once per dome and world. A sequence that keys a dome's visibility sets it again each
+frame, so a dome found shown again at the next look is left to SB (`daynight: SB keeps <dome> shown; left to it, tried
+again in 30 s`, once per dome and world) and hidden once more 30 s later. A look that finds it hidden starts over.
 
 Each part of the dressing is looked up once per world: the domes by their full object path, the SkyCreators and
 the engine maps' lights through `U.actors_of`'s class hash, Xion's story-night volume by its path. A lookup that misses
@@ -291,6 +295,7 @@ SBO searches nothing on a timer.
 | Lua, SkyCreator maps | one `SetTime` a pass while the hour moves | 4 calls a second |
 | Lua, SBO's own maps | up to 4 reflected writes a pass, only on change | 16 a second |
 | Lua, Xion | one bool read | every 2 s |
+| Lua, every 2 s while live | one reflected read per dome it hid (1 to 4) | |
 | Lua, Spire 4 and Xion | one `IsLevelVisible` read per sky sublevel (5 and 1); a dome lookup that hits and a class-hash list only when a sublevel came or went | every 2 s while live |
 | Lua, each world entry | up to 5 streaming level reads, up to 4 dome lookups by path that hit, one class-hash list, one star material load on star-layer maps | once per world |
 | Lua, each frame | nothing | |

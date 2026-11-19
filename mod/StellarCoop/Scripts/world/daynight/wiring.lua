@@ -3,7 +3,7 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The day/night cycle's wiring (world/daynight/): the request for the native part's env writer.
 return {
-uses={'online.group','online.lobby','online.modes.nightop'},
+uses={'online.lobby','online.modes.nightop'},
 exports={'daynight'},
 new=function(M)
 local print,log=M.print,M.log
@@ -18,8 +18,7 @@ M.daynight=require('world.daynight.daynight').new({log=log,ask=function(line) re
     store=M.link and M.link.store('coop-sky.txt'),
     her=function() return U.her(U.valid(require('UEHelpers').GetPlayer())) end,address=U.address,map_of=U.map_of,
     world=function(eve) return U.address(eve:GetWorld()) end,
-    cutscene=function() return M.group~=nil and M.group.cutscene_playing() end,
-    screen=function() return M.kit~=nil and M.kit.paused(true) end,photo=M.photo_state,
+    photo=M.photo_state,
     night=function() return M.night.running() end,
     frozen=function()
         local p=M.link and M.link.photo()
