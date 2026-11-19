@@ -1,8 +1,8 @@
 # Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 # SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-# ngm_bl_mixamo_stand.py - Blender 5.2 background. Standing gun set, take 4 (11-17): the Mixamo "Rifle 8-Way Locomotion
-# Pack" retargeted onto Eve (UE Format body, Bip001 skeleton). Take 3 (drone legs + NIKKE kneel-cover arms) looked
+# retarget_mixamo_stand.py - Blender 5.2 background. Standing gun set: the Mixamo "Rifle 8-Way Locomotion Pack" retargeted
+# onto Eve (UE Format body, Bip001 skeleton). A set made of the drone walks' legs and the NIKKE kneel-cover arms looked
 # scrunched in game.
 # Retarget: world-space rotation deltas. For each mapped bone, target_world(t) = D(t) @ calib, D(t) = src_world(t) @
 # src_rest^-1, calib = Eve's rest bone swung so its direction matches the Mixamo rest bone's direction (T-pose vs Eve's
@@ -10,12 +10,14 @@
 # the clip's forward travel removed (in place; the game moves the actor).
 # Gun props: kept on the right hand as in the NIKKE pose, then turned so the barrel runs right hand -> left hand (the
 # Mixamo support hand sits on the handguard).
-# Output: NikkeGunBuild\blend\stand4\ (NGM_Stand4.blend, previews, build_log.txt). Same action names as take 3.
+# Output: NikkeGunBuild\blend\stand4\ (NGM_Stand4.blend, previews, build_log.txt): NGM_Stand_* actions, the names
+# export_stand.py takes. NGM_TOOLS names the tools folder that holds NikkeGunBuild.
 import bpy, os, math, importlib
 from pathlib import Path
 from mathutils import Matrix, Quaternion, Vector
 HOME = os.path.expanduser("~")
-B = os.path.join(os.environ.get("NGM_TOOLS", os.path.join(HOME, r"Downloads\Modding Tools")), "NikkeGunBuild")
+if not os.environ.get("NGM_TOOLS"): raise SystemExit("set NGM_TOOLS to the tools folder that holds NikkeGunBuild")
+B = os.path.join(os.environ["NGM_TOOLS"], "NikkeGunBuild")
 A = os.path.join(B, "anim_export")
 MX = os.path.join(B, "mixamo", "src")
 OUT = os.path.join(B, "blend", "stand4"); os.makedirs(OUT, exist_ok=True)
@@ -76,8 +78,8 @@ try:
         except Exception: pass
     hand_r, hand_l = "Bip001-R-Hand", "Bip001-L-Hand"
     props = [n for n in ("Bip001-Prop1", "Bip001-Prop2") if n in PB]
-    # v8: the grip reference is the NIKKE SHOT (rifle aimed level with both hands), not the cover idle (rifle held upright,
-    # which put the gun vertical in game, 11-17 13:52)
+    # The grip reference is the NIKKE SHOT (rifle aimed level with both hands), not the cover idle (rifle held upright,
+    # which put the gun vertical in game)
     nik = load_ue(os.environ.get("NGM_GRIP_SRC", "P_Eve_GunNikke_Shoot")); use(nik); scn.frame_set(int(os.environ.get("NGM_GRIP_FRAME", "3")))
     NM = {n: p.matrix.copy() for n, p in PB.items()}   # armature space
     prop_rel = {pn: NM[hand_r].inverted() @ NM[pn] for pn in props}
@@ -90,7 +92,7 @@ try:
     BAX = Vector([0, 0, 0]); BAX[barrel[1]] = barrel[2]
     GUP = Vector([0, 0, 0]); GUP[gup[1]] = gup[2]
     P12 = (NM[props[0]].inverted() @ NM[props[1]]) if len(props) > 1 else None
-    # v10: the rifle mesh rides on SC_WeaponConstraint (child of R-Hand) - the helper copy gave it the drone walks' upright
+    # The rifle mesh rides on SC_WeaponConstraint (child of R-Hand) - the helper copy gave it the drone walks' upright
     # weapon mount (vertical rifle in game). Placed from the NIKKE shot relative to the gun frame instead.
     WPN = "SC_WeaponConstraint" if "SC_WeaponConstraint" in PB else None
     WPN_REL = (NM[props[0]].inverted() @ NM[WPN]) if WPN else None
@@ -314,7 +316,7 @@ try:
                 Sm = Matrix((BAX, GUP, BAX.cross(GUP))).transposed()   # columns: local barrel / top / side
                 Dm = Matrix((want, up, want.cross(up))).transposed()
                 g = (Dm @ Sm.transposed()).to_4x4(); g.translation = p0.translation
-                # v9: the rifle mesh rides on the RIGHT HAND (the props alone left it vertical in game, 13:52): turn the
+                # The rifle mesh rides on the RIGHT HAND (the props alone left it vertical in game): turn the
                 # hand (and its fingers) about the wrist so hand->gun is the NIKKE shot's grip with the gun at g
                 if GRIP_HAND:
                     hn = g @ prop_rel[props[0]].inverted()          # the hand matrix that puts Prop1 at g

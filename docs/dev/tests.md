@@ -103,7 +103,11 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   after the load, Shift+F4 is the menu's press only. F4 alone and Ctrl+F4 still toggle the rifle;
 - `fight/gunmode/texts_test` holds gun mode's texts to its code and scripts. The rifle layer's pak has one name, the
   one its build script writes (`zNGMSpike_P`), with the class `fight/gunmode/overlay.lua` looks for: no other pak or
-  layer name in gun mode's code, tools, page or NOTICE section. The page and NOTICE name both. NOTICE names Mixamo;
+  layer name in gun mode's code, tools, page or NOTICE section. The page and NOTICE name both. NOTICE names Mixamo.
+  Each script in `tools/gunmode` starts with the SBO license lines. Its comments name no script that is not there and
+  hold no session notes. The Blender and Unreal scripts stop without `NGM_TOOLS` and import into no shipped game folder.
+  `export_stand.py` opens by default the `.blend` that `retarget_mixamo_stand.py` writes. The tools' README names each
+  script, the rifle layer, the `NGM_R_` clips and `SBOutfitProject`;
 - `vehicles/bike/ride_test` covers `vehicles/bike/ride.lua` over a fake EVE and native part: the preload asked once and
   released at `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every
   mount refusal with its reason and nothing written, the mount's order and the dismount backward, the lean (the math

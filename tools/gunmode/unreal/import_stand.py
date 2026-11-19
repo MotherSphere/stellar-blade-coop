@@ -1,12 +1,13 @@
 # Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 # SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-# ngm_ue_stand5.py (= ngm_ue_stand + game-path replacements, RENAME)
-# ngm_ue_stand.py - UE 4.26 headless (SBOutfitProject, -run=pythonscript). Imports NikkeGunBuild\fbx\NGM_Stand_*.fbx as
-# animations on the CH_P_EVE_01_Skeleton stand-in into /Game/OutfitMods/NikkeGunMode/Anim (30 fps, in place, no curves).
-# Touches nothing else. Log: NikkeGunBuild\ue_stand_log.txt (ends with "ALL DONE").
+# import_stand.py - UE 4.26 headless (SBOutfitProject, -run=pythonscript). Imports NikkeGunBuild\fbx\NGM_Stand_*.fbx
+# (export_stand.py's) as animations on the CH_P_EVE_01_Skeleton stand-in into /Game/OutfitMods/NikkeGunMode/Anim (30 fps,
+# in place, no curves), then makes the aim poses additive. Touches nothing else. NGM_TOOLS names the tools folder that
+# holds NikkeGunBuild. Log: NikkeGunBuild\ue_stand_log.txt (ends with "ALL DONE").
 import unreal, os, glob, traceback
-B = os.path.join(os.environ.get("NGM_TOOLS", os.path.join(os.path.expanduser("~"), r"Downloads\Modding Tools")), "NikkeGunBuild")
+if not os.environ.get("NGM_TOOLS"): raise SystemExit("set NGM_TOOLS to the tools folder that holds NikkeGunBuild")
+B = os.path.join(os.environ["NGM_TOOLS"], "NikkeGunBuild")
 FBX = os.path.join(B, "fbx")
 LOGF = open(os.path.join(B, "ue_stand_log.txt"), "w")
 def log(*a):
@@ -14,8 +15,6 @@ def log(*a):
 AT = unreal.AssetToolsHelpers.get_asset_tools(); EAL = unreal.EditorAssetLibrary
 SKEL_PATH = "/Game/Art/Character/PC/CH_P_EVE_01/CH_P_EVE_01_Skeleton"
 DEST = "/Game/OutfitMods/NikkeGunMode/Anim"
-# v5: game-path replacements (FBX name -> (folder, asset name))
-RENAME = {"NGM_Stand_Shoot": ("/Game/DLC_2/Art/Character/PC/CH_P_EVE_01/Animation", "P_Eve_GunNikke_Shoot")}
 def sep(obj, **kw):
     for k, v in kw.items():
         try: obj.set_editor_property(k, v)
@@ -30,8 +29,6 @@ try:
     for f in files:
         name = os.path.splitext(os.path.basename(f))[0]
         dest = DEST
-        if name in RENAME: dest, name = RENAME[name]
-        if dest != DEST and EAL.does_asset_exist(dest + "/" + name): EAL.delete_asset(dest + "/" + name)
         t = unreal.AssetImportTask()
         sep(t, filename=f, destination_path=dest, destination_name=name, automated=True, replace_existing=True, save=False)
         o = unreal.FbxImportUI()
@@ -66,7 +63,7 @@ try:
         log("ANIM", name, "len %.4f" % seq.get_editor_property("sequence_length"), "frames", nf, "tracks", n_tracks, "curves", curves)
         log("   ", " | ".join(pose))
         EAL.save_loaded_asset(seq)
-    # v6: aim offset poses = local-space additives on NGM_Stand_Aim_Base frame 0 (as the vanilla Aim_* on their base)
+    # The aim offset poses: local-space additives on NGM_Stand_Aim_Base frame 0 (as the vanilla Aim_* on their base)
     base = unreal.load_asset(DEST + "/NGM_Stand_Aim_Base")
     if base is not None:
         for a in EAL.list_assets(DEST, recursive=False):
@@ -79,8 +76,6 @@ try:
             EAL.save_loaded_asset(seq)
     else: log("no NGM_Stand_Aim_Base - aim offset not built")
     EAL.save_directory(DEST, only_if_is_dirty=False, recursive=True)
-    for d_, n_ in RENAME.values():
-        if EAL.does_asset_exist(d_ + "/" + n_): EAL.save_asset(d_ + "/" + n_, only_if_is_dirty=False); log("saved", d_ + "/" + n_)
     log("saved", [str(a) for a in EAL.list_assets(DEST, recursive=True)])
     log("ALL DONE")
 except Exception:

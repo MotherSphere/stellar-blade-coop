@@ -1,8 +1,8 @@
 # Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 # SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-# ngm_bl_export_stand2.py - (= export_stand + the source .blend from NGM_STAND_BLEND, default stand3\NGM_Stand3.blend)
-# Opens NikkeGunBuild\blend\stand2\NGM_Stand.blend, imports a clean body armature (sockets OFF, as the SB FBX README says),
+# export_stand.py - Blender, background. Opens NGM_STAND_BLEND (default NikkeGunBuild\blend\stand4\NGM_Stand4.blend, which
+# retarget_mixamo_stand.py writes), imports a clean body armature (sockets OFF, as the SB FBX README says),
 # moves every NGM_Stand_* action onto it, keeps the anims in place (Root translation flattened; the character movement
 # component moves Eve in gun mode, not root motion), and writes one FBX per action with OutfitWork\sbfbx_5 (the same patched
 # exporter and axis settings the Project Evie meshes use) -> NikkeGunBuild\fbx\NGM_Stand_*.fbx + fbx\export_log.txt
@@ -10,14 +10,14 @@ import bpy, os, sys, importlib, importlib.util
 from pathlib import Path
 from bpy_extras.io_utils import axis_conversion
 HOME = os.path.expanduser("~")
-MT = os.environ.get("NGM_TOOLS", os.path.join(HOME, r"Downloads\Modding Tools"))
+MT = os.environ.get("NGM_TOOLS") or sys.exit("set NGM_TOOLS to the tools folder that holds NikkeGunBuild and OutfitWork")
 B = os.path.join(MT, "NikkeGunBuild"); A = os.path.join(B, "anim_export")
 OUT = os.path.join(B, "fbx"); os.makedirs(OUT, exist_ok=True)
 log = open(os.path.join(OUT, "export_log.txt"), "w")
 def L(*a): log.write(" ".join(str(x) for x in a) + "\n"); log.flush()
 INPLACE = os.environ.get("NGM_INPLACE", "1") == "1"
 try:
-    bpy.ops.wm.open_mainfile(filepath=os.environ.get("NGM_STAND_BLEND", os.path.join(B, "blend", "stand3", "NGM_Stand3.blend")))
+    bpy.ops.wm.open_mainfile(filepath=os.environ.get("NGM_STAND_BLEND", os.path.join(B, "blend", "stand4", "NGM_Stand4.blend")))
     import addon_utils
     mod = None
     for m in addon_utils.modules():

@@ -59,5 +59,45 @@ do
     if not notice:find('Mixamo',1,true) then fail('NOTICE (GUN MODE) does not name Mixamo') end
 end
 
+-- 2. The tools: each script starts with the SBO license lines. A script name in a tool's comments or the README is the
+--    name of a file in tools/gunmode, never an older name. No session notes (v8:, take 4) there. The Blender and Unreal scripts need NGM_TOOLS
+--    set (no default folder) and import into no shipped game folder. export_stand.py opens by default what
+--    retarget_mixamo_stand.py writes. The README names each file and what no script here makes.
+do
+    local here={}
+    for _,p in ipairs(TOOLS) do here[p:match('[^/]+$')]=true end
+    local HEAD='# Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors\n'
+        ..'# SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later\n'
+    for _,p in ipairs(TOOLS) do
+        if p:match('%.py$') and read(p):sub(1,#HEAD)~=HEAD then fail(p..': no SBO license lines') end
+    end
+    lines(TOOLS,function(p,n,l)
+        if p:match('%.py$') then l=l:match('#(.*)$') or '' end -- Its comments.
+        for name in l:gmatch('[%w_]+%.py%f[^%w_]') do
+            if not here[name] then fail(('%s:%d: names %s, not a file of tools/gunmode'):format(p,n,name)) end
+        end
+        if l:find('%f[%w]v%d+:') or l:find('%f[%w][Tt]ake %d') then fail(('%s:%d: a session note'):format(p,n)) end
+    end)
+    for _,p in ipairs(files("find tools/gunmode/blender tools/gunmode/unreal -name '*.py'")) do
+        local s=read(p)
+        if not s:find('NGM_TOOLS',1,true) or s:find('Downloads',1,true) then fail(p..': NGM_TOOLS with a default') end
+        if s:find('/Game/DLC_2',1,true) then fail(p..': imports into a shipped game folder') end
+    end
+    local rt=read('tools/gunmode/blender/retarget_mixamo_stand.py')
+    local dir=rt:match('OUT = os%.path%.join%(B, "blend", "([%w_]+)"%)')
+    local blend=rt:match('save_as_mainfile%(filepath=os%.path%.join%(OUT, "([%w_]+%.blend)"%)%)')
+    assert(dir and blend,'retarget_mixamo_stand.py saves a .blend')
+    if not read('tools/gunmode/blender/export_stand.py'):find(('"blend", "%s", "%s"'):format(dir,blend),1,true) then
+        fail('export_stand.py does not open '..dir..'/'..blend..' by default')
+    end
+    local readme=read('tools/gunmode/README.md')
+    for name in pairs(here) do
+        if name~='README.md' and not readme:find(name,1,true) then fail('tools/gunmode/README.md does not name '..name) end
+    end
+    for _,want in ipairs({ASSET,'NGM_R_','SBOutfitProject'}) do
+        if not readme:find(want,1,true) then fail('tools/gunmode/README.md does not name '..want) end
+    end
+end
+
 if #bad>0 then error('\n'..table.concat(bad,'\n'),0) end
 print('gunmode texts: ok')
