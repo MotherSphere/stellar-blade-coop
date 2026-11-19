@@ -157,17 +157,16 @@ The lines go on Steam channel 2, reliable, after the tag `SBW23`:
 | `SBW23 c <seq> <zone> <alias> <tag> <objectState>` | one changed env of that zone: its state and ObjectState 0 to 2 (0: not carried) |
 | `SBW23 c end <zone> <count>` | the answer is complete, `count` `c` lines sent (no `seq`) |
 
-Each line is at most `kMaxMessage` bytes. Zone, alias, tag and row are FName text: letters, digits and `_`, at most
-64 bytes. `seq` starts at 1 after each `on` and goes up by one per line, `c` lines included; the receiver counts an
-old one as bad and logs a gap once. A player sends `on` or `off` each time her own state changes and again to a new
-partner. Each side also answers her `on` with its own state, as `on reply` or its `off`. It never answers an `on reply`. A guest who loses the
-host's lobby and rejoins before the host sees her leave starts again and sends `on`, while the host's partner never
-changed; the answer gives her the host's `on` back. An `l` line is sent only when it changes something (a tag other
-than `None`, an ObjectState other than 0 or a progress above 0). Each of those parts is checked on its own list. A
-`c` line is refused when its zone and alias are not an entry of `kZoneEnvs` or its alias and tag are not a kept pair;
-its ObjectState counts only for an alias on the ObjectState list.
-Before a root becomes a line, the sender reads each FName's text, writes the line, parses it back and checks the
-lists.
+Each line is at most `kMaxMessage` bytes. Zone, alias, tag and row are FName text: letters, digits and `_`, at most 64
+bytes. `seq` starts at 1 after each `on` and goes up by one per line, `c` lines included; the receiver counts an old one
+as bad and logs a gap once. A player sends `on` or `off` each time her own state changes and again to a new partner.
+Each side also answers her `on` with its own state, as `on reply` or its `off`. It never answers an `on reply`. A guest
+who loses the host's lobby and rejoins before the host sees her leave starts again and sends `on`, while the host's
+partner never changed; the answer gives her the host's `on` back. An `l` line is sent only when it changes something (a
+tag other than `None`, an ObjectState other than 0 or a progress above 0). Each of those parts is checked on its own
+list. A `c` line is refused when its zone and alias are not an entry of `kZoneEnvs` or its alias and tag are not a kept
+pair; its ObjectState counts only for an alias on the ObjectState list. Before a root becomes a line, the sender reads
+each FName's text, writes the line, parses it back and checks the lists.
 
 The worker hands our lines to `send_fight()` for the pair only (`Link::partner()`, the host and the guest in ghost slot
 0 in an online session of more than 2 players), which refuses a line while its channel 2 queue holds 256. A refused line
@@ -275,13 +274,14 @@ ObjectState at `+0x28` (what env vtable `+0x60`, `0x1415dc420`, returns). Else i
 (`0x141d1df50`, then `0x141d15a20`): its tag at `+0x28`, its ObjectState at `+0x20`, which `0x141d11750` copies from
 those two env fields. Else it reads nothing. An ObjectState other than 1 or 2 reads 0; a tag with no text reads as
 nothing. An entry is touched when its tag differs from the InitStateTag (case ignored) or, for an alias on the
-ObjectState list, when its ObjectState differs from the InitActivate. An env that no Enable or Disable changed reads
-its InitActivate: the env's spawn (`0x141fdeaa0`, call at `0x141fe1aef`) passes the spawn row's InitActivate byte (`+0x60`) to env vtable
-`+0x78`, which stores it at `+0x28`. So the one entry with InitActivate None (`ME_05_EnvS_064`) reads 0 untouched.
+ObjectState list, when its ObjectState differs from the InitActivate. An env that no Enable or Disable changed reads its
+InitActivate: the env's spawn (`0x141fdeaa0`, call at `0x141fe1aef`) passes the spawn row's InitActivate byte (`+0x60`)
+to env vtable `+0x78`, which stores it at `+0x28`. So the one entry with InitActivate None (`ME_05_EnvS_064`) reads 0
+untouched.
 
-Each touched entry whose state is a kept pair goes out as a `c` line with the next `seq` (ObjectState 0 for an alias
-off the ObjectState list), then `c end <zone> <count>`. The largest zone, `Zone_DLC02_20` with 83 entries, fits in one
-pass and in the 256-line queue.
+Each touched entry whose state is a kept pair goes out as a `c` line with the next `seq` (ObjectState 0 for an alias off
+the ObjectState list), then `c end <zone> <count>`. The largest zone, `Zone_DLC02_20` with 83 entries, fits in one pass
+and in the 256-line queue.
 
 ### Her answer
 
@@ -291,7 +291,7 @@ Her `c` line meets our value of that env: live, else its record, else the entry'
 | --- | --- | --- |
 | the same as hers (tag case ignored; the ObjectState only for an alias on the ObjectState list) | nothing | `same` |
 | touched into a state that is not a kept pair (held out for its player: a passcode door typed open, a quest state, the WLB_20 supply chain's `On`) | ours kept, host or guest; nothing applied or sent back | `kept` |
-| untouched, or we are a guest | hers applied: the state as an `s` line (A1 live, A2 offline), then the Enable or Disable as an `a` line when it differs | `caught` |
+| untouched, or we are a guest | hers applied: the state as an `s` line when the tags differ (A1 live, A2 offline), then the Enable or Disable as an `a` line when it differs | `caught` |
 | touched, we are the host | ours kept | `kept` |
 
 When the host keeps its value under the last row for a zone it asked and still waits for, it sends its own value back
@@ -336,11 +336,11 @@ it holds.
 
 ### More than two players
 
-The world runs between the host and the first guest today. The catch-up is host centred, one `Sync` per partner: a
-guest asks the host; the host asks each guest. A guest's untouched values enter the host's world and reach a later
-guest through that guest's own ask. `kWalkReads` is per `Sync`, so a glue that runs one `Sync` per seat has to split
-it: each pass, each open `Sync`'s `walk_reads` is `max(1, 128 / <open Syncs>)`. Without that, 7 guests asking at once
-after a group travel would cost 7 x 128 reads in one frame.
+The world runs between the host and the first guest today. The catch-up is host centred, one `Sync` per partner: a guest
+asks the host; the host asks each guest. A guest's change enters the host's world where the host's own value is
+untouched. It reaches a later guest through that guest's own ask. `kWalkReads` is per `Sync`, so a glue that runs one
+`Sync` per seat has to split it: each pass, each open `Sync`'s `walk_reads` is `max(1, 128 / <open Syncs>)`. Without
+that, 7 guests asking at once after a group travel would cost 7 x 128 reads in one frame.
 
 ## Status line
 
@@ -418,7 +418,8 @@ come from the `world=` line: on with her each time it reads `on` after anything 
   - one shared trap floor: each player walks their own floor, only its end is shared;
   - the 10 passcode doors, kept per player with their album entry;
   - story flags (Xion's phases, `ElderOrcal_Dead`, quest, ending and shop flags), which belong to story together;
-  - the WLB_20 supply box chain (loot);
+  - the WLB_20 supply box chain (loot) and two states on test maps (`LV_Test_LastLegacy_01_EnvS_001` Up,
+    `LV_Test_Map_EnvS_078` B), each held by a `Temp_` achievement;
   - the FA_02 colour triggers: their TriggerTrueEvents ask `FA_02_EnvS_035` for tags its row lacks (`Red`, `Yellow`,
     `Bule`, `Turauoise`);
   - achievement credit for a change applied while she is away: A2 writes her record only;
