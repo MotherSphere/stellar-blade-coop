@@ -423,7 +423,7 @@ Do not start the game again. Turn Steam Cloud off for Stellar Blade first, then 
 
 Shared enemies are on by default. Both players need Options > Combat > Shared enemies (experimental) set to On in the
 co-op menu. The `fight=` line of `coop status` says what is missing (see
-[shared-enemies.md: Shared enemies](../fight/enemies.md#shared-enemies-experimental)):
+[fight/enemies.md: Shared enemies](../fight/enemies.md#shared-enemies-experimental)):
 
 - `fight=off` with no `why=`, and `shared enemies: off (experimental)` in `UE4SS.log` at load: shared enemies are off
   in your game. A `coop-settings.txt` from version 0.2 says `shared_enemies=off`.
@@ -488,7 +488,7 @@ Shared quests are experimental and on by default, and both players need Options 
 ### Same place does not start, or stops
 
 Same place is experimental and on by default, and only the host's setting counts. `coop fight pilot status` prints
-the `pilot=` line of `coop status` (see [shared-enemies.md: Same place](../fight/enemies.md#same-place-experimental)):
+the `pilot=` line of `coop status` (see [fight/enemies.md: Same place](../fight/enemies.md#same-place-experimental)):
 
 - `pilot=refused why=...`: another game build, or `coop off`.
 - `pilot=off why=fight`: shared enemies are not running. See [Enemies are not shared](#enemies-are-not-shared).
@@ -537,7 +537,7 @@ moves it.
 
 Shared bosses (`bosses`) are experimental, on by default and not tested in game yet, and only the host's setting counts.
 With same place on, the guest's copy of a boss follows the host's through the lines in
-[internals/shared-enemies.md: Shared bosses](../fight/enemies-internals.md#shared-bosses). Look in the guest's `coop-link.log` first:
+[fight/enemies-internals.md: Shared bosses](../fight/enemies-internals.md#shared-bosses). Look in the guest's `coop-link.log` first:
 
 - No arena walls on her side: there is no `fight bstart hguid=<n>` line. Her game calls the boss start only for a copy
   it draws: check `pilot=` in `coop status` and the `fight paired` and `fight frozen` lines for that boss. The host
@@ -577,7 +577,7 @@ With same place on, the guest's copy of a boss follows the host's through the li
 ### A kill or an achievement did not count
 
 A shared enemy dies in your game only if you took part in its fight
-([shared-enemies.md: Shared enemies](../fight/enemies.md#shared-enemies-experimental)). When the other player kills one
+([fight/enemies.md: Shared enemies](../fight/enemies.md#shared-enemies-experimental)). When the other player kills one
 that you never hit, that never targeted you and that stood more than 30 m from your EVE (`kill_credit=together`, the
 default), your copy stays alive at full HP, and its kill, loot and achievements do not reach your save. Fight it
 yourself to get them. As the guest, while same spawns run (within 100 m of each other in one zone), the host's next drop
@@ -704,7 +704,7 @@ An enemy that the host's game lacks still appears for a moment on the guest's sc
 then vanishes: that is same spawns with the spawn filter off. With `spawn_filter=on` (the default) on her PC it stays
 away after the first entry into the zone, unless her reset is also a world change (`fight world <why>` in her
 `coop-link.log`; see [Turn the spawn filter off](#turn-the-spawn-filter-off) and
-[shared-enemies.md: Spawn filter](../fight/enemies.md#spawn-filter-experimental)).
+[fight/enemies.md: Spawn filter](../fight/enemies.md#spawn-filter-experimental)).
 
 ### Turn the spawn filter off
 
@@ -715,7 +715,7 @@ until the game restarts. Send the guest's `coop-link.log` and `coop-fight.log`: 
 enemy it refused (`spawn filter refused <spawnId>:<index>`), and the `fight stats:` lines count `filter <n> seen, <n>
 refused`. `spawn filter refused: ...` with no key means the filter never started (another mod holds the same pointer,
 or the page would not become writable), and every spawn went on as with it off. See
-[shared-enemies.md: Spawn filter](../fight/enemies.md#spawn-filter-experimental).
+[fight/enemies.md: Spawn filter](../fight/enemies.md#spawn-filter-experimental).
 
 ## Reading the 60 s lines
 

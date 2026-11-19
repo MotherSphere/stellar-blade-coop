@@ -12,7 +12,7 @@ Operation shop and Lily's signal use the same batches. The commands are in [Cut 
 animations on the Behemoth's skeleton (`CH_M_NA_46_Skeleton`), hit and attack collision data and 41 Shows. No table row
 names it.
 
-Six files do the work: `fight/bosses/enemy.lua` (the Lua flow, which [the Gardener](#the-cut-gardener) and [the
+Seven files do the work: `fight/bosses/enemy.lua` (the Lua flow, which [the Gardener](#the-cut-gardener) and [the
 Tendril](#the-cut-tendril) share), `fight/bosses/lion.lua` (the Lion's spec and its own parts), `fight/bosses/lion_rows.lua` (the
 rows as Lua reads them back), `fight/bosses/lion_rows.h` (the rows), `rows/rows.h` (their build, free of Windows, tested on the build machine),
 `rows/shock.h` (the Shock Bolt's two lists, also free of Windows) and `rows/rows_game.inc` (the game's calls). The rows

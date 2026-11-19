@@ -127,7 +127,7 @@ The question and `always` show their result as a notice: `Co-op saves on: you pl
 own saves are not changed.`, or `Co-op saves off for this load: <why>. You play your own saves.` While the game uses
 the copies, the title screen shows `CO-OP SAVES` at the top right. In a session on your
 own save with shared enemies on, a notice says how to switch to the co-op copy (see
-[shared-enemies.md: Shared enemies](../fight/enemies.md#shared-enemies-experimental)).
+[fight/enemies.md: Shared enemies](../fight/enemies.md#shared-enemies-experimental)).
 
 A copy pass:
 

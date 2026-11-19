@@ -517,7 +517,7 @@ Each section that left this page is listed under its old name, with its new plac
 | Track files | [online/modes/race.md](online/modes/race.md#track-files) |
 | Teleport screen | [players/interface.md](players/interface.md#teleport-screen) |
 | Night Operation previews | [this page: Commands that need a co-op save](#commands-that-need-a-co-op-save) |
-| Night Operation's shop screen and Roxanne's choices | [night-operation-shop.md: Status lines](online/modes/nightop-shop.md#status-lines) |
+| Night Operation's shop screen and Roxanne's choices | [online/modes/nightop-shop.md: Status lines](online/modes/nightop-shop.md#status-lines) |
 | Cut enemy preview: `coop leviathan`, `coop gardener` and `coop tendril` | [fight/bosses.md](fight/bosses.md#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril) |
 | Other cut models: `coop mann`, `coop nier`, `coop orcal` and `coop enya` | [fight/bosses.md](fight/bosses.md#other-cut-models-coop-mann-coop-nier-coop-orcal-and-coop-enya) |
 | Free camera | [fight/bosses.md](fight/bosses.md#free-camera) |
