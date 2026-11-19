@@ -175,8 +175,10 @@ int main() {
          {"SBF23 on", "SBF23 off not on the co-op save", "SBF23 world 3", "SBF23 up 3 77 50110 2 15011001 1600",
           "SBF23 up 4294967295 4294967295 4294967295 255 4294967295 10000000", "SBF23 down 3 77", "SBF23 dead 3 77",
           "SBF23 hp 3 1 0 77:1600:100:200", "SBF23 hp 3 2 9 77:0:0:0 78:5:6:7", "SBF23 hit 3 1 77 120 5 30 400 0",
-          "SBF23 hit 3 4294967295 77 400 0 0 400 1", "SBF23 hit 3 2 77 0 0 0 0 0", "SBF23 cc 3 77 9900001",
-          "SBF23 cc 4294967295 4294967295 3000401", "SBF23 scale 3 135 115", "SBF23 scale 4294967295 400 100",
+          "SBF23 hit 3 4294967295 77 400 0 0 400 1", "SBF23 hit 3 2 77 0 0 0 0 0", "SBF23 cc 3 77 9900001 1 0",
+          "SBF23 cc 4294967295 4294967295 3000401 99 0", "SBF23 cc 3 77 2003000 0 10000", "SBF23 stagger 3 1 0",
+          "SBF23 stagger 4294967295 0 1", "SBF23 poise 3 77 0 1 1", "SBF23 poise 4294967295 4294967295 255 2 16000",
+          "SBF23 scale 3 135 115", "SBF23 scale 4294967295 400 100",
           "SBF23 place 3 1", "SBF23 place 4294967295 0", "SBF23 aggro 3 game", "SBF23 aggro 4294967295 host",
           "SBF23 bosses 3 200", "SBF23 bosses 4294967295 400", "SBF23 bosses 3 100",
           "SBF23 own 3 77 G 1", "SBF23 own 4294967295 4294967295 H 255", "SBF23 own 3 77 H 0",
@@ -207,8 +209,8 @@ int main() {
     Message hit = msg("SBF23 hit 3 1 77 120 5 30 400 1");
     assert(hit.type == Type::hit && hit.seq == 1 && hit.guid == 77 && hit.delta[kHp] == 120 &&
            hit.delta[kShield] == 5 && hit.delta[kStamina] == 30 && hit.pre_hp == 400 && hit.lethal);
-    Message cc = msg("SBF23 cc 3 77 3000303");
-    assert(cc.type == Type::cc && cc.gen == 3 && cc.guid == 77 && cc.effect == 3000303);
+    Message cc = msg("SBF23 cc 3 77 3000303 2 0");
+    assert(cc.type == Type::cc && cc.gen == 3 && cc.guid == 77 && cc.effect == 3000303 && cc.level == 2 && cc.ms == 0);
     Message scale = msg("SBF23 scale 3 135 115");
     assert(scale.type == Type::scale && scale.gen == 3 && scale.scale[kScaleHp] == 135 &&
            scale.scale[kScaleBalance] == 115);
@@ -324,10 +326,11 @@ int main() {
           "SBF23 hit 3 1 77 1 0 0 1 2", "SBF23 hit 3 1 77 1 0 0 1 00", "SBF23 hit 3 1 77 1 0 0 1",
           "SBF23 hit 3 1 77 1 0 0 1 0 0", "SBF23 hit 3 1 77 -1 0 0 1 0", "SBF23 hit 3 1 77 10000001 0 0 1 0",
           "SBF23 hit 3 1 77 1 0 0 10000001 0", "SBF23 hit 3 1 77 1.5 0 0 1 0", "SBF23 hit 3 1 77 1 0 0 1 true",
-          // cc: only the five mirrored effects (not Groggy 3000100, not the chain's AirborneDown 9900003).
-          "SBF23 cc 3 77 3000100", "SBF23 cc 3 77 9900003", "SBF23 cc 3 77 0", "SBF23 cc 3 77 -9900001",
-          "SBF23 cc 3 77", "SBF23 cc 3 77 9900001 1", "SBF23 cc 0 77 9900001", "SBF23 cc 3 0 9900001",
-          "SBF23 cc 3 77 99000010",
+          // cc: only the five mirrored effects and the flinch (not Groggy 3000100, not the chain's AirborneDown
+          // 9900003), with level and ms; the three-field form of earlier builds is bad.
+          "SBF23 cc 3 77 3000100 1 0", "SBF23 cc 3 77 9900003 1 0", "SBF23 cc 3 77 0 1 0", "SBF23 cc 3 77 -9900001 1 0",
+          "SBF23 cc 3 77", "SBF23 cc 3 77 9900001", "SBF23 cc 3 77 9900001 1", "SBF23 cc 0 77 9900001 1 0",
+          "SBF23 cc 3 0 9900001 1 0", "SBF23 cc 3 77 99000010 1 0",
           // scale: two whole percents from 100 to 400 (1.0 to 4.0 in coop-settings.txt).
           "SBF23 scale 3 99 115", "SBF23 scale 3 135 401", "SBF23 scale 0 135 115", "SBF23 scale 3 135",
           "SBF23 scale 3 135 115 1", "SBF23 scale 3 1.35 1.15", "SBF23 scale 3 -135 115", "SBF23 scale 3 135  115",
@@ -408,7 +411,8 @@ int main() {
     std::mt19937 rng(77);
     const std::string seeds[] = {"SBF23 on", "SBF23 off why", "SBF23 world 3", "SBF23 up 3 77 50110 2 15011001 1600",
                                  "SBF23 dead 3 77", "SBF23 hp 3 2 9 77:0:0:0 78:5:6:7 79:1:1:1",
-                                 "SBF23 hit 3 1 77 120 5 30 400 1", "SBF23 cc 3 77 9900001",
+                                 "SBF23 hit 3 1 77 120 5 30 400 1", "SBF23 cc 3 77 9900001 1 0",
+                                 "SBF23 cc 3 77 2003000 1 450", "SBF23 stagger 3 1 1", "SBF23 poise 3 77 2 1 2100",
                                  "SBF23 scale 3 135 115", "SBF23 place 3 1", "SBF23 aggro 3 host",
                                  "SBF23 bosses 3 200",
                                  "SBF23 own 3 77 G 1", "SBF23 own-no 3 77 1 state", "SBF23 exec 3 77 1",
@@ -451,6 +455,8 @@ int main() {
         assert(m.ids[i] > 0 && std::count(m.ids, m.ids + m.idn, m.ids[i]) == 1);
       assert(m.type != Type::spawn || is_summon(m.spawn) == (m.guid != 0 && m.effect != 0));
       assert(m.type != Type::pvp || (m.seq && m.skill > 0 && m.delta[kHp] > 0));
+      assert(m.level >= 0 && m.level <= coop::poise::kMaxLevel && m.ms <= coop::poise::kMaxWindowMs && m.k <= 2);
+      assert(m.type != Type::poise || (m.k >= 1 && m.ms >= 1));
       std::string again = format(m, reason), reason2;
       Message n = parse(again.data(), again.size(), &reason2);
       assert(n.type == m.type && format(n, reason2) == again);
@@ -1232,7 +1238,7 @@ int main() {
     Seen &a = w.actor(101)->s;
     a.cc = 1 << 1, a.stunned = true;
     step(h, w, 2, 100);
-    assert(w.lines() == "SBF23 cc 1 101 3000300\n" && h.counts.cc_told == 1);
+    assert(w.lines() == "SBF23 cc 1 101 3000300 1 0\n" && h.counts.cc_told == 1);
     step(h, w, 3, 150);
     assert(w.sent.empty());
     // A rise while it is still in that crowd control is its chain, which runs on her copy too: not told.
@@ -1244,9 +1250,9 @@ int main() {
     step(h, w, 5, 300);
     a.cc = 1 << 4 | 1 << 1, a.stunned = true;
     step(h, w, 6, 400);
-    assert(w.lines() == "SBF23 cc 1 101 3000300\n" && h.counts.cc_told == 2);
+    assert(w.lines() == "SBF23 cc 1 101 3000300 1 0\n" && h.counts.cc_told == 2);
     // Hers: started on our copy at our next step, through the game's effect call.
-    h.receive(msg("SBF23 cc 1 102 9900001"), 450, w);
+    h.receive(msg("SBF23 cc 1 102 9900001 1 0"), 450, w);
     assert(w.effects.empty());
     step(h, w, 7, 450);
     assert(w.effects.size() == 1 && w.effects[0] == std::make_pair(102u, 9900001) && h.counts.cc_mirrored == 1);
@@ -1259,8 +1265,8 @@ int main() {
     step(h, w, 10, 520);
     assert(w.sent.empty() && h.counts.cc_told == 2);
     // A copy in a crowd control (101 still down, 103 in the air) or one running its own: skipped, counted.
-    h.receive(msg("SBF23 cc 1 101 9900001"), 550, w);
-    h.receive(msg("SBF23 cc 1 103 3000300"), 550, w);
+    h.receive(msg("SBF23 cc 1 101 9900001 1 0"), 550, w);
+    h.receive(msg("SBF23 cc 1 103 3000300 1 0"), 550, w);
     step(h, w, 11, 550);
     assert(w.effects.size() == 1 && h.counts.cc_skipped == 2);
     // The game refusing it (an immunity): skipped too. Out of its crowd control, a new launch of 102 by our EVE is
@@ -1268,24 +1274,24 @@ int main() {
     a.cc = 0, a.stunned = false, b.cc = 0, b.stunned = false;
     step(h, w, 12, 600);
     w.immune = true;
-    h.receive(msg("SBF23 cc 1 101 3000401"), 650, w);
+    h.receive(msg("SBF23 cc 1 101 3000401 1 0"), 650, w);
     step(h, w, 13, 650);
     assert(w.effects.size() == 1 && h.counts.cc_skipped == 3 && h.counts.cc_mirrored == 1);
     b.cc = 1, b.stunned = true;
     step(h, w, 14, 700);
-    assert(w.lines() == "SBF23 cc 1 102 9900001\n");
+    assert(w.lines() == "SBF23 cc 1 102 9900001 1 0\n");
     // An old world's or an unknown enemy's: stale, never a bad line; a later one replaces one not applied yet.
-    h.receive(msg("SBF23 cc 2 101 3000300"), 1150, w);
-    h.receive(msg("SBF23 cc 1 999 3000300"), 1150, w);
+    h.receive(msg("SBF23 cc 2 101 3000300 1 0"), 1150, w);
+    h.receive(msg("SBF23 cc 1 999 3000300 1 0"), 1150, w);
     assert(h.counts.stale == 2 && h.counts.bad == 0);
     w.immune = false;
-    h.receive(msg("SBF23 cc 1 101 3000300"), 1150, w);
-    h.receive(msg("SBF23 cc 1 101 3000401"), 1150, w);
+    h.receive(msg("SBF23 cc 1 101 3000300 1 0"), 1150, w);
+    h.receive(msg("SBF23 cc 1 101 3000401 1 0"), 1150, w);
     step(h, w, 15, 1150);
     assert(w.effects.size() == 2 && w.effects[1] == std::make_pair(101u, 3000401));
     // Her off: hers are no longer taken.
     h.receive(msg("SBF23 off busy"), 1200, w);
-    h.receive(msg("SBF23 cc 1 102 3000300"), 1200, w);
+    h.receive(msg("SBF23 cc 1 102 3000300 1 0"), 1200, w);
     assert(h.counts.stale == 3);
   }
 
@@ -1302,7 +1308,7 @@ int main() {
     step(gu, g, 1, 0);
     assert(gu.linked() == 2);
     // The host's knockdown of 101: started on our copy 501 at our next step; it shows up later, never told back.
-    gu.receive(msg("SBF23 cc 1 101 3000300"), g);
+    gu.receive(msg("SBF23 cc 1 101 3000300 1 0"), g);
     step(gu, g, 2, 100);
     assert(g.effects.size() == 1 && g.effects[0] == std::make_pair(501u, 3000300) && gu.counts.cc_mirrored == 1);
     g.actor(501)->s.cc = 1 << 1, g.actor(501)->s.stunned = true;
@@ -1311,20 +1317,20 @@ int main() {
     // Our EVE launches 502: told by the host's GUID.
     g.actor(502)->s.cc = 1, g.actor(502)->s.stunned = true;
     step(gu, g, 4, 200);
-    assert(g.lines() == "SBF23 cc 1 102 9900001\n" && gu.counts.cc_told == 1);
+    assert(g.lines() == "SBF23 cc 1 102 9900001 1 0\n" && gu.counts.cc_told == 1);
     // Another world's, an enemy we do not pair (503 has no host enemy) or never heard of: stale.
-    gu.receive(msg("SBF23 cc 2 101 3000300"), g);
-    gu.receive(msg("SBF23 cc 1 103 3000300"), g);
+    gu.receive(msg("SBF23 cc 2 101 3000300 1 0"), g);
+    gu.receive(msg("SBF23 cc 1 103 3000300 1 0"), g);
     assert(gu.counts.stale == 2);
     gu.receive(msg("SBF23 up 1 104 5099 0 900 1600"), g); // Announced, no copy here.
-    gu.receive(msg("SBF23 cc 1 104 3000300"), g);
+    gu.receive(msg("SBF23 cc 1 104 3000300 1 0"), g);
     assert(gu.counts.stale == 3);
     // A copy in a crowd control skips the host's, counted; dead ones take none.
-    gu.receive(msg("SBF23 cc 1 102 3000401"), g);
+    gu.receive(msg("SBF23 cc 1 102 3000401 1 0"), g);
     step(gu, g, 5, 250);
     assert(g.effects.size() == 1 && gu.counts.cc_skipped == 1);
     gu.receive(msg("SBF23 dead 1 101"), g);
-    gu.receive(msg("SBF23 cc 1 101 3000300"), g);
+    gu.receive(msg("SBF23 cc 1 101 3000300 1 0"), g);
     assert(gu.counts.stale == 4);
   }
 
@@ -2562,6 +2568,71 @@ int main() {
                             "SBF23 pvp 7 1001001 45 1", "SBF23 pvp 7  1001001 45", "SBF20 pvp 7 1001001 45",
                             "SBF23 PVP 7 1001001 45"})
       assert(!valid(bad));
+  }
+
+  { // Phase 8: the cc line carries the hit's level (0-99) and the reaction's time in ms: 0 for the five crowd
+    // controls (their rows' own time), 0 to 10000 for a flinch (HitStun 2003000; 0: its row's own time).
+    Message m = msg("SBF23 cc 3 77 3000303 2 0");
+    assert(m.type == Type::cc && m.effect == 3000303 && m.level == 2 && m.ms == 0);
+    assert(format(m) == "SBF23 cc 3 77 3000303 2 0");
+    m = msg("SBF23 cc 3 77 2003000 1 600");
+    assert(m.effect == kFlinch && m.level == 1 && m.ms == 600 && format(m) == "SBF23 cc 3 77 2003000 1 600");
+    assert(valid("SBF23 cc 3 77 2003000 0 0") && valid("SBF23 cc 3 77 2003000 99 10000"));
+    for (const char *bad : {"SBF23 cc 3 77 3000303", "SBF23 cc 3 77 3000303 2", "SBF23 cc 3 77 3000303 2 600",
+                            "SBF23 cc 3 77 2003000 100 600", "SBF23 cc 3 77 2003000 1 10001",
+                            "SBF23 cc 3 77 2003000 -1 600", "SBF23 cc 3 77 1001400 1 0",
+                            "SBF23 cc 3 77 3000303 2 0 1"})
+      assert(!valid(bad));
+  }
+  { // stagger: the host's hit_reactions and stagger_resist. poise: a window its owner started, at owner epoch oe, k 1
+    // or 2, 1 to 16000 ms.
+    Message m = msg("SBF23 stagger 4 1 0");
+    assert(m.type == Type::stagger && m.gen == 4 && m.reactions && !m.resist && format(m) == "SBF23 stagger 4 1 0");
+    m = msg("SBF23 poise 4 77 3 2 2100");
+    assert(m.type == Type::poise && m.guid == 77 && m.oe == 3 && m.k == 2 && m.ms == 2100);
+    assert(format(m) == "SBF23 poise 4 77 3 2 2100");
+    for (const char *bad : {"SBF23 stagger 4 1", "SBF23 stagger 4 2 0", "SBF23 stagger 0 1 1",
+                            "SBF23 poise 4 77 3 3 2100", "SBF23 poise 4 77 3 0 2100", "SBF23 poise 4 77 256 1 2100",
+                            "SBF23 poise 4 77 3 1 0", "SBF23 poise 4 77 3 1 16001", "SBF23 poise 4 0 3 1 2100"})
+      assert(!valid(bad));
+  }
+  { // A recording keeps the host's stagger line and never a poise line.
+    Line l;
+    assert(parse_line("5 SBF23 stagger 1 1 1", l) && l.message.type == Type::stagger);
+    assert(!parse_line("5 SBF23 poise 1 77 0 1 2100", l));
+  }
+  { // The host's stagger line: after bosses in its whole list while either is on, again at each change, none in a
+    // whole list while both are off.
+    World w;
+    Host h;
+    h.set_bosses(200);
+    h.set_stagger(true, true);
+    h.receive(msg("SBF23 on"), 0, w);
+    step(h, w, 1, 0);
+    assert(w.lines().find("SBF23 bosses 1 200\nSBF23 stagger 1 1 1\n") != std::string::npos);
+    h.set_stagger(true, false);
+    step(h, w, 2, 50);
+    assert(w.lines().find("SBF23 stagger 1 1 0\n") != std::string::npos);
+    h.set_stagger(false, false);
+    step(h, w, 3, 100);
+    assert(w.lines().find("SBF23 stagger 1 0 0\n") != std::string::npos);
+    h.receive(msg("SBF23 world 9"), 150, w);
+    step(h, w, 4, 150);
+    assert(w.lines().find("stagger") == std::string::npos);
+  }
+  { // The guest reads both off until the host's stagger line. She takes it at the host's generation only. After the
+    // host's next world she reads both off again.
+    World g;
+    Guest gu;
+    gu.receive(msg("SBF23 world 5"), g);
+    assert(!gu.reactions() && !gu.resist());
+    gu.receive(msg("SBF23 stagger 5 1 1"), g);
+    assert(gu.reactions() && gu.resist());
+    const uint64_t stale = gu.counts.stale;
+    gu.receive(msg("SBF23 stagger 4 0 0"), g);
+    assert(gu.reactions() && gu.counts.stale == stale + 1);
+    gu.receive(msg("SBF23 world 6"), g);
+    assert(!gu.reactions() && !gu.resist());
   }
 
   std::puts("fight_sync_test: ok");

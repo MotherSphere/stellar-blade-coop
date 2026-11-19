@@ -1083,13 +1083,13 @@ int main() {
     g.knock(101, 3000300);
     uint64_t t = 16;
     frame(g, *e, t);
-    assert(lines(g) == "SBF23 cc 1 101 3000300\n");
+    assert(lines(g) == "SBF23 cc 1 101 3000300 1 0\n");
     for (t += 16; t < 200; t += 16)
       frame(g, *e, t);
     assert(!has(lines(g), " cc ") && g.body(101).effects.empty() && !g.in_cc(g.by_guid[101]));
     // Hers on 102: SB's effect call on the logic singleton, with our EVE's logic actor as the caster. It starts at the
     // turn's end, then chains (AirborneDown, Down, Getup); none of it is told back.
-    g.inbox.push_back(msg("SBF23 cc 1 102 9900001"));
+    g.inbox.push_back(msg("SBF23 cc 1 102 9900001 1 0"));
     frame(g, *e, t);
     const Game::Cast &c = g.casts.at(0);
     assert(c.logic == g.logic && c.la == g.by_guid[102] && c.caster == g.eve && c.id == 9900001);
@@ -1104,16 +1104,16 @@ int main() {
     // While 101 is in the air (our EVE's launch, told), hers for it is skipped; so is one the game refuses (an
     // immunity), and one with no EVE of ours to cast it.
     g.knock(101, 9900001);
-    g.inbox.push_back(msg("SBF23 cc 1 101 3000300"));
+    g.inbox.push_back(msg("SBF23 cc 1 101 3000300 1 0"));
     frame(g, *e, t += 16);
-    assert(lines(g) == "SBF23 cc 1 101 9900001\n" && g.casts.size() == 1 && e->host.counts.cc_skipped == 1);
+    assert(lines(g) == "SBF23 cc 1 101 9900001 1 0\n" && g.casts.size() == 1 && e->host.counts.cc_skipped == 1);
     g.body(102).immune = true;
-    g.inbox.push_back(msg("SBF23 cc 1 102 3000401"));
+    g.inbox.push_back(msg("SBF23 cc 1 102 3000401 1 0"));
     frame(g, *e, t += 16);
     assert(g.casts.size() == 2 && e->host.counts.cc_skipped == 2 && e->host.counts.cc_mirrored == 1);
     g.body(102).immune = false;
     g.mem.put(g.players, g.mem.alloc(0x2608));
-    g.inbox.push_back(msg("SBF23 cc 1 102 3000401"));
+    g.inbox.push_back(msg("SBF23 cc 1 102 3000401 1 0"));
     frame(g, *e, t += 16);
     assert(g.casts.size() == 2 && e->host.counts.cc_skipped == 3);
     g.mem.put(g.players, g.fsb(1));
@@ -1793,7 +1793,7 @@ int main() {
     frame(g, *e, t);
     assert(e->guest.linked() == 1 && g.casts.empty());
     g.inbox.push_back(msg("SBF23 place 1 1"));
-    g.inbox.push_back(msg("SBF23 cc 1 101 3000300"));
+    g.inbox.push_back(msg("SBF23 cc 1 101 3000300 1 0"));
     frame(g, *e, t += 16);
     assert(g.casts.size() == 1 && g.casts[0].id == 3000300 && e->counts.frozen == 0);
     while (g.in_cc(g.by_guid[501]))
@@ -5298,8 +5298,8 @@ int main() {
     g.mem.put<uint32_t>(g.by_guid[912] + kLastPlayer, 1);
     frame(g, *e, 0);
     assert(e->guest.linked() == 2);
-    g.inbox.push_back(msg("SBF23 cc 1 111 3000300"));
-    g.inbox.push_back(msg("SBF23 cc 1 112 3000300"));
+    g.inbox.push_back(msg("SBF23 cc 1 111 3000300 1 0"));
+    g.inbox.push_back(msg("SBF23 cc 1 112 3000300 1 0"));
     frame(g, *e, 16);
     assert(g.casts.size() == 2 && g.mem.get<uint32_t>(g.by_guid[911] + kLastPlayer) == 1);
     assert(count(g, "last player", "set by a mirrored crowd control") == 1);
@@ -6777,7 +6777,7 @@ int main() {
       assert(!parse_recording(io.file, lines) && lines[0].message.type == Type::world);
       assert(has(io.file, " SBF23 up 1 101 5001 0 900 1600\n") && has(io.file, " SBF23 up 1 102 5002 0 900 1600\n"));
       assert(has(io.file, " 101:1300:100:200") && has(io.file, " SBF23 dead 1 101\n") && !has(io.file, " on"));
-      assert(has(io.file, " SBF23 cc 1 102 3000300\n"));
+      assert(has(io.file, " SBF23 cc 1 102 3000300 1 0\n"));
       recording = io.file;
       // A second session shows none of the first one's counts, not even before its job's first turn.
       assert(w.ask(coop::parse_request("fight record 900"), gate, io).rfind("shared fight record: ", 0) == 0);
