@@ -1149,6 +1149,9 @@ int main() {
       Reaction r;
       assert(e->reaction(g, g.logic, 101, 9900001, r) && r.life_ms == 600);
       assert(tables ? r.level == 3 && !r.guess : r.level == 1 && r.guess);
+      g.mem.put<int32_t>(g.skill_rows[1001001] + poise::kRowHitLevel, 200); // Held to kMaxLevel.
+      assert(e->reaction(g, g.logic, 101, 9900001, r) && r.level == (tables ? poise::kMaxLevel : 1));
+      g.mem.put<int32_t>(g.skill_rows[1001001] + poise::kRowHitLevel, 2);
       g.mem.put(fx + poise::kEffectCaster, g.by_guid[101]); // Another caster: the guess, the time still read.
       assert(e->reaction(g, g.logic, 101, 9900001, r) && r.level == 1 && r.guess && r.life_ms == 600);
       g.mem.put(fx + poise::kEffectCaster, g.eve);

@@ -2678,12 +2678,18 @@ int main() {
     g.actor(501)->s.poise = std::nanf("");
     gu.receive(msg("SBF23 cc 1 101 3000300 3 0"), g);
     step(gu, g, 2, 500);
-    assert(g.effects.empty() && gu.counts.cc_poise == 1);
+    assert(g.effects.empty() && gu.counts.cc_poise == 1 && g.count("cc refused", "poise") == 1);
     g.lines();
     g.no_reaction = true;
     g.actor(501)->s.poise = 0, g.actor(501)->s.cc = 1 << 1; // 3000300 rises on her copy.
     step(gu, g, 3, 600);
     assert(g.lines().find("SBF23 cc 1 101 3000300 1 0\n") != std::string::npos && gu.counts.level_guess == 1);
+    g.actor(501)->s.cc = 0;
+    step(gu, g, 4, 3000);
+    g.actor(501)->s.poise = 2.5f; // The line's level 3 passes poise 2.5: the guest keeps the level it received.
+    gu.receive(msg("SBF23 cc 1 101 3000300 3 0"), g);
+    step(gu, g, 5, 3100);
+    assert(g.effects.size() == 1 && gu.counts.cc_mirrored == 1 && gu.counts.cc_poise == 1);
   }
 
   std::puts("fight_sync_test: ok");
