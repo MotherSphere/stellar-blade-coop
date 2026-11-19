@@ -110,10 +110,11 @@ for anyone who reads or changes the code. The commands are in [usage.md](usage.m
 [dev/building.md](dev/building.md#repository-layout).
 
 Code comments still cite sections of this page by name, for example `native/src/world/maps/matrix13/mxiii_rows.h` and
-`tools/mxiii_rows.py` ("Matrix XIII's world rows") and `mod/StellarCoop/Scripts/tools/mailbox.lua` ("Achievements"),
-so [Where each section went](#where-each-section-went) gives the new place of every section that used to be here.
-`core/enemy.lua`, its copy `fight/bosses/enemy.lua` and `online/modes/nightop/run.lua` cite this page for how a spawned body reads its
-state and how the game reuses Lion bodies, which is in [fight/bosses-internals.md: The spawn](fight/bosses-internals.md#the-spawn).
+`tools/mxiii_rows.py` ("Matrix XIII's world rows") and `mod/StellarCoop/Scripts/tools/mailbox.lua` ("Achievements"), so
+[Where each section went](#where-each-section-went) gives the new place of every section that used to be here.
+`core/enemy.lua`, its copy `fight/bosses/enemy.lua` and `online/modes/nightop/run.lua` cite this page for how a spawned
+body reads its state and how the game reuses Lion bodies, which is in
+[fight/bosses-internals.md: The spawn](fight/bosses-internals.md#the-spawn).
 
 ### The internals pages
 
