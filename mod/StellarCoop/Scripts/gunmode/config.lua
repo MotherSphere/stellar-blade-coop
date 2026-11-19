@@ -122,6 +122,8 @@ function Config.parse(text)
     v=get(text,'gun_carry_idle'); if v and tonumber(v) then out.carry_idle_type=tonumber(v) end
     v=get(text,'gun_probe')
     if v then out.probe=v:lower()=='on' end
+    v=get(text,'gun_facts') -- (dev only) the Phase 0 facts probe, gunmode/facts.lua
+    if v=='on' then out.facts=true end
     v=get(text,'gun_trace') -- (testing) step log around reloads and aim changes
     if v then out.trace=v:lower()=='on' end
     v=get(text,'gun_fire_key') -- (testing) one more fire key, as F
