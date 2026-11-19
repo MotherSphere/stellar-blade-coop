@@ -640,6 +640,11 @@ function GunMode.new(env)
         local inp=Input.read(keys,down,now,cfg,set.key)
         if inp.key then self.toggle(set.key) elseif inp.toggle then self.toggle('D-pad Right') end
         if s.notice_off and now-s.notice_at>=3 then pcall(s.notice_off); s.notice_off=nil end
+        if set.facts then
+            s.facts=s.facts or require('gunmode.facts').new(g)
+            local ok,e=pcall(s.facts.tick,pc,g.pawn(),down,now)
+            if not ok and not s.facts_err then s.facts_err=true; g.log('facts: '..tostring(e)) end
+        end
         if not s.on then return end
         local p=g.pawn()
         if not p then disable('no EVE'); return end
