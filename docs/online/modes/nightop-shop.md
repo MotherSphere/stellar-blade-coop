@@ -143,8 +143,8 @@ seeds, asks no open and removes nothing: seeds it already added stay with the co
   wallet and the seeds leave after the close. Seeds still in the inventory with no shop screen open leave at that first
   tick, and the wallet keeps its count.
 
-The rows are a sixth rows batch of the native part, `shop` (`native/src/online/modes/nightop/shop_rows.h`), added through the game's own
-AddRow in memory for the game run, as the Lion's are:
+The rows are a sixth rows batch of the native part, `shop` (`native/src/online/modes/nightop/shop_rows.h`), added
+through the game's own AddRow in memory for the game run, as the Lion's are:
 
 | Table | Row | ID | Copy of |
 | --- | --- | --- | --- |

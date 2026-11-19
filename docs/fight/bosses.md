@@ -3,7 +3,8 @@
 Test commands show cut enemies and other cut models from the game's files in a viewer with a free camera, or spawn three
 cut enemies to fight: the Lion, the Gardener and the Tendril. How the mod adds their table rows is in
 [fight/bosses-internals.md](bosses-internals.md). The other cut content is in [eve/eve.md](../eve/eve.md),
-[story/scenes.md](../story/scenes.md), [tools/menus.md](../tools/menus.md) and [world/matrix13.md](../world/matrix13.md).
+[story/scenes.md](../story/scenes.md), [tools/menus.md](../tools/menus.md) and
+[world/matrix13.md](../world/matrix13.md).
 
 ## Cut enemy preview: `coop leviathan`, `coop gardener` and `coop tendril`
 

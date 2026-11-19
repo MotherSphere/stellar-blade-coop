@@ -127,14 +127,14 @@ starting there could write Matrix 11 zone state into the save, so the third zone
 
 ## The command
 
-`world/maps/matrix13/level/travel.lua` runs on a co-op save only (`world/maps/matrix13/commands.lua`). It first asks the follow for
-`coop travel probe`'s guards (solo, a co-op save, the native travel there, not stopped by a fault, with no warp under
-way and no travel accepted in the last 10 s), then looks for the test pak: `zMXIII_P.utoc` in `SB/Content/Paks/~mods` or
-`SB/Content/Paks/LogicMods`, whose directory index must name `WorldMap_DLC_01`, `Level_P` and `MXIII_P.umap` (plain text
-in a container that is not encrypted), with `zMXIII_P.pak` and `zMXIII_P.ucas` beside it, since UE 4.26 mounts an
-IoStore container through its `.pak`. It reads the live folder, so a pak copied in after the game started passes the
-check although the engine mounts paks only at start. It reads those files once a command and never looks the map up with
-`StaticFindObject`, which finds only loaded packages and costs 4 to 35 ms a miss.
+`world/maps/matrix13/level/travel.lua` runs on a co-op save only (`world/maps/matrix13/commands.lua`). It first asks the
+follow for `coop travel probe`'s guards (solo, a co-op save, the native travel there, not stopped by a fault, with no
+warp under way and no travel accepted in the last 10 s), then looks for the test pak: `zMXIII_P.utoc` in
+`SB/Content/Paks/~mods` or `SB/Content/Paks/LogicMods`, whose directory index must name `WorldMap_DLC_01`, `Level_P` and
+`MXIII_P.umap` (plain text in a container that is not encrypted), with `zMXIII_P.pak` and `zMXIII_P.ucas` beside it,
+since UE 4.26 mounts an IoStore container through its `.pak`. It reads the live folder, so a pak copied in after the
+game started passes the check although the engine mounts paks only at start. It reads those files once a command and
+never looks the map up with `StaticFindObject`, which finds only loaded packages and costs 4 to 35 ms a miss.
 
 Then the rows go in through `core/enemy.lua`'s rows part, and once they read back, the follow's probe calls the camp
 travel for the Tetrapod camp `DLC02_00_Camp_00` (`DLC02_30_Camp_01` for `coop mxiii 30`), a camp in none of its tables
@@ -145,8 +145,8 @@ none, makes a new GUID and a reserve object, so `FUN_141d207c0` still makes each
 `title:` line says the two zone 10 camps will have no kit. The native side is the follow's: the guard, the count and
 the watch of `game/travel.h`. The travel's result comes in `[TR]` lines.
 
-The command's answer names the way out, `coop mxiii leave`: the follow's probe, with its activation read
-([Following the host](../online/group-internals.md#following-the-host)), to a camp the read lists among the 120 travel camps. The
+The command's answer names the way out, `coop mxiii leave`: the follow's probe, with its activation read ([Following the
+host](../online/group-internals.md#following-the-host)), to a camp the read lists among the 120 travel camps. The
 arrival at the Tetrapod camp, `DLC02_10_Camp_01` or `DLC02_30_Camp_01` makes it the camp EVE respawns at (`+0x26d0`),
 and none of the three is in a travel table, so each command keeps the camp she respawned at when it asked its travel, if
 the read lists it (inside the dungeon it keeps the one it had), and `leave` takes that camp first, then the camp she
@@ -251,17 +251,17 @@ rows exist only once `coop mxiii` has run in the game run.
 
 ## At the title
 
-`world/maps/matrix13/level/travel.lua`'s `title()`, called from `main/pass.lua`'s 250 ms loop, asks the batch when three things
-hold: the title screen shows with no save loaded, the slot line reads `saves=coop` (the co-op save switch of
-`online/saves/saves.lua`, so never on the player's own saves), and the pak check finds zMXIII_P. The pak is looked for once a
-Lua load, and nothing is logged without it. The request goes through `coop mxiii`'s rows flow with no EVE and no map to
-keep: the tables found by path, the `mxiii rows` request, the native gate (the game thread, net mode 0, no logic task in
-flight), the shared fault latch and the read-back, and no travel after. Once the `mxiii=` line reads `rows`, nothing is
-asked again in the game run, and `coop mxiii` then reads the rows back and only travels. A gate that stayed shut for its
-300 frames (`busy`, `net` or `unread`), no answer, or an end before the request (a table not loaded) is asked again 10 s
-later while the title shows, at most four times a visit of the title. Any other refusal leaves the rows to `coop mxiii`.
-`coop off` drops the wait without an end, and the next call at the title asks again. The end's line says
-`before any save loads` only when the last call, at most 250 ms earlier, still saw the title with no save loaded;
+`world/maps/matrix13/level/travel.lua`'s `title()`, called from `main/pass.lua`'s 250 ms loop, asks the batch when three
+things hold: the title screen shows with no save loaded, the slot line reads `saves=coop` (the co-op save switch of
+`online/saves/saves.lua`, so never on the player's own saves), and the pak check finds zMXIII_P. The pak is looked for
+once a Lua load, and nothing is logged without it. The request goes through `coop mxiii`'s rows flow with no EVE and no
+map to keep: the tables found by path, the `mxiii rows` request, the native gate (the game thread, net mode 0, no logic
+task in flight), the shared fault latch and the read-back, and no travel after. Once the `mxiii=` line reads `rows`,
+nothing is asked again in the game run, and `coop mxiii` then reads the rows back and only travels. A gate that stayed
+shut for its 300 frames (`busy`, `net` or `unread`), no answer, or an end before the request (a table not loaded) is
+asked again 10 s later while the title shows, at most four times a visit of the title. Any other refusal leaves the rows
+to `coop mxiii`. `coop off` drops the wait without an end, and the next call at the title asks again. The end's line
+says `before any save loads` only when the last call, at most 250 ms earlier, still saw the title with no save loaded;
 otherwise it says the title closed and that a save may have loaded first.
 
 What the title holds, read in Ghidra on build 24463856 (the addresses are build 26123051's):
@@ -296,15 +296,15 @@ nothing in the main game leads to the dungeon or its camps.
 
 ## Matrix XIII's world rows
 
-The cooked map (the full-build pak of all four zones) places a spawn point, trigger box, zone volume and waypoint
-chain for every row the dungeon needs, and the rows themselves come from the mod. `data/mxiii-world.json` holds them
-all, each as a copy of a shipped row (its donor) with the fields that differ; `tools/mxiii_rows.py` writes
-`native/src/world/maps/matrix13/mxiii_rows.h` and `world/maps/matrix13/level/rows.lua` from it, so the native batches and the Lua read-back never
-disagree (`tests/tools/mxiii_rows_test.py` fails when either file is out of date). The generator knows each field's
-offset in its row struct from the SDK (stellar-sdk-647527f) and refuses an unknown field, two fields on the same
-bytes, a batch of 256 rows or more, a name given twice, a string list of one empty item (its `|`-joined text would read
-as no item) and a row whose strings and lists overflow the native part's 4 KB pool. The data file is built outside the
-repository from the cook's manifest, the mechanism design and the build 24463856 table dumps.
+The cooked map (the full-build pak of all four zones) places a spawn point, trigger box, zone volume and waypoint chain
+for every row the dungeon needs, and the rows themselves come from the mod. `data/mxiii-world.json` holds them all, each
+as a copy of a shipped row (its donor) with the fields that differ; `tools/mxiii_rows.py` writes
+`native/src/world/maps/matrix13/mxiii_rows.h` and `world/maps/matrix13/level/rows.lua` from it, so the native batches
+and the Lua read-back never disagree (`tests/tools/mxiii_rows_test.py` fails when either file is out of date). The
+generator knows each field's offset in its row struct from the SDK (stellar-sdk-647527f) and refuses an unknown field,
+two fields on the same bytes, a batch of 256 rows or more, a name given twice, a string list of one empty item (its
+`|`-joined text would read as no item) and a row whose strings and lists overflow the native part's 4 KB pool. The data
+file is built outside the repository from the cook's manifest, the mechanism design and the build 24463856 table dumps.
 
 ### The nine batches
 
@@ -419,9 +419,9 @@ and the `MX13_DLC02_40_EnvS_611_ToClose` sequence) and opens both on its death.
 Its death also enables the fan levers 023 to 025 (`DLC02_40_E_EnvC_631` to `633`), which start disabled. The fallback
 Lion of `coop mxiii boss` has no spawn row and so no EventOnDead: `boss.lua` fires the same three events with
 `CreateSBZoneEvent` kind 10 when it reads that Lion dead [inference: never run in game]. A save whose Lion died on a
-build without these rows keeps its levers disabled and needs a new run. `world/maps/matrix13/level/fans.lua` holds each cooked
-rotor's RotatingMovementComponent off until that fan's lever reads On, so the fans stand still from arrival without a
-cook change. Lever 023's On also fires scene 4G.
+build without these rows keeps its levers disabled and needs a new run. `world/maps/matrix13/level/fans.lua` holds each
+cooked rotor's RotatingMovementComponent off until that fan's lever reads On, so the fans stand still from arrival
+without a cook change. Lever 023's On also fires scene 4G.
 
 The counters, the zone 2 wave triggers, the 14 zone 3 and fan room arena doors and every opener a lock disables (D7's)
 are `ResetZone` (2), as SE_08's counter `SE_08_EnvS_090` is: if EVE dies in an arena, the zone reset puts them back, the
@@ -445,35 +445,35 @@ the dumps, and every event a row fires resolves to a ZoneEvent row of the data o
 
 ### Warp points
 
-The 72 warp switches of the first full build are gone (Matrix 11 has none): their rows went with the `mxwarp` batch,
-and their spawn points in the cooked map stay empty. `coop mxiii warp` lists the 72 arrival points they led to
-(`DLC02_<zone>_WarpPoint_<n>`, kept in the cooked map and in `world/maps/matrix13/level/rows.lua`'s WARP list), and `coop mxiii
-warp <n|name>` puts EVE on one with `K2_TeleportTo`, under the follow's guards (solo, a co-op save, no travel under way)
-and in world 2800 only, as a test fallback.
+The 72 warp switches of the first full build are gone (Matrix 11 has none): their rows went with the `mxwarp` batch, and
+their spawn points in the cooked map stay empty. `coop mxiii warp` lists the 72 arrival points they led to
+(`DLC02_<zone>_WarpPoint_<n>`, kept in the cooked map and in `world/maps/matrix13/level/rows.lua`'s WARP list), and
+`coop mxiii warp <n|name>` puts EVE on one with `K2_TeleportTo`, under the follow's guards (solo, a co-op save, no
+travel under way) and in world 2800 only, as a test fallback.
 
 ### The order at the title
 
-At the title, once the `mxiii=` line has an answer, `world/maps/matrix13/level/travel.lua` asks the others one at a time, each once
-the batch before it has an answer (rows, or a refusal, which never holds the next one back): `mxspawn`, `mxenv`,
-`mxupper`, `mxmiddle`, `mxlower`, then the `lion` and `gardener` batches, whose CharacterTable rows `M_LionC` and
-`M_Gardener` the boss spawn rows name, and last `mxnames` ([below](#the-camp-names)). All go in before any save loads,
-since the zone manager lists a world's rows when the world starts. `coop mxiii` asks no travel until every one of these
-lines but `mxnames` reads `rows`, and names the first batch that does not: the travel would reach a dungeon without its
-Naytibas or its doors, and a peer's shared Naytibas would match no spawn row.
+At the title, once the `mxiii=` line has an answer, `world/maps/matrix13/level/travel.lua` asks the others one at a
+time, each once the batch before it has an answer (rows, or a refusal, which never holds the next one back): `mxspawn`,
+`mxenv`, `mxupper`, `mxmiddle`, `mxlower`, then the `lion` and `gardener` batches, whose CharacterTable rows `M_LionC`
+and `M_Gardener` the boss spawn rows name, and last `mxnames` ([below](#the-camp-names)). All go in before any save
+loads, since the zone manager lists a world's rows when the world starts. `coop mxiii` asks no travel until every one of
+these lines but `mxnames` reads `rows`, and names the first batch that does not: the travel would reach a dungeon
+without its Naytibas or its doors, and a peer's shared Naytibas would match no spawn row.
 
 ### The drone's light
 
-In world 2800, `world/maps/matrix13/level/drone.lua` gives the drone's spot light 20 % more range and cone at the same intensity: a
-post hook on `CH_Drone_BP_C:ReceiveTick` scales the radius the blueprint writes each tick, and the cone goes back to
-30/40 degrees on leaving the world.
+In world 2800, `world/maps/matrix13/level/drone.lua` gives the drone's spot light 20 % more range and cone at the same
+intensity: a post hook on `CH_Drone_BP_C:ReceiveTick` scales the radius the blueprint writes each tick, and the cone
+goes back to 30/40 degrees on leaving the world.
 
 ### Ladders, ledges and ropes
 
-In world 2800, `world/maps/matrix13/level/travel.lua`'s tick runs two more files. `world/maps/matrix13/level/move.lua` spawns, once a world,
-SB's `BP_EM_Ladder_C` at 41 ladders (the 37 of the map, the three fan room walls and ladder gate 435's lowered ladder),
-`BP_EM_Ledge_C` at the three R16 ledges, the shimmy and an exit ledge on the counterweight's east face (its south end
-hangs over catwalk S1, so a drop from there lands on the catwalk), and `Env_EM_VerticalRope_C` at the R28 and zone 4
-ropes.
+In world 2800, `world/maps/matrix13/level/travel.lua`'s tick runs two more files. `world/maps/matrix13/level/move.lua`
+spawns, once a world, SB's `BP_EM_Ladder_C` at 41 ladders (the 37 of the map, the three fan room walls and ladder gate
+435's lowered ladder), `BP_EM_Ledge_C` at the three R16 ledges, the shimmy and an exit ledge on the counterweight's east
+face (its south end hangs over catwalk S1, so a drop from there lands on the catwalk), and `Env_EM_VerticalRope_C` at
+the R28 and zone 4 ropes.
 
 A ladder's height comes from its `Meshes` stack (enum `Enum_EM_LadderMeshes`: 160.9, 200, 240, 600 or 40.9 cm pieces)
 plus the 79.885 cm head. Its construction script stacks the pieces up from the actor's origin, starting at the actor's
@@ -517,25 +517,26 @@ on each of those frames and never held between them.
 
 ### Bosses
 
-`world/maps/matrix13/level/boss.lua` looks, once a second while EVE is within 80 m of a boss point, for a body of the Lion's or the
-Gardener's blueprint within 30 m of it, and fixes it once: the Lion through `fight/bosses/lion.lua`'s `adopt` (its anim
-instance, else the hidden Behemoth leader that `coop lion` uses), the Gardener's mesh turned -90 degrees. While one
-lives, the boss bar shows its name. EVE standing 20 s within 25 m of a boss point with no body there gets one `[MXBOSS]`
-line naming `coop mxiii boss`, which spawns that arena's boss through `coop lion` or `coop gardener fight` (key 0, no
-saved death). It never runs by itself: a boss killed before stays dead through its row's SaveType, and an automatic
-spawn would bring it back at each visit.
+`world/maps/matrix13/level/boss.lua` looks, once a second while EVE is within 80 m of a boss point, for a body of the
+Lion's or the Gardener's blueprint within 30 m of it, and fixes it once: the Lion through `fight/bosses/lion.lua`'s
+`adopt` (its anim instance, else the hidden Behemoth leader that `coop lion` uses), the Gardener's mesh turned -90
+degrees. While one lives, the boss bar shows its name. EVE standing 20 s within 25 m of a boss point with no body there
+gets one `[MXBOSS]` line naming `coop mxiii boss`, which spawns that arena's boss through `coop lion` or `coop gardener
+fight` (key 0, no saved death). It never runs by itself: a boss killed before stays dead through its row's SaveType, and
+an automatic spawn would bring it back at each visit.
 
 ### Breakable boxes
 
-The same tick runs `world/maps/matrix13/level/breakables.lua`. The cooked map has 316 StaticMeshActors tagged `MXIII_BREAK` in
-`MXIII_Z0_Surface` and `MXIII_Z1_Life` to `MXIII_Z4_Life`. They are proxies and cannot be broken. The shipped levels
-place `BP_Destruction_Box_01`, `BP_Destruction_Box_02` and `BP_Barrel_01_Child` actors, and no table row spawns them.
+The same tick runs `world/maps/matrix13/level/breakables.lua`. The cooked map has 316 StaticMeshActors tagged
+`MXIII_BREAK` in `MXIII_Z0_Surface` and `MXIII_Z1_Life` to `MXIII_Z4_Life`. They are proxies and cannot be broken. The
+shipped levels place `BP_Destruction_Box_01`, `BP_Destruction_Box_02` and `BP_Barrel_01_Child` actors, and no table row
+spawns them.
 
 Once a world, the mod spawns one of these actors at each of the 317 points of the `break` list in
-`data/mxiii-world.json` (`R.BREAK` in `world/maps/matrix13/level/rows.lua`). The deferred spawn is the same as the ladders'. The
-row alias follows Matrix 11: `ME_01_ZEA_003` on a Box_01, `ME_01_ZEA_007` on a Plus Box_01 and on every Box_02, and
-`ME_01_ZEA_001` on a barrel, which explodes 2.0 to 2.5 s after it is hit and drops nothing. No save type is written,
-because a spawned actor's name changes from load to load. The boxes come back at each world load.
+`data/mxiii-world.json` (`R.BREAK` in `world/maps/matrix13/level/rows.lua`). The deferred spawn is the same as the
+ladders'. The row alias follows Matrix 11: `ME_01_ZEA_003` on a Box_01, `ME_01_ZEA_007` on a Plus Box_01 and on every
+Box_02, and `ME_01_ZEA_001` on a barrel, which explodes 2.0 to 2.5 s after it is hit and drops nothing. No save type is
+written, because a spawned actor's name changes from load to load. The boxes come back at each world load.
 
 One `FindAllOf('StaticMeshActor')` pass per world finds the proxies by name. Each proxy loses its collision and is
 hidden before its actor spawns, and gets both back if the spawn fails. A proxy that is not found means no spawn at that
@@ -543,19 +544,19 @@ point. The R23 box in front of `DLC02_10_E_ItemS_015` has no cooked proxy and sp
 pickup until it is broken.
 
 The boxes spawn on the same 4 ms budget as the ladders, one a frame in list order (8 to 13 ms each; 40 a frame had
-frozen the game for 350 to 454 ms each time). `world/maps/matrix13/level/travel.lua` ticks `breakables.lua` only on a frame where
-`move.lua` spawned nothing, so the proxy pass and the boxes start once the 48 ladders, ledges and ropes are in, and no
-frame carries a ladder and a box. The Z4R21 Box_02 spawns before the Box_01 that rests on it. A broken box
+frozen the game for 350 to 454 ms each time). `world/maps/matrix13/level/travel.lua` ticks `breakables.lua` only on a
+frame where `move.lua` spawned nothing, so the proxy pass and the boxes start once the 48 ladders, ledges and ropes are
+in, and no frame carries a ladder and a box. The Z4R21 Box_02 spawns before the Box_01 that rests on it. A broken box
 destroys itself, so the world's address decides a new spawn. The proxies are held for the whole spread (about 317
 frames, 9 s); during it the world's real time (`UGameplayStatics::GetRealTimeSeconds`, exec `0x14475baa0`, the world's
 `RealTimeSeconds` at `+0x750`) is read at each tick too. A new world starts that time from 0, so a smaller value means
 world 2800 loaded again at the same address: the list starts over on a new proxy pass, with a line that says so. The
-map's sublevels are built as `LevelStreamingAlwaysLoaded`, so none of them streams out during the spread. An entry writes its own `[MX] [MXBREAK]` line
-only when it did not spawn as listed: not spawned, another alias read back, or no proxy in the cook (the R23 box).
-After the last entry come one line per class, the spread and the total; a spread cut short gives one `spread stopped
-after` line with the entries it reached, the spawns and hidden proxies so far, and why. Each PC spawns its own boxes,
-so a box broken on one PC stays whole on the other.
-Whether a ZoneEventActor spawned after its level loaded registers with its row and breaks is untested.
+map's sublevels are built as `LevelStreamingAlwaysLoaded`, so none of them streams out during the spread. An entry
+writes its own `[MX] [MXBREAK]` line only when it did not spawn as listed: not spawned, another alias read back, or no
+proxy in the cook (the R23 box). After the last entry come one line per class, the spread and the total; a spread cut
+short gives one `spread stopped after` line with the entries it reached, the spawns and hidden proxies so far, and why.
+Each PC spawns its own boxes, so a box broken on one PC stays whole on the other. Whether a ZoneEventActor spawned after
+its level loaded registers with its row and breaks is untested.
 
 ### Export
 
@@ -586,10 +587,10 @@ is `MX13_Region`, and a camp's is `MX13_Camp_<row>`:
 
 The rows hold keys of `StringTable_UI`, so the names go in two steps, in this order:
 
-1. `game/camp_text.h` and `world/maps/matrix13/camp_text_game.inc` add the 12 entries to the live table from `coop_tick`. Each 250
-   ms, at the title and with coop off too, the game thread reads the culture and, while a pass is due, looks for the
-   table. It waits until the table's loaded byte is set: the table is registered in its constructor, and `Serialize`
-   empties it later. `coop-status.txt` then goes from `camptext=wait` to `camptext=ready`.
+1. `game/camp_text.h` and `world/maps/matrix13/camp_text_game.inc` add the 12 entries to the live table from
+   `coop_tick`. Each 250 ms, at the title and with coop off too, the game thread reads the culture and, while a pass is
+   due, looks for the table. It waits until the table's loaded byte is set: the table is registered in its constructor,
+   and `Serialize` empties it later. `coop-status.txt` then goes from `camptext=wait` to `camptext=ready`.
 2. `world/maps/matrix13/level/travel.lua` asks `mxnames` at the title once `gardener=` has an answer and the line reads
    `camptext=ready`. The batch is 11 rows that name themselves as donor: the existing in-place form, with the same
    IDs, applied to rows the `mxiii` batch added. It writes `CampName` (`+0x18`) and `RegionName` (`+0x34`) and no other field, on the Tetrapod row

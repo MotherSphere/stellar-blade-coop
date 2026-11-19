@@ -7,8 +7,8 @@ The player's side is in [Playing with a friend](../players/playing-with-a-friend
 
 Shared quests (`shared_quests`, experimental, on by default, not tested in game yet) move the guest's quests to the
 host's state through the game's own quest functions, one step at a time, for the steps the two players make together.
-`game/quests/sync.h` holds the line format, the quest table and each side's rules; `game/quests/engine.h` holds the reads
-and calls on the game's quest data and the worker's side.
+`game/quests/sync.h` holds the line format, the quest table and each side's rules; `game/quests/engine.h` holds the
+reads and calls on the game's quest data and the worker's side.
 
 The game's quest manager runs on the game thread, so the mod's pass does too: every 250 ms `coop_tick` reads the local
 player's quest unit (the quest manager at `0x147037428`, its unit from `FUN_141c5fad0`) under the shared quests' own SEH
@@ -33,15 +33,15 @@ on the next co-op save), while a load (the title screen, a map change) only paus
   line holds her quest's state after the step and the zone she made it in. His pass judges it with `accept()`, then
   `apply()` makes it on his own unit (see
   [Story together: how it works](../story/together-internals.md#quest-steps-the-guest-makes-first)).
-- Each step carries a mark that says where it may be made: `-` anywhere (no zone event, or only quest, item, UI or
-  hint events), `t` in the zones the game's tables give for its events (spawns, despawns, environment changes, scenes),
-  `z<n>` in the zone where the host stood when its pass saw the step (for the 33 steps the tables cannot place), `?`
-  for such a step the host's pass did not see, `K` for a kill task, `I` for an item task and `#` for a quest the host
+- Each step carries a mark that says where it may be made: `-` anywhere (no zone event, or only quest, item, UI or hint
+  events), `t` in the zones the game's tables give for its events (spawns, despawns, environment changes, scenes),
+  `z<n>` in the zone where the host stood when its pass saw the step (for the 33 steps the tables cannot place), `?` for
+  such a step the host's pass did not see, `K` for a kill task, `I` for an item task and `#` for a quest the host
   denies. `kItems` lists the 19 item tasks, which are never forced: every task of a Request whose hand-in removes an
   item (the board pays the reward with no item check), plus each RequireItem task in count mode 1 in a container of
-  several tasks (the game puts it back in progress when her count drops while its group is open). The table that
-  gives each step's class, zones and events is built into `game/quests/sync.h` from the tables of build 26123051; another
-  game build needs it built again.
+  several tasks (the game puts it back in progress when her count drops while its group is open). The table that gives
+  each step's class, zones and events is built into `game/quests/sync.h` from the tables of build 26123051; another game
+  build needs it built again.
 - The guest's pass compares each host line with her own quest and plans the next forward step: an Epic or Sub quest
   she lacks is acquired by ID (`FUN_141c5e170`, the call a quest zone event makes), a Request on her board is accepted
   with the board's own call (the Request quest's vtable `+0x10`), and a task is completed through its own Complete
@@ -70,16 +70,17 @@ one. A bad line only loses that quest's marks; her live quests always decide wha
 
 ## Following the host
 
-The guest's travel to the host (`online/group/travel.lua`, the camps lines, `game/travel.h` and the native call) moves only
-the guest's EVE, through the game's own fast travel, and changes nothing in the host's game. It has not been tested in
-game yet.
+The guest's travel to the host (`online/group/travel.lua`, the camps lines, `game/travel.h` and the native call) moves
+only the guest's EVE, through the game's own fast travel, and changes nothing in the host's game. It has not been tested
+in game yet.
 
 - The guest's Lua sends `camps? <id>` when she presses F7 (`follow_key`) or types `coop travel host`, and with
   `follow_host=always` 5 s after the host arrived somewhere new. It sends one at most each 2.5 s.
 - In an online session of more than 2 players, each guest asks the host only and reads the host's map and place from the
-  ghost in the slot of the host's `member=` line (slot 0, `online/partner/wiring.lua`'s puppet, on every guest). The host's Lua
-  answers while any guest is linked, by the number its native part gave each request. That part sends the answer to the
-  guest who asked alone, with her own number (see [The camps lines](steam-link-internals.md#the-camps-lines)).
+  ghost in the slot of the host's `member=` line (slot 0, `online/partner/wiring.lua`'s puppet, on every guest). The
+  host's Lua answers while any guest is linked, by the number its native part gave each request. That part sends the
+  answer to the guest who asked alone, with her own number (see [The camps
+  lines](steam-link-internals.md#the-camps-lines)).
 - The host's Lua answers from the game's spawn points on its map: those named after one of the travel camps of its
   world, read once a map, sorted by distance to the host's EVE. The answer names the world and the 8 nearest, or
   `none` with `title`, `loading`, `nocamp` or `busy` (a warp or respawn of the host's under way).
@@ -98,9 +99,9 @@ game yet.
   counts toward the game's camp achievements (`Trophy_Activate_AllCamp` and the camp rows of AchievementTable). Her Lua
   therefore takes only a camp that the native read of her activated camps lists (below). With no read at that moment
   (a load, the title), the travel is refused with `no read of the camps this save has activated (<why>)`.
-- `online/group/wiring.lua` passes `follow=true` to `online/group/travel.lua`. Without it, every travel is refused before `camps?` is
-  sent (`travel refused: the follow is off (no o.follow)` in `UE4SS.log`, and the failed notice), and no offer shows.
-  `coop travel probe` and `coop mxiii leave` use the same read.
+- `online/group/wiring.lua` passes `follow=true` to `online/group/travel.lua`. Without it, every travel is refused
+  before `camps?` is sent (`travel refused: the follow is off (no o.follow)` in `UE4SS.log`, and the failed notice), and
+  no offer shows. `coop travel probe` and `coop mxiii leave` use the same read.
 - The read (`game/camps.h`) asks the game's own camp list. The camp list screen (`FUN_141f69530`) calls
   `FUN_141d1f860(zones, region, type, out, false)`, which returns the ZoneCampTable rows of that region and CampType
   that hold an active row: a camp's rows are the ZoneEnvSpawn rows whose `TargetCamp` names it (the zone manager's
@@ -138,11 +139,11 @@ type 0xBD, not widgets. A node exists only for a widget in the list of 0x2C reco
 widget's class properties. `AddChildSBUserWidget` and `CreateDynamicChildUserWidget` discard their records, so a tab made
 at run time gets no node and no camp.
 
-`online/group/region_tabs.lua` hooks the Set's `Construct` and makes tabs 8 and 9 with `CreateDynamicChildUserWidget`, with
-`TabCount` and `TabName` set (`WB_AreaTeleport_Tab_8` and so on, as the Set stores for its own). The trailing spacer is
-removed first and added back after them. Each tab starts collapsed. The game shows a tab only through its logic
-(`FUN_141f6cc40` sets each filled tab to `SelfHitTestInvisible` and each surplus one to `Collapsed`), so a tab that got
-no node stays hidden and takes no focus. That is the fallback for every failure below.
+`online/group/region_tabs.lua` hooks the Set's `Construct` and makes tabs 8 and 9 with `CreateDynamicChildUserWidget`,
+with `TabCount` and `TabName` set (`WB_AreaTeleport_Tab_8` and so on, as the Set stores for its own). The trailing
+spacer is removed first and added back after them. Each tab starts collapsed. The game shows a tab only through its
+logic (`FUN_141f6cc40` sets each filled tab to `SelfHitTestInvisible` and each surplus one to `Collapsed`), so a tab
+that got no node stays hidden and takes no focus. That is the fallback for every failure below.
 
 `FUN_141fc8f40` builds the root node, calls its vtable +0x30, and only then walks the records (`0x141fc907a`). The native
 part swaps that slot, `.rdata` `0x145c44978`, from `FUN_141f6a560` to a hook, once a run, by the same aligned
@@ -207,12 +208,12 @@ and once a second. It never goes on the wire.
 
 ### Revive
 
-The revive runs on the downed player's side (`online/group/group.lua`, every 250 ms) and sends nothing: her game reads its own
-state, the friend's vitals and the friend's ghost. The friend's game calls nothing. In an online session of more than 2
-players, every member past the handshake counts as a friend: her vitals from `vit=` (or `mate=` for slot 0) and her
-ghost from her slot (`online/partner/wiring.lua`'s puppet for slot 0, `online/partner/ghosts.lua`'s for slots 1 to 6). The nearest
-member alive within the distance revives; the wait notice names the first member alive on her map while none is near
-enough.
+The revive runs on the downed player's side (`online/group/group.lua`, every 250 ms) and sends nothing: her game reads
+its own state, the friend's vitals and the friend's ghost. The friend's game calls nothing. In an online session of more
+than 2 players, every member past the handshake counts as a friend: her vitals from `vit=` (or `mate=` for slot 0) and
+her ghost from her slot (`online/partner/wiring.lua`'s puppet for slot 0, `online/partner/ghosts.lua`'s for slots 1 to
+6). The nearest member alive within the distance revives; the wait notice names the first member alive on her map while
+none is near enough.
 
 - These conditions must hold for 3 s with no gap: the downed player's `revive=on`; her life state 3 and the death
   screen's animation playing (the lookup Night Operation's solo run uses, in `core/unreal.lua`); `warp=idle` on the
@@ -239,14 +240,14 @@ enough.
   in-game check.
 - With both players down, nobody can revive. Each respawns at a camp in their own game, each world resets on its own,
   and same spawns brings the guest's enemies back to the host's set.
-- During a Night Operation run (`online/modes/nightop/run.lua`), the run owns the revive. The 3 s rule and the friend's notices
-  wait; the run says `You revived <name>.` itself when the partner's own hold was full. A death is a down only with
-  `revive=on`. The run asks `online/group/group.lua` for the call (`night_revive`) when the partner's night line says her
-  interact key was held next to the downed EVE for 3 s, or for `coop nightop revive`, which first needs the body
-  within 2 m across and 1 m up or down of the last place where the EVE's movement read walking. The call then has
+- During a Night Operation run (`online/modes/nightop/run.lua`), the run owns the revive. The 3 s rule and the friend's
+  notices wait; the run says `You revived <name>.` itself when the partner's own hold was full. A death is a down only
+  with `revive=on`. The run asks `online/group/group.lua` for the call (`night_revive`) when the partner's night line
+  says her interact key was held next to the downed EVE for 3 s, or for `coop nightop revive`, which first needs the
+  body within 2 m across and 1 m up or down of the last place where the EVE's movement read walking. The call then has
   `revive=on` and the guards of `coop revive test` (life 3 to 5, the death screen, `warp=idle`, standalone, no probe
-  rule), none of the friend's distance or the shared fight, and the same fallback, result line and hidden death
-  screen. See [Down and revive](modes/nightop.md#down-and-revive).
+  rule), none of the friend's distance or the shared fight, and the same fallback, result line and hidden death screen.
+  See [Down and revive](modes/nightop.md#down-and-revive).
 
 ## Camp rests in a shared area
 
@@ -282,8 +283,8 @@ and its photo line carries `c`. The guest's Lua writes `cut=1` in `coop-state.tx
 the host's ghost (the one in the slot of the host's `member=` line) is on her map. Her native part then holds the photo
 sync pause for that `c`, with the photo pause's release rules and `photo_freeze_max`; `photo_sync` plays no part in it.
 With more than 2 players, the host's photo line pauses each guest that asks for it, the pair or not: a guest's native
-part follows the host's line only (`Link::leader()`). With story together on, the pause is not held
-while a shared scene starts or plays in her game or a scene line of the host's waits for her next pass (`story_scene`,
-see [Story together: how it works](../story/together-internals.md#the-guests-side)). The native part shows no notice for it, and her
-Lua shows one in her language, once per pause. A cutscene in the guest's game pauses nothing on the host's side.
-Whether every story scene, dialogue and boss intro runs through a theater observer has not been checked in game yet.
+part follows the host's line only (`Link::leader()`). With story together on, the pause is not held while a shared scene
+starts or plays in her game or a scene line of the host's waits for her next pass (`story_scene`, see [Story together:
+how it works](../story/together-internals.md#the-guests-side)). The native part shows no notice for it, and her Lua
+shows one in her language, once per pause. A cutscene in the guest's game pauses nothing on the host's side. Whether
+every story scene, dialogue and boss intro runs through a theater observer has not been checked in game yet.

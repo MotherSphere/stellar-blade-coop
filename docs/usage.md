@@ -389,40 +389,38 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
   blocked in this game run.
 - Link: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite held
   and `rejoin=<n>/3` while rejoining. While you host, a `code=<join code|none> refused=<n>` line follows: the join code
-  (`none` outside an Invitation session) and the number of players refused for the rest of this lobby, blocked
-  players who came in included; then a `pending=<SteamID> <name>` line for each player who waits for your answer
-  (not your Steam friend, or any player with `friends_ask=on`), in the order the native part asks about them. As a
-  joiner who waits for the host's answer, a `wait=<seconds left> <host's name>` line. While a session list lasts, a
-  `list=` line and a `session=` line per row ([The session list](online/steam-link-internals.md#the-session-list)). In an
-  online session, `host=<host's SteamID> pair=<pair's SteamID or 0, yours when you are the pair> max=<max_players, 0
-  before a guest heard it>` and `players=<the players in the session as the host counts them, you and the host
-  included, 0 before a guest heard it>`
-  ([Sessions of more than 2 players](online/steam-link-internals.md#sessions-of-more-than-2-players)). Then a `peer=...` line
-  per lobby member (handshake, lost flag, RTT), a `friend=<linked 0|1> <lost 0|1> <name>` line, after a
-  [coop mark](#coop-mark) a `mark=<n> ours: <text>` or `mark=<n> from <name>: <text>` line (no `: <text>` for a mark
-  with no text), a `mate=<12 numbers>` line with your friend's HP, shield, Beta, Burst and Tachy for the partner card
-  (while their last reading is under 3 s old; your own during `coop loopback`), a `vit=<SteamID> <12 numbers>` line
-  for each member linked whose last reading is under 3 s old (neither line in a match lobby), a `life=<state> <hp>`
-  line with your
-  own EVE's life state (1 or 6 alive, 3 to 5 dying or dead) and HP for the revive, a `night=<line>` line with your
-  friend's last Night Operation line while a session holds, and the last 8 notices as `notice=<n> <text>`. While you
-  host, `camps?=<n>` is your game's number for the oldest request for the camps nearest you still waiting for an
+  (`none` outside an Invitation session) and the number of players refused for the rest of this lobby, blocked players
+  who came in included; then a `pending=<SteamID> <name>` line for each player who waits for your answer (not your Steam
+  friend, or any player with `friends_ask=on`), in the order the native part asks about them. As a joiner who waits for
+  the host's answer, a `wait=<seconds left> <host's name>` line. While a session list lasts, a `list=` line and a
+  `session=` line per row ([The session list](online/steam-link-internals.md#the-session-list)). In an online session,
+  `host=<host's SteamID> pair=<pair's SteamID or 0, yours when you are the pair> max=<max_players, 0 before a guest
+  heard it>` and `players=<the players in the session as the host counts them, you and the host included, 0 before a
+  guest heard it>` ([Sessions of more than 2 players](online/steam-link-internals.md#sessions-of-more-than-2-players)).
+  Then a `peer=...` line per lobby member (handshake, lost flag, RTT), a `friend=<linked 0|1> <lost 0|1> <name>` line,
+  after a [coop mark](#coop-mark) a `mark=<n> ours: <text>` or `mark=<n> from <name>: <text>` line (no `: <text>` for a
+  mark with no text), a `mate=<12 numbers>` line with your friend's HP, shield, Beta, Burst and Tachy for the partner
+  card (while their last reading is under 3 s old; your own during `coop loopback`), a `vit=<SteamID> <12 numbers>` line
+  for each member linked whose last reading is under 3 s old (neither line in a match lobby), a `life=<state> <hp>` line
+  with your own EVE's life state (1 or 6 alive, 3 to 5 dying or dead) and HP for the revive, a `night=<line>` line with
+  your friend's last Night Operation line while a session holds, and the last 8 notices as `notice=<n> <text>`. While
+  you host, `camps?=<n>` is your game's number for the oldest request for the camps nearest you still waiting for an
   answer, else for the last one (your answer to that number goes to that guest alone, with her own id); as the guest,
-  `camps=<id> <answer>` is the host's last answer
-  ([Following the host](players/playing-with-a-friend.md#following-the-host)).
+  `camps=<id> <answer>` is the host's last answer ([Following the
+  host](players/playing-with-a-friend.md#following-the-host)).
 - Pose path: `engine=on` (then `loopback=on <delay> <jitter> <loss>` or `loopback=waiting` until EVE's capture comes,
-  `record=on`, `replay=on`, `remote=<generation> <count> <loopback|replay|peer>`, then in a match lobby or an
-  online session of more than 2 players `remote<k>=<generation> <count>` for each other member's ghost slot k from 1 to
-  6), or `engine=off reason=<why>`; then
-  `warp=<idle|busy> me=<n>` (a respawn or a warp under way, and your EVE's id, for the revive), `travel=<state>
-  travel_calls=<n>` (the last travel's state: `idle`, `pending`, `warping`, `arrived` or `refused:<why>`, and the travel
-  requests handled so far), `anim=<state> anim_id=<n>` (the last `coop emote` clip or bike pose the native part took
-  and what became of it: `idle`, `playing`, `ended`, `ended:weight`, `stopped`, `refused:<why>` or `fault`, see
-  [Emotes](eve/eve.md#emotes-coop-emote)), `bike=<off|loading|ready|failed:<why>|fault> bike_gate=<on|off|refused:<why>>`
-  and `bike_life=<n>` (the [bike](vehicles/bike-internals.md#status-words-and-the-latch)'s preload, the game's actions while EVE
-  rides, her life state), `items=<ask> <count>` or `items=<ask> none <why>` (the answer to
-  [`coop gift`](tools/menus.md#cut-mailbox-coop-gift)'s last inventory read, by its number; why is `unpinned`, `noeve`, `nomanager`,
-  `nobucket` or `unread`), and `nightop=on` or `nightop=rule` while the probe's poller runs.
+  `record=on`, `replay=on`, `remote=<generation> <count> <loopback|replay|peer>`, then in a match lobby or an online
+  session of more than 2 players `remote<k>=<generation> <count>` for each other member's ghost slot k from 1 to 6), or
+  `engine=off reason=<why>`; then `warp=<idle|busy> me=<n>` (a respawn or a warp under way, and your EVE's id, for the
+  revive), `travel=<state> travel_calls=<n>` (the last travel's state: `idle`, `pending`, `warping`, `arrived` or
+  `refused:<why>`, and the travel requests handled so far), `anim=<state> anim_id=<n>` (the last `coop emote` clip or
+  bike pose the native part took and what became of it: `idle`, `playing`, `ended`, `ended:weight`, `stopped`,
+  `refused:<why>` or `fault`, see [Emotes](eve/eve.md#emotes-coop-emote)), `bike=<off|loading|ready|failed:<why>|fault>
+  bike_gate=<on|off|refused:<why>>` and `bike_life=<n>` (the
+  [bike](vehicles/bike-internals.md#status-words-and-the-latch)'s preload, the game's actions while EVE rides, her life
+  state), `items=<ask> <count>` or `items=<ask> none <why>` (the answer to [`coop
+  gift`](tools/menus.md#cut-mailbox-coop-gift)'s last inventory read, by its number; why is `unpinned`, `noeve`,
+  `nomanager`, `nobucket` or `unread`), and `nightop=on` or `nightop=rule` while the probe's poller runs.
 - Activated camps: `activated=<n>:<camp>,<camp>,...` lists the camps of the game's camp table (simple and full camps,
   phone booths, tetrapods) that the game's own camp list would show for this save, read every 2 s while you play,
   followed by `rested=<camp>`, the camp where EVE respawns (that of her last rest or fast-travel arrival), when the

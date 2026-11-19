@@ -490,9 +490,9 @@ permission (see [Credits](../../../README.md#credits) in the README). The adapte
 - telling a dying monster from one that can be executed;
 - watching for EVE's death screen, a map load, and EVE leaving the start point.
 
-`mod/StellarCoop/Scripts/online/modes/nightop/run.lua`, `online/modes/nightop/waves.lua` and `core/unreal.lua` mark each adapted function. The
-death screen lookup is `U.death_screen()` in `core/unreal.lua`, used by the solo run and by the revive in
-`online/group/group.lua`. Stellar Blade Online contains no file from Survival Protocol.
+`mod/StellarCoop/Scripts/online/modes/nightop/run.lua`, `online/modes/nightop/waves.lua` and `core/unreal.lua` mark each
+adapted function. The death screen lookup is `U.death_screen()` in `core/unreal.lua`, used by the solo run and by the
+revive in `online/group/group.lua`. Stellar Blade Online contains no file from Survival Protocol.
 
 ## Sections that moved
 

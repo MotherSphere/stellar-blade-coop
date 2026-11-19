@@ -1,9 +1,10 @@
 # Doro races: how they work
 
-A Doro race runs in Lua: `online/modes/race/run.lua` on the game side, `online/modes/race/model.lua` for the rules and the race lines,
-`online/modes/race/doro.lua` for the Doros, `online/modes/race/drive.lua` and `online/modes/race/drive_model.lua` for the driving. Its only SB calls are two
-reads on EVE, `IsSprint` and `GetSBSpeedForAnimGraph` (for a log line); the rest are engine functions. The native
-part only carries the race lines. The commands and rules are in [Doro races](race.md).
+A Doro race runs in Lua: `online/modes/race/run.lua` on the game side, `online/modes/race/model.lua` for the rules and
+the race lines, `online/modes/race/doro.lua` for the Doros, `online/modes/race/drive.lua` and
+`online/modes/race/drive_model.lua` for the driving. Its only SB calls are two reads on EVE, `IsSprint` and
+`GetSBSpeedForAnimGraph` (for a log line); the rest are engine functions. The native part only carries the race lines.
+The commands and rules are in [Doro races](race.md).
 
 ## The display Doro
 
@@ -104,27 +105,27 @@ Your friend's ghost is drawn as a Doro while their game takes part in the race: 
 `have` line, on the guest's PC once the host's track has arrived and passed the checks, until the race closes. A guest
 whose game answers `have <id> no <why>` stays EVE on both screens.
 
-In Doro mode, `online/partner/puppet.lua` hides every part of the ghost and hangs one more `SkeletalMeshComponent`, with Doro's
-mesh, on the ghost's main mesh, where her feet are, and adds the Doro's keepers to the ghost's actor. A ghost built in
-Doro mode resolves Doro's mesh and each clip in a build step of its own, so no frame loads more than one. The ghost is
-the mod's own actor, so nothing of the game's is touched. The Doro's speed and vertical speed come from the ghost's feet
-between poses, measured over 50 ms at least. The pose stream has no sprint or falling flag, so the Doro goes on all
-fours above 560 cm/s and back on two legs below 520 cm/s, and a vertical speed over 400 cm/s, up or down, counts as
-being in the air. The ghost's own hiding (no pose for 1 s, another map) covers the Doro too. A Doro that cannot be made
-leaves the ghost drawn as EVE, with the reason in the log. The pose stream is the same during a race: the bones still
-arrive and are written into the hidden parts. While the race drives, the ghost's Doro follows the same driving rules as
-yours, with the turn rate taken from the ghost's yaw in the pose stream, and its lean and nose set as a relative
-rotation on the ghost's main mesh.
+In Doro mode, `online/partner/puppet.lua` hides every part of the ghost and hangs one more `SkeletalMeshComponent`, with
+Doro's mesh, on the ghost's main mesh, where her feet are, and adds the Doro's keepers to the ghost's actor. A ghost
+built in Doro mode resolves Doro's mesh and each clip in a build step of its own, so no frame loads more than one. The
+ghost is the mod's own actor, so nothing of the game's is touched. The Doro's speed and vertical speed come from the
+ghost's feet between poses, measured over 50 ms at least. The pose stream has no sprint or falling flag, so the Doro
+goes on all fours above 560 cm/s and back on two legs below 520 cm/s, and a vertical speed over 400 cm/s, up or down,
+counts as being in the air. The ghost's own hiding (no pose for 1 s, another map) covers the Doro too. A Doro that
+cannot be made leaves the ghost drawn as EVE, with the reason in the log. The pose stream is the same during a race: the
+bones still arrive and are written into the hidden parts. While the race drives, the ghost's Doro follows the same
+driving rules as yours, with the turn rate taken from the ghost's yaw in the pose stream, and its lean and nose set as a
+relative rotation on the ghost's main mesh.
 
 ## Driving
 
-From GO until our own result, `online/modes/race/drive.lua` drives EVE with `online/modes/race/drive_model.lua`'s car model. The model holds a
-heading and a horizontal velocity. Each frame it turns the heading toward the stick's world direction
-(`GetLastMovementInputVector`) at a rate that falls with speed, adds speed along the heading with a throttle that fades
-near the top speed, and decays the speed across the heading by a grip, which drops during a drift (the drift keys, read
-with the player controller's `IsInputKeyDown`, or hard steering at speed). The player controller is read when the
-drive starts and checked every 250 ms, never per frame: when it is gone or no longer one, the drift keys wait until a
-check finds one again.
+From GO until our own result, `online/modes/race/drive.lua` drives EVE with `online/modes/race/drive_model.lua`'s car
+model. The model holds a heading and a horizontal velocity. Each frame it turns the heading toward the stick's world
+direction (`GetLastMovementInputVector`) at a rate that falls with speed, adds speed along the heading with a throttle
+that fades near the top speed, and decays the speed across the heading by a grip, which drops during a drift (the drift
+keys, read with the player controller's `IsInputKeyDown`, or hard steering at speed). The player controller is read when
+the drive starts and checked every 250 ms, never per frame: when it is gone or no longer one, the drift keys wait until
+a check finds one again.
 
 In SB's movement component, the turn of the velocity toward the stick is the engine's friction step in `CalcVelocity`,
 with `GroundFriction` as the friction. SB's own speed fields (`MaxRunSpeedOverride` and the sprint scales) only set the
@@ -190,5 +191,6 @@ Each PC logs a `[StellarCoop][DR] result` line per race that reaches its results
 PC.
 
 A race calls no achievement, reward, item, quest or save function and no console command, and the only class it spawns
-is `/Script/Engine.Actor`. `tests/lua/online/modes/race/run_test.lua` checks both in `online/modes/race/doro.lua`, `online/modes/race/model.lua`,
-`online/modes/race/run.lua`, `online/modes/race/drive.lua` and `online/modes/race/drive_model.lua`.
+is `/Script/Engine.Actor`. `tests/lua/online/modes/race/run_test.lua` checks both in `online/modes/race/doro.lua`,
+`online/modes/race/model.lua`, `online/modes/race/run.lua`, `online/modes/race/drive.lua` and
+`online/modes/race/drive_model.lua`.

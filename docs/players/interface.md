@@ -316,8 +316,8 @@ during online play), Saves (the [co-op saves](playing-with-a-friend.md#co-op-sav
 [shared quests](playing-with-a-friend.md#shared-quests-experimental)), Combat (shared enemies, same place, who
 same-place enemies attack, same spawns, extra enemies, shared bosses, the host's enemy and boss scaling and your kill
 rewards), Display (the [status strip](#status-strip-above-the-card) above the partner card; the size, sounds and
-language of the menu, the chat and the partner HUD; the [day and night cycle](../world/daynight-internals.md)) and Chat. In a
-session, Chat ends with a row for each other member past the handshake, `Mute <name>` with On or Off: Enter runs
+language of the menu, the chat and the partner HUD; the [day and night cycle](../world/daynight-internals.md)) and Chat.
+In a session, Chat ends with a row for each other member past the handshake, `Mute <name>` with On or Off: Enter runs
 `coop mute` or `coop unmute` for her, for the game run.
 
 Left and right change a value, and Enter does the same as right. Each change rewrites only that setting's line in

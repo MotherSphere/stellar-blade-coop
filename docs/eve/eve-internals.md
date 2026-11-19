@@ -1,7 +1,7 @@
 # EVE's cut moves: how they work
 
-The ChainSpin's 11 rows go in with the cut Lion's (see [The rows](../fight/bosses-internals.md#the-rows)). The commands are in
-[EVE's cut moves](eve.md).
+The ChainSpin's 11 rows go in with the cut Lion's (see [The rows](../fight/bosses-internals.md#the-rows)). The commands
+are in [EVE's cut moves](eve.md).
 
 ## The cut ChainSpin
 

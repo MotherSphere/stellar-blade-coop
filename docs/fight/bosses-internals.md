@@ -1,7 +1,7 @@
 # Cut enemies: how they are added
 
-The cut Lion, Gardener and Tendril get the table rows they lack from the row batches of `fight/bosses/lion_rows.h`, which
-[The cut Lion](#the-cut-lion) describes. The cut stimpacks, the ChainSpin, the Shock Bolt, Matrix XIII, the Night
+The cut Lion, Gardener and Tendril get the table rows they lack from the row batches of `fight/bosses/lion_rows.h`,
+which [The cut Lion](#the-cut-lion) describes. The cut stimpacks, the ChainSpin, the Shock Bolt, Matrix XIII, the Night
 Operation shop and Lily's signal use the same batches. The commands are in [Cut enemies](bosses.md).
 
 ## The cut Lion
@@ -13,14 +13,15 @@ animations on the Behemoth's skeleton (`CH_M_NA_46_Skeleton`), hit and attack co
 names it.
 
 Seven files do the work: `fight/bosses/enemy.lua` (the Lua flow, which [the Gardener](#the-cut-gardener) and [the
-Tendril](#the-cut-tendril) share), `fight/bosses/lion.lua` (the Lion's spec and its own parts), `fight/bosses/lion_rows.lua` (the
-rows as Lua reads them back), `fight/bosses/lion_rows.h` (the rows), `rows/rows.h` (their build, free of Windows, tested on the build machine),
-`rows/shock.h` (the Shock Bolt's two lists, also free of Windows) and `rows/rows_game.inc` (the game's calls). The rows
-of one request form a batch: `rows/rows.h` names six and the header that holds each, the lion rows batch below, the Gardener's, the Tendril's, the
-Shock Bolt's (see [The cut Shock Bolt](../online/modes/nightop-shop-internals.md#the-cut-shock-bolt)), Matrix XIII's (see [Matrix XIII:
-how it works](../world/matrix13-internals.md)) and the Night Operation shop's (see [The Night Operation shop
-screen](../online/modes/nightop-shop-internals.md#the-night-operation-shop-screen)), each with its own request word, answer and status
-line.
+Tendril](#the-cut-tendril) share), `fight/bosses/lion.lua` (the Lion's spec and its own parts),
+`fight/bosses/lion_rows.lua` (the rows as Lua reads them back), `fight/bosses/lion_rows.h` (the rows), `rows/rows.h`
+(their build, free of Windows, tested on the build machine), `rows/shock.h` (the Shock Bolt's two lists, also free of
+Windows) and `rows/rows_game.inc` (the game's calls). The rows of one request form a batch: `rows/rows.h` names six and
+the header that holds each, the lion rows batch below, the Gardener's, the Tendril's, the Shock Bolt's (see [The cut
+Shock Bolt](../online/modes/nightop-shop-internals.md#the-cut-shock-bolt)), Matrix XIII's (see [Matrix XIII: how it
+works](../world/matrix13-internals.md)) and the Night Operation shop's (see [The Night Operation shop
+screen](../online/modes/nightop-shop-internals.md#the-night-operation-shop-screen)), each with its own request word,
+answer and status line.
 
 ### The rows
 
@@ -125,13 +126,13 @@ blueprint names none.
 
 ### The generator
 
-The generator writes the data part of `fight/bosses/lion_rows.h` and the whole of `fight/bosses/lion_rows.lua` from the offline reader's
-dumps of the tables, the Lion Shows and the collision data, the pak listing, the SDK and the clip measurements. It
-refuses a taken ID or name (in any case, as the game compares names), a missing template, a field the SDK does not place
-where its patch writes, and a template value the recipe does not set. It also refuses a value naming a Behemoth row or
-asset other than the sound set, and a reference that lands on no Lion or shipped row: steps, skills, commands, stances,
-moves, target filters, results, anim sets, effects (also inside JSON effect strings), Shows, clips, blueprint, tree and
-sound set.
+The generator writes the data part of `fight/bosses/lion_rows.h` and the whole of `fight/bosses/lion_rows.lua` from the
+offline reader's dumps of the tables, the Lion Shows and the collision data, the pak listing, the SDK and the clip
+measurements. It refuses a taken ID or name (in any case, as the game compares names), a missing template, a field the
+SDK does not place where its patch writes, and a template value the recipe does not set. It also refuses a value naming
+a Behemoth row or asset other than the sound set, and a reference that lands on no Lion or shipped row: steps, skills,
+commands, stances, moves, target filters, results, anim sets, effects (also inside JSON effect strings), Shows, clips,
+blueprint, tree and sound set.
 
 Steps must match their Show's steps, each Hit step must hold its striking peak (0.1 s early or 0.05 s late at most), and
 each collision group must exist with every socket tracked for the clip playing.
@@ -205,11 +206,11 @@ the SEH latch, so a bad read leaves the last value and never stops the rows. It 
 so `core/link.lua` leaves the line (and the Gardener's `gardener=`, the Tendril's `tendril=` and the Shock Bolt's
 `bolt=`) out of its change log and `fight/bosses/enemy.lua` logs what it reads. Lua then reads every row back through
 `FindRow` by field name (independent of the SDK's offsets): the ID and each of the 3178 fields the patches write, from
-`fight/bosses/lion_rows.lua`, which the generator writes with `fight/bosses/lion_rows.h` (the Lua test checks the two agree). 2156 of those
-values differ from the template row's, so reading them back shows the patches landed; the other 1022 restate a value the
-template holds, which a read-back cannot tell from the copy. It spawns only when every value matches and the line says
-`char=2/2 skills=23/23 stance=2/2`. The read-back runs in one frame, once per `coop lion`; how long that takes in game
-was not measured.
+`fight/bosses/lion_rows.lua`, which the generator writes with `fight/bosses/lion_rows.h` (the Lua test checks the two
+agree). 2156 of those values differ from the template row's, so reading them back shows the patches landed; the other
+1022 restate a value the template holds, which a read-back cannot tell from the copy. It spawns only when every value
+matches and the line says `char=2/2 skills=23/23 stance=2/2`. The read-back runs in one frame, once per `coop lion`; how
+long that takes in game was not measured.
 
 ### The spawn
 
@@ -226,11 +227,11 @@ default one 1.5 s after the call (`SpawnDefaultController`).
 Its death is read from `InteractionState` and `Controller`: a value other than 0 with no controller. Every body of this
 spawn reads `InteractionState` 1 (executable) from its first second, in battle or not (the Lion's and the Antlion's
 follow lines, 2026-10-23), until its death reads 3 (every death logged). For these bodies 1 is the standing state, not a
-sign of the fight, so `online/modes/nightop/run.lua` counts 0 and 1 as standing; a Night Operation run that counted 0 alone found
-none of its monsters (2026-10-28). The Lion code (`fight/bosses/enemy.lua`) still adopts a body only at 0 and still reads
-any other value with no controller as a death. That holds because these bodies had a controller from the spawn on
-(`controller SBAIController` on 2026-10-23); a state-1 body without one would never be adopted and would read as dead.
-Which game code sets 1 was not traced.
+sign of the fight, so `online/modes/nightop/run.lua` counts 0 and 1 as standing; a Night Operation run that counted 0
+alone found none of its monsters (2026-10-28). The Lion code (`fight/bosses/enemy.lua`) still adopts a body only at 0
+and still reads any other value with no controller as a death. That holds because these bodies had a controller from the
+spawn on (`controller SBAIController` on 2026-10-23); a state-1 body without one would never be adopted and would read
+as dead. Which game code sets 1 was not traced.
 
 The game can send a Lion body far away and reuse it for the next spawn (a Lion 466 m away came back on 2026-10-23), so a
 body that stood more than 100 m from the spot at the call and stands within 30 m of it after counts as the new one; its
@@ -304,7 +305,8 @@ Only the game can settle these:
 ally), 37 projectile rows that all fire its own shell from the socket `SC_Shot`, a stance, two anim sets and its
 appearance (`M_Gardener`, 50010), dead and detection rows. It lacks a CharacterTable row and a behaviour tree.
 `fight/bosses/gardener.lua` holds its spec for `fight/bosses/enemy.lua`, the flow it shares with the Lion; its rows are
-the second batch of `fight/bosses/lion_rows.h` (`kGardenerRecipe`) and `fight/bosses/lion_rows.lua` (`R.GARDENER`), from the same generator.
+the second batch of `fight/bosses/lion_rows.h` (`kGardenerRecipe`) and `fight/bosses/lion_rows.lua` (`R.GARDENER`), from
+the same generator.
 
 ### The Gardener's rows
 
@@ -355,16 +357,16 @@ into, so a refusal in one leaves the other alone. This is a local request: the l
 
 No batch has a latch of its own, because no part of a batch's call stays clear of what the other batches use. The gate
 reads the game's globals. Every row is built in the one block through the game's FName table, CopyScriptStruct and
-allocator. AddRow writes tables that several batches write. From the recipes in `native/src/fight/bosses/lion_rows.h`, `native/src/eve/bolt_rows.h` and
-`native/src/online/modes/nightop/shop_rows.h`: ItemTable
-gets lion, bolt and shop rows; SkillTable gets lion, gardener, tendril and bolt rows; SkillResultTable gets lion,
-tendril and bolt rows; CharacterTable, CharacterStanceTable, SkillCommandTable and SkillActiveStepTable get rows from
-all three Naytibas; five more tables get lion and tendril rows. The read-back runs the game's lookups over those same
-tables. Only ProjectileTable (bolt), EffectTable and ItemConsumableTable (lion), ShopTable and ShopItemTable (shop) and
-Matrix XIII's three zone tables have a single batch writing them, and those rows still go through the same block and
-calls. A fault anywhere in that call may leave shared state half written, so it stops every batch. The status lines
-are built by the worker from what the game thread published and make no engine call. The Shock Bolt's list growth
-writes nothing a batch writes, and keeps its own latch ([The cut Shock Bolt](../online/modes/nightop-shop-internals.md#the-cut-shock-bolt)).
+allocator. AddRow writes tables that several batches write. From the recipes in `native/src/fight/bosses/lion_rows.h`,
+`native/src/eve/bolt_rows.h` and `native/src/online/modes/nightop/shop_rows.h`: ItemTable gets lion, bolt and shop rows;
+SkillTable gets lion, gardener, tendril and bolt rows; SkillResultTable gets lion, tendril and bolt rows;
+CharacterTable, CharacterStanceTable, SkillCommandTable and SkillActiveStepTable get rows from all three Naytibas; five
+more tables get lion and tendril rows. The read-back runs the game's lookups over those same tables. Only
+ProjectileTable (bolt), EffectTable and ItemConsumableTable (lion), ShopTable and ShopItemTable (shop) and Matrix XIII's
+three zone tables have a single batch writing them, and those rows still go through the same block and calls. A fault
+anywhere in that call may leave shared state half written, so it stops every batch. The status lines are built by the
+worker from what the game thread published and make no engine call. The Shock Bolt's list growth writes nothing a batch
+writes, and keeps its own latch ([The cut Shock Bolt](../online/modes/nightop-shop-internals.md#the-cut-shock-bolt)).
 
 ### The Gardener's spawn
 
@@ -400,8 +402,9 @@ Beyond the Lion's:
 (`CH_M_NA_06_Blueprint`, which borrows the Gigas's collision data `CH_M_NA_05_Gorilla_Collision`), an animation
 blueprint built on the game's custom anim nodes (`SBAnimInstance` with three `SBAnimGraphNode_SequenceBlendedPlayer`)
 and 42 clips. No table row names it and no Show plays any of its clips. `fight/bosses/tendril.lua` holds its spec for
-`fight/bosses/enemy.lua` and builds its Shows in memory; its rows are the third batch of `fight/bosses/lion_rows.h` (`kTendrilRecipe`)
-and `fight/bosses/lion_rows.lua` (`R.TENDRIL`, the Shows in `R.TENDRIL_SHOWS`), from the same generator.
+`fight/bosses/enemy.lua` and builds its Shows in memory; its rows are the third batch of `fight/bosses/lion_rows.h`
+(`kTendrilRecipe`) and `fight/bosses/lion_rows.lua` (`R.TENDRIL`, the Shows in `R.TENDRIL_SHOWS`), from the same
+generator.
 
 ### The Tendril's rows
 
@@ -489,8 +492,8 @@ head is in front of its pelvis, and a planted foot slides toward -X in its walk 
 mesh -90 degrees as for a skeleton facing +Y, so once found the body's mesh gets a relative yaw of 0, and again if the
 game turns it back. Its one material slot is empty, so the mesh takes the Hydra's tentacle material, as `coop tendril
 skin hydra` does in the viewer. The boss bar reads `<M_TendrilC>` (no Tendril text in CharacterStringTable), and
-`fight/bosses/enemy.lua` writes `Tendril` there as it writes `Lion` for the Lion. There is no entrance: none of its clips
-is one.
+`fight/bosses/enemy.lua` writes `Tendril` there as it writes `Lion` for the Lion. There is no entrance: none of its
+clips is one.
 
 ### Open questions about the Tendril
 

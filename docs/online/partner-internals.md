@@ -6,10 +6,10 @@ The ghost goes through the same pipeline whatever its source: a linked friend, t
 
 ## 1. Capture
 
-When the ghost is on, `online/partner/capture.lua` describes your EVE once she has been in the world for 2 s (never on a menu
-pawn). It only reads. For each skeletal mesh part (up to 16, with up to 1024 bones each) it notes the mesh path, the
-part it follows, the part and socket it hangs from, its placement there, whether it is shown, a leader's bone names, and
-the map she is on (the package path of her world, lowercased). SBO's bike is one of those parts only while you ride
+When the ghost is on, `online/partner/capture.lua` describes your EVE once she has been in the world for 2 s (never on a
+menu pawn). It only reads. For each skeletal mesh part (up to 16, with up to 1024 bones each) it notes the mesh path,
+the part it follows, the part and socket it hangs from, its placement there, whether it is shown, a leader's bone names,
+and the map she is on (the package path of her world, lowercased). SBO's bike is one of those parts only while you ride
 ([The bike](../vehicles/bike-internals.md#ghosts)).
 
 With the dyes look on, it adds each part's overridden materials, and for a dynamic material (one CNS made at run time)
@@ -133,8 +133,8 @@ Poses that belong to no table, or to a table the ghost is not built on yet, are 
 
 ## 5. The ghost, built from the table
 
-When a remote table arrives, the native part checks it and hands it to Lua as `coop-remote.txt`. `online/partner/puppet.lua`
-builds the ghost from it:
+When a remote table arrives, the native part checks it and hands it to Lua as `coop-remote.txt`.
+`online/partner/puppet.lua` builds the ghost from it:
 
 - The ghost is a plain actor with one PoseableMeshComponent per part and no collision (the
   [solid partner](#solid-partner) adds one capsule when it is on). It is not a Pawn, so lock-on, AI and saves leave it
@@ -145,12 +145,12 @@ builds the ghost from it:
 - Two kinds of path pass the native path rule: the game's own (`/Game/Art/Character/...` and
   `/Game/DLC_<n>/Art/Character/...`, names of letters, digits and `_`) and a mod's (`/Game/<folders>/<asset>.<asset>`,
   names of letters, digits, `_` and `-`, 255 bytes at most). A path is always a package's own asset, so never a
-  Blueprint class or a sub-object. The rule checks the text only. Before any lookup or load, `online/partner/puppet.lua` lets
-  a mod's path through only when one of your own CNS packs declares that exact path (`coop-cns.txt`) or a mod you
-  both have in one version holds it (`coop-shared-assets.txt`), so a friend's table cannot make your game load
-  anything your installed outfits and mods do not name. Such a path is loaded as a mod's asset even when it lies in the
-  game's folders, as replacer-style mods put new assets there. After a load, the asset must be of the
-  expected class (a skeletal mesh, a material, a physics asset) or it is not used.
+  Blueprint class or a sub-object. The rule checks the text only. Before any lookup or load, `online/partner/puppet.lua`
+  lets a mod's path through only when one of your own CNS packs declares that exact path (`coop-cns.txt`) or a mod you
+  both have in one version holds it (`coop-shared-assets.txt`), so a friend's table cannot make your game load anything
+  your installed outfits and mods do not name. Such a path is loaded as a mod's asset even when it lies in the game's
+  folders, as replacer-style mods put new assets there. After a load, the asset must be of the expected class (a
+  skeletal mesh, a material, a physics asset) or it is not used.
 - A mod's asset that `LoadAsset` does not find (it looks in the cooked asset registry, where added assets usually are
   not) is loaded through `AssetRegistryHelpers:GetAsset` with an asset data holding only its path, which loads it by
   path. This is still one asset a frame. The build line lists each mod asset with how it came (`in memory`,
@@ -262,9 +262,9 @@ line, `CNS part of the ghost off until coop cns reset or the next Lua load (<err
 the build's three tries. The link, the shared enemies and the shared quests run in modules of their own and go on.
 
 A `pcall` catches Lua errors only. An access violation inside the engine closes the game: a CNS mesh with no skeleton
-did it on 2026-10-31. The crash sentinel (`online/partner/sentinel.lua`) deals with that case at the next load. Before each
-engine call with an asset your CNS packs declare, Lua writes `coop-cns-call.txt` with the asset's path and outfit, and
-empties the file once the call returns or raises. The calls covered are:
+did it on 2026-10-31. The crash sentinel (`online/partner/sentinel.lua`) deals with that case at the next load. Before
+each engine call with an asset your CNS packs declare, Lua writes `coop-cns-call.txt` with the asset's path and outfit,
+and empties the file once the call returns or raises. The calls covered are:
 
 - the asset's lookup and load (`StaticFindObject`, `LoadAsset`, `AssetRegistryHelpers:GetAsset`), with the class and
   skeleton checks;
@@ -295,17 +295,17 @@ it back. Not tested in game yet.
 
 ## Solid partner
 
-With `collide=on` (experimental, on by default, not tested in game yet), `online/partner/puppet.lua` adds one CapsuleComponent
-to the ghost the first time the ghost shows. The capsule copies your EVE's movement capsule: its radius and half height
-(40 and 95 cm in this build) and its height above her feet (her mesh's offset, 97 cm). It hangs on the ghost's main mesh
-with an absolute rotation, so it stays upright. Its object type is your capsule's own (channel 24, `PawnCollision`, in
-this build), and it blocks that channel and ignores every other. Your EVE's capsule blocks channel 24, the game's
-monster capsules ignore it and NPC capsules have another type, so only your EVE meets the ghost. If your capsule does
-not block its own type, the ghost's capsule takes WorldDynamic instead, which your capsule blocks. Monster capsules
-block WorldDynamic too, so in that case the enemies whose AI runs on your PC stop at the ghost as well; the build line
-then says `ours type 1`. The capsule has no overlap events and cannot be stepped on. The ghost's parts, its name tag and
-any effect started on it have no collision. A Pawn profile would do nothing, since EVE's capsule ignores the Pawn
-channel.
+With `collide=on` (experimental, on by default, not tested in game yet), `online/partner/puppet.lua` adds one
+CapsuleComponent to the ghost the first time the ghost shows. The capsule copies your EVE's movement capsule: its radius
+and half height (40 and 95 cm in this build) and its height above her feet (her mesh's offset, 97 cm). It hangs on the
+ghost's main mesh with an absolute rotation, so it stays upright. Its object type is your capsule's own (channel 24,
+`PawnCollision`, in this build), and it blocks that channel and ignores every other. Your EVE's capsule blocks channel
+24, the game's monster capsules ignore it and NPC capsules have another type, so only your EVE meets the ghost. If your
+capsule does not block its own type, the ghost's capsule takes WorldDynamic instead, which your capsule blocks. Monster
+capsules block WorldDynamic too, so in that case the enemies whose AI runs on your PC stop at the ghost as well; the
+build line then says `ours type 1`. The capsule has no overlap events and cannot be stepped on. The ghost's parts, its
+name tag and any effect started on it have no collision. A Pawn profile would do nothing, since EVE's capsule ignores
+the Pawn channel.
 
 The capsule is QueryOnly while solid, and solid only while no rule opens it. `place()` checks the rules every frame,
 right after it moves the root, and calls `SetCollisionEnabled` only when the answer changes:

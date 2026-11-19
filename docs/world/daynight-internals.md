@@ -6,12 +6,13 @@ cycle is not tested in game yet. Every address and offset below is build 2612305
 
 The code:
 
-- `native/src/world/daynight/sky.h`: the clock, the sun and moon, the light factors, the writer of SB's env array and the status
-  line, with no Windows types, tested on the build machine;
+- `native/src/world/daynight/sky.h`: the clock, the sun and moon, the light factors, the writer of SB's env array and
+  the status line, with no Windows types, tested on the build machine;
 - `native/src/world/daynight/sky_game.inc`: the game thread's pass inside `coop_tick`, under its own SEH latch;
 - `native/src/world/daynight/sky_worker.inc`: Lua's request, the log lines and the `sky=` line of `coop-status.txt`;
 - `mod/StellarCoop/Scripts/world/daynight/rule.lua`: the map table and the rules, with no engine call;
-- `mod/StellarCoop/Scripts/world/daynight/daynight.lua`: the request in the 250 ms pass, the sky dressing and SBO's own maps;
+- `mod/StellarCoop/Scripts/world/daynight/daynight.lua`: the request in the 250 ms pass, the sky dressing and SBO's own
+  maps;
 - `mod/StellarCoop/Scripts/world/daynight/commands.lua`: `coop daynight`.
 
 The list of features follows the README of dCharisma1's "Activate Day Night Cycle" plugin for CPS. SBO uses none of its
@@ -70,8 +71,8 @@ to :10.
 
 ## Maps
 
-`world/daynight/rule.lua` keys each map by its world's package path in lower case, as `U.map_of` gives it. A map with no row is
-never touched.
+`world/daynight/rule.lua` keys each map by its world's package path in lower case, as `U.map_of` gives it. A map with no
+row is never touched.
 
 | Map | Sky | `hz` | `H` |
 | --- | --- | --- | --- |

@@ -10,11 +10,13 @@ The code is split as for the [shared world](../world/objects-internals.md):
   the leash and the status line, with no Windows types and no game call;
 - `native/src/game/story/engine.h`: the theater reads and the game calls, through a `Game` that is SB's memory on
   Windows and fake memory in the tests;
-- `native/src/story/together/story_game.inc`: the hooks and each frame's pass on the game thread, with its state and latch that
-  other modules' parts read in `native/src/glue/tick/story_game_shared.inc`;
-- `native/src/story/together/story_worker.inc`: Lua's request, the slot swaps, channel 2 and the status line on the worker;
+- `native/src/story/together/story_game.inc`: the hooks and each frame's pass on the game thread, with its state and
+  latch that other modules' parts read in `native/src/glue/tick/story_game_shared.inc`;
+- `native/src/story/together/story_worker.inc`: Lua's request, the slot swaps, channel 2 and the status line on the
+  worker;
 - `native/src/game/quests/sync.h` and `game/quests/engine.h`: the guest's quest steps the host makes (`SBQ23 step`);
-- `mod/StellarCoop/Scripts/story/together/commands.lua` and `story/together/wiring.lua`: the setting, `coop scenes` and the notices.
+- `mod/StellarCoop/Scripts/story/together/commands.lua` and `story/together/wiring.lua`: the setting, `coop scenes` and
+  the notices.
 
 ## Model
 
@@ -267,12 +269,12 @@ after a fault. The line moves with every position of a shared scene, so `core/li
 ## Lua side
 
 `shared_story` is a switch in `core/link.lua`'s settings, on by default. The native part starts with it on. Once a load,
-as soon as the native part has judged the save slot, `story/together/wiring.lua` sends `scenes off` for `shared_story=off`, or
-`scenes on` for `shared_story=on` while the `story=` line reads off by the setting (`story=off scene=`). It sends
-nothing while that line already agrees, or while it reads `story=off why=`, where the native part refuses any request.
-The Options row sends `scenes on` or `scenes off` at once. `coop scenes on|off` sends the request itself, leaves the
-setting alone and cancels the load's request. The notices come from the `story=` line: on with her each time it reads
-`on` after anything else and stopped when it changes to `stopped`.
+as soon as the native part has judged the save slot, `story/together/wiring.lua` sends `scenes off` for
+`shared_story=off`, or `scenes on` for `shared_story=on` while the `story=` line reads off by the setting (`story=off
+scene=`). It sends nothing while that line already agrees, or while it reads `story=off why=`, where the native part
+refuses any request. The Options row sends `scenes on` or `scenes off` at once. `coop scenes on|off` sends the request
+itself, leaves the setting alone and cancels the load's request. The notices come from the `story=` line: on with her
+each time it reads `on` after anything else and stopped when it changes to `stopped`.
 
 ## Limits
 

@@ -16,9 +16,9 @@ characters are hidden. It has not been tried in game yet. Its lines go to `UE4SS
 | `orcal` | Orcal's monologue from the 2022 trailer (`/Game/Cinematics/Trailer_2022/Trailer_Resource_2022_Theater`), 39 s in his room, with his Korean voice and one Korean subtitle line that the game has no translation for | Xion, within 50 m of Orcal's room (34095, -1075, -34663) |
 
 - `coop scene` lists the scenes and where each plays. Any save.
-- `coop scene <name>` plays one. It runs only on a [co-op save](../players/playing-with-a-friend.md#co-op-saves), with EVE on the scene's map within 50 m
-  of its spot (`coop where` prints where you stand) and not while a cutscene of the game plays. The scene moves EVE to
-  its own spot.
+- `coop scene <name>` plays one. It runs only on a [co-op save](../players/playing-with-a-friend.md#co-op-saves), with
+  EVE on the scene's map within 50 m of its spot (`coop where` prints where you stand) and not while a cutscene of the
+  game plays. The scene moves EVE to its own spot.
 - `coop scene stop` ends the scene. The game gives the camera, your input and the HUD back as after a skipped
   cutscene. Any save.
 

@@ -98,11 +98,11 @@ restart. The same goes for his automatic appearance at a later Xion load of the 
 ### His language
 
 His lines (speaker title, question, Join and Cancel, the replies) show in the game's language, one of the 23 the game
-ships (`online/modes/nightop/recruiter_text.lua`). From the title screen on, with no command, the mod sends the seven lines of the
-game's language to the native part, which writes them into the game's text manager under his 12 text keys. After a
-language change in the options, it sends the new language's lines. The engine's own route, KismetTextLibrary
-`PolyglotDataToText`, needs a map inside a struct parameter that the UE4SS build the mod uses cannot pass, so the
-native part writes the texts itself. Once they are written, the log says:
+ships (`online/modes/nightop/recruiter_text.lua`). From the title screen on, with no command, the mod sends the seven
+lines of the game's language to the native part, which writes them into the game's text manager under his 12 text keys.
+After a language change in the options, it sends the new language's lines. The engine's own route, KismetTextLibrary
+`PolyglotDataToText`, needs a map inside a struct parameter that the UE4SS build the mod uses cannot pass, so the native
+part writes the texts itself. Once they are written, the log says:
 
 ```
 [StellarCoop][RC] text: the native part wrote his 12 texts in fr: TEXT=yes

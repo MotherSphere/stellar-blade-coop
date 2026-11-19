@@ -205,10 +205,10 @@ this Lua load or an earlier one (`coop-devmenu.txt`, written at the first row an
 `clear` and `lockswitch` once more. That try goes through the same checks, so a warp under way skips it, and `clear`
 reaches only the enemies near EVE then.
 
-The rows left out: the enemy kills (`ImmediateDeath`) and the thirteen HP cuts (a lethal drop would credit our EVE,
-see [Achievements](../dev/safety.md#achievements)), the TPS unlock (`ActorStatType_UnlockTPSMode`), the consumable stacks,
-`FishingGod`, `SBPlayerSP`, EVE's death and revival, the test stances, `Test_MaxHPUpAll` and `Test_MaxShieldUpAll`
-(all actors), and the five lasting effects no dispel row reaches (`NoDamageNoHitImmuneAbnormal_Infinite`, the two
+The rows left out: the enemy kills (`ImmediateDeath`) and the thirteen HP cuts (a lethal drop would credit our EVE, see
+[Achievements](../dev/safety.md#achievements)), the TPS unlock (`ActorStatType_UnlockTPSMode`), the consumable stacks,
+`FishingGod`, `SBPlayerSP`, EVE's death and revival, the test stances, `Test_MaxHPUpAll` and `Test_MaxShieldUpAll` (all
+actors), and the five lasting effects no dispel row reaches (`NoDamageNoHitImmuneAbnormal_Infinite`, the two
 `Test_Final*DamageReduce_080p`, `T_Drone_NoCoolScan` and `Test_EnemyEffectGroggy`).
 
 `coop devinfo` (`game/dev_panels.h`, run by `eve/debug_game.inc`) opens the two registered read-only panels
@@ -291,12 +291,11 @@ queues the game's remove request (type 0x16, `FUN_141afa620`) for the next turn 
 default (`FUN_141b49a50`). The count therefore falls a turn later, and Lua reads again every 0.5 s until it fell by the
 gift's count, for 10 s of play at most. A read that comes back `unread` (the remove changes the very sets the worker
 walks, so a read can tear) or `noeve` is asked again the same way; any other `none` answer stops the send. The engine
-line holds only the last `items=` answer, which the bike's paid fetch reads share
-([Bringing it back](../vehicles/bike-internals.md#bringing-it-back)), so a read with no answer after 1 s, before the remove or after it, goes
-again with its number. A tick while
-the game is paused, in photo mode, or in the friend's photo mode that pauses ours does not count: SB's logic thread
-stops then, and the remove waits with it. If the count has not fallen by then, nothing is sent and the notice says the
-items may be gone.
+line holds only the last `items=` answer, which the bike's paid fetch reads share ([Bringing it
+back](../vehicles/bike-internals.md#bringing-it-back)), so a read with no answer after 1 s, before the remove or after
+it, goes again with its number. A tick while the game is paused, in photo mode, or in the friend's photo mode that
+pauses ours does not count: SB's logic thread stops then, and the remove waits with it. If the count has not fallen by
+then, nothing is sent and the notice says the items may be gone.
 
 Once it fell, Lua writes the gift into `coop-gift-<steamid>-<index>.txt` (`out <id> <alias> <count> <to> <at> <sent>`)
 and only then sends the gift line as a request, `gift s <id> <alias> <count>`. The id is the time in seconds and three

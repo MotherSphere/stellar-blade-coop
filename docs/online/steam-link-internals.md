@@ -57,18 +57,17 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
 
 ### Match lobbies
 
-A match lobby holds up to 8 players. Its owner writes five keys beside `stellarcoop`: `sbo_mode` (the mode, only
-`ffa` so far), `sbo_state`, `sbo_map`, `sbo_room` and `sbo_hall`. A lobby whose `sbo_mode` names a mode the game knows
-is a match lobby, a co-op lobby carries none, and a lobby of a mode the game does not know is left. A match lobby keeps
-its mode while a player is in it: if its owner clears `sbo_mode` or writes another mode, the player leaves, so the
-rules of [In a match lobby](#in-a-match-lobby) never lapse for her. `sbo_state` is written on Public lobbies
-only: `open` while players can join, `playing` during a round. `sbo_map` names the round's map. `sbo_room` and
-`sbo_hall` are the last two words of the request that created the lobby: the SBO lobby map its players wait in
-(`xion`, or a hall lobby's key such as `hotel`) and the version of the hall lobby pak `zSBO_Lobby` (its `.utoc` and
-`.ucas` sizes joined by `_`, or `xion` without the pak). Lua's `online/lobby/sbo.lua` picks both words (`lobby_words()`):
-the lobby map the player stands in, or one drawn at random outside it, and the pak's version. Every member reads both
-keys each pass, keeps a word only when it holds letters, digits and `_` and is 40 bytes at most, and the status shows
-them after `owner=` on its `link=` line.
+A match lobby holds up to 8 players. Its owner writes five keys beside `stellarcoop`: `sbo_mode` (the mode, only `ffa`
+so far), `sbo_state`, `sbo_map`, `sbo_room` and `sbo_hall`. A lobby whose `sbo_mode` names a mode the game knows is a
+match lobby, a co-op lobby carries none, and a lobby of a mode the game does not know is left. A match lobby keeps its
+mode while a player is in it: if its owner clears `sbo_mode` or writes another mode, the player leaves, so the rules of
+[In a match lobby](#in-a-match-lobby) never lapse for her. `sbo_state` is written on Public lobbies only: `open` while
+players can join, `playing` during a round. `sbo_map` names the round's map. `sbo_room` and `sbo_hall` are the last two
+words of the request that created the lobby: the SBO lobby map its players wait in (`xion`, or a hall lobby's key such
+as `hotel`) and the version of the hall lobby pak `zSBO_Lobby` (its `.utoc` and `.ucas` sizes joined by `_`, or `xion`
+without the pak). Lua's `online/lobby/sbo.lua` picks both words (`lobby_words()`): the lobby map the player stands in,
+or one drawn at random outside it, and the pak's version. Every member reads both keys each pass, keeps a word only when
+it holds letters, digits and `_` and is 40 bytes at most, and the status shows them after `owner=` on its `link=` line.
 
 - `match search <mode> <room> <hall>` is the quick match. It asks Steam for lobbies whose `stellarcoop` equals this
   game's tag, `sbo_mode` the mode, `sbo_state` `open` and `sbo_hall` the hall word, with a free slot, at Steam's default
@@ -81,11 +80,11 @@ them after `owner=` on its `link=` line.
   lobby searches again every 5 s, with her lobby's `sbo_hall`, and moves to an open lobby with a lower id, never a
   higher one. The two lobbies of one become one within about 5 s, and the next player who searches joins it. The
   lobby she moves to can name another `sbo_room`.
-- `match create <mode> <room> <hall>` creates a private match lobby: Invisible like a code lobby, with a join code,
-  and without `sbo_state`, so no search returns it. Friends join it with `join <code>`. With the hall lobbies in use,
-  the host picks the room on the Map row of the lobby settings screen, or Random for a draw (`create()` in
-  `online/lobby/sbo.lua`). When the room is a hall other than the one she stands in, she warps there first and the request
-  goes out when she arrives.
+- `match create <mode> <room> <hall>` creates a private match lobby: Invisible like a code lobby, with a join code, and
+  without `sbo_state`, so no search returns it. Friends join it with `join <code>`. With the hall lobbies in use, the
+  host picks the room on the Map row of the lobby settings screen, or Random for a draw (`create()` in
+  `online/lobby/sbo.lua`). When the room is a hall other than the one she stands in, she warps there first and the
+  request goes out when she arrives.
 - In the SBO lobby, a guest of a match lobby whose `sbo_room` names another of the lobby maps her entries use (the
   halls with the lobby pak, else Xion) warps there, once per arrival and joined lobby, so a refused warp is not asked
   again before the next arrival or a new join. A lobby whose `sbo_room` names any other map, or whose `sbo_hall`
@@ -224,12 +223,13 @@ host answers with native requests, which Lua writes to `coop-request.txt` like t
   whose Public match lobby's host refuses her searches again too. Either way her searches skip that lobby for the rest
   of the game run, so a regroup never takes her back to it.
 
-On the host, `online/session/join.lua` turns the first `pending=` line into a question on screen and writes the answer. While
-more lines follow, its seconds line adds how many players wait after this one. Once the first player is answered or
-gone, the next `pending=` line gets its own question. It asks each player once a lobby; with no answer, the native part
-refuses the player 60 s after her question became the first one. The question opens without a key press, so it ignores
-every key for 1 s after it shows, and `main/keys.lua` gives it the arrow keys but not W, S or Space. `core/link.lua`
-keeps in memory which lobby members waited for an answer, for the menu's Remove row, so a Lua reload forgets them.
+On the host, `online/session/join.lua` turns the first `pending=` line into a question on screen and writes the answer.
+While more lines follow, its seconds line adds how many players wait after this one. Once the first player is answered
+or gone, the next `pending=` line gets its own question. It asks each player once a lobby; with no answer, the native
+part refuses the player 60 s after her question became the first one. The question opens without a key press, so it
+ignores every key for 1 s after it shows, and `main/keys.lua` gives it the arrow keys but not W, S or Space.
+`core/link.lua` keeps in memory which lobby members waited for an answer, for the menu's Remove row, so a Lua reload
+forgets them.
 
 Apart from the wait line, this uses the hello's timing, the ping and the reject.
 
@@ -258,14 +258,14 @@ An online session holds up to 4 players (`max_players`). The host leads every gu
   the shared world and story together run between <host> and <pair> only. Your game keeps its own.` With no pair, it
   reads `Shared enemies, the shared world and story together are off for you in <host>'s session. Your game keeps its
   own.`
-- Channel 2 follows the pair. `glue/steam.cpp` sends the shared fight's, the shared world's and story together's
-  lines to `partner()` only. It hands those three the pair's lines only: a guest out of the pair sends none and reads
-  none. Same-place enemies' `SBE` on channel 1 goes to the pair only. The shared quests run with every member: the
-  host's game runs one quest side per guest past the handshake, all fed by one read of its quests each pass. Each
-  guest gets her own lines (see [Group play: how it works](group-internals.md#shared-quests)). A guest sends her `SBQ` lines
-  to the host only and reads the host's only. Lines from any other member are dropped. A quest step a guest makes first
-  (`SBQ23 step`) is story together's: the host's game takes it from the pair only and logs any other guest's as `a
-  step line from guest <SteamID> not taken: her game is not the pair`. A guest out of the pair sends none.
+- Channel 2 follows the pair. `glue/steam.cpp` sends the shared fight's, the shared world's and story together's lines
+  to `partner()` only. It hands those three the pair's lines only: a guest out of the pair sends none and reads none.
+  Same-place enemies' `SBE` on channel 1 goes to the pair only. The shared quests run with every member: the host's game
+  runs one quest side per guest past the handshake, all fed by one read of its quests each pass. Each guest gets her own
+  lines (see [Group play: how it works](group-internals.md#shared-quests)). A guest sends her `SBQ` lines to the host
+  only and reads the host's only. Lines from any other member are dropped. A quest step a guest makes first (`SBQ23
+  step`) is story together's: the host's game takes it from the pair only and logs any other guest's as `a step line
+  from guest <SteamID> not taken: her game is not the pair`. A guest out of the pair sends none.
 - A new pair, or none, empties channel 2's queues both ways of all but the shared quests' lines, so a snapshot on its
   way to another guest still goes.
 - The status has `host=<host's SteamID> pair=<pair's SteamID or 0> max=<max_players>` in an online session (on a
@@ -551,11 +551,11 @@ text goes into `coop-link.log` on both sides (`mark <n>: <text>`, `mark <n> from
 
 ### The race line
 
-The race line carries one line of a [Doro race](modes/race-internals.md), sent reliable. The link passes its text on as it is: it
-reads no further, and only refuses a line with a byte outside printable ASCII (0x20 to 0x7e) or longer than 512 bytes
-in all. At most 40 lines a second are sent, and at most 40 a second are kept from a friend. Your friend's lines past
-that are dropped, with at most one line a minute per friend in `coop-link.log` (`dropped race lines from <name>: over
-the rate limit` or `too many waiting`). Yours past it are only counted, in the session's end line. During
+The race line carries one line of a [Doro race](modes/race-internals.md), sent reliable. The link passes its text on as
+it is: it reads no further, and only refuses a line with a byte outside printable ASCII (0x20 to 0x7e) or longer than
+512 bytes in all. At most 40 lines a second are sent, and at most 40 a second are kept from a friend. Your friend's
+lines past that are dropped, with at most one line a minute per friend in `coop-link.log` (`dropped race lines from
+<name>: over the rate limit` or `too many waiting`). Yours past it are only counted, in the session's end line. During
 `coop loopback` with no friend linked, your race lines come back as your friend's.
 
 ### The gift line
@@ -572,12 +572,13 @@ Your friend's lines reach Lua in `coop-chat.txt` as `gift <payload>`, beside the
 
 ### The bike line
 
-The bike line carries where a player's [parked bike](../vehicles/bike-internals.md#the-bike-line) stands, sent reliable: `park` with its map,
-place and angles, or `none` when she has no parked bike (she rides it, has `bike=off` or has no place yet). The map is a
-lower-case package path as the pose table carries it: `/` first, then `a-z`, `0-9`, `_`, `/` and `-`, at most 128
-bytes. `<x> <y> <z>` are whole centimetres and `<pitch> <yaw> <roll>` hundredths of a degree, each an optional `-` then
-digits, the place within 10,000,000 and the angles within 36,000. With a 128-byte map the line is at most 195 bytes. A
-line of another shape counts as an invalid message (`invalid message from <name>` in `coop-link.log`).
+The bike line carries where a player's [parked bike](../vehicles/bike-internals.md#the-bike-line) stands, sent reliable:
+`park` with its map, place and angles, or `none` when she has no parked bike (she rides it, has `bike=off` or has no
+place yet). The map is a lower-case package path as the pose table carries it: `/` first, then `a-z`, `0-9`, `_`, `/`
+and `-`, at most 128 bytes. `<x> <y> <z>` are whole centimetres and `<pitch> <yaw> <roll>` hundredths of a degree, each
+an optional `-` then digits, the place within 10,000,000 and the angles within 36,000. With a 128-byte map the line is
+at most 195 bytes. A line of another shape counts as an invalid message (`invalid message from <name>` in
+`coop-link.log`).
 
 Each player sends only her own bike. Her line is keyed by the Steam identity that Steam attaches to each message, so no
 member can move another player's bike. The line goes in co-op lobbies, match lobbies and the SBO lobby alike, with no

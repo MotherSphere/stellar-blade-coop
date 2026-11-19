@@ -3,9 +3,10 @@
 The player's side, with the settings of each part, is in [Shared enemies](enemies.md). The rule for kills and
 achievements is in [Achievements and safety](../dev/safety.md#achievements).
 
-The shared fight runs between two games: the host and its partner (`Link::partner()`). In an online session of more
-than 2 players that is the guest in ghost slot 0. `glue/steam.cpp` sends the `SBF` lines to her only and hands the job
-her lines only; `SBE` goes to her only too (see [The Steam link](../online/steam-link-internals.md#sessions-of-more-than-2-players)).
+The shared fight runs between two games: the host and its partner (`Link::partner()`). In an online session of more than
+2 players that is the guest in ghost slot 0. `glue/steam.cpp` sends the `SBF` lines to her only and hands the job her
+lines only; `SBE` goes to her only too (see [The Steam
+link](../online/steam-link-internals.md#sessions-of-more-than-2-players)).
 
 ## Same-place enemies
 

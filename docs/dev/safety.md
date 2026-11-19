@@ -61,15 +61,15 @@ claim the host accepts):
     list, and every camp while there is no read (a load, the title, after a fault). Whether arriving at a camp through
     the game's fast travel activates it has not been checked.
   - `coop mxiii` and `coop mxiii 30` travel to their own camps (`DLC02_00_Camp_00` or `DLC02_10_Camp_01`, and
-    `DLC02_30_Camp_01`) without that read ([The cut Matrix XIII dungeon](../world/matrix13-internals.md)): the two camp trophies count
-    only named ZoneEnvSpawnTable rows turning On (`Trophy_Activate_FirstCamp` one, `Trophy_Activate_AllCamp` the 89
-    `ChangeState_ZoneEnv_*_Camp` rows of AchievementTable), and none of them names `DLC02_00_EnvS_960`,
-    `DLC02_10_EnvS_900` or `DLC02_30_EnvS_900`, the mod's rows for those camps.
+    `DLC02_30_Camp_01`) without that read ([The cut Matrix XIII dungeon](../world/matrix13-internals.md)): the two camp
+    trophies count only named ZoneEnvSpawnTable rows turning On (`Trophy_Activate_FirstCamp` one,
+    `Trophy_Activate_AllCamp` the 89 `ChangeState_ZoneEnv_*_Camp` rows of AchievementTable), and none of them names
+    `DLC02_00_EnvS_960`, `DLC02_10_EnvS_900` or `DLC02_30_EnvS_900`, the mod's rows for those camps.
 - A revive changes only the downed player's own EVE: her life, her HP and the recovery items that a camp respawn refills
   too. The cutscene wait is a pause, and the solid partner changes no game state.
-- Matrix XIII's rows go in at the title whenever the test pak is installed and the game uses the co-op save files
-  ([At the title](../world/matrix13-internals.md#at-the-title)), so they stand in memory under co-op saves that never use `coop mxiii`.
-  They can neither unlock nor block a camp trophy.
+- Matrix XIII's rows go in at the title whenever the test pak is installed and the game uses the co-op save files ([At
+  the title](../world/matrix13-internals.md#at-the-title)), so they stand in memory under co-op saves that never use
+  `coop mxiii`. They can neither unlock nor block a camp trophy.
   - `Trophy_Activate_AllCamp` (trophy 26, `Activate_AllCamp`) completes at a fixed count, 89 in both AchievementTable
     and TrophyTable, and only its 89 `ChangeState_ZoneEnv_*_Camp` rows raise it, each on one named shipped
     ZoneEnvSpawnTable row turning On (`DED10_EnvS_113` and the others). `Trophy_Activate_FirstCamp` takes
@@ -84,8 +84,8 @@ claim the host accepts):
     (`ME_01_EnvS_017` and `_018`, `ME_03_EnvS_005`, `_015` and `_023`, `ME_04_EnvS_008` and `_009`), seven of the 89.
     Matrix 11's zones never start in that world, which should leave them unusable, but that was not checked, so v3 moves
     all seven 400 m below the floor (v2 moves only `ME_01_EnvS_017`).
-- A [Doro race](../online/modes/race-internals.md) gives nothing to either player: its Doros cannot die, and it calls no achievement, reward
-  or save function.
+- A [Doro race](../online/modes/race-internals.md) gives nothing to either player: its Doros cannot die, and it calls no
+  achievement, reward or save function.
 - A [Lion](../fight/bosses-internals.md#the-cut-lion) lives only in the world of the player who typed the command and is never shared: its kill is
   that player's, like any Naytiba's.
 - `coop shortcut load` writes a cut Load Shortcut developer save as a co-op copy only after it drops the save's
@@ -116,20 +116,20 @@ feature or drops the input.
   their own. A fault inside Steam in the worker (for example a call racing the game's Steam shutdown at exit) stops the
   link and the pose path for the rest of the run (`stopped=fault <code>`) instead of crashing the game. The log's last
   line gives the reason the worker stopped. The rows batches (the cut Naytibas, the Shock Bolt, Matrix XIII and the
-  Night Operation shop) share one latch;
-  [The Gardener's batch in the native part](../fight/bosses-internals.md#the-gardeners-batch-in-the-native-part) says why.
-- On the Lua side, a module that fails to load is off alone until the mod reloads
-  ([Modules and isolation](architecture.md#modules-and-isolation)). `main/frame.lua` and `main/pass.lua` call each
-  module's work in the two loops (every frame and every 250 ms) through an `xpcall` guard. An error that escapes one,
-  for example `fight/bosses/lion.lua`'s tick, is logged with the module's name, the message and its stack traceback:
-  `[StellarCoop] lion: error (logged once until the mod reloads; the other modules go on): <message>`, then
-  `stack traceback:` and its lines. The traceback gives the script and the line, which the message alone lacks for
-  most of the mod's errors (raised with `error(why,0)`) and for UE4SS's own. Each guarded call logs its first error
-  once a Lua load. Several calls share a name (`ghost` covers seven of `online/partner/puppet.lua`'s, and each restore has
-  its module's name), and each of them still logs its own first error. The modules after it still run in that pass,
-  and the module is called again at the next one, so one that recovers goes on working. Measured with Lua 5.4 on the
-  build machine, the guard adds about 40 ns a call. The per-frame loop makes 29 to 45 guarded calls (36 with the
-  on-screen UI, plus the inbox while a race is armed and up to 8 pad events), under 2 µs a frame.
+  Night Operation shop) share one latch; [The Gardener's batch in the native
+  part](../fight/bosses-internals.md#the-gardeners-batch-in-the-native-part) says why.
+- On the Lua side, a module that fails to load is off alone until the mod reloads ([Modules and
+  isolation](architecture.md#modules-and-isolation)). `main/frame.lua` and `main/pass.lua` call each module's work in
+  the two loops (every frame and every 250 ms) through an `xpcall` guard. An error that escapes one, for example
+  `fight/bosses/lion.lua`'s tick, is logged with the module's name, the message and its stack traceback: `[StellarCoop]
+  lion: error (logged once until the mod reloads; the other modules go on): <message>`, then `stack traceback:` and its
+  lines. The traceback gives the script and the line, which the message alone lacks for most of the mod's errors (raised
+  with `error(why,0)`) and for UE4SS's own. Each guarded call logs its first error once a Lua load. Several calls share
+  a name (`ghost` covers seven of `online/partner/puppet.lua`'s, and each restore has its module's name), and each of
+  them still logs its own first error. The modules after it still run in that pass, and the module is called again at
+  the next one, so one that recovers goes on working. Measured with Lua 5.4 on the build machine, the guard adds about
+  40 ns a call. The per-frame loop makes 29 to 45 guarded calls (36 with the on-screen UI, plus the inbox while a race
+  is armed and up to 8 pad events), under 2 µs a frame.
 - The save slot read, the vitals read and the Night Operation poller read through `ReadProcessMemory`, which returns an
   error instead of faulting, and only after a plausibility check of every pointer and count.
 - `coop_tick` never blocks the game thread. It runs once per engine frame (it checks the engine's frame counter) and
@@ -138,7 +138,8 @@ feature or drops the input.
   swaps them. Every 60 s the log gives the tick's cost and, while poses flow, the stream's counts.
 - Everything from your friend's game is checked before use: the table parser and the pose decoder (both fuzzed by the
   tests), the mesh path rule, the channel 1 size and rate limits, at most 8 effect starts a second, and race lines
-  (printable ASCII, 512 bytes and 40 lines a second at most, then the bounds in [Race lines](../online/modes/race-internals.md#race-lines)).
+  (printable ASCII, 512 bytes and 40 lines a second at most, then the bounds in [Race
+  lines](../online/modes/race-internals.md#race-lines)).
 - The [Doro look](../online/modes/race-internals.md#the-doro-look) and a race's [driving](../online/modes/race-internals.md#driving) write to the player actor. The look
   writes `bHiddenInGame` on EVE's mesh parts and `VisibilityBasedAnimTickOption` on her main mesh. It writes
   `coop-look.txt` before it changes either, and undoes both at the race's end, on `coop race look off` and `coop off`,
@@ -147,21 +148,21 @@ feature or drops the input.
   her movement component to 0 and gives it a velocity and her a yaw each frame. It writes `coop-drive.txt` before it
   changes the values, and puts them back on the same exits. The next Lua load undoes either from its file when this one
   could not.
-- The [bike](../vehicles/bike-internals.md) writes to the player actor too. It adds one skeletal mesh component to EVE's actor, hung on her
-  main mesh and hidden until she rides. While she rides it sets her main mesh's relative rotation for the lean and
-  drives her as a race does (`coop-drive.txt`, the four values, a velocity and a yaw). Through the native part it turns
-  54 of SB's actions off in the player controller's `InputActionStateMap` (each one's state kept) and plays the riding
-  pose in her custom animation slot. It writes `coop-bike.txt` (her main mesh's relative rotation and location) before any
-  of it. A dismount, `coop off`, `bike=off`, a new EVE and the ride's first error put it all back: the pose stopped,
-  each action's kept state written back unless SB changed it during the ride, the four values, her mesh. The next Lua
-  load puts her mesh back from `coop-bike.txt`; the native part turns the actions back on and stops the pose itself at
-  a new Lua load. Its preload keeps a handle to SB's own async load of the bike's mesh and the riding clip, released at
-  `bike=off` and `coop off`. All of it runs under its own SEH latch
-  ([The bike: how it works](../vehicles/bike-internals.md#status-words-and-the-latch)). The parked bike adds a plain actor with the bike's
+- The [bike](../vehicles/bike-internals.md) writes to the player actor too. It adds one skeletal mesh component to EVE's
+  actor, hung on her main mesh and hidden until she rides. While she rides it sets her main mesh's relative rotation for
+  the lean and drives her as a race does (`coop-drive.txt`, the four values, a velocity and a yaw). Through the native
+  part it turns 54 of SB's actions off in the player controller's `InputActionStateMap` (each one's state kept) and
+  plays the riding pose in her custom animation slot. It writes `coop-bike.txt` (her main mesh's relative rotation and
+  location) before any of it. A dismount, `coop off`, `bike=off`, a new EVE and the ride's first error put it all back:
+  the pose stopped, each action's kept state written back unless SB changed it during the ride, the four values, her
+  mesh. The next Lua load puts her mesh back from `coop-bike.txt`; the native part turns the actions back on and stops
+  the pose itself at a new Lua load. Its preload keeps a handle to SB's own async load of the bike's mesh and the riding
+  clip, released at `bike=off` and `coop off`. All of it runs under its own SEH latch ([The bike: how it
+  works](../vehicles/bike-internals.md#status-words-and-the-latch)). The parked bike adds a plain actor with the bike's
   mesh to the level of its map. Each other player's parked bike on the map EVE stands on adds one more. Their paths go
-  to `coop-bike-stand.txt` and `coop-bike-copies.txt`, so the next Lua load removes them. They block EVE and enemies.
-  A mount at her parked bike moves EVE onto its seat with `K2_TeleportTo`, SB's own teleport
-  ([The parked bike](../vehicles/bike-internals.md#the-parked-bike)).
+  to `coop-bike-stand.txt` and `coop-bike-copies.txt`, so the next Lua load removes them. They block EVE and enemies. A
+  mount at her parked bike moves EVE onto its seat with `K2_TeleportTo`, SB's own teleport ([The parked
+  bike](../vehicles/bike-internals.md#the-parked-bike)).
 - The co-op save copies (`StellarBladeCoop00.sav` to `04.sav`) are made only on a `saves convert`, `saves coop` or
   `saves refresh N` request (the question on the title screen, `auto_coop_save=always` or `coop saves`), and only at the
   title: Lua reports the title screen (`world=title` in `coop-state.txt`), no save is loaded, Continue or Load Game
@@ -198,31 +199,31 @@ feature or drops the input.
 - Five slots in the game's image, rather than in memory the game allocated, can hold the mod's value, for four hooks.
   Each one is an 8-byte pointer in `.rdata`. Each swap is a compare-and-swap from the game's own value only, with the
   page writable for that store alone. A slot that holds another value is never written.
-  - The [spawn filter](../fight/enemies-internals.md#the-spawn-filter)'s slot, `0x145c15ea0`, is swapped when the filter's gate
-    first opens (on by default) and swapped back from the mod's value at `coop off` or after a fault.
-  - The [teleport screen's extra tabs](../online/group-internals.md#the-teleport-screens-extra-tabs) use `0x145c44978`. It is swapped
-    once a run on the pinned build, with no setting in front of it, and swapped back at `coop off` or after a fault. If
-    it will not swap back, the hook stays in it and passes every call on to the game's function.
-  - The [level flight](../eve/eve-internals.md#developer-flight-and-slow-motion) uses `0x145ccd738` and `0x145cd9a38`, swapped
-    together at the first `coop fly on` of a run. If the second will not swap, the first is swapped back. Both are
-    swapped back at `coop off` or after a fault, and a slot that will not swap back keeps a hook that does nothing past
-    the game's pass.
+  - The [spawn filter](../fight/enemies-internals.md#the-spawn-filter)'s slot, `0x145c15ea0`, is swapped when the
+    filter's gate first opens (on by default) and swapped back from the mod's value at `coop off` or after a fault.
+  - The [teleport screen's extra tabs](../online/group-internals.md#the-teleport-screens-extra-tabs) use `0x145c44978`.
+    It is swapped once a run on the pinned build, with no setting in front of it, and swapped back at `coop off` or
+    after a fault. If it will not swap back, the hook stays in it and passes every call on to the game's function.
+  - The [level flight](../eve/eve-internals.md#developer-flight-and-slow-motion) uses `0x145ccd738` and `0x145cd9a38`,
+    swapped together at the first `coop fly on` of a run. If the second will not swap, the first is swapped back. Both
+    are swapped back at `coop off` or after a fault, and a slot that will not swap back keeps a hook that does nothing
+    past the game's pass.
   - The recruiter's Join slot, `0x145bfece8`, is swapped at the first `sbo arm`, which Lua sends once the recruiter
     stands in Xion, only with `sbo_lobby=on`; with it off, the slot is never written. Its hook counts the recruiter's
     Join and always calls the game's own function, and the slot is swapped back from the mod's value at `coop off`.
-- Except for those copies, the mod never reads or writes a save, unlocks or equipment. It adds to the inventory only
-  for a Night Operation shop buy (`coop nightop buy`, co-op saves only) and for `coop gift` (a take, or a gift coming
-  back, co-op saves only), through the game's own request (`ServerRequest_ItemBucketItemAdd`) with an item of its list
-  and 1 to 10 of it. It removes from the inventory only through the game's own request
-  (`ServerRequest_ItemBucketItemRemove`), after the native part read that EVE carries that many: for a `coop gift`
-  send, with one of seven consumables and 1 to 10 of it; for the bike's paid fetch at a Xion camp, on any save, with
-  500 `BetaCrystal` ([Bringing it back](../vehicles/bike-internals.md#bringing-it-back)). Apart from enemy stats with the
-  experimental shared enemies (`coop fight`, on by default, co-op saves only), their positions and animations with the
-  experimental same place (on by default), the quest steps of the experimental shared quests (on by default, co-op
-  saves only, made by the guest's game through its own quest functions) and a Night Operation run's state on the night
-  line and `coop gift`'s consumables, nothing is copied between the two players' games. Beside
-  the saves it reads only the co-op marker `StellarCoopSlot.txt` and the copies' manifest `StellarCoopSaves.txt`; Lua
-  only checks whether a copy exists, opening none of your own saves. See [players/saves.md](../players/saves.md).
+- Except for those copies, the mod never reads or writes a save, unlocks or equipment. It adds to the inventory only for
+  a Night Operation shop buy (`coop nightop buy`, co-op saves only) and for `coop gift` (a take, or a gift coming back,
+  co-op saves only), through the game's own request (`ServerRequest_ItemBucketItemAdd`) with an item of its list and 1
+  to 10 of it. It removes from the inventory only through the game's own request (`ServerRequest_ItemBucketItemRemove`),
+  after the native part read that EVE carries that many: for a `coop gift` send, with one of seven consumables and 1 to
+  10 of it; for the bike's paid fetch at a Xion camp, on any save, with 500 `BetaCrystal` ([Bringing it
+  back](../vehicles/bike-internals.md#bringing-it-back)). Apart from enemy stats with the experimental shared enemies
+  (`coop fight`, on by default, co-op saves only), their positions and animations with the experimental same place (on
+  by default), the quest steps of the experimental shared quests (on by default, co-op saves only, made by the guest's
+  game through its own quest functions) and a Night Operation run's state on the night line and `coop gift`'s
+  consumables, nothing is copied between the two players' games. Beside the saves it reads only the co-op marker
+  `StellarCoopSlot.txt` and the copies' manifest `StellarCoopSaves.txt`; Lua only checks whether a copy exists, opening
+  none of your own saves. See [players/saves.md](../players/saves.md).
 - The follow and the revive call the game's own functions on the local player only. A travel runs on the guest's own
   request, on a co-op save, for a camp of her own table that her game already knows by name, under its own SEH latch:
   a fault turns it off until the game restarts. The revive calls the game's respawn on the downed player's own EVE,
