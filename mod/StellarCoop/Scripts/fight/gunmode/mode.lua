@@ -787,8 +787,8 @@ function GunMode.new(env)
         local pc=g.pc(); if not pc then return end
         -- Paused (the pause menu and its options among others): the mask lifted until the game runs again. SB's
         -- KeyMapping option (its save 0x14222dec0 on 26123051) writes the player input's mappings (+0x140 and +0x150,
-        -- through 0x1423d04d0) into its settings, and ForceRebuildKeymaps (0x144664bb0) copies them there from the
-        -- input settings: a masked key would be saved as the player's own.
+        -- through 0x1423d04d0) into its settings. ForceRebuildKeymaps (0x144664bb0) copies them there from the input
+        -- settings: a masked key would be saved as the player's own.
         if g.try(function() return StaticFindObject('/Script/Engine.Default__GameplayStatics'):IsGamePaused(pc) end) then
             if s.mask then
                 pcall(s.mask)

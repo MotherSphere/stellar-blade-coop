@@ -56,8 +56,8 @@ Config.DEFAULTS={
     trace_range=10000, -- How far the crosshair's trace looks for what the rounds hit.
     -- Masked while the rifle is out (in memory only, lifted while the game is paused, put back when it goes away; SB's
     -- key options save the mappings, see fight/gunmode/mode.lua's tick): the sword's attacks and the drone's aim, fire
-    -- and pad combat keys on the fire and zoom keys (mask_keys), and the drone's aim and fire on any key (Luke masked
-    -- TPSMode). Menus, pick-ups, fishing and the death screen keep their keys.
+    -- and pad combat keys on the fire and zoom keys (mask_keys). The drone's aim and fire go on any key too (Luke
+    -- masked TPSMode). Menus, pick-ups, fishing and the death screen keep their keys.
     mask_keys={'LeftMouseButton','RightMouseButton','Gamepad_LeftTrigger','Gamepad_RightTrigger'},
     mask_on_keys={'AttackLight','AttackStrong','SpecialCommand1','SpecialCommand2','CommandKey7','CommandKey8',
         'LeftTriggerKey','RightTriggerKey','Item_UseBullet'},
