@@ -40,8 +40,10 @@ function Ammo.new(g,cfg,cool,on_reload,dpad)
     local function find()
         if g.valid(ui.name) and g.valid(ui.count) then return true end
         ui.name,ui.count,ui.lower=nil,nil,nil
-        if (ui.retry or 0)>os.clock() then return false end
-        ui.retry=os.clock()+1.0 -- FindAllOf walks every text block: once a second at most.
+        -- FindAllOf walks every object: only after an event (ui.look: the rifle out, firing mode entered), once a
+        -- second at most (L1).
+        if not ui.look or (ui.retry or 0)>os.clock() then return false end
+        ui.look,ui.retry=false,os.clock()+1.0
         pcall(function()
             for _,t in ipairs(FindAllOf('TextBlock') or {}) do
                 local full=t:GetFullName()
@@ -181,7 +183,10 @@ function Ammo.new(g,cfg,cool,on_reload,dpad)
     end
 
     -- Every frame while the rifle is out. aiming: firing mode; firing: the trigger held.
+    local was_aiming=false
     function self.tick(aiming,firing,now)
+        if aiming and not was_aiming then ui.look=true end -- Firing mode entered: the reticle's slot looked for.
+        was_aiming=aiming
         local dt=now-(self.last or now)
         self.last=now
         if dt>0 and dt<0.2 then self.dt=self.dt+(dt-self.dt)*0.1 end
@@ -228,8 +233,10 @@ function Ammo.new(g,cfg,cool,on_reload,dpad)
         show()
     end
 
-    -- After the rows are taken again (the rifle out): no round if both magazine and spares are spent.
+    -- After the rows are taken again (the rifle out): no round if both magazine and spares are spent. The reticle's
+    -- slot looked for at the next tick.
     function self.sync()
+        ui.look=true
         if self.left<=0 and self.reserve<=0 then pcall(cool,999) end
     end
 

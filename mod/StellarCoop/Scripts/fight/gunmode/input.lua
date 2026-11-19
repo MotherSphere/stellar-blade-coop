@@ -33,8 +33,9 @@ Input.MOD={SHIFT={'LeftShift','RightShift'},CONTROL={'LeftControl','RightControl
 -- What the player asks this poll, from down(name) (the key's state) and the previous states in s: {toggle (D-pad
 -- Right's tap), key (gun_key pressed, with its modifier held when it has one), fire (held), zoom (held)}, for cfg
 -- (fight/gunmode/config.lua's DEFAULTS) and key (gun_key as core/keybind.lua parses it: {key='F4', mod=nil}; key nil
--- for none; taken(): the modifiers another key setting holds with this key, fight/gunmode/config.lua's from).
-function Input.read(s,down,now,cfg,key)
+-- for none; taken(): the modifiers another key setting holds with this key, fight/gunmode/config.lua's from). away: the
+-- rifle is away, so only the toggle keys are polled (fire and zoom read as up); no_zoom: the zoom keys are not polled.
+function Input.read(s,down,now,cfg,key,away,no_zoom)
     local function any(names) for _,n in ipairs(names) do if down(n) then return true end end return false end
     -- K.clash takes Shift+F4 for a key of its own: that press is the other setting's (main/keys.lua), not gun_key's.
     local function pressed()
@@ -48,8 +49,8 @@ function Input.read(s,down,now,cfg,key)
     -- D-pad Right: a tap, not while R1 is held (Unified Projection Suit's R1+D-pad). Held, it is the bike's.
     local dr=down(Input.TOGGLE_PAD) and not down(Input.PAD_SHOULDER)
     out.toggle=Input.tap(s.dpad,dr,now,cfg.pad_tap)
-    out.fire=any(Input.FIRE)
-    out.zoom=any(Input.ZOOM)
+    out.fire=not away and any(Input.FIRE)
+    out.zoom=not away and not no_zoom and any(Input.ZOOM)
     out.zoom_press=Input.edge(s.zoom,out.zoom)
     return out
 end

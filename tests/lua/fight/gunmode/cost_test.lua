@@ -1,0 +1,229 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
+-- What gun mode costs a frame, over a fake UE4SS (fake.lua) that counts its engine calls: UE4SS 3.0.1's
+-- StaticFindObject and FindAllOf walk the object array. With the rifle away (parked or not) a frame makes no lookup and
+-- polls only the toggle keys (M2); out, no /Script object is looked up again, the crosshair is traced only while she
+-- aims (M13) and the drone and the reticle's text are walked for only on an event (L1). The posed stance reads no bone
+-- name and makes no FName a frame (M13).
+package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
+local Fake=dofile('tests/lua/fight/gunmode/fake.lua')
+-- The laser sight needs Niagara's objects, which the fake lacks: here a laser that draws nothing.
+package.loaded['fight.gunmode.laser']=function() return function() end,function() end end
+local GunMode=require('fight.gunmode.mode')
+local Overlay=require('fight.gunmode.overlay')
+local clock=100
+os.clock=function() return clock end
+local function frames(gun,n) for _=1,n do clock=clock+1/60; gun.tick() end end
+
+-- The fake world with its engine calls counted: script (StaticFindObject of a /Script path; an asset path is looked
+-- up by path on purpose, as nothing holds it), first (FindFirstOf), all[class] (FindAllOf), keys[name]
+-- (IsInputKeyDown), polls (all of them), trace (LineTraceSingle). The camera manager and the trace library let the
+-- crosshair reach its traces. The layer's clips are found and play.
+local function world()
+    local w=Fake.new(); w.install()
+    local n={script=0,first=0,all={},keys={},polls=0,trace=0}
+    w.n=n
+    local find,first,all=StaticFindObject,FindFirstOf,FindAllOf
+    StaticFindObject=function(path)
+        if path:sub(1,8)=='/Script/' then n.script=n.script+1 end
+        return find(path)
+    end
+    FindFirstOf=function(class) n.first=n.first+1; return first(class) end
+    w.drones,w.blocks={},{}
+    FindAllOf=function(class)
+        n.all[class]=(n.all[class] or 0)+1
+        if class=='CH_Drone_BP_C' then return w.drones end
+        if class=='TextBlock' then return w.blocks end
+        return all(class)
+    end
+    local down=w.pc.IsInputKeyDown
+    function w.pc.IsInputKeyDown(o,k)
+        local key=k.KeyName:ToString()
+        n.keys[key]=(n.keys[key] or 0)+1
+        n.polls=n.polls+1
+        return down(o,k)
+    end
+    local valid=function() return true end
+    w.pc.PlayerCameraManager={IsValid=valid,GetCameraLocation=function() return {X=0,Y=0,Z=0} end,
+        GetCameraRotation=function() return {Pitch=0,Yaw=0,Roll=0} end,GetFOVAngle=function() return 45 end}
+    local trace={IsValid=valid,LineTraceSingle=function() n.trace=n.trace+1; return false end}
+    -- Engine classes the fake lacks, which every build has.
+    local classes={}
+    for _,c in ipairs({'MeshComponent','StaticMeshComponent'}) do
+        classes['/Script/Engine.'..c]={IsValid=valid,GetFullName=function() return 'Class /Script/Engine.'..c end}
+    end
+    local clips={}
+    for _,path in pairs(Overlay.CLIPS) do
+        clips[path]={IsValid=valid,GetFullName=function() return 'AnimSequence '..path end}
+    end
+    local base=w.find
+    function w.find(path)
+        if path=='/Script/Engine.Default__KismetSystemLibrary' then return trace end
+        return clips[path] or classes[path] or base(path)
+    end
+    return w
+end
+local function count(w,class) return w.n.all[class] or 0 end
+-- The rifle out through the command, with the layer's instance made to play its clips.
+local function out(w,gun)
+    clock=clock+1
+    gun.toggle_now()
+    assert(gun.state.on,'the rifle is out')
+    local pp=w.mesh.pp
+    pp.PlaySlotAnimationAsDynamicMontage=function() return {} end
+    pp.IsPlayingSlotAnimation=function() return true end
+end
+
+-- 1. M2: the rifle away, parked (no rifle layer) or not, 600 frames: no lookup at all and two key polls a frame (the
+--    gun key and D-pad Right). The pause is asked at a toggle only: a press while paused does nothing.
+for _,parked in ipairs({true,false}) do
+    local w=world()
+    w.no_layer=parked
+    local gun=GunMode.new({log=function() end})
+    frames(gun,1)
+    w.n.script,w.n.first,w.n.polls=0,0,0
+    frames(gun,600)
+    assert(w.n.script==0 and w.n.first==0 and next(w.n.all)==nil,
+        ('parked %s: %d lookups, %d FindFirstOf'):format(tostring(parked),w.n.script,w.n.first))
+    assert(w.n.polls==2*600,('parked %s: %d key polls in 600 frames'):format(tostring(parked),w.n.polls))
+    if not parked then
+        w.paused=true
+        w.down.F4=true; frames(gun,1); w.down.F4=nil; frames(gun,1)
+        assert(not gun.state.on,'no toggle while paused')
+        w.paused=false
+        clock=clock+1
+        w.down.F4=true; frames(gun,1); w.down.F4=nil
+        assert(gun.state.on,'F4 brings the rifle out')
+    end
+end
+
+-- 2. M2: no player controller (a map loading): FindFirstOf walks the object array, so once a second at most.
+do
+    local w=world()
+    FindFirstOf=function() w.n.first=w.n.first+1 end
+    local gun=GunMode.new({log=function() end})
+    frames(gun,600)
+    assert(w.n.first<=11,w.n.first..' FindFirstOf in 10 s')
+end
+
+-- 3. M2, M13: the rifle out on the layer's path, carried for 600 frames: no /Script lookup, no trace, no zoom key
+--    polled (the game's aim takes RMB / LT itself). Aiming traces the crosshair every frame. Its library is looked up
+--    once.
+do
+    local w=world()
+    local gun=GunMode.new({log=function() end})
+    out(w,gun)
+    frames(gun,2)
+    w.n.script,w.n.trace,w.n.keys=0,0,{}
+    frames(gun,600)
+    assert(w.n.script==0,w.n.script..' /Script lookups in 600 frames')
+    assert(w.n.trace==0,w.n.trace..' traces while carried')
+    assert(not w.n.keys.LeftAlt and not w.n.keys.LeftControl,'zoom keys polled')
+    w.pawn.bTPSMode,w.down.RightMouseButton=true,true
+    frames(gun,1) -- The trace library's own lookup, once.
+    w.n.script=0
+    frames(gun,59)
+    assert(w.n.trace==2*60,w.n.trace..' traces in 60 aiming frames')
+    assert(w.n.script==0,w.n.script..' /Script lookups while aiming')
+end
+
+-- 4. L1: no drone near EVE and no reticle text: each walked for once at the rifle out, not once a second. A rifle out
+--    again within 10 s of a miss looks for the drone only once that back-off is over. Firing mode entered twice walks
+--    for the reticle's text twice more.
+do
+    local w=world()
+    local gun=GunMode.new({log=function() end})
+    out(w,gun)
+    frames(gun,60)
+    assert(count(w,'CH_Drone_BP_C')==1 and count(w,'TextBlock')==1)
+    clock=clock+1; gun.toggle_now()
+    assert(not gun.state.on,'the rifle is away')
+    out(w,gun)
+    frames(gun,1)
+    assert(count(w,'CH_Drone_BP_C')==1,'a rifle out within the back-off walks for no drone')
+    frames(gun,60*60)
+    assert(count(w,'CH_Drone_BP_C')==2,count(w,'CH_Drone_BP_C')..' drone walks in 60 s')
+    assert(count(w,'TextBlock')==2,count(w,'TextBlock')..' text walks in 60 s')
+    for _=1,2 do
+        w.pawn.bTPSMode,w.down.RightMouseButton=true,true
+        frames(gun,120)
+        w.pawn.bTPSMode,w.down.RightMouseButton=false,nil
+        frames(gun,120)
+    end
+    assert(count(w,'TextBlock')==4,count(w,'TextBlock')..' text walks after two aims')
+    assert(count(w,'CH_Drone_BP_C')==2,count(w,'CH_Drone_BP_C')..' drone walks after two aims')
+end
+
+-- 5. L1: a drone near EVE is hidden at the rifle out and held: no walk while it lives, one when it goes.
+do
+    local w=world()
+    local part={IsValid=function() return true end,bHiddenInGame=false,
+        SetHiddenInGame=function(o,h) o.bHiddenInGame=h end}
+    local drone={IsValid=function(o) return not o.dead end,K2_GetActorLocation=function() return {X=100,Y=0,Z=0} end,
+        K2_GetComponentsByClass=function() return {part} end}
+    w.drones={drone}
+    local gun=GunMode.new({log=function() end})
+    out(w,gun)
+    assert(part.bHiddenInGame==true,'the drone is hidden')
+    frames(gun,60*30)
+    assert(count(w,'CH_Drone_BP_C')==1,count(w,'CH_Drone_BP_C')..' drone walks while it lives')
+    drone.dead=true
+    w.drones={}
+    frames(gun,60*30)
+    assert(count(w,'CH_Drone_BP_C')==2,count(w,'CH_Drone_BP_C')..' drone walks after it went')
+end
+
+-- 6. M13: the posed stance (the fallback without the layer) on a fake whose engine calls give neutral transforms:
+--    after its start, a carrying frame and 20 aiming frames read no bone name and make no FName.
+do
+    local Stance=require('fight.gunmode.stance')
+    local n={tostring=0,fname=0}
+    local NAME={__index={ToString=function(v) n.tostring=n.tostring+1; return v.text end}}
+    FName=function(text) n.fname=n.fname+1; return setmetatable({text=text},NAME) end
+    -- A value read as a vector, a rotator, a quaternion and a transform.
+    local function xf()
+        return {X=0,Y=0,Z=0,W=1,Pitch=0,Yaw=0,Roll=0,Translation={X=0,Y=0,Z=0},Rotation={X=0,Y=0,Z=0,W=1},
+            Scale3D={X=1,Y=1,Z=1}}
+    end
+    local ANSWERS={GetBoneIndex=0,GetNumMaterials=0,IsGamePaused=false,DoesSocketExist=true}
+    local function object(t)
+        t=t or {}
+        t.IsValid=function(o) return not rawget(o,'dead') end
+        t.GetAddress=function(o) return o end
+        return setmetatable(t,{__index=function(_,k)
+            local a=ANSWERS[k]
+            if a~=nil then return function() return a end end
+            return function() return xf() end
+        end})
+    end
+    local function owner(t)
+        t=object(t)
+        t.AddComponentByClass=function() return object() end
+        return t
+    end
+    local world=object({SpawnActor=function() return owner() end})
+    StaticFindObject=function() return object() end
+    LoadAsset=function() return object() end
+    local src=object({SkeletalMesh=object(),LightingChannels={},CastShadow=true,bOwnerNoSee=false,
+        VisibilityBasedAnimTickOption=0})
+    local pawn=owner({TPSModeType=0,bTPSMode=false,Mesh=src,GetWorld=function() return world end})
+    local pc=object({Pawn=pawn,PlayerCameraManager=object()})
+    local held=false
+    local stance=Stance.new(function() return function() end,function() end end)
+    -- As fight/gunmode/mode.lua starts it with gun_fire=native: no turn, no torso, no camera anchor or chest fix, her
+    -- normal stance's spine while aiming.
+    stance.start(pc,function() return held end,function() return nil end,function() return false end,0,false,false,
+        false,true)
+    for _=1,3 do stance.frame() end
+    assert(stance.running(),'the posed stance runs')
+    n.tostring,n.fname=0,0
+    stance.frame()
+    assert(n.tostring==0 and n.fname==0,('a carrying frame: %d ToString, %d FName'):format(n.tostring,n.fname))
+    held=true
+    for _=1,20 do stance.frame() end
+    assert(n.tostring==0 and n.fname==0,('20 aiming frames: %d ToString, %d FName'):format(n.tostring,n.fname))
+    stance.stop()
+end
+
+print('gunmode cost: ok')

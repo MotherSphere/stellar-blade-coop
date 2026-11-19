@@ -167,14 +167,25 @@ function Stance.new(laser,trace)
     end
    end
    local aimBones={}
+   local aimNames={} -- gun mode: their names as text, read without a game call (M13)
    for _,side in ipairs({'L','R'})do
     local candidates={'Clavicle','UpperArm','Forearm','Hand'}
     for digit=0,4 do for _,suffix in ipairs({'','1','2'})do candidates[#candidates+1]='Finger'..digit..suffix end end
     for _,partName in ipairs(candidates) do
      local bone=FName('Bip001-'..side..'-'..partName)
-     if src:GetBoneIndex(bone)>=0 then aimBones[#aimBones+1]=bone
+     if src:GetBoneIndex(bone)>=0 then aimBones[#aimBones+1]=bone;aimNames[#aimBones]='Bip001-'..side..'-'..partName
      elseif partName=='Hand' or partName=='UpperArm' or partName=='Forearm' then error('Missing arm bone '..bone:ToString()) end
     end
+   end
+   -- gun mode: the places in aimBones of her right hand (hand) and left arm with the muzzle's name, worked out once.
+   -- Each bone name read back (ToString) or made (FName) is a game call: 84 a carrying frame in the loops below (M13).
+   local muzzleName=FName('FX_Fire')
+   local iHand,iLUpper,iLFore,iLHand
+   for i,name in ipairs(aimNames) do
+    if name=='Bip001-R-Hand' then iHand=i
+    elseif name=='Bip001-L-UpperArm' then iLUpper=i
+    elseif name=='Bip001-L-Forearm' then iLFore=i
+    elseif name=='Bip001-L-Hand' then iLHand=i end
    end
 
   local age,aimBlend=0,0
@@ -247,9 +258,8 @@ function Stance.new(laser,trace)
      local t=beam_target()
      local onTarget=false
      if t then pcall(function()
-      local fire=FName('FX_Fire')
-      local m=gun:GetSocketLocation(fire)
-      local have=mathlib:GetForwardVector(gun:GetSocketRotation(fire))
+      local m=gun:GetSocketLocation(muzzleName)
+      local have=mathlib:GetForwardVector(gun:GetSocketRotation(muzzleName))
       local dx,dy,dz=t.X-m.X,t.Y-m.Y,t.Z-m.Z
       local len=math.sqrt(dx*dx+dy*dy+dz*dz)
       if len<50 then return end
@@ -390,13 +400,10 @@ function Stance.new(laser,trace)
      local coverPoses
      if coverOffsets and (aimBlend<1 or freeAimMovement) then
       if freeAimMovement then
-       local socket=FName('FX_Fire')
+       local socket=muzzleName
        assert(gun:DoesSocketExist(socket),'Visual muzzle unavailable')
        local muzzleLocal=mathlib:MakeRelativeTransform(gun:GetSocketTransform(socket,0),gun:K2_GetComponentToWorld())
-       local handPose
-       for i,bone in ipairs(aimBones) do
-        if bone:ToString()==hand:ToString() then handPose=mathlib:ComposeTransforms(coverOffsets[i],chest);break end
-       end
+       local handPose=iHand and mathlib:ComposeTransforms(coverOffsets[iHand],chest)
        assert(handPose,'Right hand pose unavailable')
        local weapon=mathlib:ComposeTransforms(grip,handPose)
        local muzzle=mathlib:ComposeTransforms(muzzleLocal,weapon)
@@ -422,15 +429,8 @@ function Stance.new(laser,trace)
        chest.Translation=position
       end
       local poses={}
-      local shoulder,elbow,wrist
-      for i,bone in ipairs(aimBones) do
-       local pose=mathlib:ComposeTransforms(coverOffsets[i],chest)
-       poses[i]=pose
-       local name=bone:ToString()
-       if name=='Bip001-L-UpperArm' then shoulder=pose
-       elseif name=='Bip001-L-Forearm' then elbow=pose
-       elseif name=='Bip001-L-Hand' then wrist=pose end
-      end
+      for i in ipairs(aimBones) do poses[i]=mathlib:ComposeTransforms(coverOffsets[i],chest) end
+      local shoulder,elbow,wrist=poses[iLUpper],poses[iLFore],poses[iLHand]
       if leftElbowAngle~=0 and shoulder and elbow and wrist then
        turnLeftElbow(shoulder,elbow,wrist,right)
       end
@@ -456,11 +456,8 @@ function Stance.new(laser,trace)
        body:SetBoneTransformByName(b,mathlib:TLerp(coverPoses[i],goal,aimBlend,0),0)
       end
      elseif freeAimMovement and coverPoses and aimBlend>0 then
-      local rightHand
-      for i,bone in ipairs(aimBones) do
-       if bone:ToString()==hand:ToString() then rightHand=coverPoses[i];break end
-      end
-      local muzzleSocket=FName('FX_Fire')
+      local rightHand=coverPoses[iHand]
+      local muzzleSocket=muzzleName
       local muzzleLocal=mathlib:MakeRelativeTransform(gun:GetSocketTransform(muzzleSocket,0),gun:K2_GetComponentToWorld())
       local weapon=mathlib:ComposeTransforms(grip,rightHand)
       local muzzle=mathlib:ComposeTransforms(muzzleLocal,weapon)
@@ -496,7 +493,7 @@ function Stance.new(laser,trace)
       -- rifle), not read back from the rifle: the rifle follows the hand only on the next frame, so the stale reading
       -- overcorrected every frame and swung the rifle round behind her (11:50).
       if not muzzleRel then
-       muzzleRel=mathlib:MakeRelativeTransform(gun:GetSocketTransform(FName('FX_Fire'),0),gun:K2_GetComponentToWorld())
+       muzzleRel=mathlib:MakeRelativeTransform(gun:GetSocketTransform(muzzleName,0),gun:K2_GetComponentToWorld())
       end
       local muzzle=mathlib:ComposeTransforms(muzzleRel,mathlib:ComposeTransforms(grip,body:GetBoneTransformByName(hand,0)))
       local q=muzzle.Rotation

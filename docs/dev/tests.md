@@ -32,10 +32,10 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `wiring_cycle`, `wiring_dlc`; `online/session/ui/`: `create`, `create_model`, `sessions`, `sessions_model`;
 `world/daynight/`: `daynight`, `off`, `rule`, `wiring`; `story/together/`: `off`, `snapshot`, `wiring`, `wiring_dump`;
 `ui/`: `text`; `ui/kit/`: `guide`, `hud_parts`, `kit`, `model`, `notice`, `pause_tab`; `ui/text/`: `culture`;
-`world/objects/`: `off`, `wiring`; `fight/gunmode/`: `engine`, `helpers`, `off`, `online`, `state`, `stop`) run the
-scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE fails
-the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. Each module's `off_test`
-runs `main/isolation.lua` with its name.
+`world/objects/`: `off`, `wiring`; `fight/gunmode/`: `cost`, `engine`, `helpers`, `off`, `online`, `state`, `stop`)
+run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
+fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. Each module's
+`off_test` runs `main/isolation.lua` with its name.
 
 - `online/modes/race/commands_test` covers `coop race look on` refused while EVE rides the bike, with nothing asked of
   the Doro look, then started once she is off; `online/modes/race/drive_test` covers the races' drive probe and its off
@@ -55,6 +55,13 @@ runs `main/isolation.lua` with its name.
   time, the reload when empty or lowered part-spent, the HUD count, no round once the spares are spent, a refill). The
   reticle's round slot shows the round's name, the reload word and the empty word in the menu's language. It reads
   the words once a second, not on each frame;
+- `fight/gunmode/cost_test` counts gun mode's engine calls over `fight/gunmode/fake.lua`. With the rifle away
+  (parked or not) 600 frames look up nothing and poll two keys a frame (`gun_key` and D-pad Right). A press while the
+  game is paused does nothing. With no player controller `FindFirstOf` runs once a second at most. With the rifle out
+  no `/Script` object is looked up again. The crosshair is traced only while she aims. The zoom keys go unpolled in
+  the game's own aim. The drone and the reticle's text are walked for (`FindAllOf`) once at the rifle out. The text
+  is walked for again at each firing mode entry. The drone is walked for again when the one held goes, or 10 s after
+  a miss at the next rifle out. A frame of the posed stance reads no bone name and makes no FName;
 - `fight/gunmode/engine_test` covers the engine objects gun mode keeps across frames, over `fight/gunmode/fake.lua`.
   Masked keys go back into the action mappings as they are when the rifle goes away, after coop fly's mappings moved
   the array to a new buffer; nothing is written into the old one. The muzzle flash's asset is found by its path or

@@ -82,7 +82,7 @@ function IK.new(g)
 
     -- rifle-space geometry, measured once from the attached rifle: bore axis, up, muzzle, handguard point
     local function measure(rifle,Rifle)
-        local ml=StaticFindObject('/Script/Engine.Default__KismetMathLibrary')
+        local ml=g.find('/Script/Engine.Default__KismetMathLibrary')
         local T=rifle:K2_GetComponentToWorld()
         local mz=ml:InverseTransformLocation(T,rifle:GetSocketLocation(FName('FX_Fire')))
         local fwdW=ml:GetForwardVector(rifle:GetSocketRotation(FName('FX_Fire')))
@@ -104,7 +104,7 @@ function IK.new(g)
             return
         end
         if not st.geo then measure(rifle,require('fight.gunmode.rifle')) end
-        local ml=StaticFindObject('/Script/Engine.Default__KismetMathLibrary')
+        local ml=g.find('/Script/Engine.Default__KismetMathLibrary')
         local CT=mesh:K2_GetComponentToWorld()
         -- her axes in component space
         local fwd=nrm(ml:InverseTransformDirection(CT,p:GetActorForwardVector()))

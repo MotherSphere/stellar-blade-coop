@@ -67,6 +67,7 @@ end
 
 local SETTINGS='/Script/Engine.Default__InputSettings'
 local TRACE='/Script/Engine.Default__KismetSystemLibrary'
+local STATICS='/Script/Engine.Default__GameplayStatics'
 
 -- A point along a camera's forward: loc + forward(rot) * d.
 function GunMode.ahead(loc,rot,d)
@@ -95,11 +96,25 @@ function GunMode.new(env)
         return ok and r==true
     end
     function g.try(fn) local ok,r=pcall(fn); if ok then return r end end
-    local cached -- The controller: FindFirstOf walks the whole object array.
+    -- An object of /Script (a default object or a class: the engine never collects them) by its path, looked up once
+    -- while it lives (M2): UE4SS's StaticFindObject walks the object array. After a miss, nil for a second.
+    local found,missed={},{}
+    function g.find(path)
+        if g.valid(found[path]) then return found[path] end
+        if (missed[path] or -1)>os.clock() then return nil end
+        local o=StaticFindObject(path)
+        if g.valid(o) then found[path]=o; return o end
+        missed[path]=os.clock()+1.0
+    end
+    -- The controller: FindFirstOf walks the whole object array, so once a second at most while there is none (M2). A
+    -- new one comes through new_controller at once.
+    local cached,pc_wait
     function g.pc()
         if g.valid(cached) then return cached end
+        if (pc_wait or -1)>os.clock() then return nil end
         local pc=FindFirstOf('SBPlayerController')
         if g.valid(pc) then cached=pc; return pc end
+        pc_wait=os.clock()+1.0
     end
     function g.pawn()
         local pc=g.pc(); if not pc then return nil end
@@ -123,7 +138,7 @@ function GunMode.new(env)
         toggle_at=-1,hooked=false,errors=0}
     -- What belongs to one pawn and its controller, cleared on a new controller with no game call (new_controller).
     local PER_PAWN={'ovr_row','flash_fx','rifle','pose_m','pose_on','ik','layer_clip','reload_until','turn','turnq',
-        'want','move','sounds','aim_seen','air_aim','key_held','held_since','jump_down','tps'}
+        'want','move','sounds','aim_seen','air_aim','key_held','held_since','jump_down','tps','drone_wait'}
     local restored=false -- coop-gun.txt read this Lua load (self.restore).
 
     -- The reload: the NIKKE squad's reload animation on the rifle stance, and its sounds at their times.
@@ -131,7 +146,7 @@ function GunMode.new(env)
         local ok,err=pcall(function()
             local cue=LoadAsset(path)
             assert(cue,'no '..path)
-            StaticFindObject('/Script/Engine.Default__GameplayStatics'):PlaySound2D(g.pawn(),cue,1.0,1.0,0.0,nil,nil,false)
+            g.find(STATICS):PlaySound2D(g.pawn(),cue,1.0,1.0,0.0,nil,nil,false)
         end)
         if not s.sound_logged then s.sound_logged=true; g.log('reload sound: '..(ok and 'played' or tostring(err))) end
     end
@@ -251,8 +266,8 @@ function GunMode.new(env)
         s.cam_loc,s.cam_rot=loc,rot
         local from=GunMode.ahead(loc,rot,0)
         local to=GunMode.ahead(loc,rot,cfg.trace_range)
-        local trace=StaticFindObject(TRACE)
-        if not g.valid(trace) then return to end
+        local trace=g.find(TRACE)
+        if not trace then return to end
         local clear={R=0,G=0,B=0,A=0}
         local best,dist=to,cfg.trace_range
         for channel=0,1 do
@@ -324,7 +339,7 @@ function GunMode.new(env)
         local src=g.try(function() return p.Mesh end)
         if not g.valid(src) then return end
         local body=g.try(function() return src.SkeletalMesh:GetFullName() end)
-        local cls,skel,static=StaticFindObject(MESH),StaticFindObject(SKEL),StaticFindObject(STATIC)
+        local cls,skel,static=g.find(MESH),g.find(SKEL),g.find(STATIC)
         if not g.valid(cls) then return end
         local list=g.try(function() return p:K2_GetComponentsByClass(cls) end)
         if not list then return end
@@ -404,11 +419,13 @@ function GunMode.new(env)
     end
 
     -- The drone (it fires the shots in the game's aim) hidden while the rifle is out: its mesh components
-    -- bHiddenInGame, as race/doro.lua hides it; put back as they were. FindAllOf walks every object, so it is looked
-    -- for when the rifle comes out and again only when the one held goes.
-    local DRONE='CH_Drone_BP_C'
-    local function hide_drone(p)
-        if s.drone and g.valid(s.drone.actor) then return end
+    -- bHiddenInGame, as race/doro.lua hides it; put back as they were. FindAllOf walks every object (race/doro.lua
+    -- measured 25 to 40 ms), so it is looked for when the rifle comes out and again only when the one held goes (L1).
+    -- None near her: none for the rest of this rifle out (s.drone false). A rifle out within DRONE_WAIT s of that miss
+    -- looks once the wait is over. A new controller looks at once.
+    local DRONE,DRONE_WAIT='CH_Drone_BP_C',10
+    local function hide_drone(p,now)
+        if s.drone==false or (s.drone and g.valid(s.drone.actor)) or now<(s.drone_wait or -1) then return end
         local best,best_d
         local loc=g.try(function() return p:K2_GetActorLocation() end)
         if not loc then return end
@@ -420,8 +437,8 @@ function GunMode.new(env)
                 if dist<3000 and (not best_d or dist<best_d) then best,best_d=d,dist end
             end
         end
-        if not best then return end
-        local cls=StaticFindObject(MESH)
+        if not best then s.drone,s.drone_wait=false,now+DRONE_WAIT; return end
+        local cls=g.find(MESH)
         local parts={}
         local list=g.try(function() return best:K2_GetComponentsByClass(cls) end)
         local function each(fn)
@@ -731,7 +748,7 @@ function GunMode.new(env)
         s.on,s.shots,s.next_shot,s.zoom_held,s.held_since=true,0,0,false,nil
         pcall(hide_others,p,true)
         s.hide_at=os.clock()
-        if set.native then pcall(hide_drone,p); s.native_taken=true end
+        if set.native then pcall(hide_drone,p,os.clock()); s.native_taken=true end
         pcall(ammo.sync)
         if not keep() then
             give_all_back(); g.log('off: coop-gun.txt could not be written (see above)'); notice(os.clock(),'failed')
@@ -803,8 +820,11 @@ function GunMode.new(env)
         -- Paused (the pause menu and its options among others): the mask lifted until the game runs again. SB's
         -- KeyMapping option (its save 0x14222dec0 on 26123051) writes the player input's mappings (+0x140 and +0x150,
         -- through 0x1423d04d0) into its settings. ForceRebuildKeymaps (0x144664bb0) copies them there from the input
-        -- settings: a masked key would be saved as the player's own.
-        if g.try(function() return StaticFindObject('/Script/Engine.Default__GameplayStatics'):IsGamePaused(pc) end) then
+        -- settings: a masked key would be saved as the player's own. The rifle away with nothing of it held (no mask,
+        -- no armed rows) asks only at a toggle, which a pause refuses: no game call a frame for it then (M2).
+        local idle=not s.on and not s.mask and not s.armed_until
+        local function paused() return g.try(function() return g.find(STATICS):IsGamePaused(pc) end)==true end
+        if not idle and paused() then
             if s.mask then
                 pcall(s.mask)
                 s.mask,s.keys=nil,nil
@@ -824,8 +844,11 @@ function GunMode.new(env)
             if data.armed then data.disarm(); keep() end
         end
         local function down(name) return g.try(function() return pc:IsInputKeyDown({KeyName=FName(name)}) end)==true end
-        local inp=Input.read(keys,down,now,cfg,set.key)
-        if inp.key then self.toggle(set.key.name) elseif inp.toggle then self.toggle('D-pad Right') end
+        -- The rifle away: the toggle keys only. The game's own aim (gun_fire=native) reads its zoom keys itself (M2).
+        local inp=Input.read(keys,down,now,cfg,set.key,not s.on,set.native)
+        if (inp.key or inp.toggle) and not (idle and paused()) then
+            if inp.key then self.toggle(set.key.name) else self.toggle('D-pad Right') end
+        end
         if set.facts then
             s.facts=s.facts or require('fight.gunmode.facts').new(g)
             local ok,e=pcall(s.facts.tick,pc,g.pawn(),down,now)
@@ -908,7 +931,7 @@ function GunMode.new(env)
             -- the NIKKE rifle of her hidden real body (the fire round her waist, 12:01), which the pak's show drops.
             if ok_a and ammo.left<before and g.valid(s.rifle) and now-(s.flash_at or 0)>=cfg.muzzle_every then pcall(function()
                 s.flash_at=now
-                s.flash_lib=s.flash_lib or StaticFindObject('/Script/Niagara.Default__NiagaraFunctionLibrary')
+                s.flash_lib=g.find('/Script/Niagara.Default__NiagaraFunctionLibrary')
                 -- Found by its path at each flash, else loaded again, as laser.lua finds its own: nothing of the game
                 -- holds it between shots, so the engine can collect it. A reference kept from an earlier flash then
                 -- still passes IsValid once another object sits at the freed address.
@@ -924,7 +947,8 @@ function GunMode.new(env)
         elseif set.zoom_toggle then
             if inp.zoom_press then s.zoom_held=not s.zoom_held end
         else s.zoom_held=inp.zoom end
-        s.target=crosshair(pc,p)
+        -- The point under the screen centre only while she aims, the only time it is read (M13): two traces a frame.
+        s.target=(s.zoom_held or s.key_held==true) and crosshair(pc,p) or nil
         local ok,err=pcall(stance.frame)
         if not ok then g.log('stance: '..tostring(err)); disable('stance error'); return end
         if not stance.running() then disable('the stance stopped'); return end
@@ -1037,7 +1061,7 @@ function GunMode.new(env)
         if now-s.hide_at>=1.0 then
             s.hide_at=now
             pcall(hide_others,p,false)
-            if set.native then pcall(hide_drone,p) end
+            if set.native then pcall(hide_drone,p,now) end
         end
         if set.native and set.upper then pcall(hold_pose,p,inp.fire) end
         -- In firing mode, ten times a second: the NIKKE bullet's start put on the rifle's muzzle and its destination
