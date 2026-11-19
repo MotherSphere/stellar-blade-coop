@@ -570,7 +570,8 @@ A later commit renamed the `tools` module to `cutmenus`, so its folders no longe
 `tools/` folder. Its four folders and its docs moved: `mod/StellarCoop/Scripts/tools/` to
 `mod/StellarCoop/Scripts/cutmenus/`, `native/src/tools/` to `native/src/cutmenus/`, `tests/lua/tools/` to
 `tests/lua/cutmenus/`, `tests/native/tools/` to `tests/native/cutmenus/`, `docs/tools/` to `docs/cutmenus/`. The
-tables below give the paths before that rename.
+rest of this section gives the paths and the module name before that rename. Where it names the `tools` module, its
+folders or its docs, read `cutmenus`.
 
 ### Lua folders
 

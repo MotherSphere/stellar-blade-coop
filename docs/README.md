@@ -65,7 +65,7 @@ start with `coop`.
 | --- | --- |
 | [EVE's cut moves](eve/eve.md) | `coop chainspin`, `coop wear`, `coop emote`, `coop fly`, `coop slowmo`, `coop glide` |
 
-## Tools
+## Cut menus
 
 | Page | What it covers |
 | --- | --- |
