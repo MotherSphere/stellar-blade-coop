@@ -86,10 +86,11 @@ end
 -- a eased toward b by share k.
 function GunMode.ease(a,b,k) return a+(b-a)*k end
 
--- env: {log, folder (the mod folder: coop-settings.txt), read_all (a file's text; io.open's unless given), notice (the
--- rebuilding notice on screen), store (coop-gun.txt through core/link.lua's store: save, load, clear; nil without the
--- native part, so a Lua reload then cannot put back what an earlier load changed), photo (main/base.lua's photo_state;
--- '0' when not given), busy (why another module holds EVE now, or nil: fight/gunmode/wiring.lua reads them)}.
+-- env: {log, folder (the mod folder: coop-settings.txt), read_all (a file's text; io.open's unless given), notice (a
+-- notice on screen, by its key in ui/text.lua's gun: rebuilding when nil), store (coop-gun.txt through core/link.lua's
+-- store: save, load, clear; nil without the native part, so a Lua reload then cannot put back what an earlier load
+-- changed), photo (main/base.lua's photo_state; '0' when not given), busy (why another module holds EVE now, or nil:
+-- fight/gunmode/wiring.lua reads them), match (true while an SBO match runs: fight/gunmode/wiring.lua reads the link)}.
 function GunMode.new(env)
     local cfg=Config.DEFAULTS
     local whole=env.read_all or read_all
@@ -579,10 +580,20 @@ function GunMode.new(env)
         keep()
     end
 
-    -- Why EVE cannot hold the rifle now (GunMode.blocked, then env.busy), or nil. A state it cannot read is a reason too.
+    -- An SBO match (env.match) keeps the rifle away (M12): SBO's PvP rule refuses every hit from beyond 15 m whatever
+    -- the move (native/src/game/pvp.h's kHitRangeCm, fight/enemies' defend()), while the rifle hits up to
+    -- cfg.trace_range away. Until that rule takes rifle hits, a notice says so (ui/text.lua's gun.match).
+    local MATCH='an SBO match runs: PvP hits past 15 m do not count yet'
+    -- A notice on screen (env.notice; key: a word of ui/text.lua's gun, rebuilding when nil), at most one in 3 s.
+    local function notice(now,key)
+        if not (s.notice_at and now-s.notice_at<3) and env.notice and pcall(env.notice,key) then s.notice_at=now end
+    end
+    -- Why EVE cannot hold the rifle now (GunMode.blocked, env.busy, then env.match), or nil. A state it cannot read is
+    -- a reason too.
     local function held(p)
         local ok,why=pcall(function()
             return GunMode.blocked(p,env.photo and env.photo() or '0') or (env.busy and env.busy())
+                or (env.match and env.match() and MATCH) or nil
         end)
         if not ok then return 'her state is unreadable ('..tostring(why)..')' end
         return why
@@ -596,7 +607,11 @@ function GunMode.new(env)
             g.log('not now: release the drone aim first'); return
         end
         local busy=held(p)
-        if busy then g.log('not now: '..busy); return end
+        if busy then
+            g.log('not now: '..busy)
+            if busy==MATCH then notice(os.clock(),'match') end
+            return
+        end
         -- The gun mode animation pak (zNikkeGunMode_P): when it is installed, the aim stance's blend spaces point at
         -- its firing-stance animations while the rifle is out, and her real body shows while aiming (nothing posed).
         local okl,inst,why_not=pcall(layer.install,p)
@@ -744,7 +759,7 @@ function GunMode.new(env)
         if cfg.enabled==false and not Overlay.available() then
             if s.on then disable(why) end
             g.log('toggle ('..why..'): gun mode is being rebuilt, off')
-            if not (s.notice_at and now-s.notice_at<3) and env.notice and pcall(env.notice) then s.notice_at=now end
+            notice(now)
             return
         end
         if s.on then disable(why); return end
@@ -829,7 +844,11 @@ function GunMode.new(env)
         if now-(s.held_at or 0)>=0.25 then
             s.held_at=now
             local busy=held(p)
-            if busy then disable(busy); return end
+            if busy then
+                disable(busy)
+                if busy==MATCH then notice(now,'match') end
+                return
+            end
         end
         if set.native then -- Firing mode is the game's own aim: held while EVE is in it.
             -- Firing mode: the game's aim, or a jump out of it with the aim key still held (the game drops its aim

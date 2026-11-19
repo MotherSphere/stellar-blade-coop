@@ -3,7 +3,7 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode and what other players see, over fake UE4SS objects: the posed stance keeps its hidden donor body off EVE,
 -- so the ghost's capture never sends it (M10); the laser hangs on no part of EVE, so no partner draws a copy of it
--- ending at their own LaserPosition (M11).
+-- ending at their own LaserPosition (M11); the rifle stays away while an SBO match runs, with a notice (M12).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Fake=dofile('tests/lua/fight/gunmode/fake.lua')
 local clock=100
@@ -119,6 +119,36 @@ do
     clock=clock+1/60; rifle.frame()
     assert(updates==2,'laser updates: '..updates)
     rifle.stop()
+end
+
+-- 4. M12: while an SBO match runs (env.match) the rifle does not come out. A notice says why (ui/text.lua's
+--    gun.match). One starting with the rifle out puts it away within 0.25 s with everything back, with the notice.
+do
+    package.loaded['fight.gunmode.laser']=function() return function() end,function() end end
+    package.loaded['fight.gunmode.mode']=nil
+    local GunMode=require('fight.gunmode.mode')
+    local w=Fake.new(); w.install()
+    local keys,match,logs,notices=w.keys(),true,{},{}
+    local gun=GunMode.new({log=function(m) logs[#logs+1]=m end,match=function() return match end,
+        notice=function(key) notices[#notices+1]=tostring(key) end})
+    local function said(text)
+        for _,l in ipairs(logs) do if l:find(text,1,true) then return true end end
+        return false
+    end
+    clock=clock+1; gun.toggle_now()
+    assert(not gun.state.on and said('not now: an SBO match runs'),table.concat(logs,'|'))
+    assert(table.concat(notices,'|')=='match',table.concat(notices,'|'))
+    assert(#w.changed()==0 and w.keys()==keys)
+    clock=clock+1; gun.toggle_now()
+    assert(#notices==1,'one notice in 3 s')
+    match=false
+    clock=clock+3; gun.toggle_now()
+    assert(gun.state.on,'the rifle is out')
+    match=true
+    for _=1,20 do clock=clock+1/60; gun.tick() end
+    assert(not gun.state.on and said('off (an SBO match runs'),table.concat(logs,'|'))
+    assert(table.concat(notices,'|')=='match|match',table.concat(notices,'|'))
+    assert(#w.changed()==0 and w.keys()==keys)
 end
 
 print('gunmode online: ok')

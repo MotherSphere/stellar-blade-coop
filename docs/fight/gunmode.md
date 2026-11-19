@@ -49,6 +49,10 @@ rifle out, the rifle goes away within a quarter of a second. The same holds whil
 look, plays a `coop emote`, sits on a hall seat or uses `coop fly` or `coop glide`. The bike does not mount while the
 rifle is out. `UE4SS.log` names the reason on a `[GM]` line.
 
+During an SBO match (a round in play, or the PvP test of `coop pvp`) the rifle stays away too, with a notice. SBO's
+PvP rule counts a hit only from 15 m or closer, whatever the move. The rifle's rounds reach 100 m: a hit from farther
+than 15 m would cost the other player nothing.
+
 `coop off` puts the rifle away too. The table fields, the keys and her body's own post-process class go back, then
 gun mode does nothing until the game restarts. Until everything is back, `coop-gun.txt` lists what gun mode changed.
 After a Lua reload (Ctrl+R) the next load puts those changes back at its first frame and removes the rifle it finds on

@@ -63,7 +63,8 @@ runs `main/isolation.lua` with its name.
   adds no skeletal mesh component to EVE. Its donor and the keeper of its hide clip stand on an actor of their own,
   removed at stop, so the ghost's capture never sends them. The laser sight is spawned at the rifle's muzzle with no
   parent (the capture sends the rifle's attached effects). Each frame of aim moves it to the muzzle, on the rifle
-  layer too when it has no point to end at;
+  layer too when it has no point to end at. While an SBO match runs the rifle does not come out, with the match notice
+  once in 3 s. A match that starts with the rifle out puts it away within 0.25 s with everything back;
 - `fight/gunmode/stop_test` runs gun mode over a fake UE4SS (`fight/gunmode/fake.lua`) on the rifle layer's path. The
   fake's row fields have the kinds read in Ghidra on 26123051: the shot's Hit1 step has a byte `Type` and no `StepType`.
   `stop` (coop off) gives back the table fields, the keys, the rifle, her body's own post-process class, the FOV lock
@@ -209,8 +210,9 @@ runs `main/isolation.lua` with its name.
   quests' notices;
 - `main/gun_test` covers gun mode's wiring through `main.lua` with a fake `fight/gunmode/mode.lua`: `coop-gun.txt`
   through the link's store (none without the native part), the photo and selfie modes as the runtime reads them, its
-  `busy` reasons (the bike, the Doro look, `coop emote`, a hall seat, `coop fly`, `coop glide`), the restore at the
-  first tick, `coop off`'s stop, the restore alone after a Lua reload with `coop off` still on;
+  `busy` reasons (the bike, the Doro look, `coop emote`, a hall seat, `coop fly`, `coop glide`), the SBO match it
+  reads from the link (a round in play or the PvP test, none without the native part), its two notices, the restore at
+  the first tick, `coop off`'s stop, the restore alone after a Lua reload with `coop off` still on;
 - `main/bike_test` covers the bike's wiring (`vehicles/bike/wiring.lua`) through `main.lua` with a fake
   `vehicles/bike/ride.lua`: the load line, what the ride gets (its asks, `coop-bike.txt`, the driving, the settings,
   SBO's busy reasons with coop fly, gun mode's rifle and our open screens), `coop bike` and its words, F3 and the pad's

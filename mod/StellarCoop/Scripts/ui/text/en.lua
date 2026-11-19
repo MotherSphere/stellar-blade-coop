@@ -212,7 +212,8 @@ return {
         poor='Not enough %s: %d needed, you carry %d.',
         unpaid='Your bike was not brought here. UE4SS.log says why.'},
     -- Gun mode's notice (fight/gunmode/mode.lua) while it is parked for its rebuild: G shows it and does nothing else.
-    gun={rebuilding='Gun mode: rebuilding'},
+    gun={rebuilding='Gun mode: rebuilding',
+        match='Gun mode: not during a match. Rifle hits past 15 m do not count there yet.'},
     -- Night Operation's run (online/modes/nightop/run.lua): its card at the top centre (the title, then the countdown,
     -- the wave or the next wave's countdown, each with the time left and the score), its result panel (the heading, the
     -- line under it, the rows) and its notices while the UI is off. success, fail and died are the game's own words,

@@ -3,15 +3,23 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode's wiring (fight/gunmode/): the NIKKE rifle in EVE's hands, logging [GM] lines; coop gun [status].
 -- main/frame.lua ticks it each frame and runs its restore at the first one (coop-gun.txt, through the link's store);
--- coop off stops it (main/commands.lua). Its notice comes in the menu's words (ui/text.lua's gun). The rifle neither
--- comes out nor stays out while another module holds EVE (busy); the bike asks out() in turn.
+-- coop off stops it (main/commands.lua). Its notices come in the menu's words (ui/text.lua's gun). The rifle neither
+-- comes out nor stays out while another module holds EVE (busy) or an SBO match runs (match); the bike asks out() in
+-- turn.
 return {
 uses={'vehicles.bike','online.modes.race','eve','online.lobby'},
 exports={'gun'},
 new=function(M)
 local function log(m) M.print('[StellarCoop][GM] '..tostring(m)..'\n') end
 M.gun=require('fight.gunmode.mode').new({log=log,folder=M.folder,store=M.link and M.link.store('coop-gun.txt'),
-    notice=function() M.tell(function(w) return w.gun.rebuilding end) end,photo=M.photo_state,
+    notice=function(key) M.tell(function(w) return w.gun[key or 'rebuilding'] end) end,photo=M.photo_state,
+    -- An SBO match: a round of a match lobby in play (the link's match line), or the PvP test (coop pvp: the fight
+    -- line's mode, on or waiting). The rifle stays away then (fight/gunmode/mode.lua's MATCH).
+    match=function()
+        if not M.link then return false end
+        local m=M.link.match()
+        return m~=nil and m.state=='playing' or (M.link.fight() or ''):find('^fight=%a+ mode=pvp')~=nil
+    end,
     -- Read late through each module's export; an off module's stub answers nil (it holds nothing).
     busy=function()
         if M.bike.riding() then return 'EVE rides the bike' end

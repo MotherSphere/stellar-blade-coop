@@ -34,6 +34,22 @@ for _,case in ipairs({{function(on) bk.riding=on end,'EVE rides the bike'},
     case[1](nil)
 end
 assert(gm.o.busy()==nil)
+-- An SBO match: a round in play (the link's match line) or the PvP test (coop pvp: the fight line's mode).
+assert(gm.o.match()==false)
+for _,case in ipairs({{{state='playing',mode='ffa'},nil,true},{{state='countdown',mode='ffa'},nil,false},
+        {{state='open',mode='ffa'},nil,false},{{state='searching',mode='ffa'},nil,false},
+        {nil,'fight=on mode=pvp proxy=0 sent=0 unnamed=0 lines=0',true},
+        {nil,'fight=waiting mode=pvp why=no friend linked',true},
+        {nil,'fight=on mode=on role=host enemies=0 claims=0',false},{nil,'fight=off',false}}) do
+    link_match,fight_text=case[1],case[2]
+    assert(gm.o.match()==case[3],tostring(fight_text or link_match.state))
+end
+link_match,fight_text=nil,nil
+-- Its notices in the menu's words: the rebuilding one by default, the match one by its key.
+gm.o.notice()
+assert(said_en[#said_en]=='Gun mode: rebuilding',tostring(said_en[#said_en]))
+gm.o.notice('match')
+assert(said_en[#said_en]:find('^Gun mode: not during a match%.'),tostring(said_en[#said_en]))
 assert(gm.restores==0 and gm.ticks==0)
 loops[1].f()
 assert(gm.restores==1 and gm.ticks==1)
@@ -50,4 +66,5 @@ assert(gm.restores==1 and gm.ticks==0)
 status_text=plain
 load_main(false)
 assert(gm.o and gm.o.store==nil)
+assert(gm.o.match()==false,'No native part: no match')
 io.stdout:write('main gun_test ok\n')
