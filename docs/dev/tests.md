@@ -841,8 +841,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   the covered one given only the direction; a restore; a copy SB makes into an element; another world at the same
   addresses, read as new; SB's forced settings (nothing written, a restore still puts the array back); the gated blend,
   too many elements, no world, an empty array; a pinned hour, a hold that keeps a pinned hour or the clock's; an element
-  SB moved in its array keeps its originals; a cutscene or talk scene of SB's (its values back while it plays, under its
-  forced settings too, our light again after it);
+  SB moved in its array keeps its originals; the array watch (a changed count or pointer seen until the next pass, a
+  forced pass clearing it too); the overlay's count;
 - `cutmenus_items_test`: `coop gift`'s inventory read against a fake image laid out like the pinned build: the FName and
   CityHash64 hashes checked against the game's, a count over two instances and along chains of collisions, an item
   EVE does not carry, no manager, bucket or owner, an instance the manager no longer holds, and hostile memory (a

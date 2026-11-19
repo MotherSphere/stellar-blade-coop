@@ -9,6 +9,7 @@ namespace coop::pose {
 namespace {
 int sky_logged_state = int(sky::State::off); // The DLL starts with SB's light: nothing to say until a change.
 uint32_t sky_logged_worlds = 0;
+int sky_logged_overlay = 0;
 bool sky_fault_logged = false, sky_refusal_logged = false;
 } // namespace
 
@@ -51,6 +52,11 @@ void sky_pass() {
     }
     return;
   }
+  const int overlay = sky_overlay;
+  if (overlay != sky_logged_overlay) {
+    sky_logged_overlay = overlay;
+    say("sky: " + std::to_string(overlay) + " overlay entries");
+  }
   const int state = sky_state;
   const uint32_t worlds = sky_worlds;
   const bool writing = state == int(sky::State::cycle) || state == int(sky::State::pinned) ||
@@ -68,9 +74,6 @@ void sky_pass() {
     break;
   case sky::State::forced:
     say("sky: SB's forced light, nothing written");
-    break;
-  case sky::State::scene:
-    say("sky: SB plays a cutscene or a talk scene, its own light until it ends");
     break;
   case sky::State::gated:
     say("sky: this map blends SB's env settings by their bUse bytes, nothing written");

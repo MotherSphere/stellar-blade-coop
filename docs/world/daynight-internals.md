@@ -142,10 +142,8 @@ guest is SB's own pause tag too (`frozen=1` on the status's photo line), so it h
 
 A covered spot in an open map (a cave, a room, a lab) keeps its own light at any hour: see the sunlit rule below.
 
-The native part does not wait for Lua to see a cutscene. At each of its passes, in every mode, solo included, it reads
-SB's own test for a theater (a cutscene or a talk scene): the theater manager's theater, set and not finished. While
-one plays, it puts SB's values back and writes nothing (state `scene`). The scene's `CutScene_` and `Dialogue_` volumes
-then blend SB's light. Lua puts its dressing back too, since `scene` is not a state where the sky follows our sun.
+SB's theaters (its talk scenes and cutscenes, SBO's Lily talks among them) get the cycle's light like the rest of the
+world: their `CutScene_` and `Dialogue_` volumes blend from the array the pass writes. The native part reads no theater.
 
 ## What the native part writes
 
@@ -181,9 +179,11 @@ written: the readers ignore them.
 
 The rules of a pass (`sky::Sky::pass`):
 
-- A theater plays (WorldSettings aside): SB's values back, nothing written (state `scene`). The theater manager is the
-  global `0x1470375a0`, read and never made since its getter allocates. Its `+0x18` is the theater; `FUN_1424d70c0`
-  tells whether it has finished: the test SB itself makes in `FUN_141e0f720` and `FUN_142554300`.
+- SB's array changes only when a volume registers or leaves. Between two passes, while the array holds our values, the
+  tick reaches the world again each frame and, when it is the last pass's, reads the array's pointer and count; when
+  either changed, a pass runs in that frame, so a new element never draws SB's values for long. `sky: <m> overlay
+  entries` is logged when the count of WorldSettings' `+0x300` overlay list changes. A sequence's env track adds that
+  list on top of the array; the pass reads its count and never writes it.
 - SB's forced settings in place: nothing written, the array left as it is (state `forced`). An off still puts the array
   back.
 - WorldSettings `+0x2018` set (the blend gated by the `bUse` bytes): SB's values back, nothing written (`gated`). No map
@@ -221,14 +221,14 @@ sky hold                        the hour the pass before it drew (a pinned one i
 sky=cycle h=13.4200 el=62.5 le=62.490 ly=215.975 k=1.000 moon=0 amb=1.000 eve=1.000 ev=0.00 tint=1.00,1.00,1.00 n=114 lit=20 seen=1
 ```
 
-The state is `off`, `cycle`, `pinned`, `held`, `waiting` (no world or no array), `forced`, `scene` (SB plays a theater),
-`gated`, `full`, `fault` or `refused` (off the pinned game build: the values are computed, nothing is written). `h` is
-the hour, `el` the sun's signed elevation, `le` and `ly` the light's elevation and heading (sun or moon), `k` the
-light's factor, `moon` 1 when the moon is the light, `amb` the sky light's factor, `eve` that of EVE's lights, `ev` the
-exposure offset, `tint` the light's colour, `n` the elements, `lit` the sunlit ones and `seen` 1 when EVE stands in env
-sunlight. `h`, `le` and `ly` keep four and three decimals: Lua turns the SBO maps' Sun and SB's SkyCreators from them
-each 250 ms, about 0.02 degree a pass. Rounded to one decimal, they moved in steps of 0.1 to 0.15 degree every second
-or so. The line moves each second, so it stays out of the `link:` lines of `UE4SS.log`.
+The state is `off`, `cycle`, `pinned`, `held`, `waiting` (no world or no array), `forced`, `gated`, `full`, `fault` or
+`refused` (off the pinned game build: the values are computed, nothing is written). `h` is the hour, `el` the sun's
+signed elevation, `le` and `ly` the light's elevation and heading (sun or moon), `k` the light's factor, `moon` 1 when
+the moon is the light, `amb` the sky light's factor, `eve` that of EVE's lights, `ev` the exposure offset, `tint` the
+light's colour, `n` the elements, `lit` the sunlit ones and `seen` 1 when EVE stands in env sunlight. `h`, `le` and `ly`
+keep four and three decimals: Lua turns the SBO maps' Sun and SB's SkyCreators from them each 250 ms, about 0.02 degree
+a pass. Rounded to one decimal, they moved in steps of 0.1 to 0.15 degree every second or so. The line moves each
+second, so it stays out of the `link:` lines of `UE4SS.log`.
 
 `coop-link.log` gets a `sky:` line at each change of state and at each new world the cycle writes in, for example
 `sky: cycle, 114 volumes, 20 in the sun`, then `sky: not written: <why>` once per request off the pinned build and the
@@ -285,8 +285,8 @@ SBO searches nothing on a timer.
 
 | Where | Work | Bound |
 | --- | --- | --- |
-| Native, each frame | one clock read and one compare | |
-| Native, every 100 ms | two SB calls and six pointer reads; up to 256 elements, each a key compare and up to 22 float writes | the minute line's native tick maximum shows it |
+| Native, each frame | one clock read and one compare; while the array holds our values, SB's player controller and its world reached again (two SB calls, four pointer reads) and the array's pointer and count read (two plain reads, no system call) | |
+| Native, every 100 ms | SB's player controller and its world (two SB calls, four pointer reads), the overlay's count (one int read); up to 256 elements, each a key compare and up to 22 float writes | the minute line's native tick maximum shows it |
 | Lua, every 250 ms | the rules on cached values, the pass's status text, a request only on change | |
 | Lua, SkyCreator maps | one `SetTime` a pass while the hour moves | 4 calls a second |
 | Lua, SBO's own maps | up to 4 reflected writes a pass, only on change | 16 a second |

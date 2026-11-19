@@ -102,6 +102,9 @@ inline Light light_at(double hour, int hz, int heading) {
 // written into an element is what SB draws from the next frame on. Build 26123051.
 constexpr size_t kArray = 0x2E0, kNum = 0x2E8, kForcedFlag = 0x2F0, kForced = 0x2F8, kGated = 0x2018;
 constexpr size_t kViewFlag = 0x1420, kViewSun = 0x14A0; // +0x1430 copy + kSun.
+// The overlay TArray at +0x300 the same blend sums on top of the array (FUN_1446B00A0 at 0x1446b0954: its Num, int32,
+// stride 0x20): a sequence's env track adds it. Read for the log line, never written.
+constexpr size_t kOverlayNum = 0x308;
 // One element (FSBEnvControlSettings), its fields summed by FUN_1444F60D0: Direction_Sun +0x4C, Color_Sun +0x5C,
 // Intensity_Sun +0x70, Intensity_SkyLight +0x180, Intensity_Character +0x1D8 and Sub +0x20C, FogInscatteringColor
 // +0x254, DirectionalInscatteringColor +0x2AC; PostProcessData at +0x430 applied by FUN_1445031D0, whose
@@ -119,11 +122,11 @@ struct Want {
   uint8_t hz = 8;      // The map's horizon, degrees.
   uint16_t heading = 0; // The map's noon heading, degrees.
 };
-enum class State : uint8_t { off, cycle, pinned, held, waiting, forced, scene, gated, full, fault, refused };
+enum class State : uint8_t { off, cycle, pinned, held, waiting, forced, gated, full, fault, refused };
 
 inline const char *word(State s) {
-  static const char *const words[] = {"off",   "cycle", "pinned", "held",  "waiting", "forced",
-                                      "scene", "gated", "full",   "fault", "refused"};
+  static const char *const words[] = {"off",    "cycle", "pinned", "held",  "waiting",
+                                      "forced", "gated", "full",   "fault", "refused"};
   return words[static_cast<int>(s)];
 }
 
@@ -141,11 +144,12 @@ inline std::string line(State s, const Light &l, int n, int lit, bool seen) {
 }
 
 // Writes the light of the hour into every element of SB's env array from the originals it read there, so SB's own
-// blend does the per-frame work. Memory is reached by address: the caller runs it under its own fault guard. scene:
-// SB plays a cutscene or a talk scene (its theater), whose env volumes must draw SB's own light.
+// blend does the per-frame work. Memory is reached by address: the caller runs it under its own fault guard. SB's
+// array changes only when a volume registers or leaves (Transient, no Interp; DESIGN section 4), so the caller runs a
+// pass in the frame moved() says it changed.
 class Sky {
 public:
-  State pass(uintptr_t world, uintptr_t settings, const Want &want, uint64_t utc_ms, bool scene = false) {
+  State pass(uintptr_t world, uintptr_t settings, const Want &want, uint64_t utc_ms) {
     elements_ = sunlit_ = 0;
     if (want.mode != Mode::held)
       held_ = false;
@@ -167,13 +171,13 @@ public:
       settings_ = settings;
     }
     seen_ = settings && rd<uint8_t>(settings + kViewFlag) != 0 && rd<float>(settings + kViewSun) > 0;
+    // What moved() compares with: the array as this pass found it, whatever the branch below.
+    array_ = settings ? rd<uintptr_t>(settings + kArray) : 0;
+    num_ = settings ? rd<int32_t>(settings + kNum) : 0;
+    overlay_ = settings ? rd<int32_t>(settings + kOverlayNum) : 0;
     if (want.mode == Mode::off) { // Even under SB's forced settings: the array is ours to put back.
       restore();
       return State::off;
-    }
-    if (scene) { // The scene's CutScene_ and Dialogue_ volumes blend from the array: SB's values until it ends.
-      restore();
-      return State::scene;
     }
     if (settings == 0)
       return State::waiting;
@@ -243,6 +247,10 @@ public:
   int sunlit() const { return sunlit_; }
   bool seen() const { return seen_; }
   const Light &light() const { return light_; }
+  uintptr_t settings() const { return settings_; } // The last pass's WorldSettings and world, 0 for none.
+  uintptr_t world() const { return world_; }
+  bool moved(uintptr_t array, int32_t n) const { return array != array_ || n != num_; }
+  int overlay() const { return overlay_; }
 
 private:
   struct Entry {
@@ -316,7 +324,8 @@ private:
 
   Entry cache_[2][kMaxElements]; // Last pass's entries and this pass's, swapped each pass: no heap.
   int cur_ = 0, count_ = 0, elements_ = 0, sunlit_ = 0;
-  uintptr_t world_ = 0, settings_ = 0;
+  uintptr_t world_ = 0, settings_ = 0, array_ = 0;
+  int32_t num_ = 0, overlay_ = 0;
   Light light_{};
   Mode last_ = Mode::off; // The last pass's mode: light_ holds the hour it drew.
   double held_hour_ = 0;

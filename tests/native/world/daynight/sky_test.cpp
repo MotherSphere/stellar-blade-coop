@@ -174,19 +174,25 @@ int main() {
   assert(near(get<float>(reinterpret_cast<uintptr_t>(moved.data()) + kStride, kSun), 1.5));
   sky.restore();
   assert(get<float>(reinterpret_cast<uintptr_t>(moved.data()) + kStride, kSun) == 10);
-  // 18. SB plays a cutscene or a talk scene at midnight: its originals back while it plays (its CutScene_ and Dialogue_
-  //     volumes blend from them), nothing held; the cycle writes again once it ends. Under SB's forced settings too.
+  // 18. The array watch: moved() is false right after a pass and true once the array's data pointer or count differs
+  //     from what that pass read (SB registered or dropped a volume between two passes); the next pass clears it, a
+  //     forced pass too. The overlay's count reaches overlay() and is never written.
   put<uint64_t>(ws, kArray, e0);
   put<int32_t>(ws, kNum, 3);
   put<float>(e0, kSun, 18), put<float>(e0, kSky, 4);
   assert(sky.pass(0xDDDD, ws, cyc, midnight) == State::cycle && near(get<float>(e0, kSun), 2.7));
-  assert(sky.pass(0xDDDD, ws, cyc, midnight, true) == State::scene && get<float>(e0, kSun) == 18 && !sky.holding());
-  assert(get<float>(e0, kSky) == 4 && sky.elements() == 0);
-  assert(sky.pass(0xDDDD, ws, cyc, midnight, true) == State::scene && get<float>(e0, kSun) == 18);
-  assert(sky.pass(0xDDDD, ws, cyc, midnight) == State::cycle && near(get<float>(e0, kSun), 2.7));
-  put<uint8_t>(ws, kForcedFlag, 1);
-  assert(sky.pass(0xDDDD, ws, cyc, midnight, true) == State::scene && get<float>(e0, kSun) == 18);
-  put<uint8_t>(ws, kForcedFlag, 0);
-  assert(std::string(word(State::scene)) == "scene" && std::string(word(State::refused)) == "refused");
+  assert(sky.settings() == ws && sky.world() == 0xDDDD && !sky.moved(e0, 3) && sky.moved(e0, 2) && sky.moved(e1, 3));
+  put<int32_t>(ws, kNum, 2);
+  assert(sky.pass(0xDDDD, ws, cyc, midnight) == State::cycle && sky.elements() == 2 && !sky.moved(e0, 2));
+  put<int32_t>(ws, kNum, 3), put<uint8_t>(ws, kForcedFlag, 1), put<uint64_t>(ws, kForced, 0x5000);
+  assert(sky.pass(0xDDDD, ws, cyc, midnight) == State::forced && !sky.moved(e0, 3));
+  put<uint8_t>(ws, kForcedFlag, 0), put<uint64_t>(ws, kForced, 0);
+  assert(sky.overlay() == 0);
+  put<int32_t>(ws, kOverlayNum, 2);
+  sky.pass(0xDDDD, ws, cyc, midnight);
+  assert(sky.overlay() == 2 && get<int32_t>(ws, kOverlayNum) == 2);
+  put<int32_t>(ws, kOverlayNum, 0);
+  assert(sky.pass(0, 0, Want{}, 0) == State::off && sky.settings() == 0 && sky.world() == 0);
+  assert(std::string(word(State::gated)) == "gated" && std::string(word(State::refused)) == "refused");
   return 0;
 }

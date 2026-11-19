@@ -40,12 +40,12 @@
 // HUD's set of hiding keys through SB's own keyed request, under its own SEH latch, and takes it out at hud hide off
 // and at coop off.
 //
-// The day/night cycle (world/daynight/sky.h, world/daynight/daynight.lua): every 100 ms coop_tick reaches the world's
-// WorldSettings through SB's player controller and writes the light of the shared clock's hour into SB's env array,
-// from each element's own values, under its own SEH latch; SB's blend does the per-frame work. Lua's sky request picks
-// the map's horizon and heading, a pinned hour or a hold; an off, coop off, SB's theater (a cutscene or a talk scene,
-// in every mode) and the first fault put SB's values back. sky_status() gives coop-status.txt's sky line; the worker
-// logs each change of state.
+// The day/night cycle (world/daynight/sky.h, world/daynight/daynight.lua): every 100 ms, or in the frame SB changes
+// its env array, coop_tick reaches the world's WorldSettings through SB's player controller and writes the light of
+// the shared clock's hour into SB's env array, from each element's own values, under its own SEH latch; SB's blend
+// does the per-frame work. Lua's sky request picks the map's horizon and heading, a pinned hour or a hold; an off,
+// coop off and the first fault put SB's values back. sky_status() gives coop-status.txt's sky line; the worker logs
+// each change of state.
 //
 // The SBO lobby arrival's black (online/lobby/arrival.lua): at Lua's loading lift, coop_tick sets the lifetime of each
 // LoadingScreenFadeAuto entry of tag Load to 0 in SB's UI manager (online/lobby/loading.h), under its own SEH latch, so
@@ -419,7 +419,8 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // The SBO lobby arrival's black lifted, its own latch: one write an ask, after coop off too.
   if (game_pinned && !loading_faulted)
     loading_tick();
-  // The day/night cycle, its own latch: a pass each 100 ms; after coop off only while SB's env array holds our values.
+  // The day/night cycle, its own latch: a pass each 100 ms or when SB changed its env array; after coop off only while
+  // that array holds our values.
   if (game_pinned && !sky_faulted && (!blocked || sky_holding()))
     sky_tick();
   // The game's tutorial and record popups, their own latch: a pass each 250 ms; after coop off or a first fault only

@@ -8,9 +8,10 @@ namespace {
 // ---- The day/night cycle (world/daynight/sky.h, world/daynight/daynight.lua's sky request), the game thread's writes
 // ---- Every sky::kPassMs: SB's player controller (kController, FUN_142321EE0: GEngine's first local player's, null
 // before one exists; it makes nothing), its GetWorld (virtual +0x158), the world's persistent level (+0x30) and the
-// level's WorldSettings (+0x268), the reach of freeze_game.inc's FreezeGame::paused, each pointer checked, then whether
-// SB plays a theater. Then sky::Sky writes the hour's light into SB's env array there, or puts SB's back during a
-// theater; SB's own blend does the per-frame work.
+// level's WorldSettings (+0x268), the reach of freeze_game.inc's FreezeGame::paused, each pointer checked. Then
+// sky::Sky writes the hour's light into SB's env array there; SB's own blend does the per-frame work. Between two
+// passes, while the array holds our values, each frame the same reach and the array's pointer and count read with plain
+// reads.
 // The worker's ask, packed: the mode, the pinned minute, the map's horizon and noon heading.
 std::atomic<uint64_t> sky_want_word{0};
 // What the game thread did, for the worker's line and log: world/daynight/sky.h's State, the worlds seen, the elements
@@ -18,7 +19,7 @@ std::atomic<uint64_t> sky_want_word{0};
 // and the latch.
 std::atomic<uint8_t> sky_state{uint8_t(sky::State::off)};
 std::atomic<uint32_t> sky_worlds{0};
-std::atomic<int> sky_elements{0}, sky_sunlit{0};
+std::atomic<int> sky_elements{0}, sky_sunlit{0}, sky_overlay{0};
 std::atomic<bool> sky_seen{false}, sky_faulted{false};
 std::atomic<double> sky_drawn_hour{-1};
 std::atomic<uint64_t> sky_fault_code{0}, sky_fault_rva{0}, sky_fault_address{0};
@@ -46,25 +47,23 @@ uint64_t utc_ms() {
   return (t - 116444736000000000ULL) / 10000;
 }
 
-// A cutscene or a talk scene plays, by SB's own test (FUN_141e0f720 and FUN_142554300 make it): the theater manager's
-// theater (game/story/engine.h: the global 0x1470375a0, +0x18) set and FUN_1424d70c0 saying it has not finished. The
-// global is read, never made: its getter allocates. Every mode reads it, solo included, with no Lua object search.
-bool sky_theater() {
-  const uintptr_t manager = at<uintptr_t>(base + (story::kManagerAt - game::kImageBase));
-  const uintptr_t theater = game::plausible(manager) ? at<uintptr_t>(manager + story::kCurrent) : 0;
-  return game::plausible(theater) && !game_function<bool (*)(uintptr_t)>(story::kFinished)(theater);
+// SB's player controller, its world and that world's WorldSettings, each pointer checked: 0 for a missing link.
+void sky_reach(uintptr_t &world, uintptr_t &settings) {
+  const uintptr_t pc = game_function<Controller>(kController)();
+  world = game::plausible(pc) ? reinterpret_cast<GetWorld>(at<uintptr_t>(at<uintptr_t>(pc) + kGetWorld))(pc) : 0;
+  const uintptr_t level = game::plausible(world) ? at<uintptr_t>(world + kLevel) : 0;
+  settings = game::plausible(level) ? at<uintptr_t>(level + kWorldSettings) : 0;
+  if (!game::plausible(settings))
+    settings = 0;
 }
 
 __declspec(noinline) void sky_body(const sky::Want &want) {
-  const uintptr_t pc = game_function<Controller>(kController)();
-  const uintptr_t world =
-      game::plausible(pc) ? reinterpret_cast<GetWorld>(at<uintptr_t>(at<uintptr_t>(pc) + kGetWorld))(pc) : 0;
-  const uintptr_t level = game::plausible(world) ? at<uintptr_t>(world + kLevel) : 0;
-  const uintptr_t settings = game::plausible(level) ? at<uintptr_t>(level + kWorldSettings) : 0;
-  const sky::State s =
-      sky_writer.pass(world, game::plausible(settings) ? settings : 0, want, utc_ms(), sky_theater());
+  uintptr_t world = 0, settings = 0;
+  sky_reach(world, settings);
+  const sky::State s = sky_writer.pass(world, settings, want, utc_ms());
   sky_elements = sky_writer.elements();
   sky_sunlit = sky_writer.sunlit();
+  sky_overlay = sky_writer.overlay();
   sky_seen = sky_writer.seen();
   sky_drawn_hour = sky_writer.light().hour;
   sky_state = uint8_t(s);
@@ -74,14 +73,27 @@ __declspec(noinline) void sky_body(const sky::Want &want) {
   }
 }
 bool sky_holding() { return sky_writer.holding(); }
-// Each frame one clock read; a pass each kPassMs. coop off asks for SB's light back: tick.cpp calls this after it
-// only while the array still holds our values. The first fault latches the cycle off for the run, after one try to
-// put SB's values back.
+// Between two passes, while the array holds our values: did SB change it since the last pass (a volume registered,
+// DESIGN 5.2)? Only when the frame reaches the last pass's world and WorldSettings, which that world's level holds, so
+// plain reads: no safe_read, which is ReadProcessMemory on the pinned build (a wineserver round trip a read). Another
+// world waits for the next pass. Out of line: sky_tick's __try catches a fault only in a function it calls.
+__declspec(noinline) bool sky_moved() {
+  uintptr_t world = 0, settings = 0;
+  sky_reach(world, settings);
+  return settings && world == sky_writer.world() && settings == sky_writer.settings() &&
+         sky_writer.moved(at<uintptr_t>(settings + sky::kArray), at<int32_t>(settings + sky::kNum));
+}
+// Each frame one clock read; while the array holds our values, the watch too (two SB calls, six reads). A pass each
+// kPassMs, or in the frame the array changed. coop off asks for SB's light back: tick.cpp calls this after it only
+// while the array still holds our values. The first fault latches the cycle off for the run, after one try to put
+// SB's values back.
 void sky_tick() {
   const uint64_t now = clock_us() / 1000;
-  if (now < sky_next_ms)
+  const bool due = now >= sky_next_ms;
+  if (!due && !sky_writer.holding()) // Between passes only our own array is watched.
     return;
-  sky_next_ms = sky_next_ms + sky::kPassMs > now ? sky_next_ms + sky::kPassMs : now + sky::kPassMs;
+  if (due)
+    sky_next_ms = sky_next_ms + sky::kPassMs > now ? sky_next_ms + sky::kPassMs : now + sky::kPassMs;
   sky::Want want = sky_unpack(sky_want_word);
   if (blocked)
     want.mode = sky::Mode::off;
@@ -91,7 +103,8 @@ void sky_tick() {
     return;
   }
   __try {
-    sky_body(want);
+    if (due || sky_moved())
+      sky_body(want);
   } __except (fault_filter(GetExceptionInformation(), sky_fault_code, sky_fault_rva, sky_fault_address)) {
     sky_faulted = true;
   }
