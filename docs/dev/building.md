@@ -215,7 +215,8 @@ mod/StellarCoop/            the UE4SS mod folder
     world/
       maps/matrix13/        the cut Matrix XIII dungeon, by place then quest: level/ (coop mxiii's travel, rows,
                             boss_rows.lua, ladders, bosses, drone light), quest/ ("On Time" and its words, the talk
-                            player subtitles.lua), talks/ (the talks' lines, one file per talk or zone), culture.lua
+                            player subtitles.lua), talks/ (the talks' lines, one file per talk or zone), culture.lua,
+                            words.lua and text/ (the words in the 21 languages past English and French, generated)
       objects/              shared world: coop world
       daynight/             the day and night cycle
     story/
