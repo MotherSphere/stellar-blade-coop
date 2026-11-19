@@ -1,8 +1,8 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Gun mode's post-process layer (M1). Her body mesh's post-process anim blueprint is swapped for ABP_NGM_Post
--- (gunmode's pak), which takes her finished vanilla pose, plays a rifle clip through its own DefaultSlot on the arms
+-- Gun mode's post-process layer (M1). Her body mesh's post-process anim blueprint is swapped for ABP_NGM_Spike
+-- (Overlay.CLASS, in zNGMSpike_P), which takes her finished vanilla pose, plays a rifle clip through its own DefaultSlot on the arms
 -- only (both clavicles down, mesh-space rotation), then runs the outfit's original post-process graph (BtoB on the
 -- vanilla bodies) as a linked graph tagged Orig. The main anim instance, its springs and the outfit physics are
 -- never touched.
@@ -24,7 +24,7 @@ Overlay.CLIPS={
     reload=NGM..'NGM_R_C_Idle.NGM_R_C_Idle',
 }
 
--- the layer's class is loadable (gunmode's pak is installed)
+-- the layer's class is loadable (zNGMSpike_P is installed)
 function Overlay.available()
     local ok,r=pcall(function()
         local o=StaticFindObject(Overlay.CLASS)

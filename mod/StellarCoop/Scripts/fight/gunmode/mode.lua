@@ -123,14 +123,14 @@ function GunMode.new(env)
     end
     if set.fire_key then Input.FIRE[#Input.FIRE+1]=set.fire_key end
     local aim,data=Aim.new(g),Data.new(g,set.native,{speed=cfg.native_speed,upper=set.upper and 'P_Eve_GunNikke' or nil,cool=cfg.fire_interval,bs=set.bs})
-    -- The rifle: with the animation pak, fight/gunmode/rifle.lua (the rifle in her real hand; the pak's rifle animations play on
-    -- her real body); without it, Luke's posed stance (fight/gunmode/stance.lua).
+    -- The rifle: with the rifle layer or the rifle clips alone (zNGMSpike_P), fight/gunmode/rifle.lua (the rifle in her
+    -- real hand; the rifle clips play on her real body); without them, Luke's posed stance (fight/gunmode/stance.lua).
     local posed=Stance.new(Laser,set.trace and g.log or nil)
     local single=Rifle.new(Laser,set.trace and g.log or nil)
     local stance=posed
     local probe=set.probe and Probe.new(g)
-    -- M1 (11-18 rebuild): the post-process layer (fight/gunmode/overlay.lua, ABP in gunmode's pak) plays the NIKKE rifle clips
-    -- on her arms over her own finished pose; nothing of her main animation, springs or outfit physics is touched.
+    -- The rifle layer (fight/gunmode/overlay.lua: ABP_NGM_Spike in zNGMSpike_P) plays the rifle clips on her arms over
+    -- her own finished pose; nothing of her main animation, springs or outfit physics is touched.
     local layer=Overlay.new(g)
     local keys=Input.state()
     local self={}
@@ -622,8 +622,9 @@ function GunMode.new(env)
             notice(os.clock(),busy==MATCH and 'match' or 'busy')
             return
         end
-        -- The gun mode animation pak (zNikkeGunMode_P): when it is installed, the aim stance's blend spaces point at
-        -- its firing-stance animations while the rifle is out, and her real body shows while aiming (nothing posed).
+        -- The rifle layer first. Without it, the rifle clips alone (cfg.pak_probe, in zNGMSpike_P): the aim stance's
+        -- blend spaces point at the rifle's while the rifle is out. Her real body shows while aiming (nothing posed).
+        -- Without either, Luke's posed stance.
         local okl,inst,why_not=pcall(layer.install,p)
         s.layer=okl and inst==true
         g.log('rifle layer '..(s.layer and 'on' or ('not available: '..tostring(okl and why_not or inst))))

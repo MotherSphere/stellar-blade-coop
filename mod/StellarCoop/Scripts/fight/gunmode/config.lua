@@ -17,7 +17,7 @@ local Config={}
 
 Config.DEFAULTS={
     -- false while gun mode is being rebuilt (2026-11-18): the toggle only says so and nothing of gun mode runs, unless
-    -- the rifle layer (fight/gunmode/overlay.lua's class, in gunmode's pak) is installed, which is the rebuilt path.
+    -- the rifle layer (fight/gunmode/overlay.lua's class, in zNGMSpike_P) is installed, which is the rebuilt path.
     enabled=false,
     pad_tap=0.4,
     fire_interval=0.045, -- The NIKKE shot skill's cool time while the rifle is out (SB ships 0.11 s).
@@ -33,11 +33,12 @@ Config.DEFAULTS={
     reload_sounds={{'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_1_Cue.P_Eve_GunNikke_Reload_1_Cue',0.0},
         {'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_2_Cue.P_Eve_GunNikke_Reload_2_Cue',0.6},
         {'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_3_Cue.P_Eve_GunNikke_Reload_3_Cue',0.85}},
-    -- The gun mode animation pak (zNikkeGunMode_P): one of its animations (to find it) and its blend space, which the
-    -- aim stance's animation set points at while the rifle is out.
     muzzle_every=0.09,muzzle_scale=0.45, -- the flash: at most this often (s), at this size (it stacked into a blaze, 12:07)
     muzzle_fx='/Game/DLC_2/Art/FX/MiniGame/NS_A_NikkeGunFire.NS_A_NikkeGunFire', -- the NIKKE rifle's flash
-    -- The animation pak (zNikkeGunModeAnim_P, 11-18 rebuild): EVE's rifle animation set, new assets only.
+    -- The rifle clips without the rifle layer (fight/gunmode/mode.lua's enable): pak_probe, one of the NGM_R_ clips,
+    -- finds them (in zNGMSpike_P when tools/gunmode/rebuild/ngm_spike_build_a4.py's NGM_REL names their folder). The
+    -- aim stance's animation set then points at the blend spaces below while the rifle is out. New assets only. No
+    -- script in this repository makes these clips or blend spaces.
     pak_probe='/Game/Art/Character/PC/CH_P_EVE_01/Animation/NGM/NGM_R_AimIdle.NGM_R_AimIdle',
     pak_bs='Animation/BlendSpace/P_Eve_NGM_R_BS', -- aiming: 8-way walk + run (her lock-on layout), rifle shouldered
     pak={aim_offset='Animation/Additive/NGM_R_Aim_BS', -- aiming up/down/left/right

@@ -10,7 +10,7 @@
 --   the NIKKE shot. Its ActionValue1 is an FString: an FName written there crashed the game (11-17).
 --   These two are armed (arm, disarm) only around the zone event shots, not for as long as the rifle is out.
 -- * SkillCommandTable: the NIKKE fire commands ShootSlug1_1 and _2 take the burst shot's command type
---   (RangedFireSkill: no check of the equipped bullet), as zNikkeGunMode_P did.
+--   (RangedFireSkill: no check of the equipped bullet), as an earlier build's pak of tables did.
 -- * SkillActiveStepTable: the shot's Hit1 step takes its Cast1 step's type (fires its projectile, spends no round).
 -- * Native fire (fight/gunmode/mode.lua's firing mode on the game's own aim): the drone's normal fire commands
 --   (P_Eve_Gun_Shoot*, every round's) start the NIKKE shot skill instead of the drone's, with the burst's command type
