@@ -143,59 +143,11 @@ function GunMode.new(env)
         return ok
     end
 
-    -- The input mask, as Luke's maskAim makes it: cfg.mask_on_keys on cfg.mask_keys, and cfg.mask_actions on any key,
-    -- set to key None and the keymaps rebuilt; restore() puts each one back. Axis mappings on those keys are only
-    -- logged (the first time) so a later build can mask them if the game reads one.
-    local function mask()
-        local settings=StaticFindObject(SETTINGS)
-        assert(g.valid(settings),'input settings unavailable')
-        local masked_key,on_keys,masked_name={},{},{}
-        for _,k in ipairs(cfg.mask_keys) do masked_key[k]=true end
-        for _,n in ipairs(set.native and cfg.native_mask_on_keys or cfg.mask_on_keys) do on_keys[n]=true end
-        if not set.native then for _,n in ipairs(cfg.mask_actions) do masked_name[n]=true end end
-        local saved,names={},{}
-        settings.ActionMappings:ForEach(function(at,wrapped)
-            local row=wrapped:get()
-            local name,key=row.ActionName:ToString(),row.Key.KeyName:ToString()
-            if key~='None' and ((masked_key[key] and on_keys[name]) or masked_name[name]) then
-                saved[#saved+1]={row=row,key=key,name=name,at=at}
-                names[#names+1]=name..'('..key..')'
-            elseif set.native and name=='TPSMode' and key==cfg.aim_from then -- The game's aim moved to RMB.
-                saved[#saved+1]={row=row,key=key,name=name,to=set.aim_key,at=at}
-                names[#names+1]=name..'('..key..' -> '..set.aim_key..')'
-            end
-        end)
-        assert(#saved<=64,'unexpected action mappings: '..#saved)
-        if not s.axes_logged then
-            s.axes_logged=true
-            local axes={}
-            pcall(function() settings.AxisMappings:ForEach(function(_,wrapped)
-                local row=wrapped:get()
-                local key=row.Key.KeyName:ToString()
-                if masked_key[key] then axes[#axes+1]=row.AxisName:ToString()..'('..key..')' end
-            end) end)
-            g.log('input: axes on the fire and zoom keys (not masked): '..(#axes>0 and table.concat(axes,' ') or 'none'))
-        end
-        local function restore()
-            for _,e in ipairs(saved) do
-                if e.changed then
-                    pcall(function() e.row.Key.KeyName=FName(e.key) end)
-                    e.changed=false
-                end
-            end
-            pcall(function() settings:ForceRebuildKeymaps() end)
-            g.log('input: '..#saved..' mappings put back')
-        end
-        local ok,err=pcall(function()
-            for _,e in ipairs(saved) do e.changed=true; e.row.Key.KeyName=FName(e.to or 'None') end
-            settings:ForceRebuildKeymaps()
-        end)
-        if not ok then restore(); error(err) end
-        g.log('input: masked '..table.concat(names,' '))
-        return restore,saved -- saved: coop-gun.txt's key records (keep)
-    end
-    -- The keys an earlier Lua load masked (coop-gun.txt's key records), each on a mapping of its action that still has
-    -- the masked key: the one at its index, else the first not yet given back. Then the keymaps rebuilt. How many.
+    -- Masked keys given back (coop-gun.txt's key records, from an earlier Lua load or from mask below), each on a
+    -- mapping of its action that still has the masked key: the one at its index, else the first not yet given back.
+    -- Then the keymaps rebuilt. How many. The array is walked again at each call, its rows written in that call only:
+    -- coop fly's AddActionMapping (its exec at 0x14478b400 on 26123051, an AddUnique on InputSettings' array) grows it
+    -- through 0x140e6c0d0, which reallocates its buffer: a row kept from an earlier frame can point into freed memory.
     local function keys_back(records)
         local want={}
         for _,r in ipairs(records) do
@@ -219,6 +171,58 @@ function GunMode.new(env)
         end
         settings:ForceRebuildKeymaps()
         return n
+    end
+    -- The input mask, as Luke's maskAim makes it: cfg.mask_on_keys on cfg.mask_keys, and cfg.mask_actions on any key,
+    -- set to key None and the keymaps rebuilt; restore() puts each one back. Axis mappings on those keys are only
+    -- logged (the first time) so a later build can mask them if the game reads one.
+    local function mask()
+        local settings=StaticFindObject(SETTINGS)
+        assert(g.valid(settings),'input settings unavailable')
+        local masked_key,on_keys,masked_name={},{},{}
+        for _,k in ipairs(cfg.mask_keys) do masked_key[k]=true end
+        for _,n in ipairs(set.native and cfg.native_mask_on_keys or cfg.mask_on_keys) do on_keys[n]=true end
+        if not set.native then for _,n in ipairs(cfg.mask_actions) do masked_name[n]=true end end
+        local saved,names,rows={},{},{} -- rows: the mappings to mask, written in this call only (keys_back)
+        settings.ActionMappings:ForEach(function(at,wrapped)
+            local row=wrapped:get()
+            local name,key=row.ActionName:ToString(),row.Key.KeyName:ToString()
+            if key~='None' and ((masked_key[key] and on_keys[name]) or masked_name[name]) then
+                saved[#saved+1]={key=key,name=name,at=at}
+                rows[#saved]=row
+                names[#names+1]=name..'('..key..')'
+            elseif set.native and name=='TPSMode' and key==cfg.aim_from then -- The game's aim moved to RMB.
+                saved[#saved+1]={key=key,name=name,to=set.aim_key,at=at}
+                rows[#saved]=row
+                names[#names+1]=name..'('..key..' -> '..set.aim_key..')'
+            end
+        end)
+        assert(#saved<=64,'unexpected action mappings: '..#saved)
+        if not s.axes_logged then
+            s.axes_logged=true
+            local axes={}
+            pcall(function() settings.AxisMappings:ForEach(function(_,wrapped)
+                local row=wrapped:get()
+                local key=row.Key.KeyName:ToString()
+                if masked_key[key] then axes[#axes+1]=row.AxisName:ToString()..'('..key..')' end
+            end) end)
+            g.log('input: axes on the fire and zoom keys (not masked): '..(#axes>0 and table.concat(axes,' ') or 'none'))
+        end
+        local function restore()
+            local back={}
+            for _,e in ipairs(saved) do
+                if e.changed then back[#back+1]={'key',e.name,e.key,e.to or 'None',tostring(e.at)}; e.changed=false end
+            end
+            local done,n=pcall(keys_back,back)
+            g.log('input: '..(done and n..' of '..#back..' mappings put back'
+                or 'mappings not put back ('..tostring(n)..')'))
+        end
+        local ok,err=pcall(function()
+            for i,e in ipairs(saved) do e.changed=true; rows[i].Key.KeyName=FName(e.to or 'None') end
+            settings:ForceRebuildKeymaps()
+        end)
+        if not ok then restore(); error(err) end
+        g.log('input: masked '..table.concat(names,' '))
+        return restore,saved -- saved: coop-gun.txt's key records (keep)
     end
 
     -- The point under the screen centre: the camera's line traced (visibility and camera channels, EVE ignored), or
