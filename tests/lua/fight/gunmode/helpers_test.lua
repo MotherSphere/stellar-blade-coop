@@ -2,8 +2,9 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode's pure parts with lua5.4 alone: its settings lines, the polled keys' edges and taps, the crosshair point in
--- EVE's frame, the rifle's magazine (rounds, reloads, the HUD count, running dry, a refill) and the one zone event
--- gun mode may fire.
+-- EVE's frame, the rifle's magazine (rounds, reloads, the HUD count, running dry, a refill), the one zone event gun
+-- mode may fire, mode.lua's camera helpers, the rifle layer's clip paths and mesh records (overlay.lua) and the rifle
+-- solver's quaternion math (ik.lua).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Config=require('fight.gunmode.config')
 local Input=require('fight.gunmode.input')
@@ -127,6 +128,78 @@ do
     Data.BORROWED.Fire[1]='Nikke_02_E_ActorEff_001'
     assert(GunMode.allowed(2,'Nikke_02_E_ActorEff_001') and not GunMode.allowed(2,fire))
     Data.BORROWED.Fire[1]=fire
+end
+
+-- 6. mode.lua's camera helpers: the point d along a camera's forward (the crosshair's trace runs from 0 to its range)
+--    and the eased step of the zoom and the field of view.
+do
+    local GunMode=require('fight.gunmode.mode')
+    local function at(p,x,y,z) return close(p.X,x,1e-9) and close(p.Y,y,1e-9) and close(p.Z,z,1e-9) end
+    local o={X=10,Y=20,Z=30}
+    assert(at(GunMode.ahead(o,{Pitch=0,Yaw=0,Roll=0},100),110,20,30))
+    assert(at(GunMode.ahead(o,{Pitch=0,Yaw=90,Roll=0},100),10,120,30))
+    assert(at(GunMode.ahead(o,{Pitch=90,Yaw=45,Roll=0},100),10,20,130))
+    assert(at(GunMode.ahead(o,{Pitch=30,Yaw=180,Roll=0},0),10,20,30))
+    local p=GunMode.ahead({X=0,Y=0,Z=0},{Pitch=-30,Yaw=0,Roll=0},200)
+    assert(close(p.X,200*math.cos(math.rad(30))) and close(p.Z,-100))
+    assert(GunMode.ease(0,10,0.25)==2.5 and GunMode.ease(4,4,0.5)==4 and GunMode.ease(66,45,1)==45
+        and GunMode.ease(45,66,0)==45)
+end
+
+-- 7. overlay.lua's parts that need no engine: the rifle clips sit in one folder as object paths. The meshes the layer
+--    went on (records for coop-gun.txt, adopt from an earlier Lua load's records) keep the first class listed.
+do
+    local Overlay=require('fight.gunmode.overlay')
+    for clip,path in pairs(Overlay.CLIPS) do
+        local name=path:match('^/Game/Art/Character/PC/CH_P_EVE_01/Animation/NGM/([%w_]+)%.([%w_]+)$')
+        assert(name and path:match('%.(.+)$')==name,clip..': '..path)
+    end
+    assert(Overlay.CLASS:match('^/Game/Mods/NGM/ABP_NGM_Spike%.ABP_NGM_Spike_C$'))
+    local g={log=function() end,try=function(f) local ok,r=pcall(f); if ok then return r end end}
+    local layer=Overlay.new(g)
+    assert(#layer.records()==0)
+    layer.adopt('/Game/A/Body','/Game/A/PP_C')
+    layer.adopt('/Game/A/Body','/Game/Other/PP_C') -- Listed already: its first class stays.
+    layer.adopt('/Game/B/Body','')                 -- A body with no post-process class of its own.
+    local got={}
+    for _,r in ipairs(layer.records()) do assert(r[1]=='pp'); got[r[2]]=r[3] end
+    assert(got['/Game/A/Body']=='/Game/A/PP_C' and got['/Game/B/Body']=='' and #layer.records()==2)
+end
+
+-- 8. ik.lua's math (UE's conventions): a rotator to a quaternion and back, a vector turned by a quaternion, the
+--    rotation of an orthonormal frame and the frame made orthonormal.
+do
+    local Q=require('fight.gunmode.ik').math
+    local function at(v,x,y,z) return close(v.X,x,1e-9) and close(v.Y,y,1e-9) and close(v.Z,z,1e-9) end
+    local X,Y,Z={X=1,Y=0,Z=0},{X=0,Y=1,Z=0},{X=0,Y=0,Z=1}
+    -- As FRotator::Quaternion: yaw turns forward (X) to the right (Y), pitch turns it up (Z), roll turns the right (Y)
+    -- down (-Z).
+    assert(at(Q.qrot(Q.rot2q({Pitch=0,Yaw=90,Roll=0}),X),0,1,0))
+    assert(at(Q.qrot(Q.rot2q({Pitch=90,Yaw=0,Roll=0}),X),0,0,1))
+    assert(at(Q.qrot(Q.rot2q({Pitch=0,Yaw=0,Roll=90}),Y),0,0,-1))
+    for _,r in ipairs({{Pitch=0,Yaw=0,Roll=0},{Pitch=30,Yaw=-120,Roll=15},{Pitch=-80,Yaw=170,Roll=-45},
+            {Pitch=10,Yaw=45,Roll=179}}) do
+        local b=Q.q2rot(Q.rot2q(r))
+        assert(close(b.Pitch,r.Pitch,1e-6) and close(b.Yaw,r.Yaw,1e-6) and close(b.Roll,r.Roll,1e-6),
+            ('%g %g %g -> %g %g %g'):format(r.Pitch,r.Yaw,r.Roll,b.Pitch,b.Yaw,b.Roll))
+    end
+    assert(close(Q.q2rot(Q.rot2q({Pitch=90,Yaw=0,Roll=0})).Pitch,90,1e-6))
+    -- qmul(a,b) is a after b; qinv undoes a unit quaternion.
+    local a,b=Q.rot2q({Pitch=0,Yaw=90,Roll=0}),Q.rot2q({Pitch=90,Yaw=0,Roll=0})
+    assert(at(Q.qrot(Q.qmul(a,b),X),0,0,1) and at(Q.qrot(Q.qmul(b,a),X),0,1,0))
+    assert(at(Q.qrot(Q.qmul(Q.qinv(a),a),{X=3,Y=-2,Z=5}),3,-2,5))
+    -- frame_q(x,z): the rotation taking X onto x and Z onto z.
+    assert(at(Q.qrot(Q.frame_q(X,Z),{X=3,Y=-2,Z=5}),3,-2,5))
+    for _,r in ipairs({{Pitch=30,Yaw=-120,Roll=15},{Pitch=-80,Yaw=170,Roll=-45},{Pitch=5,Yaw=0,Roll=-170}}) do
+        local q=Q.rot2q(r)
+        local x,z=Q.qrot(q,X),Q.qrot(q,Z)
+        local f=Q.frame_q(x,z)
+        local fx,fz=Q.qrot(f,X),Q.qrot(f,Z)
+        assert(at(fx,x.X,x.Y,x.Z) and at(fz,z.X,z.Y,z.Z),('%g %g %g'):format(r.Pitch,r.Yaw,r.Roll))
+    end
+    -- ortho(x,z): x made unit, z the unit part of z square to x.
+    local ox,oz=Q.ortho({X=2,Y=0,Z=0},{X=1,Y=0,Z=3})
+    assert(at(ox,1,0,0) and at(oz,0,0,1))
 end
 
 print('gunmode helpers: ok')

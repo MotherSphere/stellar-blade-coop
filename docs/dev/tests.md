@@ -54,7 +54,10 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   Right's tap (a hold is the bike's), the crosshair point in EVE's frame and the rifle's magazine (a round per cool
   time, the reload when empty or lowered part-spent, the HUD count, no round once the spares are spent, a refill). The
   reticle's round slot shows the round's name, the reload word and the empty word in the menu's language. It reads
-  the words once a second, not on each frame;
+  the words once a second, not on each frame. It also covers `mode.lua`'s point along a camera's forward and its eased
+  step, then the rifle layer's clip paths (one folder, object paths) and its mesh records: an earlier load's record
+  keeps the first class listed. Last, `ik.lua`'s quaternion math against UE's conventions: rotator to quaternion and
+  back, a vector turned, two turns in order, a frame's rotation and a frame made orthonormal;
 - `fight/gunmode/cost_test` counts gun mode's engine calls over `fight/gunmode/fake.lua`. With the rifle away (parked or
   not) 600 frames look up nothing, never ask whether the game is paused and poll two keys a frame (`gun_key` and D-pad
   Right). A press while the game is paused does nothing. The dev facts probe still waits out a pause. With no player
