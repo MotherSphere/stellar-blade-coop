@@ -12,6 +12,8 @@
 local Config={}
 
 Config.DEFAULTS={
+    -- false while gun mode is being rebuilt (2026-11-18): the toggle only says so, and nothing of gun mode runs.
+    enabled=false,
     key='G',
     pad_tap=0.4,
     fire_interval=0.045, -- The NIKKE shot skill's cool time while the rifle is out (SB ships 0.11 s).
