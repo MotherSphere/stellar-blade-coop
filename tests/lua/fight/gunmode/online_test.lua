@@ -64,7 +64,7 @@ do
 end
 
 -- 2. M11: the laser is spawned at the muzzle, attached to nothing (its end is NC_NikkeMinigame's LaserPosition, one
---    value per world: on a partner's game a copy would end at theirs), and each update moves it to the muzzle.
+--    value per world: on a partner's game a copy would end at theirs). Each update moves it to the muzzle.
 do
     local Laser=require('fight.gunmode.laser')
     local attached,at,beam=0,{},nil
