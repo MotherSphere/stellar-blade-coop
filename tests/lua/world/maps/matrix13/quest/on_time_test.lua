@@ -10,7 +10,8 @@
 -- talk player (world/maps/matrix13/quest/subtitles.lua: play, arm, playing, cutscene, holds, stop). Covered: its 25
 -- rows against signal_rows.h's kSignalRecipe and kSignalPatches (names, templates, IDs, each patched field's kind and
 -- value, no field more, the quest rows last of their rows and the choice row patched in place last); the words in
--- English and French (every line, French for any French culture, English for the others); nothing off a co-op save; no
+-- each of the game's 23 cultures (every line, a culture with a region or script read as its own, English with no
+-- language, no culture's L2 equal to any L); nothing off a co-op save; no
 -- test pak: no rows at the title or in game, no quest unit read; with it, the title's batch with only the 5 tables its
 -- rows use; the words written once the rows read back (no PolyglotDataToText call), a row that is not the one known
 -- stopping them and her choice for the Lua load; the words written again on a change of the game's language, at the
