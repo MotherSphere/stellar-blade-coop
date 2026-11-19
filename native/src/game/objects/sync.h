@@ -42,6 +42,9 @@
 // touched entry whose state is a kept pair as a c line, then c end with their count. An ask for a zone with no entry
 // is answered with c end 0 at once. Her c line meets our value (live, else its record, else the table's initial one):
 //   the same value: nothing, counted same;
+//   a root of ours for that env sent after the question her line answers (our ask for its zone, or her ask, which her
+//   send-back follows): she read hers before our line reached her. Ours kept, host or guest, sent nowhere: our root's
+//   own line brings it to her;
 //   ours touched into a state held out for its player (a passcode door typed open): ours kept, host or guest;
 //   ours untouched, or we are a guest: hers applied, a state change first, then an Enable or Disable;
 //   else (we host, ours touched): ours kept. When we wait for that zone's answer, ours goes back to her as a c line,
@@ -337,8 +340,9 @@ struct Counters {
   // Her lines: received (s, a, e, l and c), applied, refused (by the lists or the game), gated (the feature off on
   // either side, or a match lobby), overflow (the queue full), bad (malformed, or an old seq), gaps (a seq skipped).
   uint64_t received = 0, applied = 0, refused = 0, gated = 0, overflow = 0, bad = 0, gaps = 0;
-  // Catch-up: asked (our c ask lines), caught (her c lines applied), kept (ours kept: a state held out for us, or the
-  // host's touched value), same (hers equal to ours). Her c lines count in received or refused too, never in applied.
+  // Catch-up: asked (our c ask lines), caught (her c lines applied), kept (ours kept: a newer root of ours, a state
+  // held out for us, or the host's touched value), same (hers equal to ours). Her c lines count in received or refused
+  // too, never in applied.
   uint64_t asked = 0, caught = 0, kept = 0, same = 0;
 };
 
@@ -554,6 +558,8 @@ private:
     }
     out.push_back(line);
     ++seq_, ++counters.sent;
+    if (m.type != Type::event)
+      rooted_[m.alias] = ++tick_;
   }
 
   // Her values by env or row, for the echo backstop: an applied line stops the same root of ours for kEchoMs, once.
@@ -620,7 +626,7 @@ private:
   // Closed or a new partner: the catch-up in progress goes, our zone is asked again once it holds.
   void forget() {
     asks_.clear(), walked_ = 0, walk_sent_ = 0, asked_zone_.clear();
-    waiting_.clear(), sent_back_.clear(), tallies_.clear();
+    waiting_.clear(), answered_.clear(), sent_back_.clear(), tallies_.clear();
   }
 
   void zone_line(Type t, const std::string &zone, uint32_t count) {
@@ -650,7 +656,7 @@ private:
     if (now_ms < seen_at_ + kAskHoldMs || *zone == asked_zone_)
       return;
     asked_zone_ = *zone;
-    waiting_.insert(*zone);
+    waiting_[*zone] = ++tick_, answered_.erase(*zone); // Her later lines follow all we sent before this ask.
     ++counters.asked;
     zone_line(Type::ask, *zone, 0);
   }
@@ -663,6 +669,7 @@ private:
         log.push_back("world: the partner asked for " + zone + ", which has no env on the catch-up list, said once");
       return zone_line(Type::end, zone, 0);
     }
+    answered_[zone] = ++tick_;
     if (std::find(asks_.begin(), asks_.end(), zone) == asks_.end())
       asks_.push_back(zone);
   }
@@ -698,11 +705,12 @@ private:
       ++counters.same, ++t.same;
       return;
     }
-    if (ours && (!state_allowed(m.alias, v.tag) || gates_.host)) {
+    const bool newer = newer_root(m);
+    if (newer || (ours && (!state_allowed(m.alias, v.tag) || gates_.host))) {
       ++counters.kept, ++t.kept;
-      // Held out for us (a passcode door typed open) stays ours, sent nowhere. The host's value goes back, only for its
-      // own ask, so two sides that both host cannot ping-pong.
-      if (state_allowed(m.alias, v.tag) && waiting_.count(m.zone))
+      // A newer root of ours and a state held out for us (a passcode door typed open) stay ours, sent nowhere. The
+      // host's value goes back, only for its own ask, so two sides that both host cannot ping-pong.
+      if (!newer && state_allowed(m.alias, v.tag) && waiting_.count(m.zone))
         ++sent_back_[m.zone], send_catchup(e, v);
       return;
     }
@@ -719,6 +727,16 @@ private:
       }
     ++counters.caught, ++t.caught, t.live += live;
     remember(*first, now_ms); // The state part, the one a graph could send back.
+  }
+
+  // A root of ours for her c line's env went out after the question that line answers: our ask for its zone, or her
+  // ask, which her send-back follows. Her lines read the env before ours reached her, so ours is the newer value.
+  bool newer_root(const Message &m) const {
+    const auto r = rooted_.find(m.alias);
+    if (r == rooted_.end())
+      return false;
+    const auto w = waiting_.find(m.zone), a = answered_.find(m.zone);
+    return (w != waiting_.end() && r->second > w->second) || (a != answered_.end() && r->second > a->second);
   }
 
   // Her answer for a zone is complete: its tallies logged and dropped, our lines sent back for it closed.
@@ -757,7 +775,10 @@ private:
   // Our ask: the zone seen in game and since when, the last open in-game pass, the last zone asked.
   std::string seen_zone_, asked_zone_;
   uint64_t seen_at_ = 0, in_game_at_ = 0;
-  std::set<std::string> waiting_;              // Zones we asked, until her c end.
+  // Marks in send order (tick_): our last root line per env, the zones we asked until her c end, the zones she asked
+  // since our last ask for them. A root marked after the question her c line answers is newer than her value.
+  uint64_t tick_ = 0;
+  std::map<std::string, uint64_t> rooted_, waiting_, answered_;
   std::map<std::string, uint32_t> sent_back_;  // Our c lines sent back per zone, closed by our c end.
   struct Tally {
     uint64_t caught = 0, live = 0, kept = 0, same = 0, refused = 0;

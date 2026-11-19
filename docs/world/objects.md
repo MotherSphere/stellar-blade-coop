@@ -72,7 +72,7 @@ game asks your friend's for the doors, levers and switches she changed in the zo
 change made while you were in another zone, or while you were not linked, comes in this way too. When both of you
 changed the same one differently, the host's state ends in both games. Only the objects the game saves take part, not
 those it resets when you rest. The catch-up leaves a door you opened with its passcode open in your game, whatever your
-friend's door shows.
+friend's door shows. An object you work while her answer is on its way keeps your new state.
 
 ## The setting
 
@@ -98,9 +98,9 @@ on after such an error.
 - `world=off why=build`: another game build. `world=off why=coop_off`: after `coop off`.
 
 The line goes on with counters: `sent=` your changes sent, `received=` and `applied=` hers, `refused=` the ones your game did not make and `queued=` those that wait while you load. The catch-up adds `asked=` (the zones
-your game asked for), `caught=` (her changes it took), `kept=` (your own state kept: the host's, or a door opened with
-its passcode) and `same=` (hers already equal to yours). The others are described in
-[Shared world: how it works](objects-internals.md#status-line).
+your game asked for), `caught=` (her changes it took), `kept=` (your own state kept: the host's, a door opened with
+its passcode, or one you changed while her answer was on its way) and `same=` (hers already equal to yours). The
+others are described in [Shared world: how it works](objects-internals.md#status-line).
 
 ## Not shared yet
 

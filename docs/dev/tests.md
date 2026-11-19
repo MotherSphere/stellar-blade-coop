@@ -923,9 +923,10 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   tags kept through a load and a stream, forgotten at a zone change, a close or a new partner, its line on the gates
   and the shared `seq`) and when an env counts as touched. The catch-up by zone: the ask after its 2 s hold and again
   after a load, her `on` or a close of our side, the walk and its resume after a load, an ask for a zone with no entry,
-  the receiver rule for host and guest (a state held out for us kept, nothing sent back), a `c` line applied as a state
-  then an Enable or Disable, the host's value sent back, a close in the middle of an answer, the walk's filters, one
-  answer per ask, the ObjectState compare and a partner that never answers;
+  the receiver rule for host and guest (a state held out for us kept, nothing sent back), a `c` line older than a root
+  of ours kept (her answer or her send-back), a `c` line applied as a state then an Enable or Disable, the host's value
+  sent back, a close in the middle of an answer, the walk's filters, one answer per ask, the ObjectState compare and a
+  partner that never answers;
 - `game_objects_engine_test`: `game/objects/engine.h` over fake memory and fake game functions: the four roots read from
   their nodes (a named target, `self` through the owner env, an ObjectState of 0, a linked env inside and outside its
   owner's list or not live in our zone, values no line carries), and her lines applied: A1 and each of its guards, a

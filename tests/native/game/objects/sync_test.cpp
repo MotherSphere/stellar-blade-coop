@@ -10,8 +10,8 @@
 // apply limit per pass, the echo backstop, refusals logged once per env, a new partner, the status line, tags compared
 // without case, the watcher that sends the AltesLab trap floor's end and the catch-up by zone: when an env counts as
 // touched, the ask and its hold (asked again after a load or a close), the walk and its resume after a load, an ask
-// for an unknown zone, the receiver rule with the host's value winning and sent back, a close in the middle of an
-// answer and a partner that never answers.
+// for an unknown zone, the receiver rule with the host's value winning and sent back, a c line older than a root of
+// ours (an answer or a send-back), a close in the middle of an answer and a partner that never answers.
 #include "game/objects/sync.h"
 
 #include <algorithm>
@@ -967,6 +967,51 @@ void test_receive_rule() {
     assert(k.s.counters.kept == 1 && k.f.applied.empty() && k.take().empty());
   }
 }
+// Her c line read before our newer root reached her (DED20_EnvS_193: Closed at first, Open a kept pair). The asker
+// asks, her walk reads Open, then the asker closes the door. Her answer arrives after the asker's s line reached her:
+// the asker keeps its Closed, host or guest, and sends nothing back, so both worlds end Closed.
+void test_stale_answer() {
+  const std::pair<std::string, std::string> x{"Zone_DED20", "DED20_EnvS_193"};
+  for (bool host_asks : {false, true}) {
+    Pair p;
+    p.ga.host = true;
+    Sync &k = host_asks ? p.a : p.b, &o = host_asks ? p.b : p.a;
+    Fake &fk = host_asks ? p.fa : p.fb, &fo = host_asks ? p.fb : p.fa;
+    Ring &rk = host_asks ? p.ra : p.rb, &ro = host_asks ? p.rb : p.ra;
+    const Gates &gk = host_asks ? p.ga : p.gb, &go = host_asks ? p.gb : p.ga;
+    fk.here = "Zone_DED20";                                          // only the asker asks
+    fk.values[x] = fo.values[x] = Value{Where::live, "Open", 1};
+    p.step();
+    while (!k.counters.asked)
+      k.pass(gk, rk, p.now += 100);
+    Pair::deliver(k, o, go), o.pass(go, ro, p.now += 100);           // her walk reads Open
+    rk.push(root(fk, Kind::state, "DED20_EnvS_193", "Closed")), fk.values[x].tag = "Closed";
+    k.pass(gk, rk, p.now += 100), Pair::deliver(k, o, go), o.pass(go, ro, p.now += 100);
+    Pair::deliver(o, k, gk), k.pass(gk, rk, p.now += 100);           // her answer, read before our s line came
+    assert(fo.values[x].tag == "Closed" && fk.values[x].tag == "Closed");
+    assert(k.counters.kept == 1 && k.counters.caught == 0 && k.out.empty());
+  }
+}
+// Her send-back read before our newer root reached her. The host asks, the guest's walk sends ToClosed, then the guest
+// closes the door. The host keeps its Open and sends it back before the guest's s line reaches it. The guest keeps its
+// Closed, which its s line brought to the host.
+void test_stale_send_back() {
+  const std::pair<std::string, std::string> x{"Zone_DED20", "DED20_EnvS_193"};
+  Pair p;
+  p.ga.host = true, p.fa.here = "Zone_DED20";                        // only the host asks
+  p.fa.values[x] = Value{Where::live, "Open", 1};
+  p.fb.values[x] = Value{Where::live, "ToClosed", 1};
+  p.step();
+  while (!p.a.counters.asked)
+    p.a.pass(p.ga, p.ra, p.now += 100);
+  Pair::deliver(p.a, p.b, p.gb), p.b.pass(p.gb, p.rb, p.now += 100); // her walk: c ToClosed, c end
+  p.rb.push(root(p.fb, Kind::state, "DED20_EnvS_193", "Closed")), p.fb.values[x].tag = "Closed";
+  p.b.pass(p.gb, p.rb, p.now += 100);                                // her s line after her answer
+  Pair::deliver(p.b, p.a, p.ga), p.a.pass(p.ga, p.ra, p.now += 100); // Open kept and sent back, then Closed applied
+  assert(p.a.counters.kept == 1 && p.fa.values[x].tag == "Closed" && !p.a.out.empty());
+  Pair::deliver(p.a, p.b, p.gb), p.b.pass(p.gb, p.rb, p.now += 100); // the send-back, read before her s line came
+  assert(p.fb.values[x].tag == "Closed" && p.b.counters.kept == 1 && p.b.counters.caught == 0);
+}
 void test_receive_applies() {
   Side x;  // the water gate: ours reads none, so Off and Disable
   x.s.receive(T + "c 1 Zone_ME_04 ME_04_EnvS_099 On 1", x.g), x.pass();
@@ -1128,6 +1173,8 @@ int main() {
   test_walk_resume();
   test_unknown_zone();
   test_receive_rule();
+  test_stale_answer();
+  test_stale_send_back();
   test_receive_applies();
   test_host_sends_back();
   test_close_mid_answer();

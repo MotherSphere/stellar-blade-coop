@@ -290,14 +290,22 @@ Her `c` line meets our value of that env: live, else its record, else the entry'
 | Our value | Done | Counted |
 | --- | --- | --- |
 | the same as hers (tag case ignored; the ObjectState only for an alias on the ObjectState list) | nothing | `same` |
+| changed by a root of ours sent after the question her line answers (our ask for the zone, or her ask, which her send-back follows) | ours kept, host or guest; nothing applied or sent back | `kept` |
 | touched into a state that is not a kept pair (held out for its player: a passcode door typed open, a quest state, the WLB_20 supply chain's `On`) | ours kept, host or guest; nothing applied or sent back | `kept` |
 | untouched, or we are a guest | hers applied: the state as an `s` line when the tags differ (A1 live, A2 offline), then the Enable or Disable as an `a` line when it differs | `caught` |
 | touched, we are the host | ours kept | `kept` |
 
 When the host keeps its value under the last row for a zone it asked and still waits for, it sends its own value back
 as a `c` line. After her `c end` it closes those lines with its own `c end <zone> <n>`. The guest takes them under the
-third row, so the host's value ends in both worlds, even for a guest who asked that zone long before. Only a zone the
+fourth row, so the host's value ends in both worlds, even for a guest who asked that zone long before. Only a zone the
 host asked gets lines sent back, so two sides that both think they host cannot ping-pong.
+
+Her `c` line can be older than a root of ours. Her walk reads the env after she takes our ask. Her send-back reads it
+when she takes our `c` line. A root of ours sent after that ask or that `c` line may not have reached her yet. Each
+side marks, in send order, its last root line per env (`s`, `a`, `l` and the watcher's `s`), its asks until her
+`c end` and her asks until its own next ask for that zone. Her `c` line for an env whose root mark is later than our
+ask for the zone, or than her ask for it, goes under the second row: our root's own line brings our value to her. A
+root sent before the question reached her before her read, since she takes our lines in order.
 
 `c` lines leave the queue with her live lines in arrival order, 8 a pass in all (`kApplyPerPass`). They go through
 phase 1's apply with its guards. A `c` line whose state part is refused skips its ObjectState part. The echo backstop
@@ -373,7 +381,7 @@ after a fault.
 | `gaps` | `seq` numbers skipped |
 | `asked` | our `c ask` lines |
 | `caught` | her `c` lines our game made |
-| `kept` | her `c` lines where ours stayed: a state held out for us, or the host's touched value |
+| `kept` | her `c` lines where ours stayed: a newer root of ours, a state held out for us, or the host's touched value |
 | `same` | her `c` lines equal to our value |
 | `hooks` | the slots of ours in place, out of 4 |
 | `inbox_dropped` | her lines dropped before the game thread took them |
@@ -405,6 +413,8 @@ come from the `world=` line: on with her each time it reads `on` after anything 
 - Her live line can move our env out of a state held out for us, such as a passcode door typed open: her `s` line for
   that door's `CallPuzzle` puts it back there in our game (A1). The catch-up keeps such a state; phase 1's live lines
   do not.
+- The check of her `c` line against a newer root of ours looks only at the env that root names. An env its events
+  change in turn (the door a lever opens) carries no mark, so her older `c` line for that door is still taken.
 - 212 kept pairs of 106 aliases are spelled `off` and `on` in lowercase, 15 of those aliases on `kZoneEnvs` (`WLB_60`
   7, `WLA_10` 2, `WLB_30` 1, test maps 5). The kept-pair checks are exact. If the game's FName text for them reads
   `Off` and `On`, the roots and the catch-up both skip them. Not measured.
