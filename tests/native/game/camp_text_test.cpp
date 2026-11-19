@@ -103,8 +103,11 @@ int main() {
   const std::u16string memory = text(u"Records_MX13_Z4_04_Desc", en);
   const std::u16string memory_end = u"You kept the secret of the letter, like I asked.\n... ... ...";
   assert(memory.size() > memory_end.size() && memory.substr(memory.size() - memory_end.size()) == memory_end);
-  assert(text(u"Records_MX13_Z4_04_Desc", fr).find(u"Tu as gard\u00e9 le secret de la lettre, comme je te l'avais demand\u00e9.\n... ... ...") != std::u16string::npos);
-  assert(text(u"Records_MX13_Z1_07_Title", en) == u"For Yohan" && text(u"Records_MX13_00_Title", fr) == u"Des trains sous le sable");
+  assert(text(u"Records_MX13_Z4_04_Desc", fr)
+             .find(u"Tu as gard\u00e9 le secret de la lettre, comme je te l'avais demand\u00e9.\n... ... ...") !=
+         std::u16string::npos);
+  assert(text(u"Records_MX13_Z1_07_Title", en) == u"For Yohan" &&
+         text(u"Records_MX13_00_Title", fr) == u"Des trains sous le sable");
   assert(text(u"Records_MX13_00_Title", ja) != text(u"Records_MX13_00_Title", en));
   std::puts("camp_text_test passed");
 }
