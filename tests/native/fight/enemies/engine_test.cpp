@@ -35,6 +35,7 @@
 #include <random>
 #include <string>
 #include <thread>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -312,7 +313,8 @@ struct Game {
                                {kFinishReady, 1 << 30, 0, kNoDamageNoHit}, {kFinishDispel, 1, 0, 0},
                                {kFloorDispel, 6, 0, 0}, {5025007, 30, 0, kBlockAiState},
                                {5025010, 30, 0, kBlockAiState}, {5041011, 30, 0, kBlockAiState},
-                               {pvp::kOffHud, 1 << 30, 0, 0}, {pvp::kNoWarp, 1 << 30, 0, 0}};
+                               {pvp::kOffHud, 1 << 30, 0, 0}, {pvp::kNoWarp, 1 << 30, 0, 0},
+                               {2003000, 12, 0, 0}};
     for (const Row &r : rows)
       if (r.id == id)
         return r;
@@ -553,6 +555,25 @@ struct Game {
       mem.put(la + kLastPlayer, mem.get<uint32_t>(caster + kGuid));
     const Body::Running e{mem.alloc(0x110), id, 0};
     if (starts_now || id == kFinishDispel || id == kFloorDispel)
+      start(la, e);
+    else
+      starting.push_back({la, e});
+    return e.at;
+  }
+  // FUN_141ad1af0 with a context FUN_141acb6f0 filled and poise::fill_context wrote (Engine::cast with a time): the
+  // row, the life in seconds and the value, kept in timed, never in casts. The effect holds the life at its +0x74;
+  // otherwise it starts as effect() starts one.
+  std::vector<std::tuple<int32_t, float, float>> timed;
+  uint64_t effect_ctx(uint64_t lg, uint64_t la, uint64_t caster, int32_t id, float life_s, float value) {
+    timed.emplace_back(id, life_s, value);
+    (void)lg;
+    if (bodies[la].immune || id == bodies[la].refuses)
+      return 0;
+    if (marks_last && caster != la)
+      mem.put(la + kLastPlayer, mem.get<uint32_t>(caster + kGuid));
+    const Body::Running e{mem.alloc(0x120), id, 0};
+    mem.put(e.at + poise::kEffectLife, life_s);
+    if (starts_now)
       start(la, e);
     else
       starting.push_back({la, e});
@@ -1168,6 +1189,24 @@ int main() {
     g.inbox.push_back(msg("SBF23 on"));
     frame(g, *e, 0);
     assert(e->seen()[0].guid == 101 && e->seen()[0].poise == 2.5f && e->seen()[0].type == kTypeMonster);
+  }
+  { // A mirrored flinch of 200 ms starts HitStun through the context call with 0.2 s and 0; a mirrored crowd control
+    // (ms 0) goes through today's call with no context.
+    Game g;
+    auto e = engine(true, true);
+    g.spawn(101, 5001, 0);
+    g.inbox.push_back(msg("SBF23 on"));
+    uint64_t t = 0;
+    frame(g, *e, t);
+    g.inbox.push_back(msg("SBF23 cc 1 101 2003000 1 200"));
+    frame(g, *e, t += 16);
+    assert(g.timed.size() == 1 && std::get<0>(g.timed[0]) == 2003000 && std::get<1>(g.timed[0]) == 0.2f &&
+           std::get<2>(g.timed[0]) == 0.0f && g.casts.empty() && e->host.counts.flinch_mirrored == 1);
+    for (const uint64_t end = t + 400; t < end;) // HitStun ends (12 turns).
+      frame(g, *e, t += 16);
+    g.inbox.push_back(msg("SBF23 cc 1 101 3000300 1 0"));
+    frame(g, *e, t += 16);
+    assert(g.timed.size() == 1 && g.cast_ids(101).back() == 3000300);
   }
 
   // ---- guest_kills=confirmed: the 1 HP floor, ApplyStat(107, +1) on every paired copy, comes off on every way out:
@@ -4753,7 +4792,8 @@ int main() {
     g.inbox.push_back(msg("SBF23 on"));
     frame(g, *e, 16);
     const std::string first = lines(g); // Their values wait for the next turn, which reads them scaled.
-    assert(has(first, "SBF23 world 1\nSBF23 scale 1 135 115\nSBF23 up 1 101 5001 0 900 1600\n") && !has(first, " hp "));
+    assert(has(first, "SBF23 world 1\nSBF23 scale 1 135 115\nSBF23 stagger 1 1 1\nSBF23 up 1 101 5001 0 900 1600\n") &&
+           !has(first, " hp "));
     assert(made(0, 101, {{3, 560}, {1, 560}, {13, 30}, {12, 30}}));
     assert(made(0, 102, {{3, 560}, {1, 280}, {13, 30}, {12, 15}}));
     assert(stat(101, 3) == 2160 && stat(101, 2) == 2160 && stat(101, 1) == 2160 && stat(101, 13) == 230);
@@ -5004,7 +5044,7 @@ int main() {
     g.inbox.push_back(msg("SBF23 on"));
     frame(g, *e, 0);
     assert(e->host.linked() == 2 && e->host.bosses() == 200 && boss(202) && !boss(201));
-    assert(has(lines(g), "SBF23 world 1\nSBF23 scale 1 135 115\nSBF23 bosses 1 200\n"
+    assert(has(lines(g), "SBF23 world 1\nSBF23 scale 1 135 115\nSBF23 bosses 1 200\nSBF23 stagger 1 1 1\n"
                          "SBF23 up 1 202 5202 0 15005100 1600\nSBF23 up 1 201 5201 0 7001 1600\n"));
     assert(stat(201, 2) == 2160 && stat(201, 1) == 2160 && stat(201, 13) == 230);
     assert(stat(202, 3) == 3200 && stat(202, 2) == 3200 && stat(202, 1) == 3200 && stat(202, 13) == 230);
@@ -5085,8 +5125,9 @@ int main() {
       g.spawn(101 + i, 5001 + i, 0);
     g.inbox.push_back(msg("SBF23 on")); // The guest's on: the host's whole list.
     frame(g, *e, 0);
-    assert(lines(g) == "SBF23 on\nSBF23 world 1\nSBF23 up 1 101 5001 0 900 1600\nSBF23 up 1 102 5002 0 900 1600\n"
-                       "SBF23 up 1 103 5003 0 900 1600\nSBF23 hp 1 1 0 101:1600:100:200 102:1600:100:200 "
+    assert(lines(g) == "SBF23 on\nSBF23 world 1\nSBF23 stagger 1 1 1\nSBF23 up 1 101 5001 0 900 1600\n"
+                       "SBF23 up 1 102 5002 0 900 1600\nSBF23 up 1 103 5003 0 900 1600\n"
+                       "SBF23 hp 1 1 0 101:1600:100:200 102:1600:100:200 "
                        "103:1600:100:200\n");
     for (const char *hit : {"SBF23 hit 1 1 101 100 0 0 1600 0", "SBF23 hit 1 2 102 100 0 0 1600 0",
                             "SBF23 hit 1 3 103 100 0 0 1600 0"})
@@ -7098,7 +7139,9 @@ int main() {
     Wire to_host, to_guest;
     to_host.queue.emplace_back(120, "SBF23 on"); // Each worker sends its side's on.
     to_guest.queue.emplace_back(120, "SBF23 on");
-    std::mt19937 rng(1); // A run where both death paths happen and a lost hp line waits for the refresh.
+    // A run where both death paths happen and a lost hp line waits for the refresh. Each line sent takes numbers from
+    // it, so a new line in the host's whole list (stagger, phase 8) needed a new seed.
+    std::mt19937 rng(10);
     std::mt19937 knock_rng(9); // With rng: the knocks' cc lines take their share of its numbers.
     const int32_t kKnocks[] = {9900001, 3000300, 3000401};
     uint64_t knocks[2] = {}; // The host's EVE's, the guest's.

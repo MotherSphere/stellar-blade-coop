@@ -10,9 +10,15 @@ using SendJob = uint8_t (*)(void *, fight::Job *job, uint8_t unlocked_queue);
 using ApplyStat = void (*)(void *la, int32_t stat, uint64_t key, float delta, uint32_t, void *cause, uint32_t,
                            int32_t skill_guid, uint32_t, uint8_t notify, uint8_t ignore_nodamage);
 // The logic singleton, the target, the caster, the EffectTable ID, where (a zero vector: the target's place), 0 to
-// start it now, and the skill's GUIDs (none). The effect started, or null when its row or the target refused it.
+// start it now, and the effect context: null (FUN_141bc6af0 then fills the effect's own with FUN_141acb6f0), or a
+// block FUN_141acb6f0 filled, whose 0x9c bytes FUN_141bc6af0 copies to effect +0x68 (its first two ints also go to
+// FUN_141ad2320, 0 after the init). The effect started, or null when its row or the target refused it.
 using ApplyEffect = void *(*)(void *logic, void *target, void *caster, int32_t id, const float *at, uint8_t deferred,
-                              const int32_t *skill);
+                              const void *ctx);
+// FUN_141acb6f0, SB's effect context init (DESIGN.md fact 6, BUILD-CHECKS item g): one argument, zeroes and fills
+// 0x9c bytes; FUN_141c00f80 calls it on a stack buffer before it writes its own fields, as effect_ctx does.
+constexpr uint64_t kEffectInit = 0x141acb6f0;
+using EffectInit = void (*)(void *ctx);
 // The spawn manager, the EventSpawnId, the SpawnIndex, where, the rotation (pitch, yaw, roll), an unused argument, no
 // extra request data and its flag 0 (its use not known yet). The key spawns now: the function itself passes
 // RequestSpawn (FUN_141c1dc90) a delay of 0.
@@ -68,6 +74,15 @@ struct WinGame {
     return reinterpret_cast<uintptr_t>(game_function<ApplyEffect>(kApplyEffect)(
         reinterpret_cast<void *>(logic), reinterpret_cast<void *>(la), reinterpret_cast<void *>(caster), id, kZero, 0,
         nullptr));
+  }
+  uint64_t effect_ctx(uint64_t logic, uint64_t la, uint64_t caster, int32_t id, float life_s, float value) {
+    static const float kZero[3] = {};
+    alignas(16) uint8_t ctx[poise::kContextSize];
+    game_function<EffectInit>(kEffectInit)(ctx);
+    poise::fill_context(ctx, life_s, value);
+    return reinterpret_cast<uintptr_t>(game_function<ApplyEffect>(kApplyEffect)(
+        reinterpret_cast<void *>(logic), reinterpret_cast<void *>(la), reinterpret_cast<void *>(caster), id, kZero, 0,
+        ctx));
   }
   uint64_t spawn_row(uint64_t tables, uint32_t id) {
     return reinterpret_cast<uintptr_t>(game_function<SpawnRow>(kSpawnRow)(reinterpret_cast<void *>(tables), 0, id));

@@ -249,6 +249,7 @@ template <class Game> void Engine::simulate(Job &job, Game &g, uint64_t now_ms) 
   if (!latched_ && hosting) {
     host.set_place(same_place_ && !pilot_off_ && !pilot_stopped_);
     host.set_aggro(aggro_host_);
+    host.set_stagger(reactions_, resist_);
     host.step(seen_, n, census, turn, now_ms, io);
     hold_scales(g, logic, followed, host.scaled(followed), host.scale(kScaleHp), host.scale(kScaleBalance),
                 host.bosses());

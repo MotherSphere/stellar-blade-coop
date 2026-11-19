@@ -127,6 +127,7 @@ template <class Game> bool Engine::effects(Game &g, uint64_t la, uint8_t &cc, bo
   if (!each_effect(g, la, [&](uint64_t, int32_t id) {
         for (size_t k = 0; k < kCc; ++k)
           bits |= id == kCcEffects[k] ? uint8_t(1u << k) : 0;
+        bits |= id == kFlinch ? uint8_t(1u << kFlinchBit) : 0;
         found = found || std::find(std::begin(kMarkers), std::end(kMarkers), id) != std::end(kMarkers);
         ready = ready || id == kDeathReady || id == kFinishReady;
       }))

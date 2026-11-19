@@ -28,6 +28,10 @@
 //     0, every other write 1, so NoDamage never blocks the shared fight's writes (game/fight/sync.h);
 //   uint64_t effect(uint64_t logic, uint64_t la, uint64_t caster, int32_t id):
 //     FUN_141ad1af0(logic, la, caster, id, &zero vector, 0, nullptr): the effect started, or 0 when refused;
+//   uint64_t effect_ctx(uint64_t logic, uint64_t la, uint64_t caster, int32_t id, float life_s, float value): the
+//     same call with a context: a fresh 16-byte-aligned poise::kContextSize stack buffer filled by SB's
+//     FUN_141acb6f0, then poise::fill_context(ctx, life_s, value), then FUN_141ad1af0(logic, la, caster, id, &zero
+//     vector, 0, ctx); the effect started, or 0 when refused;
 //   void push(Job *job): FUN_141af4b70(nullptr, job, 0), never param_3 = 1;
 //   bool receive(Message &m): the friend's next line, parsed by the worker; false when none;
 //   void send(const Message &m), void event(const Event &e), void probe(const Actor &a): to the worker, which never
@@ -94,6 +98,9 @@ public:
   // while off. On, fight_chars=auto shares the BossMonsters too (bosses and Alpha Naytibas, never handed to her), and
   // a boss's MaxHP takes this percent in place of enemy_hp_scale. A guest's side takes the host's from its bosses line.
   void bosses(uint16_t pct) { bosses_ = pct; }
+  // Any thread: our hit_reactions and stagger_resist (phase 8), both on by default. The host's side tells her both
+  // (its stagger line) and holds them each turn; a guest's side takes the host's from that line, never its own.
+  void stagger(bool reactions, bool resist) { reactions_ = reactions, resist_ = resist; }
   // Any thread: our same_spawns (stage 4), the host's for both games; set while off. On, the host tells her its zone
   // and epoch and answers her rounds; she runs only on its epoch line, whatever hers says.
   void same_spawns(bool on) { same_spawns_ = on; }
@@ -182,7 +189,8 @@ private:
     Game &g;
     uint64_t logic;
     bool apply(const Write &w, int32_t &after) { return e.write(g, logic, w, after); }
-    bool effect(uint32_t guid, int32_t id) { return e.cast(g, logic, guid, id); }
+    bool effect(uint32_t guid, int32_t id, uint32_t ms) { return e.cast(g, logic, guid, id, ms); }
+    bool owns(uint32_t hguid) { return e.owners_.owner(hguid) == (e.hosting_seen_ ? pilot::kHost : pilot::kGuest); }
     bool reaction(uint32_t guid, int32_t id, Reaction &out) { return e.reaction(g, logic, guid, id, out); }
     bool took_part(uint32_t guid) { return e.took_part(g, logic, guid, e.nearby_); }
     void unshare(uint32_t guid) { e.unshared_[e.unshared_n_++ % kMaxPairs] = guid; }
@@ -318,7 +326,9 @@ private:
   // No EVE of ours found: not started. Noted for this turn: SB starts it inside the call, so this pass's marks are old
   // for that copy, and our freeze waits (hold_freeze). A copy whose last player (+0x638) the call made our EVE is noted
   // too, and logged once: that crowd control was the other side's, not our EVE's part in its fight (lent()).
-  template <class Game> bool cast(Game &g, uint64_t logic, uint32_t guid, int32_t id);
+  // ms (a mirrored flinch's time): SB's call with a context that sets the effect's life to ms / 1000 s (effect_ctx);
+  // 0: its row's own time, with no context.
+  template <class Game> bool cast(Game &g, uint64_t logic, uint32_t guid, int32_t id, uint32_t ms = 0);
   void noted(uint32_t guid);
   // A crowd control or a kill of ours on this copy in this turn (this pass's marks are old for it), or more than we
   // could note.
@@ -678,6 +688,7 @@ private:
   std::atomic<uint8_t> extra_{0}; // enemy_extra.
   std::atomic<uint16_t> scale_hp_{kMinScale}, scale_balance_{kMinScale};
   std::atomic<uint16_t> bosses_{0}; // Our boss_hp_scale with bosses=on; 0: off.
+  std::atomic<bool> reactions_{true}, resist_{true}; // Our hit_reactions and stagger_resist (stagger()).
   std::atomic<uint64_t> test_{0}; // A test asked (test()): (stat - kNoTest) << 32 | change; 0 for none.
   std::atomic<const char *> why_{nullptr};
   std::atomic<uint32_t> generation_{0}, session_{0}, idle_arms_{0}; // idle_arms_: pushes since the live arm last ran.

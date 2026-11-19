@@ -9,7 +9,7 @@
 
 namespace coop::fight {
 
-template <class Game> bool Engine::cast(Game &g, uint64_t logic, uint32_t guid, int32_t id) {
+template <class Game> bool Engine::cast(Game &g, uint64_t logic, uint32_t guid, int32_t id, uint32_t ms) {
   Actor a;
   const uint64_t la = g.find(logic, guid);
   if (!la || !live(g, la, guid, a) || !fighting(a))
@@ -17,7 +17,8 @@ template <class Game> bool Engine::cast(Game &g, uint64_t logic, uint32_t guid, 
   const uint64_t caster = eve(g, logic);
   uint32_t last = 0;
   const bool ours = g.read(la + kLastPlayer, &last, sizeof last) && last == eve_;
-  if (!caster || latched_ || !g.effect(logic, la, caster, id))
+  if (!caster || latched_ ||
+      !(ms ? g.effect_ctx(logic, la, caster, id, float(ms) / 1000.0f, 0.0f) : g.effect(logic, la, caster, id)))
     return false;
   if (!ours && !lent(guid) && g.read(la + kLastPlayer, &last, sizeof last) && last == eve_) {
     lent_[lent_n_++ % kMaxSeen] = guid;

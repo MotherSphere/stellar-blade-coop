@@ -36,6 +36,8 @@ struct World {
   std::vector<Actor> actors;
   std::vector<Write> writes;
   std::vector<std::pair<uint32_t, int32_t>> effects; // The effects our side started: (GUID, EffectTable ID).
+  std::vector<uint32_t> effect_ms;                   // Their times as asked (0: the row's own), in the same order.
+  std::vector<uint32_t> owned; // Same place: the host GUIDs this side owns (Io::owns); none by default.
   bool immune = false;                              // The game refuses every effect (an immunity).
   std::vector<Message> sent;
   std::vector<Event> events;
@@ -45,6 +47,7 @@ struct World {
   bool no_reaction = false;    // Io::reaction finds no such copy or effect.
 
   bool took_part(uint32_t guid) const { return std::find(apart.begin(), apart.end(), guid) == apart.end(); }
+  bool owns(uint32_t hguid) const { return std::find(owned.begin(), owned.end(), hguid) != owned.end(); }
   void unshare(uint32_t guid) { unshared.push_back(guid); }
   bool given_up(uint32_t guid) const { return std::find(unshared.begin(), unshared.end(), guid) != unshared.end(); }
   Actor *actor(uint32_t guid) {
@@ -90,11 +93,12 @@ struct World {
   }
   // The game's effect call, as the engine makes it: refused on a dying or missing actor, or an immune one. What the
   // effect does to the copy shows in its Seen at a later pass, which the tests set.
-  bool effect(uint32_t guid, int32_t id) {
+  bool effect(uint32_t guid, int32_t id, uint32_t ms) {
     Actor *a = actor(guid);
     if (!a || a->s.dying || immune)
       return false;
     effects.push_back({guid, id});
+    effect_ms.push_back(ms);
     return true;
   }
   bool reaction(uint32_t, int32_t, Reaction &out) {
@@ -2690,6 +2694,115 @@ int main() {
     gu.receive(msg("SBF23 cc 1 101 3000300 3 0"), g);
     step(gu, g, 5, 3100);
     assert(g.effects.size() == 1 && gu.counts.cc_mirrored == 1 && gu.counts.cc_poise == 1);
+  }
+
+  { // Flinch, host side: told on a rise from none with its time; not while a crowd control runs, not again while it
+    // flinches; its echo not told back; the received one starts with its time, refused on a copy in a reaction or
+    // above the level; a received crowd control still starts on a copy that only flinches.
+    World w;
+    Host h;
+    h.set_stagger(true, true);
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0);
+    step(h, w, 1, 0);
+    w.lines();
+    w.react = Reaction{1, 450, false};
+    w.actor(101)->s.cc = 1 << kFlinchBit;
+    step(h, w, 2, 50);
+    assert(w.lines() == "SBF23 cc 1 101 2003000 1 450\n" && h.counts.flinch_told == 1);
+    w.actor(101)->s.cc = (1 << kFlinchBit) | 1;
+    step(h, w, 3, 100); // A knockdown inside the flinch: told as today.
+    assert(w.lines() == "SBF23 cc 1 101 9900001 1 0\n");
+    w.actor(101)->s.cc = 1;
+    step(h, w, 4, 150);
+    w.actor(101)->s.cc = 1 | (1 << kFlinchBit); // A flinch inside the knockdown: its chain, not told.
+    step(h, w, 5, 160);
+    assert(w.lines().empty() && h.counts.flinch_told == 1);
+    w.actor(101)->s.cc = 0;
+    step(h, w, 6, 200);
+    h.receive(msg("SBF23 cc 1 101 2003000 2 300"), 210, w);
+    step(h, w, 7, 210);
+    assert(w.effects.back() == std::make_pair(101u, kFlinch) && w.effect_ms.back() == 300 &&
+           h.counts.flinch_mirrored == 1);
+    w.actor(101)->s.cc = 1 << kFlinchBit; // Our mirror shows up: not told back.
+    step(h, w, 8, 260);
+    assert(w.lines().empty());
+    h.receive(msg("SBF23 cc 1 101 2003000 2 300"), 270, w);
+    step(h, w, 9, 270); // Already flinching: refused.
+    h.receive(msg("SBF23 cc 1 101 3000300 2 0"), 280, w);
+    step(h, w, 10, 280); // A knockdown on a copy that only flinches: started.
+    assert(h.counts.flinch_refused == 1 && w.effects.back() == std::make_pair(101u, 3000300));
+    w.actor(101)->s.cc = 0, w.actor(101)->s.poise = 3.0f;
+    step(h, w, 11, 400);
+    h.receive(msg("SBF23 cc 1 101 2003000 2 300"), 410, w);
+    step(h, w, 12, 410); // Level 2 against poise 3.0: refused, one event for that enemy and reason.
+    assert(h.counts.flinch_refused == 2 && w.count("flinch refused", "poise") == 1);
+    w.actor(101)->s.poise = 0;
+    h.receive(msg("SBF23 cc 1 101 3000300 1 0"), 500, w); // A burst after a stall: a flinch never replaces it.
+    h.receive(msg("SBF23 cc 1 101 2003000 1 300"), 500, w);
+    step(h, w, 13, 500);
+    assert(w.effects.back() == std::make_pair(101u, 3000300) && h.counts.flinch_refused == 3);
+  }
+  { // hit_reactions off (the host's): no flinch told; one that comes is refused and counted.
+    World w;
+    Host h;
+    h.set_stagger(false, true);
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0);
+    step(h, w, 1, 0);
+    w.lines();
+    w.actor(101)->s.cc = 1 << kFlinchBit;
+    step(h, w, 2, 50);
+    assert(w.lines().empty() && h.counts.flinch_told == 0);
+    w.actor(101)->s.cc = 0;
+    step(h, w, 3, 100);
+    h.receive(msg("SBF23 cc 1 101 2003000 1 300"), 110, w);
+    step(h, w, 4, 110);
+    assert(h.counts.flinch_refused == 1 && w.effects.empty() && w.count("flinch refused", "off") == 1);
+  }
+  { // The guest before the host's stagger line: no flinch told, a host flinch refused ("off"); after the line her
+    // next rise is told.
+    World g;
+    g.add(501, 5001, 0);
+    Guest gu;
+    gu.receive(msg("SBF23 world 1"), g);
+    gu.receive(msg("SBF23 up 1 101 5001 0 900 1600"), g);
+    step(gu, g, 1, 0);
+    g.lines();
+    g.react = Reaction{1, 300, false};
+    g.actor(501)->s.cc = 1 << kFlinchBit;
+    step(gu, g, 2, 50);
+    assert(g.lines().empty() && gu.counts.flinch_told == 0);
+    g.actor(501)->s.cc = 0;
+    step(gu, g, 3, 100);
+    gu.receive(msg("SBF23 cc 1 101 2003000 1 300"), g);
+    step(gu, g, 4, 110);
+    assert(g.effects.empty() && gu.counts.flinch_refused == 1 && g.count("flinch refused", "off") == 1);
+    gu.receive(msg("SBF23 stagger 1 1 1"), g);
+    g.actor(501)->s.cc = 1 << kFlinchBit;
+    step(gu, g, 5, 200);
+    assert(g.lines() == "SBF23 cc 1 101 2003000 1 300\n" && gu.counts.flinch_told == 1);
+  }
+  { // Same place: a received flinch starts only on a copy this side owns; on a drawn one it is refused ("drawn").
+    // A received crowd control still starts there, as today.
+    World w;
+    Host h;
+    h.set_stagger(true, true);
+    h.set_place(true);
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0);
+    step(h, w, 1, 0);
+    w.lines();
+    h.receive(msg("SBF23 cc 1 101 2003000 1 300"), 10, w); // She owns 101 (w.owned empty).
+    step(h, w, 2, 10);
+    assert(w.effects.empty() && h.counts.flinch_refused == 1 && w.count("flinch refused", "drawn") == 1);
+    h.receive(msg("SBF23 cc 1 101 3000300 1 0"), 20, w);
+    step(h, w, 3, 20);
+    assert(w.effects.size() == 1 && w.effects[0] == std::make_pair(101u, 3000300));
+    w.owned = {101};
+    h.receive(msg("SBF23 cc 1 101 2003000 1 300"), 30, w);
+    step(h, w, 4, 30);
+    assert(w.effects.back() == std::make_pair(101u, kFlinch) && h.counts.flinch_mirrored == 1);
   }
 
   std::puts("fight_sync_test: ok");
