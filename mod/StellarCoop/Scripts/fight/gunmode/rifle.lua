@@ -83,7 +83,7 @@ function Rifle.new(laser,trace,grip)
             -- the barrel on the line to where the rounds go (the reticle's point): a small turn of the rifle in her hands
             -- (at most 6 degrees; the pak's aim already holds it on the camera's line, this takes up the shoulder offset)
             local onTarget=false
-            if t and not st.reloading then pcall(function()
+            if t and not st.reloading and not self.no_turn then pcall(function()
                 local fire=FName('FX_Fire')
                 local m=gun:GetSocketLocation(fire)
                 local have=mathlib:GetForwardVector(gun:GetSocketRotation(fire))

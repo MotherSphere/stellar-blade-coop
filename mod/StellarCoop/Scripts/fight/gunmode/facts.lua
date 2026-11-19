@@ -120,82 +120,32 @@ function Facts.new(g)
         if pn~=st.pawn then st.pawn,st.seen_at,st.done,st.d8=pn,now,false,3 end
         if not st.done and now-st.seen_at>=5 then st.done=true; local ok,e=pcall(snapshot,p); if not ok then g.log('facts snapshot: '..tostring(e)) end end
         local ai=g.try(function() return p.Mesh:GetAnimInstance() end)
-        -- F12/F13 (Phase 1 spike install): within one tick, everything fetched fresh by path. At +15 s her body mesh's
-        -- PostProcessAnimBlueprint is set to the spike class (gunmode's test pak zNGMSpike_P), then SetSkeletalMesh(base
-        -- body) and back to her mesh (the outfit-change path: InitAnim builds the post-process instance from the field).
-        -- At +40 s the original class is put back the same way. Instance classes are logged each time.
-        local SPIKE='/Game/Mods/NGM/ABP_NGM_Spike'
-        local BASE='/Game/Art/Character/PC/CH_P_EVE_29/CH_P_EVE_29'
-        local function install(p,cls_path,label)
-            local mesh=p.Mesh; local sk=mesh.SkeletalMesh
-            local cls=StaticFindObject(cls_path)
-            if not valid(cls) then
-                -- BPModLoaderMod's route for mod-pak classes: the asset registry helpers' GetAsset on an object path
-                local okr,rr=pcall(function()
-                    local h=StaticFindObject('/Script/AssetRegistry.Default__AssetRegistryHelpers')
-                    return h:GetAsset({ObjectPath=FName(cls_path)})
-                end)
-                g.log('facts F13 AssetRegistryHelpers:GetAsset('..cls_path..') -> '..(okr and name(rr) or 'error '..tostring(rr)))
-                if okr and valid(rr) then cls=rr end
+        -- F14 (M1 layer test, replaces the F13 spike): gunmode/overlay.lua installs the post-process layer at +15 s on a
+        -- non-lobby pawn, then plays rifle clips on its arms-only slot on a timer so screenshots can be matched to the
+        -- logged times, with the rifle in her right hand (rifle.lua's grip) from +18 s: carry (ShootReady_Start nearly
+        -- frozen) +20 s, aim (Shoot_Idle looped) +35 s, reload looped +50 s, stop +65 s, rifle and layer removed +72 s.
+        if st.done and not st.pawn:find('/Game/Lobby/',1,true) then
+            st.ov=st.ov or require('fight.gunmode.overlay').new(g)
+            local steps={
+                {15,'install',function() return st.ov.install(p) end},
+                {18,'rifle',function()
+                    st.rf=require('fight.gunmode.rifle').new(function() return function() end,function() end end)
+                    return st.rf.start(pc,function() return false end,function() return nil end) end},
+                {20,'carry',function() return st.ov.play(p,'carry',0.02,1) end},
+                {35,'aim',function() return st.ov.play(p,'aim',1.0,0) end},
+                {50,'reload',function() return st.ov.play(p,'reload',1.0,0) end},
+                {65,'stop',function() st.ov.stop(p); return true end},
+                {72,'uninstall',function() if st.rf then st.rf.stop(); st.rf=nil end; return st.ov.uninstall(p) end},
+            }
+            st.f14=st.f14 or 0
+            local nx=steps[st.f14+1]
+            if st.rf then pcall(st.rf.frame) end
+            if nx and now-st.seen_at>=nx[1] then
+                st.f14=st.f14+1
+                local ok,r,e=pcall(nx[3])
+                g.log(('facts F14 %s at %s -> %s %s, layer active %s'):format(nx[2],os.date('%H:%M:%S'),
+                    ok and name(r) or 'error',tostring(ok and e or r),tostring(g.try(function() return st.ov.active(p) end))))
             end
-            if not valid(cls) then
-                local pkg=cls_path:match('^(.-)%.')
-                for _,try in ipairs({cls_path,pkg..'.'..pkg:match('([^/]+)$'),pkg}) do
-                    local ok,r=pcall(LoadAsset,try)
-                    g.log('facts F13 LoadAsset('..try..') -> '..(ok and name(r) or 'error '..tostring(r)))
-                    if ok and valid(r) and not valid(cls) then cls=r end
-                end
-                if not valid(cls) then cls=StaticFindObject(cls_path) end
-                -- (KismetSystemLibrary.LoadClassAsset_Blocking with a hand-built soft path crashed the game at 18:18: removed)
-                -- second route: a soft path made by the engine itself (never a Lua table as the struct)
-                pcall(function()
-                    local ksl=StaticFindObject('/Script/Engine.Default__KismetSystemLibrary')
-                    local sop=ksl:MakeSoftObjectPath(cls_path)
-                    g.log('facts F13 MakeSoftObjectPath -> '..tostring(sop)..' '..tostring(g.try(function() return ksl:Conv_SoftObjectPathToString(sop):ToString() end)))
-                end)
-                local ctl='/Game/Art/Character/PC/CH_P_EVE_01/Animation/NGM/NGM_R_Shoot.NGM_R_Shoot'
-                local okc,rc=pcall(LoadAsset,ctl)
-                g.log('facts F13 control asset (same pak) '..ctl..' -> '..(okc and name(rc) or 'error '..tostring(rc)))
-                for _,c in ipairs({'/Game/Art/Character/PC/CH_P_EVE_14/CH_P_EVE_14.CH_P_EVE_14',
-                        '/Game/Art/Character/PC/CH_P_EVE_15/CH_P_EVE_15.CH_P_EVE_15',
-                        '/Game/Art/Character/PC/CH_P_EVE_01/Animation/NGM/NGM_R_AimIdle.NGM_R_AimIdle',
-                        '/Game/DLC_2/Art/Character/Weapon/Gun/CH_G_Nikke_01/GunNikke_Weapon.GunNikke_Weapon',
-                        '/Game/OutfitMods/ProjectEvie/Hair/Physics/EVIE_HR_12_AnimBP_P3.EVIE_HR_12_AnimBP_P3_C'}) do
-                    local okx,rx=pcall(LoadAsset,c)
-                    g.log('facts F13 control '..c..' -> '..(okx and name(rx) or 'error '..tostring(rx)))
-                end
-                local n=0; for _,c in ipairs(FindAllOf('AnimBlueprintGeneratedClass') or {}) do local f=name(c); if f:find('NGM',1,true) then g.log('facts F13 found class '..f) end; n=n+1 end
-                g.log('facts F13 AnimBlueprintGeneratedClass objects: '..n)
-                g.log('facts F13 after load: class '..name(StaticFindObject(cls_path))..', CDO '..name(StaticFindObject(pkg..'.Default__'..pkg:match('([^/]+)$')..'_C')))
-                -- a loaded blueprint asset object: its generated class
-                if valid(cls) and not g.try(function() return cls:GetFullName():find('GeneratedClass',1,true) end) then
-                    local gc=g.try(function() return cls.GeneratedClass end)
-                    g.log('facts F13 loaded object is '..name(cls)..'; GeneratedClass '..name(gc))
-                    if valid(gc) then cls=gc end
-                end
-            end
-            local bpath=BASE..'.'..BASE:match('([^/]+)$')
-            local base=StaticFindObject(bpath)
-            if not valid(base) then pcall(LoadAsset,bpath); base=StaticFindObject(bpath) end
-            g.log('facts F13 '..label..': class '..name(cls)..', base '..name(base)..', mesh '..name(sk)..', instance before '..ppname(mesh))
-            if not (valid(cls) and valid(base)) then return end
-            sk.PostProcessAnimBlueprint=cls
-            mesh:SetSkeletalMesh(base,false); mesh:SetSkeletalMesh(sk,false)
-            g.log('facts F13 '..label..': instance now '..ppname(mesh)..', main '..name(g.try(function() return mesh:GetAnimInstance():GetClass() end))..', mesh '..name(mesh.SkeletalMesh))
-        end
-        local function path_of(o) local f=g.try(function() return o:GetFullName() end); return f and f:match('^%S+ (.+)$') end
-        if st.done and not st.f13a and now-st.seen_at>=15 and not st.pawn:find('/Game/Lobby/',1,true) then
-            st.f13a=true
-            st.orig_cls=path_of(g.try(function() return p.Mesh.SkeletalMesh.PostProcessAnimBlueprint end))
-            st.orig_mesh=path_of(g.try(function() return p.Mesh.SkeletalMesh end))
-            local ok,e=pcall(install,p,SPIKE..'.ABP_NGM_Spike_C','install'); if not ok then g.log('facts F13 install error: '..tostring(e)) end
-        end
-        if st.f13a and not st.f13b and now-st.seen_at>=40 then
-            st.f13b=true
-            local cur=path_of(g.try(function() return p.Mesh.SkeletalMesh end))
-            if st.orig_cls and cur==st.orig_mesh then
-                local ok,e=pcall(install,p,st.orig_cls,'restore'); if not ok then g.log('facts F13 restore error: '..tostring(e)) end
-            else g.log('facts F13 restore skipped: mesh '..tostring(cur)..' vs '..tostring(st.orig_mesh)) end
         end
         -- F11 retired (2026-11-18 17:44): holding a mesh asset and a class across a level load left stale wrappers, and
         -- the put-back wrote a level object into the field. Any install test must re-fetch everything by path, within
