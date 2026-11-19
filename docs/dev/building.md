@@ -249,11 +249,13 @@ data/
 tools/
   install.py                checks, build, install, uninstall, release zip
   mxiii_climb.py            places Matrix XIII's ladders on the editor's in data/mxiii-world.json, and checks them
-  mxiii_rows.py             writes native/src/lion/mxiii_rows.h and matrix13/world/rows.lua from data/mxiii-world.json
+  mxiii_rows.py             writes native/src/world/maps/matrix13/mxiii_rows.h and world/maps/matrix13/level/rows.lua
+                            from data/mxiii-world.json
   release.py                builds a tagged release's zip, attaches it and publishes the release (see Releases)
   save_guard.py             save backups and the manual co-op slot
   save_read.py              every value of a .sav file, and the values two saves differ in (see story-dump.md)
-  sbo_lobby_rows.py         writes lobby/sbo_maps.lua and native/src/lion/halls_rows.h from data/sbo-lobby.json
+  sbo_lobby_rows.py         writes online/lobby/sbo_maps.lua and native/src/online/lobby/halls_rows.h from
+                            data/sbo-lobby.json
   story_lines.py            a save's story lines, their digest, and a save against an in-game dump (see story-dump.md)
   wine_smoke.py             loads the DLL under Wine
 .github/workflows/

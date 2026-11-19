@@ -124,7 +124,7 @@ select cache swap of Roxanne's choices, `coop scene`'s borrowed theater rows and
      Time" is acquired again.
 9. The talks: `world/maps/matrix13/quest/subtitles.lua` plays a talk by name. A talk is its unused subtitle-only
    sequence (`Subtitle_POD_1stMeetAdam_01`, `_ArriveDED_01` or `_1stMeetAdam_02`, read offline: no binding, camera or
-   audio track) with its windows' lengths, and its lines in `matrix13/talks/<name>.lua`, one per window.
+   audio track) with its windows' lengths, and its lines in `world/maps/matrix13/talks/<name>.lua`, one per window.
    - `story/scenes/scene.lua`'s `talk` points its two borrowed EventTheaterTable rows at Quinn's unused theater
      `Subtitle_NPC_Quinn_Common_Condition1` and sets that theater's take's `TemplateSequence` to the talk's sequence in
      memory, as `coop scene emil` does with the farewell's take, and puts it back on Quinn's own sequence when the talk
