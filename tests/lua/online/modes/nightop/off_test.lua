@@ -2,4 +2,4 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 dofile('tests/lua/main/isolation.lua')('online.modes.nightop')
-print('nightop_off_test ok')
+print('online.modes.nightop_off_test ok')
