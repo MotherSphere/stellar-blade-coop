@@ -102,6 +102,8 @@ left. The pages still name build 24463856 where a fact was read on that build, s
 | [Cut menus and the mailbox: how they work](cutmenus/menus-internals.md) | The cut Load Shortcut menu, the developer menu and panels, the cut mailbox |
 | [Achievements and safety design](dev/safety.md) | Which kills and achievements count for each player, the safety design |
 | [Story dump](dev/story-dump.md) | `coop story`, `tools/story_lines.py` and `tools/save_read.py`: the story state of a save or of the running game, one line per value |
+| [Bike paint](dev/modding/bike-paint.md) | Adding an outfit's paint to `Paint.BY_MESH`: the key, the bike's slots and parameters, the check |
+| [Map pipeline](dev/modding/maps.md) | What a map needs in the game's tables, the steps with and without the editor, which steps the repository holds |
 
 ## How Stellar Blade Online works
 
