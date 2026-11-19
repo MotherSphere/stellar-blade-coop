@@ -270,11 +270,15 @@ local world={paused=false,photo='0',frozen=false,life=nil,armed=false,busy=nil}
 -- removed, path and component (mesh); a hide also goes to stand_order; sweep records what it was asked (swept,
 -- swept_mesh). It writes no event and no log.
 local st_made,swept,swept_mesh={},{},{}
+local stand_like=nil -- A component whose address and path the next display's component takes (a freed address).
 package.loaded['vehicles.bike.stand']={CULL=20000,
     make=function(w,mesh,cull)
         assert(w and mesh==MESH,'In her world, with the bike mesh')
         local d={shown=false,cull=cull,path='/Game/Map.Map:PersistentLevel.Actor_'..(#st_made+1)}
         d.mesh=component({name='Actor_'..(#st_made+1)},bike_mesh) -- Its component, which the paint reaches.
+        if stand_like then
+            d.mesh.GetAddress,d.mesh.GetFullName,stand_like=stand_like.GetAddress,stand_like.GetFullName,nil
+        end
         st_made[#st_made+1]=d
         return d
     end,
@@ -1105,4 +1109,11 @@ assert(said:sub(-#off_word)==off_word,said)
 eve.Mesh.SkeletalMesh=rose; clock=clock+1; R.slow(); assert(p9.current[SLOT]~=own[SLOT])
 R.leave(); assert(p9.current[SLOT]==own[SLOT],'coop off: the part back to its own material')
 eve.Mesh.SkeletalMesh=nil; assert(R.status():find('; paint off %(no body mesh read%)$'))
+-- 23. After coop off, the next parked bike takes the freed address and path of the one coop off removed, which was
+-- painted for this outfit: it is painted too, never taken for the old one.
+stand_like=s9.mesh
+eve.Mesh.SkeletalMesh=rose; clock=clock+1; R.slow()
+local s10=st_made[#st_made]
+assert(s10~=s9 and s10.mesh:GetAddress()==s9.mesh:GetAddress() and s10.mesh:GetFullName()==s9.mesh:GetFullName())
+assert(s10.mesh.made[SLOT] and s10.mesh.current[SLOT]==s10.mesh.made[SLOT],'The new parked bike is painted')
 print('ride_test ok')

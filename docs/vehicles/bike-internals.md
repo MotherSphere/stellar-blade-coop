@@ -353,11 +353,16 @@ that mesh is left alone. Any other is cleared first: its four slots get the bike
 (`SetMaterial`, with each material read from the mesh's `Materials`, never from `GetMaterial`). Then, when the table has
 the mesh, each listed slot gets `CreateDynamicMaterialInstance` from that own material with `SetVectorParameterValue`
 per parameter. A component is known by its address and object path, so after a new Lua load (Ctrl+R) or for a new EVE it
-is cleared before it is painted: an earlier load's instance never stays. A failed call leaves the component cleared,
-with one `bike paint not set on ...` line per component and mesh. `coop off` clears the part before the parked bike
-leaves the world. `bike=off` removes both. A table that fails `Paint.check` logs `bike paint table refused: <reason>`
-once at load and paints nothing. The ridden part's instances reach ghosts through the capture's dyes. The parked bike's
-paint stays on the player's own screen, since [the bike line](#the-bike-line) carries a map and a pose only.
+is cleared before it is painted: an earlier load's instance never stays. The ride also clears each parked bike it makes,
+which drops what the paint kept for that address and path. A parked bike made after `coop off` at the freed address and
+path of the removed one is painted again. A failed call leaves the component cleared, with one `bike paint not set on
+...` line per component and mesh. `coop off` clears the part before the parked bike leaves the world. `bike=off` removes
+both. A table that fails `Paint.check` logs `bike paint table refused: <reason>` once at load and paints nothing. The
+ridden part's instances reach ghosts through the capture's dyes. The clear before the first paint runs for every
+outfit, so the part's `OverrideMaterials` then lists the bike's four own material instances. With dyes on, the capture
+sends them as four more material lines of the ridden part, also for an outfit with no paint. They name the bike's own
+instances, so the ghost's bike looks the same. The parked bike's paint stays on the player's own screen, since [the
+bike line](#the-bike-line) carries a map and a pose only.
 
 ## Ghosts
 

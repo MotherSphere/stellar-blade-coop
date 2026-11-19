@@ -71,8 +71,9 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   every press during the payment, too little money and a failure said, never within reach, in an SBO lobby or away from
   a camp; the money's name from `game_text` on the screen's words, `betacrystal` in the English copy of another
   language, for a name over 32 bytes and in an offer past 200 bytes); the paint of the part and the parked bike for
-  EVE's outfit within a second, put back for another outfit and on the part at `coop off`; the `paint on for <mesh>`
-  or `paint off for <mesh>` end of `coop bike status`;
+  EVE's outfit within a second, put back for another outfit and on the part at `coop off`; a parked bike made after
+  `coop off` at the freed address and path of the removed one painted again; the `paint on for <mesh>` or `paint off
+  for <mesh>` end of `coop bike status`;
 - `vehicles/bike/paint_test` covers `vehicles/bike/paint.lua` with fake UE4SS objects: the shipped table passes its
   check with one entry; the check refuses a slot out of 0 to 3, an empty, 65-byte or spaced name, a value that is not
   four numbers from 0 to 100000 and a key that is no object path; each instance made from the mesh's own material; one

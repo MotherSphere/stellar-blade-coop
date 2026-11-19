@@ -302,6 +302,8 @@ function Ride.new(o)
             return log('bike stand not made: '..here.stand_failed)
         end
         here.stand,here.map=d,map
+        -- New to the paint even at the freed address and path of a parked bike removed before (coop off). Never raises.
+        paint.clear({d.mesh})
         stand_store.save(d.path) -- For the next Lua load's sweep (Ctrl+R).
         log(('bike stand made in %.1f ms'):format((os.clock()-began)*1000))
     end

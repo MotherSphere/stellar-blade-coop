@@ -78,7 +78,8 @@ p.step(10,M,{c}); p.step(10.5,OTHER,{c}); p.step(12,M,{c}); assert(#c.made_list=
 p.step(13,OTHER,{c}); assert(c.set[S]==own[S] and c.current[S]==own[S]); local sets=#c.set_list
 p.step(15,OTHER,{c}); assert(#c.set_list==sets)
 -- reload: a new Paint.new on c, whose slot S holds an earlier load's instance, clears it to own[S], never keeps it.
-local q=Paint.new({log=print}); c.current[S]=c.made_list[1]; q.step(20,OTHER,{c}); assert(c.set[S]==own[S])
+local q=Paint.new({log=print}); c.current[S]=c.made_list[1]; q.step(20,OTHER,{c})
+assert(c.set[S]==own[S] and c.current[S]==own[S],'A new load clears a component it never painted')
 q.step(22,M,{c}); assert(c.made_list[#c.made_list].base==own[S])
 -- new part: a component at another address, or at the same address with another path, is painted again.
 local c3=fake(); p.step(30,M,{c3}); assert(#c3.made_list==1)
