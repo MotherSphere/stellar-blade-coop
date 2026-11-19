@@ -321,7 +321,7 @@
 #include "online/modes/nightop/nightop_game.inc"
 #include "glue/tick/anim_game_shared.inc"
 #include "eve/anim_game.inc"
-// After anim_game_shared.inc, freeze_game_shared.inc and lion_game.inc: their calls and GMalloc.
+// After anim_game_shared.inc, freeze_game_shared.inc and rows_game.inc: their calls and GMalloc.
 #include "vehicles/bike/bike_game.inc"
 #include "glue/tick/camp_text_game_shared.inc"
 // After anim_game_shared.inc and freeze_game_shared.inc: their FStringArg and MakeName.
@@ -330,7 +330,7 @@
 #include "glue/tick/shortcut_game_shared.inc"
 #include "online/saves/shortcut_game.inc"
 #include "glue/tick/world_game_shared.inc" // Before sbo_game_shared.inc: its world_game and world_event_root.
-#include "world/objects/world_game.inc" // After lion_game.inc, freeze_game_shared.inc and shortcut_game_shared.inc.
+#include "world/objects/world_game.inc" // After rows_game.inc, freeze_game_shared.inc and shortcut_game_shared.inc.
 #include "glue/tick/story_game_shared.inc"
 // After world_game_shared.inc and quests_game_shared.inc: their Game, in-game read and quests.
 #include "story/together/story_game.inc"
