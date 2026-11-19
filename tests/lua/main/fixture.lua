@@ -141,8 +141,9 @@ fake_link={
     slot=function(k) return {} end, -- A ghost slot's files (online/partner/ghosts.lua): no member holds one in these
     -- tests.
     remote_table=function() return nil end,
-    -- The hud requests of the lobby's screens go to huds (tests/lua/lobby/wiring_test), the pause menu's Online tab's
-    -- to pausetabs, the popups ones (main/pass.lua's switch_pass for hide_popups) to popup_asks, the others to asked.
+    -- The hud requests of the lobby's screens go to huds (tests/lua/online/lobby/wiring_test), the pause menu's Online
+    -- tab's to pausetabs, the popups ones (main/pass.lua's switch_pass for hide_popups) to popup_asks, the others to
+    -- asked.
     -- hud_refuse: a hud request is refused with that why, as link.request answers when coop-request.txt cannot be
     -- written.
     request=function(line)
