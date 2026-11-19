@@ -24,7 +24,7 @@ category folders (`online/`, `online/modes/`, `fight/`, `world/`, `world/maps/`,
 | `fight.bosses` | Cut enemies | `fight/bosses/` | `fight/bosses/` (its rows only) | [Cut enemies](../fight/bosses.md) | `fight/bosses/enemy.lua`, its copy; the Lion's, the Gardener's and the Tendril's rows in `fight/bosses/lion_rows.h`; `fight/bosses/lion_rows.lua`, the Lua list of those rows and of the bolt and shop batches |
 | `online.group` | Group play | `online/group/` | `online/group/` | [Following the host](../players/playing-with-a-friend.md#following-the-host) | |
 | `online.modes.race` | Doro races | `online/modes/race/` | none | [Doro races](../online/modes/race.md) | |
-| `eve` | EVE's cut moves | `eve/` | `eve/` (`debug_keys.h`, the anim and debug parts) | [EVE's cut moves](../eve/eve.md) | The Shock Bolt's rows in `eve/bolt_rows.h`; `eve/chainspin_rows.lua`, its copy of the ChainSpin rows |
+| `eve` | EVE's cut moves | `eve/` | `eve/` (`debug_keys.h`, the anim and debug parts) | [EVE's cut moves](../eve/eve.md) | The Shock Bolt's rows in `eve/bolt_rows.h` (its ammo list grower stays shared in `rows/shock.h`); `eve/chainspin_rows.lua`, its copy of the ChainSpin rows |
 | `story.scenes` | Cut scenes | `story/scenes/` | none | [Cut scenes](../story/scenes.md) | |
 | `world.maps.matrix13` | Matrix XIII | `world/maps/matrix13/` | `world/maps/matrix13/` | [Matrix XIII](../world/matrix13.md), [Lily's signal](../world/lily-signal.md) | Its rows in `world/maps/matrix13/mxiii_rows.h` and `world/maps/matrix13/signal_rows.h`; `world/maps/matrix13/level/boss_rows.lua`, its copy of the Lion's and the Gardener's rows |
 | `online.session` | Online sessions | `online/session/` | `online/session/` | [Playing with a friend](../players/playing-with-a-friend.md) | |
@@ -51,7 +51,7 @@ The shared pieces are never turned off. They require and include no module.
 | `ui/text.lua`, `ui/text/` | The text tables, one file per language, with each module's translated name in `modules`; the guide's words; the culture pick |
 | `native/src/game/` | `memory.h` and the headers that more than one module reads |
 | `native/src/link/` | The Steam link |
-| `native/src/rows/` | The row engine every batch shares (`rows.h`, with the table list `kTables`), the batch flow on the game thread (`rows_game.inc`, one job per batch word) and the Shock Bolt's list grower (`shock.h`, which the fight worker's log and a game test read too) |
+| `native/src/rows/` | The row engine every batch shares (`rows.h`, with the table list `kTables`), the batch flow on the game thread (`rows_game.inc`, one job per batch word) and the Shock Bolt's ammo list grower (`shock.h`, which the fight worker's log and a game test read too) |
 | `native/src/ui/` | The controller's events and the pause menu's Online tab |
 | `native/src/glue/` | The Windows side and the hub: `glue/tick.cpp` includes every part in a declared order; `glue/tick/<part>_shared.inc` holds what other modules' parts read of a part |
 
