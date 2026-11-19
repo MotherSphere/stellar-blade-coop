@@ -71,8 +71,8 @@
 //   SBF23 pvp <seq> <skill> <d>                                    both, reliable: the PvP test, a drop of the
 //                                                                  sender's stand-in of us, to apply to our EVE
 // The host answers the guest's on and world with its whole list (world, its scale, place, aggro, bosses and stagger,
-// then every up), and the guest answers the host's on with its own (hers may have come while the host was off), so
-// either side may restart.
+// then every up). The guest answers the host's on with its own (hers may have come while the host was off), so either
+// side may restart.
 // Same-place enemies (game/pilot.h) send their show, show-set and show-stop lines on this channel with the same tag,
 // from the side that owns an enemy; pilot_line() tells them apart, and game/pilot.h parses them. own and own-no are
 // the engine's (fight/enemies/engine.h keeps the owners), never Host's or Guest's; so are same spawns' four
@@ -284,8 +284,8 @@ inline bool floor_row(int32_t id) { return id >= kFirstFloor && id <= kLastFloor
 // ---- Channel 2 ----
 
 // world..cc: the host's lines a recording keeps; hit, own-no, exec and have: the guest's; own, epoch, spawn, drop,
-// bstart, phase and poise: the owner's, never recorded; pvp: either side's, never recorded. mate: the worker's own to
-// the job (fight/enemies/engine.h), never a line.
+// bstart and phase: the host's, never recorded; poise: a copy's owner's, never recorded; pvp: either side's, never
+// recorded. mate: the worker's own to the job (fight/enemies/engine.h), never a line.
 enum class Type : uint8_t {
   invalid, on, off, world, scale, place, aggro, bosses, stagger, up, down, dead, hp, cc, hit, own, own_no, exec, have,
   spawn, drop, epoch, bstart, phase, poise, pvp, mate
