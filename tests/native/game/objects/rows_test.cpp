@@ -7,7 +7,8 @@
 // without its camp-bound garage run, the crane without its camera states, the hyperdrive without its story states, a
 // supply box, the boss cores, a story-only door, an env whose On a quest task waits for, a Matrix XIII lever, a
 // quest's env control row, a monorail speed row whose chain plays a scene; the 40 states a map-progress achievement or
-// a hint completion held out before, the passcode doors and other states that stay out.
+// a hint completion held out before, the passcode doors and other states that stay out; the trap floor's end as the
+// one watched pair; each zone's saved envs, sorted, with the largest zones' counts and the rows each rule leaves out.
 #include "game/objects/rows.h"
 
 #include <algorithm>
@@ -136,6 +137,37 @@ void test_progress_and_hints() {
          !state_allowed("SE_09_EnvS_017", "A") && !state_allowed("DED10_EnvS_155", "On"));
 }
 
+void test_watch_and_zones() {
+  for (size_t i = 1; i < std::size(kZoneEnvs); ++i) {
+    const auto a = std::make_pair(string_view(kZoneEnvs[i - 1].zone), string_view(kZoneEnvs[i - 1].alias));
+    assert(a < std::make_pair(string_view(kZoneEnvs[i].zone), string_view(kZoneEnvs[i].alias)));
+  }
+  for (const ZoneEnv &e : kZoneEnvs)
+    assert(env_allowed(e.alias) && e.object <= 2);
+  assert(std::size(kWatch) == 1 && kWatch[0].alias == string_view("ATL_01_EnvS_074") &&
+         kWatch[0].tag == string_view("On") && state_allowed(kWatch[0].alias, kWatch[0].tag));
+  auto count = [](const char *z) {
+    const auto r = zone_envs(z);
+    return size_t(r.second - r.first);
+  };
+  assert(count("Zone_WLB_20") == 81 && count("Zone_DLC02_20") == 83 && count("Zone_DED20") == 76 &&
+         count("Zone_Nowhere") == 0);
+  assert(count("None") == 0); // 30 ZoneLists name it, 18 of them kept rows; no record lives there
+  const ZoneEnv *gate = zone_env("Zone_ME_04", "ME_04_EnvS_099");
+  assert(gate && gate->tag == string_view("Off") && gate->object == 2);
+  assert(zone_env("Zone_ATL_01", "ATL_01_EnvS_074") && zone_env("Zone_ATL_01", "ATL_01_EnvS_146") &&
+         zone_env("Zone_ATL_02", "ATL_01_EnvS_146"));
+  assert(!zone_env("Zone_ATL_01", "ATL_01_EnvS_019"));     // ResetZone: the floor's progress
+  assert(!zone_env("Zone_CGH_data", "CGH_data_EnvS_032")); // Close is none of its states
+  const ZoneEnv *ayl = zone_env("Zone_AYL_02", "AYL_02_EnvS_002"), *me5 = zone_env("Zone_ME_05", "ME_05_EnvS_064");
+  assert(ayl && ayl->tag == string_view("off")); // kept as the table spells it
+  assert(me5 && me5->object == 0);               // InitActivate None
+  assert(!zone_env("Zone_DED20", "DED10_EnvS_105") && !zone_env("Zone_ME_04", "DED20_EnvS_193") && !zone_env("", ""));
+  for (const ZoneEnv &e : kZoneEnvs) // SaveWithTransform, None SaveType, InitStateTag None
+    assert(e.alias != string_view("WLB_50_EnvS_058") && e.alias != string_view("ATL_01_EnvS_004") &&
+           e.alias != string_view("CGH_data_EnvS_021"));
+}
+
 } // namespace
 
 int main() {
@@ -143,6 +175,8 @@ int main() {
   test_ends_and_misses();
   test_rules();
   test_progress_and_hints();
-  std::printf("world rows: %zu pairs, %zu SetEnvActive rows, %zu ZoneEvent rows, ok\n", std::size(kPairs),
-              std::size(kObjectState), std::size(kEvents));
+  test_watch_and_zones();
+  std::printf("world rows: %zu pairs, %zu SetEnvActive rows, %zu ZoneEvent rows, %zu watched pairs, %zu zone entries, "
+              "ok\n",
+              std::size(kPairs), std::size(kObjectState), std::size(kEvents), std::size(kWatch), std::size(kZoneEnvs));
 }
