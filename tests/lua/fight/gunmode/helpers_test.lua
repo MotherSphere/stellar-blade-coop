@@ -2,7 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode's pure parts with lua5.4 alone: its settings lines, the polled keys' edges and taps, the crosshair point in
--- EVE's frame, and the rifle's magazine (rounds, reloads, the HUD count, running dry, a refill).
+-- EVE's frame, the rifle's magazine (rounds, reloads, the HUD count, running dry, a refill) and the one zone event
+-- gun mode may fire.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Config=require('fight.gunmode.config')
 local Input=require('fight.gunmode.input')
@@ -62,6 +63,20 @@ do
     run(1,true,false); run(1,true,true)
     run(120,false,false)
     assert(a.left==10 and a.reserve==19,'lowered reload '..a.left..' '..a.reserve)
+end
+
+-- 5. The one zone event gun mode may fire: kind 2 on the shot's row, also once take() borrowed a spare NIKKE row in its
+--    place. Never matchmaking's kinds 15, 16 or 19, another kind or another row.
+do
+    local GunMode=require('fight.gunmode.mode')
+    local Data=require('fight.gunmode.data')
+    local fire=Data.row('Fire')
+    assert(GunMode.allowed(2,fire))
+    for _,kind in ipairs({0,1,3,5,6,10,15,16,19}) do assert(not GunMode.allowed(kind,fire),kind) end
+    assert(not GunMode.allowed(2,'MultiplayTest_ZoneE_059') and not GunMode.allowed(2,nil))
+    Data.BORROWED.Fire[1]='Nikke_02_E_ActorEff_001'
+    assert(GunMode.allowed(2,'Nikke_02_E_ActorEff_001') and not GunMode.allowed(2,fire))
+    Data.BORROWED.Fire[1]=fire
 end
 
 print('gunmode helpers: ok')

@@ -9,11 +9,11 @@
 -- How: each shot is the NIKKE shot skill, started by a zone event through SB's own rows (fight/gunmode/data.lua), its
 -- bullet sent to the crosshair's point (fight/gunmode/aim.lua). While the rifle is out the sword's attacks and the drone's
 -- aim on the fire and zoom keys are masked in memory (never saved; put back when it goes away).
--- Gun mode is a module of its own: it reads its own coop-settings.txt lines and uses nothing of the rest of the mod;
--- fight/gunmode/wiring.lua builds it and registers its controller hook. All of it runs on the game thread, from
--- main/frame.lua's loop (every frame) and the hook: no LoopAsync, ExecuteWithDelay or key bind, whose callbacks run Lua
--- on another thread (two threads in one Lua state crashed UE4SS, 11-17). Every step is wrapped, so an error in gun mode
--- never reaches the rest of the mod.
+-- Gun mode is a module of its own: it reads its own coop-settings.txt lines and uses no other module (only the shared
+-- core/unreal.lua); fight/gunmode/wiring.lua builds it and registers its controller hook. All of it runs on the game
+-- thread, from main/frame.lua's loop (every frame) and the hook: no LoopAsync, ExecuteWithDelay or key bind, whose
+-- callbacks run Lua on another thread (two threads in one Lua state crashed UE4SS, 11-17). Every step is wrapped, so an
+-- error in gun mode never reaches the rest of the mod.
 local Config=require('fight.gunmode.config')
 local Aim=require('fight.gunmode.aim')
 local Input=require('fight.gunmode.input')
@@ -24,10 +24,23 @@ local Data=require('fight.gunmode.data')
 local Probe=require('fight.gunmode.probe')
 local Ammo=require('fight.gunmode.ammo')
 local Overlay=require('fight.gunmode.overlay')
+local U=require('core.unreal')
 
 local GunMode={}
 
-local LIB='/Script/SB.Default__SBBlueprintLibrary'
+-- Zone event kind 2 is ZoneEvent_AttachActorEffect (ESBZoneEventType's names at 0x145e29b00 on 26123051). RunEvent
+-- (0x141ca5a10) hands it to 0x141c9e690, which applies the row's actor effect; no chain of direct calls from it reaches
+-- RunEvent, RunZoneEvent (0x141ca5790) or StartMatchMaking (0x141ca3ea0, RunEvent's kind 15). Kinds 16 and 19 stop
+-- matchmaking or go back to single play. The only zone event gun mode fires: kind 2 on the shot's row
+-- (Data.row('Fire'), read at the call: take() can borrow a spare NIKKE row in its place).
+local ATTACH_ACTOR_EFFECT=2
+function GunMode.allowed(kind,name) return kind==ATTACH_ACTOR_EFFECT and name~=nil and name==Data.row('Fire') end
+local function find_name(t) return FName(t,EFindName.FNAME_Find) end -- None (index 0) when not a name yet.
+local function zone_event(kind,name)
+    assert(GunMode.allowed(kind,name),'zone event refused')
+    U.find('/Script/SB.Default__SBBlueprintLibrary'):CreateSBZoneEvent(kind,find_name(name))
+end
+
 local SETTINGS='/Script/Engine.Default__InputSettings'
 local TRACE='/Script/Engine.Default__KismetSystemLibrary'
 
@@ -119,9 +132,7 @@ function GunMode.new(env)
     local ammo=Ammo.new(g,cfg,function(v) data.cool(v) end,on_reload,nil)
 
     local function fire_row(row)
-        local lib=StaticFindObject(LIB)
-        if not g.valid(lib) then return false end
-        local ok,err=pcall(function() lib:CreateSBZoneEvent(2,FName(row)) end)
+        local ok,err=pcall(zone_event,ATTACH_ACTOR_EFFECT,row)
         if not ok then g.log('row '..row..' failed: '..tostring(err)) end
         return ok
     end
