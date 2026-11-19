@@ -314,7 +314,7 @@ struct Game {
                                {kFloorDispel, 6, 0, 0}, {5025007, 30, 0, kBlockAiState},
                                {5025010, 30, 0, kBlockAiState}, {5041011, 30, 0, kBlockAiState},
                                {pvp::kOffHud, 1 << 30, 0, 0}, {pvp::kNoWarp, 1 << 30, 0, 0},
-                               {2003000, 12, 0, 0}};
+                               {2003000, 12, 0, 0}, {1001400, 30, 0, 0}};
     for (const Row &r : rows)
       if (r.id == id)
         return r;
@@ -1236,6 +1236,108 @@ int main() {
     g.inbox.push_back(msg("SBF23 cc 1 101 2003000 1 200"));
     frame(g, *eg, 16);
     assert(g.timed.empty() && eg->guest.counts.flinch_refused == 1 && count(g, "flinch refused", "drawn") == 1);
+  }
+  { // Engine::window: refused on our EVE ("type"), k 2 on a Monster ("type"), a dying copy ("state"), a second
+    // window on a copy whose check has not settled ("running"), a 33rd window ("full", before any game call);
+    // started: 1001400 through the context call with 2.1 s at +0x0c and k at +0x10.
+    Game g;
+    auto e = engine(true, true);
+    for (uint32_t i = 0; i < 34; ++i)
+      g.spawn(101 + i, 5001 + i, 0);
+    g.inbox.push_back(msg("SBF23 on"));
+    const uint64_t t = 0;
+    frame(g, *e, t);
+    const uint32_t eve_guid = g.mem.get<uint32_t>(g.eve + kGuid);
+    assert(std::string(e->window(g, g.logic, eve_guid, 1, 2100, t)) == "type");
+    assert(std::string(e->window(g, g.logic, 101, 2, 2100, t)) == "type");
+    g.mem.put<uint8_t>(g.by_guid[134] + kPendingDeath, 1);
+    assert(std::string(e->window(g, g.logic, 134, 1, 2100, t)) == "state");
+    assert(e->window(g, g.logic, 101, 1, 2100, t) == nullptr &&
+           g.timed.back() == std::make_tuple(int32_t(1001400), 2.1f, 1.0f));
+    assert(std::string(e->window(g, g.logic, 101, 1, 2100, t)) == "running");
+    for (uint32_t i = 1; i < 32; ++i)
+      assert(e->window(g, g.logic, 101 + i, 1, 2100, t) == nullptr);
+    const size_t timed = g.timed.size();
+    assert(std::string(e->window(g, g.logic, 133, 1, 2100, t)) == "full" && g.timed.size() == timed);
+  }
+  { // The restore check reads SB's own effect clock, never the poise value and never the wall clock alone.
+    Game g;
+    auto e = engine(true, true);
+    g.spawn(101, 5001, 0);
+    g.inbox.push_back(msg("SBF23 on"));
+    uint64_t t = 0;
+    frame(g, *e, t);
+    const auto ours = [&]() -> Game::Body::Running * { // Our 1001400 on 101, once started.
+      for (Game::Body::Running &r : g.body(101).effects)
+        if (r.id == poise::kAddHitDefense)
+          return &r;
+      return nullptr;
+    };
+    // 1. A knockdown inside the window, its own HitDefenseLevel +3 on the copy at the check, our effect ended by SB:
+    //    ok, nothing counted, no latch.
+    assert(e->window(g, g.logic, 101, 1, 300, t) == nullptr);
+    g.knock(101, 3000301);
+    g.mem.put(g.fsb(101) + poise::kHitDefense, 3.0f);
+    for (const uint64_t end = t + 1000; t < end;)
+      frame(g, *e, t += 16);
+    assert(e->counts.unrestored == 0 && e->counts.restore_skipped == 0 && !e->latched());
+    // 2. A pause: no turn for 10 s, our effect still listed with its clock behind; then turns until SB ends it.
+    assert(e->window(g, g.logic, 101, 1, 300, t) == nullptr);
+    frame(g, *e, t += 16);
+    t += 10000;
+    for (const uint64_t end = t + 1000; t < end;)
+      frame(g, *e, t += 16);
+    assert(e->counts.unrestored == 0 && e->counts.restore_skipped == 0 && count(g, "poise not restored") == 0);
+    // 3. Its clock still behind 60 s after the end (a long photo freeze): unchecked, in the snapshot too.
+    assert(e->window(g, g.logic, 101, 1, 300, t) == nullptr);
+    frame(g, *e, t += 16);
+    ours()->left = 1 << 30;
+    g.mem.put(ours()->at + poise::kEffectElapsed, 0.1f);
+    frame(g, *e, t += 61000);
+    assert(e->counts.restore_skipped == 1 && e->snapshot().job.restore_skipped == 1 && e->counts.unrestored == 0);
+    // 4. Listed 0.5 s past its life on its own clock (SB never ended it): one event, windows off for the run, also
+    //    after a new set().
+    g.end(101, poise::kAddHitDefense);
+    assert(e->window(g, g.logic, 101, 1, 300, t) == nullptr);
+    frame(g, *e, t += 16);
+    ours()->left = 1 << 30;
+    g.mem.put(ours()->at + poise::kEffectElapsed, 0.9f);
+    for (const uint64_t end = t + 1000; t < end;)
+      frame(g, *e, t += 16);
+    assert(e->counts.unrestored == 1 && count(g, "poise not restored") == 1);
+    e->set(true, true);
+    assert(std::string(e->window(g, g.logic, 101, 1, 300, t)) == "off");
+  }
+  { // The copy gone or dying before its check: skipped, nothing more read, no latch. A world line drops every check
+    // with no count, as a new session does (a host alone hears no world line after a load): each copy then dying
+    // would count one if its check still ran.
+    Game g;
+    auto e = engine(true, true);
+    for (uint32_t i = 0; i < 4; ++i)
+      g.spawn(102 + i, 5002 + i, 0);
+    g.inbox.push_back(msg("SBF23 on"));
+    uint64_t t = 0;
+    frame(g, *e, t);
+    assert(e->window(g, g.logic, 102, 1, 300, t) == nullptr && e->window(g, g.logic, 103, 1, 300, t) == nullptr);
+    g.unlink(102);                                         // Out of the map.
+    g.mem.put<uint8_t>(g.by_guid[103] + kPendingDeath, 1); // Dying, still in the map.
+    for (const uint64_t end = t + 1000; t < end;)
+      frame(g, *e, t += 16);
+    assert(e->counts.restore_skipped == 2 && e->counts.unrestored == 0 && !e->latched());
+    assert(e->window(g, g.logic, 104, 1, 300, t) == nullptr);
+    g.inbox.push_back(msg("SBF23 world 2"));
+    frame(g, *e, t += 16);
+    g.mem.put<uint8_t>(g.by_guid[104] + kPendingDeath, 1);
+    for (const uint64_t end = t + 1000; t < end;)
+      frame(g, *e, t += 16);
+    assert(e->counts.restore_skipped == 2 && e->counts.unrestored == 0);
+    assert(e->window(g, g.logic, 105, 1, 300, t) == nullptr);
+    e->set(true, true);
+    frame(g, *e, t += 16);
+    g.mem.put<uint8_t>(g.by_guid[105] + kPendingDeath, 1);
+    for (const uint64_t end = t + 1000; t < end;)
+      frame(g, *e, t += 16);
+    assert(e->counts.restore_skipped == 2 && e->counts.unrestored == 0);
   }
 
   // ---- guest_kills=confirmed: the 1 HP floor, ApplyStat(107, +1) on every paired copy, comes off on every way out:
@@ -7307,6 +7409,8 @@ int main() {
       assert(c.caster == H.eve);
     for (const Game::Cast &c : G.casts)
       assert(c.caster == G.eve);
+    assert(H.timed.size() == hc.windows && G.timed.size() == gc.windows && hc.windows + gc.windows > 0);
+    assert(eh->counts.unrestored == 0 && eg->counts.unrestored == 0);
     // 5. No latch, one arm each, no bad line.
     assert(!eh->latched() && !eg->latched() && eh->counts.arms == 1 && eg->counts.arms == 1);
     assert(eh->host.counts.bad == 0 && eg->guest.counts.bad == 0 && eh->counts.no_eve == 0 && eg->counts.no_eve == 0);

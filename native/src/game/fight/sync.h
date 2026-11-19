@@ -766,6 +766,10 @@ inline std::string line(const Event &e) {
 //     not by the other side's stream);
 //   bool reaction(uint32_t guid, int32_t id, Reaction &out): the hit level and life of the effect id running on our
 //     copy guid (phase 8 Rule A); false when the copy or the effect is not found: the rise is then told at the guess;
+//   uint8_t oe(uint32_t hguid): same place's owner epoch of the enemy hguid on this side (0 before any hand-over);
+//   const char *window(uint32_t guid, uint8_t k, uint32_t ms): phase 8 Rule B, k more poise on our copy guid for ms
+//     through SB's own effect (poise::kAddHitDefense), which SB ends and takes back itself; null when started, else
+//     why not (a static string);
 //   void send(const Message &m): channel 2 (on/off are the caller's, but for the guest's answer to the host's on);
 //   void event(const Event &e): a log line;
 //   bool took_part(uint32_t guid): our EVE took part in the fight of our copy guid by the game's own record or where
@@ -827,6 +831,8 @@ struct Counts {
   uint64_t flinch_told = 0;          // Flinches (kFlinch) that started on our copy, told to the other side.
   uint64_t flinch_mirrored = 0;      // The other side's, started on our copy.
   uint64_t flinch_refused = 0;       // The other side's not started, for any reason.
+  uint64_t windows = 0;              // Rule B's windows of raised poise started on our copies (Io::window).
+  uint64_t windows_refused = 0;      // Those Io::window refused.
   uint64_t execs = 0;                // Host: her exec 1 taken. Guest: our exec 1 sent (stage 3c, the engine's).
   uint64_t exec_refused = 0;         // Host: her exec 1 refused (no Groggy or marker on ours, too soon, one runs).
   uint64_t finish_held = 0;          // Host: kills of hers held at 1 HP, our copy in its Finish stance (stage 5).
@@ -925,14 +931,73 @@ inline const char *refusal(Took t, int32_t id, const char *&why) {
 }
 
 // A reaction that rose on our copy guid into m: its effect, Io::reaction's level (else the guess, counted) and for a
-// flinch its time; counted as told.
-template <class Io> void tell(Message &m, uint32_t guid, int32_t id, Counts &c, Io &io) {
+// flinch its time; counted as told. Returns what Io::reaction read, for Rule B.
+template <class Io> Reaction tell(Message &m, uint32_t guid, int32_t id, Counts &c, Io &io) {
   Reaction r;
   if (!io.reaction(guid, id, r))
     r = Reaction();
   c.level_guess += r.guess;
   m.effect = id, m.level = r.level, m.ms = id == kFlinch ? r.life_ms : 0;
   ++(id == kFlinch ? c.flinch_told : c.cc_told);
+  return r;
+}
+
+// Phase 8 Rule B. Each side notes per enemy (the host's GUID) which players made its copy react (poise::Recent): slot
+// 0 a rise of ours that is not an echo, slot 1 each cc line of the other side's taken at a step and each echo of our
+// mirror. A rise on a copy this side moves itself (same place off, or Io::owns), with stagger_resist on, asks a window
+// once two players or more made it react within poise::kRecentMs. With same place, the owner tells the other side in
+// a poise line, which starts the same window on the drawn copy at the owner's epoch only.
+
+// The window a rise of id on our copy local (seen as s) is due with players slots in its Recent: k (0: none, under
+// two players or not a Monster or a boss) and its ms. told: tell()'s Reaction for a rise told; null for an echo or a
+// rise not told: Io::reaction is then read for its life only (its level unused, no guess counted).
+template <class Io>
+uint8_t due_window(uint32_t local, int32_t id, const Seen &s, uint8_t players, const Reaction *told, uint32_t &ms,
+                   Io &io) {
+  const uint8_t k = poise::k_for(s.type);
+  if (players < 2 || !k)
+    return 0;
+  Reaction r;
+  if (told)
+    r = *told;
+  else if (!io.reaction(local, id, r))
+    r = Reaction();
+  ms = poise::window_ms(r.life_ms, players);
+  return ms ? k : 0;
+}
+
+// A window of k for ms on our copy local through Io::window. Started: counted, true. Refused: counted, its reason
+// logged once per enemy (e: its key and host GUID) every poise::kQuietMs.
+template <class Io>
+bool start_window(uint32_t local, uint8_t k, uint32_t ms, Event e, uint64_t now, poise::Quiet &quiet, Counts &c,
+                  Io &io) {
+  if (const char *why = io.window(local, k, ms)) {
+    ++c.windows_refused;
+    if (quiet.say(e.guid, "window refused", why, now))
+      e.what = "window refused", e.why = why, io.event(e);
+    return false;
+  }
+  ++c.windows;
+  return true;
+}
+
+// The owner's poise line, kept on its enemy until the next step (a later one replaces it). k 0: none.
+struct Kept {
+  uint8_t oe = 0, k = 0;
+  uint32_t ms = 0;
+};
+// At a step: the kept line for our copy local (the host's enemy hguid), with resist on, the sender owning the enemy
+// (not Io::owns) and its epoch ours (Io::oe), starts its window (start_window); else stale.
+template <class Io>
+void take_poise(Kept &kept, uint32_t local, uint32_t hguid, bool resist, const Event &e, uint64_t now,
+                poise::Quiet &quiet, Counts &c, Io &io) {
+  if (!kept.k)
+    return;
+  const Kept x = std::exchange(kept, Kept());
+  if (resist && !io.owns(hguid) && io.oe(hguid) == x.oe)
+    start_window(local, x.k, x.ms, e, now, quiet, c, io);
+  else
+    ++c.stale;
 }
 
 // A world change: the logic turn went backwards (every load, network start and Logic Reset), or this census pass shares
@@ -1094,6 +1159,12 @@ public:
       else
         ++counts.stale;
       return;
+    case Type::poise: // Hers as the owner (same place), for our copy at the next step (take_poise).
+      if (Enemy *e = peer_on_ && m.gen == gen_ ? find(m.guid) : nullptr)
+        e->kept = Kept{m.oe, m.k, m.ms};
+      else
+        ++counts.stale;
+      return;
     default: return bad("not a guest's line", io);
     }
   }
@@ -1114,20 +1185,19 @@ public:
       Enemy &e = enemies_[i];
       const Seen *s = fight::find(seen, n, e.guid);
       if (s && !dying(*s)) {
-        if (const Rise r = e.cc.rise(*s, now); r.id && !r.echo && each && (r.id != kFlinch || reactions_)) {
-          Message m = note(Type::cc, e.guid);
-          tell(m, e.guid, r.id, counts, io);
-          io.send(m);
-        }
+        if (const Rise r = e.cc.rise(*s, now); r.id)
+          rose(e, *s, r, each, now, io);
         e.take(*s);
         if (!e.scaled && peer_on_)
           e.scaled = true, e.due = scaling(scale_, boss_);
         const int32_t id = e.cc.want;
         const char *why = "";
-        if (const char *what = refusal(e.cc.apply(e.guid, *s, now, reactions_, place_ && !io.owns(e.guid), counts, io),
-                                       id, why);
-            what && quiet_.say(e.guid, what, why, now))
+        const Took took = e.cc.apply(e.guid, *s, now, reactions_, place_ && !io.owns(e.guid), counts, io);
+        if (took != Took::none) // Her hit made it react on her screen (Rule B, slot 1).
+          recent_.note(e.guid, 1, now);
+        if (const char *what = refusal(took, id, why); what && quiet_.say(e.guid, what, why, now))
           io.event(Event{what, why, e.guid, e.spawn, e.index});
+        take_poise(e.kept, e.guid, e.guid, resist_, Event{"", "", e.guid, e.spawn, e.index}, now, quiet_, counts, io);
         ++i;
         continue;
       }
@@ -1260,6 +1330,7 @@ private:
     uint64_t window = 0; // The rate window's start and its claims.
     uint32_t in_window = 0;
     Mirror cc;
+    Kept kept; // Her poise line (Rule B, same place), for the next step.
     void take(const Seen &s) {
       due = false;
       struck_ours = struck_hers = false;
@@ -1279,10 +1350,33 @@ private:
     int8_t exec = -1; // An exec line instead: 1 or 0.
   };
   static bool running(const Enemy &e, uint64_t now) { return e.exec_ms && now < e.exec_ms + kHoldMs; }
-  void forget() { // Her claims not applied yet and her takedowns: she restarted, or stopped.
+  void forget() { // Her claims not applied yet, her takedowns and her reactions: she restarted, or stopped.
     claims_ = 0;
     for (size_t i = 0; i < count_; ++i)
       enemies_[i].exec_ms = 0;
+    recent_.clear();
+  }
+  // A reaction that rose on our copy e (seen as s): told to her (Rule A) unless it is our echo. Then Rule B's window
+  // when due, while stagger_resist is on and we move the copy. With same place she gets a poise line for it.
+  template <class Io> void rose(Enemy &e, const Seen &s, const Rise &r, bool each, uint64_t now, Io &io) {
+    recent_.note(e.guid, r.echo ? 1 : 0, now); // Slot 0: our EVE's; slot 1: our mirror of hers showing up.
+    Reaction told;
+    const bool tells = !r.echo && each && (r.id != kFlinch || reactions_);
+    if (tells) {
+      Message m = note(Type::cc, e.guid);
+      told = tell(m, e.guid, r.id, counts, io);
+      io.send(m);
+    }
+    uint32_t ms = 0;
+    const uint8_t k = resist_ && (!place_ || io.owns(e.guid))
+                          ? due_window(e.guid, r.id, s, recent_.players(e.guid, now), tells ? &told : nullptr, ms, io)
+                          : 0;
+    if (k && start_window(e.guid, k, ms, Event{"", "", e.guid, e.spawn, e.index}, now, quiet_, counts, io) &&
+        place_ && each) {
+      Message m = note(Type::poise, e.guid);
+      m.oe = io.oe(e.guid), m.k = k, m.ms = ms;
+      io.send(m);
+    }
   }
 
   Enemy *find(uint32_t guid) {
@@ -1556,7 +1650,8 @@ private:
   bool peer_on_ = false, announce_ = true, ignored_ = false;
   bool full_said_ = false; // "full" logged in this world.
   Fence fence_;
-  poise::Quiet quiet_; // Rule A's refusals, one log line per enemy every kQuietMs.
+  poise::Quiet quiet_;   // Rule A's and Rule B's refusals, one log line per enemy every kQuietMs.
+  poise::Recent recent_; // Rule B: the players who made each enemy react.
 };
 
 // ---- Guest: prediction and claims ----
@@ -1753,6 +1848,7 @@ public:
     case Type::dead:
     case Type::hp:
     case Type::cc:
+    case Type::poise:
       if (!known_gen_ || m.gen != known_gen_) {
         ++counts.stale;
         return;
@@ -1790,6 +1886,11 @@ public:
     } else if (m.type == Type::cc) { // For our copy at the next step, while it is ours to follow.
       if (p && p->local && !p->lethal && !p->dead)
         p->cc.hear(m, counts);
+      else
+        ++counts.stale;
+    } else if (m.type == Type::poise) { // The owner's window, for our copy at the next step (take_poise).
+      if (p && p->local && !p->lethal && !p->dead)
+        p->kept = Kept{m.oe, m.k, m.ms};
       else
         ++counts.stale;
     } else if (m.type == Type::hp) {
@@ -1913,6 +2014,7 @@ private:
     int32_t stuck[kStats] = {-1, -1, -1}; // A target a write could not reach; retried once the target changes.
     uint64_t next_claim = 0;
     Mirror cc;
+    Kept kept;                    // The host's poise line (Rule B, same place), for the next step.
     Pending pending[kMaxPending]; // Claims sent, not in the host's values yet, oldest first.
     size_t pendings = 0;
   };
@@ -1925,6 +2027,7 @@ private:
     place_ = host_only_ = false;
     boss_ = 0;
     reactions_ = resist_ = false;
+    recent_.clear();
   }
   Pair *find(uint32_t hguid) {
     for (size_t i = 0; i < count_; ++i)
@@ -1991,24 +2094,47 @@ private:
       p.held = !dying(s);
       return claim(p, s, now, true, io);
     }
-    if (const Rise r = p.cc.rise(s, now); r.id && !r.echo && (r.id != kFlinch || reactions_)) {
-      Message m;
-      m.type = Type::cc;
-      m.gen = known_gen_;
-      m.guid = p.hguid;
-      tell(m, p.local, r.id, counts, io);
-      io.send(m);
-    }
+    if (const Rise r = p.cc.rise(s, now); r.id)
+      rose(p, s, r, now, io);
     if (owed && now >= p.next_claim && now >= next_claim_)
       claim(p, s, now, false, io);
     if (p.have_host)
       correct(p, s, io);
     const int32_t id = p.cc.want;
     const char *why = "";
-    if (const char *what =
-            refusal(p.cc.apply(p.local, s, now, reactions_, place_ && !io.owns(p.hguid), counts, io), id, why);
-        what && quiet_.say(p.hguid, what, why, now))
+    const Took took = p.cc.apply(p.local, s, now, reactions_, place_ && !io.owns(p.hguid), counts, io);
+    if (took != Took::none) // The host's hit made it react on its screen (Rule B, slot 1).
+      recent_.note(p.hguid, 1, now);
+    if (const char *what = refusal(took, id, why); what && quiet_.say(p.hguid, what, why, now))
       io.event(Event{what, why, p.hguid, p.spawn, p.index});
+    take_poise(p.kept, p.local, p.hguid, resist_, Event{"", "", p.hguid, p.spawn, p.index}, now, quiet_, counts, io);
+  }
+
+  // A reaction that rose on our copy of p (seen as s): told to the host (Rule A) unless it is our echo. Then Rule B's
+  // window when due, while the host's stagger_resist is on and we move the copy. With same place the host gets a
+  // poise line for it.
+  template <class Io> void rose(Pair &p, const Seen &s, const Rise &r, uint64_t now, Io &io) {
+    recent_.note(p.hguid, r.echo ? 1 : 0, now); // Slot 0: our EVE's; slot 1: our mirror of the host's showing up.
+    Reaction told;
+    const bool tells = !r.echo && (r.id != kFlinch || reactions_);
+    Message m;
+    m.gen = known_gen_;
+    m.guid = p.hguid;
+    if (tells) {
+      m.type = Type::cc;
+      told = tell(m, p.local, r.id, counts, io);
+      io.send(m);
+    }
+    uint32_t ms = 0;
+    const uint8_t k = resist_ && (!place_ || io.owns(p.hguid))
+                          ? due_window(p.local, r.id, s, recent_.players(p.hguid, now), tells ? &told : nullptr, ms, io)
+                          : 0;
+    if (k && start_window(p.local, k, ms, Event{"", "", p.hguid, p.spawn, p.index}, now, quiet_, counts, io) &&
+        place_) {
+      m.type = Type::poise;
+      m.oe = io.oe(p.hguid), m.k = k, m.ms = ms;
+      io.send(m);
+    }
   }
 
   template <class Io> void claim(Pair &p, const Seen &s, uint64_t now, bool lethal, Io &io) {
@@ -2132,7 +2258,8 @@ private:
   SpawnKey died_at_[kMaxTracked]; // died()'s.
   size_t died_ = 0;
   Fence fence_;
-  poise::Quiet quiet_; // Rule A's refusals, one log line per enemy every kQuietMs.
+  poise::Quiet quiet_;   // Rule A's and Rule B's refusals, one log line per enemy every kQuietMs.
+  poise::Recent recent_; // Rule B: the players who made each enemy react.
 };
 
 // ---- Record and replay ----

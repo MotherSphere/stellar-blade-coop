@@ -19,6 +19,7 @@
 #include <deque>
 #include <random>
 #include <string>
+#include <tuple>
 #include <vector>
 
 using namespace coop::fight;
@@ -45,6 +46,9 @@ struct World {
   std::vector<uint32_t> unshared; // The host's copies given up (Io::unshare): the engine's censuses leave them out.
   Reaction react{1, 0, false}; // What Io::reaction reads on a copy's risen effect.
   bool no_reaction = false;    // Io::reaction finds no such copy or effect.
+  uint8_t epoch = 0;           // Same place: the owner epoch of every enemy (Io::oe).
+  std::vector<std::tuple<uint32_t, uint8_t, uint32_t>> windows; // Rule B's windows started: (GUID, k, ms).
+  const char *window_why = nullptr;                             // Io::window refuses every one for this reason.
 
   bool took_part(uint32_t guid) const { return std::find(apart.begin(), apart.end(), guid) == apart.end(); }
   bool owns(uint32_t hguid) const { return std::find(owned.begin(), owned.end(), hguid) != owned.end(); }
@@ -106,6 +110,12 @@ struct World {
       return false;
     out = react;
     return true;
+  }
+  uint8_t oe(uint32_t) const { return epoch; }
+  const char *window(uint32_t guid, uint8_t k, uint32_t ms) {
+    if (!window_why)
+      windows.emplace_back(guid, k, ms);
+    return window_why;
   }
   void send(const Message &m) { sent.push_back(m); }
   void event(const Event &e) { events.push_back(e); }
@@ -2803,6 +2813,188 @@ int main() {
     h.receive(msg("SBF23 cc 1 101 2003000 1 300"), 30, w);
     step(h, w, 4, 30);
     assert(w.effects.back() == std::make_pair(101u, kFlinch) && h.counts.flinch_mirrored == 1);
+  }
+
+  // Rule B rounds on a host's copy 101, turn the last turn used. ours: a rise of our EVE's (slot 0), then out of it.
+  // hers: her cc line taken at a step, then its echo on our copy (slot 1), then out of it.
+  const auto ours = [](Host &h, World &w, uint32_t &turn, uint64_t t) {
+    w.actor(101)->s.cc = 1;
+    step(h, w, ++turn, t);
+    w.actor(101)->s.cc = 0;
+    step(h, w, ++turn, t + 100);
+  };
+  const auto hers = [](Host &h, World &w, uint32_t &turn, uint64_t t) {
+    h.receive(msg("SBF23 cc 1 101 3000300 1 0"), t, w);
+    step(h, w, ++turn, t);
+    w.actor(101)->s.cc = 1 << 1;
+    step(h, w, ++turn, t + 50);
+    w.actor(101)->s.cc = 0;
+    step(h, w, ++turn, t + 100);
+  };
+  { // Rule B without same place: each side starts windows on its own copy, nothing on the wire. Ours alone: none.
+    // Ours, then hers and its echo within 10 s: a window at the echo, k 1 (Monster), 600 + 1500 ms.
+    World w;
+    Host h;
+    uint32_t turn = 0;
+    h.set_stagger(true, true);
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0).s.type = 3;
+    step(h, w, ++turn, 0);
+    w.lines();
+    w.react = Reaction{1, 600, false};
+    ours(h, w, turn, 100);
+    assert(w.windows.empty());
+    hers(h, w, turn, 3000);
+    assert(w.windows.size() == 1 && w.windows[0] == std::make_tuple(101u, uint8_t(1), 2100u));
+    assert(h.counts.windows == 1 && !has(w.lines(), "poise"));
+  }
+  { // A boss (ActorType 4): k 2. A refusal from Io::window: counted windows_refused, one event every 10 s.
+    World w;
+    Host h;
+    uint32_t turn = 0;
+    h.set_stagger(true, true);
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0).s.type = 4;
+    step(h, w, ++turn, 0);
+    w.react = Reaction{1, 600, false};
+    ours(h, w, turn, 100);
+    hers(h, w, turn, 1000);
+    assert(w.windows.size() == 1 && std::get<1>(w.windows[0]) == 2);
+    w.window_why = "running";
+    hers(h, w, turn, 2000);
+    hers(h, w, turn, 3000);
+    assert(w.windows.size() == 1 && h.counts.windows_refused == 2 && w.count("window refused", "running") == 1);
+  }
+  { // Same place, the owner: the host owns 101 at epoch 2; its window goes out as a poise line. When she owns 101,
+    // our rises start no window.
+    World w;
+    Host h;
+    uint32_t turn = 0;
+    h.set_stagger(true, true);
+    h.set_place(true);
+    w.owned = {101}, w.epoch = 2;
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0).s.type = 3;
+    step(h, w, ++turn, 0);
+    w.lines();
+    w.react = Reaction{1, 600, false};
+    ours(h, w, turn, 100);
+    hers(h, w, turn, 1000);
+    assert(has(w.lines(), "SBF23 poise 1 101 2 1 2100\n") && w.windows.size() == 1);
+    w.owned.clear();
+    ours(h, w, turn, 20000);
+    hers(h, w, turn, 21000);
+    assert(w.windows.size() == 1 && h.counts.windows == 1);
+  }
+  { // Same place, the drawer: the owner's poise line starts the same row on our copy at its epoch only; a poise line
+    // at another epoch, or for a copy this side owns by now, is stale.
+    World g;
+    g.add(501, 5001, 0).s.type = 3;
+    Guest gu;
+    gu.receive(msg("SBF23 world 1"), g);
+    gu.receive(msg("SBF23 up 1 101 5001 0 900 1600"), g);
+    step(gu, g, 1, 0);
+    gu.receive(msg("SBF23 place 1 1"), g);
+    gu.receive(msg("SBF23 stagger 1 1 1"), g);
+    g.epoch = 2;
+    gu.receive(msg("SBF23 poise 1 101 2 1 2100"), g);
+    step(gu, g, 2, 500);
+    assert(g.windows.size() == 1 && g.windows[0] == std::make_tuple(501u, uint8_t(1), 2100u));
+    const uint64_t stale = gu.counts.stale;
+    gu.receive(msg("SBF23 poise 1 101 1 1 2100"), g);
+    step(gu, g, 3, 550);
+    g.owned = {101};
+    gu.receive(msg("SBF23 poise 1 101 2 1 2100"), g);
+    step(gu, g, 4, 600);
+    assert(g.windows.size() == 1 && gu.counts.stale == stale + 2);
+  }
+  { // Same place, the host draws: the guest owns 101 at epoch 3; her poise line starts the same row on our drawn copy
+    // at that epoch only; at another epoch, or for an enemy we own (102), stale.
+    World w;
+    Host h;
+    h.set_stagger(true, true);
+    h.set_place(true);
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0).s.type = 3;
+    w.add(102, 8, 0).s.type = 3;
+    w.owned = {102}, w.epoch = 3;
+    step(h, w, 1, 0);
+    w.lines();
+    h.receive(msg("SBF23 poise 1 101 3 1 2100"), 10, w);
+    step(h, w, 2, 10);
+    assert(w.windows.size() == 1 && w.windows[0] == std::make_tuple(101u, uint8_t(1), 2100u));
+    const uint64_t stale = h.counts.stale;
+    h.receive(msg("SBF23 poise 1 101 2 1 2100"), 20, w);
+    step(h, w, 3, 20);
+    h.receive(msg("SBF23 poise 1 102 3 1 2100"), 30, w);
+    step(h, w, 4, 30);
+    assert(w.windows.size() == 1 && h.counts.stale == stale + 2);
+  }
+  { // stagger_resist off (the host's): no window; turning it off while one runs starts no other and calls nothing on
+    // the running one.
+    World w;
+    Host h;
+    uint32_t turn = 0;
+    h.set_stagger(true, true);
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0).s.type = 3;
+    step(h, w, ++turn, 0);
+    w.react = Reaction{1, 600, false};
+    ours(h, w, turn, 100);
+    hers(h, w, turn, 1000);
+    h.set_stagger(true, false);
+    ours(h, w, turn, 3000);
+    hers(h, w, turn, 3500);
+    assert(w.windows.size() == 1 && h.counts.windows == 1 && h.counts.windows_refused == 0);
+  }
+  { // A cc line taken but refused on our copy (its poise) still counts the other player: her hit made it react on her
+    // screen. Our next rise then starts a window, on the host's side and on the guest's.
+    World w;
+    Host h;
+    uint32_t turn = 0;
+    h.set_stagger(true, true);
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0).s.type = 3;
+    step(h, w, ++turn, 0);
+    w.react = Reaction{1, 600, false};
+    w.actor(101)->s.poise = 5.0f;
+    h.receive(msg("SBF23 cc 1 101 3000300 1 0"), 100, w);
+    step(h, w, ++turn, 100);
+    assert(h.counts.cc_poise == 1);
+    w.actor(101)->s.poise = 0;
+    ours(h, w, turn, 200);
+    assert(w.windows.size() == 1 && w.windows[0] == std::make_tuple(101u, uint8_t(1), 2100u));
+    World g;
+    g.add(501, 5001, 0).s.type = 3;
+    Guest gu;
+    gu.receive(msg("SBF23 world 1"), g);
+    gu.receive(msg("SBF23 up 1 101 5001 0 900 1600"), g);
+    gu.receive(msg("SBF23 stagger 1 1 1"), g);
+    step(gu, g, 1, 0);
+    g.react = Reaction{1, 600, false};
+    g.actor(501)->s.poise = 5.0f;
+    gu.receive(msg("SBF23 cc 1 101 3000300 1 0"), g);
+    step(gu, g, 2, 100);
+    assert(gu.counts.cc_poise == 1);
+    g.actor(501)->s.poise = 0, g.actor(501)->s.cc = 1;
+    step(gu, g, 3, 200);
+    assert(g.windows.size() == 1 && g.windows[0] == std::make_tuple(501u, uint8_t(1), 2100u));
+  }
+  { // Her off and on forget her reactions: our next rise alone starts no window.
+    World w;
+    Host h;
+    uint32_t turn = 0;
+    h.set_stagger(true, true);
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0).s.type = 3;
+    step(h, w, ++turn, 0);
+    w.react = Reaction{1, 600, false};
+    hers(h, w, turn, 100);
+    h.receive(msg("SBF23 off busy"), 300, w);
+    h.receive(msg("SBF23 on"), 400, w);
+    step(h, w, ++turn, 400);
+    ours(h, w, turn, 500);
+    assert(w.windows.empty());
   }
 
   std::puts("fight_sync_test: ok");

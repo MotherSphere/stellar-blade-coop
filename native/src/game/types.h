@@ -369,6 +369,9 @@ struct JobCounts {
   // Stage 5, the guest's: SetBattleMode calls, phase rows applied and refused by the game, finish guards (turns the
   // guard ran on a copy), summons made; the host's: summon lines sent.
   uint64_t bstarts = 0, phase_rows = 0, phase_refused = 0, finish_guards = 0, summons = 0;
+  // Phase 8 Rule B: windows whose effect SB never ended (windows off for the run), checks skipped (the copy gone or
+  // dying, its list torn, or its clock still behind poise::kGiveUpMs after the end).
+  uint64_t unrestored = 0, restore_skipped = 0;
 };
 
 // What the worker logs about the job: the logic thread's side, copied at each hand-over (Mail), with the game thread's

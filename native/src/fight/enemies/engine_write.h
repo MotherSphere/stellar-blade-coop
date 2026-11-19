@@ -27,6 +27,62 @@ template <class Game> bool Engine::cast(Game &g, uint64_t logic, uint32_t guid, 
   return noted(guid), true;
 }
 
+template <class Game>
+const char *Engine::window(Game &g, uint64_t logic, uint32_t guid, uint8_t k, uint32_t ms, uint64_t now) {
+  if (windows_off_ || latched_)
+    return "off";
+  if (windows_.running(guid))
+    return "running";
+  if (windows_.full())
+    return "full";
+  Actor a;
+  const uint64_t la = g.find(logic, guid);
+  if (!la || !live(g, la, guid, a))
+    return "gone";
+  if (a.life != 1 || a.pending)
+    return "state";
+  uint8_t type = 0; // ActorType; a failed read is no type.
+  if (!g.read(a.fsb + kActorType, &type, 1) || poise::k_for(type) != k)
+    return "type";
+  // The copy is its own caster (Self, as the row's target filter says); ctx +0x0c the life in s, +0x10 the poise added.
+  const uint64_t effect = latched_ ? 0 : g.effect_ctx(logic, la, la, poise::kAddHitDefense, ms / 1000.0f, float(k));
+  if (!effect)
+    return "game";
+  windows_.add(poise::Window{guid, effect, now + ms});
+  return nullptr;
+}
+
+template <class Game> void Engine::restore_turn(Game &g, uint64_t logic, uint64_t now) {
+  windows_.check(now, [&](const poise::Window &w) {
+    Actor a;
+    bool listed = false;
+    const uint64_t la = g.find(logic, w.guid);
+    const auto ours = [&](uint64_t at, int32_t id) {
+      listed = listed || (at == w.effect && id == poise::kAddHitDefense);
+    };
+    if (!la || !live(g, la, w.guid, a) || a.life != 1 || a.pending || !each_effect(g, la, ours)) {
+      ++counts.restore_skipped;
+      return poise::Restore::skipped;
+    }
+    float elapsed = std::nanf(""), life = std::nanf("");
+    if (listed && !g.read(w.effect + poise::kEffectElapsed, &elapsed, sizeof elapsed))
+      elapsed = std::nanf("");
+    if (listed && !g.read(w.effect + poise::kEffectLife, &life, sizeof life))
+      life = std::nanf("");
+    const poise::Restore r = poise::restore(w, now, listed, elapsed, life);
+    if (r == poise::Restore::skipped)
+      ++counts.restore_skipped;
+    if (r == poise::Restore::failed) {
+      ++counts.unrestored;
+      windows_off_ = true;
+      Event e{"poise not restored", "listed past its life", 0, a.seen.spawn, a.seen.index};
+      std::snprintf(e.note, sizeof e.note, "elapsed=%.2f life=%.2f", double(elapsed), double(life));
+      g.event(e);
+    }
+    return r;
+  });
+}
+
 inline void Engine::noted(uint32_t guid) {
   if (casts_ < kMaxPairs)
     cast_[casts_] = guid;

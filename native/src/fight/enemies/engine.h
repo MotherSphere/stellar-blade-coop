@@ -178,6 +178,18 @@ public:
   const Seen *seen() const { return seen_; }
   // Phase 8 Rule A, the sides' Io and the tests: the level and life of effect id running on our copy guid (Reaction).
   template <class Game> bool reaction(Game &g, uint64_t logic, uint32_t guid, int32_t id, Reaction &out);
+  // Phase 8 Rule B, the sides' Io::window and the tests: k more poise on our copy guid for ms, through SB's effect call
+  // of poise::kAddHitDefense with the copy as its own caster and a context of ms / 1000 s and k (effect_ctx). SB ends
+  // it and takes its delta back itself; restore_turn() checks that it did. Null when started, else why not, in this
+  // order: "off" (a window SB never ended, or latched), "running" (one on that copy whose check has not settled),
+  // "full" (poise::kEnemies running), "gone" (not found again live), "state" (life state not 1, or a death pending),
+  // "type" (not the ActorType k is for: a Monster for 1, a BossMonster for 2), "game" (SB refused the call).
+  template <class Game>
+  const char *window(Game &g, uint64_t logic, uint32_t guid, uint8_t k, uint32_t ms, uint64_t now);
+  // Each turn after the side's step: the check of each window poise::kRestoreMs past its end, on SB's own effect
+  // clock (poise::restore). The copy not found again live, dying or out of life state 1, or its list torn: skipped,
+  // nothing more read. Our effect still listed past its life: counted, logged, no window again for the run.
+  template <class Game> void restore_turn(Game &g, uint64_t logic, uint64_t now);
 
   // The logic thread: its own counts and both sides', for Mail. The game thread's arms stay 0 here (they come through
   // Mail::armed), so neither thread reads what the other writes.
@@ -188,9 +200,12 @@ private:
     Engine &e;
     Game &g;
     uint64_t logic;
+    uint64_t now; // Simulate's now_ms.
     bool apply(const Write &w, int32_t &after) { return e.write(g, logic, w, after); }
     bool effect(uint32_t guid, int32_t id, uint32_t ms) { return e.cast(g, logic, guid, id, ms); }
     bool owns(uint32_t hguid) { return e.owners_.owner(hguid) == (e.hosting_seen_ ? pilot::kHost : pilot::kGuest); }
+    uint8_t oe(uint32_t hguid) { return e.owners_.oe(hguid); }
+    const char *window(uint32_t guid, uint8_t k, uint32_t ms) { return e.window(g, logic, guid, k, ms, now); }
     bool reaction(uint32_t guid, int32_t id, Reaction &out) { return e.reaction(g, logic, guid, id, out); }
     bool took_part(uint32_t guid) { return e.took_part(g, logic, guid, e.nearby_); }
     void unshare(uint32_t guid) { e.unshared_[e.unshared_n_++ % kMaxPairs] = guid; }
@@ -737,6 +752,8 @@ private:
   size_t left_at_ = 0;
   const char *pilot_why_ = "fight"; // Why same-place enemies do not run (pilot_turn), null while they do.
   pilot::Owners owners_;            // Stage 3b: each pair's owner and epoch on this side.
+  poise::Windows windows_;          // Phase 8 Rule B: the windows started, until their check settles.
+  bool windows_off_ = false;        // A window SB never ended: none again until the game restarts.
   Ring<Message, kMail> own_in_;     // The guest: the host's own lines, for answer() after the pass.
   pilot::Execs execs_;              // The guest: her takedowns told the host (stage 3c).
   uint64_t her_off_until_ = 0;      // The host: no hand-over to her before this (her own-no off or aggro).

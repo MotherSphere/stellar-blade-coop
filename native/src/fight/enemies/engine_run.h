@@ -157,6 +157,7 @@ template <class Game> void Engine::simulate(Job &job, Game &g, uint64_t now_ms) 
     owners_.clear();
     own_in_.clear();
     execs_.clear();
+    windows_.clear(); // A host alone gets no world line after a load; our on below goes through g.send, not Io::send.
     her_off_until_ = 0;
     new (&epochs_) Epochs();
     new (&spawn_host_) SpawnHost();
@@ -206,7 +207,7 @@ template <class Game> void Engine::simulate(Job &job, Game &g, uint64_t now_ms) 
     return;
   }
   const bool hosting = hosting_seen_;
-  Io<Game> io{*this, g, logic};
+  Io<Game> io{*this, g, logic, now_ms};
   eve_life_ = eve_life(g);
   host.set_down(hosting && eve_life_ >= 3 && eve_life_ <= 5);
   Message m;
@@ -262,6 +263,8 @@ template <class Game> void Engine::simulate(Job &job, Game &g, uint64_t now_ms) 
     hold_scales(g, logic, followed, guest.scaled(followed), guest.scale(kScaleHp), guest.scale(kScaleBalance),
                 guest.bosses());
   }
+  if (!latched_)
+    restore_turn(g, logic, now_ms);
   if (!latched_ && census)
     spawn_turn(g, logic, now_ms);
   if (!latched_)
@@ -361,6 +364,7 @@ inline Snapshot Engine::snapshot() const {
   s.job.thaw_refused = c.thaw_refused, s.job.battles = c.battles, s.job.owns = c.owns, s.job.own_nos = c.own_nos;
   s.job.bstarts = c.bstarts, s.job.phase_rows = c.phase_rows, s.job.phase_refused = c.phase_refused;
   s.job.finish_guards = c.finish_guards, s.job.summons = c.summons;
+  s.job.unrestored = c.unrestored, s.job.restore_skipped = c.restore_skipped;
   s.host = host.counts, s.guest = guest.counts;
   s.hosted = host.peer_on() ? host.linked() : 0, s.paired = guest.linked(), s.session = session_seen_;
   s.turn = turn_, s.actors = probing_seen_ ? actors_ : found_count_, s.eve = eve_ != 0;
