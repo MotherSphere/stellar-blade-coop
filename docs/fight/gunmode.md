@@ -68,7 +68,9 @@ A jump drops the game's aim stance in the air. Gun mode keeps the rifle up, keep
 the NIKKE shot itself until the aim button is let go, after landing as well. Press RMB / LT again to get the game's
 strafing aim back.
 
-The posed body and the rifle you see are drawn for your own camera only.
+The posed body and the rifle you see are drawn for your own camera only. The laser sight shows on your screen
+only: its end is a value each game keeps for its own world, so a copy on another player's screen would point
+elsewhere.
 
 ## Rounds
 

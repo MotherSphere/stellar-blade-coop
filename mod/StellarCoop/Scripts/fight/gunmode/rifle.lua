@@ -113,7 +113,7 @@ function Rifle.new(laser,trace,grip)
             -- the laser once the rifle is up (the aim blends in over ~0.2 s), then it stays on until aim is let go
             if st.beam or (onTarget and now-st.aimAt>=0.12) or now-st.aimAt>=0.6 then
                 if not st.beam then st.beam,st.finish=laser(pawn,gun,mathlib); crumb('laser on') end
-                if t then st.beam(t) end
+                st.beam(t) -- Each frame: it moves the beam to the muzzle (fight/gunmode/laser.lua).
             end
         else
             if st.aimAt then st.aimAt=nil; crumb('aim off') end

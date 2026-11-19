@@ -61,7 +61,9 @@ runs `main/isolation.lua` with its name.
   donor plays the reload;
 - `fight/gunmode/online_test` covers what other players get of gun mode, over fake UE4SS objects. The posed stance
   adds no skeletal mesh component to EVE. Its donor and the keeper of its hide clip stand on an actor of their own,
-  removed at stop, so the ghost's capture never sends them;
+  removed at stop, so the ghost's capture never sends them. The laser sight is spawned at the rifle's muzzle with no
+  parent (the capture sends the rifle's attached effects). Each frame of aim moves it to the muzzle, on the rifle
+  layer too when it has no point to end at;
 - `fight/gunmode/stop_test` runs gun mode over a fake UE4SS (`fight/gunmode/fake.lua`) on the rifle layer's path. The
   fake's row fields have the kinds read in Ghidra on 26123051: the shot's Hit1 step has a byte `Type` and no `StepType`.
   `stop` (coop off) gives back the table fields, the keys, the rifle, her body's own post-process class, the FOV lock

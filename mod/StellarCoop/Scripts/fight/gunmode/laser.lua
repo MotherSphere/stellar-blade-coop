@@ -2,8 +2,9 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- luke77's laser sight (feature/rifle-stance, examples/RifleStance/Scripts/laser.lua): the NIKKE minigame's guide
--- laser on the rifle's muzzle, its end through the minigame's parameter collection. One change, marked "gun mode:":
--- update takes the point the rounds go to; without it the end is his trace along the barrel.
+-- laser on the rifle's muzzle, its end through the minigame's parameter collection. Two changes, marked "gun mode:":
+-- update takes the point the rounds go to (without it the end is his trace along the barrel); the beam is spawned at
+-- the muzzle with no parent and moved there at each update.
 -- laser(pawn, gun, mathlib) -> update(target), cleanup.
 return function(pawn,gun,mathlib)
  local socket=FName('FX_Fire')
@@ -37,6 +38,10 @@ return function(pawn,gun,mathlib)
  end
  local pawnClass=StaticFindObject('/Script/Engine.Pawn')
  local function update(target)
+  -- gun mode: the beam at the muzzle, as an attached one would be (SnapToTarget).
+  if beam and beam:IsValid() then
+   beam:K2_SetWorldLocationAndRotation(gun:GetSocketLocation(socket),gun:GetSocketRotation(socket),false,{},true)
+  end
   -- gun mode: the end on where the rounds go (the crosshair's point), when fight/gunmode/mode.lua has it.
   if target then instance:SetVectorParameter('LaserPosition',target);return end
 
@@ -72,7 +77,15 @@ return function(pawn,gun,mathlib)
   instance:SetVectorParameter('LaserPosition',destination)
  end
  local ok,err=pcall(function()
-  beam=library:SpawnSystemAttached(asset,gun,socket,{X=0,Y=0,Z=0},{Pitch=0,Yaw=0,Roll=0},2,true,false,0,false)
+  -- gun mode: attached to nothing. Attached to the rifle (a part of EVE online/partner/capture.lua sends) a partner's
+  -- game drew a copy of it on her ghost, its end at that game's own LaserPosition: one value per world (the
+  -- collection's instance comes from the world's FNiagaraWorldManager, GetNiagaraParameterCollection's exec 0x14115be00
+  -- on 26123051), so never where she aims (M11). UNiagaraFunctionLibrary::SpawnSystemAtLocation (params 0x146d57f00:
+  -- WorldContextObject, SystemTemplate, Location, Rotation, Scale, bAutoDestroy, bAutoActivate, PoolingMethod,
+  -- bPreCullCheck; its exec 0x14115e280 registers the component with absolute location, rotation and scale and attaches
+  -- it to nothing). The other values as the attached spawn had them.
+  beam=library:SpawnSystemAtLocation(pawn,asset,gun:GetSocketLocation(socket),gun:GetSocketRotation(socket),
+   {X=1,Y=1,Z=1},true,false,0,false)
   assert(beam and beam:IsValid(),'Laser spawn failed')
   update()
   beam:Activate(false)
