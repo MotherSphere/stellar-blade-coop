@@ -253,7 +253,7 @@ The full list is in [Settings](../players/settings.md#files-in-the-mod-folder).
 
 ## Modules and isolation
 
-The Lua side is cut into 19 modules, one folder each ([Structure](structure.md#modules) lists them). A module
+The Lua side is cut into 20 modules, one folder each ([Structure](structure.md#modules) lists them). A module
 that fails to load is off until the mod reloads; the other modules stay on.
 
 ### The manifest

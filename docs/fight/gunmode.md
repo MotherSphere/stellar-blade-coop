@@ -89,5 +89,4 @@ Gun mode reads these lines of `coop-settings.txt` itself:
   RifleStance, which Lucas (luke77) contributed to this project in the commit "feat: add standing rifle stance and
   aiming laser".
 - Gun mode around them is by SchizoEffective.
-- The NIKKE rifle, its icon (`gunmode/nikke_rifle.png`), its shot, its animations and its sounds are the game's own
-  and belong to SHIFT UP.
+- The NIKKE rifle, its shot, its animations and its sounds are the game's own and belong to SHIFT UP.
