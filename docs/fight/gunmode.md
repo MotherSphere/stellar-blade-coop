@@ -43,6 +43,10 @@ With the rifle out and no button held, EVE moves as usual with luke77's rifle ca
 until the rifle is put away. Their keys come back while the game is paused, so the game's key options never save them
 off. A new map, a death or a camp warp puts the rifle away.
 
+The rifle does not come out during a cutscene, a talk or another interaction, while the game holds her movement,
+while she swims or is in one of the game's own moves, or in the photo and selfie modes. If one of these starts with the
+rifle out, the rifle goes away within a quarter of a second. `UE4SS.log` names the reason on a `[GM]` line.
+
 `coop off` puts the rifle away too. The table fields, the keys and her body's own post-process class go back, then
 gun mode does nothing until the game restarts. Until everything is back, `coop-gun.txt` lists what gun mode changed.
 After a Lua reload (Ctrl+R) the next load puts those changes back at its first frame and removes the rifle it finds on

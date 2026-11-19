@@ -51,7 +51,8 @@ do
     local w=Fake.new(); w.install()
     local store=file()
     local gun=new('gun_fire=own\n',store)
-    local event,effect=w.tables.EventActorEffectTable.Nikke_01_E_ActorEff_015,w.tables.EffectTable.M_Scarlet_CounterLinkStart
+    local event=w.tables.EventActorEffectTable.Nikke_01_E_ActorEff_015
+    local effect=w.tables.EffectTable.M_Scarlet_CounterLinkStart
     local function borrowed()
         return event.ActorEffectAlias:ToString()=='M_Scarlet_CounterLinkStart'
             and effect.ActionValue1=='P_Eve_GunNikke_ShootSlug1_1'
@@ -119,6 +120,49 @@ do
     assert(store.peek():find('key|',1,true),'coop-gun.txt lists the masked keys again')
     toggle(gun,false)
     assert(w.keys()==keys)
+end
+
+-- 4. M6: the rifle does not come out while a cutscene holds EVE, in an interaction or its block, while the game holds
+--    her movement, while she swims, flies or is in one of SB's moves (a custom movement mode), in the photo or selfie
+--    mode. Once it is out, the first of these puts it away within 0.25 s. A jump (falling) is no reason.
+do
+    local w=Fake.new(); w.install()
+    local keys=w.keys()
+    local photo,logs='0',{}
+    local gun=GunMode.new({log=function(m) logs[#logs+1]=m end,photo=function() return photo end})
+    local function said(text)
+        for _,l in ipairs(logs) do if l:find(text,1,true) then return true end end
+        return false
+    end
+    local function mode(m) return function(e,on) e.CharacterMovement.MovementMode=on and m or 1 end end
+    for _,case in ipairs({
+            {function(e,on) e.cutscene=on end,'a cutscene holds EVE'},
+            {function(e,on) e.talk=on end,'EVE is in an interaction'},
+            {function(e,on) e.bEnableInteractionBlock=on end,'EVE is in an interaction'},
+            {function(e,on) e.held=on end,'the game holds her movement'},
+            {mode(4),'EVE is swimming'},{mode(5),"EVE is in one of SB's moves (movement mode 5)"},
+            {mode(6),"EVE is in one of SB's moves (movement mode 6)"},
+            {function(_,on) photo=on and '1' or '0' end,'the photo mode is open'},
+            {function(_,on) photo=on and 's' or '0' end,'the selfie mode is open'}}) do
+        local set,why=case[1],case[2]
+        logs={}
+        set(w.pawn,true)
+        clock=clock+1; gun.toggle_now()
+        assert(not gun.state.on and said('not now: '..why),why..': '..table.concat(logs,'|'))
+        assert(#w.changed()==0 and w.keys()==keys,why..': nothing taken')
+        set(w.pawn,false)
+        toggle(gun,true)
+        set(w.pawn,true)
+        frames(gun,20)
+        assert(not gun.state.on and said('off ('..why),why..': '..table.concat(logs,'|'))
+        assert(#w.changed()==0 and w.keys()==keys,why..': everything back')
+        set(w.pawn,false)
+    end
+    toggle(gun,true)
+    w.pawn.CharacterMovement.MovementMode=3
+    frames(gun,20)
+    assert(gun.state.on,'a jump keeps the rifle out')
+    toggle(gun,false)
 end
 
 print('gunmode state: ok')

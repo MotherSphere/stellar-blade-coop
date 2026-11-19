@@ -43,6 +43,28 @@ local function zone_event(kind,name)
     U.find('/Script/SB.Default__SBBlueprintLibrary'):CreateSBZoneEvent(kind,find_name(name))
 end
 
+-- fight.gunmode's copy of vehicles/bike/ride.lua's blocked(): the checks of EVE's own state that need no native part.
+-- Why the rifle cannot be out now, or nil. e: EVE (an SBCharacter); photo: main/base.lua's photo_state ('0', '1' in the
+-- photo mode, 's' in the selfie mode; with SB.PhotoMode.PauseMethod 1 its start, 0x142381f90, sets a time dilation of
+-- 1e-8 and asks no pause, so IsGamePaused stays false there). On 26123051: IsAttachedToLevelSequenceWithoutPlayable,
+-- IsRunningInteraction and IsMoveInputBlock are SBCharacter natives (exec 0x142686f40, 0x14268cc20, 0x14268bc60;
+-- registered by 0x14cef8000 with its other 233), bEnableInteractionBlock an SBCharacter bool (params 0x145d77b78).
+-- EMovementMode (enumerators at 0x146548c80): 1 walking, 2 nav walking, 3 falling, 4 swimming, 5 flying, 6 custom
+-- (a move of SB's own).
+local WALKING,NAV_WALKING,FALLING,SWIMMING=1,2,3,4
+function GunMode.blocked(e,photo)
+    if photo=='s' then return 'the selfie mode is open' end
+    if photo=='1' then return 'the photo mode is open' end
+    if e:IsAttachedToLevelSequenceWithoutPlayable()==true then return 'a cutscene holds EVE' end
+    if e:IsRunningInteraction()==true or e.bEnableInteractionBlock==true then return 'EVE is in an interaction' end
+    if e:IsMoveInputBlock()==true then return 'the game holds her movement' end
+    local mode=U.value_of(e.CharacterMovement.MovementMode)
+    if mode==SWIMMING then return 'EVE is swimming' end
+    if mode~=WALKING and mode~=NAV_WALKING and mode~=FALLING then
+        return "EVE is in one of SB's moves (movement mode "..tostring(mode)..')'
+    end
+end
+
 local SETTINGS='/Script/Engine.Default__InputSettings'
 local TRACE='/Script/Engine.Default__KismetSystemLibrary'
 
@@ -66,7 +88,8 @@ function GunMode.ease(a,b,k) return a+(b-a)*k end
 
 -- env: {log, folder (the mod folder: coop-settings.txt), read_all (a file's text; io.open's unless given), notice (the
 -- rebuilding notice on screen), store (coop-gun.txt through core/link.lua's store: save, load, clear; nil without the
--- native part, so a Lua reload then cannot put back what an earlier load changed)}.
+-- native part, so a Lua reload then cannot put back what an earlier load changed), photo (main/base.lua's photo_state;
+-- '0' when not given)}.
 function GunMode.new(env)
     local cfg=Config.DEFAULTS
     local whole=env.read_all or read_all
@@ -556,6 +579,13 @@ function GunMode.new(env)
         keep()
     end
 
+    -- Why EVE cannot hold the rifle now (GunMode.blocked), or nil. A state it cannot read is a reason too.
+    local function held(p)
+        local ok,why=pcall(GunMode.blocked,p,env.photo and env.photo() or '0')
+        if not ok then return 'her state is unreadable ('..tostring(why)..')' end
+        return why
+    end
+
     local function enable(why)
         self.restore() -- An earlier Lua load's changes back before this one reads the rows as they are.
         local pc,p=g.pc(),g.pawn()
@@ -563,6 +593,8 @@ function GunMode.new(env)
         if g.try(function() return p.TPSModeType~=0 or p.bTPSMode end) then
             g.log('not now: release the drone aim first'); return
         end
+        local busy=held(p)
+        if busy then g.log('not now: '..busy); return end
         -- The gun mode animation pak (zNikkeGunMode_P): when it is installed, the aim stance's blend spaces point at
         -- its firing-stance animations while the rifle is out, and her real body shows while aiming (nothing posed).
         local okl,inst,why_not=pcall(layer.install,p)
@@ -790,6 +822,12 @@ function GunMode.new(env)
             if not ok and not s.g0_err then s.g0_err=true; g.log('g0: '..tostring(e)) end
         end
         if not p then disable('no EVE'); return end
+        -- A cutscene, a talk, a swim or another of the game's own states that starts puts the rifle away (M6).
+        if now-(s.held_at or 0)>=0.25 then
+            s.held_at=now
+            local busy=held(p)
+            if busy then disable(busy); return end
+        end
         if set.native then -- Firing mode is the game's own aim: held while EVE is in it.
             -- Firing mode: the game's aim, or a jump out of it with the aim key still held (the game drops its aim
             -- stance in the air and takes it up again only at a new press): from the jump until the key is let go the

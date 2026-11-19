@@ -10,7 +10,7 @@ exports={'gun'},
 new=function(M)
 local function log(m) M.print('[StellarCoop][GM] '..tostring(m)..'\n') end
 M.gun=require('fight.gunmode.mode').new({log=log,folder=M.folder,store=M.link and M.link.store('coop-gun.txt'),
-    notice=function() M.tell(function(w) return w.gun.rebuilding end) end})
+    notice=function() M.tell(function(w) return w.gun.rebuilding end) end,photo=M.photo_state})
 -- A new controller (map load, death, camp warp) resets gun mode. The hook stays registered while the module is off.
 local hooked,why=pcall(NotifyOnNewObject,'/Script/SB.SBPlayerController',function(pc)
     if M.off_modules['fight.gunmode'] then return end

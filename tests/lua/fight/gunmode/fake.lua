@@ -114,9 +114,17 @@ function Fake.new()
     w.component=component
     -- A new EVE (a map load): her body built from the same mesh asset.
     function w.new_pawn()
-        local p=object('BP_Eve_C Test.Eve',{TPSModeType=0,bTPSMode=false,comps={}})
+        -- Her state as SBCharacter's natives give it (cutscene, talk, held: what
+        -- IsAttachedToLevelSequenceWithoutPlayable, IsRunningInteraction and IsMoveInputBlock answer) and her movement
+        -- mode (EMovementMode, 1: walking).
+        local p=object('BP_Eve_C Test.Eve',{TPSModeType=0,bTPSMode=false,comps={},cutscene=false,talk=false,held=false,
+            bEnableInteractionBlock=false})
+        function p.IsAttachedToLevelSequenceWithoutPlayable(o) return o.cutscene end
+        function p.IsRunningInteraction(o) return o.talk end
+        function p.IsMoveInputBlock(o) return o.held end
         p.Mesh=w.mesh_component(w.body)
-        p.CharacterMovement=object('CharacterMovementComponent Test.Move',{IsFalling=function() return false end})
+        p.CharacterMovement=object('CharacterMovementComponent Test.Move',{IsFalling=function() return false end,
+            MovementMode=1})
         function p.AddComponentByClass(o) return component(o) end
         function p.FinishAddComponent() end
         function p.K2_GetComponentsByClass(o)
