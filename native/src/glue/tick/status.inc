@@ -75,6 +75,14 @@ std::string status() {
       std::lock_guard<std::mutex> lock(keep_m);
       s += " " + keep::line(keep_list);
     }
+    // SB's theater (game/theater.h) for story/scenes/scene.lua and online/group/group.lua: none, a sequence, '-' or
+    // fault.
+    if (theater_faulted) {
+      s += " theater=fault";
+    } else {
+      std::lock_guard<std::mutex> lock(theater_m);
+      s += " " + theater_text;
+    }
   }
   // coop gift's inventory read (cutmenus/mailbox.lua): the last ask's answer, by its number.
   if (!items_line.empty() && !blocked)

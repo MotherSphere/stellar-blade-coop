@@ -168,6 +168,10 @@
 // bike's preload asks. It keeps the handle for the game run. Once the handle's loaded flag is set it finds each path
 // in memory. All of it runs under its own SEH latch; status() puts the counts in the engine line for core/keep.lua.
 //
+// SB's theater (game/theater.h): every 100 ms the game thread reads SB's theater manager, never made, the way SB's own
+// widgets read it, under its own SEH latch. status() puts theater= in the engine line: none, the sequence that plays,
+// '-' while its first take loads or its name is not read, fault after the first fault.
+//
 // coop shortcut (game/shortcut.h): the worker hands over Lua's ask; the game thread reads the cut Load Shortcut menu's
 // 16 paths through SB's own file manager, one a frame, under its own SEH latch, into entries the worker turns into log
 // lines. It writes nothing and keeps no bytes. coop shortcut load reads one of them the same way and keeps its bytes;
@@ -260,6 +264,7 @@
 #include "game/anim.h"
 #include "game/bike.h"
 #include "game/keep.h"
+#include "game/theater.h"
 #include "eve/debug_keys.h"
 #include "game/dev_panels.h"
 #include "cutmenus/items.h"
@@ -330,6 +335,7 @@
 // After anim_game_shared.inc, freeze_game_shared.inc and rows_game.inc: their calls and GMalloc.
 #include "glue/tick/bike_game_shared.inc"
 #include "glue/tick/keep_game.inc" // After bike_game_shared.inc: its async load, names and finds.
+#include "glue/tick/theater_game.inc" // After fight_game_shared.inc: its game_function.
 #include "vehicles/bike/bike_game.inc"
 #include "glue/tick/camp_text_game_shared.inc"
 // After anim_game_shared.inc and freeze_game_shared.inc: their FStringArg and MakeName.
@@ -431,6 +437,9 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // that array holds our values.
   if (game_pinned && !sky_faulted && (!blocked || sky_holding()))
     sky_tick();
+  // SB's theater for the status line, its own latch: a read each 100 ms, none after coop off or its first fault.
+  if (game_pinned && !theater_faulted && !blocked)
+    theater_tick(clock_us() / 1000);
   // The game's tutorial and record popups, their own latch: a pass each 250 ms; after coop off or a first fault only
   // while an option is forced, to put the player's value back; none after a second fault.
   if (game_pinned && options_run.runs(blocked, options_holding()))

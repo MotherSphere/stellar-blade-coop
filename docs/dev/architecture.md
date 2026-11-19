@@ -250,6 +250,9 @@ file is written in full beside its final name and then renamed over it, so the r
   the whole list each time it grows. The native part takes the file at every pass and asks the game's own async loader
   for the new paths. The `keep=<asked> <settled> <in>` word of the engine line in `coop-status.txt` answers, or
   `keep=fault`.
+- The `theater=` word of the engine line in `coop-status.txt` tells Lua what SB's theater plays, read on the game
+  thread every 100 ms: `none`, the sequence's name, `-` while its first take loads or its name is not read, or `fault`.
+  No request asks for it.
 - Two files are Lua's alone, for the [crash sentinel](../online/partner-internals.md#cns-guard-and-crash-sentinel):
   `coop-cns-call.txt`, written in place with no temporary file to keep each write to one, and `coop-cns-aside.txt`, the
   set-aside list.

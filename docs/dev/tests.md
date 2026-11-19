@@ -869,6 +869,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 - `game_keep_test`: the keep (`game/keep.h`): the path rule (object and class paths under `/Game/` and `/Engine/`),
   its list of paths each asked once, at most 128, the batches and the counts, the lines of `coop-keep.txt` (70 at
   once, the same text again adding nothing, a bad line counted) and the status field;
+- `game_theater_test`: SB's theater read (`game/theater.h`) over fake memory: no theater, one loading its first take,
+  one playing with its sequence named, another listener or none, a finished one, another image base; the field's text;
 - `world_daynight_sky_test`: the day and night cycle (`world/daynight/sky.h`): the clock at :02, :12, :32 and :52 and
   under 24 just before the hour's wrap, the ramps, the sun and moon at noon, sunrise, sunset, midnight and mid-morning,
   the dusk colour, the status line. Over a fake WorldSettings whose env array holds a sunlit element with its own
