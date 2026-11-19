@@ -106,11 +106,12 @@ constexpr int kProtocol = 23; // Bump on any wire change. 1 was the first link (
                               // protocol-22 peer would count invalid; a protocol-22 game would also leave a lobby of
                               // 3; 23 also adds the cycle line (each game's New Game+ count and difficulty) and the
                               // bike line on channel 0 (where each player's parked bike stands), which a protocol-22
-                              // peer would count invalid. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage
-                              // 2's builds, 11: v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14:
-                              // v0.7.0-beta.1, 17: a v0.7.5 test build, 18: v0.7.5, 19: v0.8.0 to v0.10.0, 20:
-                              // v0.11.0; 15, 16, 21 and 22 were never released) is told why: the lobby tag, then the
-                              // hello's reject, name both.
+                              // peer would count invalid; 23 also adds the shared world's catch-up lines
+                              // (c ask, c, c end) on channel 2, which an earlier protocol-23 development build counts
+                              // malformed. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11:
+                              // v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14: v0.7.0-beta.1, 17: a
+                              // v0.7.5 test build, 18: v0.7.5, 19: v0.8.0 to v0.10.0, 20: v0.11.0; 15, 16, 21 and 22
+                              // were never released) is told why: the lobby tag, then the hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;

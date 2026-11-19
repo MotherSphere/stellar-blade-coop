@@ -21,9 +21,13 @@
 //                                                             (0: none), progress add (above 0)
 //   SBWn on, SBWn off <reason>                                the sender's feature state: setting, match or save
 //   SBWn on reply                                             on, as the answer to her on
-// seq is 1 for the first line after each on and one more for each later one; the receiver logs a gap. Each side
-// answers her on (not her on reply) with its own state, so a side that started again (a rejoin she did not see)
-// hears where the other stands.
+//   SBWn c ask <zone>                                         send me what you changed in this zone
+//   SBWn c <seq> <zone> <alias> <tag> <objectState>           one changed env of that zone, ObjectState 0 to 2 (0: not
+//                                                             carried)
+//   SBWn c end <zone> <count>                                 the answer is complete, count c lines sent
+// seq is 1 for the first line after each on and one more for each later one, c lines included (c ask and c end carry
+// none); the receiver logs a gap. Each side answers her on (not her on reply) with its own state, so a side that
+// started again (a rejoin she did not see) hears where the other stands.
 #pragma once
 
 #include <algorithm>
@@ -44,20 +48,24 @@ namespace coop::world {
 
 // ---- Lines ----
 
-enum class Type : uint8_t { invalid, state, active, event, link, on, off };
+enum class Type : uint8_t { invalid, state, active, event, link, on, off, catchup, ask, end };
 struct Message {
   Type type = Type::invalid;
-  uint32_t seq = 0;     // s, a, e, l
-  std::string zone;     // s, a, e, l: the zone alias the sender saw the root in
-  std::string alias;    // s, a, l: the EnvSpawnAlias
-  std::string name;     // s, l: the state tag; e: the ZoneEventTable row
-  uint8_t object = 0;   // a: 1 Enable, 2 Disable; l: 0 to 2, as the node holds it
+  uint32_t seq = 0;     // s, a, e, l, c
+  std::string zone;     // s, a, e, l: the zone alias the sender saw the root in; c, c ask, c end: the zone asked for
+  std::string alias;    // s, a, l, c: the EnvSpawnAlias
+  std::string name;     // s, l, c: the state tag; e: the ZoneEventTable row
+  uint8_t object = 0;   // a: 1 Enable, 2 Disable; l: 0 to 2, as the node holds it; c: 0 to 2 (0: not carried)
   int32_t progress = 0; // l
   std::string reason;   // off
   bool reply = false;   // on: the answer to her on, never answered itself
+  uint32_t count = 0;   // c end: the c lines the answer sent
 };
-// What a line names for the echo backstop and the refusal log: the row of an e line, else the env.
-inline const std::string &key(const Message &m) { return m.type == Type::event ? m.name : m.alias; }
+// What a line names for the echo backstop and the refusal log: the row of an e line, the zone of a c ask or c end,
+// else the env.
+inline const std::string &key(const Message &m) {
+  return m.type == Type::event ? m.name : m.type == Type::ask || m.type == Type::end ? m.zone : m.alias;
+}
 
 inline std::string format(const Message &m) {
   const std::string t = world_tag() + " ";
@@ -70,6 +78,9 @@ inline std::string format(const Message &m) {
   case Type::event: return t + "e" + head + m.name;
   case Type::link:
     return t + "l" + head + m.alias + " " + m.name + " " + std::to_string(m.object) + " " + std::to_string(m.progress);
+  case Type::catchup: return t + "c" + head + m.alias + " " + m.name + " " + std::to_string(m.object);
+  case Type::ask: return t + "c ask " + m.zone;
+  case Type::end: return t + "c end " + m.zone + " " + std::to_string(m.count);
   case Type::invalid: break;
   }
   return std::string();
@@ -141,6 +152,22 @@ inline Message parse(const char *data, size_t size) {
     ok = fields(4) && alias_word(f[2]) && alias_word(f[3]) && small(f[4], 0, 2, m.object) &&
          detail::int32(f[5], m.progress);
     m.alias = f[2], m.name = f[3];
+  } else if (kind == "c") {
+    // The word after c decides: ask, end, else the seq of a c line.
+    const std::string word = rest.substr(0, rest.find(' '));
+    if (word == "ask") {
+      m.type = Type::ask;
+      ok = split(rest, f, 2, nullptr) && alias_word(f[1]);
+      m.zone = f[1];
+    } else if (word == "end") {
+      m.type = Type::end;
+      ok = split(rest, f, 3, nullptr) && alias_word(f[1]) && number(f[2], v) && v <= UINT32_MAX;
+      m.zone = f[1], m.count = uint32_t(v);
+    } else {
+      m.type = Type::catchup;
+      ok = fields(3) && alias_word(f[2]) && alias_word(f[3]) && small(f[4], 0, 2, m.object);
+      m.alias = f[2], m.name = f[3];
+    }
   }
   return ok ? m : Message();
 }
@@ -148,7 +175,8 @@ inline Message parse(const char *data, size_t size) {
 // Whether game/objects/rows.h lets this line travel: its (alias, tag) pair, its alias for an Enable or Disable, its
 // ZoneEvent row. A linked env line, each part SB's node runs: its pair unless its tag is None, its alias for an
 // ObjectState other than 0, its alias for a progress add above 0, and at least one of the three, as the node changes
-// nothing else.
+// nothing else. A c line: its env among the zone's saved envs (kZoneEnvs) with its pair. A c ask or c end names only a
+// zone, which the receiver looks up itself.
 inline bool allowed(const Message &m) {
   switch (m.type) {
   case Type::state: return state_allowed(m.alias, m.name);
@@ -159,6 +187,9 @@ inline bool allowed(const Message &m) {
     return (tag || m.object || progress) && (!tag || state_allowed(m.alias, m.name)) &&
            (!m.object || object_state_allowed(m.alias)) && (!progress || progress_allowed(m.alias));
   }
+  case Type::catchup: return zone_env(m.zone, m.alias) && state_allowed(m.alias, m.name);
+  case Type::ask:
+  case Type::end: return true;
   default: return false;
   }
 }

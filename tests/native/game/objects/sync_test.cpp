@@ -146,9 +146,10 @@ void test_malformed() {
   assert(bad(T + "s 1 Z A " + std::string(kMaxMessage, 'B')));
   // Fuzzed junk: never a crash, and whatever parses formats back to itself.
   std::mt19937 rng(20261116);
-  const std::string chars = "slaeonf 0123456789-_ABZ\t\x01";
+  const std::string chars = "slaeonfckd 0123456789-_ABZ\t\x01";
+  const std::string starts[] = {T, T + "c ", T + "c ask ", T + "c end "};
   for (int i = 0; i < 20000; ++i) {
-    std::string l = T;
+    std::string l = starts[rng() % 4];
     for (int n = int(rng() % 40); n > 0; --n)
       l += chars[rng() % chars.size()];
     const Message m = P(l);
@@ -157,6 +158,37 @@ void test_malformed() {
       assert(again.type == m.type && format(again) == format(m));
     }
   }
+}
+
+void test_catchup_lines() {
+  for (const char *l : {"c ask Zone_DED20", "c 7 Zone_DED20 DED20_EnvS_193 Open 1",
+                        "c 7 Zone_DED20 DED20_EnvS_193 Open 0", "c end Zone_DED20 0", "c end Zone_DED20 4294967295"})
+    assert(round(T + l));
+  const Message c = P(T + "c 7 Zone_DED20 DED20_EnvS_193 Open 2");
+  assert(c.type == Type::catchup && c.seq == 7 && c.zone == "Zone_DED20" && c.alias == "DED20_EnvS_193" &&
+         c.name == "Open" && c.object == 2 && key(c) == "DED20_EnvS_193");
+  const Message a = P(T + "c ask Zone_ME_04"), e = P(T + "c end Zone_ME_04 48");
+  assert(a.type == Type::ask && a.zone == "Zone_ME_04" && key(a) == "Zone_ME_04");
+  assert(e.type == Type::end && e.zone == "Zone_ME_04" && e.count == 48 && !e.seq);
+  Message m;
+  m.type = Type::ask, m.zone = "Zone_DED20";
+  assert(format(m) == T + "c ask Zone_DED20");
+}
+
+void test_catchup_malformed() {
+  for (const char *l : {"c", "c ask", "c ask Zone_A extra", "c ask Zone-A", "c end Zone_A", "c end Zone_A -1",
+                        "c end Zone_A 4294967296", "c end Zone_A 1 2", "c end Zone_A x", "c 0 Zone_A a b 1",
+                        "c 1 Zone_A a b 3", "c 1 Zone_A a b -1", "c 1 Zone_A a b", "c 1 Zone_A a b 1 2",
+                        "c x Zone_A a b 1", "c 1 Zone_A a b  1", "c ask  Zone_A"})
+    assert(bad(T + l));
+}
+
+void test_catchup_lists() {
+  assert(allowed(P(T + "c 1 Zone_DED20 DED20_EnvS_193 Open 1")));
+  assert(!allowed(P(T + "c 1 Zone_ME_04 DED20_EnvS_193 Open 1"))); // not that zone's env
+  assert(!allowed(P(T + "c 1 Zone_DED20 DED20_EnvS_210 On 0")));   // On is not a kept pair
+  assert(!allowed(P(T + "c 1 Zone_DED20 DED10_EnvS_105 Open 0"))); // a supply box
+  assert(allowed(P(T + "c ask Zone_Nowhere")) && allowed(P(T + "c end Zone_Nowhere 0")));
 }
 
 void test_ring() {
@@ -668,6 +700,9 @@ void test_status() {
 int main() {
   test_lines();
   test_malformed();
+  test_catchup_lines();
+  test_catchup_malformed();
+  test_catchup_lists();
   test_ring();
   test_on_off();
   test_answer();
