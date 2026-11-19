@@ -344,6 +344,21 @@ the fall (time paused, in photo mode or in the friend's photo mode that pauses o
 read within 5 s fails the payment: `bike fetch failed: <why>`, which says the betacrystal may be gone once the remove
 was asked. `tests/tools/matchmaking_scan_test.py` holds `vehicles/bike/fetch.lua` to that one `ServerRequest_` call.
 
+## Paint
+
+`vehicles/bike/paint.lua` holds the paint table, `Paint.BY_MESH`, keyed by the object path of EVE's body mesh (the
+`SkeletalMesh` of her main mesh). The ride's 250 ms pass reads that path after the part step and hands it to the paint
+with two components: the part on EVE and the parked bike's. The paint runs once a second. A component already set for
+that mesh is left alone. Any other is cleared first: its four slots get the bike mesh's own materials back
+(`SetMaterial`, with each material read from the mesh's `Materials`, never from `GetMaterial`). Then, when the table has
+the mesh, each listed slot gets `CreateDynamicMaterialInstance` from that own material with `SetVectorParameterValue`
+per parameter. A component is known by its address and object path, so after a new Lua load (Ctrl+R) or for a new EVE it
+is cleared before it is painted: an earlier load's instance never stays. A failed call leaves the component cleared,
+with one `bike paint not set on ...` line per component and mesh. `coop off` clears the part before the parked bike
+leaves the world. `bike=off` removes both. A table that fails `Paint.check` logs `bike paint table refused: <reason>`
+once at load and paints nothing. The ridden part's instances reach ghosts through the capture's dyes. The parked bike's
+paint stays on the player's own screen, since [the bike line](#the-bike-line) carries a map and a pose only.
+
 ## Ghosts
 
 While EVE rides, the part is one more skeletal mesh component of hers in `online/partner/capture.lua`'s table (37 bones,

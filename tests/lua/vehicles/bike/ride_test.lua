@@ -55,6 +55,10 @@ local function mesh_asset(path)
         IsA=function(_,c) return c.path=='/Script/Engine.SkeletalMesh' end})
 end
 local bike_mesh,eve_mesh=mesh_asset(MESH),mesh_asset('/Game/Art/Character/PC/CH_P_EVE_01/Mesh/EVE.EVE')
+-- The bike mesh's own material in each of its four slots (vehicles/bike/paint.lua makes its instances from them).
+local own={}
+bike_mesh.Materials={}
+for slot=0,3 do own[slot]=uobj({}); bike_mesh.Materials[slot+1]={MaterialInterface=own[slot]} end
 local by_path={}
 StaticFindObject=function(path)
     if path=='/Script/Engine.Default__KismetMathLibrary' then return mathlib end
@@ -97,6 +101,16 @@ local function component(owner,mesh)
     end
     function c:K2_DestroyComponent() self.gone=true end
     function c:SetComponentTickEnabled(v) self.tick_enabled=v end
+    -- The paint: each instance made (made, by slot, with its base and values) and what each slot shows (current).
+    c.made,c.current={},{}
+    function c:CreateDynamicMaterialInstance(slot,base,name)
+        assert(name:ToString()=='None')
+        local mid=uobj({base=base,values={}})
+        function mid:SetVectorParameterValue(k,v) self.values[k:ToString()]=v end
+        self.made[slot],self.current[slot]=mid,mid
+        return mid
+    end
+    function c:SetMaterial(slot,m) self.current[slot]=m end
     return c
 end
 -- EVE: her address and path, her main mesh (its relative rotation and location), her components, her movement and
@@ -253,13 +267,14 @@ local function find(pattern) for _,l in ipairs(logs) do if l:find(pattern) then 
 local settings={bike_key={name='F3'}}
 local world={paused=false,photo='0',frozen=false,life=nil,armed=false,busy=nil}
 -- vehicles/bike/stand.lua (vehicles/bike/stand_test tests it): each display made (st_made) with its place, shown,
--- removed and path; a hide also goes to stand_order; sweep records what it was asked (swept, swept_mesh). It writes no
--- event and no log.
+-- removed, path and component (mesh); a hide also goes to stand_order; sweep records what it was asked (swept,
+-- swept_mesh). It writes no event and no log.
 local st_made,swept,swept_mesh={},{},{}
 package.loaded['vehicles.bike.stand']={CULL=20000,
     make=function(w,mesh,cull)
         assert(w and mesh==MESH,'In her world, with the bike mesh')
         local d={shown=false,cull=cull,path='/Game/Map.Map:PersistentLevel.Actor_'..(#st_made+1)}
+        d.mesh=component({name='Actor_'..(#st_made+1)},bike_mesh) -- Its component, which the paint reaches.
         st_made[#st_made+1]=d
         return d
     end,
@@ -774,7 +789,8 @@ st.load='ready'
 -- 13. coop bike status and tune.
 local said=R.status()
 assert(said=='bike: preload ready, part not made yet, not riding; top=2306 accel=1150 brake_hardness=48 '
-    ..'turn_angle=36; parked on /game/map/map, 0 m away',said)
+    ..'turn_angle=36; parked on /game/map/map, 0 m away; paint off for '
+    ..'/Game/Art/Character/PC/CH_P_EVE_01/Mesh/EVE.EVE',said)
 settle()
 id=mount()
 said=R.status()
@@ -937,7 +953,7 @@ write_fails=nil
 clock=math.ceil(clock) -- A whole clock, so 1.9 s then 0.1 s more make 2 s exactly in floating point.
 eve=make_eve('EVE_3'); R.slow(); clock=clock+1.9; R.slow(); assert(not st_made[#st_made].shown)
 clock=clock+0.1; R.slow(); assert(st_made[#st_made].shown and last():find('^bike put back on /game/map/map at '),last())
-assert(R.status():find('parked on /game/map/map, 0 m away$'))
+assert(R.status():find('parked on /game/map/map, 0 m away; paint off for /Game/',1,true))
 -- Review Focus 1: another save loads during a ride: her park goes to the old save's file.
 eve.mesh_at={X=0,Y=0,Z=0}; mount(); eve.mesh_at={X=300,Y=0,Z=0}; clock=clock+0.25; R.slow()
 use_key((ST:gsub('index=2','index=3'))); eve=make_eve('EVE_4'); clock=clock+0.25; R.slow()
@@ -952,7 +968,7 @@ use_key(ST); clock=clock+0.25; R.slow()
 assert(written[#written].name=='coop-bike-76561190000000000-coop2.txt' and written[#written].text:find('^1\t/game/map/map\t7\t'))
 assert(find('kept the park made before the key'))
 -- An SBO lobby: no place (first ride under her), nothing written; leaving brings the save's place back.
-lobby=true; clock=clock+0.25; R.slow(); assert(R.status():find('no place yet$'))
+lobby=true; clock=clock+0.25; R.slow(); assert(R.status():find('no place yet; paint off for /Game/',1,true))
 local n=#written; mount(); R.toggle(); assert(#written==n)
 lobby=false; clock=clock+0.25; R.slow(); assert(R.status():find('parked on /game/map/map'))
 -- Unreadable file: none, logged.
@@ -1059,4 +1075,34 @@ clock=clock+6; eve.base={Mobility=2}; eve.mesh_at={X=5,Y=0,Z=0}; R.toggle(); eve
 assert(R.toggle()==true); fetch.result={'paid'}; clock=clock+0.25; R.slow()
 assert(sent[#sent]=='park /game/map/map 5 0 0 0 0 0',sent[#sent])
 assert((dv.restores or 0)>=1,'Each ride\'s restore puts its own drive back first')
+
+-- 22. The paint (vehicles/bike/paint.lua; paint_test tests it): with EVE's main mesh showing the example entry's key, a
+-- pass one second after the part and the stand are made gives both an instance on its slot, made from the bike mesh's
+-- own material; another outfit puts that material back; coop off (self.leave) puts it back on the part; coop bike
+-- status ends with paint on for that key, or paint off for the whole path of a mesh with no entry.
+local Paint=require('vehicles.bike.paint')
+local KEY=next(Paint.BY_MESH)
+local SLOT=next(Paint.BY_MESH[KEY])
+local NAME,COLOUR=next(Paint.BY_MESH[KEY][SLOT])
+local rose=mesh_asset(KEY)
+R=new(); eve=make_eve('EVE_9'); eve.Mesh.SkeletalMesh=rose
+clock=clock+0.25; settle()
+local p9,s9=eve.list[2],st_made[#st_made]
+assert(p9 and p9.SkeletalMesh==bike_mesh and s9.mesh,'The part and the stand are made')
+clock=clock+1; R.slow()
+for _,c in ipairs({p9,s9.mesh}) do
+    local mid=c.made[SLOT]
+    assert(mid and mid.base==own[SLOT] and c.current[SLOT]==mid,'An instance on the slot, from its own material')
+    assert(mid.values[NAME].R==COLOUR[1] and mid.values[NAME].G==COLOUR[2] and mid.values[NAME].A==COLOUR[4])
+end
+said=R.status()
+assert(said:sub(-#('; paint on for '..KEY))=='; paint on for '..KEY,said)
+eve.Mesh.SkeletalMesh=eve_mesh; clock=clock+1; R.slow()
+assert(p9.current[SLOT]==own[SLOT] and s9.mesh.current[SLOT]==own[SLOT],'Another outfit: the own material back')
+said=R.status()
+local off_word='; paint off for /Game/Art/Character/PC/CH_P_EVE_01/Mesh/EVE.EVE' -- The whole path a modder copies.
+assert(said:sub(-#off_word)==off_word,said)
+eve.Mesh.SkeletalMesh=rose; clock=clock+1; R.slow(); assert(p9.current[SLOT]~=own[SLOT])
+R.leave(); assert(p9.current[SLOT]==own[SLOT],'coop off: the part back to its own material')
+eve.Mesh.SkeletalMesh=nil; assert(R.status():find('; paint off %(no body mesh read%)$'))
 print('ride_test ok')

@@ -70,7 +70,16 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   the paid fetch at a Xion camp (offered after a far or another-map refusal, paid by a press within 5 s, one start for
   every press during the payment, too little money and a failure said, never within reach, in an SBO lobby or away from
   a camp; the money's name from `game_text` on the screen's words, `betacrystal` in the English copy of another
-  language, for a name over 32 bytes and in an offer past 200 bytes);
+  language, for a name over 32 bytes and in an offer past 200 bytes); the paint of the part and the parked bike for
+  EVE's outfit within a second, put back for another outfit and on the part at `coop off`; the `paint on for <mesh>`
+  or `paint off for <mesh>` end of `coop bike status`;
+- `vehicles/bike/paint_test` covers `vehicles/bike/paint.lua` with fake UE4SS objects: the shipped table passes its
+  check with one entry; the check refuses a slot out of 0 to 3, an empty, 65-byte or spaced name, a value that is not
+  four numbers from 0 to 100000 and a key that is no object path; each instance made from the mesh's own material; one
+  step a second, one paint per component and mesh, one clear for a mesh with no entry; an earlier Lua load's instance
+  cleared; a component at a new address, or at the same address with another path, painted again; a failed call
+  logged once per component and mesh with the slot left as the mesh made it; a table that fails its check logged once
+  with nothing painted;
 - `vehicles/bike/park_test` checks `vehicles/bike/park.lua` with `lua5.4` alone: the reach (200 cm across, 100 cm up or
   down, from any side), the whole metres and the side from the camera's yaw (never `0 m`), the seat a mount lands her
   on, the spot a dismount parks at, the clearance from her capsule to the bike's and the open-then-solid rule, a map's
