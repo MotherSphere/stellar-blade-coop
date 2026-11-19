@@ -174,4 +174,17 @@ do
     assert(not names():find('LoadAsset',1,true) and names():find('WBL:Create',1,true),names())
     Keep.reset()
 end
+-- Missing on this PC (settled by the keep, not found): no LoadAsset, off with the build's line.
+do
+    local Keep=require('core.keep')
+    local kf=dofile('tests/lua/core/keep_fake.lua')(function() return nil,true end)
+    class_in_memory,class_in_build,player_controller=false,true,pc
+    calls,lines={},{}
+    local kb=Board.new({log=function(text) lines[#lines+1]=text end})
+    Keep.slow()
+    kf.settle()
+    kb.set('SCORE 0')
+    assert(not names():find('LoadAsset',1,true) and (lines[1] or ''):find('not in this game build',1,true),names())
+    Keep.reset()
+end
 print('board_test: ok')

@@ -223,7 +223,7 @@ assert(not s.tab.armed())
 local m6,b6=menu(); construct(m6)
 assert(#b5==9 and #b6==8,'Stopped: no more buttons')
 -- The keep: the class wanted when the tab is made; while the keep has not settled the hook waits (hooked stays false:
--- no hook, no load); once settled it installs from the class in memory, with no LoadAsset.
+-- no hook, no load); once settled it installs from the keep's class, with no lookup and no LoadAsset.
 do
     local Keep=require('core.keep')
     local keep_fake=dofile('tests/lua/core/keep_fake.lua')
@@ -239,8 +239,11 @@ do
     for _=1,5 do s.tab.tick(0) end
     assert(#hooks==0 and #loaded==0,'The hook waits for the keep')
     kf.settle()
+    local saved_find=StaticFindObject
+    StaticFindObject=function(p) assert(not Keep.wanted(p),'A kept class looked up: '..p); return saved_find(p) end
     s.tab.tick(0)
     assert(#hooks==1 and #loaded==0,#hooks)
+    StaticFindObject=saved_find
     Keep.reset()
 end
 print('pause_tab_test ok')

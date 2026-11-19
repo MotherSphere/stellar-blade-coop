@@ -353,7 +353,7 @@ do
     spawn_cost=0
 end
 -- The keep: the three classes and the ledge's mesh wanted when Move is made; nothing spawned before the keep settles;
--- once settled one find each for the game run and no LoadAsset, a second world included.
+-- once settled one find each for the game run, no lookup of a kept path and no LoadAsset, a second world included.
 do
     local Keep=require('core.keep')
     local keep_fake=dofile('tests/lua/core/keep_fake.lua')
@@ -378,11 +378,13 @@ do
     world=new_world(); clock=clock+10; mk.tick(); mk.tick()
     assert(#spawned==count and not Keep.ready())
     kf.settle()
+    local saved_find=StaticFindObject
+    StaticFindObject=function(p) assert(not Keep.wanted(p),'A kept path looked up: '..p); return saved_find(p) end
     clock=clock+10; mk.tick(); mk.tick()
     assert(#spawned==count+2 and #finds_k==4 and loads==0,#finds_k)
     world=new_world(); clock=clock+10; mk.tick(); mk.tick()
     assert(#spawned==count+4 and #finds_k==4 and loads==0,'Held across a second world')
-    LoadAsset=saved
+    StaticFindObject,LoadAsset=saved_find,saved
     Keep.reset()
 end
 print('world/maps/matrix13/level/move_test: ok')

@@ -164,10 +164,12 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   that waits for the keep with one line and no walk before it goes on (no wait while `coop scene` is off);
 - `world/maps/matrix13/level/breakables_test` and `world/maps/matrix13/level/move_test` cover the keep's classes (and
   the ledge's mesh) wanted when the module is made, no spawn before the keep settled, then one find each for the game
-  run with no `LoadAsset`, a second world included; `cutmenus/mailbox_test` the gift toast skipped (false) with no
-  lookup while the keep has not settled; `online/modes/nightop/board_test` the board's class wanted, no lookup or load
-  before the keep settled, then the keep's class with no `LoadAsset`; `online/group/region_tabs_test` the two hooks
-  waiting for the keep, then installed from the classes in memory with no `LoadAsset`;
+  run with no lookup of a kept path and no `LoadAsset`, a second world included; `cutmenus/mailbox_test` the gift
+  toast skipped (false) with no lookup while the keep has not settled, then its class from the keep; a class missing
+  on this PC never loaded; `online/modes/nightop/board_test` the board's class wanted, no lookup or load before the
+  keep settled, then the keep's class with no `LoadAsset`; a class missing on this PC never loaded;
+  `online/group/region_tabs_test` the two hooks waiting for the keep, then installed from its classes with no lookup
+  and no `LoadAsset`;
 - `ui/kit/model_test` covers the four Who can join values and the Friends join without asking row, shown under Public
   and Invitation only, then the Online tab row named in `docs/players/interface.md`'s Options paragraph between the
   bike's key and Reset all keys;
@@ -208,12 +210,13 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
 - `world/daynight/wiring_test` covers the day and night cycle's wiring (`world/daynight/wiring.lua`) through `main.lua`
   with a fake `world/daynight/daynight.lua`: what it is built with (the native asks and status, the `daynight` setting
   (no cutscene or screen read), photo mode, Night Operation, the SBO lobby in Xion's training room only, the third-party
-  plugin's path, `coop-sky.txt`, the world's address, no streaming level asked with no EVE) and its 250 ms pass with
-  `coop off`. It also covers `coop daynight` with each word and its usage line for the rest. `main/menu_test` covers the
-  Day and night row: On by default, a change saved at once with no request. It covers the Online tab in the pause menu
-  row too: On by default, a change saved at once, the next 250 ms pass asking `pausetab off` or `pausetab on`. The Hide
-  popups online row: On by default, the load's first 250 ms pass asking `popups on`, a change saved at once with the
-  next pass asking `popups off` or `popups on` once;
+  plugin's path, `coop-sky.txt`, the world's address, no streaming level asked with no EVE, the star material wanted
+  by the keep, `stars_ready()` false until it settled, then found in the keep with no lookup or load) and its 250 ms
+  pass with `coop off`. It also covers `coop daynight` with each word and its usage line for the rest.
+  `main/menu_test` covers the Day and night row: On by default, a change saved at once with no request. It covers the
+  Online tab in the pause menu row too: On by default, a change saved at once, the next 250 ms pass asking
+  `pausetab off` or `pausetab on`. The Hide popups online row: On by default, the load's first 250 ms pass asking
+  `popups on`, a change saved at once with the next pass asking `popups off` or `popups on` once;
 - `ui/kit/pause_tab_test` covers the pause menu's Online tab over fakes: nothing before the game is ready, the class
   loaded with its keeper and the Construct hook once, one button after the game's 8 with the word and the last button's
   style, none on a second Construct, the button again after a rebuild while paused, a click over the button or RB
@@ -222,7 +225,7 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   nothing opened, a close that can never work stopping the tab with one STOP line and `pausetab off`, `pause_tab=off`
   making nothing and asking `pausetab off`, a refused ask asked again and logged once, a pause menu of another shape
   stopping the tab with one STOP line and `pausetab off`, then `coop off` stopping it; with the keep, the hook waiting
-  until it settled, then installed from the class in memory with no `LoadAsset`;
+  until it settled, then installed from its class with no lookup and no `LoadAsset`;
 - `world/daynight/rule_test` covers `world/daynight/rule.lua`: every row of the map table (keys in lower case, each open
   row complete for its kind of sky, the fixed maps, an unknown map), the rules in their order (SB's screens and
   cutscenes ignored, Xion's story night before photo mode, photo mode's hold whatever the hour, a test pin before Night
