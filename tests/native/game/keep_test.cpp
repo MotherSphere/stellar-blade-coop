@@ -34,10 +34,12 @@ int main() {
   l.settle(2, 1);
   assert(line(l) == "keep=2 2 1" && l.settled() == 2 && l.in() == 1);
   assert(l.add("/Game/A/D.D") == Add::added && l.batch(first) == 1 && first == 2);
-  // 3. kMaxPaths at most; a path already in stays "again" when full.
+  // 3. kMaxPaths at most; a path already in stays "again" when full. In a file, a new path past the limit counts as
+  //    refused (the log line names both causes), one already in does not.
   for (int i = l.asked(); i < kMaxPaths; ++i)
     assert(l.add("/Game/N/P" + std::to_string(i) + ".P" + std::to_string(i)) == Add::added);
   assert(l.add("/Game/N/Q.Q") == Add::full && l.asked() == kMaxPaths && l.add("/Game/A/B.B") == Add::again);
+  assert(l.add_lines("/Game/N/Q.Q\n/Game/A/B.B\n") == 1 && l.asked() == kMaxPaths);
   // 4. coop-keep.txt (Lua writes the whole list each time it grows): 70 lines added in one take, the same text again
   //    adds nothing, '\r' and empty lines are skipped, a bad line is counted as refused; one batch takes them all.
   List f;
