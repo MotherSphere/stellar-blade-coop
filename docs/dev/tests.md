@@ -22,7 +22,7 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `tools/`: `devmenu`, `mailbox`, `off`; `story/scenes/`: `lines`, `off`, `scene`; `fight/enemies/`: `off`, `wiring`,
 `wiring_notices`; `online/group/`: `group`, `off`, `region_tabs`, `travel`; `online/lobby/`: `arrival`, `commands`,
 `halls_rows`, `off`, `sbo`, `wiring`; `online/lobby/ui/`: `lobby`, `lobby_model`; `main/`: `bike`, `boot`, `collide`,
-`guide`, `idle`, `input`, `loader`, `match`, `menu`, `session_ui`, `settings`; `world/maps/matrix13/`: `off`;
+`guide`, `idle`, `input`, `loader`, `match`, `menu`, `session_ui`, `settings`; `world/maps/matrix13/`: `off`, `words`;
 `world/maps/matrix13/quest/`: `on_time`, `subtitles`, `zone_talks`; `world/maps/matrix13/talks/`: `zones`;
 `world/maps/matrix13/level/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`; `online/modes/nightop/`:
 `board`, `challenges`, `guard_text`, `off`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
@@ -888,7 +888,7 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 - `online_lobby_loading_test`: the lift of the lobby arrival's black over a copy of SB's auto list: each entry of tag 5
   gets lifetime 0, SB's own entries and every other byte stay as they were, and a count out of range touches nothing;
 - `game_camp_text_test`: Matrix XIII's camp names and the 25 records' words, the keys (unique, the region's ending in a
-  letter), the language pick, when a pass is due and the `camptext=` and `recordtext=` lines;
+  letter), the pick of one of the 23 cultures, when a pass is due and the `camptext=` and `recordtext=` lines;
 - `game_camps_test`: the activated camps' read, each guard refusing with its own reason (a warp, a respawn or a logic
   task as busy), when the list is read (at once with none held, in a new world or after a drop, then every 2 s) and
   the `activated=` line (the list, the camp EVE respawns at, a refusal, names that would not split left out);
