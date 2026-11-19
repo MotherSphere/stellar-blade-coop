@@ -1,3 +1,6 @@
+# Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+# SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+# SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 # ngm_ue_stand5.py (= ngm_ue_stand + game-path replacements, RENAME)
 # ngm_ue_stand.py - UE 4.26 headless (SBOutfitProject, -run=pythonscript). Imports NikkeGunBuild\fbx\NGM_Stand_*.fbx as
 # animations on the CH_P_EVE_01_Skeleton stand-in into /Game/OutfitMods/NikkeGunMode/Anim (30 fps, in place, no curves).

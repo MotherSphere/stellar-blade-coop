@@ -1,3 +1,6 @@
+# Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+# SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+# SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 # ngm_bl_mixamo_stand.py - Blender 5.2 background. Standing gun set, take 4 (11-17): the Mixamo "Rifle 8-Way Locomotion
 # Pack" retargeted onto Eve (UE Format body, Bip001 skeleton). Take 3 (drone legs + NIKKE kneel-cover arms) looked
 # scrunched in game.

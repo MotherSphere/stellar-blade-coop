@@ -80,3 +80,11 @@ Gun mode reads these lines of `coop-settings.txt` itself:
 | `gun_aim_key` | The UE key name firing mode moves to | `RightMouseButton` |
 | `gun_zoom` | `hold`, `toggle` | `hold` |
 | `gun_probe` | `on`: development logging | off |
+
+## Credits
+
+- The rifle stance (`gunmode/stance.lua`) and the laser sight (`gunmode/laser.lua`) started as luke77's RifleStance,
+  which Lucas (luke77) contributed to this project in the commit "feat: add standing rifle stance and aiming laser".
+- Gun mode around them is by SchizoEffective.
+- The NIKKE rifle, its icon (`gunmode/nikke_rifle.png`), its shot, its animations and its sounds are the game's own
+  and belong to SHIFT UP.
