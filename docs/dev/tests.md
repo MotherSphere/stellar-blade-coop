@@ -23,7 +23,8 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `cutmenus/`: `devmenu`, `mailbox`, `off`; `story/scenes/`: `lines`, `off`, `scene`; `fight/enemies/`: `off`, `wiring`,
 `wiring_notices`; `online/group/`: `group`, `off`, `region_tabs`, `travel`; `online/lobby/`: `arrival`, `commands`,
 `halls_rows`, `off`, `sbo`, `wiring`; `online/lobby/ui/`: `lobby`, `lobby_model`; `main/`: `bike`, `boot`, `collide`,
-`guide`, `idle`, `input`, `loader`, `match`, `menu`, `session_ui`, `settings`; `world/maps/matrix13/`: `off`, `words`;
+`guide`, `idle`, `input`, `keep`, `loader`, `match`, `menu`, `session_ui`, `settings`; `world/maps/matrix13/`: `off`,
+`words`;
 `world/maps/matrix13/quest/`: `on_time`, `subtitles`, `zone_talks`; `world/maps/matrix13/talks/`: `zones`;
 `world/maps/matrix13/level/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`; `online/modes/nightop/`:
 `board`, `challenges`, `guard_text`, `off`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
@@ -152,8 +153,10 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   `ready()` or `get()`; no lookup before the native part settled, one a pass after it, none marked while the soft path
   is not proven; a held object whose full name changed dropped and found again; a path missing on this PC logged once
   and never looked up again; a path asked after it settled waits again; off for the Lua load on `keep=fault`, on an
-  engine line that names a reason (another build, `coop_off`) and after 40 passes with no progress; 128 paths at most;
-  `LoadAsset` and `StaticFindObject` never called;
+  `engine=off` line (another build, an engine fault, `coop_off`) with its reason alone in the log line and after 40
+  passes with no progress; 128 paths at most; `LoadAsset` and `StaticFindObject` never called; `main/keep_test` the
+  keep set up by `main.lua` with the link, `coop-keep.txt` written by the 250 ms pass and the pass that turns it off
+  after `coop off`;
 - `core/class_at_test` covers `object_at`: no walk before the proof, the soft object path once proven, the walk once the
   proof failed; `core/actors_test` a path the keep serves never loaded by `Doro.resolve` (nil when it is missing), the
   find and the load as before until the keep is ready; `story/scenes/scene_test` Lily's five assets wanted, `ready()`

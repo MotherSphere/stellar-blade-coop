@@ -87,7 +87,7 @@ assert(not Keep.ready() and count(writes[#writes])==71)
 status='engine=on keep=71 71 70'; Keep.slow()
 assert(Keep.ready())
 -- 9. Review Focus 10: off for this Lua load on keep=fault, on an engine line that says off for any reason but "not
---    checked yet" (coop off included: the native part keeps nothing after it), or after 40 passes with no progress
+--    checked yet" (coop off included: the native part takes no new path after it), or after 40 passes with no progress
 --    (no DLL status, an older DLL with no keep= field). Off: not wanted, ready, no lookup, one line.
 local function off_after(text,passes)
     Keep.reset()
@@ -101,8 +101,14 @@ end
 assert(off_after('engine=on keep=fault',1))
 assert(logged('keep: off for this Lua load (the native part faulted); assets load as before') and #lines==1)
 assert(off_after('engine=off reason=build 1.0 is not the pinned one',1))
-assert(off_after('engine=on reason=coop_off',1))
+-- The native line after coop off (glue/tick/status.inc: block() sets engine_on false); the fields after the reason
+-- stay out of the log line.
+assert(off_after('engine=off reason=coop_off fight=stopped',1))
 assert(logged('keep: off for this Lua load (the native part is off: coop_off); assets load as before') and #lines==1)
+assert(off_after('engine=off reason=engine off: fault 0xc0000005 at StellarCoop.dll+0x1f0 reading 0x0 at part 3'..
+    ' travel=idle travel_calls=0 anim=idle anim_id=0 keep=1 1 1',1))
+assert(logged('keep: off for this Lua load (the native part is off: engine off: fault 0xc0000005 at StellarCoop.dll+'..
+    '0x1f0 reading 0x0 at part 3); assets load as before') and #lines==1)
 assert(not off_after('engine=off reason=not checked yet',30) and off_after('engine=off reason=not checked yet',45))
 assert(not off_after('engine=on keep=1 0 0',30) and off_after('engine=on keep=1 0 0',45) and #lines==1)
 assert(off_after('engine=on',45))

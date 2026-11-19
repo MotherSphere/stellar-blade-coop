@@ -8,8 +8,8 @@
 -- request queue keeps 8), reads the status field keep=<asked> <settled> <in> once, then looks one kept path up a pass
 -- through the soft path (find: core/unreal.lua's object_at, a name-hash find, never a load or a walk) and holds it.
 -- ready(), serves() and get() read no file. Off for the Lua load (wanted() false, ready() true: every module loads as
--- before) without setup(), on keep=fault, on an engine line that says off (coop off too: the native part keeps nothing
--- after it), or after STALL passes with no progress. Never calls LoadAsset or StaticFindObject.
+-- before) without setup(), on keep=fault, on an engine line that says off (coop off too: the native part takes no new
+-- path after it), or after STALL passes with no progress. Never calls LoadAsset or StaticFindObject.
 -- tests/lua/core/keep_test.lua covers it.
 local U=require('core.unreal')
 local Keep={MAX=128,LONGEST=192,STALL=40} -- game/keep.h's kMaxPaths and kMaxPath; 40 passes are 10 s.
@@ -80,8 +80,10 @@ function Keep.slow()
     if not o or state=='off' then return end
     local text=o.status() or ''
     if text:find('keep=fault',1,true) then return off('the native part faulted') end
-    -- engine=off reason=<why> for another build; engine=on reason=coop_off after coop off.
-    local why=text:match('engine=%a+ reason=([^\r\n]*)')
+    -- engine=off reason=<why> (glue/tick/status.inc: another build, an engine fault, coop_off after coop off); the
+    -- status fields that follow on that line are cut off.
+    local why=text:match('engine=off reason=([^\r\n]*)')
+    why=why and why:gsub(' [%w_]+=.*','')
     if why and not why:find('^not checked yet') then return off('the native part is off: '..why) end
     local a,s=text:match('keep=(%d+) (%d+) %d+')
     a,s=tonumber(a),tonumber(s)
