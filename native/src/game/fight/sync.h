@@ -705,6 +705,8 @@ struct Seen {
   bool marked = false; // A takedown runs on it: Check_LinkSkillHit_Skill (5000039) or LinkState_MonsterHit (2006004).
   bool takedown = false; // A Monster in life state 1 holding Groggy (7) or a takedown marker: R33's test of an exec 1.
   bool monster = false;  // A Monster in life state 1: R33 also takes an exec 1 for it once its balance is 0.
+  float poise = 0;       // HitDefenseLevel (FSB +0x1ac), 0 as SB reads a missing FSB; NaN: the engine's read failed.
+  uint8_t type = 0;      // ActorType, 0 when unread.
   float max[kStats] = {};                // MaxHP, MaxShield, MaxStamina.
   int32_t value[kStats] = {};            // HP, Shield, Stamina, whole units.
 };
@@ -757,6 +759,8 @@ inline std::string line(const Event &e) {
 //     reads the stat back into after (whole units); false, after untouched, when it is gone;
 //   bool effect(uint32_t guid, int32_t id): re-finds the actor by GUID, and when it is alive starts that effect on it
 //     through SB's own call, as a hit of our EVE's would; false when it is gone or the game refused;
+//   bool reaction(uint32_t guid, int32_t id, Reaction &out): the hit level and life of the effect id running on our
+//     copy guid (phase 8 Rule A); false when the copy or the effect is not found: the rise is then told at the guess;
 //   void send(const Message &m): channel 2 (on/off are the caller's, but for the guest's answer to the host's on);
 //   void event(const Event &e): a log line;
 //   bool took_part(uint32_t guid): our EVE took part in the fight of our copy guid by the game's own record or where
@@ -787,6 +791,13 @@ struct Unshared {
 };
 constexpr size_t kMaxUnshared = 8; // coop fight status lists this many.
 
+// A reaction's hit level (the guess when SB's own could not be read) and its life in ms (Io::reaction).
+struct Reaction {
+  int32_t level = poise::kGuessLevel;
+  uint32_t life_ms = 0;
+  bool guess = true;
+};
+
 // Counters since the side started, for the stats line.
 struct Counts {
   uint64_t claims = 0;               // Guest: claims sent. Host: claims applied.
@@ -806,6 +817,8 @@ struct Counts {
   uint64_t cc_told = 0;              // Crowd controls that started on our copy, told to the other side.
   uint64_t cc_mirrored = 0;          // The other side's, started on our copy.
   uint64_t cc_skipped = 0;           // The other side's not started: our copy in a crowd control, or the game refused.
+  uint64_t cc_poise = 0;             // The other side's not started: its level below our copy's poise (Rule A).
+  uint64_t level_guess = 0;          // Told crowd controls whose level could not be read: sent at the guess.
   uint64_t execs = 0;                // Host: her exec 1 taken. Guest: our exec 1 sent (stage 3c, the engine's).
   uint64_t exec_refused = 0;         // Host: her exec 1 refused (no Groggy or marker on ours, too soon, one runs).
   uint64_t finish_held = 0;          // Host: kills of hers held at 1 HP, our copy in its Finish stance (stage 5).
@@ -815,45 +828,73 @@ struct Counts {
 // A crowd control is told when it starts on a copy that was in none: one that starts inside another is its chain, or
 // would only cut it short, so it is neither told nor started. The other side's starts on our copy only when that holds
 // none either, through the game's own call (Io::effect), so its chain and its end run as for a hit of ours. Our mirror
-// showing up on our copy at a later pass (an effect may start a turn late) is the one rise never told back.
+// showing up on our copy at a later pass (an effect may start a turn late) is the one rise never told back. Rule A
+// (phase 8): the other side's starts only when its hit level passes SB's poise compare on our copy at that pass.
+struct Rise {
+  int32_t id = 0;     // The effect that rose this pass, or 0.
+  bool echo = false;  // Our own mirror showing up: never told.
+};
+// What apply() did with the other side's: nothing wanted, started, our copy held a crowd control, its poise refused
+// the level, the game refused the call.
+enum class Took : uint8_t { none, started, held, poise, game };
 struct Mirror {
   uint8_t held = 0;
   bool stunned = false;
-  int32_t want = 0;  // The other side's effect, for our next pass; 0: none.
-  int32_t mine = 0;  // Our last mirror's effect until it shows up, at most kEchoMs after mine_ms.
+  int32_t want = 0;       // The other side's effect, for our next pass; 0: none.
+  int32_t want_level = 0; // Its hit level, from the same line.
+  int32_t mine = 0;       // Our last mirror's effect until it shows up, at most kEchoMs after mine_ms.
   uint64_t mine_ms = 0;
 
   void start(const Seen &s) { *this = Mirror(), held = s.cc, stunned = s.stunned; }
-  // This pass: the effect to tell the other side, or 0.
-  int32_t risen(const Seen &s, uint64_t now) {
-    const uint8_t rise = s.cc & ~held;
+  // This pass: the effect that rose, to tell the other side unless it is our echo.
+  Rise rise(const Seen &s, uint64_t now) {
+    const uint8_t bits = s.cc & ~held;
     const bool was = stunned;
     held = s.cc, stunned = s.stunned;
     size_t i = 0;
-    while (i < kCc && !(rise >> i & 1))
+    while (i < kCc && !(bits >> i & 1))
       ++i;
     if (i == kCc || was)
-      return 0;
+      return {};
     if (kCcEffects[i] == mine && now < mine_ms + kEchoMs) { // Ours.
       mine = 0;
-      return 0;
+      return {kCcEffects[i], true};
     }
-    return kCcEffects[i];
+    return {kCcEffects[i], false};
   }
-  // This pass: the other side's, started on our copy guid (seen as s) when it holds no crowd control.
-  template <class Io> void apply(uint32_t guid, const Seen &s, uint64_t now, Counts &c, Io &io) {
+  // This pass: the other side's, started on our copy guid (seen as s) when it holds no crowd control and its level
+  // passes the copy's poise.
+  template <class Io> Took apply(uint32_t guid, const Seen &s, uint64_t now, Counts &c, Io &io) {
     if (!want)
-      return;
+      return Took::none;
     const int32_t id = want;
     want = 0;
-    if (s.cc || s.stunned || !io.effect(guid, id)) {
+    if (s.cc || s.stunned) {
       ++c.cc_skipped;
-      return;
+      return Took::held;
+    }
+    if (!poise::passes(want_level, s.poise)) {
+      ++c.cc_poise;
+      return Took::poise;
+    }
+    if (!io.effect(guid, id)) {
+      ++c.cc_skipped;
+      return Took::game;
     }
     ++c.cc_mirrored;
     mine = id, mine_ms = now;
+    return Took::started;
   }
 };
+
+// The level a told crowd control carries: Io::reaction's for the effect id on our copy guid, else the guess, counted.
+template <class Io> int32_t told_level(uint32_t guid, int32_t id, Counts &c, Io &io) {
+  Reaction r;
+  if (!io.reaction(guid, id, r))
+    r = Reaction();
+  c.level_guess += r.guess;
+  return r.level;
+}
 
 // A world change: the logic turn went backwards (every load, network start and Logic Reset), or this census pass shares
 // no GUID with the last one, both holding some (warps and camp travel reset nothing). Only census passes are compared:
@@ -1010,7 +1051,7 @@ public:
       return;
     case Type::cc: // Hers, for our copy at the next step (a later one replaces it).
       if (Enemy *e = peer_on_ && m.gen == gen_ ? find(m.guid) : nullptr)
-        e->cc.want = m.effect;
+        e->cc.want = m.effect, e->cc.want_level = m.level;
       else
         ++counts.stale;
       return;
@@ -1034,16 +1075,17 @@ public:
       Enemy &e = enemies_[i];
       const Seen *s = fight::find(seen, n, e.guid);
       if (s && !dying(*s)) {
-        if (const int32_t id = e.cc.risen(*s, now); id && each) {
+        if (const Rise r = e.cc.rise(*s, now); r.id && !r.echo && each) {
           Message m = note(Type::cc, e.guid);
-          m.effect = id, m.level = poise::kGuessLevel;
+          m.effect = r.id, m.level = told_level(e.guid, r.id, counts, io);
           io.send(m);
           ++counts.cc_told;
         }
         e.take(*s);
         if (!e.scaled && peer_on_)
           e.scaled = true, e.due = scaling(scale_, boss_);
-        e.cc.apply(e.guid, *s, now, counts, io);
+        if (e.cc.apply(e.guid, *s, now, counts, io) == Took::poise && quiet_.say(e.guid, "cc refused", "poise", now))
+          io.event(Event{"cc refused", "poise", e.guid, e.spawn, e.index});
         ++i;
         continue;
       }
@@ -1472,6 +1514,7 @@ private:
   bool peer_on_ = false, announce_ = true, ignored_ = false;
   bool full_said_ = false; // "full" logged in this world.
   Fence fence_;
+  poise::Quiet quiet_; // Rule A's refusals, one log line per enemy every kQuietMs.
 };
 
 // ---- Guest: prediction and claims ----
@@ -1704,7 +1747,7 @@ public:
       p->dead = true;
     } else if (m.type == Type::cc) { // For our copy at the next step, while it is ours to follow.
       if (p && p->local && !p->lethal && !p->dead)
-        p->cc.want = m.effect;
+        p->cc.want = m.effect, p->cc.want_level = m.level;
       else
         ++counts.stale;
     } else if (m.type == Type::hp) {
@@ -1906,12 +1949,12 @@ private:
       p.held = !dying(s);
       return claim(p, s, now, true, io);
     }
-    if (const int32_t id = p.cc.risen(s, now)) {
+    if (const Rise r = p.cc.rise(s, now); r.id && !r.echo) {
       Message m;
       m.type = Type::cc;
       m.gen = known_gen_;
       m.guid = p.hguid;
-      m.effect = id, m.level = poise::kGuessLevel;
+      m.effect = r.id, m.level = told_level(p.local, r.id, counts, io);
       io.send(m);
       ++counts.cc_told;
     }
@@ -1919,7 +1962,8 @@ private:
       claim(p, s, now, false, io);
     if (p.have_host)
       correct(p, s, io);
-    p.cc.apply(p.local, s, now, counts, io);
+    if (p.cc.apply(p.local, s, now, counts, io) == Took::poise && quiet_.say(p.hguid, "cc refused", "poise", now))
+      io.event(Event{"cc refused", "poise", p.hguid, p.spawn, p.index});
   }
 
   template <class Io> void claim(Pair &p, const Seen &s, uint64_t now, bool lethal, Io &io) {
@@ -2043,6 +2087,7 @@ private:
   SpawnKey died_at_[kMaxTracked]; // died()'s.
   size_t died_ = 0;
   Fence fence_;
+  poise::Quiet quiet_; // Rule A's refusals, one log line per enemy every kQuietMs.
 };
 
 // ---- Record and replay ----

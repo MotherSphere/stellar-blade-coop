@@ -39,6 +39,7 @@
 #include <vector>
 
 using namespace coop::fight;
+namespace poise = coop::poise;
 
 namespace {
 constexpr uint64_t kBase = 0x7ff600000000;
@@ -1084,6 +1085,7 @@ int main() {
     uint64_t t = 16;
     frame(g, *e, t);
     assert(lines(g) == "SBF23 cc 1 101 3000300 1 0\n");
+    assert(e->host.counts.level_guess == 1 && !e->latched());
     for (t += 16; t < 200; t += 16)
       frame(g, *e, t);
     assert(!has(lines(g), " cc ") && g.body(101).effects.empty() && !g.in_cc(g.by_guid[101]));
@@ -1125,6 +1127,44 @@ int main() {
     g.mem.put<uint64_t>(g.body(102).list_at, 0x1235);
     frame(g, *e, t += 16);
     assert(e->counts.unread == unread + 2 && !e->latched());
+  }
+  { // Phase 8 level read: an effect our EVE cast (+0x60) gives its row's HitLevel (by the ID at +0x88) plus trunc(her
+    // +0x2b4); another caster, an ID of 0 or no tables give the guess, never a latch; the life time comes from +0x74
+    // in every case; no such effect: false.
+    for (const bool tables : {true, false}) {
+      Game g;
+      if (tables)
+        g.spawns();
+      auto e = engine(true, true);
+      g.spawn(101, 5001, 0);
+      g.inbox.push_back(msg("SBF23 on"));
+      frame(g, *e, 0);
+      g.knock(101, 9900001);
+      const uint64_t fx = g.body(101).effects.back().at;
+      g.mem.put(fx + poise::kEffectCaster, g.eve);
+      g.mem.put(fx + poise::kEffectLife, 0.6f);
+      g.mem.put<int32_t>(fx + poise::kEffectRow, 1001001);
+      g.mem.put<int32_t>(g.skill_row_at(1001001, 1.0f) + poise::kRowHitLevel, 2);
+      g.mem.put(g.mem.get<uint64_t>(g.eve + kFsb) + poise::kAdditiveHit, 1.7f);
+      Reaction r;
+      assert(e->reaction(g, g.logic, 101, 9900001, r) && r.life_ms == 600);
+      assert(tables ? r.level == 3 && !r.guess : r.level == 1 && r.guess);
+      g.mem.put(fx + poise::kEffectCaster, g.by_guid[101]); // Another caster: the guess, the time still read.
+      assert(e->reaction(g, g.logic, 101, 9900001, r) && r.level == 1 && r.guess && r.life_ms == 600);
+      g.mem.put(fx + poise::kEffectCaster, g.eve);
+      g.mem.put<int32_t>(fx + poise::kEffectRow, 0); // No row ID (our own Engine::cast's effects): the guess.
+      assert(e->reaction(g, g.logic, 101, 9900001, r) && r.level == 1 && r.guess);
+      assert(!e->reaction(g, g.logic, 101, 3000300, r) && !e->latched());
+    }
+  }
+  { // A pass reads the copy's poise (FSB +0x1ac) and its ActorType.
+    Game g;
+    auto e = engine(true, true);
+    g.spawn(101, 5001, 0);
+    g.mem.put(g.fsb(101) + poise::kHitDefense, 2.5f);
+    g.inbox.push_back(msg("SBF23 on"));
+    frame(g, *e, 0);
+    assert(e->seen()[0].guid == 101 && e->seen()[0].poise == 2.5f && e->seen()[0].type == kTypeMonster);
   }
 
   // ---- guest_kills=confirmed: the 1 HP floor, ApplyStat(107, +1) on every paired copy, comes off on every way out:

@@ -9,6 +9,9 @@
 
 namespace coop::fight {
 
+static_assert(poise::kHitDefense == kStatBase + 4 * 37 && poise::kAdditiveHit == kStatBase + 4 * 103,
+              "the poise offsets are stats 37 (HitDefenseLevel) and 103 (AdditiveHitLevel)");
+
 template <class Game, class T> bool Engine::get(Game &g, uint64_t at, T &out) {
   if (g.read(at, &out, sizeof out))
     return true;
@@ -72,6 +75,10 @@ template <class Game> void Engine::marks(Game &g, uint64_t la, Actor &a) {
       ++counts.unread;
       read = false;
     }
+    if (!g.read(a.fsb + poise::kHitDefense, &a.seen.poise, sizeof a.seen.poise)) { // Rule A: no mirror on NaN.
+      a.seen.poise = std::nanf("");
+      ++counts.unread;
+    }
   }
   const auto held = [&](int32_t state) { return a.states >> state & 1; };
   a.seen.nodamage = held(kNoDamageNoHit) ? kNoDamageNoHit : held(kNoDamage) ? kNoDamage : 0;
@@ -81,6 +88,7 @@ template <class Game> void Engine::marks(Game &g, uint64_t la, Actor &a) {
   // Groggy or a marker, or with its balance at 0; a failed read of its type: no). Stage 5: a BossMonster.
   uint8_t type = 0;
   const bool typed = g.read(a.fsb + kActorType, &type, 1);
+  a.seen.type = typed ? type : 0;
   a.seen.marked = marker;
   a.seen.monster = a.life == 1 && !a.pending && typed && type == kTypeMonster;
   a.seen.boss = typed && type == kTypeBoss;
@@ -124,6 +132,40 @@ template <class Game> bool Engine::effects(Game &g, uint64_t la, uint8_t &cc, bo
       }))
     return false;
   cc = bits, marker = found, finish = ready;
+  return true;
+}
+
+// The copy found again by GUID (live), the effect as the last one listed with that ID. Past the copy's and our EVE's
+// checks every read goes through g.read: a failed one gives the guess, never a latch. The level is read only for an
+// effect our EVE cast (+0x60 compared, never read through): its SkillTable row by the ID at +0x88 (FUN_141a9e920 keys
+// on row +0x10), then HitLevel (row +0x70) plus her AdditiveHitLevel cut toward zero, as FUN_141c00f80's poise compare.
+template <class Game> bool Engine::reaction(Game &g, uint64_t logic, uint32_t guid, int32_t id, Reaction &out) {
+  static_assert(poise::kLevelByRow, "the level read by the skill GUID at effect +0x68 is not built");
+  out = Reaction();
+  Actor a;
+  uint64_t fx = 0;
+  const uint64_t la = g.find(logic, guid);
+  if (!la || !live(g, la, guid, a) || !each_effect(g, la, [&](uint64_t at, int32_t n) { fx = n == id ? at : fx; }) ||
+      !fx)
+    return false;
+  float life = 0;
+  out.life_ms = g.read(fx + poise::kEffectLife, &life, sizeof life) ? poise::life_ms(life) : 0;
+  const uint64_t her = eve(g, logic);
+  uint64_t caster = 0, holder = 0, tables = 0, row = 0, fsb = 0;
+  int32_t row_id = 0, hit = 0;
+  float additive = 0;
+  if (!her || !g.read(fx + poise::kEffectCaster, &caster, sizeof caster) || caster != her ||
+      !g.read(fx + poise::kEffectRow, &row_id, sizeof row_id) || row_id <= 0 ||
+      !g.read(base_ + (kTables - kImageBase), &holder, sizeof holder) || !plausible(holder) ||
+      !g.read(holder + kTablesAt, &tables, sizeof tables) || !plausible(tables))
+    return true;
+  row = g.skill_row(tables, row_id);
+  if (!plausible(row) || !g.read(row + poise::kRowHitLevel, &hit, sizeof hit) ||
+      !g.read(her + kFsb, &fsb, sizeof fsb) || !plausible(fsb) ||
+      !g.read(fsb + poise::kAdditiveHit, &additive, sizeof additive))
+    return true;
+  if (const int32_t level = poise::level(hit, additive); level != poise::kNoLevel)
+    out.level = std::clamp(level, 0, poise::kMaxLevel), out.guess = false;
   return true;
 }
 

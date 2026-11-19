@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <deque>
@@ -40,6 +41,8 @@ struct World {
   std::vector<Event> events;
   std::vector<uint32_t> apart;    // Copies our EVE took no part in (Io::took_part says no); she took part in the rest.
   std::vector<uint32_t> unshared; // The host's copies given up (Io::unshare): the engine's censuses leave them out.
+  Reaction react{1, 0, false}; // What Io::reaction reads on a copy's risen effect.
+  bool no_reaction = false;    // Io::reaction finds no such copy or effect.
 
   bool took_part(uint32_t guid) const { return std::find(apart.begin(), apart.end(), guid) == apart.end(); }
   void unshare(uint32_t guid) { unshared.push_back(guid); }
@@ -92,6 +95,12 @@ struct World {
     if (!a || a->s.dying || immune)
       return false;
     effects.push_back({guid, id});
+    return true;
+  }
+  bool reaction(uint32_t, int32_t, Reaction &out) {
+    if (no_reaction)
+      return false;
+    out = react;
     return true;
   }
   void send(const Message &m) { sent.push_back(m); }
@@ -2633,6 +2642,48 @@ int main() {
     assert(gu.reactions() && gu.counts.stale == stale + 1);
     gu.receive(msg("SBF23 world 6"), g);
     assert(!gu.reactions() && !gu.resist());
+  }
+  { // Rule A, host side: a mirrored crowd control starts only when SB's compare holds on our copy now. Level 2
+    // against poise 2.5 is refused (cc_poise); against 2.0 it starts. A told cc line carries Io::reaction's level.
+    World w;
+    Host h;
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0).s.poise = 2.5f;
+    step(h, w, 1, 0);
+    w.lines();
+    h.receive(msg("SBF23 cc 1 101 3000300 2 0"), 10, w);
+    step(h, w, 2, 10);
+    assert(w.effects.empty() && h.counts.cc_poise == 1 && h.counts.cc_skipped == 0);
+    assert(w.count("cc refused", "poise") == 1);
+    w.actor(101)->s.poise = 2.0f;
+    h.receive(msg("SBF23 cc 1 101 3000300 2 0"), 20, w);
+    step(h, w, 3, 20);
+    assert(w.effects.size() == 1 && h.counts.cc_mirrored == 1);
+    w.actor(101)->s.cc = 0, w.actor(101)->s.stunned = false;
+    step(h, w, 4, 3000);
+    w.react = Reaction{3, 1200, false};
+    w.actor(101)->s.cc = 1; // 9900001 rises.
+    step(h, w, 5, 3050);
+    assert(w.lines().find("SBF23 cc 1 101 9900001 3 0\n") != std::string::npos && h.counts.level_guess == 0);
+  }
+  { // Rule A on the guest's side, with the guess: a copy with poise NaN (unread) takes no mirrored crowd control; a
+    // rise whose reaction cannot be read is told at level 1 and counted level_guess.
+    World g;
+    g.add(501, 5001, 0);
+    Guest gu;
+    gu.receive(msg("SBF23 world 1"), g);
+    gu.receive(msg("SBF23 up 1 101 5001 0 900 1600"), g);
+    step(gu, g, 1, 0);
+    assert(gu.linked() == 1);
+    g.actor(501)->s.poise = std::nanf("");
+    gu.receive(msg("SBF23 cc 1 101 3000300 3 0"), g);
+    step(gu, g, 2, 500);
+    assert(g.effects.empty() && gu.counts.cc_poise == 1);
+    g.lines();
+    g.no_reaction = true;
+    g.actor(501)->s.poise = 0, g.actor(501)->s.cc = 1 << 1; // 3000300 rises on her copy.
+    step(gu, g, 3, 600);
+    assert(g.lines().find("SBF23 cc 1 101 3000300 1 0\n") != std::string::npos && gu.counts.level_guess == 1);
   }
 
   std::puts("fight_sync_test: ok");

@@ -169,6 +169,8 @@ public:
   // and every write finds its actor again (write()). Latches and returns 0 on an implausible map or actor.
   template <class Game> size_t pass(Game &g, uint64_t logic, bool census, const uint32_t *followed, size_t count);
   const Seen *seen() const { return seen_; }
+  // Phase 8 Rule A, the sides' Io and the tests: the level and life of effect id running on our copy guid (Reaction).
+  template <class Game> bool reaction(Game &g, uint64_t logic, uint32_t guid, int32_t id, Reaction &out);
 
   // The logic thread: its own counts and both sides', for Mail. The game thread's arms stay 0 here (they come through
   // Mail::armed), so neither thread reads what the other writes.
@@ -181,6 +183,7 @@ private:
     uint64_t logic;
     bool apply(const Write &w, int32_t &after) { return e.write(g, logic, w, after); }
     bool effect(uint32_t guid, int32_t id) { return e.cast(g, logic, guid, id); }
+    bool reaction(uint32_t guid, int32_t id, Reaction &out) { return e.reaction(g, logic, guid, id, out); }
     bool took_part(uint32_t guid) { return e.took_part(g, logic, guid, e.nearby_); }
     void unshare(uint32_t guid) { e.unshared_[e.unshared_n_++ % kMaxPairs] = guid; }
     void send(const Message &m) {
