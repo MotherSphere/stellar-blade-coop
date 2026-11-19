@@ -60,6 +60,11 @@ int main() {
     assert(r.players(1001, 30100) == 0 && r.players(1000 + kEnemies + 1, 30100) == 1);
     r.clear();
     assert(r.players(1002, 30100) == 0);
+    // A slot of kMaxSlots or more is ignored: on a full table it takes no enemy's entry.
+    for (uint32_t g = 1; g <= kEnemies; ++g)
+      r.note(g, 0, 40000 + g);
+    r.note(999, kMaxSlots, 50000);
+    assert(r.players(1, 50000) == 1 && r.players(999, 50000) == 0);
   }
   { // restore(): by SB's own effect clock. Wait until end + 0.5 s. Our effect unlisted: ok (SB took back its own
     // delta, whatever the poise holds now). Listed: failed once its clock passed its life by 0.5 s; a clock behind (a
