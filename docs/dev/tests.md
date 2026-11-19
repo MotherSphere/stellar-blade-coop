@@ -32,10 +32,10 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `wiring_cycle`, `wiring_dlc`; `online/session/ui/`: `create`, `create_model`, `sessions`, `sessions_model`;
 `world/daynight/`: `daynight`, `off`, `rule`, `wiring`; `story/together/`: `off`, `snapshot`, `wiring`, `wiring_dump`;
 `ui/`: `text`; `ui/kit/`: `guide`, `hud_parts`, `kit`, `model`, `notice`, `pause_tab`; `ui/text/`: `culture`;
-`world/objects/`: `off`, `wiring`; `fight/gunmode/`: `engine`, `helpers`, `off`, `state`, `stop`) run the scripts, with
-fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE fails the test. The
-`main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. Each module's `off_test` runs
-`main/isolation.lua` with its name.
+`world/objects/`: `off`, `wiring`; `fight/gunmode/`: `engine`, `helpers`, `off`, `online`, `state`, `stop`) run the
+scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE fails
+the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. Each module's `off_test`
+runs `main/isolation.lua` with its name.
 
 - `online/modes/race/commands_test` covers `coop race look on` refused while EVE rides the bike, with nothing asked of
   the Doro look, then started once she is off; `online/modes/race/drive_test` covers the races' drive probe and its off
@@ -59,6 +59,9 @@ fake UE4SS objects for those that call the engine. In the capture test, any writ
   loaded again once collected. It is never spawned freed or through a reference kept from an earlier flash. Over a
   fake of its own, the posed stance keeps the hide clip held by a component of its own (in single-node mode) while the
   donor plays the reload;
+- `fight/gunmode/online_test` covers what other players get of gun mode, over fake UE4SS objects. The posed stance
+  adds no skeletal mesh component to EVE. Its donor and the keeper of its hide clip stand on an actor of their own,
+  removed at stop, so the ghost's capture never sends them;
 - `fight/gunmode/stop_test` runs gun mode over a fake UE4SS (`fight/gunmode/fake.lua`) on the rifle layer's path. The
   fake's row fields have the kinds read in Ghidra on 26123051: the shot's Hit1 step has a byte `Type` and no `StepType`.
   `stop` (coop off) gives back the table fields, the keys, the rifle, her body's own post-process class, the FOV lock

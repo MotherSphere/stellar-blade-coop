@@ -115,8 +115,11 @@ do
     local src=component()
     src.LightingChannels={}
     src.GetNumMaterials=function() return 0 end
+    -- The donor and its keeper stand on an actor of their own (online_test covers where).
+    local holder=object({AddComponentByClass=function() return component() end})
     local pawn=object({TPSModeType=0,bTPSMode=false,Mesh=src,
-        AddComponentByClass=function() return component() end})
+        AddComponentByClass=function() return component() end,
+        GetWorld=function() return object({SpawnActor=function() return holder end}) end})
     local pc=object({Pawn=pawn})
     local stance=Stance.new(function() end)
     stance.start(pc,function() return false end,function() return nil end)

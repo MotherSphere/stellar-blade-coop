@@ -36,6 +36,7 @@ function Stance.new(laser,trace)
   local extras={} -- gun mode: poseable copies of her head parts (face, hair, ear, hairpin): {real, copy, was, tick}
   local restoreInput
   local beam,finish
+  local holder -- gun mode: the actor the donor and its keeper stand on (M10)
   stop=function()
    frame=nil
    if restoreInput then pcall(restoreInput);restoreInput=nil end
@@ -46,6 +47,8 @@ function Stance.new(laser,trace)
    end
    extras={}
    for i=#parts,1,-1 do local c=parts[i];if valid(c) then c:K2_DestroyComponent(c) end end
+   if valid(holder) then holder:K2_DestroyActor() end
+   holder=nil
    stop=nil
    reloadFn=nil
    copyPart=nil
@@ -70,11 +73,12 @@ function Stance.new(laser,trace)
    end)
    return ok,err
   end
-  local function component(kind,asset)
+  local function component(kind,asset,owner) -- gun mode: owner, the actor it goes on (EVE when nil)
+   owner=owner or pawn
    local id={Rotation={X=0,Y=0,Z=0,W=1},Translation={X=0,Y=0,Z=0},Scale3D={X=1,Y=1,Z=1}}
-   local c=pawn:AddComponentByClass(StaticFindObject('/Script/Engine.'..kind),true,id,true)
+   local c=owner:AddComponentByClass(StaticFindObject('/Script/Engine.'..kind),true,id,true)
    assert(valid(c));parts[#parts+1]=c;c:SetVisibility(false,false);c:SetCollisionEnabled(0)
-   pawn:FinishAddComponent(c,true,id);c:SetSkeletalMesh(asset,true)
+   owner:FinishAddComponent(c,true,id);c:SetSkeletalMesh(asset,true)
    pcall(function() c.bPerBoneMotionBlur=false end) -- gun mode: per-bone motion blur smeared the posed copy (02:06)
    return c
   end
@@ -92,7 +96,13 @@ function Stance.new(laser,trace)
   local weapon=assert(LoadAsset('/Game/DLC_2/Art/Character/Weapon/Gun/CH_G_Nikke_01/GunNikke_Weapon.GunNikke_Weapon'))
   local gun=component('PoseableMeshComponent',weapon)
   gun:K2_AttachToComponent(body,hand,2,2,2,false);gun:K2_SetRelativeTransform(grip,false,{},true)
-  local donor=component('SkeletalMeshComponent',src.SkeletalMesh)
+  -- gun mode: the donor and its keeper stand on a plain actor of their own, at the origin as before (unattached). On
+  -- EVE, online/partner/capture.lua took the hidden donor as one of her parts: its bones went to every partner and
+  -- could push a part of her outfit off the ghost (M10). The poseable body and rifle are no skeletal mesh components,
+  -- which the capture never lists. core/actors.lua's Doro animates on such an actor.
+  holder=pawn:GetWorld():SpawnActor(StaticFindObject('/Script/Engine.Actor'),{X=0,Y=0,Z=0},{Pitch=0,Yaw=0,Roll=0})
+  assert(valid(holder),'no actor for the posed copy')
+  local donor=component('SkeletalMeshComponent',src.SkeletalMesh,holder)
   donor.VisibilityBasedAnimTickOption=0
   local hideAnim=assert(LoadAsset('/Game/DLC_2/Art/Character/PC/CH_P_EVE_01/Animation/P_Eve_GunNikke_Hide.P_Eve_GunNikke_Hide'))
   donor:PlayAnimation(hideAnim,false)
@@ -101,7 +111,7 @@ function Stance.new(laser,trace)
   -- collect it and the reload's end would play a freed clip. A keeper as core/actors.lua's Doro keepers: never drawn,
   -- never ticking, its single-node instance's CurrentAsset holds the clip (UAnimSingleNodeInstance's object property
   -- at +0x2c8, its params at 0x1464efa58 on 26123051).
-  local keeper=component('SkeletalMeshComponent',src.SkeletalMesh)
+  local keeper=component('SkeletalMeshComponent',src.SkeletalMesh,holder)
   keeper:SetComponentTickEnabled(false);keeper.VisibilityBasedAnimTickOption=3
   keeper:SetAnimationMode(1);keeper:SetAnimation(hideAnim)
   -- gun mode: the reload. The donor plays the NIKKE squad's reload (P_Eve_GunNikke_Reload) at the rate that fits
