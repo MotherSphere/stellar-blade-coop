@@ -1,3 +1,6 @@
+# Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+# SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+# SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 # ngm_bl_export_stand2.py - (= export_stand + the source .blend from NGM_STAND_BLEND, default stand3\NGM_Stand3.blend)
 # Opens NikkeGunBuild\blend\stand2\NGM_Stand.blend, imports a clean body armature (sockets OFF, as the SB FBX README says),
 # moves every NGM_Stand_* action onto it, keeps the anims in place (Root translation flattened; the character movement
