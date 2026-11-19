@@ -81,4 +81,10 @@ status_text=plain
 load_main(false)
 assert(gm.o and gm.o.store==nil)
 assert(gm.o.match()==false,'No native part: no match')
+-- No native part: main.lua reads no settings, so gun mode reads coop-settings.txt itself. gun_mode=off still holds.
+assert(gm.o.settings.gun_mode==true and gm.o.settings.gun_key.name=='F4','no file: the defaults')
+disk.files['mod/StellarCoop\\coop-settings.txt']='gun_mode=off\ngun_key=F11\n'
+load_main(false)
+assert(gm.o.settings.gun_mode==false and gm.o.settings.gun_key.name=='F11','no native part: the file read')
+disk.files['mod/StellarCoop\\coop-settings.txt']=nil
 io.stdout:write('main gun_test ok\n')

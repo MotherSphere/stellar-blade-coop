@@ -53,7 +53,8 @@ runs `main/isolation.lua` with its name.
   without them, `gun_key` with its modifier or none, its test lines with refusals), the polled keys' edges and D-pad
   Right's tap (a hold is the bike's), the crosshair point in EVE's frame and the rifle's magazine (a round per cool
   time, the reload when empty or lowered part-spent, the HUD count, no round once the spares are spent, a refill). The
-  reticle's round slot shows the round's name, the reload word and the empty word in the menu's language;
+  reticle's round slot shows the round's name, the reload word and the empty word in the menu's language. It reads
+  the words once a second, not on each frame;
 - `fight/gunmode/engine_test` covers the engine objects gun mode keeps across frames, over `fight/gunmode/fake.lua`.
   Masked keys go back into the action mappings as they are when the rifle goes away, after coop fly's mappings moved
   the array to a new buffer; nothing is written into the old one. The muzzle flash's asset is found by its path or
@@ -86,7 +87,8 @@ runs `main/isolation.lua` with its name.
   these puts it away within 0.25 s with everything back. A jump keeps it out. Another module's hold on EVE (`busy`)
   refuses the rifle or puts it away the same way; `out()` says whether it is out. A refused toggle (no EVE, the drone
   aim held, a state that holds her, a failed start) gives its notice. F4 toggles the rifle by default, G does not; a
-  key with a modifier needs it held; `gun_key=none` has no key;
+  key with a modifier needs it held; `gun_key=none` has no key. Once `menu_key` is Shift+F4, also from a rebind
+  after the load, Shift+F4 is the menu's press only. F4 alone and Ctrl+F4 still toggle the rifle;
 - `vehicles/bike/ride_test` covers `vehicles/bike/ride.lua` over a fake EVE and native part: the preload asked once and
   released at `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every
   mount refusal with its reason and nothing written, the mount's order and the dismount backward, the lean (the math
@@ -216,8 +218,9 @@ runs `main/isolation.lua` with its name.
   through the link's store (none without the native part), the photo and selfie modes as the runtime reads them, its
   `busy` reasons (the bike, the Doro look, `coop emote`, a hall seat, `coop fly`, `coop glide`), the SBO match it
   reads from the link (a round in play or the PvP test, none without the native part), its notices, the settings and
-  words it gets (no unknown-setting line for its `gun_` lines), the restore at the first tick, `coop off`'s stop, the
-  restore alone after a Lua reload with `coop off` still on;
+  words it gets (no unknown-setting line for its `gun_` lines), the file it reads itself without the native part
+  (`gun_mode=off` holds), the restore at the first tick, `coop off`'s stop, the restore alone after a Lua reload
+  with `coop off` still on;
 - `main/bike_test` covers the bike's wiring (`vehicles/bike/wiring.lua`) through `main.lua` with a fake
   `vehicles/bike/ride.lua`: the load line, what the ride gets (its asks, `coop-bike.txt`, the driving, the settings,
   SBO's busy reasons with coop fly, gun mode's rifle and our open screens), `coop bike` and its words, F3 and the pad's

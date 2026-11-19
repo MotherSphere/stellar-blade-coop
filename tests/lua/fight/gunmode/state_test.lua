@@ -246,6 +246,24 @@ do
     gun=new('gun_key=none\n')
     press(gun,'F4')
     assert(not gun.state.on,'none: no key')
+    -- core/keybind.lua's K.clash takes Shift+F4 for a key of its own: with menu_key on it, Shift+F4 is the menu's press
+    -- only (main/keys.lua). F4 alone is still the rifle's, as Ctrl+F4, which no other key holds (Left Ctrl zooms).
+    -- The co-op menu changes main.lua's settings in place: a rebind counts at once.
+    local live=require('core.link').parse_settings('')
+    gun=GunMode.new({log=function() end,settings=live})
+    press(gun,'LeftShift','F4')
+    assert(gun.state.on,'Shift+F4 is no other key yet: the rifle out')
+    press(gun,'F4')
+    assert(not gun.state.on)
+    live.menu_key=require('core.keybind').parse('menu_key','Shift+F4')
+    press(gun,'LeftShift','F4')
+    assert(not gun.state.on,'Shift+F4 is menu_key')
+    press(gun,'RightShift','F4')
+    assert(not gun.state.on,'Shift+F4 with the right Shift is menu_key')
+    press(gun,'F4')
+    assert(gun.state.on,'F4 alone brings the rifle out')
+    press(gun,'LeftControl','F4')
+    assert(not gun.state.on,'Ctrl+F4 puts it away')
 end
 
 print('gunmode state: ok')

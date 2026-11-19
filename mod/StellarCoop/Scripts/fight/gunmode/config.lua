@@ -5,7 +5,7 @@
 --   gun_mode=on|off       the module at all (on by default; off: no key, no hook, nothing)
 --   gun_key=<key>         the keyboard toggle, F4 unless set: core/keybind.lua's F-key, or none. G is Stellar
 --                         Blade's: its DefaultInput.ini on 26123051 maps the action UI_RightThumbstick (name at
---                         0x145c4ec00, read by the photo mode UI, 0x141f09c80) to G, both layouts, and maps no F-key.
+--                         0x145c4ec00, read by the photo mode UI, 0x141f09c80) to G on both layouts. It maps no F-key.
 -- Both are SBO's own settings (core/link.lua: the template, Options rows, the two-actions rule). The lines below are
 -- test lines: core/link.lua keeps them as written and gun mode checks them here.
 --   gun_aim_key=<key>    the keyboard key the game's aim moves to while the rifle is out (UE's name; RightMouseButton)
@@ -86,13 +86,22 @@ Config.DEFAULTS={
     copy_names={},
 }
 
--- The settings from core/link.lua's parse_settings (main.lua's M.settings; nil without the native part: the defaults):
--- {on, key (core/keybind.lua's: {key='F4', mod=nil, name='F4'}, key nil for none), ...} and the test lines it refused,
--- as 'name: why'.
+-- The settings from core/link.lua's parse_settings (fight/gunmode/wiring.lua's: main.lua's M.settings, or the file's
+-- without the native part; nil: the defaults): {on, key (core/keybind.lua's: {key='F4', mod=nil, name='F4'}, key nil
+-- for none; taken(): the modifiers another key setting holds now with a plain gun_key, as {SHIFT=true}; the co-op
+-- menu changes main.lua's settings in place), ...} and the test lines it refused, as 'name: why'.
 function Config.from(settings)
     settings=settings or require('core.link').parse_settings('')
     local function get(name) local v=settings[name]; if v~='' then return v end end
-    local out,bad={on=settings.gun_mode,key=settings.gun_key,zoom_toggle=false,native=true,
+    local k=settings.gun_key
+    local key={key=k.key,mod=k.mod,name=k.name,taken=function()
+        local taken={}
+        for _,other in pairs(k.key and not k.mod and settings or {}) do -- Key settings: tables with a key and a mod.
+            if type(other)=='table' and other.key==k.key and other.mod then taken[other.mod]=true end
+        end
+        return taken
+    end}
+    local out,bad={on=settings.gun_mode,key=key,zoom_toggle=false,native=true,
         aim_key=Config.DEFAULTS.aim_to,upper=false},{}
     local v=get('gun_bs')
     if v then out.bs=v end

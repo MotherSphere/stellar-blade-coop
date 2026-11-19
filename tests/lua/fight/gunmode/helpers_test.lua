@@ -92,8 +92,10 @@ do
     local name,count=block('TextBlock_bullet_name'),block('TextBlock_ItemCount')
     FindAllOf=function(class) if class=='TextBlock' then return {name,count} end return {} end
     FText=function(t) return t end
+    local asked=0 -- g.words calls: main/base.lua's words reads the game's language through the engine.
     local g={log=function() end,valid=function(o) return o~=nil and o:IsValid() end,
-        try=function(f) local ok,r=pcall(f); if ok then return r end end,words=function() return fr end}
+        try=function(f) local ok,r=pcall(f); if ok then return r end end,
+        words=function() asked=asked+1; return fr end}
     local cfg={mag_size=1,spare_mags=1,reload_time=1,reload_delay=1,fire_interval=0.05,round_color={1,1,1},
         reload_color={1,0,0}}
     local a=Ammo.new(g,cfg,function() end,function() end)
@@ -106,6 +108,8 @@ do
     run(70,true,false)
     run(1,true,true)
     assert(a.left==0 and a.reserve==0 and name.text==fr.empty,tostring(name.text))
+    -- 73 ticks within a second of os.clock: the words were read once, not on each frame.
+    assert(asked==1,'words read '..asked..' times')
     a.stop()
     assert(name.text=='game','the game\'s own text back')
     FindAllOf=function() return {} end

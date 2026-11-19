@@ -11,7 +11,11 @@ uses={'vehicles.bike','online.modes.race','eve','online.lobby'},
 exports={'gun'},
 new=function(M)
 local function log(m) M.print('[StellarCoop][GM] '..tostring(m)..'\n') end
-M.gun=require('fight.gunmode.mode').new({log=log,settings=M.settings,words=M.words,
+-- Without the native part main.lua reads no settings: gun mode then reads coop-settings.txt itself, so gun_mode=off
+-- still holds.
+local Link=require('core.link')
+local settings=M.settings or Link.parse_settings(M.folder and Link.files.read(M.folder..'\\coop-settings.txt') or '')
+M.gun=require('fight.gunmode.mode').new({log=log,settings=settings,words=M.words,
     store=M.link and M.link.store('coop-gun.txt'),
     notice=function(key) M.tell(function(w) return w.gun[key or 'rebuilding'] end) end,photo=M.photo_state,
     -- An SBO match: a round of a match lobby in play (the link's match line), or the PvP test (coop pvp: the fight

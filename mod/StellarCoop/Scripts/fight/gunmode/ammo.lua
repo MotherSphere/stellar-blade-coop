@@ -91,7 +91,9 @@ function Ammo.new(g,cfg,cool,on_reload,dpad)
             end
         end
         local empty=self.left<=0 and self.reserve<=0
-        local w=g.words()
+        -- The words once a second: main/base.lua's words asks the engine for the game's language.
+        if (ui.words_at or 0)<os.clock() then ui.words,ui.words_at=g.words(),os.clock()+1.0 end
+        local w=ui.words
         local name=self.reload_until and w.reload or empty and w.empty or w.round
         local count=tostring(math.max(0,math.floor(self.left)))
         if ui.shown_name~=name or (ui.check or 0)<os.clock() then
