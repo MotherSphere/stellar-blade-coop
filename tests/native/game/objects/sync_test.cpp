@@ -1039,6 +1039,25 @@ void test_catchup_guards() {
     b.pass();
   assert(b.take().empty() && b.s.counters.asked == 0);
 }
+void test_catchup_filters() {
+  Side w;  // the walk sends touched entries only; an env off kObjectState carries no ObjectState; one ask, one answer
+  w.f.values[{"Zone_DED20", "DED20_EnvS_033"}] = Value{Where::live, "Off", 1};    // the table's state: untouched
+  w.f.values[{"Zone_DED20", "DED20_E_EnvC_001"}] = Value{Where::record, "On", 2}; // off kObjectState
+  w.s.receive(T + "c ask Zone_DED20", w.g), w.s.receive(T + "c ask Zone_DED20", w.g);
+  w.pass(), w.pass();
+  assert(w.take() == (std::vector<std::string>{T + "c 1 Zone_DED20 DED20_E_EnvC_001 On 0", T + "c end Zone_DED20 1"}));
+  Side o;  // no ObjectState carried, or one for an env off kObjectState: the tag alone decides
+  o.f.values[{"Zone_DED20", "DED20_EnvS_193"}] = Value{Where::live, "Open", 1};
+  o.f.values[{"Zone_DED20", "DED20_EnvS_210"}] = Value{Where::live, "Off", 1};
+  o.s.receive(T + "c 1 Zone_DED20 DED20_EnvS_193 Open 0", o.g);
+  o.s.receive(T + "c 2 Zone_DED20 DED20_EnvS_210 Off 2", o.g), o.pass();
+  assert(o.s.counters.same == 2 && o.f.applied.empty());
+  Side j;  // a refused c line for a zone off kZoneEnvs makes no tally
+  j.s.receive(T + "c 1 Zone_Junk DED20_EnvS_193 Open 1", j.g), j.s.receive(T + "c end Zone_Junk 1", j.g), j.pass();
+  assert(j.s.counters.refused == 1 && std::count(j.s.log.begin(), j.s.log.end(),
+         "world: catch-up for Zone_Junk from the partner: 1 sent, 0 applied (0 live), 0 kept ours, 0 same, "
+         "0 refused") == 1);
+}
 void test_silent_partner() {
   Side x;
   std::vector<std::string> all;
@@ -1102,6 +1121,7 @@ int main() {
   test_host_sends_back();
   test_close_mid_answer();
   test_catchup_guards();
+  test_catchup_filters();
   test_silent_partner();
   test_open();
   std::printf("world sync: ok\n");

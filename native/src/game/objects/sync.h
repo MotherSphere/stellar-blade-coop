@@ -38,9 +38,9 @@
 // Catching up by zone (c lines). While the feature is open and we are in game, the client's zone is read each pass. A
 // zone that held kAskHoldMs of in-game passes goes out once as c ask. An opening, a new partner, her on (not her on
 // reply) and a load (over kAskHoldMs without an open in-game pass) let the current zone be asked again. Her asks wait
-// in line. The walk reads the first one's entries of kZoneEnvs, walk_reads a pass and only in game. It sends each touched
-// entry whose state is a kept pair as a c line, then c end with their count. An ask for a zone with no entry is
-// answered with c end 0 at once. Her c line meets our value (live, else its record, else the table's initial one):
+// in line. The walk reads the first one's entries of kZoneEnvs, walk_reads a pass and only in game. It sends each
+// touched entry whose state is a kept pair as a c line, then c end with their count. An ask for a zone with no entry
+// is answered with c end 0 at once. Her c line meets our value (live, else its record, else the table's initial one):
 //   the same value: nothing, counted same;
 //   ours touched into a state held out for its player (a passcode door typed open): ours kept, host or guest;
 //   ours untouched, or we are a guest: hers applied, a state change first, then an Enable or Disable;
