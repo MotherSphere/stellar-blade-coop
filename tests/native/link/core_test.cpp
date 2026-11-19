@@ -2722,7 +2722,7 @@ int main() {
     assert(!w.link.chat_waiting() && saw("race lines: 41 in, 41 out, 2 dropped") && !w.link.race("end 7"));
   }
 
-  // coop gift's lines (tools/mailbox.lua, through gift requests): reliable on channel 0 to the friend past the
+  // coop gift's lines (cutmenus/mailbox.lua, through gift requests): reliable on channel 0 to the friend past the
   // handshake, or back as hers in the loopback with no friend, 8 a second each way; each one in the log, ours and hers.
   // A gift that cannot go (no session, past the rate, Steam refused it) comes back to Lua at once as her refusal, "gift
   // n <id> nolink"; an answer that cannot go is only logged. Hers wait for Lua in the chat's inbox as "gift <payload>".

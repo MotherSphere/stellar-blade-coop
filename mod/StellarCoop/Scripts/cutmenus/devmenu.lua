@@ -76,7 +76,7 @@ function DevMenu.list()
 end
 -- o: log(text) writes a [DM] line; status() is the native part's status text; store (coop-devmenu.txt through
 -- link.store; nil without the native part) keeps across Lua loads that a row reached the game. coop devmenu's slot
--- check is tools/commands.lua's.
+-- check is cutmenus/commands.lua's.
 function DevMenu.new(o)
     local log,status=o.log,o.status
     local store=o.store or {save=function() end,load=function() end,clear=function() end}

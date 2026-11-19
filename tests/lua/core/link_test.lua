@@ -1401,7 +1401,7 @@ chat=link.take_chat()
 assert(#chat==5 and chat[1].race=='track 7 2 1 0 0 0 90 /game/map' and not chat[1].text and chat[2].text=='Coucou'
     and not chat[2].race and chat[3].race=='cps 7 1 4000 0 0 1200 8000 0 0 1200' and chat[4].text=='race 9'
     and not chat[4].race and chat[5].race=='go 7 4000','Race lines apart from the chat, in order')
--- Gift lines (coop gift, tools/mailbox.lua): hers, or ours that could not go, apart from the chat and the race.
+-- Gift lines (coop gift, cutmenus/mailbox.lua): hers, or ours that could not go, apart from the chat and the race.
 files[CHAT]='gift s 17 HP_Potion 3\nin 2002 gift a 9\ngift \nrace gift a 1\ngift n 18 nolink\n'
 chat=link.take_chat()
 assert(#chat==4 and chat[1].gift=='s 17 HP_Potion 3' and not chat[1].text and chat[2].text=='gift a 9'

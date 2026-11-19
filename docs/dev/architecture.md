@@ -63,7 +63,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `fight/bosses/commands.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop gardener fight`, handed to `fight/bosses/gardener.lua` with the co-op save check and the viewer's display put away before the words that spawn; `coop tendril fight`, handed to `fight/bosses/tendril.lua` the same way |
 | `eve/commands.lua` | `coop wear`; `coop emote`; `coop fly`, `coop slowmo` and `coop glide`, with the co-op save check before `on`; `coop chainspin` |
 | `story/scenes/commands.lua` | `coop scene`, with the co-op save check before a scene's name (`coop scene lily` handed to `world/maps/matrix13/quest/on_time.lua`'s talk); `coop lines` |
-| `tools/commands.lua` | `coop gift`, with the co-op save check before every word; `coop devmenu` and `coop devinfo` |
+| `cutmenus/commands.lua` | `coop gift`, with the co-op save check before every word; `coop devmenu` and `coop devinfo` |
 | `world/maps/matrix13/commands.lua` | `coop mxiii` and `coop lily` |
 | `ui/kit/commands.lua` | `coop guide` (it opens the guide) and `coop keys reset` |
 | `world/objects/commands.lua` | `coop world`: on and off for the [shared world](../world/objects-internals.md) until the mod reloads, and its status line |
@@ -137,7 +137,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `story/scenes/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times; and Quest_Sub_008's unused voice takes, loaded when `enya` starts, played one after another through `SpawnSound2D` (each 1 s after the one before ends, from its SoundWave's `Duration`) with the subtitles the table has for them |
 | `eve/glide.lua` | `coop glide`: sets EVE's `bGlide` while Jump is held in the air past the top of her jump, and clears it ([Cut glide](../eve/eve-internals.md#cut-glide)) |
 | `eve/emote.lua` | `coop emote`: one of EVE's clips (a looped photo-mode pose, a wave, a clip of the Cut category played once), played by the native part through SB's custom animation call or else as a dynamic montage in `DefaultSlot`, stopped when she moves, jumps or starts a skill ([Emotes](../eve/eve-internals.md#emotes)); also, for `online/lobby/sbo.lua`, the sit loop of a hall lobby seat that SB's chairs leave to the menu key (the fallback to SB's own sit), which `preload` looks up ahead of the sit so the first sit finds the clip in memory |
-| `tools/mailbox.lua` | `coop gift`: the inventory read asked of the native part, the game's remove request, the gift file, the gift lines and their answers, the items coming back and the take through the shop's grant, and the cut toast ([Cut mailbox](../tools/menus-internals.md#cut-mailbox)) |
+| `cutmenus/mailbox.lua` | `coop gift`: the inventory read asked of the native part, the game's remove request, the gift file, the gift lines and their answers, the items coming back and the take through the shop's grant, and the cut toast ([Cut mailbox](../cutmenus/menus-internals.md#cut-mailbox)) |
 | `eve/wear.lua` | `coop wear`: sets the mesh of EVE's body or hair component (with the hair's animation Blueprint and physics asset) to a cut suit or hair and keeps the game's own look in `coop-wear.txt` to give it back. It puts the worn look on again when the game sets its own |
 | `story/scenes/scene.lua` | `coop scene`: two unused rows of the game's theater table pointed at a cut scene's theater and read back, the Emil farewell's take lent to E03, E03's subtitles left in Korean and Japanese (no text registration), the theater observer it follows once a second and the Stop row that ends it; Lily's talks through Quinn's theater, its take lent the same way, or through the rows' level sequence with no theater |
 | `core/unreal.lua` | Small helpers over UE4SS objects |
@@ -211,7 +211,7 @@ file is written in full beside its final name and then renamed over it, so the r
   file every frame while a race is armed. `coop-race.txt` is deleted with the chat files.
 - `coop gift` sends its lines as requests (`gift <payload>` in `coop-request.txt`), and asks the inventory read the
   same way (`items ...`, answered in `coop-status.txt`). Your friend's gift lines, and a gift of yours that could not
-  go, come in `coop-chat.txt` as `gift <payload>` ([Cut mailbox](../tools/menus-internals.md#cut-mailbox)).
+  go, come in `coop-chat.txt` as `gift <payload>` ([Cut mailbox](../cutmenus/menus-internals.md#cut-mailbox)).
 - The SBO lobby's screens (the lobby menu, its settings and the Leave question) hide Stellar Blade's HUD. Every 250 ms
   `online/lobby/wiring.lua` asks `hud hide on` when one of them has opened and `hud hide off` when the last one has
   closed, and `hud hide off` once after each Lua load. On the game thread the native part passes its own key,

@@ -1,9 +1,9 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// coop gift's inventory read (tools/mailbox.lua): how many of one item our EVE carries, read through a read
+// coop gift's inventory read (cutmenus/mailbox.lua): how many of one item our EVE carries, read through a read
 // function only (ReadProcessMemory on the worker, which fails rather than faults; a fake image in
-// tests/native/tools/items_test.cpp).
+// tests/native/cutmenus/items_test.cpp).
 // It never calls the game and never writes. The game's own lookups, mirrored here, all on build 26123051:
 //   - the item bucket manager, SB's lazy singleton at 0x1470373e0 (its getter FUN_141a98a30 makes it when null, so a 0
 //     here is no inventory yet, never made by us);

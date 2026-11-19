@@ -128,7 +128,7 @@ return {
         ['online.session']='Sessions en ligne',['online.photo']='Mode photo synchronisé',
         ['fight.enemies']='Ennemis partagés',['story.quests']='Quêtes partagées',['world.objects']='Monde partagé',
         ['story.together']='Histoire partagée',['online.lobby']='Le lobby SBO',['vehicles.bike']='La moto',
-        ['world.daynight']='Jour et nuit',['tools']='Menus coupés',['online.saves']='Sauvegardes co-op'},
+        ['world.daynight']='Jour et nuit',['cutmenus']='Menus coupés',['online.saves']='Sauvegardes co-op'},
     fight={on='Ennemis partagés actifs : %d ennemis liés.',one='Ennemis partagés actifs : 1 ennemi lié.',
         scale="PV des ennemis %d %%, équilibre %d %% (réglage de l'hôte).",
         off='Ennemis partagés coupés. coop-link.log dit pourquoi.',

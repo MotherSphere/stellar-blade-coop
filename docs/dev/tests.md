@@ -19,7 +19,7 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `core/`: `actors`, `actors_of`, `class_at`, `effect`, `enemy`, `items`, `keybind`, `line`, `link`, `mask`, `pak_gate`,
 `picks`, `player`, `row_edit`, `settings_file`, `ue4ss_settings`, `unreal`, `where`, `worlds`; `fight/bosses/`: `enemy`,
 `gardener`, `leviathan`, `lion`, `off`, `tendril`; `eve/`: `chainspin`, `emote`, `flight`, `glide`, `off`, `wear`;
-`tools/`: `devmenu`, `mailbox`, `off`; `story/scenes/`: `lines`, `off`, `scene`; `fight/enemies/`: `off`, `wiring`,
+`cutmenus/`: `devmenu`, `mailbox`, `off`; `story/scenes/`: `lines`, `off`, `scene`; `fight/enemies/`: `off`, `wiring`,
 `wiring_notices`; `online/group/`: `group`, `off`, `region_tabs`, `travel`; `online/lobby/`: `arrival`, `commands`,
 `halls_rows`, `off`, `sbo`, `wiring`; `online/lobby/ui/`: `lobby`, `lobby_model`; `main/`: `bike`, `boot`, `collide`,
 `guide`, `idle`, `input`, `loader`, `match`, `menu`, `session_ui`, `settings`; `world/maps/matrix13/`: `off`, `words`;
@@ -132,7 +132,7 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   host and on the pair, her own game waiting on no shared fight, then the guest's cutscene pause read from the host's
   slot; `online/group/travel_test` the host answering `camps?` while any guest is linked and the guest reading the
   host's map from his member line's slot (no offer while that slot has no ghost or the host is not linked);
-  `online/partner/ghosts_test` `get(k)`; `tools/mailbox_test`, `online/modes/race/run_test`,
+  `online/partner/ghosts_test` `get(k)`; `cutmenus/mailbox_test`, `online/modes/race/run_test`,
   `online/modes/nightop/run_test`, `online/modes/nightop/roxanne_test` and `fight/enemies/wiring_test` a gift, a race, a
   run, Roxanne's pick and the PvP test refused with 3 players, `online/modes/race/run_test` and
   `online/modes/nightop/run_test` also a race and a run under way ending with their reason when a third player gets in,
@@ -843,7 +843,7 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   too many elements, no world, an empty array; a pinned hour, a hold that keeps a pinned hour or the clock's; an element
   SB moved in its array keeps its originals; a cutscene or talk scene of SB's (its values back while it plays, under its
   forced settings too, our light again after it);
-- `tools_items_test`: `coop gift`'s inventory read against a fake image laid out like the pinned build: the FName and
+- `cutmenus_items_test`: `coop gift`'s inventory read against a fake image laid out like the pinned build: the FName and
   CityHash64 hashes checked against the game's, a count over two instances and along chains of collisions, an item
   EVE does not carry, no manager, bucket or owner, an instance the manager no longer holds, and hostile memory (a
   chain that loops, an index past the array, a hash size that is no power of two, an unreadable item) ending in
