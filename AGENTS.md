@@ -40,16 +40,48 @@ checked by `tests/tools/modules_test.py`.
 - A new feature gets a new module folder in its category, with a
   `wiring.lua` manifest, an entry in `MODULES` in `main.lua` and its
   translated name in every `ui/text/` language file.
+- Inside a module, group files by job in sub-folders: `ui/` for its
+  screens, then one folder per part once the module has several parts.
+  `world/maps/matrix13/` has `level/`, `quest/` and `talks/`. A file that
+  serves one part goes in that part's folder.
+- Never put a module's file at the category level, in another module's
+  folder or in a shared piece.
+- After a move, a new file or a new module, run
+  `python3 -I tests/tools/modules_test.py`. It must pass.
 
 ## Game facts
 
 - Never invent or guess an address, offset, vtable slot, struct field,
   table row or function of the game. Read it in Ghidra on build 26123051
   first. If you cannot read it, stop and say so.
+- Before the first step that needs a game fact, check that Ghidra answers:
+  the Ghidra MCP server responds and has `SB-Win64-Shipping.exe` of build
+  26123051 open. Check again before each later step that reads the game,
+  because a server can stop during a long run. If it does not answer, stop
+  and tell the user. Never take a game fact from notes, memory, a forum or
+  another mod in its place.
+- After the change, read every address, offset and field it uses in Ghidra
+  a second time and compare it with the code. Then run the tests.
 - Comment each address you use with what it is.
 - Native code that touches game memory runs on the game thread behind its
   feature's fault guard. It handles map changes, cutscenes, photo mode and
   `coop off`.
+
+## Workflows and subagents
+
+When you split work between subagents or run a workflow:
+
+1. The first task checks that Ghidra answers (see Game facts), that the
+   working tree is clean and that `free -g` shows at least 4 GB available.
+   The run stops if a check fails.
+2. Every agent's instructions repeat the stop rule: if Ghidra does not
+   answer, stop and report. No agent falls back to notes for a game fact.
+3. Agents that edit files work one at a time in a worktree, or in separate
+   worktrees on separate files.
+4. The instructions list the user's decisions that no agent may undo.
+5. The last task is a check by a fresh agent. It reads the game facts again
+   in Ghidra, runs the tests and `tests/tools/modules_test.py`, checks the
+   module rules of Where code goes and lists what it could not check.
 
 ## Before every commit
 
@@ -91,3 +123,11 @@ checked by `tests/tools/modules_test.py`.
 - Do not change files in the game's mod folder while Stellar Blade runs.
 - Do not run the installer without `--dry-run` unless the user asks.
 - Ask the user before any step you cannot undo.
+
+## Memory
+
+Claude Code reads `CLAUDE.md`, which loads this file, at the start of every
+session in this repository. These rules apply without a memory entry. Other
+agents load this file at the start of each session. If your tool keeps a
+memory, store a pointer to this file rather than a copy, so the rules stay
+current.

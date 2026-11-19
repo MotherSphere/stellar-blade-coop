@@ -50,6 +50,11 @@ tests again and push.
   every module may use. Ask before adding to it.
 - A new feature is a new module folder in the category that fits. Ask on
   Discord when no category fits.
+- Inside a module, sub-folders group files by job: `ui/` for its screens,
+  then one folder per part, as `world/maps/matrix13/` does with `level/`,
+  `quest/` and `talks/`.
+- `python3 -I tests/tools/modules_test.py` checks these rules. Run it after
+  you move or add a file.
 
 ## Game facts
 
@@ -58,6 +63,11 @@ Every address, offset, function and table row the code uses is read in
 Ghidra on that build before it is used. Write the address and what it is
 in a comment next to its use. Never take one from memory, a forum or
 another mod's code.
+
+Check that Ghidra is open on build 26123051 before you start. When the
+change is done, read its facts in Ghidra again and compare them with the
+code. If you work with an AI tool, [AGENTS.md](AGENTS.md) has the same
+rules for it, including how to run a workflow of several agents.
 
 Native code that reads or writes the game's memory runs on the game thread
 behind its feature's fault guard. It stops cleanly on a map change, a
