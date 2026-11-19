@@ -55,13 +55,14 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   time, the reload when empty or lowered part-spent, the HUD count, no round once the spares are spent, a refill). The
   reticle's round slot shows the round's name, the reload word and the empty word in the menu's language. It reads
   the words once a second, not on each frame;
-- `fight/gunmode/cost_test` counts gun mode's engine calls over `fight/gunmode/fake.lua`. With the rifle away
-  (parked or not) 600 frames look up nothing and poll two keys a frame (`gun_key` and D-pad Right). A press while the
-  game is paused does nothing. With no player controller `FindFirstOf` runs once a second at most. With the rifle out
-  no `/Script` object is looked up again. The crosshair is traced only while she aims. The zoom keys go unpolled in
-  the game's own aim. The drone and the reticle's text are walked for (`FindAllOf`) once at the rifle out. The text
-  is walked for again at each firing mode entry. The drone is walked for again when the one held goes, or 10 s after
-  a miss at the next rifle out. A frame of the posed stance reads no bone name and makes no FName;
+- `fight/gunmode/cost_test` counts gun mode's engine calls over `fight/gunmode/fake.lua`. With the rifle away (parked or
+  not) 600 frames look up nothing, never ask whether the game is paused and poll two keys a frame (`gun_key` and D-pad
+  Right). A press while the game is paused does nothing. The dev facts probe still waits out a pause. With no player
+  controller `FindFirstOf` runs once a second at most. With the rifle out no `/Script` object is looked up again, the
+  rifle-first solver (`ik.lua`) included. The crosshair is traced only while she aims. The zoom keys go unpolled in the
+  game's own aim. The drone and the reticle's text are walked for (`FindAllOf`) once at the rifle out. The text is
+  walked for again at each firing mode entry. The drone is walked for again when the one held goes, or 10 s after a miss
+  at the next rifle out. A frame of the posed stance reads no bone name and makes no FName;
 - `fight/gunmode/engine_test` covers the engine objects gun mode keeps across frames, over `fight/gunmode/fake.lua`.
   Masked keys go back into the action mappings as they are when the rifle goes away, after coop fly's mappings moved
   the array to a new buffer; nothing is written into the old one. The muzzle flash's asset is found by its path or

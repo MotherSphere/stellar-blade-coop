@@ -849,7 +849,9 @@ function GunMode.new(env)
         if (inp.key or inp.toggle) and not (idle and paused()) then
             if inp.key then self.toggle(set.key.name) else self.toggle('D-pad Right') end
         end
-        if set.facts then
+        -- (dev only) The facts probe waits out a pause as it did before the pause was asked only at a toggle: its F8
+        -- plays a clip on her and its F11 swaps her body mesh's post-process class.
+        if set.facts and not (idle and paused()) then
             s.facts=s.facts or require('fight.gunmode.facts').new(g)
             local ok,e=pcall(s.facts.tick,pc,g.pawn(),down,now)
             if not ok and not s.facts_err then s.facts_err=true; g.log('facts: '..tostring(e)) end

@@ -5,7 +5,7 @@
 -- StaticFindObject and FindAllOf walk the object array. With the rifle away (parked or not) a frame makes no lookup and
 -- polls only the toggle keys (M2); out, no /Script object is looked up again, the crosshair is traced only while she
 -- aims (M13) and the drone and the reticle's text are walked for only on an event (L1). The posed stance reads no bone
--- name and makes no FName a frame (M13).
+-- name and makes no FName a frame (M13). The dev facts probe still waits out a pause.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Fake=dofile('tests/lua/fight/gunmode/fake.lua')
 -- The laser sight needs Niagara's objects, which the fake lacks: here a laser that draws nothing.
@@ -16,14 +16,17 @@ local clock=100
 os.clock=function() return clock end
 local function frames(gun,n) for _=1,n do clock=clock+1/60; gun.tick() end end
 
--- The fake world with its engine calls counted: script (StaticFindObject of a /Script path; an asset path is looked
--- up by path on purpose, as nothing holds it), first (FindFirstOf), all[class] (FindAllOf), keys[name]
--- (IsInputKeyDown), polls (all of them), trace (LineTraceSingle). The camera manager and the trace library let the
+-- The fake world with its engine calls counted: script (StaticFindObject of a /Script path; an asset path is looked up
+-- by path on purpose, as nothing holds it), first (FindFirstOf), all[class] (FindAllOf), keys[name] (IsInputKeyDown),
+-- polls (all of them), trace (LineTraceSingle), paused (IsGamePaused). The camera manager and the trace library let the
 -- crosshair reach its traces. The layer's clips are found and play.
 local function world()
     local w=Fake.new(); w.install()
-    local n={script=0,first=0,all={},keys={},polls=0,trace=0}
+    local n={script=0,first=0,all={},keys={},polls=0,trace=0,paused=0}
     w.n=n
+    local statics=w.find('/Script/Engine.Default__GameplayStatics')
+    local paused=statics.IsGamePaused
+    statics.IsGamePaused=function(...) n.paused=n.paused+1; return paused(...) end
     local find,first,all=StaticFindObject,FindFirstOf,FindAllOf
     StaticFindObject=function(path)
         if path:sub(1,8)=='/Script/' then n.script=n.script+1 end
@@ -82,11 +85,12 @@ for _,parked in ipairs({true,false}) do
     w.no_layer=parked
     local gun=GunMode.new({log=function() end})
     frames(gun,1)
-    w.n.script,w.n.first,w.n.polls=0,0,0
+    w.n.script,w.n.first,w.n.polls,w.n.paused=0,0,0,0
     frames(gun,600)
     assert(w.n.script==0 and w.n.first==0 and next(w.n.all)==nil,
         ('parked %s: %d lookups, %d FindFirstOf'):format(tostring(parked),w.n.script,w.n.first))
     assert(w.n.polls==2*600,('parked %s: %d key polls in 600 frames'):format(tostring(parked),w.n.polls))
+    assert(w.n.paused==0,('parked %s: the pause asked %d times in 600 frames'):format(tostring(parked),w.n.paused))
     if not parked then
         w.paused=true
         w.down.F4=true; frames(gun,1); w.down.F4=nil; frames(gun,1)
@@ -224,6 +228,43 @@ do
     for _=1,20 do stance.frame() end
     assert(n.tostring==0 and n.fname==0,('20 aiming frames: %d ToString, %d FName'):format(n.tostring,n.fname))
     stance.stop()
+end
+
+-- 7. M2: the rifle-first solver (ik.lua, each frame on the layer's path) takes KismetMathLibrary from gun mode's g.find
+--    (looked up once while it lives), with no StaticFindObject of its own. Its engine calls answer neutral values.
+do
+    local IK=require('fight.gunmode.ik')
+    local function neutral(t)
+        return setmetatable(t or {},{__index=function(_,k)
+            if k=='IsValid' then return function() return true end end
+            return function() return {X=0,Y=0,Z=0,Pitch=0,Yaw=0,Roll=0,Translation={X=0,Y=0,Z=0},
+                Rotation={X=0,Y=0,Z=0,W=1}} end
+        end})
+    end
+    local ml,walks=neutral(),0
+    StaticFindObject=function() walks=walks+1; return ml end
+    local g={log=function() end,try=function(fn) local ok,r=pcall(fn); if ok then return r end end,
+        find=function(path) assert(path=='/Script/Engine.Default__KismetMathLibrary',path); return ml end}
+    local ik=IK.new(g)
+    local pawn,pc=neutral({Mesh=neutral()}),neutral({PlayerCameraManager=neutral()})
+    for i=1,60 do assert(ik.tick(pc,pawn,neutral(),i%2==0 and 'aim' or 'carry',neutral()),'the solver ran') end
+    assert(walks==0,walks..' lookups of its own in 60 frames')
+end
+
+-- 8. The facts probe (gun_facts=on, dev only) waits while the game is paused, the rifle away too, as before the pause
+--    was asked only at a toggle.
+do
+    local ticks=0
+    package.loaded['fight.gunmode.facts']={new=function() return {tick=function() ticks=ticks+1 end} end}
+    local w=world()
+    local gun=GunMode.new({log=function() end,settings=require('core.link').parse_settings('gun_facts=on')})
+    w.paused=true
+    frames(gun,60)
+    assert(ticks==0,ticks..' facts ticks while paused')
+    w.paused=false
+    frames(gun,60)
+    assert(ticks==60,ticks..' facts ticks in 60 frames')
+    package.loaded['fight.gunmode.facts']=nil
 end
 
 print('gunmode cost: ok')
