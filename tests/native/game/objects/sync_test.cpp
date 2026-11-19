@@ -780,6 +780,42 @@ void test_watch_gates_and_seq() {
   assert(s.out.size() == 2 && s.out[0] == T + "s 1 Zone_DED20 DED20_EnvS_193 Open" &&
          s.out[1] == T + "s 2 Zone_ATL_01 ATL_01_EnvS_074 On");     // seq shared with the roots
 }
+// The watcher's stored tag: kept through a load, forgotten when the feature closes, when the zone has no name and at a
+// new partner. Nothing is read while her feature is off. Tags compare without case. The kept-pair check stays exact.
+void test_watch_forgets() {
+  Fake f;
+  f.here = "Zone_ATL_01";
+  const std::pair<std::string, std::string> k{"Zone_ATL_01", "ATL_01_EnvS_074"};
+  f.values[k] = Value{Where::live, "Off", 1};
+  Sync s{f};
+  Ring r;
+  Gates g = on();
+  uint64_t now = 1000;
+  auto pass = [&](const char *tag) { f.values[k].tag = tag, s.pass(g, r, now += 100); };
+  s.receive(T + "on", g);
+  pass("Off");
+  g.in_game = false, pass("On");
+  g.in_game = true, pass("On");
+  assert(s.counters.sent == 1);                                    // a load keeps the stored Off
+  pass("Off");
+  s.receive(T + "off setting", g);
+  const size_t reads = f.reads;
+  pass("On");
+  assert(f.reads == reads && s.counters.sent == 1);                // her feature off: nothing read
+  s.receive(T + "on", g), pass("On");
+  assert(s.counters.sent == 1);                                    // the close forgot Off: On is a first sight
+  pass("Off");
+  f.here.clear(), pass("On");
+  f.here = "Zone_ATL_01", pass("On");
+  assert(s.counters.sent == 1);                                    // a zone without a name forgot Off
+  pass("Off");
+  g.partner = kMe, s.receive(T + "on", g), pass("On");
+  assert(s.counters.sent == 1);                                    // a new partner forgot Off
+  pass("off"), pass("on");
+  assert(s.counters.sent == 1 && s.counters.denied == 1);          // seen as the watched tag, denied by the exact pair
+  pass("On");
+  assert(s.counters.sent == 1 && s.counters.denied == 1);          // on to On is no change
+}
 
 } // namespace
 
@@ -806,5 +842,6 @@ int main() {
   test_same_name();
   test_watch();
   test_watch_gates_and_seq();
+  test_watch_forgets();
   std::printf("world sync: ok\n");
 }

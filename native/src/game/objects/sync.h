@@ -467,8 +467,8 @@ private:
     send(m, named, now_ms);
   }
 
-  // Each watched env in zone z, read live: a change to its watched tag is sent when send_change is set, else only stored. A
-  // record or no env skips the entry and keeps its stored tag; a first sight stores only.
+  // Each watched env in zone z, read live: a change to its watched tag is sent when send_change is set, else only
+  // stored. A record or no env skips the entry and keeps its stored tag; a first sight stores only.
   void look(const std::string &z, bool send_change, uint64_t now_ms) {
     for (size_t i = 0; i < std::size(kWatch); ++i) {
       const Value v = e_.read(z, kWatch[i].alias);
