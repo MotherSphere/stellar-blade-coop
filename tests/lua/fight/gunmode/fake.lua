@@ -27,7 +27,9 @@ Fake.BODY='/Game/Test/CH_P_EVE_Test.CH_P_EVE_Test'
 Fake.BASE='/Game/Art/Character/PC/CH_P_EVE_29/CH_P_EVE_29.CH_P_EVE_29' -- Overlay.BASES[1]
 Fake.RIFLE='/Game/DLC_2/Art/Character/Weapon/Gun/CH_G_Nikke_01/GunNikke_Weapon.GunNikke_Weapon'
 
--- The rows data.lua reads or writes, with test values.
+-- The rows data.lua reads or writes, with test values. Their fields have the kinds read in Ghidra on 26123051 (see
+-- fight/gunmode/journal.lua): SkillCommandTable's bJumping and bWallRun are bytes (0x145dfa3b0, 0x145dfa380);
+-- SkillActiveStepTable's rows have Type (0x145df6348) and no StepType.
 local function rows()
     return {
         EventActorEffectTable={Nikke_01_E_ActorEff_015={ActorEffectAlias=name('Test_Cover_Effect')}},
@@ -35,10 +37,10 @@ local function rows()
         SkillTable={P_Eve_GunNikke_ShootSlug1_1={CoolTime=0.11}},
         SkillCommandTable={P_Eve_GunNikke_ShootSlug2_1={CommandActionType=7},
             P_Eve_GunNikke_ShootSlug1_1={CommandActionType=3},P_Eve_GunNikke_ShootSlug1_2={CommandActionType=3},
-            P_Eve_Gun_ShootSlug1_1={SkillAlias=name('P_Eve_Gun_ShootSlug1_1'),CommandActionType=1,bJumping=true,
-                bWallRun=false},
-            P_Eve_Gun_ShootSlug1_2={SkillAlias=name('P_Eve_Gun_ShootSlug1_2'),CommandActionType=2,bJumping=true,
-                bWallRun=false}},
+            P_Eve_Gun_ShootSlug1_1={SkillAlias=name('P_Eve_Gun_ShootSlug1_1'),CommandActionType=1,bJumping=2,
+                bWallRun=0},
+            P_Eve_Gun_ShootSlug1_2={SkillAlias=name('P_Eve_Gun_ShootSlug1_2'),CommandActionType=2,bJumping=2,
+                bWallRun=0}},
         CharacterStanceTable={P_Eve_Gun={WalkSpeed=200,RunSpeed=400.5,JoggingRunSpeed=300,LockOnWalkSpeed=150,
                 LockOnRunSpeed=250,Condition_Jumping=4},P_Eve_Default={Condition_Jumping=0}},
         ProjectileTable={P_Eve_GunNikke_ShootSlug1_Projectile1={StartTargetTransformType=1,
@@ -46,8 +48,8 @@ local function rows()
                 DestTargetRelativeLocation={X=1,Y=2,Z=3},DestTargetRandomRange={X=300,Y=300,Z=300},
                 StartTargetRelativeLocation={X=4,Y=5,Z=6.25}},
             P_Eve_Gun_ShootSlug1_Projectile1={DestTargetTransformType=5,DestTargetRelativeAxisType=6}},
-        SkillActiveStepTable={P_Eve_GunNikke_ShootSlug1_1_Hit1={StepType=1},
-            P_Eve_GunNikke_ShootSlug1_1_Cast1={StepType=2}},
+        SkillActiveStepTable={P_Eve_GunNikke_ShootSlug1_1_Hit1={Type=1},
+            P_Eve_GunNikke_ShootSlug1_1_Cast1={Type=2}},
     }
 end
 -- A row's fields as text, for comparing: FNames and vectors by their contents.

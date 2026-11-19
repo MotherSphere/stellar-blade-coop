@@ -297,13 +297,17 @@ function Data.new(g,native,opts)
     end
 
     -- coop-gun.txt's row records (fight/gunmode/journal.lua) for what take() changed: none when nothing is taken.
-    -- Raises on a value it cannot keep.
+    -- A field that read nil has nothing to put back: take() saves StepType, which SkillActiveStepTable's rows do not
+    -- have on 26123051 (SBSkillActiveStepTableProperty, params 0x146db3c00: Type, no StepType). Raises on a value it
+    -- cannot keep.
     function self.records()
         local out={}
         for _,e in ipairs(self.saved or {}) do
-            local at=assert(names[e[1]],'a row with no name')
-            local kind,value=Journal.value(e[3])
-            out[#out+1]={'row',at[1],at[2],e[2],kind,value}
+            if e[3]~=nil then
+                local at=assert(names[e[1]],'a row with no name')
+                local kind,value=Journal.value(e[3])
+                out[#out+1]={'row',at[1],at[2],e[2],kind,value}
+            end
         end
         return out
     end
@@ -312,7 +316,7 @@ function Data.new(g,native,opts)
 end
 
 -- An earlier Lua load's row records written back, the last first as put_back() does (fight/gunmode/mode.lua's
--- restore): how many were written, and why the first one that failed did.
+-- restore): how many were written and why the first one that failed did.
 function Data.put_back_records(g,records)
     local n,failed=0,nil
     for i=#records,1,-1 do

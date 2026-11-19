@@ -3,7 +3,7 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode through main.lua (fixture.lua's fake fight/gunmode/mode.lua; fight/gunmode/stop_test tests the mode): its
 -- coop-gun.txt through the link's store (none without the native part), its restore at the first tick before its
--- tick, coop off's stop, and after a Lua reload with coop off still on its restore alone.
+-- tick, coop off's stop and after a Lua reload with coop off still on its restore alone.
 dofile('tests/lua/main/fixture.lua')
 settings_text,status_text,in_world='',plain,true
 load_main(true)

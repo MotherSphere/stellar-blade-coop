@@ -39,9 +39,10 @@ end
 -- A field's value before gun mode, as a kind and a text: d a number (exact; a whole float reads back as an integer,
 -- which a float field takes as it is), b a boolean, s a string,
 -- v a vector, n an FName (data.lua keeps those as FName(text)). The fields data.lua changes read in Lua as one of these
--- on 26123051: byte enums such as CommandActionType (its property at 0x145dfa6a8) and Condition_Jumping (0x145e004b8),
--- floats such as CoolTime (0x145df2820), booleans such as bJumping (0x145d8daa8), FNames such as ActorEffectAlias
--- (0x145e02b10) and vector structs such as DestTargetRelativeLocation (0x145dffe40). Anything else raises.
+-- on 26123051: byte enums such as CommandActionType (its property at 0x145dfa6a8), SkillCommandTable's bJumping (a
+-- byte too, 0x145dfa3b0) and Condition_Jumping (0x145e004b8), floats such as CoolTime (0x145df2820), FNames such as
+-- ActorEffectAlias (0x145e02b10) and vector structs such as DestTargetRelativeLocation (0x145dffe40). FStrings such as
+-- ActionValue1 (0x145df9548) are kept as text. None of them is a boolean. Anything else raises.
 function Journal.value(v)
     local t=type(v)
     if t=='number' then return 'd',math.type(v)=='integer' and tostring(v) or ('%.17g'):format(v) end

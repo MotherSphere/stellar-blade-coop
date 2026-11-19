@@ -54,13 +54,15 @@ tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. Each mod
   frame and the rifle's magazine (a round per cool time, the reload when empty or lowered part-spent, the HUD count, no
   round once the spares are spent, a refill);
 - `fight/gunmode/stop_test` runs gun mode over a fake UE4SS (`fight/gunmode/fake.lua`) on the rifle layer's path.
+  The fake's row fields have the kinds read in Ghidra on 26123051, so the shot's Hit1 step has no `StepType`.
   `stop` (coop off) gives back the table fields, the keys, the rifle, her body's own post-process class, the FOV lock
   and the layer's arms; with `gun_fire=own` too, where the fields stay changed after the rifle goes away. After it no
   key, toggle or new controller does anything. A second load over the same game and `coop-gun.txt` puts back what the
-  first left with the rifle out. Its own rifle then takes and gives back the shipped values. `coop-gun.txt` keeps
-  floats, integers, booleans, strings, FNames and vectors exactly. A start whose input mask or rifle fails gives back
-  what it took. A new controller clears the old pawn's state at once; its deferred reset shows the drone, puts her
-  facing back and takes the layer off her new body;
+  first left with the rifle out. Its own rifle then takes and gives back the shipped values. A start puts back what an
+  earlier load left before it reads the rows. `coop-gun.txt` keeps floats, integers, booleans, strings, FNames and
+  vectors exactly. A start whose input mask or rifle fails gives back what it took, as does a start that raises once
+  the rifle layer is on. A new controller clears the old pawn's state at once; its deferred reset shows the drone,
+  puts her facing back and takes the layer off her new body;
 - `vehicles/bike/ride_test` covers `vehicles/bike/ride.lua` over a fake EVE and native part: the preload asked once and
   released at `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every
   mount refusal with its reason and nothing written, the mount's order and the dismount backward, the lean (the math

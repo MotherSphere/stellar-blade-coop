@@ -544,7 +544,7 @@ function GunMode.new(env)
         keep()
         g.log('off ('..why..'), '..s.shots..' shots')
     end
-    -- Everything back, SB's rows too, and coop-gun.txt with it: a start that failed (L2), or stop.
+    -- Everything back, SB's rows too, coop-gun.txt with it: a start that failed (L2), or stop.
     local function give_all_back()
         put_away()
         pcall(data.put_back); s.native_taken=false; aim.row=nil
@@ -995,7 +995,8 @@ function GunMode.new(env)
     -- Once a Lua load, at main/frame.lua's first tick (coop off or not) and before a start: what coop-gun.txt says an
     -- earlier load left changed goes back (H4): SB's rows, the masked keys, her body meshes' own post-process class
     -- (the one she wears rebuilt with it) and, when the rifle was out, its tagged rifle and the FOV lock. Then the file
-    -- holds only what could not go back.
+    -- holds what this load has changed: the body meshes whose own class could not go back. A row or key that failed
+    -- is logged, not kept.
     function self.restore()
         if restored or not env.store then return end
         restored=true

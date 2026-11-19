@@ -5,7 +5,8 @@
 -- (coop off) gives back the input mask, SB's rows, the rifle, her body's own post-process class, the FOV lock and the
 -- layer's arms, then nothing more runs; the next Lua load puts back what coop-gun.txt says an earlier one left; a start
 -- that fails gives back what it took; a new controller resets the old pawn's state and the deferred reset takes the
--- layer off her body.
+-- layer off her body. fake.lua's rows have the kinds of 26123051's: the Hit1 step has no StepType, so take() saves a
+-- nil there that coop-gun.txt must skip, else no rifle comes out.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Fake=dofile('tests/lua/fight/gunmode/fake.lua')
 local GunMode=require('fight.gunmode.mode')
@@ -17,10 +18,13 @@ local function file()
     return {save=function(text) f.text=text; return true end,load=function() return f.text end,
         clear=function() f.text=nil end,peek=function() return f.text end}
 end
-local function new(store,settings)
+-- fail: a log line that raises once when it starts with this text (an unexpected raise inside a start).
+local function new(store,settings,fail)
     local logs={}
-    local gun=GunMode.new({log=function(m) logs[#logs+1]=m end,store=store,folder=settings and 'mod',
-        read_all=function() return settings end})
+    local gun=GunMode.new({log=function(m)
+            logs[#logs+1]=m
+            if fail and m:sub(1,#fail)==fail then fail=nil; error('test raise',0) end
+        end,store=store,folder=settings and 'mod',read_all=function() return settings end})
     return gun,logs
 end
 local function said(logs,text)
@@ -58,13 +62,21 @@ do
     assert(layer.ArmsAlpha==0,'the layer lets go of her arms')
     assert(w.fovs[#w.fovs]==0,'the FOV lock off')
     assert(said(logs,'stopped (coop off)'),table.concat(logs,'|'))
+    local function still()
+        assert(not gun.state.on and #w.rifles()==0 and w.keys()==keys and #w.changed()==0 and store.peek()==nil)
+    end
     w.down.G=true
     for _=1,10 do clock=clock+0.1; gun.tick() end
     w.down.G=nil
-    gun.toggle_now()
+    still()
+    clock=clock+1; gun.toggle_now()
+    still()
+    local held={}
+    gun.state.pose_m=held
     gun.new_controller(w.pc)
+    assert(gun.state.pose_m==held and not gun.state.give_back,'no reset after stop')
     clock=clock+5; gun.tick()
-    assert(not gun.state.on and #w.rifles()==0 and w.keys()==keys and #w.changed()==0)
+    still()
 end
 
 -- 2. H3 with gun_fire=own: the rows stay borrowed after the rifle goes away (until a new world); stop gives them back.
@@ -74,7 +86,7 @@ do
     local gun=new(store,'gun_fire=own\n')
     out(gun)
     clock=clock+1; gun.toggle_now()
-    assert(not gun.state.on and #w.changed()>0 and store.peek(),'rows kept, and in coop-gun.txt')
+    assert(not gun.state.on and #w.changed()>0 and store.peek(),'rows kept and in coop-gun.txt')
     gun.stop('coop off')
     as_shipped(w,keys,store)
 end
@@ -104,13 +116,19 @@ do
     w.fovs={}
     c.restore()
     assert(#w.fovs==0)
+    -- A start puts back what an earlier load left before it reads the rows, even when no first frame ran restore.
+    out(new(store))
+    local d=new(store)
+    out(d)
+    clock=clock+1; d.toggle_now()
+    as_shipped(w,keys,store)
 end
 
 -- 4. H4: values kept exactly: floats, integers, booleans, FNames, strings and vectors.
 do
     Fake.new().install()
     local Journal=require('fight.gunmode.journal')
-    for _,v in ipairs({0.11,400.5,3,true,false,'Test|Skill\t%',Fake.name('P_Eve_Gun'),{X=1.5,Y=-2,Z=1/3}}) do
+    for _,v in ipairs({0.11,400.5,1/3,3,true,false,'Test|Skill\t%',Fake.name('P_Eve_Gun'),{X=1.5,Y=-2,Z=1/3}}) do
         local kind,text=Journal.value(v)
         local list=Journal.records(Journal.line({{'row','T','R','F',kind,text},{'out'}}))
         assert(#list==2 and list[2][1]=='out')
@@ -137,7 +155,20 @@ do
     as_shipped(w,keys,store)
 end
 
--- 6. L3: a new controller (a map load: a new EVE on the same body mesh) resets the old pawn's state at once; the deferred
+-- 6. L2: an unexpected raise inside a start, once the rifle layer is on: the start gives back what it took, then
+--    raises again.
+do
+    local w=Fake.new(); w.install()
+    local keys,store=w.keys(),file()
+    local gun,logs=new(store,nil,'rifle layer on')
+    clock=clock+1
+    local ok,e=pcall(gun.toggle_now)
+    assert(not ok and e=='test raise',tostring(e))
+    assert(not gun.state.on and said(logs,'off: the start failed'),table.concat(logs,'|'))
+    as_shipped(w,keys,store)
+end
+
+-- 7. L3: a new controller (a map load: a new EVE on the same body mesh) resets the old pawn's state at once; the deferred
 --    reset gives back the rows, shows the drone, puts her facing back and takes the layer off her new body.
 do
     local w=Fake.new(); w.install()
