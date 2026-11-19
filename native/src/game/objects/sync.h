@@ -28,6 +28,12 @@
 // seq is 1 for the first line after each on and one more for each later one, c lines included (c ask and c end carry
 // none); the receiver logs a gap. Each side answers her on (not her on reply) with its own state, so a side that
 // started again (a rejoin she did not see) hears where the other stands.
+//
+// A watched pair (kWatch: the AltesLab trap floor's end) is a kept state a condition trigger sets, with no root to
+// send. While the feature is open and we are in game, each pass reads each watched env in the client's zone, before
+// her lines and again after them. A live read that turns to the watched tag (case ignored) is sent as an s line,
+// through the same checks as a root; the read after her lines only stores, so her change is never sent back. The first
+// sight in a zone stores and sends nothing.
 #pragma once
 
 #include <algorithm>
@@ -35,6 +41,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <deque>
+#include <iterator>
 #include <set>
 #include <string>
 #include <string_view>
@@ -95,6 +102,12 @@ inline bool int32(const std::string &s, int32_t &out) {
     return false;
   out = minus ? int32_t(-int64_t(v)) : int32_t(v);
   return true;
+}
+// Two names equal with ASCII case ignored, as FName compares them.
+inline bool same_name(std::string_view a, std::string_view b) {
+  auto low = [](char c) { return c >= 'A' && c <= 'Z' ? char(c - 'A' + 'a') : c; };
+  return a.size() == b.size() &&
+         std::equal(a.begin(), a.end(), b.begin(), [&](char x, char y) { return low(x) == low(y); });
 }
 } // namespace detail
 
@@ -305,9 +318,9 @@ class Sync {
 public:
   explicit Sync(Engine &e) : e_(e) {}
 
-  // Each game thread pass: our on or off when it changed, the ring's roots through the filters, then her waiting
-  // lines when we are in game. Waiting lines are dropped when the feature goes off here, not when her off comes: she
-  // sent them while on.
+  // Each game thread pass: our on or off when it changed, the ring's roots through the filters, the watched envs, then
+  // her waiting lines when we are in game, then the watched envs read again. Waiting lines are dropped when the feature
+  // goes off here, not when her off comes: she sent them while on.
   void pass(const Gates &g, Ring &ring, uint64_t now_ms) {
     follow(g);
     counters.full = ring.dropped;
@@ -319,6 +332,12 @@ public:
       counters.gated += queue_.size();
       queue_.clear();
     }
+    std::string z;
+    const bool watch = open && g.in_game && e_.zone(z);
+    if (watch ? z != watch_zone_ : !open || g.in_game) // A new zone, the feature closed or no zone: forget the tags.
+      watched_ = {}, watch_zone_ = z;
+    if (watch)
+      look(z, true, now_ms);
     for (size_t n = 0; g.in_game && n < kApplyPerPass && !queue_.empty(); ++n) {
       const Message m = std::move(queue_.front());
       queue_.pop_front();
@@ -329,6 +348,8 @@ public:
     }
     if (queue_.empty())
       overflowing_ = false;
+    if (watch)
+      look(z, false, now_ms);
   }
 
   // One of her channel 2 lines that starts with world_tag().
@@ -410,7 +431,7 @@ private:
     if (g.partner != partner_) {
       counters.gated += queue_.size();
       partner_ = g.partner, her_on_ = false, last_ = 0, said_.clear(), queue_.clear();
-      echoes_ = {};
+      echoes_ = {}, watched_ = {};
     }
     if (!partner_)
       return;
@@ -443,6 +464,28 @@ private:
       named = named && e_.text(r.alias, m.alias);
     if (m.type != Type::active)
       named = named && e_.text(r.name, m.name);
+    send(m, named, now_ms);
+  }
+
+  // Each watched env in zone z, read live: a change to its watched tag is sent when send_change is set, else only stored. A
+  // record or no env skips the entry and keeps its stored tag; a first sight stores only.
+  void look(const std::string &z, bool send_change, uint64_t now_ms) {
+    for (size_t i = 0; i < std::size(kWatch); ++i) {
+      const Value v = e_.read(z, kWatch[i].alias);
+      if (v.where != Where::live)
+        continue;
+      std::string &was = watched_[i];
+      if (send_change && !was.empty() && !detail::same_name(was, v.tag) && detail::same_name(v.tag, kWatch[i].tag)) {
+        Message m;
+        m.type = Type::state, m.zone = z, m.alias = kWatch[i].alias, m.name = v.tag;
+        send(m, true, now_ms);
+      }
+      was = v.tag;
+    }
+  }
+
+  // A root's or a watched env's line: parsed back, on the lists, not her value come back, then sent with the next seq.
+  void send(Message &m, bool named, uint64_t now_ms) {
     m.seq = seq_ + 1;
     const std::string line = format(m);
     if (!named || parse(line.data(), line.size()).type != m.type) {
@@ -515,6 +558,10 @@ private:
   std::deque<Message> queue_;
   std::array<Echo, kEchoes> echoes_;
   std::set<std::string> refusals_;
+  // The watched envs' tags as last read live in watch_zone_, by kWatch entry; empty: not seen there yet. A live read
+  // always has text (engine.h reads a tag without text as no env).
+  std::array<std::string, std::size(kWatch)> watched_;
+  std::string watch_zone_;
 };
 
 // Our lines on their way to link/core.h's send_fight(), which refuses a line while its channel 2 queue is full: a

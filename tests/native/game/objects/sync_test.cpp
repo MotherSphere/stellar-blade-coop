@@ -7,7 +7,8 @@
 // see, the lines the link refuses waiting in order, each gate on both sides, the lists on both sides
 // (a supply box, a story door, a camera state and a quest's row never leave), names without text, sequence numbers,
 // lost and old lines, a load that reads no save for a while, the queue's order while loading and its overflow, the
-// apply limit per pass, the echo backstop, refusals logged once per env, a new partner, and the status line.
+// apply limit per pass, the echo backstop, refusals logged once per env, a new partner, the status line, tags compared
+// without case and the watcher that sends the AltesLab trap floor's end.
 #include "game/objects/sync.h"
 
 #include <cassert>
@@ -56,10 +57,18 @@ struct Fake : Engine {
     out = it->second;
     return true;
   }
+  // An applied state line writes its tag, an applied active line its object, into values when that env is there.
   const char *apply(const Message &m) override {
     applied.push_back(m);
     const auto it = refusal.find(key(m));
-    return it == refusal.end() ? nullptr : it->second;
+    if (it != refusal.end())
+      return it->second;
+    const auto v = values.find({m.zone, m.alias});
+    if (v != values.end() && m.type == Type::state)
+      v->second.tag = m.name;
+    if (v != values.end() && m.type == Type::active)
+      v->second.object = m.object;
+    return nullptr;
   }
   Value read(const std::string &zone, const std::string &alias) override {
     ++reads;
@@ -709,6 +718,69 @@ void test_status() {
   assert(p.a.counters.skipped == kRing && p.b.status().rfind("world=waiting why=partner ", 0) == 0);
 }
 
+void test_same_name() {
+  assert(detail::same_name("Off", "off") && detail::same_name("", "") && !detail::same_name("Off", "Of"));
+}
+void test_watch() {
+  Pair p;
+  p.fa.here = p.fb.here = "Zone_ATL_01";
+  const std::pair<std::string, std::string> k{"Zone_ATL_01", "ATL_01_EnvS_074"};
+  p.fa.values[k] = Value{Where::live, "Success3", 1};
+  p.fb.values[k] = Value{Where::live, "Off", 1};
+  p.step();
+  assert(p.a.counters.sent == 0 && p.fb.applied.empty());          // first sight: stored, not sent
+  p.fa.values[k].tag = "Success4";
+  p.step();
+  assert(p.a.counters.sent == 0);                                  // not the watched tag
+  p.fa.values[k].tag = "On";
+  p.step();
+  assert(p.a.counters.sent == 1 && p.fb.applied.size() == 1 && p.fb.applied[0].type == Type::state &&
+         p.fb.applied[0].alias == "ATL_01_EnvS_074" && p.fb.applied[0].name == "On" &&
+         p.fb.applied[0].zone == "Zone_ATL_01");
+  p.step(), p.step();
+  assert(p.a.counters.sent == 1 && p.b.counters.sent == 0);       // nothing again; her applied change not sent back
+  assert(p.b.counters.echoes == 0);                                // the re-read stored it, no echo had to stop it
+  p.fa.values.erase(k), p.step();                                  // gone one pass: stored On kept
+  p.fa.values[k] = Value{Where::live, "Off", 1}, p.step();
+  p.fa.values[k].tag = "On", p.step();
+  assert(p.a.counters.sent == 2);
+  p.fa.values.erase(k), p.step();
+  p.fa.values[k] = Value{Where::live, "On", 1}, p.step();
+  assert(p.a.counters.sent == 2);                                  // back unchanged: nothing
+  p.fa.values[k].tag = "Off", p.step();
+  p.fa.values[k] = Value{Where::record, "On", 1}, p.step();
+  assert(p.a.counters.sent == 2);                                  // a record is no sight
+  p.fa.values[k] = Value{Where::live, "On", 1}, p.step();
+  assert(p.a.counters.sent == 3);                                  // the stored Off was kept through it
+  p.fa.values[k].tag = "Off", p.step();
+  p.fa.values.erase(k), p.step();                                  // a stream in the same zone
+  p.fa.values[k] = Value{Where::live, "On", 1}, p.step();
+  assert(p.a.counters.sent == 4);                                  // the end reached while it was away
+  p.fa.values[k].tag = "Off", p.step();
+  p.fa.here = "Zone_ATL_02", p.fa.values[{"Zone_ATL_02", "ATL_01_EnvS_074"}] = Value{Where::live, "On", 1};
+  p.step();
+  assert(p.a.counters.sent == 4);                                  // a new zone: first sight again
+}
+void test_watch_gates_and_seq() {
+  Fake f;
+  f.here = "Zone_ATL_01";
+  Sync s{f};
+  Ring r;
+  Gates g = on();
+  s.receive(T + "on", g);
+  g.in_game = false;
+  s.pass(g, r, 1000);
+  assert(f.reads == 0);                                            // no read out of game
+  g.in_game = true;
+  f.values[{"Zone_ATL_01", "ATL_01_EnvS_074"}] = Value{Where::live, "Off", 1};
+  s.pass(g, r, 1100), s.out.clear();
+  r.push(root(f, Kind::state, "DED20_EnvS_193", "Open"));
+  f.values[{"Zone_ATL_01", "ATL_01_EnvS_074"}].tag = "On";
+  s.pass(g, r, 1200);
+  assert(s.out.size() == 2 && s.out[0] == T + "s 1 Zone_DED20 DED20_EnvS_193 Open" &&
+         s.out[1] == T + "s 2 Zone_ATL_01 ATL_01_EnvS_074 On");     // seq shared with the roots
+}
+
 } // namespace
 
 int main() {
@@ -731,5 +803,8 @@ int main() {
   test_seq();
   test_new_partner();
   test_status();
+  test_same_name();
+  test_watch();
+  test_watch_gates_and_seq();
   std::printf("world sync: ok\n");
 }
