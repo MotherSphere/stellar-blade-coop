@@ -1,7 +1,8 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Gun mode's texts against its code and scripts: the rifle layer's pak has one name. Runs from the repository's root.
+-- Gun mode's texts against its code and scripts: the rifle layer's pak has one name, the tools say what they make,
+-- comments hold no play-session clock times or plans that are not in the repository. Runs from the repository's root.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local S='mod/StellarCoop/Scripts/fight/gunmode/'
 local function read(path) local f=assert(io.open(path,'rb'),path); local s=f:read('a'); f:close(); return s end
@@ -97,6 +98,27 @@ do
     for _,want in ipairs({ASSET,'NGM_R_','SBOutfitProject'}) do
         if not readme:find(want,1,true) then fail('tools/gunmode/README.md does not name '..want) end
     end
+end
+
+-- 3. Gun mode's code, tests, tools and page: no clock time of a play session unless it names its log (as in
+--    "UE4SS.log 2026-11-12 21:49"). No reference to NGM_FACTS.md or the rebuild's plan: neither is in this repository.
+do
+    local paths={PAGE}
+    for _,list in ipairs({LUA,TOOLS,files("find tests/lua/fight/gunmode -name '*.lua'")}) do
+        for _,p in ipairs(list) do
+            if not p:match('texts_test%.lua$') then paths[#paths+1]=p end
+        end
+    end
+    lines(paths,function(p,n,l)
+        for at,t in l:gmatch('()(%d%d?:%d%d)') do
+            if not l:sub(1,at-1):find('UE4SS%.log %d%d%d%d%-%d%d%-%d%d $') then
+                fail(('%s:%d: clock time %s'):format(p,n,t))
+            end
+        end
+        for _,ref in ipairs({'NGM_FACTS','v2 plan','v2:','Phase 0','Phase 1'}) do
+            if l:find(ref,1,true) then fail(('%s:%d: cites %s'):format(p,n,ref)) end
+        end
+    end)
 end
 
 if #bad>0 then error('\n'..table.concat(bad,'\n'),0) end

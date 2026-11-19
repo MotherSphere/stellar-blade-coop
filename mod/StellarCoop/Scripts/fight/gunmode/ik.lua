@@ -1,15 +1,15 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The rifle-first solver (v2 plan, G0). Each tick, in her body mesh's component space:
+-- The rifle-first solver. Each tick, in her body mesh's component space:
 --   1. place the rifle: its grip a little in front of her right shoulder; in aim the bore points at the spot 20 m down
 --      the camera line, in carry it hangs at low ready (pitched down, across her body)
 --   2. right hand = rifle composed with the inverse of the attach GRIP (the attached rifle then lands exactly there)
 --   3. left hand = the hand placement that puts her palm on the handguard point (its palm offset measured live)
 --   4. elbow poles below and outside each shoulder
 -- and writes the layer's variables in one batch (ArmsAlpha, RHandLoc_S2, RHandRot_CS, RElbowPole_S2, LHandLoc_RH,
--- LHandRot_RH, LElbowPole_S2; the names are the v2 plan's, but every value here is in component space, which is how
--- the graph's nodes are set). Only property writes reach the post-process instance.
+-- LHandRot_RH, LElbowPole_S2). Whatever their suffixes say, every value here is in component space, which is how the
+-- graph's nodes are set. Only property writes reach the post-process instance.
 local IK={}
 
 -- quaternions {x,y,z,w}, UE conventions

@@ -107,7 +107,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   Each script in `tools/gunmode` starts with the SBO license lines. Its comments name no script that is not there and
   hold no session notes. The Blender and Unreal scripts stop without `NGM_TOOLS` and import into no shipped game folder.
   `export_stand.py` opens by default the `.blend` that `retarget_mixamo_stand.py` writes. The tools' README names each
-  script, the rifle layer, the `NGM_R_` clips and `SBOutfitProject`;
+  script, the rifle layer, the `NGM_R_` clips and `SBOutfitProject`. Gun mode's code, tests, tools and page hold no
+  clock time of a play session unless it names its log (`UE4SS.log 2026-11-12 21:49`). They cite neither
+  `NGM_FACTS.md` nor the rebuild's plan, which are not in this repository;
 - `vehicles/bike/ride_test` covers `vehicles/bike/ride.lua` over a fake EVE and native part: the preload asked once and
   released at `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every
   mount refusal with its reason and nothing written, the mount's order and the dismount backward, the lean (the math

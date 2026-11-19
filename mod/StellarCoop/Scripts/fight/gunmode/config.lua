@@ -33,7 +33,7 @@ Config.DEFAULTS={
     reload_sounds={{'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_1_Cue.P_Eve_GunNikke_Reload_1_Cue',0.0},
         {'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_2_Cue.P_Eve_GunNikke_Reload_2_Cue',0.6},
         {'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_3_Cue.P_Eve_GunNikke_Reload_3_Cue',0.85}},
-    muzzle_every=0.09,muzzle_scale=0.45, -- the flash: at most this often (s), at this size (it stacked into a blaze, 12:07)
+    muzzle_every=0.09,muzzle_scale=0.45, -- the flash: at most this often (s), at this size (it stacked into a blaze)
     muzzle_fx='/Game/DLC_2/Art/FX/MiniGame/NS_A_NikkeGunFire.NS_A_NikkeGunFire', -- the NIKKE rifle's flash
     -- The rifle clips without the rifle layer (fight/gunmode/mode.lua's enable): pak_probe, one of the NGM_R_ clips,
     -- finds them (in zNGMSpike_P when tools/gunmode/rebuild/ngm_spike_build_a4.py's NGM_REL names their folder). The
@@ -74,7 +74,7 @@ Config.DEFAULTS={
                     -- are placed along the camera instead, and her head stays the real one's).
     start_min_forward=25, -- The shot starts at the rifle's muzzle only when it is this far ahead of her (cm),
     start_fallback={X=45,Y=22,Z=55}, -- else here: forward, right, up from her centre (her right shoulder).
-    follow_names={}, -- Parts made to follow the posed copy: none (her face moved off her head that way, 02:20).
+    follow_names={}, -- Parts made to follow the posed copy: none (her face moved off her head that way).
     pose_time=0.08, -- Firing mode between shots: the NIKKE shot montage held at this time (s).
     aim_cam={X=0,Y=45,Z=12}, -- With the rifle layer: the game's aim camera moved this far (cm; right, up) while aiming.
     native_speed=1.4, -- In the game's aim: its stance's walk and run speeds times this (CharacterStanceTable).
@@ -83,7 +83,7 @@ Config.DEFAULTS={
     -- and any whose mesh name has one of these (the sword). Co-op partners still see them.
     hide_names={'Sword','CH_W_'},
     -- Head parts copied with the posed body: none. They follow her body through its leader pose and hold no pose of
-    -- their own, and copying a pose from one crashed the game (11:03).
+    -- their own. Copying a pose from one crashed the game.
     copy_names={},
 }
 
@@ -112,9 +112,9 @@ function Config.from(settings)
     v=get('gun_carry_idle'); if v and tonumber(v) then out.carry_idle_type=tonumber(v) end
     v=get('gun_probe')
     if v then out.probe=v:lower()=='on' end
-    v=get('gun_facts') -- (dev only) the Phase 0 facts probe, fight/gunmode/facts.lua
+    v=get('gun_facts') -- (dev only) the facts probe, fight/gunmode/facts.lua
     if v=='on' then out.facts=true end
-    v=get('gun_g0') -- (dev only) the v2 plan's G0 measurements and capture pictures, fight/gunmode/g0.lua
+    v=get('gun_g0') -- (dev only) the rifle layer's measurements and capture pictures, fight/gunmode/g0.lua
     if v=='on' then out.g0=true end
     v=get('gun_trace') -- (testing) step log around reloads and aim changes
     if v then out.trace=v:lower()=='on' end

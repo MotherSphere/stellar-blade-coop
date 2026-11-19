@@ -166,7 +166,7 @@ function GunMode.new(env)
         else s.sounds=nil end
     end
     -- No D-pad slot widget for now: the runtime widget never drew, and as nothing held it the engine could free it
-    -- while its text was still being set every frame (a likely cause of the crashes at 11:27).
+    -- while its text was still being set every frame (a likely cause of crashes seen in play).
     local ammo=Ammo.new(g,cfg,function(v) data.cool(v) end,on_reload,nil)
 
     local function fire_row(row)
@@ -294,7 +294,7 @@ function GunMode.new(env)
         end
         s.zoom=GunMode.ease(s.zoom,s.zoom_held and 1 or 0,cfg.zoom_ease)
         local a,b=cfg.cam_offset,cfg.zoom_offset
-        -- Her normal camera ignores CustomOffset (00:22): its arm length (the game sets it, so taken again whenever
+        -- Her normal camera ignores CustomOffset: its arm length (the game sets it, so taken again whenever
         -- the zoom is out) and SocketOffset (right, up) are eased instead.
         if not s.cam.socket then
             local so=g.try(function() return boom.SocketOffset end)
@@ -331,7 +331,7 @@ function GunMode.new(env)
 
     -- Her other mesh components hidden from the player's own camera while the rifle is out: Luke's stance hides her
     -- real body there and shows a posed copy, so a layer on the real body (Ultra Violence's blood, an overlay wearing
-    -- her body's mesh) or the sword drawn in a fight showed as a ghost doing the real animation (00:12). Looked for
+    -- her body's mesh) or the sword drawn in a fight showed as a ghost doing the real animation. Looked for
     -- again every second (the sword comes out with a fight); each one put back as it was when the rifle goes away.
     local MESH,SKEL,STATIC='/Script/Engine.MeshComponent','/Script/Engine.SkeletalMeshComponent',
         '/Script/Engine.StaticMeshComponent'
@@ -462,7 +462,7 @@ function GunMode.new(env)
     end
 
     -- Firing mode's pose between shots: the NIKKE shot's own animation (its montage, learnt from the first shot
-    -- fired: it looked right while firing, 02:34) held near its start while aim is held and no shot is playing, so
+    -- fired: it looked right while firing) held near its start while aim is held and no shot is playing, so
     -- she keeps the rifle up instead of the drone aim's pointing pose; stopped when aim is let go.
     local function hold_pose(p,firing)
         local ai=g.try(function() return p.Mesh:GetAnimInstance() end)
@@ -489,7 +489,7 @@ function GunMode.new(env)
     end
 
     -- Firing mode (Luke's aim on her normal stance): the game itself keeps her facing the camera, through her
-    -- movement's own settings (no yaw written from Lua each frame: two writers made her legs twitch, 00:27).
+    -- movement's own settings (no yaw written from Lua each frame: two writers made her legs twitch).
     local function unface()
         local f=s.facing
         s.facing=nil
@@ -653,7 +653,7 @@ function GunMode.new(env)
         end
         ok,err=pcall(function()
             -- Held for Luke's aim: the aim key itself, not the game's aim stance, which drops for a frame now and
-            -- then (each shot's skill, a jump) and made his arms jerk between carry and aim (11:39). Off the stance (a
+            -- then (each shot's skill, a jump) and made his arms jerk between carry and aim. Off the stance (a
             -- jump, a camp) his own turn to the camera keeps her facing the shot.
             -- With the animation pak her real body is shown while aiming, so held follows the game's aim stance
             -- (bridging its one-frame drops on shots: seen in the last 0.4 s with the key still down).
@@ -668,7 +668,7 @@ function GunMode.new(env)
                 function() return s.air_aim==true or (s.key_held==true and not s.tps) end,
                 -- With the animation pak her body under the posed copy is the pak's rifle stance (upright, strafing),
                 -- so Luke's own aim runs on it unchanged: his arms from her chest, turned to the camera, the rifle
-                -- squared on the camera's line (the user's call, 11:32: Luke's aim is the look to keep).
+                -- squared on the camera's line (the user's call: Luke's aim is the look to keep).
                 0,false,false,set.native and (set.upper or s.pak),set.native and not set.upper and not s.pak)
         end)
         if not ok then
@@ -931,7 +931,7 @@ function GunMode.new(env)
             local before=ammo.left
             local ok_a,err_a=pcall(ammo.tick,s.zoom_held,inp.fire,now)
             -- The muzzle flash on Luke's rifle, once a frame that rounds went out: the NIKKE shot's own flash is on
-            -- the NIKKE rifle of her hidden real body (the fire round her waist, 12:01), which the pak's show drops.
+            -- the NIKKE rifle of her hidden real body (the fire round her waist), which the pak's show drops.
             if ok_a and ammo.left<before and g.valid(s.rifle) and now-(s.flash_at or 0)>=cfg.muzzle_every then pcall(function()
                 s.flash_at=now
                 s.flash_lib=g.find('/Script/Niagara.Default__NiagaraFunctionLibrary')
@@ -1038,7 +1038,7 @@ function GunMode.new(env)
             end
             -- the game stops montages when its stances change (its aim among them): the clip is checked four times a
             -- second and played again when it was stopped
-            -- v2: the rifle-first solver places the rifle and puts both hands on it (fight/gunmode/ik.lua)
+            -- The rifle-first solver places the rifle and puts both hands on it (fight/gunmode/ik.lua)
             s.ik=s.ik or require('fight.gunmode.ik').new(g)
             local ppi=g.try(function() return p.Mesh:GetPostProcessInstance() end)
             local mode_ik=(want=='aim') and 'aim' or ((want=='carry' or want=='reload') and 'carry' or 'off')

@@ -176,7 +176,7 @@ function Data.new(g,native,opts)
                     end
                 end
                 -- With the pak: no drone summon/dismiss show when the aim starts and ends (it played the drone's
-                -- raise pose for a moment before her rifle aim, 13:00); her default stance has none either.
+                -- raise pose for a moment before her rifle aim); her default stance has none either.
                 if pak then
                     for _,f in ipairs({'StartShowPathWhenPeaceful','StartShowPathWhenBattle','EndShowPathWhenPeaceful','EndShowPathWhenBattle'}) do
                         local v=g.try(function() return text(st[f]) end)
@@ -274,7 +274,7 @@ function Data.new(g,native,opts)
             -- The NIKKE bullet starts from a point fight/gunmode/mode.lua keeps on the rifle's muzzle: its start the
             -- same kind of point as its destination (EVE's base and an offset in her yaw frame), not the
             -- SC_GunShoot socket of the NIKKE rifle the game attaches only in the NIKKE stance (outside it the
-            -- shot left from the drone, 00:24).
+            -- shot left from the drone).
             local pt=tbl('ProjectileTable')
             local nr=row(pt,Data.NIKKE_PROJECTILE)
             local dr=row(pt,Data.DRONE_PROJECTILE)
