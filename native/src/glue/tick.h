@@ -127,12 +127,14 @@ void quest_pass(uint64_t now_ms, bool hosting, const std::vector<uint64_t> &part
 // Refused off the pinned build and after coop off. Returns the line for the log.
 std::string ask_world(const coop::Request &request);
 // Worker, every pass after quest_pass and before fight_pass: takes her SBW lines out of lines and hands them to the
-// game thread with the gates (shared_world, partner: her SteamID while she is linked, else 0; match: a match lobby,
-// the SBO lobby's session counts too; a co-op save, from the save-slot line quest_pass read), swaps the hooks in once
-// those gates first open, and sends and logs what the game thread's passes made. send: a line to her on channel 2,
-// reliable (false when it cannot go: the line then waits for the next pass, game/objects/sync.h's Outbox). After the
-// first fault: off to her once, the hooks out, nothing more.
-void world_pass(uint64_t partner, bool match, std::vector<std::string> &lines, bool (*send)(const std::string &));
+// game thread with the gates (shared_world, partner: her SteamID while she is linked, else 0; host: true on the
+// session's host within the pair, so its values win a catch-up conflict; match: a match lobby, the SBO lobby's session
+// counts too; a co-op save, from the save-slot line quest_pass read), swaps the hooks in once those gates first open,
+// and sends and logs what the game thread's passes made. send: a line to her on channel 2, reliable (false when it
+// cannot go: the line then waits for the next pass, game/objects/sync.h's Outbox). After the first fault: off to her
+// once, the hooks out, nothing more.
+void world_pass(uint64_t partner, bool host, bool match, std::vector<std::string> &lines,
+                bool (*send)(const std::string &));
 // Worker: coop-status.txt's world line (game/objects/sync.h's Sync::status, then hooks=<slots of 4> inbox_dropped=<n>
 // unsent=<lines dropped unsent> elsewhere=<hooks off the game thread>), or world=off why=build|coop_off, or
 // world=stopped after a fault.
