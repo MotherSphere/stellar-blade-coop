@@ -41,9 +41,12 @@
 -- take back at once (no tick follows), and so does the next Lua load for a scene an earlier one left. Never called
 -- here: a warp, a quest, a save, another zone event, nor the trailers' interaction graphs or spawn rows (they acquire
 -- quests before they play).
+-- Lily's five assets are the keep's (core/keep.lua): a talk waits in world/maps/matrix13/quest/subtitles.lua until
+-- they are in, so none loads at its start.
 local U=require('core.unreal')
 local N=require('core.player')
 local Doro=require('core.actors')
+local Keep=require('core.keep')
 local valid,value_of,text=U.valid,U.value_of,U.text
 local Scene={}
 local TABLE='/Game/Local/Data/EventTheaterTable.EventTheaterTable'
@@ -70,6 +73,7 @@ Scene.TALKS={}
 for _,n in ipairs({'Subtitle_POD_1stMeetAdam_01','Subtitle_POD_ArriveDED_01','Subtitle_POD_1stMeetAdam_02'}) do
     Scene.TALKS[#Scene.TALKS+1]=TALK_DIR..n..'.'..n
 end
+Scene.ASSETS={QUINN,QUINN_SEQ,Scene.TALKS[1],Scene.TALKS[2],Scene.TALKS[3]} -- The keep's (core/keep.lua).
 local SEQUENCE,THEATER_DATA='/Script/LevelSequence.LevelSequence','/Script/SB.SBTheaterData'
 local FAR=50 -- m: the farthest EVE may stand from a scene's stage (its sequence moves her there).
 local POLL,START=1,10 -- s: the observer looked for once a second; none this long after the call fails the scene.
@@ -196,8 +200,10 @@ local function swap(s,seq)
 end
 -- s's take back on its own sequence while it plays another, the theater in memory (else nothing of the write is
 -- left). Gives what it did, or nil when there was nothing to do; raises on an engine error or a wrong read-back.
+-- A theater the keep serves is its object (no walk); another is found as before, never loaded.
 local function unswap(s)
-    local theater=valid(StaticFindObject(s.theater))
+    local theater
+    if Keep.serves(s.theater) then theater=Keep.get(s.theater) else theater=valid(StaticFindObject(s.theater)) end
     local take=theater and take_of(theater)
     if not take or not lent(s,plays(take)) then return nil end
     take.TemplateSequence=assert(Doro.resolve(s.own,SEQUENCE),short(s.own)..' is missing')
@@ -262,6 +268,9 @@ end
 function Scene.new(o)
     local log=o.log
     local self={SCENES=Scene.SCENES}
+    Keep.want(Scene.ASSETS)
+    -- Lily's assets are settled by the keep, or the keep is off (they load as before).
+    function self.ready() return Keep.ready() end
     -- The scene under way: {s=, seq= (the sequence it plays), called=<os.clock of the Play row>, next=<next look>,
     -- seen=, observer= (the one seen playing it), stopping=, own= (its theater's own sequence seen instead), talk= (a
     -- talk's {done=, seen=, direct=})}.

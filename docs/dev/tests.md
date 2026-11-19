@@ -16,9 +16,10 @@ build/host/game_codec_test
 ## Lua tests
 
 The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`, `others`, `park`, `ride`, `stand`;
-`core/`: `actors`, `actors_of`, `class_at`, `effect`, `enemy`, `items`, `keybind`, `line`, `link`, `mask`, `pak_gate`,
-`picks`, `player`, `row_edit`, `settings_file`, `ue4ss_settings`, `unreal`, `where`, `worlds`; `fight/bosses/`: `enemy`,
-`gardener`, `leviathan`, `lion`, `off`, `tendril`; `eve/`: `chainspin`, `emote`, `flight`, `glide`, `off`, `wear`;
+`core/`: `actors`, `actors_of`, `class_at`, `effect`, `enemy`, `items`, `keep`, `keybind`, `line`, `link`, `mask`,
+`pak_gate`, `picks`, `player`, `row_edit`, `settings_file`, `ue4ss_settings`, `unreal`, `where`, `worlds`;
+`fight/bosses/`: `enemy`, `gardener`, `leviathan`, `lion`, `off`, `tendril`; `eve/`: `chainspin`, `emote`, `flight`,
+`glide`, `off`, `wear`;
 `cutmenus/`: `devmenu`, `mailbox`, `off`; `story/scenes/`: `lines`, `off`, `scene`; `fight/enemies/`: `off`, `wiring`,
 `wiring_notices`; `online/group/`: `group`, `off`, `region_tabs`, `travel`; `online/lobby/`: `arrival`, `commands`,
 `halls_rows`, `off`, `sbo`, `wiring`; `online/lobby/ui/`: `lobby`, `lobby_model`; `main/`: `bike`, `boot`, `collide`,
@@ -145,6 +146,19 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   <row>`;
 - `core/unreal_test` covers `game_text`: nothing asked while the string table is not loaded or its id is no name, nil
   for a missing key, an empty text or an error, another table's key read by its path;
+- `core/keep_test` covers `core/keep.lua` over a fake native part and a fake lookup: off without its setup; the whole
+  list in one `coop-keep.txt` a pass (70 paths asked in one tick, one write of 70 lines), written again every 4 passes
+  while the native count lags; a bad path logged once and never kept; the status read once a pass by `slow()`, never by
+  `ready()` or `get()`; no lookup before the native part settled, one a pass after it, none marked while the soft path
+  is not proven; a held object whose full name changed dropped and found again; a path missing on this PC logged once
+  and never looked up again; a path asked after it settled waits again; off for the Lua load on `keep=fault`, on an
+  engine line that names a reason (another build, `coop_off`) and after 40 passes with no progress; 128 paths at most;
+  `LoadAsset` and `StaticFindObject` never called;
+- `core/class_at_test` covers `object_at`: no walk before the proof, the soft object path once proven, the walk once the
+  proof failed; `core/actors_test` a path the keep serves never loaded by `Doro.resolve` (nil when it is missing), the
+  find and the load as before until the keep is ready; `story/scenes/scene_test` Lily's five assets wanted, `ready()`
+  following the keep and a Lua load's restore that loads no theater; `world/maps/matrix13/quest/subtitles_test` a talk
+  that waits for the keep with one line and no walk before it goes on (no wait while `coop scene` is off);
 - `ui/kit/model_test` covers the four Who can join values and the Friends join without asking row, shown under Public
   and Invitation only, then the Online tab row named in `docs/players/interface.md`'s Options paragraph between the
   bike's key and Reset all keys;

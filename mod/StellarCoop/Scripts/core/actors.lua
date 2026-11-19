@@ -6,6 +6,7 @@
 -- leviathan); attach, spawn, sweep and remove also make and remove its free camera, a plain actor with one
 -- CameraComponent.
 local U=require('core.unreal')
+local Keep=require('core.keep')
 local valid,find=U.valid,U.find
 local Doro={}
 local DIR='/Game/DLC_2/Art/Character/NPC/CH_NPC_Dororong/'
@@ -19,6 +20,7 @@ Doro.ASSETS={mesh=asset('CH_NPC_Dororong'),
     idle=asset('Animation/N_Dororong_Idle'),turn=asset('Animation/N_Dororong_Turn_90L'),
     meet1=asset('Animation/event/MV_Nikke_Dororong_1stMeet/MV_Nikke_Dororong_1stMeet_dororong_01'),
     meet3=asset('Animation/event/MV_Nikke_Dororong_1stMeet/MV_Nikke_Dororong_1stMeet_dororong_03')}
+do local paths={} for _,p in pairs(Doro.ASSETS) do paths[#paths+1]=p end Keep.want(paths) end
 local MESH,ANIM,STATIC='/Script/Engine.SkeletalMesh','/Script/Engine.AnimationAsset','/Script/Engine.StaticMesh'
 local SKINNED,SOLID='/Script/Engine.SkeletalMeshComponent','/Script/Engine.StaticMeshComponent'
 local CAMERA='/Script/Engine.CameraComponent'
@@ -41,7 +43,11 @@ local cache={}
 -- An asset by its object path: in memory already, else loaded (LoadAsset, synchronous); nil when neither gives one of
 -- that class. A cached one is used again only while it is still that object (online/partner/puppet.lua's rule), and its
 -- class is checked at each call: coop leviathan list caches a path as any Object before show asks for a mesh.
+-- A path the keep serves (core/keep.lua) is never loaded here: its object is the keep's, or nil when it is missing on
+-- this PC. Before the keep is ready, the find and the load as before, so a Doro made in the first seconds is made as
+-- today.
 function Doro.resolve(path,class)
+    if Keep.serves(path) then local a=Keep.get(path); return a and a:IsA(find(class or ANIM)) and a or nil end
     local a=same(cache[path],path)
     if not a then
         local started,again=os.clock(),cache[path]~=nil

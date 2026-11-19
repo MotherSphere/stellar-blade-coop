@@ -38,6 +38,7 @@ if M.link then
         M.took.slow,M.took.booth=0,0 -- Neither may run in this pass.
         if M.off and not M.blocked then M.blocked=M.native_off() end
         for _,line in ipairs(M.link.changes()) do log('link: '..line) end
+        M.guarded('keep',require('core.keep').slow) -- After coop off too: the status's coop_off turns it off.
         M.guarded('daynight',M.daynight.slow,M.off) -- After coop off too: it asks sky off once.
         M.guarded('pause tab',M.pause_tab.slow) -- Asks pausetab on or off; nothing after coop off.
         if not M.off then M.guarded('popups',switch_pass,'hide_popups','popups') end -- Asks popups on or off.

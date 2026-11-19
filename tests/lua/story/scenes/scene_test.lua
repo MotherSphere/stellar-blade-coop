@@ -507,4 +507,26 @@ do
     end
     assert(count==1,'One zone event call')
 end
+-- The keep (core/keep.lua): Lily's five assets are wanted when the scene is made; ready() follows the keep's.
+do
+    local Keep=require('core.keep')
+    Keep.reset()
+    local kst='engine=on keep=0 0 0'
+    Keep.setup({write=function() return true end,status=function() return kst end,log=function() end,
+        find=function() return nil,true end})
+    local s=new()
+    assert(#Scene.ASSETS==5)
+    for _,p in ipairs(Scene.ASSETS) do assert(Keep.wanted(p),p) end
+    Keep.slow()
+    assert(not s.ready())
+    kst='engine=on keep=5 5 5'
+    Keep.slow()
+    assert(s.ready())
+    -- A Lua load's restore loads no theater: one the engine collected stays out, kept (the keep's, missing here) or
+    -- not.
+    for _,p in ipairs({FAREWELL,QUINN}) do loaded[p],assets[p].destroyed=nil,true end
+    s.restore()
+    assert(not loaded[FAREWELL] and not loaded[QUINN],'No theater loaded')
+    Keep.reset()
+end
 print('scene_test: ok')
