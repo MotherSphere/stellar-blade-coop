@@ -836,6 +836,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   fake action map (each state kept and put back, an absent name back as on, a name SB changed during the ride left as SB
   set it, a name the game never made skipped, a controller gone, a fault in the middle of turning it on, a fault), the
   words packed for the worker and the status line, the ride plays' clip lookups and the log lines;
+- `game_keep_test`: the keep (`game/keep.h`): the path rule (object and class paths under `/Game/` and `/Engine/`),
+  its list of paths each asked once, at most 128, the batches and the counts, the lines of `coop-keep.txt` (70 at
+  once, the same text again adding nothing, a bad line counted) and the status field;
 - `world_daynight_sky_test`: the day and night cycle (`world/daynight/sky.h`): the clock at :02, :12, :32 and :52 and
   under 24 just before the hour's wrap, the ramps, the sun and moon at noon, sunrise, sunset, midnight and mid-morning,
   the dusk colour, the status line. Over a fake WorldSettings whose env array holds a sunlit element with its own

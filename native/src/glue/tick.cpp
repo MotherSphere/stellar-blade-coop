@@ -163,6 +163,11 @@
 // preload's state and the gate's in the engine line for vehicles/bike/ride.lua. The worker logs each change with the
 // load's time.
 //
+// The keep (game/keep.h): the worker adds the object paths Lua writes to coop-keep.txt to the keep's list. Every 250 ms
+// the game thread asks SB's own streamable manager for the paths added since its last look in one request, as the
+// bike's preload asks. It keeps the handle for the game run. Once the handle's loaded flag is set it finds each path
+// in memory. All of it runs under its own SEH latch; status() puts the counts in the engine line for core/keep.lua.
+//
 // coop shortcut (game/shortcut.h): the worker hands over Lua's ask; the game thread reads the cut Load Shortcut menu's
 // 16 paths through SB's own file manager, one a frame, under its own SEH latch, into entries the worker turns into log
 // lines. It writes nothing and keeps no bytes. coop shortcut load reads one of them the same way and keeps its bytes;
@@ -254,6 +259,7 @@
 #include "game/camps.h"
 #include "game/anim.h"
 #include "game/bike.h"
+#include "game/keep.h"
 #include "eve/debug_keys.h"
 #include "game/dev_panels.h"
 #include "cutmenus/items.h"
@@ -322,6 +328,8 @@
 #include "glue/tick/anim_game_shared.inc"
 #include "eve/anim_game.inc"
 // After anim_game_shared.inc, freeze_game_shared.inc and rows_game.inc: their calls and GMalloc.
+#include "glue/tick/bike_game_shared.inc"
+#include "glue/tick/keep_game.inc" // After bike_game_shared.inc: its async load, names and finds.
 #include "vehicles/bike/bike_game.inc"
 #include "glue/tick/camp_text_game_shared.inc"
 // After anim_game_shared.inc and freeze_game_shared.inc: their FStringArg and MakeName.
@@ -483,6 +491,10 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
     bike_tick();
   else if (game_pinned && bike_gate_pending)
     bike_publish();
+  // The keep, its own latch: a look each 250 ms (new paths asked, loaded batches found); none after coop off or its
+  // first fault. The handles stay held.
+  if (game_pinned && !keep_faulted && !blocked)
+    keep_tick(GetTickCount64());
   // coop emote's native clips, their own latch: an ask each frame, the watch each 100 ms while ours plays; after coop
   // off only to stop ours.
   if (game_pinned && !anim_faulted)

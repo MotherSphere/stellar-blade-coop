@@ -321,6 +321,12 @@ void loading_pass();
 void ask_sky(const coop::Request &request);
 // Every pass: logs each state the game thread reached, a refusal once an ask and its fault once.
 void sky_pass();
+// The keep (glue/tick/keep_game.inc, game/keep.h), worker thread. coop-keep.txt's lines (core/keep.lua writes the whole
+// list each time it grows) into the keep's list; the game thread asks SB for the new ones at its next look. Returns a
+// line for the log the first time a line is refused (not an object path, or the list full), else empty.
+std::string keep_take(const std::string &text);
+// Every pass: a line for the log with the keep's fault, once, else empty.
+std::string keep_pass();
 // coop-status.txt's sky line (world/daynight/sky.h's line) and its newline: the state, the light of the hour asked, the
 // elements written and whether EVE stands in env sunlight; refused off the pinned build.
 std::string sky_status();
@@ -329,9 +335,9 @@ std::string sky_status();
 // written>" for each slot k from 1 holding a table) or "engine=off reason=...", then " fight=on <count>",
 // " fight=probe", " fight=waiting" or " fight=stopped" while the shared fight is asked or latched, then " anim=<state>
 // anim_id=<id>" (game/anim.h's state_text, of the last play asked) and " bike=<state> bike_gate=<state>"
-// (game/bike.h's load_text and gate_text, then " bike_life=<n>", EVE's life state, when it read) on the pinned build
-// before coop off, then " nightop=on" or " nightop=rule" (once the rule was asked) last while the poller runs: no
-// per-frame counters.
+// (game/bike.h's load_text and gate_text, then " bike_life=<n>", EVE's life state, when it read) and " keep=<asked>
+// <settled> <in>" (game/keep.h's line) or " keep=fault" on the pinned build before coop off, then " nightop=on" or
+// " nightop=rule" (once the rule was asked) last while the poller runs: no per-frame counters.
 std::string status();
 // Worker: coop-status.txt's activated line (game/camps.h's line), the camps this save has activated and the camp EVE
 // respawns at as of the game thread's last check: "activated=<n>:<alias>,..." with " rested=<alias>" when known, or

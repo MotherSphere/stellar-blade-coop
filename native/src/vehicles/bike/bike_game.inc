@@ -15,22 +15,10 @@ namespace {
 // is gone. Every call runs in coop_tick on the pinned build, under its own SEH latch: the first fault ends the bike for
 // the run after one try to put the actions back. The handle is then left as it is (a leaked reference only keeps the
 // bike in memory).
-struct SoftPath { // FSoftObjectPath: the asset's FName, then its sub-path FString (empty).
-  uint64_t name;
-  FStringArg sub;
-};
-static_assert(sizeof(SoftPath) == bike::kSoftPath);
-struct PathsArg { // TArray<FSoftObjectPath> as the call takes it by value: data (GMalloc's), ArrayNum, ArrayMax.
-  SoftPath *data;
-  int32_t num, max;
-};
-using RequestAsyncLoad = void *(*)(uintptr_t manager, uintptr_t *handle_out, PathsArg *paths, uint64_t *delegate,
-                                   int32_t priority, uint8_t manage, uint8_t stalled, FStringArg *debug_name);
 using SetAction = void (*)(uintptr_t controller, uint64_t name, uint8_t state);
 using FindAction = int32_t *(*)(uintptr_t map, int32_t *index, uint64_t name);
 using ControllerCall = void (*)(uintptr_t controller);
 using ControllerDelete = void (*)(uintptr_t controller, uint32_t flags);
-using ResolveObject = uintptr_t (*)(const SoftPath *path);
 
 // The worker's asks: a preload (a clip path) or a release (no path), numbered, taken by the game thread with try_lock
 // only; the gate's wish, (its ask count << 1) | on, the last one only.
@@ -84,33 +72,11 @@ void bike_publish() {
   }
 }
 
-// FName's MakeWithNumber of text: FNAME_Add (1) for a path, FNAME_Find (0) for an action name (none when SB never made
-// it); 0 for NAME_None. rows/rows.h's split_number gives SB's own split of a trailing number.
-uint64_t bike_name(const char *text, int find_type) {
-  wchar_t wide[anim::kMaxPath + 1];
-  const size_t len = std::strlen(text);
-  if (!len || len > anim::kMaxPath)
-    return 0;
-  const lion::NameParts p = lion::split_number(text);
-  for (size_t k = 0; k < p.len; ++k)
-    wide[k] = wchar_t(uint8_t(text[k]));
-  wide[p.len] = 0;
-  const NameView view{wide, uint32_t(p.len), false};
-  uint64_t out = 0;
-  game_function<MakeName>(kMakeName)(&out, &view, find_type, p.number);
-  return uint32_t(out) && uint32_t(out) != at<uint32_t>(base + (world::kNoneName - game::kImageBase)) ? out : 0;
-}
 // A path's chars as bike_name takes them: num counts the null, which comes along.
 void bike_text(const anim::Path &p, char (&out)[anim::kMaxPath + 1]) {
   out[0] = 0;
   for (int32_t k = 0; k < p.num; ++k)
     out[k] = char(p.chars[k]);
-}
-// The object at an object path while it is in memory, else 0: SB's FSoftObjectPath::ResolveObject finds and never
-// loads (game/bike.h).
-uintptr_t bike_find(const char *path) {
-  const SoftPath soft{bike_name(path, 1), {}};
-  return soft.name ? game_function<ResolveObject>(bike::kResolveObject)(&soft) : 0;
 }
 // anim_play's, before SB's by-path call for a ride: was the clip in memory, for the worker's line.
 void bike_ride_check(const anim::Path &clip) {

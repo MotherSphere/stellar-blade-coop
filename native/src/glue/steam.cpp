@@ -33,6 +33,7 @@
 #include "glue/clipboard.h"
 #include "glue/tick.h"
 #include "link/core.h"
+#include "game/keep.h"  // kFileBytes
 #include "game/table.h" // path_allowed
 #include "game/rotation.h"      // rotation_name(), stamped()
 #include "game/shortcut_load.h" // kSlot
@@ -687,6 +688,10 @@ bool step() {
     std::string parked = take_text(folder + L"coop-parked.txt");
     while (!parked.empty() && (parked.back() == '\n' || parked.back() == '\r'))
       parked.pop_back();
+    // The keep's list (core/keep.lua writes the whole list each time it grows), taken at every pass the same way.
+    if (const std::string kept = take_text(folder + L"coop-keep.txt", DWORD(coop::keep::kFileBytes)); !kept.empty())
+      if (const std::string said = coop::pose::keep_take(kept); !said.empty())
+        event(said);
     const std::string raced = take_text(folder + L"coop-race.txt", kRaceFile); // Never logged either.
     coop::Command command = coop::parse_request(request).command;
     if (switched_off && !request.empty() && command != coop::Command::report) {
@@ -987,6 +992,8 @@ bool step() {
     coop::pose::hud_pass();
     coop::pose::loading_pass();
     coop::pose::sky_pass();
+    if (const std::string kept = coop::pose::keep_pass(); !kept.empty())
+      event(kept);
     // Channel 2 both ways (none in a match lobby). The shared quests take their SBQ lines out first, by sender: on the
     // host, one quest::Host per guest past the handshake; on a guest, the host's only. The shared world (SBW lines),
     // story together (SBS lines) and the shared fight (the rest) run within the pair only (partner(): the host and the
