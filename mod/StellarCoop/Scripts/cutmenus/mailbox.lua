@@ -53,6 +53,7 @@
 local Shop=require('core.items')
 local N=require('core.player')
 local U=require('core.unreal')
+local Keep=require('core.keep')
 local others_of=require('core.link').crowd
 local Mailbox={}
 Mailbox.ITEMS={'HP_Potion','HP_Potion_Small','HealGrenade','PulseGrenade','ConcussionGrenade','TrapGrenade',
@@ -140,11 +141,13 @@ function Mailbox.remove(pc,guid,alias,count)
     pc:ServerRequest_ItemBucketItemRemove(1,guid,FName(alias),count,-1)
 end
 -- The cut toast on screen with text as its title, through UMG's own Create on SB's player controller: a function that
--- takes it off and the widget's object path, false with no controller (a load), or nil and why. Its class is loaded
--- the first time a gift arrives (LoadAsset, synchronous).
+-- takes it off and the widget's object path, false with no controller (a load) or while the keep (core/keep.lua) has
+-- not settled, or nil and why. Its class is the keep's; without the keep it is loaded the first time a gift arrives
+-- (LoadAsset, synchronous).
 function Mailbox.toast(text)
-    local class=U.valid(StaticFindObject(TOAST))
-    if not class then
+    if Keep.wanted(TOAST) and not Keep.ready() then return false end -- Skipped: the next gift tries again.
+    local class=Keep.serves(TOAST) and Keep.get(TOAST) or U.valid(StaticFindObject(TOAST))
+    if not class and not Keep.serves(TOAST) then
         pcall(LoadAsset,TOAST:sub(1,-3))
         class=U.valid(StaticFindObject(TOAST))
     end
@@ -182,6 +185,7 @@ function Mailbox.new(o)
     local clock,now,toast,sweep=o.clock or os.clock,o.now or os.time,o.toast or Mailbox.toast,o.sweep or Mailbox.sweep
     local store=o.store or {save=function() end,load=function() end,clear=function() end}
     local self={}
+    Keep.want({TOAST})
     local sending=nil -- A send under way (Lua memory only: nothing has left the inventory before its remove).
     local pending,last_file=true,nil -- out or back entries may wait in the file named last_file.
     local tried={} -- A gift coming back whose grant raised: when, by id, so it is tried again after RETRY s only.

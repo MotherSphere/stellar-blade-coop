@@ -209,4 +209,25 @@ hooks[2].f(after)
 assert(#after_children==9)
 hooks[1].f(before_children[9])
 assert(sent[1]=='WB_AreaTeleport_Tab_8')
+-- The keep: the classes wanted when the tabs are made; while the keep has not settled the hooks wait (hooked stays
+-- false: no hook, no load); once settled they install from the classes in memory, with no LoadAsset.
+do
+    local Keep=require('core.keep')
+    local keep_fake=dofile('tests/lua/core/keep_fake.lua')
+    reset()
+    local function class(p)
+        return object({GetOuter=function() return object() end,GetFullName=function() return 'Class '..p end})
+    end
+    objects[SET..'_C'],objects[TAB..'_C']=class(SET..'_C'),class(TAB..'_C')
+    local kf=keep_fake(function(p) return objects[p],true end)
+    local t=new(true)
+    assert(Keep.wanted(SET..'_C') and Keep.wanted(TAB..'_C'))
+    Keep.slow()
+    for _=1,5 do t.tick() end
+    assert(#hooks==0 and #loaded==0,'The hooks wait for the keep')
+    kf.settle()
+    t.tick()
+    assert(#hooks==2 and #loaded==0,#hooks)
+    Keep.reset()
+end
 print('region_tabs_test: ok')

@@ -543,4 +543,20 @@ assert(toasts[#toasts]=='Kaanta: 1 HealGrenade' and stored=='/Engine/Transient.T
 u=untoasts
 again.stop()
 assert(untoasts==u+1 and stored==nil)
+-- The keep: the toast's class wanted when the mailbox is made; while the keep has not settled the toast is skipped
+-- (false, as with no controller) with no lookup and no LoadAsset.
+do
+    local Keep=require('core.keep')
+    local keep_fake=dofile('tests/lua/core/keep_fake.lua')
+    local kf=keep_fake(function() return nil,true end)
+    M.new(opts)
+    Keep.slow()
+    assert(kf.text:find('WB_MailBox_Toast_GetGift_C',1,true) and not Keep.ready())
+    local saved_find,saved_load=StaticFindObject,LoadAsset
+    StaticFindObject=function(p) error('StaticFindObject '..p,0) end
+    LoadAsset=function(p) error('LoadAsset '..p,0) end
+    assert(M.toast('A gift')==false)
+    StaticFindObject,LoadAsset=saved_find,saved_load
+    Keep.reset()
+end
 print('cut_mailbox_test ok')

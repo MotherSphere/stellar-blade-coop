@@ -10,7 +10,7 @@
 -- pause tag held for another player's photo mode or the host's cutscene), night() (Night Operation runs), lobby()
 -- (EVE stands in the SBO lobby in Xion's training room), find(path) -> object or nil, actors_of(class path) -> list,
 -- load(path), exists(path), cps (the third-party plugin's file), level(package) -> the streaming level of a sublevel in
--- EVE's world or nil.
+-- EVE's world or nil, stars_ready() -> the star material can be had without a load on the game thread (the keep's).
 -- The sky dressing, from the status line's sun while the native part's light is ours: the painted domes of a real-sky
 -- map hidden; SBO's star layer (a StaticMeshComponent tagged SBO_Stars on the first dome's actor, the dome's
 -- mesh with SB's star material, found again by its tag after a Lua reload) shown at night; each SkyCreator's own time
@@ -333,8 +333,8 @@ function Daynight.new(o)
     -- SB's star material, loaded once a world when the layer first shows, with the scalar that fades it (or none).
     local function star_material()
         local began=os.clock()
-        -- shortcut: a synchronous LoadAsset once per world entry on star-layer maps; if the logged time passes 16 ms,
-        -- move it to SB's async load (the bike preload's RequestAsyncLoad call, bike_game.inc).
+        -- shortcut: without the keep (o.load then loads), a synchronous LoadAsset once per world entry on star-layer
+        -- maps; the keep (core/keep.lua) brings it in through SB's async load.
         local loaded,e=pcall(o.load,Rule.STARS)
         local m=U.valid(o.find(Rule.STARS))
         if not m then
@@ -380,7 +380,7 @@ function Daynight.new(o)
     -- without one, shown from the dark sky on (Rule.dress).
     local function stars(row,el)
         local fade=Rule.star_fade(el)
-        if fade>0 and w.material==nil then w.material=star_material() end
+        if fade>0 and w.material==nil and o.stars_ready() then w.material=star_material() end
         local on
         if w.scalar then on=fade>0 else on=Rule.dress(row,el).stars end
         if on and not w.layer and w.material then

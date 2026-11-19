@@ -8,11 +8,15 @@ exports={'daynight'},
 new=function(M)
 local print,log=M.print,M.log
 local U=require('core.unreal')
+local Keep=require('core.keep')
+local Rule=require('world.daynight.rule')
 -- The day/night cycle (world/daynight/daynight.lua): the request for the native part's env writer
 -- (world/daynight/sky.h), decided in the 250 ms loop of main/pass.lua from the map, the setting and SB's state; coop
 -- daynight reads and pins it (world/daynight/commands.lua).
 -- The lobby rule is Xion's training room only: a hall lobby has its own row.
 -- coop-sky.txt keeps the originals of the world's lights, so a Lua reload does not take the dimmed ones for them.
+-- The star material is the keep's (core/keep.lua): the layer waits for it, never loads it on the game thread.
+Keep.want({Rule.STARS})
 M.daynight=require('world.daynight.daynight').new({log=log,ask=function(line) return M.ask(line)() end,
     status=function() return M.link and M.link.status() end,settings=M.settings,
     store=M.link and M.link.store('coop-sky.txt'),
@@ -28,12 +32,16 @@ M.daynight=require('world.daynight.daynight').new({log=log,ask=function(line) re
         local t=M.sbo and M.sbo.target()
         return t~=nil and t.key=='xion'
     end,
-    find=function(path) return U.valid(StaticFindObject(path)) end,
+    find=function(path)
+        if Keep.serves(path) then return Keep.get(path) end
+        return U.valid(StaticFindObject(path))
+    end,
     actors_of=function(path)
         local cls,her=U.valid(StaticFindObject(path)),U.her(U.valid(require('UEHelpers').GetPlayer()))
         return cls and her and (U.actors_of(cls,path:match('([^.]+)$'),her)) or {}
     end,
-    load=function(path) return LoadAsset(path) end,
+    load=function(path) if not Keep.serves(path) then return LoadAsset(path) end end,
+    stars_ready=function() return not Keep.wanted(Rule.STARS) or Keep.ready() end,
     -- The streaming level of a sublevel package in EVE's world (GameplayStatics GetStreamingLevel matches the end of
     -- each streaming level's package name in C++), or nil when it is not streamed.
     level=function(package)
@@ -45,7 +53,7 @@ M.daynight=require('world.daynight.daynight').new({log=log,ask=function(line) re
         if f then f:close() end
         return f~=nil
     end,
-    cps=M.folder and require('world.daynight.rule').cps(M.folder)})
+    cps=M.folder and Rule.cps(M.folder)})
 return require('world.daynight.commands').new({daynight=M.daynight})
 end,
 }

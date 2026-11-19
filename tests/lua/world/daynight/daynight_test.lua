@@ -159,7 +159,7 @@ local o={log=function(m) printed[#printed+1]=m end,
     map_of=function(e) calls.map_of=calls.map_of+1; return e.map end,
     photo=function() return world.photo end,frozen=function() return world.frozen end,
     night=function() return world.night end,
-    lobby=function() return world.lobby end,
+    lobby=function() return world.lobby end,stars_ready=function() return not world.stars_wait end,
     find=function(path)
         calls.find=calls.find+1
         if path==Rule.MAPS[E04].flag then calls.find_flag=calls.find_flag+1 end
@@ -477,4 +477,16 @@ streamed[package(Rule.MAPS[E04].day_dome)],creator_list=nil,nil
 D=Daynight.new(o); local seen,writes=calls.actors_of_lights,calls.set_intensity+calls.rotate
 eve=new_eve(0x900,'/game/sbo_lobby/lobby_terrace'); D.slow(false)
 assert(calls.actors_of_lights==seen and calls.set_intensity+calls.rotate==writes and asked[#asked]=='sky off')
+-- 24. The keep: while the star material is wanted and not in (stars_ready false), dusk makes no load and no lookup
+--     of it; once it is in, the next pass loads the layer's material once.
+do
+    local loads=calls.load
+    eve=new_eve(0x900,W); st.el=-10; world.stars_wait=true
+    local D4=Daynight.new(o)
+    for _=1,3 do D4.slow(false) end
+    assert(calls.load==loads,'No star material before the keep has it')
+    world.stars_wait=false
+    D4.slow(false)
+    assert(calls.load==loads+1)
+end
 print('daynight_test ok')

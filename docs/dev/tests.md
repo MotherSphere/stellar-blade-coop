@@ -162,6 +162,12 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   find and the load as before until the keep is ready; `story/scenes/scene_test` Lily's five assets wanted, `ready()`
   following the keep and a Lua load's restore that loads no theater; `world/maps/matrix13/quest/subtitles_test` a talk
   that waits for the keep with one line and no walk before it goes on (no wait while `coop scene` is off);
+- `world/maps/matrix13/level/breakables_test` and `world/maps/matrix13/level/move_test` cover the keep's classes (and
+  the ledge's mesh) wanted when the module is made, no spawn before the keep settled, then one find each for the game
+  run with no `LoadAsset`, a second world included; `cutmenus/mailbox_test` the gift toast skipped (false) with no
+  lookup while the keep has not settled; `online/modes/nightop/board_test` the board's class wanted, no lookup or load
+  before the keep settled, then the keep's class with no `LoadAsset`; `online/group/region_tabs_test` the two hooks
+  waiting for the keep, then installed from the classes in memory with no `LoadAsset`;
 - `ui/kit/model_test` covers the four Who can join values and the Friends join without asking row, shown under Public
   and Invitation only, then the Online tab row named in `docs/players/interface.md`'s Options paragraph between the
   bike's key and Reset all keys;
@@ -215,7 +221,8 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   the first tick after the unpause or the give-up line and notice after 2 s, a close refused for now logged once with
   nothing opened, a close that can never work stopping the tab with one STOP line and `pausetab off`, `pause_tab=off`
   making nothing and asking `pausetab off`, a refused ask asked again and logged once, a pause menu of another shape
-  stopping the tab with one STOP line and `pausetab off`, then `coop off` stopping it;
+  stopping the tab with one STOP line and `pausetab off`, then `coop off` stopping it; with the keep, the hook waiting
+  until it settled, then installed from the class in memory with no `LoadAsset`;
 - `world/daynight/rule_test` covers `world/daynight/rule.lua`: every row of the map table (keys in lower case, each open
   row complete for its kind of sky, the fixed maps, an unknown map), the rules in their order (SB's screens and
   cutscenes ignored, Xion's story night before photo mode, photo mode's hold whatever the hour, a test pin before Night
@@ -239,7 +246,8 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   after its sublevel came (not before) with the SkyCreators listed again, one dropped when it went, one looked up again
   after it went and came back between two reads, one SB showed again told once across its sublevel's return, a
   SkyCreator sublevel with no dome, nothing read off the live passes and a sublevel that came meanwhile looked up at the
-  first live pass, a streaming level whose read raises; the Terrace hall left alone;
+  first live pass, a streaming level whose read raises; the Terrace hall left alone; with the keep, no star material
+  loaded at dusk until it is in;
 - `world/objects/wiring_test` covers `coop world` (its words, on and off whatever `shared_world` says, status), the
   start once a load with `shared_world=on`, the end at a reload with `shared_world=off`, and the shared world's two
   notices;
@@ -305,7 +313,9 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   at once, and a hidden world's root left collapsed), the menu's mouse cursor, the focus put back after a click, the
   focus watchdog and the focus line it logs as it fires, text shadows and wrap, fixed groups, SB parts and the keyboard
   layout from the game's device. It also checks that a root built while its look warms holds each texture it wanted once
-  warmed, so a GC before the next build frees none of them;
+  warmed, so a GC before the next build frees none of them. With the keep, every asset path and part class is wanted,
+  no warm-up lookup runs until the keep settled (the root is built in its flat look meanwhile) and no `LoadAsset` runs
+  after;
 - `online/lobby/ui/lobby_test` covers the lobby menu and settings on fake SB parts: layout, rows, focus looks, the leave
   question, the countdown, the kit drawing that stands in for a part the game cannot make (row labels, settings items,
   the leave question with Yes and No, the countdown's seconds), the lines logged as the screens open and close and the

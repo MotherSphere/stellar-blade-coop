@@ -19,6 +19,7 @@
 -- save, trophy or inventory call of its own (SB's close saves only as it does on Back).
 -- tests/lua/ui/kit/pause_tab_test.lua covers it over fakes.
 local U=require('core.unreal')
+local Keep=require('core.keep')
 local Tab={WAIT=2}
 local MASTER='/Game/Art/UI/Widget/GameMenu/WB_GameMenu_Master.WB_GameMenu_Master'
 local KEEPER=MASTER..'.StellarCoop_PauseTabKeeper'
@@ -27,8 +28,9 @@ local HIT_TEST_INVISIBLE=3 -- ESlateVisibility.
 local STYLE={'TextWidthValue','MinTextMargin','TextColor','TextFont','TextShadowColor'}
 local LAYOUT,SLATE='/Script/UMG.Default__WidgetLayoutLibrary','/Script/UMG.Default__SlateBlueprintLibrary'
 
--- A class by its asset's path, loaded when it is not in memory.
+-- A class by its asset's path: the keep's (core/keep.lua) when it serves it, else loaded when it is not in memory.
 local function class_of(asset)
+    if Keep.serves(asset..'_C') then return assert(Keep.get(asset..'_C'),asset..' is not in memory') end
     local class=U.valid(StaticFindObject(asset..'_C'))
     if class then return class end
     pcall(LoadAsset,asset)
@@ -45,6 +47,7 @@ function Tab.new(o)
     local hooked,failed,stopped=false,false,false
     local master,button,closed_at=nil,nil,nil
     local asked,refused=nil,nil -- The last ask written (true: on); the last refusal logged.
+    Keep.want({MASTER..'_C'})
     local function fail(e)
         failed=true
         log('STOP: '..tostring(e)..'; the pause menu keeps its 8 tabs until the mod reloads')
@@ -103,10 +106,10 @@ function Tab.new(o)
     local self={}
     -- Whether a left click may be ours: a pause menu got our button. No engine call: the key thread reads it.
     function self.armed() return master~=nil and button~=nil and not failed and not stopped and o.enabled() end
-    -- Each frame: the hook once a Lua load, as soon as the game is far enough; then, after a close, the co-op menu once
-    -- the game is unpaused, or the give-up after WAIT s.
+    -- Each frame: the hook once a Lua load, as soon as the game is far enough and the keep settled; then, after a
+    -- close, the co-op menu once the game is unpaused, or the give-up after WAIT s.
     function self.tick(now)
-        if not hooked and not stopped and o.ready() then
+        if not hooked and not stopped and o.ready() and (not Keep.wanted(MASTER..'_C') or Keep.ready()) then
             hooked=true
             local ok,e=pcall(install)
             if not ok then fail(e) end

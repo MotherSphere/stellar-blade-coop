@@ -20,6 +20,7 @@
 -- what it spawned so far. Co-op: each PC spawns its own; a box broken on one PC stays whole on the other.
 -- [inference] Whether a ZoneEventActor spawned after its level loaded registers with its row and breaks is untested.
 local U=require('core.unreal')
+local Keep=require('core.keep')
 local N=require('core.player')
 local Rows=require('world.maps.matrix13.level.rows')
 local Breakables={}
@@ -40,6 +41,7 @@ local ALWAYS_SPAWN=1 -- ESpawnActorCollisionHandlingMethod::AlwaysSpawn.
 function Breakables.new(o)
     local log,list=o.log,o.list or Rows.BREAK
     local self={}
+    for _,asset in pairs(Breakables.ASSETS) do Keep.want({asset..'_C'}) end
     -- world: the address the list was spawned in (or is being spawned in); todo: the next entry to spawn,
     -- nil when done.
     local world,next_look,todo,proxies,made,hidden=nil,0,nil,nil,0,0
@@ -47,11 +49,13 @@ function Breakables.new(o)
     -- The world's counts by class (order: the classes in list order) and its spread (ticks, the longest, its start).
     local counts,order,ticks,longest,began={},{},0,0,0
     local looked=0 -- Seconds the world's entries spent finding their class (the spread line's lookups).
-    -- Found each time, never held: the game unloads them with the map, and a freed class read crashed it
-    -- (2026-11-03). Each lookup is UE4SS's StaticFindObject, which walks the object array up to the class (25 to 35 ms
-    -- in game for a path not in memory; core/unreal.lua's class_at).
+    -- Held by the keep for the game run (core/keep.lua), so the same class serves every world: a freed class read
+    -- crashed the game on 2026-11-03, before the keep. Without the keep, found each time, never held: each lookup is
+    -- UE4SS's StaticFindObject, which walks the object array up to the class (25 to 35 ms in game for a path not in
+    -- memory; core/unreal.lua's class_at).
     local function class_of(cls)
         local path=Breakables.ASSETS[cls]..'_C'
+        if Keep.serves(path) then return assert(Keep.get(path),path..' is not in memory') end
         local c=U.valid(StaticFindObject(path))
         if not c then
             pcall(LoadAsset,Breakables.ASSETS[cls])
@@ -183,6 +187,7 @@ function Breakables.new(o)
             if not found then log('no proxy list ('..tostring(got)..'): only the entries without a proxy spawn') end
             return
         end
+        if not Keep.ready() then return end -- The classes are the keep's: nothing spawns before it settled.
         local start=os.clock()
         while todo<=#list do
             local m=list[todo]

@@ -222,4 +222,25 @@ s.tab.stop()
 assert(not s.tab.armed())
 local m6,b6=menu(); construct(m6)
 assert(#b5==9 and #b6==8,'Stopped: no more buttons')
+-- The keep: the class wanted when the tab is made; while the keep has not settled the hook waits (hooked stays false:
+-- no hook, no load); once settled it installs from the class in memory, with no LoadAsset.
+do
+    local Keep=require('core.keep')
+    local keep_fake=dofile('tests/lua/core/keep_fake.lua')
+    reset()
+    local function class(p)
+        return object({GetOuter=function() return object() end,GetFullName=function() return 'Class '..p end})
+    end
+    objects[MASTER..'_C']=class(MASTER..'_C')
+    local kf=keep_fake(function(p) return objects[p],true end)
+    local s=new()
+    assert(Keep.wanted(MASTER..'_C'))
+    Keep.slow()
+    for _=1,5 do s.tab.tick(0) end
+    assert(#hooks==0 and #loaded==0,'The hook waits for the keep')
+    kf.settle()
+    s.tab.tick(0)
+    assert(#hooks==1 and #loaded==0,#hooks)
+    Keep.reset()
+end
 print('pause_tab_test ok')
