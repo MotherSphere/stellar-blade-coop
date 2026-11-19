@@ -211,17 +211,18 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   plugin's line once. Then the sky dressing: each dome looked up once per world and hidden once, a dome SB shows again
   hidden at the next 2 s look with one line, left to SB when shown at the next look too and tried again 30 s later, a
   missing one logged once, the star layer made once with its material loaded once a world and faded on change, the
-  SkyCreators' time on change and back at an off, Xion's night dome shown through its actor and again after its story
-  night, a Lua reload at night that finds the star layer by its tag (no second one), an earlier load's dressing put back
-  by a new load that starts off. Last, SBO's own maps: the Sun turned, its intensity, its colour and the SkyLight's
-  intensity scaled, Matrix XIII's exposure bias lowered, each written on change only and put back at an off. Then the
-  originals across a Lua reload at full night (the Hotel's lights, Matrix XIII's bias, a SkyCreator's time, each kept in
-  `coop-sky.txt` with no compounding and back at an off), a new EVE in the same world, a new game run that reads the
-  lights again and a `coop-sky.txt` that cannot be written. Spire 4's streamed sky sublevels: a dome that waits for its
-  sublevel with no lookup, one looked up and hidden 2 s after its sublevel came (not before) with the SkyCreators listed
-  again, one dropped when it went, one looked up again after it went and came back between two reads, a SkyCreator
-  sublevel with no dome, nothing read off the live passes and a sublevel that came meanwhile looked up at the first live
-  pass, a streaming level whose read raises; the Terrace hall left alone;
+  SkyCreators' time on change and back at an off, Xion's night dome shown through its actor, hidden again through it
+  when SB shows it by day, shown again after its story night, a Lua reload at night that finds the star layer by its tag
+  (no second one), an earlier load's dressing put back by a new load that starts off. Last, SBO's own maps: the Sun
+  turned, its intensity, its colour and the SkyLight's intensity scaled, Matrix XIII's exposure bias lowered, each
+  written on change only and put back at an off. Then the originals across a Lua reload at full night (the Hotel's
+  lights, Matrix XIII's bias, a SkyCreator's time, each kept in `coop-sky.txt` with no compounding and back at an off),
+  a new EVE in the same world, a new game run that reads the lights again and a `coop-sky.txt` that cannot be written.
+  Spire 4's streamed sky sublevels: a dome that waits for its sublevel with no lookup, one looked up and hidden 2 s
+  after its sublevel came (not before) with the SkyCreators listed again, one dropped when it went, one looked up again
+  after it went and came back between two reads, one SB showed again told once across its sublevel's return, a
+  SkyCreator sublevel with no dome, nothing read off the live passes and a sublevel that came meanwhile looked up at the
+  first live pass, a streaming level whose read raises; the Terrace hall left alone;
 - `world/objects/wiring_test` covers `coop world` (its words, on and off whatever `shared_world` says, status), the
   start once a load with `shared_world=on`, the end at a reload with `shared_world=off`, and the shared world's two
   notices;

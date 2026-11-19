@@ -309,6 +309,11 @@ assert(#creator.times==3 and creator.times[3]==12); settings.daynight=true
 eve=new_eve(0x600,E04); st.el=-5; D.slow(false)
 assert(xion_day.hidden==true and night_actor.bHidden==false and xion_night.vis_calls==0)
 st.el=-3; D.slow(false); assert(xion_day.hidden==false and night_actor.bHidden==true and xion_night.hidden==false)
+-- Review Focus 5 for the night dome, read through its actor: SB shows it by day, the next look hides it again with
+-- one line; a look that finds it hidden says nothing more.
+night_actor.bHidden=false; for _=1,8 do D.slow(false) end
+assert(night_actor.bHidden==true and count_logged('SB showed SM_SkySphere_NIGHT, hidden again')==1)
+for _=1,8 do D.slow(false) end; assert(count_logged('SB keeps SM_SkySphere_NIGHT')==0)
 -- 16. Off: Xion's domes back to SB's shipped state; with Xion's story night on, they are left as they are.
 st.el=-5; D.slow(false); D.slow(true)
 assert(xion_day.hidden==false and night_actor.bHidden==true and xion_night.hidden==false and xion_night.vis_calls==0)
@@ -446,6 +451,14 @@ assert(calls.find==finds+1 and logged('a sublevel came or went: 1 of 4 domes %(3
 stream(2,true); for _=1,8 do D.slow(false) end; assert(b07[2].RootComponent.hidden==true and calls.find==finds+2)
 local old=b07[2]; stream(2,true); assert(old.gone and streamed[package(paths[2])].visible) -- Out and in between looks.
 for _=1,8 do D.slow(false) end; assert(b07[2].RootComponent.hidden==true and calls.find==finds+3)
+-- Review Focus 5 across a sublevel's return: one line per dome and world, not one per lookup.
+local showed='SB showed '..paths[2]:match('[^.:]+$')..', hidden again'
+local said=count_logged(showed)
+b07[2].RootComponent.hidden=false; for _=1,8 do D.slow(false) end
+assert(b07[2].RootComponent.hidden==true and count_logged(showed)==said+1)
+stream(2,false); for _=1,8 do D.slow(false) end; stream(2,true); for _=1,8 do D.slow(false) end
+b07[2].RootComponent.hidden=false; for _=1,8 do D.slow(false) end
+assert(b07[2].RootComponent.hidden==true and count_logged(showed)==said+1,'Told once in this world')
 stream(5,true); creator_list={c02,c05}; for _=1,8 do D.slow(false) end
 assert(c05.time==Rule.creator_time(12,5,21) and #c02.times==1,'The SkyCreator already listed keeps its state')
 settings.daynight=false; D.slow(false)

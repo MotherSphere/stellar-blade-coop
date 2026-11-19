@@ -402,13 +402,11 @@ function Daynight.new(o)
     -- The domes we hid, read every 2 s while live: one SB showed again (a sequence may) is written hidden in this pass
     -- with one line. One SB shows again at the next look too is left to it until LEAVE_LOOKS looks found it shown, then
     -- tried once more; a look that finds it hidden starts over. A read that raises leaves the part as it is. The star
-    -- layer is not among them.
+    -- layer is not among them. The lines are told once per slot: a streamed dome looked up again stays told.
     local function recheck()
-        local parts={table.unpack(w.domes)}
-        parts[#parts+1]=w.day -- Xion's two; a nil appends nothing.
-        parts[#parts+1]=w.night
-        for _,part in ipairs(parts) do
-            if not part.dead and part.on==false and U.valid(part.c) then
+        for _,s in ipairs(w.slots) do
+            local part=s.part -- The domes and Xion's two; a SkyCreator's sublevel has none.
+            if part and not part.dead and part.on==false and U.valid(part.c) then
                 local ok,shown=pcall(function()
                     if part.actor_level then return part.actor.bHidden==false end
                     return part.c.bVisible==true
@@ -418,12 +416,12 @@ function Daynight.new(o)
                     part.seen=(part.seen or 0)+1
                     if part.seen==1 or part.seen%LEAVE_LOOKS==0 then
                         part.on=nil -- show writes it hidden again in this pass.
-                        if not part.told then
-                            part.told=true
+                        if not s.told then
+                            s.told=true
                             o.log('daynight: SB showed '..part.what..', hidden again')
                         end
-                    elseif part.seen==2 and not part.told_kept then
-                        part.told_kept=true
+                    elseif part.seen==2 and not s.told_kept then
+                        s.told_kept=true
                         o.log('daynight: SB keeps '..part.what..' shown; left to it, tried again in 30 s')
                     end
                 end
