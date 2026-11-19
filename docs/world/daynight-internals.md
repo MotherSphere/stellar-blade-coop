@@ -195,6 +195,14 @@ The rules of a pass (`sky::Sky::pass`):
   the value the last pass wrote. Anything else (SB copied other values in, or a new world reused the address) is read
   as new, so cached originals never land on an element they do not belong to.
 - Another world or WorldSettings, or none: the cache is dropped, since the old array died with its world.
+- A change of draw (a hold released; a pinned hour set, changed or cleared) glides over 2000 ms of the pass's UTC clock.
+  Its first pass copies each element's 17 written floats as the start; each field then goes to the new hour's value by
+  a smoothstep. The direction is the normalised blend of both, or the new one where the blend is shorter than 0.001
+  (the moon's swap at -4 degrees). The tick runs a pass every frame while a glide lasts. A change during a glide starts
+  the next one from the mix. An element read as new during a glide gets the new hour at once. A hold that starts during
+  a glide keeps its target hour. A map with no element glides the light the status line prints. A change seen under
+  SB's forced settings glides once they end; a pass under them stops a running glide, which goes on from what the
+  elements hold once they end. An off, `coop off`, a fault, another world or a clock that steps back end it at once.
 - An off (the request or `coop off`): each element of the current world that still holds our value or its original gets
   its originals back once, then nothing is written.
 - The first fault: one try to put SB's values back, then the cycle stays off for the game run (state `fault`).
@@ -228,6 +236,11 @@ light's colour, `n` the elements, `lit` the sunlit ones and `seen` 1 when EVE st
 keep four and three decimals: Lua turns the SBO maps' Sun and SB's SkyCreators from them each 250 ms, about 0.02 degree
 a pass. Rounded to one decimal, they moved in steps of 0.1 to 0.15 degree every second or so. The line moves each
 second, so it stays out of the `link:` lines of `UE4SS.log`.
+
+During a glide the line carries the light the pass drew: `k`, `amb`, `eve`, `ev`, `tint` and `el` mixed, `le` and `ly`
+from the mixed direction, `h` the old draw's until half way, the new one's from there. Lua turns each SkyCreator from
+`h`, so its time changes once, at half way; the star layer's fade and Xion's night dome follow `el`, so the stars fade
+in over the glide.
 
 `coop-link.log` gets a `sky:` line at each change of state and at each new world the cycle writes in, for example
 `sky: cycle, 114 volumes, 20 in the sun`, then `sky: not written: <why>` once per request off the pinned build and the
@@ -291,6 +304,7 @@ SBO searches nothing on a timer.
 | --- | --- | --- |
 | Native, each frame | one clock read and one compare; while the array holds our values, SB's player controller and its world reached again (two SB calls, four pointer reads) and the array's pointer and count read (two plain reads, no system call) | |
 | Native, every 100 ms | SB's player controller and its world (two SB calls, four pointer reads), the overlay's count (one int read); up to 256 elements, each a key compare and up to 22 float writes | the minute line's native tick maximum shows it |
+| Native, each frame while a glide runs | a full pass (at most 256 elements of 17 floats) | 2 s after a hold, a pinned hour set or cleared |
 | Lua, every 250 ms | the rules on cached values, the pass's status text, a request only on change | |
 | Lua, SkyCreator maps | one `SetTime` a pass while the hour moves | 4 calls a second |
 | Lua, SBO's own maps | up to 4 reflected writes a pass, only on change | 16 a second |

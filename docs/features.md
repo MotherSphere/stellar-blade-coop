@@ -100,7 +100,8 @@ achievements, which cannot be taken back.
   own light. Talks, cutscenes and the game's menus show the hour of the world around them, with no change of light when
   they open or close. The NIKKE boss arena, the story places and the Terrace hall keep their fixed light: the Terrace
   stays a night hall. `daynight=off` (Options, Display) gives each map Stellar Blade's own fixed light, as before.
-  `coop daynight hour <h>` pins an hour for tests. It is not tested in game yet (see
+  `coop daynight hour <h>` pins an hour for tests. The light moves to a new hour over 2 seconds when photo mode closes,
+  when Night Operation starts or ends and when `coop daynight hour` changes the hour. It is not tested in game yet (see
   [the day and night cycle](world/daynight-internals.md)).
 - `coop leviathan` shows Leviathan, a Naytiba cut from the game whose models and animations are still in its files, as
   a display-only model in front of EVE, with a free camera for filming. `coop gardener` and `coop tendril` do the same

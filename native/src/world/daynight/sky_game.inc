@@ -15,13 +15,15 @@ namespace {
 // The worker's ask, packed: the mode, the pinned minute, the map's horizon and noon heading.
 std::atomic<uint64_t> sky_want_word{0};
 // What the game thread did, for the worker's line and log: world/daynight/sky.h's State, the worlds seen, the elements
-// and the sunlit ones, whether EVE stands in env sunlight, the hour the last pass drew (a hold's hour lives only here)
-// and the latch.
+// and the sunlit ones, whether EVE stands in env sunlight and the latch. The light the last pass drew sits under a
+// mutex the game thread only try-locks, so the worker never prints a light torn between two passes.
 std::atomic<uint8_t> sky_state{uint8_t(sky::State::off)};
 std::atomic<uint32_t> sky_worlds{0};
 std::atomic<int> sky_elements{0}, sky_sunlit{0}, sky_overlay{0};
 std::atomic<bool> sky_seen{false}, sky_faulted{false};
-std::atomic<double> sky_drawn_hour{-1};
+std::mutex sky_drawn_m;
+sky::Light sky_drawn_light{}; // Both under sky_drawn_m.
+bool sky_drawn_set = false;
 std::atomic<uint64_t> sky_fault_code{0}, sky_fault_rva{0}, sky_fault_address{0};
 // The game thread's.
 sky::Sky sky_writer; // Two caches of 256 elements: a global, never on the stack.
@@ -65,7 +67,6 @@ __declspec(noinline) void sky_body(const sky::Want &want) {
   sky_sunlit = sky_writer.sunlit();
   sky_overlay = sky_writer.overlay();
   sky_seen = sky_writer.seen();
-  sky_drawn_hour = sky_writer.light().hour;
   sky_state = uint8_t(s);
   if (world && world != sky_last_world) { // Last: the worker's line for a new world reads this pass's numbers.
     sky_last_world = world;
@@ -84,7 +85,8 @@ __declspec(noinline) bool sky_moved() {
          sky_writer.moved(at<uintptr_t>(settings + sky::kArray), at<int32_t>(settings + sky::kNum));
 }
 // Each frame one clock read; while the array holds our values, the watch too (two SB calls, six reads). A pass each
-// kPassMs, or in the frame the array changed. coop off asks for SB's light back: tick.cpp calls this after it only
+// kPassMs, in the frame the array changed, or each frame while a glide runs on our array. A map with no element glides
+// its printed light at the kPassMs passes. coop off asks for SB's light back: tick.cpp calls this after it only
 // while the array still holds our values. The first fault latches the cycle off for the run, after one try to put
 // SB's values back.
 void sky_tick() {
@@ -103,13 +105,19 @@ void sky_tick() {
     return;
   }
   __try {
-    if (due || sky_moved())
+    if (due || sky_writer.gliding() || sky_moved())
       sky_body(want);
   } __except (fault_filter(GetExceptionInformation(), sky_fault_code, sky_fault_rva, sky_fault_address)) {
     sky_faulted = true;
   }
-  if (!sky_faulted)
+  if (!sky_faulted) { // Outside the __try: a fault never leaves the mutex held. A busy lock skips one copy.
+    if (sky_drawn_m.try_lock()) {
+      sky_drawn_light = sky_writer.drawn();
+      sky_drawn_set = true;
+      sky_drawn_m.unlock();
+    }
     return;
+  }
   __try {
     sky_writer.restore();
   } __except (passed_on(GetExceptionCode()) ? EXCEPTION_CONTINUE_SEARCH : EXCEPTION_EXECUTE_HANDLER) {
