@@ -21,6 +21,7 @@ return {
         max_players='Jogadores',auto_coop_save='Jogos salvos co-op',enemy_hp_scale='PV dos inimigos (anfitrião)',
         enemy_balance_scale='Equilíbrio inimigo (anfitrião)',kill_credit='Recompensas de abate',
         same_place='Mesma posição (em teste)',aggro='Inimigos atacam (anfitrião)',
+        hit_reactions='Recuos compartilhados (em teste)',stagger_resist='Resistência a golpes (em teste)',
         same_spawns='Mesmos spawns (em teste)',enemy_extra='Inimigos extras (anfitrião)',
         bosses='Chefes compartilhados (em teste)',boss_hp_scale='PV dos chefes (anfitrião)',
         shared_quests='Missões compartilhadas (em teste)',

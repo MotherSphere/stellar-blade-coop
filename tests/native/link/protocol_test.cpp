@@ -776,6 +776,16 @@ int main() {
                           "fight on spawns bosses 200", "fight on bosses 200 bosses 200", "fight on 1 bosses 200",
                           "fight on Bosses 200", "fight on boss 200", "fight off bosses 200", "fight pilot bosses 200"})
     assert(parse_request(bad).command == Command::none);
+  // Phase 8: hit_reactions=on as "reactions" and stagger_resist=on as "resist", after bosses, before spawns; and the
+  // host's change at once as "fight stagger <0|1> <0|1>".
+  f = parse_request("fight on scale 135 115 place bosses 200 reactions resist spawns 15011001");
+  assert(f.reactions && f.resist && f.bosses == 200 && f.spawns && (f.chars == std::vector<uint32_t>{15011001}));
+  assert(!parse_request("fight on resist").reactions && parse_request("fight on resist").resist);
+  f = parse_request("fight stagger 1 0");
+  assert(f.fight == Fight::stagger && f.reactions && !f.resist);
+  for (const char *bad : {"fight stagger", "fight stagger 1", "fight stagger 2 0", "fight stagger 1 0 1",
+                          "fight on resist reactions"})
+    assert(parse_request(bad).command == Command::none);
   // Stage 4: same_spawns=on as "spawns", one word after aggro-host (or where it would be), before the ids; none: off.
   f = parse_request("fight on scale 135 115 place aggro-host spawns 15011001");
   assert(f.place && f.aggro_host && f.spawns && (f.chars == std::vector<uint32_t>{15011001}));

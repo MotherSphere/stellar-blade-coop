@@ -173,14 +173,19 @@ achievements, which cannot be taken back.
 The ghost is display only, and items are not shared, except the consumables sent with `coop gift`. The experimental
 Shared enemies option (co-op menu, Options, Combat) is on by default and untested in game. It shares common enemies only
 while both players play a co-op save (see [fight/enemies.md](fight/enemies.md#shared-enemies-experimental)). Same place, same
-spawns and shared bosses build on it. They are experimental and on by default too, and the host's settings decide them
-for both games. As guest, the Same place row of your co-op menu can still turn same place off on your screen. The
+spawns, shared bosses, shared flinches and stagger resistance build on it. They are experimental and on by default too.
+The host's settings decide them for both games. As guest, the Same place row of your co-op menu can still turn same
+place off on your screen. Shared flinches show a light hit's flinch in both games. Stagger resistance raises an
+enemy's poise for a short time after it reacted to hits from two or more players (see
+[fight/enemies.md](fight/enemies.md#flinches-and-stagger-resistance)). The
 experimental Shared quests option (Options, Saves) is on by default and untested in game. While both players play a
 co-op save, it makes the quest steps that the host and the guest make together in the guest's game too, through the
 game's own quest functions (see [players/playing-with-a-friend.md](players/playing-with-a-friend.md#shared-quests-experimental)). A
 quest step the guest makes first moves the host's quest too, with Story together on or off. The experimental Shared
 world option (Options, Session) is on by default and untested in game. While both players play a co-op save, a door, lever, switch, crane, lift or shortcut that one player works changes in the other's game too,
-while chests, supply boxes and anything else that gives an item stay each player's own (see
+puzzle doors and water gates included. Chests, supply boxes and anything else that gives an item stay each player's
+own. The end of the AltesLab trap floor raises the scaffolding in both games. Each zone also catches up when
+a player enters it: the doors and switches the other changed there come in, the host's state winning a conflict (see
 [world/objects.md](world/objects.md)). The experimental Story together option (Options, Session) is on by default and
 untested in game. While both players play a co-op save, a cutscene or a talk the host plays plays in the guest's game
 too, with the host's choices, QTE results and skips. A story trip the host starts takes the guest along (see

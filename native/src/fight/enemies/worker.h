@@ -319,6 +319,10 @@ private:
         stats(now_, io, true);
       return "shared fight status: " + detail() + unshared();
     case Fight::test: return test(r);
+    case Fight::stagger: // The host's change at once, in any mode; the job reads it at its next turn.
+      e_.stagger(r.reactions, r.resist);
+      return std::string("stagger: reactions ") + (r.reactions ? "on" : "off") +
+             ", resist " + (r.resist ? "on" : "off");
     case Fight::none: return "shared fight: unknown request";
     default: break;
     }
@@ -354,6 +358,7 @@ private:
     e_.same_place(r.place);
     e_.aggro(r.aggro_host);
     e_.bosses(r.bosses);
+    e_.stagger(r.reactions, r.resist);
     e_.same_spawns(r.spawns);
     e_.enemy_extra(r.extra);
     e_.filter(r.filter);
@@ -632,7 +637,19 @@ private:
     if (enemies)
       std::snprintf(guards, sizeof guards, " boss=%d battle=%u epoch=%u/%u/%u", int(s.boss), s.battle, s.zone, s.epoch,
                     s.resets);
-    return std::string(head) + (ran_ == Fight::pvp ? std::string() : spawns_field(s)) + tail + guards;
+    return std::string(head) + (ran_ == Fight::pvp ? std::string() : spawns_field(s)) + tail + guards +
+           (enemies ? stagger_field(s) : std::string());
+  }
+  // Phase 8: the side's hit_reactions/stagger_resist (the host's own, or as its stagger line said), then the side's
+  // crowd controls refused under poise, flinches told/mirrored/refused, poise windows started/refused, windows SB
+  // never ended and levels guessed.
+  std::string stagger_field(const Snapshot &s) const {
+    const Counts &c = side_ ? s.host : s.guest;
+    const auto n = [](uint64_t v) { return std::to_string(v); };
+    return std::string(" stagger=") + (s.reactions ? "on" : "off") + "/" + (s.resist ? "on" : "off") +
+           " cc_poise=" + n(c.cc_poise) + " flinches=" + n(c.flinch_told) + "/" + n(c.flinch_mirrored) + "/" +
+           n(c.flinch_refused) + " windows=" + n(c.windows) + "/" + n(c.windows_refused) +
+           " unrestored=" + n(s.job.unrestored) + " level_guess=" + n(c.level_guess);
   }
   // Same spawns (stage 4): " spawns=off", " spawns=on", or " spawns=stopped" (on, but the pilot's latch stopped them:
   // where the other EVE stands is no longer told), and on the guest's side while not off what she created, despawned,
@@ -719,6 +736,13 @@ private:
                     as, s.paired, u(c.claims), u(c.corrections), u(c.kills), u(c.floored), u(c.unshared), u(c.held),
                     u(c.expired), u(c.desync), s.floors, u(c.execs), u(c.cc_told), u(c.cc_mirrored), u(c.cc_skipped),
                     u(c.stale), u(c.bad), s.scaled, s.scale[kScaleHp], s.scale[kScaleBalance]);
+    char poise[320] = ""; // Phase 8, either side: flinches, Rule A's refusals, Rule B's windows, guessed levels.
+    if (!probe)
+      std::snprintf(poise, sizeof poise,
+                    ", flinches %llu told, %llu mirrored (%llu refused), %llu crowd controls under poise, %llu poise "
+                    "windows (%llu refused, %llu not restored, %llu unchecked), %llu levels guessed",
+                    u(c.flinch_told), u(c.flinch_mirrored), u(c.flinch_refused), u(c.cc_poise), u(c.windows),
+                    u(c.windows_refused), u(s.job.unrestored), u(s.job.restore_skipped), u(c.level_guess));
     char spawns[448] = ""; // Same spawns (stage 4): the host's rounds answered, or hers sent; and the extras.
     const SpawnCounts &p = s.spawns;
     if (!probe)
@@ -754,7 +778,7 @@ private:
                   u(j.slow_turns), u(j.slow_min), u(j.frozen), u(j.refrozen), u(j.freeze_lost), u(j.thawed),
                   u(j.thaw_refused), u(j.battles), u(j.owns), u(j.own_nos), u(s.lost), u(dropped_), u(unsent_),
                   u(malformed_), u(mean_us_), u(s.max_us), s.thread, s.sb_thread, s.game_thread);
-    io.trace(ran_ == Fight::pvp ? versus + tail : std::string(head) + spawns + filter + bosses + tail);
+    io.trace(ran_ == Fight::pvp ? versus + tail : std::string(head) + poise + spawns + filter + bosses + tail);
   }
 
   Engine &e_;

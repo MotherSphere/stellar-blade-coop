@@ -17,6 +17,7 @@ return {
         max_players='玩家人數',auto_coop_save='合作存檔',
         enemy_hp_scale='敵人生命值（主機）',enemy_balance_scale='敵人平衡（主機）',kill_credit='我的擊殺獎勵',
         same_place='敵人位置同步（實驗性）',aggro='敵人攻擊對象（主機）',same_spawns='敵人生成同步（實驗性）',
+        hit_reactions='受擊硬直同步（實驗性）',stagger_resist='硬直抗性（實驗性）',
         enemy_extra='額外敵人（主機）',bosses='共享頭目（實驗性）',boss_hp_scale='頭目生命值（主機）',
         shared_quests='共享任務（實驗性）',
         shared_world='共享世界（實驗性）',

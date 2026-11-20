@@ -13,14 +13,22 @@ through the same game function, with its own EVE as the player who made it. Thes
 - doors and gates that a lever or a switch opens;
 - levers, switches and puzzle switches;
 - cranes, lift calls, train calls and ride starts;
-- shortcuts: a ladder kicked down, a cable dropped, a bridge lowered.
+- shortcuts: a ladder kicked down, a cable dropped, a bridge lowered;
+- puzzle doors, valves, water gates and lifts that count toward a map's progress, the crane call and the train call
+  among them. Your friend's game gives her the same hidden progress entry when she is in that zone;
+- doors and switches whose state also closes a hint. The hint closes in both games: when the pipe puzzle in ME_04
+  opens its water gate, the gate opens for your friend too and her hint closes;
+- the end of the AltesLab trap floor. Each player walks their own floor. When one of you reaches the end, the
+  scaffolding rises in both games. The steps, the falls, the end scene and its camp stay with the player who walked
+  it, so your friend can still walk her floor to its end.
 
 The change runs in the other game as if that player had made it there, with the object's own animation and sound and
 whatever the game's tables chain to it, such as the door a lever opens. If the object is loaded in your friend's game,
 the change happens at once. If it is not, the change is written into her world's saved state for that zone. She finds the object changed when she loads it. Either way the change stays in both co-op saves once the games save.
 
 One kind of change is made only while the object is loaded. Some switches drive other objects straight from their own list of linked objects. The game changes those only in the zone the player is in. When your friend is elsewhere,
-such a change is skipped in her game. That object stays as it was until one of you works it again there.
+such a change is skipped in her game. When she enters that zone, the catch-up described below brings it in for an
+object the game saves. Any other such object stays as it was until one of you works it again there.
 
 A crane moves in both games. Its camera view changes only for the player at its controls.
 
@@ -29,11 +37,13 @@ A crane moves in both games. Its camera view changes only for the player at its 
 Anything that gives an item or a reward is not shared. Each player opens their own copy and gets their own loot:
 chests, supply boxes, cabinets, memory sticks, records, ammo chargers, angel remains, cans, Nikke items and the cores taken after a boss fight (the Beta core at the drop pod, the Burst core). Your friend's EVE still plays her opening animation, as for any other move she makes. Camps and the corpses that hold a passcode hint are not shared either. A
 change that starts a cutscene, gives an item or a hint, opens a menu, starts a quest or moves the player stays in the
-game where it was made. So does a change that counts toward an achievement, such as Xion's phase changes, an album
-unlock or a map progress entry: each player makes it in their own game.
+game where it was made. So does a change that counts toward an achievement other than a map's progress, such as
+Xion's phases and the other story flags or an album unlock: each player makes it in their own game. The 10 doors that
+open with a passcode stay each player's own with their album entry, so each player types the code. The supply box
+chain of WLB_20 stays each player's own too.
 
 The list of what can be shared comes from the game's own tables of build 26123051 and from the rows Matrix XIII adds:
-2,460 of the game's 4,430 objects and 95 of the 198 that Matrix XIII adds. The others stay each player's own.
+2,459 of the game's 4,430 objects and 95 of the 198 that Matrix XIII adds. The others stay each player's own.
 
 ## Story doors
 
@@ -55,8 +65,14 @@ guest in ghost slot 0 on the host; when she leaves, the guest who got in first o
 keeps her own world, with a notice when she comes in.
 
 Your friend's changes that arrive while your game loads wait, up to 256 of them. They are made once you are back in the world. A change your game cannot make (an object it does not have, or one already in that state) is skipped.
-`coop-link.log` names that object once. What one of you changed while you were not linked is not caught up when you
-link again.
+`coop-link.log` names that object once.
+
+The two games also catch up zone by zone. 2 s after the link, after each zone you enter and after each load, your
+game asks your friend's for the doors, levers and switches she changed in the zone you stand in. They come in then. A
+change made while you were in another zone, or while you were not linked, comes in this way too. When both of you
+changed the same one differently, the host's state ends in both games. Only the objects the game saves take part, not
+those it resets when you rest. The catch-up leaves a door you opened with its passcode open in your game, whatever your
+friend's door shows. An object you work while her answer is on its way keeps your new state.
 
 ## The setting
 
@@ -81,14 +97,14 @@ on after such an error.
 - `world=stopped`: stopped for this run after an error.
 - `world=off why=build`: another game build. `world=off why=coop_off`: after `coop off`.
 
-The line goes on with counters: `sent=` your changes sent, `received=` and `applied=` hers, `refused=` the ones your game did not make and `queued=` those that wait while you load. The others are described in
-[Shared world: how it works](objects-internals.md#status-line).
+The line goes on with counters: `sent=` your changes sent, `received=` and `applied=` hers, `refused=` the ones your game did not make and `queued=` those that wait while you load. The catch-up adds `asked=` (the zones
+your game asked for), `caught=` (her changes it took), `kept=` (your own state kept: the host's, a door opened with
+its passcode, or one you changed while her answer was on its way) and `same=` (hers already equal to yours). The
+others are described in [Shared world: how it works](objects-internals.md#status-line).
 
 ## Not shared yet
 
-- Triggers that react to where a player stands.
-- Puzzles played on a screen, such as the pipe and circuit puzzles. If the game opens a puzzle's door through the
-  same kind of state change a lever makes, that change is shared; which puzzles do so has not been checked.
+- The steps and the falls on the AltesLab trap floor: only its end is shared.
 - Objects you push or carry, such as carts and crates you grab.
 
 ## Known limits
@@ -96,5 +112,7 @@ The line goes on with counters: `sent=` your changes sent, `received=` and `appl
 - Nothing of this has run in game yet.
 - A change reaches the other game even where that player has not been yet: a gate you open in a zone your friend has
   not reached is already open when she gets there (except for the linked objects above).
-- An object that counts toward an achievement stays each player's own even when it is a door or a lift, so the two
-  games can show it in different states.
+- An object whose change counts toward an achievement other than a map's progress stays each player's own even when
+  it is a door, so the two games can show it in different states.
+- While you are linked, your friend working the same passcode door in her game can move yours out of its open state:
+  her change reaches your game like any other. Only the catch-up keeps your door open.

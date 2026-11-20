@@ -91,8 +91,10 @@
 // push it into a ring before they run the game's function; the ZoneEvent action's slot holds the SBO lobby's hook,
 // which does the same for its rows. Each frame coop_tick drains the ring under the shared world's SEH latch and makes
 // channel 2's SBW lines of what game/objects/rows.h allows; her lines wait in order until we are in game (lion_gate
-// open), then go through SB's own functions with our player as caster. A fault turns it off for the run and swaps the
-// slots back; coop off swaps them back too.
+// open), then go through SB's own functions with our player as caster. A watcher reads the AltesLab trap floor's end
+// (kWatch) each pass in game and sends it when it turns, since no root marks it. The catch-up by zone asks the partner
+// for a zone once we stood 2 s in game there; her changed doors of that zone come back, the host's state winning a
+// conflict. A fault turns it off for the run and swaps the slots back; coop off swaps them back too.
 //
 // The revive's guard: every 250 ms coop_tick reads, under its own SEH latch, whether a respawn or a warp is in flight
 // and our EVE's GUID, straight from two globals; status() puts them in the engine line for online/group/group.lua.

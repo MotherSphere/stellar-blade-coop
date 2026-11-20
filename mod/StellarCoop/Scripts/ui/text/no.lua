@@ -20,6 +20,7 @@ return {
         max_players='Spillere',auto_coop_save='Co-op-lagringer',enemy_hp_scale='Fiende-HP (vertens)',
         enemy_balance_scale='Fiendebalanse (vertens)',kill_credit='Mine drapsbelønninger',
         same_place='Samme posisjon (eksperimentelt)',aggro='Fiender angriper (vertens)',
+        hit_reactions='Delte rykk (eksperimentelt)',stagger_resist='Vaklemotstand (eksperimentelt)',
         same_spawns='Samme spawns (eksperimentelt)',enemy_extra='Ekstra fiender (vertens)',
         bosses='Delte bosser (eksperimentelt)',boss_hp_scale='Boss-HP (vertens)',
         shared_quests='Delte oppdrag (eksperimentelt)',

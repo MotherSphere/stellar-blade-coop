@@ -11,9 +11,9 @@ Matrix XIII's rows go through the same rules as the game's: the tool puts them i
 does at run time, each a copy of its donor row with every field the file sets (a row named as its donor changes the
 game's row in place).
 
-The block holds four sorted lists: the (EnvSpawnAlias, state tag) pairs a ChangeEnvState root may carry, the
-EnvSpawnAliases a SetEnvActive root may carry, the ZoneEventTable rows a ZoneEvent root may run, and the kept
-EnvSpawnAliases a linked env node may not add progress to.
+The block holds six sorted lists: the (EnvSpawnAlias, state tag) pairs a ChangeEnvState root may carry, the
+EnvSpawnAliases a SetEnvActive root may carry, the ZoneEventTable rows a ZoneEvent root may run, the kept
+EnvSpawnAliases a linked env node may not add progress to, the watched pairs and each zone's saved envs.
 
 A ZoneEnvSpawnTable row is out, all its states with it, when it is per player (its EnvAlias family, the boss cores
 whose graph gives the item included, an EnvType Camp, Can or Nikke, an EnvCrate scan type, a box or record trophy on
@@ -28,13 +28,26 @@ ChangeState runs for it, followed through AddEvents, FinishEvents and the events
 among them sets, reach a type that acts on the player, her items or her story (PLAYER_EVENTS), or when that state, or
 one an env control row among them sets, has a ChangeState achievement: ChangeState credits it to the caster, and the
 receiver applies with her own player as caster. The same holds when an EnvState quest task waits for that state: the
-task tests only the env and its state, so a line would complete it outside the shared quests' rules. A row goes on the
+task tests only the env and its state, so a line would complete it outside the shared quests' rules. A ChangeState
+achievement whose name marks map progress (MAP_PROGRESS) and that progresses no other achievement holds nothing out:
+the receiver credits it to her own player only while she is in that zone. A hint completion (CompleteHint) holds
+nothing out either: a shared door closes its hint in both games. A row goes on the
 SetEnvActive list only when every one of its states is kept, so a forwarded Disable never locks a lever whose state
 change stayed local. A ZoneEvent row is kept when it and every row it chains to are env control rows, none names a
 camp, each names a kept row, every tag it can set (its TagName, and for a progress control its env's progress change
 tags) is a kept pair, and each Disable is on an env of the SetEnvActive list. A kept row goes on the no-progress list
 when a state with a progress count moves at that count to a tag that is not a kept pair, as the linked env node's
 progress add (FUN_141fe39b0) would move it.
+
+The watched pairs are the kept pairs a condition trigger sets directly. Each ZoneEnvSpawnTable row whose ZoneEnvTable
+row has EnvType Trigger runs its TriggerTrueEvents (the env row's when the spawn row's list is empty). Each env control
+row these reach through AddEvents and FinishEvents, with no state cascade, names a target and its TagName. The pair
+goes on the list when it is kept and its target has SaveType Save. The trigger's tick sends no root, so the world
+watches these pairs to send them. Each zone's saved envs are one entry per zone of a row's ZoneList (the pseudo-zone
+None left out) for each kept row with SaveType Save whose InitStateTag is one of its states, compared without case:
+the zone, the alias, the InitStateTag as the table spells it and the InitActivate (1 Enable, 2 Disable, 0 None). Two
+worlds catch up zone by zone over these entries. ResetZone and None rows keep nothing across a rest. SaveWithTransform
+rows would need their transform too.
 """
 import json
 import re
@@ -61,11 +74,15 @@ TYPES = {'ESBENV_Camp', 'ESBENV_Can', 'ESBENV_NikkeDefenseArea', 'ESBENV_NikkeLo
          'ESBENV_NikkeLostGoods_Request'}
 TROPHIES = {'Trophy_Open_AllBox', 'Trophy_Acquire_AllRecords'}
 CAMP = re.compile(r'Env_(Camp_|SaveCamp)')
-# Zone event types that move the player (PlayerWarp, ChangeZone), play a scene, the UI or a hint on her screen, change
-# her items, her quests, her camps or her boss challenge, or her session.
-PLAYER_EVENTS = {'Theater', 'UIAction', 'GuideAction', 'CompleteHint', 'ActivateHint', 'Item', 'AcquireQuest',
-                 'InteractCamp', 'FinishBossChallenge', 'PlayerWarp', 'ChangeZone', 'ItemAction', 'StartMatchMaking',
+# Zone event types that move the player (PlayerWarp, ChangeZone), play a scene, the UI or a new hint on her screen,
+# change her items, her quests, her camps or her boss challenge, or her session. CompleteHint is not one: a shared door
+# closes its hint in both games.
+PLAYER_EVENTS = {'Theater', 'UIAction', 'GuideAction', 'ActivateHint', 'Item', 'AcquireQuest', 'InteractCamp',
+                 'FinishBossChallenge', 'PlayerWarp', 'ChangeZone', 'ItemAction', 'StartMatchMaking',
                  'StopMatchMaking', 'ReturnToSinglePlay'}
+# The ChangeState achievements that mark map progress by name: an env's own (..._ChangeStateZoneEnv_...) or a zone's
+# guide (ChangeState_ZoneEnv_..._Guide).
+MAP_PROGRESS = re.compile(r'_ChangeStateZoneEnv_|^ChangeState_ZoneEnv_.*_Guide$')
 CAMERA = {'ResetCam', 'ChangeCam'}
 ENV_CONTROL = 'ZoneEnvControl'
 STATE_CONTROL = {'ESBZoneEnvCtrlType_BaseState'}  # Every other control type but a camp's may move progress.
@@ -84,7 +101,13 @@ MXIII_ENUMS = {
             ('None', 'BaseState', 'StateProgress', 'SetStateProgress', 'ProgressSpeed', 'ProgressCurValue',
              'ProgressRange', 'CampProperty'))},
     ('EventEnvControlTable', 'Activate'): {n: f'ESBObjectState::ESBObject_{v}'
-                                           for n, v in enumerate(('None', 'Enable', 'Disable'))}}
+                                           for n, v in enumerate(('None', 'Enable', 'Disable'))},
+    ('ZoneEnvSpawnTable', 'SaveType'): {n: f'ESBZoneObjectSaveType::ESBZoneObjSaveType_{v}'
+                                        for n, v in enumerate(('None', 'Save', 'ResetZone'))}}
+MXIII_ENUMS[('ZoneEnvSpawnTable', 'InitActivate')] = MXIII_ENUMS[('EventEnvControlTable', 'Activate')]
+SAVE = 'ESBZoneObjSaveType_Save'  # The rows the game keeps across a rest without their transform.
+TRIGGER = 'ESBENV_Trigger'
+OBJECT = {'ESBObject_None': 0, 'ESBObject_Enable': 1, 'ESBObject_Disable': 2}  # InitActivate as the C++ list's byte.
 
 
 def enum(value):
@@ -188,11 +211,20 @@ def story_aliases(t):
             if kind(row) == ENV_CONTROL and row['EventAlias'] in controls} - {'None'}
 
 
+def map_progress(name, row):
+    """True when an AchievementTable row marks map progress only: its name matches MAP_PROGRESS and it progresses no
+    other achievement."""
+    return (bool(MAP_PROGRESS.search(name)) and row['ProgressAchievementOnCompleted'] == 'None'
+            and row['ProgressAchievementOnCompleted2'] == 'None'
+            and all(x == 'None' for x in row['ProgressAchievementArrayOnCompleted']))
+
+
 def change_state_achievements(t):
-    """The ChangeState achievements by (EnvSpawnAlias, tag): the tag None when the row names no state."""
+    """The ChangeState achievements by (EnvSpawnAlias, tag): the tag None when the row names no state. Map progress
+    (map_progress) is left out."""
     out = set()
-    for r in t['AchievementTable'].values():
-        if enum(r['EventType']) != 'ESBAchievementEventType_ChangeState':
+    for name, r in t['AchievementTable'].items():
+        if enum(r['EventType']) != 'ESBAchievementEventType_ChangeState' or map_progress(name, r):
             continue
         params = [(enum(r[f'ParamType{n}']), r[f'ParamValue{n}']) for n in range(1, 5)]
         tags = [v for k, v in params if k == 'ESBAchievementParamType_EnvState'] or [None]
@@ -318,19 +350,54 @@ def no_progress(t, pairs):
     return sorted(out)
 
 
+def watch(t, pairs):
+    """The kept pairs a condition trigger's TriggerTrueEvents set directly on SaveType Save rows, sorted."""
+    pair_set, spawns, controls = set(pairs), t['ZoneEnvSpawnTable'], t['EventEnvControlTable']
+    out = set()
+    for alias, spawn in spawns.items():
+        env = env_row(t, alias)
+        if not env or enum(env['EnvType']) != TRIGGER:
+            continue
+        trues = spawn['TriggerTrueEvents'] or env.get('TriggerTrueEvents', [])
+        for _, row in walk(t, trues, cascade=False):
+            control = controls.get(row['EventAlias']) if kind(row) == ENV_CONTROL else None
+            if not control:
+                continue
+            pair = (control['EnvSpawnAlias'], control['TagName'])
+            if pair in pair_set and enum(spawns[pair[0]]['SaveType']) == SAVE:
+                out.add(pair)
+    return sorted(out)
+
+
+def zone_envs(t, pairs):
+    """(zone, alias, InitStateTag as spelled, initial ObjectState) for each zone of each kept SaveType Save row whose
+    InitStateTag is one of its states without case, sorted."""
+    out = []
+    for alias in {a for a, _ in pairs}:
+        spawn = t['ZoneEnvSpawnTable'][alias]
+        init = spawn['InitStateTag']
+        if enum(spawn['SaveType']) != SAVE or init.lower() not in {x.lower() for x in states(t, alias)}:
+            continue
+        object_state = OBJECT[enum(spawn['InitActivate'])]
+        out += [(zone, alias, init, object_state) for zone in spawn['ZoneList'] if zone != 'None']
+    return sorted(out)
+
+
 def tally(c):
     return ', '.join(f'{k} {n}' for k, n in sorted(c.items(), key=lambda kv: (kv[0] == 'kept', -kv[1], kv[0])))
 
 
-def render(pairs, active, events, held, counts):
-    """The generated block, its begin and end lines included; held: no_progress(), which may be empty (the C++ list
-    then holds the empty name, which names no env)."""
-    names = {x for p in pairs for x in p} | set(active) | set(events) | set(held)
+def render(pairs, active, events, held, counts, watched, entries):
+    """The generated block, its begin and end lines included; held: no_progress() and watched: watch(), which may be
+    empty (the C++ list then holds the empty name, which names no env); entries: zone_envs()."""
+    names = ({x for p in pairs + watched for x in p} | set(active) | set(events) | set(held)
+             | {x for e in entries for x in e[:3]})
     bad = sorted(x for x in names if not NAME.fullmatch(x))
     if bad:
         raise ValueError(f'names that would not go into a C++ string literal as they are: {bad}')
-    if not (pairs and active and events):
+    if not (pairs and active and events and entries):
         raise ValueError('an empty list would make a zero-size C++ array')
+    zones = len({e[0] for e in entries})
     note = (f"Written by tools/world_rows.py from build {BUILD}'s {', '.join(TABLES[:-1])} and {TABLES[-1]}, with "
             "Matrix XIII's rows of data/mxiii-world.json. Another build needs it written again from that build's "
             'tables. A row or state counts under each reason it meets.')
@@ -339,6 +406,7 @@ def render(pairs, active, events, held, counts):
            *(f'// {line}' for line in textwrap.wrap(f'ZoneEnvSpawnTable rows: {tally(counts["rows"])}.', 117)),
            *(f'// {line}' for line in textwrap.wrap(f'States of kept rows: {tally(counts["states"])}.', 117)),
            *(f'// {line}' for line in textwrap.wrap(f'Env control ZoneEvent rows: {tally(counts["events"])}.', 117)),
+           f'// Watched pairs: {len(watched)}. Zone entries: {len(entries)} over {zones} zones.',
            'constexpr Pair kPairs[] = {',
            *(f'    {{"{a}", "{s}"}},' for a, s in pairs),
            '};',
@@ -350,6 +418,12 @@ def render(pairs, active, events, held, counts):
            '};',
            'constexpr const char *kNoProgress[] = {',
            *(f'    "{a}",' for a in held or ['']),
+           '};',
+           'constexpr Pair kWatch[] = {',
+           *(f'    {{"{a}", "{s}"}},' for a, s in watched or [('', '')]),
+           '};',
+           'constexpr ZoneEnv kZoneEnvs[] = {',
+           *(f'    {{"{z}", "{a}", "{s}", {o}}},' for z, a, s, o in entries),
            '};',
            END]
     return '\n'.join(out)
@@ -367,13 +441,14 @@ def main(argv):
         sys.exit('Use: python3 -I tools/world_rows.py JSON_DIR')
     t = mxiii(load(argv[0]), json.loads(MXIII.read_text()))
     pairs, active, events, counts = build(t)
-    held = no_progress(t, pairs)
-    write(HEADER, render(pairs, active, events, held, counts))
+    held, watched, entries = no_progress(t, pairs), watch(t, pairs), zone_envs(t, pairs)
+    write(HEADER, render(pairs, active, events, held, counts, watched, entries))
     kept = {a for a, _ in pairs}
     families = Counter(t['ZoneEnvSpawnTable'][a]['EnvAlias'] for a in kept)
     total = Counter(r['EnvAlias'] for r in t['ZoneEnvSpawnTable'].values())
     print(f'{len(pairs)} pairs over {len(kept)} rows, {len(active)} SetEnvActive rows, {len(events)} ZoneEvent rows, '
-          f'{len(held)} rows without progress')
+          f'{len(held)} rows without progress, {len(watched)} watched pairs, {len(entries)} zone entries over '
+          f'{len({e[0] for e in entries})} zones')
     for what, c in counts.items():
         print(f'{what}: {tally(c)}')
     print('kept rows per EnvAlias (kept/all): ' +

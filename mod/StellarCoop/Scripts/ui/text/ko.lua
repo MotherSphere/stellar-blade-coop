@@ -19,6 +19,7 @@ return {
         max_players='플레이어 수',auto_coop_save='코옵 세이브',enemy_hp_scale='적 생명력 (호스트)',
         enemy_balance_scale='적 균형 (호스트)',kill_credit='내 처치 보상',
         same_place='적 위치 동기화 (실험)',aggro='적의 공격 대상 (호스트)',
+        hit_reactions='경직 동기화 (실험)',stagger_resist='경직 저항 (실험)',
         same_spawns='스폰 동기화 (실험)',enemy_extra='추가 적 (호스트)',
         bosses='보스 공유 (실험)',boss_hp_scale='보스 생명력 (호스트)',
         shared_quests='퀘스트 공유 (실험)',

@@ -200,7 +200,8 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   `.utoc` whose header does not read as one;
 - `fight/enemies/wiring_test` also covers `coop fight pilot` (its `test target` and boss tests included), `coop fight
   spawn probe`, the `spawn_filter` setting with the `filter` word it adds, and the `same_place`, `aggro`, `same_spawns`,
-  `enemy_extra`, `bosses` and `boss_hp_scale` settings, whose rows `main/menu_test` covers with the `shared_quests`,
+  `enemy_extra`, `bosses`, `boss_hp_scale`, `hit_reactions` and `stagger_resist` settings, whose rows `main/menu_test`
+  covers with the `shared_quests`,
   `shared_world` and `shared_story` rows, and `coop pvp` (its words, the `pvp_spike` and `shared_enemies` refusals,
   status, and `pvp_spike=off` ending an earlier load's PvP test at a reload);
 - `fight/enemies/wiring_notices_test` covers the same place and same spawns notices in both languages;
@@ -447,8 +448,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 ### Link
 
 - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
-  `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target` and
-  the boss tests included; `coop fight pvp` and `pvp off`; `lion rows`, `gardener rows`, `tendril rows`, `bolt rows`,
+  `aggro-host`, `bosses <boss %>`, `reactions`, `resist`, `spawns`, `extra <n>` and `filter` words,
+  `fight stagger <0|1> <0|1>` and its `pilot` requests, `test target` and the boss tests included; `coop fight pvp` and
+  `pvp off`; `lion rows`, `gardener rows`, `tendril rows`, `bolt rows`,
   `mxiii rows`, `shop rows` and `signal rows` with their 25 table words and bad addresses, the longest of them 813
   bytes; `fly` and `slowmo` on or off; `anim play` with its id, path and `once`, `loop` or `ride`, and `anim stop`;
   `bike load <clip>`, `bike free`, `bike gate on` and `bike gate off`, a mesh, a package path or a mod's clip refused;
@@ -748,6 +750,16 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
     her reset, nothing published without the filter or on the host's side, a key the host spawns again let through, the
     host's dead on her paired copy blocking its key but not her own lethal hit, the table empty at a new session, at the
     host's off and at the end, and the gate);
+  - phase 8's level read (an effect our EVE cast gives its row's HitLevel, found by the ID at `+0x88`, plus her
+    AdditiveHitLevel; another caster, a row ID of 0 or no tables give the guess with no latch; the life from `+0x74` in
+    every case), the copy's poise and ActorType read each pass, a mirrored flinch of 200 ms started through the context
+    call with 0.2 s and 0 while a crowd control goes through the call with no context, its echo never told back, a
+    flinch refused on a copy the side draws, the host's `stagger` values on both sides (both off on a guest's side
+    before the host's line), `Engine::window`'s refusals (`type`, `state`, `running`, then `full` before any game call)
+    and its start of 1001400 with the window in seconds at `+0x0c` and k at `+0x10`, the restore check on SB's effect
+    clock (a knockdown inside a window, a 10 s pause, a 60 s freeze counted unchecked, an effect listed past its life
+    logged once with windows off for the run), a copy gone or dying before its check skipped with no latch, her poise
+    line taken at her owner epoch only and the `fight=` line's `stagger=` field;
   - the PvP test's mode in the worker (a co-op save and a linked friend, never beside the shared fight either way, her
     pvp lines alone reaching the job with her SteamID, its own sent reliable, no restart at a host change, a pause and a
     new session when her link drops and comes back, `coop pvp off`);
@@ -767,7 +779,27 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
     pair forms, phase IDs from that boss's allowlist only, a summon's key, row, charId and owner),
   - the PvP test's pvp line (round trip, and the refusals: d of 0, a sign, a decimal, past 10,000,000, a skill of 0 or
     past INT32_MAX, a seq of 0, a missing or extra field, the old tag),
+  - phase 8's lines (the five-field cc line with the hit's level and the reaction's time, the three-field form refused;
+    the stagger and poise lines with their bounds; a recording keeps stagger, never poise) and their rules: the stagger
+    line after bosses while either setting is on and again at each change, both read as off on the guest's side until it
+    comes and after the host's next world; Rule A on both sides (a mirrored crowd control under the copy's poise refused
+    and counted, a copy with an unread poise refused, a level that could not be read sent as the guess and counted); the
+    flinch mirror (told from no reaction with its time, its chain and its echo not told, refused while the copy holds a
+    reaction, under its poise, with `hit_reactions` off or on a drawn copy (one the pilot does not draw takes it), a
+    knockdown still started on a copy that only flinches, a flinch line never replacing a crowd control still waiting);
+    Rule B (no window for one player, k 1 for a Monster and 2 for a boss, a refusal counted and logged once every 10 s,
+    the owner's poise line taken at its epoch only and stale otherwise, windows with no poise line on a copy the pilot
+    does not draw, nothing new with `stagger_resist` off or on the guest's side before the host's stagger line, a cc
+    line refused on our copy still counting the other player, her reactions forgotten at her off and on, the host's at
+    its world line),
   - and two fake worlds linked through a delayed, lossy line;
+- `game_poise_test`: phase 8's rules in `game/poise.h`: the level compare (HitLevel plus the additive level cut toward
+  zero, a NaN poise and an additive that is not finite refused), k by ActorType, the reaction's life in ms (10 s at
+  most), the window's length (none for one player, 1.5 s for each extra player, 6 s more at most), the context bytes
+  (`+0x0c` and `+0x10` written, every other byte of SB's init left as it was), the players who made each enemy react
+  within 10 s by slot, one window a copy until its check settles and `full()` before any game call, the restore
+  verdict on SB's effect clock (wait until 0.5 s after the end, done once unlisted, failed when listed 0.5 s past its
+  life, unchecked 60 s after the end or on a NaN) and the quiet log (one line for each enemy, what and why every 10 s);
 - `game_spawn_sync_test`: the core of same spawns (stage 4):
   - which rows take part,
   - each side's epoch (a zone change, a reset of the spawn manager, 3 or more keys with a new GUID, two actors of one
@@ -957,25 +989,41 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 
 ### Shared world
 
-- `game_objects_rows_test`: `game/objects/rows.h`'s four lists strictly sorted, every SetEnvActive and no-progress row
-  with states of its own, the lookups at both ends of each list and on near misses, and rows of build 26123051 each rule
-  keeps or leaves out (a door and a lift with every state, the monorail without its camp-bound garage run, the crane
-  without its camera states, the hyperdrive without its story states, a supply box, the boss cores, a story-only door,
-  an env whose On a quest task waits for, a Matrix XIII lever, a counter whose progress leads to an item, a quest's env
-  control row, a monorail speed row whose chain plays a scene);
+- `game_objects_rows_test`: `game/objects/rows.h`'s lists strictly sorted (each zone's saved envs by zone, then
+  alias), every SetEnvActive and no-progress row with states of its own, the lookups at both ends of each list and on
+  near misses. Rows of build 26123051 each rule keeps or leaves out (a door and a lift with every state, the
+  monorail without its camp-bound garage run, the crane without its camera states but with its CallPuzzle, the
+  hyperdrive without its story states, a supply box, the boss cores, a story-only door, an env whose On a quest task
+  waits for, a Matrix XIII lever, a counter whose progress leads to an item, a quest's env control row, a monorail
+  speed row whose chain plays a scene). Then the 40 states that a map-progress achievement or a hint completion held
+  out before, the passcode doors and the other states that stay out, the trap floor's end as the one watched pair.
+  Each zone's saved envs: the largest zones' counts, no entry under None, the pipe puzzle's water gate, a tag kept as
+  the table spells it, the InitActivate None entry and the rows each rule leaves out (ResetZone, SaveType None,
+  SaveWithTransform, InitStateTag None or none of the row's states);
 - `game_objects_sync_test`: `game/objects/sync.h`'s lines through format and parse and back (the largest legal line, 50
   malformed lines and 20,000 fuzzed ones), the ring's capacity and wrap, the outbox that keeps the lines the link
   refuses, and two players' sides wired over the parser with a fake engine: the on and off lines and the answer to an
   on, a rejoin one side did not see, each gate on both sides, the lists on both sides (linked env lines part by part
   included), names without text, sequence numbers, lost and old lines, a load that reads no save for a while, the
   queue's order while loading and its overflow, the apply limit, the echo backstop, refusals logged once, a new partner
-  and the status line;
+  and the status line. Then names compared without case, the catch-up lines through format and parse (17 malformed
+  ones) and on the lists, the watcher of the trap floor's end (its silent first sight, only live reads counted, its
+  tags kept through a load and a stream, forgotten at a zone change, a close or a new partner, its line on the gates
+  and the shared `seq`) and when an env counts as touched. The catch-up by zone: the ask after its 2 s hold and again
+  after a load, her `on` or a close of our side, the walk and its resume after a load, an ask for a zone with no entry,
+  the receiver rule for host and guest (a state held out for us kept, nothing sent back), a `c` line older than a root
+  of ours kept (her answer or her send-back), a `c` line applied as a state then an Enable or Disable, the host's value
+  sent back, a close in the middle of an answer, the walk's filters, one answer per ask, the ObjectState compare and a
+  partner that never answers;
 - `game_objects_engine_test`: `game/objects/engine.h` over fake memory and fake game functions: the four roots read from
   their nodes (a named target, `self` through the owner env, an ObjectState of 0, a linked env inside and outside its
   owner's list or not live in our zone, values no line carries), and her lines applied: A1 and each of its guards, a
   Disable env changed as SB changes it, a tag that did not take, A2's records (found, made, a Disable one written), A1b
   live and offline, A3's call and its list check, A4's order (a None tag, an env already in the tag, a refusing guard),
-  and the refusals for a missing world, player or name.
+  and the refusals for a missing world, player or name. Then the catch-up reads: an env's value live, from its record
+  (a wrong vtable read as not live) or not at all (no world, a zone or an alias the game lacks), an ObjectState no line
+  carries read as 0, a tag with no text read as none, no record made; the client's zone, refused for None, a name
+  with no text or no client.
 
 ### Story together
 
@@ -1059,11 +1107,15 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 - `world_rows_test.py`: `tools/world_rows.py` on small made-up tables: each rule that keeps a ZoneEnvSpawnTable row
   out, each rule that keeps a state out (the player event types reached directly, through AddEvents and FinishEvents,
   through the states an env control row sets and through a progress control's change tags; the crane's camera tags;
-  ChangeState achievements and EnvState quest tasks on the state or on a state its events set), the SetEnvActive list,
-  each ZoneEvent rule, the no-progress list, unknown names and loops in chains, Matrix XIII's rows from its data file,
-  the written block (sorted, between its markers, the rest of the header untouched, a name that cannot go into a
-  C++ literal refused). After new table exports, run `python3 -I tools/world_rows.py <folder>` and commit
-  `native/src/game/objects/rows.h`;
+  ChangeState achievements and EnvState quest tasks on the state or on a state its events set; a map-progress
+  achievement and a hint completion that hold nothing out, an album or loot achievement that does), the SetEnvActive
+  list, each ZoneEvent rule, the no-progress list, the watched pairs (a trigger's own TriggerTrueEvents or its env
+  row's, a ResetZone row, a pair set only through a state cascade, a pair set by an env that is no trigger), each
+  zone's saved envs (one entry per zone, None left out, an InitStateTag compared without case, an InitActivate Disable
+  or None; an InitStateTag None or none of the row's states, ResetZone, None and SaveWithTransform rows and loot left
+  out), unknown names and loops in chains, Matrix XIII's rows from its data file, the written block (sorted, between
+  its markers, the rest of the header untouched, a name that cannot go into a C++ literal refused). After new table
+  exports, run `python3 -I tools/world_rows.py <folder>` and commit `native/src/game/objects/rows.h`;
 - `story_rows_test.py`: `tools/story_rows.py` on small made-up tables: the quest events read from a quest table block,
   the zone a row's name gives, each scene rule (a theater path, a level sequence alone, Stop rows, rows with no theater
   row or no path, the priority as the theater manager keeps it, the condition kept only beside AddEvents, the quest
