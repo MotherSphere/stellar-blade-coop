@@ -6,8 +6,8 @@ skeleton to start a new module from, shows how one module reads another and list
 registered.
 
 Script paths below (`online/lobby/wiring.lua`) are relative to `mod/StellarCoop/Scripts/`, native ones
-(`glue/tick.cpp`) to `native/src/`. Paths that start with `tests/`, `docs/`, `tools/` or `data/` and every command
-are from the repository root.
+(`glue/tick.cpp`) to `native/src/`. Paths that start with `mod/`, `native/`, `tests/`, `docs/` or `tools/` and
+every command are from the repository root.
 
 ## Where a module's pieces live
 
@@ -63,12 +63,13 @@ the lines between them left out:
     loading_tick();
 ```
 
-The loading part is the smallest native part to copy the shape from. `online/lobby/loading.h` holds the address,
-the offsets and the code its test checks on the build machine. Every address and offset in such a header is read
-in Ghidra first (see [Game facts in AGENTS.md](../../../AGENTS.md#game-facts)). `online/lobby/loading_game.inc`
-writes on the game thread inside `__try`, with the latch `loading_faulted` set by its first fault.
-`online/lobby/loading_worker.inc` takes Lua's ask and logs the answer. Lua asks with
-`M.link.request('loading lift')`. That word passes through these shared files:
+Copy the shape of the loading part: a header, a game thread side and a worker side of about 40 lines each, with a
+test of 42 lines. `online/lobby/loading.h` holds the address, the offsets and the code its test checks on the build
+machine. Every address and offset in such a header is read in Ghidra first (see
+[Game facts in AGENTS.md](../../../AGENTS.md#game-facts)). `online/lobby/loading_game.inc` writes on the game thread
+inside `__try`, with the latch `loading_faulted` set by its first fault. `online/lobby/loading_worker.inc` takes
+Lua's ask and logs the answer. Lua asks with `M.link.request('loading lift')`. That word passes through these shared
+files:
 
 - `link/protocol.h`: `Command::loading` and the parse of `loading lift`;
 - `link/core/requests.inc`: `case Command::loading:` among the words the glue answers;
@@ -87,7 +88,7 @@ its name everywhere, file names included. Registered as [Registering a module](#
 below pass `modules_test.py`, the off test and their own test as written.
 
 Every file starts with the same three license lines, in its language's comment mark (`--` in Lua, `//` in C++, `#`
-in Python):
+in Python, after the `#!` line of a script):
 
 ```lua
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
@@ -228,8 +229,9 @@ end,
     require('main.loader').build(M,'online.saves','saves',Ui)
 ```
 
-Keep that shape: `build={` on its own line, each step starting with `<step>=function(M,Ui)` at the start of a line,
-the closing `},` alone on its line. `modules_test.py` finds the steps by that shape. A build table on one line hides
+Keep that shape: `build={` at the start of a line, each step starting with `<step>=function(M,Ui)` at the start of a
+line, the closing `},` alone on its line, then the manifest's own closing `}`. `build` is the manifest's last field.
+`modules_test.py` finds the steps by that shape. A build table on one line hides
 its steps: R6 then reports the call in `main/ui.lua` as a step the manifest lacks.
 
 ## Keeping modules independent
@@ -273,8 +275,7 @@ The second is `get`, for code that checks whether the other module is there. `wo
 ```
 
 The third is `view`, for an object read field by field, here with a guard that refuses. `online/lobby/wiring.lua`,
-with
-`online.modes.nightop` in its `uses`:
+with `online.modes.nightop` in its `uses`:
 
 ```lua
         recruiter=setmetatable({run=function(...)
@@ -296,7 +297,7 @@ entry that nothing reads fails too: `uses names eve, which it never reads`.
 ### Code two modules need
 
 Copy it into the second module with its tests. The copy's first comment line after the license says whose copy it
-is. From then on each module fixes its own. `vehicles/bike/drive.lua` starts with:
+is. From then on each module fixes its own. `vehicles/bike/drive.lua` has this line right after its license lines:
 
 ```lua
 -- The bike's copy of online/modes/race/drive.lua (November 2026): its own from then on.
@@ -413,14 +414,15 @@ fault, so no rule passes by checking nothing.
 - R3: a module's file or test that requires, fakes (`package.loaded`, `package.preload`), patches or runs with
   `dofile` another module's file; a shared Lua piece or its tests reading a module (`tests/lua/main/` and
   `tests/lua/ui/text_test.lua` may).
-- R4: a late read of another module's export (`M.<field>`, `view`, `get`) whose module is missing from `uses`; a
-  `uses` entry that nothing reads.
-- R5: an export that two modules set or that is a runtime field; a wiring that assigns an export it does not own
-  (`RUNTIME_SET_BY` lists the one exception, `aside_note`).
+- R4: in a `wiring.lua`, a late read of another module's export (`M.<field>`, `view`, `get`) whose module is missing
+  from `uses`; a `uses` entry that nothing reads; a `view` of a field no module exports; a `get` of a field that the
+  module it names does not export.
+- R5: an export that two modules list or that is a runtime field; a wiring that assigns a field of `M` outside its
+  exports (`RUNTIME_SET_BY` lists the one exception, `aside_note`).
 - R6: a build call in `main/ui.lua` naming a step the manifest lacks; a step built twice or never.
-- R7: a `RegisterHook` or `NotifyOnNewObject` callback that does not start with
+- R7: a `RegisterHook` or `NotifyOnNewObject` callback in a `wiring.lua` that does not start with
   `if M.off_modules['<module>'] then return end`.
-- R8: a native header, part or test of a module folder that includes or names another module folder's header; a
-  shared header that reads one; a module part that uses a name another module folder's part defines at its top
-  level.
+- R8: a native header, part or test of a module folder that includes another module folder's header or names one of
+  its declarations through the header's namespace; a shared header that reads one; a module part that uses a name
+  another module folder's part defines at its top level.
 - R9: a language table whose `modules` differs from `MODULES`.
