@@ -7,7 +7,7 @@ return {
     head={modes='模式',
         session='房间',settings='设置',help='帮助',controls='按键',photo='拍照模式',partner='队友',ghost='幽灵',
         saves='存档',combat='战斗',display='显示',chat='聊天',line='合作线路'},
-    row={scoreattack='得分挑战',
+    row={scoreattack='得分挑战',race_match='DORO竞速',
         host='创建房间',leave='离开房间',invite='邀请好友（Steam）',find='查找房间',copy='复制我的房间码',
         remove='移除%s',join_code='用房间码加入',chat='聊天',options='选项',report='生成错误报告',close='关闭',
         menu_key='打开此菜单',host_key='立即创建房间',status_key='显示状态',leave_key='离开房间',

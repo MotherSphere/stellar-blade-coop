@@ -7,7 +7,7 @@ return {
     head={modes='モード',
         session='セッション',settings='設定',help='ヘルプ',controls='操作',photo='フォトモード',partner='パートナー',
         ghost='ゴースト',saves='セーブ',combat='戦闘',display='ディスプレイ',chat='チャット',line='協力プレイ回線'},
-    row={scoreattack='スコアアタック',
+    row={scoreattack='スコアアタック',race_match='ドロレース',
         host='セッションをホスト',leave='セッションから退出',invite='フレンドを招待（Steam）',
         find='セッションを探す',copy='自分のコードをコピー',remove='%sを退出させる',join_code='コードで参加',
         chat='チャット',options='オプション',report='バグレポートを作成',close='閉じる',

@@ -7,7 +7,7 @@ return {
     head={modes='MODES',
         session='SESSION',settings='SETTINGS',help='HELP',controls='CONTROLS',photo='PHOTO MODE',partner='PARTNER',
         ghost='GHOST',saves='SAVES',combat='COMBAT',display='DISPLAY',chat='CHAT',line='CO-OP LINE'},
-    row={scoreattack='Score attack',
+    row={scoreattack='Score attack',race_match='Doro race',
         host='Host a session',leave='Leave the session',invite='Invite a friend (Steam)',find='Find a session',
         copy='Copy my code',remove='Remove %s',join_code='Join with a code',
         chat='Chat',options='Options',report='Write a bug report',close='Close',

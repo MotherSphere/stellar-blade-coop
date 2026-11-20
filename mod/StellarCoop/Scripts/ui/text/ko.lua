@@ -7,7 +7,7 @@ return {
     head={modes='모드',
         session='세션',settings='설정',help='도움말',controls='조작',photo='포토 모드',partner='파트너',
         ghost='고스트',saves='세이브',combat='전투',display='화면',chat='채팅',line='코옵 회선'},
-    row={scoreattack='스코어 어택',
+    row={scoreattack='스코어 어택',race_match='도로 레이스',
         host='세션 열기',leave='세션 나가기',invite='친구 초대 (Steam)',find='세션 찾기',
         copy='내 코드 복사',remove='%s 내보내기',join_code='코드로 참가',
         chat='채팅',options='옵션',report='버그 리포트 작성',close='닫기',

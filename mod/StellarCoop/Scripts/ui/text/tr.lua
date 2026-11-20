@@ -8,7 +8,7 @@ return {
         session='OTURUM',settings='AYARLAR',help='YARDIM',controls='KONTROLLER',photo='FOTOĞRAF MODU',
         partner='TAKIM ARKADAŞI',ghost='HAYALET',saves='KAYITLAR',combat='ÇATIŞMA',display='GÖRÜNTÜ',chat='SOHBET',
         line='CO-OP HATTI'},
-    row={scoreattack='Skor avı',
+    row={scoreattack='Skor avı',race_match='Doro yarışı',
         host='Oturum kur',leave='Oturumdan ayrıl',invite='Arkadaş davet et (Steam)',find='Oturum bul',
         copy='Kodumu kopyala',remove='Çıkar: %s',join_code='Kodla katıl',
         chat='Sohbet',options='Seçenekler',report='Hata raporu yaz',close='Kapat',

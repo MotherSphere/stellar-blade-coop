@@ -8,7 +8,7 @@ return {
         session='SESSIONE',settings='IMPOSTAZIONI',help='AIUTO',controls='COMANDI',photo='MODALITÀ FOTO',
         partner='PARTNER',ghost='FANTASMA',saves='SALVATAGGI',combat='COMBATTIMENTO',display='DISPLAY',chat='CHAT',
         line='LINEA CO-OP'},
-    row={scoreattack='Caccia ai punti',
+    row={scoreattack='Caccia ai punti',race_match='Gara di Doro',
         host='Ospita una sessione',leave='Lascia la sessione',invite='Invita un amico (Steam)',
         find='Trova una sessione',copy='Copia il mio codice',remove='Rimuovi %s',join_code='Unisciti con un codice',
         chat='Chat',options='Opzioni',report='Segnala un bug',close='Chiudi',

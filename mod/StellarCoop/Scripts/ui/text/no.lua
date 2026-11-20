@@ -7,7 +7,7 @@ return {
     head={modes='MODUSER',
         session='ØKT',settings='INNSTILLINGER',help='HJELP',controls='KONTROLLER',photo='FOTOMODUS',partner='PARTNER',
         ghost='SPØKELSE',saves='LAGRINGER',combat='KAMP',display='SKJERM',chat='CHAT',line='CO-OP-LINJE'},
-    row={scoreattack='Poengjakt',
+    row={scoreattack='Poengjakt',race_match='Doro-løp',
         host='Vær vert for en økt',leave='Forlat økten',invite='Inviter en venn (Steam)',
         find='Finn en økt',copy='Kopier koden min',remove='Fjern %s',join_code='Bli med via kode',
         chat='Chat',options='Alternativer',report='Skriv en feilrapport',close='Lukk',

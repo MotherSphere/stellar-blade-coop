@@ -8,7 +8,7 @@ return {
         session='SESSION',settings='INSTÄLLNINGAR',help='HJÄLP',controls='KONTROLLER',photo='FOTOLÄGE',
         partner='MEDSPELARE',ghost='SPÖKE',saves='SPARFILER',combat='STRID',display='VISNING',chat='CHATT',
         line='CO-OP-LINJE'},
-    row={scoreattack='Poängjakt',
+    row={scoreattack='Poängjakt',race_match='Dorolopp',
         host='Bli värd för en session',leave='Lämna sessionen',invite='Bjud in en vän (Steam)',
         find='Hitta en session',copy='Kopiera min kod',remove='Ta bort %s',join_code='Gå med via kod',
         chat='Chatt',options='Alternativ',report='Skriv en felrapport',close='Stäng',

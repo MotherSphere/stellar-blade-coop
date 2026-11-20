@@ -7,7 +7,7 @@ return {
     head={modes='MODI',
         session='SESSIE',settings='INSTELLINGEN',help='HULP',controls='BESTURING',photo='FOTOMODUS',partner='PARTNER',
         ghost='GEEST',saves='OPGESLAGEN GAMES',combat='VECHTEN',display='WEERGAVE',chat='CHAT',line='CO-OPLIJN'},
-    row={scoreattack='Scorejacht',
+    row={scoreattack='Scorejacht',race_match='Dororace',
         host='Een sessie hosten',leave='Sessie verlaten',invite='Vriend uitnodigen (Steam)',
         find='Een sessie zoeken',copy='Mijn code kopiëren',remove='%s verwijderen',
         join_code='Meedoen met een code',chat='Chat',options='Opties',report='Bugrapport schrijven',close='Sluiten',

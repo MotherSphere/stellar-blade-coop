@@ -8,7 +8,7 @@ return {
         session='СЕССИЯ',settings='НАСТРОЙКИ',help='СПРАВКА',controls='УПРАВЛЕНИЕ',photo='ФОТОРЕЖИМ',
         partner='ПАРТНЕР',ghost='ПРИЗРАК',saves='СОХРАНЕНИЯ',combat='БОЙ',display='ЭКРАН',chat='ЧАТ',
         line='ЛИНИЯ КООПЕРАТИВА'},
-    row={scoreattack='Погоня за очками',
+    row={scoreattack='Погоня за очками',race_match='Гонка Доро',
         host='Создать сессию',leave='Покинуть сессию',invite='Пригласить друга (Steam)',
         find='Найти сессию',copy='Скопировать мой код',remove='Исключить: %s',
         join_code='Присоединиться по коду',chat='Чат',options='Настройки',report='Написать отчет об ошибке',

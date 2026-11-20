@@ -7,7 +7,7 @@ return {
     head={modes='MODES',
         session='SESSION',settings='RÉGLAGES',help='AIDE',controls='TOUCHES',photo='MODE PHOTO',partner='PARTENAIRE',
         ghost='FANTÔME',saves='SAUVEGARDES',combat='COMBAT',display='AFFICHAGE',chat='DISCUSSION',line='LIGNE CO-OP'},
-    row={scoreattack='Course au score',
+    row={scoreattack='Course au score',race_match='Course de Doro',
         host='Héberger une session',leave='Quitter la session',invite='Inviter un ami (Steam)',
         find='Trouver une session',copy='Copier mon code',remove='Retirer %s',join_code='Rejoindre avec un code',
         chat='Discussion',options='Options',report='Écrire un rapport de bug',close='Fermer',

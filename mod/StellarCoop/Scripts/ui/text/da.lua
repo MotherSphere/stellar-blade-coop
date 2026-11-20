@@ -8,7 +8,7 @@ return {
         session='SESSION',settings='INDSTILLINGER',help='HJÆLP',controls='TASTER',photo='FOTOTILSTAND',
         partner='PARTNER',ghost='SPØGELSE',saves='GEMTE SPIL',combat='KAMP',display='VISNING',chat='CHAT',
         line='CO-OP-LINJE'},
-    row={scoreattack='Pointjagt',
+    row={scoreattack='Pointjagt',race_match='Doro-løb',
         host='Vær vært for en session',leave='Forlad sessionen',invite='Invitér en ven (Steam)',
         find='Find en session',copy='Kopiér min kode',remove='Fjern %s',join_code='Deltag med en kode',
         chat='Chat',options='Indstillinger',report='Skriv en fejlrapport',close='Luk',

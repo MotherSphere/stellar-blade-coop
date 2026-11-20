@@ -71,6 +71,11 @@ for _,def in ipairs(C.LIST) do
     assert(type(T.en.challenge.names[def.id])=='string','T.en.challenge.names.'..def.id..': missing')
 end
 for id in pairs(T.en.challenge.names) do assert(ids[id],'T.en.challenge.names.'..id..': no such challenge') end
+-- A word for each Options row and head (ui/kit/model.lua's OPTIONS; ui/kit/menu.lua labels a row with row[id or key]).
+for _,row in ipairs(require('ui.kit.model').OPTIONS) do
+    if row.head then assert(type(T.en.head[row.head])=='string','T.en.head.'..row.head..': missing')
+    else assert(type(T.en.row[row.id or row.key])=='string','T.en.row.'..(row.id or row.key)..': missing') end
+end
 
 -- The pick: the game's culture as culture() names it, else English.
 assert(T.pick('fr-FR')==T.fr and T.pick('FR')==T.fr and T.pick('fr-FR','game')==T.fr)

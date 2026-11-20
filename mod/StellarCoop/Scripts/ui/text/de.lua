@@ -8,7 +8,7 @@ return {
         session='SITZUNG',settings='EINSTELLUNGEN',help='HILFE',controls='STEUERUNG',photo='FOTOMODUS',
         partner='PARTNER',ghost='GEIST',saves='SPEICHERSTÄNDE',combat='KAMPF',display='BILDSCHIRM',chat='CHAT',
         line='KOOP-LEITUNG'},
-    row={scoreattack='Punktejagd',
+    row={scoreattack='Punktejagd',race_match='Doro-Rennen',
         host='Sitzung hosten',leave='Sitzung verlassen',invite='Freund einladen (Steam)',
         find='Sitzung finden',copy='Meinen Code kopieren',remove='%s entfernen',
         join_code='Mit Code beitreten',

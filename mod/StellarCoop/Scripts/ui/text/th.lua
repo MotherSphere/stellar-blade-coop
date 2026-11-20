@@ -7,7 +7,7 @@ return {
     head={modes='โหมด',
         session='เซสชัน',settings='ตั้งค่า',help='ช่วยเหลือ',controls='การควบคุม',photo='โหมดถ่ายภาพ',partner='คู่หู',
         ghost='ร่างจำลอง',saves='เซฟ',combat='การต่อสู้',display='การแสดงผล',chat='แชท',line='สาย CO-OP'},
-    row={scoreattack='ล่าคะแนน',
+    row={scoreattack='ล่าคะแนน',race_match='โดโรเรซ',
         host='โฮสต์เซสชัน',leave='ออกจากเซสชัน',invite='เชิญเพื่อน (Steam)',find='ค้นหาเซสชัน',
         copy='คัดลอกโค้ดของฉัน',remove='นำ %s ออก',join_code='เข้าร่วมด้วยโค้ด',
         chat='แชท',options='ตัวเลือก',report='เขียนรายงานบั๊ก',close='ปิด',

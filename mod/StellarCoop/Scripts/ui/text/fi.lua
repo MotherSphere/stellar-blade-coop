@@ -7,7 +7,7 @@ return {
     head={modes='PELITILAT',
         session='ISTUNTO',settings='ASETUKSET',help='OHJE',controls='NÄPPÄIMET',photo='KUVAUSTILA',partner='KUMPPANI',
         ghost='HAAMU',saves='TALLENNUKSET',combat='TAISTELU',display='NÄYTTÖ',chat='KESKUSTELU',line='CO-OP-LINJA'},
-    row={scoreattack='Pistejahti',
+    row={scoreattack='Pistejahti',race_match='Doro-kilpa',
         host='Isännöi istuntoa',leave='Poistu istunnosta',invite='Kutsu kaveri (Steam)',find='Etsi istunto',
         copy='Kopioi koodini',remove='Poista %s',join_code='Liity koodilla',
         chat='Keskustelu',options='Asetukset',report='Kirjoita virheraportti',close='Sulje',

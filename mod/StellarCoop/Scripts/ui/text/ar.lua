@@ -8,7 +8,7 @@ return {
         session='الجلسة',settings='الإعدادات',help='المساعدة',controls='عناصر التحكم',photo='وضع الصور',
         partner='الشريك',ghost='الشبح',saves='ملفات الحفظ',combat='القتال',display='العرض',chat='الدردشة',
         line='خط اللعب التعاوني'},
-    row={scoreattack='سباق النقاط',
+    row={scoreattack='سباق النقاط',race_match='سباق دورو',
         host='استضافة جلسة',leave='مغادرة الجلسة',invite='دعوة صديق عبر Steam',find='البحث عن جلسة',
         copy='نسخ رمز الانضمام',remove='إزالة %s',join_code='الانضمام برمز',
         chat='الدردشة',options='الخيارات',report='كتابة تقرير خطأ',close='إغلاق',

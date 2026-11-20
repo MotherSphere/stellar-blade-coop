@@ -7,7 +7,7 @@ return {
     head={modes='MODOS',
         session='SESIÓN',settings='AJUSTES',help='AYUDA',controls='CONTROLES',photo='MODO FOTO',partner='COMPAÑERO',
         ghost='FANTASMA',saves='PARTIDAS GUARDADAS',combat='COMBATE',display='PANTALLA',chat='CHAT',line='LÍNEA CO-OP'},
-    row={scoreattack='Ataque de puntos',
+    row={scoreattack='Ataque de puntos',race_match='Carrera de Doro',
         host='Crear una sesión',leave='Salir de la sesión',invite='Invitar a un amigo (Steam)',
         find='Buscar una sesión',copy='Copiar mi código',remove='Expulsar a %s',join_code='Unirse con un código',
         chat='Chat',options='Opciones',report='Escribir un informe de errores',close='Cerrar',
