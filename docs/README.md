@@ -105,6 +105,7 @@ left. The pages still name build 24463856 where a fact was read on that build, s
 | [Story dump](dev/story-dump.md) | `coop story`, `tools/story_lines.py` and `tools/save_read.py`: the story state of a save or of the running game, one line per value |
 | [Bike paint](dev/modding/bike-paint.md) | Adding an outfit's paint to `Paint.BY_MESH`: the key, the bike's slots and parameters, the check |
 | [Map pipeline](dev/modding/maps.md) | What a map needs in the game's tables, the steps with and without the editor, which steps the repository holds |
+| [Team shop items](dev/modding/items.md) | Adding an item to the team shop: the data file, the ID ranges, the fields an item may set, the commands, what the checks refuse, the limits |
 
 ## How Stellar Blade Online works
 
