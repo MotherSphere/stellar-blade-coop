@@ -400,10 +400,10 @@ inline void read_effects(uintptr_t objects, const Table &t, EffectState &state, 
 constexpr size_t kLightIntensity = 0x274, kLightVisibleByte = 0x170;
 constexpr uint8_t kLightVisibleMask = 0x20;
 
-// A free part's block (her drone): its main mesh's world transform relative to part 0's, its scale divided by part 0's,
-// and the state: bit 7 shown, bits 0-6 the light step min(127, intensity / 4 rounded), 0 while the light is hidden,
-// absent (light 0), not live or of another actor. Io::gone (the part or part 0 not live) keeps out.place and clears the
-// state.
+// A free part's block (her drone): its main mesh's world transform relative to part 0's with its scale divided by part
+// 0's. Then the state: bit 7 shown, bits 0-6 the light step min(127, intensity / 4 rounded), 0 while the light is
+// hidden, absent (light 0), not live or of another actor. Io::gone (the part or part 0 not live) keeps out.place and
+// clears the state.
 inline Io read_free(uintptr_t objects, const Part &part0, const Part &p, uint64_t light, Free &out) {
   if (!published(objects, part0) || !published(objects, p)) {
     out.state = 0;

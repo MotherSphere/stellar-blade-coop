@@ -132,6 +132,10 @@ void test_free_part_gone_keeps_her_pose() { // Review Focus 3
   assert(read_pose(o.objects, t, root, bones, f, reading) == Io::ok && root[4] == 100 && reading == -1);
   assert(bones[0] == 0 && bones[2 * kTransformBytes] == 0xee && bones[5 * kTransformBytes - 1] == 0xee);
   assert(f[0].state == 0 && f[0].place[4] == 7); // Her pose is read; the drone shows hidden, its bones and place kept.
+  Free g;
+  g.place[4] = 7;
+  g.state = 0x8d;
+  assert(read_free(o.objects, t.eve[0], t.eve[1], 0, g) == Io::gone && g.state == 0 && g.place[4] == 7); // Alone too.
 }
 void test_free_relative_and_light() {
   Objects o;
