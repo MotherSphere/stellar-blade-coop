@@ -48,6 +48,10 @@ assert(withdrawn[1]=='components' and withdrawn[2]=='display','A new load withdr
 assert(logged('keys: menu=F5 host=none status=F6 leave=F8 race=F9, name tag on, 60 poses a second'),
     table.concat(printed,'|'))
 assert(name_tag==true,'The name tag setting reaches the ghost')
+-- Her zone type from her vitals reaches the ghost: a solo area hides it (core/link.lua's Link.solo).
+mate_v={zone=5}; assert(puppet_solo()==true,'A Boss Challenge hides her ghost')
+mate_v={zone=1}; assert(puppet_solo()==false,'A public zone shows it')
+mate_v=nil; assert(puppet_solo()==false,'No vitals: shown')
 puppet_say('Kaanta is in b07, you are in e04.')
 assert(said[#said]=='Kaanta is in b07, you are in e04.','No UI root yet: on the line above EVE')
 assert(chat_new[1]==nil and chat_new[2]==true,'The chat on, as the settings say; 50 lines')

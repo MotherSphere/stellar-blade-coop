@@ -285,11 +285,12 @@ end
 -- Whether a save is loaded and the title shown (core/where.lua's world; core/where_test tests it): in_world, at_title.
 -- Where EVE stands (its me): bt.me.
 package.loaded['core.where']={world=function() return in_world,at_title end,me=function() return bt.me end}
-package.loaded['online.partner.puppet']={new=function(link,capture,say,tag,looks)
+package.loaded['online.partner.puppet']={new=function(link,capture,say,tag,looks,_,_,solo)
     assert(link==(native_ok and fake_link or nil),'The ghost reads and writes its files through the link, if any')
     assert(capture==fake_capture,'The ghost gets the capture (its offset in loopback)')
     assert(the_notice and type(say)=='function','The map notice goes on screen')
     puppet_say=say
+    puppet_solo=solo -- Whether her vitals put her in a solo area (nil without the link).
     name_tag,look,rebuilds=tag,looks,{}
     return {rebuild=function(why) rebuilds[#rebuilds+1]=why end,toggle=function()
         if toggle_raise then error(toggle_raise,0) end
@@ -328,6 +329,7 @@ package.loaded['core.link']={new=function() return fake_link end,parse_settings=
         disk.files[to],disk.files[from]=disk.files[from],nil
         return true
     end}}
+package.loaded['core.link'].solo=Link.solo -- The real rule: which zone types are solo areas.
 said,said_en,notice_ticks,notice_result,notice_stops={},{},0,nil,0 -- said_en: the English given with each.
 package.loaded['ui.kit.notice']={new=function()
     the_notice={say=function(text,en) said[#said+1]=text; said_en[#said]=en end,stop=function() notice_stops=notice_stops+1 end,
