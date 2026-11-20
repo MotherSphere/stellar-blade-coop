@@ -298,6 +298,19 @@ assert(s.ready() and s.count()==nil,'Another co-op save: '..tostring(s.count()))
 slot=COOP
 answer(7)
 answer(7)
+-- The same slot index from the other files (the manual co-op slot, then the co-op save files): read again each time.
+slot='slot=coop index=1 marker=1 saves=main'
+step(); s.tick()
+assert(s.ready() and s.count()==nil,'The manual co-op slot: '..tostring(s.count()))
+slot=COOP
+answer(7)
+assert(s.count()==7)
+slot='slot=coop index=1 marker=1 saves=main'
+step(); s.tick()
+slot=COOP
+step(); s.tick()
+assert(s.count()==nil,'Back on the co-op save files: '..tostring(s.count()))
+answer(7)
 
 -- Another save loaded: not ready, no count, no take, until a tick reads the co-op save again.
 slot='slot=main index=2 marker=1 saves=main'

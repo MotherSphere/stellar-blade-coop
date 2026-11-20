@@ -90,7 +90,7 @@ function Nikke.new(o)
     local said=nil -- The last refusal word logged, so a refusal that stays is said once.
     local taken={} -- {n, before (the count read before the take), at}: takes no read shows yet.
     local coop=false -- The co-op save loaded, as the last slot=coop or slot=main line said.
-    local index=nil -- The co-op save's slot index, so another co-op save reads its count again.
+    local index=nil -- The co-op save's slot index and saves= word, so another co-op save reads its count again.
     local last=nil -- The last pass's clock, so paused time does not age the takes.
 
     -- Whether the rows are in this game run (an earlier Lua load's included) and a co-op save is loaded, as the last
@@ -135,7 +135,7 @@ function Nikke.new(o)
         local slot=('\n'..raw):match('\nslot=([^\r\n]*)')
         local word=slot and slot:match('^(%a+)')
         if word=='coop' then
-            local at=slot:match(' index=(%d+)')
+            local at=tostring(slot:match(' index=(%d+)'))..' '..tostring(slot:match(' saves=(%a+)'))
             if coop and at~=index then read,taken,asked=nil,{},nil end -- Another co-op save: its count read again.
             coop,index=true,at
             if slot:match(' saves=(%a+)')=='coop' then ask_rows(now) end
