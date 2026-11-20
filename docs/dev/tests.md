@@ -631,8 +631,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   public|friends|stop`, `where`, `rules` and the row cleaner, the match lines (start, count, end) with their bounds, the
   host's let and wait lines with theirs, the dlc and dlcs lines with their bounds, the DLC comparison by app id, the
   cycle line with its bounds (count 0 to 99, difficulty 0 to 2) and a fuzz seed, the bike line (`none`, or `park` with
-  the map rule, three places within 10,000,000 and three angles within 36,000 as signed whole numbers), then protocol 23
-  refusing a protocol-22 lobby and line;
+  the map rule, three places within 10,000,000 and three angles within 36,000 as signed whole numbers), then protocol 24
+  refusing a protocol-23 lobby and line;
 - `link_core_test`: the link against the shared fake Steam, and two links through it with the handshake both ways,
   channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, an
   Invitation lobby (its code, the invite dialog, the older words `code` and `private`) joined with its code and the

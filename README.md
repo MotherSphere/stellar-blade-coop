@@ -54,7 +54,7 @@ return to Xion have not run in game, nor has the restore at the title after a fa
 Stellar Blade's `Preset_Eve_Max` build, and only that return or restore gives the co-op save its own skills and
 equipment back ([SBO lobby: Leaving](docs/online/lobby.md#leaving)).
 
-This version uses link protocol 23 and does not link with 0.11.0 or older, so every player has to update. Every on/off
+This version uses link protocol 24 and does not link with 0.11.0 or older, so every player has to update. Every on/off
 setting is now on by default, the experimental ones included; most of them have not been tested in game
 ([Settings](docs/players/settings.md#coop-settingstxt)).
 

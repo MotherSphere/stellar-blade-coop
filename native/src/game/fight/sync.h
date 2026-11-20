@@ -24,7 +24,7 @@
 //                                                                  place while host, and at each change
 //   SBF11 bosses <gen> <boss %>                                    host, reliable: its bosses=on (stage 5) and its
 //                                                                  boss_hp_scale, after its aggro while on
-//   SBF23 stagger <gen> <0|1> <0|1>                                host, reliable: its hit_reactions and
+//   SBF24 stagger <gen> <0|1> <0|1>                                host, reliable: its hit_reactions and
 //                                                                  stagger_resist (phase 8), after its bosses while
 //                                                                  either is on; again at each change
 //   SBF11 up <gen> <hguid> <spawnId> <idx> <charId> <maxHp>        host, reliable: an enemy it arbitrates, with the
@@ -35,7 +35,7 @@
 //                                                                  hp 0 while a kill waits (Host::apply)
 //   SBF11 hit <gen> <seq> <hguid> <dHp> <dSh> <dSt> <preHp> <0|1>  guest, reliable: drops since its last claim, the HP
 //                                                                  before them, and whether its copy died
-//   SBF23 cc <gen> <hguid> <effect> <level> <ms>                   both, reliable: a crowd control (kCcEffects) or a
+//   SBF24 cc <gen> <hguid> <effect> <level> <ms>                   both, reliable: a crowd control (kCcEffects) or a
 //                                                                  flinch (kFlinch, phase 8) that started on our
 //                                                                  copy, with the hit's level (0-99) and the
 //                                                                  reaction's time (0 for a crowd control: its row's;
@@ -65,10 +65,10 @@
 //                                                                  comes into the set, and on her first line for a
 //                                                                  copy each one it lacks, so a repeat changes nothing
 //                                                                  and brings back a line refused before she paired
-//   SBF23 poise <gen> <hguid> <oe> <k> <ms>                        the owner of a copy, reliable: a window of raised
+//   SBF24 poise <gen> <hguid> <oe> <k> <ms>                        the owner of a copy, reliable: a window of raised
 //                                                                  poise (phase 8) it started on its copy, k 1 or 2,
 //                                                                  1 to 16000 ms, at owner epoch oe
-//   SBF23 pvp <seq> <skill> <d>                                    both, reliable: the PvP test, a drop of the
+//   SBF24 pvp <seq> <skill> <d>                                    both, reliable: the PvP test, a drop of the
 //                                                                  sender's stand-in of us, to apply to our EVE
 // The host answers the guest's on and world with its whole list (world, its scale, place, aggro, bosses and stagger,
 // then every up). The guest answers the host's on with its own (hers may have come while the host was off), so either

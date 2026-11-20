@@ -351,7 +351,7 @@ int main() {
   {
     Mesh m(1);
     lobby_of(7000, kPlayer[7], kPublic,
-             {{kLobbyKey, "22:24463856"}, {kModeKey, "ffa"}, {kStateKey, "open"}, {kHallKey, "xion"}});
+             {{kLobbyKey, "23:24463856"}, {kModeKey, "ffa"}, {kStateKey, "open"}, {kHallKey, "xion"}});
     m.tick(0, "match search ffa xion xion");
     m.round();
     m.round();

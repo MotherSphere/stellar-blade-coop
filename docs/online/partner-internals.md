@@ -107,7 +107,7 @@ and 1 step of scale (1/4096). Until it moves further, the receiver keeps the key
 drops the fields that only flip their last step from float noise, and needs no change on the receiving side. The test
 build `build/host/online_partner_delta_gain_test` reads a `coop-record.bin` and prints the stream's keyframes, deltas
 and KiB/s with and without the tolerance: `build/host/online_partner_delta_gain_test coop-record.bin`. A recording holds
-the stream you sent. The tool reads only a recording of its own protocol (23): a recording from an older protocol fails
+the stream you sent. The tool reads only a recording of its own protocol (24): a recording from an older protocol fails
 its check (`protocol`). Every build since protocol 14 has the tolerance, so its recording already holds the keyframe's
 values for those fields and both lines show the same KiB/s, the stream's rate with the tolerance. With no file the tool
 measures two synthetic recordings; they show how the tool works, not what a real outfit saves.
