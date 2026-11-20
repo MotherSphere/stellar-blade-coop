@@ -11,9 +11,9 @@
 
 namespace coop::pose {
 
-// The game thread may call SB for the ghost's features: lion_gate open (net mode 0, no logic task in flight), the
-// client in game (flow travel::kInGame) and playing (phase travel::kPlaying), and not on SB's logic thread. These are
-// world_in_game()'s conditions without its write of world_engine.caster.
+// The game thread may call SB for the ghost's features when lion_gate is open (net mode 0, no logic task in flight),
+// the client is in game (flow travel::kInGame) and playing (phase travel::kPlaying) and the caller is not SB's logic
+// thread. These are world_in_game()'s conditions without its write of world_engine.caster.
 inline bool game_calls_ok(bool gate_open, int32_t flow, int32_t phase, bool logic_thread) {
   return gate_open && flow == travel::kInGame && phase == travel::kPlaying && !logic_thread;
 }

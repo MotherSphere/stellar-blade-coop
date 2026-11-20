@@ -40,7 +40,7 @@ bool camp_text_fault_logged = false; // Matrix XIII's camp names (camp_text_game
 bool uidev_fault_logged = false;     // SB's input device read (pad_game.inc): its fault.
 // The New Game+ read (cycle_game.inc): its fault and its first read out of range.
 bool cycle_fault_logged = false, cycle_odd_logged = false;
-// Her drone (online/partner/drone_game.inc): its fault, and the actor coop-drone.txt names (~0 before the first write).
+// Her drone (online/partner/drone_game.inc): its fault and the actor coop-drone.txt names (~0 before the first write).
 bool drone_fault_logged = false;
 uint64_t drone_written = ~uint64_t(0);
 std::string fault_where(uint64_t rva); // fight_worker_shared.inc's, after this part: the drone's fault line.
