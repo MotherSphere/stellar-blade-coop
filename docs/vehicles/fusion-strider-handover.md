@@ -38,6 +38,8 @@ hold change below. Live `tuning.txt` and the CPS `settings.json` were copied fro
    matches `BIKE_KIT` in `tools/install.py`, then unpacks only the kit's 13 files. `--bike <folder>` takes a folder
    laid out the same way instead (each pak in its own folder, `eve_hoverbike.cps` beside them). Every file the install
    replaces is backed up into `~/StellarCoop-install-backups` first.
+   Add `--bike-only` to install the bike alone over an SBO that is already installed: SBO's tests, build and files
+   are skipped (on Windows some SBO tests fail for reasons unrelated to the bike, which stops a full install).
 4. The installer then:
    - copies `mod/EveHoverbike` to `SB/Binaries/Win64/ue4ss/Mods/EveHoverbike`
    - copies the paks to `SB/Content/Paks/~mods/<pak name>/` and the plugin to `SB/Binaries/Win64/CPS/Plugins/`

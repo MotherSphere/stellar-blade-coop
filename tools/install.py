@@ -300,7 +300,10 @@ def install_bike(folder, sources, game, dry_run):
             shutil.copyfile(path, root / rel)
             if sha256(root / rel) != sha256(path): sys.exit(f'{root / rel} does not hash like {path}: run --bike again')
         print(f'Installed {len(copies)} dev bike files')
-    write_keys(win / 'ue4ss/Mods/StellarCoop/coop-settings.txt', BIKE_COOP, '=', dry_run)
+    if (win / 'ue4ss/Mods/StellarCoop').is_dir():
+        write_keys(win / 'ue4ss/Mods/StellarCoop/coop-settings.txt', BIKE_COOP, '=', dry_run)
+    else:
+        print('No StellarCoop folder: SBO is not installed, so its bike settings are left for its first start')
     write_keys(win / 'ue4ss/UE4SS-settings.ini', [BIKE_UE4SS], ' = ', dry_run, add=False)
 
 
@@ -353,6 +356,9 @@ def main(argv=None):
     mode.add_argument('--pak', type=Path, metavar='DIR',
                       help=f'After the install, also copy {", ".join(PAK)} from DIR into SB/Content/Paks/~mods, '
                            'backing up the ones they replace')
+    parser.add_argument('--bike-only', action='store_true',
+                        help="With --bike: install the dev bike alone. SBO's tests, build and install are skipped and "
+                             'its installed files are left as they are (its coop-settings.txt gets the two bike lines)')
     parser.add_argument('--bike', type=Path, nargs='?', const=True, metavar='DIR',
                         help=f'After the install, also install the Fusion Strider dev bike: mod/EveHoverbike, the paks '
                              f'{", ".join(BIKE_PAKS)} (each in its own folder in DIR) and {BIKE_CPS} from DIR, '
@@ -360,6 +366,7 @@ def main(argv=None):
                              f'downloaded from {BIKE_KIT["repo"]} with gh into build/bike-kit')
     args = parser.parse_args(argv)
     if args.bike and (args.zip or args.uninstall): parser.error('--bike goes with an install only')
+    if args.bike_only and (not args.bike or args.pak): parser.error('--bike-only goes with --bike alone')
     # Only a committed tree: the zip, its version and its changelog all name one commit.
     if args.zip and git('status', '--porcelain'):
         sys.exit('A release zip needs a clean tree: commit first (git status is not empty).')
@@ -374,6 +381,7 @@ def main(argv=None):
         sources = pak_sources(args.pak)
     if args.bike is True: args.bike = bike_kit(ROOT / 'build/bike-kit')  # Before the tests and the build too.
     if args.bike: bike = bike_sources(args.bike)
+    if args.bike_only: return install_bike(args.bike, bike, args.game, args.dry_run)
     for test in sorted((ROOT / 'tests/lua').rglob('*_test.lua')):
         subprocess.run(['lua5.4', test.relative_to(ROOT)], cwd=ROOT, check=True)  # The game embeds Lua 5.4.
     checks = sanitizers()

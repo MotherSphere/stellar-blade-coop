@@ -108,10 +108,37 @@ with tempfile.TemporaryDirectory() as tmp:
     out, why = run(I.bike_kit, dest, fetch(good.read_bytes()))
     assert why is None and 'Downloading' in out, why
     folder = dest / I.BIKE_KIT['sha256'][:16]
-    assert I.bike_sources(folder) == I.BIKE_FILES and not (tmp / 'evil.txt').exists() and not list(tmp.rglob('evil.txt'))
+    assert I.bike_sources(folder) == I.BIKE_FILES
+    assert not list(tmp.rglob('evil.txt')), 'a name outside the kit is never written'
     n = len(calls)
     assert I.bike_kit(dest, fetch(b'x')) == folder and len(calls) == n, 'unpacked once: no second download'
     def fail(dest): raise subprocess.CalledProcessError(1, 'gh')
     _, why = run(I.bike_kit, tmp / 'none', fail)
     assert why and 'ask Saroj to add you' in why, why
+
+# --bike-only: the bike alone through main(), never SBO's tests or build; with no SBO installed its settings untouched.
+with tempfile.TemporaryDirectory() as tmp:
+    tmp = Path(tmp)
+    I.BACKUPS = tmp / 'backups'
+    kit, game = tmp / 'kit', tmp / 'game'
+    for rel in I.BIKE_FILES:
+        (kit / rel).parent.mkdir(parents=True, exist_ok=True)
+        (kit / rel).write_bytes(rel.name.encode())
+    win = game / 'SB/Binaries/Win64'
+    (win / 'ue4ss/Mods').mkdir(parents=True)
+    (win / 'CPS').mkdir(parents=True)
+    (win / 'CPS/CPS.dll').write_bytes(b'dll')
+    real_run = I.subprocess.run
+    def no_run(*a, **k): raise AssertionError(f'ran {a[0]}: --bike-only runs no test or build')
+    I.subprocess.run = no_run
+    try:
+        out, why = run(I.main, ['--game', str(game), '--bike', str(kit), '--bike-only'])
+    finally:
+        I.subprocess.run = real_run
+    assert why is None, why
+    assert (win / 'ue4ss/Mods/EveHoverbike/Scripts/main.lua').is_file()
+    assert (win / 'CPS/Plugins/eve_hoverbike.cps').is_file()
+    assert not (win / 'ue4ss/Mods/StellarCoop').exists() and 'SBO is not installed' in out, out
+    _, why = run(I.main, ['--game', str(game), '--bike-only'])
+    assert why == '2', why  # argparse's error: --bike-only without --bike
 print('install_bike_test ok')
