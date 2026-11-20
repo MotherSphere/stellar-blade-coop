@@ -1317,7 +1317,7 @@ int main() {
     g.mem.put(ours()->at + poise::kEffectElapsed, 0.9f);
     for (const uint64_t end = t + 1000; t < end;)
       frame(g, *e, t += 16);
-    assert(e->counts.unrestored == 1 && count(g, "poise not restored") == 1);
+    assert(e->counts.unrestored == 1 && e->snapshot().job.unrestored == 1 && count(g, "poise not restored") == 1);
     e->set(true, true);
     assert(std::string(e->window(g, g.logic, 101, 1, 300, t)) == "off");
   }
