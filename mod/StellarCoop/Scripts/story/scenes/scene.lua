@@ -230,7 +230,9 @@ local function actor_name(a)
     a=valid(a)
     local player=a and valid(a.SequencePlayer)
     if not (player and (player:IsPlaying()==true or player.IsPaused and player:IsPaused()==true)) then return nil end
-    local s=valid(player:GetSequence())
+    -- UMovieSceneSequencePlayer's Sequence property (+0x468, story/engine.h's kSequence): no GetSequence function on
+    -- the player in build 26123051.
+    local s=valid(player.Sequence)
     return s and short(path_of(s)) or nil
 end
 -- The short names of the sequences the theater observers play now, and each name's observer. FindAllOf walks every

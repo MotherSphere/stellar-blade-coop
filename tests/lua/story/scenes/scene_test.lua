@@ -125,7 +125,7 @@ local function observe(seq,theater)
     local p=object({playing=true,IsPlaying=function(self) return self.playing end})
     if guid then seq=asset(SEQUENCE,seq.path..'_'..guid) end
     observers[#observers+1]=object({Player=p,Sequence=seq,SequenceName=fname(seq.path:match('[^.]+$')),theater=theater})
-    p.GetSequence=function() return seq end
+    p.Sequence=seq -- The player's own property: it has no GetSequence function in the game.
     actors[#actors+1]=object({SequencePlayer=p})
 end
 local zone=object({CreateSBZoneEvent=function(_,kind,name)

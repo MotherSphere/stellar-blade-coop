@@ -149,8 +149,9 @@ select cache swap of Roxanne's choices, `coop scene`'s borrowed theater rows and
      so `story/scenes/scene.lua` matches an observer's sequence by that name or the plain one, finds the hold's sequence
      player the same way before its once-a-second look has seen the observer, and takes a rewritten window as proof the
      talk plays (no 10 s failure until 10 s after the last one). With the native part's `theater=` field (SB's own
-     theater test) there is no walk: the talk's start reads the field, and the talk is followed through its level
-     sequence actor, found in the engine's class hash. Without the field, as before.
+     theater test) there is no walk: the talk's start reads the field. The talk is then followed through its level
+     sequence actor, found in the engine's class hash, whose player's `Sequence` names what it plays. Without the
+     field, as before.
    - Before the theater, a talk waits while a theater of the game plays, looked for every 0.5 s, and is asked 0.5 s
      after it ended, or after 20 s anyway. A talk refused because a talk's own sequence still plays gets no fallback. A
      Pause or Play that is missing or raises ends the holds for the talk; a sequence with no new window 2 s past a hold
