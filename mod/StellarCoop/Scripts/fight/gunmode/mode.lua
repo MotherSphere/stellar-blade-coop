@@ -83,7 +83,9 @@ function GunMode.ease(a,b,k) return a+(b-a)*k end
 -- words, ui/text.lua's table in the player's language; English unless given), notice (a notice on screen, by its key
 -- in ui/text.lua's gun: rebuilding when nil), store (coop-gun.txt through core/link.lua's store: save, load, clear; nil
 -- without the native part, so a Lua reload then cannot put back what an earlier load changed), photo (main/base.lua's photo_state; '0' when not given), busy (why another module holds EVE now, or nil:
--- fight/gunmode/wiring.lua reads them), match (true while an SBO match runs: fight/gunmode/wiring.lua reads the link)}.
+-- fight/gunmode/wiring.lua reads them), match (true while an SBO match runs: fight/gunmode/wiring.lua reads the link),
+-- stock (fight/gunmode/nikke.lua: the magazine loads from EVE's Bullet_Nikke rounds once its rows are in; nil: free
+-- magazines, fight/gunmode/ammo.lua)}.
 function GunMode.new(env)
     local cfg=Config.DEFAULTS
     local set,bad=Config.from(env.settings)
@@ -173,7 +175,7 @@ function GunMode.new(env)
     end
     -- No D-pad slot widget for now: the runtime widget never drew, and as nothing held it the engine could free it
     -- while its text was still being set every frame (a likely cause of crashes seen in play).
-    local ammo=Ammo.new(g,cfg,function(v) data.cool(v) end,on_reload,nil)
+    local ammo=Ammo.new(g,cfg,function(v) data.cool(v) end,on_reload,nil,env.stock)
 
     local function fire_row(row)
         local ok,err=pcall(zone_event,ATTACH_ACTOR_EFFECT,row)
