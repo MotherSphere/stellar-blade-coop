@@ -1298,3 +1298,36 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   `story_case.json` against `story_case.txt`, on what must leave the digest alone, and its commands on saves and dump
   files in a temporary folder. It also checks `float_repr.txt`, Python's `repr` of 2,331 doubles for the Lua side;
   `python3 tests/tools/story_lines_test.py --write` writes it again.
+
+## Grouped game test: travel, camp rests and solo areas
+
+These rows need the game on two or more PCs. Every PC runs this build: the vit line has 13 numbers under the same
+protocol 23. A PC on an earlier protocol-23 build drops every vit line of this one, which drops each of hers. Read
+`UE4SS.log` and `coop-link.log` on every PC after each row. None of these rows has run yet.
+
+1. Same map, over 150 m apart: the offer shows. F7 puts the guest on the host's last ground point after the game's
+   fade. Her `activated=` line's `rested=` stays the same.
+2. Same map, 20 m apart: F7 works. Within 5 m: refused, one log line (`the host is within 5 m`).
+3. The host jumps, climbs or swims at the press: she lands on his last ground point. No ground read for 10 s: the
+   `air` notice.
+4. The host on another map: the camp travel, then the spot warp with no second key press.
+5. The host rests in the zone they share: the guest's zone resets once (`area=`, `rest=` and `starts=` on her engine
+   line before and after). Same spawns follows. The guest rests there: the host's zone resets once. On the receiver,
+   note the screen and the controls during the reset: a fade, a load screen, input blocked or none of these.
+6. A member in another zone of that map: no reset (`rest: our area is <zone> (... dropped)`).
+7. The guest in a fight during the host's rest: her reset after the fight, or the skipped notice after 60 s.
+8. One `ServerRequest_ResetZone` call: count the `zone reset start` lines in the receiver's `coop-link.log` in the
+   next 30 s. Expected per call: one `zone reset start: type 2 guid 0 another in <zone>` line. More than 3 trip the
+   stop latch. Note the receiver's screen and controls as in row 5.
+9. The host enters a Boss Challenge (Xion's Raven Beast), later the training room: the notices; F7, the revive and
+   the way back refused; no shared enemies or scenes with him (`online play paused toward the pair: a solo area` on
+   both PCs); his EVE hidden; `is back` when he leaves.
+10. The guest dies with the host alive on her map: the notice, F7, up in place, then next to the host. No zone reset.
+    Recovery items refilled. The host dies with the guest alive: the same toward her.
+11. A death in a kill volume: a second death within 10 s gives the game's own respawn only.
+12. `coop travel spot <world> <x> <y> <z>` across worlds, solo: where she lands, which zone, the respawn camp
+    unchanged.
+13. A spot warp onto a lift or a train the host stands on: where she lands.
+14. Three players: guest 2 follows the host. Guest 1 rests: the host's zone resets. Guest 2's zone resets only when
+    she is the pair. Outside the pair she has no shared fight yet: she logs `rest: no fight read in this game (...)`
+    and keeps her area. Then four players rest at one camp together: one reset in each game, no stop notice.

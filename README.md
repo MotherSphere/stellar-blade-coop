@@ -89,8 +89,8 @@ setting is now on by default, the experimental ones included; most of them have 
   them only. Nothing goes back to your own saves unless you export it. See
   [Co-op saves](docs/players/playing-with-a-friend.md#co-op-saves).
 - Group play adds the friend's revive and shared quests (both experimental and on by default), a pause while a
-  cutscene plays in the host's game, and travel to the camp nearest the host (F7, not tested in game yet). See
-  [Playing with a friend](docs/players/playing-with-a-friend.md).
+  cutscene plays in the host's game and travel to where the host stands (F7, not tested in game yet). On the death
+  screen F7 takes you back to a living friend. See [Playing with a friend](docs/players/playing-with-a-friend.md).
 - In Doro races you record a track with F9 checkpoints, then race it alone or against your friend, each racer drawn
   as a Doro. See [Doro races](docs/online/modes/race.md).
 - The bike (not tested in game yet): F3, D-pad Right held 1 s or `coop bike` puts EVE on a motorbike from the game's

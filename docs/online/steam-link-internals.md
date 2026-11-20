@@ -308,6 +308,8 @@ there:
   says `dropped fight data from <name>: shared quests are off in a match lobby`, `...: the shared world is off in a
   match lobby` or `...: story together is off in a match lobby` at most once a minute. `coop gift` gets its items back
   at once (`gift n <id> nolink`), and a camps request ends with `camps line not sent: a match lobby` in the log.
+  The spot lines and the rest line go neither way either (`spot line not sent: a match lobby`, `rest line not sent:
+  a match lobby`).
 - Chat stays on, with a mute per player. `mute <SteamID>` drops that player's chat lines and `unmute <SteamID>` lets
   them through again. The notices read `Muted <name>.` and `Unmuted <name>.` A dropped line counts in the chat totals
   and gives `dropped chat lines from <name>: muted` in the log at most once a minute, never with its text. A mute
@@ -354,7 +356,7 @@ SBC23 ping <seq> <ms>
 SBC23 pong <seq> <ms>
 SBC23 photo <0|1|s|c> <both|notice>
 SBC23 say <text>
-SBC23 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
+SBC23 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life> <zone type>
 SBC23 pak <hash> <name>
 SBC23 paks <count> <hash>
 SBC23 dlc <app id> <name>
@@ -363,6 +365,10 @@ SBC23 cycle <count> <difficulty>
 SBC23 camps? <id>
 SBC23 camps <id> <world> <camp>:<m> ...
 SBC23 camps <id> none <title|loading|nocamp|busy>
+SBC23 spot? <id>
+SBC23 spot <id> <x> <y> <z> <yaw>
+SBC23 spot <id> none <title|loading|air|busy|solo|boss>
+SBC23 rest <zone> <SteamID>
 SBC23 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level> <down> <help>
 SBC23 night g <n> <run> <state> <up> <killed> <done> <why> <down> <help>
 SBC23 mark <n> [<text>]
@@ -408,6 +414,11 @@ every 100 ms, or 500 ms after a read that took over 1 ms (game build 26123051 on
 local player. A vit line is invalid if a value is over 10,000,000, HP is over its maximum, there are more than 64 shield
 blocks or the life state is over 255. The last line of the member in ghost slot 0 shows in `coop status` as `mate=`
 for 3 s. Each member's shows as `vit=<SteamID> ...`.
+
+The 13th number is the type of the zone the sender's EVE stands in, from the game's ZoneTable (0 to 6, see
+[Solo areas](group-internals.md#solo-areas)). The game thread reads it on the sender's side. A type above 6 goes out
+as 0. A line whose type is above 6 is invalid. A vit line of 12 numbers is invalid too: an earlier protocol-23 build
+and this one drop each other's vit lines.
 
 ### The pak and paks lines
 
@@ -506,6 +517,29 @@ for the last one taken. His Lua answers each number once. The answer goes to the
 number, alone, with her own number in place of the host's. A guest's link keeps only the answer to her last number. A
 world or camp name is letters, digits and `_`, at most 64 characters. Both lines show in `coop status` until the
 session ends: `camps=` on the guest, `camps?=` on the host.
+
+### The spot lines
+
+The spot lines carry [the spot warp](group-internals.md#the-spot-warp), both reliable: a member's `spot?` with a number
+from 0 to 65535, then the answer of the member asked: her last ground point (x, y and z in whole centimetres, each
+within 10,000,000 either way, then her yaw in whole degrees within 360 either way) or `none` and why (`title`,
+`loading`, `air`, `busy`, `solo`, `boss`). A guest asks the host only. The host may ask any guest past the handshake.
+A guest takes a `spot?` from the host only. Each game takes one `spot?` each 2 s from each asker and gives it a number
+of its own, 1 to 65535 in turn. Its status shows that number (`spot?=`) for the oldest request still waiting for an
+answer, else for the last one taken. Its Lua answers each number once. The answer goes to the member whose request
+had that number, with her own number in place. An answer counts only from the member asked, with the number of the
+last request: `spot=<id> <answer>` in the asker's status. A new request forgets the answer to the one before. The
+session's end drops both lines. `coop-link.log` has one line for each line sent, taken or dropped
+(`dropped a spot line from <name>: <why>`).
+
+### The rest line
+
+The rest line carries a member's [camp rest](group-internals.md#rests-between-members), reliable: the zone's alias
+(letters, digits and `_`, at most 64 characters), then the resting member's SteamID, never 0. A guest sends hers to
+the host. The host sends his to every guest past the handshake. The host takes a guest's rest only when its SteamID
+is hers, one each 2 s from each guest, then sends it on to every other guest past the handshake. A guest takes rest
+lines from the host only, with no limit of her own. Lua gets each one in `coop-chat.txt` as `rest <zone> <SteamID>`.
+`coop-link.log` has one line for each rest line sent, taken or dropped (`dropped a rest line from <name>: <why>`).
 
 ### The night line
 
@@ -621,7 +655,7 @@ from the owner.
 
 ### Unlinked peers, pings and session requests
 
-Say, vit, pak, paks, camps, night, mark, race, gift, bike, start, count and end lines from a friend who has not passed the handshake are ignored, without a log line.
+Say, vit, pak, paks, camps, spot, rest, night, mark, race, gift, bike, start, count and end lines from a friend who has not passed the handshake are ignored, without a log line.
 
 Accepted peers ping every 2 s. A game answers at most 4 pings a second from one player and sends no pong for the
 rest. A peer silent on channel 0 for 10 s is marked lost (`<name> silent for 10 s: lost`)

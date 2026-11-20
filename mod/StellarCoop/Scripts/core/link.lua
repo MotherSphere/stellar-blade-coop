@@ -28,8 +28,8 @@
 -- here; its shared_world world/objects/commands.lua's coop world (main.lua's loop asks it on or off and reads world()
 -- here); its shared_story story/together/commands.lua's coop scenes (main.lua's loop asks it on or off and reads
 -- story() here); its revive and cutscene_wait online/group/group.lua's (the friend's revive, the wait during the host's
--- cutscene); its follow_host and follow_key online/group/travel.lua's and main.lua's (the guest's travel to the camp
--- nearest the host), which reads camps() here; its collide online/partner/puppet.lua's (the solid partner); its
+-- cutscene); its follow_host and follow_key online/group/travel.lua's and main.lua's (the guest's travel to the
+-- host), which reads camps() and spots() here; its collide online/partner/puppet.lua's (the solid partner); its
 -- drift_keys the Doro races' driving (online/modes/race/drive.lua); its mod_names the native part's (through
 -- coop-state.txt: names=0 keeps the names of our .pak mods from the friend); its shortcut_load
 -- online/saves/commands.lua's (coop shortcut load, a test tool with no menu row); its pvp_spike
@@ -156,7 +156,8 @@ quest_deny=
 # play a co-op save and both have it on, a door, lever, switch, crane, lift or shortcut that one of you works through
 # the game changes in the other's game too, at once or, for most of them, when that zone next loads. Chests, supply
 # boxes, collectibles and anything that gives an item stay each player's own, and the doors the main story opens move
-# with quest steps only. Off, your changes are not sent and your friend's are not made in your game.
+# with quest steps only. A camp rest also brings the enemies of its area back in each other player's game there.
+# Off, your changes and rests are not sent and other players' are not made in your game.
 shared_world=on
 # Story together, experimental: on or off, on by default, not tested in game yet. On, while you and your friend both
 # play a co-op save and both have it on, a story scene the host plays (a cutscene or a talk) plays in the guest's game
@@ -185,9 +186,11 @@ photo_pause=full
 # are both on one map, with the same pause as photo sync and for at most photo_freeze_max.
 cutscene_wait=on
 # Follow the host, as the guest, on a co-op save: ask, always or off. When the host is on another map, or more than
-# 150 m from you on yours, ask shows a notice once and follow_key then takes you to the camp nearest them through the
-# game's own fast travel (one of the camps you have found); always starts that travel by itself 5 s later, and
-# follow_key cancels it; off does neither. With follow_key=none, only the console command coop travel host travels.
+# 150 m from you on yours, ask shows a notice once. follow_key then takes you to where the host last stood on solid
+# ground: at once on his map, from another map through the game's own fast travel to the camp nearest him first (one
+# of the camps you have found). always starts that travel by itself 5 s later unless you press follow_key; off does
+# neither. On the death screen, with revive=on and a friend alive on your map, follow_key takes you back to that
+# friend (always: by itself after 5 s). With follow_key=none, only the console command coop travel host travels.
 follow_host=ask
 # Solid partner, experimental: on or off, on by default. Yours: on, your EVE cannot walk through your friend's ghost
 # while she walks, runs or falls. The ghost lets her through while it overlaps her, while your feet are 60 cm or more
