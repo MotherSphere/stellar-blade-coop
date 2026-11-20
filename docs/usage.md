@@ -418,7 +418,11 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
   `refused:<why>` or `fault`, see [Emotes](eve/eve.md#emotes-coop-emote)), `bike=<off|loading|ready|failed:<why>|fault>
   bike_gate=<on|off|refused:<why>>` and `bike_life=<n>` (the
   [bike](vehicles/bike-internals.md#status-words-and-the-latch)'s preload, the game's actions while EVE rides, her life
-  state), `items=<ask> <count>` or `items=<ask> none <why>` (the answer to [`coop
+  state), `keep=<asked> <settled> <in>` or `keep=fault` (the counts of the
+  [keep](dev/architecture.md#files-shared-by-lua-and-the-native-part)'s paths: asked by Lua, settled, found in
+  memory), `theater=<none|sequence|->` or `theater=fault` (SB's theater, read every 100 ms: `none`, the sequence it
+  plays, or `-` while its first take loads or its name is not read), `items=<ask> <count>` or `items=<ask> none <why>`
+  (the answer to [`coop
   gift`](cutmenus/menus.md#cut-mailbox-coop-gift)'s last inventory read, by its number; why is `unpinned`, `noeve`,
   `nomanager`, `nobucket` or `unread`), and `nightop=on` or `nightop=rule` while the probe's poller runs.
 - Activated camps: `activated=<n>:<camp>,<camp>,...` lists the camps of the game's camp table (simple and full camps,

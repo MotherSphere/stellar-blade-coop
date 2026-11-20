@@ -142,6 +142,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `story/scenes/scene.lua` | `coop scene`: two unused rows of the game's theater table pointed at a cut scene's theater and read back, the Emil farewell's take lent to E03, E03's subtitles left in Korean and Japanese (no text registration), the level sequence actor it follows once a second through the engine's class hash (the theater observer, walked for, with no `theater=` field) and the Stop row that ends it; Lily's talks through Quinn's theater, its take lent the same way, or through the rows' level sequence with no theater |
 | `core/unreal.lua` | Small helpers over UE4SS objects |
 | `core/pak_gate.lua` | Finds a pak of ours (the Matrix XIII test pak, the hall lobby pak) in `SB/Content/Paks` from its `.utoc`, with its `.pak` and `.ucas` beside it, without loading anything |
+| `core/keep.lua` | The keep's Lua side: the asset paths modules want, written to `coop-keep.txt`; each kept asset found once with no load or walk and held; off for the Lua load when the native part cannot keep them, so modules load as before |
 | `core/line.lua`, `core/player.lua`, `core/actors.lua`, `core/where.lua`, `core/worlds.lua`, `core/row_edit.lua`, `core/picks.lua`, `core/items.lua`, `core/effect.lua` | Helpers cut out of the modules for every module to read: text lines and names, EVE and her controller, the display actors, our EVE's world and place, the story worlds' maps, a table row edited in place and read back, the select widgets' picks, the shop's item grant, the ChainSpin's effect call ([Modules and isolation](#modules-and-isolation)) |
 
 The runtime runs two game-thread loops, which call each module's work. One runs every frame (`main/frame.lua`): the
@@ -373,7 +374,7 @@ error that escapes it is logged once a Lua load; the modules after it still run 
 ### Native parts
 
 The DLL has no load isolation: `glue/tick.cpp` is one translation unit that includes every part. Each part's game calls
-run under its own SEH latch (77 `__try` blocks, 34 `*_faulted` flags): a fault there turns that feature off for the run.
+run under its own SEH latch (64 `__try` blocks, 36 `*_faulted` flags): a fault there turns that feature off for the run.
 A part may read what the parts before it define, so `tick.cpp` includes them in a declared order. Comments beside the
 includes name the parts one reads or must come before (`world/daynight/sky_game.inc` comes after
 `glue/tick/freeze_game_shared.inc`, whose controller reach it uses). What another module's part reads of a part is in
