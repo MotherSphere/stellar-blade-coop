@@ -1363,4 +1363,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 - `story_lines_test.py`: `tools/story_lines.py` on an invented 29-line example with a known digest, on
   `story_case.json` against `story_case.txt`, on what must leave the digest alone, and its commands on saves and dump
   files in a temporary folder. It also checks `float_repr.txt`, Python's `repr` of 2,331 doubles for the Lua side;
-  `python3 tests/tools/story_lines_test.py --write` writes it again.
+  `python3 tests/tools/story_lines_test.py --write` writes it again;
+- `windows_test.py`: `install_test.py`, `save_guard_test.py` and `story_lines_test.py` in a Python set up as on Windows:
+  text files and subprocess text in cp1252, `\n` written as CRLF and no `signal.alarm`. Symbolic links are first
+  refused with WinError 1314 (Windows without Developer Mode), then allowed. Without them, `install_test.py` and
+  `save_guard_test.py` print a `not tested` line for each check they skip. Paths keep the separators of the machine
+  that runs it.
