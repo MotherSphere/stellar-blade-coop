@@ -66,6 +66,8 @@ if M.link then
         local alone=not M.off and chatting~=nil and not heard and M.guarded('sbo',M.sbo.in_lobby)==true
         if M.off or chatting~=nil then M.guarded('chat',M.chat.session,not M.off and (heard or alone)) end
         if not M.race.armed() then M.guarded('inbox',M.inbox) end -- Each frame while one is.
+        -- The score attack's round and run, after the inbox, which keeps its score lines apart: it logs its own lines.
+        if not M.off then M.guarded('scoreattack',M.scoreattack.tick) end
         -- One of ours for the native part, two a second at most; never logged. Alone in the lobby it stays on our
         -- screen only, with one notice until someone is linked.
         local typed=M.guarded('chat',M.chat.take,M.chat_clock)

@@ -601,7 +601,15 @@ assert(Link.parse_settings('').pause_tab==true and Link.parse_settings('pause_ta
 -- The game's popups during online play: on by default, last in a new file, its comment right after pause_tab.
 assert(Link.parse_settings('').hide_popups==true and Link.parse_settings('hide_popups=off').hide_popups==false
     and Link.DEFAULT:find('\npause_tab=on\n# Popups during online play: on or off, on by default.',1,true)
-    and Link.DEFAULT:find('\nhide_popups=on\n$'))
+    and Link.DEFAULT:find('\nhide_popups=on\n',1,true))
+-- Score attack: on by default, last in a new file, its comment right after hide_popups; read at once, so off sits out
+-- the next round (online/modes/scoreattack/game.lua).
+assert(Link.parse_settings('').scoreattack==true and Link.parse_settings('scoreattack=OFF').scoreattack==false
+    and Link.DEFAULT:find('\nhide_popups=on\n# Score attack: on or off, on by default.',1,true)
+    and Link.DEFAULT:find('\nscoreattack=on\n$'))
+s,notes=Link.parse_settings('scoreattack=maybe')
+assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for scoreattack (use on or off); "
+    .."scoreattack stays on" and s.scoreattack==true,notes[1])
 assert(Link.DEFAULT:find('\ndaynight=on\n# Shortcut saves, a test tool: on or off, on by default.',1,true)
     and Link.DEFAULT:find('cannot be taken back',1,true) and Link.DEFAULT:find('\nshortcut_load=on\n'))
 assert(Link.parse_settings('shortcut_load=OFF').shortcut_load==false)

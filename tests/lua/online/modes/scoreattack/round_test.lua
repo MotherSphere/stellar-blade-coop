@@ -271,4 +271,25 @@ L.start(1,5,{HOST,P2})
 r.tick()
 assert(L.sent[1]=='void 5' and #o.started==0)
 
+-- The game side's pass comes after the link's, at every tick, round or not. coop off (stop) ends a round in play for
+-- the game side once, with no line; with no round in play the game side still hears it.
+L=fake(P2)
+L.mode,t='guest',0
+local passes,order={},{}
+r,o=make(L,nil)
+o.pass=function() passes[#passes+1]=t; order[#order+1]='pass' end
+local take=L.api.take_score
+L.api.take_score=function() order[#order+1]='link'; return take() end
+r.tick()
+assert(#passes==1 and order[1]=='link' and order[2]=='pass','The link first, then the game side')
+L.start(7,40,{HOST,P2})
+L.from(HOST,'go 40 targets')
+r.tick()
+assert(#passes==2 and o.started[1]=='targets 40 2')
+r.stop('coop off')
+assert(o.stopped[1]=='coop off' and r.round().phase=='over' and r.round().why=='coop off' and #L.sent==0)
+r.stop('coop off')
+assert(o.stopped[2]=='coop off' and #o.stopped==2,'Over already: the game side hears it directly')
+Round.new({link=fake(P2).api,clock=function() return 0 end}).stop('coop off') -- No round, no hooks: nothing raises.
+
 print('scoreattack_round_test: ok')

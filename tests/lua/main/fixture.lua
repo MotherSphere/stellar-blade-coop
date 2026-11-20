@@ -244,6 +244,11 @@ fake_link.round=function() return link_round end
 fake_link.me=function() return link_me end
 fake_link.owner=function() return link_owner end
 fake_link.uidev=function() return link_uidev end
+-- link.take_score(), the score attack's lines waiting (none in these tests), and link.score(text), each sent in
+-- fake_link.scores.
+fake_link.scores={}
+fake_link.take_score=function() return {} end
+fake_link.score=function(text) fake_link.scores[#fake_link.scores+1]=text; return true end
 native_ok=nil
 captured,remoted={},nil
 -- capture_leave_out: what main.lua gave the capture's leave_out (the bike's idle_part).

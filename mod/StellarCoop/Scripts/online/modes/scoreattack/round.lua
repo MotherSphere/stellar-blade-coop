@@ -16,8 +16,9 @@ local R={}
 R.KEPT,R.NOW=10,1
 -- o: link (core/link.lua's), clock() (seconds), log(message), offered() (the challenge ids the lobby room offers, nil
 -- for none), start(def, seed, spot) (our run starts: the challenge, the round's seed, our place in the round's players
--- from 1, host first) and stop(why) (the round ended before its ranking: void, host, host_left, host_lost, left,
--- replaced; or after it), both optional.
+-- from 1, host first), stop(why) (the round ended before its ranking: void, host, host_left, host_lost, left,
+-- replaced, reload, coop off; or after it) and pass() (the game side's work, after the link's, each pass), all
+-- optional.
 function R.new(o)
     local self={}
     local link,log=o.link,o.log or function() end
@@ -85,8 +86,7 @@ function R.new(o)
         return set
     end
 
-    -- Each 250 ms pass, after link.changes().
-    function self.tick()
+    local function link_pass()
         local now,me,r=o.clock(),(link.saves() or {}).steamid,link.round()
         local ours=me and r and r.kind=='start' and r.mode=='scoreattack' and has(r.ids,me)
         if ours and not (cur and cur.n==r.n) then
@@ -141,6 +141,16 @@ function R.new(o)
                 if a.ask then link.request('match end') end
             end
         end
+    end
+    -- Each 250 ms pass, after the inbox (it keeps the score lines apart): the link's work, then the game side's.
+    function self.tick()
+        link_pass()
+        if o.pass then o.pass() end
+    end
+    -- coop off (or any reason): our round ends for us, with no line; o.stop hears it once, round or not.
+    function self.stop(why)
+        if cur and cur.phase~='over' then return finish(why) end
+        if o.stop then o.stop(why) end
     end
     -- Our run's lines (the game side): ready once its countdown started, now as its score or wave changes (sent at
     -- most each R.NOW from the pass), done at its end with model.lua's result ({ending=, score=, tenths=}). Nothing
