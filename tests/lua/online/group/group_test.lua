@@ -736,13 +736,14 @@ local backs=0
 for _,s in ipairs(W.said) do if s==BACK then backs=backs+1 end end
 assert(backs==1,'No offer for a death within 10 s of the in-place respawn')
 -- No offer: the host on another map, a boss fight, no shared fight, a Night Operation run, revive=off, the host in a
--- solo area, no co-op save, follow_key=none, follow_host=off.
+-- solo area, we in one, no co-op save, follow_key=none, follow_host=off.
 for _,change in ipairs({function(w) w.her_map='/game/other' end,function(w) w.fight=w.fight:gsub('boss=0','boss=1') end,
     function(w) w.fight=nil end,function(w) w.night=true end,function(w) w.settings.revive=false end,
-    function(w) w.mate.zone=5 end,function(w) w.slot=nil end,function(w) w.settings.follow_key={name='none'} end,
+    function(w) w.mate.zone=5 end,function(w) w.zonetype=5 end,function(w) w.slot=nil end,function(w) w.settings.follow_key={name='none'} end,
     function(w) w.settings.follow_host='off' end}) do
     g=world(function(w) far(w); change(w) end); run(g,1)
     for _,s in ipairs(W.said) do assert(s~=BACK) end
+    assert(g.back()==nil)
 end
 assert(logged('return: no notice (follow_host=off)'))
 g=world(function(w) far(w); w.settings.follow_key={name='none'} end); run(g,1)
@@ -782,9 +783,14 @@ W.zonetype=2; run(g,0.5); assert(W.said[#W.said]=='Kaanta is back.','Our own sta
 g=world(function(w) w.mate.zone=6 end); run(g,4); assert(#W.calls==0 and logged('revive waits: friend in a solo area'))
 g=world(function(w) w.zonetype=3 end); run(g,4); assert(#W.calls==0 and logged('revive waits: solo area'))
 g=world(function(w) w.mode='guest'; w.life={state=1,hp=1600}; w.mate.zone=5 end); assert(g.cut()==false)
--- Her down notice: none while she is in a solo area.
+g=world(function(w) w.mode='guest'; w.life={state=1,hp=1600}; w.zonetype=5 end)
+assert(g.cut()==false,'No pause for his cutscene while we stand in a solo area')
+-- Her down notice: none while she or we stand in a solo area.
 g=world(function(w) w.mode,w.life,w.mate='host',{state=1,hp=1600},{life=3,hp=0,max_hp=1600,zone=5} end); run(g,2)
 for _,s in ipairs(W.said) do assert(s~=DOWN,'No down notice for a member in a solo area') end
+g=world(function(w) w.mode,w.life,w.mate,w.zonetype='host',{state=1,hp=1600},{life=3,hp=0,max_hp=1600,zone=1},5 end)
+run(g,2)
+for _,s in ipairs(W.said) do assert(s~=DOWN,'No down notice while we stand in a solo area') end
 -- Camp rests (shared_world=on, a co-op save, alive in Zone_A, the engine line's rest counts at 0).
 local function ready(w) w.slot=COOP; w.life={state=1,hp=1600}; w.settings.shared_world=true; w.area='Zone_A'
     w.names={Zone_A=55}; w.rest='rest=0:none:0 starts=0' end
