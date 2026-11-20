@@ -736,7 +736,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 
 ### Poses
 
-- `game_partner_engine_test`: the pose path against fake memory;
+- `game_partner_engine_test`: the pose path against fake memory. Its build pin's refusals name the pinned stamp and
+  size: a port changes them (see [Porting](porting.md#the-port-step-by-step));
 - `game_codec_test`: the codec's round trips, the deltas against a keyframe, a decoder fuzz and a 60 a second stream
   with every second delta dropped, which decodes whole;
 - `online_partner_delta_gain_test`: what the sender's delta tolerance (`kTolerance` in `game/codec.h`) saves. With no
@@ -1065,7 +1066,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 - `online_photo_photo_freeze_test`: the synced photo mode's pause against a fake pause set;
 - `game_globals_test`: SB's globals as build 26123051 lays them out, checked at compile time: the block offsets the
   fight engine, the photo freeze, the lion gate and the Night Operation probe read land on the registry, the world,
-  logic and the net-mode cache, and every header that names one of these globals by address names the same one;
+  logic and the net-mode cache. Every header that names one of these globals by address names the same one. A port
+  writes the new build's addresses there (see [Porting](porting.md#the-port-step-by-step));
 - `eve_debug_keys_test`: `coop fly`'s and `coop slowmo`'s gates against fake memory laid out like the pinned build: the
   keys' hash, the lookup through inline and allocated buckets and along a chain of collisions, each refusal with no
   write, and the passes (a gate set with its old value kept, set again after the game built its map again, its old
@@ -1332,6 +1334,28 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   (`sbo::kSetDifficulty`, 0x141cf3180) exactly once, in R8 after the return's reload. Called in game outside a
   Boss Challenge zone, the setter makes the game reload the save, and on 2026-11-12 the call the SBO lobby's entry made
   right after its warp did that and sent the player back to the saved spot;
+- `port_addresses_test.py`: `tools/port/addresses.py` on a fake source file (addresses in comments, strings and raw
+  strings left out; constants, tables, struct fields in a table, `Rva` constants and digit separators read), then on
+  `native/src`: every game address the code uses has an entry in `tools/port/signatures.json`, every entry is used
+  and each has a known kind (see [Porting](porting.md));
+- `port_signatures_test.py`: `tools/port/make_signatures.py`'s instruction decoder on 38 instructions checked against
+  capstone (rel32 calls and jumps, RIP-relative operands with and without an immediate after them, SIB, VEX, EVEX,
+  prefixes) and its refusal of an opcode 64-bit code does not use; then each kind of signature on a PE file the test
+  builds: a function's own run, a code address, a call into one of two identical functions, a load followed by an
+  immediate, a vtable slot found through its vtable's start, a function only a vtable slot points to (`read`), a
+  global loaded in identical copies of a function (`then`), a global whose load is found by a run that starts at
+  the instruction before it and a vtable no code loads (`holder`, past a slot whose code another place also holds).
+  Bytes inside an instruction that read as a call give no reference. A run stops after a jump out of the code
+  section. A signature that matches twice gives no address. A holder whose code two places hold gives no address. An
+  executable other than the pinned build is refused. Every entry of `tools/port/signatures.json` that needs a
+  signature has one in the form the tool writes, with the names the code gives its address. Then
+  `tools/port/find.py` on the same PE file: every entry is found, the image base and a section included. With a
+  function added before the others, the code addresses move by 16 bytes and the data addresses stay. Three copies of
+  a function give `ambiguous (3 matches)`. A holder's code held in two places gives `ambiguous (2 matches)`. A
+  function removed gives `missing`. So does a `read` that lands outside the file. The exit code is 1 for each.
+  Last, `find.py` on `~/Ghidra/stellar-blade/input/26123051/SB-Win64-Shipping.exe`, Ghidra's copy of build 26123051:
+  every entry is found at its own address. A PC without that file skips this part and says so. A port points `EXE` at
+  the new build's copy (see [Porting](porting.md#the-port-step-by-step));
 - `release_test.py`: `tools/release.py`'s build, upload and publish steps and its refusals, with git, gh and
   `tools/install.py` faked;
 - `save_read_test.py`: `tools/save_read.py` on GVAS bodies built in the test (the header, values, containers, the EVAS
