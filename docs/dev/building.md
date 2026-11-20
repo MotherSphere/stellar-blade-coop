@@ -298,6 +298,7 @@ Platform-free headers, tested on the build machine:
 | `game/partner/engine.h` | Engine memory reads and writes, and the build pin |
 | `game/codec.h` | The pose's wire format: keyframes and deltas |
 | `game/stream.h` | The loopback's delay line, the receiving clock and interpolation |
+| `game/events.h` | When the ghost's features may call the game, a pose's events, the sender's `Outbox` and asset keys |
 | `online/partner/record.h` | The recording, its check and its replay |
 | `online/modes/nightop/probe.h` | The `coop no` poller's reads, lines and verdict |
 | `online/modes/nightop/roxanne.h` | Roxanne's Night Operation choices and Lily's signal choice: a choice list's entry in SB's select cache pointed at rows of ours followed by the list's own, and put back; the checks and the `roxanne=` and `lily=` lines |

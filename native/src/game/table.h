@@ -69,7 +69,8 @@
 #include <utility>
 #include <vector>
 
-#include "game/core.h" // Part, hex(), kMaxParts, kMaxBones; number() and kProtocol from link/protocol.h
+#include "game/core.h"   // Part, hex(), kMaxParts, kMaxBones; number() and kProtocol from link/protocol.h
+#include "game/events.h" // kEventSlots, kEventBytes
 
 namespace coop::pose {
 
@@ -170,7 +171,7 @@ constexpr size_t kMaxPose = 16384, kPoseHeader = 29, kWorldBytes = 24, kBoneByte
 
 // The bytes a pose of this table takes (every message of a table has this one size), or 0 above kMaxPose.
 inline size_t pose_size(const Table &t) {
-  size_t size = kPoseHeader + kEffectSlots * kEffectBytes;
+  size_t size = kPoseHeader + kEffectSlots * kEffectBytes + kEventSlots * kEventBytes;
   for (size_t i = 0; i < t.eve.size(); ++i)
     size += 1 + (i == 0 ? kWorldBytes : 0) + (t.eve[i].free ? kFreeBytes : 0) +
             (t.eve[i].leader ? kBoneBytes * t.eve[i].bones : 0);

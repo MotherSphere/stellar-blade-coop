@@ -44,10 +44,11 @@ local MAX_VALUES,MAX_SLOT_VALUES,MAX_NUMBER=512,32,1e5 -- Its kMaxValues, kMaxSl
 local VALUES_ROOM=56000
 -- s between tables only a value changed: a value the game animates must not send the whole table at every look.
 local VALUE_WAIT=5
--- Its kMaxPose, then what pose_size() counts in every pose (the header, 6 effect slots of 15 bytes, her world
--- transform), per free part's block and per bone of a leader: past MAX_POSE it refuses the whole table.
+-- Its kMaxPose, then what pose_size() counts in every pose (the header, 6 effect slots of 15 bytes, 4 event slots of
+-- 19 bytes, her world transform), per free part's block and per bone of a leader: past MAX_POSE it refuses the whole
+-- table.
 local MAX_POSE,BONE_BYTES=16384,18
-Capture.POSE_BASE,Capture.FREE_BYTES=29+6*15+24,25
+Capture.POSE_BASE,Capture.FREE_BYTES=29+6*15+4*19+24,25
 -- The bytes a pose of these parts takes, as the native pose_size() counts them: parts of {bones=, free=, lead=}, a
 -- follower (lead set) with no bones of its own.
 function Capture.pose_bytes(parts)

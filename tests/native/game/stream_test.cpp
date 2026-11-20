@@ -6,7 +6,8 @@
 // due back, the game thread decodes it into the playback and draws a pose every frame. The root's X is the publication
 // time in ms, a straight line, so a drawn pose that interpolates right lands exactly on the display time. Checks delay,
 // jitter and loss against their settings, tracking, stalls, a clock step both ways, silence and stale poses; effect
-// slots held, not blended; free blocks blended, with the newer one's state; 60 poses a second with 100 ms of jitter,
+// slots held, not blended; free blocks blended, with the newer one's state; event slots passed once each, none of a
+// new playback's first sample; 60 poses a second with 100 ms of jitter,
 // then with loss, then with a worker slower than the capture and a busy hand-over; and the interval across a lost
 // keyframe's hole.
 #include "game/codec.h"
@@ -249,10 +250,62 @@ void test_free_interpolated() { // between two frames: the place blended, the ne
   feed_free(q, 3, 100'000, 0.f, 0);
   assert(sample_free(q, uint64_t((now_ms + 50) * 1000), f) && f[0].place[4] == 0 && f[0].state == 0);
 }
+
+// Events (game/events.h): a pose of sequence seq published at publication_us, accepted with arrival = publication, its
+// event slot `slot` holding a sound of that serial; and a sample at now_us.
+void feed(Playback &p, uint32_t seq, uint64_t publication_us, uint8_t serial, size_t slot = 0) {
+  Playback::Frame &f = p.scratch();
+  f.sequence = seq;
+  f.publication = publication_us;
+  std::fill(f.events, f.events + kEventSlots, Event());
+  f.events[slot].kind = Kind::sound;
+  f.events[slot].asset = 3;
+  f.events[slot].serial = serial;
+  assert(p.accept(publication_us));
+}
+void sample_at(Playback &p, uint64_t now_us) {
+  float root[10];
+  Effect fx[kEffectSlots];
+  assert(p.sample(now_us, root, nullptr, fx));
+}
+void test_first_sample_plays_nothing() { // Review Focus 2
+  Playback p;
+  p.reset(0);
+  Event out[8];
+  feed(p, 1, 0, 5);
+  feed(p, 2, 16'667, 5);
+  sample_at(p, 60'000);           // display_ms about -10
+  assert(p.passed(out, 8) == 0);  // standing events of a new playback stay silent
+  feed(p, 3, 33'333, 6);
+  sample_at(p, 120'000);          // display_ms about 54: frame 3 passed
+  assert(p.passed(out, 8) == 1 && out[0].serial == 6 && out[0].asset == 3);
+  assert(p.passed(out, 8) == 0);  // passed once
+  feed(p, 4, 50'000, 6);
+  sample_at(p, 160'000);          // about 99: frame 4 passed, the same serial
+  assert(p.passed(out, 8) == 0);  // once only
+  p.clear();
+  feed(p, 5, 66'667, 7);
+  sample_at(p, 200'000);
+  assert(p.passed(out, 8) == 0);  // a restarted playback: silent again
+  feed(p, 6, 83'333, 8);
+  feed(p, 7, 100'000, 9);
+  sample_at(p, 300'000);          // both passed, in order; a cap of 1 keeps the second for the next call
+  assert(p.passed(out, 1) == 1 && out[0].serial == 8 && p.passed(out, 1) == 1 && out[0].serial == 9);
+  assert(p.passed(out, 8) == 0);
+  feed(p, 8, 400'000, 10);        // ahead of the last sample's display time (about 234 ms): not passed yet
+  assert(p.passed(out, 8) == 0);
+  p.clear();                      // slot 0 played serial 9 before: a new playback forgets it
+  feed(p, 9, 500'000, 3, 1);
+  sample_at(p, 600'000);
+  feed(p, 10, 516'667, 9);
+  sample_at(p, 700'000);
+  assert(p.passed(out, 8) == 1 && out[0].serial == 9);
+}
 } // namespace
 
 int main() {
   test_free_interpolated();
+  test_first_sample_plays_nothing();
   // The hand-over on its own: a keyframe the worker has not taken stays and the delta is dropped; anything else is
   // swapped in, and a taken slot always is. A keyframe still in back when the next pose is encoded is lost.
   {
@@ -269,22 +322,24 @@ int main() {
     assert(!lost_key(mid, true));
   }
 
-  // T3 step 1: one-way 120 ms, jitter 30 ms, 1 % segment loss (a 4.7 KB pose is 4 segments: about 4 % of poses).
+  // T3 step 1: one-way 120 ms, jitter 30 ms, 1 % segment loss (a 4.9 KB pose is 5 segments since the 4 event slots:
+  // about 5 % of poses).
   Result a = run({120, 30, 1});
   assert(a.lag_ms > 120 && a.lag_ms < 132); // The delay, plus up to 5 ms for each worker pass and a frame.
   double lost = 100.0 * a.dropped / a.sent;
-  assert(lost > 2 && lost < 6);
+  assert(lost > 3 && lost < 7);
   assert(a.stats.stalls == 0 && a.stats.stale == 0);
   assert(a.behind_ms > 20 && a.behind_ms < 100);
   assert(a.stats.extrapolated * 20 < a.stats.drawn); // Under 5 %: the jitter spread keeps late poses ahead of her.
 
-  // T3 step 2: 100/30/2 (about 8 % of poses): no gap above 250 ms in 10 minutes. A lost pose leaves a 100 ms hole that
-  // the half-interval extrapolation cannot always cover: tracking drops to 98 %.
+  // T3 step 2: 100/30/2 (about 10 % of poses with 5 segments; 8 % with the 4 before the event slots): no gap above
+  // 250 ms in 10 minutes. A lost pose leaves a 100 ms hole that the half-interval extrapolation cannot always cover:
+  // tracking drops to 98 % (97.9 % measured with 5 segments).
   Scenario lossy{100, 30, 2, 600};
-  lossy.tracking_percent = 98;
+  lossy.tracking_percent = 97;
   Result b = run(lossy);
   lost = 100.0 * b.dropped / b.sent;
-  assert(lost > 6 && lost < 10);
+  assert(lost > 7 && lost < 12);
   assert(b.lag_ms > 100 && b.lag_ms < 112 && b.stats.stale == 0);
   assert(b.stats.lost <= b.dropped && b.stats.lost + 2 >= b.dropped); // Line losses show as sequence gaps (not the last).
 
@@ -348,7 +403,7 @@ int main() {
   Result f = run(fast);
   assert(f.keyless == 0 && f.received == f.sent - f.on_line && f.stats.stalls == 0 && f.stats.stale == 0);
   assert(f.received > 3500);
-  // The same with 1 % segment loss for 2 minutes: a lost keyframe (4 segments) makes its deltas keyless until the next
+  // The same with 1 % segment loss for 2 minutes: a lost keyframe (5 segments) makes its deltas keyless until the next
   // keyframe, at most 250 ms later; nothing is ever drawn from a wrong pose (the worst bone check).
   Scenario fast_lossy{120, 30, 1, 120};
   fast_lossy.interval_us = 16667;

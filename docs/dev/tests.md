@@ -715,7 +715,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   is the ghost's own;
 - `game_codec_test`: the codec's round trips, the deltas against a keyframe, a decoder fuzz and a 60 a second stream
   with every second delta dropped, which decodes whole; a free part's 25-byte block in a pose and in a delta's fixed
-  part, a hidden block as 25 zero bytes;
+  part, a hidden block as 25 zero bytes; the four event slots, each a delta unit compared byte for byte, a refused one
+  refusing the pose;
 - `online_partner_delta_gain_test`: what the sender's delta tolerance (`kTolerance` in `game/codec.h`) saves. With no
   argument, as `tools/install.py` runs it, it encodes two synthetic recordings (idle and running) made by the real
   sender with no tolerance and with it, checks that the tolerance saves bytes on both and prints keyframes, deltas,
@@ -727,7 +728,10 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 - `online_partner_drone_test`: her drone's pick (the nearest within 3000 cm, a tie to the first) and when the lookup
   may run (both of SB's globals set, the world's manager and map found, game calls allowed);
 - `game_events_test`: `game_calls_ok`, which allows a game call only with the lion gate open, the client in game and
-  playing, off SB's logic thread;
+  playing, off SB's logic thread; an event slot's 19 bytes with a fuzz (each slot it accepts encodes back to the same
+  bytes); the `Outbox`, whose events wait at most 100 ms and hold a slot for 2 poses and 50 ms plus one send interval,
+  so a member capped at 20 poses a second sees every event; the asset keys, one per name, kept after a reload, none
+  past 4096;
 - `online_partner_resend_test`: our component table's resends (`TableResend` in `game/table.h`) on a worker passing
   every 50 ms: at once to a new friend, then 5, 10, 20, 40 and 60 s apart, every 60 s from then on; a change brings the
   next one 5 s after it and starts the doubling over; a sign her side lost our table brings it within 5 s, and a flood
@@ -736,7 +740,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   show lines re-stamped on the poses' clock;
 - `game_stream_test`: the loopback pipeline in simulated time, and the playback of a match lobby member who gets every
   2nd or 3rd pose of a 60 a second stream (cap 30 or 20): with 100 ms of lag she is drawn 150 or 175 ms back; a free
-  part's place blended between two poses that show it, with the newer pose's state;
+  part's place blended between two poses that show it, with the newer pose's state; the events a ghost plays (each
+  slot's serial once, none from the poses a playback starts with);
 - `online_partner_inbox_test`: the game thread's pose inbox (`kInbox` in `game/core.h`) in a full match lobby, 7 members
   sending 60 or 30 poses a second: one game-thread stall of 102, 198, 291 or 361 ms (the stalls of steady play
   in the 2026-11-12 log) drops no pose and leaves no delta without its keyframe;

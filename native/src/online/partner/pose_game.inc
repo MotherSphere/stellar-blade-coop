@@ -256,8 +256,8 @@ void stream(uint64_t now_us) {
     }
     Playback::Frame &f = ghost->playback.scratch();
     PoseHeader h;
-    if (const char *why =
-            ghost->decoder.decode(ghost->remote, in.data.data(), in.size, h, f.root, f.bones.data(), f.fx, f.free)) {
+    if (const char *why = ghost->decoder.decode(ghost->remote, in.data.data(), in.size, h, f.root, f.bones.data(), f.fx,
+                                                f.free, f.events)) {
       if (!std::strcmp(why, "generation")) { // Of a table the ghost is not built on (yet): an outfit in flight.
         ++window_foreign;
       } else if (!std::strcmp(why, "key")) { // A delta whose keyframe was lost, or came before this Live.

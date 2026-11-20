@@ -146,7 +146,7 @@ void test_free_part() {
   auto got = parse_table(t, false);
   assert(got && got->eve[1].free && got->eve[1].leader && got->look[1].parent == -1 && !got->eve[0].free);
   assert(format_table(*got) == t && free_count(*got) == 1 && !got->look[1].light);
-  assert(pose_size(*got) == 29 + 6 * 15 + (1 + 24 + 2 * 18) + (1 + 25 + 3 * 18)); // 260
+  assert(pose_size(*got) == 29 + 6 * 15 + 4 * 19 + (1 + 24 + 2 * 18) + (1 + 25 + 3 * 18)); // 336
   for (const std::string &bad : {
            with(t, "free 1\n", ""),                                         // '-' parent needs free
            with(t, "free 1\n", "place 1 0 0 0 1 0 0 0 1 1 1\nfree 1\n"),    // a place line too
@@ -599,23 +599,26 @@ int main() {
   const Table every = wire_table(with(kWire, hair_tail, hair_tail + all_slots + "\n"));
   assert(every.ignored == 0 && every.look[2].hidden == ~uint64_t(0));
   assert(wire_table(format_table(every)).look[2].hidden == ~uint64_t(0));
-  // Values grow as read back too (".1" again), past what the places alone would leave room for: refused here.
-  std::string growing = kSbt + "generation 1\nmap /m\npart 0 - - - 1 900 Body " + kBody + "\n";
+  // Values grow as read back too (".1" again), past what the places alone would leave room for: refused here. 897
+  // bones keep each pose of these tables under kMaxPose (pose_size), so only the text refuses them.
+  std::string growing = kSbt + "generation 1\nmap /m\npart 0 - - - 1 897 Body " + kBody + "\n";
   for (int k = 0; k < 8; ++k)
     growing += "material 0 " + std::to_string(k) + " " + kSkin + "\n";
   for (int k = 0; k < 8; ++k)
     for (int n = 0; n < 16; ++n)
       growing += "value 0 " + std::to_string(k) + " v N" + std::to_string(n) + " .1 .1 .1 .1\n";
   growing += "names 0";
-  for (int b = 0; b < 900; ++b)
+  for (int b = 0; b < 897; ++b)
     growing += " " + std::string(63, 'b');
   growing += "\n";
   assert(growing.size() + kMaxParts * 10 * 14 <= kMaxTable && !parse_table(growing, false));
 
   // Under 64 KiB as read but over it as the wire form (".1" comes back as "0.100000001"): refused, as a peer could
-  // not read it back. The same table with floats that do not grow passes.
-  std::string near_cap = kSbt + "generation 1\nmap /m\npart 0 - - - 1 900 Body " + p255 + "\nnames 0";
-  for (int b = 0; b < 900; ++b)
+  // not read it back. The same table with floats that do not grow passes. The longest map and part name make up for
+  // the bones the event slots took.
+  std::string near_cap = kSbt + "generation 1\nmap /" + std::string(127, 'm') + "\npart 0 - - - 1 897 " +
+                         std::string(64, 'o') + " " + p255 + "\nnames 0";
+  for (int b = 0; b < 897; ++b)
     near_cap += " " + std::string(64, 'b');
   near_cap += "\n";
   for (int i = 1; i < 16; ++i)
@@ -625,7 +628,7 @@ int main() {
   for (size_t at; (at = still.find(" .1 0 0 .995")) != std::string::npos;)
     still.replace(at, 12, " 0 0 0 1");
   assert(near_cap.size() <= kMaxTable && !parse_table(near_cap, false));
-  assert(format_table(wire_table(still)).size() <= kMaxTable);
+  assert(format_table(wire_table(still)).size() <= kMaxTable && pose_size(wire_table(still)) == 16381);
 
   // The display file: part 0 on a 4-bone fallback mapped by name, the hair driven as it came, the blade left out.
   const std::string display = "display 100001\n"

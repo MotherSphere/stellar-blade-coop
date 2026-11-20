@@ -178,8 +178,9 @@ tick(); step(2)
 assert(published[#published]:find('^generation 100004\n'))
 
 -- The native part's caps: at most 16 parts, the rest left out; a leader of 1 to 1024 bones, one of 0 or more left out
--- with its followers, and the last leaders while a pose would pass 16384 bytes (one of 1024 bones would: 143 bytes of
--- header, 6 effect slots and world transform, 1 a part, 18 a bone); her main mesh outside them, no table at all.
+-- with its followers, and the last leaders while a pose would pass 16384 bytes (one of 1024 bones would: 219 bytes of
+-- header, 6 effect slots, 4 event slots and world transform, 1 a part, 18 a bone); her main mesh outside them, no table
+-- at all.
 local X='/Game/Art/Character/X/'
 local many={body}
 for k=1,20 do many[#many+1]=her('Extra'..k,X..'X'..k..'.X'..k,{parent=body,bones=1}) end
@@ -191,14 +192,14 @@ assert(ok and message:find('^Capture %d+: 16 parts, ') and select(2,t:gsub('\npa
 assert(t:find(' Extra15 ',1,true) and not t:find(' Extra16 ',1,true),t)
 local zero=her('Zero',X..'Zero.Zero',{parent=body})
 local huge=her('Huge',X..'Huge.Huge',{parent=body,bones=1025})
-local full=her('Full',X..'Full.Full',{parent=body,bones=899}) -- 902 bones with hers: 143 + 2 + 16236 bytes.
+local full=her('Full',X..'Full.Full',{parent=body,bones=894}) -- 897 bones with hers: 219 + 2 + 16146 bytes.
 local on_zero=her('OnZero',X..'OnZero.OnZero',{leader=zero,parent=zero})
 player=eve_of('EVE4',{body,zero,huge,full,on_zero})
 tick()
 ok,message=step(2)
 t=published[#published]
-assert(ok and message:find('^Capture %d+: 2 parts, 902 bone names, .* ms$'),tostring(message))
-assert(t:find('\npart 1 - 0 - 1 899 Full ',1,true) and not t:find('Zero',1,true) and not t:find('Huge',1,true),t)
+assert(ok and message:find('^Capture %d+: 2 parts, 897 bone names, .* ms$'),tostring(message))
+assert(t:find('\npart 1 - 0 - 1 894 Full ',1,true) and not t:find('Zero',1,true) and not t:find('Huge',1,true),t)
 -- One bone more is over: the last leader goes with its follower, and the leader before it, if a pose is still over.
 local tail=her('Tail',X..'Tail.Tail',{parent=body,bones=1})
 local on_tail=her('OnTail',X..'OnTail.OnTail',{leader=tail,parent=tail})
@@ -207,7 +208,7 @@ player=eve_of('EVE4b',{body,full,tail,on_full,on_tail})
 tick()
 ok,message=step(2)
 t=published[#published]
-assert(ok and message:find('^Capture %d+: 3 parts, 902 bone names, .*; 1 leaders left out, over the pose size$'),
+assert(ok and message:find('^Capture %d+: 3 parts, 897 bone names, .*; 1 leaders left out, over the pose size$'),
     tostring(message))
 assert(t:find('\npart 2 1 1 - 1 0 OnFull ',1,true) and not t:find('Tail',1,true),t)
 full.state.bones=1024
@@ -218,7 +219,7 @@ t=published[#published]
 assert(ok and message:find('^Capture %d+: 3 parts, 4 bone names, .*; 1 leaders left out, over the pose size$'),
     tostring(message))
 assert(t:find(' Tail ',1,true) and t:find(' OnTail ',1,true) and not t:find('Full',1,true),t)
-body.state.bones=903 -- Her main mesh alone is over (143 + 1 + 16254 bytes): no table.
+body.state.bones=899 -- Her main mesh alone is over (219 + 1 + 16182 bytes): no table.
 player=eve_of('EVE4d',{body,tail})
 tick()
 local count_before=#published
@@ -231,11 +232,13 @@ tick()
 local before=#published
 step(2); step(1)
 assert(#published==before,'Her main mesh without bones: no table')
--- Pose size: Capture.pose_bytes counts as the native pose_size() does, with 6 effect slots and a free part's block.
-assert(Capture.POSE_BASE==29+6*15+24 and Capture.FREE_BYTES==25,'the native pose_size: 6 effect slots, free blocks')
-assert(Capture.pose_bytes({{bones=2},{bones=3,free=true}})==260,'test_free_part\'s table: the same 260 bytes')
-assert(Capture.pose_bytes({{bones=90},{bones=3,free=true}})==1844)
-assert(Capture.pose_bytes({{bones=3},{bones=0,lead=0},{bones=2}})==143+1+54+1+1+36,'a follower: its status byte')
+-- Pose size: Capture.pose_bytes counts as the native pose_size() does, with 6 effect slots, 4 event slots and a free
+-- part's block.
+assert(Capture.POSE_BASE==29+6*15+4*19+24,'the native pose_size with the event slots')
+assert(Capture.FREE_BYTES==25,'the native pose_size: free blocks')
+assert(Capture.pose_bytes({{bones=2},{bones=3,free=true}})==336,'test_free_part\'s table: the same 336 bytes')
+assert(Capture.pose_bytes({{bones=90},{bones=3,free=true}})==1920)
+assert(Capture.pose_bytes({{bones=3},{bones=0,lead=0},{bones=2}})==219+1+54+1+1+36,'a follower: its status byte')
 body.state.bones=3
 
 -- Dyes off (every capture above): her overridden materials are never read, so no material lines and the key as before.
@@ -645,8 +648,8 @@ step(2)
 assert(not reads.VectorParameterValues and not published[1]:find('\nvalue '),published[1])
 -- A table with no room: the geometry goes whole, the values stay home, said in the line.
 local long_bones={}
-for b=1,900 do long_bones[b]=('b'):rep(61)..b end
-local big=her('Big',BODY,{parent=capsule,bones=900,names=long_bones})
+for b=1,897 do long_bones[b]=('b'):rep(61)..b end -- 897: the most bones her main mesh's pose holds alone
+local big=her('Big',BODY,{parent=capsule,bones=897,names=long_bones})
 raw[big].OverrideMaterials=slots(1,{mid})
 local big_eve=eve_of('EVE16',{big})
 raw[big_eve].Mesh=big
@@ -845,14 +848,14 @@ ok,message=step(1)
 assert(ok==false and message:find('^Capture: drone not read: .*no components$'),tostring(message))
 assert(step(1)==nil and not published[#published]:find('\nfree '),'Said once, left out')
 raw[drones[1]].K2_GetComponentsByClass=components_of
--- Her parts at 16381 bytes (143 + 1 + 54 + 1 + 18 x 899): the drone's 80 more pass 16384, so its leader goes first.
-assert(Capture.pose_bytes({{bones=3},{bones=899}})==16381 and Capture.pose_bytes({{bones=3},{bones=899},
-    {bones=3,free=true}})==16461)
-full.state.bones=899
+-- Her parts at 16367 bytes (219 + 1 + 54 + 1 + 18 x 894): the drone's 80 more pass 16384, so its leader goes first.
+assert(Capture.pose_bytes({{bones=3},{bones=894}})==16367 and Capture.pose_bytes({{bones=3},{bones=894},
+    {bones=3,free=true}})==16447)
+full.state.bones=894
 player=eve_of('EVE24',{body,full})
 tick()
 ok,message=step(2)
-assert(ok and message:find('^Capture %d+: 2 parts, 902 bone names, .*; 1 leaders left out, over the pose size$'),
+assert(ok and message:find('^Capture %d+: 2 parts, 897 bone names, .*; 1 leaders left out, over the pose size$'),
     tostring(message))
 assert(not published[#published]:find('\nfree '),published[#published])
 -- A drone mesh hung on no part (here on the drone's capsule) hangs from the free part: its parent is the drone's main

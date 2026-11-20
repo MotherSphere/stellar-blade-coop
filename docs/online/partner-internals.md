@@ -109,17 +109,26 @@ game thread at the send rate, and the worker sends it. A pose message holds:
   light is hidden or missing. A hidden block is 25 zero bytes. A drone that cannot be read shows hidden while her own
   pose goes on;
 - six effect slots of 15 bytes each: an index (1 to 19 for the fixed list of effects, 20 to 64 for the table's `fx`
-  lines), the part it hangs on, a serial for each new instance, and its rotation and translation relative to the part.
+  lines), the part it hangs on, a serial for each new instance, and its rotation and translation relative to the part;
+- four event slots of 19 bytes each (`game/events.h`, `put_event` in `game/codec.h`): what her game played, by kind
+  (sound, Niagara, Cascade, decal, trail start or end), a serial for each new event in the slot, its asset key (1 to
+  4096), the part it is attached to (none: placed relative to her main mesh), two value bytes (a sound's volume and
+  pitch in 1/64 steps, an effect's scale in 1/32 steps), its translation in whole cm and its rotation. An empty slot is
+  19 zero bytes. An event waits at most 100 ms for a free slot. It holds the slot for at least 2 poses and 50 ms plus
+  one send interval, so a member on the lowest pose cap (20 a second) gets a pose that carries it. The ghost plays each
+  slot's serial once, when its playback reaches the first pose that carried it; a playback that starts (a new table, a
+  new member) plays none of the events standing in its first poses.
 
 A pose is at most 16 KiB; in the outfits measured it is 4.7 to 5 KB. A world position beyond 1e7 cm, or not finite,
 is refused.
 
 Since protocol 9 most poses go as deltas. A keyframe is a full pose as above. A delta has the same header, the age of
-its keyframe in microseconds, the world transform and free blocks, one bit for each bone rotation, translation, scale
-and effect slot, and the bytes of those that changed since the keyframe. The sender sends a keyframe first, then every
-250 ms, and whenever a delta would not be smaller. The receiver rebuilds the full pose from the keyframe it holds and
-decodes it like a keyframe. A delta whose keyframe was lost on the way is dropped and counted as keyless; the ghost
-waits for the next keyframe, at most 250 ms later. In tests a delta was 26 % (idle) to 41 % (combat) of the full pose.
+its keyframe in microseconds, the world transform and free blocks, one bit for each bone rotation, translation, scale,
+effect slot and event slot, then the bytes of those that changed since the keyframe. The sender sends a keyframe first,
+then every 250 ms, and whenever a delta would not be smaller. The receiver rebuilds the full pose from the keyframe it
+holds and decodes it like a keyframe. A delta whose keyframe was lost on the way is dropped and counted as keyless; the
+ghost waits for the next keyframe, at most 250 ms later. In tests a delta was 26 % (idle) to 41 % (combat) of the full
+pose.
 
 A bone's rotation, translation or scale counts as changed only when it is more than a small tolerance away from the
 keyframe, in the codec's own steps: 2 steps on each rotation component (0.035° at most), 1 step of translation (1/32 cm)
