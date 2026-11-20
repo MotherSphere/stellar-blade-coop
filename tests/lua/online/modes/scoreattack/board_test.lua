@@ -6,7 +6,7 @@
 -- and round: the three groups' places; the card and the board while our run plays (ours in teal, one row a player,
 -- hidden under a pause); the result panel at our run's end, the ranking once it comes, closed at the round's end line
 -- or SHOW seconds after the ranking; the words in the game's language; a round without a ranking says why once; with
--- the kit off the start, each wave, our end and our place come as notices; an error in the HUD gives one STOP line and
+-- the kit off the start, each wave, our end, the record line and our place come as notices; an error in the HUD gives one STOP line and
 -- notices from then on; stop hides every group.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Board=require('online.modes.scoreattack.ui.board')
@@ -218,6 +218,13 @@ round={n=21,ids={'1001','2002'},me='2002',def=swarm,phase='ranked',board={},
     list={{id='1001',score=150,tenths=1700,ending='win',place=1}}}
 board.tick()
 assert(#told==5 and told[5]=='Not ranked.',told[5])
+-- A success that wrote a new best: the record line after our end, once.
+round={n=23,ids={'1001','2002'},me='2002',def=swarm,phase='play',board={['2002']={ready=true,score=300,
+    ending='win',tenths=1200}}}
+state.s,state.now,state.best={def=swarm,phase='result',t0=105,wave=3,score=300},300,{score=300,s=120,new=true}
+board.tick(); board.tick()
+assert(#told==7 and told[6]=='Antlion Swarm: Cleared, score 300, time 2:00.0.' and told[7]==en.challenge.record,tostring(told[7]))
+state.best=nil
 kit.is_off=false
 -- An error in the HUD: one STOP line, every group hidden, notices from then on.
 told={}

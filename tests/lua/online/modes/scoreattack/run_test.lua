@@ -298,6 +298,8 @@ assert(writes==1 and records_text:find('\nbest_match_targets='..s.score..' '..ma
     records_text)
 assert(not records_text:find('\nbest_targets=',1,true),'The solo best stays as it was')
 assert(not run.running() and run.state().phase=='result')
+local _,_,best=run.state()
+assert(best and best.new and best.score==s.score and best.s==math.floor(s.time),'state() gives the best it wrote')
 tick(41)
 assert(run.state()==nil,'Idle 10 s after the end')
 -- A worse run keeps the best.
@@ -307,6 +309,8 @@ tick(21)
 gt=gt+40
 for k=1,3 do play(k) end
 assert(#ended==1 and ended[1].outcome=='success' and writes==1 and logged('wave 3 find +2.5 s: tracked 8/8'))
+_,_,best=run.state()
+assert(best and not best.new and best.score==s.score,'state() gives the best kept')
 tick(41)
 
 -- 4. A heal after a wave: one guarded zone event, kind 2.

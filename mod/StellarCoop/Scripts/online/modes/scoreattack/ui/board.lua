@@ -7,7 +7,8 @@
 -- their place once our run ends or the ranking comes, the result panel (the challenge, our end, score and time, a note,
 -- then the ranking with each player's difficulty). It closes at the round's end line, or SHOW seconds after the
 -- ranking. All hidden while the game is paused or shows one of its screens. With the kit off or absent, the start, each
--- wave, our run's end and our place come as notices, as the solo run's do. A round that ends without a ranking says
+-- wave, our run's end (with the record line when it wrote a new best) and our place come as notices, as the solo run's
+-- do. A round that ends without a ranking says
 -- why as a notice either way. Its words follow the game's language unless ui_language=english.
 -- tests/lua/online/modes/scoreattack/board_test.lua covers it on a fake kit.
 local T=require('ui.text')
@@ -21,7 +22,9 @@ local RESULT_H=720
 local SHOW=20 -- Seconds the result panel stays after the ranking when no end line comes (DESIGN section 6).
 local MIDDLE,LEFT,RIGHT={X=0.5,Y=0.5},{X=0,Y=0.5},{X=1,Y=0.5}
 local GROUPS={'scoreattack','scoreattack_board','scoreattack_result'}
-local LEVEL={[0]='normal','story','hard'} -- core/link.lua's cycles: 0 Normal, 1 Story, 2 Hard (ui/text.lua's cycle).
+-- core/link.lua's cycles: 0 Normal, 1 Story, 2 Hard (ui/text.lua's cycle), the values of SB's ESBGameDifficultyType
+-- (its name table at 0x145e30ab0: NormalMode 0, StoryMode 1, HardMode 2).
+local LEVEL={[0]='normal','story','hard'}
 local function clock_text(seconds) return string.format('%d:%02d',seconds//60,seconds%60) end
 -- A run time in tenths as the panel shows it: 1:12.3.
 function Board.time(tenths) return string.format('%d:%02d.%d',tenths//600,tenths//10%60,tenths%10) end
@@ -183,6 +186,8 @@ function Board.new(o)
                 return w.scoreattack.end_notice:format(w.challenge.names[cur.def.id],
                     w.scoreattack.ending[mine.ending] or mine.ending,mine.score or 0,Board.time(mine.tenths or 0))
             end)
+            -- The record line after it, as the solo run's notices give it.
+            if seen.best and seen.best.new then once('record',false,function(w) return w.challenge.record end) end
         end
         if cur.list and cur.def then
             once('rank',false,function(w)
