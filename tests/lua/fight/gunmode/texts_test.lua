@@ -123,9 +123,9 @@ do
 end
 
 -- 4. The page as the code runs: it names every table fight/gunmode/data.lua changes and the notice the parked key
---    shows. While mode.lua builds the rounds with no D-pad slot, neither the page nor ammo.lua's header promises the
---    "rounds | magazines" count. While it passes one, the page says what the slot shows, names its icon and says the
---    first in-game test sets its place. The page and the docs index row speak of no crouching. Plain prose on the page: no
+--    shows. While mode.lua ticks no HUD entry (fight/gunmode/ui/dpad.lua), neither the page nor ammo.lua's header
+--    promises the "rounds | magazines" count. While it ticks one, the page says what the entry shows and names its
+--    icon and the icon's ItemTable row. The page and the docs index row speak of no crouching. Plain prose on the page: no
 --    ", and" or ", but", no bold-label bullets, no "co-op session". No ", and" or ", but" either in the comments this
 --    pass rewrote: ammo.lua's header, facts.lua's note on the retired F11.
 do
@@ -136,18 +136,17 @@ do
     end
     assert(next(seen),'data.lua opens tables')
     if not page:find(require('ui.text').en.gun.rebuilding,1,true) then fail(PAGE..' does not quote the parked notice') end
-    -- The D-pad slot argument, before the optional stock (fight/gunmode/nikke.lua's rounds).
-    local slot=read(S..'mode.lua'):match('Ammo%.new%(g,cfg,function%(v%) data%.cool%(v%) end,on_reload,([%w_]+)[,%)]')
-    assert(slot,'mode.lua builds the rounds')
-    if slot=='nil' then
+    -- The HUD entry ticked from mode.lua.
+    local entry=read(S..'mode.lua'):find('s.dpad=s.dpad or Dpad.new(g)',1,true)
+    if not entry then
         local head=read(S..'ammo.lua'):match('^(.-)\nlocal Ammo')
         for _,w in ipairs({{PAGE,page},{S..'ammo.lua (header)',head}}) do
             if w[2]:find('rounds | magazines',1,true) then fail(w[1]..' promises a bottom-left count no code draws') end
         end
     else
-        local icon=require('fight.gunmode.ui.slot').ICON:match('[^.]+$')
-        for _,want in ipairs({'rounds | magazines',icon,'Nikke_AR','first in-game test'}) do
-            if not page:find(want,1,true) then fail(PAGE..' does not say '..want..' of the D-pad slot') end
+        local icon=require('fight.gunmode.ui.dpad').ICON:match('[^.]+$')
+        for _,want in ipairs({'rounds | magazines',icon,'Nikke_AR'}) do
+            if not page:find(want,1,true) then fail(PAGE..' does not say '..want..' of the HUD entry') end
         end
     end
     local row=read('docs/README.md'):match('\n(| %[Gun mode%][^\n]*)')

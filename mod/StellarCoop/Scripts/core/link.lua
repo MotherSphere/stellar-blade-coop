@@ -258,7 +258,7 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',rac
 -- gun mode checks them and logs what it refuses.
 local GUN_TESTS={gun_aim_key=true,gun_zoom=true,gun_upper=true,gun_fire=true,gun_probe=true,gun_trace=true,
     gun_facts=true,gun_g0=true,gun_bs=true,gun_carry_ovr=true,gun_carry_spare=true,gun_carry_idle=true,
-    gun_fire_key=true}
+    gun_fire_key=true,gun_airtrace=true,gun_g1=true,gun_g1_tag=true}
 for name in pairs(GUN_TESTS) do DEFAULTS[name]='' end
 -- On or off.
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,spawn_filter=true,bosses=true,

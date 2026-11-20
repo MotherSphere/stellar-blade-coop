@@ -61,10 +61,4 @@ end)
 if not hooked then log('no reset on a new controller: the hook failed: '..tostring(why)) end
 return require('fight.gunmode.commands').new({gun=function() return M.gun end})
 end,
-build={
--- The D-pad rifle slot (fight/gunmode/ui/slot.lua) on the kit, with the Steam link only.
-hud=function(M,Ui)
-    M.gun.hud({kit=M.kit,theme=Ui.THEME})
-end,
-},
 }

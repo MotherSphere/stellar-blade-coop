@@ -35,8 +35,8 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `world/daynight/`: `daynight`, `off`, `rule`, `wiring`; `story/together/`: `off`, `snapshot`, `wiring`, `wiring_dump`;
 `ui/`: `text`; `ui/kit/`: `guide`, `hud_parts`, `kit`, `model`, `notice`, `pause_tab`; `ui/text/`: `culture`;
 `world/objects/`: `off`, `wiring`;
-`fight/gunmode/`: `cost`, `engine`, `helpers`, `nikke`, `off`, `online`, `release`, `slot`, `state`, `stock`, `stop`,
-`texts`)
+`fight/gunmode/`: `aimrot`, `cost`, `dpad`, `engine`, `g1_gates`, `helpers`, `ik_pin`, `input_memo`, `laser`,
+`morph`, `nikke`, `off`, `online`, `release`, `rifle_frame`, `state`, `stock`, `stop`, `texts`, `v4_rules`)
 run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
 fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. Each module's
 `off_test` runs `main/isolation.lua` with its name.
@@ -56,15 +56,15 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `fight/gunmode/helpers_test` covers gun mode's pure parts: its settings as `core/link.lua` parses them (the defaults
   without them, `gun_key` with its modifier or none, its test lines with refusals), the polled keys' edges and D-pad
   Right's tap (a hold is the bike's), the crosshair point in EVE's frame and the rifle's magazine (a round per cool
-  time, the reload when empty or lowered part-spent, the HUD count, no round once the spares are spent, a refill). The
+  time, the reload when empty and none when lowered part-spent, the HUD count, no round once the spares are spent, a refill). The
   reticle's round slot shows the round's name, the reload word and the empty word in the menu's language. It reads
   the words once a second, not on each frame. It also covers `mode.lua`'s point along a camera's forward and its eased
-  step, then the rifle layer's clip paths (one folder, object paths) and its mesh records: an earlier load's record
+  step, then the rifle layer's clip paths (object paths) and its mesh records: an earlier load's record
   keeps the first class listed. Last, `ik.lua`'s quaternion math against UE's conventions: rotator to quaternion and
   back, a vector turned, two turns in order, a frame's rotation and a frame made orthonormal;
 - `fight/gunmode/cost_test` counts gun mode's engine calls over `fight/gunmode/fake.lua`. With the rifle away (parked or
-  not) 600 frames look up nothing, never ask whether the game is paused and poll two keys a frame (`gun_key` and D-pad
-  Right). A press while the game is paused does nothing. The dev facts probe still waits out a pause. With no player
+  not) 600 frames look up nothing but the HUD entry's look for the HUD (at most once in 10 s), never ask whether the
+  game is paused and poll two keys a frame (`gun_key` and D-pad Right). A press while the game is paused does nothing. The dev facts probe still waits out a pause. With no player
   controller `FindFirstOf` runs once a second at most. With the rifle out no `/Script` object is looked up again, the
   rifle-first solver (`ik.lua`) included. The crosshair is traced only while she aims. The zoom keys go unpolled in the
   game's own aim. The drone and the reticle's text are walked for (`FindAllOf`) once at the rifle out. The text is
@@ -82,15 +82,19 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   parent (the capture sends the rifle's attached effects). Each frame of aim moves it to the muzzle, on the rifle
   layer too when it has no point to end at. While an SBO match runs the rifle does not come out, with the match notice
   once in 3 s. A match that starts with the rifle out puts it away within 0.25 s with everything back;
-- `fight/gunmode/slot_test` covers the D-pad rifle slot (`fight/gunmode/ui/slot.lua`) over a fake kit, then through
-  gun mode over `fight/gunmode/fake.lua`. At the rifle out SB's slot widget is made at render scale 0.6 with the rifle
-  icon set and `rounds | magazines` written. The count follows the rounds while firing. Only changed numbers are
-  written. The icon is looked up when a part is made, never on a frame. The kit's pause is read every 0.25 s.
-  The slot hides at a pause, when the rifle goes away, in the photo mode, after a new controller and at stop. A part
-  that a root rebuild left behind is made again. When the kit refuses the part, the kit's image gets the icon before it
-  shows and a `num` text shows the count. Once the refusal passes, the next kit build makes the part. While the keep
-  serves the icon, no build looks it up by its path. The slot wants the icon from the keep and warms the leaf's class.
-  Without the icon the count shows alone with one log line. With `gun_mode=off` no group is added;
+- `fight/gunmode/dpad_test` covers the HUD entry (`fight/gunmode/ui/dpad.lua`): its glyph is the Right twin of the
+  pad glyph the game shows or the `gun_key` keyboard icon. Its icon is a game texture path that it wants from the
+  keep. Through gun mode over `fight/gunmode/fake.lua` with a stub entry: it is ticked ten times a second with the
+  configured key (nil with `gun_key=none`). It gets `rounds | magazines` while the rifle is out and no text while it
+  is away. The crosshair is off while the rifle is away. `coop off` takes it off the HUD. There is none with
+  `gun_mode=off` or `hud_entry=false`;
+- `fight/gunmode/v4_rules_test` covers the layer clip choice (hip fire raises the rifle, a ground move carries it,
+  the flip keeps the aim), the aim bridge through a dodge, her body tilt, the aim clip by rifle pitch, the recoil,
+  the hip-fire turn, the comeback after an interaction and gun mode's own shots, one round each, with the player's
+  reload;
+- `fight/gunmode/aimrot_test`, `ik_pin_test`, `morph_test`, `rifle_frame_test`, `laser_test`, `input_memo_test` and
+  `g1_gates_test` cover the chest-turn loop, the v4 left-hand pin, the rifle's arrival and departure timing, the
+  rifle's frame and its morph scale, the laser end sent only when it moved, one key read a frame and the G1 gates;
 - `fight/gunmode/stop_test` runs gun mode over a fake UE4SS (`fight/gunmode/fake.lua`) on the rifle layer's path. The
   fake's row fields have the kinds read in Ghidra on 26123051: the shot's Hit1 step has a byte `Type` and no `StepType`.
   `stop` (coop off) gives back the table fields, the keys, the rifle, her body's own post-process class, the FOV lock
@@ -122,10 +126,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   script, the rifle layer, the `NGM_R_` clips and `SBOutfitProject`. Gun mode's code, tests, tools and page hold no
   clock time of a play session unless it names its log (`UE4SS.log 2026-11-12 21:49`). They cite neither
   `NGM_FACTS.md` nor the rebuild's plan, which are not in this repository. The gun mode page names every table
-  `fight/gunmode/data.lua` changes and the notice the parked key shows. While `mode.lua` passes the rounds no D-pad
-  slot, neither the page nor `ammo.lua`'s header promises the `rounds | magazines` count. While it passes one, the
-  page says what the slot shows, names its icon (`Icon_Nikke_LostItem_AssaultRifle`, row `Nikke_AR`) and says the
-  first in-game test sets its place. The page, its docs index row and `coop gun`'s comment speak of no crouching.
+  `fight/gunmode/data.lua` changes and the notice the parked key shows. While `mode.lua` ticks no HUD entry, neither
+  the page nor `ammo.lua`'s header promises the `rounds | magazines` count. While it ticks one, the page says what the
+  entry shows and names its icon (`Icon_Nikke_LostItem_AssaultRifle`, row `Nikke_AR`). The page, its docs index row and `coop gun`'s comment speak of no crouching.
   The page has no ", and" or ", but", no bold-label bullet and no
   "co-op session". `ammo.lua`'s header and `facts.lua`'s note on the retired F11 have no ", and" or ", but" either.
   Only `fight/gunmode/wiring.lua` registers an engine hook (`NotifyOnNewObject`, `RegisterHook`);
@@ -146,7 +149,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   refused take that loads nothing and a wait of `Ammo.RETRY` (5 s) before the next empty reload, an empty magazine
   that reloads once rounds come, no round while none are carried (`out of rounds` logged once), free magazines again
   once the stock stops being ready, a new world that keeps the magazine and the rifle put away mid-reload that takes
-  once;
+  once. A part-spent magazine never reloads by itself. The player's reload throws its rounds away and takes through
+  the stock. It is refused while a refused take waits;
 - `vehicles/bike/ride_test` covers `vehicles/bike/ride.lua` over a fake EVE and native part: the preload asked once and
   released at `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every
   mount refusal with its reason and nothing written, the mount's order and the dismount backward, the lean (the math

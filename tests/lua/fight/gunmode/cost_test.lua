@@ -79,7 +79,8 @@ local function out(w,gun)
 end
 
 -- 1. M2: the rifle away, parked (no rifle layer) or not, 600 frames: no lookup at all and two key polls a frame (the
---    gun key and D-pad Right). The pause is asked at a toggle only: a press while paused does nothing.
+--    gun key and D-pad Right), except the HUD entry's look for the HUD (fight/gunmode/ui/dpad.lua): one walk per
+--    Dpad.RETRY s while it is not built. The pause is asked at a toggle only: a press while paused does nothing.
 for _,parked in ipairs({true,false}) do
     local w=world()
     w.no_layer=parked
@@ -87,6 +88,9 @@ for _,parked in ipairs({true,false}) do
     frames(gun,1)
     w.n.script,w.n.first,w.n.polls,w.n.paused=0,0,0,0
     frames(gun,600)
+    local hud=w.n.all.WB_MainHUD_Master_C or 0
+    w.n.all.WB_MainHUD_Master_C=nil
+    assert(hud<=1,('parked %s: %d HUD walks in 10 s'):format(tostring(parked),hud))
     assert(w.n.script==0 and w.n.first==0 and next(w.n.all)==nil,
         ('parked %s: %d lookups, %d FindFirstOf'):format(tostring(parked),w.n.script,w.n.first))
     assert(w.n.polls==2*600,('parked %s: %d key polls in 600 frames'):format(tostring(parked),w.n.polls))
@@ -111,14 +115,14 @@ do
     assert(w.n.first<=11,w.n.first..' FindFirstOf in 10 s')
 end
 
--- 3. M2, M13: the rifle out on the layer's path, carried for 600 frames: no /Script lookup, no trace, no zoom key
---    polled (the game's aim takes RMB / LT itself). Aiming traces the crosshair every frame. Its library is looked up
---    once.
+-- 3. M2, M13: the rifle out on the layer's path, carried for 600 frames after its arrival (fight/gunmode/morph.lua,
+--    whose effect looks up Niagara's library once): no /Script lookup, no trace, no zoom key polled (the game's aim
+--    takes RMB / LT itself). Aiming traces the crosshair every frame. Its library is looked up once.
 do
     local w=world()
     local gun=GunMode.new({log=function() end})
     out(w,gun)
-    frames(gun,2)
+    frames(gun,60)
     w.n.script,w.n.trace,w.n.keys=0,0,{}
     frames(gun,600)
     assert(w.n.script==0,w.n.script..' /Script lookups in 600 frames')

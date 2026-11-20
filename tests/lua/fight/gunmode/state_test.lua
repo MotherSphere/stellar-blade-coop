@@ -226,7 +226,7 @@ do
         for _,k in ipairs(keys) do w.down[k]=true end
         frames(gun,2)
         for _,k in ipairs(keys) do w.down[k]=nil end
-        frames(gun,2)
+        frames(gun,30) -- A press puts the rifle away once its departure has run (fight/gunmode/morph.lua's OUT).
         clock=clock+1
     end
     local gun=new()

@@ -67,6 +67,7 @@ and stay for the game run ([The rounds' rows](#the-rounds-rows)). The fields the
 | RMB (held) | LT (held) | Firing mode: the camera comes over her shoulder, the laser sight and the reticle come up |
 | LMB | RT | In firing mode: full auto |
 | Space | A | In firing mode: jump, still firing |
+| B | Triangle | Reload: the rounds left in the magazine are thrown away and a full magazine goes in |
 
 With the rifle out and no button held, EVE moves as usual with the rifle at low ready (luke77's rifle carry on the
 posed stance). The sword's attacks are off until the rifle is put away. Their keys come back while the game is paused,
@@ -117,23 +118,23 @@ The rifle fires NIKKE RAPID rounds: about 20 a second.
 | Magazine | 60 rounds |
 | Reload | 1.6 s, with the NIKKE squad's reload sounds |
 
-The magazine reloads when it runs dry. It also reloads a second after the rifle is lowered with a part-spent magazine.
-No round fires while it reloads.
+The magazine reloads when it runs dry or when you press the reload key (B, or Triangle on a pad). A press throws away
+the rounds left in the magazine. Lowering the rifle never reloads it. No round fires while it reloads.
 
 In firing mode the reticle's round slot shows the round's name and the rounds left in the magazine. While the rifle
 reloads the name reads RELOADING. With the magazine and every spare empty it reads NO AMMO. RELOADING and NO AMMO show
 in the co-op menu's language; NIKKE RAPID stays as it is.
 
-While the rifle is out with `gun_fire=native` (the default) a D-pad rifle slot sits beside SB's D-pad marker at the
-bottom left. With `gun_fire=own` there is no slot. It reads `rounds | magazines`: the rounds in the magazine, then the
-magazines left (a part-spent one counted). The count is light blue. It turns orange while the rifle reloads or once
-every round is spent. The slot is SB's own D-pad item slot widget (`WB_MainHUD_ItemSlotGeneral`) drawn at SB's item
-column scale (0.6) in SBO's UI layer. Its icon is the game's NIKKE rifle texture, `Icon_Nikke_LostItem_AssaultRifle`,
-the icon of the item table's `Nikke_AR` row. Gun mode loads it from the game. While the native part runs, SBO's keep
-holds it across map changes. No image file ships with SBO. Without that texture the slot shows the count alone. The
-slot hides while the game is paused, in the photo mode and whenever the rifle goes away. It does not follow SB's own
-HUD hiding. It is drawn on your screen only. Its place is `slot_x` and `slot_y` in `fight/gunmode/config.lua`. The
-first in-game test sets them, since how SB's HUD units map to SBO's layout has not been measured.
+A gun mode entry sits in SB's HUD to the right of the D-pad marker, below the SH bar. It shows the button that brings
+the rifle out: on a pad the D-pad Right glyph of the pad the game shows, on the keyboard the `gun_key` icon on the
+game's own key cell. Then comes the NIKKE rifle icon. While the rifle is out it also reads `rounds | magazines`: the
+rounds in the magazine, then the magazines left (a part-spent one counted). The icon is the game's NIKKE rifle texture,
+`Icon_Nikke_LostItem_AssaultRifle`, the icon of the item table's `Nikke_AR` row. Gun mode loads it from the game.
+While the native part runs, SBO's keep holds it across map changes. No image file ships with SBO. The entry is a child
+of the HUD's own D-pad marker, so it shows and hides with the HUD. A box the marker's size holds it, so the item column
+never grows. While no HUD is on screen gun mode looks for it once every 10 s. In hip fire (the rifle up without the
+game's aim) a small crosshair shows at the screen's centre. `hud_entry=false` in `fight/gunmode/config.lua` turns the
+entry off.
 
 The rounds below have not run in game yet. The rest of this section is written from the code and the game's tables.
 
@@ -164,7 +165,7 @@ never ask them. They stay for the rest of the game run: once they are in, the ma
 it on any save, your own included. The magazine loads from the inventory only while a co-op save is loaded. Then the
 magazine starts empty. Each reload takes the rounds it loads out of EVE's inventory in one take, at most a magazine
 and at most what she carries. The rounds she carries are the spares. An empty magazine reloads as
-soon as she carries rounds (a buy, a drop). With none in the magazine and none carried the slot reads NO AMMO.
+soon as she carries rounds (a buy, a drop). With none in the magazine and none carried the reticle's slot reads NO AMMO.
 
 Rounds in the magazine have already left the inventory. They stay in the magazine across a new map, a death or a camp
 warp. Nothing gives them back to the inventory: not putting the rifle away, not `coop off`. A reload loads nothing

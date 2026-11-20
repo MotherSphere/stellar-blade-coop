@@ -28,11 +28,12 @@ Config.DEFAULTS={
     -- The rifle's round (fight/gunmode/ammo.lua): its colours on the reticle's round slot (its words: ui/text.lua's
     -- gun round, reload and empty), the magazine, the reload.
     round_color={0.35,0.85,1.0},reload_color={1.0,0.62,0.15},
-    mag_size=60,spare_mags=5,reload_time=1.6,reload_delay=1.0,
-    -- The D-pad rifle slot's top left (fight/gunmode/ui/slot.lua) in the kit's 3840x2160 layout, beside SB's D-pad
-    -- marker. SB pins its item column's bottom right at x 290 of its HUD canvas; how those units map to the kit's is
-    -- not measured, so the first in-game test sets these two.
-    slot_x=620,slot_y=1820,
+    mag_size=60,spare_mags=5,reload_time=1.6,
+    -- The HUD entry beside SB's D-pad marker (fight/gunmode/ui/dpad.lua): the gun mode key, the rifle icon, the rounds
+    -- while the rifle is out. The hip-fire crosshair too. false: none.
+    hud_entry=true,
+    hide_drone=true, -- The drone hidden while the rifle is out (its lights and effects with it). false: it stays.
+    hip_cam=0.5, -- Hip fire: the share of aim_cam the aim camera moves (the game's aim takes all of it).
     -- The reload's sounds (the NIKKE squad's), each at this share of the reload time.
     reload_sounds={{'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_1_Cue.P_Eve_GunNikke_Reload_1_Cue',0.0},
         {'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_2_Cue.P_Eve_GunNikke_Reload_2_Cue',0.6},
@@ -70,6 +71,10 @@ Config.DEFAULTS={
     mask_on_keys={'AttackLight','AttackStrong','SpecialCommand1','SpecialCommand2','CommandKey7','CommandKey8',
         'LeftTriggerKey','RightTriggerKey','Item_UseBullet'},
     mask_actions={'TPSMode','TPSFire'},
+    -- The rifle's reload keys (keyboard B, gamepad Triangle): every game action on them is masked while the rifle is
+    -- out; a press throws the rest of the magazine away and loads a full one (fight/gunmode/ammo.lua manual). B is free in
+    -- the game's own bindings (11-20 log: R throws grenades; B, N, O, Y and 5-0 are unbound).
+    reload_keys={'B','Gamepad_FaceButton_Top'},
     -- gun_fire=native (a test): firing mode is the game's own aim (TPSMode on its own keys, Ctrl / LT, and TPSFire,
     -- LMB / RT: the drone's shot), with its strafing movement, camera and reticle; only the sword is masked.
     native_mask_on_keys={'AttackLight','AttackStrong','SpecialCommand1','SpecialCommand2','Item_UseBullet'},
@@ -80,7 +85,12 @@ Config.DEFAULTS={
     start_fallback={X=45,Y=22,Z=55}, -- else here: forward, right, up from her centre (her right shoulder).
     follow_names={}, -- Parts made to follow the posed copy: none (her face moved off her head that way).
     pose_time=0.08, -- Firing mode between shots: the NIKKE shot montage held at this time (s).
-    aim_cam={X=0,Y=45,Z=12}, -- With the rifle layer: the game's aim camera moved this far (cm; right, up) while aiming.
+    -- the rifle's arrival and departure (fight/gunmode/morph.lua): a black cube in her right hand (the engine's editor cube,
+    -- the one cube mesh the game ships (BasicShapes is not cooked), sized from its bounds
+    -- scaled to cube_cm, at cube_at in Bip001-R-Hand's frame) and the effect at the hand-over. morph=false: none.
+    morph=true, cube_mesh='/Engine/EditorMeshes/EditorCube.EditorCube', cube_cm=9, cube_at={X=-1.9,Y=-4.6,Z=4.1},
+    morph_fx='/Game/Art/FX/Char/PC/WeaponFX/NS_A_Weapon_Fold_02.NS_A_Weapon_Fold_02',
+    aim_cam={X=0,Y=35,Z=10}, -- With the rifle layer: the aim camera moved this far (cm; camera space: forward, right, up) while aiming, through gunmode's camera modifier.
     native_speed=1.4, -- In the game's aim: its stance's walk and run speeds times this (CharacterStanceTable).
     -- Hidden from the player's own camera while the rifle is out (Luke's stance shows a posed copy of EVE's body
     -- there): her other mesh components wearing her body's own mesh (Ultra Violence's blood layer, outfit overlays)
@@ -120,6 +130,12 @@ function Config.from(settings)
     if v=='on' then out.facts=true end
     v=get('gun_g0') -- (dev only) the rifle layer's measurements and capture pictures, fight/gunmode/g0.lua
     if v=='on' then out.g0=true end
+    v=get('gun_airtrace') -- (dev only) air state trace for the flip work (fight/gunmode/mode.lua)
+    if v=='on' then out.airtrace=true end
+    v=get('gun_g1') -- (dev only) the v3 plan's G1 gate numbers, AimRot test and fixed captures, fight/gunmode/g1.lua
+    if v=='on' then out.g1=true end
+    v=get('gun_g1_tag') -- (dev only) a label for G1's log lines and capture files, e.g. red or v3a
+    if v and v:match('^[%w_]+$') then out.g1_tag=v end
     v=get('gun_trace') -- (testing) step log around reloads and aim changes
     if v then out.trace=v:lower()=='on' end
     v=get('gun_fire_key') -- (testing) one more fire key, as F

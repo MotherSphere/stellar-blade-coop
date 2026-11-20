@@ -180,7 +180,7 @@ do
     local s=gun.state
     local part=w.component(w.pawn); part.bHiddenInGame=true
     local move={IsValid=function() return true end,bOrientRotationToMovement=false,bUseControllerDesiredRotation=true}
-    s.drone={actor=w.pawn,parts={part}}
+    s.drone={actor=w.pawn,parts={{c=part,hidden=false,visible=true}}}
     s.facing={cm=move,orient=true,desired=false}
     s.ovr,s.ovr_row,s.flash_fx,s.pose_m=true,'N_Test_Dead',{},{}
     local p2=w.new_pawn()
