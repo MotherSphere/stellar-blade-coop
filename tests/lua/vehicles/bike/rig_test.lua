@@ -3,18 +3,20 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- vehicles/bike/rig.lua with fake UE4SS objects, built as vehicles/bike/stand_test.lua builds them: the follower rule
 -- (hung on her main mesh, no socket, no anim instance of its own, a mesh; the bike part left out by its address; a
--- part with no mesh never called; a part whose read raises left alone); the rig made at her location, hidden, posing
--- while hidden, its cloth off, ticking, snapped to her main mesh, the clip looped; a rig that cannot be made raises
--- with no actor left; the hook (her main mesh first, then each follower; a refusal of her main mesh raises, a
--- follower's is counted out); hooked; the unhook (her main mesh to none, each part back once, a part no longer hers
--- never called, a failing call counted while the others go on, nothing called once her EVE is gone); remove and sweep.
+-- part with no mesh never called; a part whose read raises left alone; her main mesh never read; address order); the
+-- rig made at her location, hidden, posing while hidden, its cloth off, ticking, snapped to her main mesh, the clip
+-- looped; a rig that cannot be made raises with no actor left; the hook (her main mesh first, then each follower; a
+-- refusal of her main mesh raises, a follower's is counted out); hooked; the unhook (her main mesh to none, each part
+-- back once, her main mesh never pointed at itself, a part no longer hers never called, a failing call counted while
+-- the others go on, nothing called once her EVE is gone); remove and sweep.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 FName=function(t) return {type=function() return 'FName' end,ToString=function() return t end} end
 local next_address=0x1000
+-- fields.address: a fixed address (the coat's: Lua's walk of a table keyed by address then leaves address order).
 local function object(fields)
     next_address=next_address+0x100
-    local at=next_address
     local o=fields or {}
+    local at=o.address or next_address
     o.type=function() return 'UObject' end
     o.IsValid=o.IsValid or function(self) return not self.destroyed end
     o.GetAddress=function() return at end
@@ -47,7 +49,7 @@ local function count(part)
     return n
 end
 -- One of EVE's skeletal mesh components: f.mesh, f.parent, f.socket (default None), f.anim, f.fail (its
--- SetMasterPoseComponent raises), f.raise (its GetAttachParent raises).
+-- SetMasterPoseComponent raises), f.raise (its GetAttachParent raises). c.read: its GetAttachParent was called.
 local function part(f)
     local c=object(f)
     c.SkeletalMesh=f.mesh
@@ -57,6 +59,7 @@ local function part(f)
         if not self.SkeletalMesh then self.touched=true; error('a method on a part with no mesh') end
     end
     function c:GetAttachParent()
+        self.read=true
         touch(self)
         if self.raise then error('read failed') end
         return self.parent
@@ -144,6 +147,7 @@ local function sorted(t) table.sort(t,function(x,y) return x:GetAddress()<y:GetA
 assert(same(Rig.followers(eve,bike:GetAddress()),sorted({hair,suit})),'hair and suit follow')
 assert(same(Rig.followers(eve),sorted({hair,suit,bike})),'the bike part is left out by its address only')
 assert(#calls==0 and not empty.touched,'no method called on the empty slot')
+assert(not main.read,'her main mesh is never read as a follower')
 
 -- The rig: made at her location, hidden, posing while hidden, its cloth off, ticking, snapped to her main mesh with no
 -- socket, the clip looped.
@@ -185,16 +189,19 @@ main.MasterPoseComponent=weak(face)
 assert(Rig.hooked(eve,d)==false)
 main.MasterPoseComponent=weak(rc)
 
--- The unhook: her main mesh to none, then each part back once (hair twice in the list, the coat that came after the
--- hook, a part that is not hers never called); the suit's call fails and the others still go back.
-local coat=part({mesh=body,parent=main})
+-- The unhook: her main mesh to none, then each part back once (hair twice in the list, her main mesh in the list
+-- never pointed at itself, the coat that came after the hook, a part that is not hers never called); the suit's call
+-- fails and the others still go back.
+local coat=part({mesh=body,parent=main,address=0x10000})
 local stranger=part({mesh=body,parent=main}) -- Valid at an address of the list, no longer among her parts.
 eve.parts[#eve.parts+1]=coat
+assert(same(Rig.followers(eve,bike:GetAddress()),{hair,suit,coat}),'in address order')
 calls,suit.fail={},true
-local back,failed=Rig.unhook(eve,d,{hair,suit,hair,stranger})
+local back,failed=Rig.unhook(eve,d,{hair,main,suit,hair,stranger})
 assert(calls[1].part==main and calls[1].leader==nil,'her main mesh first, to none')
 assert(back==2 and failed==1,('%d back, %d failed'):format(back,failed))
-assert(count(hair)==1 and count(suit)==1 and count(coat)==1 and count(stranger)==0 and count(bike)==0)
+assert(count(main)==1 and count(hair)==1 and count(suit)==1 and count(coat)==1 and count(stranger)==0
+    and count(bike)==0)
 assert(not empty.touched)
 assert(hair.MasterPoseComponent:Get()==main and coat.MasterPoseComponent:Get()==main)
 assert(Rig.hooked(eve,d)==false)
