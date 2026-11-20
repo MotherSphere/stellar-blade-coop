@@ -71,13 +71,13 @@ With the rifle out and no button held, EVE moves as usual with the rifle at low 
 posed stance). The sword's attacks are off until the rifle is put away. Their keys come back while the game is paused,
 so the game's key options never save them off. A new map, a death or a camp warp puts the rifle away.
 
-The rifle does not come out during a cutscene, a talk or another interaction, while the game holds her movement,
-while she swims or is in one of the game's own moves, or in the photo and selfie modes. If one of these starts with the
-rifle out, the rifle goes away within a quarter of a second. The same holds while EVE rides the bike, wears the Doro
-look, plays a `coop emote`, sits on a hall seat or uses `coop fly` or `coop glide`. The bike does not mount while the
-rifle is out. `UE4SS.log` names the reason on a `[GM]` line. A key press or D-pad tap that the rifle refuses also shows
-a notice on screen: release the drone aim, EVE is not in the game world, EVE cannot take the rifle now, or the start
-failed.
+The rifle does not come out during a cutscene, a talk or another interaction, while the game holds her movement, in the
+photo and selfie modes, or while her movement mode is other than walking or falling (swimming, flying, a custom movement
+mode or none). If one of these starts with the rifle out, the rifle goes away within a quarter of a second. The same
+holds while EVE rides the bike, wears the Doro look, plays a `coop emote`, sits on a hall seat or uses `coop fly` or
+`coop glide`. The bike does not mount while the rifle is out. `UE4SS.log` names the reason on a `[GM]` line. A key press
+or D-pad tap that the rifle refuses also shows a notice on screen: release the drone aim, EVE is not in the game world,
+EVE cannot take the rifle now, or the start failed.
 
 During an SBO match (a round in play, or the PvP test of `coop pvp`) the rifle stays away too, with a notice. SBO's
 PvP rule counts a hit only from 15 m or closer, whatever the move. The rifle's rounds reach 100 m: a hit from farther
@@ -85,7 +85,8 @@ than 15 m would cost the other player nothing.
 
 `coop off` puts the rifle away too. The table fields, the keys and her body's own post-process class go back. Gun
 mode then does nothing until the game restarts. Until everything is back, `coop-gun.txt` lists what gun mode changed.
-After a Lua reload (Ctrl+R) the next load puts those changes back at its first frame and removes the rifle it finds on
+After a Lua reload (Ctrl+R) the next load puts those changes back at its first frame. It shows the drone and her
+hidden meshes to her camera again. It turns off the carry stance and removes the rifle or the posed copy it finds on
 her.
 
 ## Firing mode
