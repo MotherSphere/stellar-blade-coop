@@ -381,9 +381,9 @@ read by skill object, which is not built (`poise::kLevelByRow`).
 ### The flinch mirror
 
 HitStun (EffectTable 2003000, `kFlinch`) joins the five crowd controls of `kCcEffects` on the cc line. `Seen::cc` gives
-it its own bit (`kFlinchBit`), set while the copy's effect list holds it. A flinch is told when it rises on a copy that
-held no reaction at all, with Rule A's level and its life in ms. A flinch that rises inside a crowd control is its chain
-and is not told. Neither is our own mirror showing up within `kEchoMs`.
+it its own bit (`kFlinchBit`), set while the copy's effect list holds it. While `hit_reactions` is on, a flinch is told
+when it rises on a copy that held no reaction at all, with Rule A's level and its life in ms. A flinch that rises inside
+a crowd control is its chain and is not told. Neither is our own mirror showing up within `kEchoMs`.
 
 The receiving side starts a flinch at its next step only:
 
@@ -459,8 +459,8 @@ effect object (`poise::restore`):
   counts as unchecked (`restore_skipped`).
 - The copy not found again live, dying, out of life state 1, or a torn effect list: unchecked, with nothing more read.
 
-None of these latches. A world, on or off line and a new session drop every check with no count. SB still ends each
-window itself.
+None of these sets the fault latch. A world, on or off line and a new session drop every check with no count. SB still
+ends each window itself.
 
 ### Lines and counters
 

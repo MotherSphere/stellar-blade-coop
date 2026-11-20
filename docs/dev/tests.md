@@ -733,7 +733,7 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
     pair forms, phase IDs from that boss's allowlist only, a summon's key, row, charId and owner),
   - the PvP test's pvp line (round trip, and the refusals: d of 0, a sign, a decimal, past 10,000,000, a skill of 0 or
     past INT32_MAX, a seq of 0, a missing or extra field, the old tag),
-  - phase 8's lines (the six-field cc line with the hit's level and the reaction's time, the three-field form refused;
+  - phase 8's lines (the five-field cc line with the hit's level and the reaction's time, the three-field form refused;
     the stagger and poise lines with their bounds; a recording keeps stagger, never poise) and their rules: the stagger
     line after bosses while either setting is on and again at each change, both read as off on the guest's side until
     it comes and after the host's next world; Rule A on both sides (a mirrored crowd control under the copy's poise

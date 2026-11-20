@@ -57,9 +57,9 @@ level 1.
 With shared flinches on, a light hit that makes a shared enemy flinch on one screen makes its copy flinch in the other
 game too, for the flinch time the hit gave it (10 s at most). The copy plays the game's own flinch effect (HitStun,
 2003000) without the push-back of a direct hit. A flinch is told only when it starts on a copy in no other reaction.
-Your game starts the other player's flinch only on a copy that is not already flinching, down, in the air or groggy.
-A knockdown still starts on a copy that only flinches. With same place on, a flinch plays on the copy that runs the
-enemy. The other screen shows it through that copy's movement.
+Your game starts the other player's flinch only on a copy that is not already flinching, down, in the air, in a wall
+slam or groggy. A knockdown still starts on a copy that only flinches. With same place on, a flinch plays on the copy
+that runs the enemy. The other screen shows it through that copy's movement.
 
 With stagger resistance on, an enemy that reacted (a flinch, a knockdown, a launch or a wall slam) to hits from two or
 more players within 10 s holds raised poise for a window. The window lasts the reaction's own time plus 1.5 s for each
