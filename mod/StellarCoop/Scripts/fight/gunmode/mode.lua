@@ -210,7 +210,7 @@ function GunMode.new(env)
         toggle_at=-1,hooked=false,errors=0}
     -- What belongs to one pawn and its controller, cleared on a new controller with no game call (new_controller).
     local PER_PAWN={'ovr_row','flash_fx','rifle','pose_m','pose_on','ik','layer_clip','reload_until','turn','turnq',
-        'want','move','sounds','aim_seen','air_aim','key_held','held_since','jump_down','tps','drone_wait','morph'}
+        'want','move','sounds','aim_seen','air_aim','key_held','held_since','jump_down','tps','drone_wait','drone_keep','morph'}
     local restored=false -- coop-gun.txt read this Lua load (self.restore).
 
     -- The reload: the NIKKE squad's reload animation on the rifle stance, and its sounds at their times.
@@ -522,7 +522,11 @@ function GunMode.new(env)
         local best,best_d
         local loc=g.try(function() return p:K2_GetActorLocation() end)
         if not loc then return end
-        local all=g.try(function() return FindAllOf(DRONE) end) or {}
+        -- the drone of the last time the rifle was out, when it is still that actor and near her: no walk of every drone
+        -- (FindAllOf, 40-50 ms at each rifle out)
+        local k=s.drone_keep
+        local all=k and g.valid(k.actor) and g.try(function() return k.actor:GetFullName() end)==k.name and {k.actor}
+            or g.try(function() return FindAllOf(DRONE) end) or {}
         for _,d in ipairs(all) do
             local q=g.valid(d) and g.try(function() return d:K2_GetActorLocation() end)
             if q then
@@ -550,6 +554,7 @@ function GunMode.new(env)
             end
         end)
         s.drone={actor=best,parts=parts}
+        s.drone_keep={actor=best,name=g.try(function() return best:GetFullName() end)}
         g.log('drone: '..#parts..' parts hidden ('..#all..' drones)')
     end
     local function show_drone()

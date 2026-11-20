@@ -186,19 +186,27 @@ do
     assert(count(w,'CH_Drone_BP_C')==2,count(w,'CH_Drone_BP_C')..' drone walks after three aims')
 end
 
--- 5. L1: a drone near EVE is hidden at the rifle out and held: no walk while it lives, one when it goes.
+-- 5. L1: a drone near EVE is hidden at the rifle out and held: no walk while it lives, one when it goes. The rifle out
+--    again finds the same drone without a walk.
 do
     local w=world()
     local part={IsValid=function() return true end,bHiddenInGame=false,
-        SetHiddenInGame=function(o,h) o.bHiddenInGame=h end}
+        SetHiddenInGame=function(o,h) o.bHiddenInGame=h end,SetVisibility=function() end,IsVisible=function() return true end}
     local drone={IsValid=function(o) return not o.dead end,K2_GetActorLocation=function() return {X=100,Y=0,Z=0} end,
-        K2_GetComponentsByClass=function() return {part} end}
+        K2_GetComponentsByClass=function() return {part} end,GetFullName=function() return 'CH_Drone_BP_C /Game/Map.Drone_1' end}
     w.drones={drone}
     local gun=GunMode.new({log=function() end})
     out(w,gun)
     assert(part.bHiddenInGame==true,'the drone is hidden')
     frames(gun,60*30)
     assert(count(w,'CH_Drone_BP_C')==1,count(w,'CH_Drone_BP_C')..' drone walks while it lives')
+    clock=clock+1; gun.toggle_now()
+    frames(gun,120) -- the departure's morph
+    assert(not gun.state.on and part.bHiddenInGame==false,'the rifle away, the drone shown')
+    out(w,gun)
+    frames(gun,60)
+    assert(part.bHiddenInGame==true,'the drone hidden again')
+    assert(count(w,'CH_Drone_BP_C')==1,count(w,'CH_Drone_BP_C')..' drone walks after the rifle came out again')
     drone.dead=true
     w.drones={}
     frames(gun,60*30)
