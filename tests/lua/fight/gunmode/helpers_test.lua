@@ -46,7 +46,7 @@ do
 end
 
 -- 4. The magazine: a press fires at once, then one round per cool time in whole frames; empty -> a reload (no round
---    until it is done), the count jumping when the magazine goes in; lowered part-spent -> reloaded after a moment;
+--    until it is done), the count jumping when the magazine goes in; lowered part-spent -> no reload (11-20);
 --    spares spent -> no rounds (cool time 999) until a refill.
 do
     assert(close(Ammo.step(0.045,1/60),0.05) and close(Ammo.step(0.01,1/60),1/60))
@@ -71,7 +71,7 @@ do
     assert(a.left==10 and a.reserve==20 and cools[#cools]==0.05)
     run(1,true,false); run(1,true,true)
     run(120,false,false)
-    assert(a.left==10 and a.reserve==19,'lowered reload '..a.left..' '..a.reserve)
+    assert(a.left==9 and a.reserve==20,'no reload when lowered (11-20): '..a.left..' '..a.reserve)
 end
 
 -- 4b. L4: the reticle's round slot in the menu's words (g.words: ui/text.lua's gun in the player's language): the
@@ -146,13 +146,13 @@ do
         and GunMode.ease(45,66,0)==45)
 end
 
--- 7. overlay.lua's parts that need no engine: the rifle clips sit in one folder as object paths. The meshes the layer
+-- 7. overlay.lua's parts that need no engine: the rifle clips are object paths (<folder>/<name>.<name>). The meshes the layer
 --    went on (records for coop-gun.txt, adopt from an earlier Lua load's records) keep the first class listed.
 do
     local Overlay=require('fight.gunmode.overlay')
     for clip,path in pairs(Overlay.CLIPS) do
-        local name=path:match('^/Game/Art/Character/PC/CH_P_EVE_01/Animation/NGM/([%w_]+)%.([%w_]+)$')
-        assert(name and path:match('%.(.+)$')==name,clip..': '..path)
+        local name,obj=path:match('^/Game/[%w_/]+/([%w_]+)%.([%w_]+)$')
+        assert(name and obj==name,clip..': '..path)
     end
     assert(Overlay.CLASS:match('^/Game/Mods/NGM/ABP_NGM_Spike%.ABP_NGM_Spike_C$'))
     local g={log=function() end,try=function(f) local ok,r=pcall(f); if ok then return r end end}

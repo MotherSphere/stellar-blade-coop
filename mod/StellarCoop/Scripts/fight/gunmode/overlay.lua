@@ -18,11 +18,17 @@ Overlay.BASES={'/Game/Art/Character/PC/CH_P_EVE_29/CH_P_EVE_29.CH_P_EVE_29','/Ga
 -- the two-handed rifle clips made on her skeleton for this rifle (Blender Rifle10: both hands on the rifle by IK, the
 -- sight at her right eye); only the arms are used, from the clavicles down
 local NGM='/Game/Art/Character/PC/CH_P_EVE_01/Animation/NGM/'
-Overlay.CLIPS={
-    carry=NGM..'NGM_R_C_Idle.NGM_R_C_Idle',
-    aim=NGM..'NGM_R_AimIdle.NGM_R_AimIdle',
-    reload=NGM..'NGM_R_C_Idle.NGM_R_C_Idle',
-}
+-- The solver places the arms; the clip on the slot only gives the hands their grip (the layer's Layered Blend
+-- Per Bone takes Bip001-L-Hand / Bip001-R-Hand and their fingers from it): NIKKE's own rifle idle, a vanilla DLC asset
+local SHOOT_IDLE='/Game/DLC_2/Art/Character/PC/CH_P_EVE_01/Animation/P_Eve_GunNikke_Shoot_Idle.P_Eve_GunNikke_Shoot_Idle'
+local RELOAD='/Game/DLC_2/Art/Character/PC/CH_P_EVE_01/Animation/P_Eve_GunNikke_Reload.P_Eve_GunNikke_Reload'
+-- v3c: the clip leads her upper body (the layer's blend takes everything from Bip001-Neck down)
+-- the authored v4 poses (NikkeGunBuild\poses, packed in zNGMSpike_P under Mods/NGM/Poses); grips in fight/gunmode/rifle.lua GRIPS
+local POSE='/Game/Mods/NGM/Poses/NGM_Pose_%s.NGM_Pose_%s'
+-- reload: the carry pose; the rifle's tilt and the left hand's trip to the magazine are fight/gunmode/ik.lua's (pin_reload)
+Overlay.CLIPS={ carry=POSE:format('CarryLowReady','CarryLowReady'), aim=POSE:format('AimLevel','AimLevel'),
+    aimup=POSE:format('AimUp45','AimUp45'), aimdown=POSE:format('AimDown45','AimDown45'),
+    reload=POSE:format('CarryLowReady','CarryLowReady'), nikke=SHOOT_IDLE, nikke_reload=RELOAD }
 
 -- the layer's class is loadable (zNGMSpike_P is installed)
 function Overlay.available()
@@ -43,16 +49,20 @@ function Overlay.new(g)
     local function valid(o) return o~=nil and g.try(function() return o:IsValid() end)==true end
     local function name(o) return g.try(function() return o:GetFullName() end) or tostring(o) end
     local function path_of(o) local f=g.try(function() return o:GetFullName() end); return f and f:match('^%S+ (.+)$') end
+    local slot -- FName('DefaultSlot'), made once
+    local found={} -- path -> object (the clips stay loaded while the layer is on); checked before each use
     local function find(path)
+        local c=found[path]; if c and valid(c) then return c end
         local o=StaticFindObject(path)
-        if valid(o) then return o end
+        if valid(o) then found[path]=o; return o end
         local ok,r=pcall(function()
             return StaticFindObject('/Script/AssetRegistry.Default__AssetRegistryHelpers'):GetAsset({ObjectPath=FName(path)})
         end)
-        if ok and valid(r) then return r end
+        if ok and valid(r) then found[path]=r; return r end
         pcall(LoadAsset,path)   -- base-game assets
         o=StaticFindObject(path)
-        return valid(o) and o or nil
+        if valid(o) then found[path]=o; return o end
+        return nil
     end
     local function pp_of(mesh) local pp=g.try(function() return mesh:GetPostProcessInstance() end); return valid(pp) and pp or nil end
     local function rebuild(mesh,sk,cls)
@@ -156,12 +166,18 @@ function Overlay.new(g)
         local pp=pp_of(p.Mesh); if not pp then return false,'no layer instance' end
         return pcall(function() pp.AimRot={Pitch=r.Pitch,Yaw=r.Yaw,Roll=r.Roll} end)
     end
+    -- a clip's length in seconds, or nil (the reload clip is fitted to the reload time with it)
+    function self.length(clip)
+        local seq=find(Overlay.CLIPS[clip] or clip)
+        return seq and g.try(function() return seq:GetPlayLength() end)
+    end
     -- whether one of Overlay.CLIPS is still playing on the layer's DefaultSlot (the asset is a loaded clip, never a
     -- montage object that the game may already have freed)
     function self.playing(p,clip)
         local pp=pp_of(p.Mesh); if not pp then return false end
         local seq=find(Overlay.CLIPS[clip] or clip); if not seq then return false end
-        return g.try(function() return pp:IsPlayingSlotAnimation(seq,FName('DefaultSlot')) end)==true
+        slot=slot or FName('DefaultSlot')
+        return g.try(function() return pp:IsPlayingSlotAnimation(seq,slot) end)==true
     end
     return self
 end

@@ -2,9 +2,10 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- luke77's laser sight (feature/rifle-stance, examples/RifleStance/Scripts/laser.lua): the NIKKE minigame's guide
--- laser on the rifle's muzzle, its end through the minigame's parameter collection. Two changes, marked "gun mode:":
--- update takes the point the rounds go to (without it the end is his trace along the barrel); the beam is spawned at
--- the muzzle with no parent and moved there at each update.
+-- laser on the rifle's muzzle, its end through the minigame's parameter collection. Changes marked "gun mode:":
+-- update takes the point the rounds go to (sent only when it moved; without it the end is his trace along the
+-- barrel); the beam is spawned at the muzzle with no parent and moved there at each update. The trace's colour and
+-- ignore list are made once.
 -- laser(pawn, gun, mathlib) -> update(target), cleanup.
 return function(pawn,gun,mathlib)
  local socket=FName('FX_Fire')
@@ -37,20 +38,27 @@ return function(pawn,gun,mathlib)
   end)
  end
  local pawnClass=StaticFindObject('/Script/Engine.Pawn')
+ local transparent,ignore={R=0,G=0,B=0,A=0},{pawn} -- gun mode: made once (less garbage a frame)
+ local lx,ly,lz -- gun mode: the last target sent (the same point is not sent again)
  local function update(target)
   -- gun mode: the beam at the muzzle, as an attached one would be (SnapToTarget).
   if beam and beam:IsValid() then
    beam:K2_SetWorldLocationAndRotation(gun:GetSocketLocation(socket),gun:GetSocketRotation(socket),false,{},true)
   end
   -- gun mode: the end on where the rounds go (the crosshair's point), when fight/gunmode/mode.lua has it.
-  if target then instance:SetVectorParameter('LaserPosition',target);return end
+  if target then
+   if target.X~=lx or target.Y~=ly or target.Z~=lz then
+    instance:SetVectorParameter('LaserPosition',target); lx,ly,lz=target.X,target.Y,target.Z
+   end
+   return
+  end
+  lx=nil
 
   local origin=gun:GetSocketLocation(socket)
   local axis=mathlib:GetForwardVector(gun:GetSocketRotation(socket))
   local destination={X=origin.X+axis.X*8000,Y=origin.Y+axis.Y*8000,Z=origin.Z+axis.Z*8000}
   local nearest=destination
   local distance=8000
-  local transparent={R=0,G=0,B=0,A=0}
   local function consider(blocked,hit)
    if blocked and hit.ImpactPoint then
     local point=hit.ImpactPoint
@@ -63,11 +71,11 @@ return function(pawn,gun,mathlib)
   end
   for channel=0,1 do
    local hit={}
-   local blocked=trace:LineTraceSingle(pawn,origin,destination,channel,false,{pawn},0,hit,true,transparent,transparent,0)
+   local blocked=trace:LineTraceSingle(pawn,origin,destination,channel,false,ignore,0,hit,true,transparent,transparent,0)
    consider(blocked,hit)
   end
   local hit={}
-  if trace:LineTraceSingle(pawn,origin,destination,4,true,{pawn},0,hit,true,transparent,transparent,0) then
+  if trace:LineTraceSingle(pawn,origin,destination,4,true,ignore,0,hit,true,transparent,transparent,0) then
    local ok,actor=pcall(function() return hit.Actor:Get() end)
    if ok and actor and actor:IsValid() and actor:IsA(pawnClass) and actor:GetAddress()~=pawn:GetAddress() then
     consider(true,hit)

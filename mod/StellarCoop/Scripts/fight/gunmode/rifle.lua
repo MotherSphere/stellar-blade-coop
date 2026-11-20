@@ -9,13 +9,25 @@
 -- drives it unchanged.
 local U=require('core.unreal')
 local Rifle={}
-local function valid(o) return o~=nil and pcall(function() return o:IsValid() end) and o:IsValid() end
+local function isv(o) return o:IsValid() end
+local function valid(o) if o==nil then return false end local ok,r=pcall(isv,o); return ok and r==true end
 -- The rifle component's tag, so the next Lua load finds a rifle this one left on her (sweep).
 Rifle.TAG='SBO_Gun'
 
 -- The grip: the rifle in her right hand (Bip001-R-Hand) as the pak's animations were made with it (Blender
 -- ngm_bl_rifle1: the NIKKE shot's grip, the barrel through her support hand). UE units (cm), the bone's frame.
 Rifle.GRIP={Translation={X=-1.17,Y=-5.68,Z=2.09},Rotation={X=0.3426,Y=0.5891,Z=0.4513,W=0.5761},Scale3D={X=1,Y=1,Z=1}}
+-- The grips of the authored v4 poses (NikkeGunBuild\poses\<Pose>\pose.json, rifle relative to Bip001-R-Hand, UE).
+-- Each layer clip needs the grip it was posed with; the reload clip is SB's, made with GRIP.
+local function grip(tx,ty,tz,qx,qy,qz,qw) return {Translation={X=tx,Y=ty,Z=tz},Rotation={X=qx,Y=qy,Z=qz,W=qw},Scale3D={X=1,Y=1,Z=1}} end
+Rifle.GRIPS={
+    aim=grip(-1.92,-4.57,4.10, 0.5752,0.3591,0.4710,0.5642),   -- AimLevel round 4
+    carry=grip(-1.83,-6.80,3.16, 0.3045,0.4069,0.6102,0.6078), -- CarryLowReady rd4
+}
+Rifle.GRIPS.reload=Rifle.GRIPS.carry -- the reload plays the carry pose (fight/gunmode/overlay.lua)
+-- the aim-up and aim-down clips give her head and shoulders only: the rifle stays placed as in AimLevel (fight/gunmode/ik.lua)
+Rifle.GRIPS.aimup=Rifle.GRIPS.aim
+Rifle.GRIPS.aimdown=Rifle.GRIPS.aim
 
 -- laser: fight/gunmode/laser.lua's function (pawn, rifle, mathlib) -> beam(target), finish().
 function Rifle.new(laser,trace,grip)
@@ -23,7 +35,6 @@ function Rifle.new(laser,trace,grip)
     local self={single=true}
     local st -- the running state: {pawn, src, gun, held, target, beam, finish, reload...}
     local mathlib=StaticFindObject('/Script/Engine.Default__KismetMathLibrary')
-    local game=StaticFindObject('/Script/Engine.Default__GameplayStatics')
     local GRIP=grip or Rifle.GRIP
 
     function self.start(pc,held_fn,beam_target)
@@ -47,7 +58,7 @@ function Rifle.new(laser,trace,grip)
         gun:K2_AttachToComponent(src,FName('Bip001-R-Hand'),2,2,2,false)
         gun:K2_SetRelativeTransform(GRIP,false,{},true)
         gun:SetVisibility(true,false)
-        st={pc=pc,pawn=pawn,src=src,gun=gun,held=held_fn,target=beam_target,aimAt=nil,reloading=false,reloadAt=0,reloadLen=1}
+        st={pc=pc,pawn=pawn,addr=pawn:GetAddress(),src=src,gun=gun,held=held_fn,target=beam_target,aimAt=nil,reloading=false,reloadAt=0,reloadLen=1}
         return gun
     end
 
@@ -58,6 +69,11 @@ function Rifle.new(laser,trace,grip)
         st=nil
     end
     function self.running() return st~=nil end
+    -- the morph (fight/gunmode/morph.lua through mode.lua): the rifle's scale k and an extra spin (deg about its up axis);
+    -- nil puts it back to normal. While k<1 the laser stays off.
+    function self.morph(k,spin) if st then st.mk,st.mspin=k,spin end end
+    -- the grip of the clip on the layer (Rifle.GRIPS name); unknown names keep the current grip
+    function self.grip(name) GRIP=Rifle.GRIPS[name] or GRIP end
     function self.owns(c) return st~=nil and valid(c) and valid(st.gun) and c:GetAddress()==st.gun:GetAddress() end
     function self.copy() return true end
     function self.body() return nil end
@@ -73,10 +89,18 @@ function Rifle.new(laser,trace,grip)
     function self.frame()
         if not st then return end
         local pc,pawn,gun=st.pc,st.pawn,st.gun
-        if not valid(pc) or not valid(pawn) or not valid(gun) or not valid(pc.Pawn) or pc.Pawn:GetAddress()~=pawn:GetAddress() then self.stop(); return end
-        if game:IsGamePaused(pc) then return end
-        gun:K2_SetRelativeTransform(GRIP,false,{},true)
-        local held=st.held()
+        local cur=valid(pc) and pc.Pawn
+        if not valid(pawn) or not valid(gun) or not valid(cur) or cur:GetAddress()~=st.addr then self.stop(); return end
+        -- (paused: fight/gunmode/mode.lua's tick returns before any call of frame, its own and facts.lua's)
+        local mk=st.mk
+        if mk then
+            -- a fresh transform each frame: GRIP tables are shared between clips and must never be scaled in place
+            gun:K2_SetRelativeTransform({Translation=GRIP.Translation,Rotation=GRIP.Rotation,Scale3D={X=mk,Y=mk,Z=mk}},false,{},true)
+            if st.mspin and st.mspin~=0 then gun:K2_AddLocalRotation({Pitch=0,Yaw=st.mspin,Roll=0},false,{},true) end
+        else
+            gun:K2_SetRelativeTransform(GRIP,false,{},true)
+        end
+        local held=st.held() and not self.no_laser and not (mk and mk<1) -- (no laser while the morph runs)
         local now=os.clock()
         if st.reloading then
             local k=math.max(0,math.min(1,(now-st.reloadAt)/st.reloadLen))
@@ -113,7 +137,7 @@ function Rifle.new(laser,trace,grip)
             -- the laser once the rifle is up (the aim blends in over ~0.2 s), then it stays on until aim is let go
             if st.beam or (onTarget and now-st.aimAt>=0.12) or now-st.aimAt>=0.6 then
                 if not st.beam then st.beam,st.finish=laser(pawn,gun,mathlib); crumb('laser on') end
-                st.beam(t) -- Each frame: it moves the beam to the muzzle (fight/gunmode/laser.lua).
+                st.beam(t) -- Each frame: beam to the muzzle; no target (the flip): trace along the barrel (laser.lua).
             end
         else
             if st.aimAt then st.aimAt=nil; crumb('aim off') end

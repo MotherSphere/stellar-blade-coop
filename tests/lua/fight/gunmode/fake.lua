@@ -122,7 +122,7 @@ function Fake.new()
             {ComponentTags={},bHiddenInGame=false,bOwnerNoSee=false}))
         for _,f in ipairs({'SetCollisionEnabled','SetCastShadow','SetLightingChannels','K2_AttachToComponent',
                 'K2_SetRelativeTransform','SetVisibility','SetMaterial','PlayAnimation','Stop','SetPosition',
-                'SetComponentTickEnabled','SetAnimationMode','SetAnimation'}) do c[f]=function() end end
+                'SetComponentTickEnabled','SetAnimationMode','SetAnimation','K2_AddLocalRotation','SetStaticMesh'}) do c[f]=function() end end
         function c.SetSkeletalMesh(o,a) o.SkeletalMesh=a end
         function c.IsA(_,cls) return cls==skeletal end
         function c.ComponentHasTag(o,tag)
