@@ -20,6 +20,7 @@ return {
         max_players='Pelaajat',auto_coop_save='Co-op-tallennukset',enemy_hp_scale='Vihollisten HP (isännän)',
         enemy_balance_scale='Vihollisten tasapaino (isännän)',kill_credit='Omat tappopalkkiot',
         same_place='Sama sijainti (kokeellinen)',aggro='Vihollisten kohde (isännän)',
+        hit_reactions='Jaetut säpsähdykset (kokeellinen)',stagger_resist='Horjahdussieto (kokeellinen)',
         same_spawns='Samat viholliset (kokeellinen)',enemy_extra='Lisäviholliset (isännän)',
         bosses='Jaetut pomot (kokeellinen)',boss_hp_scale='Pomojen HP (isännän)',
         shared_quests='Jaetut tehtävät (kokeellinen)',

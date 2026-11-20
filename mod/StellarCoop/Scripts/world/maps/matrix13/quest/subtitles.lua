@@ -200,11 +200,18 @@ function Subtitles.new(o)
             return start_kit(os.clock())
         end
     end
-    -- Before the theater: while a cutscene of the game plays, looked for every POLL s up to WAIT s; then the theater
-    -- asked, whatever plays (a refusal leads to the fallbacks). A caller's lines look every AGAIN s with no limit.
+    -- Before the theater: first, while the keep has not settled, it waits with one line (no cutscene look); then while
+    -- a cutscene of the game plays, looked for every POLL s up to WAIT s; then the theater asked, whatever plays (a
+    -- refusal leads to the fallbacks). A caller's lines look every AGAIN s with no limit.
     local function wait(c,now)
         if now<c.poll_at then return end
         c.poll_at=now+Subtitles.POLL
+        -- The keep (core/keep.lua) has not settled: nothing loads at the talk's start. Nil (coop scene off, its stub)
+        -- never waits.
+        if scene.ready()==false then
+            if not c.kept then c.kept=true; log('talk '..c.name..': waits for its assets to be in memory') end
+            return
+        end
         local ran,busy=pcall(scene.busy)
         busy=ran and busy or nil
         local whole=c.t.whole -- A caller's lines wait the cutscene out, looked for every AGAIN s.

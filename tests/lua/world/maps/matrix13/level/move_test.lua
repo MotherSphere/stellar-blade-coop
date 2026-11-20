@@ -352,4 +352,52 @@ do
     assert(got[2]=='spread stopped after 1/3 entries (first spawn gone): 1 spawned' and #got==2,tostring(got[2]))
     spawn_cost=0
 end
+-- The keep: the three classes and the ledge's mesh wanted when Move is made; nothing spawned before the keep settles;
+-- once settled one find each for the game run, no lookup of a kept path and no LoadAsset, a second world included.
+do
+    local Keep=require('core.keep')
+    local keep_fake=dofile('tests/lua/core/keep_fake.lua')
+    local finds_k={}
+    local kf=keep_fake(function(p)
+        finds_k[#finds_k+1]=p
+        -- An earlier section's lookup may have made it: the keep reads its full name.
+        classes[p]=classes[p] or object({path=p})
+        classes[p].GetFullName=function() return 'Object '..p end
+        return classes[p],true
+    end)
+    local mk=M.new({log=function() end,list={
+        {key='KL',cls='ladder',at={10,20,30},yaw=175,height=1279.885,meshes={3,3},start=2,bottom=-75,role='critical'},
+        {key='KE',cls='ledge',at={1,2,3},yaw=85,mesh=MESH,role='climb_R16'}}})
+    for _,p in pairs(M.ASSETS) do assert(Keep.wanted(p..'_C'),p) end
+    assert(Keep.wanted(MESH))
+    local saved=LoadAsset
+    local loads=0
+    LoadAsset=function() loads=loads+1 end
+    Keep.slow()
+    local count=#spawned
+    world=new_world(); clock=clock+10; mk.tick(); mk.tick()
+    assert(#spawned==count and not Keep.ready())
+    kf.settle()
+    local saved_find=StaticFindObject
+    StaticFindObject=function(p) assert(not Keep.wanted(p),'A kept path looked up: '..p); return saved_find(p) end
+    clock=clock+10; mk.tick(); mk.tick()
+    assert(#spawned==count+2 and #finds_k==4 and loads==0,#finds_k)
+    world=new_world(); clock=clock+10; mk.tick(); mk.tick()
+    assert(#spawned==count+4 and #finds_k==4 and loads==0,'Held across a second world')
+    StaticFindObject,LoadAsset=saved_find,saved
+    Keep.reset()
+end
+
+-- done(world) and tick(budget), as breakables'.
+do
+    local md=M.new({log=function() end,list={
+        {key='KE1',cls='ledge',at={1,2,3},yaw=85,mesh=MESH,role='climb_R16'},
+        {key='KE2',cls='ledge',at={4,5,6},yaw=85,mesh=MESH,role='climb_R16'}}})
+    world=new_world(); clock=clock+10
+    local w=world:GetAddress()
+    md.tick(0)
+    assert(not md.done(w),'One of two spawned')
+    md.tick(0)
+    assert(md.done(w) and not md.done(w+1),'Both spawned in this world')
+end
 print('world/maps/matrix13/level/move_test: ok')

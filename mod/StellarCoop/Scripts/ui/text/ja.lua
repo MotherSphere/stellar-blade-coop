@@ -19,6 +19,7 @@ return {
         max_players='プレイヤー数',auto_coop_save='協力プレイ用セーブ',enemy_hp_scale='敵のHP（ホスト設定）',
         enemy_balance_scale='敵のバランス（ホスト設定）',kill_credit='自分の撃破報酬',
         same_place='敵の位置同期（実験的）',aggro='敵の攻撃対象（ホスト設定）',
+        hit_reactions='怯み同期（実験的）',stagger_resist='怯み耐性（実験的）',
         same_spawns='敵配置の同期（実験的）',enemy_extra='追加の敵（ホスト設定）',
         bosses='ボスの共有（実験的）',boss_hp_scale='ボスのHP（ホスト設定）',
         shared_quests='クエスト共有（実験的）',

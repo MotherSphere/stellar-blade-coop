@@ -21,6 +21,7 @@ return {
         max_players='Oyuncular',auto_coop_save='Co-op kayıtları',enemy_hp_scale='Düşman canı (ev sahibi)',
         enemy_balance_scale='Düşman dengesi (ev sahibi)',kill_credit='Öldürme ödüllerim',
         same_place='Aynı konum (deneysel)',aggro='Düşman hedefi (ev sahibi)',
+        hit_reactions='Ortak sarsılma (deneysel)',stagger_resist='Sendeleme direnci (deneysel)',
         same_spawns='Aynı doğma noktaları (deneysel)',enemy_extra='Ek düşmanlar (ev sahibi)',
         bosses='Ortak baş düşmanlar (deneysel)',boss_hp_scale='Baş düşman canı (ev sahibi)',
         shared_quests='Ortak görevler (deneysel)',

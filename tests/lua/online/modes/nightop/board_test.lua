@@ -155,4 +155,36 @@ board=Board.new({log=function(text) lines[#lines+1]=text end})
 board.set('SCORE 0')
 assert(names()=='PC:IsA StaticFindObject WBL:Create',names())
 assert(lines[1]:find('CreateWidget gave nothing',1,true),lines[1])
+-- The keep: the class wanted when the board is made; while the keep has not settled, no lookup and no load (the next
+-- score tries again); once settled, the keep's class and no LoadAsset.
+do
+    local Keep=require('core.keep')
+    local keep_fake=dofile('tests/lua/core/keep_fake.lua')
+    local kf=keep_fake(function(p) return p==CLASS and class or nil,true end)
+    class_in_memory,create_gives,player_controller=false,nil,pc
+    calls,lines={},{}
+    local kb=Board.new({log=function(text) lines[#lines+1]=text end})
+    Keep.slow()
+    assert(Keep.wanted(CLASS) and not Keep.ready())
+    kb.set('SCORE 0')
+    assert(not names():find('StaticFindObject',1,true) and not names():find('LoadAsset',1,true),names())
+    kf.settle()
+    calls={}
+    kb.set('SCORE 0')
+    assert(not names():find('LoadAsset',1,true) and names():find('WBL:Create',1,true),names())
+    Keep.reset()
+end
+-- Missing on this PC (settled by the keep, not found): no LoadAsset, off with the build's line.
+do
+    local Keep=require('core.keep')
+    local kf=dofile('tests/lua/core/keep_fake.lua')(function() return nil,true end)
+    class_in_memory,class_in_build,player_controller=false,true,pc
+    calls,lines={},{}
+    local kb=Board.new({log=function(text) lines[#lines+1]=text end})
+    Keep.slow()
+    kf.settle()
+    kb.set('SCORE 0')
+    assert(not names():find('LoadAsset',1,true) and (lines[1] or ''):find('not in this game build',1,true),names())
+    Keep.reset()
+end
 print('board_test: ok')

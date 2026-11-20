@@ -782,11 +782,21 @@ s,notes=Link.parse_settings('bosses=yes\nboss_hp_scale=4.5')
 assert(#notes==2 and notes[1]=="settings: line 1: 'yes' is not allowed for bosses (use on or off); bosses stays on"
     and notes[2]=="settings: line 2: '4.5' is not allowed for boss_hp_scale (use 1.0 to 4.0); boss_hp_scale stays 2.0"
     and s.bosses==true and s.boss_hp_scale==2,table.concat(notes,'|'))
+-- hit_reactions and stagger_resist (phase 8, experimental, the host's): on or off, on by default and in a file written
+-- before them; the template names them right after boss_hp_scale.
+s,notes=Link.parse_settings('')
+assert(#notes==0 and s.hit_reactions==true and s.stagger_resist==true)
+assert(Link.DEFAULT:find('\nboss_hp_scale=2.0\n#[^\n]*\n#[^\n]*\n#[^\n]*\n#[^\n]*\n'
+    ..'hit_reactions=on\nstagger_resist=on\n'))
+s,notes=Link.parse_settings('hit_reactions=off\nstagger_resist=OFF')
+assert(#notes==0 and s.hit_reactions==false and s.stagger_resist==false)
+s,notes=Link.parse_settings('stagger_resist=yes')
+assert(#notes==1 and s.stagger_resist==true,notes[1])
 
 -- shared_quests (Phase 12, experimental): on or off in any case, on by default and in a file written before it;
 -- quest_deny (the host's) empty by default, else names or numbers with spaces or commas, at most 200 bytes. A new file
--- names both right after boss_hp_scale, with their comment; a bad value keeps the default, with a line.
-assert(Link.DEFAULT:find('\nboss_hp_scale=2.0\n# Shared quests, experimental: on or off, on by default.',1,true)
+-- names both right after stagger_resist, with their comment; a bad value keeps the default, with a line.
+assert(Link.DEFAULT:find('\nstagger_resist=on\n# Shared quests, experimental: on or off, on by default.',1,true)
     and Link.DEFAULT:find('\nshared_quests=on\nquest_deny=\n',1,true))
 s,notes=Link.parse_settings(older)
 assert(#notes==0 and s.shared_quests==true and s.quest_deny=='')

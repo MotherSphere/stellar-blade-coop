@@ -44,20 +44,17 @@ assert(select(2,Rule.decide({setting=true,map='/game/somewhere/else'}))=='fixed 
 assert(Rule.decide({setting=true,map=W,lobby=true})=='sky off')
 assert(Rule.decide({setting=true,map=W,story_night=true})=='sky off')
 assert(select(2,Rule.decide({setting=true,map=W,lobby=true,story_night=true}))=='SBO lobby')
-assert(select(2,Rule.decide({setting=true,map=W,story_night=true,cutscene=true}))=='Xion story night')
-assert(Rule.decide({setting=true,map=W,cutscene=true,photo=true})=='sky off','A cutscene beats photo mode')
-assert(Rule.decide({setting=true,map=W,screen=true})=='sky off')
-assert(select(2,Rule.decide({setting=true,map=W,screen=true}))=="the game's menu")
--- SB's photo mode pauses the game, so screen reads true in it: photo mode still holds the hour.
-assert(Rule.decide({setting=true,map=W,screen=true,photo=true})=='sky hold','Photo mode beats the paused game')
-assert(select(2,Rule.decide({setting=true,map=W,screen=true,photo=true}))=='photo mode')
-assert(Rule.decide({setting=true,map=W,screen=true,photo=true,cutscene=true})=='sky off')
+-- SB's screens, talks and cutscenes change nothing: the cycle's light holds through them.
+assert(Rule.decide({setting=true,map=W,screen=true,cutscene=true})=='sky cycle 8 0')
+assert(select(2,Rule.decide({setting=true,map=W,screen=true,cutscene=true}))=='clock')
+assert(select(2,Rule.decide({setting=true,map=W,story_night=true,photo=true}))=='Xion story night',
+    "Xion's story night beats photo mode")
+assert(Rule.decide({setting=true,map=W,photo=true,cutscene=true})=='sky hold','Photo mode holds through a cutscene')
 assert(Rule.decide({setting=true,map=W,photo=true,night=true})=='sky hold','Photo mode holds whatever the hour')
 assert(select(2,Rule.decide({setting=true,map=W,photo=true}))=='photo mode')
--- Another player's photo mode or the host's cutscene pauses us with SB's pause tag (screen reads true): it holds too.
-assert(Rule.decide({setting=true,map=W,screen=true,frozen=true})=='sky hold','Our held pause beats the paused game')
-assert(select(2,Rule.decide({setting=true,map=W,screen=true,frozen=true}))=="another player's pause")
-assert(Rule.decide({setting=true,map=W,frozen=true,cutscene=true})=='sky off','A cutscene beats our held pause')
+assert(Rule.decide({setting=true,map=W,frozen=true,cutscene=true})=='sky hold',
+    'Our held pause holds through a cutscene')
+assert(select(2,Rule.decide({setting=true,map=W,frozen=true}))=="another player's pause")
 assert(Rule.decide({setting=true,map=W,pinned=810,night=true})=='sky hour 810 8 0','A test pin beats Night Operation')
 assert(select(2,Rule.decide({setting=true,map=W,pinned=810}))=='pinned')
 assert(Rule.decide({setting=true,map=W,night=true})=='sky hour 0 8 0')

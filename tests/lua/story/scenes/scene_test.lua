@@ -18,8 +18,11 @@
 -- (the rows on the sequence, no take, no Stop, not even at coop off); a sequence that is no talk's refused; a lent take
 -- put back at the next Lua load; busy() naming a playing theater; the player found by the sequence's name before tick
 -- saw it; no observer but windows rewritten (alive): ended 10 s after the last one, seen; the theater's copy named with
--- a GUID seen as ours and followed past 10 s, and a talk asked meanwhile refused as blocked by our own sequence. The
--- only zone events are the two rows' kind 6, and the source names no save, quest, warp, item, row or spawn call.
+-- a GUID seen as ours and followed past 10 s, and a talk asked meanwhile refused as blocked by our own sequence. With
+-- the status line's theater= field no object is walked: busy() and a talk's start read it, our own talk is refused as
+-- ours, the talk is followed through its level sequence actor of the class hash (a paused reading hold is not its
+-- end); theater=fault walks as before. The only zone events are the two rows' kind 6, and the source names no save,
+-- quest, warp, item, row or spawn call.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -118,10 +121,13 @@ local event_table=object({IsA=function(_,c) return c.path=='/Script/Engine.DataT
 -- call raises that.
 -- guid: the observer plays a copy of the sequence named after it with this GUID added, as a theater does in game.
 local observers,events,silent,honoured,raise,guid={},{},false,true,nil,nil
+local actors={} -- Each observer's level sequence actor, for the class hash.
 local function observe(seq,theater)
     local p=object({playing=true,IsPlaying=function(self) return self.playing end})
     if guid then seq=asset(SEQUENCE,seq.path..'_'..guid) end
     observers[#observers+1]=object({Player=p,Sequence=seq,SequenceName=fname(seq.path:match('[^.]+$')),theater=theater})
+    p.Sequence=seq -- The player's own property: it has no GetSequence function in the game.
+    actors[#actors+1]=object({SequencePlayer=p})
 end
 local zone=object({CreateSBZoneEvent=function(_,kind,name)
     if raise then error(raise) end
@@ -140,6 +146,7 @@ local zone=object({CreateSBZoneEvent=function(_,kind,name)
 end})
 local finds=0
 FindAllOf=function(class)
+    if class=='PlayerController' then return {pc} end -- core/unreal.lua's actors_of proves its class hash with it.
     assert(class=='SBTheaterLevelSequenceObserver',class)
     finds=finds+1
     return observers
@@ -152,6 +159,11 @@ local text_calls=0
 local function counted(f) return function(...) text_calls=text_calls+1; return f(...) end end
 local libraries={
     ['/Script/SB.Default__SBBlueprintLibrary']=zone,
+    ['/Script/Engine.Default__GameplayStatics']=object({GetAllActorsOfClass=function(_,_,cls,out)
+        local list=cls.path=='/Script/Engine.PlayerController' and {pc}
+            or cls.path=='/Script/LevelSequence.LevelSequenceActor' and actors or {}
+        for i,a in ipairs(list) do out[i]=a end
+    end}),
     ['/Script/Engine.Default__KismetInternationalizationLibrary']=object({
         GetCurrentLanguage=counted(function() return 'fr' end)}),
     ['/Script/Engine.Default__KismetStringLibrary']=object({Len=counted(function(_,s) return utf8.len(s) end)}),
@@ -185,7 +197,10 @@ local function logged(pattern)
     for _,l in ipairs(lines) do if l:find(pattern,1,true) then return l end end
     return false
 end
-local function new() return Scene.new({log=function(m) lines[#lines+1]=m end}) end
+local status=nil -- The status text the scene reads (nil: no Steam link).
+local function new()
+    return Scene.new({log=function(m) lines[#lines+1]=m end,status=function() return status end})
+end
 local sc=new()
 
 -- The only zone events: the two rows, kind 6.
@@ -506,5 +521,68 @@ do
         end
     end
     assert(count==1,'One zone event call')
+end
+-- The keep (core/keep.lua): Lily's five assets are wanted when the scene is made; ready() follows the keep's.
+do
+    local Keep=require('core.keep')
+    Keep.reset()
+    local kst='engine=on keep=0 0 0'
+    Keep.setup({write=function() return true end,status=function() return kst end,log=function() end,
+        find=function() return nil,true end})
+    local s=new()
+    assert(#Scene.ASSETS==5)
+    for _,p in ipairs(Scene.ASSETS) do assert(Keep.wanted(p),p) end
+    Keep.slow()
+    assert(not s.ready())
+    kst='engine=on keep=5 5 5'
+    Keep.slow()
+    assert(s.ready())
+    -- A Lua load's restore loads no theater: one the engine collected stays out, kept (the keep's, missing here) or
+    -- not.
+    for _,p in ipairs({FAREWELL,QUINN}) do loaded[p],assets[p].destroyed=nil,true end
+    s.restore()
+    assert(not loaded[FAREWELL] and not loaded[QUINN],'No theater loaded')
+    Keep.reset()
+end
+-- SB's theater from the status line (glue/tick/theater_game.inc): busy() and a talk's start read its theater= field
+-- and walk no object; the field naming a talk's sequence refuses a talk as ours (Review Focus 14); the talk is seen
+-- and followed through the level sequence actors of the class hash, its player the actor's, through a paused reading
+-- hold; theater=fault walks as before.
+do
+    -- Every player stopped, those of observers earlier sections dropped from the list too: each actor's player is one.
+    for _,a in ipairs(actors) do a.SequencePlayer.playing=false end
+    silent,honoured,raise,guid=false,true,nil,nil
+    assets[QUINN].destroyed=nil -- The keep's section let the engine collect Quinn's theater; LoadAsset finds it again.
+    status='engine=on theater=none'
+    local nt=new()
+    nt.restore() -- This Lua load's restore made first, with nothing playing: the talk below asks no Stop row.
+    local before=finds
+    assert(nt.busy()==nil and finds==before,'No walk while the field says none')
+    status='engine=on theater=Subtitle_NPC_Lily_End_SEAfterGorgon_CDE79F474080620CBBEFD98402C36D6D'
+    assert(nt.busy()=='Subtitle_NPC_Lily_End_SEAfterGorgon_CDE79F474080620CBBEFD98402C36D6D' and finds==before)
+    status='engine=on theater=-'
+    assert(nt.busy()=='a theater of the game' and finds==before)
+    status='engine=on theater=Subtitle_POD_1stMeetAdam_01'
+    local ok,_,mine=nt.talk(FINALE,{done=function() end})
+    assert(not ok and mine==true and finds==before,'Our own talk plays: refused as ours, no walk')
+    status='engine=on theater=none'
+    at(9000)
+    local seen,done=0,nil
+    assert(nt.talk(PROLOGUE,{seen=function() seen=seen+1 end,done=function(fine) done=fine end}))
+    assert(finds==before,'The start walked no object')
+    at(9001); nt.tick()
+    assert(seen==1 and last():find('playing: Subtitle_POD_1stMeetAdam_01, 1.0 s after the call (',1,true)
+        and finds==before,last())
+    assert(nt.player()==observers[#observers].Player and finds==before,"The actor's player")
+    local held=observers[#observers].Player -- A reading hold (subtitles.lua pauses it): still under way.
+    held.playing,held.IsPaused=false,function() return true end
+    at(9002); assert(nt.tick()==nil and done==nil and nt.player()==held and finds==before,'Paused is not over')
+    held.IsPaused=nil
+    at(9003)
+    assert(nt.tick()==true and done==true and finds==before,'Ended, read through the actor alone')
+    status='engine=on theater=fault'
+    nt.busy()
+    assert(finds==before+1,'A faulted read: the walk as before')
+    status=nil
 end
 print('scene_test: ok')

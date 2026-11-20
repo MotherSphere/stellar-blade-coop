@@ -22,6 +22,7 @@ return {
         max_players='Giocatori',auto_coop_save='Salvataggi co-op',
         enemy_hp_scale='PS dei nemici (host)',enemy_balance_scale='Equilibrio dei nemici (host)',
         kill_credit='Le mie ricompense',same_place='Stessa posizione (sperimentale)',
+        hit_reactions='Sussulti condivisi (sperimentale)',stagger_resist='Resistenza ai colpi (sperimentale)',
         aggro='I nemici attaccano (host)',same_spawns='Stessi spawn (sperimentale)',
         enemy_extra='Nemici in più (host)',bosses='Boss condivisi (sperimentale)',boss_hp_scale='PS dei boss (host)',
         shared_quests='Missioni condivise (sperimentale)',

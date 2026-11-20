@@ -68,6 +68,21 @@ std::string status() {
     s += " anim=" + (anim_faulted ? std::string("fault") : anim::state_text(a.state, a.why)) +
          " anim_id=" + std::to_string(a.id);
     s += bike_status(); // The bike (vehicles/bike/ride.lua): the preload's state and the gate's.
+    // The keep (core/keep.lua): the paths asked, those settled, those found in memory; fault once its latch ended it.
+    if (keep_faulted) {
+      s += " keep=fault";
+    } else {
+      std::lock_guard<std::mutex> lock(keep_m);
+      s += " " + keep::line(keep_list);
+    }
+    // SB's theater (game/theater.h) for story/scenes/scene.lua and online/group/group.lua: none, a sequence, '-' or
+    // fault.
+    if (theater_faulted) {
+      s += " theater=fault";
+    } else {
+      std::lock_guard<std::mutex> lock(theater_m);
+      s += " " + theater_text;
+    }
   }
   // coop gift's inventory read (cutmenus/mailbox.lua): the last ask's answer, by its number.
   if (!items_line.empty() && !blocked)

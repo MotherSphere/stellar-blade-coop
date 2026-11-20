@@ -19,6 +19,7 @@ return {
         max_players='จำนวนผู้เล่น',auto_coop_save='เซฟ co-op',enemy_hp_scale='HP ศัตรู (โฮสต์)',
         enemy_balance_scale='บาลานซ์ศัตรู (โฮสต์)',kill_credit='รางวัลพิชิตศัตรูของฉัน',
         same_place='ตำแหน่งเดียวกัน (ทดลอง)',aggro='ศัตรูโจมตีใคร (โฮสต์)',
+        hit_reactions='การสะดุ้งร่วมกัน (ทดลอง)',stagger_resist='ต้านทานการเซ (ทดลอง)',
         same_spawns='จุดเกิดเดียวกัน (ทดลอง)',enemy_extra='ศัตรูเพิ่ม (โฮสต์)',
         bosses='บอสร่วม (ทดลอง)',boss_hp_scale='HP บอส (โฮสต์)',
         shared_quests='แชร์เควสต์ (ทดลอง)',

@@ -100,6 +100,12 @@ spawn_filter=on
 # to 4.0.
 bosses=on
 boss_hp_scale=2.0
+# Shared flinches and stagger resistance, experimental, the host's for every game: on or off, on by default, not
+# tested in game yet. hit_reactions: a light hit that makes a shared enemy flinch on one screen makes it flinch on the
+# other screens too. stagger_resist: after a shared enemy reacts to hits from two or more players, light hits stop
+# making it flinch for a short time. That time grows by 1.5 s for each extra player, 6 s at most.
+hit_reactions=on
+stagger_resist=on
 # Shared quests, experimental: on or off, on by default. On, while you and your friend both play a co-op save, a
 # quest step the host makes while you stand in the same zone, with that quest at the same point in your game, is made
 # in your game too (Epic, Sub and Request quests). A step made without you is never given to you. As the guest, a
@@ -224,6 +230,8 @@ hide_popups=on
 | `enemy_balance_scale` | `1.0` to `4.0`: the host's multiplier for a shared enemy's balance gauge, used in both games | `1.15` |
 | `kill_credit` | `together` or `fought`: when a shared enemy dies in your game, with its rewards and achievements: you hit it, it targeted you, or (`together` only) you stood within 30 m when it died (see [shared enemies](../fight/enemies.md#shared-enemies-experimental)) | `together` |
 | `same_place` | `on` or `off`: [same place](../fight/enemies.md#same-place-experimental), experimental; the host's value counts for both games | `on` |
+| `hit_reactions` | `on` or `off`: [shared flinches](../fight/enemies.md#flinches-and-stagger-resistance), experimental; the host's value counts for every game | `on` |
+| `stagger_resist` | `on` or `off`: [stagger resistance](../fight/enemies.md#flinches-and-stagger-resistance), experimental; the host's value counts for every game | `on` |
 | `aggro` | `game` or `host`: with same place, whether each enemy fights the player who hit it last (or else the nearer one) or the host only; the host's value counts for both games | `game` |
 | `same_spawns` | `on` or `off`: [same spawns](../fight/enemies.md#same-spawns-experimental), experimental; the host's value counts for both games | `on` |
 | `enemy_extra` | `0` to `3`: [extra enemies](../fight/enemies.md#extra-enemies-experimental) for each common enemy, experimental, with same spawns only; the host's value counts for both games | `0` |
@@ -355,6 +363,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-bike-stand.txt` | Lua | While your parked bike stands in the world: its actor path, so the next Lua load (Ctrl+R) can remove it |
 | `coop-bike-copies.txt` | Lua | While the other players' parked bikes show: their actor paths, tab-separated, so the next Lua load (Ctrl+R) can remove them |
 | `coop-parked.txt` | Lua | Your parked bike's line (`park <map> <x> <y> <z> <pitch> <yaw> <roll>` or `none`), for a moment: the native part takes and deletes it at its next pass and sends it to the players linked with you |
+| `coop-keep.txt` | Lua | The object paths of the assets the mod keeps in memory, one a line, the whole list each time it grows, for a moment: the native part takes and deletes it at its next pass |
 | `coop-sbo.txt` | Lua | The object path of the SBO lobby's last menu camera, so the next Lua load (Ctrl+R) can remove it if it still stands |
 | `coop-leviathan.txt` | Lua | While `coop leviathan show`, `coop gardener show` or `coop tendril show` shows a mesh or the free camera is on: the mesh actor's object path and the mesh's, the camera actor's path, the player controller's path, whether its move and look input were ignored before and the path of its view target before, so the next Lua load (Ctrl+R) can remove both and give the controller back |
 | `coop-devmenu.txt` | Lua | After a `coop devmenu` row reached the game, until `coop off`: one line, so `coop off` runs `clear` and `lockswitch` even after a Lua reload (Ctrl+R) |

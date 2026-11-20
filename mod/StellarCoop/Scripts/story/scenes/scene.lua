@@ -31,19 +31,24 @@
 -- rows play subtitle sequences (Play, no transform or binding); no Stop is known for such a play, so it runs to its
 -- end.
 -- A scene plays on its map with EVE within 50 m of its stage (a talk anywhere) and not while a theater of the game
--- plays. Then, once a second, its theater observer (SBTheaterLevelSequenceObserver) is looked for, and once seen it
--- alone is read: none 10 s after the call fails it; seen, then gone (its end, the game's skip, coop scene stop, a map
--- change), it ends the scene, with the take put back and a camera fade its last frame left cleared. A theater plays
--- a copy of its sequence, named after it with a GUID added (Subtitle_POD_ArriveDED_01_566E...C6E5 in game): an
--- observer playing either name is the sequence's. A talk's rewritten window (world/maps/matrix13/quest/subtitles.lua's
--- alive) also proves it plays: no 10 s failure until 10 s after the last one. coop scene stop
--- fires the Stop row, so SB's own teardown gives the camera, input and HUD back. coop off fires it too and puts the
--- take back at once (no tick follows), and so does the next Lua load for a scene an earlier one left. Never called
--- here: a warp, a quest, a save, another zone event, nor the trailers' interaction graphs or spawn rows (they acquire
--- quests before they play).
+-- plays. Whether one plays comes from the status line's theater= field (glue/tick/theater_game.inc, SB's own test);
+-- with no field the theater observers (SBTheaterLevelSequenceObserver) are walked for, as are the talk's. Then, once a
+-- second, its level sequence actor is looked for through the engine's class hash (core/unreal.lua's actors_of); once
+-- seen, it alone is read: none 10 s after the call fails it; seen, then gone (its end, the game's skip, coop scene
+-- stop, a map change), it ends the scene, with the take put back and a camera fade its last frame left cleared. A
+-- theater plays a copy of its sequence, named after it with a GUID added (Subtitle_POD_ArriveDED_01_566E...C6E5 in
+-- game): an observer playing either name is the sequence's. A talk's rewritten window
+-- (world/maps/matrix13/quest/subtitles.lua's alive) also proves it plays: no 10 s failure until 10 s after the last
+-- one. coop scene stop fires the Stop row, so SB's own teardown gives the camera, input and HUD back. coop off fires it
+-- too and puts the take back at once (no tick follows), and so does the next Lua load for a scene an earlier one left.
+-- Never called here: a warp, a quest, a save, another zone event, nor the trailers' interaction graphs or spawn rows
+-- (they acquire quests before they play).
+-- Lily's five assets are the keep's (core/keep.lua): a talk waits in world/maps/matrix13/quest/subtitles.lua until
+-- they are in, so none loads at its start.
 local U=require('core.unreal')
 local N=require('core.player')
 local Doro=require('core.actors')
+local Keep=require('core.keep')
 local valid,value_of,text=U.valid,U.value_of,U.text
 local Scene={}
 local TABLE='/Game/Local/Data/EventTheaterTable.EventTheaterTable'
@@ -70,6 +75,7 @@ Scene.TALKS={}
 for _,n in ipairs({'Subtitle_POD_1stMeetAdam_01','Subtitle_POD_ArriveDED_01','Subtitle_POD_1stMeetAdam_02'}) do
     Scene.TALKS[#Scene.TALKS+1]=TALK_DIR..n..'.'..n
 end
+Scene.ASSETS={QUINN,QUINN_SEQ,Scene.TALKS[1],Scene.TALKS[2],Scene.TALKS[3]} -- The keep's (core/keep.lua).
 local SEQUENCE,THEATER_DATA='/Script/LevelSequence.LevelSequence','/Script/SB.SBTheaterData'
 local FAR=50 -- m: the farthest EVE may stand from a scene's stage (its sequence moves her there).
 local POLL,START=1,10 -- s: the observer looked for once a second; none this long after the call fails the scene.
@@ -196,8 +202,10 @@ local function swap(s,seq)
 end
 -- s's take back on its own sequence while it plays another, the theater in memory (else nothing of the write is
 -- left). Gives what it did, or nil when there was nothing to do; raises on an engine error or a wrong read-back.
+-- A theater the keep serves is its object (no walk); another is found as before, never loaded.
 local function unswap(s)
-    local theater=valid(StaticFindObject(s.theater))
+    local theater
+    if Keep.serves(s.theater) then theater=Keep.get(s.theater) else theater=valid(StaticFindObject(s.theater)) end
     local take=theater and take_of(theater)
     if not take or not lent(s,plays(take)) then return nil end
     take.TemplateSequence=assert(Doro.resolve(s.own,SEQUENCE),short(s.own)..' is missing')
@@ -217,9 +225,20 @@ local function name_of(ob)
     local s=U.weak(ob.Sequence)
     return s and short(path_of(s)) or text(ob.SequenceName)
 end
+-- The short name of the sequence a level sequence actor's player plays now or holds paused, else nil.
+local function actor_name(a)
+    a=valid(a)
+    local player=a and valid(a.SequencePlayer)
+    if not (player and (player:IsPlaying()==true or player.IsPaused and player:IsPaused()==true)) then return nil end
+    -- UMovieSceneSequencePlayer's Sequence property (+0x468, story/engine.h's kSequence): no GetSequence function on
+    -- the player in build 26123051.
+    local s=valid(player.Sequence)
+    return s and short(path_of(s)) or nil
+end
 -- The short names of the sequences the theater observers play now, and each name's observer. FindAllOf walks every
--- object (25 to 80 ms in game, a frozen frame): at a command, once a second while a scene runs until its observer is
--- seen (then that one is read alone), and at a Lua load while a scene's sequence is in memory.
+-- object (25 to 80 ms in game, a frozen frame). Only with no theater field (theater() in Scene.new): at a command; once
+-- a second while a scene runs until its observer is seen (then that one is read alone); at a Lua load while a scene's
+-- sequence is in memory.
 local function playing()
     local names,by={},{}
     U.each(FindAllOf('SBTheaterLevelSequenceObserver') or {},function(_,ob)
@@ -258,15 +277,45 @@ local function fire_stop(s)
     zone_event(THEATER,STOP)
 end
 
--- o: log (the [SC] lines).
+-- o: log (the [SC] lines), status() (the status text; nil without the Steam link).
 function Scene.new(o)
     local log=o.log
     local self={SCENES=Scene.SCENES}
+    Keep.want(Scene.ASSETS)
+    -- Lily's assets are settled by the keep, or the keep is off (they load as before).
+    function self.ready() return Keep.ready() end
     -- The scene under way: {s=, seq= (the sequence it plays), called=<os.clock of the Play row>, next=<next look>,
-    -- seen=, observer= (the one seen playing it), stopping=, own= (its theater's own sequence seen instead), talk= (a
-    -- talk's {done=, seen=, direct=})}.
+    -- seen=, observer= (the one seen playing it: its level sequence actor when actor= is true, else its theater
+    -- observer), stopping=, own= (its theater's own sequence seen instead), talk= (a talk's {done=, seen=, direct=})}.
     local cur=nil
     local restored=false
+    -- SB's theater as the native part reads it (glue/tick/theater_game.inc): 'none', a sequence's short name (a
+    -- theater's copy with its GUID) or '-' (one whose sequence is not read yet); nil with no field (no Steam link,
+    -- another build, coop off, the read's fault), where the walks run as before.
+    local function theater()
+        local t=o.status and o.status()
+        local f=type(t)=='string' and t:match('theater=(%S+)') or nil
+        if f~='fault' then return f end
+    end
+    -- The short names of the theaters that play now: the field's, else playing()'s walk.
+    local function busy_names()
+        local f=theater()
+        if not f then return (playing()) end
+        if f=='none' then return {} end
+        return {f=='-' and 'a theater of the game' or f}
+    end
+    -- The level sequence actors that play or hold a sequence, through the class hash (core/unreal.lua's actors_of, no
+    -- walk once proven): the short names, each name's actor, the actors read and the ms it took.
+    local function actors()
+        local t0=os.clock()
+        local list=U.actors_of(U.find('/Script/LevelSequence.LevelSequenceActor'),'LevelSequenceActor',U.controller())
+        local names,by={},{}
+        for _,a in ipairs(list) do
+            local name=actor_name(a)
+            if name then names[#names+1],by[name]=name,a end
+        end
+        return names,by,#list,(os.clock()-t0)*1000
+    end
     -- The scene ended (or failed): its take put back, a fade it left cleared once it was seen, then a talk's done(ok,
     -- message, {seen=, own=}). Returns ok, message for main.lua's report.
     local function finish(ok,message)
@@ -284,7 +333,8 @@ function Scene.new(o)
         return ok,message
     end
     -- An earlier Lua load's scene still playing: its Stop row fired; then every lent take put back. Once, on the game
-    -- thread (the first tick, or a command). The observers are looked for only while a scene's sequence is in memory.
+    -- thread (the first tick, or a command). What plays is read (the field, else a walk) only while a scene's sequence
+    -- is in memory.
     function self.restore()
         if restored then return end
         restored=true
@@ -295,7 +345,7 @@ function Scene.new(o)
             for _,seq in ipairs(s.sequences or {s.sequence}) do
                 if valid(StaticFindObject(seq)) then
                     if not names then
-                        local ok,list=pcall(playing)
+                        local ok,list=pcall(busy_names)
                         names=ok and list or {}
                     end
                     if find(names,seq) then
@@ -342,7 +392,7 @@ function Scene.new(o)
                     or string.format('you stand %.0f m from it',far))
             end
         end
-        local busy=playing()
+        local busy=busy_names()
         if busy[1] then -- Third value: the one that plays is a talk's own sequence.
             local mine=talk and ours(busy)
             return false,(mine and 'our own '..mine..' still plays' or 'a cutscene of the game plays ('
@@ -404,20 +454,22 @@ function Scene.new(o)
     end
     -- A talk's Stop row (ok, message), as coop scene stop.
     self.stop_talk=stop_scene
-    -- The short name of a theater the game plays now, else nil: a walk of every object (25 to 80 ms), so once, at the
-    -- moment it matters.
-    function self.busy() return playing()[1] end
-    -- The sequence player of the talk's observer; before tick saw it, the observer is looked for by its sequence's
-    -- name as busy() does (a walk of every object). Nil when none plays it; may raise.
+    -- The short name of a theater that plays now, else nil: the native field, or a walk of every object with no field.
+    function self.busy() return busy_names()[1] end
+    -- The sequence player of the talk's level sequence actor (through the class hash) or, with no field, of its
+    -- observer; before tick saw it, looked for by its sequence's name. Nil when none plays it; may raise.
     function self.player()
         local c=cur
         if not (c and c.talk) then return nil end
         if not valid(c.observer) then
-            local names,by=playing()
+            local names,by
+            if theater() then c.actor=true; names,by=actors() else c.actor=false; names,by=playing() end
             local name=find(names,c.seq)
             c.observer=name and by[name] or nil
         end
-        return c.observer and U.weak(c.observer.Player) or nil
+        if not c.observer then return nil end
+        if c.actor then return valid(c.observer.SequencePlayer) end
+        return U.weak(c.observer.Player)
     end
     -- Each frame, on the game thread; the observers once a second while a scene is under way. Returns ok, message when
     -- the scene ended or failed.
@@ -427,16 +479,18 @@ function Scene.new(o)
         local now=os.clock()
         if now<c.next then return end
         c.next=now+POLL
-        local ok,names,by
-        if c.observer then ok,names=pcall(function() return {name_of(c.observer)} end)
-        else ok,names,by=pcall(playing) end
+        local ok,names,by,read,ms
+        if c.observer then ok,names=pcall(function() return {(c.actor and actor_name or name_of)(c.observer)} end)
+        elseif theater() then c.actor=true; ok,names,by,read,ms=pcall(actors)
+        else c.actor=false; ok,names,by=pcall(playing) end
         if not ok then return finish(false,c.s.title..' no longer followed on an error: '..why(names)) end
         local own=find(names,c.seq)
         local theirs=c.s.own and not (c.talk and c.talk.direct) and find(names,c.s.own)
         if own or theirs then
             if not c.seen then
                 c.seen,c.observer=now,c.observer or by[own or theirs]
-                log(string.format('playing: %s, %.1f s after the call',short(own and c.seq or c.s.own),now-c.called))
+                log(string.format('playing: %s, %.1f s after the call',short(own and c.seq or c.s.own),now-c.called)
+                    ..(read and string.format(' (%d sequence actors read in %.1f ms)',read,ms) or ''))
                 if not own then
                     c.own=true
                     log("the take's write was not honoured: "..short(c.s.own)..' plays instead')

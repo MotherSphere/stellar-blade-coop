@@ -244,6 +244,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'core/items',
                               'core/effect',
                               'core/worlds',
+                              'core/keep',
                               'ui/kit/hud_parts',
                               'ui/text/culture',
                               *(f'ui/text/{c}' for c in ('en', 'fr', 'ar', 'da', 'de', 'es', 'es-MX', 'fi', 'it',

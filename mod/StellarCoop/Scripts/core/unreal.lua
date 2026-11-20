@@ -70,7 +70,8 @@ local function soft(path)
     local k=U.find('/Script/Engine.Default__KismetSystemLibrary')
     return U.valid(k:Conv_SoftClassReferenceToClass(k:Conv_SoftClassPathToSoftClassRef(k:MakeSoftClassPath(path))))
 end
-function U.class_at(path,ctx)
+-- The proof: true or false once made, nil until there is a pawn.
+local function prove(ctx)
     local pawn=soft_ok==nil and ctx and U.valid(ctx:K2_GetPawn())
     if pawn then
         local cls=U.valid(pawn:GetClass())
@@ -80,8 +81,23 @@ function U.class_at(path,ctx)
             soft_why=ok and 'its pawn class came back as '..(back and U.hex(back) or 'nil') or tostring(back)
         end
     end
-    if soft_ok then return soft(path),'soft path' end
+    return soft_ok
+end
+function U.class_at(path,ctx)
+    if prove(ctx) then return soft(path),'soft path' end
     return U.valid(StaticFindObject(path)),soft_why and 'walk ('..soft_why..')' or 'walk'
+end
+-- The object at an object path (the class for a _C path) while it is in memory with true; nil and nil until
+-- class_at's proof is made (no pawn yet). The soft object path once proven (execConv_SoftObjectReferenceToObject
+-- 0x14482c540 calls FSoftObjectPath::ResolveObject 0x142b82f40: a name-hash find, never a load), else the walk, as
+-- class_at.
+function U.object_at(path,ctx)
+    local proven=prove(ctx)
+    if proven==nil then return nil,nil end
+    if not proven then return U.valid(StaticFindObject(path)),true end
+    if path:sub(-2)=='_C' then return soft(path),true end
+    local k=U.find('/Script/Engine.Default__KismetSystemLibrary')
+    return U.valid(k:Conv_SoftObjectReferenceToObject(k:Conv_SoftObjPathToSoftObjRef(k:MakeSoftObjectPath(path)))),true
 end
 -- The player controller while it is one: UEHelpers keeps its last one while that address is valid, and after a map
 -- change the address may hold another object (an input mode set on that one is a native fault).

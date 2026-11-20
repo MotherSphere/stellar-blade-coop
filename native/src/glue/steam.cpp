@@ -33,6 +33,7 @@
 #include "glue/clipboard.h"
 #include "glue/tick.h"
 #include "link/core.h"
+#include "game/keep.h"  // kFileBytes
 #include "game/table.h" // path_allowed
 #include "game/rotation.h"      // rotation_name(), stamped()
 #include "game/shortcut_load.h" // kSlot
@@ -687,6 +688,10 @@ bool step() {
     std::string parked = take_text(folder + L"coop-parked.txt");
     while (!parked.empty() && (parked.back() == '\n' || parked.back() == '\r'))
       parked.pop_back();
+    // The keep's list (core/keep.lua writes the whole list each time it grows), taken at every pass the same way.
+    if (const std::string kept = take_text(folder + L"coop-keep.txt", DWORD(coop::keep::kFileBytes)); !kept.empty())
+      if (const std::string said = coop::pose::keep_take(kept); !said.empty())
+        event(said);
     const std::string raced = take_text(folder + L"coop-race.txt", kRaceFile); // Never logged either.
     coop::Command command = coop::parse_request(request).command;
     if (switched_off && !request.empty() && command != coop::Command::report) {
@@ -992,12 +997,17 @@ bool step() {
     coop::pose::teamshop_pass();
     coop::pose::loading_pass();
     coop::pose::sky_pass();
+    if (const std::string kept = coop::pose::keep_pass(); !kept.empty())
+      event(kept);
+    if (const std::string theater = coop::pose::theater_pass(); !theater.empty())
+      event(theater);
     // Channel 2 both ways (none in a match lobby). The shared quests take their SBQ lines out first, by sender: on the
     // host, one quest::Host per guest past the handshake; on a guest, the host's only. The shared world (SBW lines),
     // story together (SBS lines) and the shared fight (the rest) run within the pair only (partner(): the host and the
     // guest in ghost slot 0): they read the pair's lines and send theirs to the pair alone. Every other guest's game
-    // keeps those three off (its partner() is 0). The lobby owner hosts the quests, the story and the fight. Ours are
-    // queued for the next tick. Lines from any other member are dropped.
+    // keeps those three off (its partner() is 0). The lobby owner hosts the quests, the world's catch-up (its values
+    // win a conflict), the story and the fight. Ours are queued for the next tick. Lines from any other member are
+    // dropped.
     std::vector<coop::FightLine> fights = loaded ? link->take_fight() : std::vector<coop::FightLine>();
     const uint64_t partner = linked ? link->partner() : 0;
     const bool shared = partner != 0;
@@ -1014,10 +1024,11 @@ bool step() {
         [](const std::string &line, uint64_t to) { return link && to && link->send_fight(line, true, to); },
         quest_files);
     std::vector<std::string> channel2 = coop::lines_from(fights, partner);
-    coop::pose::world_pass(partner, link && link->match(), channel2, [](const std::string &line) {
-      const uint64_t pair = link ? link->partner() : 0;
-      return pair && link->send_fight(line, true, pair);
-    });
+    coop::pose::world_pass(partner, shared && link->host(), link && link->match(), channel2,
+                           [](const std::string &line) {
+                             const uint64_t pair = link ? link->partner() : 0;
+                             return pair && link->send_fight(line, true, pair);
+                           });
     coop::pose::story_pass(partner, shared && link->host(), link && link->match(), channel2,
                            [](const std::string &line) {
                              const uint64_t pair = link ? link->partner() : 0;

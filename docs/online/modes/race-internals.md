@@ -28,16 +28,18 @@ component runs the engine's single-node animation (`SetAnimationMode(1)`), and e
   spring. The lean is the rotator's `Pitch` and the nose its `Roll`, since the mesh faces its +Y; both signs are
   unchecked in game.
 
-The mesh and the clips come from the game's own files (`StaticFindObject`, else `LoadAsset`). The engine's garbage
-collector unloads an asset that nothing in the engine references, and a reference held in Lua does not count. In
-0.5.0-beta.1, a clip that no Doro had played for a while was unloaded, and the next `PlayAnimation` loaded it again
-synchronously: 5 loads a minute taking 185 ms in all while EVE sprinted, each one a short freeze in game. Each Doro
-now carries one keeper per clip: a second `SkeletalMeshComponent` with Doro's mesh, in single-node mode, given the clip
-with `SetAnimation`. Its animation instance holds the clip through `CurrentAsset`, which the collector follows, so every
-clip stays loaded while any Doro stands. The keepers are not attached and never move. They have `bVisible` off, so the
-renderer never gets them, component tick off, `VisibilityBasedAnimTickOption` 3 (pose only while drawn) and collision
-off. They go with their Doro's actor; on the ghost, whose actor stays, they go when Doro mode ends. A clip that is not
-in memory is loaded when a Doro is made, not during the race.
+The mesh, the two blend spaces and the 7 clips of `Doro.ASSETS` are the keep's (`core/keep.lua`): the native part has
+SB's own async loader bring them in and holds them for the game run, so `Doro.resolve` never loads one. Before the keep
+has settled, or with it off for the Lua load, they come from the game's own files as before (`StaticFindObject`, else
+`LoadAsset`). The engine's garbage collector unloads an asset that nothing in the engine references, and a reference
+held in Lua does not count. In 0.5.0-beta.1, a clip that no Doro had played for a while was unloaded, and the next
+`PlayAnimation` loaded it again synchronously: 5 loads a minute taking 185 ms in all while EVE sprinted, each one a
+short freeze in game. Each Doro now carries one keeper per clip: a second `SkeletalMeshComponent` with Doro's mesh, in
+single-node mode, given the clip with `SetAnimation`. Its animation instance holds the clip through `CurrentAsset`,
+which the collector follows, so every clip stays loaded while any Doro stands. The keepers are not attached and never
+move. They have `bVisible` off, so the renderer never gets them, component tick off, `VisibilityBasedAnimTickOption` 3
+(pose only while drawn) and collision off. They go with their Doro's actor; on the ghost, whose actor stays, they go
+when Doro mode ends. With the keep off, a clip that is not in memory is loaded when a Doro is made, not during the race.
 
 A race shows at most two Doros of its own: before GO one at the start line's centre, and during the race one at the next
 checkpoint and one at the one after it, facing the checkpoint before them. Their object paths stay in

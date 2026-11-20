@@ -54,7 +54,9 @@ The shared pieces are never turned off. They require and include no module.
 | `native/src/link/` | The Steam link |
 | `native/src/rows/` | The row engine every batch shares (`rows.h`, with the table list `kTables`), the batch flow on the game thread (`rows_game.inc`, one job per batch word) and the Shock Bolt's ammo list grower (`shock.h`, which the fight worker's log and a game test read too) |
 | `native/src/ui/` | The controller's events and the pause menu's Online tab |
-| `native/src/glue/` | The Windows side and the hub: `glue/tick.cpp` includes every part in a declared order; `glue/tick/<part>_shared.inc` holds what other modules' parts read of a part |
+| `native/src/glue/` | The Windows side and the hub: `glue/tick.cpp` includes every part in a declared order; `glue/tick/<part>_shared.inc` holds what other modules' parts read of a part (`bike_game_shared.inc`: what the keep reads of the bike's part) |
+| `native/src/game/keep.h`, `native/src/glue/tick/keep_game.inc`, `core/keep.lua` | The keep. Lua writes the paths of the assets modules use where the player sees them to `coop-keep.txt`. The native part asks SB's own async loader for them and holds the handles for the game run, so nothing loads them on the game thread later |
+| `native/src/game/theater.h`, `native/src/glue/tick/theater_game.inc` | SB's theater on the status line (`theater=`), read every 100 ms the way SB's own widgets read it. The talks (`story/scenes`) and the group (`online/group`) read the field instead of walking the object array |
 
 What may go there: a helper that reads no module; a header that another module includes; an item of a part that
 another module's part reads. Everything else stays in its module.

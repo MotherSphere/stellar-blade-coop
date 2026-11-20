@@ -297,23 +297,37 @@ assert(#asked==fight_asks+5 and asked[#asked]=='fight pilot on'
 fight_text='fight=on mode=probe actors=12 eve=1 turn=40 turns_per_s=60 writes=armed sim_us=8/30 threads=1/1/2'
 key('RETURN'); quarter(); assert(#asked==fight_asks+5 and select(2,focus())=='Off','The probe: nothing')
 fight_text=nil
+-- Shared flinches and Stagger resistance, the host's for both games: On by default. While a mode that pairs waits or
+-- runs, a change of either row asks coop fight stagger with both values at once; with a probe, nothing.
+fight_text='fight=on mode=on role=host enemies=2 claims=0 refused=0 kills=0 floored=0 sim_us=9/20 threads=1/1/2'
+local stagger_asks=#asked
+to('Shared flinches (experimental)'); assert(select(2,focus())=='On')
+key('RETURN'); quarter() -- Off, as pinned() read it at load: no change, nothing asked.
+assert(settings_text:find('\nhit_reactions=off\n',1,true) and #asked==stagger_asks)
+key('RETURN'); quarter()
+assert(settings_text:find('\nhit_reactions=on\n',1,true) and #asked==stagger_asks+1
+    and asked[#asked]=='fight stagger 1 0' and logged('OK: stagger: asked the native part: fight stagger 1 0'))
+quarter(); assert(#asked==stagger_asks+1,'Once')
+fight_text='fight=on mode=probe actors=12 eve=1 turn=40 turns_per_s=60 writes=armed sim_us=8/30 threads=1/1/2'
+key('RETURN'); quarter(); assert(#asked==stagger_asks+1 and select(2,focus())=='Off','The probe: nothing')
+fight_text=nil
 -- Who same-place enemies fight, the host's: Both players (aggro=game) by default, The host only (aggro=host); the
 -- next start of shared enemies carries it, so the row asks nothing.
 to("Enemies attack (host's)"); assert(select(2,focus())=='Both players')
 key('RETURN')
 assert(settings_text:find('\naggro=host\n',1,true) and select(2,focus())=='The host only')
-quarter(); assert(#asked==fight_asks+5,'The next start carries it')
+quarter(); assert(#asked==fight_asks+6,'The next start carries it')
 -- Same spawns, the host's for both games: On by default; the next start of shared enemies carries it, so the row asks
 -- nothing either.
 to('Same spawns (experimental)'); assert(select(2,focus())=='On')
 key('RETURN')
 assert(settings_text:find('\nsame_spawns=off\n',1,true) and select(2,focus())=='Off')
-loops[2].f(); assert(#asked==fight_asks+5,'The next start carries it')
+loops[2].f(); assert(#asked==fight_asks+6,'The next start carries it')
 -- Extra enemies, the host's: 0 by default, 0 to 3, also from the next start.
 to("Extra enemies (host's)"); assert(select(2,focus())=='0')
 key('RIGHT_ARROW')
 assert(settings_text:find('\nenemy_extra=1\n',1,true) and select(2,focus())=='1')
-loops[2].f(); assert(#asked==fight_asks+5,'The next start carries it')
+loops[2].f(); assert(#asked==fight_asks+6,'The next start carries it')
 -- Shared bosses, the host's for both games: On by default; Boss HP (host's) 200 % by default, 5 % a step. Both count
 -- from the next start of shared enemies, so neither row asks anything.
 to('Shared bosses (experimental)'); assert(select(2,focus())=='On')
@@ -322,7 +336,7 @@ assert(settings_text:find('\nbosses=off\n',1,true) and select(2,focus())=='Off')
 to("Boss HP (host's)"); assert(select(2,focus())=='200 %')
 key('RIGHT_ARROW')
 assert(settings_text:find('\nboss_hp_scale=2.05\n',1,true) and select(2,focus())=='205 %')
-loops[2].f(); assert(#asked==fight_asks+5,'The next start carries them')
+loops[2].f(); assert(#asked==fight_asks+6,'The next start carries them')
 status_text=plain
 to('Menu size'); key('RIGHT_ARROW'); assert(kit_calls[#kit_calls]=='scale 105' and select(2,focus())=='105 %')
 to('Menu sounds'); key('Q'); assert(kit_calls[#kit_calls]=='sounds false')
@@ -346,7 +360,7 @@ key('RETURN'); quarter(); assert(pausetabs[#pausetabs]=='pausetab on' and select
 kit_language='fr-FR'
 to('Menu language'); key('RIGHT_ARROW')
 assert(focus()=='Menu language' and select(2,focus())=='English','ui_language=english: English whatever the game')
-assert(screen():find('^Same place %(experimental%)|') and screen():find('\nDay and night|On|normal$')
+assert(screen():find('^Stagger resistance %(experimental%)|') and screen():find('\nDay and night|On|normal$')
     and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows, the one below the cursor in view')
 key('RIGHT_ARROW')
 assert(focus()=='Langue du menu' and select(2,focus())=='Langue du jeu' and menu_view.hints[1].s=='Déplacer')

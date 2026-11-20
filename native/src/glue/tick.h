@@ -127,12 +127,14 @@ void quest_pass(uint64_t now_ms, bool hosting, const std::vector<uint64_t> &part
 // Refused off the pinned build and after coop off. Returns the line for the log.
 std::string ask_world(const coop::Request &request);
 // Worker, every pass after quest_pass and before fight_pass: takes her SBW lines out of lines and hands them to the
-// game thread with the gates (shared_world, partner: her SteamID while she is linked, else 0; match: a match lobby,
-// the SBO lobby's session counts too; a co-op save, from the save-slot line quest_pass read), swaps the hooks in once
-// those gates first open, and sends and logs what the game thread's passes made. send: a line to her on channel 2,
-// reliable (false when it cannot go: the line then waits for the next pass, game/objects/sync.h's Outbox). After the
-// first fault: off to her once, the hooks out, nothing more.
-void world_pass(uint64_t partner, bool match, std::vector<std::string> &lines, bool (*send)(const std::string &));
+// game thread with the gates (shared_world, partner: her SteamID while she is linked, else 0; host: true on the
+// session's host within the pair, so its values win a catch-up conflict; match: a match lobby, the SBO lobby's session
+// counts too; a co-op save, from the save-slot line quest_pass read), swaps the hooks in once those gates first open,
+// and sends and logs what the game thread's passes made. send: a line to her on channel 2, reliable (false when it
+// cannot go: the line then waits for the next pass, game/objects/sync.h's Outbox). After the first fault: off to her
+// once, the hooks out, nothing more.
+void world_pass(uint64_t partner, bool host, bool match, std::vector<std::string> &lines,
+                bool (*send)(const std::string &));
 // Worker: coop-status.txt's world line (game/objects/sync.h's Sync::status, then hooks=<slots of 4> inbox_dropped=<n>
 // unsent=<lines dropped unsent> elsewhere=<hooks off the game thread>), or world=off why=build|coop_off, or
 // world=stopped after a fault.
@@ -328,6 +330,15 @@ void loading_pass();
 void ask_sky(const coop::Request &request);
 // Every pass: logs each state the game thread reached, a refusal once an ask and its fault once.
 void sky_pass();
+// The keep (glue/tick/keep_game.inc, game/keep.h), worker thread. coop-keep.txt's lines (core/keep.lua writes the whole
+// list each time it grows) into the keep's list; the game thread asks SB for the new ones at its next look. Returns a
+// line for the log the first time a line is refused (not an object path, or the list full), else empty.
+std::string keep_take(const std::string &text);
+// Every pass: a line for the log with the keep's fault, once, else empty.
+std::string keep_pass();
+// SB's theater read (glue/tick/theater_game.inc, game/theater.h), worker thread. Every pass: a line for the log with
+// its fault, once, else empty.
+std::string theater_pass();
 // coop-status.txt's sky line (world/daynight/sky.h's line) and its newline: the state, the light of the hour asked, the
 // elements written and whether EVE stands in env sunlight; refused off the pinned build.
 std::string sky_status();
@@ -336,9 +347,10 @@ std::string sky_status();
 // written>" for each slot k from 1 holding a table) or "engine=off reason=...", then " fight=on <count>",
 // " fight=probe", " fight=waiting" or " fight=stopped" while the shared fight is asked or latched, then " anim=<state>
 // anim_id=<id>" (game/anim.h's state_text, of the last play asked) and " bike=<state> bike_gate=<state>"
-// (game/bike.h's load_text and gate_text, then " bike_life=<n>", EVE's life state, when it read) on the pinned build
-// before coop off, then " nightop=on" or " nightop=rule" (once the rule was asked) last while the poller runs: no
-// per-frame counters.
+// (game/bike.h's load_text and gate_text, then " bike_life=<n>", EVE's life state, when it read), " keep=<asked>
+// <settled> <in>" (game/keep.h's line) or " keep=fault" and " theater=<none|sequence|->" (game/theater.h's text) or
+// " theater=fault" on the pinned build before coop off, then " nightop=on" or " nightop=rule" (once the rule was
+// asked) last while the poller runs: no per-frame counters.
 std::string status();
 // Worker: coop-status.txt's activated line (game/camps.h's line), the camps this save has activated and the camp EVE
 // respawns at as of the game thread's last check: "activated=<n>:<alias>,..." with " rested=<alias>" when known, or

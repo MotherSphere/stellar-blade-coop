@@ -123,7 +123,8 @@ std::string ask_world(const coop::Request &request) {
                        : "world off: neither our changes nor hers are shared until world on";
 }
 
-void world_pass(uint64_t partner, bool match, std::vector<std::string> &lines, bool (*send)(const std::string &)) {
+void world_pass(uint64_t partner, bool host, bool match, std::vector<std::string> &lines,
+                bool (*send)(const std::string &)) {
   const std::string tag = world_tag() + " ";
   std::vector<std::string> hers;
   for (auto it = lines.begin(); it != lines.end();)
@@ -156,6 +157,7 @@ void world_pass(uint64_t partner, bool match, std::vector<std::string> &lines, b
   world::Gates g;
   g.setting = world_setting;
   g.partner = partner;
+  g.host = host;
   g.match = match || sbo_run.record.state != sbo::Record::closed; // A match lobby, or the SBO lobby's session.
   g.coop_save = world::slot_coop(quest_slot_line, world_slot_coop);
   if (!world_tried && g.setting && g.partner && !g.match && g.coop_save)

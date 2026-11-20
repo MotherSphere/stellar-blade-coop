@@ -18,6 +18,7 @@ return {
         max_players='玩家人数',auto_coop_save='合作存档',enemy_hp_scale='敌人生命（房主）',
         enemy_balance_scale='敌人平衡（房主）',kill_credit='我的击杀奖励',
         same_place='同步位置（实验性）',aggro='敌人攻击对象（房主）',
+        hit_reactions='受击硬直同步（实验性）',stagger_resist='硬直抗性（实验性）',
         same_spawns='同步刷怪（实验性）',enemy_extra='额外敌人（房主）',
         bosses='共享首领（实验性）',boss_hp_scale='首领生命（房主）',
         shared_quests='共享任务（实验性）',

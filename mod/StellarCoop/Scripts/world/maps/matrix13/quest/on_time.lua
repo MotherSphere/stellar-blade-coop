@@ -44,8 +44,9 @@
 --   follow's guards, the test pak, the mxiii rows, the travel). After the end talk: signal tell (M06's task), and On
 --   Time is complete. A failed talk or a refused ask logs a STOP line and the flow goes on.
 -- - In Matrix XIII: the arrival talk once a Lua load (Lua memory only, nothing saved), ARRIVAL s after EVE's map turns
---   to Matrix XIII's with On Time held and no screen shown, never during another talk; the M01 fallback (EVE there
---   with the quest at M01 for FALLBACK s: SB's EnterZone check on Zone_DLC02_10 did not fire after the camp travel):
+--   to Matrix XIII's with On Time held, no screen shown and no black over Matrix XIII's setup (o.held), never during
+--   another talk; the M01 fallback (EVE there with the quest at M01 for FALLBACK s: SB's EnterZone check on
+--   Zone_DLC02_10 did not fire after the camp travel):
 --   signal complete, once a visit; the drive room (EVE inside its box with the quest at M05 for ROOM s): signal zone4,
 --   once a visit; the zone talks' look (world/maps/matrix13/quest/zone_talks.lua), when main.lua gives them.
 -- Each step logs an [LY] line. coop lily signal [status|quest|travel|next], coop lily talk and coop lily hold run steps
@@ -160,7 +161,8 @@ local function answer(q,word,asks)
 end
 
 -- o: log (the [LY] lines), status() the native status text, ask(line) its request, mode() the link's mode ('none'
--- when solo, nil before the link is ready), paused() whether the game is paused or shows one of its screens, travel()
+-- when solo, nil before the link is ready), paused() whether the game is paused or shows one of its screens, held()
+-- whether SB's black is up over Matrix XIII's setup (world/maps/matrix13/level/travel.lua; nil: never), travel()
 -- coop mxiii (world/maps/matrix13/commands.lua's: ok, message), paks (SB/Content/Paks, nil when unknown), read
 -- (files.read), talks (world/maps/matrix13/quest/subtitles.lua's player), zones
 -- (world/maps/matrix13/quest/zone_talks.lua's, or nil).
@@ -518,7 +520,7 @@ function Lily.new(o)
                 told=nil
             end
         end
-        local quiet=not o.paused()
+        local quiet=not o.paused() and not (o.held and o.held())
         -- The prologue: its gate held QUIET s with no screen shown, then no theater playing: once a Lua load.
         if not prologue_asked and not flow and not talks.playing() and not prologue_gate(raw,q,rows) and quiet then
             quiet_since=quiet_since or now

@@ -21,6 +21,7 @@ return {
         max_players='Gracze',auto_coop_save='Zapisy co-op',enemy_hp_scale='PŻ wrogów (ustawia host)',
         enemy_balance_scale='Równowaga wrogów (ustawia host)',kill_credit='Moje nagrody za zabójstwa',
         same_place='Ta sama pozycja (eksperyment)',aggro='Wrogowie atakują (ustawia host)',
+        hit_reactions='Wspólne wzdrygnięcia (eksperyment)',stagger_resist='Odporność na ciosy (eksperyment)',
         same_spawns='Te same spawny (eksperyment)',enemy_extra='Dodatkowi wrogowie (ustawia host)',
         bosses='Wspólni bossowie (eksperyment)',boss_hp_scale='PŻ bossów (ustawia host)',
         shared_quests='Wspólne zadania (eksperyment)',

@@ -129,7 +129,7 @@ function player.Play(self) self.plays=self.plays+1 end
 local player_seen=nil -- The player scene.player() gives (nil before the observer is seen).
 local scene={talk=function(seq,o) talks[#talks+1]={seq=seq,o=o}; return true,'asked' end,
     stop_talk=function() stops=stops+1; return true,'stop asked' end,player=function() return player_seen end,
-    busy=function() return busy end}
+    busy=function() return busy end,ready=function() return true end}
 local shown,view={},nil
 local kit_up=true
 local function text_view()
@@ -669,4 +669,29 @@ do
 end
 busy='DED_Area01'
 assert(Q.cutscene()=='DED_Area01')
+-- Review Focus 6: while the keep has not settled (scene.ready() false) a talk waits with one line: no theater asked,
+-- no scene.busy() walk; once ready it goes on as before (the cutscene look, then the theater).
+do
+    scene.talk=function(seq,o) talks[#talks+1]={seq=seq,o=o}; return true,'asked' end
+    local looks,ready=0,false
+    scene.busy=function() looks=looks+1 end
+    scene.ready=function() return ready end
+    talks,done,logs={},nil,{}
+    at(7000); assert(P.play('prologue',false,finished))
+    for k=1,6 do at(7000+k*0.5); P.tick() end
+    local waits=0
+    for _,l in ipairs(logs) do if l=='talk prologue: waits for its assets to be in memory' then waits=waits+1 end end
+    assert(#talks==0 and looks==0 and waits==1)
+    ready=true
+    at(7003.5); P.tick()
+    assert(looks==1 and #talks==1 and not talks[1].o.direct)
+    P.stop()
+    -- coop scene off (the loader's stub: ready() gives nothing): no wait.
+    scene.ready=function() end
+    talks,logs={},{}
+    at(7100); assert(P.play('prologue',false,finished))
+    assert(#talks==1 and #logs>0 and not logs[1]:find('waits for its assets',1,true))
+    P.stop()
+    scene.ready=function() return true end
+end
 print('subtitles_test: ok')

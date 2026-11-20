@@ -20,12 +20,15 @@ local function object(fields)
 end
 FName=function(t) return t end
 local function rotor(name)
-    local owner=object({GetFName=function() return name end})
-    return object({active=true,GetOwner=function() return owner end,IsActive=function(self) return self.active end,
+    local owner=object({GetFName=function() return name end,
+        GetFullName=function() return 'StaticMeshActor /Game/M/MXIII_Z4_Fans.MXIII_Z4_Fans:PersistentLevel.'..name end})
+    local c=object({active=true,GetOwner=function() return owner end,IsActive=function(self) return self.active end,
         SetActive=function(self,on,reset)
             assert(reset==false)
             self.active,self.sets=on,(self.sets or 0)+1
         end})
+    owner.GetComponentByClass=function() return c end
+    return c
 end
 local function lever(name)
     return object({EnvActorName=name,state='Off',GetStateTagname=function(self) return self.state end})
@@ -131,5 +134,36 @@ for i,env in ipairs({'023','024','025'}) do
     local envc=row(Rows.MXLOWER,event,'EventEnvControlTable')
     assert(field(envc,'EnvSpawnAlias')==name and field(envc,'Activate')==1,event)
     assert(dead:find(event,1,true),event..' on the Lion')
+end
+
+-- prime() under the arrival's black (world/maps/matrix13/level/travel.lua): the rotors walked for once, each owner's
+-- path kept; in play a rotor that went stale (its level streamed back in) is found again by that path with no walk;
+-- primed with no rotor, no walk in play and the STOP line (Review Focus 16).
+do
+    F[1],F[2],F[3]=rotor('Z4_Z4R10_S_Fan1_Rotor'),rotor('Z4_Z4R10_S_Fan2_Rotor'),rotor('Z4_Z4R10_S_Fan3_Rotor')
+    for _,x in ipairs(L) do x.state='Off' end
+    local asked,at_path,pl={},{},{}
+    local pf=Fans.new({log=function(m) pl[#pl+1]=m end,here=function() return eve end,
+        find=function(p) asked[#asked+1]=p; return at_path[p] end})
+    local before=walks
+    pf.prime(eve)
+    assert(walks==before+1,'One walk under the black')
+    eve_at=Fans.CENTER
+    clock=clock+Fans.EVERY; pf.tick()
+    assert(walks==before+1 and not F[1].active,'In the room: the primed rotors held, no walk')
+    local P1='/Game/M/MXIII_Z4_Fans.MXIII_Z4_Fans:PersistentLevel.Z4_Z4R10_S_Fan1_Rotor'
+    local fresh=rotor('Z4_Z4R10_S_Fan1_Rotor')
+    F[1].destroyed=true
+    at_path[P1]=fresh:GetOwner()
+    clock=clock+Fans.FIND; pf.tick()
+    assert(walks==before+1 and asked[#asked]==P1 and not fresh.active,'Found again by its path, no walk')
+    local kept=F
+    F={}
+    local none=Fans.new({log=function(m) pl[#pl+1]=m end,here=function() return eve end,find=function() end})
+    none.prime(eve)
+    local primed=walks
+    clock=clock+Fans.FIND; none.tick(); clock=clock+Fans.FIND; none.tick()
+    assert(walks==primed and pl[#pl]=='STOP: no fan rotor found: the fans keep their cooked turning',pl[#pl])
+    F=kept
 end
 print('fans_test passed')

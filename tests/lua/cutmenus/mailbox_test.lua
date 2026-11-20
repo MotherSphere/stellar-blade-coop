@@ -543,4 +543,43 @@ assert(toasts[#toasts]=='Kaanta: 1 HealGrenade' and stored=='/Engine/Transient.T
 u=untoasts
 again.stop()
 assert(untoasts==u+1 and stored==nil)
+-- The keep: the toast's class wanted when the mailbox is made; while the keep has not settled the toast is skipped
+-- (false, as with no controller) with no lookup and no LoadAsset; once settled its class is the keep's (no controller
+-- here, so false after it).
+do
+    local Keep=require('core.keep')
+    local keep_fake=dofile('tests/lua/core/keep_fake.lua')
+    local kf=keep_fake(function(p)
+        return {type=function() return 'UObject' end,IsValid=function() return true end,
+            GetFullName=function() return 'WidgetBlueprintGeneratedClass '..p end},true
+    end)
+    M.new(opts)
+    Keep.slow()
+    assert(kf.text:find('WB_MailBox_Toast_GetGift_C',1,true) and not Keep.ready())
+    local saved_find,saved_load=StaticFindObject,LoadAsset
+    StaticFindObject=function(p) error('StaticFindObject '..p,0) end
+    LoadAsset=function(p) error('LoadAsset '..p,0) end
+    assert(M.toast('A gift')==false)
+    kf.settle()
+    controller=nil
+    assert(M.toast('A gift')==false,'The keep\'s class: no lookup, no load')
+    controller=pc
+    StaticFindObject,LoadAsset=saved_find,saved_load
+    Keep.reset()
+end
+-- Missing on this PC (settled by the keep, not found): no LoadAsset; the toast is not in this game build.
+do
+    local Keep=require('core.keep')
+    local kf=dofile('tests/lua/core/keep_fake.lua')(function() return nil,true end)
+    M.new(opts)
+    Keep.slow()
+    kf.settle()
+    local saved_find,saved_load,loads=StaticFindObject,LoadAsset,0
+    StaticFindObject=function() return nil end
+    LoadAsset=function() loads=loads+1 end
+    local made,why=M.toast('A gift')
+    assert(made==nil and why=='the toast widget is not in this game build' and loads==0,tostring(why))
+    StaticFindObject,LoadAsset=saved_find,saved_load
+    Keep.reset()
+end
 print('cut_mailbox_test ok')

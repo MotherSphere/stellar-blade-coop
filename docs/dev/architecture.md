@@ -140,9 +140,10 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `eve/emote.lua` | `coop emote`: one of EVE's clips (a looped photo-mode pose, a wave, a clip of the Cut category played once), played by the native part through SB's custom animation call or else as a dynamic montage in `DefaultSlot`, stopped when she moves, jumps or starts a skill ([Emotes](../eve/eve-internals.md#emotes)); also, for `online/lobby/sbo.lua`, the sit loop of a hall lobby seat that SB's chairs leave to the menu key (the fallback to SB's own sit), which `preload` looks up ahead of the sit so the first sit finds the clip in memory |
 | `cutmenus/mailbox.lua` | `coop gift`: the inventory read asked of the native part, the game's remove request, the gift file, the gift lines and their answers, the items coming back and the take through the shop's grant, and the cut toast ([Cut mailbox](../cutmenus/menus-internals.md#cut-mailbox)) |
 | `eve/wear.lua` | `coop wear`: sets the mesh of EVE's body or hair component (with the hair's animation Blueprint and physics asset) to a cut suit or hair and keeps the game's own look in `coop-wear.txt` to give it back. It puts the worn look on again when the game sets its own |
-| `story/scenes/scene.lua` | `coop scene`: two unused rows of the game's theater table pointed at a cut scene's theater and read back, the Emil farewell's take lent to E03, E03's subtitles left in Korean and Japanese (no text registration), the theater observer it follows once a second and the Stop row that ends it; Lily's talks through Quinn's theater, its take lent the same way, or through the rows' level sequence with no theater |
+| `story/scenes/scene.lua` | `coop scene`: two unused rows of the game's theater table pointed at a cut scene's theater and read back, the Emil farewell's take lent to E03, E03's subtitles left in Korean and Japanese (no text registration), the level sequence actor it follows once a second through the engine's class hash (the theater observer, walked for, with no `theater=` field) and the Stop row that ends it; Lily's talks through Quinn's theater, its take lent the same way, or through the rows' level sequence with no theater |
 | `core/unreal.lua` | Small helpers over UE4SS objects |
 | `core/pak_gate.lua` | Finds a pak of ours (the Matrix XIII test pak, the hall lobby pak) in `SB/Content/Paks` from its `.utoc`, with its `.pak` and `.ucas` beside it, without loading anything |
+| `core/keep.lua` | The keep's Lua side: the asset paths modules want, written to `coop-keep.txt`; each kept asset found once with no load or walk and held; off for the Lua load when the native part cannot keep them, so modules load as before |
 | `core/line.lua`, `core/player.lua`, `core/actors.lua`, `core/where.lua`, `core/worlds.lua`, `core/row_edit.lua`, `core/picks.lua`, `core/items.lua`, `core/effect.lua` | Helpers cut out of the modules for every module to read: text lines and names, EVE and her controller, the display actors, our EVE's world and place, the story worlds' maps, a table row edited in place and read back, the select widgets' picks, the shop's item grant, the ChainSpin's effect call ([Modules and isolation](#modules-and-isolation)) |
 
 The runtime runs two game-thread loops, which call each module's work. One runs every frame (`main/frame.lua`): the
@@ -247,6 +248,13 @@ file is written in full beside its final name and then renamed over it, so the r
   native part takes and sends to each member as a `bike` message (see [The bike
   line](../online/steam-link-internals.md#the-bike-line)). The members' lines come back as the `bike_of=` lines of
   `coop-status.txt`.
+- The keep's list goes through `coop-keep.txt`: the object paths of the assets the mod keeps in memory, one a line,
+  the whole list each time it grows. The native part takes the file at every pass and asks the game's own async loader
+  for the new paths. The `keep=<asked> <settled> <in>` word of the engine line in `coop-status.txt` answers, or
+  `keep=fault`.
+- The `theater=` word of the engine line in `coop-status.txt` tells Lua what SB's theater plays, read on the game
+  thread every 100 ms: `none`, the sequence's name, `-` while its first take loads or its name is not read, or `fault`.
+  No request asks for it.
 - Two files are Lua's alone, for the [crash sentinel](../online/partner-internals.md#cns-guard-and-crash-sentinel):
   `coop-cns-call.txt`, written in place with no temporary file to keep each write to one, and `coop-cns-aside.txt`, the
   set-aside list.
@@ -367,7 +375,7 @@ error that escapes it is logged once a Lua load; the modules after it still run 
 ### Native parts
 
 The DLL has no load isolation: `glue/tick.cpp` is one translation unit that includes every part. Each part's game calls
-run under its own SEH latch (77 `__try` blocks, 34 `*_faulted` flags): a fault there turns that feature off for the run.
+run under its own SEH latch (64 `__try` blocks, 36 `*_faulted` flags): a fault there turns that feature off for the run.
 A part may read what the parts before it define, so `tick.cpp` includes them in a declared order. Comments beside the
 includes name the parts one reads or must come before (`world/daynight/sky_game.inc` comes after
 `glue/tick/freeze_game_shared.inc`, whose controller reach it uses). What another module's part reads of a part is in

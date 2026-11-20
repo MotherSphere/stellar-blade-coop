@@ -21,6 +21,7 @@ return {
         max_players='Spillere',auto_coop_save='Gemte co-op-spil',enemy_hp_scale='Fjendernes HP (værtens)',
         enemy_balance_scale='Fjendernes balance (værtens)',kill_credit='Mine drabsbelønninger',
         same_place='Samme position (eksperimentel)',aggro='Fjender angriber (værtens)',
+        hit_reactions='Delte ryk (eksperimentel)',stagger_resist='Vaklemodstand (eksperimentel)',
         same_spawns='Samme spawns (eksperimentel)',enemy_extra='Ekstra fjender (værtens)',
         bosses='Delte bosser (eksperimentel)',boss_hp_scale='Bossernes HP (værtens)',
         shared_quests='Delte quests (eksperimentel)',
