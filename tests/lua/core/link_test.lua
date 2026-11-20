@@ -427,7 +427,7 @@ assert(#notes==1 and notes[1]=='settings: F3 is set for two actions: default key
     notes[1])
 local GUN_TESTS={gun_aim_key='LeftMouseButton',gun_zoom='toggle',gun_upper='nikke',gun_fire='own',gun_probe='on',
     gun_trace='on',gun_facts='on',gun_g0='on',gun_bs='X_BS',gun_carry_ovr='off',gun_carry_spare='2',gun_carry_idle='1',
-    gun_fire_key='F',gun_airtrace='on',gun_g1='on',gun_g1_tag='v3a'}
+    gun_fire_key='F',gun_airtrace='on',gun_g1='on',gun_g1_tag='v3a',gun_hip_strafe_row='P_Eve_Gun_Battle'}
 local gun_lines={}
 for k,v in pairs(GUN_TESTS) do gun_lines[#gun_lines+1]=k..'='..v end
 s,notes=Link.parse_settings(table.concat(gun_lines,'\n')..'\n')
