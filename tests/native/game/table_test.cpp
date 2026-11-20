@@ -282,7 +282,7 @@ int main() {
            with(kWire, "part 3 2 2", "part 3 1 2"),                                              // lead a follower
            with(kWire, "part 1 0 0 - 1 0", "part 1 0 0 - 1 3"),                                  // a follower's bones
            with(with(kWire, "1 1 SBSkeletalMesh", "1 0 SBSkeletalMesh"), "names 4 Root", "names 4"), // a leader's 0
-           // pose_size refuses a leader over 903 bones, but not one whose names count, 2 + bones, wraps to 1.
+           // pose_size refuses a lone leader over 898 bones, but not one whose names count, 2 + bones, wraps to 1.
            with(with(kWire, "1 1 SBSkeletalMesh", "1 18446744073709551615 SBSkeletalMesh"), "names 4 Root",
                 "names"),                                                                        // > kMaxBones
            with(with(kWire, "1 3 CharacterMesh0", "1 1000 CharacterMesh0"), n0, names_1000 + "\n"), // pose > 16 KiB

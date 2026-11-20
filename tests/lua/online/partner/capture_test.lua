@@ -648,7 +648,7 @@ step(2)
 assert(not reads.VectorParameterValues and not published[1]:find('\nvalue '),published[1])
 -- A table with no room: the geometry goes whole, the values stay home, said in the line.
 local long_bones={}
-for b=1,897 do long_bones[b]=('b'):rep(61)..b end -- 897: the most bones her main mesh's pose holds alone
+for b=1,897 do long_bones[b]=('b'):rep(61)..b end -- 897: her main mesh's pose alone holds 898 at most
 local big=her('Big',BODY,{parent=capsule,bones=897,names=long_bones})
 raw[big].OverrideMaterials=slots(1,{mid})
 local big_eve=eve_of('EVE16',{big})

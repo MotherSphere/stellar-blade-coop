@@ -119,8 +119,8 @@ game thread at the send rate, and the worker sends it. A pose message holds:
   slot's serial once, when its playback reaches the first pose that carried it; a playback that starts (a new table, a
   new member) plays none of the events standing in its first poses.
 
-A pose is at most 16 KiB; in the outfits measured it is 4.7 to 5 KB. A world position beyond 1e7 cm, or not finite,
-is refused.
+A pose is at most 16 KiB; in the outfits measured it is 4.8 to 5.1 KB with the event slots. A world position beyond
+1e7 cm, or not finite, is refused.
 
 Since protocol 9 most poses go as deltas. A keyframe is a full pose as above. A delta has the same header, the age of
 its keyframe in microseconds, the world transform and free blocks, one bit for each bone rotation, translation, scale,

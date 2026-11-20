@@ -501,8 +501,7 @@ inline bool strays(const uint8_t *a, const uint8_t *b, int kind, const Tolerance
 
 // The delta of full (a pose of t that encode_pose wrote) against key (an earlier one, age µs before) into out, which
 // holds limit bytes: the bone fields that stray past tol and the effect and event slots that differ at all. Returns its
-// size, or
-// 0 when it would not be smaller than limit (send the pose then).
+// size, or 0 when it would not be smaller than limit (send the pose then).
 inline size_t encode_delta(const Table &t, const uint8_t *key, const uint8_t *full, uint32_t age, uint8_t *out,
                            size_t limit, const Tolerance &tol = kTolerance) {
   const size_t fixed = delta_fixed(t);
