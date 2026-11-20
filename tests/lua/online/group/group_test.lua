@@ -653,4 +653,22 @@ end)
 assert(g.cut()==true)
 W.ghosts[2].map='/game/f02'
 assert(g.cut()==false)
+-- SB's theater from the status line (glue/tick/theater_game.inc): the theater= field gives the cutscene with no
+-- sequence actor list and no walk; theater=none ends it; theater=fault reads the actors as before.
+g=world(function(w)
+    w.mode,w.life,w.engine='host',{state=1,hp=1600},ENGINE..' warp=idle me=4242 theater=none'
+end)
+run(g,2)
+assert(not g.cutscene_playing() and (W.finds.SBTheaterLevelSequenceObserver or 0)==0
+    and (W.finds.LevelSequenceActor or 0)==0,'No actor list, no walk')
+W.engine=ENGINE..' warp=idle me=4242 theater=Mann_Entrance_0123456789ABCDEF0123456789ABCDEF'
+run(g,1)
+assert(g.cutscene_playing() and g.photo('0')=='c' and logged('cutscene on: Mann_Entrance_0123456789ABCDEF'))
+W.engine=ENGINE..' warp=idle me=4242 theater=none'
+run(g,1)
+assert(not g.cutscene_playing() and logged('cutscene off') and (W.finds.LevelSequenceActor or 0)==0
+    and (W.finds.SBTheaterLevelSequenceObserver or 0)==0)
+W.engine=ENGINE..' warp=idle me=4242 theater=fault'
+run(g,1)
+assert((W.finds.LevelSequenceActor or 0)>0,'A faulted read: the actors as before')
 print('group_test ok')

@@ -132,8 +132,9 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   call and the revived notice; the wait naming the member alive on our map when she is far; no member alive), each
   member's down notice with our revive of her, no down notice nor revived notice for a guest outside the pair on the
   host and on the pair, her own game waiting on no shared fight, then the guest's cutscene pause read from the host's
-  slot; `online/group/travel_test` the host answering `camps?` while any guest is linked and the guest reading the
-  host's map from his member line's slot (no offer while that slot has no ghost or the host is not linked);
+  slot, then the theater field: no walk for the group's cutscene, a faulted field walking as before;
+  `online/group/travel_test` the host answering `camps?` while any guest is linked and the guest reading the host's map
+  from his member line's slot (no offer while that slot has no ghost or the host is not linked);
   `online/partner/ghosts_test` `get(k)`; `cutmenus/mailbox_test`, `online/modes/race/run_test`,
   `online/modes/nightop/run_test`, `online/modes/nightop/roxanne_test` and `fight/enemies/wiring_test` a gift, a race, a
   run, Roxanne's pick and the PvP test refused with 3 players, `online/modes/race/run_test` and
@@ -160,8 +161,10 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
 - `core/class_at_test` covers `object_at`: no walk before the proof, the soft object path once proven, the walk once the
   proof failed; `core/actors_test` a path the keep serves never loaded by `Doro.resolve` (nil when it is missing), the
   find and the load as before until the keep is ready; `story/scenes/scene_test` Lily's five assets wanted, `ready()`
-  following the keep and a Lua load's restore that loads no theater; `world/maps/matrix13/quest/subtitles_test` a talk
-  that waits for the keep with one line and no walk before it goes on (no wait while `coop scene` is off);
+  following the keep and a Lua load's restore that loads no theater, then the theater field: no walk at a talk's start,
+  the talk followed through the class hash, our own talk refused as ours, a faulted field walking as before;
+  `world/maps/matrix13/quest/subtitles_test` a talk that waits for the keep with one line and no walk before it goes on
+  (no wait while `coop scene` is off);
 - `world/maps/matrix13/level/breakables_test` and `world/maps/matrix13/level/move_test` cover the keep's classes (and
   the ledge's mesh) wanted when the module is made, no spawn before the keep settled, then one find each for the game
   run with no lookup of a kept path and no `LoadAsset`, a second world included; `cutmenus/mailbox_test` the gift

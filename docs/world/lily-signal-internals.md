@@ -71,7 +71,8 @@ select cache swap of Roxanne's choices, `coop scene`'s borrowed theater rows and
      are local requests from Lua.
 5. The prologue: once every gate below up to Quest_Sub_005 holds, Quest_Epic_11 reads group 3 (M04) in progress and
    neither quest is held, Lua waits 5 s with the game unpaused and no game screen shown, reads `coop scene`'s
-   theater observers once (no cutscene of the game may play then), and asks `signal prologue`, once a Lua load.
+   theater observers once (no cutscene of the game may play then), and asks `signal prologue`, once a Lua load. With
+   the native part's `theater=` field (SB's own theater test) there is no walk; without it, as before.
 
 ## Lily's choice
 
@@ -147,7 +148,9 @@ select cache swap of Roxanne's choices, `coop scene`'s borrowed theater rows and
    - The theater plays a copy of the sequence named with a GUID added (`Subtitle_POD_ArriveDED_01_566E...C6E5` in game),
      so `story/scenes/scene.lua` matches an observer's sequence by that name or the plain one, finds the hold's sequence
      player the same way before its once-a-second look has seen the observer, and takes a rewritten window as proof the
-     talk plays (no 10 s failure until 10 s after the last one).
+     talk plays (no 10 s failure until 10 s after the last one). With the native part's `theater=` field (SB's own
+     theater test) there is no walk: the talk's start reads the field, and the talk is followed through its level
+     sequence actor, found in the engine's class hash. Without the field, as before.
    - Before the theater, a talk waits while a theater of the game plays, looked for every 0.5 s, and is asked 0.5 s
      after it ended, or after 20 s anyway. A talk refused because a talk's own sequence still plays gets no fallback. A
      Pause or Play that is missing or raises ends the holds for the talk; a sequence with no new window 2 s past a hold

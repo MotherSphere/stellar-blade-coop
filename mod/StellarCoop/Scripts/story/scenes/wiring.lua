@@ -8,7 +8,8 @@ exports={'scene','cut_lines'},
 new=function(M)
 local print,log=M.print,M.log
 -- coop scene (story/scenes/scene.lua), logging [SC] lines: two cut scenes through two of SB's theater rows.
-M.scene=require('story.scenes.scene').new({log=function(m) print('[StellarCoop][SC] '..tostring(m)..'\n') end})
+M.scene=require('story.scenes.scene').new({log=function(m) print('[StellarCoop][SC] '..tostring(m)..'\n') end,
+    status=function() return M.link and M.link.status() end})
 -- coop lines (story/scenes/lines.lua), logging [LN] lines: cut scenes' unvoiced subtitles in the chat's feed, and
 -- unused voice takes played as 2D sounds.
 M.cut_lines=require('story.scenes.lines').new({log=function(m) print('[StellarCoop][LN] '..tostring(m)..'\n') end,
