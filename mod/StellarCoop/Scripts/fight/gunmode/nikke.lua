@@ -72,7 +72,8 @@ function Nikke.new(o)
     local asks=0 -- Gun mode's reads so far: its ask number is ASKS plus this, wrapped.
     local said=nil -- The last refusal word logged, so a refusal that stays is said once.
     local taken={} -- {n, before (the count read before the take), at}: takes no read shows yet.
-    local coop=false -- The co-op save loaded, as the last pass read the slot line.
+    local coop=false -- The co-op save loaded, as the last slot=coop or slot=main line said.
+    local index=nil -- The co-op save's slot index, so another co-op save reads its count again.
     local last=nil -- The last pass's clock, so paused time does not age the takes.
 
     self.title=title
@@ -113,8 +114,17 @@ function Nikke.new(o)
         local now=clock()
         local raw=status() or ''
         if verdict==nil then from_line() end
-        coop=('\n'..raw):find('\nslot=coop ')~=nil
-        if not coop then read,taken,asked=nil,{},nil end -- Another save: its count is read again.
+        -- The last verdict holds through an unread status and slot=none or unknown (a load, the title), as the native
+        -- part's objects/sync.h slot_coop does: only slot=coop or slot=main changes it.
+        local slot=('\n'..raw):match('\nslot=([^\r\n]*)')
+        local word=slot and slot:match('^(%a+)')
+        if word=='coop' then
+            local at=slot:match(' index=(%d+)')
+            if coop and at~=index then read,taken,asked=nil,{},nil end -- Another co-op save: its count read again.
+            coop,index=true,at
+        elseif word=='main' then
+            coop,index,read,taken,asked=false,nil,nil,{},nil -- Your own save: its count is read again on the next.
+        end
         if last and #taken>0 and paused() then for _,t in ipairs(taken) do t.at=t.at+(now-last) end end
         last=now
         if asked then
@@ -125,7 +135,11 @@ function Nikke.new(o)
                     -- A take is shown once a read after it comes in below the count before it.
                     for i=#taken,1,-1 do
                         local t=taken[i]
-                        if (t.before and n<=t.before-t.n) or now-t.at>Nikke.SETTLE then table.remove(taken,i) end
+                        if t.before and n<=t.before-t.n then table.remove(taken,i)
+                        elseif now-t.at>Nikke.SETTLE then
+                            log(string.format('rounds: %d taken but the count did not fall in %d s',t.n,Nikke.SETTLE))
+                            table.remove(taken,i)
+                        end
                     end
                 elseif why~=said then log('rounds: inventory not read ('..why..')') end
                 said=why

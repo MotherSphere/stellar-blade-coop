@@ -6,11 +6,13 @@
 -- fight/gunmode/rows.lua says what native/src/fight/gunmode/nikke_rows.h writes (every row's table, name and ID, every
 -- patch's field, kind and value, the round and its price); Nikke.answer reads its own ask's count or refusal and no
 -- other ask's; the rows verdict from the nikke= line (a shut gate decides nothing, a refusal is said once); ready()
--- only once a tick read the rows and a slot=coop line, false again after a tick on another save (its count then nil);
--- the count's read only while watched, its ask number in 20000..32767 (wrapped from 32767 to 20000) and never the one
--- the engine line shows; take() asks SB's remove with EVE's GUID, lowers the count until a read shows the take or
--- SETTLE s of play pass (paused time not counted). It refuses while paused, before the rows are in and for a count that
--- is no whole number above 0. An unread inventory is logged once.
+-- only once a tick read the rows and a slot=coop line, false again after a tick on your own save (slot=main, its count
+-- then nil); an unread status, slot=none and slot=unknown keep the verdict, the count and the takes; another co-op
+-- save's slot index reads the count again; the count's read only while watched, its ask number in 20000..32767
+-- (wrapped from 32767 to 20000) and never the one the engine line shows; take() asks SB's remove with EVE's GUID,
+-- lowers the count until a read shows the take or SETTLE s of play pass (paused time not counted), the second logged
+-- once. It refuses while paused, before the rows are in and for a count that is no whole number above 0. An unread
+-- inventory is logged once. With fight/gunmode/ammo.lua, one unread status keeps a stocked magazine's rounds.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
@@ -132,7 +134,9 @@ local logs,asked,requests,removes={},{},{},{}
 local nikke,engine,paused='nikke=off asks=0','fps=60 items=20001 3 me=0',false
 local COOP='slot=coop index=1 marker=1 saves=coop'
 local slot=nil -- The native part's slot line, or nil while it writes none.
+local unread=false -- The status file not read this pass (link.status() gives nil).
 local function status()
+    if unread then return nil end
     return 'mod=v\n'..(slot and slot..'\n' or '')..nikke..'\nengine='..engine..'\nlast=x\n'
 end
 local pc={ServerRequest_ItemBucketItemRemove=function(_,...) removes[#removes+1]={...} end}
@@ -267,9 +271,36 @@ for _=1,4 do answer(8) end -- 5 s of play.
 assert(s.count()==6,'Still out before SETTLE s of play: '..tostring(s.count()))
 for _=1,5 do answer(8) end -- 11.25 s of play.
 assert(s.count()==8,'Expired after SETTLE s of play: '..tostring(s.count()))
+assert(count('rounds: 2 taken but the count did not fall in 10 s')==1,count('did not fall')..' logs')
+-- A take a read shows: no such line.
+ok,msg=s.take(1)
+assert(ok,msg)
+answer(7)
+assert(s.count()==7 and count('did not fall')==1,tostring(s.count()))
+answer(7)
+
+-- An unread status, a load or the title (slot=none, unknown): the verdict, the count and the takes hold.
+ok,msg=s.take(1)
+assert(ok,msg)
+assert(s.count()==6)
+for _,state in ipairs({'unread','slot=none index=? marker=? saves=coop','slot=unknown index=? marker=? saves=?'}) do
+    if state=='unread' then unread=true else slot=state end
+    step(); s.tick()
+    assert(s.ready() and s.count()==6,state..': '..tostring(s.ready())..' '..tostring(s.count()))
+    unread,slot=false,COOP
+end
+step(); s.tick()
+assert(s.ready() and s.count()==6)
+-- Another co-op save (another slot index): its count is read again.
+slot='slot=coop index=3 marker=1 saves=coop'
+step(); s.tick()
+assert(s.ready() and s.count()==nil,'Another co-op save: '..tostring(s.count()))
+slot=COOP
+answer(7)
+answer(7)
 
 -- Another save loaded: not ready, no count, no take, until a tick reads the co-op save again.
-slot='slot=own index=2 marker=1 saves=own'
+slot='slot=main index=2 marker=1 saves=main'
 step(); s.tick()
 assert(not s.ready() and s.count()==nil,'Not ready on your own save: '..tostring(s.count()))
 ok,msg=s.take(1)
@@ -319,5 +350,34 @@ for _=1,2*(Nikke.LAST_ASK-Nikke.ASKS+1)+2 do
     prev=a
 end
 assert(wraps==2,wraps..' wraps')
+
+-- With fight/gunmode/ammo.lua: one unread status while a stocked magazine is loaded keeps its rounds.
+FindAllOf=function() return {} end
+local Ammo=require('fight.gunmode.ammo')
+nikke,slot,engine=ROWS,COOP,'fps=60 items=3 9 me=0'
+s=new()
+s.watch(true)
+step(); s.tick()
+answer(100)
+assert(s.ready() and s.count()==100)
+local CFG={mag_size=30,spare_mags=2,reload_time=1.5,reload_delay=1,fire_interval=0.1,round_color={1,1,1},
+    reload_color={1,0,0}}
+local g={log=function(m) logs[#logs+1]=m end,valid=function(x) return x~=nil end,
+    try=function(f) local fine,v=pcall(f); if fine then return v end end,
+    words=function() return {round='round',reload='reload',empty='empty'} end}
+local mag=Ammo.new(g,CFG,function() end,function() end,nil,s)
+local function frame() clock=clock+1/60; mag.tick(false,false,clock) end
+frame()
+assert(mag.stocked and mag.reload_until,'A reload from her inventory')
+while mag.reload_until do frame() end
+assert(mag.left==30 and #removes==1 and removes[1][4]==30,'30 taken: '..mag.left)
+unread=true
+step(); s.tick()
+frame()
+unread=false
+step(); s.tick()
+frame()
+assert(mag.stocked and mag.left==30,'One unread status keeps the magazine: '..mag.left)
+assert(mag.reserve==70,'The spares are still what she carries: '..mag.reserve)
 
 print('fight/gunmode/nikke_test: ok')
