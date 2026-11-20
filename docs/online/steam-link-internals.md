@@ -57,12 +57,13 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
 
 ### Match lobbies
 
-A match lobby holds up to 8 players. Its owner writes five keys beside `stellarcoop`: `sbo_mode` (the mode, only `ffa`
-so far), `sbo_state`, `sbo_map`, `sbo_room` and `sbo_hall`. A lobby whose `sbo_mode` names a mode the game knows is a
-match lobby, a co-op lobby carries none, and a lobby of a mode the game does not know is left. A match lobby keeps its
-mode while a player is in it: if its owner clears `sbo_mode` or writes another mode, the player leaves, so the rules of
-[In a match lobby](#in-a-match-lobby) never lapse for her. `sbo_state` is written on Public lobbies only: `open` while
-players can join, `playing` during a round. `sbo_map` names the round's map. `sbo_room` and `sbo_hall` are the last two
+A match lobby holds up to 8 players. Its owner writes five keys beside `stellarcoop`: `sbo_mode` (the mode: `ffa` or
+`scoreattack`), `sbo_state`, `sbo_map`, `sbo_room` and `sbo_hall`. A lobby whose `sbo_mode` names a mode the game knows
+is a match lobby, a co-op lobby carries none, and a lobby of a mode the game does not know is left. A match lobby keeps
+its mode while a player is in it: if its owner clears `sbo_mode` or writes another mode, the player leaves, so the
+rules of [In a match lobby](#in-a-match-lobby) never lapse for her. `sbo_state` is written on Public lobbies only:
+`open` while players can join, `playing` during a round. `sbo_map` names the round's map, `lobby` for a score attack
+round, which plays in the room the members wait in. `sbo_room` and `sbo_hall` are the last two
 words of the request that created the lobby: the SBO lobby map its players wait in (`xion`, or a hall lobby's key such
 as `hotel`) and the version of the hall lobby pak `zSBO_Lobby` (its `.utoc` and `.ucas` sizes joined by `_`, or `xion`
 without the pak). Lua's `online/lobby/sbo.lua` picks both words (`lobby_words()`): the lobby map the player stands in,
@@ -367,6 +368,7 @@ SBC23 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <cle
 SBC23 night g <n> <run> <state> <up> <killed> <done> <why> <down> <help>
 SBC23 mark <n> [<text>]
 SBC23 race <text>
+SBC23 score <text>
 SBC23 gift s <id> <item> <count>
 SBC23 gift a <id>
 SBC23 gift n <id> <why>
@@ -394,7 +396,7 @@ released. A host's line says `c` while a cutscene plays in its game and its own 
 The say line is one chat line, sent reliable. Both games clean it the same way: they keep well-formed UTF-8 only, drop
 control, bidi and zero-width characters, trim spaces, and keep at most 200 bytes, never cutting inside a character.
 At most 3 lines a second are sent, and at most 10 a second are kept from a friend. The rest are dropped, with one log
-line a minute that holds no text. At most 64 received lines, chat and race lines together, wait for the Lua side. The
+line a minute that holds no text. At most 64 received lines, chat, race and score lines together, wait for the Lua side. The
 text never goes into `coop-link.log`, `coop-status.txt`, `coop-report.txt` or the console. When the session ends, the
 log gets the counts only: `chat this session: <n> in, <n> out, <n> dropped; race lines: <n> in, <n> out, <n> dropped`.
 
@@ -558,6 +560,22 @@ lines past that are dropped, with at most one line a minute per friend in `coop-
 <name>: over the rate limit` or `too many waiting`). Yours past it are only counted, in the session's end line. During
 `coop loopback` with no friend linked, your race lines come back as your friend's.
 
+### The score line
+
+The score line carries one line of a [score attack](modes/scoreattack.md#how-it-works) round, sent reliable. It goes in
+a match lobby only: Lua's `score <text>` request sends it to every member past the handshake. Outside a match lobby the
+request sends nothing. A score line that arrives there is dropped with no log line. The link reads it as it reads the
+race line: it passes the text on as it is and refuses only a byte outside printable ASCII or a line over 512 bytes. A
+member's line reaches Lua in `coop-chat.txt` as `score <SteamID> <text>`. The SteamID is the one Steam gives for the
+sender, never one from the text. `core/link.lua` keeps these lines apart from the chat for the module
+(`take_score()`).
+
+At most 16 lines a second go out. At most 16 a second are kept from each member. A player sends about one a
+second. The margin is for reliable lines that a stall of up to 10 s holds back, which then arrive together. Lines past
+the limit are dropped, with at most one line a minute in `coop-link.log`: `dropped our score lines: over the rate
+limit`, or `dropped score lines from <name>: over the rate limit` (or `too many waiting`). In a minute that carried score
+lines, `score lines, last 60 s: <in> in, <out> out, <dropped> dropped` follows the 60 s link line.
+
 ### The gift line
 
 The gift line carries a [cut mailbox](../cutmenus/menus-internals.md#cut-mailbox) gift and its answer, sent reliable: `s` with the gift's id (1
@@ -595,9 +613,9 @@ These lines run a round in a [match lobby](#match-lobbies). Only the lobby's own
 past the handshake. A member counts the same line from anyone else as invalid.
 
 The owner counts the players past the handshake, itself included and lost players left out. When they reach the
-mode's minimum (2 for `ffa`), a 10 s countdown starts, and when the lobby is full (8) it drops to 5 s. Each member gets
-a count line with the seconds left at the start, at the drop to 5 s, and when they complete the handshake while it
-runs. If the count falls under the minimum, the countdown stops and the owner sends `count stop`.
+mode's minimum (2 for `ffa` and `scoreattack`), a 10 s countdown starts, and when the lobby is full (8) it drops to
+5 s. Each member gets a count line with the seconds left at the start, at the drop to 5 s, and when they complete the
+handshake while it runs. If the count falls under the minimum, the countdown stops and the owner sends `count stop`.
 
 A member takes at most 8 start, count and end lines a second from the owner and drops the rest, with at most one log
 line a minute (`dropped round lines from <name>: over the rate limit`). It logs a count line only when the line moves
@@ -621,7 +639,7 @@ from the owner.
 
 ### Unlinked peers, pings and session requests
 
-Say, vit, pak, paks, camps, night, mark, race, gift, bike, start, count and end lines from a friend who has not passed the handshake are ignored, without a log line.
+Say, vit, pak, paks, camps, night, mark, race, score, gift, bike, start, count and end lines from a friend who has not passed the handshake are ignored, without a log line.
 
 Accepted peers ping every 2 s. A game answers at most 4 pings a second from one player and sends no pong for the
 rest. A peer silent on channel 0 for 10 s is marked lost (`<name> silent for 10 s: lost`)

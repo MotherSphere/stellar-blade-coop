@@ -237,6 +237,43 @@ sliding or does not move with the stick after a race or `coop race drive probe`:
   back at its first tick: `UE4SS.log` says `[StellarCoop][DR] drive restored from coop-drive.txt: MaxAcceleration=...`.
 - Restart the game if neither works. The values are in memory only, and no save holds them.
 
+## Score attack
+
+### I sit out every round
+
+The notice and the `[StellarCoop][SA] sit out: <why>` line in `UE4SS.log` say why (see
+[A round](../online/modes/scoreattack.md#a-round)). After `Your game could not start the challenge`, the line gives the
+run's own reason:
+
+- `census: 1 living within 40 m (nearest 23.4 m); 0 wave bodies`: a living character other than EVE stands within
+  40 m of your spot. The census of a challenge refuses that start too (see
+  [Starting a run](../online/modes/nightop.md#starting-a-run)).
+- `your EVE is down`: the in-place respawn after your last death has not ended. Its `respawn` lines say why.
+- `a coop no probe rule is set in this game run`: `coop no rule` ran in this game run. Restart the game.
+- `the game refused the teleport to <x,y,z>`: the game would not move EVE to her spot.
+
+`EVE is not in the lobby room` means your game does not see you in the SBO lobby's room. `this room has no spot <k>`
+means the round has more players than the room has spots.
+
+### Not ranked
+
+The host's `UE4SS.log` has `rank: refused <name>: <why>` for a result its checks refused (`time`, `score` or `twice`).
+A player is also left out when her result comes after the host stopped waiting (5 s plus the time limit plus 30 s
+after the round's start, a pause included), when she left the lobby or lost her link, or when her run ended with a
+stop: a map change, a load, EVE farther than 80 m from her spot for 10 s, or a Lua reload.
+
+### `The round was cancelled.` or `The host left. This round has no ranking.`
+
+`The round was cancelled.` follows the host's `coop match end`, a Lua reload on the host's PC, or a room that offers no
+challenge (`round <n>: this room offers no challenge: void` in the host's log). `The host left. This round has no
+ranking.` means the host left the lobby or was silent for 10 s. The next host counts down and starts the next round.
+
+### EVE leaves the lobby room after a death
+
+A button pressed on the death screen takes EVE out of the room. Press none: the mod asks the game's in-place respawn
+within 10 s of the death. When it does not, `UE4SS.log` has `respawn waits: <reason>`, then
+`respawn not asked in 10 s: <reason>`. Send that log (see [Which logs to send](#which-logs-to-send)).
+
 ## Menu, chat, controller and screen
 
 ### The game ignores its keys after the co-op menu or the chat
@@ -736,6 +773,9 @@ Every 60 s, `coop-link.log` gets these lines for diagnosing performance problems
 - `link, last 60 s: <p> passes, <f> full receive batches (16 messages)`: the link's passes (one every 5 ms while
   poses stream, every 50 ms otherwise) and the reads that returned 16 messages on one channel, so more may have waited
   for the next pass. The first of these lines in a run counts only its first pass.
+- `score lines, last 60 s: <in> in, <out> out, <dropped> dropped`, in a minute that carried
+  [score attack](../online/modes/scoreattack.md) lines: the lines received, sent and dropped (see
+  [The score line](../online/steam-link-internals.md#the-score-line)).
 - `effects, last 60 s: ...`, with any effect activity: effects started, over 4, unlisted reads and boxes written.
 - `vitals read, last 60 s: ...`, during a session: the reads of your vitals for your friend's partner card and the
   slowest one in µs. Over 1000 µs, the next read waits 500 ms instead of 100.

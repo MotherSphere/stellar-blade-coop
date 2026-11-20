@@ -34,7 +34,8 @@ update.
 
 In this version every on/off setting is on by default, the experimental ones and the test tools included: the ghost's
 dyes and effects, the spawn filter, the name tag in your photos, shared quests, the shared world, story together, the
-revive, the solid partner, the Load Shortcut saves, the PvP test, the SBO lobby, the bike and the day and night cycle.
+revive, the solid partner, the Load Shortcut saves, the PvP test, the SBO lobby, score attack, the bike and the day and
+night cycle.
 The status strip shows its
 compact form, and F7's travel to the host is on. A `coop-settings.txt` written by 0.5.0-beta.1 to 0.10.0 that holds the
 old off values is changed once at the next load (see [Settings](players/settings.md#coop-settingstxt)). Most of these features
@@ -195,19 +196,22 @@ too, with the host's choices, QTE results and skips. A story trip the host start
 
 The recruiter near Roxanne in Xion now appears at each Xion load, on any save. On a co-op save, his Join choice saves
 the game and takes EVE to the SBO lobby, a waiting room in Xion's hidden training room. Its menu searches for a public
-free-for-all match lobby or hosts one, hosts a private one with a join code, or joins one by its code. A match lobby
+match lobby of a mode or hosts one, hosts a private one with a join code, or joins one by its code. A match lobby
 holds up to 8 players, each shown to the others as a ghost, with chat and a mute for each player; nobody waits for the
 host's answer, and the link goes through Steam's relays only. When 2 players have linked, a countdown of 10 s starts
-(5 s when the lobby is full), but the free-for-all mode itself is not built: at 0 nobody travels to an arena and
-nothing is scored. Leave reloads the save made at Join, next to the recruiter. Five hall lobbies replace the training
-room when the hall lobby pak is installed; the code is in this version, but the pak is not published yet. `coop pvp`
+(5 s when the lobby is full). Score attack is the first mode built. At 0 every player of a score attack lobby plays the
+same challenge from her spot in the lobby room, picked by the host or drawn at random. Each game sends its score and
+time. The host's game checks them and sends the ranking, which the result panel shows; each player's best match run is
+kept in `coop-records.txt` (see [Score attack](online/modes/scoreattack.md)). The free-for-all is not built: at 0
+nobody travels to an arena and nothing is scored. Leave reloads the save made at Join, next to the recruiter. Five hall
+lobbies replace the training room when the hall lobby pak is installed; the code is in this version, but the pak is not published yet. `coop pvp`
 tests PvP damage between two linked friends: hits on a stand-in at the friend's ghost take HP off her EVE, never below
 1 HP. See [SBO lobby and matches](online/lobby.md).
 
 Tested in game, on one PC only: the Join and the travel to Xion's training room (2026-11-12) and to a hall lobby with a
 local pak (2026-11-14), each time with a Search that found nobody and hosted a lobby. Not tested in game: Leave and the
-return, any match lobby with two or more players, private matches, the countdown and the round's start, the PvP test,
-and the black screen held over each arrival.
+return, any match lobby with two or more players, private matches, the countdown and the round's start, score attack,
+the PvP test and the black screen held over each arrival.
 
 ## Night Operation
 

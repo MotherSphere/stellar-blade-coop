@@ -71,10 +71,12 @@ setting is now on by default, the experimental ones included; most of them have 
 - Your friend's card at the top left shows their ping, map, HP, shield and Beta. During a session, Enter opens a chat
   box. See [Interface](docs/players/interface.md#partner-hud).
 - The SBO lobby (a test) is a waiting room in Xion's training room for matches of up to 8 players. On a co-op save,
-  talk to the recruiter near Roxanne and choose Join. Its menu searches for a public free-for-all match, hosts a
-  private one with a join code, or joins one by code, and a countdown starts once 2 players have linked. The
-  free-for-all itself is not built yet, so a round's start takes nobody to an arena. `coop pvp` tests PvP damage
-  between two linked friends. See [SBO lobby and matches](docs/online/lobby.md).
+  talk to the recruiter near Roxanne and choose Join. Its menu searches for a public match of a mode, hosts a private
+  one with a join code, or joins one by code. A countdown starts once 2 players have linked. In a
+  [score attack](docs/online/modes/scoreattack.md) match every player then plays the same challenge from her spot.
+  The host's game ranks the scores (untested in game). The free-for-all is not built yet, so its round's start takes
+  nobody to an arena. `coop pvp` tests PvP damage between two linked friends. See
+  [SBO lobby and matches](docs/online/lobby.md).
 - Shared enemies (experimental, on by default) give each common enemy one HP bar and one death in both games, while
   both players play a co-op save. Same place, same spawns and shared bosses build on them, and the host's settings
   apply to both games. See [Shared enemies](docs/fight/enemies.md).
