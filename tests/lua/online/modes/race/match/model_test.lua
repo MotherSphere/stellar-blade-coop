@@ -400,4 +400,56 @@ for k=1,33 do idx=Mm.indexed(idx,'t'..k) end
 local all=Mm.index(idx)
 assert(#all==32 and all[1]=='t2' and all[32]=='t33')
 assert(#Mm.index(Mm.index_text(Mm.index(idx)))==32)
+-- The official tracks, found the way the game finds them: the folder beside match/tracks.lua on Lua's search path.
+-- Each file parses; its map line is its room's; it fits its room (Xion's fence planted as online/lobby/sbo.lua gives
+-- it); no two checkpoints of a lap stand within twice their radius; a runner driving from centre to centre passes each
+-- in turn with no missed checkpoint and no wrong way, then finishes. Halls get theirs once recorded in game.
+local TRACKS=require('online.modes.race.match.tracks')
+local folder=assert(package.searchpath('online.modes.race.match.tracks',package.path)):gsub('%.lua$','/')
+local ROOMS={xion={room=XION,map=MAP}}
+local count=0
+for key,list in pairs(TRACKS) do
+    local room=assert(ROOMS[key],'no planted room for '..key)
+    for _,nm in ipairs(list) do
+        count=count+1
+        assert(R.name_ok(nm),nm)
+        local f=assert(io.open(folder..nm..'.txt','rb'),nm)
+        local tr,bad=R.parse_track(f:read('a'))
+        f:close()
+        assert(tr,nm..': '..tostring(bad))
+        assert(tr.map==room.map and Mm.fits(tr,room.room,room.map),nm)
+        assert(names(Mm.offered(room.room,room.map,{{name=nm,track=tr}},{}))==nm)
+        for i=1,#tr.cps do
+            for j=i+1,#tr.cps do
+                local a,b=tr.cps[i],tr.cps[j]
+                assert(math.sqrt((a.x-b.x)^2+(a.y-b.y)^2+(a.z-b.z)^2)>=a.r+b.r,nm..' '..i..' '..j)
+            end
+        end
+        local runner,prev,ev=R.runner(tr),R.slot(tr,0),{}
+        local path={}
+        for _=1,tr.laps do for _,c in ipairs(tr.cps) do path[#path+1]=c end end
+        for _,c in ipairs(path) do
+            local steps=math.ceil(math.sqrt((c.x-prev.x)^2+(c.y-prev.y)^2)/100)
+            for s2=1,steps do
+                local p={x=prev.x+(c.x-prev.x)*s2/steps,y=prev.y+(c.y-prev.y)*s2/steps,z=c.z}
+                for _,e in ipairs(R.run(runner,prev,p,0,50)) do ev[#ev+1]=e.what end
+                prev=p
+            end
+        end
+        local want={}
+        for _=1,#path-1 do want[#want+1]='cp' end
+        want[#want+1]='fin'
+        assert(table.concat(ev,',')==table.concat(want,','),nm..': '..table.concat(ev,','))
+    end
+end
+assert(count>=1)
+-- xion_eight: the room's centre (X -64028.527, Y 151213.62 in the paks, rounded), the floor's top (Z -15900.4), facing
+-- the first checkpoint; its farthest centre 23.5 m out, 5.5 m inside the wall (29.02 m).
+local f=assert(io.open(folder..'xion_eight.txt','rb'))
+local x8=R.parse_track(f:read('a'))
+f:close()
+assert(same(x8.grid,{x=-64029,y=151214,z=-15900,yaw=-41}) and x8.laps==5 and #x8.cps==6)
+for i,o in ipairs({{1250,-1100},{2350,0},{1250,1100},{-1250,-1100},{-2350,0},{-1250,1100}}) do
+    assert(same(x8.cps[i],{x=-64029+o[1],y=151214+o[2],z=-15900,r=400}),'checkpoint '..i)
+end
 print('race_match_model_test ok')

@@ -168,7 +168,7 @@ with tempfile.TemporaryDirectory() as tmp:
     files = install.package('v', dll)
     docs = {'INSTALL.md', 'LICENSE', 'NOTICE', 'EXCLUDED-PARTIES.md', 'CHANGELOG.md', 'SHA256SUMS.txt'}
     shipped = {'enabled.txt', 'StellarCoop.dll', *docs,
-               'Assets/MotherSphere.png',
+               'Assets/MotherSphere.png', 'Scripts/online/modes/race/match/tracks/xion_eight.txt',
                *(f'Scripts/{name}.lua' for name in ('ui/kit/commands', 'ui/kit/guide', 'ui/text/guide')),
                *(f'Scripts/{name}.lua'
                  for name in ('vehicles/bike/fetch', 'vehicles/bike/model', 'vehicles/bike/others',

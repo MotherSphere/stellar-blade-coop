@@ -40,7 +40,7 @@ function Race.new(o)
             if extra~=nil or a~=nil and a~='status' then return false,'Use: coop race match [status]' end
             local n=0
             for _,names in pairs(Tracks) do n=n+#names end
-            return true,('Doro races in matches: race_match=%s, %d official tracks. Match rounds are not built yet.')
+            return true,('Doro races in matches: race_match=%s, official tracks: %d. Match rounds are not built yet.')
                 :format(o.match_on() and 'on' or 'off',n)
         end
         if sub=='start' and a~=nil and extra==nil or sub=='drive' and a=='probe' and extra==nil then

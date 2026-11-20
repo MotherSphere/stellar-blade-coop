@@ -222,7 +222,7 @@ assert(said[#said]=='Race ready: walk to your start.' and said_en[#said]=='Race 
 assert(ra.hud and ra.hud.kit and ra.hud.theme and ra.hud.settings and ra.hud.settings.ui_language,'race.hud')
 -- coop race match reads race_match from the settings at each call (ra.o.settings is main.lua's table).
 coop('race','match')
-assert(last()=='[StellarCoop] OK: Doro races in matches: race_match=on, 0 official tracks. Match rounds are not '
+assert(last()=='[StellarCoop] OK: Doro races in matches: race_match=on, official tracks: 1. Match rounds are not '
     ..'built yet.\n',last())
 ra.o.settings.race_match=false
 coop('race','match','status')

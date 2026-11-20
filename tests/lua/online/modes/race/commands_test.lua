@@ -17,7 +17,7 @@ assert(not ok and why=='EVE rides the bike: coop bike gets her off first' and lo
 rides=false
 assert(Cmd.race('look','on') and looks==1)
 -- coop race match: the setting read at each call; the race's own words never see it.
-local STATUS='Doro races in matches: race_match=%s, 0 official tracks. Match rounds are not built yet.'
+local STATUS='Doro races in matches: race_match=%s, official tracks: 1. Match rounds are not built yet.'
 ok,why=Cmd.race('match')
 assert(ok and why==STATUS:format('on'),why)
 match=false
