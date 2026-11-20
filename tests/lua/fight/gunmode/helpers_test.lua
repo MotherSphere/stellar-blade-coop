@@ -75,4 +75,25 @@ do
     assert(a.left==9 and a.reserve==20,'no reload when lowered (11-20): '..a.left..' '..a.reserve)
 end
 
+-- The one zone event gun mode may fire: kind 2 on the shot's row. Never matchmaking's kinds 15, 16 or 19, another
+-- kind or another row. mode.lua calls CreateSBZoneEvent once, inside the guarded zone_event, and the shot (fire_row)
+-- reaches it only through that guard.
+do
+    local GunMode=require('fight.gunmode.mode')
+    local Data=require('fight.gunmode.data')
+    local fire=Data.row('Fire')
+    assert(GunMode.allowed(2,fire))
+    for _,kind in ipairs({0,1,3,5,6,10,15,16,19}) do assert(not GunMode.allowed(kind,fire),kind) end
+    assert(not GunMode.allowed(2,'MultiplayTest_ZoneE_059') and not GunMode.allowed(2,nil))
+    local f=assert(io.open('mod/StellarCoop/Scripts/fight/gunmode/mode.lua','rb')); local src=f:read('a'); f:close()
+    local _,calls=src:gsub('CreateSBZoneEvent%(','')
+    assert(calls==1,calls..' CreateSBZoneEvent calls in mode.lua')
+    local guard=src:match('local function zone_event%(kind,name%)(.-)\r?\nend')
+    assert(guard and guard:find("assert(GunMode.allowed(kind,name)",1,true) and guard:find('CreateSBZoneEvent(kind',1,true),
+        'the call sits in the guarded zone_event')
+    local shot=src:match('local function fire_row%(row%)(.-)\r?\n    end')
+    assert(shot and shot:find('pcall(zone_event,ATTACH_ACTOR_EFFECT,row)',1,true) and not shot:find('CreateSBZoneEvent',1,true),
+        'the shot goes through the guard')
+end
+
 print('gunmode helpers: ok')

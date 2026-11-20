@@ -53,29 +53,20 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   the top speed after 3.9 s, a real top of about 2252 cm/s, 15.8 m of braking from the top, reverse after 0.3 s at a
   stop, the yaw rate and lean at full lock at five speeds, the drift's 42-degree slip cap, a wall, the air, a ramp
   launch only after 0.12 s of climb, the pitch, root motion holding the state and the values' bounds;
-- `fight/gunmode/helpers_test` covers gun mode's pure parts: its settings as `core/link.lua` parses them (the defaults
-  without them, `gun_key` with its modifier or none, its test lines with refusals), the polled keys' edges and D-pad
-  Right's tap (a hold is the bike's), the crosshair point in EVE's frame and the rifle's magazine (a round per cool
-  time, the reload when empty and none when lowered part-spent, the HUD count, no round once the spares are spent, a refill). The
-  reticle's round slot shows the round's name, the reload word and the empty word in the menu's language. It reads
-  the words once a second, not on each frame. It also covers `mode.lua`'s point along a camera's forward and its eased
-  step, then the rifle layer's clip paths (object paths) and its mesh records: an earlier load's record
-  keeps the first class listed. Last, `ik.lua`'s quaternion math against UE's conventions: rotator to quaternion and
-  back, a vector turned, two turns in order, a frame's rotation and a frame made orthonormal;
-- `fight/gunmode/cost_test` counts gun mode's engine calls over `fight/gunmode/fake.lua`. With the rifle away (parked or
-  not) 600 frames look up nothing but the HUD entry's look for the HUD (at most once in 10 s), never ask whether the
-  game is paused and poll two keys a frame (`gun_key` and D-pad Right). A press while the game is paused does nothing. The dev facts probe still waits out a pause. With no player
-  controller `FindFirstOf` runs once a second at most. With the rifle out no `/Script` object is looked up again, the
-  rifle-first solver (`ik.lua`) included. The crosshair is traced only while she aims. The zoom keys go unpolled in the
-  game's own aim. The drone and the reticle's text are walked for (`FindAllOf`) once at the rifle out. The text is
-  walked for again at each firing mode entry. The drone is walked for again when the one held goes, or 10 s after a miss
-  at the next rifle out. A frame of the posed stance reads no bone name and makes no FName;
-- `fight/gunmode/dpad_test` covers the HUD entry (`fight/gunmode/ui/dpad.lua`): its glyph is the Right twin of the
-  pad glyph the game shows or the `gun_key` keyboard icon. Its icon is a game texture path that it wants from the
-  keep. Through gun mode over `fight/gunmode/fake.lua` with a stub entry: it is ticked ten times a second with the
-  configured key (nil with `gun_key=none`). It gets `rounds | magazines` while the rifle is out and no text while it
-  is away. The crosshair is off while the rifle is away. `coop off` takes it off the HUD. There is none with
-  `gun_mode=off` or `hud_entry=false`;
+- `fight/gunmode/helpers_test` covers gun mode's pure parts: its settings as `fight/gunmode/config.lua` parses them
+  (the defaults with no file, the last line winning, names in any case, a BOM and CRLF, bad values refused), the polled
+  keys' edges and a tap against a hold, the crosshair point in EVE's frame and back to the world, the rifle's magazine
+  (a round per cool time, the reload when empty, none when lowered part-spent, the HUD count, no round once the spares
+  are spent, a refill) and the one zone event gun mode may fire. That event is kind 2 on the shot's row. Every other kind
+  or row is refused. `mode.lua` calls `CreateSBZoneEvent` once, inside the guarded `zone_event`. `fire_row` reaches it
+  only through that guard;
+- `fight/gunmode/cost_test` covers gun mode's toggle cost: an asset found once and kept while it has its path, a miss
+  tried again only after 5 s, the kept drone used again while it is the same actor within 3000 units, the `gun_trace`
+  dumps once per Lua load, the native aim writes (`aim.lua`) under 1 KB of garbage for 1000 writes and the shot sound on
+  the game's own aim rounds (aim on, a round dropped, rate limited);
+- `fight/gunmode/dpad_test` covers the HUD entry's glyph (`fight/gunmode/ui/dpad.lua`): the Right twin of the Xbox or
+  PlayStation D-pad glyph the game shows, or the `gun_key` keyboard icon for a keyboard glyph. An unknown or missing
+  glyph gives none;
 - `fight/gunmode/v4_rules_test` covers the layer clip choice (hip fire raises the rifle, a ground move carries it,
   the flip keeps the aim), the aim bridge through a dodge, her body tilt, the aim clip by rifle pitch, the recoil,
   the hip-fire turn, the comeback after an interaction and gun mode's own shots, one round each, with the player's
