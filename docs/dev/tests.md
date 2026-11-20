@@ -87,8 +87,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   written. The icon is looked up when a part is made, never on a frame. The kit's pause is read every 0.25 s.
   The slot hides at a pause, when the rifle goes away, in the photo mode, after a new controller and at stop. A part
   that a root rebuild left behind is made again. When the kit refuses the part, the kit's image gets the icon before it
-  shows and a `num` text shows the count. Without the icon the count shows alone with one log line. With
-  `gun_mode=off` no group is added;
+  shows and a `num` text shows the count. Once the refusal passes, the next kit build makes the part. While the keep
+  serves the icon, no build looks it up by its path. The slot wants the icon from the keep and warms the leaf's class.
+  Without the icon the count shows alone with one log line. With `gun_mode=off` no group is added;
 - `fight/gunmode/stop_test` runs gun mode over a fake UE4SS (`fight/gunmode/fake.lua`) on the rifle layer's path. The
   fake's row fields have the kinds read in Ghidra on 26123051: the shot's Hit1 step has a byte `Type` and no `StepType`.
   `stop` (coop off) gives back the table fields, the keys, the rifle, her body's own post-process class, the FOV lock
@@ -123,7 +124,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `fight/gunmode/data.lua` changes and the notice the parked key shows. While `mode.lua` passes the rounds no D-pad
   slot, neither the page nor `ammo.lua`'s header promises the `rounds | magazines` count. While it passes one, the
   page says what the slot shows, names its icon (`Icon_Nikke_LostItem_AssaultRifle`, row `Nikke_AR`) and says the
-  first in-game test sets its place. The page, its docs index row and `coop gun`'s comment speak of no crouching. The page has no ", and" or ", but", no bold-label bullet and no
+  first in-game test sets its place. The page, its docs index row and `coop gun`'s comment speak of no crouching.
+  The page has no ", and" or ", but", no bold-label bullet and no
   "co-op session". `ammo.lua`'s header and `facts.lua`'s note on the retired F11 have no ", and" or ", but" either.
   Only `fight/gunmode/wiring.lua` registers an engine hook (`NotifyOnNewObject`, `RegisterHook`);
 - `fight/gunmode/release_test` runs `fight/gunmode/release_check.lua` on gun mode's shipped defaults: no debug flag

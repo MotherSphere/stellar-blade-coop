@@ -7,11 +7,14 @@
 -- BlueprintCallable Set(Tex) and UpdateItemCount(ItemCount, bInfinity) once it is in the group. It draws at render scale
 -- 0.6, as SB draws its item column (VB_ItemSlot). Its TextBlock_Item_Count reads "rounds | magazines"
 -- (fight/gunmode/ammo.lua's lower_text). The icon is the NIKKE rifle's texture (the Asset2D of ItemTable's row
--- Nikke_AR), looked up by its path each time a part is made, never on a frame. When kit.part refuses, the group's own
--- image and a text in the num style stand in. Without the icon only the text shows. A root rebuild (a map change, a
--- look rebuild, a group added later) leaves the part behind: it is made again at the next show. The kit's pause (SB's
+-- Nikke_AR), held for the game run by the keep (core/keep.lua) so a map change never frees it. Without the keep it is
+-- looked up by its path each time a part is made, never on a frame. The leaf's class is warmed through kit.warm_part.
+-- When kit.part refuses, the group's own image and a text in the num style stand in. kit.part is tried again at each
+-- new kit build. Without the icon only the text shows. A root rebuild (a map change, a look rebuild, a group added
+-- later) leaves the part behind: it is made again at the next show. The kit's pause (SB's
 -- pause or one of its screens with the mouse cursor) is read every 0.25 s and hides it; fight/gunmode/mode.lua hides
 -- it at a pause, in the photo mode and at every put-away. Each frame writes only numbers that changed.
+local Keep=require('core.keep')
 local Slot={}
 Slot.GROUP='gun_slot'
 Slot.CLASS='/Game/Art/UI/Widget/HUD/WB_MainHUD_ItemSlotGeneral.WB_MainHUD_ItemSlotGeneral_C'
@@ -35,6 +38,8 @@ function Slot.new(o)
     local view,part,mode=nil,nil,nil -- The kit build's view, the part's record, 'part' or 'kit' once made for it.
     local up,check_at,blocked=false,-1,false
     local last_text,last_color=nil,nil
+    Keep.want({Slot.ICON})
+    kit.warm_part(Slot.CLASS:sub(1,-3))
     kit.add(Slot.GROUP,{x=o.x,y=o.y,w=W,h=H,fixed=true},function(b)
         -- The stand-ins, hidden until a show needs them: an image with no asset draws a flat square.
         local v={icon=b.image(0,0,ICON,ICON,nil,theme.white),
@@ -44,9 +49,11 @@ function Slot.new(o)
         return v
     end)
     local function once(key,line) if not said[key] then said[key]=true; log('slot: '..line) end end
-    -- The rifle's texture by its path: found in memory, else loaded. nil (said once) when neither.
+    -- The rifle's texture: the keep's while it serves it, else by its path (found in memory, else loaded). nil (said
+    -- once) when neither.
     local function icon()
         local ok,t=pcall(function()
+            if Keep.serves(Slot.ICON) then return Keep.get(Slot.ICON) end
             local x=StaticFindObject(Slot.ICON)
             if not valid(x) then pcall(LoadAsset,Slot.ICON); x=StaticFindObject(Slot.ICON) end
             return valid(x) and x or nil
@@ -58,7 +65,7 @@ function Slot.new(o)
     local function make(v)
         part,mode=nil,nil
         local t=icon()
-        if t and not said.part then
+        if t then -- Tried at each new kit build: a refusal said once does not stop the next build's try.
             local rec,why=kit.part(Slot.GROUP,Slot.CLASS,0,0,nil,nil,function(w)
                 w:SetRenderTransformPivot({X=0,Y=0})
                 w:SetRenderScale({X=Slot.SCALE,Y=Slot.SCALE})

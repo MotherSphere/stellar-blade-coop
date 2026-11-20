@@ -5,7 +5,8 @@
 -- slot shows at the rifle out with the rifle icon set and the counts written, follows the rounds, hides when the rifle
 -- goes away, at a pause, in the photo mode, after a new controller and at stop. A part left behind by a root rebuild is made again. When
 -- kit.part refuses, the kit's image (given the icon before it shows) and text stand in. Without the icon the counts
--- show alone, with one log line. No frame looks the icon up.
+-- show alone, with one log line. No frame looks the icon up. The keep holds the icon: no look-up across rebuilds. A
+-- refusal of kit.part does not stop the next build's try. The leaf's class is warmed.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Fake=dofile('tests/lua/fight/gunmode/fake.lua')
 package.loaded['fight.gunmode.laser']=function() return function() end,function() end end
@@ -16,9 +17,10 @@ os.clock=function() return clock end
 FText=function(s) return s end
 
 -- A kit as ui/kit/kit.lua's API gives it: one group, built again by rebuild() (its parts left behind), a part made
--- unless k.refuse, the pause as k.is_paused (its reads counted).
+-- unless k.refuse, the pause as k.is_paused (its reads counted), the classes warmed in k.warmed.
 local function fake_kit()
-    local k={shown={},builds=0,parts={},reads=0,up=true}
+    local k={shown={},builds=0,parts={},reads=0,up=true,warmed={}}
+    function k.warm_part(path) k.warmed[#k.warmed+1]=path end
     local function widget()
         local w={calls={},text=nil}
         local function rec(name) return function(_,...) w.calls[#w.calls+1]={name,...} end end
@@ -123,7 +125,8 @@ do
     assert(#logs==0,table.concat(logs,'; '))
 end
 
--- 2. A root rebuild leaves the part behind: made again at the next show, and while shown when the view changes.
+-- 2. A root rebuild leaves the part behind: it is made again at the next show. While shown it is made again when the
+--    view changes.
 do
     engine()
     local k=fake_kit()
@@ -159,6 +162,34 @@ do
     k.rebuild(); clock=clock+1
     s.show('50 | 4',GREEN,50)
     assert(k.v.count.str=='50 | 4' and #logs==1,'one line: '..table.concat(logs,'; '))
+    k.refuse=false -- The refusal passes: the next build makes the part.
+    k.rebuild(); clock=clock+1
+    s.show('50 | 4',GREEN,50)
+    assert(#k.parts==1 and k.parts[1].w.text=='50 | 4','kit.part tried again at a new build')
+    assert(#logs==1,'still one line: '..table.concat(logs,'; '))
+end
+
+-- 3b. The keep serves the icon: no look-up by path at any build, the icon wanted when the slot is made. The leaf's
+--     class is warmed through the kit.
+do
+    engine(); looks=0
+    local Keep=require('core.keep')
+    local want,serves,get=Keep.want,Keep.serves,Keep.get
+    local wanted,gets={},0
+    Keep.want=function(paths) for _,p in ipairs(paths) do wanted[p]=true end end
+    Keep.serves=function(p) return p==Slot.ICON end
+    Keep.get=function(p) gets=gets+1; return p==Slot.ICON and ICON or nil end
+    local k=fake_kit()
+    local s=Slot.new({kit=k,theme=THEME,log=function() end,x=0,y=0})
+    assert(wanted[Slot.ICON],'the keep wants the icon')
+    assert(k.warmed[1]==Slot.CLASS:sub(1,-3) and #k.warmed==1,'the leaf class warmed: '..tostring(k.warmed[1]))
+    for i=1,3 do
+        k.rebuild(); clock=clock+1
+        s.show('60 | 5',GREEN,60)
+        assert(#k.parts==i and called(k.parts[i].w,'Set')[1][2]==ICON,'made again with the kept icon')
+    end
+    assert(looks==0 and gets==3,'no look-up by path across rebuilds: '..looks..' looks, '..gets..' gets')
+    Keep.want,Keep.serves,Keep.get=want,serves,get
 end
 
 -- 4. No icon: no part, no image, the counts alone, one log line, no error; again after a rebuild.
