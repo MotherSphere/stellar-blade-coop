@@ -122,16 +122,16 @@
 // and then sets the flight key again while EVE flies with none held (eve/debug_keys.h's Hold), under its own latch;
 // the worker swaps them back at coop off and after a fault.
 //
-// The Lion's rows, the Gardener's, the Tendril's, the Shock Bolt's, Matrix XIII's, the Night Operation shop's and
-// Lily's signal's (rows/rows.h's batches, coop lion, coop gardener fight, coop tendril fight, the shop's Shock Bolt,
-// coop mxiii, the shop and world/maps/matrix13/quest/on_time.lua): the worker hands over the tables' addresses from
-// Lua's lion rows, gardener rows, tendril rows, bolt rows, mxiii rows, shop rows or signal rows request (those that
-// batch writes, 0 for the others); the game thread adds that batch's rows through SB's own AddRow once the gate holds
-// (net mode 0, no logic task in flight), under one SEH latch for all, reads them back through SB's lookups by ID and,
-// once asked, reads the spawn manager's counter every 250 ms; status() gives it all in the lion, gardener, tendril,
-// bolt, mxiii, shop and signal lines, and the worker logs each answer. Right after the bolt rows batch's last row, in
-// the same call, the Shock Bolt's two lists grow in place (rows/shock.h) under a latch of their own; status() gives the
-// shock line, and the worker logs it once.
+// The Lion's rows, the Gardener's, the Tendril's, the Shock Bolt's, Matrix XIII's, the Night Operation shop's, Lily's
+// signal's and the team shop's (rows/rows.h's batches, coop lion, coop gardener fight, coop tendril fight, the shop's
+// Shock Bolt, coop mxiii, the shop, world/maps/matrix13/quest/on_time.lua and world/teamshop/shop.lua): the worker
+// hands over the tables' addresses from Lua's lion rows, gardener rows, tendril rows, bolt rows, mxiii rows, shop
+// rows, signal rows or teamshop rows request (those that batch writes, 0 for the others); the game thread adds that
+// batch's rows through SB's own AddRow once the gate holds (net mode 0, no logic task in flight), under one SEH latch
+// for all, reads them back through SB's lookups by ID and, once asked, reads the spawn manager's counter every 250 ms;
+// status() gives it all in the lion, gardener, tendril, bolt, mxiii, shop, signal and teamshop lines, and the worker
+// logs each answer. Right after the bolt rows batch's last row, in the same call, the Shock Bolt's two lists grow in
+// place (rows/shock.h) under a latch of their own; status() gives the shock line, and the worker logs it once.
 //
 // The Night Operation shop in SB's own shop screen (online/modes/nightop/shop_ui.h, coop nightop shop): the worker
 // hands over Lua's nightshop open, open bolt or close; the next frame the game thread opens SB's shop screen on one of
@@ -277,6 +277,7 @@
 #include "world/maps/matrix13/mxiii_rows.h"
 #include "world/maps/matrix13/signal_rows.h"
 #include "online/lobby/halls_rows.h"
+#include "world/teamshop/teamshop_rows.h"
 #include "rows/shock.h"
 #include "online/modes/nightop/guard_text.h"
 #include "online/modes/nightop/probe.h"

@@ -1328,7 +1328,7 @@ int main() {
   assert(mi.command == Command::rows && mi.batch == 10 && mi.tables == li.tables);
   const Request lo = parse_request(mxlower({words[31], words[28], words[27], words[25], words[16]}));
   assert(lo.command == Command::rows && lo.batch == 11 && lo.tables[31] == 0x1f4a2b3c1f00ull &&
-         lo.tables[16] == 0x1f4a2b3c1000ull && lo.tables[0] == 0 && kRowWordCount == 16);
+         lo.tables[16] == 0x1f4a2b3c1000ull && lo.tables[0] == 0 && kRowWordCount == 17);
   const Request na = parse_request(rows("mxnames", {words[15]}));
   assert(na.command == Command::rows && na.batch == 12 && na.tables[15] != 0 && na.tables[16] == 0);
   const Request ly = parse_request(rows("mxlily", {words[32], words[33]}));
@@ -1341,6 +1341,10 @@ int main() {
   const Request ha = parse_request(rows("halls", {words[16], words[37], words[38]}));
   assert(ha.command == Command::rows && ha.batch == 15 && ha.tables[16] != 0 && ha.tables[37] == 0x1f4a2b3c2500ull &&
          ha.tables[38] == 0x1f4a2b3c2600ull && ha.tables[36] == 0 && !std::strcmp(kRowWords[15], "halls"));
+  // The team shop's batch (16) names its three tables only: ItemTable, ShopTable and ShopItemTable.
+  const Request ts = parse_request(rows("teamshop", {words[12], words[17], words[18]}));
+  assert(ts.command == Command::rows && ts.batch == 16 && ts.tables[12] != 0 && ts.tables[17] != 0 &&
+         ts.tables[18] != 0 && ts.tables[16] == 0 && kRowWordCount == 17 && !std::strcmp(kRowWords[16], "teamshop"));
   assert(!std::strcmp(kLionTables[37], "WorldTable") && !std::strcmp(kLionTables[38], "ZoneTable"));
   assert(!std::strcmp(kLionTables[15], "ZoneCampTable") && !std::strcmp(kLionTables[16], "ZoneEnvSpawnTable") &&
          !std::strcmp(kLionTables[17], "ShopTable") && !std::strcmp(kLionTables[18], "ShopItemTable") &&

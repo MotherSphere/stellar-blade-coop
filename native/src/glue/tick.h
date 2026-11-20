@@ -160,16 +160,16 @@ std::string story_status();
 // and after the travel latch's fault. Returns the line for the log; the call's own line follows from worker_poll.
 std::string ask_travel(const coop::Request &request);
 // Worker thread, coop lion, coop gardener fight, coop tendril fight, the shop's Shock Bolt, coop mxiii, the Night
-// Operation shop's screen and Lily's signal (rows/rows.h): Lua's lion rows, gardener rows, tendril rows, bolt rows,
-// mxiii rows, shop rows or signal rows request, the addresses of the tables that batch writes (1 to 25 of them) for the
-// game thread, which adds that batch's rows through SB's AddRow once its gate holds. Refused off the pinned build,
-// after coop off and after the rows' fault, and not asked again once every row of the batch is in. Returns the line for
-// the log; fight_pass logs the game thread's answer.
+// Operation shop's screen, Lily's signal and the team shop (rows/rows.h): Lua's lion rows, gardener rows, tendril
+// rows, bolt rows, mxiii rows, shop rows, signal rows or teamshop rows request, the addresses of the tables that batch
+// writes (1 to 25 of them) for the game thread, which adds that batch's rows through SB's AddRow once its gate holds.
+// Refused off the pinned build, after coop off and after the rows' fault, and not asked again once every row of the
+// batch is in. Returns the line for the log; fight_pass logs the game thread's answer.
 std::string ask_rows(const coop::Request &request);
-// Worker: coop-status.txt's lion, gardener, tendril, bolt, mxiii, shop and signal lines (rows/rows.h's status_line),
-// one per batch, joined by a line break: "<word>=off", or the state (waiting, rows, refused, fault) with added=<n>/<N>,
-// asks=<a>, spawns=<s> and that state's own fields; then the shock line (rows/shock.h's shock_line: off, in, refused or
-// fault), then the nightshop line (online/modes/nightop/shop_ui.h's), the roxanne and lily lines
+// Worker: coop-status.txt's lion, gardener, tendril, bolt, mxiii, shop, signal and teamshop lines (rows/rows.h's
+// status_line), one per batch, joined by a line break: "<word>=off", or the state (waiting, rows, refused, fault) with
+// added=<n>/<N>, asks=<a>, spawns=<s> and that state's own fields; then the shock line (rows/shock.h's shock_line: off,
+// in, refused or fault), then the nightshop line (online/modes/nightop/shop_ui.h's), the roxanne and lily lines
 // (online/modes/nightop/roxanne.h's), and on the pinned build the guardtext line (online/modes/nightop/guard_text.h's).
 std::string rows_status();
 // Worker thread, coop shortcut (game/shortcut.h): Lua's shortcut list request, which the game thread serves by

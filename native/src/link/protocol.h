@@ -893,13 +893,14 @@ inline std::string masked(std::string_view text) {
 // signal (world/maps/matrix13/quest/on_time.lua) "signal rows <Table>=0x<address> ..." and for Matrix XIII's other
 // batches (world/maps/matrix13/level/travel.lua) "mxspawn rows ...", "mxenv rows ...", "mxupper rows ...", "mxmiddle
 // rows ...", "mxlower rows ...", "mxnames rows ...", "mxlily rows ..." and "mxrecords rows ..." and for the hall
-// lobbies (online/lobby/halls_rows.lua) "halls rows ..." (that batch of online/lobby/halls_rows.h for SB's AddRow,
-// rows/rows_game.inc: one word for each table the batch writes, 1 to 39 of the kLionTables, in any order, each once,
-// its address in 1 to 16 hex digits and plausible; a table left out stays 0, and a batch that writes it refuses it as
-// no UDataTable; Request::batch says which). Lua finds the tables by their fixed paths, so no console argument reaches
-// an address, and the native part trusts none before it checked the table's vtable and row size (rows/rows.h). For coop
-// emote (eve/emote.lua) "anim play <id> <path> once|loop" (one of EVE's clips on her through SB's custom animation
-// call, eve/anim_game.inc: an id from 1 to 2^32-1, a path game/anim.h's path_ok takes) and "anim stop" (ours, while it
+// lobbies (online/lobby/halls_rows.lua) "halls rows ..." and for the team shop (world/teamshop/shop.lua) "teamshop rows
+// ..." (that batch of online/lobby/halls_rows.h or world/teamshop/teamshop_rows.h for SB's AddRow, rows/rows_game.inc:
+// one word for each table the batch writes, 1 to 39 of the kLionTables, in any order, each once, its address in 1 to 16
+// hex digits and plausible; a table left out stays 0, and a batch that writes it refuses it as no UDataTable;
+// Request::batch says which). Lua finds the tables by their fixed paths, so no console argument reaches an address, and
+// the native part trusts none before it checked the table's vtable and row size (rows/rows.h). For coop emote
+// (eve/emote.lua) "anim play <id> <path> once|loop" (one of EVE's clips on her through SB's custom animation call,
+// eve/anim_game.inc: an id from 1 to 2^32-1, a path game/anim.h's path_ok takes) and "anim stop" (ours, while it
 // plays). For the bike (vehicles/bike/ride.lua): "anim play <id> <path> ride" (a loop with her foot IK off) and "bike
 // load <path>" (the bike's mesh and that riding clip preloaded, game/bike.h's clip_ok), "bike free" (the preload
 // released), "bike gate on" and "bike gate off" (SB's actions off while she rides, then back); for coop shortcut
@@ -936,11 +937,11 @@ enum class MatchAsk : uint8_t { search, create, cancel, end };
 constexpr const char *kShortcutMaps[4] = {"B07", "F02", "G03", "Matrix_XI"};
 // The words of the rows requests, one a batch of a module's row header (rows/rows.h names each one's: kLion, kGardener,
 // kTendril, kBolt, kMxiii, kShop, kSignal, kMxspawn, kMxenv, kMxupper, kMxmiddle, kMxlower, kMxnames, kMxlily,
-// kMxrecords, kHalls), in Request::batch's order.
-constexpr size_t kRowWordCount = 16;
+// kMxrecords, kHalls, kTeamshop), in Request::batch's order.
+constexpr size_t kRowWordCount = 17;
 constexpr const char *kRowWords[kRowWordCount] = {"lion",   "gardener", "tendril", "bolt",    "mxiii",    "shop",
                                                   "signal", "mxspawn",  "mxenv",   "mxupper", "mxmiddle", "mxlower",
-                                                  "mxnames", "mxlily", "mxrecords", "halls"};
+                                                  "mxnames", "mxlily", "mxrecords", "halls", "teamshop"};
 // The tables the rows of every batch go into (rows/rows.h's Table, in this order), as their assets are named.
 constexpr size_t kLionTableCount = 39;
 constexpr const char *kLionTables[kLionTableCount] = {
