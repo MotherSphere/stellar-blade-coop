@@ -14,6 +14,7 @@ import struct
 import sys
 import tempfile
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tools/port'))
@@ -163,15 +164,20 @@ assert ms.shortest(short, 0) == (short[:12], 'xxxxxx?xxxxx'), f'a rel8 told two 
 # The two stubs differ only after their jump out of .text: a run stops at that jump, so neither gets one.
 assert ms.shortest(image.code, at['stub_a'] - image.code_va) is None, 'a run went on past a jump out of .text'
 
-# Any other executable than the pinned build is refused before signatures.json is read.
-with tempfile.TemporaryDirectory() as tmp:
-    exe = Path(tmp) / 'SB-Win64-Shipping.exe'
-    exe.write_bytes(data)
-    try:
-        ms.main(['make_signatures.py', str(exe)])
-        raise AssertionError('main took an executable that is not the pinned build')
-    except SystemExit as e:
-        assert 'not the pinned build' in str(e.code), e.code
+# Any other executable than the pinned build is refused before signatures.json is read: one whose TimeDateStamp and
+# SizeOfImage both differ, then one with only the stamp different, then one with only SizeOfImage different.
+stamp, size = ms.pinned()
+for exe_stamp, exe_size in ((0x11223344, 0x4000), (0x11223344, size), (stamp, 0x4000)):
+    other = bytearray(fake_exe(FUNCS, exe_stamp)[0])
+    struct.pack_into('<I', other, 0x58 + 56, exe_size)  # SizeOfImage in the PE header.
+    with tempfile.TemporaryDirectory() as tmp, mock.patch.object(addresses, 'SIGNATURES', Path(tmp) / 'none.json'):
+        exe = Path(tmp) / 'SB-Win64-Shipping.exe'
+        exe.write_bytes(other)
+        try:
+            ms.main(['make_signatures.py', str(exe)])
+            raise AssertionError(f'main took stamp {exe_stamp:#x}, size {exe_size:#x}: not the pinned build')
+        except SystemExit as e:
+            assert 'not the pinned build' in str(e.code), e.code
 
 # Every entry of signatures.json that a port must find has a signature in the form the tool writes.
 names = {}
