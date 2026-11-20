@@ -3,8 +3,12 @@
 # SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """tools/port/make_signatures.py: its instruction decoder on hand-written instructions, every kind of signature on a
-small PE file built here, then the form of each entry in tools/port/signatures.json. No game file is needed.
+small PE file built here, then the form of each entry in tools/port/signatures.json. tools/port/find.py on that file
+and on copies of it with moved code, a pattern or a holder that matches twice and a missing function. Then find.py on
+the executable of build 26123051 when this PC has Ghidra's copy of it: every entry is found at its own address.
 Run: python3 tests/tools/port_signatures_test.py"""
+import contextlib
+import io
 import struct
 import sys
 import tempfile
@@ -13,6 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tools/port'))
 import addresses  # noqa: E402
+import find  # noqa: E402
 import make_signatures as ms  # noqa: E402
 
 # (instruction, length, offset of its rel32 or RIP-relative disp32), checked against capstone 5.0 when written.
@@ -183,4 +188,58 @@ for address, e in addresses.load().items():
         assert int(r['from'], 16) and isinstance(r['add'], int), f'{address}: ref {r}'
         r = r.get('then')
     assert 'ref' not in e or 'holder' not in e, f'{address}: both a ref and a holder'
-print(f'port_signatures_test: ok ({len(CASES)} instructions, {len(want)} fake signatures)')
+
+
+def report(exe, entries):
+    """({address: state}, the count line, the exit code) of find.py's report on the executable exe."""
+    printed = io.StringIO()
+    with contextlib.redirect_stdout(printed):
+        code = find.report(ms.Image(exe), entries)
+    lines = printed.getvalue().splitlines()
+    return {line.split()[0]: line.rsplit('  ', 1)[1] for line in lines[:-1]}, lines[-1], code
+
+
+# find.py on the fake executable: every entry is found at its address, the image base and a section included.
+found = {**out, f'{BASE + RDATA:#x}': {'kind': 'section', 'ghidra': 'start of .rdata, end of .text'}}
+states, count, code = report(data, found)
+assert states == {a: f'found {a}' for a in found}, states
+assert (count, code) == (f'{len(found)} found (0 moved), 0 ambiguous, 0 missing', 0), (count, code)
+assert find.locate(image, {'kind': 'section', 'ghidra': 'start of .bss, end of .data'}) == [], 'a missing section'
+rebased = bytearray(data)
+struct.pack_into('<Q', rebased, 0x58 + 24, 0x180000000)  # The image base in the PE header.
+assert find.locate(ms.Image(bytes(rebased)), {'kind': 'image'}) == [0x180000000], 'the image base is not the header\'s'
+
+# A function before the others moves all code by 16 bytes: the code addresses move, the data addresses stay.
+moved, at2 = fake_exe({'pad': [b'\x55\x5d\xc3'], **FUNCS})  # push rbp; pop rbp; ret
+assert at2['unique'] == at['unique'] + 16 and at2['table_a'] == at['table_a']
+states, count, code = report(moved, found)
+shift = {at['unique']: 16, at['unique'] + 5: 16, at['copy_b']: 16, at['zero_a']: 16}
+assert states == {a: f'found {int(a, 16) + shift.get(int(a, 16), 0):#x}' for a in found}, states
+assert (count, code) == (f'{len(found)} found (4 moved), 0 ambiguous, 0 missing', 0), (count, code)
+
+# unique's bytes twice: its two signatures match twice. lone held twice: the holder's code is in two places.
+states, count, code = report(twice, found)
+assert states[f'{at["unique"]:#x}'] == states[f'{at["unique"] + 5:#x}'] == 'ambiguous (2 matches)', states
+assert (count, code) == (f'{len(found) - 2} found (0 moved), 2 ambiguous, 0 missing', 1), (count, code)
+states, count, code = report(bytes(held), found)
+assert states[f'{at["vtable2"]:#x}'] == 'ambiguous (2 matches)', states
+assert (count, code) == (f'{len(found) - 1} found (0 moved), 1 ambiguous, 0 missing', 1), (count, code)
+
+# Without check, nothing loads flag: its entry is missing. zero_a, right after check, moves 16 bytes down.
+states, count, code = report(fake_exe({k: v for k, v in FUNCS.items() if k != 'check'})[0], found)
+assert states[f'{at["flag"]:#x}'] == 'missing' and states[f'{at["zero_a"]:#x}'] == f'found {at["zero_a"] - 16:#x}'
+assert (count, code) == (f'{len(found) - 1} found (1 moved), 0 ambiguous, 1 missing', 1), (count, code)
+
+# The executable of build 26123051 itself: every entry of signatures.json is found at its own address.
+EXE = Path.home() / 'Ghidra/stellar-blade/input/26123051/SB-Win64-Shipping.exe'
+if EXE.is_file():
+    real = EXE.read_bytes()
+    assert ms.Image(real).stamp == ms.pinned()[0], f'{EXE} is not the executable of build 26123051'
+    entries = addresses.load()
+    states, count, code = report(real, entries)
+    assert states == {a: f'found {a}' for a in entries}, [(a, s) for a, s in states.items() if s != f'found {a}']
+    assert code == 0, count
+    real = f'find.py on build 26123051: {count}'
+else:
+    real = f'find.py on build 26123051 skipped: no {EXE}'
+print(f'port_signatures_test: ok ({len(CASES)} instructions, {len(want)} fake signatures; {real})')

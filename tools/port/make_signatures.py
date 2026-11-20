@@ -302,22 +302,32 @@ def through(code, refs):
     return best
 
 
-def resolve(image, entry):
-    """The address entry's signature gives in image, or None when it does not match exactly once."""
-    pattern = bytes.fromhex(entry['pattern'].replace('??', '00'))
-    at = find(image.code, pattern, entry['mask'], stop=2)
-    if len(at) != 1:
-        return None
-    va, ref = image.code_va + at[0], entry.get('ref')
+def matches(image, entry, stop=None):
+    """The code offsets where entry's pattern matches in image, at most stop of them."""
+    return find(image.code, bytes.fromhex(entry['pattern'].replace('??', '00')), entry['mask'], stop)
+
+
+def follow(image, entry, at):
+    """The addresses entry's signature gives when its pattern matches at code offset at: none when a field lies
+    outside the file, one per place that holds the match for a holder, else one."""
+    va, ref = image.code_va + at, entry.get('ref')
     while ref and va is not None:
         field = image.at(va + ref['disp'], 4)
         va = va + ref['end'] + struct.unpack('<i', field)[0] + ref['add'] if len(field) == 4 else None
         va = image.u64(va) if ref.get('read') and va is not None else va
         ref = ref.get('then')
+    if va is None:
+        return []
     if 'holder' in entry:
-        places = image.holders(va)
-        return places[0] + entry['holder']['add'] if len(places) == 1 else None
-    return va
+        return [p + entry['holder']['add'] for p in image.holders(va)]
+    return [va]
+
+
+def resolve(image, entry):
+    """The address entry's signature gives in image, or None when it does not match exactly once."""
+    at = matches(image, entry, stop=2)
+    got = follow(image, entry, at[0]) if len(at) == 1 else []
+    return got[0] if len(got) == 1 else None
 
 
 def holder(image, address):
