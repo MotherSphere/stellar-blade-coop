@@ -9,7 +9,9 @@
 -- it tracks, their aggro and stuck moves, the heal after a wave, the abort watch and the end. A run that ends calls
 -- o.ended once with its state; online/modes/scoreattack/game.lua sends the done line from it. A death ends the run as
 -- failed and asks SB's in-place respawn at once, so EVE stays in the lobby room: every exit of the death screen takes
--- her out of the match (FACTS 8). online/modes/scoreattack/waves.lua holds the waves, the keys and the run's states.
+-- her out of the match (FACTS 8). A death in a score attack match's lobby room with no run on asks it too. A start
+-- is refused while our life state reads down. online/modes/scoreattack/waves.lua holds the waves, the keys and the
+-- run's states.
 -- The run has no rule row: its clock is game time and it ends itself. Dropped from the solo copy: the Xion refusal
 -- (the lobby room is in Xion), every check of the Steam session (a match lobby is one), the co-op night line, the
 -- down and its revive, the shop and its points, the cut shooting test's score widget, the console words and the HUD.
@@ -163,13 +165,17 @@ end
 -- log(text) writes a line; status() is the native part's status text; paused() whether the game is paused or shows
 -- one of its screens; life() core/link.lua's life ({state=, hp=}, or nil); ended(s) hears each run's end once, with
 -- its waves state (def, outcome, reason, score, kills, time); records: {read() the text of coop-records.txt, nil when
--- there is none (it raises when the file cannot be read), write(text) true once written}, or nil for no bests.
+-- there is none (it raises when the file cannot be read), write(text) true once written}, or nil for no bests;
+-- room() true while EVE stands in the lobby room of a score attack match (optional: no respawn outside a run).
 function Run.new(o)
     local log,status,paused,records=o.log,o.status,o.paused,o.records
     local r=nil -- The run, nil when idle: s is online/modes/scoreattack/waves.lua's state.
     -- After a death: {ticks=, said=, call= the tick of the call, me=, before=}, until the respawn's result line.
     -- hidden: {widget=, was=} while we hide a death screen that still plays over a living EVE.
     local dead,hidden=nil,nil
+    -- down: our life read 3 to 5 at the last tick; a death is a read that turns it on. watching: false once the watch
+    -- raised (one STOP line).
+    local down,watching=false,true
     local ticks=0 -- Every tick, run or not: the respawn counts them.
     local screen,look_at=nil,0 -- The death screen for the respawn, looked for again at most every 10 s.
     local function clock(eve) return U.find('/Script/Engine.Default__GameplayStatics'):GetTimeSeconds(eve) end
@@ -637,6 +643,23 @@ function Run.new(o)
             a.hp,b.screen,screen_now,not a.pawn and 'gone' or a.pawn==b.pawn and 'same' or 'new'))
         dead=nil
     end
+    -- Our life state reads 3 Dead, 4 Despawn or 5 Destroy (ESBActorLifeState, its names and values at 0x145e279d0).
+    local function life_down()
+        local life=o.life()
+        return life~=nil and life.state>=3 and life.state<=5
+    end
+    -- Each tick, run or not: a new death shows a death screen we hid again. With no run on (its result aside) and EVE
+    -- in a score attack match's lobby room, it starts the in-place respawn as a run's death does. A run's death is the
+    -- run's (finish).
+    local function watch()
+        local was=down
+        down=life_down()
+        if not down or was then return end
+        if hidden then show('a new death') end
+        if dead or r and r.s.phase~='result' or not (o.room and o.room()) then return end
+        log('death with no run on: in the lobby room')
+        dead={ticks=0}
+    end
     -- A new run of def at game time now around at facing yaw, on the round's seed (the spot orders come from it).
     local function begin(run,seed,now,at,yaw,map,def)
         r={s=W.new{run=run,seed=seed,now=now,def=def},seed=seed,p0=at,yaw=yaw,map=map,timers=W.timers(),bodies={},
@@ -648,11 +671,12 @@ function Run.new(o)
     end
     local self={}
     -- A run of def on seed, EVE first moved to at (whole cm or not) facing yaw: true, or false and why not. Refused
-    -- while a run is on, while a death's respawn is under way, with a coop no probe rule, with no EVE or controller,
-    -- when the game refuses the teleport, with a living character within CLEAR m of the point, or every run byte taken.
+    -- while a run is on, while a death's respawn is under way or our life state reads down, with a coop no probe rule,
+    -- with no EVE or controller, when the game refuses the teleport, with a living character within CLEAR m of the
+    -- point, or every run byte taken.
     function self.start(def,seed,at,yaw)
         if r and r.s.phase~='result' then return false,'a run is on' end
-        if dead then return false,'your EVE is down' end
+        if dead or life_down() then return false,'your EVE is down' end
         local text=raw()
         local token=(text:match('\nengine=[^\r\n]*') or ''):match(' nightop=(%a+)')
         local looked,row=pcall(function() return U.find(TABLE):FindRow(RULE)~=nil end)
@@ -675,8 +699,9 @@ function Run.new(o)
             map,def.id,c.text))
         return true
     end
-    -- Every 250 ms: the run, then a death's respawn. A Lua error ends the run as aborted (error), with one STOP line;
-    -- in the result's 10 s, it drops the run at once. An error in the respawn drops it with one STOP line.
+    -- Every 250 ms: the run, the death watch, then a death's respawn. A Lua error ends the run as aborted (error), with
+    -- one STOP line; in the result's 10 s, it drops the run at once. An error in the watch turns it off for the Lua
+    -- load with one STOP line. An error in the respawn drops it with one STOP line.
     function self.tick()
         ticks=ticks+1
         if r then
@@ -691,6 +716,13 @@ function Run.new(o)
                     log('STOP: '..why(e2))
                     r=nil
                 end
+            end
+        end
+        if watching then
+            local ok,e=pcall(watch)
+            if not ok then
+                watching=false
+                log('STOP: death watch off for this Lua load: '..why(e))
             end
         end
         if dead then

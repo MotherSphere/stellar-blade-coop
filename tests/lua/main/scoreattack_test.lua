@@ -5,8 +5,9 @@
 -- its round (a guest who is not in the lobby room sits out the host's go with one [SA] line); coop off ends the round
 -- for it. No pass reads its lines after that. Then its wiring on a fake run: scoreattack=off, the bike and a Night
 -- Operation run each sit a round out with its notice; a hall seat is left first and the run starts at our spot, then
--- ready goes; each pass ticks the run; the run's end goes as the done line; coop off stops the run. The screens
--- (online/modes/scoreattack/ui/board.lua) are built on the kit's hud step and tick each pass.
+-- ready goes; each pass ticks the run; the run's end goes as the done line; the run's reads (status, pause, life, the
+-- lobby room); coop off stops the run. The screens (online/modes/scoreattack/ui/board.lua) are
+-- built on the kit's hud step and tick each pass.
 dofile('tests/lua/main/fixture.lua')
 local Round=require('online.modes.scoreattack.round')
 local new,round=Round.new,nil
@@ -87,6 +88,20 @@ loops[2].f()
 assert(fake.ticks==ticks+1,'Each pass ticks the run')
 fake.o.ended({def=require('online.modes.scoreattack.challenges').find('targets'),outcome='time',score=30,time=90})
 assert(fake_link.scores[#fake_link.scores]=='done '..n..' time 30 900',fake_link.scores[#fake_link.scores])
+-- The run's reads: the status, the kit's pause (the kit off too), our life, and the lobby room of a score attack
+-- match (its match line past the search, sbo's target).
+assert(fake.o.status()==status_text and fake.o.paused()==false)
+kit_paused=true; assert(fake.o.paused()==true); kit_paused=false
+kit_off,kit_paused=true,true; assert(fake.o.paused()==true,'The kit off'); kit_off,kit_paused=false,false
+fake_link.Q.life={state=3,hp=0}
+assert(fake.o.life()==fake_link.Q.life)
+fake_link.Q.life=nil
+link_match={state='open',mode='scoreattack'}
+assert(fake.o.room()==true,'In the room of a score attack match')
+sb.target=nil; assert(fake.o.room()==false,'Out of the room'); sb.target=ROOM
+link_match.mode='ffa'; assert(fake.o.room()==false,'Another mode')
+link_match={state='searching',mode='scoreattack'}; assert(fake.o.room()==false,'Still searching')
+link_match=nil; assert(fake.o.room()==false,'No match')
 coop('off')
 assert(fake.stops[#fake.stops]=='coop off',tostring(fake.stops[#fake.stops]))
 for _,l in ipairs(printed) do assert(not l:find('scoreattack: error',1,true),l) end

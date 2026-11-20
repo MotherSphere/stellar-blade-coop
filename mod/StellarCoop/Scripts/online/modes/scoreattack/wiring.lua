@@ -6,7 +6,8 @@
 -- main/pass.lua ticks M.scoreattack every 250 ms after the inbox; coop off stops it (main/commands.lua). The host's
 -- draw reads the challenges the lobby's room offers from online.lobby's sbo at each round's start; while that module
 -- is off its target is nothing: the room offers none, so the host voids the round. A guest sits out then. A Night
--- Operation run on makes us sit out too; while that module is off none is. The run's best match runs go in
+-- Operation run on makes us sit out too; while that module is off none is. A death in a score attack match's lobby
+-- room (link.match(), sbo.target()) gets the run's in-place respawn, run or not. The run's best match runs go in
 -- coop-records.txt in the mod folder, written as Night Operation's challenges write theirs. Its screens
 -- (ui/board.lua, M.scoreattack_board): the card, the in-round board and the result panel, drawn after each pass; the
 -- sit-out notices and a round's why come in the menu's words (M.tell).
@@ -24,6 +25,10 @@ if M.link then
     local run=require('online.modes.scoreattack.run').new({log=log,status=function() return M.link.status() end,
         paused=function() return M.kit~=nil and M.kit.paused(true) end,life=function() return M.link.life() end,
         ended=function(s) game.ended(s) end,
+        room=function()
+            local m=M.link.match()
+            return m~=nil and m.mode=='scoreattack' and m.state~='searching' and sbo.target()~=nil
+        end,
         records=M.folder and {
             read=function()
                 local text,e,code=require('core.link').files.read(M.folder..'\\coop-records.txt')

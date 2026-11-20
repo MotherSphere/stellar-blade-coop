@@ -13,7 +13,9 @@
 -- no body read while paused. A death ends the run as failed and asks SB's in-place respawn of our EVE once every
 -- check holds: each reason logged once, given up after 10 s; the call's result line 2 s later, the death screen hidden
 -- while it still plays over a living EVE (left as it is over an EVE still down) and shown again at the next death and
--- at coop off; no run while it is under way; coop off drops a respawn not asked yet.
+-- at coop off; no run while it is under way; coop off drops a respawn not asked yet. No run while our life state reads
+-- down. A death with no run on in a score attack match's lobby room gets the same respawn; out of it, only a screen
+-- we hid comes back.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('online.modes.scoreattack.waves')
 local C=require('online.modes.scoreattack.challenges')
@@ -184,11 +186,12 @@ local function status()
     return 'mod=v proto=9 steam=ready steamid=76561198000000009\nlink=guest lobby=7\n'..engine..'\n'..slot_line
 end
 local life=nil -- core/link.lua's life: {state=, hp=} or nil.
+local room=false -- EVE stands in a score attack match's lobby room.
 local records_text,writes=nil,0
 local lines,ended={},{}
 local Run=require('online.modes.scoreattack.run')
 local run=Run.new({log=function(text) lines[#lines+1]=text end,status=status,paused=function() return paused end,
-    life=function() return life end,ended=function(s) ended[#ended+1]=s end,
+    life=function() return life end,ended=function(s) ended[#ended+1]=s end,room=function() return room end,
     records={read=function() return records_text end,
         write=function(text) records_text,writes=text,writes+1; return true end}})
 local function tick(n) for _=1,n or 1 do gt=gt+0.25; run.tick() end end
@@ -486,5 +489,42 @@ life={state=3,hp=0}
 tick(8)
 assert(count('PC:ServerRequest_ActorRespawn')==0 and last()=='respawn waits: life 1',last())
 dying=false
+
+-- 10. No start while our life state reads down, with no respawn under way: EVE is not moved.
+reset()
+tick(41) -- The last run's result ends.
+dying=true
+ok,message=run.start(targets,29,SPOT,FACE)
+assert(not ok and message=='your EVE is down' and count('EVE:K2_TeleportTo')==0,tostring(message))
+-- A death with no run on in a score attack match's lobby room (a run's result, then between rounds): the in-place
+-- respawn, and a screen it hid shown again at the next death. Out of the room: the screen only.
+room,life,dying=true,{state=1,hp=100},false
+tick()
+ok=run.start(targets,31,SPOT,FACE)
+assert(ok)
+tick(4)
+assert(run.stop('stop') and not run.running())
+life,dying={state=3,hp=0},true
+tick()
+assert(logged('death with no run on: in the lobby room') and count('PC:ServerRequest_ActorRespawn')==1,last())
+life={state=1,hp=100}
+tick(8)
+assert(visibility==2,last())
+tick(41) -- The result's 10 s end.
+assert(run.state()==nil)
+life={state=3,hp=0}
+tick()
+assert(visibility==0 and last()=='respawn: ServerRequest_ActorRespawn(81, false) asked (life 3, hp 0, death screen up)')
+assert(lines[#lines-1]=='death with no run on: in the lobby room' and count('PC:ServerRequest_ActorRespawn')==2)
+assert(lines[#lines-2]=='respawn: death screen shown again (a new death)',lines[#lines-2])
+life={state=1,hp=100}
+tick(8)
+assert(visibility==2,last())
+room=false
+life={state=3,hp=0}
+tick(41)
+assert(visibility==0 and count('PC:ServerRequest_ActorRespawn')==2,last())
+dying,life,bodies=false,{state=1,hp=100},{}
+tick()
 assert(#violations==0,violations[1])
 print('scoreattack_run_test: ok')

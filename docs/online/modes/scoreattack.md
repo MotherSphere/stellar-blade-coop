@@ -80,10 +80,13 @@ Monsters that an earlier run left in the room do not stop a start: the census do
 A death ends your run as failed at once. Every way out of the game's death screen in the lobby room takes EVE out of
 the room: the game's camp respawn, or its Boss Challenge exit. So the mod asks the game's in-place respawn
 (`ServerRequest_ActorRespawn`, the call the [revive](../../players/playing-with-a-friend.md#revive-by-your-friend-experimental)
-uses) as soon as its checks hold, for 10 s at most. EVE then gets up where she fell with her recovery items refilled.
+uses) as soon as its checks hold, for 10 s at most. A death with no run on in the lobby room of a score attack match,
+in a round's result or between rounds, gets the same respawn. EVE then gets up where she fell with her recovery items
+refilled.
 Press no button on the death screen. 2 s after the call, a death screen still on over a living EVE is hidden; it shows
 again at the next death and at `coop off`. Whether the death screen leaves by itself before the respawn lands is not
-known yet. A player whose EVE is still down when the next round starts sits out that round.
+known yet. A player whose EVE is still down when the next round starts sits out that round: her run refuses to start
+while her life state reads dead.
 
 ## The end and the ranking
 
@@ -196,7 +199,7 @@ host's challenge), `play` or `ranked`. Once the round is over it is why the roun
 | `line refused from <name>: sender` or `malformed` | A line from a player who may not send it, or one that cannot be read (once a player a round) |
 | `round <n> was playing at this Lua load: void` or `stop` | A Lua reload in a round: the host cancels it, a guest sends a stop |
 | `round <n>: this room offers no challenge: void` | The host's room offers no challenge |
-| `respawn waits: <reason>`, `respawn not asked in 10 s: <reason>`, `respawn: ServerRequest_ActorRespawn(<id>, false) asked (...)`, `respawn result: ...`, `respawn: death screen shown again (...)` | The in-place respawn after a death |
+| `death with no run on: in the lobby room`, `respawn waits: <reason>`, `respawn not asked in 10 s: <reason>`, `respawn: ServerRequest_ActorRespawn(<id>, false) asked (...)`, `respawn result: ...`, `respawn: death screen shown again (...)` | The in-place respawn after a death |
 | `STOP: HUD: <error>` | The screens stopped after an error; notices from then on |
 
 The wave, spawn, kill and record lines are the solo run's (see [Night Operation](nightop.md)). `coop-link.log` gets
