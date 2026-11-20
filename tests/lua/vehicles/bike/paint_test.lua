@@ -62,6 +62,8 @@ assert(not Paint.check({[M]={[0]={P={0,0,'x',1}}}}) and not Paint.check({[M]={[0
 assert(not Paint.check({[M]={[0]={[('x'):rep(65)]={0,0,0,1}}}}) and not Paint.check({[M]={[0]={['a\tb']={0,0,0,1}}}}))
 assert(not Paint.check({[M]={[0]={['a~b']={0,0,0,1}}}}),'~ stands for a space in the capture')
 assert(Paint.check({[M]={[0]={['Base Color Tint']={0,0,0,1}}}}),'A name with spaces passes: the capture sends it')
+assert(not Paint.check({[M]={[0]={['a\128b']={0,0,0,1}}}}),'A byte above ~ is refused: the capture drops it')
+assert(Paint.check({[M]={[0]={['A_b-1']={0,0,0,1}}}}),'Punctuation passes: the capture sends it')
 assert(not Paint.check({['Adam_Vehicle_02']={[0]={P={0,0,0,1}}}}))
 assert(not Paint.check({[M]={[0]={P={0,0,0/0,1}}}}) and not Paint.check({[M]={[0]={P={0,-1,0,1}}}}))
 assert(not Paint.check({[M]={[0.5]={P={0,0,0,1}}}}),'A slot is an integer')
