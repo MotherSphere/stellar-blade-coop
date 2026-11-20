@@ -173,7 +173,7 @@ with tempfile.TemporaryDirectory() as tmp:
                *(f'Scripts/{name}.lua'
                  for name in ('vehicles/bike/fetch', 'vehicles/bike/model', 'vehicles/bike/others',
                               'vehicles/bike/paint', 'vehicles/bike/park', 'vehicles/bike/ride',
-                              'vehicles/bike/stand',
+                              'vehicles/bike/rig', 'vehicles/bike/stand',
                               'online/session/commands', 'online/lobby/commands', 'online/group/commands',
                               'online/saves/commands',
                               'online/partner/commands', 'online/photo/commands', 'online/modes/nightop/commands',
