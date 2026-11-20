@@ -14,8 +14,8 @@ the name it has in the code, its file and its line. It reads the sources only. I
 26123051: its kind and a short text in `ghidra`. The file holds no bytes of the game executable. It has no signatures
 yet.
 
-`tests/tools/port_addresses_test.py` compares the two. It fails when the code uses an address that the file lacks,
-and when the file lists an address that no code uses. `tools/install.py` runs it with the other Python tests.
+`tests/tools/port_addresses_test.py` compares the two. It fails when the code uses an address that the file lacks. It
+also fails when the file lists an address that no code uses. `tools/install.py` runs it with the other Python tests.
 
 ## What counts as an address
 
