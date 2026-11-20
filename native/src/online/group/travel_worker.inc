@@ -33,7 +33,7 @@ std::string ask_travel(const coop::Request &request) {
 }
 
 // The zone type of our zone as the vit line carries it (warp_game.inc's read of the ZoneTable row, wire_zone's 0 to
-// 6): 0 before the first read and after the zone row's fault.
+// 6): 0 before the first read and after a fault of the zone row read or of the warp read.
 uint32_t zone_type() { return warp_zonetype; }
 
 } // namespace coop::pose

@@ -192,6 +192,7 @@ void warp_tick() {
   } __except (fault_filter(GetExceptionInformation(), warp_fault_code, warp_fault_rva, warp_fault_address)) {
     warp_faulted = true;
     warp_state = -1;
+    warp_zonetype = 0; // tick.cpp stops calling warp_tick, so zone_body stops too: no stale type in the vitals.
   }
   if (due && !warp_faulted && !zone_faulted) {
     __try {

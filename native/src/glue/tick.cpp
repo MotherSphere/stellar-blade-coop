@@ -107,7 +107,7 @@
 // The follow's travel (game/travel.h): the worker hands over a camp's FName from Lua's travel request, or a place and a
 // yaw from its travel spot request; the game thread calls SB's own fast travel to the camp, or SB's position warp to
 // the place, once game/travel.h's guard passes, under its own SEH latch, and watches the warp block every 250 ms;
-// status() puts the watch's state in the engine line for online/group/travel.lua, and the worker logs each call.
+// status() puts the watch's state in the engine line for online/group/travel.lua. The worker logs each call.
 //
 // The camps this save has activated (game/camps.h): every 250 ms, once the client is in game and no warp, respawn or
 // logic task is in flight, the game thread asks SB's own camp list for each travel type at most every 2 s, and reads

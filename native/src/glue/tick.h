@@ -163,7 +163,8 @@ std::string story_status();
 // off and after the travel latch's fault. Returns the line for the log; the call's own line follows from worker_poll.
 std::string ask_travel(const coop::Request &request);
 // Worker thread: our zone's type as the vit line carries it (vital::zone, wire_zone()'s 0 to 6), from the game thread's
-// read of the zone's ZoneTable row (online/group/warp_game.inc); 0 before the first read and after its fault.
+// read of the zone's ZoneTable row (online/group/warp_game.inc); 0 before the first read and after a fault of that
+// read or of the warp read.
 uint32_t zone_type();
 // Worker thread, coop lion, coop gardener fight, coop tendril fight, the shop's Shock Bolt, coop mxiii, the Night
 // Operation shop's screen, Lily's signal and the team shop (rows/rows.h): Lua's lion rows, gardener rows, tendril
