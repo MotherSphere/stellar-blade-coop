@@ -1,14 +1,13 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The rifle's own round: NIKKE rapid rounds, a magazine of cfg.mag_size and cfg.spare_mags spare magazines, fired
--- at the NIKKE shot's cool time, and a reload (cfg.reload_time, the NIKKE squad's reload animation) when the
+-- The rifle's own round: NIKKE rapid rounds in a magazine of cfg.mag_size with cfg.spare_mags spare magazines, fired
+-- at the NIKKE shot's cool time. A reload (cfg.reload_time, the NIKKE squad's reload animation) comes when the
 -- magazine runs dry or while the rifle is lowered with a part-spent one. The reticle's round slot (WB_Tps_Bullet3,
--- under the drone's reticle) shows the round's name and the rounds in the magazine while firing mode is held. The
--- drone's round count at the bottom left (WB_MainHUD_Lower1Item, beside D-pad Right) keeps the game's own: find() only
--- logs its texts, and fight/gunmode/mode.lua passes no D-pad slot. The game's own text goes back when the rifle goes
--- away. A new world (a map, a death, a camp's
--- travel) gives full magazines again.
+-- under the drone's reticle) shows the round's name and the rounds in the magazine while firing mode is held. Its own
+-- text goes back when the rifle goes away. The drone's round count at the bottom left (WB_MainHUD_Lower1Item, beside
+-- D-pad Right) keeps the game's own text: find() only logs it. fight/gunmode/mode.lua passes no D-pad slot (dpad nil).
+-- A new world (a map, a death, a camp's travel) gives full magazines again.
 -- Rounds are counted at the rate the game fires them: one at the press, then one per cool time (rounded up to whole
 -- frames, as the game checks the cool time once a frame). While reloading the shot's cool time is the reload's, so
 -- the trigger fires nothing until the magazine is full again.

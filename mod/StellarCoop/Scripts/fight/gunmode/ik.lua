@@ -63,7 +63,7 @@ local function ortho(x,z) x=nrm(x); z=nrm(sub(z,mul(x,dot(z,x)))); return x,z en
 -- The math above, for tests/lua/fight/gunmode/helpers_test.lua.
 IK.math={qmul=qmul,qinv=qinv,qrot=qrot,rot2q=rot2q,q2rot=q2rot,frame_q=frame_q,ortho=ortho}
 
--- tuning (cm / degrees); starting values from the plan, refined in game
+-- tuning (cm / degrees), refined in game
 IK.CFG={
     grip_aim={fwd=24,right=2,up=-10},     -- rifle grip point from her right shoulder joint, aim
     grip_carry={fwd=18,right=-10,up=-18}, -- carry (low ready)

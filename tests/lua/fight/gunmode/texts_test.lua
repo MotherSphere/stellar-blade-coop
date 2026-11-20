@@ -115,7 +115,7 @@ do
                 fail(('%s:%d: clock time %s'):format(p,n,t))
             end
         end
-        for _,ref in ipairs({'NGM_FACTS','v2 plan','v2:','Phase 0','Phase 1'}) do
+        for _,ref in ipairs({'NGM_FACTS','v2 plan','v2:','Phase 0','Phase 1','the plan'}) do
             if l:find(ref,1,true) then fail(('%s:%d: cites %s'):format(p,n,ref)) end
         end
     end)
@@ -124,7 +124,8 @@ end
 -- 4. The page as the code runs: it names every table fight/gunmode/data.lua changes and the notice the parked key
 --    shows. Neither the page nor ammo.lua's header promises the bottom-left round count while mode.lua builds the
 --    rounds with no D-pad slot. The page and the docs index row speak of no crouching. Plain prose on the page: no
---    ", and" or ", but", no bold-label bullets, no "co-op session".
+--    ", and" or ", but", no bold-label bullets, no "co-op session". No ", and" or ", but" either in the comments this
+--    pass rewrote: ammo.lua's header, facts.lua's note on the retired F11.
 do
     local seen={}
     for t in read(S..'data.lua'):gmatch("tbl%('([%w_]+)'%)") do
@@ -144,9 +145,14 @@ do
     for _,w in ipairs({{PAGE,page},{'docs/README.md (gun mode)',row},{S..'commands.lua',read(S..'commands.lua')}}) do
         if w[2]:lower():find('crouch',1,true) then fail(w[1]..' speaks of crouching') end
     end
-    local flat=page:gsub('%s+',' ')
-    for _,j in ipairs({', and ',', but '}) do
-        if flat:find(j,1,true) then fail(PAGE..': "'..j..'" joins two clauses') end
+    local f11=read(S..'facts.lua'):match('(%-%- F11 retired.-)\n%s*if ')
+    assert(f11,'facts.lua has its note on the retired F11')
+    for _,w in ipairs({{PAGE,page},{S..'ammo.lua (header)',read(S..'ammo.lua'):match('^(.-)\nlocal Ammo')},
+            {S..'facts.lua (F11 retired)',f11}}) do
+        local flat=w[2]:gsub('%s*%-%-%s+',' '):gsub('%s+',' ')
+        for _,j in ipairs({', and ',', but '}) do
+            if flat:find(j,1,true) then fail(w[1]..': "'..j..'" joins two clauses') end
+        end
     end
     lines({PAGE},function(p,n,l)
         if l:find('^%s*[-*] %*%*[^*]+:%*%*') then fail(('%s:%d: a bold-label bullet'):format(p,n)) end

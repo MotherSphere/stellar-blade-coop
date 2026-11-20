@@ -148,9 +148,9 @@ function Facts.new(g)
                     ok and name(r) or 'error',tostring(ok and e or r),tostring(g.try(function() return st.ov.active(p) end))))
             end
         end
-        -- F11 retired (2026-11-18): holding a mesh asset and a class across a level load left stale wrappers, and
-        -- the put-back wrote a level object into the field. Any install test must re-fetch everything by path, within
-        -- one load, and never write after a load through an object found before it.
+        -- F11 retired (2026-11-18): holding a mesh asset and a class across a level load left stale wrappers. The
+        -- put-back then wrote a level object into the field. Any install test must re-fetch everything by path within
+        -- one load. It must never write after a load through an object found before it.
         if not valid(ai) then return end
         if now-st.poll>=0.1 then st.poll=now; pcall(montage,ai) end
         -- F8 on a timer after the snapshot (the test harness can't press numpad keys): DefaultSlot at +5 s, UpperBody
