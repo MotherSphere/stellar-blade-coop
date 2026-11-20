@@ -107,4 +107,32 @@ do
     assert(cfg.strafe_min==40 and cfg.strafe_hyst==10 and cfg.strafe_run_at==260 and cfg.strafe_blend==0.2)
     assert(cfg.strafe_walk_speed==150 and cfg.strafe_run_speed==300 and cfg.strafe_rate_min==0.6 and cfg.strafe_rate_max==1.6)
 end
+-- another montage (a dodge, a hit, the game's shot) playing on her: the strafe plays nothing over it, then comes back;
+-- below strafe_min it holds down to strafe_min - strafe_min_hyst once going
+do
+    local live,plays={},0
+    local foreign={name='dodge'}
+    local ai={}
+    function ai:PlaySlotAnimationAsDynamicMontage(seq) plays=plays+1; local m={name=seq}; live[m]=true; return m end
+    function ai:Montage_Stop(_,m) live[m]=nil end
+    function ai:Montage_IsPlaying(m) return live[m]==true end
+    function ai:Montage_SetPlayRate() end
+    function ai:GetCurrentActiveMontage() if live[foreign] then return foreign end end
+    local p={vel={X=0,Y=0},Mesh={}}
+    function p.Mesh:GetAnimInstance() return ai end
+    function p:GetVelocity() return self.vel end
+    function p:K2_GetActorRotation() return {Yaw=0} end
+    local g={valid=function(o) return o~=nil end,log=function() end,asset=function(path) return path end}
+    local sf=Strafe.new(g,cfg)
+    local t=0
+    local function frame(vx,vy) t=t+0.02; p.vel.X,p.vel.Y=vx,vy; sf.tick(p,true,t) end
+    live[foreign]=true
+    frame(150,0); frame(0,150)
+    assert(plays==0 and sf.playing()==nil,'nothing played over a dodge')
+    live[foreign]=nil
+    frame(0,150); assert(plays==1,'played once the dodge ended')
+    frame(0,cfg.strafe_min-cfg.strafe_min_hyst+2); assert(sf.playing()~=nil,'held just under strafe_min')
+    frame(0,cfg.strafe_min-cfg.strafe_min_hyst-2); assert(sf.playing()==nil,'stopped under the hysteresis')
+    frame(0,cfg.strafe_min-5); assert(sf.playing()==nil,'not started again under strafe_min')
+end
 print('gunmode strafe_test ok')

@@ -44,7 +44,8 @@ function Strafe.rate(speed,authored,lo,hi) return math.max(lo,math.min(hi,speed/
 -- st keeps the sector and the walk/run choice between frames (st.sec, st.run).
 function Strafe.pick(st,vx,vy,yaw,cfg)
     local speed=math.sqrt(vx*vx+vy*vy)
-    if speed<cfg.strafe_min then st.sec,st.run=nil,nil; return nil end
+    -- below strafe_min it stops; once going it holds down to strafe_min - strafe_min_hyst (no flicker near the limit)
+    if speed<cfg.strafe_min-(st.sec and (cfg.strafe_min_hyst or 0) or 0) then st.sec,st.run=nil,nil; return nil end
     local y=math.rad(yaw)
     local c,s=math.cos(y),math.sin(y)
     local fwd,right=vx*c+vy*s,-vx*s+vy*c -- UE's right vector for yaw y is (-sin y, cos y)
@@ -55,6 +56,7 @@ function Strafe.pick(st,vx,vy,yaw,cfg)
 end
 
 local function is_playing(ai,m) return ai:Montage_IsPlaying(m) end
+local function current(ai) return ai:GetCurrentActiveMontage() end
 
 -- The engine part. g: gun mode's helpers (log, valid, asset). tick(p,active,now) once a frame: active is hip fire on
 -- the ground with nothing else owning her legs. hold(ai,m): the hip-fire turn clip just played; the strafe gives way
@@ -67,7 +69,8 @@ function Strafe.new(g,cfg)
     local SLOT -- FName('DefaultSlot'), made once
     local missing={}
 
-    function self.stop()
+    -- the strafe montage stopped (its own end: the turn clip it gives way to is kept)
+    local function halt()
         if m and g.valid(ai) then
             local mm,a=m,ai
             pcall(function() a:Montage_Stop(cfg.strafe_blend,mm) end)
@@ -75,39 +78,52 @@ function Strafe.new(g,cfg)
         clip,m,ai,rate=nil,nil,nil,nil
         st.sec,st.run=nil,nil
     end
+    -- disable, new controller: the turn clip it was waiting on is forgotten too
+    function self.stop() halt(); turn_ai,turn_m=nil,nil end
+    -- whether a montage other than the strafe's own plays on her (a dodge, a hit, a shot, the turn step): the strafe
+    -- gives way to it and never plays over it
+    local function other(a)
+        local ok,cur=pcall(current,a)
+        if not (ok and g.valid(cur)) or cur==m then return false end
+        local ok2,r=pcall(is_playing,a,cur)
+        return ok2 and r==true
+    end
 
     function self.hold(a,mm) turn_ai,turn_m=a,mm end
 
     function self.playing() return clip end
 
     function self.tick(p,active,now)
-        if turn_m then
+        if turn_m and g.valid(turn_ai) and g.valid(turn_m) then
             local ok,r=pcall(is_playing,turn_ai,turn_m)
             if ok and r==true then active=false else turn_ai,turn_m=nil,nil end
-        end
-        if not active then if clip then self.stop() end; return end
+        else turn_ai,turn_m=nil,nil end
+        if not active then if clip then halt() end; return end
         local v=p:GetVelocity()
         local path,k=Strafe.pick(st,v.X,v.Y,p:K2_GetActorRotation().Yaw,cfg)
-        if not path then if clip then self.stop() end; return end
+        if not path then if clip then halt() end; return end
         -- the game may stop the montage (its own moves, stance changes): checked four times a second, played again
         if m and now-(seen_at or 0)>=0.25 then
             seen_at=now
-            local ok,r=pcall(is_playing,ai,m)
+            local ok,r=false,nil
+            if g.valid(ai) and g.valid(m) then ok,r=pcall(is_playing,ai,m) end
             if not (ok and r==true) then clip,m=nil,nil end
         end
         if path~=clip then
+            local a=p.Mesh:GetAnimInstance()
+            if not g.valid(a) or other(a) then if clip then halt() end; return end
             local seq=g.asset(path)
             if not seq then
                 if not missing[path] then missing[path]=true; g.log('strafe: no '..path) end
                 return
             end
             if m and g.valid(ai) then local mm,a=m,ai; pcall(function() a:Montage_Stop(cfg.strafe_blend,mm) end) end
-            ai=p.Mesh:GetAnimInstance()
+            ai=a
             SLOT=SLOT or FName('DefaultSlot')
             m=ai:PlaySlotAnimationAsDynamicMontage(seq,SLOT,cfg.strafe_blend,cfg.strafe_blend,k,Strafe.LOOPS,-1,0)
             clip,rate,seen_at=path,k,now -- (a failed play is not tried again until the clip changes)
             if not m and not missing[path] then missing[path]=true; g.log('strafe: '..path..' did not play') end
-        elseif m and math.abs(k-rate)>0.05 then
+        elseif m and g.valid(ai) and g.valid(m) and math.abs(k-rate)>0.05 then
             ai:Montage_SetPlayRate(m,k); rate=k
         end
     end

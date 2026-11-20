@@ -31,7 +31,7 @@ Config.DEFAULTS={
     -- hip fire's strafe (fight/gunmode/strafe.lua): while she moves, the pak's rifle walk or run clip of her move's direction
     -- (Animation/NGM, 8 ways) loops on her DefaultSlot while she keeps facing the aim. false: her stance's legs as before
     strafe=true,
-    strafe_min=40, -- cm/s: below this ground speed no strafe clip plays (her stance's idle)
+    strafe_min=40,strafe_min_hyst=10, -- cm/s: below this ground speed no strafe clip plays (her stance's idle)
     strafe_hyst=10, -- deg: her move must be this far past a sector's 22.5 deg half-width before the clip changes way
     strafe_run_at=260, -- cm/s: the run clips from this ground speed, the walk clips below it
     strafe_run_hyst=30, -- cm/s: run from strafe_run_at+this up, back to walk below strafe_run_at-this
