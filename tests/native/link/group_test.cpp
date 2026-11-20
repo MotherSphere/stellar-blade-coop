@@ -430,6 +430,9 @@ int main() {
     m.round();
     assert(sent_from(kMe, kFriend, v("spot 5 100 -200 300 90")) == 1 && sent_from(kMe, kPlayer[2], v("spot")) == 0);
     assert(m.status(1).find("\nspot=5 100 -200 300 90\n") != npos && m.status(2).find("\nspot=") == npos);
+    m.tick(0, "spot 1 100 -200 300 90"); // Answered already: her spot? no longer waits.
+    m.round();
+    assert(saw("P1: spot line not sent: nobody asked for it") && sent_from(kMe, kFriend, v("spot 5")) == 1);
     m.tick(0, "spot? 9 " + id(kPlayer[2]));
     m.round();
     assert(sent_from(kMe, kPlayer[2], v("spot? 9")) == 1 && sent_from(kMe, kFriend, v("spot? 9")) == 0);
@@ -442,9 +445,12 @@ int main() {
     // A guest takes a spot? from the host only, an answer only from the member she asked with her last id.
     inbox(2, kChannel).push_back({kFriend, v("spot? 3")});
     inbox(1, kChannel).push_back({kMe, v("spot 6 1 2 3 4")});
+    inbox(1, kChannel).push_back({kPlayer[2], v("spot 7 1 2 3 4")}); // Her last id, from a member she did not ask.
     m.round();
     assert(saw("P3: dropped a spot line from P2: a request not from the host") &&
-           saw("P2: dropped a spot line from P1: not the id of our last request"));
+           saw("P2: dropped a spot line from P1: not the id of our last request") &&
+           saw("P2: dropped a spot line from P3: an answer from a member we did not ask") &&
+           m.status(1).find("\nspot=") == npos);
     m.tick(1, "leave");
     rounds(m, 2000);
     assert(m.status(0).find("\nspot?=") == npos && m.status(1).find("\nspot=") == npos);

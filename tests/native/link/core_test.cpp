@@ -2559,6 +2559,34 @@ int main() {
     assert(!t.a.linked() && !t.b.linked());
     assert(status(t.a).find("camps") == std::string::npos && status(t.b).find("camps") == std::string::npos);
   }
+  // The spot lines (online/group/travel.lua) belong to one session: B's spot? and A's answer show in both statuses.
+  // After B leaves and joins again, neither shows a spot line.
+  reset();
+  {
+    Two t;
+    F.names[kMe] = "Me";
+    assert(t.a.ready(L"SB.exe") == Link::Ready::now && t.b.ready(L"SB.exe") == Link::Ready::now);
+    t.tick(t.a, 50, "host");
+    finish_all();
+    t.tick(t.a, 50);
+    t.tick(t.b, 50, "join 5000");
+    finish_all();
+    assert(settle(t));
+    const auto status = [](const Link &l) { return l.status(Counters{}); };
+    t.tick(t.b, 50, "spot? 1 " + std::to_string(kMe));
+    t.tick(t.a, 50);
+    assert(status(t.a).find("\nspot?=1\n") != std::string::npos);
+    t.tick(t.a, 50, "spot 1 10 20 30 40");
+    t.tick(t.b, 50);
+    assert(status(t.b).find("\nspot=1 10 20 30 40\n") != std::string::npos);
+    t.tick(t.b, 50, "leave");
+    t.tick(t.a, 600);
+    assert(!t.a.linked() && !t.b.linked());
+    t.tick(t.b, 50, "join 5000");
+    finish_all();
+    assert(settle(t));
+    assert(status(t.a).find("\nspot") == std::string::npos && status(t.b).find("\nspot") == std::string::npos);
+  }
 
   // Our life= line and her life for the shared fight's job (mate_life()). life=<state> <hp> comes from our last vitals
   // read while a chat session holds and that read is under 3 s old (a load reads none), before the notices. Hers is
