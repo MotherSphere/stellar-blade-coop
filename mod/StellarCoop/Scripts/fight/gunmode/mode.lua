@@ -1387,7 +1387,7 @@ function GunMode.new(env)
             end
             -- the game stops montages when its stances change (its aim among them): the clip is checked four times a
             -- second and played again when it was stopped
-            -- v2: the rifle-first solver places the rifle and puts both hands on it (fight/gunmode/ik.lua)
+            -- The rifle-first solver places the rifle and puts both hands on it (fight/gunmode/ik.lua)
             s.ik=s.ik or require('fight.gunmode.ik').new(g)
             local ppi=g.try(function() return mesh:GetPostProcessInstance() end)
             local mode_ik=(want=='aim') and 'aim' or ((want=='carry' or want=='reload') and 'carry' or 'off')
