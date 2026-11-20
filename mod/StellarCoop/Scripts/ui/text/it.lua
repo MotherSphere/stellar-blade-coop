@@ -14,6 +14,7 @@ return {
         leave_key='Lascia la sessione',photo_sync='Modalità foto sincronizzata',photo_freeze_max='Pausa massima',
         photo_ghost='Fantasma nelle mie foto',photo_name_tag='Nome nelle mie foto',name_tag='Nome sopra la testa',
         cloth='Fisica della coda di cavallo',dyes='Colori della tenuta',effects='Effetti degli attacchi',
+        drone='Il suo drone',sounds='I suoi suoni',faces='Volto e forme',
         send_rate='Pose inviate al secondo',shared_enemies='Nemici condivisi (sperimentale)',
         ui_scale='Dimensione del menu',ui_sounds='Suoni del menu',ui_language='Lingua del menu',
         partner_bar='Indicatore PS',partner_arrow='Freccia fuori schermo',partner_card='Scheda del partner',

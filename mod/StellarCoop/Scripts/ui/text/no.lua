@@ -13,6 +13,7 @@ return {
         leave_key='Forlat økten',photo_sync='Fotosynkronisering',photo_freeze_max='Lengste pause',
         photo_ghost='Spøkelse på bildene mine',photo_name_tag='Navneskilt på bildene mine',name_tag='Navneskilt',
         cloth='Hestehalefysikk',dyes='Antrekksfarger',effects='Angrepseffekter',
+        drone='Hennes drone',sounds='Hennes lyder',faces='Ansikt og former',
         send_rate='Positurer sendt per sekund',shared_enemies='Delte fiender (eksperimentelt)',
         ui_scale='Menystørrelse',ui_sounds='Menylyder',ui_language='Menyspråk',partner_bar='HP-markør',
         partner_arrow='Pil utenfor skjermen',partner_card='Partnerkort',card_details='Ping og område på kortet',

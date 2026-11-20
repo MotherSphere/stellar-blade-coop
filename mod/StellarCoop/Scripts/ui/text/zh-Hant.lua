@@ -11,6 +11,7 @@ return {
         menu_key='開啟此選單',host_key='立即建立房間',status_key='顯示狀態',leave_key='離開房間',
         photo_sync='相片同步',photo_freeze_max='最長暫停時間',photo_ghost='相片中顯示幻影',
         photo_name_tag='相片中顯示名稱標籤',name_tag='名稱標籤',cloth='馬尾擺動',dyes='服裝顏色',effects='攻擊特效',
+        drone='她的無人機',sounds='她的聲音',faces='臉部與形態鍵',
         send_rate='每秒傳送姿勢數',shared_enemies='共享敵人（實驗性）',ui_scale='選單大小',ui_sounds='選單音效',
         ui_language='選單語言',partner_bar='生命值標記',partner_arrow='畫面外箭頭',partner_card='隊友資訊卡',
         card_details='資訊卡顯示延遲與地圖',who_can_join='誰可以加入',friends_ask='好友無需詢問即可加入',

@@ -14,6 +14,7 @@ return {
         leave_key='Salir de la sesión',photo_sync='Modo fotografía sincronizado',photo_freeze_max='Pausa más larga',
         photo_ghost='Fantasma en mis fotos',photo_name_tag='Nombre en mis fotos',name_tag='Nombre sobre la cabeza',
         cloth='Física de la coleta',dyes='Colores del atuendo',effects='Efectos de ataque',
+        drone='Su dron',sounds='Sus sonidos',faces='Cara y formas',
         send_rate='Poses enviadas por segundo',shared_enemies='Compartir enemigos (experimental)',
         ui_scale='Tamaño del menú',ui_sounds='Sonidos del menú',ui_language='Idioma del menú',
         partner_bar='Marcador de salud',partner_arrow='Flecha fuera de pantalla',partner_card='Tarjeta del compañero',

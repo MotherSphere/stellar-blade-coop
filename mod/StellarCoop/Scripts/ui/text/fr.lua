@@ -14,6 +14,7 @@ return {
         photo_ghost='Fantôme sur mes photos',photo_name_tag='Nom sur mes photos',photo_pause='Pause photo (expérimental)',
         name_tag='Nom au-dessus',
         cloth='Queue de cheval',dyes='Couleurs de tenue',effects="Effets d'attaque",
+        drone='Son drone',sounds='Ses sons',faces='Visage et formes',
         send_rate='Poses envoyées par seconde',shared_enemies='Ennemis partagés (expérimental)',
         ui_scale='Taille du menu',ui_sounds='Sons du menu',ui_language='Langue du menu',partner_bar='Marqueur de vie',
         partner_arrow='Flèche hors écran',partner_card='Fiche du partenaire',card_details='Ping et zone sur la fiche',

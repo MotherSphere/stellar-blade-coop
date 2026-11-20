@@ -12,6 +12,7 @@ return {
         photo_sync='拍照同步',photo_freeze_max='最长暂停时间',photo_ghost='照片中显示幽灵',
         photo_name_tag='照片中显示名字标签',name_tag='名字标签',cloth='马尾摆动',dyes='服装颜色',
         effects='攻击特效',send_rate='每秒发送姿势数',shared_enemies='共享敌人（实验性）',
+        drone='她的无人机',sounds='她的声音',faces='面部与形态键',
         ui_scale='菜单大小',ui_sounds='菜单音效',ui_language='菜单语言',partner_bar='生命值标记',
         partner_arrow='屏幕外箭头',partner_card='队友卡片',card_details='卡片显示延迟和地图',
         who_can_join='谁可以加入',friends_ask='好友无需询问即可加入',

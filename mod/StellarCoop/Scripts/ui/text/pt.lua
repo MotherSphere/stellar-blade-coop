@@ -14,6 +14,7 @@ return {
         leave_key='Sair da sessão',photo_sync='Modo Fotografia sincronizado',photo_freeze_max='Pausa mais longa',
         photo_ghost='Fantasma nas minhas fotos',photo_name_tag='Nome nas minhas fotos',name_tag='Nome sobre a cabeça',
         cloth='Física do rabo de cavalo',dyes='Cores da roupa',effects='Efeitos de ataque',
+        drone='O drone dela',sounds='Os sons dela',faces='Rosto e formas',
         send_rate='Poses enviadas por segundo',shared_enemies='Partilhar inimigos (experimental)',
         ui_scale='Tamanho do menu',ui_sounds='Sons do menu',ui_language='Idioma do menu',partner_bar='Marcador de PV',
         partner_arrow='Seta fora do ecrã',partner_card='Cartão do parceiro',card_details='Ping e zona no cartão',

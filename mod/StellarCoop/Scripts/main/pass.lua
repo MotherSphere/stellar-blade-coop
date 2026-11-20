@@ -117,7 +117,7 @@ if M.link then
             -- The host's cutscene rides the photo state as 'c', and the guest asks for its pause
             -- (online/group/group.lua).
             local line=M.link.state(world,M.settings.send_rate,M.group.photo(photo) or photo,M.settings.photo_sync,
-                M.settings.photo_freeze_max,title,M.group.cut(),M.settings.mod_names)
+                M.settings.photo_freeze_max,title,M.group.cut(),M.settings.mod_names,M.look.sounds)
             if line then log('state: '..line) end
             local shown=world~=nil and world~=false and not own -- Our HUD: in a world, out of our own photos.
             M.hud_shown=shown
@@ -185,7 +185,7 @@ if M.link then
             -- check of the SBO session records at each title visit still runs then (design-lobby 12.8).
             local world,title=M.guarded('ghost',require('core.where').world)
             local line=M.link.state(world,M.settings.send_rate,'0',M.settings.photo_sync,M.settings.photo_freeze_max,
-                title,false,M.settings.mod_names)
+                title,false,M.settings.mod_names,M.look.sounds)
             if line then log('state: '..line) end
         end
         -- Withdrawn when the ghost is off, coop off included.

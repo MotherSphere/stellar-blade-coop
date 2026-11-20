@@ -202,10 +202,11 @@ fake_link={
     end,
     settings=function() return Link.parse_settings(pinned(settings_text)) end,
     -- The real one writes on a change only (link_test): this one says each call.
-    state=function(world,rate,photo,sync,max,title,cut,names)
+    state=function(world,rate,photo,sync,max,title,cut,names,sounds)
         photos[#photos+1]=string.format('%s %s %s',photo,sync,max)
         gr.cuts[#gr.cuts+1]=cut
         state_names[#state_names+1]=names
+        state_sounds[#state_sounds+1]=sounds
         states[#states+1]=string.format('world=%s rate=%d',world and '1' or title and 'title' or '0',rate)
         return states[#states]
     end,
@@ -954,8 +955,9 @@ USAGE='Use: coop puppet | host [public|friends|invitation|closed] | invite | lis
     ..'unblock <SteamID>|all | blocked | leave | '
     ..'match search|create <mode>|cancel|end|join <code>|leave | mute|unmute <SteamID> | '
     ..'status | report | mark [text] | where | near [metres] | travel host | loopback '
-    ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
-    ..'on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | '
+    ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look '
+    ..'[cloth|dyes|effects|drone|sounds|faces on|off] | cns [reset] | wear [<name>|off [hair|suit]] | '
+    ..'scene [emil|orcal|stop] | lines [<name>|stop] | '
     ..'emote [list|<name>|off] | bike [status|tune [<name> <value>]] | gun [status] | '
     ..'no [heal|rule|spawnpt|actor] | '
     ..'nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | '
@@ -1002,6 +1004,7 @@ function load_main(with_native,no_folder,source)
     printed,handler,loops,asked,huds,sessions,ticks,active,withdrawn,captured,states={},nil,{},{},{},{},0,false,{},{},{}
     pausetabs,popup_asks={},{}
     state_names={} -- link.state's mod_names argument, each call.
+    state_sounds={} -- link.state's sounds look, each call.
     settles=0 -- link.settle() calls: the end of each 250 ms pass and the top of each frame.
     photos,veils,photo_veils={},{},{}
     queued,binds,the_notice,probe,probe_runs,probe_ticks={},{},nil,nil,{},0

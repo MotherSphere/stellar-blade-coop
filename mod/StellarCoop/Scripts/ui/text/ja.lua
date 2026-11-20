@@ -13,6 +13,7 @@ return {
         photo_sync='フォトモード同期',photo_freeze_max='一時停止の上限',photo_ghost='写真にゴーストを写す',
         photo_name_tag='写真にネームタグを写す',name_tag='ネームタグ',cloth='ポニーテールの揺れ',dyes='衣装の色',
         effects='攻撃エフェクト',send_rate='毎秒のモーション送信数',shared_enemies='敵の共有（実験的）',
+        drone='彼女のドローン',sounds='彼女のサウンド',faces='表情とシェイプキー',
         ui_scale='メニューのサイズ',ui_sounds='メニューの効果音',ui_language='メニューの言語',partner_bar='HPマーカー',
         partner_arrow='画面外の矢印',partner_card='パートナーカード',card_details='カードにPingとマップを表示',
         who_can_join='参加できる人',friends_ask='フレンドは確認なしで参加',

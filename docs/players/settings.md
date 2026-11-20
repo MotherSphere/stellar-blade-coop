@@ -58,8 +58,9 @@ name_tag=on
 # Poses sent to your friend a second: 10 to 60.
 send_rate=60
 # What the ghost shows, each on or off and on unless set here: cloth (her ponytail swings as in solo; it sends
-# nothing), dyes (hair colours and material variants) and effects (her attack and skill effects). dyes and effects off
-# also stop sending yours.
+# nothing), dyes (hair colours and material variants), effects (her attack and skill effects), drone (her drone),
+# sounds (her steps, voice, swings and hits) and faces (her eyes, face and shape keys). Each one but cloth also stops
+# sending yours when off.
 # For example: dyes=off
 # Shared enemies, experimental: on or off. On, the enemies you and your friend both fight share one HP bar and one
 # death, while both of you play a co-op save. fight_chars: auto (every common enemy, and with bosses=on the bosses
@@ -229,6 +230,9 @@ hide_popups=on
 | `cloth` | `on` or `off`: her ponytail as cloth on the ghost you see | `on` |
 | `dyes` | `on` or `off` | `on` |
 | `effects` | `on` or `off` | `on` |
+| `drone` | `on` or `off`: her drone beside the ghost you see. Off also stops sending yours | `on` |
+| `sounds` | `on` or `off`: her steps, voice, swings and hits played where her game played them. Off also stops sending yours | `on` |
+| `faces` | `on` or `off`: her eyes, face and shape keys move on the ghost you see. Off also stops sending yours | `on` |
 | `shared_enemies` | `on` or `off`: [shared enemies](../fight/enemies.md#shared-enemies-experimental), experimental | `on` |
 | `fight_chars` | `auto` (every common enemy), or at most 16 enemy character ids, whole numbers separated by spaces | `auto` |
 | `guest_kills` | `at_once` or `confirmed`: as the guest, whether an enemy your hit kills dies at once on your screen or waits for the host's game (see [shared enemies](../fight/enemies.md#shared-enemies-experimental)) | `at_once` |
@@ -310,6 +314,9 @@ Rules:
   comment, which the same versions wrote: `on` and `compact`. The old ghost comment, which said `dyes` and `effects`
   are off unless set, is replaced too. The mod keeps the file as it was as `coop-settings.old.txt` and logs a
   `[StellarCoop] settings:` line. An `off` set after that stays.
+- A file written by 0.11.0 has a ghost comment that does not name `drone`, `sounds` and `faces`. The mod writes the new
+  comment once, keeps the file as it was as `coop-settings.old.txt` and logs `[StellarCoop] settings: the comments in
+  coop-settings.txt now read as this version writes them; no setting changed`.
 - The `[StellarCoop] keys:` line gives the keys in use, the name tag and the send rate, for example
   `keys: menu=F5 host=none status=F6 leave=F8 race=F9, name tag on, 60 poses a second`. Another line says when a mod
   loaded earlier binds the same key; both actions then run. The `[StellarCoop] photo sync:` line gives the photo

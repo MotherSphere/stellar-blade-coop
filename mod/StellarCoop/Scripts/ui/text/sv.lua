@@ -14,6 +14,7 @@ return {
         leave_key='Lämna sessionen',photo_sync='Synkat fotoläge',photo_freeze_max='Längsta paus',
         photo_ghost='Spöket på mina foton',photo_name_tag='Namnskylt på mina foton',name_tag='Namnskylt',
         cloth='Hästsvansens fysik',dyes='Dräktfärger',effects='Attackeffekter',send_rate='Poser per sekund',
+        drone='Hennes drönare',sounds='Hennes ljud',faces='Ansikte och former',
         shared_enemies='Delade fiender (experimentell)',ui_scale='Menystorlek',ui_sounds='Menyljud',
         ui_language='Menyspråk',partner_bar='Hälsomarkör',partner_arrow='Pil utanför skärmen',
         partner_card='Medspelarkort',card_details='Ping och område på kortet',who_can_join='Vem kan gå med',

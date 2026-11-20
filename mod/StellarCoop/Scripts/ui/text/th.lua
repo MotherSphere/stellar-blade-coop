@@ -13,6 +13,7 @@ return {
         photo_sync='ซิงค์โหมดถ่ายภาพ',photo_freeze_max='หยุดชั่วคราวได้นานสุด',photo_ghost='ร่างจำลองในภาพของฉัน',
         photo_name_tag='ป้ายชื่อในภาพของฉัน',name_tag='ป้ายชื่อ',cloth='ฟิสิกส์ผมหางม้า',dyes='สีชุด',
         effects='เอฟเฟกต์การโจมตี',send_rate='ท่าทางที่ส่งต่อวินาที',shared_enemies='ศัตรูร่วม (ทดลอง)',
+        drone='โดรนของเธอ',sounds='เสียงของเธอ',faces='ใบหน้าและรูปทรง',
         ui_scale='ขนาดเมนู',ui_sounds='เสียงเมนู',ui_language='ภาษาเมนู',partner_bar='เครื่องหมาย HP',
         partner_arrow='ลูกศรนอกจอ',partner_card='การ์ดคู่หู',card_details='ปิงและแผนที่บนการ์ด',
         who_can_join='ใครเข้าร่วมได้',friends_ask='เพื่อนเข้าร่วมได้โดยไม่ต้องขอ',

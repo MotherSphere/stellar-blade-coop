@@ -13,6 +13,7 @@ return {
         photo_sync='Fotosynchronisatie',photo_freeze_max='Langste pauze',photo_ghost="Geest op mijn foto's",
         photo_name_tag="Naamlabel op mijn foto's",name_tag='Naamlabel',cloth='Bewegende paardenstaart',
         dyes='Outfitkleuren',effects='Aanvalseffecten',send_rate='Verzonden poses per seconde',
+        drone='Haar drone',sounds='Haar geluiden',faces='Gezicht en vormen',
         shared_enemies='Gedeelde vijanden (experimenteel)',ui_scale='Formaat menu',ui_sounds='Menugeluiden',
         ui_language='Taal menu',partner_bar='HP-markering',partner_arrow='Pijl buiten beeld',partner_card='Partnerinfo',
         card_details='Ping en gebied in partnerinfo',who_can_join='Wie mag meedoen',

@@ -14,6 +14,7 @@ return {
         photo_sync='مزامنة وضع الصور',photo_freeze_max='أطول إيقاف مؤقت',photo_ghost='الشبح في صوري',
         photo_name_tag='الاسم في صوري',name_tag='الاسم فوق الرأس',cloth='حركة ذيل الحصان',dyes='ألوان الزي',
         effects='تأثيرات الهجوم',send_rate='الوضعيات المرسلة في الثانية',shared_enemies='مشاركة الأعداء (تجريبي)',
+        drone='طائرتها المسيّرة',sounds='أصواتها',faces='الوجه والأشكال',
         ui_scale='حجم القائمة',ui_sounds='أصوات القائمة',ui_language='لغة القائمة',partner_bar='مؤشر نقاط الصحة',
         partner_arrow='سهم خارج الشاشة',partner_card='بطاقة الشريك',card_details='البينغ والخريطة في البطاقة',
         who_can_join='من يمكنه الانضمام',friends_ask='ينضم الأصدقاء دون سؤال',

@@ -61,7 +61,8 @@ M.OPTIONS={
     reload(toggle('name_tag','on')),toggle('partner_bar','on'),toggle('partner_arrow','on'),toggle('partner_card','on'),
     toggle('card_details','on'), -- Ping and the friend's map on the card.
     {head='ghost'},
-    toggle('cloth','on'),toggle('dyes','on'),toggle('effects','on'),
+    toggle('cloth','on'),toggle('dyes','on'),toggle('effects','on'),toggle('drone','on'),toggle('sounds','on'),
+    toggle('faces','on'),
     toggle('collide','on'), -- Yours, at once: the solid partner (online/partner/puppet.lua).
     range('send_rate',10,60,5,60), -- 5 a step.
     {head='session'},

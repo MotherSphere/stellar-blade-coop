@@ -74,7 +74,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop puppet` | Turn the ghost on or off by hand |
 | `coop basesuit` | Draw the ghost's body and hair on the base suit, or back on her own meshes |
 | `coop look` | Show which looks are on |
-| `coop look <cloth\|dyes\|effects> <on\|off>` | Turn one look on or off until the mod reloads |
+| `coop look <cloth\|dyes\|effects\|drone\|sounds\|faces> <on\|off>` | Turn one look on or off until the mod reloads |
 | `coop cns` | Show whether the ghost's CNS part is on and which mod assets the crash sentinel set aside |
 | `coop cns reset` | Clear the set-aside list, turn the CNS part on again and build the ghost again |
 | `coop wear [<name>\|off [hair\|suit]]` | Put a [cut hair or suit](eve/eve.md#cut-hairs-and-suits-coop-wear) on your EVE (display only, untested in game), or give the game's back |
@@ -189,8 +189,9 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 - `coop basesuit` draws the body and hair on the base suit whatever the table names, and rebuilds the ghost. Run it
   again to go back to each part's own mesh.
 - `coop look` with no arguments prints the same `look:` line that each load logs, for example
-  `look: cloth=on dyes=off effects=off`. `coop look <cloth|dyes|effects> <on|off>` changes one look until the mod
-  reloads (game start or Ctrl+R) and rebuilds the ghost. It does not change `coop-settings.txt`. See [Looks](online/partner.md#looks).
+  `look: cloth=on dyes=off effects=off drone=on sounds=on faces=on`.
+  `coop look <cloth|dyes|effects|drone|sounds|faces> <on|off>` changes one look until the mod reloads (game start or
+  Ctrl+R) and rebuilds the ghost. It does not change `coop-settings.txt`. See [Looks](online/partner.md#looks).
 - `coop cns` prints one line: `CNS part on` (or `off (<error>)`), then the mod assets set aside after a crash, each with
   its outfit, or `none`. `coop cns reset` clears both and builds the ghost again. See [When a mod asset
   fails](online/partner.md#when-a-mod-asset-fails).

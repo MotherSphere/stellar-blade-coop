@@ -13,6 +13,7 @@ return {
         photo_sync='포토 모드 동기화',photo_freeze_max='최대 일시 정지 시간',photo_ghost='내 사진에 고스트 표시',
         photo_name_tag='내 사진에 이름표 표시',name_tag='이름표',cloth='포니테일 흔들림',dyes='의상 색상',
         effects='공격 효과',send_rate='초당 포즈 전송 수',shared_enemies='적 공유 (실험)',
+        drone='그녀의 드론',sounds='그녀의 소리',faces='얼굴과 셰이프 키',
         ui_scale='메뉴 크기',ui_sounds='메뉴 효과음',ui_language='메뉴 언어',partner_bar='생명력 표시',
         partner_arrow='화면 밖 화살표',partner_card='파트너 카드',card_details='카드에 핑과 맵 표시',
         who_can_join='참가 가능 대상',friends_ask='친구는 묻지 않고 참가',

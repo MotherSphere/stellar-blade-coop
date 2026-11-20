@@ -15,6 +15,7 @@ return {
         leave_key='Sitzung verlassen',photo_sync='Synchroner Fotomodus',photo_freeze_max='Längste Pause',
         photo_ghost='Geist auf meinen Fotos',photo_name_tag='Namensschild auf meinen Fotos',name_tag='Namensschild',
         cloth='Pferdeschwanz-Physik',dyes='Outfit-Farben',effects='Angriffseffekte',send_rate='Posen pro Sekunde',
+        drone='Ihre Drohne',sounds='Ihre Geräusche',faces='Gesicht und Formen',
         shared_enemies='Gemeinsame Gegner (experimentell)',ui_scale='Menügröße',ui_sounds='Menütöne',
         ui_language='Menüsprache',partner_bar='LP-Anzeige',partner_arrow='Pfeil am Bildschirmrand',
         partner_card='Partner-Infokarte',card_details='Infokarte: Ping und Gebiet',who_can_join='Wer darf beitreten',

@@ -14,6 +14,7 @@ return {
         leave_key='Покинуть сессию',photo_sync='Синхронный фоторежим',photo_freeze_max='Максимальная пауза',
         photo_ghost='Призрак на моих фото',photo_name_tag='Имя на моих фото',name_tag='Имя над головой',
         cloth='Физика хвоста',dyes='Цвета костюма',effects='Эффекты атак',send_rate='Отправляемых поз в секунду',
+        drone='Её дрон',sounds='Её звуки',faces='Лицо и формы',
         shared_enemies='Общие враги (эксперимент)',ui_scale='Размер меню',ui_sounds='Звуки меню',
         ui_language='Язык меню',partner_bar='Индикатор ОЗ',partner_arrow='Стрелка за краем экрана',
         partner_card='Карточка партнера',card_details='Пинг и локация на карточке',

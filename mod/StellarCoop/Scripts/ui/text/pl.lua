@@ -14,6 +14,7 @@ return {
         leave_key='Opuść sesję',photo_sync='Wspólny tryb fotograficzny',photo_freeze_max='Najdłuższa pauza',
         photo_ghost='Duch na moich zdjęciach',photo_name_tag='Nazwa na moich zdjęciach',name_tag='Nazwa nad głową',
         cloth='Fizyka kucyka',dyes='Kolory stroju',effects='Efekty ataków',send_rate='Pozy wysyłane na sekundę',
+        drone='Jej dron',sounds='Jej dźwięki',faces='Twarz i kształty',
         shared_enemies='Wspólni wrogowie (eksperyment)',ui_scale='Rozmiar menu',ui_sounds='Dźwięki menu',
         ui_language='Język menu',partner_bar='Znacznik PŻ',partner_arrow='Strzałka poza ekranem',
         partner_card='Karta partnera',card_details='Ping i mapa na karcie',who_can_join='Kto może dołączyć',

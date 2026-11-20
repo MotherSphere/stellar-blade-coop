@@ -646,6 +646,20 @@ assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for clo
     and s.cloth==true,notes[1])
 s,notes=Link.parse_settings('dyes=maybe')
 assert(#notes==1 and notes[1]:find('; dyes stays on$') and s.dyes==true,notes[1])
+-- Her drone, her sounds and her face and shape keys: looks too, on unless set. A file with the comment 0.11 wrote gets
+-- the one that names them.
+s=Link.parse_settings('')
+assert(s.drone==true and s.sounds==true and s.faces==true,'drone, sounds and faces are on by default')
+s,notes=Link.parse_settings('DRONE=Off\nsounds=OFF\n')
+assert(#notes==0 and s.drone==false and s.sounds==false and s.faces==true)
+s,notes=Link.parse_settings('faces=maybe')
+assert(#notes==1 and notes[1]:find('; faces stays on$') and s.faces==true,notes[1])
+local OLD_GHOST="# What the ghost shows, each on or off and on unless set here: cloth (her ponytail swings as in solo; "
+    .."it sends\n# nothing), dyes (hair colours and material variants) and effects (her attack and skill effects). "
+    .."dyes and effects off\n# also stop sending yours.\n# For example: dyes=off"
+assert(Link.migrate_off('send_rate=60\n'..OLD_GHOST..'\n'):find('faces (her eyes, face and shape keys)',1,true),
+    'a file with the old comment gets the new one')
+assert(Link.DEFAULT:find('faces (her eyes, face and shape keys)',1,true))
 -- The shared enemies (Phase 11, experimental): shared_enemies on or off, on by default; fight_chars auto (the default:
 -- every common enemy, an empty list for the native part) or at most 16 whole character ids from 1 to 2^32-1 separated
 -- by spaces. An empty value is auto too: the files written before auto said fight_chars= and shared nothing. A bad
@@ -1104,6 +1118,11 @@ assert(link.state(true,60,'0','both',600,nil,false,false)=='world=1 rate=60 phot
 assert(link.state(true,60,'0','both',600,nil,false,true)=='world=1 rate=60 photo=0 sync=both max=600')
 assert(link.state(false,60,'c','notice',3600,true,true,false)
     =='world=title rate=60 photo=c sync=notice max=3600 cut=1 names=0' and #files[STATE_FILE]<=80)
+-- sounds=off: sounds=0 last (the native part then records and plays no sound); on (true or not given) adds nothing.
+assert(link.state(true,60,'0','both',600,nil,nil,nil,false)=='world=1 rate=60 photo=0 sync=both max=600 sounds=0')
+assert(link.state(true,60,'0','both',600,nil,nil,nil,true)=='world=1 rate=60 photo=0 sync=both max=600')
+assert(link.state(false,60,'c','notice',3600,true,true,false,false)
+    =='world=title rate=60 photo=c sync=notice max=3600 cut=1 names=0 sounds=0' and #files[STATE_FILE]<=80)
 fs.write=write
 
 -- Notices: numbered by the native part for its run; a Lua load only shows those that come after its first look.
@@ -1744,9 +1763,11 @@ do
     end
     old=swap(old,'on or off, on by\n# default, not tested in game yet.',
         'on or off, off\n# until it has been tested in game.')
-    old=swap(old,"# What the ghost shows, each on or off and on unless set here: cloth (her ponytail swings as in "
-        .."solo; it sends\n# nothing), dyes (hair colours and material variants) and effects (her attack and skill "
-        .."effects). dyes and effects off\n# also stop sending yours.\n# For example: dyes=off",
+    local NEW_GHOST="# What the ghost shows, each on or off and on unless set here: cloth (her ponytail swings as in "
+        .."solo; it sends\n# nothing), dyes (hair colours and material variants), effects (her attack and skill "
+        .."effects), drone (her drone),\n# sounds (her steps, voice, swings and hits) and faces (her eyes, face and "
+        .."shape keys). Each one but cloth also stops\n# sending yours when off.\n# For example: dyes=off"
+    old=swap(old,NEW_GHOST,
         "# What the ghost shows, each on or off: cloth (her ponytail swings as in solo; on unless set here, and it "
         .."sends\n# nothing), dyes (hair colours and material variants) and effects (her attack and skill effects), "
         .."both off unless set\n# here. dyes and effects off also stop sending yours.\n# For example: dyes=on")
@@ -1775,6 +1796,18 @@ do
         notes[1])
     s,notes=require('core.link').new('C:\\Mod',fs).settings()
     assert(s.revive and #notes==0,'Once only')
+    -- A file 0.11 wrote: only its ghost comment changes, an off look stays, the line claims no setting.
+    files[SETTINGS],files[OLD_FILE]=swap(Link.DEFAULT,NEW_GHOST,OLD_GHOST)..'faces=off\n',nil
+    s,notes=require('core.link').new('C:\\Mod',fs).settings()
+    assert(files[SETTINGS]==Link.DEFAULT..'faces=off\n' and s.faces==false and #notes==1
+        and notes[1]=='settings: the comments in coop-settings.txt now read as this version writes them; no setting '
+        ..'changed',notes[1])
+    fs.write=function() return false end
+    files[SETTINGS],files[OLD_FILE]=swap(Link.DEFAULT,NEW_GHOST,OLD_GHOST),nil
+    s,notes=require('core.link').new('C:\\Mod',fs).settings()
+    assert(#notes==1 and notes[1]:find('^settings: the comments in coop%-settings%.txt kept as they were %(not '
+        ..'rewritten: '),notes[1])
+    fs.write=write
     files[SETTINGS],files[OLD_FILE]=nil,nil
 end
 -- The real read: no such file gives nil with errno 2 (coop-records.txt tells it from a file it cannot open).

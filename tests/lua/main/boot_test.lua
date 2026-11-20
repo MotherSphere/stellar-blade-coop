@@ -53,7 +53,8 @@ assert(said[#said]=='Kaanta is in b07, you are in e04.','No UI root yet: on the 
 assert(chat_new[1]==nil and chat_new[2]==true,'The chat on, as the settings say; 50 lines')
 for k,line in ipairs(printed) do
     if line:find('keys: menu=',1,true) then
-        assert(printed[k+1]=='[StellarCoop] look: cloth=on dyes=off effects=off\n','Right after the keys')
+        assert(printed[k+1]=='[StellarCoop] look: cloth=on dyes=off effects=off drone=on sounds=on faces=on\n',
+            'Right after the keys')
         assert(printed[k+2]=='[StellarCoop] shared enemies: on (experimental), fight_chars auto, same place off '
             ..'(experimental), same spawns off (experimental), extra enemies 0, bosses off (experimental), boss HP '
             ..'200 %, spawn filter off (experimental)\n',printed[k+2])
@@ -61,8 +62,9 @@ for k,line in ipairs(printed) do
             ..'tag off\n',printed[k+3])
     end
 end
-assert(look.cloth==true and look.dyes==false and look.effects==false,
-    'Cloth on unless the settings say off, dyes and effects as fixture.lua reads them (off)')
+assert(look.cloth==true and look.dyes==false and look.effects==false and look.drone==true and look.sounds==true
+    and look.faces==true,'Cloth, drone, sounds and faces on unless the settings say off, dyes and effects as fixture.lua '
+    ..'reads them (off)')
 assert(capture_look==look,'The capture holds the same table: dyes and effects off stop sending them')
 assert(logged('keys: F6 is also bound by a mod loaded earlier; both run') and not logged('keys: F5 is also bound')
     and not logged('keys: F8 is also bound'),'Checked before our own bind')
@@ -392,17 +394,19 @@ coop('basesuit'); assert(basesuits==1 and last():find('OK: base suit',1,true),la
 coop('where'); assert(wheres==1 and last():find('OK: where map=/game/e04',1,true),last())
 coop('cns','reset'); assert(cns_args=='reset' and last():find('OK: cns reset',1,true),last())
 -- coop look: what the ghost shows, changed in the table the ghost holds until the mod reloads, and the ghost built again.
-local LOOK_USE='[StellarCoop] STOP: Use: coop look [cloth|dyes|effects on|off]\n'
+local LOOK_USE='[StellarCoop] STOP: Use: coop look [cloth|dyes|effects|drone|sounds|faces on|off]\n'
 coop('look')
-assert(last()=='[StellarCoop] OK: look: cloth=on dyes=off effects=off (coop look <cloth|dyes|effects> <on|off> changes '
-    ..'one until the mod reloads: game start or Ctrl+R)\n',last())
+assert(last()=='[StellarCoop] OK: look: cloth=on dyes=off effects=off drone=on sounds=on faces=on (coop look '
+    ..'<cloth|dyes|effects|drone|sounds|faces> <on|off> changes one until the mod reloads: game start or Ctrl+R)\n',
+    last())
 assert(#rebuilds==0,'Only said')
 coop('look','cloth','off')
 assert(last()=='[StellarCoop] OK: Cloth off until the mod reloads (game start or Ctrl+R; coop-settings.txt unchanged); '
     ..'the ghost is built again.\n',
     last())
 assert(look.cloth==false and #rebuilds==1 and rebuilds[1]=='look','The ghost is removed, to be built without cloth')
-coop('look'); assert(last():find('OK: look: cloth=off dyes=off effects=off (',1,true),last())
+coop('look'); assert(last():find('OK: look: cloth=off dyes=off effects=off drone=on sounds=on faces=on (',1,true),
+    last())
 coop('look','cloth','on')
 assert(last()=='[StellarCoop] OK: Cloth on until the mod reloads (game start or Ctrl+R; coop-settings.txt unchanged); '
     ..'the ghost is built again.\n',
@@ -413,14 +417,14 @@ assert(last()=='[StellarCoop] OK: Dyes on until the mod reloads (game start or C
     ..'the ghost is built again.\n',
     last())
 assert(look.dyes==true and look.cloth==true and #rebuilds==3)
-coop('look'); assert(last():find('OK: look: cloth=on dyes=on effects=off (',1,true),last())
+coop('look'); assert(last():find('OK: look: cloth=on dyes=on effects=off drone=on sounds=on faces=on (',1,true),last())
 coop('look','dyes','off'); assert(look.dyes==false and #rebuilds==4,last())
 coop('look','effects','on')
 assert(last()=='[StellarCoop] OK: Effects on until the mod reloads (game start or Ctrl+R; coop-settings.txt unchanged); '
     ..'the ghost is built again.\n',
     last())
 assert(look.effects==true and look.cloth==true and look.dyes==false and #rebuilds==5)
-coop('look'); assert(last():find('OK: look: cloth=on dyes=off effects=on (',1,true),last())
+coop('look'); assert(last():find('OK: look: cloth=on dyes=off effects=on drone=on sounds=on faces=on (',1,true),last())
 coop('look','effects','off'); assert(look.effects==false and #rebuilds==6,last())
 for _,bad in ipairs({{'cloth'},{'cloth','maybe'},{'cloth','ON'},{'dyes'},{'effects'},{'face','on'},{'on'}}) do
     coop('look',table.unpack(bad))

@@ -1500,7 +1500,7 @@ inline Request parse_request(std::string text) {
 enum class Sync { off, notice, both };
 inline const char *sync_name(Sync s) { return s == Sync::both ? "both" : s == Sync::notice ? "notice" : "off"; }
 // coop-state.txt, from Lua: "world=<0|1|title> rate=<10..60> photo=<0|1|s|c> sync=<both|notice|off> max=<0|30..3600>",
-// then " cut=<0|1>" or nothing (0), then " names=<0|1>" or nothing (1).
+// then " cut=<0|1>" or nothing (0), then " names=<0|1>" or nothing (1), then " sounds=0" or nothing (on).
 struct State {
   bool world = false;    // A save is loaded (world=1): held invites wait for one.
   bool title = false;    // world=title: no save loaded, and a pawn stands on the title screen's map (the co-op saves).
@@ -1511,6 +1511,7 @@ struct State {
   uint32_t max = 600;    // photo_freeze_max: the longest pause the friend's photo mode holds us in, in s; 0: no cap.
   bool cut = false;      // The guest's cutscene_wait=on with the host's ghost on her map: the host's 'c' pauses us.
   bool names = true;     // mod_names: our mod containers go to the friend by name (the pak lines), on until Lua says.
+  bool sounds = true;    // The sounds look: ours recorded and the ghosts' played, on until Lua says sounds=0.
 };
 // One trailing \n or \r\n, at most kMaxState bytes; anything else is refused and changes nothing.
 constexpr size_t kMaxState = 80;
@@ -1522,16 +1523,20 @@ inline bool parse_state(const std::string &text, State &out) {
     line.resize(line.size() - 2);
   else if (!line.empty() && line.back() == '\n')
     line.pop_back();
-  std::string f[7];
+  std::string f[8];
   uint64_t rate = 0, max = 0;
-  size_t n = 7, at = 5; // Its words: five, then cut= and names= if there, in this order.
+  size_t n = 8, at = 5; // Its words: five, then cut=, names= and sounds=0 if there, in this order.
   while (n >= 5 && !split(line, f, n, nullptr))
     --n;
-  bool cut = false, names = true;
+  bool cut = false, names = true, sounds = true;
   if (at < n && (f[at] == "cut=0" || f[at] == "cut=1"))
     cut = f[at++] == "cut=1";
   if (at < n && (f[at] == "names=0" || f[at] == "names=1"))
     names = f[at++] == "names=1";
+  if (at < n && f[at] == "sounds=0") {
+    sounds = false;
+    ++at;
+  }
   if (n < 5 || at != n || (f[0] != "world=0" && f[0] != "world=1" && f[0] != "world=title") ||
       f[1].rfind("rate=", 0) != 0 || !number(std::string_view(f[1]).substr(5), rate) || rate < 10 || rate > 60 ||
       (f[2] != "photo=0" && f[2] != "photo=1" && f[2] != "photo=s" && f[2] != "photo=c") ||
@@ -1546,6 +1551,7 @@ inline bool parse_state(const std::string &text, State &out) {
   out.max = static_cast<uint32_t>(max);
   out.cut = cut;
   out.names = names;
+  out.sounds = sounds;
   return true;
 }
 

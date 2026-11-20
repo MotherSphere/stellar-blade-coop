@@ -14,6 +14,7 @@ return {
         photo_name_tag='Name tag in my photos',photo_pause='Photo mode pause (experimental)',name_tag='Name tag',
         cloth='Ponytail cloth',dyes='Outfit colours',
         effects='Attack effects',send_rate='Poses sent a second',shared_enemies='Shared enemies (experimental)',
+        drone='Her drone',sounds='Her sounds',faces='Face and shape keys',
         ui_scale='Menu size',ui_sounds='Menu sounds',ui_language='Menu language',partner_bar='HP marker',
         partner_arrow='Off-screen arrow',partner_card='Partner card',card_details='Ping and map on the card',
         who_can_join='Who can join',friends_ask='Friends join without asking',

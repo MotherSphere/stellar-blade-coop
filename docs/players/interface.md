@@ -307,8 +307,8 @@ Each row of the Options page is a setting of [coop-settings.txt](settings.md#coo
 The rows are in groups: Controls (the menu, status, leave, travel and race checkpoint keys, the [bike](../vehicles/bike.md) on or
 off and its key, [gun mode](../fight/gunmode.md) on or off and its key (read when the mod loads), the
 [Online tab in the pause menu](#pause-menu), then Reset all keys), Photo mode, Partner (the name
-tag and the [partner HUD](#partner-hud)), Ghost (the looks, the [solid partner](../online/partner.md#solid-partner-experimental)
-and the send rate), Session (who can join a session you host, whether your Steam friends join without asking, the
+tag and the [partner HUD](#partner-hud)), Ghost (the looks: cloth, dyes, effects, her drone, her sounds, her face and
+shape keys; the [solid partner](../online/partner.md#solid-partner-experimental) and the send rate), Session (who can join a session you host, whether your Steam friends join without asking, the
 players it holds (Players, 2 to 4), the [revive](playing-with-a-friend.md#revive-by-your-friend-experimental), the
 [cutscene wait](playing-with-a-friend.md#cutscene-wait),
 [following the host](playing-with-a-friend.md#following-the-host), the [shared world](../world/objects.md),

@@ -13,6 +13,7 @@ return {
         photo_sync='Synkronoitu kuvaustila',photo_freeze_max='Pisin tauko',photo_ghost='Haamu kuvissani',
         photo_name_tag='Nimikyltti kuvissani',name_tag='Nimikyltti',cloth='Poninhännän fysiikka',dyes='Asun värit',
         effects='Hyökkäystehosteet',send_rate='Lähetetyt asennot sekunnissa',
+        drone='Hänen dronensa',sounds='Hänen äänensä',faces='Kasvot ja muodot',
         shared_enemies='Jaetut viholliset (kokeellinen)',
         ui_scale='Valikon koko',ui_sounds='Valikon äänet',ui_language='Valikon kieli',partner_bar='HP-merkki',
         partner_arrow='Suuntanuoli kumppaniin',partner_card='Kumppanin kortti',card_details='Ping ja kartta kortissa',

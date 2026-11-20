@@ -91,8 +91,9 @@ name_tag=on
 # Poses sent to your friend a second: 10 to 60.
 send_rate=60
 # What the ghost shows, each on or off and on unless set here: cloth (her ponytail swings as in solo; it sends
-# nothing), dyes (hair colours and material variants) and effects (her attack and skill effects). dyes and effects off
-# also stop sending yours.
+# nothing), dyes (hair colours and material variants), effects (her attack and skill effects), drone (her drone),
+# sounds (her steps, voice, swings and hits) and faces (her eyes, face and shape keys). Each one but cloth also stops
+# sending yours when off.
 # For example: dyes=off
 # Shared enemies, experimental: on or off. On, the enemies you and your friend both fight share one HP bar and one
 # death, while both of you play a co-op save. fight_chars: auto (every common enemy, and with bosses=on the bosses
@@ -243,7 +244,8 @@ hide_popups=on
 -- settings, or the menu's, lacks those: the defaults here. One written before menu_key: see parse_settings.
 local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',race_key='F9',bike_key='F3',bike='on',
     drift_keys='Gamepad_RightTrigger B',name_tag='on',
-    send_rate='60',cloth='on',dyes='on',effects='on',shared_enemies='on',fight_chars='auto',guest_kills='at_once',
+    send_rate='60',cloth='on',dyes='on',effects='on',drone='on',sounds='on',faces='on',shared_enemies='on',
+    fight_chars='auto',guest_kills='at_once',
     enemy_hp_scale='1.35',enemy_balance_scale='1.15',kill_credit='together',same_place='on',aggro='game',
     same_spawns='on',enemy_extra='0',spawn_filter='on',bosses='on',boss_hp_scale='2.0',hit_reactions='on',
     stagger_resist='on',
@@ -267,7 +269,8 @@ local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=tr
     card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true,mod_names=true,shortcut_load=true,
     pvp_spike=true,sbo_lobby=true,shared_world=true,shared_story=true,friends_ask=true,bike=true,daynight=true,
     pause_tab=true,hide_popups=true,gun_mode=true}
-local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (online/partner/puppet.lua), each on or off.
+-- What the ghost shows (online/partner/puppet.lua), each on or off.
+local LOOKS={cloth=true,dyes=true,effects=true,drone=true,sounds=true,faces=true}
 local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key','bike_key','gun_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
     kill_credit={'together','fought'},who_can_join={'public','friends','invitation','closed'},
@@ -441,9 +444,10 @@ end
 -- 0.5.0-beta.1 to 0.9.0 wrote spawn_filter, photo_name_tag, shared_quests, revive, collide and status_overlay as off,
 -- 0.7.0-beta.1 and later shortcut_load too, and the PvP test builds pvp_spike. Each has a comment that says off, but
 -- photo_name_tag and status_overlay: the shared quests comment, which the same builds wrote, stands for them. Their
--- ghost comment said dyes and effects are off unless set. A file with one of those comments: its text with each as
--- Link.DEFAULT has it and the settings it stands for that say off set to their default, so it is changed once and an
--- off picked later stays. nil for any other file, and nil, why when a line cannot be set.
+-- ghost comment said dyes and effects are off unless set. 0.11's ghost comment lacks drone, sounds and faces. A file
+-- with one of those comments: its text with each as Link.DEFAULT has it and the settings it stands for that say off
+-- set to their default, so it is changed once and an off picked later stays, then true when no setting changed (only
+-- comments). nil for any other file, and nil, why when a line cannot be set.
 local OLD_OFF_NOTES={
     {"same_spawns=on: on or off, off\n# until it has been tested in game.",
         "same_spawns=on: on or off, on by\n# default, not tested in game yet.",{'spawn_filter'}},
@@ -462,7 +466,14 @@ local OLD_OFF_NOTES={
         .."both off unless set\n# here. dyes and effects off also stop sending yours.\n# For example: dyes=on",
     "# What the ghost shows, each on or off and on unless set here: cloth (her ponytail swings as in solo; it sends\n"
         .."# nothing), dyes (hair colours and material variants) and effects (her attack and skill effects). dyes and "
-        .."effects off\n# also stop sending yours.\n# For example: dyes=off",{}}}
+        .."effects off\n# also stop sending yours.\n# For example: dyes=off",{}},
+    {"# What the ghost shows, each on or off and on unless set here: cloth (her ponytail swings as in solo; it sends\n"
+        .."# nothing), dyes (hair colours and material variants) and effects (her attack and skill effects). dyes and "
+        .."effects off\n# also stop sending yours.\n# For example: dyes=off",
+    "# What the ghost shows, each on or off and on unless set here: cloth (her ponytail swings as in solo; it sends\n"
+        .."# nothing), dyes (hair colours and material variants), effects (her attack and skill effects), drone (her "
+        .."drone),\n# sounds (her steps, voice, swings and hits) and faces (her eyes, face and shape keys). Each one "
+        .."but cloth also stops\n# sending yours when off.\n# For example: dyes=off",{}}}
 function Link.migrate_off(text)
     local nl=text:find('\r\n',1,true) and '\r\n' or '\n'
     local new,keys=text,{}
@@ -474,14 +485,15 @@ function Link.migrate_off(text)
         end
     end
     if new==text then return nil end
+    local comments=true
     for _,key in ipairs(keys) do
         if (SF.get(new,key) or ''):lower()=='off' then
             local set,why=SF.set(new,key,DEFAULTS[key])
             if not set then return nil,why end
-            new=set
+            new,comments=set,false
         end
     end
-    return new
+    return new,comments
 end
 -- The settings from the file's text, and the log lines for what was refused: a bad value keeps its default.
 function Link.parse_settings(text)
@@ -673,13 +685,14 @@ function Link.new(folder,fs)
     -- (world=title: the only time the native part changes the co-op saves), the poses sent a second, and the synced
     -- photo mode's: ours ('0', '1' or 's'; 'c' while the host's cutscene plays, online/group/group.lua's), photo_sync
     -- and photo_freeze_max; then cut=1 while the guest asks for the pause during the host's cutscene (cut), and names=0
-    -- with mod_names=off (names false: the native part then sends no pak line). Written when its text changes, and
-    -- remembered only once written, so a failed write is tried again; returns the line it wrote.
+    -- with mod_names=off (names false: the native part then sends no pak line), and sounds=0 with the sounds look off
+    -- (sounds false: the native part then records and plays no sound). Written when its text changes, and remembered
+    -- only once written, so a failed write is tried again; returns the line it wrote.
     local state=nil
-    function self.state(world,rate,photo_now,sync,max,title,cut,names)
-        local line=string.format('world=%s rate=%d photo=%s sync=%s max=%d%s%s',
+    function self.state(world,rate,photo_now,sync,max,title,cut,names,sounds)
+        local line=string.format('world=%s rate=%d photo=%s sync=%s max=%d%s%s%s',
             world and '1' or title and 'title' or '0',rate,photo_now,sync,max,cut and ' cut=1' or '',
-            names==false and ' names=0' or '')
+            names==false and ' names=0' or '',sounds==false and ' sounds=0' or '')
         if line==state or not put('coop-state.txt',line..'\n') then return nil end
         state=line
         return line
@@ -1292,13 +1305,21 @@ function Link.new(folder,fs)
             end
             local off,why_off=Link.migrate_off(text) -- 0.5.0-beta.1 to 0.9.0's off lines, read as the new defaults.
             if off then
-                local ok
+                local ok,comments=nil,why_off -- With a new text, true when only comments changed.
                 ok,why_off=self.write_settings(off)
                 text=off
-                switched=ok and 'settings: spawn_filter, photo_name_tag, shared_quests, revive, collide, shortcut_load '
-                    ..'and pvp_spike are now on and status_overlay compact in coop-settings.txt, where they said off'
-                    or 'settings: the old off defaults read as the new ones (coop-settings.txt not rewritten: '
-                        ..tostring(why_off)..')'
+                if comments then
+                    switched=ok and 'settings: the comments in coop-settings.txt now read as this version writes '
+                        ..'them; no setting changed'
+                        or 'settings: the comments in coop-settings.txt kept as they were (not rewritten: '
+                            ..tostring(why_off)..')'
+                else
+                    switched=ok and 'settings: spawn_filter, photo_name_tag, shared_quests, revive, collide, '
+                        ..'shortcut_load and pvp_spike are now on and status_overlay compact in coop-settings.txt, '
+                        ..'where they said off'
+                        or 'settings: the old off defaults read as the new ones (coop-settings.txt not rewritten: '
+                            ..tostring(why_off)..')'
+                end
             elseif why_off then
                 switched='settings: the old off defaults kept as they are: '..why_off
             end

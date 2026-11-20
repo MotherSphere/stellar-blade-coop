@@ -1129,6 +1129,14 @@ int main() {
   assert(parse_state("world=1 rate=60 photo=0 sync=both max=600 cut=1 names=0", s) && !s.names && s.cut);
   assert(parse_state("world=1 rate=60 photo=0 sync=both max=600 cut=0 names=1", s) && s.names && !s.cut);
   assert(std::string("world=title rate=60 photo=c sync=notice max=3600 cut=1 names=0\r\n").size() <= kMaxState);
+  // sounds=off: sounds=0 after names= (eight words at most); without it, on. Only sounds=0 is written, in this order.
+  assert(parse_state("world=title rate=60 photo=0 sync=notice max=3600 cut=1 names=0 sounds=0\n", s) && !s.sounds);
+  assert(parse_state("world=1 rate=60 photo=0 sync=both max=600\n", s) && s.sounds);
+  assert(parse_state("world=1 rate=60 photo=0 sync=both max=600 sounds=0", s) && !s.sounds && s.names && !s.cut);
+  assert(!parse_state("world=1 rate=60 photo=0 sync=both max=600 sounds=0 names=0\n", s)); // order kept
+  assert(!parse_state("world=1 rate=60 photo=0 sync=both max=600 sounds=1\n", s));         // only sounds=0
+  assert(std::string("world=title rate=60 photo=c sync=notice max=3600 cut=1 names=0 sounds=0\r\n").size() <=
+         kMaxState);
   assert(std::string("world=title rate=60 photo=c sync=notice max=3600 cut=1\r\n").size() <= kMaxState);
   assert(std::string("world=1 rate=30 photo=s sync=notice max=3600\r\n").size() <= kMaxState);
   for (const std::string &bad :

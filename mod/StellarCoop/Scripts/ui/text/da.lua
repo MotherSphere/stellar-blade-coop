@@ -14,6 +14,7 @@ return {
         leave_key='Forlad sessionen',photo_sync='Fotosynkronisering',photo_freeze_max='Længste pause',
         photo_ghost='Spøgelse på mine fotos',photo_name_tag='Navneskilt på mine fotos',name_tag='Navneskilt',
         cloth='Hestehalefysik',dyes='Dragtfarver',effects='Angrebseffekter',send_rate='Positurer sendt pr. sekund',
+        drone='Hendes drone',sounds='Hendes lyde',faces='Ansigt og former',
         shared_enemies='Delte fjender (eksperimentel)',ui_scale='Menustørrelse',ui_sounds='Menulyde',
         ui_language='Menusprog',partner_bar='HP-markør',partner_arrow='Pil uden for skærmen',
         partner_card='Partnerkort',card_details='Ping og område på partnerkortet',who_can_join='Hvem kan deltage',

@@ -14,6 +14,7 @@ return {
         photo_sync='Fotoğraf modu eşitleme',photo_freeze_max='En uzun duraklama',photo_ghost='Fotoğraflarımda hayalet',
         photo_name_tag='Fotoğraflarımda isim etiketi',name_tag='İsim etiketi',cloth='Atkuyruğu fiziği',
         dyes='Kıyafet renkleri',effects='Saldırı efektleri',send_rate='Saniyede gönderilen poz',
+        drone='Onun dronu',sounds='Onun sesleri',faces='Yüz ve şekiller',
         shared_enemies='Ortak düşmanlar (deneysel)',ui_scale='Menü boyutu',ui_sounds='Menü sesleri',
         ui_language='Menü dili',partner_bar='Can göstergesi',partner_arrow='Ekran dışı oku',
         partner_card='Takım arkadaşı kartı',card_details='Kartta ping ve harita',who_can_join='Kimler katılabilir',
