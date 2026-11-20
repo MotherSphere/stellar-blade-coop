@@ -74,6 +74,15 @@ assert(link.display(nil) and files[DISPLAY]==nil)
 assert(link.remote_table()==nil)
 files[REMOTE]='SBT 9\ngeneration 7\n'
 assert(link.remote_table()=='SBT 9\ngeneration 7\n' and files[REMOTE],'Read, never removed')
+-- Her drone as the native part found it: the actor's address text, or nil.
+local DRONE='C:\\Mod\\coop-drone.txt'
+assert(link.drone()==nil,'No file yet')
+files[DRONE]='drone 0x1f2e3d4c5b60\n'; assert(link.drone()=='0x1f2e3d4c5b60')
+files[DRONE]='drone none\n'; assert(link.drone()==nil)
+files[DRONE]='drone 12\n'; assert(link.drone()==nil,'only 0x and hex digits')
+files[DRONE]='drone 0x\n'; assert(link.drone()==nil,'no digit')
+files[DRONE]='drone 0x1f2e3d4c5b60 extra\n'; assert(link.drone()==nil,'one word')
+files[DRONE]=nil
 
 -- The remote table the native part holds, from the status as of the last changes().
 files[STATUS]='mod=v\nengine=on loopback=on 120 30 1 remote=1797 3 loopback\nlast=#5 remote table\n'

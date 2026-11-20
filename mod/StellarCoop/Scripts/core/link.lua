@@ -707,6 +707,11 @@ function Link.new(folder,fs)
     -- The ghost built for the remote table, or nil when there is none.
     function self.display(text) return put_or_remove('coop-display.txt',text) end
     function self.remote_table() return fs.read(path('coop-remote.txt')) end
+    -- Her drone as the native part found it ("drone 0x<actor>" in coop-drone.txt): the address text, or nil.
+    function self.drone()
+        local text=fs.read(path('coop-drone.txt'))
+        return text and text:match('^drone (0x%x+)\r?\n?$') or nil
+    end
     function self.status()
         if pass then return pass end
         return fs.read(status_path)

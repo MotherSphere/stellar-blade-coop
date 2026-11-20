@@ -304,8 +304,10 @@
 #include "online/modes/nightop/shop_ui.h"
 #include "world/teamshop/shop_ui.h"
 #include "game/codec.h"
+#include "game/events.h"
 #include "game/partner/engine.h"
 #include "online/partner/record.h"
+#include "online/partner/drone.h"
 #include "game/stream.h"
 #include "game/quests/engine.h"
 #include "story/quests/own.h"
@@ -336,6 +338,8 @@
 #include "glue/tick/camps_game_shared.inc"
 #include "online/group/camps_game.inc"
 #include "rows/rows_game.inc"
+// After rows_game.inc, fight_game_shared.inc and pilot_game_shared.inc: lion_gate, game_function and kFindCharacter.
+#include "online/partner/drone_game.inc"
 #include "glue/tick/debug_game_shared.inc" // Before nightop_game.inc, which takes its UI calls and ui_reads.
 #include "eve/debug_game.inc"
 #include "ui/pause_tab_game.inc" // After debug_game_shared.inc: its UI calls and ui_reads.
@@ -430,6 +434,10 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   QueryPerformanceCounter(&entry);
   if (engine_on && !blocked)
     guarded_tick();
+  // Her drone for the capture, its own latch: a look each second while her capture is live, none after coop off or its
+  // first fault.
+  if (game_pinned && !drone_faulted && !blocked)
+    drone_tick();
   // Its own latch: a ghost fault leaves the shared fight running, and the reverse. Once more after off: the arm rule
   // then forgets its last arm, so the next on arms at once.
   const bool fight_on = fight_engine.on();

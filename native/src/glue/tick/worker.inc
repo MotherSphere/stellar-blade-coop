@@ -40,6 +40,10 @@ bool camp_text_fault_logged = false; // Matrix XIII's camp names (camp_text_game
 bool uidev_fault_logged = false;     // SB's input device read (pad_game.inc): its fault.
 // The New Game+ read (cycle_game.inc): its fault and its first read out of range.
 bool cycle_fault_logged = false, cycle_odd_logged = false;
+// Her drone (online/partner/drone_game.inc): its fault, and the actor coop-drone.txt names (~0 before the first write).
+bool drone_fault_logged = false;
+uint64_t drone_written = ~uint64_t(0);
+std::string fault_where(uint64_t rva); // fight_worker_shared.inc's, after this part: the drone's fault line.
 uint32_t travel_logged = 0, travel_watch_logged = 0, travel_alias_ask = 0;
 std::string travel_alias;
 uint64_t next_poll = 0, next_counters = 0;
@@ -636,6 +640,24 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                   static_cast<unsigned long long>(cycle_fault_rva.load()),
                   static_cast<unsigned long long>(cycle_fault_address.load()));
     event(text);
+  }
+  if (drone_faulted && !drone_fault_logged) {
+    drone_fault_logged = true;
+    char text[200];
+    std::snprintf(text, sizeof text,
+                  "drone off: fault 0x%08llx in %s reading 0x%llx; the ghost goes on without her drone",
+                  static_cast<unsigned long long>(drone_fault_code.load()), fault_where(drone_fault_rva).c_str(),
+                  static_cast<unsigned long long>(drone_fault_address.load()));
+    event(text);
+  }
+  // coop-drone.txt for the capture, written only when the actor changes (none after coop off); a failed write is tried
+  // again at the next pass.
+  if (const uint64_t actor = blocked ? 0 : drone_actor.load(); actor != drone_written) {
+    char text[40] = "drone none\n";
+    if (actor)
+      std::snprintf(text, sizeof text, "drone 0x%llx\n", static_cast<unsigned long long>(actor));
+    if (write_text(dir + L"coop-drone.txt", text))
+      drone_written = actor;
   }
   if (cycle_odd && !cycle_odd_logged) {
     cycle_odd_logged = true;

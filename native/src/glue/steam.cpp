@@ -1084,7 +1084,8 @@ DWORD WINAPI worker(void *) {
   DeleteFileW((folder + L"coop-report.txt").c_str());
   // And a previous run's world state, whose world=1 would release a held invite on the title screen.
   for (const wchar_t *stale : {L"coop-components.txt", L"coop-remote.txt", L"coop-display.txt", L"coop-state.txt",
-                               L"coop-night.txt", L"coop-parked.txt", L"coop-cns.txt", L"coop-shared-assets.txt"})
+                               L"coop-night.txt", L"coop-parked.txt", L"coop-cns.txt", L"coop-shared-assets.txt",
+                               L"coop-drone.txt"})
     DeleteFileW((folder + stale).c_str()); // Tables, addresses and a run's line from a previous run mean nothing now.
   for (size_t k = 1; k < coop::kMaxRemote; ++k) // And those of the other ghost slots.
     for (const char *stem : {"coop-remote", "coop-display"})
