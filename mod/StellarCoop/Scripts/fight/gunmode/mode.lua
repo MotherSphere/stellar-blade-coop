@@ -162,6 +162,21 @@ function GunMode.new(env)
         if g.valid(o) then found[path]=o; return o end
         missed[path]=os.clock()+1.0
     end
+    -- An asset (/Game, /Engine) by its path, loaded when missing. The reference is kept and checked against its path at
+    -- each use: nothing of the game may hold the asset, so the engine can collect it. Another object can then sit at
+    -- the freed address and pass IsValid. One GetFullName per use instead of StaticFindObject's walk of the object
+    -- array (25-35 ms a miss, core/unreal.lua) at each shot, turn or morph. nil when it cannot be found or loaded, and
+    -- then nil for 5 s without a walk.
+    local assets,asset_missed={},{}
+    function g.asset(path)
+        local o=assets[path]
+        if o and g.path(o)==path then return o end
+        if (asset_missed[path] or -1)>os.clock() then return nil end
+        o=StaticFindObject(path)
+        if not g.valid(o) then o=g.try(function() return LoadAsset(path) end) end
+        if g.valid(o) then assets[path]=o; return o end
+        assets[path]=nil; asset_missed[path]=os.clock()+5.0
+    end
     -- The controller: FindFirstOf walks the whole object array, so once a second at most while there is none (M2). A
     -- new one comes through new_controller at once.
     local cached,pc_wait
@@ -201,7 +216,7 @@ function GunMode.new(env)
     -- The reload: the NIKKE squad's reload animation on the rifle stance, and its sounds at their times.
     local function sound(path)
         local ok,err=pcall(function()
-            local cue=LoadAsset(path)
+            local cue=g.asset(path) -- kept between reloads (a LoadAsset per sound walked the object array)
             assert(cue,'no '..path)
             g.find(STATICS):PlaySound2D(g.pawn(),cue,1.0,1.0,0.0,nil,nil,false)
         end)
@@ -671,7 +686,7 @@ function GunMode.new(env)
     local function cube_make(p)
         if g.valid(s.cube) then return s.cube end
         local ok,c=pcall(function()
-            local mesh=StaticFindObject(cfg.cube_mesh) or (pcall(LoadAsset,cfg.cube_mesh) and StaticFindObject(cfg.cube_mesh))
+            local mesh=g.asset(cfg.cube_mesh)
             assert(g.valid(mesh),'no '..cfg.cube_mesh)
             local id={Rotation={X=0,Y=0,Z=0,W=1},Translation={X=0,Y=0,Z=0},Scale3D={X=1,Y=1,Z=1}}
             local c=p:AddComponentByClass(g.find('/Script/Engine.StaticMeshComponent'),true,id,true)
@@ -753,6 +768,9 @@ function GunMode.new(env)
     end
 
     local function enable(why)
+        -- each step's time, written into the 'on' line: the frame gun mode comes on in is its costliest one
+        local laps,lap_at={},os.clock()
+        local function lap(name) local t=os.clock(); laps[#laps+1]=('%s %.0f'):format(name,(t-lap_at)*1000); lap_at=t end
         self.restore() -- An earlier Lua load's changes back before this one reads the rows as they are.
         local pc,p=g.pc(),g.pawn()
         -- Each refusal says why on screen too (L4), in a word of ui/text.lua's gun; the log keeps the reason.
@@ -769,7 +787,9 @@ function GunMode.new(env)
         -- The rifle layer first. Without it, the rifle clips alone (cfg.pak_probe, in zNGMSpike_P): the aim stance's
         -- blend spaces point at the rifle's while the rifle is out. Her real body shows while aiming (nothing posed).
         -- Without either, Luke's posed stance.
+        lap('checks')
         local okl,inst,why_not=pcall(layer.install,p)
+        lap('layer')
         s.layer=okl and inst==true
         g.log('rifle layer '..(s.layer and 'on' or ('not available: '..tostring(okl and why_not or inst))))
         pcall(ammo.refill) -- full magazines each time the rifle comes out (the shop sells the drone's rounds, not these)
@@ -790,8 +810,11 @@ function GunMode.new(env)
             give_all_back()
             g.log('off: SB\'s rows could not be taken (see above)'); notice(os.clock(),'failed'); return
         end
+        lap('rows')
         aim.setup()
+        lap('aim')
         local ok,err=pcall(function() s.mask,s.keys=mask() end)
+        lap('mask')
         if not ok then
             give_all_back(); g.log('off: the input mask failed ('..tostring(err)..')'); notice(os.clock(),'failed')
             return
@@ -819,6 +842,7 @@ function GunMode.new(env)
                 -- squared on the camera's line (the user's call: Luke's aim is the look to keep).
                 0,false,false,set.native and (set.upper or s.pak),set.native and not set.upper and not s.pak)
         end)
+        lap('rifle')
         if not ok then
             give_all_back()
             g.log('off: Luke\'s stance did not start ('..tostring(err)..')')
@@ -895,17 +919,22 @@ function GunMode.new(env)
             g.log('carry override '..s.ovr_row..': '..(s.ovr and 'on' or 'failed')..', active='..tostring(g.try(function() return p:IsActiveCustomMovingStanceData() end)))
         end
         s.on,s.shots,s.next_shot,s.zoom_held,s.held_since=true,0,0,false,nil
+        lap('carry')
         pcall(hide_others,p,true)
+        lap('hide')
         s.hide_at=os.clock()
         if set.native then s.native_taken=true end
         if cfg.hide_drone~=false then pcall(hide_drone,p,os.clock()) end -- (the game's aim puts the drone on her arm: hidden, light and all)
+        lap('drone')
         pcall(ammo.sync)
         if not keep() then
             give_all_back(); g.log('off: coop-gun.txt could not be written (see above)'); notice(os.clock(),'failed')
             return
         end
         -- the arrival: a cube in her hand turns into the rifle (fight/gunmode/morph.lua); the tick runs it
+        lap('keep')
         if cfg.morph~=false and s.layer then s.morph={dir='in',t0=os.clock()}; pcall(cube_make,p); pcall(single.morph,0,0) end
+        lap('cube')
         if set.trace then pcall(function() Dpad.new(g).dump() end)
             -- (dev) loaded key and pad icon textures (the HUD entry's gamepad and keyboard glyphs), and cube mesh candidates
             pcall(function()
@@ -923,7 +952,7 @@ function GunMode.new(env)
                 g.log('morph mesh '..c..': '..((o and o:IsValid()) and 'found' or 'missing'))
             end
         end
-        g.log('on ('..why..')')
+        g.log('on ('..why..'), ms: '..table.concat(laps,' '))
     end
 
     -- coop off (main/commands.lua): the rifle away, everything back, SB's rows and coop-gun.txt too; from then on gun
@@ -1218,13 +1247,10 @@ function GunMode.new(env)
             if ok_a and ammo.left<before and g.valid(s.rifle) and now-(s.flash_at or 0)>=cfg.muzzle_every then pcall(function()
                 s.flash_at=now
                 s.flash_lib=g.find('/Script/Niagara.Default__NiagaraFunctionLibrary')
-                -- Found by its path at each flash, else loaded again, as laser.lua finds its own: nothing of the game
-                -- holds it between shots, so the engine can collect it. A reference kept from an earlier flash then
-                -- still passes IsValid once another object sits at the freed address.
-                s.flash_fx=StaticFindObject(cfg.muzzle_fx)
-                if not g.valid(s.flash_fx) then s.flash_fx=LoadAsset(cfg.muzzle_fx) end
-                if g.valid(s.flash_lib) and g.valid(s.flash_fx) then
-                    local fx=s.flash_lib:SpawnSystemAttached(s.flash_fx,s.rifle,FName('FX_Fire'),{X=0,Y=0,Z=0},{Pitch=0,Yaw=0,Roll=0},2,true,true,0,false)
+                -- g.asset: kept between shots and checked against its path (the engine may collect it in between)
+                s.flash_fx=g.asset(cfg.muzzle_fx)
+                if g.valid(s.flash_lib) and s.flash_fx then
+                    local fx=s.flash_lib:SpawnSystemAttached(s.flash_fx,s.rifle,fx_fire(),{X=0,Y=0,Z=0},{Pitch=0,Yaw=0,Roll=0},2,true,true,0,false)
                     if g.valid(fx) then local k=cfg.muzzle_scale; fx:SetRelativeScale3D({X=k,Y=k,Z=k}) end
                 end
             end) end
@@ -1285,7 +1311,7 @@ function GunMode.new(env)
                     s.morph.flashed=true
                     pcall(function()
                         s.flash_lib=g.find('/Script/Niagara.Default__NiagaraFunctionLibrary')
-                        local fx=StaticFindObject(cfg.morph_fx); if not g.valid(fx) then pcall(LoadAsset,cfg.morph_fx); fx=StaticFindObject(cfg.morph_fx) end
+                        local fx=g.asset(cfg.morph_fx)
                         if g.valid(fx) and g.valid(s.rifle) then s.flash_lib:SpawnSystemAttached(fx,s.rifle,FName('None'),{X=0,Y=0,Z=0},{Pitch=0,Yaw=0,Roll=0},2,true,true,0,false) end
                     end)
                 end
@@ -1399,6 +1425,9 @@ function GunMode.new(env)
             -- modifier (BP_NGM_CamMod in the layer pak) adds Offset (camera space: forward, right, up), eased
             pcall(function()
                 if not s.cmod and not s.cmod_fail then
+                    -- one try: a throw below (no camera manager yet, no AddNewCameraModifier) must not walk for the
+                    -- class again each frame
+                    s.cmod_fail=true
                     local cm=pc.PlayerCameraManager
                     local path='/Game/Mods/NGM/BP_NGM_CamMod.BP_NGM_CamMod_C'
                     local cls=StaticFindObject(path)
@@ -1406,7 +1435,7 @@ function GunMode.new(env)
                         cls=g.find('/Script/AssetRegistry.Default__AssetRegistryHelpers'):GetAsset({ObjectPath=FName(path)})
                     end
                     if g.valid(cls) then s.cmod=cm:AddNewCameraModifier(cls); s.cmod_k=0 end
-                    if not g.valid(s.cmod) then s.cmod=nil; s.cmod_fail=true; g.log('camera: modifier not available') else g.log('camera: modifier added') end
+                    if not g.valid(s.cmod) then s.cmod=nil; g.log('camera: modifier not available') else s.cmod_fail=nil; g.log('camera: modifier added') end
                 end
                 if s.cmod then
                     -- the aim camera offset: full while the game's aim is on, half for hip fire (11-20: "less than in aim")
@@ -1487,8 +1516,9 @@ function GunMode.new(env)
                         pcall(function()
                             local nm=(s.chest.Yaw or 0)<0 and 'P_Eve_Gun_RotateLw' or 'P_Eve_Gun_RotateRw'
                             local path='/Game/Art/Character/PC/CH_P_EVE_01/Animation/'..nm..'.'..nm
-                            local seq=StaticFindObject(path); if not g.valid(seq) then pcall(LoadAsset,path); seq=StaticFindObject(path) end
-                            if g.valid(seq) then p.Mesh:GetAnimInstance():PlaySlotAnimationAsDynamicMontage(seq,FName('DefaultSlot'),0.1,0.15,1.0,1,-1,0)
+                            local seq=g.asset(path)
+                            s.slot_name=s.slot_name or FName('DefaultSlot')
+                            if seq then p.Mesh:GetAnimInstance():PlaySlotAnimationAsDynamicMontage(seq,s.slot_name,0.1,0.15,1.0,1,-1,0)
                             elseif not s.shuffle_err then s.shuffle_err=true; g.log('turn: no '..nm) end
                         end)
                     end

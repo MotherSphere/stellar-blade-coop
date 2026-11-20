@@ -52,14 +52,14 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
         -- FindAllOf walks every object: only after an event (ui.look: the rifle out, firing mode entered), once a
         -- second at most (L1).
         if not ui.look or (ui.retry or 0)>os.clock() then return false end
-        ui.look,ui.retry=false,os.clock()+1.0
+        ui.look,ui.retry=false,os.clock()+10.0 -- a walk costs 60-90 ms: at most one in 10 s while the slot is missing
         pcall(function()
             for _,t in ipairs(FindAllOf('TextBlock') or {}) do
                 local full=t:GetFullName()
                 if full:find(Ammo.SLOT,1,true) and full:find('MainHUD',1,true) then
                     local leaf=full:match('([%w_]+)$')
                     if leaf==Ammo.NAME_TEXT then ui.name=t elseif leaf==Ammo.COUNT_TEXT then ui.count=t end
-                elseif full:find(Ammo.LOWER,1,true) and full:find('MainHUD_Master',1,true) then
+                elseif not ui.logged and full:find(Ammo.LOWER,1,true) and full:find('MainHUD_Master',1,true) then
                     local leaf=full:match('([%w_]+)$')
                     local txt=g.try(function() return t:GetText():ToString() end)
                     ui.lower_all=ui.lower_all or {}

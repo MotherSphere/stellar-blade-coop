@@ -7,15 +7,29 @@
 -- barrel); the beam is spawned at the muzzle with no parent and moved there at each update. The trace's colour and
 -- ignore list are made once.
 -- laser(pawn, gun, mathlib) -> update(target), cleanup.
+-- gun mode: the laser starts at each aim and at each reload's end. Its five objects were looked up at each start (five
+-- walks of the object array, about 100-150 ms: a hitch on every press). They are kept here for the game run, each
+-- checked against its path at the next start (an asset can be collected and its address reused).
+local kept,socket={},nil
+local function find(path,load)
+ local o=kept[path]
+ if o and o:IsValid() then
+  local ok,full=pcall(function() return o:GetFullName() end)
+  if ok and type(full)=='string' and full:match('^%S+ (.+)$')==path then return o end
+ end
+ o=StaticFindObject(path)
+ if load and (not o or not o:IsValid()) then o=LoadAsset(path) end
+ kept[path]=o
+ return o
+end
 return function(pawn,gun,mathlib)
- local socket=FName('FX_Fire')
+ socket=socket or FName('FX_Fire')
  assert(gun:DoesSocketExist(socket),'Visual rifle muzzle socket missing')
- local library=StaticFindObject('/Script/Niagara.Default__NiagaraFunctionLibrary')
+ local library=find('/Script/Niagara.Default__NiagaraFunctionLibrary')
  local base='/Game/DLC_2/Art/FX/MiniGame/'
  local function resource(name)
   local path=base..name..'.'..name
-  local object=StaticFindObject(path)
-  if not object or not object:IsValid() then object=LoadAsset(path) end
+  local object=find(path,true)
   assert(object and object:IsValid(),'Laser resource unavailable: '..path)
   return object
  end
@@ -26,7 +40,7 @@ return function(pawn,gun,mathlib)
  assert(instance and instance:IsValid(),'Laser collection unavailable')
  local value=instance:GetVectorParameter('LaserPosition')
  local saved={X=value.X,Y=value.Y,Z=value.Z}
- local trace=StaticFindObject('/Script/Engine.Default__KismetSystemLibrary')
+ local trace=find('/Script/Engine.Default__KismetSystemLibrary')
  assert(trace and trace:IsValid(),'Collision library unavailable')
  local beam
  local function cleanup()
@@ -37,7 +51,7 @@ return function(pawn,gun,mathlib)
    if instance:IsValid() then instance:SetVectorParameter('LaserPosition',saved) end
   end)
  end
- local pawnClass=StaticFindObject('/Script/Engine.Pawn')
+ local pawnClass=find('/Script/Engine.Pawn')
  local transparent,ignore={R=0,G=0,B=0,A=0},{pawn} -- gun mode: made once (less garbage a frame)
  local lx,ly,lz -- gun mode: the last target sent (the same point is not sent again)
  local function update(target)

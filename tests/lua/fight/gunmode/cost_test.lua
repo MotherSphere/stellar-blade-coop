@@ -16,20 +16,20 @@ local clock=100
 os.clock=function() return clock end
 local function frames(gun,n) for _=1,n do clock=clock+1/60; gun.tick() end end
 
--- The fake world with its engine calls counted: script (StaticFindObject of a /Script path; an asset path is looked up
--- by path on purpose, as nothing holds it), first (FindFirstOf), all[class] (FindAllOf), keys[name] (IsInputKeyDown),
+-- The fake world with its engine calls counted: script (StaticFindObject of a /Script path), asset[path] (the other
+-- StaticFindObject calls: assets, kept by mode.lua's g.asset and checked by their path), first (FindFirstOf), all[class] (FindAllOf), keys[name] (IsInputKeyDown),
 -- polls (all of them), trace (LineTraceSingle), paused (IsGamePaused). The camera manager and the trace library let the
 -- crosshair reach its traces. The layer's clips are found and play.
 local function world()
     local w=Fake.new(); w.install()
-    local n={script=0,first=0,all={},keys={},polls=0,trace=0,paused=0}
+    local n={script=0,first=0,all={},keys={},polls=0,trace=0,paused=0,asset={}}
     w.n=n
     local statics=w.find('/Script/Engine.Default__GameplayStatics')
     local paused=statics.IsGamePaused
     statics.IsGamePaused=function(...) n.paused=n.paused+1; return paused(...) end
     local find,first,all=StaticFindObject,FindFirstOf,FindAllOf
     StaticFindObject=function(path)
-        if path:sub(1,8)=='/Script/' then n.script=n.script+1 end
+        if path:sub(1,8)=='/Script/' then n.script=n.script+1 else n.asset[path]=(n.asset[path] or 0)+1 end
         return find(path)
     end
     FindFirstOf=function(class) n.first=n.first+1; return first(class) end
@@ -60,10 +60,17 @@ local function world()
     for _,path in pairs(Overlay.CLIPS) do
         clips[path]={IsValid=valid,GetFullName=function() return 'AnimSequence '..path end}
     end
+    -- Any other game asset (the muzzle flash, the reload's sounds) is there once loaded, under its own path.
+    local assets={}
     local base=w.find
     function w.find(path)
         if path=='/Script/Engine.Default__KismetSystemLibrary' then return trace end
-        return clips[path] or classes[path] or base(path)
+        local o=clips[path] or classes[path] or base(path)
+        if o==nil and path:sub(1,6)=='/Game/' then
+            assets[path]=assets[path] or {IsValid=valid,GetFullName=function() return 'Object '..path end}
+            o=assets[path]
+        end
+        return o
     end
     return w
 end
@@ -134,11 +141,21 @@ do
     frames(gun,59)
     assert(w.n.trace==2*60,w.n.trace..' traces in 60 aiming frames')
     assert(w.n.script==0,w.n.script..' /Script lookups while aiming')
+    -- Firing for 10 s, through a reload: each asset (the muzzle flash, the reload's sounds) is walked for once at most.
+    w.n.asset={}
+    w.down.LeftMouseButton=true
+    frames(gun,600)
+    w.down.LeftMouseButton=nil
+    local walked={}
+    for path,k in pairs(w.n.asset) do if k>1 then walked[#walked+1]=path..' x'..k end end
+    assert(#walked==0,'assets walked for again while firing: '..table.concat(walked,', '))
+    local fx=require('fight.gunmode.config').DEFAULTS.muzzle_fx
+    assert(w.n.asset[fx]==1,'the muzzle flash looked up '..tostring(w.n.asset[fx])..' times')
 end
 
 -- 4. L1: no drone near EVE and no reticle text: each walked for once at the rifle out, not once a second. A rifle out
---    again within 10 s of a miss looks for the drone only once that back-off is over. Firing mode entered twice walks
---    for the reticle's text twice more.
+--    again within 10 s of a miss looks for the drone only once that back-off is over. Firing mode entered twice within
+--    10 s walks for the reticle's text once more (a walk costs 60-90 ms in game); entered again after 10 s, once more.
 do
     local w=world()
     local gun=GunMode.new({log=function() end})
@@ -159,8 +176,14 @@ do
         w.pawn.bTPSMode,w.down.RightMouseButton=false,nil
         frames(gun,120)
     end
-    assert(count(w,'TextBlock')==4,count(w,'TextBlock')..' text walks after two aims')
-    assert(count(w,'CH_Drone_BP_C')==2,count(w,'CH_Drone_BP_C')..' drone walks after two aims')
+    assert(count(w,'TextBlock')==3,count(w,'TextBlock')..' text walks after two aims 4 s apart')
+    frames(gun,60*7)
+    w.pawn.bTPSMode,w.down.RightMouseButton=true,true
+    frames(gun,120)
+    w.pawn.bTPSMode,w.down.RightMouseButton=false,nil
+    frames(gun,120)
+    assert(count(w,'TextBlock')==4,count(w,'TextBlock')..' text walks after an aim 10 s on')
+    assert(count(w,'CH_Drone_BP_C')==2,count(w,'CH_Drone_BP_C')..' drone walks after three aims')
 end
 
 -- 5. L1: a drone near EVE is hidden at the rifle out and held: no walk while it lives, one when it goes.

@@ -114,7 +114,8 @@ function Rifle.new(laser,trace,grip)
             -- (at most 6 degrees; the pak's aim already holds it on the camera's line, this takes up the shoulder offset)
             local onTarget=false
             if t and not st.reloading and not self.no_turn then pcall(function()
-                local fire=FName('FX_Fire')
+                st.fire=st.fire or FName('FX_Fire') -- made once per rifle, not each frame
+                local fire=st.fire
                 local m=gun:GetSocketLocation(fire)
                 local have=mathlib:GetForwardVector(gun:GetSocketRotation(fire))
                 local dx,dy,dz=t.X-m.X,t.Y-m.Y,t.Z-m.Z
