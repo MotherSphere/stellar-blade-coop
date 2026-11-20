@@ -35,7 +35,7 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `world/daynight/`: `daynight`, `off`, `rule`, `wiring`; `story/together/`: `off`, `snapshot`, `wiring`, `wiring_dump`;
 `ui/`: `text`; `ui/kit/`: `guide`, `hud_parts`, `kit`, `model`, `notice`, `pause_tab`; `ui/text/`: `culture`;
 `world/objects/`: `off`, `wiring`;
-`fight/gunmode/`: `cost`, `engine`, `helpers`, `off`, `online`, `state`, `stop`, `texts`)
+`fight/gunmode/`: `cost`, `engine`, `helpers`, `off`, `online`, `release`, `state`, `stop`, `texts`)
 run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
 fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. Each module's
 `off_test` runs `main/isolation.lua` with its name.
@@ -117,6 +117,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   and `coop gun`'s comment speak of no crouching. The page has no ", and" or ", but", no bold-label bullet and no
   "co-op session". `ammo.lua`'s header and `facts.lua`'s note on the retired F11 have no ", and" or ", but" either.
   Only `fight/gunmode/wiring.lua` registers an engine hook (`NotifyOnNewObject`, `RegisterHook`);
+- `fight/gunmode/release_test` runs `fight/gunmode/release_check.lua` on gun mode's shipped defaults: no debug flag
+  of `Config.DEFAULTS` is on. It first sees the check refuse a test-only line (`gun_facts=on`), a changed release
+  value (`gun_aim_key`) and a debug default set on;
 - `vehicles/bike/ride_test` covers `vehicles/bike/ride.lua` over a fake EVE and native part: the preload asked once and
   released at `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every
   mount refusal with its reason and nothing written, the mount's order and the dismount backward, the lean (the math
