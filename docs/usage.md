@@ -29,8 +29,8 @@ The keys work with or without the console. They need the native part (`StellarCo
 | Enter | During a session or in the SBO lobby, open the [chat](players/interface.md#session-chat) box, then send a line; Esc closes the box | (none) |
 | none | Host a session at once, or open the Steam invite dialog again while you host (`host_key`) | `coop host` |
 
-You can change F3, F4, F5, F6, F7, F8 and F9 in the menu's Options page or in [coop-settings.txt](players/settings.md#coop-settingstxt), and
-`host_key` in the file only. A key passes its action to the game thread, where the same checks as for the console
+You can change F3, F4, F5, F6, F7, F8 and F9 in the menu's Options page or in [coop-settings.txt](players/settings.md#coop-settingstxt).
+Only the file sets `host_key`. A key passes its action to the game thread, where the same checks as for the console
 command apply (`coop off` included). The log says `key F5: menu`. The other keys then log the usual `OK:` or `STOP:`
 line; the menu key logs one only when the menu cannot open.
 
