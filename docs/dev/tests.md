@@ -115,7 +115,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `fight/gunmode/data.lua` changes and the notice the parked key shows. Neither the page nor `ammo.lua`'s header
   promises the bottom-left round count while `mode.lua` passes the rounds no D-pad slot. The page, its docs index row
   and `coop gun`'s comment speak of no crouching. The page has no ", and" or ", but", no bold-label bullet and no
-  "co-op session". `ammo.lua`'s header and `facts.lua`'s note on the retired F11 have no ", and" or ", but" either;
+  "co-op session". `ammo.lua`'s header and `facts.lua`'s note on the retired F11 have no ", and" or ", but" either.
+  Only `fight/gunmode/wiring.lua` registers an engine hook (`NotifyOnNewObject`, `RegisterHook`);
 - `vehicles/bike/ride_test` covers `vehicles/bike/ride.lua` over a fake EVE and native part: the preload asked once and
   released at `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every
   mount refusal with its reason and nothing written, the mount's order and the dismount backward, the lean (the math

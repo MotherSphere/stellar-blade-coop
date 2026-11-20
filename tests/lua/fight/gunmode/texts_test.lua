@@ -2,7 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode's texts against its code and scripts: the rifle layer's pak has one name, the tools say what they make,
--- comments hold no play-session clock times or plans that are not in the repository. Runs from the repository's root.
+-- comments hold no play-session clock times or plans that are not in the repository. Only wiring.lua registers an
+-- engine hook. Runs from the repository's root.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local S='mod/StellarCoop/Scripts/fight/gunmode/'
 local function read(path) local f=assert(io.open(path,'rb'),path); local s=f:read('a'); f:close(); return s end
@@ -159,6 +160,15 @@ do
         if l:lower():find('co-op session',1,true) then fail(('%s:%d: "co-op session"'):format(p,n)) end
     end)
 end
+
+-- 5. Engine hooks (NotifyOnNewObject, RegisterHook) are registered in wiring.lua only, where each callback checks
+--    M.off_modules (docs/dev/structure.md). One registered anywhere else stays for the whole Lua load with no off check.
+lines(LUA,function(p,n,l)
+    local code=l:gsub('%-%-.*$','')
+    if p~=S..'wiring.lua' and (code:find('NotifyOnNewObject',1,true) or code:find('RegisterHook',1,true)) then
+        fail(('%s:%d: an engine hook outside wiring.lua'):format(p,n))
+    end
+end)
 
 if #bad>0 then error('\n'..table.concat(bad,'\n'),0) end
 print('gunmode texts: ok')
