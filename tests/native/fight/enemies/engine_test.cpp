@@ -7084,6 +7084,15 @@ int main() {
       run(200);
       w.ask(coop::parse_request("fight off"), gate, io);
       assert(has(io.file, " SBF23 place 1 1\n") && !has(io.file, "aggro"));
+      // reactions and resist: the host's hit_reactions and stagger_resist, from the start's words (each off without
+      // its word), kept as a stagger line. coop fight stagger changes them while it runs: a new line at the next turn.
+      assert(w.ask(coop::parse_request("fight record reactions"), gate, io).rfind("shared fight record: ", 0) == 0);
+      run(200);
+      assert(w.ask(coop::parse_request("fight stagger 0 1"), gate, io) == "stagger: reactions off, resist on");
+      run(100);
+      w.ask(coop::parse_request("fight off"), gate, io);
+      assert(has(io.file, " SBF23 stagger 1 1 0\n") && has(io.file, " SBF23 stagger 1 0 1\n"));
+      assert(!has(io.file, " SBF23 stagger 1 1 1\n"));
       // spawns: the host's same_spawns=on, from the next start; its epoch line is never recorded. The stats line says
       // whether same spawns run, and the epoch.
       H.spawns(), H.zone(0xA1, 40), H.enter(0xA1);
