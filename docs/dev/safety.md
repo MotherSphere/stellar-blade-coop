@@ -230,8 +230,8 @@ feature or drops the input.
   paused or in photo mode, its remove with it. After a refused take the next empty reload waits 5 s. Its count reads
   ask the `items` request with the numbers 20000 to 32767. With `gun_mode=off` gun mode asks no rows. Those rows
   patch the three shipped camp ShopTable rows (`Shop_SimpleCamp`, `Shop_FullCamp`, `Shop_NestCamp`) in place for the
-  game run, with `Camp_Bullet_Nikke_Buy` added to their `ShopItems` and their other items as shipped.
-  They add `Camp_Bullet_Nikke_Buy` to ShopItemTable and 8 RewardGroupTable rows (31114 to 31121) to the ammo groups
+  game run, with `SBO_Camp_Bullet_Nikke_Buy` added to their `ShopItems` and their other items as shipped.
+  They add `SBO_Camp_Bullet_Nikke_Buy` to ShopItemTable and 8 RewardGroupTable rows (31114 to 31121) to the ammo groups
   enemies and supply boxes roll. No shipped RewardGroupTable row changes. SB's own buy and drops add the rounds: gun
   mode adds none. Apart from enemy stats with the experimental shared enemies
   (`coop fight`, on by default, co-op saves only), their positions and animations with the experimental same place (on
