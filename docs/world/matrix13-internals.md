@@ -421,7 +421,8 @@ Lion of `coop mxiii boss` has no spawn row and so no EventOnDead: `boss.lua` fir
 `CreateSBZoneEvent` kind 10 when it reads that Lion dead [inference: never run in game]. A save whose Lion died on a
 build without these rows keeps its levers disabled and needs a new run. `world/maps/matrix13/level/fans.lua` holds each
 cooked rotor's RotatingMovementComponent off until that fan's lever reads On, so the fans stand still from arrival
-without a cook change. Lever 023's On also fires scene 4G.
+without a cook change. It walks for the rotors once under the arrival's black, then finds them by path. Lever 023's On
+also fires scene 4G.
 
 The counters, the zone 2 wave triggers, the 14 zone 3 and fan room arena doors and every opener a lock disables (D7's)
 are `ResetZone` (2), as SE_08's counter `SE_08_EnvS_090` is: if EVE dies in an arena, the zone reset puts them back, the
@@ -515,12 +516,21 @@ for 689 ms (2026-11-12). The 10 to 13 ms are the gaps between two spawn lines of
 lookup, a UE4SS `StaticFindObject` walk; the spread line's `lookups` gives that share. The ledge mesh is looked up again
 on each of those frames and never held between them.
 
+At each arrival in a world 2800 younger than 20 s, `travel.lua` first puts up SB's own black, the one the lobby holds
+(`USBBlueprintLibrary::LoadingScreenFadeAuto`, exec `0x1426641e0`: a 10 s lifetime, 0.5 s fades, tag 5 Load). Nothing
+spawns during its fade-in. Under it each list spends 0.1 s a frame in place of 4 ms. `fans.lua` and `boss.lua` walk
+once there for the rotors and the boss bar's text blocks; in play they find them again by path. Once both lists are
+done in that world, Lua asks `loading lift`. When the setup takes longer, SB ends its black itself after 10 s and the
+rest spreads in play on the 4 ms budget. A world met late (a Lua reload in the dungeon) gets no black. Lily's arrival
+talk waits while the black is up.
+
 ### Bosses
 
 `world/maps/matrix13/level/boss.lua` looks, once a second while EVE is within 80 m of a boss point, for a body of the
 Lion's or the Gardener's blueprint within 30 m of it, and fixes it once: the Lion through `fight/bosses/lion.lua`'s
 `adopt` (its anim instance, else the hidden Behemoth leader that `coop lion` uses), the Gardener's mesh turned -90
-degrees. While one lives, the boss bar shows its name. EVE standing 20 s within 25 m of a boss point with no body there
+degrees. While one lives, the boss bar shows its name. Its text blocks are walked for once under the arrival's black,
+then found by path. EVE standing 20 s within 25 m of a boss point with no body there
 gets one `[MXBOSS]` line naming `coop mxiii boss`, which spawns that arena's boss through `coop lion` or `coop gardener
 fight` (key 0, no saved death). It never runs by itself: a boss killed before stays dead through its row's SaveType, and
 an automatic spawn would bring it back at each visit.

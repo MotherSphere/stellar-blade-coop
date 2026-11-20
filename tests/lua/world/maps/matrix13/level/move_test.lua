@@ -387,4 +387,17 @@ do
     StaticFindObject,LoadAsset=saved_find,saved
     Keep.reset()
 end
+
+-- done(world) and tick(budget), as breakables'.
+do
+    local md=M.new({log=function() end,list={
+        {key='KE1',cls='ledge',at={1,2,3},yaw=85,mesh=MESH,role='climb_R16'},
+        {key='KE2',cls='ledge',at={4,5,6},yaw=85,mesh=MESH,role='climb_R16'}}})
+    world=new_world(); clock=clock+10
+    local w=world:GetAddress()
+    md.tick(0)
+    assert(not md.done(w),'One of two spawned')
+    md.tick(0)
+    assert(md.done(w) and not md.done(w+1),'Both spawned in this world')
+end
 print('world/maps/matrix13/level/move_test: ok')

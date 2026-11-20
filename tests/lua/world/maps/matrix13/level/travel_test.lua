@@ -915,4 +915,60 @@ do
 end
 -- The Paks folder lives in core/pak_gate.lua: this name is its function.
 assert(M.paks_of==require('core.pak_gate').paks_of)
+
+-- SB's black over world 2800's setup, with fake parts: up once at the first tick in a new world 2800 younger than FRESH
+-- s; nothing ticked while it fades in; HELD_BUDGET under it; the walks primed once; the lift once both lists are done
+-- in that world; held() true in between; SB's own end after LIFETIME s; no black for a world met late or when it cannot
+-- be shown (Review Focus 15); EVE's world read at most every LOOK s (Review Focus 18).
+do
+    local function thing(at) return {type=function() return 'UObject' end,IsValid=function() return true end,
+        GetAddress=function() return at end} end
+    local w2=thing(0x9000)
+    local eve2=thing(0x9800)
+    eve2.GetWorld=function() return w2 end
+    local blacks,budgets,primes,done_in,wt,raise_black,heres={},{},{},nil,3,nil,0
+    local function part(name)
+        return {tick=function(b)
+                if name=='move' or name=='breakables' then budgets[#budgets+1]=name..' '..tostring(b) end
+            end,
+            done=function(w) return w==done_in end,prime=function() primes[#primes+1]=name end}
+    end
+    local mb=M.new({log=function(m) lines[#lines+1]=m end,
+        ask=function(line) asked[#asked+1]=line; return true,'asked the native part: '..line end,
+        status=function() return status_text end,travel=function() return nil end,paks=PAKS,read=read,
+        here=function() heres=heres+1; return eve2 end,world_time=function() return wt end,
+        black=function() if raise_black then error(raise_black,0) end blacks[#blacks+1]=clock end,
+        parts={move=part('move'),breakables=part('breakables'),boss=part('boss'),fans=part('fans'),
+            drone=part('drone')}})
+    clock=900; mb.tick()
+    assert(#blacks==1 and mb.held() and #budgets==0 and logged("arrival: SB's black up for world 2800's setup"))
+    local looks=heres
+    clock=900.1; mb.tick()
+    assert(heres==looks and #budgets==0,"EVE's world not read again within LOOK s; nothing runs in the fade-in")
+    clock=900+M.FADE; mb.tick()
+    assert(primes[1]=='boss' and primes[2]=='fans' and budgets[1]=='move '..M.HELD_BUDGET
+        and budgets[2]=='breakables '..M.HELD_BUDGET,table.concat(budgets,'|'))
+    clock=clock+0.1; mb.tick()
+    assert(#primes==2 and mb.held(),'Primed once; up while the lists spawn')
+    done_in=0x9000
+    clock=clock+0.1; mb.tick()
+    assert(not mb.held() and asked[#asked]=='loading lift' and logged("arrival: SB's black lifted after"))
+    clock=clock+0.1; mb.tick()
+    assert(#blacks==1 and budgets[#budgets]=='breakables nil','After the lift: the budget in play')
+    -- A world met late (a Lua reload in world 2800): no black, the budget in play.
+    w2,wt=thing(0x9100),120
+    clock=clock+1; mb.tick()
+    assert(#blacks==1 and not mb.held() and budgets[#budgets]=='breakables nil')
+    -- SB's own end after LIFETIME s with the setup not done.
+    w2,wt=thing(0x9200),2
+    clock=clock+1; mb.tick()
+    assert(#blacks==2 and mb.held())
+    clock=clock+M.LIFETIME; mb.tick()
+    assert(not mb.held() and logged("arrival: SB's black ended by itself after 10 s; the setup goes on in play"))
+    -- A black that cannot be shown: one line, the setup in play.
+    w2,raise_black=thing(0x9300),'no SB library'
+    clock=clock+1; mb.tick()
+    assert(not mb.held() and logged("arrival: SB's black not shown (no SB library): the setup goes on in play")
+        and budgets[#budgets]=='breakables nil')
+end
 print('world/maps/matrix13/level/travel_test: ok')

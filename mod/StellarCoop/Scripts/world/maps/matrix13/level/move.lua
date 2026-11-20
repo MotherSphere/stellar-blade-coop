@@ -40,7 +40,8 @@ local EVERY=1 -- s between looks at the world while nothing is left to spawn.
 -- Seconds of spawning a tick: at least one entry, then more until this is spent. One spawn took 10 to 13 ms in game
 -- (UE4SS.log 2026-11-12 21:49), so in practice one a tick; all 48 in one tick froze a frame for 689 ms. A spawn cannot
 -- be split: FinishSpawningActor (exec 0x144773be0) runs AActor::FinishSpawning 0x143f6b580, construction script and
--- BeginPlay included, before it returns.
+-- BeginPlay included, before it returns. travel.lua gives a larger budget while SB's black hides the frames
+-- (Mxiii.HELD_BUDGET).
 Move.BUDGET=0.004
 local ALWAYS_SPAWN=1 -- ESpawnActorCollisionHandlingMethod::AlwaysSpawn.
 
@@ -182,7 +183,7 @@ function Move.new(o)
     end
     -- True when this tick spent its time spawning: world/maps/matrix13/level/travel.lua then holds the boxes back for
     -- the frame.
-    function self.tick()
+    function self.tick(budget)
         local now=os.clock()
         if not todo and now<next_look then return end
         next_look=now+EVERY
@@ -234,7 +235,7 @@ function Move.new(o)
                 log(string.format('%s %s not spawned: %s',m.cls,m.key,tostring(a)))
             end
             todo=todo+1
-            if os.clock()-start>=Move.BUDGET then break end
+            if os.clock()-start>=(budget or Move.BUDGET) then break end
         end
         ticks,longest=ticks+1,math.max(longest,os.clock()-start)
         if todo>#list then
@@ -254,6 +255,8 @@ function Move.new(o)
         end
         return true
     end
+    -- This world's list is spawned (w: its address; travel.lua's black waits for it).
+    function self.done(w) return w~=nil and world==w and todo==nil end
     return self
 end
 return Move

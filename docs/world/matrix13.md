@@ -188,7 +188,9 @@ bosses, and the mechanisms, built the way Matrix 11 builds its own.
   and `coop mxiii warp <n|name>` puts EVE on one (solo, on a co-op save, in the dungeon only).
 
 Once in the dungeon, the mod spawns the ladders, ledges and the two ropes itself (`[MXMOVE]` lines) and fixes the Lion
-and the Gardener when the game spawns them (`[MXBOSS]` lines). `coop mxiii boss`, typed within 25 m of the Lion's or the
+and the Gardener when the game spawns them (`[MXBOSS]` lines). The ladders, ledges, ropes, boxes and barrels are placed
+under the game's own loading black when you arrive, which stays up a few seconds longer, so none of them appears in
+play. `coop mxiii boss`, typed within 25 m of the Lion's or the
 Gardener's spawn point, spawns that boss as `coop lion` or `coop gardener fight` would (no saved death), for when the
 game spawned none there. The fan levers wait for the Lion's death: a save whose Lion died on a build older than these
 levers needs a new run. A boss that never spawns locks nothing: its doors lock on its first fight.

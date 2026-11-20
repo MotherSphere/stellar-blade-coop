@@ -173,6 +173,16 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   keep settled, then the keep's class with no `LoadAsset`; a class missing on this PC never loaded;
   `online/group/region_tabs_test` the two hooks waiting for the keep, then installed from its classes with no lookup
   and no `LoadAsset`;
+- `world/maps/matrix13/level/travel_test` covers SB's black over world 2800's setup with fake parts: up once at the
+  first tick in a new world 2800 younger than 20 s, nothing ticked in its 0.5 s fade-in, 0.1 s a tick under it, the
+  walks primed once, `loading lift` once both lists are done in that world, SB's own end after 10 s, no black for a
+  world met late or one that cannot be shown, EVE's world read at most every 0.25 s;
+  `world/maps/matrix13/level/breakables_test` and `world/maps/matrix13/level/move_test` `done(world)` true only once
+  that world's list is spawned, with `tick(budget)` spending the budget given; `world/maps/matrix13/level/fans_test`
+  the rotors walked once under the black, then a stale rotor found again by its owner's path with no walk, a prime
+  with no rotor giving the STOP line with no walk in play; `world/maps/matrix13/level/boss_test` the boss bar's text
+  blocks walked once under the black, then a gone block found again by its path, a prime that finds no block leaving
+  the look to walk as before; `world/maps/matrix13/quest/on_time_test` the arrival talk waiting while the black is up;
 - `ui/kit/model_test` covers the four Who can join values and the Friends join without asking row, shown under Public
   and Invitation only, then the Online tab row named in `docs/players/interface.md`'s Options paragraph between the
   bike's key and Reset all keys;

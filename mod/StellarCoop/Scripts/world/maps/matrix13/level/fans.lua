@@ -7,10 +7,11 @@
 -- change: SetActive(false) stops its tick [inference: UActorComponent's own call, never run on these]. Levers 023, 024
 -- and 025 start disabled and the Lion's EventOnDead enables them (data/mxiii-world.json, DLC02_40_E_EnvC_631 to 633);
 -- their row state On is saved, so a reload finds the fans it left running. Once a second, only within NEAR of the room:
--- the components are looked for by a walk of every object (25 to 80 ms, no path assumed for a streamed level's objects),
--- at most every FIND s and only while a rotor is missing; a missing lever is looked for through the class hash alone.
--- Then held, and a level streamed back in gets a fresh object that turns for at most FIND s before the next walk. One
--- [MXFAN] line a change. If nothing is found the fans keep turning.
+-- the components are walked for once under the arrival's black (prime, world/maps/matrix13/level/travel.lua), then a
+-- missing one is found again by its owner's path (o.find), at most every FIND s; with no black, by a walk of every
+-- object (25 to 80 ms) as before, only while a rotor is missing; a missing lever is looked for through the class hash
+-- alone. Then held. A level streamed back in gets a fresh object that turns for at most FIND s before the next look.
+-- One [MXFAN] line a change. If nothing is found the fans keep turning.
 local U=require('core.unreal')
 local Fans={}
 Fans.LEVERS={{env='DLC02_40_EnvS_023',rotor='Z4_Z4R10_S_Fan1_Rotor'},{env='DLC02_40_EnvS_024',rotor='Z4_Z4R10_S_Fan2_Rotor'},
@@ -18,12 +19,14 @@ Fans.LEVERS={{env='DLC02_40_EnvS_023',rotor='Z4_Z4R10_S_Fan1_Rotor'},{env='DLC02
 -- World cm: the room's middle (plan -132.5, 15, 15 m above its floor), and within this of it the room and its doors.
 Fans.CENTER,Fans.NEAR={X=40246,Y=48945,Z=-14633},7000
 Fans.EVERY,Fans.FIND=1,10
--- o: log (the [MXFAN] lines), here (EVE when she stands in world 2800, else nil).
+-- o: log (the [MXFAN] lines), here (EVE when she stands in world 2800, else nil), find(path) (the object at a path, or
+-- nil; core/unreal.lua's object_at).
 function Fans.new(o)
     local log,here=o.log,o.here
     local self={}
     local next_pass,next_find=0,-math.huge
     local rotors,levers={},{} -- By rotor name, by env row name: the objects held.
+    local primed,paths=false,{} -- Primed under the arrival's black; each fan rotor's owner path.
     local said=nil -- The last message said.
     local function say(m)
         if m~=said then said=m; log(m) end
@@ -48,15 +51,28 @@ function Fans.new(o)
         local v,c=U.value_of(eve:K2_GetActorLocation()),Fans.CENTER
         return (v.X-c.X)^2+(v.Y-c.Y)^2+(v.Z-c.Z)^2<=Fans.NEAR^2
     end
+    local function walk()
+        U.each(FindAllOf('RotatingMovementComponent') or {},function(_,c)
+            c=U.valid(c)
+            local owner=c and U.valid(c:GetOwner())
+            if owner then rotors[U.text(owner:GetFName())]=c end
+        end)
+    end
+    -- Each missing rotor found again by the path prime() kept (o.find: a name-hash find, never a walk).
+    local function refind()
+        local cls=U.find('/Script/Engine.RotatingMovementComponent')
+        for _,f in ipairs(Fans.LEVERS) do
+            local p=paths[f.rotor]
+            if p and not rotor_of(f) then
+                local a=U.valid(o.find(p))
+                local c=a and U.valid(a:GetComponentByClass(cls))
+                if c then rotors[f.rotor]=c end
+            end
+        end
+    end
     local function look(eve,now,rotor_missing)
         next_find=now+Fans.FIND
-        if rotor_missing then
-            U.each(FindAllOf('RotatingMovementComponent') or {},function(_,c)
-                c=U.valid(c)
-                local owner=c and U.valid(c:GetOwner())
-                if owner then rotors[U.text(owner:GetFName())]=c end
-            end)
-        end
+        if rotor_missing then if primed then refind() else walk() end end
         for _,x in ipairs((U.actors_of(U.find('/Script/SB.SBZoneEnvActor'),'SBZoneEnvActor',eve))) do
             local ok,name=pcall(function() return U.text(x.EnvActorName) end)
             if ok then levers[name]=x end
@@ -96,6 +112,20 @@ function Fans.new(o)
         if now<next_pass then return end
         next_pass=now+Fans.EVERY
         local ok,why=pcall(pass,now)
+        if not ok then say('STOP: '..tostring(why)) end
+    end
+    -- Under the arrival's black (world/maps/matrix13/level/travel.lua): the rotors walked for once and each fan rotor's
+    -- owner path kept, so a rotor that comes back with its level is found again by that path in play, with no walk.
+    function self.prime(eve)
+        primed,paths=true,{}
+        local ok,why=pcall(function()
+            walk()
+            for _,f in ipairs(Fans.LEVERS) do
+                local c=rotor_of(f)
+                local owner=c and U.valid(c:GetOwner())
+                paths[f.rotor]=owner and U.text(owner:GetFullName()):match('^%S+ (.+)$') or nil
+            end
+        end)
         if not ok then say('STOP: '..tostring(why)) end
     end
     return self

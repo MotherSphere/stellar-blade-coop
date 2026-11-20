@@ -219,4 +219,42 @@ local Rows=require('world.maps.matrix13.level.rows')
 for _,row in ipairs({'DLC02_20_E_CharS_904','DLC02_30_E_CharS_029','DLC02_40_E_CharS_051'}) do
     assert(Rows.BOSS[row] and #Rows.BOSS[row].at==3,row)
 end
+
+-- prime() under the arrival's black: the text blocks walked for once and their paths kept; in play a block that is gone
+-- is found again by its path with no walk (Review Focus 16).
+do
+    local texts,asked,at_path={},{},{}
+    local real=FindAllOf
+    FindAllOf=function(name) if name=='TextBlock' then texts[#texts+1]=name end return real(name) end
+    map,here='MXIII_P',{X=10000,Y=0,Z=0}
+    world=object({GetFullName=function() return 'World /Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P.MXIII_P' end})
+    local PATH='/Engine/Transient.GameEngine.BossBar.TextBlock_BossName'
+    local function block(state)
+        return object({GetFName=function() return 'TextBlock_BossName' end,
+            GetFullName=function() return 'TextBlock '..PATH end,
+            GetText=function() return state.text end,SetText=function(_,t) state.text=t.text end})
+    end
+    local s1,s2={text='<M_LionC>'},{text='<M_LionC>'}
+    local b1=block(s1)
+    blocks,bodies={b1},{}
+    body('CH_M_NA_02_BluePrint_Large_C',{X=10000,Y=0,Z=0})
+    local pb=Boss.new({log=function() end,lion=lion,gardener=gardener,points=points,
+        find=function(p) asked[#asked+1]=p; return at_path[p] end})
+    pb.prime(eve)
+    assert(#texts==1,'One walk under the black')
+    clock=clock+100; pb.tick()
+    assert(s1.text=='Lion' and #texts==1)
+    b1.destroyed=true
+    at_path[PATH]=block(s2)
+    clock=clock+11; pb.tick()
+    assert(s2.text=='Lion' and #texts==1 and asked[#asked]==PATH,'Found again by its path, no walk')
+    -- A prime that finds no block (the bar not built yet): not primed, the look walks as before.
+    blocks={}
+    local nb=Boss.new({log=function() end,lion=lion,gardener=gardener,points=points,find=function() end})
+    nb.prime(eve)
+    local walked=#texts
+    clock=clock+100; nb.tick()
+    assert(#texts==walked+1,'Not primed: the look walks as before')
+    FindAllOf=real
+end
 print('world/maps/matrix13/level/boss_test: ok')

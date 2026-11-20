@@ -32,7 +32,8 @@ Breakables.TAG='MXIII_BREAK'
 -- Seconds of spawning a tick: at least one entry, then more until this is spent. One spawn took 8 to 13 ms in game
 -- (UE4SS.log 2026-11-12 21:49), so in practice one a tick; 40 a tick froze 8 frames for 350 to 454 ms each. A spawn
 -- cannot be split: FinishSpawningActor (exec 0x144773be0) runs AActor::FinishSpawning 0x143f6b580, construction
--- script and BeginPlay included, before it returns.
+-- script and BeginPlay included, before it returns. travel.lua gives a larger budget while SB's black hides the frames
+-- (Mxiii.HELD_BUDGET).
 Breakables.BUDGET=0.004
 local EVERY=1 -- s between looks at the world while nothing is left to spawn.
 local ALWAYS_SPAWN=1 -- ESpawnActorCollisionHandlingMethod::AlwaysSpawn.
@@ -151,7 +152,7 @@ function Breakables.new(o)
             p and 'proxy hidden' or 'no proxy in the cook'..(m.gates and ', gates '..m.gates or '')),
             p~=nil and alias==m.alias
     end
-    function self.tick()
+    function self.tick(budget)
         local now=os.clock()
         if not todo and now<next_look then return end
         next_look=now+EVERY
@@ -201,7 +202,7 @@ function Breakables.new(o)
             if spawned then made,c.made=made+1,c.made+1 end
             if plain then c.plain=c.plain+1 else log(string.format('%s %s (%s) %s',m.cls,m.key,m.level,line)) end
             todo=todo+1
-            if os.clock()-start>=Breakables.BUDGET then break end
+            if os.clock()-start>=(budget or Breakables.BUDGET) then break end
         end
         ticks,longest=ticks+1,math.max(longest,os.clock()-start)
         if todo>#list then
@@ -216,6 +217,8 @@ function Breakables.new(o)
             log(string.format('%d/%d boxes and barrels spawned in world 2800, %d proxies hidden',made,#list,hidden))
         end
     end
+    -- This world's list is spawned (w: its address; travel.lua's black waits for it).
+    function self.done(w) return w~=nil and world==w and todo==nil end
     return self
 end
 return Breakables

@@ -216,6 +216,7 @@ local function read(path,limit) return files[path] and files[path]:sub(1,limit) 
 
 local logs,asked,travels={},{},0
 local mode,paused='none',false
+local held=false -- SBO's black over Matrix XIII's setup.
 local travel_answer={true,'coop mxiii: the rows are in and the travel to DLC02_00_Camp_00 is asked'}
 -- The signalquest line: unread, or none with Quest_Sub_005 complete and Quest_Epic_11 at M04 in progress, unless said.
 local function quest_line(t)
@@ -256,7 +257,7 @@ local function zone_called(what) for _,c in ipairs(zone_calls) do if c==what the
 local function new()
     return Lily.new({zones=zones,log=function(m) logs[#logs+1]=m end,status=status_text,
         ask=function(line) asked[#asked+1]=line; return true,'asked the native part: '..line end,
-        mode=function() return mode end,paused=function() return paused end,
+        mode=function() return mode end,paused=function() return paused end,held=function() return held end,
         travel=function() travels=travels+1; return table.unpack(travel_answer) end,paks=PAKS,read=read,talks=talks})
 end
 local function last() return logs[#logs] end
@@ -444,11 +445,12 @@ lines.lily='lily=off asks=3 want=off why=none'
 world=MXIII
 clock=clock+1; ly.tick()
 paused=true; clock=clock+2.5; ly.tick(); paused=false
+held=true; clock=clock+2.5; ly.tick(); held=false -- The arrival's black counts as a screen.
 clock=clock+3.75; ly.tick()
 assert(#plays==1,'Not before 4 s with no screen')
 clock=clock+0.25; ly.tick()
 assert(#plays==2 and plays[2].name=='arrival' and logged('the arrival talk, once this Lua load'),last())
-clock=clock+3; ly.tick()
+clock=clock+0.5; ly.tick() -- 9.5 s in Matrix XIII at M01.
 assert(count('signal complete')==0,'Not before 10 s')
 clock=clock+0.5; ly.tick()
 assert(count('signal complete')==1 and last():find('signal complete asked',1,true),last())

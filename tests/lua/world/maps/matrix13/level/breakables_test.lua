@@ -446,4 +446,18 @@ do
     LoadAsset=saved
     Keep.reset()
 end
+
+-- done(world) (world/maps/matrix13/level/travel.lua's black waits for it): false while that world's list spawns, true
+-- once it is spawned there, false for another world; tick(budget) spends the budget it is given, one entry at least.
+do
+    local bd=B.new({log=function() end,list={entry('KD1','box1',{proxy_in_cook=false}),
+        entry('KD2','box1',{proxy_in_cook=false})}})
+    new_world(); clock=clock+10
+    local w=world:GetAddress()
+    bd.tick(0) -- The proxies' own tick.
+    bd.tick(0)
+    assert(not bd.done(w),'One of two spawned')
+    bd.tick(0)
+    assert(bd.done(w) and not bd.done(w+1),'Both spawned in this world')
+end
 print('world/maps/matrix13/level/breakables_test: ok')
