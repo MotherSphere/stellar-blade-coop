@@ -1,0 +1,17 @@
+X=-45
+Y=-20
+Z=-90
+Yaw=135
+Pitch=33
+Roll=3
+BatX=-50
+BatY=-15
+BatZ=-80
+BatYaw=90
+BatPitch=30
+BatRoll=3
+Pose=1
+Slot=1
+Speed=2306
+ArriveX=740
+ArriveY=210

@@ -6,7 +6,9 @@
 What an install replaces or removes is backed up first; --uninstall backs up the whole folder, then removes it.
 --zip writes a release zip that the same commit always gives byte for byte, with a CHANGELOG.md from the commits made
 after the last GPL-3.0 commit. --pak also copies the hall lobby pak, kept on this PC and never in the zip, into
-SB/Content/Paks/~mods; --uninstall backs up and removes its three files there, and nothing else in ~mods."""
+SB/Content/Paks/~mods; --uninstall backs up and removes its three files there, and nothing else in ~mods. --bike also
+installs the Fusion Strider dev bike: mod/EveHoverbike, its paks and CPS plugin from a folder kept off the repository,
+with SBO's own bike turned off (docs/vehicles/fusion-strider-handover.md)."""
 import argparse
 import hashlib
 import os
@@ -31,6 +33,15 @@ CLOSE_GAME = 'Close Stellar Blade first: its mods must not change under it.'
 LAST_GPL = '051ab5090a2ea6832279345524e9cdaa816ee736'
 ART = 'Assets/MotherSphere.png'  # timediffer24's art, not under the SBO License (NOTICE): installed, never zipped.
 PAK = ('zSBO_Lobby.pak', 'zSBO_Lobby.ucas', 'zSBO_Lobby.utoc')  # The only files --pak and --uninstall touch in ~mods.
+# --bike: the dev bike's paks (each in its own folder under ~mods, as its folder holds them) and its CPS plugin.
+BIKE_PAKS = ('EveBike_FusionStrider_P', 'EveBike_FusionRider_P', 'Batcycle_P', 'EvecycleImpact_P')
+BIKE_CPS = 'eve_hoverbike.cps'
+# Starting files: written only when the player has none, since the mod or its CPS page rewrites them.
+BIKE_FIRST = ('Scripts/tuning.txt',)
+# Settings --bike writes, backed up first: SBO's own bike off (F3 is Eve Hoverbike's), and UE4SS's game-thread queue
+# on ProcessEvent (with EngineTick it never ran on Saroj's PC, where CPS also hooks the engine tick).
+BIKE_COOP = (('bike', 'off'), ('bike_key', 'none'))
+BIKE_UE4SS = ('DefaultExecuteInGameThreadMethod', 'ProcessEvent')
 
 
 def running_game():
@@ -186,6 +197,74 @@ def uninstall_pak(paks, dry_run):
         print(f'Removed {paks / name}')
 
 
+def bike_sources(folder):
+    """The dev bike's files in folder, relative to it; a folder without one of them is refused."""
+    want = [Path(n, f'{n}.{ext}') for n in BIKE_PAKS for ext in ('pak', 'ucas', 'utoc')] + [Path(BIKE_CPS)]
+    if missing := [p.as_posix() for p in want if not (folder / p).is_file()]:
+        sys.exit(f'No {", ".join(missing)} in {folder}')
+    return want
+
+
+def set_key(text, key, value, sep):
+    """text with its key line set to value (the first one, its separator kept), or added at the end; None when it
+    already holds value."""
+    line = re.compile(rf'^([ \t]*{re.escape(key)}[ \t]*=[ \t]*)([^\r\n;#]*?)([ \t]*)(?=\r?$)', re.M)
+    if m := line.search(text):
+        return None if m.group(2) == value else text[:m.start(2)] + value + text[m.end(2):]
+    nl = '\r\n' if '\r\n' in text else '\n'
+    return text + ('' if not text or text.endswith('\n') else nl) + f'{key}{sep}{value}{nl}'
+
+
+def write_keys(path, keys, sep, dry_run, add=True):
+    """Sets each (key, value) in the text file path, backed up first; a missing file is written with them when add."""
+    text = path.read_bytes().decode('utf-8-sig') if path.is_file() else None  # Bytes: its line ends kept.
+    if text is None and not add: return print(f'No {path}: set {"; ".join(f"{k}{sep}{v}" for k, v in keys)} by hand')
+    new = text or ''
+    for key, value in keys:
+        if text is not None and not add and not re.search(rf'^[ \t]*{re.escape(key)}[ \t]*=', new, re.M):
+            print(f'{path} has no {key} line: add {key}{sep}{value} under its section by hand')
+            continue
+        new = set_key(new, key, value, sep) or new
+    if new == (text or ''): return print(f'{path.name} already holds {", ".join(f"{k}{sep}{v}" for k, v in keys)}')
+    if dry_run: return print(f'Dry run: would set {", ".join(f"{k}{sep}{v}" for k, v in keys)} in {path}')
+    if text is not None: backup(path.parent, [path.name], path.parent.name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(new.encode('utf-8'))
+    print(f'Set {", ".join(f"{k}{sep}{v}" for k, v in keys)} in {path}')
+
+
+def install_bike(folder, sources, game, dry_run):
+    """The Fusion Strider dev bike: mod/EveHoverbike into UE4SS's Mods, its paks into ~mods, its plugin into CPS, its
+    starting files where the player has none, SBO's bike off and UE4SS's queue on ProcessEvent. Every file it replaces
+    is backed up first."""
+    win = game / 'SB/Binaries/Win64'
+    if not (win / 'CPS/CPS.dll').is_file():
+        sys.exit(f'No CPS at {win / "CPS"}: install CPS (Custom Plugin System) first')
+    if running_game() and not dry_run: sys.exit(CLOSE_GAME)
+    src, target = ROOT / 'mod/EveHoverbike', win / 'ue4ss/Mods/EveHoverbike'
+    files = {p.relative_to(src).as_posix(): p for p in sorted(src.rglob('*'))
+             if p.is_file() and p.name != 'cps-settings.json'}
+    files = {rel: p for rel, p in files.items() if rel not in BIKE_FIRST or not (target / rel).is_file()}
+    copies = [(target, rel, p) for rel, p in files.items()]
+    copies += [(game / 'SB/Content/Paks/~mods', rel.as_posix(), folder / rel) for rel in sources[:-1]]
+    copies += [(win / 'CPS/Plugins', BIKE_CPS, folder / BIKE_CPS)]
+    config = win / 'CPS/Configs/EveHoverbike'
+    if not (config / 'settings.json').is_file(): copies.append((config, 'settings.json', src / 'cps-settings.json'))
+    if dry_run:
+        print(f'Dry run: would install {len(copies)} dev bike files (Eve Hoverbike, {len(BIKE_PAKS)} paks, {BIKE_CPS})')
+    else:
+        for root in {c[0] for c in copies}:
+            old = [rel for r, rel, _ in copies if r == root and (root / rel).is_file()]
+            if old: backup(root, old, root.name)
+        for root, rel, path in copies:
+            (root / rel).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(path, root / rel)
+            if sha256(root / rel) != sha256(path): sys.exit(f'{root / rel} does not hash like {path}: run --bike again')
+        print(f'Installed {len(copies)} dev bike files')
+    write_keys(win / 'ue4ss/Mods/StellarCoop/coop-settings.txt', BIKE_COOP, '=', dry_run)
+    write_keys(win / 'ue4ss/UE4SS-settings.ini', [BIKE_UE4SS], ' = ', dry_run, add=False)
+
+
 def changelog(ver, when, subjects):
     """CHANGELOG.md from the commit subjects, newest first: features and fixes only. It goes into the zip, never
     into the repository."""
@@ -235,7 +314,12 @@ def main(argv=None):
     mode.add_argument('--pak', type=Path, metavar='DIR',
                       help=f'After the install, also copy {", ".join(PAK)} from DIR into SB/Content/Paks/~mods, '
                            'backing up the ones they replace')
+    parser.add_argument('--bike', type=Path, metavar='DIR',
+                        help=f'After the install, also install the Fusion Strider dev bike: mod/EveHoverbike, the paks '
+                             f'{", ".join(BIKE_PAKS)} (each in its own folder in DIR) and {BIKE_CPS} from DIR, '
+                             "with SBO's bike off (docs/vehicles/fusion-strider-handover.md)")
     args = parser.parse_args(argv)
+    if args.bike and (args.zip or args.uninstall): parser.error('--bike goes with an install only')
     # Only a committed tree: the zip, its version and its changelog all name one commit.
     if args.zip and git('status', '--porcelain'):
         sys.exit('A release zip needs a clean tree: commit first (git status is not empty).')
@@ -248,6 +332,7 @@ def main(argv=None):
     if args.pak:  # Before the tests and the build: a wrong folder fails in a second, not after six minutes.
         if not paks.parent.is_dir(): sys.exit(f'No Paks folder at {paks.parent}')
         sources = pak_sources(args.pak)
+    if args.bike: bike = bike_sources(args.bike)  # Before the tests and the build too.
     for test in sorted((ROOT / 'tests/lua').rglob('*_test.lua')):
         subprocess.run(['lua5.4', test.relative_to(ROOT)], cwd=ROOT, check=True)  # The game embeds Lua 5.4.
     checks = sanitizers()
@@ -279,6 +364,7 @@ def main(argv=None):
     else:
         install_files(target, files)
     if args.pak: install_pak(sources, paks, args.dry_run)
+    if args.bike: install_bike(args.bike, bike, args.game, args.dry_run)
 
 
 if __name__ == '__main__':
