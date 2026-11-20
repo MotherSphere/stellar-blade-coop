@@ -40,9 +40,10 @@ what each script makes.
 
 ## What gun mode changes in the game's data
 
-While the rifle is out, gun mode changes a few fields of the game's own data tables in memory. No row is added.
-Everything it changed goes back when the rifle is put away or at the next map load, so the NIKKE missions and the drone
-find their rows as shipped:
+While the rifle is out, gun mode changes a few fields of the game's own data tables in memory. These changes add no
+row. Everything it changed goes back when the rifle is put away or at the next map load, so the NIKKE missions and the
+drone find their rows as shipped. The rounds' rows are apart from these: they go in at the title on the co-op save files
+and stay for the game run ([The rounds' rows](#the-rounds-rows)). The fields the rifle changes:
 
 - `EventActorEffectTable`, `EffectTable`: the NIKKE shot, started from a borrowed row. The game's own tables use these
   two rows too (a NIKKE mission's zone event, the Scarlet fight's counter). They change only from a shot that needs
@@ -114,15 +115,119 @@ The rifle fires NIKKE RAPID rounds: about 20 a second.
 | | |
 | --- | --- |
 | Magazine | 60 rounds |
-| Spare magazines | 5 |
 | Reload | 1.6 s, with the NIKKE squad's reload sounds |
 
 The magazine reloads when it runs dry. It also reloads a second after the rifle is lowered with a part-spent magazine.
-No round fires while it reloads. A new map, a death or a camp warp gives full magazines again.
+No round fires while it reloads.
 
 In firing mode the reticle's round slot shows the round's name and the rounds left in the magazine. While the rifle
 reloads the name reads RELOADING. With the magazine and every spare empty it reads NO AMMO. RELOADING and NO AMMO show
 in the co-op menu's language; NIKKE RAPID stays as it is. Gun mode draws no other round count.
+
+The rounds below have not run in game yet. The rest of this section is written from the code and the game's tables.
+
+### Rounds on a co-op save
+
+On a [co-op save](../players/saves.md#co-op-saves) the rifle's rounds are an item EVE carries: `Bullet_Nikke`, the
+game's own round of the NIKKE stage. The mod adds no item. It adds where to get the round:
+
+- The camp vending machines sell it for 2 gold a round, at simple camps, full camps and nest camps. It is listed after
+  the drone's railgun rounds. The machines' item that refills all ammo does not refill it: that item refills the
+  drone's five rounds only.
+- Enemies and supply boxes drop it, beside the drone's ammo. Each row below rolls on its own: its chance out of 100,
+  then a count between its two numbers. The enemy counts come from the game's table dumps.
+
+| Drop group | Who rolls it | Chance | Rounds |
+| --- | --- | --- | --- |
+| `subGroup_FA_Normal_Bullet` | 18 kinds of enemy | 15% | 15 to 30 |
+| `subGroup_FA_Normal3_Bullet` | 9 kinds of enemy | 20% | 20 to 40 |
+| `subGroup_global_Normal_Bullet` | 8 kinds of enemy | 10% | 10 to 20 |
+| `subGroup_global_Normal3_Bullet` | 2 kinds of enemy | 15% | 15 to 30 |
+| `subGroup_FA_BodyBag_Bullet` | 2 kinds of enemy | 30% | 30 to 60 |
+| `subGroup_Raven_Bullet` | 2 kinds of enemy | 30% | 30 to 60 |
+| `subGroup_FA_Animal_Bullet` | 13 kinds of enemy | 10% | 10 to 20 |
+| `subGroup_b_standard_Bullet_Random` | Supply boxes | 50% | 20 to 40 |
+
+The shop and drop rows go in at the title screen when the co-op save files are picked, once a game run. Your own saves
+never ask them. They stay for the rest of the game run: once they are in, the machines sell the round and enemies drop
+it on any save, your own included. The magazine loads from the inventory only while a co-op save is loaded. Then the
+magazine starts empty. Each reload takes the rounds it loads out of EVE's inventory in one take, at most a magazine
+and at most what she carries. The rounds she carries are the spares. An empty magazine reloads as
+soon as she carries rounds (a buy, a drop). With none in the magazine and none carried the slot reads NO AMMO.
+
+Rounds in the magazine have already left the inventory. They stay in the magazine across a new map, a death or a camp
+warp. Nothing gives them back to the inventory: not putting the rifle away, not `coop off`. A reload loads nothing
+when the game cannot take the rounds, for example while the game is paused. An empty magazine then reloads again
+after 5 s.
+
+Each player buys and picks up rounds in their own game. Nothing of the rounds goes over the Steam link.
+
+### Free magazines
+
+On your own saves the rifle keeps its free magazines: 5 spare magazines of 60 rounds. That holds also after the rows
+went in this game run. A new map, a death or a camp warp gives full magazines again. Your own save loaded after a
+co-op save gives a full magazine and 5 spares at once. The same holds on a co-op save without the Steam link or the
+native part, or when the rows were refused or read back other than written. `UE4SS.log` then has the `[GM]` line
+`rounds: rows refused (...): the rifle keeps its own magazines` or
+`rounds: rows read back other than written: the rifle keeps its own magazines`.
+
+### Not known or not checked
+
+- The round's name may show empty in the machines and the inventory. `Bullet_Nikke`'s name and description fields are
+  empty in ItemTable. No `Item_Bullet_Nikke_` key ships in ItemStringTable. How the game shows an empty name was not
+  read.
+- Its icon is the drone's normal round's (`bullet_icon_01`).
+- Like every shipped round, its row has SaveType None. Whether the rounds EVE carries survive a save and a reload was
+  not tested.
+- Its carry limit follows an actor stat no other item uses (`ActorStatType_ItemStackBullet5`). That stat's value on
+  EVE outside the NIKKE stage was not read.
+- The camp machines carry the `AllShop` tag. A buy of rounds there counts toward the gold-spending trophy, as a buy of
+  drone ammo does.
+- How SB rolls a drop group's rows was not read in Ghidra. The table above takes each row's DropRate out of 10000 as
+  its own roll.
+
+## The rounds' rows
+
+The batch `nikke` (`native/src/fight/gunmode/nikke_rows.h`) leaves `Bullet_Nikke` (ItemTable ID 37) as it ships. It
+adds 9 rows and patches 3 shipped rows in place, in this order:
+
+| Table | Row | ID | Copied from | What changes |
+| --- | --- | --- | --- | --- |
+| RewardGroupTable | `31114` to `31121` | 31114 to 31121 | each group's own row (`200026`, `200030`, `200016`, `200020`, `200035`, `220025`, `200024`, `31105`) | `ItemAlias` `Bullet_Nikke`, `DropRate`, `ItemMinCount`, `ItemMaxCount`; the group is the donor's |
+| ShopItemTable | `Camp_Bullet_Nikke_Buy` | 37 | `Camp_Bullet_Normal_Buy` | `ItemAlias`; `MoneyItemCount1` and `FriendShip` 2; `CheckConditionGroup` None |
+| ShopTable | `Shop_SimpleCamp` | 1001 | itself | `ShopItems`: the shipped list with `Camp_Bullet_Nikke_Buy` after `Camp_Bullet_Railgun_Buy` |
+| ShopTable | `Shop_FullCamp` | 1002 | itself | the same |
+| ShopTable | `Shop_NestCamp` | 1003 | itself | the same, with its own first item (`Camp_ResurrectionItem_Buy`) |
+
+The donor shop item's condition `CG_TPSMode_Opened` is the drone's gun: the copy clears it. RewardGroupTable is the
+row engine's 40th table, written by this batch only. Every one of the eight groups is RandomEach. SB adds a row naming
+an `ItemAlias` with `rand(ItemMinCount, ItemMaxCount)` rounds (`FUN_141bea040`). The row offsets and the functions are
+in the header's comments, read in Ghidra on build 26123051.
+
+`fight/gunmode/nikke.lua` asks the batch through `core/enemy.lua`'s title batch from the 250 ms loop, on the co-op save
+files only. It then reads every row back through FindRow against `fight/gunmode/rows.lua`. A refusal for a shut gate
+(busy, net, unread) is asked again at the next visit of the title. A refusal for another reason, a fault or a row read
+back other than written keep the free magazines for the game run. With `gun_mode=off` the object is not made: gun mode
+asks no rows.
+
+The object is ready while the rows are in and the last 250 ms pass read a co-op save (the status's `slot=coop` line).
+While it is ready, `fight/gunmode/ammo.lua` takes its spares from it. When it stops being ready, the magazine goes back
+to free magazines (`mag_size` in the magazine, `spare_mags` spares).
+
+- The count: the native part's `items` request (`items <ask> Bullet_Nikke <index> <number>`, answered in the engine
+  line's `items=`), once a second while the rifle is out. Gun mode's ask numbers run from 20000 to 32767. `coop gift`'s
+  start at 1. The bike's paid fetch's start at 32768. An answer for another number is left to its owner. Rounds taken
+  that no read shows yet count as gone until a read shows them, 10 s of play at most (paused time not counted). On
+  another save the count is dropped and read again.
+- The take: SB's own `ServerRequest_ItemBucketItemRemove` (bucket 1, EVE's GUID, `Bullet_Nikke`, the count, no
+  pocket), once a reload, for the rounds the magazine loads. That is at most `mag_size` and at most the count she
+  carries then (the last read less the takes it does not show yet). A take is refused while SB's logic is paused, with
+  no EVE or no GUID for her. A refused take loads nothing. The next empty reload then waits 5 s (`Ammo.RETRY`).
+
+Gun mode calls no item add, save, shop or drop function. SB's own buy and drops add the rounds. `UE4SS.log` has the
+`[GM]` lines `ammo: the magazine loads from EVE's inventory (Bullet_Nikke)` once the rows are in, `ammo: out of rounds`
+(once, until rounds come), `ammo: N rounds not taken (<why>): nothing loaded` and
+`ammo: free magazines (no co-op save, or the rounds' rows are not in)`.
 
 ## coop gun
 

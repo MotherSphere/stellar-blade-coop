@@ -39,7 +39,7 @@ category folders (`online/`, `online/modes/`, `fight/`, `world/`, `world/maps/`,
 | `cutmenus` | Cut menus | `cutmenus/` | `cutmenus/` (`items.h` and its part) | [Cut menus and the mailbox](../cutmenus/menus.md) | |
 | `online.saves` | Co-op saves | `online/saves/` | `online/saves/` | [Saves](../players/saves.md) | |
 | `world.teamshop` | Team shop | `world/teamshop/` | `world/teamshop/` | [Team shop](../world/teamshop.md) | Its rows in `world/teamshop/teamshop_rows.h` |
-| `fight.gunmode` | Gun mode | `fight/gunmode/` | none | [Gun mode](../fight/gunmode.md) | |
+| `fight.gunmode` | Gun mode | `fight/gunmode/` | `fight/gunmode/` (its rows only) | [Gun mode](../fight/gunmode.md) | Its rounds' rows in `fight/gunmode/nikke_rows.h`; `fight/gunmode/rows.lua`, the Lua list of those rows |
 
 ## Shared pieces
 
@@ -81,9 +81,10 @@ patches, its recipes, its counts and its `Batch` constants):
 | `world/maps/matrix13/signal_rows.h` | `signal` | hand |
 | `online/lobby/halls_rows.h` | `halls` | `tools/sbo_lobby_rows.py` |
 | `world/teamshop/teamshop_rows.h` | `teamshop` | `tools/teamshop_rows.py` |
+| `fight/gunmode/nikke_rows.h` | `nikke` | hand |
 
 `rows/rows.h` keeps the engine, the generated `kTables` and one line per batch word naming its header. `glue/tick.cpp`
-includes the seven headers right after `rows/rows.h`. The Lua read-back lists follow the code that asks: the lion, bolt
+includes the eight headers right after `rows/rows.h`. The Lua read-back lists follow the code that asks: the lion, bolt
 and shop batches are asked by the Lion object, so their lists stay in `fight/bosses/lion_rows.lua`.
 
 A module that needs rows another module owns gets a generated copy in its own folder, never a `require` of the other

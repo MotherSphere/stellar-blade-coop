@@ -35,7 +35,7 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `world/daynight/`: `daynight`, `off`, `rule`, `wiring`; `story/together/`: `off`, `snapshot`, `wiring`, `wiring_dump`;
 `ui/`: `text`; `ui/kit/`: `guide`, `hud_parts`, `kit`, `model`, `notice`, `pause_tab`; `ui/text/`: `culture`;
 `world/objects/`: `off`, `wiring`;
-`fight/gunmode/`: `cost`, `engine`, `helpers`, `off`, `online`, `state`, `stop`, `texts`)
+`fight/gunmode/`: `cost`, `engine`, `helpers`, `nikke`, `off`, `online`, `state`, `stock`, `stop`, `texts`)
 run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
 fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. Each module's
 `off_test` runs `main/isolation.lua` with its name.
@@ -116,6 +116,21 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   promises the bottom-left round count while `mode.lua` passes the rounds no D-pad slot. The page, its docs index row
   and `coop gun`'s comment speak of no crouching. The page has no ", and" or ", but", no bold-label bullet and no
   "co-op session". `ammo.lua`'s header and `facts.lua`'s note on the retired F11 have no ", and" or ", but" either;
+- `fight/gunmode/nikke_test` checks that every row of `fight/gunmode/rows.lua` says what
+  `fight/gunmode/nikke_rows.h` writes, then the rounds over a fake status text: on your own save the title asks
+  nothing; on the co-op save files it asks the `nikke` batch once, then reads the rows back. The magazine stays free
+  before the read-back, after a refusal, a fault or rows that read back wrong (one log line) and a shut gate's refusal
+  decides nothing. It is ready only while the rows are in and the last pass read a co-op save (`slot=coop`). The
+  count comes from the engine line's `items=` answer for gun mode's own ask number (20000 to 32767, never the one the
+  engine line shows), read once a second while watched, with the takes no read shows yet taken off. A take calls
+  `ServerRequest_ItemBucketItemRemove` with bucket 1, EVE's GUID and `Bullet_Nikke`. It is refused before the rows,
+  while the game is paused, with no EVE or no GUID; `coop off` ends the title's wait and the reads;
+- `fight/gunmode/stock_test` runs `fight/gunmode/ammo.lua` over a fake stock: free magazines until the stock is ready,
+  then an empty magazine, one take per reload of at most a magazine and at most the count, the spares as the count, a
+  refused take that loads nothing and a wait of `Ammo.RETRY` (5 s) before the next empty reload, an empty magazine
+  that reloads once rounds come, no round while none are carried (`out of rounds` logged once), free magazines again
+  once the stock stops being ready, a new world that keeps the magazine and the rifle put away mid-reload that takes
+  once;
 - `vehicles/bike/ride_test` covers `vehicles/bike/ride.lua` over a fake EVE and native part: the preload asked once and
   released at `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every
   mount refusal with its reason and nothing written, the mount's order and the dismount backward, the lean (the math
@@ -754,6 +769,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
       naming the camp and spawning its blueprint at the spawn point of its own name, the third zone's camp with no coin
       and its row in `Zone_DLC02_30`, then the 5 trigger rows patched in place, in a table with no parsed arrays;
     - the shop's Beta Seed, shop items and shops;
+    - gun mode's rounds batch (`fight/gunmode/nikke_rows.h`): its 8 RewardGroupTable rows first, then its shop item,
+      then the 3 camp ShopTable rows patched in place, last; no ItemTable row, no name or ID another batch holds;
   - a whole run of each batch:
     - each row built from its template with the game's lazy-init flag and parsed arrays reset, its ID and patches of
       every kind, AddRow given the new name;
@@ -768,6 +785,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
     - the hall lobbies' 5 world rows, then 5 zone rows each naming its world row, then 171 seat rows each naming
       itself and its hall's zone, a taken zone ID stopping it after the worlds, a taken seat ID at that seat and a
       ZoneTable of another row size before any row;
+    - gun mode's 9 rows added from their templates and its 3 camp shops patched in place, each with its patches as
+      written, a later run adding nothing;
   - the refusals that call no AddRow (a missing template, a taken ID or name, a wrong vtable, AddRow slot or row size);
   - a later run skipping the rows already in, FName's number split, the read-back through the game's lookups by ID, the
     answer word, the `lion=`, `gardener=`, `tendril=`, `bolt=`, `mxiii=`, `shop=` and `signal=` status lines and the log

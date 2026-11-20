@@ -165,17 +165,18 @@ TargetFilterTable=0x<address> SkillResultTable=0x<address> EffectTable=0x<addres
 ItemConsumableTable=0x<address>
 ```
 
-It is one line in `coop-request.txt`. The native part knows 39 tables (`kLionTables`, the 14 above, then
+It is one line in `coop-request.txt`. The native part knows 40 tables (`kLionTables`, the 14 above, then
 ProjectileTable, ZoneCampTable, ZoneEnvSpawnTable, ShopTable, ShopItemTable, ZoneTriggerTable, QuestTable,
 QuestTaskGroupTable, QuestTaskTable, LevelTargetFilter, TheaterSelectDataTable, then Matrix XIII's EventSpawnTable,
 EventItemTable, ZoneEventTable, EventEnvControlTable, WorldTransitionTable, EventZoneWarpTable and EffectVolumeTable,
 then ConditionTable and ConditionGroupTable for Lily's menu in Matrix XIII, then AlbumTable, AchievementTable and
-PuzzleStringArrayTable for its records, then WorldTable and ZoneTable for the SBO hall lobbies); a request names 1 to
-39 of them, each once, in any order, and the others stay 0, which a batch that writes that table refuses as no
-UDataTable. So a table no row of the batch uses, not loaded at that moment, stops nothing.
+PuzzleStringArrayTable for its records, then WorldTable and ZoneTable for the SBO hall lobbies, then
+RewardGroupTable for gun mode's rounds); a request names 1 to 40 of them, each once, in any order. The others stay 0,
+which a batch that writes that table refuses as no UDataTable. So a table no row of the batch uses, not loaded at
+that moment, stops nothing.
 
-A request naming all 39 would take 1255 bytes at most with the 12 hex digits Lua's `%x` gives the highest plausible
-address and its line end (1411 with 16 digits); the native part reads up to 2048 bytes of that file. Each address has 1
+A request naming all 40 would take 1287 bytes at most with the 12 hex digits Lua's `%x` gives the highest plausible
+address and its line end (1447 with 16 digits); the native part reads up to 2048 bytes of that file. Each address has 1
 to 16 hex digits, is plausible and is 8-aligned; anything else gets `unknown request`. No console word reaches an
 address. The native part trusts none before it checks the table's vtable (`0x146409530`), its AddRow slot and its row
 size.

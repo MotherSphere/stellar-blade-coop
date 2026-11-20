@@ -291,8 +291,10 @@ queues the game's remove request (type 0x16, `FUN_141afa620`) for the next turn 
 default (`FUN_141b49a50`). The count therefore falls a turn later, and Lua reads again every 0.5 s until it fell by the
 gift's count, for 10 s of play at most. A read that comes back `unread` (the remove changes the very sets the worker
 walks, so a read can tear) or `noeve` is asked again the same way; any other `none` answer stops the send. The engine
-line holds only the last `items=` answer, which the bike's paid fetch reads share ([Bringing it
-back](../vehicles/bike-internals.md#bringing-it-back)), so a read with no answer after 1 s, before the remove or after
+line holds only the last `items=` answer, which the bike's paid fetch reads ([Bringing it
+back](../vehicles/bike-internals.md#bringing-it-back)) and gun mode's round count share. Gun mode asks with the numbers
+20000 to 32767, once a second while the rifle is out, on a co-op save with the rounds' rows in ([The rounds'
+rows](../fight/gunmode.md#the-rounds-rows)). So a read with no answer after 1 s, before the remove or after
 it, goes again with its number. A tick while the game is paused, in photo mode, or in the friend's photo mode that
 pauses ours does not count: SB's logic thread stops then, and the remove waits with it. If the count has not fallen by
 then, nothing is sent and the notice says the items may be gone.
