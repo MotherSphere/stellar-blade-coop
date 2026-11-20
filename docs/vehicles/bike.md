@@ -151,8 +151,8 @@ story scene, looped, until a better pose exists. No animation or other game file
 ## Paint
 
 The bike takes a paint while EVE wears an outfit listed in the bike's paint table. The table holds one example today: in
-Gothic Rose (`coop wear gothic`) the table sets the bike's flake colour to a dark red. The bike's material keeps its
-flake colour weak, so the red may barely show. The paint follows her outfit within a second. Another outfit puts the
+Gothic Rose (`coop wear gothic`) the table tints one of the bike's four materials dark red. Nobody has checked in game
+which part of the bike that material covers. The paint follows her outfit within a second. Another outfit puts the
 bike's own colours back, as does `coop off`.
 
 Your friend's ghost shows the paint of the bike you ride when `dyes` is on for both of you (`coop look dyes on`, the

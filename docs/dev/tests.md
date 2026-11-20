@@ -75,7 +75,8 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   `coop off` at the freed address and path of the removed one painted again; the `paint on for <mesh>` or `paint off
   for <mesh>` end of `coop bike status`;
 - `vehicles/bike/paint_test` covers `vehicles/bike/paint.lua` with fake UE4SS objects: the shipped table passes its
-  check with one entry; the check refuses a slot out of 0 to 3, an empty, 65-byte or spaced name, a value that is not
+  check with one entry, a `Base Color Tint` on slot 1; the check takes a name with spaces (`Base Color Tint`) and
+  refuses a slot out of 0 to 3, an empty or 65-byte name, a control character or `~` in a name, a value that is not
   four numbers from 0 to 100000 and a key that is no object path; each instance made from the mesh's own material; one
   step a second, one paint per component and mesh, one clear for a mesh with no entry; an earlier Lua load's instance
   cleared; a component at a new address, or at the same address with another path, painted again; a failed call

@@ -2,9 +2,10 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- vehicles/bike/paint.lua with fake UE4SS objects, built as vehicles/bike/stand_test.lua builds them: the shipped table
--- passes its check and holds one entry; the check refuses a slot out of 0 to 3, an empty, long or spaced name, a value
--- that is not four numbers from 0 to 100000 and a key that is no object path; apply makes each instance from the mesh's
--- own material; step runs once a second, paints a component once per mesh and clears it once for a mesh with no entry;
+-- passes its check and holds one entry; the check takes a name with spaces (Base Color Tint) and refuses a slot out of
+-- 0 to 3, an empty or long name, a control character or '~' in a name, a value that is not four numbers from 0 to
+-- 100000 and a key that is no object path; apply makes each instance from the mesh's own material; step runs once a
+-- second, paints a component once per mesh and clears it once for a mesh with no entry;
 -- a new Lua load clears an earlier load's instance; a component at another address, or at the same address with
 -- another path, is a new one; a failing call logs one line and leaves the slot as the mesh made it.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
@@ -50,7 +51,7 @@ local Paint=require('vehicles.bike.paint')
 assert(Paint.SLOTS==4 and Paint.MAX==1e5 and Paint.EVERY==1)
 local M='/Game/Art/Character/PC/CH_P_EVE_IberisCostume/CH_P_EVE_IberisCos.CH_P_EVE_IberisCos'
 local OTHER='/Game/Art/Character/PC/CH_P_EVE_01/Mesh/EVE.EVE'
-assert(Paint.BY_MESH[M],'The example entry: Gothic Rose')
+assert(Paint.BY_MESH[M] and Paint.BY_MESH[M][1]['Base Color Tint'],'The example entry: Gothic Rose tints slot 1')
 local S=next(Paint.BY_MESH[M])
 -- The check.
 assert(Paint.check(Paint.BY_MESH))
@@ -58,13 +59,15 @@ local n=0; for _ in pairs(Paint.BY_MESH) do n=n+1 end; assert(n==1)
 assert(not Paint.check({[M]={[4]={P={0,0,0,1}}}}) and not Paint.check({[M]={[-1]={P={0,0,0,1}}}}))
 assert(not Paint.check({[M]={[0]={['']={0,0,0,1}}}}) and not Paint.check({[M]={[0]={P={0,0,0}}}}))
 assert(not Paint.check({[M]={[0]={P={0,0,'x',1}}}}) and not Paint.check({[M]={[0]={P={0,0,0,2e5}}}}))
-assert(not Paint.check({[M]={[0]={[('x'):rep(65)]={0,0,0,1}}}}) and not Paint.check({[M]={[0]={['a b']={0,0,0,1}}}}))
+assert(not Paint.check({[M]={[0]={[('x'):rep(65)]={0,0,0,1}}}}) and not Paint.check({[M]={[0]={['a\tb']={0,0,0,1}}}}))
+assert(not Paint.check({[M]={[0]={['a~b']={0,0,0,1}}}}),'~ stands for a space in the capture')
+assert(Paint.check({[M]={[0]={['Base Color Tint']={0,0,0,1}}}}),'A name with spaces passes: the capture sends it')
 assert(not Paint.check({['Adam_Vehicle_02']={[0]={P={0,0,0,1}}}}))
 assert(not Paint.check({[M]={[0]={P={0,0,0/0,1}}}}) and not Paint.check({[M]={[0]={P={0,-1,0,1}}}}))
 assert(not Paint.check({[M]={[0.5]={P={0,0,0,1}}}}),'A slot is an integer')
 assert(Paint.check({[M]={[0]={[('x'):rep(64)]={0,0,0,1e5}}}}),'64 bytes and 100000 pass')
-local ok,why=Paint.check({[M]={[0]={['a b']={0,0,0,1}}}})
-assert(not ok and why:find('a b',1,true),why)
+local ok,why=Paint.check({[M]={[0]={['a\tb']={0,0,0,1}}}})
+assert(not ok and why:find('a\tb',1,true),why)
 -- apply: slots 0 and 2 only, each instance made from the mesh's own material.
 local c=fake()
 Paint.apply(c,{[0]={P={0.5,0,0,1}},[2]={Q={0,0.5,0,1}}})
@@ -93,7 +96,7 @@ assert(#lines==1 and bad.current[S]==own[S],tostring(lines[2]))
 assert(lines[1]:find('^bike paint not set on .+ for '..M:gsub('%p','%%%0')..': no instance$'),lines[1])
 -- A table that fails its check logs its reason once and paints nothing.
 local saved=Paint.BY_MESH
-Paint.BY_MESH={[M]={[0]={['a b']={0,0,0,1}}}}
+Paint.BY_MESH={[M]={[0]={['a\tb']={0,0,0,1}}}}
 local said={}
 local r=Paint.new({log=function(line) said[#said+1]=line end})
 local c5=fake(); r.step(50,M,{c5}); r.step(52,M,{c5})

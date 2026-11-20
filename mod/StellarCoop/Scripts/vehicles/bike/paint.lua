@@ -7,12 +7,12 @@
 -- 0 MI_Adam_vehicle_02_03, 1 MI_Adam_vehicle_02_01, 2 MI_Adam_vehicle_02_04, 3 MI_Adam_vehicle_02_02. All four are
 -- children of the material MA_AdamVehicle, whose vector parameters are EmissiveColor, Eye Core HDR Tint,
 -- ClearCoatColor, Flakecolor, ScratchColor, AO Tint, Emissive Channel, GrimeColor, Eye Edge Glow Color and Base Color
--- Tint. A name with a space cannot be listed (Paint.check). Once a second (vehicles/bike/ride.lua's 250 ms pass) each
--- bike component whose outfit changed gets its mesh's own materials back, then a dynamic material instance made from
--- the mesh's own material on each listed slot, with the values set on it. Those components are the part EVE rides and
--- her parked bike. The ridden part reaches ghosts through the capture's dyes (coop look dyes). The parked bike's paint
--- stays on this screen: the bike line carries its map and pose only. tests/lua/vehicles/bike/paint_test.lua covers it;
--- docs/dev/modding/bike-paint.md says how to add an entry.
+-- Tint. Once a second (vehicles/bike/ride.lua's 250 ms pass) each bike component whose outfit changed gets its mesh's
+-- own materials back, then a dynamic material instance made from the mesh's own material on each listed slot, with
+-- the values set on it. Those components are the part EVE rides and her parked bike. The ridden part reaches ghosts
+-- through the capture's dyes (coop look dyes). The parked bike's paint stays on this screen: the bike line carries its
+-- map and pose only. tests/lua/vehicles/bike/paint_test.lua covers it; docs/dev/modding/bike-paint.md says how to add
+-- an entry.
 local U=require('core.unreal')
 local valid,each,address,why_of=U.valid,U.each,U.address,U.why
 local Paint={}
@@ -21,9 +21,10 @@ Paint.MAX=1e5 -- online/partner/capture.lua's bound on a value it sends to ghost
 Paint.EVERY=1 -- s between two steps, as coop wear checks its look.
 -- [<EVE's body mesh object path>]={[<slot 0 to 3>]={[<vector parameter>]={r,g,b,a}}}
 Paint.BY_MESH={
-    -- Gothic Rose (coop wear gothic): a dark red flake on slot 1 (MI_Adam_vehicle_02_01, which sets Flakecolor).
+    -- Gothic Rose (coop wear gothic): a dark red tint on slot 1 (MI_Adam_vehicle_02_01). Base Color Tint is white
+    -- (1,1,1,1) in MA_AdamVehicle and no slot's instance sets it.
     ['/Game/Art/Character/PC/CH_P_EVE_IberisCostume/CH_P_EVE_IberisCos.CH_P_EVE_IberisCos']={
-        [1]={Flakecolor={0.55,0.05,0.10,1}}},
+        [1]={['Base Color Tint']={0.55,0.05,0.10,1}}},
 }
 
 local function colour(v)
@@ -35,8 +36,8 @@ local function colour(v)
     return true
 end
 -- true, or false and the first fault: a key that is no object path /Game/<folder>/<name>.<name>, a slot out of 0 to
--- Paint.SLOTS-1, a name that is not 1 to 64 bytes of '!' to '}' (online/partner/capture.lua sends no longer name), a
--- value that is not four numbers from 0 to Paint.MAX.
+-- Paint.SLOTS-1, a name that is not 1 to 64 bytes of ' ' to '}' (online/partner/capture.lua sends no other name: it
+-- writes a space as '~'), a value that is not four numbers from 0 to Paint.MAX.
 function Paint.check(by_mesh)
     if type(by_mesh)~='table' then return false,'the table is no Lua table' end
     for mesh,slots in pairs(by_mesh) do
@@ -52,8 +53,8 @@ function Paint.check(by_mesh)
             end
             if type(values)~='table' then return false,('%s slot %d: no parameter table'):format(mesh,slot) end
             for name,v in pairs(values) do
-                if type(name)~='string' or #name>64 or not name:find('^[!-}]+$') then
-                    return false,('%s slot %d: parameter "%s" is not 1 to 64 bytes of ! to }'):format(mesh,slot,
+                if type(name)~='string' or #name>64 or not name:find('^[ -}]+$') then
+                    return false,('%s slot %d: parameter "%s" is not 1 to 64 bytes of space to }'):format(mesh,slot,
                         tostring(name))
                 end
                 if not colour(v) then
