@@ -299,6 +299,8 @@ def install_bike(folder, sources, game, dry_run):
             (root / rel).parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(path, root / rel)
             if sha256(root / rel) != sha256(path): sys.exit(f'{root / rel} does not hash like {path}: run --bike again')
+        # Eve Hoverbike writes its button journal, keys_bike.txt and recordings there but never makes the folder.
+        (target / 'telemetry').mkdir(parents=True, exist_ok=True)
         print(f'Installed {len(copies)} dev bike files')
     if (win / 'ue4ss/Mods/StellarCoop').is_dir():
         write_keys(win / 'ue4ss/Mods/StellarCoop/coop-settings.txt', BIKE_COOP, '=', dry_run)

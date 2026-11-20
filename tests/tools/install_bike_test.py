@@ -61,6 +61,7 @@ with tempfile.TemporaryDirectory() as tmp:
     for rel in ('enabled.txt', 'Scripts/main.lua', 'Scripts/logic.lua', 'Scripts/tuning.txt'):
         assert (ehb / rel).read_bytes() == (ROOT / 'mod/EveHoverbike' / rel).read_bytes(), rel
     assert not (ehb / 'cps-settings.json').exists(), 'the CPS settings go to CPS, not to the mod'
+    assert (ehb / 'telemetry').is_dir(), 'its journal and recordings folder made'
     for n in I.BIKE_PAKS:
         assert (game / f'SB/Content/Paks/~mods/{n}/{n}.ucas').read_bytes() == f'{n}.ucas'.encode()
     assert (win / 'CPS/Plugins/eve_hoverbike.cps').read_bytes() == b'cps'
