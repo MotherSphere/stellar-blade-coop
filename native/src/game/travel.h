@@ -11,6 +11,10 @@
 // to run (a fade, a load on another world, EVE placed at the camp). Either returns 0 in AL, having written nothing,
 // when a lookup fails, when the local player is not in the world's actor map, or in a boss challenge zone. Neither
 // checks camp activation, and a second call overwrites a pending warp: the guard and the count below are ours.
+//
+// The spot warp (Seamless gap phase 4) hands FUN_141cdfe70 the record SB's WarpSBActor (FUN_141ac3d80) builds: our
+// GUID, a place and a yaw, no camp. Rests counts the starts of SB's camp process (world +0x1a0) that reset a zone.
+// It keeps a second count of the ones our own EVE asked for.
 #pragma once
 
 #include <array>
@@ -63,15 +67,15 @@ inline Request request(uint32_t guid, uint32_t index, uint32_t number, const uin
 // request waits. respawn: the world respawns our EVE. player: our EVE is not in the world's actor map. wait: 10 s since
 // the last accepted call have not passed. calls: three calls in 10 s already. game: the call returned 0. stuck: the
 // warp written has not started 10 s after the call. cleared: the warp block went before the warp started. fault: the
-// first fault ended travel for the run.
+// first fault ended travel for the run. solo: a spot warp while our zone type is a solo area.
 enum class Why : uint8_t {
   none, name, client, world, tables, tables_list, registry, flow, phase, warp, camp, respawn, player, wait, calls, game,
-  stuck, cleared, fault
+  stuck, cleared, fault, solo
 };
 inline const char *why_name(Why w) {
   static const char *const kNames[] = {"none",  "name",  "client", "world",   "tables",  "tables_list", "registry",
                                        "flow",  "phase", "warp",   "camp",    "respawn", "player",      "wait",
-                                       "calls", "game",  "stuck",  "cleared", "fault"};
+                                       "calls", "game",  "stuck",  "cleared", "fault",   "solo"};
   return size_t(w) < std::size(kNames) ? kNames[size_t(w)] : "?";
 }
 
@@ -87,10 +91,11 @@ struct Reads {
   uint8_t warp = 0, asked = 0, waits = 0;
   int32_t respawn = 0;
   bool player = false;
+  bool solo = false; // Our zone type is a solo area (filled by the caller from the zone row).
 };
-// The first guard that fails, or Why::none.
-inline Why refuse(const Reads &r) {
-  return !r.index                    ? Why::name
+// The first guard that fails, or Why::none. A spot warp has no camp name and is refused in a solo area.
+inline Why refuse(const Reads &r, bool spot = false) {
+  return !r.index && !spot           ? Why::name
          : !plausible(r.client)      ? Why::client
          : !plausible(r.world)       ? Why::world
          : !plausible(r.tables)      ? Why::tables
@@ -102,8 +107,49 @@ inline Why refuse(const Reads &r) {
          : r.asked && r.waits        ? Why::camp
          : respawning(r.respawn)     ? Why::respawn
          : !r.player                 ? Why::player
+         : spot && r.solo            ? Why::solo
                                      : Why::none;
 }
+
+// The spot warp's record, 0x78 bytes, as WarpSBActor (FUN_141ac3d80) fills it for FUN_141cdfe70: zero but +0x18 our
+// EVE's GUID, +0x38 -1.0 (the fade), +0x54 the location and +0x60 the rotation (pitch, yaw, roll), each 12 bytes.
+// FUN_141cdfe70 copies +0x18 to client +0xa40, +0x34 plus +0x38 to +0xa38, +0x54 to +0xa4c, +0x60 to +0xa58 and +0x00
+// to +0xa6c; it sets +0xa26 (another world) only when the FName at +0x00 is not None and differs from client +0x60.
+// WarpSBActor leaves +0x00 zero; only `coop travel spot <world> ...` puts a world's FName there (index, then number).
+constexpr size_t kArgsBytes = 0x78;
+using Args = std::array<uint8_t, kArgsBytes>;
+inline Args args(uint32_t guid, float x, float y, float z, float yaw, uint64_t world = 0) {
+  Args a{};
+  const float fade = -1.0f, place[6] = {x, y, z, 0.f, yaw, 0.f};
+  std::memcpy(a.data() + 0x00, &world, 8);
+  std::memcpy(a.data() + 0x18, &guid, 4);
+  std::memcpy(a.data() + 0x38, &fade, 4);
+  std::memcpy(a.data() + 0x54, place, sizeof place);
+  return a;
+}
+
+// The starts of SB's camp process, read at each frame. FUN_141ca7040 zeroes world +0x1a0, copies the camp request
+// there (its +0x18 GUID to +0x1b8, its +0x24 type to +0x1c4) and sets +0x1a0 to 1. Type 0 (Interact, the camp
+// arrival) clears it again in the same call; types 1 (InteractWithResetZone) and 2 (OnlyResetZone) keep it while the
+// process runs. A 0 to 1 edge with type 1 or 2 is a start; with our GUID it is ours (type and area kept). SB's echo of
+// a ResetZone (FUN_141b2f470) carries GUID 0, which is never ours.
+struct Rests {
+  uint32_t ours = 0, starts = 0;
+  int32_t type = 0;
+  uint64_t area = 0;
+  uint8_t flag = 0;
+  bool step(uint8_t now_flag, int32_t now_type, uint32_t guid, uint32_t me, uint64_t now_area) {
+    const bool start = now_flag && !flag && (now_type == 1 || now_type == 2);
+    flag = now_flag;
+    if (!start)
+      return false;
+    ++starts;
+    if (!me || guid != me)
+      return false;
+    ++ours, type = now_type, area = now_area;
+    return true;
+  }
+};
 
 // At most kMaxCalls calls within kBurstMs (Lua tries the next camp after a return of 0), and none for kWaitMs after an
 // accepted call (a return of 1).
