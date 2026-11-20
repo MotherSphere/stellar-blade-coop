@@ -735,15 +735,17 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
     past INT32_MAX, a seq of 0, a missing or extra field, the old tag),
   - phase 8's lines (the five-field cc line with the hit's level and the reaction's time, the three-field form refused;
     the stagger and poise lines with their bounds; a recording keeps stagger, never poise) and their rules: the stagger
-    line after bosses while either setting is on and again at each change, both read as off on the guest's side until
-    it comes and after the host's next world; Rule A on both sides (a mirrored crowd control under the copy's poise
-    refused and counted, a copy with an unread poise refused, a level that could not be read sent as the guess and
-    counted); the flinch mirror (told from no reaction with its time, its chain and its echo not told, refused while
-    the copy holds a reaction, under its poise, with `hit_reactions` off or on a drawn copy, a knockdown still started
-    on a copy that only flinches, a flinch line never replacing a crowd control still waiting); Rule B (no window for
-    one player, k 1 for a Monster and 2 for a boss, a refusal counted and logged once every 10 s, the owner's poise line
-    taken at its epoch only and stale otherwise, nothing new with `stagger_resist` off, a cc line refused on our copy
-    still counting the other player, her reactions forgotten at her off and on, the host's at its world line),
+    line after bosses while either setting is on and again at each change, both read as off on the guest's side until it
+    comes and after the host's next world; Rule A on both sides (a mirrored crowd control under the copy's poise refused
+    and counted, a copy with an unread poise refused, a level that could not be read sent as the guess and counted); the
+    flinch mirror (told from no reaction with its time, its chain and its echo not told, refused while the copy holds a
+    reaction, under its poise, with `hit_reactions` off or on a drawn copy (one the pilot does not draw takes it), a
+    knockdown still started on a copy that only flinches, a flinch line never replacing a crowd control still waiting);
+    Rule B (no window for one player, k 1 for a Monster and 2 for a boss, a refusal counted and logged once every 10 s,
+    the owner's poise line taken at its epoch only and stale otherwise, windows with no poise line on a copy the pilot
+    does not draw, nothing new with `stagger_resist` off or on the guest's side before the host's stagger line, a cc
+    line refused on our copy still counting the other player, her reactions forgotten at her off and on, the host's at
+    its world line),
   - and two fake worlds linked through a delayed, lossy line;
 - `game_poise_test`: phase 8's rules in `game/poise.h`: the level compare (HitLevel plus the additive level cut toward
   zero, a NaN poise and an additive that is not finite refused), k by ActorType, the reaction's life in ms (10 s at

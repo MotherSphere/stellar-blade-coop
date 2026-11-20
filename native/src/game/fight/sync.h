@@ -764,6 +764,8 @@ inline std::string line(const Event &e) {
 //     is gone or the game refused;
 //   bool owns(uint32_t hguid): same place's owners give this side the enemy hguid now (our copy moves by its own AI,
 //     not by the other side's stream);
+//   bool drawn(uint32_t hguid): our copy of the enemy hguid moves by the other side's stream now (the engine's pilot
+//     table: the other side owns it, the pilot runs here and its pair is not lost); asked with same place only;
 //   bool reaction(uint32_t guid, int32_t id, Reaction &out): the hit level and life of the effect id running on our
 //     copy guid (phase 8 Rule A); false when the copy or the effect is not found: the rise is then told at the guess;
 //   uint8_t oe(uint32_t hguid): same place's owner epoch of the enemy hguid on this side (0 before any hand-over);
@@ -944,9 +946,9 @@ template <class Io> Reaction tell(Message &m, uint32_t guid, int32_t id, Counts 
 
 // Phase 8 Rule B. Each side notes per enemy (the host's GUID) which players made its copy react (poise::Recent): slot
 // 0 a rise of ours that is not an echo, slot 1 each cc line of the other side's taken at a step and each echo of our
-// mirror. A rise on a copy this side moves itself (same place off, or Io::owns), with stagger_resist on, asks a window
-// once two players or more made it react within poise::kRecentMs. With same place, the owner tells the other side in
-// a poise line, which starts the same window on the drawn copy at the owner's epoch only.
+// mirror. A rise on a copy this side moves itself (same place off, or not Io::drawn), with stagger_resist on, asks a
+// window once two players or more made it react within poise::kRecentMs. With same place, the owner (Io::owns) tells
+// the other side in a poise line, which starts the same window on the drawn copy at the owner's epoch only.
 
 // The window a rise of id on our copy local (seen as s) is due with players slots in its Recent: k (0: none, under
 // two players or not a Monster or a boss) and its ms. told: tell()'s Reaction for a rise told; null for an echo or a
@@ -1192,7 +1194,7 @@ public:
           e.scaled = true, e.due = scaling(scale_, boss_);
         const int32_t id = e.cc.want;
         const char *why = "";
-        const Took took = e.cc.apply(e.guid, *s, now, reactions_, place_ && !io.owns(e.guid), counts, io);
+        const Took took = e.cc.apply(e.guid, *s, now, reactions_, place_ && io.drawn(e.guid), counts, io);
         if (took != Took::none) // Her hit made it react on her screen (Rule B, slot 1).
           recent_.note(e.guid, 1, now);
         if (const char *what = refusal(took, id, why); what && quiet_.say(e.guid, what, why, now))
@@ -1357,7 +1359,8 @@ private:
     recent_.clear();
   }
   // A reaction that rose on our copy e (seen as s): told to her (Rule A) unless it is our echo. Then Rule B's window
-  // when due, while stagger_resist is on and we move the copy. With same place she gets a poise line for it.
+  // when due, while stagger_resist is on and we move the copy. With same place she gets a poise line for it when we
+  // own the enemy.
   template <class Io> void rose(Enemy &e, const Seen &s, const Rise &r, bool each, uint64_t now, Io &io) {
     recent_.note(e.guid, r.echo ? 1 : 0, now); // Slot 0: our EVE's; slot 1: our mirror of hers showing up.
     Reaction told;
@@ -1368,11 +1371,11 @@ private:
       io.send(m);
     }
     uint32_t ms = 0;
-    const uint8_t k = resist_ && (!place_ || io.owns(e.guid))
+    const uint8_t k = resist_ && !(place_ && io.drawn(e.guid))
                           ? due_window(e.guid, r.id, s, recent_.players(e.guid, now), tells ? &told : nullptr, ms, io)
                           : 0;
     if (k && start_window(e.guid, k, ms, Event{"", "", e.guid, e.spawn, e.index}, now, quiet_, counts, io) &&
-        place_ && each) {
+        place_ && each && io.owns(e.guid)) {
       Message m = note(Type::poise, e.guid);
       m.oe = io.oe(e.guid), m.k = k, m.ms = ms;
       io.send(m);
@@ -2102,7 +2105,7 @@ private:
       correct(p, s, io);
     const int32_t id = p.cc.want;
     const char *why = "";
-    const Took took = p.cc.apply(p.local, s, now, reactions_, place_ && !io.owns(p.hguid), counts, io);
+    const Took took = p.cc.apply(p.local, s, now, reactions_, place_ && io.drawn(p.hguid), counts, io);
     if (took != Took::none) // The host's hit made it react on its screen (Rule B, slot 1).
       recent_.note(p.hguid, 1, now);
     if (const char *what = refusal(took, id, why); what && quiet_.say(p.hguid, what, why, now))
@@ -2112,7 +2115,7 @@ private:
 
   // A reaction that rose on our copy of p (seen as s): told to the host (Rule A) unless it is our echo. Then Rule B's
   // window when due, while the host's stagger_resist is on and we move the copy. With same place the host gets a
-  // poise line for it.
+  // poise line for it when we own the enemy.
   template <class Io> void rose(Pair &p, const Seen &s, const Rise &r, uint64_t now, Io &io) {
     recent_.note(p.hguid, r.echo ? 1 : 0, now); // Slot 0: our EVE's; slot 1: our mirror of the host's showing up.
     Reaction told;
@@ -2126,11 +2129,11 @@ private:
       io.send(m);
     }
     uint32_t ms = 0;
-    const uint8_t k = resist_ && (!place_ || io.owns(p.hguid))
+    const uint8_t k = resist_ && !(place_ && io.drawn(p.hguid))
                           ? due_window(p.local, r.id, s, recent_.players(p.hguid, now), tells ? &told : nullptr, ms, io)
                           : 0;
     if (k && start_window(p.local, k, ms, Event{"", "", p.hguid, p.spawn, p.index}, now, quiet_, counts, io) &&
-        place_) {
+        place_ && io.owns(p.hguid)) {
       m.type = Type::poise;
       m.oe = io.oe(p.hguid), m.k = k, m.ms = ms;
       io.send(m);

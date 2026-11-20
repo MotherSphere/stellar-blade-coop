@@ -205,6 +205,13 @@ private:
     bool effect(uint32_t guid, int32_t id, uint32_t ms) { return e.cast(g, logic, guid, id, ms); }
     bool owns(uint32_t hguid) { return e.owners_.owner(hguid) == (e.hosting_seen_ ? pilot::kHost : pilot::kGuest); }
     uint8_t oe(uint32_t hguid) { return e.owners_.oe(hguid); }
+    // The last pilot turn's table, as the game thread draws it now: kRowDrawn needs the pilot on here (not stopped,
+    // not asked off), the other side as owner and the pair not lost.
+    bool drawn(uint32_t hguid) {
+      const PilotTable &t = e.table_;
+      return std::any_of(t.pairs, t.pairs + t.count,
+                         [&](const PilotPair &p) { return p.hguid == hguid && (p.bits & kRowDrawn); });
+    }
     const char *window(uint32_t guid, uint8_t k, uint32_t ms) { return e.window(g, logic, guid, k, ms, now); }
     bool reaction(uint32_t guid, int32_t id, Reaction &out) { return e.reaction(g, logic, guid, id, out); }
     bool took_part(uint32_t guid) { return e.took_part(g, logic, guid, e.nearby_); }

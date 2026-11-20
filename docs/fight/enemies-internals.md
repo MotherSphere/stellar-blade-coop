@@ -389,8 +389,9 @@ The receiving side starts a flinch at its next step only:
 
 - on a copy that holds no reaction (no flinch, no crowd control, not Down, Groggy or Airborne);
 - while `hit_reactions` is on (the host's own, or as its stagger line said);
-- with same place on, on a copy this side owns (`Io::owns`). A drawn copy moves by the owner's stream, which already
-  shows the owner's flinch;
+- with same place on, on a copy this side does not draw (`Io::drawn`, read from the last pilot turn's table). A drawn
+  copy moves by the owner's stream, which already shows the owner's flinch. A copy the other side owns is not drawn
+  while the pilot is off or stopped on this side, or while its pair is lost: it moves by its own AI;
 - when Rule A passes.
 
 Each refusal counts `flinch_refused` and logs `flinch refused` with why `held`, `off`, `drawn`, `poise` or `game` (SB
@@ -421,11 +422,12 @@ enemies, 8 slots). Slot 0 is a rise on our copy that is not our mirror's echo. S
 lines taken at a step (started or refused) and our mirror's echo. Slots 2 to 7 stay unused until more players share
 one fight. Each side forgets the other's reactions at the other side's on, off and world lines.
 
-A rise on a copy this side moves itself (same place off, or a copy it owns) asks for a window while `stagger_resist`
-is on, once two players or more made that enemy react within 10 s (`kRecentMs`). The game that runs the AI decides,
-only at a rise on its own copy. k, the poise added, is 1 for a Monster (ActorType 3) and 2 for a BossMonster (ActorType
-4); any other type gets no window (`poise::k_for`). The window lasts the reaction's life (effect `+0x74`, 10 s at most)
-plus 1.5 s for each player past the first, that part 6 s at most: 16 s at most in all (`poise::window_ms`).
+A rise on a copy this side moves itself (same place off, or a copy it does not draw) asks for a window while
+`stagger_resist` is on, once two players or more made that enemy react within 10 s (`kRecentMs`). The game that runs the
+AI decides, only at a rise on its own copy. k, the poise added, is 1 for a Monster (ActorType 3) and 2 for a BossMonster
+(ActorType 4); any other type gets no window (`poise::k_for`). The window lasts the reaction's life (effect `+0x74`,
+10 s at most) plus 1.5 s for each player past the first, that part 6 s at most: 16 s at most in all
+(`poise::window_ms`).
 
 `Engine::window` starts EffectTable 1001400 (AddHitDefense: HitDefenseLevel, Static, bStatRestore, IndependentTime)
 on the copy, with the copy as its own caster, through `effect_ctx` with the window in seconds at `+0x0c` and k at
@@ -438,10 +440,10 @@ With bStatRestore set (row `+0x192`), `FUN_141bcd290` records the delta the effe
 `+0x120`). Its end, `FUN_141bcb980`, takes that delta back through ApplyStat (`FUN_141ba9960`). So the mod never writes
 the poise. Other effects that raise the copy's poise keep their own deltas.
 
-With same place on, the owner sends a poise line for each window it starts. The drawing side keeps the line on its
-pair until its next step. It then starts the same window on its drawn copy, through the same call, only while
-`stagger_resist` is on, the sender still owns the enemy (not `Io::owns`) and the owner epoch is the line's. Otherwise
-the line counts as stale.
+With same place on, the owner sends a poise line for each window it starts. A side that starts a window on a copy it
+neither owns nor draws sends none. The drawing side keeps the line on its pair until its next step. It then starts the
+same window on its drawn copy, through the same call, only while `stagger_resist` is on, the sender still owns the enemy
+(not `Io::owns`) and the owner epoch is the line's. Otherwise the line counts as stale.
 
 ### The restore check
 

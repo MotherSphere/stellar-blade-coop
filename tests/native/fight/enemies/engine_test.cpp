@@ -1242,6 +1242,13 @@ int main() {
     g.inbox.push_back(msg("SBF23 cc 1 101 2003000 1 200"));
     frame(g, *eg, 16);
     assert(g.timed.empty() && eg->guest.counts.flinch_refused == 1 && count(g, "flinch refused", "drawn") == 1);
+    // Her pilot off (coop fight pilot off, or its latch): no copy is drawn, so hers move by their own AI and the
+    // host's flinch starts there.
+    eg->pilot_off(true);
+    frame(g, *eg, 32);
+    g.inbox.push_back(msg("SBF23 cc 1 101 2003000 1 200"));
+    frame(g, *eg, 48);
+    assert(g.timed.size() == 1 && eg->guest.counts.flinch_mirrored == 1 && eg->guest.counts.flinch_refused == 1);
   }
   { // Engine::window: refused on our EVE ("type"), k 2 on a Monster ("type"), a dying copy ("state"), a second
     // window on a copy whose check has not settled ("running"), a 33rd window ("full", before any game call);

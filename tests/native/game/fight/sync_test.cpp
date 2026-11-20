@@ -39,6 +39,7 @@ struct World {
   std::vector<std::pair<uint32_t, int32_t>> effects; // The effects our side started: (GUID, EffectTable ID).
   std::vector<uint32_t> effect_ms;                   // Their times as asked (0: the row's own), in the same order.
   std::vector<uint32_t> owned; // Same place: the host GUIDs this side owns (Io::owns); none by default.
+  std::vector<uint32_t> loose; // Same place: the other side's that the pilot does not draw (Io::drawn says no).
   bool immune = false;                              // The game refuses every effect (an immunity).
   std::vector<Message> sent;
   std::vector<Event> events;
@@ -52,6 +53,9 @@ struct World {
 
   bool took_part(uint32_t guid) const { return std::find(apart.begin(), apart.end(), guid) == apart.end(); }
   bool owns(uint32_t hguid) const { return std::find(owned.begin(), owned.end(), hguid) != owned.end(); }
+  bool drawn(uint32_t hguid) const {
+    return !owns(hguid) && std::find(loose.begin(), loose.end(), hguid) == loose.end();
+  }
   void unshare(uint32_t guid) { unshared.push_back(guid); }
   bool given_up(uint32_t guid) const { return std::find(unshared.begin(), unshared.end(), guid) != unshared.end(); }
   Actor *actor(uint32_t guid) {
@@ -2886,6 +2890,28 @@ int main() {
     hers(h, w, turn, 21000);
     assert(w.windows.size() == 1 && h.counts.windows == 1);
   }
+  { // Same place, a copy she owns that the pilot does not draw (the pilot off or stopped here, its pair lost): it
+    // moves by its own AI. Her flinch starts on it. Her flinch and our rise start a window there, with no poise line:
+    // the enemy is not ours.
+    World w;
+    Host h;
+    uint32_t turn = 0;
+    h.set_stagger(true, true);
+    h.set_place(true);
+    w.loose = {101};
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0).s.type = 3;
+    step(h, w, ++turn, 0);
+    w.lines();
+    h.receive(msg("SBF23 cc 1 101 2003000 1 300"), 10, w);
+    step(h, w, ++turn, 10);
+    assert(w.effects.size() == 1 && w.effects[0] == std::make_pair(101u, kFlinch) && h.counts.flinch_mirrored == 1);
+    assert(h.counts.flinch_refused == 0);
+    w.react = Reaction{1, 600, false};
+    ours(h, w, turn, 100);
+    assert(w.windows.size() == 1 && w.windows[0] == std::make_tuple(101u, uint8_t(1), 2100u));
+    assert(!has(w.lines(), "poise"));
+  }
   { // Same place, the drawer: the owner's poise line starts the same row on our copy at its epoch only; a poise line
     // at another epoch, or for a copy this side owns by now, is stale.
     World g;
@@ -3009,7 +3035,8 @@ int main() {
   }
 
   { // Same place on the guest's side, the owner: she owns 101 at epoch 4; her window goes out as a poise line at that
-    // epoch. When the host owns 101 again, her rises start no window.
+    // epoch. When the host owns 101 again, her rises start no window. When our pilot does not draw our copy (the pilot
+    // off or stopped here, its pair lost), it moves by its own AI: her rises start windows again, with no poise line.
     World g;
     g.add(501, 5001, 0).s.type = 3;
     Guest gu;
@@ -3036,6 +3063,9 @@ int main() {
     g.owned.clear();
     round(20000);
     assert(!has(g.lines(), "poise") && g.windows.size() == 1 && gu.counts.windows == 1);
+    g.loose = {101};
+    round(40000);
+    assert(!has(g.lines(), "poise") && g.windows.size() == 2 && gu.counts.windows == 2);
   }
   { // On the guest's side, the host's reaction alone (its cc line taken, then its echo on our copy) starts no window.
     // The host's world line forgets the host's reactions: our next rise alone starts none either.
