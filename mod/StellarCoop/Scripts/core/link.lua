@@ -759,10 +759,22 @@ function Link.new(folder,fs)
             race_queue={}
         end
     end
+    -- Score attack lines (online/modes/scoreattack/round.lua's): score() asks the native part to send one to every
+    -- member of the match lobby (a score request, so it waits in the request queue above). Each member's comes in
+    -- coop-chat.txt as "score <her SteamID> <text>". take_chat() keeps it here. take_score() hands them over, {from=,
+    -- text=} each, oldest first.
+    -- ponytail: 64 at most, the oldest dropped, for a pass that never takes them (the module off).
+    local scores={}
+    function self.score(text) return self.request('score '..text) end
+    function self.take_score()
+        local out=scores
+        scores={}
+        return out
+    end
     -- The native part's coop-chat.txt, taken and deleted at once: {text=,from=} for each member's line (from: her
     -- SteamID as digits; ours in the loopback), {fail=true} when one of ours could not go, {race=} for each of her race
     -- lines, {gift=} for each of her gift lines (or a gift of ours that could not go, as her refusal), oldest first;
-    -- anything else is ignored.
+    -- a score line goes to take_score(); anything else is ignored.
     function self.take_chat()
         local name=path('coop-chat.txt')
         local text,lines=fs.read(name),{}
@@ -770,7 +782,11 @@ function Link.new(folder,fs)
         for line in text:gmatch('[^\n]+') do
             local from,said=line:match('^in (%d+) (.+)$')
             local raced,gifted=line:match('^race (.+)$'),line:match('^gift (.+)$')
-            if said then lines[#lines+1]={text=said,from=from}
+            local scorer,scored=line:match('^score (%d+) (.+)$')
+            if scorer then
+                if #scores>=64 then table.remove(scores,1) end
+                scores[#scores+1]={from=scorer,text=scored}
+            elseif said then lines[#lines+1]={text=said,from=from}
             elseif raced then lines[#lines+1]={race=raced}
             elseif gifted then lines[#lines+1]={gift=gifted}
             elseif line=='fail' then lines[#lines+1]={fail=true} end

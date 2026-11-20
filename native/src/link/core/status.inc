@@ -196,8 +196,8 @@ private:
 
   // Every 60 s from the first pass, per friend past the handshake: channel 1 both ways, drops, send failures, RTT, ping
   // loss and Steam's view of the session; T1 and T4 read their exit criteria here. Then our passes and the receive
-  // batches that came back full on any channel (more may have waited: design 7.4's pass rate). Then the counts start
-  // over.
+  // batches that came back full on any channel (more may have waited: design 7.4's pass rate), and the score attack
+  // lines when any went or came. Then the counts start over.
   void log_peers() {
     if (now_ < next_peers_line_)
       return;
@@ -221,12 +221,16 @@ private:
       p.rtt_sum = p.rtt_max = 0;
       p.last_result = kResultOk;
       p.drop_logged = p.fight_logged = p.say_logged = p.night_logged = p.mark_logged = p.race_logged =
-          p.round_logged = false;
+          p.round_logged = p.score_logged = false;
     }
     event("link, last 60 s: " + std::to_string(passes_) + " passes, " + std::to_string(full_batches_) +
           " full receive batches (16 messages)");
+    if (score_in_ || score_out_ || score_dropped_) // A minute with a score attack round.
+      event("score lines, last 60 s: " + std::to_string(score_in_) + " in, " + std::to_string(score_out_) + " out, " +
+            std::to_string(score_dropped_) + " dropped");
     passes_ = full_batches_ = 0;
-    night_logged_ = false;
+    score_in_ = score_out_ = score_dropped_ = 0;
+    night_logged_ = score_logged_ = false;
   }
 
   // Relay availability: every second in a lobby, every 5 s outside, "unknown" until the first reading.

@@ -1452,6 +1452,25 @@ chat=link.take_chat()
 assert(#chat==4 and chat[1].gift=='s 17 HP_Potion 3' and not chat[1].text and chat[2].text=='gift a 9'
     and not chat[2].gift and chat[3].race=='gift a 1' and not chat[3].gift and chat[4].gift=='n 18 nolink',
     'Gift lines apart from the chat and the race, in order')
+-- Score attack lines: score() is a score request; each member's line waits for take_score() with her SteamID, apart
+-- from what take_chat() returns, oldest first; a line with no id is no score line.
+files[REQUEST]=nil
+assert(link.score('go 7 targets') and files[REQUEST]=='score go 7 targets\n')
+files[REQUEST]=nil
+assert(#link.take_score()==0)
+files[CHAT]='score 2002 ready 7\nin 2002 score 9\nscore x go 7\nscore 4003 done 7 win 900 412\nrace score 1\n'
+chat=link.take_chat()
+assert(#chat==2 and chat[1].text=='score 9' and chat[2].race=='score 1','Score lines kept apart')
+local scores=link.take_score()
+assert(#scores==2 and scores[1].from=='2002' and scores[1].text=='ready 7' and scores[2].from=='4003'
+    and scores[2].text=='done 7 win 900 412' and #link.take_score()==0,'Handed over once, in order')
+-- ponytail's ceiling: 64 waiting at most, the oldest dropped, for a pass that never takes them.
+local many={}
+for i=1,70 do many[i]='score 2002 now 7 '..i..' 1' end
+files[CHAT]=table.concat(many,'\n')..'\n'
+link.take_chat()
+scores=link.take_score()
+assert(#scores==64 and scores[1].text=='now 7 7 1' and scores[64].text=='now 7 70 1')
 -- ponytail's ceiling: 512 waiting at most, the oldest dropped, for a native part that never takes the file.
 files[RACE]='stuck\n'
 for i=1,520 do link.race('cp 7 1 1 '..i) end

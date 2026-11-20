@@ -115,6 +115,26 @@ public:
     ++(ok ? race_out_ : race_dropped_);
     return ok;
   }
+  // A score attack line from Lua (a score request, online/modes/scoreattack/round.lua's), as it is, reliable to every
+  // member past the handshake. False when it cannot go: outside a match lobby or with nobody linked, or, counted as
+  // dropped, a text score_line() would not carry, past kScorePerSecond (logged once a 60 s line), or Steam refused it.
+  bool score(const std::string &text) {
+    if (!match() || !linked())
+      return false;
+    const std::string line = score_line(text);
+    bool ok = parse(line.data(), line.size()).kind == Kind::score;
+    if (ok && over_rate(score_window_, 1, kScorePerSecond, kScorePerSecond * kMaxMessage)) {
+      ok = false;
+      if (!std::exchange(score_logged_, true))
+        event("dropped our score lines: over the rate limit");
+    }
+    if (ok)
+      for (auto &p : peers_)
+        if (p.compatible && p.accepted && send(p, line.data(), line.size(), kReliable) != kResultOk)
+          ok = false;
+    ++(ok ? score_out_ : score_dropped_);
+    return ok;
+  }
   // coop gift's line (cutmenus/mailbox.lua, through a gift request): reliable to the friend past the handshake, or
   // back as hers ("gift <payload>" for Lua) in the loopback with no friend, at most kGiftPerSecond a second. Each one
   // goes in the log, as each of hers does: a gift moves items between two saves. A gift that cannot go (no session, a
@@ -208,8 +228,8 @@ public:
     return true;
   }
   // For coop-chat.txt (glue/steam.cpp), oldest first: "in <SteamID> <text>" (a member's, chat_clean(); ours in the
-  // loopback), "fail" (ours could not go), "race <text>" (her race line) and "gift <payload>" (her gift line, or our
-  // gift that could not go).
+  // loopback), "fail" (ours could not go), "race <text>" (her race line), "score <SteamID> <text>" (a member's score
+  // attack line, with her SteamID from Steam) and "gift <payload>" (her gift line, or our gift that could not go).
   std::vector<std::string> take_chat() { return std::exchange(chat_, {}); }
   bool chat_waiting() const { return !chat_.empty(); }
 private:
