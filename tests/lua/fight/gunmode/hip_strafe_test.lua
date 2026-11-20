@@ -65,6 +65,6 @@ do
     local ok=Check.run('gun_hip_strafe_row=X\n',nil)
     assert(ok==false,'gun_hip_strafe_row is test only')
     local D=Config.DEFAULTS
-    assert(D.hip_strafe==true and D.hip_strafe_row=='P_Eve_Gun_Battle' and D.hip_strafe_deg==180)
+    assert(D.hip_strafe==false and D.hip_strafe_row=='P_Eve_Gun_Battle' and D.hip_strafe_deg==180)
 end
 print('gunmode hip_strafe_test ok')

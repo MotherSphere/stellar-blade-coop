@@ -22,7 +22,12 @@ Config.DEFAULTS={
     -- hip fire's legs: A and D step sideways on this animation set row (the aim stance's own set) as a custom moving
     -- stance; its NormalAnimRangeDegree is a game value to tune (180, 45, 0). false: her run legs as before
     hip_hold_cone=15, -- hip fire: while fire stays held the burst keeps going with the bore within this many degrees
-    hip_strafe=true,hip_strafe_row='P_Eve_Gun_Battle',hip_strafe_deg=180.0,
+    -- off: the aim stance's set (P_Eve_Gun_Battle) crouched her and once held her running forward in game
+    hip_strafe=false,hip_strafe_row='P_Eve_Gun_Battle',hip_strafe_deg=180.0,
+    -- the mesh turned back while the strafe set is on (deg): P_Eve_Gun_Battle blades her like the game's aim (use
+    -- fight/gunmode/ik.lua's aim_mesh_yaw, -75); a set that does not blade her takes 0. In game, P_Eve_GunNikke crouched her
+    -- and P_Eve_Battle ran her toward the move: the game's directional strafe plays only in its lock-on.
+    hip_strafe_mesh_yaw=-75,
     -- The rifle's round (fight/gunmode/ammo.lua): its name on the reticle's round slot, the magazine, the reload.
     round_name='NIKKE RAPID',reload_text='RELOADING',empty_text='NO AMMO',round_color={0.35,0.85,1.0},
     reload_color={1.0,0.62,0.15},

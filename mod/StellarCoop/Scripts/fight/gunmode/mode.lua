@@ -1469,7 +1469,7 @@ function GunMode.new(env)
                 if not s.mesh_rot then local r=m.RelativeRotation; s.mesh_rot={Pitch=r.Pitch,Yaw=r.Yaw,Roll=r.Roll}; s.mesh_yaw=0 end
                 local C=require('fight.gunmode.ik').CFG
                 local strafe=s.hip and s.hip_row~=nil and s.ovr_active==s.hip_row
-                local target=(hold_aim and (s.tps or strafe)) and C.aim_mesh_yaw or 0
+                local target=(hold_aim and s.tps) and C.aim_mesh_yaw or ((hold_aim and strafe) and (cfg.hip_strafe_mesh_yaw or 0)) or 0
                 local dy=target-s.mesh_yaw
                 if math.abs(dy)>0.05 then
                     s.mesh_yaw=s.mesh_yaw+dy*0.25
