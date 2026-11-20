@@ -183,6 +183,7 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   with no rotor giving the STOP line with no walk in play; `world/maps/matrix13/level/boss_test` the boss bar's text
   blocks walked once under the black, then a gone block found again by its path, a prime that finds no block leaving
   the look to walk as before; `world/maps/matrix13/quest/on_time_test` the arrival talk waiting while the black is up;
+  `world/maps/matrix13/level/drone_test` the hook tried once a stay, only once its class is found by name;
 - `ui/kit/model_test` covers the four Who can join values and the Friends join without asking row, shown under Public
   and Invitation only, then the Online tab row named in `docs/players/interface.md`'s Options paragraph between the
   bike's key and Reset all keys;

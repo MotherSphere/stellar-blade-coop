@@ -466,7 +466,10 @@ without its Naytibas or its doors, and a peer's shared Naytibas would match no s
 
 In world 2800, `world/maps/matrix13/level/drone.lua` gives the drone's spot light 20 % more range and cone at the same
 intensity: a post hook on `CH_Drone_BP_C:ReceiveTick` scales the radius the blueprint writes each tick, and the cone
-goes back to 30/40 degrees on leaving the world.
+goes back to 30/40 degrees on leaving the world. The hook is tried once a stay in world 2800, only once the drone's
+class is in memory: the class is looked for by its name hash every 5 s, which never walks. `RegisterHook` itself looks
+the function up by a walk of every object; a try every 5 s made 12 frames over 16 ms a minute in Matrix XIII. A refused
+try leaves the shipped light until the next stay.
 
 ### Ladders, ledges and ropes
 

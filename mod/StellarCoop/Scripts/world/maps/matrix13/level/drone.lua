@@ -3,24 +3,30 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Matrix XIII's drone light (world/maps/matrix13/level/travel.lua ticks it): 20 % more range and cone than the shipped
 -- light, at the same intensity, in world 2800 only. CH_Drone_BP writes its spot light's attenuation radius each tick,
--- capped at 1500, so a post hook on its ReceiveTick scales what it just wrote. The cone, which the blueprint never
--- writes, is set once per light and put back at coop off in the world; leaving the world frees the light with it.
+-- capped at 1500, so a post hook on its ReceiveTick scales what it just wrote. The hook is tried once a stay, once the
+-- drone's class is in memory by its name hash: RegisterHook's own lookup walks every object (sky-hold DESIGN 9.5). The
+-- cone, which the blueprint never writes, is set once per light and put back at coop off in the world; leaving the
+-- world frees the light with it.
 local U=require('core.unreal')
 local Drone={
     HOOK='/Game/Art/Character/NPC/CH_NPC_Drone/Blueprints/CH_Drone_BP.CH_Drone_BP_C:ReceiveTick',
+    CLASS='/Game/Art/Character/NPC/CH_NPC_Drone/Blueprints/CH_Drone_BP.CH_Drone_BP_C', -- HOOK's class.
     SCALE=1.2,
     INNER=30,OUTER=40, -- The blueprint's spot light cone.
 }
 local EVERY=1 -- s between looks at the world.
-local RETRY=5 -- s between hook tries: a class not in memory costs a slow lookup each try.
+local RETRY=5 -- s between looks for the class by its name hash while it is not in memory.
 
--- o: log, here (EVE in world 2800, or nil).
+-- o: log, here (EVE in world 2800, or nil), loaded(path) (two values: the class while it is in memory or nil; the
+-- route; default core/unreal.lua's class_at).
 function Drone.new(o)
     local log,here=o.log,o.here
+    local loaded=o.loaded or function(path) return U.class_at(path,U.controller()) end
     local self={}
     local active,hooked,failed=false,false,false
     local next_look,next_hook=0,0
-    local said -- The hook error already logged in this stay in world 2800.
+    local said -- The not-in-memory line already logged in this stay in world 2800.
+    local stayed=false -- RegisterHook tried in this stay in world 2800.
     local written,lights={},{} -- By light address: the radius last written, the light with our cone.
     local function apply(ctx)
         local drone=U.valid(ctx)
@@ -65,14 +71,28 @@ function Drone.new(o)
         if failed or now<next_look then return end
         next_look=now+EVERY
         local inside=here()~=nil
-        if inside and not hooked and now>=next_hook then
-            local ok,e=pcall(RegisterHook,Drone.HOOK,on_tick)
-            hooked=ok
+        -- RegisterHook looks its function up by a walk of every object (25 to 35 ms in game for a miss): it runs once a
+        -- stay, only once the class is in memory, found by its name hash (core/unreal.lua's class_at). A try every
+        -- RETRY s made 12 frames over 16 ms a minute in Matrix XIII in the run of 2026-11-18 (sky-hold DESIGN 9.5).
+        if inside and not hooked and not stayed and now>=next_hook then
             next_hook=now+RETRY
-            if ok then log('light: CH_Drone_BP_C:ReceiveTick hooked')
-            elseif not said then said=true; log('light: no hook yet: '..tostring(e)..'; next try every '..RETRY..' s') end
+            local looked,cls,route=pcall(loaded,Drone.CLASS)
+            if looked and cls then
+                stayed=true
+                local ok,e=pcall(RegisterHook,Drone.HOOK,on_tick)
+                hooked=ok
+                log(ok and 'light: CH_Drone_BP_C:ReceiveTick hooked'
+                    or 'light: no hook this stay: '..tostring(e)..'; the shipped light')
+            elseif not looked or route~='soft path' then
+                stayed=true
+                log('light: no hook this stay: the drone class not found by its name hash ('
+                    ..tostring(looked and route or cls)..'); the shipped light')
+            elseif not said then
+                said=true
+                log('light: the drone class is not in memory; looked for by its name hash every '..RETRY..' s')
+            end
         end
-        if not inside then said=nil end
+        if not inside then said,stayed=nil,false end
         -- Out of 2800 its lights are the old world's, freed or dying: forgotten, never called.
         if active and not inside then written,lights={},{} end
         active=inside and hooked
