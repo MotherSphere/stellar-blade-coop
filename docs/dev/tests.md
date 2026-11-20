@@ -70,7 +70,8 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   the paid fetch at a Xion camp (offered after a far or another-map refusal, paid by a press within 5 s, one start for
   every press during the payment, too little money and a failure said, never within reach, in an SBO lobby or away from
   a camp; the money's name from `game_text` on the screen's words, `betacrystal` in the English copy of another
-  language, for a name over 32 bytes and in an offer past 200 bytes);
+  language, for a name over 32 bytes and in an offer past 200 bytes); `bike_key` as a hold (a tap let go before 0.5 s
+  does nothing, a hold of 0.5 s runs the key once, nothing more until it is let go);
 - `vehicles/bike/park_test` checks `vehicles/bike/park.lua` with `lua5.4` alone: the reach (200 cm across, 100 cm up or
   down, from any side), the whole metres and the side from the camera's yaw (never `0 m`), the seat a mount lands her
   on, the spot a dismount parks at, the clearance from her capsule to the bike's and the open-then-solid rule, a map's

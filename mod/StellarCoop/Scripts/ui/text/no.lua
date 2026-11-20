@@ -179,7 +179,7 @@ return {
     bike={far='Motorsykkelen din er %d m unna, %s.',ahead='foran deg',behind='bak deg',left='til venstre for deg',
         right='til høyre for deg',not_back='Motorsykkelen din er ikke tilbake ennå.',
         other_map='Motorsykkelen din er på et annet kart: %s.',prompt='%s: sett deg på motorsykkelen',
-        offer='Trykk %s igjen innen 5 s for å betale %d %s og hente den hit.',
+        offer='Hold %s inne igjen innen 5 s for å betale %d %s og hente den hit.',
         paying='Betaler %d %s for motorsykkelen din.',
         paid='Motorsykkelen din ble hentet hit for %d %s.',poor='Ikke nok %s: %d trengs, du har %d.',
         unpaid='Motorsykkelen din ble ikke hentet hit. UE4SS.log sier hvorfor.'},

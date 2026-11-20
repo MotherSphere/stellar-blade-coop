@@ -181,7 +181,7 @@ return {
     bike={far='Motosikletin %d m uzakta, %s.',ahead='önünde',behind='arkanda',left='solunda',right='sağında',
         not_back='Motosikletin henüz geri gelmedi.',other_map='Motosikletin başka bir haritada: %s.',
         prompt='%s: motosiklete bin',
-        offer='5 sn içinde %s tuşuna tekrar basarsan %d %s ödeyip onu buraya getirirsin.',
+        offer='5 sn içinde %s tuşunu tekrar basılı tutarsan %d %s ödeyip onu buraya getirirsin.',
         paying='Motosikletin için %d %s ödeniyor.',
         paid='Motosikletin %d %s karşılığında buraya getirildi.',
         poor='Yeterli %s yok: %d gerekli, sende %d var.',

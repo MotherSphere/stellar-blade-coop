@@ -175,7 +175,7 @@ return {
     bike={far='Twój motocykl jest %d m od ciebie, %s.',ahead='przed tobą',behind='za tobą',left='po twojej lewej',
         right='po twojej prawej',not_back='Twój motocykl jeszcze nie wrócił.',
         other_map='Twój motocykl jest na innej mapie: %s.',prompt='%s: wsiądź na motocykl',
-        offer='Naciśnij ponownie %s w ciągu 5 s, aby zapłacić %d %s i sprowadzić go tutaj.',
+        offer='Przytrzymaj ponownie %s w ciągu 5 s, aby zapłacić %d %s i sprowadzić go tutaj.',
         paying='Płacisz %d %s za motocykl.',paid='Motocykl sprowadzono tutaj za %d %s.',
         poor='Za mało %s: potrzeba %d, masz %d.',
         unpaid='Motocykl nie został sprowadzony. Powód podaje UE4SS.log.'},

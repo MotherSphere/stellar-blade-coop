@@ -181,7 +181,7 @@ return {
     bike={far='A tua mota está a %d m, %s.',ahead='à tua frente',behind='atrás de ti',left='à tua esquerda',
         right='à tua direita',not_back='A tua mota ainda não voltou.',other_map='A tua mota está noutro mapa: %s.',
         prompt='%s: subir para a mota',
-        offer='Prime %s de novo dentro de 5 s para pagar %d %s e trazê-la para aqui.',
+        offer='Mantém %s premido de novo dentro de 5 s para pagar %d %s e trazê-la para aqui.',
         paying='A pagar %d %s pela tua mota.',paid='A tua mota foi trazida para aqui por %d %s.',
         poor='%s insuficiente: são precisos %d, tens %d.',
         unpaid='A tua mota não foi trazida para aqui. O UE4SS.log diz porquê.'},

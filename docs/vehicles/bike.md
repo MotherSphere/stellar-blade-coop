@@ -9,8 +9,8 @@ How the mod loads the bike, puts it on EVE, parks it and turns the game's action
 
 ## Getting on and off
 
-Press F3 (`bike_key`), hold D-pad Right for 1 s on a pad, or type `coop bike`. The same again gets her off. The pad's
-hold works in a world while none of the mod's screens (the co-op menu, the chat box, the lobby's screens) is open and
+Hold F3 (`bike_key`) for 0.5 s, hold D-pad Right for 1 s on a pad, or type `coop bike`. A tap of F3 does nothing. The
+same again gets her off. The pad's hold works in a world while none of the mod's screens (the co-op menu, the chat box, the lobby's screens) is open and
 the game is not paused or showing one of its menus, such as the inventory or the map. Otherwise the log says why it did
 nothing. With Eve On Wheels installed too, both mods react to D-pad Right.
 
@@ -108,8 +108,8 @@ a Xion camp that your save has activated (one that `coop status` lists on its `a
 the SBO lobby.
 
 There, when F3 is refused because the bike is out of reach or on another map, the refusal adds an offer:
-`Your bike is on another map: WasteLandA. Press F3 again within 5 s to pay 500 Gold to bring it here.` With
-`bike_key=none` it names `coop bike` instead. Pressing F3 again within 5 s (or holding the pad's D-pad Right, or typing
+`Your bike is on another map: WasteLandA. Hold F3 again within 5 s to pay 500 Gold to bring it here.` With
+`bike_key=none` it names `coop bike` instead. Holding F3 again within 5 s (or the pad's D-pad Right, or typing
 `coop bike`) pays. `Paying 500 Gold for your bike.` shows while the game takes the money. Every press meanwhile
 says the same and pays nothing more. Then `Your bike was brought here for 500 Gold.`: the bike stands where she
 stood at the first press. The next F3 gets her on. Within reach of the bike, F3 gets her on as anywhere else and

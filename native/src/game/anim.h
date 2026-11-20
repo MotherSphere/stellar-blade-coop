@@ -55,9 +55,12 @@ constexpr uint64_t kWatchMs = 100; // The game thread reads slot 0 this often wh
 constexpr uint64_t kNoWeightMs = 1000;
 // Only EVE's clips: the path starts with kDir, holds letters, digits, '_', '/' and single '.', and fits kMaxPath.
 constexpr char kDir[] = "/Game/Art/Character/PC/CH_P_EVE_01/Animation/";
+// Dev build: Fusion Strider's riding pose, made on EVE's skeleton, lives in the bike's own pak.
+constexpr char kModDir[] = "/Game/Mods/EveBikes/";
 constexpr size_t kMaxPath = 192;
 inline bool path_ok(std::string_view p) {
-  const std::string_view dir(kDir);
+  const std::string_view eve(kDir), mod(kModDir);
+  const std::string_view dir = p.compare(0, mod.size(), mod) == 0 ? mod : eve;
   if (p.size() <= dir.size() || p.size() > kMaxPath || p.compare(0, dir.size(), dir) != 0 || p.back() == '/' ||
       p.back() == '.')
     return false;

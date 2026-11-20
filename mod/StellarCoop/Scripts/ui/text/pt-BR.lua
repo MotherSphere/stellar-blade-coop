@@ -180,7 +180,7 @@ return {
     bike={far='Sua moto está a %d m, %s.',ahead='à sua frente',behind='atrás de você',left='à sua esquerda',
         right='à sua direita',not_back='Sua moto ainda não voltou.',other_map='Sua moto está em outro mapa: %s.',
         prompt='%s: subir na moto',
-        offer='Aperte %s de novo em até 5 s para pagar %d %s e trazê-la para cá.',
+        offer='Segure %s de novo em até 5 s para pagar %d %s e trazê-la para cá.',
         paying='Pagando %d %s pela sua moto.',paid='Sua moto foi trazida para cá por %d %s.',
         poor='%s insuficiente: precisa de %d, você tem %d.',
         unpaid='Sua moto não foi trazida para cá. O UE4SS.log diz o motivo.'},

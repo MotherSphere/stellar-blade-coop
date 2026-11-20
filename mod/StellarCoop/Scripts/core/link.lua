@@ -62,10 +62,11 @@ bike_key=F3
 # at speed drifts too, with no key. The defaults are R2 on a pad (it still picks up items in reach, as outside a race)
 # and B on the keyboard, which Stellar Blade leaves free.
 drift_keys=Gamepad_RightTrigger B
-# The bike: on or off, on by default. On, the mod keeps Stellar Blade's own bike loaded. bike_key, D-pad Right held 1 s
-# on a pad or the console command coop bike puts EVE on it or takes her off, on any save. The bike stays where she gets
-# off: its place is kept for each save, in the mod folder. Off gets her off the bike, removes her parked bike from
-# every world (its place stays), hides the other players' parked bikes and frees the bike's files.
+# The bike: on or off, on by default. On, the mod keeps Stellar Blade's own bike loaded. bike_key held 0.5 s, D-pad
+# Right held 1 s on a pad or the console command coop bike puts EVE on it or takes her off, on any save. A tap of
+# bike_key does nothing. The bike stays where she gets off: its place is kept for each save, in the mod folder. Off
+# gets her off the bike, removes her parked bike from every world (its place stays), hides the other players' parked
+# bikes and frees the bike's files.
 bike=on
 # Who can join a session you host: public (any player of your version, from Find a session), friends (your Steam
 # friends, from their friends list or the Friends tab of Find a session), invitation (the friends you invite or anyone

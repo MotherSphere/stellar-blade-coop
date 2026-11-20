@@ -207,7 +207,7 @@ return {
     bike={far='Your bike is %d m away, %s.',ahead='ahead of you',behind='behind you',left='to your left',
         right='to your right',not_back='Your bike is not back yet.',other_map='Your bike is on another map: %s.',
         prompt='%s: get on the bike',
-        offer='Press %s again within 5 s to pay %d %s to bring it here.',
+        offer='Hold %s again within 5 s to pay %d %s to bring it here.',
         paying='Paying %d %s for your bike.',paid='Your bike was brought here for %d %s.',
         poor='Not enough %s: %d needed, you carry %d.',
         unpaid='Your bike was not brought here. UE4SS.log says why.'},

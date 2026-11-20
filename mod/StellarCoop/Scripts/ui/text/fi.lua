@@ -184,7 +184,7 @@ return {
     bike={far='Moottoripyöräsi on %d m:n päässä, %s.',ahead='edessäsi',behind='takanasi',left='vasemmalla puolellasi',
         right='oikealla puolellasi',not_back='Moottoripyöräsi ei ole vielä palannut.',
         other_map='Moottoripyöräsi on toisella kartalla: %s.',prompt='%s: nouse pyörän kyytiin',
-        offer='Paina %s uudelleen 5 s:n kuluessa, niin maksat %d %s ja pyörä tuodaan tänne.',
+        offer='Pidä %s pohjassa uudelleen 5 s:n kuluessa, niin maksat %d %s ja pyörä tuodaan tänne.',
         paying='Maksetaan %d %s moottoripyörästäsi.',
         paid='Moottoripyöräsi tuotiin tänne hintaan %d %s.',
         poor='%s ei riitä: tarvitaan %d, sinulla on %d.',

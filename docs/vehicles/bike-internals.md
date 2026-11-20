@@ -228,6 +228,11 @@ the cached place and her main mesh's location:
 Refusals are logged in English (`bike refused: <reason>`) and shown in the menu's language. Each 250 ms pass while the
 stand shows and she does not ride, coming within reach shows `<bike_key>: get on the bike` once.
 
+`bike_key` is a hold. Its press only starts a wait (`hold bike_key for 0.5 s` in the log). Each frame `self.steer` reads
+the key with the player controller's `IsInputKeyDown`. Let go before `Ride.HOLD` (0.5 s), it logs
+`bike_key let go before 0.5 s: nothing`. Held that long, it runs `bike_key`'s path once (`bike_press`), then waits for
+the key to be let go. `coop bike` and the pad's D-pad Right (held 1 s in the native part) act at once.
+
 ## The place per save
 
 `vehicles/bike/park.lua`'s `key` names the record from the status text: `coop-bike-<steamid>-<saves><index>.txt`, with
@@ -303,7 +308,7 @@ lists. The spawn points are walked with `FindAllOf('SBSpawnPoint')` once a map, 
 only. A mount within reach never asks.
 
 The offer keeps for 5 s (`Fetch.WINDOW`) the place the bike would take: her pose as a park takes it, else her feet with
-her actor's yaw alone when that pose does not read (on a `Movable` base). A press within the window starts
+her actor's yaw alone when that pose does not read (on a `Movable` base). A `bike_key` hold within the window starts
 `vehicles/bike/fetch.lua` (`bike fetch asked at <camp> for 500 betacrystal`); a later one offers again. While the
 payment runs, every press is refused with `Paying 500 betacrystal for your bike.`, so it charges once. Each 250 ms the
 payment's step runs before the ride's pass. Paid, the place becomes the offer's pose, written as a park (outside an SBO

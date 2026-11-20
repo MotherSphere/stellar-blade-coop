@@ -146,7 +146,7 @@ return {
         busy='暫時無法前往。請稍後再試。',failed='前往未開始。原因見UE4SS.log。'},
     bike={far='你的機車在%d公尺外的%s。',ahead='前方',behind='後方',left='左側',right='右側',not_back='你的機車還沒有回來。',
         other_map='你的機車在另一張地圖上：%s。',prompt='%s：騎上機車',
-        offer='5秒內再按一次%s，支付%d %s把它帶到這裡。',paying='正在為你的機車支付%d %s。',paid='已花費%d %s把你的機車帶到這裡。',
+        offer='5秒內再長按一次%s，支付%d %s把它帶到這裡。',paying='正在為你的機車支付%d %s。',paid='已花費%d %s把你的機車帶到這裡。',
         poor='%s不足：需要%d，你只有%d。',unpaid='沒能把你的機車帶到這裡。原因請見UE4SS.log。'},
     night={title='夜間行動',starts='開始倒數 %d',wave='波次 %d/%d',next='下一波倒數 %d',score='得分 %d',success='行動成功',fail='行動失敗',
         died='玩家已全數死亡。',time_up='時間到。',

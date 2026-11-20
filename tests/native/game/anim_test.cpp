@@ -100,6 +100,9 @@ int main() {
         std::string(kDir) + std::string(kMaxPath, 'A'), std::string("/game/Art/Character/PC/CH_P_EVE_01/Animation/A")})
     assert(!path_ok(bad));
   assert(path_ok(std::string(kDir) + std::string(kMaxPath - sizeof kDir + 1, 'A')));
+  // Dev build: the bike pak's folder too, with the same character rules.
+  assert(path_ok("/Game/Mods/EveBikes/Quantum/Ride/Eve_QuantumRidePose.Eve_QuantumRidePose"));
+  assert(!path_ok(kModDir) && !path_ok(std::string(kModDir) + "../A.A") && !path_ok("/Game/Mods/Other/A.A"));
 
   // The FString: UTF-16 with its null, ArrayNum counting the null; nothing for a refused path.
   const Path p = widen(kClap);

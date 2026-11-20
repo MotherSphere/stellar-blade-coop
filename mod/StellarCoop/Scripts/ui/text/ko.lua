@@ -159,7 +159,7 @@ return {
         failed='이동이 시작되지 않았습니다. UE4SS.log에서 이유를 확인하세요.'},
     bike={far='바이크가 %d m 떨어진 %s에 있습니다.',ahead='앞쪽',behind='뒤쪽',left='왼쪽',right='오른쪽',not_back='바이크가 아직 돌아오지 않았습니다.',
         other_map='바이크가 다른 맵에 있습니다: %s.',prompt='%s: 바이크 타기',
-        offer='5초 안에 %s 키를 다시 누르면 %d %s을(를) 내고 여기로 가져옵니다.',paying='바이크 비용 %d %s 지불 중.',
+        offer='5초 안에 %s 키를 다시 길게 누르면 %d %s을(를) 내고 여기로 가져옵니다.',paying='바이크 비용 %d %s 지불 중.',
         paid='%d %s(으)로 바이크를 여기로 가져왔습니다.',poor='%s이(가) 부족합니다: %d 필요, 보유 %d.',
         unpaid='바이크를 여기로 가져오지 못했습니다. 이유는 UE4SS.log에서 확인.'},
     night={title='야간 작전',starts='시작까지 %d',wave='웨이브 %d/%d',next='다음 웨이브까지 %d',score='점수 %d',success='작전 성공',

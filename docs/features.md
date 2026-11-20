@@ -85,7 +85,7 @@ achievements, which cannot be taken back.
   friend, each racer drawn as a Doro (Dororong). The race has a countdown, a timer, checkpoint markers and a ranking.
   It gives no reward or achievement and writes nothing to a save. Doro races are not tested in game yet (see
   [online/modes/race.md](online/modes/race.md)).
-- The bike: F3, D-pad Right held 1 s or `coop bike` puts EVE on a motorbike from the game's files, on any save. She
+- The bike: F3 held 0.5 s, D-pad Right held 1 s or `coop bike` puts EVE on a motorbike from the game's files, on any save. She
   rides it with the left stick, leans into turns, drifts with R2 or B and jumps with the game's Jump; her attacks and
   items are off while she rides. Your friend's ghost of you and the match-lobby ghosts show the bike. It stays where she
   gets off, one place for each save, where the players linked with you see it too. Its riding model adapts dCharisma1's

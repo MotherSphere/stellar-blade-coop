@@ -185,7 +185,7 @@ return {
     bike={far='Dein Motorrad ist %d m entfernt, %s.',ahead='vor dir',behind='hinter dir',left='links von dir',
         right='rechts von dir',not_back='Dein Motorrad ist noch nicht zurück.',
         other_map='Dein Motorrad ist auf einer anderen Karte: %s.',prompt='%s: Motorrad besteigen',
-        offer='Drücke %s innerhalb von 5 Sek. erneut, um %d %s zu zahlen und es herzuholen.',
+        offer='Halte %s innerhalb von 5 Sek. erneut gedrückt, um %d %s zu zahlen und es herzuholen.',
         paying='Zahle %d %s für dein Motorrad.',paid='Dein Motorrad wurde für %d %s hergebracht.',
         poor='Nicht genug %s: %d nötig, du hast %d.',
         unpaid='Dein Motorrad wurde nicht hergebracht. UE4SS.log nennt den Grund.'},

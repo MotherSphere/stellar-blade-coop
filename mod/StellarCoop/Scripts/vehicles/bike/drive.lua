@@ -63,6 +63,10 @@ function Drive.new(o)
     local drive=nil
     local restored=false
     local keys_failed=nil -- Why IsInputKeyDown could not be read: no key until the mod reloads.
+    -- Dev build: the bike's buttons (vehicles/bike/fusion/buttons.lua's controls), set by the ride: (pc, heading)
+    -- -> a world stick or nil, and drift held. nil: the stick alone, as before.
+    local controls=nil
+    function self.set_controls(f) controls=f end
     local fkeys={}
     -- The four values on her movement (or kept), as one log word list.
     local function fields(move)
@@ -228,7 +232,13 @@ function Drive.new(o)
         local v=value_of(e:GetVelocity())
         local stick=value_of(e:GetLastMovementInputVector())
         local yaw=value_of(e:K2_GetActorRotation()).Yaw
-        local input={stick={x=stick.X,y=stick.Y},drift=drift(d),v={x=v.X,y=v.Y,z=vz},falling=d.move:IsFalling()==true,
+        local sx,sy,held=stick.X,stick.Y,drift(d)
+        if controls and d.why=='bike' and d.pc then
+            local ok,c,hb=pcall(controls,d.pc,(d.state and d.state.heading) or value_of(e:K2_GetActorRotation()).Yaw)
+            if ok and c then sx,sy=c.x,c.y end
+            if ok and hb then held=true end
+        end
+        local input={stick={x=sx,y=sy},drift=held,v={x=v.X,y=v.Y,z=vz},falling=d.move:IsFalling()==true,
             root=e:IsPlayingRootMotion()==true,yaw=yaw}
         local out=d.probe and d.probe.phase~='free' and probe_out(d,t,v) or d.M.step(d.state,input,d.P,dt)
         if out.launch then e:LaunchCharacter({X=out.launch.x,Y=out.launch.y,Z=out.launch.z},true,true)
