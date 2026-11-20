@@ -25,7 +25,9 @@ ShopTable). They go in at the title screen, once a game run, when the co-op save
 never get them. The mod then reads every row back. Rows refused, stopped on a fault or read back other than written
 keep the shop shut for the game run. The log says why once.
 
-`coop saves export` refuses a save that holds a team item, so it stays a co-op save while EVE holds one.
+`coop saves export` refuses a save that names a team item anywhere: in the inventory, in a pickup left in the world,
+on a quick slot or in the game's record of limited buys (`SBShopHistory`). That record may keep the item's name after
+the buy. Nobody has checked yet. A save with a team item bought may then stay a co-op save for good.
 
 ## When `coop teamshop` refuses
 

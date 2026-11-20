@@ -190,9 +190,12 @@ copies, and switches neither. As with a refresh, the first time it only says wha
   with `DLC02_`: the camps `coop mxiii` and `coop mxiii 30` add there, their rows, `DLC02_10_EnvS_906` once the kit is
   activated, `DLC02_30_EnvS_900` after the arrival at the third zone's camp, and the dungeon's own rows, which no camp
   of the released game uses);
-- refuses it, before it writes anything, while it holds an item of the team shop (`coop teamshop`, see
-  [world/teamshop.md](../world/teamshop.md)): a name that starts with `SBOTeam_` in the inventory, in a pickup left in
-  the world or on a quick slot. The refusal names each one. The save stays a co-op save while EVE holds one;
+- refuses it, before it writes anything, while it names an item of the team shop (`coop teamshop`, see
+  [world/teamshop.md](../world/teamshop.md)): an item name (`ItemAlias`) anywhere in the save or a quick slot name
+  that starts with `SBOTeam_`. The inventory and a pickup left in the world hold such names. So does the game's record
+  of limited buys (`SBShopHistory`). The team shop sells each item once, so that record may keep the item's name after
+  the buy. Nobody has checked yet. The save may then stay a co-op save after EVE no longer holds the item. The refusal
+  names each one;
 - refuses it, before it writes anything, when any other name in the save starts with `DLC02_` (names that start with
   `Zone_DLC02_` excepted): the rows of the dungeon's zones the save keeps once it has played there, such as an enemy's
   saved death, an opened box, a door's state or a pickup. None of the user's 15 released-game saves holds such a name.

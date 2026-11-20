@@ -154,9 +154,13 @@ Nothing of the shop has been tested in game yet.
   again.
 - Co-op saves only. The title asks for the rows only while the game uses the co-op save files. `coop teamshop`
   refuses on your own saves.
-- `coop saves export` refuses a save that holds a team item in the inventory, in a pickup left in the world or on a
-  quick slot. It reads the save as played and its New Game+ copy, by the `SBOTeam_` prefix (`kTeamItems` in
-  `native/src/game/twins.h`). See [Saves](../../players/saves.md).
+- `coop saves export` refuses a save that names a team item anywhere: an `ItemAlias` name or a quick slot name that
+  starts with `SBOTeam_` (`kTeamItems` in `native/src/game/twins.h`), in the save as played or in its New Game+ copy.
+  The inventory and a pickup left in the world hold such names. So does SB's save record of limited buys,
+  `SBShopHistory`, whose entries are `SBSaveGameData_ShopLimitedItemHistoryObject` {`ItemAlias`, `PurchaseCount`}.
+  Each `_Buy` row keeps its donor's limit of 1, so that record may keep the item's name after the buy. The code that
+  writes it has not been traced. A save may then stay refused after EVE no longer holds the item. See
+  [Saves](../../players/saves.md).
 - ASCII text only. The row engine writes each byte of a text as one UTF-16 character, so the two bytes of a UTF-8
   `é` would show as two wrong characters.
 - `Name`, `DescFunction` and `DescContent` are keys of the game's ItemStringTable. Stage 1 adds no key, so an item
