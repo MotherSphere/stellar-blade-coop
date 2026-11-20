@@ -13,6 +13,10 @@ c++ -std=c++17 -Wall -Wextra -Werror -I native/src tests/native/game/codec_test.
 build/host/game_codec_test
 ```
 
+On Windows, `.gitattributes` keeps LF line ends in the checkout: several tests compare file text with LF patterns. A
+clone made before that file keeps its CRLF files. With no uncommitted changes, `git rm -r -q --cached .` then
+`git reset -q --hard` checks every file out again with LF ends.
+
 ## Lua tests
 
 The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`, `others`, `park`, `ride`, `stand`;
