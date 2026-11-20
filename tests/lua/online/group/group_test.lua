@@ -22,7 +22,7 @@
 -- photo line.
 -- Camp rests (shared_world=on): our own rest sends rest <zone> (type 2 only after 10 s alive, none within 10 s of our
 -- own ResetZone call); a received rest calls ResetZone for our EVE in that zone once we are free, within a minute, once
--- per zone each 30 s, with no more calls after 4 starts within 30 s of one.
+-- per zone each 30 s (a rest that waits included), with no more calls after 4 starts within 30 s of one.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
 local U=require('core.unreal')
@@ -842,4 +842,51 @@ assert(#W.resets==0 and logged('rest: dropped, the session ended'))
 g=world(function(w) ready(w); w.names={Zone_A=55,Zone_B=56} end); run(g,0.25); g.rest('Zone_A','2'); run(g,0.25)
 W.rest='rest=0:none:0 starts=4'; run(g,5); W.area='Zone_B'; g.rest('Zone_B','2'); run(g,1)
 assert(#W.resets==1 and W.said[#W.said]=="Other players' camp rests no longer reset your area until the game restarts. UE4SS.log says why.")
+-- The same 4 starts more than 30 s after the call: the calls go on.
+g=world(function(w) ready(w); w.names={Zone_A=55,Zone_B=56} end); run(g,0.25); g.rest('Zone_A','2'); run(g,31)
+W.rest='rest=0:none:0 starts=4'; run(g,1); W.area='Zone_B'; g.rest('Zone_B','2'); run(g,1)
+assert(#W.resets==2 and W.said[#W.said]=='Kaanta rested at a camp. The enemies of this area are back.','Past 30 s')
+-- Our own rest is not sent without a session, off a co-op save or with no area read; each with its log line.
+for _,c in ipairs({{'no session',function(w) w.linked=false end},{'not a co-op save',function(w) w.slot=nil end}}) do
+    g=world(function(w) ready(w); c[2](w) end); run(g,0.25)
+    W.rest='rest=1:Zone_A:1 starts=1'; run(g,0.25)
+    assert(#W.requests==0 and logged('rest: our own reset of Zone_A not sent: '..c[1]),c[1])
+end
+g=world(ready); run(g,0.25); W.rest='rest=1:none:1 starts=1'; run(g,0.25)
+assert(#W.requests==0 and logged('rest: our own reset of none not sent: no area read'))
+-- A received rest is dropped, its log line and no notice even after a minute: shared_world=off, off a co-op save, no
+-- life read, a game that is not standalone.
+local function rest_said()
+    for _,s in ipairs(W.said) do if s:find('rested at a camp',1,true) then return s end end
+end
+for _,c in ipairs({{'shared_world=off',function(w) w.settings.shared_world=false end},
+    {'not a co-op save',function(w) w.slot=nil end},{'no life read',function(w) w.life=nil end},
+    {'the game is not standalone',function(w) w.standalone=false end}}) do
+    g=world(function(w) ready(w); c[2](w) end); g.rest('Zone_A','2'); run(g,61)
+    assert(#W.resets==0 and not rest_said() and logged('rest: '..c[1]..' (Zone_A of member 2 dropped)'),c[1])
+end
+-- It waits, its log line and no call, while the game is paused, with no EVE, a respawn or warp, no GUID read, our EVE
+-- down or a boss fight; the call comes once that ends.
+for _,c in ipairs({{'the game is paused',function(w) w.paused=true end,function(w) w.paused=false end},
+    {'no EVE',function(w) w.eve=nil end,function(w) w.eve=eve end},
+    {'a respawn or a warp',function(w) w.engine=ENGINE..' warp=busy me=4242' end,
+        function(w) w.engine=ENGINE..' warp=idle me=4242' end},
+    {'no GUID',function(w) w.engine=ENGINE..' warp=idle me=0' end,
+        function(w) w.engine=ENGINE..' warp=idle me=4242' end},
+    {'down',function(w) w.life={state=3,hp=0} end,function(w) w.life={state=1,hp=1600} end},
+    {'a fight',function(w) w.fight=GUEST..'7' end,function(w) w.fight=GUEST..'0' end}}) do
+    g=world(function(w) ready(w); c[2](w) end); g.rest('Zone_A','2'); run(g,30)
+    assert(#W.resets==0 and not rest_said() and logged('rest: Zone_A waits: '..c[1]),c[1])
+    c[3](W); run(g,1)
+    assert(#W.resets==1 and W.resets[1].guid==4242 and rest_said()=='Kaanta rested at a camp. The enemies of this area '
+        ..'are back.',c[1]..', then free')
+end
+-- One rest waits per zone: another for that zone is dropped with its log line. A rest that waits is dropped once our
+-- own rest reset its zone meanwhile (players resting together at a camp, the camp's menu open).
+g=world(function(w) ready(w); w.paused=true end); g.rest('Zone_A','2'); g.rest('Zone_A','3'); run(g,1)
+assert(logged('rest: Zone_A already waits, member 3 dropped'))
+W.paused=false; run(g,1); assert(#W.resets==1)
+g=world(function(w) ready(w); w.paused=true end); run(g,0.25); g.rest('Zone_A','2'); run(g,2)
+W.rest='rest=1:Zone_A:1 starts=1'; run(g,0.25); W.paused=false; run(g,1)
+assert(#W.requests==1 and #W.resets==0 and logged('rest: Zone_A already reset'),'Our own rest while hers waited')
 print('group_test ok')

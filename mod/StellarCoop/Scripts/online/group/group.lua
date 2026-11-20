@@ -62,13 +62,14 @@
 -- 1, or with type 2 once our life read alive for 10 s before it (else a death's camp respawn), never within 10 s after
 -- our own ResetZone call (SB's echo of that call carries GUID 0 and never moves ours: a guard only). Each rest received
 -- from another member (rest(zone,from)) waits in a queue, one per zone; a zone reset in our game in the last 30 s (our
--- own rest, an applied call) drops it. Each second while queued: dropped once the session ended, without shared_world,
--- off a co-op save, outside that zone (the engine line's area=), with no life read, in a solo area of ours, with no
--- boss= and battle= on the fight line (no shared fight in this game), in a game that is not standalone, or for a zone
--- FNAME_Find does not know; waiting through a fight, a cutscene, a pause, no EVE, a respawn or warp, our EVE down, no
--- controller, 60 s at most (then the skipped notice). Then pc:ServerRequest_ResetZone(our GUID, the zone's FName) with
--- the rested notice: SB's own reset of that zone for our EVE (FSBResetZone resets it only where the logic's zone is the
--- same). More than 3 starts within 30 s after one call stop the calls for the Lua load, with a notice.
+-- own rest, an applied call) drops it, when it comes or while it waits. Each second while queued: dropped once the
+-- session ended, without shared_world, off a co-op save, outside that zone (the engine line's area=), with no life
+-- read, in a solo area of ours, with no boss= and battle= on the fight line (no shared fight in this game), in a game
+-- that is not standalone, or for a zone FNAME_Find does not know; waiting through a fight, a cutscene, a pause, no EVE,
+-- a respawn or warp, our EVE down, no controller, 60 s at most (then the skipped notice). Then
+-- pc:ServerRequest_ResetZone(our GUID, the zone's FName) with the rested notice: SB's own reset of that zone for our
+-- EVE (FSBResetZone resets it only where the logic's zone is the same). More than 3 starts within 30 s after one call
+-- stop the calls for the Lua load, with a notice.
 local U=require('core.unreal')
 local Where=require('core.where')
 local N=require('core.player')
@@ -551,7 +552,15 @@ function G.new(o)
             or kind==2 and not (rests.alive and now-rests.alive>=CALM) and 'type 2 within 10 s of getting up'
         if why then return log('rest: our own reset of '..area..' not sent: '..why) end
         local ok,e=link.request('rest '..area)
-        log(ok and 'rest: our own reset of '..area..' sent' or 'rest: our own reset of '..area..' not sent: '..tostring(e))
+        log(ok and 'rest: our own reset of '..area..' sent'
+            or 'rest: our own reset of '..area..' not sent: '..tostring(e))
+    end
+    -- Whether zone was reset in our game in the last SAME s (our own rest, an applied call), with one log line then.
+    local function reset_lately(zone)
+        local last=rests.reset[zone]
+        if not (last and now-last<SAME) then return false end
+        log(string.format('rest: %s already reset %d s ago',zone,math.floor(now-last)))
+        return true
     end
     -- Why received rest r is dropped ('drop', why) or waits ('busy', why); else nil, our GUID, the controller and the
     -- zone's FName.
@@ -587,6 +596,7 @@ function G.new(o)
     end
     -- Received rest r: true once done with (applied, dropped or skipped), false to try again later.
     local function apply_rest(r)
+        if reset_lately(r.zone) then return true end -- Our own rest while this one waited.
         local verdict,a,pc,name=rest_check(r)
         if verdict=='drop' then
             log('rest: '..a..' ('..r.zone..' of member '..r.from..' dropped)')
@@ -703,10 +713,7 @@ function G.new(o)
     function self.rest(zone,from)
         if off.rest then return end
         if rests.stopped then return log('rest: '..zone..' of member '..from..' dropped, the calls are stopped') end
-        local last=rests.reset[zone]
-        if last and now-last<SAME then
-            return log(string.format('rest: %s already reset %d s ago',zone,math.floor(now-last)))
-        end
+        if reset_lately(zone) then return end
         for _,r in ipairs(rests.queue) do
             if r.zone==zone then return log('rest: '..zone..' already waits, member '..from..' dropped') end
         end
