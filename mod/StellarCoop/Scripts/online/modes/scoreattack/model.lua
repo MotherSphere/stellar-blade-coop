@@ -147,10 +147,12 @@ function Sa.result(def,outcome,score,time)
     return {ending=ending,score=score,tenths=ending=='win' and math.floor(time*10) or def.limit*10}
 end
 -- The host's check of a done text d for a run of def: nil when it passes, else the reason. A win takes 1 to limit x 10
--- tenths and at most every kill plus the bonus of the tenths left (the solo score floors (limit - seconds) x bonus); any
--- other end takes the limit's tenths and at most every kill.
+-- tenths and at most every kill plus the bonus of the tenths left (the solo score floors (limit - seconds) x bonus); a
+-- time or dead end takes the limit's tenths and at most every kill. A stop is never ranked, so its numbers pass as they
+-- are: a guest whose Lua reloaded in a round no longer knows its challenge and sends 0 0 (round.lua).
 function Sa.refuse(def,d)
     local cap=def.limit*10
+    if d.ending=='stop' then return nil end
     if d.ending=='win' then
         if d.tenths<1 or d.tenths>cap then return 'time' end
         if d.score>Sa.kills(def)+def.bonus*(cap-d.tenths)//10 then return 'score' end

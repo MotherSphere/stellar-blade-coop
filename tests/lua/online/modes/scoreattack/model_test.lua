@@ -118,8 +118,8 @@ same({ending='dead',score=40,tenths=900},Sa.result(targets,'failed',40,12.5))
 same({ending='stop',score=0,tenths=900},Sa.result(targets,'aborted',0,3))
 assert(math.type(Sa.result(targets,'success',818,80.3).tenths)=='integer')
 
--- The host's checks: a win's bound is every kill plus the bonus of the tenths left; other ends take the limit's tenths
--- and every kill at most.
+-- The host's checks: a win's bound is every kill plus the bonus of the tenths left; a time or dead end takes the
+-- limit's tenths and every kill at most. A stop, never ranked, passes whatever its numbers.
 local function done(ending,score,tenths) return {word='done',seed=55,ending=ending,score=score,tenths=tenths} end
 assert(Sa.refuse(targets,done('win',818,802))==nil and Sa.refuse(targets,done('win',819,802))=='score')
 assert(Sa.refuse(targets,done('win',1619,1))==nil and Sa.refuse(targets,done('win',1620,1))=='score')
@@ -127,10 +127,11 @@ assert(Sa.refuse(targets,done('win',720,900))==nil and Sa.refuse(targets,done('w
 assert(Sa.refuse(targets,done('win',10,0))=='time' and Sa.refuse(targets,done('win',10,901))=='time')
 local swarm=C.find('swarm')
 assert(Sa.refuse(swarm,done('win',180+67,1123))==nil and Sa.refuse(swarm,done('win',180+68,1123))=='score')
-for _,e in ipairs({'time','dead','stop'}) do
+for _,e in ipairs({'time','dead'}) do
     assert(Sa.refuse(targets,done(e,720,900))==nil and Sa.refuse(targets,done(e,721,900))=='score',e)
     assert(Sa.refuse(targets,done(e,0,899))=='time' and Sa.refuse(targets,done(e,0,7200))=='time',e)
 end
+assert(Sa.refuse(targets,done('stop',0,0))==nil and Sa.refuse(targets,done('stop',1620,7200))==nil)
 -- Every honest win passes: the solo score at each hundredth of a second of each challenge's limit.
 for _,def in ipairs(C.LIST) do
     for h=1,def.limit*100 do
