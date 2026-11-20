@@ -253,7 +253,7 @@ camp list would show. `coop status` lists them on its `activated=` line.
   in photo mode or in a menu (the co-op menu included), during a Night Operation run or a cutscene, during a boss fight
   on your side or while an enemy near you is in battle. It also waits for 10 s after the last travel, while you or the
   host stand in a [solo area](#solo-areas) or while the host's game loads, plays a cutscene, warps or fights a boss.
-  F7 then shows `You cannot travel now. Try again in a moment.` So does a host's game that gives no answer in 10 s.
+  F7 then shows `You cannot travel now. Try again in a moment.` On his map, so does no answer from his game in 10 s.
 - `<host> is not on solid ground. Try again in a moment.`: his EVE jumps, climbs, swims or falls, or has not walked on
   a floor in the last 10 s.
 - `No camp you have found is near <host>.` means that no camp of the host's answer could be used.
@@ -295,8 +295,8 @@ where your friend last stood on solid ground, as F7 does on one map. This has no
 - A death within 10 s of the last respawn the mod asked for gets no offer, so a death inside a kill volume does not
   loop. The death screen's respawn then works as usual.
 - Your friend's revive and F7 in the same death call the respawn once. After your friend's revive there is no warp.
-- Without F7, the death screen's respawn takes you to a camp as usual, with its zone reset. The follow then offers the
-  way back.
+- Without F7, the death screen's respawn takes you to a camp as usual, with its zone reset. As the guest, F7 then
+  follows the host from there.
 - In a session of more than 2 players, only the host and the pair get the offer: it needs the shared fight, which
   runs between them alone.
 

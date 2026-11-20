@@ -512,10 +512,8 @@ Each section that left this page is listed under its old name, with its new plac
 | Join codes | [players/playing-with-a-friend.md](players/playing-with-a-friend.md#join-codes) |
 | Following the host | [players/playing-with-a-friend.md](players/playing-with-a-friend.md#following-the-host) |
 | A player down | [players/playing-with-a-friend.md](players/playing-with-a-friend.md#a-player-down) |
-| Back to a friend after a death | [players/playing-with-a-friend.md](players/playing-with-a-friend.md#back-to-a-friend-after-a-death) |
 | Revive by your friend (experimental) | [players/playing-with-a-friend.md](players/playing-with-a-friend.md#revive-by-your-friend-experimental) |
 | Camp rests in a shared area | [players/playing-with-a-friend.md](players/playing-with-a-friend.md#camp-rests-in-a-shared-area) |
-| Solo areas | [players/playing-with-a-friend.md](players/playing-with-a-friend.md#solo-areas) |
 | Known limits | [players/playing-with-a-friend.md](players/playing-with-a-friend.md#known-limits) |
 | Guide | [players/interface.md](players/interface.md#guide) |
 | Co-op saves | [players/playing-with-a-friend.md](players/playing-with-a-friend.md#co-op-saves) |
