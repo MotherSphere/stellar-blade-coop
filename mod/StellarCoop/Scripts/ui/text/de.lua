@@ -4,10 +4,12 @@
 -- T.de of ui/text.lua (see there).
 return {
     title='KOOP',
-    head={session='SITZUNG',settings='EINSTELLUNGEN',help='HILFE',controls='STEUERUNG',photo='FOTOMODUS',
+    head={modes='MODI',
+        session='SITZUNG',settings='EINSTELLUNGEN',help='HILFE',controls='STEUERUNG',photo='FOTOMODUS',
         partner='PARTNER',ghost='GEIST',saves='SPEICHERSTÄNDE',combat='KAMPF',display='BILDSCHIRM',chat='CHAT',
         line='KOOP-LEITUNG'},
-    row={host='Sitzung hosten',leave='Sitzung verlassen',invite='Freund einladen (Steam)',
+    row={scoreattack='Punktejagd',
+        host='Sitzung hosten',leave='Sitzung verlassen',invite='Freund einladen (Steam)',
         find='Sitzung finden',copy='Meinen Code kopieren',remove='%s entfernen',
         join_code='Mit Code beitreten',
         chat='Chat',options='Optionen',report='Fehlerbericht schreiben',close='Schließen',
@@ -280,11 +282,17 @@ return {
             warp='Die Lobby wurde nicht geladen. Es hat sich nichts geändert.',
             leave='Rückkehr nach Xion nicht möglich. Geh ins Hauptmenü: Dort wird der '
                 ..'Koop-Speicherstand wiederhergestellt.'}},
-    lobby={sub='PvP-LOBBY · SBO',page='LOBBY · SBO',mode={ffa='Jeder gegen jeden'},
-        desc={ffa='2 bis 8 Spieler. Wer zuerst 20 Kills hat, gewinnt, sonst die beste Punktzahl nach 10 Minuten. '
-            ..'Respawn nach 4 Sek.',more='Weitere Modi kommen in späteren Versionen.'},row={search='Suchen',
+    lobby={sub='PvP-LOBBY · SBO',page='LOBBY · SBO',mode={scoreattack='Punktejagd',
+            ffa='Jeder gegen jeden'},
+        desc={
+            scoreattack='2 bis 8 Spieler spielen gleichzeitig dieselbe Herausforderung. Die beste Punktzahl gewinnt, '
+                ..'danach die kürzeste Zeit.',
+            ffa='2 bis 8 Spieler. Wer zuerst 20 Kills hat, gewinnt, sonst die beste Punktzahl nach 10 Minuten. '
+            ..'Respawn nach 4 Sek.',more='Weitere Modi kommen in späteren Versionen.'},row={challenge='Herausforderung',
+            search='Suchen',
             cancel='Abbrechen',private='Privates Match',code='Code %s',join_code='Code eingeben',room='Warteraum',
-            settings='Einstellungen',leave='Verlassen',more='Weitere Modi'},tag={soon='bald'},
+            settings='Einstellungen',leave='Verlassen',more='Weitere Modi'},tag={picked='gewählt',
+            soon='bald'},
         status={idle='Wähle einen Modus, dann Suchen.',searching='Suche läuft…',open='In der Lobby, %d von %d',
             full='Lobby voll, %d von %d',start='Start in %d Sek.',private='Privates Match, %d von %d',
             created='Keine Lobby gefunden. Deine ist offen.',copied='Code kopiert.'},members='Mitglieder',
@@ -292,9 +300,14 @@ return {
         empty='Noch keine Lobby. Suchen findet eine oder öffnet eine.',
         empty_search='Suche nach einer öffentlichen Lobby dieses Modus.',hint={change='Ändern',tabs='Reiter'},
         room='Lobby-Menü: %s oder Ansicht-Taste halten',tab={match='MATCH',sbo='SBO'},head={lobby='LOBBY'},
-        set={room='Karte',players='Spieler',finish='Ende',tie='Gleichstand',respawn='Respawn',protection='Spawnschutz',
+        set={challenge='Herausforderung',ranking='Wertung',
+            damage='Schaden zwischen Spielern',
+            room='Karte',players='Spieler',finish='Ende',tie='Gleichstand',respawn='Respawn',protection='Spawnschutz',
             difficulty='Schwierigkeitsstufe',equipment='Ausrüstung',arena='Arena',start='Start',lobby='Lobby',
-            version='Version',mute='Stumm: %s'},val={random='Zufällig',players='2 bis 8',finish='20 Kills oder 10 Min.',
+            version='Version',mute='Stumm: %s'},val={
+            ranking='Beste Punktzahl, dann kürzeste Zeit',
+            damage='Keiner',host_pick='Wahl des Hosts',
+            random='Zufällig',players='2 bis 8',finish='20 Kills oder 10 Min.',
             tie='Sudden Death, höchstens 60 Sek.',respawn='4 Sek.',protection='6 Sek., endet, wenn du angreifst',
             difficulty='Normaler Modus für alle',equipment='Für alle gleich',
             start='10 Sek. ab 2 Spielern, 5 Sek. wenn voll',public='Öffentlich',private='Privat, Code %s',
@@ -314,6 +327,20 @@ return {
             ..'Steam.',
             invitation='Nicht aufgeführt. Beitritt mit einer Steam-Einladung oder deinem Code.',
             closed='Niemand kann beitreten, auch nicht mit Einladung oder Code.'}},
+    scoreattack={wave='Welle %d/%d',ending={win='Geschafft',time='Zeit um',dead='Gestorben',stop='Abgebrochen'},
+        mine='%s · Punkte %d · %s',
+        waiting='Ausstehende Ergebnisse: %d.',
+        unranked='Nicht gewertet.',
+        host_left='Der Host ist gegangen. Diese Runde hat keine Wertung.',
+        cancelled='Die Runde wurde abgebrochen.',
+        out={off='Punktejagd ist in den Optionen aus: Du setzt diese Runde aus.',
+            bike='Steig vom Motorrad ab, um die nächste Runde zu spielen.',
+            night='Ein Nächtlicher Einsatz läuft: Du setzt diese Runde aus.',
+            room='Du bist nicht im Warteraum: Du setzt diese Runde aus.',
+            refused='Dein Spiel konnte die Herausforderung nicht starten: Du setzt diese Runde aus. UE4SS.log nennt '
+                ..'den Grund.'},
+        end_notice='%s: %s, Punkte %d, Zeit %s.',
+        placed='Punktejagd: Platz %d von %d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='Das Spiel blieb pausiert, daher hat sich das Koop-Menü nicht geöffnet.'},
 }
