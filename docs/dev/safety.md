@@ -101,6 +101,11 @@ claim the host accepts):
   rows name cosmetics the shop does not sell, and an Acquire row on PulseGrenade or ConcussionGrenade fires as it does
   for the console's buy. [Roxanne's choices](../online/modes/nightop-shop-internals.md#roxannes-night-operation-choices) route to her goodbye and call no quest,
   item or achievement function.
+- Gun mode's [rounds](../fight/gunmode.md#rounds-on-a-co-op-save) are sold in the camp vending machines, which carry
+  the `AllShop` tag. A buy of them raises the game's BuyItem event with that tag, as a buy of drone ammo there does,
+  so it counts toward the gold-spending trophy. Their drops are the game's own rolls in each player's own world. Their
+  rows go in only once a co-op save from the co-op save files has loaded. From then on `coop saves main` is refused
+  until the game restarts, so none of the player's own saves loads while they are in.
 
 ## Safety design
 
@@ -217,7 +222,20 @@ feature or drops the input.
   to 10 of it. It removes from the inventory only through the game's own request (`ServerRequest_ItemBucketItemRemove`),
   after the native part read that EVE carries that many: for a `coop gift` send, with one of seven consumables and 1 to
   10 of it; for the bike's paid fetch at a Xion camp, on any save, with 500 `BetaCrystal` ([Bringing it
-  back](../vehicles/bike-internals.md#bringing-it-back)). Apart from enemy stats with the experimental shared enemies
+  back](../vehicles/bike-internals.md#bringing-it-back)); for gun mode's reload, with `Bullet_Nikke`, the rifle's round
+  ([Rounds on a co-op save](../fight/gunmode.md#rounds-on-a-co-op-save)). Gun mode removes once a reload, at most a
+  magazine (`cfg.mag_size`, 60) and at most the count she carries (the last read less the takes it does not show
+  yet). It removes only while its rows are in and a co-op save is loaded. On your own saves the magazines stay free.
+  It removes only while the game plays: SB's logic stops while the game is
+  paused or in photo mode, its remove with it. After a refused take the next empty reload waits 5 s. Its count reads
+  ask the `items` request with the numbers 20000 to 32767. With `gun_mode=off` gun mode asks no rows. It asks them
+  once a co-op save from the co-op save files has loaded, never at the title, on your own saves or on the manual
+  co-op slot. Those rows patch the three shipped camp ShopTable rows (`Shop_SimpleCamp`, `Shop_FullCamp`,
+  `Shop_NestCamp`) in place for the game run, with `Camp_Bullet_Nikke_Buy` added to their `ShopItems` and their other
+  items as shipped.
+  They add `Camp_Bullet_Nikke_Buy` to ShopItemTable and 8 RewardGroupTable rows (31114 to 31121) to the ammo groups
+  enemies and supply boxes roll. No shipped RewardGroupTable row changes. SB's own buy and drops add the rounds: gun
+  mode adds none. Apart from enemy stats with the experimental shared enemies
   (`coop fight`, on by default, co-op saves only), their positions and animations with the experimental same place (on
   by default), the quest steps of the experimental shared quests (on by default, co-op saves only, made by the guest's
   game through its own quest functions) and a Night Operation run's state on the night line and `coop gift`'s

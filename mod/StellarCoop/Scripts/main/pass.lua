@@ -56,6 +56,9 @@ if M.link then
         if not M.off then M.guarded('halls',M.halls.tick) end -- The hall rows' wait and read-back: likewise.
         -- The team shop rows' wait and read-back, then its open's answer: likewise.
         if not M.off then M.guarded('teamshop',M.teamshop.tick) end
+        -- Gun mode's rounds: their rows asked once a co-op save has loaded (never at the title), their wait and
+        -- read-back, then the inventory reads: likewise. None with gun_mode=off.
+        if not M.off and M.gunrounds then M.guarded('gun rounds',M.gunrounds.tick) end
         if not M.off then M.guarded('recruiter',M.recruiter.auto) end -- The recruiter at each Xion load, on any save.
         local chatting=M.link.chatting() -- nil: the status was not read, which ends no session.
         local heard=chatting or heard_by_member()

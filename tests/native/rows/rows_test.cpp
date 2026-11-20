@@ -35,6 +35,9 @@
 // The team shop's batch (world/teamshop/teamshop_rows.h, generated from data/teamshop/, patches of its own): names
 // and IDs unique against the Lion's generator's batches; its rows only in ItemTable, ShopItemTable and ShopTable with
 // its ShopTable row last; a whole run.
+// Gun mode's rounds batch (fight/gunmode/nikke_rows.h, patches of its own): 8 RewardGroupTable rows, then its
+// ShopItemTable row, then the three camp shops patched in place; names and IDs unique against the other batches; a
+// whole run.
 #include "rows/rows.h"
 #include "fight/bosses/lion_rows.h"
 #include "eve/bolt_rows.h"
@@ -43,6 +46,7 @@
 #include "world/maps/matrix13/signal_rows.h"
 #include "online/lobby/halls_rows.h"
 #include "world/teamshop/teamshop_rows.h"
+#include "fight/gunmode/nikke_rows.h"
 
 #include <algorithm>
 #include <cassert>
@@ -177,6 +181,7 @@ struct Game {
     donor_rows(kMxrecords);
     donor_rows(kHalls);
     donor_rows(kTeamshop);
+    donor_rows(kNikke);
   }
   uint64_t vtable_at = 0;
 
@@ -470,6 +475,19 @@ int main() {
   assert(kTeamshopRecipe[kTeamshopRows - 1].table == Table::shop &&
          !std::strcmp(kTeamshopRecipe[kTeamshopRows - 1].name, kTeamshopShop) &&
          kTeamshop.patches == kTeamshopPatches && !std::strcmp(kTeamshop.word, "teamshop"));
+  // Gun mode's rounds batch: its drops in RewardGroupTable first, then its shop item, then the three camp shops
+  // patched in place, last (they list the shop item). No ItemTable row: the round ships. The rows it adds clash with
+  // no other batch's name or ID.
+  walk({kNikkeRecipe, kNikkeRecipe + kNikkeRows}, kNikkePatches, sizeof kNikkePatches / sizeof kNikkePatches[0]);
+  for (size_t i = 0; i < kNikkeRows; ++i) {
+    const Row &r = kNikkeRecipe[i];
+    assert(i < 8    ? r.table == Table::reward && !shipped_row(r)
+           : i == 8 ? r.table == Table::shopitem && !shipped_row(r)
+                    : r.table == Table::shop && shipped_row(r));
+    for (const Row &o : all)
+      assert(shipped_row(r) || o.table != r.table || (std::strcmp(o.name, r.name) && o.id != r.id));
+  }
+  assert(kNikkeRows == 12 && kNikke.patches == kNikkePatches && !std::strcmp(kNikke.word, "nikke"));
   for (size_t t = 0; t < kTableCount; ++t) {
     const TableInfo &info = table_info(Table(t));
     assert(info.name && info.size && info.size <= kRowBytes);
@@ -503,8 +521,12 @@ int main() {
       assert(size_t(world[k].t) == 25 + k && !std::strcmp(info.name, world[k].name) && info.size == world[k].size &&
              info.id && !info.transient[0]);
     }
-    static_assert(kTableCount == 39,
-                  "25 tables, Matrix XIII's seven, Lily's two, the records' three and the hall lobbies' two");
+    static_assert(kTableCount == 40, "25 tables, Matrix XIII's seven, Lily's two, the records' three, the hall "
+                                     "lobbies' two and gun mode's one");
+    // Gun mode's one, last: RewardGroupTable, with an ID at +0x10 and no Transient field.
+    assert(size_t(Table::reward) == 39 && !std::strcmp(table_info(Table::reward).name, "RewardGroupTable") &&
+           table_info(Table::reward).size == 0x80 && table_info(Table::reward).id &&
+           !table_info(Table::reward).transient[0]);
     // The hall lobbies' two, last: WorldTable and ZoneTable, each with an ID at +0x10 and no Transient field.
     assert(size_t(Table::world) == 37 && !std::strcmp(table_info(Table::world).name, "WorldTable") &&
            table_info(Table::world).size == 0x30 && table_info(Table::world).id && !table_info(Table::world).transient[0]);
@@ -1591,6 +1613,17 @@ int main() {
     assert(status_line(kTeamshop, s) ==
            "teamshop=rows added=" + n + "/" + n + " asks=1 spawns=? char=0/0 skills=0/0 stance=0/0");
     assert(tb.run(g, kBase, g.tables, g.block).added == kTeamshopRows && g.adds.size() == kTeamshopRows);
+  }
+  {
+    // nikke_rows_build: gun mode's batch on its own Builder adds its 9 rows from their templates and patches the 3
+    // camp shops in place, each with its patches as written. A later run adds nothing.
+    Game g;
+    Builder nb(kNikke);
+    const Answer a = nb.run(g, kBase, g.tables, g.block);
+    assert(a.state == State::rows && a.why == Why::none && a.added == kNikkeRows && g.adds.size() == 9 &&
+           g.puts.size() == 3);
+    verify(g, nb, kNikke, 0);
+    assert(nb.run(g, kBase, g.tables, g.block).added == kNikkeRows && g.adds.size() == 9);
   }
   {
     // Matrix XIII's camp batch reads only its own tables: a ZoneEnvSpawnTable whose row size is not the SDK's stops it

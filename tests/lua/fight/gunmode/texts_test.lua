@@ -136,7 +136,8 @@ do
     end
     assert(next(seen),'data.lua opens tables')
     if not page:find(require('ui.text').en.gun.rebuilding,1,true) then fail(PAGE..' does not quote the parked notice') end
-    local slot=read(S..'mode.lua'):match('Ammo%.new%(g,cfg,function%(v%) data%.cool%(v%) end,on_reload,([%w_]+)%)')
+    -- The D-pad slot argument, before the optional stock (fight/gunmode/nikke.lua's rounds).
+    local slot=read(S..'mode.lua'):match('Ammo%.new%(g,cfg,function%(v%) data%.cool%(v%) end,on_reload,([%w_]+)[,%)]')
     assert(slot,'mode.lua builds the rounds')
     if slot=='nil' then
         local head=read(S..'ammo.lua'):match('^(.-)\nlocal Ammo')

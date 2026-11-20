@@ -6,7 +6,7 @@
 -- for the row batches of world/maps/matrix13/level/travel.lua, world/maps/matrix13/quest/on_time.lua and
 -- online/lobby/halls_rows.lua, which use its rows part only. The monster's rows
 -- are a batch of the native part (rows/rows.h, rows/rows_game.inc: SB's own AddRow on the game thread with no
--- logic task in flight). This file finds the tables the spec's rows go into (of the native part's 39) by their fixed
+-- logic task in flight). This file finds the tables the spec's rows go into (of the native part's 40) by their fixed
 -- paths and sends their addresses (the spec's "<word> rows" request: no console word reaches an address), so a table
 -- no row of the batch uses never stops it; it waits for the answer in coop-status.txt's <word> line,
 -- then reads every row of the batch back through FindRow by field name, independent of the SDK's offsets, and stops at
@@ -51,7 +51,7 @@ local N=require('core.player')
 local Doro=require('core.actors')
 local valid,value_of,text=U.valid,U.value_of,U.text
 local Enemy={}
--- The native part's 39 tables, in its order (link/protocol.h's kLionTables), each at /Game/Local/Data/<T>.<T>; a
+-- The native part's 40 tables, in its order (link/protocol.h's kLionTables), each at /Game/Local/Data/<T>.<T>; a
 -- request names only those its batch's rows go into.
 Enemy.TABLES={'CharacterTable','CharacterAppearanceTable','CharacterDeadTable','CharacterStanceTable',
     'CharacterAnimSetTable','SkillCommandTable','SkillTable','SkillActiveStepTable','CharacterMoveTable',
@@ -60,7 +60,7 @@ Enemy.TABLES={'CharacterTable','CharacterAppearanceTable','CharacterDeadTable','
     'QuestTaskGroupTable','QuestTaskTable','LevelTargetFilter','TheaterSelectDataTable','EventSpawnTable',
     'EventItemTable','ZoneEventTable','EventEnvControlTable','WorldTransitionTable','EventZoneWarpTable',
     'EffectVolumeTable','ConditionTable','ConditionGroupTable','AlbumTable','AchievementTable',
-    'PuzzleStringArrayTable','WorldTable','ZoneTable'}
+    'PuzzleStringArrayTable','WorldTable','ZoneTable','RewardGroupTable'}
 local DATA='/Game/Local/Data/'
 local ROOT_FAR=2000 -- cm: the copy's root ending farther from the spot than this spawns at the spot.
 local POLL,WAIT=0.25,30 -- s: the status line read while the rows are asked, and how long before giving up.

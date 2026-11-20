@@ -10,9 +10,11 @@
 //   signal: world/maps/matrix13/signal_rows.h
 //   halls: online/lobby/halls_rows.h
 //   teamshop: world/teamshop/teamshop_rows.h
+//   nikke: fight/gunmode/nikke_rows.h
 // A Batch names its rows, its patches and the word its status line, log lines and request start with ("lion",
-// "gardener", "tendril", "bolt", "mxiii", "shop", "signal", "halls", "teamshop": coop-status.txt's shock line is
-// rows/shock.h's); every batch shares the table checks, the block and the rules below, and each keeps its own Builder.
+// "gardener", "tendril", "bolt", "mxiii", "shop", "signal", "halls", "teamshop", "nikke": coop-status.txt's shock
+// line is rows/shock.h's); every batch shares the table checks, the block and the rules below, and each keeps its own
+// Builder.
 //
 // SB reads CharacterTable, SkillTable and CharacterStanceTable by ID through maps that only its own AddRow fills (the
 // table's vtable slot +0x2b0), so every row goes in through that call, on the game thread with no logic task in flight
@@ -63,9 +65,9 @@ constexpr size_t kInitFlag = 8, kIdAt = 0x10;
 // The glue's block: the row at +0, the patches' strings and lists in the pool after it.
 constexpr size_t kRowBytes = 0x1000, kPoolBytes = 0x1000, kBlock = kRowBytes + kPoolBytes;
 
-// The 39 tables, in coop::kLionTables' order (link/protocol.h): Lua's rows requests (lion, gardener, tendril, bolt,
-// mxiii, shop, signal, mxspawn, mxenv, mxupper, mxmiddle, mxlower, mxnames, mxlily, mxrecords, halls, teamshop) name
-// those their batch writes, each with its address. kTables describes them all: the generated part's, the two zone
+// The 40 tables, in coop::kLionTables' order (link/protocol.h): Lua's rows requests (lion, gardener, tendril, bolt,
+// mxiii, shop, signal, mxspawn, mxenv, mxupper, mxmiddle, mxlower, mxnames, mxlily, mxrecords, halls, teamshop, nikke)
+// name those their batch writes, each with its address. kTables describes them all: the generated part's, the two zone
 // tables camp (ZoneCampTable) and env (ZoneEnvSpawnTable) and trigger (ZoneTriggerTable), which Matrix XIII's batches
 // write (env also the halls batch's seats), the five only Lily's signal batch writes: quest (QuestTable), group
 // (QuestTaskGroupTable), task (QuestTaskTable), target (LevelTargetFilter) and select (TheaterSelectDataTable, whose ID
@@ -75,7 +77,9 @@ constexpr size_t kRowBytes = 0x1000, kPoolBytes = 0x1000, kBlock = kRowBytes + k
 // effvol (EffectVolumeTable), then the two only the mxlily batch writes: condition (ConditionTable) and cgroup
 // (ConditionGroupTable), then the three only the mxrecords batch writes: album (AlbumTable), achievement
 // (AchievementTable) and puzzle (PuzzleStringArrayTable), then the two only the halls batch writes: world (WorldTable)
-// and zone (ZoneTable). None of the fourteen has a Transient field (SDK stellar-sdk-647527f).
+// and zone (ZoneTable), then the one only the nikke batch writes: reward (RewardGroupTable, its struct 0x80 bytes in
+// Ghidra on 26123051, FStructParams 0x146db2a30). None of the fifteen has a Transient field (SDK stellar-sdk-647527f;
+// SBRewardGroupTableProperty holds no array at all).
 enum class Table : uint8_t {
   character,
   appearance,
@@ -115,9 +119,10 @@ enum class Table : uint8_t {
   achievement,
   puzzle,
   world,
-  zone
+  zone,
+  reward
 };
-constexpr size_t kTableCount = 39;
+constexpr size_t kTableCount = 40;
 struct TableInfo {
   const char *name;       // The asset, /Game/Local/Data/<name>.<name>.
   uint32_t size;          // Its row struct's PropertiesSize.
@@ -199,6 +204,8 @@ constexpr TableInfo kTables[kTableCount] = {
     // The hall lobbies' two (by hand too).
     {"WorldTable", 0x30, true, {}}, // SBWorldTableProperty
     {"ZoneTable", 0x150, true, {}}, // SBZoneTableProperty
+    // Gun mode's drops (by hand too).
+    {"RewardGroupTable", 0x80, true, {}}, // SBRewardGroupTableProperty
 };
 // ---- End of the generated part ----
 
@@ -280,7 +287,7 @@ inline uint32_t rows_of(const Batch &b, Table t) {
 class Builder {
 public:
   explicit Builder(const Batch &batch) : batch_(batch) {}
-  // One run over the batch (see the top of this file). tables: the 39 tables' addresses as Lua found them, in Table's
+  // One run over the batch (see the top of this file). tables: the 40 tables' addresses as Lua found them, in Table's
   // order (0 for a table the batch never writes, which is never read); block: kBlock bytes of the glue's, 16-aligned;
   // base: SB's image base. Runs every row not added yet and stops at the first refusal.
   template <class Game> Answer run(Game &g, uint64_t base, const uint64_t (&tables)[kTableCount], uint64_t block) {

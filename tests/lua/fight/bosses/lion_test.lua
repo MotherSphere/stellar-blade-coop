@@ -79,7 +79,7 @@ do
     for n in assert(src:match('constexpr TableInfo kTables%[kTableCount%] = {(.-)\n};')):gmatch('{"(%a+)", 0x') do
         names[#names+1]=n
     end
-    assert(#enum==39 and #names==39,'39 tables')
+    assert(#enum==40 and #names==40,'40 tables')
     for i,n in ipairs(names) do assert(L.TABLES[i]==n,'kLionTables order: '..n) end
     -- A header's patch array, in order.
     local function parse(text,array)
