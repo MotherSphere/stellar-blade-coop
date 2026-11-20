@@ -103,7 +103,7 @@ end
 
 -- 6. The settings: strafe on, the old stance-override strafe off.
 do
-    assert(cfg.strafe==true and cfg.hip_strafe==false)
+    assert(cfg.strafe==false and cfg.hip_strafe==false)
     assert(cfg.strafe_min==40 and cfg.strafe_hyst==10 and cfg.strafe_run_at==260 and cfg.strafe_blend==0.2)
     assert(cfg.strafe_walk_speed==150 and cfg.strafe_run_speed==300 and cfg.strafe_rate_min==0.6 and cfg.strafe_rate_max==1.6)
 end
