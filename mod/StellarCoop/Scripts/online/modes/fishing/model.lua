@@ -202,7 +202,8 @@ function Fm.forget(b) b.base=nil end
 -- base: the first answer with no baseline is the baseline; nothing counts. why fell: a count fell or an item of the
 -- baseline went, so the book was emptied or rebuilt (outside a load or a rebuild only a catch writes it, by adding);
 -- nothing counts and the next answer is the baseline. why jump: more than Fm.JUMP catches (n) in one
--- answer, a rebuild the other checks missed; nothing counts and this answer is the baseline. odd: the items not in
+-- answer, a rebuild the other checks missed; nothing counts and the next answer is the baseline (a read in the middle
+-- of a rebuild may keep every item of the baseline, so the rest of that rebuild must not count). odd: the items not in
 -- points that rose, each once a book: never sent, logged once.
 function Fm.read(b,book,points)
     local base,r=b.base,{catches={},odd={}}
@@ -221,11 +222,11 @@ function Fm.read(b,book,points)
         local d=count-(base[item] or 0)
         if d>0 then items[#items+1],n=item,n+d end
     end
-    b.base=book
     if n>Fm.JUMP then
-        r.why,r.n='jump',n
+        b.base,r.why,r.n=nil,'jump',n
         return r
     end
+    b.base=book
     table.sort(items)
     for _,item in ipairs(items) do
         if points[item]==nil then

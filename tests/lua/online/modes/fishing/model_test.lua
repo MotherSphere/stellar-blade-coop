@@ -228,15 +228,24 @@ assert(res.why=='base' and caught(res)=='','The full book after it is the baseli
 res=read({[9201]=4,[9220]=9,[9227]=1})
 assert(res.why=='fell' and caught(res)=='','A fall counts nothing, whatever else rose')
 read({[9201]=4,[9220]=9,[9227]=1})
--- Two catches in one read count (one late answer); three is a jump: nothing counts, this answer is the baseline.
+-- Two catches in one read count (one late answer); three is a jump: nothing counts, the next answer is the baseline.
 res=read({[9201]=5,[9220]=10,[9227]=1})
 assert(res.why==nil and caught(res)=='9201=30,9220=138')
 res=read({[9201]=5,[9220]=13,[9227]=1})
-assert(res.why=='jump' and res.n==3 and caught(res)=='' and b.base[9220]==13)
+assert(res.why=='jump' and res.n==3 and caught(res)=='' and b.base==nil)
 res=read({[9201]=5,[9220]=14,[9227]=1})
-assert(res.why==nil and caught(res)=='9220=138','Counted from the jump\'s answer')
-res=read({[9201]=5,[9220]=14,[9227]=1,[9301]=3})
+assert(res.why=='base' and caught(res)=='','The answer after a jump is the baseline')
+res=read({[9201]=5,[9220]=15,[9227]=1})
+assert(res.why==nil and caught(res)=='9220=138','Counted from the answer after the jump')
+res=read({[9201]=5,[9220]=15,[9227]=1,[9301]=3})
 assert(res.why=='jump' and res.n==3,'A fish not in the table counts toward the jump')
+-- A read in the middle of a rebuild that keeps every fish of the baseline (here an empty book) and adds three is a
+-- jump. The rest of that rebuild in the next answer is no catch.
+Fm.forget(b)
+read({})
+assert(read({[9201]=3}).why=='jump')
+res=read({[9201]=3,[9220]=1,[9227]=1})
+assert(res.why=='base' and caught(res)=='','No catch from the rest of a rebuild')
 -- Forget (a load, a map change, a none answer other than unread): the next answer is the baseline.
 Fm.forget(b)
 res=read({})
