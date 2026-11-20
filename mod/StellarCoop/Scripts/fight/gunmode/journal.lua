@@ -10,6 +10,9 @@
 --   see|<component>|<bOwnerNoSee before>[|<tick option before>]   one of her meshes hidden from her own camera
 --   follow|<component>|<her body mesh>       a mesh made to follow the posed copy (it follows her body again)
 --   drone|<component>                         a part of the drone hidden while the rifle is out
+--   carry|<EVE>                               the carry stance may be on (fight/gunmode/mode.lua's carry)
+--   part|<component>                          a part of the posed stance (stance.lua), destroyed
+--   holder|<actor>                            the actor the posed stance's donor stands on, destroyed
 --   out                                       the rifle is out (its tagged rifle, the FOV lock)
 -- Components and actors are named by their paths (their full names without the class), which StaticFindObject finds.
 local Journal={}

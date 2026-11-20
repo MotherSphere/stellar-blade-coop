@@ -541,7 +541,8 @@ function GunMode.new(env)
 
     -- coop-gun.txt as gun mode's changes stand now (fight/gunmode/journal.lua): SB's rows (data.lua), the masked keys,
     -- the body meshes under the rifle layer (overlay.lua), her meshes hidden from her camera or following the posed
-    -- copy, the drone's hidden parts and out while the rifle is out; gone when nothing is changed. A line the file already holds is not written again. true when
+    -- copy, the drone's hidden parts, the carry stance, the posed stance's own changes (stance.lua) and out while the
+    -- rifle is out; gone when nothing is changed. A line the file already holds is not written again. true when
     -- written (or with no file at all), else false and why, logged.
     local kept -- The line this load last wrote (false: cleared), so the same line is not written each second.
     local function keep()
@@ -562,6 +563,9 @@ function GunMode.new(env)
                 local at=g.path(c)
                 if at then list[#list+1]={'drone',at} end
             end
+            local her=s.ovr_row and g.path(g.pawn())
+            if her then list[#list+1]={'carry',her} end
+            for _,r in ipairs(stance.records and stance.records() or {}) do list[#list+1]=r end
             if s.on then list[#list+1]={'out'} end
             local line=#list>0 and Journal.line(list)
             if line==kept then return end
@@ -1142,7 +1146,11 @@ function GunMode.new(env)
     -- online/modes/race/doro.lua's restore finds EVE and the drone). On 26123051: her meshes shown to her own camera as
     -- they were (SetOwnerNoSee, exec 0x1448f0d20, writes bOwnerNoSee, bit 0x20 of UPrimitiveComponent+0x28e) with
     -- their tick option; the drone's parts shown (SetHiddenInGame, exec 0x14490b100); a mesh that followed the posed
-    -- copy on her body again (SetMasterPoseComponent, exec 0x144928a80). How many were put back.
+    -- copy on her body again (SetMasterPoseComponent, exec 0x144928a80); the carry stance off
+    -- (DeactiveCustomMovingStanceData: exec 0x14268c890 jumps to 0x1421287a0, which does nothing unless the flag at
+    -- +0xf40 that ActiveCustomMovingStanceData's 0x1421282d0 sets is on, then clears it). Then the posed copy's parts
+    -- and holder destroyed (K2_DestroyComponent 0x1446c1340, K2_DestroyActor 0x1446bf590). How many were put back or
+    -- removed.
     local function objects_back(list)
         local function at(path)
             local o=path and g.try(function() return StaticFindObject(path) end)
@@ -1151,7 +1159,7 @@ function GunMode.new(env)
         local n=0
         local function done(ok) if ok then n=n+1 end end
         for _,r in ipairs(list) do
-            local o=(r[1]=='see' or r[1]=='drone' or r[1]=='follow') and at(r[2])
+            local o=(r[1]=='see' or r[1]=='drone' or r[1]=='follow' or r[1]=='carry') and at(r[2])
             if o and r[1]=='see' then
                 done(pcall(function()
                     o:SetOwnerNoSee(r[3]=='true')
@@ -1162,7 +1170,14 @@ function GunMode.new(env)
             elseif o and r[1]=='follow' then
                 local to=at(r[3])
                 done(to and pcall(function() o:SetMasterPoseComponent(to,true) end))
+            elseif o and r[1]=='carry' then
+                done(pcall(function() o:DeactiveCustomMovingStanceData() end))
             end
+        end
+        for _,r in ipairs(list) do
+            local o=(r[1]=='part' or r[1]=='holder') and at(r[2])
+            if o and r[1]=='part' then done(pcall(function() o:K2_DestroyComponent(o) end))
+            elseif o then done(pcall(function() o:K2_DestroyActor() end)) end
         end
         return n
     end
@@ -1182,7 +1197,7 @@ function GunMode.new(env)
         said[#said+1]=n..' fields of SB\'s rows back'..(why and ' (failed: '..why..')' or '')
         local ok,keys=pcall(keys_back,list)
         said[#said+1]=ok and keys..' keys back' or 'keys not put back ('..tostring(keys)..')'
-        said[#said+1]=objects_back(list)..' objects put back'
+        said[#said+1]=objects_back(list)..' objects put back or removed'
         local out=false
         for _,r in ipairs(list) do
             if r[1]=='pp' then layer.adopt(r[2],r[3]) elseif r[1]=='out' then out=true end

@@ -15,7 +15,7 @@ local function valid(o)return o and o:IsValid() end
 function Stance.new(laser,trace)
  local function crumb(t) if trace then trace('crumb '..t) end end -- (gun_probe=on) steps around reloads and aim changes
  local grip={Translation={X=-2.110698699951172,Z=2.090805768966675,Y=-6.265880107879639},Rotation={X=-0.4851755201816559,W=-0.5130578875541687,Z=-0.4808891713619232,Y=-0.5197325944900513},Scale3D={X=1.000000238418579,Z=1.0000001192092896,Y=1}}
- local stop,frame,reloadFn,copyPart
+ local stop,frame,reloadFn,copyPart,recordsFn
  local owned={} -- gun mode: the parts of the stance running now.
  local function begin(pc,held_fn,beam_target,turn,torso,camAnchor,chestFix,aimNative,upright) -- gun mode: turn false leaves EVE's facing to
   -- the game; torso (0 to 1): how much her spine takes the donor pose while aim is held; camAnchor: the arms along
@@ -52,6 +52,24 @@ function Stance.new(laser,trace)
    stop=nil
    reloadFn=nil
    copyPart=nil
+   recordsFn=nil
+  end
+  -- gun mode: what this stance has changed, as coop-gun.txt's records (fight/gunmode/journal.lua), so that the next
+  -- Lua load puts it back after a Ctrl+R (fight/gunmode/mode.lua's restore): her real body and head parts hidden from
+  -- her camera (each with its own bOwnerNoSee and tick option), its parts and the holder they stand on.
+  recordsFn=function()
+   local out={}
+   local function path(o) return valid(o) and o:GetFullName():match('^%S+ (.+)$') or nil end
+   local function see(c,was,t)
+    local at=path(c)
+    if at then out[#out+1]={'see',at,tostring(was==true),tostring(t)} end
+   end
+   see(src,hide,tick)
+   for _,e in ipairs(extras) do see(e.real,e.was,e.tick) end
+   for _,c in ipairs(parts) do local at=path(c); if at then out[#out+1]={'part',at} end end
+   local at=path(holder)
+   if at then out[#out+1]={'holder',at} end
+   return out
   end
   -- gun mode: the head parts copied like her body. They follow her real body's pose in the same frame while the
   -- posed copy shows the pose one frame old (the game finishes her animation after this loop), so her neck went
@@ -571,6 +589,8 @@ function Stance.new(laser,trace)
  function self.reload(on,duration) if reloadFn and frame then return reloadFn(on,duration) end return false end
  function self.stop() if stop then stop() end end
  function self.running() return frame~=nil end
+ -- gun mode: coop-gun.txt's records of the stance running now (none when it is not).
+ function self.records() if recordsFn and frame then return recordsFn() end return {} end
  -- gun mode: whether component c is one of the stance's own (its poseable body and rifle, the donor, the keeper).
  function self.owns(c)
   for _,part in ipairs(owned) do if part==c then return true end end

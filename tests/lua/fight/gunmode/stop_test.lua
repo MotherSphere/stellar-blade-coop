@@ -3,9 +3,10 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode put back over a fake UE4SS (fake.lua), on the rifle layer's path unless a case says otherwise: stop
 -- (coop off) gives back the input mask, SB's rows, the rifle, her body's own post-process class, the FOV lock and the
--- layer's arms, then nothing more runs; the next Lua load puts back what coop-gun.txt says an earlier one left; a start
--- that fails gives back what it took; a new controller resets the old pawn's state and the deferred reset takes the
--- layer off her body. fake.lua's rows have the kinds of 26123051's: the Hit1 step's Type is a
+-- layer's arms, then nothing more runs; the next Lua load puts back what coop-gun.txt says an earlier one left, also
+-- on the posed stance and the rifle clips' path (the park lets them run when the layer's class is found but its
+-- install fails); a start that fails gives back what it took; a new controller resets the old pawn's state and the
+-- deferred reset takes the layer off her body. fake.lua's rows have the kinds of 26123051's: the Hit1 step's Type is a
 -- byte, kept in coop-gun.txt as a number.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Fake=dofile('tests/lua/fight/gunmode/fake.lua')
@@ -223,6 +224,47 @@ do
     assert(sword.bOwnerNoSee==true and part.bHiddenInGame==true)
     clock=clock+1; b.toggle_now()
     assert(sword.bOwnerNoSee==false and part.bHiddenInGame==false,'shown after the next rifle out')
+    as_shipped(w,keys,store)
+end
+
+-- 9. H4: a Lua reload with the rifle out on the posed stance (the layer's class found, its install failed, no rifle
+--    clips). The next load's restore shows her body to her own camera with its own tick option, removes the posed
+--    copy's parts from her and the actor its donor stands on.
+do
+    local w=Fake.new(); w.install()
+    w.no_base=true -- The layer cannot rebuild her body.
+    local keys,store=w.keys(),file()
+    local a,logs=new(store)
+    out(a)
+    assert(said(logs,'animation pak not installed: posed aim'),table.concat(logs,'|'))
+    -- What a carrying frame of the posed stance does (fight/gunmode/stance.lua's frame): her real body hidden from her
+    -- camera and ticking always.
+    w.mesh.bOwnerNoSee,w.mesh.VisibilityBasedAnimTickOption=true,0
+    local parts={}
+    for _,c in ipairs(w.pawn.comps) do if not c.dead then parts[#parts+1]=c end end
+    assert(#parts>0 and #w.spawned==1,'the posed copy on her, its holder in the world')
+    local b=new(store) -- Ctrl+R
+    b.restore()
+    assert(w.mesh.bOwnerNoSee==false,'her body shown to her own camera again')
+    assert(w.mesh.VisibilityBasedAnimTickOption==2,'her body\'s own tick option back')
+    for _,c in ipairs(parts) do assert(c.dead,'a part of the posed copy left on her') end
+    assert(w.spawned[1].dead,'the holder left in the world')
+    as_shipped(w,keys,store)
+end
+
+-- 10. H4: a Lua reload with the rifle out on the rifle clips alone (the layer's install failed, the clips found) and
+--     the carry stance on. The next load's restore turns the carry stance off.
+do
+    local w=Fake.new(); w.install()
+    w.no_base,w.pak=true,true
+    local keys,store=w.keys(),file()
+    local a,logs=new(store,'gun_carry_ovr=N_Test_Carry\n')
+    out(a)
+    assert(said(logs,'animation pak found'),table.concat(logs,'|'))
+    assert(w.pawn.stance and w.pawn.stance.OverrideStanceAnim:ToString()=='N_Test_Carry','the carry stance on')
+    local b=new(store) -- Ctrl+R
+    b.restore()
+    assert(w.pawn.stance==nil,'the carry stance off')
     as_shipped(w,keys,store)
 end
 
