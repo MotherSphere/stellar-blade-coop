@@ -581,7 +581,8 @@ package.loaded['vehicles.bike.ride']={new=function(o)
         tune=function(name,value) bk.tunes[#bk.tunes+1]={name,value}; return true,'bk tune '..tostring(name) end}
 end}
 -- Gun mode (fight/gunmode/mode.lua; fight/gunmode/helpers_test and stop_test test it): what new got (o), its ticks,
--- its restores, the why of each stop, the controllers its hook passed on, its toggles, whether the rifle is out (out).
+-- its restores, the why of each stop, the controllers its hook passed on, its toggles, whether the rifle is out (out),
+-- what its hud build step got (hud).
 gm={}
 package.loaded['fight.gunmode.mode']={new=function(o)
     gm.o=o
@@ -589,7 +590,8 @@ package.loaded['fight.gunmode.mode']={new=function(o)
         out=function() return gm.out==true end,
         stop=function(why) gm.stops[#gm.stops+1]=why end,
         new_controller=function(pc) gm.controllers[#gm.controllers+1]=pc end,
-        toggle_now=function() gm.toggles=gm.toggles+1 end,status=function() return 'gun mode off' end}
+        toggle_now=function() gm.toggles=gm.toggles+1 end,status=function() return 'gun mode off' end,
+        hud=function(h) gm.hud=h end}
 end}
 -- Other players' parked bikes (vehicles/bike/others.lua; vehicles/bike/others_test tests it): what new got (o), its
 -- slows and restores, the why of its clear (cleared).
@@ -1008,7 +1010,7 @@ function load_main(with_native,no_folder,source)
     sb.to_menus,sb.to_rooms,sb.here,sb.hall,sb.created,sb.unready=0,0,false,nil,nil,nil
     sb.target=nil
     hooks,news,fades.calls={},{},{}
-    gm.o,gm.ticks,gm.controllers,gm.toggles,gm.restores,gm.stops,gm.out=nil,0,{},0,0,{},nil
+    gm.o,gm.ticks,gm.controllers,gm.toggles,gm.restores,gm.stops,gm.out,gm.hud=nil,0,{},0,0,{},nil,nil
     sb.seat,sb.seat_error,sb.sitting,sb.sat,sb.stands,sb.busy=nil,nil,nil,nil,0,false
     lb.o,lb.calls,lb.screen,lb.ask,lb.refuse,lb.slows,lb.ticks=nil,{},nil,nil,nil,0,{}
     ss.o,ss.calls,ss.open,ss.refuse,ss.slows=nil,{},false,nil,{}

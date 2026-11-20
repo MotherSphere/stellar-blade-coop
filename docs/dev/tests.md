@@ -35,7 +35,7 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `world/daynight/`: `daynight`, `off`, `rule`, `wiring`; `story/together/`: `off`, `snapshot`, `wiring`, `wiring_dump`;
 `ui/`: `text`; `ui/kit/`: `guide`, `hud_parts`, `kit`, `model`, `notice`, `pause_tab`; `ui/text/`: `culture`;
 `world/objects/`: `off`, `wiring`;
-`fight/gunmode/`: `cost`, `engine`, `helpers`, `off`, `online`, `release`, `state`, `stop`, `texts`)
+`fight/gunmode/`: `cost`, `engine`, `helpers`, `off`, `online`, `release`, `slot`, `state`, `stop`, `texts`)
 run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
 fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. Each module's
 `off_test` runs `main/isolation.lua` with its name.
@@ -81,6 +81,14 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   parent (the capture sends the rifle's attached effects). Each frame of aim moves it to the muzzle, on the rifle
   layer too when it has no point to end at. While an SBO match runs the rifle does not come out, with the match notice
   once in 3 s. A match that starts with the rifle out puts it away within 0.25 s with everything back;
+- `fight/gunmode/slot_test` covers the D-pad rifle slot (`fight/gunmode/ui/slot.lua`) over a fake kit, then through
+  gun mode over `fight/gunmode/fake.lua`. At the rifle out SB's slot widget is made at render scale 0.6 with the rifle
+  icon set and `rounds | magazines` written. The count follows the rounds while firing. Only changed numbers are
+  written. The icon is looked up when a part is made, never on a frame. The kit's pause is read every 0.25 s.
+  The slot hides at a pause, when the rifle goes away, in the photo mode, after a new controller and at stop. A part
+  that a root rebuild left behind is made again. When the kit refuses the part, the kit's image gets the icon before it
+  shows and a `num` text shows the count. Without the icon the count shows alone with one log line. With
+  `gun_mode=off` no group is added;
 - `fight/gunmode/stop_test` runs gun mode over a fake UE4SS (`fight/gunmode/fake.lua`) on the rifle layer's path. The
   fake's row fields have the kinds read in Ghidra on 26123051: the shot's Hit1 step has a byte `Type` and no `StepType`.
   `stop` (coop off) gives back the table fields, the keys, the rifle, her body's own post-process class, the FOV lock
