@@ -37,7 +37,11 @@ ADD_ROWS = {'online/modes/nightop/probe.lua': 1}
 # request (SBApplyEffectMe on our EVE, its choke point, in core/effect.lua) applies the ChainSpin's effect or one of
 # coop devmenu's fixed list of 23 in cutmenus/devmenu.lua, which only reaches it through ChainSpin.apply. coop gift:
 # its one ItemBucketItemRemove (a send's choke point; its grants go through core/items.lua's) and its header. The
-# bike's paid fetch: its one ItemBucketItemRemove (BetaCrystal, its price only).
+# bike's paid fetch: its one ItemBucketItemRemove (BetaCrystal, its price only). Gun mode's rounds
+# (fight/gunmode/nikke.lua): its one ItemBucketItemRemove of Bullet_Nikke, once a reload and at most a magazine, only
+# while its rows are in and the slot line reads slot=coop, and its header. On 26123051 that remove (0x1423bfa00 ->
+# 0x141afa620) queues its packet on SB's local logic queue and sends it (0x1423b8700) only in the UE client net mode
+# (3), never to a Shift Up endpoint.
 # The Join row: coop recruiter's constant only, which it reads and neutralizes, never fires. Gun mode: its guarded call
 # (each shot's kind 2, ZoneEvent_AttachActorEffect, on its EventActorEffectTable row only). On 26123051 RunEvent
 # (0x141ca5a10) hands kind 2 to 0x141c9e690, from which no chain of direct calls reaches RunEvent, RunZoneEvent or
@@ -58,7 +62,7 @@ RATIONED = {'MultiplayTest_ZoneE_059': {'online/modes/nightop/recruiter.lua': 1}
                                'core/items.lua': 1, 'online/group/group.lua': 7, 'core/enemy.lua': 2,
                                'fight/bosses/enemy.lua': 2, 'eve/chainspin.lua': 1, 'core/effect.lua': 1,
                                'cutmenus/mailbox.lua': 2, 'vehicles/bike/fetch.lua': 1,
-                               'fight/gunmode/probe.lua': 5}}
+                               'fight/gunmode/probe.lua': 5, 'fight/gunmode/nikke.lua': 2}}
 
 # Calls are matched with every string literal turned into '', so log prose such as 'heal: CreateSBZoneEvent(2, ...)' is
 # not one. Lua allows space after the ':' and a string or table argument without '(': obj: f(x), obj:f'x', obj:f{}.
@@ -168,6 +172,7 @@ WORLD_CALL = 'game_function<RunZoneEvent>(sbo::kRunZoneEvent)(world, caster, &ro
 
 CS, EN, MB = f'{SCRIPTS}/eve/chainspin.lua', f'{SCRIPTS}/core/enemy.lua', f'{SCRIPTS}/cutmenus/mailbox.lua'
 BF = f'{SCRIPTS}/vehicles/bike/fetch.lua'
+NK = f'{SCRIPTS}/fight/gunmode/nikke.lua'
 IT, EF = f'{SCRIPTS}/core/items.lua', f'{SCRIPTS}/core/effect.lua'
 GUARDED = ("local function zone_event(kind,name)\n\n    assert(NightOp.allowed(kind,name),'zone event refused')\n    "
            + FIRE + '\nend\n')
@@ -198,8 +203,10 @@ CHAINSPIN = padded('eve/chainspin.lua', "pc:ServerRequest_Cheat(guid,0,'SBApplyE
 MAILBOX = padded('cutmenus/mailbox.lua', "pc:ServerRequest_ItemBucketItemRemove(1,guid,FName(alias),count,-1)\n")
 FETCH = padded('vehicles/bike/fetch.lua',
                "pc:ServerRequest_ItemBucketItemRemove(1,guid,FName(Fetch.ALIAS),Fetch.PRICE,-1)\n")
+NIKKE = padded('fight/gunmode/nikke.lua',
+               "pc:ServerRequest_ItemBucketItemRemove(1,guid,FName(R.ROUND),n,-1)\n")
 CLEAN = {N: NIGHTOP, R: RECRUITER, NR: RUN, GR: GROUP, NS: SHOP, LI: LION, EN: ENEMY, SC: SCENE, BO: BOSS, CS: CHAINSPIN,
-         MB: MAILBOX, BF: FETCH, M: 'local coop=1 -- Steam lobby, friends matchmaking later\n',
+         MB: MAILBOX, BF: FETCH, NK: NIKKE, M: 'local coop=1 -- Steam lobby, friends matchmaking later\n',
          H: 'get(api.create_lobby, "SteamAPI_ISteamMatchmaking_CreateLobby");\n', W: 'int main() { return 0; }\n',
          SH: SEQ_CONST, SG: SEQ_CALL, WG: WORLD_CALL,
          IT: padded('core/items.lua', ''), EF: padded('core/effect.lua', ''), GM: GUN, GP: GUN_PROBE}
@@ -266,6 +273,7 @@ PLANTS = [({'L1'}, {N: NIGHTOP.replace("    assert(NightOp.allowed(kind,name),'z
           ({'L5'}, {N: NIGHTOP + '-- ServerRequest_\n'}),
           ({'L5'}, {NR: RUN + 'pc:ServerRequest_CreateActor(id,at,rot,false,true,0,0,0,n,false)\n'}),
           ({'L5'}, {NR: None}),
+          ({'L5'}, {NK: NIKKE + "pc:ServerRequest_ItemBucketItemAdd(1,guid,FName(R.ROUND),n,0,true,false,false,{})\n"}),
           ({'L5'}, {GR: GROUP + 'pc:ServerRequest_ActorRevival(me,true)\n'}),
           ({'L5'}, {GR: None}),
           ({'L5'}, {NS: SHOP + "log('no ServerRequest_ItemBucketItemRemove here')\n"}),
