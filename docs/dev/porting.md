@@ -18,10 +18,14 @@ it in the executable. A signature is a short byte pattern with wildcards. The fi
 executable of build 26123051. It refuses any other one by its TimeDateStamp and SizeOfImage, the values
 `check_build()` checks.
 
+`tools/port/find.py` reads the executable of another build and looks for every entry of `signatures.json` there with
+its signature (see [Finding the addresses in a new build](#finding-the-addresses-in-a-new-build)).
+
 `tests/tools/port_addresses_test.py` compares the code and the file. It fails when the code uses an address that the
 file lacks. It also fails when the file lists an address that no code uses. `tests/tools/port_signatures_test.py` runs
-`make_signatures.py` on a small executable it builds itself. It also fails when an entry of `signatures.json` has no
-signature or a name that differs from the code's. `tools/install.py` runs both with the other Python tests.
+`make_signatures.py` and `find.py` on a small executable it builds itself. It also fails when an entry of
+`signatures.json` has no signature or a name that differs from the code's. `tools/install.py` runs both with the other
+Python tests.
 
 ## What counts as an address
 
@@ -118,6 +122,34 @@ with 1 when there is one of either.
 
 `make_signatures.py` rewrites `signatures.json` in place. It keeps `kind` and `ghidra`. It writes `name` and the
 signature again. On build 26123051 it takes about 2 minutes and 1 GB of RAM. A second run writes the same file.
+
+## Finding the addresses in a new build
+
+```
+python3 tools/port/find.py <path to SB-Win64-Shipping.exe of the new build>
+```
+
+`find.py` reads `signatures.json` and the executable. It accepts any build. For each entry it prints the address on
+build 26123051, the kind, the name and one of these:
+
+| State | When |
+| --- | --- |
+| `found` and the new address | The pattern matches once and gives one address |
+| `ambiguous` and the number of matches | The pattern matches more than once. For a `holder` entry, also when more than one place holds the code the pattern matches |
+| `missing` | The pattern matches nowhere, a field it reads lies outside the file or no place holds a `holder` entry's code |
+
+The `image` entry gives the image base of the new PE header. A `section` entry gives the start of the section that its
+`ghidra` text names after "start of". The last line counts the entries found, the ones among them whose address
+moved, the ambiguous ones and the missing ones:
+
+```
+0x141ce8050  function  kSave                     found 0x141ce8050
+237 found (0 moved), 0 ambiguous, 0 missing
+```
+
+The exit code is 0 only when every entry is found once. On build 26123051 itself, every entry is found at its own
+address in about 10 seconds. A found address is where the old signature points. It is not checked: read each one in
+Ghidra on the new build before the code uses it.
 
 ## A new address in the code
 

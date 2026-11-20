@@ -259,7 +259,7 @@ tools/
                             from data/mxiii-world.json
   port/                     addresses.py lists the game addresses native/src uses; make_signatures.py writes a
                             byte signature for each into signatures.json, one entry per address with what Ghidra
-                            shows there (see porting.md)
+                            shows there; find.py finds them in another build (see porting.md)
   release.py                builds a tagged release's zip, attaches it and publishes the release (see Releases)
   save_guard.py             save backups and the manual co-op slot
   save_read.py              every value of a .sav file, and the values two saves differ in (see story-dump.md)

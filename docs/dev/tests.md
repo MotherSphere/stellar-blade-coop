@@ -1308,7 +1308,12 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   Bytes inside an instruction that read as a call give no reference. A run stops after a jump out of the code
   section. A signature that matches twice gives no address. A holder whose code two places hold gives no address. An
   executable other than the pinned build is refused. Every entry of `tools/port/signatures.json` that needs a
-  signature has one in the form the tool writes, with the names the code gives its address;
+  signature has one in the form the tool writes, with the names the code gives its address. Then
+  `tools/port/find.py` on the same PE file: every entry is found, the image base and a section included. With a
+  function added before the others, the code addresses move by 16 bytes and the data addresses stay. Twice the same
+  function, or a holder's code held in two places, gives `ambiguous`. A function removed gives `missing`. The exit
+  code is 1 for both. Last, `find.py` on `~/Ghidra/stellar-blade/input/26123051/SB-Win64-Shipping.exe`, Ghidra's copy
+  of build 26123051: every entry is found at its own address. A PC without that file skips this part and says so;
 - `release_test.py`: `tools/release.py`'s build, upload and publish steps and its refusals, with git, gh and
   `tools/install.py` faked;
 - `save_read_test.py`: `tools/save_read.py` on GVAS bodies built in the test (the header, values, containers, the EVAS
