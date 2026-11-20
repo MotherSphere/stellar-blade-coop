@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Gun mode's magazine (fight/gunmode/ammo.lua) with a fake stock in place of fight/gunmode/nikke.lua (ready, count,
+-- Gun mode's magazine (fight/gunmode/ammo.lua) with a fake stock in place of a host's round store (ready, count,
 -- take, watch). Covered: free magazines without stock and before ready(); once ready the magazine empties, a reload
 -- takes min(mag_size, count) through take() and loads it at two thirds of the reload time; a count that dropped during
 -- the reload caps the take; a refused take loads nothing, the cool time goes to 999 at the reload's end and the next
@@ -17,7 +17,7 @@ FindAllOf=function() return {} end
 local Ammo=require('fight.gunmode.ammo')
 
 local CFG={mag_size=30,spare_mags=2,reload_time=1.5,fire_interval=0.1,round_color={1,1,1},
-    reload_color={1,0,0}}
+    reload_color={1,0,0},round_name='NIKKE RAPID',reload_text='RELOADING',empty_text='NO AMMO'}
 local logs,cools,reloads={},{},{}
 local g={log=function(m) logs[#logs+1]=m end,valid=function(x) return x~=nil end,
     try=function(f) local ok,v=pcall(f); if ok then return v end end,
@@ -64,7 +64,7 @@ st.rows=true
 frame(a)
 assert(a.left==0 and st.watches[#st.watches]==true,'Empty and watched once ready')
 assert(a.reserve==50 and a.reload_until,'A reload from what she carries')
-assert(count("the magazine loads from EVE's inventory")==1)
+assert(count("the magazine loads from the round store")==1)
 local start=a.reload_until-CFG.reload_time
 -- Nothing taken before two thirds of the reload time.
 while clock+1/60<start+0.6*CFG.reload_time do frame(a) end
@@ -209,4 +209,4 @@ st.refuse=nil
 frames(a,10)
 assert(count('ammo: reload (')==reloaded+1 and a.reload_until,'The empty magazine reloads after Ammo.RETRY s')
 
-print('fight/gunmode/stock_test: ok')
+print('gunmode/stock_test: ok')
