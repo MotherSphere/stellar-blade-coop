@@ -2,16 +2,16 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The game side of a score attack round (online/modes/scoreattack/game.lua) on a fake run and round: each sit-out
--- reason in order, with one log line and no ready; a hall seat left first; the run at our spot facing the ring centre
--- on the round's seed, then ready; the now lines while its waves play only; its end as the done line of each outcome;
--- a stop reaches the run.
+-- reason in order, with one log line, its notice key and no ready; a hall seat left first; the run at our spot facing
+-- the ring centre on the round's seed, then ready; the now lines while its waves play only; its end as the done line of
+-- each outcome; a stop reaches the run.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local G=require('online.modes.scoreattack.game')
 local C=require('online.modes.scoreattack.challenges')
 local targets=C.find('targets')
 local env={on=true,riding=false,night=false,seated=false,refuse=nil}
 local room={key='xion',spots={{X=100,Y=200,Z=300,Yaw=180},{X=-100,Y=-200,Z=300,Yaw=0}}}
-local calls,logs,sent={},{},{}
+local calls,logs,sent,outs={},{},{},{}
 local state=nil -- What the fake run's state() gives.
 local run={start=function(def,seed,at,yaw)
         calls[#calls+1]=string.format('start %s %d %d,%d,%d %d',def.id,seed,at.X,at.Y,at.Z,yaw)
@@ -27,36 +27,38 @@ local round={ready=function() sent[#sent+1]='ready' end,
 local game=G.new({run=run,round=round,log=function(m) logs[#logs+1]=m end,
     on=function() return env.on end,riding=function() return env.riding end,night=function() return env.night end,
     target=function() return env.room end,seated=function() return env.seated end,
-    stand=function() calls[#calls+1]='stand'; env.seated=false end})
-local function clear() calls,logs,sent={},{},{} end
--- tried: the run's start was asked (and refused); else nothing reached it.
-local function sat(why,tried)
+    stand=function() calls[#calls+1]='stand'; env.seated=false end,out=function(key) outs[#outs+1]=key end})
+local function clear() calls,logs,sent,outs={},{},{},{} end
+-- tried: the run's start was asked (and refused); else nothing reached it. key: the notice's (ui/text.lua's
+-- scoreattack.out), once.
+local function sat(why,key,tried)
     local ok,said=game.start(targets,7,1)
     assert(ok==false and said==why and logs[#logs]=='sit out: '..why and #sent==0,tostring(said))
+    assert(#outs==1 and outs[1]==key,tostring(outs[1]))
     assert(#calls==(tried and 1 or 0) and (not tried or calls[1]=='start targets 7 100,200,300 180'),calls[1])
     clear()
 end
 
 -- Each reason, the first that holds.
 env.on,env.riding,env.night=false,true,true
-sat('scoreattack=off')
+sat('scoreattack=off','off')
 env.on=true
-sat('EVE rides the bike')
+sat('EVE rides the bike','bike')
 env.riding=false
-sat('a Night Operation run is on')
+sat('a Night Operation run is on','night')
 env.night=false
-sat('EVE is not in the lobby room')
+sat('EVE is not in the lobby room','room')
 env.room=room
-assert(not game.start(targets,7,3) and logs[1]=='sit out: this room has no spot 3')
+assert(not game.start(targets,7,3) and logs[1]=='sit out: this room has no spot 3' and outs[1]=='room')
 clear()
 env.refuse='census: 1 living within 40 m (nearest 12.0 m); 0 wave bodies'
-sat(env.refuse,true)
+sat(env.refuse,'refused',true)
 env.refuse=nil
 
 -- A seat first, then the run at spot 2 facing the ring centre on the round's seed, then ready.
 env.seated=true
 assert(game.start(targets,7,2)==true)
-assert(calls[1]=='stand' and calls[2]=='start targets 7 -100,-200,300 0' and sent[1]=='ready' and #sent==1)
+assert(calls[1]=='stand' and calls[2]=='start targets 7 -100,-200,300 0' and sent[1]=='ready' and #sent==1 and #outs==0)
 clear()
 
 -- The now line while its waves play only.

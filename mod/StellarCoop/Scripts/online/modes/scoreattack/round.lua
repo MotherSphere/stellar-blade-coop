@@ -179,6 +179,12 @@ function R.new(o)
         pick=word=='random' and word or def.id
         return true
     end
+    -- The lobby menu's Challenge row (online/lobby's Select): the pick after Random, each challenge the lobby room
+    -- offers in turn, then Random again (model.lua's cycle). Returns the new pick.
+    function self.cycle()
+        pick=Sa.cycle(pick,o.offered and o.offered() or {})
+        return pick
+    end
     -- One line for coop scoreattack: the pick, then our last round and its ranking.
     function self.status()
         local s='pick '..pick

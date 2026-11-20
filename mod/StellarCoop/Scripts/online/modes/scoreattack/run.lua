@@ -713,10 +713,11 @@ function Run.new(o)
         step({killed={},done={},abort=reason})
         return true
     end
-    -- The run's waves state (its definition, phase, wave, score, t0) and game time as of its last tick, or nil.
+    -- The run's waves state (its definition, phase, wave, score, t0), game time as of its last tick and its best match
+    -- run ({score=, s=, new=true when this run wrote it}, or nil), or nil.
     function self.state()
         if not r then return nil end
-        return r.s,r.now
+        return r.s,r.now,r.best
     end
     -- A run is under way (its result aside).
     function self.running() return r~=nil and r.s.phase~='result' end

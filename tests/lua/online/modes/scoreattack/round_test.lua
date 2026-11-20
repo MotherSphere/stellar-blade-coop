@@ -4,7 +4,7 @@
 -- A score attack round on a fake link and clock (online/modes/scoreattack/round.lua): the host's draw, go, checks,
 -- rank and match end; a guest's go read before its start line, its rank and a void; who may send which line; the now
 -- lines' pace; a round that ends early, one replaced by the next, one found playing at a Lua reload; a room that
--- offers nothing; a player who leaves; the pick; and the link's mode word as the native part names it.
+-- offers nothing; a player who leaves; the pick and its cycle; and the link's mode word as the native part names it.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Round=require('online.modes.scoreattack.round')
 local Sa=require('online.modes.scoreattack.model')
@@ -77,6 +77,8 @@ r.tick()
 assert(#L.sent==1,'Go once')
 -- Pick a challenge for the next round: Target Practice, as the tests below check its limits.
 assert(r.pick('4') and r.pick()=='targets' and not r.pick('nope') and r.pick()=='targets')
+-- The lobby's Challenge row: the pick after Random, each challenge the room offers in turn, then Random again.
+assert(r.cycle()=='range' and r.pick()=='range' and r.cycle()=='random' and r.cycle()=='targets')
 L.start(2,56,{HOST,P2,P3})
 t=200
 r.tick()

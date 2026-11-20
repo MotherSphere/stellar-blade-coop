@@ -4,8 +4,9 @@
 -- The score attack's two runtime lines through main.lua: the 250 ms loop reads its score lines once a pass and plays
 -- its round (a guest who is not in the lobby room sits out the host's go with one [SA] line); coop off ends the round
 -- for it. No pass reads its lines after that. Then its wiring on a fake run: scoreattack=off, the bike and a Night
--- Operation run each sit a round out; a hall seat is left first and the run starts at our spot, then ready goes; each
--- pass ticks the run; the run's end goes as the done line; coop off stops the run.
+-- Operation run each sit a round out with its notice; a hall seat is left first and the run starts at our spot, then
+-- ready goes; each pass ticks the run; the run's end goes as the done line; coop off stops the run. The screens
+-- (online/modes/scoreattack/ui/board.lua) are built on the kit's hud step and tick each pass.
 dofile('tests/lua/main/fixture.lua')
 local Round=require('online.modes.scoreattack.round')
 local new,round=Round.new,nil
@@ -65,6 +66,8 @@ end
 load('scoreattack=off\n')
 go()
 assert(sat_out('scoreattack=off') and #fake.starts==0,'Read from the settings')
+local function told(text) for _,t in ipairs(said_en) do if t==text then return true end end end
+assert(told(require('ui.text').en.scoreattack.out.off),'Its notice')
 load('')
 bk.riding=true
 go()

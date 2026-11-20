@@ -260,7 +260,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'online/modes/scoreattack/commands', 'online/modes/scoreattack/challenges',
                               'online/modes/scoreattack/model', 'online/modes/scoreattack/waves',
                               'online/modes/scoreattack/round', 'online/modes/scoreattack/run',
-                              'online/modes/scoreattack/game',
+                              'online/modes/scoreattack/game', 'online/modes/scoreattack/ui/board',
                               *(f'{module}/wiring' for module in ('online/partner', 'online/modes/nightop',
                                                                   'fight/bosses', 'online/group',
                                                                    'online/modes/race', 'eve', 'story/scenes',
