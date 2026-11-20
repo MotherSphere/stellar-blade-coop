@@ -1616,8 +1616,15 @@ int main() {
   }
   {
     // nikke_rows_build: gun mode's batch on its own Builder adds its 9 rows from their templates and patches the 3
-    // camp shops in place, each with its patches as written. A later run adds nothing.
+    // camp shops in place, each with its patches as written. A later run adds nothing. An older NIKKE gun mod's pak
+    // already holds a ShopItemTable row Camp_Bullet_Nikke_Buy with ID 37, as in game on 2026-11-20 (it stopped the
+    // batch there with why=name): the batch's own row has another name and ID, so the batch still goes in whole.
     Game g;
+    {
+      const uint64_t shopitems = g.tables[size_t(Table::shopitem)], key = g.name("Camp_Bullet_Nikke_Buy");
+      g.rows[{shopitems, key}] = g.mem.alloc(table_info(Table::shopitem).size);
+      g.ids[{shopitems, 37u}] = key;
+    }
     Builder nb(kNikke);
     const Answer a = nb.run(g, kBase, g.tables, g.block);
     assert(a.state == State::rows && a.why == Why::none && a.added == kNikkeRows && g.adds.size() == 9 &&

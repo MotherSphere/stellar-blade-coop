@@ -206,8 +206,8 @@ adds 9 rows and patches 3 shipped rows in place, in this order:
 | Table | Row | ID | Copied from | What changes |
 | --- | --- | --- | --- | --- |
 | RewardGroupTable | `31114` to `31121` | 31114 to 31121 | each group's own row (`200026`, `200030`, `200016`, `200020`, `200035`, `220025`, `200024`, `31105`) | `ItemAlias` `Bullet_Nikke`, `DropRate`, `ItemMinCount`, `ItemMaxCount`; the group is the donor's |
-| ShopItemTable | `Camp_Bullet_Nikke_Buy` | 37 | `Camp_Bullet_Normal_Buy` | `ItemAlias`; `MoneyItemCount1` and `FriendShip` 2; `CheckConditionGroup` None |
-| ShopTable | `Shop_SimpleCamp` | 1001 | itself | `ShopItems`: the shipped list with `Camp_Bullet_Nikke_Buy` after `Camp_Bullet_Railgun_Buy` |
+| ShopItemTable | `SBO_Camp_Bullet_Nikke_Buy` | 37001 | `Camp_Bullet_Normal_Buy` | `ItemAlias`; `MoneyItemCount1` and `FriendShip` 2; `CheckConditionGroup` None |
+| ShopTable | `Shop_SimpleCamp` | 1001 | itself | `ShopItems`: the shipped list with `SBO_Camp_Bullet_Nikke_Buy` after `Camp_Bullet_Railgun_Buy` |
 | ShopTable | `Shop_FullCamp` | 1002 | itself | the same |
 | ShopTable | `Shop_NestCamp` | 1003 | itself | the same, with its own first item (`Camp_ResurrectionItem_Buy`) |
 

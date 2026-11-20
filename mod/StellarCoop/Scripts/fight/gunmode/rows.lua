@@ -14,13 +14,13 @@ local function drop(id,rate,min,max)
 end
 local CAMP='Camp_HP_Potion_Buy|Camp_HP_Potion_Small_Buy|Camp_Bullet_Package_Dummy_Buy|Camp_Bullet_Normal_Buy|'
     ..'Camp_Bullet_Scatter_Buy|Camp_Bullet_Explosive_Buy|Camp_Bullet_Missile_Buy|Camp_Bullet_Railgun_Buy|'
-    ..'Camp_Bullet_Nikke_Buy|Camp_ConcussionGrenade_Buy|Camp_PulseGrenade_Buy|Camp_FlashGrenade_Buy|'
+    ..'SBO_Camp_Bullet_Nikke_Buy|Camp_ConcussionGrenade_Buy|Camp_PulseGrenade_Buy|Camp_FlashGrenade_Buy|'
     ..'Camp_TrapGrenade_Buy|Camp_HealGrenade_Buy|Camp_SPInitializer_Buy'
 R.ROWS={
     drop(31114,1500,15,30),drop(31115,2000,20,40),drop(31116,1000,10,20),drop(31117,1500,15,30),
     drop(31118,3000,30,60),drop(31119,3000,30,60),drop(31120,1000,10,20),drop(31121,5000,20,40),
-    {'ShopItemTable','Camp_Bullet_Nikke_Buy',37,{{'ItemAlias','n',R.ROUND,true},{'MoneyItemCount1','i',R.PRICE,true},
-        {'CheckConditionGroup','n','None',true},{'FriendShip','f',R.PRICE,true}}},
+    {'ShopItemTable','SBO_Camp_Bullet_Nikke_Buy',37001,{{'ItemAlias','n',R.ROUND,true},
+        {'MoneyItemCount1','i',R.PRICE,true},{'CheckConditionGroup','n','None',true},{'FriendShip','f',R.PRICE,true}}},
     {'ShopTable','Shop_SimpleCamp',1001,{{'ShopItems','N','Camp_ResurrectionItem_x3_Buy|'..CAMP,true}}},
     {'ShopTable','Shop_FullCamp',1002,{{'ShopItems','N','Camp_ResurrectionItem_x3_Buy|'..CAMP,true}}},
     {'ShopTable','Shop_NestCamp',1003,{{'ShopItems','N','Camp_ResurrectionItem_Buy|'..CAMP,true}}},
