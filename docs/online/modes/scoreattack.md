@@ -129,7 +129,7 @@ shows one of its own screens. Their words follow the game's language unless `ui_
   Your row is teal. Equal scores share a place. Each game sends its score and wave at most once a second while its
   waves play.
 - The result panel, in place of the card and the board when your run ends: the challenge's name (teal after a win,
-  orange otherwise), your end, score and time (`Cleared · score 1250 · 0:37.4`), a note, then one row per ranked
+  orange otherwise), your end, score and time (`Cleared · score 1246 · 0:37.4`), a note, then one row per ranked
   player with her place, name, difficulty (Normal, Story or Hard), score and time. The note reads
   `Results still to come: <n>.` while players who started have not finished, `Not ranked.` when the ranking came
   without you, or `New personal best.` after a success that set your best. The panel closes at the round's end, or
@@ -138,7 +138,7 @@ shows one of its own screens. Their words follow the game's language unless `ui_
 A round that ends with no ranking says why in a notice: `The host left. This round has no ranking.` when the host
 left or went silent, `The round was cancelled.` after the host's `coop match end` or when the host's game cancelled the
 round. With `coop ui off` the screens come as notices: `Target Practice starts in 5 s.`, `Target Practice: wave 2/3.`,
-`Target Practice: Cleared, score 1250, time 0:37.4.`, then `New personal best.` when your run set one, then
+`Target Practice: Cleared, score 1246, time 0:37.4.`, then `New personal best.` when your run set one, then
 `Score attack: you placed 1 of 3.` or `Not ranked.`
 
 ## What stops a round
@@ -173,12 +173,13 @@ when a monster never came or nothing was killed. The host's ranking does not cha
 
 | Command | What it does |
 | --- | --- |
-| `coop scoreattack`, `coop scoreattack status` | One line: the host's pick, then your last round, its challenge, its state and its ranking, for example `OK: score attack: pick random; round 3 (targets): ranked; ranking: 1. Ann 1250 in 37.4 s (win), 2. Bob 1100 in 41.0 s (win)`. Before the first round: `OK: score attack: pick random; no round yet` |
+| `coop scoreattack`, `coop scoreattack status` | One line: the host's pick, then your last round, its challenge, its state and its ranking, for example `OK: score attack: pick random; round 3 (targets): ranked; ranking: 1. Ann 1246 in 37.4 s (win), 2. Bob 1100 in 41.0 s (win)`. Before the first round: `OK: score attack: pick random; no round yet` |
 | `coop scoreattack pick <random\|swarm\|skulls\|gauntlet\|targets\|range\|1-5>` | Set the pick as the host's Challenge row does: `OK: score attack: next challenge targets`. Only the host's pick counts |
 
 Without the Steam link both answer `STOP: Score attack needs the Steam link.` The round's state is `wait` (for the
-host's challenge), `play` or `ranked`, or after an early end its reason: `host`, `void`, `host_left`, `host_lost`,
-`left`, `replaced`, `reload` or `coop off`.
+host's challenge), `play` or `ranked`. Once the round is over it is why the round ended: `host` (the host's
+`coop match end`, which the host's game also asks 10 s after each ranking), `void`, `host_left`, `host_lost`, `left`,
+`replaced`, `reload` or `coop off`. The ranking stays in the line.
 
 ## Log lines
 
@@ -188,7 +189,7 @@ host's challenge), `play` or `ranked`, or after an early end its reason: `host`,
 | --- | --- |
 | `round <n>: <challenge>, seed <seed>, spot <k> of <players>` | The round's challenge is known: your run starts at spot k |
 | `start: run 0x2A seed 0x... at <x,y,z> yaw <degrees> map <map> challenge <name>; census: ...` | Your run started |
-| `result: success waves=3/3 kills=18 score=1250 time=0:37 find_ms=0.8/2.1 challenge=targets best=1250/37 new` | Your run ended, as the solo run's `result:` line (see [The card and the result panel](challenges.md#the-card-and-the-result-panel)) |
+| `result: success waves=3/3 kills=18 score=1246 time=0:37 find_ms=0.8/2.1 challenge=targets best=1246/37 new` | Your run ended, as the solo run's `result:` line (see [The card and the result panel](challenges.md#the-card-and-the-result-panel)) |
 | `sit out: <why>` | You sit out the round |
 | `rank: rank <seed> <id>:<score>:<tenths>:<end>,...` | The host's game sent the ranking (`rank: rank <seed> -` for nobody) |
 | `rank: refused <name>: <why>` | The host's game refused a result |
