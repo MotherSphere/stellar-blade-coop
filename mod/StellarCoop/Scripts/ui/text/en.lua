@@ -196,10 +196,12 @@ return {
         cutscene='%s is watching a cutscene. Your game waits until it ends.'},
     -- The follow (online/group/travel.lua), the guest's: the offer when the host is on another map or far on hers (%s:
     -- her name, her map, follow_key), always's notice (her name, follow_key), the travel taken, no camp found, a
-    -- guard of the moment, and the native part's refusal or a warp that never started.
-    travel={offer='%s is in %s. Press %s to travel to the camp nearest them.',
+    -- guard of the moment, the host's last ground point missing or too old (her name), and the native part's refusal
+    -- or a warp that never started.
+    travel={offer='%s is in %s. Press %s to travel to them.',
         auto='Following %s in 5 s. Press %s to stay.',going='Travelling to %s.',
         none='No camp you have found is near %s.',busy='You cannot travel now. Try again in a moment.',
+        air='%s is not on solid ground. Try again in a moment.',
         failed='The travel did not start. UE4SS.log says why.'},
     -- The parked bike (vehicles/bike/ride.lua): a mount refused with the bike's distance and side from her camera (%d
     -- metres, then one of the four side words), refused before it is back on her map (2 s after her arrival) or while

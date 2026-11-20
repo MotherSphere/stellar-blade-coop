@@ -1037,8 +1037,9 @@ for _,bad in ipairs({{},{'TEST'},{'test','x'},{'on'}}) do
 end
 -- The follow: built on (follow=true) with the link, the ghost, the settings and her name; ticked every 250 ms on the
 -- chat's clock; it waits while the game is paused, in photo mode or in the co-op menu, during a Night Operation run
--- and during a cutscene. coop travel host is follow_key; coop travel probe <camp> its solo test; anything else its
--- usage line.
+-- and during a cutscene. coop travel host is follow_key; coop travel probe <camp> its solo test; coop travel spot
+-- [<world>] <x> <y> <z> the spot warp's solo test (three numbers, or a world and three numbers); anything else its usage
+-- line.
 assert(tv.o.follow==true and tv.o.link==fake_link and tv.o.settings.follow_host=='ask'
     and tv.o.settings.follow_key.name=='F7' and tv.o.name(require('ui.text').en)=='Kaanta'
     and type(tv.o.tell)=='function'
@@ -1053,9 +1054,16 @@ loops[2].f(); assert(#tv.ticks==tv.count+1 and tv.ticks[#tv.ticks]==gr.ticks[#gr
 coop('travel','host'); assert(tv.presses==2 and last()=='[StellarCoop] OK: asked the host for camps\n',last())
 coop('travel','probe','DED10_Camp_07')
 assert(tv.probes[1]=='DED10_Camp_07' and last()=='[StellarCoop] OK: travel DED10_Camp_07 asked\n',last())
-for _,bad in ipairs({{},{'HOST'},{'host','x'},{'probe'},{'probe','a','b'},{'go'}}) do
+coop('travel','spot','1','2','3')
+assert(#tv.spots==1 and tv.spots[1][1]=='1' and tv.spots[1][2]=='2' and tv.spots[1][3]=='3' and tv.spots[1][4]==nil
+    and last()=='[StellarCoop] OK: travel spot asked\n',last())
+coop('travel','spot','Xion','1','2','3')
+assert(#tv.spots==2 and table.concat(tv.spots[2],' ')=='Xion 1 2 3',table.concat(tv.spots[2],' '))
+for _,bad in ipairs({{},{'HOST'},{'host','x'},{'probe'},{'probe','a','b'},{'go'},{'spot','1','2'},
+    {'spot','a','1','2','3','4'}}) do
     coop('travel',table.unpack(bad))
-    assert(tv.presses==2 and #tv.probes==1 and last()=='[StellarCoop] STOP: Use: coop travel host\n',last())
+    assert(tv.presses==2 and #tv.probes==1 and #tv.spots==2
+        and last()=='[StellarCoop] STOP: Use: coop travel host | probe <camp> | spot [<world>] <x> <y> <z>\n',last())
 end
 nr.ticked=nr.ticks
 rx.ticked,gt.ticked=rx.ticks,gt.ticks

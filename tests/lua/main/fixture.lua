@@ -374,14 +374,15 @@ package.loaded['online.group.group']={new=function(o)
         photo=function(own) gr.owns[#gr.owns+1]=own; return gr.wire or own end,cut=function() return gr.cut end,
         cutscene_playing=function() return gr.playing==true end}
 end}
--- The follow (online/group/travel.lua): what travel.new got (o), its ticks' clocks, follow_key's presses and coop
--- travel probe's camps.
-tv={o=nil,ticks={},presses=0,probes={}}
+-- The follow (online/group/travel.lua): what travel.new got (o), its ticks' clocks, follow_key's presses, coop
+-- travel probe's camps and coop travel spot's words.
+tv={o=nil,ticks={},presses=0,probes={},spots={}}
 package.loaded['online.group.travel']={new=function(o)
     tv.o=o
     return {tick=function(t) tv.ticks[#tv.ticks+1]=t end,
         press=function() tv.presses=tv.presses+1; return true,'asked the host for camps' end,
-        probe=function(camp) tv.probes[#tv.probes+1]=camp; return true,'travel '..camp..' asked' end}
+        probe=function(camp) tv.probes[#tv.probes+1]=camp; return true,'travel '..camp..' asked' end,
+        spot=function(a,b,c,d) tv.spots[#tv.spots+1]={a,b,c,d}; return true,'travel spot asked' end}
 end}
 package.loaded['online.modes.nightop.run']={new=function(o)
     nr.o=o
