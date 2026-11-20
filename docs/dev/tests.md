@@ -1298,6 +1298,15 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   strings left out; constants, tables, struct fields in a table, `Rva` constants and digit separators read), then on
   `native/src`: every game address the code uses has an entry in `tools/port/signatures.json`, every entry is used
   and each has a known kind (see [Porting](porting.md));
+- `port_signatures_test.py`: `tools/port/make_signatures.py`'s instruction decoder on 38 instructions checked against
+  capstone (rel32 calls and jumps, RIP-relative operands with and without an immediate after them, SIB, VEX, EVEX,
+  prefixes) and its refusal of an opcode 64-bit code does not use; then each kind of signature on a PE file the test
+  builds: a function's own run, a code address, a call into one of two identical functions, a load followed by an
+  immediate, a vtable slot found through its vtable's start, a function only a vtable slot points to (`read`), a
+  global loaded in identical copies of a function (`then`) and a vtable no code loads (`holder`, past a slot whose
+  code another place also holds). A signature that matches twice gives no address. An executable other than the
+  pinned build is refused. Every entry of `tools/port/signatures.json` that needs a signature has one in the form the
+  tool writes, with the names the code gives its address;
 - `release_test.py`: `tools/release.py`'s build, upload and publish steps and its refusals, with git, gh and
   `tools/install.py` faked;
 - `save_read_test.py`: `tools/save_read.py` on GVAS bodies built in the test (the header, values, containers, the EVAS

@@ -257,8 +257,9 @@ tools/
   mxiii_climb.py            places Matrix XIII's ladders on the editor's in data/mxiii-world.json, and checks them
   mxiii_rows.py             writes native/src/world/maps/matrix13/mxiii_rows.h and world/maps/matrix13/level/rows.lua
                             from data/mxiii-world.json
-  port/                     addresses.py lists the game addresses native/src uses; signatures.json, one entry per
-                            address with what Ghidra shows there (see porting.md)
+  port/                     addresses.py lists the game addresses native/src uses; make_signatures.py writes a
+                            byte signature for each into signatures.json, one entry per address with what Ghidra
+                            shows there (see porting.md)
   release.py                builds a tagged release's zip, attaches it and publishes the release (see Releases)
   save_guard.py             save backups and the manual co-op slot
   save_read.py              every value of a .sav file, and the values two saves differ in (see story-dump.md)
