@@ -198,7 +198,10 @@ native part, or when the rows were refused or read back other than written. `UE4
   owner's value of the stat that `MaxAmountOverrideActorStat` (+0x88) names. For `Bullet_Nikke` that is
   `ActorStatType_ItemStackBullet5`. EVE's `Player` CharacterTable rows set it to 60. Of EffectTable's rows only
   `P_Protector_Shoot2_5` (+2) and `P_Protector_Shoot2_MK2_5` (+0) change it. The cut applies only when the bucket's
-  byte at +0x38 is set. That it is set for EVE's inventory was not read.
+  byte at +0x38 is set. That byte is the bucket's `bPlayerOwned` (`FUN_141ad8cd0`). SB makes the inventory bucket of the
+  actor a controller takes (`FUN_141ba6820`) and of an actor spawned with an inventory (`FUN_141ad24d0`,
+  `FUN_141ba7f60`) with it set. The buckets the save load makes (`FUN_141ad2fa0`) have owner 0 with it clear. That no
+  bucket of EVE's comes from that load was not read.
 - The camp machines carry the `AllShop` tag. A buy of rounds there counts toward the gold-spending trophy, as a buy of
   drone ammo does.
 - A RandomEach group rolls each of its rows on its own (`FUN_141be9540`): a pick up to the constant
