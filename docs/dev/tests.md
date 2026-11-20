@@ -16,13 +16,15 @@ build/host/game_codec_test
 ## Lua tests
 
 The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`, `others`, `park`, `ride`, `stand`;
-`core/`: `actors`, `actors_of`, `class_at`, `effect`, `enemy`, `items`, `keybind`, `line`, `link`, `mask`, `pak_gate`,
-`picks`, `player`, `row_edit`, `settings_file`, `ue4ss_settings`, `unreal`, `where`, `worlds`; `fight/bosses/`: `enemy`,
-`gardener`, `leviathan`, `lion`, `off`, `tendril`; `eve/`: `chainspin`, `emote`, `flight`, `glide`, `off`, `wear`;
-`tools/`: `devmenu`, `mailbox`, `off`; `story/scenes/`: `lines`, `off`, `scene`; `fight/enemies/`: `off`, `wiring`,
+`core/`: `actors`, `actors_of`, `class_at`, `effect`, `enemy`, `items`, `keep`, `keybind`, `line`, `link`, `mask`,
+`pak_gate`, `picks`, `player`, `row_edit`, `settings_file`, `ue4ss_settings`, `unreal`, `where`, `worlds`;
+`fight/bosses/`: `enemy`, `gardener`, `leviathan`, `lion`, `off`, `tendril`; `eve/`: `chainspin`, `emote`, `flight`,
+`glide`, `off`, `wear`;
+`cutmenus/`: `devmenu`, `mailbox`, `off`; `story/scenes/`: `lines`, `off`, `scene`; `fight/enemies/`: `off`, `wiring`,
 `wiring_notices`; `online/group/`: `group`, `off`, `region_tabs`, `travel`; `online/lobby/`: `arrival`, `commands`,
 `halls_rows`, `off`, `sbo`, `wiring`; `online/lobby/ui/`: `lobby`, `lobby_model`; `main/`: `bike`, `boot`, `collide`,
-`guide`, `idle`, `input`, `loader`, `match`, `menu`, `session_ui`, `settings`; `world/maps/matrix13/`: `off`;
+`guide`, `idle`, `input`, `keep`, `loader`, `match`, `menu`, `session_ui`, `settings`; `world/maps/matrix13/`: `off`,
+`words`;
 `world/maps/matrix13/quest/`: `on_time`, `subtitles`, `zone_talks`; `world/maps/matrix13/talks/`: `zones`;
 `world/maps/matrix13/level/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`; `online/modes/nightop/`:
 `board`, `challenges`, `guard_text`, `off`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
@@ -71,7 +73,18 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   every press during the payment, too little money and a failure said, never within reach, in an SBO lobby or away from
   a camp; the money's name from `game_text` on the screen's words, `betacrystal` in the English copy of another
   language, for a name over 32 bytes and in an offer past 200 bytes); `bike_key` as a hold (a tap let go before 0.5 s
-  does nothing, a hold of 0.5 s runs the key once, nothing more until it is let go);
+  does nothing, a hold of 0.5 s runs the key once, nothing more until it is let go); the paint of the part and the
+  parked bike for EVE's outfit within a second, put back for another outfit and on the part at `coop off`; a parked
+  bike made after `coop off` at the freed address and path of the removed one painted again; the `paint on for <mesh>`
+  or `paint off for <mesh>` end of `coop bike status`;
+- `vehicles/bike/paint_test` covers `vehicles/bike/paint.lua` with fake UE4SS objects: the shipped table passes its
+  check with one entry, a `Base Color Tint` on slot 1; the check takes a name with spaces (`Base Color Tint`),
+  punctuation (`A_b-1`) or a `}` and refuses a slot out of 0 to 3, an empty or 65-byte name, a control character, a
+  `~` or a byte above `~` in a name, a value that is not four numbers from 0 to 100000 and a key that is no object
+  path; each instance made from the mesh's own material; one step a second, one paint per component and mesh, one
+  clear for a mesh with no entry; an earlier Lua load's instance cleared; a component at a new address, or at the same
+  address with another path, painted again; a failed call logged once per component and mesh with the slot left as the
+  mesh made it; a table that fails its check logged once with nothing painted;
 - `vehicles/bike/park_test` checks `vehicles/bike/park.lua` with `lua5.4` alone: the reach (200 cm across, 100 cm up or
   down, from any side), the whole metres and the side from the camera's yaw (never `0 m`), the seat a mount lands her
   on, the spot a dismount parks at, the clearance from her capsule to the bike's and the open-then-solid rule, a map's
@@ -131,9 +144,10 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   call and the revived notice; the wait naming the member alive on our map when she is far; no member alive), each
   member's down notice with our revive of her, no down notice nor revived notice for a guest outside the pair on the
   host and on the pair, her own game waiting on no shared fight, then the guest's cutscene pause read from the host's
-  slot; `online/group/travel_test` the host answering `camps?` while any guest is linked and the guest reading the
-  host's map from his member line's slot (no offer while that slot has no ghost or the host is not linked);
-  `online/partner/ghosts_test` `get(k)`; `tools/mailbox_test`, `online/modes/race/run_test`,
+  slot, then the theater field: no walk for the group's cutscene, a faulted field walking as before;
+  `online/group/travel_test` the host answering `camps?` while any guest is linked and the guest reading the host's map
+  from his member line's slot (no offer while that slot has no ghost or the host is not linked);
+  `online/partner/ghosts_test` `get(k)`; `cutmenus/mailbox_test`, `online/modes/race/run_test`,
   `online/modes/nightop/run_test`, `online/modes/nightop/roxanne_test` and `fight/enemies/wiring_test` a gift, a race, a
   run, Roxanne's pick and the PvP test refused with 3 players, `online/modes/race/run_test` and
   `online/modes/nightop/run_test` also a race and a run under way ending with their reason when a third player gets in,
@@ -146,6 +160,42 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   <row>`;
 - `core/unreal_test` covers `game_text`: nothing asked while the string table is not loaded or its id is no name, nil
   for a missing key, an empty text or an error, another table's key read by its path;
+- `core/keep_test` covers `core/keep.lua` over a fake native part and a fake lookup: off without its setup; the whole
+  list in one `coop-keep.txt` a pass (70 paths asked in one tick, one write of 70 lines), written again every 4 passes
+  while the native count lags; a bad path logged once and never kept; the status read once a pass by `slow()`, never by
+  `ready()` or `get()`; no lookup before the native part settled, one a pass after it, none marked while the soft path
+  is not proven; a held object whose full name changed dropped and found again; a path missing on this PC logged once
+  and never looked up again; a path asked after it settled waits again; off for the Lua load on `keep=fault`, on an
+  `engine=off` line (another build, an engine fault, `coop_off`) with its reason alone in the log line and after 40
+  passes with no progress; 128 paths at most; `LoadAsset` and `StaticFindObject` never called; `main/keep_test` the
+  keep set up by `main.lua` with the link, `coop-keep.txt` written by the 250 ms pass and the pass that turns it off
+  after `coop off`;
+- `core/class_at_test` covers `object_at`: no walk before the proof, the soft object path once proven, the walk once the
+  proof failed; `core/actors_test` a path the keep serves never loaded by `Doro.resolve` (nil when it is missing), the
+  find and the load as before until the keep is ready; `story/scenes/scene_test` Lily's five assets wanted, `ready()`
+  following the keep and a Lua load's restore that loads no theater, then the theater field: no walk at a talk's start,
+  the talk followed through the class hash, our own talk refused as ours, a faulted field walking as before;
+  `world/maps/matrix13/quest/subtitles_test` a talk that waits for the keep with one line and no walk before it goes on
+  (no wait while `coop scene` is off);
+- `world/maps/matrix13/level/breakables_test` and `world/maps/matrix13/level/move_test` cover the keep's classes (and
+  the ledge's mesh) wanted when the module is made, no spawn before the keep settled, then one find each for the game
+  run with no lookup of a kept path and no `LoadAsset`, a second world included; `cutmenus/mailbox_test` the gift
+  toast skipped (false) with no lookup while the keep has not settled, then its class from the keep; a class missing
+  on this PC never loaded; `online/modes/nightop/board_test` the board's class wanted, no lookup or load before the
+  keep settled, then the keep's class with no `LoadAsset`; a class missing on this PC never loaded;
+  `online/group/region_tabs_test` the two hooks waiting for the keep, then installed from its classes with no lookup
+  and no `LoadAsset`;
+- `world/maps/matrix13/level/travel_test` covers SB's black over world 2800's setup with fake parts: up once at the
+  first tick in a new world 2800 younger than 20 s, nothing ticked in its 0.5 s fade-in, 0.1 s a tick under it, the
+  walks primed once, `loading lift` once both lists are done in that world, SB's own end after 10 s, no black for a
+  world met late or one that cannot be shown, EVE's world read at most every 0.25 s;
+  `world/maps/matrix13/level/breakables_test` and `world/maps/matrix13/level/move_test` `done(world)` true only once
+  that world's list is spawned, with `tick(budget)` spending the budget given; `world/maps/matrix13/level/fans_test`
+  the rotors walked once under the black, then a stale rotor found again by its owner's path with no walk, a prime
+  with no rotor giving the STOP line with no walk in play; `world/maps/matrix13/level/boss_test` the boss bar's text
+  blocks walked once under the black, then a gone block found again by its path, a prime that finds no block leaving
+  the look to walk as before; `world/maps/matrix13/quest/on_time_test` the arrival talk waiting while the black is up;
+  `world/maps/matrix13/level/drone_test` the hook tried once a stay, only once its class is found by name;
 - `ui/kit/model_test` covers the four Who can join values and the Friends join without asking row, shown under Public
   and Invitation only, then the Online tab row named in `docs/players/interface.md`'s Options paragraph between the
   bike's key and Reset all keys;
@@ -162,7 +212,8 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   `.utoc` whose header does not read as one;
 - `fight/enemies/wiring_test` also covers `coop fight pilot` (its `test target` and boss tests included), `coop fight
   spawn probe`, the `spawn_filter` setting with the `filter` word it adds, and the `same_place`, `aggro`, `same_spawns`,
-  `enemy_extra`, `bosses` and `boss_hp_scale` settings, whose rows `main/menu_test` covers with the `shared_quests`,
+  `enemy_extra`, `bosses`, `boss_hp_scale`, `hit_reactions` and `stagger_resist` settings, whose rows `main/menu_test`
+  covers with the `shared_quests`,
   `shared_world` and `shared_story` rows, and `coop pvp` (its words, the `pvp_spike` and `shared_enemies` refusals,
   status, and `pvp_spike=off` ending an earlier load's PvP test at a reload);
 - `fight/enemies/wiring_notices_test` covers the same place and same spawns notices in both languages;
@@ -184,14 +235,15 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   `link.bike`, the paid fetch with `coop gift`'s FName and pause rules, the follow's `camp_near`); the other players'
   parked bikes built, restored at the first tick, run after the ride's pass and cleared at `coop off`;
 - `world/daynight/wiring_test` covers the day and night cycle's wiring (`world/daynight/wiring.lua`) through `main.lua`
-  with a fake `world/daynight/daynight.lua`: what it is built with (the native asks and status, the `daynight` setting,
-  the cutscene, SB's screens, photo mode, Night Operation, the SBO lobby in Xion's training room only, the third-party
-  plugin's path, `coop-sky.txt`, the world's address, no streaming level asked with no EVE) and its 250 ms pass with
-  `coop off`. It also covers `coop daynight` with each word and its usage line for the rest. `main/menu_test` covers the
-  Day and night row: On by default, a change saved at once with no request. It covers the Online tab in the pause menu
-  row too: On by default, a change saved at once, the next 250 ms pass asking `pausetab off` or `pausetab on`. The Hide
-  popups online row: On by default, the load's first 250 ms pass asking `popups on`, a change saved at once with the
-  next pass asking `popups off` or `popups on` once;
+  with a fake `world/daynight/daynight.lua`: what it is built with (the native asks and status, the `daynight` setting
+  (no cutscene or screen read), photo mode, Night Operation, the SBO lobby in Xion's training room only, the third-party
+  plugin's path, `coop-sky.txt`, the world's address, no streaming level asked with no EVE, the star material wanted
+  by the keep, `stars_ready()` false until it settled, then found in the keep with no lookup or load) and its 250 ms
+  pass with `coop off`. It also covers `coop daynight` with each word and its usage line for the rest.
+  `main/menu_test` covers the Day and night row: On by default, a change saved at once with no request. It covers the
+  Online tab in the pause menu row too: On by default, a change saved at once, the next 250 ms pass asking
+  `pausetab off` or `pausetab on`. The Hide popups online row: On by default, the load's first 250 ms pass asking
+  `popups on`, a change saved at once with the next pass asking `popups off` or `popups on` once;
 - `ui/kit/pause_tab_test` covers the pause menu's Online tab over fakes: nothing before the game is ready, the class
   loaded with its keeper and the Construct hook once, one button after the game's 8 with the word and the last button's
   style, none on a second Construct, the button again after a rebuild while paused, a click over the button or RB
@@ -199,29 +251,33 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   the first tick after the unpause or the give-up line and notice after 2 s, a close refused for now logged once with
   nothing opened, a close that can never work stopping the tab with one STOP line and `pausetab off`, `pause_tab=off`
   making nothing and asking `pausetab off`, a refused ask asked again and logged once, a pause menu of another shape
-  stopping the tab with one STOP line and `pausetab off`, then `coop off` stopping it;
+  stopping the tab with one STOP line and `pausetab off`, then `coop off` stopping it; with the keep, the hook waiting
+  until it settled, then installed from its class with no lookup and no `LoadAsset`;
 - `world/daynight/rule_test` covers `world/daynight/rule.lua`: every row of the map table (keys in lower case, each open
-  row complete for its kind of sky, the fixed maps, an unknown map), the rules in their order (a cutscene before photo
-  mode, photo mode's hold whatever the hour and while SB's photo mode pauses the game, a test pin before Night
+  row complete for its kind of sky, the fixed maps, an unknown map), the rules in their order (SB's screens and
+  cutscenes ignored, Xion's story night before photo mode, photo mode's hold whatever the hour, a test pin before Night
   Operation's midnight), the `sky=` line read into numbers (none from an older DLL), the command's hour (`24`, `-1`,
   `abc`, an empty word, `13,5`, `1e9`, `0x10`, `inf` and `nan` refused with the accepted range), the sky dressing and
   the star fade for an elevation, a SkyCreator's time, the real minutes to the night and the third-party plugin's path;
 - `world/daynight/daynight_test` covers `world/daynight/daynight.lua` over a fake engine: one request per change, the
   map read once per EVE, the setting, each rule's case (Xion's story night read every 2 s), the command's words, a fixed
   map and the title, the status with an older DLL (no request loop), `coop off`, a refused ask and the third-party
-  plugin's line once. Then the sky dressing: each dome looked up once per world and hidden once, a missing one logged
-  once, the star layer made once with its material loaded once a world and faded on change, the SkyCreators' time on
-  change and back at an off, Xion's night dome shown through its actor and again after its story night, a Lua reload at
-  night that finds the star layer by its tag (no second one), an earlier load's dressing put back by a new load that
-  starts off. Last, SBO's own maps: the Sun turned, its intensity, its colour and the SkyLight's intensity scaled,
-  Matrix XIII's exposure bias lowered, each written on change only and put back at an off. Then the originals across a
-  Lua reload at full night (the Hotel's lights, Matrix XIII's bias, a SkyCreator's time, each kept in `coop-sky.txt`
-  with no compounding and back at an off), a new EVE in the same world, a new game run that reads the lights again and a
-  `coop-sky.txt` that cannot be written. Spire 4's streamed sky sublevels: a dome that waits for its sublevel with no
-  lookup, one looked up and hidden 2 s after its sublevel came (not before) with the SkyCreators listed again, one
-  dropped when it went, one looked up again after it went and came back between two reads, a SkyCreator sublevel with no
-  dome, nothing read off the live passes and a sublevel that came meanwhile looked up at the first live pass, a
-  streaming level whose read raises; the Terrace hall left alone;
+  plugin's line once. Then the sky dressing: each dome looked up once per world and hidden once, a dome SB shows again
+  hidden at the next 2 s look with one line, left to SB when shown at the next look too and tried again 30 s later, a
+  missing one logged once, the star layer made once with its material loaded once a world and faded on change, the
+  SkyCreators' time on change and back at an off, Xion's night dome shown through its actor, hidden again through it
+  when SB shows it by day, shown again after its story night, a Lua reload at night that finds the star layer by its tag
+  (no second one), an earlier load's dressing put back by a new load that starts off. Last, SBO's own maps: the Sun
+  turned, its intensity, its colour and the SkyLight's intensity scaled, Matrix XIII's exposure bias lowered, each
+  written on change only and put back at an off. Then the originals across a Lua reload at full night (the Hotel's
+  lights, Matrix XIII's bias, a SkyCreator's time, each kept in `coop-sky.txt` with no compounding and back at an off),
+  a new EVE in the same world, a new game run that reads the lights again and a `coop-sky.txt` that cannot be written.
+  Spire 4's streamed sky sublevels: a dome that waits for its sublevel with no lookup, one looked up and hidden 2 s
+  after its sublevel came (not before) with the SkyCreators listed again, one dropped when it went, one looked up again
+  after it went and came back between two reads, one SB showed again told once across its sublevel's return, a
+  SkyCreator sublevel with no dome, nothing read off the live passes and a sublevel that came meanwhile looked up at the
+  first live pass, a streaming level whose read raises; the Terrace hall left alone; with the keep, no star material
+  loaded at dusk until it is in;
 - `world/objects/wiring_test` covers `coop world` (its words, on and off whatever `shared_world` says, status), the
   start once a load with `shared_world=on`, the end at a reload with `shared_world=off`, and the shared world's two
   notices;
@@ -287,7 +343,9 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   at once, and a hidden world's root left collapsed), the menu's mouse cursor, the focus put back after a click, the
   focus watchdog and the focus line it logs as it fires, text shadows and wrap, fixed groups, SB parts and the keyboard
   layout from the game's device. It also checks that a root built while its look warms holds each texture it wanted once
-  warmed, so a GC before the next build frees none of them;
+  warmed, so a GC before the next build frees none of them. With the keep, every asset path and part class is wanted,
+  no warm-up lookup runs until the keep settled (the root is built in its flat look meanwhile) and no `LoadAsset` runs
+  after;
 - `online/lobby/ui/lobby_test` covers the lobby menu and settings on fake SB parts: layout, rows, focus looks, the leave
   question, the countdown, the kit drawing that stands in for a part the game cannot make (row labels, settings items,
   the leave question with Yes and No, the countdown's seconds), the lines logged as the screens open and close and the
@@ -347,6 +405,14 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   `online/lobby/halls_rows.h` and `online/lobby/sbo_maps.lua`, then the title's ask: none without the lobby pak, once
   with it on the co-op save files, read back; a refusal, a fault or rows that read back wrong keep the lobby in Xion
   with one log line, also after a Lua reload, and a shut gate's refusal is asked again;
+- `world/teamshop/shop_test` checks that every row of `world/teamshop/rows.lua` goes into ItemTable, ShopItemTable or
+  ShopTable with the ShopTable row last, then the team shop over a fake status text and tables: on your own save
+  `coop teamshop` refuses and the title asks nothing; on the co-op save files the title asks once with the three
+  tables in the native part's order, then reads the rows back; the shop stays shut before the read-back, after a
+  refusal, a fault or rows that read back wrong (one log line, also after a Lua reload) and a shut gate's refusal
+  decides nothing; no `teamshopui=` line, its fault, the pause and an open under way refuse; the open's answer is
+  logged (opened, refused, no answer in 5 s); `coop off` ends both waits; the command's argument and link checks;
+- `world/teamshop/off_test` runs `main/isolation.lua` with `world.teamshop` (see the module tests above);
 - `online/lobby/sbo_test` covers the lobby's spots, fence, row sets, notices and entry checks, and the entry and return
   from the status line, a double Join, a late arrival, coop off while warping and a Lua load in the middle of an entry,
   and a Join that enters again after SB's own reload cut an entry short (record open or warping); then the room shown,
@@ -402,8 +468,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 ### Link
 
 - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
-  `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target` and
-  the boss tests included; `coop fight pvp` and `pvp off`; `lion rows`, `gardener rows`, `tendril rows`, `bolt rows`,
+  `aggro-host`, `bosses <boss %>`, `reactions`, `resist`, `spawns`, `extra <n>` and `filter` words,
+  `fight stagger <0|1> <0|1>` and its `pilot` requests, `test target` and the boss tests included; `coop fight pvp` and
+  `pvp off`; `lion rows`, `gardener rows`, `tendril rows`, `bolt rows`,
   `mxiii rows`, `shop rows` and `signal rows` with their 25 table words and bad addresses, the longest of them 813
   bytes; `fly` and `slowmo` on or off; `anim play` with its id, path and `once`, `loop` or `ride`, and `anim stop`;
   `bike load <clip>`, `bike free`, `bike gate on` and `bike gate off`, a mesh, a package path or a mod's clip refused;
@@ -595,6 +662,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 - `online_modes_nightop_shop_ui_test`: the Night Operation shop screen's guard (`online/modes/nightop/shop_ui.h`: a
   client and its UI manager always, in game and playing for an open only), its answer word's round trip, the
   `nightshop=` line and the log lines;
+- `world_teamshop_shop_ui_test`: the team shop screen's guard (`world/teamshop/shop_ui.h`: a client, its UI manager,
+  in game and playing), its answer word's round trip, the `teamshopui=` line and the log lines;
 
 ### Table rows
 
@@ -703,6 +772,16 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
     her reset, nothing published without the filter or on the host's side, a key the host spawns again let through, the
     host's dead on her paired copy blocking its key but not her own lethal hit, the table empty at a new session, at the
     host's off and at the end, and the gate);
+  - phase 8's level read (an effect our EVE cast gives its row's HitLevel, found by the ID at `+0x88`, plus her
+    AdditiveHitLevel; another caster, a row ID of 0 or no tables give the guess with no latch; the life from `+0x74` in
+    every case), the copy's poise and ActorType read each pass, a mirrored flinch of 200 ms started through the context
+    call with 0.2 s and 0 while a crowd control goes through the call with no context, its echo never told back, a
+    flinch refused on a copy the side draws, the host's `stagger` values on both sides (both off on a guest's side
+    before the host's line), `Engine::window`'s refusals (`type`, `state`, `running`, then `full` before any game call)
+    and its start of 1001400 with the window in seconds at `+0x0c` and k at `+0x10`, the restore check on SB's effect
+    clock (a knockdown inside a window, a 10 s pause, a 60 s freeze counted unchecked, an effect listed past its life
+    logged once with windows off for the run), a copy gone or dying before its check skipped with no latch, her poise
+    line taken at her owner epoch only and the `fight=` line's `stagger=` field;
   - the PvP test's mode in the worker (a co-op save and a linked friend, never beside the shared fight either way, her
     pvp lines alone reaching the job with her SteamID, its own sent reliable, no restart at a host change, a pause and a
     new session when her link drops and comes back, `coop pvp off`);
@@ -722,7 +801,27 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
     pair forms, phase IDs from that boss's allowlist only, a summon's key, row, charId and owner),
   - the PvP test's pvp line (round trip, and the refusals: d of 0, a sign, a decimal, past 10,000,000, a skill of 0 or
     past INT32_MAX, a seq of 0, a missing or extra field, the old tag),
+  - phase 8's lines (the five-field cc line with the hit's level and the reaction's time, the three-field form refused;
+    the stagger and poise lines with their bounds; a recording keeps stagger, never poise) and their rules: the stagger
+    line after bosses while either setting is on and again at each change, both read as off on the guest's side until it
+    comes and after the host's next world; Rule A on both sides (a mirrored crowd control under the copy's poise refused
+    and counted, a copy with an unread poise refused, a level that could not be read sent as the guess and counted); the
+    flinch mirror (told from no reaction with its time, its chain and its echo not told, refused while the copy holds a
+    reaction, under its poise, with `hit_reactions` off or on a drawn copy (one the pilot does not draw takes it), a
+    knockdown still started on a copy that only flinches, a flinch line never replacing a crowd control still waiting);
+    Rule B (no window for one player, k 1 for a Monster and 2 for a boss, a refusal counted and logged once every 10 s,
+    the owner's poise line taken at its epoch only and stale otherwise, windows with no poise line on a copy the pilot
+    does not draw, nothing new with `stagger_resist` off or on the guest's side before the host's stagger line, a cc
+    line refused on our copy still counting the other player, her reactions forgotten at her off and on, the host's at
+    its world line),
   - and two fake worlds linked through a delayed, lossy line;
+- `game_poise_test`: phase 8's rules in `game/poise.h`: the level compare (HitLevel plus the additive level cut toward
+  zero, a NaN poise and an additive that is not finite refused), k by ActorType, the reaction's life in ms (10 s at
+  most), the window's length (none for one player, 1.5 s for each extra player, 6 s more at most), the context bytes
+  (`+0x0c` and `+0x10` written, every other byte of SB's init left as it was), the players who made each enemy react
+  within 10 s by slot, one window a copy until its check settles and `full()` before any game call, the restore
+  verdict on SB's effect clock (wait until 0.5 s after the end, done once unlisted, failed when listed 0.5 s past its
+  life, unchecked 60 s after the end or on a NaN) and the quiet log (one line for each enemy, what and why every 10 s);
 - `game_spawn_sync_test`: the core of same spawns (stage 4):
   - which rows take part,
   - each side's epoch (a zone change, a reset of the spawn manager, 3 or more keys with a new GUID, two actors of one
@@ -835,6 +934,11 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   fake action map (each state kept and put back, an absent name back as on, a name SB changed during the ride left as SB
   set it, a name the game never made skipped, a controller gone, a fault in the middle of turning it on, a fault), the
   words packed for the worker and the status line, the ride plays' clip lookups and the log lines;
+- `game_keep_test`: the keep (`game/keep.h`): the path rule (object and class paths under `/Game/` and `/Engine/`),
+  its list of paths each asked once, at most 128, the batches and the counts, the lines of `coop-keep.txt` (70 at
+  once, the same text again adding nothing, a bad line counted) and the status field;
+- `game_theater_test`: SB's theater read (`game/theater.h`) over fake memory: no theater, one loading its first take,
+  one playing with its sequence named, another listener or none, a finished one, another image base; the field's text;
 - `world_daynight_sky_test`: the day and night cycle (`world/daynight/sky.h`): the clock at :02, :12, :32 and :52 and
   under 24 just before the hour's wrap, the ramps, the sun and moon at noon, sunrise, sunset, midnight and mid-morning,
   the dusk colour, the status line. Over a fake WorldSettings whose env array holds a sunlit element with its own
@@ -842,9 +946,14 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   the covered one given only the direction; a restore; a copy SB makes into an element; another world at the same
   addresses, read as new; SB's forced settings (nothing written, a restore still puts the array back); the gated blend,
   too many elements, no world, an empty array; a pinned hour, a hold that keeps a pinned hour or the clock's; an element
-  SB moved in its array keeps its originals; a cutscene or talk scene of SB's (its values back while it plays, under its
-  forced settings too, our light again after it);
-- `tools_items_test`: `coop gift`'s inventory read against a fake image laid out like the pinned build: the FName and
+  SB moved in its array keeps its originals; the array watch (a changed count or pointer seen until the next pass, a
+  forced pass clearing it too); the overlay's count; a hold released, a pinned hour changed and a second change during
+  a glide moving each value over 2000 ms with no step above a frame's share; an off during a glide putting the
+  originals back; the direction a unit vector through the moon's swap; the light the status line prints during a
+  glide; a new world, a clock that steps back and an element that comes during a glide; a glide with no element; a
+  change under SB's forced settings gliding once they end, a forced pass stopping a running glide; a change drawn at
+  once in a world no pass drew in yet; a waiting array stopping a running glide;
+- `cutmenus_items_test`: `coop gift`'s inventory read against a fake image laid out like the pinned build: the FName and
   CityHash64 hashes checked against the game's, a count over two instances and along chains of collisions, an item
   EVE does not carry, no manager, bucket or owner, an instance the manager no longer holds, and hostile memory (a
   chain that loops, an index past the array, a hash size that is no power of two, an unreadable item) ending in
@@ -889,7 +998,7 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 - `online_lobby_loading_test`: the lift of the lobby arrival's black over a copy of SB's auto list: each entry of tag 5
   gets lifetime 0, SB's own entries and every other byte stay as they were, and a count out of range touches nothing;
 - `game_camp_text_test`: Matrix XIII's camp names and the 25 records' words, the keys (unique, the region's ending in a
-  letter), the language pick, when a pass is due and the `camptext=` and `recordtext=` lines;
+  letter), the pick of one of the 23 cultures, when a pass is due and the `camptext=` and `recordtext=` lines;
 - `game_camps_test`: the activated camps' read, each guard refusing with its own reason (a warp, a respawn or a logic
   task as busy), when the list is read (at once with none held, in a new world or after a drop, then every 2 s) and
   the `activated=` line (the list, the camp EVE respawns at, a refusal, names that would not split left out);
@@ -902,25 +1011,41 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 
 ### Shared world
 
-- `game_objects_rows_test`: `game/objects/rows.h`'s four lists strictly sorted, every SetEnvActive and no-progress row
-  with states of its own, the lookups at both ends of each list and on near misses, and rows of build 26123051 each rule
-  keeps or leaves out (a door and a lift with every state, the monorail without its camp-bound garage run, the crane
-  without its camera states, the hyperdrive without its story states, a supply box, the boss cores, a story-only door,
-  an env whose On a quest task waits for, a Matrix XIII lever, a counter whose progress leads to an item, a quest's env
-  control row, a monorail speed row whose chain plays a scene);
+- `game_objects_rows_test`: `game/objects/rows.h`'s lists strictly sorted (each zone's saved envs by zone, then
+  alias), every SetEnvActive and no-progress row with states of its own, the lookups at both ends of each list and on
+  near misses. Rows of build 26123051 each rule keeps or leaves out (a door and a lift with every state, the
+  monorail without its camp-bound garage run, the crane without its camera states but with its CallPuzzle, the
+  hyperdrive without its story states, a supply box, the boss cores, a story-only door, an env whose On a quest task
+  waits for, a Matrix XIII lever, a counter whose progress leads to an item, a quest's env control row, a monorail
+  speed row whose chain plays a scene). Then the 40 states that a map-progress achievement or a hint completion held
+  out before, the passcode doors and the other states that stay out, the trap floor's end as the one watched pair.
+  Each zone's saved envs: the largest zones' counts, no entry under None, the pipe puzzle's water gate, a tag kept as
+  the table spells it, the InitActivate None entry and the rows each rule leaves out (ResetZone, SaveType None,
+  SaveWithTransform, InitStateTag None or none of the row's states);
 - `game_objects_sync_test`: `game/objects/sync.h`'s lines through format and parse and back (the largest legal line, 50
   malformed lines and 20,000 fuzzed ones), the ring's capacity and wrap, the outbox that keeps the lines the link
   refuses, and two players' sides wired over the parser with a fake engine: the on and off lines and the answer to an
   on, a rejoin one side did not see, each gate on both sides, the lists on both sides (linked env lines part by part
   included), names without text, sequence numbers, lost and old lines, a load that reads no save for a while, the
   queue's order while loading and its overflow, the apply limit, the echo backstop, refusals logged once, a new partner
-  and the status line;
+  and the status line. Then names compared without case, the catch-up lines through format and parse (17 malformed
+  ones) and on the lists, the watcher of the trap floor's end (its silent first sight, only live reads counted, its
+  tags kept through a load and a stream, forgotten at a zone change, a close or a new partner, its line on the gates
+  and the shared `seq`) and when an env counts as touched. The catch-up by zone: the ask after its 2 s hold and again
+  after a load, her `on` or a close of our side, the walk and its resume after a load, an ask for a zone with no entry,
+  the receiver rule for host and guest (a state held out for us kept, nothing sent back), a `c` line older than a root
+  of ours kept (her answer or her send-back), a `c` line applied as a state then an Enable or Disable, the host's value
+  sent back, a close in the middle of an answer, the walk's filters, one answer per ask, the ObjectState compare and a
+  partner that never answers;
 - `game_objects_engine_test`: `game/objects/engine.h` over fake memory and fake game functions: the four roots read from
   their nodes (a named target, `self` through the owner env, an ObjectState of 0, a linked env inside and outside its
   owner's list or not live in our zone, values no line carries), and her lines applied: A1 and each of its guards, a
   Disable env changed as SB changes it, a tag that did not take, A2's records (found, made, a Disable one written), A1b
   live and offline, A3's call and its list check, A4's order (a None tag, an env already in the tag, a refusing guard),
-  and the refusals for a missing world, player or name.
+  and the refusals for a missing world, player or name. Then the catch-up reads: an env's value live, from its record
+  (a wrong vtable read as not live) or not at all (no world, a zone or an alias the game lacks), an ObjectState no line
+  carries read as 0, a tag with no text read as none, no record made; the client's zone, refused for None, a name
+  with no text or no client.
 
 ### Story together
 
@@ -1001,14 +1126,27 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   per kept seat but the camp ones (unique names that never end in `_<digits>`, unique IDs above build 26123051's
   highest), and its checks refuse bad spots, seats, names, IDs, fences and a batch of more than 255 rows. After a change
   to the data file, run `python3 tools/sbo_lobby_rows.py` and commit the two files it writes;
+- `teamshop_rows_test.py`: `tools/teamshop_rows.py`'s two outputs, `world/teamshop/teamshop_rows.h` and
+  `world/teamshop/rows.lua`, match `data/teamshop/`, the Lua file loads in Lua, the batch holds every ItemTable row,
+  then every ShopItemTable row, then the ShopTable row `SBOTeam_Shop` with no tag, which lists each `_Buy` row once.
+  Each `_Buy` row sells an item of the batch for gold with no gate field. Its checks refuse an alias without the
+  `SBOTeam_` prefix, an ID range at or under the highest ID the game or the lion, bolt and shop batches hold, two
+  owners with the same name, alias or overlapping ranges, a field off the allow-list, non-ASCII text, a NanoSuit the
+  shop screen would sell twice (`MaxAmount` above 1, an `InventoryAlias` or a `MaxAmountOverrideActorStat`), an
+  unread donor, a price other than one gold price from 1 to 999999, a batch of 256 rows and a range too small for its
+  items. After a change to a data file, run `python3 tools/teamshop_rows.py` and commit the two files it writes;
 - `world_rows_test.py`: `tools/world_rows.py` on small made-up tables: each rule that keeps a ZoneEnvSpawnTable row
   out, each rule that keeps a state out (the player event types reached directly, through AddEvents and FinishEvents,
   through the states an env control row sets and through a progress control's change tags; the crane's camera tags;
-  ChangeState achievements and EnvState quest tasks on the state or on a state its events set), the SetEnvActive list,
-  each ZoneEvent rule, the no-progress list, unknown names and loops in chains, Matrix XIII's rows from its data file,
-  the written block (sorted, between its markers, the rest of the header untouched, a name that cannot go into a
-  C++ literal refused). After new table exports, run `python3 -I tools/world_rows.py <folder>` and commit
-  `native/src/game/objects/rows.h`;
+  ChangeState achievements and EnvState quest tasks on the state or on a state its events set; a map-progress
+  achievement and a hint completion that hold nothing out, an album or loot achievement that does), the SetEnvActive
+  list, each ZoneEvent rule, the no-progress list, the watched pairs (a trigger's own TriggerTrueEvents or its env
+  row's, a ResetZone row, a pair set only through a state cascade, a pair set by an env that is no trigger), each
+  zone's saved envs (one entry per zone, None left out, an InitStateTag compared without case, an InitActivate Disable
+  or None; an InitStateTag None or none of the row's states, ResetZone, None and SaveWithTransform rows and loot left
+  out), unknown names and loops in chains, Matrix XIII's rows from its data file, the written block (sorted, between
+  its markers, the rest of the header untouched, a name that cannot go into a C++ literal refused). After new table
+  exports, run `python3 -I tools/world_rows.py <folder>` and commit `native/src/game/objects/rows.h`;
 - `story_rows_test.py`: `tools/story_rows.py` on small made-up tables: the quest events read from a quest table block,
   the zone a row's name gives, each scene rule (a theater path, a level sequence alone, Stop rows, rows with no theater
   row or no path, the priority as the theater manager keeps it, the condition kept only beside AddEvents, the quest

@@ -274,8 +274,9 @@ every object (25 to 80 ms on the game thread), so the walk runs only when the se
 changes (those actors come from the engine's class hash, a fraction of a millisecond), and the observer found is kept. A
 looping sequence with no theater costs one walk and one line, `cutscene: no theater for the playing sequences <names>`.
 The class hash reads EVE's world, or the SB player controller's when there is no EVE; with neither (the title screen, a
-load) nothing is read. Up to 0.6.0-beta.1 the walk ran every second while linked, a frozen frame each second. The log
-says `cutscene on: <sequence>` and `cutscene off`. The player controller's cinematic flag is not in this build's
+load) nothing is read. Up to 0.6.0-beta.1 the walk ran every second while linked, a frozen frame each second. With the
+native part's `theater=` field (SB's own theater test) there is no walk; without it, as before. The log says
+`cutscene on: <sequence>` and `cutscene off`. The player controller's cinematic flag is not in this build's
 reflection data, so Lua cannot read it.
 
 While a cutscene plays in the host's game and its own photo state is `0`, the host's Lua writes `c` as its photo state,

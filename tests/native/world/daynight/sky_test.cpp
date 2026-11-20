@@ -174,19 +174,152 @@ int main() {
   assert(near(get<float>(reinterpret_cast<uintptr_t>(moved.data()) + kStride, kSun), 1.5));
   sky.restore();
   assert(get<float>(reinterpret_cast<uintptr_t>(moved.data()) + kStride, kSun) == 10);
-  // 18. SB plays a cutscene or a talk scene at midnight: its originals back while it plays (its CutScene_ and Dialogue_
-  //     volumes blend from them), nothing held; the cycle writes again once it ends. Under SB's forced settings too.
+  // 18. The array watch: moved() is false right after a pass and true once the array's data pointer or count differs
+  //     from what that pass read (SB registered or dropped a volume between two passes); the next pass clears it, a
+  //     forced pass too. The overlay's count reaches overlay() and is never written.
   put<uint64_t>(ws, kArray, e0);
   put<int32_t>(ws, kNum, 3);
   put<float>(e0, kSun, 18), put<float>(e0, kSky, 4);
   assert(sky.pass(0xDDDD, ws, cyc, midnight) == State::cycle && near(get<float>(e0, kSun), 2.7));
-  assert(sky.pass(0xDDDD, ws, cyc, midnight, true) == State::scene && get<float>(e0, kSun) == 18 && !sky.holding());
-  assert(get<float>(e0, kSky) == 4 && sky.elements() == 0);
-  assert(sky.pass(0xDDDD, ws, cyc, midnight, true) == State::scene && get<float>(e0, kSun) == 18);
-  assert(sky.pass(0xDDDD, ws, cyc, midnight) == State::cycle && near(get<float>(e0, kSun), 2.7));
-  put<uint8_t>(ws, kForcedFlag, 1);
-  assert(sky.pass(0xDDDD, ws, cyc, midnight, true) == State::scene && get<float>(e0, kSun) == 18);
-  put<uint8_t>(ws, kForcedFlag, 0);
-  assert(std::string(word(State::scene)) == "scene" && std::string(word(State::refused)) == "refused");
+  assert(sky.settings() == ws && sky.world() == 0xDDDD && !sky.moved(e0, 3) && sky.moved(e0, 2) && sky.moved(e1, 3));
+  put<int32_t>(ws, kNum, 2);
+  assert(sky.pass(0xDDDD, ws, cyc, midnight) == State::cycle && sky.elements() == 2 && !sky.moved(e0, 2));
+  put<int32_t>(ws, kNum, 3), put<uint8_t>(ws, kForcedFlag, 1), put<uint64_t>(ws, kForced, 0x5000);
+  assert(sky.pass(0xDDDD, ws, cyc, midnight) == State::forced && !sky.moved(e0, 3));
+  put<uint8_t>(ws, kForcedFlag, 0), put<uint64_t>(ws, kForced, 0);
+  assert(sky.overlay() == 0);
+  put<int32_t>(ws, kOverlayNum, 2);
+  sky.pass(0xDDDD, ws, cyc, midnight);
+  assert(sky.overlay() == 2 && get<int32_t>(ws, kOverlayNum) == 2);
+  put<int32_t>(ws, kOverlayNum, 0);
+  assert(sky.pass(0, 0, Want{}, 0) == State::off && sky.settings() == 0 && sky.world() == 0);
+  assert(std::string(word(State::gated)) == "gated" && std::string(word(State::refused)) == "refused");
+  // 19. A hold released after 300 s glides from the held hour's light (18:00) to the clock's (20:00) over 2000 ms: a
+  //     pass each 16 ms frame, no step above one frame's share (1.5 times the mean), the target exact at its end. A
+  //     second change at 1000 ms (noon pinned) starts from the mix with no step.
+  put<uint64_t>(ws, kArray, e0), put<int32_t>(ws, kNum, 3), put<float>(e0, kSun, 18), put<float>(e2, kSun, 10);
+  const uint64_t six = kBase + 2820000, t0 = six + 300000;
+  const float share = 1.5f * 18 * 16 / 2000 + 1e-4f;
+  assert(sky.pass(0xF000, ws, cyc, six) == State::cycle && get<float>(e0, kSun) == 18 && !sky.gliding());
+  sky.pass(0xF000, ws, Want{Mode::held, 0, 8, 0}, six);
+  assert(sky.pass(0xF000, ws, Want{Mode::held, 0, 8, 0}, t0) == State::held && get<float>(e0, kSun) == 18);
+  sky.pass(0xF000, ws, cyc, t0);
+  assert(sky.gliding() && get<float>(e0, kSun) == 18);
+  float last = 18;
+  for (uint64_t ms = 16; ms < 1000; ms += 16) {
+    sky.pass(0xF000, ws, cyc, t0 + ms);
+    const float v = get<float>(e0, kSun);
+    assert(sky.gliding() && v < last && last - v <= share);
+    last = v;
+  }
+  const Want noon_pin{Mode::pinned, 720, 8, 0};
+  sky.pass(0xF000, ws, noon_pin, t0 + 1000);
+  assert(sky.gliding() && std::fabs(get<float>(e0, kSun) - last) < 1e-5f);
+  for (uint64_t ms = 1016; ms < 3000; ms += 16) {
+    sky.pass(0xF000, ws, noon_pin, t0 + ms);
+    const float v = get<float>(e0, kSun);
+    assert(sky.gliding() && v >= last && v - last <= share);
+    last = v;
+  }
+  sky.pass(0xF000, ws, noon_pin, t0 + 3000);
+  assert(!sky.gliding() && get<float>(e0, kSun) == 18);
+  // 20. An off 1000 ms into a glide: the originals back in that pass, nothing held; the mix never read as an original.
+  sky.pass(0xF000, ws, Want{Mode::pinned, 1200, 8, 0}, t0 + 4000);
+  sky.pass(0xF000, ws, Want{Mode::pinned, 1200, 8, 0}, t0 + 5000);
+  assert(sky.gliding() && near(get<float>(e0, kSun), 9));
+  assert(sky.pass(0xF000, ws, Want{}, t0 + 5000) == State::off && get<float>(e0, kSun) == 18);
+  assert(!sky.holding() && !sky.gliding());
+  // 21. The direction stays a unit vector, also from 20:20 (el -3.92, the sun's) to 20:21 (el -4.11, the moon's,
+  //     nearly opposite). Exactly opposite directions give the target's at the midpoint.
+  sky.pass(0xF000, ws, Want{Mode::pinned, 1220, 8, 0}, t0 + 6000); // After an off: one step.
+  assert(!sky.gliding() && !light_at(1220 / 60.0, 8, 0).moon && light_at(1221 / 60.0, 8, 0).moon);
+  for (uint64_t ms = 0; ms <= 2000; ms += 16) {
+    sky.pass(0xF000, ws, Want{Mode::pinned, 1221, 8, 0}, t0 + 7000 + ms);
+    for (const uintptr_t e : {e0, e1}) {
+      const double x = get<float>(e, kDir), y = get<float>(e, kDir + 4), z = get<float>(e, kDir + 8);
+      assert(std::isfinite(x) && std::isfinite(y) && std::isfinite(z));
+      assert(near(std::sqrt(x * x + y * y + z * z), 1, 1e-5));
+    }
+  }
+  const float east[3] = {1, 0, 0}, west[3] = {-1, 0, 0};
+  float out[3];
+  glide_dir(east, west, 0.5, out);
+  assert(out[0] == -1 && out[1] == 0 && out[2] == 0);
+  glide_dir(east, west, 0.25, out);
+  assert(near(out[0], 1));
+  // 22. The light the status line prints during a glide (18:00 to 20:00 pinned): mixed factors and el; le and ly from
+  //     the mixed direction; h the old draw's under the midpoint, the new one's from it. light() is the target.
+  a = light_at(18, 8, 0), b = light_at(20, 8, 0); // Sections 3 and 6 are done with them.
+  sky.pass(0xF000, ws, Want{Mode::pinned, 1080, 8, 0}, t0 + 10000);
+  sky.pass(0xF000, ws, Want{Mode::pinned, 1080, 8, 0}, t0 + 13000);
+  assert(!sky.gliding() && near(sky.drawn().k, a.k));
+  sky.pass(0xF000, ws, Want{Mode::pinned, 1200, 8, 0}, t0 + 14000);
+  sky.pass(0xF000, ws, Want{Mode::pinned, 1200, 8, 0}, t0 + 14999);
+  assert(near(sky.drawn().hour, 18) && sky.drawn().el > b.el && sky.drawn().el < a.el && near(sky.light().hour, 20));
+  sky.pass(0xF000, ws, Want{Mode::pinned, 1200, 8, 0}, t0 + 15000);
+  const Light d = sky.drawn();
+  assert(near(d.hour, 20) && near(d.el, (a.el + b.el) / 2) && near(d.k, (a.k + b.k) / 2));
+  assert(near(d.amb, (a.amb + b.amb) / 2));
+  assert(near(d.eve, (a.eve + b.eve) / 2) && near(d.ev, (a.ev + b.ev) / 2));
+  assert(near(d.tint[2], (a.tint[2] + b.tint[2]) / 2));
+  assert(near(d.le, std::asin(-d.dir[2]) * 180 / kPi));
+  assert(near(d.ly, std::fmod(std::atan2(d.dir[1], d.dir[0]) * 180 / kPi + 360, 360)));
+  // 23. Review Focus 3 and 4: another world ends a glide (its first pass writes its hour at once); so does a clock
+  //     that steps back. An element that comes during a glide gets the new hour at once.
+  sky.pass(0xF000, ws, noon_pin, t0 + 20000);
+  assert(sky.gliding());
+  put<float>(e0, kSun, 18);
+  assert(sky.pass(0xF100, ws, noon_pin, t0 + 20500) == State::pinned && !sky.gliding() && get<float>(e0, kSun) == 18);
+  sky.pass(0xF100, ws, Want{Mode::pinned, 1200, 8, 0}, t0 + 21000);
+  assert(sky.gliding());
+  sky.pass(0xF100, ws, Want{Mode::pinned, 1200, 8, 0}, t0 + 20000); // The PC clock went back 1 s.
+  assert(!sky.gliding() && get<float>(e0, kSun) == 0);
+  put<int32_t>(ws, kNum, 2);
+  sky.pass(0xF100, ws, Want{Mode::pinned, 0, 8, 0}, t0 + 22000);
+  put<int32_t>(ws, kNum, 3), put<float>(e2, kSun, 10);
+  sky.pass(0xF100, ws, Want{Mode::pinned, 0, 8, 0}, t0 + 23000);
+  assert(sky.gliding() && near(get<float>(e0, kSun), 1.35) && near(get<float>(e2, kSun), 1.5));
+  // 24. A change of draw with no element (a hall's empty array) glides the light the status line prints. A change seen
+  //     under SB's forced settings glides once they end, from what the elements hold. A forced pass ends a running
+  //     glide (gliding() false: no pass each frame while forced) and the first pass after it glides again.
+  put<int32_t>(ws, kNum, 0);
+  sky.pass(0xF200, ws, Want{Mode::pinned, 1080, 8, 0}, t0 + 30000);
+  sky.pass(0xF200, ws, Want{Mode::pinned, 1200, 8, 0}, t0 + 31000);
+  sky.pass(0xF200, ws, Want{Mode::pinned, 1200, 8, 0}, t0 + 32000);
+  assert(sky.gliding() && sky.elements() == 0 && near(sky.drawn().k, (a.k + b.k) / 2));
+  put<int32_t>(ws, kNum, 3), put<float>(e0, kSun, 18);
+  sky.pass(0xF200, ws, Want{Mode::pinned, 1200, 8, 0}, t0 + 34000); // Read as new: 20:00 at once.
+  assert(!sky.gliding() && get<float>(e0, kSun) == 0);
+  put<uint8_t>(ws, kForcedFlag, 1), put<uint64_t>(ws, kForced, 0x5000);
+  assert(sky.pass(0xF200, ws, noon_pin, t0 + 36000) == State::forced && !sky.gliding() && get<float>(e0, kSun) == 0);
+  put<uint8_t>(ws, kForcedFlag, 0), put<uint64_t>(ws, kForced, 0);
+  sky.pass(0xF200, ws, noon_pin, t0 + 37000);
+  assert(sky.gliding() && get<float>(e0, kSun) == 0);
+  sky.pass(0xF200, ws, noon_pin, t0 + 38000);
+  assert(near(get<float>(e0, kSun), 9));
+  sky.pass(0xF200, ws, Want{Mode::pinned, 1200, 8, 0}, t0 + 40000);
+  assert(sky.gliding());
+  put<uint8_t>(ws, kForcedFlag, 1), put<uint64_t>(ws, kForced, 0x5000);
+  assert(sky.pass(0xF200, ws, Want{Mode::pinned, 1200, 8, 0}, t0 + 40500) == State::forced && !sky.gliding());
+  put<uint8_t>(ws, kForcedFlag, 0), put<uint64_t>(ws, kForced, 0);
+  sky.pass(0xF200, ws, Want{Mode::pinned, 1200, 8, 0}, t0 + 50000);
+  assert(sky.gliding() && near(get<float>(e0, kSun), 9)); // From what the element held when forced came.
+  // 25. A world whose passes all stopped before the elements (SB's forced settings on arrival) draws a change at once:
+  //     the printed light never glides from the last world's (k 0.5 here). A waiting array stops a running glide like
+  //     a forced pass; the first pass after it glides on from what the elements hold.
+  put<uint8_t>(ws, kForcedFlag, 1), put<uint64_t>(ws, kForced, 0x5000), put<float>(e0, kSun, 18);
+  assert(sky.pass(0xF300, ws, Want{Mode::pinned, 1080, 8, 0}, t0 + 60000) == State::forced);
+  sky.pass(0xF300, ws, Want{Mode::pinned, 1200, 8, 0}, t0 + 60100);
+  put<uint8_t>(ws, kForcedFlag, 0), put<uint64_t>(ws, kForced, 0);
+  assert(sky.pass(0xF300, ws, Want{Mode::pinned, 1200, 8, 0}, t0 + 60200) == State::pinned && !sky.gliding());
+  assert(near(sky.drawn().k, b.k) && near(sky.drawn().hour, 20) && get<float>(e0, kSun) == 0);
+  sky.pass(0xF300, ws, noon_pin, t0 + 61000);
+  sky.pass(0xF300, ws, noon_pin, t0 + 62000);
+  assert(sky.gliding() && near(get<float>(e0, kSun), 9));
+  put<uint64_t>(ws, kArray, 0);
+  assert(sky.pass(0xF300, ws, noon_pin, t0 + 62500) == State::waiting && !sky.gliding());
+  put<uint64_t>(ws, kArray, e0);
+  sky.pass(0xF300, ws, noon_pin, t0 + 70000);
+  assert(sky.gliding() && near(get<float>(e0, kSun), 9));
   return 0;
 }

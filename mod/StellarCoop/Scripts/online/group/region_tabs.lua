@@ -23,6 +23,7 @@
 -- keeps its class and the Tab class. Every engine call runs in pcall on the game thread; the first error stops new tabs
 -- until the next Lua load, with one log line. tests/lua/online/group/region_tabs_test.lua covers it over fakes.
 local U=require('core.unreal')
+local Keep=require('core.keep')
 local Tabs={FIRST=8,LAST=9}
 local FOLDER='/Game/Art/UI/Widget/GameMenu/Teleport/'
 local SET=FOLDER..'WB_AreaTeleport_Set.WB_AreaTeleport_Set'
@@ -35,8 +36,9 @@ local COLLAPSED,CLIP_TO_BOUNDS,BAR_VISIBLE,CENTER=1,1,0,2 -- ESlateVisibility, E
 local PADDING={Left=-20,Top=20,Right=-20,Bottom=20} -- As the Set's tab slots.
 local THICKNESS={X=24,Y=24}
 
--- A class by its asset's path, loaded when it is not in memory.
+-- A class by its asset's path: the keep's (core/keep.lua) when it serves it, else loaded when it is not in memory.
 local function class_of(asset)
+    if Keep.serves(asset..'_C') then return assert(Keep.get(asset..'_C'),asset..' is not in memory') end
     local class=U.valid(StaticFindObject(asset..'_C'))
     if class then return class end
     pcall(LoadAsset,asset)
@@ -47,6 +49,7 @@ end
 function Tabs.new(o)
     local log=o.log
     local hooked,failed,stopped=false,false,false
+    Keep.want({SET..'_C',TAB..'_C'})
     local function fail(e)
         failed=true
         log('STOP: '..tostring(e)..'; the teleport screen keeps its 7 tabs until the mod reloads')
@@ -118,9 +121,10 @@ function Tabs.new(o)
         log('hooks on: WB_AreaTeleport_Set_C:Construct, WB_AreaTeleport_Tab_C:EventWidgetFocusActive')
     end
     local self={}
-    -- Once a Lua load, as soon as the game is far enough. Nothing after that.
+    -- Once a Lua load, as soon as the game is far enough and the keep settled. Nothing after that.
     function self.tick()
         if hooked or stopped or not o.ready() then return end
+        if (Keep.wanted(SET..'_C') or Keep.wanted(TAB..'_C')) and not Keep.ready() then return end
         hooked=true
         local ok,e=pcall(install)
         if not ok then fail(e) end

@@ -3,6 +3,7 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The end talk, one entry per subtitle window of the sequence it borrows (world/maps/matrix13/quest/subtitles.lua
 -- plays it): the speaker's StringTable_Seq key ('' for none), then the English and French line.
+-- Each line gets its id talk.finale.NN (world/maps/matrix13/words.lua), the key of its line in the other cultures.
 -- A line longer than its window can be read at about 15 characters a second gets a reading hold
 -- (world/maps/matrix13/quest/subtitles.lua).
 -- Lily heard EVE up to the stair down into zone 4, where the comm cut for good: she knows Noa's and Yohan's calls,
@@ -10,7 +11,7 @@
 local NBSP='\u{A0}' -- Inside the French quotes and before French ? and !.
 local LILY,EVE='Seq_Actor_Lily','Seq_Actor_EVE'
 local function q(s) return '«'..NBSP..s..NBSP..'»' end
-return {
+return require('world.maps.matrix13.words').ids({
     {LILY,"EVE, there you are!","EVE, te voilà"..NBSP.."!"},
     {LILY,"I lost you on the stairs, nothing was getting through.",
         "Je t'ai perdue dans l'escalier, plus rien ne passait."},
@@ -36,4 +37,4 @@ return {
     {'','"Yohan came back for us. Don\'t come back down... I\'m coming up."',
         q("Yohan est revenu pour nous. Ne redescendez pas... je remonte.")},
     {EVE,"Keep listening, Lily.","Reste à l'écoute, Lily."},
-}
+},'talk.finale')

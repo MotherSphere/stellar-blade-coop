@@ -240,6 +240,7 @@ private:
     case Command::devinfo:
     case Command::items:
     case Command::nightshop:
+    case Command::teamshop:
     case Command::roxanne:
     case Command::signal:
     case Command::sbo:

@@ -20,6 +20,7 @@ return {
         max_players='Players',auto_coop_save='Co-op saves',enemy_hp_scale="Enemy HP (host's)",
         enemy_balance_scale="Enemy balance (host's)",kill_credit='My kill rewards',
         same_place='Same place (experimental)',aggro="Enemies attack (host's)",
+        hit_reactions='Shared flinches (experimental)',stagger_resist='Stagger resistance (experimental)',
         same_spawns='Same spawns (experimental)',enemy_extra="Extra enemies (host's)",
         bosses='Shared bosses (experimental)',boss_hp_scale="Boss HP (host's)",
         shared_quests='Shared quests (experimental)',
@@ -136,8 +137,9 @@ return {
         ['story.scenes']='Cut scenes',['world.maps.matrix13']='Matrix XIII',['online.session']='Online sessions',
         ['online.photo']='Synced photo mode',['fight.enemies']='Shared enemies',['story.quests']='Shared quests',
         ['world.objects']='Shared world',['story.together']='Story together',['online.lobby']='The SBO lobby',
-        ['vehicles.bike']='The bike',['world.daynight']='Day and night',['tools']='Cut menus',
-        ['online.saves']='Co-op saves'},
+        ['vehicles.bike']='The bike',['world.daynight']='Day and night',['cutmenus']='Cut menus',
+        ['online.saves']='Co-op saves',
+        ['world.teamshop']='Team shop'},
     -- The shared enemies' notices (main.lua): on, off, stopped, and what keeps coop fight on from sharing (%s: her
     -- name). The title question's buttons are saves.convert and saves.play.
     fight={on='Shared enemies on: %d enemies linked.',one='Shared enemies on: 1 enemy linked.',

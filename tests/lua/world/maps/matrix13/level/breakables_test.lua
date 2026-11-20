@@ -413,4 +413,51 @@ do
     assert(zero[1]=='no world time (it read 0.0): a reload at the same world address during the spread goes unseen'
         and zero[#zero]=='1/1 boxes and barrels spawned in world 2800, 0 proxies hidden' and #zero==5,tostring(zero[1]))
 end
+-- The keep: the three classes wanted when Breakables is made; while the keep has not settled the tick spawns nothing;
+-- once settled each class is found once for the game run (3 finds for 6 entries, none in a second world), no
+-- LoadAsset.
+do
+    local Keep=require('core.keep')
+    local keep_fake=dofile('tests/lua/core/keep_fake.lua')
+    local finds_k={}
+    local kf=keep_fake(function(p)
+        finds_k[#finds_k+1]=p
+        -- An earlier section's lookup may have made it: the keep reads its full name.
+        classes[p]=classes[p] or object({path=p})
+        classes[p].GetFullName=function() return 'BlueprintGeneratedClass '..p end
+        return classes[p],true
+    end)
+    local kept={}
+    for i=1,6 do kept[i]=entry('KK'..i,({'box1','box2','barrel'})[i%3+1],{proxy_in_cook=false}) end
+    local bk=B.new({log=function() end,list=kept})
+    for cls,p in pairs(B.ASSETS) do assert(Keep.wanted(p..'_C'),cls) end
+    local saved=LoadAsset
+    local loads=0
+    LoadAsset=function() loads=loads+1 end
+    Keep.slow()
+    local count=#spawned
+    new_world(); clock=clock+10; bk.tick(); bk.tick(); bk.tick()
+    assert(#spawned==count and not Keep.ready(),'Nothing spawned before the keep settles')
+    kf.settle()
+    for _=1,4 do clock=clock+1; bk.tick() end
+    assert(#spawned==count+6 and #finds_k==3 and loads==0,#finds_k)
+    new_world(); for _=1,4 do clock=clock+10; bk.tick() end
+    assert(#spawned==count+12 and #finds_k==3 and loads==0,'The classes held across a second world')
+    LoadAsset=saved
+    Keep.reset()
+end
+
+-- done(world) (world/maps/matrix13/level/travel.lua's black waits for it): false while that world's list spawns, true
+-- once it is spawned there, false for another world; tick(budget) spends the budget it is given, one entry at least.
+do
+    local bd=B.new({log=function() end,list={entry('KD1','box1',{proxy_in_cook=false}),
+        entry('KD2','box1',{proxy_in_cook=false})}})
+    new_world(); clock=clock+10
+    local w=world:GetAddress()
+    bd.tick(0) -- The proxies' own tick.
+    bd.tick(0)
+    assert(not bd.done(w),'One of two spawned')
+    bd.tick(0)
+    assert(bd.done(w) and not bd.done(w+1),'Both spawned in this world')
+end
 print('world/maps/matrix13/level/breakables_test: ok')

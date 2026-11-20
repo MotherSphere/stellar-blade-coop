@@ -10,7 +10,7 @@
 -- every second and her vitals (mate=) and our life state (life=) up to 10 times a second, so they stay in coop status,
 -- out of the log. The chat has two files of its own that live a moment only (coop-say.txt and coop-chat.txt, see
 -- say()), and the race one more (coop-race.txt, see race()); her race lines come in coop-chat.txt, and her gift lines
--- (coop gift, tools/mailbox.lua, whose own lines go as gift requests). The same read gives
+-- (coop gift, cutmenus/mailbox.lua, whose own lines go as gift requests). The same read gives
 -- the session's mode, the friend and the notices for the screen, each from the start of its own line: a Steam name is
 -- never at the start of one.
 -- While we host, the read also gives our join code and the joiners who wait for our answer, in the order the native
@@ -19,23 +19,24 @@
 -- in an online session, its host and pair (host()) and each member's vitals (vitals()). Lua tells the native part the
 -- host's place and rules for the list's rows with where() and rules(), each sent only when it changed.
 -- coop-settings.txt's shared_enemies, fight_chars, guest_kills, enemy_hp_scale, enemy_balance_scale, kill_credit,
--- same_place, aggro, same_spawns, enemy_extra, spawn_filter, bosses and boss_hp_scale (Phase 11, experimental) are
--- fight/enemies/commands.lua's coop fight (main.lua's loop asks it on or off); its photo_sync, photo_freeze_max,
--- photo_ghost and photo_name_tag the synced photo mode's (main.lua, and the native part through coop-state.txt),
--- photo_pause main.lua's own; its auto_coop_save the co-op saves' (online/saves/saves.lua), which also read saves()
--- here; its shared_quests and quest_deny story/quests/commands.lua's coop quests (Phase 12, experimental); main.lua's
--- loop, which asks it on or off, reads quests() and quest_notes() here; its shared_world world/objects/commands.lua's
--- coop world (main.lua's loop asks it on or off and reads world() here); its shared_story story/together/commands.lua's
--- coop scenes (main.lua's loop asks it on or off and reads story() here); its revive and cutscene_wait
--- online/group/group.lua's (the friend's revive, the wait during the host's cutscene); its follow_host and follow_key
--- online/group/travel.lua's and main.lua's (the guest's travel to the camp nearest the host), which reads camps() here;
--- its collide online/partner/puppet.lua's (the solid partner); its drift_keys the Doro races' driving
--- (online/modes/race/drive.lua); its mod_names the native part's (through coop-state.txt: names=0 keeps the names of
--- our .pak mods from the friend); its shortcut_load online/saves/commands.lua's (coop shortcut load, a test tool with
--- no menu row); its pvp_spike fight/enemies/commands.lua's (coop pvp, the PvP test, a test tool with no menu row;
--- main.lua's reload ends it when off); its sbo_lobby online/lobby/sbo.lua's (the SBO lobby in Xion, on by default, no
--- menu row), which also reads sbo() here; its bike and bike_key vehicles/bike/ride.lua's and main.lua's (the bike). The
--- co-op menu (ui/kit/menu.lua) changes the file, one line at a time (D-UI4).
+-- same_place, aggro, same_spawns, enemy_extra, spawn_filter, bosses, boss_hp_scale, hit_reactions and stagger_resist
+-- (Phase 11 and phase 8, experimental) are fight/enemies/commands.lua's coop fight (main.lua's loop asks it on or off);
+-- its photo_sync, photo_freeze_max, photo_ghost and photo_name_tag the synced photo mode's (main.lua, and the native
+-- part through coop-state.txt), photo_pause main.lua's own; its auto_coop_save the co-op saves'
+-- (online/saves/saves.lua), which also read saves() here; its shared_quests and quest_deny story/quests/commands.lua's
+-- coop quests (Phase 12, experimental); main.lua's loop, which asks it on or off, reads quests() and quest_notes()
+-- here; its shared_world world/objects/commands.lua's coop world (main.lua's loop asks it on or off and reads world()
+-- here); its shared_story story/together/commands.lua's coop scenes (main.lua's loop asks it on or off and reads
+-- story() here); its revive and cutscene_wait online/group/group.lua's (the friend's revive, the wait during the host's
+-- cutscene); its follow_host and follow_key online/group/travel.lua's and main.lua's (the guest's travel to the camp
+-- nearest the host), which reads camps() here; its collide online/partner/puppet.lua's (the solid partner); its
+-- drift_keys the Doro races' driving (online/modes/race/drive.lua); its mod_names the native part's (through
+-- coop-state.txt: names=0 keeps the names of our .pak mods from the friend); its shortcut_load
+-- online/saves/commands.lua's (coop shortcut load, a test tool with no menu row); its pvp_spike
+-- fight/enemies/commands.lua's (coop pvp, the PvP test, a test tool with no menu row; main.lua's reload ends it when
+-- off); its sbo_lobby online/lobby/sbo.lua's (the SBO lobby in Xion, on by default, no menu row), which also reads
+-- sbo() here; its bike and bike_key vehicles/bike/ride.lua's and main.lua's (the bike). The co-op menu
+-- (ui/kit/menu.lua) changes the file, one line at a time (D-UI4).
 local K=require('core.keybind')
 local SF=require('core.settings_file')
 local T=require('ui.text')
@@ -132,6 +133,12 @@ spawn_filter=on
 # to 4.0.
 bosses=on
 boss_hp_scale=2.0
+# Shared flinches and stagger resistance, experimental, the host's for every game: on or off, on by default, not
+# tested in game yet. hit_reactions: a light hit that makes a shared enemy flinch on one screen makes it flinch on the
+# other screens too. stagger_resist: after a shared enemy reacts to hits from two or more players, light hits stop
+# making it flinch for a short time. That time grows by 1.5 s for each extra player, 6 s at most.
+hit_reactions=on
+stagger_resist=on
 # Shared quests, experimental: on or off, on by default. On, while you and your friend both play a co-op save, a
 # quest step the host makes while you stand in the same zone, with that quest at the same point in your game, is made
 # in your game too (Epic, Sub and Request quests). A step made without you is never given to you. As the guest, a
@@ -234,7 +241,8 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',rac
     drift_keys='Gamepad_RightTrigger B',name_tag='on',
     send_rate='60',cloth='on',dyes='on',effects='on',shared_enemies='on',fight_chars='auto',guest_kills='at_once',
     enemy_hp_scale='1.35',enemy_balance_scale='1.15',kill_credit='together',same_place='on',aggro='game',
-    same_spawns='on',enemy_extra='0',spawn_filter='on',bosses='on',boss_hp_scale='2.0',
+    same_spawns='on',enemy_extra='0',spawn_filter='on',bosses='on',boss_hp_scale='2.0',hit_reactions='on',
+    stagger_resist='on',
     photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='on',photo_pause='full',ui_scale='100',
     ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
     status_overlay='compact',who_can_join='public',friends_ask='off',max_players='4',auto_coop_save='ask',
@@ -243,6 +251,7 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',rac
     pvp_spike='on',sbo_lobby='on',shared_world='on',shared_story='on',daynight='on',pause_tab='on',hide_popups='on'}
 -- On or off.
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,spawn_filter=true,bosses=true,
+    hit_reactions=true,stagger_resist=true,
     photo_ghost=true,photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
     card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true,mod_names=true,shortcut_load=true,
     pvp_spike=true,sbo_lobby=true,shared_world=true,shared_story=true,friends_ask=true,bike=true,daynight=true,

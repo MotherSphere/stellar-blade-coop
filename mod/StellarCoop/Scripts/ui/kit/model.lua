@@ -88,6 +88,9 @@ M.OPTIONS={
     -- The host's for both games: at once while shared enemies wait or run (main.lua asks coop fight pilot off or on),
     -- else from their next start.
     toggle('same_place','on'),
+    -- The host's for every game: at once while shared enemies wait or run (coop fight stagger), else from their next
+    -- start.
+    toggle('hit_reactions','on'),toggle('stagger_resist','on'),
     -- The host's values for both games, and our own kill credit: each from the next start of shared enemies. aggro:
     -- who a same-place enemy fights (game: whoever hit it last, or else the nearer player; host: the host only).
     {key='aggro',values={'game','host'},default='game'},

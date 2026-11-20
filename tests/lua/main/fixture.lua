@@ -39,13 +39,15 @@ end
 clock=0
 os.clock=function() return clock end
 settings_text=''
--- Same place, same spawns, shared bosses and the switches turned on for the 2026-11-12 test build (the looks, the spawn
--- filter, the photo name tag, shared quests, the shared world, revive, collide, the two test tools, the status strip's
--- compact) are on by default (link_test, ui_model_test). This file reads them as off unless a case's own text names
--- them, so each case names the one it tests: the missing ones go after its lines.
+-- Same place, same spawns, shared bosses, shared flinches, stagger resistance and the switches turned on for the
+-- 2026-11-12 test build (the looks, the spawn filter, the photo name tag, shared quests, the shared world, revive,
+-- collide, the two test tools, the status strip's compact) are on by default (link_test, ui_model_test). This file
+-- reads them as off unless a case's own text names them, so each case names the one it tests: the missing ones go
+-- after its lines.
 function pinned(text)
     for _,key in ipairs({'same_place','same_spawns','bosses','dyes','effects','spawn_filter','photo_name_tag',
-            'shared_quests','shared_world','revive','collide','shortcut_load','pvp_spike','status_overlay'}) do
+            'shared_quests','shared_world','revive','collide','shortcut_load','pvp_spike','status_overlay',
+            'hit_reactions','stagger_resist'}) do
         if not ('\n'..text):find('\n%s*'..key..'%s*=') then
             text=text..((text=='' or text:sub(-1)=='\n') and '' or '\n')..key..'=off\n'
         end
@@ -472,10 +474,10 @@ package.loaded['eve.chainspin']={new=function(o)
     cs.o=o
     return {command=function(...) cs.cmds[#cs.cmds+1]=table.pack(...); return true,'cs '..tostring((...)) end}
 end}
--- coop devmenu (tools/devmenu.lua; devmenu_test tests it): what new got (log, status), its commands and stops, and
+-- coop devmenu (cutmenus/devmenu.lua; devmenu_test tests it): what new got (log, status), its commands and stops, and
 -- how many native asks there were at its last stop; heal is its one row here.
 dm={}
-package.loaded['tools.devmenu']={new=function(o)
+package.loaded['cutmenus.devmenu']={new=function(o)
     dm.o=o
     return {row=function(name) return name=='heal' and {} or nil end,
         command=function(...) dm.cmds[#dm.cmds+1]=table.pack(...); return true,'dm '..tostring((...)) end,
@@ -511,10 +513,10 @@ package.loaded['story.scenes.lines']={new=function(o)
         tick=function() ln.ticks=ln.ticks+1; if ln.says then return table.unpack(ln.says) end end,
         stop=function() ln.stops=ln.stops+1 end}
 end}
--- coop gift (tools/mailbox.lua; mailbox_test tests it): what new got, its commands, her gift lines, its ticks and
+-- coop gift (cutmenus/mailbox.lua; mailbox_test tests it): what new got, its commands, her gift lines, its ticks and
 -- stops.
 gf={}
-package.loaded['tools.mailbox']={new=function(o)
+package.loaded['cutmenus.mailbox']={new=function(o)
     gf.o=o
     return {command=function(...) gf.cmds[#gf.cmds+1]=table.pack(...); return true,'gf '..tostring((...)) end,
         receive=function(line) gf.received[#gf.received+1]=line end,tick=function() gf.ticks=gf.ticks+1 end,

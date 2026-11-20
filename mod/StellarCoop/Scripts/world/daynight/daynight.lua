@@ -6,17 +6,18 @@
 -- world/daynight/rule.lua and sends it only when it changes. One log line per change of the request or its reason. coop
 -- off asks sky off once, then nothing. The hour and the sun come from the native part's sky= status line
 -- (world/daynight/sky.h); coop daynight status reads it. o: log, ask(line) -> ok and why, status() -> the native status
--- text, settings (daynight), her() -> EVE or nil, address(eve), map_of(eve), cutscene(), screen() (SB's pause menu or
--- one of its screens), photo() -> '0', '1' or 's', frozen() (our pause tag held for another player's photo mode or the
--- host's cutscene), night() (Night Operation runs), lobby() (EVE stands in the SBO lobby in Xion's training room),
--- find(path) -> object or nil, actors_of(class path) -> list, load(path), exists(path), cps (the third-party plugin's
--- file), level(package) -> the streaming level of a sublevel in EVE's world or nil.
+-- text, settings (daynight), her() -> EVE or nil, address(eve), map_of(eve), photo() -> '0', '1' or 's', frozen() (our
+-- pause tag held for another player's photo mode or the host's cutscene), night() (Night Operation runs), lobby()
+-- (EVE stands in the SBO lobby in Xion's training room), find(path) -> object or nil, actors_of(class path) -> list,
+-- load(path), exists(path), cps (the third-party plugin's file), level(package) -> the streaming level of a sublevel in
+-- EVE's world or nil, stars_ready() -> the star material can be had without a load on the game thread (the keep's).
 -- The sky dressing, from the status line's sun while the native part's light is ours: the painted domes of a real-sky
 -- map hidden; SBO's star layer (a StaticMeshComponent tagged SBO_Stars on the first dome's actor, the dome's
 -- mesh with SB's star material, found again by its tag after a Lua reload) shown at night; each SkyCreator's own time
 -- turned with our sun; Xion's night dome in place of its day dome at night. Each part is looked up once per world (a
 -- new EVE address), a dome of a streamed sublevel each time that sublevel comes (its IsLevelVisible read every 2 s
--- while live), each write made only when its value changes. SB's look comes back at an off, coop off included,
+-- while live), each write made only when its value changes. A dome SB shows again while live (a talk or cutscene may)
+-- is read every 2 s and hidden again (recheck). SB's look comes back at an off, coop off included,
 -- except Xion's domes during its story night, which SB owns. SBO's own maps (the hall lobbies, Matrix XIII) have no SB
 -- env settings: there the Sun actor turns with the status line's light, its intensity and colour follow it, the
 -- SkyLight follows the sky light factor and Matrix XIII's zone 0 exposure volume goes 2 EV down at full night, each
@@ -29,7 +30,10 @@ local Rule=require('world.daynight.rule')
 local U=require('core.unreal')
 local Daynight={}
 local FLAG_EVERY=8 -- Xion's story-night flag read every 8 passes of 250 ms: every 2 s.
-local LOOK_EVERY=8 -- The sublevels of the domes and SkyCreators looked at every 8 live passes: every 2 s.
+local LOOK_EVERY=8 -- Every 8 live passes (2 s): the sublevels of the domes and SkyCreators, the domes it hid, read.
+-- Looks a dome SB keeps shown is left to it before one more try (30 s): a sequence that keys its visibility sets it
+-- again each frame it evaluates.
+local LEAVE_LOOKS=15
 local TAG='SBO_Stars'
 local MESH_COMPONENT='/Script/Engine.StaticMeshComponent'
 local MATH='/Script/Engine.Default__KismetMathLibrary'
@@ -329,8 +333,8 @@ function Daynight.new(o)
     -- SB's star material, loaded once a world when the layer first shows, with the scalar that fades it (or none).
     local function star_material()
         local began=os.clock()
-        -- shortcut: a synchronous LoadAsset once per world entry on star-layer maps; if the logged time passes 16 ms,
-        -- move it to SB's async load (the bike preload's RequestAsyncLoad call, bike_game.inc).
+        -- shortcut: without the keep (o.load then loads), a synchronous LoadAsset once per world entry on star-layer
+        -- maps; the keep (core/keep.lua) brings it in through SB's async load.
         local loaded,e=pcall(o.load,Rule.STARS)
         local m=U.valid(o.find(Rule.STARS))
         if not m then
@@ -376,7 +380,7 @@ function Daynight.new(o)
     -- without one, shown from the dark sky on (Rule.dress).
     local function stars(row,el)
         local fade=Rule.star_fade(el)
-        if fade>0 and w.material==nil then w.material=star_material() end
+        if fade>0 and w.material==nil and o.stars_ready() then w.material=star_material() end
         local on
         if w.scalar then on=fade>0 else on=Rule.dress(row,el).stars end
         if on and not w.layer and w.material then
@@ -395,6 +399,35 @@ function Daynight.new(o)
         end
         show(w.layer,on)
     end
+    -- The domes we hid, read every 2 s while live: one SB showed again (a sequence may) is written hidden in this pass
+    -- with one line. One SB shows again at the next look too is left to it until LEAVE_LOOKS looks found it shown, then
+    -- tried once more; a look that finds it hidden starts over. A read that raises leaves the part as it is. The star
+    -- layer is not among them. The lines are told once per slot: a streamed dome looked up again stays told.
+    local function recheck()
+        for _,s in ipairs(w.slots) do
+            local part=s.part -- The domes and Xion's two; a SkyCreator's sublevel has none.
+            if part and not part.dead and part.on==false and U.valid(part.c) then
+                local ok,shown=pcall(function()
+                    if part.actor_level then return part.actor.bHidden==false end
+                    return part.c.bVisible==true
+                end)
+                if ok and not shown then part.seen=nil
+                elseif ok then
+                    part.seen=(part.seen or 0)+1
+                    if part.seen==1 or part.seen%LEAVE_LOOKS==0 then
+                        part.on=nil -- show writes it hidden again in this pass.
+                        if not s.told then
+                            s.told=true
+                            o.log('daynight: SB showed '..part.what..', hidden again')
+                        end
+                    elseif part.seen==2 and not s.told_kept then
+                        s.told_kept=true
+                        o.log('daynight: SB keeps '..part.what..' shown; left to it, tried again in 30 s')
+                    end
+                end
+            end
+        end
+    end
     -- This pass's dressing: live, the sky for the sun at el and the hour h; else SB's look back (Xion's domes kept
     -- during its story night).
     local function dress(row,live,n,story_held)
@@ -412,6 +445,11 @@ function Daynight.new(o)
         end
         w.live=live
         if live then
+            w.look=(w.look or 0)-1
+            if w.look<0 then
+                w.look=LOOK_EVERY-1
+                recheck()
+            end
             for _,d in ipairs(w.domes) do show(d,false) end
             if w.day then
                 local night=Rule.dress(row,n.el).night_dome
@@ -504,8 +542,6 @@ function Daynight.new(o)
         if s.setting and test~='off' and row and row.cycle=='on' then
             s.lobby=o.lobby()
             s.story_night=story_night(row)
-            s.cutscene=o.cutscene()
-            s.screen=o.screen()
             s.photo=o.photo()~='0'
             s.frozen=o.frozen()
             s.night=o.night()

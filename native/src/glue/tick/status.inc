@@ -68,8 +68,23 @@ std::string status() {
     s += " anim=" + (anim_faulted ? std::string("fault") : anim::state_text(a.state, a.why)) +
          " anim_id=" + std::to_string(a.id);
     s += bike_status(); // The bike (vehicles/bike/ride.lua): the preload's state and the gate's.
+    // The keep (core/keep.lua): the paths asked, those settled, those found in memory; fault once its latch ended it.
+    if (keep_faulted) {
+      s += " keep=fault";
+    } else {
+      std::lock_guard<std::mutex> lock(keep_m);
+      s += " " + keep::line(keep_list);
+    }
+    // SB's theater (game/theater.h) for story/scenes/scene.lua and online/group/group.lua: none, a sequence, '-' or
+    // fault.
+    if (theater_faulted) {
+      s += " theater=fault";
+    } else {
+      std::lock_guard<std::mutex> lock(theater_m);
+      s += " " + theater_text;
+    }
   }
-  // coop gift's inventory read (tools/mailbox.lua): the last ask's answer, by its number.
+  // coop gift's inventory read (cutmenus/mailbox.lua): the last ask's answer, by its number.
   if (!items_line.empty() && !blocked)
     s += items_line;
   s += pad_slate ? " pad=slate" : " pad=xinput"; // coop_pad's source: the game's controller events, or XInput.
@@ -106,9 +121,10 @@ std::string camp_text_status() {
 }
 
 // coop-status.txt's lion, gardener, tendril, bolt, mxiii, shop, signal, mxspawn, mxenv, mxupper, mxmiddle, mxlower,
-// mxnames, mxlily, mxrecords and halls lines (rows/rows.h's status_line), from what the game thread published, then the
-// shock line (rows/shock.h's shock_line), read after the bolt line it was published before, then the nightshop,
-// roxanne, lily and guardtext lines (nightop_worker.inc's nightop_status).
+// mxnames, mxlily, mxrecords, halls and teamshop lines (rows/rows.h's status_line), from what the game thread
+// published, then the shock line (rows/shock.h's shock_line), read after the bolt line it was published before, then
+// the nightshop, roxanne, lily and guardtext lines (nightop_worker.inc's nightop_status), then the teamshopui line
+// (teamshop_worker.inc's teamshop_status).
 std::string rows_status() {
   std::string lines;
   for (const RowsJob *j : kJobs) {
@@ -125,7 +141,7 @@ std::string rows_status() {
     lines += (lines.empty() ? "" : "\n") + lion::status_line(j->batch, s);
   }
   return lines + "\n" + lion::shock_line(shock_word, shock_faulted ? fault_where(shock_fault_rva) : std::string()) +
-         "\n" + nightop_status();
+         "\n" + nightop_status() + "\n" + teamshop_status();
 }
 
 } // namespace coop::pose

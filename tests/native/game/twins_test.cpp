@@ -224,13 +224,15 @@ std::string snapshot_field(const std::string &body) {
          std::string(17, '\0') + body;
 }
 // A body as a co-op save made with the mod lays out what the scan reads, holding nothing of the mod's: every item the
-// mod adds in the obtained set, the cut world and its zones in the world lists, a shipped consumable whose name starts
-// with a mod item's, a shop row named after one, the first ammo selected, the save's map and camp in Eidos 7, and a New
-// Game+ snapshot with an item, a quick slot, the ammo (the missile) and the camps of its own, as Coop00 holds them.
+// mod adds and a team shop item in the obtained set, the cut world and its zones in the world lists, a shipped
+// consumable whose name starts with a mod item's, a shop row named after one, the first ammo selected, the save's map
+// and camp in Eidos 7, and a New Game+ snapshot with an item, a quick slot, the ammo (the missile) and the camps of its
+// own, as Coop00 holds them.
 std::string clean_body() {
   return name_field("ItemAlias", "HP_Potion") + name_field("ItemAlias", "Bullet_Shock_Consume") +
          names_field("ItemOtaineSet", "SetProperty",
-                     {"BS_Raven", "HP2Burst_Potion", "Buff_HP2MP", "Bullet_Shock", "Money_NightOperation"}) +
+                     {"BS_Raven", "HP2Burst_Potion", "Buff_HP2MP", "Bullet_Shock", "Money_NightOperation",
+                      "SBOTeam_GothicRose"}) +
          names_field("ItemQuickSlotArray", "ArrayProperty", {"Recovery_HP_Potion", "None"}) +
          int_field("BulletItemSlotIndex", 0) + name_field("WorldAlias", "DLCMatrix13") +
          name_field("Alias", "Zone_DLC02_10") + name_field("ZoneAlias", "Zone_DLC02_40") +
@@ -315,6 +317,32 @@ int main() {
            held.find("use them up or sell them") != std::string::npos && held.find("Matrix") == std::string::npos);
     assert(mod_only(names_field("ItemQuickSlotArray", "ArrayProperty", {"None", item.alias}) + clean_body()) == held);
   }
+  // A team shop item (kTeamItems, every alias of tools/teamshop_rows.py), held or on a quick slot, is named by its
+  // alias once, with no way out by play; the obtained set (clean_body) and a name that only starts with SBOTeam do not
+  // count.
+  const std::string team = mod_only(clean_body() + name_field("ItemAlias", "SBOTeam_GothicRose"));
+  assert(team == "the team shop's items SBOTeam_GothicRose: this save stays a co-op save while EVE holds one");
+  assert(mod_only(names_field("ItemQuickSlotArray", "ArrayProperty", {"None", "SBOTeam_GothicRose"}) + clean_body()) ==
+         team);
+  assert(mod_only(clean_body() + name_field("ItemAlias", "SBOTeam_GothicRose") +
+                  names_field("ItemQuickSlotArray", "ArrayProperty", {"SBOTeam_GothicRose"})) == team);
+  for (const char *other : {"SBOTeamless", "BS_Attacker", "SBOTeam_", "XSBOTeam_GothicRose"})
+    assert(mod_only(clean_body() + name_field("ItemAlias", other)).empty());
+  assert(mod_only(clean_body() + names_field("ItemQuickSlotArray", "ArrayProperty", {"XSBOTeam_GothicRose"})).empty());
+  std::string team_odd = name_field("ItemAlias", "SBOTeam_GothicRose");
+  team_odd.back() = 'x'; // A length that does not end on its NUL is no FString.
+  assert(mod_only(team_odd).empty() && mod_only(team_odd.substr(0, team_odd.size() - 2)).empty());
+  const std::string slot_body = "SBOTeam_GothicRose"; // A quick slot body that starts with the prefix: no length.
+  const int64_t slot_size = int64_t(slot_body.size());
+  assert(mod_only(fstring("ItemQuickSlotArray") + fstring("ArrayProperty") +
+                  std::string(reinterpret_cast<const char *>(&slot_size), 8) + fstring("NameProperty") + '\0' +
+                  slot_body)
+             .empty());
+  assert(mod_only(name_field("ItemAlias", "SBOTeam_A") + name_field("ItemAlias", "Bullet_Shock") +
+                  name_field("ItemAlias", "SBOTeam_B")) ==
+         "the mod's items Shock Bolt (Bullet_Shock): use them up or sell them, and take them off the quick slots (Beta "
+         "Seeds go back to the wallet when coop nightop shop closes); the team shop's items SBOTeam_A, SBOTeam_B: this "
+         "save stays a co-op save while EVE holds one");
   // The mod's quests, the prologue and On Time, by their alias as the save writes it (an FString, in a quest list or as
   // the tracked quest): no way out by playing, so no "export it again"; a longer alias that starts with one does not
   // count.
@@ -421,6 +449,10 @@ int main() {
   assert(mod_only(kept) == kept_why);
   assert(mod_only(snapshot_field(name_field("ItemAlias", "Buff_HP2MP")) + clean_body()) ==
          "the mod's items Beta Stimpack (Buff_HP2MP)" + stuck);
+  assert(mod_only(snapshot_field(name_field("ItemAlias", "SBOTeam_A") +
+                                 names_field("ItemQuickSlotArray", "ArrayProperty", {"SBOTeam_B"})) +
+                  clean_body() + name_field("ItemAlias", "SBOTeam_GothicRose")) ==
+         team + "; the team shop's items SBOTeam_A, SBOTeam_B" + stuck);
   // Held in both: said once for each, the snapshot's last.
   assert(mod_only(kept + name_field("ItemAlias", "HP2Burst_Potion")) ==
          "the mod's items Burst Stimpack (HP2Burst_Potion): use them up or sell them, and take them off the quick "

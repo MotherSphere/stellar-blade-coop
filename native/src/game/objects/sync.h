@@ -21,9 +21,38 @@
 //                                                             (0: none), progress add (above 0)
 //   SBWn on, SBWn off <reason>                                the sender's feature state: setting, match or save
 //   SBWn on reply                                             on, as the answer to her on
-// seq is 1 for the first line after each on and one more for each later one; the receiver logs a gap. Each side
-// answers her on (not her on reply) with its own state, so a side that started again (a rejoin she did not see)
-// hears where the other stands.
+//   SBWn c ask <zone>                                         send me what you changed in this zone
+//   SBWn c <seq> <zone> <alias> <tag> <objectState>           one changed env of that zone, ObjectState 0 to 2 (0: not
+//                                                             carried)
+//   SBWn c end <zone> <count>                                 the answer is complete, count c lines sent
+// seq is 1 for the first line after each on and one more for each later one, c lines included (c ask and c end carry
+// none); the receiver logs a gap. Each side answers her on (not her on reply) with its own state, so a side that
+// started again (a rejoin she did not see) hears where the other stands.
+//
+// A watched pair (kWatch: the AltesLab trap floor's end) is a kept state a condition trigger sets, with no root to
+// send. While the feature is open and we are in game, each pass reads each watched env in the client's zone, before
+// her lines and again after them. A live read that turns to the watched tag (case ignored) is sent as an s line,
+// through the same checks as a root; the read after her lines only stores, so her change is never sent back. The first
+// sight in a zone stores and sends nothing.
+//
+// Catching up by zone (c lines). While the feature is open and we are in game, the client's zone is read each pass. A
+// zone that held kAskHoldMs of in-game passes goes out once as c ask. An opening, a new partner, her on (not her on
+// reply) and a load (over kAskHoldMs without an open in-game pass) let the current zone be asked again. Her asks wait
+// in line. The walk reads the first one's entries of kZoneEnvs, walk_reads a pass and only in game. It sends each
+// touched entry whose state is a kept pair as a c line, then c end with their count. An ask for a zone with no entry
+// is answered with c end 0 at once. Her c line meets our value (live, else its record, else the table's initial one):
+//   the same value: nothing, counted same;
+//   a root of ours for that env sent after the question her line answers (our ask for its zone, or her ask, which her
+//   send-back follows): she read hers before our line reached her. Ours kept, host or guest, sent nowhere: our root's
+//   own line brings it to her;
+//   ours touched into a state held out for its player (a passcode door typed open): ours kept, host or guest;
+//   ours untouched, or we are a guest: hers applied, a state change first, then an Enable or Disable;
+//   else (we host, ours touched): ours kept. When we wait for that zone's answer, ours goes back to her as a c line,
+//   closed with our own c end after hers, so the host's value ends in both worlds.
+// Each answer's tallies are logged at its c end. A close or a new partner drops the asks, the walk, the tallies and the
+// catch-up lines still queued, so no half answer lands later.
+// Past two players the catch-up stays host centred, one Sync per partner: a guest asks the host; the host asks each
+// guest. kWalkReads is per Sync, so a glue that runs one Sync per seat splits it between the open ones.
 #pragma once
 
 #include <algorithm>
@@ -31,6 +60,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <deque>
+#include <iterator>
+#include <map>
 #include <set>
 #include <string>
 #include <string_view>
@@ -44,20 +75,24 @@ namespace coop::world {
 
 // ---- Lines ----
 
-enum class Type : uint8_t { invalid, state, active, event, link, on, off };
+enum class Type : uint8_t { invalid, state, active, event, link, on, off, catchup, ask, end };
 struct Message {
   Type type = Type::invalid;
-  uint32_t seq = 0;     // s, a, e, l
-  std::string zone;     // s, a, e, l: the zone alias the sender saw the root in
-  std::string alias;    // s, a, l: the EnvSpawnAlias
-  std::string name;     // s, l: the state tag; e: the ZoneEventTable row
-  uint8_t object = 0;   // a: 1 Enable, 2 Disable; l: 0 to 2, as the node holds it
+  uint32_t seq = 0;     // s, a, e, l, c
+  std::string zone;     // s, a, e, l: the zone alias the sender saw the root in; c, c ask, c end: the zone asked for
+  std::string alias;    // s, a, l, c: the EnvSpawnAlias
+  std::string name;     // s, l, c: the state tag; e: the ZoneEventTable row
+  uint8_t object = 0;   // a: 1 Enable, 2 Disable; l: 0 to 2, as the node holds it; c: 0 to 2 (0: not carried)
   int32_t progress = 0; // l
   std::string reason;   // off
   bool reply = false;   // on: the answer to her on, never answered itself
+  uint32_t count = 0;   // c end: the c lines the answer sent
 };
-// What a line names for the echo backstop and the refusal log: the row of an e line, else the env.
-inline const std::string &key(const Message &m) { return m.type == Type::event ? m.name : m.alias; }
+// What a line names for the echo backstop and the refusal log: the row of an e line, the zone of a c ask or c end,
+// else the env.
+inline const std::string &key(const Message &m) {
+  return m.type == Type::event ? m.name : m.type == Type::ask || m.type == Type::end ? m.zone : m.alias;
+}
 
 inline std::string format(const Message &m) {
   const std::string t = world_tag() + " ";
@@ -70,6 +105,9 @@ inline std::string format(const Message &m) {
   case Type::event: return t + "e" + head + m.name;
   case Type::link:
     return t + "l" + head + m.alias + " " + m.name + " " + std::to_string(m.object) + " " + std::to_string(m.progress);
+  case Type::catchup: return t + "c" + head + m.alias + " " + m.name + " " + std::to_string(m.object);
+  case Type::ask: return t + "c ask " + m.zone;
+  case Type::end: return t + "c end " + m.zone + " " + std::to_string(m.count);
   case Type::invalid: break;
   }
   return std::string();
@@ -84,6 +122,12 @@ inline bool int32(const std::string &s, int32_t &out) {
     return false;
   out = minus ? int32_t(-int64_t(v)) : int32_t(v);
   return true;
+}
+// Two names equal with ASCII case ignored, as FName compares them.
+inline bool same_name(std::string_view a, std::string_view b) {
+  auto low = [](char c) { return c >= 'A' && c <= 'Z' ? char(c - 'A' + 'a') : c; };
+  return a.size() == b.size() &&
+         std::equal(a.begin(), a.end(), b.begin(), [&](char x, char y) { return low(x) == low(y); });
 }
 } // namespace detail
 
@@ -141,6 +185,22 @@ inline Message parse(const char *data, size_t size) {
     ok = fields(4) && alias_word(f[2]) && alias_word(f[3]) && small(f[4], 0, 2, m.object) &&
          detail::int32(f[5], m.progress);
     m.alias = f[2], m.name = f[3];
+  } else if (kind == "c") {
+    // The word after c decides: ask, end, else the seq of a c line.
+    const std::string word = rest.substr(0, rest.find(' '));
+    if (word == "ask") {
+      m.type = Type::ask;
+      ok = split(rest, f, 2, nullptr) && alias_word(f[1]);
+      m.zone = f[1];
+    } else if (word == "end") {
+      m.type = Type::end;
+      ok = split(rest, f, 3, nullptr) && alias_word(f[1]) && number(f[2], v) && v <= UINT32_MAX;
+      m.zone = f[1], m.count = uint32_t(v);
+    } else {
+      m.type = Type::catchup;
+      ok = fields(3) && alias_word(f[2]) && alias_word(f[3]) && small(f[4], 0, 2, m.object);
+      m.alias = f[2], m.name = f[3];
+    }
   }
   return ok ? m : Message();
 }
@@ -148,7 +208,8 @@ inline Message parse(const char *data, size_t size) {
 // Whether game/objects/rows.h lets this line travel: its (alias, tag) pair, its alias for an Enable or Disable, its
 // ZoneEvent row. A linked env line, each part SB's node runs: its pair unless its tag is None, its alias for an
 // ObjectState other than 0, its alias for a progress add above 0, and at least one of the three, as the node changes
-// nothing else.
+// nothing else. A c line: its env among the zone's saved envs (kZoneEnvs) with its pair. A c ask or c end names only a
+// zone, which the receiver looks up itself.
 inline bool allowed(const Message &m) {
   switch (m.type) {
   case Type::state: return state_allowed(m.alias, m.name);
@@ -159,6 +220,9 @@ inline bool allowed(const Message &m) {
     return (tag || m.object || progress) && (!tag || state_allowed(m.alias, m.name)) &&
            (!m.object || object_state_allowed(m.alias)) && (!progress || progress_allowed(m.alias));
   }
+  case Type::catchup: return zone_env(m.zone, m.alias) && state_allowed(m.alias, m.name);
+  case Type::ask:
+  case Type::end: return true;
   default: return false;
   }
 }
@@ -217,6 +281,7 @@ struct Gates {
   bool match = false;     // a match lobby or the SBO lobby, where nobody plays a co-op save
   bool coop_save = false; // we play a co-op save (slot_coop())
   bool in_game = false;   // in game, not loading: her lines wait otherwise
+  bool host = false;      // we host the online session: our value wins a catch-up conflict
 };
 
 // Gates::coop_save from the save-slot line (game/slot.h line()): slot=coop. A load (the title, a map, leaving Xion)
@@ -228,6 +293,21 @@ inline bool slot_coop(std::string_view slot, bool &was) {
   return was;
 }
 
+// Where an env's value was read: its live env, its stored record in the zone, or nowhere.
+enum class Where : uint8_t { none, live, record };
+struct Value {
+  Where where = Where::none;
+  std::string tag;    // FName text of the tag
+  uint8_t object = 0; // ObjectState 1 or 2; 0 for any other value
+};
+
+// v differs from the table's initial state: a tag other than e.tag (case ignored), or, for an alias on kObjectState,
+// an ObjectState other than e.object. Where::none is untouched.
+inline bool touched(const Value &v, const ZoneEnv &e) {
+  return v.where != Where::none &&
+         (!detail::same_name(v.tag, e.tag) || (object_state_allowed(e.alias) && v.object != e.object));
+}
+
 // The game side, behind game/objects/engine.h.
 class Engine {
 public:
@@ -237,6 +317,12 @@ public:
   // One of her s, a, e or l lines, applied in our game with our player as caster. Null when done, else a short word
   // that says why the game refused it (a name it lacks, a guard). A refused line is not tried again.
   virtual const char *apply(const Message &m) = 0;
+  // An env's tag and ObjectState: live (vtable checked, tag +0x1f4, ObjectState +0x28), else its record in zone
+  // (record +0x28, +0x20), else none. Never makes a record or a name.
+  virtual Value read(const std::string &zone, const std::string &alias) = 0;
+  // The client's current zone (+0x68) as text; false when there is no client, when the FName is None (index
+  // kNoneName, number 0) or when it has no text.
+  virtual bool zone(std::string &out) = 0;
 };
 
 constexpr size_t kQueue = 256;       // Her lines that wait while we load; past that the newest are dropped.
@@ -244,14 +330,20 @@ constexpr size_t kApplyPerPass = 8;  // Her lines applied in one pass, so a burs
 constexpr uint64_t kEchoMs = 3000;   // How long a value of hers stops the same root of ours.
 constexpr size_t kEchoes = 32;       // Her values kept for that, by env or row.
 constexpr size_t kMaxRefusals = 256; // Envs and rows whose refusal is logged; later ones are counted only.
+constexpr uint64_t kAskHoldMs = 2000; // A zone holds this long in game before we ask for it.
+constexpr size_t kWalkReads = 128;    // Reads one pass makes for her ask.
 
 struct Counters {
   // Our roots: sent, skipped (the feature off on either side), denied (no list holds it), echoes (a value of hers came
   // back), invalid (a name without text, or a value no line carries), full (dropped by a full ring).
   uint64_t sent = 0, skipped = 0, denied = 0, echoes = 0, invalid = 0, full = 0;
-  // Her lines: received (s, a, e and l), applied, refused (by the lists or the game), gated (the feature off on either
-  // side, or a match lobby), overflow (the queue full), bad (malformed, or an old seq), gaps (a seq skipped).
+  // Her lines: received (s, a, e, l and c), applied, refused (by the lists or the game), gated (the feature off on
+  // either side, or a match lobby), overflow (the queue full), bad (malformed, or an old seq), gaps (a seq skipped).
   uint64_t received = 0, applied = 0, refused = 0, gated = 0, overflow = 0, bad = 0, gaps = 0;
+  // Catch-up: asked (our c ask lines), caught (her c lines applied), kept (ours kept: a newer root of ours, a state
+  // held out for us, or the host's touched value), same (hers equal to ours). Her c lines count in received or refused
+  // too, never in applied.
+  uint64_t asked = 0, caught = 0, kept = 0, same = 0;
 };
 
 // Both sides of one player. Not thread-safe: the glue keeps it on the game thread and hands it her lines from the
@@ -260,30 +352,47 @@ class Sync {
 public:
   explicit Sync(Engine &e) : e_(e) {}
 
-  // Each game thread pass: our on or off when it changed, the ring's roots through the filters, then her waiting
-  // lines when we are in game. Waiting lines are dropped when the feature goes off here, not when her off comes: she
-  // sent them while on.
+  // Each game thread pass: our on or off when it changed, the ring's roots through the filters, the watched envs, then
+  // her waiting lines when we are in game, the watched envs read again, the walk for her asks, then our own ask.
+  // Waiting lines are dropped when the feature goes off here, not when her off comes: she sent them while on. Catch-up
+  // lines go whenever the feature closes.
   void pass(const Gates &g, Ring &ring, uint64_t now_ms) {
     follow(g);
     counters.full = ring.dropped;
-    const bool open = ready(g) && her_on_;
+    const bool is_open = open(g);
     Root r;
     while (ring.pop(r))
-      offer(r, open, now_ms);
+      offer(r, is_open, now_ms);
     if (!ready(g)) {
       counters.gated += queue_.size();
       queue_.clear();
     }
+    if (!is_open) {
+      const auto from = std::remove_if(queue_.begin(), queue_.end(), [](const Message &m) {
+        return m.type == Type::catchup || m.type == Type::ask || m.type == Type::end;
+      });
+      counters.gated += uint64_t(queue_.end() - from);
+      queue_.erase(from, queue_.end());
+      forget();
+    }
+    std::string z;
+    const bool watch = is_open && g.in_game && e_.zone(z);
+    if (watch ? z != watch_zone_ : !is_open || g.in_game) // A new zone, the feature closed or no zone: forget the tags.
+      watched_ = {}, watch_zone_ = z;
+    if (watch)
+      look(z, true, now_ms);
     for (size_t n = 0; g.in_game && n < kApplyPerPass && !queue_.empty(); ++n) {
       const Message m = std::move(queue_.front());
       queue_.pop_front();
-      if (const char *why = e_.apply(m))
-        refuse(m, why);
-      else
-        ++counters.applied, remember(m, now_ms);
+      take(m, now_ms);
     }
     if (queue_.empty())
       overflowing_ = false;
+    if (watch)
+      look(z, false, now_ms);
+    if (is_open && g.in_game)
+      walk();
+    ask(is_open && g.in_game, watch && alias_word(z) ? &z : nullptr, now_ms);
   }
 
   // One of her channel 2 lines that starts with world_tag().
@@ -296,24 +405,32 @@ public:
       const bool on = m.type == Type::on;
       if (on)
         last_ = 0; // Her seq starts again after each on.
+      if (on && !m.reply)
+        asked_zone_.clear(); // She may have started again: what she changed apart is asked for.
       her_on_ = on;
       log.push_back(on ? "world: partner on" : "world: partner off (" + m.reason + ")");
       return;
     }
-    if (m.seq <= last_)
-      return bad("old seq");
-    ++counters.received;
-    if (m.seq != last_ + 1 && !std::exchange(gap_logged_, true))
-      log.push_back("world: a line from the partner was lost (seq " + std::to_string(last_ + 1) + " to " +
-                    std::to_string(m.seq - 1) + "), said once");
-    counters.gaps += m.seq - last_ - 1;
-    last_ = m.seq;
+    if (m.type != Type::ask && m.type != Type::end) { // Those two carry no seq.
+      if (m.seq <= last_)
+        return bad("old seq");
+      ++counters.received;
+      if (m.seq != last_ + 1 && !std::exchange(gap_logged_, true))
+        log.push_back("world: a line from the partner was lost (seq " + std::to_string(last_ + 1) + " to " +
+                      std::to_string(m.seq - 1) + "), said once");
+      counters.gaps += m.seq - last_ - 1;
+      last_ = m.seq;
+    }
     if (!ready(g) || !her_on_) {
       ++counters.gated;
       return;
     }
-    if (!allowed(m))
+    if (!allowed(m)) {
+      const auto [first, last] = zone_envs(m.zone); // A tally only for a zone with entries: junk names never pile up.
+      if (m.type == Type::catchup && first != last)
+        ++tallies_[m.zone].refused;
       return refuse(m, "not on the list");
+    }
     if (queue_.size() == kQueue) {
       ++counters.overflow;
       if (!std::exchange(overflowing_, true))
@@ -333,10 +450,14 @@ public:
     n("sent", c.sent), n("skipped", c.skipped), n("denied", c.denied), n("echoes", c.echoes), n("invalid", c.invalid);
     n("full", c.full), n("received", c.received), n("applied", c.applied), n("refused", c.refused);
     n("gated", c.gated), n("queued", queue_.size()), n("overflow", c.overflow), n("bad", c.bad), n("gaps", c.gaps);
+    n("asked", c.asked), n("caught", c.caught), n("kept", c.kept), n("same", c.same);
     return s;
   }
   bool partner_on() const { return her_on_; }
   size_t queued() const { return queue_.size(); }
+  // ready(g) and her on heard: the glue reads in_game while this holds.
+  bool open(const Gates &g) const { return ready(g) && her_on_; }
+  size_t walk_reads = kWalkReads; // Tests lower it.
 
   Counters counters;
   std::vector<std::string> out; // Lines to send her on channel 2, reliable, taken by the glue.
@@ -365,7 +486,8 @@ private:
     if (g.partner != partner_) {
       counters.gated += queue_.size();
       partner_ = g.partner, her_on_ = false, last_ = 0, said_.clear(), queue_.clear();
-      echoes_ = {};
+      echoes_ = {}, watched_ = {};
+      forget();
     }
     if (!partner_)
       return;
@@ -398,6 +520,28 @@ private:
       named = named && e_.text(r.alias, m.alias);
     if (m.type != Type::active)
       named = named && e_.text(r.name, m.name);
+    send(m, named, now_ms);
+  }
+
+  // Each watched env in zone z, read live: a change to its watched tag is sent when send_change is set, else only
+  // stored. A record or no env skips the entry and keeps its stored tag; a first sight stores only.
+  void look(const std::string &z, bool send_change, uint64_t now_ms) {
+    for (size_t i = 0; i < std::size(kWatch); ++i) {
+      const Value v = e_.read(z, kWatch[i].alias);
+      if (v.where != Where::live)
+        continue;
+      std::string &was = watched_[i];
+      if (send_change && !was.empty() && !detail::same_name(was, v.tag) && detail::same_name(v.tag, kWatch[i].tag)) {
+        Message m;
+        m.type = Type::state, m.zone = z, m.alias = kWatch[i].alias, m.name = v.tag;
+        send(m, true, now_ms);
+      }
+      was = v.tag;
+    }
+  }
+
+  // A root's or a watched env's line: parsed back, on the lists, not her value come back, then sent with the next seq.
+  void send(Message &m, bool named, uint64_t now_ms) {
     m.seq = seq_ + 1;
     const std::string line = format(m);
     if (!named || parse(line.data(), line.size()).type != m.type) {
@@ -414,6 +558,8 @@ private:
     }
     out.push_back(line);
     ++seq_, ++counters.sent;
+    if (m.type != Type::event)
+      rooted_[m.alias] = ++tick_;
   }
 
   // Her values by env or row, for the echo backstop: an applied line stops the same root of ours for kEchoMs, once.
@@ -461,6 +607,154 @@ private:
       log.push_back(std::string("world: bad partner line (") + why + "), said once");
   }
 
+  // ---- Catch-up ----
+
+  // One of her waiting lines, popped in game.
+  void take(const Message &m, uint64_t now_ms) {
+    if (m.type == Type::ask)
+      return queue_ask(m.zone);
+    if (m.type == Type::end)
+      return end(m);
+    if (m.type == Type::catchup)
+      return catch_up(m, now_ms);
+    if (const char *why = e_.apply(m))
+      refuse(m, why);
+    else
+      ++counters.applied, remember(m, now_ms);
+  }
+
+  // Closed or a new partner: the catch-up in progress goes, our zone is asked again once it holds.
+  void forget() {
+    asks_.clear(), walked_ = 0, walk_sent_ = 0, asked_zone_.clear();
+    waiting_.clear(), answered_.clear(), sent_back_.clear(), tallies_.clear();
+  }
+
+  void zone_line(Type t, const std::string &zone, uint32_t count) {
+    Message m;
+    m.type = t, m.zone = zone, m.count = count;
+    out.push_back(format(m));
+  }
+  // Our value of an env as a c line, with the next seq. Its tag is a kept pair, so the line parses back.
+  void send_catchup(const ZoneEnv &e, const Value &v) {
+    Message m;
+    m.type = Type::catchup, m.seq = ++seq_, m.zone = e.zone, m.alias = e.alias, m.name = v.tag;
+    m.object = object_state_allowed(e.alias) ? v.object : 0;
+    out.push_back(format(m));
+  }
+
+  // Our zone, asked once it held kAskHoldMs in game. A gap of over kAskHoldMs without an open in-game pass (a load,
+  // the title) forgets the zone asked: the load dropped what was applied since that save.
+  void ask(bool in_game, const std::string *zone, uint64_t now_ms) {
+    if (in_game && now_ms > in_game_at_ + kAskHoldMs)
+      asked_zone_.clear();
+    if (in_game)
+      in_game_at_ = now_ms;
+    if (!zone)
+      return seen_zone_.clear();
+    if (*zone != seen_zone_)
+      seen_zone_ = *zone, seen_at_ = now_ms;
+    if (now_ms < seen_at_ + kAskHoldMs || *zone == asked_zone_)
+      return;
+    asked_zone_ = *zone;
+    waiting_[*zone] = ++tick_, answered_.erase(*zone); // Her later lines follow all we sent before this ask.
+    ++counters.asked;
+    zone_line(Type::ask, *zone, 0);
+  }
+
+  // Her ask joins the walk once; a zone with no entry is answered at once.
+  void queue_ask(const std::string &zone) {
+    const auto [first, last] = zone_envs(zone);
+    if (first == last) {
+      if (!std::exchange(unknown_said_, true))
+        log.push_back("world: the partner asked for " + zone + ", which has no env on the catch-up list, said once");
+      return zone_line(Type::end, zone, 0);
+    }
+    answered_[zone] = ++tick_;
+    if (std::find(asks_.begin(), asks_.end(), zone) == asks_.end())
+      asks_.push_back(zone);
+  }
+
+  // Her asks in order, from where the last pass stopped, walk_reads reads a pass.
+  void walk() {
+    for (size_t reads = 0; !asks_.empty();) {
+      const auto [first, last] = zone_envs(asks_.front());
+      for (; first + walked_ != last && reads < walk_reads; ++walked_, ++reads) {
+        const ZoneEnv &e = first[walked_];
+        const Value v = e_.read(e.zone, e.alias);
+        if (touched(v, e) && state_allowed(e.alias, v.tag))
+          ++walk_sent_, send_catchup(e, v);
+      }
+      if (first + walked_ != last)
+        return;
+      zone_line(Type::end, asks_.front(), walk_sent_);
+      asks_.pop_front(), walked_ = 0, walk_sent_ = 0;
+    }
+  }
+
+  // Her c line against our value, or the table's initial one when no env reads.
+  void catch_up(const Message &m, uint64_t now_ms) {
+    const ZoneEnv &e = *zone_env(m.zone, m.alias); // allowed() found it at receive
+    Tally &t = tallies_[m.zone];
+    Value v = e_.read(m.zone, m.alias);
+    const bool live = v.where == Where::live, ours = touched(v, e);
+    if (v.where == Where::none)
+      v.tag = e.tag, v.object = e.object;
+    const bool tag_same = detail::same_name(v.tag, m.name);
+    const bool object_same = !m.object || !object_state_allowed(m.alias) || v.object == m.object;
+    if (tag_same && object_same) {
+      ++counters.same, ++t.same;
+      return;
+    }
+    const bool newer = newer_root(m);
+    if (newer || (ours && (!state_allowed(m.alias, v.tag) || gates_.host))) {
+      ++counters.kept, ++t.kept;
+      // A newer root of ours and a state held out for us (a passcode door typed open) stay ours, sent nowhere. The
+      // host's value goes back, only for its own ask, so two sides that both host cannot ping-pong.
+      if (!newer && state_allowed(m.alias, v.tag) && waiting_.count(m.zone))
+        ++sent_back_[m.zone], send_catchup(e, v);
+      return;
+    }
+    Message s;
+    s.type = Type::state, s.seq = m.seq, s.zone = m.zone, s.alias = m.alias, s.name = m.name;
+    Message a = s;
+    a.type = Type::active, a.name.clear(), a.object = m.object;
+    const Message *first = nullptr;
+    for (const Message *p : {tag_same ? nullptr : &s, object_same ? nullptr : &a})
+      if (p) {
+        if (const char *why = e_.apply(*p))
+          return ++t.refused, refuse(*p, why);
+        first = first ? first : p;
+      }
+    ++counters.caught, ++t.caught, t.live += live;
+    remember(*first, now_ms); // The state part, the one a graph could send back.
+  }
+
+  // A root of ours for her c line's env went out after the question that line answers: our ask for its zone, or her
+  // ask, which her send-back follows. Her lines read the env before ours reached her, so ours is the newer value.
+  bool newer_root(const Message &m) const {
+    const auto r = rooted_.find(m.alias);
+    if (r == rooted_.end())
+      return false;
+    const auto w = waiting_.find(m.zone), a = answered_.find(m.zone);
+    return (w != waiting_.end() && r->second > w->second) || (a != answered_.end() && r->second > a->second);
+  }
+
+  // Her answer for a zone is complete: its tallies logged and dropped, our lines sent back for it closed.
+  void end(const Message &m) {
+    Tally t;
+    const auto it = tallies_.find(m.zone);
+    if (it != tallies_.end())
+      t = it->second, tallies_.erase(it);
+    auto n = [](uint64_t v) { return std::to_string(v); };
+    log.push_back("world: catch-up for " + m.zone + " from the partner: " + n(m.count) + " sent, " + n(t.caught) +
+                  " applied (" + n(t.live) + " live), " + n(t.kept) + " kept ours, " + n(t.same) + " same, " +
+                  n(t.refused) + " refused");
+    waiting_.erase(m.zone);
+    const auto back = sent_back_.find(m.zone);
+    if (back != sent_back_.end())
+      zone_line(Type::end, m.zone, back->second), sent_back_.erase(back);
+  }
+
   Engine &e_;
   Gates gates_;
   uint64_t partner_ = 0;
@@ -470,6 +764,27 @@ private:
   std::deque<Message> queue_;
   std::array<Echo, kEchoes> echoes_;
   std::set<std::string> refusals_;
+  // The watched envs' tags as last read live in watch_zone_, by kWatch entry; empty: not seen there yet. A live read
+  // always has text (engine.h reads a tag without text as no env).
+  std::array<std::string, std::size(kWatch)> watched_;
+  std::string watch_zone_;
+  // Catch-up. Her asks waiting for the walk, the walk's place in the first one and the c lines it sent.
+  std::deque<std::string> asks_;
+  size_t walked_ = 0;
+  uint32_t walk_sent_ = 0;
+  // Our ask: the zone seen in game and since when, the last open in-game pass, the last zone asked.
+  std::string seen_zone_, asked_zone_;
+  uint64_t seen_at_ = 0, in_game_at_ = 0;
+  // Marks in send order (tick_): our last root line per env, the zones we asked until her c end, the zones she asked
+  // since our last ask for them. A root marked after the question her c line answers is newer than her value.
+  uint64_t tick_ = 0;
+  std::map<std::string, uint64_t> rooted_, waiting_, answered_;
+  std::map<std::string, uint32_t> sent_back_;  // Our c lines sent back per zone, closed by our c end.
+  struct Tally {
+    uint64_t caught = 0, live = 0, kept = 0, same = 0, refused = 0;
+  };
+  std::map<std::string, Tally> tallies_;       // Per zone, logged at her c end.
+  bool unknown_said_ = false;                  // The unknown zone log line, once per run.
 };
 
 // Our lines on their way to link/core.h's send_fight(), which refuses a line while its channel 2 queue is full: a

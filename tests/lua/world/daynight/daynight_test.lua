@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- world/daynight/daynight.lua over a fake engine: one request per change, the map read once per EVE, the menu's
--- setting, the rules' cases (cutscene, photo mode, Night Operation, the SBO lobby, Xion's story night read every 2 s),
+-- setting, the rules' cases (photo mode, Night Operation, the SBO lobby, Xion's story night read every 2 s),
 -- the command's words, a fixed map and the title, the status with an older DLL, coop off, a refused ask, the
 -- third-party plugin's file logged once; the sky dressing: the domes looked up once per world and hidden once, a
 -- missing one logged once, the star layer made once with its material loaded once a world and faded on change, the
@@ -33,7 +33,7 @@ local calls={map_of=0,find=0,find_flag=0,flag_reads=0,find_dome=0,load=0,add_com
 local streamed={} -- SB's streaming levels by package, for GetStreamingLevel: none unless a test sets one.
 local creator_list=nil -- The SkyCreators listed, when a test sets them.
 local settings={daynight=true}
-local world={cutscene=false,screen=false,photo='0',frozen=false,night=false,lobby=false}
+local world={photo='0',frozen=false,night=false,lobby=false}
 -- The native status: text as it is, else a sky= line from the fields.
 local st={text='engine=on\n'..NOON,state='cycle',h=12,el=65}
 local function status()
@@ -53,11 +53,11 @@ local flag=setmetatable({},{
     __newindex=function(_,k,v) flag_state[k]=v end})
 -- A dome's root component: its SetVisibility calls (never propagated) and whether it is hidden.
 local function new_root(hidden)
-    return uobj({hidden=hidden,vis_calls=0,StaticMesh='SM_SkySphere',
+    return setmetatable(uobj({hidden=hidden,vis_calls=0,StaticMesh='SM_SkySphere',
         SetVisibility=function(self,v,children)
             assert(children==false,'Never to the children: the star layer is one')
             self.vis_calls,self.hidden=self.vis_calls+1,not v
-        end})
+        end}),{__index=function(self,k) if k=='bVisible' then return not rawget(self,'hidden') end end})
 end
 local emissive={} -- The star fade's writes.
 local mid=uobj({SetScalarParameterValue=function(_,name,v)
@@ -157,10 +157,9 @@ local o={log=function(m) printed[#printed+1]=m end,
         return true
     end,load=function() return sky_file.line end},
     map_of=function(e) calls.map_of=calls.map_of+1; return e.map end,
-    cutscene=function() return world.cutscene end,screen=function() return world.screen end,
     photo=function() return world.photo end,frozen=function() return world.frozen end,
     night=function() return world.night end,
-    lobby=function() return world.lobby end,
+    lobby=function() return world.lobby end,stars_ready=function() return not world.stars_wait end,
     find=function(path)
         calls.find=calls.find+1
         if path==Rule.MAPS[E04].flag then calls.find_flag=calls.find_flag+1 end
@@ -198,20 +197,18 @@ assert(logged('^daynight: cycle 8 0 %(clock%)$') and count_logged('^daynight: cy
 -- 2. daynight=off from the menu: one off; back on: one cycle.
 settings.daynight=false; D.slow(false); assert(asked[2]=='sky off' and logged('daynight: off %(daynight=off%)'))
 settings.daynight=true; D.slow(false); assert(asked[3]=='sky cycle 8 0')
--- 3. A cutscene, photo mode, Night Operation, the SBO lobby, SB's screens.
-world.cutscene=true; D.slow(false); world.cutscene=false; D.slow(false)
-assert(asked[4]=='sky off' and asked[5]=='sky cycle 8 0')
--- SB's photo mode pauses the game (screen reads true in it): the hour holds.
-world.photo,world.screen='1',true; D.slow(false); world.photo,world.screen='0',false; D.slow(false)
-assert(asked[6]=='sky hold' and asked[7]=='sky cycle 8 0' and logged('daynight: hold %(photo mode%)'))
-world.night=true; D.slow(false); assert(asked[8]=='sky hour 0 8 0'); world.night=false; D.slow(false)
+-- 3. Photo mode, Night Operation, the SBO lobby. SB's screens, talks and cutscenes are no input
+--    (world/daynight/daynight.lua would raise on a call to o.cutscene or o.screen, which this o no longer has). A pass
+--    with nothing new asks nothing.
+local quiet=#asked; D.slow(false); assert(#asked==quiet)
+world.photo='1'; D.slow(false); world.photo='0'; D.slow(false)
+assert(asked[4]=='sky hold' and asked[5]=='sky cycle 8 0' and logged('daynight: hold %(photo mode%)'))
+world.night=true; D.slow(false); assert(asked[6]=='sky hour 0 8 0'); world.night=false; D.slow(false)
 world.lobby=true; D.slow(false); assert(asked[#asked]=='sky off'); world.lobby=false; D.slow(false)
-world.screen=true; D.slow(false); assert(asked[#asked]=='sky off' and logged("%(the game's menu%)"))
-world.screen=false; D.slow(false); assert(asked[#asked]=='sky cycle 8 0')
--- Another player's photo mode or the host's cutscene pauses us with SB's pause tag: the hour holds, no SB day.
-world.frozen,world.screen=true,true; D.slow(false)
+-- Another player's photo mode or the host's cutscene pauses us with SB's pause tag: the hour holds.
+world.frozen=true; D.slow(false)
 assert(asked[#asked]=='sky hold' and logged("daynight: hold %(another player's pause%)"))
-world.frozen,world.screen=false,false; D.slow(false); assert(asked[#asked]=='sky cycle 8 0')
+world.frozen=false; D.slow(false); assert(asked[#asked]=='sky cycle 8 0')
 -- 4. The command: hour, on, off; hour refused with daynight=off or a bad hour.
 assert(D.command('hour','13.5')); D.slow(false); assert(asked[#asked]=='sky hour 810 8 0')
 assert(D.command('off')); D.slow(false); assert(asked[#asked]=='sky off')
@@ -268,6 +265,21 @@ settings.daynight=true; st.state='cycle'
 D.slow(false)
 assert(calls.find_dome==1 and dome.hidden==true and dome.vis_calls==1 and logged('^daynight: '..W..': 1 of 1 domes'))
 D.slow(false); assert(dome.vis_calls==1 and calls.find_dome==1 and calls.load==0)
+-- 10b. Review Focus 5: SB shows the dome behind Lua's back (a sequence may). The next 2 s look hides it again with
+--      one line. Shown again at the next look (a sequence that keys it each frame): left to SB with one line, no
+--      second flip, tried once more 15 looks (30 s) later. A look that finds it hidden starts over.
+local function look() for _=1,8 do D.slow(false) end end
+dome.hidden=false; look()
+assert(dome.hidden==true and dome.vis_calls==2 and count_logged('SB showed Sky_Sphere, hidden again')==1)
+dome.hidden=false; look()
+assert(dome.hidden==false and dome.vis_calls==2 and count_logged('SB keeps Sky_Sphere shown; left to it')==1)
+for _=3,14 do look() end
+assert(dome.hidden==false and dome.vis_calls==2,'Left to SB for 30 s')
+look()
+assert(dome.hidden==true and dome.vis_calls==3 and count_logged('SB showed Sky_Sphere, hidden again')==1)
+look()
+dome.hidden=false; look()
+assert(dome.hidden==true and dome.vis_calls==4 and count_logged('SB keeps Sky_Sphere shown; left to it')==1)
 -- 11. A dome that is not there: logged once, not looked up again in this world; looked up again in the next.
 objects[DOME]=nil; eve=new_eve(0x400,W); for _=1,8 do D.slow(false) end
 assert(calls.find_dome==2 and count_logged('no dome')==1)
@@ -297,6 +309,11 @@ assert(#creator.times==3 and creator.times[3]==12); settings.daynight=true
 eve=new_eve(0x600,E04); st.el=-5; D.slow(false)
 assert(xion_day.hidden==true and night_actor.bHidden==false and xion_night.vis_calls==0)
 st.el=-3; D.slow(false); assert(xion_day.hidden==false and night_actor.bHidden==true and xion_night.hidden==false)
+-- Review Focus 5 for the night dome, read through its actor: SB shows it by day, the next look hides it again with
+-- one line; a look that finds it hidden says nothing more.
+night_actor.bHidden=false; for _=1,8 do D.slow(false) end
+assert(night_actor.bHidden==true and count_logged('SB showed SM_SkySphere_NIGHT, hidden again')==1)
+for _=1,8 do D.slow(false) end; assert(count_logged('SB keeps SM_SkySphere_NIGHT')==0)
 -- 16. Off: Xion's domes back to SB's shipped state; with Xion's story night on, they are left as they are.
 st.el=-5; D.slow(false); D.slow(true)
 assert(xion_day.hidden==false and night_actor.bHidden==true and xion_night.hidden==false and xion_night.vis_calls==0)
@@ -434,6 +451,14 @@ assert(calls.find==finds+1 and logged('a sublevel came or went: 1 of 4 domes %(3
 stream(2,true); for _=1,8 do D.slow(false) end; assert(b07[2].RootComponent.hidden==true and calls.find==finds+2)
 local old=b07[2]; stream(2,true); assert(old.gone and streamed[package(paths[2])].visible) -- Out and in between looks.
 for _=1,8 do D.slow(false) end; assert(b07[2].RootComponent.hidden==true and calls.find==finds+3)
+-- Review Focus 5 across a sublevel's return: one line per dome and world, not one per lookup.
+local showed='SB showed '..paths[2]:match('[^.:]+$')..', hidden again'
+local said=count_logged(showed)
+b07[2].RootComponent.hidden=false; for _=1,8 do D.slow(false) end
+assert(b07[2].RootComponent.hidden==true and count_logged(showed)==said+1)
+stream(2,false); for _=1,8 do D.slow(false) end; stream(2,true); for _=1,8 do D.slow(false) end
+b07[2].RootComponent.hidden=false; for _=1,8 do D.slow(false) end
+assert(b07[2].RootComponent.hidden==true and count_logged(showed)==said+1,'Told once in this world')
 stream(5,true); creator_list={c02,c05}; for _=1,8 do D.slow(false) end
 assert(c05.time==Rule.creator_time(12,5,21) and #c02.times==1,'The SkyCreator already listed keeps its state')
 settings.daynight=false; D.slow(false)
@@ -452,4 +477,16 @@ streamed[package(Rule.MAPS[E04].day_dome)],creator_list=nil,nil
 D=Daynight.new(o); local seen,writes=calls.actors_of_lights,calls.set_intensity+calls.rotate
 eve=new_eve(0x900,'/game/sbo_lobby/lobby_terrace'); D.slow(false)
 assert(calls.actors_of_lights==seen and calls.set_intensity+calls.rotate==writes and asked[#asked]=='sky off')
+-- 24. The keep: while the star material is wanted and not in (stars_ready false), dusk makes no load and no lookup
+--     of it; once it is in, the next pass loads the layer's material once.
+do
+    local loads=calls.load
+    eve=new_eve(0x900,W); st.el=-10; world.stars_wait=true
+    local D4=Daynight.new(o)
+    for _=1,3 do D4.slow(false) end
+    assert(calls.load==loads,'No star material before the keep has it')
+    world.stars_wait=false
+    D4.slow(false)
+    assert(calls.load==loads+1)
+end
 print('daynight_test ok')

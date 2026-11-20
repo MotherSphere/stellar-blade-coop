@@ -4,9 +4,11 @@
 -- The zone 1 talks of Matrix XIII (1A to 1E), scene by scene in play order (world/maps/matrix13/quest/zone_talks.lua
 -- plays them): the speaker (a StringTable_Seq key, or a plain name for the dungeon's own people), then the English and
 -- French line.
+-- Each line gets its id talk.zone.<scene>.NN (world/maps/matrix13/words.lua), the key of its line in the other
+-- cultures.
 -- oblivion=true: only when Quest_Sub_030 (Oblivion) is complete. No line plays during a fight.
 local LILY,EVE='Seq_Actor_Lily','Seq_Actor_EVE'
-return {
+return require('world.maps.matrix13.words').zone({
     ['1A']={
         {LILY,"EVE, I can still hear you. The comm holds up at this depth.",
             "EVE, je t'entends toujours. La comm passe bien à cette profondeur."},
@@ -61,4 +63,4 @@ return {
         {LILY,"Still below us, it hasn't moved. We'll have to go all the way down, EVE.",
             "Toujours en dessous, il n'a pas bougé. Il va falloir tout descendre, EVE."},
     },
-}
+})

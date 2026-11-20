@@ -3,9 +3,10 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The arrival talk, one entry per subtitle window of the sequence it borrows (world/maps/matrix13/quest/subtitles.lua
 -- plays it): the speaker's StringTable_Seq key ('' for none), then the English and French line.
+-- Each line gets its id talk.arrival.NN (world/maps/matrix13/words.lua), the key of its line in the other cultures.
 -- On arrival at Matrix 13 station, all 9 windows of Subtitle_POD_ArriveDED_01. The French is the user's own.
 local LILY,EVE='Seq_Actor_Lily','Seq_Actor_EVE'
-return {
+return require('world.maps.matrix13.words').ids({
     {EVE,"Lily, give me a report on that signal.","Lily, fais-moi un rapport sur ce signal."},
     {LILY,"Uh... right. One second.","Euh... oui. Une seconde."},
     {LILY,"The signal's source is right here.","La source du signal est juste ici."},
@@ -19,4 +20,4 @@ return {
         "Puis cette voix est arrivée et je ne pouvais pas me taire."},
     {EVE,"... Lily, stay focused. We have to be quick.","... Lily, reste concentrée. On doit faire vite."},
     {EVE,"And then, Raven and the bike.","Et ensuite, Raven et la moto."},
-}
+},'talk.arrival')

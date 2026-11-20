@@ -29,8 +29,10 @@
 -- until they all read rows. In world 2800 the tick spawns the ladders, ledges and ropes
 -- (world/maps/matrix13/level/move.lua) and the boxes and barrels (world/maps/matrix13/level/breakables.lua), and fixes
 -- the Lion and Gardener the game spawns (world/maps/matrix13/level/boss.lua); coop mxiii boss spawns the key-0 boss of
--- the arena EVE stands in. coop mxiii warp lists the arrival points of the old warp switches, and coop mxiii warp
--- <n|name> puts EVE on one (a test fallback: no switch stands in the map, as in Matrix 11). The way out is coop mxiii
+-- the arena EVE stands in. Each arrival in world 2800 runs the world's setup under SB's own black (the lobby's
+-- LoadingScreenFadeAuto), lifted once the ladders, boxes and walks are done, so none of it shows in play. coop mxiii
+-- warp lists the arrival points of the old warp switches. coop mxiii warp <n|name> puts EVE on one (a test
+-- fallback: no switch stands in the map, as in Matrix 11). The way out is coop mxiii
 -- leave: the follow's probe, under its guards and its activation read (game/camps.h), to a travel camp the read lists:
 -- the camp EVE respawned at when coop mxiii asked its travel, else the one she respawns at now, else the read's first.
 -- Her respawn camp is that of her last rest or fast-travel arrival (FSBActor +0x26d0): the arrival in the dungeon
@@ -54,6 +56,7 @@
 -- once both names are found. A .utoc whose header does not read as one gives the first window only.
 -- shortcut: an Oodle-compressed container (a compression method in the .utoc) reads as v1 or as what its compressed
 -- bytes happen to hold; retoc writes ours uncompressed.
+local U=require('core.unreal')
 local Enemy=require('core.enemy')
 local PakGate=require('core.pak_gate')
 local Mxiii={}
@@ -65,6 +68,10 @@ Mxiii.PAK='zMXIII_P'
 Mxiii.MAP='MXIII_P.umap'
 -- The directory index's names of the WorldTable path /Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P, the map last.
 Mxiii.INDEX={'WorldMap_DLC_01','Level_P',Mxiii.MAP}
+-- SB's black over world 2800's setup: s a tick while it hides the frames (Sbo.HELD_BUDGET's); its fades (SB's own black
+-- fade); SB's own end of it after its fade-in; only for a world younger than FRESH s; s between reads of EVE's world by
+-- the tick, which runs each frame in every world.
+Mxiii.HELD_BUDGET,Mxiii.FADE,Mxiii.LIFETIME,Mxiii.FRESH,Mxiii.LOOK=0.1,0.5,10,20,0.25
 Mxiii.KIT='DLC02_10_EnvS'
 -- The level whose placed actors the zone 10 camps' 11 kit rows bind, in the directory index from the v5 pak on.
 Mxiii.CAMPS_MAP='MXIII_Camps_A.umap'
@@ -166,6 +173,8 @@ end
 
 -- o: log (the [MX] lines), ask(line) the native request, status() the native status text, travel() the follow
 -- (online/group/travel.lua's, nil without the Steam link), paks (SB/Content/Paks, nil when unknown), read (files.read).
+-- The tests replace: here() (EVE in world 2800), parts ({move=,breakables=,boss=,drone=,fans=} in place of the made
+-- ones), black() (puts up SB's black; raises when it cannot), world_time(eve) (the world's real time in s).
 function Mxiii.new(o)
     local log=o.log
     local e=Enemy.new({log=log,ask=o.ask,status=o.status},
@@ -284,11 +293,14 @@ function Mxiii.new(o)
     end
     -- The ladders, ledges and ropes (world/maps/matrix13/level/move.lua), the boxes and barrels
     -- (world/maps/matrix13/level/breakables.lua) and the bosses the game spawns (world/maps/matrix13/level/boss.lua),
-    -- in world 2800 only.
-    local move=require('world.maps.matrix13.level.move').new({log=function(m) log('[MXMOVE] '..m) end})
-    local breakables=require('world.maps.matrix13.level.breakables').new({log=function(m) log('[MXBREAK] '..m) end})
-    local boss=require('world.maps.matrix13.level.boss').new({log=function(m) log('[MXBOSS] '..m) end,lion=o.lion,
-        gardener=o.gardener})
+    -- in world 2800 only. boss.lua and fans.lua find an object again by its path (a name-hash find, never a walk).
+    local parts=o.parts or {}
+    local function find(p) return (U.object_at(p,U.controller())) end
+    local move=parts.move or require('world.maps.matrix13.level.move').new({log=function(m) log('[MXMOVE] '..m) end})
+    local breakables=parts.breakables
+        or require('world.maps.matrix13.level.breakables').new({log=function(m) log('[MXBREAK] '..m) end})
+    local boss=parts.boss or require('world.maps.matrix13.level.boss').new({log=function(m) log('[MXBOSS] '..m) end,
+        lion=o.lion,gardener=o.gardener,find=find})
     function self.title(at_title,coop)
         title(at_title,coop)
         local busy=false
@@ -307,7 +319,7 @@ function Mxiii.new(o)
     -- EVE when she stands in world 2800 (world/maps/matrix13/level/move.lua's map check), else nil; o.here replaces it
     -- in the tests.
     local here=o.here or function()
-        local U,N=require('core.unreal'),require('core.player')
+        local N=require('core.player')
         local ok,eve=pcall(function()
             local x=U.valid(N.her())
             local map=x and U.map_of(x)
@@ -316,8 +328,57 @@ function Mxiii.new(o)
         end)
         return ok and eve or nil
     end
-    local drone=require('world.maps.matrix13.level.drone').new({log=function(m) log('[MXDRONE] '..m) end,here=here})
-    local fans=require('world.maps.matrix13.level.fans').new({log=function(m) log('[MXFAN] '..m) end,here=here})
+    local drone=parts.drone
+        or require('world.maps.matrix13.level.drone').new({log=function(m) log('[MXDRONE] '..m) end,here=here})
+    local fans=parts.fans
+        or require('world.maps.matrix13.level.fans').new({log=function(m) log('[MXFAN] '..m) end,here=here,find=find})
+    local black=nil -- {world=<address>, at=<os.clock of the call>, up=}
+    local primed=nil -- The world the walks were primed in.
+    -- here()'s last read (its os.clock, EVE, her world's address): it makes reflected calls, so once every LOOK s.
+    local seen_at,seen_eve,seen_w=-math.huge,nil,nil
+    -- UGameplayStatics::GetRealTimeSeconds (exec 0x14475baa0: the context's world, then its RealTimeSeconds at +0x750).
+    local world_time=o.world_time or function(eve)
+        return U.find('/Script/Engine.Default__GameplayStatics'):GetRealTimeSeconds(eve)
+    end
+    -- As the lobby's hold (online/lobby/wiring.lua): USBBlueprintLibrary::LoadingScreenFadeAuto (exec 0x1426641e0) with
+    -- its lifetime, start fade, end fade and tag 5 Load, which the native lift ends.
+    local put_up=o.black or function()
+        local sb=U.find('/Script/SB.Default__SBBlueprintLibrary')
+        sb:LoadingScreenFadeAuto(Mxiii.LIFETIME,Mxiii.FADE,0,1,Mxiii.FADE,1,0,5)
+    end
+    -- At the first look in a new world 2800 younger than FRESH s (SB's travel screen still shows), SB's black up; SB
+    -- ends it itself LIFETIME s later. EVE and her world's address as of the last look, or nil out of world 2800.
+    local function arrival(now)
+        if now-seen_at>=Mxiii.LOOK then
+            seen_at=now
+            local eve=here()
+            local ok,w=pcall(function() return eve and U.address(eve:GetWorld()) end)
+            seen_eve,seen_w=eve,ok and w or nil
+        end
+        local eve,w=seen_eve,seen_w
+        if not w then
+            black=nil
+            return nil
+        end
+        if not black or black.world~=w then
+            local read,t=pcall(world_time,eve)
+            black={world=w,at=now,up=false}
+            if read and type(t)=='number' and t<Mxiii.FRESH then
+                local shown,e=pcall(put_up)
+                black.up=shown
+                log(shown and "arrival: SB's black up for world 2800's setup"
+                    or "arrival: SB's black not shown ("..tostring(e).."): the setup goes on in play")
+            end
+        end
+        if black.up and now-black.at>=Mxiii.LIFETIME then
+            black.up=false
+            log(string.format("arrival: SB's black ended by itself after %d s; the setup goes on in play",
+                Mxiii.LIFETIME))
+        end
+        return eve,w
+    end
+    -- SB's black is up over world 2800's setup (world/maps/matrix13/quest/on_time.lua waits while it is).
+    function self.held() return black~=nil and black.up end
     -- coop mxiii warp [n|name]: the list, or EVE put on that arrival point, under the follow's guards (solo, a co-op
     -- save, no travel under way) and in world 2800 only.
     function self.warp(point)
@@ -344,9 +405,28 @@ function Mxiii.new(o)
     function self.tick()
         local ok,message=e.tick()
         for _,x in ipairs(others) do x.e.tick() end
-        -- One spawn a frame over both lists: each spends 4 ms a tick, and a ladder (10 to 13 ms) and a box (8 to 13 ms)
-        -- in one frame took it to 18 to 26 ms, so the boxes and barrels wait while the ladders spawn.
-        if not move.tick() then breakables.tick() end
+        local now=os.clock()
+        local _,w=arrival(now)
+        local held=self.held()
+        if not (held and now-black.at<Mxiii.FADE) then -- Nothing runs while the black fades in.
+            if held and primed~=w then
+                primed=w
+                local fresh=here() -- Read now: the last look's EVE may be up to LOOK s old.
+                boss.prime(fresh)
+                fans.prime(fresh)
+            end
+            local budget=held and Mxiii.HELD_BUDGET or nil
+            -- One spawn a frame over both lists in play: each spends 4 ms a tick. A ladder (10 to 13 ms) and a box
+            -- (8 to 13 ms) in one frame took it to 18 to 26 ms, so the boxes and barrels wait while the ladders spawn.
+            if not move.tick(budget) then breakables.tick(budget) end
+            if held and move.done(w) and breakables.done(w) then
+                black.up=false
+                local lifted,why=o.ask('loading lift')
+                log(string.format("arrival: SB's black lifted after %.1f s, world 2800's setup done%s",now-black.at,
+                    lifted and '' or string.format(' (the lift: %s; SB ends its black within %d s)',tostring(why),
+                        Mxiii.LIFETIME)))
+            end
+        end
         boss.tick()
         drone.tick()
         fans.tick()

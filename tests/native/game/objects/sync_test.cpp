@@ -7,9 +7,14 @@
 // see, the lines the link refuses waiting in order, each gate on both sides, the lists on both sides
 // (a supply box, a story door, a camera state and a quest's row never leave), names without text, sequence numbers,
 // lost and old lines, a load that reads no save for a while, the queue's order while loading and its overflow, the
-// apply limit per pass, the echo backstop, refusals logged once per env, a new partner, and the status line.
+// apply limit per pass, the echo backstop, refusals logged once per env, a new partner, the status line, tags compared
+// without case, the watcher that sends the AltesLab trap floor's end and the catch-up by zone: when an env counts as
+// touched, the ask and its hold (asked again after a load or a close), the walk and its resume after a load, an ask
+// for an unknown zone, the receiver rule with the host's value winning and sent back, a c line older than a root of
+// ours (an answer or a send-back), a close in the middle of an answer and a partner that never answers.
 #include "game/objects/sync.h"
 
+#include <algorithm>
 #include <cassert>
 #include <climits>
 #include <cstdio>
@@ -38,6 +43,9 @@ struct Fake : Engine {
   std::map<uint32_t, std::string> names;
   std::vector<Message> applied;
   std::map<std::string, const char *> refusal; // key() -> why
+  std::map<std::pair<std::string, std::string>, Value> values; // (zone, alias) -> what read() answers
+  std::string here; // the client's zone; empty: zone() answers false, so no ask goes out
+  size_t reads = 0; // calls to read()
   Name name(const std::string &text) {
     for (const auto &[i, t] : names)
       if (t == text)
@@ -53,10 +61,29 @@ struct Fake : Engine {
     out = it->second;
     return true;
   }
+  // An applied state line writes its tag, an applied active line its object, into values when that env is there.
   const char *apply(const Message &m) override {
     applied.push_back(m);
     const auto it = refusal.find(key(m));
-    return it == refusal.end() ? nullptr : it->second;
+    if (it != refusal.end())
+      return it->second;
+    const auto v = values.find({m.zone, m.alias});
+    if (v != values.end() && m.type == Type::state)
+      v->second.tag = m.name;
+    if (v != values.end() && m.type == Type::active)
+      v->second.object = m.object;
+    return nullptr;
+  }
+  Value read(const std::string &zone, const std::string &alias) override {
+    ++reads;
+    const auto it = values.find({zone, alias});
+    return it == values.end() ? Value() : it->second;
+  }
+  bool zone(std::string &out) override {
+    if (here.empty())
+      return false;
+    out = here;
+    return true;
   }
 };
 
@@ -100,6 +127,18 @@ struct Pair {
     a.pass(ga, ra, now);
     deliver(a, b, gb);
   }
+};
+
+// One side with a fake engine: her on heard, in game in Zone_DED20 from t = 1000.
+struct Side {
+  Fake f;
+  Sync s{f};
+  Ring r;
+  Gates g = on();
+  uint64_t now = 1000;
+  Side() { f.here = "Zone_DED20", s.receive(T + "on", g), s.out.clear(); } // drops our on reply
+  void pass(uint64_t ms = 100) { s.pass(g, r, now += ms); }
+  std::vector<std::string> take() { std::vector<std::string> o; o.swap(s.out); return o; }
 };
 
 void test_lines() {
@@ -146,9 +185,10 @@ void test_malformed() {
   assert(bad(T + "s 1 Z A " + std::string(kMaxMessage, 'B')));
   // Fuzzed junk: never a crash, and whatever parses formats back to itself.
   std::mt19937 rng(20261116);
-  const std::string chars = "slaeonf 0123456789-_ABZ\t\x01";
+  const std::string chars = "slaeonfckd 0123456789-_ABZ\t\x01";
+  const std::string starts[] = {T, T + "c ", T + "c ask ", T + "c end "};
   for (int i = 0; i < 20000; ++i) {
-    std::string l = T;
+    std::string l = starts[rng() % 4];
     for (int n = int(rng() % 40); n > 0; --n)
       l += chars[rng() % chars.size()];
     const Message m = P(l);
@@ -157,6 +197,37 @@ void test_malformed() {
       assert(again.type == m.type && format(again) == format(m));
     }
   }
+}
+
+void test_catchup_lines() {
+  for (const char *l : {"c ask Zone_DED20", "c 7 Zone_DED20 DED20_EnvS_193 Open 1",
+                        "c 7 Zone_DED20 DED20_EnvS_193 Open 0", "c end Zone_DED20 0", "c end Zone_DED20 4294967295"})
+    assert(round(T + l));
+  const Message c = P(T + "c 7 Zone_DED20 DED20_EnvS_193 Open 2");
+  assert(c.type == Type::catchup && c.seq == 7 && c.zone == "Zone_DED20" && c.alias == "DED20_EnvS_193" &&
+         c.name == "Open" && c.object == 2 && key(c) == "DED20_EnvS_193");
+  const Message a = P(T + "c ask Zone_ME_04"), e = P(T + "c end Zone_ME_04 48");
+  assert(a.type == Type::ask && a.zone == "Zone_ME_04" && key(a) == "Zone_ME_04");
+  assert(e.type == Type::end && e.zone == "Zone_ME_04" && e.count == 48 && !e.seq);
+  Message m;
+  m.type = Type::ask, m.zone = "Zone_DED20";
+  assert(format(m) == T + "c ask Zone_DED20");
+}
+
+void test_catchup_malformed() {
+  for (const char *l : {"c", "c ask", "c ask Zone_A extra", "c ask Zone-A", "c end Zone_A", "c end Zone_A -1",
+                        "c end Zone_A 4294967296", "c end Zone_A 1 2", "c end Zone_A x", "c 0 Zone_A a b 1",
+                        "c 1 Zone_A a b 3", "c 1 Zone_A a b -1", "c 1 Zone_A a b", "c 1 Zone_A a b 1 2",
+                        "c x Zone_A a b 1", "c 1 Zone_A a b  1", "c ask  Zone_A"})
+    assert(bad(T + l));
+}
+
+void test_catchup_lists() {
+  assert(allowed(P(T + "c 1 Zone_DED20 DED20_EnvS_193 Open 1")));
+  assert(!allowed(P(T + "c 1 Zone_ME_04 DED20_EnvS_193 Open 1"))); // not that zone's env
+  assert(!allowed(P(T + "c 1 Zone_DED20 DED20_EnvS_210 On 0")));   // On is not a kept pair
+  assert(!allowed(P(T + "c 1 Zone_DED20 DED10_EnvS_105 Open 0"))); // a supply box
+  assert(allowed(P(T + "c ask Zone_Nowhere")) && allowed(P(T + "c end Zone_Nowhere 0")));
 }
 
 void test_ring() {
@@ -643,6 +714,18 @@ void test_new_partner() {
   assert(p.b.queued() == 0 && !p.b.partner_on() && p.b.counters.gated == 1);
   p.b.receive(T + "s 1 Z DED20_EnvS_193 Open", p.gb);
   assert(p.b.counters.gated == 2 && p.b.counters.bad == 0);
+  // Her waiting ask and the zone we wait for go too: no c end for either, no send-back, no ask before the hold.
+  Side x;
+  x.g.host = true, x.s.walk_reads = 10;
+  x.f.values[{"Zone_DED20", "DED20_EnvS_193"}] = Value{Where::live, "Open", 1};
+  x.s.receive(T + "c ask Zone_WLB_20", x.g);
+  x.pass(), x.now = 3100, x.pass(0);                               // her ask walked 20 of 81; Zone_DED20 asked
+  assert(x.take() == std::vector<std::string>{T + "c ask Zone_DED20"} && x.s.counters.asked == 1);
+  x.g.partner = kMe, x.pass(), x.s.receive(T + "on", x.g), x.take();
+  x.s.receive(T + "c 1 Zone_DED20 DED20_EnvS_193 ToClosed 1", x.g);
+  for (int i = 0; i < 10; ++i)
+    x.pass();
+  assert(x.take().empty() && x.s.counters.asked == 1 && x.s.counters.kept == 1);
 }
 
 void test_status() {
@@ -652,9 +735,9 @@ void test_status() {
   p.ra.push(root(p.fa, Kind::state, "DED10_EnvS_105", "Open"));
   p.step();
   assert(p.a.status() == "world=on sent=1 skipped=0 denied=1 echoes=0 invalid=0 full=0 received=0 applied=0 "
-                         "refused=0 gated=0 queued=0 overflow=0 bad=0 gaps=0");
+                         "refused=0 gated=0 queued=0 overflow=0 bad=0 gaps=0 asked=0 caught=0 kept=0 same=0");
   assert(p.b.status() == "world=on sent=0 skipped=0 denied=0 echoes=0 invalid=0 full=0 received=1 applied=1 "
-                         "refused=0 gated=0 queued=0 overflow=0 bad=0 gaps=0");
+                         "refused=0 gated=0 queued=0 overflow=0 bad=0 gaps=0 asked=0 caught=0 kept=0 same=0");
   for (size_t i = 0; i <= kRing; ++i)
     p.ra.push(Root());
   p.ga.match = true;
@@ -663,11 +746,409 @@ void test_status() {
   assert(p.a.counters.skipped == kRing && p.b.status().rfind("world=waiting why=partner ", 0) == 0);
 }
 
+void test_same_name() {
+  assert(detail::same_name("Off", "off") && detail::same_name("", "") && !detail::same_name("Off", "Of"));
+}
+void test_watch() {
+  Pair p;
+  p.fa.here = p.fb.here = "Zone_ATL_01";
+  const std::pair<std::string, std::string> k{"Zone_ATL_01", "ATL_01_EnvS_074"};
+  p.fa.values[k] = Value{Where::live, "Success3", 1};
+  p.fb.values[k] = Value{Where::live, "Off", 1};
+  p.step();
+  assert(p.a.counters.sent == 0 && p.fb.applied.empty());          // first sight: stored, not sent
+  p.fa.values[k].tag = "Success4";
+  p.step();
+  assert(p.a.counters.sent == 0);                                  // not the watched tag
+  p.fa.values[k].tag = "On";
+  p.step();
+  assert(p.a.counters.sent == 1 && p.fb.applied.size() == 1 && p.fb.applied[0].type == Type::state &&
+         p.fb.applied[0].alias == "ATL_01_EnvS_074" && p.fb.applied[0].name == "On" &&
+         p.fb.applied[0].zone == "Zone_ATL_01");
+  p.step(), p.step();
+  assert(p.a.counters.sent == 1 && p.b.counters.sent == 0);       // nothing again; her applied change not sent back
+  assert(p.b.counters.echoes == 0);                                // the re-read stored it, no echo had to stop it
+  p.fa.values.erase(k), p.step();                                  // gone one pass: stored On kept
+  p.fa.values[k] = Value{Where::live, "Off", 1}, p.step();
+  p.fa.values[k].tag = "On", p.step();
+  assert(p.a.counters.sent == 2);
+  p.fa.values.erase(k), p.step();
+  p.fa.values[k] = Value{Where::live, "On", 1}, p.step();
+  assert(p.a.counters.sent == 2);                                  // back unchanged: nothing
+  p.fa.values[k].tag = "Off", p.step();
+  p.fa.values[k] = Value{Where::record, "On", 1}, p.step();
+  assert(p.a.counters.sent == 2);                                  // a record is no sight
+  p.fa.values[k] = Value{Where::live, "On", 1}, p.step();
+  assert(p.a.counters.sent == 3);                                  // the stored Off was kept through it
+  p.fa.values[k].tag = "Off", p.step();
+  p.fa.values.erase(k), p.step();                                  // a stream in the same zone
+  p.fa.values[k] = Value{Where::live, "On", 1}, p.step();
+  assert(p.a.counters.sent == 4);                                  // the end reached while it was away
+  p.fa.values[k].tag = "Off", p.step();
+  p.fa.here = "Zone_ATL_02", p.fa.values[{"Zone_ATL_02", "ATL_01_EnvS_074"}] = Value{Where::live, "On", 1};
+  p.step();
+  assert(p.a.counters.sent == 4);                                  // a new zone: first sight again
+}
+void test_watch_gates_and_seq() {
+  Fake f;
+  f.here = "Zone_ATL_01";
+  Sync s{f};
+  Ring r;
+  Gates g = on();
+  s.receive(T + "on", g);
+  g.in_game = false;
+  s.pass(g, r, 1000);
+  assert(f.reads == 0);                                            // no read out of game
+  g.in_game = true;
+  f.values[{"Zone_ATL_01", "ATL_01_EnvS_074"}] = Value{Where::live, "Off", 1};
+  s.pass(g, r, 1100), s.out.clear();
+  r.push(root(f, Kind::state, "DED20_EnvS_193", "Open"));
+  f.values[{"Zone_ATL_01", "ATL_01_EnvS_074"}].tag = "On";
+  s.pass(g, r, 1200);
+  assert(s.out.size() == 2 && s.out[0] == T + "s 1 Zone_DED20 DED20_EnvS_193 Open" &&
+         s.out[1] == T + "s 2 Zone_ATL_01 ATL_01_EnvS_074 On");     // seq shared with the roots
+}
+// The watcher's stored tag: kept through a load, forgotten when the feature closes, when the zone has no name and at a
+// new partner. Nothing is read while her feature is off. Tags compare without case. The kept-pair check stays exact.
+void test_watch_forgets() {
+  Fake f;
+  f.here = "Zone_ATL_01";
+  const std::pair<std::string, std::string> k{"Zone_ATL_01", "ATL_01_EnvS_074"};
+  f.values[k] = Value{Where::live, "Off", 1};
+  Sync s{f};
+  Ring r;
+  Gates g = on();
+  uint64_t now = 1000;
+  auto pass = [&](const char *tag) { f.values[k].tag = tag, s.pass(g, r, now += 100); };
+  s.receive(T + "on", g);
+  pass("Off");
+  g.in_game = false, pass("On");
+  g.in_game = true, pass("On");
+  assert(s.counters.sent == 1);                                    // a load keeps the stored Off
+  pass("Off");
+  s.receive(T + "off setting", g);
+  const size_t reads = f.reads;
+  pass("On");
+  assert(f.reads == reads && s.counters.sent == 1);                // her feature off: nothing read
+  s.receive(T + "on", g), pass("On");
+  assert(s.counters.sent == 1);                                    // the close forgot Off: On is a first sight
+  pass("Off");
+  f.here.clear(), pass("On");
+  f.here = "Zone_ATL_01", pass("On");
+  assert(s.counters.sent == 1);                                    // a zone without a name forgot Off
+  pass("Off");
+  g.partner = kMe, s.receive(T + "on", g), pass("On");
+  assert(s.counters.sent == 1);                                    // a new partner forgot Off
+  pass("off"), pass("on");
+  assert(s.counters.sent == 1 && s.counters.denied == 1);          // seen as the watched tag, denied by the exact pair
+  pass("On");
+  assert(s.counters.sent == 1 && s.counters.denied == 1);          // on to On is no change
+}
+
+void test_touched() {
+  const ZoneEnv &door = *zone_env("Zone_DED20", "DED20_EnvS_193");   // Closed, 1, on kObjectState
+  assert(!touched(Value{}, door) && !touched(Value{Where::live, "closed", 1}, door));
+  assert(touched(Value{Where::record, "Open", 1}, door) && touched(Value{Where::live, "Closed", 2}, door));
+  assert(!touched(Value{Where::live, "Off", 1}, *zone_env("Zone_DED20", "DED20_EnvS_210"))); // off kObjectState
+  assert(touched(Value{Where::live, "Off", 1}, *zone_env("Zone_ME_05", "ME_05_EnvS_064")));  // InitActivate None
+  assert(!touched(Value{Where::live, "Off", 1}, *zone_env("Zone_AYL_02", "AYL_02_EnvS_002"))); // table says off
+}
+void test_ask_timing() {
+  Side x;
+  x.pass(0), x.take();
+  x.now = 2900, x.pass(0);
+  assert(x.take().empty() && x.s.counters.asked == 0);
+  x.now = 3000, x.pass(0);
+  assert(x.take() == std::vector<std::string>{T + "c ask Zone_DED20"} && x.s.counters.asked == 1);
+  for (int i = 0; i < 50; ++i)
+    x.pass();
+  assert(x.take().empty());                                        // once per zone
+  x.f.here = "Zone_ME_04", x.pass();                               // t = 8100
+  x.now = 9000, x.f.here = "Zone_DED20", x.pass(0);
+  x.now = 9500, x.f.here = "Zone_ME_04", x.pass(0);                // a flip restarts the hold
+  x.now = 11400, x.pass(0);
+  assert(x.take().empty());
+  x.now = 11500, x.pass(0);
+  assert(x.take() == std::vector<std::string>{T + "c ask Zone_ME_04"});
+  x.f.here = "Zone_DED20", x.g.in_game = false, x.pass();
+  x.now += 5000, x.g.in_game = true, x.pass(0);
+  x.now += 1999, x.pass(0);
+  assert(x.take().empty());                                        // the hold counts only in game
+  x.now += 1, x.pass(0);
+  assert(x.take() == std::vector<std::string>{T + "c ask Zone_DED20"});
+  x.s.receive(T + "off match", x.g), x.pass(), x.s.receive(T + "on", x.g), x.pass(0), x.take();
+  x.now += 2000, x.pass(0);
+  assert(x.take() == std::vector<std::string>{T + "c ask Zone_DED20"}); // asked again once she is back
+  x.s.receive(T + "on", x.g), x.take();                                 // a rejoin we did not see
+  x.pass(0), x.now += 2000, x.pass(0);
+  assert(x.take() == std::vector<std::string>{T + "c ask Zone_DED20"}); // once, the zone held already
+  x.g.in_game = false, x.pass();                                        // a load back into the same zone
+  x.now += 5000, x.g.in_game = true, x.pass(0);
+  x.now += 1999, x.pass(0);
+  assert(x.take().empty());
+  x.now += 1, x.pass(0);
+  assert(x.take() == std::vector<std::string>{T + "c ask Zone_DED20"}); // the load forgot the zone asked
+  x.g.setting = false, x.pass();                                        // our side closed for one pass
+  x.g.setting = true, x.pass(0), x.s.receive(T + "on reply", x.g), x.take(); // her answer to our on: on reply only
+  x.now += 1999, x.pass(0);
+  assert(x.take().empty());
+  x.now += 1, x.pass(0);
+  assert(x.take() == std::vector<std::string>{T + "c ask Zone_DED20"}); // the close forgot the zone asked
+}
+void test_walk() {
+  Side x;
+  x.f.values[{"Zone_DED20", "DED20_EnvS_193"}] = Value{Where::live, "Open", 1};
+  x.f.values[{"Zone_DED20", "DED20_EnvS_045"}] = Value{Where::record, "On", 2};
+  x.f.values[{"Zone_DED20", "DED20_EnvS_210"}] = Value{Where::live, "On", 2};  // touched, On not a kept pair
+  x.r.push(root(x.f, Kind::state, "DED20_EnvS_193", "Open"));
+  x.s.receive(T + "c ask Zone_DED20", x.g);
+  const size_t before = x.f.reads;
+  x.pass();
+  const auto out = x.take();
+  assert(out == (std::vector<std::string>{T + "s 1 Zone_DED20 DED20_EnvS_193 Open",
+                                          T + "c 2 Zone_DED20 DED20_EnvS_045 On 2",
+                                          T + "c 3 Zone_DED20 DED20_EnvS_193 Open 1",
+                                          T + "c end Zone_DED20 2"}));
+  // Every entry once, plus the watcher before and after her lines.
+  assert(x.f.reads - before == 76 + 2 * std::size(kWatch));
+}
+void test_walk_resume() {
+  Side x;
+  x.s.walk_reads = 10;
+  x.s.receive(T + "c ask Zone_WLB_20", x.g);
+  x.pass(), x.take();                       // pops the ask, reads 10
+  x.g.in_game = false;
+  const size_t at = x.f.reads;
+  x.pass();
+  assert(x.f.reads == at && x.take().empty());                     // a load: no read
+  x.g.in_game = true;
+  for (int i = 0; i < 7; ++i)
+    x.pass();
+  assert(x.take().empty());                                        // 80 of 81 read
+  x.pass();
+  assert(x.take() == std::vector<std::string>{T + "c end Zone_WLB_20 0"});
+}
+void test_unknown_zone() {
+  Side x;
+  x.s.receive(T + "c ask Zone_Nowhere", x.g), x.s.receive(T + "c ask Zone_Elsewhere", x.g);
+  x.pass();
+  assert(x.take() == (std::vector<std::string>{T + "c end Zone_Nowhere 0", T + "c end Zone_Elsewhere 0"}));
+  assert(std::count(x.s.log.begin(), x.s.log.end(),
+                    "world: the partner asked for Zone_Nowhere, which has no env on the catch-up list, "
+                    "said once") == 1);
+  assert(std::none_of(x.s.log.begin(), x.s.log.end(),
+                      [](const std::string &l) { return l.find("Zone_Elsewhere, which") != std::string::npos; }));
+}
+void test_receive_rule() {
+  const std::string line = T + "c 1 Zone_DED20 DED20_EnvS_193 Open 1";
+  for (bool host : {false, true}) {
+    Side u;  // ours untouched: applied, host or not
+    u.g.host = host, u.s.receive(line, u.g), u.pass();
+    assert(u.s.counters.caught == 1 && u.f.applied.size() == 1 && u.f.applied[0].type == Type::state);
+    Side s;  // the same value: nothing
+    s.g.host = host, s.f.values[{"Zone_DED20", "DED20_EnvS_193"}] = Value{Where::live, "open", 1};
+    s.s.receive(line, s.g), s.pass();
+    assert(s.s.counters.same == 1 && s.f.applied.empty());
+    Side d;  // ours touched and different
+    d.g.host = host, d.f.values[{"Zone_DED20", "DED20_EnvS_193"}] = Value{Where::live, "ToClosed", 1};
+    d.s.receive(line, d.g), d.pass();
+    assert(host ? d.s.counters.kept == 1 && d.f.applied.empty() : d.s.counters.caught == 1 && d.f.applied.size() == 1);
+    Side c;  // a case-only initial tag reads untouched, so even the host takes hers
+    c.g.host = host, c.f.values[{"Zone_AYL_02", "AYL_02_EnvS_002"}] = Value{Where::live, "Off", 1};
+    c.s.receive(T + "c 1 Zone_AYL_02 AYL_02_EnvS_002 On 1", c.g), c.pass();
+    assert(c.s.counters.caught == 1);
+    Side k;  // ours in a state held out for us (the passcode door typed open): kept, host or not, nothing sent back
+    k.g.host = host, k.f.here = "Zone_DED10";
+    k.f.values[{"Zone_DED10", "DED10_EnvS_040"}] = Value{Where::live, "On", 1};
+    k.pass(), k.now = 3100, k.pass(0);                               // Zone_DED10 asked: a host could send back
+    assert(k.take() == std::vector<std::string>{T + "c ask Zone_DED10"});
+    k.s.receive(T + "c 1 Zone_DED10 DED10_EnvS_040 CallPuzzle 0", k.g);
+    k.s.receive(T + "c end Zone_DED10 1", k.g), k.pass();
+    assert(k.s.counters.kept == 1 && k.f.applied.empty() && k.take().empty());
+  }
+}
+// Her c line read before our newer root reached her (DED20_EnvS_193: Closed at first, Open a kept pair). The asker
+// asks, her walk reads Open, then the asker closes the door. Her answer arrives after the asker's s line reached her:
+// the asker keeps its Closed, host or guest, and sends nothing back, so both worlds end Closed.
+void test_stale_answer() {
+  const std::pair<std::string, std::string> x{"Zone_DED20", "DED20_EnvS_193"};
+  for (bool host_asks : {false, true}) {
+    Pair p;
+    p.ga.host = true;
+    Sync &k = host_asks ? p.a : p.b, &o = host_asks ? p.b : p.a;
+    Fake &fk = host_asks ? p.fa : p.fb, &fo = host_asks ? p.fb : p.fa;
+    Ring &rk = host_asks ? p.ra : p.rb, &ro = host_asks ? p.rb : p.ra;
+    const Gates &gk = host_asks ? p.ga : p.gb, &go = host_asks ? p.gb : p.ga;
+    fk.here = "Zone_DED20";                                          // only the asker asks
+    fk.values[x] = fo.values[x] = Value{Where::live, "Open", 1};
+    p.step();
+    while (!k.counters.asked)
+      k.pass(gk, rk, p.now += 100);
+    Pair::deliver(k, o, go), o.pass(go, ro, p.now += 100);           // her walk reads Open
+    rk.push(root(fk, Kind::state, "DED20_EnvS_193", "Closed")), fk.values[x].tag = "Closed";
+    k.pass(gk, rk, p.now += 100), Pair::deliver(k, o, go), o.pass(go, ro, p.now += 100);
+    Pair::deliver(o, k, gk), k.pass(gk, rk, p.now += 100);           // her answer, read before our s line came
+    assert(fo.values[x].tag == "Closed" && fk.values[x].tag == "Closed");
+    assert(k.counters.kept == 1 && k.counters.caught == 0 && k.out.empty());
+  }
+}
+// Her send-back read before our newer root reached her. The host asks, the guest's walk sends ToClosed, then the guest
+// closes the door. The host keeps its Open and sends it back before the guest's s line reaches it. The guest keeps its
+// Closed, which its s line brought to the host.
+void test_stale_send_back() {
+  const std::pair<std::string, std::string> x{"Zone_DED20", "DED20_EnvS_193"};
+  Pair p;
+  p.ga.host = true, p.fa.here = "Zone_DED20";                        // only the host asks
+  p.fa.values[x] = Value{Where::live, "Open", 1};
+  p.fb.values[x] = Value{Where::live, "ToClosed", 1};
+  p.step();
+  while (!p.a.counters.asked)
+    p.a.pass(p.ga, p.ra, p.now += 100);
+  Pair::deliver(p.a, p.b, p.gb), p.b.pass(p.gb, p.rb, p.now += 100); // her walk: c ToClosed, c end
+  p.rb.push(root(p.fb, Kind::state, "DED20_EnvS_193", "Closed")), p.fb.values[x].tag = "Closed";
+  p.b.pass(p.gb, p.rb, p.now += 100);                                // her s line after her answer
+  Pair::deliver(p.b, p.a, p.ga), p.a.pass(p.ga, p.ra, p.now += 100); // Open kept and sent back, then Closed applied
+  assert(p.a.counters.kept == 1 && p.fa.values[x].tag == "Closed" && !p.a.out.empty());
+  Pair::deliver(p.a, p.b, p.gb), p.b.pass(p.gb, p.rb, p.now += 100); // the send-back, read before her s line came
+  assert(p.fb.values[x].tag == "Closed" && p.b.counters.kept == 1 && p.b.counters.caught == 0);
+}
+void test_receive_applies() {
+  Side x;  // the water gate: ours reads none, so Off and Disable
+  x.s.receive(T + "c 1 Zone_ME_04 ME_04_EnvS_099 On 1", x.g), x.pass();
+  assert(x.f.applied.size() == 2 && x.f.applied[0].type == Type::state && x.f.applied[0].name == "On" &&
+         x.f.applied[1].type == Type::active && x.f.applied[1].object == 1);
+  x.r.push(root(x.f, Kind::state, "ME_04_EnvS_099", "On")), x.pass();
+  assert(x.s.counters.echoes == 1);                                // remembered as her line
+  Side r;
+  r.f.refusal["ME_04_EnvS_099"] = "reward";
+  r.s.receive(T + "c 1 Zone_ME_04 ME_04_EnvS_099 On 1", r.g), r.s.receive(T + "c end Zone_ME_04 1", r.g), r.pass();
+  assert(r.f.applied.size() == 1 && r.s.counters.refused == 1);   // the object part skipped
+  assert(std::count(r.s.log.begin(), r.s.log.end(),
+                    "world: catch-up for Zone_ME_04 from the partner: 1 sent, 0 applied (0 live), 0 kept ours, 0 same, "
+                    "1 refused") == 1);
+  Side g;  // off the list at receive: refused, counted in the answer's log line
+  g.s.receive(T + "c 1 Zone_DED20 DED20_EnvS_210 On 0", g.g), g.s.receive(T + "c end Zone_DED20 1", g.g), g.pass();
+  assert(g.s.counters.refused == 1 && std::count(g.s.log.begin(), g.s.log.end(),
+         "world: catch-up for Zone_DED20 from the partner: 1 sent, 0 applied (0 live), 0 kept ours, 0 same, "
+         "1 refused") == 1);
+  Side l;  // ours live and untouched: applied on the live env, counted live
+  l.f.values[{"Zone_DED20", "DED20_EnvS_193"}] = Value{Where::live, "Closed", 1};
+  l.s.receive(T + "c 1 Zone_DED20 DED20_EnvS_193 Open 1", l.g), l.s.receive(T + "c end Zone_DED20 1", l.g), l.pass();
+  assert(std::count(l.s.log.begin(), l.s.log.end(),
+                    "world: catch-up for Zone_DED20 from the partner: 1 sent, 1 applied (1 live), 0 kept ours, 0 same, "
+                    "0 refused") == 1);
+}
+void test_host_sends_back() {
+  Pair p;  // a hosts; both stand in Zone_DED20, each moved the door its own way while apart
+  p.ga.host = true;
+  p.fa.here = p.fb.here = "Zone_DED20";
+  p.fa.values[{"Zone_DED20", "DED20_EnvS_193"}] = Value{Where::live, "Open", 1};
+  p.fb.values[{"Zone_DED20", "DED20_EnvS_193"}] = Value{Where::live, "ToClosed", 1};
+  for (int i = 0; i < 40; ++i)
+    p.step();
+  assert(p.fb.values[{"Zone_DED20", "DED20_EnvS_193"}].tag == "Open");
+  assert(p.fa.values[{"Zone_DED20", "DED20_EnvS_193"}].tag == "Open");
+  assert(p.a.counters.kept == 1 && p.b.counters.caught == 1 && p.b.counters.same == 1);
+  const uint64_t received = p.b.counters.received;
+  for (int i = 0; i < 40; ++i)
+    p.step();
+  assert(p.b.counters.received == received);                       // no ping-pong once both agree
+  Pair q;  // the host sends back only for a zone it asked
+  q.ga.host = true;
+  q.fa.values[{"Zone_DED20", "DED20_EnvS_193"}] = Value{Where::live, "Open", 1};
+  q.step();
+  q.a.receive(T + "c 1 Zone_DED20 DED20_EnvS_193 ToClosed 1", q.ga), q.a.pass(q.ga, q.ra, q.now += 100);
+  assert(q.a.counters.kept == 1 && q.a.out.empty());
+}
+void test_close_mid_answer() {
+  Side x;
+  x.s.walk_reads = 10;
+  x.s.receive(T + "c ask Zone_WLB_20", x.g), x.pass(), x.take();
+  x.s.receive(T + "c 1 Zone_DED20 DED20_EnvS_193 Open 1", x.g);
+  x.s.receive(T + "c 2 Zone_DED20 DED20_EnvS_210 On 0", x.g);       // refused at receive: Zone_DED20's tally has 1
+  x.g.match = true, x.pass(), x.take();                            // closes: queue, walk, tallies dropped
+  x.g.match = false, x.s.receive(T + "on", x.g), x.pass(), x.take();
+  for (int i = 0; i < 30; ++i)
+    x.pass();
+  const auto out = x.take();
+  assert(std::count(out.begin(), out.end(), T + "c ask Zone_DED20") == 1);
+  assert(std::none_of(out.begin(), out.end(),
+                      [](const std::string &l) { return l.find("c end Zone_WLB_20") != std::string::npos; }));
+  assert(x.s.counters.caught == 0);
+  x.s.receive(T + "c end Zone_DED20 0", x.g), x.pass();
+  assert(std::count(x.s.log.begin(), x.s.log.end(),
+                    "world: catch-up for Zone_DED20 from the partner: 0 sent, 0 applied (0 live), 0 kept ours, 0 same, "
+                    "0 refused") == 1);                                      // 0 refused: the close reset the tally
+}
+void test_catchup_guards() {
+  Side x;  // her off while her answer waits for our load: those lines go, her later on starts clean
+  x.g.in_game = false;
+  x.s.receive(T + "c 1 Zone_DED20 DED20_EnvS_193 Open 1", x.g), x.s.receive(T + "c end Zone_DED20 1", x.g);
+  x.s.receive(T + "off save", x.g), x.pass(), x.s.receive(T + "on", x.g);
+  x.g.in_game = true, x.pass();
+  assert(x.s.counters.caught == 0 && x.f.applied.empty() && x.s.queued() == 0 && x.s.counters.gated == 2);
+  assert(std::none_of(x.s.log.begin(), x.s.log.end(),
+                      [](const std::string &l) { return l.rfind("world: catch-up for", 0) == 0; }));
+  Side b;  // a zone name no line carries is never asked
+  b.f.here = "Zone Bad";
+  for (int i = 0; i < 30; ++i)
+    b.pass();
+  assert(b.take().empty() && b.s.counters.asked == 0);
+}
+void test_catchup_filters() {
+  Side w;  // the walk sends touched entries only; an env off kObjectState carries no ObjectState; one ask, one answer
+  w.f.values[{"Zone_DED20", "DED20_EnvS_033"}] = Value{Where::live, "Off", 1};    // the table's state: untouched
+  w.f.values[{"Zone_DED20", "DED20_E_EnvC_001"}] = Value{Where::record, "On", 2}; // off kObjectState
+  w.s.receive(T + "c ask Zone_DED20", w.g), w.s.receive(T + "c ask Zone_DED20", w.g);
+  w.pass(), w.pass();
+  assert(w.take() == (std::vector<std::string>{T + "c 1 Zone_DED20 DED20_E_EnvC_001 On 0", T + "c end Zone_DED20 1"}));
+  Side o;  // no ObjectState carried, or one for an env off kObjectState: the tag alone decides
+  o.f.values[{"Zone_DED20", "DED20_EnvS_193"}] = Value{Where::live, "Open", 1};
+  o.f.values[{"Zone_DED20", "DED20_EnvS_210"}] = Value{Where::live, "Off", 1};
+  o.s.receive(T + "c 1 Zone_DED20 DED20_EnvS_193 Open 0", o.g);
+  o.s.receive(T + "c 2 Zone_DED20 DED20_EnvS_210 Off 2", o.g), o.pass();
+  assert(o.s.counters.same == 2 && o.f.applied.empty());
+  Side j;  // a refused c line for a zone off kZoneEnvs makes no tally
+  j.s.receive(T + "c 1 Zone_Junk DED20_EnvS_193 Open 1", j.g), j.s.receive(T + "c end Zone_Junk 1", j.g), j.pass();
+  assert(j.s.counters.refused == 1 && std::count(j.s.log.begin(), j.s.log.end(),
+         "world: catch-up for Zone_Junk from the partner: 1 sent, 0 applied (0 live), 0 kept ours, 0 same, "
+         "0 refused") == 1);
+}
+void test_silent_partner() {
+  Side x;
+  std::vector<std::string> all;
+  for (int z = 0; z < 3; ++z)
+    for (const char *zone : {"Zone_DED20", "Zone_ME_04"}) {
+      x.f.here = zone;
+      for (int i = 0; i < 40; ++i)
+        x.pass();
+      for (std::string &l : x.take())
+        all.push_back(std::move(l));
+    }
+  assert(all.size() == 6 && x.s.counters.asked == 6);              // one ask per zone entry, nothing else
+  for (const std::string &l : all)
+    assert(l.rfind(T + "c ask ", 0) == 0);
+}
+void test_open() {
+  Fake f;
+  Sync s{f};
+  Ring r;
+  Gates g = on();
+  assert(!s.open(g));
+  s.receive(T + "on", g), s.pass(g, r, 1000);
+  assert(s.open(g));
+  g.match = true;
+  assert(!s.open(g));
+}
+
 } // namespace
 
 int main() {
   test_lines();
   test_malformed();
+  test_catchup_lines();
+  test_catchup_malformed();
+  test_catchup_lists();
   test_ring();
   test_on_off();
   test_answer();
@@ -682,5 +1163,24 @@ int main() {
   test_seq();
   test_new_partner();
   test_status();
+  test_same_name();
+  test_watch();
+  test_watch_gates_and_seq();
+  test_watch_forgets();
+  test_touched();
+  test_ask_timing();
+  test_walk();
+  test_walk_resume();
+  test_unknown_zone();
+  test_receive_rule();
+  test_stale_answer();
+  test_stale_send_back();
+  test_receive_applies();
+  test_host_sends_back();
+  test_close_mid_answer();
+  test_catchup_guards();
+  test_catchup_filters();
+  test_silent_partner();
+  test_open();
   std::printf("world sync: ok\n");
 }

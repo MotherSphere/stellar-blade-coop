@@ -4,9 +4,11 @@
 -- The zone 2 talks of Matrix XIII (2A to 2G), scene by scene in play order (world/maps/matrix13/quest/zone_talks.lua
 -- plays them): the speaker (a StringTable_Seq key, or a plain name for the dungeon's own people), then the English and
 -- French line.
+-- Each line gets its id talk.zone.<scene>.NN (world/maps/matrix13/words.lua), the key of its line in the other
+-- cultures.
 -- oblivion=true: only when Quest_Sub_030 (Oblivion) is complete. No line plays during a fight.
 local LILY,EVE='Seq_Actor_Lily','Seq_Actor_EVE'
-return {
+return require('world.maps.matrix13.words').zone({
     ['2A']={
         {LILY,"Are those citizen numbers, on that wall?",
             "Ce sont des numéros de citoyens, sur ce mur\u{A0}?"},
@@ -81,4 +83,4 @@ return {
         {EVE,"We're going down.",
             "On descend."},
     },
-}
+})

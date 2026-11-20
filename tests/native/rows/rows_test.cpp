@@ -32,6 +32,9 @@
 // of its own): five WorldTable rows, then five ZoneTable rows naming them, in the two tables no other batch writes,
 // then 171 ZoneEnvSpawnTable seat rows over Xion's chair rows, each naming its own row and its hall's zone; a taken
 // zone ID stops it after the worlds, a taken seat ID at that seat, a ZoneTable of another row size before any row.
+// The team shop's batch (world/teamshop/teamshop_rows.h, generated from data/teamshop/, patches of its own): names
+// and IDs unique against the Lion's generator's batches; its rows only in ItemTable, ShopItemTable and ShopTable with
+// its ShopTable row last; a whole run.
 #include "rows/rows.h"
 #include "fight/bosses/lion_rows.h"
 #include "eve/bolt_rows.h"
@@ -39,6 +42,7 @@
 #include "world/maps/matrix13/mxiii_rows.h"
 #include "world/maps/matrix13/signal_rows.h"
 #include "online/lobby/halls_rows.h"
+#include "world/teamshop/teamshop_rows.h"
 
 #include <algorithm>
 #include <cassert>
@@ -172,6 +176,7 @@ struct Game {
     donor_rows(kMxlily);
     donor_rows(kMxrecords);
     donor_rows(kHalls);
+    donor_rows(kTeamshop);
   }
   uint64_t vtable_at = 0;
 
@@ -408,6 +413,7 @@ int main() {
   all.insert(all.end(), kTendrilRecipe, kTendrilRecipe + kTendrilRows);
   all.insert(all.end(), kBoltRecipe, kBoltRecipe + kBoltRows);
   all.insert(all.end(), kShopRecipe, kShopRecipe + kShopRows);
+  all.insert(all.end(), kTeamshopRecipe, kTeamshopRecipe + kTeamshopRows);
   for (size_t t = 0; t < kTableCount; ++t) { // Names and IDs unique in each table across the batches.
     std::set<std::string> names;
     std::set<uint32_t> ids;
@@ -418,8 +424,8 @@ int main() {
         assert(std::strcmp(r.name, r.donor) != 0);
       }
   }
-  // Each patch array walked whole from 0: the three bosses' rows over kPatches, the bolt's and the shop's over their
-  // own.
+  // Each patch array walked whole from 0: the three bosses' rows over kPatches, the bolt's, the shop's and the team
+  // shop's over their own.
   const auto walk = [](const std::vector<Row> &rows, const Patch *ps, size_t count) {
     size_t patches = 0;
     for (const Row &r : rows) {
@@ -454,6 +460,16 @@ int main() {
   walk(bosses, kPatches, sizeof kPatches / sizeof kPatches[0]);
   walk({kBoltRecipe, kBoltRecipe + kBoltRows}, kBoltPatches, sizeof kBoltPatches / sizeof kBoltPatches[0]);
   walk({kShopRecipe, kShopRecipe + kShopRows}, kShopPatches, sizeof kShopPatches / sizeof kShopPatches[0]);
+  walk({kTeamshopRecipe, kTeamshopRecipe + kTeamshopRows}, kTeamshopPatches,
+       sizeof kTeamshopPatches / sizeof kTeamshopPatches[0]);
+  // The team shop's rows go into ItemTable, ShopItemTable and ShopTable only, its ShopTable row last: the shop the
+  // opener names, once every row it lists is in.
+  for (size_t i = 0; i < kTeamshopRows; ++i)
+    assert(kTeamshopRecipe[i].table == Table::item || kTeamshopRecipe[i].table == Table::shopitem ||
+           kTeamshopRecipe[i].table == Table::shop);
+  assert(kTeamshopRecipe[kTeamshopRows - 1].table == Table::shop &&
+         !std::strcmp(kTeamshopRecipe[kTeamshopRows - 1].name, kTeamshopShop) &&
+         kTeamshop.patches == kTeamshopPatches && !std::strcmp(kTeamshop.word, "teamshop"));
   for (size_t t = 0; t < kTableCount; ++t) {
     const TableInfo &info = table_info(Table(t));
     assert(info.name && info.size && info.size <= kRowBytes);
@@ -1559,6 +1575,22 @@ int main() {
            "halls=refused added=0/181 asks=1 spawns=? why=size table=ZoneTable row=Zone_SBO_Hotel detail=0x148");
     assert(describe(kHalls, a) ==
            "halls rows refused Zone_SBO_Hotel: ZoneTable's row size 0x148 not 0x150; 0/181 added");
+  }
+  {
+    // teamshop_rows_build: the team shop's batch on its own Builder adds every row from its template with its patches
+    // as written. A later run adds nothing.
+    Game g;
+    Builder tb(kTeamshop);
+    const Answer a = tb.run(g, kBase, g.tables, g.block);
+    assert(a.state == State::rows && a.why == Why::none && a.added == kTeamshopRows &&
+           g.adds.size() == kTeamshopRows && g.puts.empty());
+    verify(g, tb, kTeamshop, 0);
+    Status s;
+    s.word = pack(a, 1);
+    const std::string n = std::to_string(kTeamshopRows);
+    assert(status_line(kTeamshop, s) ==
+           "teamshop=rows added=" + n + "/" + n + " asks=1 spawns=? char=0/0 skills=0/0 stance=0/0");
+    assert(tb.run(g, kBase, g.tables, g.block).added == kTeamshopRows && g.adds.size() == kTeamshopRows);
   }
   {
     // Matrix XIII's camp batch reads only its own tables: a ZoneEnvSpawnTable whose row size is not the SDK's stops it

@@ -7,7 +7,9 @@
 -- looks for a body of each boss's blueprint within NEAR of its spawn point and fixes it once: the Lion through
 -- fight/bosses/lion.lua's adopt (the anim instance its mesh lacks, else the hidden Behemoth leader), the Gardener's
 -- mesh turned -90 degrees about its root (its skeleton faces +Y). While a boss it fixed lives, the boss bar's name
--- reads its name instead of the row name (<M_LionC>, <M_Gardener>). One [MXBOSS] line a fix. When EVE stands within
+-- reads its name in the game's language (world/maps/matrix13/words.lua's boss.<name>; in French as LIST's fr) instead
+-- of the row name (<M_LionC>, <M_Gardener>); its text blocks are walked for under the arrival's black, then found by
+-- their path. One [MXBOSS] line a fix. When EVE stands within
 -- ARENA of a boss point for WAIT s with no body there, one line says so and that coop mxiii boss spawns one; that
 -- command is the key-0 fallback: coop lion's or coop gardener fight's own spawn, with no spawn row (no saved death, no
 -- zone storage). It is never automatic: a boss killed in an earlier session stays dead through its row's SaveType, and
@@ -21,13 +23,16 @@
 local U=require('core.unreal')
 local N=require('core.player')
 local Rows=require('world.maps.matrix13.level.rows')
+local W=require('world.maps.matrix13.words')
+local culture_of=require('world.maps.matrix13.culture')
 local Boss={}
 Boss.MAP='/mxiii_p'
+-- fr: the French name on the boss bar (the Lion has none in SB; the Gardener is SB's Char_M_Gardener_AlbumName).
 Boss.LIST={
-    {row='DLC02_40_E_CharS_051',name='Lion',class='CH_M_NA_02_BluePrint_Large_C',shown='^<M_LionC[%w_]*>$',fix='lion',
-        on_dead={'DLC02_40_E_EnvC_631','DLC02_40_E_EnvC_632','DLC02_40_E_EnvC_633'}},
-    {row='DLC02_20_E_CharS_904',name='Gardener',class='CH_M_NA_01_BluePrint_C',shown='^<M_Gardener[%w_]*>$',
-        fix='gardener',mesh_yaw=-90},
+    {row='DLC02_40_E_CharS_051',name='Lion',fr='Lion',class='CH_M_NA_02_BluePrint_Large_C',shown='^<M_LionC[%w_]*>$',
+        fix='lion',on_dead={'DLC02_40_E_EnvC_631','DLC02_40_E_EnvC_632','DLC02_40_E_EnvC_633'}},
+    {row='DLC02_20_E_CharS_904',name='Gardener',fr='La guivre',class='CH_M_NA_01_BluePrint_C',
+        shown='^<M_Gardener[%w_]*>$',fix='gardener',mesh_yaw=-90},
     -- [inference] The class of CharacterAppearanceTable's M_Sawshark row, which its donor row's look is taken to use.
     {row='DLC02_30_E_CharS_029',name='Stalker',class='CH_M_NA_13_Blueprint_C'},
 }
@@ -49,18 +54,21 @@ local function zone_event(kind,name)
     U.find('/Script/SB.Default__SBBlueprintLibrary'):CreateSBZoneEvent(kind,find_name(name))
 end
 local BOSS_TEXT,LIVE='TextBlock_BossName','/Engine/Transient'
+local LANGUAGE='/Script/Engine.Default__KismetInternationalizationLibrary'
 
 local function far(a,b) return math.sqrt((a.X-b.X)^2+(a.Y-b.Y)^2+(a.Z-b.Z)^2) end
 local function xyz(t) return {X=t[1],Y=t[2],Z=t[3]} end
 
 -- o: log (the [MXBOSS] lines), lion() and gardener() (fight/bosses/lion.lua's and fight/bosses/gardener.lua's
 -- instances, read at each call; nil, or nil from the call: no fix, no fallback), points
--- (world/maps/matrix13/level/rows.lua's BOSS by default).
+-- (world/maps/matrix13/level/rows.lua's BOSS by default), find(path) (the object at a path, or nil; core/unreal.lua's
+-- object_at).
 function Boss.new(o)
     local log=o.log
     local points=o.points or Rows.BOSS
     local self={}
     local next_pass,next_look,blocks=0,0,{}
+    local primed,paths=false,{} -- Primed under the arrival's black; the boss bar's text block paths.
     local state={} -- By row: fixed (the body's address), waited (os.clock EVE came near), said, fallback (spawned so).
     local world=nil -- The address of the world state was read in.
     local function reset()
@@ -92,26 +100,40 @@ function Boss.new(o)
             log('fallback '..b.name..' dead: '..event..(ok and ' fired' or ' not fired ('..tostring(e)..')'))
         end
     end
-    -- The boss bar's name, while a fixed boss lives.
+    -- The boss bar's text blocks into blocks by a walk of every object; their paths.
+    local function walk_blocks()
+        local found={}
+        U.each(FindAllOf('TextBlock') or {},function(_,t)
+            t=U.valid(t)
+            if t and U.text(t:GetFName())==BOSS_TEXT and U.text(t:GetFullName()):find(LIVE,1,true) then
+                blocks[#blocks+1]=t
+                found[#found+1]=U.text(t:GetFullName()):match('^%S+ (.+)$')
+            end
+        end)
+        return found
+    end
+    -- The boss bar's name in the game's language (English when the language read fails), while a fixed boss lives.
     local function names(now,living)
         if not next(living) then return end
         local held=false
         for _,t in ipairs(blocks) do held=held or U.valid(t)~=nil end
         if not held and now>=next_look then
             next_look,blocks=now+LOOK,{}
-            U.each(FindAllOf('TextBlock') or {},function(_,t)
-                t=U.valid(t)
-                if t and U.text(t:GetFName())==BOSS_TEXT and U.text(t:GetFullName()):find(LIVE,1,true) then
-                    blocks[#blocks+1]=t
+            if primed then -- No walk in play: the paths prime() kept (o.find, a name-hash find).
+                for _,p in ipairs(paths) do
+                    local t=U.valid(o.find(p))
+                    if t then blocks[#blocks+1]=t end
                 end
-            end)
+            else walk_blocks() end
         end
         for _,t in ipairs(blocks) do
             local shown=U.valid(t) and U.text(t:GetText())
             for _,b in ipairs(Boss.LIST) do
                 if shown and living[b.row] and b.shown and shown:find(b.shown) then
-                    t:SetText(FText(b.name))
-                    log(string.format('boss name: %s -> %s',shown,b.name))
+                    local read,raw=pcall(function() return U.text(U.find(LANGUAGE):GetCurrentLanguage()) end)
+                    local name=W.line(culture_of(read and raw or nil),'boss.'..b.name,b.name,b.fr)
+                    t:SetText(FText(name))
+                    log(string.format('boss name: %s -> %s',shown,name))
                 end
             end
         end
@@ -176,6 +198,19 @@ function Boss.new(o)
         world=here
         local ok,e=pcall(pass,now,eve)
         if not ok then log('pass failed: '..tostring(e)) end
+    end
+    -- Under the arrival's black (world/maps/matrix13/level/travel.lua): the class hash's proof (core/unreal.lua's
+    -- actors_of, one walk of the player controllers once a Lua load), then the boss bar's text blocks walked for once
+    -- and their paths kept. No block found (the bar not built yet) or a failed walk: not primed, so the look walks as
+    -- before.
+    function self.prime(eve)
+        local ok,e=pcall(function()
+            U.actors_of(U.find('/Script/Engine.PlayerController'),'PlayerController',eve)
+            blocks={}
+            paths=walk_blocks()
+        end)
+        primed=ok and #paths>0
+        if not ok then log('prime failed: '..tostring(e)) end
     end
     -- coop mxiii boss: the boss whose point is nearest EVE within ARENA, spawned by its own command.
     function self.command()

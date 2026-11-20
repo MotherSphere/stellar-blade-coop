@@ -81,4 +81,25 @@ back='none'
 U=fresh()
 cls,route=U.class_at(BOOTH,ctx)
 assert(cls==held[BOOTH] and route=='walk (its pawn class came back as nil)' and checks==1 and #walks==1,route)
+-- object_at: nil and nil before the proof (no pawn: no walk, no soft call); the soft object path once proven (a _C
+-- path through the class route), never a walk; the walk once the proof failed for good, as class_at.
+local OBJ='/Game/Test/Seq.Seq'
+held[OBJ]=object(0x500)
+kismet.MakeSoftObjectPath=function(_,path) soft[#soft+1]=path; return {AssetPathName=path} end
+kismet.Conv_SoftObjPathToSoftObjRef=function(_,p) return {path=p.AssetPathName} end
+kismet.Conv_SoftObjectReferenceToObject=function(_,r) return held[r.path] end
+back,pawn=nil,nil
+U=fresh()
+local x,known=U.object_at(OBJ,ctx)
+assert(x==nil and known==nil and #walks==0 and #soft==0)
+pawn=object(0x400,{GetClass=function() return held[EVE] end})
+x,known=U.object_at(OBJ,ctx)
+assert(x==held[OBJ] and known==true and #walks==0 and soft[#soft]==OBJ)
+x,known=U.object_at(BOOTH,nil)
+assert(x==held[BOOTH] and known==true and #walks==0 and soft[#soft]==BOOTH)
+back='raise'
+U=fresh()
+x,known=U.object_at(OBJ,ctx)
+assert(x==held[OBJ] and known==true and walks[#walks]==OBJ)
+back=nil
 print('class_at_test ok')

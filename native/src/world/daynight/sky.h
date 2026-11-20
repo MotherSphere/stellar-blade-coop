@@ -94,6 +94,33 @@ inline Light light_at(double hour, int hz, int heading) {
   return l;
 }
 
+// A glide's direction at s: the normalised blend of a and b, or b where the blend is shorter than 1e-3 (two nearly
+// opposite directions, the moon's swap at -4 degrees). out may be a or b.
+inline void glide_dir(const float a[3], const float b[3], double s, float out[3]) {
+  double v[3], len = 0;
+  for (int i = 0; i < 3; ++i)
+    v[i] = a[i] + (b[i] - a[i]) * s, len += v[i] * v[i];
+  len = std::sqrt(len);
+  for (int i = 0; i < 3; ++i)
+    out[i] = len < 1e-3 ? b[i] : static_cast<float>(v[i] / len);
+}
+
+// The light a glide draws at s from a to b: the factors and el blended (el never wraps, so the star fade and Xion's
+// night dome follow it), le and ly from the blended direction. hour and moon switch at half way: a SkyCreator's
+// SetTime steps once.
+inline Light mix_light(const Light &a, const Light &b, double s) {
+  const auto mix = [s](double x, double y) { return x + (y - x) * s; };
+  Light l = s < 0.5 ? a : b;
+  l.el = mix(a.el, b.el), l.k = mix(a.k, b.k), l.amb = mix(a.amb, b.amb), l.eve = mix(a.eve, b.eve);
+  l.fog = mix(a.fog, b.fog), l.glow = mix(a.glow, b.glow), l.ev = mix(a.ev, b.ev);
+  for (int i = 0; i < 3; ++i)
+    l.tint[i] = static_cast<float>(mix(a.tint[i], b.tint[i]));
+  glide_dir(a.dir, b.dir, s, l.dir);
+  l.le = std::asin(-l.dir[2]) * 180 / kPi;
+  l.ly = std::fmod(std::atan2(l.dir[1], l.dir[0]) * 180 / kPi + 360, 360);
+  return l;
+}
+
 // SB's env settings on AWorldSettings, read in UWorld::AddPostProcessingSettings 0x1446A36C0 (WorldSettings from
 // UWorld+0x30 then ULevel+0x268; +0x1420 the env-active byte and +0x1430 the main view's blended copy, written each
 // frame) and in the blend FUN_1446B00A0 (array data +0x2E0, Num +0x2E8 int32, stride 0xB30; forced byte +0x2F0 with
@@ -102,6 +129,9 @@ inline Light light_at(double hour, int hz, int heading) {
 // written into an element is what SB draws from the next frame on. Build 26123051.
 constexpr size_t kArray = 0x2E0, kNum = 0x2E8, kForcedFlag = 0x2F0, kForced = 0x2F8, kGated = 0x2018;
 constexpr size_t kViewFlag = 0x1420, kViewSun = 0x14A0; // +0x1430 copy + kSun.
+// The overlay TArray at +0x300 the same blend sums on top of the array (FUN_1446B00A0 at 0x1446b0954: its Num, int32,
+// stride 0x20): a sequence's env track adds it. Read for the log line, never written.
+constexpr size_t kOverlayNum = 0x308;
 // One element (FSBEnvControlSettings), its fields summed by FUN_1444F60D0: Direction_Sun +0x4C, Color_Sun +0x5C,
 // Intensity_Sun +0x70, Intensity_SkyLight +0x180, Intensity_Character +0x1D8 and Sub +0x20C, FogInscatteringColor
 // +0x254, DirectionalInscatteringColor +0x2AC; PostProcessData at +0x430 applied by FUN_1445031D0, whose
@@ -111,6 +141,7 @@ constexpr size_t kEve = 0x1D8, kEveSub = 0x20C, kFog = 0x254, kGlow = 0x2AC, kBi
 constexpr uint8_t kBiasBit = 0x02;
 constexpr int kMaxElements = 256; // The largest array in the map dump holds 114.
 constexpr uint64_t kPassMs = 100; // The sun moves 0.01 degree in that time.
+constexpr uint64_t kGlideMs = 2000; // A change of draw (a hold released, a pinned hour) moves the light over this time.
 
 enum class Mode : uint8_t { off, cycle, pinned, held };
 struct Want {
@@ -119,11 +150,11 @@ struct Want {
   uint8_t hz = 8;      // The map's horizon, degrees.
   uint16_t heading = 0; // The map's noon heading, degrees.
 };
-enum class State : uint8_t { off, cycle, pinned, held, waiting, forced, scene, gated, full, fault, refused };
+enum class State : uint8_t { off, cycle, pinned, held, waiting, forced, gated, full, fault, refused };
 
 inline const char *word(State s) {
-  static const char *const words[] = {"off",   "cycle", "pinned", "held",  "waiting", "forced",
-                                      "scene", "gated", "full",   "fault", "refused"};
+  static const char *const words[] = {"off",    "cycle", "pinned", "held",  "waiting",
+                                      "forced", "gated", "full",   "fault", "refused"};
   return words[static_cast<int>(s)];
 }
 
@@ -141,11 +172,12 @@ inline std::string line(State s, const Light &l, int n, int lit, bool seen) {
 }
 
 // Writes the light of the hour into every element of SB's env array from the originals it read there, so SB's own
-// blend does the per-frame work. Memory is reached by address: the caller runs it under its own fault guard. scene:
-// SB plays a cutscene or a talk scene (its theater), whose env volumes must draw SB's own light.
+// blend does the per-frame work. Memory is reached by address: the caller runs it under its own fault guard. SB's
+// array changes only when a volume registers or leaves (Transient, no Interp; DESIGN section 4), so the caller runs a
+// pass in the frame moved() says it changed.
 class Sky {
 public:
-  State pass(uintptr_t world, uintptr_t settings, const Want &want, uint64_t utc_ms, bool scene = false) {
+  State pass(uintptr_t world, uintptr_t settings, const Want &want, uint64_t utc_ms) {
     elements_ = sunlit_ = 0;
     if (want.mode != Mode::held)
       held_ = false;
@@ -159,26 +191,39 @@ public:
       }
       hour = held_hour_;
     }
+    // A change of draw between two live wants (a hold released, a pinned minute set, changed or cleared). It waits in
+    // pending_ for the first pass that reaches the element loop, even with no element (a hall's empty array), so a
+    // change seen under SB's forced settings glides once they end. A new world, an off or a fault drop it (drop()).
+    const bool was_live = last_ == Mode::cycle || last_ == Mode::pinned || last_ == Mode::held;
+    if (was_live && (want.mode == Mode::cycle || want.mode == Mode::pinned) &&
+        (last_ != want.mode || (want.mode == Mode::pinned && want.minute != last_minute_)))
+      pending_ = true;
     last_ = want.mode;
+    last_minute_ = want.minute;
     light_ = light_at(hour, want.hz, want.heading);
     if (settings == 0 || world != world_ || settings != settings_) { // The old array died with its world.
       drop();
       world_ = world;
       settings_ = settings;
     }
+    if (gliding_ && (utc_ms < glide_ms_ || utc_ms - glide_ms_ >= kGlideMs))
+      gliding_ = false; // Its time is up, or the PC clock went back: the target is written below.
     seen_ = settings && rd<uint8_t>(settings + kViewFlag) != 0 && rd<float>(settings + kViewSun) > 0;
+    // What moved() compares with: the array as this pass found it, whatever the branch below.
+    array_ = settings ? rd<uintptr_t>(settings + kArray) : 0;
+    num_ = settings ? rd<int32_t>(settings + kNum) : 0;
+    overlay_ = settings ? rd<int32_t>(settings + kOverlayNum) : 0;
     if (want.mode == Mode::off) { // Even under SB's forced settings: the array is ours to put back.
       restore();
       return State::off;
     }
-    if (scene) { // The scene's CutScene_ and Dialogue_ volumes blend from the array: SB's values until it ends.
-      restore();
-      return State::scene;
-    }
     if (settings == 0)
       return State::waiting;
-    if (rd<uint8_t>(settings + kForcedFlag) != 0 && rd<uint64_t>(settings + kForced) != 0)
+    if (rd<uint8_t>(settings + kForcedFlag) != 0 && rd<uint64_t>(settings + kForced) != 0) {
+      if (gliding_) // No pass each frame while forced: the glide starts again from what the elements hold.
+        gliding_ = false, pending_ = true;
       return State::forced; // SB draws its forced block, not the array: leave the array as it is.
+    }
     if (rd<uint8_t>(settings + kGated) != 0) {
       restore();
       return State::gated;
@@ -189,8 +234,17 @@ public:
       restore();
       return State::full;
     }
-    if (n < 0 || (n > 0 && array == 0))
+    if (n < 0 || (n > 0 && array == 0)) {
+      if (gliding_)
+        gliding_ = false, pending_ = true;
       return State::waiting;
+    }
+    // A world no pass drew in yet (its first passes forced or waiting) has no light of ours to glide from: at once.
+    const bool starting = pending_ && drew_;
+    if (starting)
+      gliding_ = true, glide_ms_ = utc_ms, start_ = drawn_;
+    pending_ = false;
+    const double s = gliding_ ? ramp(double(utc_ms - glide_ms_), 0, double(kGlideMs)) : 1;
     const Entry *old = cache_[cur_];
     Entry *next = cache_[cur_ ^ 1];
     for (int i = 0; i < n; ++i) {
@@ -198,13 +252,17 @@ public:
       Entry &c = next[i];
       const Entry *was = find(old, count_, i, rd<uint64_t>(e + kVolume), rd<uint64_t>(e + kData));
       const float now = rd<float>(e + kSun);
-      if (was && (now == was->sun || now == was->wrote_sun))
+      if (was && (now == was->orig.sun || now == was->wrote_sun)) {
         c = *was;
-      else
+        if (starting) // The glide starts from what the element holds; one read as new gets the new hour at once.
+          c.from = take(e), c.glides = true;
+      } else
         read(c, e); // New, or SB copied other values in: these are its originals now.
-      write(c, e);
+      write(c, e, s);
       sunlit_ += c.lit;
     }
+    drawn_ = gliding_ ? mix_light(start_, light_, s) : light_; // Only a pass that gets here: start_ is a drawn light.
+    drew_ = true;
     cur_ ^= 1;
     count_ = elements_ = n;
     holding_ = n > 0;
@@ -220,20 +278,8 @@ public:
       const uintptr_t e = array + static_cast<uintptr_t>(i) * kStride;
       const Entry *c = find(cache_[cur_], count_, i, rd<uint64_t>(e + kVolume), rd<uint64_t>(e + kData));
       const float now = c ? rd<float>(e + kSun) : 0;
-      if (!c || (now != c->sun && now != c->wrote_sun))
-        continue;
-      wr3(e + kDir, c->dir);
-      if (!c->lit)
-        continue;
-      wr(e + kSun, c->sun);
-      wr3(e + kColor, c->color);
-      wr(e + kSky, c->sky);
-      wr(e + kEve, c->eve);
-      wr(e + kEveSub, c->eve_sub);
-      wr3(e + kFog, c->fog);
-      wr3(e + kGlow, c->glow);
-      if (c->bias_bits & kBiasBit)
-        wr(e + kBias, c->bias);
+      if (c && (now == c->orig.sun || now == c->wrote_sun))
+        put(e, c->orig, *c);
     }
     drop();
   }
@@ -242,14 +288,25 @@ public:
   int elements() const { return elements_; }
   int sunlit() const { return sunlit_; }
   bool seen() const { return seen_; }
-  const Light &light() const { return light_; }
+  const Light &light() const { return light_; } // A glide's target: the hold logic reads its hour.
+  // From the pass that starts a glide until the one that reaches kGlideMs, or the first that stops before the elements.
+  bool gliding() const { return gliding_; }
+  const Light &drawn() const { return drawn_; } // The light the last live pass drew: a glide's mix, else light().
+  uintptr_t settings() const { return settings_; } // The last pass's WorldSettings and world, 0 for none.
+  uintptr_t world() const { return world_; }
+  bool moved(uintptr_t array, int32_t n) const { return array != array_ || n != num_; }
+  int overlay() const { return overlay_; }
 
 private:
+  struct Values { // The 17 floats a write puts in an element.
+    float sun, color[3], sky, eve, eve_sub, fog[3], glow[3], bias, dir[3];
+  };
   struct Entry {
     uint64_t volume, data;
-    float sun, color[3], sky, eve, eve_sub, fog[3], glow[3], bias, dir[3], wrote_sun;
+    Values orig, from; // The element's originals; what it held when a glide started.
+    float wrote_sun;
     uint8_t bias_bits;
-    bool lit;
+    bool lit, glides;
   };
 
   template <class T> static T rd(uintptr_t a) {
@@ -274,53 +331,98 @@ private:
     return nullptr;
   }
 
+  static Values take(uintptr_t e) {
+    Values v;
+    v.sun = rd<float>(e + kSun);
+    rd3(e + kColor, v.color);
+    v.sky = rd<float>(e + kSky);
+    v.eve = rd<float>(e + kEve);
+    v.eve_sub = rd<float>(e + kEveSub);
+    rd3(e + kFog, v.fog);
+    rd3(e + kGlow, v.glow);
+    v.bias = rd<float>(e + kBias);
+    rd3(e + kDir, v.dir);
+    return v;
+  }
+
   static void read(Entry &c, uintptr_t e) {
     c.volume = rd<uint64_t>(e + kVolume);
     c.data = rd<uint64_t>(e + kData);
-    c.sun = c.wrote_sun = rd<float>(e + kSun);
-    rd3(e + kColor, c.color);
-    c.sky = rd<float>(e + kSky);
-    c.eve = rd<float>(e + kEve);
-    c.eve_sub = rd<float>(e + kEveSub);
-    rd3(e + kFog, c.fog);
-    rd3(e + kGlow, c.glow);
-    c.bias = rd<float>(e + kBias);
-    rd3(e + kDir, c.dir);
+    c.orig = take(e);
+    c.wrote_sun = c.orig.sun;
     c.bias_bits = rd<uint8_t>(e + kBiasBits);
-    c.lit = c.sun > 0; // A covered element (cave, room) gets only the direction, which changes nothing there.
+    c.lit = c.orig.sun > 0; // A covered element (cave, room) gets only the direction, which changes nothing there.
+    c.glides = false;
   }
 
-  void write(Entry &c, uintptr_t e) const {
+  // The hour's values for an element from its originals.
+  Values target(const Entry &c) const {
     const Light &l = light_;
-    wr3(e + kDir, l.dir);
+    const Values &o = c.orig;
+    Values v;
+    // 0 culls the light (FUN_1430FA210): no sunlight through the ground at night.
+    v.sun = static_cast<float>(o.sun * l.k);
+    for (int i = 0; i < 3; ++i) {
+      v.color[i] = o.color[i] * l.tint[i];
+      v.fog[i] = static_cast<float>(o.fog[i] * l.fog);
+      v.glow[i] = static_cast<float>(o.glow[i] * l.glow);
+      v.dir[i] = l.dir[i];
+    }
+    v.sky = static_cast<float>(o.sky * l.amb);
+    v.eve = static_cast<float>(o.eve * l.eve);
+    v.eve_sub = static_cast<float>(o.eve_sub * l.eve);
+    v.bias = static_cast<float>(o.bias + l.ev);
+    return v;
+  }
+
+  // The direction always; the rest only into a sunlit element, the exposure bias only where its override bit is set.
+  static void put(uintptr_t e, const Values &v, const Entry &c) {
+    wr3(e + kDir, v.dir);
     if (!c.lit)
       return;
-    c.wrote_sun = static_cast<float>(c.sun * l.k);
-    wr(e + kSun, c.wrote_sun); // 0 culls the light (FUN_1430FA210): no sunlight through the ground at night.
-    for (int i = 0; i < 3; ++i) {
-      wr(e + kColor + 4 * i, c.color[i] * l.tint[i]);
-      wr(e + kFog + 4 * i, c.fog[i] * l.fog);
-      wr(e + kGlow + 4 * i, c.glow[i] * l.glow);
-    }
-    wr(e + kSky, c.sky * l.amb);
-    wr(e + kEve, c.eve * l.eve);
-    wr(e + kEveSub, c.eve_sub * l.eve);
+    wr(e + kSun, v.sun);
+    wr3(e + kColor, v.color);
+    wr(e + kSky, v.sky);
+    wr(e + kEve, v.eve);
+    wr(e + kEveSub, v.eve_sub);
+    wr3(e + kFog, v.fog);
+    wr3(e + kGlow, v.glow);
     if (c.bias_bits & kBiasBit)
-      wr(e + kBias, c.bias + l.ev);
+      wr(e + kBias, v.bias);
+  }
+
+  // The hour's values, or during a glide each field's blend at s from what the element held when it started.
+  void write(Entry &c, uintptr_t e, double s) const {
+    Values v = target(c);
+    if (gliding_ && c.glides) {
+      const Values &f = c.from;
+      const auto mix = [s](float &to, float from) { to = static_cast<float>(from + (to - from) * s); };
+      mix(v.sun, f.sun), mix(v.sky, f.sky), mix(v.eve, f.eve), mix(v.eve_sub, f.eve_sub), mix(v.bias, f.bias);
+      for (int i = 0; i < 3; ++i)
+        mix(v.color[i], f.color[i]), mix(v.fog[i], f.fog[i]), mix(v.glow[i], f.glow[i]);
+      glide_dir(f.dir, v.dir, s, v.dir);
+    }
+    put(e, v, c);
+    if (c.lit)
+      c.wrote_sun = v.sun;
   }
 
   void drop() {
     count_ = 0;
-    holding_ = false;
+    holding_ = gliding_ = pending_ = drew_ = false;
   }
 
   Entry cache_[2][kMaxElements]; // Last pass's entries and this pass's, swapped each pass: no heap.
   int cur_ = 0, count_ = 0, elements_ = 0, sunlit_ = 0;
-  uintptr_t world_ = 0, settings_ = 0;
-  Light light_{};
-  Mode last_ = Mode::off; // The last pass's mode: light_ holds the hour it drew.
+  uintptr_t world_ = 0, settings_ = 0, array_ = 0;
+  int32_t num_ = 0, overlay_ = 0;
+  Light light_{}, start_{}, drawn_{}; // start_: the light drawn when the running glide started.
+  Mode last_ = Mode::off; // The last pass's mode and pinned minute: light_ holds the hour it drew.
+  uint16_t last_minute_ = 0;
   double held_hour_ = 0;
-  bool held_ = false, holding_ = false, seen_ = false;
+  uint64_t glide_ms_ = 0; // The UTC ms the running glide started.
+  bool held_ = false, holding_ = false, seen_ = false, gliding_ = false, pending_ = false;
+  bool drew_ = false; // A pass of this world and WorldSettings reached the elements: drawn_ is a light of this world.
 };
 
 } // namespace coop::sky

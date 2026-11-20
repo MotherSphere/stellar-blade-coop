@@ -369,6 +369,9 @@ struct JobCounts {
   // Stage 5, the guest's: SetBattleMode calls, phase rows applied and refused by the game, finish guards (turns the
   // guard ran on a copy), summons made; the host's: summon lines sent.
   uint64_t bstarts = 0, phase_rows = 0, phase_refused = 0, finish_guards = 0, summons = 0;
+  // Phase 8 Rule B: windows whose effect SB never ended (windows off for the run), checks skipped (the copy gone or
+  // dying, its list torn, or its clock still behind poise::kGiveUpMs after the end).
+  uint64_t unrestored = 0, restore_skipped = 0;
 };
 
 // What the worker logs about the job: the logic thread's side, copied at each hand-over (Mail), with the game thread's
@@ -387,6 +390,7 @@ struct Snapshot {
   size_t scaled = 0;                     // Enemies whose MaxHP we scaled.
   uint16_t scale[kScales] = {kMinScale, kMinScale}; // The side's scaling: the host's own, or as its scale line said.
   uint16_t bosses = 0; // The side's boss_hp_scale with bosses on (stage 5), as scale; 0: off.
+  bool reactions = false, resist = false; // The side's hit_reactions and stagger_resist (phase 8), as bosses.
   size_t actors = 0;                     // Live actors at the last census (the probe's), or allocated slots.
   bool eve = false;                      // The last census found our EVE (RE4).
   // The guest's side: the host's enemies left unpaired (Guest::unshared), the first kMaxUnshared of them, how many

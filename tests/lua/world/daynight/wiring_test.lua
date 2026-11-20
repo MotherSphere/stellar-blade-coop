@@ -3,7 +3,7 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The day/night cycle through main.lua (fixture.lua's fake world/daynight/daynight.lua; world/daynight/daynight_test
 -- tests the module): what it is built with (the native asks and status, the setting, SB's state it reads, the plugin's
--- path), its 250 ms pass with coop off, coop daynight and its words.
+-- path, the star material from the keep), its 250 ms pass with coop off, coop daynight and its words.
 dofile('tests/lua/main/fixture.lua')
 local USE='[StellarCoop] STOP: Use: coop daynight [on | off | status | hour <h>]\n'
 settings_text,status_text,in_world='',plain,true
@@ -16,14 +16,29 @@ assert(o.level('/Game/Art/BG/WorldMap/SubLevel/B07/B07_Skysphere_02')==nil)
 package.loaded.UEHelpers.GetPlayer=nil
 assert(o.ask('sky off') and asked[#asked]=='sky off')
 assert(o.cps=='mod/StellarCoop\\..\\..\\..\\CPS\\Plugins\\activate_day_night_cycle.cps',o.cps)
--- SB's state it reads: a cutscene, its screens, photo mode, Night Operation, the lobby in Xion's training room only.
-assert(o.cutscene()==false and o.screen()==false and o.photo()=='0' and o.night()==false and o.lobby()==false)
-gr.playing,kit_paused,photo_mode,nr.running=true,true,true,true
-assert(o.cutscene()==true and o.screen()==true and o.photo()=='1' and o.night()==true)
-gr.playing,kit_paused,photo_mode,nr.running=nil,false,false,nil
+-- SB's state it reads: photo mode, Night Operation, the lobby in Xion's training room only.
+assert(o.cutscene==nil and o.screen==nil)
+assert(o.photo()=='0' and o.night()==false and o.lobby()==false)
+photo_mode,nr.running=true,true
+assert(o.photo()=='1' and o.night()==true)
+photo_mode,nr.running=false,nil
 sb.target={key='xion'}; assert(o.lobby()==true)
 sb.target={key='hotel'}; assert(o.lobby()==false,'A hall lobby has its own row')
 sb.target=nil
+-- The keep (core/keep.lua): the star material wanted, stars_ready() false until the keep settled; then find() gives
+-- the keep's object with no lookup and load() loads nothing.
+do
+    local Keep,Rule=require('core.keep'),require('world.daynight.rule')
+    assert(Keep.wanted(Rule.STARS) and o.stars_ready()==false)
+    local star={type=function() return 'UObject' end,IsValid=function() return true end,
+        GetFullName=function() return 'Material '..Rule.STARS end}
+    local kf=dofile('tests/lua/core/keep_fake.lua')(function() return star,true end)
+    Keep.want({Rule.STARS}) -- keep_fake starts the keep over.
+    Keep.slow()
+    kf.settle()
+    assert(o.stars_ready() and o.find(Rule.STARS)==star and o.load(Rule.STARS)==nil)
+    Keep.reset()
+end
 -- Each 250 ms pass, with coop off as it stands.
 quarter(); assert(dn.slows[#dn.slows]==false)
 -- coop daynight: alone or status, on, off, hour <h>; anything else is its usage line.

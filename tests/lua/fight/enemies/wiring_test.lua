@@ -177,6 +177,22 @@ for _,case in ipairs({{'record','fight record scale 135 115 place 15011001 2'},{
     coop('fight',case[1]); assert(asked[#asked]==case[2],asked[#asked])
 end
 coop('fight','pilot','on'); assert(asked[#asked]=='fight pilot on')
+-- hit_reactions and stagger_resist (on by default, the host's) go with the modes that can host (on, record) as
+-- "reactions" and "resist" after the bosses word, before spawns and the ids; replay and probe never carry them.
+settings_text='shared_enemies=on\nbosses=on\nsame_spawns=on\nhit_reactions=on\nstagger_resist=on\n'
+    ..'fight_chars=15011001 2\n'
+load_main(true)
+status_text=COOP
+loops[2].f()
+assert(#asked==1 and asked[1]=='fight on scale 135 115 bosses 200 reactions resist spawns 15011001 2',asked[1])
+for _,case in ipairs({{'record','fight record scale 135 115 bosses 200 reactions resist 15011001 2'},
+        {'replay','fight replay 15011001 2'},{'probe','fight probe 15011001 2'}}) do
+    coop('fight',case[1]); assert(asked[#asked]==case[2],asked[#asked])
+end
+settings_text='shared_enemies=on\nhit_reactions=on\nstagger_resist=off\n'
+load_main(true)
+status_text=COOP
+coop('fight','on'); assert(asked[#asked]=='fight on scale 135 115 reactions',asked[#asked])
 -- aggro=host (the host's: enemies fight the host only) goes the same way as "aggro-host" after place, or alone.
 settings_text='shared_enemies=on\nsame_place=on\naggro=host\n'
 load_main(true)
