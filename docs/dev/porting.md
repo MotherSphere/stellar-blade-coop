@@ -87,10 +87,14 @@ repository.
    It accepts the new executable once `engine.h` pins it. It writes each entry's signature from the new build, so the
    next port starts from this one. In `tests/tools/port_signatures_test.py`, point `EXE` at the new build's copy and
    change the build number in its messages.
-8. Update the other texts that give an old address or the old build. Run `grep -rn` for each address that moved and
-   for `26123051` in `docs/`, `tests/`, `tools/`, `native/src/` and `mod/`. Some tests write addresses as literals:
-   `tests/native/game/globals_test.cpp` holds SB's globals, `tests/tools/matchmaking_scan_test.py` the RunZoneEvent
-   constant. The internals pages give the pinned build's addresses, as
+8. Update the other texts that give an old address or the old build. Run `grep -rni` for `26123051` and for the offset
+   from the image base of each address that moved (`1ca5790` for 0x141ca5790) in `docs/`, `tests/`, `tools/`,
+   `native/src/` and `mod/`. The offset also matches the whole address. Some tests write addresses as literals. SB's
+   globals in `tests/native/game/globals_test.cpp` and the `static_assert`s of `tests/native/game/sbo_test.cpp`,
+   `tests/native/online/lobby/loading_test.cpp` and `tests/native/ui/pause_tab_test.cpp` fail until they hold the new
+   ones. `tests/native/rows/rows_test.cpp` expects AddRow's address in the texts that
+   `describe()` writes in `native/src/rows/rows.h`. `tests/tools/matchmaking_scan_test.py` holds RunZoneEvent's offset
+   alone, `1ca5790`. The internals pages give the pinned build's addresses, as
    [docs/README.md](../README.md#building-and-internals) says. `INSTALL.md` names the build players need. This page's
    numbers (the section ranges, the signature counts) are build 26123051's. A text that names the build a fact was
    read on, such as a table dump, keeps that build until the fact is read again on the new one.
@@ -129,20 +133,23 @@ most often in a function. Read the same place on the new build.
   0x146409530 plus 0x2b0 is 0x1464097e0, which holds `kAddRow` 0x1441815b0. Otherwise find a call through the slot
   (`call qword ptr [rax+0x4a0]`) in the function the comment names and compare its displacement.
 - Row sizes and field offsets of the game's tables: the sizes in `kTables` (`native/src/rows/rows.h`), the patch
-  offsets in each `*_rows.h` and the `FIELDS` of `tools/mxiii_rows.py`, `tools/teamshop_rows.py` and
-  `tools/sbo_lobby_rows.py`. The engine reflects the row structs. Search the struct's name among Ghidra's strings and
-  follow its reference to the struct's parameters. On build 26123051, `SBShopTableProperty`'s parameters at
-  0x146db1d60 hold the name's address at +0x18, the size 0xa8 at +0x20 (`ShopTable` in `kTables`), the property list
-  at +0x30 and its count, 20, at +0x38. The list holds the parameters of `ShopItems` at 0x145e197b8: the name's address
-  at +0, the offset 0x38 at +0x24 (the patch offset in `native/src/fight/gunmode/nikke_rows.h`). At run time,
+  offsets in each `*_rows.h`, the `FIELDS` of `tools/mxiii_rows.py` and `tools/teamshop_rows.py`.
+  `tools/sbo_lobby_rows.py` writes its offsets in its code. The engine reflects the row structs. Search the struct's
+  name among Ghidra's strings and follow its reference to the struct's parameters. On build 26123051,
+  `SBShopTableProperty`'s parameters at 0x146db1d60 hold the name's address at +0x18, the size 0xa8 at +0x20
+  (`ShopTable` in `kTables`), the property list at +0x30 and its count, 20, at +0x38. The list holds the parameters of
+  `ShopItems` at 0x145e197b8: the name's address at +0, the offset 0x38 at +0x24 (the patch offset in
+  `native/src/fight/gunmode/nikke_rows.h`). An array field has two entries of its name in the list: its element's
+  first (0x145e19738 for `ShopItems`, offset 0), then the array's own. At run time,
   `rows/rows.h` checks each table's row size before any row. A size that differs refuses the batch: its status line
   gives `why=size`, the table and the size read (`detail=`). No such check guards a field offset.
 - Strides, counts and flag values: `kItemBytes = 24` and `kPendingKill = 1 << 29` in
   `native/src/game/partner/engine.h`, `kActionStride = 0x14` in `native/src/game/bike.h`. Read them like an offset, in
   the code the comment names.
 - Table contents: donor rows, free IDs and row names come from the table exports and dumps of build 26123051.
-  `tools/world_rows.py` and `tools/story_rows.py` write their headers from a folder of exports: run them on the new
-  build's exports and read the diff. For the other generators, compare their donor rows and IDs in the new exports.
+  `tools/world_rows.py` and `tools/story_rows.py` write their headers from a folder of exports: set their `BUILD` to
+  the new build, run them on its exports and read the diff. For the other generators, compare their donor rows and IDs
+  in the new exports.
   At run time, `rows/rows.h` refuses an ID that SB already holds (`why=id`).
 - Names the Lua scripts look up. UE4SS finds classes, functions, properties and assets by name at run time, so the
   Lua side holds no address. A name that the new build renames or removes is not found: test each feature in game and
