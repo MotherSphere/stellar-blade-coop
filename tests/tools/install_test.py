@@ -5,11 +5,11 @@
 """tools/install.py backup, install, uninstall and the release zip on a fake game folder in a temporary directory.
 Run: python3 tests/tools/install_test.py"""
 import contextlib
+import faulthandler
 import hashlib
 import io
 import re
 import shutil
-import signal
 import sys
 import tempfile
 import time
@@ -40,6 +40,18 @@ def run(fn, *args):
 def uninstall(*extra):
     # Never main() without --uninstall: the install path runs every test, this one included.
     return run(install.main, ['--uninstall', *extra, '--game', str(install.GAME)])
+
+
+def link(path, folder, checks):
+    """Makes path a symbolic link to folder: True. Where this user may not make one (Windows without Developer Mode:
+    WinError 1314), prints the checks that go untested and returns False. Any other error fails the test."""
+    try:
+        path.symlink_to(folder, target_is_directory=True)
+        return True
+    except OSError as error:
+        if getattr(error, 'winerror', None) != 1314: raise
+        print(f'install_test: {checks} not tested: this user may not make symbolic links ({error})')
+        return False
 
 
 with tempfile.TemporaryDirectory() as tmp:
@@ -96,20 +108,21 @@ with tempfile.TemporaryDirectory() as tmp:
     for made in (a, b): shutil.rmtree(made.parent)
 
     # 3b. A backup folder that is a link to an unmounted disk fails at once, before install or uninstall changes
-    # anything. It once looped forever, so the alarm (default action: kill) turns a hang into a failure.
+    # anything. It once looped forever, so a timer (exit 1 after a traceback) turns a hang into a failure. Windows has
+    # no signal.alarm.
     backups_root, install.BACKUPS = install.BACKUPS, tmp / 'backups-link'
-    install.BACKUPS.symlink_to(tmp / 'unmounted', target_is_directory=True)
-    before = tree()
-    signal.alarm(10)
-    for call in (lambda: install.install_files(target, v1), lambda: install.uninstall(target, False)):
-        try:
-            call()
-            raise AssertionError('no error')
-        except FileExistsError as error:
-            assert error.filename == str(install.BACKUPS), error
-    signal.alarm(0)
-    assert tree() == before
-    install.BACKUPS.unlink()
+    if link(install.BACKUPS, tmp / 'unmounted', '3b (a backup folder linked to an unmounted disk)'):
+        before = tree()
+        faulthandler.dump_traceback_later(10, exit=True)
+        for call in (lambda: install.install_files(target, v1), lambda: install.uninstall(target, False)):
+            try:
+                call()
+                raise AssertionError('no error')
+            except FileExistsError as error:
+                assert error.filename == str(install.BACKUPS), error
+        faulthandler.cancel_dump_traceback_later()
+        assert tree() == before
+        install.BACKUPS.unlink()
     install.BACKUPS = backups_root
 
     # 4. Refusals while the game runs change nothing, for install and uninstall.
@@ -158,9 +171,9 @@ with tempfile.TemporaryDirectory() as tmp:
     assert uninstall() == (left_alone, '') and uninstall('--dry-run') == (left_alone, '') and tree() == before
     target.rename(tmp / 'checkout')
     (tmp / 'checkout' / install.MANIFEST).write_bytes(b'main.lua\n')
-    target.symlink_to(tmp / 'checkout', target_is_directory=True)
-    before = tree()
-    assert uninstall() == (left_alone, '') and tree() == before
+    if linked := link(target, tmp / 'checkout', '10 (a mod folder linked to a checkout)'):
+        before = tree()
+        assert uninstall() == (left_alone, '') and tree() == before
 
     # 11. The package content check: the shipped files plus the six docs, nothing the mod writes in game, no save
     # and no game file. A stray file in mod/StellarCoop fails here, so it fails the dry run.
@@ -356,7 +369,7 @@ with tempfile.TemporaryDirectory() as tmp:
 
     # 18. An uninstall backs up and removes the three pak files and nothing else in ~mods or LogicMods, first without
     # the mod folder, then with an installed one; its dry run says so. With no pak left it says nothing about one.
-    target.unlink()  # The link of 10: no mod folder now.
+    if linked: target.unlink()  # The link of 10: no mod folder now.
     nothing = f'Nothing to uninstall: no StellarCoop folder at {target}\n'
     before = tree()
     assert uninstall('--dry-run') == (None, f'Dry run: would back up 3 pak files into {install.BACKUPS} and remove '

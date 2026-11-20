@@ -49,7 +49,7 @@ def languages(root):
 
 def shipped(root):
     """install_test.py's part 11 on the copy, after its setup: the shipped list. Parts 1 to 10 test install.py, which
-    the tool does not change. They need signal.alarm (missing on Windows) and symlinks. Part 12 on needs git."""
+    the tool does not change. Part 12 on needs git."""
     code = text(root, 'tests/tools/install_test.py')
     part = code[:code.index('\n    # 1. ')] + code[code.index('\n    # 11. '):code.index('\n    # 12. ')]
     # !a: ASCII only. Python reads a script on stdin as UTF-8, while text=True writes it in the locale's encoding

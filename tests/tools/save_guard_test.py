@@ -30,6 +30,18 @@ def run(*argv):
     return code, out.getvalue()
 
 
+def link(path, file, checks):
+    """Makes path a symbolic link to file: True. Where this user may not make one (Windows without Developer Mode:
+    WinError 1314), prints the checks that go untested and returns False. Any other error fails the test."""
+    try:
+        path.symlink_to(file)
+        return True
+    except OSError as error:
+        if getattr(error, 'winerror', None) != 1314: raise
+        print(f'save_guard_test: {checks} not tested: this user may not make symbolic links ({error})')
+        return False
+
+
 with tempfile.TemporaryDirectory() as tmp:
     tmp = Path(tmp)
     saves, to = tmp / 'SaveGames', tmp / 'backups'
@@ -105,11 +117,11 @@ with tempfile.TemporaryDirectory() as tmp:
 
     # check with a missing folder is an error (2), never "every save removed" (1); symlinks are refused everywhere.
     assert run('--saves', tmp / 'absent', '--to', to, 'check')[0] == 2
-    (saves / 'link.sav').symlink_to(slot)
-    for command in (['backup'], ['check']):
-        code, out = run(*opt, *command)
-        assert code == 2 and 'Symbolic links' in out, (command, out)
-    (saves / 'link.sav').unlink()
+    if link(saves / 'link.sav', slot, 'the symbolic link refusal of backup and check'):
+        for command in (['backup'], ['check']):
+            code, out = run(*opt, *command)
+            assert code == 2 and 'Symbolic links' in out, (command, out)
+        (saves / 'link.sav').unlink()
 
 
 def save(body, head=b'EVAS\x01\0\0\0', magic=b'GVAS'):
@@ -292,10 +304,10 @@ with tempfile.TemporaryDirectory() as tmp:
     assert code == 2 and 'partial restore' in out and not marker.exists(), out
 
     # 14. Symbolic links are refused for slot too.
-    (account / 'link.sav').symlink_to(file[0])
-    before = tree()
-    code, out = run(*opt, 'slot', 0, 4, '--yes')
-    assert code == 2 and 'Symbolic links' in out and tree() == before, out
-    (account / 'link.sav').unlink()
+    if link(account / 'link.sav', file[0], '14 (the symbolic link refusal of slot)'):
+        before = tree()
+        code, out = run(*opt, 'slot', 0, 4, '--yes')
+        assert code == 2 and 'Symbolic links' in out and tree() == before, out
+        (account / 'link.sav').unlink()
 
 print('save_guard_test: ok')
