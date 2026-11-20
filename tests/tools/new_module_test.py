@@ -52,8 +52,10 @@ def shipped(root):
     the tool does not change. They need signal.alarm (missing on Windows) and symlinks. Part 12 on needs git."""
     code = text(root, 'tests/tools/install_test.py')
     part = code[:code.index('\n    # 1. ')] + code[code.index('\n    # 11. '):code.index('\n    # 12. ')]
-    run = f"exec(compile({part!r}, 'install_test.py', 'exec'), " \
-          f"{{'__file__': {str(root / 'tests/tools/install_test.py')!r}, '__name__': '__main__'}})"
+    # !a: ASCII only. Python reads a script on stdin as UTF-8, while text=True writes it in the locale's encoding
+    # (cp1252 on most Windows): a temporary folder under C:\Users\Léa would not parse.
+    run = f"exec(compile({part!a}, 'install_test.py', 'exec'), " \
+          f"{{'__file__': {str(root / 'tests/tools/install_test.py')!a}, '__name__': '__main__'}})"
     # On stdin: a Windows command line holds at most 32767 characters.
     done = subprocess.run([sys.executable, '-'], input=run, cwd=root, capture_output=True, text=True)
     assert done.returncode == 0, done.stdout + done.stderr
