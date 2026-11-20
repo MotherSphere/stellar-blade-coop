@@ -208,6 +208,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `online/partner/capture_test` also covers SBO's bike left out of the parts while EVE does not ride (`leave_out`, asked
   once a look): an outfit of 16 parts keeps them all; while she rides the bike is part 1 and the last follower goes;
   getting on or off starts a new generation; another component on the bike's mesh stays a part;
+- asset names: `core/link_test` reads a slot's `coop-names` file from an offset (whole lines only, false once the file
+  is shorter or gone) and appends to its `coop-loaded` file (nil removes it);
 - her drone: `core/link_test` reads `coop-drone.txt` (`drone()`: the address, nil for `none` or anything but 0x and
   hex digits). `online/partner/capture_test` adds the SBCharacter of class `CH_Drone_BP_C` at that address after her
   parts and the bike's, its main mesh a free part with a light line after its read line; hidden in game it goes with
@@ -688,6 +690,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   friend who got in while she waited); Steam refusing relay only on a guest for another guest, which ends that link
   alone with its notice while the host's count (`players=`) still names her; the camps answers to the asker only, by the
   host's own number for each request (two guests' ids that meet, at once or one after the other, each answered once);
+  each member's ghost slot (`slot_of`) and the channel-2 lines waiting for her (`queued_for`); the SBA lines kept both
+  ways when the pair leaves, as the shared quests' are;
   gifts (an answer to an earlier gift still going), Doro races, Night Operation and a guest's photo pause refused past 2
   players, the guest told so, while the host's cutscene still pauses each guest; the pair rule (the notice once on each
   guest who is not the pair and never on the pair, an `SBE` to the pair only and none from another guest, a channel-2
@@ -731,7 +735,10 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   playing, off SB's logic thread; an event slot's 19 bytes with a fuzz (each slot it accepts encodes back to the same
   bytes); the `Outbox`, whose events wait at most 100 ms and hold a slot for 2 poses and 50 ms plus one send interval,
   so a member capped at 20 poses a second sees every event; the asset keys, one per name, kept after a reload, none
-  past 4096;
+  past 4096; the SBA line with a fuzz (each line it accepts formats back to the same text), its paths (SB's own only)
+  and its 512-byte cap; the name book a member who comes in later reads from her cursor at 8 KB a second and while her
+  channel-2 share has room; a slot's names (a key's second line refused, the same line again let through); the slot
+  watch that forgets a slot's names when its member changes or a session starts or ends; the `coop-loaded` lines;
 - `online_partner_resend_test`: our component table's resends (`TableResend` in `game/table.h`) on a worker passing
   every 50 ms: at once to a new friend, then 5, 10, 20, 40 and 60 s apart, every 60 s from then on; a change brings the
   next one 5 s after it and starts the doubling over; a sign her side lost our table brings it within 5 s, and a flood

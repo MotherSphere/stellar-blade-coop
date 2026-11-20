@@ -576,6 +576,12 @@ Link.files={
         local wrote=f:write(text); local closed=f:close()
         return wrote~=nil and closed==true
     end,
+    -- Onto the end of the file (made when there is none), for files the native part reads from an offset.
+    append=function(path,text)
+        local f=io.open(path,'ab'); if not f then return false end
+        local wrote=f:write(text); local closed=f:close()
+        return wrote~=nil and closed==true
+    end,
     remove=os.remove,
     rename=os.rename,
 }
@@ -707,6 +713,31 @@ function Link.new(folder,fs)
     -- The ghost built for the remote table, or nil when there is none.
     function self.display(text) return put_or_remove('coop-display.txt',text) end
     function self.remote_table() return fs.read(path('coop-remote.txt')) end
+    -- A ghost's asset names (game/events.h's SBA lines as 'name <k> <kind> <asset> <a> <b>[ <params>]' in
+    -- coop-names.txt, which the native part appends to): the whole lines past byte from and the offset past them; ''
+    -- and from while no whole line came; false when the file is gone or shorter than from (its slot was reset: read it
+    -- again from 0); nil with no file at 0. The byte before from must still be the newline the last read ended on.
+    local function names(name,from)
+        local text=fs.read(path(name),nil,from>0 and from-1 or nil)
+        if not text then
+            if from>0 then return false end
+            return nil
+        end
+        if from>0 then
+            if text:sub(1,1)~='\n' then return false end
+            text=text:sub(2)
+        end
+        local whole=text:match('^.*\n') or ''
+        return whole,from+#whole
+    end
+    -- Our loaded objects for a ghost's names ('loaded <k> 0x<object> 0x<class> 0x<a|0> 0x<b|0>'), one line appended
+    -- to coop-loaded.txt, which the native part reads from its last offset; nil removes the file.
+    local function loaded(name,line)
+        if line==nil then fs.remove(path(name)); return true end
+        return fs.append(path(name),line..'\n')
+    end
+    function self.names(from) return names('coop-names.txt',from) end
+    function self.loaded(line) return loaded('coop-loaded.txt',line) end
     -- Her drone as the native part found it ("drone 0x<actor>" in coop-drone.txt): the address text, or nil.
     function self.drone()
         local text=fs.read(path('coop-drone.txt'))
@@ -1149,12 +1180,15 @@ function Link.new(folder,fs)
     function self.room() return room end
     function self.hall() return hall end
     -- Ghost slot k's files (1 to 6, online/partner/ghosts.lua), shaped as online/partner/puppet.lua reads this link:
-    -- coop-remote-<k>.txt, coop-display-<k>.txt and coop-puppet-<k>.txt, and the name of the member holding slot k.
+    -- coop-remote-<k>.txt, coop-display-<k>.txt, coop-puppet-<k>.txt, coop-names-<k>.txt and coop-loaded-<k>.txt;
+    -- the name of the member holding slot k.
     function self.slot(k)
         local function file(stem) return stem..'-'..k..'.txt' end
         return {
             remote_table=function() return fs.read(path(file('coop-remote'))) end,
             display=function(text) return put_or_remove(file('coop-display'),text) end,
+            names=function(from) return names(file('coop-names'),from) end,
+            loaded=function(line) return loaded(file('coop-loaded'),line) end,
             store=function() return self.store(file('coop-puppet')) end,
             friend=function() for _,m in ipairs(roster) do if m.slot==k then return m.name end end end,
             mate=function() for _,m in ipairs(roster) do if m.slot==k then return vits[m.id] end end end,

@@ -50,8 +50,9 @@ public:
   // lines already waiting for that member (for every member with to 0), or a shared quests', shared world's or story
   // together's line in a match lobby. Both queues
   // hold one session's lines: a session that starts or ends (linked() changes) empties them. So does a new pair
-  // (partner()), all but the shared quests' lines, which run with every member. No other line crosses into the next
-  // session or pair. The fight logic restarts at the same changes. Worker thread, like tick().
+  // (partner()), all but the shared quests' and the asset names' (asset_tag()) lines, which run with every member. No
+  // other line crosses into the next session or pair. The fight logic restarts at the same changes. Worker thread,
+  // like tick().
   bool send_fight(const std::string &line, bool reliable, uint64_t to = 0) {
     const auto hers = [to](const FightOut &l) { return !to || !l.to || l.to == to; };
     if (!linked() || line.empty() || line.size() > kMaxMessage ||
@@ -68,6 +69,11 @@ public:
   // The members' channel-2 lines since the last call, oldest first, each with its sender. The link never parses
   // them: game/fight/sync.h does, strictly.
   std::vector<FightLine> take_fight() { return std::exchange(fight_in_, {}); }
+  // Channel-2 lines waiting for the member with this SteamID: hers and those for every member.
+  size_t queued_for(uint64_t id) const {
+    return static_cast<size_t>(
+        std::count_if(fight_out_.begin(), fight_out_.end(), [id](const FightOut &l) { return !l.to || l.to == id; }));
+  }
 private:
 
   Identity identity(uint64_t id) const {
@@ -218,7 +224,7 @@ private:
 
   // linked() and partner() change only before this point of a pass (requests, calls, members, channel 0): a session
   // that starts or ends empties channel 2's queues both ways, then forgets her night line and the follow's camps lines;
-  // a new pair (or none) empties them of all but the shared quests' lines.
+  // a new pair (or none) empties them of all but the shared quests' and the asset names' lines.
   void fight_session() {
     const bool now_linked = linked();
     const uint64_t pair = partner();
@@ -231,10 +237,12 @@ private:
       for (auto &p : peers_)
         p.camps_asked = p.camps_waiting = false;
     }
-    // A new pair while linked: the shared quests' lines go on, as the quests run with every member.
-    const std::string tag = quest_tag() + " ";
+    // A new pair while linked: the shared quests' and the asset names' lines go on, as both run with every member.
+    const std::string tag = quest_tag() + " ", names = asset_tag() + " ";
     const bool keep = now_linked == fight_linked_;
-    auto quest = [&](const std::string &line) { return keep && line.compare(0, tag.size(), tag) == 0; };
+    auto quest = [&](const std::string &line) {
+      return keep && (line.compare(0, tag.size(), tag) == 0 || line.compare(0, names.size(), names) == 0);
+    };
     fight_in_.erase(
         std::remove_if(fight_in_.begin(), fight_in_.end(), [&](const FightLine &l) { return !quest(l.line); }),
         fight_in_.end());

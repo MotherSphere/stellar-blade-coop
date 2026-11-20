@@ -37,6 +37,13 @@ Table::Fx fx_incoming;
 uint64_t fx_incoming_generation = 0;
 bool fx_incoming_set = false;
 std::vector<std::string> outbox;
+// Her asset names (game/events.h's SBA lines), under m too: the lines the game thread named since the worker's last
+// asset_lines(); asset_keys_reset, set by asset_keys_clear() at a link session's start or end (the game thread clears
+// its AssetKeys before it names another asset, in the same hold of m as its next line); each ghost slot's loaded
+// objects by key, from the slot's coop-loaded file (the worker writes them in place; asset_slot_reset() empties one).
+std::vector<std::string> asset_named;
+bool asset_keys_reset = false;
+std::array<std::unordered_map<uint16_t, Loaded>, kMaxRemote> asset_loaded;
 Message out_mid;
 bool out_fresh = false;
 std::array<Message, kInbox> inbox;

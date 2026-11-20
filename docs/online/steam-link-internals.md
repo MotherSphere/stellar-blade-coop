@@ -662,6 +662,47 @@ other screen. An `SBE` goes to the pair only (`Link::partner()`), never in a mat
 - Once they are out of the lobby (`<name> left the lobby`), or you left it, the log says `peer unlinked`, and their
   table and the ghost are removed (`Ghost <generation> removed (her table is gone).`).
 
+## Channel 2: asset names
+
+A ghost's events name what her game played by an asset key, 1 to 4096 in a link session (see
+[Partner: how it works](partner-internals.md)). The name behind each key travels once on channel 2, reliable, to every
+member:
+
+```
+SBA23 <k> <kind> <asset> <a> <b>[ <params>]
+```
+
+- `kind` is `sound`, `niagara`, `cascade`, `decal` or `trail`. A sound's `a` and `b` are its sound class and
+  attenuation paths, or `-`, then `-` or at most 8 `<name>:<int>` parameters joined by commas. Niagara and Cascade
+  carry `- -`. A decal carries its size in cm (`<x>,<y>,<z>`, 1 to 4096) and its fade-out in ms (0 to 60000). A trail
+  carries its two sockets (`<socket>,<socket>`) and its width in 1/100 cm (1 to 100000).
+- Every path is one of SB's own: `/Game/[DLC_<n>/](Sound|Art)/<folders>/<asset>.<asset>`, at most 255 bytes, names of
+  letters, digits and `_`. A line is at most 512 bytes. The receiver refuses any other line (`parse_asset_line` in
+  `game/events.h`).
+- `glue/steam.cpp` keeps every SBA line of the link session in order. Each member past the handshake gets them from her
+  own place in that list, at 8 KB a second, while fewer than 64 of the 256 channel-2 lines wait for her. So the pair's
+  fight, world and story lines keep their room. A member who comes in later gets the earlier lines the same way.
+- A new pair keeps the SBA lines queued both ways, as it keeps the shared quests' lines. A link session that starts or
+  ends empties them. Our keys then start again from 1. A guest who becomes the pair sends all her lines again, since the
+  host moved her ghost to slot 0 and forgot her names. The other members drop the lines they already have.
+- The receiver takes an SBA line from any member and files it under her ghost slot. A key lives for the link session:
+  another line for a key she already named is refused. A slot forgets its names when its member changes (leaving
+  counts) and when a session starts or ends.
+
+Two files per ghost slot carry the names to Lua and back. Slot 0's have no number, the others end in `-<k>`. Both are
+appended to, not rewritten:
+
+- `coop-names.txt`: the native part adds each name it took as `name <k> <kind> <asset> <a> <b>[ <params>]`. Lua reads
+  it from its last offset (`names(from)` in `core/link.lua`). A file shorter than that offset, or gone, means the slot
+  was reset.
+- `coop-loaded.txt`: Lua adds `loaded <k> 0x<object> 0x<class> 0x<a|0> 0x<b|0>` once a key's assets are loaded
+  (`loaded(line)`). The native part reads it from its last offset every 250 ms and hands the objects to the game thread
+  in place, with no new ghost. A later line for a key replaces the earlier one. A key the slot never named is refused.
+  A file shorter than that offset, or gone, empties the slot's objects.
+
+While `coop loopback` runs, our own names go to slot 0 too. Every 60 s `coop-link.log` counts them: `asset names, last
+60 s: <n> taken, <n> refused; <n> loaded lines taken, <n> refused`. The native part deletes both files when it starts.
+
 ## Protocol versions
 
 The protocol number goes up with any change to what travels between two games, so an older Stellar Blade Online version

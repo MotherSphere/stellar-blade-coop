@@ -5,8 +5,14 @@
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local files,renames={},0
 local fs={
-    read=function(path) return files[path] end,
+    read=function(path,limit,offset)
+        local text=files[path]
+        if text and offset then text=text:sub(offset+1) end
+        if text and limit then text=text:sub(1,limit) end
+        return text
+    end,
     write=function(path,text) files[path]=text; return true end,
+    append=function(path,text) files[path]=(files[path] or '')..text; return true end,
     remove=function(path) files[path]=nil; return true end,
     rename=function(from,to)
         if files[to] then return nil,'exists' end -- Windows' rename never replaces.
@@ -1243,6 +1249,27 @@ do
     g,n,source=link.remote(0)
     assert(g==5 and n==2 and source=='peer')
     assert(select('#',link.remote(2))==0 or link.remote(2)==nil,'No table in slot 2')
+    -- Her asset names (coop-names-<k>.txt, the native part appends): read from an offset, only whole lines; false
+    -- once the file is shorter than the offset or gone (the slot was reset). Our loaded objects (coop-loaded-<k>.txt):
+    -- appended a line at a time; nil removes the file.
+    local NAMES,LOADED='C:\\Mod\\coop-names-2.txt','C:\\Mod\\coop-loaded-2.txt'
+    files[NAMES]='name 1 sound /Game/Sound/A.A - - -\n'
+    local text,at=link.slot(2).names(0)
+    assert(text=='name 1 sound /Game/Sound/A.A - - -\n' and at==#text and link.names(0)==nil)
+    files[NAMES]=files[NAMES]..'name 2 niagara /Game/Art/FX/B.B - -\nname 3 cas'
+    local more,now=link.slot(2).names(at)
+    assert(more=='name 2 niagara /Game/Art/FX/B.B - -\n' and now==at+#more,'only what was appended, whole lines')
+    assert(link.slot(2).names(now)=='' and select(2,link.slot(2).names(now))==now,'a cut line waits')
+    files[NAMES]=''
+    assert(link.slot(2).names(at)==false,'shorter: the slot was reset')
+    files[NAMES]=nil
+    assert(link.slot(2).names(at)==false and link.slot(2).names(0)==nil,'gone: reset, then nothing')
+    assert(link.slot(2).loaded('loaded 1 0x10 0x20 0x0 0x0') and link.slot(2).loaded('loaded 2 0x11 0x20 0x0 0x0'))
+    assert(files[LOADED]=='loaded 1 0x10 0x20 0x0 0x0\nloaded 2 0x11 0x20 0x0 0x0\n','appended')
+    assert(link.slot(2).loaded(nil) and files[LOADED]==nil,'nil removes the file')
+    local MINE='C:\\Mod\\coop-loaded.txt'
+    assert(link.loaded('loaded 1 0x10 0x20 0x0 0x0') and files[MINE]=='loaded 1 0x10 0x20 0x0 0x0\n')
+    assert(link.loaded(nil) and files[MINE]==nil,'nil removes the file')
     files[STATUS]=HEAD..'engine=on remote3=9 1\n'
     link.changes()
     g,n,source=link.remote()

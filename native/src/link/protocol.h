@@ -42,7 +42,8 @@
 // the pilot's show lines, which start with fight_tag() (game/fight/sync.h and game/pilot.h parse them), the shared
 // quests' lines, which start with quest_tag() (game/quests/sync.h parses them), and the shared world's lines, which
 // start with world_tag() (game/objects/sync.h parses them). Story together's lines go there too, after story_tag()
-// (game/story/sync.h parses them).
+// (game/story/sync.h parses them). So do the asset names a ghost's events carry, after asset_tag() (game/events.h
+// parses them).
 #pragma once
 
 #include <algorithm>
@@ -474,11 +475,12 @@ inline std::string wait_line(uint64_t seconds) {
   return "SBC" + std::to_string(kProtocol) + " wait " + std::to_string(seconds);
 }
 // Channel 2's tags, versioned like channel 0's: "SBF23" for the shared fight, "SBQ23" for the shared quests, "SBW23"
-// for the shared world, "SBS23" for story together.
+// for the shared world, "SBS23" for story together, "SBA23" for the asset names of a ghost's events (game/events.h).
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
 inline std::string world_tag() { return "SBW" + std::to_string(kProtocol); }
 inline std::string story_tag() { return "SBS" + std::to_string(kProtocol); }
+inline std::string asset_tag() { return "SBA" + std::to_string(kProtocol); }
 // A channel-2 line as link/core.h's take_fight() hands it on: its sender's SteamID and the line as it came. The shared
 // quests take theirs from every partner by sender (game/quests/engine.h's Worker); the shared fight, the shared world
 // and story together take the pair's only (lines_from).

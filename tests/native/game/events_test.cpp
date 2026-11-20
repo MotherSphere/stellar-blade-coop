@@ -3,16 +3,20 @@
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // game/events.h on the build machine: when a feature may call the game (game_calls_ok); an event slot's 19 bytes
 // (game/codec.h's put_event and get_event, fuzzed); the sender's Outbox with its waits, its holds and a member on the
-// lowest pose cap; the asset keys.
+// lowest pose cap; the asset keys; the SBA line (fuzzed), its paths and the name book a later member reads from; the
+// slot watch; the coop-loaded file's lines.
 #include "game/events.h"
 
 #include <cassert>
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <random>
 #include <set>
 #include <string>
+#include <unordered_map>
+#include <vector>
 
 #include "game/codec.h" // value_byte, put_event, get_event
 #include "game/travel.h"
@@ -205,6 +209,146 @@ void test_asset_keys() { // words: what the SBA line carries after k
   assert(k.known(Kind::niagara, 4096, 0, 0, 1, 1) == 0);
   assert(k.add(Kind::decal, 0x9, 0, 0, 1, 1, "decal /Game/Art/D.D 30,30,10 4000", fresh) == 1 && fresh);
 }
+void test_asset_line() {
+  const std::string v = std::to_string(coop::kProtocol);
+  const std::string l = asset_line(12, Kind::sound, "/Game/Sound/SoundAsset/Footstep/SC_PC_Step.SC_PC_Step",
+                                   "/Game/Sound/SoundAsset/SoundClass/PC_Footstep.PC_Footstep", "-");
+  assert(l == "SBA" + v + " 12 sound /Game/Sound/SoundAsset/Footstep/SC_PC_Step.SC_PC_Step "
+              "/Game/Sound/SoundAsset/SoundClass/PC_Footstep.PC_Footstep - -");
+  auto p = parse_asset_line(l);
+  assert(p && p->k == 12 && p->kind == Kind::sound && p->params.empty());
+  const std::string w = asset_line(13, Kind::sound, "/Game/Sound/A.A", "-", "-", {{"Surface", 3}, {"Heel", -1}});
+  assert(w == "SBA" + v + " 13 sound /Game/Sound/A.A - - Surface:3,Heel:-1");
+  auto q = parse_asset_line(w);
+  assert(q && q->params.size() == 2 && q->params[1].value == -1);
+  assert(!parse_asset_line("SBA" + v + " 13 sound /Game/Sound/A.A - - Surface:x"));
+  assert(!parse_asset_line("SBA" + v + " 13 sound /Game/Sound/A.A - - a:1,b:1,c:1,d:1,e:1,f:1,g:1,h:1,i:1")); // 9
+  assert(!parse_asset_line("SBA" + std::to_string(coop::kProtocol - 1) + " 12 sound /Game/Sound/A.A - - -"));
+  assert(!parse_asset_line(l.substr(0, l.size() - 2))); // a word missing
+  assert(!parse_asset_line("SBA" + v + " 0 sound /Game/Sound/A.A - - -") &&
+         !parse_asset_line("SBA" + v + " 4097 sound /Game/Sound/A.A - - -"));
+  assert(parse_asset_line("SBA" + v + " 3 decal /Game/Art/Decal/M_Foot.M_Foot 30,30,10 4000"));
+  assert(!parse_asset_line("SBA" + v + " 3 decal /Game/Art/Decal/M_Foot.M_Foot 0,30,10 4000"));
+  auto t = parse_asset_line("SBA" + v + " 5 trail /Game/Art/FX/T.T FX_Trail_Begin,FX_Trail_End 250");
+  assert(t && t->kind == Kind::trail_on && t->a == "FX_Trail_Begin,FX_Trail_End" && t->b == "250");
+  assert(asset_line(5, Kind::trail_off, "/Game/Art/FX/T.T", "FX_Trail_Begin,FX_Trail_End", "250") ==
+         "SBA" + v + " 5 trail /Game/Art/FX/T.T FX_Trail_Begin,FX_Trail_End 250");
+  assert(!parse_asset_line("SBA" + v + " 4 niagara /Game/Art/FX/N.N /Game/Art/FX/N.N -")); // a and b are - for it
+  assert(!event_path_ok("/Game/Mods/Foo/A.A") && !event_path_ok("/Game/Sound/../A.A") &&
+         event_path_ok("/Game/DLC_2/Art/FX/B.B") && !event_path_ok("/Engine/EngineSounds/Att.Att"));
+  assert(!event_path_ok("/Game/Sound/A.B") && !event_path_ok("/Game/DLC_123/Art/B.B") && !event_path_ok("/Game/Art/"));
+  const std::string long_path = "/Game/Sound/" + std::string(119, 'a') + "." + std::string(119, 'a'); // 251 bytes
+  assert(event_path_ok(long_path) && asset_line(14, Kind::sound, long_path, long_path, long_path).empty()); // > 512
+  assert(!event_path_ok("/Game/Sound/" + std::string(122, 'a') + "." + std::string(122, 'a'))); // 257 bytes
+  // Fuzz: 100000 mutated lines never crash; each accepted one formats back to the same text.
+  const std::string seeds[] = {w, l, "SBA" + v + " 3 decal /Game/Art/Decal/M_Foot.M_Foot 30,30,10 4000",
+                               "SBA" + v + " 5 trail /Game/Art/FX/T.T FX_Trail_Begin,FX_Trail_End 250",
+                               "SBA" + v + " 4096 cascade /Game/DLC_1/Art/FX/C.C - -"};
+  const std::string alphabet = "0123456789-,:./ _aAzZ";
+  std::mt19937_64 rng(8);
+  size_t accepted = 0;
+  for (int round = 0; round < 100000; ++round) {
+    std::string m = seeds[round % 5];
+    for (int edits = 1 + int(rng() % 3); edits; --edits) {
+      const size_t at = rng() % (m.size() + 1);
+      const char c = rng() % 4 ? alphabet[rng() % alphabet.size()] : char(rng() % 256);
+      switch (rng() % 3) {
+      case 0:
+        if (at < m.size())
+          m[at] = c;
+        break;
+      case 1:
+        m.insert(at, 1, c);
+        break;
+      default:
+        if (at < m.size())
+          m.erase(at, 1);
+      }
+    }
+    if (auto x = parse_asset_line(m)) {
+      ++accepted;
+      assert(asset_line(x->k, x->kind, x->asset, x->a, x->b, x->params) == m);
+    }
+  }
+  std::printf("events: SBA fuzz accepted %zu of 100000\n", accepted);
+  assert(accepted > 1000);
+}
+
+void test_namebook_late_member() { // Review Focus 1
+  NameBook book;
+  for (int k = 1; k <= 100; ++k)
+    book.add("SBA23 " + std::to_string(k) + " niagara /Game/Art/FX/A.A - -");
+  auto bytes = [&](size_t from, size_t to) {
+    size_t n = 0;
+    for (size_t i = from; i < to; ++i)
+      n += book.at(i).size();
+    return n;
+  };
+  std::vector<std::string> got;
+  auto all = [&](const std::string &line) {
+    got.push_back(line);
+    return true;
+  };
+  size_t early = 100, late = 0, budget = bytes(0, 32); // one member had every line; one came in after line 100
+  assert(send_from(book, early, budget, all) == 0 && got.empty());
+  assert(send_from(book, late, budget, all) == 32 && late == 32 && budget == 0 && got[0] == book.at(0));
+  assert(send_from(book, late, budget, all) == 0 && late == 32); // the second's bytes are spent: the rest waits
+  budget = kNamesBytesPerSecond;
+  assert(send_from(book, late, budget, all) == 68 && late == 100); // the next second
+  size_t full = 64;
+  int n = 0;
+  budget = kNamesBytesPerSecond;
+  auto busy = [&](const std::string &) { return ++n <= 5; }; // the member's share of the channel-2 queue fills after 5
+  assert(send_from(book, full, budget, busy) == 5 && full == 69);
+  book.add("SBA23 101 sound /Game/Sound/A.A - - -");
+  budget = kNamesBytesPerSecond;
+  assert(send_from(book, early, budget, all) == 1 && early == 101); // a new name reaches everyone
+  book.clear();
+  assert(book.size() == 0);
+}
+
+void test_take_name() { // a slot's names: a key lives for the link session; her book sent again is no refusal
+  std::unordered_map<uint16_t, std::string> names;
+  const std::string v = std::to_string(coop::kProtocol), a = "SBA" + v + " 1 niagara /Game/Art/FX/A.A - -";
+  assert(take_name(names, a) == Taken::fresh && names.at(1) == a);
+  assert(take_name(names, a) == Taken::again && names.size() == 1); // her game became the pair: its book again
+  assert(take_name(names, "SBA" + v + " 1 niagara /Game/Art/FX/B.B - -") == Taken::refused && names.at(1) == a);
+  assert(take_name(names, "SBA" + v + " 2 niagara /Game/Art/FX/B.B -") == Taken::refused && names.size() == 1);
+}
+
+void test_slot_watch() {
+  SlotWatch w;
+  std::vector<size_t> reset;
+  auto r = [&](size_t s) { reset.push_back(s); };
+  uint64_t ids[7] = {0x10, 0, 0, 0x30, 0, 0, 0};
+  w.pass(ids, 7, true, r); // the first pass of a session: who is there
+  assert(reset.size() == 7);
+  reset.clear();
+  ids[0] = 0;
+  w.pass(ids, 7, true, r); // X leaves slot 0: its names go
+  ids[0] = 0x10;
+  w.pass(ids, 7, true, r); // X comes back with k restarted from 1: emptied again
+  assert(reset == std::vector<size_t>({0, 0}));
+  reset.clear();
+  w.pass(ids, 7, true, r);
+  assert(reset.empty()); // nothing changed
+  w.pass(ids, 7, false, r);
+  assert(reset.size() == 7); // the session ends: every slot
+}
+
+void test_loaded_file() {
+  std::vector<Loaded> got;
+  assert(parse_loaded("loaded 12 0x1000 0x2000 0x3000 0x0\n", got) && got.size() == 1 && got[0].a == 0x3000);
+  assert(got[0].k == 12 && got[0].object == 0x1000 && got[0].cls == 0x2000 && got[0].b == 0);
+  assert(!parse_loaded("loaded 0 0x1000 0x2000 0x0 0x0\n", got));
+  assert(!parse_loaded("loaded 12 0x0 0x2000 0x0 0x0\n", got));
+  assert(!parse_loaded("loaded 12 0x1000 0x0 0x0 0x0\n", got) && !parse_loaded("loaded 4097 0x1 0x2 0x0 0x0\n", got));
+  assert(!parse_loaded("loaded 12 0x1000 0x2000 0x0\n", got) && !parse_loaded("loaded 12 1000 0x2000 0x0 0x0\n", got));
+  assert(got.size() == 1);
+  // Two good lines around a bad one: both good ones taken, the bad one refused.
+  assert(!parse_loaded("loaded 1 0xA0 0xb0 0x0 0x0\nloaded x\nloaded 2 0xc0 0xd0 0xe0 0xf0\n", got) && got.size() == 3);
+  assert(got[1].object == 0xa0 && got[2].k == 2 && got[2].b == 0xf0);
+}
 } // namespace
 
 int main() {
@@ -213,6 +357,11 @@ int main() {
   test_outbox_wait_and_hold();
   test_outbox_slow_member();
   test_asset_keys();
+  test_asset_line();
+  test_namebook_late_member();
+  test_take_name();
+  test_slot_watch();
+  test_loaded_file();
   std::puts("events_test: ok");
   return 0;
 }

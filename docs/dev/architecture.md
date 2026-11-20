@@ -201,6 +201,9 @@ file is written in full beside its final name and then renamed over it, so the r
   table), `coop-cns.txt` (the assets your CNS packs declare, once at start), `coop-shared-assets.txt` (the assets of
   the mods you and your friend both have in one version, when that list changes), `coop-link.log` and
   `coop-report.txt`.
+- Two files of each ghost slot are appended to, never rewritten. The native part adds the asset names a member sent
+  to `coop-names.txt`. Lua adds the objects it loaded for them to `coop-loaded.txt`. Each side reads the other's file
+  from its last offset ([The Steam link](../online/steam-link-internals.md#channel-2-asset-names)).
 - The chat has two files that exist for a moment only. Lua writes a typed line into `coop-say.txt` once the native
   part has taken the previous one, and the native part takes and deletes it at its next pass (every 5 to 50 ms). The
   native part writes your friend's lines into `coop-chat.txt` (`in <SteamID> <text>`, or `fail` for a line of yours

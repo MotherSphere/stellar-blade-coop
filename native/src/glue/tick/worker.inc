@@ -140,15 +140,82 @@ struct FightIo {
   std::string load(bool &exists) { return read_file(dir + L"coop-fight-record.txt", exists, fight::kMaxRecording + 1); }
 };
 
-// Bytes onto a file of the mod folder, shared for delete too (it may be read or moved while open).
-void append_file(const wchar_t *name, const std::string &text) {
+// Bytes onto a file of the mod folder, shared for delete too (it may be read or moved while open); whether all went.
+bool append_file(const wchar_t *name, const std::string &text) {
   HANDLE f = CreateFileW((dir + name).c_str(), FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                          nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (f == INVALID_HANDLE_VALUE)
-    return;
+    return false;
   DWORD n = 0;
-  WriteFile(f, text.data(), static_cast<DWORD>(text.size()), &n, nullptr);
+  const bool ok = WriteFile(f, text.data(), static_cast<DWORD>(text.size()), &n, nullptr) && n == text.size();
   CloseHandle(f);
+  return ok;
+}
+
+// Her asset names per ghost slot (game/events.h's SBA lines): the lines taken this link session by key; how far the
+// slot's coop-loaded file was read. Counted for the 60 s line: lines taken; lines refused (a bad line, no slot,
+// another line for a key already named, the coop-names file not written); loaded lines taken; loaded lines refused (a
+// bad line, a key the slot never named).
+struct AssetNames {
+  std::unordered_map<uint16_t, std::string> lines;
+  uint64_t loaded_at = 0;
+};
+std::array<AssetNames, kMaxRemote> asset_names;
+uint64_t names_in = 0, names_refused = 0, loaded_in = 0, loaded_refused = 0;
+constexpr size_t kLoadedBytes = 64 << 10; // Read at most a pass: about 800 lines.
+
+// A file's bytes from offset on, kLoadedBytes at most; size: the file's size, 0 when there is none.
+std::string read_from(const std::wstring &path, uint64_t offset, uint64_t &size) {
+  size = 0;
+  HANDLE f = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
+                         OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (f == INVALID_HANDLE_VALUE)
+    return {};
+  std::string text;
+  LARGE_INTEGER bytes{}, at{};
+  at.QuadPart = static_cast<LONGLONG>(offset);
+  if (GetFileSizeEx(f, &bytes) && (size = static_cast<uint64_t>(bytes.QuadPart)) > offset &&
+      SetFilePointerEx(f, at, nullptr, FILE_BEGIN)) {
+    text.resize(static_cast<size_t>(std::min<uint64_t>(size - offset, kLoadedBytes)));
+    DWORD n = 0;
+    text.resize(ReadFile(f, text.data(), static_cast<DWORD>(text.size()), &n, nullptr) ? n : 0);
+  }
+  CloseHandle(f);
+  return text;
+}
+
+// Every 250 ms: the slot's coop-loaded file from where it was last read, whole lines only, into the game thread's
+// asset_loaded in place (no rebuild(), which would restart every playback); a later line for a key replaces the
+// earlier one. A file shorter than that, or gone, was started again by Lua: the slot's loaded objects go and the file
+// is read from 0.
+void read_loaded(size_t slot) {
+  AssetNames &names = asset_names[slot];
+  if (names.lines.empty() && !names.loaded_at)
+    return;
+  const std::wstring path = slot_path("coop-loaded", slot);
+  uint64_t size = 0;
+  std::string text = read_from(path, names.loaded_at, size);
+  const bool shorter = size < names.loaded_at;
+  if (shorter) {
+    names.loaded_at = 0;
+    text = read_from(path, 0, size);
+  }
+  const size_t whole = text.rfind('\n') + 1; // 0 with no newline: a line still being written waits.
+  text.resize(whole);
+  names.loaded_at += whole;
+  std::vector<Loaded> got;
+  parse_loaded(text, got);
+  loaded_refused += static_cast<uint64_t>(std::count(text.begin(), text.end(), '\n')) - got.size();
+  std::lock_guard<std::mutex> lock(m);
+  if (shorter)
+    asset_loaded[slot].clear();
+  for (const Loaded &l : got)
+    if (names.lines.count(l.k)) {
+      asset_loaded[slot].insert_or_assign(l.k, l);
+      ++loaded_in;
+    } else {
+      ++loaded_refused;
+    }
 }
 
 // One line onto nightop-probe.txt. Past 4 MB a last line says so and the poller stops for the run.
@@ -717,9 +784,11 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     event("new Lua session: capture and ghost dropped");
   }
   take_capture(now_ms);
-  for (size_t k = 0; k < kMaxRemote; ++k)
+  for (size_t k = 0; k < kMaxRemote; ++k) {
     if (remotes[k].table.generation)
       take_display(k);
+    read_loaded(k);
+  }
   // A missing or bad file keeps the previous values: Lua's put() removes the old file before it renames the new one in,
   // so the worker can find none in between.
   if (State now; parse_state(read_file(folder + L"coop-state.txt", exists, kMaxState), now)) {
@@ -816,7 +885,15 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                       static_cast<unsigned long long>(fx_written));
         event(line);
       }
+      if (names_in || names_refused || loaded_in || loaded_refused) {
+        std::snprintf(line, sizeof line,
+                      "asset names, last 60 s: %llu taken, %llu refused; %llu loaded lines taken, %llu refused",
+                      static_cast<unsigned long long>(names_in), static_cast<unsigned long long>(names_refused),
+                      static_cast<unsigned long long>(loaded_in), static_cast<unsigned long long>(loaded_refused));
+        event(line);
+      }
     }
+    names_in = names_refused = loaded_in = loaded_refused = 0;
   }
 }
 
@@ -883,6 +960,49 @@ void peer(uint8_t slots, uint64_t now_ms, void (*send)(const uint8_t *, size_t, 
 }
 
 void table_again() { table_resend = TableResend(); }
+
+std::vector<std::string> asset_lines() {
+  std::vector<std::string> lines;
+  {
+    std::lock_guard<std::mutex> lock(m);
+    lines.swap(asset_named);
+  }
+  if (loopback_on) // A solo test hears the loopback ghost; a replay stays silent (names are not recorded).
+    for (const std::string &line : lines)
+      asset_line_in(0, line);
+  return lines;
+}
+
+// Into the slot's table by key (take_name) and its coop-names file as "name <k> ...". asset_slot_reset() empties the
+// table when the slot's member changes.
+void asset_line_in(size_t slot, const std::string &line) {
+  const Taken taken = slot < kMaxRemote ? take_name(asset_names[slot].lines, line) : Taken::refused;
+  if (taken == Taken::refused)
+    ++names_refused;
+  if (taken != Taken::fresh)
+    return;
+  const std::string name = slot_file("coop-names", slot);
+  if (append_file(std::wstring(name.begin(), name.end()).c_str(), "name" + line.substr(asset_tag().size()) + "\n"))
+    ++names_in;
+  else
+    ++names_refused;
+}
+
+void asset_keys_clear() {
+  std::lock_guard<std::mutex> lock(m);
+  asset_named.clear();
+  asset_keys_reset = true;
+}
+
+void asset_slot_reset(size_t slot) {
+  if (slot >= kMaxRemote || dir.empty()) // dir: worker_poll's first pass ran (never the game's own folder).
+    return;
+  asset_names[slot] = AssetNames();
+  DeleteFileW(slot_path("coop-names", slot).c_str());
+  DeleteFileW(slot_path("coop-loaded", slot).c_str());
+  std::lock_guard<std::mutex> lock(m);
+  asset_loaded[slot].clear();
+}
 
 // Gated on peer_open, not peer_on: a table that follows the accept in the tick that completes the handshake comes
 // before this pass's peer(), and the link already checked the handshake.

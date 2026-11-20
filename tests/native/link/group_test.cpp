@@ -6,7 +6,8 @@
 // host lets her in, refused and removed members, the host's questions one at a time with each joiner's wait line, the
 // host leaving, a guest leaving, the follow's camps answers to the asker only, the features kept to 2 players (gifts,
 // Doro races, Night Operation, a guest's photo pause), the pair rule on channels 1 and 2 with its notice, max_players,
-// the pose rate past 2, each member's vitals and parked bike.
+// the pose rate past 2, each member's vitals and parked bike, each member's ghost slot and lines queued for her, the
+// asset names' SBA lines kept across a new pair.
 #include "fake_steam.h"
 
 namespace {
@@ -480,16 +481,29 @@ int main() {
     const auto two = m[2].take_fight(), one = m[1].take_fight();
     assert(two.size() == 1 && two[0].from == kMe && two[0].line == sbq);
     assert(one.size() == 1 && one[0].from == kMe && one[0].line == sbf && m[3].take_fight().empty());
-    // Both ways at the pair's leaving: her lines already in and ours still queued go, all but the shared quests'.
-    assert(m[2].send_fight(sbq, true, kMe) && m[1].send_fight(sbf, true, kMe));
+    // Each member's ghost slot by SteamID; -1 for a player who is not a member past the handshake.
+    assert(m[0].slot_of(kFriend) == 0 && m[0].slot_of(kPlayer[2]) == 1 && m[0].slot_of(kPlayer[3]) == 2);
+    assert(m[0].slot_of(12345) == -1 && m[0].slot_of(kMe) == -1);
+    // Both ways at the pair's leaving: her lines already in and ours still queued go, all but the shared quests' and
+    // the asset names' (SBA), which run with every member.
+    const std::string sba = asset_tag() + " 1 sound /Game/Sound/A.A - - -", sbf3 = fight_tag() + " on";
+    assert(m[2].send_fight(sbq, true, kMe) && m[2].send_fight(sba, true, kMe) && m[1].send_fight(sbf, true, kMe));
     m.round();
     m.round();
     assert(m[0].send_fight(sbq, true, kPlayer[3]) && m[0].send_fight(sbf, true, kFriend));
+    F.refuse_to = kPlayer[3]; // Her lines wait in our queue (her send buffer is full).
+    assert(m[0].send_fight(sba, true, kPlayer[3]) && m[0].send_fight(sbf3, true, kPlayer[3]));
+    assert(m[0].queued_for(kPlayer[3]) == 3 && m[0].queued_for(kPlayer[2]) == 0 && m[0].queued_for(kFriend) == 1);
     m.tick(1, "leave");
     m.tick(0);
     assert(m[0].partner() == 0);
+    assert(m[0].queued_for(kPlayer[3]) == 2); // The fight line went with the pair. The quest and SBA lines wait.
     const auto in = m[0].take_fight();
-    assert(in.size() == 1 && in[0].from == kPlayer[2] && in[0].line == sbq);
+    assert(in.size() == 2 && in[0].from == kPlayer[2] && in[0].line == sbq && in[1].line == sba);
+    F.refuse_to = 0;
+    m.tick(0);
+    assert(m[0].queued_for(kPlayer[3]) == 0 && sent_on(kFightChannel, kMe, kPlayer[3], sba) == 1);
+    assert(sent_on(kFightChannel, kMe, kPlayer[3], sbf3) == 0);
     assert(sent_on(kFightChannel, kMe, kPlayer[3], sbq) == 1 && sent_on(kFightChannel, kMe, kFriend, sbf) == 1);
     assert(notices(m.status(3), out) == 1); // The pair gone: no second notice.
   }

@@ -22,6 +22,16 @@ namespace coop::pose {
 // 60 s) through event; while the Night Operation poller is on, samples it every 100 ms into nightop-probe.txt (it
 // stops on coop off).
 void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::function<void(const std::string &)> &event);
+// Her asset names (game/events.h's SBA lines), worker thread. asset_lines(): the lines the game thread named since the
+// last call, for glue/steam.cpp's NameBook (while coop loopback runs, slot 0's table takes them too). asset_line_in():
+// a member's SBA line with her ghost slot (kMaxRemote or more: none), into the slot's table and its coop-names file.
+// asset_keys_clear(): a link session starts or ends, the game thread's asset keys start again from 1.
+// asset_slot_reset(): the slot's member changed, its names, its coop-names and coop-loaded files and its loaded objects
+// go.
+std::vector<std::string> asset_lines();
+void asset_line_in(size_t slot, const std::string &line);
+void asset_keys_clear();
+void asset_slot_reset(size_t slot);
 // Worker thread: coop-state.txt as last read (every 250 ms): whether a save is loaded, the send rate, the synced photo
 // mode's fields (ours, photo_sync and photo_freeze_max); its defaults until Lua wrote one.
 coop::State lua_state();
