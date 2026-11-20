@@ -1,0 +1,6 @@
+{"about": "Team shop items of kwisatz_haderach. tools/teamshop_rows.py turns them into rows. Set a field only when it differs from the donor's.",
+ "owner": "kwisatz_haderach",
+ "ids": {"ItemTable": [2001000, 2001999], "ShopItemTable": [10000, 10999]},
+ "items": [{"alias": "SBOTeam_GothicRose", "donor": "BS_Yellow_Suit_Jacket",
+            "set": {"EquipmentAlias": "BS_1000", "Name": "Item_BS_1000_Name", "DescContent": "Item_BS_1000_Content"},
+            "price": {"BetaCrystal": 5000}}]}

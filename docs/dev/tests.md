@@ -1011,6 +1011,15 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   per kept seat but the camp ones (unique names that never end in `_<digits>`, unique IDs above build 26123051's
   highest), and its checks refuse bad spots, seats, names, IDs, fences and a batch of more than 255 rows. After a change
   to the data file, run `python3 tools/sbo_lobby_rows.py` and commit the two files it writes;
+- `teamshop_rows_test.py`: `tools/teamshop_rows.py`'s two outputs, `world/teamshop/teamshop_rows.h` and
+  `world/teamshop/rows.lua`, match `data/teamshop/`, the Lua file loads in Lua, the batch holds every ItemTable row,
+  then every ShopItemTable row, then the ShopTable row `SBOTeam_Shop` with no tag, which lists each `_Buy` row once.
+  Each `_Buy` row sells an item of the batch for gold with no gate field. Its checks refuse an alias without the
+  `SBOTeam_` prefix, an ID range at or under the highest ID the game or the lion, bolt and shop batches hold, two
+  owners with the same name, alias or overlapping ranges, a field off the allow-list, non-ASCII text, a NanoSuit the
+  shop screen would sell twice (`MaxAmount` above 1, an `InventoryAlias` or a `MaxAmountOverrideActorStat`), an
+  unread donor, a price other than one gold price from 1 to 999999, a batch of 256 rows and a range too small for its
+  items. After a change to a data file, run `python3 tools/teamshop_rows.py` and commit the two files it writes;
 - `world_rows_test.py`: `tools/world_rows.py` on small made-up tables: each rule that keeps a ZoneEnvSpawnTable row
   out, each rule that keeps a state out (the player event types reached directly, through AddEvents and FinishEvents,
   through the states an env control row sets and through a progress control's change tags; the crane's camera tags;

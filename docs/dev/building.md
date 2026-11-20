@@ -247,6 +247,8 @@ data/
   mxiii-climb.json          the editor's ladders, ledges and ropes of Matrix XIII, read by tools/mxiii_climb.py
   mxiii-world.json          Matrix XIII's world rows, the one source of tools/mxiii_rows.py
   sbo-lobby.json            the five hall lobby maps, the one source of tools/sbo_lobby_rows.py
+  teamshop/                 one file per team member: their ID ranges and team shop items, the one source of
+                            tools/teamshop_rows.py
 tools/
   install.py                checks, build, install, uninstall, release zip
   mxiii_climb.py            places Matrix XIII's ladders on the editor's in data/mxiii-world.json, and checks them
@@ -258,6 +260,8 @@ tools/
   sbo_lobby_rows.py         writes online/lobby/sbo_maps.lua and native/src/online/lobby/halls_rows.h from
                             data/sbo-lobby.json
   story_lines.py            a save's story lines, their digest, and a save against an in-game dump (see story-dump.md)
+  teamshop_rows.py          writes native/src/world/teamshop/teamshop_rows.h and world/teamshop/rows.lua from
+                            data/teamshop/
   wine_smoke.py             loads the DLL under Wine
 .github/workflows/
   release-please.yml        the release pull request, the tag and the draft release (see Releases)
@@ -300,6 +304,7 @@ Platform-free headers, tested on the build machine:
 | `world/maps/matrix13/signal_rows.h` | Lily's signal's 24 quest rows and 1 shipped choice row patched in place, written by hand |
 | `world/maps/matrix13/mxiii_rows.h` | Matrix XIII's nine batches (`mxiii` 75 rows, `mxspawn` 51, `mxenv` 172, `mxupper` 168, `mxmiddle` 106, `mxlower` 105, `mxlily` 6, `mxnames` 11, `mxrecords` 100), written by `tools/mxiii_rows.py` from `data/mxiii-world.json`: do not edit it by hand |
 | `online/lobby/halls_rows.h` | The SBO hall lobbies' `halls` batch: 5 WorldTable rows, 5 ZoneTable rows, then 171 ZoneEnvSpawnTable rows, one per kept seat but the 2 camp seats, written by `tools/sbo_lobby_rows.py` from `data/sbo-lobby.json`: do not edit it by hand |
+| `world/teamshop/teamshop_rows.h` | The team shop's `teamshop` batch: one ItemTable row per team item, one ShopItemTable row `<alias>_Buy` that sells it for gold, then the ShopTable row `SBOTeam_Shop` that lists them, written by `tools/teamshop_rows.py` from `data/teamshop/`: do not edit it by hand |
 | `rows/shock.h` | The Shock Bolt's two lists grown in place once its bolt rows are in: the fire commands at the end of EVE's two gun stances' `CommandArray` and `Bullet_Shock` at the end of the const ammo list and the slot manager's list; the checks, the answer word, the `shock=` line and the log line |
 | `online/saves/watch.h` | The save watcher |
 | `game/slot.h` | The entered slot's read, the marker's grammar, the save file name's lookup and switch, the probe and the `slot=` line |
