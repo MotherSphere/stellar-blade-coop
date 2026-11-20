@@ -1294,6 +1294,10 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   (`sbo::kSetDifficulty`, 0x141cf3180) exactly once, in R8 after the return's reload. Called in game outside a
   Boss Challenge zone, the setter makes the game reload the save, and on 2026-11-12 the call the SBO lobby's entry made
   right after its warp did that and sent the player back to the saved spot;
+- `port_addresses_test.py`: `tools/port/addresses.py` on a fake source file (addresses in comments, strings and raw
+  strings left out; constants, tables, struct fields in a table, `Rva` constants and digit separators read), then on
+  `native/src`: every game address the code uses has an entry in `tools/port/signatures.json`, every entry is used
+  and each has a known kind (see [Porting](porting.md));
 - `release_test.py`: `tools/release.py`'s build, upload and publish steps and its refusals, with git, gh and
   `tools/install.py` faked;
 - `save_read_test.py`: `tools/save_read.py` on GVAS bodies built in the test (the header, values, containers, the EVAS
