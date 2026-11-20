@@ -188,7 +188,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               *(f'fight/gunmode/{name}' for name in ('aim', 'ammo', 'config', 'data', 'facts', 'g0',
                                                                      'ik', 'input', 'journal', 'laser', 'mode',
                                                                      'overlay', 'probe', 'release_check', 'rifle',
-                                                                     'stance')),
+                                                                     'stance', 'ui/slot')),
                               'core/keybind', 'core/link',
                               'core/mask', 'core/pak_gate', 'core/settings_file',
                               'core/unreal', 'core/ue4ss_settings', 'eve/chainspin', 'cutmenus/devmenu',

@@ -29,6 +29,10 @@ Config.DEFAULTS={
     -- gun round, reload and empty), the magazine, the reload.
     round_color={0.35,0.85,1.0},reload_color={1.0,0.62,0.15},
     mag_size=60,spare_mags=5,reload_time=1.6,reload_delay=1.0,
+    -- The D-pad rifle slot's top left (fight/gunmode/ui/slot.lua) in the kit's 3840x2160 layout, beside SB's D-pad
+    -- marker. SB pins its item column's bottom right at x 290 of its HUD canvas; how those units map to the kit's is
+    -- not measured, so the first in-game test sets these two.
+    slot_x=620,slot_y=1820,
     -- The reload's sounds (the NIKKE squad's), each at this share of the reload time.
     reload_sounds={{'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_1_Cue.P_Eve_GunNikke_Reload_1_Cue',0.0},
         {'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_2_Cue.P_Eve_GunNikke_Reload_2_Cue',0.6},

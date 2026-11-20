@@ -6,7 +6,8 @@
 -- magazine runs dry or while the rifle is lowered with a part-spent one. The reticle's round slot (WB_Tps_Bullet3,
 -- under the drone's reticle) shows the round's name and the rounds in the magazine while firing mode is held. Its own
 -- text goes back when the rifle goes away. The drone's round count at the bottom left (WB_MainHUD_Lower1Item, beside
--- D-pad Right) keeps the game's own text: find() only logs it. fight/gunmode/mode.lua passes no D-pad slot (dpad nil).
+-- D-pad Right) keeps the game's own text: find() only logs it. The D-pad rifle slot (dpad: fight/gunmode/ui/slot.lua,
+-- through fight/gunmode/mode.lua) shows "rounds | magazines" while the rifle is out. It goes when the rifle goes away.
 -- Where the rounds come from: with stock (fight/gunmode/nikke.lua) once its rows are in, EVE's inventory of SB's own
 -- round Bullet_Nikke, while a co-op save is loaded. The magazine then starts empty. Each reload takes the rounds it
 -- loads out of the inventory (stock.take), at most what she carries. The spares are what she carries (stock.count).
@@ -37,8 +38,9 @@ end
 -- g: gun mode's shared state (log, try, valid; words: ui/text.lua's gun in the player's language, whose round, reload
 -- and empty go on the slot). cfg: mag_size, reload_time, fire_interval, round_color, reload_color. cool(v): sets the
 -- shot's cool time (fight/gunmode/data.lua).
--- on_reload(on, duration): the reload's animation and sound (fight/gunmode/mode.lua). stock: fight/gunmode/nikke.lua's
--- object (ready, count, take, watch), or nil.
+-- on_reload(on, duration): the reload's animation and sound (fight/gunmode/mode.lua).
+-- dpad: the D-pad slot, show(text, color, rounds in the magazine) each frame and hide(); nil for none.
+-- stock: fight/gunmode/nikke.lua's object (ready, count, take, watch), or nil.
 function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
     local self={left=cfg.mag_size,reserve=cfg.mag_size*cfg.spare_mags,reload_until=nil,acc=0,dt=1/60,held=false}
     on_reload=on_reload or function() end
@@ -85,7 +87,7 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
         if dpad then
             local empty=self.left<=0 and self.reserve<=0
             pcall(dpad.show,Ammo.lower_text(math.max(0,self.left),self.reserve,cfg.mag_size),
-                (empty or self.reload_until) and cfg.reload_color or cfg.round_color)
+                (empty or self.reload_until) and cfg.reload_color or cfg.round_color,math.max(0,math.floor(self.left)))
         end
         if not find() then return end
         if not ui.saved then

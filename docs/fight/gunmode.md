@@ -122,7 +122,18 @@ No round fires while it reloads.
 
 In firing mode the reticle's round slot shows the round's name and the rounds left in the magazine. While the rifle
 reloads the name reads RELOADING. With the magazine and every spare empty it reads NO AMMO. RELOADING and NO AMMO show
-in the co-op menu's language; NIKKE RAPID stays as it is. Gun mode draws no other round count.
+in the co-op menu's language; NIKKE RAPID stays as it is.
+
+While the rifle is out with `gun_fire=native` (the default) a D-pad rifle slot sits beside SB's D-pad marker at the
+bottom left. With `gun_fire=own` there is no slot. It reads `rounds | magazines`: the rounds in the magazine, then the
+magazines left (a part-spent one counted). The count is light blue. It turns orange while the rifle reloads or once
+every round is spent. The slot is SB's own D-pad item slot widget (`WB_MainHUD_ItemSlotGeneral`) drawn at SB's item
+column scale (0.6) in SBO's UI layer. Its icon is the game's NIKKE rifle texture, `Icon_Nikke_LostItem_AssaultRifle`,
+the icon of the item table's `Nikke_AR` row. Gun mode loads it from the game. While the native part runs, SBO's keep
+holds it across map changes. No image file ships with SBO. Without that texture the slot shows the count alone. The
+slot hides while the game is paused, in the photo mode and whenever the rifle goes away. It does not follow SB's own
+HUD hiding. It is drawn on your screen only. Its place is `slot_x` and `slot_y` in `fight/gunmode/config.lua`. The
+first in-game test sets them, since how SB's HUD units map to SBO's layout has not been measured.
 
 The rounds below have not run in game yet. The rest of this section is written from the code and the game's tables.
 

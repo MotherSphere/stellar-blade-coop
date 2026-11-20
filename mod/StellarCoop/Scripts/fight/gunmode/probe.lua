@@ -7,23 +7,10 @@ local Probe={}
 
 function Probe.new(g)
     local self={}
-    local s={aim_at=nil,phase=-1,arm=nil,sock=nil,actors={},counting=false,hud_done=false,seen=0}
+    local s={aim_at=nil,phase=-1,arm=nil,sock=nil,hud_done=false}
     local function v3(a) return a and ('(%.0f,%.0f,%.0f)'):format(a.X,a.Y,a.Z) or '?' end
 
-    -- Every new actor while firing: its class, once each (what a shot spawns).
-    function self.hook_actors()
-        pcall(function()
-            NotifyOnNewObject('/Script/Engine.Actor',function(a)
-                if not s.counting then return end
-                s.seen=s.seen+1
-                local ok,n=pcall(function() return a:GetClass():GetFName():ToString() end)
-                n=ok and n or '?'
-                s.actors[n]=(s.actors[n] or 0)+1
-            end)
-        end)
-    end
-
-    local WORDS={'TPS','Aim','Bullet','Drone','Reticle','Cross','Ammo','Gun','Nikke'}
+    -- Every new actor while firllet','Drone','Reticle','Cross','Ammo','Gun','Nikke'}
     local function hit(n) for _,w in ipairs(WORDS) do if n:find(w) then return true end end end
     local function hud(pc)
         local classes={}
@@ -207,13 +194,7 @@ function Probe.new(g)
     function self.tick(pc,p,aim,firing,now)
         local cm=g.try(function() return pc.PlayerCameraManager end)
         if not cm then return end
-        s.counting=aim and firing
         if not aim then
-            if s.aim_at then
-                local list={}
-                for n,c in pairs(s.actors) do list[#list+1]=n..'x'..c end
-                g.log('probe: actors spawned while firing ('..s.seen..'): '..table.concat(list,' '))
-            end
             s.aim_at=nil
             return
         end

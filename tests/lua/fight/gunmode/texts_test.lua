@@ -2,7 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode's texts against its code and scripts: the rifle layer's pak has one name, the tools say what they make,
--- comments hold no play-session clock times or plans that are not in the repository. Runs from the repository's root.
+-- comments hold no play-session clock times or plans that are not in the repository. Only wiring.lua registers an
+-- engine hook. Runs from the repository's root.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local S='mod/StellarCoop/Scripts/fight/gunmode/'
 local function read(path) local f=assert(io.open(path,'rb'),path); local s=f:read('a'); f:close(); return s end
@@ -122,8 +123,9 @@ do
 end
 
 -- 4. The page as the code runs: it names every table fight/gunmode/data.lua changes and the notice the parked key
---    shows. Neither the page nor ammo.lua's header promises the bottom-left round count while mode.lua builds the
---    rounds with no D-pad slot. The page and the docs index row speak of no crouching. Plain prose on the page: no
+--    shows. While mode.lua builds the rounds with no D-pad slot, neither the page nor ammo.lua's header promises the
+--    "rounds | magazines" count. While it passes one, the page says what the slot shows, names its icon and says the
+--    first in-game test sets its place. The page and the docs index row speak of no crouching. Plain prose on the page: no
 --    ", and" or ", but", no bold-label bullets, no "co-op session". No ", and" or ", but" either in the comments this
 --    pass rewrote: ammo.lua's header, facts.lua's note on the retired F11.
 do
@@ -134,10 +136,18 @@ do
     end
     assert(next(seen),'data.lua opens tables')
     if not page:find(require('ui.text').en.gun.rebuilding,1,true) then fail(PAGE..' does not quote the parked notice') end
-    if read(S..'mode.lua'):find('Ammo.new(g,cfg,function(v) data.cool(v) end,on_reload,nil)',1,true) then
+    -- The D-pad slot argument, before the optional stock (fight/gunmode/nikke.lua's rounds).
+    local slot=read(S..'mode.lua'):match('Ammo%.new%(g,cfg,function%(v%) data%.cool%(v%) end,on_reload,([%w_]+)[,%)]')
+    assert(slot,'mode.lua builds the rounds')
+    if slot=='nil' then
         local head=read(S..'ammo.lua'):match('^(.-)\nlocal Ammo')
         for _,w in ipairs({{PAGE,page},{S..'ammo.lua (header)',head}}) do
             if w[2]:find('rounds | magazines',1,true) then fail(w[1]..' promises a bottom-left count no code draws') end
+        end
+    else
+        local icon=require('fight.gunmode.ui.slot').ICON:match('[^.]+$')
+        for _,want in ipairs({'rounds | magazines',icon,'Nikke_AR','first in-game test'}) do
+            if not page:find(want,1,true) then fail(PAGE..' does not say '..want..' of the D-pad slot') end
         end
     end
     local row=read('docs/README.md'):match('\n(| %[Gun mode%][^\n]*)')
@@ -159,6 +169,15 @@ do
         if l:lower():find('co-op session',1,true) then fail(('%s:%d: "co-op session"'):format(p,n)) end
     end)
 end
+
+-- 5. Engine hooks (NotifyOnNewObject, RegisterHook) are registered in wiring.lua only, where each callback checks
+--    M.off_modules (docs/dev/structure.md). One registered anywhere else stays for the whole Lua load with no off check.
+lines(LUA,function(p,n,l)
+    local code=l:gsub('%-%-.*$','')
+    if p~=S..'wiring.lua' and (code:find('NotifyOnNewObject',1,true) or code:find('RegisterHook',1,true)) then
+        fail(('%s:%d: an engine hook outside wiring.lua'):format(p,n))
+    end
+end)
 
 if #bad>0 then error('\n'..table.concat(bad,'\n'),0) end
 print('gunmode texts: ok')

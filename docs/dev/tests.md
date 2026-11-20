@@ -35,7 +35,8 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `world/daynight/`: `daynight`, `off`, `rule`, `wiring`; `story/together/`: `off`, `snapshot`, `wiring`, `wiring_dump`;
 `ui/`: `text`; `ui/kit/`: `guide`, `hud_parts`, `kit`, `model`, `notice`, `pause_tab`; `ui/text/`: `culture`;
 `world/objects/`: `off`, `wiring`;
-`fight/gunmode/`: `cost`, `engine`, `helpers`, `nikke`, `off`, `online`, `state`, `stock`, `stop`, `texts`)
+`fight/gunmode/`: `cost`, `engine`, `helpers`, `nikke`, `off`, `online`, `release`, `slot`, `state`, `stock`, `stop`,
+`texts`)
 run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
 fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. Each module's
 `off_test` runs `main/isolation.lua` with its name.
@@ -81,6 +82,15 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   parent (the capture sends the rifle's attached effects). Each frame of aim moves it to the muzzle, on the rifle
   layer too when it has no point to end at. While an SBO match runs the rifle does not come out, with the match notice
   once in 3 s. A match that starts with the rifle out puts it away within 0.25 s with everything back;
+- `fight/gunmode/slot_test` covers the D-pad rifle slot (`fight/gunmode/ui/slot.lua`) over a fake kit, then through
+  gun mode over `fight/gunmode/fake.lua`. At the rifle out SB's slot widget is made at render scale 0.6 with the rifle
+  icon set and `rounds | magazines` written. The count follows the rounds while firing. Only changed numbers are
+  written. The icon is looked up when a part is made, never on a frame. The kit's pause is read every 0.25 s.
+  The slot hides at a pause, when the rifle goes away, in the photo mode, after a new controller and at stop. A part
+  that a root rebuild left behind is made again. When the kit refuses the part, the kit's image gets the icon before it
+  shows and a `num` text shows the count. Once the refusal passes, the next kit build makes the part. While the keep
+  serves the icon, no build looks it up by its path. The slot wants the icon from the keep and warms the leaf's class.
+  Without the icon the count shows alone with one log line. With `gun_mode=off` no group is added;
 - `fight/gunmode/stop_test` runs gun mode over a fake UE4SS (`fight/gunmode/fake.lua`) on the rifle layer's path. The
   fake's row fields have the kinds read in Ghidra on 26123051: the shot's Hit1 step has a byte `Type` and no `StepType`.
   `stop` (coop off) gives back the table fields, the keys, the rifle, her body's own post-process class, the FOV lock
@@ -112,10 +122,16 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   script, the rifle layer, the `NGM_R_` clips and `SBOutfitProject`. Gun mode's code, tests, tools and page hold no
   clock time of a play session unless it names its log (`UE4SS.log 2026-11-12 21:49`). They cite neither
   `NGM_FACTS.md` nor the rebuild's plan, which are not in this repository. The gun mode page names every table
-  `fight/gunmode/data.lua` changes and the notice the parked key shows. Neither the page nor `ammo.lua`'s header
-  promises the bottom-left round count while `mode.lua` passes the rounds no D-pad slot. The page, its docs index row
-  and `coop gun`'s comment speak of no crouching. The page has no ", and" or ", but", no bold-label bullet and no
-  "co-op session". `ammo.lua`'s header and `facts.lua`'s note on the retired F11 have no ", and" or ", but" either;
+  `fight/gunmode/data.lua` changes and the notice the parked key shows. While `mode.lua` passes the rounds no D-pad
+  slot, neither the page nor `ammo.lua`'s header promises the `rounds | magazines` count. While it passes one, the
+  page says what the slot shows, names its icon (`Icon_Nikke_LostItem_AssaultRifle`, row `Nikke_AR`) and says the
+  first in-game test sets its place. The page, its docs index row and `coop gun`'s comment speak of no crouching.
+  The page has no ", and" or ", but", no bold-label bullet and no
+  "co-op session". `ammo.lua`'s header and `facts.lua`'s note on the retired F11 have no ", and" or ", but" either.
+  Only `fight/gunmode/wiring.lua` registers an engine hook (`NotifyOnNewObject`, `RegisterHook`);
+- `fight/gunmode/release_test` runs `fight/gunmode/release_check.lua` on gun mode's shipped defaults: no debug flag
+  of `Config.DEFAULTS` is on. It first sees the check refuse a test-only line (`gun_facts=on`), a changed release
+  value (`gun_aim_key`) and a debug default set on;
 - `fight/gunmode/nikke_test` checks that every row of `fight/gunmode/rows.lua` says what
   `fight/gunmode/nikke_rows.h` writes, then the rounds over a fake status text: on your own save the title asks
   nothing; on the co-op save files it asks the `nikke` batch once, then reads the rows back. The magazine stays free

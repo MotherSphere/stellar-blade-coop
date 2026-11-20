@@ -173,9 +173,11 @@ function GunMode.new(env)
             if not s.reload_logged then s.reload_logged=true; g.log('reload animation: '..(ok and 'playing' or 'not found')) end
         else s.sounds=nil end
     end
-    -- No D-pad slot widget for now: the runtime widget never drew, and as nothing held it the engine could free it
-    -- while its text was still being set every frame (a likely cause of crashes seen in play).
-    local ammo=Ammo.new(g,cfg,function(v) data.cool(v) end,on_reload,nil,env.stock)
+    -- The D-pad rifle slot (fight/gunmode/ui/slot.lua), made by self.hud on the kit; until then, or without the Steam
+    -- link's kit, the rounds go to no slot. env.stock: the rounds as EVE's Bullet_Nikke (fight/gunmode/nikke.lua).
+    local slot=nil
+    local dpad={show=function(...) if slot then slot.show(...) end end,hide=function() if slot then slot.hide() end end}
+    local ammo=Ammo.new(g,cfg,function(v) data.cool(v) end,on_reload,dpad,env.stock)
 
     local function fire_row(row)
         local ok,err=pcall(zone_event,ATTACH_ACTOR_EFFECT,row)
@@ -838,7 +840,7 @@ function GunMode.new(env)
 
     local function tick()
         local now=os.clock()
-        if now<s.pause then return end
+        if now<s.pause then pcall(dpad.hide); return end -- A new controller put the rifle away.
         if s.give_back then -- A new controller's deferred reset: the rows and the layer back (L3), the file with them.
             s.give_back=false; pcall(data.put_back); aim.row=nil
             layer_off(g.pawn())
@@ -856,6 +858,7 @@ function GunMode.new(env)
         local idle=not s.on and not s.mask and not s.armed_until
         local function paused() return g.try(function() return g.find(STATICS):IsGamePaused(pc) end)==true end
         if not idle and paused() then
+            pcall(dpad.hide) -- No ammo tick runs while paused: the slot shows again at the first frame after.
             if s.mask then
                 pcall(s.mask)
                 s.mask,s.keys=nil,nil
@@ -1224,6 +1227,12 @@ function GunMode.new(env)
             s.on and (s.zoom_held and ' (firing mode)' or ' (moving)') or '',set.key.name,s.shots)
     end
     self.toggle_now=function() self.toggle('command') end
+    -- The D-pad rifle slot's kit group, from the manifest's hud build step (main/ui.lua): h {kit, theme}. Its place is
+    -- cfg.slot_x and cfg.slot_y. Nothing with gun_mode=off.
+    function self.hud(h)
+        if not set.on then return end
+        slot=require('fight.gunmode.ui.slot').new({kit=h.kit,theme=h.theme,log=g.log,x=cfg.slot_x,y=cfg.slot_y})
+    end
     function self.out() return s.on==true end -- The bike's busy check reads it (vehicles/bike/wiring.lua).
     self.state=s
     return self
