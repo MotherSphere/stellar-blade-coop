@@ -62,7 +62,7 @@ with tempfile.TemporaryDirectory() as tmp:
         return {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob('*') if p.is_file()}
 
     # 1. A fresh install writes the files and a manifest equal to them, and backs up nothing.
-    v1 = {'enabled.txt': b'', 'Scripts/main.lua': b'main', 'Scripts/old.lua': b'old', 'StellarCoop.dll': b'dll 1'}
+    v1 = {'enabled.txt': b'', 'Scripts/main.lua': b'main', 'Scripts/old\u00e9.lua': b'old', 'StellarCoop.dll': b'dll 1'}
     code, out = run(install.install_files, target, v1)
     assert code is None and out == f'Installed 4 files into {target}\n', out
     manifest = (target / install.MANIFEST).read_bytes()
@@ -70,7 +70,8 @@ with tempfile.TemporaryDirectory() as tmp:
     assert files_of(target) == {**v1, install.MANIFEST: manifest} and not backups()
 
     # 2. A reinstall that drops a file removes it, keeps what the mod wrote in game, and backs up first exactly the
-    # files it replaces or removes, the manifest included.
+    # files it replaces or removes, the manifest included. The dropped file's name is not ASCII: the manifest is UTF-8
+    # on every system.
     (target / 'coop-host.log').write_bytes(b'log')
     (target / 'coop-settings.txt').write_bytes(b'send_rate=20\n')
     v2 = {'enabled.txt': b'', 'Scripts/main.lua': b'main 2', 'StellarCoop.dll': b'dll 2'}
@@ -78,7 +79,7 @@ with tempfile.TemporaryDirectory() as tmp:
     first, = backups()
     dest = first / 'StellarCoop'
     assert code is None and re.fullmatch(r'\d{8}T\d{6}Z', first.name), out
-    assert out == (f'Backed up 5 files into {dest}\nRemoving {target / "Scripts/old.lua"}\n'
+    assert out == (f'Backed up 5 files into {dest}\nRemoving {target / "Scripts/old\u00e9.lua"}\n'
                    f'Installed 3 files into {target}\n'), out
     assert files_of(dest) == {**v1, install.MANIFEST: manifest}  # Not the log or the settings.
     assert files_of(target) == {**v2, install.MANIFEST: b''.join(f'{r}\n'.encode() for r in sorted(v2)),
