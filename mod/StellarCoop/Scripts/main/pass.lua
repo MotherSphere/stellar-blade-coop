@@ -53,6 +53,8 @@ if M.link then
         if not M.off then M.guarded('gift',M.mailbox.tick) end -- coop gift: likewise.
         if not M.off then M.guarded('sbo',M.sbo.tick,os.clock()) end -- The SBO lobby: likewise.
         if not M.off then M.guarded('halls',M.halls.tick) end -- The hall rows' wait and read-back: likewise.
+        -- The team shop rows' wait and read-back, then its open's answer: likewise.
+        if not M.off then M.guarded('teamshop',M.teamshop.tick) end
         if not M.off then M.guarded('recruiter',M.recruiter.auto) end -- The recruiter at each Xion load, on any save.
         local chatting=M.link.chatting() -- nil: the status was not read, which ends no session.
         local heard=chatting or heard_by_member()
@@ -162,6 +164,8 @@ if M.link then
             M.guarded('lily',M.lily.title,title==true and world~=true,(M.link.saves() or {}).saves=='coop')
             -- The hall lobby maps' rows likewise (lobby pak only), so an SBO lobby can warp to them.
             M.guarded('halls',M.halls.title,title==true and world~=true,(M.link.saves() or {}).saves=='coop')
+            -- The team shop's rows likewise, so coop teamshop on a co-op save finds its ShopTable row.
+            M.guarded('teamshop',M.teamshop.title,title==true and world~=true,(M.link.saves() or {}).saves=='coop')
             -- Her marker carries her name: the ghost's tag is its fallback.
             M.guarded('ghost',M.puppet.marker,M.hud.marking())
             if world or title then M.photo_pause(M.settings.photo_pause=='scenery' and 1 or 0,

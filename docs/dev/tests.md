@@ -357,6 +357,14 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   `online/lobby/halls_rows.h` and `online/lobby/sbo_maps.lua`, then the title's ask: none without the lobby pak, once
   with it on the co-op save files, read back; a refusal, a fault or rows that read back wrong keep the lobby in Xion
   with one log line, also after a Lua reload, and a shut gate's refusal is asked again;
+- `world/teamshop/shop_test` checks that every row of `world/teamshop/rows.lua` goes into ItemTable, ShopItemTable or
+  ShopTable with the ShopTable row last, then the team shop over a fake status text and tables: on your own save
+  `coop teamshop` refuses and the title asks nothing; on the co-op save files the title asks once with the three
+  tables in the native part's order, then reads the rows back; the shop stays shut before the read-back, after a
+  refusal, a fault or rows that read back wrong (one log line, also after a Lua reload) and a shut gate's refusal
+  decides nothing; no `teamshopui=` line, its fault, the pause and an open under way refuse; the open's answer is
+  logged (opened, refused, no answer in 5 s); `coop off` ends both waits; the command's argument and link checks;
+- `world/teamshop/off_test` runs `main/isolation.lua` with `world.teamshop` (see the module tests above);
 - `online/lobby/sbo_test` covers the lobby's spots, fence, row sets, notices and entry checks, and the entry and return
   from the status line, a double Join, a late arrival, coop off while warping and a Lua load in the middle of an entry,
   and a Join that enters again after SB's own reload cut an entry short (record open or warping); then the room shown,

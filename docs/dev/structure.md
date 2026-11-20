@@ -38,6 +38,7 @@ category folders (`online/`, `online/modes/`, `fight/`, `world/`, `world/maps/`,
 | `world.daynight` | Day and night | `world/daynight/` | `world/daynight/` | [Day and night](../world/daynight-internals.md) | |
 | `cutmenus` | Cut menus | `cutmenus/` | `cutmenus/` (`items.h` and its part) | [Cut menus and the mailbox](../cutmenus/menus.md) | |
 | `online.saves` | Co-op saves | `online/saves/` | `online/saves/` | [Saves](../players/saves.md) | |
+| `world.teamshop` | Team shop | `world/teamshop/` | `world/teamshop/` | [Team shop](../world/teamshop.md) | Its rows in `world/teamshop/teamshop_rows.h` |
 
 ## Shared pieces
 
@@ -76,9 +77,10 @@ patches, its recipes, its counts and its `Batch` constants):
 | `world/maps/matrix13/mxiii_rows.h` | `mxiii`, `mxspawn`, `mxenv`, `mxupper`, `mxmiddle`, `mxlower`, `mxlily`, `mxnames`, `mxrecords` | `tools/mxiii_rows.py` |
 | `world/maps/matrix13/signal_rows.h` | `signal` | hand |
 | `online/lobby/halls_rows.h` | `halls` | `tools/sbo_lobby_rows.py` |
+| `world/teamshop/teamshop_rows.h` | `teamshop` | `tools/teamshop_rows.py` |
 
 `rows/rows.h` keeps the engine, the generated `kTables` and one line per batch word naming its header. `glue/tick.cpp`
-includes the six headers right after `rows/rows.h`. The Lua read-back lists follow the code that asks: the lion, bolt
+includes the seven headers right after `rows/rows.h`. The Lua read-back lists follow the code that asks: the lion, bolt
 and shop batches are asked by the Lion object, so their lists stay in `fight/bosses/lion_rows.lua`.
 
 A module that needs rows another module owns gets a generated copy in its own folder, never a `require` of the other

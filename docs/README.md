@@ -45,6 +45,7 @@ start with `coop`.
 | [Shared world](world/objects.md) | Doors, levers, lifts and shortcuts one player works changing in the other's game; what stays each player's own; the setting and `coop world` |
 | [Matrix XIII](world/matrix13.md) | The cut dungeon, `coop mxiii` and its test pak |
 | [Lily's signal](world/lily-signal.md) | The mod's two quests that lead through Matrix XIII, their talks, lines and status lines |
+| [Team shop](world/teamshop.md) | `coop teamshop`: outfits made by the SBO team for gold in the game's own shop screen on a co-op save; when it refuses |
 
 ## Story
 

@@ -70,6 +70,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `story/together/commands.lua` | `coop scenes`: on and off for [story together](../story/together-internals.md) until the mod reloads; its status line. `coop story`, handed to `story/together/snapshot.lua` |
 | `world/daynight/commands.lua` | `coop daynight`: its words handed to `world/daynight/daynight.lua` ([Day and night](../world/daynight-internals.md)) |
 | `vehicles/bike/commands.lua` | `coop bike`, `coop bike status` and `coop bike tune`, handed to `vehicles/bike/ride.lua` ([The bike](../vehicles/bike-internals.md)) |
+| `world/teamshop/commands.lua` | `coop teamshop`: handed to `world/teamshop/shop.lua` ([Team shop](../world/teamshop.md)) |
 | `vehicles/bike/ride.lua` | The bike on EVE: the preload asked of the native part, the bike part on her actor, the checks, the mount and the dismount in their order with `coop-bike.txt`, the gate, the riding pose kept playing, the lean on her main mesh ([The bike](../vehicles/bike-internals.md)) |
 | `vehicles/bike/model.lua` | The bike's riding model, adapted from Eve On Wheels by dCharisma1, in `vehicles/bike/drive_model.lua`'s table shape so `vehicles/bike/drive.lua` drives it ([Riding](../vehicles/bike-internals.md#riding)). Both are the bike's copies of the races' `online/modes/race/drive_model.lua` and `online/modes/race/drive.lua` |
 | `world/daynight/rule.lua` | The day and night cycle's map table and rules, the native status line's `sky=` reader, the command's hour, with no engine call ([Day and night](../world/daynight-internals.md)) |
@@ -254,7 +255,7 @@ The full list is in [Settings](../players/settings.md#files-in-the-mod-folder).
 
 ## Modules and isolation
 
-The Lua side is cut into 19 modules, one folder each ([Structure](structure.md#modules) lists them). A module
+The Lua side is cut into 20 modules, one folder each ([Structure](structure.md#modules) lists them). A module
 that fails to load is off until the mod reloads; the other modules stay on.
 
 ### The manifest

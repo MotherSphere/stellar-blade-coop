@@ -183,6 +183,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'story/scenes/commands', 'cutmenus/commands', 'world/maps/matrix13/commands',
                               'story/together/commands',
                               'world/objects/commands', 'vehicles/bike/commands', 'world/daynight/commands',
+                              'world/teamshop/commands', 'world/teamshop/shop',
                               'core/keybind', 'core/link',
                               'core/mask', 'core/pak_gate', 'core/settings_file',
                               'core/unreal', 'core/ue4ss_settings', 'eve/chainspin', 'cutmenus/devmenu',
@@ -258,7 +259,7 @@ with tempfile.TemporaryDirectory() as tmp:
                                                                    'story/quests', 'world/objects',
                                                                    'story/together', 'online/lobby', 'vehicles/bike',
                                                                    'world/daynight', 'cutmenus',
-                                                                   'online/saves')),
+                                                                   'online/saves', 'world/teamshop')),
                               'version'))}
     assert set(files) == shipped - docs, sorted(files)
     assert not [rel for rel in files
