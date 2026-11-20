@@ -343,3 +343,149 @@ applies them to her copy:
   new game call: it reads, and her claims go through ApplyStat as before. Recordings keep none of these lines.
 
 The log lines are in [players/troubleshooting.md](../players/troubleshooting.md#a-shared-boss-differs-between-the-two-games).
+
+## Flinches and stagger resistance
+
+Shared flinches (`hit_reactions`) and stagger resistance (`stagger_resist`) are experimental, the host's values, both
+on by default and not tested in game yet (phase 8). The rules free of Windows are in
+`game/poise.h`, tested by `tests/native/game/poise_test.cpp`. `game/fight/sync.h` carries the lines and runs the rules
+on each side. The fight engine (`fight/enemies/engine_read.h`, `engine_write.h`) reads the game's effects and starts
+them. Every address and offset below was read in Ghidra on build 26123051.
+
+### The poise compare (Rule A)
+
+Stellar Blade decides whether a hit staggers in `FUN_141c00f80` at 0x141c01064-0x141c010ad:
+`(float)(HitLevel + (int)AdditiveHitLevel) >= HitDefenseLevel`. HitLevel is the int at SkillTable row `+0x70`.
+AdditiveHitLevel is the attacker's stat 103 (FSBActor `+0x2b4`), cut toward zero by CVTTSS2SI at 0x141c0108d.
+HitDefenseLevel, the poise, is the target's stat 37 (FSBActor `+0x1ac`). Both sit at `kStatBase` 0x118 plus 4 for each
+stat. A missing FSBActor reads as 0 on either side. A NaN on either side gives false (COMISS, then SETNC at
+0x141c010aa). `poise::level()` and `poise::passes()` copy the compare. The sum wraps as SB's ADD does. An additive
+that is not finite or not within int32 gives no level.
+
+A told reaction carries the hit's level on its cc line. The side that receives it starts the reaction at its next step
+only when `passes(level, poise)` holds on its copy then. Each pass reads the copy's poise into `Seen::poise` with
+`g.read` (a failed read is NaN, which refuses). A refused crowd control counts `cc_poise` and logs `cc refused` with
+why `poise`. A refused flinch counts `flinch_refused`.
+
+`Engine::reaction` reads the level on the sender's copy at the pass that sees the reaction rise: the copy found again
+by GUID, then the last effect with that ID in its list. Only an effect our EVE cast gets a level. Effect `+0x60` holds
+the caster's logic actor (`FUN_141bc76e0` stores its third argument there at 0x141bc771f), compared with our EVE and
+never read through. The SkillTable row comes from the ID at effect `+0x88`, which is context `+0x20`: `FUN_141c00f80`
+fills it with its row's `+0x10`. `FUN_141a9e920` (the repo's `skill_row`) looks the row up by that ID. The level is
+the row's HitLevel plus our EVE's AdditiveHitLevel cut toward zero, held to 0 to 99. Another caster, a row ID of 0 (the
+mod's own mirrored effects), no row or any failed read gives the guess, level 1 (`poise::kGuessLevel`), counted
+`level_guess`. None of them latches. The reaction's life in ms comes from effect `+0x74` in every case, 10 s at most.
+`poise.h` also names effect `+0x68` (context `+0x00`, which `FUN_141c00f80` fills from its skill's `+0x20`) for a level
+read by skill object, which is not built (`poise::kLevelByRow`).
+
+### The flinch mirror
+
+HitStun (EffectTable 2003000, `kFlinch`) joins the five crowd controls of `kCcEffects` on the cc line. `Seen::cc` gives
+it its own bit (`kFlinchBit`), set while the copy's effect list holds it. A flinch is told when it rises on a copy that
+held no reaction at all, with Rule A's level and its life in ms. A flinch that rises inside a crowd control is its chain
+and is not told. Neither is our own mirror showing up within `kEchoMs`.
+
+The receiving side starts a flinch at its next step only:
+
+- on a copy that holds no reaction (no flinch, no crowd control, not Down, Groggy or Airborne);
+- while `hit_reactions` is on (the host's own, or as its stagger line said);
+- with same place on, on a copy this side owns (`Io::owns`). A drawn copy moves by the owner's stream, which already
+  shows the owner's flinch;
+- when Rule A passes.
+
+Each refusal counts `flinch_refused` and logs `flinch refused` with why `held`, `off`, `drawn`, `poise` or `game` (SB
+refused the call), once for each enemy and reason every 10 s (`poise::Quiet`). A received crowd control still starts on
+a copy that only flinches: a knockdown cuts a flinch. A flinch line never replaces a crowd control still waiting for
+its step; it is dropped and counted.
+
+`Engine::cast` starts a mirrored flinch through the effect call `FUN_141ad1af0` with a context (below) that holds the
+line's time in seconds at `+0x0c`: 200 ms gives 0.2 s. A time of 0 takes the row's own time with no context, as a
+mirrored crowd control does. The hit's push-back move is a separate call in the hit code (`FUN_141ba4080`, called from
+`FUN_141c00f80` at 0x141c01120 with the attacker's skill). The mirror does not make it, so a mirrored flinch plays
+without push-back.
+
+### The effect context
+
+`effect_ctx` (`fight/enemies/fight_game.inc`) makes a fresh 16-byte-aligned 0xa0-byte buffer on the stack. SB's own
+context init `FUN_141acb6f0` (`kEffectInit`, one argument) fills it: it writes its first 0x9c bytes (all but 0x89 to
+0x8b) and sets `+0x0c` and `+0x10` to 0. `poise::fill_context` then writes only `+0x0c` (the life in seconds) and
+`+0x10` (the value). The call is `FUN_141ad1af0(logic, target, caster, id, zero vector, 0, ctx)`. `FUN_141bc6af0`
+copies the context's 0x9c bytes to effect `+0x68`. `FUN_141bc76e0` takes effect `+0x74` (context `+0x0c`) as the
+life and `+0x78` (context `+0x10`) as the value, each from the row when the context holds 0. `FUN_141c00f80` builds
+its hit contexts the same way: the init on a stack buffer, then its own fields.
+
+### Poise windows (Rule B)
+
+Each side notes for each enemy (the host's GUID) when each player slot last made its copy react (`poise::Recent`, 32
+enemies, 8 slots). Slot 0 is a rise on our copy that is not our mirror's echo. Slot 1 is each of the other side's cc
+lines taken at a step (started or refused) and our mirror's echo. Slots 2 to 7 stay unused until more players share
+one fight. Each side forgets the other's reactions at the other side's on, off and world lines.
+
+A rise on a copy this side moves itself (same place off, or a copy it owns) asks for a window while `stagger_resist`
+is on, once two players or more made that enemy react within 10 s (`kRecentMs`). The game that runs the AI decides,
+only at a rise on its own copy. k, the poise added, is 1 for a Monster (ActorType 3) and 2 for a BossMonster (ActorType
+4); any other type gets no window (`poise::k_for`). The window lasts the reaction's life (effect `+0x74`, 10 s at most)
+plus 1.5 s for each player past the first, that part 6 s at most: 16 s at most in all (`poise::window_ms`).
+
+`Engine::window` starts EffectTable 1001400 (AddHitDefense: HitDefenseLevel, Static, bStatRestore, IndependentTime)
+on the copy, with the copy as its own caster, through `effect_ctx` with the window in seconds at `+0x0c` and k at
+`+0x10`. It refuses in this order: `off` (a window SB never ended, or the latch), `running` (a window on that copy whose
+check has not settled), `full` (32 running, before any game call), `gone` (not found again live), `state` (life state
+not 1, or a death pending), `type` (not the ActorType that k is for) and `game` (SB refused the call). A refusal counts
+`windows_refused` and logs `window refused` with its reason, once for each enemy and reason every 10 s.
+
+With bStatRestore set (row `+0x192`), `FUN_141bcd290` records the delta the effect added at effect `+0x118` (count
+`+0x120`). Its end, `FUN_141bcb980`, takes that delta back through ApplyStat (`FUN_141ba9960`). So the mod never writes
+the poise. Other effects that raise the copy's poise keep their own deltas.
+
+With same place on, the owner sends a poise line for each window it starts. The drawing side keeps the line on its
+pair until its next step. It then starts the same window on its drawn copy, through the same call, only while
+`stagger_resist` is on, the sender still owns the enemy (not `Io::owns`) and the owner epoch is the line's. Otherwise
+the line counts as stale.
+
+### The restore check
+
+`Engine::restore_turn` runs each turn after the side's step. It reads SB's own effect clock, never the poise value.
+The effect tick `FUN_141bc5780` adds dt times the owner's time scale (FSBActor `+0x27c4`) to effect `+0x110`. It does
+not advance it while dt is 0, or while the row's byte `+0x55c` and the owner's FSBActor byte `+0x2644` are both set.
+`FUN_141bc7f10` ends an IndependentTime effect once `+0x74 <= +0x110`. From 0.5 s after a
+window's end on the wall clock (`kRestoreMs`), the check finds the copy again by GUID and walks its effect list for our
+effect object (`poise::restore`):
+
+- Our effect no longer listed: done. SB ended it and took its delta back, whatever the poise holds now.
+- Listed with `+0x110` 0.5 s or more past `+0x74`: SB never ended it. It counts `unrestored` and logs one
+  `poise not restored` line with both values. No window starts again until the game restarts.
+- Listed with its clock behind (a pause, photo mode, slow motion): the check waits. 60 s after the end (`kGiveUpMs`) it
+  counts as unchecked (`restore_skipped`).
+- The copy not found again live, dying, out of life state 1, or a torn effect list: unchecked, with nothing more read.
+
+None of these latches. A world, on or off line and a new session drop every check with no count. SB still ends each
+window itself.
+
+### Lines and counters
+
+The changed cc line and the two new lines ride channel 2, reliable, in fight pairs only (never in match lobbies, the
+SBO lobby or the PvP test). They joined protocol 23, which no release has used yet, so the number did not change. An
+earlier protocol-23 build drops them as malformed lines (said once a session). This build drops that build's
+three-field cc line the same way.
+
+- `SBF23 cc <gen> <hguid> <effect> <level> <ms>`, both sides: a crowd control or a flinch that rose on the sender's
+  copy, with the hit's level (0 to 99) and the reaction's time: 0 for a crowd control (its row's own), 0 to 10000 ms
+  for a flinch (0: its row's own).
+- `SBF23 stagger <gen> <0|1> <0|1>`, the host: its `hit_reactions` and `stagger_resist`, after its bosses line in each
+  whole list while either is on, then again at each change. A recording keeps it. The guest reads both as off until
+  it comes. She reads them as off again after the host's next world line.
+- `SBF23 poise <gen> <hguid> <oe> <k> <ms>`, the owner of a same-place enemy: a window it started on its copy, k 1 or
+  2, 1 to 16000 ms, at owner epoch oe. Never recorded.
+
+Lua asks for both settings with the words `reactions` and `resist` after `bosses <n>` in `coop fight on` and
+`coop fight record`. A change of either Options row asks `coop fight stagger <0|1> <0|1>` while shared enemies wait or
+run; the worker answers `stagger: reactions <on|off>, resist <on|off>`.
+
+Each side's `Counts` adds `cc_poise`, `level_guess`, `flinch_told`, `flinch_mirrored`, `flinch_refused`, `windows` and
+`windows_refused`. The job's `JobCounts` adds `unrestored` and `restore_skipped`. The `fight=` line and the
+`fight stats:` lines show them (see [Flinches and stagger resistance](enemies.md#flinches-and-stagger-resistance)).
+
+Every game call runs inside the shared fight's job on the logic thread, under its fault latch. The reads that may fail
+in an ordinary fight (the poise, the level, the restore check) go through `g.read` and never latch. No line starts
+anything on a player's EVE: windows go only on ActorType 3 or 4, mirrors only on paired enemy copies.

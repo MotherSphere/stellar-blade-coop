@@ -39,6 +39,54 @@ your EVE, burrows or warps in), because the game never kills an enemy in the mid
 state ends, or after 6 seconds anyway. When the guest's hit is the kill, the host's copy waits at 1 HP.
 `coop-link.log` says `fight kill held <key>`, then `fight held-expired <key>` when the 6 seconds ran out.
 
+### Flinches and stagger resistance
+
+Shared flinches and stagger resistance are experimental, on by default and not tested in game yet. Two settings of
+the host turn them on or off for every game of the fight pair: `hit_reactions` (shared flinches) and `stagger_resist`
+(stagger resistance), in [coop-settings.txt](../players/settings.md#coop-settingstxt) and on two Options rows of the
+[co-op menu](../players/interface.md#options) next to Same place. How they work is in
+[fight/enemies-internals.md](enemies-internals.md#flinches-and-stagger-resistance).
+
+The game that runs a copy decides each reaction with Stellar Blade's own rule: a hit staggers an enemy only when the
+hit's level reaches the enemy's poise. A knockdown, a launch, a wall slam or a flinch that the other game tells yours
+carries the level of the hit that caused it. Your game starts it on your copy only when that level reaches your copy's
+poise at that moment. Builds before this one started a mirrored knockdown, launch or wall slam without that test, so
+an enemy whose poise held in your game could still go down there. When the mod cannot read the level of a hit, it sends
+level 1.
+
+With shared flinches on, a light hit that makes a shared enemy flinch on one screen makes its copy flinch in the other
+game too, for the flinch time the hit gave it (10 s at most). The copy plays the game's own flinch effect (HitStun,
+2003000) without the push-back of a direct hit. A flinch is told only when it starts on a copy in no other reaction.
+Your game starts the other player's flinch only on a copy that is not already flinching, down, in the air or groggy.
+A knockdown still starts on a copy that only flinches. With same place on, a flinch plays on the copy that runs the
+enemy. The other screen shows it through that copy's movement.
+
+With stagger resistance on, an enemy that reacted (a flinch, a knockdown, a launch or a wall slam) to hits from two or
+more players within 10 s holds raised poise for a window. The window lasts the reaction's own time plus 1.5 s for each
+extra player, the extra part 6 s at most. A common enemy's poise rises by 1. A boss's or an Alpha Naytiba's rises by 2.
+So during the window a hit needs one level more (two for a boss) to stagger it. The window changes the enemy's poise
+only: the mod changes no damage or balance number. An enemy that one player fights alone plays as in solo. The window
+is the game's own poise effect (AddHitDefense, 1001400), which the game ends and takes back by itself. Without same
+place each game starts the window on its own copy. With same place on, the game that runs the enemy starts it, then
+the other game starts the same window on its copy. Nothing here starts on a player's EVE: her reactions stay decided by
+her own game.
+
+A change of either row in the host's game applies at once while shared enemies wait or run. Otherwise it applies from
+their next start. As guest, your values are not used: your game takes the host's from its `stagger` line. Until that
+line comes, it reads both as off.
+
+- The `fight=` line of `coop fight status` ends with `stagger=<on|off>/<on|off> cc_poise=<n>
+  flinches=<told>/<mirrored>/<refused> windows=<started>/<refused> unrestored=<n> level_guess=<n>`: the side's
+  `hit_reactions` and `stagger_resist` (the host's own, or as its line said), the other player's crowd controls refused
+  under poise, the flinches, the poise windows, the windows the game never ended and the levels sent as the guess.
+- The `fight stats:` lines in `coop-fight.log` add `flinches <n> told, <n> mirrored (<n> refused), <n> crowd controls
+  under poise, <n> poise windows (<n> refused, <n> not restored, <n> unchecked), <n> levels guessed`.
+- `coop-link.log` says `fight flinch refused <key> hguid=<n> <why>` (why: `held`, `poise`, `game`, `off` or `drawn`),
+  `fight cc refused <key> hguid=<n> poise` and `fight window refused <key> hguid=<n> <why>` (why: `off`, `running`,
+  `full`, `gone`, `state`, `type` or `game`), once for each enemy and reason every 10 s.
+  `fight poise not restored <key> listed past its life elapsed=<s> life=<s>` means that the game never ended one
+  window. No window starts again until the game restarts.
+
 ### Two-player scaling
 
 Shared enemies get more HP and balance, since two players hit them. The host's `enemy_hp_scale` (default `1.35`)

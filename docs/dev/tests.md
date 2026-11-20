@@ -161,7 +161,8 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   `.utoc` whose header does not read as one;
 - `fight/enemies/wiring_test` also covers `coop fight pilot` (its `test target` and boss tests included), `coop fight
   spawn probe`, the `spawn_filter` setting with the `filter` word it adds, and the `same_place`, `aggro`, `same_spawns`,
-  `enemy_extra`, `bosses` and `boss_hp_scale` settings, whose rows `main/menu_test` covers with the `shared_quests`,
+  `enemy_extra`, `bosses`, `boss_hp_scale`, `hit_reactions` and `stagger_resist` settings, whose rows `main/menu_test`
+  covers with the `shared_quests`,
   `shared_world` and `shared_story` rows, and `coop pvp` (its words, the `pvp_spike` and `shared_enemies` refusals,
   status, and `pvp_spike=off` ending an earlier load's PvP test at a reload);
 - `fight/enemies/wiring_notices_test` covers the same place and same spawns notices in both languages;
@@ -401,8 +402,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 ### Link
 
 - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
-  `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target` and
-  the boss tests included; `coop fight pvp` and `pvp off`; `lion rows`, `gardener rows`, `tendril rows`, `bolt rows`,
+  `aggro-host`, `bosses <boss %>`, `reactions`, `resist`, `spawns`, `extra <n>` and `filter` words,
+  `fight stagger <0|1> <0|1>` and its `pilot` requests, `test target` and the boss tests included; `coop fight pvp` and
+  `pvp off`; `lion rows`, `gardener rows`, `tendril rows`, `bolt rows`,
   `mxiii rows`, `shop rows` and `signal rows` with their 25 table words and bad addresses, the longest of them 813
   bytes; `fly` and `slowmo` on or off; `anim play` with its id, path and `once`, `loop` or `ride`, and `anim stop`;
   `bike load <clip>`, `bike free`, `bike gate on` and `bike gate off`, a mesh, a package path or a mod's clip refused;
@@ -702,6 +704,16 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
     her reset, nothing published without the filter or on the host's side, a key the host spawns again let through, the
     host's dead on her paired copy blocking its key but not her own lethal hit, the table empty at a new session, at the
     host's off and at the end, and the gate);
+  - phase 8's level read (an effect our EVE cast gives its row's HitLevel, found by the ID at `+0x88`, plus her
+    AdditiveHitLevel; another caster, a row ID of 0 or no tables give the guess with no latch; the life from `+0x74` in
+    every case), the copy's poise and ActorType read each pass, a mirrored flinch of 200 ms started through the context
+    call with 0.2 s and 0 while a crowd control goes through the call with no context, its echo never told back, a
+    flinch refused on a copy the side draws, the host's `stagger` values on both sides (both off on a guest's side
+    before the host's line), `Engine::window`'s refusals (`type`, `state`, `running`, then `full` before any game call)
+    and its start of 1001400 with the window in seconds at `+0x0c` and k at `+0x10`, the restore check on SB's effect
+    clock (a knockdown inside a window, a 10 s pause, a 60 s freeze counted unchecked, an effect listed past its life
+    logged once with windows off for the run), a copy gone or dying before its check skipped with no latch, her poise
+    line taken at her owner epoch only and the `fight=` line's `stagger=` field;
   - the PvP test's mode in the worker (a co-op save and a linked friend, never beside the shared fight either way, her
     pvp lines alone reaching the job with her SteamID, its own sent reliable, no restart at a host change, a pause and a
     new session when her link drops and comes back, `coop pvp off`);
@@ -721,7 +733,25 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
     pair forms, phase IDs from that boss's allowlist only, a summon's key, row, charId and owner),
   - the PvP test's pvp line (round trip, and the refusals: d of 0, a sign, a decimal, past 10,000,000, a skill of 0 or
     past INT32_MAX, a seq of 0, a missing or extra field, the old tag),
+  - phase 8's lines (the six-field cc line with the hit's level and the reaction's time, the three-field form refused;
+    the stagger and poise lines with their bounds; a recording keeps stagger, never poise) and their rules: the stagger
+    line after bosses while either setting is on and again at each change, both read as off on the guest's side until
+    it comes and after the host's next world; Rule A on both sides (a mirrored crowd control under the copy's poise
+    refused and counted, a copy with an unread poise refused, a level that could not be read sent as the guess and
+    counted); the flinch mirror (told from no reaction with its time, its chain and its echo not told, refused while
+    the copy holds a reaction, under its poise, with `hit_reactions` off or on a drawn copy, a knockdown still started
+    on a copy that only flinches, a flinch line never replacing a crowd control still waiting); Rule B (no window for
+    one player, k 1 for a Monster and 2 for a boss, a refusal counted and logged once every 10 s, the owner's poise line
+    taken at its epoch only and stale otherwise, nothing new with `stagger_resist` off, a cc line refused on our copy
+    still counting the other player, her reactions forgotten at her off and on, the host's at its world line),
   - and two fake worlds linked through a delayed, lossy line;
+- `game_poise_test`: phase 8's rules in `game/poise.h`: the level compare (HitLevel plus the additive level cut toward
+  zero, a NaN poise and an additive that is not finite refused), k by ActorType, the reaction's life in ms (10 s at
+  most), the window's length (none for one player, 1.5 s for each extra player, 6 s more at most), the context bytes
+  (`+0x0c` and `+0x10` written, every other byte of SB's init left as it was), the players who made each enemy react
+  within 10 s by slot, one window a copy until its check settles and `full()` before any game call, the restore
+  verdict on SB's effect clock (wait until 0.5 s after the end, done once unlisted, failed when listed 0.5 s past its
+  life, unchecked 60 s after the end or on a NaN) and the quiet log (one line for each enemy, what and why every 10 s);
 - `game_spawn_sync_test`: the core of same spawns (stage 4):
   - which rows take part,
   - each side's epoch (a zone change, a reset of the spawn manager, 3 or more keys with a new GUID, two actors of one
