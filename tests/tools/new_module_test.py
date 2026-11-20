@@ -5,9 +5,10 @@
 """tools/new_module.py on a copy of the trees it reads and edits, in a temporary directory: each refusal exits with 2
 and changes nothing, --dry-run changes nothing, then a Lua module (world/nm_lanterns) and a native one in a nested
 category (online/modes/nm_duel) are made with every file and every registration in place, the tool's own checks pass
-(modules_test.py and the module's Lua tests) and parts 1 to 11 of tests/tools/install_test.py, its shipped list
-among them, pass on the copy. No git needed.
+(modules_test.py and the module's Lua tests), each file it writes has LF ends and part 11 of
+tests/tools/install_test.py, its shipped list, passes on the copy. No git needed. It runs on Windows too.
 Run: python3 tests/tools/new_module_test.py"""
+import os
 import re
 import shutil
 import subprocess
@@ -47,12 +48,14 @@ def languages(root):
 
 
 def shipped(root):
-    """install_test.py's parts 1 to 11 on the copy, its shipped list among them: part 12 on needs git."""
+    """install_test.py's part 11 on the copy, after its setup: the shipped list. Parts 1 to 10 test install.py, which
+    the tool does not change. They need signal.alarm (missing on Windows) and symlinks. Part 12 on needs git."""
     code = text(root, 'tests/tools/install_test.py')
-    assert '\n    # 12. ' in code
-    run = f"exec(compile({code[:code.index(chr(10) + '    # 12. ')]!r}, 'install_test.py', 'exec'), " \
+    part = code[:code.index('\n    # 1. ')] + code[code.index('\n    # 11. '):code.index('\n    # 12. ')]
+    run = f"exec(compile({part!r}, 'install_test.py', 'exec'), " \
           f"{{'__file__': {str(root / 'tests/tools/install_test.py')!r}, '__name__': '__main__'}})"
-    done = subprocess.run([sys.executable, '-c', run], cwd=root, capture_output=True, text=True)
+    # On stdin: a Windows command line holds at most 32767 characters.
+    done = subprocess.run([sys.executable, '-'], input=run, cwd=root, capture_output=True, text=True)
     assert done.returncode == 0, done.stdout + done.stderr
 
 
@@ -87,7 +90,8 @@ with tempfile.TemporaryDirectory() as tmp:
     # A word online/partner/commands.lua makes in a loop: only main.lua's load names it.
     refused(root, 'coop replay is already a console word', 'world/replay', '--title', 'Replays')
     refused(root, 'has a namespace pose already', 'world/pose', '--title', 'Poses', '--native')  # In native/src.
-    refused(root, 'lua5.4 did not start', 'world/nm_lanterns', '--title', 'Lanterns', env={'PATH': ''})
+    # The whole environment but PATH: Python does not start on Windows without SYSTEMROOT.
+    refused(root, 'lua5.4 did not start', 'world/nm_lanterns', '--title', 'Lanterns', env={**os.environ, 'PATH': ''})
     refused(root, 'bad title', 'world/nm_lanterns', '--title', 'Lanterns | shop')
     refused(root, 'bad title', 'world/nm_lanterns', '--title', 'L' * 41)
     refused(root, 'bad title', 'world/nm_lanterns', '--title', ' Lanterns')
@@ -95,14 +99,15 @@ with tempfile.TemporaryDirectory() as tmp:
     empty.mkdir()
     refused(empty, 'not a Stellar Blade Online checkout', 'world/nm_lanterns', '--title', 'Lanterns')
     # A missing anchor in one file it edits: refused before any file is written.
-    saved = text(root, 'tests/lua/ui/text_test.lua')
-    (root / 'tests/lua/ui/text_test.lua').write_text(saved.replace('MODULE_KEYS==', 'MODULE_KEYS>='), encoding='utf-8')
+    # Bytes in and out: write_text would write CRLF ends on Windows.
+    saved = (root / 'tests/lua/ui/text_test.lua').read_bytes()
+    (root / 'tests/lua/ui/text_test.lua').write_bytes(saved.replace(b'MODULE_KEYS==', b'MODULE_KEYS>='))
     refused(root, 'tests/lua/ui/text_test.lua', 'world/nm_lanterns', '--title', 'Lanterns')
-    (root / 'tests/lua/ui/text_test.lua').write_text(saved, encoding='utf-8')
-    saved = text(root, 'tests/lua/main/fixture.lua')  # main.lua does not load: its words are unknown.
-    (root / 'tests/lua/main/fixture.lua').write_text("error('broken')\n" + saved, encoding='utf-8')
+    (root / 'tests/lua/ui/text_test.lua').write_bytes(saved)
+    saved = (root / 'tests/lua/main/fixture.lua').read_bytes()  # main.lua does not load: its words are unknown.
+    (root / 'tests/lua/main/fixture.lua').write_bytes(b"error('broken')\n" + saved)
     refused(root, 'main.lua does not load', 'world/nm_lanterns', '--title', 'Lanterns')
-    (root / 'tests/lua/main/fixture.lua').write_text(saved, encoding='utf-8')
+    (root / 'tests/lua/main/fixture.lua').write_bytes(saved)
 
     # 2. --dry-run names every file and every edit. It changes nothing.
     before = files(root)
@@ -126,6 +131,7 @@ with tempfile.TemporaryDirectory() as tmp:
     after = files(root)
     assert set(after) - set(before) == made, sorted(set(after) - set(before))
     assert {rel for rel in before if after.get(rel) != before[rel]} == edited
+    assert not [rel for rel in made | edited if b'\r' in after[rel]], 'the tool writes LF ends on every platform'
     for rel in made - {'docs/world/nm_lanterns.md'}:
         assert LICENSE in text(root, rel).splitlines()[0], rel
     wiring = text(root, f'{S}/world/nm_lanterns/wiring.lua')

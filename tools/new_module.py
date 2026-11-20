@@ -19,6 +19,7 @@ and the module's two Lua tests from the root. It exits with 1 when one of them f
 Run: python3 -I tools/new_module.py <category>/<name> --title "<English name>" [--native] [--dry-run] [--root <repo>]"""
 import argparse
 import re
+import shutil
 import subprocess
 import sys
 import textwrap
@@ -28,6 +29,8 @@ from string import Template
 ROOT = Path(__file__).resolve().parent.parent
 S = 'mod/StellarCoop/Scripts'
 WIDTH = 120
+# Windows adds .exe to a program name only when the name has no dot: which() finds lua5.4.exe there.
+LUA = shutil.which('lua5.4') or 'lua5.4'
 LICENSE = ('Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors',
            'SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later',
            'SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a '
@@ -230,7 +233,7 @@ def plan(root, spec, title, native):
         if (root / folder).exists(): raise Refused(f'{module} already exists: {folder} is there')
     # The words as main.lua's load gives them. Some are made in a loop (eve's fly and slowmo): a text scan misses them.
     try:
-        done = subprocess.run(['lua5.4', '-e', WORDS], cwd=root, stdin=subprocess.DEVNULL, capture_output=True,
+        done = subprocess.run([LUA, '-e', WORDS], cwd=root, stdin=subprocess.DEVNULL, capture_output=True,
                               text=True)
     except OSError as why:
         raise Refused(f'lua5.4 did not start ({why.strerror}): the tool reads the console words with it')
@@ -314,18 +317,18 @@ def main(argv=None):
     for rel, data in files.items():
         if not args.dry_run:
             (root / rel).parent.mkdir(parents=True, exist_ok=True)
-            (root / rel).write_text(data, encoding='utf-8')
+            (root / rel).write_bytes(data.encode('utf-8'))  # LF, Windows too.
         print(f'{verb[0]} {rel}')
     for rel, (data, what) in edits.items():
-        if not args.dry_run: (root / rel).write_text(data, encoding='utf-8')
+        if not args.dry_run: (root / rel).write_bytes(data.encode('utf-8'))  # LF, Windows too.
         print(f'{verb[1]} {rel}: {what}')
     if args.dry_run:
         print('Dry run: nothing changed.')
         return 0
     print(steps(path, name, args.native, langs))
     failed = 0
-    for cmd in ([sys.executable, '-I', 'tests/tools/modules_test.py'], ['lua5.4', 'tests/lua/ui/text_test.lua'],
-                ['lua5.4', f'tests/lua/{path}/off_test.lua'], ['lua5.4', f'tests/lua/{path}/{name}_test.lua']):
+    for cmd in ([sys.executable, '-I', 'tests/tools/modules_test.py'], [LUA, 'tests/lua/ui/text_test.lua'],
+                [LUA, f'tests/lua/{path}/off_test.lua'], [LUA, f'tests/lua/{path}/{name}_test.lua']):
         done = subprocess.run(cmd, cwd=root, capture_output=True, text=True)
         print(f'{cmd[-1]}: ' + ('passed' if done.returncode == 0 else 'FAILED'))
         print((done.stdout + done.stderr).strip())
