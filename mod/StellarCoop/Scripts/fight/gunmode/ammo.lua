@@ -3,11 +3,11 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The rifle's own round: NIKKE rapid rounds in a magazine of cfg.mag_size with cfg.spare_mags spare magazines, fired
 -- at the NIKKE shot's cool time. A reload (cfg.reload_time, the NIKKE squad's reload animation) comes when the
--- magazine runs dry or while the rifle is lowered with a part-spent one. The reticle's round slot (WB_Tps_Bullet3,
--- under the drone's reticle) shows the round's name and the rounds in the magazine while firing mode is held. Its own
--- text goes back when the rifle goes away. The drone's round count at the bottom left (WB_MainHUD_Lower1Item, beside
--- D-pad Right) keeps the game's own text: find() only logs it. The D-pad rifle slot (dpad: fight/gunmode/ui/slot.lua,
--- through fight/gunmode/mode.lua) shows "rounds | magazines" while the rifle is out. It goes when the rifle goes away.
+-- magazine runs dry or at the player's reload key (manual), never because the rifle is lowered. The reticle's round
+-- slot (WB_Tps_Bullet3, under the drone's reticle) shows the round's name and the rounds in the magazine while
+-- firing mode is held. Its own text goes back when the rifle goes away. The drone's round count at the bottom left (WB_MainHUD_Lower1Item, beside
+-- D-pad Right) keeps the game's own text: find() only logs it. dpad: a D-pad slot that shows the rounds, or nil (gun
+-- mode passes none: its HUD entry, fight/gunmode/ui/dpad.lua, shows them from fight/gunmode/mode.lua's tick).
 -- Where the rounds come from: with stock (fight/gunmode/nikke.lua) once its rows are in, EVE's inventory of SB's own
 -- round Bullet_Nikke, while a co-op save is loaded. The magazine then starts empty. Each reload takes the rounds it
 -- loads out of the inventory (stock.take), at most what she carries. The spares are what she carries (stock.count).
@@ -268,13 +268,8 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
             end
         else
             if not firing then self.held=false end
-            -- Lowered with a part-spent magazine: reloaded after a moment, as the NIKKE squad does in cover.
-            if not aiming and self.left<cfg.mag_size and self.reserve>0 then
-                self.lowered=self.lowered or now
-                if now-self.lowered>=cfg.reload_delay and now>=(self.retry_at or 0) then start_reload(now,'lowered') end
-            else self.lowered=nil end
+            -- (no reload when the rifle is lowered: only an empty magazine or the player's reload key, 11-20)
         end
-        if aiming then self.lowered=nil end
         -- With stock, an empty magazine reloads as soon as she carries rounds (a purchase, a drop), and holds no round
         -- while she carries none.
         if self.stocked and self.left<=0 and not self.reload_until and now>=(self.retry_at or 0) then
@@ -283,6 +278,31 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
         end
         if self.left>0 or self.reserve>0 then self.dry=nil end
         show()
+    end
+
+    -- The player's reload (fight/gunmode/mode.lua: B / Triangle): the rest of the magazine is thrown away and a full one
+    -- goes in from the spares (with stock: taken out of EVE's inventory by load, as any reload). Nothing while
+    -- reloading, with a full magazine, with no spares or while a refused take waits (retry_at).
+    function self.manual(now)
+        if self.reload_until or self.reserve<=0 or self.left>=cfg.mag_size then return false end
+        if self.stocked and now<(self.retry_at or 0) then return false end
+        self.left=0
+        start_reload(now,'manual')
+        return self.reload_until~=nil
+    end
+
+    -- One round that gun mode fired itself (hip fire, the air shot): counted per shot, not on the timer, so the count
+    -- matches the rounds that left the rifle.
+    function self.spend(now)
+        if self.reload_until or self.left<=0 then return false end
+        self.left=self.left-1
+        if self.left<=0 then
+            self.left=0
+            if self.reserve>0 and now>=(self.retry_at or 0) then start_reload(now,'empty')
+            elseif self.reserve<=0 then pcall(cool,999); self.dry=true; g.log('ammo: out of rounds') end
+        end
+        show()
+        return true
     end
 
     -- After the rows are taken again (the rifle out): no round if both magazine and spares are spent. The reticle's
@@ -310,7 +330,7 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
             pcall(on_reload,false)
         end
         if self.left>0 or (not self.stocked and self.reserve>0) then pcall(cool,cfg.fire_interval) end
-        self.held,self.lowered=false,nil
+        self.held=false
         if stock then pcall(stock.watch,false) end
     end
 

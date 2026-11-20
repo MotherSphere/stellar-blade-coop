@@ -8,14 +8,15 @@
 -- reload waits Ammo.RETRY s; with no round carried the cool time is 999 and 'out of rounds' is logged once (fired dry
 -- too); rounds carried later reload an empty magazine by itself; ready() turning false gives the free magazines back;
 -- refill() keeps the magazine with stock; stop() ends the watch and loads a magazine put away mid-reload through
--- take().
+-- take(). A part-spent magazine never reloads by itself (the rifle lowered or not): the player's reload (manual)
+-- throws its rounds away and loads a magazine through take(), never while a refused take waits Ammo.RETRY s.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
 FindAllOf=function() return {} end
 local Ammo=require('fight.gunmode.ammo')
 
-local CFG={mag_size=30,spare_mags=2,reload_time=1.5,reload_delay=1,fire_interval=0.1,round_color={1,1,1},
+local CFG={mag_size=30,spare_mags=2,reload_time=1.5,fire_interval=0.1,round_color={1,1,1},
     reload_color={1,0,0}}
 local logs,cools,reloads={},{},{}
 local g={log=function(m) logs[#logs+1]=m end,valid=function(x) return x~=nil end,
@@ -82,7 +83,8 @@ frame(a)
 while a.reload_until do frame(a) end
 assert(#st.takes==1 and st.takes[1]==12 and a.left==12 and a.reserve==0,'All 12 taken')
 
--- The count drops during a reload: the take is the count now, loaded on top of the rounds left.
+-- A part-spent magazine, lowered for 10 s: no reload by itself. The player's reload throws the 25 rounds away; the
+-- count drops during the reload: the take is the count now.
 st=stock(40)
 st.rows=true
 a=new(st)
@@ -91,16 +93,18 @@ while a.reload_until do frame(a) end
 assert(a.left==30 and a.reserve==10)
 for _=1,5 do frame(a,true,true); frame(a,true,false) end
 assert(a.left==25,'Five presses, five rounds: '..a.left)
-while not a.reload_until do frame(a) end
-assert(a.reload_from==25 and a.reload_to==30)
+frames(a,600)
+assert(a.left==25 and not a.reload_until and #st.takes==1,'No reload when lowered')
+assert(a.manual(clock)==true and a.left==0,'The player\'s reload empties the magazine')
+assert(a.reload_from==0 and a.reload_to==10)
 st.carried=3 -- Spent elsewhere while the reload runs.
 while a.reload_until do frame(a) end
 assert(#st.takes==2 and st.takes[2]==3,'Only the 3 carried taken: '..tostring(st.takes[2]))
-assert(a.left==28,'25 + 3 loaded: '..a.left)
+assert(a.left==3,'3 loaded: '..a.left)
 
 -- ready() turns false (your own save loaded) mid-reload: the free magazines back, the reload and the watch ended.
-st.carried=5
-while not a.reload_until do frame(a) end
+st.carried=5; frame(a)
+assert(a.manual(clock),'The player\'s reload')
 st.rows=false
 frame(a)
 assert(a.left==30 and a.reserve==60 and not a.reload_until,'Free magazines: '..a.left..' '..a.reserve)
@@ -199,7 +203,10 @@ retry=ends-CFG.reload_time+0.66*CFG.reload_time+Ammo.RETRY
 reloaded=count('ammo: reload (')
 while clock<retry-0.05 do frame(a) end
 assert(count('ammo: reload (')==reloaded,
-    'lowered: '..(count('ammo: reload (')-reloaded)..' reloads before Ammo.RETRY s, none wanted (ammo.lua\'s lowered'
-    ..' reload, start_reload(now,\'lowered\') after cfg.reload_delay, does not check self.retry_at)')
+    'lowered: '..(count('ammo: reload (')-reloaded)..' reloads before Ammo.RETRY s, none wanted')
+assert(a.manual(clock)==false and #st.takes==0,'No player\'s reload before Ammo.RETRY s')
+st.refuse=nil
+frames(a,10)
+assert(count('ammo: reload (')==reloaded+1 and a.reload_until,'The empty magazine reloads after Ammo.RETRY s')
 
 print('fight/gunmode/stock_test: ok')
