@@ -102,7 +102,7 @@ local function notices(w)
     local lines={}
     for _,group in ipairs({'fight','spawns','group','ghost','refused','quests','world','story','travel','ue4ss',
         'join_refused','bike','gun'}) do
-        for _,text in pairs(w[group]) do if type(text)=='string' then lines[#lines+1]=fill(text) end end
+        for _,text in pairs(w[group]) do if text~=w.group.places then lines[#lines+1]=fill(text) end end
     end
     -- A member in a solo area (online/group/group.lua): each place with a 32-byte name.
     for _,place in pairs(w.group.places) do lines[#lines+1]=w.group.solo:format(NAME,place) end
