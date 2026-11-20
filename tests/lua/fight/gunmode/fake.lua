@@ -4,8 +4,9 @@
 -- A fake UE4SS world for gun mode's tests (not a test file itself): EVE's controller and pawn, her body mesh component
 -- with its post-process instance (rebuilt from the mesh asset's class at each SetSkeletalMesh, as the engine does),
 -- the components added to her, the input settings' action mappings, the rows fight/gunmode/data.lua changes and the
--- rifle layer's class. Every row value is a test value, none comes from a game file. Fake.new() returns the world;
--- w.install() sets the globals UE4SS gives the scripts.
+-- rifle layer's class. Her pawn, its components, the drones (w.drone()) and the actors spawned have paths of their own,
+-- which StaticFindObject finds while they live. Every row value is a test value, none comes from a game file.
+-- Fake.new() returns the world; w.install() sets the globals UE4SS gives the scripts.
 local Fake={}
 local NAME={}
 NAME.__index={ToString=function(n) return n.text end,GetComparisonIndex=function() return 1 end}
@@ -32,6 +33,10 @@ Fake.OWN_CLASS='/Game/Test/ABP_Own_Post.ABP_Own_Post_C'
 Fake.BODY='/Game/Test/CH_P_EVE_Test.CH_P_EVE_Test'
 Fake.BASE='/Game/Art/Character/PC/CH_P_EVE_29/CH_P_EVE_29.CH_P_EVE_29' -- Overlay.BASES[1]
 Fake.RIFLE='/Game/DLC_2/Art/Character/Weapon/Gun/CH_G_Nikke_01/GunNikke_Weapon.GunNikke_Weapon'
+Fake.SWORD='/Game/Test/CH_W_Sword_Test.CH_W_Sword_Test' -- A mesh fight/gunmode/config.lua's hide_names hides.
+Fake.ANIMS='/Game/DLC_2/Art/Character/PC/CH_P_EVE_01/Animation/' -- The posed stance's clips (fight/gunmode/stance.lua).
+-- fight/gunmode/config.lua's pak_probe: a rifle clip of zNGMSpike_P, found only with w.pak.
+Fake.PROBE='/Game/Art/Character/PC/CH_P_EVE_01/Animation/NGM/NGM_R_AimIdle.NGM_R_AimIdle'
 
 -- The rows data.lua reads or writes, with test values. Their fields have the kinds read in Ghidra on 26123051 (see
 -- fight/gunmode/journal.lua): SkillCommandTable's bJumping and bWallRun are bytes (0x145dfa3b0, 0x145dfa380);
@@ -48,7 +53,10 @@ local function rows()
             P_Eve_Gun_ShootSlug1_2={SkillAlias=name('P_Eve_Gun_ShootSlug1_2'),CommandActionType=2,bJumping=2,
                 bWallRun=0}},
         CharacterStanceTable={P_Eve_Gun={WalkSpeed=200,RunSpeed=400.5,JoggingRunSpeed=300,LockOnWalkSpeed=150,
-                LockOnRunSpeed=250,Condition_Jumping=4},P_Eve_Default={Condition_Jumping=0}},
+                LockOnRunSpeed=250,Condition_Jumping=4,StartShowPathWhenPeaceful='',StartShowPathWhenBattle='',
+                EndShowPathWhenPeaceful='',EndShowPathWhenBattle=''},P_Eve_Default={Condition_Jumping=0}},
+        CharacterAnimSetTable={P_Eve_Gun_Battle={RunBlendSpace='Test_Run_BS',RunTiltBlendSpace='Test_Tilt_BS',
+                LockOnRunBlendSpace='Test_LockOn_BS',AimOffsetBlendSpace='Test_Aim_BS'}},
         ProjectileTable={P_Eve_GunNikke_ShootSlug1_Projectile1={StartTargetTransformType=1,
                 StartTargetRelativeAxisType=1,DestTargetTransformType=2,DestTargetRelativeAxisType=2,
                 DestTargetRelativeLocation={X=1,Y=2,Z=3},DestTargetRandomRange={X=300,Y=300,Z=300},
@@ -75,8 +83,13 @@ local function snapshot(tables)
 end
 
 function Fake.new()
-    local w={down={},fovs={},rebuilt=0,added={}}
+    local w={down={},fovs={},rebuilt=0,added={},paths={},made=0,drones={}}
     Fake.events={}
+    -- An object of this world by its path, as StaticFindObject finds it.
+    local function named(o)
+        w.paths[o.full:match('^%S+ (.+)$')]=o
+        return o
+    end
     w.layer_class=object('AnimBlueprintGeneratedClass '..Fake.LAYER)
     w.own_class=object('AnimBlueprintGeneratedClass '..Fake.OWN_CLASS)
     w.body=object('SkeletalMesh '..Fake.BODY,{PostProcessAnimBlueprint=w.own_class})
@@ -87,42 +100,93 @@ function Fake.new()
         return object('AnimInstance '..cls.full..'_0',{cls=cls,ArmsAlpha=0,GetClass=function() return cls end,
             LinkAnimGraphByTag=function() end,StopSlotAnimation=function() end})
     end
-    -- Her body mesh component: its post-process instance comes from its mesh asset's class.
-    function w.mesh_component(asset)
-        local m=object('SkeletalMeshComponent Test.Mesh',{SkeletalMesh=asset,CastShadow=true,bOwnerNoSee=false,
-            LightingChannels={bChannel0=true,bChannel1=false,bChannel2=false}})
+    local skeletal=object('Class /Script/Engine.SkeletalMeshComponent')
+    -- Her body mesh component: its post-process instance comes from its mesh asset's class. Its
+    -- VisibilityBasedAnimTickOption 2 is a test value.
+    function w.mesh_component(asset,owner)
+        local m=named(object('SkeletalMeshComponent '..owner..'.Mesh',{SkeletalMesh=asset,CastShadow=true,
+            bOwnerNoSee=false,VisibilityBasedAnimTickOption=2,
+            LightingChannels={bChannel0=true,bChannel1=false,bChannel2=false}}))
         m.pp=instance(asset.PostProcessAnimBlueprint)
         function m.GetPostProcessInstance(c) return c.pp end
         function m.SetSkeletalMesh(c,a) c.SkeletalMesh=a; c.pp=instance(a.PostProcessAnimBlueprint); w.rebuilt=w.rebuilt+1 end
+        function m.SetOwnerNoSee(c,v) c.bOwnerNoSee=v end
+        function m.GetNumMaterials() return 0 end
+        function m.GetBoneIndex() return 0 end
         return m
     end
-    -- A component added to her (the rifle).
-    local function component(pawn)
-        local c=object('SkeletalMeshComponent Test.Added',{ComponentTags={},hidden=false})
+    -- A component added to an actor (the rifle, the sword, the posed stance's parts, a drone's part).
+    local function component(actor)
+        w.made=w.made+1
+        local c=named(object('SkeletalMeshComponent '..actor.full:match('^%S+ (.+)$')..'.Part_'..w.made,
+            {ComponentTags={},bHiddenInGame=false,bOwnerNoSee=false}))
         for _,f in ipairs({'SetCollisionEnabled','SetCastShadow','SetLightingChannels','K2_AttachToComponent',
-                'K2_SetRelativeTransform','SetVisibility'}) do c[f]=function() end end
+                'K2_SetRelativeTransform','SetVisibility','SetMaterial','PlayAnimation','Stop','SetPosition',
+                'SetComponentTickEnabled','SetAnimationMode','SetAnimation'}) do c[f]=function() end end
         function c.SetSkeletalMesh(o,a) o.SkeletalMesh=a end
+        function c.IsA(_,cls) return cls==skeletal end
         function c.ComponentHasTag(o,tag)
             for _,t in pairs(o.ComponentTags) do if t:ToString()==tag:ToString() then return true end end
             return false
         end
         function c.K2_DestroyComponent(o) o.dead=true end
-        function c.SetHiddenInGame(o,h) o.hidden=h end
-        pawn.comps[#pawn.comps+1]=c
+        function c.SetHiddenInGame(o,h) o.bHiddenInGame=h end
+        function c.SetOwnerNoSee(o,v) o.bOwnerNoSee=v end
+        function c.SetMasterPoseComponent(o,m) o.master=m end
+        actor.comps[#actor.comps+1]=c
         return c
     end
     w.component=component
+    -- An actor with components (the posed stance's holder, a drone).
+    local function actor(class,at)
+        w.made=w.made+1
+        local a=named(object(class..' Test.'..class..'_'..w.made,{comps={}}))
+        function a.AddComponentByClass(o) return component(o) end
+        function a.FinishAddComponent() end
+        function a.K2_GetComponentsByClass(o)
+            local list={}
+            for _,c in ipairs(o.comps) do if not c.dead then list[#list+1]=c end end
+            return list
+        end
+        function a.K2_GetActorLocation() return at end
+        function a.K2_DestroyActor(o) o.dead=true; for _,c in ipairs(o.comps) do c.dead=true end end
+        return a
+    end
+    w.spawned={}
+    local level={SpawnActor=function(_,cls)
+        local a=actor('Actor',{X=0,Y=0,Z=0})
+        w.spawned[#w.spawned+1]=a
+        return a
+    end}
+    -- A drone 1 m from her with one mesh part, found by FindAllOf('CH_Drone_BP_C').
+    function w.drone()
+        local d=actor('CH_Drone_BP_C',{X=100,Y=0,Z=0})
+        local part=component(d)
+        w.drones[#w.drones+1]=d
+        return d,part
+    end
+    -- A sword drawn on her (a mesh named in hide_names).
+    function w.sword()
+        local c=component(w.pawn)
+        c.SkeletalMesh=object('SkeletalMesh '..Fake.SWORD)
+        return c
+    end
     -- A new EVE (a map load): her body built from the same mesh asset.
     function w.new_pawn()
         -- Her state as SBCharacter's natives give it (cutscene, talk, held: what
-        -- IsAttachedToLevelSequenceWithoutPlayable, IsRunningInteraction and IsMoveInputBlock answer) and her movement
-        -- mode (EMovementMode, 1: walking).
-        local p=object('BP_Eve_C Test.Eve',{TPSModeType=0,bTPSMode=false,comps={},cutscene=false,talk=false,held=false,
-            bEnableInteractionBlock=false})
+        -- IsAttachedToLevelSequenceWithoutPlayable, IsRunningInteraction and IsMoveInputBlock answer), her movement
+        -- mode (EMovementMode, 1: walking) and her custom moving stance (w.pawn.stance: the data while it is on).
+        w.made=w.made+1
+        local p=named(object('BP_Eve_C Test.Eve_'..w.made,{TPSModeType=0,bTPSMode=false,comps={},cutscene=false,
+            talk=false,held=false,bEnableInteractionBlock=false}))
+        function p.ActiveCustomMovingStanceData(o,data) o.stance=data end
+        function p.DeactiveCustomMovingStanceData(o) o.stance=nil end
+        function p.IsActiveCustomMovingStanceData(o) return o.stance~=nil end
+        function p.GetWorld() return level end
         function p.IsAttachedToLevelSequenceWithoutPlayable(o) return o.cutscene end
         function p.IsRunningInteraction(o) return o.talk end
         function p.IsMoveInputBlock(o) return o.held end
-        p.Mesh=w.mesh_component(w.body)
+        p.Mesh=w.mesh_component(w.body,p.full:match('^%S+ (.+)$'))
         p.CharacterMovement=object('CharacterMovementComponent Test.Move',{IsFalling=function() return false end,
             MovementMode=1})
         function p.AddComponentByClass(o) return component(o) end
@@ -185,19 +249,22 @@ function Fake.new()
         {IsGamePaused=function() return w.paused==true end,PlaySound2D=function() end})
     local registry=object('AssetRegistryHelpers /Script/AssetRegistry.Default__AssetRegistryHelpers',
         {GetAsset=function() return nil end})
-    local skeletal=object('Class /Script/Engine.SkeletalMeshComponent')
+    local classes={}
+    for _,c in ipairs({'MeshComponent','StaticMeshComponent','PoseableMeshComponent','Actor'}) do
+        classes['/Script/Engine.'..c]=object('Class /Script/Engine.'..c)
+    end
     function w.find(path)
         if path==Fake.LAYER then return not w.no_layer and w.layer_class or nil end
         if path==Fake.OWN_CLASS then return w.own_class end
         if path==Fake.BODY then return w.body end
-        if path==Fake.BASE then return w.base end
+        if path==Fake.BASE then return not w.no_base and w.base or nil end
         if path=='/Script/Engine.Default__InputSettings' then return not w.no_settings and w.settings or nil end
         if path=='/Script/Engine.Default__GameplayStatics' then return statics end
         if path=='/Script/SB.Default__SBBlueprintLibrary' then return library end
         if path=='/Script/AssetRegistry.Default__AssetRegistryHelpers' then return registry end
         if path=='/Script/Engine.SkeletalMeshComponent' then return skeletal end
         if path=='/Script/Engine.Default__KismetMathLibrary' then return object('KismetMathLibrary '..path) end
-        return tables[path]
+        return tables[path] or classes[path] or w.paths[path]
     end
     -- The rifles on her pawn now.
     function w.rifles()
@@ -210,9 +277,11 @@ function Fake.new()
         EFindName={FNAME_Find=0}
         StaticFindObject=function(path) return w.find(path) end
         FindFirstOf=function(class) if class=='SBPlayerController' then return w.pc end end
-        FindAllOf=function() return {} end
+        FindAllOf=function(class) return class=='CH_Drone_BP_C' and w.drones or {} end
         LoadAsset=function(path)
             if path==Fake.RIFLE then return not w.no_rifle and w.rifle or nil end
+            if path==Fake.PROBE then return w.pak and object('AnimSequence '..path) or nil end
+            if path:sub(1,#Fake.ANIMS)==Fake.ANIMS then return object('AnimSequence '..path) end
             return w.find(path)
         end
     end

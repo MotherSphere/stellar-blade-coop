@@ -1,12 +1,12 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Gun mode put back over a fake UE4SS (fake.lua), with the rifle layer's path (the only one the park lets run): stop
+-- Gun mode put back over a fake UE4SS (fake.lua), on the rifle layer's path unless a case says otherwise: stop
 -- (coop off) gives back the input mask, SB's rows, the rifle, her body's own post-process class, the FOV lock and the
 -- layer's arms, then nothing more runs; the next Lua load puts back what coop-gun.txt says an earlier one left; a start
 -- that fails gives back what it took; a new controller resets the old pawn's state and the deferred reset takes the
--- layer off her body. fake.lua's rows have the kinds of 26123051's: the Hit1 step's Type is a byte, kept in
--- coop-gun.txt as a number.
+-- layer off her body. fake.lua's rows have the kinds of 26123051's: the Hit1 step's Type is a
+-- byte, kept in coop-gun.txt as a number.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Fake=dofile('tests/lua/fight/gunmode/fake.lua')
 local GunMode=require('fight.gunmode.mode')
@@ -177,7 +177,7 @@ do
     local gun=new(store)
     out(gun)
     local s=gun.state
-    local part=w.component(w.pawn); part.hidden=true
+    local part=w.component(w.pawn); part.bHiddenInGame=true
     local move={IsValid=function() return true end,bOrientRotationToMovement=false,bUseControllerDesiredRotation=true}
     s.drone={actor=w.pawn,parts={part}}
     s.facing={cm=move,orient=true,desired=false}
@@ -190,10 +190,40 @@ do
     clock=clock+5; gun.tick()
     w.mesh=p2.Mesh
     as_shipped(w,keys,store)
-    assert(part.hidden==false and s.drone==nil,'the drone shown')
+    assert(part.bHiddenInGame==false and s.drone==nil,'the drone shown')
     assert(move.bOrientRotationToMovement==true and move.bUseControllerDesiredRotation==false and s.facing==nil)
     out(gun)
     assert(#w.rifles()==1)
+end
+
+-- 8. H4: a Lua reload with the rifle out on the layer's path, a sword drawn and a drone near her, a second sword drawn
+--    once the rifle is out (a fight starts). The next load's restore shows both swords to her own camera and the drone
+--    again; its own rifle out and away leaves them shown. coop-gun.txt is written again only when its line changes.
+do
+    local w=Fake.new(); w.install()
+    local keys,store=w.keys(),file()
+    local saves,save=0,store.save
+    store.save=function(text) saves=saves+1; return save(text) end
+    local sword=w.sword()
+    local _,part=w.drone()
+    local a=new(store)
+    out(a)
+    assert(sword.bOwnerNoSee==true and part.bHiddenInGame==true,'the rifle out hides her sword and the drone')
+    local later=w.sword()
+    saves=0
+    for _=1,10 do clock=clock+0.6; a.tick() end
+    assert(later.bOwnerNoSee==true,'the sword drawn later hidden within a second')
+    assert(saves==1,saves..' writes of coop-gun.txt in 6 s')
+    local b=new(store) -- Ctrl+R
+    b.restore()
+    assert(sword.bOwnerNoSee==false and later.bOwnerNoSee==false,'her swords shown to her own camera again')
+    assert(part.bHiddenInGame==false,'the drone shown again')
+    as_shipped(w,keys,store)
+    out(b)
+    assert(sword.bOwnerNoSee==true and part.bHiddenInGame==true)
+    clock=clock+1; b.toggle_now()
+    assert(sword.bOwnerNoSee==false and part.bHiddenInGame==false,'shown after the next rifle out')
+    as_shipped(w,keys,store)
 end
 
 print('gunmode stop: ok')

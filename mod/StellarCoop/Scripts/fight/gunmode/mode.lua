@@ -96,6 +96,12 @@ function GunMode.new(env)
         return ok and r==true
     end
     function g.try(fn) local ok,r=pcall(fn); if ok then return r end end
+    -- An object's path (its full name without its class), as core/actors.lua's path_of: StaticFindObject finds it by
+    -- that path while it lives. nil when it cannot be read.
+    function g.path(o)
+        local f=g.valid(o) and g.try(function() return o:GetFullName() end)
+        return type(f)=='string' and f:match('^%S+ (.+)$') or nil
+    end
     -- An object of /Script (a default object or a class: the engine never collects them) by its path, looked up once
     -- while it lives (M2): UE4SS's StaticFindObject walks the object array. After a miss, nil for a second.
     local found,missed={},{}
@@ -387,7 +393,7 @@ function GunMode.new(env)
                 if follow and not s.followed[addr] then
                     local body=stance.body()
                     if g.valid(body) and pcall(function() c:SetMasterPoseComponent(body,true) end) then
-                        s.followed[addr]={c=c}
+                        s.followed[addr]={c=c,to=src}
                     end
                 end
                 if first then
@@ -534,18 +540,36 @@ function GunMode.new(env)
     end
 
     -- coop-gun.txt as gun mode's changes stand now (fight/gunmode/journal.lua): SB's rows (data.lua), the masked keys,
-    -- the body meshes under the rifle layer (overlay.lua) and out while the rifle is out; gone when nothing is changed.
-    -- true when written (or with no file at all), else false and why, logged.
+    -- the body meshes under the rifle layer (overlay.lua), her meshes hidden from her camera or following the posed
+    -- copy, the drone's hidden parts and out while the rifle is out; gone when nothing is changed. A line the file already holds is not written again. true when
+    -- written (or with no file at all), else false and why, logged.
+    local kept -- The line this load last wrote (false: cleared), so the same line is not written each second.
     local function keep()
         if not env.store then return true end
         local ok,why=pcall(function()
             local list=data.records()
             for _,k in ipairs(s.keys or {}) do list[#list+1]={'key',k.name,k.key,k.to or 'None',tostring(k.at)} end
             for _,r in ipairs(layer.records()) do list[#list+1]=r end
+            for _,e in pairs(s.hidden) do
+                local at=g.path(e.c)
+                if at then list[#list+1]={'see',at,tostring(e.was)} end
+            end
+            for _,e in pairs(s.followed) do
+                local at,to=g.path(e.c),g.path(e.to)
+                if at and to then list[#list+1]={'follow',at,to} end
+            end
+            for _,c in ipairs(s.drone and s.drone.parts or {}) do
+                local at=g.path(c)
+                if at then list[#list+1]={'drone',at} end
+            end
             if s.on then list[#list+1]={'out'} end
-            if #list==0 then env.store.clear(); return end
-            local done,e=env.store.save(Journal.line(list))
-            assert(done~=false,e or 'not written')
+            local line=#list>0 and Journal.line(list)
+            if line==kept then return end
+            if line then
+                local done,e=env.store.save(line)
+                assert(done~=false,e or 'not written')
+            else env.store.clear() end
+            kept=line
         end)
         if not ok then g.log('coop-gun.txt not written: '..tostring(why)) end
         return ok,why
@@ -815,7 +839,7 @@ function GunMode.new(env)
             keep()
         end
         if s.stop_stance then s.stop_stance=false; pcall(stance.stop) end
-        if s.show_back then s.show_back=false; show_others(); show_drone(); unface() end
+        if s.show_back then s.show_back=false; show_others(); show_drone(); unface(); keep() end
         if s.ammo_reset then s.ammo_reset=false; pcall(ammo.stop); pcall(ammo.refill) end
         local pc=g.pc(); if not pc then return end
         -- Paused (the pause menu and its options among others): the mask lifted until the game runs again. SB's
@@ -1065,6 +1089,7 @@ function GunMode.new(env)
             s.hide_at=now
             pcall(hide_others,p,false)
             if set.native then pcall(hide_drone,p,now) end
+            keep() -- A mesh or a drone hidden this second listed.
         end
         if set.native and set.upper then pcall(hold_pose,p,inp.fire) end
         -- In firing mode, ten times a second: the NIKKE bullet's start put on the rifle's muzzle and its destination
@@ -1113,11 +1138,40 @@ function GunMode.new(env)
         s.ovr,s.layer,s.zoom_held=false,false,false
     end
 
+    -- An earlier load's changes to objects that are still there, each found by its path (StaticFindObject, as
+    -- online/modes/race/doro.lua's restore finds EVE and the drone). On 26123051: her meshes shown to her own camera as
+    -- they were (SetOwnerNoSee, exec 0x1448f0d20, writes bOwnerNoSee, bit 0x20 of UPrimitiveComponent+0x28e) with
+    -- their tick option; the drone's parts shown (SetHiddenInGame, exec 0x14490b100); a mesh that followed the posed
+    -- copy on her body again (SetMasterPoseComponent, exec 0x144928a80). How many were put back.
+    local function objects_back(list)
+        local function at(path)
+            local o=path and g.try(function() return StaticFindObject(path) end)
+            if g.valid(o) then return o end
+        end
+        local n=0
+        local function done(ok) if ok then n=n+1 end end
+        for _,r in ipairs(list) do
+            local o=(r[1]=='see' or r[1]=='drone' or r[1]=='follow') and at(r[2])
+            if o and r[1]=='see' then
+                done(pcall(function()
+                    o:SetOwnerNoSee(r[3]=='true')
+                    if tonumber(r[4]) then o.VisibilityBasedAnimTickOption=tonumber(r[4]) end
+                end))
+            elseif o and r[1]=='drone' and g.try(function() return o.bHiddenInGame end)==true then
+                done(pcall(function() o:SetHiddenInGame(false,false) end))
+            elseif o and r[1]=='follow' then
+                local to=at(r[3])
+                done(to and pcall(function() o:SetMasterPoseComponent(to,true) end))
+            end
+        end
+        return n
+    end
+
     -- Once a Lua load, at main/frame.lua's first tick (coop off or not) and before a start: what coop-gun.txt says an
-    -- earlier load left changed goes back (H4): SB's rows, the masked keys, her body meshes' own post-process class
-    -- (the one she wears rebuilt with it) and, when the rifle was out, its tagged rifle and the FOV lock. Then the file
-    -- holds what this load has changed: the body meshes whose own class could not go back. A row or key that failed
-    -- is logged, not kept.
+    -- earlier load left changed goes back (H4): SB's rows, the masked keys, the objects objects_back puts back, her
+    -- body meshes' own post-process class (the one she wears rebuilt with it) and, when the rifle was out, its tagged
+    -- rifle and the FOV lock. Then the file holds what this load has changed: the body meshes whose own class could not
+    -- go back. A row or key that failed is logged, not kept.
     function self.restore()
         if restored or not env.store then return end
         restored=true
@@ -1128,6 +1182,7 @@ function GunMode.new(env)
         said[#said+1]=n..' fields of SB\'s rows back'..(why and ' (failed: '..why..')' or '')
         local ok,keys=pcall(keys_back,list)
         said[#said+1]=ok and keys..' keys back' or 'keys not put back ('..tostring(keys)..')'
+        said[#said+1]=objects_back(list)..' objects put back'
         local out=false
         for _,r in ipairs(list) do
             if r[1]=='pp' then layer.adopt(r[2],r[3]) elseif r[1]=='out' then out=true end

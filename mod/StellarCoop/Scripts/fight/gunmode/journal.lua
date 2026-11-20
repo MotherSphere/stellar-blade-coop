@@ -7,7 +7,11 @@
 --   row|<table>|<row>|<field>|<kind>|<value>  a field of SB's rows and its value before gun mode (data.lua)
 --   key|<action>|<key>|<masked key>|<index>   an action mapping masked while the rifle is out
 --   pp|<body mesh>|<its own post-process class, or nothing>   a body mesh under the rifle layer (overlay.lua)
+--   see|<component>|<bOwnerNoSee before>[|<tick option before>]   one of her meshes hidden from her own camera
+--   follow|<component>|<her body mesh>       a mesh made to follow the posed copy (it follows her body again)
+--   drone|<component>                         a part of the drone hidden while the rifle is out
 --   out                                       the rifle is out (its tagged rifle, the FOV lock)
+-- Components and actors are named by their paths (their full names without the class), which StaticFindObject finds.
 local Journal={}
 
 local function escape(s) return (s:gsub('[%%|\t\r\n]',function(c) return ('%%%02X'):format(c:byte()) end)) end
