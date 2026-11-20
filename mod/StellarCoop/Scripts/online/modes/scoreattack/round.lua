@@ -144,9 +144,9 @@ function R.new(o)
     end
     -- Our run's lines (the game side): ready once its countdown started, now as its score or wave changes (sent at
     -- most each R.NOW from the pass), done at its end with model.lua's result ({ending=, score=, tenths=}). Nothing
-    -- outside a round whose challenge is known, nor once it is over.
+    -- outside a round whose challenge is known, nor once it is over or our done went.
     local function mine(l)
-        if not cur or not cur.def or cur.phase=='over' then return false end
+        if not cur or not cur.def or cur.phase=='over' or (cur.board[cur.me] or {}).ending then return false end
         l.seed=cur.seed
         cur.due=l.word=='now' and l or nil -- A done goes last: no now after it.
         if l.word=='now' then return true end

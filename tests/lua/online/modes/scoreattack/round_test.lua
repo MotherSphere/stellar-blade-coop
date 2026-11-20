@@ -190,8 +190,9 @@ assert(o.started[1]=='range 21 3' and r.round().def.id=='range' and #L.sent==0)
 assert(r.ready() and L.sent[1]=='ready 21')
 r.now(10,1)
 r.now(20,1)
+L.from(HOST,'go 21 range') -- The same go again: our run started already.
 r.tick()
-assert(#L.sent==2 and L.sent[2]=='now 21 20 1' and r.round().board[P2].score==20)
+assert(#L.sent==2 and L.sent[2]=='now 21 20 1' and r.round().board[P2].score==20 and #o.started==1)
 r.now(30,2)
 t=2.5
 r.tick()
@@ -209,9 +210,11 @@ r.done({ending='dead',score=40,tenths=1200})
 t=7
 r.tick()
 assert(#L.sent==4 and L.sent[4]=='done 21 dead 40 1200' and r.round().board[P3].score==50,'No now after done')
+assert(not r.now(60,3) and not r.done({ending='win',score=60,tenths=100}),'Nothing of ours after our done')
 L.from(P3,'rank 21 4003:300:1200:time') -- Not the owner's.
 L.from(HOST,'rank 21 4003:300:1200:stop')
 r.tick()
+assert(#L.sent==4)
 assert(said(o,'line refused from P3: sender') and said(o,'line refused from P1: malformed') and r.round().phase=='play')
 L.from(HOST,'rank 21 4003:300:1200:time,2002:40:1200:dead')
 r.tick()
