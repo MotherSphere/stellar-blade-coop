@@ -151,6 +151,7 @@ that names the module by its name in `T.<culture>.modules`. Without the link, th
 
 ## Adding a module
 
+`tools/new_module.py` does most of these steps for a module in a category: see [New module](modding/new-module.md).
 [Modules](modding/modules.md) shows these steps on `online.lobby` and gives a skeleton module to copy.
 
 1. Pick its place: the category it belongs to (`online/` for what the link shares or runs between players, `fight/`,
