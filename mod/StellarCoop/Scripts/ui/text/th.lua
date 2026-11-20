@@ -117,7 +117,7 @@ return {
         ['online.session']='เซสชันออนไลน์',['online.photo']='ซิงค์โหมดถ่ายภาพ',['fight.enemies']='ศัตรูร่วม',
         ['story.quests']='แชร์เควสต์',['world.objects']='แชร์โลก',['story.together']='แชร์เนื้อเรื่อง',
         ['online.lobby']='ล็อบบี้ SBO',['vehicles.bike']='มอเตอร์ไซค์',['world.daynight']='กลางวันและกลางคืน',
-        ['tools']='เมนูที่ถูกตัด',['online.saves']='เซฟ co-op'},
+        ['cutmenus']='เมนูที่ถูกตัด',['online.saves']='เซฟ co-op'},
     fight={on='ศัตรูร่วมเปิดแล้ว: เชื่อมศัตรู %d ตัว',one='ศัตรูร่วมเปิดแล้ว: เชื่อมศัตรู 1 ตัว',
         scale='HP ศัตรู %d%% บาลานซ์ %d%% (ค่าของโฮสต์)',
         off='ปิดศัตรูร่วมแล้ว ดูสาเหตุใน coop-link.log',

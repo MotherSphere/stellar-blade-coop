@@ -3,6 +3,11 @@
 The ChainSpin's 11 rows go in with the cut Lion's (see [The rows](../fight/bosses-internals.md#the-rows)). The commands
 are in [EVE's cut moves](eve.md).
 
+The cut Shock Bolt's rows are EVE's too: its `bolt` batch is in `native/src/eve/bolt_rows.h`. Its ammo list grower
+(which also gives the gun stances their fire commands) stays shared in `native/src/rows/shock.h`, because
+`fight.enemies` (its worker's log) and a shared test (`tests/native/game/twins_test.cpp`) read it too.
+[The cut Shock Bolt](../online/modes/nightop-shop-internals.md#the-cut-shock-bolt) says how both work.
+
 ## The cut ChainSpin
 
 EVE's four shipped Tachy Mode skills (ChainStab1, ScrewAttack1, SwordAura1 and ParrySlash1) each have a SkillTable row

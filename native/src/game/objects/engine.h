@@ -44,6 +44,16 @@
 // Names come as text and are found with FName's own find (FNAME_Find, number suffix split as FName splits it): a name
 // her game has and ours lacks is refused, never made.
 //
+// Reads (the catch-up and the watcher), on the game thread in game, through live_env, zone_records, find_record, text
+// and find only. They never call new_record, so a read makes no record and no name.
+//   read(zone, alias): the live env when FUN_141d1e100 finds one with the env vtable 0x145c4de70, its tag at +0x1f4
+//     and its ObjectState at +0x28 (what vtable +0x60, 0x1415dc420, returns). Else the stored record of that zone
+//     (FUN_141d1df50, then FUN_141d15a20, two map lookups that answer 0 for None): its tag at +0x28 and its ObjectState
+//     at +0x20, written by FUN_141d11750 from the same two env fields. Else nothing. An ObjectState other than 1 or 2
+//     reads 0; a tag without text reads as nothing.
+//   zone(out): the client's current zone at +0x68, refused when there is no client, when it is None (kNoneName,
+//     number 0) or when it has no text.
+//
 // The Game the engine takes, every call on the game thread:
 //   bool read(uint64_t address, void *out, size_t n); void write(uint64_t address, const void *in, size_t n);
 //   bool text(uint32_t index, uint32_t number, std::string &out): an FName's text, its number suffix included;
@@ -158,6 +168,37 @@ public:
       g_.add_progress(env, m.progress, caster);
     g_.copy_records(env);
     return why;
+  }
+
+  Value read(const std::string &zone, const std::string &alias) override {
+    Value v;
+    const uint64_t world = ptr(at(kWorldAt)), wlm = world ? ptr(world + kWlm) : 0;
+    const uint64_t name = wlm ? g_.find(alias) : 0;
+    if (!name)
+      return v;
+    uint64_t from = g_.live_env(wlm, name), tag_at = kEnvTag, object_at = kEnvObject;
+    if (game::plausible(from) && u64(from) == at(kEnvVtable)) {
+      v.where = Where::live;
+    } else {
+      const uint64_t z = g_.find(zone), records = z ? g_.zone_records(wlm, z) : 0;
+      from = game::plausible(records) ? g_.find_record(records, name) : 0;
+      if (!game::plausible(from))
+        return v;
+      v.where = Where::record, tag_at = kRecordTag, object_at = kRecordObject;
+    }
+    const uint64_t tag = u64(from + tag_at);
+    if (!g_.text(uint32_t(tag), uint32_t(tag >> 32), v.tag))
+      return Value(); // A tag with no text matches no row: read as nothing.
+    const uint32_t object = u32(from + object_at);
+    v.object = object == 1 || object == 2 ? uint8_t(object) : 0;
+    return v;
+  }
+
+  bool zone(std::string &out) override {
+    const uint64_t client = ptr(at(kClientAt));
+    const uint64_t name = client ? u64(client + kClientZone) : 0;
+    none_ = u32(at(kNoneName));
+    return name && !none(name) && g_.text(uint32_t(name), uint32_t(name >> 32), out);
   }
 
 private:

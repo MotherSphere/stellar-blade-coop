@@ -5,11 +5,11 @@
 -- way the shops spend it. Read in Ghidra on build 26123051: SB's buy (FSBActorLogicObject::BuyItem, FUN_141bbe480)
 -- checks the count of each MoneyItemAlias in bucket type 1 of the buyer (FUN_141be1580), then takes the price out with
 -- the remove by alias (FUN_141bdfb10). The player controller's ItemBucketItemRemove request (FUN_1423bfa00) queues that
--- same remove for SB's logic thread, as coop gift calls it (tools/mailbox.lua); asked for more than she has, it takes
--- what there is, so the count comes first. The steps are coop gift's for one alias and one price: the native part reads
--- how many she carries (its items request, tools/items.h, answered in the engine line's items=); under PRICE nothing is
--- removed (poor); else the remove, then reads every POLL s until the count fell by PRICE (paid), or SETTLE s of
--- unpaused play pass (failed: the money may be gone, since SB's logic and its remove stop while the game is paused).
+-- same remove for SB's logic thread, as coop gift calls it (cutmenus/mailbox.lua); asked for more than she has, it
+-- takes what there is, so the count comes first. The steps are coop gift's for one alias and one price: the native part
+-- reads how many she carries (its items request, cutmenus/items.h, answered in the engine line's items=); under PRICE
+-- nothing is removed (poor); else the remove, then reads every POLL s until the count fell by PRICE (paid), or SETTLE s
+-- of unpaused play pass (failed: the money may be gone, since SB's logic and its remove stop while the game is paused).
 -- No answer to a read in READ s is failed too. The engine line holds the last items answer only, which coop gift's
 -- reads share, so a read with no answer in LOST s goes again with its number. One payment at a time; nothing of it is
 -- kept across Lua loads.
@@ -39,7 +39,7 @@ function Fetch.new(o)
     local log,ask,status,name_of,paused=o.log,o.ask,o.status,o.name,o.paused
     local self={}
     local s=nil -- The payment under way: step (count, gone), ask, at, asked, next, index, number, before, played, last.
-    -- coop gift's reads count from 1 (tools/mailbox.lua), ours from 32768, so an answer with our number is ours.
+    -- coop gift's reads count from 1 (cutmenus/mailbox.lua), ours from 32768, so an answer with our number is ours.
     -- shortcut: the two meet after 32767 gift reads in one Lua load; one counter for both if that ever matters.
     local asks=32767
     local function engine() return ('\n'..(status() or '')):match('\nengine=([^\r\n]*)') or '' end

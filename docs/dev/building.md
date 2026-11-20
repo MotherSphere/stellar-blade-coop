@@ -215,7 +215,8 @@ mod/StellarCoop/            the UE4SS mod folder
     world/
       maps/matrix13/        the cut Matrix XIII dungeon, by place then quest: level/ (coop mxiii's travel, rows,
                             boss_rows.lua, ladders, bosses, drone light), quest/ ("On Time" and its words, the talk
-                            player subtitles.lua), talks/ (the talks' lines, one file per talk or zone), culture.lua
+                            player subtitles.lua), talks/ (the talks' lines, one file per talk or zone), culture.lua,
+                            words.lua and text/ (the words in the 21 languages past English and French, generated)
       objects/              shared world: coop world
       daynight/             the day and night cycle
     story/
@@ -225,7 +226,7 @@ mod/StellarCoop/            the UE4SS mod folder
     vehicles/bike/          the bike: the ride, its riding model and its own copy of the races' drive, the parked
                             bike, the fetch, the other players' bikes
     eve/                    coop chainspin, wear, emote, fly, slowmo and glide; chainspin_rows.lua
-    tools/                  the tools module (cut menus): coop devmenu, devinfo and gift (the cut mailbox)
+    cutmenus/               the cut menus: coop devmenu, devinfo and gift (the cut mailbox)
 native/                     the DLL (CMake)
   CMakeLists.txt
   src/                      platform-free headers, tested on the build machine; glue/ is the Windows side
@@ -318,7 +319,7 @@ Platform-free headers, tested on the build machine:
 | `game/spawn_sync.h` | Same spawns: the rows that take part, each side's epoch, the host's and the guest's rounds, extra enemies' keys, and the spawn filter's blocked keys and table |
 | `online/photo/photo_freeze.h` | The synced photo mode's pause |
 | `eve/debug_keys.h` | `coop fly` and `coop slowmo`: the lookup of SB's two developer gates in its settings map and the passes that set them and put them back; the level flight's hold of the flight key |
-| `tools/items.h` | `coop gift`'s inventory read: how many of one item EVE carries, through `ReadProcessMemory` along SB's item bucket manager and its hash sets |
+| `cutmenus/items.h` | `coop gift`'s inventory read: how many of one item EVE carries, through `ReadProcessMemory` along SB's item bucket manager and its hash sets |
 | `ui/pad.h` | The controller's events for the co-op menu, the game's controller key events as one read (`PadKeys`), Slate's handler slots and which XInput slots each read asks |
 | `game/memory.h` | The game image's base and globals block, `plausible()` and `get()` |
 | `game/travel.h` | The follow's fast travel request, its guard, its calls and the warp watch |
@@ -338,5 +339,5 @@ The Windows side:
 | --- | --- |
 | `glue/steam.cpp` | Steam callbacks, the worker thread, files and fault containment |
 | `glue/version.rc` | The DLL's version resource: the release (`git describe`) and "SBO License 1.0 or later" |
-| `glue/tick.cpp`, `glue/tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua; `coop_pad` and its XInput reads; the spawn filter's slot swap and hook; the Lion's, the Gardener's and the Tendril's rows through the game's AddRow (`rows/rows_game.inc`); SB's developer gates and the level flight's slot swap and hook in the player controller's input pass (`eve/debug_game.inc`); `coop emote`'s clips through SB's custom animation play and stop (`eve/anim_game.inc`); `coop shortcut`'s reads through the game's file manager, and the one file a load keeps (`online/saves/shortcut_game.inc`); `coop gift`'s inventory read on the worker (`tools/items_worker.inc`); the read of the camps the save has activated (`online/group/camps_game.inc`); Matrix XIII's camp names (`world/maps/matrix13/camp_text_game.inc`); the teleport screen's slot swap and hook (`online/group/region_tabs_worker.inc`); the SBO lobby's Join slot swap and hook, and the copies of the co-op saves before each game save, from SB's save queue to the rotation folder (`online/lobby/sbo_game.inc`, `online/lobby/sbo_worker.inc`); the lift of the SBO lobby arrival's black (`online/lobby/loading_game.inc`, `online/lobby/loading_worker.inc`). `tick.cpp` is one translation unit made of the parts, in order: each module's `<part>_game.inc` and `<part>_worker.inc` in its own folder, `glue/tick/worker.inc` and `glue/tick/status.inc`. `*_game.inc` run on the game thread (or SB's logic thread), `*_worker.inc` on our worker. What another module's part reads of a part is in `glue/tick/<part>_shared.inc`, which `tick.cpp` includes right before that part. The DLL has no load isolation like the Lua modules' (see [Structure](structure.md)): a part's game calls run under its own SEH latch (77 `__try` blocks, 34 `*_faulted` flags): a fault there turns that feature off for the run |
+| `glue/tick.cpp`, `glue/tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua; `coop_pad` and its XInput reads; the spawn filter's slot swap and hook; the Lion's, the Gardener's and the Tendril's rows through the game's AddRow (`rows/rows_game.inc`); SB's developer gates and the level flight's slot swap and hook in the player controller's input pass (`eve/debug_game.inc`); `coop emote`'s clips through SB's custom animation play and stop (`eve/anim_game.inc`); `coop shortcut`'s reads through the game's file manager, and the one file a load keeps (`online/saves/shortcut_game.inc`); `coop gift`'s inventory read on the worker (`cutmenus/items_worker.inc`); the read of the camps the save has activated (`online/group/camps_game.inc`); Matrix XIII's camp names (`world/maps/matrix13/camp_text_game.inc`); the teleport screen's slot swap and hook (`online/group/region_tabs_worker.inc`); the SBO lobby's Join slot swap and hook, and the copies of the co-op saves before each game save, from SB's save queue to the rotation folder (`online/lobby/sbo_game.inc`, `online/lobby/sbo_worker.inc`); the lift of the SBO lobby arrival's black (`online/lobby/loading_game.inc`, `online/lobby/loading_worker.inc`). `tick.cpp` is one translation unit made of the parts, in order: each module's `<part>_game.inc` and `<part>_worker.inc` in its own folder, `glue/tick/worker.inc` and `glue/tick/status.inc`. `*_game.inc` run on the game thread (or SB's logic thread), `*_worker.inc` on our worker. What another module's part reads of a part is in `glue/tick/<part>_shared.inc`, which `tick.cpp` includes right before that part. The DLL has no load isolation like the Lua modules' (see [Structure](structure.md)): a part's game calls run under its own SEH latch (77 `__try` blocks, 34 `*_faulted` flags): a fault there turns that feature off for the run |
 | `glue/clipboard.h` | The `copy` request's clipboard call, also built into the Wine smoke test |

@@ -117,7 +117,7 @@ return {
         ['online.group']='グループプレイ',['online.modes.race']='ドロレース',['eve']='EVEのカットされた動き',['story.scenes']='カットされたシーン',
         ['world.maps.matrix13']='Matrix XIII',['online.session']='オンラインセッション',['online.photo']='フォトモード同期',
         ['fight.enemies']='敵の共有',['story.quests']='クエスト共有',['world.objects']='ワールド共有',['story.together']='ストーリー共有',
-        ['online.lobby']='SBOロビー',['vehicles.bike']='バイク',['world.daynight']='昼と夜',['tools']='カットされたメニュー',
+        ['online.lobby']='SBOロビー',['vehicles.bike']='バイク',['world.daynight']='昼と夜',['cutmenus']='カットされたメニュー',
         ['online.saves']='協力プレイ用セーブ'},
     fight={on='敵の共有：オン。%d体の敵をリンク中。',one='敵の共有：オン。1体の敵をリンク中。',
         scale='敵のHP%d%%、バランス%d%%（ホストの設定）。',

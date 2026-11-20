@@ -3,10 +3,10 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The cut menus' console commands. coop devmenu, the developer menu's rows that still work (left out of the usage
 -- line): its list on any save, a row on a co-op save only. coop devinfo, two read-only panels of the game's developer
--- UI (left out too), on any save. coop gift, the cut mailbox as a co-op gift box (tools/mailbox.lua, o.mailbox,
--- built with the Steam link only), runs on a co-op save only: every word of it. tools/wiring.lua builds it with
+-- UI (left out too), on any save. coop gift, the cut mailbox as a co-op gift box (cutmenus/mailbox.lua, o.mailbox,
+-- built with the Steam link only), runs on a co-op save only: every word of it. cutmenus/wiring.lua builds it with
 -- new(o) at each Lua load and main/loader.lua merges it into the command table. o: coop_slot, ask (a native request;
--- coop devinfo), devmenu (tools/devmenu.lua's) and mailbox.
+-- coop devinfo), devmenu (cutmenus/devmenu.lua's) and mailbox.
 local Menus={}
 function Menus.new(o)
     local coop_slot=o.coop_slot

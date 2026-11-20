@@ -130,7 +130,7 @@ return {
         ['online.session']='Sessioni online',['online.photo']='Modalità foto sincronizzata',
         ['fight.enemies']='Nemici condivisi',['story.quests']='Missioni condivise',['world.objects']='Mondo condiviso',
         ['story.together']='Storia condivisa',['online.lobby']='La lobby SBO',['vehicles.bike']='La moto',
-        ['world.daynight']='Giorno e notte',['tools']='Menu tagliati',['online.saves']='Salvataggi co-op'},
+        ['world.daynight']='Giorno e notte',['cutmenus']='Menu tagliati',['online.saves']='Salvataggi co-op'},
     fight={on='Nemici condivisi attivi: %d nemici collegati.',one='Nemici condivisi attivi: 1 nemico collegato.',
         scale="PS dei nemici %d %%, equilibrio %d %% (impostazione dell'host).",
         off='Nemici condivisi disattivati. Il motivo è in coop-link.log.',

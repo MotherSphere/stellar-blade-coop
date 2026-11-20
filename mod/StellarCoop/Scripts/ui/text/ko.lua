@@ -114,7 +114,7 @@ return {
         ['online.group']='그룹 플레이',['online.modes.race']='도로 레이스',['eve']='EVE의 삭제된 동작',['story.scenes']='삭제된 장면',
         ['world.maps.matrix13']='Matrix XIII',['online.session']='온라인 세션',['online.photo']='포토 모드 동기화',
         ['fight.enemies']='적 공유',['story.quests']='퀘스트 공유',['world.objects']='월드 공유',['story.together']='스토리 공유',
-        ['online.lobby']='SBO 로비',['vehicles.bike']='바이크',['world.daynight']='낮과 밤',['tools']='삭제된 메뉴',
+        ['online.lobby']='SBO 로비',['vehicles.bike']='바이크',['world.daynight']='낮과 밤',['cutmenus']='삭제된 메뉴',
         ['online.saves']='코옵 세이브'},
     fight={on='적 공유 켜짐: 적 %d마리 연결.',one='적 공유 켜짐: 적 1마리 연결.',
         scale='적 생명력 %d%%, 균형 %d%%(호스트 설정).',

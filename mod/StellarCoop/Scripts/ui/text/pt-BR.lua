@@ -128,7 +128,7 @@ return {
         ['fight.enemies']='Inimigos compartilhados',['story.quests']='Missões compartilhadas',
         ['world.objects']='Mundo compartilhado',['story.together']='História compartilhada',
         ['online.lobby']='O lobby SBO',['vehicles.bike']='A moto',['world.daynight']='Dia e noite',
-        ['tools']='Menus cortados',['online.saves']='Jogos salvos co-op'},
+        ['cutmenus']='Menus cortados',['online.saves']='Jogos salvos co-op'},
     fight={on='Inimigos compartilhados ativados: %d inimigos vinculados.',
         one='Inimigos compartilhados ativados: 1 inimigo vinculado.',
         scale='PV dos inimigos %d %%, equilíbrio %d %% (configuração do anfitrião).',

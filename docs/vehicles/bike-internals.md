@@ -325,24 +325,24 @@ a 32-byte name.
 - The player controller's `ServerRequest_ItemBucketItemRemove` (`0x1423bfa00`), which `coop gift` already calls, queues
   SB's remove request (type 0x16), whose `Simulate` (`0x141b0cc60`) runs the same `0x141ad8490` and `0x141bdfb10` with
   no category or SaveType filter. Asked for more than she has, it takes what there is, so the count comes first.
-- `0x141be1580` walks the sets that `tools/items.h` reads (the bucket's alias map at `+0x90`, the manager's instance map
-  at `+0x210`, each item's count at `+0x6c`), so the native part's read reaches the betacrystal whatever its ItemTable
-  SaveType.
+- `0x141be1580` walks the sets that `cutmenus/items.h` reads (the bucket's alias map at `+0x90`, the manager's instance
+  map at `+0x210`, each item's count at `+0x6c`), so the native part's read reaches the betacrystal whatever its
+  ItemTable SaveType.
 - SB's code builds the FName `BetaCrystal`; ShopItemTable writes `betacrystal`. FNames compare without case, so
   `BetaCrystal` finds the same alias.
 
-The steps are `coop gift`'s ([The inventory read](../tools/menus-internals.md#the-inventory-read), [The remove, the gift
-and its answer](../tools/menus-internals.md#the-remove-the-gift-and-its-answer)) for one alias and one price. The native
-part reads her count (`items <ask> BetaCrystal <FName index> <FName number>`, the FName found with `FNAME_Find` and read
-back as the alias). Under 500 nothing is removed (`bike fetch refused: you carry <n> betacrystal, 500 needed`). Else,
-unless the game is paused or shows one of its screens, Lua calls `ServerRequest_ItemBucketItemRemove(1, <EVE's GUID>,
-BetaCrystal, 500, -1)` (`remove asked: BetaCrystal x500 of <n> (guid <g>)`), then reads every 0.5 s until the count fell
-by 500. An `unread` or `noeve` answer after the remove is read again. The engine line holds only the last `items=`
-answer, which `coop gift`'s reads share, so a read with no answer after 1 s goes again with its number; the fetch
-numbers its reads from 32768, `coop gift` from 1. 10 s of play without the fall (time paused, in photo mode or in the
-friend's photo mode that pauses ours does not count) or no answer to a read within 5 s fails the payment: `bike fetch
-failed: <why>`, which says the betacrystal may be gone once the remove was asked. `tests/tools/matchmaking_scan_test.py`
-holds `vehicles/bike/fetch.lua` to that one `ServerRequest_` call.
+The steps are `coop gift`'s ([The inventory read](../cutmenus/menus-internals.md#the-inventory-read), [The remove, the
+gift and its answer](../cutmenus/menus-internals.md#the-remove-the-gift-and-its-answer)) for one alias and one price.
+The native part reads her count (`items <ask> BetaCrystal <FName index> <FName number>`, the FName found with
+`FNAME_Find` and read back as the alias). Under 500 nothing is removed (`bike fetch refused: you carry <n> betacrystal,
+500 needed`). Else, unless the game is paused or shows one of its screens, Lua calls
+`ServerRequest_ItemBucketItemRemove(1, <EVE's GUID>, BetaCrystal, 500, -1)` (`remove asked: BetaCrystal x500 of <n>
+(guid <g>)`), then reads every 0.5 s until the count fell by 500. An `unread` or `noeve` answer after the remove is read
+again. The engine line holds only the last `items=` answer, which `coop gift`'s reads share, so a read with no answer
+after 1 s goes again with its number; the fetch numbers its reads from 32768, `coop gift` from 1. 10 s of play without
+the fall (time paused, in photo mode or in the friend's photo mode that pauses ours does not count) or no answer to a
+read within 5 s fails the payment: `bike fetch failed: <why>`, which says the betacrystal may be gone once the remove
+was asked. `tests/tools/matchmaking_scan_test.py` holds `vehicles/bike/fetch.lua` to that one `ServerRequest_` call.
 
 ## Ghosts
 

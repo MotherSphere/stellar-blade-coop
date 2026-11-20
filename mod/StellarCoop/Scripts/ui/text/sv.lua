@@ -123,7 +123,7 @@ return {
         ['story.scenes']='Borttagna scener',['world.maps.matrix13']='Matrix XIII',['online.session']='Onlinesessioner',
         ['online.photo']='Synkat fotoläge',['fight.enemies']='Delade fiender',['story.quests']='Delade uppdrag',
         ['world.objects']='Delad värld',['story.together']='Delad berättelse',['online.lobby']='SBO-lobbyn',
-        ['vehicles.bike']='Motorcykeln',['world.daynight']='Dag och natt',['tools']='Borttagna menyer',
+        ['vehicles.bike']='Motorcykeln',['world.daynight']='Dag och natt',['cutmenus']='Borttagna menyer',
         ['online.saves']='Sparfiler för co-op'},
     fight={on='Delade fiender på: %d fiender länkade.',one='Delade fiender på: 1 fiende länkad.',
         scale='Fiendernas hälsa %d %%, balans %d %% (värdens inställning).',

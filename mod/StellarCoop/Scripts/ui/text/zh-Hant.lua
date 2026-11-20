@@ -107,7 +107,7 @@ return {
         ['online.modes.race']='DORO競速',['eve']='EVE的刪減動作',['story.scenes']='刪減的場景',
         ['world.maps.matrix13']='Matrix XIII',['online.session']='線上房間',['online.photo']='相片同步',
         ['fight.enemies']='共享敵人',['story.quests']='共享任務',['world.objects']='共享世界',['story.together']='共享劇情',
-        ['online.lobby']='SBO大廳',['vehicles.bike']='機車',['world.daynight']='晝夜交替',['tools']='刪減的選單',
+        ['online.lobby']='SBO大廳',['vehicles.bike']='機車',['world.daynight']='晝夜交替',['cutmenus']='刪減的選單',
         ['online.saves']='合作存檔'},
     fight={on='共享敵人已開啟：已連結%d個敵人。',one='共享敵人已開啟：已連結1個敵人。',
         scale='敵人生命值%d%%，平衡%d%%（主機設定）。',

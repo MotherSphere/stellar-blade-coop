@@ -142,7 +142,7 @@ achievements, which cannot be taken back.
   that still work (no damage, speed, attack, gauges, enemy rows), and `coop devinfo` opens its quest debugger or
   player info panel. These test commands have not been tried in game yet (see
   [eve/eve.md](eve/eve.md#cut-tachy-skill-coop-chainspin) and
-  [tools/menus.md](tools/menus.md#developer-menu-coop-devmenu-and-coop-devinfo)).
+  [cutmenus/menus.md](cutmenus/menus.md#developer-menu-coop-devmenu-and-coop-devinfo)).
 - `coop emote <name>` plays one of EVE's clips through the game's own animation call: 31 photo-mode poses held until
   she moves (grouped under the categories of the game's cut Social Action menu), two waves, and six clips of hers made
   for two enemies with no character in the game files: the Chariot, which was cut (its struggle and her takedown on
@@ -152,7 +152,7 @@ achievements, which cannot be taken back.
   camp each one starts at. `coop shortcut load` writes one as co-op slot 5 for Load Game, without its achievement
   list. It needs `shortcut_load=on` (the default), and what is left of the developer's progress can still unlock
   Steam achievements. Neither has been tried in game yet (see
-  [tools/menus.md](tools/menus.md#cut-load-shortcut-saves-coop-shortcut)).
+  [cutmenus/menus.md](cutmenus/menus.md#cut-load-shortcut-saves-coop-shortcut)).
 - At its first run the mod opens a guide of nine pages, with art of Mother Sphere by timediffer24. The Guide row of the
   co-op menu and `coop guide` open it again (see [players/interface.md](players/interface.md#guide)).
 - Each player's .pak mods are named over the link, and a notice says which ones the other player lacks. A friend's CNS
@@ -181,7 +181,9 @@ co-op save, it makes the quest steps that the host and the guest make together i
 game's own quest functions (see [players/playing-with-a-friend.md](players/playing-with-a-friend.md#shared-quests-experimental)). A
 quest step the guest makes first moves the host's quest too, with Story together on or off. The experimental Shared
 world option (Options, Session) is on by default and untested in game. While both players play a co-op save, a door, lever, switch, crane, lift or shortcut that one player works changes in the other's game too,
-while chests, supply boxes and anything else that gives an item stay each player's own (see
+puzzle doors and water gates included. Chests, supply boxes and anything else that gives an item stay each player's
+own. The end of the AltesLab trap floor raises the scaffolding in both games. Each zone also catches up when
+a player enters it: the doors and switches the other changed there come in, the host's state winning a conflict (see
 [world/objects.md](world/objects.md)). The experimental Story together option (Options, Session) is on by default and
 untested in game. While both players play a co-op save, a cutscene or a talk the host plays plays in the guest's game
 too, with the host's choices, QTE results and skips. A story trip the host starts takes the guest along (see

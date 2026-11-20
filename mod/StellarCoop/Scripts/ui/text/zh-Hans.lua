@@ -109,7 +109,7 @@ return {
         ['online.modes.race']='DORO竞速',['eve']='EVE的删减动作',['story.scenes']='删减的场景',
         ['world.maps.matrix13']='Matrix XIII',['online.session']='在线房间',['online.photo']='拍照同步',
         ['fight.enemies']='共享敌人',['story.quests']='共享任务',['world.objects']='共享世界',['story.together']='共享剧情',
-        ['online.lobby']='SBO大厅',['vehicles.bike']='摩托车',['world.daynight']='昼夜交替',['tools']='删减的菜单',
+        ['online.lobby']='SBO大厅',['vehicles.bike']='摩托车',['world.daynight']='昼夜交替',['cutmenus']='删减的菜单',
         ['online.saves']='合作存档'},
     fight={on='共享敌人已启用：已关联%d个敌人。',one='共享敌人已启用：已关联1个敌人。',
         scale='敌人生命%d%%，平衡%d%%（房主的设置）。',

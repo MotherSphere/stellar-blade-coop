@@ -19,10 +19,10 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `core/`: `actors`, `actors_of`, `class_at`, `effect`, `enemy`, `items`, `keybind`, `line`, `link`, `mask`, `pak_gate`,
 `picks`, `player`, `row_edit`, `settings_file`, `ue4ss_settings`, `unreal`, `where`, `worlds`; `fight/bosses/`: `enemy`,
 `gardener`, `leviathan`, `lion`, `off`, `tendril`; `eve/`: `chainspin`, `emote`, `flight`, `glide`, `off`, `wear`;
-`tools/`: `devmenu`, `mailbox`, `off`; `story/scenes/`: `lines`, `off`, `scene`; `fight/enemies/`: `off`, `wiring`,
+`cutmenus/`: `devmenu`, `mailbox`, `off`; `story/scenes/`: `lines`, `off`, `scene`; `fight/enemies/`: `off`, `wiring`,
 `wiring_notices`; `online/group/`: `group`, `off`, `region_tabs`, `travel`; `online/lobby/`: `arrival`, `commands`,
 `halls_rows`, `off`, `sbo`, `wiring`; `online/lobby/ui/`: `lobby`, `lobby_model`; `main/`: `bike`, `boot`, `collide`,
-`guide`, `idle`, `input`, `loader`, `match`, `menu`, `session_ui`, `settings`; `world/maps/matrix13/`: `off`;
+`guide`, `idle`, `input`, `loader`, `match`, `menu`, `session_ui`, `settings`; `world/maps/matrix13/`: `off`, `words`;
 `world/maps/matrix13/quest/`: `on_time`, `subtitles`, `zone_talks`; `world/maps/matrix13/talks/`: `zones`;
 `world/maps/matrix13/level/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`; `online/modes/nightop/`:
 `board`, `challenges`, `guard_text`, `off`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
@@ -132,7 +132,7 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   host and on the pair, her own game waiting on no shared fight, then the guest's cutscene pause read from the host's
   slot; `online/group/travel_test` the host answering `camps?` while any guest is linked and the guest reading the
   host's map from his member line's slot (no offer while that slot has no ghost or the host is not linked);
-  `online/partner/ghosts_test` `get(k)`; `tools/mailbox_test`, `online/modes/race/run_test`,
+  `online/partner/ghosts_test` `get(k)`; `cutmenus/mailbox_test`, `online/modes/race/run_test`,
   `online/modes/nightop/run_test`, `online/modes/nightop/roxanne_test` and `fight/enemies/wiring_test` a gift, a race, a
   run, Roxanne's pick and the PvP test refused with 3 players, `online/modes/race/run_test` and
   `online/modes/nightop/run_test` also a race and a run under way ending with their reason when a third player gets in,
@@ -875,7 +875,7 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   too many elements, no world, an empty array; a pinned hour, a hold that keeps a pinned hour or the clock's; an element
   SB moved in its array keeps its originals; a cutscene or talk scene of SB's (its values back while it plays, under its
   forced settings too, our light again after it);
-- `tools_items_test`: `coop gift`'s inventory read against a fake image laid out like the pinned build: the FName and
+- `cutmenus_items_test`: `coop gift`'s inventory read against a fake image laid out like the pinned build: the FName and
   CityHash64 hashes checked against the game's, a count over two instances and along chains of collisions, an item
   EVE does not carry, no manager, bucket or owner, an instance the manager no longer holds, and hostile memory (a
   chain that loops, an index past the array, a hash size that is no power of two, an unreadable item) ending in
@@ -920,7 +920,7 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 - `online_lobby_loading_test`: the lift of the lobby arrival's black over a copy of SB's auto list: each entry of tag 5
   gets lifetime 0, SB's own entries and every other byte stay as they were, and a count out of range touches nothing;
 - `game_camp_text_test`: Matrix XIII's camp names and the 25 records' words, the keys (unique, the region's ending in a
-  letter), the language pick, when a pass is due and the `camptext=` and `recordtext=` lines;
+  letter), the pick of one of the 23 cultures, when a pass is due and the `camptext=` and `recordtext=` lines;
 - `game_camps_test`: the activated camps' read, each guard refusing with its own reason (a warp, a respawn or a logic
   task as busy), when the list is read (at once with none held, in a new world or after a drop, then every 2 s) and
   the `activated=` line (the list, the camp EVE respawns at, a refusal, names that would not split left out);
@@ -933,25 +933,41 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 
 ### Shared world
 
-- `game_objects_rows_test`: `game/objects/rows.h`'s four lists strictly sorted, every SetEnvActive and no-progress row
-  with states of its own, the lookups at both ends of each list and on near misses, and rows of build 26123051 each rule
-  keeps or leaves out (a door and a lift with every state, the monorail without its camp-bound garage run, the crane
-  without its camera states, the hyperdrive without its story states, a supply box, the boss cores, a story-only door,
-  an env whose On a quest task waits for, a Matrix XIII lever, a counter whose progress leads to an item, a quest's env
-  control row, a monorail speed row whose chain plays a scene);
+- `game_objects_rows_test`: `game/objects/rows.h`'s lists strictly sorted (each zone's saved envs by zone, then
+  alias), every SetEnvActive and no-progress row with states of its own, the lookups at both ends of each list and on
+  near misses. Rows of build 26123051 each rule keeps or leaves out (a door and a lift with every state, the
+  monorail without its camp-bound garage run, the crane without its camera states but with its CallPuzzle, the
+  hyperdrive without its story states, a supply box, the boss cores, a story-only door, an env whose On a quest task
+  waits for, a Matrix XIII lever, a counter whose progress leads to an item, a quest's env control row, a monorail
+  speed row whose chain plays a scene). Then the 40 states that a map-progress achievement or a hint completion held
+  out before, the passcode doors and the other states that stay out, the trap floor's end as the one watched pair.
+  Each zone's saved envs: the largest zones' counts, no entry under None, the pipe puzzle's water gate, a tag kept as
+  the table spells it, the InitActivate None entry and the rows each rule leaves out (ResetZone, SaveType None,
+  SaveWithTransform, InitStateTag None or none of the row's states);
 - `game_objects_sync_test`: `game/objects/sync.h`'s lines through format and parse and back (the largest legal line, 50
   malformed lines and 20,000 fuzzed ones), the ring's capacity and wrap, the outbox that keeps the lines the link
   refuses, and two players' sides wired over the parser with a fake engine: the on and off lines and the answer to an
   on, a rejoin one side did not see, each gate on both sides, the lists on both sides (linked env lines part by part
   included), names without text, sequence numbers, lost and old lines, a load that reads no save for a while, the
   queue's order while loading and its overflow, the apply limit, the echo backstop, refusals logged once, a new partner
-  and the status line;
+  and the status line. Then names compared without case, the catch-up lines through format and parse (17 malformed
+  ones) and on the lists, the watcher of the trap floor's end (its silent first sight, only live reads counted, its
+  tags kept through a load and a stream, forgotten at a zone change, a close or a new partner, its line on the gates
+  and the shared `seq`) and when an env counts as touched. The catch-up by zone: the ask after its 2 s hold and again
+  after a load, her `on` or a close of our side, the walk and its resume after a load, an ask for a zone with no entry,
+  the receiver rule for host and guest (a state held out for us kept, nothing sent back), a `c` line older than a root
+  of ours kept (her answer or her send-back), a `c` line applied as a state then an Enable or Disable, the host's value
+  sent back, a close in the middle of an answer, the walk's filters, one answer per ask, the ObjectState compare and a
+  partner that never answers;
 - `game_objects_engine_test`: `game/objects/engine.h` over fake memory and fake game functions: the four roots read from
   their nodes (a named target, `self` through the owner env, an ObjectState of 0, a linked env inside and outside its
   owner's list or not live in our zone, values no line carries), and her lines applied: A1 and each of its guards, a
   Disable env changed as SB changes it, a tag that did not take, A2's records (found, made, a Disable one written), A1b
   live and offline, A3's call and its list check, A4's order (a None tag, an env already in the tag, a refusing guard),
-  and the refusals for a missing world, player or name.
+  and the refusals for a missing world, player or name. Then the catch-up reads: an env's value live, from its record
+  (a wrong vtable read as not live) or not at all (no world, a zone or an alias the game lacks), an ObjectState no line
+  carries read as 0, a tag with no text read as none, no record made; the client's zone, refused for None, a name
+  with no text or no client.
 
 ### Story together
 
@@ -1035,11 +1051,15 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 - `world_rows_test.py`: `tools/world_rows.py` on small made-up tables: each rule that keeps a ZoneEnvSpawnTable row
   out, each rule that keeps a state out (the player event types reached directly, through AddEvents and FinishEvents,
   through the states an env control row sets and through a progress control's change tags; the crane's camera tags;
-  ChangeState achievements and EnvState quest tasks on the state or on a state its events set), the SetEnvActive list,
-  each ZoneEvent rule, the no-progress list, unknown names and loops in chains, Matrix XIII's rows from its data file,
-  the written block (sorted, between its markers, the rest of the header untouched, a name that cannot go into a
-  C++ literal refused). After new table exports, run `python3 -I tools/world_rows.py <folder>` and commit
-  `native/src/game/objects/rows.h`;
+  ChangeState achievements and EnvState quest tasks on the state or on a state its events set; a map-progress
+  achievement and a hint completion that hold nothing out, an album or loot achievement that does), the SetEnvActive
+  list, each ZoneEvent rule, the no-progress list, the watched pairs (a trigger's own TriggerTrueEvents or its env
+  row's, a ResetZone row, a pair set only through a state cascade, a pair set by an env that is no trigger), each
+  zone's saved envs (one entry per zone, None left out, an InitStateTag compared without case, an InitActivate Disable
+  or None; an InitStateTag None or none of the row's states, ResetZone, None and SaveWithTransform rows and loot left
+  out), unknown names and loops in chains, Matrix XIII's rows from its data file, the written block (sorted, between
+  its markers, the rest of the header untouched, a name that cannot go into a C++ literal refused). After new table
+  exports, run `python3 -I tools/world_rows.py <folder>` and commit `native/src/game/objects/rows.h`;
 - `story_rows_test.py`: `tools/story_rows.py` on small made-up tables: the quest events read from a quest table block,
   the zone a row's name gives, each scene rule (a theater path, a level sequence alone, Stop rows, rows with no theater
   row or no path, the priority as the theater manager keeps it, the condition kept only beside AddEvents, the quest

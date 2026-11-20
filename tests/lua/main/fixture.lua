@@ -474,10 +474,10 @@ package.loaded['eve.chainspin']={new=function(o)
     cs.o=o
     return {command=function(...) cs.cmds[#cs.cmds+1]=table.pack(...); return true,'cs '..tostring((...)) end}
 end}
--- coop devmenu (tools/devmenu.lua; devmenu_test tests it): what new got (log, status), its commands and stops, and
+-- coop devmenu (cutmenus/devmenu.lua; devmenu_test tests it): what new got (log, status), its commands and stops, and
 -- how many native asks there were at its last stop; heal is its one row here.
 dm={}
-package.loaded['tools.devmenu']={new=function(o)
+package.loaded['cutmenus.devmenu']={new=function(o)
     dm.o=o
     return {row=function(name) return name=='heal' and {} or nil end,
         command=function(...) dm.cmds[#dm.cmds+1]=table.pack(...); return true,'dm '..tostring((...)) end,
@@ -513,10 +513,10 @@ package.loaded['story.scenes.lines']={new=function(o)
         tick=function() ln.ticks=ln.ticks+1; if ln.says then return table.unpack(ln.says) end end,
         stop=function() ln.stops=ln.stops+1 end}
 end}
--- coop gift (tools/mailbox.lua; mailbox_test tests it): what new got, its commands, her gift lines, its ticks and
+-- coop gift (cutmenus/mailbox.lua; mailbox_test tests it): what new got, its commands, her gift lines, its ticks and
 -- stops.
 gf={}
-package.loaded['tools.mailbox']={new=function(o)
+package.loaded['cutmenus.mailbox']={new=function(o)
     gf.o=o
     return {command=function(...) gf.cmds[#gf.cmds+1]=table.pack(...); return true,'gf '..tostring((...)) end,
         receive=function(line) gf.received[#gf.received+1]=line end,tick=function() gf.ticks=gf.ticks+1 end,

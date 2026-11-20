@@ -128,7 +128,7 @@ return {
         ['online.session']='Nettøkter',['online.photo']='Fotosynkronisering',['fight.enemies']='Delte fiender',
         ['story.quests']='Delte oppdrag',['world.objects']='Delt verden',['story.together']='Delt historie',
         ['online.lobby']='SBO-lobbyen',['vehicles.bike']='Motorsykkelen',['world.daynight']='Dag og natt',
-        ['tools']='Fjernede menyer',['online.saves']='Co-op-lagringer'},
+        ['cutmenus']='Fjernede menyer',['online.saves']='Co-op-lagringer'},
     fight={on='Delte fiender slått på: %d fiender koblet sammen.',one='Delte fiender slått på: 1 fiende koblet sammen.',
         scale='Fiende-HP %d %%, balanse %d %% (vertens innstilling).',
         off='Delte fiender slått av. coop-link.log sier hvorfor.',

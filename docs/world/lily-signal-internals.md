@@ -38,12 +38,15 @@ select cache swap of Roxanne's choices, `coop scene`'s borrowed theater rows and
    quest it holds. Nothing else runs until the rows read back as written in that Lua load. The rows share the one SEH
    latch of every batch, so a fault here would stop the Lion's, the shop's and `coop mxiii`'s batches for the run too;
    the pak gate keeps that risk to players who can use the feature.
-3. Words: `world/maps/matrix13/quest/text.lua`'s English and French lines go into both quests' `TitleName_` and
+3. Words: `world/maps/matrix13/quest/text.lua`'s lines (English and French there, the 21 other languages from
+   `world/maps/matrix13/words.lua` by id) go into both quests' `TitleName_` and
    `Description_`, the 7 groups' and tasks 1 to 5's `Description`, and the choice row's `DisplayText`, as FText in the
    game's language, through the recruiter's checked edit (each row's ID checked first, the choice row's exec too, then a
    fresh FindRow reads them back). The choice row's label is written again (checked the same way) when the wanted one
    changes. No text key is registered, for the reason given under [Roxanne's
-   choices](../online/modes/nightop-shop-internals.md#roxannes-night-operation-choices).
+   choices](../online/modes/nightop-shop-internals.md#roxannes-night-operation-choices). Once they are written, each
+   tick reads the game's language. On a change every row is written again in the new language. A failed read keeps
+   the words.
 
 ## The quests
 
@@ -85,7 +88,7 @@ select cache swap of Roxanne's choices, `coop scene`'s borrowed theater rows and
    the borrowed row stands below the bike signal (4) and above Travel and Repair (2) and End Conversation (1); if it
    keeps the array's order, the borrowed row comes first. End Conversation stays last either way, for the cancel input.
 7. The picks, read as Roxanne's (`online/modes/nightop/roxanne.lua`'s `watcher`): a `SelectIndex` turning from -1 to a
-   line whose text is the row's current label in English or French. The talk player is armed at once (its hook
+   line whose text is the row's current label in any game language. The talk player is armed at once (its hook
    registered, and for 30 s a Lily or EVE subtitle's colour captured, should her goodbye show in the same subtitle
    slot). The talk is asked as soon as a theater of the game is seen (looked for every 0.5 s; the talk player then waits
    for its end), 0.5 s after a game screen closed, or 5 s after the pick when neither showed. After the prologue talk

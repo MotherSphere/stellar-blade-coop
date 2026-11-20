@@ -127,7 +127,7 @@ return {
         ['online.session']='Verkkoistunnot',['online.photo']='Synkronoitu kuvaustila',
         ['fight.enemies']='Jaetut viholliset',['story.quests']='Jaetut tehtävät',['world.objects']='Jaettu maailma',
         ['story.together']='Jaettu tarina',['online.lobby']='SBO-aula',['vehicles.bike']='Moottoripyörä',
-        ['world.daynight']='Päivä ja yö',['tools']='Poistetut valikot',['online.saves']='Co-op-tallennukset'},
+        ['world.daynight']='Päivä ja yö',['cutmenus']='Poistetut valikot',['online.saves']='Co-op-tallennukset'},
     fight={on='Jaetut viholliset päällä: %d vihollista yhdistetty.',
         one='Jaetut viholliset päällä: 1 vihollinen yhdistetty.',
         scale='Vihollisten HP %d %%, tasapaino %d %% (isännän asetus).',

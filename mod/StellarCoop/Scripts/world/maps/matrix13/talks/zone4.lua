@@ -4,9 +4,11 @@
 -- The zone 4 talks of Matrix XIII (4A to 4N), scene by scene in play order (world/maps/matrix13/quest/zone_talks.lua
 -- plays them): the speaker (a StringTable_Seq key, or a plain name for the dungeon's own people), then the English and
 -- French line.
+-- Each line gets its id talk.zone.<scene>.NN (world/maps/matrix13/words.lua), the key of its line in the other
+-- cultures.
 -- oblivion=true: only when Quest_Sub_030 (Oblivion) is complete. No line plays during a fight.
 local EVE,PA='Seq_Actor_EVE','Seq_Actor_Announcement'
-return {
+return require('world.maps.matrix13.words').zone({
     ['4A']={
         {'Noa',"Can you see a lit window across the water? Near the red lamp.",
             "Tu vois une fenêtre éclairée, de l'autre côté de l'eau\u{A0}? Près de la lampe rouge."},
@@ -135,4 +137,4 @@ return {
         {'Mila',"Noa... You can stop counting now.",
             "Noa... Tu peux arrêter de compter."},
     },
-}
+})

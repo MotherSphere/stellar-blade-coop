@@ -126,7 +126,7 @@ return {
         ['online.photo']='Wspólny tryb fotograficzny',['fight.enemies']='Wspólni wrogowie',
         ['story.quests']='Wspólne zadania',['world.objects']='Wspólny świat',['story.together']='Wspólna fabuła',
         ['online.lobby']='Lobby SBO',['vehicles.bike']='Motocykl',['world.daynight']='Dzień i noc',
-        ['tools']='Wycięte menu',['online.saves']='Zapisy co-op'},
+        ['cutmenus']='Wycięte menu',['online.saves']='Zapisy co-op'},
     fight={on='Wspólni wrogowie: włączono, połączono %d wrogów.',one='Wspólni wrogowie: włączono, połączono 1 wroga.',
         scale='PŻ wrogów %d%%, równowaga %d%% (ustawienie hosta).',
         off='Wspólni wrogowie: wyłączono. coop-link.log podaje powód.',

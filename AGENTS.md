@@ -23,7 +23,7 @@ Read [docs/dev/structure.md](docs/dev/structure.md) first. Its rules are
 checked by `tests/tools/modules_test.py`.
 
 - Code is grouped in categories (`online/`, `fight/`, `world/`, `story/`,
-  `vehicles/`, `eve/`, `tools/`), one folder per module inside them. The
+  `vehicles/`, `eve/`, `cutmenus/`), one folder per module inside them. The
   same folder exists under `mod/StellarCoop/Scripts/`, `native/src/` and
   `tests/`.
 - A module owns its logic, `ui/`, `commands.lua`, `wiring.lua`, its native

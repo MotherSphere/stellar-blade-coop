@@ -47,7 +47,7 @@ More about sessions:
   [Notices](interface.md#notices)).
 
 The ghost is display only. Items, unlocks and progress are not copied between your two games, except the consumables
-you send with [`coop gift`](../tools/menus.md#cut-mailbox-coop-gift), which leave one co-op save and go into the other. The experimental
+you send with [`coop gift`](../cutmenus/menus.md#cut-mailbox-coop-gift), which leave one co-op save and go into the other. The experimental
 [shared enemies](../fight/enemies.md#shared-enemies-experimental) are on by default and run on [co-op saves](#co-op-saves) only.
 
 Achievements follow one rule: a shared enemy you fight together counts for both of you, and nothing done without you
@@ -352,7 +352,7 @@ Bolts as the selected ammo, or names the cut Matrix XIII dungeon as its map, its
 simple camp, and `coop-link.log` says what to use up, sell or switch, or to rest at a full camp (one with a phone booth)
 outside the dungeon. A co-op save that started New Game+ with any of these keeps them in a copy that playing does not
 change: the export keeps refusing it. It also refuses a developer save that
-[`coop shortcut load`](../tools/menus.md#loading-one-coop-shortcut-load) wrote in co-op slot 5 (`StellarBladeCoop04.sav`, so N is 4),
+[`coop shortcut load`](../cutmenus/menus.md#loading-one-coop-shortcut-load) wrote in co-op slot 5 (`StellarBladeCoop04.sav`, so N is 4),
 played or not, since the developer's progress and cut items would land in your own save. The rules are in
 [saves.md](saves.md#co-op-saves). The export has not been tested in game yet.
 

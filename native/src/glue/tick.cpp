@@ -91,8 +91,10 @@
 // push it into a ring before they run the game's function; the ZoneEvent action's slot holds the SBO lobby's hook,
 // which does the same for its rows. Each frame coop_tick drains the ring under the shared world's SEH latch and makes
 // channel 2's SBW lines of what game/objects/rows.h allows; her lines wait in order until we are in game (lion_gate
-// open), then go through SB's own functions with our player as caster. A fault turns it off for the run and swaps the
-// slots back; coop off swaps them back too.
+// open), then go through SB's own functions with our player as caster. A watcher reads the AltesLab trap floor's end
+// (kWatch) each pass in game and sends it when it turns, since no root marks it. The catch-up by zone asks the partner
+// for a zone once we stood 2 s in game there; her changed doors of that zone come back, the host's state winning a
+// conflict. A fault turns it off for the run and swaps the slots back; coop off swaps them back too.
 //
 // The revive's guard: every 250 ms coop_tick reads, under its own SEH latch, whether a respawn or a warp is in flight
 // and our EVE's GUID, straight from two globals; status() puts them in the engine line for online/group/group.lua.
@@ -200,9 +202,9 @@
 // reads sb record. coop off logs an open record and leaves it for C1: a job then running ends off with nothing
 // written, and only C1 runs after it.
 //
-// coop gift's inventory read (tools/items.h) is the worker's alone: on Lua's items request it reads how many of one
+// coop gift's inventory read (cutmenus/items.h) is the worker's alone: on Lua's items request it reads how many of one
 // item our EVE carries through ReadProcessMemory, her GUID too, and status() puts the answer in the engine
-// line for tools/mailbox.lua.
+// line for cutmenus/mailbox.lua.
 //
 // The pad (ui/pad.h): once a run the worker finds the twelve controller key names PadKeys reads, checks that Slate's
 // application holds its message handler, then swaps the handler's three controller slots of the game's image (analog,
@@ -256,7 +258,7 @@
 #include "game/bike.h"
 #include "eve/debug_keys.h"
 #include "game/dev_panels.h"
-#include "tools/items.h"
+#include "cutmenus/items.h"
 #include "online/lobby/loading.h"
 #include "game/memory.h"
 #include "online/session/options.h"
@@ -349,7 +351,7 @@
 #include "online/modes/nightop/nightop_worker.inc"
 #include "online/group/travel_worker.inc"
 #include "online/saves/shortcut_worker.inc"
-#include "tools/items_worker.inc"
+#include "cutmenus/items_worker.inc"
 #include "glue/tick/quests_worker_shared.inc"
 #include "story/quests/quests_worker.inc"
 #include "glue/tick/world_worker_shared.inc"
