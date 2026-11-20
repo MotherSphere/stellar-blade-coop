@@ -157,6 +157,11 @@ k = data.index(struct.pack('<2Q', at['unique'], at['lone']))  # vtable2, at .rda
 held[k + 0x58:k + 0x60] = struct.pack('<Q', at['lone'])  # .rdata + 0x1a0, free
 assert ms.resolve(ms.Image(bytes(held)), out[f'{at["vtable2"]:#x}']) is None, 'a holder held twice gave an address'
 
+# lone's address at .rdata + 0x1a4, which is not 8-byte aligned: not a place, so the holder still gives vtable2.
+odd = bytearray(data)
+odd[k + 0x5c:k + 0x64] = struct.pack('<Q', at['lone'])
+assert ms.resolve(ms.Image(bytes(odd)), out[f'{at["vtable2"]:#x}']) == at['vtable2'], 'an unaligned copy counted'
+
 # Two runs that differ first in a short jump's rel8, then in an immediate: the rel8 is a wildcard, so the run goes on.
 short = bytes.fromhex('48 89 5c 24 08 74 07 b8 01 00 00 00 c3 cc 48 89 5c 24 08 74 04 b8 02 00 00 00 c3')
 assert ms.shortest(short, 0) == (short[:12], 'xxxxxx?xxxxx'), f'a rel8 told two runs apart: {ms.shortest(short, 0)}'
