@@ -265,7 +265,10 @@ again in 30 s`, once per dome and world) and hidden once more 30 s later. A look
 Each part of the dressing is looked up once per world: the domes by their full object path, the SkyCreators and
 the engine maps' lights through `U.actors_of`'s class hash, Xion's story-night volume by its path. A lookup that misses
 logs one line and is not tried again in that world. Each write goes through a `pcall` on a part that is still valid; a
-write that fails is logged once and that part left alone in the world. The star material comes through one synchronous
+write that fails is logged once and that part left alone in the world. The star material is the keep's
+(`core/keep.lua`): the native part has SB's own async loader bring it in and holds it for the game run. The star layer
+waits until the keep has settled, then takes the kept material without a load. With the keep off for the Lua load (no
+Steam link, `keep=fault`, the native part off, or 10 s with no progress), the material comes through one synchronous
 `LoadAsset` the first time the stars show in a world, timed in its log line.
 
 Some sky sublevels stream (`LevelStreamingDynamic`): Spire 4's `B07_Skysphere_01` to `_05` load with the region EVE
@@ -313,12 +316,12 @@ SBO searches nothing on a timer.
 | Lua, Xion | one bool read | every 2 s |
 | Lua, every 2 s while live | one reflected read per dome it hid (1 to 4) | |
 | Lua, Spire 4 and Xion | one `IsLevelVisible` read per sky sublevel (5 and 1); a dome lookup that hits and a class-hash list only when a sublevel came or went | every 2 s while live |
-| Lua, each world entry | up to 5 streaming level reads, up to 4 dome lookups by path that hit, one class-hash list, one star material load on star-layer maps | once per world |
+| Lua, each world entry | up to 5 streaming level reads, up to 4 dome lookups by path that hit, one class-hash list, the kept star material on star-layer maps (one synchronous load with the keep off) | once per world |
 | Lua, each frame | nothing | |
 | GPU | no new light, shadow or effect; a hidden dome is one draw less; the star layer is one sphere at night | |
 
-The star material's load is synchronous. If its logged time passes 16 ms, it moves to SB's async load, the call the
-bike's preload uses (`bike_game.inc`).
+The keep (`glue/tick/keep_game.inc`) brings the star material in through SB's async loader, the call the bike's preload
+uses. Only with the keep off does the material load synchronously on the game thread.
 
 ## Online
 

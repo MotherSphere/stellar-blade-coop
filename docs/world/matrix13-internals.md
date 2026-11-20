@@ -516,8 +516,10 @@ A spawn that failed gets a line of its own, and so does an entry whose construct
 The spawns run in list order, and spawning stops for the frame once 4 ms have gone into it, after at least one entry. A
 spawn takes 10 to 13 ms in game, so one ladder, ledge or rope spawns a frame; all 48 in one frame had frozen the game
 for 689 ms (2026-11-12). The 10 to 13 ms are the gaps between two spawn lines of that log, so they include the class
-lookup, a UE4SS `StaticFindObject` walk; the spread line's `lookups` gives that share. The ledge mesh is looked up again
-on each of those frames and never held between them.
+lookup, a UE4SS `StaticFindObject` walk; the spread line's `lookups` gives that share. The classes and the ledge meshes
+are now the keep's (`core/keep.lua`). SB's own async loader brings them in. The native part holds them for the game run.
+`move.lua` takes them from the keep with no walk and spawns nothing before the keep has settled. With the keep off for
+the Lua load, they are looked up as before: by `StaticFindObject`, else loaded, again on each frame that spawns.
 
 At each arrival in a world 2800 younger than 20 s, `travel.lua` first puts up SB's own black, the one the lobby holds
 (`USBBlueprintLibrary::LoadingScreenFadeAuto`, exec `0x1426641e0`: a 10 s lifetime, 0.5 s fades, tag 5 Load). Nothing
