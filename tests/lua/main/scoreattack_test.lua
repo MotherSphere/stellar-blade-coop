@@ -88,7 +88,7 @@ loops[2].f()
 assert(fake.ticks==ticks+1,'Each pass ticks the run')
 fake.o.ended({def=require('online.modes.scoreattack.challenges').find('targets'),outcome='time',score=30,time=90})
 assert(fake_link.scores[#fake_link.scores]=='done '..n..' time 30 900',fake_link.scores[#fake_link.scores])
--- The run's reads: the status, the kit's pause (the kit off too), our life, and the lobby room of a score attack
+-- The run's reads: the status, the kit's pause (the kit off too), our life and the lobby room of a score attack
 -- match (its match line past the search, sbo's target).
 assert(fake.o.status()==status_text and fake.o.paused()==false)
 kit_paused=true; assert(fake.o.paused()==true); kit_paused=false

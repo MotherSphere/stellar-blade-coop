@@ -496,8 +496,8 @@ tick(41) -- The last run's result ends.
 dying=true
 ok,message=run.start(targets,29,SPOT,FACE)
 assert(not ok and message=='your EVE is down' and count('EVE:K2_TeleportTo')==0,tostring(message))
--- A death with no run on in a score attack match's lobby room (a run's result, then between rounds): the in-place
--- respawn, and a screen it hid shown again at the next death. Out of the room: the screen only.
+-- A death with no run on in a score attack match's lobby room (a run's result, then between rounds) gets the
+-- in-place respawn. A screen it hid shows again at the next death. Out of the room: the screen only.
 room,life,dying=true,{state=1,hp=100},false
 tick()
 ok=run.start(targets,31,SPOT,FACE)
