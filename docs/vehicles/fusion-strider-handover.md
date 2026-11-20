@@ -11,10 +11,10 @@ SBO's own bike. SBO's own bike is turned off.
 | Piece | Where | What it does |
 |---|---|---|
 | Eve Hoverbike's Lua mod | `mod/EveHoverbike/` (copied from Saroj's SB_MODDING repository) | The ride: get on and off, driving, pose, suit, effects |
-| Its CPS plugin `eve_hoverbike.cps` | kept off the repository | The "Eve Hoverbike" CPS menu page, native helpers |
+| Its CPS plugin `eve_hoverbike.cps` | draft release `fusion-bike-kit-1` of sarojratul/stellar-blade-coop | The "Eve Hoverbike" CPS menu page, native helpers |
 | Its CPS settings | `mod/EveHoverbike/cps-settings.json` | Saroj's menu values; written to `CPS/Configs/EveHoverbike/settings.json` only when none is there |
 | Its seat tuning | `mod/EveHoverbike/Scripts/tuning.txt` | Saroj's seat offsets with `Pose=1` and `Slot=1`; written only when none is there |
-| Paks `EveBike_FusionStrider_P`, `EveBike_FusionRider_P`, `Batcycle_P`, `EvecycleImpact_P` | kept off the repository | The bike, the suit, shared bike assets and sounds |
+| Paks `EveBike_FusionStrider_P`, `EveBike_FusionRider_P`, `Batcycle_P`, `EvecycleImpact_P` | draft release `fusion-bike-kit-1` of sarojratul/stellar-blade-coop | The bike, the suit, shared bike assets and sounds |
 | `tools/install.py --bike <folder>` | `tools/install.py` | Installs all of the above, turns SBO's bike off, sets UE4SS's game-thread queue |
 
 `bikes.lua` sets `P.Order` to `fusion` five times: every bike model on the CPS page is Fusion Strider.
@@ -29,11 +29,15 @@ hold change below. Live `tuning.txt` and the CPS `settings.json` were copied fro
 ## Install and test
 
 1. Install CPS (Custom Plugin System, Nexus Mods Stellar Blade mod 4054) and UE4SS as for SBO.
-2. Get the bike folder from Saroj. It holds the four paks, each in its own folder
-   (`EveBike_FusionStrider_P/EveBike_FusionStrider_P.{pak,ucas,utoc}` and so on). It also holds `eve_hoverbike.cps`.
-   Sizes: Fusion Rider 135 MB, Fusion Strider 66 MB, Batcycle 53 MB, EvecycleImpact 79 KB, the plugin 0.5 MB.
-3. Close the game. Run `python3 tools/install.py --game <Stellar Blade folder> --bike <bike folder> --dry-run`, then
-   without `--dry-run`. Every file it replaces is backed up into `~/StellarCoop-install-backups` first.
+2. Ask Saroj to add your GitHub account as a collaborator of his fork. The paks and the plugin are one zip
+   (`fusion-bike-kit.zip`, 255 MB) on its draft release `fusion-bike-kit-1`, which only collaborators can see. Log in
+   the GitHub CLI with that account (`gh auth login`). Sizes inside: Fusion Rider 135 MB, Fusion Strider 66 MB,
+   Batcycle 53 MB, EvecycleImpact 79 KB, the plugin 0.5 MB.
+3. Close the game. Run `python3 tools/install.py --game <Stellar Blade folder> --bike --dry-run`, then without
+   `--dry-run`. `--bike` with no folder downloads the zip into `build/bike-kit` once, refuses it unless its SHA-256
+   matches `BIKE_KIT` in `tools/install.py`, then unpacks only the kit's 13 files. `--bike <folder>` takes a folder
+   laid out the same way instead (each pak in its own folder, `eve_hoverbike.cps` beside them). Every file the install
+   replaces is backed up into `~/StellarCoop-install-backups` first.
 4. The installer then:
    - copies `mod/EveHoverbike` to `SB/Binaries/Win64/ue4ss/Mods/EveHoverbike`
    - copies the paks to `SB/Content/Paks/~mods/<pak name>/` and the plugin to `SB/Binaries/Win64/CPS/Plugins/`
@@ -154,6 +158,9 @@ wanted.
 
 `EveBike_FusionRider_P` is a recolour of the Night Rider outfit mod (Nexus Mods, Stellar Blade mod 2479) by another
 author. Fusion Strider and the Batcycle pak are built from "Batcycle_gotham_knights.blend" by kingdomstars
-(DeviantArt, free to use). The sounds come from opengameart.org (CC0 and CC BY-SA 3.0). Share the bike folder with SBO
-developers for testing only. A public release needs the asset authors' permission. The paks and the plugin are never
-committed (AGENTS.md).
+(DeviantArt, free to use). The sounds come from opengameart.org (CC0 and CC BY-SA 3.0). The kit stays on a draft
+release for SBO developers' testing only: never publish that release. A public release needs the asset authors'
+permission. The paks and the plugin are never committed (AGENTS.md; one is over GitHub's 100 MB file limit).
+
+A new kit (a pak rebuilt): zip the 13 files with the same layout, upload it as `fusion-bike-kit-<n>` (draft). Then set
+`BIKE_KIT`'s `tag` and `sha256` in `tools/install.py` to match.

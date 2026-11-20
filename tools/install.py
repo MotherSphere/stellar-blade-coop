@@ -36,6 +36,11 @@ PAK = ('zSBO_Lobby.pak', 'zSBO_Lobby.ucas', 'zSBO_Lobby.utoc')  # The only files
 # --bike: the dev bike's paks (each in its own folder under ~mods, as its folder holds them) and its CPS plugin.
 BIKE_PAKS = ('EveBike_FusionStrider_P', 'EveBike_FusionRider_P', 'Batcycle_P', 'EvecycleImpact_P')
 BIKE_CPS = 'eve_hoverbike.cps'
+BIKE_FILES = [Path(n, f'{n}.{ext}') for n in BIKE_PAKS for ext in ('pak', 'ucas', 'utoc')] + [Path(BIKE_CPS)]
+# --bike with no folder: those files in one zip on a draft release of Saroj's fork, visible only to its collaborators.
+# The GitHub CLI downloads it (gh, logged in with access to the fork); nothing is unpacked unless it hashes like this.
+BIKE_KIT = {'repo': 'sarojratul/stellar-blade-coop', 'tag': 'fusion-bike-kit-1', 'file': 'fusion-bike-kit.zip',
+            'sha256': 'b8bb77c5599054831e22f8f1a72997948fe02c0cda0145067dc9998851143aa8'}
 # Starting files: written only when the player has none, since the mod or its CPS page rewrites them.
 BIKE_FIRST = ('Scripts/tuning.txt',)
 # Settings --bike writes, backed up first: SBO's own bike off (F3 is Eve Hoverbike's), and UE4SS's game-thread queue
@@ -199,10 +204,44 @@ def uninstall_pak(paks, dry_run):
 
 def bike_sources(folder):
     """The dev bike's files in folder, relative to it; a folder without one of them is refused."""
-    want = [Path(n, f'{n}.{ext}') for n in BIKE_PAKS for ext in ('pak', 'ucas', 'utoc')] + [Path(BIKE_CPS)]
-    if missing := [p.as_posix() for p in want if not (folder / p).is_file()]:
+    if missing := [p.as_posix() for p in BIKE_FILES if not (folder / p).is_file()]:
         sys.exit(f'No {", ".join(missing)} in {folder}')
-    return want
+    return list(BIKE_FILES)
+
+
+def bike_kit(dest, download=None):
+    """The dev bike's folder from BIKE_KIT: the zip downloaded into dest once (download(dest) fetches it; gh by
+    default), refused unless it hashes like BIKE_KIT, then only BIKE_FILES unpacked into dest/<hash>."""
+    folder, zipped = dest / BIKE_KIT['sha256'][:16], dest / BIKE_KIT['file']
+    if all((folder / p).is_file() for p in BIKE_FILES): return folder
+    dest.mkdir(parents=True, exist_ok=True)
+    if not zipped.is_file() or sha256(zipped) != BIKE_KIT['sha256']:
+        print(f'Downloading {BIKE_KIT["file"]} from {BIKE_KIT["repo"]} ({BIKE_KIT["tag"]})', flush=True)
+        try:
+            (download or gh_download)(dest)
+        except (OSError, subprocess.CalledProcessError) as e:
+            sys.exit(f'The dev bike kit did not download ({e}). It needs the GitHub CLI (gh) logged in with access '
+                     f'to {BIKE_KIT["repo"]}: ask Saroj to add you, or pass --bike <folder>.')
+    if not zipped.is_file() or sha256(zipped) != BIKE_KIT['sha256']:
+        sys.exit(f'{zipped} does not hash like the dev bike kit: nothing unpacked')
+    with zipfile.ZipFile(zipped) as kit:
+        for rel in BIKE_FILES:  # These names only: nothing else in the zip is written.
+            (folder / rel).parent.mkdir(parents=True, exist_ok=True)
+            (folder / rel).write_bytes(kit.read(rel.as_posix()))
+    print(f'Dev bike kit unpacked into {folder}')
+    return folder
+
+
+def gh_download(dest):
+    """BIKE_KIT's zip into dest through the GitHub API (a draft release has no tag to download by)."""
+    def api(*args, **kw):
+        return subprocess.run(['gh', 'api', *args], check=True, capture_output=True, **kw).stdout
+    found = api(f'repos/{BIKE_KIT["repo"]}/releases', '--paginate', '--jq',
+                f'.[] | select(.tag_name == "{BIKE_KIT["tag"]}") | .assets[] | '
+                f'select(.name == "{BIKE_KIT["file"]}") | .id', text=True).split()
+    if not found: raise OSError(f'no {BIKE_KIT["file"]} on release {BIKE_KIT["tag"]} visible to this login')
+    (dest / BIKE_KIT['file']).write_bytes(api('-H', 'Accept: application/octet-stream',
+                                              f'repos/{BIKE_KIT["repo"]}/releases/assets/{found[0]}'))
 
 
 def set_key(text, key, value, sep):
@@ -314,10 +353,11 @@ def main(argv=None):
     mode.add_argument('--pak', type=Path, metavar='DIR',
                       help=f'After the install, also copy {", ".join(PAK)} from DIR into SB/Content/Paks/~mods, '
                            'backing up the ones they replace')
-    parser.add_argument('--bike', type=Path, metavar='DIR',
+    parser.add_argument('--bike', type=Path, nargs='?', const=True, metavar='DIR',
                         help=f'After the install, also install the Fusion Strider dev bike: mod/EveHoverbike, the paks '
                              f'{", ".join(BIKE_PAKS)} (each in its own folder in DIR) and {BIKE_CPS} from DIR, '
-                             "with SBO's bike off (docs/vehicles/fusion-strider-handover.md)")
+                             "with SBO's bike off (docs/vehicles/fusion-strider-handover.md). With no DIR the kit is "
+                             f'downloaded from {BIKE_KIT["repo"]} with gh into build/bike-kit')
     args = parser.parse_args(argv)
     if args.bike and (args.zip or args.uninstall): parser.error('--bike goes with an install only')
     # Only a committed tree: the zip, its version and its changelog all name one commit.
@@ -332,7 +372,8 @@ def main(argv=None):
     if args.pak:  # Before the tests and the build: a wrong folder fails in a second, not after six minutes.
         if not paks.parent.is_dir(): sys.exit(f'No Paks folder at {paks.parent}')
         sources = pak_sources(args.pak)
-    if args.bike: bike = bike_sources(args.bike)  # Before the tests and the build too.
+    if args.bike is True: args.bike = bike_kit(ROOT / 'build/bike-kit')  # Before the tests and the build too.
+    if args.bike: bike = bike_sources(args.bike)
     for test in sorted((ROOT / 'tests/lua').rglob('*_test.lua')):
         subprocess.run(['lua5.4', test.relative_to(ROOT)], cwd=ROOT, check=True)  # The game embeds Lua 5.4.
     checks = sanitizers()

@@ -86,4 +86,32 @@ with tempfile.TemporaryDirectory() as tmp:
     ini.write_bytes(b'[General]\nHookBeginPlay = 0\n')
     out, _ = run(I.write_keys, ini, [I.BIKE_UE4SS], ' = ', False, False)
     assert 'by hand' in out and ini.read_bytes() == b'[General]\nHookBeginPlay = 0\n', out
+
+# --bike with no folder: the kit zip downloaded once, refused unless it hashes like BIKE_KIT, only its own files out.
+import hashlib, subprocess, zipfile
+with tempfile.TemporaryDirectory() as tmp:
+    tmp = Path(tmp)
+    good = tmp / 'good.zip'
+    with zipfile.ZipFile(good, 'w') as z:
+        for rel in I.BIKE_FILES: z.writestr(rel.as_posix(), rel.name)
+        z.writestr('../evil.txt', 'never written')
+    I.BIKE_KIT = dict(I.BIKE_KIT, sha256=hashlib.sha256(good.read_bytes()).hexdigest())
+    calls = []
+    def fetch(data):
+        def download(dest):
+            calls.append(dest)
+            (dest / I.BIKE_KIT['file']).write_bytes(data)
+        return download
+    dest = tmp / 'kit'
+    _, why = run(I.bike_kit, dest, fetch(b'not the kit'))
+    assert why and 'does not hash' in why and not list(dest.rglob('*.ucas')), why
+    out, why = run(I.bike_kit, dest, fetch(good.read_bytes()))
+    assert why is None and 'Downloading' in out, why
+    folder = dest / I.BIKE_KIT['sha256'][:16]
+    assert I.bike_sources(folder) == I.BIKE_FILES and not (tmp / 'evil.txt').exists() and not list(tmp.rglob('evil.txt'))
+    n = len(calls)
+    assert I.bike_kit(dest, fetch(b'x')) == folder and len(calls) == n, 'unpacked once: no second download'
+    def fail(dest): raise subprocess.CalledProcessError(1, 'gh')
+    _, why = run(I.bike_kit, tmp / 'none', fail)
+    assert why and 'ask Saroj to add you' in why, why
 print('install_bike_test ok')
