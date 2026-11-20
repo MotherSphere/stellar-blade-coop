@@ -33,7 +33,7 @@ The bike's mesh, `Adam_Vehicle_02`, has four material slots:
 The four share one parent material, `MA_AdamVehicle`. Its vector parameters are `EmissiveColor`, `Eye Core HDR Tint`,
 `ClearCoatColor`, `Flakecolor`, `ScratchColor`, `AO Tint`, `Emissive Channel`, `GrimeColor`, `Eye Edge Glow Color` and
 `Base Color Tint`. A name is 1 to 64 bytes from space to `}`. Those are the bytes the capture sends to other players.
-It writes a space as `~`, so the table refuses a `~`.
+The capture writes a space as `~`, so the table refuses a `~`.
 
 The parent sets `Base Color Tint` to white (1, 1, 1, 1). None of the four material instances changes it. Slot 1's
 instance sets `FlakeColorIntencity` (the game's spelling) to 0.066667, so a `Flakecolor` on that slot may barely show.
