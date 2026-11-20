@@ -6,8 +6,9 @@
 // due back, the game thread decodes it into the playback and draws a pose every frame. The root's X is the publication
 // time in ms, a straight line, so a drawn pose that interpolates right lands exactly on the display time. Checks delay,
 // jitter and loss against their settings, tracking, stalls, a clock step both ways, silence and stale poses; effect
-// slots held, not blended; 60 poses a second with 100 ms of jitter, then with loss, then with a worker slower than the
-// capture and a busy hand-over; and the interval across a lost keyframe's hole.
+// slots held, not blended; free blocks blended, with the newer one's state; 60 poses a second with 100 ms of jitter,
+// then with loss, then with a worker slower than the capture and a busy hand-over; and the interval across a lost
+// keyframe's hole.
 #include "game/codec.h"
 #include "game/stream.h"
 
@@ -208,9 +209,50 @@ Result run(const Scenario &s, std::vector<bool> *drawn_at = nullptr) {
   assert(r.worst_bone <= 1.0 / 64 + 1e-4);
   return r;
 }
+
+// Free blocks (her drone): a pose whose free part 0 is at x with this state, published at publication_us and
+// arriving 100 ms later; and the free blocks drawn at now.
+constexpr size_t kFreeBoneBytes = kTransformBytes;
+void feed_free(Playback &p, uint32_t sequence, uint64_t publication_us, float x, uint8_t state) {
+  Playback::Frame &f = p.scratch();
+  f.sequence = sequence;
+  f.publication = publication_us;
+  f.free[0] = {{0, 0, 0, 1, x, 0, 0, 1, 1, 1}, state};
+  assert(p.accept(f.publication + 100'000));
+}
+bool sample_free(Playback &p, uint64_t now_us, Free *out) {
+  float root[10];
+  uint8_t bone[kFreeBoneBytes];
+  Effect fx[kEffectSlots];
+  Free all[kMaxParts];
+  if (!p.sample(now_us, root, bone, fx, all))
+    return false;
+  out[0] = all[0];
+  return true;
+}
+void test_free_interpolated() { // between two frames: the place blended, the newer frame's state
+  Playback p;
+  p.reset(kFreeBoneBytes);
+  Free f[1];
+  feed_free(p, 1, 0, 0.f, 0x80);
+  feed_free(p, 2, 50'000, 100.f, 0x8d);
+  const double now_ms = 25 - p.display_ms(0);                   // display_ms(now) = now + display_ms(0): 25 ms
+  assert(sample_free(p, uint64_t(now_ms * 1000), f));
+  assert(std::fabs(f[0].place[4] - 50.f) <= 1.f && f[0].state == 0x8d); // blended place, the newer frame's state
+  assert(f[0].place[3] == 1 && f[0].place[7] == 1);
+  // Hidden on either side: the newer block as it is, never a place blended with an empty one.
+  Playback q;
+  q.reset(kFreeBoneBytes);
+  feed_free(q, 1, 0, 0.f, 0);
+  feed_free(q, 2, 50'000, 100.f, 0x8d);
+  assert(sample_free(q, uint64_t(now_ms * 1000), f) && f[0].place[4] == 100.f && f[0].state == 0x8d);
+  feed_free(q, 3, 100'000, 0.f, 0);
+  assert(sample_free(q, uint64_t((now_ms + 50) * 1000), f) && f[0].place[4] == 0 && f[0].state == 0);
+}
 } // namespace
 
 int main() {
+  test_free_interpolated();
   // The hand-over on its own: a keyframe the worker has not taken stays and the delta is dropped; anything else is
   // swapped in, and a taken slot always is. A keyframe still in back when the next pose is encoded is lost.
   {

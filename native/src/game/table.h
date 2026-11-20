@@ -14,6 +14,8 @@
 //   then for each part i from 0 (1 to kMaxParts parts):
 //   part <i> <lead|-> <parent|-> <socket|-> <shown 0|1> <bones> <name> <path|->
 //   place <i> qx qy qz qw tx ty tz sx sy sz           i >= 1 only: its transform relative to its parent
+//   free <i>                                          i >= 1, in place of place: a leader hung from nothing, placed by
+//                                                     the pose's free block (her drone)
 //   material <i> <slot> <path>                        0 to 16, slots 0 to 63 strictly rising: a material it overrides
 //   value <i> <slot> v <name> r g b a                 0 to 32 a slot, 512 a table, slots rising: a value of the dynamic
 //   value <i> <slot> s <name> x                       material on that slot: a vector, a scalar (each number within
@@ -31,6 +33,8 @@
 //                                                     viewer's notice when that mod is not installed there
 //   names <i> <bone>...                               leaders only: one per bone, in the mesh's order
 //   read <i> 0x<object> 0x<class> 0x<mesh>            leaders only, in the capture file only
+//   light <i> 0x<object>                              optional, capture file only, after a free part's read line: the
+//                                                     SpotLightComponent on it
 //   then after the last part, in both forms:
 //   fx <k> <path>                                     0 to kMaxEffectAssets - kFixedEffects, k kFixedEffects + 1 to
 //                                                     kMaxEffectAssets strictly rising: the NiagaraSystem effect slot
@@ -45,11 +49,11 @@
 //   effect <k> 0x<system>                             0 to kMaxEffectAssets after effects, k 1 to kMaxEffectAssets
 //                                                     strictly rising: Lua's list entry k is this NiagaraSystem object
 // A leader has lead '-' and 1 to kMaxBones bones; part 0 is one, hung from nothing. A follower names a leader before
-// it and has no bones of its own (SetMasterPoseComponent); every part after 0 hangs from a part before it. A word is 1
-// to 64 bytes of '!' to '~'. The path alone may be longer: then it, like any path path_allowed refuses, reads as '-',
-// and the viewer draws a fallback mesh instead of loading what a peer named. A material's or cloth's path is 1 to 255
-// bytes, and one path_allowed refuses is dropped: the viewer keeps the mesh's own material for that slot, or the
-// collision named from the body.
+// it and has no bones of its own (SetMasterPoseComponent); every part after 0 hangs from a part before it, except a
+// free one (parent '-', a leader). A word is 1 to 64 bytes of '!' to '~'. The path alone may be longer: then it, like
+// any path path_allowed refuses, reads as '-', and the viewer draws a fallback mesh instead of loading what a peer
+// named. A material's or cloth's path is 1 to 255 bytes, and one path_allowed refuses is dropped: the viewer keeps the
+// mesh's own material for that slot, or the collision named from the body.
 #pragma once
 
 #include <algorithm>
@@ -96,6 +100,7 @@ struct Look {
   std::vector<Value> values;                               // Slots rising, each a kept material's.
   uint64_t hidden = 0;                                      // Bit k: slot k's sections hidden at LOD 0.
   std::string cloth, label;                                // Empty without a cloth or mod line.
+  uint64_t light = 0; // Capture file only: a free part's SpotLightComponent, 0 none.
 };
 
 struct Table {
@@ -117,6 +122,7 @@ struct Table {
 struct Display {
   uint64_t generation = 0, mailbox = 0, mailbox_class = 0;
   uint64_t effects[kEffectSlots] = {}; // The slot boxes, scene components of mailbox_class; all 0 without effects.
+  uint64_t free_box[kMaxParts] = {};   // By remote part: the box its free block is written into, 0 none.
   std::vector<Part> puppet;                // Index for index with the remote parts; object 0: not drawn.
   std::vector<std::vector<int16_t>> remap; // Per bone of the loaded mesh, the remote bone it takes, -1 none; empty:
                                            // the remote bones as they are.
@@ -166,8 +172,12 @@ constexpr size_t kMaxPose = 16384, kPoseHeader = 29, kWorldBytes = 24, kBoneByte
 inline size_t pose_size(const Table &t) {
   size_t size = kPoseHeader + kEffectSlots * kEffectBytes;
   for (size_t i = 0; i < t.eve.size(); ++i)
-    size += 1 + (i == 0 ? kWorldBytes : 0) + (t.eve[i].leader ? kBoneBytes * t.eve[i].bones : 0);
+    size += 1 + (i == 0 ? kWorldBytes : 0) + (t.eve[i].free ? kFreeBytes : 0) +
+            (t.eve[i].leader ? kBoneBytes * t.eve[i].bones : 0);
   return t.eve.empty() || t.eve.size() > 255 || size > kMaxPose ? 0 : size;
+}
+inline size_t free_count(const Table &t) {
+  return size_t(std::count_if(t.eve.begin(), t.eve.end(), [](const Part &p) { return p.free; }));
 }
 
 // A mesh, material or cloth asset a peer may name: /Game/<folder>/.../<asset>.<asset>, each name of A-Z a-z 0-9 _ -,
@@ -323,8 +333,8 @@ static_assert(kMaxMap == kMaxMapWord);
 inline bool map_allowed(std::string_view map) { return coop::map_word(map); }
 } // namespace grammar
 
-// The wire form: no read or effect lines (fx lines go), floats as %.9g, so a table always reads back to the same bytes. The native
-// side sends and stores only this, never the text it received.
+// The wire form: no read, light or effect lines (fx lines go), floats as %.9g, so a table always reads back to the same
+// bytes. The native side sends and stores only this, never the text it received.
 inline std::string format_table(const Table &t) {
   std::string s;
   char text[32];
@@ -356,7 +366,11 @@ inline std::string format_table(const Table &t) {
     word(l.name);
     word(l.path);
     s += '\n';
-    if (i > 0) {
+    if (t.eve[i].free) {
+      s += "free";
+      integer(int64_t(i));
+      s += '\n';
+    } else if (i > 0) {
       s += "place";
       integer(int64_t(i));
       for (float v : l.place)
@@ -415,8 +429,9 @@ inline std::string format_table(const Table &t) {
   return s;
 }
 
-// Lua's capture file (local: no SBT line, a read line after each leader's names, the effect lines last) or a table from
-// the wire. Any line unknown, out of order, repeated or missing refuses the whole table.
+// Lua's capture file (local: no SBT line, a read line after each leader's names and a free part's light line after
+// it, the effect lines last) or a table from the wire. Any line unknown, out of order, repeated or missing refuses the
+// whole table.
 inline std::optional<Table> parse_table(const std::string &text, bool local) {
   using namespace grammar;
   Lines in;
@@ -468,7 +483,8 @@ inline std::optional<Table> parse_table(const std::string &text, bool local) {
     part.leader = p[2] == "-";
     if (!part.leader && !(number(p[2], lead) && lead < i && t.eve[lead].leader))
       return std::nullopt;
-    if (i == 0 ? p[3] != "-" : !(number(p[3], parent) && parent < i))
+    part.free = i > 0 && p[3] == "-";
+    if (i == 0 ? p[3] != "-" : part.free ? !part.leader : !(number(p[3], parent) && parent < i))
       return std::nullopt;
     if (p[4].size() > kMaxWord || (p[5] != "0" && p[5] != "1") || !number(p[6], bones) || p[7].size() > kMaxWord)
       return std::nullopt;
@@ -476,14 +492,17 @@ inline std::optional<Table> parse_table(const std::string &text, bool local) {
       return std::nullopt;
     part.bones = static_cast<uint32_t>(bones);
     look.lead = part.leader ? -1 : static_cast<int>(lead);
-    look.parent = i == 0 ? -1 : static_cast<int>(parent);
+    look.parent = i == 0 || part.free ? -1 : static_cast<int>(parent);
     if (p[4] != "-")
       look.socket = p[4];
     look.shown = p[5] == "1";
     look.name = p[7];
     if (path_allowed(p[8]))
       look.path = p[8];
-    if (i > 0) {
+    if (part.free) {
+      if (!(f = in.take("free", 2)) || !index_is(*f, i))
+        return std::nullopt;
+    } else if (i > 0) {
       if (!(f = in.take("place", 12)) || !index_is(*f, i))
         return std::nullopt;
       for (int k = 0; k < 10; ++k)
@@ -537,6 +556,9 @@ inline std::optional<Table> parse_table(const std::string &text, bool local) {
       if (local && (!(f = in.take("read", 5)) || !index_is(*f, i) || !hex((*f)[2], part.object) ||
                     !hex((*f)[3], part.cls) || !hex((*f)[4], part.mesh) || !part.object || !part.cls || !part.mesh))
         return std::nullopt;
+      if (local && part.free && (f = in.take("light", 3)) && (!index_is(*f, i) || !hex((*f)[2], look.light) ||
+                                                               !look.light))
+        return std::nullopt;
     }
     t.eve.push_back(part);
     t.look.push_back(std::move(look));
@@ -574,7 +596,9 @@ inline bool fx_handover(const Table &was, const Table &now) {
 // Lua's display file for a remote table (coop-display.txt), every line ending in '\n':
 //   display <the remote generation>
 //   mailbox 0x<object> 0x<class>
-//   effects 0x<box1> 0x<box2> 0x<box3> 0x<box4>              optional: the effect slots' boxes, of the mailbox's class
+//   effects 0x<box1> ... 0x<box6>                             optional: the effect slots' boxes, of the mailbox's class
+//   free <i> 0x<box>                                          optional, after effects: the box a free part's block is
+//                                                             written into (of the mailbox's class), one per part
 //   drive <i> 0x<object> 0x<class> 0x<loaded mesh> <bones>   each remote leader it built, part 0 among them
 //   remap <i> <k0> ... <k(bones-1)>                           right after the drive line of a leader on a fallback
 //                                                             mesh: per bone of that mesh, the remote bone or -1
@@ -598,6 +622,14 @@ inline std::optional<Display> parse_display(const std::string &text, const Table
       if (!hex((*f)[1 + n], d.effects[n]) || !d.effects[n] || d.effects[n] == d.mailbox ||
           std::find(d.effects, d.effects + n, d.effects[n]) != d.effects + n)
         return std::nullopt;
+  while ((f = in.take("free", 3))) { // Its own box too: never the mailbox, an effect box or another free part's.
+    uint64_t i = 0, box = 0;
+    if (!number((*f)[1], i) || i >= remote.eve.size() || !remote.eve[i].free || d.free_box[i] || !hex((*f)[2], box) ||
+        !box || box == d.mailbox || std::find(d.effects, d.effects + kEffectSlots, box) != d.effects + kEffectSlots ||
+        std::find(d.free_box, d.free_box + kMaxParts, box) != d.free_box + kMaxParts)
+      return std::nullopt;
+    d.free_box[i] = box;
+  }
   while (!in.done()) {
     uint64_t i = 0, bones = 0;
     Part p;

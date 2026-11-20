@@ -1359,17 +1359,18 @@ assert(ok and message:find('^Ghost 900 built: 6 parts %(3 leaders%), %d+ loaded 
 assert(lookups-before>=19 and not actor.boxes and not actor.destroyed,'Each system looked up, one a frame; no box')
 d=displays[#displays]:gsub('0x%x+','0xX')
 assert(d=='display 900\nmailbox 0xX 0xX\ndrive 0 0xX 0xX 0xX 3\ndrive 2 0xX 0xX 0xX 2\ndrive 4 0xX 0xX 0xX 1\n',d)
--- With it: four boxes after the mailbox, named in the display file right after it.
+-- With it: six boxes after the mailbox, named in the display file right after it.
 found_by_path[LIBRARY]=library
 ghost.rebuild('look')
 ok,message=build()
 actor=spawned[#spawned]
 assert(ok and message:find('^Ghost 900 built: 6 parts .* 0 left out; look: effects loaded 18 of 19 %(%d+ ms in all%)%.$'),
     message)
-assert(#actor.boxes==4,'Four boxes')
+assert(#actor.boxes==6,'Six boxes')
 d=displays[#displays]
-local named=string.format('\nmailbox 0x%x 0x5c0\neffects 0x%x 0x%x 0x%x 0x%x\ndrive 0 ',actor.mailbox.GetAddress(),
-    actor.boxes[1].GetAddress(),actor.boxes[2].GetAddress(),actor.boxes[3].GetAddress(),actor.boxes[4].GetAddress())
+local named=string.format('\nmailbox 0x%x 0x5c0\neffects 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\ndrive 0 ',
+    actor.mailbox.GetAddress(),actor.boxes[1].GetAddress(),actor.boxes[2].GetAddress(),actor.boxes[3].GetAddress(),
+    actor.boxes[4].GetAddress(),actor.boxes[5].GetAddress(),actor.boxes[6].GetAddress())
 assert(d:find(named,1,true),d)
 -- place(): the boxes are read only when the mailbox's effects stamp (its scale X) changes.
 root,hair=actor.parts[1],actor.parts[3]

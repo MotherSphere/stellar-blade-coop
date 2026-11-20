@@ -88,7 +88,7 @@ game thread at the send rate, and the worker sends it. A pose message holds:
 - the main mesh's world transform: translation as three floats, rotation in 6 bytes, scale in three 16-bit integers;
 - each leader's bones in local space, 18 bytes a bone: rotation as the smallest three of its unit quaternion (6 bytes),
   translation in 1/32 cm and scale in 1/4096 (16-bit integers each);
-- four effect slots of 15 bytes each: an index (1 to 19 for the fixed list of effects, 20 to 64 for the table's `fx`
+- six effect slots of 15 bytes each: an index (1 to 19 for the fixed list of effects, 20 to 64 for the table's `fx`
   lines), the part it hangs on, a serial for each new instance, and its rotation and translation relative to the part.
 
 A pose is at most 16 KiB; in the outfits measured it is 4.7 to 5 KB. A world position beyond 1e7 cm, or not finite,
@@ -218,7 +218,7 @@ follower's morph weights on every tick, then adds `SetMorphTarget`'s values back
 SkeletalMeshComponent. With a Poseable leader, a follower's shape keys would be cleared before each frame is drawn.
 Drawing them would need a SkeletalMeshComponent leader.
 
-Effects fill the pose's four slots, and the native part writes the drawn slots into four boxes beside the mailbox, from
+Effects fill the pose's six slots, and the native part writes the drawn slots into six boxes beside the mailbox, from
 which Lua starts and moves the effects. Effects have their own fault latch, so a fault there turns effects off for the
 run and the ghost stays. See [Ghost](partner.md#looks).
 

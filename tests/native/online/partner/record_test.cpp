@@ -228,12 +228,12 @@ int main() {
     assert(rec.add(u8(p), p.size()));
   }
   assert(!rec.add(u8(p1), p1.size()) && rec.rules().entries == kMaxEntries && !parse(rec.bytes()));
-  // Full at kMaxRecording: the largest poses (16370 bytes, the effect slots' 60 among them) at 20 a second, 80 s of
+  // Full at kMaxRecording: the largest poses (16382 bytes, the effect slots' 90 among them) at 20 a second, 80 s of
   // them. One bone more and the table has no pose size.
-  const std::string big_table = table_text(7, 901);
+  const std::string big_table = table_text(7, 900);
   const Table big = table_of(big_table);
   std::string big_pose = pose(big, 1, 1);
-  assert(big_pose.size() == 16370 && rec.start(big_table) && !parse_table(table_text(7, 902), false));
+  assert(big_pose.size() == 16382 && rec.start(big_table) && !parse_table(table_text(7, 901), false));
   uint64_t publication = 0;
   for (bool room = true; room;) {
     uint8_t *at = reinterpret_cast<uint8_t *>(&big_pose[16]);

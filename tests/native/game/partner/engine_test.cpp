@@ -289,7 +289,7 @@ int main() {
     assert(pyr[0] == 90.f);
   }
 
-  // EVE's effects: the active Niagara components on a leader whose system is listed, in 4 slots held by component.
+  // EVE's effects: the active Niagara components on a leader whose system is listed, in 6 slots held by component.
   {
     const uint64_t niagara = 0x9a6a;
     const uint32_t asset_at = 0x240;
@@ -301,7 +301,7 @@ int main() {
     t.eve = {Part{addr(leader), eve_class, mesh, 3, true}, Part{0, 0, 0, 0, false}}; // A follower is never walked.
     t.fx.cls = niagara;
     t.fx.asset = asset_at;
-    for (uint64_t k = 1; k <= 6; ++k)
+    for (uint64_t k = 1; k <= 8; ++k)
       t.fx.assets[k] = 0x5000 + k;
     auto world = [](std::vector<uint8_t> &object, std::array<float, 4> q, std::array<float, 3> t) {
       const float raw[12] = {q[0], q[1], q[2], q[3], t[0], t[1], t[2], 0, 1, 1, 1, 0};
@@ -310,13 +310,14 @@ int main() {
     const float s45 = std::sin(0.785398163f), c45 = std::cos(0.785398163f);
     world(leader, {0, 0, s45, c45}, {100, 200, 300}); // Yaw 90.
     // Children 0-3 are skipped: dead, another class, inactive (another bit set), and an unlisted system; so is 9, with
-    // no system, never matched with an unused list entry (also 0). 4-8 are good.
-    std::vector<std::vector<uint8_t>> kid(10, std::vector<uint8_t>(0x260));
+    // no system, never matched with an unused list entry (also 0). 4-8, 10 and 11 are good.
+    std::vector<std::vector<uint8_t>> kid(12, std::vector<uint8_t>(0x260));
     for (size_t k = 0; k < kid.size(); ++k) {
       objects.add(kid[k], k == 0 ? kPendingKill : 0);
       put<uint64_t>(kid[k], kClass, k == 1 ? 0x5c0 : niagara);
       put<uint8_t>(kid[k], kActiveFlags, k == 2 ? 0xfd : 0x02);
-      put<uint64_t>(kid[k], asset_at, k == 3 ? 0xdead : k == 9 ? 0 : k < 4 ? 0x5001 : 0x5000 + k - 2); // 4-8: 2-6.
+      put<uint64_t>(kid[k], asset_at, k == 3 ? 0xdead : k == 9 ? 0 : k < 4 ? 0x5001 : 0x5000 + k - (k < 9 ? 2 : 3));
+      // 4-8: 2-6, 10 and 11: 7 and 8.
     }
     world(kid[4], {0, 0, 1, 0}, {100, 210, 300}); // Yaw 180, 10 cm along the leader's own Y.
     std::vector<uintptr_t> attached;
@@ -391,25 +392,28 @@ int main() {
     read(c);
     assert(slot_is(0, 0, 0));
 
-    // Five listed and active: four kept, one over. Slot 0 was freed, so its new one takes serial 2.
-    attach({4, 5, 6, 7, 8});
+    // Seven listed and active: six kept, one over. Slot 0 was freed, so its new one takes serial 2.
+    auto six_kept = [&] {
+      return slot_is(0, 2, 2) && slot_is(1, 3, 1) && slot_is(2, 4, 1) && slot_is(3, 5, 1) && slot_is(4, 6, 1) &&
+             slot_is(5, 7, 1);
+    };
+    attach({4, 5, 6, 7, 8, 10, 11});
     read(c);
-    assert(slot_is(0, 2, 2) && slot_is(1, 3, 1) && slot_is(2, 4, 1) && slot_is(3, 5, 1));
-    assert(c.started == 4 && c.over == 1);
+    assert(six_kept() && c.started == 6 && c.over == 1);
     // Sticky: in another order each keeps its slot and serial.
-    attach({8, 7, 6, 5, 4});
+    attach({11, 10, 8, 7, 6, 5, 4});
     read(c);
-    assert(slot_is(0, 2, 2) && slot_is(1, 3, 1) && slot_is(2, 4, 1) && slot_is(3, 5, 1));
-    assert(c.started == 0 && c.over == 1);
+    assert(six_kept() && c.started == 0 && c.over == 1);
     // One goes inactive: its slot is freed, and the one over takes it with serial + 1.
     put<uint8_t>(kid[5], kActiveFlags, 0);
     read(c);
-    assert(slot_is(0, 2, 2) && slot_is(1, 6, 2) && slot_is(2, 4, 1) && slot_is(3, 5, 1));
-    assert(c.started == 1 && c.over == 0 && state.owner[1] == addr(kid[8]));
+    assert(slot_is(0, 2, 2) && slot_is(1, 8, 2) && slot_is(2, 4, 1) && slot_is(3, 5, 1) && slot_is(4, 6, 1) &&
+           slot_is(5, 7, 1));
+    assert(c.started == 1 && c.over == 0 && state.owner[1] == addr(kid[11]));
     // The same component with another system: a new instance in its slot.
     put<uint64_t>(kid[4], asset_at, 0x5001);
     read(c);
-    assert(slot_is(0, 1, 3) && slot_is(1, 6, 2) && c.started == 1);
+    assert(slot_is(0, 1, 3) && slot_is(1, 8, 2) && c.started == 1);
     // A dead leader, or none with a read address: nothing read, every slot freed.
     t.eve[0].mesh = 0x1;
     read(c);

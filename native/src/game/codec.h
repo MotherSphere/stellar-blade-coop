@@ -12,11 +12,14 @@
 //   publication (u64): the sender's monotonic clock in microseconds when it read the pose
 //   map (u32): a hash of the sender's map name, 0 when unknown (Phase 3b)
 //   count (u8): the table's components; then per component a status byte (kWorld on component 0 only, kBones on the
-//   leaders only), the world transform when kWorld (3 f32 translation, 6 B rotation, 3 i16 scale) and 18 bytes per
-//   bone when kBones (6 B rotation, 3 i16 translation, 3 i16 scale)
-//   then kEffectSlots effect slots (protocol 6) of 15 bytes: asset (u8, 0 none, else 1 to kMaxEffectAssets: an entry of
-//   Lua's list of systems: the fixed ones, then those the table's fx lines name), part (u8, the table part it hangs on), serial (u8, a new instance in the
-//   slot), its rotation (6 B) and translation (3 i16) relative to the part; an empty slot is 15 zero bytes
+//   leaders only, kFree on the free parts only), the world transform when kWorld (3 f32 translation, 6 B rotation, 3
+//   i16 scale) and right after it each free part's block in table order (kFreeBytes: its place relative to component 0
+//   in the world transform's form, then its state byte; a hidden one is 25 zero bytes), and 18 bytes per bone when
+//   kBones (6 B rotation, 3 i16 translation, 3 i16 scale)
+//   then kEffectSlots effect slots (protocol 6, 6 of them since protocol 23) of 15 bytes: asset (u8, 0 none, else 1 to
+//   kMaxEffectAssets: an entry of Lua's list of systems: the fixed ones, then those the table's fx lines name), part
+//   (u8, the table part it hangs on), serial (u8, a new instance in the slot), its rotation (6 B) and translation (3
+//   i16) relative to the part; an empty slot is 15 zero bytes
 // A bone travels in local space (N3), as the engine holds it: FTransform's 48 bytes, rotation xyzw, translation xyz and
 // a pad, scale xyz and a pad.
 //
@@ -25,7 +28,7 @@
 //   "SBD" (3 bytes), protocol (u8), then generation, sequence, publication and map as in a pose (the same offsets)
 //   age (u32): its publication minus its keyframe's, in microseconds, 1 or more (the keyframe's sequence would not
 //   survive the replay's re-stamping; this does, as the replay moves every publication of a loop alike)
-//   world (24 bytes): the world transform, as in the pose
+//   world (24 bytes): the world transform, as in the pose, then the free blocks, as in the pose
 //   mask: a bit per unit (byte u / 8, bit u % 8), in pose order: per leader bone its rotation, translation and scale,
 //   then the kEffectSlots slots; padding bits 0
 //   then each unit the mask names, its exact bytes in the pose
@@ -50,7 +53,7 @@
 
 namespace coop::pose {
 
-constexpr uint8_t kWorld = 1, kBones = 2;
+constexpr uint8_t kWorld = 1, kBones = 2, kFree = 4;
 constexpr float kMaxWorld = 1e7f; // cm: UE4's world is ±1048576; a farther (or non-finite) position is refused.
 
 struct PoseHeader {
@@ -141,11 +144,35 @@ inline void get_rotation(const uint8_t *&in, float *q) {
 }
 } // namespace codec
 
+// A world transform (10 floats) in its 24 bytes: 3 f32 translation (a non-finite one sent as 0 and counted), the
+// rotation, 3 i16 scale. And back: false when a translation is past kMaxWorld or not finite.
+inline void put_world(uint8_t *&at, const float *place, uint32_t &clamped) {
+  using namespace codec;
+  for (int k = 4; k < 7; ++k)
+    put_float(at, std::isfinite(place[k]) ? place[k] : (++clamped, 0.f));
+  put_rotation(at, place);
+  for (int k = 7; k < 10; ++k)
+    put_fixed(at, place[k], kScale, clamped);
+}
+inline bool get_world(const uint8_t *&in, float *place) {
+  using namespace codec;
+  for (int k = 4; k < 7; ++k) {
+    place[k] = get_float(in);
+    if (!(std::fabs(place[k]) <= kMaxWorld)) // NaN fails too; interpolation could overflow far beyond.
+      return false;
+  }
+  get_rotation(in, place);
+  for (int k = 7; k < 10; ++k)
+    place[k] = get_fixed(in, kScale);
+  return true;
+}
+
 // One pose into out (at least pose_size(t) bytes): root is the main mesh's world transform (10 floats: rotation xyzw,
 // translation xyz, scale xyz), bones the leaders' local transforms back to back in table order, fx the kEffectSlots
-// slots. Returns the size, 0 when the table is too large. clamped counts values cut to the fixed-point ranges.
+// slots, free one block per free part in table order (nullptr: each hidden). Returns the size, 0 when the table is too
+// large. clamped counts values cut to the fixed-point ranges.
 inline size_t encode_pose(const Table &t, const PoseHeader &h, const float *root, const uint8_t *bones,
-                          const Effect *fx, uint8_t *out, uint32_t &clamped) {
+                          const Effect *fx, uint8_t *out, uint32_t &clamped, const Free *free = nullptr) {
   using namespace codec;
   size_t size = pose_size(t);
   if (!size)
@@ -161,13 +188,18 @@ inline size_t encode_pose(const Table &t, const PoseHeader &h, const float *root
   put(at, h.map, 4);
   *at++ = static_cast<uint8_t>(t.eve.size());
   for (size_t i = 0; i < t.eve.size(); ++i) {
-    *at++ = static_cast<uint8_t>((i == 0 ? kWorld : 0) | (t.eve[i].leader ? kBones : 0));
+    *at++ = static_cast<uint8_t>((i == 0 ? kWorld : 0) | (t.eve[i].leader ? kBones : 0) | (t.eve[i].free ? kFree : 0));
     if (i == 0) {
-      for (int k = 4; k < 7; ++k)
-        put_float(at, std::isfinite(root[k]) ? root[k] : (++clamped, 0.f));
-      put_rotation(at, root);
-      for (int k = 7; k < 10; ++k)
-        put_fixed(at, root[k], kScale, clamped);
+      put_world(at, root, clamped);
+      for (size_t k = 0, n = free_count(t); k < n; ++k) {
+        if (!free || !(free[k].state & 0x80)) { // The one form of a hidden block.
+          std::memset(at, 0, kFreeBytes);
+          at += kFreeBytes;
+          continue;
+        }
+        put_world(at, free[k].place, clamped);
+        *at++ = free[k].state;
+      }
     }
     if (!t.eve[i].leader)
       continue;
@@ -198,10 +230,11 @@ inline size_t encode_pose(const Table &t, const PoseHeader &h, const float *root
   return size_t(at - out);
 }
 
-// Reads a pose of this table into root, bones and fx (the layouts encode_pose takes; pads written as 0). Returns null
-// when it is good, else why not; on a refusal root, bones and fx may hold part of it and must not be used.
+// Reads a pose of this table into root, bones, fx and free (the layouts encode_pose takes; pads written as 0; free
+// nullptr: its blocks checked, not stored; a hidden one stored as Free()). Returns null when it is good, else why not;
+// on a refusal root, bones, fx and free may hold part of it and must not be used.
 inline const char *decode_pose(const Table &t, const uint8_t *data, size_t size, PoseHeader &h, float *root,
-                               uint8_t *bones, Effect *fx) {
+                               uint8_t *bones, Effect *fx, Free *free = nullptr) {
   using namespace codec;
   if (size < kPoseHeader || size > kMaxPose)
     return "size";
@@ -221,17 +254,25 @@ inline const char *decode_pose(const Table &t, const uint8_t *data, size_t size,
   if (*in++ != t.eve.size() || size != pose_size(t))
     return "layout";
   for (size_t i = 0; i < t.eve.size(); ++i) {
-    if (*in++ != ((i == 0 ? kWorld : 0) | (t.eve[i].leader ? kBones : 0)))
+    if (*in++ != ((i == 0 ? kWorld : 0) | (t.eve[i].leader ? kBones : 0) | (t.eve[i].free ? kFree : 0)))
       return "status";
     if (i == 0) {
-      for (int k = 4; k < 7; ++k) {
-        root[k] = get_float(in);
-        if (!(std::fabs(root[k]) <= kMaxWorld)) // NaN fails too; interpolation could overflow far beyond.
-          return "translation";
+      if (!get_world(in, root))
+        return "translation";
+      for (size_t k = 0, n = free_count(t); k < n; ++k) {
+        Free f;
+        if (!(in[kFreeBytes - 1] & 0x80)) { // Hidden: every byte 0, so a peer cannot hide anything in it.
+          for (size_t b = 0; b < kFreeBytes; ++b)
+            if (*in++)
+              return "free";
+        } else {
+          if (!get_world(in, f.place))
+            return "free";
+          f.state = *in++;
+        }
+        if (free)
+          free[k] = f;
       }
-      get_rotation(in, root);
-      for (int k = 7; k < 10; ++k)
-        root[k] = get_fixed(in, kScale);
     }
     if (!t.eve[i].leader)
       continue;
@@ -280,7 +321,7 @@ constexpr size_t kWorldAt = kPoseHeader + 1; // The world transform in a pose: a
 template <class F> void each_unit(const Table &t, F &&f) {
   size_t at = kPoseHeader; // kPoseHeader counts the component count byte.
   for (size_t i = 0; i < t.eve.size(); ++i) {
-    at += 1 + (i == 0 ? kWorldBytes : 0);
+    at += 1 + (i == 0 ? kWorldBytes + free_count(t) * kFreeBytes : 0);
     if (!t.eve[i].leader)
       continue;
     for (size_t k = 0; k < size_t(t.eve[i].bones) * 3; ++k, at += kBoneBytes / 3)
@@ -297,8 +338,10 @@ inline size_t delta_units(const Table &t) {
     units += p.leader ? size_t(p.bones) * 3 : 0;
   return units;
 }
-// A delta's bytes before its units: header, age, world and mask.
-inline size_t delta_fixed(const Table &t) { return kPoseHeader + 4 + kWorldBytes + (delta_units(t) + 7) / 8; }
+// A delta's bytes before its units: header, age, world, free blocks and mask.
+inline size_t delta_fixed(const Table &t) {
+  return kPoseHeader + 4 + kWorldBytes + free_count(t) * kFreeBytes + (delta_units(t) + 7) / 8;
+}
 
 // How far a bone's rotation (each of its three 15-bit components, the same largest one), translation and scale (each
 // i16 component) may be from the keyframe's and still count as unchanged, in quantized steps. A rotation step moves
@@ -342,8 +385,9 @@ inline size_t encode_delta(const Table &t, const uint8_t *key, const uint8_t *fu
   out[2] = 'D';
   uint8_t *at = out + kPoseHeader;
   codec::put(at, age, 4);
-  std::memcpy(at, full + kWorldAt, kWorldBytes);
-  uint8_t *mask = at + kWorldBytes;
+  const size_t world = kWorldBytes + free_count(t) * kFreeBytes; // The free blocks follow the world transform.
+  std::memcpy(at, full + kWorldAt, world);
+  uint8_t *mask = at + world;
   std::memset(mask, 0, size_t(out + fixed - mask));
   size_t size = fixed, u = 0;
   bool fits = true;
@@ -385,7 +429,8 @@ inline const char *apply_delta(const Table &t, const uint8_t *key, uint64_t key_
     return "generation";
   if (!key_publication || !age || age > publication || publication - age != key_publication)
     return "key";
-  const uint8_t *mask = in + kWorldBytes;
+  const size_t world = kWorldBytes + free_count(t) * kFreeBytes; // The free blocks follow the world transform.
+  const uint8_t *mask = in + world;
   const size_t units = delta_units(t);
   for (size_t u = units; u < (units + 7) / 8 * 8; ++u)
     if (mask[u / 8] >> (u % 8) & 1)
@@ -401,7 +446,7 @@ inline const char *apply_delta(const Table &t, const uint8_t *key, uint64_t key_
   std::memcpy(rebuilt, key, full);
   std::memcpy(rebuilt, data, kPoseHeader);
   rebuilt[2] = 'P';
-  std::memcpy(rebuilt + kWorldAt, in, kWorldBytes);
+  std::memcpy(rebuilt + kWorldAt, in, world);
   const uint8_t *next = data + fixed;
   u = 0;
   each_unit(t, [&](size_t o, size_t n) {
@@ -510,19 +555,19 @@ public:
     key_publication_ = 0;
     key_sequence_ = 0;
   }
-  // A keyframe or a delta of t into root, bones and fx, as decode_pose: null when good, else why not ("key": a delta
-  // whose keyframe is not the one held). A keyframe that decodes is held when it was sent after the one held (its
-  // sequence, which never restarts in the sender's run, unlike its clock after a step).
+  // A keyframe or a delta of t into root, bones, fx and free, as decode_pose: null when good, else why not ("key": a
+  // delta whose keyframe is not the one held). A keyframe that decodes is held when it was sent after the one held
+  // (its sequence, which never restarts in the sender's run, unlike its clock after a step).
   const char *decode(const Table &t, const uint8_t *data, size_t size, PoseHeader &h, float *root, uint8_t *bones,
-                     Effect *fx) {
+                     Effect *fx, Free *free = nullptr) {
     if (size >= 3 && data[2] == 'D') {
       if (key_.size() != pose_size(t))
         return "key";
       if (const char *why = apply_delta(t, key_.data(), key_publication_, data, size, rebuilt_.data()))
         return why;
-      return decode_pose(t, rebuilt_.data(), key_.size(), h, root, bones, fx);
+      return decode_pose(t, rebuilt_.data(), key_.size(), h, root, bones, fx, free);
     }
-    const char *why = decode_pose(t, data, size, h, root, bones, fx);
+    const char *why = decode_pose(t, data, size, h, root, bones, fx, free);
     if (!why && size == key_.size() && (!key_publication_ || h.sequence > key_sequence_)) {
       std::memcpy(key_.data(), data, size);
       key_publication_ = h.publication;

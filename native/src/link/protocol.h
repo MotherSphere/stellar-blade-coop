@@ -110,11 +110,13 @@ constexpr int kProtocol = 23; // Bump on any wire change. 1 was the first link (
                               // (c ask, c, c end) on channel 2, which an earlier protocol-23 development build counts
                               // malformed; 23 also carries the hit's level and the reaction's time on channel 2's cc
                               // line, with the new stagger and poise lines there, which an earlier protocol-23 build
-                              // drops as malformed lines (said once a session). An older peer (6: v0.1.1, 7: v0.2.0, 9:
-                              // v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1
-                              // to beta.3, 14: v0.7.0-beta.1, 17: a v0.7.5 test build, 18: v0.7.5, 19: v0.8.0 to
-                              // v0.10.0, 20: v0.11.0; 15, 16, 21 and 22 were never released) is told why: the lobby
-                              // tag, then the hello's reject, name both.
+                              // drops as malformed lines (said once a session). 23 also adds her drone (free parts
+                              // placed by the pose), six effect slots, event slots with SBA lines on channel 2 and
+                              // morph weights to the table and the pose, which a protocol-22 peer would refuse. An
+                              // older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1,
+                              // 12: v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14: v0.7.0-beta.1, 17: a v0.7.5 test
+                              // build, 18: v0.7.5, 19: v0.8.0 to v0.10.0, 20: v0.11.0; 15, 16, 21 and 22 were never
+                              // released) is told why: the lobby tag, then the hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;

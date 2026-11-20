@@ -177,8 +177,8 @@ tick(); step(2)
 assert(published[#published]:find('^generation 100004\n'))
 
 -- The native part's caps: at most 16 parts, the rest left out; a leader of 1 to 1024 bones, one of 0 or more left out
--- with its followers, and the last leaders while a pose would pass 16384 bytes (one of 1024 bones would: 113 bytes of
--- header, effect slots and world transform, 1 a part, 18 a bone); her main mesh outside them, no table at all.
+-- with its followers, and the last leaders while a pose would pass 16384 bytes (one of 1024 bones would: 143 bytes of
+-- header, 6 effect slots and world transform, 1 a part, 18 a bone); her main mesh outside them, no table at all.
 local X='/Game/Art/Character/X/'
 local many={body}
 for k=1,20 do many[#many+1]=her('Extra'..k,X..'X'..k..'.X'..k,{parent=body,bones=1}) end
@@ -190,14 +190,14 @@ assert(ok and message:find('^Capture %d+: 16 parts, ') and select(2,t:gsub('\npa
 assert(t:find(' Extra15 ',1,true) and not t:find(' Extra16 ',1,true),t)
 local zero=her('Zero',X..'Zero.Zero',{parent=body})
 local huge=her('Huge',X..'Huge.Huge',{parent=body,bones=1025})
-local full=her('Full',X..'Full.Full',{parent=body,bones=900}) -- 903 bones with hers: 113 + 2 + 16254 bytes.
+local full=her('Full',X..'Full.Full',{parent=body,bones=899}) -- 902 bones with hers: 143 + 2 + 16236 bytes.
 local on_zero=her('OnZero',X..'OnZero.OnZero',{leader=zero,parent=zero})
 player=eve_of('EVE4',{body,zero,huge,full,on_zero})
 tick()
 ok,message=step(2)
 t=published[#published]
-assert(ok and message:find('^Capture %d+: 2 parts, 903 bone names, .* ms$'),tostring(message))
-assert(t:find('\npart 1 - 0 - 1 900 Full ',1,true) and not t:find('Zero',1,true) and not t:find('Huge',1,true),t)
+assert(ok and message:find('^Capture %d+: 2 parts, 902 bone names, .* ms$'),tostring(message))
+assert(t:find('\npart 1 - 0 - 1 899 Full ',1,true) and not t:find('Zero',1,true) and not t:find('Huge',1,true),t)
 -- One bone more is over: the last leader goes with its follower, and the leader before it, if a pose is still over.
 local tail=her('Tail',X..'Tail.Tail',{parent=body,bones=1})
 local on_tail=her('OnTail',X..'OnTail.OnTail',{leader=tail,parent=tail})
@@ -206,7 +206,7 @@ player=eve_of('EVE4b',{body,full,tail,on_full,on_tail})
 tick()
 ok,message=step(2)
 t=published[#published]
-assert(ok and message:find('^Capture %d+: 3 parts, 903 bone names, .*; 1 leaders left out, over the pose size$'),
+assert(ok and message:find('^Capture %d+: 3 parts, 902 bone names, .*; 1 leaders left out, over the pose size$'),
     tostring(message))
 assert(t:find('\npart 2 1 1 - 1 0 OnFull ',1,true) and not t:find('Tail',1,true),t)
 full.state.bones=1024
@@ -217,7 +217,7 @@ t=published[#published]
 assert(ok and message:find('^Capture %d+: 3 parts, 4 bone names, .*; 1 leaders left out, over the pose size$'),
     tostring(message))
 assert(t:find(' Tail ',1,true) and t:find(' OnTail ',1,true) and not t:find('Full',1,true),t)
-body.state.bones=904 -- Her main mesh alone is over: no table.
+body.state.bones=903 -- Her main mesh alone is over (143 + 1 + 16254 bytes): no table.
 player=eve_of('EVE4d',{body,tail})
 tick()
 local count_before=#published
@@ -230,6 +230,11 @@ tick()
 local before=#published
 step(2); step(1)
 assert(#published==before,'Her main mesh without bones: no table')
+-- Pose size: Capture.pose_bytes counts as the native pose_size() does, with 6 effect slots and a free part's block.
+assert(Capture.POSE_BASE==29+6*15+24 and Capture.FREE_BYTES==25,'the native pose_size: 6 effect slots, free blocks')
+assert(Capture.pose_bytes({{bones=2},{bones=3,free=true}})==260,'test_free_part\'s table: the same 260 bytes')
+assert(Capture.pose_bytes({{bones=90},{bones=3,free=true}})==1844)
+assert(Capture.pose_bytes({{bones=3},{bones=0,lead=0},{bones=2}})==143+1+54+1+1+36,'a follower: its status byte')
 body.state.bones=3
 
 -- Dyes off (every capture above): her overridden materials are never read, so no material lines and the key as before.

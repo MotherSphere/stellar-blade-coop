@@ -465,10 +465,12 @@ void take_display(size_t slot) {
       drawn += d.puppet[i].object != 0;
       mapped += !d.remap[i].empty();
     }
-    char line[200];
+    char line[200], boxes[32] = "";
+    if (d.effects[0])
+      std::snprintf(boxes, sizeof boxes, ", %zu effect boxes", kEffectSlots);
     std::snprintf(line, sizeof line, "ghost of table %llu%s drawn: %d of %d leaders (%d on a fallback mesh), %zu "
                   "bytes a pose%s", static_cast<unsigned long long>(d.generation), slot_tag(slot).c_str(), drawn,
-                  leaders, mapped, pose_size(r.table), d.effects[0] ? ", 4 effect boxes" : "");
+                  leaders, mapped, pose_size(r.table), boxes);
     say(line);
   } else if (r.table.generation && text.rfind("display " + std::to_string(r.table.generation) + "\n", 0) == 0) {
     say("ghost of table " + std::to_string(r.table.generation) + slot_tag(slot) +
@@ -786,9 +788,10 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
       }
       if (fx_started || fx_over || fx_unlisted || fx_written) {
         std::snprintf(line, sizeof line,
-                      "effects, last 60 s: %llu started, %llu over 4, %llu unlisted reads; %llu boxes written",
+                      "effects, last 60 s: %llu started, %llu over %zu, %llu unlisted reads; %llu boxes written",
                       static_cast<unsigned long long>(fx_started), static_cast<unsigned long long>(fx_over),
-                      static_cast<unsigned long long>(fx_unlisted), static_cast<unsigned long long>(fx_written));
+                      kEffectSlots, static_cast<unsigned long long>(fx_unlisted),
+                      static_cast<unsigned long long>(fx_written));
         event(line);
       }
     }

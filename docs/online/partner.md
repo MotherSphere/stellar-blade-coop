@@ -33,7 +33,7 @@ The three looks have not been tested in game yet. Back up your saves before you 
   meshes, such as a CNS eye colour on the base face: the sender to send it, the viewer to show it. The same goes for
   the material slots a part hides (CNS toggles).
 - `effects`: her attack and skill effects. The native part reads which Niagara systems are playing on her parts, at
-  most 4 at a time, into four effect slots of each pose. A slot holds an index: one of 19 known effects of EVE's own,
+  most 6 at a time, into six effect slots of each pose. A slot holds an index: one of 19 known effects of EVE's own,
   or one of up to 45 more that her capture names by path. Her capture gives a system such a name when it plays on one
   of her parts with bones (body, hair, weapon) and lies in the game's FX folders (`/Game/Art/FX/` or
   `/Game/DLC_<n>/Art/FX/`), or belongs to a mod you both have in one version (see
@@ -42,7 +42,7 @@ The three looks have not been tested in game yet. Back up your saves before you 
   it cannot load or may not load draws nothing, with one note in the log for that ghost. The ghost starts each effect
   on the part it hangs on, moves it with the slot and stops it when the slot changes, at most 8 starts a second. A fault in the native effect read or write turns effects off until the game restarts
   (`effects off: fault ...`), and the ghost stays without them. Every 60 s with any effect activity, an
-  `effects, last 60 s:` line counts those started, those over 4, unlisted reads and boxes written.
+  `effects, last 60 s:` line counts those started, those over 6, unlisted reads and boxes written.
 - `dyes=off` and `effects=off` also stop sending yours, so your friend's ghost of you lacks them too.
 
 ## Mods and CNS outfits

@@ -736,7 +736,7 @@ Every 60 s, `coop-link.log` gets these lines for diagnosing performance problems
 - `link, last 60 s: <p> passes, <f> full receive batches (16 messages)`: the link's passes (one every 5 ms while
   poses stream, every 50 ms otherwise) and the reads that returned 16 messages on one channel, so more may have waited
   for the next pass. The first of these lines in a run counts only its first pass.
-- `effects, last 60 s: ...`, with any effect activity: effects started, over 4, unlisted reads and boxes written.
+- `effects, last 60 s: ...`, with any effect activity: effects started, over 6, unlisted reads and boxes written.
 - `vitals read, last 60 s: ...`, during a session: the reads of your vitals for your friend's partner card and the
   slowest one in µs. Over 1000 µs, the next read waits 500 ms instead of 100.
 

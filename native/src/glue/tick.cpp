@@ -18,7 +18,7 @@
 // her own, slot k from 1 with coop-remote-<k>.txt and coop-display-<k>.txt); a pose (a keyframe, or a delta rebuilt
 // on the held keyframe) is decoded with that table into the playback, whose pose for each frame the game thread
 // writes into the ghost's leaders, and the main mesh's world transform into its mailbox for Lua to place it. With
-// effect lines in her capture (protocol 6), her effects travel in the pose's four slots too, and the drawn slots go
+// effect lines in her capture (protocol 6), her effects travel in the pose's six slots too, and the drawn slots go
 // into the ghost's effect boxes; they have their own SEH latch, so a fault there turns effects off for the run and the
 // ghost goes on.
 //

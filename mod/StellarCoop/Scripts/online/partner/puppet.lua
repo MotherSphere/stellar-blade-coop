@@ -29,7 +29,7 @@
 -- CNS), set again only when they change; a call that fails shows every slot, said once. No shape keys either: a leader
 -- is a Poseable, which has no morph call, and UE 4.26's UpdateSlaveComponent zeroes a follower's SetMorphTarget weights
 -- each tick when its master is not a SkeletalMeshComponent. With look.effects, her attack and
--- skill effects: the native part writes her four effect slots into boxes beside the mailbox, and place() starts the
+-- skill effects: the native part writes her six effect slots into boxes beside the mailbox, and place() starts the
 -- Niagara system each names (an index into Capture.EFFECTS, or past it one her table's fx lines name by path, loaded
 -- by fetch()'s rules in a build step or one a tick after it, never in place()) on the part it hangs on, moves it with
 -- the slot and stops it when the slot changes, at most 8 starts a second.
@@ -818,7 +818,7 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
             -- The mailbox: unattached, never moved; only the native part writes its relative fields.
             g.mailbox=valid(actor:AddComponentByClass(find('/Script/Engine.SceneComponent'),true,identity,false))
             assert(g.mailbox,'the mailbox could not be added')
-            -- Her effects: the listed systems (resolved in the steps), the library that starts them, and four slot
+            -- Her effects: the listed systems (resolved in the steps), the library that starts them, and six slot
             -- boxes beside the mailbox that only the native part writes. Anything failing leaves the ghost without
             -- effects only.
             local effects
@@ -827,7 +827,7 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
                     if fx_why then error(fx_why,0) end
                     g.fx_lib=find('/Script/Niagara.Default__NiagaraFunctionLibrary')
                     local slots,scene={},find('/Script/Engine.SceneComponent')
-                    for n=1,4 do
+                    for n=1,6 do -- The native kEffectSlots.
                         local box=valid(actor:AddComponentByClass(scene,true,identity,false))
                         assert(box,'an effect box could not be added')
                         slots[n]={box=box}

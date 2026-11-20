@@ -40,9 +40,19 @@ local MAX_VALUES,MAX_SLOT_VALUES,MAX_NUMBER=512,32,1e5 -- Its kMaxValues, kMaxSl
 local VALUES_ROOM=56000
 -- s between tables only a value changed: a value the game animates must not send the whole table at every look.
 local VALUE_WAIT=5
--- Its kMaxPose, then what pose_size() counts in every pose (the header, 4 effect slots of 15 bytes, her world
--- transform) and per bone of a leader: past MAX_POSE it refuses the whole table.
-local MAX_POSE,POSE_BASE,BONE_BYTES=16384,29+4*15+24,18
+-- Its kMaxPose, then what pose_size() counts in every pose (the header, 6 effect slots of 15 bytes, her world
+-- transform), per free part's block and per bone of a leader: past MAX_POSE it refuses the whole table.
+local MAX_POSE,BONE_BYTES=16384,18
+Capture.POSE_BASE,Capture.FREE_BYTES=29+6*15+24,25
+-- The bytes a pose of these parts takes, as the native pose_size() counts them: parts of {bones=, free=, lead=}, a
+-- follower (lead set) with no bones of its own.
+function Capture.pose_bytes(parts)
+    local size=Capture.POSE_BASE
+    for _,c in ipairs(parts) do
+        size=size+1+(c.free and Capture.FREE_BYTES or 0)+(c.lead==nil and BONE_BYTES*c.bones or 0)
+    end
+    return size
+end
 -- Its kMaxEffectAssets less the fixed list: the systems named by path for one EVE, at most; and the attach children read
 -- per leader, as its effect read does.
 local MAX_EFFECT_ASSETS,MAX_CHILDREN=64,256
@@ -308,10 +318,7 @@ function Capture.new(publish,looks,assets,private)
             end
         end
         take()
-        while true do
-            local size=POSE_BASE
-            for _,c in ipairs(parts) do size=size+1+BONE_BYTES*c.bones end
-            if size<=MAX_POSE then break end
+        while Capture.pose_bytes(parts)>MAX_POSE do
             local last
             for k=#parts,2,-1 do if parts[k].lead==nil then last=parts[k]; break end end
             if not last then return end -- Her main mesh alone is over it: no table.

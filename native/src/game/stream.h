@@ -17,7 +17,7 @@
 #include <utility>
 #include <vector>
 
-#include "game/core.h" // kTransformBytes, Effect
+#include "game/core.h" // kTransformBytes, Effect, Free, kMaxParts
 
 namespace coop::pose {
 
@@ -107,6 +107,7 @@ public:
     float root[10] = {};
     std::vector<uint8_t> bones;
     Effect fx[kEffectSlots];
+    Free free[kMaxParts]; // The free parts' blocks in table order; the rest stay hidden.
   };
   // Counts since the last take(), for the counter line.
   struct Stats {
@@ -115,9 +116,12 @@ public:
   };
 
   void reset(size_t bone_bytes) {
-    for (auto &f : frames_)
+    for (auto &f : frames_) {
       f.bones.assign(bone_bytes, 0);
+      std::fill(f.free, f.free + kMaxParts, Free());
+    }
     scratch_.bones.assign(bone_bytes, 0);
+    std::fill(scratch_.free, scratch_.free + kMaxParts, Free());
     clear();
   }
   // Forgets every pose and the clock (a new stream); keeps the memory.
@@ -179,9 +183,11 @@ public:
     stats_.lag_ms += lag;
     return true;
   }
-  // The pose to draw at now into root (10 floats), bones (the scratch's size) and fx (kEffectSlots); false when there is
-  // none yet or the stream has been silent for kSilentMs. The effect slots are held, never blended: the older pose's.
-  bool sample(uint64_t now_us, float *root, uint8_t *bones, Effect *fx) {
+  // The pose to draw at now into root (10 floats), bones (the scratch's size), fx (kEffectSlots) and free (kMaxParts,
+  // nullptr: none); false when there is none yet or the stream has been silent for kSilentMs. The effect slots are
+  // held, never blended: the older pose's. A free block is blended when both poses show it, with the newer one's state;
+  // else the newer one's is drawn as it is.
+  bool sample(uint64_t now_us, float *root, uint8_t *bones, Effect *fx, Free *free = nullptr) {
     double now = now_us / 1000.0;
     if (!count_ || now - last_arrival_ > kSilentMs)
       return false;
@@ -207,6 +213,11 @@ public:
       std::memcpy(bones + at_byte, out, sizeof out);
     }
     std::copy(fa.fx, fa.fx + kEffectSlots, fx);
+    for (size_t k = 0; free && k < kMaxParts; ++k) {
+      free[k] = fb.free[k];
+      if (fa.free[k].state & fb.free[k].state & 0x80)
+        blend_transform(fa.free[k].place, fb.free[k].place, alpha, free[k].place, 4, 7);
+    }
     ++stats_.drawn;
     stats_.extrapolated += at > ms(newest_);
     stats_.behind_ms += ms(newest_) - at;
