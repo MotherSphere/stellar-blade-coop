@@ -74,7 +74,8 @@ with tempfile.TemporaryDirectory() as tmp:
         return {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob('*') if p.is_file()}
 
     # 1. A fresh install writes the files and a manifest equal to them, and backs up nothing.
-    v1 = {'enabled.txt': b'', 'Scripts/main.lua': b'main', 'Scripts/old\u00e9.lua': b'old', 'StellarCoop.dll': b'dll 1'}
+    dropped = 'Scripts/old\u00e9.lua'  # Part 2 drops it. Out of the f-string: Python 3.11 refuses a backslash there.
+    v1 = {'enabled.txt': b'', 'Scripts/main.lua': b'main', dropped: b'old', 'StellarCoop.dll': b'dll 1'}
     code, out = run(install.install_files, target, v1)
     assert code is None and out == f'Installed 4 files into {target}\n', out
     manifest = (target / install.MANIFEST).read_bytes()
@@ -91,7 +92,7 @@ with tempfile.TemporaryDirectory() as tmp:
     first, = backups()
     dest = first / 'StellarCoop'
     assert code is None and re.fullmatch(r'\d{8}T\d{6}Z', first.name), out
-    assert out == (f'Backed up 5 files into {dest}\nRemoving {target / "Scripts/old\u00e9.lua"}\n'
+    assert out == (f'Backed up 5 files into {dest}\nRemoving {target / dropped}\n'
                    f'Installed 3 files into {target}\n'), out
     assert files_of(dest) == {**v1, install.MANIFEST: manifest}  # Not the log or the settings.
     assert files_of(target) == {**v2, install.MANIFEST: b''.join(f'{r}\n'.encode() for r in sorted(v2)),
