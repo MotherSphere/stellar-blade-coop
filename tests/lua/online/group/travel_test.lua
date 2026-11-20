@@ -509,8 +509,8 @@ run(t,0.5)
 W.her_map=Travel.WORLDS.SpaceElevator
 run(t,3)
 assert(#W.said==4 and last(W.said)==W_.offer:format('Kaanta','b07','F7'),last(W.said))
--- On his map the press asks his spot: the place it brings her to (2 m from him) is taken as seen, and his next map
--- change is still offered.
+-- On his map the press asks his spot: the place it brings her to (2 m from him) is taken as seen. His next map change
+-- is still offered.
 t=world(function(w) w.her_map=DEDA; w.ghost={X=40000,Y=0,Z=0} end)
 run(t,0.25)
 assert(#W.said==1 and W.said[1]==W_.offer:format('Kaanta','f02','F7'),W.said[1])
@@ -804,6 +804,16 @@ assert(last(W.said)==BUSY,last(W.said))
 t=world(function(w) w.her_map=DEDA; w.ghost={X=2000,Y=0,Z=0} end)
 assert(t.press()); W.her_map=XION; W.spot=spot_id()..' 2000 0 0 90'; run(t,0.25)
 assert(not last(W.requests):find('^travel') and last(W.said)==BUSY and logged('the host left this map'),last(W.requests))
+-- The guards again at his answer: the game paused meanwhile, no warp and busy. SB's refusal of the spot warp
+-- (refused:game) is failed, never a next camp.
+t=world(function(w) w.her_map=DEDA; w.ghost={X=2000,Y=0,Z=0} end)
+assert(t.press()); W.paused=true; W.spot=spot_id()..' 2000 0 0 90'; run(t,0.25)
+assert(not last(W.requests):find('^travel') and last(W.said)==BUSY
+    and logged('refused at the call: the game is paused'),last(W.requests))
+t=world(function(w) w.her_map=DEDA; w.ghost={X=2000,Y=0,Z=0} end)
+assert(t.press()); W.spot=spot_id()..' 2000 0 0 90'; run(t,0.25)
+W.travel,W.calls='refused:game',1; run(t,0.25)
+assert(last(W.said)==FAILED and not logged('travel off for this run'),last(W.said))
 -- whole numbers (Review Focus 2): our ground point at -1234.6, 0.4, 7.5, yaw -179.6, asked as spot?=3. A point that
 -- is not finite is no point (air), never a Lua error.
 t=world(function(w) w.mode='host'; w.eve_at={X=-1234.6,Y=0.4,Z=7.5}; w.yaw=-179.6; w.spot_asked=3 end)
@@ -854,15 +864,33 @@ W.answer=asked_id()..' Xion Xion_Camp_10:1'
 run(t,0.25)
 W.travel,W.calls='pending',1
 run(t,0.25)
+W.travel='warping'; run(t,0.5) -- Still on her map while the warp runs: the hop waits for the arrival.
 said=#W.said
 W.me={at={X=0,Y=0,Z=0},map=XION}; W.ghost={X=3000,Y=0,Z=0}; W.travel='arrived'
-run(t,9.5); assert(not last(W.requests):find('^spot%?'),'Not before 10 s')
+run(t,9); assert(not last(W.requests):find('^spot%?'),'Not before 10 s')
 W.me=nil; run(t,1); assert(not last(W.requests):find('^spot%?'),'No EVE: it waits')
 W.me={at={X=0,Y=0,Z=0},map=XION}; run(t,1)
 assert(last(W.requests):find('^spot%? %d+ 2$') and #W.said==said,last(W.requests))
--- The hop's answer goes to the warp with no notice; no answer in 10 s: the log only.
+-- The hop's answer goes to the warp with no notice.
 W.spot=spot_id()..' 3000 0 0 0'; run(t,0.25)
 assert(last(W.requests)=='travel spot 3000 0 0 0' and #W.said==said,last(W.requests))
+-- The hop's none answer, or no answer in 10 s: the log only, no notice and no second ask.
+for _,spot in ipairs({'none air',false}) do
+    t=world(function(w) w.names={Xion_Camp_10=1} end)
+    assert(t.press())
+    W.answer=asked_id()..' Xion Xion_Camp_10:1'
+    run(t,0.25)
+    W.travel,W.calls='pending',1
+    run(t,0.25)
+    said=#W.said
+    W.me={at={X=0,Y=0,Z=0},map=XION}; W.ghost={X=3000,Y=0,Z=0}; W.travel='arrived'
+    run(t,10.5)
+    local asks=#W.requests
+    assert(last(W.requests):find('^spot%? %d+ 2$'),last(W.requests))
+    if spot then W.spot=spot_id()..' '..spot end
+    run(t,15)
+    assert(#W.requests==asks and #W.said==said and logged(spot or 'no answer from the host in 10 s'),last(W.requests))
+end
 -- The hop refused for 30 s after the arrival (the host within 5 m): one log line, nothing asked.
 t=world(function(w) w.names={Xion_Camp_10=1} end)
 assert(t.press())
@@ -917,6 +945,9 @@ t=going(); assert(t.go('3')); W.spot=spot_id()..' none air'; run(t,0.25)
 assert(#W.said==0 and #W.requests==1 and logged('none air'))
 t=going(); assert(t.go('3')); run(t,10)
 assert(#W.said==0 and #W.requests==1 and logged('no answer from member 3 in 10 s'))
+-- go()'s guards again at her answer: she went down meanwhile, no warp, the log only.
+t=going(); assert(t.go('3')); W.vits['3'].life,W.vits['3'].hp=3,0; W.spot=spot_id()..' 1000 0 0 0'; run(t,0.25)
+assert(#W.said==0 and #W.requests==1 and logged('refused at the call: they are down'),last(W.requests))
 -- press() takes o.back's answer first, true or false.
 t=world(function(w) w.back=function() return true,'going back' end end)
 local ok3,text=t.press(); assert(ok3==true and text=='going back' and #W.requests==0)
