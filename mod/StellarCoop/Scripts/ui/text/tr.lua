@@ -131,7 +131,7 @@ return {
         ['world.objects']='Ortak dünya',['story.together']='Ortak hikâye',['online.lobby']='SBO lobisi',
         ['vehicles.bike']='Motosiklet',['world.daynight']='Gündüz ve gece',['cutmenus']='Kesilmiş menüler',
         ['online.saves']='Co-op kayıtları',
-        ['world.teamshop']='Takım mağazası',['fight.gunmode']='Tüfek modu'},
+        ['world.teamshop']='Takım mağazası',['fight.gunmode']='Tüfek modu',['online.modes.scoreattack']='Skor avı'},
     fight={on='Ortak düşmanlar açık: %d düşman bağlandı.',one='Ortak düşmanlar açık: 1 düşman bağlandı.',
         scale='Düşman canı %%%d, denge %%%d (ev sahibinin ayarı).',
         off='Ortak düşmanlar kapandı. Nedeni coop-link.log dosyasında.',

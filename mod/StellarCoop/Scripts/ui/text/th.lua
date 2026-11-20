@@ -119,7 +119,7 @@ return {
         ['story.quests']='แชร์เควสต์',['world.objects']='แชร์โลก',['story.together']='แชร์เนื้อเรื่อง',
         ['online.lobby']='ล็อบบี้ SBO',['vehicles.bike']='มอเตอร์ไซค์',['world.daynight']='กลางวันและกลางคืน',
         ['cutmenus']='เมนูที่ถูกตัด',['online.saves']='เซฟ co-op',
-        ['world.teamshop']='ร้านค้าทีม',['fight.gunmode']='โหมดปืนไรเฟิล'},
+        ['world.teamshop']='ร้านค้าทีม',['fight.gunmode']='โหมดปืนไรเฟิล',['online.modes.scoreattack']='ล่าคะแนน'},
     fight={on='ศัตรูร่วมเปิดแล้ว: เชื่อมศัตรู %d ตัว',one='ศัตรูร่วมเปิดแล้ว: เชื่อมศัตรู 1 ตัว',
         scale='HP ศัตรู %d%% บาลานซ์ %d%% (ค่าของโฮสต์)',
         off='ปิดศัตรูร่วมแล้ว ดูสาเหตุใน coop-link.log',

@@ -110,7 +110,7 @@ return {
         ['fight.enemies']='共享敵人',['story.quests']='共享任務',['world.objects']='共享世界',['story.together']='共享劇情',
         ['online.lobby']='SBO大廳',['vehicles.bike']='機車',['world.daynight']='晝夜交替',['cutmenus']='刪減的選單',
         ['online.saves']='合作存檔',
-        ['world.teamshop']='團隊商店',['fight.gunmode']='步槍模式'},
+        ['world.teamshop']='團隊商店',['fight.gunmode']='步槍模式',['online.modes.scoreattack']='得分挑戰'},
     fight={on='共享敵人已開啟：已連結%d個敵人。',one='共享敵人已開啟：已連結1個敵人。',
         scale='敵人生命值%d%%，平衡%d%%（主機設定）。',
         off='共享敵人已關閉。原因請見coop-link.log。',

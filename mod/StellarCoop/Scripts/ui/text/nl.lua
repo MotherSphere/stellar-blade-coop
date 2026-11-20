@@ -130,7 +130,7 @@ return {
         ['fight.enemies']='Gedeelde vijanden',['story.quests']='Gedeelde quests',['world.objects']='Gedeelde wereld',
         ['story.together']='Gedeeld verhaal',['online.lobby']='De SBO-lobby',['vehicles.bike']='De motor',
         ['world.daynight']='Dag en nacht',['cutmenus']="Geschrapte menu's",['online.saves']='Opgeslagen co-opgames',
-        ['world.teamshop']='Teamwinkel',['fight.gunmode']='Geweermodus'},
+        ['world.teamshop']='Teamwinkel',['fight.gunmode']='Geweermodus',['online.modes.scoreattack']='Scorejacht'},
     fight={on='Gedeelde vijanden aan: %d vijanden gekoppeld.',one='Gedeelde vijanden aan: 1 vijand gekoppeld.',
         scale='HP vijanden %d %%, balans %d %% (instelling van de host).',
         off='Gedeelde vijanden uit. coop-link.log zegt waarom.',

@@ -126,7 +126,7 @@ return {
         ['world.objects']='Delad värld',['story.together']='Delad berättelse',['online.lobby']='SBO-lobbyn',
         ['vehicles.bike']='Motorcykeln',['world.daynight']='Dag och natt',['cutmenus']='Borttagna menyer',
         ['online.saves']='Sparfiler för co-op',
-        ['world.teamshop']='Lagets butik',['fight.gunmode']='Gevärsläge'},
+        ['world.teamshop']='Lagets butik',['fight.gunmode']='Gevärsläge',['online.modes.scoreattack']='Poängjakt'},
     fight={on='Delade fiender på: %d fiender länkade.',one='Delade fiender på: 1 fiende länkad.',
         scale='Fiendernas hälsa %d %%, balans %d %% (värdens inställning).',
         off='Delade fiender av. coop-link.log säger varför.',

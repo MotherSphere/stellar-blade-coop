@@ -122,7 +122,7 @@ return {
         ['fight.enemies']='مشاركة الأعداء',['story.quests']='مشاركة المهام',['world.objects']='مشاركة العالم',
         ['story.together']='مشاركة القصة',['online.lobby']='ردهة SBO',['vehicles.bike']='الدراجة النارية',
         ['world.daynight']='النهار والليل',['cutmenus']='القوائم المحذوفة',['online.saves']='ملفات الحفظ التعاونية',
-        ['world.teamshop']='متجر الفريق',['fight.gunmode']='وضع البندقية'},
+        ['world.teamshop']='متجر الفريق',['fight.gunmode']='وضع البندقية',['online.modes.scoreattack']='سباق النقاط'},
     fight={on='مشاركة الأعداء مفعّلة: تم ربط %d من الأعداء.',one='مشاركة الأعداء مفعّلة: تم ربط عدو واحد.',
         scale='نقاط صحة الأعداء %d%%، والتوازن %d%% (إعداد المضيف).',
         off='توقفت مشاركة الأعداء. يذكر coop-link.log السبب.',

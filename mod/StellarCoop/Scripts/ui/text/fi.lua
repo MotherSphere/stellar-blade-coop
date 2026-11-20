@@ -129,7 +129,7 @@ return {
         ['fight.enemies']='Jaetut viholliset',['story.quests']='Jaetut tehtävät',['world.objects']='Jaettu maailma',
         ['story.together']='Jaettu tarina',['online.lobby']='SBO-aula',['vehicles.bike']='Moottoripyörä',
         ['world.daynight']='Päivä ja yö',['cutmenus']='Poistetut valikot',['online.saves']='Co-op-tallennukset',
-        ['world.teamshop']='Tiimin kauppa',['fight.gunmode']='Kivääritila'},
+        ['world.teamshop']='Tiimin kauppa',['fight.gunmode']='Kivääritila',['online.modes.scoreattack']='Pistejahti'},
     fight={on='Jaetut viholliset päällä: %d vihollista yhdistetty.',
         one='Jaetut viholliset päällä: 1 vihollinen yhdistetty.',
         scale='Vihollisten HP %d %%, tasapaino %d %% (isännän asetus).',

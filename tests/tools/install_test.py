@@ -257,6 +257,7 @@ with tempfile.TemporaryDirectory() as tmp:
                                                          'th', 'tr', 'zh-Hans', 'zh-Hant')),
                               *(f'main/{name}' for name in ('boot', 'base', 'loader', 'commands', 'ui', 'input',
                                                              'frame', 'pass', 'keys')),
+                              'online/modes/scoreattack/commands',
                               *(f'{module}/wiring' for module in ('online/partner', 'online/modes/nightop',
                                                                   'fight/bosses', 'online/group',
                                                                    'online/modes/race', 'eve', 'story/scenes',
@@ -266,7 +267,7 @@ with tempfile.TemporaryDirectory() as tmp:
                                                                    'story/together', 'online/lobby', 'vehicles/bike',
                                                                    'world/daynight', 'cutmenus',
                                                                    'online/saves', 'world/teamshop',
-                                                                   'fight/gunmode')),
+                                                                   'fight/gunmode', 'online/modes/scoreattack')),
                               'version'))}
     assert set(files) == shipped - docs, sorted(files)
     assert not [rel for rel in files

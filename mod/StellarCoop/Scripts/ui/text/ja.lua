@@ -120,7 +120,7 @@ return {
         ['fight.enemies']='敵の共有',['story.quests']='クエスト共有',['world.objects']='ワールド共有',['story.together']='ストーリー共有',
         ['online.lobby']='SBOロビー',['vehicles.bike']='バイク',['world.daynight']='昼と夜',['cutmenus']='カットされたメニュー',
         ['online.saves']='協力プレイ用セーブ',
-        ['world.teamshop']='チームショップ',['fight.gunmode']='ライフルモード'},
+        ['world.teamshop']='チームショップ',['fight.gunmode']='ライフルモード',['online.modes.scoreattack']='スコアアタック'},
     fight={on='敵の共有：オン。%d体の敵をリンク中。',one='敵の共有：オン。1体の敵をリンク中。',
         scale='敵のHP%d%%、バランス%d%%（ホストの設定）。',
         off='敵の共有：オフ。理由はcoop-link.logにあります。',

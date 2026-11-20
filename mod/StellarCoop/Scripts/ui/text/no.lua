@@ -130,7 +130,7 @@ return {
         ['story.quests']='Delte oppdrag',['world.objects']='Delt verden',['story.together']='Delt historie',
         ['online.lobby']='SBO-lobbyen',['vehicles.bike']='Motorsykkelen',['world.daynight']='Dag og natt',
         ['cutmenus']='Fjernede menyer',['online.saves']='Co-op-lagringer',
-        ['world.teamshop']='Lagets butikk',['fight.gunmode']='Geværmodus'},
+        ['world.teamshop']='Lagets butikk',['fight.gunmode']='Geværmodus',['online.modes.scoreattack']='Poengjakt'},
     fight={on='Delte fiender slått på: %d fiender koblet sammen.',one='Delte fiender slått på: 1 fiende koblet sammen.',
         scale='Fiende-HP %d %%, balanse %d %% (vertens innstilling).',
         off='Delte fiender slått av. coop-link.log sier hvorfor.',
