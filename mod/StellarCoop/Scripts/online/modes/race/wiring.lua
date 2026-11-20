@@ -31,7 +31,7 @@ M.race=require('online.modes.race.run').new({log=M.doro.log,link=M.link,puppet=r
     dismount=function(why) return M.bike.stop(why) end,riding=riding})
 return require('online.modes.race.commands').new({puppet=require('main.loader').view(M,'puppet'),doro=M.doro,
     coop_slot=M.coop_slot,
-    race=M.race,riding=riding,match_on=function() return M.settings.race_match==true end})
+    race=M.race,riding=riding,match_on=function() return M.settings~=nil and M.settings.race_match==true end})
 end,
 build={
 hud=function(M,Ui)

@@ -220,6 +220,14 @@ kit_paused=true; assert(ra.o.paused()==true); kit_paused=false
 ra.o.tell(function(w) return w.race.armed end)
 assert(said[#said]=='Race ready: walk to your start.' and said_en[#said]=='Race ready: walk to your start.')
 assert(ra.hud and ra.hud.kit and ra.hud.theme and ra.hud.settings and ra.hud.settings.ui_language,'race.hud')
+-- coop race match reads race_match from the settings at each call (ra.o.settings is main.lua's table).
+coop('race','match')
+assert(last()=='[StellarCoop] OK: Doro races in matches: race_match=on, 0 official tracks. Match rounds are not '
+    ..'built yet.\n',last())
+ra.o.settings.race_match=false
+coop('race','match','status')
+assert(last():find('race_match=off',1,true),last())
+ra.o.settings.race_match=true
 end
 -- A tick's error is reported.
 ra.says={false,'the race stopped on an error until the mod reloads: x'}
@@ -1275,6 +1283,7 @@ assert(rt.ticks==1 and rt.o.ready()==false,'The teleport tabs tick and stay off 
 coop('no','rule'); assert(#probe_runs==0 and last()==STOP..'no slot status\n','No native part, no co-op slot: '..last())
 coop('ui','reset'); assert(last()=='[StellarCoop] STOP: the co-op UI needs the Steam link\n',last())
 coop('revive','test'); assert(gr.o==nil and last()=='[StellarCoop] STOP: the Steam link needs the native part\n',last())
+coop('race','match'); assert(last():find('OK: Doro races in matches: race_match=off',1,true),'No settings: '..last())
 -- The crash sentinel (online/partner/sentinel.lua): a marker the last Lua load left full is logged at the next load,
 -- emptied, and its asset set aside under this version.
 local MARKED='/Game/OutfitMods/Foo/SK_Foo.SK_Foo'
