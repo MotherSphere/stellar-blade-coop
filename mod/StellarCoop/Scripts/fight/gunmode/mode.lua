@@ -26,6 +26,7 @@ local Ammo=require('fight.gunmode.ammo')
 local Dpad=require('fight.gunmode.ui.dpad')
 local Overlay=require('fight.gunmode.overlay')
 local Morph=require('fight.gunmode.morph')
+local Strafe=require('fight.gunmode.strafe')
 local U=require('core.unreal')
 
 local GunMode={}
@@ -752,6 +753,7 @@ function GunMode.new(env)
         end
         local pw=g.pawn()
         if pw then carry(pw,nil) end
+        if s.strafe then pcall(s.strafe.stop) end -- (no looping strafe clip left on her legs)
         s.ovr_active,s.hip,s.burst=nil,nil,nil -- (no pawn: the next pawn starts with no override)
         if s.layer and pw then pcall(layer.stop,pw); local ok,e=pcall(layer.uninstall,pw); if not ok then g.log('layer off: '..tostring(e)) end end
         if not pw then s.layer_back=s.layer or s.layer_back; s.mesh_back=(s.mesh_yaw or 0)~=0 and s.mesh_rot or nil end -- no pawn now: the loop puts these back
@@ -1062,6 +1064,7 @@ function GunMode.new(env)
         if s.give_back then s.give_back=false; pcall(data.put_back); aim.row=nil end
         if s.stop_stance then s.stop_stance=false; pcall(stance.stop) end
         if s.show_back then s.show_back=false; show_others() end
+        if s.strafe_back then s.strafe_back=false; if s.strafe then pcall(s.strafe.stop) end end
         if s.ammo_reset then s.ammo_reset=false; pcall(ammo.stop); pcall(ammo.refill) end
         -- left over by a new controller or a lost pawn: her body asset's own post-process and her mesh's turn put back
         if (s.layer_back or s.mesh_back) and not s.on then
@@ -1557,7 +1560,10 @@ function GunMode.new(env)
                             local path='/Game/Art/Character/PC/CH_P_EVE_01/Animation/'..nm..'.'..nm
                             local seq=g.asset(path)
                             SLOT=SLOT or FName('DefaultSlot')
-                            if seq then p.Mesh:GetAnimInstance():PlaySlotAnimationAsDynamicMontage(seq,SLOT,0.1,0.15,1.0,1,-1,0)
+                            if seq then
+                                local ai=p.Mesh:GetAnimInstance()
+                                local tm=ai:PlaySlotAnimationAsDynamicMontage(seq,SLOT,0.1,0.15,1.0,1,-1,0)
+                                if s.strafe then s.strafe.hold(ai,tm) end -- the turn step wins over the strafe while it plays
                             elseif not s.shuffle_err then s.shuffle_err=true; g.log('turn: no '..nm) end
                         end)
                     end
@@ -1566,6 +1572,13 @@ function GunMode.new(env)
                     s.ik.rpitch=s.rpitch
                 end
             end)
+            -- hip fire's strafe (fight/gunmode/strafe.lua): the rifle walk/run clip of her move's way, on the ground only, not
+            -- in the snap turn, a reload (want is not aim then) or one of the game's moves; it stops itself otherwise
+            if cfg.strafe then
+                s.strafe=s.strafe or Strafe.new(g,cfg)
+                local ok_s,e_s=pcall(s.strafe.tick,p,s.hip and not s.snap and not s.move and not s.flip,now)
+                if not ok_s and not s.strafe_err then s.strafe_err=true; g.log('strafe: '..tostring(e_s)) end
+            end
             if s.prof then s.prof('ik_chest') end
             -- (dev only, gun_g1=on) the fixed views once in carry (3 s into it) and once mid-reload
             if set.g1 and g.valid(s.rifle) then
@@ -1699,6 +1712,7 @@ function GunMode.new(env)
             s.ammo_reset=true
             s.stop_stance=true
             s.show_back=true
+            s.strafe_back=true -- (the strafe montage stopped from the loop: the pawn is not touched here)
         end
     end
 

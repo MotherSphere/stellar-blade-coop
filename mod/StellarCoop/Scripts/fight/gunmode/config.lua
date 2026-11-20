@@ -28,6 +28,17 @@ Config.DEFAULTS={
     -- fight/gunmode/ik.lua's aim_mesh_yaw, -75); a set that does not blade her takes 0. In game, P_Eve_GunNikke crouched her
     -- and P_Eve_Battle ran her toward the move: the game's directional strafe plays only in its lock-on.
     hip_strafe_mesh_yaw=-75,
+    -- hip fire's strafe (fight/gunmode/strafe.lua): while she moves, the pak's rifle walk or run clip of her move's direction
+    -- (Animation/NGM, 8 ways) loops on her DefaultSlot while she keeps facing the aim. false: her stance's legs as before
+    strafe=true,
+    strafe_min=40, -- cm/s: below this ground speed no strafe clip plays (her stance's idle)
+    strafe_hyst=10, -- deg: her move must be this far past a sector's 22.5 deg half-width before the clip changes way
+    strafe_run_at=260, -- cm/s: the run clips from this ground speed, the walk clips below it
+    strafe_run_hyst=30, -- cm/s: run from strafe_run_at+this up, back to walk below strafe_run_at-this
+    strafe_walk_speed=150, -- cm/s: the speed the walk clips' feet were made for (play rate = speed / this)
+    strafe_run_speed=300, -- cm/s: the same for the run clips
+    strafe_rate_min=0.6,strafe_rate_max=1.6, -- the play rate's clamp
+    strafe_blend=0.2, -- s: the strafe montage's blend in and out
     -- The rifle's round (fight/gunmode/ammo.lua): its name on the reticle's round slot, the magazine, the reload.
     round_name='NIKKE RAPID',reload_text='RELOADING',empty_text='NO AMMO',round_color={0.35,0.85,1.0},
     reload_color={1.0,0.62,0.15},
