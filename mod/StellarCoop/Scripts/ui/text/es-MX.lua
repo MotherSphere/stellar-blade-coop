@@ -22,6 +22,7 @@ return {
         max_players='Jugadores',auto_coop_save='Partidas guardadas co-op',enemy_hp_scale='Salud enemiga (anfitrión)',
         enemy_balance_scale='Equilibrio enemigo (anfitrión)',kill_credit='Mis recompensas',
         same_place='Misma posición (experimental)',aggro='Los enemigos atacan (anfitrión)',
+        hit_reactions='Retroceso común (experimental)',stagger_resist='Anti-tambaleo (experimental)',
         same_spawns='Mismas apariciones (experimental)',enemy_extra='Enemigos extra (anfitrión)',
         bosses='Compartir jefes (experimental)',boss_hp_scale='Salud de jefes (anfitrión)',
         shared_quests='Compartir misiones (experimental)',

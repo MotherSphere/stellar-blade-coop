@@ -1221,6 +1221,7 @@ int main() {
     h.spawn(101, 5001, 0);
     h.inbox.push_back(msg("SBF23 on"));
     frame(h, *eh, 0);
+    assert(eh->snapshot().reactions && eh->snapshot().resist); // The host's own, both on by default.
     h.inbox.push_back(msg("SBF23 cc 1 101 2003000 1 200"));
     frame(h, *eh, 16);
     assert(h.timed.size() == 1 && eh->host.counts.flinch_mirrored == 1 && eh->host.counts.flinch_refused == 0);
@@ -1233,6 +1234,11 @@ int main() {
          {"SBF23 world 1", "SBF23 place 1 1", "SBF23 stagger 1 1 1", "SBF23 up 1 101 5001 0 900 1600"})
       g.inbox.push_back(msg(line));
     frame(g, *eg, 0);
+    assert(eg->snapshot().reactions && eg->snapshot().resist); // The guest's: the host's, from its stagger line.
+    Game q; // A guest's side before the host's stagger line: both off.
+    auto eq = engine(true, false);
+    frame(q, *eq, 0);
+    assert(!eq->snapshot().reactions && !eq->snapshot().resist);
     g.inbox.push_back(msg("SBF23 cc 1 101 2003000 1 200"));
     frame(g, *eg, 16);
     assert(g.timed.empty() && eg->guest.counts.flinch_refused == 1 && count(g, "flinch refused", "drawn") == 1);
@@ -6114,7 +6120,9 @@ int main() {
     assert(io.said.empty() && io.traced.size() == 1 &&
            has(io.traced[0], "fight stats: guest, 1 pairs, 3 claims sent, 0 corrections") &&
            has(io.traced[0], "; bosses: 2 summons made, 1 bstart, 4 phase rows (1 refused), 9 finish guards; job: ") &&
-           has(io.traced[0], "Simulate mean 20 us"));
+           has(io.traced[0], "Simulate mean 20 us") &&
+           has(io.traced[0], ", flinches 0 told, 0 mirrored (0 refused), 0 crowd controls under poise, 0 poise windows "
+                             "(0 refused, 0 not restored, 0 unchecked), 0 levels guessed"));
     for (; t <= 62100; t += 16)
       w.pass(t, true, false, true, none, gate, io);
     assert(io.said.empty() && io.traced.size() == 2);
@@ -6143,16 +6151,25 @@ int main() {
     w.pass(t += 1000, true, false, true, none, gate, io);
     assert(has(w.detail(), " spawns=stopped spawned=4 despawned=3 spawns_differ=2 scale="));
     s.spawning = false, s.pilot_why = "fight", s.spawns = SpawnCounts();
-    // The revive's and the travel's guards last: a boss in battle mode, the enemies in battle mode near our EVE, and
-    // the epoch's zone, n and our own resets.
+    // The revive's and the travel's guards after the scaling: a boss in battle mode, the enemies in battle mode near
+    // our EVE, and the epoch's zone, n and our own resets; then phase 8's stagger field.
     assert(has(w.detail(), " bosses=off boss=0 battle=0 epoch=0/0/0"));
     s.boss = true, s.battle = 3, s.zone = 40, s.epoch = 2, s.resets = 1;
     assert(mail.exchange(s));
     w.pass(t += 1000, true, false, true, none, gate, io);
-    assert(has(w.detail(), " bosses=off boss=1 battle=3 epoch=40/2/1 her="));
+    assert(has(w.detail(), " bosses=off boss=1 battle=3 epoch=40/2/1 stagger=") && has(w.detail(), " her="));
     s.boss = false, s.battle = 0, s.zone = 0, s.epoch = 0, s.resets = 0;
     assert(mail.exchange(s));
     w.pass(t += 1000, true, false, true, none, gate, io);
+    // Phase 8 after the guards: the side's hit_reactions/stagger_resist, then its counts.
+    s.reactions = s.resist = true, s.job.unrestored = 2;
+    assert(mail.exchange(s));
+    w.pass(t += 1000, true, false, true, none, gate, io); // The fight= line's counts move each second.
+    assert(has(w.detail(), " stagger=on/on cc_poise=0 flinches=0/0/0 windows=0/0 unrestored=2 level_guess=0"));
+    s.reactions = s.resist = false, s.job.unrestored = 0;
+    assert(mail.exchange(s));
+    w.pass(t += 1000, true, false, true, none, gate, io);
+    assert(has(w.detail(), " stagger=off/off "));
     // Her link lost: paused, nothing sent (she is gone); a new session when she is back.
     io.said.clear();
     w.pass(t += 16, false, false, true, none, gate, io);

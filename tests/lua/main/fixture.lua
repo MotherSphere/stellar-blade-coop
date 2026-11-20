@@ -39,13 +39,15 @@ end
 clock=0
 os.clock=function() return clock end
 settings_text=''
--- Same place, same spawns, shared bosses and the switches turned on for the 2026-11-12 test build (the looks, the spawn
--- filter, the photo name tag, shared quests, the shared world, revive, collide, the two test tools, the status strip's
--- compact) are on by default (link_test, ui_model_test). This file reads them as off unless a case's own text names
--- them, so each case names the one it tests: the missing ones go after its lines.
+-- Same place, same spawns, shared bosses, shared flinches, stagger resistance and the switches turned on for the
+-- 2026-11-12 test build (the looks, the spawn filter, the photo name tag, shared quests, the shared world, revive,
+-- collide, the two test tools, the status strip's compact) are on by default (link_test, ui_model_test). This file
+-- reads them as off unless a case's own text names them, so each case names the one it tests: the missing ones go
+-- after its lines.
 function pinned(text)
     for _,key in ipairs({'same_place','same_spawns','bosses','dyes','effects','spawn_filter','photo_name_tag',
-            'shared_quests','shared_world','revive','collide','shortcut_load','pvp_spike','status_overlay'}) do
+            'shared_quests','shared_world','revive','collide','shortcut_load','pvp_spike','status_overlay',
+            'hit_reactions','stagger_resist'}) do
         if not ('\n'..text):find('\n%s*'..key..'%s*=') then
             text=text..((text=='' or text:sub(-1)=='\n') and '' or '\n')..key..'=off\n'
         end

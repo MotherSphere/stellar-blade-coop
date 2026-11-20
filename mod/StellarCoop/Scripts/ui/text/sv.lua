@@ -21,6 +21,7 @@ return {
         max_players='Spelare',auto_coop_save='Sparfiler för co-op',enemy_hp_scale='Fiendernas hälsa (värdens)',
         enemy_balance_scale='Fiendernas balans (värdens)',kill_credit='Mina belöningar',
         same_place='Samma position (experimentell)',aggro='Fiender anfaller (värdens)',
+        hit_reactions='Delade ryck (experimentell)',stagger_resist='Vacklingsmotstånd (experimentell)',
         same_spawns='Samma spawns (experimentell)',enemy_extra='Extra fiender (värdens)',
         bosses='Delade bossar (experimentell)',boss_hp_scale='Bossarnas hälsa (värdens)',
         shared_quests='Delade uppdrag (experimentell)',

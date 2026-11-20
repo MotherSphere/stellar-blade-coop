@@ -390,6 +390,7 @@ struct Snapshot {
   size_t scaled = 0;                     // Enemies whose MaxHP we scaled.
   uint16_t scale[kScales] = {kMinScale, kMinScale}; // The side's scaling: the host's own, or as its scale line said.
   uint16_t bosses = 0; // The side's boss_hp_scale with bosses on (stage 5), as scale; 0: off.
+  bool reactions = false, resist = false; // The side's hit_reactions and stagger_resist (phase 8), as bosses.
   size_t actors = 0;                     // Live actors at the last census (the probe's), or allocated slots.
   bool eve = false;                      // The last census found our EVE (RE4).
   // The guest's side: the host's enemies left unpaired (Guest::unshared), the first kMaxUnshared of them, how many

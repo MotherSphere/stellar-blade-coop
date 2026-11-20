@@ -848,12 +848,14 @@ inline std::string masked(std::string_view text) {
 // and "replay off"; for the Night Operation probe (Phase 6, T6 only) "nightop" (start the read-only poller) and
 // "nightop rule" (start it if needed and arm the verdict, once a run); for the shared fight (Phase 11,
 // fight/enemies/engine.h's Worker) "fight on|probe|record|replay [confirmed] [fought] [scale <hp %> <balance %>]
-// [place] [aggro-host] [bosses <boss %>] [spawns] [extra <n>] [filter] [<charId> ...]" (guest_kills=confirmed;
-// kill_credit=fought; the host's two-player scaling, kMinScale to kMaxScale each; the host's same_place=on; the host's
-// aggro=host; the host's bosses=on with its boss_hp_scale, kMinScale to kMaxScale; the host's same_spawns=on, or with
+// [place] [aggro-host] [bosses <boss %>] [reactions] [resist] [spawns] [extra <n>] [filter] [<charId> ...]"
+// (guest_kills=confirmed; kill_credit=fought; the host's two-player scaling, kMinScale to kMaxScale each; the host's
+// same_place=on; the host's aggro=host; the host's bosses=on with its boss_hp_scale, kMinScale to kMaxScale; the host's
+// hit_reactions=on and stagger_resist=on (phase 8); the host's same_spawns=on, or with
 // probe coop fight spawn probe; the host's enemy_extra, 1 to kMaxExtra; filter, with on and probe only: our
 // spawn_filter=on, a word of this request and never a line on the wire; fight_chars, at most kMaxFightChars, none:
-// every Monster), "fight off", "fight status", "fight test
+// every Monster), "fight stagger <0|1> <0|1>" (the host's hit_reactions and stagger_resist, at once), "fight off",
+// "fight status", "fight test
 // hp|sh|st <change>" (whole units, with or without a sign), "fight test kill", and for same-place enemies
 // (glue/tick.cpp's) "fight pilot probe" (the lines this side sends, into coop-fight.log), "fight pilot on" (our
 // same_place on now, the co-op menu's row), "fight pilot off" (the probe off, and same-place enemies off until the next
@@ -972,7 +974,7 @@ constexpr const char *kSignalWords[kSignalWordCount] = {"watch",  "acquire", "co
 // closed (shown as Private: nobody can join).
 enum class Who { friends, everyone, invitation, closed };
 // pvp: the PvP test (design 13), fight pvp off its end.
-enum class Fight { none, on, off, status, probe, test, record, replay, pilot, pvp };
+enum class Fight { none, on, off, status, probe, test, record, replay, pilot, pvp, stagger };
 // fight pilot ...; bstart to summon: stage 5's probes (fight/enemies/engine.h's Engine::boss_test).
 enum class PilotAsk : uint8_t { probe, on, off, status, test, target, exec, bstart, phase, finish, summon };
 // fight pilot test: how far the drawn side goes, each adding to the one before: our freeze only; its movement component
@@ -1023,6 +1025,8 @@ struct Request {
   bool place = false;          // fight on, probe, record, replay: same_place=on (a host's).
   bool aggro_host = false;     // fight on, probe, record, replay: aggro=host (a host's; aggro=game otherwise).
   uint16_t bosses = 0;         // fight on, probe, record, replay: bosses=on with boss_hp_scale in % (a host's; 0: off).
+  bool reactions = false;      // fight on, probe, record, replay, stagger: hit_reactions=on (a host's).
+  bool resist = false;         // fight on, probe, record, replay, stagger: stagger_resist=on (a host's).
   bool spawns = false;         // fight on, record, replay: same_spawns=on (a host's); probe: coop fight spawn probe.
   uint8_t extra = 0;           // fight on, record, replay: enemy_extra, 1 to 3 (a host's; 0: none).
   bool filter = false;         // fight on, probe: spawn_filter=on (the guest's own; with probe, its pass-through test).
@@ -1098,6 +1102,10 @@ inline Request parse_fight(const std::string &text) {
       r.bosses = static_cast<uint16_t>(v);
       ++i;
     }
+    r.reactions = i < w.size() && w[i] == "reactions";
+    i += r.reactions;
+    r.resist = i < w.size() && w[i] == "resist";
+    i += r.resist;
     r.spawns = i < w.size() && w[i] == "spawns";
     i += r.spawns;
     if (i < w.size() && w[i] == "extra") {
@@ -1135,6 +1143,9 @@ inline Request parse_fight(const std::string &text) {
     r.fight = Fight::pilot;
     r.pilot = ask == std::end(kAsks) ? PilotAsk::test : PilotAsk(uint8_t(PilotAsk::target) + (ask - std::begin(kAsks)));
     r.test = at == std::end(kTests) ? PilotTest::replay : PilotTest(at - std::begin(kTests));
+  } else if (what == "stagger" && w.size() == 3 && (w[1] == "0" || w[1] == "1") && (w[2] == "0" || w[2] == "1")) {
+    r.fight = Fight::stagger;
+    r.reactions = w[1] == "1", r.resist = w[2] == "1";
   } else if (what == "pvp" && (w.size() == 1 || (w.size() == 2 && w[1] == "off"))) {
     r.fight = Fight::pvp;
     r.off = w.size() == 2;

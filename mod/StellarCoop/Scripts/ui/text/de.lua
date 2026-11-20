@@ -22,6 +22,7 @@ return {
         max_players='Spieler',auto_coop_save='Koop-Speicherstände',enemy_hp_scale='LP der Gegner (Host)',
         enemy_balance_scale='Gleichgewicht der Gegner (Host)',kill_credit='Meine Kill-Belohnungen',
         same_place='Gleiche Position (experimentell)',aggro='Gegner greifen an (Host)',
+        hit_reactions='Geteiltes Zucken (experimentell)',stagger_resist='Taumelresistenz (experimentell)',
         same_spawns='Gleiche Spawns (experimentell)',enemy_extra='Zusätzliche Gegner (Host)',
         bosses='Gemeinsame Bosse (experimentell)',boss_hp_scale='LP der Bosse (Host)',
         shared_quests='Gemeinsame Quests (experimentell)',

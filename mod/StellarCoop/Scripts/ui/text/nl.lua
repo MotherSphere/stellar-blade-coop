@@ -20,6 +20,7 @@ return {
         max_players='Spelers',auto_coop_save='Opgeslagen co-opgames',enemy_hp_scale='HP vijanden (host)',
         enemy_balance_scale='Balans vijanden (host)',kill_credit='Mijn beloningen',
         same_place='Zelfde plek (experimenteel)',aggro='Vijanden vallen aan (host)',
+        hit_reactions='Gedeeld deinzen (experimenteel)',stagger_resist='Wankelweerstand (experimenteel)',
         same_spawns='Zelfde spawns (experimenteel)',enemy_extra='Extra vijanden (host)',
         bosses='Gedeelde bazen (experimenteel)',boss_hp_scale='HP bazen (host)',
         shared_quests='Gedeelde quests (experimenteel)',

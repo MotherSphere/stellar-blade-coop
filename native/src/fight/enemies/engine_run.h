@@ -384,6 +384,8 @@ inline Snapshot Engine::snapshot() const {
   for (int k = 0; k < kScales; ++k)
     s.scale[k] = hosting_seen_ ? host.scale(k) : guest.scale(k);
   s.bosses = hosting_seen_ ? host.bosses() : guest.bosses();
+  s.reactions = hosting_seen_ ? host.reactions() : guest.reactions();
+  s.resist = hosting_seen_ ? host.resist() : guest.resist();
   if (!hosting_seen_) {
     s.unshared_all = guest.unshared(s.unshared, kMaxUnshared, s.maxhp);
     s.lonely = guest.lonely();

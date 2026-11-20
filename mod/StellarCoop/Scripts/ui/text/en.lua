@@ -20,6 +20,7 @@ return {
         max_players='Players',auto_coop_save='Co-op saves',enemy_hp_scale="Enemy HP (host's)",
         enemy_balance_scale="Enemy balance (host's)",kill_credit='My kill rewards',
         same_place='Same place (experimental)',aggro="Enemies attack (host's)",
+        hit_reactions='Shared flinches (experimental)',stagger_resist='Stagger resistance (experimental)',
         same_spawns='Same spawns (experimental)',enemy_extra="Extra enemies (host's)",
         bosses='Shared bosses (experimental)',boss_hp_scale="Boss HP (host's)",
         shared_quests='Shared quests (experimental)',
