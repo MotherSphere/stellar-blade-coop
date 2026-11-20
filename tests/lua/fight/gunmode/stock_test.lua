@@ -8,7 +8,7 @@
 -- reload waits Ammo.RETRY s; with no round carried the cool time is 999 and 'out of rounds' is logged once (fired dry
 -- too); rounds carried later reload an empty magazine by itself; ready() turning false gives the free magazines back;
 -- refill() keeps the magazine with stock; stop() ends the watch and loads a magazine put away mid-reload through
--- take().
+-- take(); a part-filled magazine fired empty after a refused take waits Ammo.RETRY s too.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
@@ -201,5 +201,30 @@ while clock<retry-0.05 do frame(a) end
 assert(count('ammo: reload (')==reloaded,
     'lowered: '..(count('ammo: reload (')-reloaded)..' reloads before Ammo.RETRY s, none wanted (ammo.lua\'s lowered'
     ..' reload, start_reload(now,\'lowered\') after cfg.reload_delay, does not check self.retry_at)')
+
+-- A refused take with a part-filled magazine, then fired empty: no reload (and no take) before Ammo.RETRY s.
+st=stock(40)
+st.rows=true
+a=new(st)
+frame(a)
+while a.reload_until do frame(a) end
+for _=1,10 do frame(a,true,true); frame(a,true,false) end
+assert(a.left==20 and a.reserve==10,'Ten presses: '..a.left..' '..a.reserve)
+st.refuse='no EVE'
+local refused=count('rounds not taken')
+while count('rounds not taken')==refused do frame(a) end
+retry=assert(a.retry_at)
+while a.reload_until do frame(a) end
+assert(a.left==20,'The refused take loaded nothing: '..a.left)
+reloaded,takes=count('ammo: reload ('),#st.takes
+while a.left>0 do frame(a,true,true) end
+assert(clock<retry-1,'Fired empty well before Ammo.RETRY s')
+while clock<retry-0.05 do frame(a,true,true) end
+assert(count('ammo: reload (')==reloaded and #st.takes==takes and not a.reload_until,
+    'fired empty: '..(count('ammo: reload (')-reloaded)..' reloads before Ammo.RETRY s, none wanted')
+assert(cool()==999,'No round while it waits: '..tostring(cool()))
+st.refuse=nil
+frames(a,10,true)
+assert(count('ammo: reload (')==reloaded+1 and a.reload_until,'Reloaded after Ammo.RETRY s')
 
 print('fight/gunmode/stock_test: ok')

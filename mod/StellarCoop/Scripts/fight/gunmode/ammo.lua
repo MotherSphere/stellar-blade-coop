@@ -263,8 +263,9 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
             end
             if self.left<=0 then
                 self.left=0
-                if self.reserve>0 then start_reload(now,'empty')
-                else pcall(cool,999); self.dry=true; g.log('ammo: out of rounds') end
+                if self.reserve>0 and now>=(self.retry_at or 0) then start_reload(now,'empty')
+                elseif self.reserve<=0 then pcall(cool,999); self.dry=true; g.log('ammo: out of rounds')
+                else pcall(cool,999) end -- After a refused take: the stocked empty check below reloads after RETRY.
             end
         else
             if not firing then self.held=false end
