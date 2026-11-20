@@ -75,13 +75,13 @@ static_assert(sizeof kJobs / sizeof kJobs[0] == kRowWordCount, "a job for each r
 // teamshop and nikke ones; SkillTable for the lion, gardener, tendril and bolt ones; SkillResultTable for the lion,
 // tendril and bolt ones; CharacterTable, CharacterStanceTable, SkillCommandTable and SkillActiveStepTable for the three
 // Naytibas'; and five more for the lion and tendril ones); and the read-back runs SB's lookups over those same tables
-// and its registry. Only ProjectileTable (bolt), EffectTable and ItemConsumableTable (lion), the signal batch's five
-// quest tables, the halls batch's WorldTable and ZoneTable, and Matrix XIII's zone and world tables (its four batches)
-// except ZoneEnvSpawnTable, which the halls batch writes too, have no other batch writing them, and those rows still go
-// through the same block and calls (Matrix XIII's shipped trigger rows through CopyScriptStruct back over the row,
-// never AddRow). So a fault anywhere in the call may leave shared state half written, and it stops every batch. The
-// status lines are the worker's, built from atomics with no engine access. The Shock Bolt's list growth writes nothing
-// a batch writes and keeps its own latch (shock_faulted).
+// and its registry. Only ProjectileTable (bolt), RewardGroupTable (nikke), EffectTable and ItemConsumableTable (lion),
+// the signal batch's five quest tables, the halls batch's WorldTable and ZoneTable, and Matrix XIII's zone and world
+// tables (its four batches) except ZoneEnvSpawnTable, which the halls batch writes too, have no other batch writing
+// them, and those rows still go through the same block and calls (Matrix XIII's shipped trigger rows through
+// CopyScriptStruct back over the row, never AddRow). So a fault anywhere in the call may leave shared state half
+// written, and it stops every batch. The status lines are the worker's, built from atomics with no engine access. The
+// Shock Bolt's list growth writes nothing a batch writes and keeps its own latch (shock_faulted).
 std::atomic<int64_t> lion_spawns{INT64_MIN};
 std::atomic<bool> lion_faulted{false};
 std::atomic<uint64_t> lion_fault_code{0}, lion_fault_rva{0}, lion_fault_address{0};

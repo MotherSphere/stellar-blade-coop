@@ -4,7 +4,7 @@
 // Gun mode's rounds batch (kNikkeRecipe, request word "nikke"), asked by fight/gunmode/nikke.lua at the title on the
 // co-op save files. The rifle's round is SB's own ItemTable row Bullet_Nikke (ID 37): the round the NIKKE stage hands
 // EVE (the game constant NikkeStage_ChangeBullet, default text at 0x145d3c038; FUN_141c30030 sets it as her current
-// bullet). The row ships, so a save that holds rounds always finds it, and this batch leaves it as it is. The batch
+// bullet). The row ships, so a save that holds rounds always finds it. This batch leaves it as it is. The batch
 // adds where to get it:
 //   - drops: 8 RewardGroupTable rows, each a copy of a shipped row of an ammo group that enemies or supply boxes roll
 //     (its ItemAlias, DropRate and counts changed, its Group kept). Every one of those groups is RandomEach. SB

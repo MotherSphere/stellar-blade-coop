@@ -1400,7 +1400,8 @@ int main() {
          lone.tables[21] == 0);
   const Request short_one = parse_request(lion(one_short));
   assert(short_one.command == Command::rows && short_one.tables[31] == 0x1f4a2b3c1f00ull &&
-         short_one.tables[37] == 0x1f4a2b3c2500ull && short_one.tables[38] == 0);
+         short_one.tables[37] == 0x1f4a2b3c2500ull && short_one.tables[38] == 0x1f4a2b3c2600ull &&
+         short_one.tables[39] == 0);
   std::vector<std::string> doubled = {words[3], words[7], words[3]};
   for (const std::string &bad :
        {lion(one_more), lion(with(1, words[0])), lion(doubled), signal({}) + " ",

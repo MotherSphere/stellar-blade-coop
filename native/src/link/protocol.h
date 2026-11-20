@@ -965,7 +965,7 @@ constexpr const char *kLionTables[kLionTableCount] = {
     "ConditionTable",        "ConditionGroupTable",      "AlbumTable",         "AchievementTable",
     "PuzzleStringArrayTable", "WorldTable",              "ZoneTable",          "RewardGroupTable"};
 // coop-request.txt's bytes the native part reads (glue/steam.cpp): the longest rows request, 16 digits to each of its
-// 40 addresses, and its line end fit (protocol_test: 1411 bytes).
+// 40 addresses, and its line end fit (protocol_test: 1447 bytes).
 constexpr size_t kMaxRequestFile = 2048;
 // nightshop: what online/modes/nightop/shop_ui.h is asked: SB's shop screen opened on Shop_NightOperation_Coop or on
 // Shop_NightOperation_CoopBolt, closed, or no call but the reads.
