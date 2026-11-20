@@ -5,7 +5,7 @@ experimental: it has been played on one PC only, not yet between two players.
 
 ## Parked while it is rebuilt
 
-`gun_key` (F4) or a tap of D-pad Right shows the notice "Gun mode: rebuilding" and does nothing else: no table field
+G (`gun_key`) or a tap of D-pad Right shows the notice "Gun mode: rebuilding" and does nothing else: no table field
 changes, no rifle comes out. The park lifts when the game finds the rifle layer's class `ABP_NGM_Spike`
 (`/Game/Mods/NGM/`), which comes in the optional pak `zNGMSpike_P`. With that pak installed, the key brings the rifle
 out as the rest of this page describes.
@@ -63,7 +63,7 @@ and stay for the game run ([The rounds' rows](#the-rounds-rows)). The fields the
 
 | Key | Pad | What it does |
 | --- | --- | --- |
-| F4 (`gun_key`) | A tap of D-pad Right | Rifle out or away. A hold of D-pad Right is the bike's |
+| G (`gun_key`) | A tap of D-pad Right | Rifle out or away. A hold of D-pad Right is the bike's |
 | RMB (held) | LT (held) | Firing mode: the camera comes over her shoulder, the laser sight and the reticle come up |
 | LMB | RT | In firing mode: full auto |
 | Space | A | In firing mode: jump, still firing |
@@ -73,23 +73,17 @@ With the rifle out and no button held, EVE moves as usual with the rifle at low 
 posed stance). The sword's attacks are off until the rifle is put away. Their keys come back while the game is paused,
 so the game's key options never save them off. A new map, a death or a camp warp puts the rifle away.
 
-The rifle does not come out during a cutscene, a talk or another interaction, while the game holds her movement, in the
-photo and selfie modes, or while her movement mode is other than walking or falling (swimming, flying, a custom movement
-mode or none). If one of these starts with the rifle out, the rifle goes away within a quarter of a second. The same
-holds while EVE rides the bike, wears the Doro look, plays a `coop emote`, sits on a hall seat or uses `coop fly` or
-`coop glide`. The bike does not mount while the rifle is out. `UE4SS.log` names the reason on a `[GM]` line. A key press
-or D-pad tap that the rifle refuses also shows a notice on screen: release the drone aim, EVE is not in the game world,
-EVE cannot take the rifle now, or the start failed.
+While the game holds EVE in an interaction or a cutscene (a camp, a seat, a rest, a door, a level sequence), the
+rifle goes away. It comes back 1 s after she is free. A press of `gun_key` in that second cancels the comeback.
+`UE4SS.log` names the reason on a `[GM]` line. The rifle does not come out with no EVE in the game world or while the
+drone aim is held. Gun mode checks no other state: the rifle can come out on the bike, in a Doro race, on a hall seat,
+in flight or during an SBO match. The bike does not mount while the rifle is out. SBO's PvP rule counts a hit only from
+15 m or closer, whatever the move. The rifle's rounds reach 100 m: a hit from farther than 15 m costs the other player
+nothing.
 
-During an SBO match (a round in play, or the PvP test of `coop pvp`) the rifle stays away too, with a notice. SBO's
-PvP rule counts a hit only from 15 m or closer, whatever the move. The rifle's rounds reach 100 m: a hit from farther
-than 15 m would cost the other player nothing.
-
-`coop off` puts the rifle away too. The table fields, the keys and her body's own post-process class go back. Gun
-mode then does nothing until the game restarts. Until everything is back, `coop-gun.txt` lists what gun mode changed.
-After a Lua reload (Ctrl+R) the next load puts those changes back at its first frame. It shows the drone and her
-hidden meshes to her camera again. It turns off the carry stance and removes the rifle or the posed copy it finds on
-her.
+`coop off` puts the rifle away. The table fields, the keys and her body's own post-process class go back. Gun mode
+then does nothing until the game restarts. Gun mode keeps no file of what it changed: a Lua reload (Ctrl+R) with the
+rifle out leaves its changes in memory until the game restarts.
 
 ## Firing mode
 
@@ -132,7 +126,7 @@ rounds in the magazine, then the magazines left (a part-spent one counted). The 
 `Icon_Nikke_LostItem_AssaultRifle`, the icon of the item table's `Nikke_AR` row. Gun mode loads it from the game.
 While the native part runs, SBO's keep holds it across map changes. No image file ships with SBO. The entry is a child
 of the HUD's own D-pad marker, so it shows and hides with the HUD. A box the marker's size holds it, so the item column
-never grows. While no HUD is on screen gun mode looks for it once every 10 s. In hip fire (the rifle up without the
+never grows. In hip fire (the rifle up without the
 game's aim) a small crosshair shows at the screen's centre. `hud_entry=false` in `fight/gunmode/config.lua` turns the
 entry off.
 
@@ -237,9 +231,9 @@ to free magazines (`mag_size` in the magazine, `spare_mags` spares).
   no EVE or no GUID for her. A refused take loads nothing. The next empty reload then waits 5 s (`Ammo.RETRY`).
 
 Gun mode calls no item add, save, shop or drop function. SB's own buy and drops add the rounds. `UE4SS.log` has the
-`[GM]` lines `ammo: the magazine loads from EVE's inventory (Bullet_Nikke)` once the rows are in, `ammo: out of rounds`
+`[GM]` lines `ammo: the magazine loads from the round store (Bullet_Nikke)` once the rows are in, `ammo: out of rounds`
 (once, until rounds come), `ammo: N rounds not taken (<why>): nothing loaded` and
-`ammo: free magazines (no co-op save, or the rounds' rows are not in)`.
+`ammo: free magazines (the round store is not ready)`.
 
 ## coop gun
 
@@ -250,18 +244,16 @@ Gun mode calls no item add, save, shop or drop function. SB's own buy and drops 
 
 ## Settings
 
-`gun_mode` and `gun_key` are SBO settings. A new `coop-settings.txt` has both lines. The co-op menu's Options page has
-a row for each under Controls. Gun mode reads them when the mod loads (game start or Ctrl+R).
+Gun mode reads its own lines of `coop-settings.txt` when the mod loads (game start or Ctrl+R).
 
 | Line | Values | Default |
 | --- | --- | --- |
 | `gun_mode` | `on`, `off` (no key, no hook, nothing) | `on` |
-| `gun_key` | F1 to F12 but F10, with at most one of `Shift+`, `Ctrl+`, `Alt+`, or `none` | `F4` |
+| `gun_key` | One letter A to Z, or F1 to F12 but F10 | `G` |
 
-`gun_key` follows the rules of SBO's other keys. Options refuses a key that another SBO action holds. A file that gives
-one key to two actions gets every key back at its default. A file written before `gun_key` whose own keys hold F4
-gets no gun key. Stellar Blade's input settings bind no F-key. They bind G to a menu action (`UI_RightThumbstick`),
-which is why G is no longer the default.
+Stellar Blade's input settings bind G to a menu action (`UI_RightThumbstick`). SBO's own settings still list
+`gun_key` with F4: a `coop-settings.txt` that SBO writes new has the line `gun_key=F4`. Gun mode then uses F4. The
+co-op menu's row for `gun_key` takes F-keys only.
 
 The lines below are test lines. A new file does not have them and Options has no row for them. A line with an empty
 value counts as absent. Gun mode checks four of them: `gun_aim_key`, `gun_zoom`, `gun_fire` and `gun_upper`. A value
@@ -282,6 +274,7 @@ value outside the list does.
 | `gun_carry_spare` | Which spare animation set row the rifle carry takes, from 0 | 0 | Not a number: ignored |
 | `gun_carry_idle` | The rifle carry's idle type, a number | 1 | Not a number: ignored |
 | `gun_fire_key` | One more fire key, a UE key name in letters and digits only (no `_`) | none | Ignored |
+| `gun_hip_strafe_row` | Hip fire's strafe set: an animation set row, as letters, digits and `_` | `P_Eve_Gun_Battle` | Ignored |
 
 ## Credits
 

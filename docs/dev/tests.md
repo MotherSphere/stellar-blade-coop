@@ -70,18 +70,6 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   game's own aim. The drone and the reticle's text are walked for (`FindAllOf`) once at the rifle out. The text is
   walked for again at each firing mode entry. The drone is walked for again when the one held goes, or 10 s after a miss
   at the next rifle out. A frame of the posed stance reads no bone name and makes no FName;
-- `fight/gunmode/engine_test` covers the engine objects gun mode keeps across frames, over `fight/gunmode/fake.lua`.
-  Masked keys go back into the action mappings as they are when the rifle goes away, after coop fly's mappings moved
-  the array to a new buffer; nothing is written into the old one. The muzzle flash's asset is found by its path or
-  loaded again once collected. It is never spawned freed or through a reference kept from an earlier flash. Over a
-  fake of its own, the posed stance keeps the hide clip held by a component of its own (in single-node mode) while the
-  donor plays the reload;
-- `fight/gunmode/online_test` covers what other players get of gun mode, over fake UE4SS objects. The posed stance
-  adds no skeletal mesh component to EVE. Its donor and the keeper of its hide clip stand on an actor of their own,
-  removed at stop, so the ghost's capture never sends them. The laser sight is spawned at the rifle's muzzle with no
-  parent (the capture sends the rifle's attached effects). Each frame of aim moves it to the muzzle, on the rifle
-  layer too when it has no point to end at. While an SBO match runs the rifle does not come out, with the match notice
-  once in 3 s. A match that starts with the rifle out puts it away within 0.25 s with everything back;
 - `fight/gunmode/dpad_test` covers the HUD entry (`fight/gunmode/ui/dpad.lua`): its glyph is the Right twin of the
   pad glyph the game shows or the `gun_key` keyboard icon. Its icon is a game texture path that it wants from the
   keep. Through gun mode over `fight/gunmode/fake.lua` with a stub entry: it is ticked ten times a second with the
@@ -95,28 +83,11 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `fight/gunmode/aimrot_test`, `ik_pin_test`, `morph_test`, `rifle_frame_test`, `laser_test`, `input_memo_test` and
   `g1_gates_test` cover the chest-turn loop, the v4 left-hand pin, the rifle's arrival and departure timing, the
   rifle's frame and its morph scale, the laser end sent only when it moved, one key read a frame and the G1 gates;
-- `fight/gunmode/stop_test` runs gun mode over a fake UE4SS (`fight/gunmode/fake.lua`) on the rifle layer's path. The
-  fake's row fields have the kinds read in Ghidra on 26123051: the shot's Hit1 step has a byte `Type` and no `StepType`.
-  `stop` (coop off) gives back the table fields, the keys, the rifle, her body's own post-process class, the FOV lock
-  and the layer's arms; with `gun_fire=own` too, where the fields stay changed after the rifle goes away. After it no
-  key, toggle or new controller does anything. A second load over the same game and `coop-gun.txt` puts back what the
-  first left with the rifle out. Its own rifle then takes and gives back the shipped values. A start puts back what an
-  earlier load left before it reads the rows. `coop-gun.txt` keeps floats, integers, booleans, strings, FNames and
-  vectors exactly. A start whose input mask or rifle fails gives back what it took, as does a start that raises once the
-  rifle layer is on. A new controller clears the old pawn's state at once; its deferred reset shows the drone, puts her
-  facing back and takes the layer off her new body;
-- `fight/gunmode/state_test` runs gun mode over the same fake against the game's state. While the rifle is out the
-  shot's Hit1 step has its Cast1 step's `Type`. The shipped value comes back when the rifle goes away. The shot's two
-  borrowed fields keep their shipped values while the rifle is only out. They change at the first shot through the zone
-  event (kind 2 on the borrowed row) and go back 1 s after the last one, later after a pause. `coop-gun.txt` lists them
-  while they are changed, so a Lua reload puts them back. A pause gives the masked keys back (`coop-gun.txt` drops
-  them); the first frame after it masks them again. The rifle does not come out in a cutscene, an interaction or its
-  block, with her movement held, in a swim, a flight or a custom movement mode, or in the photo or selfie mode. Each of
-  these puts it away within 0.25 s with everything back. A jump keeps it out. Another module's hold on EVE (`busy`)
-  refuses the rifle or puts it away the same way; `out()` says whether it is out. A refused toggle (no EVE, the drone
-  aim held, a state that holds her, a failed start) gives its notice. F4 toggles the rifle by default, G does not; a
-  key with a modifier needs it held; `gun_key=none` has no key. Once `menu_key` is Shift+F4, also from a rebind
-  after the load, Shift+F4 is the menu's press only. F4 alone and Ctrl+F4 still toggle the rifle;
+- `fight/gunmode/fire_rate_test`, `hip_strafe_test`, `mask_names_test` and `data_cool_test` cover hip fire's steady
+  rate (the burst's looser cone and the shots' fixed beat), hip fire's strafe rows (`gun_hip_strafe_row`), the input
+  names masked in each fire mode, dry or not, and the shot skill's cool time;
+- `fight/gunmode/hosted_test` covers gun mode hosted by StellarCoop: `start()` registers no hook and no loop, `tick`
+  and `new_controller` do nothing with `gun_mode=off` or after `stop`, `out()` follows whether the rifle is out;
 - `fight/gunmode/texts_test` holds gun mode's texts to its code and scripts. The rifle layer's pak has one name, the
   one its build script writes (`zNGMSpike_P`), with the class `fight/gunmode/overlay.lua` looks for: no other pak or
   layer name in gun mode's code, tools, page or NOTICE section. The page and NOTICE name both. NOTICE names Mixamo.
@@ -325,13 +296,10 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   beside. The same values, ours not read yet, a match lobby or the SBO lobby give none;
 - `story/quests/wiring_test` covers `coop quests` with the `shared_quests` and `quest_deny` settings and the shared
   quests' notices;
-- `main/gun_test` covers gun mode's wiring through `main.lua` with a fake `fight/gunmode/mode.lua`: `coop-gun.txt`
-  through the link's store (none without the native part), the photo and selfie modes as the runtime reads them, its
-  `busy` reasons (the bike, the Doro look, `coop emote`, a hall seat, `coop fly`, `coop glide`), the SBO match it
-  reads from the link (a round in play or the PvP test, none without the native part), its notices, the settings and
-  words it gets (no unknown-setting line for its `gun_` lines), the file it reads itself without the native part
-  (`gun_mode=off` holds), the restore at the first tick, `coop off`'s stop, the restore alone after a Lua reload
-  with `coop off` still on;
+- `main/gun_test` covers gun mode's wiring through `main.lua` with a fake `fight/gunmode/mode.lua`: the mod folder
+  it reads its `gun_` lines from, the rounds' store (none without the native part), its start, the words and the
+  notice it gets, the new-controller hook, no unknown-setting line for its `gun_` lines, the restore at the first
+  tick, `coop off`'s stop, the restore alone after a Lua reload with `coop off` still on;
 - `main/bike_test` covers the bike's wiring (`vehicles/bike/wiring.lua`) through `main.lua` with a fake
   `vehicles/bike/ride.lua`: the load line, what the ride gets (its asks, `coop-bike.txt`, the driving, the settings,
   SBO's busy reasons with coop fly, gun mode's rifle and our open screens), `coop bike` and its words, F3 and the pad's
