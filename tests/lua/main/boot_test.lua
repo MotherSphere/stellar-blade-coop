@@ -1049,6 +1049,9 @@ assert(tv.o.paused()==false and tv.o.night()==false and tv.o.cutscene()==false)
 kit_paused=true; assert(tv.o.paused()==true); kit_paused=false
 nr.running=true; assert(tv.o.night()==true); nr.running=nil
 gr.playing=true; assert(tv.o.cutscene()==true); gr.playing=nil
+-- The return after death: follow_key on the death screen asks the group first; its warp is the follow's go(id); both
+-- wait on the follow's pause read.
+assert(tv.o.back()==true and gr.backs==1 and gr.o.go('3')==true and tv.gone=='3' and gr.o.paused==tv.o.paused)
 tv.count=#tv.ticks
 loops[2].f(); assert(#tv.ticks==tv.count+1 and tv.ticks[#tv.ticks]==gr.ticks[#gr.ticks])
 coop('travel','host'); assert(tv.presses==2 and last()=='[StellarCoop] OK: asked the host for camps\n',last())

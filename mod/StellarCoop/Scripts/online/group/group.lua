@@ -28,6 +28,21 @@
 -- slot's: main.lua's puppet for slot 0, o.ghost(k) for the others. In an online session of more than 2 players only
 -- the host and the pair can be revived (phase 7b1): the boss=0 read comes from the shared fight, which runs between
 -- them alone, so another guest's game never makes the call and nobody is told to revive her.
+-- The return after our death (follow_key on the death screen: online/group/travel.lua's press asks back() first). The
+-- offer comes once per death while all of these hold: our life state 3 under the playing death screen, a co-op save
+-- (the status line slot=coop), revive=on, no Night Operation run, the fight= line's boss=0, the target alive by her
+-- vitals on our map with no solo area on either side, no respawn call of ours in this death yet and none in the 10 s
+-- before it started. follow_key=none or follow_host=off: one log line in its place. follow_host=always: its notice,
+-- then the call 5 s later; follow_key within those 5 s cancels it. The target: on a guest the host (his host line's
+-- member, else slot 0's); on the host the living guest on his map nearest his EVE (her ghost's feet). back() runs the
+-- guards of coop revive test held to life 3 (a refusal: one log line, no call), then the revive's call with its
+-- fallback, result line and hidden screen (no revived notice: nobody revived us). Once our life reads 1 or 6 with
+-- warp=idle, the game not paused (10 s at most): o.go(her id), the spot warp next to her, if she is still linked,
+-- alive, on our map and outside a solo area; else one log line. The friend's 3 s revive marks nothing: no warp after it.
+-- Solo areas (core/link.lua's Link.solo: ZoneTable's zone type 2 to 6, ours from link.zone(), hers from her vitals):
+-- each other member in one is said once a stay, then back once her type reads public (1); no vitals and type 0 keep
+-- the last state. The revive waits while we are in one and leaves out a member in one. The guest asks no cutscene
+-- pause while the host or she is in one. Her down notice waits while either side is in one.
 -- coop revive test, the solo probe: refused while linked, it makes the same call at the death screen with life 3 to 5,
 -- with the same lines (online/group/commands.lua runs it on a co-op save only).
 -- During a Night Operation run (o.night()), the run owns the revive (online/modes/nightop/run.lua): the 3 s rule and
@@ -45,8 +60,14 @@
 local U=require('core.unreal')
 local Where=require('core.where')
 local N=require('core.player')
+local Link=require('core.link')
 local G={}
 local HOLD,AFTER=3,2 -- s: every condition held; then a read of our life state after each call.
+-- s: no return offer for a death this soon after our last respawn call; always's delay; the warp's wait while paused.
+local RECENT,AUTO,PAUSE=10,5,10
+-- ESBZoneType 2 to 6 (Zone_TrainningRoom, Zone_SpiritRoom, Zone_TestZone, Zone_BossChallenge, Zone_Nikke; its value
+-- table at 0x145e29730 on 26123051) to ui/text's group.places.
+local PLACE={[2]='training',[3]='spirit',[4]='test',[5]='boss',[6]='nikke'}
 local ACROSS,UP,NEAR=200,100,300 -- cm: her ghost from our EVE across and up or down; our EVE from hers, for our revive.
 local LOOK=10 -- s between two lookups of the death screen while it is not found.
 local HIDDEN=2 -- ESlateVisibility Hidden.
@@ -62,15 +83,23 @@ local function feet()
     local v=U.value_of(mesh:K2_GetComponentLocation())
     return {X=v.X,Y=v.Y,Z=v.Z}
 end
--- o: {link=, puppet=, settings= (revive), tell(build), name(words, name) (that name cleaned, or with none the slot-0
--- member's, else the words' friend), log(text), night() (a Night Operation run is on; nil: never), ghost(k) (ghost
--- slot k's puppet, 1 to 6, or nil)}.
+-- o: {link=, puppet=, settings= (revive, cutscene_wait, follow_host, follow_key), tell(build), name(words, name) (that
+-- name cleaned, or with none the slot-0 member's, else the words' friend), log(text), night() (a Night Operation run
+-- is on; nil: never), ghost(k) (ghost slot k's puppet, 1 to 6, or nil), go(id) (online/group/travel.lua's spot warp
+-- next to member id: true, or false and why), paused() (the game paused, in photo mode or in a menu)}.
 function G.new(o)
     local link,puppet,settings,log=o.link,o.puppet,o.settings,o.log
-    local function tell(key,name) o.tell(function(w) return w.group[key]:format(o.name(w,name)) end) end
+    local function tell(key,name,...) -- Her name first, then the other arguments of the word.
+        local args={...}
+        o.tell(function(w) return w.group[key]:format(o.name(w,name),table.unpack(args)) end)
+    end
     local self,now,off={},0,{}
     local screen,look_at,hidden=nil,-math.huge,nil -- hidden: {widget=, was=} while we hide the death screen.
-    local d=nil -- This death of ours: {since=, waited=, said=, call=, before=, fallback=, probe=, night=}.
+    -- This death of ours: {at=, since=, waited=, said=, call=, before=, fallback=, probe=, night=, offered= ('shown' or
+    -- 'quiet'), due= (always's call), back= (back()'s call: the target's name)}.
+    local d=nil
+    local respawned,ret=-math.huge,nil -- Our last respawn call; after back()'s call: {id=, name=, up=}.
+    local solos={} -- Each member in a solo area as we last read her, by her SteamID: true once said.
     local function night() return o.night~=nil and o.night()==true end
     local hers={} -- Each member's death as we saw it, by her SteamID: {said=}.
     local scene={playing=false,next=0,told=false} -- A cutscene: as of the last read, the next read, our notice.
@@ -92,16 +121,31 @@ function G.new(o)
         if slot==0 then return puppet end
         return o.ghost and o.ghost(slot) or NONE
     end
+    local function entry(m)
+        return {id=m.id,name=m.name,vit=m.slot==0 and link.mate() or link.vitals(m.id),ghost=ghost_of(m.slot)}
+    end
     -- Each member past the handshake: {id=, name=, vit= (her vitals or nil), ghost=}, in the status's order.
     local function mates()
         local out={}
         for _,m in ipairs(link.members()) do
-            if m.linked then
-                out[#out+1]={id=m.id,name=m.name,vit=m.slot==0 and link.mate() or link.vitals(m.id),
-                    ghost=ghost_of(m.slot)}
-            end
+            if m.linked then out[#out+1]=entry(m) end
         end
         return out
+    end
+    -- Member id past the handshake, as mates() gives her, or nil.
+    local function member(id)
+        local m=id and link.member(id)
+        return m and m.linked and entry(m) or nil
+    end
+    -- On a guest, the host as mates() gives him: his host line's member, else slot 0's (travel.lua's guest() rule).
+    local function host_mate()
+        local h=link.host()
+        if h then return member(h.id) end
+        for _,m in ipairs(link.members()) do if m.slot==0 then return member(m.id) end end
+    end
+    -- A solo area on our side, or on member m's (her vitals' zone type; none read: not hers).
+    local function away(m)
+        return Link.solo((link.zone())) or (m~=nil and m.vit~=nil and Link.solo(m.vit.zone))
     end
     local function same_map(ghost)
         local me=Where.me()
@@ -136,19 +180,22 @@ function G.new(o)
         if not life then return 'no life read (our life is read in a session only: start coop loopback 0 0 0 first)' end
         -- The death screen's life state: 3 for a co-op revive, 3 to 5 for coop revive test.
         if life.state<3 or life.state>(probe and 5 or 3) then return 'life '..life.state end
-        local near={} -- The members alive on our map.
+        local near={} -- The members alive on our map, outside a solo area.
         if not probe then
+            if Link.solo((link.zone())) then return 'solo area' end
             local list=mates()
             if not list[1] then return 'no friend linked' end
-            local up=false
+            local up,solo=false,false
             for _,m in ipairs(list) do
                 if alive(m.vit) then
                     up=true
-                    if same_map(m.ghost) then near[#near+1]=m end
+                    if same_map(m.ghost) then
+                        if away(m) then solo=true else near[#near+1]=m end
+                    end
                 end
             end
             if not up then return 'friend not alive' end
-            if not near[1] then return 'friend on another map' end
+            if not near[1] then return solo and 'friend in a solo area' or 'friend on another map' end
             if not boss_free() then
                 return (link.fight() or ''):find(' boss=',1,true) and 'boss fight' or 'no shared fight'
             end
@@ -183,11 +230,11 @@ function G.new(o)
             screen=s and (s:IsAnyAnimationPlaying()==true and 'up' or 'off') or 'gone',pawn=eve and U.address(eve)}
     end
     local function who()
-        return d.probe and 'coop revive test' or d.night=='self' and 'coop nightop revive' or d.by or (link.friend())
-            or '?'
+        return d.probe and 'coop revive test' or d.night=='self' and 'coop nightop revive'
+            or d.back and 'follow_key return to '..d.back or d.by or (link.friend()) or '?'
     end
     local function call(me,pc,where,by)
-        d.call,d.me,d.before,d.by=now,me,snapshot(),by
+        d.call,d.me,d.before,d.by,respawned=now,me,snapshot(),by,now
         local b=d.before
         log(string.format('revive: ServerRequest_ActorRespawn(%d, false) asked (%s%s; life %s, hp %s, death screen %s)',
             me,who(),where and string.format(' %.1f m away',where) or '',b.life,b.hp,b.screen))
@@ -199,7 +246,7 @@ function G.new(o)
     local function after()
         local life=link.life()
         if not d.fallback and not d.moved and life and life.state==d.before.life then
-            local reason=blocker(d.probe or d.night~=nil)
+            local reason=blocker(d.probe or d.night~=nil or d.back~=nil)
             if not reason then
                 d.fallback,d.call=true,now
                 log(string.format('revive: life still %d 2 s after the respawn: ServerRequest_ActorRevival(%d, false) '
@@ -224,15 +271,23 @@ function G.new(o)
             screen_now,not a.pawn and 'gone' or a.pawn==b.pawn and 'same' or 'new'))
         d.call=nil
         d.done=true
-        if not d.probe and d.night~='self' and (up or d.moved) then tell('revived',d.by) end
+        if not d.probe and d.night~='self' and not d.back and (up or d.moved) then tell('revived',d.by) end
+        if ret and not up and not d.moved then
+            ret=nil
+            log('return: no warp, the respawn did not take')
+        end
         if d.moved and not up then d=nil end
     end
     local function downed(linked)
         local life=link.life()
         if life and life.state>=3 and life.state<=5 then
             if not d then
-                d={}
+                d={at=now}
                 if hidden then show('a new death') end
+                if ret then
+                    ret=nil
+                    log('return: no warp, down again before it')
+                end
             end
         elseif life and (life.state==1 or life.state==6) and d then
             if d.call then d.moved=true else d=nil end
@@ -267,7 +322,7 @@ function G.new(o)
                     hers[m.id]=h
                     local life=link.life()
                     local ours_down=life and life.state>=3 and life.state<=5
-                    if not h.said and not ours_down and same_map(m.ghost) and boss_free() then
+                    if not h.said and not ours_down and same_map(m.ghost) and boss_free() and not away(m) then
                         h.said=true
                         if not night() then tell('down',m.name) end -- The run gives its own: her key, not 3 s near.
                     end
@@ -283,6 +338,109 @@ function G.new(o)
             end
         end
         for id in pairs(hers) do if not seen[id] then hers[id]=nil end end -- Gone, or no longer linked.
+    end
+    -- Why the return cannot go toward member m now, or nil.
+    local function why_not(m)
+        if not alive(m.vit) then return 'they are down' end
+        if not same_map(m.ghost) then return 'they are on another map' end
+        if away(m) then return 'a solo area on their side or ours' end
+    end
+    -- The return's target: on a guest the host; on the host the living guest on his map nearest his EVE, outside a
+    -- solo area. nil without one.
+    local function target()
+        local mode=link.mode()
+        if mode=='guest' then return host_mate() end
+        if mode~='host' then return nil end
+        local mine,best,by=feet(),nil,nil
+        for _,m in ipairs(mates()) do
+            local _,f=m.ghost.anchor()
+            if f and mine and not why_not(m) then
+                local far=(f.X-mine.X)^2+(f.Y-mine.Y)^2+(f.Z-mine.Z)^2
+                if not best or far<best then best,by=far,m end
+            end
+        end
+        return by
+    end
+    -- The return's target while its offer holds (see the header), else nil.
+    local function open()
+        if off.revive or not d or not d.at or d.call or d.done or d.back or d.at-respawned<RECENT then return nil end
+        local life=link.life()
+        if not (life and life.state==3) or not ('\n'..(link.status() or '')):find('\nslot=coop ',1,true)
+            or not settings.revive or night() or not boss_free() then
+            return nil
+        end
+        local m=target()
+        if not m or why_not(m) or not playing() then return nil end
+        return m
+    end
+    -- The call of back() and of always's 5 s: the offer still holds, then coop revive test's guards (open() held them
+    -- to life 3), the revive's call with the death marked for the warp. nil when the offer no longer holds.
+    local function go_back()
+        local m=open()
+        if not m then return nil end
+        local reason,me,pc=blocker(true)
+        if reason then
+            log('return refused: '..reason)
+            return false,reason
+        end
+        d.back=m.name and m.name~='' and m.name or 'member '..m.id
+        call(me,pc)
+        ret={id=m.id,name=d.back}
+        return true,'going back to '..d.back
+    end
+    -- The offer once per death, after the revive's tick; always's call 5 s after its notice while the offer holds.
+    local function offering()
+        if not d then return end
+        if d.offered then
+            if d.due and (settings.follow_host~='always' or not open()) then d.due=nil end
+            if d.due and now>=d.due then
+                d.due=nil
+                go_back()
+            end
+            return
+        end
+        local m=open()
+        if not m then return end
+        local key=settings.follow_key or {}
+        d.offered='quiet'
+        if not key.key then return log('return: no notice (follow_key=none)') end
+        if settings.follow_host=='off' then return log('return: no notice (follow_host=off)') end
+        d.offered='shown'
+        if settings.follow_host=='always' then d.due=now+AUTO end
+        tell(d.due and 'back_auto' or 'back',m.name,key.name)
+    end
+    -- After back()'s call, once our life reads 1 or 6 with warp=idle and the game not paused (PAUSE s at most): the
+    -- warp next to the target if she still holds, else one line why not.
+    local function returning()
+        local life=link.life()
+        if not (ret and life and (life.state==1 or life.state==6)) then return end
+        if not engine():find(' warp=idle',1,true) then return end
+        ret.up=ret.up or now
+        if o.paused() and now-ret.up<PAUSE then return end
+        local r=ret
+        ret=nil
+        local m=member(r.id)
+        local no=not m and 'they are no longer linked' or why_not(m)
+        if no then return log('return: no warp, '..no) end
+        local ok,text=o.go(r.id)
+        log('return: '..(ok and 'the warp next to '..r.name..' asked' or 'no warp, '..tostring(text)))
+    end
+    -- Each other member's stay in a solo area, from her vitals' zone type: said once on the way in, back once a public
+    -- type (1) reads after it; no vitals and type 0 keep the last state.
+    local function stays()
+        local seen={}
+        for _,m in ipairs(mates()) do
+            seen[m.id]=true
+            local t=m.vit and m.vit.zone
+            if Link.solo(t) and not solos[m.id] then
+                solos[m.id]=true
+                o.tell(function(w) return w.group.solo:format(o.name(w,m.name),w.group.places[PLACE[t]]) end)
+            elseif t==1 and solos[m.id] then
+                solos[m.id]=nil
+                tell('solo_back',m.name)
+            end
+        end
+        for id in pairs(solos) do if not seen[id] then solos[id]=nil end end -- Gone, or no longer linked.
     end
     -- The cutscene's name while one plays, else nil: the theater= field's when the native part gives it; else the
     -- observer found playing, kept while it plays. A theater plays through a level sequence actor, whose class's actors
@@ -372,10 +530,12 @@ function G.new(o)
         local mode=link.mode()
         local linked=(mode=='host' or mode=='guest') and link.others()>0
         guard('revive',downed,linked)
+        guard('return',function() offering(); returning() end)
         if hidden and (off.revive or not link.life()) then
             guard('screen',show,off.revive and 'the revive is off' or 'no session')
         end
         if linked then guard('friend',friend) else hers={} end
+        if linked then guard('solo',stays) else solos={} end
         if linked then guard('cutscene',watch) end
         if not linked or off.cutscene then scene.playing,scene.told=false,false end
     end
@@ -387,10 +547,29 @@ function G.new(o)
         if own=='0' and scene.playing and link.mode()=='host' then return 'c' end
         return own
     end
-    -- The guest's ask for the pause during the host's cutscene: cutscene_wait=on, the host's ghost on her map, and our
-    -- read of cutscenes not off for the run (the pause would come with no notice).
+    -- The guest's ask for the pause during the host's cutscene: cutscene_wait=on, the host's ghost on her map, no solo
+    -- area on his side or hers, and our read of cutscenes not off for the run (the pause would come with no notice).
     function self.cut()
         return not off.cutscene and settings.cutscene_wait==true and link.mode()=='guest' and same_map(host_ghost())
+            and not away(host_mate())
+    end
+    -- follow_key on the death screen (online/group/travel.lua's press asks here first): with the offer shown, always's
+    -- 5 s cancelled while they run, else go_back(). true or false and the text; nil without an offer that holds
+    -- (follow_key is the follow then). A Lua error turns the return off for the run.
+    function self.back()
+        if off['return'] or not (d and d.offered=='shown') then return nil end
+        local ok,a,b=pcall(function()
+            if d.due then
+                d.due=nil
+                log('return: cancelled (follow_key)')
+                return true,'return cancelled'
+            end
+            return go_back()
+        end)
+        if ok then return a,b end
+        off['return']=true
+        log('return off for this run: '..why(a))
+        return false,why(a)
     end
     -- coop off: the death screen we hid comes back.
     function self.stop() if hidden then show('coop off') end end

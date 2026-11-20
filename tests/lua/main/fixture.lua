@@ -365,22 +365,24 @@ end}
 nr={o=nil,runs={},chs={},ticks=0,stops={},raise=nil}
 -- The friend's revive and the cutscene wait (online/group/group.lua): what group.new got (o), its ticks' clocks, coop
 -- revive test's answer, the photo states main.lua hands it (owns) and what it gives back (wire, else the same), its
--- cut, and the cut each state write got (cuts).
+-- cut, the cut each state write got (cuts) and its back() calls (backs).
 gr={o=nil,ticks={},tests=0,owns={},cuts={},stops=0}
 package.loaded['online.group.group']={new=function(o)
     gr.o=o
     return {tick=function(t) gr.ticks[#gr.ticks+1]=t end,stop=function() gr.stops=gr.stops+1 end,
+        back=function() gr.backs=(gr.backs or 0)+1; return true,'going back to Kaanta' end,
         test=function() gr.tests=gr.tests+1; return true,'ServerRequest_ActorRespawn asked' end,
         photo=function(own) gr.owns[#gr.owns+1]=own; return gr.wire or own end,cut=function() return gr.cut end,
         cutscene_playing=function() return gr.playing==true end}
 end}
 -- The follow (online/group/travel.lua): what travel.new got (o), its ticks' clocks, follow_key's presses, coop
--- travel probe's camps and coop travel spot's words.
+-- travel probe's camps, coop travel spot's words and the member its go(id) got last (gone).
 tv={o=nil,ticks={},presses=0,probes={},spots={}}
 package.loaded['online.group.travel']={new=function(o)
     tv.o=o
     return {tick=function(t) tv.ticks[#tv.ticks+1]=t end,
         press=function() tv.presses=tv.presses+1; return true,'asked the host for camps' end,
+        go=function(id) tv.gone=id; return true,'asked' end,
         probe=function(camp) tv.probes[#tv.probes+1]=camp; return true,'travel '..camp..' asked' end,
         spot=function(a,b,c,d) tv.spots[#tv.spots+1]={a,b,c,d}; return true,'travel spot asked' end}
 end}

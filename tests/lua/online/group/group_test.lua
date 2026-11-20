@@ -99,18 +99,21 @@ local ENGINE='engine=on reason=pinned build 26123051 remote=3 1 peer'
 local clock=0
 local map=uobject('World /Game/Map.Map',{})
 local function world(change)
-    W={life={state=3,hp=0},mate={life=1,hp=900,max_hp=1600},fight=GUEST..'0',engine=ENGINE..' warp=idle me=4242',
-        mode='guest',linked=true,at={X=1000,Y=2000,Z=300},ghost={X=1150,Y=2000,Z=300},shown=true,map='/game/e04',
-        her_map='/game/e04',standalone=true,playing=true,vis=4,huds=huds,eve=eve,world=map,
-        settings={revive=true,cutscene_wait=true},calls={},said={},logs={},sets={},finds={},observers={}}
+    W={life={state=3,hp=0},mate={life=1,hp=900,max_hp=1600,zone=1},fight=GUEST..'0',
+        engine=ENGINE..' warp=idle me=4242',mode='guest',linked=true,at={X=1000,Y=2000,Z=300},ghost={X=1150,Y=2000,Z=300},
+        shown=true,map='/game/e04',her_map='/game/e04',standalone=true,playing=true,vis=4,huds=huds,eve=eve,world=map,
+        settings={revive=true,cutscene_wait=true,follow_host='ask',follow_key={key='F7',name='F7'}},calls={},said={},
+        logs={},sets={},finds={},observers={},gone={}}
     if change then change(W) end
     clock=0
+    -- The status: the slot line (W.slot, none unless set) before the engine line.
     local link={life=function() return W.life end,mate=function() return W.mate end,fight=function() return W.fight end,
         status=function()
-            return 'mod=v proto=12 steam=ready\nlink='..W.mode..' lobby=7\n'..W.engine..'\nlast=#1 x\n'
+            return 'mod=v proto=12 steam=ready\nlink='..W.mode..' lobby=7\n'..(W.slot and W.slot..'\n' or '')
+                ..W.engine..'\nlast=#1 x\n'
         end,
         mode=function() return W.mode end,friend=function() return 'Kaanta',W.linked,false end,
-        photo=function() return W.photo end}
+        photo=function() return W.photo end,zone=function() return W.zonetype or 1,W.area end}
     -- The member lines (W.members; without them Kaanta alone in slot 0, linked as W.linked says), each one's vitals
     -- (W.vits by SteamID), the session's host (W.host).
     function link.members() return W.members or {{id='2',slot=0,linked=W.linked,name='Kaanta'}} end
@@ -129,6 +132,8 @@ local function world(change)
     return G.new({link=link,puppet=puppet,settings=W.settings,log=function(m) W.logs[#W.logs+1]=m end,
         tell=function(build) W.said[#W.said+1]=build(T.en) end,
         name=function(_,name) return name and name~='' and name or 'Kaanta' end,night=function() return W.night end,
+        -- The return's warp (online/group/travel.lua's go) and the follow's pause read.
+        go=function(id) W.gone[#W.gone+1]=id; return true end,paused=function() return W.paused end,
         -- Ghost slot k (W.ghosts[k]: {map=, feet=}), as main.lua's ghost(k) gives it.
         ghost=function(k)
             local gh=W.ghosts and W.ghosts[k]
@@ -671,4 +676,98 @@ assert(not g.cutscene_playing() and logged('cutscene off') and (W.finds.LevelSeq
 W.engine=ENGINE..' warp=idle me=4242 theater=fault'
 run(g,1)
 assert((W.finds.LevelSequenceActor or 0)>0,'A faulted read: the actors as before')
+
+local COOP='slot=coop index=1 marker=1 saves=coop'
+local BACK='Kaanta is alive. Press F7 to go back to them.'
+local function far(w) w.slot=COOP; w.ghost={X=3000,Y=2000,Z=300} end -- The host alive on our map, 20 m away.
+local function respawns()
+    local n=0
+    for _,c in ipairs(W.calls) do if c==RESPAWN then n=n+1 end end
+    return n
+end
+-- The offer once per death; back() makes the in-place respawn call, then go() to the host (slot 0's member, no host
+-- line) once up and idle.
+g=world(far); run(g,0.5)
+assert(W.said[#W.said]==BACK and #W.calls==0,table.concat(W.said,'|'))
+run(g,5); assert(#W.said==2,'Once per death (the wait notice, then the offer)')
+assert(g.back()==true and #W.calls==1 and W.calls[1]==RESPAWN)
+W.life={state=1,hp=1600}; run(g,0.25)
+assert(#W.gone==1 and W.gone[1]=='2')
+run(g,2); assert(#W.gone==1,'Once')
+for _,s in ipairs(W.said) do assert(s~=REVIVED,'Nobody revived us') end
+assert(g.back()==nil,'No offer: F7 is the follow again')
+-- The revive's guards first: a game that is not standalone gets no call.
+g=world(function(w) far(w); w.standalone=false end); run(g,0.5)
+local ok,why=g.back()
+assert(ok==false and why=='the game is not standalone' and #W.calls==0
+    and logged('return refused: the game is not standalone'))
+-- one call per death (Review Focus 5): the friend's 3 s revive first, then back() has no offer and no warp follows;
+-- back() first, then the friend's revive makes no second call.
+g=world(function(w) w.slot=COOP end); run(g,3.5)
+assert(respawns()==1 and g.back()==nil); W.life={state=1,hp=1600}; run(g,1); assert(#W.gone==0)
+g=world(function(w) w.slot=COOP; w.respawn=function() w.life={state=1,hp=1600} end end); run(g,2)
+assert(g.back()==true); run(g,2); assert(respawns()==1 and #W.gone==1)
+-- target gone (Review Focus 3): after the call the host leaves, goes down or enters a solo area: no warp, one line.
+for _,change in ipairs({function() W.members={}; W.mate=nil end,function() W.mate.life=3; W.mate.hp=0 end,
+    function() W.mate.zone=5 end}) do
+    g=world(far); run(g,0.5); assert(g.back()==true)
+    change(); W.life={state=1,hp=1600}; run(g,0.5)
+    assert(#W.gone==0 and #W.calls==1 and logged('return: no warp, '),table.concat(W.logs,'|'))
+end
+-- Down again within 10 s of the in-place respawn: no offer for that death.
+g=world(far); run(g,0.5); g.back()
+W.life={state=1,hp=1600}; run(g,0.5); W.life={state=3,hp=0}; run(g,1)
+local backs=0
+for _,s in ipairs(W.said) do if s==BACK then backs=backs+1 end end
+assert(backs==1,'No offer for a death within 10 s of the in-place respawn')
+-- No offer: the host on another map, a boss fight, no shared fight, a Night Operation run, revive=off, the host in a
+-- solo area, no co-op save, follow_key=none, follow_host=off.
+for _,change in ipairs({function(w) w.her_map='/game/other' end,function(w) w.fight=w.fight:gsub('boss=0','boss=1') end,
+    function(w) w.fight=nil end,function(w) w.night=true end,function(w) w.settings.revive=false end,
+    function(w) w.mate.zone=5 end,function(w) w.slot=nil end,function(w) w.settings.follow_key={name='none'} end,
+    function(w) w.settings.follow_host='off' end}) do
+    g=world(function(w) far(w); change(w) end); run(g,1)
+    for _,s in ipairs(W.said) do assert(s~=BACK) end
+end
+assert(logged('return: no notice (follow_host=off)'))
+g=world(function(w) far(w); w.settings.follow_key={name='none'} end); run(g,1)
+assert(logged('return: no notice (follow_key=none)') and g.back()==nil,'No notice: no return either')
+-- always: the call 5 s after the notice; back() within the 5 s cancels.
+g=world(function(w) far(w); w.settings.follow_host='always' end); run(g,0.5)
+assert(W.said[#W.said]=='Going back to Kaanta in 5 s. Press F7 to stay.'); run(g,5); assert(#W.calls==1)
+g=world(function(w) far(w); w.settings.follow_host='always' end); run(g,0.5)
+assert(select(2,g.back())=='return cancelled'); run(g,6); assert(#W.calls==0)
+-- The host's death: the living guest on his map nearest his EVE (member 3 at 10 m before member 2 at 30 m).
+g=world(function(w) w.mode='host'; w.slot=COOP
+    w.members={{id='2',slot=0,linked=true},{id='3',slot=1,linked=true}}
+    w.ghost={X=4000,Y=2000,Z=300}
+    w.ghosts={[1]={map='/game/e04',feet={X=2000,Y=2000,Z=300}}}
+    w.vits={['3']={life=1,hp=900,max_hp=1600,zone=1}} end)
+run(g,0.5); assert(g.back()==true); W.life={state=1,hp=1600}; run(g,0.5)
+assert(W.gone[1]=='3',tostring(W.gone[1]))
+-- The warp waits while the game is paused (a menu, photo mode), 10 s at most after our EVE is up.
+g=world(far); run(g,0.5); g.back(); W.paused=true; W.life={state=1,hp=1600}; run(g,1); assert(#W.gone==0)
+W.paused=false; run(g,0.25); assert(#W.gone==1)
+g=world(far); run(g,0.5); g.back(); W.paused=true; W.life={state=1,hp=1600}; run(g,9.75); assert(#W.gone==0)
+run(g,0.5); assert(#W.gone==1,'Paused 10 s: the warp is asked, its own guards refuse it')
+-- A return whose respawn and fallback both leave our life at 3: the fallback under the return's guards, then no warp
+-- once SB's own camp respawn gets her up.
+g=world(far); run(g,0.5); g.back(); run(g,4.5)
+assert(W.calls[2]==REVIVAL and logged('return: no warp, the respawn did not take'),table.concat(W.logs,'|'))
+W.life={state=1,hp=1600}; run(g,1); assert(#W.gone==0)
+-- Solo notices for the others: in, back; none for ourselves.
+g=world(function(w) w.life={state=1,hp=1600} end)
+W.mate.zone=5; run(g,0.25)
+assert(W.said[#W.said]=='Kaanta is in a Boss Challenge. Online play waits until they are back.')
+-- vitals gap (Review Focus 4): no vitals for 3 s, then the same type: no back, no second notice.
+local n=#W.said; local m=W.mate; W.mate=nil; run(g,3); W.mate=m; run(g,0.5); assert(#W.said==n)
+W.mate.zone=1; run(g,0.25); assert(W.said[#W.said]=='Kaanta is back.')
+W.zonetype=2; run(g,0.5); assert(W.said[#W.said]=='Kaanta is back.','Our own stay says nothing to us')
+-- The revive and the cutscene wait leave a member in a solo area out.
+g=world(function(w) w.mate.zone=6 end); run(g,4); assert(#W.calls==0 and logged('revive waits: friend in a solo area'))
+g=world(function(w) w.zonetype=3 end); run(g,4); assert(#W.calls==0 and logged('revive waits: solo area'))
+g=world(function(w) w.mode='guest'; w.life={state=1,hp=1600}; w.mate.zone=5 end); assert(g.cut()==false)
+-- Her down notice: none while she is in a solo area.
+g=world(function(w) w.mode,w.life,w.mate='host',{state=1,hp=1600},{life=3,hp=0,max_hp=1600,zone=5} end); run(g,2)
+for _,s in ipairs(W.said) do assert(s~=DOWN,'No down notice for a member in a solo area') end
 print('group_test ok')
