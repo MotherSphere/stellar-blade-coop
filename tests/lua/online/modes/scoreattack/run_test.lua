@@ -12,8 +12,8 @@
 -- heal after a wave; time up; every abort (stop, map change, EVE gone, 80 m, slot) heard once; a Lua error in a tick;
 -- no body read while paused. A death ends the run as failed and asks SB's in-place respawn of our EVE once every
 -- check holds: each reason logged once, given up after 10 s; the call's result line 2 s later, the death screen hidden
--- while it still plays over a living EVE and shown again at the next death and at coop off; no run while it is under
--- way.
+-- while it still plays over a living EVE (left as it is over an EVE still down) and shown again at the next death and
+-- at coop off; no run while it is under way; coop off drops a respawn not asked yet.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('online.modes.scoreattack.waves')
 local C=require('online.modes.scoreattack.challenges')
@@ -403,6 +403,14 @@ standalone=false
 tick()
 assert(last()=='respawn waits: the game is not standalone')
 standalone=true
+engine='engine=on remote=0 0 none nightop=rule warp=idle me=81'
+tick()
+assert(last()=='respawn waits: a coop no probe rule is set in this game run',last())
+engine='engine=on remote=0 0 none warp=idle me=81'
+dying=false
+tick()
+assert(last()=='respawn waits: no death screen' and count('PC:ServerRequest_ActorRespawn')==0,last())
+dying=true
 tick()
 local call=calls[#calls]
 assert(call.what=='PC:ServerRequest_ActorRespawn' and call.args[1]==81 and call.args[2]==false)
@@ -443,6 +451,36 @@ life={state=1,hp=100}
 tick(8)
 assert(visibility==2)
 assert(not run.stop('coop off') and visibility==0 and last()=='respawn: death screen shown again (coop off)')
+dying=false
+tick(41)
+-- Still down 2 s after the call: the result line leaves the death screen as it is.
+reset()
+life={state=1,hp=100}
+ok=run.start(targets,25,SPOT,FACE)
+assert(ok)
+tick(24)
+dying=true
+for _=1,4 do if #ended==0 then tick() end end
+life={state=3,hp=0}
+tick()
+assert(count('PC:ServerRequest_ActorRespawn')==1,last())
+tick(8)
+assert(last()=='respawn result: life 3/3, hp 0/0, death screen up/up, EVE pawn same' and visibility==0,last())
+dying=false
+tick(41)
+-- coop off before the call drops the respawn: no call after it.
+reset()
+life={state=1,hp=100}
+ok=run.start(targets,27,SPOT,FACE)
+assert(ok)
+tick(24)
+dying=true
+for _=1,4 do if #ended==0 then tick() end end
+assert(#ended==1 and logged('respawn waits: life 1'),last())
+assert(not run.stop('coop off'))
+life={state=3,hp=0}
+tick(8)
+assert(count('PC:ServerRequest_ActorRespawn')==0 and last()=='respawn waits: life 1',last())
 dying=false
 assert(#violations==0,violations[1])
 print('scoreattack_run_test: ok')
