@@ -926,12 +926,12 @@ do
     local w2=thing(0x9000)
     local eve2=thing(0x9800)
     eve2.GetWorld=function() return w2 end
-    local blacks,budgets,primes,done_in,wt,raise_black,heres={},{},{},nil,3,nil,0
+    local blacks,budgets,primes,done_in,wt,raise_black,heres={},{},{},{},3,nil,0
     local function part(name)
         return {tick=function(b)
                 if name=='move' or name=='breakables' then budgets[#budgets+1]=name..' '..tostring(b) end
             end,
-            done=function(w) return w==done_in end,prime=function() primes[#primes+1]=name end}
+            done=function(w) return w==done_in[name] end,prime=function() primes[#primes+1]=name end}
     end
     local mb=M.new({log=function(m) lines[#lines+1]=m end,
         ask=function(line) asked[#asked+1]=line; return true,'asked the native part: '..line end,
@@ -950,7 +950,13 @@ do
         and budgets[2]=='breakables '..M.HELD_BUDGET,table.concat(budgets,'|'))
     clock=clock+0.1; mb.tick()
     assert(#primes==2 and mb.held(),'Primed once; up while the lists spawn')
-    done_in=0x9000
+    local n_asked=#asked
+    for _,one in ipairs({'move','breakables'}) do -- One list done in this world: the black stays up.
+        done_in={[one]=0x9000}
+        clock=clock+0.1; mb.tick()
+        assert(mb.held() and #asked==n_asked,'Only '..one..' done: no lift')
+    end
+    done_in={move=0x9000,breakables=0x9000}
     clock=clock+0.1; mb.tick()
     assert(not mb.held() and asked[#asked]=='loading lift' and logged("arrival: SB's black lifted after"))
     clock=clock+0.1; mb.tick()
