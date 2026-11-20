@@ -131,7 +131,7 @@ cl[1].cps[2].x,cl[1].cps[2].y=4500,0 -- Within 15 m of the checkpoint before it:
 t,why=Mm.build(tl,cl,gl)
 assert(not t and why=='track')
 
--- The rooms. Xion's training room as online/lobby/sbo.lua's target() gives it, and a hall's.
+-- The rooms: Xion's training room and a hall, as online/lobby/sbo.lua's target() gives them.
 local XION={key='xion',fence={X=-64028.5,Y=151213.6,R=3000,zmin=-16100,zmax=-14700}}
 local HOTEL={key='hotel',fence={X=12.5,Y=-537.5,R=3573,zmin=-200,zmax=900}}
 local HALL_MAP='/game/sbo_lobby/lobby_hotel'

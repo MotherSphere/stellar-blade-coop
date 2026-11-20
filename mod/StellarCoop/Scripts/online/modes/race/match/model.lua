@@ -12,9 +12,9 @@ local R=require('online.modes.race.model')
 local Dm=require('online.modes.race.drive_model')
 local F=require('core.settings_file')
 local Mm={}
--- Milliseconds: a player's ready counts this long after the go line; past the first finish's late rule, and past the
--- host's own GO and the race's limit, the host waits this much longer for lines on their way; it asks the match's end
--- this long after the ranking.
+-- Milliseconds: a player's ready counts this long after the go line; the host's wait for lines on their way past the
+-- first finish's late rule; its wait for them past its own GO and the race's limit; it asks the match's end this long
+-- after the ranking.
 Mm.READY,Mm.GRACE,Mm.LAST,Mm.END=10000,5000,30000,10000
 -- Players in a round, the grid's slots, the host's own tracks in coop-tracks.txt; how far inside a room's fence every
 -- slot and checkpoint stands (cm); what each leg of a split's floor time gives up for a slot's side offset (cm).
@@ -142,8 +142,8 @@ function Mm.build(track,cps,go)
     return t,go.name
 end
 
--- Whether track t lies in a lobby room on map (core/unreal.lua's U.map_of of EVE): its map line is map, and its 8
--- slots and every checkpoint's centre stand 2 m or more inside the room's fence horizontally, within its Z range.
+-- Whether track t lies in a lobby room on map (core/unreal.lua's U.map_of of EVE): its map line is map. Its 8 slots
+-- and every checkpoint's centre stand 2 m or more inside the room's fence horizontally, within its Z range.
 -- room: {key=, fence={X=, Y=, R=, zmin=, zmax=}} as online/lobby/sbo.lua's target() gives it.
 function Mm.fits(t,room,map)
     if t.map~=map then return false end
