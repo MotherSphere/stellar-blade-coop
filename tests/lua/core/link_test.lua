@@ -606,10 +606,18 @@ assert(Link.parse_settings('').hide_popups==true and Link.parse_settings('hide_p
 -- the next round (online/modes/scoreattack/game.lua).
 assert(Link.parse_settings('').scoreattack==true and Link.parse_settings('scoreattack=OFF').scoreattack==false
     and Link.DEFAULT:find('\nhide_popups=on\n# Score attack: on or off, on by default.',1,true)
-    and Link.DEFAULT:find('\nscoreattack=on\n$'))
+    and Link.DEFAULT:find('\nscoreattack=on\n',1,true))
 s,notes=Link.parse_settings('scoreattack=maybe')
 assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for scoreattack (use on or off); "
     .."scoreattack stays on" and s.scoreattack==true,notes[1])
+-- Fishing tournament: on by default, last in a new file, its comment right after scoreattack (online/modes/fishing
+-- reads it at each go line).
+assert(Link.parse_settings('').fishing==true and Link.parse_settings('fishing=OFF').fishing==false
+    and Link.DEFAULT:find('\nscoreattack=on\n# Fishing tournament: on or off, on by default.',1,true)
+    and Link.DEFAULT:find('\nfishing=on\n$'))
+s,notes=Link.parse_settings('fishing=maybe')
+assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for fishing (use on or off); "
+    .."fishing stays on" and s.fishing==true,notes[1])
 assert(Link.DEFAULT:find('\ndaynight=on\n# Shortcut saves, a test tool: on or off, on by default.',1,true)
     and Link.DEFAULT:find('cannot be taken back',1,true) and Link.DEFAULT:find('\nshortcut_load=on\n'))
 assert(Link.parse_settings('shortcut_load=OFF').shortcut_load==false)

@@ -41,6 +41,7 @@ category folders (`online/`, `online/modes/`, `fight/`, `world/`, `world/maps/`,
 | `world.teamshop` | Team shop | `world/teamshop/` | `world/teamshop/` | [Team shop](../world/teamshop.md) | Its rows in `world/teamshop/teamshop_rows.h` |
 | `fight.gunmode` | Gun mode | `fight/gunmode/` | `fight/gunmode/` (its rows only) | [Gun mode](../fight/gunmode.md) | Its rounds' rows in `fight/gunmode/nikke_rows.h`; `fight/gunmode/rows.lua`, the Lua list of those rows |
 | `online.modes.scoreattack` | Score attack | `online/modes/scoreattack/` | none | [Score attack](../online/modes/scoreattack.md) | `online/modes/scoreattack/challenges.lua`, `online/modes/scoreattack/waves.lua` and `online/modes/scoreattack/run.lua`, its copies |
+| `online.modes.fishing` | Fishing tournament | `online/modes/fishing/` | `online/modes/fishing/` | [Fishing tournament](../online/modes/fishing.md) | |
 
 ## Shared pieces
 

@@ -83,6 +83,7 @@ M.OPTIONS={
     toggle('hide_popups','on'), -- At once: main.lua's switch_pass asks the native part popups on or off.
     {head='modes'},
     toggle('scoreattack','on'), -- At each round's start: online/modes/scoreattack/game.lua reads it.
+    toggle('fishing','on'), -- At each go line: online/modes/fishing reads it.
     {head='saves'},
     {key='auto_coop_save',values={'ask','always','off'},default='ask'}, -- At the next title.
     toggle('shared_quests','on'), -- At once: main.lua asks coop quests on or off.

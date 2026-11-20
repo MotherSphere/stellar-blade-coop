@@ -261,6 +261,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'online/modes/scoreattack/model', 'online/modes/scoreattack/waves',
                               'online/modes/scoreattack/round', 'online/modes/scoreattack/run',
                               'online/modes/scoreattack/game', 'online/modes/scoreattack/ui/board',
+                              'online/modes/fishing/commands',
                               *(f'{module}/wiring' for module in ('online/partner', 'online/modes/nightop',
                                                                   'fight/bosses', 'online/group',
                                                                    'online/modes/race', 'eve', 'story/scenes',
@@ -270,7 +271,8 @@ with tempfile.TemporaryDirectory() as tmp:
                                                                    'story/together', 'online/lobby', 'vehicles/bike',
                                                                    'world/daynight', 'cutmenus',
                                                                    'online/saves', 'world/teamshop',
-                                                                   'fight/gunmode', 'online/modes/scoreattack')),
+                                                                   'fight/gunmode', 'online/modes/scoreattack',
+                                                                   'online/modes/fishing')),
                               'version'))}
     assert set(files) == shipped - docs, sorted(files)
     assert not [rel for rel in files
