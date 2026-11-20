@@ -327,6 +327,9 @@ void sky_pass();
 std::string keep_take(const std::string &text);
 // Every pass: a line for the log with the keep's fault, once, else empty.
 std::string keep_pass();
+// SB's theater read (glue/tick/theater_game.inc, game/theater.h), worker thread. Every pass: a line for the log with
+// its fault, once, else empty.
+std::string theater_pass();
 // coop-status.txt's sky line (world/daynight/sky.h's line) and its newline: the state, the light of the hour asked, the
 // elements written and whether EVE stands in env sunlight; refused off the pinned build.
 std::string sky_status();

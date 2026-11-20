@@ -994,6 +994,8 @@ bool step() {
     coop::pose::sky_pass();
     if (const std::string kept = coop::pose::keep_pass(); !kept.empty())
       event(kept);
+    if (const std::string theater = coop::pose::theater_pass(); !theater.empty())
+      event(theater);
     // Channel 2 both ways (none in a match lobby). The shared quests take their SBQ lines out first, by sender: on the
     // host, one quest::Host per guest past the handshake; on a guest, the host's only. The shared world (SBW lines),
     // story together (SBS lines) and the shared fight (the rest) run within the pair only (partner(): the host and the

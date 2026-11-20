@@ -9,10 +9,12 @@ namespace {
 // Every theater::kPollMs on the pinned build while coop is on: SB's theater manager, its theater, that theater's take,
 // then its first listener's sequence name. story/scenes/scene.lua and online/group/group.lua read the field instead
 // of walking the object array. The name becomes text here only when it changes; the worker copies the field under
-// theater_m, which this thread only try-locks. The first fault ends the read for the run: the field says fault and
-// Lua walks as before.
+// theater_m, which this thread only try-locks. The first fault ends the read for the run: the field says fault, Lua
+// walks as before and theater_pass() logs the fault once.
+std::string fault_where(uint64_t rva); // fight_worker_shared.inc's, after this part.
 std::mutex theater_m;
 std::string theater_text = "theater=none"; // Under theater_m.
+bool theater_fault_logged = false;         // The worker's.
 std::atomic<bool> theater_faulted{false};
 std::atomic<uint64_t> theater_fault_code{0}, theater_fault_rva{0}, theater_fault_address{0};
 // The game thread's.
@@ -76,5 +78,16 @@ void theater_tick(uint64_t now) {
     theater_text = f;
     theater_m.unlock();
   }
+}
+// Every pass: the theater read's fault once, else empty.
+std::string theater_pass() {
+  if (!theater_faulted || theater_fault_logged)
+    return "";
+  theater_fault_logged = true;
+  char text[200];
+  std::snprintf(text, sizeof text, "theater fault 0x%08llx in %s reading 0x%llx: the theater read off for the run",
+                static_cast<unsigned long long>(theater_fault_code.load()), fault_where(theater_fault_rva).c_str(),
+                static_cast<unsigned long long>(theater_fault_address.load()));
+  return text;
 }
 } // namespace coop::pose
