@@ -184,7 +184,7 @@ return {
     bike={far='Votre moto est à %d m, %s.',ahead='devant vous',behind='derrière vous',left='sur votre gauche',
         right='sur votre droite',not_back="Votre moto n'est pas encore revenue.",
         other_map='Votre moto est sur une autre carte : %s.',prompt='%s : monter sur la moto',
-        offer='Appuyez à nouveau sur %s dans les 5 s pour payer %d %s et la faire venir ici.',
+        offer='Maintenez à nouveau %s dans les 5 s pour payer %d %s et la faire venir ici.',
         paying='Paiement de %d %s pour votre moto.',paid='Votre moto a été amenée ici pour %d %s.',
         poor='%s insuffisant : %d requis, vous en avez %d.',
         unpaid="Votre moto n'a pas été amenée ici. UE4SS.log dit pourquoi."},

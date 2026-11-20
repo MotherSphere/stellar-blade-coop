@@ -72,10 +72,11 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   the paid fetch at a Xion camp (offered after a far or another-map refusal, paid by a press within 5 s, one start for
   every press during the payment, too little money and a failure said, never within reach, in an SBO lobby or away from
   a camp; the money's name from `game_text` on the screen's words, `betacrystal` in the English copy of another
-  language, for a name over 32 bytes and in an offer past 200 bytes); the paint of the part and the parked bike for
-  EVE's outfit within a second, put back for another outfit and on the part at `coop off`; a parked bike made after
-  `coop off` at the freed address and path of the removed one painted again; the `paint on for <mesh>` or `paint off
-  for <mesh>` end of `coop bike status`;
+  language, for a name over 32 bytes and in an offer past 200 bytes); `bike_key` as a hold (a tap let go before 0.5 s
+  does nothing, a hold of 0.5 s runs the key once, nothing more until it is let go); the paint of the part and the
+  parked bike for EVE's outfit within a second, put back for another outfit and on the part at `coop off`; a parked
+  bike made after `coop off` at the freed address and path of the removed one painted again; the `paint on for <mesh>`
+  or `paint off for <mesh>` end of `coop bike status`;
 - `vehicles/bike/paint_test` covers `vehicles/bike/paint.lua` with fake UE4SS objects: the shipped table passes its
   check with one entry, a `Base Color Tint` on slot 1; the check takes a name with spaces (`Base Color Tint`),
   punctuation (`A_b-1`) or a `}` and refuses a slot out of 0 to 3, an empty or 65-byte name, a control character, a

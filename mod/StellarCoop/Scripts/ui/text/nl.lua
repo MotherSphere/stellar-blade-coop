@@ -180,7 +180,7 @@ return {
     bike={far='Je motor is %d m van je vandaan, %s.',ahead='voor je',behind='achter je',left='links van je',
         right='rechts van je',not_back='Je motor is nog niet terug.',
         other_map='Je motor staat op een andere kaart: %s.',prompt='%s: op de motor stappen',
-        offer='Druk binnen 5 s nogmaals op %s om %d %s te betalen en hem hierheen te halen.',
+        offer='Houd binnen 5 s nogmaals %s ingedrukt om %d %s te betalen en hem hierheen te halen.',
         paying='Je betaalt %d %s voor je motor.',paid='Je motor is hierheen gebracht voor %d %s.',
         poor='Niet genoeg %s: %d nodig, je hebt %d.',
         unpaid='Je motor is niet hierheen gebracht. UE4SS.log zegt waarom.'},

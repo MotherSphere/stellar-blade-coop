@@ -40,7 +40,7 @@
 -- bike line (vehicles/bike/park.lua's wire) goes to the link at each change, from a mount, a dismount or the 250 ms
 -- pass: none while she rides, with bike=off or without a place.
 -- At an activated Xion camp (online/group/travel.lua's camp_near, within CAMP m), outside an SBO lobby, the refusal for
--- a bike out of reach or on another map offers the paid fetch (vehicles/bike/fetch.lua): a second press within
+-- a bike out of reach or on another map offers the paid fetch (vehicles/bike/fetch.lua): a second bike use within
 -- Fetch.WINDOW s pays Fetch.PRICE betacrystal. While it runs every press is refused with that; once paid the bike
 -- stands where she stood at the offer (her pose as a park takes it, else her feet with her actor's yaw), written and
 -- sent as a park.
@@ -66,6 +66,9 @@ local Doro=require('core.actors')
 local Park=require('vehicles.bike.park')
 local Stand=require('vehicles.bike.stand')
 local Fetch=require('vehicles.bike.fetch')
+local Look=require('vehicles.bike.fusion.look') -- Dev build: Fusion Strider's look and riding clip.
+local Suit=require('vehicles.bike.fusion.suit') -- Dev build: Fusion Rider's suit-up at a mount.
+local Buttons=require('vehicles.bike.fusion.buttons') -- Dev build: Saroj's button profile while riding.
 local Paint=require('vehicles.bike.paint')
 local T=require('ui.text')
 local valid,value_of,each,find,address,why_of=U.valid,U.value_of,U.each,U.find,U.address,U.why
@@ -77,12 +80,17 @@ Ride.TAG='SBO_Bike'
 -- The riding clip, one of EVE's clips (the native part plays only those): SB has no driver clip for her, so this is the
 -- pillion pose asleep on the bike of the SD20 scene, 301 frames at 30 fps with no root motion. The one place to change
 -- it.
-Ride.CLIP='/Game/Art/Character/PC/CH_P_EVE_01/Animation/event/G03/MV_SD20_AfterBruteBattle_Main/eve/'
-    ..'eve_bikeSleepPose.eve_bikeSleepPose'
--- The bike relative to her main mesh, cm and degrees: SD20's attach tracks (riders on its bone Base).
-local SEAT,SEAT_PITCH={X=1.53,Y=0.52,Z=2.95},0.69
+-- Dev build: Fusion Strider's riding pose from EveBike_Quantum_P (native anim::path_ok takes /Game/Mods/EveBikes/
+-- too). SB's own was MV_SD20_AfterBruteBattle_Main/eve/eve_bikeSleepPose.
+Ride.CLIP=Look.POSE
+-- The bike relative to her main mesh (vehicles/bike/fusion/look.lua holds it for the parked bike too).
+local SEAT,SEAT_PITCH=Look.SEAT,Look.SEAT_PITCH
+-- s bike_key is held before it acts (a tap does nothing). The pad's D-pad Right hold (1 s) is the native part's.
+Ride.HOLD=0.5
 local SETTLE=2 -- s an EVE has been in the world before her part is made (the capture's own wait).
 local ANSWER=5 -- s with no answer for our play.
+local REPLAY_FOR=8 -- s a play SB refuses with its slot busy is asked again before she gets off (dev build; the Fusion
+-- show at a mount holds her slot for a while).
 local ENDS,ENDS_IN=3,1 -- SB's ends of the riding clip within ENDS_IN s that take her off the bike.
 local GATE_WAIT=1 -- s after the mount by which the gate must read on.
 local LOAD_AGAIN=5 -- s with bike=off after the bike load before it is asked again.
@@ -118,6 +126,11 @@ end
 
 local function path_of(o) return o:GetFullName():match('^%S+ (.+)$') end
 local function her() return U.her(valid(UE.GetPlayer())) end
+-- Her player controller, or nil (dev build: the button profile's reads).
+local function her_pc()
+    local ok,pc=pcall(function() return valid(UE.GetPlayerController()) end)
+    return ok and pc or nil
+end
 local function math_lib() return find('/Script/Engine.Default__KismetMathLibrary') end
 -- EVE's body mesh as an object path (the paint's key). Raises when it does not read.
 local function body_of(e) return path_of(valid(valid(e.Mesh).SkeletalMesh)) end
@@ -158,7 +171,9 @@ local function make_part(e)
         c.ComponentTags[1]=FName(Ride.TAG)
         assert(c:ComponentHasTag(FName(Ride.TAG))==true,'it did not hold')
     end)
-    return c,not tagged and why_of(tag_why) or nil
+    -- Fusion Strider on the part, hidden; without it (no pak) SB's bike shows as before.
+    local built,look=pcall(Look.build,e,c,SEAT,SEAT_PITCH,false)
+    return c,not tagged and why_of(tag_why) or nil,built and look or nil,not built and why_of(look) or nil
 end
 local number=Park.number
 local function whole(v) return math.floor(v+0.5) end
@@ -182,9 +197,14 @@ end
 -- send(payload) (her bike line to the link, link.bike: true once written; nil without the link); camp(world, metres)
 -- (online/group/travel.lua's camp_near, nil without the link); fetch (vehicles/bike/fetch.lua's, nil without the link);
 -- game_text(key, table) (SB's text for a string table's key in the game's language, nil when unread or with
--- ui_language=english); drove() (online/modes/race/drive.lua's active: whether the races' drive runs).
+-- ui_language=english); drove() (online/modes/race/drive.lua's active: whether the races' drive runs); key_down()
+-- (bike_key held now; nil: bike_key acts at its press) and pressed(by) (main/input.lua's bike_press, run once bike_key
+-- was held Ride.HOLD s).
 function Ride.new(o)
     local log,ask,status,drive=o.log,o.ask,o.status,o.drive
+    -- Dev build: the bike's button profile (fusion/buttons.lua), its files beside coop-settings.txt; RT / LT drive.
+    local buttons=Buttons.new({log=log,dir=o.folder and o.folder..'\\' or ''})
+    if drive.set_controls then drive.set_controls(function(pc,heading) return buttons.controls(pc,heading) end) end
     local none={save=function() end,load=function() end,clear=function() end}
     local store,stand_store=o.store or none,o.stand_store or none
     local self={}
@@ -206,6 +226,8 @@ function Ride.new(o)
     -- mount did (drove, gated, shown), id (the play's), asked (os.clock of its ask), playing, ended (this id's end
     -- counted), ends (os.clock of each end).
     local ride=nil
+    -- Dev build: the suit (vehicles/bike/fusion/suit.lua) while its dismount change still plays after the ride.
+    local leaving=nil
     local preload=nil -- What the setting last asked of the native part: true (bike load), false (bike free).
     local load_asked=0 -- os.clock of the last bike load.
     local restored=false
@@ -275,16 +297,22 @@ function Ride.new(o)
         if not (here.part and Doro.same(here.part,here.part_path)) then
             local began=os.clock()
             local ok,made=pcall(function()
+                -- shortcut: an earlier Lua load's part keeps its Fusion parts unlisted, so they stay hidden until the
+                -- part is made again (a new EVE); good enough for Ctrl+R in a dev build.
                 local found=find_part(e)
                 if found then return {found,'found'} end
-                local c,untagged=make_part(e)
-                return {c,'made',untagged}
+                local c,untagged,look,look_why=make_part(e)
+                return {c,'made',untagged,look,look_why}
             end)
             if not ok then
                 here.failed=why_of(made)
                 return log('bike part not made: '..here.failed)
             end
-            here.part,here.part_path=made[1],path_of(made[1])
+            here.part,here.part_path,here.look=made[1],path_of(made[1]),made[4]
+            if made[2]=='made' then
+                log(made[4] and ('bike look: Fusion Strider, %d parts, %d slots dressed'):format(#made[4].comps,
+                    made[4].slots) or 'bike look: SB bike ('..tostring(made[5])..')')
+            end
             if not ride then made[1]:SetVisibility(false,false) end
             log(('bike part ready on EVE (%s in %.1f ms)'):format(made[2],(os.clock()-began)*1000))
             if made[3] then
@@ -334,7 +362,10 @@ function Ride.new(o)
     -- The floor under her as its normal when it counts: walkable, its base not Movable; else nil. A CurrentFloor that
     -- does not read (said once) counts as flat ground.
     local function floor_normal(e)
-        local base=valid(e:GetMovementBase())
+        -- Dev build: in the first frames of a ride the call itself raised (2026-11-19, "the UObject instance is
+        -- nullptr" in GetMovementBase), which ended the ride. A base that does not read counts as no base.
+        local read,base=pcall(function() return valid(e:GetMovementBase()) end)
+        base=read and base or nil
         if base and value_of(base.Mobility)==MOVABLE then return nil end
         local ok,f=pcall(function()
             local floor=value_of(valid(e.CharacterMovement).CurrentFloor)
@@ -483,10 +514,21 @@ function Ride.new(o)
             try('the part not hidden',function()
                 local p=Doro.same(r.part,r.part_path)
                 if p then p:SetVisibility(false,false) end
+                Look.show(r.look,false)
+            end)
+        end
+        if r.suit then
+            try('the suit',function()
+                log('bike suit off: '..Suit.off(r.suit,Doro.same(r.eve,r.path)))
+                if not r.suit.done then leaving=r.suit end -- self.steer plays it to its end
             end)
         end
         if r.id then try('anim stop',function() asked('anim stop') end) end
         if r.gated then try('bike gate off',function() asked('bike gate off') end) end
+        try('buttons',function()
+            local line=buttons.off(her_pc())
+            if line then log(line) end
+        end)
         if r.drove and drive.why()=='bike' then
             try('the drive',function() log(drive.off('bike '..why)) end)
         end
@@ -628,7 +670,7 @@ function Ride.new(o)
         local function base(k,v) return left[1]==path and tonumber(left[k]) or v end
         rot={Pitch=base(2,rot.Pitch),Yaw=base(3,rot.Yaw),Roll=base(4,rot.Roll)}
         at={X=base(5,at.X),Y=base(6,at.Y),Z=base(7,at.Z)}
-        local r={eve=e,path=path,at=address(e),mesh=mesh,part=part,part_path=here.part_path,
+        local r={eve=e,path=path,at=address(e),mesh=mesh,part=part,part_path=here.part_path,look=here.look,
             base={Pitch=rot.Pitch,Yaw=rot.Yaw,Roll=rot.Roll},base_at={X=at.X,Y=at.Y,Z=at.Z},lean=0,pitch=0,
             math=math_lib(),since=began,ends={}}
         local saved,save_why=store.save(table.concat({r.path,number(rot.Pitch),number(rot.Yaw),number(rot.Roll),
@@ -646,10 +688,21 @@ function Ride.new(o)
             local gated,gate_why=ask('bike gate on')
             if not gated then error("SB's actions could not be turned off: "..tostring(gate_why),0) end
             r.gated=true
+            local swapped,line=pcall(buttons.on,her_pc())
+            log(swapped and line or 'buttons: error '..why_of(line))
+            -- Before the clip: the suit's mesh goes on first. Its failure costs the suit, never the ride.
+            if leaving then -- the last dismount's change still runs: her own outfit back at once
+                local dropped,line=pcall(Suit.drop,leaving,e)
+                log('bike suit: last change cut short, '..(dropped and line or why_of(line)))
+                leaving=nil
+            end
+            local suited,suit,said=pcall(Suit.on,e)
+            if suited then r.suit=suit end
+            log('bike suit: '..(suited and tostring(said) or 'error '..why_of(suit)))
             local played=play(r)
             if played then error(played,0) end
             r.shown=true
-            part:SetVisibility(true,false)
+            if r.look then Look.show(r.look,true) else part:SetVisibility(true,false) end
         end)
         if not ok then
             local why_not=why_of(err)
@@ -679,6 +732,7 @@ function Ride.new(o)
             return 'no answer from the native part for the riding clip'
         end
         if w.anim=='playing' then
+            r.refused_at,r.refused_told=nil,nil
             if not r.playing then
                 r.playing=true
                 log(('bike ride clip plays (anim %d)'):format(r.id))
@@ -700,6 +754,19 @@ function Ride.new(o)
         end
         if w.anim=='ended:weight' then return 'her animation blueprint showed none of the riding clip' end
         local refused=(w.anim or ''):match('^refused:(.+)$')
+        -- Dev build: 'game' is SB's play returning -1 with the clip in memory, so a clip of a higher priority held
+        -- her slot (2026-11-19: at mounts and at a play again after an end). Asked again each pass for REPLAY_FOR s.
+        if refused=='game' then
+            r.refused_at=r.refused_at or now
+            if now-r.refused_at<REPLAY_FOR then
+                if not r.refused_told then
+                    r.refused_told=true
+                    log(('bike ride clip refused by the game (its slot is busy): asked again for up to %d s'):format(
+                        REPLAY_FOR))
+                end
+                return play(r)
+            end
+        end
         if refused then return 'the game refused the riding clip ('..refused..')' end
         if w.anim=='stopped' or w.anim=='fault' then return 'the native part stopped the riding clip ('..w.anim..')' end
         return nil -- idle: our play not taken yet.
@@ -711,6 +778,8 @@ function Ride.new(o)
             return drive.active() and 'a '..drive.why()..' drive took over her driving' or 'her EVE changed'
         end
         if look then tilt(r,look) end
+        if r.suit and r.suit.fx then Suit.tick(r.suit,r.eve) end
+        if r.suit and r.suit.report then log('bike suit: '..r.suit.report) r.suit.report=nil end
     end
     -- Every 250 ms while she rides: why she gets off, or nil. The anim answer comes from this pass's status text.
     local function check(r,e,w,now)
@@ -722,6 +791,10 @@ function Ride.new(o)
             return "SB's actions are not off (bike_gate="..tostring(w.gate)..')'
         end
         ground=pose_of(e,r.part) or ground
+        if r.suit and not r.wings_said and now-r.since>=2 then -- dev build: the wings never showed (2026-11-19)
+            r.wings_said=true
+            log('bike suit, 2 s in: '..Suit.wings_state(r.suit,e))
+        end
         drive.slow()
         return keep(r,e,w,now)
     end
@@ -740,7 +813,13 @@ function Ride.new(o)
         return not ride and h and h.at==at and h.part and address(h.part) or nil
     end
     -- The key, the pad gesture and coop bike: on the bike, or off it. ok and a line for the screen.
+    -- bike_key's press: {at} until Ride.HOLD s pass or it is let go; {done} after it ran, until it is let go.
+    local held=nil
     function self.toggle(why)
+        if why=='bike_key' and o.key_down then
+            if not held then held={at=os.clock()} end
+            return true,('hold bike_key for %g s'):format(Ride.HOLD)
+        end
         if ride then
             -- A pose that does not read parks as a forced dismount does: the key always gets her off.
             local read,live=pcall(pose_of,her(),ride.part)
@@ -750,7 +829,15 @@ function Ride.new(o)
         return mount()
     end
     -- coop off, bike=off, the guest's race: off the bike. The log line, or nil when she did not ride.
-    function self.stop(why) return stop(why or 'coop off') end
+    function self.stop(why)
+        local line=stop(why or 'coop off')
+        -- coop off stops self.steer, which plays the dismount's change: her own outfit back at once instead.
+        if leaving then
+            pcall(Suit.drop,leaving,her())
+            leaving=nil
+        end
+        return line
+    end
     -- coop off and bike=off, after stop: her parked bike out of the world, its place kept. Logs nothing.
     function self.leave()
         local h=here
@@ -765,6 +852,25 @@ function Ride.new(o)
     -- Each frame before the native tick, after online/modes/race/run.lua's steer: the ride's drive and lean. A reason
     -- to get off or an error ends the ride: false and a line for the screen.
     function self.steer()
+        if held then
+            if not o.key_down() then
+                if not held.done then log(('bike_key let go before %g s: nothing'):format(Ride.HOLD)) end
+                held=nil
+            elseif not held.done and os.clock()-held.at>=Ride.HOLD then
+                held={done=true}
+                o.pressed('bike_key held')
+            end
+        end
+        if leaving then -- the dismount's change, frame by frame; an error drops it to her own outfit at once
+            local ticked,err=pcall(Suit.tick,leaving,her())
+            if not ticked then
+                log('bike suit off: '..why_of(err)..', '..tostring(select(2,pcall(Suit.drop,leaving,her()))))
+            elseif leaving.done then
+                log('bike suit off: her own outfit is back')
+            end
+            if leaving.report then log('bike suit off: '..leaving.report) leaving.report=nil end
+            if not ticked or leaving.done then leaving=nil end
+        end
         local r=ride
         if not r then return end
         local ok,why=pcall(frame,r)
@@ -838,6 +944,8 @@ function Ride.new(o)
     function self.restore()
         if restored then return end
         restored=true
+        local repaired,rline=pcall(buttons.repair,her_pc())
+        if not repaired or rline then log(repaired and rline or 'buttons: repair error '..why_of(rline)) end
         local back,back_why=pcall(drive.restore)
         if not back then log('bike drive not restored: '..why_of(back_why)) end
         local stand=stand_store.load()

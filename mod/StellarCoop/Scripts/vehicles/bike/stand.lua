@@ -11,6 +11,7 @@
 local U=require('core.unreal')
 local Doro=require('core.actors')
 local Park=require('vehicles.bike.park')
+local Look=require('vehicles.bike.fusion.look')
 local Stand={}
 Stand.CULL=20000 -- cm: the copies' cull distance, 200 m.
 -- A stand in world showing mesh (an object path), hidden and closed until put and shown. Raises, with nothing left,
@@ -32,6 +33,10 @@ function Stand.make(world,mesh,cull)
         Doro.remove(d)
         error(why,0)
     end
+    -- Dev build: Fusion Strider on SB's mesh, which keeps only its collision; without the pak SB's bike shows.
+    local built,look=pcall(Look.build,d.actor,d.mesh,Look.SEAT,Look.SEAT_PITCH,true)
+    d.look=built and look or nil
+    if built and cull then for _,part in ipairs(look.comps) do pcall(function() part:SetCullDistance(cull) end) end end
     d.shown,d.solid,d.k=false,false,{}
     return d
 end

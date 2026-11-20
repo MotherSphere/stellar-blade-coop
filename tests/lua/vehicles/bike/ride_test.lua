@@ -317,8 +317,8 @@ function fetch.step(t)
     fetch.result,fetch.running=nil,false
     return table.unpack(r)
 end
-local function new()
-    return Ride.new({log=log,ask=ask,status=status,store=store,stand_store=stand_store,drive=drive,settings=settings,
+local function new(extra)
+    local o={log=log,ask=ask,status=status,store=store,stand_store=stand_store,drive=drive,settings=settings,
         paused=function() return world.paused end,photo=function() return world.photo end,
         frozen=function() return world.frozen end,life=function() return world.life end,
         armed=function() return world.armed end,busy=function() return world.busy end,
@@ -331,11 +331,13 @@ local function new()
             assert(w=='Xion' and m==10,'Xion within 10 m')
             camp_asks=camp_asks+1
             return camp
-        end,fetch=fetch})
+        end,fetch=fetch}
+    for k,v in pairs(extra or {}) do o[k]=v end
+    return Ride.new(o)
 end
 local R=new()
-local CLIP='/Game/Art/Character/PC/CH_P_EVE_01/Animation/event/G03/MV_SD20_AfterBruteBattle_Main/eve/'
-    ..'eve_bikeSleepPose.eve_bikeSleepPose'
+-- Dev build: Fusion Strider's riding pose (vehicles/bike/fusion/look.lua).
+local CLIP='/Game/Mods/EveBikes/Quantum/Ride/Eve_QuantumRidePose.Eve_QuantumRidePose'
 local ok,why
 
 -- 1. The status words; the preload's word as a refusal.
@@ -621,6 +623,26 @@ for word,reason in pairs({['ended:weight']='her animation blueprint showed none 
     ok,why=R.slow()
     assert(not ok and why=='Off the bike: '..reason and not R.riding(),why)
 end
+-- Dev build: SB refusing the play with her slot busy ('game') asks again each pass for 8 s: a play that then
+-- runs keeps the ride; refusals for 8 s take her off.
+id=mount()
+st.id,st.anim=id,'refused:game'
+clock=clock+0.25
+ok,why=R.slow()
+assert(ok==nil and R.riding(),tostring(why))
+st.id,st.anim=id+1,'playing'
+clock=clock+0.25
+ok,why=R.slow()
+assert(ok==nil and R.riding(),tostring(why))
+R.toggle()
+id=mount()
+for k=0,36 do
+    st.id,st.anim=id+k,'refused:game'
+    clock=clock+0.25
+    ok,why=R.slow()
+    if not R.riding() then break end
+end
+assert(not ok and why=='Off the bike: the game refused the riding clip (game)' and not R.riding(),tostring(why))
 -- A frame that raises; the drive gone with her EVE (a map change): off.
 id=mount()
 dv.error='no velocity'
@@ -691,7 +713,7 @@ assert(R.riding(),'Her part again after the map change')
 eve.Mesh.locked=true
 R.stop('coop off')
 eve.Mesh.locked=nil
-assert(not R.riding() and stored=='/Game/Map.Map:PersistentLevel.EVE_1\t0\t-90\t0\t0\t0\t-90')
+assert(not R.riding() and stored=='/Game/Map.Map:PersistentLevel.EVE_1\t0\t-90\t0\t0\t0\t-90',tostring(stored))
 assert(last():find('^bike off %(coop off%) after [%d.]+ s: her mesh not written back %(read only%), '
     ..'coop%-bike%.txt kept$'),last())
 assert(R.stop('coop off')==nil,'Off already')
@@ -1014,7 +1036,7 @@ words,camp_asks=T.en,0
 no_key(); eve.mesh_at={X=0,Y=0,Z=0}
 camp='Xion_Camp_10'; place_on('/game/other')
 ok,why=R.toggle()
-assert(not ok and why=='Your bike is on another map: other. Press F3 again within 5 s to pay 500 betacrystal to bring it here.')
+assert(not ok and why=='Your bike is on another map: other. Hold F3 again within 5 s to pay 500 betacrystal to bring it here.')
 assert(camp_asks==1)
 clock=clock+4.9; ok,why=R.toggle()
 assert(ok and why=='Paying 500 betacrystal for your bike.' and fetch.starts==1)
@@ -1063,13 +1085,13 @@ assert(told[#told]=='Or insuffisant : 500 requis, vous en avez 120.')
 assert(told_en[#told_en]=='Not enough betacrystal: 500 needed, you carry 120.')
 -- A name over 32 bytes: betacrystal.
 words,money=T.en,('Ж'):rep(17); clock=clock+6; ok,why=R.toggle()
-assert(why=='Your bike is on another map: other. Press F3 again within 5 s to pay 500 betacrystal to bring it here.')
+assert(why=='Your bike is on another map: other. Hold F3 again within 5 s to pay 500 betacrystal to bring it here.')
 -- A 32-byte name after a 32-byte map name passes Russian's 200 bytes: the offer says betacrystal.
 words,money=T.ru,('Ж'):rep(16); place_on('/game/'..('m'):rep(32)); ok,why=R.toggle()
 assert(why==T.ru.bike.other_map:format(('m'):rep(32))..' '..T.ru.bike.offer:format('F3',500,'betacrystal'),why)
 -- The English screen: SB's English name in both copies.
 words,money=T.en,'Gold'; place_on('/game/other'); ok,why=R.toggle()
-assert(why=='Your bike is on another map: other. Press F3 again within 5 s to pay 500 Gold to bring it here.',why)
+assert(why=='Your bike is on another map: other. Hold F3 again within 5 s to pay 500 Gold to bring it here.',why)
 ok,why=R.toggle(); assert(ok and why=='Paying 500 Gold for your bike.' and told_en[#told_en]==why)
 fetch.result={'poor',120}; clock=clock+0.25; R.slow()
 assert(told[#told]=='Not enough Gold: 500 needed, you carry 120.' and told_en[#told_en]==told[#told])
@@ -1079,6 +1101,20 @@ clock=clock+6; eve.base={Mobility=2}; eve.mesh_at={X=5,Y=0,Z=0}; R.toggle(); eve
 assert(R.toggle()==true); fetch.result={'paid'}; clock=clock+0.25; R.slow()
 assert(sent[#sent]=='park /game/map/map 5 0 0 0 0 0',sent[#sent])
 assert((dv.restores or 0)>=1,'Each ride\'s restore puts its own drive back first')
+-- bike_key is a hold (o.key_down, o.pressed): a tap does nothing, Ride.HOLD s held runs the key once, nothing more
+-- until it is let go; coop bike (no key_down asked) and a Ride without key_down act at once.
+do
+    local down,runs=false,{}
+    local H=new({key_down=function() return down end,pressed=function(by) runs[#runs+1]=by end})
+    assert(Ride.HOLD==0.5)
+    down=true; ok,why=H.toggle('bike_key'); assert(ok and why=='hold bike_key for 0.5 s',why)
+    clock=clock+0.2; down=false; H.steer(); clock=clock+1; H.steer()
+    assert(#runs==0 and last()=='bike_key let go before 0.5 s: nothing','A tap does nothing')
+    down=true; H.toggle('bike_key'); clock=clock+0.3; H.steer(); assert(#runs==0,'Not held long enough yet')
+    clock=clock+0.25; H.steer(); assert(#runs==1 and runs[1]=='bike_key held')
+    clock=clock+1; H.steer(); H.toggle('bike_key'); clock=clock+1; H.steer(); assert(#runs==1,'Once a hold')
+    down=false; H.steer(); down=true; H.toggle('bike_key'); clock=clock+0.5; H.steer(); assert(#runs==2,'Next hold')
+end
 
 -- 22. The paint (vehicles/bike/paint.lua; paint_test tests it): with EVE's main mesh showing the example entry's key, a
 -- pass one second after the part and the stand are made gives both an instance on its slot, made from the bike mesh's

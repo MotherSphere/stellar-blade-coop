@@ -183,7 +183,7 @@ return {
     bike={far='La tua moto è a %d m, %s.',ahead='davanti a te',behind='dietro di te',left='alla tua sinistra',
         right='alla tua destra',not_back='La tua moto non è ancora tornata.',
         other_map="La tua moto è su un'altra mappa: %s.",prompt='%s: sali sulla moto',
-        offer='Premi di nuovo %s entro 5 s per pagare %d %s e portarla qui.',
+        offer='Tieni premuto di nuovo %s entro 5 s per pagare %d %s e portarla qui.',
         paying='Pagamento di %d %s per la tua moto.',
         paid='La tua moto è stata portata qui per %d %s.',
         poor='%s insufficiente: ne servono %d, ne hai %d.',

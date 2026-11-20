@@ -175,7 +175,7 @@ return {
     bike={far='Din motorcykel är %d m bort, %s.',ahead='framför dig',behind='bakom dig',left='till vänster om dig',
         right='till höger om dig',not_back='Din motorcykel är inte tillbaka än.',
         other_map='Din motorcykel är på en annan karta: %s.',prompt='%s: kliv på motorcykeln',
-        offer='Tryck på %s igen inom 5 s för att betala %d %s och hämta den hit.',
+        offer='Håll ned %s igen inom 5 s för att betala %d %s och hämta den hit.',
         paying='Betalar %d %s för din motorcykel.',paid='Din motorcykel hämtades hit för %d %s.',
         poor='Inte tillräckligt med %s: %d krävs, du har %d.',
         unpaid='Din motorcykel hämtades inte hit. UE4SS.log säger varför.'},

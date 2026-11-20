@@ -149,7 +149,7 @@ return {
         busy='暂时无法前往。请稍后再试。',failed='前往未开始。原因见UE4SS.log。'},
     bike={far='你的摩托车在%d米外的%s。',ahead='前方',behind='后方',left='左侧',right='右侧',not_back='你的摩托车还没有回来。',
         other_map='你的摩托车在另一张地图上：%s。',prompt='%s：骑上摩托车',
-        offer='5秒内再按一次%s，支付%d %s把它带到这里。',paying='正在为你的摩托车支付%d %s。',
+        offer='5秒内再长按一次%s，支付%d %s把它带到这里。',paying='正在为你的摩托车支付%d %s。',
         paid='已花费%d %s把你的摩托车带到这里。',poor='%s不足：需要%d，你只有%d。',unpaid='没能把你的摩托车带到这里。原因见UE4SS.log。'},
     night={title='暗夜行动',starts='开始倒计时 %d',wave='波次 %d/%d',next='下一波倒计时 %d',score='得分 %d',success='行动成功',fail='行动失败',
         died='全部玩家均已死亡。',time_up='时间到。',

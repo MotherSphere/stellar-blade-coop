@@ -165,7 +165,7 @@ return {
         failed='移動を開始できませんでした。理由はUE4SS.logにあります。'},
     bike={far='バイクまで%d m、%sにあります。',ahead='前方',behind='後方',left='左側',right='右側',not_back='バイクはまだ戻っていません。',
         other_map='バイクは別のマップにあります：%s。',prompt='%s：バイクに乗る',
-        offer='5秒以内にもう一度%sを押すと、%d %sを払ってここに運べます。',paying='バイクのために%d %sを支払い中。',
+        offer='5秒以内にもう一度%sを長押しすると、%d %sを払ってここに運べます。',paying='バイクのために%d %sを支払い中。',
         paid='%d %sでバイクをここに運びました。',poor='%sが足りません：必要%d、所持%d。',
         unpaid='バイクをここに運べませんでした。理由はUE4SS.logで確認。'},
     night={title='夜間オペレーション',starts='開始まで %d',wave='ウェーブ %d/%d',next='次のウェーブまで %d',score='スコア %d',success='オペレーション成功',

@@ -31,10 +31,11 @@ bike_key=F3
 # at speed drifts too, with no key. The defaults are R2 on a pad (it still picks up items in reach, as outside a race)
 # and B on the keyboard, which Stellar Blade leaves free.
 drift_keys=Gamepad_RightTrigger B
-# The bike: on or off, on by default. On, the mod keeps Stellar Blade's own bike loaded. bike_key, D-pad Right held 1 s
-# on a pad or the console command coop bike puts EVE on it or takes her off, on any save. The bike stays where she gets
-# off: its place is kept for each save, in the mod folder. Off gets her off the bike, removes her parked bike from
-# every world (its place stays), hides the other players' parked bikes and frees the bike's files.
+# The bike: on or off, on by default. On, the mod keeps Stellar Blade's own bike loaded. bike_key held 0.5 s, D-pad
+# Right held 1 s on a pad or the console command coop bike puts EVE on it or takes her off, on any save. A tap of
+# bike_key does nothing. The bike stays where she gets off: its place is kept for each save, in the mod folder. Off
+# gets her off the bike, removes her parked bike from every world (its place stays), hides the other players' parked
+# bikes and frees the bike's files.
 bike=on
 # Who can join a session you host: public (any player of your version, from Find a session), friends (your Steam
 # friends, from their friends list or the Friends tab of Find a session), invitation (the friends you invite or anyone
@@ -210,7 +211,7 @@ hide_popups=on
 | `leave_key` | same as `menu_key` | `F8` |
 | `follow_key` | same as `menu_key`, or `none`: as the guest, travel to the host ([Following the host](playing-with-a-friend.md#following-the-host)) | `F7` |
 | `race_key` | same, or `none`: a key that sets a [Doro race](../online/modes/race.md) checkpoint while you record a track | `F9` |
-| `bike_key` | same, or `none`: a key that puts EVE on the [bike](../vehicles/bike.md) or takes her off it | `F3` |
+| `bike_key` | same, or `none`: a key held 0.5 s that puts EVE on the [bike](../vehicles/bike.md) or takes her off it (a tap does nothing) | `F3` |
 | `drift_keys` | up to 4 Unreal key names separated by spaces, or `none`: the keys held to [drift](../online/modes/race.md#driving) in a race or on the [bike](../vehicles/bike.md#riding) | `Gamepad_RightTrigger B` |
 | `bike` | `on` or `off`: the [bike](../vehicles/bike.md), on any save; off takes EVE off the bike, removes it from her, takes her parked bike out of every world (its place is kept), hides the other players' parked bikes and frees its loaded files | `on` |
 | `pause_tab` | `on` or `off`: the [Online tab](interface.md#pause-menu) after Settings in the game's pause menu, which opens the co-op menu. Off, RB on Settings goes to Equipment as in the game. Options, Controls, Online tab in the pause menu; it applies from the next pause menu | `on` |

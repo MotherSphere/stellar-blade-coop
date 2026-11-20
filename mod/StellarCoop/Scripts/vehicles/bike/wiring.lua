@@ -20,6 +20,7 @@ local U=require('core.unreal')
 -- vehicles/bike/fetch.lua (fetch, with the Steam link only), as coop gift spends items: the same FName and pause rules.
 -- Its lines name the money with SB's word (game_text).
 M.bike=require('vehicles.bike.ride').new({log=function(m) print('[StellarCoop][BK] '..tostring(m)..'\n') end,
+    folder=M.folder, -- dev build: keys_bike.txt and the button table files beside coop-settings.txt
     ask=function(line) return M.ask(line)() end,status=function() return M.link and M.link.status() end,
     words=M.words,tell=M.tell,game_text=M.game_words,worlds=require('core.worlds'),
     file=M.link and {read=M.link.read_file,write=M.link.write_file},
@@ -38,6 +39,16 @@ M.bike=require('vehicles.bike.ride').new({log=function(m) print('[StellarCoop][B
     paused=function() return M.kit~=nil and M.kit.paused(true) end,photo=M.photo_state,
     frozen=function() return M.link~=nil and M.link.paused() end,life=function() return M.link and M.link.life() end,
     armed=function() return M.race.armed() end,
+    -- bike_key is a hold: its F-key read each frame with the player controller's IsInputKeyDown, as coop glide reads
+    -- its keys; once held Ride.HOLD s it goes main/input.lua's bike_press path.
+    key_down=function()
+        local key=M.settings and M.settings.bike_key.key
+        local pc=key and U.controller()
+        if not pc then return false end
+        local ok,down=pcall(function() return pc:IsInputKeyDown({KeyName=FName(key)}) end)
+        return ok and down==true
+    end,
+    pressed=function(by) M.bike_press(by) end,
     busy=function()
         if M.doro.active() then return 'the Doro look is on: coop race look off ends it' end
         if M.emote.active() then return 'coop emote plays: coop emote off ends it' end

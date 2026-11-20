@@ -178,7 +178,7 @@ return {
     bike={far='Din motorcykel er %d m væk, %s.',ahead='foran dig',behind='bag dig',left='til venstre for dig',
         right='til højre for dig',not_back='Din motorcykel er ikke tilbage endnu.',
         other_map='Din motorcykel er på et andet kort: %s.',prompt='%s: stig på motorcyklen',
-        offer='Tryk på %s igen inden for 5 s for at betale %d %s og få den hertil.',
+        offer='Hold %s nede igen inden for 5 s for at betale %d %s og få den hertil.',
         paying='Betaler %d %s for din motorcykel.',paid='Din motorcykel blev bragt hertil for %d %s.',
         poor='Ikke nok %s: %d kræves, du har %d.',
         unpaid='Din motorcykel blev ikke bragt hertil. UE4SS.log forklarer hvorfor.'},
