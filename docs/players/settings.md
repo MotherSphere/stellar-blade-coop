@@ -357,7 +357,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-puppet.txt` | Lua | The ghost's object path, so the next Lua load can remove a ghost left standing |
 | `coop-ui.txt` | Lua | The co-op UI's on-screen root, so the next Lua load (Ctrl+R) can remove it and, if the menu was open, give the game its keys back |
 | `coop-say.txt` | Lua | A chat line you typed, for a moment: the native part takes and deletes it at its next pass |
-| `coop-chat.txt` | native | Your friend's chat lines and race lines, for a moment: Lua takes and deletes the file within 250 ms, or within a frame while a race is armed |
+| `coop-chat.txt` | native | Your friend's chat, race and gift lines and the camp rests of the other players, for a moment: Lua takes and deletes the file within 250 ms, or within a frame while a race is armed |
 | `StellarCoopStory.txt` | Lua, on `coop story` | The [story dump](../dev/story-dump.md#the-file), replaced at each run |
 | `coop-story.txt` | you | A [story dump request](../dev/story-dump.md#the-request-file-coop-storytxt): the mod removes it and runs the dump once a world is loaded |
 | `coop-night.txt` | Lua | Your side of a Night Operation run, for a moment: the native part takes and deletes it at its next pass and sends it to your friend |
