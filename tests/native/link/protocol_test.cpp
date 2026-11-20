@@ -1416,6 +1416,11 @@ int main() {
          parse_request("nightshop close\n").shop == ShopAsk::close &&
          parse_request("nightshop close").command == Command::nightshop &&
          parse_request("nightshop watch").shop == ShopAsk::watch);
+  // The team shop's screen: the open ask only.
+  assert(parse_request("teamshop open\r\n").command == Command::teamshop &&
+         parse_request("teamshop open").command == Command::teamshop);
+  for (const char *bad : {"teamshop", "teamshop close", "teamshop open now", "teamshop watch", "teamshop  open"})
+    assert(parse_request(bad).command != Command::teamshop);
   assert(parse_request("roxanne on").command == Command::roxanne && parse_request("roxanne on").on &&
          parse_request("roxanne off\n").command == Command::roxanne && !parse_request("roxanne off").on &&
          !parse_request("roxanne on").lily);

@@ -108,7 +108,8 @@ std::string camp_text_status() {
 // coop-status.txt's lion, gardener, tendril, bolt, mxiii, shop, signal, mxspawn, mxenv, mxupper, mxmiddle, mxlower,
 // mxnames, mxlily, mxrecords, halls and teamshop lines (rows/rows.h's status_line), from what the game thread
 // published, then the shock line (rows/shock.h's shock_line), read after the bolt line it was published before, then
-// the nightshop, roxanne, lily and guardtext lines (nightop_worker.inc's nightop_status).
+// the nightshop, roxanne, lily and guardtext lines (nightop_worker.inc's nightop_status), then the teamshopui line
+// (teamshop_worker.inc's teamshop_status).
 std::string rows_status() {
   std::string lines;
   for (const RowsJob *j : kJobs) {
@@ -125,7 +126,7 @@ std::string rows_status() {
     lines += (lines.empty() ? "" : "\n") + lion::status_line(j->batch, s);
   }
   return lines + "\n" + lion::shock_line(shock_word, shock_faulted ? fault_where(shock_fault_rva) : std::string()) +
-         "\n" + nightop_status();
+         "\n" + nightop_status() + "\n" + teamshop_status();
 }
 
 } // namespace coop::pose

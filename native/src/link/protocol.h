@@ -910,7 +910,8 @@ inline std::string masked(std::string_view text) {
 // Night Operation shop in SB's own shop screen (online/modes/nightop/shop.lua, online/modes/nightop/shop_ui.h)
 // "nightshop open" (Shop_NightOperation_Coop), "nightshop open bolt" (Shop_NightOperation_CoopBolt), "nightshop close"
 // and "nightshop watch" (the reads only); for Roxanne's Night Operation choices (online/modes/nightop/roxanne.lua,
-// online/modes/nightop/roxanne.h) "roxanne on" and "roxanne off"; for Lily's signal choice
+// online/modes/nightop/roxanne.h) "roxanne on" and "roxanne off"; for the team shop in SB's own shop screen
+// (world/teamshop/shop.lua, world/teamshop/shop_ui.h) "teamshop open" (SBOTeam_Shop); for Lily's signal choice
 // (world/maps/matrix13/quest/on_time.lua, the same header) "lily on" and "lily off"; for the mod's own quests
 // (world/maps/matrix13/quest/on_time.lua, story/quests/own.h) "signal watch" (the reads only, from then on), "signal
 // acquire" (acquire On Time), "signal complete" (its M01 task's Complete), "signal prologue" (acquire the prologue),
@@ -923,7 +924,7 @@ enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
   signal, match, mute, sbo, guardtext, hud, loading, world, scenes, bike, block, unblock, list, where, rules, sky,
-  pausetab, popups
+  pausetab, popups, teamshop
 };
 // match: "match search <mode> <room> <hall>" (quick match: join an open Public lobby of that mode and hall, or host
 // one), "match create <mode> <room> <hall>" (a private match lobby joined with its code), "match cancel" (forget the
@@ -1416,6 +1417,8 @@ inline Request parse_request(std::string text) {
              : text[10] == 'o' ? ShopAsk::open
              : text[10] == 'c' ? ShopAsk::close
                                : ShopAsk::watch;
+  } else if (text == "teamshop open") {
+    r.command = Command::teamshop;
   } else if (text == "roxanne on" || text == "roxanne off") {
     r.command = Command::roxanne;
     r.on = text.size() == 10;

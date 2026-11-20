@@ -170,7 +170,8 @@ std::string ask_rows(const coop::Request &request);
 // status_line), one per batch, joined by a line break: "<word>=off", or the state (waiting, rows, refused, fault) with
 // added=<n>/<N>, asks=<a>, spawns=<s> and that state's own fields; then the shock line (rows/shock.h's shock_line: off,
 // in, refused or fault), then the nightshop line (online/modes/nightop/shop_ui.h's), the roxanne and lily lines
-// (online/modes/nightop/roxanne.h's), and on the pinned build the guardtext line (online/modes/nightop/guard_text.h's).
+// (online/modes/nightop/roxanne.h's), on the pinned build the guardtext line (online/modes/nightop/guard_text.h's),
+// then the teamshopui line (world/teamshop/shop_ui.h's).
 std::string rows_status();
 // Worker thread, coop shortcut (game/shortcut.h): Lua's shortcut list request, which the game thread serves by
 // reading the cut Load Shortcut menu's 16 paths through SB's file manager, one a frame. Refused off the pinned build,
@@ -200,6 +201,10 @@ std::string ask_nightshop(const coop::Request &request);
 // that list's latch's fault; after coop off, only off. Returns the line for the log; fight_pass logs the game thread's
 // answer.
 std::string ask_roxanne(const coop::Request &request);
+// Worker thread, the team shop's screen (world/teamshop/shop_ui.h): Lua's teamshop open, SB's shop screen opened on
+// SBOTeam_Shop at the game thread's next frame. Refused off the pinned build, after coop off and after its latch's
+// fault. Returns the line for the log; teamshop_pass logs the game thread's answer.
+std::string ask_teamshop();
 // Worker: coop-status.txt's shared quests lines (game/quests/engine.h's Worker::status), then the signalquest line
 // (story/quests/own.h's status_line, on the pinned build until coop off), each ending in a line break.
 std::string quest_status();
@@ -297,6 +302,8 @@ std::string bike_pass();
 void ask_hud(bool hide);
 // Every pass: logs each change the game thread made, a hide it could not make (once an ask) and its fault.
 void hud_pass();
+// Every pass: logs each answer of the team shop's screen (world/teamshop/shop_ui.h's describe) and its fault once.
+void teamshop_pass();
 // The pause menu's Online tab (ui/pause_tab_game.inc, ui/pause_tab.h), worker thread. Lua's pausetab on or off
 // (Command::pausetab): RB on the pause menu's last tab opens the Online tab only while on (on until Lua says off). A
 // change is logged.

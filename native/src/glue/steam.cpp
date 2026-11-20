@@ -798,6 +798,10 @@ bool step() {
       event(coop::pose::ask_nightshop(coop::parse_request(request)));
       request.clear();
       break;
+    case coop::Command::teamshop: // The team shop's screen: the game thread's.
+      event(coop::pose::ask_teamshop());
+      request.clear();
+      break;
     case coop::Command::roxanne: // Roxanne's Night Operation choices or Lily's signal choice: the game thread's.
       event(coop::pose::ask_roxanne(coop::parse_request(request)));
       request.clear();
@@ -985,6 +989,7 @@ bool step() {
     if (loaded && !said.empty())
       link->notice(said);
     coop::pose::hud_pass();
+    coop::pose::teamshop_pass();
     coop::pose::loading_pass();
     coop::pose::sky_pass();
     // Channel 2 both ways (none in a match lobby). The shared quests take their SBQ lines out first, by sender: on the

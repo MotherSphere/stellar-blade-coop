@@ -605,6 +605,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 - `online_modes_nightop_shop_ui_test`: the Night Operation shop screen's guard (`online/modes/nightop/shop_ui.h`: a
   client and its UI manager always, in game and playing for an open only), its answer word's round trip, the
   `nightshop=` line and the log lines;
+- `world_teamshop_shop_ui_test`: the team shop screen's guard (`world/teamshop/shop_ui.h`: a client, its UI manager,
+  in game and playing), its answer word's round trip, the `teamshopui=` line and the log lines;
 
 ### Table rows
 

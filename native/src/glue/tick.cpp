@@ -144,6 +144,11 @@
 // then her eight) or back at the list's own, under a latch of its own for each list; status() gives them in the
 // nightshop, roxanne and lily lines, and the worker logs each answer.
 //
+// The team shop in SB's own shop screen (world/teamshop/shop_ui.h, coop teamshop): the worker hands over Lua's
+// teamshop open; the next frame the game thread opens SB's shop screen on the teamshop rows batch's ShopTable row with
+// the calls SB's vending machine node makes, under its own SEH latch. It reads nothing between asks and never closes
+// the screen. status() gives the answer in the teamshopui line. The worker logs each one.
+//
 // coop emote's native clips (game/anim.h): the worker hands over Lua's anim play (an id, one of EVE's clip paths, once
 // or in a loop) or anim stop; the game thread takes our EVE as the player controller's pawn and plays the clip through
 // SB's own custom animation call by path, or stops ours through SB's stop, under its own SEH latch, and reads her
@@ -283,6 +288,7 @@
 #include "online/modes/nightop/probe.h"
 #include "online/modes/nightop/roxanne.h"
 #include "online/modes/nightop/shop_ui.h"
+#include "world/teamshop/shop_ui.h"
 #include "game/codec.h"
 #include "game/partner/engine.h"
 #include "online/partner/record.h"
@@ -320,6 +326,7 @@
 #include "eve/debug_game.inc"
 #include "ui/pause_tab_game.inc" // After debug_game_shared.inc: its UI calls and ui_reads.
 #include "online/modes/nightop/nightop_game.inc"
+#include "world/teamshop/teamshop_game.inc" // After debug_game_shared.inc and rows_game.inc: its UI calls and names.
 #include "glue/tick/anim_game_shared.inc"
 #include "eve/anim_game.inc"
 // After anim_game_shared.inc, freeze_game_shared.inc and rows_game.inc: their calls and GMalloc.
@@ -348,6 +355,7 @@
 #include "glue/tick/sbo_worker_shared.inc"
 #include "online/lobby/sbo_worker.inc"
 #include "online/modes/nightop/nightop_worker.inc"
+#include "world/teamshop/teamshop_worker.inc"
 #include "online/group/travel_worker.inc"
 #include "online/saves/shortcut_worker.inc"
 #include "cutmenus/items_worker.inc"
@@ -514,6 +522,9 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
     swap_tick(roxanne_side);
   if (game_pinned && !lily_side.faulted)
     swap_tick(lily_side);
+  // The team shop's screen, its own latch: an open ask taken each frame (the worker takes none after coop off).
+  if (game_pinned && !teamshop_faulted)
+    teamshop_tick();
   LARGE_INTEGER left;
   QueryPerformanceCounter(&left);
   coop_tick_us = micros_between(entry, left); // The next gap line's "that tick took".
