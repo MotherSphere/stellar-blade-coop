@@ -213,13 +213,13 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   parts and the bike's, its main mesh a free part with a light line after its read line; hidden in game it goes with
   shown 0 under the same generation; another drone actor is a new generation; the look off, no address, an address no
   drone has or another class at it adds none; a drone that cannot be read is left out, said once; over the pose
-  size its leader goes first.
+  size its leader goes first. A drone mesh hung on no part hangs from the free part, placed relative to it.
   `online/partner/puppet_test` reads a free line strictly (none on a placed part, none missing on a free one) and draws
   the free part on part 0 with a box after the effect boxes on the display file's `free` line and a SpotLight on its
   `FX_Lens` socket (movable, no shadows, cone 40). At each pose it moves the part as its box says and shows it with
   its light at step x 4 while the box and the table say so, never in Doro mode. A Lua error there hides the drone on
   that ghost only. A part that turns free under one generation builds a new ghost. With the look off no free part,
-  box or light is made;
+  box or light is made, nor the parts that follow or hang on the free part;
 - `core/link_test` also covers the status's `uidev=`, `me=`, `world=` and `story=` lines and the `owner=`, `room=`
   and `hall=` fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty)
   and never from a player's name; the `shared_world`, `shared_story`, `daynight`, `pause_tab` and `hide_popups`

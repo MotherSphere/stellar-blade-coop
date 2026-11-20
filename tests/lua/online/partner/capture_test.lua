@@ -95,6 +95,7 @@ StaticFindObject=function(path)
     if path=='/Script/Engine.Default__KismetMathLibrary' then
         c.MakeRelativeTransform=function(_,a,b)
             relative_calls=relative_calls+1
+            if a=='world of DroneArm' then assert(b=='world of her drone',b); return transform(3) end -- Drone parts.
             assert(a=='world of SBHair' and b=='world of CharacterMesh0',a)
             return transform(7)
         end
@@ -854,4 +855,24 @@ ok,message=step(2)
 assert(ok and message:find('^Capture %d+: 2 parts, 902 bone names, .*; 1 leaders left out, over the pose size$'),
     tostring(message))
 assert(not published[#published]:find('\nfree '),published[#published])
+-- A drone mesh hung on no part (here on the drone's capsule) hangs from the free part: its parent is the drone's main
+-- mesh and its place is relative to that mesh, never to hers.
+local drone_main=drone_actor(0x80000000,3)
+raw[drone_main].K2_GetComponentToWorld=function() return 'world of her drone' end
+local ARM='/Game/Art/Character/NPC/CH_NPC_Drone/Arm.Arm'
+local arm=her('DroneArm',ARM,{parent=object('DroneCapsule'),bones=2,x=4})
+local drone_raw=raw[drones[1]]
+local meshes_of=drone_raw.K2_GetComponentsByClass
+function drone_raw:K2_GetComponentsByClass(class)
+    if class.path=='/Script/Engine.SkeletalMeshComponent' then return {arm,drone_main} end
+    return meshes_of(self,class)
+end
+drone_at='0x80000000'
+player=eve_of('EVE25',{body})
+tick()
+ok,message=step(2)
+t=published[#published]
+assert(ok and message:find('^Capture %d+: 3 parts, '),tostring(message))
+assert(t:find('\npart 1 - - - 1 3 CharacterMesh0 '..DRONE..'\nfree 1\n',1,true),t)
+assert(t:find('\npart 2 - 1 - 1 2 DroneArm '..ARM..'\nplace 2 0 0 0 1 3 0.1 0 1 1 1\n',1,true),t)
 print('capture_test ok')

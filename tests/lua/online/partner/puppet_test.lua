@@ -1768,6 +1768,15 @@ assert(ok and message:find('^Ghost 962 built: 6 parts %(3 leaders%), .* 0 left o
     message)
 assert(#actor.parts==6 and #actor.boxes==6 and not actor.light and not displays[#displays]:find('\nfree ')
     and not displays[#displays]:find('\ndrive 6 '),displays[#displays])
+-- Off, with parts on her drone (one follows it, one hangs on it): none of them is drawn either.
+local dressed=with_drone()
+dressed[8]={name='DroneSkin',lead=6,parent=6,path=PONY}
+dressed[9]={name='DroneArm',parent=6,path=BLADE,names={'Root'}}
+send(964,dressed)
+ok,message=build()
+actor=spawned[#spawned]
+assert(ok and message:find('^Ghost 964 built: 6 parts %(3 leaders%), .* 0 left out; '),message)
+assert(#actor.parts==6 and not displays[#displays]:find('\ndrive [678] '),displays[#displays])
 look.drone=nil
 end
 
