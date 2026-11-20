@@ -146,22 +146,25 @@ one key to two actions gets every key back at its default. A file written before
 gets no gun key. Stellar Blade's input settings bind no F-key. They bind G to a menu action (`UI_RightThumbstick`),
 which is why G is no longer the default.
 
-The lines below are test lines. A new file does not have them and Options has no row for them. Gun mode checks them
-and logs a bad value on a `[GM]` line, which then keeps its default.
+The lines below are test lines. A new file does not have them and Options has no row for them. A line with an empty
+value counts as absent. Gun mode checks four of them: `gun_aim_key`, `gun_zoom`, `gun_fire` and `gun_upper`. A value
+it refuses there keeps the default. `UE4SS.log` names it on a `[GM]` line, such as
+`coop-settings.txt: gun_zoom: use hold or toggle`. The other lines get no log line. The last column says what a
+value outside the list does.
 
-| Line | Values | Default |
-| --- | --- | --- |
-| `gun_aim_key` | The UE key name firing mode moves to | `RightMouseButton` |
-| `gun_zoom` | `hold`, `toggle` | `hold` |
-| `gun_fire` | `native` (the game's aim), `own` | `native` |
-| `gun_upper` | `nikke` (the NIKKE rifle's upper-body animations in firing mode), `off` | `off` |
-| `gun_probe`, `gun_trace` | `on`: development logging | off |
-| `gun_facts`, `gun_g0` | `on`: development probes (`fight/gunmode/facts.lua`, `fight/gunmode/g0.lua`) | off |
-| `gun_bs` | A blend space for the aim stance's animation set | none |
-| `gun_carry_ovr` | `auto`, `off` (her own walk) or an animation set row | `auto` with the rifle clips alone |
-| `gun_carry_spare` | Which spare animation set row the rifle carry takes, from 0 | 0 |
-| `gun_carry_idle` | The rifle carry's idle type | 1 |
-| `gun_fire_key` | One more fire key, as a UE key name | none |
+| Line | Values | Default | Any other value |
+| --- | --- | --- | --- |
+| `gun_aim_key` | The UE key name firing mode moves to, letters and digits only (no `_`) | `RightMouseButton` | Refused and logged |
+| `gun_zoom` | `hold`, `toggle`, in any case | `hold` | Refused and logged |
+| `gun_fire` | `native` (the game's aim), `own`, in any case | `native` | Refused and logged |
+| `gun_upper` | `nikke` (the NIKKE rifle's upper-body animations in firing mode), `off`, in any case | `off` | Refused and logged |
+| `gun_probe`, `gun_trace` | `on` in any case: development logging | off | Read as off |
+| `gun_facts`, `gun_g0` | `on` in lower case: development probes (`fight/gunmode/facts.lua`, `fight/gunmode/g0.lua`) | off | Ignored |
+| `gun_bs` | A blend space for the aim stance's animation set | none | Not checked: taken as written |
+| `gun_carry_ovr` | `auto`, `off` (her own walk) or an animation set row, as letters, digits and `_` | `auto` with the rifle clips alone | A word other than `auto` or `off` in lower case is taken as a row name. Other characters: ignored |
+| `gun_carry_spare` | Which spare animation set row the rifle carry takes, from 0 | 0 | Not a number: ignored |
+| `gun_carry_idle` | The rifle carry's idle type, a number | 1 | Not a number: ignored |
+| `gun_fire_key` | One more fire key, a UE key name in letters and digits only (no `_`) | none | Ignored |
 
 ## Credits
 
