@@ -43,7 +43,7 @@ local HOVER,BACK,GONE=0.1,0.15,0.25 -- Seconds: between mouse looks; to the inpu
 local SHADOW={2,2,0,0,0,0.8}
 local TONE={grey=THEME.grey,warn=THEME.warn,teal=THEME.teal,error=THEME.error}
 local MARK={ok=THEME.teal,warn=THEME.warn,error=THEME.error}
-local MODES={ffa=true,more=true}
+local MODES={ffa=true,scoreattack=true,challenge=true,more=true} -- The top block's rows (lobby_model.lua's three).
 local TABS={'match','sbo'}
 -- B's layout for n_mode mode rows and n_action action rows: {top, rows={y...}, text_y (the mode text), logo_y}.
 function Lobby.layout(n_mode,n_action)
@@ -56,13 +56,17 @@ function Lobby.layout(n_mode,n_action)
 end
 -- The block that moves with the row count (logo, sub-logo, mode rows' mouse zones, mode text) is drawn at idle's
 -- layout in its own group, which kit.move places for the others (kit texts and images have no place of their own).
-local BASE=Lobby.layout(2,ACTIONS)
+local BASE=Lobby.layout(3,ACTIONS)
 -- A word of a table by its dotted key ('status.open'), formatted with args when given; the key when there is none.
 local function word(t,key,args)
     local w=t
     for k in key:gmatch('[^.]+') do w=type(w)=='table' and w[k] or nil end
     if type(w)~='string' then return key end
     return args and #args>0 and w:format(table.unpack(args)) or w
+end
+-- The score attack's challenge pick in words t: Random, a challenge's name, or the host's pick (a guest's row).
+local function pick_word(t,v)
+    return v=='random' and t.lobby.val.random or v=='host' and t.lobby.val.host_pick or t.challenge.names[v] or v
 end
 -- o: {kit=ui.kit.kit's, words=function() the ui/text.lua table to show, view=function() Model.view's input
 -- (main.lua's), act=function(action) (Model.act's shapes, and C's {set=, value=}, {request=}, {run='report'}), log=}.
@@ -72,7 +76,7 @@ function Lobby.new(o)
     local screen,tab=nil,TABS[1] -- 'menu' (B), 'settings' (C) or nil; C's tab.
     -- B's cursor (a row index; nil: the first action row); C's (an item index); C's first item shown less one.
     local cur_b,cur_c,top=nil,0,0
-    local view,input,items,modes=nil,nil,{},2 -- As last drawn: what nav acts on.
+    local view,input,items,modes=nil,nil,{},3 -- As last drawn: what nav acts on.
     local rows_b,hints_b,list_c,icons_c,pane_c,hints_c={},{},{},{},{},{} -- Parts by slot.
     -- The popup asking ({id, rec, on_answer, took}); one answered, removed at its time ({rec, at}).
     local ask,leaving=nil,nil
@@ -119,7 +123,7 @@ function Lobby.new(o)
         b.image(0,610,3840,1550,'shade_bottom')
         local v={slots={}}
         for k=1,ACTIONS do
-            local y=BASE.rows[2+k]
+            local y=BASE.rows[3+k]
             v.slots[k]={zone=b.row(ROW_X,y+15,624),
                 status=b.text(ROW_X+SIDE,y+32,'','body',THEME.grey,nil,{shadow=SHADOW})}
         end
@@ -137,7 +141,7 @@ function Lobby.new(o)
             v.logos[name]=b.image(170,BASE.logo_y,2048,LOGO,name)
         end
         v.sub=b.text(224,BASE.logo_y+LOGO-8,'','item',THEME.grey,{X=0,Y=1},{shadow=SHADOW})
-        for i=1,2 do
+        for i=1,3 do
             local y=BASE.rows[i]
             v.slots[i]={zone=b.row(ROW_X,y+15,624),
                 tag=b.text(ROW_X+SIDE,y+32,'','status',THEME.dim,nil,{shadow=SHADOW})}
@@ -207,8 +211,8 @@ function Lobby.new(o)
         for name,img in pairs(tv.logos) do img.show(name==logo) end
         tv.sub.set(t.lobby.sub)
         local specs,labels={},{}
-        for i,row in ipairs(rows) do -- Labels (R24): mode.ffa, row.more, row.<id>.
-            local label=row.id=='ffa' and t.lobby.mode.ffa or word(t.lobby.row,row.id,row.args)
+        for i,row in ipairs(rows) do -- Labels (R24): mode.<id> for a mode, row.more, row.<id>.
+            local label=t.lobby.mode[row.id] or word(t.lobby.row,row.id,row.args)
             labels[i]=label
             specs[i]={kind='row',x=ROW_X,y=L.rows[i],sig=label..(row.locked and '*' or ''),fill=function(w)
                 w.Text_Value=FText(label)
@@ -225,9 +229,18 @@ function Lobby.new(o)
         end
         for i,slot in ipairs(tv.slots) do kit_row(slot.zone,i<=modes and i or nil) end
         for k,slot in ipairs(v.slots) do kit_row(slot.zone,slot_row(k)) end
+        -- The mode text: the mode row under the cursor, more's, else the mode of the lobby or picked.
         local cur=rows[cur_b]
-        tv.desc.set(t.lobby.desc[cur and cur.id=='more' and 'more' or 'ffa'])
-        for i,slot in ipairs(tv.slots) do slot.tag.set(rows[i] and rows[i].id=='more' and t.lobby.tag.soon or '') end
+        local id=cur and (cur.id=='more' or cur.id=='ffa' or cur.id=='scoreattack') and cur.id or view.mode
+        tv.desc.set(t.lobby.desc[id] or '')
+        -- Beside a mode row: soon (more), the host's challenge pick (Challenge), picked (the mode Search asks for).
+        for i,slot in ipairs(tv.slots) do
+            local row=rows[i]
+            if row and row.id=='more' then slot.tag.set(t.lobby.tag.soon); slot.tag.color(THEME.dim)
+            elseif row and row.id=='challenge' then slot.tag.set(pick_word(t,row.value)); slot.tag.color(THEME.text)
+            elseif row and row.picked then slot.tag.set(t.lobby.tag.picked); slot.tag.color(THEME.teal)
+            else slot.tag.set('') end
+        end
         local status,tone=word(t.lobby,view.status.key,view.status.args),TONE[view.status.tone] or THEME.grey
         for k,slot in ipairs(v.slots) do
             local row=rows[slot_row(k) or 0]
@@ -256,6 +269,7 @@ function Lobby.new(o)
         return t.row[item.id] or item.id
     end
     local function value_of(t,item)
+        if item.pick then return pick_word(t,item.pick) end
         if not item.value then return '' end
         if tab=='match' then return word(t.lobby,item.shown or item.value,item.args) end
         return t.value[item.value] or item.value
@@ -313,7 +327,7 @@ function Lobby.new(o)
         sync(icons_c,'lobby_settings',{hint(86,120,'','UI_LeftShoulder'),
             hint(236+#TABS*360,120,'','UI_RightShoulder')},2)
         v.page.set(t.lobby.page)
-        local shows,mode=listed(),input.match and input.match.mode or 'ffa'
+        local shows,mode=listed(),view.mode
         sync(pane_c,'lobby_settings',{header(PANE_X,LIST_Y,t.lobby.members..(shows and '  '..t.lobby.count:format(
             view.count.n,view.count.limit) or '')),header(PANE_X,PANE_MODE_Y,t.lobby.mode[mode] or mode)},2)
         show_members(v.members,t,shows)
@@ -332,7 +346,7 @@ function Lobby.new(o)
         if not v then return end
         local t=words()
         read()
-        local mode=input.match and input.match.mode or 'ffa'
+        local mode=view.mode
         v.line.set((t.lobby.mode[mode] or mode)..' · '..word(t.lobby,view.status.key,view.status.args))
         local key=input.settings and input.settings.menu_key
         v.key.set(t.lobby.room:format(key and key.name or 'menu_key'))

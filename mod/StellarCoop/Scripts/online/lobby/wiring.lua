@@ -1,9 +1,10 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The SBO lobby's wiring (online/lobby/): the lobby, its hall rows, its arrivals, its passes and its screens.
+-- The SBO lobby's wiring (online/lobby/): the lobby, its hall rows, its arrivals, its passes and its screens. The lobby
+-- menu's score attack rows read online.modes.scoreattack's round (its pick and cycle) while that module is on.
 return {
-uses={'online.modes.nightop','eve','online.session'},
+uses={'online.modes.nightop','eve','online.session','online.modes.scoreattack'},
 exports={'sbo','halls','lobby_room','lobby_key','seat_hint','arrival_pass','lobby_pass','hud_pass','lobby',
     'lobby_last'},
 new=function(M)
@@ -127,8 +128,9 @@ if M.link then
     -- the UI root's whole look and while no round of ours plays (the kit builds no new root while B shows, so B on a
     -- build whose look still warms keeps the logo and shades missing); leaving that world closes them and the room's
     -- overlay.
-    -- R25: a start is new when its number differs from the last one handled, or after an end line.
-    local counting,start_n,round_kind,was_here,due=false,nil,nil,false,false
+    -- R25: a start is new when its number differs from the last one handled, or after an end line. played: a round of
+    -- ours started; its end line opens B again (any mode's round).
+    local counting,start_n,round_kind,was_here,due,played=false,nil,nil,false,false,false
     local framed=false -- The menu camera asked under the arrival's hold, once an arrival in the lobby world.
     -- The arrival's hold, before lobby_pass: SB's black up at the pass after the new controller, lifted once the lobby
     -- holds nothing back (online/lobby/sbo.lua's unready) and the kit's root has its whole look. A Lua load under an
@@ -171,9 +173,11 @@ if M.link then
                 counting=false
                 M.lobby.stop_count()
                 M.sbo.to_room()
-                log('round start: stage 4 not built')
+                played=true
+                log('round start: '..(r.mode=='scoreattack' and 'score attack' or 'stage 4 not built'))
             end
         end
+        if played and r and r.kind=='end' then played,due=false,true end -- B again at our round's end line.
         round_kind=r and r.kind
         local here=M.sbo.in_lobby()
         if here~=was_here then
@@ -234,7 +238,10 @@ build={
 screens=function(M,Ui)
     -- The lobby's view keeps our last match request ('search', 'create', or 'join' from the code box), when its Code
     -- row copied the code, and the map picked on C for a Private match ('random' or a hall's key, for this Lua load).
-    local last,copied_at,room=nil,nil,'random'
+    -- mode: the mode picked on B ('ffa' or 'scoreattack', nil: the model's default) for this Lua load.
+    local last,copied_at,room,mode=nil,nil,'random',nil
+    -- Score attack's round (online.modes.scoreattack) while that module is on, nil while it is off or has no link.
+    local score=require('main.loader').get(M,'online.modes.scoreattack','scoreattack')
     function M.lobby_last(v) last=v end -- The code box's Join sets it (online/session/wiring.lua).
     -- The SBO lobby's screens (online/lobby/ui/lobby.lua), over the rest: B and C, the leave question, the countdown
     -- and the room's overlay. view: Model.view's input, read fresh at each call (L15 R25, L12-R1); act: what a row asks
@@ -242,11 +249,12 @@ screens=function(M,Ui)
     local LAST={['match search']='search',['match create']='create',join='join'}
     local function view()
         local version,proto=('\n'..(M.link.status() or '')):match('\nmod=(%S+) proto=(%d+)')
+        local sa=M.settings.scoreattack and score() or nil
         return {match=M.link.match(),members=M.link.members(),role=M.link.mode() or 'none',limit=M.link.cap(),
             code=(M.link.code()),
             me={id=(M.link.saves() or {}).steamid,name=M.link.me()},owner=M.link.owner(),last=last,copied_at=copied_at,
             now=os.clock(),version=version,proto=tonumber(proto),settings=M.settings,halls=M.sbo.hall()~='xion',
-            room=room}
+            room=room,pick=mode,sa=sa and {pick=sa.pick()} or nil}
     end
     local function act(a)
         if a.request then -- Search (with the SBO lobby's room and hall words), Private, Cancel, and C's mute rows.
@@ -271,6 +279,10 @@ screens=function(M,Ui)
         elseif a.copy then
             if M.run('copy') then copied_at=os.clock() end
         elseif a.set=='room' then room=a.value -- Not a coop-settings.txt setting: menu.set knows no such key.
+        elseif a.mode then mode=a.mode -- Not a coop-settings.txt setting either.
+        elseif a.cycle then -- The host's challenge pick: Random, then each challenge the room offers.
+            local r=score()
+            if r then r.cycle() else M.report(false,'score attack is off until the mod reloads') end
         elseif a.set then M.menu.set(a.set,a.value)
         elseif a.run then M.run(a.run) end
     end
