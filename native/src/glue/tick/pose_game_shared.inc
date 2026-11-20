@@ -45,6 +45,7 @@ struct Drawn {
   std::vector<uint8_t> draw;
   float draw_root[10] = {};
   Effect draw_fx[kEffectSlots], fx_drawn[kEffectSlots]; // Her effect slots drawn this frame, and as last written.
+  Free draw_free[kMaxParts]; // Her free parts' blocks drawn this frame, in table order.
   // Game thread: only the first refused write on this ghost is logged; Lua destroyed this ghost, so nothing is drawn
   // until its display is dropped.
   bool refusal_logged = false, ghost_gone = false;
@@ -57,13 +58,15 @@ struct Drawn {
   }
   bool drawn() const { return display.generation && display.generation == remote.generation; }
 };
-// What the worker hands the game thread, all sized off the game thread: EVE's capture table with her pose and effect
-// slots as read for sending, and each ghost slot holding a remote table (null for an empty slot).
+// What the worker hands the game thread, all sized off the game thread: EVE's capture table with her pose, effect
+// slots and free parts' blocks as read for sending, and each ghost slot holding a remote table (null for an empty
+// slot).
 struct Live {
   Table capture;
   std::vector<uint8_t> capture_bones;
   float capture_root[10] = {};
   Effect capture_fx[kEffectSlots];
+  Free capture_free[kMaxParts]; // In table order; a free part not read keeps its place, hidden.
   KeyedEncoder encoder; // Her keyframe and the byte budget: a new Live starts with a keyframe.
   std::array<std::unique_ptr<Drawn>, kMaxRemote> remotes;
   explicit Live(Table c) : capture(std::move(c)) {
@@ -105,7 +108,8 @@ int fault_filter(EXCEPTION_POINTERS *info, std::atomic<uint64_t> &code, std::ato
     address = exception->ExceptionInformation[1];
   return EXCEPTION_EXECUTE_HANDLER;
 }
-// A write the gate refused: counted, and logged the first time on this ghost (part -1: the mailbox, -2: an effect box).
+// A write the gate refused: counted, and logged the first time on this ghost (part -1: the mailbox, -2: an effect box,
+// -3: a free part's box).
 void refused(Drawn &ghost, int part, Io r) {
   last_refusal = static_cast<int>(r);
   if (ghost.refusal_logged)
@@ -115,6 +119,8 @@ void refused(Drawn &ghost, int part, Io r) {
   char what[24] = "mailbox";
   if (part == -2)
     std::snprintf(what, sizeof what, "effect box");
+  else if (part == -3)
+    std::snprintf(what, sizeof what, "free part's box");
   else if (part >= 0)
     std::snprintf(what, sizeof what, "part %d", part);
   std::snprintf(line, sizeof line, "write refused: %s %s (table %llu)", what, describe(r),

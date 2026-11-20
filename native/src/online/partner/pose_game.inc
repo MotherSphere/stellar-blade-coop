@@ -95,25 +95,6 @@ void raise_max(std::atomic<uint64_t> &slot, uint64_t value) {
     ;
 }
 
-// EVE now: her main mesh's world transform and her leaders' local poses, back to back.
-Io read_eve(const Table &capture, float *root, uint8_t *bones) {
-  if (!published(objects, capture.eve[0]))
-    return Io::gone;
-  read_world(static_cast<uintptr_t>(capture.eve[0].object), root);
-  size_t offset = 0;
-  for (size_t i = 0; i < capture.eve.size(); ++i) {
-    if (!capture.eve[i].leader)
-      continue;
-    current_part = static_cast<int>(i);
-    Io r = read_leader(objects, capture.eve[i], bones + offset);
-    current_part = -1;
-    if (r != Io::ok)
-      return r;
-    offset += size_t(capture.eve[i].bones) * kTransformBytes;
-  }
-  return Io::ok;
-}
-
 // Effects under their own latch. clang-cl catches a fault only in a function the __try calls, never in code inlined
 // into the __try's own frame, so the accesses stay out of line; the guarded functions hold plain data only.
 __declspec(noinline) void effects_read(Live &live) {
@@ -171,11 +152,12 @@ bool guarded_effects_write(Drawn &ghost) {
 }
 
 // The pose drawn this frame into the ghost: each remote leader Lua built a part for, as it came or through its remap,
-// then its effect boxes and the mailbox. True when every write passed its checks.
+// with the box of a free part (her drone) Lua named, then its effect boxes and the mailbox. True when every write
+// passed its checks.
 bool write_puppet(Drawn &ghost) {
   const Table &remote = ghost.remote;
   const Display &d = ghost.display;
-  size_t offset = 0;
+  size_t offset = 0, k = 0;
   bool all = true;
   for (size_t i = 0; i < remote.eve.size(); ++i) {
     if (!remote.eve[i].leader)
@@ -193,6 +175,12 @@ bool write_puppet(Drawn &ghost) {
       }
     }
     offset += size_t(remote.eve[i].bones) * kTransformBytes;
+    if (remote.eve[i].free && d.free_box[i] &&
+        write_free_box(objects, d.free_box[i], d.mailbox_class, d.puppet[0], ghost.draw_free[k]) != Io::ok) {
+      all = false;
+      refused(ghost, -3, Io::gone);
+    }
+    k += remote.eve[i].free;
   }
   if (effects_on && d.effects[0] && !guarded_effects_write(ghost)) {
     all = false;
@@ -221,7 +209,8 @@ void stream(uint64_t now_us) {
   if (capture_due && !live.encoder.due(now_us, pilot_sending)) {
     ++window_held; // The byte budget is spent: read again next frame.
   } else if (capture_due) {
-    Io r = read_eve(live.capture, live.capture_root, live.capture_bones.data());
+    Io r = read_pose(objects, live.capture, live.capture_root, live.capture_bones.data(), live.capture_free,
+                     current_part);
     if (r == Io::ok) {
       uint64_t every = send_us.load(std::memory_order_relaxed);
       next_capture = (next_capture && now_us - next_capture < every ? next_capture : now_us) + every;
@@ -238,7 +227,7 @@ void stream(uint64_t now_us) {
       if (lost_key(out_back, out_ready)) // A keyframe the worker never got: overwritten.
         live.encoder.lose();
       size_t size = encode_pose(live.capture, h, live.capture_root, live.capture_bones.data(), live.capture_fx,
-                                out_back.data.data(), clamped);
+                                out_back.data.data(), clamped, live.capture_free);
       size = out_back.size = live.encoder.encode(live.capture, out_back.data.data(), size, now_us);
       if (out_back.data[2] == 'D')
         ++window_deltas, window_delta_bytes += size;
@@ -268,7 +257,7 @@ void stream(uint64_t now_us) {
     Playback::Frame &f = ghost->playback.scratch();
     PoseHeader h;
     if (const char *why =
-            ghost->decoder.decode(ghost->remote, in.data.data(), in.size, h, f.root, f.bones.data(), f.fx)) {
+            ghost->decoder.decode(ghost->remote, in.data.data(), in.size, h, f.root, f.bones.data(), f.fx, f.free)) {
       if (!std::strcmp(why, "generation")) { // Of a table the ghost is not built on (yet): an outfit in flight.
         ++window_foreign;
       } else if (!std::strcmp(why, "key")) { // A delta whose keyframe was lost, or came before this Live.
@@ -292,7 +281,7 @@ void stream(uint64_t now_us) {
       // but the worker reads that withdrawal only within 250 ms: a destroyed ghost is no refused write, just the end.
       if (!alive(objects, static_cast<uintptr_t>(ghost.display.puppet[0].object)))
         ghost.ghost_gone = true;
-      else if (ghost.playback.sample(now_us, ghost.draw_root, ghost.draw.data(), ghost.draw_fx))
+      else if (ghost.playback.sample(now_us, ghost.draw_root, ghost.draw.data(), ghost.draw_fx, ghost.draw_free))
         ++(write_puppet(ghost) ? window_drawn_written : window_drawn_refused);
     }
     Playback::Stats s = ghost.playback.take(); // Summed over the slots: the 60 s line's means stay per pose.

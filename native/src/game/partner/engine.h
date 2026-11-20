@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The game's memory for the native pose path: the build pin, object liveness and the published-component checks, EVE's
-// pose and effects read and the ghost's written behind CopyPose's own gate. Plain accesses of addresses only, but for
-// alive()'s first read (safe_read); the caller runs every one of them under an SEH guard on the game thread. No
-// Windows types, so tests/native/game/partner/engine_test.cpp drives it with fake memory.
+// pose (her drone's block among it) and effects read and the ghost's written behind CopyPose's own gate. Plain
+// accesses of addresses only, but for alive()'s first read (safe_read); the caller runs every one of them under an SEH
+// guard on the game thread. No Windows types, so tests/native/game/partner/engine_test.cpp drives it with fake memory.
 // Offsets are for Stellar Blade's Steam build 26123051 (UE 4.26), pinned by check_build().
 #pragma once
 
+#include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -390,6 +392,76 @@ inline void read_effects(uintptr_t objects, const Table &t, EffectState &state, 
     out[n] = fresh[f];
     ++counts.started;
   }
+}
+
+// Her drone's SpotLightComponent: ULightComponentBase::Intensity (float, params 0x1465c5d70; SetIntensity's exec
+// 0x144842110 writes it) and USceneComponent::bVisible (byte +0x170 mask 0x20: its SetBit 0x144910d70 is
+// `or byte [rcx+0x170], 0x20`, SetVisibility 0x14410dfb0 tests the same bit).
+constexpr size_t kLightIntensity = 0x274, kLightVisibleByte = 0x170;
+constexpr uint8_t kLightVisibleMask = 0x20;
+
+// A free part's block (her drone): its main mesh's world transform relative to part 0's, its scale divided by part 0's,
+// and the state: bit 7 shown, bits 0-6 the light step min(127, intensity / 4 rounded), 0 while the light is hidden,
+// absent (light 0), not live or of another actor. Io::gone (the part or part 0 not live) keeps out.place and clears the
+// state.
+inline Io read_free(uintptr_t objects, const Part &part0, const Part &p, uint64_t light, Free &out) {
+  if (!published(objects, part0) || !published(objects, p)) {
+    out.state = 0;
+    return Io::gone;
+  }
+  float parent[10], child[10];
+  read_world(static_cast<uintptr_t>(part0.object), parent);
+  read_world(static_cast<uintptr_t>(p.object), child);
+  relative(parent, child, out.place);
+  for (int k = 7; k < 10; ++k)
+    out.place[k] = std::fabs(parent[k]) > 1e-6f ? child[k] / parent[k] : child[k];
+  auto lamp = static_cast<uintptr_t>(light), drone = static_cast<uintptr_t>(p.object);
+  float intensity = 0;
+  if (lamp && alive(objects, lamp) && at<uintptr_t>(lamp + kOuter) == at<uintptr_t>(drone + kOuter) &&
+      (at<uint8_t>(lamp + kLightVisibleByte) & kLightVisibleMask))
+    intensity = at<float>(lamp + kLightIntensity);
+  out.state = uint8_t(0x80 | (intensity > 0 ? std::lround(std::min(intensity / 4, 127.f)) : 0)); // NaN fails > 0.
+  return Io::ok;
+}
+
+// Her pose now: part 0's world transform into root, her leaders' local poses back to back in table order into bones
+// (all or nothing), each free part's block into free (one per free part, table order). A free part that cannot be read
+// shows hidden and keeps its last bones: her own pose goes on. part names the part being read, for the fault line.
+inline Io read_pose(uintptr_t objects, const Table &t, float *root, uint8_t *bones, Free *free,
+                    std::atomic<int> &part) {
+  if (!published(objects, t.eve[0]))
+    return Io::gone;
+  read_world(static_cast<uintptr_t>(t.eve[0].object), root);
+  size_t offset = 0, k = 0;
+  for (size_t i = 0; i < t.eve.size(); ++i) {
+    const Part &p = t.eve[i];
+    if (!p.leader)
+      continue;
+    uint8_t *mine = bones + offset;
+    offset += size_t(p.bones) * kTransformBytes;
+    part = static_cast<int>(i);
+    Io r = p.free ? read_free(objects, t.eve[0], p, t.look[i].light, free[k]) : Io::ok;
+    if (r == Io::ok)
+      r = read_leader(objects, p, mine);
+    part = -1;
+    if (p.free && r != Io::ok)
+      free[k].state = 0;
+    else if (r != Io::ok)
+      return r;
+    k += p.free;
+  }
+  return Io::ok;
+}
+
+// A free part's box on the ghost gets its block: the place as relative location and rotation, (shown + 1, light step
+// + 1, 1) as relative scale, so the default (1, 1, 1) reads as hidden.
+inline Io write_free_box(uintptr_t objects, uint64_t box, uint64_t cls, const Part &puppet_root, const Free &f) {
+  auto object = static_cast<uintptr_t>(box);
+  if (!box_ok(objects, object, cls, puppet_root))
+    return Io::gone;
+  const float scale[3] = {float(f.state >> 7) + 1.f, float(f.state & 0x7f) + 1.f, 1.f};
+  put_relative(object, f.place + 4, f.place, scale);
+  return Io::ok;
 }
 
 } // namespace coop::pose

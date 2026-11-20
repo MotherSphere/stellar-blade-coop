@@ -7,10 +7,12 @@
 #include "game/partner/engine.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <cmath>
 #include <cstdio>
 #include <array>
+#include <deque>
 #include <vector>
 
 #include <sys/mman.h>
@@ -33,6 +35,9 @@ struct Objects {
   std::vector<uint8_t> array = std::vector<uint8_t>(0x40), chunks = std::vector<uint8_t>(8),
                        items = std::vector<uint8_t>(kItemBytes * 64);
   int32_t count = 0;
+  uintptr_t objects = addr(array);
+  std::deque<std::vector<uint8_t>> owned; // The memory raw() and make() hand out.
+  static constexpr uint64_t box_class = 0x5c0;
   Objects() {
     put(array, kChunkTable, addr(chunks));
     put(chunks, 0, addr(items));
@@ -44,7 +49,125 @@ struct Objects {
     put(items, kItemBytes * size_t(count) + kItemSerial, serial);
     put(array, kElementCount, ++count);
   }
+  uintptr_t raw(size_t bytes) { return addr(owned.emplace_back(bytes + 8)); }
+  uintptr_t make(size_t bytes) { // A live object.
+    add(owned.emplace_back(bytes));
+    return addr(owned.back());
+  }
 };
+
+// The free part tests' world: leaders of their own actors, a drone's SpotLight, Niagara children and scene boxes.
+template <class T> void poke(uintptr_t where, T value) {
+  std::memcpy(reinterpret_cast<void *>(where), &value, sizeof value);
+}
+using Vec = std::array<float, 3>;
+constexpr uint64_t kMeshClass = 0xc1, kMeshAsset = 0xae5, kNiagaraClass = 0x9a6a;
+constexpr uint32_t kSystemAt = 0x240;
+// A live published leader with bones, its main mesh world transform at (yaw 0) and room for 8 attached children.
+Part part(Objects &o, uint32_t bones, Vec where) {
+  const uintptr_t m = o.make(0x1200);
+  poke(m + kClass, kMeshClass);
+  poke(m + kMesh, kMeshAsset);
+  poke(m + kOuter, o.raw(0)); // Its own actor.
+  poke(m + kSourceArray, o.raw(bones * kTransformBytes));
+  poke(m + kSourceCount, int32_t(bones));
+  const float world[12] = {0, 0, 0, 1, where[0], where[1], where[2], 0, 1, 1, 1, 0};
+  std::memcpy(reinterpret_cast<void *>(m + kWorldTransform), world, sizeof world);
+  poke(m + kAttachChildren, o.raw(8 * 8));
+  return Part{m, kMeshClass, kMeshAsset, bones, true};
+}
+// A SpotLight of on's actor, other bits of its visible byte set.
+uint64_t light(Objects &o, const Part &on, float intensity, bool visible) {
+  const uintptr_t l = o.make(0x280);
+  poke(l + kOuter, at<uintptr_t>(on.object + kOuter));
+  poke(l + kLightIntensity, intensity);
+  poke(l + kLightVisibleByte, uint8_t(visible ? 0x41 | kLightVisibleMask : 0x41));
+  return l;
+}
+// An active Niagara child of on playing system, where on is.
+void niagara(Objects &o, const Part &on, uint64_t system) {
+  const uintptr_t n = o.make(0x260), leader = on.object;
+  poke(n + kClass, kNiagaraClass);
+  poke(n + kActiveFlags, kActive);
+  poke(n + kSystemAt, system);
+  std::memcpy(reinterpret_cast<void *>(n + kWorldTransform), reinterpret_cast<void *>(leader + kWorldTransform), 48);
+  const auto count = at<int32_t>(leader + kAttachCount);
+  poke(at<uintptr_t>(leader + kAttachChildren) + 8 * uintptr_t(count), n);
+  poke(leader + kAttachCount, count + 1);
+}
+void kill(Objects &o, uint64_t object) {
+  put(o.items, kItemBytes * size_t(at<int32_t>(object + kInternalIndex)) + kItemFlags, kPendingKill);
+}
+Table table_of(std::vector<Part> parts, std::initializer_list<size_t> free) {
+  Table t;
+  t.eve = std::move(parts);
+  t.look.resize(t.eve.size());
+  for (size_t i : free)
+    t.eve[i].free = true;
+  t.fx.cls = kNiagaraClass;
+  t.fx.asset = kSystemAt;
+  for (uint64_t k = 1; k <= kMaxEffectAssets; ++k)
+    t.fx.assets[k] = 0x5000 + k;
+  return t;
+}
+// A scene component of root's actor.
+uint64_t scene_box(Objects &o, const Part &root) {
+  const uintptr_t b = o.make(0x200);
+  poke(b + kClass, o.box_class);
+  poke(b + kOuter, at<uintptr_t>(root.object + kOuter));
+  return b;
+}
+Vec relative_scale(uint64_t box) { return at<Vec>(box + kRelativeScale); }
+
+void test_free_part_gone_keeps_her_pose() { // Review Focus 3
+  Objects o;
+  Table t = table_of({part(o, 2, {100, 0, 0}), part(o, 3, {100, 50, 180})}, {1});
+  kill(o, t.eve[1].object);
+  float root[10];
+  uint8_t bones[5 * kTransformBytes];
+  std::memset(bones, 0xee, sizeof bones);
+  Free f[1];
+  f[0].place[4] = 7;
+  std::atomic<int> reading{-1};
+  assert(read_pose(o.objects, t, root, bones, f, reading) == Io::ok && root[4] == 100 && reading == -1);
+  assert(bones[0] == 0 && bones[2 * kTransformBytes] == 0xee && bones[5 * kTransformBytes - 1] == 0xee);
+  assert(f[0].state == 0 && f[0].place[4] == 7); // Her pose is read; the drone shows hidden, its bones and place kept.
+}
+void test_free_relative_and_light() {
+  Objects o;
+  Table t = table_of({part(o, 2, {100, 0, 0}), part(o, 3, {100, 50, 180})}, {1});
+  Free f;
+  assert(read_free(o.objects, t.eve[0], t.eve[1], light(o, t.eve[1], 50, true), f) == Io::ok);
+  assert(f.place[4] == 0 && f.place[5] == 50 && f.place[6] == 180 && f.place[3] == 1 && f.place[7] == 1);
+  assert(f.state == (0x80 | 13));
+  assert(read_free(o.objects, t.eve[0], t.eve[1], light(o, t.eve[1], 50, false), f) == Io::ok && f.state == 0x80);
+  assert(read_free(o.objects, t.eve[0], t.eve[1], 0, f) == Io::ok && f.state == 0x80); // No light.
+  assert(read_free(o.objects, t.eve[0], t.eve[1], light(o, t.eve[1], 900, true), f) == Io::ok && f.state == 0xff);
+  assert(read_free(o.objects, t.eve[0], t.eve[1], light(o, t.eve[0], 50, true), f) == Io::ok && f.state == 0x80);
+  // Above: a light of another actor (a stale address) is no light.
+}
+void test_effect_on_drone_part() {
+  Objects o;
+  Table t = table_of({part(o, 2, {0, 0, 0}), part(o, 3, {0, 50, 180})}, {1});
+  niagara(o, t.eve[1], t.fx.assets[19]);
+  EffectState st;
+  EffectCounts c;
+  Effect out[kEffectSlots];
+  read_effects(o.objects, t, st, out, c);
+  assert(out[0].asset == 19 && out[0].part == 1 && c.started == 1);
+}
+void test_free_box_written() {
+  Objects o;
+  Part root = part(o, 2, {0, 0, 0});
+  uint64_t box = scene_box(o, root), other = scene_box(o, part(o, 1, {}));
+  Free f;
+  f.place[3] = 1;
+  f.place[5] = 50;
+  f.state = 0x8d;
+  assert(write_free_box(o.objects, box, o.box_class, root, f) == Io::ok && relative_scale(box) == Vec{2, 14, 1});
+  assert(at<Vec>(box + kRelativeLocation) == Vec{0, 50, 0});
+  assert(write_free_box(o.objects, other, o.box_class, root, f) == Io::gone); // Another actor's box.
+}
 } // namespace
 
 int main() {
@@ -443,6 +566,12 @@ int main() {
     munmap(page, 4096);
     safe_read = plain;
   }
+
+  // Her drone: a free part read relative to her main mesh with its light, its effects and its box on the ghost.
+  test_free_part_gone_keeps_her_pose();
+  test_free_relative_and_light();
+  test_effect_on_drone_part();
+  test_free_box_written();
 
   std::puts("pose_engine_test: ok");
 }
