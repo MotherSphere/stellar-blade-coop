@@ -21,7 +21,7 @@ SCRIPTS = 'mod/StellarCoop/Scripts'
 NATIVE = ('native/src', 'tests/wine')
 # The one guarded CreateSBZoneEvent per file that has one, and what each file may hold of the rationed calls and names.
 SITES = {'story/scenes/scene.lua', 'world/maps/matrix13/level/boss.lua', 'online/modes/nightop/probe.lua',
-         'online/modes/nightop/recruiter.lua'}
+         'online/modes/nightop/recruiter.lua', 'fight/gunmode/mode.lua'}
 ADD_ROWS = {'online/modes/nightop/probe.lua': 1}
 # Raw counts, comments and strings included, so a call no pattern below sees (obj['AddRow'](obj,...)) still shows. A
 # new mention, even in a log line, is a deliberate edit here. ServerRequest_*: coop no's ChangeRule and CreateActor,
@@ -38,18 +38,27 @@ ADD_ROWS = {'online/modes/nightop/probe.lua': 1}
 # coop devmenu's fixed list of 23 in cutmenus/devmenu.lua, which only reaches it through ChainSpin.apply. coop gift:
 # its one ItemBucketItemRemove (a send's choke point; its grants go through core/items.lua's) and its header. The
 # bike's paid fetch: its one ItemBucketItemRemove (BetaCrystal, its price only).
-# The Join row: coop recruiter's constant only, which it reads and neutralizes, never fires.
+# The Join row: coop recruiter's constant only, which it reads and neutralizes, never fires. Gun mode: its guarded call
+# (each shot's kind 2, ZoneEvent_AttachActorEffect, on its EventActorEffectTable row only). On 26123051 RunEvent
+# (0x141ca5a10) hands kind 2 to 0x141c9e690, from which no chain of direct calls reaches RunEvent, RunZoneEvent or
+# StartMatchMaking. gun_probe's bullet test (a dev setting, off unless set): ServerRequest_ChangeBulletItem once in its
+# list of names, then twice as a call with its log label. That request is SB's server RPC (exec 0x14275f350): on a
+# standalone game its implementation (0x1423c0180 -> 0x141b02890) queues SB's local server job, which reaches no
+# host (only a client net mode sends it, 0x1423b8700). The job (0x141b15b90 -> 0x141a8da30) sets the drone's current
+# round in EVE's character data and on her pawn. SB's own round switch (0x141a8d9c0) sends the same request. Whether a
+# save keeps that round was not traced, so the probe stays behind its setting.
 RATIONED = {'MultiplayTest_ZoneE_059': {'online/modes/nightop/recruiter.lua': 1},
             'CreateSBZoneEvent': {'online/modes/nightop/probe.lua': 3, 'online/modes/nightop/recruiter.lua': 4,
                                   'story/scenes/scene.lua': 6,
-                                  'world/maps/matrix13/level/boss.lua': 2},
+                                  'world/maps/matrix13/level/boss.lua': 2, 'fight/gunmode/mode.lua': 1},
             'AddRow': {'online/modes/nightop/probe.lua': 3, 'core/enemy.lua': 2, 'fight/bosses/enemy.lua': 2,
                        'fight/bosses/lion.lua': 1},
             'ServerRequest_': {'online/modes/nightop/probe.lua': 10, 'online/modes/nightop/run.lua': 1,
                                'online/modes/nightop/shop.lua': 2,
                                'core/items.lua': 1, 'online/group/group.lua': 7, 'core/enemy.lua': 2,
                                'fight/bosses/enemy.lua': 2, 'eve/chainspin.lua': 1, 'core/effect.lua': 1,
-                               'cutmenus/mailbox.lua': 2, 'vehicles/bike/fetch.lua': 1}}
+                               'cutmenus/mailbox.lua': 2, 'vehicles/bike/fetch.lua': 1,
+                               'fight/gunmode/probe.lua': 5}}
 
 # Calls are matched with every string literal turned into '', so log prose such as 'heal: CreateSBZoneEvent(2, ...)' is
 # not one. Lua allows space after the ':' and a string or table argument without '(': obj: f(x), obj:f'x', obj:f{}.
@@ -150,6 +159,7 @@ R, NR, GR = (f'{SCRIPTS}/online/modes/nightop/recruiter.lua', f'{SCRIPTS}/online
 NS, LI, SC = (f'{SCRIPTS}/online/modes/nightop/shop.lua', f'{SCRIPTS}/fight/bosses/lion.lua',
               f'{SCRIPTS}/story/scenes/scene.lua')
 BO = f'{SCRIPTS}/world/maps/matrix13/level/boss.lua'
+GM, GP = f'{SCRIPTS}/fight/gunmode/mode.lua', f'{SCRIPTS}/fight/gunmode/probe.lua'
 SH, SG, WG = ('native/src/game/sbo.h', 'native/src/online/lobby/sbo_game.inc',
               'native/src/glue/tick/world_game_shared.inc')
 SEQ_CONST, SEQ_CALL = ('constexpr uint64_t kRunZoneEvent = 0x141ca5790;\n',
@@ -182,6 +192,8 @@ ENEMY = padded('core/enemy.lua', "pc:ServerRequest_CreateActor(id,at,rot,false,t
 LION = padded('fight/bosses/lion.lua', '')
 SCENE = padded('story/scenes/scene.lua', GUARDED.replace('NightOp', 'Scene'))
 BOSS = padded('world/maps/matrix13/level/boss.lua', GUARDED.replace('NightOp', 'Boss'))
+GUN = padded('fight/gunmode/mode.lua', GUARDED.replace('NightOp', 'GunMode'))
+GUN_PROBE = padded('fight/gunmode/probe.lua', "pc:ServerRequest_ChangeBulletItem(pawn,FName('Bullet_Nikke'))\n")
 CHAINSPIN = padded('eve/chainspin.lua', "pc:ServerRequest_Cheat(guid,0,'SBApplyEffectMe',tostring(ChainSpin.ID))\n")
 MAILBOX = padded('cutmenus/mailbox.lua', "pc:ServerRequest_ItemBucketItemRemove(1,guid,FName(alias),count,-1)\n")
 FETCH = padded('vehicles/bike/fetch.lua',
@@ -190,7 +202,7 @@ CLEAN = {N: NIGHTOP, R: RECRUITER, NR: RUN, GR: GROUP, NS: SHOP, LI: LION, EN: E
          MB: MAILBOX, BF: FETCH, M: 'local coop=1 -- Steam lobby, friends matchmaking later\n',
          H: 'get(api.create_lobby, "SteamAPI_ISteamMatchmaking_CreateLobby");\n', W: 'int main() { return 0; }\n',
          SH: SEQ_CONST, SG: SEQ_CALL, WG: WORLD_CALL,
-         IT: padded('core/items.lua', ''), EF: padded('core/effect.lua', '')}
+         IT: padded('core/items.lua', ''), EF: padded('core/effect.lua', ''), GM: GUN, GP: GUN_PROBE}
 CE = f'{SCRIPTS}/fight/bosses/enemy.lua'
 CLEAN[CE] = padded('fight/bosses/enemy.lua', '')  # fight.bosses' copy of core/enemy.lua (November 2026).
 assert scan_of(CLEAN) == [], scan_of(CLEAN)  # A blank line in zone_event and Steam's Matchmaking are fine.
@@ -224,6 +236,8 @@ PLANTS = [({'L1'}, {N: NIGHTOP.replace("    assert(NightOp.allowed(kind,name),'z
           ({'L1'}, {SC: SCENE.replace('Scene.allowed(kind,name)', 'Scene.allowed(6,name)')}),
           ({'L1'}, {BO: BOSS.replace('Boss.allowed(kind,name)', 'Boss.allowed(15,name)')}),
           ({'L1', 'L5'}, {BO: None}),
+          ({'L1'}, {GM: GUN.replace('GunMode.allowed(kind,name)', 'GunMode.allowed(15,name)')}),
+          ({'L1', 'L5'}, {GM: None}),
           ({'L1'}, {R: RECRUITER.replace('Recruiter.allowed(kind,name)', 'Recruiter.allowed(15,name)')}),
           ({'L1', 'L5'}, {M: 'bpl.CreateSBZoneEvent(bpl,15,n)\n'}),
           ({'L1', 'L5'}, {M: 'bpl: CreateSBZoneEvent(15,n)\n'}),
@@ -256,6 +270,8 @@ PLANTS = [({'L1'}, {N: NIGHTOP.replace("    assert(NightOp.allowed(kind,name),'z
           ({'L5'}, {GR: None}),
           ({'L5'}, {NS: SHOP + "log('no ServerRequest_ItemBucketItemRemove here')\n"}),
           ({'L5'}, {NS: None}),
+          ({'L5'}, {GP: GUN_PROBE + "pc:ServerRequest_ChangeBulletItem(pawn,FName('Bullet_Normal'))\n"}),
+          ({'L5'}, {GP: None}),
           ({'L5'}, {EN: ENEMY + 'pc:ServerRequest_CreateActor(id,at,rot,false,true,0,0,0,n,false)\n'}),
           *[({'N1'}, {H: f'// {a}\n'}) for a in ('0x141ca3ea0', '0x14230B090', 'FUN_141CA5A10', '1ca5790', '1aBdd80')],
           ({'N1'}, {W: 'auto job = 0x141abdd80;\n'}),

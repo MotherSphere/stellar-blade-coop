@@ -63,7 +63,8 @@ movement component's `MovementMode` (swimming, a custom mode for the ladders, ro
 air, or anything but walking), `IsRunningSkill`, `IsBattle`, `GetFishingModeType`, `IsTPSMode`, `bFreeCamMode`,
 `VehicleActor` (a lift or the monorail), the native warp word, the pause, the photo modes, the friend's photo freeze and
 her life state. Then come SBO's own: a race drive or the probe, an armed race, the Doro look, `coop emote`, a hall seat,
-`coop fly`'s keys, `coop glide`, Night Operation, an open screen of the mod. Every refusal is logged with its reason.
+`coop fly`'s keys, `coop glide`, Night Operation, gun mode's rifle out, an open screen of the mod. Every refusal is
+logged with its reason.
 With a place, the parked bike's rules come next ([Getting on at the parked bike](#getting-on-at-the-parked-bike)).
 
 Then, in this order:

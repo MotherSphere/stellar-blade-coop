@@ -39,6 +39,7 @@ category folders (`online/`, `online/modes/`, `fight/`, `world/`, `world/maps/`,
 | `cutmenus` | Cut menus | `cutmenus/` | `cutmenus/` (`items.h` and its part) | [Cut menus and the mailbox](../cutmenus/menus.md) | |
 | `online.saves` | Co-op saves | `online/saves/` | `online/saves/` | [Saves](../players/saves.md) | |
 | `world.teamshop` | Team shop | `world/teamshop/` | `world/teamshop/` | [Team shop](../world/teamshop.md) | Its rows in `world/teamshop/teamshop_rows.h` |
+| `fight.gunmode` | Gun mode | `fight/gunmode/` | none | [Gun mode](../fight/gunmode.md) | |
 
 ## Shared pieces
 

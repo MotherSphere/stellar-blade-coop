@@ -102,6 +102,10 @@ local function case(name,how)
     for path in pairs(hooks) do paths[#paths+1]=path end
     table.sort(paths)
     for _,path in ipairs(paths) do step('the hook '..path,hooks[path]) end
+    paths={}
+    for class in pairs(news) do paths[#paths+1]=class end
+    table.sort(paths)
+    for _,class in ipairs(paths) do step('the new object hook '..class,function() news[class]({}) end) end
     step('coop ui reset',function() coop('ui','reset') end)
     local asks=#asked
     step('coop off',function() coop('off') end)

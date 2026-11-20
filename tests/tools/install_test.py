@@ -184,6 +184,11 @@ with tempfile.TemporaryDirectory() as tmp:
                               'story/together/commands',
                               'world/objects/commands', 'vehicles/bike/commands', 'world/daynight/commands',
                               'world/teamshop/commands', 'world/teamshop/shop',
+                              'fight/gunmode/commands',
+                              *(f'fight/gunmode/{name}' for name in ('aim', 'ammo', 'config', 'data', 'facts', 'g0',
+                                                                     'ik', 'input', 'journal', 'laser', 'mode',
+                                                                     'overlay', 'probe', 'release_check', 'rifle',
+                                                                     'stance', 'ui/slot')),
                               'core/keybind', 'core/link',
                               'core/mask', 'core/pak_gate', 'core/settings_file',
                               'core/unreal', 'core/ue4ss_settings', 'eve/chainspin', 'cutmenus/devmenu',
@@ -260,7 +265,8 @@ with tempfile.TemporaryDirectory() as tmp:
                                                                    'story/quests', 'world/objects',
                                                                    'story/together', 'online/lobby', 'vehicles/bike',
                                                                    'world/daynight', 'cutmenus',
-                                                                   'online/saves', 'world/teamshop')),
+                                                                   'online/saves', 'world/teamshop',
+                                                                   'fight/gunmode')),
                               'version'))}
     assert set(files) == shipped - docs, sorted(files)
     assert not [rel for rel in files

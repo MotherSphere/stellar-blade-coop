@@ -22,7 +22,7 @@
 -- Game+ notice (T.cycle) within 200 bytes with every count word and difficulty on both sides; its English; the bike's
 -- refusals with each side word and a six-digit distance or another map's 32-byte name, the paid fetch's offer after
 -- them with the longest key name and betacrystal, the fetch's other lines with a 32-byte money name, within 200 bytes;
--- the 19 module names in every table; the notice of a module that failed to load with the longest of them within
+-- the 20 module names in every table; the notice of a module that failed to load with the longest of them within
 -- 200 bytes.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
@@ -56,7 +56,7 @@ assert(T.fr and next(T.fr),'French stays complete')
 -- them against main.lua's MODULES).
 local MODULE_KEYS=0
 for _ in pairs(T.en.modules) do MODULE_KEYS=MODULE_KEYS+1 end
-assert(MODULE_KEYS==20,'T.en.modules: '..MODULE_KEYS..' names')
+assert(MODULE_KEYS==21,'T.en.modules: '..MODULE_KEYS..' names')
 for name,t in pairs(T) do
     if type(t)=='table' and next(t) then
         local n=0
@@ -101,7 +101,7 @@ end
 local function notices(w)
     local lines={}
     for _,group in ipairs({'fight','spawns','group','ghost','refused','quests','world','story','travel','ue4ss',
-        'join_refused','bike'}) do
+        'join_refused','bike','gun'}) do
         for _,text in pairs(w[group]) do lines[#lines+1]=fill(text) end
     end
     -- The bike's refusals (vehicles/bike/ride.lua) with the paid fetch's offer after them, as its mount joins them:

@@ -53,6 +53,7 @@ LoopInGameThreadWithDelay(1,function()
     M.guarded('scene',M.scene.restore)
     M.guarded('glide',M.glide.restore) -- Likewise for a bGlide an earlier load left on.
     M.guarded('emote',M.emote.restore) -- Likewise for a pose's montage an earlier load left playing.
+    M.guarded('gun',M.gun.restore) -- Likewise for SB's rows, the keys and her body's layer after a reload, rifle out.
     M.guarded('bike',M.bike.restore) -- Likewise for her main mesh after a reload with her on the bike.
     if M.others then M.guarded('bike',M.others.restore) end -- Likewise for the copies of other players' parked bikes.
     if M.off then if M.blocked and M.native_tick then M.native_tick() end return end
@@ -97,6 +98,8 @@ LoopInGameThreadWithDelay(1,function()
     ok,message=M.guarded('glide',M.glide.tick)
     if message then M.report(ok,message) end
     ok,message=M.guarded('emote',M.emote.tick)
+    if message then M.report(ok,message) end
+    ok,message=M.guarded('gun',M.gun.tick)
     if message then M.report(ok,message) end
     local raced=os.clock()
     if M.link and M.race.armed() then M.guarded('inbox',M.inbox) end

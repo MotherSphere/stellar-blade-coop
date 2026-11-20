@@ -107,6 +107,9 @@ end
 -- LoadingScreenFadeAuto call's arguments (fades.calls, one text each).
 hooks={}
 RegisterHook=function(path,f) hooks[path]=f end
+-- UE4SS's NotifyOnNewObject: each callback by its class's path (news).
+news={}
+NotifyOnNewObject=function(class,f) news[class]=f end
 fades={calls={}}
 fades.library={type=function() return 'UObject' end,IsValid=function() return true end,
     LoadingScreenFadeAuto=function(_,...) fades.calls[#fades.calls+1]=table.concat({...},' ') end}
@@ -577,6 +580,19 @@ package.loaded['vehicles.bike.ride']={new=function(o)
         restore=function() bk.restores=bk.restores+1 end,status=function() return 'bike: preload ready' end,
         tune=function(name,value) bk.tunes[#bk.tunes+1]={name,value}; return true,'bk tune '..tostring(name) end}
 end}
+-- Gun mode (fight/gunmode/mode.lua; fight/gunmode/helpers_test and stop_test test it): what new got (o), its ticks,
+-- its restores, the why of each stop, the controllers its hook passed on, its toggles, whether the rifle is out (out),
+-- what its hud build step got (hud).
+gm={}
+package.loaded['fight.gunmode.mode']={new=function(o)
+    gm.o=o
+    return {tick=function() gm.ticks=gm.ticks+1 end,restore=function() gm.restores=gm.restores+1 end,
+        out=function() return gm.out==true end,
+        stop=function(why) gm.stops[#gm.stops+1]=why end,
+        new_controller=function(pc) gm.controllers[#gm.controllers+1]=pc end,
+        toggle_now=function() gm.toggles=gm.toggles+1 end,status=function() return 'gun mode off' end,
+        hud=function(h) gm.hud=h end}
+end}
 -- Other players' parked bikes (vehicles/bike/others.lua; vehicles/bike/others_test tests it): what new got (o), its
 -- slows and restores, the why of its clear (cleared).
 bo={}
@@ -940,7 +956,7 @@ USAGE='Use: coop puppet | host [public|friends|invitation|closed] | invite | lis
     ..'status | report | mark [text] | where | near [metres] | travel host | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
     ..'on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | '
-    ..'emote [list|<name>|off] | bike [status|tune [<name> <value>]] | '
+    ..'emote [list|<name>|off] | bike [status|tune [<name> <value>]] | gun [status] | '
     ..'no [heal|rule|spawnpt|actor] | '
     ..'nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | '
     ..'challenge [<name>|stop] | '
@@ -993,7 +1009,8 @@ function load_main(with_native,no_folder,source)
     sb.o,sb.calls,sb.on_loads,sb.ticks,sb.titles,sb.offs,sb.asked_at_off,sb.active=nil,{},0,0,0,0,nil,false
     sb.to_menus,sb.to_rooms,sb.here,sb.hall,sb.created,sb.unready=0,0,false,nil,nil,nil
     sb.target=nil
-    hooks,fades.calls={},{}
+    hooks,news,fades.calls={},{},{}
+    gm.o,gm.ticks,gm.controllers,gm.toggles,gm.restores,gm.stops,gm.out,gm.hud=nil,0,{},0,0,{},nil,nil
     sb.seat,sb.seat_error,sb.sitting,sb.sat,sb.stands,sb.busy=nil,nil,nil,nil,0,false
     lb.o,lb.calls,lb.screen,lb.ask,lb.refuse,lb.slows,lb.ticks=nil,{},nil,nil,nil,0,{}
     ss.o,ss.calls,ss.open,ss.refuse,ss.slows=nil,{},false,nil,{}

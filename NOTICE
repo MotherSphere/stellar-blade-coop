@@ -69,6 +69,25 @@ mod/StellarCoop/Scripts/vehicles/bike/model.lua and vehicles/bike/ride.lua.
 Stellar Blade Online contains no file from Eve On Wheels: none of its
 assets, sounds or animations.
 
+GUN MODE
+
+Gun mode's rifle stance and laser sight
+(mod/StellarCoop/Scripts/fight/gunmode/stance.lua and
+fight/gunmode/laser.lua) are luke77's RifleStance, which Lucas (luke77)
+contributed to this project in the commit "feat: add standing rifle stance
+and aiming laser". Gun mode around them is by SchizoEffective.
+
+Stellar Blade Online ships no animation file. Gun mode's rifle layer
+needs an optional pak, zNGMSpike_P, which holds the layer (ABP_NGM_Spike)
+and the rifle clips it plays. The pak is not part of Stellar Blade
+Online. tools/gunmode/rebuild/ngm_spike_build_a4.py makes it on the
+player's own PC from an Unreal project that is not in this repository.
+This repository does not record where those rifle clips come from. The
+scripts in tools/gunmode/blender/ made an earlier standing rifle set from
+Mixamo's "Rifle 8-Way Locomotion Pack" (Adobe, under Mixamo's terms) and
+from Stellar Blade's own animations, both read on the player's own PC.
+Neither is in this repository.
+
 THIRD-PARTY COMPONENTS
 
 A third-party component keeps its own license, and the SBO License grants

@@ -23,8 +23,8 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `cutmenus/`: `devmenu`, `mailbox`, `off`; `story/scenes/`: `lines`, `off`, `scene`; `fight/enemies/`: `off`, `wiring`,
 `wiring_notices`; `online/group/`: `group`, `off`, `region_tabs`, `travel`; `online/lobby/`: `arrival`, `commands`,
 `halls_rows`, `off`, `sbo`, `wiring`; `online/lobby/ui/`: `lobby`, `lobby_model`; `main/`: `bike`, `boot`, `collide`,
-`guide`, `idle`, `input`, `keep`, `loader`, `match`, `menu`, `session_ui`, `settings`; `world/maps/matrix13/`: `off`,
-`words`;
+`guide`, `gun`, `idle`, `input`, `keep`, `loader`, `match`, `menu`, `session_ui`, `settings`; `world/maps/matrix13/`:
+`off`, `words`;
 `world/maps/matrix13/quest/`: `on_time`, `subtitles`, `zone_talks`; `world/maps/matrix13/talks/`: `zones`;
 `world/maps/matrix13/level/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`; `online/modes/nightop/`:
 `board`, `challenges`, `guard_text`, `off`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
@@ -34,9 +34,11 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `wiring_cycle`, `wiring_dlc`; `online/session/ui/`: `create`, `create_model`, `sessions`, `sessions_model`;
 `world/daynight/`: `daynight`, `off`, `rule`, `wiring`; `story/together/`: `off`, `snapshot`, `wiring`, `wiring_dump`;
 `ui/`: `text`; `ui/kit/`: `guide`, `hud_parts`, `kit`, `model`, `notice`, `pause_tab`; `ui/text/`: `culture`;
-`world/objects/`: `off`, `wiring`) run the scripts, with fake UE4SS objects for those that call the engine. In the
-capture test, any write to the fake EVE fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS
-stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with its name.
+`world/objects/`: `off`, `wiring`;
+`fight/gunmode/`: `cost`, `engine`, `helpers`, `off`, `online`, `release`, `slot`, `state`, `stop`, `texts`)
+run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
+fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. Each module's
+`off_test` runs `main/isolation.lua` with its name.
 
 - `online/modes/race/commands_test` covers `coop race look on` refused while EVE rides the bike, with nothing asked of
   the Doro look, then started once she is off; `online/modes/race/drive_test` covers the races' drive probe and its off
@@ -50,6 +52,85 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   the top speed after 3.9 s, a real top of about 2252 cm/s, 15.8 m of braking from the top, reverse after 0.3 s at a
   stop, the yaw rate and lean at full lock at five speeds, the drift's 42-degree slip cap, a wall, the air, a ramp
   launch only after 0.12 s of climb, the pitch, root motion holding the state and the values' bounds;
+- `fight/gunmode/helpers_test` covers gun mode's pure parts: its settings as `core/link.lua` parses them (the defaults
+  without them, `gun_key` with its modifier or none, its test lines with refusals), the polled keys' edges and D-pad
+  Right's tap (a hold is the bike's), the crosshair point in EVE's frame and the rifle's magazine (a round per cool
+  time, the reload when empty or lowered part-spent, the HUD count, no round once the spares are spent, a refill). The
+  reticle's round slot shows the round's name, the reload word and the empty word in the menu's language. It reads
+  the words once a second, not on each frame. It also covers `mode.lua`'s point along a camera's forward and its eased
+  step, then the rifle layer's clip paths (one folder, object paths) and its mesh records: an earlier load's record
+  keeps the first class listed. Last, `ik.lua`'s quaternion math against UE's conventions: rotator to quaternion and
+  back, a vector turned, two turns in order, a frame's rotation and a frame made orthonormal;
+- `fight/gunmode/cost_test` counts gun mode's engine calls over `fight/gunmode/fake.lua`. With the rifle away (parked or
+  not) 600 frames look up nothing, never ask whether the game is paused and poll two keys a frame (`gun_key` and D-pad
+  Right). A press while the game is paused does nothing. The dev facts probe still waits out a pause. With no player
+  controller `FindFirstOf` runs once a second at most. With the rifle out no `/Script` object is looked up again, the
+  rifle-first solver (`ik.lua`) included. The crosshair is traced only while she aims. The zoom keys go unpolled in the
+  game's own aim. The drone and the reticle's text are walked for (`FindAllOf`) once at the rifle out. The text is
+  walked for again at each firing mode entry. The drone is walked for again when the one held goes, or 10 s after a miss
+  at the next rifle out. A frame of the posed stance reads no bone name and makes no FName;
+- `fight/gunmode/engine_test` covers the engine objects gun mode keeps across frames, over `fight/gunmode/fake.lua`.
+  Masked keys go back into the action mappings as they are when the rifle goes away, after coop fly's mappings moved
+  the array to a new buffer; nothing is written into the old one. The muzzle flash's asset is found by its path or
+  loaded again once collected. It is never spawned freed or through a reference kept from an earlier flash. Over a
+  fake of its own, the posed stance keeps the hide clip held by a component of its own (in single-node mode) while the
+  donor plays the reload;
+- `fight/gunmode/online_test` covers what other players get of gun mode, over fake UE4SS objects. The posed stance
+  adds no skeletal mesh component to EVE. Its donor and the keeper of its hide clip stand on an actor of their own,
+  removed at stop, so the ghost's capture never sends them. The laser sight is spawned at the rifle's muzzle with no
+  parent (the capture sends the rifle's attached effects). Each frame of aim moves it to the muzzle, on the rifle
+  layer too when it has no point to end at. While an SBO match runs the rifle does not come out, with the match notice
+  once in 3 s. A match that starts with the rifle out puts it away within 0.25 s with everything back;
+- `fight/gunmode/slot_test` covers the D-pad rifle slot (`fight/gunmode/ui/slot.lua`) over a fake kit, then through
+  gun mode over `fight/gunmode/fake.lua`. At the rifle out SB's slot widget is made at render scale 0.6 with the rifle
+  icon set and `rounds | magazines` written. The count follows the rounds while firing. Only changed numbers are
+  written. The icon is looked up when a part is made, never on a frame. The kit's pause is read every 0.25 s.
+  The slot hides at a pause, when the rifle goes away, in the photo mode, after a new controller and at stop. A part
+  that a root rebuild left behind is made again. When the kit refuses the part, the kit's image gets the icon before it
+  shows and a `num` text shows the count. Once the refusal passes, the next kit build makes the part. While the keep
+  serves the icon, no build looks it up by its path. The slot wants the icon from the keep and warms the leaf's class.
+  Without the icon the count shows alone with one log line. With `gun_mode=off` no group is added;
+- `fight/gunmode/stop_test` runs gun mode over a fake UE4SS (`fight/gunmode/fake.lua`) on the rifle layer's path. The
+  fake's row fields have the kinds read in Ghidra on 26123051: the shot's Hit1 step has a byte `Type` and no `StepType`.
+  `stop` (coop off) gives back the table fields, the keys, the rifle, her body's own post-process class, the FOV lock
+  and the layer's arms; with `gun_fire=own` too, where the fields stay changed after the rifle goes away. After it no
+  key, toggle or new controller does anything. A second load over the same game and `coop-gun.txt` puts back what the
+  first left with the rifle out. Its own rifle then takes and gives back the shipped values. A start puts back what an
+  earlier load left before it reads the rows. `coop-gun.txt` keeps floats, integers, booleans, strings, FNames and
+  vectors exactly. A start whose input mask or rifle fails gives back what it took, as does a start that raises once the
+  rifle layer is on. A new controller clears the old pawn's state at once; its deferred reset shows the drone, puts her
+  facing back and takes the layer off her new body;
+- `fight/gunmode/state_test` runs gun mode over the same fake against the game's state. While the rifle is out the
+  shot's Hit1 step has its Cast1 step's `Type`. The shipped value comes back when the rifle goes away. The shot's two
+  borrowed fields keep their shipped values while the rifle is only out. They change at the first shot through the zone
+  event (kind 2 on the borrowed row) and go back 1 s after the last one, later after a pause. `coop-gun.txt` lists them
+  while they are changed, so a Lua reload puts them back. A pause gives the masked keys back (`coop-gun.txt` drops
+  them); the first frame after it masks them again. The rifle does not come out in a cutscene, an interaction or its
+  block, with her movement held, in a swim, a flight or a custom movement mode, or in the photo or selfie mode. Each of
+  these puts it away within 0.25 s with everything back. A jump keeps it out. Another module's hold on EVE (`busy`)
+  refuses the rifle or puts it away the same way; `out()` says whether it is out. A refused toggle (no EVE, the drone
+  aim held, a state that holds her, a failed start) gives its notice. F4 toggles the rifle by default, G does not; a
+  key with a modifier needs it held; `gun_key=none` has no key. Once `menu_key` is Shift+F4, also from a rebind
+  after the load, Shift+F4 is the menu's press only. F4 alone and Ctrl+F4 still toggle the rifle;
+- `fight/gunmode/texts_test` holds gun mode's texts to its code and scripts. The rifle layer's pak has one name, the
+  one its build script writes (`zNGMSpike_P`), with the class `fight/gunmode/overlay.lua` looks for: no other pak or
+  layer name in gun mode's code, tools, page or NOTICE section. The page and NOTICE name both. NOTICE names Mixamo.
+  Each script in `tools/gunmode` starts with the SBO license lines. Its comments name no script that is not there and
+  hold no session notes. The Blender and Unreal scripts stop without `NGM_TOOLS` and import into no shipped game folder.
+  `export_stand.py` opens by default the `.blend` that `retarget_mixamo_stand.py` writes. The tools' README names each
+  script, the rifle layer, the `NGM_R_` clips and `SBOutfitProject`. Gun mode's code, tests, tools and page hold no
+  clock time of a play session unless it names its log (`UE4SS.log 2026-11-12 21:49`). They cite neither
+  `NGM_FACTS.md` nor the rebuild's plan, which are not in this repository. The gun mode page names every table
+  `fight/gunmode/data.lua` changes and the notice the parked key shows. While `mode.lua` passes the rounds no D-pad
+  slot, neither the page nor `ammo.lua`'s header promises the `rounds | magazines` count. While it passes one, the
+  page says what the slot shows, names its icon (`Icon_Nikke_LostItem_AssaultRifle`, row `Nikke_AR`) and says the
+  first in-game test sets its place. The page, its docs index row and `coop gun`'s comment speak of no crouching.
+  The page has no ", and" or ", but", no bold-label bullet and no
+  "co-op session". `ammo.lua`'s header and `facts.lua`'s note on the retired F11 have no ", and" or ", but" either.
+  Only `fight/gunmode/wiring.lua` registers an engine hook (`NotifyOnNewObject`, `RegisterHook`);
+- `fight/gunmode/release_test` runs `fight/gunmode/release_check.lua` on gun mode's shipped defaults: no debug flag
+  of `Config.DEFAULTS` is on. It first sees the check refuse a test-only line (`gun_facts=on`), a changed release
+  value (`gun_aim_key`) and a debug default set on;
 - `vehicles/bike/ride_test` covers `vehicles/bike/ride.lua` over a fake EVE and native part: the preload asked once and
   released at `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every
   mount refusal with its reason and nothing written, the mount's order and the dismount backward, the lean (the math
@@ -111,7 +192,8 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   and `hall=` fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty)
   and never from a player's name; the `shared_world`, `shared_story`, `daynight`, `pause_tab` and `hide_popups`
   settings (the `sky=` line kept out of the `link:` lines); `bike` and `bike_key` (an older
-  file whose keys hold F3 gets no bike key). It also reads the `dlcs=` line with the `dlc_missing=` and
+  file whose keys hold F3 gets no bike key); `gun_mode` and `gun_key` (F4 by default, G refused, an older file whose
+  keys hold F4 gets no gun key, a clash both ways) with gun mode's test lines, kept as written with no note. It also reads the `dlcs=` line with the `dlc_missing=` and
   `dlc_extra=` lines after it, the `mycycle=` and `cycle=` lines (a value out of range dropped), the session list's
   `list=` line with its `session=` rows (a row only after a `list=` line, `-` read as none) and a joiner's `wait=`
   line, logged once a wait. It covers `who_can_join` (`public` by default, the older `code` and `private` read as
@@ -223,16 +305,23 @@ stubbed for `main.lua`. Each module's `off_test` runs `main/isolation.lua` with 
   beside. The same values, ours not read yet, a match lobby or the SBO lobby give none;
 - `story/quests/wiring_test` covers `coop quests` with the `shared_quests` and `quest_deny` settings and the shared
   quests' notices;
+- `main/gun_test` covers gun mode's wiring through `main.lua` with a fake `fight/gunmode/mode.lua`: `coop-gun.txt`
+  through the link's store (none without the native part), the photo and selfie modes as the runtime reads them, its
+  `busy` reasons (the bike, the Doro look, `coop emote`, a hall seat, `coop fly`, `coop glide`), the SBO match it
+  reads from the link (a round in play or the PvP test, none without the native part), its notices, the settings and
+  words it gets (no unknown-setting line for its `gun_` lines), the file it reads itself without the native part
+  (`gun_mode=off` holds), the restore at the first tick, `coop off`'s stop, the restore alone after a Lua reload
+  with `coop off` still on;
 - `main/bike_test` covers the bike's wiring (`vehicles/bike/wiring.lua`) through `main.lua` with a fake
   `vehicles/bike/ride.lua`: the load line, what the ride gets (its asks, `coop-bike.txt`, the driving, the settings,
-  SBO's busy reasons with coop fly and our open screens), `coop bike` and its words, F3 and the pad's D-pad Right hold
-  with a refusal on screen, the hold ignored with its reason logged at the title, with one of our screens open or with
-  the game paused, the restore, the frame and the 250 ms pass with an end said on screen, the Options rows, `coop off`;
-  `riding()` as `coop emote`, the race, the hall seats, `coop fly on` and `coop glide on` read it; the ride's
-  `idle_part` as the capture's `leave_out`; what the parked bike gets (the menu's words, a notice, SB's text by table
-  path, the travel worlds, its record through the link's files, `coop-bike-stand.txt`, its bike line through
-  `link.bike`, the paid fetch with `coop gift`'s FName and pause rules, the follow's `camp_near`); the other players'
-  parked bikes built, restored at the first tick, run after the ride's pass and cleared at `coop off`;
+  SBO's busy reasons with coop fly, gun mode's rifle and our open screens), `coop bike` and its words, F3 and the pad's
+  D-pad Right hold with a refusal on screen, the hold ignored with its reason logged at the title, with one of our
+  screens open or with the game paused, the restore, the frame and the 250 ms pass with an end said on screen, the
+  Options rows, `coop off`; `riding()` as `coop emote`, the race, the hall seats, `coop fly on` and `coop glide on` read
+  it; the ride's `idle_part` as the capture's `leave_out`; what the parked bike gets (the menu's words, a notice, SB's
+  text by table path, the travel worlds, its record through the link's files, `coop-bike-stand.txt`, its bike line
+  through `link.bike`, the paid fetch with `coop gift`'s FName and pause rules, the follow's `camp_near`); the other
+  players' parked bikes built, restored at the first tick, run after the ride's pass and cleared at `coop off`;
 - `world/daynight/wiring_test` covers the day and night cycle's wiring (`world/daynight/wiring.lua`) through `main.lua`
   with a fake `world/daynight/daynight.lua`: what it is built with (the native asks and status, the `daynight` setting
   (no cutscene or screen read), photo mode, Night Operation, the SBO lobby in Xion's training room only, the third-party

@@ -212,6 +212,7 @@ mod/StellarCoop/            the UE4SS mod folder
       enemies/              shared enemies: coop fight and their notices
       bosses/               the cut model viewer (coop leviathan and six more); coop lion, gardener fight, tendril
                             fight; lion_rows.lua, the Lua list of the lion, gardener, tendril, bolt and shop rows
+      gunmode/              gun mode: the NIKKE rifle in EVE's hands, coop gun (parked while it is rebuilt)
     world/
       maps/matrix13/        the cut Matrix XIII dungeon, by place then quest: level/ (coop mxiii's travel, rows,
                             boss_rows.lua, ladders, bosses, drone light), quest/ ("On Time" and its words, the talk
@@ -250,6 +251,8 @@ data/
   teamshop/                 one file per team member: their ID ranges and team shop items, the one source of
                             tools/teamshop_rows.py
 tools/
+  gunmode/                  the Blender and Unreal scripts that made an earlier gun mode build's standing rifle set;
+                            rebuild/ holds the Windows scripts that build the rifle layer's test pak and send test input
   install.py                checks, build, install, uninstall, release zip
   mxiii_climb.py            places Matrix XIII's ladders on the editor's in data/mxiii-world.json, and checks them
   mxiii_rows.py             writes native/src/world/maps/matrix13/mxiii_rows.h and world/maps/matrix13/level/rows.lua

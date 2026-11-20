@@ -91,7 +91,8 @@ for _,case in ipairs({{function(on) dr.active=on end,'the Doro look is on: coop 
         {function(on) sb.sitting=on end,'EVE sits on a hall seat: stand her up first'},
         {function(on) fly_on=on end,'coop fly is on: coop fly off ends it'},
         {function(on) gl.active=on end,'coop glide is on: coop glide off ends it'},
-        {function(on) nr.running=on end,'Night Operation is running: coop nightop stop ends it'}}) do
+        {function(on) nr.running=on end,'Night Operation is running: coop nightop stop ends it'},
+        {function(on) gm.out=on end,'the rifle is out: put it away first'}}) do
     case[1](true)
     assert(o.busy()==case[2],tostring(o.busy()))
     case[1](nil)

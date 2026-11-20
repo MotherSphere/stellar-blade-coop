@@ -35,7 +35,8 @@
 -- online/saves/commands.lua's (coop shortcut load, a test tool with no menu row); its pvp_spike
 -- fight/enemies/commands.lua's (coop pvp, the PvP test, a test tool with no menu row; main.lua's reload ends it when
 -- off); its sbo_lobby online/lobby/sbo.lua's (the SBO lobby in Xion, on by default, no menu row), which also reads
--- sbo() here; its bike and bike_key vehicles/bike/ride.lua's and main.lua's (the bike). The co-op menu
+-- sbo() here; its bike and bike_key vehicles/bike/ride.lua's and main.lua's (the bike); its gun_mode, gun_key and
+-- gun_ test lines fight/gunmode/mode.lua's (gun mode, which checks the test lines itself). The co-op menu
 -- (ui/kit/menu.lua) changes the file, one line at a time (D-UI4).
 local K=require('core.keybind')
 local SF=require('core.settings_file')
@@ -51,7 +52,7 @@ Link.DEFAULT=[[
 # Keys: F1 to F12 except F10, optionally with Shift+, Ctrl+ or Alt+ in front (for example Shift+F7). menu_key opens
 # the co-op menu, whose first row hosts; host_key hosts at once, or none. follow_key travels to the host (follow_host
 # below), or none. race_key drops a checkpoint while you record a race track (coop race record). bike_key gets EVE on
-# the bike or off it (bike below), or none.
+# the bike or off it (bike below), or none. gun_key brings the rifle out or puts it away (gun_mode below), or none.
 menu_key=F5
 host_key=none
 status_key=F6
@@ -59,6 +60,7 @@ leave_key=F8
 follow_key=F7
 race_key=F9
 bike_key=F3
+gun_key=F4
 # The keys you hold to drift in a Doro race: Unreal key names separated by spaces (at most 4), or none. Steering hard
 # at speed drifts too, with no key. The defaults are R2 on a pad (it still picks up items in reach, as outside a race)
 # and B on the keyboard, which Stellar Blade leaves free.
@@ -68,6 +70,9 @@ drift_keys=Gamepad_RightTrigger B
 # off: its place is kept for each save, in the mod folder. Off gets her off the bike, removes her parked bike from
 # every world (its place stays), hides the other players' parked bikes and frees the bike's files.
 bike=on
+# Gun mode: on or off, on by default. On, gun_key or a tap of D-pad Right gives EVE the NIKKE rifle on any save, or
+# puts it away. Off, gun mode does nothing. Both are read when the mod loads.
+gun_mode=on
 # Who can join a session you host: public (any player of your version, from Find a session), friends (your Steam
 # friends, from their friends list or the Friends tab of Find a session), invitation (the friends you invite or anyone
 # you give your join code to; the co-op menu shows and copies it) or closed (nobody; Private in the co-op menu). A
@@ -247,16 +252,23 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',rac
     status_overlay='compact',who_can_join='public',friends_ask='off',max_players='4',auto_coop_save='ask',
     shared_quests='on',
     quest_deny='',revive='on',cutscene_wait='on',follow_host='ask',follow_key='F7',collide='on',mod_names='on',shortcut_load='on',
-    pvp_spike='on',sbo_lobby='on',shared_world='on',shared_story='on',daynight='on',pause_tab='on',hide_popups='on'}
+    pvp_spike='on',sbo_lobby='on',shared_world='on',shared_story='on',daynight='on',pause_tab='on',hide_popups='on',
+    gun_mode='on',gun_key='F4'}
+-- Gun mode's test lines (fight/gunmode/config.lua): no template line, no menu row. Kept as written, empty when absent;
+-- gun mode checks them and logs what it refuses.
+local GUN_TESTS={gun_aim_key=true,gun_zoom=true,gun_upper=true,gun_fire=true,gun_probe=true,gun_trace=true,
+    gun_facts=true,gun_g0=true,gun_bs=true,gun_carry_ovr=true,gun_carry_spare=true,gun_carry_idle=true,
+    gun_fire_key=true}
+for name in pairs(GUN_TESTS) do DEFAULTS[name]='' end
 -- On or off.
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,spawn_filter=true,bosses=true,
     hit_reactions=true,stagger_resist=true,
     photo_ghost=true,photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
     card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true,mod_names=true,shortcut_load=true,
     pvp_spike=true,sbo_lobby=true,shared_world=true,shared_story=true,friends_ask=true,bike=true,daynight=true,
-    pause_tab=true,hide_popups=true}
+    pause_tab=true,hide_popups=true,gun_mode=true}
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (online/partner/puppet.lua), each on or off.
-local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key','bike_key'}
+local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key','bike_key','gun_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
     kill_credit={'together','fought'},who_can_join={'public','friends','invitation','closed'},
     auto_coop_save={'ask','always','off'},aggro={'game','host'},photo_pause={'full','scenery'},
@@ -307,7 +319,7 @@ end
 -- (fight/enemies/commands.lua sends them in whole percents); quest_deny its text, letters, digits, '_', spaces and
 -- commas only, at most 200 bytes (the native part's request limit; it names the entries that are no shared quest);
 -- drift_keys a list of Unreal key names (online/modes/race/drive.lua reads them with IsInputKeyDown), at most 4, empty
--- for none.
+-- for none; a gun mode test line (GUN_TESTS) its text.
 local function setting(name,text)
     if name=='drift_keys' then
         local keys,why={},'use none, or at most 4 Unreal key names separated by spaces, such as Gamepad_RightTrigger B'
@@ -368,6 +380,8 @@ local function setting(name,text)
         local pct=text:match('^%d+$') and tonumber(text)
         if pct and pct>=75 and pct<=150 then return pct end
         return nil,'use 75 to 150'
+    elseif GUN_TESTS[name] then
+        return text
     end
     return K.parse(name,text)
 end
@@ -511,8 +525,8 @@ function Link.parse_settings(text)
     end
     -- A file from before race_key whose own keys hold F9: race_key has none there (coop race cp still drops a
     -- checkpoint), so the rule below never puts back the keys the player chose. The same for bike_key and F3 (coop bike
-    -- still gets her on the bike).
-    for _,new in ipairs({'race_key','bike_key'}) do
+    -- still gets her on the bike) and for gun_key and F4 (coop gun and D-pad Right still bring the rifle out).
+    for _,new in ipairs({'race_key','bike_key','gun_key'}) do
         if not named[new] then
             for _,name in ipairs(KEYS) do
                 if name~=new and settings[name].name==settings[new].name then
