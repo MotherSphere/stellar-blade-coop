@@ -5,7 +5,8 @@
 -- views add (the menu, the feed, the card, the marker), each a canvas of its own, hidden (Collapsed) when unused, never
 -- removed. Hit tests pass through every group but one marked hit (the menu: its rows take the mouse). Each 250 ms
 -- (slow): the root an earlier Lua load left (Ctrl+R) is swept by its path; the classes and the game's fonts, textures
--- and sounds warm one lookup a tick (about 4 ms each; more while veiled); the root is built in one call once the
+-- and sounds warm one lookup a tick (about 4 ms each; more while veiled; none until the keep settled), those assets
+-- being the keep's (core/keep.lua), so a map change frees none of them; the root is built in one call once the
 -- classes are in (in the default font and flat colour while an asset it uses still warms: the menu works from the
 -- start; each texture it wanted held by a collapsed image of it once warmed, so the engine's GC cannot free it first),
 -- built once again when those are in (not while the menu is open), checked to be still ours and in the viewport each
@@ -16,6 +17,7 @@
 -- Lua load (off(): the callers go back to the notice line above EVE and the name tag), said once by the next slow or
 -- tick. A look that cannot be had (a font, a texture, a text colour) only degrades, with one log line a build.
 local U=require('core.unreal')
+local Keep=require('core.keep')
 local valid,value_of=U.valid,U.value_of
 local Ui={}
 local Z=100 -- The root's viewport z.
@@ -31,8 +33,10 @@ local function need(value,why) -- assert's check, its message without a source p
     if not value then error(why,0) end
     return value
 end
--- An object in memory, else after LoadAsset (synchronous; via: the asset whose package holds it); nil when neither.
+-- The keep's object for a path it serves; else an object in memory, else after LoadAsset (synchronous; via: the asset
+-- whose package holds it); nil when neither.
 local function load(path,via)
+    if Keep.serves(path) then return Keep.get(path) end
     local found=valid(StaticFindObject(path))
     if found then return found end
     pcall(LoadAsset,via or path)
@@ -146,6 +150,7 @@ function Ui.kit(opts)
     -- SB's last keyboard answer, AZERTY or not: its device byte (opts.uidev) reads 1 for a QWERTY keyboard and 2 for one
     -- whose scan code 0x10 types A; 3 to 6 are pads, 0 is before SB's first device report (L10-R1).
     local keyboard=nil
+    for _,a in ipairs(Ui.ASSETS) do Keep.want({a[2],a.alt}) end -- A no-op once kept: each kit made wants them.
     local function device()
         local d=opts.uidev and opts.uidev()
         if d==1 or d==2 then keyboard=d==2 end
@@ -585,15 +590,17 @@ function Ui.kit(opts)
             end
         end
         if look then return false end
-        -- shortcut: a class a map change's GC freed is not warmed again (part() loads it then); track it as cache does
-        -- if that hitch shows.
+        -- The keep holds each part's class for the game run (warm_part wants it), so part() finds it after a map
+        -- change; without the keep, part() loads it then.
         for _,p in ipairs(parts) do
-            if not warmed[p] then warmed[p]=true; load(p); return true end
+            if not (warmed[p] or Keep.wanted(p..'_C')) then warmed[p]=true; load(p); return true end
         end
         return false
     end
-    -- warm once; while veiled, again until VEIL_BUDGET is spent: true when one lookup ran.
+    -- warm once; while veiled, again until VEIL_BUDGET is spent: true when one lookup ran, or while the keep has not
+    -- settled (no lookup: the partial root waits for it).
     local function warming(look)
+        if not Keep.ready() then return true end
         local started,any=os.clock(),false
         while warm(look) do
             any=true
@@ -984,8 +991,10 @@ function Ui.kit(opts)
         rec.build=nil
         run(function() x:RemoveFromParent() end)
     end
-    -- A part's class loaded ahead (its object path), one LoadAsset a slow tick after the look and its sounds.
+    -- A part's class (its object path) wanted by the keep; without the keep, loaded ahead, one LoadAsset a slow tick
+    -- after the look and its sounds.
     function self.warm_part(object_path)
+        Keep.want({object_path..'_C'})
         for _,p in ipairs(parts) do if p==object_path then return end end
         parts[#parts+1]=object_path
     end

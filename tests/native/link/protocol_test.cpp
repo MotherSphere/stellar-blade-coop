@@ -776,6 +776,16 @@ int main() {
                           "fight on spawns bosses 200", "fight on bosses 200 bosses 200", "fight on 1 bosses 200",
                           "fight on Bosses 200", "fight on boss 200", "fight off bosses 200", "fight pilot bosses 200"})
     assert(parse_request(bad).command == Command::none);
+  // Phase 8: hit_reactions=on as "reactions" and stagger_resist=on as "resist", after bosses, before spawns; and the
+  // host's change at once as "fight stagger <0|1> <0|1>".
+  f = parse_request("fight on scale 135 115 place bosses 200 reactions resist spawns 15011001");
+  assert(f.reactions && f.resist && f.bosses == 200 && f.spawns && (f.chars == std::vector<uint32_t>{15011001}));
+  assert(!parse_request("fight on resist").reactions && parse_request("fight on resist").resist);
+  f = parse_request("fight stagger 1 0");
+  assert(f.fight == Fight::stagger && f.reactions && !f.resist);
+  for (const char *bad : {"fight stagger", "fight stagger 1", "fight stagger 2 0", "fight stagger 1 0 1",
+                          "fight on resist reactions"})
+    assert(parse_request(bad).command == Command::none);
   // Stage 4: same_spawns=on as "spawns", one word after aggro-host (or where it would be), before the ids; none: off.
   f = parse_request("fight on scale 135 115 place aggro-host spawns 15011001");
   assert(f.place && f.aggro_host && f.spawns && (f.chars == std::vector<uint32_t>{15011001}));
@@ -1328,7 +1338,7 @@ int main() {
   assert(mi.command == Command::rows && mi.batch == 10 && mi.tables == li.tables);
   const Request lo = parse_request(mxlower({words[31], words[28], words[27], words[25], words[16]}));
   assert(lo.command == Command::rows && lo.batch == 11 && lo.tables[31] == 0x1f4a2b3c1f00ull &&
-         lo.tables[16] == 0x1f4a2b3c1000ull && lo.tables[0] == 0 && kRowWordCount == 16);
+         lo.tables[16] == 0x1f4a2b3c1000ull && lo.tables[0] == 0 && kRowWordCount == 17);
   const Request na = parse_request(rows("mxnames", {words[15]}));
   assert(na.command == Command::rows && na.batch == 12 && na.tables[15] != 0 && na.tables[16] == 0);
   const Request ly = parse_request(rows("mxlily", {words[32], words[33]}));
@@ -1341,6 +1351,10 @@ int main() {
   const Request ha = parse_request(rows("halls", {words[16], words[37], words[38]}));
   assert(ha.command == Command::rows && ha.batch == 15 && ha.tables[16] != 0 && ha.tables[37] == 0x1f4a2b3c2500ull &&
          ha.tables[38] == 0x1f4a2b3c2600ull && ha.tables[36] == 0 && !std::strcmp(kRowWords[15], "halls"));
+  // The team shop's batch (16) names its three tables only: ItemTable, ShopTable and ShopItemTable.
+  const Request ts = parse_request(rows("teamshop", {words[12], words[17], words[18]}));
+  assert(ts.command == Command::rows && ts.batch == 16 && ts.tables[12] != 0 && ts.tables[17] != 0 &&
+         ts.tables[18] != 0 && ts.tables[16] == 0 && kRowWordCount == 17 && !std::strcmp(kRowWords[16], "teamshop"));
   assert(!std::strcmp(kLionTables[37], "WorldTable") && !std::strcmp(kLionTables[38], "ZoneTable"));
   assert(!std::strcmp(kLionTables[15], "ZoneCampTable") && !std::strcmp(kLionTables[16], "ZoneEnvSpawnTable") &&
          !std::strcmp(kLionTables[17], "ShopTable") && !std::strcmp(kLionTables[18], "ShopItemTable") &&
@@ -1412,6 +1426,11 @@ int main() {
          parse_request("nightshop close\n").shop == ShopAsk::close &&
          parse_request("nightshop close").command == Command::nightshop &&
          parse_request("nightshop watch").shop == ShopAsk::watch);
+  // The team shop's screen: the open ask only.
+  assert(parse_request("teamshop open\r\n").command == Command::teamshop &&
+         parse_request("teamshop open").command == Command::teamshop);
+  for (const char *bad : {"teamshop", "teamshop close", "teamshop open now", "teamshop watch", "teamshop  open"})
+    assert(parse_request(bad).command != Command::teamshop);
   assert(parse_request("roxanne on").command == Command::roxanne && parse_request("roxanne on").on &&
          parse_request("roxanne off\n").command == Command::roxanne && !parse_request("roxanne off").on &&
          !parse_request("roxanne on").lily);

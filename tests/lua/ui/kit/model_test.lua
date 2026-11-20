@@ -167,7 +167,8 @@ assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.na
     and values.boss_hp_scale=='2.0' and values.shared_quests=='on' and values.revive=='on'
     and values.follow_host=='ask' and values.follow_key=='F7' and values.collide=='on' and values.race_key=='F9'
     and values.photo_name_tag=='on' and values.status_overlay=='compact' and values.bike=='on'
-    and values.bike_key=='F3' and values.gun_mode=='on' and values.gun_key=='F4')
+    and values.bike_key=='F3' and values.hit_reactions=='on' and values.stagger_resist=='on' and values.gun_mode=='on'
+    and values.gun_key=='F4')
 
 -- Values as the mod reads the file: the last line it takes, any case; a refused value leaves the default.
 values=M.read('send_rate=25\nsend_rate=99\nNAME_TAG=Off\nphoto_sync=NOTICE\nstatus_key=shift+f7\nui_scale=7\n'
@@ -221,7 +222,7 @@ assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key r
     ..'shared_quests '
     ..'head:combat '
     ..'shared_enemies '
-    ..'same_place '
+    ..'same_place hit_reactions stagger_resist '
     ..'aggro same_spawns enemy_extra bosses enemy_hp_scale enemy_balance_scale boss_hp_scale kill_credit head:display '
     ..'status_overlay ui_scale ui_sounds ui_language daynight head:chat chat',
     ids(menu,NONE))

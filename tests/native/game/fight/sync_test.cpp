@@ -13,11 +13,13 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <deque>
 #include <random>
 #include <string>
+#include <tuple>
 #include <vector>
 
 using namespace coop::fight;
@@ -35,13 +37,25 @@ struct World {
   std::vector<Actor> actors;
   std::vector<Write> writes;
   std::vector<std::pair<uint32_t, int32_t>> effects; // The effects our side started: (GUID, EffectTable ID).
+  std::vector<uint32_t> effect_ms;                   // Their times as asked (0: the row's own), in the same order.
+  std::vector<uint32_t> owned; // Same place: the host GUIDs this side owns (Io::owns); none by default.
+  std::vector<uint32_t> loose; // Same place: the other side's that the pilot does not draw (Io::drawn says no).
   bool immune = false;                              // The game refuses every effect (an immunity).
   std::vector<Message> sent;
   std::vector<Event> events;
   std::vector<uint32_t> apart;    // Copies our EVE took no part in (Io::took_part says no); she took part in the rest.
   std::vector<uint32_t> unshared; // The host's copies given up (Io::unshare): the engine's censuses leave them out.
+  Reaction react{1, 0, false}; // What Io::reaction reads on a copy's risen effect.
+  bool no_reaction = false;    // Io::reaction finds no such copy or effect.
+  uint8_t epoch = 0;           // Same place: the owner epoch of every enemy (Io::oe).
+  std::vector<std::tuple<uint32_t, uint8_t, uint32_t>> windows; // Rule B's windows started: (GUID, k, ms).
+  const char *window_why = nullptr;                             // Io::window refuses every one for this reason.
 
   bool took_part(uint32_t guid) const { return std::find(apart.begin(), apart.end(), guid) == apart.end(); }
+  bool owns(uint32_t hguid) const { return std::find(owned.begin(), owned.end(), hguid) != owned.end(); }
+  bool drawn(uint32_t hguid) const {
+    return !owns(hguid) && std::find(loose.begin(), loose.end(), hguid) == loose.end();
+  }
   void unshare(uint32_t guid) { unshared.push_back(guid); }
   bool given_up(uint32_t guid) const { return std::find(unshared.begin(), unshared.end(), guid) != unshared.end(); }
   Actor *actor(uint32_t guid) {
@@ -87,12 +101,25 @@ struct World {
   }
   // The game's effect call, as the engine makes it: refused on a dying or missing actor, or an immune one. What the
   // effect does to the copy shows in its Seen at a later pass, which the tests set.
-  bool effect(uint32_t guid, int32_t id) {
+  bool effect(uint32_t guid, int32_t id, uint32_t ms) {
     Actor *a = actor(guid);
     if (!a || a->s.dying || immune)
       return false;
     effects.push_back({guid, id});
+    effect_ms.push_back(ms);
     return true;
+  }
+  bool reaction(uint32_t, int32_t, Reaction &out) {
+    if (no_reaction)
+      return false;
+    out = react;
+    return true;
+  }
+  uint8_t oe(uint32_t) const { return epoch; }
+  const char *window(uint32_t guid, uint8_t k, uint32_t ms) {
+    if (!window_why)
+      windows.emplace_back(guid, k, ms);
+    return window_why;
   }
   void send(const Message &m) { sent.push_back(m); }
   void event(const Event &e) { events.push_back(e); }
@@ -175,8 +202,10 @@ int main() {
          {"SBF23 on", "SBF23 off not on the co-op save", "SBF23 world 3", "SBF23 up 3 77 50110 2 15011001 1600",
           "SBF23 up 4294967295 4294967295 4294967295 255 4294967295 10000000", "SBF23 down 3 77", "SBF23 dead 3 77",
           "SBF23 hp 3 1 0 77:1600:100:200", "SBF23 hp 3 2 9 77:0:0:0 78:5:6:7", "SBF23 hit 3 1 77 120 5 30 400 0",
-          "SBF23 hit 3 4294967295 77 400 0 0 400 1", "SBF23 hit 3 2 77 0 0 0 0 0", "SBF23 cc 3 77 9900001",
-          "SBF23 cc 4294967295 4294967295 3000401", "SBF23 scale 3 135 115", "SBF23 scale 4294967295 400 100",
+          "SBF23 hit 3 4294967295 77 400 0 0 400 1", "SBF23 hit 3 2 77 0 0 0 0 0", "SBF23 cc 3 77 9900001 1 0",
+          "SBF23 cc 4294967295 4294967295 3000401 99 0", "SBF23 cc 3 77 2003000 0 10000", "SBF23 stagger 3 1 0",
+          "SBF23 stagger 4294967295 0 1", "SBF23 poise 3 77 0 1 1", "SBF23 poise 4294967295 4294967295 255 2 16000",
+          "SBF23 scale 3 135 115", "SBF23 scale 4294967295 400 100",
           "SBF23 place 3 1", "SBF23 place 4294967295 0", "SBF23 aggro 3 game", "SBF23 aggro 4294967295 host",
           "SBF23 bosses 3 200", "SBF23 bosses 4294967295 400", "SBF23 bosses 3 100",
           "SBF23 own 3 77 G 1", "SBF23 own 4294967295 4294967295 H 255", "SBF23 own 3 77 H 0",
@@ -207,8 +236,8 @@ int main() {
     Message hit = msg("SBF23 hit 3 1 77 120 5 30 400 1");
     assert(hit.type == Type::hit && hit.seq == 1 && hit.guid == 77 && hit.delta[kHp] == 120 &&
            hit.delta[kShield] == 5 && hit.delta[kStamina] == 30 && hit.pre_hp == 400 && hit.lethal);
-    Message cc = msg("SBF23 cc 3 77 3000303");
-    assert(cc.type == Type::cc && cc.gen == 3 && cc.guid == 77 && cc.effect == 3000303);
+    Message cc = msg("SBF23 cc 3 77 3000303 2 0");
+    assert(cc.type == Type::cc && cc.gen == 3 && cc.guid == 77 && cc.effect == 3000303 && cc.level == 2 && cc.ms == 0);
     Message scale = msg("SBF23 scale 3 135 115");
     assert(scale.type == Type::scale && scale.gen == 3 && scale.scale[kScaleHp] == 135 &&
            scale.scale[kScaleBalance] == 115);
@@ -324,10 +353,11 @@ int main() {
           "SBF23 hit 3 1 77 1 0 0 1 2", "SBF23 hit 3 1 77 1 0 0 1 00", "SBF23 hit 3 1 77 1 0 0 1",
           "SBF23 hit 3 1 77 1 0 0 1 0 0", "SBF23 hit 3 1 77 -1 0 0 1 0", "SBF23 hit 3 1 77 10000001 0 0 1 0",
           "SBF23 hit 3 1 77 1 0 0 10000001 0", "SBF23 hit 3 1 77 1.5 0 0 1 0", "SBF23 hit 3 1 77 1 0 0 1 true",
-          // cc: only the five mirrored effects (not Groggy 3000100, not the chain's AirborneDown 9900003).
-          "SBF23 cc 3 77 3000100", "SBF23 cc 3 77 9900003", "SBF23 cc 3 77 0", "SBF23 cc 3 77 -9900001",
-          "SBF23 cc 3 77", "SBF23 cc 3 77 9900001 1", "SBF23 cc 0 77 9900001", "SBF23 cc 3 0 9900001",
-          "SBF23 cc 3 77 99000010",
+          // cc: only the five mirrored effects and the flinch (not Groggy 3000100, not the chain's AirborneDown
+          // 9900003), with level and ms; the three-field form of earlier builds is bad.
+          "SBF23 cc 3 77 3000100 1 0", "SBF23 cc 3 77 9900003 1 0", "SBF23 cc 3 77 0 1 0", "SBF23 cc 3 77 -9900001 1 0",
+          "SBF23 cc 3 77", "SBF23 cc 3 77 9900001", "SBF23 cc 3 77 9900001 1", "SBF23 cc 0 77 9900001 1 0",
+          "SBF23 cc 3 0 9900001 1 0", "SBF23 cc 3 77 99000010 1 0",
           // scale: two whole percents from 100 to 400 (1.0 to 4.0 in coop-settings.txt).
           "SBF23 scale 3 99 115", "SBF23 scale 3 135 401", "SBF23 scale 0 135 115", "SBF23 scale 3 135",
           "SBF23 scale 3 135 115 1", "SBF23 scale 3 1.35 1.15", "SBF23 scale 3 -135 115", "SBF23 scale 3 135  115",
@@ -408,7 +438,8 @@ int main() {
     std::mt19937 rng(77);
     const std::string seeds[] = {"SBF23 on", "SBF23 off why", "SBF23 world 3", "SBF23 up 3 77 50110 2 15011001 1600",
                                  "SBF23 dead 3 77", "SBF23 hp 3 2 9 77:0:0:0 78:5:6:7 79:1:1:1",
-                                 "SBF23 hit 3 1 77 120 5 30 400 1", "SBF23 cc 3 77 9900001",
+                                 "SBF23 hit 3 1 77 120 5 30 400 1", "SBF23 cc 3 77 9900001 1 0",
+                                 "SBF23 cc 3 77 2003000 1 450", "SBF23 stagger 3 1 1", "SBF23 poise 3 77 2 1 2100",
                                  "SBF23 scale 3 135 115", "SBF23 place 3 1", "SBF23 aggro 3 host",
                                  "SBF23 bosses 3 200",
                                  "SBF23 own 3 77 G 1", "SBF23 own-no 3 77 1 state", "SBF23 exec 3 77 1",
@@ -451,6 +482,8 @@ int main() {
         assert(m.ids[i] > 0 && std::count(m.ids, m.ids + m.idn, m.ids[i]) == 1);
       assert(m.type != Type::spawn || is_summon(m.spawn) == (m.guid != 0 && m.effect != 0));
       assert(m.type != Type::pvp || (m.seq && m.skill > 0 && m.delta[kHp] > 0));
+      assert(m.level >= 0 && m.level <= coop::poise::kMaxLevel && m.ms <= coop::poise::kMaxWindowMs && m.k <= 2);
+      assert(m.type != Type::poise || (m.k >= 1 && m.ms >= 1));
       std::string again = format(m, reason), reason2;
       Message n = parse(again.data(), again.size(), &reason2);
       assert(n.type == m.type && format(n, reason2) == again);
@@ -1232,7 +1265,7 @@ int main() {
     Seen &a = w.actor(101)->s;
     a.cc = 1 << 1, a.stunned = true;
     step(h, w, 2, 100);
-    assert(w.lines() == "SBF23 cc 1 101 3000300\n" && h.counts.cc_told == 1);
+    assert(w.lines() == "SBF23 cc 1 101 3000300 1 0\n" && h.counts.cc_told == 1);
     step(h, w, 3, 150);
     assert(w.sent.empty());
     // A rise while it is still in that crowd control is its chain, which runs on her copy too: not told.
@@ -1244,9 +1277,9 @@ int main() {
     step(h, w, 5, 300);
     a.cc = 1 << 4 | 1 << 1, a.stunned = true;
     step(h, w, 6, 400);
-    assert(w.lines() == "SBF23 cc 1 101 3000300\n" && h.counts.cc_told == 2);
+    assert(w.lines() == "SBF23 cc 1 101 3000300 1 0\n" && h.counts.cc_told == 2);
     // Hers: started on our copy at our next step, through the game's effect call.
-    h.receive(msg("SBF23 cc 1 102 9900001"), 450, w);
+    h.receive(msg("SBF23 cc 1 102 9900001 1 0"), 450, w);
     assert(w.effects.empty());
     step(h, w, 7, 450);
     assert(w.effects.size() == 1 && w.effects[0] == std::make_pair(102u, 9900001) && h.counts.cc_mirrored == 1);
@@ -1259,8 +1292,8 @@ int main() {
     step(h, w, 10, 520);
     assert(w.sent.empty() && h.counts.cc_told == 2);
     // A copy in a crowd control (101 still down, 103 in the air) or one running its own: skipped, counted.
-    h.receive(msg("SBF23 cc 1 101 9900001"), 550, w);
-    h.receive(msg("SBF23 cc 1 103 3000300"), 550, w);
+    h.receive(msg("SBF23 cc 1 101 9900001 1 0"), 550, w);
+    h.receive(msg("SBF23 cc 1 103 3000300 1 0"), 550, w);
     step(h, w, 11, 550);
     assert(w.effects.size() == 1 && h.counts.cc_skipped == 2);
     // The game refusing it (an immunity): skipped too. Out of its crowd control, a new launch of 102 by our EVE is
@@ -1268,24 +1301,24 @@ int main() {
     a.cc = 0, a.stunned = false, b.cc = 0, b.stunned = false;
     step(h, w, 12, 600);
     w.immune = true;
-    h.receive(msg("SBF23 cc 1 101 3000401"), 650, w);
+    h.receive(msg("SBF23 cc 1 101 3000401 1 0"), 650, w);
     step(h, w, 13, 650);
     assert(w.effects.size() == 1 && h.counts.cc_skipped == 3 && h.counts.cc_mirrored == 1);
     b.cc = 1, b.stunned = true;
     step(h, w, 14, 700);
-    assert(w.lines() == "SBF23 cc 1 102 9900001\n");
+    assert(w.lines() == "SBF23 cc 1 102 9900001 1 0\n");
     // An old world's or an unknown enemy's: stale, never a bad line; a later one replaces one not applied yet.
-    h.receive(msg("SBF23 cc 2 101 3000300"), 1150, w);
-    h.receive(msg("SBF23 cc 1 999 3000300"), 1150, w);
+    h.receive(msg("SBF23 cc 2 101 3000300 1 0"), 1150, w);
+    h.receive(msg("SBF23 cc 1 999 3000300 1 0"), 1150, w);
     assert(h.counts.stale == 2 && h.counts.bad == 0);
     w.immune = false;
-    h.receive(msg("SBF23 cc 1 101 3000300"), 1150, w);
-    h.receive(msg("SBF23 cc 1 101 3000401"), 1150, w);
+    h.receive(msg("SBF23 cc 1 101 3000300 1 0"), 1150, w);
+    h.receive(msg("SBF23 cc 1 101 3000401 1 0"), 1150, w);
     step(h, w, 15, 1150);
     assert(w.effects.size() == 2 && w.effects[1] == std::make_pair(101u, 3000401));
     // Her off: hers are no longer taken.
     h.receive(msg("SBF23 off busy"), 1200, w);
-    h.receive(msg("SBF23 cc 1 102 3000300"), 1200, w);
+    h.receive(msg("SBF23 cc 1 102 3000300 1 0"), 1200, w);
     assert(h.counts.stale == 3);
   }
 
@@ -1302,7 +1335,7 @@ int main() {
     step(gu, g, 1, 0);
     assert(gu.linked() == 2);
     // The host's knockdown of 101: started on our copy 501 at our next step; it shows up later, never told back.
-    gu.receive(msg("SBF23 cc 1 101 3000300"), g);
+    gu.receive(msg("SBF23 cc 1 101 3000300 1 0"), g);
     step(gu, g, 2, 100);
     assert(g.effects.size() == 1 && g.effects[0] == std::make_pair(501u, 3000300) && gu.counts.cc_mirrored == 1);
     g.actor(501)->s.cc = 1 << 1, g.actor(501)->s.stunned = true;
@@ -1311,20 +1344,20 @@ int main() {
     // Our EVE launches 502: told by the host's GUID.
     g.actor(502)->s.cc = 1, g.actor(502)->s.stunned = true;
     step(gu, g, 4, 200);
-    assert(g.lines() == "SBF23 cc 1 102 9900001\n" && gu.counts.cc_told == 1);
+    assert(g.lines() == "SBF23 cc 1 102 9900001 1 0\n" && gu.counts.cc_told == 1);
     // Another world's, an enemy we do not pair (503 has no host enemy) or never heard of: stale.
-    gu.receive(msg("SBF23 cc 2 101 3000300"), g);
-    gu.receive(msg("SBF23 cc 1 103 3000300"), g);
+    gu.receive(msg("SBF23 cc 2 101 3000300 1 0"), g);
+    gu.receive(msg("SBF23 cc 1 103 3000300 1 0"), g);
     assert(gu.counts.stale == 2);
     gu.receive(msg("SBF23 up 1 104 5099 0 900 1600"), g); // Announced, no copy here.
-    gu.receive(msg("SBF23 cc 1 104 3000300"), g);
+    gu.receive(msg("SBF23 cc 1 104 3000300 1 0"), g);
     assert(gu.counts.stale == 3);
     // A copy in a crowd control skips the host's, counted; dead ones take none.
-    gu.receive(msg("SBF23 cc 1 102 3000401"), g);
+    gu.receive(msg("SBF23 cc 1 102 3000401 1 0"), g);
     step(gu, g, 5, 250);
     assert(g.effects.size() == 1 && gu.counts.cc_skipped == 1);
     gu.receive(msg("SBF23 dead 1 101"), g);
-    gu.receive(msg("SBF23 cc 1 101 3000300"), g);
+    gu.receive(msg("SBF23 cc 1 101 3000300 1 0"), g);
     assert(gu.counts.stale == 4);
   }
 
@@ -2562,6 +2595,526 @@ int main() {
                             "SBF23 pvp 7 1001001 45 1", "SBF23 pvp 7  1001001 45", "SBF20 pvp 7 1001001 45",
                             "SBF23 PVP 7 1001001 45"})
       assert(!valid(bad));
+  }
+
+  { // Phase 8: the cc line carries the hit's level (0-99) and the reaction's time in ms: 0 for the five crowd
+    // controls (their rows' own time), 0 to 10000 for a flinch (HitStun 2003000; 0: its row's own time).
+    Message m = msg("SBF23 cc 3 77 3000303 2 0");
+    assert(m.type == Type::cc && m.effect == 3000303 && m.level == 2 && m.ms == 0);
+    assert(format(m) == "SBF23 cc 3 77 3000303 2 0");
+    m = msg("SBF23 cc 3 77 2003000 1 600");
+    assert(m.effect == kFlinch && m.level == 1 && m.ms == 600 && format(m) == "SBF23 cc 3 77 2003000 1 600");
+    assert(valid("SBF23 cc 3 77 2003000 0 0") && valid("SBF23 cc 3 77 2003000 99 10000"));
+    for (const char *bad : {"SBF23 cc 3 77 3000303", "SBF23 cc 3 77 3000303 2", "SBF23 cc 3 77 3000303 2 600",
+                            "SBF23 cc 3 77 2003000 100 600", "SBF23 cc 3 77 2003000 1 10001",
+                            "SBF23 cc 3 77 2003000 -1 600", "SBF23 cc 3 77 1001400 1 0",
+                            "SBF23 cc 3 77 3000303 2 0 1"})
+      assert(!valid(bad));
+  }
+  { // stagger: the host's hit_reactions and stagger_resist. poise: a window its owner started, at owner epoch oe, k 1
+    // or 2, 1 to 16000 ms.
+    Message m = msg("SBF23 stagger 4 1 0");
+    assert(m.type == Type::stagger && m.gen == 4 && m.reactions && !m.resist && format(m) == "SBF23 stagger 4 1 0");
+    m = msg("SBF23 poise 4 77 3 2 2100");
+    assert(m.type == Type::poise && m.guid == 77 && m.oe == 3 && m.k == 2 && m.ms == 2100);
+    assert(format(m) == "SBF23 poise 4 77 3 2 2100");
+    for (const char *bad : {"SBF23 stagger 4 1", "SBF23 stagger 4 2 0", "SBF23 stagger 0 1 1",
+                            "SBF23 poise 4 77 3 3 2100", "SBF23 poise 4 77 3 0 2100", "SBF23 poise 4 77 256 1 2100",
+                            "SBF23 poise 4 77 3 1 0", "SBF23 poise 4 77 3 1 16001", "SBF23 poise 4 0 3 1 2100"})
+      assert(!valid(bad));
+  }
+  { // A recording keeps the host's stagger line and never a poise line.
+    Line l;
+    assert(parse_line("5 SBF23 stagger 1 1 1", l) && l.message.type == Type::stagger);
+    assert(!parse_line("5 SBF23 poise 1 77 0 1 2100", l));
+  }
+  { // The host's stagger line: after bosses in its whole list while either is on, again at each change, none in a
+    // whole list while both are off.
+    World w;
+    Host h;
+    h.set_bosses(200);
+    h.set_stagger(true, true);
+    h.receive(msg("SBF23 on"), 0, w);
+    step(h, w, 1, 0);
+    assert(w.lines().find("SBF23 bosses 1 200\nSBF23 stagger 1 1 1\n") != std::string::npos);
+    h.set_stagger(true, false);
+    step(h, w, 2, 50);
+    assert(w.lines().find("SBF23 stagger 1 1 0\n") != std::string::npos);
+    h.set_stagger(false, false);
+    step(h, w, 3, 100);
+    assert(w.lines().find("SBF23 stagger 1 0 0\n") != std::string::npos);
+    h.receive(msg("SBF23 world 9"), 150, w);
+    step(h, w, 4, 150);
+    assert(w.lines().find("stagger") == std::string::npos);
+  }
+  { // The guest reads both off until the host's stagger line. She takes it at the host's generation only. After the
+    // host's next world she reads both off again.
+    World g;
+    Guest gu;
+    gu.receive(msg("SBF23 world 5"), g);
+    assert(!gu.reactions() && !gu.resist());
+    gu.receive(msg("SBF23 stagger 5 1 1"), g);
+    assert(gu.reactions() && gu.resist());
+    const uint64_t stale = gu.counts.stale;
+    gu.receive(msg("SBF23 stagger 4 0 0"), g);
+    assert(gu.reactions() && gu.counts.stale == stale + 1);
+    gu.receive(msg("SBF23 world 6"), g);
+    assert(!gu.reactions() && !gu.resist());
+  }
+  { // Rule A, host side: a mirrored crowd control starts only when SB's compare holds on our copy now. Level 2
+    // against poise 2.5 is refused (cc_poise); against 2.0 it starts. A told cc line carries Io::reaction's level.
+    World w;
+    Host h;
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0).s.poise = 2.5f;
+    step(h, w, 1, 0);
+    w.lines();
+    h.receive(msg("SBF23 cc 1 101 3000300 2 0"), 10, w);
+    step(h, w, 2, 10);
+    assert(w.effects.empty() && h.counts.cc_poise == 1 && h.counts.cc_skipped == 0);
+    assert(w.count("cc refused", "poise") == 1);
+    w.actor(101)->s.poise = 2.0f;
+    h.receive(msg("SBF23 cc 1 101 3000300 2 0"), 20, w);
+    step(h, w, 3, 20);
+    assert(w.effects.size() == 1 && h.counts.cc_mirrored == 1);
+    w.actor(101)->s.cc = 0, w.actor(101)->s.stunned = false;
+    step(h, w, 4, 3000);
+    w.react = Reaction{3, 1200, false};
+    w.actor(101)->s.cc = 1; // 9900001 rises.
+    step(h, w, 5, 3050);
+    assert(w.lines().find("SBF23 cc 1 101 9900001 3 0\n") != std::string::npos && h.counts.level_guess == 0);
+  }
+  { // Rule A on the guest's side, with the guess: a copy with poise NaN (unread) takes no mirrored crowd control; a
+    // rise whose reaction cannot be read is told at level 1 and counted level_guess.
+    World g;
+    g.add(501, 5001, 0);
+    Guest gu;
+    gu.receive(msg("SBF23 world 1"), g);
+    gu.receive(msg("SBF23 up 1 101 5001 0 900 1600"), g);
+    step(gu, g, 1, 0);
+    assert(gu.linked() == 1);
+    g.actor(501)->s.poise = std::nanf("");
+    gu.receive(msg("SBF23 cc 1 101 3000300 3 0"), g);
+    step(gu, g, 2, 500);
+    assert(g.effects.empty() && gu.counts.cc_poise == 1 && g.count("cc refused", "poise") == 1);
+    g.lines();
+    g.no_reaction = true;
+    g.actor(501)->s.poise = 0, g.actor(501)->s.cc = 1 << 1; // 3000300 rises on her copy.
+    step(gu, g, 3, 600);
+    assert(g.lines().find("SBF23 cc 1 101 3000300 1 0\n") != std::string::npos && gu.counts.level_guess == 1);
+    g.actor(501)->s.cc = 0;
+    step(gu, g, 4, 3000);
+    g.actor(501)->s.poise = 2.5f; // The line's level 3 passes poise 2.5: the guest keeps the level it received.
+    gu.receive(msg("SBF23 cc 1 101 3000300 3 0"), g);
+    step(gu, g, 5, 3100);
+    assert(g.effects.size() == 1 && gu.counts.cc_mirrored == 1 && gu.counts.cc_poise == 1);
+  }
+
+  { // Flinch, host side: told on a rise from none with its time; not while a crowd control runs, not again while it
+    // flinches; its echo not told back; the received one starts with its time, refused on a copy in a reaction or
+    // above the level; a received crowd control still starts on a copy that only flinches.
+    World w;
+    Host h;
+    h.set_stagger(true, true);
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0);
+    step(h, w, 1, 0);
+    w.lines();
+    w.react = Reaction{1, 450, false};
+    w.actor(101)->s.cc = 1 << kFlinchBit;
+    step(h, w, 2, 50);
+    assert(w.lines() == "SBF23 cc 1 101 2003000 1 450\n" && h.counts.flinch_told == 1);
+    w.actor(101)->s.cc = (1 << kFlinchBit) | 1;
+    step(h, w, 3, 100); // A knockdown inside the flinch: told as today.
+    assert(w.lines() == "SBF23 cc 1 101 9900001 1 0\n");
+    w.actor(101)->s.cc = 1;
+    step(h, w, 4, 150);
+    w.actor(101)->s.cc = 1 | (1 << kFlinchBit); // A flinch inside the knockdown: its chain, not told.
+    step(h, w, 5, 160);
+    assert(w.lines().empty() && h.counts.flinch_told == 1);
+    w.actor(101)->s.cc = 0;
+    step(h, w, 6, 200);
+    h.receive(msg("SBF23 cc 1 101 2003000 2 300"), 210, w);
+    step(h, w, 7, 210);
+    assert(w.effects.back() == std::make_pair(101u, kFlinch) && w.effect_ms.back() == 300 &&
+           h.counts.flinch_mirrored == 1);
+    w.actor(101)->s.cc = 1 << kFlinchBit; // Our mirror shows up: not told back.
+    step(h, w, 8, 260);
+    assert(w.lines().empty());
+    h.receive(msg("SBF23 cc 1 101 2003000 2 300"), 270, w);
+    step(h, w, 9, 270); // Already flinching: refused.
+    h.receive(msg("SBF23 cc 1 101 3000300 2 0"), 280, w);
+    step(h, w, 10, 280); // A knockdown on a copy that only flinches: started.
+    assert(h.counts.flinch_refused == 1 && w.effects.back() == std::make_pair(101u, 3000300));
+    w.actor(101)->s.cc = 0, w.actor(101)->s.poise = 3.0f;
+    step(h, w, 11, 400);
+    h.receive(msg("SBF23 cc 1 101 2003000 2 300"), 410, w);
+    step(h, w, 12, 410); // Level 2 against poise 3.0: refused, one event for that enemy and reason.
+    assert(h.counts.flinch_refused == 2 && w.count("flinch refused", "poise") == 1);
+    w.actor(101)->s.poise = 0;
+    h.receive(msg("SBF23 cc 1 101 3000300 1 0"), 500, w); // A burst after a stall: a flinch never replaces it.
+    h.receive(msg("SBF23 cc 1 101 2003000 1 300"), 500, w);
+    step(h, w, 13, 500);
+    assert(w.effects.back() == std::make_pair(101u, 3000300) && h.counts.flinch_refused == 3);
+  }
+  { // hit_reactions off (the host's): no flinch told; one that comes is refused and counted.
+    World w;
+    Host h;
+    h.set_stagger(false, true);
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0);
+    step(h, w, 1, 0);
+    w.lines();
+    w.actor(101)->s.cc = 1 << kFlinchBit;
+    step(h, w, 2, 50);
+    assert(w.lines().empty() && h.counts.flinch_told == 0);
+    w.actor(101)->s.cc = 0;
+    step(h, w, 3, 100);
+    h.receive(msg("SBF23 cc 1 101 2003000 1 300"), 110, w);
+    step(h, w, 4, 110);
+    assert(h.counts.flinch_refused == 1 && w.effects.empty() && w.count("flinch refused", "off") == 1);
+  }
+  { // The guest before the host's stagger line: no flinch told, a host flinch refused ("off"); after the line her
+    // next rise is told.
+    World g;
+    g.add(501, 5001, 0);
+    Guest gu;
+    gu.receive(msg("SBF23 world 1"), g);
+    gu.receive(msg("SBF23 up 1 101 5001 0 900 1600"), g);
+    step(gu, g, 1, 0);
+    g.lines();
+    g.react = Reaction{1, 300, false};
+    g.actor(501)->s.cc = 1 << kFlinchBit;
+    step(gu, g, 2, 50);
+    assert(g.lines().empty() && gu.counts.flinch_told == 0);
+    g.actor(501)->s.cc = 0;
+    step(gu, g, 3, 100);
+    gu.receive(msg("SBF23 cc 1 101 2003000 1 300"), g);
+    step(gu, g, 4, 110);
+    assert(g.effects.empty() && gu.counts.flinch_refused == 1 && g.count("flinch refused", "off") == 1);
+    gu.receive(msg("SBF23 stagger 1 1 1"), g);
+    g.actor(501)->s.cc = 1 << kFlinchBit;
+    step(gu, g, 5, 200);
+    assert(g.lines() == "SBF23 cc 1 101 2003000 1 300\n" && gu.counts.flinch_told == 1);
+  }
+  { // Same place: a received flinch starts only on a copy this side owns; on a drawn one it is refused ("drawn").
+    // A received crowd control still starts there, as today.
+    World w;
+    Host h;
+    h.set_stagger(true, true);
+    h.set_place(true);
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0);
+    step(h, w, 1, 0);
+    w.lines();
+    h.receive(msg("SBF23 cc 1 101 2003000 1 300"), 10, w); // She owns 101 (w.owned empty).
+    step(h, w, 2, 10);
+    assert(w.effects.empty() && h.counts.flinch_refused == 1 && w.count("flinch refused", "drawn") == 1);
+    h.receive(msg("SBF23 cc 1 101 3000300 1 0"), 20, w);
+    step(h, w, 3, 20);
+    assert(w.effects.size() == 1 && w.effects[0] == std::make_pair(101u, 3000300));
+    w.owned = {101};
+    h.receive(msg("SBF23 cc 1 101 2003000 1 300"), 30, w);
+    step(h, w, 4, 30);
+    assert(w.effects.back() == std::make_pair(101u, kFlinch) && h.counts.flinch_mirrored == 1);
+  }
+
+  // Rule B rounds on a host's copy 101, turn the last turn used. ours: a rise of our EVE's (slot 0), then out of it.
+  // hers: her cc line taken at a step, then its echo on our copy (slot 1), then out of it.
+  const auto ours = [](Host &h, World &w, uint32_t &turn, uint64_t t) {
+    w.actor(101)->s.cc = 1;
+    step(h, w, ++turn, t);
+    w.actor(101)->s.cc = 0;
+    step(h, w, ++turn, t + 100);
+  };
+  const auto hers = [](Host &h, World &w, uint32_t &turn, uint64_t t) {
+    h.receive(msg("SBF23 cc 1 101 3000300 1 0"), t, w);
+    step(h, w, ++turn, t);
+    w.actor(101)->s.cc = 1 << 1;
+    step(h, w, ++turn, t + 50);
+    w.actor(101)->s.cc = 0;
+    step(h, w, ++turn, t + 100);
+  };
+  { // Rule B without same place: each side starts windows on its own copy, nothing on the wire. Ours alone: none.
+    // Ours, then hers and its echo within 10 s: a window at the echo, k 1 (Monster), 600 + 1500 ms.
+    World w;
+    Host h;
+    uint32_t turn = 0;
+    h.set_stagger(true, true);
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0).s.type = 3;
+    step(h, w, ++turn, 0);
+    w.lines();
+    w.react = Reaction{1, 600, false};
+    ours(h, w, turn, 100);
+    assert(w.windows.empty());
+    hers(h, w, turn, 3000);
+    assert(w.windows.size() == 1 && w.windows[0] == std::make_tuple(101u, uint8_t(1), 2100u));
+    assert(h.counts.windows == 1 && !has(w.lines(), "poise"));
+  }
+  { // A boss (ActorType 4): k 2. A refusal from Io::window: counted windows_refused, one event every 10 s.
+    World w;
+    Host h;
+    uint32_t turn = 0;
+    h.set_stagger(true, true);
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0).s.type = 4;
+    step(h, w, ++turn, 0);
+    w.react = Reaction{1, 600, false};
+    ours(h, w, turn, 100);
+    hers(h, w, turn, 1000);
+    assert(w.windows.size() == 1 && std::get<1>(w.windows[0]) == 2);
+    w.window_why = "running";
+    hers(h, w, turn, 2000);
+    hers(h, w, turn, 3000);
+    assert(w.windows.size() == 1 && h.counts.windows_refused == 2 && w.count("window refused", "running") == 1);
+  }
+  { // Same place, the owner: the host owns 101 at epoch 2; its window goes out as a poise line. When she owns 101,
+    // our rises start no window.
+    World w;
+    Host h;
+    uint32_t turn = 0;
+    h.set_stagger(true, true);
+    h.set_place(true);
+    w.owned = {101}, w.epoch = 2;
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0).s.type = 3;
+    step(h, w, ++turn, 0);
+    w.lines();
+    w.react = Reaction{1, 600, false};
+    ours(h, w, turn, 100);
+    hers(h, w, turn, 1000);
+    assert(has(w.lines(), "SBF23 poise 1 101 2 1 2100\n") && w.windows.size() == 1);
+    w.owned.clear();
+    ours(h, w, turn, 20000);
+    hers(h, w, turn, 21000);
+    assert(w.windows.size() == 1 && h.counts.windows == 1);
+  }
+  { // Same place, a copy she owns that the pilot does not draw (the pilot off or stopped here, its pair lost): it
+    // moves by its own AI. Her flinch starts on it. Her flinch and our rise start a window there, with no poise line:
+    // the enemy is not ours.
+    World w;
+    Host h;
+    uint32_t turn = 0;
+    h.set_stagger(true, true);
+    h.set_place(true);
+    w.loose = {101};
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0).s.type = 3;
+    step(h, w, ++turn, 0);
+    w.lines();
+    h.receive(msg("SBF23 cc 1 101 2003000 1 300"), 10, w);
+    step(h, w, ++turn, 10);
+    assert(w.effects.size() == 1 && w.effects[0] == std::make_pair(101u, kFlinch) && h.counts.flinch_mirrored == 1);
+    assert(h.counts.flinch_refused == 0);
+    w.react = Reaction{1, 600, false};
+    ours(h, w, turn, 100);
+    assert(w.windows.size() == 1 && w.windows[0] == std::make_tuple(101u, uint8_t(1), 2100u));
+    assert(!has(w.lines(), "poise"));
+  }
+  { // Same place, the drawer: the owner's poise line starts the same row on our copy at its epoch only; a poise line
+    // at another epoch, or for a copy this side owns by now, is stale.
+    World g;
+    g.add(501, 5001, 0).s.type = 3;
+    Guest gu;
+    gu.receive(msg("SBF23 world 1"), g);
+    gu.receive(msg("SBF23 up 1 101 5001 0 900 1600"), g);
+    step(gu, g, 1, 0);
+    gu.receive(msg("SBF23 place 1 1"), g);
+    gu.receive(msg("SBF23 stagger 1 1 1"), g);
+    g.epoch = 2;
+    gu.receive(msg("SBF23 poise 1 101 2 1 2100"), g);
+    step(gu, g, 2, 500);
+    assert(g.windows.size() == 1 && g.windows[0] == std::make_tuple(501u, uint8_t(1), 2100u));
+    const uint64_t stale = gu.counts.stale;
+    gu.receive(msg("SBF23 poise 1 101 1 1 2100"), g);
+    step(gu, g, 3, 550);
+    g.owned = {101};
+    gu.receive(msg("SBF23 poise 1 101 2 1 2100"), g);
+    step(gu, g, 4, 600);
+    assert(g.windows.size() == 1 && gu.counts.stale == stale + 2);
+  }
+  { // Same place, the host draws: the guest owns 101 at epoch 3; her poise line starts the same row on our drawn copy
+    // at that epoch only; at another epoch, or for an enemy we own (102), stale. So is one of another world, one
+    // with stagger_resist off at our step and one after her off.
+    World w;
+    Host h;
+    h.set_stagger(true, true);
+    h.set_place(true);
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0).s.type = 3;
+    w.add(102, 8, 0).s.type = 3;
+    w.owned = {102}, w.epoch = 3;
+    step(h, w, 1, 0);
+    w.lines();
+    h.receive(msg("SBF23 poise 1 101 3 1 2100"), 10, w);
+    step(h, w, 2, 10);
+    assert(w.windows.size() == 1 && w.windows[0] == std::make_tuple(101u, uint8_t(1), 2100u));
+    const uint64_t stale = h.counts.stale;
+    h.receive(msg("SBF23 poise 1 101 2 1 2100"), 20, w);
+    step(h, w, 3, 20);
+    h.receive(msg("SBF23 poise 1 102 3 1 2100"), 30, w);
+    step(h, w, 4, 30);
+    assert(w.windows.size() == 1 && h.counts.stale == stale + 2);
+    h.receive(msg("SBF23 poise 2 101 3 1 2100"), 40, w);
+    step(h, w, 5, 40);
+    h.receive(msg("SBF23 poise 1 101 3 1 2100"), 50, w);
+    h.set_stagger(true, false);
+    step(h, w, 6, 50);
+    h.set_stagger(true, true);
+    h.receive(msg("SBF23 off busy"), 60, w);
+    h.receive(msg("SBF23 poise 1 101 3 1 2100"), 70, w);
+    step(h, w, 7, 70);
+    assert(w.windows.size() == 1 && h.counts.stale == stale + 5);
+  }
+  { // stagger_resist off (the host's): no window; turning it off while one runs starts no other and calls nothing on
+    // the running one.
+    World w;
+    Host h;
+    uint32_t turn = 0;
+    h.set_stagger(true, true);
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0).s.type = 3;
+    step(h, w, ++turn, 0);
+    w.react = Reaction{1, 600, false};
+    ours(h, w, turn, 100);
+    hers(h, w, turn, 1000);
+    h.set_stagger(true, false);
+    ours(h, w, turn, 3000);
+    hers(h, w, turn, 3500);
+    assert(w.windows.size() == 1 && h.counts.windows == 1 && h.counts.windows_refused == 0);
+  }
+  { // A cc line taken but refused on our copy (its poise) still counts the other player: her hit made it react on her
+    // screen. Our next rise then starts a window, on the host's side and on the guest's.
+    World w;
+    Host h;
+    uint32_t turn = 0;
+    h.set_stagger(true, true);
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0).s.type = 3;
+    step(h, w, ++turn, 0);
+    w.react = Reaction{1, 600, false};
+    w.actor(101)->s.poise = 5.0f;
+    h.receive(msg("SBF23 cc 1 101 3000300 1 0"), 100, w);
+    step(h, w, ++turn, 100);
+    assert(h.counts.cc_poise == 1);
+    w.actor(101)->s.poise = 0;
+    ours(h, w, turn, 200);
+    assert(w.windows.size() == 1 && w.windows[0] == std::make_tuple(101u, uint8_t(1), 2100u));
+    World g;
+    g.add(501, 5001, 0).s.type = 3;
+    Guest gu;
+    gu.receive(msg("SBF23 world 1"), g);
+    gu.receive(msg("SBF23 up 1 101 5001 0 900 1600"), g);
+    gu.receive(msg("SBF23 stagger 1 1 1"), g);
+    step(gu, g, 1, 0);
+    g.react = Reaction{1, 600, false};
+    g.actor(501)->s.poise = 5.0f;
+    gu.receive(msg("SBF23 cc 1 101 3000300 1 0"), g);
+    step(gu, g, 2, 100);
+    assert(gu.counts.cc_poise == 1);
+    g.actor(501)->s.poise = 0, g.actor(501)->s.cc = 1;
+    step(gu, g, 3, 200);
+    assert(g.windows.size() == 1 && g.windows[0] == std::make_tuple(501u, uint8_t(1), 2100u));
+  }
+  { // Her off and on forget her reactions: our next rise alone starts no window.
+    World w;
+    Host h;
+    uint32_t turn = 0;
+    h.set_stagger(true, true);
+    h.receive(msg("SBF23 on"), 0, w);
+    w.add(101, 7, 0).s.type = 3;
+    step(h, w, ++turn, 0);
+    w.react = Reaction{1, 600, false};
+    hers(h, w, turn, 100);
+    h.receive(msg("SBF23 off busy"), 300, w);
+    h.receive(msg("SBF23 on"), 400, w);
+    step(h, w, ++turn, 400);
+    ours(h, w, turn, 500);
+    assert(w.windows.empty());
+  }
+
+  { // Same place on the guest's side, the owner: she owns 101 at epoch 4; her window goes out as a poise line at that
+    // epoch. When the host owns 101 again, her rises start no window. When our pilot does not draw our copy (the pilot
+    // off or stopped here, its pair lost), it moves by its own AI: her rises start windows again, with no poise line.
+    World g;
+    g.add(501, 5001, 0).s.type = 3;
+    Guest gu;
+    uint32_t turn = 0;
+    gu.receive(msg("SBF23 world 1"), g);
+    gu.receive(msg("SBF23 up 1 101 5001 0 900 1600"), g);
+    gu.receive(msg("SBF23 place 1 1"), g);
+    gu.receive(msg("SBF23 stagger 1 1 1"), g);
+    g.owned = {101}, g.epoch = 4;
+    step(gu, g, ++turn, 0);
+    g.lines();
+    g.react = Reaction{1, 600, false};
+    const auto round = [&](uint64_t t) { // The host's cc line refused on our copy (its poise), then a rise of ours.
+      g.actor(501)->s.poise = 5.0f;
+      gu.receive(msg("SBF23 cc 1 101 3000300 1 0"), g);
+      step(gu, g, ++turn, t);
+      g.actor(501)->s.poise = 0, g.actor(501)->s.cc = 1;
+      step(gu, g, ++turn, t + 50);
+      g.actor(501)->s.cc = 0;
+      step(gu, g, ++turn, t + 100);
+    };
+    round(100);
+    assert(has(g.lines(), "SBF23 poise 1 101 4 1 2100\n") && g.windows.size() == 1 && gu.counts.windows == 1);
+    g.owned.clear();
+    round(20000);
+    assert(!has(g.lines(), "poise") && g.windows.size() == 1 && gu.counts.windows == 1);
+    g.loose = {101};
+    round(40000);
+    assert(!has(g.lines(), "poise") && g.windows.size() == 2 && gu.counts.windows == 2);
+  }
+  { // On the guest's side, the host's reaction alone (its cc line taken, then its echo on our copy) starts no window.
+    // The host's world line forgets the host's reactions: our next rise alone starts none either.
+    World g;
+    g.add(501, 5001, 0).s.type = 3;
+    Guest gu;
+    gu.receive(msg("SBF23 world 1"), g);
+    gu.receive(msg("SBF23 up 1 101 5001 0 900 1600"), g);
+    gu.receive(msg("SBF23 stagger 1 1 1"), g);
+    step(gu, g, 1, 0);
+    g.react = Reaction{1, 600, false};
+    gu.receive(msg("SBF23 cc 1 101 3000300 1 0"), g);
+    step(gu, g, 2, 100);
+    g.actor(501)->s.cc = 1 << 1;
+    step(gu, g, 3, 150);
+    g.actor(501)->s.cc = 0;
+    step(gu, g, 4, 200);
+    assert(gu.counts.cc_mirrored == 1 && g.windows.empty());
+    gu.receive(msg("SBF23 world 2"), g);
+    gu.receive(msg("SBF23 up 2 101 5001 0 900 1600"), g);
+    gu.receive(msg("SBF23 stagger 2 1 1"), g);
+    step(gu, g, 5, 300);
+    g.actor(501)->s.cc = 1;
+    step(gu, g, 6, 400);
+    assert(g.windows.empty());
+  }
+
+  { // On the guest's side, the host's cc line (refused for its poise, still the host's reaction) and her own rise make
+    // two players. They start no window before the host's stagger line, nor with its stagger_resist off; with it on,
+    // one.
+    const std::pair<const char *, size_t> cases[] = {{"", 0}, {"SBF23 stagger 1 1 0", 0}, {"SBF23 stagger 1 1 1", 1}};
+    for (const auto &[line, windows] : cases) {
+      World g;
+      g.add(501, 5001, 0).s.type = 3;
+      Guest gu;
+      gu.receive(msg("SBF23 world 1"), g);
+      gu.receive(msg("SBF23 up 1 101 5001 0 900 1600"), g);
+      if (*line)
+        gu.receive(msg(line), g);
+      step(gu, g, 1, 0);
+      g.react = Reaction{1, 600, false};
+      g.actor(501)->s.poise = 5.0f;
+      gu.receive(msg("SBF23 cc 1 101 3000300 1 0"), g);
+      step(gu, g, 2, 100);
+      assert(gu.counts.cc_poise == 1);
+      g.actor(501)->s.poise = 0, g.actor(501)->s.cc = 1;
+      step(gu, g, 3, 200);
+      assert(g.windows.size() == windows && gu.counts.windows == windows);
+    }
   }
 
   std::puts("fight_sync_test: ok");

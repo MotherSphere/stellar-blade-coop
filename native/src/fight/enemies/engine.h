@@ -28,6 +28,10 @@
 //     0, every other write 1, so NoDamage never blocks the shared fight's writes (game/fight/sync.h);
 //   uint64_t effect(uint64_t logic, uint64_t la, uint64_t caster, int32_t id):
 //     FUN_141ad1af0(logic, la, caster, id, &zero vector, 0, nullptr): the effect started, or 0 when refused;
+//   uint64_t effect_ctx(uint64_t logic, uint64_t la, uint64_t caster, int32_t id, float life_s, float value): the
+//     same call with a context: a fresh 16-byte-aligned poise::kContextSize stack buffer filled by SB's
+//     FUN_141acb6f0, then poise::fill_context(ctx, life_s, value), then FUN_141ad1af0(logic, la, caster, id, &zero
+//     vector, 0, ctx); the effect started, or 0 when refused;
 //   void push(Job *job): FUN_141af4b70(nullptr, job, 0), never param_3 = 1;
 //   bool receive(Message &m): the friend's next line, parsed by the worker; false when none;
 //   void send(const Message &m), void event(const Event &e), void probe(const Actor &a): to the worker, which never
@@ -94,6 +98,9 @@ public:
   // while off. On, fight_chars=auto shares the BossMonsters too (bosses and Alpha Naytibas, never handed to her), and
   // a boss's MaxHP takes this percent in place of enemy_hp_scale. A guest's side takes the host's from its bosses line.
   void bosses(uint16_t pct) { bosses_ = pct; }
+  // Any thread: our hit_reactions and stagger_resist (phase 8), both on by default. The host's side tells her both
+  // (its stagger line) and holds them each turn; a guest's side takes the host's from that line, never its own.
+  void stagger(bool reactions, bool resist) { reactions_ = reactions, resist_ = resist; }
   // Any thread: our same_spawns (stage 4), the host's for both games; set while off. On, the host tells her its zone
   // and epoch and answers her rounds; she runs only on its epoch line, whatever hers says.
   void same_spawns(bool on) { same_spawns_ = on; }
@@ -169,6 +176,20 @@ public:
   // and every write finds its actor again (write()). Latches and returns 0 on an implausible map or actor.
   template <class Game> size_t pass(Game &g, uint64_t logic, bool census, const uint32_t *followed, size_t count);
   const Seen *seen() const { return seen_; }
+  // Phase 8 Rule A, the sides' Io and the tests: the level and life of effect id running on our copy guid (Reaction).
+  template <class Game> bool reaction(Game &g, uint64_t logic, uint32_t guid, int32_t id, Reaction &out);
+  // Phase 8 Rule B, the sides' Io::window and the tests: k more poise on our copy guid for ms, through SB's effect call
+  // of poise::kAddHitDefense with the copy as its own caster and a context of ms / 1000 s and k (effect_ctx). SB ends
+  // it and takes its delta back itself; restore_turn() checks that it did. Null when started, else why not, in this
+  // order: "off" (a window SB never ended, or latched), "running" (one on that copy whose check has not settled),
+  // "full" (poise::kEnemies running), "gone" (not found again live), "state" (life state not 1, or a death pending),
+  // "type" (not the ActorType k is for: a Monster for 1, a BossMonster for 2), "game" (SB refused the call).
+  template <class Game>
+  const char *window(Game &g, uint64_t logic, uint32_t guid, uint8_t k, uint32_t ms, uint64_t now);
+  // Each turn after the side's step: the check of each window poise::kRestoreMs past its end, on SB's own effect
+  // clock (poise::restore). The copy not found again live, dying or out of life state 1, or its list torn: skipped,
+  // nothing more read. Our effect still listed past its life: counted, logged, no window again for the run.
+  template <class Game> void restore_turn(Game &g, uint64_t logic, uint64_t now);
 
   // The logic thread: its own counts and both sides', for Mail. The game thread's arms stay 0 here (they come through
   // Mail::armed), so neither thread reads what the other writes.
@@ -179,8 +200,20 @@ private:
     Engine &e;
     Game &g;
     uint64_t logic;
+    uint64_t now; // Simulate's now_ms.
     bool apply(const Write &w, int32_t &after) { return e.write(g, logic, w, after); }
-    bool effect(uint32_t guid, int32_t id) { return e.cast(g, logic, guid, id); }
+    bool effect(uint32_t guid, int32_t id, uint32_t ms) { return e.cast(g, logic, guid, id, ms); }
+    bool owns(uint32_t hguid) { return e.owners_.owner(hguid) == (e.hosting_seen_ ? pilot::kHost : pilot::kGuest); }
+    uint8_t oe(uint32_t hguid) { return e.owners_.oe(hguid); }
+    // The last pilot turn's table, as the game thread draws it now: kRowDrawn needs the pilot on here (not stopped,
+    // not asked off), the other side as owner and the pair not lost.
+    bool drawn(uint32_t hguid) {
+      const PilotTable &t = e.table_;
+      return std::any_of(t.pairs, t.pairs + t.count,
+                         [&](const PilotPair &p) { return p.hguid == hguid && (p.bits & kRowDrawn); });
+    }
+    const char *window(uint32_t guid, uint8_t k, uint32_t ms) { return e.window(g, logic, guid, k, ms, now); }
+    bool reaction(uint32_t guid, int32_t id, Reaction &out) { return e.reaction(g, logic, guid, id, out); }
     bool took_part(uint32_t guid) { return e.took_part(g, logic, guid, e.nearby_); }
     void unshare(uint32_t guid) { e.unshared_[e.unshared_n_++ % kMaxPairs] = guid; }
     void send(const Message &m) {
@@ -315,7 +348,9 @@ private:
   // No EVE of ours found: not started. Noted for this turn: SB starts it inside the call, so this pass's marks are old
   // for that copy, and our freeze waits (hold_freeze). A copy whose last player (+0x638) the call made our EVE is noted
   // too, and logged once: that crowd control was the other side's, not our EVE's part in its fight (lent()).
-  template <class Game> bool cast(Game &g, uint64_t logic, uint32_t guid, int32_t id);
+  // ms (a mirrored flinch's time): SB's call with a context that sets the effect's life to ms / 1000 s (effect_ctx);
+  // 0: its row's own time, with no context.
+  template <class Game> bool cast(Game &g, uint64_t logic, uint32_t guid, int32_t id, uint32_t ms = 0);
   void noted(uint32_t guid);
   // A crowd control or a kill of ours on this copy in this turn (this pass's marks are old for it), or more than we
   // could note.
@@ -675,6 +710,7 @@ private:
   std::atomic<uint8_t> extra_{0}; // enemy_extra.
   std::atomic<uint16_t> scale_hp_{kMinScale}, scale_balance_{kMinScale};
   std::atomic<uint16_t> bosses_{0}; // Our boss_hp_scale with bosses=on; 0: off.
+  std::atomic<bool> reactions_{true}, resist_{true}; // Our hit_reactions and stagger_resist (stagger()).
   std::atomic<uint64_t> test_{0}; // A test asked (test()): (stat - kNoTest) << 32 | change; 0 for none.
   std::atomic<const char *> why_{nullptr};
   std::atomic<uint32_t> generation_{0}, session_{0}, idle_arms_{0}; // idle_arms_: pushes since the live arm last ran.
@@ -723,6 +759,8 @@ private:
   size_t left_at_ = 0;
   const char *pilot_why_ = "fight"; // Why same-place enemies do not run (pilot_turn), null while they do.
   pilot::Owners owners_;            // Stage 3b: each pair's owner and epoch on this side.
+  poise::Windows windows_;          // Phase 8 Rule B: the windows started, until their check settles.
+  bool windows_off_ = false;        // A window SB never ended: none again until the game restarts.
   Ring<Message, kMail> own_in_;     // The guest: the host's own lines, for answer() after the pass.
   pilot::Execs execs_;              // The guest: her takedowns told the host (stage 3c).
   uint64_t her_off_until_ = 0;      // The host: no hand-over to her before this (her own-no off or aggro).

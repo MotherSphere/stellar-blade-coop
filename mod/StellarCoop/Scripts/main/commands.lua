@@ -45,6 +45,10 @@ for _,list in ipairs({{
             stopped,e=pcall(M.halls.stop)
             if not stopped then log('halls: '..tostring(e)) end
         end
+        if M.teamshop then -- The team shop's title wait and open wait ended; rows already in stay for the game run.
+            stopped,e=pcall(M.teamshop.stop)
+            if not stopped then log('teamshop: '..tostring(e)) end
+        end
         M.region_tabs.stop() -- No more tabs: only a flag.
         M.pause_tab.stop() -- Likewise; the native part gives its slot back.
         stopped,e=pcall(M.wear.stop) -- EVE's own meshes back.

@@ -35,7 +35,7 @@ ADD_ROWS = {'online/modes/nightop/probe.lua': 1}
 # theater rows only), its header, its three log lines and one refusal. coop mxiii boss: its guarded call (kind 10, the
 # Lion's three lever rows only, on the fallback Lion's death) and its header. coop chainspin: its header. The one Cheat
 # request (SBApplyEffectMe on our EVE, its choke point, in core/effect.lua) applies the ChainSpin's effect or one of
-# coop devmenu's fixed list of 23 in tools/devmenu.lua, which only reaches it through ChainSpin.apply. coop gift:
+# coop devmenu's fixed list of 23 in cutmenus/devmenu.lua, which only reaches it through ChainSpin.apply. coop gift:
 # its one ItemBucketItemRemove (a send's choke point; its grants go through core/items.lua's) and its header. The
 # bike's paid fetch: its one ItemBucketItemRemove (BetaCrystal, its price only).
 # The Join row: coop recruiter's constant only, which it reads and neutralizes, never fires. Gun mode: its guarded call
@@ -57,7 +57,8 @@ RATIONED = {'MultiplayTest_ZoneE_059': {'online/modes/nightop/recruiter.lua': 1}
                                'online/modes/nightop/shop.lua': 2,
                                'core/items.lua': 1, 'online/group/group.lua': 7, 'core/enemy.lua': 2,
                                'fight/bosses/enemy.lua': 2, 'eve/chainspin.lua': 1, 'core/effect.lua': 1,
-                               'tools/mailbox.lua': 2, 'vehicles/bike/fetch.lua': 1, 'fight/gunmode/probe.lua': 5}}
+                               'cutmenus/mailbox.lua': 2, 'vehicles/bike/fetch.lua': 1,
+                               'fight/gunmode/probe.lua': 5}}
 
 # Calls are matched with every string literal turned into '', so log prose such as 'heal: CreateSBZoneEvent(2, ...)' is
 # not one. Lua allows space after the ':' and a string or table argument without '(': obj: f(x), obj:f'x', obj:f{}.
@@ -165,7 +166,7 @@ SEQ_CONST, SEQ_CALL = ('constexpr uint64_t kRunZoneEvent = 0x141ca5790;\n',
                        'game_function<RunZoneEvent>(sbo::kRunZoneEvent)(world, id, &sbo_seq_names[k], 0);\n')
 WORLD_CALL = 'game_function<RunZoneEvent>(sbo::kRunZoneEvent)(world, caster, &row, 0);\n'
 
-CS, EN, MB = f'{SCRIPTS}/eve/chainspin.lua', f'{SCRIPTS}/core/enemy.lua', f'{SCRIPTS}/tools/mailbox.lua'
+CS, EN, MB = f'{SCRIPTS}/eve/chainspin.lua', f'{SCRIPTS}/core/enemy.lua', f'{SCRIPTS}/cutmenus/mailbox.lua'
 BF = f'{SCRIPTS}/vehicles/bike/fetch.lua'
 IT, EF = f'{SCRIPTS}/core/items.lua', f'{SCRIPTS}/core/effect.lua'
 GUARDED = ("local function zone_event(kind,name)\n\n    assert(NightOp.allowed(kind,name),'zone event refused')\n    "
@@ -194,7 +195,7 @@ BOSS = padded('world/maps/matrix13/level/boss.lua', GUARDED.replace('NightOp', '
 GUN = padded('fight/gunmode/mode.lua', GUARDED.replace('NightOp', 'GunMode'))
 GUN_PROBE = padded('fight/gunmode/probe.lua', "pc:ServerRequest_ChangeBulletItem(pawn,FName('Bullet_Nikke'))\n")
 CHAINSPIN = padded('eve/chainspin.lua', "pc:ServerRequest_Cheat(guid,0,'SBApplyEffectMe',tostring(ChainSpin.ID))\n")
-MAILBOX = padded('tools/mailbox.lua', "pc:ServerRequest_ItemBucketItemRemove(1,guid,FName(alias),count,-1)\n")
+MAILBOX = padded('cutmenus/mailbox.lua', "pc:ServerRequest_ItemBucketItemRemove(1,guid,FName(alias),count,-1)\n")
 FETCH = padded('vehicles/bike/fetch.lua',
                "pc:ServerRequest_ItemBucketItemRemove(1,guid,FName(Fetch.ALIAS),Fetch.PRICE,-1)\n")
 CLEAN = {N: NIGHTOP, R: RECRUITER, NR: RUN, GR: GROUP, NS: SHOP, LI: LION, EN: ENEMY, SC: SCENE, BO: BOSS, CS: CHAINSPIN,

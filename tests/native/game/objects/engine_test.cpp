@@ -7,7 +7,9 @@
 // changed as SB changes it, a tag that did not take, A2's records (found, made, a Disable one written), A1b live and
 // offline, A3's call and its list check, A4's order (a None tag, an env already in the tag, a Disable env, a guard
 // and a tag that did not take), a linked target not live on the sender, and the refusals for a missing world, player
-// or name.
+// or name. The reads: an env's value live, from its record or not at all (no world, a zone or alias the game lacks),
+// an ObjectState no line carries read as 0, a tag with no text read as none; the client's zone, refused for None, a
+// name with no text or no client.
 #include "game/objects/engine.h"
 
 #include <cassert>
@@ -333,12 +335,49 @@ void offline() {
   assert(!std::strcmp(e.apply(line(Type::state, "Door_7", "Open")), "zones"));
 }
 
+// An env's value read live, from its record, or not at all; the client's zone read, None and no text refused.
+void reads() {
+  World w;
+  GameEngine<FakeGame> e(w.g);
+  const uint64_t door = w.env("Door_1", {{"Closed", "None", 0}, {"Open", "None", 0}}, "Open");
+  Value v = e.read("Zone_A", "Door_1");
+  assert(v.where == Where::live && v.tag == "Open" && v.object == 1);
+  const uint64_t records = w.g.alloc(0x100), rec = w.g.alloc(0x200);
+  w.g.zone_records_[w.g.name("Zone_A")] = records;
+  w.g.records[{records, w.g.name("Door_1")}] = rec;
+  w.g.put(rec + kRecordTag, w.g.name("Closed"));
+  w.g.put<int32_t>(rec + kRecordObject, 2);
+  w.g.put<uint64_t>(door, 0x145c4de38); // not the env vtable: read as not live
+  v = e.read("Zone_A", "Door_1");
+  assert(v.where == Where::record && v.tag == "Closed" && v.object == 2);
+  w.g.live.clear();
+  w.g.put<int32_t>(rec + kRecordObject, 7); // a value no line carries
+  assert(e.read("Zone_A", "Door_1").object == 0);
+  w.g.put<uint64_t>(rec + kRecordTag, 0x7fff0000); // a tag with no text matches no row
+  assert(e.read("Zone_A", "Door_1").where == Where::none);
+  w.g.put(rec + kRecordTag, w.g.name("Closed"));
+  assert(e.read("Zone_B", "Door_1").where == Where::none); // a zone the game lacks
+  assert(e.read("Zone_A", "Door_9").where == Where::none); // an alias the game lacks
+  assert(w.g.said().empty());                              // no record made, no game function run
+  std::string z;
+  assert(e.zone(z) && z == "Zone_A");
+  w.g.put(w.client + kClientZone, w.g.name("None"));
+  assert(!e.zone(z)); // None is no zone: no c ask None
+  w.g.put<uint64_t>(w.client + kClientZone, 0x7fff0000);
+  assert(!e.zone(z)); // a name with no text
+  w.g.put<uint64_t>(img(kClientAt), 0);
+  assert(!e.zone(z)); // no client
+  w.g.put<uint64_t>(img(kWorldAt), 0);
+  assert(e.read("Zone_A", "Door_1").where == Where::none); // no world
+}
+
 } // namespace
 
 int main() {
   roots();
   live();
   offline();
+  reads();
   std::puts("world engine: ok");
   return 0;
 }

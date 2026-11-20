@@ -127,12 +127,14 @@ void quest_pass(uint64_t now_ms, bool hosting, const std::vector<uint64_t> &part
 // Refused off the pinned build and after coop off. Returns the line for the log.
 std::string ask_world(const coop::Request &request);
 // Worker, every pass after quest_pass and before fight_pass: takes her SBW lines out of lines and hands them to the
-// game thread with the gates (shared_world, partner: her SteamID while she is linked, else 0; match: a match lobby,
-// the SBO lobby's session counts too; a co-op save, from the save-slot line quest_pass read), swaps the hooks in once
-// those gates first open, and sends and logs what the game thread's passes made. send: a line to her on channel 2,
-// reliable (false when it cannot go: the line then waits for the next pass, game/objects/sync.h's Outbox). After the
-// first fault: off to her once, the hooks out, nothing more.
-void world_pass(uint64_t partner, bool match, std::vector<std::string> &lines, bool (*send)(const std::string &));
+// game thread with the gates (shared_world, partner: her SteamID while she is linked, else 0; host: true on the
+// session's host within the pair, so its values win a catch-up conflict; match: a match lobby, the SBO lobby's session
+// counts too; a co-op save, from the save-slot line quest_pass read), swaps the hooks in once those gates first open,
+// and sends and logs what the game thread's passes made. send: a line to her on channel 2, reliable (false when it
+// cannot go: the line then waits for the next pass, game/objects/sync.h's Outbox). After the first fault: off to her
+// once, the hooks out, nothing more.
+void world_pass(uint64_t partner, bool host, bool match, std::vector<std::string> &lines,
+                bool (*send)(const std::string &));
 // Worker: coop-status.txt's world line (game/objects/sync.h's Sync::status, then hooks=<slots of 4> inbox_dropped=<n>
 // unsent=<lines dropped unsent> elsewhere=<hooks off the game thread>), or world=off why=build|coop_off, or
 // world=stopped after a fault.
@@ -160,17 +162,18 @@ std::string story_status();
 // and after the travel latch's fault. Returns the line for the log; the call's own line follows from worker_poll.
 std::string ask_travel(const coop::Request &request);
 // Worker thread, coop lion, coop gardener fight, coop tendril fight, the shop's Shock Bolt, coop mxiii, the Night
-// Operation shop's screen and Lily's signal (rows/rows.h): Lua's lion rows, gardener rows, tendril rows, bolt rows,
-// mxiii rows, shop rows or signal rows request, the addresses of the tables that batch writes (1 to 25 of them) for the
-// game thread, which adds that batch's rows through SB's AddRow once its gate holds. Refused off the pinned build,
-// after coop off and after the rows' fault, and not asked again once every row of the batch is in. Returns the line for
-// the log; fight_pass logs the game thread's answer.
+// Operation shop's screen, Lily's signal and the team shop (rows/rows.h): Lua's lion rows, gardener rows, tendril
+// rows, bolt rows, mxiii rows, shop rows, signal rows or teamshop rows request, the addresses of the tables that batch
+// writes (1 to 25 of them) for the game thread, which adds that batch's rows through SB's AddRow once its gate holds.
+// Refused off the pinned build, after coop off and after the rows' fault, and not asked again once every row of the
+// batch is in. Returns the line for the log; fight_pass logs the game thread's answer.
 std::string ask_rows(const coop::Request &request);
-// Worker: coop-status.txt's lion, gardener, tendril, bolt, mxiii, shop and signal lines (rows/rows.h's status_line),
-// one per batch, joined by a line break: "<word>=off", or the state (waiting, rows, refused, fault) with added=<n>/<N>,
-// asks=<a>, spawns=<s> and that state's own fields; then the shock line (rows/shock.h's shock_line: off, in, refused or
-// fault), then the nightshop line (online/modes/nightop/shop_ui.h's), the roxanne and lily lines
-// (online/modes/nightop/roxanne.h's), and on the pinned build the guardtext line (online/modes/nightop/guard_text.h's).
+// Worker: coop-status.txt's lion, gardener, tendril, bolt, mxiii, shop, signal and teamshop lines (rows/rows.h's
+// status_line), one per batch, joined by a line break: "<word>=off", or the state (waiting, rows, refused, fault) with
+// added=<n>/<N>, asks=<a>, spawns=<s> and that state's own fields; then the shock line (rows/shock.h's shock_line: off,
+// in, refused or fault), then the nightshop line (online/modes/nightop/shop_ui.h's), the roxanne and lily lines
+// (online/modes/nightop/roxanne.h's), on the pinned build the guardtext line (online/modes/nightop/guard_text.h's),
+// then the teamshopui line (world/teamshop/shop_ui.h's).
 std::string rows_status();
 // Worker thread, coop shortcut (game/shortcut.h): Lua's shortcut list request, which the game thread serves by
 // reading the cut Load Shortcut menu's 16 paths through SB's file manager, one a frame. Refused off the pinned build,
@@ -186,9 +189,9 @@ std::string ask_shortcut_load(int file);
 // Worker, every pass: once the game thread read the file asked, true with the cleaned save in save (empty when it was
 // refused) and the line for the log; false while nothing is asked or the read is still to come.
 bool shortcut_load_pass(std::string &save, std::string &line);
-// Worker thread, coop gift (tools/items.h): Lua's items request, how many of one item our EVE carries, read now through
-// ReadProcessMemory; the answer goes in the engine line's items= (status()). Refused off the pinned build, after coop
-// off and with no EVE read. Returns the line for the log.
+// Worker thread, coop gift (cutmenus/items.h): Lua's items request, how many of one item our EVE carries, read now
+// through ReadProcessMemory; the answer goes in the engine line's items= (status()). Refused off the pinned build,
+// after coop off and with no EVE read. Returns the line for the log.
 std::string ask_items(const coop::Request &request);
 // Worker thread, the Night Operation shop's screen (online/modes/nightop/shop_ui.h): Lua's nightshop request, SB's shop
 // screen opened on Shop_NightOperation_Coop or _CoopBolt, or closed, at the game thread's next frame. Refused off the
@@ -200,6 +203,10 @@ std::string ask_nightshop(const coop::Request &request);
 // that list's latch's fault; after coop off, only off. Returns the line for the log; fight_pass logs the game thread's
 // answer.
 std::string ask_roxanne(const coop::Request &request);
+// Worker thread, the team shop's screen (world/teamshop/shop_ui.h): Lua's teamshop open, SB's shop screen opened on
+// SBOTeam_Shop at the game thread's next frame. Refused off the pinned build, after coop off and after its latch's
+// fault. Returns the line for the log; teamshop_pass logs the game thread's answer.
+std::string ask_teamshop();
 // Worker: coop-status.txt's shared quests lines (game/quests/engine.h's Worker::status), then the signalquest line
 // (story/quests/own.h's status_line, on the pinned build until coop off), each ending in a line break.
 std::string quest_status();
@@ -297,6 +304,8 @@ std::string bike_pass();
 void ask_hud(bool hide);
 // Every pass: logs each change the game thread made, a hide it could not make (once an ask) and its fault.
 void hud_pass();
+// Every pass: logs each answer of the team shop's screen (world/teamshop/shop_ui.h's describe) and its fault once.
+void teamshop_pass();
 // The pause menu's Online tab (ui/pause_tab_game.inc, ui/pause_tab.h), worker thread. Lua's pausetab on or off
 // (Command::pausetab): RB on the pause menu's last tab opens the Online tab only while on (on until Lua says off). A
 // change is logged.
@@ -321,6 +330,15 @@ void loading_pass();
 void ask_sky(const coop::Request &request);
 // Every pass: logs each state the game thread reached, a refusal once an ask and its fault once.
 void sky_pass();
+// The keep (glue/tick/keep_game.inc, game/keep.h), worker thread. coop-keep.txt's lines (core/keep.lua writes the whole
+// list each time it grows) into the keep's list; the game thread asks SB for the new ones at its next look. Returns a
+// line for the log the first time a line is refused (not an object path, or the list full), else empty.
+std::string keep_take(const std::string &text);
+// Every pass: a line for the log with the keep's fault, once, else empty.
+std::string keep_pass();
+// SB's theater read (glue/tick/theater_game.inc, game/theater.h), worker thread. Every pass: a line for the log with
+// its fault, once, else empty.
+std::string theater_pass();
 // coop-status.txt's sky line (world/daynight/sky.h's line) and its newline: the state, the light of the hour asked, the
 // elements written and whether EVE stands in env sunlight; refused off the pinned build.
 std::string sky_status();
@@ -329,9 +347,10 @@ std::string sky_status();
 // written>" for each slot k from 1 holding a table) or "engine=off reason=...", then " fight=on <count>",
 // " fight=probe", " fight=waiting" or " fight=stopped" while the shared fight is asked or latched, then " anim=<state>
 // anim_id=<id>" (game/anim.h's state_text, of the last play asked) and " bike=<state> bike_gate=<state>"
-// (game/bike.h's load_text and gate_text, then " bike_life=<n>", EVE's life state, when it read) on the pinned build
-// before coop off, then " nightop=on" or " nightop=rule" (once the rule was asked) last while the poller runs: no
-// per-frame counters.
+// (game/bike.h's load_text and gate_text, then " bike_life=<n>", EVE's life state, when it read), " keep=<asked>
+// <settled> <in>" (game/keep.h's line) or " keep=fault" and " theater=<none|sequence|->" (game/theater.h's text) or
+// " theater=fault" on the pinned build before coop off, then " nightop=on" or " nightop=rule" (once the rule was
+// asked) last while the poller runs: no per-frame counters.
 std::string status();
 // Worker: coop-status.txt's activated line (game/camps.h's line), the camps this save has activated and the camp EVE
 // respawns at as of the game thread's last check: "activated=<n>:<alias>,..." with " rested=<alias>" when known, or

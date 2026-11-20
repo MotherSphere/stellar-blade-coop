@@ -560,7 +560,7 @@ lines past that are dropped, with at most one line a minute per friend in `coop-
 
 ### The gift line
 
-The gift line carries a [cut mailbox](../tools/menus-internals.md#cut-mailbox) gift and its answer, sent reliable: `s` with the gift's id (1
+The gift line carries a [cut mailbox](../cutmenus/menus-internals.md#cut-mailbox) gift and its answer, sent reliable: `s` with the gift's id (1
 to 20 digits, not 0), an item name (letters, digits and `_`, at most 64) and a count from 1 to 10; `a` when the
 receiver kept it; `n` and a word of 1 to 16 lowercase letters when it refused it. The link checks that shape and no
 more: Lua checks the item. At most 8 lines a second go each way, and each one, sent, refused or received, has a line in
@@ -690,7 +690,7 @@ is refused instead of misread:
 | 20 | The PvP test's pvp line on channel 2: a drop of the attacker's stand-in for the victim, applied to the victim's EVE in her game, and the match lobbies' start, count and end lines on channel 0 |
 | 21 | Never released: development builds of the shared world's `SBW` lines on channel 2 and of the dlc and dlcs lines on channel 0 used it (see [Shared world: how it works](../world/objects-internals.md)) |
 | 22 | Never released: development builds of story together's `SBS` lines on channel 2 (the host's story scenes and story trips, followed in the guest's game; see [Story together: how it works](../story/together-internals.md)) and of the guest's `SBQ22 step` line (a quest step she made first, made in the host's game) used it |
-| 23 | Online sessions of up to 4 players: the host's `let` and `wait` lines on channel 0, which a protocol-22 peer would count invalid; a protocol-22 game would also leave a lobby of 3. The cycle line (each game's New Game+ count and difficulty) and the bike line (where each player's parked bike stands) on channel 0 (this version) |
+| 23 | Online sessions of up to 4 players: the host's `let` and `wait` lines on channel 0, which a protocol-22 peer would count invalid; a protocol-22 game would also leave a lobby of 3. The cycle line (each game's New Game+ count and difficulty) and the bike line (where each player's parked bike stands) on channel 0. 23 also adds the shared world's catch-up lines (`c ask`, `c`, `c end`) on channel 2, which an earlier protocol-23 development build counts malformed. On channel 2, shared flinches and stagger resistance: the cc line with the hit's level and the reaction's time (`SBF23 cc <gen> <hguid> <effect> <level> <ms>`), the host's `SBF23 stagger <gen> <0\|1> <0\|1>` and the owner's `SBF23 poise <gen> <hguid> <oe> <k> <ms>` (see [Shared enemies: how they work](../fight/enemies-internals.md#lines-and-counters)), which an earlier protocol-23 build drops as malformed lines (this version) |
 
 ## Link health in the log
 

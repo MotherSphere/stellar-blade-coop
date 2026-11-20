@@ -35,10 +35,12 @@
 #include <random>
 #include <string>
 #include <thread>
+#include <tuple>
 #include <utility>
 #include <vector>
 
 using namespace coop::fight;
+namespace poise = coop::poise;
 
 namespace {
 constexpr uint64_t kBase = 0x7ff600000000;
@@ -311,7 +313,8 @@ struct Game {
                                {kFinishReady, 1 << 30, 0, kNoDamageNoHit}, {kFinishDispel, 1, 0, 0},
                                {kFloorDispel, 6, 0, 0}, {5025007, 30, 0, kBlockAiState},
                                {5025010, 30, 0, kBlockAiState}, {5041011, 30, 0, kBlockAiState},
-                               {pvp::kOffHud, 1 << 30, 0, 0}, {pvp::kNoWarp, 1 << 30, 0, 0}};
+                               {pvp::kOffHud, 1 << 30, 0, 0}, {pvp::kNoWarp, 1 << 30, 0, 0},
+                               {2003000, 12, 0, 0}, {1001400, 30, 0, 0}};
     for (const Row &r : rows)
       if (r.id == id)
         return r;
@@ -552,6 +555,25 @@ struct Game {
       mem.put(la + kLastPlayer, mem.get<uint32_t>(caster + kGuid));
     const Body::Running e{mem.alloc(0x110), id, 0};
     if (starts_now || id == kFinishDispel || id == kFloorDispel)
+      start(la, e);
+    else
+      starting.push_back({la, e});
+    return e.at;
+  }
+  // FUN_141ad1af0 with a context FUN_141acb6f0 filled and poise::fill_context wrote (Engine::cast with a time): the
+  // row, the life in seconds and the value, kept in timed, never in casts. The effect holds the life at its +0x74;
+  // otherwise it starts as effect() starts one.
+  std::vector<std::tuple<int32_t, float, float>> timed;
+  uint64_t effect_ctx(uint64_t lg, uint64_t la, uint64_t caster, int32_t id, float life_s, float value) {
+    timed.emplace_back(id, life_s, value);
+    (void)lg;
+    if (bodies[la].immune || id == bodies[la].refuses)
+      return 0;
+    if (marks_last && caster != la)
+      mem.put(la + kLastPlayer, mem.get<uint32_t>(caster + kGuid));
+    const Body::Running e{mem.alloc(0x120), id, 0};
+    mem.put(e.at + poise::kEffectLife, life_s);
+    if (starts_now)
       start(la, e);
     else
       starting.push_back({la, e});
@@ -1083,13 +1105,14 @@ int main() {
     g.knock(101, 3000300);
     uint64_t t = 16;
     frame(g, *e, t);
-    assert(lines(g) == "SBF23 cc 1 101 3000300\n");
+    assert(lines(g) == "SBF23 cc 1 101 3000300 1 0\n");
+    assert(e->host.counts.level_guess == 1 && !e->latched());
     for (t += 16; t < 200; t += 16)
       frame(g, *e, t);
     assert(!has(lines(g), " cc ") && g.body(101).effects.empty() && !g.in_cc(g.by_guid[101]));
     // Hers on 102: SB's effect call on the logic singleton, with our EVE's logic actor as the caster. It starts at the
     // turn's end, then chains (AirborneDown, Down, Getup); none of it is told back.
-    g.inbox.push_back(msg("SBF23 cc 1 102 9900001"));
+    g.inbox.push_back(msg("SBF23 cc 1 102 9900001 1 0"));
     frame(g, *e, t);
     const Game::Cast &c = g.casts.at(0);
     assert(c.logic == g.logic && c.la == g.by_guid[102] && c.caster == g.eve && c.id == 9900001);
@@ -1104,16 +1127,16 @@ int main() {
     // While 101 is in the air (our EVE's launch, told), hers for it is skipped; so is one the game refuses (an
     // immunity), and one with no EVE of ours to cast it.
     g.knock(101, 9900001);
-    g.inbox.push_back(msg("SBF23 cc 1 101 3000300"));
+    g.inbox.push_back(msg("SBF23 cc 1 101 3000300 1 0"));
     frame(g, *e, t += 16);
-    assert(lines(g) == "SBF23 cc 1 101 9900001\n" && g.casts.size() == 1 && e->host.counts.cc_skipped == 1);
+    assert(lines(g) == "SBF23 cc 1 101 9900001 1 0\n" && g.casts.size() == 1 && e->host.counts.cc_skipped == 1);
     g.body(102).immune = true;
-    g.inbox.push_back(msg("SBF23 cc 1 102 3000401"));
+    g.inbox.push_back(msg("SBF23 cc 1 102 3000401 1 0"));
     frame(g, *e, t += 16);
     assert(g.casts.size() == 2 && e->host.counts.cc_skipped == 2 && e->host.counts.cc_mirrored == 1);
     g.body(102).immune = false;
     g.mem.put(g.players, g.mem.alloc(0x2608));
-    g.inbox.push_back(msg("SBF23 cc 1 102 3000401"));
+    g.inbox.push_back(msg("SBF23 cc 1 102 3000401 1 0"));
     frame(g, *e, t += 16);
     assert(g.casts.size() == 2 && e->host.counts.cc_skipped == 3);
     g.mem.put(g.players, g.fsb(1));
@@ -1125,6 +1148,209 @@ int main() {
     g.mem.put<uint64_t>(g.body(102).list_at, 0x1235);
     frame(g, *e, t += 16);
     assert(e->counts.unread == unread + 2 && !e->latched());
+  }
+  { // Phase 8 level read: an effect our EVE cast (+0x60) gives its row's HitLevel (by the ID at +0x88) plus trunc(her
+    // +0x2b4); another caster, an ID of 0 or no tables give the guess, never a latch; the life time comes from +0x74
+    // in every case; no such effect: false.
+    for (const bool tables : {true, false}) {
+      Game g;
+      if (tables)
+        g.spawns();
+      auto e = engine(true, true);
+      g.spawn(101, 5001, 0);
+      g.inbox.push_back(msg("SBF23 on"));
+      frame(g, *e, 0);
+      g.knock(101, 9900001);
+      const uint64_t fx = g.body(101).effects.back().at;
+      g.mem.put(fx + poise::kEffectCaster, g.eve);
+      g.mem.put(fx + poise::kEffectLife, 0.6f);
+      g.mem.put<int32_t>(fx + poise::kEffectRow, 1001001);
+      g.mem.put<int32_t>(g.skill_row_at(1001001, 1.0f) + poise::kRowHitLevel, 2);
+      g.mem.put(g.mem.get<uint64_t>(g.eve + kFsb) + poise::kAdditiveHit, 1.7f);
+      Reaction r;
+      assert(e->reaction(g, g.logic, 101, 9900001, r) && r.life_ms == 600);
+      assert(tables ? r.level == 3 && !r.guess : r.level == 1 && r.guess);
+      g.mem.put<int32_t>(g.skill_rows[1001001] + poise::kRowHitLevel, 200); // Held to kMaxLevel.
+      assert(e->reaction(g, g.logic, 101, 9900001, r) && r.level == (tables ? poise::kMaxLevel : 1));
+      g.mem.put<int32_t>(g.skill_rows[1001001] + poise::kRowHitLevel, 2);
+      g.mem.put(fx + poise::kEffectCaster, g.by_guid[101]); // Another caster: the guess, the time still read.
+      assert(e->reaction(g, g.logic, 101, 9900001, r) && r.level == 1 && r.guess && r.life_ms == 600);
+      g.mem.put(fx + poise::kEffectCaster, g.eve);
+      g.mem.put<int32_t>(fx + poise::kEffectRow, 0); // No row ID (our own Engine::cast's effects): the guess.
+      assert(e->reaction(g, g.logic, 101, 9900001, r) && r.level == 1 && r.guess);
+      assert(!e->reaction(g, g.logic, 101, 3000300, r) && !e->latched());
+    }
+  }
+  { // A pass reads the copy's poise (FSB +0x1ac) and its ActorType.
+    Game g;
+    auto e = engine(true, true);
+    g.spawn(101, 5001, 0);
+    g.mem.put(g.fsb(101) + poise::kHitDefense, 2.5f);
+    g.inbox.push_back(msg("SBF23 on"));
+    frame(g, *e, 0);
+    assert(e->seen()[0].guid == 101 && e->seen()[0].poise == 2.5f && e->seen()[0].type == kTypeMonster);
+  }
+  { // A mirrored flinch of 200 ms starts HitStun through the context call with 0.2 s and 0; a mirrored crowd control
+    // (ms 0) goes through today's call with no context.
+    Game g;
+    auto e = engine(true, true);
+    g.spawn(101, 5001, 0);
+    g.inbox.push_back(msg("SBF23 on"));
+    uint64_t t = 0;
+    frame(g, *e, t);
+    g.inbox.push_back(msg("SBF23 cc 1 101 2003000 1 200"));
+    frame(g, *e, t += 16);
+    assert(g.timed.size() == 1 && std::get<0>(g.timed[0]) == 2003000 && std::get<1>(g.timed[0]) == 0.2f &&
+           std::get<2>(g.timed[0]) == 0.0f && g.casts.empty() && e->host.counts.flinch_mirrored == 1);
+    bool flinched = false; // Engine::effects reads HitStun as Seen::cc's flinch bit while it runs.
+    for (const uint64_t end = t + 400; t < end;) { // HitStun ends (12 turns).
+      frame(g, *e, t += 16);
+      flinched = flinched || (e->seen()[0].guid == 101 && e->seen()[0].cc == 1 << kFlinchBit);
+    }
+    assert(flinched && e->seen()[0].cc == 0 && e->host.counts.flinch_told == 0); // Our echo: never told back.
+    g.inbox.push_back(msg("SBF23 cc 1 101 3000300 1 0"));
+    frame(g, *e, t += 16);
+    assert(g.timed.size() == 1 && g.cast_ids(101).back() == 3000300);
+  }
+  { // Same place, Io::owns: a mirrored flinch starts on a copy this side owns (on the host's side, each enemy at epoch
+    // 0). The guest's side draws that copy by the host's stream, so it refuses one there ("drawn").
+    Game h;
+    auto eh = engine(false, true);
+    eh->same_place(true);
+    eh->set(true, true);
+    h.spawn(101, 5001, 0);
+    h.inbox.push_back(msg("SBF23 on"));
+    frame(h, *eh, 0);
+    assert(eh->snapshot().reactions && eh->snapshot().resist); // The host's own, both on by default.
+    h.inbox.push_back(msg("SBF23 cc 1 101 2003000 1 200"));
+    frame(h, *eh, 16);
+    assert(h.timed.size() == 1 && eh->host.counts.flinch_mirrored == 1 && eh->host.counts.flinch_refused == 0);
+    Game g;
+    auto eg = engine(false, false);
+    eg->same_place(true);
+    eg->set(true, false);
+    g.spawn(501, 5001, 0);
+    for (const char *line :
+         {"SBF23 world 1", "SBF23 place 1 1", "SBF23 stagger 1 1 1", "SBF23 up 1 101 5001 0 900 1600"})
+      g.inbox.push_back(msg(line));
+    frame(g, *eg, 0);
+    assert(eg->snapshot().reactions && eg->snapshot().resist); // The guest's: the host's, from its stagger line.
+    Game q; // A guest's side before the host's stagger line: both off.
+    auto eq = engine(true, false);
+    frame(q, *eq, 0);
+    assert(!eq->snapshot().reactions && !eq->snapshot().resist);
+    g.inbox.push_back(msg("SBF23 cc 1 101 2003000 1 200"));
+    frame(g, *eg, 16);
+    assert(g.timed.empty() && eg->guest.counts.flinch_refused == 1 && count(g, "flinch refused", "drawn") == 1);
+    // Her pilot off (coop fight pilot off, or its latch): no copy is drawn, so hers move by their own AI and the
+    // host's flinch starts there.
+    eg->pilot_off(true);
+    frame(g, *eg, 32);
+    g.inbox.push_back(msg("SBF23 cc 1 101 2003000 1 200"));
+    frame(g, *eg, 48);
+    assert(g.timed.size() == 1 && eg->guest.counts.flinch_mirrored == 1 && eg->guest.counts.flinch_refused == 1);
+  }
+  { // Engine::window: refused on our EVE ("type"), k 2 on a Monster ("type"), a dying copy ("state"), a second
+    // window on a copy whose check has not settled ("running"), a 33rd window ("full", before any game call);
+    // started: 1001400 through the context call with 2.1 s at +0x0c and k at +0x10.
+    Game g;
+    auto e = engine(true, true);
+    for (uint32_t i = 0; i < 34; ++i)
+      g.spawn(101 + i, 5001 + i, 0);
+    g.inbox.push_back(msg("SBF23 on"));
+    const uint64_t t = 0;
+    frame(g, *e, t);
+    const uint32_t eve_guid = g.mem.get<uint32_t>(g.eve + kGuid);
+    assert(std::string(e->window(g, g.logic, eve_guid, 1, 2100, t)) == "type");
+    assert(std::string(e->window(g, g.logic, 101, 2, 2100, t)) == "type");
+    g.mem.put<uint8_t>(g.by_guid[134] + kPendingDeath, 1);
+    assert(std::string(e->window(g, g.logic, 134, 1, 2100, t)) == "state");
+    assert(e->window(g, g.logic, 101, 1, 2100, t) == nullptr &&
+           g.timed.back() == std::make_tuple(int32_t(1001400), 2.1f, 1.0f));
+    assert(std::string(e->window(g, g.logic, 101, 1, 2100, t)) == "running");
+    for (uint32_t i = 1; i < 32; ++i)
+      assert(e->window(g, g.logic, 101 + i, 1, 2100, t) == nullptr);
+    const size_t timed = g.timed.size();
+    assert(std::string(e->window(g, g.logic, 133, 1, 2100, t)) == "full" && g.timed.size() == timed);
+  }
+  { // The restore check reads SB's own effect clock, never the poise value and never the wall clock alone.
+    Game g;
+    auto e = engine(true, true);
+    g.spawn(101, 5001, 0);
+    g.inbox.push_back(msg("SBF23 on"));
+    uint64_t t = 0;
+    frame(g, *e, t);
+    const auto ours = [&]() -> Game::Body::Running * { // Our 1001400 on 101, once started.
+      for (Game::Body::Running &r : g.body(101).effects)
+        if (r.id == poise::kAddHitDefense)
+          return &r;
+      return nullptr;
+    };
+    // 1. A knockdown inside the window, its own HitDefenseLevel +3 on the copy at the check, our effect ended by SB:
+    //    ok, nothing counted, no latch.
+    assert(e->window(g, g.logic, 101, 1, 300, t) == nullptr);
+    g.knock(101, 3000301);
+    g.mem.put(g.fsb(101) + poise::kHitDefense, 3.0f);
+    for (const uint64_t end = t + 1000; t < end;)
+      frame(g, *e, t += 16);
+    assert(e->counts.unrestored == 0 && e->counts.restore_skipped == 0 && !e->latched());
+    // 2. A pause: no turn for 10 s, our effect still listed with its clock behind; then turns until SB ends it.
+    assert(e->window(g, g.logic, 101, 1, 300, t) == nullptr);
+    frame(g, *e, t += 16);
+    t += 10000;
+    for (const uint64_t end = t + 1000; t < end;)
+      frame(g, *e, t += 16);
+    assert(e->counts.unrestored == 0 && e->counts.restore_skipped == 0 && count(g, "poise not restored") == 0);
+    // 3. Its clock still behind 60 s after the end (a long photo freeze): unchecked, in the snapshot too.
+    assert(e->window(g, g.logic, 101, 1, 300, t) == nullptr);
+    frame(g, *e, t += 16);
+    ours()->left = 1 << 30;
+    g.mem.put(ours()->at + poise::kEffectElapsed, 0.1f);
+    frame(g, *e, t += 61000);
+    assert(e->counts.restore_skipped == 1 && e->snapshot().job.restore_skipped == 1 && e->counts.unrestored == 0);
+    // 4. Listed 0.5 s past its life on its own clock (SB never ended it): one event, windows off for the run, also
+    //    after a new set().
+    g.end(101, poise::kAddHitDefense);
+    assert(e->window(g, g.logic, 101, 1, 300, t) == nullptr);
+    frame(g, *e, t += 16);
+    ours()->left = 1 << 30;
+    g.mem.put(ours()->at + poise::kEffectElapsed, 0.9f);
+    for (const uint64_t end = t + 1000; t < end;)
+      frame(g, *e, t += 16);
+    assert(e->counts.unrestored == 1 && e->snapshot().job.unrestored == 1 && count(g, "poise not restored") == 1);
+    e->set(true, true);
+    assert(std::string(e->window(g, g.logic, 101, 1, 300, t)) == "off");
+  }
+  { // The copy gone or dying before its check: skipped, nothing more read, no latch. A world line drops every check
+    // with no count, as a new session does (a host alone hears no world line after a load): each copy then dying
+    // would count one if its check still ran.
+    Game g;
+    auto e = engine(true, true);
+    for (uint32_t i = 0; i < 4; ++i)
+      g.spawn(102 + i, 5002 + i, 0);
+    g.inbox.push_back(msg("SBF23 on"));
+    uint64_t t = 0;
+    frame(g, *e, t);
+    assert(e->window(g, g.logic, 102, 1, 300, t) == nullptr && e->window(g, g.logic, 103, 1, 300, t) == nullptr);
+    g.unlink(102);                                         // Out of the map.
+    g.mem.put<uint8_t>(g.by_guid[103] + kPendingDeath, 1); // Dying, still in the map.
+    for (const uint64_t end = t + 1000; t < end;)
+      frame(g, *e, t += 16);
+    assert(e->counts.restore_skipped == 2 && e->counts.unrestored == 0 && !e->latched());
+    assert(e->window(g, g.logic, 104, 1, 300, t) == nullptr);
+    g.inbox.push_back(msg("SBF23 world 2"));
+    frame(g, *e, t += 16);
+    g.mem.put<uint8_t>(g.by_guid[104] + kPendingDeath, 1);
+    for (const uint64_t end = t + 1000; t < end;)
+      frame(g, *e, t += 16);
+    assert(e->counts.restore_skipped == 2 && e->counts.unrestored == 0);
+    assert(e->window(g, g.logic, 105, 1, 300, t) == nullptr);
+    e->set(true, true);
+    frame(g, *e, t += 16);
+    g.mem.put<uint8_t>(g.by_guid[105] + kPendingDeath, 1);
+    for (const uint64_t end = t + 1000; t < end;)
+      frame(g, *e, t += 16);
+    assert(e->counts.restore_skipped == 2 && e->counts.unrestored == 0);
   }
 
   // ---- guest_kills=confirmed: the 1 HP floor, ApplyStat(107, +1) on every paired copy, comes off on every way out:
@@ -1793,7 +2019,7 @@ int main() {
     frame(g, *e, t);
     assert(e->guest.linked() == 1 && g.casts.empty());
     g.inbox.push_back(msg("SBF23 place 1 1"));
-    g.inbox.push_back(msg("SBF23 cc 1 101 3000300"));
+    g.inbox.push_back(msg("SBF23 cc 1 101 3000300 1 0"));
     frame(g, *e, t += 16);
     assert(g.casts.size() == 1 && g.casts[0].id == 3000300 && e->counts.frozen == 0);
     while (g.in_cc(g.by_guid[501]))
@@ -2005,6 +2231,14 @@ int main() {
     }
     assert(until(4496 + 30100, "SBF23 own 1 101 G 2\n") && t == 4496 + 30000);
     const uint64_t g2 = t;
+    // Her poise line as the owner (phase 8 Rule B): stale at an older epoch; at hers, the window on our drawn copy.
+    const size_t timed = g.timed.size();
+    g.inbox.push_back(msg("SBF23 poise 1 101 1 1 2100"));
+    frame(g, *e, t += 16);
+    assert(g.timed.size() == timed);
+    g.inbox.push_back(msg("SBF23 poise 1 101 2 1 2100"));
+    frame(g, *e, t += 16);
+    assert(g.timed.size() == timed + 1 && g.timed.back() == std::make_tuple(int32_t(1001400), 2.1f, 1.0f));
     // Ours by our hit once she held it 4 s; her stream's kSkill holds it back meanwhile.
     frame(g, *e, t += 16);
     casts();
@@ -4710,7 +4944,8 @@ int main() {
     g.inbox.push_back(msg("SBF23 on"));
     frame(g, *e, 16);
     const std::string first = lines(g); // Their values wait for the next turn, which reads them scaled.
-    assert(has(first, "SBF23 world 1\nSBF23 scale 1 135 115\nSBF23 up 1 101 5001 0 900 1600\n") && !has(first, " hp "));
+    assert(has(first, "SBF23 world 1\nSBF23 scale 1 135 115\nSBF23 stagger 1 1 1\nSBF23 up 1 101 5001 0 900 1600\n") &&
+           !has(first, " hp "));
     assert(made(0, 101, {{3, 560}, {1, 560}, {13, 30}, {12, 30}}));
     assert(made(0, 102, {{3, 560}, {1, 280}, {13, 30}, {12, 15}}));
     assert(stat(101, 3) == 2160 && stat(101, 2) == 2160 && stat(101, 1) == 2160 && stat(101, 13) == 230);
@@ -4961,7 +5196,7 @@ int main() {
     g.inbox.push_back(msg("SBF23 on"));
     frame(g, *e, 0);
     assert(e->host.linked() == 2 && e->host.bosses() == 200 && boss(202) && !boss(201));
-    assert(has(lines(g), "SBF23 world 1\nSBF23 scale 1 135 115\nSBF23 bosses 1 200\n"
+    assert(has(lines(g), "SBF23 world 1\nSBF23 scale 1 135 115\nSBF23 bosses 1 200\nSBF23 stagger 1 1 1\n"
                          "SBF23 up 1 202 5202 0 15005100 1600\nSBF23 up 1 201 5201 0 7001 1600\n"));
     assert(stat(201, 2) == 2160 && stat(201, 1) == 2160 && stat(201, 13) == 230);
     assert(stat(202, 3) == 3200 && stat(202, 2) == 3200 && stat(202, 1) == 3200 && stat(202, 13) == 230);
@@ -5042,8 +5277,9 @@ int main() {
       g.spawn(101 + i, 5001 + i, 0);
     g.inbox.push_back(msg("SBF23 on")); // The guest's on: the host's whole list.
     frame(g, *e, 0);
-    assert(lines(g) == "SBF23 on\nSBF23 world 1\nSBF23 up 1 101 5001 0 900 1600\nSBF23 up 1 102 5002 0 900 1600\n"
-                       "SBF23 up 1 103 5003 0 900 1600\nSBF23 hp 1 1 0 101:1600:100:200 102:1600:100:200 "
+    assert(lines(g) == "SBF23 on\nSBF23 world 1\nSBF23 stagger 1 1 1\nSBF23 up 1 101 5001 0 900 1600\n"
+                       "SBF23 up 1 102 5002 0 900 1600\nSBF23 up 1 103 5003 0 900 1600\n"
+                       "SBF23 hp 1 1 0 101:1600:100:200 102:1600:100:200 "
                        "103:1600:100:200\n");
     for (const char *hit : {"SBF23 hit 1 1 101 100 0 0 1600 0", "SBF23 hit 1 2 102 100 0 0 1600 0",
                             "SBF23 hit 1 3 103 100 0 0 1600 0"})
@@ -5298,8 +5534,8 @@ int main() {
     g.mem.put<uint32_t>(g.by_guid[912] + kLastPlayer, 1);
     frame(g, *e, 0);
     assert(e->guest.linked() == 2);
-    g.inbox.push_back(msg("SBF23 cc 1 111 3000300"));
-    g.inbox.push_back(msg("SBF23 cc 1 112 3000300"));
+    g.inbox.push_back(msg("SBF23 cc 1 111 3000300 1 0"));
+    g.inbox.push_back(msg("SBF23 cc 1 112 3000300 1 0"));
     frame(g, *e, 16);
     assert(g.casts.size() == 2 && g.mem.get<uint32_t>(g.by_guid[911] + kLastPlayer) == 1);
     assert(count(g, "last player", "set by a mirrored crowd control") == 1);
@@ -5891,7 +6127,9 @@ int main() {
     assert(io.said.empty() && io.traced.size() == 1 &&
            has(io.traced[0], "fight stats: guest, 1 pairs, 3 claims sent, 0 corrections") &&
            has(io.traced[0], "; bosses: 2 summons made, 1 bstart, 4 phase rows (1 refused), 9 finish guards; job: ") &&
-           has(io.traced[0], "Simulate mean 20 us"));
+           has(io.traced[0], "Simulate mean 20 us") &&
+           has(io.traced[0], ", flinches 0 told, 0 mirrored (0 refused), 0 crowd controls under poise, 0 poise windows "
+                             "(0 refused, 0 not restored, 0 unchecked), 0 levels guessed"));
     for (; t <= 62100; t += 16)
       w.pass(t, true, false, true, none, gate, io);
     assert(io.said.empty() && io.traced.size() == 2);
@@ -5920,16 +6158,25 @@ int main() {
     w.pass(t += 1000, true, false, true, none, gate, io);
     assert(has(w.detail(), " spawns=stopped spawned=4 despawned=3 spawns_differ=2 scale="));
     s.spawning = false, s.pilot_why = "fight", s.spawns = SpawnCounts();
-    // The revive's and the travel's guards last: a boss in battle mode, the enemies in battle mode near our EVE, and
-    // the epoch's zone, n and our own resets.
+    // The revive's and the travel's guards after the scaling: a boss in battle mode, the enemies in battle mode near
+    // our EVE, and the epoch's zone, n and our own resets; then phase 8's stagger field.
     assert(has(w.detail(), " bosses=off boss=0 battle=0 epoch=0/0/0"));
     s.boss = true, s.battle = 3, s.zone = 40, s.epoch = 2, s.resets = 1;
     assert(mail.exchange(s));
     w.pass(t += 1000, true, false, true, none, gate, io);
-    assert(has(w.detail(), " bosses=off boss=1 battle=3 epoch=40/2/1 her="));
+    assert(has(w.detail(), " bosses=off boss=1 battle=3 epoch=40/2/1 stagger=") && has(w.detail(), " her="));
     s.boss = false, s.battle = 0, s.zone = 0, s.epoch = 0, s.resets = 0;
     assert(mail.exchange(s));
     w.pass(t += 1000, true, false, true, none, gate, io);
+    // Phase 8 after the guards: the side's hit_reactions/stagger_resist, then its counts.
+    s.reactions = s.resist = true, s.job.unrestored = 2;
+    assert(mail.exchange(s));
+    w.pass(t += 1000, true, false, true, none, gate, io); // The fight= line's counts move each second.
+    assert(has(w.detail(), " stagger=on/on cc_poise=0 flinches=0/0/0 windows=0/0 unrestored=2 level_guess=0"));
+    s.reactions = s.resist = false, s.job.unrestored = 0;
+    assert(mail.exchange(s));
+    w.pass(t += 1000, true, false, true, none, gate, io);
+    assert(has(w.detail(), " stagger=off/off "));
     // Her link lost: paused, nothing sent (she is gone); a new session when she is back.
     io.said.clear();
     w.pass(t += 16, false, false, true, none, gate, io);
@@ -6777,7 +7024,7 @@ int main() {
       assert(!parse_recording(io.file, lines) && lines[0].message.type == Type::world);
       assert(has(io.file, " SBF23 up 1 101 5001 0 900 1600\n") && has(io.file, " SBF23 up 1 102 5002 0 900 1600\n"));
       assert(has(io.file, " 101:1300:100:200") && has(io.file, " SBF23 dead 1 101\n") && !has(io.file, " on"));
-      assert(has(io.file, " SBF23 cc 1 102 3000300\n"));
+      assert(has(io.file, " SBF23 cc 1 102 3000300 1 0\n"));
       recording = io.file;
       // A second session shows none of the first one's counts, not even before its job's first turn.
       assert(w.ask(coop::parse_request("fight record 900"), gate, io).rfind("shared fight record: ", 0) == 0);
@@ -6837,6 +7084,15 @@ int main() {
       run(200);
       w.ask(coop::parse_request("fight off"), gate, io);
       assert(has(io.file, " SBF23 place 1 1\n") && !has(io.file, "aggro"));
+      // reactions and resist: the host's hit_reactions and stagger_resist, from the start's words (each off without
+      // its word), kept as a stagger line. coop fight stagger changes them while it runs: a new line at the next turn.
+      assert(w.ask(coop::parse_request("fight record reactions"), gate, io).rfind("shared fight record: ", 0) == 0);
+      run(200);
+      assert(w.ask(coop::parse_request("fight stagger 0 1"), gate, io) == "stagger: reactions off, resist on");
+      run(100);
+      w.ask(coop::parse_request("fight off"), gate, io);
+      assert(has(io.file, " SBF23 stagger 1 1 0\n") && has(io.file, " SBF23 stagger 1 0 1\n"));
+      assert(!has(io.file, " SBF23 stagger 1 1 1\n"));
       // spawns: the host's same_spawns=on, from the next start; its epoch line is never recorded. The stats line says
       // whether same spawns run, and the epoch.
       H.spawns(), H.zone(0xA1, 40), H.enter(0xA1);
@@ -7055,7 +7311,9 @@ int main() {
     Wire to_host, to_guest;
     to_host.queue.emplace_back(120, "SBF23 on"); // Each worker sends its side's on.
     to_guest.queue.emplace_back(120, "SBF23 on");
-    std::mt19937 rng(1); // A run where both death paths happen and a lost hp line waits for the refresh.
+    // A run where both death paths happen and a lost hp line waits for the refresh. Each line sent takes numbers from
+    // it, so a new line in the host's whole list (stagger, phase 8) needed a new seed.
+    std::mt19937 rng(10);
     std::mt19937 knock_rng(9); // With rng: the knocks' cc lines take their share of its numbers.
     const int32_t kKnocks[] = {9900001, 3000300, 3000401};
     uint64_t knocks[2] = {}; // The host's EVE's, the guest's.
@@ -7192,6 +7450,8 @@ int main() {
       assert(c.caster == H.eve);
     for (const Game::Cast &c : G.casts)
       assert(c.caster == G.eve);
+    assert(H.timed.size() == hc.windows && G.timed.size() == gc.windows && hc.windows + gc.windows > 0);
+    assert(eh->counts.unrestored == 0 && eg->counts.unrestored == 0);
     // 5. No latch, one arm each, no bad line.
     assert(!eh->latched() && !eg->latched() && eh->counts.arms == 1 && eg->counts.arms == 1);
     assert(eh->host.counts.bad == 0 && eg->guest.counts.bad == 0 && eh->counts.no_eve == 0 && eg->counts.no_eve == 0);

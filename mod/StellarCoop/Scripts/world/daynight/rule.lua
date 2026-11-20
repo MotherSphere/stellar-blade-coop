@@ -68,18 +68,18 @@ Rule.NIGHT_DOME_AT=-4 -- Where the moon takes over from the sun (world/daynight/
 function Rule.row(map) return map and Rule.MAPS[map] or nil end
 
 -- The request for the native part with its reason, for s={setting, test ('on'|'off'|nil), pinned (minute|nil), map,
--- cutscene, screen, photo, frozen, night, lobby, story_night}. First match wins. Photo mode goes before SB's screens:
--- SB's photo mode pauses the game (its Pauser, which screen reads), yet it holds the hour. So does frozen: our pause
--- tag held for another player's photo mode, the host's cutscene or coop freeze (the status's photo line, frozen=1).
+-- photo, frozen, night, lobby, story_night}. First match wins. SB's screens, talks and cutscenes are no input: the
+-- world stays in view behind them (SB's menu studio has no sun and no fog). Photo mode holds the hour, so does frozen:
+-- our pause tag held for another player's photo mode, the host's cutscene or coop freeze (the status's photo line,
+-- frozen=1).
 function Rule.decide(s)
     local row=Rule.row(s.map)
     local off=not s.setting and 'daynight=off' or s.test=='off' and 'coop daynight off' or not s.map and 'no map'
         or (not row or row.cycle~='on') and 'fixed map' or s.lobby and 'SBO lobby'
-        or s.story_night and 'Xion story night' or s.cutscene and 'cutscene'
+        or s.story_night and 'Xion story night'
     if off then return 'sky off',off end
     if s.photo then return 'sky hold','photo mode' end
     if s.frozen then return 'sky hold',"another player's pause" end
-    if s.screen then return 'sky off',"the game's menu" end
     local tail=' '..row.hz..' '..row.heading
     if s.pinned then return 'sky hour '..s.pinned..tail,'pinned' end
     if s.night then return 'sky hour 0'..tail,'Night Operation' end

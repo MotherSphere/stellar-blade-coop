@@ -7,7 +7,7 @@ The step-by-step procedures for players are in [INSTALL.md](../../INSTALL.md#sav
 - The mod writes one of your own saves (`StellarBladeSave00.sav` to `04.sav`) only when you export a co-op save over
   it with `coop saves export` (see [Co-op saves](#co-op-saves)), after a backup of that save. It never writes your
   unlocks or equipment. It changes the inventory only when you buy in Night Operation's shop (`coop nightop buy`) or
-  send and take a gift (`coop gift`, see [tools/menus.md](../tools/menus.md#cut-mailbox-coop-gift)), on a co-op save, so the items
+  send and take a gift (`coop gift`, see [cutmenus/menus.md](../cutmenus/menus.md#cut-mailbox-coop-gift)), on a co-op save, so the items
   land in or leave that co-op save, or when you pay 500 betacrystal to bring the bike back at Xion, on any save (see
   [vehicles/bike.md](../vehicles/bike.md#bringing-it-back-at-xion)).
   The shop's points (see [online/modes/nightop-shop.md](../online/modes/nightop-shop.md)), the gifts' mailbox and the place where
@@ -157,7 +157,7 @@ The `convert=` line shows the pass as any other, and `coop-link.log` has `slot N
 `coop saves coop` is refused until that pass ends, since the other slots may have no copy or an older one; once it has
 ended, `coop saves coop` runs its own pass over every slot first.
 
-`coop shortcut load` ([tools/menus.md](../tools/menus.md#loading-one-coop-shortcut-load), with `shortcut_load=on`, the default) writes a
+`coop shortcut load` ([cutmenus/menus.md](../cutmenus/menus.md#loading-one-coop-shortcut-load), with `shortcut_load=on`, the default) writes a
 cleaned developer save as `StellarBladeCoop04.sav` through the same kind of pass, while the game uses the copies: the
 old copy goes to a new folder of `StellarCoopBackups` first, and the new one gets no line in `StellarCoopSaves.txt`, so
 later passes keep it as played. Before the save, it writes `StellarCoopShortcut04.txt` beside it, a mark that names
@@ -190,6 +190,12 @@ copies, and switches neither. As with a refresh, the first time it only says wha
   with `DLC02_`: the camps `coop mxiii` and `coop mxiii 30` add there, their rows, `DLC02_10_EnvS_906` once the kit is
   activated, `DLC02_30_EnvS_900` after the arrival at the third zone's camp, and the dungeon's own rows, which no camp
   of the released game uses);
+- refuses it, before it writes anything, while it names an item of the team shop (`coop teamshop`, see
+  [world/teamshop.md](../world/teamshop.md)): an item name (`ItemAlias`) anywhere in the save or a quick slot name
+  that starts with `SBOTeam_`. The inventory and a pickup left in the world hold such names. So does the game's record
+  of limited buys (`SBShopHistory`). The team shop sells each item once, so that record may keep the item's name after
+  the buy. Nobody has checked yet. The save may then stay a co-op save after EVE no longer holds the item. The refusal
+  names each one;
 - refuses it, before it writes anything, when any other name in the save starts with `DLC02_` (names that start with
   `Zone_DLC02_` excepted): the rows of the dungeon's zones the save keeps once it has played there, such as an enemy's
   saved death, an opened box, a door's state or a pickup. None of the user's 15 released-game saves holds such a name.
@@ -219,9 +225,9 @@ old details. The export has not been tested in game yet.
 
 A save that went through New Game+ also holds a second copy of the inventory and the camps for New Game+
 (`NewGamePlusBaseData`), which playing on does not change. If a co-op save started New Game+ while it held the mod's
-items, Shock Bolts as the selected ammo or the dungeon's camp, that copy keeps them, and the export keeps refusing the
-save; the refusal says so. Only the copy by hand (see [Recovery](#recovery)) takes such a save out, and nothing then checks
-it.
+items, a team shop item, Shock Bolts as the selected ammo or the dungeon's camp, that copy keeps them, and the export
+keeps refusing the save; the refusal says so. Only the copy by hand (see [Recovery](#recovery)) takes such a save out,
+and nothing then checks it.
 
 To get a copy of your own save back in slot 4, use `coop saves refresh 4`; never export a shortcut save. The mark stays
 until a copy of your own save replaces the shortcut save, so if you removed `StellarBladeCoop04.sav` by hand and started

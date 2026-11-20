@@ -38,6 +38,7 @@ if M.link then
         M.took.slow,M.took.booth=0,0 -- Neither may run in this pass.
         if M.off and not M.blocked then M.blocked=M.native_off() end
         for _,line in ipairs(M.link.changes()) do log('link: '..line) end
+        M.guarded('keep',require('core.keep').slow) -- After coop off too: the status's coop_off turns it off.
         M.guarded('daynight',M.daynight.slow,M.off) -- After coop off too: it asks sky off once.
         M.guarded('pause tab',M.pause_tab.slow) -- Asks pausetab on or off; nothing after coop off.
         if not M.off then M.guarded('popups',switch_pass,'hide_popups','popups') end -- Asks popups on or off.
@@ -53,6 +54,8 @@ if M.link then
         if not M.off then M.guarded('gift',M.mailbox.tick) end -- coop gift: likewise.
         if not M.off then M.guarded('sbo',M.sbo.tick,os.clock()) end -- The SBO lobby: likewise.
         if not M.off then M.guarded('halls',M.halls.tick) end -- The hall rows' wait and read-back: likewise.
+        -- The team shop rows' wait and read-back, then its open's answer: likewise.
+        if not M.off then M.guarded('teamshop',M.teamshop.tick) end
         if not M.off then M.guarded('recruiter',M.recruiter.auto) end -- The recruiter at each Xion load, on any save.
         local chatting=M.link.chatting() -- nil: the status was not read, which ends no session.
         local heard=chatting or heard_by_member()
@@ -162,6 +165,8 @@ if M.link then
             M.guarded('lily',M.lily.title,title==true and world~=true,(M.link.saves() or {}).saves=='coop')
             -- The hall lobby maps' rows likewise (lobby pak only), so an SBO lobby can warp to them.
             M.guarded('halls',M.halls.title,title==true and world~=true,(M.link.saves() or {}).saves=='coop')
+            -- The team shop's rows likewise, so coop teamshop on a co-op save finds its ShopTable row.
+            M.guarded('teamshop',M.teamshop.title,title==true and world~=true,(M.link.saves() or {}).saves=='coop')
             -- Her marker carries her name: the ghost's tag is its fallback.
             M.guarded('ghost',M.puppet.marker,M.hud.marking())
             if world or title then M.photo_pause(M.settings.photo_pause=='scenery' and 1 or 0,

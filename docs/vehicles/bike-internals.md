@@ -3,10 +3,10 @@
 The player page is [vehicles/bike.md](bike.md). The bike is `vehicles/bike/ride.lua` (the part, the checks, the mount
 and the dismount, the lean, the pose, the parked bike's place), `vehicles/bike/model.lua` (the riding model),
 `vehicles/bike/park.lua` (the parked bike's rules, its record and its line), `vehicles/bike/stand.lua` (the parked
-bike's actor), `vehicles/bike/others.lua` (the other players' parked bikes), `vehicles/bike/fetch.lua` (the paid fetch
-at Xion), `vehicles/bike/commands.lua` (`coop bike`) and the native part's `game/bike.h` with
-`vehicles/bike/bike_game.inc` and `bike_worker.inc` (the preload and the gate). It is not tested in game yet. The
-addresses are build 26123051's.
+bike's actor), `vehicles/bike/paint.lua` (the paint for EVE's outfit), `vehicles/bike/others.lua` (the other players'
+parked bikes), `vehicles/bike/fetch.lua` (the paid fetch at Xion), `vehicles/bike/commands.lua` (`coop bike`) and the
+native part's `game/bike.h` with `vehicles/bike/bike_game.inc` and `bike_worker.inc` (the preload and the gate). It is
+not tested in game yet. The addresses are build 26123051's.
 
 ## The preload
 
@@ -326,24 +326,44 @@ a 32-byte name.
 - The player controller's `ServerRequest_ItemBucketItemRemove` (`0x1423bfa00`), which `coop gift` already calls, queues
   SB's remove request (type 0x16), whose `Simulate` (`0x141b0cc60`) runs the same `0x141ad8490` and `0x141bdfb10` with
   no category or SaveType filter. Asked for more than she has, it takes what there is, so the count comes first.
-- `0x141be1580` walks the sets that `tools/items.h` reads (the bucket's alias map at `+0x90`, the manager's instance map
-  at `+0x210`, each item's count at `+0x6c`), so the native part's read reaches the betacrystal whatever its ItemTable
-  SaveType.
+- `0x141be1580` walks the sets that `cutmenus/items.h` reads (the bucket's alias map at `+0x90`, the manager's instance
+  map at `+0x210`, each item's count at `+0x6c`), so the native part's read reaches the betacrystal whatever its
+  ItemTable SaveType.
 - SB's code builds the FName `BetaCrystal`; ShopItemTable writes `betacrystal`. FNames compare without case, so
   `BetaCrystal` finds the same alias.
 
-The steps are `coop gift`'s ([The inventory read](../tools/menus-internals.md#the-inventory-read), [The remove, the gift
-and its answer](../tools/menus-internals.md#the-remove-the-gift-and-its-answer)) for one alias and one price. The native
-part reads her count (`items <ask> BetaCrystal <FName index> <FName number>`, the FName found with `FNAME_Find` and read
-back as the alias). Under 500 nothing is removed (`bike fetch refused: you carry <n> betacrystal, 500 needed`). Else,
-unless the game is paused or shows one of its screens, Lua calls `ServerRequest_ItemBucketItemRemove(1, <EVE's GUID>,
-BetaCrystal, 500, -1)` (`remove asked: BetaCrystal x500 of <n> (guid <g>)`), then reads every 0.5 s until the count fell
-by 500. An `unread` or `noeve` answer after the remove is read again. The engine line holds only the last `items=`
-answer, which `coop gift`'s reads share, so a read with no answer after 1 s goes again with its number; the fetch
-numbers its reads from 32768, `coop gift` from 1. 10 s of play without the fall (time paused, in photo mode or in the
-friend's photo mode that pauses ours does not count) or no answer to a read within 5 s fails the payment: `bike fetch
-failed: <why>`, which says the betacrystal may be gone once the remove was asked. `tests/tools/matchmaking_scan_test.py`
-holds `vehicles/bike/fetch.lua` to that one `ServerRequest_` call.
+The steps are `coop gift`'s ([The inventory read](../cutmenus/menus-internals.md#the-inventory-read), [The remove, the
+gift and its answer](../cutmenus/menus-internals.md#the-remove-the-gift-and-its-answer)) for one alias and one price.
+The native part reads her count (`items <ask> BetaCrystal <FName index> <FName number>`, the FName found with
+`FNAME_Find` and read back as the alias). Under 500 nothing is removed (`bike fetch refused: you carry <n> betacrystal,
+500 needed`). Else, unless the game is paused or shows one of its screens, Lua calls
+`ServerRequest_ItemBucketItemRemove(1, <EVE's GUID>, BetaCrystal, 500, -1)` (`remove asked: BetaCrystal x500 of <n>
+(guid <g>)`), then reads every 0.5 s until the count fell by 500. An `unread` or `noeve` answer after the remove is read
+again. The engine line holds only the last `items=` answer, which `coop gift`'s reads share, so a read with no answer
+after 1 s goes again with its number; the fetch numbers its reads from 32768, `coop gift` from 1. 10 s of play without
+the fall (time paused, in photo mode or in the friend's photo mode that pauses ours does not count) or no answer to a
+read within 5 s fails the payment: `bike fetch failed: <why>`, which says the betacrystal may be gone once the remove
+was asked. `tests/tools/matchmaking_scan_test.py` holds `vehicles/bike/fetch.lua` to that one `ServerRequest_` call.
+
+## Paint
+
+`vehicles/bike/paint.lua` holds the paint table, `Paint.BY_MESH`, keyed by the object path of EVE's body mesh (the
+`SkeletalMesh` of her main mesh). The ride's 250 ms pass reads that path after the part step and hands it to the paint
+with two components: the part on EVE and the parked bike's. The paint runs once a second. A component already set for
+that mesh is left alone. Any other is cleared first: its four slots get the bike mesh's own materials back
+(`SetMaterial`, with each material read from the mesh's `Materials`, never from `GetMaterial`). Then, when the table has
+the mesh, each listed slot gets `CreateDynamicMaterialInstance` from that own material with `SetVectorParameterValue`
+per parameter. A component is known by its address and object path, so after a new Lua load (Ctrl+R) or for a new EVE it
+is cleared before it is painted: an earlier load's instance never stays. The ride also clears each parked bike it makes,
+which drops what the paint kept for that address and path. A parked bike made after `coop off` at the freed address and
+path of the removed one is painted again. A failed call leaves the component cleared, with one `bike paint not set on
+...` line per component and mesh. `coop off` clears the part before the parked bike leaves the world. `bike=off` removes
+both. A table that fails `Paint.check` logs `bike paint table refused: <reason>` once at load and paints nothing. The
+ridden part's instances reach ghosts through the capture's dyes. The clear before the first paint runs for every
+outfit, so the part's `OverrideMaterials` then lists the bike's four own material instances. With dyes on, the capture
+sends them as four more material lines of the ridden part, also for an outfit with no paint. They name the bike's own
+instances, so the ghost's bike looks the same. The parked bike's paint stays on the player's own screen, since [the
+bike line](#the-bike-line) carries a map and a pose only.
 
 ## Ghosts
 

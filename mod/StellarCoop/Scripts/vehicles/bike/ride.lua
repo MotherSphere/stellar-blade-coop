@@ -51,6 +51,8 @@
 -- through her mesh's transform. Every 250 ms (self.slow) the anim answer from that pass's status text: the clip played
 -- again when SB ended it, unless the photo mode, a skill or a root-motion move holds her; three ends within 1 s take
 -- her off the bike (SB uses the slot).
+-- Once a second the part and the parked bike take the paint vehicles/bike/paint.lua lists for EVE's body mesh (the
+-- outfit she wears); coop off puts the part's own materials back.
 -- What it writes on the player's own EVE: the part, her main mesh's relative rotation (and its location back at the
 -- end), what vehicles/bike/drive.lua writes; through the native part SB's per-action switches and the custom animation
 -- slot.
@@ -64,6 +66,7 @@ local Doro=require('core.actors')
 local Park=require('vehicles.bike.park')
 local Stand=require('vehicles.bike.stand')
 local Fetch=require('vehicles.bike.fetch')
+local Paint=require('vehicles.bike.paint')
 local T=require('ui.text')
 local valid,value_of,each,find,address,why_of=U.valid,U.value_of,U.each,U.find,U.address,U.why
 local Ride={}
@@ -116,6 +119,8 @@ end
 local function path_of(o) return o:GetFullName():match('^%S+ (.+)$') end
 local function her() return U.her(valid(UE.GetPlayer())) end
 local function math_lib() return find('/Script/Engine.Default__KismetMathLibrary') end
+-- EVE's body mesh as an object path (the paint's key). Raises when it does not read.
+local function body_of(e) return path_of(valid(valid(e.Mesh).SkeletalMesh)) end
 -- The bike part an earlier Lua load made on EVE: her skeletal mesh component that shows Ride.MESH and carries
 -- Ride.TAG, else nil.
 local function find_part(e)
@@ -208,6 +213,7 @@ function Ride.new(o)
     local sent=nil -- Her bike line as the link last took it.
     local offer=nil -- The paid fetch offered at the last refusal: {due (os.clock), pose, camp}.
     local paying=nil -- The offer being paid for, while o.fetch runs.
+    local paint=Paint.new({log=log}) -- The part's and the parked bike's paint for her outfit.
 
     -- The check before a mount (mount true) and every 250 ms while she rides: why she cannot ride now, or nil. w: the
     -- native words. While she rides, the air, a skill, combat, aiming and the free camera are no reason: SB's actions
@@ -296,6 +302,8 @@ function Ride.new(o)
             return log('bike stand not made: '..here.stand_failed)
         end
         here.stand,here.map=d,map
+        -- New to the paint even at the freed address and path of a parked bike removed before (coop off). Never raises.
+        paint.clear({d.mesh})
         stand_store.save(d.path) -- For the next Lua load's sweep (Ctrl+R).
         log(('bike stand made in %.1f ms'):format((os.clock()-began)*1000))
     end
@@ -747,7 +755,10 @@ function Ride.new(o)
     function self.leave()
         local h=here
         local d=h and h.stand
-        if h then h.stand=nil end
+        if h then
+            paint.clear({h.part}) -- Before the stand goes. Never raises.
+            h.stand=nil
+        end
         stand_store.clear()
         if d then Stand.remove(d) end
     end
@@ -791,6 +802,12 @@ function Ride.new(o)
                 log(('bike=off %.0f s after the bike load: asked again: %s'):format(LOAD_AGAIN,tostring(said)))
             end
             if e then part_step(e,w,now) end
+            -- Then the paint of her part and her parked bike, for her body mesh (nil when it does not read). It never
+            -- raises.
+            if e and here then
+                local read,mesh=pcall(body_of,e)
+                paint.step(now,read and mesh or nil,{here.part,here.stand and here.stand.mesh})
+            end
             local why=ride and check(ride,e,w,now)
             if why then return why end
             -- After check: a park it forces is written at the key she rode under.
@@ -863,8 +880,8 @@ function Ride.new(o)
         log('bike restored from coop-bike.txt: '..(ok and said or 'failed ('..why_of(said)..')')
             ..(kept and ', coop-bike.txt kept' or ''))
     end
-    -- coop bike status: the preload, the part, the ride, the values and where the bike is (its distance only from her
-    -- feet on its map).
+    -- coop bike status: the preload, the part, the ride, the values, where the bike is (its distance only from her feet
+    -- on its map) and the paint for her body mesh, named by its whole path (the key a modder copies).
     function self.status()
         local w=Ride.native(status())
         local h=here
@@ -882,8 +899,13 @@ function Ride.new(o)
             end)
             at='parked on '..place.map..(ok and metres and (', %d m away'):format(metres) or '')
         end
-        return ('bike: preload %s, part %s, %s; %s; %s'):format(w and w.load or 'none (no native part)',part,
-            ride and ('riding for %.0f s'):format(os.clock()-ride.since) or 'not riding',table.concat(list,' '),at)
+        local read,mesh=pcall(function() return body_of(her()) end)
+        mesh=read and mesh or nil
+        local paint_word=mesh and ('paint %s for %s'):format(paint.on(mesh) and 'on' or 'off',mesh)
+            or 'paint off (no body mesh read)'
+        return ('bike: preload %s, part %s, %s; %s; %s; %s'):format(w and w.load or 'none (no native part)',part,
+            ride and ('riding for %.0f s'):format(os.clock()-ride.since) or 'not riding',table.concat(list,' '),at,
+            paint_word)
     end
     -- coop bike tune [<name> <value>]: the values, or one changed (clamped) for the next rides of this Lua load.
     function self.tune(name,text)

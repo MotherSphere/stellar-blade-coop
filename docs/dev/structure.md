@@ -2,8 +2,8 @@
 
 The Lua scripts and the native sources have one folder per module in each tree. Most modules sit in the category
 folders `online/`, `fight/`, `world/`, `story/` and `vehicles/`. Two modules have a folder of their own at the top of
-each tree: `eve/` and `tools/`. Modules do not depend on each other, so a module that fails to load is off alone while
-the rest of Stellar Blade Online keeps working.
+each tree: `eve/` and `cutmenus/`. Modules do not depend on each other, so a module that fails to load is off alone
+while the rest of Stellar Blade Online keeps working.
 
 ## Modules
 
@@ -15,8 +15,7 @@ path.
 
 A module's name is its Scripts folder with dots: `online.modes.nightop` is `online/modes/nightop/`, `eve` is `eve/`. The
 category folders (`online/`, `online/modes/`, `fight/`, `world/`, `world/maps/`, `story/`, `vehicles/`) hold no
-`wiring.lua` and no code of their own: they only group modules. The `tools` module is `mod/StellarCoop/Scripts/tools/`
-(the cut menus), not the repository's `tools/` folder.
+`wiring.lua` and no code of their own: they only group modules.
 
 | Module | Players see it as | Lua | Native | Docs | Also owns |
 | --- | --- | --- | --- | --- | --- |
@@ -25,7 +24,7 @@ category folders (`online/`, `online/modes/`, `fight/`, `world/`, `world/maps/`,
 | `fight.bosses` | Cut enemies | `fight/bosses/` | `fight/bosses/` (its rows only) | [Cut enemies](../fight/bosses.md) | `fight/bosses/enemy.lua`, its copy; the Lion's, the Gardener's and the Tendril's rows in `fight/bosses/lion_rows.h`; `fight/bosses/lion_rows.lua`, the Lua list of those rows and of the bolt and shop batches |
 | `online.group` | Group play | `online/group/` | `online/group/` | [Following the host](../players/playing-with-a-friend.md#following-the-host) | |
 | `online.modes.race` | Doro races | `online/modes/race/` | none | [Doro races](../online/modes/race.md) | |
-| `eve` | EVE's cut moves | `eve/` | `eve/` (`debug_keys.h`, the anim and debug parts) | [EVE's cut moves](../eve/eve.md) | The Shock Bolt's rows in `eve/bolt_rows.h`; `eve/chainspin_rows.lua`, its copy of the ChainSpin rows |
+| `eve` | EVE's cut moves | `eve/` | `eve/` (`debug_keys.h`, the anim and debug parts) | [EVE's cut moves](../eve/eve.md) | The Shock Bolt's rows in `eve/bolt_rows.h` (its ammo list grower stays shared in `rows/shock.h`); `eve/chainspin_rows.lua`, its copy of the ChainSpin rows |
 | `story.scenes` | Cut scenes | `story/scenes/` | none | [Cut scenes](../story/scenes.md) | |
 | `world.maps.matrix13` | Matrix XIII | `world/maps/matrix13/` | `world/maps/matrix13/` | [Matrix XIII](../world/matrix13.md), [Lily's signal](../world/lily-signal.md) | Its rows in `world/maps/matrix13/mxiii_rows.h` and `world/maps/matrix13/signal_rows.h`; `world/maps/matrix13/level/boss_rows.lua`, its copy of the Lion's and the Gardener's rows |
 | `online.session` | Online sessions | `online/session/` | `online/session/` | [Playing with a friend](../players/playing-with-a-friend.md) | |
@@ -37,8 +36,9 @@ category folders (`online/`, `online/modes/`, `fight/`, `world/`, `world/maps/`,
 | `online.lobby` | The SBO lobby | `online/lobby/` | `online/lobby/` | [SBO lobby and matches](../online/lobby.md) | Its rows in `online/lobby/halls_rows.h`; its own copy of `coop join` for `coop match join` |
 | `vehicles.bike` | The bike | `vehicles/bike/` | `vehicles/bike/` | [The bike](../vehicles/bike.md) | `vehicles/bike/drive.lua` and `vehicles/bike/drive_model.lua`, its copies |
 | `world.daynight` | Day and night | `world/daynight/` | `world/daynight/` | [Day and night](../world/daynight-internals.md) | |
-| `tools` | Cut menus | `tools/` | `tools/` (`items.h` and its part) | [Cut menus and the mailbox](../tools/menus.md) | |
+| `cutmenus` | Cut menus | `cutmenus/` | `cutmenus/` (`items.h` and its part) | [Cut menus and the mailbox](../cutmenus/menus.md) | |
 | `online.saves` | Co-op saves | `online/saves/` | `online/saves/` | [Saves](../players/saves.md) | |
+| `world.teamshop` | Team shop | `world/teamshop/` | `world/teamshop/` | [Team shop](../world/teamshop.md) | Its rows in `world/teamshop/teamshop_rows.h` |
 | `fight.gunmode` | Gun mode | `fight/gunmode/` | none | [Gun mode](../fight/gunmode.md) | |
 
 ## Shared pieces
@@ -53,9 +53,11 @@ The shared pieces are never turned off. They require and include no module.
 | `ui/text.lua`, `ui/text/` | The text tables, one file per language, with each module's translated name in `modules`; the guide's words; the culture pick |
 | `native/src/game/` | `memory.h` and the headers that more than one module reads |
 | `native/src/link/` | The Steam link |
-| `native/src/rows/` | The row engine every batch shares (`rows.h`, with the table list `kTables`), the batch flow on the game thread (`rows_game.inc`, one job per batch word) and the Shock Bolt's list grower (`shock.h`, which the fight worker's log and a game test read too) |
+| `native/src/rows/` | The row engine every batch shares (`rows.h`, with the table list `kTables`), the batch flow on the game thread (`rows_game.inc`, one job per batch word) and the Shock Bolt's ammo list grower (`shock.h`, which the fight worker's log and a game test read too) |
 | `native/src/ui/` | The controller's events and the pause menu's Online tab |
-| `native/src/glue/` | The Windows side and the hub: `glue/tick.cpp` includes every part in a declared order; `glue/tick/<part>_shared.inc` holds what other modules' parts read of a part |
+| `native/src/glue/` | The Windows side and the hub: `glue/tick.cpp` includes every part in a declared order; `glue/tick/<part>_shared.inc` holds what other modules' parts read of a part (`bike_game_shared.inc`: what the keep reads of the bike's part) |
+| `native/src/game/keep.h`, `native/src/glue/tick/keep_game.inc`, `core/keep.lua` | The keep. Lua writes the paths of the assets modules use where the player sees them to `coop-keep.txt`. The native part asks SB's own async loader for them and holds the handles for the game run, so nothing loads them on the game thread later |
+| `native/src/game/theater.h`, `native/src/glue/tick/theater_game.inc` | SB's theater on the status line (`theater=`), read every 100 ms the way SB's own widgets read it. The talks (`story/scenes`) and the group (`online/group`) read the field instead of walking the object array |
 
 What may go there: a helper that reads no module; a header that another module includes; an item of a part that
 another module's part reads. Everything else stays in its module.
@@ -78,9 +80,10 @@ patches, its recipes, its counts and its `Batch` constants):
 | `world/maps/matrix13/mxiii_rows.h` | `mxiii`, `mxspawn`, `mxenv`, `mxupper`, `mxmiddle`, `mxlower`, `mxlily`, `mxnames`, `mxrecords` | `tools/mxiii_rows.py` |
 | `world/maps/matrix13/signal_rows.h` | `signal` | hand |
 | `online/lobby/halls_rows.h` | `halls` | `tools/sbo_lobby_rows.py` |
+| `world/teamshop/teamshop_rows.h` | `teamshop` | `tools/teamshop_rows.py` |
 
 `rows/rows.h` keeps the engine, the generated `kTables` and one line per batch word naming its header. `glue/tick.cpp`
-includes the six headers right after `rows/rows.h`. The Lua read-back lists follow the code that asks: the lion, bolt
+includes the seven headers right after `rows/rows.h`. The Lua read-back lists follow the code that asks: the lion, bolt
 and shop batches are asked by the Lion object, so their lists stay in `fight/bosses/lion_rows.lua`.
 
 A module that needs rows another module owns gets a generated copy in its own folder, never a `require` of the other
@@ -148,6 +151,9 @@ then the traceback. With the Steam link, the 250 ms loop (`main/pass.lua`) also 
 that names the module by its name in `T.<culture>.modules`. Without the link, the log line is all there is.
 
 ## Adding a module
+
+`tools/new_module.py` does most of these steps for a module in a category: see [New module](modding/new-module.md).
+[Modules](modding/modules.md) shows these steps on `online.lobby` and gives a skeleton module to copy.
 
 1. Pick its place: the category it belongs to (`online/` for what the link shares or runs between players, `fight/`,
    `world/`, `story/`, `vehicles/`), or a folder of its own at the top like `eve/`. Its name is that path with dots

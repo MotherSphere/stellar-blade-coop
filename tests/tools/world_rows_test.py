@@ -8,10 +8,13 @@ task events through chains and the states they set), each that keeps a state out
 directly, through AddEvents and FinishEvents, through the StateZoneEventList, through another env's state that an env
 control row sets, and through a progress control's change tags; the crane's camera tags; a ChangeState achievement on
 the state, on any state of its env, or on a state its events set; an EnvState quest task waiting for the state or for
-a state its events set), the SetEnvActive list (all states kept), each
+a state its events set), the map-progress achievements and the hint completions that hold no state out, the
+SetEnvActive list (all states kept), each
 ZoneEvent rule (chain, missing control row, camp, target pair, target row, progress tags, Disable), unknown names and
-loops in chains, the envs whose progress count leads off the list, Matrix XIII's rows (copies, in-place changes,
-numbered enums), and the written block: sorted, between its markers, the rest of the header untouched, a name that
+loops in chains, the envs whose progress count leads off the list, the pairs a condition trigger sets (its own events
+or its env row's, no state cascade, Save rows only), each zone's saved envs (SaveType, InitStateTag without case,
+InitActivate, the pseudo-zone None), Matrix XIII's rows (copies, in-place changes, numbered enums) and the written
+block: sorted, between its markers, the rest of the header untouched, a name that
 cannot go into a C++ literal refused, and load and main over a folder of table exports.
 Run: python3 tests/tools/world_rows_test.py"""
 import contextlib
@@ -27,9 +30,12 @@ gen = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gen)
 
 
-def spawn(env='Env_EnvState_2Phase', camp='None', events=None, rewards=None):
+def spawn(env='Env_EnvState_2Phase', camp='None', events=None, rewards=None, save='Save', zones=('Zone_A',),
+          init='Off', activate='Enable', trues=()):
     """A ZoneEnvSpawnTable row: events gives TagEventListN by state tag, rewards State_RewardGroupN by N."""
-    row = {'EnvAlias': env, 'TargetCamp': camp}
+    row = {'EnvAlias': env, 'TargetCamp': camp, 'SaveType': f'ESBZoneObjectSaveType::ESBZoneObjSaveType_{save}',
+           'ZoneList': list(zones), 'InitStateTag': init, 'InitActivate': f'ESBObjectState::ESBObject_{activate}',
+           'TriggerTrueEvents': list(trues)}
     for n, (tag, names) in enumerate(list((events or {}).items()) + [('None', [])] * 10, 1):
         if n <= 10:
             row[f'EventTagName{n}'], row[f'TagEventList{n}'] = tag, list(names)
@@ -155,10 +161,29 @@ def test_story():
     assert {a for a, _ in pairs} == {'free'} and events == ['free switch']
 
 
+def test_map_progress():
+    row = achievement('door')
+    assert gen.map_progress('ME_ChangeStateZoneEnv_Door_On', row)
+    assert gen.map_progress('ChangeState_ZoneEnv_ME_04_Guide', row)
+    assert not gen.map_progress('ChangeState_ZoneEnv_ME_04_Guide_2', row)
+    assert not gen.map_progress('Ach_Album_Unlock_Item_Records_DED_Passcode_1_Used', row)
+    for field in ('ProgressAchievementOnCompleted', 'ProgressAchievementOnCompleted2',
+                  'ProgressAchievementArrayOnCompleted'):
+        assert not gen.map_progress('ME_ChangeStateZoneEnv_Door_On', achievement('door', 'Trophy_Open_AllBox', field))
+    t = world({'door': spawn(), 'album': spawn(), 'box': spawn()},
+              achievements={'ME_ChangeStateZoneEnv_Door_On': achievement('door'),
+                            'Ach_Album_Unlock_Item_Records_X_Passcode_1_Used': achievement('album'),
+                            'ChangeState_ZoneEnv_WLB_20_EnvS_099_SupplyBox': achievement('box', 'Trophy_Open_AllBox')})
+    assert gen.state_reasons(t, 'door', 'Open') == []
+    assert gen.state_reasons(t, 'album', 'Open') == ['achievement']
+    assert gen.state_reasons(t, 'box', 'Open') == ['achievement']
+
+
 def test_player_events():
-    assert gen.PLAYER_EVENTS == {'Theater', 'UIAction', 'GuideAction', 'CompleteHint', 'ActivateHint', 'Item',
-                                 'AcquireQuest', 'InteractCamp', 'FinishBossChallenge', 'PlayerWarp', 'ChangeZone',
-                                 'ItemAction', 'StartMatchMaking', 'StopMatchMaking', 'ReturnToSinglePlay'}
+    assert 'CompleteHint' not in gen.PLAYER_EVENTS
+    assert gen.PLAYER_EVENTS == {'Theater', 'UIAction', 'GuideAction', 'ActivateHint', 'Item', 'AcquireQuest',
+                                 'InteractCamp', 'FinishBossChallenge', 'PlayerWarp', 'ChangeZone', 'ItemAction',
+                                 'StartMatchMaking', 'StopMatchMaking', 'ReturnToSinglePlay'}
     for kind in sorted(gen.PLAYER_EVENTS):
         t = world({'lever': spawn(events={'On': ['shown']})}, events={'shown': event(kind)})
         assert gen.state_reasons(t, 'lever', 'On') == [kind] and gen.state_reasons(t, 'lever', 'Off') == []
@@ -167,21 +192,24 @@ def test_player_events():
         assert gen.state_reasons(t, 'lever', 'On') == []
     t = world({'lever': spawn(events={'On': ['set door'], 'Off': ['seq']}), 'door': spawn(events={'On': ['warp']}),
                'counter': spawn('Env_Count'), 'add': spawn(events={'On': ['add one']}), 'zone': spawn('Env_Zone'),
-               'effect': spawn('Env_Effect'), 'crane': spawn('Env_Crane'), 'gate': spawn(events={'On': ['loop a']})},
+               'effect': spawn('Env_Effect'), 'crane': spawn('Env_Crane'), 'gate': spawn(events={'On': ['loop a']}),
+               'hint and scene': spawn(events={'On': ['hint', 'scene']})},
               envs={'Env_Count': env(('Off', 'Full'), progress={'Off': 'Full'}, effects={'Full': ['hint']}),
                     'Env_Zone': env(zone={'On': ['hint']}), 'Env_Effect': env(effects={'On': ['ui']}),
                     'Env_Crane': env(('Off', 'On', 'ResetCam', 'ChangeCam'))},
               events={'set door': event('ZoneEnvControl', 'c door', finish=['done']), 'done': event('PlayLevelSeq'),
                       'warp': event('PlayerWarp'), 'seq': event('PlayLevelSeq', add=['later']),
                       'later': event('UIAction'), 'add one': event('ZoneEnvControl', 'c add'),
-                      'hint': event('CompleteHint'), 'ui': event('UIAction'), 'loop a': event('Spawn', add=['loop b']),
+                      'hint': event('CompleteHint'), 'scene': event('Theater'), 'ui': event('UIAction'),
+                      'loop a': event('Spawn', add=['loop b']),
                       'loop b': event('Spawn', add=['loop a', 'Not_A_Row'])},
               controls={'c door': control('door', 'On'), 'c add': control('counter', kind='StateProgress')})
     assert gen.state_reasons(t, 'door', 'On') == ['PlayerWarp']
     assert gen.state_reasons(t, 'lever', 'On') == ['PlayerWarp']  # Through the door it opens.
     assert gen.state_reasons(t, 'lever', 'Off') == ['UIAction']  # Through AddEvents.
-    assert gen.state_reasons(t, 'add', 'On') == ['CompleteHint']  # The counter's Full, at its count.
-    assert gen.state_reasons(t, 'zone', 'On') == ['CompleteHint']  # StateZoneEventList.
+    assert gen.state_reasons(t, 'add', 'On') == []  # The counter's Full, at its count, closes a hint only.
+    assert gen.state_reasons(t, 'zone', 'On') == []  # StateZoneEventList, a hint only.
+    assert gen.state_reasons(t, 'hint and scene', 'On') == ['Theater']  # The scene holds it out, not the hint.
     assert gen.state_reasons(t, 'effect', 'On') == ['UIAction']  # StateEffectList, with no TagEventList for On.
     assert gen.state_reasons(t, 'crane', 'ResetCam') == ['camera'] == gen.state_reasons(t, 'crane', 'ChangeCam')
     assert gen.state_reasons(t, 'gate', 'On') == []  # A loop and a name with no row end the walk.
@@ -289,6 +317,34 @@ def test_no_progress():
     assert gen.no_progress(t, [('lever', 'Off')]) == []
 
 
+def test_watch():
+    t = world({'plate': spawn('Env_Trigger_Plate', trues=['e1', 'e3']), 'fallback': spawn('Env_Trigger_Plain'),
+               'lever': spawn('Env_Lever', trues=['e5']), 'door': spawn(events={'On': ['e6']}),
+               'reset': spawn(save='ResetZone'), 'odd': spawn(), 'cascaded': spawn()},
+              envs={'Env_Trigger_Plate': env(kind='ESBENV_Trigger'), 'Env_Trigger_Plain': env(kind='ESBENV_Trigger')},
+              events={'e1': event('ZoneEnvControl', 'c1', add=['e2']), 'e2': event('ZoneEnvControl', 'c2'),
+                      'e3': event('ZoneEnvControl', 'c3'), 'e4': event('ZoneEnvControl', 'c4'),
+                      'e5': event('ZoneEnvControl', 'c5'), 'e6': event('ZoneEnvControl', 'c6')},
+              controls={'c1': control('door', 'On'), 'c2': control('reset', 'On'), 'c3': control('odd', 'Gone'),
+                        'c4': control('door', 'Off'), 'c5': control('odd', 'On'), 'c6': control('cascaded', 'On')})
+    t['ZoneEnvTable']['Env_Trigger_Plain']['TriggerTrueEvents'] = ['e4']  # the env row's list, the spawn row's empty
+    assert gen.watch(t, gen.build(t)[0]) == [('door', 'Off'), ('door', 'On')]
+    # Out: reset (ResetZone), odd Gone (no state), odd On (lever is no trigger env), cascaded On (door On's own
+    # events: a state cascade is not followed).
+
+
+def test_zone_envs():
+    t = world({'a': spawn(zones=['Zone_B', 'Zone_A']), 'case': spawn(init='off'), 'none tag': spawn(init='None'),
+               'odd tag': spawn(init='Close'), 'disabled': spawn(activate='Disable'),
+               'no activate': spawn(activate='None'),
+               'reset': spawn(save='ResetZone'), 'none': spawn(save='None'), 'moved': spawn(save='SaveWithTransform'),
+               'box': spawn('Env_SupplyBox_Normal01'), 'extra': spawn(zones=['None', 'Zone_A'])})
+    assert gen.zone_envs(t, gen.build(t)[0]) == [
+        ('Zone_A', 'a', 'Off', 1), ('Zone_A', 'case', 'off', 1), ('Zone_A', 'disabled', 'Off', 2),
+        ('Zone_A', 'extra', 'Off', 1), ('Zone_A', 'no activate', 'Off', 0), ('Zone_B', 'a', 'Off', 1)]
+    # extra: its ZoneList's None is no zone.
+
+
 def test_mxiii():
     # A copy of the lever whose On plays a scene, the door changed in place into a supply box, and env control rows
     # whose enums the file gives as numbers.
@@ -298,7 +354,8 @@ def test_mxiii():
     data = {'batches': [
         {'rows': [{'table': 'ZoneCampTable', 'name': 'Camp_9', 'donor': 'Camp_1', 'set': []},
                   {'table': 'ZoneEnvSpawnTable', 'name': 'mx lever', 'donor': 'lever',
-                   'set': [['EventTagName1', 'On', True], ['TagEventList1', ['scene'], True]]},
+                   'set': [['EventTagName1', 'On', True], ['TagEventList1', ['scene'], True], ['SaveType', 1, True],
+                           ['InitActivate', 2, True]]},
                   {'table': 'ZoneEnvSpawnTable', 'name': 'door', 'donor': 'door',
                    'set': [['EnvAlias', 'Env_SupplyBox_Normal01', True]]}]},
         {'rows': [{'table': 'EventEnvControlTable', 'name': 'c mx', 'donor': 'c open',
@@ -309,18 +366,21 @@ def test_mxiii():
     gen.mxiii(t, data)
     assert t['ZoneEnvSpawnTable']['mx lever']['TagEventList1'] == ['scene']
     assert t['ZoneEnvSpawnTable']['lever']['TagEventList1'] == []  # The donor stays as it was.
+    assert t['ZoneEnvSpawnTable']['mx lever']['SaveType'] == 'ESBZoneObjectSaveType::ESBZoneObjSaveType_Save'
+    assert t['ZoneEnvSpawnTable']['mx lever']['InitActivate'] == 'ESBObjectState::ESBObject_Disable'
     assert t['EventEnvControlTable']['c mx']['Activate'] == 'ESBObjectState::ESBObject_Disable'
     assert t['ZoneEventTable']['mx off']['Type'] == 'ESBZoneEventType::ZoneEvent_ZoneEnvControl'
     assert 'ZoneCampTable' not in t
     pairs, active, events, _ = gen.build(t)
     assert pairs == [('lever', 'Off'), ('lever', 'On'), ('mx lever', 'Off')] and active == ['lever']
     assert events == []  # mx off disables a lever whose On stays local; open's door is a supply box now.
-    for table, field in (('ZoneEventTable', 'Type'), ('EventEnvControlTable', 'Activate')):
-        bad = {'batches': [{'rows': [{'table': table, 'name': 'x', 'donor': 'open' if table == 'ZoneEventTable'
-                                      else 'c open', 'set': [[field, 99, True]]}]}]}
+    for table, donor, field, value in (('ZoneEventTable', 'open', 'Type', 99),
+                                       ('EventEnvControlTable', 'c open', 'Activate', 99),
+                                       ('ZoneEnvSpawnTable', 'lever', 'SaveType', 7)):
+        bad = {'batches': [{'rows': [{'table': table, 'name': 'x', 'donor': donor, 'set': [[field, value, True]]}]}]}
         try:
             gen.mxiii(t, bad)
-            raise AssertionError(f'{field} 99 went in')
+            raise AssertionError(f'{field} {value} went in')
         except ValueError as e:
             assert field in str(e)
 
@@ -330,28 +390,42 @@ def test_render_and_write():
                                                      'y': event('ZoneEnvControl', 'cy')},
               controls={'cz': control('a', 'On'), 'cy': control('b', 'Off')})
     pairs, active, events, counts = gen.build(t)
+    watched = [('door', 'On')]
+    entries = [('Zone_A', 'a', 'Off', 1), ('Zone_A', 'b', 'Off', 1)]
     assert pairs == [('a', 'Off'), ('a', 'On'), ('b', 'Off'), ('b', 'On')] and active == ['a', 'b']
     assert events == ['y', 'z']
-    block = gen.render(pairs, active, events, ['b'], counts)
+    block = gen.render(pairs, active, events, ['b'], counts, watched, entries)
     assert block.startswith(gen.BEGIN) and block.endswith(gen.END)
     assert '    {"a", "Off"},\n    {"a", "On"},\n    {"b", "Off"},' in block
     assert 'constexpr const char *kObjectState[] = {\n    "a",\n    "b",\n};' in block
     assert 'constexpr const char *kEvents[] = {\n    "y",\n    "z",\n};' in block
     assert 'constexpr const char *kNoProgress[] = {\n    "b",\n};' in block
-    assert 'constexpr const char *kNoProgress[] = {\n    "",\n};' in gen.render(pairs, active, events, [], counts)
+    assert 'constexpr const char *kNoProgress[] = {\n    "",\n};' in gen.render(pairs, active, events, [], counts,
+                                                                               watched, entries)
+    assert 'constexpr Pair kWatch[] = {\n    {"door", "On"},\n};' in block
+    assert 'constexpr ZoneEnv kZoneEnvs[] = {\n    {"Zone_A", "a", "Off", 1},\n' in block
+    assert '\n// Watched pairs: 1. Zone entries: 2 over 1 zones.\n' in block
+    assert 'constexpr Pair kWatch[] = {\n    {"", ""},\n};' in gen.render(pairs, active, events, [], counts, [],
+                                                                        entries)
     assert all(len(line) <= 120 for line in block.splitlines())
     for bad in ('a"b', 'a\\b', 'a b', 'é'):
         try:
-            gen.render([(bad, 'On')], active, events, [], counts)
+            gen.render([(bad, 'On')], active, events, [], counts, watched, entries)
         except ValueError as e:
             assert repr(bad) in str(e), e
             continue
         raise AssertionError(f'{bad!r} went into the block')
+    for empty in ((pairs, active, [], [], counts, watched, entries), (pairs, active, events, [], counts, watched, [])):
+        try:
+            gen.render(*empty)
+            raise AssertionError('an empty list went into the block')
+        except ValueError:
+            pass
     try:
-        gen.render(pairs, active, [], [], counts)
-        raise AssertionError('an empty list went into the block')
-    except ValueError:
-        pass
+        gen.render(pairs, active, events, [], counts, watched, [('Zone A', 'a', 'Off', 1)])
+        raise AssertionError('a zone name with a space went into the block')
+    except ValueError as e:
+        assert "'Zone A'" in str(e), e
     with tempfile.TemporaryDirectory() as tmp:
         header = Path(tmp) / 'rows.h'
         header.write_text(f'// top\n{gen.BEGIN}\nold\n{gen.END}\n// bottom\n')
@@ -380,7 +454,7 @@ def test_load_and_main():
         finally:
             gen.HEADER, gen.MXIII = saved
         assert out.getvalue().startswith('4 pairs over 2 rows, 2 SetEnvActive rows, 1 ZoneEvent rows, '
-                                         '0 rows without progress\n')
+                                         '0 rows without progress, 0 watched pairs, 2 zone entries over 1 zones\n')
         text = header.read_text()
         assert '{"a", "Off"},' in text and '"z",' in text and text.count(gen.BEGIN) == 1
 

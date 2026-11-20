@@ -18,6 +18,9 @@ local fight_wanted=fight_auto
 -- pilot off at once, on coop fight pilot on (place_wanted: the value last acted on). With none asked, the next coop
 -- fight on carries the setting.
 local place_wanted=M.settings~=nil and M.settings.same_place
+-- The co-op menu's hit_reactions and stagger_resist rows the same way: a change of either asks coop fight stagger with
+-- both (stagger_wanted: the values last acted on).
+local stagger_wanted={M.settings~=nil and M.settings.hit_reactions,M.settings~=nil and M.settings.stagger_resist}
 -- shared_enemies=off is a kill switch at a reload too (Ctrl+R): the native part outlives Lua, so a coop fight on that an
 -- earlier load started ends here, waiting or running (its fight= line, from the start of its own line). A probe, record
 -- or replay goes on: shared_enemies does not gate them.
@@ -190,7 +193,8 @@ if M.link then
         end
         pilot_was=state
     end
-    -- The co-op menu's shared_enemies and same_place rows, then coop fight on once a load (main/pass.lua calls this).
+    -- The co-op menu's shared_enemies, same_place, hit_reactions and stagger_resist rows, then coop fight on once a
+    -- load (main/pass.lua calls this).
     function M.fight_asks()
         if M.settings.shared_enemies~=fight_wanted and not M.off then -- The co-op menu's row.
             fight_wanted=M.settings.shared_enemies
@@ -206,6 +210,15 @@ if M.link then
             if mode and mode~='probe' then
                 local ok,message=M.ask(place_wanted and 'fight pilot on' or 'fight pilot off')()
                 M.report(ok,'same_place='..(place_wanted and 'on' or 'off')..': '..tostring(message))
+            end
+        end
+        local reactions,resist=M.settings.hit_reactions,M.settings.stagger_resist
+        if (reactions~=stagger_wanted[1] or resist~=stagger_wanted[2]) and not M.off then -- The co-op menu's rows.
+            stagger_wanted={reactions,resist}
+            local mode=(M.link.fight() or ''):match('^fight=%a+ mode=(%a+)')
+            if mode and mode~='probe' then
+                local ok,message=M.ask(string.format('fight stagger %d %d',reactions and 1 or 0,resist and 1 or 0))()
+                M.report(ok,'stagger: '..tostring(message))
             end
         end
         if fight_auto and not M.off then

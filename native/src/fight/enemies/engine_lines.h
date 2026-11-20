@@ -19,6 +19,7 @@ inline void Engine::saw(const Message &m) {
     for (size_t i = 0; i < summoned_count_; ++i)
       summoned_[i].sent = false, summoned_[i].next = 0;
     std::fill(std::begin(refused_), std::end(refused_), Refused());
+    windows_.clear(); // Rule B: their checks dropped; SB still ends each window itself.
     return owners_.clear(), own_in_.clear(), execs_.clear();
   case Type::place:
     if (!m.place)

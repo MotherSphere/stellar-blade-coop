@@ -36,7 +36,8 @@ void world_link_hook(int64_t *node) {
 __declspec(noinline) void world_body(std::vector<std::string> &in, world::Gates gates, std::string &line) {
   try { // coop_tick never throws: out of memory turns the shared world off for the run, as a fault does.
     world_engine.base = base;
-    gates.in_game = (world_sync.queued() || !in.empty()) && world_in_game();
+    // Read whenever the feature is open too: the watcher, the zone ask and the walk need it, not only her lines.
+    gates.in_game = (world_sync.open(gates) || world_sync.queued() || !in.empty()) && world_in_game();
     for (const std::string &l : in)
       world_sync.receive(l, gates);
     world_applying = true;

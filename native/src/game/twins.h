@@ -189,6 +189,9 @@ constexpr ModItem kModItems[] = {{"HP2Burst_Potion", "Burst Stimpack"},
 // (DLC02_10_Camp_01, a full camp: world/maps/matrix13/mxiii_rows.h's kMxiiiPatches keep its CampType 3) and its rows
 // (DLC02_10_EnvS_900, the kit 901 to 906) are named the same way, so no released-game save holds such a name as a camp.
 constexpr char kMxiiiMap[] = "MXIII_P", kMxiiiRows[] = "DLC02_";
+// The team shop's items (world/teamshop): every alias tools/teamshop_rows.py writes starts with it, so a new item needs
+// no line here.
+constexpr char kTeamItems[] = "SBOTeam_";
 // The ammo SB ships in its const BulletItemSlotArray (rows/shock.h's kShippedBullets); rows/shock.h appends the Shock
 // Bolt after them, so a selected ammo index of 5 or more is the Shock Bolt.
 constexpr int32_t kShippedBullets = 5;
@@ -226,6 +229,7 @@ inline std::pair<size_t, size_t> snapshot(const std::string &b) {
 // tracked one included, and keeps a finished one's in CompleteQuestList, so no play takes them out.
 // Matrix XIII's records (the mxrecords batch) count as well: the save keeps their unlock achievements and red dots by
 // alias, and nothing takes a record out.
+// A team shop item (kTeamItems) counts where the mod's items do, by any alias with the prefix.
 inline std::string mod_only(const std::string &b) {
   const std::pair<size_t, size_t> kept = snapshot(b);
   // Where bytes at an offset are: 1 the save as played, 2 its New Game+ snapshot; where(bytes) ors them, 0 nowhere.
@@ -271,10 +275,35 @@ inline std::string mod_only(const std::string &b) {
     if (index >= kShippedBullets)
       shock |= in(at);
   }
+  // The team shop's items: an FString whose characters start at `at` of s with kTeamItems, its length before them
+  // ending on its NUL, kept once by where (w).
+  std::vector<std::string> team[3];
+  auto team_item = [&team](const std::string &s, size_t at, int w) {
+    int32_t n = 0;
+    if (at < 4 || at > s.size() || s.compare(at, sizeof kTeamItems - 1, kTeamItems))
+      return;
+    std::memcpy(&n, s.data() + at - 4, 4);
+    if (n <= int32_t(sizeof kTeamItems) || at + size_t(n) > s.size() || s[at + size_t(n) - 1] != 0)
+      return;
+    const std::string alias = s.substr(at, size_t(n) - 1);
+    for (int i : {1, 2})
+      if ((w & i) && std::find(team[i].begin(), team[i].end(), alias) == team[i].end())
+        team[i].push_back(alias);
+  };
+  // An ItemAlias NameProperty's value: its int64 size and the GUID's flag, then the FString's length.
+  const std::string field = fstring("ItemAlias") + fstring("NameProperty");
+  for (size_t at = b.find(field); at != std::string::npos; at = b.find(field, at + 1))
+    team_item(b, at + field.size() + 13, in(at));
+  for (const auto &slot : slots)
+    for (size_t at = slot.first.find(kTeamItems); at != std::string::npos; at = slot.first.find(kTeamItems, at + 1))
+      team_item(slot.first, at, slot.second);
   auto add = [](std::string &list, const std::string &s, const char *comma) {
     list += (list.empty() ? "" : comma) + s;
   };
-  std::string items[3], places[3]; // By where: [1] the save as played, [2] its New Game+ snapshot.
+  std::string items[3], places[3], teams[3]; // By where: [1] the save as played, [2] its New Game+ snapshot.
+  for (int i : {1, 2})
+    for (const std::string &alias : team[i])
+      add(teams[i], alias, ", ");
   for (const ModItem &item : kModItems) {
     int w = where(name_field("ItemAlias", item.alias));
     for (const auto &slot : slots)
@@ -300,6 +329,8 @@ inline std::string mod_only(const std::string &b) {
         "the mod's items " + items[1] + ": use them up or sell them, and take them off the quick slots (Beta Seeds go "
                                         "back to the wallet when coop nightop shop closes)",
         "; ");
+  if (!teams[1].empty()) // Not the mod items' advice: it names the aliases and gives no way out.
+    add(why, "the team shop's items " + teams[1] + ": this save stays a co-op save while EVE holds one", "; ");
   if (shock & 1)
     add(why, "Shock Bolts as the selected ammo: switch to another ammo", "; ");
   if (!places[1].empty()) // A full camp's rest sets the camp and the last full camp to it, and moves the map.
@@ -310,6 +341,8 @@ inline std::string mod_only(const std::string &b) {
         "; ");
   if (!items[2].empty())
     add(stuck, "the mod's items " + items[2], " and ");
+  if (!teams[2].empty())
+    add(stuck, "the team shop's items " + teams[2], " and ");
   if (shock & 2)
     add(stuck, "Shock Bolts as the selected ammo", " and ");
   if (!places[2].empty())
@@ -340,7 +373,7 @@ inline std::string mod_only(const std::string &b) {
                         std::pair<const char *, const char *>{"On Time", "Quest_Sub_MX13_01"}})
     if (where(fstring(q.second)))
       add(quests, std::string(q.first) + " (" + q.second + ")", " and "), ++held;
-  if (stuck.empty() && !why.empty() && !held && !rows)
+  if (stuck.empty() && !why.empty() && teams[1].empty() && !held && !rows)
     why += "; then save and export it again";
   if (rows)
     add(why,

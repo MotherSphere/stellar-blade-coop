@@ -25,7 +25,7 @@
 //   SBC<protocol> mark <n> [<text>] (coop mark: a numbered line in both players' logs).
 //   SBC<protocol> race <text> (a Doro race line, online/modes/race/model.lua's, printable ASCII; the link reads no
 //   further).
-//   SBC<protocol> gift <payload> (coop gift, tools/mailbox.lua: "s <id> <alias> <count>" a gift sent, "a <id>" kept
+//   SBC<protocol> gift <payload> (coop gift, cutmenus/mailbox.lua: "s <id> <alias> <count>" a gift sent, "a <id>" kept
 //   in the friend's mailbox, "n <id> <why>" refused; gift_ok()).
 //   SBC<protocol> bike park <map> <x> <y> <z> <pitch> <yaw> <roll> or SBC<protocol> bike none (her parked bike,
 //   vehicles/bike/ride.lua: its map, whole centimetres, hundredths of a degree; bike_ok()).
@@ -106,11 +106,15 @@ constexpr int kProtocol = 23; // Bump on any wire change. 1 was the first link (
                               // protocol-22 peer would count invalid; a protocol-22 game would also leave a lobby of
                               // 3; 23 also adds the cycle line (each game's New Game+ count and difficulty) and the
                               // bike line on channel 0 (where each player's parked bike stands), which a protocol-22
-                              // peer would count invalid. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage
-                              // 2's builds, 11: v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14:
-                              // v0.7.0-beta.1, 17: a v0.7.5 test build, 18: v0.7.5, 19: v0.8.0 to v0.10.0, 20:
-                              // v0.11.0; 15, 16, 21 and 22 were never released) is told why: the lobby tag, then the
-                              // hello's reject, name both.
+                              // peer would count invalid; 23 also adds the shared world's catch-up lines
+                              // (c ask, c, c end) on channel 2, which an earlier protocol-23 development build counts
+                              // malformed; 23 also carries the hit's level and the reaction's time on channel 2's cc
+                              // line, with the new stagger and poise lines there, which an earlier protocol-23 build
+                              // drops as malformed lines (said once a session). An older peer (6: v0.1.1, 7: v0.2.0, 9:
+                              // v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1
+                              // to beta.3, 14: v0.7.0-beta.1, 17: a v0.7.5 test build, 18: v0.7.5, 19: v0.8.0 to
+                              // v0.10.0, 20: v0.11.0; 15, 16, 21 and 22 were never released) is told why: the lobby
+                              // tag, then the hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -548,7 +552,7 @@ inline bool split(const std::string &text, std::string *fields, size_t count, st
   return true;
 }
 
-// coop gift's line (tools/mailbox.lua), reliable: "s <id> <alias> <count>" (a gift sent: its id, 1 to 20 digits and
+// coop gift's line (cutmenus/mailbox.lua), reliable: "s <id> <alias> <count>" (a gift sent: its id, 1 to 20 digits and
 // not 0, an item alias as alias_word() takes it, 1 to kMaxGiftCount items), "a <id>" (the gift is in the friend's
 // mailbox) or "n <id> <why>" (refused: why in 1 to 16 letters a-z). Lua checks the item against its own list; the link
 // reads no further.
@@ -846,12 +850,14 @@ inline std::string masked(std::string_view text) {
 // and "replay off"; for the Night Operation probe (Phase 6, T6 only) "nightop" (start the read-only poller) and
 // "nightop rule" (start it if needed and arm the verdict, once a run); for the shared fight (Phase 11,
 // fight/enemies/engine.h's Worker) "fight on|probe|record|replay [confirmed] [fought] [scale <hp %> <balance %>]
-// [place] [aggro-host] [bosses <boss %>] [spawns] [extra <n>] [filter] [<charId> ...]" (guest_kills=confirmed;
-// kill_credit=fought; the host's two-player scaling, kMinScale to kMaxScale each; the host's same_place=on; the host's
-// aggro=host; the host's bosses=on with its boss_hp_scale, kMinScale to kMaxScale; the host's same_spawns=on, or with
+// [place] [aggro-host] [bosses <boss %>] [reactions] [resist] [spawns] [extra <n>] [filter] [<charId> ...]"
+// (guest_kills=confirmed; kill_credit=fought; the host's two-player scaling, kMinScale to kMaxScale each; the host's
+// same_place=on; the host's aggro=host; the host's bosses=on with its boss_hp_scale, kMinScale to kMaxScale; the host's
+// hit_reactions=on and stagger_resist=on (phase 8); the host's same_spawns=on, or with
 // probe coop fight spawn probe; the host's enemy_extra, 1 to kMaxExtra; filter, with on and probe only: our
 // spawn_filter=on, a word of this request and never a line on the wire; fight_chars, at most kMaxFightChars, none:
-// every Monster), "fight off", "fight status", "fight test
+// every Monster), "fight stagger <0|1> <0|1>" (the host's hit_reactions and stagger_resist, at once), "fight off",
+// "fight status", "fight test
 // hp|sh|st <change>" (whole units, with or without a sign), "fight test kill", and for same-place enemies
 // (glue/tick.cpp's) "fight pilot probe" (the lines this side sends, into coop-fight.log), "fight pilot on" (our
 // same_place on now, the co-op menu's row), "fight pilot off" (the probe off, and same-place enemies off until the next
@@ -882,8 +888,8 @@ inline std::string masked(std::string_view text) {
 // ..." or "camps <id> none <why>" (the camps lines, relayed to the friend by link/core.h), and "travel <alias> <FName
 // index> <FName number>" (the call on the game thread, glue/tick.cpp: an index above 0, both within 32 bits); "mark" or
 // "mark <text>" (a numbered line in both players' logs, the text chat_clean() to kMaxMark bytes, maybe empty); for coop
-// gift (tools/mailbox.lua) "gift <payload>" (a gift line for the friend, gift_ok()) and "items <ask> <alias> <FName
-// index> <FName number>" (how many of that item our EVE carries, read by the worker, tools/items.h: ask 1 to 65535,
+// gift (cutmenus/mailbox.lua) "gift <payload>" (a gift line for the friend, gift_ok()) and "items <ask> <alias> <FName
+// index> <FName number>" (how many of that item our EVE carries, read by the worker, cutmenus/items.h: ask 1 to 65535,
 // answered in the engine line's items=; index above 0, both within 32 bits); and for coop lion (fight/bosses/lion.lua)
 // "lion rows <Table>=0x<address> ...", for coop gardener fight (fight/bosses/gardener.lua) "gardener rows
 // <Table>=0x<address> ...", for coop tendril fight (fight/bosses/tendril.lua) "tendril rows <Table>=0x<address> ...",
@@ -893,13 +899,14 @@ inline std::string masked(std::string_view text) {
 // signal (world/maps/matrix13/quest/on_time.lua) "signal rows <Table>=0x<address> ..." and for Matrix XIII's other
 // batches (world/maps/matrix13/level/travel.lua) "mxspawn rows ...", "mxenv rows ...", "mxupper rows ...", "mxmiddle
 // rows ...", "mxlower rows ...", "mxnames rows ...", "mxlily rows ..." and "mxrecords rows ..." and for the hall
-// lobbies (online/lobby/halls_rows.lua) "halls rows ..." (that batch of online/lobby/halls_rows.h for SB's AddRow,
-// rows/rows_game.inc: one word for each table the batch writes, 1 to 39 of the kLionTables, in any order, each once,
-// its address in 1 to 16 hex digits and plausible; a table left out stays 0, and a batch that writes it refuses it as
-// no UDataTable; Request::batch says which). Lua finds the tables by their fixed paths, so no console argument reaches
-// an address, and the native part trusts none before it checked the table's vtable and row size (rows/rows.h). For coop
-// emote (eve/emote.lua) "anim play <id> <path> once|loop" (one of EVE's clips on her through SB's custom animation
-// call, eve/anim_game.inc: an id from 1 to 2^32-1, a path game/anim.h's path_ok takes) and "anim stop" (ours, while it
+// lobbies (online/lobby/halls_rows.lua) "halls rows ..." and for the team shop (world/teamshop/shop.lua) "teamshop rows
+// ..." (that batch of online/lobby/halls_rows.h or world/teamshop/teamshop_rows.h for SB's AddRow, rows/rows_game.inc:
+// one word for each table the batch writes, 1 to 39 of the kLionTables, in any order, each once, its address in 1 to 16
+// hex digits and plausible; a table left out stays 0, and a batch that writes it refuses it as no UDataTable;
+// Request::batch says which). Lua finds the tables by their fixed paths, so no console argument reaches an address, and
+// the native part trusts none before it checked the table's vtable and row size (rows/rows.h). For coop emote
+// (eve/emote.lua) "anim play <id> <path> once|loop" (one of EVE's clips on her through SB's custom animation call,
+// eve/anim_game.inc: an id from 1 to 2^32-1, a path game/anim.h's path_ok takes) and "anim stop" (ours, while it
 // plays). For the bike (vehicles/bike/ride.lua): "anim play <id> <path> ride" (a loop with her foot IK off) and "bike
 // load <path>" (the bike's mesh and that riding clip preloaded, game/bike.h's clip_ok), "bike free" (the preload
 // released), "bike gate on" and "bike gate off" (SB's actions off while she rides, then back); for coop shortcut
@@ -909,7 +916,8 @@ inline std::string masked(std::string_view text) {
 // Night Operation shop in SB's own shop screen (online/modes/nightop/shop.lua, online/modes/nightop/shop_ui.h)
 // "nightshop open" (Shop_NightOperation_Coop), "nightshop open bolt" (Shop_NightOperation_CoopBolt), "nightshop close"
 // and "nightshop watch" (the reads only); for Roxanne's Night Operation choices (online/modes/nightop/roxanne.lua,
-// online/modes/nightop/roxanne.h) "roxanne on" and "roxanne off"; for Lily's signal choice
+// online/modes/nightop/roxanne.h) "roxanne on" and "roxanne off"; for the team shop in SB's own shop screen
+// (world/teamshop/shop.lua, world/teamshop/shop_ui.h) "teamshop open" (SBOTeam_Shop); for Lily's signal choice
 // (world/maps/matrix13/quest/on_time.lua, the same header) "lily on" and "lily off"; for the mod's own quests
 // (world/maps/matrix13/quest/on_time.lua, story/quests/own.h) "signal watch" (the reads only, from then on), "signal
 // acquire" (acquire On Time), "signal complete" (its M01 task's Complete), "signal prologue" (acquire the prologue),
@@ -922,7 +930,7 @@ enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
   signal, match, mute, sbo, guardtext, hud, loading, world, scenes, bike, block, unblock, list, where, rules, sky,
-  pausetab, popups
+  pausetab, popups, teamshop
 };
 // match: "match search <mode> <room> <hall>" (quick match: join an open Public lobby of that mode and hall, or host
 // one), "match create <mode> <room> <hall>" (a private match lobby joined with its code), "match cancel" (forget the
@@ -936,11 +944,11 @@ enum class MatchAsk : uint8_t { search, create, cancel, end };
 constexpr const char *kShortcutMaps[4] = {"B07", "F02", "G03", "Matrix_XI"};
 // The words of the rows requests, one a batch of a module's row header (rows/rows.h names each one's: kLion, kGardener,
 // kTendril, kBolt, kMxiii, kShop, kSignal, kMxspawn, kMxenv, kMxupper, kMxmiddle, kMxlower, kMxnames, kMxlily,
-// kMxrecords, kHalls), in Request::batch's order.
-constexpr size_t kRowWordCount = 16;
+// kMxrecords, kHalls, kTeamshop), in Request::batch's order.
+constexpr size_t kRowWordCount = 17;
 constexpr const char *kRowWords[kRowWordCount] = {"lion",   "gardener", "tendril", "bolt",    "mxiii",    "shop",
                                                   "signal", "mxspawn",  "mxenv",   "mxupper", "mxmiddle", "mxlower",
-                                                  "mxnames", "mxlily", "mxrecords", "halls"};
+                                                  "mxnames", "mxlily", "mxrecords", "halls", "teamshop"};
 // The tables the rows of every batch go into (rows/rows.h's Table, in this order), as their assets are named.
 constexpr size_t kLionTableCount = 39;
 constexpr const char *kLionTables[kLionTableCount] = {
@@ -970,7 +978,7 @@ constexpr const char *kSignalWords[kSignalWordCount] = {"watch",  "acquire", "co
 // closed (shown as Private: nobody can join).
 enum class Who { friends, everyone, invitation, closed };
 // pvp: the PvP test (design 13), fight pvp off its end.
-enum class Fight { none, on, off, status, probe, test, record, replay, pilot, pvp };
+enum class Fight { none, on, off, status, probe, test, record, replay, pilot, pvp, stagger };
 // fight pilot ...; bstart to summon: stage 5's probes (fight/enemies/engine.h's Engine::boss_test).
 enum class PilotAsk : uint8_t { probe, on, off, status, test, target, exec, bstart, phase, finish, summon };
 // fight pilot test: how far the drawn side goes, each adding to the one before: our freeze only; its movement component
@@ -1021,6 +1029,8 @@ struct Request {
   bool place = false;          // fight on, probe, record, replay: same_place=on (a host's).
   bool aggro_host = false;     // fight on, probe, record, replay: aggro=host (a host's; aggro=game otherwise).
   uint16_t bosses = 0;         // fight on, probe, record, replay: bosses=on with boss_hp_scale in % (a host's; 0: off).
+  bool reactions = false;      // fight on, probe, record, replay, stagger: hit_reactions=on (a host's).
+  bool resist = false;         // fight on, probe, record, replay, stagger: stagger_resist=on (a host's).
   bool spawns = false;         // fight on, record, replay: same_spawns=on (a host's); probe: coop fight spawn probe.
   uint8_t extra = 0;           // fight on, record, replay: enemy_extra, 1 to 3 (a host's; 0: none).
   bool filter = false;         // fight on, probe: spawn_filter=on (the guest's own; with probe, its pass-through test).
@@ -1096,6 +1106,10 @@ inline Request parse_fight(const std::string &text) {
       r.bosses = static_cast<uint16_t>(v);
       ++i;
     }
+    r.reactions = i < w.size() && w[i] == "reactions";
+    i += r.reactions;
+    r.resist = i < w.size() && w[i] == "resist";
+    i += r.resist;
     r.spawns = i < w.size() && w[i] == "spawns";
     i += r.spawns;
     if (i < w.size() && w[i] == "extra") {
@@ -1133,6 +1147,9 @@ inline Request parse_fight(const std::string &text) {
     r.fight = Fight::pilot;
     r.pilot = ask == std::end(kAsks) ? PilotAsk::test : PilotAsk(uint8_t(PilotAsk::target) + (ask - std::begin(kAsks)));
     r.test = at == std::end(kTests) ? PilotTest::replay : PilotTest(at - std::begin(kTests));
+  } else if (what == "stagger" && w.size() == 3 && (w[1] == "0" || w[1] == "1") && (w[2] == "0" || w[2] == "1")) {
+    r.fight = Fight::stagger;
+    r.reactions = w[1] == "1", r.resist = w[2] == "1";
   } else if (what == "pvp" && (w.size() == 1 || (w.size() == 2 && w[1] == "off"))) {
     r.fight = Fight::pvp;
     r.off = w.size() == 2;
@@ -1415,6 +1432,8 @@ inline Request parse_request(std::string text) {
              : text[10] == 'o' ? ShopAsk::open
              : text[10] == 'c' ? ShopAsk::close
                                : ShopAsk::watch;
+  } else if (text == "teamshop open") {
+    r.command = Command::teamshop;
   } else if (text == "roxanne on" || text == "roxanne off") {
     r.command = Command::roxanne;
     r.on = text.size() == 10;

@@ -9,9 +9,10 @@
 //   mxiii, mxspawn, mxenv, mxupper, mxmiddle, mxlower, mxlily, mxnames, mxrecords: world/maps/matrix13/mxiii_rows.h
 //   signal: world/maps/matrix13/signal_rows.h
 //   halls: online/lobby/halls_rows.h
+//   teamshop: world/teamshop/teamshop_rows.h
 // A Batch names its rows, its patches and the word its status line, log lines and request start with ("lion",
-// "gardener", "tendril", "bolt", "mxiii", "shop", "signal", "halls": coop-status.txt's shock line is rows/shock.h's);
-// every batch shares the table checks, the block and the rules below, and each keeps its own Builder.
+// "gardener", "tendril", "bolt", "mxiii", "shop", "signal", "halls", "teamshop": coop-status.txt's shock line is
+// rows/shock.h's); every batch shares the table checks, the block and the rules below, and each keeps its own Builder.
 //
 // SB reads CharacterTable, SkillTable and CharacterStanceTable by ID through maps that only its own AddRow fills (the
 // table's vtable slot +0x2b0), so every row goes in through that call, on the game thread with no logic task in flight
@@ -63,10 +64,10 @@ constexpr size_t kInitFlag = 8, kIdAt = 0x10;
 constexpr size_t kRowBytes = 0x1000, kPoolBytes = 0x1000, kBlock = kRowBytes + kPoolBytes;
 
 // The 39 tables, in coop::kLionTables' order (link/protocol.h): Lua's rows requests (lion, gardener, tendril, bolt,
-// mxiii, shop, signal, mxspawn, mxenv, mxupper, mxmiddle, mxlower, mxnames, mxlily, mxrecords, halls) name those their
-// batch writes, each with its address. kTables describes them all: the generated part's, the two zone tables camp
-// (ZoneCampTable) and env (ZoneEnvSpawnTable) and trigger (ZoneTriggerTable), which Matrix XIII's batches write (env
-// also the halls batch's seats), the five only Lily's signal batch writes: quest (QuestTable), group
+// mxiii, shop, signal, mxspawn, mxenv, mxupper, mxmiddle, mxlower, mxnames, mxlily, mxrecords, halls, teamshop) name
+// those their batch writes, each with its address. kTables describes them all: the generated part's, the two zone
+// tables camp (ZoneCampTable) and env (ZoneEnvSpawnTable) and trigger (ZoneTriggerTable), which Matrix XIII's batches
+// write (env also the halls batch's seats), the five only Lily's signal batch writes: quest (QuestTable), group
 // (QuestTaskGroupTable), task (QuestTaskTable), target (LevelTargetFilter) and select (TheaterSelectDataTable, whose ID
 // the batch neither writes nor checks: it only patches a shipped row in place), then the seven only Matrix XIII's
 // batches write (world/maps/matrix13/mxiii_rows.h): spawn (EventSpawnTable), eitem (EventItemTable), zevent

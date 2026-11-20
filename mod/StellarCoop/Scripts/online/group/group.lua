@@ -35,9 +35,9 @@
 -- with revive=on and coop revive test's guards, when her interact key was held next to our EVE ('friend', on her night
 -- line) or for coop nightop revive ('self'), with the same fallback, result line and hidden death screen; the revived
 -- notice only after the friend's revive.
--- The host's cutscene, on both PCs once a second while linked: SB's theater observers (walked for as theater() says); a
--- cutscene plays while one of them has a valid player whose IsPlaying() is true (on and off logged with its sequence's
--- name).
+-- The host's cutscene, on both PCs once a second while linked: from the status line's theater= field when the native
+-- part gives it; else SB's theater observers (walked for as theater() says), a cutscene playing while one of them has
+-- a valid player whose IsPlaying() is true (on and off logged with its sequence's name).
 -- The host's photo state goes to the native part as 'c' while it plays and the host's own is '0' (photo()), so its
 -- photo line pauses the guest; the guest asks for that pause with cut=1 while her cutscene_wait is on and the host's
 -- ghost (his member line's slot) is on her map (cut()). Her notice comes once each time her photo line says the pause
@@ -284,11 +284,12 @@ function G.new(o)
         end
         for id in pairs(hers) do if not seen[id] then hers[id]=nil end end -- Gone, or no longer linked.
     end
-    -- The cutscene's name while one plays, else nil. The observer found playing is kept while it plays. A theater plays
-    -- through a level sequence actor, whose class's actors come from the engine's class hash (core/unreal.lua's
-    -- actors_of): the theater observers are walked for (FindAllOf walks every object, 25 to 80 ms in game: once a
-    -- second while linked, that was a frozen frame each second) only when the set of playing sequence actors changes,
-    -- so a looping one with no theater costs one walk, logged with the names. A gate that raises walks.
+    -- The cutscene's name while one plays, else nil: the theater= field's when the native part gives it; else the
+    -- observer found playing, kept while it plays. A theater plays through a level sequence actor, whose class's actors
+    -- come from the engine's class hash (core/unreal.lua's actors_of): the theater observers are walked for (FindAllOf
+    -- walks every object, 25 to 80 ms in game: once a second while linked, that was a frozen frame each second) only
+    -- when the set of playing sequence actors changes, so a looping one with no theater costs one walk, logged with the
+    -- names. A gate that raises walks.
     -- shortcut: an observer whose player starts a read after its sequence actor is missed until the set changes again;
     -- read the observer at each new set for a few reads if a grouped test shows that lag.
     -- The hash needs a world: our EVE's, else our SB controller's. With neither (a load, the title screen) no theater
@@ -301,6 +302,12 @@ function G.new(o)
         return player and player:IsPlaying()==true and U.text(ob.SequenceName) or nil
     end
     local function theater()
+        local f=(link.status() or ''):match('theater=(%S+)')
+        if f and f~='fault' then -- SB's own theater read (glue/tick/theater_game.inc): no actor list, no walk.
+            observer,last=nil,nil
+            if f=='none' then return nil end
+            return f=='-' and 'a theater' or f
+        end
         local ctx=N.her() or N.controller()
         local here=ctx and U.valid(ctx:GetWorld())
         here=here and U.address(here)

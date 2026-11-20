@@ -1587,4 +1587,26 @@ device=4
 assert(k.azerty()==true,'Seen by slow before the pad')
 special['KismetInternationalizationLibrary.GetCurrentLanguage']=nil
 
+-- The keep: every Ui.ASSETS path (and alt) and each warm_part's class are wanted; no warm-up lookup while the keep has
+-- not settled (the root builds in its flat look meanwhile); once settled no LoadAsset, a part's class from the keep.
+do
+    local Keep=require('core.keep')
+    local keep_fake=dofile('tests/lua/core/keep_fake.lua')
+    reset()
+    local kf=keep_fake(function(p) return registry[p] or loadable[p],true end)
+    k=kit()
+    k.warm_part(SLOT_ASSET)
+    for _,a in ipairs(Ui.ASSETS) do assert(Keep.wanted(a[2]) and (a.alt==nil or Keep.wanted(a.alt)),a[1]) end
+    assert(Keep.wanted(SLOT))
+    Keep.slow()
+    for _=1,20 do k.slow(true) end
+    assert(count('find /Game/')==0 and count('load ')==0,'No warm-up lookup before the keep settles')
+    for path,x in pairs(loadable) do registry[path]=x end -- The async loads brought them in.
+    kf.settle()
+    up(k)
+    for _=1,SOUNDS+2 do k.slow(true) end
+    assert(count('load ')==0 and count('find /Game/')==0,'Every asset and the part class from the keep')
+    Keep.reset()
+end
+
 print('ui_kit_test ok')

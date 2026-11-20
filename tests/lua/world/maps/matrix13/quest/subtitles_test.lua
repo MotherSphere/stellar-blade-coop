@@ -25,7 +25,8 @@
 -- Stop leaves it going; after a cut's Stop row the talk kept and a new window blanked until the scene ends, with no
 -- fallback after; after window 1's guard, cut with no kit; an end before the last line failed; a cut during a hold
 -- plays the player before the Stop row; scene.talk raising leads to the fallbacks; its kit lines under the caller's
--- gate and 3 s at least; 22 lines on the kit.
+-- gate and 3 s at least; 22 lines on the kit. Another culture: a talk line by its id, a caller's line with no id in
+-- English, a plain speaker name on the kit in the game's language.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -76,6 +77,12 @@ for name,n in pairs(COUNTS) do
     end
     assert(S.entry(lines,n[2]+1,'fr')==nil,'Past the lines: blank')
 end
+-- Another culture: its line by id; a line with no id (a caller's own list): the English.
+local Words=require('world.maps.matrix13.words')
+assert(LINES.prologue[1].id=='talk.prologue.01'
+    and select(2,S.entry(LINES.prologue,1,'ja'))==Words.TEXT.ja['talk.prologue.01'])
+assert(select(2,S.entry(LINES.finale,19,'ar'))==Words.TEXT.ar['talk.finale.19'])
+assert(select(2,S.entry({{'Noa','Mom?','Maman ?'}},1,'ja'))=='Mom?')
 assert(S.TALKS.prologue.sequence:find('1stMeetAdam_01') and S.TALKS.arrival.sequence:find('ArriveDED_01')
     and S.TALKS.finale.sequence:find('1stMeetAdam_02'))
 -- The window of a call: the next, never skipped; the same again only with its text still in the slot, in its time.
@@ -122,7 +129,7 @@ function player.Play(self) self.plays=self.plays+1 end
 local player_seen=nil -- The player scene.player() gives (nil before the observer is seen).
 local scene={talk=function(seq,o) talks[#talks+1]={seq=seq,o=o}; return true,'asked' end,
     stop_talk=function() stops=stops+1; return true,'stop asked' end,player=function() return player_seen end,
-    busy=function() return busy end}
+    busy=function() return busy end,ready=function() return true end}
 local shown,view={},nil
 local kit_up=true
 local function text_view()
@@ -478,6 +485,20 @@ do
     assert(done=='none' and logged('STOP: talk zone 1A: the kit is not up'))
     language='fr-FR'
 end
+-- The kit-only lines in another culture: a plain name in the game's language; a line with no id in English.
+kit_up=true
+do
+    local L=S.new({log=function(m) logs[#logs+1]=m end,scene=scene})
+    L.hud({kit=kit,theme=THEME})
+    talks,done={},nil
+    language='ja-JP'
+    at(6000); assert(L.lines('zone 3B',{{'Noa','Mom?','Maman ?'}},function() return true end,finished))
+    L.tick()
+    assert(view.speaker.text==Words.TEXT.ja['speaker.Noa'] and view.line.text=='Mom?',tostring(view.speaker.text))
+    L.stop('out of Matrix XIII')
+    assert(last()=='out of Matrix XIII: talk zone 3B dropped' and L.playing()==nil,last())
+    language='fr-FR'
+end
 -- A caller's lines in SB's box (play_lines): the talk with the fewest windows that holds them, through the theater;
 -- cut() ends one in its theater (the Stop row) or waiting for it (no Stop row) as cut, never one on the sequence with
 -- no theater; more lines than 21: the kit.
@@ -648,4 +669,29 @@ do
 end
 busy='DED_Area01'
 assert(Q.cutscene()=='DED_Area01')
+-- Review Focus 6: while the keep has not settled (scene.ready() false) a talk waits with one line: no theater asked,
+-- no scene.busy() walk; once ready it goes on as before (the cutscene look, then the theater).
+do
+    scene.talk=function(seq,o) talks[#talks+1]={seq=seq,o=o}; return true,'asked' end
+    local looks,ready=0,false
+    scene.busy=function() looks=looks+1 end
+    scene.ready=function() return ready end
+    talks,done,logs={},nil,{}
+    at(7000); assert(P.play('prologue',false,finished))
+    for k=1,6 do at(7000+k*0.5); P.tick() end
+    local waits=0
+    for _,l in ipairs(logs) do if l=='talk prologue: waits for its assets to be in memory' then waits=waits+1 end end
+    assert(#talks==0 and looks==0 and waits==1)
+    ready=true
+    at(7003.5); P.tick()
+    assert(looks==1 and #talks==1 and not talks[1].o.direct)
+    P.stop()
+    -- coop scene off (the loader's stub: ready() gives nothing): no wait.
+    scene.ready=function() end
+    talks,logs={},{}
+    at(7100); assert(P.play('prologue',false,finished))
+    assert(#talks==1 and #logs>0 and not logs[1]:find('waits for its assets',1,true))
+    P.stop()
+    scene.ready=function() return true end
+end
 print('subtitles_test: ok')

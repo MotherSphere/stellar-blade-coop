@@ -148,12 +148,27 @@ ground the model reaches 90% of its top speed in about 3.9 s and stops from the 
 The game has no riding pose for EVE. The mod plays `eve_bikeSleepPose`, EVE's pose asleep on the back of a bike in a
 story scene, looped, until a better pose exists. No animation or other game file ships with the mod.
 
+## Paint
+
+The bike takes a paint while EVE wears an outfit listed in the bike's paint table. The table holds one example today: in
+Gothic Rose (`coop wear gothic`) the table sets a dark red tint on one of the bike's four materials. Nobody has checked
+in game whether the tint shows or which part of the bike that material covers. The paint follows her outfit within a
+second. Another outfit puts the bike's own colours back, as does `coop off`.
+
+Your friend's ghost shows the paint of the bike you ride when `dyes` is on for both of you (`coop look dyes on`, the
+default). The paint of your parked bike shows on your own screen only: the line that tells other players where your
+bike stands carries its map and pose only.
+
+`coop bike status` ends with `paint on for <mesh>` or `paint off for <mesh>`. `<mesh>` is the object path of EVE's body
+mesh, the key of an entry in the table. How to add an entry is in
+[dev/modding/bike-paint.md](../dev/modding/bike-paint.md).
+
 ## coop bike
 
 | Command | What it does |
 | --- | --- |
 | `coop bike` | EVE on the bike, or off it |
-| `coop bike status` | The preload's state, whether the bike is on EVE, whether she rides, the four riding values, where the bike is parked (`parked on <map>`, with `<n> m away` on her map, or `no place yet`) |
+| `coop bike status` | The preload's state, whether the bike is on EVE, whether she rides, the four riding values, where the bike is parked (`parked on <map>`, with `<n> m away` on her map, or `no place yet`), the paint for EVE's body mesh (`paint on for <mesh>` or `paint off for <mesh>`) |
 | `coop bike tune` | The four riding values |
 | `coop bike tune <name> <value>` | One value changed for your next rides, until the mod reloads |
 

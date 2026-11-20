@@ -133,6 +133,9 @@ M.hud_shown=false -- Our HUD may show (a world, out of our photos): the chat's b
 -- times, which main/pass.lua sets.
 M.frame_began,M.pass_ended,M.pass_took,M.pass_slow,M.pass_booth=nil,-math.huge,0,0,0
 if M.link then
+    -- The keep (core/keep.lua): coop-keep.txt, the pass's status and its lookup through the soft path.
+    require('core.keep').setup({write=function(text) return M.link.write_file('coop-keep.txt',text) end,
+        status=M.link.status,log=log,find=function(p) return U.object_at(p,U.controller()) end})
     -- That name, or the slot-0 member's, cleaned; '' (a stranger's unknown name) as your friend, in w's words.
     function M.her_name(w,name)
         name=require('core.line').clean(name or (M.link.friend()) or '')

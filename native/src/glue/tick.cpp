@@ -40,12 +40,12 @@
 // HUD's set of hiding keys through SB's own keyed request, under its own SEH latch, and takes it out at hud hide off
 // and at coop off.
 //
-// The day/night cycle (world/daynight/sky.h, world/daynight/daynight.lua): every 100 ms coop_tick reaches the world's
-// WorldSettings through SB's player controller and writes the light of the shared clock's hour into SB's env array,
-// from each element's own values, under its own SEH latch; SB's blend does the per-frame work. Lua's sky request picks
-// the map's horizon and heading, a pinned hour or a hold; an off, coop off, SB's theater (a cutscene or a talk scene,
-// in every mode) and the first fault put SB's values back. sky_status() gives coop-status.txt's sky line; the worker
-// logs each change of state.
+// The day/night cycle (world/daynight/sky.h, world/daynight/daynight.lua): every 100 ms, or in the frame SB changes
+// its env array, coop_tick reaches the world's WorldSettings through SB's player controller and writes the light of
+// the shared clock's hour into SB's env array, from each element's own values, under its own SEH latch; SB's blend
+// does the per-frame work. Lua's sky request picks the map's horizon and heading, a pinned hour or a hold; an off,
+// coop off and the first fault put SB's values back. sky_status() gives coop-status.txt's sky line; the worker logs
+// each change of state.
 //
 // The SBO lobby arrival's black (online/lobby/arrival.lua): at Lua's loading lift, coop_tick sets the lifetime of each
 // LoadingScreenFadeAuto entry of tag Load to 0 in SB's UI manager (online/lobby/loading.h), under its own SEH latch, so
@@ -91,8 +91,10 @@
 // push it into a ring before they run the game's function; the ZoneEvent action's slot holds the SBO lobby's hook,
 // which does the same for its rows. Each frame coop_tick drains the ring under the shared world's SEH latch and makes
 // channel 2's SBW lines of what game/objects/rows.h allows; her lines wait in order until we are in game (lion_gate
-// open), then go through SB's own functions with our player as caster. A fault turns it off for the run and swaps the
-// slots back; coop off swaps them back too.
+// open), then go through SB's own functions with our player as caster. A watcher reads the AltesLab trap floor's end
+// (kWatch) each pass in game and sends it when it turns, since no root marks it. The catch-up by zone asks the partner
+// for a zone once we stood 2 s in game there; her changed doors of that zone come back, the host's state winning a
+// conflict. A fault turns it off for the run and swaps the slots back; coop off swaps them back too.
 //
 // The revive's guard: every 250 ms coop_tick reads, under its own SEH latch, whether a respawn or a warp is in flight
 // and our EVE's GUID, straight from two globals; status() puts them in the engine line for online/group/group.lua.
@@ -122,16 +124,16 @@
 // and then sets the flight key again while EVE flies with none held (eve/debug_keys.h's Hold), under its own latch;
 // the worker swaps them back at coop off and after a fault.
 //
-// The Lion's rows, the Gardener's, the Tendril's, the Shock Bolt's, Matrix XIII's, the Night Operation shop's and
-// Lily's signal's (rows/rows.h's batches, coop lion, coop gardener fight, coop tendril fight, the shop's Shock Bolt,
-// coop mxiii, the shop and world/maps/matrix13/quest/on_time.lua): the worker hands over the tables' addresses from
-// Lua's lion rows, gardener rows, tendril rows, bolt rows, mxiii rows, shop rows or signal rows request (those that
-// batch writes, 0 for the others); the game thread adds that batch's rows through SB's own AddRow once the gate holds
-// (net mode 0, no logic task in flight), under one SEH latch for all, reads them back through SB's lookups by ID and,
-// once asked, reads the spawn manager's counter every 250 ms; status() gives it all in the lion, gardener, tendril,
-// bolt, mxiii, shop and signal lines, and the worker logs each answer. Right after the bolt rows batch's last row, in
-// the same call, the Shock Bolt's two lists grow in place (rows/shock.h) under a latch of their own; status() gives the
-// shock line, and the worker logs it once.
+// The Lion's rows, the Gardener's, the Tendril's, the Shock Bolt's, Matrix XIII's, the Night Operation shop's, Lily's
+// signal's and the team shop's (rows/rows.h's batches, coop lion, coop gardener fight, coop tendril fight, the shop's
+// Shock Bolt, coop mxiii, the shop, world/maps/matrix13/quest/on_time.lua and world/teamshop/shop.lua): the worker
+// hands over the tables' addresses from Lua's lion rows, gardener rows, tendril rows, bolt rows, mxiii rows, shop
+// rows, signal rows or teamshop rows request (those that batch writes, 0 for the others); the game thread adds that
+// batch's rows through SB's own AddRow once the gate holds (net mode 0, no logic task in flight), under one SEH latch
+// for all, reads them back through SB's lookups by ID and, once asked, reads the spawn manager's counter every 250 ms;
+// status() gives it all in the lion, gardener, tendril, bolt, mxiii, shop, signal and teamshop lines, and the worker
+// logs each answer. Right after the bolt rows batch's last row, in the same call, the Shock Bolt's two lists grow in
+// place (rows/shock.h) under a latch of their own; status() gives the shock line, and the worker logs it once.
 //
 // The Night Operation shop in SB's own shop screen (online/modes/nightop/shop_ui.h, coop nightop shop): the worker
 // hands over Lua's nightshop open, open bolt or close; the next frame the game thread opens SB's shop screen on one of
@@ -143,6 +145,11 @@
 // the list's own (Roxanne's four test rows online/modes/nightop/roxanne.lua edited, then her two; Lily's borrowed row,
 // then her eight) or back at the list's own, under a latch of its own for each list; status() gives them in the
 // nightshop, roxanne and lily lines, and the worker logs each answer.
+//
+// The team shop in SB's own shop screen (world/teamshop/shop_ui.h, coop teamshop): the worker hands over Lua's
+// teamshop open; the next frame the game thread opens SB's shop screen on the teamshop rows batch's ShopTable row with
+// the calls SB's vending machine node makes, under its own SEH latch. It reads nothing between asks and never closes
+// the screen. status() gives the answer in the teamshopui line. The worker logs each one.
 //
 // coop emote's native clips (game/anim.h): the worker hands over Lua's anim play (an id, one of EVE's clip paths, once
 // or in a loop) or anim stop; the game thread takes our EVE as the player controller's pawn and plays the clip through
@@ -162,6 +169,15 @@
 // at coop off, unless SB changed it during the ride. All of it runs under its own SEH latch; status() puts the
 // preload's state and the gate's in the engine line for vehicles/bike/ride.lua. The worker logs each change with the
 // load's time.
+//
+// The keep (game/keep.h): the worker adds the object paths Lua writes to coop-keep.txt to the keep's list. Every 250 ms
+// the game thread asks SB's own streamable manager for the paths added since its last look in one request, as the
+// bike's preload asks. It keeps the handle for the game run. Once the handle's loaded flag is set it finds each path
+// in memory. All of it runs under its own SEH latch; status() puts the counts in the engine line for core/keep.lua.
+//
+// SB's theater (game/theater.h): every 100 ms the game thread reads SB's theater manager, never made, the way SB's own
+// widgets read it, under its own SEH latch. status() puts theater= in the engine line: none, the sequence that plays,
+// '-' while its first take loads or its name is not read, fault after the first fault.
 //
 // coop shortcut (game/shortcut.h): the worker hands over Lua's ask; the game thread reads the cut Load Shortcut menu's
 // 16 paths through SB's own file manager, one a frame, under its own SEH latch, into entries the worker turns into log
@@ -200,9 +216,9 @@
 // reads sb record. coop off logs an open record and leaves it for C1: a job then running ends off with nothing
 // written, and only C1 runs after it.
 //
-// coop gift's inventory read (tools/items.h) is the worker's alone: on Lua's items request it reads how many of one
+// coop gift's inventory read (cutmenus/items.h) is the worker's alone: on Lua's items request it reads how many of one
 // item our EVE carries through ReadProcessMemory, her GUID too, and status() puts the answer in the engine
-// line for tools/mailbox.lua.
+// line for cutmenus/mailbox.lua.
 //
 // The pad (ui/pad.h): once a run the worker finds the twelve controller key names PadKeys reads, checks that Slate's
 // application holds its message handler, then swaps the handler's three controller slots of the game's image (analog,
@@ -254,9 +270,11 @@
 #include "game/camps.h"
 #include "game/anim.h"
 #include "game/bike.h"
+#include "game/keep.h"
+#include "game/theater.h"
 #include "eve/debug_keys.h"
 #include "game/dev_panels.h"
-#include "tools/items.h"
+#include "cutmenus/items.h"
 #include "online/lobby/loading.h"
 #include "game/memory.h"
 #include "online/session/options.h"
@@ -277,11 +295,13 @@
 #include "world/maps/matrix13/mxiii_rows.h"
 #include "world/maps/matrix13/signal_rows.h"
 #include "online/lobby/halls_rows.h"
+#include "world/teamshop/teamshop_rows.h"
 #include "rows/shock.h"
 #include "online/modes/nightop/guard_text.h"
 #include "online/modes/nightop/probe.h"
 #include "online/modes/nightop/roxanne.h"
 #include "online/modes/nightop/shop_ui.h"
+#include "world/teamshop/shop_ui.h"
 #include "game/codec.h"
 #include "game/partner/engine.h"
 #include "online/partner/record.h"
@@ -319,9 +339,13 @@
 #include "eve/debug_game.inc"
 #include "ui/pause_tab_game.inc" // After debug_game_shared.inc: its UI calls and ui_reads.
 #include "online/modes/nightop/nightop_game.inc"
+#include "world/teamshop/teamshop_game.inc" // After debug_game_shared.inc and rows_game.inc: its UI calls and names.
 #include "glue/tick/anim_game_shared.inc"
 #include "eve/anim_game.inc"
 // After anim_game_shared.inc, freeze_game_shared.inc and rows_game.inc: their calls and GMalloc.
+#include "glue/tick/bike_game_shared.inc"
+#include "glue/tick/keep_game.inc" // After bike_game_shared.inc: its async load, names and finds.
+#include "glue/tick/theater_game.inc" // After fight_game_shared.inc: its game_function.
 #include "vehicles/bike/bike_game.inc"
 #include "glue/tick/camp_text_game_shared.inc"
 // After anim_game_shared.inc and freeze_game_shared.inc: their FStringArg and MakeName.
@@ -347,9 +371,10 @@
 #include "glue/tick/sbo_worker_shared.inc"
 #include "online/lobby/sbo_worker.inc"
 #include "online/modes/nightop/nightop_worker.inc"
+#include "world/teamshop/teamshop_worker.inc"
 #include "online/group/travel_worker.inc"
 #include "online/saves/shortcut_worker.inc"
-#include "tools/items_worker.inc"
+#include "cutmenus/items_worker.inc"
 #include "glue/tick/quests_worker_shared.inc"
 #include "story/quests/quests_worker.inc"
 #include "glue/tick/world_worker_shared.inc"
@@ -419,9 +444,13 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // The SBO lobby arrival's black lifted, its own latch: one write an ask, after coop off too.
   if (game_pinned && !loading_faulted)
     loading_tick();
-  // The day/night cycle, its own latch: a pass each 100 ms; after coop off only while SB's env array holds our values.
+  // The day/night cycle, its own latch: a pass each 100 ms or when SB changed its env array; after coop off only while
+  // that array holds our values.
   if (game_pinned && !sky_faulted && (!blocked || sky_holding()))
     sky_tick();
+  // SB's theater for the status line, its own latch: a read each 100 ms, none after coop off or its first fault.
+  if (game_pinned && !theater_faulted && !blocked)
+    theater_tick(clock_us() / 1000);
   // The game's tutorial and record popups, their own latch: a pass each 250 ms; after coop off or a first fault only
   // while an option is forced, to put the player's value back; none after a second fault.
   if (game_pinned && options_run.runs(blocked, options_holding()))
@@ -482,6 +511,10 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
     bike_tick();
   else if (game_pinned && bike_gate_pending)
     bike_publish();
+  // The keep, its own latch: a look each 250 ms (new paths asked, loaded batches found); none after coop off or its
+  // first fault. The handles stay held.
+  if (game_pinned && !keep_faulted && !blocked)
+    keep_tick(GetTickCount64());
   // coop emote's native clips, their own latch: an ask each frame, the watch each 100 ms while ours plays; after coop
   // off only to stop ours.
   if (game_pinned && !anim_faulted)
@@ -513,6 +546,9 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
     swap_tick(roxanne_side);
   if (game_pinned && !lily_side.faulted)
     swap_tick(lily_side);
+  // The team shop's screen, its own latch: an open ask taken each frame (the worker takes none after coop off).
+  if (game_pinned && !teamshop_faulted)
+    teamshop_tick();
   LARGE_INTEGER left;
   QueryPerformanceCounter(&left);
   coop_tick_us = micros_between(entry, left); // The next gap line's "that tick took".

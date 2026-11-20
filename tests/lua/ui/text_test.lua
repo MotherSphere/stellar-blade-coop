@@ -56,7 +56,7 @@ assert(T.fr and next(T.fr),'French stays complete')
 -- them against main.lua's MODULES).
 local MODULE_KEYS=0
 for _ in pairs(T.en.modules) do MODULE_KEYS=MODULE_KEYS+1 end
-assert(MODULE_KEYS==20,'T.en.modules: '..MODULE_KEYS..' names')
+assert(MODULE_KEYS==21,'T.en.modules: '..MODULE_KEYS..' names')
 for name,t in pairs(T) do
     if type(t)=='table' and next(t) then
         local n=0

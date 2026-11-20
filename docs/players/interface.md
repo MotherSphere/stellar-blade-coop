@@ -314,9 +314,10 @@ players it holds (Players, 2 to 4), the [revive](playing-with-a-friend.md#revive
 [following the host](playing-with-a-friend.md#following-the-host), the [shared world](../world/objects.md),
 [story together](../story/together.md) and Hide popups online, which turns the game's tutorial and record popups off
 during online play), Saves (the [co-op saves](playing-with-a-friend.md#co-op-saves) at the title and
-[shared quests](playing-with-a-friend.md#shared-quests-experimental)), Combat (shared enemies, same place, who
-same-place enemies attack, same spawns, extra enemies, shared bosses, the host's enemy and boss scaling and your kill
-rewards), Display (the [status strip](#status-strip-above-the-card) above the partner card; the size, sounds and
+[shared quests](playing-with-a-friend.md#shared-quests-experimental)), Combat (shared enemies, same place, shared
+flinches, stagger resistance, who same-place enemies attack, same spawns, extra enemies, shared bosses, the host's
+enemy and boss scaling and your kill rewards), Display (the [status strip](#status-strip-above-the-card)
+above the partner card; the size, sounds and
 language of the menu, the chat and the partner HUD; the [day and night cycle](../world/daynight-internals.md)) and Chat.
 In a session, Chat ends with a row for each other member past the handshake, `Mute <name>` with On or Off: Enter runs
 `coop mute` or `coop unmute` for her, for the game run.
@@ -330,6 +331,13 @@ scaling and kill reward rows, which
 count from the next time shared enemies start (turn the Shared enemies row off and on again, or restart the game). The
 Same place row applies at once while shared enemies wait or run, and otherwise from their next start (as guest, only
 while they wait or run, and only on your screen).
+
+Shared flinches (experimental) and Stagger resistance (experimental) sit next to Same place. Both are the host's for
+every game of the fight pair. Shared flinches makes a light hit's flinch on a shared enemy show in the other game too.
+Stagger resistance raises a shared enemy's poise for a short time after it reacted to hits from two or more players
+(see [Flinches and stagger resistance](../fight/enemies.md#flinches-and-stagger-resistance)). A change of either row
+applies at once while shared enemies wait or run. Otherwise it applies from their next start. As guest, your rows
+change nothing in a session the host runs.
 
 To change a key, select its row, then press the new key: `F1` to `F12` except `F10`, alone or with Shift, Ctrl or Alt.
 A key that another action already holds is refused: the menu names that action. Esc stops waiting. Enter (or Space)

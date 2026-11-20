@@ -27,6 +27,7 @@
 -- Off (hidden) until their winch turns them On, and ladder gate 435's lowered ladder starts with its row 437 Off.
 -- [inference] Whether an SBZoneEnvActor spawned after its zone's rows were made registers with its row is untested.
 local U=require('core.unreal')
+local Keep=require('core.keep')
 local N=require('core.player')
 local Rows=require('world.maps.matrix13.level.rows')
 local Move={}
@@ -39,7 +40,8 @@ local EVERY=1 -- s between looks at the world while nothing is left to spawn.
 -- Seconds of spawning a tick: at least one entry, then more until this is spent. One spawn took 10 to 13 ms in game
 -- (UE4SS.log 2026-11-12 21:49), so in practice one a tick; all 48 in one tick froze a frame for 689 ms. A spawn cannot
 -- be split: FinishSpawningActor (exec 0x144773be0) runs AActor::FinishSpawning 0x143f6b580, construction script and
--- BeginPlay included, before it returns.
+-- BeginPlay included, before it returns. travel.lua gives a larger budget while SB's black hides the frames
+-- (Mxiii.HELD_BUDGET).
 Move.BUDGET=0.004
 local ALWAYS_SPAWN=1 -- ESpawnActorCollisionHandlingMethod::AlwaysSpawn.
 
@@ -47,6 +49,8 @@ local ALWAYS_SPAWN=1 -- ESpawnActorCollisionHandlingMethod::AlwaysSpawn.
 function Move.new(o)
     local log,list=o.log,o.list or Rows.MOVE
     local self={}
+    for _,asset in pairs(Move.ASSETS) do Keep.want({asset..'_C'}) end
+    for _,m in ipairs(list) do Keep.want({m.mesh}) end
     local world,spawned,next_look,deferred=nil,{},0,true
     local todo,made=nil,0 -- The next entry to spawn (nil when done) and the spawns so far, in this world.
     -- The world's counts by class (order: the classes in list order) and its spread (ticks, the longest, its start).
@@ -56,6 +60,7 @@ function Move.new(o)
     local looked=0
     local function class_of(cls)
         local path=Move.ASSETS[cls]..'_C'
+        if Keep.serves(path) then return assert(Keep.get(path),path..' is not in memory') end
         local c=U.valid(StaticFindObject(path))
         if not c then
             pcall(LoadAsset,Move.ASSETS[cls])
@@ -63,10 +68,12 @@ function Move.new(o)
         end
         return assert(c,path..' does not load')
     end
-    -- An object of the ledge's mesh, found again each spawning tick and never held past it: the game unloads it with
-    -- the map, and a held object read in the next Matrix XIII world crashed the game (2026-11-03).
+    -- An object of the ledge's mesh: the keep's, held for the game run, for a path it serves. Else found again each
+    -- spawning tick and never held past it: the game unloads it with the map; a held object read in the next
+    -- Matrix XIII world crashed the game (2026-11-03).
     local meshes={}
     local function mesh_of(path)
+        if Keep.serves(path) then return assert(Keep.get(path),path..' is not in memory') end
         if not meshes[path] then
             local m=U.valid(StaticFindObject(path))
             if not m then
@@ -176,7 +183,7 @@ function Move.new(o)
     end
     -- True when this tick spent its time spawning: world/maps/matrix13/level/travel.lua then holds the boxes back for
     -- the frame.
-    function self.tick()
+    function self.tick(budget)
         local now=os.clock()
         if not todo and now<next_look then return end
         next_look=now+EVERY
@@ -198,6 +205,7 @@ function Move.new(o)
             counts,order,ticks,longest,began,looked={},{},0,0,os.clock(),0
         end
         if not todo then return end
+        if not Keep.ready() then return end -- The classes and meshes are the keep's: nothing spawns before it settled.
         meshes={}
         local start=os.clock()
         while todo<=#list do
@@ -227,7 +235,7 @@ function Move.new(o)
                 log(string.format('%s %s not spawned: %s',m.cls,m.key,tostring(a)))
             end
             todo=todo+1
-            if os.clock()-start>=Move.BUDGET then break end
+            if os.clock()-start>=(budget or Move.BUDGET) then break end
         end
         ticks,longest=ticks+1,math.max(longest,os.clock()-start)
         if todo>#list then
@@ -247,6 +255,8 @@ function Move.new(o)
         end
         return true
     end
+    -- This world's list is spawned (w: its address; travel.lua's black waits for it).
+    function self.done(w) return w~=nil and world==w and todo==nil end
     return self
 end
 return Move

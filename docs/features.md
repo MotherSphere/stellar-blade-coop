@@ -97,9 +97,11 @@ achievements, which cannot be taken back.
   both NIKKE minigame maps the painted sky dome gives way to a real sky, orange near the horizon at dawn and dusk. At
   night the sun light goes off (no light through the ground), the sky, the fog and EVE's lights get darker, a cold
   moon light takes over and stars come out. Xion swaps to the game's own night dome. Rooms, caves and labs keep their
-  own light, as do cutscenes and the game's menus. The NIKKE boss arena, the story places and the Terrace hall keep
-  their fixed light: the Terrace stays a night hall. `daynight=off` (Options, Display) gives each map Stellar Blade's
-  own fixed light, as before. `coop daynight hour <h>` pins an hour for tests. It is not tested in game yet (see
+  own light. Talks, cutscenes and the game's menus show the hour of the world around them, with no change of light when
+  they open or close. The NIKKE boss arena, the story places and the Terrace hall keep their fixed light: the Terrace
+  stays a night hall. `daynight=off` (Options, Display) gives each map Stellar Blade's own fixed light, as before.
+  `coop daynight hour <h>` pins an hour for tests. The light moves to a new hour over 2 seconds when photo mode closes,
+  when Night Operation starts or ends and when `coop daynight hour` changes the hour. It is not tested in game yet (see
   [the day and night cycle](world/daynight-internals.md)).
 - `coop leviathan` shows Leviathan, a Naytiba cut from the game whose models and animations are still in its files, as
   a display-only model in front of EVE, with a free camera for filming. `coop gardener` and `coop tendril` do the same
@@ -142,7 +144,7 @@ achievements, which cannot be taken back.
   that still work (no damage, speed, attack, gauges, enemy rows), and `coop devinfo` opens its quest debugger or
   player info panel. These test commands have not been tried in game yet (see
   [eve/eve.md](eve/eve.md#cut-tachy-skill-coop-chainspin) and
-  [tools/menus.md](tools/menus.md#developer-menu-coop-devmenu-and-coop-devinfo)).
+  [cutmenus/menus.md](cutmenus/menus.md#developer-menu-coop-devmenu-and-coop-devinfo)).
 - `coop emote <name>` plays one of EVE's clips through the game's own animation call: 31 photo-mode poses held until
   she moves (grouped under the categories of the game's cut Social Action menu), two waves, and six clips of hers made
   for two enemies with no character in the game files: the Chariot, which was cut (its struggle and her takedown on
@@ -152,7 +154,7 @@ achievements, which cannot be taken back.
   camp each one starts at. `coop shortcut load` writes one as co-op slot 5 for Load Game, without its achievement
   list. It needs `shortcut_load=on` (the default), and what is left of the developer's progress can still unlock
   Steam achievements. Neither has been tried in game yet (see
-  [tools/menus.md](tools/menus.md#cut-load-shortcut-saves-coop-shortcut)).
+  [cutmenus/menus.md](cutmenus/menus.md#cut-load-shortcut-saves-coop-shortcut)).
 - At its first run the mod opens a guide of nine pages, with art of Mother Sphere by timediffer24. The Guide row of the
   co-op menu and `coop guide` open it again (see [players/interface.md](players/interface.md#guide)).
 - Each player's .pak mods are named over the link, and a notice says which ones the other player lacks. A friend's CNS
@@ -171,14 +173,19 @@ achievements, which cannot be taken back.
 The ghost is display only, and items are not shared, except the consumables sent with `coop gift`. The experimental
 Shared enemies option (co-op menu, Options, Combat) is on by default and untested in game. It shares common enemies only
 while both players play a co-op save (see [fight/enemies.md](fight/enemies.md#shared-enemies-experimental)). Same place, same
-spawns and shared bosses build on it. They are experimental and on by default too, and the host's settings decide them
-for both games. As guest, the Same place row of your co-op menu can still turn same place off on your screen. The
+spawns, shared bosses, shared flinches and stagger resistance build on it. They are experimental and on by default too.
+The host's settings decide them for both games. As guest, the Same place row of your co-op menu can still turn same
+place off on your screen. Shared flinches show a light hit's flinch in both games. Stagger resistance raises an
+enemy's poise for a short time after it reacted to hits from two or more players (see
+[fight/enemies.md](fight/enemies.md#flinches-and-stagger-resistance)). The
 experimental Shared quests option (Options, Saves) is on by default and untested in game. While both players play a
 co-op save, it makes the quest steps that the host and the guest make together in the guest's game too, through the
 game's own quest functions (see [players/playing-with-a-friend.md](players/playing-with-a-friend.md#shared-quests-experimental)). A
 quest step the guest makes first moves the host's quest too, with Story together on or off. The experimental Shared
 world option (Options, Session) is on by default and untested in game. While both players play a co-op save, a door, lever, switch, crane, lift or shortcut that one player works changes in the other's game too,
-while chests, supply boxes and anything else that gives an item stay each player's own (see
+puzzle doors and water gates included. Chests, supply boxes and anything else that gives an item stay each player's
+own. The end of the AltesLab trap floor raises the scaffolding in both games. Each zone also catches up when
+a player enters it: the doors and switches the other changed there come in, the host's state winning a conflict (see
 [world/objects.md](world/objects.md)). The experimental Story together option (Options, Session) is on by default and
 untested in game. While both players play a co-op save, a cutscene or a talk the host plays plays in the guest's game
 too, with the host's choices, QTE results and skips. A story trip the host starts takes the guest along (see
