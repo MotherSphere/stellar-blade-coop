@@ -151,6 +151,8 @@ that names the module by its name in `T.<culture>.modules`. Without the link, th
 
 ## Adding a module
 
+[Modules](modding/modules.md) shows these steps on `online.lobby` and gives a skeleton module to copy.
+
 1. Pick its place: the category it belongs to (`online/` for what the link shares or runs between players, `fight/`,
    `world/`, `story/`, `vehicles/`), or a folder of its own at the top like `eve/`. Its name is that path with dots
    (`world/maps/<map>/` is `world.maps.<map>`).
