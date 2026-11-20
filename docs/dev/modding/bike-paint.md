@@ -16,7 +16,8 @@ Paint.BY_MESH={
 
 An entry's key is the object path of EVE's body mesh, written `/Game/<folders>/<name>.<name>`. Its value maps a
 material slot of the bike, 0 to 3, to the vector parameters set on that slot. A parameter takes four numbers (red,
-green, blue, alpha), each from 0 to 100000. The example gives Gothic Rose a dark red flake colour on slot 1.
+green, blue, alpha), each from 0 to 100000. The example gives Gothic Rose a dark red flake colour on slot 1. Slot 1's
+material instance sets `FlakeColorIntencity` (the game's spelling) to 0.066667, so that colour may barely show.
 
 ## Slots and parameters
 
