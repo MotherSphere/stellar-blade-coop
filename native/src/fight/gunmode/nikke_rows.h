@@ -32,50 +32,51 @@ namespace coop::lion {
 
 // The rifle's round, a shipped ItemTable row.
 constexpr char kNikkeRound[] = "Bullet_Nikke";
-// Gold a round costs in the camp vending machines.
-constexpr int kNikkePrice = 2;
+// Gold one Bullet_Nikke costs in the camp vending machines. One unit is one magazine of 60 rounds
+// (fight/gunmode/config.lua rounds_per_unit): a purchase buys one unit. Drops give 1 to 2 units.
+constexpr int kNikkePrice = 40;
 
 constexpr Patch kNikkePatches[] = {
     // 31114: subGroup_FA_Normal_Bullet (RandomEach), over its Bullet_Scatter row 200026
     {0x28, Kind::name, 0, kNikkeRound}, // ItemAlias
     {0x54, Kind::i32, 1500, nullptr},   // DropRate
-    {0x58, Kind::i32, 15, nullptr},     // ItemMinCount
-    {0x5c, Kind::i32, 30, nullptr},     // ItemMaxCount
+    {0x58, Kind::i32, 1, nullptr},      // ItemMinCount
+    {0x5c, Kind::i32, 2, nullptr},      // ItemMaxCount
     // 31115: subGroup_FA_Normal3_Bullet (RandomEach), over its Bullet_Scatter row 200030
     {0x28, Kind::name, 0, kNikkeRound}, // ItemAlias
     {0x54, Kind::i32, 2000, nullptr},   // DropRate
-    {0x58, Kind::i32, 20, nullptr},     // ItemMinCount
-    {0x5c, Kind::i32, 40, nullptr},     // ItemMaxCount
+    {0x58, Kind::i32, 1, nullptr},      // ItemMinCount
+    {0x5c, Kind::i32, 2, nullptr},      // ItemMaxCount
     // 31116: subGroup_global_Normal_Bullet (RandomEach), over its Bullet_Scatter row 200016
     {0x28, Kind::name, 0, kNikkeRound}, // ItemAlias
     {0x54, Kind::i32, 1000, nullptr},   // DropRate
-    {0x58, Kind::i32, 10, nullptr},     // ItemMinCount
-    {0x5c, Kind::i32, 20, nullptr},     // ItemMaxCount
+    {0x58, Kind::i32, 1, nullptr},      // ItemMinCount
+    {0x5c, Kind::i32, 2, nullptr},      // ItemMaxCount
     // 31117: subGroup_global_Normal3_Bullet (RandomEach), over its Bullet_Scatter row 200020
     {0x28, Kind::name, 0, kNikkeRound}, // ItemAlias
     {0x54, Kind::i32, 1500, nullptr},   // DropRate
-    {0x58, Kind::i32, 15, nullptr},     // ItemMinCount
-    {0x5c, Kind::i32, 30, nullptr},     // ItemMaxCount
+    {0x58, Kind::i32, 1, nullptr},      // ItemMinCount
+    {0x5c, Kind::i32, 2, nullptr},      // ItemMaxCount
     // 31118: subGroup_FA_BodyBag_Bullet (RandomEach), over its Bullet_Scatter row 200035
     {0x28, Kind::name, 0, kNikkeRound}, // ItemAlias
     {0x54, Kind::i32, 3000, nullptr},   // DropRate
-    {0x58, Kind::i32, 30, nullptr},     // ItemMinCount
-    {0x5c, Kind::i32, 60, nullptr},     // ItemMaxCount
+    {0x58, Kind::i32, 1, nullptr},      // ItemMinCount
+    {0x5c, Kind::i32, 2, nullptr},      // ItemMaxCount
     // 31119: subGroup_Raven_Bullet (RandomEach), over its Bullet_Scatter row 220025
     {0x28, Kind::name, 0, kNikkeRound}, // ItemAlias
     {0x54, Kind::i32, 3000, nullptr},   // DropRate
-    {0x58, Kind::i32, 30, nullptr},     // ItemMinCount
-    {0x5c, Kind::i32, 60, nullptr},     // ItemMaxCount
+    {0x58, Kind::i32, 1, nullptr},      // ItemMinCount
+    {0x5c, Kind::i32, 2, nullptr},      // ItemMaxCount
     // 31120: subGroup_FA_Animal_Bullet (RandomEach), over its Bullet_Normal row 200024 (its only row)
     {0x28, Kind::name, 0, kNikkeRound}, // ItemAlias
     {0x54, Kind::i32, 1000, nullptr},   // DropRate
-    {0x58, Kind::i32, 10, nullptr},     // ItemMinCount
-    {0x5c, Kind::i32, 20, nullptr},     // ItemMaxCount
+    {0x58, Kind::i32, 1, nullptr},      // ItemMinCount
+    {0x5c, Kind::i32, 2, nullptr},      // ItemMaxCount
     // 31121: subGroup_b_standard_Bullet_Random (RandomEach, supply boxes), over its Bullet_Scatter row 31105
     {0x28, Kind::name, 0, kNikkeRound}, // ItemAlias
     {0x54, Kind::i32, 5000, nullptr},   // DropRate
-    {0x58, Kind::i32, 20, nullptr},     // ItemMinCount
-    {0x5c, Kind::i32, 40, nullptr},     // ItemMaxCount
+    {0x58, Kind::i32, 1, nullptr},      // ItemMinCount
+    {0x5c, Kind::i32, 2, nullptr},      // ItemMaxCount
     // SBO_Camp_Bullet_Nikke_Buy (ShopItemTable), over Camp_Bullet_Normal_Buy: sold for gold with no condition. The
     // donor's CG_TPSMode_Opened is the drone's gun, not the rifle's.
     {0x18, Kind::name, 0, kNikkeRound},             // ItemAlias

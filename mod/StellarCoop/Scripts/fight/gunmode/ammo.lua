@@ -8,10 +8,11 @@
 -- drone's round count at the bottom left (WB_MainHUD_Lower1Item, beside D-pad Right) shows rounds | magazines while
 -- the rifle is out. The game's own text goes back when the rifle goes away. A new world (a map, a death, a camp's
 -- travel) gives full magazines again.
--- With stock (a host's round store: ready, count, take, watch) once it is ready, the rounds come from it instead: the
--- magazine starts empty. Each reload takes the rounds it loads (stock.take), at most what stock.count gives. The
--- spares are stock.count. Rounds already in the magazine stay there across worlds. A refused take loads nothing and
--- the next reload waits RETRY s. Without stock, or while it is not ready, the free magazines above.
+-- With stock (a host's round store: ready, count, take, watch) once it is ready, the rounds come from it instead. One
+-- unit of the store is one magazine (cfg.rounds_per_unit rounds, mag_size by default): the magazine starts empty,
+-- each reload takes the units it loads (stock.take, 1 for a full magazine) and loads nothing with no unit carried.
+-- The spares are stock.count magazines. Rounds already in the magazine stay there across worlds. A refused take
+-- loads nothing and the next reload waits RETRY s. Without stock, or while it is not ready, the free magazines above.
 -- Rounds are counted at the rate the game fires them: one at the press, then one per cool time (rounded up to whole
 -- frames, as the game checks the cool time once a frame). While reloading the shot's cool time is the reload's, so
 -- the trigger fires nothing until the magazine is full again.
@@ -39,6 +40,7 @@ end
 -- stock: the host's round store (ready, count, take, watch, round), or nil for the free magazines only.
 function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
     local self={left=cfg.mag_size,reserve=cfg.mag_size*cfg.spare_mags,reload_until=nil,acc=0,dt=1/60,held=false}
+    local per_unit=cfg.rounds_per_unit or cfg.mag_size -- Rounds in one unit of the store.
     on_reload=on_reload or function() end
     local ui={} -- name, count: the slot's text blocks; saved: their own text and colour.
 
@@ -185,17 +187,18 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
         g.log(('ammo: reload (%s), %d in the magazine, %d spare'):format(why,math.floor(self.left),self.reserve))
     end
 
-    -- The magazine goes in: with stock, its rounds taken out of the store first, at most what it holds now (a refused
-    -- take loads nothing).
+    -- The magazine goes in: with stock, the units its rounds need taken out of the store first, at most what it holds
+    -- now (a refused take loads nothing).
     local function load(now)
         local n=self.reload_to-self.reload_from
         if self.stocked then
-            n=math.min(n,stock.count() or 0)
+            n=math.min(n,(stock.count() or 0)*per_unit)
+            local units=math.ceil(n/per_unit)
             local ok,why=true,nil
-            if n>0 then ok,why=stock.take(n) end
+            if units>0 then ok,why=stock.take(units) end
             if not ok then
                 self.retry_at=(now or 0)+Ammo.RETRY
-                return g.log('ammo: '..n..' rounds not taken ('..tostring(why)..'): nothing loaded')
+                return g.log('ammo: '..units..' magazines not taken ('..tostring(why)..'): nothing loaded')
             end
         else self.reserve=self.reserve-n end
         self.left=self.reload_from+n
@@ -221,7 +224,7 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
             end
             if self.stocked then
                 pcall(stock.watch,true)
-                self.reserve=stock.count() or 0
+                self.reserve=(stock.count() or 0)*per_unit -- In rounds, as the free spares: the HUD shows magazines.
             end
         end
         local dt=now-(self.last or now)

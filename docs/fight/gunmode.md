@@ -135,35 +135,37 @@ The rounds below have not run in game yet. The rest of this section is written f
 ### Rounds on a co-op save
 
 On a [co-op save](../players/saves.md#co-op-saves) the rifle's rounds are an item EVE carries: `Bullet_Nikke`, the
-game's own round of the NIKKE stage. The mod adds no item. It adds where to get the round:
+game's own round of the NIKKE stage. One `Bullet_Nikke` is one magazine of 60 rounds. EVE carries at most 60 of
+them (the game's cap for the item). The mod adds no item. It adds where to get the round:
 
-- The camp vending machines sell it for 2 gold a round, at simple camps, full camps and nest camps. It is listed after
+- The camp vending machines sell it for 40 gold a magazine, at simple camps, full camps and nest camps. It is listed after
   the drone's railgun rounds. The machines' item that refills all ammo does not refill it: that item refills the
   drone's five rounds only.
 - Enemies and supply boxes drop it, beside the drone's ammo. Each row below rolls on its own: its chance out of 100,
-  then a count between its two numbers. The enemy counts come from the game's table dumps.
+  then 1 or 2 magazines. The chances come from the game's table dumps.
 
-| Drop group | Who rolls it | Chance | Rounds |
+| Drop group | Who rolls it | Chance | Magazines |
 | --- | --- | --- | --- |
-| `subGroup_FA_Normal_Bullet` | 18 kinds of enemy | 15% | 15 to 30 |
-| `subGroup_FA_Normal3_Bullet` | 9 kinds of enemy | 20% | 20 to 40 |
-| `subGroup_global_Normal_Bullet` | 8 kinds of enemy | 10% | 10 to 20 |
-| `subGroup_global_Normal3_Bullet` | 2 kinds of enemy | 15% | 15 to 30 |
-| `subGroup_FA_BodyBag_Bullet` | 2 kinds of enemy | 30% | 30 to 60 |
-| `subGroup_Raven_Bullet` | 2 kinds of enemy | 30% | 30 to 60 |
-| `subGroup_FA_Animal_Bullet` | 13 kinds of enemy | 10% | 10 to 20 |
-| `subGroup_b_standard_Bullet_Random` | Supply boxes | 50% | 20 to 40 |
+| `subGroup_FA_Normal_Bullet` | 18 kinds of enemy | 15% | 1 to 2 |
+| `subGroup_FA_Normal3_Bullet` | 9 kinds of enemy | 20% | 1 to 2 |
+| `subGroup_global_Normal_Bullet` | 8 kinds of enemy | 10% | 1 to 2 |
+| `subGroup_global_Normal3_Bullet` | 2 kinds of enemy | 15% | 1 to 2 |
+| `subGroup_FA_BodyBag_Bullet` | 2 kinds of enemy | 30% | 1 to 2 |
+| `subGroup_Raven_Bullet` | 2 kinds of enemy | 30% | 1 to 2 |
+| `subGroup_FA_Animal_Bullet` | 13 kinds of enemy | 10% | 1 to 2 |
+| `subGroup_b_standard_Bullet_Random` | Supply boxes | 50% | 1 to 2 |
 
 The shop and drop rows go in at the title screen when the co-op save files are picked, once a game run. Your own saves
 never ask them. They stay for the rest of the game run: once they are in, the machines sell the round and enemies drop
 it on any save, your own included. The magazine loads from the inventory only while a co-op save is loaded. Then the
-magazine starts empty. Each reload takes the rounds it loads out of EVE's inventory in one take, at most a magazine
-and at most what she carries. The rounds she carries are the spares. An empty magazine reloads as
-soon as she carries rounds (a buy, a drop). With none in the magazine and none carried the reticle's slot reads NO AMMO.
+magazine starts empty. Each reload takes one magazine out of EVE's inventory and loads it full. The player's reload
+throws away the rounds left in the magazine. The magazines she carries are the spares: the count at the bottom left
+reads rounds in the magazine, then magazines carried. With none carried no reload starts. An empty magazine reloads
+as soon as she carries a magazine (a buy, a drop). With none in the magazine and none carried the reticle's slot reads NO AMMO.
 
 Rounds in the magazine have already left the inventory. They stay in the magazine across a new map, a death or a camp
 warp. Nothing gives them back to the inventory: not putting the rifle away, not `coop off`. A reload loads nothing
-when the game cannot take the rounds, for example while the game is paused. An empty magazine then reloads again
+when the game cannot take the magazine, for example while the game is paused. An empty magazine then reloads again
 after 5 s.
 
 Each player buys and picks up rounds in their own game. Nothing of the rounds goes over the Steam link.
@@ -207,7 +209,7 @@ adds 9 rows and patches 3 shipped rows in place, in this order:
 
 The donor shop item's condition `CG_TPSMode_Opened` is the drone's gun: the copy clears it. RewardGroupTable is the
 row engine's 40th table, written by this batch only. Every one of the eight groups is RandomEach. SB adds a row naming
-an `ItemAlias` with `rand(ItemMinCount, ItemMaxCount)` rounds (`FUN_141bea040`). The row offsets and the functions are
+an `ItemAlias` with `rand(ItemMinCount, ItemMaxCount)` items (`FUN_141bea040`). The row offsets and the functions are
 in the header's comments, read in Ghidra on build 26123051.
 
 `fight/gunmode/nikke.lua` asks the batch through `core/enemy.lua`'s title batch from the 250 ms loop, on the co-op save

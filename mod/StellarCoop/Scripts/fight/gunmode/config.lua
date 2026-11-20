@@ -27,6 +27,9 @@ Config.DEFAULTS={
     round_name='NIKKE RAPID',reload_text='RELOADING',empty_text='NO AMMO',round_color={0.35,0.85,1.0},
     reload_color={1.0,0.62,0.15},
     mag_size=60,spare_mags=5,reload_time=1.6,reload_delay=1.0,
+    -- With a host's round store: the rounds in one unit of it (one Bullet_Nikke is one magazine). A reload takes one
+    -- unit for a full magazine. nil: mag_size.
+    rounds_per_unit=60,
     -- The reload's sounds (the NIKKE squad's), each at this share of the reload time.
     reload_sounds={{'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_1_Cue.P_Eve_GunNikke_Reload_1_Cue',0.0},
         {'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_2_Cue.P_Eve_GunNikke_Reload_2_Cue',0.6},

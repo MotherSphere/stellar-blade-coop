@@ -2,14 +2,15 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode's magazine (fight/gunmode/ammo.lua) with a fake stock in place of a host's round store (ready, count,
--- take, watch). Covered: free magazines without stock and before ready(); once ready the magazine empties, a reload
--- takes min(mag_size, count) through take() and loads it at two thirds of the reload time; a count that dropped during
--- the reload caps the take; a refused take loads nothing, the cool time goes to 999 at the reload's end and the next
--- reload waits Ammo.RETRY s; with no round carried the cool time is 999 and 'out of rounds' is logged once (fired dry
--- too); rounds carried later reload an empty magazine by itself; ready() turning false gives the free magazines back;
+-- take, watch). One unit of the stock is one magazine. Covered: free magazines without stock and before ready(); once
+-- ready the magazine empties, a reload takes 1 unit through take() and loads a full magazine at two thirds of the
+-- reload time; the HUD's spares are the units carried; a count that dropped to 0 during the reload loads nothing; a
+-- refused take loads nothing, the cool time goes to 999 at the reload's end and the next reload waits Ammo.RETRY s;
+-- with no unit carried the cool time is 999, no reload starts and 'out of rounds' is logged once (fired dry too);
+-- units carried later reload an empty magazine by itself; ready() turning false gives the free magazines back;
 -- refill() keeps the magazine with stock; stop() ends the watch and loads a magazine put away mid-reload through
 -- take(). A part-spent magazine never reloads by itself (the rifle lowered or not): the player's reload (manual)
--- throws its rounds away and loads a magazine through take(), never while a refused take waits Ammo.RETRY s.
+-- throws its rounds away and loads a full magazine for 1 unit, never while a refused take waits Ammo.RETRY s.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
@@ -54,57 +55,67 @@ frames(a,400,true,true)
 assert(a.reserve<60 and a.reserve%30==0,'The spares feed the reload: '..a.reserve)
 
 -- With stock before its rows: the free magazines, no watch and no take.
-local st=stock(50)
+local st=stock(3)
 a=new(st)
 frames(a,10)
 assert(a.left==30 and a.reserve==60 and #st.takes==0 and #st.watches==0,'Free magazines before ready()')
 
--- The rows in: the magazine empties, the spares are what she carries, the reload starts at once.
+-- The rows in: the magazine empties, the spares are the 3 magazines she carries, the reload starts at once.
 st.rows=true
 frame(a)
 assert(a.left==0 and st.watches[#st.watches]==true,'Empty and watched once ready')
-assert(a.reserve==50 and a.reload_until,'A reload from what she carries')
+assert(a.reserve==90 and a.reload_until,'A reload from what she carries')
+assert(Ammo.lower_text(a.left,a.reserve,CFG.mag_size)=='0 | 3','Spares in magazines: '..
+    Ammo.lower_text(a.left,a.reserve,CFG.mag_size))
 assert(count("the magazine loads from the round store")==1)
 local start=a.reload_until-CFG.reload_time
 -- Nothing taken before two thirds of the reload time.
 while clock+1/60<start+0.6*CFG.reload_time do frame(a) end
 assert(#st.takes==0 and a.left==0,'Nothing taken before two thirds')
 while clock<start+0.7*CFG.reload_time do frame(a) end
-assert(#st.takes==1 and st.takes[1]==30 and a.left==30,'min(mag_size, count) taken at two thirds')
+assert(#st.takes==1 and st.takes[1]==1 and a.left==30,'1 unit taken at two thirds, a full magazine loaded')
 while a.reload_until do frame(a) end
 assert(cool()==CFG.fire_interval,tostring(cool()))
-assert(a.reserve==20,'The spares follow the count: '..a.reserve)
+assert(st.carried==2 and Ammo.lower_text(a.left,a.reserve,CFG.mag_size)=='30 | 2',
+    'The spares follow the count: '..Ammo.lower_text(a.left,a.reserve,CFG.mag_size))
 
--- Fewer rounds than a magazine: the reload takes them all.
-st=stock(12)
+-- One unit carried: the reload takes it and loads a full magazine.
+st=stock(1)
 st.rows=true
 a=new(st)
 frame(a)
 while a.reload_until do frame(a) end
-assert(#st.takes==1 and st.takes[1]==12 and a.left==12 and a.reserve==0,'All 12 taken')
+assert(#st.takes==1 and st.takes[1]==1 and a.left==30 and a.reserve==0,'1 unit, 30 rounds')
 
--- A part-spent magazine, lowered for 10 s: no reload by itself. The player's reload throws the 25 rounds away; the
--- count drops during the reload: the take is the count now.
-st=stock(40)
+-- A part-spent magazine, lowered for 10 s: no reload by itself. The player's reload throws the 25 rounds away and
+-- loads a full magazine for 1 unit. With no unit left, no player's reload.
+st=stock(2)
 st.rows=true
 a=new(st)
 frame(a)
 while a.reload_until do frame(a) end
-assert(a.left==30 and a.reserve==10)
+assert(a.left==30 and a.reserve==30)
 for _=1,5 do frame(a,true,true); frame(a,true,false) end
 assert(a.left==25,'Five presses, five rounds: '..a.left)
 frames(a,600)
 assert(a.left==25 and not a.reload_until and #st.takes==1,'No reload when lowered')
 assert(a.manual(clock)==true and a.left==0,'The player\'s reload empties the magazine')
-assert(a.reload_from==0 and a.reload_to==10)
-st.carried=3 -- Spent elsewhere while the reload runs.
+assert(a.reload_from==0 and a.reload_to==30)
 while a.reload_until do frame(a) end
-assert(#st.takes==2 and st.takes[2]==3,'Only the 3 carried taken: '..tostring(st.takes[2]))
-assert(a.left==3,'3 loaded: '..a.left)
+assert(#st.takes==2 and st.takes[2]==1 and a.left==30 and st.carried==0,'1 unit for a full magazine')
+for _=1,5 do frame(a,true,true); frame(a,true,false) end
+assert(a.manual(clock)==false and a.left==25,'No player\'s reload with no unit carried')
+
+-- The count drops to 0 while the reload runs (spent elsewhere): nothing loaded.
+st.carried=1; frame(a)
+assert(a.manual(clock)==true)
+st.carried=0
+while a.reload_until do frame(a) end
+assert(#st.takes==2 and a.left==0 and cool()==999,'Nothing loaded at 0: '..a.left)
 
 -- ready() turns false (your own save loaded) mid-reload: the free magazines back, the reload and the watch ended.
 st.carried=5; frame(a)
-assert(a.manual(clock),'The player\'s reload')
+assert(a.reload_until,'The empty magazine reloads')
 st.rows=false
 frame(a)
 assert(a.left==30 and a.reserve==60 and not a.reload_until,'Free magazines: '..a.left..' '..a.reserve)
@@ -125,7 +136,7 @@ local at=#cools -- After the reload's start, which set its own cool time.
 while clock<ends do frame(a) end
 frame(a)
 assert(a.left==0 and #st.takes==0,'Nothing loaded')
-assert(count('30 rounds not taken (the game is paused): nothing loaded')==1,logs[#logs])
+assert(count('1 magazines not taken (the game is paused): nothing loaded')==1,logs[#logs])
 local saw=false
 for i=at+1,#cools do saw=saw or cools[i]==999 end
 assert(saw,'Cool time 999 at the reload\'s end')
@@ -149,15 +160,15 @@ a=new(st)
 frames(a,30)
 assert(cool()==999 and a.left==0 and not a.reload_until)
 assert(count('ammo: out of rounds')==1,count('out of rounds')..' logs')
--- Rounds carried later (a purchase, a drop): the empty magazine reloads by itself.
-st.carried=30
+-- A magazine carried later (a purchase, a drop): the empty magazine reloads by itself.
+st.carried=1
 frame(a)
 assert(a.reload_until and reloads[#reloads]==true,'Reload by itself')
 while a.reload_until do frame(a) end
-assert(a.left==30 and st.takes[1]==30 and cool()==CFG.fire_interval)
+assert(a.left==30 and st.takes[1]==1 and cool()==CFG.fire_interval)
 
 -- refill() with stock: the magazine as it was (its rounds came out of the inventory).
-st=stock(30)
+st=stock(1)
 st.rows=true
 a=new(st)
 frame(a)
@@ -170,18 +181,18 @@ assert(a.left==left and a.reserve==0,'refill keeps the magazine: '..a.left)
 assert(cool()==CFG.fire_interval)
 
 -- stop() mid-reload: the watch ends, the magazine goes in through take().
-st=stock(30)
+st=stock(1)
 st.rows=true
 a=new(st)
 frame(a)
 assert(a.reload_until and #st.takes==0)
 a.stop()
 assert(st.watches[#st.watches]==false,'Watch ended')
-assert(#st.takes==1 and st.takes[1]==30 and a.left==30 and not a.reload_until,'Loaded through take')
+assert(#st.takes==1 and st.takes[1]==1 and a.left==30 and not a.reload_until,'Loaded through take')
 assert(reloads[#reloads]==false)
 
 -- A magazine fired dry with nothing carried: 'out of rounds' once, as with an empty one.
-st=stock(30)
+st=stock(1)
 st.rows=true
 a=new(st)
 frame(a)
