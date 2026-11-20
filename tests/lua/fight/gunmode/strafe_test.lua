@@ -135,4 +135,20 @@ do
     frame(0,cfg.strafe_min-cfg.strafe_min_hyst-2); assert(sf.playing()==nil,'stopped under the hysteresis')
     frame(0,cfg.strafe_min-5); assert(sf.playing()==nil,'not started again under strafe_min')
 end
+-- a clip of the mod pak (LoadAsset cannot see it): loaded through the asset registry once, kept while it has its path,
+-- loaded again when its address holds another object, a miss waits 5 s
+do
+    local gets,objs=0,{}
+    local function obj(path) return {ok=true,path=path,GetFullName=function(o) return 'AnimSequence '..o.path end} end
+    StaticFindObject=function() return {GetAsset=function(_,a) gets=gets+1; if a.ObjectPath=='missing' then return nil end; objs[a.ObjectPath]=objs[a.ObjectPath] or obj(a.ObjectPath); return objs[a.ObjectPath] end} end
+    FName=function(s) return s end
+    local g={valid=function(o) return o~=nil and o.ok==true end}
+    local kept={}
+    local a=Strafe.registry_find(g,kept,'/X/C.C',0); local b2=Strafe.registry_find(g,kept,'/X/C.C',1)
+    assert(a and a==b2 and gets==1,'one registry load, kept')
+    objs['/X/C.C'].path='/Other/O.O'; objs['/X/C.C']=nil
+    assert(Strafe.registry_find(g,kept,'/X/C.C',2) and gets==2,'loaded again when the address holds another object')
+    assert(Strafe.registry_find(g,kept,'missing',3)==nil and Strafe.registry_find(g,kept,'missing',4)==nil and gets==3,'a miss waits')
+    assert(Strafe.registry_find(g,kept,'missing',9)==nil and gets==4,'tried again after 5 s')
+end
 print('gunmode strafe_test ok')

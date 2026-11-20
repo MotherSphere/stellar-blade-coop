@@ -57,6 +57,20 @@ end
 
 local function is_playing(ai,m) return ai:Montage_IsPlaying(m) end
 local function current(ai) return ai:GetCurrentActiveMontage() end
+-- A clip of the gun mode pak: UE4SS's LoadAsset cannot see mod-pak packages, so the asset registry loads it (as
+-- fight/gunmode/overlay.lua does). Kept by path and checked against it before each use; a miss waits 5 s.
+local REG='/Script/AssetRegistry.Default__AssetRegistryHelpers'
+local function full(o) return o:GetFullName() end
+function Strafe.registry_find(g,kept,path,now)
+    local o=kept[path]
+    if type(o)=='table' or type(o)=='userdata' then
+        local ok,f=pcall(full,o)
+        if g.valid(o) and ok and type(f)=='string' and f:sub(-#path)==path then return o end
+    elseif type(o)=='number' and now<o then return nil end
+    local ok,r=pcall(function() return StaticFindObject(REG):GetAsset({ObjectPath=FName(path)}) end)
+    if ok and g.valid(r) then kept[path]=r; return r end
+    kept[path]=now+5
+end
 
 -- The engine part. g: gun mode's helpers (log, valid, asset). tick(p,active,now) once a frame: active is hip fire on
 -- the ground with nothing else owning her legs. hold(ai,m): the hip-fire turn clip just played; the strafe gives way
@@ -68,6 +82,7 @@ function Strafe.new(g,cfg)
     local turn_ai,turn_m
     local SLOT -- FName('DefaultSlot'), made once
     local missing={}
+    local reg={} -- path -> clip loaded through the asset registry, or the time its miss expires
 
     -- the strafe montage stopped (its own end: the turn clip it gives way to is kept)
     local function halt()
@@ -112,7 +127,7 @@ function Strafe.new(g,cfg)
         if path~=clip then
             local a=p.Mesh:GetAnimInstance()
             if not g.valid(a) or other(a) then if clip then halt() end; return end
-            local seq=g.asset(path)
+            local seq=g.asset(path) or Strafe.registry_find(g,reg,path,now)
             if not seq then
                 if not missing[path] then missing[path]=true; g.log('strafe: no '..path) end
                 return
