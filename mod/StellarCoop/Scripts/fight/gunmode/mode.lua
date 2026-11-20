@@ -525,8 +525,11 @@ function GunMode.new(env)
         -- the drone of the last time the rifle was out, when it is still that actor and near her: no walk of every drone
         -- (FindAllOf, 40-50 ms at each rifle out)
         local k=s.drone_keep
-        local all=k and g.valid(k.actor) and g.try(function() return k.actor:GetFullName() end)==k.name and {k.actor}
-            or g.try(function() return FindAllOf(DRONE) end) or {}
+        local kq=k and g.valid(k.actor) and g.try(function() return k.actor:GetFullName() end)==k.name
+            and g.try(function() return k.actor:K2_GetActorLocation() end)
+        local near=kq and (kq.X-loc.X)^2+(kq.Y-loc.Y)^2+(kq.Z-loc.Z)^2<3000*3000
+        if not near then s.drone_keep=nil end -- gone, another actor now, or far from her: every drone walked again
+        local all=near and {k.actor} or g.try(function() return FindAllOf(DRONE) end) or {}
         for _,d in ipairs(all) do
             local q=g.valid(d) and g.try(function() return d:K2_GetActorLocation() end)
             if q then

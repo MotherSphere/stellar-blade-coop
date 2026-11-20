@@ -187,7 +187,7 @@ do
 end
 
 -- 5. L1: a drone near EVE is hidden at the rifle out and held: no walk while it lives, one when it goes. The rifle out
---    again finds the same drone without a walk.
+--    again finds the same drone without a walk, unless that drone is now far from her.
 do
     local w=world()
     local part={IsValid=function() return true end,bHiddenInGame=false,
@@ -207,10 +207,29 @@ do
     frames(gun,60)
     assert(part.bHiddenInGame==true,'the drone hidden again')
     assert(count(w,'CH_Drone_BP_C')==1,count(w,'CH_Drone_BP_C')..' drone walks after the rifle came out again')
-    drone.dead=true
+    -- the kept drone far away and another one by her: the rifle out walks and hides the near one
+    clock=clock+1; gun.toggle_now(); frames(gun,120)
+    assert(not gun.state.on,'the rifle away')
+    drone.K2_GetActorLocation=function() return {X=9000,Y=0,Z=0} end
+    local part2={IsValid=function() return true end,bHiddenInGame=false,
+        SetHiddenInGame=function(o,h) o.bHiddenInGame=h end,SetVisibility=function() end,IsVisible=function() return true end}
+    local near={IsValid=function() return true end,K2_GetActorLocation=function() return {X=50,Y=0,Z=0} end,
+        K2_GetComponentsByClass=function() return {part2} end,GetFullName=function() return 'CH_Drone_BP_C /Game/Map.Drone_2' end}
+    w.drones={drone,near}
+    out(w,gun)
+    frames(gun,60)
+    assert(count(w,'CH_Drone_BP_C')==2,count(w,'CH_Drone_BP_C')..' drone walks with the kept drone far away')
+    assert(part2.bHiddenInGame==true,'the near drone hidden')
+    clock=clock+1; gun.toggle_now(); frames(gun,120)
+    out(w,gun)
+    frames(gun,60)
     w.drones={}
+    drone.dead=true
     frames(gun,60*30)
-    assert(count(w,'CH_Drone_BP_C')==2,count(w,'CH_Drone_BP_C')..' drone walks after it went')
+    assert(count(w,'CH_Drone_BP_C')==2,count(w,'CH_Drone_BP_C')..' drone walks while the near drone lives')
+    near.IsValid=function() return false end
+    frames(gun,60*30)
+    assert(count(w,'CH_Drone_BP_C')==3,count(w,'CH_Drone_BP_C')..' drone walks after it went')
 end
 
 -- 6. M13: the posed stance (the fallback without the layer) on a fake whose engine calls give neutral transforms:
