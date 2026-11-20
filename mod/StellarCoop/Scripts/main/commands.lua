@@ -49,7 +49,7 @@ for _,list in ipairs({{
             stopped,e=pcall(M.teamshop.stop)
             if not stopped then log('teamshop: '..tostring(e)) end
         end
-        if M.gunrounds then -- Gun mode's rounds: the title wait and the inventory reads ended; rows already in stay.
+        if M.gunrounds then -- Gun mode's rounds: the batch ask and the inventory reads ended; rows already in stay.
             stopped,e=pcall(M.gunrounds.stop)
             if not stopped then log('gun rounds: '..tostring(e)) end
         end

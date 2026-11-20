@@ -5,8 +5,8 @@
 // the co-op save files has loaded (slot=coop, saves=coop), after which game/twins.h refuses a switch back to the
 // player's own saves until the game restarts. The rifle's round is SB's own ItemTable row Bullet_Nikke (ID 37): the
 // round the NIKKE stage hands EVE (the game constant NikkeStage_ChangeBullet, default text at 0x145d3c038;
-// FUN_141c30030 sets it as her current bullet). The row ships, so a save that holds rounds always finds it. This batch leaves it as it is. The batch
-// adds where to get it:
+// FUN_141c30030 sets it as her current bullet). The row ships, so a save that holds rounds always finds it. This
+// batch leaves it as it is. The batch adds where to get it:
 //   - drops: 8 RewardGroupTable rows, each a copy of a shipped row of an ammo group that enemies or supply boxes roll
 //     (its ItemAlias, DropRate and counts changed, its Group kept). Every one of those groups is RandomEach. SB
 //     resolves a row naming an ItemAlias in FUN_141bea040: count rand(ItemMinCount, ItemMaxCount). AddRow
