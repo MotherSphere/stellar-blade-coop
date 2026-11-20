@@ -120,7 +120,7 @@ void test_free_in_pose_and_delta() { // kFreeTable: part 0 two bones, part 1 fre
   assert(std::all_of(none.begin() + long(free_offset(t, 1)), none.begin() + long(free_offset(t, 1) + kFreeBytes),
                      [](uint8_t c) { return c == 0; }));        // nullptr encodes 25 zero bytes
   assert(decode_at(t, key, nullptr));                           // and a decode with nullptr skips them
-  // Hidden (bit 7 clear) travels as those 25 zero bytes whatever else it holds, and decodes to an empty block.
+  // Hidden (bit 7 clear) travels as those 25 zero bytes whatever else it holds. It decodes to an empty block.
   std::vector<uint8_t> hidden(pose_size(t));
   Free dark = a;
   dark.state = 13;
@@ -145,7 +145,7 @@ void test_free_in_pose_and_delta() { // kFreeTable: part 0 two bones, part 1 fre
   refused(bad, "free");
   bad = key;
   const float far = 3e38f;
-  std::memcpy(bad.data() + at + 8, &far, 4); // finite, but blending it could overflow
+  std::memcpy(bad.data() + at + 8, &far, 4); // finite: blending it could still overflow
   refused(bad, "free");
   bad = key;
   bad[at + kFreeBytes + 2 * kBoneBytes] = kBones; // part 1 without its kFree flag
@@ -154,7 +154,7 @@ void test_free_in_pose_and_delta() { // kFreeTable: part 0 two bones, part 1 fre
   bad[kPoseHeader] = kWorld | kBones | kFree; // part 0 with it
   refused(bad, "status");
 
-  // Fuzz: mutated keys and deltas of kFreeTable never crash, and whatever decodes holds a finite block, unit when shown
+  // Fuzz: mutated keys and deltas of kFreeTable never crash. Whatever decodes holds a finite block, unit when shown
   // and all zero when hidden.
   std::mt19937_64 rng(5);
   std::uniform_int_distribution<int> byte(0, 255);
