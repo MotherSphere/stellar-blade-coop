@@ -28,6 +28,10 @@
 -- asset (her ponytail's OverrideClothPhysicsAsset). Leaders whose bones would make a pose too big for the native part
 -- go, the last first. The component leave_out() names at each look is no part (main.lua: SBO's bike while EVE does not
 -- ride, vehicles/bike/ride.lua's idle_part), so getting on or off the bike is a new generation.
+-- With the drone look on, her drone's meshes come after hers (and the bike's): the SBCharacter at the address the
+-- native part found (drone(), coop-drone.txt). Its main mesh is a free part (table.h's free line), placed by the pose's
+-- free block, with a light line naming its SpotLight for the native read. Its leader is the last, so it goes first when
+-- the pose is too big. Another drone actor has other component addresses, so it is a new generation.
 -- Read-only: nothing here changes EVE or any of her components.
 local UE=require('UEHelpers')
 local U=require('core.unreal')
@@ -226,11 +230,14 @@ local function effect_layout()
     return layout
 end
 -- publish(text) hands the capture to the native part, publish(nil) withdraws it; both return ok, why. looks: what the
--- ghost shows ({dyes=,effects=true|false}, read at each look; nil: nothing more). assets() gives our CNS packs' assets
--- and those of the mods both players have (core/link.lua's mod_assets(); none when nil). private (mod_names=off): no path outside the game's own folders goes,
--- so no mod's folder or outfit name reaches the friend: such a mesh goes as '-' (her ghost of you draws its fallback)
--- with no mod line, and such a material or cloth asset is left out.
-function Capture.new(publish,looks,assets,private)
+-- ghost shows ({dyes=,effects=,drone=true|false}, read at each look; nil: nothing more). assets() gives our CNS packs'
+-- assets and those of the mods both players have (core/link.lua's mod_assets(); none when nil). private
+-- (mod_names=off): no path outside the game's own folders goes, so no mod's folder or outfit name reaches the friend:
+-- such a mesh goes as '-' (her ghost of you draws its fallback) with no mod line. Such a material or cloth asset is
+-- left out.
+-- drone() gives her drone's address as the native part wrote it ('0x...'), or nil (core/link.lua's drone(); no drone
+-- when nil).
+function Capture.new(publish,looks,assets,private,drone)
     publish=publish or function() return false,'no native part' end
     looks=looks or {}
     assets=assets or function() return {} end
@@ -297,10 +304,35 @@ function Capture.new(publish,looks,assets,private)
             end
         end
     end
+    -- Her drone's parts, for the end of the list: those of the SBCharacter at drone()'s address, of the drone's
+    -- Blueprint class (CH_Drone_BP_C, read in the paks: its SuperStruct is SBCharacter; the file may be a second old).
+    -- Its main mesh first, as the free part with its SpotLight. None without one.
+    local drone_unread -- Why her drone could not be read, until said (then false): once per Lua load.
+    local function drone_parts(eve)
+        local at=tonumber(drone and drone() or nil)
+        if not at then return {} end
+        for _,a in ipairs((U.actors_of(find('/Script/SB.SBCharacter'),'CH_Drone_BP_C',eve))) do
+            if address(a)==at and text(a:GetFullName()):match('^%S+')=='CH_Drone_BP_C' then
+                local list,light=parts_of(a),nil
+                if not (list[1] and list[1].main) then return {} end
+                each(a:K2_GetComponentsByClass(find('/Script/Engine.SpotLightComponent')),function(_,c)
+                    light=light or valid(c)
+                end)
+                for k,c in ipairs(list) do c.drone,c.free,c.main,c.light=true,k==1,false,k==1 and light or nil end
+                return list
+            end
+        end
+        return {}
+    end
     local function look(eve,effects)
         local started=os.clock()
         local list=parts_of(eve,leave_out and leave_out(address(eve)))
         if not (list[1] and list[1].main) then return end
+        if looks.drone then -- A drone that cannot be read is left out: her own parts go on.
+            local read,of_drone=pcall(drone_parts,eve)
+            if not read and drone_unread==nil then drone_unread=tostring(of_drone) end
+            for _,c in ipairs(read and of_drone or {}) do list[#list+1]=c end
+        end
         -- The parts the table can take: a follower of a part left out is left out too. While a pose of them would be
         -- over MAX_POSE, the last leader goes, with its followers.
         local parts,by_address,over,dropped
@@ -330,10 +362,13 @@ function Capture.new(publish,looks,assets,private)
         local key,dress={},{}
         local slots,dynamic=0,0
         local declared=assets()
+        local free_part -- The drone's main mesh once taken: its other parts not hung on a part are placed from it.
         for i,c in ipairs(parts) do
             local parent=c.parent and by_address[c.parent]
-            c.hung=i==1 or (parent~=nil and parent.index<c.index) -- Else at its offset from her main mesh.
-            c.parent_index=i==1 and '-' or c.hung and parent.index or 0
+            if c.free then free_part=c end
+            c.base=c.drone and free_part or parts[1]
+            c.hung=i==1 or not c.free and parent~=nil and parent.index<c.index -- Else at its offset from c.base.
+            c.parent_index=(i==1 or c.free) and '-' or c.hung and parent.index or c.base.index
             c.socket=c.hung and i>1 and text(c.handle:GetAttachSocketName()) or 'None'
             c.socket=c.socket=='None' and '-' or word(c.socket)
             c.shown=c.handle:IsVisible() and c.handle.bHiddenInGame~=true and 1 or 0
@@ -423,9 +458,11 @@ function Capture.new(publish,looks,assets,private)
             local path=sent(c.path)
             lines[#lines+1]=string.format('part %d %s %s %s %d %d %s %s',c.index,c.lead or '-',c.parent_index,c.socket,
                 c.shown,c.bones,word(text(c.handle:GetFName())),path and path:gsub('[^!-~]','_') or '-')
-            if i>1 then
+            if c.free then
+                lines[#lines+1]=string.format('free %d',c.index)
+            elseif i>1 then
                 local relative=c.hung and c.handle:GetRelativeTransform() or math_library:MakeRelativeTransform(
-                    value_of(c.handle:K2_GetComponentToWorld()),value_of(parts[1].handle:K2_GetComponentToWorld()))
+                    value_of(c.handle:K2_GetComponentToWorld()),value_of(c.base.handle:K2_GetComponentToWorld()))
                 lines[#lines+1]=string.format('place %d %s',c.index,place_of(relative))
             end
             for _,m in ipairs(c.materials) do
@@ -453,6 +490,7 @@ function Capture.new(publish,looks,assets,private)
             if not c.lead then
                 lines[#lines+1]=string.format('names %d %s',c.index,names[c.index])
                 lines[#lines+1]=string.format('read %d %s %s %s',c.index,hex(c.handle),hex(c.handle:GetClass()),hex(c.mesh))
+                if c.free and c.light then lines[#lines+1]=string.format('light %d %s',c.index,hex(c.light)) end
                 count=count+c.bones
             end
         end
@@ -529,6 +567,9 @@ function Capture.new(publish,looks,assets,private)
         if message==nil and unread then ok,message,unread=false,'Capture: materials not read: '..unread,false end
         if message==nil and named_unread then
             ok,message,named_unread=false,'Capture: playing effects not read: '..named_unread,false
+        end
+        if message==nil and drone_unread then
+            ok,message,drone_unread=false,'Capture: drone not read: '..drone_unread,false
         end
         return ok,message
     end

@@ -7,10 +7,10 @@ uses={'vehicles.bike'},
 exports={'capture','puppet','ghosts','ghost_of','ghosts_off','ghost_start','hud'},
 new=function(M)
 local print,log=M.print,M.log
--- With mod_names=off, no mod's path goes in the capture either.
+-- With mod_names=off, no mod's path goes in the capture either. Her drone comes from the native part's lookup.
 M.capture=require('online.partner.capture').new(M.link and M.link.components or nil,M.look,
     M.link and M.link.mod_assets or nil,
-    M.settings~=nil and not M.settings.mod_names)
+    M.settings~=nil and not M.settings.mod_names,M.link and M.link.drone or nil)
 -- The crash sentinel (online/partner/sentinel.lua): a mod asset the game crashed on during a call of the last Lua load
 -- is set aside now, logged, and said once a notice can show, with UE4SS-settings.ini's (main/pass.lua).
 local sentinel,crashed=require('online.partner.sentinel').new(M.link,M.VERSION)

@@ -763,4 +763,95 @@ ok,message=step(2)
 t=published[#published]
 assert(ok and message:find('^Capture %d+: 2 parts, ') and t:find('\npart 1 - 0 - 1 37 Bike2 '..BIKE..'\n',1,true),t)
 assert(not t:find(' Bike '..BIKE,1,true),t)
+
+-- Her drone: drone() gives the address the native part found (coop-drone.txt). With looks.drone, the SBCharacter at
+-- that address (here a walk for CH_Drone_BP_C: the class hash is not proven) adds its meshes after hers and the bike's.
+-- Its main mesh is a free part: a free line in place of a place line, its SpotLight on a light line after its read
+-- line. Hidden in game (the Doro look), it goes with shown 0 under the same generation. Off, no drone() address, an
+-- address no drone has, or a pose over 16384 bytes with it (the drone's leader goes first): no free part.
+local DRONE='/Game/Art/Character/NPC/CH_NPC_Drone/CH_NPC_Drone.CH_NPC_Drone'
+local drones,drone_at={},nil
+FindAllOf=function(name) return name=='CH_Drone_BP_C' and drones or {} end
+local function drone_actor(at,bones)
+    local mesh_of=her('CharacterMesh0',DRONE,{bones=bones,names={'Root','DM_Center','BN_BODY'}})
+    local spot=object('SpotLight')
+    local d=object('CH_Drone_BP_C',{Mesh=mesh_of})
+    d.GetAddress=function() return at end
+    d.GetFullName=function() return 'CH_Drone_BP_C /Game/Map.Map:PersistentLevel.CH_Drone_BP_C_1' end
+    function d:K2_GetComponentsByClass(class)
+        if class.path=='/Script/Engine.SpotLightComponent' then return {spot} end
+        assert(class.path=='/Script/Engine.SkeletalMeshComponent')
+        return {mesh_of}
+    end
+    drones={read_only(d,'her drone')}
+    return mesh_of,spot
+end
+local drone_mesh,spot=drone_actor(0x50000000,3)
+drone_at='0x50000000'
+looks={drone=true}
+riding=false
+published={}
+capture=Capture.new(function(text) published[#published+1]=text or 'withdrawn'; return true end,looks,nil,false,
+    function() return drone_at end)
+capture.leave_out(function() return not riding and bike:GetAddress() or nil end)
+player=eve_of('EVE23',{body,bike})
+tick()
+ok,message=step(2)
+t=published[#published]
+assert(ok and message:find('^Capture 100001: 2 parts, 6 bone names, '),tostring(message))
+assert(t:find(plain('\npart 1 - - - 1 3 CharacterMesh0 '..DRONE..'\nfree 1\nnames 1 Root DM_Center BN_BODY\n'
+    ..string.format('read 1 0x%x 0xc1 0x%x\nlight 1 0x%x\n',drone_mesh:GetAddress(),
+    raw[drone_mesh].SkeletalMesh.GetAddress(),spot.GetAddress()))..'$'),t)
+assert(not t:find('\nplace 1 ',1,true),t)
+-- On the bike: the bike is part 1 as before, the drone part 2.
+riding,raw[bike].state.visible=true,true
+ok,message=step(1)
+t=published[#published]
+assert(ok and message:find('^Capture 100002: 3 parts, ') and t:find('\npart 1 - 0 - 1 37 Bike ',1,true),
+    tostring(message))
+assert(t:find('\npart 2 - - - 1 3 CharacterMesh0 '..DRONE..'\nfree 2\n',1,true) and t:find('\nlight 2 0x'),t)
+riding,raw[bike].state.visible=false,false
+step(1)
+-- Hidden in game: the same generation, shown 0.
+raw[drone_mesh].bHiddenInGame=true
+assert(step(1)==nil and published[#published]:find('^generation 100003\n') and
+    published[#published]:find('\npart 1 - - - 0 3 CharacterMesh0 ',1,true),published[#published])
+raw[drone_mesh].bHiddenInGame=false
+step(1)
+-- Another drone actor: a new generation.
+drone_mesh=drone_actor(0x60000000,3)
+drone_at='0x60000000'
+ok,message=step(1)
+assert(ok and message:find('^Capture 100004: 2 parts, ') and published[#published]:find('\nfree 1\n'),tostring(message))
+looks.drone=false
+ok,message=step(1)
+assert(ok and message:find('^Capture 100005: 1 parts, ') and not published[#published]:find('\nfree '),
+    tostring(message))
+looks.drone=true
+drone_at=nil
+assert(step(1)==nil and not published[#published]:find('\nfree '),'No address: the same parts as off')
+drone_at='0x70000000'
+assert(step(1)==nil and not published[#published]:find('\nfree '),'An address no drone has')
+-- Another SBCharacter at the drone's address (the native file a second old): not taken.
+drone_at='0x60000000'
+raw[drones[1]].GetFullName=function() return 'CH_Enemy_C /Game/Map.Map:PersistentLevel.CH_Enemy_C_1' end
+assert(step(1)==nil and not published[#published]:find('\nfree '),'Not a drone')
+raw[drones[1]].GetFullName=function() return 'CH_Drone_BP_C /Game/Map.Map:PersistentLevel.CH_Drone_BP_C_1' end
+-- A drone whose components cannot be read: left out, her parts go on, said once.
+local components_of=raw[drones[1]].K2_GetComponentsByClass
+raw[drones[1]].K2_GetComponentsByClass=function() error('no components') end
+ok,message=step(1)
+assert(ok==false and message:find('^Capture: drone not read: .*no components$'),tostring(message))
+assert(step(1)==nil and not published[#published]:find('\nfree '),'Said once, left out')
+raw[drones[1]].K2_GetComponentsByClass=components_of
+-- Her parts at 16381 bytes (143 + 1 + 54 + 1 + 18 x 899): the drone's 80 more pass 16384, so its leader goes first.
+assert(Capture.pose_bytes({{bones=3},{bones=899}})==16381 and Capture.pose_bytes({{bones=3},{bones=899},
+    {bones=3,free=true}})==16461)
+full.state.bones=899
+player=eve_of('EVE24',{body,full})
+tick()
+ok,message=step(2)
+assert(ok and message:find('^Capture %d+: 2 parts, 902 bone names, .*; 1 leaders left out, over the pose size$'),
+    tostring(message))
+assert(not published[#published]:find('\nfree '),published[#published])
 print('capture_test ok')

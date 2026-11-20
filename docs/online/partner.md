@@ -6,12 +6,12 @@ the ghost in [online/partner-internals.md](partner-internals.md).
 
 ## Looks
 
-Three looks change what the ghost shows. Each is `on` or `off` in `coop-settings.txt`, and all three are on by
-default. The file names them in a comment only, so add a line such as `dyes=off` or `cloth=off`, or change them in
-the menu's Options > Ghost. A file that already says `cloth=off` keeps it off. `coop look` changes
-one until the mod reloads. With one on, the `Ghost ... built` log line ends with `; look: ...`.
+Four looks change what the ghost shows. Each is `on` or `off` in `coop-settings.txt`. All four are on by default. The
+file names them in a comment only, so add a line such as `dyes=off` or `cloth=off`, or change them in the menu's
+Options > Ghost. A file that already says `cloth=off` keeps it off. `coop look` changes one until the mod reloads. With
+one on, the `Ghost ... built` log line ends with `; look: ...`.
 
-The three looks have not been tested in game yet. Back up your saves before you play with one on (see
+The four looks have not been tested in game yet. Back up your saves before you play with one on (see
 [players/saves.md](../players/saves.md)), and turn it off if the game crashes or the ghost looks wrong.
 
 - `cloth`: her ponytail moves as in solo. In solo, the strands you see are an NvCloth simulation of the ponytail mesh,
@@ -43,7 +43,15 @@ The three looks have not been tested in game yet. Back up your saves before you 
   on the part it hangs on, moves it with the slot and stops it when the slot changes, at most 8 starts a second. A fault in the native effect read or write turns effects off until the game restarts
   (`effects off: fault ...`), and the ghost stays without them. Every 60 s with any effect activity, an
   `effects, last 60 s:` line counts those started, those over 6, unlisted reads and boxes written.
-- `dyes=off` and `effects=off` also stop sending yours, so your friend's ghost of you lacks them too.
+- `drone`: her drone. It flies beside her ghost in her drone skin, with its light, lens flare, guide ray and wait
+  signal. Her capture adds the drone's meshes after hers. Each pose places them relative to her body. The light
+  takes the intensity her drone's light has at that pose and casts no shadows. The lens flare, guide ray and wait
+  signal are effects on the drone: they need `effects=on` and share the six effect slots with hers. The Doro look hides
+  it as it does in her game. Her game finds the drone once a second through Stellar Blade's own lookup of the drone
+  character: the one nearest her within 30 m. `drone=off` hides it on the ghosts you see and stops sending yours. A
+  fault in that lookup logs `drone off: fault ...` once. Her ghost then goes on without the drone until the game
+  restarts.
+- `dyes=off`, `effects=off` and `drone=off` also stop sending yours, so your friend's ghost of you lacks them too.
 
 ## Mods and CNS outfits
 
@@ -148,7 +156,8 @@ nothing aside. Neither part has been tested in game yet.
 
 Not carried: shape keys and face morphs, accessories that are static meshes, actors attached to EVE, and parts past 16.
 A pose holds about 900 leader bones in all. When her parts have more, the capture leaves out the last leader parts and
-their followers until the pose fits, and its log line ends with `<n> leaders left out, over the pose size`.
+their followers until the pose fits. Its log line then ends with `<n> leaders left out, over the pose size`. Her drone's
+parts come after hers, so they go first.
 
 ## Solid partner (experimental)
 

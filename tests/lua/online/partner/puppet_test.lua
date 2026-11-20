@@ -144,6 +144,10 @@ local function poseable(actor)
     end
     function p:K2_AttachToComponent(parent,socket,a,b,c) self.attached={parent=parent,socket=socket:ToString(),rules={a,b,c}} end
     function p:K2_SetRelativeTransform(t) self.relative=t end
+    function p:K2_SetRelativeLocationAndRotation(at,r,sweep,_,teleport) -- Her drone, from its box.
+        assert(sweep==false,'Never a sweep')
+        self.rel={at=at,rot=r,teleport=teleport}
+    end
     function p:K2_DestroyComponent(owner) assert(owner==actor,'DestroyComponent takes the owner'); self.destroyed=true end
     function p:IsA(class) return class.path=='/Script/Engine.PoseableMeshComponent' end
     function p:GetOwner() return actor end
@@ -318,6 +322,19 @@ local world=object('World',{SpawnActor=function(_,class,at)
                     RelativeRotation={Pitch=0,Yaw=0,Roll=0}},0x5c0)
                 self.mailbox=added
             end
+        elseif c.path=='/Script/Engine.SpotLightComponent' then -- Her drone's: each setter kept as the field it sets.
+            assert(manual==false,'The light hangs on the root until it is hung on the drone')
+            added=object('SpotLight',{},0xc5)
+            function added:K2_AttachToComponent(parent,socket)
+                self.attached={parent=parent,socket=socket:ToString()}
+            end
+            function added:SetMobility(m) self.Mobility=m end
+            function added:SetCastShadows(on) self.CastShadows=on end
+            function added:SetOuterConeAngle(angle) self.OuterConeAngle=angle end
+            function added:SetIntensity(v) if a.fail_light then error('no intensity') end self.Intensity=v end
+            function added:SetVisibility(v,children) assert(children==false); self.visible=v end
+            function added:K2_DestroyComponent(owner) assert(owner==a); self.destroyed=true end
+            self.light=added
         elseif c.path=='/Script/Engine.TextRenderComponent' then
             assert(manual==false)
             if fail_label then return nil end
@@ -413,7 +430,11 @@ local function remote_text(generation,parts,map)
     for i,p in ipairs(parts) do
         lines[#lines+1]=string.format('part %d %s %s %s %d %d %s %s',i-1,p.lead or '-',p.parent or '-',p.socket or '-',
             p.shown==false and 0 or 1,p.names and #p.names or 0,p.name,p.path or '-')
-        if i>1 then lines[#lines+1]='place '..(i-1)..' '..(p.place or '0 0 0 1 0 0 0 1 1 1') end
+        if p.free then
+            lines[#lines+1]='free '..(i-1)
+        elseif i>1 then
+            lines[#lines+1]='place '..(i-1)..' '..(p.place or '0 0 0 1 0 0 0 1 1 1')
+        end
         for _,m in ipairs(p.materials or {}) do lines[#lines+1]=string.format('material %d %d %s',i-1,m[1],m[2]) end
         for _,m in ipairs(p.materials or {}) do
             for _,v in ipairs(m[3] or {}) do lines[#lines+1]=string.format('value %d %d %s',i-1,m[1],v) end
@@ -1649,6 +1670,106 @@ ok,message=ghost.doro(true)
 assert(ok==false and message:find('^Doro mode off on the ghost: .*the Doro mesh is missing on this PC'),tostring(message))
 assert(actor.parts[1].visible==true and #actor.parts==8,'Drawn as her, no Doro added')
 meshes[DORO.mesh],doro_mesh.destroyed=doro_mesh,nil
+
+-- Her drone (look.drone, read at each build): a free part of the table (a free line, no place line) is a Poseable on
+-- part 0. Its box comes after the effect boxes, named on a free line of the display file. Its SpotLight hangs on its
+-- FX_Lens socket (movable, no shadows, outer cone 40, off until a pose). At each pose place() moves it as its box says
+-- (location and rotation relative to part 0; scale X shown + 1, Y light step + 1) and shows it while the box and the
+-- table say so, never in Doro mode; its light while it shows with a step above 0, at step x 4. Off: none of it.
+do
+local DRONE='/Game/Art/Character/NPC/CH_NPC_Drone/CH_NPC_Drone.CH_NPC_Drone'
+mesh(DRONE,{'Root','DM_Center','BN_BODY'})
+local function with_drone(o)
+    local parts=her_parts()
+    parts[#parts+1]={name='CharacterMesh0',free=true,path=DRONE,names={'Root','DM_Center','BN_BODY'},
+        shown=not (o and o.hidden)}
+    return parts
+end
+local function display_lines()
+    local list={}
+    for line in displays[#displays]:gmatch('[^\n]+') do list[#list+1]=line end
+    return list
+end
+look.drone=true
+ghost=new(nil,true,look) -- Effects on (above).
+ghost.toggle()
+send(960,with_drone())
+ghost.tick()
+clock=clock+2
+ok,message=build()
+actor=spawned[#spawned]
+assert(ok and message:find('^Ghost 960 built: 7 parts %(4 leaders%), .* 0 left out; look: effects loaded 18 of 19, '
+    ..'drone parts 1 %(%d+ ms in all%)%.$'),message)
+local drone,light,free_box=actor.parts[7],actor.light,actor.boxes[7]
+local d=display_lines()
+assert(#actor.boxes==7 and d[3]:match('^effects 0x%x+ 0x%x+ 0x%x+ 0x%x+ 0x%x+ 0x%x+$') and
+    d[4]==string.format('free 6 0x%x',free_box.GetAddress()),displays[#displays])
+assert(displays[#displays]:find(string.format('\ndrive 6 0x%x 0xc2 0x%x 3\n',drone.GetAddress(),
+    meshes[DRONE].GetAddress()),1,true),displays[#displays])
+assert(drone.mesh==meshes[DRONE] and drone.attached.parent==actor.parts[1] and drone.attached.socket=='None' and
+    drone.visible==false and not drone.relative,'On part 0, hidden until its box says')
+assert(light.attached.parent==drone and light.attached.socket=='FX_Lens' and light.Mobility==2 and
+    light.CastShadows==false and light.OuterConeAngle==40 and light.visible==false,'Its light, off')
+box=actor.mailbox
+local function drone_pose(stamp,scale)
+    free_box.fields.RelativeLocation,free_box.fields.RelativeRotation={X=0,Y=50,Z=180},{Pitch=0,Yaw=90,Roll=0}
+    free_box.fields.RelativeScale3D=scale
+    box.RelativeScale3D.Z=stamp
+    return ghost.place()
+end
+assert(drone_pose(70,{X=2,Y=14,Z=1})==nil and drone.visible==true and drone.rel.at.Y==50 and drone.rel.at.Z==180 and
+    drone.rel.rot.Yaw==90 and light.Intensity==52 and light.visible==true,'Shown, placed, lit at step 13')
+drone_pose(71,{X=2,Y=1,Z=1})
+assert(drone.visible==true and light.visible==false and light.Intensity==0,'Step 0: the light off')
+drone_pose(72,{X=1,Y=14,Z=1})
+assert(drone.visible==false and light.visible==false,'Hidden: the part and its light')
+drone_pose(73,{X=2,Y=14,Z=1})
+assert(drone.visible==true and light.visible==true)
+-- The table hides it (her drone hidden in game, the same generation): hidden whatever its box says, until shown again.
+assert(send(960,with_drone({hidden=true}))==nil and drone.visible==false and light.visible==false)
+drone_pose(74,{X=2,Y=14,Z=1})
+assert(drone.visible==false and light.visible==false,'Still hidden by the table')
+send(960,with_drone())
+assert(drone.visible==true and light.visible==true)
+-- Doro mode hides it and its light with every part.
+ghost.doro(true)
+assert(drone.visible==false and light.visible==false)
+ghost.doro(false)
+assert(drone.visible==true and light.visible==true)
+-- A light that fails: the drone off on this ghost (hidden, said once), the ghost goes on.
+actor.fail_light=true
+ok,message=drone_pose(75,{X=2,Y=20,Z=1})
+assert(ok==false and message:find('^Drone off on this ghost: .*no intensity$') and drone.visible==false and
+    light.visible==false and not actor.destroyed,tostring(message))
+actor.fail_light=false
+assert(drone_pose(76,{X=2,Y=14,Z=1})==nil and drone.visible==false,'Off until the next build')
+-- The table read stays strict: a free part needs its free line and no place line; a placed part has no free line.
+local good=remote_text(961,with_drone())
+for _,bad in ipairs({good:gsub('\nfree 6\n','\nplace 6 0 0 0 1 0 0 0 1 1 1\n'),good:gsub('\nfree 6\n','\n'),
+    good:gsub('\nplace 2 [^\n]*\n','\nfree 2\n')}) do
+    remote_file=bad
+    count=count+1
+    ok,message=ghost.remote(961,count,'loopback')
+    assert(ok==false and message=='The remote table could not be read.',bad)
+end
+-- A part that turns free under the same generation is another layout: a new ghost, which gives it its box.
+local placed=with_drone()
+placed[7].free,placed[7].parent=nil,0
+send(963,placed)
+build()
+ok,message=send(963,with_drone())
+assert(ok and message=='Ghost 963 removed (a new table).',tostring(message))
+-- Off: no drone part, box or light. Nothing counts as left out.
+look.drone=false
+send(962,with_drone())
+ok,message=build()
+actor=spawned[#spawned]
+assert(ok and message:find('^Ghost 962 built: 6 parts %(3 leaders%), .* 0 left out; look: effects loaded 18 of 19 '),
+    message)
+assert(#actor.parts==6 and #actor.boxes==6 and not actor.light and not displays[#displays]:find('\nfree ')
+    and not displays[#displays]:find('\ndrive 6 '),displays[#displays])
+look.drone=nil
+end
 
 -- The solid partner (collide=on, on by default). Puppet.solid's rules a to g as a table, one case each, then the
 -- latches of b and e and their reset by a. Then on fakes: no capsule while off; built the first time the ghost shows

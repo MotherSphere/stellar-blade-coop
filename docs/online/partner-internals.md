@@ -29,6 +29,19 @@ the ghost cannot draw them (see [Looks](#looks)).
 With the effects look on, it adds what the native part needs to read her effects. A part whose ponytail cloth has a
 collision asset of its own (`OverrideClothPhysicsAsset`) names it.
 
+With the drone look on, it adds her drone. The native part finds the drone once a second on the game thread while her
+capture is live (`online/partner/drone_game.inc`). It asks Stellar Blade's own companion lookup: the drone's CharID
+(`CharID_N_Drone`, `FUN_141aafe60(0x11)`), then that CharID's FSBActors (`FUN_141aae2f0`) and each one's character
+through the character map. It asks only in game, outside loading and SB's logic thread, while both globals the lookup
+reads (`0x147037400` and `0x1470373b0`) are set and the world's actor manager and character map exist. Of the
+characters found, it keeps the one nearest her main mesh within 30 m. The worker writes `coop-drone.txt` (`drone
+0x<actor>` or `drone none`) when that changes. `core/link.lua`'s `drone()` reads it. A fault in the lookup sets `drone
+none` for the run with one `drone off: fault ...` line. The capture takes the
+SBCharacter at that address whose class is `CH_Drone_BP_C` and adds its meshes after hers and the bike's. Its main mesh
+is a free part, placed by the pose instead of a `place` line. Its other meshes hang from it. A `light` line names its
+SpotLight for the native read. Another drone actor has other component addresses, so it starts a new generation. A
+drone the capture cannot read is left out with one `Capture: drone not read: ...` line. Her own parts go on.
+
 A mesh outside the game's own folders (`/Game/[DLC_<n>/]Art/Character/`) comes from a mod. Such a part gets a tag: the
 `UniqueFitID` that your CNS packs give its path (from `coop-cns.txt`), else the first two folders of the path
 (`OutfitMods/FooSuit`). It also names its overridden materials and hidden slots with the dyes look off,
@@ -54,6 +67,8 @@ generation <1 to 2^53>
 map /<package path, lowercased>
 part <i> <lead|-> <parent|-> <socket|-> <shown 0|1> <bones> <name> <path|->
 place <i> qx qy qz qw tx ty tz sx sy sz           parts after 0: placement relative to the parent
+free <i>                                          in place of place: a leader hung from nothing (her drone), placed by
+                                                  the pose's free block
 material <i> <slot> <path>                        up to 16, slots 0 to 63 rising: an overridden material
 value <i> <slot> v <name> r g b a                 up to 32 a slot and 512 a table, slots rising: a vector value of
 value <i> <slot> s <name> x                       that slot's dynamic material, a scalar, or a texture (a space in a
@@ -72,11 +87,11 @@ other does. Hide lines follow the same rule: a slot past 63, slots not rising or
 counted with the value lines. Value and hide lines do not count for the layout, so a change in them never builds a new
 ghost.
 
-The capture file also carries the memory addresses the native part reads from (`read`, `effects` and `effect` lines);
-those never go on the wire. The `fx <k> <path>` lines after the last part do: each names the effect index `k` (20 to
-64) by the path of a Niagara system (see [Looks](#looks)). A leader part has bones of its own. A follower follows a leader's bones (her ponytail, for
-example). Part 0 is her main mesh. A table is at most 64 KiB, and the native parser checks every line (the tests fuzz
-it).
+The capture file also carries the memory addresses the native part reads from (`read`, `light`, `effects` and `effect`
+lines); those never go on the wire. The `fx <k> <path>` lines after the last part do: each names the effect index `k`
+(20 to 64) by the path of a Niagara system (see [Looks](#looks)). A leader part has bones of its own. A follower follows
+a leader's bones (her ponytail, for example). Part 0 is her main mesh. A table is at most 64 KiB. The native parser
+checks every line (the tests fuzz it).
 
 ## 3. The pose codec
 
@@ -88,6 +103,11 @@ game thread at the send rate, and the worker sends it. A pose message holds:
 - the main mesh's world transform: translation as three floats, rotation in 6 bytes, scale in three 16-bit integers;
 - each leader's bones in local space, 18 bytes a bone: rotation as the smallest three of its unit quaternion (6 bytes),
   translation in 1/32 cm and scale in 1/4096 (16-bit integers each);
+- for each free part (her drone), right after the world transform, a 25-byte block: its main mesh's transform relative
+  to her main mesh in the world transform's 24 bytes, then a state byte. Bit 7 of the state is set when the part was
+  read this pose. Bits 0 to 6 are its light's step: the SpotLight's intensity / 4, rounded, up to 127, 0 while the
+  light is hidden or missing. A hidden block is 25 zero bytes. A drone that cannot be read shows hidden while her own
+  pose goes on;
 - six effect slots of 15 bytes each: an index (1 to 19 for the fixed list of effects, 20 to 64 for the table's `fx`
   lines), the part it hangs on, a serial for each new instance, and its rotation and translation relative to the part.
 
@@ -95,11 +115,11 @@ A pose is at most 16 KiB; in the outfits measured it is 4.7 to 5 KB. A world pos
 is refused.
 
 Since protocol 9 most poses go as deltas. A keyframe is a full pose as above. A delta has the same header, the age of
-its keyframe in microseconds, the world transform, one bit for each bone rotation, translation, scale and effect slot,
-and the bytes of those that changed since the keyframe. The sender sends a keyframe first, then every 250 ms, and
-whenever a delta would not be smaller. The receiver rebuilds the full pose from the keyframe it holds and decodes it
-like a keyframe. A delta whose keyframe was lost on the way is dropped and counted as keyless; the ghost waits for the
-next keyframe, at most 250 ms later. In tests a delta was 26 % (idle) to 41 % (combat) of the full pose.
+its keyframe in microseconds, the world transform and free blocks, one bit for each bone rotation, translation, scale
+and effect slot, and the bytes of those that changed since the keyframe. The sender sends a keyframe first, then every
+250 ms, and whenever a delta would not be smaller. The receiver rebuilds the full pose from the keyframe it holds and
+decodes it like a keyframe. A delta whose keyframe was lost on the way is dropped and counted as keyless; the ghost
+waits for the next keyframe, at most 250 ms later. In tests a delta was 26 % (idle) to 41 % (combat) of the full pose.
 
 A bone's rotation, translation or scale counts as changed only when it is more than a small tolerance away from the
 keyframe, in the codec's own steps: 2 steps on each rotation component (0.035° at most), 1 step of translation (1/32 cm)
@@ -197,15 +217,15 @@ for 2 s and the maps match. A ghost left standing by a Lua reload (Ctrl+R) is fo
 
 ## Looks
 
-The three looks (cloth, dyes, effects) use the same pipeline. Dyes add `material` and `value` lines to the table (parts
-on a mod's mesh have them either way). A slot's values go on a dynamic instance the ghost makes of that slot's material
-(`CreateDynamicMaterialInstance`, then `SetVectorParameterValue`, `SetScalarParameterValue` and
+The four looks (cloth, dyes, effects, drone) use the same pipeline. Dyes add `material` and `value` lines to the table
+(parts on a mod's mesh have them either way). A slot's values go on a dynamic instance the ghost makes of that slot's
+material (`CreateDynamicMaterialInstance`, then `SetVectorParameterValue`, `SetScalarParameterValue` and
 `SetTextureParameterValue`), and a later table sets only what changed on that instance. A value gone from a later table
 puts the slot back on the plain material, and what is left goes on a new instance. A slot with no material here (a
 missing pack) gets no values and no error. If the instance or a setter fails, the slot goes back on the plain material
 and stays there for this ghost, with one note in the log. Textures load after the build, one each 0.25 s, by the same
-rules as meshes. At most 64 wait at once, with one note in the log, and those left over are tried again once none
-waits. A Lua load makes at most 1024 FNames for values, since FNames are never freed.
+rules as meshes. At most 64 wait at once, with one note in the log. Those left over are tried again once none waits. A
+Lua load makes at most 1024 FNames for values, since FNames are never freed.
 
 Hide lines go on a part drawn on its own mesh, under the dyes rule. The ghost calls `ShowAllMaterialSections(0)`, then
 `ShowMaterialSection(slot, 0, false, 0)` for each slot the mesh has: section 0 and LOD 0, as CNS calls it. They are set
@@ -238,6 +258,17 @@ the others only from your own CNS and shared lists. The build loads those its ta
 is loaded by the tick, one each 0.25 s, never while the boxes are read. A slot naming a system not loaded yet is skipped
 silently, so the first instance of a new effect does not show on either side. One that fails or is refused draws nothing
 on its index, with one note a ghost. Not tested in game yet.
+
+Her drone's free part is a Poseable hung on part 0, with its followers on it. The ghost adds a box beside the mailbox
+for it, named on the display file's `free <i> 0x<box>` line. At each pose the native part writes the drone's block
+there: location and rotation relative to part 0, scale (shown + 1, light step + 1, 1). Lua's `place()` moves the drone
+to it at each new pose and shows it while the box and the table say so, never in Doro mode. A SpotLight on the drone's
+`FX_Lens` socket, where her drone's Blueprint (`CH_Drone_BP`) hangs its light, gets the step x 4 as intensity. It is
+movable, casts no shadows and has an outer cone of 40 degrees, as in the Blueprint. It is off at step 0 or while the
+drone is hidden. A Lua error there hides the drone on that ghost until its next build, with one line. The ghost
+stays. With the drone look off, the viewer draws no free part, nor the parts that follow or hang on one. The drone's
+light shows on every ghost: a lobby holds at most 7 others, under the spec's cap of the 8 nearest. Not tested in game
+yet.
 
 Cloth, on by default, uses only the table's `cloth` line (sent whatever the setting): each PC runs NvCloth on the
 ghost's ponytail from the body bones that already arrive (her hair chain `Ab-TL-HairB01` to `HairB09` among them). While
