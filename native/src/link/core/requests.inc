@@ -269,6 +269,9 @@ private:
         put(kRulesKey, rules_);
       event("rules: " + rules_);
       break;
+    case Command::spot: // The travel's spot lines and camp rests: not routed yet.
+    case Command::rest:
+      break;
     case Command::mute: { // Any player's, in any lobby, kept for the game run (my call 18).
       const std::string name = name_of(r.player);
       if (r.off)

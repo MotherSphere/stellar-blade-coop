@@ -2420,13 +2420,13 @@ int main() {
     w.tick();
     F.members[5000].push_back(kFriend);
     w.tick("", 0, 0, 600);
-    const Vitals hers = {900, 1600, 0, 50, 5, 200, 1000, 0, 0, 0, 0, 1};
+    const Vitals hers = {900, 1600, 0, 50, 5, 200, 1000, 0, 0, 0, 0, 1, 1};
     F.inbox.push_back({kFriend, vit_line(hers)});
     F.inbox.push_back({kFriend, say_line("before")});
     const size_t logged = events.size();
     w.tick();
     assert(w.status().find("\nmate=") == std::string::npos && !w.link.chat_waiting() && events.size() == logged);
-    const Vitals mine = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1};
+    const Vitals mine = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1, 1};
     w.link.vitals(mine);
     const std::string vit = "SBC" + std::to_string(kProtocol) + " vit ";
     assert(sent_to(kFriend, vit) == 0); // Not linked: nothing goes.
@@ -2434,7 +2434,7 @@ int main() {
     F.inbox.push_back({kFriend, accept()});
     F.inbox.push_back({kFriend, vit_line(hers)});
     w.tick();
-    assert(w.status().find("\nmate=900 1600 0 50 5 200 1000 0 0 0 0 1\n") != std::string::npos);
+    assert(w.status().find("\nmate=900 1600 0 50 5 200 1000 0 0 0 0 1 1\n") != std::string::npos);
     assert(w.status().find("\nfriend=") < w.status().find("\nmate=") &&
            w.status().find("\nmate=") < w.status().find("\nnotice="));
     w.link.vitals(mine);
@@ -2461,7 +2461,7 @@ int main() {
     w.tick("", 0, 0, 1000);
     w.link.vitals(healed);
     assert(sent_to(kFriend, vit_line(healed)) == 2); // The keepalive.
-    F.inbox.push_back({kFriend, "SBC" + std::to_string(kProtocol) + " vit 1601 1600 0 0 0 0 0 0 0 0 0 1"});
+    F.inbox.push_back({kFriend, "SBC" + std::to_string(kProtocol) + " vit 1601 1600 0 0 0 0 0 0 0 0 0 1 0"});
     w.tick();
     assert(saw("invalid message from Kaanta") && w.status().find("\nmate=900 ") != std::string::npos);
     w.tick("", 0, 0, 1700); // Her last line is 3 s old: gone from the status, so the card greys.
@@ -2554,7 +2554,7 @@ int main() {
     w.tick();
     F.members[5000].push_back(kFriend);
     w.tick("", 0, 0, 600);
-    Vitals mine = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1};
+    Vitals mine = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1, 1};
     w.link.vitals(mine);
     assert(w.status().find("\nlife=") == std::string::npos); // No session yet.
     F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
@@ -2572,7 +2572,7 @@ int main() {
     assert(w.status().find("\nlife=3 0\n") != std::string::npos);
     w.tick("", 0, 0, 1);
     assert(w.status().find("\nlife=") == std::string::npos); // Our last read is 3 s old.
-    Vitals hers = {900, 1600, 0, 50, 5, 200, 1000, 0, 0, 0, 0, 1};
+    Vitals hers = {900, 1600, 0, 50, 5, 200, 1000, 0, 0, 0, 0, 1, 1};
     const auto heard = [&](uint32_t life, uint32_t hp, uint32_t max_hp = 1600) {
       hers[vital::life] = life, hers[vital::hp] = hp, hers[vital::max_hp] = max_hp;
       F.inbox.push_back({kFriend, vit_line(hers)});
@@ -2604,9 +2604,9 @@ int main() {
     w.tick();
     assert(w.link.chatting() && w.link.say("écho 😀") && F.sent.empty());
     assert(w.link.take_chat() == Texts{"in 1001 écho 😀"});
-    const Vitals mine = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1};
+    const Vitals mine = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1, 1};
     w.link.vitals(mine);
-    assert(w.status().find("\nmate=1500 1600 30 50 5 400 1000 0 0 0 0 1\n") != std::string::npos);
+    assert(w.status().find("\nmate=1500 1600 30 50 5 400 1000 0 0 0 0 1 1\n") != std::string::npos);
     assert(w.status().find("écho") == std::string::npos);
     w.link.loopback(false);
     w.tick();

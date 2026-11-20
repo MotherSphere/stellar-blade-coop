@@ -338,6 +338,10 @@ private:
       if (!peer.accepted)
         wait_until_ = now_ + message.a * 1000;
       break;
+    case Kind::spot_ask: // The travel's spot lines and camp rests: not routed yet.
+    case Kind::spot:
+    case Kind::rest:
+      break;
     case Kind::invalid:
       if (++peer.invalid == 1)
         event("invalid message from " + peer.name);

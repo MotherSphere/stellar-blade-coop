@@ -8,6 +8,7 @@
 #include <cassert>
 #include <cctype>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <random>
 #include <set>
@@ -168,17 +169,19 @@ int main() {
   for (const char *other : {"SBC22 gift a 1", "SBC24 gift a 1", "SBC gift a 1"})
     assert(parse_text(other).kind == Kind::invalid);
 
-  // The vit line, unreliable: the partner card's twelve numbers, whole units. Each rule holds at its edge.
-  const Vitals v = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1};
-  assert(vit_line(v) == p + " vit 1500 1600 30 50 5 400 1000 0 0 0 0 1");
+  // The vit line, unreliable: the partner card's twelve numbers, whole units, then the zone type. Each rule holds at
+  // its edge.
+  const Vitals v = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1, 1};
+  assert(vit_line(v) == p + " vit 1500 1600 30 50 5 400 1000 0 0 0 0 1 1");
   m = parse_text(vit_line(v));
   assert(m.kind == Kind::vitals && m.vitals == v && plausible_vitals(v));
   Vitals edge = {kMaxVital, kMaxVital, kMaxVital, kMaxVital, 64, kMaxVital, kMaxVital, kMaxVital, kMaxVital,
-                 kMaxVital, kMaxVital, 255};
+                 kMaxVital, kMaxVital, 255, kMaxZoneType};
   m = parse_text(vit_line(edge));
-  assert(m.kind == Kind::vitals && m.vitals == edge && vit_line(edge).size() <= 9 + 11 * 9 + 4);
+  assert(m.kind == Kind::vitals && m.vitals == edge && vit_line(edge).size() <= 9 + 11 * 9 + 4 + 2);
   for (auto [at, value] : {std::pair<size_t, uint32_t>{vital::hp, kMaxVital + 1}, {vital::max_hp, kMaxVital + 1},
-                           {vital::blocks, 65}, {vital::life, 256}, {vital::tachy, kMaxVital + 1}}) {
+                           {vital::blocks, 65}, {vital::life, 256}, {vital::tachy, kMaxVital + 1},
+                           {vital::zone, kMaxZoneType + 1}}) {
     Vitals bad = edge;
     bad[at] = value;
     assert(!plausible_vitals(bad) && parse_text(vit_line(bad)).kind == Kind::invalid);
@@ -186,6 +189,18 @@ int main() {
   Vitals over = v;
   over[vital::hp] = 1601; // HP over MaxHP.
   assert(!plausible_vitals(over) && parse_text(vit_line(over)).kind == Kind::invalid);
+  // Vitals carry the zone type (13 numbers); a type over 6 or the 12-number line of before is no vitals line.
+  {
+    Vitals z{1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1, 5};
+    assert(vit_line(z) == p + " vit 1500 1600 30 50 5 400 1000 0 0 0 0 1 5");
+    assert(parse_text(vit_line(z)).kind == Kind::vitals && parse_text(vit_line(z)).vitals[vital::zone] == 5);
+    z[vital::zone] = 7;
+    assert(!plausible_vitals(z) && parse_text(vit_line(z)).kind == Kind::invalid);
+    assert(parse_text(p + " vit 1500 1600 30 50 5 400 1000 0 0 0 0 1").kind == Kind::invalid);
+    for (uint32_t t = 0; t <= 7; ++t)
+      assert(solo_zone(t) == (t >= 2 && t <= 6));
+    assert(wire_zone(6) == 6 && wire_zone(7) == 0 && wire_zone(255) == 0 && wire_zone(0) == 0);
+  }
 
   // The paks line, reliable: how many .pak mods her game loads beyond the base game's, and their hash
   // (link/pak_list.h).
@@ -392,12 +407,14 @@ int main() {
   assert(clean(hangul, 64) == hangul.substr(0, 63)); // 21 whole characters, no half one.
 
   // Anything else is invalid: unknown kinds, bad or missing numbers, junk.
-  const std::string n12 = " 1 2 3 4 5 6 7 8 9 10 11 12";
+  const std::string n12 = " 1 2 3 4 5 6 7 8 9 10 11 12", n13 = n12 + " 0";
+  assert(parse_text(p + " vit" + n13).kind == Kind::vitals);
   for (const std::string &bad :
        {p + " say", p + " say ", p + " say \x01\x02", p + " say \xe2\x80\x8b", p + " Say hi", p + " vit",
-        p + " vit 1 2 3 4 5 6 7 8 9 10 11", p + " vit" + n12 + " 13", p + " vit" + n12 + " ",
-        p + " vit  2" + n12.substr(2), p + " vit -1 2 3 4 5 6 7 8 9 10 11 12", p + " vit 1.5 2 3 4 5 6 7 8 9 10 11 12",
-        p + " vit 1 2 3 4 5 6 7 8 9 10 11 x", p + " vit 99999999999999999999 1 0 0 0 0 0 0 0 0 0 1"})
+        p + " vit 1 2 3 4 5 6 7 8 9 10 11", p + " vit" + n12, p + " vit" + n13 + " 0", p + " vit" + n13 + " ",
+        p + " vit  2" + n13.substr(2), p + " vit -1 2 3 4 5 6 7 8 9 10 11 12 0",
+        p + " vit 1.5 2 3 4 5 6 7 8 9 10 11 12 0", p + " vit 1 2 3 4 5 6 7 8 9 10 11 12 x",
+        p + " vit 99999999999999999999 1 0 0 0 0 0 0 0 0 0 1 0"})
     assert(parse_text(bad).kind == Kind::invalid);
   for (const std::string &bad :
        {std::string(), std::string("SBC"), p, p + " dance 1 2", p + " ping", p + " ping 1", p + " ping x 2",
@@ -418,7 +435,9 @@ int main() {
                                pak_line({"~mods/lily_hair_p", 1024, 0xfedcba9876543210ull}), night_line(host_line),
                                mark_line(9, "é ok"), start_line("ffa", "NK_Boss_Scarlet", 7, {1001, 2002}),
                                count_line(5), end_line(), dlc_line(3564740, "Twin Expansion Pack"), dlcs_line(),
-                               cycle_line(3, 1), let_line(2002, {2002, 4003}, 4), wait_line(120)};
+                               cycle_line(3, 1), let_line(2002, {2002, 4003}, 4), wait_line(120),
+                               spot_ask_line(5), spot_line(5, Spot{-1235, 0, 7, -180}), spot_none_line(5, "air"),
+                               rest_line("Zone_Xion_10", 1001)};
   for (int round = 0; round < 200000; ++round) {
     std::string text;
     if (round % 2) {
@@ -437,6 +456,13 @@ int main() {
       assert(!f.text.empty() && f.text == chat_clean(f.text));
     if (f.kind == Kind::vitals) // Leading zeros read as the number they spell.
       assert(plausible_vitals(f.vitals));
+    if (f.kind == Kind::spot_ask || f.kind == Kind::spot) // An id, a place and a yaw in bounds, or a known reason.
+      assert(f.a <= kMaxCampId &&
+             (f.text == "none" ? spot_why(f.why)
+                               : std::abs(f.at[0]) <= kMaxSpotAt && std::abs(f.at[1]) <= kMaxSpotAt &&
+                                     std::abs(f.at[2]) <= kMaxSpotAt && std::abs(f.at[3]) <= kMaxSpotYaw));
+    if (f.kind == Kind::rest)
+      assert(alias_word(f.text) && f.a);
     if (f.kind == Kind::paks)
       assert(f.a <= kMaxPaks);
     if (f.kind == Kind::pak) // A name the sender's rule makes, the line exactly as pak_line() writes it.
@@ -1230,6 +1256,63 @@ int main() {
         std::string("travel ") + a65 + " 1 0", std::string("travel Xion_Camp_10 1"), std::string("travel"),
         std::string("travel Xion_Camp_10 1 0 1"), std::string("travel Xion_Camp_10 -1 0")})
     assert(parse_request(bad).command == Command::none);
+  // spot? and spot: round trips; places within 10'000'000 cm and yaw within 360; the six reasons only.
+  {
+    Message m = parse_text(spot_ask_line(5));
+    assert(spot_ask_line(5) == p + " spot? 5" && m.kind == Kind::spot_ask && m.a == 5 &&
+           spot_line(m) == p + " spot? 5");
+    m = parse_text(spot_line(5, Spot{100, -200, 300, -90}));
+    assert(m.kind == Kind::spot && m.at == (Spot{100, -200, 300, -90}) &&
+           spot_line(m) == p + " spot 5 100 -200 300 -90");
+    m = parse_text(spot_none_line(5, "air"));
+    assert(m.kind == Kind::spot && m.text == "none" && m.why == "air" && spot_line(m) == p + " spot 5 none air");
+    for (const char *why : {"title", "loading", "air", "busy", "solo", "boss"})
+      assert(parse_text(spot_none_line(kMaxCampId, why)).kind == Kind::spot);
+    m = parse_text(spot_line(0, Spot{-10'000'000, 10'000'000, -10'000'000, 360}));
+    assert(m.kind == Kind::spot && m.a == 0 && m.at == (Spot{-10'000'000, 10'000'000, -10'000'000, 360}));
+    assert(parse_text(p + " spot 5 0 0 0 -360").kind == Kind::spot);
+    for (const std::string &bad : {p + " spot 5 none nocamp", p + " spot 5 10000001 0 0 0", p + " spot 5 0 0 0 361",
+                                   p + " spot 5 1.5 0 0 0", p + " spot 5 0 0 0", p + " spot 65536 0 0 0 0",
+                                   p + " spot? x", p + " spot 5 -0x1 0 0 0", p + " spot 5 0 0 -10000001 0",
+                                   p + " spot 5 0 0 0 -361", p + " spot 5 - 0 0 0", p + " spot 5 --1 0 0 0",
+                                   p + " spot 5 +1 0 0 0", p + " spot 5 0 0 0 0 0", p + " spot 5 none",
+                                   p + " spot 5 none air air", p + " spot? 65536", p + " spot? 5 6",
+                                   "SBC" + std::to_string(kProtocol + 1) + " spot? 5"})
+      assert(parse_text(bad).kind == Kind::invalid);
+  }
+  // rest: the zone and the resting member's SteamID.
+  {
+    const Message m = parse_text(rest_line("Zone_Xion_10", 1001));
+    assert(rest_line("Zone_Xion_10", 1001) == p + " rest Zone_Xion_10 1001");
+    assert(m.kind == Kind::rest && m.text == "Zone_Xion_10" && m.a == 1001);
+    assert(parse_text(p + " rest " + std::string(64, 'a') + " 1").kind == Kind::rest);
+    for (const std::string &bad :
+         {p + " rest Zone_Xion_10 0", p + " rest Zone-X 1", p + " rest " + std::string(65, 'a') + " 1",
+          p + " rest Zone_Xion_10", p + " rest Zone_Xion_10 1 2", p + " rest Zone_Xion_10 x"})
+      assert(parse_text(bad).kind == Kind::invalid);
+  }
+  // Lua's words.
+  {
+    Request r = parse_request("spot? 5 1001");
+    assert(r.command == Command::spot && r.line == p + " spot? 5" && r.player == 1001);
+    assert(parse_request("spot? 5 0").command == Command::none);
+    r = parse_request("spot 3 -1235 0 7 -180");
+    assert(r.command == Command::spot && r.line == p + " spot 3 -1235 0 7 -180");
+    assert(parse_request("spot 3 none boss").command == Command::spot &&
+           parse_request("spot 3 none x").command == Command::none);
+    r = parse_request("rest Zone_Xion_10");
+    assert(r.command == Command::rest && r.alias == "Zone_Xion_10");
+    assert(parse_request("rest Zone-X").command == Command::none && parse_request("rest").command == Command::none);
+    r = parse_request("travel spot 100 -200 300 90");
+    assert(r.command == Command::travel && r.spot && r.at == (Spot{100, -200, 300, 90}) && r.index == 0);
+    r = parse_request("travel spot 1 2 3 0 Xion 77 0");
+    assert(r.command == Command::travel && r.spot && r.alias == "Xion" && r.index == 77 && r.number == 0);
+    for (const char *bad : {"travel spot 1 2 3", "travel spot 1 2 3 0 Xion 0 0", "travel spot 10000001 0 0 0",
+                            "travel spot 1 2 3 400", "travel spot 1 2 3 0 Xion 77", "travel spot 1 2"})
+      assert(parse_request(bad).command == Command::none);
+    assert(parse_request("travel Xion_Camp 12 11").command == Command::travel &&
+           !parse_request("travel Xion_Camp 12 11").spot);
+  }
   // sbo requests (design-lobby 3.3, 3.7): exact words, decimal FName ids, a plausible hex manager, one abort word.
   {
     Request r = parse_request("sbo arm 123456 0");

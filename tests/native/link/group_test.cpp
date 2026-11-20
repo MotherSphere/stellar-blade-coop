@@ -101,7 +101,7 @@ int main() {
            saw("P2: pose rate cap 30 a second for P1: 3 players in the lobby"));
     assert(peer_of(m[2], kMe)->cap.cap() == 30 && peer_of(m[2], kFriend)->cap.cap() == 30);
     for (int i = 0; i < 3; ++i)
-      m[i].vitals(Vitals{uint32_t(100 + i), 500, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1});
+      m[i].vitals(Vitals{uint32_t(100 + i), 500, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0});
     m.round();
     const std::string s0 = m.status(0), s2 = m.status(2);
     assert(s0.find("\nmate=101 500 ") != npos && s0.find("\nvit=2002 101 500 ") != npos &&

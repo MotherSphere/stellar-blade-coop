@@ -272,7 +272,7 @@ int main() {
     match_of(m, 3);
     assert(slot_of(m[0], kFriend) == 0 && slot_of(m[0], kPlayer[2]) == 1);
     for (int i = 0; i < 3; ++i)
-      m[i].vitals(Vitals{uint32_t(100 + i), 500, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1});
+      m[i].vitals(Vitals{uint32_t(100 + i), 500, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0});
     m.round();
     for (int i = 0; i < 3; ++i)
       assert(m.status(i).find("\nvit=") == std::string::npos && m.status(i).find("\nmate=") == std::string::npos);
