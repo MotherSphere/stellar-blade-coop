@@ -54,7 +54,7 @@ Each code file starts with the three license lines. Its head comment says what t
 - `world/lanterns/commands` in the shipped list of `tests/tools/install_test.py`. `world/lanterns` in its wiring tuple.
 - A row at the end of the module table of [structure.md](../structure.md#modules).
 
-Each edit adds to the end of a list or a table. No other line changes.
+Each edit adds an entry to a list or a table, or raises that count by one. No other line changes.
 
 ## The checks it runs
 
@@ -92,7 +92,10 @@ changes nothing:
 - A bad name: no category, other characters or a Lua keyword. With `--native` a C++ keyword is refused too.
 - A category that structure.md does not list, such as `online/lobby`.
 - A module that exists: its name is in `MODULES`, or one of its folders or its docs page is there.
-- A console word that another module or the runtime already has, such as `bike`.
+- A console word that another module or the runtime already has, such as `bike` or `replay`. The tool gets the words
+  from `main.lua` loaded in `lua5.4` with `tests/lua/main/fixture.lua`. It refuses when `lua5.4` does not start or
+  `main.lua` does not load.
+- With `--native`, a name that a namespace in `native/src/` already has, such as `pose`.
 - A bad title. A title has 1 to 40 characters: letters, digits, spaces and `' ! & ( ) + , . : ? -`. It starts with a
   letter or a digit and does not end with a space. The 40 keep the notice within a chat line of 200 bytes.
 - A `--root` that is not a Stellar Blade Online checkout.

@@ -12,8 +12,9 @@ Edited: main.lua's MODULES, the modules table of every language file of ui/text/
 the module count of tests/lua/ui/text_test.lua, the shipped list of tests/tools/install_test.py and the module table of
 docs/dev/structure.md.
 Every check and every edit is worked out before the first write. A bad name, an unknown category, a module or file that
-exists, a console word that exists, a bad title, a --root that is not a checkout or an edit whose anchor is missing
-exits with code 2 and changes nothing. After a real run it runs tests/tools/modules_test.py, tests/lua/ui/text_test.lua
+exists, a console word that exists (main.lua loaded by lua5.4 with the main tests' fixture gives them), with --native
+a native namespace of that name, a bad title, a --root that is not a checkout or an edit whose anchor is missing exits
+with code 2 and changes nothing. After a real run it runs tests/tools/modules_test.py, tests/lua/ui/text_test.lua
 and the module's two Lua tests from the root. It exits with 1 when one of them fails.
 Run: python3 -I tools/new_module.py <category>/<name> --title "<English name>" [--native] [--dry-run] [--root <repo>]"""
 import argparse
@@ -32,7 +33,12 @@ LICENSE = ('Copyright (C) 2026 MotherSphere and the Stellar Blade Online contrib
            'SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a '
            'permission.')
 NEEDED = (f'{S}/main.lua', f'{S}/ui/text.lua', 'docs/dev/structure.md', 'tests/tools/modules_test.py',
-          'tests/tools/install_test.py', 'tests/lua/ui/text_test.lua', 'tests/lua/main/isolation.lua')
+          'tests/tools/install_test.py', 'tests/lua/ui/text_test.lua', 'tests/lua/main/isolation.lua',
+          'tests/lua/main/fixture.lua')
+# Loads main.lua with the main tests' fixture and prints each word of its command table as "word <word>".
+WORDS = ("dofile('tests/lua/main/fixture.lua') local L=require('main.loader') local run,M=L.run "
+         "L.run=function(s,l) M=s return run(s,l) end load_main(true) "
+         "for w in pairs(M.commands) do io.write('word ',w,'\\n') end")
 NAME = re.compile(r'[a-z][a-z0-9_]*')
 # 1 to 40 characters: the off notice puts the name in a chat line of at most 200 bytes (core/line.lua).
 TITLE = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9 '!&()+,.:?-]{0,38}[A-Za-z0-9'!&()+,.:?-])?")
@@ -222,12 +228,23 @@ def plan(root, spec, title, native):
     if f"'{module}'" in text(main_rel)[listed.end():end]: raise Refused(f'{module} already exists in MODULES')
     for folder in (f'{S}/{path}', f'tests/lua/{path}', f'native/src/{path}', f'tests/native/{path}', docs):
         if (root / folder).exists(): raise Refused(f'{module} already exists: {folder} is there')
-    words = set()
-    for p in sorted((root / S).rglob('commands.lua')):
-        code = p.read_text(encoding='utf-8')
-        words |= set(re.findall(r'\bself\.(\w+)\s*(?:\(|,|=(?!=))', code))
-        words |= set(re.findall(r'(?m)^\s+(\w+)=function\(', code))
-    if name in words: raise Refused(f'coop {name} is already a console word: pick another name')
+    # The words as main.lua's load gives them. Some are made in a loop (eve's fly and slowmo): a text scan misses them.
+    try:
+        done = subprocess.run(['lua5.4', '-e', WORDS], cwd=root, stdin=subprocess.DEVNULL, capture_output=True,
+                              text=True)
+    except OSError as why:
+        raise Refused(f'lua5.4 did not start ({why.strerror}): the tool reads the console words with it')
+    if done.returncode:
+        raise Refused('main.lua does not load with tests/lua/main/fixture.lua, so the console words are unknown: '
+                      + (done.stderr.strip().splitlines() or ['no error line'])[0])
+    if name in re.findall(r'(?m)^word (\w+)$', done.stdout):
+        raise Refused(f'coop {name} is already a console word: pick another name')
+    if native:
+        for p in sorted((root / 'native/src').rglob('*')):
+            if p.suffix in ('.h', '.inc', '.cpp') and re.search(rf'\bnamespace\s+(?:\w+::)*{name}\b',
+                                                                 p.read_text(encoding='utf-8')):
+                raise Refused(f'{p.relative_to(root)} has a namespace {name} already, so coop::{name} would join '
+                              'it: pick another name')
     edits = {main_rel: (append(text(main_rel), end, f"'{module}'", ','), f"add '{module}' to MODULES")}
     quoted = f'"{title}"' if "'" in title else f"'{title}'"
     langs = re.findall(r"(?m)^T(?:\.\w+|\['[\w-]+'\])=require\('ui\.text\.([\w-]+)'\)", text(f'{S}/ui/text.lua'))
@@ -266,7 +283,8 @@ def steps(path, name, native, langs):
     out = ['Left to do by hand:',
            f'- Translate its name in {S}/ui/text/: {", ".join(f"{c}.lua" for c in langs if c != "en")}.',
            '- Add its docs page to docs/README.md.',
-           '- A console word for players goes in M.USAGE (main/base.lua) and docs/usage.md.']
+           '- A console word for players goes in M.USAGE (main/base.lua) and docs/usage.md.',
+           '- Screens or HUDs: build steps in its wiring.lua and their calls in main/ui.lua (Adding a module, step 5).']
     if native:
         out += [f'- Native: put its parts in native/src/{path}/ as <part>_game.inc (game thread) and '
                 '<part>_worker.inc (worker).',

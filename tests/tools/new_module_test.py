@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """tools/new_module.py on a copy of the trees it reads and edits, in a temporary directory: each refusal exits with 2
-and changes nothing, --dry-run changes nothing, then a Lua module (world/lanterns) and a native one in a nested
-category (online/modes/duel) are made with every file and every registration in place, the tool's own checks pass
+and changes nothing, --dry-run changes nothing, then a Lua module (world/nm_lanterns) and a native one in a nested
+category (online/modes/nm_duel) are made with every file and every registration in place, the tool's own checks pass
 (modules_test.py and the module's Lua tests) and parts 1 to 11 of tests/tools/install_test.py, its shipped list
 among them, pass on the copy. No git needed.
 Run: python3 tests/tools/new_module_test.py"""
@@ -23,9 +23,9 @@ COPY = ('mod', 'native/src', 'tests/lua', 'tests/native', 'tests/tools/modules_t
 LICENSE = 'Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors'
 
 
-def run(root, *args):
+def run(root, *args, env=None):
     done = subprocess.run([sys.executable, '-I', str(TOOL), *args, '--root', str(root)], capture_output=True,
-                          text=True)
+                          text=True, env=env)
     return done.returncode, done.stdout + done.stderr
 
 
@@ -56,9 +56,9 @@ def shipped(root):
     assert done.returncode == 0, done.stdout + done.stderr
 
 
-def refused(root, why, *args):
+def refused(root, why, *args, env=None):
     before = files(root)
-    code, out = run(root, *args)
+    code, out = run(root, *args, env=env)
     assert code == 2 and why in out, (args, code, out)
     assert files(root) == before, f'{args} changed files'
 
@@ -78,31 +78,39 @@ with tempfile.TemporaryDirectory() as tmp:
     refused(root, 'bad module name', 'world/9lives', '--title', 'Lanterns')
     refused(root, 'bad module name', 'world/end', '--title', 'Lanterns')  # A Lua keyword.
     refused(root, 'bad module name', 'world/class', '--title', 'Lanterns', '--native')  # A C++ keyword.
-    refused(root, 'bad module name', 'lanterns', '--title', 'Lanterns')
-    refused(root, 'unknown category space', 'space/lanterns', '--title', 'Lanterns')
-    refused(root, 'unknown category online/lobby', 'online/lobby/lanterns', '--title', 'Lanterns')
+    refused(root, 'bad module name', 'nm_lanterns', '--title', 'Lanterns')
+    refused(root, 'unknown category space', 'space/nm_lanterns', '--title', 'Lanterns')
+    refused(root, 'unknown category online/lobby', 'online/lobby/nm_lanterns', '--title', 'Lanterns')
     refused(root, 'already exists', 'world/teamshop', '--title', 'Team shop')
     refused(root, 'already exists', 'online/modes', '--title', 'Modes')
     refused(root, 'coop bike is already a console word', 'world/bike', '--title', 'Lanterns')
-    refused(root, 'bad title', 'world/lanterns', '--title', 'Lanterns | shop')
-    refused(root, 'bad title', 'world/lanterns', '--title', 'L' * 41)
-    refused(root, 'bad title', 'world/lanterns', '--title', ' Lanterns')
+    # A word online/partner/commands.lua makes in a loop: only main.lua's load names it.
+    refused(root, 'coop replay is already a console word', 'world/replay', '--title', 'Replays')
+    refused(root, 'has a namespace pose already', 'world/pose', '--title', 'Poses', '--native')  # In native/src.
+    refused(root, 'lua5.4 did not start', 'world/nm_lanterns', '--title', 'Lanterns', env={'PATH': ''})
+    refused(root, 'bad title', 'world/nm_lanterns', '--title', 'Lanterns | shop')
+    refused(root, 'bad title', 'world/nm_lanterns', '--title', 'L' * 41)
+    refused(root, 'bad title', 'world/nm_lanterns', '--title', ' Lanterns')
     empty = Path(tmp) / 'empty'
     empty.mkdir()
-    refused(empty, 'not a Stellar Blade Online checkout', 'world/lanterns', '--title', 'Lanterns')
+    refused(empty, 'not a Stellar Blade Online checkout', 'world/nm_lanterns', '--title', 'Lanterns')
     # A missing anchor in one file it edits: refused before any file is written.
     saved = text(root, 'tests/lua/ui/text_test.lua')
     (root / 'tests/lua/ui/text_test.lua').write_text(saved.replace('MODULE_KEYS==', 'MODULE_KEYS>='), encoding='utf-8')
-    refused(root, 'tests/lua/ui/text_test.lua', 'world/lanterns', '--title', 'Lanterns')
+    refused(root, 'tests/lua/ui/text_test.lua', 'world/nm_lanterns', '--title', 'Lanterns')
     (root / 'tests/lua/ui/text_test.lua').write_text(saved, encoding='utf-8')
+    saved = text(root, 'tests/lua/main/fixture.lua')  # main.lua does not load: its words are unknown.
+    (root / 'tests/lua/main/fixture.lua').write_text("error('broken')\n" + saved, encoding='utf-8')
+    refused(root, 'main.lua does not load', 'world/nm_lanterns', '--title', 'Lanterns')
+    (root / 'tests/lua/main/fixture.lua').write_text(saved, encoding='utf-8')
 
     # 2. --dry-run names every file and every edit. It changes nothing.
     before = files(root)
-    code, out = run(root, 'world/lanterns', '--title', 'Street lanterns', '--dry-run')
+    code, out = run(root, 'world/nm_lanterns', '--title', 'Street lanterns', '--dry-run')
     assert code == 0 and files(root) == before, out
-    made = {f'{S}/world/lanterns/wiring.lua', f'{S}/world/lanterns/commands.lua',
-            'tests/lua/world/lanterns/off_test.lua', 'tests/lua/world/lanterns/lanterns_test.lua',
-            'docs/world/lanterns.md'}
+    made = {f'{S}/world/nm_lanterns/wiring.lua', f'{S}/world/nm_lanterns/commands.lua',
+            'tests/lua/world/nm_lanterns/off_test.lua', 'tests/lua/world/nm_lanterns/nm_lanterns_test.lua',
+            'docs/world/nm_lanterns.md'}
     edited = {f'{S}/main.lua', 'tests/lua/ui/text_test.lua', 'tests/tools/install_test.py', 'docs/dev/structure.md',
               *(f'{S}/ui/text/{c}.lua' for c in langs)}
     for rel in made: assert f'Would create {rel}\n' in out, (rel, out)
@@ -110,58 +118,60 @@ with tempfile.TemporaryDirectory() as tmp:
     assert 'Dry run: nothing changed.' in out and 'native/src/' not in out, out
 
     # 3. A Lua module: its files, its registrations, the tool's checks; nothing else changed.
-    code, out = run(root, 'world/lanterns', '--title', "Lanterns' light")
+    code, out = run(root, 'world/nm_lanterns', '--title', "Lanterns' light")
     assert code == 0, out
-    for line in ('modules_test: ok', 'world.lanterns_off_test ok', 'lanterns_test ok', 'ui_text_test ok'):
+    for line in ('modules_test: ok', 'world.nm_lanterns_off_test ok', 'nm_lanterns_test ok', 'ui_text_test ok',
+                 'main/ui.lua'):
         assert line in out, (line, out)
     after = files(root)
     assert set(after) - set(before) == made, sorted(set(after) - set(before))
     assert {rel for rel in before if after.get(rel) != before[rel]} == edited
-    for rel in made - {'docs/world/lanterns.md'}:
+    for rel in made - {'docs/world/nm_lanterns.md'}:
         assert LICENSE in text(root, rel).splitlines()[0], rel
-    wiring = text(root, f'{S}/world/lanterns/wiring.lua')
+    wiring = text(root, f'{S}/world/nm_lanterns/wiring.lua')
     assert 'uses={},\nexports={},\nnew=function(M)\n' in wiring, wiring
-    assert "require('world.lanterns.commands').new({})" in wiring, wiring
-    assert text(root, 'tests/lua/world/lanterns/off_test.lua').endswith(
-        "dofile('tests/lua/main/isolation.lua')('world.lanterns')\nprint('world.lanterns_off_test ok')\n")
-    assert text(root, 'docs/world/lanterns.md').startswith("# Lanterns' light\n")
-    assert modules(root)[-1] == 'world.lanterns' and len(modules(root)) == count + 1
+    assert "require('world.nm_lanterns.commands').new({})" in wiring, wiring
+    assert text(root, 'tests/lua/world/nm_lanterns/off_test.lua').endswith(
+        "dofile('tests/lua/main/isolation.lua')('world.nm_lanterns')\nprint('world.nm_lanterns_off_test ok')\n")
+    assert text(root, 'docs/world/nm_lanterns.md').startswith("# Lanterns' light\n")
+    assert modules(root)[-1] == 'world.nm_lanterns' and len(modules(root)) == count + 1
     for c in langs:  # The English name in every table, in double quotes for its apostrophe.
         table = re.search(r'modules=\{[^}]*\}', text(root, f'{S}/ui/text/{c}.lua')).group()
-        assert table.endswith('''['world.lanterns']="Lanterns' light"}'''), (c, table)
+        assert table.endswith('''['world.nm_lanterns']="Lanterns' light"}'''), (c, table)
     assert f'assert(MODULE_KEYS=={count + 1},' in text(root, 'tests/lua/ui/text_test.lua')
     install = text(root, 'tests/tools/install_test.py')
-    assert "'world/lanterns/commands'," in install and re.search(r"'world/lanterns'\)\),", install), install
+    assert "'world/nm_lanterns/commands'," in install and re.search(r"'world/nm_lanterns'\)\),", install), install
     structure = text(root, 'docs/dev/structure.md')
-    assert ("| `world.lanterns` | Lanterns' light | `world/lanterns/` | none | [Lanterns' light](../world/lanterns.md) "
-            '| |\n' in structure), structure
+    assert ("| `world.nm_lanterns` | Lanterns' light | `world/nm_lanterns/` | none | "
+            "[Lanterns' light](../world/nm_lanterns.md) | |\n" in structure), structure
     for rel in edited | made:  # Each new line within 120 columns, the doc's table rows aside.
         old = set(before[rel].decode().splitlines()) if rel in before else set()
         long = [line for line in text(root, rel).splitlines()
                 if line not in old and len(line) > 120 and not line.startswith('|')]
         assert not long, (rel, long)
     shipped(root)
-    refused(root, 'already exists', 'world/lanterns', '--title', 'Lanterns')
+    refused(root, 'already exists', 'world/nm_lanterns', '--title', 'Lanterns')
 
     # 4. A native module in a nested category: its header and native test too, the hub's steps printed, not made.
     before = files(root)
     tick = text(root, 'native/src/glue/tick.cpp')
-    code, out = run(root, 'online/modes/duel', '--title', 'Duels', '--native')
-    assert code == 0 and 'modules_test: ok' in out and 'duel_test ok' in out, out
+    code, out = run(root, 'online/modes/nm_duel', '--title', 'Duels', '--native')
+    assert code == 0 and 'modules_test: ok' in out and 'nm_duel_test ok' in out, out
     assert 'native/src/glue/tick.cpp' in out and text(root, 'native/src/glue/tick.cpp') == tick, out
     after = files(root)
     assert set(after) - set(before) == {
-        f'{S}/online/modes/duel/wiring.lua', f'{S}/online/modes/duel/commands.lua',
-        'tests/lua/online/modes/duel/off_test.lua', 'tests/lua/online/modes/duel/duel_test.lua',
-        'docs/online/modes/duel.md', 'native/src/online/modes/duel/duel.h',
-        'tests/native/online/modes/duel/duel_test.cpp'}, sorted(set(after) - set(before))
-    header = text(root, 'native/src/online/modes/duel/duel.h')
-    assert header.startswith('// ' + LICENSE) and '#pragma once' in header and 'namespace coop::duel {' in header
-    assert '#include "online/modes/duel/duel.h"' in text(root, 'tests/native/online/modes/duel/duel_test.cpp')
-    assert modules(root)[-2:] == ['world.lanterns', 'online.modes.duel']
-    assert "['online.modes.duel']='Duels'" in text(root, f'{S}/ui/text/ja.lua')
+        f'{S}/online/modes/nm_duel/wiring.lua', f'{S}/online/modes/nm_duel/commands.lua',
+        'tests/lua/online/modes/nm_duel/off_test.lua', 'tests/lua/online/modes/nm_duel/nm_duel_test.lua',
+        'docs/online/modes/nm_duel.md', 'native/src/online/modes/nm_duel/nm_duel.h',
+        'tests/native/online/modes/nm_duel/nm_duel_test.cpp'}, sorted(set(after) - set(before))
+    header = text(root, 'native/src/online/modes/nm_duel/nm_duel.h')
+    assert header.startswith('// ' + LICENSE) and '#pragma once' in header and 'namespace coop::nm_duel {' in header
+    native_test = text(root, 'tests/native/online/modes/nm_duel/nm_duel_test.cpp')
+    assert '#include "online/modes/nm_duel/nm_duel.h"' in native_test, native_test
+    assert modules(root)[-2:] == ['world.nm_lanterns', 'online.modes.nm_duel']
+    assert "['online.modes.nm_duel']='Duels'" in text(root, f'{S}/ui/text/ja.lua')
     assert f'assert(MODULE_KEYS=={count + 2},' in text(root, 'tests/lua/ui/text_test.lua')
-    assert ('| `online.modes.duel` | Duels | `online/modes/duel/` | `online/modes/duel/` | '
-            '[Duels](../online/modes/duel.md) | |\n' in text(root, 'docs/dev/structure.md'))
+    assert ('| `online.modes.nm_duel` | Duels | `online/modes/nm_duel/` | `online/modes/nm_duel/` | '
+            '[Duels](../online/modes/nm_duel.md) | |\n' in text(root, 'docs/dev/structure.md'))
     shipped(root)
 print('new_module_test: ok')
