@@ -7,7 +7,7 @@
 --   yaw only), and before each shot DestTargetRelativeLocation becomes the crosshair point in that frame. Every round
 --   then flies to the screen-centre point, pitch included. Only FindRow(string) is used: another lookup crashed.
 -- * TPS mode 2 (NIKKE: fixed camera, the mouse moves a reticle) becomes 0 (the drone aim's: the camera follows the
---   mouse and the game turns EVE with it) while standing, and goes back to 2 crouched and at the exit. If mode 0 ever
+--   mouse and the game turns EVE with it) while standing, and goes back to 2 at the exit. If mode 0 ever
 --   drops the gun stance, it is put back to 2 for the rest of the Lua load (dead).
 -- * CameraBoom.CustomOffset moves the camera over the shoulder while standing.
 -- No struct goes to the game from EVE's tick many times a second: those calls are what the crashes had in common.
@@ -21,9 +21,27 @@ function Aim.local_offset(target,loc,yaw)
     return dx*c+dy*s,-dx*s+dy*c,dz
 end
 
+-- The inverse: the world point at forward f, right r, up u from loc in a frame turned yaw degrees.
+function Aim.to_world(f,r,u,loc,yaw)
+    local a=math.rad(yaw)
+    local c,s=math.cos(a),math.sin(a)
+    return {X=loc.X+f*c-r*s,Y=loc.Y+f*s+r*c,Z=loc.Z+u}
+end
+
 local ROW='P_Eve_GunNikke_ShootSlug1_Projectile1'
 local DRONE_ROW='P_Eve_Gun_ShootSlug1_Projectile1'
 local TABLE='/Game/Local/Data/ProjectileTable.ProjectileTable'
+
+-- the native aim writes run every frame while firing in the game's aim: their engine calls are functions made once
+-- (a closure a call is garbage)
+local function actor_loc(p) return p:K2_GetActorLocation() end
+local function actor_rot(p) return p:K2_GetActorRotation() end
+local function set_dest(row,x,y,z) local v=row.DestTargetRelativeLocation; v.X=x; v.Y=y; v.Z=z end
+local function set_start(row,x,y,z) local v=row.StartTargetRelativeLocation; v.X=x; v.Y=y; v.Z=z end
+local function loc_rot(p)
+    local okl,loc=pcall(actor_loc,p); local okr,rot=pcall(actor_rot,p)
+    return okl and loc or nil,okr and rot or nil
+end
 
 -- g: gun mode's shared state (fight/gunmode/mode.lua): log, try, valid, pawn().
 function Aim.new(g)
@@ -45,14 +63,14 @@ function Aim.new(g)
         return okw
     end
 
-    -- Before a shot: the row's destination = target (world) in EVE's root frame.
-    function self.write(p,target)
+    -- Before a shot: the row's destination = target (world) in EVE's root frame. yaw_add (deg): added to her actor yaw
+    -- (the game's aim turns her mesh, fight/gunmode/mode.lua aim_mesh_yaw; its frame may follow the mesh).
+    function self.write(p,target,yaw_add)
         if not (self.row and target) then return end
-        local loc=g.try(function() return p:K2_GetActorLocation() end)
-        local rot=g.try(function() return p:K2_GetActorRotation() end)
+        local loc,rot=loc_rot(p)
         if not (loc and rot) then return end
-        local x,y,z=Aim.local_offset(target,loc,rot.Yaw)
-        local ok=pcall(function() local v=self.row.DestTargetRelativeLocation; v.X=x; v.Y=y; v.Z=z end)
+        local x,y,z=Aim.local_offset(target,loc,rot.Yaw+(yaw_add or 0))
+        local ok=pcall(set_dest,self.row,x,y,z)
         if self.writes<6 then self.writes=self.writes+1; g.log(('aim: shot at (%.0f, %.0f, %.0f) %s'):format(x,y,z,
             ok and 'written' or 'refused')) end
     end
@@ -61,15 +79,14 @@ function Aim.new(g)
     -- destination) put on the point muzzle (world), the rifle's FX_Fire socket.
     -- A muzzle less than min_forward ahead of her (the rifle not up yet, or posed wrong: the shot then started on
     -- her body) gives way to fallback, a point at her right shoulder in her frame.
-    function self.write_start(p,muzzle,min_forward,fallback)
+    function self.write_start(p,muzzle,min_forward,fallback,yaw_add)
         if not self.row then return end
-        local loc=g.try(function() return p:K2_GetActorLocation() end)
-        local rot=g.try(function() return p:K2_GetActorRotation() end)
+        local loc,rot=loc_rot(p)
         if not (loc and rot) then return end
         local x,y,z
-        if muzzle then x,y,z=Aim.local_offset(muzzle,loc,rot.Yaw) end
+        if muzzle then x,y,z=Aim.local_offset(muzzle,loc,rot.Yaw+(yaw_add or 0)) end
         if not x or x<(min_forward or 0) then x,y,z=fallback.X,fallback.Y,fallback.Z end
-        local ok=pcall(function() local v=self.row.StartTargetRelativeLocation; v.X=x; v.Y=y; v.Z=z end)
+        local ok=pcall(set_start,self.row,x,y,z)
         if (self.starts or 0)<3 then self.starts=(self.starts or 0)+1
             g.log(('aim: shot start (%.0f, %.0f, %.0f) %s'):format(x,y,z,ok and 'written' or 'refused')) end
     end

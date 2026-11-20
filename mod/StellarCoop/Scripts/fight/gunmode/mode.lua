@@ -1,20 +1,19 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Gun mode: the NIKKE DLC's rifle in EVE's hands on any save, on luke77's rifle stance. F4 (gun_key) or a tap of
+-- Gun mode: the NIKKE DLC's rifle in EVE's hands on any save, on luke77's rifle stance. G (gun_key) or a tap of
 -- D-pad Right brings the rifle out or puts it away. Out, EVE runs and jumps as Luke's stance has her (fight/gunmode/
 -- stance.lua: her own animation, the rifle at her chest). Holding RMB / LT is firing mode: the camera comes in over her
 -- right shoulder, she turns to the camera and brings the rifle up with its laser sight on, and LMB / RT fires full
 -- auto at the point under the screen centre. Letting go goes back to Luke's movement. Logged as [StellarCoop][GM].
 -- How: each shot is the NIKKE shot skill, started by a zone event through SB's own rows (fight/gunmode/data.lua), its
 -- bullet sent to the crosshair's point (fight/gunmode/aim.lua). While the rifle is out the sword's attacks and the drone's
--- aim on the fire and zoom keys are masked in memory (lifted while the game is paused, where SB's key options can save
--- the mappings; put back when it goes away).
--- Gun mode is a module of its own: it reads its coop-settings.txt lines as main.lua read them (core/link.lua) and uses
--- no other module (only the shared core/ and ui/text); fight/gunmode/wiring.lua builds it and registers its controller
--- hook. All of it runs on the game thread, from main/frame.lua's loop (every frame) and the hook: no LoopAsync,
--- ExecuteWithDelay or key bind, whose callbacks run Lua on another thread (two threads in one Lua state crashed UE4SS,
--- 11-17). Every step is wrapped, so an error in gun mode never reaches the rest of the mod.
+-- aim on the fire and zoom keys are masked in memory (never saved; put back when it goes away).
+-- Gun mode is a module of its own: it reads its own coop-settings.txt lines and uses nothing of the rest of the mod;
+-- fight/gunmode/wiring.lua builds and starts it. All of it runs on the game thread, from main/frame.lua's
+-- LoopInGameThreadWithDelay loop (every frame): no LoopAsync, ExecuteWithDelay or key bind, whose callbacks run Lua on
+-- another thread (two threads in one Lua state crashed UE4SS). Every step is wrapped, so an error in gun mode
+-- never reaches the rest of the mod.
 local Config=require('fight.gunmode.config')
 local Aim=require('fight.gunmode.aim')
 local Input=require('fight.gunmode.input')
@@ -24,11 +23,10 @@ local Laser=require('fight.gunmode.laser')
 local Data=require('fight.gunmode.data')
 local Probe=require('fight.gunmode.probe')
 local Ammo=require('fight.gunmode.ammo')
-local Overlay=require('fight.gunmode.overlay')
-local Journal=require('fight.gunmode.journal')
-local U=require('core.unreal')
-local Morph=require('fight.gunmode.morph')
 local Dpad=require('fight.gunmode.ui.dpad')
+local Overlay=require('fight.gunmode.overlay')
+local Morph=require('fight.gunmode.morph')
+local U=require('core.unreal')
 
 local GunMode={}
 
@@ -36,7 +34,7 @@ local GunMode={}
 -- (0x141ca5a10) hands it to 0x141c9e690, which applies the row's actor effect; no chain of direct calls from it reaches
 -- RunEvent, RunZoneEvent (0x141ca5790) or StartMatchMaking (0x141ca3ea0, RunEvent's kind 15). Kinds 16 and 19 stop
 -- matchmaking or go back to single play. The only zone event gun mode fires: kind 2 on the shot's row
--- (Data.row('Fire'), read at the call: arm() can borrow a spare NIKKE row in its place).
+-- (Data.row('Fire'), read at the call).
 local ATTACH_ACTOR_EFFECT=2
 function GunMode.allowed(kind,name) return kind==ATTACH_ACTOR_EFFECT and name~=nil and name==Data.row('Fire') end
 local function find_name(t) return FName(t,EFindName.FNAME_Find) end -- None (index 0) when not a name yet.
@@ -45,31 +43,16 @@ local function zone_event(kind,name)
     U.find('/Script/SB.Default__SBBlueprintLibrary'):CreateSBZoneEvent(kind,find_name(name))
 end
 
--- fight.gunmode's copy of vehicles/bike/ride.lua's blocked(): the checks of EVE's own state that need no native part.
--- Why the rifle cannot be out now, or nil. e: EVE (an SBCharacter); photo: main/base.lua's photo_state ('0', '1' in the
--- photo mode, 's' in the selfie mode; with SB.PhotoMode.PauseMethod 1 its start, 0x142381f90, sets a time dilation of
--- 1e-8 and asks no pause, so IsGamePaused stays false there). On 26123051: IsAttachedToLevelSequenceWithoutPlayable,
--- IsRunningInteraction and IsMoveInputBlock are SBCharacter natives (exec 0x142686f40, 0x14268cc20, 0x14268bc60;
--- registered by 0x14cef8000 with its other 233), bEnableInteractionBlock an SBCharacter bool (params 0x145d77b78).
--- EMovementMode (enumerators at 0x146548c80): 1 walking, 2 nav walking, 3 falling, 4 swimming, 5 flying, 6 custom
--- (a move of SB's own).
-local WALKING,NAV_WALKING,FALLING,SWIMMING=1,2,3,4
-function GunMode.blocked(e,photo)
-    if photo=='s' then return 'the selfie mode is open' end
-    if photo=='1' then return 'the photo mode is open' end
-    if e:IsAttachedToLevelSequenceWithoutPlayable()==true then return 'a cutscene holds EVE' end
-    if e:IsRunningInteraction()==true or e.bEnableInteractionBlock==true then return 'EVE is in an interaction' end
-    if e:IsMoveInputBlock()==true then return 'the game holds her movement' end
-    local mode=U.value_of(e.CharacterMovement.MovementMode)
-    if mode==SWIMMING then return 'EVE is swimming' end
-    if mode~=WALKING and mode~=NAV_WALKING and mode~=FALLING then
-        return "EVE is in one of SB's moves (movement mode "..tostring(mode)..')'
-    end
-end
-
 local SETTINGS='/Script/Engine.Default__InputSettings'
 local TRACE='/Script/Engine.Default__KismetSystemLibrary'
-local STATICS='/Script/Engine.Default__GameplayStatics'
+
+local function read_all(path)
+    local f=io.open(path,'rb')
+    if not f then return nil end
+    local text=f:read('a')
+    f:close()
+    return text
+end
 
 -- A point along a camera's forward: loc + forward(rot) * d.
 function GunMode.ahead(loc,rot,d)
@@ -94,6 +77,15 @@ function GunMode.aim_clip(was,pitch,up,back)
     return 'aim'
 end
 
+-- The rifle's pitch on its butt (rp, deg) in aim: the chest takes the pitch first. need: the pitch the chest's target
+-- needs before its cap (fight/gunmode/aimrot.lua step_yp). rp moves by 0.35 of the bore's pitch error pe (capped at +-rm)
+-- only while need is at the cap (within 1 deg) in pe's direction, or to unwind; else it eases out and the chest takes over.
+function GunMode.rpitch_step(rp,pe,need,cap,rm)
+    rp=rp or 0
+    if (math.abs(need)>=cap-1 and pe*need>=0) or rp*pe<0 then return math.max(-rm,math.min(rm,rp+0.35*pe)) end
+    return rp*0.85
+end
+
 -- The recoil envelope: 1 at the round, easing out with time constant decay; 0 once it is small (dt nil: no round yet).
 function GunMode.kick(dt,decay)
     if not dt or dt<0 then return 0 end
@@ -116,8 +108,149 @@ function GunMode.turn(was,yaw,on_deg,off_deg)
     return was==true
 end
 
+-- The hip-fire snap: starts on the hip rising edge when the body is snap_deg or more off the camera yaw, with its
+-- direction latched (near 180 deg the gap's sign flips frame to frame); ends inside stop_deg or after max_s.
+function GunMode.snap(sn,rising,gap,now,snap_deg,stop_deg,max_s)
+    if rising and math.abs(gap)>=snap_deg then return {at=now,dir=gap<0 and -1 or 1} end
+    if sn and (math.abs(gap)<stop_deg or now-sn.at>max_s) then return nil end
+    return sn
+end
+
+-- One hip-fire frame: the snap (GunMode.snap), the turn with hysteresis on the gap (GunMode.turn) and the body's yaw step
+-- (deg) at snap_rate or turn_rate for dt s (clamped to 0.05). Near 180 deg the snap's latched way wins over the gap's sign.
+-- C: fight/gunmode/ik.lua CFG. Returns snap, turning, step (0 when not turning).
+function GunMode.hip_step(sn,turning,rising,gap,now,dt,C)
+    sn=GunMode.snap(sn,rising,gap,now,C.snap_deg or 45,C.turn_stop or 6,C.snap_max or 0.3)
+    turning=sn~=nil or GunMode.turn(turning,gap,C.turn_start or 25,C.turn_stop or 6)
+    if not turning then return sn,false,0 end
+    local mx=((sn and (C.snap_rate or 1440)) or C.turn_rate or 360)*math.min(0.05,math.max(0,dt))
+    local d=gap
+    if sn and math.abs(gap)>90 then d=sn.dir*math.abs(gap) end
+    return sn,true,math.max(-mx,math.min(mx,d))
+end
+
+-- The rounds and the laser go along the rifle's bore (not to the crosshair point): in the double-jump flip, and in
+-- native mode with the layer outside the game's aim (hip fire, where the chest loop aims the bore). gun_fire=own sends
+-- them to the crosshair point.
+function GunMode.on_bore(flip,layer,tps,native) return flip==true or (native==true and layer==true and not tps) end
+
+-- Native hip fire: a round leaves only while the bore is within lim deg of the crosshair point, measured this frame or
+-- the last, and never during the snap (the chest loop is held then, so the measure is stale). The flip always fires.
+-- burst: the gate was open last frame with fire held. The looser cone hold (deg) applies then, so each shot's kick does
+-- not pause the rounds (never tighter than lim, or the gate would flicker under kick); past it, in a snap or with a
+-- stale measure the burst closes.
+function GunMode.aligned(flip,snap,bore_err,bore_at,now,lim,burst,hold)
+    return flip==true or (not snap and (bore_err or 180)<(burst and math.max(lim,hold or lim) or lim) and now-(bore_at or 0)<0.1)
+end
+
+-- The shots' beat: a round is due every interval s from the burst's first one, on a fixed beat (now+interval drifted
+-- to whole frames: 3 frames of 16.7 ms for 45 ms at 60 fps). press (the gate opened this frame) fires once the last
+-- burst's beat allows and starts a new beat. After a hitch one more round a frame catches up, at most one beat behind.
+-- Returns whether a round goes now and the next due time.
+function GunMode.beat(next_shot,now,interval,press)
+    if now<next_shot then return false,next_shot end
+    if press then return true,now+interval end
+    return true,math.max(next_shot+interval,now)
+end
+
+-- The legs' animation set while the rifle is out (a custom moving stance row): hip fire's strafe set while hip firing
+-- (enabled: cfg.hip_strafe), else the carry set while not zoomed, else none (the aim stance's own set plays).
+function GunMode.stance_row(hip,zoom,hip_row,carry_row,enabled)
+    if hip and enabled then return hip_row end
+    if not zoom then return carry_row end
+end
+
+-- The custom moving stance set to row (nil: none): the active one (s.ovr_active) let go first, then row made active with
+-- no force, its animation set as OverrideStanceAnim. log (gun_trace): the row set and IsActiveCustomMovingStanceData after
+-- the set and after the release, once each a rifle out (s.ovr_log, emptied on enable).
+local function stance_active(p) return p:IsActiveCustomMovingStanceData() end
+function GunMode.stance_set(s,p,row,deg,log)
+    if row==s.ovr_active then return end
+    s.ovr_log=s.ovr_log or {}
+    if s.ovr_active then
+        pcall(function() p:DeactiveCustomMovingStanceData() end)
+        if log and not s.ovr_log.off then
+            s.ovr_log.off=true; local _,a=pcall(stance_active,p); log('stance override off ('..s.ovr_active..'): active='..tostring(a))
+        end
+        s.ovr_active=nil
+    end
+    if row and pcall(function()
+        p:ActiveCustomMovingStanceData({OverrideStanceAnim=FName(row),NormalAnimRangeDegree=deg,ApplySpeedForIdleAnimScale=1.0})
+    end) then s.ovr_active=row end
+    if row and log and not s.ovr_log[row] then
+        s.ovr_log[row]=true; local _,a=pcall(stance_active,p)
+        log('stance override '..row..' (range '..tostring(deg)..' deg): '..(s.ovr_active and 'set' or 'failed')..', active='..tostring(a))
+    end
+end
+
+-- A loaded asset kept in cues by path: given back while it is valid and still has that path, else loaded again with
+-- load (a path that did not load is not tried again). g: valid and try.
+function GunMode.cue(cues,path,g,load)
+    local c=cues[path]
+    if c==false then return nil end
+    if c then
+        local full=g.valid(c) and g.try(function() return c:GetFullName() end)
+        if type(full)=='string' and full:sub(-#path)==path then return c end
+    end
+    c=load(path); cues[path]=c or false
+    return c
+end
+
+-- An asset kept in kept by path: given back while it is valid and its full name still names that path (the engine can
+-- collect an asset nothing holds, and another object can then sit at the freed address and pass IsValid). Else found
+-- again with find (StaticFindObject, then LoadAsset: each walks the object array, 25-35 ms). A miss waits 5 s before
+-- the next find. now: os.clock(). g: valid and try.
+function GunMode.asset(kept,path,g,find,now)
+    local o=kept[path]
+    if type(o)=='number' then
+        if now<o then return nil end
+    elseif o~=nil then
+        local full=g.valid(o) and g.try(function() return o:GetFullName() end)
+        if type(full)=='string' and full:match('^%S+ (.+)$')==path then return o end
+    end
+    o=find(path)
+    if o~=nil and g.valid(o) then kept[path]=o; return o end
+    kept[path]=now+5
+end
+
+-- The drone of the last time the rifle was out ({actor, name}), when it is still that actor (same full name) and within
+-- 3000 units of loc: no walk of every drone (FindAllOf, 40-50 ms). nil: walk again.
+function GunMode.kept_drone(k,g,loc)
+    if not (k and g.valid(k.actor)) then return nil end
+    if g.try(function() return k.actor:GetFullName() end)~=k.name then return nil end
+    local q=g.try(function() return k.actor:K2_GetActorLocation() end)
+    if q and (q.X-loc.X)^2+(q.Y-loc.Y)^2+(q.Z-loc.Z)^2<3000*3000 then return k.actor end
+end
+
+-- (gun_trace) the dev dumps: each runs at most once per Lua load (this module is loaded once per Lua load). The hud
+-- texture walk (FindAllOf('Texture2D') and a full name per texture) cost close to a second at each toggle.
+local DUMPED={}
+function GunMode.once(name)
+    if DUMPED[name] then return false end
+    DUMPED[name]=true; return true
+end
+
+-- The NIKKE shot cue on a round of the game's own aim: the magazine dropped this frame while the game's aim is on
+-- (tps), at most every 'every' s since the last shot sound (last: its time, or nil).
+function GunMode.aim_shot_sound(tps,dropped,now,last,every)
+    return tps==true and dropped==true and now-(last or -math.huge)>=(every or 0)
+end
+
 -- Back after an interaction (a camp seat, a rest, a door): once she has been free for settle seconds.
 function GunMode.resume_due(free_at,now,settle) return free_at~=nil and now-free_at>=settle end
+
+-- The action names masked while the rifle is out: on the fire and zoom keys (on) and on any key (any). Luke's combat
+-- names are masked in both modes (native_mask_triggers=false keeps LeftTriggerKey and RightTriggerKey live in native
+-- mode). Own mode masks the game's aim and fire everywhere. Native mode keeps them, except TPSFire while dry (magazine
+-- and spares empty, or a reload): a pull then reaches nothing in the game, so no light attack starts.
+function GunMode.mask_names(cfg,native,dry)
+    local on,any={},{}
+    for _,n in ipairs(cfg.mask_on_keys) do on[n]=true end
+    if native and cfg.native_mask_triggers==false then on.LeftTriggerKey,on.RightTriggerKey=nil,nil end
+    if not native then for _,n in ipairs(cfg.mask_actions) do any[n]=true end
+    elseif dry then any.TPSFire=true end
+    return on,any
+end
 
 function GunMode.want(reload,zoom,fire,move,falling)
     if reload then return 'reload' end
@@ -125,18 +258,14 @@ function GunMode.want(reload,zoom,fire,move,falling)
     return (zoom or fire) and 'aim' or 'carry'
 end
 
--- env: {log, settings (main.lua's, as core/link.lua parses coop-settings.txt; nil: the defaults), words (the menu's
--- words, ui/text.lua's table in the player's language; English unless given), notice (a notice on screen, by its key
--- in ui/text.lua's gun: rebuilding when nil), store (coop-gun.txt through core/link.lua's store: save, load, clear; nil
--- without the native part, so a Lua reload then cannot put back what an earlier load changed), photo (main/base.lua's photo_state; '0' when not given), busy (why another module holds EVE now, or nil:
--- fight/gunmode/wiring.lua reads them), match (true while an SBO match runs: fight/gunmode/wiring.lua reads the link),
--- stock (fight/gunmode/nikke.lua: the magazine loads from EVE's Bullet_Nikke rounds once its rows are in; nil: free
--- magazines, fight/gunmode/ammo.lua)}.
+-- env: {log, folder (the mod folder: coop-settings.txt), read_all (a file's text; io.open's unless given)}.
 function GunMode.new(env)
     local cfg=Config.DEFAULTS
-    local set,bad=Config.from(env.settings)
+    local whole=env.read_all or read_all
+    local set,bad=Config.parse(env.folder and whole(env.folder..'\\coop-settings.txt'))
     local g={}
     function g.log(m) env.log(m) end
+    -- ui/text.lua's gun words in the player's language (env.words), English without one.
     function g.words() return (env.words and env.words() or require('ui.text').en).gun end
     local function is_valid(o) return o:IsValid() end
     local function get_field(o,k) return o[k] end
@@ -146,47 +275,23 @@ function GunMode.new(env)
         return ok and r==true
     end
     function g.try(fn) local ok,r=pcall(fn); if ok then return r end end
-    -- An object's path (its full name without its class), as core/actors.lua's path_of: StaticFindObject finds it by
-    -- that path while it lives. nil when it cannot be read.
-    function g.path(o)
-        local f=g.valid(o) and g.try(function() return o:GetFullName() end)
-        return type(f)=='string' and f:match('^%S+ (.+)$') or nil
-    end
-    -- An object of /Script (a default object or a class: the engine never collects them) by its path, looked up once
-    -- while it lives (M2): UE4SS's StaticFindObject walks the object array. After a miss, nil for a second.
-    local found,missed={},{}
-    function g.find(path)
-        if g.valid(found[path]) then return found[path] end
-        if (missed[path] or -1)>os.clock() then return nil end
-        local o=StaticFindObject(path)
-        if g.valid(o) then found[path]=o; return o end
-        missed[path]=os.clock()+1.0
-    end
-    -- An asset (/Game, /Engine) by its path, loaded when missing. The reference is kept and checked against its path at
-    -- each use: nothing of the game may hold the asset, so the engine can collect it. Another object can then sit at
-    -- the freed address and pass IsValid. One GetFullName per use instead of StaticFindObject's walk of the object
-    -- array (25-35 ms a miss, core/unreal.lua) at each shot, turn or morph. nil when it cannot be found or loaded, and
-    -- then nil for 5 s without a walk.
-    local assets,asset_missed={},{}
-    function g.asset(path)
-        local o=assets[path]
-        if o and g.path(o)==path then return o end
-        if (asset_missed[path] or -1)>os.clock() then return nil end
-        o=StaticFindObject(path)
-        if not g.valid(o) then o=g.try(function() return LoadAsset(path) end) end
-        if g.valid(o) then assets[path]=o; return o end
-        assets[path]=nil; asset_missed[path]=os.clock()+5.0
-    end
-    -- The controller: FindFirstOf walks the whole object array, so once a second at most while there is none (M2). A
-    -- new one comes through new_controller at once.
-    local cached,pc_wait
     function g.get(o,k) local ok,r=pcall(get_field,o,k); if ok then return r end end -- a property read without a closure
+    local cached -- The controller: FindFirstOf walks the whole object array.
+    local cdos={}
+    -- a class default object ('/Script/...Default__X') found once: they live as long as the game
+    function g.cdo(path) local o=cdos[path]; if not o then o=StaticFindObject(path); cdos[path]=o end; return o end
+    -- a game asset (/Game, /Engine) by its path, kept between uses and checked against its path (GunMode.asset)
+    local assets={}
+    local function find_asset(path)
+        local o=StaticFindObject(path)
+        if not g.valid(o) then o=g.try(function() return LoadAsset(path) end) end
+        return o
+    end
+    function g.asset(path) return GunMode.asset(assets,path,g,find_asset,os.clock()) end
     function g.pc()
         if g.valid(cached) then return cached end
-        if (pc_wait or -1)>os.clock() then return nil end
         local pc=FindFirstOf('SBPlayerController')
         if g.valid(pc) then cached=pc; return pc end
-        pc_wait=os.clock()+1.0
     end
     function g.pawn()
         local pc=g.pc(); if not pc then return nil end
@@ -195,32 +300,32 @@ function GunMode.new(env)
     end
     if set.fire_key then Input.FIRE[#Input.FIRE+1]=set.fire_key end
     local aim,data=Aim.new(g),Data.new(g,set.native,{speed=cfg.native_speed,upper=set.upper and 'P_Eve_GunNikke' or nil,cool=cfg.fire_interval,bs=set.bs})
-    -- The rifle: with the rifle layer or the rifle clips alone (zNGMSpike_P), fight/gunmode/rifle.lua (the rifle in her
-    -- real hand; the rifle clips play on her real body); without them, Luke's posed stance (fight/gunmode/stance.lua).
+    -- The rifle: with the animation pak, fight/gunmode/rifle.lua (the rifle in her real hand; the pak's rifle animations play on
+    -- her real body); without it, Luke's posed stance (fight/gunmode/stance.lua).
     local posed=Stance.new(Laser,set.trace and g.log or nil)
     local single=Rifle.new(Laser,set.trace and g.log or nil)
     local stance=posed
     local probe=set.probe and Probe.new(g)
-    -- The rifle layer (fight/gunmode/overlay.lua: ABP_NGM_Spike in zNGMSpike_P) plays the rifle clips on her arms over
-    -- her own finished pose; nothing of her main animation, springs or outfit physics is touched.
+    -- M1: the post-process layer (fight/gunmode/overlay.lua, ABP in gunmode's pak) plays the NIKKE rifle clips
+    -- on her arms over her own finished pose; nothing of her main animation, springs or outfit physics is touched.
     local layer=Overlay.new(g)
     local keys=Input.state()
     local self={}
     local s={hidden={},followed={},on=false,pause=0,next_shot=0,shots=0,zoom=0,zoom_held=false,target=nil,cam=nil,mask=nil,
         toggle_at=-1,hooked=false,errors=0}
-    -- What belongs to one pawn and its controller, cleared on a new controller with no game call (new_controller).
-    local PER_PAWN={'ovr_row','flash_fx','rifle','pose_m','pose_on','ik','layer_clip','reload_until','turn','turnq',
-        'want','move','sounds','aim_seen','air_aim','key_held','held_since','jump_down','tps','drone_wait','drone_keep','morph'}
-    local restored=false -- coop-gun.txt read this Lua load (self.restore).
 
     -- The reload: the NIKKE squad's reload animation on the rifle stance, and its sounds at their times.
-    local function sound(path)
+    -- A sound (a SoundCue path) is played 2D. The loaded cue is kept (a LoadAsset walks the object array, 25-35 ms) and
+    -- used again only while it still has its path (a collected asset's address can be reused by another object).
+    -- A cue that did not load is not loaded again. One log line per what ('reload', 'shot').
+    local cues,sound_logged={},{}
+    local function sound(path,what)
         local ok,err=pcall(function()
-            local cue=g.asset(path) -- kept between reloads (a LoadAsset per sound walked the object array)
+            local cue=GunMode.cue(cues,path,g,LoadAsset)
             assert(cue,'no '..path)
-            g.find(STATICS):PlaySound2D(g.pawn(),cue,1.0,1.0,0.0,nil,nil,false)
+            g.cdo('/Script/Engine.Default__GameplayStatics'):PlaySound2D(g.pawn(),cue,1.0,1.0,0.0,nil,nil,false)
         end)
-        if not s.sound_logged then s.sound_logged=true; g.log('reload sound: '..(ok and 'played' or tostring(err))) end
+        if not sound_logged[what] then sound_logged[what]=true; g.log(what..' sound: '..(ok and 'played' or tostring(err))) end
     end
     local function on_reload(on,duration)
         local ok=stance.reload(on and not s.layer,duration) -- with the layer the real reload clip plays: no extra tilt of the rifle in her hand
@@ -237,8 +342,8 @@ function GunMode.new(env)
             if not s.reload_logged then s.reload_logged=true; g.log('reload animation: '..(ok and 'playing' or 'not found')) end
         else s.sounds=nil end
     end
-    -- The rounds go to no D-pad slot: the HUD entry (fight/gunmode/ui/dpad.lua, from the tick) shows them. env.stock: the
-    -- rounds as EVE's Bullet_Nikke (fight/gunmode/nikke.lua).
+    -- No D-pad slot widget for now: the runtime widget never drew, and as nothing held it the engine could free it
+    -- while its text was still being set every frame (a likely cause of crashes).
     local ammo=Ammo.new(g,cfg,function(v) data.cool(v) end,on_reload,nil,env.stock)
 
     local function fire_row(row)
@@ -247,58 +352,29 @@ function GunMode.new(env)
         return ok
     end
 
-    -- Masked keys given back (coop-gun.txt's key records, from an earlier Lua load or from mask below), each on a
-    -- mapping of its action that still has the masked key: the one at its index, else the first not yet given back.
-    -- Then the keymaps rebuilt. How many. The array is walked again at each call, its rows written in that call only:
-    -- coop fly's AddActionMapping (its exec at 0x14478b400 on 26123051, an AddUnique on InputSettings' array) grows it
-    -- through 0x140e6c0d0, which reallocates its buffer: a row kept from an earlier frame can point into freed memory.
-    local function keys_back(records)
-        local want={}
-        for _,r in ipairs(records) do
-            if r[1]=='key' then want[#want+1]={name=r[2],key=r[3],masked=r[4],at=tonumber(r[5])} end
-        end
-        if #want==0 then return 0 end
-        local settings=StaticFindObject(SETTINGS)
-        assert(g.valid(settings),'input settings unavailable')
-        local rows={}
-        settings.ActionMappings:ForEach(function(at,wrapped)
-            local row=wrapped:get()
-            rows[#rows+1]={at=at,row=row,name=row.ActionName:ToString(),key=row.Key.KeyName:ToString()}
-        end)
-        local n=0
-        for _,k in ipairs(want) do
-            local pick
-            for _,m in ipairs(rows) do
-                if not m.used and m.name==k.name and m.key==k.masked and (not pick or m.at==k.at) then pick=m end
-            end
-            if pick then pick.used=true; pick.row.Key.KeyName=FName(k.key); n=n+1 end
-        end
-        settings:ForceRebuildKeymaps()
-        return n
-    end
     -- The input mask, as Luke's maskAim makes it: cfg.mask_on_keys on cfg.mask_keys, and cfg.mask_actions on any key,
     -- set to key None and the keymaps rebuilt; restore() puts each one back. Axis mappings on those keys are only
     -- logged (the first time) so a later build can mask them if the game reads one.
-    local function mask()
+    -- dry: no round can go out (GunMode.mask_names).
+    local function mask(dry)
         local settings=StaticFindObject(SETTINGS)
         assert(g.valid(settings),'input settings unavailable')
-        local masked_key,on_keys,masked_name={},{},{}
+        local masked_key={}
         local reload_key={} -- every action on these keys is masked while the rifle is out (they reload it)
         for _,k in ipairs(cfg.reload_keys or {}) do reload_key[k]=true end
         for _,k in ipairs(cfg.mask_keys) do masked_key[k]=true end
-        for _,n in ipairs(set.native and cfg.native_mask_on_keys or cfg.mask_on_keys) do on_keys[n]=true end
-        if not set.native then for _,n in ipairs(cfg.mask_actions) do masked_name[n]=true end end
-        local saved,names,rows={},{},{} -- rows: the mappings to mask, written in this call only (keys_back)
-        settings.ActionMappings:ForEach(function(at,wrapped)
+        if set.fire_key then masked_key[set.fire_key]=true end -- (gun_fire_key and gun_aim_key fire and aim too)
+        masked_key[set.aim_key]=true
+        local on_keys,masked_name=GunMode.mask_names(cfg,set.native,dry)
+        local saved,names={},{}
+        settings.ActionMappings:ForEach(function(_,wrapped)
             local row=wrapped:get()
             local name,key=row.ActionName:ToString(),row.Key.KeyName:ToString()
             if key~='None' and ((masked_key[key] and on_keys[name]) or masked_name[name] or reload_key[key]) then
-                saved[#saved+1]={key=key,name=name,at=at}
-                rows[#saved]=row
+                saved[#saved+1]={row=row,key=key,name=name}
                 names[#names+1]=name..'('..key..')'
             elseif set.native and name=='TPSMode' and key==cfg.aim_from then -- The game's aim moved to RMB.
-                saved[#saved+1]={key=key,name=name,to=set.aim_key,at=at}
-                rows[#saved]=row
+                saved[#saved+1]={row=row,key=key,name=name,to=set.aim_key}
                 names[#names+1]=name..'('..key..' -> '..set.aim_key..')'
             end
         end)
@@ -327,21 +403,22 @@ function GunMode.new(env)
             g.log('input: keyboard keys bound: '..table.concat(list,' '))
         end
         local function restore()
-            local back={}
             for _,e in ipairs(saved) do
-                if e.changed then back[#back+1]={'key',e.name,e.key,e.to or 'None',tostring(e.at)}; e.changed=false end
+                if e.changed then
+                    pcall(function() e.row.Key.KeyName=FName(e.key) end)
+                    e.changed=false
+                end
             end
-            local done,n=pcall(keys_back,back)
-            g.log('input: '..(done and n..' of '..#back..' mappings put back'
-                or 'mappings not put back ('..tostring(n)..')'))
+            pcall(function() settings:ForceRebuildKeymaps() end)
+            g.log('input: '..#saved..' mappings put back')
         end
         local ok,err=pcall(function()
-            for i,e in ipairs(saved) do e.changed=true; rows[i].Key.KeyName=FName(e.to or 'None') end
+            for _,e in ipairs(saved) do e.changed=true; e.row.Key.KeyName=FName(e.to or 'None') end
             settings:ForceRebuildKeymaps()
         end)
         if not ok then restore(); error(err) end
         g.log('input: masked '..table.concat(names,' '))
-        return restore,saved -- saved: coop-gun.txt's key records (keep)
+        return restore
     end
 
     -- The point under the screen centre: the camera's line traced (visibility and camera channels, EVE ignored), or
@@ -359,8 +436,8 @@ function GunMode.new(env)
         s.cam_loc,s.cam_rot=loc,rot
         local from=loc -- GunMode.ahead(loc,rot,0) is loc
         local to=GunMode.ahead(loc,rot,cfg.trace_range)
-        local trace=g.find(TRACE)
-        if not trace then return to end
+        local trace=g.cdo(TRACE)
+        if not g.valid(trace) then return to end
         IGN[1]=p
         local best,dist=to,cfg.trace_range
         for channel=0,1 do
@@ -430,12 +507,12 @@ function GunMode.new(env)
         local src=g.try(function() return p.Mesh end)
         if not g.valid(src) then return end
         local body=g.try(function() return src.SkeletalMesh:GetFullName() end)
-        local cls,skel,static=g.find(MESH),g.find(SKEL),g.find(STATIC)
+        local cls,skel,static=StaticFindObject(MESH),StaticFindObject(SKEL),StaticFindObject(STATIC)
         if not g.valid(cls) then return end
         local list=g.try(function() return p:K2_GetComponentsByClass(cls) end)
         if not list then return end
         local items={}
-        local function unwrap(c) -- An element of the array: its object (wrapped, as the rifle scan found, 11-17).
+        local function unwrap(c) -- An element of the array: its object (wrapped, as the rifle scan found).
             if c~=nil and not g.valid(c) then
                 local ok,v=pcall(function() return c:get() end)
                 if ok then return v end
@@ -480,7 +557,7 @@ function GunMode.new(env)
                 if follow and not s.followed[addr] then
                     local body=stance.body()
                     if g.valid(body) and pcall(function() c:SetMasterPoseComponent(body,true) end) then
-                        s.followed[addr]={c=c,to=src}
+                        s.followed[addr]={c=c}
                     end
                 end
                 if first then
@@ -512,24 +589,19 @@ function GunMode.new(env)
     end
 
     -- The drone (it fires the shots in the game's aim) hidden while the rifle is out: its mesh components
-    -- bHiddenInGame, as race/doro.lua hides it; put back as they were. FindAllOf walks every object (race/doro.lua
-    -- measured 25 to 40 ms), so it is looked for when the rifle comes out and again only when the one held goes (L1).
-    -- None near her: none for the rest of this rifle out (s.drone false). A rifle out within DRONE_WAIT s of that miss
-    -- looks once the wait is over. A new controller looks at once.
-    local DRONE,DRONE_WAIT='CH_Drone_BP_C',10
-    local function hide_drone(p,now)
-        if s.drone==false or (s.drone and g.valid(s.drone.actor)) or now<(s.drone_wait or -1) then return end
+    -- bHiddenInGame, as race/doro.lua hides it; put back as they were. FindAllOf walks every object, so it is looked
+    -- for when the rifle comes out and again only when the one held goes.
+    local DRONE='CH_Drone_BP_C'
+    local function hide_drone(p)
+        if s.drone and g.valid(s.drone.actor) then return end
+        -- FindAllOf walks every object: with no drone near, look again only every 5 s (each look was a stutter)
+        local t=os.clock(); if t-(s.drone_look or -99)<5 then return end; s.drone_look=t
         local best,best_d
         local loc=g.try(function() return p:K2_GetActorLocation() end)
         if not loc then return end
-        -- the drone of the last time the rifle was out, when it is still that actor and near her: no walk of every drone
-        -- (FindAllOf, 40-50 ms at each rifle out)
-        local k=s.drone_keep
-        local kq=k and g.valid(k.actor) and g.try(function() return k.actor:GetFullName() end)==k.name
-            and g.try(function() return k.actor:K2_GetActorLocation() end)
-        local near=kq and (kq.X-loc.X)^2+(kq.Y-loc.Y)^2+(kq.Z-loc.Z)^2<3000*3000
-        if not near then s.drone_keep=nil end -- gone, another actor now, or far from her: every drone walked again
-        local all=near and {k.actor} or g.try(function() return FindAllOf(DRONE) end) or {}
+        local kept=GunMode.kept_drone(s.drone_keep,g,loc)
+        if not kept then s.drone_keep=nil end -- gone, another actor now, or far from her: every drone walked again
+        local all=kept and {kept} or g.try(function() return FindAllOf(DRONE) end) or {}
         for _,d in ipairs(all) do
             local q=g.valid(d) and g.try(function() return d:K2_GetActorLocation() end)
             if q then
@@ -537,9 +609,9 @@ function GunMode.new(env)
                 if dist<3000 and (not best_d or dist<best_d) then best,best_d=d,dist end
             end
         end
-        if not best then s.drone,s.drone_wait=false,now+DRONE_WAIT; return end
-        -- every scene component, not only its meshes: its light, glows and effects go with it (11-20: the light stayed)
-        local cls=g.find('/Script/Engine.SceneComponent')
+        if not best then return end
+        -- every scene component, not only its meshes: its light, glows and effects go with it (the light stayed otherwise)
+        local cls=StaticFindObject('/Script/Engine.SceneComponent')
         local parts={}
         local list=g.try(function() return best:K2_GetComponentsByClass(cls) end)
         local function each(fn)
@@ -557,7 +629,7 @@ function GunMode.new(env)
             end
         end)
         s.drone={actor=best,parts=parts}
-        s.drone_keep={actor=best,name=g.try(function() return best:GetFullName() end)}
+        s.drone_keep={actor=best,name=g.try(function() return best:GetFullName() end)} -- (used again at the next rifle out)
         g.log('drone: '..#parts..' parts hidden ('..#all..' drones)')
     end
     local function show_drone()
@@ -567,7 +639,7 @@ function GunMode.new(env)
                 if g.valid(c) then pcall(function() c:SetHiddenInGame(e.hidden,false); c:SetVisibility(e.visible,false) end) end
             end
         end
-        s.drone=nil
+        s.drone=nil; s.drone_look=nil
     end
 
     -- Firing mode's pose between shots: the NIKKE shot's own animation (its montage, learnt from the first shot
@@ -599,13 +671,6 @@ function GunMode.new(env)
 
     -- Firing mode (Luke's aim on her normal stance): the game itself keeps her facing the camera, through her
     -- movement's own settings (no yaw written from Lua each frame: two writers made her legs twitch).
-    local function unface()
-        local f=s.facing
-        s.facing=nil
-        if f and g.valid(f.cm) then
-            pcall(function() f.cm.bOrientRotationToMovement=f.orient; f.cm.bUseControllerDesiredRotation=f.desired end)
-        end
-    end
     local function face(p,on)
         if (on and s.facing) or (not on and not s.facing) then return end -- nothing to change: no reads
         local cm=g.get(p,'CharacterMovement')
@@ -613,7 +678,11 @@ function GunMode.new(env)
         if on and not s.facing then
             s.facing={cm=cm,orient=cm.bOrientRotationToMovement,desired=cm.bUseControllerDesiredRotation}
             pcall(function() cm.bOrientRotationToMovement=false; cm.bUseControllerDesiredRotation=true end)
-        elseif not on and s.facing then unface() end
+        elseif not on and s.facing then
+            local f=s.facing
+            pcall(function() f.cm.bOrientRotationToMovement=f.orient; f.cm.bUseControllerDesiredRotation=f.desired end)
+            s.facing=nil
+        end
     end
 
     -- Firing mode on the game's aim: its camera's field of view eased to cfg.aim_fov (the game's 45 shows her from the
@@ -631,63 +700,14 @@ function GunMode.new(env)
     end
 
     -- The rifle carried: a custom moving stance with no force whose OverrideStanceAnim is the carry animation set
-    -- (fight/gunmode/data.lua fills it); off while she aims, so the aim stance's own set plays.
-    local function carry(p,on)
-        if on and s.ovr_row and not s.ovr then
-            s.ovr=pcall(function()
-                p:ActiveCustomMovingStanceData({OverrideStanceAnim=FName(s.ovr_row),NormalAnimRangeDegree=180.0,ApplySpeedForIdleAnimScale=1.0})
-            end)
-        elseif not on and s.ovr then
-            pcall(function() p:DeactiveCustomMovingStanceData() end)
-            s.ovr=false
-        end
+    -- (fight/gunmode/data.lua fills it), or hip fire's strafe set (s.hip_row) so A and D step sideways; none while she aims
+    -- in the game's aim, so the aim stance's own set plays (GunMode.stance_row). row nil lets go of the active one.
+    local function carry(p,row)
+        -- hip_strafe_deg is for the strafe set alone: the carry set keeps 180
+        local deg=(row and row==s.hip_row and s.hip) and (cfg.hip_strafe_deg or 180.0) or 180.0
+        GunMode.stance_set(s,p,row,deg+0.0,set.trace and g.log or nil)
     end
 
-    -- coop-gun.txt as gun mode's changes stand now (fight/gunmode/journal.lua): SB's rows (data.lua), the masked keys,
-    -- the body meshes under the rifle layer (overlay.lua), her meshes hidden from her camera or following the posed
-    -- copy, the drone's hidden parts, the carry stance, the posed stance's own changes (stance.lua) and out while the
-    -- rifle is out; gone when nothing is changed. A line the file already holds is not written again. true when
-    -- written (or with no file at all), else false and why, logged.
-    local kept -- The line this load last wrote (false: cleared), so the same line is not written each second.
-    local function keep()
-        if not env.store then return true end
-        local ok,why=pcall(function()
-            local list=data.records()
-            for _,k in ipairs(s.keys or {}) do list[#list+1]={'key',k.name,k.key,k.to or 'None',tostring(k.at)} end
-            for _,r in ipairs(layer.records()) do list[#list+1]=r end
-            for _,e in pairs(s.hidden) do
-                local at=g.path(e.c)
-                if at then list[#list+1]={'see',at,tostring(e.was)} end
-            end
-            for _,e in pairs(s.followed) do
-                local at,to=g.path(e.c),g.path(e.to)
-                if at and to then list[#list+1]={'follow',at,to} end
-            end
-            for _,e in ipairs(s.drone and s.drone.parts or {}) do
-                local at=g.path(e.c)
-                if at then list[#list+1]={'drone',at} end
-            end
-            local her=s.ovr_row and g.path(g.pawn())
-            if her then list[#list+1]={'carry',her} end
-            for _,r in ipairs(stance.records and stance.records() or {}) do list[#list+1]=r end
-            if s.on then list[#list+1]={'out'} end
-            local line=#list>0 and Journal.line(list)
-            if line==kept then return end
-            if line then
-                local done,e=env.store.save(line)
-                assert(done~=false,e or 'not written')
-            else env.store.clear() end
-            kept=line
-        end)
-        if not ok then g.log('coop-gun.txt not written: '..tostring(why)) end
-        return ok,why
-    end
-    -- The rifle layer off every body mesh it went on (overlay.lua's list), her own post-process class back.
-    local function layer_off(p)
-        local ran,ok,e=pcall(layer.uninstall,p)
-        if not (ran and ok~=false) then g.log('layer off: '..tostring(ran and e or ok)) end
-    end
-    -- What the rifle out changes, put back; also the parts a start took before it failed. SB's rows are the callers'.
     -- The morph's black cube: an engine cube mesh in her right hand with the rifle's own (black metal) material, sized to
     -- cfg.cube_cm. Made when a morph starts, destroyed when it ends or gun mode goes off. A missing mesh logs once and the
     -- morph runs with the rifle's scale alone.
@@ -697,7 +717,7 @@ function GunMode.new(env)
             local mesh=g.asset(cfg.cube_mesh)
             assert(g.valid(mesh),'no '..cfg.cube_mesh)
             local id={Rotation={X=0,Y=0,Z=0,W=1},Translation={X=0,Y=0,Z=0},Scale3D={X=1,Y=1,Z=1}}
-            local c=p:AddComponentByClass(g.find('/Script/Engine.StaticMeshComponent'),true,id,true)
+            local c=p:AddComponentByClass(StaticFindObject('/Script/Engine.StaticMeshComponent'),true,id,true)
             assert(g.valid(c),'cube component')
             c:SetCollisionEnabled(0)
             p:FinishAddComponent(c,true,id)
@@ -716,85 +736,52 @@ function GunMode.new(env)
         s.cube=nil
     end
 
-    local function put_away()
+    local function disable(why)
+        if not s.on then return end
         s.morph=nil; cube_drop(); require('fight.gunmode.ik').fade=1
         if single.morph then pcall(single.morph,nil) end
         s.on=false
         pcall(stance.stop)
-        if s.mask then pcall(s.mask) end
-        s.mask,s.keys=nil,nil
+        if s.mask then pcall(s.mask); s.mask=nil end
+        s.mask_dry=nil
         camera_back()
-        unface()
+        if s.facing then
+            local f=s.facing
+            pcall(function() f.cm.bOrientRotationToMovement=f.orient; f.cm.bUseControllerDesiredRotation=f.desired end)
+            s.facing=nil
+        end
         local pw=g.pawn()
-        if pw then carry(pw,false) end
-        if s.layer and pw then pcall(layer.stop,pw) end
-        layer_off(pw)
-        if not pw then s.mesh_back=(s.mesh_yaw or 0)~=0 and s.mesh_rot or nil end -- no pawn now: the loop puts her mesh's turn back
+        if pw then carry(pw,nil) end
+        s.ovr_active,s.hip,s.burst=nil,nil,nil -- (no pawn: the next pawn starts with no override)
+        if s.layer and pw then pcall(layer.stop,pw); local ok,e=pcall(layer.uninstall,pw); if not ok then g.log('layer off: '..tostring(e)) end end
+        if not pw then s.layer_back=s.layer or s.layer_back; s.mesh_back=(s.mesh_yaw or 0)~=0 and s.mesh_rot or nil end -- no pawn now: the loop puts these back
         if s.mesh_rot and pw then local b=s.mesh_rot; pcall(function() pw.Mesh:K2_SetRelativeRotation(b,false,{},false) end) end
         s.mesh_rot,s.mesh_yaw,s.head_yaw=nil,0,nil
         if s.cmod and g.valid(s.cmod) then local m=s.cmod; pcall(function() g.pc().PlayerCameraManager:RemoveCameraModifier(m) end) end
         s.cmod,s.cmod_fail=nil,nil
         s.layer,s.layer_clip,s.reload_until,s.turn,s.turnq,s.chest,s.move=false,nil,nil,nil,nil,nil,nil -- (no aim turn left for next time)
+        s.snap,s.was_hip,s.turning=nil,nil,nil -- (the next hip press is a rising edge again)
         s.ovr_row=nil
         show_others()
         show_drone()
         pcall(ammo.stop)
         local pc=g.pc()
         if pc then pcall(fov,pc,false) end
-    end
-    local function disable(why)
-        if not s.on then return end
-        put_away()
         if s.native_taken then pcall(data.put_back); s.native_taken=false; aim.row=nil end
-        keep()
         g.log('off ('..why..'), '..s.shots..' shots')
-    end
-    -- Everything back, SB's rows too, coop-gun.txt with it: a start that failed (L2), or stop.
-    local function give_all_back()
-        put_away()
-        pcall(data.put_back); s.native_taken=false; aim.row=nil
-        keep()
-    end
-
-    -- An SBO match (env.match) keeps the rifle away (M12): SBO's PvP rule refuses every hit from beyond 15 m whatever
-    -- the move (native/src/game/pvp.h's kHitRangeCm, fight/enemies' defend()), while the rifle hits up to
-    -- cfg.trace_range away. Until that rule takes rifle hits, a notice says so (ui/text.lua's gun.match).
-    local MATCH='an SBO match runs: PvP hits past 15 m do not count yet'
-    -- A notice on screen (env.notice; key: a word of ui/text.lua's gun, rebuilding when nil), at most one in 3 s.
-    local function notice(now,key)
-        if not (s.notice_at and now-s.notice_at<3) and env.notice and pcall(env.notice,key) then s.notice_at=now end
-    end
-    -- Why EVE cannot hold the rifle now (GunMode.blocked, env.busy, then env.match), or nil. A state it cannot read is
-    -- a reason too.
-    local function held(p)
-        local ok,why=pcall(function()
-            return GunMode.blocked(p,env.photo and env.photo() or '0') or (env.busy and env.busy())
-                or (env.match and env.match() and MATCH) or nil
-        end)
-        if not ok then return 'her state is unreadable ('..tostring(why)..')' end
-        return why
     end
 
     local function enable(why)
-        -- each step's time, written into the 'on' line: the frame gun mode comes on in is its costliest one
+        -- each step's time (ms), written into the 'on' line: the frame gun mode comes on in is its costliest one
         local laps,lap_at={},os.clock()
         local function lap(name) local t=os.clock(); laps[#laps+1]=('%s %.0f'):format(name,(t-lap_at)*1000); lap_at=t end
-        self.restore() -- An earlier Lua load's changes back before this one reads the rows as they are.
         local pc,p=g.pc(),g.pawn()
-        -- Each refusal says why on screen too (L4), in a word of ui/text.lua's gun; the log keeps the reason.
-        if not (pc and p) then g.log('not now: no EVE'); notice(os.clock(),'eve'); return end
+        if not (pc and p) then g.log('not now: no EVE'); return end
         if g.try(function() return p.TPSModeType~=0 or p.bTPSMode end) then
-            g.log('not now: release the drone aim first'); notice(os.clock(),'aim'); return
+            g.log('not now: release the drone aim first'); return
         end
-        local busy=held(p)
-        if busy then
-            g.log('not now: '..busy)
-            notice(os.clock(),busy==MATCH and 'match' or 'busy')
-            return
-        end
-        -- The rifle layer first. Without it, the rifle clips alone (cfg.pak_probe, in zNGMSpike_P): the aim stance's
-        -- blend spaces point at the rifle's while the rifle is out. Her real body shows while aiming (nothing posed).
-        -- Without either, Luke's posed stance.
+        -- The gun mode animation pak: when it is installed, the aim stance's blend spaces point at
+        -- its firing-stance animations while the rifle is out, and her real body shows while aiming (nothing posed).
         lap('checks')
         local okl,inst,why_not=pcall(layer.install,p)
         lap('layer')
@@ -813,20 +800,16 @@ function GunMode.new(env)
         data.opts.carry_idle_type=set.carry_idle_type
         stance=(s.pak or s.layer) and single or posed
         single.no_turn=s.layer==true
-        -- Each way out below gives back all it took (L2).
         if not data.take() then
-            give_all_back()
-            g.log('off: SB\'s rows could not be taken (see above)'); notice(os.clock(),'failed'); return
+            if s.layer then pcall(layer.uninstall,p); s.layer=false end
+            g.log('off: SB\'s rows could not be taken (see above)'); return
         end
         lap('rows')
         aim.setup()
         lap('aim')
-        local ok,err=pcall(function() s.mask,s.keys=mask() end)
+        local ok,err=pcall(function() s.mask=mask() end)
         lap('mask')
-        if not ok then
-            give_all_back(); g.log('off: the input mask failed ('..tostring(err)..')'); notice(os.clock(),'failed')
-            return
-        end
+        if not ok then g.log('off: the input mask failed ('..tostring(err)..')'); return end
         ok,err=pcall(function()
             -- Held for Luke's aim: the aim key itself, not the game's aim stance, which drops for a frame now and
             -- then (each shot's skill, a jump) and made his arms jerk between carry and aim. Off the stance (a
@@ -834,11 +817,13 @@ function GunMode.new(env)
             -- With the animation pak her real body is shown while aiming, so held follows the game's aim stance
             -- (bridging its one-frame drops on shots: seen in the last 0.4 s with the key still down).
             if stance.single then
-                -- with the layer the laser follows the aim pose (aiming or hip fire); in the flip it runs along the bore
+                -- with the layer the laser follows the aim pose (aiming or hip fire); it ends on the crosshair point only
+                -- in the game's aim (or without the layer); in hip fire and the flip it runs along the bore, where the
+                -- rounds go (shoot)
                 s.rifle=stance.start(pc,function()
                         if s.layer then return s.want=='aim' end
                         return s.zoom_held or (s.key_held==true and s.aim_seen~=nil and os.clock()-s.aim_seen<0.4) end,
-                    function() if not s.flip then return s.target end end)
+                    function() if not GunMode.on_bore(s.flip,s.layer,s.tps,set.native) then return s.target end end)
                 return
             end
             s.rifle=stance.start(pc,function()
@@ -852,13 +837,14 @@ function GunMode.new(env)
         end)
         lap('rifle')
         if not ok then
-            give_all_back()
+            if s.mask then pcall(s.mask); s.mask=nil end
+            s.mask_dry=nil
+            pcall(stance.stop)
+            if s.layer then pcall(layer.uninstall,p); s.layer=false end
             g.log('off: Luke\'s stance did not start ('..tostring(err)..')')
-            notice(os.clock(),'failed')
             return
         end
-        if set.trace and not s.funcs_logged then -- (testing) the pawn's and its anim instance's stance / anim set functions
-            s.funcs_logged=true
+        if set.trace and GunMode.once('funcs') then -- (testing) the pawn's and its anim instance's stance / anim set functions
             pcall(function()
                 local function scan(obj,label)
                     local names={}
@@ -922,9 +908,10 @@ function GunMode.new(env)
         end
         local co=data.opts.carry_ovr
         s.ovr_row=(co=='auto' and data.carry_ovr_row) or (co and co~='auto' and co~='off' and co) or nil
+        s.ovr_log,s.hip,s.burst,s.hip_row={},nil,nil,set.hip_strafe_row or cfg.hip_strafe_row or 'P_Eve_Gun_Battle'
         if s.ovr_row then
-            carry(p,true)
-            g.log('carry override '..s.ovr_row..': '..(s.ovr and 'on' or 'failed')..', active='..tostring(g.try(function() return p:IsActiveCustomMovingStanceData() end)))
+            carry(p,s.ovr_row)
+            g.log('carry override '..s.ovr_row..': '..(s.ovr_active and 'on' or 'failed')..', active='..tostring(g.try(function() return p:IsActiveCustomMovingStanceData() end)))
         end
         s.on,s.shots,s.next_shot,s.zoom_held,s.held_since=true,0,0,false,nil
         lap('carry')
@@ -932,18 +919,13 @@ function GunMode.new(env)
         lap('hide')
         s.hide_at=os.clock()
         if set.native then s.native_taken=true end
-        if cfg.hide_drone~=false then pcall(hide_drone,p,os.clock()) end -- (the game's aim puts the drone on her arm: hidden, light and all)
+        if cfg.hide_drone~=false then pcall(hide_drone,p) end -- (the game's aim puts the drone on her arm: hidden, light and all)
         lap('drone')
         pcall(ammo.sync)
-        if not keep() then
-            give_all_back(); g.log('off: coop-gun.txt could not be written (see above)'); notice(os.clock(),'failed')
-            return
-        end
         -- the arrival: a cube in her hand turns into the rifle (fight/gunmode/morph.lua); the tick runs it
-        lap('keep')
         if cfg.morph~=false and s.layer then s.morph={dir='in',t0=os.clock()}; pcall(cube_make,p); pcall(single.morph,0,0) end
         lap('cube')
-        if set.trace then pcall(function() Dpad.new(g).dump() end)
+        if set.trace and GunMode.once('hud') then pcall(function() require('fight.gunmode.ui.dpad').new(g).dump() end)
             -- (dev) loaded key and pad icon textures (the HUD entry's gamepad and keyboard glyphs), and cube mesh candidates
             pcall(function()
                 local hits={}
@@ -960,21 +942,17 @@ function GunMode.new(env)
                 g.log('morph mesh '..c..': '..((o and o:IsValid()) and 'found' or 'missing'))
             end
         end
+        lap('dumps')
         g.log('on ('..why..'), ms: '..table.concat(laps,' '))
     end
 
-    -- coop off (main/commands.lua): the rifle away, everything back, SB's rows and coop-gun.txt too; from then on gun
-    -- mode does nothing (no key, no toggle, no reset) until the mod reloads.
-    function self.stop(why)
-        local was=s.on
+    -- (test harness) this instance off for good: gun mode put away, its loop idle; a fresh one takes over.
+    function self.kill()
+        if s.on then pcall(self.toggle,'reload') end
         s.dead=true
-        give_all_back()
-        if s.dpad then pcall(s.dpad.hide) end -- The HUD entry and the crosshair off the HUD: no tick runs from now on.
-        g.log('stopped ('..tostring(why)..')'..(was and ', '..s.shots..' shots' or ''))
     end
 
     function self.toggle(why)
-        if s.dead then return end
         local now=os.clock()
         if now-s.toggle_at<0.3 then return end
         s.toggle_at=now
@@ -984,41 +962,38 @@ function GunMode.new(env)
         if cfg.enabled==false and not Overlay.available() then
             if s.on then disable(why) end
             g.log('toggle ('..why..'): gun mode is being rebuilt, off')
-            notice(now)
+            if not s.notice_off then
+                if env.notice and pcall(env.notice,'rebuilding') then s.notice_off,s.notice_at=function() end,now end
+            end
             return
         end
         if s.on then
-            -- a press (key, D-pad) plays the departure first; anything else (coop gun, faults) goes at once
-            local press=why==set.key.name or why=='D-pad Right'
+            -- a press (key, D-pad, command) plays the departure first; anything else (reload, faults) goes at once
+            local press=why==set.key or why=='D-pad Right' or why=='command'
             if press and cfg.morph~=false and s.layer then
                 if not (s.morph and s.morph.dir=='out') then
                     s.morph={dir='out',t0=now,why=why}; local p=g.pawn(); if p then pcall(cube_make,p) end
                 end
                 return
             end
-            disable(why); return
-        end
-        local ok,e=pcall(enable,why)
-        if not ok then give_all_back(); g.log('off: the start failed'); notice(now,'failed'); error(e,0) end
+            disable(why)
+        else enable(why) end
     end
 
-    -- Each shot: the bullet's start on the muzzle and its destination on the crosshair point, then the shot's row.
-    -- Only in the double-jump flip it goes along the bore, where the laser points.
-    local function shoot(p,now)
-        if now<s.next_shot then return end
-        s.next_shot=now+cfg.fire_interval
-        if not data.armed then
-            if not data.arm() then s.next_shot=now+cfg.arm_hold; return end -- Tried again a second later, not each shot.
-            keep()
-        end
-        s.armed_until=now+cfg.arm_hold
+    -- Each shot: the bullet's start on the muzzle, then the shot's row. In the game's aim its destination is the
+    -- crosshair point; in native hip fire with the layer and in the flip it goes along the bore, where the laser points
+    -- (the chest loop aims the bore at the crosshair point; GunMode.on_bore). gun_fire=own aims at the crosshair point.
+    local function shoot(p,now,press)
+        local due
+        due,s.next_shot=GunMode.beat(s.next_shot,now,cfg.fire_interval,press)
+        if not due then return end
         s.shot_at=now
         local tgt=s.target
         local mz0=g.valid(s.rifle) and g.try(function() return s.rifle:GetSocketLocation(fx_fire()) end)
         aim.write_start(p,mz0 or nil,cfg.start_min_forward,cfg.start_fallback)
-        if s.flip and g.valid(s.rifle) then
+        if GunMode.on_bore(s.flip,s.layer,s.tps,set.native) and g.valid(s.rifle) then -- (the laser's rule: it runs along the bore then)
             pcall(function()
-                local ml=g.find('/Script/Engine.Default__KismetMathLibrary')
+                local ml=g.cdo('/Script/Engine.Default__KismetMathLibrary')
                 local mz=s.rifle:GetSocketLocation(fx_fire())
                 local f=ml:GetForwardVector(s.rifle:GetSocketRotation(fx_fire()))
                 tgt={X=mz.X+f.X*3000,Y=mz.Y+f.Y*3000,Z=mz.Z+f.Z*3000}
@@ -1028,6 +1003,10 @@ function GunMode.new(env)
         if fire_row(Data.row('Fire')) then
             s.shots=s.shots+1
             pcall(ammo.spend,now)
+            -- gun mode's own round has no sound of its own (the game's aim fire plays its own; shoot runs outside it)
+            if cfg.shot_sound and now-(s.shot_sound_at or 0)>=(cfg.shot_sound_every or 0) then
+                s.shot_sound_at=now; sound(cfg.shot_sound,'shot')
+            end
             if s.shots<=3 or s.shots%50==0 then
                 local l,r,t,e=s.cam_loc,s.cam_rot,s.target,g.try(function() return p:K2_GetActorLocation() end)
                 local function v(a) return a and ('(%.0f, %.0f, %.0f)'):format(a.X,a.Y,a.Z) or '?' end
@@ -1052,40 +1031,66 @@ function GunMode.new(env)
     local RECOIL_CAM={X=5,Y=0.8,Z=1.4} -- the camera's recoil when cfg.recoil_cam is not set
     local function is_vis(o) return o:IsVisible() end
     local function paused(gs,pc) return gs:IsGamePaused(pc) end
-    local PELVIS,SPINE1 -- FName('Bip001-Pelvis') and FName('Bip001-Spine1'), made once (the flip test while falling)
+    local PELVIS,SPINE1,NECK,SLOT -- FName('Bip001-Pelvis'), FName('Bip001-Spine1'), FName('Bip001-Neck') and FName('DefaultSlot'), made once (the flip test, the chest's up, the turn clip)
+    -- per-frame reads as functions made once (a closure a frame is garbage): her ground speed (cm/s); her actor rotation
+    -- and the gap of her body yaw to the camera yaw (deg, -180..180; cr: the camera rotation read this frame, or nil)
+    local function speed_of(p) local v=p:GetVelocity(); return math.sqrt(v.X*v.X+v.Y*v.Y) end
+    local function body_gap(p,pc,cr)
+        local cy=cr and cr.Yaw or pc.PlayerCameraManager:GetCameraRotation().Yaw
+        local r=p:K2_GetActorRotation()
+        return r,(cy-r.Yaw+540)%360-180
+    end
+    local YAW_ROT={Pitch=0,Yaw=0,Roll=0} -- (set_yaw's rotator, made once: the engine copies it)
+    local function set_yaw(p,y) YAW_ROT.Yaw=y; p:K2_SetActorRotation(YAW_ROT,false) end
+    local function muzzle_of(r) return r:GetSocketLocation(fx_fire()) end
+    local UPV,WANT={},{} -- the chest loop's chest-up and wanted-direction vectors, filled in place each aiming frame
+    -- while the game is paused: the pin only (property reads and writes; after 0.5 s it places without easing)
+    local function paused_pin(pc)
+        local p=g.pawn(); if not p then return end
+        local mesh=p.Mesh
+        if mesh.bDisablePostProcessBlueprint then
+            mesh:SetDisablePostProcessBlueprint(false)
+            if not s.pp_paused_logged then s.pp_paused_logged=true; g.log('layer: the game disabled post-process while paused, re-enabled') end
+        end
+        local ppi=mesh:GetPostProcessInstance()
+        if ppi then s.ik.tick(pc,p,s.rifle,s.want or 'carry',ppi) end
+    end
 
     local function tick()
         local now=os.clock()
-        if now<s.pause then return end -- A new controller put the rifle away.
-        if s.give_back then -- A new controller's deferred reset: the rows and the layer back (L3), the file with them.
-            s.give_back=false; pcall(data.put_back); aim.row=nil
-            layer_off(g.pawn())
-            keep()
-        end
+        if now<s.pause then return end
+        if s.give_back then s.give_back=false; pcall(data.put_back); aim.row=nil end
         if s.stop_stance then s.stop_stance=false; pcall(stance.stop) end
-        if s.show_back then -- The morph's cube and the IK fade too.
-            s.show_back=false; show_others(); show_drone(); unface()
-            cube_drop(); require('fight.gunmode.ik').fade=1; if single.morph then pcall(single.morph,nil) end
-            keep()
-        end
+        if s.show_back then s.show_back=false; show_others() end
         if s.ammo_reset then s.ammo_reset=false; pcall(ammo.stop); pcall(ammo.refill) end
-        -- left over by a new controller or a lost pawn: her mesh's turn put back (the layer goes at give_back)
-        if s.mesh_back and not s.on then
+        -- left over by a new controller or a lost pawn: her body asset's own post-process and her mesh's turn put back
+        if (s.layer_back or s.mesh_back) and not s.on then
             local p=g.pawn()
-            if p then local b=s.mesh_back; s.mesh_back=nil; pcall(function() p.Mesh:K2_SetRelativeRotation(b,false,{},false) end) end
+            if p then
+                if s.mesh_back then local b=s.mesh_back; s.mesh_back=nil; pcall(function() p.Mesh:K2_SetRelativeRotation(b,false,{},false) end) end
+                if s.layer_back then
+                    s.layer_back_at=s.layer_back_at or now
+                    -- her outfit may be put on after the pause: wait until our layer is really on her body (at most 30 s)
+                    if layer.active(p) or now-s.layer_back_at>30 then
+                        local ok,r,e=pcall(layer.uninstall,p)
+                        g.log(('layer: put back after a new controller (%s, %s)'):format(tostring(ok and r),tostring(e)))
+                        s.layer_back,s.layer_back_at=false,nil
+                    end
+                end
+            end
         end
         local pc=g.pc(); if not pc then return end
-        -- Paused (the pause menu and its options among others): the mask lifted until the game runs again. SB's
-        -- KeyMapping option (its save 0x14222dec0 on 26123051) writes the player input's mappings (+0x140 and +0x150,
-        -- through 0x1423d04d0) into its settings. ForceRebuildKeymaps (0x144664bb0) copies them there from the input
-        -- settings: a masked key would be saved as the player's own. The rifle away with nothing of it held (no mask,
-        -- no armed rows) asks only at a toggle, which a pause refuses: no game call a frame for it then (M2).
-        local idle=not s.on and not s.mask and not s.armed_until
-        local function is_paused() local ok,pz=pcall(paused,g.find(STATICS),pc); return ok and pz==true end
-        if not idle and is_paused() then
+        local okp,pz=pcall(paused,g.cdo('/Script/Engine.Default__GameplayStatics'),pc)
+        if okp and pz then
+            -- paused with the rifle out (photo mode): the post-process graph back on if the game turned it off, and one
+            -- pin a frame, so both hands stay on the rifle (AimRot is not written here)
+            if s.on and s.layer and s.ik and s.want and not s.g1_hold and g.valid(s.rifle) then
+                local okq,e=pcall(paused_pin,pc)
+                if not okq and not s.paused_err then s.paused_err=true; g.log('paused pin: '..tostring(e)) end
+            end
             -- (dev only, gun_g1=on) the fixed views once per photo mode, to check the pose holds in it
             if set.g1 and s.on and g.valid(s.rifle) then
-                local photo=g.try(function() return g.find('/Script/SB.Default__SBAutomationBlueprintFunctionLibrary'):IsPhotoMode() end)==true
+                local photo=g.try(function() return g.cdo('/Script/SB.Default__SBAutomationBlueprintFunctionLibrary'):IsPhotoMode() end)==true
                 if photo and not s.photo_cap then
                     s.photo_cap=true
                     local ok,e=pcall(function()
@@ -1095,68 +1100,56 @@ function GunMode.new(env)
                     if not ok then g.log('photo capture: '..tostring(e)) end
                 elseif not photo then s.photo_cap=false end
             end
-            if s.mask then
-                pcall(s.mask)
-                s.mask,s.keys=nil,nil
-                keep()
-            end
-            if s.armed_until then s.armed_until=math.max(s.armed_until,now+cfg.arm_hold) end -- SB's events wait too
             return
-        end
-        if s.on and not s.mask then
-            local ok,err=pcall(function() s.mask,s.keys=mask() end)
-            if not ok then disable('the input mask failed ('..tostring(err)..')'); return end
-            keep()
-        end
-        -- The shot's borrowed rows back once its last zone event has had its time (M4).
-        if s.armed_until and now>=s.armed_until then
-            s.armed_until=nil
-            if data.armed then data.disarm(); keep() end
         end
         dn_pc,dn_frame=pc,dn_frame+1
         if s.prof then s.prof('head') end
-        -- The rifle away: the toggle keys only. The game's own aim (gun_fire=native) reads its zoom keys itself (M2).
-        local inp=Input.read(keys,down,now,cfg,set.key,not s.on,set.native,inp_buf)
+        local inp=Input.read(keys,down,now,cfg,set.key,inp_buf)
         -- the player's reload: a press of a reload key while the rifle is out (rising edge)
         local rk=false
         if s.on then for _,k in ipairs(cfg.reload_keys or {}) do if down(k) then rk=true end end end
         if rk and not s.reload_held and s.on and not s.morph then pcall(ammo.manual,now) end
         s.reload_held=rk
-        if (inp.key or inp.toggle) and not (idle and is_paused()) then
-            if inp.key then self.toggle(set.key.name) else self.toggle('D-pad Right') end
+        -- native mode: TPSFire is masked while dry and put back when a round can go out again (the mask made again)
+        if s.on and set.native and s.mask then
+            local dry=(ammo.left<=0 and ammo.reserve<=0) or ammo.reload_until~=nil
+            if dry~=(s.mask_dry==true) then
+                pcall(s.mask); s.mask=nil; s.mask_dry=dry
+                local okm,em=pcall(function() s.mask=mask(dry) end)
+                if not okm then disable('the input mask failed ('..tostring(em)..')'); return end
+            end
         end
-        -- (dev only) The facts probe waits out a pause as it did before the pause was asked only at a toggle: its F8
-        -- plays a clip on her and its F11 swaps her body mesh's post-process class.
-        if set.facts and not (idle and is_paused()) then
+        if inp.key then self.toggle(set.key) elseif inp.toggle then self.toggle('D-pad Right') end
+        if s.notice_off and now-s.notice_at>=3 then pcall(s.notice_off); s.notice_off=nil end
+        if set.facts then
             s.facts=s.facts or require('fight.gunmode.facts').new(g)
             local ok,e=pcall(s.facts.tick,pc,g.pawn(),down,now)
             if not ok and not s.facts_err then s.facts_err=true; g.log('facts: '..tostring(e)) end
         end
-        -- the HUD entry beside the D-pad marker (fight/gunmode/ui/dpad.lua): the gun mode key and the rifle icon always,
-        -- the rounds while the rifle is out; ten times a second
+        -- the HUD entry beside the D-pad marker (fight/gunmode/dpad.lua): the gun mode key and the rifle icon always, the
+        -- rounds while the rifle is out; ten times a second
         if cfg.hud_entry~=false and now-(s.hud_at or 0)>=0.1 then
             s.hud_at=now
             s.dpad=s.dpad or Dpad.new(g)
             local txt=s.on and Ammo.lower_text(ammo.left,ammo.reserve,cfg.mag_size) or nil
-            pcall(s.dpad.tick,set.key.key,txt,{1,1,1})
+            pcall(s.dpad.tick,set.key or 'G',txt,{1,1,1})
             -- hip fire (the rifle up, the game's own aim and its reticle off): a crosshair at the screen's centre
             pcall(s.dpad.crosshair,s.on and s.want=='aim' and not s.tps and not s.air_aim)
         end
         -- camps, seats, rests, doors and cutscenes: gun mode steps aside (rifle away, layer off, her own pose) while
         -- the game holds EVE in an interaction or a level sequence, and comes back 1 s after she is free (SBCharacter's
         -- reflected calls, as bike/ride.lua uses them). A press of the gun mode key cancels the comeback.
-        if (s.on or s.resume) and now-(s.held_at or 0)>=0.1 then -- (no game call for it while the rifle is simply away)
+        if now-(s.held_at or 0)>=0.1 then
             s.held_at=now
             local p0=g.pawn()
             s.is_held=p0~=nil and g.try(function() return p0:IsAttachedToLevelSequenceWithoutPlayable()==true
                 or p0:IsRunningInteraction()==true or p0.bEnableInteractionBlock==true end)==true
-            if s.on and s.is_held then s.resume=true; s.free_at=nil; disable(g.try(function() return GunMode.blocked(p0,'0') end) or 'EVE is in an interaction or a cutscene'); return end
+            if s.on and s.is_held then s.resume=true; s.free_at=nil; disable('EVE is in an interaction or a cutscene'); return end
             if not s.on and s.resume then
                 if p0 and not s.is_held then
                     s.free_at=s.free_at or now
-                    -- (quiet while anything else still holds her: enable would show its refusal each time)
-                    if GunMode.resume_due(s.free_at,now,1.0) and not held(p0) then
-                        if not pcall(enable,'back after the interaction') then give_all_back() end
+                    if GunMode.resume_due(s.free_at,now,1.0) then
+                        enable('back after the interaction')
                         if s.on then s.resume,s.free_at=false,nil end
                     end
                 else s.free_at=nil end
@@ -1170,17 +1163,6 @@ function GunMode.new(env)
             if not ok and not s.g0_err then s.g0_err=true; g.log('g0: '..tostring(e)) end
         end
         if not p then disable('no EVE'); return end
-        -- A cutscene, a talk, a swim or another of the game's own states that starts puts the rifle away (M6), as does
-        -- another module that takes EVE (M7: the Doro look, an emote...).
-        if now-(s.busy_at or 0)>=0.25 then
-            s.busy_at=now
-            local busy=held(p)
-            if busy then
-                disable(busy)
-                if busy==MATCH then notice(now,'match') end
-                return
-            end
-        end
         if s.prof then s.prof('input') end
         local falling_n -- IsFalling read once a frame in native mode (a launch takes effect at the next movement update)
         if set.native then -- Firing mode is the game's own aim: held while EVE is in it.
@@ -1191,6 +1173,7 @@ function GunMode.new(env)
             if tps then s.aim_seen=now end
             local key_held=down(set.aim_key) or down('Gamepad_LeftTrigger')
             s.key_held,s.tps=key_held,tps
+            data.native_aim(tps) -- the shot's cool time whole in the game's aim, below the beat in hip fire (writes on a change)
             falling_n=g.try(function() return p.CharacterMovement:IsFalling() end)==true
             -- a dodge drops the game's aim like a jump: bridged the same way
             s.air_aim=Input.bridge(s.air_aim,tps,key_held,s.aim_seen and now-s.aim_seen)
@@ -1232,15 +1215,19 @@ function GunMode.new(env)
             s.jump_down=jump
             if s.sounds then
                 for i=#s.sounds,1,-1 do
-                    if now>=s.sounds[i].at then sound(s.sounds[i].path); table.remove(s.sounds,i) end
+                    if now>=s.sounds[i].at then sound(s.sounds[i].path,'reload'); table.remove(s.sounds,i) end
                 end
             end
             -- outside the game's aim (a jump or a dodge out of it, or hip fire) its TPSFire fires nothing: gun mode fires
             -- in hip fire the shot waits until the rifle points at the target (she turns first): bore error under
             -- cfg.hip_aligned degrees, measured this frame or the last (gunmode's chest loop); the flip shoots along the bore
-            local aligned=s.flip or ((s.bore_err or 180)<(cfg.hip_aligned or 10) and now-(s.bore_at or 0)<0.1)
+            -- (no round during the hip-fire snap: the chest is held, so bore_at goes stale)
+            -- while fire stays held (s.burst) the gate takes the looser cfg.hip_hold_cone, so a shot's kick keeps the burst
+            local aligned=GunMode.aligned(s.flip,s.snap,s.bore_err,s.bore_at,now,cfg.hip_aligned or 4,s.burst,cfg.hip_hold_cone or 15)
             local before=ammo.left
-            if not tps and inp.fire and aligned and not s.morph and ammo.left>0 and not ammo.reload_until then pcall(shoot,p,now) end
+            local go=not tps and inp.fire and aligned and not s.morph and ammo.left>0 and not ammo.reload_until
+            if go then pcall(shoot,p,now,not s.burst) end
+            s.burst=go
             if s.prof then s.prof('native') end
             -- the timer counts the game's own rounds (its aim); gun mode's own shots count themselves (shoot -> ammo.spend)
             local ok_a,err_a=pcall(ammo.tick,s.zoom_held or inp.fire,inp.fire and tps,now)
@@ -1248,13 +1235,20 @@ function GunMode.new(env)
             -- the NIKKE rifle of her hidden real body (the fire round her waist), which the pak's show drops.
             -- recoil, once a frame that rounds went out: the rifle kicks in her hands (fight/gunmode/ik.lua kick) and the camera
             -- climbs a little (the controller's pitch input, eased by the game's own camera)
+            -- the game's own aim fires its drone round with the drone's shot sound: the NIKKE shot cue (cfg.shot_sound, the
+            -- loaded cue kept by sound) is played on top of it, as on gun mode's own rounds. The drone's sound still plays
+            -- under it (it belongs to the game's shot skill)
+            if cfg.shot_sound and ok_a and GunMode.aim_shot_sound(tps,ammo.left<before,now,s.shot_sound_at,cfg.shot_sound_every) then
+                s.shot_sound_at=now; sound(cfg.shot_sound,'aim shot')
+            end
             if ok_a and ammo.left<before then
-                if s.ik and s.ik.kick then s.ik.kick() end
+                -- hip fire (the game's aim off) kicks the rifle less: the bore the rounds and the laser follow stays steadier
+                if s.ik and s.ik.kick then s.ik.kick(tps and 1 or (cfg.hip_recoil or 0.4)) end
                 s.kick_at,s.kick_n=now,(s.kick_n or 0)+1
             end
             if ok_a and ammo.left<before and g.valid(s.rifle) and now-(s.flash_at or 0)>=cfg.muzzle_every then pcall(function()
                 s.flash_at=now
-                s.flash_lib=g.find('/Script/Niagara.Default__NiagaraFunctionLibrary')
+                s.flash_lib=s.flash_lib or StaticFindObject('/Script/Niagara.Default__NiagaraFunctionLibrary')
                 -- g.asset: kept between shots and checked against its path (the engine may collect it in between)
                 s.flash_fx=g.asset(cfg.muzzle_fx)
                 if g.valid(s.flash_lib) and s.flash_fx then
@@ -1268,9 +1262,10 @@ function GunMode.new(env)
             if inp.zoom_press then s.zoom_held=not s.zoom_held end
         else s.zoom_held=inp.zoom end
         if s.prof then s.prof('ammo') end
-        -- The point under the screen centre only while she aims or fires (hip fire raises the rifle), the only time it
-        -- is read (M13): two traces a frame.
-        s.target=(s.zoom_held or s.key_held==true or inp.fire or s.want=='aim') and crosshair(pc,p) or nil
+        -- the crosshair point (two line traces): every frame while aiming or firing, else 5 times a second
+        if s.zoom_held or inp.fire or s.want=='aim' or not s.target or now-(s.cross_at or 0)>=0.2 then
+            s.cross_at=now; s.target=crosshair(pc,p)
+        end
         if s.prof then s.prof('crosshair') end
         local ok,err=pcall(stance.frame)
         if not ok then g.log('stance: '..tostring(err)); disable('stance error'); return end
@@ -1283,7 +1278,6 @@ function GunMode.new(env)
                 if not layer.active(p) then
                     local ok,inst=pcall(layer.install,p); s.layer_clip=nil
                     if not (ok and inst==true) then disable('rifle layer lost'); return end
-                    keep() -- Her new body mesh listed.
                 end
             end
             if s.reload_until and now>=s.reload_until then s.reload_until=nil end
@@ -1318,7 +1312,7 @@ function GunMode.new(env)
                 if m.flash and not s.morph.flashed then
                     s.morph.flashed=true
                     pcall(function()
-                        s.flash_lib=g.find('/Script/Niagara.Default__NiagaraFunctionLibrary')
+                        s.flash_lib=s.flash_lib or StaticFindObject('/Script/Niagara.Default__NiagaraFunctionLibrary')
                         local fx=g.asset(cfg.morph_fx)
                         if g.valid(fx) and g.valid(s.rifle) then s.flash_lib:SpawnSystemAttached(fx,s.rifle,FName('None'),{X=0,Y=0,Z=0},{Pitch=0,Yaw=0,Roll=0},2,true,true,0,false) end
                     end)
@@ -1358,7 +1352,7 @@ function GunMode.new(env)
             if set.trace and want=='aim' and g.valid(s.rifle) and now-(s.geo_at or 0)>=1.0 then
                 s.geo_at=now
                 pcall(function()
-                    local ml=g.find('/Script/Engine.Default__KismetMathLibrary')
+                    local ml=g.cdo('/Script/Engine.Default__KismetMathLibrary')
                     local cm=pc.PlayerCameraManager
                     local cf=ml:GetForwardVector(cm:GetCameraRotation())
                     local fire=FName('FX_Fire')
@@ -1393,7 +1387,7 @@ function GunMode.new(env)
             end
             -- the game stops montages when its stances change (its aim among them): the clip is checked four times a
             -- second and played again when it was stopped
-            -- The rifle-first solver places the rifle and puts both hands on it (fight/gunmode/ik.lua)
+            -- v2: the rifle-first solver places the rifle and puts both hands on it (fight/gunmode/ik.lua)
             s.ik=s.ik or require('fight.gunmode.ik').new(g)
             local ppi=g.try(function() return mesh:GetPostProcessInstance() end)
             local mode_ik=(want=='aim') and 'aim' or ((want=='carry' or want=='reload') and 'carry' or 'off')
@@ -1408,6 +1402,9 @@ function GunMode.new(env)
             -- a reload while aiming keeps her aimed: body turn, aim camera and chest turn held while the reload clip plays
             -- (not in the air or through one of the game's moves: the mesh yaw must ease out then)
             local hold_aim=mode_ik=='aim' or (want=='reload' and s.zoom_held and not falling and not s.move)
+            -- hip fire: the game's own aim off, on the ground (set here, outside the pcall below: a throw there must not
+            -- leave the strafe row on after fire is let go)
+            s.hip=want=='aim' and not s.tps and not falling
             -- (dev only, gun_airtrace=on) ten times a second while falling: her body tilt (Pelvis->Spine1 against world up),
             -- the game's aim flag, the state, the chest turn and the rifle's bore pitch; facts for the flip work
             if set.airtrace and falling and now-(s.at_log or 0)>=0.1 then s.at_log=now
@@ -1416,7 +1413,7 @@ function GunMode.new(env)
                     local dx,dy,dz=b.X-a.X,b.Y-a.Y,b.Z-a.Z; local l=math.sqrt(dx*dx+dy*dy+dz*dz)
                     local tilt=math.deg(math.acos(math.max(-1,math.min(1,dz/l))))
                     local bp='-'
-                    if g.valid(s.rifle) then local ml=g.find('/Script/Engine.Default__KismetMathLibrary')
+                    if g.valid(s.rifle) then local ml=g.cdo('/Script/Engine.Default__KismetMathLibrary')
                         local f=ml:GetForwardVector(s.rifle:GetSocketRotation(FName('FX_Fire'))); bp=('%.0f'):format(math.deg(math.asin(math.max(-1,math.min(1,f.Z))))) end
                     local c=s.chest or {Pitch=0,Yaw=0,Roll=0}
                     g.log(('airtrace tilt %.0f tps %s mode %s want %s zoom %s chest %.0f %.0f %.0f borepitch %s'):format(tilt,tostring(s.tps),tostring(mode_ik),tostring(want),tostring(s.zoom_held),c.Pitch,c.Yaw,c.Roll,bp))
@@ -1425,28 +1422,34 @@ function GunMode.new(env)
             local ok_i,err_i=true,nil
             if s.prof then s.prof('layer_misc') end
             s.ik.want=want -- the v4 pin follows the layer clip (aim, carry, reload)
+            -- her ground speed (cm/s): the run carry (fight/gunmode/ik.lua) and the hip-fire shuffle gate read it
+            local ok_v,v_now=pcall(speed_of,p); s.ik.speed=ok_v and v_now or 0
             s.ik.reload_k=(want=='reload' and s.reload_until) and 1-(s.reload_until-now)/(s.reload_len or 1) or nil
             single.no_laser=want=='reload'
             if not s.g1_hold then ok_i,err_i=pcall(s.ik.tick,pc,p,s.rifle,mode_ik,ppi) end -- g1's AimRot test freezes the IK writes
             if not ok_i and not s.ik_err then s.ik_err=true; g.log('ik: '..tostring(err_i)) end
+            -- (testing) once a second: her ground speed and the run carry's weight, to tune run_lo and run_hi
+            if set.trace and now-(s.run_log or 0)>=1.0 then
+                s.run_log=now
+                local C=require('fight.gunmode.ik').CFG
+                g.log(('run carry: speed %.0f cm/s, run weight %.2f (run_lo %s, run_hi %s, want %s)'):format(s.ik.speed or 0,
+                    s.ik.runw or 0,tostring(C.run_lo),tostring(C.run_hi),tostring(want)))
+            end
             -- the aim camera over her right shoulder (the native TPS camera ignores the boom): gunmode's camera
             -- modifier (BP_NGM_CamMod in the layer pak) adds Offset (camera space: forward, right, up), eased
             pcall(function()
                 if not s.cmod and not s.cmod_fail then
-                    -- one try: a throw below (no camera manager yet, no AddNewCameraModifier) must not walk for the
-                    -- class again each frame
-                    s.cmod_fail=true
                     local cm=pc.PlayerCameraManager
                     local path='/Game/Mods/NGM/BP_NGM_CamMod.BP_NGM_CamMod_C'
                     local cls=StaticFindObject(path)
                     if not g.valid(cls) then
-                        cls=g.find('/Script/AssetRegistry.Default__AssetRegistryHelpers'):GetAsset({ObjectPath=FName(path)})
+                        cls=StaticFindObject('/Script/AssetRegistry.Default__AssetRegistryHelpers'):GetAsset({ObjectPath=FName(path)})
                     end
                     if g.valid(cls) then s.cmod=cm:AddNewCameraModifier(cls); s.cmod_k=0 end
-                    if not g.valid(s.cmod) then s.cmod=nil; g.log('camera: modifier not available') else s.cmod_fail=nil; g.log('camera: modifier added') end
+                    if not g.valid(s.cmod) then s.cmod=nil; s.cmod_fail=true; g.log('camera: modifier not available') else g.log('camera: modifier added') end
                 end
                 if s.cmod then
-                    -- the aim camera offset: full while the game's aim is on, half for hip fire (11-20: "less than in aim")
+                    -- the aim camera offset: full while the game's aim is on, half for hip fire ("less than in aim")
                     local kt=hold_aim and ((s.tps or s.air_aim) and 1 or (cfg.hip_cam or 0.5)) or 0
                     -- recoil: the camera pushed back and jolted (alternating left/right, up) each round, easing out
                     local kick=GunMode.kick(s.kick_at and now-s.kick_at,cfg.recoil_decay or 0.06)
@@ -1459,12 +1462,14 @@ function GunMode.new(env)
                     end
                 end
             end)
-            -- the game's aim stance turns her side-on; her mesh is turned back toward the aim (eased)
+            -- the game's aim stance turns her side-on; her mesh is turned back toward the aim (eased). Hip fire's strafe
+            -- set (P_Eve_Gun_Battle, the aim stance's own) blades her the same way: turned back too while it is on
             pcall(function()
                 local m=mesh
                 if not s.mesh_rot then local r=m.RelativeRotation; s.mesh_rot={Pitch=r.Pitch,Yaw=r.Yaw,Roll=r.Roll}; s.mesh_yaw=0 end
                 local C=require('fight.gunmode.ik').CFG
-                local target=(hold_aim and s.tps) and C.aim_mesh_yaw or 0
+                local strafe=s.hip and s.hip_row~=nil and s.ovr_active==s.hip_row
+                local target=(hold_aim and (s.tps or strafe)) and C.aim_mesh_yaw or 0
                 local dy=target-s.mesh_yaw
                 if math.abs(dy)>0.05 then
                     s.mesh_yaw=s.mesh_yaw+dy*0.25
@@ -1472,16 +1477,17 @@ function GunMode.new(env)
                     m:K2_SetRelativeRotation({Pitch=b.Pitch,Yaw=b.Yaw+s.mesh_yaw,Roll=b.Roll},false,{},false)
                 end
                 -- her head turned back by the same amount (the stance has her looking over her left shoulder). The layer's
-                -- Neck node is off since the v3a pak (rotating the neck dragged both shoulder joints ~7.4 cm, red test
-                -- 11-19): AimRot reaches Bip001-Head alone, so the head takes the whole turn
+                -- Neck node is off since the v3a pak (rotating the neck dragged both shoulder joints ~7.4 cm, red
+                -- test): AimRot reaches Bip001-Head alone, so the head takes the whole turn
                 -- v3c pak: the NIKKE clip drives her arms, hands and head from Bip001-Neck down, and AimRot turns
                 -- Bip001-Spine2 (chest, arms and rifle together). In aim a closed loop turns it until the rifle's real
                 -- bore (FX_Fire forward) points at the spot aim_dist down the camera line; otherwise it eases back to 0
                 if ppi and not s.g1_hold then
                     local AR=require('fight.gunmode.aimrot')
                     s.chest=s.chest or {Pitch=0,Yaw=0,Roll=0}
-                    if mode_ik=='aim' and not s.flip and g.valid(s.rifle) then
-                        local ml=g.find('/Script/Engine.Default__KismetMathLibrary')
+                    local hip=s.hip
+                    if mode_ik=='aim' and not s.flip and not s.snap and g.valid(s.rifle) then
+                        local ml=g.cdo('/Script/Engine.Default__KismetMathLibrary')
                         local CT=m:K2_GetComponentToWorld()
                         local mz=s.rifle:GetSocketLocation(fx_fire())
                         local bw=ml:GetForwardVector(s.rifle:GetSocketRotation(fx_fire()))
@@ -1490,18 +1496,36 @@ function GunMode.new(env)
                         local cl,cr=s.cam_loc,s.cam_rot
                         if not cl then error('no camera manager') end
                         local cf=ml:GetForwardVector(cr)
-                        local d=C.aim_dist
-                        local want={X=cl.X+cf.X*d-mz.X,Y=cl.Y+cf.Y*d-mz.Y,Z=cl.Z+cf.Z*d-mz.Z}
+                        -- the bore aims at the crosshair point (rounds and laser follow the bore outside the game's aim);
+                        -- closer than 150 cm to the muzzle, at the spot aim_dist down the camera line
+                        local tp,want=s.target,WANT
+                        if tp and (tp.X-mz.X)^2+(tp.Y-mz.Y)^2+(tp.Z-mz.Z)^2>150*150 then
+                            want.X,want.Y,want.Z=tp.X-mz.X,tp.Y-mz.Y,tp.Z-mz.Z
+                        else
+                            local d=C.aim_dist
+                            want.X,want.Y,want.Z=cl.X+cf.X*d-mz.X,cl.Y+cf.Y*d-mz.Y,cl.Z+cf.Z*d-mz.Z
+                        end
                         local bc,wc=ml:InverseTransformDirection(CT,bw),ml:InverseTransformDirection(CT,want)
-                        s.chest=AR.step_yp(s.chest,bc,wc,0.35,C.chest_pitch_max or 65,C.chest_yaw_max or 60)
+                        -- hip fire keeps the chest's yaw under chest_yaw_max_hip (the body turn takes the rest)
+                        -- her chest's up (Spine1 -> Neck: the Neck moves only with Spine2 and the bones below it), so the
+                        -- chest is levelled about the bore (chest_roll_max; 0: no roll)
+                        local up
+                        if (C.chest_roll_max or 0)>0 then
+                            SPINE1=SPINE1 or FName('Bip001-Spine1'); NECK=NECK or FName('Bip001-Neck')
+                            local a,b=m:GetSocketLocation(SPINE1),m:GetSocketLocation(NECK)
+                            UPV.X,UPV.Y,UPV.Z=b.X-a.X,b.Y-a.Y,b.Z-a.Z
+                            up=ml:InverseTransformDirection(CT,UPV)
+                        end
+                        local need
+                        s.chest,need=AR.step_yp(s.chest,bc,wc,0.35,C.chest_pitch_max or 65,(hip and C.chest_yaw_max_hip or C.chest_yaw_max) or 60,up,C.chest_roll_max,s.chest) -- (in place)
                         do local wl=math.sqrt(wc.X^2+wc.Y^2+wc.Z^2); local bl=math.sqrt(bc.X^2+bc.Y^2+bc.Z^2)
                             s.bore_err=math.deg(math.acos(math.max(-1,math.min(1,(bc.X*wc.X+bc.Y*wc.Y+bc.Z*wc.Z)/(wl*bl))))); s.bore_at=now end
-                        -- v4: the chest takes at most chest_pitch_max of the pitch; the rifle pivots on its butt for the
-                        -- rest (fight/gunmode/ik.lua pin, both hands follow by IK). Same closed loop on the bore's pitch error.
+                        -- v4: the chest takes the pitch first, up to chest_pitch_max; the rifle pivots on its butt for the
+                        -- rest (fight/gunmode/ik.lua pin, both hands follow by IK; GunMode.rpitch_step on the bore's pitch error)
                         local wl=math.sqrt(want.X^2+want.Y^2+want.Z^2)
                         local pe=math.deg(math.asin(math.max(-1,math.min(1,want.Z/wl))))-math.deg(math.asin(math.max(-1,math.min(1,bw.Z))))
                         local rm=C.rifle_pitch_max or 0
-                        s.rpitch=math.max(-rm,math.min(rm,(s.rpitch or 0)+0.35*pe))
+                        s.rpitch=GunMode.rpitch_step(s.rpitch,pe,need,C.chest_pitch_max or 65,rm)
                         if set.trace and now-(s.chest_log or 0)>=1 then s.chest_log=now
                             local wl=math.sqrt(wc.X^2+wc.Y^2+wc.Z^2); local bl=math.sqrt(bc.X^2+bc.Y^2+bc.Z^2)
                             local e=math.deg(math.acos(math.max(-1,math.min(1,(bc.X*wc.X+bc.Y*wc.Y+bc.Z*wc.Z)/(wl*bl)))))
@@ -1509,35 +1533,35 @@ function GunMode.new(env)
                         end
                     -- the flip: the chest turn eases out, s.rpitch (rifle frame off her neck) is held; both resume upright
                     elseif s.flip then s.chest=GunMode.decay(AR,s.chest)
+                    -- the hip-fire snap turns her body: the chest eases out meanwhile instead of winding to its limit
+                    elseif s.snap then s.chest=GunMode.decay(AR,s.chest)
                     elseif not hold_aim then s.chest=GunMode.decay(AR,s.chest); s.rpitch=(s.rpitch or 0)*0.85 end
                     ppi.AimRot=s.chest
                     -- hip fire (the game's own aim off): she faces the camera through her own movement (the game turns
                     -- her, standing or strafing: one writer, gunmode's face), and shots wait until the bore is on
                     -- target (hip_aligned); a big turn from standing plays the game's aim-stance turn clip as the shuffle
-                    local hip=want=='aim' and not s.tps and not falling
                     face(p,hip)
-                    local was=s.turning
-                    s.turning=hip and GunMode.turn(s.turning,s.chest.Yaw,C.turn_start or 40,C.turn_stop or 12)
-                    if s.turning and not was and now-(s.shuffle_at or 0)>0.5
-                        and g.try(function() local v=p:GetVelocity(); return v.X*v.X+v.Y*v.Y<60*60 end)==true then
+                    -- gap: her body yaw against the camera yaw (deg, -180..180). On the hip-fire press a big gap snaps her
+                    -- round (GunMode.snap, its direction latched); else the turn runs with hysteresis on the gap
+                    local r,gap
+                    if hip then local okg,r0,g0=pcall(body_gap,p,pc,s.cam_rot); if okg then r,gap=r0,g0 end end
+                    local was,st=s.turning,0
+                    if hip and gap then
+                        s.snap,s.turning,st=GunMode.hip_step(s.snap,s.turning,not s.was_hip,gap,now,now-(s.turn_at or now),C)
+                    else s.snap,s.turning=nil,false end
+                    s.was_hip=hip
+                    if s.turning and not was and now-(s.shuffle_at or 0)>0.5 and (s.ik.speed or 0)<60 then
                         s.shuffle_at=now
                         pcall(function()
-                            local nm=(s.chest.Yaw or 0)<0 and 'P_Eve_Gun_RotateLw' or 'P_Eve_Gun_RotateRw'
+                            local nm=((s.snap and s.snap.dir) or (gap<0 and -1 or 1))<0 and 'P_Eve_Gun_RotateLw' or 'P_Eve_Gun_RotateRw'
                             local path='/Game/Art/Character/PC/CH_P_EVE_01/Animation/'..nm..'.'..nm
                             local seq=g.asset(path)
-                            s.slot_name=s.slot_name or FName('DefaultSlot')
-                            if seq then p.Mesh:GetAnimInstance():PlaySlotAnimationAsDynamicMontage(seq,s.slot_name,0.1,0.15,1.0,1,-1,0)
+                            SLOT=SLOT or FName('DefaultSlot')
+                            if seq then p.Mesh:GetAnimInstance():PlaySlotAnimationAsDynamicMontage(seq,SLOT,0.1,0.15,1.0,1,-1,0)
                             elseif not s.shuffle_err then s.shuffle_err=true; g.log('turn: no '..nm) end
                         end)
                     end
-                    if s.turning then pcall(function()
-                        local cy=s.cam_rot and s.cam_rot.Yaw or pc.PlayerCameraManager:GetCameraRotation().Yaw
-                        local r=p:K2_GetActorRotation()
-                        local d=(cy-r.Yaw+540)%360-180
-                        local dt=math.min(0.05,math.max(0,now-(s.turn_at or now))); local mx=(C.turn_rate or 360)*dt
-                        local st=math.max(-mx,math.min(mx,d))
-                        if math.abs(st)>0.01 then p:K2_SetActorRotation({Pitch=0,Yaw=r.Yaw+st,Roll=0},false) end
-                    end) end
+                    if s.turning and math.abs(st)>0.01 then pcall(set_yaw,p,r.Yaw+st) end
                     s.turn_at=now
                     s.ik.rpitch=s.rpitch
                 end
@@ -1554,7 +1578,7 @@ function GunMode.new(env)
                     s.g1.capture(p,pc,s.rifle,(set.g1_tag or 'run')..'_'..tagc)
                 end) end
             end
-            -- (dev only) gate G1 of the v3 plan: gate numbers, the AimRot test and fixed captures (fight/gunmode/g1.lua)
+            -- (dev only) gate G1: gate numbers, the AimRot test and fixed captures (fight/gunmode/g1.lua)
             if set.g1 and g.valid(s.rifle) then
                 local ok,e=pcall(function()
                     s.g1=s.g1 or require('fight.gunmode.g1').new(g)
@@ -1594,60 +1618,66 @@ function GunMode.new(env)
         if now-s.hide_at>=1.0 then
             s.hide_at=now
             pcall(hide_others,p,false)
-            if cfg.hide_drone~=false then pcall(hide_drone,p,now) end
-            keep() -- A mesh or a drone hidden this second listed.
+            if cfg.hide_drone~=false then pcall(hide_drone,p) end
         end
         if s.prof then s.prof('hide') end
         if set.native and set.upper then pcall(hold_pose,p,inp.fire) end
         -- In firing mode, ten times a second: the NIKKE bullet's start put on the rifle's muzzle and its destination
-        -- on the crosshair point (each shot writes the destination again).
+        -- on the crosshair point (each shot writes the destination again). In the game's aim, every frame while firing
+        -- (its rounds use no write of their own), in a frame turned by her mesh's turn times aim_yaw_sign.
         if s.prof then s.prof('pose') end
-        if (s.zoom_held or inp.fire) and now-(s.aim_w or 0)>=0.1 then
+        local native_aim=set.native and s.tps
+        if (s.zoom_held or inp.fire) and ((inp.fire and native_aim) or now-(s.aim_w or 0)>=0.1) then
             s.aim_w=now
-            local m=g.valid(s.rifle) and g.try(function() return s.rifle:GetSocketLocation(fx_fire()) end)
-            aim.write_start(p,m or nil,cfg.start_min_forward,cfg.start_fallback)
-            aim.write(p,s.target)
+            local ya=native_aim and (s.mesh_yaw or 0)*(cfg.aim_yaw_sign or 1) or 0
+            local okm,m=false,nil
+            if g.valid(s.rifle) then okm,m=pcall(muzzle_of,s.rifle) end
+            aim.write_start(p,okm and m or nil,cfg.start_min_forward,cfg.start_fallback,ya)
+            aim.write(p,s.target,ya)
         end
         if not set.native then face(p,s.zoom_held) end
         -- Firing mode: fire once the rifle has had a moment to come up (Luke's raise eases in over ~12 frames).
         if s.zoom_held then s.held_since=s.held_since or now else s.held_since=nil end
-        if s.ovr_row then carry(p,not s.zoom_held) end
-        if not set.native and inp.fire and s.held_since and now-s.held_since>=cfg.raise_time then shoot(p,now) end
+        carry(p,GunMode.stance_row(set.native and s.hip,s.zoom_held,s.hip_row,s.ovr_row,cfg.hip_strafe~=false))
+        if not set.native then
+            local go=inp.fire and s.held_since and now-s.held_since>=cfg.raise_time and ammo.left>0 and not ammo.reload_until
+            if go then shoot(p,now,not s.burst) end
+            s.burst=go
+        end
     end
 
-    -- The tick main/frame.lua runs each frame. Nothing at all with gun_mode=off.
-    -- gun mode's own frame time: every 10 s while on, the average and the worst tick and the split of the tick by
-    -- section (s.prof('<section that ends here>') marks in tick), one log line. Lua's collector stays as UE4SS sets it:
-    -- a generational mode, a hand-paced one and an aggressive pause were tried (11-20); the last one crashed UE4SS
-    -- (access violation in UE4SS.dll right after gun mode came on). The stutters are cut at their source instead: less
-    -- garbage a frame.
-    local sec,smax,last={},{},0
+    local function guarded(f)
+        local ok,e=pcall(f)
+        if not ok and s.errors<5 then s.errors=s.errors+1; g.log('error: '..tostring(e)) end
+    end
+    -- gun mode's own frame time: every 10 s while on, the average and the worst tick (one log line)
+    -- per-section split of the tick (marks in tick: s.prof('<section that ends here>'))
+    local sec,last={},0
+    local smax={}
+    -- Lua's collector stays as UE4SS sets it: a generational mode, a hand-paced one and an aggressive pause were tried;
+    -- the last one crashed UE4SS (access violation in UE4SS.dll right after gun mode came on). The stutters are
+    -- cut at their source instead: less garbage a frame.
     s.prof=function(name) local t=os.clock(); local d=t-last; sec[name]=(sec[name] or 0)+d; if d>(smax[name] or 0) then smax[name]=d end; last=t end
-    local function perf(t0,dt)
+    local function timed()
+        local t0=os.clock(); last=t0; guarded(tick); local dt=os.clock()-t0
+        if not s.on then return end
         local pf=s.perf or {n=0,sum=0,max=0,at=t0}; s.perf=pf
         pf.n,pf.sum,pf.max=pf.n+1,pf.sum+dt,math.max(pf.max,dt)
-        if t0-pf.at<10 then return end
-        local parts={}
-        for k,v in pairs(sec) do parts[#parts+1]={k,v} end
-        table.sort(parts,function(a,b) return a[2]>b[2] end)
-        local txt={}
-        for i=1,math.min(6,#parts) do txt[#txt+1]=('%s %.2f (worst %.1f)'):format(parts[i][1],parts[i][2]/pf.n*1000,(smax[parts[i][1]] or 0)*1000) end
-        g.log(('perf: tick %.2f ms average, %.2f ms worst, %d ticks, Lua %.0f KB; ms a tick: %s'):format(pf.sum/pf.n*1000,pf.max*1000,pf.n,collectgarbage('count'),table.concat(txt,', ')))
-        s.perf=nil; sec={}; smax={}
+        if t0-pf.at>=10 then
+            local parts={}
+            for k,v in pairs(sec) do parts[#parts+1]={k,v} end
+            table.sort(parts,function(a,b) return a[2]>b[2] end)
+            local txt={}
+            for i=1,math.min(6,#parts) do txt[#txt+1]=('%s %.2f (worst %.1f)'):format(parts[i][1],parts[i][2]/pf.n*1000,(smax[parts[i][1]] or 0)*1000) end
+            g.log(('perf: tick %.2f ms average, %.2f ms worst, %d ticks, Lua %.0f KB; ms a tick: %s'):format(pf.sum/pf.n*1000,pf.max*1000,pf.n,collectgarbage('count'),table.concat(txt,', ')))
+            s.perf=nil; sec={}; smax={}
+        end
     end
 
-    -- The tick main/frame.lua runs each frame. Nothing at all with gun_mode=off.
-    function self.tick()
-        if not set.on or s.dead then return end
-        local t0=os.clock(); last=t0
-        local ok,e=pcall(tick)
-        if not ok and s.errors<5 then s.errors=s.errors+1; g.log('error: '..tostring(e)) end
-        if s.on then perf(t0,os.clock()-t0) end
-    end
-
-    -- A new controller (map load, death, camp warp), from fight/gunmode/wiring.lua's NotifyOnNewObject: the rifle goes
-    -- away and SB's rows go back. Nothing here calls into the game: the controller is still being built (reading its
-    -- pawn from this callback crashed UE4SS). Nothing at all with gun_mode=off.
+    -- A new controller (map load, death, camp warp): the rifle goes away and SB's rows go back. Nothing here touches
+    -- the pawn (only the input settings are put back): the controller is still being built (reading its pawn from
+    -- this callback crashed UE4SS). Her body asset's post-process and her mesh's turn are put back from the loop.
+    -- fight/gunmode/wiring.lua calls this from its NotifyOnNewObject.
     function self.new_controller(pc)
         if not set.on or s.dead then return end
         cached=pc
@@ -1656,102 +1686,54 @@ function GunMode.new(env)
         if s.on then
             s.on=false
             if s.mask then pcall(s.mask); s.mask=nil end
-            s.keys=nil
+            s.mask_dry=nil
             s.cam,s.zoom=nil,0
             s.mesh_back=(s.mesh_yaw or 0)~=0 and s.mesh_rot or nil -- (her mesh's turn, if this pawn lives on)
             s.mesh_rot,s.mesh_yaw,s.cmod,s.cmod_fail,s.head_yaw,s.chest=nil,0,nil,nil,nil,nil
+            -- the layer is still named on her body asset (the next pawn gets it): put back from the loop as well
+            s.layer_back=s.layer or s.layer_back
+            s.layer,s.layer_clip,s.reload_until,s.move=false,nil,nil,nil
+            s.snap,s.was_hip,s.turning=nil,nil,nil
+            s.ovr_active,s.hip,s.burst=nil,nil,nil -- (the next pawn starts with no override)
             s.fov,s.fov_locked=nil,false
             s.ammo_reset=true
             s.stop_stance=true
             s.show_back=true
         end
-        -- The old pawn's state goes with it (L3): the next start begins clean on the new one. Its drone parts and her
-        -- facing go back at the deferred reset (show_back); its layer comes off there (give_back).
-        for _,k in ipairs(PER_PAWN) do s[k]=nil end
-        s.ovr,s.layer,s.zoom_held=false,false,false
     end
 
-    -- An earlier load's changes to objects that are still there, each found by its path (StaticFindObject, as
-    -- online/modes/race/doro.lua's restore finds EVE and the drone). On 26123051: her meshes shown to her own camera as
-    -- they were (SetOwnerNoSee, exec 0x1448f0d20, writes bOwnerNoSee, bit 0x20 of UPrimitiveComponent+0x28e) with
-    -- their tick option; the drone's parts shown (SetHiddenInGame, exec 0x14490b100); a mesh that followed the posed
-    -- copy on her body again (SetMasterPoseComponent, exec 0x144928a80); the carry stance off
-    -- (DeactiveCustomMovingStanceData: exec 0x14268c890 jumps to 0x1421287a0, which does nothing unless the flag at
-    -- +0xf40 that ActiveCustomMovingStanceData's 0x1421282d0 sets is on, then clears it). Then the posed copy's parts
-    -- and holder destroyed (K2_DestroyComponent 0x1446c1340, K2_DestroyActor 0x1446bf590). How many were put back or
-    -- removed.
-    local function objects_back(list)
-        local function at(path)
-            local o=path and g.try(function() return StaticFindObject(path) end)
-            if g.valid(o) then return o end
-        end
-        local n=0
-        local function done(ok) if ok then n=n+1 end end
-        for _,r in ipairs(list) do
-            local o=(r[1]=='see' or r[1]=='drone' or r[1]=='follow' or r[1]=='carry') and at(r[2])
-            if o and r[1]=='see' then
-                done(pcall(function()
-                    o:SetOwnerNoSee(r[3]=='true')
-                    if tonumber(r[4]) then o.VisibilityBasedAnimTickOption=tonumber(r[4]) end
-                end))
-            elseif o and r[1]=='drone' and g.try(function() return o.bHiddenInGame end)==true then
-                done(pcall(function() o:SetHiddenInGame(false,false); o:SetVisibility(true,false) end))
-            elseif o and r[1]=='follow' then
-                local to=at(r[3])
-                done(to and pcall(function() o:SetMasterPoseComponent(to,true) end))
-            elseif o and r[1]=='carry' then
-                done(pcall(function() o:DeactiveCustomMovingStanceData() end))
-            end
-        end
-        for _,r in ipairs(list) do
-            local o=(r[1]=='part' or r[1]=='holder') and at(r[2])
-            if o and r[1]=='part' then done(pcall(function() o:K2_DestroyComponent(o) end))
-            elseif o then done(pcall(function() o:K2_DestroyActor() end)) end
-        end
-        return n
+    -- One frame of gun mode: main/frame.lua calls this from its frame loop.
+    function self.tick()
+        if not set.on or s.dead then return end
+        timed()
     end
 
-    -- Once a Lua load, at main/frame.lua's first tick (coop off or not) and before a start: what coop-gun.txt says an
-    -- earlier load left changed goes back (H4): SB's rows, the masked keys, the objects objects_back puts back, her
-    -- body meshes' own post-process class (the one she wears rebuilt with it) and, when the rifle was out, its tagged
-    -- rifle and the FOV lock. Then the file holds what this load has changed: the body meshes whose own class could not
-    -- go back. A row or key that failed is logged, not kept.
-    function self.restore()
-        if restored or not env.store then return end
-        restored=true
-        local list=Journal.records(env.store.load())
-        if #list==0 then return end
-        local said={}
-        local n,why=Data.put_back_records(g,list)
-        said[#said+1]=n..' fields of SB\'s rows back'..(why and ' (failed: '..why..')' or '')
-        local ok,keys=pcall(keys_back,list)
-        said[#said+1]=ok and keys..' keys back' or 'keys not put back ('..tostring(keys)..')'
-        said[#said+1]=objects_back(list)..' objects put back or removed'
-        local out=false
-        for _,r in ipairs(list) do
-            if r[1]=='pp' then layer.adopt(r[2],r[3]) elseif r[1]=='out' then out=true end
-        end
-        layer_off(g.pawn())
-        if out then
-            local swept,count=pcall(Rifle.sweep,g.pawn())
-            said[#said+1]=swept and count..' rifles removed' or 'rifle not removed ('..tostring(count)..')'
-            local pc=g.pc()
-            said[#said+1]=pc and pcall(function() pc:FOV(0) end) and 'FOV lock off' or 'FOV lock not reached'
-        end
-        keep()
-        g.log('restore from coop-gun.txt: '..table.concat(said,', '))
+    -- A frame loop of gun mode's own (tests only: main/frame.lua ticks it in the mod).
+    function self.hook()
+        if s.hooked then return true end
+        s.hooked=pcall(function() LoopInGameThreadWithDelay(1,self.tick) end)
+        return s.hooked
     end
 
-    for _,why in ipairs(bad) do g.log('coop-settings.txt: '..why) end
-    if set.on then g.log('ready: '..(set.key.key and set.key.name..' or ' or '')..'a tap of D-pad Right')
-    else g.log('off (gun_mode=off in coop-settings.txt)') end
+    -- The start's log lines. Nothing at all with gun_mode=off. wiring.lua registers the new-controller reset and
+    -- main/frame.lua runs the loop.
+    function self.start()
+        for _,why in ipairs(bad) do g.log('coop-settings.txt: '..why) end
+        if not set.on then g.log('off (gun_mode=off in coop-settings.txt)'); return end
+        g.log('ready: '..set.key..' or a tap of D-pad Right')
+    end
+
+    function self.out() return s.on==true end
+    -- (coop off) gun mode put away for good. kill toggles with 'reload': no morph.
+    function self.stop(why) self.kill() end
+    -- Nothing to put back: gun mode keeps no file of its own.
+    function self.restore() end
 
     function self.status()
         return ('gun mode %s%s, key %s, %d shots'):format(s.on and 'on' or 'off',
-            s.on and (s.zoom_held and ' (firing mode)' or ' (moving)') or '',set.key.name,s.shots)
+            s.on and (s.zoom_held and ' (firing mode)' or ' (moving)') or '',set.key,s.shots)
     end
     self.toggle_now=function() self.toggle('command') end
-    function self.out() return s.on==true end -- The bike's busy check reads it (vehicles/bike/wiring.lua).
     self.state=s
     return self
 end

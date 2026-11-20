@@ -3,20 +3,18 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode's shot, without a pak of tables: fields of SB's own rows (live data, as FindRow gives them), changed while
 -- gun mode is out and put back at put_back() (a new world), so the NIKKE missions find them as shipped. No row is
--- added to a table: only fields of rows SB ships change.
+-- added.
 -- * EventActorEffectTable: Nikke_01_E_ActorEff_015 (a NIKKE mission's cover row) applies M_Scarlet_CounterLinkStart;
 --   fight/gunmode/mode.lua fires it as a zone event for each shot.
 -- * EffectTable: M_Scarlet_CounterLinkStart (0.1 s on self, one UseSkill action) starts P_Eve_GunNikke_ShootSlug1_1,
---   the NIKKE shot. Its ActionValue1 is an FString: an FName written there crashed the game (11-17).
---   These two are armed (arm, disarm) only around the zone event shots, not for as long as the rifle is out.
+--   the NIKKE shot. Its ActionValue1 is an FString: an FName written there crashed the game.
 -- * SkillCommandTable: the NIKKE fire commands ShootSlug1_1 and _2 take the burst shot's command type
---   (RangedFireSkill: no check of the equipped bullet), as an earlier build's pak of tables did.
+--   (RangedFireSkill: no check of the equipped bullet), as an earlier gun mode pak did.
 -- * SkillActiveStepTable: the shot's Hit1 step takes its Cast1 step's type (fires its projectile, spends no round).
 -- * Native fire (fight/gunmode/mode.lua's firing mode on the game's own aim): the drone's normal fire commands
 --   (P_Eve_Gun_Shoot*, every round's) start the NIKKE shot skill instead of the drone's, with the burst's command type
 --   (no round spent) and no "not while jumping" check (bJumping takes bWallRun's None).
 -- Neither Survival Protocol's pak nor any gun mode pak is needed.
-local Journal=require('fight.gunmode.journal')
 local Data={}
 
 local BASE='/Game/Local/Data/'
@@ -26,6 +24,13 @@ Data.FIRE_EFFECT='M_Scarlet_CounterLinkStart'
 Data.BORROWED={Fire={'Nikke_01_E_ActorEff_015',Data.FIRE_EFFECT}}
 Data.BORROW_ORDER={'Fire'}
 Data.FIRE_SKILL='P_Eve_GunNikke_ShootSlug1_1'
+-- The shot skill's CoolTime while the rifle is out: this share of the rate of fire (fight/gunmode/mode.lua's fixed beat can
+-- put two rounds a frame closer than fire_interval: 33 ms at 60 fps for 45 ms, which the full cool time would refuse)
+Data.COOL_SHARE=0.6
+-- The CoolTime written for v (s): the rate of fire (rate) gets COOL_SHARE of it; a reload's wait or 999 stays as it is.
+-- full: the game's own aim fires (its TPSFire is limited by this cool time alone, and fight/gunmode/ammo.lua counts one round
+-- per fire_interval there), so the rate of fire is written whole.
+function Data.shot_cool(v,rate,full) return (v==rate and not full) and v*Data.COOL_SHARE or v end
 Data.FIRE_COMMANDS={'P_Eve_GunNikke_ShootSlug1_1','P_Eve_GunNikke_ShootSlug1_2'}
 Data.BURST_COMMAND='P_Eve_GunNikke_ShootSlug2_1'
 -- Every drone fire command, of every round (the game loads the round the player picked each time she aims), the empty
@@ -47,34 +52,25 @@ function Data.row(k)
 end
 
 -- g: gun mode's shared state (log, try, valid). Returns an object: take() points the rows at gun mode's data (true,
--- or false and why), arm() the shot's borrowed fields too; disarm() puts those back, put_back() all of them.
+-- or false and why), put_back() restores what take() changed.
 -- opts (native fire only): speed (the aim stance's speed factor), upper (an animation set for its upper body, or nil).
 function Data.new(g,native,opts)
     local self={saved=nil,fire=true,native=native==true,opts=opts or {speed=1}}
-    local names=setmetatable({},{__mode='k'}) -- A table's name, a row's {table, row}: coop-gun.txt names them.
     local function tbl(name)
         local t=g.try(function() return StaticFindObject(BASE..name..'.'..name) end)
         assert(g.valid(t),'no '..name)
-        names[t]=name
         return t
     end
     local function text(v) return g.try(function() return v:ToString() end) or tostring(v) end
-    local function find(t,name) -- The row, or nil.
+    local function row(t,name)
         local r=g.try(function() return t:FindRow(name) end)
-        if r then names[r]={names[t],name} end
+        assert(r,'no row '..name)
         return r
     end
-    local function row(t,name) return assert(find(t,name),'no row '..name) end
-    local function undo(list) for i=#list,1,-1 do local e=list[i]; pcall(function() e[1][e[2]]=e[3] end) end end
 
-    -- The shot's borrowed fields: Data.BORROWED's EventActorEffectTable row pointed at Data.FIRE_EFFECT, whose
-    -- ActionValue1 starts the NIKKE shot. SB's own tables name both (M4: 26123051's exported ZoneEventTable has
-    -- Nikke_01_E_ActorEff_015 as an AttachActorEffect event; a Scarlet counter step starts the effect). Pak rows are
-    -- not in the exe, so Ghidra cannot list every user: fight/gunmode/mode.lua arms them around its zone event shots
-    -- only. true, or false and why.
-    function self.arm()
-        if self.armed then return true end
-        local armed={}
+    function self.take()
+        if self.saved then return true end
+        local saved={}
         local ok,err=pcall(function()
             local eae=tbl('EventActorEffectTable')
             for k,e in pairs(Data.OWN) do
@@ -106,43 +102,21 @@ function Data.new(g,native,opts)
                 end
                 if e then
                     local r=row(eae,e[1])
-                    armed[#armed+1]={r,'ActorEffectAlias',FName(text(r.ActorEffectAlias))}
+                    saved[#saved+1]={r,'ActorEffectAlias',FName(text(r.ActorEffectAlias))}
                     r.ActorEffectAlias=FName(e[2])
                 end
             end
             if self.fire then
                 local fire=row(tbl('EffectTable'),Data.FIRE_EFFECT)
                 local was=text(fire.ActionValue1)
-                armed[#armed+1]={fire,'ActionValue1',was}
+                saved[#saved+1]={fire,'ActionValue1',was}
                 fire.ActionValue1=Data.FIRE_SKILL
             end
-        end)
-        if not ok then
-            undo(armed)
-            g.log('data: the shot\'s rows not armed ('..tostring(err)..')')
-            return false,err
-        end
-        self.armed=armed
-        g.log('data: the shot\'s rows armed')
-        return true
-    end
-    function self.disarm()
-        local armed=self.armed
-        self.armed=nil
-        if not armed then return end
-        undo(armed)
-        g.log('data: the shot\'s rows disarmed')
-    end
-
-    function self.take()
-        if self.saved then return true end
-        local saved={}
-        local ok,err=pcall(function()
-            -- The NIKKE shot's cool time: the rifle's rate of fire (opts.cool s between rounds).
+            -- The NIKKE shot's cool time: the rifle's rate of fire (opts.cool s between rounds, written as Data.shot_cool).
             if self.opts.cool then
                 local sk=row(tbl('SkillTable'),Data.FIRE_SKILL)
                 saved[#saved+1]={sk,'CoolTime',sk.CoolTime}
-                sk.CoolTime=self.opts.cool
+                sk.CoolTime=Data.shot_cool(self.opts.cool,self.opts.cool)
                 self.cool_row=sk
             end
             local cmd=tbl('SkillCommandTable')
@@ -154,7 +128,7 @@ function Data.new(g,native,opts)
             end
             if self.native then
                 for _,name in ipairs(Data.DRONE_COMMANDS) do
-                    local r=find(cmd,name)
+                    local r=g.try(function() return cmd:FindRow(name) end)
                     if r then
                     saved[#saved+1]={r,'SkillAlias',FName(text(r.SkillAlias))}
                     saved[#saved+1]={r,'CommandActionType',r.CommandActionType}
@@ -198,7 +172,7 @@ function Data.new(g,native,opts)
                 -- (test, opts.bs) the aim stance's animation set's blend spaces pointed elsewhere while the rifle is
                 -- out: whether the game reads them again each time she aims.
                 if self.opts.bs then
-                    local ar=find(tbl('CharacterAnimSetTable'),'P_Eve_Gun_Battle')
+                    local ar=g.try(function() return tbl('CharacterAnimSetTable'):FindRow('P_Eve_Gun_Battle') end)
                     if ar then
                         for _,f in ipairs({'RunBlendSpace','RunTiltBlendSpace','LockOnRunBlendSpace'}) do
                             local was=text(ar[f])
@@ -294,18 +268,15 @@ function Data.new(g,native,opts)
             nr.StartTargetTransformType=dr.DestTargetTransformType
             nr.StartTargetRelativeAxisType=dr.DestTargetRelativeAxisType
             local step=g.try(function() return tbl('SkillActiveStepTable') end)
-            local hit=step and find(step,Data.HIT_STEP)
-            local cast=step and find(step,Data.CAST_STEP)
-            -- The step's kind is Type, an ESBSkillActiveStepType byte (SBSkillActiveStepTableProperty, params at
-            -- 0x146db3c00 on 26123051: Type at 0x145df6348; the struct has no StepType).
+            local hit=step and g.try(function() return step:FindRow(Data.HIT_STEP) end)
+            local cast=step and g.try(function() return step:FindRow(Data.CAST_STEP) end)
             if hit and cast then
-                saved[#saved+1]={hit,'Type',hit.Type}
-                g.log('data: '..Data.HIT_STEP..' Type '..tostring(hit.Type)..' -> '..tostring(cast.Type))
-                hit.Type=cast.Type
+                saved[#saved+1]={hit,'StepType',hit.StepType}
+                hit.StepType=cast.StepType
             end
         end)
         if not ok then
-            undo(saved)
+            for i=#saved,1,-1 do local e=saved[i]; pcall(function() e[1][e[2]]=e[3] end) end
             g.log('data: not taken ('..tostring(err)..')')
             return false,err
         end
@@ -316,55 +287,27 @@ function Data.new(g,native,opts)
 
     -- The shot's cool time now (the rate of fire, or a reload's wait); put back with the rest at put_back().
     function self.cool(v)
-        if self.saved and self.cool_row then self.cool_row.CoolTime=v end
+        self.cool_v=v
+        if self.saved and self.cool_row then self.cool_row.CoolTime=Data.shot_cool(v,self.opts.cool,self.full_rate) end
+    end
+    -- The game's own aim on or off (fight/gunmode/mode.lua, each frame): the cool time last asked is written again on a change.
+    function self.native_aim(on)
+        on=on==true
+        if on==(self.full_rate==true) then return end
+        self.full_rate=on
+        if self.cool_v then self.cool(self.cool_v) end
     end
 
     function self.put_back()
-        self.disarm()
         self.cool_row=nil
         local saved=self.saved
         self.saved=nil
         if not saved then return end
-        undo(saved)
+        for i=#saved,1,-1 do local e=saved[i]; pcall(function() e[1][e[2]]=e[3] end) end
         g.log('data: SB\'s rows put back')
     end
 
-    -- coop-gun.txt's row records (fight/gunmode/journal.lua) for what take() and arm() changed: none when nothing is.
-    -- A field that read nil has nothing to put back. Raises on a value it cannot keep.
-    function self.records()
-        local out={}
-        for _,list in ipairs({self.saved or {},self.armed or {}}) do
-            for _,e in ipairs(list) do
-                if e[3]~=nil then
-                    local at=assert(names[e[1]],'a row with no name')
-                    local kind,value=Journal.value(e[3])
-                    out[#out+1]={'row',at[1],at[2],e[2],kind,value}
-                end
-            end
-        end
-        return out
-    end
-
     return self
-end
-
--- An earlier Lua load's row records written back, the last first as put_back() does (fight/gunmode/mode.lua's
--- restore): how many were written and why the first one that failed did.
-function Data.put_back_records(g,records)
-    local n,failed=0,nil
-    for i=#records,1,-1 do
-        local r=records[i]
-        if r[1]=='row' then
-            local ok,why=pcall(function()
-                local t=StaticFindObject(BASE..r[2]..'.'..r[2])
-                assert(g.valid(t),'no '..r[2])
-                local found=assert(t:FindRow(r[3]),'no row '..r[3])
-                found[r[4]]=Journal.parse(r[5],r[6])
-            end)
-            if ok then n=n+1 else failed=failed or r[3]..'.'..r[4]..': '..tostring(why) end
-        end
-    end
-    return n,failed
 end
 
 return Data

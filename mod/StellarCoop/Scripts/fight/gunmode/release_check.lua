@@ -3,12 +3,12 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The release gate: a settings text (coop-settings.txt's lines) and gun mode's defaults checked for test bindings and
 -- debug flags before a build goes to a player (a left-mouse aim binding left over from testing reached the user's
--- build, 2026-11-18). Pure Lua (no game calls), so the deploy tool runs it outside the game too:
+-- build). Pure Lua (no game calls), so the deploy tool runs it outside the game too:
 --   texlua release_check.lua <settings file>      exit 0 when clean, 1 with the problems listed
 local Check={}
 
 -- Settings that only testing uses (must be absent), and settings a release may carry only at one value.
-Check.TEST_ONLY={'gun_facts','gun_g0','gun_g1','gun_g1_tag','gun_airtrace','gun_trace','gun_bs','gun_upper','gun_fire_key','gun_carry_ovr','gun_carry_spare','gun_carry_idle',
+Check.TEST_ONLY={'gun_facts','gun_g0','gun_g1','gun_g1_tag','gun_trace','gun_bs','gun_upper','gun_fire_key','gun_carry_ovr','gun_hip_strafe_row','gun_carry_spare','gun_carry_idle',
     'gun_carry_row'}
 Check.RELEASE_VALUE={gun_probe='off',gun_aim_key='RightMouseButton'}
 -- Words in a default's name that mark a debug flag.

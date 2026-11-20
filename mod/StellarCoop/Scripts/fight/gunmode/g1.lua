@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- (dev only, setting gun_g1=on) Gate G1 of the v3 plan, standing aim. 1.5 s into an aim it waits for the camera to
+-- (dev only, setting gun_g1=on) Gate G1, standing aim. 1.5 s into an aim it waits for the camera to
 -- hold within 3 deg of -40, then 0, then +40 for 1 s ("g1 pitch wait" log lines guide the mouse), once per pitch per
 -- load; at each:
 --   1. the gate numbers of g1_gates.lua, averaged over 5 samples, one "g1," line per gate and a pass/fail line
@@ -214,7 +214,7 @@ function G1.new(g)
         local F,Rt=p:GetActorForwardVector(),p:GetActorRightVector(); local U={X=0,Y=0,Z=1}
         local function at(o,f,r,u) return add(add(add(o,mul(F,f)),mul(Rt,r)),mul(U,u)) end
         local lh=W(mesh,'Bip001-L-Hand'); local rn=mul(add(W(mesh,'Bip001-R-Hand'),W(mesh,'Bip001-Neck')),0.5)
-        -- the four fixed views: right profile and front at 3 m with a 20 deg lens; 80 cm close-ups at 45 deg
+        -- four views: right profile and front at 3 m with a 20 deg lens; 80 cm close-ups at 45 deg
         local d80=80/math.sqrt(3)
         local views={
             {'side',at(chest,0,300,0),chest,20},

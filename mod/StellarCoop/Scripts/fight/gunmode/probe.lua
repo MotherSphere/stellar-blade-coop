@@ -10,7 +10,7 @@ function Probe.new(g)
     local s={aim_at=nil,phase=-1,arm=nil,sock=nil,hud_done=false}
     local function v3(a) return a and ('(%.0f,%.0f,%.0f)'):format(a.X,a.Y,a.Z) or '?' end
 
-    -- Every new actor while firllet','Drone','Reticle','Cross','Ammo','Gun','Nikke'}
+    local WORDS={'TPS','Aim','Bullet','Drone','Reticle','Cross','Ammo','Gun','Nikke'}
     local function hit(n) for _,w in ipairs(WORDS) do if n:find(w) then return true end end end
     local function hud(pc)
         local classes={}

@@ -17,13 +17,10 @@ Dpad.ICON='/Game/DLC_2/Art/UI/texture/HiddenReward/Icon/Icon_Nikke_LostItem_Assa
 Dpad.GAP=6         -- HUD units between the D-pad marker and the entry, and between its parts
 Dpad.KEY_SIZE=30   -- the key or pad glyph, until the game's btn_up has a drawn size
 Dpad.ICON_SIZE=34  -- the rifle icon, until the heal item's icon has a drawn size
--- Below the health bars (BU, BE, HP, SH sit right of the marker in combat and covered the entry, 11-20): the entry's
--- centre this many marker heights below the marker's centre: under SH and above the screen's bottom edge (11-20 tests: 2.0
+-- Below the health bars (BU, BE, HP, SH sit right of the marker in combat and covered the entry): the entry's
+-- centre this many marker heights below the marker's centre: under SH and above the screen's bottom edge (tests: 2.0
 -- touched the edge, 3.0 was off the screen)
 Dpad.DOWN=1.5
--- s between two looks for the HUD while the entry is not built: each look walks the object array (FindAllOf), and
--- the rifle away makes no other lookup (M2). A map change shows the entry again within this time.
-Dpad.RETRY=10
 Dpad.CROSS_LEN,Dpad.CROSS_THICK,Dpad.CROSS_GAP=7,2,4 -- the hip-fire crosshair (screen units)
 
 -- The glyph texture for our entry from the one the game shows on its D-pad marker's up button: a pad's DPad_Up becomes
@@ -75,7 +72,7 @@ function Dpad.new(g)
 
     local function build()
         if (ui.retry or 0)>os.clock() then return false end
-        ui.retry=os.clock()+Dpad.RETRY
+        ui.retry=os.clock()+2
         ui.hud=hud_name()
         if not ui.hud then
             if not ui.logged then ui.logged=true; g.log('dpad: no HUD in the viewport') end
@@ -205,7 +202,7 @@ function Dpad.new(g)
         if not ok and not ui.place_logged then ui.place_logged=true; g.log('dpad: not placed yet: '..tostring(perr)) end
     end
 
-    -- From gun mode's loop: the entry on the HUD with the gun mode key (key: UE's key name, 'F4'; nil for none), text (the rounds, or nil while the
+    -- From gun mode's loop: the entry on the HUD with the gun mode key (key: 'G'), text (the rounds, or nil while the
     -- rifle is away) in colour c ({r,g,b}).
     function self.tick(key,text,c)
         if not (g.valid(ui.box) and g.valid(ui.overlay)) then
@@ -223,6 +220,9 @@ function Dpad.new(g)
             pcall(function() ui.txt:SetColorAndOpacity({SpecifiedColor={R=c[1],G=c[2],B=c[3],A=1},ColorUseRule=0}) end)
         end
     end
+    -- (the old interface) shown with text while the rifle is out
+    function self.show(text,c) self.tick(ui.key or 'G',text,c) end
+
     -- The hip-fire crosshair: four short bars and a dot at the screen's centre, on the HUD's root canvas, in the
     -- HUD's white. Shown while on is true.
     function self.crosshair(on)

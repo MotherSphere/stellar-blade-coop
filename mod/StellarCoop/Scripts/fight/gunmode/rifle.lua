@@ -1,18 +1,29 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Gun mode (11-18 rebuild): the NIKKE rifle in EVE's real right hand, nothing else. Her body is never copied or posed:
+-- Gun mode: the NIKKE rifle in EVE's real right hand, nothing else. Her body is never copied or posed:
 -- while the rifle is out the animation pak's rifle set plays on her real body through the game's own animation
 -- blueprint (fight/gunmode/data.lua points her animation sets' blend spaces and aim offset at it), so she carries, runs,
 -- strafes and aims with the rifle in her hands and her left hand on it, on one skeleton, for her and for co-op partners.
 -- Same interface as fight/gunmode/stance.lua (start, frame, stop, running, reload, owns, copy, body) so fight/gunmode/mode.lua
 -- drives it unchanged.
-local U=require('core.unreal')
 local Rifle={}
 local function isv(o) return o:IsValid() end
 local function valid(o) if o==nil then return false end local ok,r=pcall(isv,o); return ok and r==true end
--- The rifle component's tag, so the next Lua load finds a rifle this one left on her (sweep).
-Rifle.TAG='SBO_Gun'
+local function full_name(o) return o:GetFullName() end
+
+-- The rifle's mesh, kept for the Lua load and checked against its path at each rifle out (a collected asset's address
+-- can hold another object): no LoadAsset walk of the object array at each toggle.
+local WEAPON='/Game/DLC_2/Art/Character/Weapon/Gun/CH_G_Nikke_01/GunNikke_Weapon.GunNikke_Weapon'
+local weapon_kept
+local function weapon()
+    if valid(weapon_kept) then
+        local ok,full=pcall(full_name,weapon_kept)
+        if ok and type(full)=='string' and full:match('^%S+ (.+)$')==WEAPON then return weapon_kept end
+    end
+    weapon_kept=LoadAsset(WEAPON)
+    return weapon_kept
+end
 
 -- The grip: the rifle in her right hand (Bip001-R-Hand) as the pak's animations were made with it (Blender
 -- ngm_bl_rifle1: the NIKKE shot's grip, the barrel through her support hand). UE units (cm), the bone's frame.
@@ -42,15 +53,12 @@ function Rifle.new(laser,trace,grip)
         local pawn=pc.Pawn
         local src=pawn.Mesh
         assert(valid(src),'no body mesh')
-        local weapon=assert(LoadAsset('/Game/DLC_2/Art/Character/Weapon/Gun/CH_G_Nikke_01/GunNikke_Weapon.GunNikke_Weapon'))
+        local weapon=assert(weapon())
         local id={Rotation={X=0,Y=0,Z=0,W=1},Translation={X=0,Y=0,Z=0},Scale3D={X=1,Y=1,Z=1}}
         local gun=pawn:AddComponentByClass(StaticFindObject('/Script/Engine.SkeletalMeshComponent'),true,id,true)
         assert(valid(gun),'rifle component')
         gun:SetCollisionEnabled(0)
         pawn:FinishAddComponent(gun,true,id)
-        -- A new component's ComponentTags is empty: UE4SS 3.0.1 lands a write at 1 there (vehicles/bike/ride.lua's
-        -- part; proven for uint8 arrays only). A tag that does not hold costs only the sweep after a Ctrl+R.
-        pcall(function() gun.ComponentTags[1]=FName(Rifle.TAG) end)
         gun:SetSkeletalMesh(weapon,true)
         pcall(function() gun.bPerBoneMotionBlur=false end)
         pcall(function() gun:SetCastShadow(src.CastShadow) end)
@@ -138,7 +146,7 @@ function Rifle.new(laser,trace,grip)
             -- the laser once the rifle is up (the aim blends in over ~0.2 s), then it stays on until aim is let go
             if st.beam or (onTarget and now-st.aimAt>=0.12) or now-st.aimAt>=0.6 then
                 if not st.beam then st.beam,st.finish=laser(pawn,gun,mathlib); crumb('laser on') end
-                st.beam(t) -- Each frame: beam to the muzzle; no target (the flip): trace along the barrel (laser.lua).
+                st.beam(t) -- (no target, in the flip: fight/gunmode/laser.lua traces along the barrel)
             end
         else
             if st.aimAt then st.aimAt=nil; crumb('aim off') end
@@ -146,15 +154,5 @@ function Rifle.new(laser,trace,grip)
         end
     end
     return self
-end
-
--- The rifles an earlier Lua load left on her pawn (skeletal mesh components tagged Rifle.TAG), destroyed: how many.
-function Rifle.sweep(pawn)
-    if not valid(pawn) then return 0 end
-    local n,tag=0,FName(Rifle.TAG)
-    U.each(pawn:K2_GetComponentsByClass(StaticFindObject('/Script/Engine.SkeletalMeshComponent')),function(_,c)
-        if valid(c) and c:ComponentHasTag(tag)==true then c:K2_DestroyComponent(c); n=n+1 end
-    end)
-    return n
 end
 return Rifle
