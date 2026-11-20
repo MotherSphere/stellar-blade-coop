@@ -700,8 +700,10 @@ appended to, not rewritten:
   in place, with no new ghost. A later line for a key replaces the earlier one. A key the slot never named is refused.
   A file shorter than that offset, or gone, empties the slot's objects.
 
-While `coop loopback` runs, our own names go to slot 0 too. Every 60 s `coop-link.log` counts them: `asset names, last
-60 s: <n> taken, <n> refused; <n> loaded lines taken, <n> refused`. The native part deletes both files when it starts.
+While `coop loopback` runs outside a link session, our own names go to slot 0 too. In a link session slot 0 holds a
+member's names, so the loopback ghost gets none of ours there. Every 60 s `coop-link.log` counts them: `asset names,
+last 60 s: <n> taken, <n> refused; <n> loaded lines taken, <n> refused`. The native part deletes both files when it
+starts.
 
 ## Protocol versions
 

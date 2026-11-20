@@ -675,11 +675,11 @@ void names_watch(bool linked) {
   names_slots.pass(ids, coop::kMaxRemote, linked, [](size_t slot) { coop::pose::asset_slot_reset(slot); });
 }
 // Our asset names, after the fight pass. Each member past the handshake gets the book from her cursor, at
-// kNamesBytesPerSecond, while fewer than kFightQueue / 4 channel-2 lines wait for her: the pair's fight, world and story
-// lines and the poses keep their room. A member who came in later gets every earlier line. A member gone loses her
-// cursor.
+// kNamesBytesPerSecond, while fewer than kFightQueue / 4 channel-2 lines wait for her: the pair's fight, world and
+// story lines and the poses keep their room. A member who came in later gets every earlier line. A member gone loses
+// her cursor.
 void names_pass(bool linked) {
-  for (std::string &line : coop::pose::asset_lines()) // Also while not linked: the loopback's slot 0 takes them.
+  for (std::string &line : coop::pose::asset_lines(linked)) // Also while not linked: the loopback's slot 0 takes them.
     if (linked)
       names_book.add(std::move(line));
   const uint64_t now = GetTickCount64(), refill = (now - names_at) * coop::pose::kNamesBytesPerSecond / 1000;

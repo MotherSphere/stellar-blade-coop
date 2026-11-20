@@ -23,12 +23,12 @@ namespace coop::pose {
 // stops on coop off).
 void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::function<void(const std::string &)> &event);
 // Her asset names (game/events.h's SBA lines), worker thread. asset_lines(): the lines the game thread named since the
-// last call, for glue/steam.cpp's NameBook (while coop loopback runs, slot 0's table takes them too). asset_line_in():
-// a member's SBA line with her ghost slot (kMaxRemote or more: none), into the slot's table and its coop-names file.
-// asset_keys_clear(): a link session starts or ends, the game thread's asset keys start again from 1.
-// asset_slot_reset(): the slot's member changed, its names, its coop-names and coop-loaded files and its loaded objects
-// go.
-std::vector<std::string> asset_lines();
+// last call, for glue/steam.cpp's NameBook (while coop loopback runs and no link session is on, slot 0's table takes
+// them too: in a link session slot 0 holds a member's names). asset_line_in(): a member's SBA line with her ghost slot
+// (kMaxRemote or more: none), into the slot's table and its coop-names file. asset_keys_clear(): a link session starts
+// or ends, the game thread's asset keys start again from 1. asset_slot_reset(): the slot's member changed, its names,
+// its coop-names and coop-loaded files and its loaded objects go.
+std::vector<std::string> asset_lines(bool linked);
 void asset_line_in(size_t slot, const std::string &line);
 void asset_keys_clear();
 void asset_slot_reset(size_t slot);

@@ -961,13 +961,15 @@ void peer(uint8_t slots, uint64_t now_ms, void (*send)(const uint8_t *, size_t, 
 
 void table_again() { table_resend = TableResend(); }
 
-std::vector<std::string> asset_lines() {
+std::vector<std::string> asset_lines(bool linked) {
   std::vector<std::string> lines;
   {
     std::lock_guard<std::mutex> lock(m);
     lines.swap(asset_named);
   }
-  if (loopback_on) // A solo test hears the loopback ghost; a replay stays silent (names are not recorded).
+  // A solo test hears the loopback ghost; a replay stays silent (names are not recorded). Not in a link session: our
+  // keys in slot 0 would refuse the same keys of the member whose names it holds, after the loopback too.
+  if (loopback_on && !linked)
     for (const std::string &line : lines)
       asset_line_in(0, line);
   return lines;
