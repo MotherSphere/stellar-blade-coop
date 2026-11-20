@@ -5,6 +5,10 @@ The native part reads and calls Stellar Blade at fixed addresses of one build, S
 SizeOfImage and 19 code bytes. A game update can move every address. The tools in `tools/port/` keep the list of the
 addresses the code uses, so that each one can be found again in the new executable and checked in Ghidra.
 
+[The port, step by step](#the-port-step-by-step) is the procedure for a new build.
+[What the signatures cannot find](#what-the-signatures-cannot-find) lists the game facts that the port checks in
+another way.
+
 ## What the tools are for
 
 `tools/port/addresses.py` reads the C++ sources under `native/src/` and lists every address of the game they use, with
@@ -26,6 +30,126 @@ file lacks. It also fails when the file lists an address that no code uses. `tes
 `make_signatures.py` and `find.py` on a small executable it builds itself. It also fails when an entry of
 `signatures.json` has no signature or a name that differs from the code's. `tools/install.py` runs both with the other
 Python tests.
+
+## The port, step by step
+
+Work on a branch made from `dev` and named after the port (`port-<build>`). A found address, an offset or a size goes
+into the code only once Ghidra shows it on the new build. The new executable and its Ghidra project stay outside the
+repository.
+
+1. Copy the new `SB-Win64-Shipping.exe` from the game folder to `~/Ghidra/stellar-blade/input/<build>/`, the folder
+   `port_signatures_test.py` reads. Import it in Ghidra and let the analysis finish. Keep build 26123051 open next to
+   it: most steps compare the two. In game, `coop status` gives the build number as `build=...` in `UE4SS.log` (Steam's
+   build ID of the app).
+2. Run `find.py` on it and keep its output outside the repository:
+
+   ```
+   python3 tools/port/find.py ~/Ghidra/stellar-blade/input/<build>/SB-Win64-Shipping.exe > ~/port-<build>.txt
+   ```
+
+   A `found` line gives the address that the old signature points to. An `ambiguous` or `missing` line gives none
+   (see step 3). The exit code stays 1 while one entry is not found once.
+3. Read each entry's address in Ghidra on the new build, the `found` ones included. Ghidra must show there what the
+   entry's `ghidra` text and the comment above the constant in `native/src` describe on build 26123051: the same
+   function with the same arguments, the same instruction, the same global or vtable. For an entry with `ref`, also
+   read the instruction that holds the field (at `ref.from` on build 26123051). For an `ambiguous` or `missing` entry,
+   start on build 26123051 from a neighbour of the address: a caller, a callee, a string its code reads or the vtable
+   that holds it. Find that neighbour in the new build, then the address from it. Ghidra's Version Tracking tool
+   matches the functions of two programs.
+4. Write the new addresses. In `native/src`, change each constant and the addresses its comment gives. In
+   `signatures.json`, change each key to the new address, its `ghidra` text to what Ghidra shows on the new build and
+   `build` to the new build number. `python3 tools/port/addresses.py` then reports no address missing and none unused.
+5. Pin the new build. These are the constants `check_build()` compares, in `native/src/game/partner/engine.h`:
+   - `kTimeDateStamp` and `kSizeOfImage` are the new PE header's values. As long as `engine.h` pins build 26123051,
+     `make_signatures.py` refuses the new executable with a line that gives both:
+
+     ```
+     <path>: TimeDateStamp 0x..., SizeOfImage 0x...: not the pinned build
+     ```
+
+   - `kPinRva` is the new address of the `kPinRva` entry minus the image base 0x140000000.
+   - `kPinBytes` are the 19 bytes at that address, read in Ghidra on the new build. On build 26123051 they are 5
+     instructions, from `XORPS XMM0, XMM0` at 0x142bfd488 to a `CALL` through a RIP-relative pointer. The last 4
+     bytes are that call's displacement. They change whenever the code or the data moves, even when the instructions
+     stay the same.
+
+   `tests/native/game/partner/engine_test.cpp` expects two refusals that hold the pinned stamp and size:
+   `build stamp 6ad8eff1 size 00001000` and `build stamp 12345678 size 15fa3000`. Write the new values there.
+   `native/src/glue/tick/worker.inc` names the build in the engine's reason (`pinned build 26123051`).
+6. Check every offset, slot, size and table row the code uses (see
+   [What the signatures cannot find](#what-the-signatures-cannot-find)).
+7. Make the signatures again on the new build:
+
+   ```
+   python3 tools/port/make_signatures.py ~/Ghidra/stellar-blade/input/<build>/SB-Win64-Shipping.exe
+   ```
+
+   It accepts the new executable once `engine.h` pins it. It writes each entry's signature from the new build, so the
+   next port starts from this one. In `tests/tools/port_signatures_test.py`, point `EXE` at the new build's copy and
+   change the build number in its messages.
+8. Update the other texts that give an old address or the old build. Run `grep -rn` for each address that moved and
+   for `26123051` in `docs/`, `tests/`, `tools/`, `native/src/` and `mod/`. Some tests write addresses as literals:
+   `tests/native/game/globals_test.cpp` holds SB's globals, `tests/tools/matchmaking_scan_test.py` the RunZoneEvent
+   constant. The internals pages give the pinned build's addresses, as
+   [docs/README.md](../README.md#building-and-internals) says. `INSTALL.md` names the build players need. This page's
+   numbers (the section ranges, the signature counts) are build 26123051's. A text that names the build a fact was
+   read on, such as a table dump, keeps that build until the fact is read again on the new one.
+9. Run the tests:
+
+   ```
+   python3 tests/tools/port_addresses_test.py
+   python3 tests/tools/port_signatures_test.py
+   python3 -I tests/tools/modules_test.py
+   python3 tools/install.py --dry-run
+   ```
+
+   `port_signatures_test.py` finds every entry at its own address in the new build's copy. The last command runs
+   every Lua, Python and native test, then builds the DLL. Its exit code must be 0.
+10. Read every address, offset, slot and size a second time in Ghidra on the new build and compare each with the code.
+11. With the game closed, install the build (`python3 tools/install.py`), then start the game. `coop status` must not
+    show `engine=off` with the reason `check_build()` gives (`build stamp ... size ...` or `code bytes differ`). Then
+    test each feature. In `coop-status.txt`, the line of a row batch that the new build refuses reads
+    `<word>=refused` with its `why=`. A fault turns its feature off for the run and is logged with the part (see
+    [Safety](safety.md#safety-design)).
+
+## What the signatures cannot find
+
+A signature finds an address: a function, an instruction, a global, a vtable or the place of a vtable slot in `.link`.
+The code also uses numbers that are not addresses. `addresses.py` does not list them and `find.py` does not check them.
+A game update can change them all the same. The comment above each one says where it was read on build 26123051,
+most often in a function. Read the same place on the new build.
+
+- Offsets inside the game's objects: `kGameInstance = 0x228` in `native/src/game/sbo.h`, `kEntered = 0x54` in
+  `native/src/game/slot.h`. Find the function the comment names in the new build, then the instruction that reads or
+  writes the field. Its displacement must equal the constant. A field the engine reflects has its offset in its
+  property's parameters (see the row fields below).
+- Offsets of vtable slots: `kMoveSlot = 0x4a0` in `native/src/game/pilot.h`, `kAddRowSlot = 0x2b0` in
+  `native/src/rows/rows.h`. When the vtable and the function are both in `signatures.json`, read the 8 bytes at the
+  vtable's new address plus the slot: they must hold the function's new address. On build 26123051, `kTableVtable`
+  0x146409530 plus 0x2b0 is 0x1464097e0, which holds `kAddRow` 0x1441815b0. Otherwise find a call through the slot
+  (`call qword ptr [rax+0x4a0]`) in the function the comment names and compare its displacement.
+- Row sizes and field offsets of the game's tables: the sizes in `kTables` (`native/src/rows/rows.h`), the patch
+  offsets in each `*_rows.h` and the `FIELDS` of `tools/mxiii_rows.py`, `tools/teamshop_rows.py` and
+  `tools/sbo_lobby_rows.py`. The engine reflects the row structs. Search the struct's name among Ghidra's strings and
+  follow its reference to the struct's parameters. On build 26123051, `SBShopTableProperty`'s parameters at
+  0x146db1d60 hold the name's address at +0x18, the size 0xa8 at +0x20 (`ShopTable` in `kTables`), the property list
+  at +0x30 and its count, 20, at +0x38. The list holds the parameters of `ShopItems` at 0x145e197b8: the name's address
+  at +0, the offset 0x38 at +0x24 (the patch offset in `native/src/fight/gunmode/nikke_rows.h`). At run time,
+  `rows/rows.h` checks each table's row size before any row. A size that differs refuses the batch: its status line
+  gives `why=size`, the table and the size read (`detail=`). No such check guards a field offset.
+- Strides, counts and flag values: `kItemBytes = 24` and `kPendingKill = 1 << 29` in
+  `native/src/game/partner/engine.h`, `kActionStride = 0x14` in `native/src/game/bike.h`. Read them like an offset, in
+  the code the comment names.
+- Table contents: donor rows, free IDs and row names come from the table exports and dumps of build 26123051.
+  `tools/world_rows.py` and `tools/story_rows.py` write their headers from a folder of exports: run them on the new
+  build's exports and read the diff. For the other generators, compare their donor rows and IDs in the new exports.
+  At run time, `rows/rows.h` refuses an ID that SB already holds (`why=id`).
+- Names the Lua scripts look up. UE4SS finds classes, functions, properties and assets by name at run time, so the
+  Lua side holds no address. A name that the new build renames or removes is not found: test each feature in game and
+  read `UE4SS.log`.
+
+A wrong offset does not always fault. A fault turns its part off for the run. A wrong read that does not fault gives
+wrong values with no log line, so each of these numbers is read in Ghidra before the port is done.
 
 ## What counts as an address
 
