@@ -129,5 +129,6 @@ address order, written in lower-case hex with `0x`, with its kind and what Ghidr
 ```
 
 Then run `make_signatures.py` on the executable of build 26123051. Search the new entry's pattern in Ghidra: it must
-match once. For an entry with `ref`, look at the instruction at `ref.from`. When the last use of an address leaves the
+match once in `.debug$P`. Ghidra searches every section. On build 26123051, 5 patterns also match once in `.edata`.
+For an entry with `ref`, look at the instruction at `ref.from`. When the last use of an address leaves the
 code, remove its entry. `port_addresses_test.py` and `port_signatures_test.py` fail until it is done.

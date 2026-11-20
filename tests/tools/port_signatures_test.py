@@ -51,9 +51,16 @@ FUNCS = {
     'zero_a': [b'\x31\xc0\xc3'],  # xor eax, eax; ret: too short for a signature of its own
     'zero_b': [b'\x31\xc0\xc3'],
     'lone': [b'\x48\x89\x74\x24\x10\xb8\x55\x66\x77\x88\xc3'],  # only a vtable no code loads points here
+    # mov ecx, 7, then copy_a's body on counter: the load's own run occurs three times.
+    'pre': [b'\xb9\x07\x00\x00\x00\x48\x8b\x05', ('counter', 0), b'\x48\x83\xc0\x01\xc3'],
+    # mov rax, imm64 whose bytes read "call table_a; nop x3"; mov eax, 0xefbeadde; ret
+    'decoy': [b'\x48\xb8\xe8', ('table_a', 0), b'\x90\x90\x90\xb8\xde\xad\xbe\xef\xc3'],
+    # mov [rsp+0x18], rdi; jmp out of .text; then junk that differs between the two stubs
+    'stub_a': [b'\x48\x89\x7c\x24\x18\xe9', ('outside', 0), b'\xb8\x99\x99\x99\x99\xc3'],
+    'stub_b': [b'\x48\x89\x7c\x24\x18\xe9', ('outside', 0), b'\xb8\x98\x98\x98\x98\xc3'],
 }
-SYMBOLS = {'table_a': BASE + DATA, 'table_b': BASE + DATA + 8, 'flag': BASE + DATA + 0x10,
-           'vtable': BASE + RDATA + 0x100, 'vtable2': BASE + RDATA + 0x148}
+SYMBOLS = {'table_a': BASE + DATA, 'table_b': BASE + DATA + 8, 'flag': BASE + DATA + 0x10, 'counter': BASE + DATA + 0x18,
+           'vtable': BASE + RDATA + 0x100, 'vtable2': BASE + RDATA + 0x148, 'outside': BASE + 0x8000}
 
 
 def fake_exe(funcs, stamp=0x11223344):
@@ -99,8 +106,8 @@ data, at = fake_exe(FUNCS)
 image = ms.Image(data)
 entries = {f'{a:#x}': {'kind': kind} for a, kind in [
     (at['unique'], 'function'), (at['unique'] + 5, 'code'), (at['copy_b'], 'function'), (at['zero_a'], 'function'),
-    (at['table_a'], 'global'), (at['flag'], 'global'), (at['vtable'] + 0x10, 'rdata'), (at['vtable2'], 'rdata'),
-    (BASE, 'image')]}
+    (at['table_a'], 'global'), (at['flag'], 'global'), (at['counter'], 'global'), (at['vtable'] + 0x10, 'rdata'),
+    (at['vtable2'], 'rdata'), (BASE, 'image')]}
 out, failed = ms.build(image, entries)
 assert not failed, failed
 
@@ -114,8 +121,12 @@ want = {
     at['unique'] + 5: ('b8 11 22 33 44 c3', None),
     at['copy_b']: ('e8 ?? ?? ?? ?? b9 02 00 00 00', {'ref': ref('caller_b', 1, 5)}),  # copy_a has the same bytes
     at['zero_a']: ('48 8d 0d ?? ?? ?? ?? 48 89 0b', {'ref': ref('maker', 3, 7, 8, read=True)}),  # read in vtable + 8
+    # decoy's imm64 reads as a call to table_a from its third byte: not an instruction, so not a reference.
     at['table_a']: ('e8 ?? ?? ?? ?? b9 01 00 00 00', {'ref': ref('caller_a', 1, 5, then=ref('copy_a', 3, 7))}),
     at['flag']: ('80 3d ?? ?? ?? ?? 01 0f 94 c0', {'ref': ref('check', 2, 7)}),  # an imm8 after the field
+    # The load's own run is also copy_a's and copy_b's: the run starts at the mov before it.
+    at['counter']: ('b9 07 00 00 00 48 8b 05 ?? ?? ?? ??',
+                    {'ref': {'from': f'{at["pre"] + 5:#x}', 'disp': 8, 'end': 12, 'add': 0}}),
     at['vtable'] + 0x10: ('48 8d 0d ?? ?? ?? ?? 48 89 0b', {'ref': ref('maker', 3, 7, 0x10)}),
     at['vtable2']: ('48 89 74 24 10 b8 55 66 77 88', {'holder': {'add': -8}}),  # unique is held twice
 }
@@ -130,6 +141,15 @@ assert 'pattern' not in out[f'{BASE:#x}'], 'the image base got a signature'
 # A second copy of unique's bytes: its signature matches twice and gives nothing.
 twice, _ = fake_exe({**FUNCS, 'again': FUNCS['unique']})
 assert ms.resolve(ms.Image(twice), out[f'{at["unique"]:#x}']) is None, 'a signature that matches twice gave an address'
+
+# A second place in .rdata that holds lone: the holder is no longer one place and gives nothing.
+held = bytearray(data)
+k = data.index(struct.pack('<2Q', at['unique'], at['lone']))  # vtable2, at .rdata + 0x148
+held[k + 0x58:k + 0x60] = struct.pack('<Q', at['lone'])  # .rdata + 0x1a0, free
+assert ms.resolve(ms.Image(bytes(held)), out[f'{at["vtable2"]:#x}']) is None, 'a holder held twice gave an address'
+
+# The two stubs differ only after their jump out of .text: a run stops at that jump, so neither gets one.
+assert ms.shortest(image.code, at['stub_a'] - image.code_va) is None, 'a run went on past a jump out of .text'
 
 # Any other executable than the pinned build is refused before signatures.json is read.
 with tempfile.TemporaryDirectory() as tmp:
