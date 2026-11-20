@@ -403,9 +403,10 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
   guest heard it>` ([Sessions of more than 2 players](online/steam-link-internals.md#sessions-of-more-than-2-players)).
   Then a `peer=...` line per lobby member (handshake, lost flag, RTT), a `friend=<linked 0|1> <lost 0|1> <name>` line,
   after a [coop mark](#coop-mark) a `mark=<n> ours: <text>` or `mark=<n> from <name>: <text>` line (no `: <text>` for a
-  mark with no text), a `mate=<12 numbers>` line with your friend's HP, shield, Beta, Burst and Tachy for the partner
-  card (while their last reading is under 3 s old; your own during `coop loopback`), a `vit=<SteamID> <12 numbers>` line
-  for each member linked whose last reading is under 3 s old (neither line in a match lobby), a `life=<state> <hp>` line
+  mark with no text), a `mate=<13 numbers>` line with your friend's HP, shield, Beta, Burst and Tachy for the partner
+  card, then her zone type (while their last reading is under 3 s old; your own during `coop loopback`), a
+  `vit=<SteamID> <13 numbers>` line for each member linked whose last reading is under 3 s old (neither line in a match
+  lobby), a `life=<state> <hp>` line
   with your own EVE's life state (1 or 6 alive, 3 to 5 dying or dead) and HP for the revive, a `night=<line>` line with
   your friend's last Night Operation line while a session holds, and the last 8 notices as `notice=<n> <text>`. While
   you host, `camps?=<n>` is your game's number for the oldest request for the camps nearest you still waiting for an
