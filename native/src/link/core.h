@@ -113,6 +113,9 @@ constexpr uint64_t kRacePerSecond = 40;
 // the most we keep a second from each member. A player sends about one a second. Reliable lines held up by a stall of
 // up to kLostAfterMs come in at once, her done line among them.
 constexpr uint64_t kScorePerSecond = 16;
+// Lines of the modes of online sessions (online/modes/fishing/round.lua's), all modes together: the most we send a
+// second, which is also the most we keep a second from each member. The score attack's value, for the same reason.
+constexpr uint64_t kModePerSecond = 16;
 constexpr size_t kChatInbox = 64;
 // Night Operation's lines a second, each way: Lua writes one a tick (4 a second) at most.
 constexpr uint64_t kNightPerSecond = 8;
@@ -333,6 +336,10 @@ private:
   uint64_t score_in_ = 0, score_out_ = 0, score_dropped_ = 0;
   Window score_window_;
   bool score_logged_ = false;
+  // Mode lines: the same counts, rate window and drop line.
+  uint64_t mode_in_ = 0, mode_out_ = 0, mode_dropped_ = 0;
+  Window mode_window_;
+  bool mode_logged_ = false;
   Window gift_window_; // Our gift lines.
   Vitals vitals_{}, mate_{}, own_{}; // own_: our last read, sent or not.
   // coop mark: our marks this run (one count a game process, never reset) and the last mark's status line, or empty.

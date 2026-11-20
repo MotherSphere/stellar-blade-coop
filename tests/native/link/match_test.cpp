@@ -1202,5 +1202,19 @@ int main() {
     assert(m[0].take_chat().empty() && !saw("P1: dropped score lines") &&
            m.status(0).find(" name=P2 hello=1 accepted=1 compatible=1 lost=0 invalid=0 ") != std::string::npos);
   }
+  // A match lobby carries no mode line (the modes of online sessions'): ours never goes, hers is never taken, with no
+  // log line.
+  reset();
+  {
+    Mesh m(2);
+    match_by_hand(m, 2);
+    assert(m[0].match());
+    m.tick(0, "mode fish go 7 10 1001,2002");
+    assert(!m[0].mode("fish go 7 10 1001,2002") && sent_count(P + " mode") == 0);
+    inbox(0, kChannel).push_back({kFriend, mode_line("fish ready 7")});
+    m.round();
+    assert(m[0].take_chat().empty() && !saw("P1: dropped mode lines") &&
+           m.status(0).find(" name=P2 hello=1 accepted=1 compatible=1 lost=0 invalid=0 ") != std::string::npos);
+  }
   std::puts("link_match_test: ok");
 }

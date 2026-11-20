@@ -249,6 +249,11 @@ fake_link.uidev=function() return link_uidev end
 fake_link.scores={}
 fake_link.take_score=function() return {} end
 fake_link.score=function(text) fake_link.scores[#fake_link.scores+1]=text; return true end
+-- link.take_mode(word), the lines of a mode of online sessions waiting (none in these tests), and
+-- link.mode_line(word, text), each sent in fake_link.modes as '<word> <text>'.
+fake_link.modes={}
+fake_link.take_mode=function() return {} end
+fake_link.mode_line=function(word,text) fake_link.modes[#fake_link.modes+1]=word..' '..text; return true end
 native_ok=nil
 captured,remoted={},nil
 -- capture_leave_out: what main.lua gave the capture's leave_out (the bike's idle_part).

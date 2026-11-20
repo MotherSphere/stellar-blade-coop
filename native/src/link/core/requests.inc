@@ -203,6 +203,9 @@ private:
     case Command::score:
       score(r.text);
       break;
+    case Command::mode:
+      mode(r.text);
+      break;
     case Command::mark: { // A test tool: unlike chat, its text goes to both logs and statuses on purpose.
       const std::string n = std::to_string(++marks_), said = r.text.empty() ? "" : ": " + r.text;
       event("mark " + n + said);

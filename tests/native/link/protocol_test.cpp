@@ -157,6 +157,23 @@ int main() {
     assert(parse_text(bad).kind == Kind::invalid);
   assert(parse_text(race_line("go 7 targets")).kind == Kind::race);
 
+  // The line of a mode of online sessions, reliable: the mode's word (1 to 16 lowercase letters), then Lua's text,
+  // printable ASCII. The text after "mode " comes back as it went, word included. Never read as a score or race line.
+  assert(mode_line("fish rank 7 10 1001:138:1,2002:0:0") == p + " mode fish rank 7 10 1001:138:1,2002:0:0");
+  m = parse_text(mode_line("fish go 2147483647 10 1001,2002"));
+  assert(m.kind == Kind::mode && m.text == "fish go 2147483647 10 1001,2002");
+  assert(parse_text(mode_line("abcdefghijklmnop x")).kind == Kind::mode &&
+         parse_text(mode_line("photohunt  two spaces")).text == "photohunt  two spaces");
+  const std::string mode = p + " mode fish ";
+  assert(parse_text(mode + std::string(kMaxMessage - mode.size(), '~')).kind == Kind::mode &&
+         parse_text(mode + std::string(kMaxMessage - mode.size() + 1, '~')).kind == Kind::invalid);
+  for (const std::string &bad :
+       {mode + "a\tb", mode + "a\x7f", mode + "caf\xc3\xa9", mode + "a\nb", p + " mode fish", mode, p + " mode",
+        p + " mode Fish go", p + " mode fi5h go", p + " mode fish_x go", p + " mode abcdefghijklmnopq go",
+        p + " mode  fish go", p + " Mode fish go", std::string("SBC23 mode fish go"), std::string("SBC25 mode fish go")})
+    assert(parse_text(bad).kind == Kind::invalid);
+  assert(parse_text(score_line("fish go 7")).kind == Kind::score);
+
   // coop gift's line, reliable: s <id> <alias> <count>, a <id>, n <id> <why>, each field at its edge. Anything else is
   // invalid, never cleaned into another line.
   assert(gift_line("s 1761480000123 HP_Potion 3") == p + " gift s 1761480000123 HP_Potion 3");
@@ -440,7 +457,7 @@ int main() {
                                mark_line(9, "é ok"), start_line("ffa", "NK_Boss_Scarlet", 7, {1001, 2002}),
                                count_line(5), end_line(), dlc_line(3564740, "Twin Expansion Pack"), dlcs_line(),
                                cycle_line(3, 1), let_line(2002, {2002, 4003}, 4), wait_line(120),
-                               score_line("done 7 win 900 412")};
+                               score_line("done 7 win 900 412"), mode_line("fish catch 7 9220 138")};
   for (int round = 0; round < 200000; ++round) {
     std::string text;
     if (round % 2) {
@@ -476,6 +493,8 @@ int main() {
       assert(f.a <= 10);
     if (f.kind == Kind::score) // Printable ASCII, the line exactly as score_line() writes it.
       assert(text == score_line(f.text));
+    if (f.kind == Kind::mode) // A word, a space, printable ASCII: the line exactly as mode_line() writes it.
+      assert(text == mode_line(f.text) && f.text.find(' ') >= 1 && f.text.find(' ') <= kMaxModeWord);
     if (f.kind == Kind::let) { // 1 to 7 distinct SteamIDs, none 0; the pair 0 or one of them.
       std::set<uint64_t> ids(f.ids.begin(), f.ids.end());
       assert(!f.ids.empty() && f.ids.size() <= kMaxRemote && ids.size() == f.ids.size() && !ids.count(0) &&
@@ -1288,6 +1307,11 @@ int main() {
   Request sr = parse_request("score done 7 win 900 412\r\n");
   assert(sr.command == Command::score && sr.text == "done 7 win 900 412");
   for (const char *bad : {"score", "score ", "scores go 7 targets", "Score go 7 targets"})
+    assert(parse_request(bad).command == Command::none);
+  // A mode request: mode <word> <text>, as Lua wrote it (the link's mode() refuses one the line would not carry).
+  Request md = parse_request("mode fish catch 7 9220 138\r\n");
+  assert(md.command == Command::mode && md.text == "fish catch 7 9220 138");
+  for (const char *bad : {"mode", "mode ", "modes fish go", "Mode fish go"})
     assert(parse_request(bad).command == Command::none);
   Request ir = parse_request("items 7 HP_Potion 4096 0\r\n");
   assert(ir.command == Command::items && ir.ask == 7 && ir.alias == "HP_Potion" && ir.index == 4096 && ir.number == 0);

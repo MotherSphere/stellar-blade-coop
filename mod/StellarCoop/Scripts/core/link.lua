@@ -777,10 +777,23 @@ function Link.new(folder,fs)
         scores={}
         return out
     end
+    -- Lines of the modes of online sessions (online/modes/fishing/round.lua's), keyed by the mode's word: mode_line()
+    -- asks the native part to send one to every member of the online session (a mode request, so it waits in the
+    -- request queue above). Each member's comes in coop-chat.txt as "mode <her SteamID> <word> <text>". take_chat()
+    -- keeps it here under its word. take_mode(word) hands over that word's lines only, {from=, text=} each, oldest
+    -- first. The name is not mode(), which says our role.
+    -- ponytail: 64 at most a word, the oldest dropped, for a pass that never takes them (the module off).
+    local modes={}
+    function self.mode_line(word,text) return self.request('mode '..word..' '..text) end
+    function self.take_mode(word)
+        local out=modes[word] or {}
+        modes[word]=nil
+        return out
+    end
     -- The native part's coop-chat.txt, taken and deleted at once: {text=,from=} for each member's line (from: her
     -- SteamID as digits; ours in the loopback), {fail=true} when one of ours could not go, {race=} for each of her race
     -- lines, {gift=} for each of her gift lines (or a gift of ours that could not go, as her refusal), oldest first;
-    -- a score line goes to take_score(); anything else is ignored.
+    -- a score line goes to take_score(), a mode line to take_mode(); anything else is ignored.
     function self.take_chat()
         local name=path('coop-chat.txt')
         local text,lines=fs.read(name),{}
@@ -789,9 +802,15 @@ function Link.new(folder,fs)
             local from,said=line:match('^in (%d+) (.+)$')
             local raced,gifted=line:match('^race (.+)$'),line:match('^gift (.+)$')
             local scorer,scored=line:match('^score (%d+) (.+)$')
+            local moder,word,moded=line:match('^mode (%d+) (%l+) (.+)$')
             if scorer then
                 if #scores>=64 then table.remove(scores,1) end
                 scores[#scores+1]={from=scorer,text=scored}
+            elseif moder then
+                local list=modes[word] or {}
+                modes[word]=list
+                if #list>=64 then table.remove(list,1) end
+                list[#list+1]={from=moder,text=moded}
             elseif said then lines[#lines+1]={text=said,from=from}
             elseif raced then lines[#lines+1]={race=raced}
             elseif gifted then lines[#lines+1]={gift=gifted}

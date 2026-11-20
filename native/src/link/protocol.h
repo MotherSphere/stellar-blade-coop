@@ -27,6 +27,9 @@
 //   further).
 //   SBC<protocol> score <text> (a score attack line, online/modes/scoreattack/model.lua's, printable ASCII, in a match
 //   lobby only; the link reads no further either).
+//   SBC<protocol> mode <word> <text> (a line of a mode of online sessions: the mode's word, 1 to kMaxModeWord lowercase
+//   letters, then Lua's text, printable ASCII; fish for online/modes/fishing/model.lua's; in an online session only,
+//   the link reads no further).
 //   SBC<protocol> gift <payload> (coop gift, cutmenus/mailbox.lua: "s <id> <alias> <count>" a gift sent, "a <id>" kept
 //   in the friend's mailbox, "n <id> <why>" refused; gift_ok()).
 //   SBC<protocol> bike park <map> <x> <y> <z> <pitch> <yaw> <roll> or SBC<protocol> bike none (her parked bike,
@@ -273,7 +276,7 @@ inline Life life_of(const Vitals &v) {
 
 enum class Kind {
   invalid, hello, accept, reject, ping, pong, photo, say, vitals, pak, paks, dlc, dlcs, camps_ask, camps, night, mark,
-  race, gift, bike, start, count, end, let, wait, cycle, score
+  race, gift, bike, start, count, end, let, wait, cycle, score, mode
 };
 // The follow's camps lines (online/group/travel.lua): the guest asks with an id from 0 to kMaxCampId, the host answers
 // that id with his world and up to kMaxCamps ZoneCampTable aliases, nearest his EVE first, each with its distance in
@@ -317,8 +320,9 @@ struct Message {
                          // the container's name, mod_name_ok(). dlc: its name, chat_clean() to kMaxDlcName and never
                          // empty. camps: the host's world, or "none". night: the
                          // payload, night_ok(). mark: chat_clean() to kMaxMark, maybe empty. race: the text after
-                         // "race ", printable ASCII. score: the text after "score ", the same way. gift: the payload,
-                         // gift_ok(). bike: the payload, bike_ok().
+                         // "race ", printable ASCII. score: the text after "score ", the same way. mode: the word, a
+                         // space and the text after it, as mode_line() takes them. gift: the payload, gift_ok(). bike:
+                         // the payload, bike_ok().
                          // start: the mode.
   Vitals vitals{};       // vitals: hers, plausible_vitals().
   std::string why;         // camps none: why.
@@ -357,6 +361,10 @@ inline std::string say_line(const std::string &text) {
 inline std::string race_line(const std::string &text) { return "SBC" + std::to_string(kProtocol) + " race " + text; }
 // A score attack line, reliable, the same way: one that parse() would not read as Kind::score is never sent.
 inline std::string score_line(const std::string &text) { return "SBC" + std::to_string(kProtocol) + " score " + text; }
+// A line of a mode of online sessions, reliable: "<word> <text>" as Lua wrote it, the word 1 to kMaxModeWord lowercase
+// letters. One that parse() would not read as Kind::mode is never sent.
+constexpr size_t kMaxModeWord = 16;
+inline std::string mode_line(const std::string &text) { return "SBC" + std::to_string(kProtocol) + " mode " + text; }
 // Our vitals, unreliable: on change and each second (link/core.h).
 inline std::string vit_line(const Vitals &v) {
   std::string line = "SBC" + std::to_string(kProtocol) + " vit";
@@ -687,6 +695,13 @@ inline Message parse(const char *data, size_t size) {
       m.kind = f[1] == "race" ? Kind::race : Kind::score;
       m.text = rest;
     }
+  } else if (split(text, f, 3, &rest) && f[0] == versioned_tag && f[1] == "mode") {
+    if (f[2].size() <= kMaxModeWord &&
+        std::all_of(f[2].begin(), f[2].end(), [](char c) { return c >= 'a' && c <= 'z'; }) &&
+        std::all_of(rest.begin(), rest.end(), [](char c) { return c >= 0x20 && c <= 0x7e; })) {
+      m.kind = Kind::mode;
+      m.text = f[2] + " " + rest;
+    }
   } else if (split(text, f, 2, &rest) && f[0] == versioned_tag && f[1] == "gift") {
     if (gift_ok(rest)) {
       m.kind = Kind::gift;
@@ -939,7 +954,7 @@ enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
   signal, match, mute, sbo, guardtext, hud, loading, world, scenes, bike, block, unblock, list, where, rules, sky,
-  pausetab, popups, teamshop, score
+  pausetab, popups, teamshop, score, mode
 };
 // match: "match search <mode> <room> <hall>" (quick match: join an open Public lobby of that mode and hall, or host
 // one), "match create <mode> <room> <hall>" (a private match lobby joined with its code), "match cancel" (forget the
@@ -948,7 +963,9 @@ enum class Command {
 // <SteamID>" and "unmute <SteamID>", in any lobby: that member's chat lines are dropped here, or heard again, for the
 // rest of the game run. block: "block <SteamID>" (the block list, link/core.h: kept out of every lobby we host, across
 // game runs); unblock: "unblock <SteamID>" or "unblock all" (player 0). score: "score <text>", a score attack line for
-// every member of the match lobby (link/core.h's score(), which refuses a text score_line() would not carry).
+// every member of the match lobby (link/core.h's score(), which refuses a text score_line() would not carry). mode:
+// "mode <word> <text>", a line of a mode of online sessions for every member past the handshake (link/core.h's mode(),
+// which refuses a text mode_line() would not carry).
 enum class MatchAsk : uint8_t { search, create, cancel, end };
 // shortcut load's maps, game/shortcut.h's kMapNames in its order (shortcut_load_test checks they match).
 constexpr const char *kShortcutMaps[4] = {"B07", "F02", "G03", "Matrix_XI"};
@@ -1427,6 +1444,8 @@ inline Request parse_request(std::string text) {
     r.command = Command::gift, r.text = text.substr(5);
   } else if (text.rfind("score ", 0) == 0) {
     r.command = Command::score, r.text = text.substr(6);
+  } else if (text.rfind("mode ", 0) == 0) {
+    r.command = Command::mode, r.text = text.substr(5);
   } else if (text.rfind("guardtext ", 0) == 0) {
     r.command = Command::guardtext, r.text = text.substr(10);
   } else if (uint64_t ask = 0, index = 0, number_ = 0;

@@ -1487,6 +1487,32 @@ files[CHAT]=table.concat(many,'\n')..'\n'
 link.take_chat()
 scores=link.take_score()
 assert(#scores==64 and scores[1].text=='now 7 7 1' and scores[64].text=='now 7 70 1')
+-- Mode lines: mode_line() is a mode request; each member's line waits for take_mode() under its word with her
+-- SteamID, apart from what take_chat() returns and from the other words, oldest first; a line with no id or no
+-- lowercase word is no mode line.
+files[REQUEST]=nil
+assert(link.mode_line('fish','go 7 10 1001,2002') and files[REQUEST]=='mode fish go 7 10 1001,2002\n')
+files[REQUEST]=nil
+assert(#link.take_mode('fish')==0)
+files[CHAT]='mode 2002 fish ready 7\nmode 4003 photohunt claim 7 1\nin 2002 mode 9\nmode x fish go 7\n'
+    ..'mode 2002 Fish go 7\nmode 4003 fish catch 7 9220 138\nscore 2002 fish 1\n'
+chat=link.take_chat()
+assert(#chat==1 and chat[1].text=='mode 9','Mode lines kept apart')
+local fish=link.take_mode('fish')
+assert(#fish==2 and fish[1].from=='2002' and fish[1].text=='ready 7' and fish[2].from=='4003'
+    and fish[2].text=='catch 7 9220 138' and #link.take_mode('fish')==0,'Handed over once, in order')
+local hunt=link.take_mode('photohunt')
+assert(#hunt==1 and hunt[1].from=='4003' and hunt[1].text=='claim 7 1' and #link.take_mode('photohunt')==0,
+    'Each word apart')
+assert(#link.take_score()==1 and link.take_score()[1]==nil,'The score line stays a score line')
+-- ponytail's ceiling: 64 waiting a word at most, the oldest dropped, for a pass that never takes them.
+many={}
+for i=1,70 do many[i]='mode 2002 fish catch 7 9220 '..i end
+files[CHAT]=table.concat(many,'\n')..'\nmode 2002 photohunt claim 7 1\n'
+link.take_chat()
+fish=link.take_mode('fish')
+assert(#fish==64 and fish[1].text=='catch 7 9220 7' and fish[64].text=='catch 7 9220 70'
+    and #link.take_mode('photohunt')==1)
 -- ponytail's ceiling: 512 waiting at most, the oldest dropped, for a native part that never takes the file.
 files[RACE]='stuck\n'
 for i=1,520 do link.race('cp 7 1 1 '..i) end

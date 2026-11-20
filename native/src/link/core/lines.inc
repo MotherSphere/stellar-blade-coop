@@ -135,6 +135,27 @@ public:
     ++(ok ? score_out_ : score_dropped_);
     return ok;
   }
+  // A line of a mode of online sessions from Lua (a mode request, "<word> <text>", online/modes/fishing/round.lua's),
+  // as it is, reliable to every member past the handshake: the host and each guest. False when it cannot go: in a
+  // match lobby or with nobody linked, or, counted as dropped, a text mode_line() would not carry, past kModePerSecond
+  // (logged once a 60 s line), or Steam refused it.
+  bool mode(const std::string &text) {
+    if (match() || !linked())
+      return false;
+    const std::string line = mode_line(text);
+    bool ok = parse(line.data(), line.size()).kind == Kind::mode;
+    if (ok && over_rate(mode_window_, 1, kModePerSecond, kModePerSecond * kMaxMessage)) {
+      ok = false;
+      if (!std::exchange(mode_logged_, true))
+        event("dropped our mode lines: over the rate limit");
+    }
+    if (ok)
+      for (auto &p : peers_)
+        if (p.compatible && p.accepted && send(p, line.data(), line.size(), kReliable) != kResultOk)
+          ok = false;
+    ++(ok ? mode_out_ : mode_dropped_);
+    return ok;
+  }
   // coop gift's line (cutmenus/mailbox.lua, through a gift request): reliable to the friend past the handshake, or
   // back as hers ("gift <payload>" for Lua) in the loopback with no friend, at most kGiftPerSecond a second. Each one
   // goes in the log, as each of hers does: a gift moves items between two saves. A gift that cannot go (no session, a
@@ -229,7 +250,8 @@ public:
   }
   // For coop-chat.txt (glue/steam.cpp), oldest first: "in <SteamID> <text>" (a member's, chat_clean(); ours in the
   // loopback), "fail" (ours could not go), "race <text>" (her race line), "score <SteamID> <text>" (a member's score
-  // attack line, with her SteamID from Steam) and "gift <payload>" (her gift line, or our gift that could not go).
+  // attack line, with her SteamID from Steam), "mode <SteamID> <word> <text>" (a member's mode line, the same way) and
+  // "gift <payload>" (her gift line, or our gift that could not go).
   std::vector<std::string> take_chat() { return std::exchange(chat_, {}); }
   bool chat_waiting() const { return !chat_.empty(); }
 private:

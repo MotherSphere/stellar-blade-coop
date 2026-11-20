@@ -6,11 +6,12 @@
 private:
 
   void on_message(Peer &peer, const Message &message) {
-    // A match lobby carries no photo or cutscene pause, gift, race, follow or night line, either way (decision 10):
-    // each is dropped with no log line. A score attack line counts in a match lobby only: elsewhere it is dropped too.
+    // A match lobby carries no photo or cutscene pause, gift, race, follow, night or mode line, either way (decision
+    // 10): each is dropped with no log line. A score attack line counts in a match lobby only: elsewhere it is dropped
+    // too.
     const Kind k = message.kind;
     if (match() && (k == Kind::photo || k == Kind::gift || k == Kind::race || k == Kind::camps_ask ||
-                    k == Kind::camps ||
+                    k == Kind::camps || k == Kind::mode ||
                     k == Kind::night)) // Stage 6 adds the night mode: then the owner's lines count in it.
       return;
     if (!match() && k == Kind::score)
@@ -274,6 +275,19 @@ private:
       ++(why ? score_dropped_ : score_in_);
       if (why && !std::exchange(peer.score_logged, true))
         event("dropped score lines from " + peer.name + ": " + why);
+      break;
+    }
+    // Her line of a mode of online sessions, with her SteamID from Steam: the mode's module checks who may send which.
+    case Kind::mode: {
+      if (!peer.compatible || !peer.accepted)
+        break;
+      const char *why = over_rate(peer.mode_window, 1, kModePerSecond, kModePerSecond * kMaxMessage)
+                            ? "over the rate limit"
+                        : !for_lua("mode " + std::to_string(peer.id) + " " + message.text) ? "too many waiting"
+                                                                                             : nullptr;
+      ++(why ? mode_dropped_ : mode_in_);
+      if (why && !std::exchange(peer.mode_logged, true))
+        event("dropped mode lines from " + peer.name + ": " + why);
       break;
     }
     case Kind::gift: {

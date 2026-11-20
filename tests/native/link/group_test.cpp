@@ -6,7 +6,7 @@
 // host lets her in, refused and removed members, the host's questions one at a time with each joiner's wait line, the
 // host leaving, a guest leaving, the follow's camps answers to the asker only, the features kept to 2 players (gifts,
 // Doro races, Night Operation, a guest's photo pause), the pair rule on channels 1 and 2 with its notice, max_players,
-// the pose rate past 2, each member's vitals and parked bike.
+// the pose rate past 2, each member's vitals and parked bike, the mode lines with their rate and 60 s line.
 #include "fake_steam.h"
 
 namespace {
@@ -537,6 +537,54 @@ int main() {
     m.tick(3, "join " + id(L));
     m.round();
     assert(noticed(m.status(3), "Could not join: that game is full.") && m[3].lobby() == 0);
+  }
+  // Mode lines in an online session of three (the fishing tournament's): a mode request goes reliable to every member
+  // past the handshake, guest to guest included. It reaches each one's Lua as "mode <sender's SteamID> <word>
+  // <text>", the id from Steam. A text mode_line() would not carry never goes. At most kModePerSecond a second each
+  // way: ours past it is dropped with one log line a minute, a member's the same. The counts get a line of their own
+  // beside the 60 s line, only in a minute that had some. With nobody linked, nothing goes.
+  reset();
+  {
+    Mesh m(3);
+    assert(!m[0].mode("fish go 7 10 1001,2002"));
+    group(m, 3);
+    const auto has = [](const std::vector<std::string> &lines, const std::string &line) {
+      return std::find(lines.begin(), lines.end(), line) != lines.end();
+    };
+    const int lines = count("P1: link, last 60 s: ");
+    while (count("P1: link, last 60 s: ") == lines)
+      m.round();
+    m.tick(0, "mode fish go 7 10 1001,2002,4003");
+    assert(sent_from(kMe, kFriend, v("mode fish go 7 10 1001,2002,4003")) == 1 &&
+           sent_from(kMe, kPlayer[2], v("mode fish go 7 10 1001,2002,4003")) == 1);
+    m.round();
+    assert(has(m[1].take_chat(), "mode 1001 fish go 7 10 1001,2002,4003") &&
+           has(m[2].take_chat(), "mode 1001 fish go 7 10 1001,2002,4003"));
+    m.tick(2, "mode fish ready 7");
+    m.round();
+    assert(has(m[0].take_chat(), "mode 4003 fish ready 7") && has(m[1].take_chat(), "mode 4003 fish ready 7"));
+    assert(!m[0].mode("fish a\tb") && !m[0].mode("fish") && !m[0].mode("Fish go 7") &&
+           !m[0].mode(std::string(kMaxMessage, 'a') + " go") && sent_from(kMe, kFriend, v("mode")) == 1);
+    rounds(m, 1000);
+    for (int i = 0; i < 16; ++i)
+      assert(m[0].mode("fish catch 7 9220 " + id(i)));
+    assert(!m[0].mode("fish catch 7 9220 16") && !m[0].mode("photohunt claim 7 1") &&
+           count("P1: dropped our mode lines: over the rate limit") == 1);
+    m.round();
+    m.round();
+    assert(m[1].take_chat().size() == 16 && m[2].take_chat().size() == 16);
+    rounds(m, 1000);
+    for (int i = 0; i < 20; ++i)
+      inbox(0, kChannel).push_back({kFriend, mode_line("fish catch 7 9220 " + id(i))});
+    m.round();
+    m.round();
+    const auto got = m[0].take_chat();
+    assert(got.size() == 16 && got[0] == "mode 2002 fish catch 7 9220 0" && got[15] == "mode 2002 fish catch 7 9220 15");
+    assert(count("P1: dropped mode lines from P2: over the rate limit") == 1);
+    rounds(m, 60000);
+    assert(count("P1: mode lines, last 60 s: 17 in, 17 out, 10 dropped") == 1);
+    rounds(m, 60000);
+    assert(count("P1: mode lines, last 60 s: ") == 1); // A minute without one has no line.
   }
   std::puts("link_group_test: ok");
 }
