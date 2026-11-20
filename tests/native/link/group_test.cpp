@@ -455,9 +455,9 @@ int main() {
     rounds(m, 2000);
     assert(m.status(0).find("\nspot?=") == npos && m.status(1).find("\nspot=") == npos);
   }
-  // The rest line: a guest's reaches the host and every other guest once, never her; the host's every guest. Lua's
-  // chat line names the resting member by SteamID. A rest line naming another member is dropped by the host, a guest
-  // takes one from the host only.
+  // The rest line: a guest sends hers to the host only. He relays it to every other guest once, never back to her. His
+  // own goes to every guest. Lua's chat line names the resting member by SteamID. A rest line naming another member is
+  // dropped by the host, a guest takes one from the host only.
   reset();
   {
     Mesh m(3);
@@ -466,7 +466,7 @@ int main() {
     rounds(m, 100);
     const std::string line = v("rest Zone_Xion_10 " + id(kFriend));
     assert(sent_from(kFriend, kMe, line) == 1 && sent_from(kMe, kPlayer[2], line) == 1 &&
-           sent_from(kMe, kFriend, v("rest")) == 0);
+           sent_from(kMe, kFriend, v("rest")) == 0 && sent_from(kFriend, kPlayer[2], v("rest")) == 0);
     const std::string lua = "rest Zone_Xion_10 " + id(kFriend);
     for (int i : {0, 2}) {
       const auto chat = m[i].take_chat();
