@@ -23,7 +23,7 @@ do
     local words={}
     for w in assert(src:match('kRowWords%[kRowWordCount%] = {(.-)};')):gmatch('"(%a+)"') do words[#words+1]=w end
     assert(table.concat(words,' ')=='lion gardener tendril bolt mxiii shop signal mxspawn mxenv mxupper mxmiddle '
-        ..'mxlower mxnames mxlily mxrecords halls',
+        ..'mxlower mxnames mxlily mxrecords halls teamshop',
         'The words, the batches\' order')
 end
 
