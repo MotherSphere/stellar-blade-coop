@@ -2469,8 +2469,27 @@ int main() {
     F.inbox.push_back({kFriend, vit_line(mine)});
     w.tick();
     assert(w.status().find("\nmate=1500 ") != std::string::npos);
+    // solo_pair(ours): our type or the pair's last one solo; a public type: false. No vit line for 4 s (a load, lost
+    // unreliable lines) keeps her last type while the session holds; its end forgets it.
+    {
+      Vitals solo{900, 1600, 0, 50, 5, 200, 1000, 0, 0, 0, 0, 1, 5};
+      assert(!w.link.solo_pair(1) && w.link.solo_pair(2));
+      F.inbox.push_back({kFriend, vit_line(solo)});
+      w.tick();
+      assert(w.link.solo_pair(1));
+      w.tick("", 0, 0, 4000);
+      assert(w.link.solo_pair(1) && w.status().find("\nmate=") == std::string::npos);
+      solo[vital::zone] = 1;
+      F.inbox.push_back({kFriend, vit_line(solo)});
+      w.tick();
+      assert(!w.link.solo_pair(1) && w.link.solo_pair(6) && !w.link.solo_pair(0));
+      solo[vital::zone] = 5;
+      F.inbox.push_back({kFriend, vit_line(solo)});
+      w.tick();
+    }
     w.tick("leave");
     assert(w.status().find("\nmate=") == std::string::npos && saw("chat this session: 0 in, 0 out, 0 dropped"));
+    assert(!w.link.solo_pair(1));
   }
 
   // The follow's camps lines (online/group/travel.lua). Outside a session nothing goes. Between two Links, A hosting

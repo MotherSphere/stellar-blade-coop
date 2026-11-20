@@ -183,6 +183,20 @@ public:
       s += "camps?=" + std::to_string((ask ? ask : last)->camps_n) + "\n";
     if (linked() && !camps_answer_.empty())
       s += "camps=" + camps_answer_ + "\n";
+    // The travel's spot lines (online/group/travel.lua), while linked, the same way: our number for the oldest spot?
+    // still waiting for our answer, else for the last one taken; the answer to our last spot?, without its tag.
+    const Peer *spot = nullptr, *spot_last = nullptr;
+    for (auto &p : peers_)
+      if (p.spot_asked) {
+        if (p.spot_waiting && (!spot || p.spot_at < spot->spot_at))
+          spot = &p;
+        if (!spot_last || p.spot_at > spot_last->spot_at)
+          spot_last = &p;
+      }
+    if (linked() && (spot || spot_last))
+      s += "spot?=" + std::to_string((spot ? spot : spot_last)->spot_n) + "\n";
+    if (linked() && !spot_answer_.empty())
+      s += "spot=" + spot_answer_ + "\n";
     // Her last night line (online/modes/nightop/run.lua's), while a session holds; gone when she is lost or the session
     // ends.
     if (!night_.empty() && linked())

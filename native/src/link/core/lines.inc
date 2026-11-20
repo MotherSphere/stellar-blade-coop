@@ -208,10 +208,23 @@ public:
     return true;
   }
   // For coop-chat.txt (glue/steam.cpp), oldest first: "in <SteamID> <text>" (a member's, chat_clean(); ours in the
-  // loopback), "fail" (ours could not go), "race <text>" (her race line) and "gift <payload>" (her gift line, or our
-  // gift that could not go).
+  // loopback), "fail" (ours could not go), "race <text>" (her race line), "gift <payload>" (her gift line, or our
+  // gift that could not go) and "rest <zone> <SteamID>" (a member's camp rest, by her SteamID: her name may be empty).
   std::vector<std::string> take_chat() { return std::exchange(chat_, {}); }
   bool chat_waiting() const { return !chat_.empty(); }
+  // Whether online play pauses toward the pair (glue/steam.cpp keeps story together and the shared fight off): our
+  // zone type (ours) or the pair's last vit line names a solo zone (solo_zone()). Hers counts whatever its age while
+  // the session holds (chat_session() forgets it at the end), so a load into or out of a Boss Challenge or a few lost
+  // unreliable lines never resume the shared fight for a moment. As of the last tick().
+  bool solo_pair(uint32_t ours) const {
+    if (solo_zone(ours))
+      return true;
+    const uint64_t pair = partner();
+    for (auto &p : peers_)
+      if (pair && p.id == pair)
+        return p.has_vitals && solo_zone(p.vitals[vital::zone]);
+    return false;
+  }
 private:
   // Her vitals while a session holds and they are under kMateMs old: those of the member with that SteamID, or with no
   // member linked ours back as hers in the loopback; null otherwise.

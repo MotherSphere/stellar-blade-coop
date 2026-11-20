@@ -954,6 +954,18 @@ int main() {
            !saw("P2: dropped a camps line"));
     m.tick(1, "camps? 3");
     assert(saw("P2: camps line not sent: a match lobby") && sent_count(P + " camps") == 0);
+    // The spot and rest lines: off both ways.
+    inbox(0, kChannel).push_back({kPlayer[1], spot_ask_line(3)});
+    inbox(0, kChannel).push_back({kPlayer[1], rest_line("Zone_A", kPlayer[1])});
+    inbox(1, kChannel).push_back({kPlayer[0], spot_line(3, Spot{1, 2, 3, 4})});
+    m.round();
+    assert(m[0].take_chat().empty() && m.status(0).find("\nspot?=") == std::string::npos &&
+           m.status(1).find("\nspot=") == std::string::npos && !saw("dropped a spot line") &&
+           !saw("dropped a rest line"));
+    m.tick(1, "spot? 3 " + std::to_string(kPlayer[0]));
+    m.tick(1, "rest Zone_A");
+    assert(saw("P2: spot line not sent: a match lobby") && saw("P2: rest line not sent: a match lobby") &&
+           sent_count(P + " spot") == 0 && sent_count(P + " rest") == 0);
     assert(!m[0].send_fight(quest_tag() + " x", true) && !m[0].send_fight(world_tag() + " on", true) &&
            !m[0].send_fight(story_tag() + " on", true) && m[0].send_fight(fight_tag() + " x", true));
     inbox(0, kFightChannel).push_back({kPlayer[1], quest_tag() + " x"});
