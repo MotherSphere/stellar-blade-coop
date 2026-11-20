@@ -190,6 +190,9 @@ copies, and switches neither. As with a refresh, the first time it only says wha
   with `DLC02_`: the camps `coop mxiii` and `coop mxiii 30` add there, their rows, `DLC02_10_EnvS_906` once the kit is
   activated, `DLC02_30_EnvS_900` after the arrival at the third zone's camp, and the dungeon's own rows, which no camp
   of the released game uses);
+- refuses it, before it writes anything, while it holds an item of the team shop (`coop teamshop`, see
+  [world/teamshop.md](../world/teamshop.md)): a name that starts with `SBOTeam_` in the inventory, in a pickup left in
+  the world or on a quick slot. The refusal names each one. The save stays a co-op save while EVE holds one;
 - refuses it, before it writes anything, when any other name in the save starts with `DLC02_` (names that start with
   `Zone_DLC02_` excepted): the rows of the dungeon's zones the save keeps once it has played there, such as an enemy's
   saved death, an opened box, a door's state or a pickup. None of the user's 15 released-game saves holds such a name.
@@ -219,9 +222,9 @@ old details. The export has not been tested in game yet.
 
 A save that went through New Game+ also holds a second copy of the inventory and the camps for New Game+
 (`NewGamePlusBaseData`), which playing on does not change. If a co-op save started New Game+ while it held the mod's
-items, Shock Bolts as the selected ammo or the dungeon's camp, that copy keeps them, and the export keeps refusing the
-save; the refusal says so. Only the copy by hand (see [Recovery](#recovery)) takes such a save out, and nothing then checks
-it.
+items, a team shop item, Shock Bolts as the selected ammo or the dungeon's camp, that copy keeps them, and the export
+keeps refusing the save; the refusal says so. Only the copy by hand (see [Recovery](#recovery)) takes such a save out,
+and nothing then checks it.
 
 To get a copy of your own save back in slot 4, use `coop saves refresh 4`; never export a shortcut save. The mark stays
 until a copy of your own save replaces the shortcut save, so if you removed `StellarBladeCoop04.sav` by hand and started
