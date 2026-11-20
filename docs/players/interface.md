@@ -313,7 +313,8 @@ players it holds (Players, 2 to 4), the [revive](playing-with-a-friend.md#revive
 [cutscene wait](playing-with-a-friend.md#cutscene-wait),
 [following the host](playing-with-a-friend.md#following-the-host), the [shared world](../world/objects.md),
 [story together](../story/together.md) and Hide popups online, which turns the game's tutorial and record popups off
-during online play), Modes ([score attack](../online/modes/scoreattack.md) on or off), Saves (the
+during online play), Modes ([score attack](../online/modes/scoreattack.md) and the
+[fishing tournament](../online/modes/fishing.md), each on or off), Saves (the
 [co-op saves](playing-with-a-friend.md#co-op-saves) at the title and
 [shared quests](playing-with-a-friend.md#shared-quests-experimental)), Combat (shared enemies, same place, shared
 flinches, stagger resistance, who same-place enemies attack, same spawns, extra enemies, shared bosses, the host's
