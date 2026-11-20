@@ -3063,5 +3063,29 @@ int main() {
     assert(g.windows.empty());
   }
 
+  { // On the guest's side, the host's cc line (refused for its poise, still the host's reaction) and her own rise make
+    // two players. They start no window before the host's stagger line, nor with its stagger_resist off; with it on,
+    // one.
+    const std::pair<const char *, size_t> cases[] = {{"", 0}, {"SBF23 stagger 1 1 0", 0}, {"SBF23 stagger 1 1 1", 1}};
+    for (const auto &[line, windows] : cases) {
+      World g;
+      g.add(501, 5001, 0).s.type = 3;
+      Guest gu;
+      gu.receive(msg("SBF23 world 1"), g);
+      gu.receive(msg("SBF23 up 1 101 5001 0 900 1600"), g);
+      if (*line)
+        gu.receive(msg(line), g);
+      step(gu, g, 1, 0);
+      g.react = Reaction{1, 600, false};
+      g.actor(501)->s.poise = 5.0f;
+      gu.receive(msg("SBF23 cc 1 101 3000300 1 0"), g);
+      step(gu, g, 2, 100);
+      assert(gu.counts.cc_poise == 1);
+      g.actor(501)->s.poise = 0, g.actor(501)->s.cc = 1;
+      step(gu, g, 3, 200);
+      assert(g.windows.size() == windows && gu.counts.windows == windows);
+    }
+  }
+
   std::puts("fight_sync_test: ok");
 }
