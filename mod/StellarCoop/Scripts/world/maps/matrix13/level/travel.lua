@@ -31,7 +31,7 @@
 -- the Lion and Gardener the game spawns (world/maps/matrix13/level/boss.lua); coop mxiii boss spawns the key-0 boss of
 -- the arena EVE stands in. Each arrival in world 2800 runs the world's setup under SB's own black (the lobby's
 -- LoadingScreenFadeAuto), lifted once the ladders, boxes and walks are done, so none of it shows in play. coop mxiii
--- warp lists the arrival points of the old warp switches, and coop mxiii warp <n|name> puts EVE on one (a test
+-- warp lists the arrival points of the old warp switches. coop mxiii warp <n|name> puts EVE on one (a test
 -- fallback: no switch stands in the map, as in Matrix 11). The way out is coop mxiii
 -- leave: the follow's probe, under its guards and its activation read (game/camps.h), to a travel camp the read lists:
 -- the camp EVE respawned at when coop mxiii asked its travel, else the one she respawns at now, else the read's first.
@@ -416,7 +416,7 @@ function Mxiii.new(o)
                 fans.prime(fresh)
             end
             local budget=held and Mxiii.HELD_BUDGET or nil
-            -- One spawn a frame over both lists in play: each spends 4 ms a tick, and a ladder (10 to 13 ms) and a box
+            -- One spawn a frame over both lists in play: each spends 4 ms a tick. A ladder (10 to 13 ms) and a box
             -- (8 to 13 ms) in one frame took it to 18 to 26 ms, so the boxes and barrels wait while the ladders spawn.
             if not move.tick(budget) then breakables.tick(budget) end
             if held and move.done(w) and breakables.done(w) then
