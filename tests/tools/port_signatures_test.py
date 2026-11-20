@@ -23,7 +23,7 @@ import make_signatures as ms  # noqa: E402
 
 # (instruction, length, offset of its rel32 or RIP-relative disp32), checked against capstone 5.0 when written.
 CASES = [
-    ('90', 1, None), ('c3', 1, None), ('e8 00 00 00 00', 5, 1), ('e9 00 00 00 00', 5, 1), ('eb 05', 2, None),
+    ('90', 1, None), ('c3', 1, None), ('e8 00 00 00 00', 5, 1), ('e9 00 00 00 00', 5, 1), ('e4 60', 2, None),
     ('0f 84 00 00 00 00', 6, 2), ('48 8b 05 00 00 00 00', 7, 3), ('48 8d 0d 00 00 00 00', 7, 3),
     ('80 3d 00 00 00 00 01', 7, 2), ('c7 05 00 00 00 00 01 00 00 00', 10, 2), ('66 c7 05 00 00 00 00 01 00', 9, 3),
     ('48 89 5c 24 08', 5, None), ('48 81 ec b0 00 00 00', 7, None), ('48 8b 84 24 a0 00 00 00', 8, None),
@@ -35,9 +35,11 @@ CASES = [
     ('ff 15 00 00 00 00', 6, 2), ('ff 25 00 00 00 00', 6, 2), ('c2 08 00', 3, None), ('41 0f b6 05 00 00 00 00', 8, 4),
     ('0f ba e0 03', 4, None), ('66 0f 70 c1 1b', 5, None), ('69 c0 10 00 00 00', 6, None), ('6b c0 10', 3, None),
 ]
-for text, length, rel in CASES:
+# (short jump, length, offset of its rel8): jmp, jcc, loop, jrcxz, a jcc with a branch hint.
+SHORT = [('eb 05', 2, 1), ('74 a2', 2, 1), ('7f 00', 2, 1), ('e0 fe', 2, 1), ('e3 10', 2, 1), ('2e 75 07', 3, 2)]
+for text, length, rel, short in [(*c, None) for c in CASES] + [(t, n, None, s) for t, n, s in SHORT]:
     got = ms.decode(bytes.fromhex(text) + bytes(16), 0)
-    assert got == (length, rel), f'decode({text}) gave {got}, want {(length, rel)}'
+    assert got == (length, rel, short), f'decode({text}) gave {got}, want {(length, rel, short)}'
 try:
     ms.decode(b'\x06' + bytes(16), 0)
     raise AssertionError('decode took 06, which 64-bit code does not use')
@@ -154,6 +156,10 @@ k = data.index(struct.pack('<2Q', at['unique'], at['lone']))  # vtable2, at .rda
 held[k + 0x58:k + 0x60] = struct.pack('<Q', at['lone'])  # .rdata + 0x1a0, free
 assert ms.resolve(ms.Image(bytes(held)), out[f'{at["vtable2"]:#x}']) is None, 'a holder held twice gave an address'
 
+# Two runs that differ first in a short jump's rel8, then in an immediate: the rel8 is a wildcard, so the run goes on.
+short = bytes.fromhex('48 89 5c 24 08 74 07 b8 01 00 00 00 c3 cc 48 89 5c 24 08 74 04 b8 02 00 00 00 c3')
+assert ms.shortest(short, 0) == (short[:12], 'xxxxxx?xxxxx'), f'a rel8 told two runs apart: {ms.shortest(short, 0)}'
+
 # The two stubs differ only after their jump out of .text: a run stops at that jump, so neither gets one.
 assert ms.shortest(image.code, at['stub_a'] - image.code_va) is None, 'a run went on past a jump out of .text'
 
@@ -249,4 +255,4 @@ if EXE.is_file():
     real = f'find.py on build 26123051: {count}'
 else:
     real = f'find.py on build 26123051 skipped: no {EXE}'
-print(f'port_signatures_test: ok ({len(CASES)} instructions, {len(want)} fake signatures; {real})')
+print(f'port_signatures_test: ok ({len(CASES) + len(SHORT)} instructions, {len(want)} fake signatures; {real})')

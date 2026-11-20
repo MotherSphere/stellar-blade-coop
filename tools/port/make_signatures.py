@@ -6,7 +6,8 @@
 
 A signature is a run of whole instructions in the code section (the image's first section) that occurs there exactly
 once. The 4-byte field of a relative call or jump (rel32) and of a RIP-relative operand is a wildcard: it changes as
-soon as code or data moves. For each function, code, global and rdata address the tool tries in this order:
+soon as code or data moves. The 1-byte field of a short jump (rel8) is one too: it changes when the code between the
+jump and its target changes length. For each function, code, global and rdata address the tool tries in this order:
 - for a function or code address, the shortest run from the address, up to 128 bytes;
 - an instruction whose field gives the address: a call, a jump or a RIP-relative load ("ref"). The run may start up
   to 48 bytes before it. For a data address that no instruction gives, one that gives the nearest address below it
@@ -72,8 +73,8 @@ def _modrm(code, i):
 
 
 def decode(code, i):
-    """(length, position of a rel32 or RIP-relative disp32 or None) of the x86-64 instruction at code[i]. Raises
-    ValueError on an opcode that 64-bit code does not use."""
+    """(length, position of a rel32 or RIP-relative disp32 or None, position of a rel8 or None) of the x86-64
+    instruction at code[i]. Raises ValueError on an opcode that 64-bit code does not use."""
     s, opsize, addr32, rexw = i, False, False, False
     while code[i] in PREFIXES or code[i] & 0xf0 == 0x40:  # Only a REX right before the opcode counts.
         opsize |= code[i] == 0x66
@@ -90,34 +91,36 @@ def decode(code, i):
         if mp not in (1, 2, 3):
             raise ValueError(f'map {mp}')
         if mp == 1 and op == 0x77:  # vzeroupper, vzeroall
-            return i - s, None
+            return i - s, None, None
         n, rel = _modrm(code, i)
-        return i + n + (mp == 3 or (mp == 1 and op in IMM8_2)) - s, rel
+        return i + n + (mp == 3 or (mp == 1 and op in IMM8_2)) - s, rel, None
     if op == 0x0f:
         op = code[i]
         i += 1
         if op in (0x38, 0x3a):
             n, rel = _modrm(code, i + 1)
-            return i + 1 + n + (op == 0x3a) - s, rel
+            return i + 1 + n + (op == 0x3a) - s, rel, None
         if 0x80 <= op <= 0x8f:  # jcc rel32
-            return i + 4 - s, i
+            return i + 4 - s, i, None
         if op in INVALID2:
             raise ValueError(f'0f {op:02x}')
         if op in NO_MODRM2:
-            return i - s, None
+            return i - s, None, None
         n, rel = _modrm(code, i)
-        return i + n + (op in IMM8_2) - s, rel
+        return i + n + (op in IMM8_2) - s, rel, None
     if op in INVALID1:
         raise ValueError(f'{op:02x}')
     if op in (0xe8, 0xe9):  # call, jmp rel32
-        return i + 4 - s, i
+        return i + 4 - s, i, None
+    if 0x70 <= op <= 0x7f or 0xe0 <= op <= 0xe3 or op == 0xeb:  # jcc, loop, jrcxz, jmp rel8
+        return i + 1 - s, None, i
     immz = 2 if opsize else 4
     if op in MODRM1:
         n, rel = _modrm(code, i)
         imm = (op in IMM8_1) + immz * (op in IMMZ_1)
         if op in (0xf6, 0xf7) and code[i] & 0x38 < 0x10:  # test r/m, imm
             imm = 1 if op == 0xf6 else immz
-        return i + n + imm - s, rel
+        return i + n + imm - s, rel, None
     if 0xb8 <= op <= 0xbf:
         imm = 8 if rexw else immz
     elif 0xa0 <= op <= 0xa3:  # mov with a 64-bit address
@@ -128,7 +131,7 @@ def decode(code, i):
         imm = 3
     else:
         imm = (op in IMM8_1) + immz * (op in IMMZ_1)
-    return i + imm - s, None
+    return i + imm - s, None, None
 
 
 Ref = namedtuple('Ref', 'at disp end add before read', defaults=(False,))
@@ -190,17 +193,18 @@ class Image:
 
 
 def instructions(code, start):
-    """The instructions from code[start] that end within MAX_LEN bytes, as (end, rel) offsets from start, up to an int3
+    """The instructions from code[start] that end within MAX_LEN bytes, as (end, rel32, rel8) offsets from start (None
+    for a field the instruction lacks), up to an int3
     (padding between functions), a jump out of the code section or an opcode decode() refuses."""
     out, i = [], start
     while i < len(code) and code[i] != 0xcc:
         try:
-            n, rel = decode(code, i)
+            n, rel, short = decode(code, i)
         except (ValueError, IndexError):
             break
         if i + n - start > MAX_LEN:
             break
-        out.append((i + n - start, None if rel is None else rel - start))
+        out.append((i + n - start, None if rel is None else rel - start, None if short is None else short - start))
         i += n
         if code[i - n] == 0xe9 and not 0 <= i + struct.unpack_from('<i', code, i - 4)[0] < len(code):
             break  # A jump out of the code section: a protected function's stub, with junk after it.
@@ -223,10 +227,10 @@ def shortest(code, start, at_least=1):
     insns = instructions(code, start)
     if not insns:
         return None
-    wild = {r + k for _, r in insns if r is not None for k in range(4)}
+    wild = {r + k for _, r, _ in insns if r is not None for k in range(4)} | {s for *_, s in insns if s is not None}
     pattern = code[start:start + insns[-1][0]]
     mask = ''.join('?' if k in wild else 'x' for k in range(len(pattern)))
-    first = next((e for e, _ in insns if e >= at_least and mask[:e].count('x') >= MIN_FIXED), None)
+    first = next((e for e, *_ in insns if e >= at_least and mask[:e].count('x') >= MIN_FIXED), None)
     if first is None:
         return None
     # Any other place the longer runs match also matches this first one: count how far each of those goes.
@@ -238,7 +242,7 @@ def shortest(code, start, at_least=1):
         while n < len(pattern) and at + n < len(code) and (mask[n] == '?' or code[at + n] == pattern[n]):
             n += 1
         longest = max(longest, n)
-    end = next((e for e, _ in insns if e >= first and e > longest), None)
+    end = next((e for e, *_ in insns if e >= first and e > longest), None)
     return None if end is None else (pattern[:end], mask[:end])
 
 
@@ -264,7 +268,7 @@ def references(image, exact, near):
         i, seen = image.run_start(field), []
         while i is not None and i < field:
             try:
-                n, rel = decode(code, i)
+                n, rel, _ = decode(code, i)
             except (ValueError, IndexError):
                 break
             if rel == field:

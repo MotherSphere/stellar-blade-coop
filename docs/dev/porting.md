@@ -199,9 +199,10 @@ PE header of the new executable.
 A signature is a run of whole instructions in the code section (`.debug$P`, the image's first section) that occurs
 there exactly once. `pattern` lists its bytes in hex with `??` for a wildcard. `mask` has `x` for a byte that must
 match and `?` for a wildcard. The wildcards cover the 4-byte field of a relative call or jump (rel32) and the 4-byte
-displacement of a RIP-relative operand. Both change as soon as code or data moves. A signature spans at most 128 bytes
-and has at least 6 bytes that must match. It stops before an int3 (the padding between functions) and after a jump out
-of the code section.
+displacement of a RIP-relative operand. Both change as soon as code or data moves. They also cover the 1-byte field of
+a short jump (rel8), which changes when the code between the jump and its target changes length. A signature spans at
+most 128 bytes and has at least 6 bytes that must match. It stops before an int3 (the padding between functions) and
+after a jump out of the code section.
 
 For each address the tool takes the first of these that works:
 
