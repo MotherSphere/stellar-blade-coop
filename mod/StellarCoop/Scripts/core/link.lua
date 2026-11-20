@@ -240,6 +240,9 @@ hide_popups=on
 # Score attack: on or off, on by default. On, you play each round of a score attack match in the SBO lobby. Off, you
 # sit out its rounds.
 scoreattack=on
+# Doro races in matches: on or off, on by default. On, you race each round of a Doro race match in the SBO lobby.
+# Off, you sit out its rounds. Doro races in an online session do not read it.
+race_match=on
 ]]
 -- The looks are comments only in the file above: an old file and a new one both follow the code's default here. A file
 -- written before shared_enemies and fight_chars existed lacks them: on and auto, as here; one written before the photo
@@ -256,7 +259,7 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',rac
     shared_quests='on',
     quest_deny='',revive='on',cutscene_wait='on',follow_host='ask',follow_key='F7',collide='on',mod_names='on',shortcut_load='on',
     pvp_spike='on',sbo_lobby='on',shared_world='on',shared_story='on',daynight='on',pause_tab='on',hide_popups='on',
-    gun_mode='on',gun_key='F4',scoreattack='on'}
+    gun_mode='on',gun_key='F4',scoreattack='on',race_match='on'}
 -- Gun mode's test lines (fight/gunmode/config.lua): no template line, no menu row. Kept as written, empty when absent;
 -- gun mode checks them and logs what it refuses.
 local GUN_TESTS={gun_aim_key=true,gun_zoom=true,gun_upper=true,gun_fire=true,gun_probe=true,gun_trace=true,
@@ -269,7 +272,7 @@ local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=tr
     photo_ghost=true,photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
     card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true,mod_names=true,shortcut_load=true,
     pvp_spike=true,sbo_lobby=true,shared_world=true,shared_story=true,friends_ask=true,bike=true,daynight=true,
-    pause_tab=true,hide_popups=true,gun_mode=true,scoreattack=true}
+    pause_tab=true,hide_popups=true,gun_mode=true,scoreattack=true,race_match=true}
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (online/partner/puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key','bike_key','gun_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},

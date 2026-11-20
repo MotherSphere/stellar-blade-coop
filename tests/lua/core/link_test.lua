@@ -606,10 +606,18 @@ assert(Link.parse_settings('').hide_popups==true and Link.parse_settings('hide_p
 -- the next round (online/modes/scoreattack/game.lua).
 assert(Link.parse_settings('').scoreattack==true and Link.parse_settings('scoreattack=OFF').scoreattack==false
     and Link.DEFAULT:find('\nhide_popups=on\n# Score attack: on or off, on by default.',1,true)
-    and Link.DEFAULT:find('\nscoreattack=on\n$'))
+    and Link.DEFAULT:find('\nscoreattack=on\n',1,true))
 s,notes=Link.parse_settings('scoreattack=maybe')
 assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for scoreattack (use on or off); "
     .."scoreattack stays on" and s.scoreattack==true,notes[1])
+-- Doro races in matches: on by default, last in a new file, its comment right after scoreattack. Session races do not
+-- read it (online/modes/race/).
+assert(Link.parse_settings('').race_match==true and Link.parse_settings('race_match=OFF').race_match==false
+    and Link.DEFAULT:find('\nscoreattack=on\n# Doro races in matches: on or off, on by default.',1,true)
+    and Link.DEFAULT:find('\nrace_match=on\n$'))
+s,notes=Link.parse_settings('race_match=maybe')
+assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for race_match (use on or off); "
+    .."race_match stays on" and s.race_match==true,notes[1])
 assert(Link.DEFAULT:find('\ndaynight=on\n# Shortcut saves, a test tool: on or off, on by default.',1,true)
     and Link.DEFAULT:find('cannot be taken back',1,true) and Link.DEFAULT:find('\nshortcut_load=on\n'))
 assert(Link.parse_settings('shortcut_load=OFF').shortcut_load==false)
