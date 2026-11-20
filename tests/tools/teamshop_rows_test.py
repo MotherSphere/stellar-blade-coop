@@ -41,25 +41,33 @@ def refused(change):
     return False
 
 
-# 2. What the checks refuse, each next to the nearest data they let through.
+# 2. What the checks refuse, each next to the nearest data they let through. The cases take their counts and ranges
+# from the data, so a new item or owner needs no edit here.
 assert refused(lambda o: o[0]['items'][0].update(alias='GothicRose'))                     # no prefix
 assert refused(lambda o: o[0]['items'][0].update(alias='SBOTeam_Gothic Rose'))            # a space
 assert refused(lambda o: o[0]['ids'].update(ItemTable=[1, 999]))                           # under the shipped max
-assert refused(lambda o: o[0]['ids'].update(ItemTable=[2000151, 2000151]))                 # the shipped max itself
-assert not refused(lambda o: o[0]['ids'].update(ItemTable=[2000152, 2000152]))
+# The owner with the lowest ItemTable range: moved down to start next to the shipped max, it overlaps nobody.
+low = min(range(len(owners)), key=lambda k: owners[k]['ids']['ItemTable'][0])
+held = len(owners[low]['items'])
+assert refused(lambda o: o[low]['ids'].update(ItemTable=[2000151, 2000150 + held]))       # the shipped max itself
+assert not refused(lambda o: o[low]['ids'].update(ItemTable=[2000152, 2000151 + held]))
 assert refused(lambda o: o[0]['ids'].update(ShopItemTable=[9007, 9100]))
 assert refused(lambda o: o[0]['ids'].update(ItemTable=[2001999, 2001000]))                 # last before first
 assert refused(lambda o: o[0]['ids'].update(ItemTable=[2 ** 32 - 1, 2 ** 32]))             # past a uint32
 assert refused(lambda o: o.append(dict(copy.deepcopy(o[0]), owner='other')))              # same alias, same ranges
-other = {'owner': 'other', 'ids': {'ItemTable': [2002000, 2002999], 'ShopItemTable': [11000, 11999]},
+# A new owner above every owner's ranges, with one item.
+top = {t: max(o['ids'][t][1] for o in owners) for t in ('ItemTable', 'ShopItemTable')}
+other = {'owner': 'other', 'ids': {t: [top[t] + 1, top[t] + 1000] for t in top},
          'items': [dict(copy.deepcopy(owners[0]['items'][0]), alias='SBOTeam_Other')]}
 assert not refused(lambda o: o.append(copy.deepcopy(other)))
 assert refused(lambda o: o.append(dict(copy.deepcopy(other), owner=o[0]['owner'])))       # the same owner twice
 assert refused(lambda o: o.append(dict(copy.deepcopy(other), items=copy.deepcopy(o[0]['items']))))  # same alias
 assert refused(lambda o: o.append(dict(copy.deepcopy(other),                               # overlapping ranges
-                                       ids={'ItemTable': [2001999, 2002999], 'ShopItemTable': [11000, 11999]})))
+                                       ids={'ItemTable': [o[0]['ids']['ItemTable'][1], other['ids']['ItemTable'][1]],
+                                            'ShopItemTable': other['ids']['ShopItemTable']})))
 assert refused(lambda o: o.append(dict(copy.deepcopy(other),
-                                       ids={'ItemTable': [2002000, 2002999], 'ShopItemTable': [10500, 10600]})))
+                                       ids={'ItemTable': other['ids']['ItemTable'],
+                                            'ShopItemTable': [o[0]['ids']['ShopItemTable'][0]] * 2})))
 assert refused(lambda o: o[0]['items'][0]['set'].update(CheckCondition='X'))              # off the allow-list
 assert refused(lambda o: o[0]['items'][0]['set'].update(Name='Gothic Rosé'))              # not ASCII
 assert refused(lambda o: o[0]['items'][0]['set'].update(MaxAmount=2))                     # category 4 above 1
@@ -76,14 +84,16 @@ assert refused(lambda o: o[0]['items'][0].update(price={'BetaCrystal': 1000000})
 assert refused(lambda o: o[0]['items'][0].update(price={'BetaCrystal': 5.5}))
 assert refused(lambda o: o[0]['items'][0].update(price={'BetaCrystal': '5000'}))
 assert not refused(lambda o: o[0]['items'][0].update(price={'BetaCrystal': 999999}))
-assert refused(lambda o: o[0]['items'].extend(                                             # 263 rows
-    dict(o[0]['items'][0], alias=f'SBOTeam_X{i}') for i in range(130)))
+total = sum(len(o['items']) for o in owners)                                                # rows: 2 per item + 1
+assert refused(lambda o: o[0]['items'].extend(                                             # 257 rows
+    dict(o[0]['items'][0], alias=f'SBOTeam_X{i}') for i in range(128 - total)))
 assert not refused(lambda o: o[0]['items'].extend(                                         # 255 rows
-    dict(o[0]['items'][0], alias=f'SBOTeam_X{i}') for i in range(126)))
+    dict(o[0]['items'][0], alias=f'SBOTeam_X{i}') for i in range(127 - total)))
 first = owners[0]['ids']['ItemTable'][0]                                                    # the range's start
-assert refused(lambda o: (o[0]['ids'].update(ItemTable=[first, first]),                    # range too small
+just = [first, first + len(owners[0]['items']) - 1]                                        # one ID per item
+assert refused(lambda o: (o[0]['ids'].update(ItemTable=just),                              # range too small
                           o[0]['items'].append(dict(o[0]['items'][0], alias='SBOTeam_B'))))
-assert not refused(lambda o: o[0]['ids'].update(ItemTable=[first, first]))
+assert not refused(lambda o: o[0]['ids'].update(ItemTable=just))
 
 # 3. The rows: each _Buy row sells an ItemTable row of the batch for gold with no gate. The shop lists each _Buy row
 # once with no tag. Each ID sits in its owner's range. Every NanoSuit keeps the screen's refusal of a second buy.
@@ -121,8 +131,9 @@ package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local R=require('world.teamshop.rows')
 assert(#R.ROWS=={len(rows)} and R.SHOP=='{gen.SHOP}' and #R.ITEMS=={len(items)})
 assert(R.ROWS[#R.ROWS][1]=='ShopTable' and R.ROWS[#R.ROWS][2]==R.SHOP)
-local gr=R.ITEMS[1]
-assert(gr.alias=='SBOTeam_GothicRose' and gr.category==4 and gr.price==5000)
+local gr
+for _,i in ipairs(R.ITEMS) do if i.alias=='SBOTeam_GothicRose' then gr=i end end
+assert(gr and gr.category==4 and gr.price==5000)
 for _,r in ipairs(R.ROWS) do
     for _,c in ipairs(r[4]) do assert(#c==4 and type(c[4])=='boolean',r[2]..' '..c[1]) end
 end

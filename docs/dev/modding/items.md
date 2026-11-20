@@ -54,9 +54,8 @@ hold at least one ID per item.
 The taken IDs are `SHIPPED_MAX` and `BATCH_MAX` in `tools/teamshop_rows.py`. The game's come from build 26123051's
 table dumps, the batches' from their headers.
 
-Ask MotherSphere for your two ranges before you write your file. The ranges given so far hold 1000 IDs each, so the
-next free ones start at 2002000 and 11000. If an SB update ships a row on one of your IDs, the row engine refuses that
-row. The shop then stays shut (see [Limits](#limits)) until the range moves.
+Ask MotherSphere for your two ranges before you write your file. If an SB update ships a row on one of your IDs, the
+row engine refuses that row. The shop then stays shut (see [Limits](#limits)) until the range moves.
 
 ## Fields
 

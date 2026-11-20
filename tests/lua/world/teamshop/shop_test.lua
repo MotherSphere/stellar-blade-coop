@@ -69,7 +69,8 @@ StaticFindObject=function(path)
 end
 local REQUEST=string.format('teamshop rows ItemTable=0x%x ShopTable=0x%x ShopItemTable=0x%x',
     tables.ItemTable:GetAddress(),tables.ShopTable:GetAddress(),tables.ShopItemTable:GetAddress())
-local ROWS_IN='teamshop=rows added=3/3 asks=%d spawns=? char=0/0 skills=0/0 stance=0/0'
+-- The counts come from rows.lua, so a new item or owner needs no edit here.
+local ROWS_IN='teamshop=rows added='..#R.ROWS..'/'..#R.ROWS..' asks=%d spawns=? char=0/0 skills=0/0 stance=0/0'
 local COOP='slot=coop index=1 marker=1 saves=coop'
 
 local logs,asked={},{}
@@ -112,7 +113,7 @@ ok,msg=s.open()
 assert(not ok and msg:find('not in',1,true) and opens()==0,msg)
 clock=clock+0.5
 s.tick()
-assert(logged('rows read back through FindRow: 3/3 authored rows'),logs[#logs])
+assert(logged(('rows read back through FindRow: %d/%d authored rows'):format(#R.ROWS,#R.ROWS)),logs[#logs])
 assert(logged('title: the rows are in, before any save loads'),logs[#logs])
 clock=clock+20
 s.title(true,true)
@@ -200,7 +201,7 @@ line='teamshop=off'
 s=new()
 s.title(true,true)
 assert(#asked==1 and asked[1]==REQUEST)
-tables.ShopItemTable.rows.SBOTeam_GothicRose_Buy.MoneyItemCount1=50
+tables.ShopItemTable.rows[R.ITEMS[1].alias..'_Buy'].MoneyItemCount1=50
 line=ROWS_IN:format(2)
 clock=clock+0.5
 s.tick()
