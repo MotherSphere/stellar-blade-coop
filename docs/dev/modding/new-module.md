@@ -3,6 +3,7 @@
 `tools/new_module.py` makes the files a new module needs to load. It also does the registrations that
 `tests/tools/modules_test.py` and the other tests ask for. It follows [Adding a module](../structure.md#adding-a-module)
 for a module in a category folder. A module with a folder of its own at the top, like `eve/`, is still made by hand.
+[Modules](modules.md) explains each file it makes and each registration on a real module.
 
 ## The command
 

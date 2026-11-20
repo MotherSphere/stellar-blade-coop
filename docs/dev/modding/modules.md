@@ -5,6 +5,9 @@ This page is the hands-on companion to [How the code is organised](../structure.
 skeleton to start a new module from, shows how one module reads another and lists the order in which a new module is
 registered.
 
+[New module](new-module.md) does the skeleton and the registrations for you with `tools/new_module.py`. Read this page
+to know what it wrote.
+
 Script paths below (`online/lobby/wiring.lua`) are relative to `mod/StellarCoop/Scripts/`, native ones
 (`glue/tick.cpp`) to `native/src/`. Paths that start with `mod/`, `native/`, `tests/`, `docs/` or `tools/` and
 every command are from the repository root.
