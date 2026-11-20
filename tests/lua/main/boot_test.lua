@@ -813,6 +813,10 @@ chat_lines={{gift='s 17 HP_Potion 3'},{gift='a 9'}}
 loops[2].f()
 assert(gf.received[1]=='s 17 HP_Potion 3' and gf.received[2]=='a 9' and gf.ticks==gift_ticks+1,
     'Her gift lines to it, and its tick every 250 ms')
+-- A member's camp rest goes to the group module, once.
+chat_lines={{rest='Zone_A',from='2'}}
+loops[2].f()
+assert(#gr.rests==1 and gr.rests[1][1]=='Zone_A' and gr.rests[1][2]=='2','Her rest line to the group module')
 -- coop mxiii: out of the usage line too, on a co-op save only. Its status and requests are the link's, its follow the
 -- one main.lua builds with the link (read at each call), its Paks folder from the mod folder, its file reads
 -- core/link.lua's, its lines [MX] lines; ticked every frame.
@@ -1127,8 +1131,9 @@ assert(dm.stops==1 and asked[dm.asked_at_stop+1]=='devinfo off' and asked[dm.ask
 local written=#states
 takes=chat_takes
 ra.s=ra.slows
-chat_lines={{gift='s 18 HP_Potion 1'}}
+chat_lines={{gift='s 18 HP_Potion 1'},{rest='Zone_A',from='2'}}
 loops[2].f(); assert(captured[#captured]==false,'Her capture is withdrawn after coop off')
+assert(#gr.rests==1,'No rest line to the group module after coop off')
 assert(ra.slows==ra.s,'No race check after coop off')
 assert(nr.ticks==nr.ticked+1,'No run tick after coop off')
 assert(rx.ticks==rx.ticked+1 and rx.stopped==true,"Roxanne's tick goes on after coop off, as stopped")

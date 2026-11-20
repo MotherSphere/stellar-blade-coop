@@ -57,6 +57,18 @@
 -- photo line pauses the guest; the guest asks for that pause with cut=1 while her cutscene_wait is on and the host's
 -- ghost (his member line's slot) is on her map (cut()). Her notice comes once each time her photo line says the pause
 -- holds for it.
+-- Camp rests (shared_world=on, linked, a co-op save, not in a solo area of ours): each start of our own zone reset on
+-- the engine line's rest=<ours>:<area>:<type> (the first read of a Lua load is the baseline) sends rest <area> with type
+-- 1, or with type 2 once our life read alive for 10 s before it (else a death's camp respawn), never within 10 s after
+-- our own ResetZone call (SB's echo of that call carries GUID 0 and never moves ours: a guard only). Each rest received
+-- from another member (rest(zone,from)) waits in a queue, one per zone; a zone reset in our game in the last 30 s (our
+-- own rest, an applied call) drops it. Each second while queued: dropped once the session ended, without shared_world,
+-- off a co-op save, outside that zone (the engine line's area=), with no life read, in a solo area of ours, with no
+-- boss= and battle= on the fight line (no shared fight in this game), in a game that is not standalone, or for a zone
+-- FNAME_Find does not know; waiting through a fight, a cutscene, a pause, no EVE, a respawn or warp, our EVE down, no
+-- controller, 60 s at most (then the skipped notice). Then pc:ServerRequest_ResetZone(our GUID, the zone's FName) with
+-- the rested notice: SB's own reset of that zone for our EVE (FSBResetZone resets it only where the logic's zone is the
+-- same). More than 3 starts within 30 s after one call stop the calls for the Lua load, with a notice.
 local U=require('core.unreal')
 local Where=require('core.where')
 local N=require('core.player')
@@ -71,6 +83,9 @@ local PLACE={[2]='training',[3]='spirit',[4]='test',[5]='boss',[6]='nikke'}
 local ACROSS,UP,NEAR=200,100,300 -- cm: her ghost from our EVE across and up or down; our EVE from hers, for our revive.
 local LOOK=10 -- s between two lookups of the death screen while it is not found.
 local HIDDEN=2 -- ESlateVisibility Hidden.
+-- Camp rests, s: alive before a type-2 start of ours counts, also the guard after our own ResetZone call; the retry
+-- step; the wait for a busy game; starts after one call that stop the calls; their window; a zone just reset.
+local CALM,RETRY,GIVE_UP,STOP_N,STOP_S,SAME=10,1,60,3,30,30
 local function alive(m) return m~=nil and (m.life==1 or m.life==6) and m.hp>0 end
 local function down(m) return m~=nil and (m.life>=3 and m.life<=5 or m.hp==0 and m.max_hp>0) end
 local why=U.why
@@ -103,6 +118,10 @@ function G.new(o)
     local function night() return o.night~=nil and o.night()==true end
     local hers={} -- Each member's death as we saw it, by her SteamID: {said=}.
     local scene={playing=false,next=0,told=false} -- A cutscene: as of the last read, the next read, our notice.
+    -- Camp rests: the engine line's last counts (nil before the first read), since when our life reads alive, our last
+    -- ResetZone call {at=, starts=}, each zone's last reset in our game by alias, the received rests waiting ({zone=,
+    -- from=, at=, next=, why=}, oldest first), the stop latch.
+    local rests={ours=nil,starts=nil,alive=nil,call=nil,reset={},queue={},stopped=false}
     local function engine() return ('\n'..(link.status() or '')):match('\nengine=([^\r\n]*)') or '' end
     local function death_screen()
         if not U.valid(screen) then
@@ -158,6 +177,7 @@ function G.new(o)
         return m and ghost_of(m.slot) or puppet
     end
     local function boss_free() return (link.fight() or ''):find(' boss=0',1,true)~=nil end
+    local function coop_save() return ('\n'..(link.status() or '')):find('\nslot=coop ',1,true)~=nil end
     -- A member whose own game can make the revive's call: outside an online session any, in one the host or the pair.
     local function revivable(m)
         local h=link.host()
@@ -365,8 +385,7 @@ function G.new(o)
     local function open()
         if off.revive or not d or not d.at or d.call or d.done or d.back or d.at-respawned<RECENT then return nil end
         local life=link.life()
-        if not (life and life.state==3) or not ('\n'..(link.status() or '')):find('\nslot=coop ',1,true)
-            or not settings.revive or night() or not boss_free() then
+        if not (life and life.state==3) or not coop_save() or not settings.revive or night() or not boss_free() then
             return nil
         end
         local m=target()
@@ -515,6 +534,113 @@ function G.new(o)
             tell('cutscene')
         end
     end
+    -- The rest line's member: her name, else the words' someone.
+    local function rest_tell(key,from)
+        local m=link.member(from)
+        local name=m and m.name or ''
+        o.tell(function(w) return w.group[key]:format(name~='' and o.name(w,name) or w.group.someone) end)
+    end
+    -- Our own zone reset start on the engine line: send its area when it counts as a rest (see the header).
+    local function send_rest(linked,area,kind)
+        if rests.call and now-rests.call.at<CALM then
+            return log('rest: our own reset within 10 s of a ResetZone call, not sent')
+        end
+        local why=not settings.shared_world and 'shared_world=off' or not linked and 'no session'
+            or not coop_save() and 'not a co-op save' or Link.solo((link.zone())) and 'a solo area of ours'
+            or area=='none' and 'no area read'
+            or kind==2 and not (rests.alive and now-rests.alive>=CALM) and 'type 2 within 10 s of getting up'
+        if why then return log('rest: our own reset of '..area..' not sent: '..why) end
+        local ok,e=link.request('rest '..area)
+        log(ok and 'rest: our own reset of '..area..' sent' or 'rest: our own reset of '..area..' not sent: '..tostring(e))
+    end
+    -- Why received rest r is dropped ('drop', why) or waits ('busy', why); else nil, our GUID, the controller and the
+    -- zone's FName.
+    local function rest_check(r)
+        if not settings.shared_world then return 'drop','shared_world=off' end
+        if not coop_save() then return 'drop','not a co-op save' end
+        local life=link.life()
+        if not life then return 'drop','no life read' end
+        local kind,area=link.zone()
+        if area~=r.zone then return 'drop','our area is '..(area or 'none') end
+        if Link.solo(kind) then return 'drop','a solo area of ours' end
+        local f=link.fight() or ''
+        local battle,boss=f:match(' battle=(%d+)'),f:match(' boss=(%-?%d+)')
+        if not battle and not boss then return 'drop','no fight read in this game' end
+        if (battle or '0')~='0' or (boss or '0')~='0' then return 'busy','a fight' end
+        if scene.playing then return 'busy','a cutscene' end
+        if o.paused() then return 'busy','the game is paused' end
+        if not N.her() then return 'busy','no EVE' end
+        local warp,me=engine():match(' warp=(%a+) me=(%d+)')
+        if warp~='idle' then return 'busy','a respawn or a warp is under way' end
+        if me=='0' then return 'busy','no GUID of our EVE read' end
+        if not (life.state==1 or life.state==6) or life.hp<=0 then return 'busy','down' end
+        local pc=N.controller()
+        if not pc then return 'busy','no SB player controller' end
+        if U.find('/Script/Engine.Default__KismetSystemLibrary'):IsStandalone(pc)~=true then
+            return 'drop','the game is not standalone'
+        end
+        -- FNAME_Find gives NAME_None for a name the game does not know; the name must read back as the zone.
+        local name=U.value_of(FName(r.zone,EFindName.FNAME_Find))
+        local index=name:GetComparisonIndex()
+        if not index or index==0 or U.text(name):lower()~=r.zone:lower() then return 'drop',r.zone..' is not a name' end
+        return nil,tonumber(me),pc,name
+    end
+    -- Received rest r: true once done with (applied, dropped or skipped), false to try again later.
+    local function apply_rest(r)
+        local verdict,a,pc,name=rest_check(r)
+        if verdict=='drop' then
+            log('rest: '..a..' ('..r.zone..' of member '..r.from..' dropped)')
+            return true
+        elseif verdict=='busy' then
+            if now-r.at<GIVE_UP then
+                if a~=r.why then log('rest: '..r.zone..' waits: '..a) end
+                r.why,r.next=a,now+RETRY
+                return false
+            end
+            log('rest: '..r.zone..' not reset, busy for a minute ('..a..')')
+            rest_tell('rest_skipped',r.from)
+            return true
+        end
+        rests.reset[r.zone],rests.call=now,{at=now,starts=rests.starts}
+        log(string.format('rest: ServerRequest_ResetZone(%d, %s) asked (rest of member %s)',a,r.zone,r.from))
+        -- 26123051: its exec 0x14275eae0 reads a uint32 GUID then an FName; its impl 0x1423c02b0 pushes SB's ResetZone.
+        pc:ServerRequest_ResetZone(a,name)
+        rest_tell('rested',r.from)
+        return true
+    end
+    -- Every tick: our life, the engine line's rest counts (our own rest sent, the stop latch), then the queue.
+    local function resting(linked)
+        local life=link.life()
+        if life and (life.state==1 or life.state==6) and life.hp>0 then rests.alive=rests.alive or now
+        else rests.alive=nil end
+        local ours,area,kind,starts=engine():match(' rest=(%d+):([%w_]+):(%-?%d+) starts=(%d+)')
+        if ours then
+            ours,kind,starts=tonumber(ours),tonumber(kind),tonumber(starts)
+            local was=rests.ours
+            rests.ours,rests.starts=ours,starts
+            if was and ours~=was then
+                if area~='none' then rests.reset[area]=now end
+                send_rest(linked,area,kind)
+            end
+            local c=rests.call
+            if c and c.starts and not rests.stopped and now-c.at<=STOP_S and starts-c.starts>STOP_N then
+                rests.stopped,rests.queue=true,{}
+                log(string.format('rest: %d zone reset starts within %d s after our last ResetZone call: no more '
+                    ..'calls this run',starts-c.starts,STOP_S))
+                o.tell(function(w) return w.group.rest_stopped end)
+            end
+        end
+        if not rests.queue[1] then return end
+        if not linked then
+            rests.queue={}
+            return log('rest: dropped, the session ended')
+        end
+        local left={}
+        for _,r in ipairs(rests.queue) do
+            if now<r.next or not apply_rest(r) then left[#left+1]=r end
+        end
+        rests.queue=left
+    end
     -- One part's first Lua error turns it off for the run, with one line.
     local function guard(name,f,...)
         if off[name] then return end
@@ -538,6 +664,7 @@ function G.new(o)
         if linked then guard('solo',stays) else solos={} end
         if linked then guard('cutscene',watch) end
         if not linked or off.cutscene then scene.playing,scene.told=false,false end
+        guard('rest',resting,linked) -- After the cutscene's read, which a received rest waits for.
     end
     -- A cutscene plays in our game (read once a second while linked): the travel's guards read it too.
     function self.cutscene_playing() return scene.playing end
@@ -570,6 +697,20 @@ function G.new(o)
         off['return']=true
         log('return off for this run: '..why(a))
         return false,why(a)
+    end
+    -- A camp rest of member from (her SteamID as digits) in zone (its alias), from the runtime's inbox: queued, unless
+    -- that zone was reset in our game in the last 30 s, one waits for it already or the calls are stopped.
+    function self.rest(zone,from)
+        if off.rest then return end
+        if rests.stopped then return log('rest: '..zone..' of member '..from..' dropped, the calls are stopped') end
+        local last=rests.reset[zone]
+        if last and now-last<SAME then
+            return log(string.format('rest: %s already reset %d s ago',zone,math.floor(now-last)))
+        end
+        for _,r in ipairs(rests.queue) do
+            if r.zone==zone then return log('rest: '..zone..' already waits, member '..from..' dropped') end
+        end
+        rests.queue[#rests.queue+1]={zone=zone,from=from,at=now,next=now}
     end
     -- coop off: the death screen we hid comes back.
     function self.stop() if hidden then show('coop off') end end

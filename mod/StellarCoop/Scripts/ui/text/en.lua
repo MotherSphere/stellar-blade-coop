@@ -187,7 +187,9 @@ return {
     -- reset our own only. The revive by the friend (online/group/group.lua): she is down near us, we are down and she
     -- can revive us, she revived us, we revived her; and our game waiting while the host watches a cutscene. (%s: her
     -- name, or fight.friend.) The return after our death: the offer and always's notice (her name, follow_key). A
-    -- member in a solo area (her name, then one of places by the zone type) and back from it (her name).
+    -- member in a solo area (her name, then one of places by the zone type) and back from it (her name). A member's
+    -- camp rest (online/group/group.lua, %s: her name, or someone): it reset this area in our game, or did not while we
+    -- were busy for a minute; then the stop after too many resets.
     group={rest="Enemies are back: the area reset in %s's game.",
         rest_guest="Shared area: only %s's camp rest brings its enemies back.",
         down='%s is down. Stand next to them for 3 s to revive them.',
@@ -200,7 +202,11 @@ return {
         solo='%s is in %s. Online play waits until they are back.',
         places={training='the training room',spirit='the Matrix 11 demo room',test='a test zone',
             boss='a Boss Challenge',nikke='a NIKKE stage'},
-        solo_back='%s is back.'},
+        solo_back='%s is back.',
+        rested='%s rested at a camp. The enemies of this area are back.',
+        rest_skipped='%s rested at a camp. This area did not reset in your game: you were busy for a minute.',
+        rest_stopped="Other players' camp rests no longer reset your area until the game restarts. UE4SS.log says why.",
+        someone='A player'},
     -- The follow (online/group/travel.lua), the guest's: the offer when the host is on another map or far on hers (%s:
     -- her name, her map, follow_key), always's notice (her name, follow_key), the travel taken, no camp found, a
     -- guard of the moment, the host's last ground point missing or too old (her name), and the native part's refusal

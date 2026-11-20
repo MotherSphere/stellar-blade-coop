@@ -365,14 +365,16 @@ end}
 nr={o=nil,runs={},chs={},ticks=0,stops={},raise=nil}
 -- The friend's revive and the cutscene wait (online/group/group.lua): what group.new got (o), its ticks' clocks, coop
 -- revive test's answer, the photo states main.lua hands it (owns) and what it gives back (wire, else the same), its
--- cut, the cut each state write got (cuts) and its back() calls (backs).
-gr={o=nil,ticks={},tests=0,owns={},cuts={},stops=0}
+-- cut, the cut each state write got (cuts), its back() calls (backs) and the camp rests the inbox gave it (rests:
+-- {zone, from} each).
+gr={o=nil,ticks={},tests=0,owns={},cuts={},stops=0,rests={}}
 package.loaded['online.group.group']={new=function(o)
     gr.o=o
     return {tick=function(t) gr.ticks[#gr.ticks+1]=t end,stop=function() gr.stops=gr.stops+1 end,
         back=function() gr.backs=(gr.backs or 0)+1; return true,'going back to Kaanta' end,
         test=function() gr.tests=gr.tests+1; return true,'ServerRequest_ActorRespawn asked' end,
         photo=function(own) gr.owns[#gr.owns+1]=own; return gr.wire or own end,cut=function() return gr.cut end,
+        rest=function(zone,from) gr.rests[#gr.rests+1]={zone,from} end,
         cutscene_playing=function() return gr.playing==true end}
 end}
 -- The follow (online/group/travel.lua): what travel.new got (o), its ticks' clocks, follow_key's presses, coop

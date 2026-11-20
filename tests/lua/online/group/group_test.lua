@@ -20,8 +20,12 @@
 -- plays; 'c' for the photo line only on the host and only while its own photo state is '0'; cut only on the guest
 -- with cutscene_wait=on, the host on her map and our read not off for the run; the notice once a pause for it, from the
 -- photo line.
+-- Camp rests (shared_world=on): our own rest sends rest <zone> (type 2 only after 10 s alive, none within 10 s of our
+-- own ResetZone call); a received rest calls ResetZone for our EVE in that zone once we are free, within a minute, once
+-- per zone each 30 s, with no more calls after 4 starts within 30 s of one.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
+local U=require('core.unreal')
 local W -- The world of one case.
 local next_address=0x1000
 local function uobject(full,t)
@@ -47,7 +51,8 @@ local pc=uobject('SBNetworkPlayerController /Game/Map.Map:PersistentLevel.SBNetw
     ServerRequest_ActorRevival=function(_,guid,item)
         W.calls[#W.calls+1]=string.format('revival %d %s',guid,tostring(item))
         if W.revival then W.revival() end
-    end})
+    end,
+    ServerRequest_ResetZone=function(_,guid,zone) W.resets[#W.resets+1]={guid=guid,zone=U.text(zone)} end})
 local dead=uobject('WB_MainHUD_Dead_C /Engine/Transient.GameEngine_1:WB_MainHUD_Master_C_1.WB_MainHUD_Dead',{
     IsAnyAnimationPlaying=function() return W.playing end,
     GetVisibility=function() return W.vis end,
@@ -89,6 +94,14 @@ local function sequences()
     return {uobject('LevelSequenceActor /Game/Map.Map:PersistentLevel.Idle',{SequencePlayer=idle}),
         uobject('LevelSequenceActor /Game/Map.Map:PersistentLevel.Theater',{SequencePlayer=scene})}
 end
+-- FName with FNAME_Find, as online/group/travel_test.lua has it: a name W.names holds, else NAME_None.
+EFindName={FNAME_Find=1}
+FName=function(text,find)
+    assert(find==EFindName.FNAME_Find,'never a new name')
+    local index=(W.names or {})[text] or 0
+    return uobject('FName',{GetComparisonIndex=function() return index end,
+        ToString=function() return index==0 and 'None' or text end})
+end
 package.loaded['core.player']={her=function() return W.eve end,controller=function() return pc end}
 package.loaded['core.where']={me=function() return {at=W.at,map=W.map} end}
 local G=require('online.group.group')
@@ -103,15 +116,17 @@ local function world(change)
         engine=ENGINE..' warp=idle me=4242',mode='guest',linked=true,at={X=1000,Y=2000,Z=300},ghost={X=1150,Y=2000,Z=300},
         shown=true,map='/game/e04',her_map='/game/e04',standalone=true,playing=true,vis=4,huds=huds,eve=eve,world=map,
         settings={revive=true,cutscene_wait=true,follow_host='ask',follow_key={key='F7',name='F7'}},calls={},said={},
-        logs={},sets={},finds={},observers={},gone={}}
+        logs={},sets={},finds={},observers={},gone={},requests={},resets={}}
     if change then change(W) end
     clock=0
-    -- The status: the slot line (W.slot, none unless set) before the engine line.
+    -- The status: the slot line (W.slot, none unless set) before the engine line, which ends with W.rest when set.
+    -- request() keeps each line asked of the native part.
     local link={life=function() return W.life end,mate=function() return W.mate end,fight=function() return W.fight end,
         status=function()
             return 'mod=v proto=12 steam=ready\nlink='..W.mode..' lobby=7\n'..(W.slot and W.slot..'\n' or '')
-                ..W.engine..'\nlast=#1 x\n'
+                ..W.engine..(W.rest and ' '..W.rest or '')..'\nlast=#1 x\n'
         end,
+        request=function(line) W.requests[#W.requests+1]=line; return true end,
         mode=function() return W.mode end,friend=function() return 'Kaanta',W.linked,false end,
         photo=function() return W.photo end,zone=function() return W.zonetype or 1,W.area end}
     -- The member lines (W.members; without them Kaanta alone in slot 0, linked as W.linked says), each one's vitals
@@ -770,4 +785,61 @@ g=world(function(w) w.mode='guest'; w.life={state=1,hp=1600}; w.mate.zone=5 end)
 -- Her down notice: none while she is in a solo area.
 g=world(function(w) w.mode,w.life,w.mate='host',{state=1,hp=1600},{life=3,hp=0,max_hp=1600,zone=5} end); run(g,2)
 for _,s in ipairs(W.said) do assert(s~=DOWN,'No down notice for a member in a solo area') end
+-- Camp rests (shared_world=on, a co-op save, alive in Zone_A, the engine line's rest counts at 0).
+local function ready(w) w.slot=COOP; w.life={state=1,hp=1600}; w.settings.shared_world=true; w.area='Zone_A'
+    w.names={Zone_A=55}; w.rest='rest=0:none:0 starts=0' end
+-- Sending: the baseline never sends; our rest (type 1) sends rest <area>; type 2 only after 10 s alive; nothing with
+-- shared_world=off or in a solo area of ours.
+g=world(function(w) ready(w); w.rest='rest=4:Zone_A:1 starts=9' end); run(g,0.5); assert(#W.requests==0,'The baseline')
+W.rest='rest=5:Zone_A:1 starts=10'; run(g,0.25); assert(W.requests[1]=='rest Zone_A')
+g=world(ready); run(g,5); W.rest='rest=1:Zone_A:2 starts=1'; run(g,0.25); assert(#W.requests==0,'Type 2 within 10 s')
+run(g,6); W.rest='rest=2:Zone_A:2 starts=2'; run(g,0.25); assert(W.requests[1]=='rest Zone_A')
+for _,change in ipairs({function(w) w.settings.shared_world=false end,function(w) w.zonetype=5 end}) do
+    g=world(function(w) ready(w); change(w) end); run(g,0.25)
+    W.rest='rest=1:Zone_A:1 starts=1'; run(g,0.25); assert(#W.requests==0)
+end
+-- Applying: our area, alive, standalone: one ResetZone call with our GUID and the zone, the rested notice with the
+-- member line's name; a SteamID with no member line reads A player.
+g=world(ready); g.rest('Zone_A','2'); run(g,0.25)
+assert(#W.resets==1 and W.resets[1].guid==4242 and W.resets[1].zone=='Zone_A')
+assert(W.said[#W.said]=='Kaanta rested at a camp. The enemies of this area are back.')
+g=world(ready); g.rest('Zone_A','77'); run(g,0.25)
+assert(W.said[#W.said]=='A player rested at a camp. The enemies of this area are back.')
+-- echo (Review Focus 1): after our call, SB's own type-2 start (GUID 0) moves starts only: no rest line and no stop
+-- notice. Our own edge within 10 s of the call (the guard): not sent, its log line.
+g=world(ready); run(g,11); g.rest('Zone_A','2'); run(g,0.25)
+assert(#W.resets==1)
+W.rest='rest=0:none:0 starts=1'; run(g,1)
+assert(#W.requests==0 and W.said[#W.said]=='Kaanta rested at a camp. The enemies of this area are back.')
+W.rest='rest=1:Zone_A:2 starts=2'; run(g,0.25)
+assert(#W.requests==0 and logged('rest: our own reset within 10 s of a ResetZone call, not sent'))
+-- Players resting together: 4 rests for Zone_A within 5 s give one call and no stop notice; our own rest of Zone_A
+-- leaves none to apply.
+g=world(ready)
+for _,id in ipairs({'2','3','4','5'}) do g.rest('Zone_A',id); run(g,1.25) end
+assert(#W.resets==1 and logged('rest: Zone_A already reset') and not W.said[#W.said]:find('no longer',1,true))
+g=world(ready); run(g,0.25); W.rest='rest=1:Zone_A:1 starts=1'; run(g,0.25); g.rest('Zone_A','2'); run(g,0.25)
+assert(#W.requests==1 and #W.resets==0,'Our own rest already reset Zone_A')
+-- Another area: nothing. A name the game does not hold: dropped. Our zone type solo: not applied. No fight read in
+-- this game: dropped, log only.
+g=world(function(w) ready(w); w.area='Zone_B' end); g.rest('Zone_A','2'); run(g,0.25); assert(#W.resets==0 and #W.said==0)
+g=world(function(w) ready(w); w.area='Zone_C' end); g.rest('Zone_C','2'); run(g,0.25)
+assert(#W.resets==0 and logged('rest: Zone_C is not a name'))
+g=world(function(w) ready(w); w.zonetype=5 end); g.rest('Zone_A','2'); run(g,1); assert(#W.resets==0)
+g=world(function(w) ready(w); w.fight='fight=waiting mode=on' end); g.rest('Zone_A','2'); run(g,1)
+assert(#W.resets==0 and #W.said==0 and logged('rest: no fight read in this game'))
+-- Busy: applied once free; busy for 60 s (a cutscene): skipped with its notice; the session ends: the queue goes.
+g=world(function(w) ready(w); w.fight=w.fight:gsub('battle=0','battle=2') end)
+g.rest('Zone_A','2'); run(g,20); assert(#W.resets==0)
+W.fight=W.fight:gsub('battle=2','battle=0'); run(g,1); assert(#W.resets==1)
+g=world(function(w) ready(w); w.scene=true; w.observers,w.sequences={observer('Mann_Entrance',scene)},sequences() end)
+g.rest('Zone_A','2'); run(g,61)
+assert(#W.resets==0 and W.said[#W.said]=='Kaanta rested at a camp. This area did not reset in your game: you were busy for a minute.')
+g=world(function(w) ready(w); w.fight=w.fight:gsub('battle=0','battle=2') end)
+g.rest('Zone_A','2'); run(g,2); W.linked=false; run(g,1)
+assert(#W.resets==0 and logged('rest: dropped, the session ended'))
+-- Stop latch: 4 starts within 30 s after a call: the next rest (another zone) is not applied.
+g=world(function(w) ready(w); w.names={Zone_A=55,Zone_B=56} end); run(g,0.25); g.rest('Zone_A','2'); run(g,0.25)
+W.rest='rest=0:none:0 starts=4'; run(g,5); W.area='Zone_B'; g.rest('Zone_B','2'); run(g,1)
+assert(#W.resets==1 and W.said[#W.said]=="Other players' camp rests no longer reset your area until the game restarts. UE4SS.log says why.")
 print('group_test ok')
