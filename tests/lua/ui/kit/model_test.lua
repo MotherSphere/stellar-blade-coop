@@ -480,8 +480,8 @@ assert(M.reset_keys('')=='host_key=none\nmenu_key=F5\nstatus_key=F6\nleave_key=F
 
 -- docs/players/interface.md's Options paragraph names the Controls rows in the model's order: the bike's key, gun
 -- mode's, the Online tab, then Reset all keys.
-local f=assert(io.open('docs/players/interface.md'))
-local doc=f:read('a'):match('### Options\n(.-)\n### ')
+local f=assert(io.open('docs/players/interface.md','rb'))
+local doc=f:read('a'):gsub('\r\n','\n'):match('### Options\n(.-)\n### ') -- LF ends: a Windows checkout may have CRLF.
 f:close()
 local bike,tab=doc:find('off and its key',1,true),doc:find(require('ui.text').en.row.pause_tab,1,true)
 local gun=doc:find('[gun mode](../fight/gunmode.md) on or off and its key',1,true)
