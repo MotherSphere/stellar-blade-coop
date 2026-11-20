@@ -4,8 +4,8 @@
 -- Gun mode through main.lua (fixture.lua's fake fight/gunmode/mode.lua; fight/gunmode/stop_test tests the mode): its
 -- coop-gun.txt through the link's store (none without the native part), the photo mode as the runtime reads it, the
 -- other modules' states that hold EVE (busy), its restore at the first tick before its tick, coop off's stop and after
--- a Lua reload with coop off still on its restore alone. Its hud build step gets the kit and its theme (the D-pad rifle
--- slot), with the Steam link only.
+-- a Lua reload with coop off still on its restore alone. It has no hud build step: its HUD entry
+-- (fight/gunmode/ui/dpad.lua) lives in SB's own HUD, not on the kit.
 dofile('tests/lua/main/fixture.lua')
 -- coop fly's keys: eve/flight.lua for real, with fly_on in place of its active() (on() needs SB's player input).
 local Flight,fly_on=require('eve.flight'),nil
@@ -17,7 +17,7 @@ end}
 settings_text,status_text,in_world='',plain,true
 load_main(true)
 assert(gm.o.store=='store coop-gun.txt',tostring(gm.o.store))
-assert(gm.hud and gm.hud.kit~=nil and gm.hud.theme==require('ui.kit.kit').THEME,'the hud step gets the kit')
+assert(gm.hud==nil,'no hud build step')
 -- The photo mode as the runtime reads it: no rifle in the photo or selfie mode.
 assert(gm.o.photo()=='0')
 photo_mode=true; assert(gm.o.photo()=='1')
@@ -82,7 +82,7 @@ assert(gm.restores==1 and gm.ticks==0)
 status_text=plain
 load_main(false)
 assert(gm.o and gm.o.store==nil)
-assert(gm.hud==nil,'No native part: no kit, no slot')
+assert(gm.hud==nil,'No native part: no hud build step')
 assert(gm.o.match()==false,'No native part: no match')
 -- No native part: main.lua reads no settings, so gun mode reads coop-settings.txt itself. gun_mode=off still holds.
 assert(gm.o.settings.gun_mode==true and gm.o.settings.gun_key.name=='F4','no file: the defaults')
