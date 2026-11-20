@@ -104,8 +104,8 @@ claim the host accepts):
 - Gun mode's [rounds](../fight/gunmode.md#rounds-on-a-co-op-save) are sold in the camp vending machines, which carry
   the `AllShop` tag. A buy of them raises the game's BuyItem event with that tag, as a buy of drone ammo there does,
   so it counts toward the gold-spending trophy. Their drops are the game's own rolls in each player's own world. Their
-  rows go in from the co-op save files only. They stay for the game run, so the machines sell the round and enemies
-  drop it on any save until the game closes.
+  rows go in only once a co-op save from the co-op save files has loaded. From then on `coop saves main` is refused
+  until the game restarts, so none of the player's own saves loads while they are in.
 
 ## Safety design
 
@@ -225,12 +225,14 @@ feature or drops the input.
   back](../vehicles/bike-internals.md#bringing-it-back)); for gun mode's reload, with `Bullet_Nikke`, the rifle's round
   ([Rounds on a co-op save](../fight/gunmode.md#rounds-on-a-co-op-save)). Gun mode removes once a reload, at most a
   magazine (`cfg.mag_size`, 60) and at most the count she carries (the last read less the takes it does not show
-  yet). It removes only while its rows are in and a co-op save is loaded. On your own saves the magazines stay free,
-  also after the rows went in this game run. It removes only while the game plays: SB's logic stops while the game is
+  yet). It removes only while its rows are in and a co-op save is loaded. On your own saves the magazines stay free.
+  It removes only while the game plays: SB's logic stops while the game is
   paused or in photo mode, its remove with it. After a refused take the next empty reload waits 5 s. Its count reads
-  ask the `items` request with the numbers 20000 to 32767. With `gun_mode=off` gun mode asks no rows. Those rows
-  patch the three shipped camp ShopTable rows (`Shop_SimpleCamp`, `Shop_FullCamp`, `Shop_NestCamp`) in place for the
-  game run, with `Camp_Bullet_Nikke_Buy` added to their `ShopItems` and their other items as shipped.
+  ask the `items` request with the numbers 20000 to 32767. With `gun_mode=off` gun mode asks no rows. It asks them
+  once a co-op save from the co-op save files has loaded, never at the title, on your own saves or on the manual
+  co-op slot. Those rows patch the three shipped camp ShopTable rows (`Shop_SimpleCamp`, `Shop_FullCamp`,
+  `Shop_NestCamp`) in place for the game run, with `Camp_Bullet_Nikke_Buy` added to their `ShopItems` and their other
+  items as shipped.
   They add `Camp_Bullet_Nikke_Buy` to ShopItemTable and 8 RewardGroupTable rows (31114 to 31121) to the ammo groups
   enemies and supply boxes roll. No shipped RewardGroupTable row changes. SB's own buy and drops add the rounds: gun
   mode adds none. Apart from enemy stats with the experimental shared enemies

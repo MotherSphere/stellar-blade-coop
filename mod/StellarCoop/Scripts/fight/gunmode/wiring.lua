@@ -16,9 +16,9 @@ local function log(m) M.print('[StellarCoop][GM] '..tostring(m)..'\n') end
 local Link=require('core.link')
 local settings=M.settings or Link.parse_settings(M.folder and Link.files.read(M.folder..'\\coop-settings.txt') or '')
 -- The rifle's rounds as SB's Bullet_Nikke (fight/gunmode/nikke.lua), with the Steam link only (the native part adds
--- the rows and reads the inventory): its rows asked at the title on the co-op save files (main/pass.lua:
--- gunrounds.title), their read-back and the inventory reads at each pass (gunrounds.tick). Without it, or with
--- gun_mode=off (no rows asked then), the magazines stay free.
+-- the rows and reads the inventory): its rows asked once a co-op save has loaded from the co-op save files, their
+-- read-back and the inventory reads at each pass (main/pass.lua: gunrounds.tick). Without it, or with gun_mode=off
+-- (no rows asked then), the magazines stay free.
 local Nikke=require('fight.gunmode.nikke')
 local function controller()
     local pc=FindFirstOf('SBPlayerController')

@@ -351,6 +351,63 @@ for _=1,2*(Nikke.LAST_ASK-Nikke.ASKS+1)+2 do
 end
 assert(wraps==2,wraps..' wraps')
 
+-- The rows asked only once a co-op save has loaded from the co-op save files (slot=coop with saves=coop), after which
+-- the native part refuses `coop saves main` for the game run: never at the title, never on the manual co-op slot
+-- (slot=coop with saves=main, one of your own files), never on your own save.
+local finds=0
+StaticFindObject=function()
+    finds=finds+1
+    return {type=function() return 'UObject' end,IsValid=function() return true end,IsA=function() return true end,
+        GetAddress=function() return 0x1000*finds end}
+end
+nikke='nikke=off asks=0'
+s=new()
+for _,l in ipairs({'slot=none index=? marker=? saves=coop','slot=coop index=1 marker=1 saves=main',
+        'slot=main index=1 marker=? saves=main','slot=unknown index=? marker=? saves=?'}) do
+    slot=l
+    step(); s.tick()
+    step(); s.tick()
+    assert(#asked==0 and finds==0,l..': '..tostring(asked[1]))
+end
+slot=COOP
+step(); s.tick()
+assert(#asked==1 and asked[1]:find('^nikke rows ShopTable=0x%x+ ShopItemTable=0x%x+ RewardGroupTable=0x%x+$'),
+    tostring(asked[1]))
+assert(count('rounds: a co-op save loaded: the rows asked (try 1 of 4)')==1)
+-- A shut gate decides nothing: asked again Nikke.RETRY s later, at most Nikke.TRIES times a load.
+nikke='nikke=refused asks=1 why=busy'
+step(); s.tick()
+assert(not s.ready() and #asked==1)
+step(Nikke.RETRY-1); s.tick()
+assert(#asked==1,'Not before Nikke.RETRY s')
+step(1); s.tick()
+assert(#asked==2,#asked..' asks')
+for k=3,Nikke.TRIES do
+    nikke='nikke=refused asks='..(k-1)..' why=busy'
+    step(); s.tick()
+    step(Nikke.RETRY); s.tick()
+    assert(#asked==k,#asked..' asks, '..k..' wanted')
+end
+nikke='nikke=refused asks='..Nikke.TRIES..' why=busy'
+step(); s.tick()
+step(Nikke.RETRY*3); s.tick()
+assert(#asked==Nikke.TRIES,'At most Nikke.TRIES asks a load: '..#asked)
+-- The next load of a co-op save asks again; a refusal that is no shut gate ends it for the run.
+slot='slot=none index=? marker=? saves=coop'
+step(); s.tick()
+slot=COOP
+step(); s.tick()
+assert(#asked==Nikke.TRIES+1,#asked..' asks')
+nikke='nikke=refused asks='..(Nikke.TRIES+1)..' why=id'
+step(); s.tick()
+assert(not s.ready() and count('rounds: rows refused (nikke=refused asks=5 why=id)')==1)
+slot='slot=none index=? marker=? saves=coop'
+step(); s.tick()
+slot=COOP
+step(Nikke.RETRY); s.tick()
+assert(#asked==Nikke.TRIES+1,'No ask after a refusal: '..#asked)
+StaticFindObject=nil
+
 -- With fight/gunmode/ammo.lua: one unread status while a stocked magazine is loaded keeps its rounds.
 FindAllOf=function() return {} end
 local Ammo=require('fight.gunmode.ammo')

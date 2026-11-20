@@ -133,17 +133,21 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   of `Config.DEFAULTS` is on. It first sees the check refuse a test-only line (`gun_facts=on`), a changed release
   value (`gun_aim_key`) and a debug default set on;
 - `fight/gunmode/nikke_test` checks that every row of `fight/gunmode/rows.lua` says what
-  `fight/gunmode/nikke_rows.h` writes, then the rounds over a fake status text: on your own save the title asks
-  nothing; on the co-op save files it asks the `nikke` batch once, then reads the rows back. The magazine stays free
-  before the read-back, after a refusal, a fault or rows that read back wrong (one log line) and a shut gate's refusal
-  decides nothing. It is ready only while the rows are in and the last pass read a co-op save (`slot=coop`). The
+  `fight/gunmode/nikke_rows.h` writes, then the rounds over a fake status text: nothing is asked at the title, on
+  your own save or on the manual co-op slot (`slot=coop` with `saves=main`); once a co-op save from the co-op save
+  files has loaded it asks the `nikke` batch, again 10 s after a shut gate, at most 4 times a load. The magazine
+  stays free before the read-back, after a refusal, a fault or rows that read back wrong (one log line) and a shut
+  gate's refusal decides nothing. It is ready only while the rows are in and the last `slot=coop` or `slot=main` line
+  said `slot=coop`. An unread status, `slot=none` and `slot=unknown` keep it. One unread status keeps a stocked
+  magazine's rounds. A take that no read shows in 10 s of play is logged once. The
   count comes from the engine line's `items=` answer for gun mode's own ask number (20000 to 32767, never the one the
   engine line shows), read once a second while watched, with the takes no read shows yet taken off. A take calls
   `ServerRequest_ItemBucketItemRemove` with bucket 1, EVE's GUID and `Bullet_Nikke`. It is refused before the rows,
-  while the game is paused, with no EVE or no GUID; `coop off` ends the title's wait and the reads;
+  while the game is paused, with no EVE or no GUID; `coop off` ends the rows' wait and the reads;
 - `fight/gunmode/stock_test` runs `fight/gunmode/ammo.lua` over a fake stock: free magazines until the stock is ready,
   then an empty magazine, one take per reload of at most a magazine and at most the count, the spares as the count, a
-  refused take that loads nothing and a wait of `Ammo.RETRY` (5 s) before the next empty reload, an empty magazine
+  refused take that loads nothing and a wait of `Ammo.RETRY` (5 s) before the next empty reload (also for a
+  part-filled magazine fired empty), an empty magazine
   that reloads once rounds come, no round while none are carried (`out of rounds` logged once), free magazines again
   once the stock stops being ready, a new world that keeps the magazine and the rifle put away mid-reload that takes
   once;

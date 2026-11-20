@@ -3,10 +3,13 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The rifle's rounds as a real item: SB's own ItemTable row Bullet_Nikke, the round of the NIKKE stage. Its batch
 -- (fight/gunmode/rows.lua, the native part's nikke batch: 8 drop rows, the camp vending machines' shop item and the
--- three camp shops that list it) is asked at the title on the co-op save files only (core/enemy.lua's title_batch,
--- from main/pass.lua's 250 ms loop), once a game run, then read back through FindRow. The rows stay for the game run.
--- While they are in and a co-op save is loaded (the native part's slot=coop line), gun mode's magazine
--- (fight/gunmode/ammo.lua) loads from EVE's inventory. On your own saves it keeps its free magazines:
+-- three camp shops that list it) is asked once a co-op save has loaded (the slot line reads slot=coop on the co-op save
+-- files, saves=coop), from main/pass.lua's 250 ms loop, once a game run, then read back through FindRow. From that
+-- load on the native part refuses `coop saves main` until the game restarts (game/twins.h), so none of the player's own
+-- saves loads with the rows in. The rows stay for the game run. No ask at the title and none on the manual co-op slot
+-- that StellarCoopSlot.txt names (slot=coop with saves=main): that slot is one of the player's own files, after which
+-- another of them may load. While the rows are in and a co-op save is loaded (the native part's slot=coop line), gun
+-- mode's magazine (fight/gunmode/ammo.lua) loads from EVE's inventory. On your own saves it keeps its free magazines:
 --   count(): how many rounds she carries, from the native part's items request (cutmenus/items.h's read, answered in
 --     the engine line's items=), read again every POLL s while watch(true) holds, minus the rounds taken that the last
 --     read does not show taken yet.
@@ -27,8 +30,10 @@ Nikke.SETTLE=10 -- s of play: a take that no read shows after this long no longe
 Nikke.ASKS,Nikke.LAST_ASK=20000,32767 -- Gun mode's ask numbers: above coop gift's, below the bike fetch's.
 Nikke.ROWS=Enemy.rows(R.ROWS)
 Nikke.ROUND=R.ROUND
--- rows/rows.h's refusals of a gate that stayed shut (busy, net, unread): the title asks again, so nothing is decided.
+-- rows/rows.h's refusals of a gate that stayed shut (busy, net, unread): asked again RETRY s later, at most TRIES times
+-- a load of a co-op save, so nothing is decided.
 local SHUT={busy=true,net=true,unread=true}
+Nikke.TRIES,Nikke.RETRY=4,10
 
 -- The engine line's items answer for ask: the count, or nil and why (none <word>), or nil when it answers another ask.
 function Nikke.answer(status,ask)
@@ -56,15 +61,27 @@ function Nikke.new(o)
             verdict=false
         end
     end
-    local title,title_stop=e.title_batch(function() return 'the co-op save files' end,
-        'the next visit of the title',function(fine)
-            if fine then verdict=true return end
-            local s=Enemy.parse(status(),'nikke')
-            if s and s.state=='rows' then
-                verdict=false
-                log('rounds: rows read back other than written: the rifle keeps its own magazines')
-            else from_line() end
-        end)
+    local tries,again,asking=0,0,false -- The asks this load of a co-op save, when the next may come, one under way.
+    -- The rows asked once a co-op save is loaded: the ask, the native part's answer and the read-back are
+    -- core/enemy.lua's rows flow with no EVE and no map to keep (its title flag), as a command's are.
+    local function ask_rows(now)
+        if verdict~=nil or asking or tries>=Nikke.TRIES or now<again then return end
+        tries,asking=tries+1,true
+        log('rounds: a co-op save loaded: the rows asked (try '..tries..' of '..Nikke.TRIES..')')
+        e.rows(function(fine,message)
+            asking,again=false,clock()+Nikke.RETRY
+            if fine then verdict=true
+            else
+                local s=Enemy.parse(status(),'nikke')
+                if s and s.state=='rows' then
+                    verdict=false
+                    log('rounds: rows read back other than written: the rifle keeps its own magazines')
+                else from_line() end
+            end
+            log('rounds: '..(fine and 'the rows are in' or tostring(message)))
+            return fine,message
+        end,nil,true)
+    end
     local self={}
     local watching,next_poll=false,0
     local read=nil -- {count, at}: the last count read.
@@ -76,7 +93,6 @@ function Nikke.new(o)
     local index=nil -- The co-op save's slot index, so another co-op save reads its count again.
     local last=nil -- The last pass's clock, so paused time does not age the takes.
 
-    self.title=title
     -- Whether the rows are in this game run (an earlier Lua load's included) and a co-op save is loaded, as the last
     -- pass read them: the magazine loads from the inventory. It reads no file, so a frame may call it.
     function self.ready() return verdict==true and coop end
@@ -107,8 +123,8 @@ function Nikke.new(o)
         next_poll=math.min(next_poll,clock()+0.3) -- The take shows at the next read.
         return true
     end
-    -- Each 250 ms pass: the title's wait and read-back, the rows' verdict and the save's slot, then the count's read
-    -- while watched.
+    -- Each 250 ms pass: the rows' wait and read-back, the rows' verdict and the save's slot, the rows asked once a
+    -- co-op save is loaded, then the count's read while watched.
     function self.tick()
         e.tick()
         local now=clock()
@@ -122,9 +138,11 @@ function Nikke.new(o)
             local at=slot:match(' index=(%d+)')
             if coop and at~=index then read,taken,asked=nil,{},nil end -- Another co-op save: its count read again.
             coop,index=true,at
+            if slot:match(' saves=(%a+)')=='coop' then ask_rows(now) end
         elseif word=='main' then
             coop,index,read,taken,asked=false,nil,nil,{},nil -- Your own save: its count is read again on the next.
         end
+        if word and word~='coop' then tries=0 end -- A new load of a co-op save asks TRIES times again.
         if last and #taken>0 and paused() then for _,t in ipairs(taken) do t.at=t.at+(now-last) end end
         last=now
         if asked then
@@ -159,11 +177,10 @@ function Nikke.new(o)
         local ok=request(string.format('items %d %s %d %d',ask,R.ROUND,n.index,n.number))
         if ok~=false then asked={ask=ask,at=now} end
     end
-    -- coop off: the title's wait ended (rows already in stay for the game run), no more reads.
+    -- coop off: the rows' wait ended (rows already in stay for the game run), no more reads.
     function self.stop()
-        title_stop()
         e.stop()
-        watching,asked=false,nil
+        watching,asked,asking=false,nil,false
     end
     return self
 end
