@@ -21,7 +21,8 @@ Config.DEFAULTS={
     enabled=false,
     pad_tap=0.4,
     fire_interval=0.045, -- The NIKKE shot skill's cool time while the rifle is out (SB ships 0.11 s).
-    -- s the shot's borrowed rows stay armed after its last zone event (fight/gunmode/data.lua's arm). On 26123051 the
+    -- s the shot's borrowed rows stay armed after its last zone event once the rifle is away (fight/gunmode/data.lua's
+    -- arm; while it is out they stay armed), and the wait before a refused arm is tried again. On 26123051 the
     -- blueprint library's zone event call (exec 0x142669a50) only queues the event (made by 0x1422d7de0, pushed under
     -- a lock); SB runs it later (0x141abdd80 calls RunEvent 0x141ca5a10), so the rows must still read armed then.
     arm_hold=1.0,

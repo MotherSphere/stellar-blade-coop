@@ -47,8 +47,8 @@ end
 
 -- 2. M4: the shot's two borrowed fields are SB's own rows: EventActorEffectTable Nikke_01_E_ActorEff_015's
 --    ActorEffectAlias and EffectTable M_Scarlet_CounterLinkStart's ActionValue1. They point at the NIKKE shot from a
---    shot through the zone event until arm_hold s after the last one (a pause holds them), not while the rifle is only
---    out. coop-gun.txt lists them while they do.
+--    shot through the zone event until the rifle goes away, not while the rifle is only out: a gap between bursts
+--    keeps them (a late zone event on the shipped cover row made EVE kneel). coop-gun.txt lists them while they do.
 do
     local w=Fake.new(); w.install()
     local store=file()
@@ -76,10 +76,12 @@ do
     w.paused=true; clock=clock+5; gun.tick(); w.paused=false
     frames(gun,1)
     assert(borrowed(),'a pause holds them')
-    frames(gun,70)
-    assert(shipped(),'put back after the hold')
-    assert(not store.peek():find('Nikke_01_E_ActorEff_015',1,true),store.peek())
+    frames(gun,60*10)
+    assert(borrowed(),'held between bursts while the rifle is out')
     toggle(gun,false)
+    frames(gun,70)
+    assert(shipped(),'put back once the rifle is away and the hold is over')
+    assert(not store.peek():find('Nikke_01_E_ActorEff_015',1,true),store.peek())
     -- A Lua reload while they are armed: the next load's restore puts them back with the rest.
     toggle(gun,true)
     w.down.LeftMouseButton=true

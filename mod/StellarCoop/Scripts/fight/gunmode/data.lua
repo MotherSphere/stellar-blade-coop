@@ -8,7 +8,8 @@
 --   fight/gunmode/mode.lua fires it as a zone event for each shot.
 -- * EffectTable: M_Scarlet_CounterLinkStart (0.1 s on self, one UseSkill action) starts P_Eve_GunNikke_ShootSlug1_1,
 --   the NIKKE shot. Its ActionValue1 is an FString: an FName written there crashed the game (11-17).
---   These two are armed (arm, disarm) only around the zone event shots, not for as long as the rifle is out.
+--   These two are armed (arm) at the first zone event shot and stay armed until the rifle goes away (disarm in
+--   put_back): disarmed between bursts, a late zone event applied the row's shipped cover effect (EVE knelt).
 -- * SkillCommandTable: the NIKKE fire commands ShootSlug1_1 and _2 take the burst shot's command type
 --   (RangedFireSkill: no check of the equipped bullet), as an earlier build's pak of tables did.
 -- * SkillActiveStepTable: the shot's Hit1 step takes its Cast1 step's type (fires its projectile, spends no round).

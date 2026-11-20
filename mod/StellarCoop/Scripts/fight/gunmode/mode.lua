@@ -1108,8 +1108,10 @@ function GunMode.new(env)
             if not ok then disable('the input mask failed ('..tostring(err)..')'); return end
             keep()
         end
-        -- The shot's borrowed rows back once its last zone event has had its time (M4).
-        if s.armed_until and now>=s.armed_until then
+        -- The shot's borrowed rows back once the rifle is away and its last zone event has had its time (M4). Not
+        -- between bursts: a zone event SB runs after a disarm applies the row's shipped effect, a NIKKE mission's cover
+        -- (fight/gunmode/data.lua), and EVE dropped to one knee with her movement held during hip fire.
+        if s.armed_until and not s.on and now>=s.armed_until then
             s.armed_until=nil
             if data.armed then data.disarm(); keep() end
         end
