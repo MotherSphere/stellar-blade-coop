@@ -4,8 +4,9 @@
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """tools/port/make_signatures.py: its instruction decoder on hand-written instructions, every kind of signature on a
 small PE file built here, then the form of each entry in tools/port/signatures.json. tools/port/find.py on that file
-and on copies of it with moved code, a pattern or a holder that matches twice and a missing function. Then find.py on
-the executable of build 26123051 when this PC has Ghidra's copy of it: every entry is found at its own address.
+and on copies of it with moved code, a pattern that matches three times, a holder held twice, a missing function and
+a value read outside the file. Then find.py on the executable of build 26123051 when this PC has Ghidra's copy of it:
+every entry is found at its own address.
 Run: python3 tests/tools/port_signatures_test.py"""
 import contextlib
 import io
@@ -217,9 +218,9 @@ shift = {at['unique']: 16, at['unique'] + 5: 16, at['copy_b']: 16, at['zero_a']:
 assert states == {a: f'found {int(a, 16) + shift.get(int(a, 16), 0):#x}' for a in found}, states
 assert (count, code) == (f'{len(found)} found (4 moved), 0 ambiguous, 0 missing', 0), (count, code)
 
-# unique's bytes twice: its two signatures match twice. lone held twice: the holder's code is in two places.
-states, count, code = report(twice, found)
-assert states[f'{at["unique"]:#x}'] == states[f'{at["unique"] + 5:#x}'] == 'ambiguous (2 matches)', states
+# unique's bytes three times: its two signatures match three times. lone held twice: the holder's code is in two places.
+states, count, code = report(fake_exe({**FUNCS, 'again': FUNCS['unique'], 'again2': FUNCS['unique']})[0], found)
+assert states[f'{at["unique"]:#x}'] == states[f'{at["unique"] + 5:#x}'] == 'ambiguous (3 matches)', states
 assert (count, code) == (f'{len(found) - 2} found (0 moved), 2 ambiguous, 0 missing', 1), (count, code)
 states, count, code = report(bytes(held), found)
 assert states[f'{at["vtable2"]:#x}'] == 'ambiguous (2 matches)', states
@@ -229,6 +230,12 @@ assert (count, code) == (f'{len(found) - 1} found (0 moved), 1 ambiguous, 0 miss
 states, count, code = report(fake_exe({k: v for k, v in FUNCS.items() if k != 'check'})[0], found)
 assert states[f'{at["flag"]:#x}'] == 'missing' and states[f'{at["zero_a"]:#x}'] == f'found {at["zero_a"] - 16:#x}'
 assert (count, code) == (f'{len(found) - 1} found (1 moved), 0 ambiguous, 1 missing', 1), (count, code)
+
+# zero_a's ref reads its address 1 MB past vtable + 8, outside the file: missing.
+far = {a: dict(e, ref={**e['ref'], 'add': 0x100000}) if a == f'{at["zero_a"]:#x}' else e for a, e in found.items()}
+states, count, code = report(data, far)
+assert states[f'{at["zero_a"]:#x}'] == 'missing', states
+assert (count, code) == (f'{len(found) - 1} found (0 moved), 0 ambiguous, 1 missing', 1), (count, code)
 
 # The executable of build 26123051 itself: every entry of signatures.json is found at its own address.
 EXE = Path.home() / 'Ghidra/stellar-blade/input/26123051/SB-Win64-Shipping.exe'

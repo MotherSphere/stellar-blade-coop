@@ -1310,9 +1310,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   executable other than the pinned build is refused. Every entry of `tools/port/signatures.json` that needs a
   signature has one in the form the tool writes, with the names the code gives its address. Then
   `tools/port/find.py` on the same PE file: every entry is found, the image base and a section included. With a
-  function added before the others, the code addresses move by 16 bytes and the data addresses stay. Twice the same
-  function, or a holder's code held in two places, gives `ambiguous`. A function removed gives `missing`. The exit
-  code is 1 for both. Last, `find.py` on `~/Ghidra/stellar-blade/input/26123051/SB-Win64-Shipping.exe`, Ghidra's copy
+  function added before the others, the code addresses move by 16 bytes and the data addresses stay. Three copies of
+  a function give `ambiguous (3 matches)`. A holder's code held in two places gives `ambiguous (2 matches)`. A
+  function removed gives `missing`. So does a `read` that lands outside the file. The exit code is 1 for each. Last, `find.py` on `~/Ghidra/stellar-blade/input/26123051/SB-Win64-Shipping.exe`, Ghidra's copy
   of build 26123051: every entry is found at its own address. A PC without that file skips this part and says so;
 - `release_test.py`: `tools/release.py`'s build, upload and publish steps and its refusals, with git, gh and
   `tools/install.py` faked;
