@@ -20,8 +20,9 @@
 -- saw it; no observer but windows rewritten (alive): ended 10 s after the last one, seen; the theater's copy named with
 -- a GUID seen as ours and followed past 10 s, and a talk asked meanwhile refused as blocked by our own sequence. With
 -- the status line's theater= field no object is walked: busy() and a talk's start read it, our own talk is refused as
--- ours, the talk is followed through its level sequence actor of the class hash; theater=fault walks as before. The
--- only zone events are the two rows' kind 6, and the source names no save, quest, warp, item, row or spawn call.
+-- ours, the talk is followed through its level sequence actor of the class hash (a paused reading hold is not its
+-- end); theater=fault walks as before. The only zone events are the two rows' kind 6, and the source names no save,
+-- quest, warp, item, row or spawn call.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -545,8 +546,8 @@ do
 end
 -- SB's theater from the status line (glue/tick/theater_game.inc): busy() and a talk's start read its theater= field
 -- and walk no object; the field naming a talk's sequence refuses a talk as ours (Review Focus 14); the talk is seen
--- and followed through the level sequence actors of the class hash, its player the actor's; theater=fault walks as
--- before.
+-- and followed through the level sequence actors of the class hash, its player the actor's, through a paused reading
+-- hold; theater=fault walks as before.
 do
     -- Every player stopped, those of observers earlier sections dropped from the list too: each actor's player is one.
     for _,a in ipairs(actors) do a.SequencePlayer.playing=false end
@@ -573,8 +574,11 @@ do
     assert(seen==1 and last():find('playing: Subtitle_POD_1stMeetAdam_01, 1.0 s after the call (',1,true)
         and finds==before,last())
     assert(nt.player()==observers[#observers].Player and finds==before,"The actor's player")
-    observers[#observers].Player.playing=false
-    at(9002)
+    local held=observers[#observers].Player -- A reading hold (subtitles.lua pauses it): still under way.
+    held.playing,held.IsPaused=false,function() return true end
+    at(9002); assert(nt.tick()==nil and done==nil and nt.player()==held and finds==before,'Paused is not over')
+    held.IsPaused=nil
+    at(9003)
     assert(nt.tick()==true and done==true and finds==before,'Ended, read through the actor alone')
     status='engine=on theater=fault'
     nt.busy()
