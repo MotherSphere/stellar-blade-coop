@@ -3,10 +3,10 @@
 The player page is [vehicles/bike.md](bike.md). The bike is `vehicles/bike/ride.lua` (the part, the checks, the mount
 and the dismount, the lean, the pose, the parked bike's place), `vehicles/bike/model.lua` (the riding model),
 `vehicles/bike/park.lua` (the parked bike's rules, its record and its line), `vehicles/bike/stand.lua` (the parked
-bike's actor), `vehicles/bike/others.lua` (the other players' parked bikes), `vehicles/bike/fetch.lua` (the paid fetch
-at Xion), `vehicles/bike/commands.lua` (`coop bike`) and the native part's `game/bike.h` with
-`vehicles/bike/bike_game.inc` and `bike_worker.inc` (the preload and the gate). It is not tested in game yet. The
-addresses are build 26123051's.
+bike's actor), `vehicles/bike/paint.lua` (the paint for EVE's outfit), `vehicles/bike/others.lua` (the other players'
+parked bikes), `vehicles/bike/fetch.lua` (the paid fetch at Xion), `vehicles/bike/commands.lua` (`coop bike`) and the
+native part's `game/bike.h` with `vehicles/bike/bike_game.inc` and `bike_worker.inc` (the preload and the gate). It is
+not tested in game yet. The addresses are build 26123051's.
 
 ## The preload
 
