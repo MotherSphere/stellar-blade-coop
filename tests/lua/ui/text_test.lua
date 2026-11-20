@@ -52,11 +52,11 @@ for name,t in pairs(T) do
     end
 end
 assert(T.fr and next(T.fr),'French stays complete')
--- The modules' names for the off notice: exactly T.en's 20 keys in every table (tests/tools/modules_test.py checks
+-- The modules' names for the off notice: exactly T.en's 22 keys in every table (tests/tools/modules_test.py checks
 -- them against main.lua's MODULES).
 local MODULE_KEYS=0
 for _ in pairs(T.en.modules) do MODULE_KEYS=MODULE_KEYS+1 end
-assert(MODULE_KEYS==21,'T.en.modules: '..MODULE_KEYS..' names')
+assert(MODULE_KEYS==22,'T.en.modules: '..MODULE_KEYS..' names')
 for name,t in pairs(T) do
     if type(t)=='table' and next(t) then
         local n=0
@@ -151,6 +151,16 @@ local function notices(w)
     for _,def in ipairs(C.LIST) do if #c.names[def.id]>#long then long=c.names[def.id] end end
     for _,text in ipairs({c.start_notice:format(long,5),c.wave_notice:format(long,8,8),c.clear_notice:format(long,8),
         c.record,c.stopped,c.coop_notice:format(long,NAME,5)}) do
+        lines[#lines+1]=text
+    end
+    -- Score attack's notices (online/modes/scoreattack/ui/board.lua, game.lua): each sit-out, a round without a
+    -- ranking, and with the UI off our run's end (the longest challenge name and end word, 9999 points, 12:00.0) and
+    -- our place.
+    local sa,ending=w.scoreattack,''
+    for _,text in pairs(sa.ending) do if #text>#ending then ending=text end end
+    for _,text in pairs(sa.out) do lines[#lines+1]=text end
+    for _,text in ipairs({sa.host_left,sa.cancelled,sa.unranked,sa.end_notice:format(long,ending,9999,'12:00.0'),
+        sa.placed:format(8,8)}) do
         lines[#lines+1]=text
     end
     -- The race's notices (online/modes/race/run.lua): its banners too, which come as notices with the UI off.
@@ -292,12 +302,30 @@ for name in pairs(R.TEXT) do
     -- within 40 (Mideum 36, about 19 units a column, ends before the members box at x 2660) at 8 of 8 and a 10 s
     -- countdown; the waiting room's notice with its key within the feed's line.
     for k,text in pairs(w.lobby.row) do fits(name..'.lobby.row.'..k,text:format('ABC-1234'),18) end
-    fits(name..'.lobby.mode.ffa',w.lobby.mode.ffa,18)
+    for k,text in pairs(w.lobby.mode) do fits(name..'.lobby.mode.'..k,text,18) end
     for k,text in pairs(w.lobby.set) do fits(name..'.lobby.set.'..k,text:format(('W'):rep(16)..'...'),32) end
     for k,text in pairs(w.lobby.val) do
         fits(name..'.lobby.val.'..k,text:format(k=='version' and 'v0.9.0-99-gabcdef12' or 'ABC-1234',20),40)
     end
     for k,text in pairs(w.lobby.status) do fits(name..'.lobby.status.'..k,text:format(k=='start' and 10 or 8,8),40) end
+    -- Score attack's screens (online/modes/scoreattack/ui/board.lua, 1040 units wide as Night Operation's card): an
+    -- in-round board row (Mideum 34, 18 units a column, 64 units in from each side), the place and a cut name
+    -- (Join.name: 16 characters and '...') at the left, 24 columns, then the score and the wave or end word at the
+    -- right within 26; the result panel's heading (a challenge's name, Bold 56, 31 columns as the night panel's), the
+    -- line under it with the longest end word, 9999 points and 12:00.0, and each note, within 54 (Mideum 34); a ranking
+    -- row's difficulty within its 10 columns (Mideum 30, right-aligned between the name and the value).
+    local sa,ending=w.scoreattack,''
+    for k,text in pairs(sa.ending) do
+        fits(name..'.scoreattack.ending.'..k,'9999  '..text,26)
+        if columns(text)>columns(ending) then ending=text end
+    end
+    fits(name..'.scoreattack.wave','9999  '..sa.wave:format(9,9),26)
+    for _,def in ipairs(C.LIST) do fits(name..'.challenge.names.'..def.id..' heading',c.names[def.id],31) end
+    fits(name..'.scoreattack.mine',sa.mine:format(ending,9999,'12:00.0'),54)
+    for _,k in ipairs({'waiting','unranked','host_left','cancelled'}) do
+        fits(name..'.scoreattack.'..k,sa[k]:format(8),54)
+    end
+    for _,k in ipairs({'normal','story','hard'}) do fits(name..'.cycle.'..k,w.cycle[k],10) end
     local room=w.lobby.room:format('F5')
     assert(Chat.clean(room)==room,name..'.lobby.room: '..#room..' bytes or a control')
     -- Find a session (online/session/ui/sessions.lua): a key hint's label within the 420 units between two hints less

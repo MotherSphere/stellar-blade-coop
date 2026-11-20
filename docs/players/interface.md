@@ -313,7 +313,8 @@ players it holds (Players, 2 to 4), the [revive](playing-with-a-friend.md#revive
 [cutscene wait](playing-with-a-friend.md#cutscene-wait),
 [following the host](playing-with-a-friend.md#following-the-host), the [shared world](../world/objects.md),
 [story together](../story/together.md) and Hide popups online, which turns the game's tutorial and record popups off
-during online play), Saves (the [co-op saves](playing-with-a-friend.md#co-op-saves) at the title and
+during online play), Modes ([score attack](../online/modes/scoreattack.md) on or off), Saves (the
+[co-op saves](playing-with-a-friend.md#co-op-saves) at the title and
 [shared quests](playing-with-a-friend.md#shared-quests-experimental)), Combat (shared enemies, same place, shared
 flinches, stagger resistance, who same-place enemies attack, same spawns, extra enemies, shared bosses, the host's
 enemy and boss scaling and your kill rewards), Display (the [status strip](#status-strip-above-the-card)
@@ -349,10 +350,10 @@ checkpoints, `F3` for the bike and `none` for `host_key`, which has no row. The 
 
 The menu, the Sessions and Create a session screens, the guide, the chat, the partner HUD, the code box, the join
 popups, the co-op saves' question and notices, the shared enemies', same place, same spawns and shared quests notices,
-Night Operation's card, result panel and notices as well as the Doro race's panel, banners, results and notices use the
-game's text language, any of the 23 that the game ships. So do the status line (under the menu and on F6), the ghost's
-notices and the notices of a join Steam refused (`Could not join: ...`). `ui_language=english` keeps them all in
-English. Without it, a player who joined or left shows in the feed in the game's own words
+Night Operation's card, result panel and notices, score attack's card, board, result panel and notices as well as the
+Doro race's panel, banners, results and notices use the game's text language, any of the 23 that the game ships. So
+do the status line (under the menu and on F6), the ghost's notices and the notices of a join Steam refused
+(`Could not join: ...`). `ui_language=english` keeps them all in English. Without it, a player who joined or left shows in the feed in the game's own words
 (`<name> has joined the game.`, `<name> has left the game.`). The other notices of the Steam link (your join code, for
 example) and `UE4SS.log` stay in English. So do the error messages from the coop commands, shown in the menu or the code
 box.
@@ -362,8 +363,8 @@ If the menu or the chat box ever leaves the game without its own keys, open the 
 [host's question](playing-with-a-friend.md#asking-to-join) is answered with Deny, a joiner's wait popup hides (the
 player still waits in the lobby) and the game gets its keys back. `coop ui off` removes the co-op menu, the Sessions and
 Create a session screens, the chat box, the code box, the join popups, the feed, the partner HUD, Night Operation's card
-and result panel and the co-op saves' question until the mod reloads (game start or Ctrl+R). Notices then go back to the
-line above your EVE. Your friend's name goes back to the name tag above their ghost. With the UI off,
+and result panel, score attack's card, board and result panel and the co-op saves' question until the mod reloads
+(game start or Ctrl+R). Notices then go back to the line above your EVE. Your friend's name goes back to the name tag above their ghost. With the UI off,
 `auto_coop_save=ask` plays your own saves and `always` still switches to the copies.
 
 ### Focus watchdog
@@ -667,3 +668,4 @@ a Steam name or a chat line shows as `?`.
 | Shared world on with your friend, or stopped after an error | `Shared world on with <name>.` or `Shared world stopped until the game restarts. coop-link.log says why.` ([shared world](../world/objects.md)) |
 | Story together on with your friend, or stopped after an error | `Story together on with <name>.` or `Story together stopped until the game restarts. coop-link.log says why.` ([story together](../story/together.md)) |
 | Night Operation: a partner's run starting, a partner who cannot join, the points a run gave | See [online/modes/nightop.md](../online/modes/nightop.md#the-co-op-run) and [the reward shop](../online/modes/nightop-shop.md) |
+| Score attack: a round you sit out, a round that ends with no ranking, your run's start, waves, end and place with the UI off | See [Score attack](../online/modes/scoreattack.md#what-you-see) |

@@ -28,6 +28,7 @@ start with `coop`.
 | [Night Operation](online/modes/nightop.md) | The cut mode, the plan, the solo run, the co-op run, credits |
 | [Reward shop](online/modes/nightop-shop.md) | The points, the seven items, the shop screen, Roxanne's choices, the cut Shock Bolt |
 | [Challenges](online/modes/challenges.md) | `coop challenge`, Target Practice, the Shooting Range alone and for two, score, best runs |
+| [Score attack](online/modes/scoreattack.md) | The SBO lobby's match mode where every player plays the same challenge: starting a round, the host's pick, the ranking and its checks, the screens, best match runs, `coop scoreattack`, the score line |
 | [Night Operation previews](online/modes/nightop-previews.md) | The probe (`coop no`), the recruiter (`coop recruiter`), how the original matchmaking is blocked |
 | [Doro races](online/modes/race.md) | Recording a track, starting a race, driving, rules, results, the Doro look, track files |
 

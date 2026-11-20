@@ -240,6 +240,9 @@ pause_tab=on
 # you play online with at least one other player. Your own values come back when you leave. The game's settings file
 # keeps them the whole time. Turn one on in the game's Settings during online play and it stays on.
 hide_popups=on
+# Score attack: on or off, on by default. On, you play each round of a score attack match in the SBO lobby. Off, you
+# sit out its rounds.
+scoreattack=on
 ]]
 -- The looks are comments only in the file above: an old file and a new one both follow the code's default here. A file
 -- written before shared_enemies and fight_chars existed lacks them: on and auto, as here; one written before the photo
@@ -256,7 +259,7 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',rac
     shared_quests='on',
     quest_deny='',revive='on',cutscene_wait='on',follow_host='ask',follow_key='F7',collide='on',mod_names='on',shortcut_load='on',
     pvp_spike='on',sbo_lobby='on',shared_world='on',shared_story='on',daynight='on',pause_tab='on',hide_popups='on',
-    gun_mode='on',gun_key='F4'}
+    gun_mode='on',gun_key='F4',scoreattack='on'}
 -- Gun mode's test lines (fight/gunmode/config.lua): no template line, no menu row. Kept as written, empty when absent;
 -- gun mode checks them and logs what it refuses.
 local GUN_TESTS={gun_aim_key=true,gun_zoom=true,gun_upper=true,gun_fire=true,gun_probe=true,gun_trace=true,
@@ -269,7 +272,7 @@ local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=tr
     photo_ghost=true,photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
     card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true,mod_names=true,shortcut_load=true,
     pvp_spike=true,sbo_lobby=true,shared_world=true,shared_story=true,friends_ask=true,bike=true,daynight=true,
-    pause_tab=true,hide_popups=true,gun_mode=true}
+    pause_tab=true,hide_popups=true,gun_mode=true,scoreattack=true}
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (online/partner/puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key','bike_key','gun_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
@@ -766,10 +769,23 @@ function Link.new(folder,fs)
             race_queue={}
         end
     end
+    -- Score attack lines (online/modes/scoreattack/round.lua's): score() asks the native part to send one to every
+    -- member of the match lobby (a score request, so it waits in the request queue above). Each member's comes in
+    -- coop-chat.txt as "score <her SteamID> <text>". take_chat() keeps it here. take_score() hands them over, {from=,
+    -- text=} each, oldest first.
+    -- ponytail: 64 at most, the oldest dropped, for a pass that never takes them (the module off).
+    local scores={}
+    function self.score(text) return self.request('score '..text) end
+    function self.take_score()
+        local out=scores
+        scores={}
+        return out
+    end
     -- The native part's coop-chat.txt, taken and deleted at once: {text=,from=} for each member's line (from: her
     -- SteamID as digits; ours in the loopback), {fail=true} when one of ours could not go, {race=} for each of her race
     -- lines, {gift=} for each of her gift lines (or a gift of ours that could not go, as her refusal), {rest=,from=} for
-    -- each member's camp rest (the zone's alias, her SteamID as digits), oldest first; anything else is ignored.
+    -- each member's camp rest (the zone's alias, her SteamID as digits), oldest first; a score line goes to
+    -- take_score(); anything else is ignored.
     function self.take_chat()
         local name=path('coop-chat.txt')
         local text,lines=fs.read(name),{}
@@ -778,7 +794,11 @@ function Link.new(folder,fs)
             local from,said=line:match('^in (%d+) (.+)$')
             local raced,gifted=line:match('^race (.+)$'),line:match('^gift (.+)$')
             local rested,by=line:match('^rest ([%w_]+) (%d+)$')
-            if said then lines[#lines+1]={text=said,from=from}
+            local scorer,scored=line:match('^score (%d+) (.+)$')
+            if scorer then
+                if #scores>=64 then table.remove(scores,1) end
+                scores[#scores+1]={from=scorer,text=scored}
+            elseif said then lines[#lines+1]={text=said,from=from}
             elseif rested then lines[#lines+1]={rest=rested,from=by}
             elseif raced then lines[#lines+1]={race=raced}
             elseif gifted then lines[#lines+1]={gift=gifted}

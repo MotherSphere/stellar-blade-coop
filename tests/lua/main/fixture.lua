@@ -244,6 +244,11 @@ fake_link.round=function() return link_round end
 fake_link.me=function() return link_me end
 fake_link.owner=function() return link_owner end
 fake_link.uidev=function() return link_uidev end
+-- link.take_score(), the score attack's lines waiting (none in these tests), and link.score(text), each sent in
+-- fake_link.scores.
+fake_link.scores={}
+fake_link.take_score=function() return {} end
+fake_link.score=function(text) fake_link.scores[#fake_link.scores+1]=text; return true end
 native_ok=nil
 captured,remoted={},nil
 -- capture_leave_out: what main.lua gave the capture's leave_out (the bike's idle_part).
@@ -967,6 +972,7 @@ USAGE='Use: coop puppet | host [public|friends|invitation|closed] | invite | lis
     ..'no [heal|rule|spawnpt|actor] | '
     ..'nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | '
     ..'challenge [<name>|stop] | '
+    ..'scoreattack [status|pick <challenge>] | '
     ..'recruiter [off] | '
     ..'gift [send <item> [count]|take [n]] | '
     ..'race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|'

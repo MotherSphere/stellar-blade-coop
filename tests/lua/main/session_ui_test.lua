@@ -223,11 +223,13 @@ settings_text,in_world,kit_ready='',false,false
 -- over it; each 250 ms in a world its card follows the session and her vitals, and the ghost hides its name tag while
 -- the marker carries her name (partner_bar on, the root up); each frame only its marker and arrow, projected through
 -- the kit each frame and never without her anchor; nothing after coop off. The guide (ui/kit/guide.lua) under the menu,
--- which never shows with it. The members' rows (a session of more than 2 players) after the arrow.
+-- which never shows with it. The members' rows (a session of more than 2 players) after the arrow. Score attack's card,
+-- board and result panel (online/modes/scoreattack/ui/board.lua) after the HUDs, under the menu.
 settings_text,status_text,link_mode='',plain,'host'
 load_main(true)
 assert(table.concat(kit_order,' ')=='chat feed card status marker arrow member1 member2 member3 member4 member5 member6 '
-    ..'code guide menu line_hint ask ask_popup badge saves',table.concat(kit_order,' '))
+    ..'scoreattack scoreattack_board scoreattack_result code guide menu line_hint ask ask_popup badge saves',
+    table.concat(kit_order,' '))
 in_world,kit_ready,chatting=true,true,true
 mate_v={hp=500,max_hp=1000,shield=0,max_shield=0,blocks=0,beta=0,max_beta=0,burst=0,max_burst=0,tachy=0,max_tachy=0,
     life=1}

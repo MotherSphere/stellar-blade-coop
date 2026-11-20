@@ -62,7 +62,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop unblock <SteamID>`, `coop unblock all` | Take one player off your block list, or empty it |
 | `coop blocked` | Print how many players your block list holds (the file keeps only hashes, so it cannot name them) |
 | `coop leave` | Leave the session (F8) |
-| `coop match search\|create <mode>`, `coop match cancel`, `coop match end`, `coop match join <code>`, `coop match leave` | A [match lobby](online/lobby.md#search) of up to 8 players (experimental; the only mode is `ffa`, and a round's start does not take anyone to an arena yet). `search` joins an open public lobby of that mode, or hosts one when none is open; `create` hosts a private one that players join with its [join code](players/playing-with-a-friend.md#join-codes); `cancel` stops a search; `end` ends the round you host; `join <code>` and `leave` work like `coop join <code>` and `coop leave`. `search` and `create` are refused while you are in a lobby. They run from the console anywhere and on any save, not only in the SBO lobby; outside it they have not been tested in game |
+| `coop match search\|create <mode>`, `coop match cancel`, `coop match end`, `coop match join <code>`, `coop match leave` | A [match lobby](online/lobby.md#search) of up to 8 players (experimental). The modes are `scoreattack` and `ffa`. A `scoreattack` round plays a challenge in the lobby room ([Score attack](online/modes/scoreattack.md)). An `ffa` round's start does not take anyone to an arena yet. `search` joins an open public lobby of that mode, or hosts one when none is open; `create` hosts a private one that players join with its [join code](players/playing-with-a-friend.md#join-codes); `cancel` stops a search; `end` ends the round you host; `join <code>` and `leave` work like `coop join <code>` and `coop leave`. `search` and `create` are refused while you are in a lobby. They run from the console anywhere and on any save, not only in the SBO lobby; outside it they have not been tested in game |
 | `coop mute <SteamID>` / `coop unmute <SteamID>` | Drop that player's chat lines, or show them again, in any lobby until the game closes (experimental). The `member=` lines of `coop status` start with each member's SteamID, masked to its last 4 digits, which these commands take too |
 | `coop travel host` | As the guest, travel to where the host last stood on solid ground (F7), or cancel the travel that `follow_host=always` is about to start ([Following the host](players/playing-with-a-friend.md#following-the-host)). On the death screen it does what F7 does there |
 | `coop travel spot [<world>] <x> <y> <z>` | Solo test of the spot warp: the game's own position warp to that place in whole centimetres, yaw 0, with no camp and no session; with a world of the game's story worlds (`core/worlds.lua`), that world's name goes into the warp's record. The result is in `UE4SS.log` and `coop-link.log` ([The spot warp](online/group-internals.md#the-spot-warp)) (test command, co-op save only) |
@@ -93,6 +93,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop nightop revive` | In a co-op run with `revive=on`, while your EVE is down: revive her yourself, a few times a run ([Down and revive](online/modes/nightop.md#down-and-revive)) (untested in game, co-op save only) |
 | `coop nightop shop` | Night Operation's [reward shop](online/modes/nightop-shop.md#the-shop-screen-coop-nightop-shop) in the game's own shop screen, your points as Beta Seeds, with its seven items (two cut stimpacks and the cut [Shock Bolt](online/modes/nightop-shop.md#cut-ammo-shock-bolt) ammo among them; the Shock Bolt only once EVE's gun can fire it) (the screen opened in game; buying from it is untested; co-op save only) |
 | `coop nightop buy [<n> [count]]` | The same shop from the console: your points and its seven items, or a buy of 1 to 10 of one of them (untested in game, co-op save only) |
+| `coop scoreattack [status\|pick <challenge>]` | [Score attack](online/modes/scoreattack.md#settings-and-commands) (untested in game): alone or `status`, one line with the host's challenge pick, your last round, its state and its ranking; `pick random`, a challenge's name or its number (1 to 5) sets the pick as the lobby menu's Challenge row does. Only the host's pick counts. Needs the Steam link |
 | `coop challenge [<name>\|stop]` | [Challenges](online/modes/challenges.md): the list with each best run, a start by name or number (1 to 5), or the end of the run that is on (untested in game, co-op save only; solo but the [Shooting Range](online/modes/challenges.md#shooting-range), which the host can start for both players; `stop` on any save) |
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only). He also appears by himself at each Xion load, on any save; `off` keeps him away until the next one |
@@ -260,7 +261,7 @@ These three commands run the ghost pipeline on one PC. They need the native tick
   `coop-record.bin` in the mod folder if it holds a pose. The name is fixed, so a new recording replaces the last one.
   Rename the file by hand to keep it.
 - `coop replay` checks the whole of `coop-record.bin` before anything plays and refuses a file that fails, with the
-  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 23). It
+  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 25). It
   then plays the file in a loop as the remote side, each pose re-stamped as if sent now, until `coop replay off`, which
   removes the ghost. The generation, map and positions stay as recorded: the ghost wears the recorded outfit and walks
   where you walked, with no offset, and the map gate applies.
@@ -332,6 +333,9 @@ word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`
 - engine reads and the Steam link;
 - the screen notices, the co-op menu, the chat box, the feed and the partner HUD (the game gets its keys back), and the
   chat history (cleared);
+- a [score attack](online/modes/scoreattack.md#what-stops-a-round) round (your run ends as aborted and your game
+  sends nothing more; the other players count you as a player who left) and a death screen its respawn hid (shown
+  again);
 - a Night Operation run or a challenge (it ends as aborted, and so does the partner's co-op run; your shop points stay
   as they are), the Night Operation poller, the Night Operation shop screen (closed, its seeds back in your wallet) and
   Roxanne's Night Operation choices (her own two back, and a run booked at her dropped);
@@ -388,7 +392,7 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 `***` and its last 4 digits, the join code and the lobby id as the code's first 3 characters and `****`, as in every
 line the mod writes to its logs. `coop-status.txt` in the mod folder holds the same state with them whole.
 
-- Steam: `mod=<version> proto=23 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
+- Steam: `mod=<version> proto=25 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts, your Steam name on a `me=` line, then `blocked=<n>`: the players on your
   [block list](players/playing-with-a-friend.md#block-list). A `block=<SteamID> <name>` line follows for each player you
   blocked in this game run.

@@ -29,6 +29,8 @@
 //   SBC<protocol> mark <n> [<text>] (coop mark: a numbered line in both players' logs).
 //   SBC<protocol> race <text> (a Doro race line, online/modes/race/model.lua's, printable ASCII; the link reads no
 //   further).
+//   SBC<protocol> score <text> (a score attack line, online/modes/scoreattack/model.lua's, printable ASCII, in a match
+//   lobby only; the link reads no further either).
 //   SBC<protocol> gift <payload> (coop gift, cutmenus/mailbox.lua: "s <id> <alias> <count>" a gift sent, "a <id>" kept
 //   in the friend's mailbox, "n <id> <why>" refused; gift_ok()).
 //   SBC<protocol> bike park <map> <x> <y> <z> <pitch> <yaw> <roll> or SBC<protocol> bike none (her parked bike,
@@ -67,7 +69,7 @@
 #include "link/pak_list.h"
 
 namespace coop {
-constexpr int kProtocol = 23; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 25; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                               // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
                               // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
                               // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines,
@@ -114,13 +116,15 @@ constexpr int kProtocol = 23; // Bump on any wire change. 1 was the first link (
                               // (c ask, c, c end) on channel 2, which an earlier protocol-23 development build counts
                               // malformed; 23 also carries the hit's level and the reaction's time on channel 2's cc
                               // line, with the new stagger and poise lines there, which an earlier protocol-23 build
-                              // drops as malformed lines (said once a session); 23 also adds the spot?, spot and rest
-                              // lines on channel 0 and the zone type in the vitals, which a protocol-22 peer would
-                              // count invalid; an earlier protocol-23 build drops the 13-number vit line too. An older
-                              // peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1, 12:
-                              // v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14: v0.7.0-beta.1, 17: a v0.7.5 test
-                              // build, 18: v0.7.5, 19: v0.8.0 to v0.10.0, 20: v0.11.0; 15, 16, 21 and 22 were never
-                              // released) is told why: the lobby tag, then the hello's reject, name both.
+                              // drops as malformed lines (said once a session); 24 adds the score attack: the
+                              // scoreattack match mode under sbo_mode and its score line on channel 0, which a
+                              // protocol-23 peer would count invalid; 25 adds the spot?, spot and rest lines on channel
+                              // 0 and the zone type in the vitals (a vit line of 13 numbers), which a protocol-24 peer
+                              // would count invalid. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's
+                              // builds, 11: v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14:
+                              // v0.7.0-beta.1, 17: a v0.7.5 test build, 18: v0.7.5, 19: v0.8.0 to v0.10.0, 20: v0.11.0;
+                              // 15, 16, 21, 22, 23 and 24 were never released) is told why: the lobby tag, then the
+                              // hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -139,13 +143,14 @@ constexpr size_t kMaxRemote = kMatchMembers - 1;
 constexpr int kMaxMembers = 4;
 constexpr char kModeKey[] = "sbo_mode", kStateKey[] = "sbo_state", kMapKey[] = "sbo_map";
 constexpr char kRoomKey[] = "sbo_room", kHallKey[] = "sbo_hall";
-// A mode: its name in kModeKey, the players its round needs at least, and its map until stage 4 adds arenas.
+// A mode: its name in kModeKey, the players its round needs at least, and its map until stage 4 adds arenas. The score
+// attack's map word is lobby: its round plays in the room the members wait in (online/modes/scoreattack/).
 struct Mode {
   const char *name;
   uint32_t min;
   const char *map;
 };
-constexpr Mode kModes[] = {{"ffa", 2, "NK_Boss_Scarlet"}};
+constexpr Mode kModes[] = {{"ffa", 2, "NK_Boss_Scarlet"}, {"scoreattack", 2, "lobby"}};
 // The mode of that name, or null when unknown.
 inline const Mode *find_mode(std::string_view name) {
   for (const Mode &m : kModes)
@@ -286,7 +291,7 @@ inline Life life_of(const Vitals &v) {
 
 enum class Kind {
   invalid, hello, accept, reject, ping, pong, photo, say, vitals, pak, paks, dlc, dlcs, camps_ask, camps, night, mark,
-  race, gift, bike, start, count, end, let, wait, cycle, spot_ask, spot, rest
+  race, gift, bike, start, count, end, let, wait, cycle, score, spot_ask, spot, rest
 };
 // The follow's camps lines (online/group/travel.lua): the guest asks with an id from 0 to kMaxCampId, the host answers
 // that id with his world and up to kMaxCamps ZoneCampTable aliases, nearest his EVE first, each with its distance in
@@ -340,7 +345,8 @@ struct Message {
                          // the container's name, mod_name_ok(). dlc: its name, chat_clean() to kMaxDlcName and never
                          // empty. camps: the host's world, or "none". night: the
                          // payload, night_ok(). mark: chat_clean() to kMaxMark, maybe empty. race: the text after
-                         // "race ", printable ASCII. gift: the payload, gift_ok(). bike: the payload, bike_ok().
+                         // "race ", printable ASCII. score: the text after "score ", the same way. gift: the payload,
+                         // gift_ok(). bike: the payload, bike_ok().
                          // start: the mode. spot: "none" when she has no spot. rest: the zone, alias_word().
   Vitals vitals{};       // vitals: hers, plausible_vitals().
   Spot at{};             // spot: her ground point and yaw.
@@ -378,6 +384,8 @@ inline std::string say_line(const std::string &text) {
 }
 // A race line, reliable: Lua's text as it is. One that parse() would not read as Kind::race is never sent.
 inline std::string race_line(const std::string &text) { return "SBC" + std::to_string(kProtocol) + " race " + text; }
+// A score attack line, reliable, the same way: one that parse() would not read as Kind::score is never sent.
+inline std::string score_line(const std::string &text) { return "SBC" + std::to_string(kProtocol) + " score " + text; }
 // Our vitals, unreliable: on change and each second (link/core.h).
 inline std::string vit_line(const Vitals &v) {
   std::string line = "SBC" + std::to_string(kProtocol) + " vit";
@@ -524,8 +532,8 @@ inline std::string let_line(uint64_t pair, const std::vector<uint64_t> &ids, int
 inline std::string wait_line(uint64_t seconds) {
   return "SBC" + std::to_string(kProtocol) + " wait " + std::to_string(seconds);
 }
-// Channel 2's tags, versioned like channel 0's: "SBF23" for the shared fight, "SBQ23" for the shared quests, "SBW23"
-// for the shared world, "SBS23" for story together.
+// Channel 2's tags, versioned like channel 0's: "SBF25" for the shared fight, "SBQ25" for the shared quests, "SBW25"
+// for the shared world, "SBS25" for story together.
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
 inline std::string world_tag() { return "SBW" + std::to_string(kProtocol); }
@@ -737,9 +745,9 @@ inline Message parse(const char *data, size_t size) {
       m.kind = Kind::night;
       m.text = rest;
     }
-  } else if (split(text, f, 2, &rest) && f[0] == versioned_tag && f[1] == "race") {
+  } else if (split(text, f, 2, &rest) && f[0] == versioned_tag && (f[1] == "race" || f[1] == "score")) {
     if (std::all_of(rest.begin(), rest.end(), [](char c) { return c >= 0x20 && c <= 0x7e; })) {
-      m.kind = Kind::race;
+      m.kind = f[1] == "race" ? Kind::race : Kind::score;
       m.text = rest;
     }
   } else if (split(text, f, 2, &rest) && f[0] == versioned_tag && f[1] == "gift") {
@@ -1015,7 +1023,7 @@ enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
   signal, match, mute, sbo, guardtext, hud, loading, world, scenes, bike, block, unblock, list, where, rules, sky,
-  pausetab, popups, teamshop, spot, rest
+  pausetab, popups, teamshop, score, spot, rest
 };
 // match: "match search <mode> <room> <hall>" (quick match: join an open Public lobby of that mode and hall, or host
 // one), "match create <mode> <room> <hall>" (a private match lobby joined with its code), "match cancel" (forget the
@@ -1023,7 +1031,8 @@ enum class Command {
 // The room and hall are Lua's words for the lobby map and the lobby pak's version (kRoomKey, kHallKey). mute: "mute
 // <SteamID>" and "unmute <SteamID>", in any lobby: that member's chat lines are dropped here, or heard again, for the
 // rest of the game run. block: "block <SteamID>" (the block list, link/core.h: kept out of every lobby we host, across
-// game runs); unblock: "unblock <SteamID>" or "unblock all" (player 0).
+// game runs); unblock: "unblock <SteamID>" or "unblock all" (player 0). score: "score <text>", a score attack line for
+// every member of the match lobby (link/core.h's score(), which refuses a text score_line() would not carry).
 enum class MatchAsk : uint8_t { search, create, cancel, end };
 // shortcut load's maps, game/shortcut.h's kMapNames in its order (shortcut_load_test checks they match).
 constexpr const char *kShortcutMaps[4] = {"B07", "F02", "G03", "Matrix_XI"};
@@ -1529,6 +1538,8 @@ inline Request parse_request(std::string text) {
     r.command = Command::bike, r.bike = BikeAsk::load, r.path = f[2];
   } else if (text.rfind("gift ", 0) == 0 && gift_ok(text.substr(5))) {
     r.command = Command::gift, r.text = text.substr(5);
+  } else if (text.rfind("score ", 0) == 0) {
+    r.command = Command::score, r.text = text.substr(6);
   } else if (text.rfind("guardtext ", 0) == 0) {
     r.command = Command::guardtext, r.text = text.substr(10);
   } else if (uint64_t ask = 0, index = 0, number_ = 0;

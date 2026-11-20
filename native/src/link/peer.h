@@ -67,6 +67,7 @@ struct Peer {
   Window say_window;       // Her chat lines.
   Window night_window;     // Her night lines.
   Window race_window;      // Her race lines.
+  Window score_window;     // Her score attack lines.
   Window gift_window;      // Her gift lines.
   Window ping_window;      // Her pings.
   Window line_window;      // All her channel-0 lines, for the flood rule only.
@@ -99,6 +100,7 @@ struct Peer {
   bool night_logged = false; // The same for her night lines.
   bool mark_logged = false; // The same for her mark lines, which share her chat lines' window.
   bool race_logged = false; // The same for her race lines.
+  bool score_logged = false; // The same for her score attack lines.
   bool round_logged = false; // The same for her round lines.
   // Counted for the 60 s line, then restarted.
   uint64_t in = 0, in_bytes = 0, out = 0, out_bytes = 0, dropped = 0, failed = 0, pings = 0, pongs = 0;

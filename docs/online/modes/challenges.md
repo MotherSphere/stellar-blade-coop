@@ -8,7 +8,8 @@ solo run does. Target Practice stands the game's target dummies in front of her,
 Each run ends on the result panel with the time, the score and the best run kept on this PC. The challenges run on the
 solo run's code, on a co-op save, and log `[StellarCoop][NR]` lines. Four of them need no Steam session; the Shooting
 Range also runs for two linked players (see [The Shooting Range for two](#the-shooting-range-for-two)). They give no
-shop points. They have not been tested in game yet.
+shop points. They have not been tested in game yet. In the SBO lobby, [score attack](scoreattack.md) plays the same five
+for 2 to 8 players at once, each in her own game.
 
 | Command | What it does |
 | --- | --- |
