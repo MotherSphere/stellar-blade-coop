@@ -6,7 +6,7 @@
 -- for it. No pass reads its lines after that. Then its wiring on a fake run: scoreattack=off, the bike and a Night
 -- Operation run each sit a round out with its notice; a hall seat is left first and the run starts at our spot, then
 -- ready goes; each pass ticks the run; the run's end goes as the done line; the run's reads (status, pause, life, the
--- lobby room); coop off stops the run. The screens (online/modes/scoreattack/ui/board.lua) are
+-- lobby room) and its records file; coop off stops the run. The screens (online/modes/scoreattack/ui/board.lua) are
 -- built on the kit's hud step and tick each pass.
 dofile('tests/lua/main/fixture.lua')
 local Round=require('online.modes.scoreattack.round')
@@ -102,6 +102,33 @@ sb.target=nil; assert(fake.o.room()==false,'Out of the room'); sb.target=ROOM
 link_match.mode='ffa'; assert(fake.o.room()==false,'Another mode')
 link_match={state='searching',mode='scoreattack'}; assert(fake.o.room()==false,'Still searching')
 link_match=nil; assert(fake.o.room()==false,'No match')
+-- The best match runs: coop-records.txt in the mod folder, read and written through core/link.lua's files. No file:
+-- no best yet, nothing raised. Written through coop-records.txt.tmp, then read back.
+do
+    local P='mod/StellarCoop\\coop-records.txt'
+    assert(fake.o.records.read()==nil and nr.read==P,nr.read)
+    assert(fake.o.records.write('best_match_targets=1250 37\n')==true and nr.wrote[1]==P..'.tmp'
+        and disk.files[P..'.tmp']==nil)
+    assert(fake.o.records.read()=='best_match_targets=1250 37\n')
+    -- A write that fails (a full disk) leaves the file as it was; so does a rename refused while the old file stays.
+    disk.fail[P..'.tmp']='write'
+    assert(fake.o.records.write('x')==false and disk.files[P]=='best_match_targets=1250 37\n')
+    disk.fail[P..'.tmp']='rename'
+    local files=package.loaded['core.link'].files
+    local remove=files.remove
+    files.remove=function() return nil,'in use',13 end
+    assert(fake.o.records.write('x')==false and disk.files[P]=='best_match_targets=1250 37\n')
+    files.remove=remove
+    -- The rename refused once the old file went: written in place.
+    assert(fake.o.records.write('y')==true and disk.files[P]=='y',tostring(disk.files[P]))
+    disk.fail[P..'.tmp']=nil
+    -- A rename that replaces the old file needs it gone first (rename never replaces on Windows).
+    assert(fake.o.records.write('z')==true and disk.files[P]=='z' and disk.files[P..'.tmp']==nil)
+    -- A file that cannot be opened raises: nothing is written over it.
+    disk.fail[P]='open'
+    assert(not pcall(fake.o.records.read),'It raises')
+    disk.fail[P]=nil
+end
 coop('off')
 assert(fake.stops[#fake.stops]=='coop off',tostring(fake.stops[#fake.stops]))
 for _,l in ipairs(printed) do assert(not l:find('scoreattack: error',1,true),l) end
