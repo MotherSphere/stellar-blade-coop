@@ -120,9 +120,10 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   script, the rifle layer, the `NGM_R_` clips and `SBOutfitProject`. Gun mode's code, tests, tools and page hold no
   clock time of a play session unless it names its log (`UE4SS.log 2026-11-12 21:49`). They cite neither
   `NGM_FACTS.md` nor the rebuild's plan, which are not in this repository. The gun mode page names every table
-  `fight/gunmode/data.lua` changes and the notice the parked key shows. Neither the page nor `ammo.lua`'s header
-  promises the bottom-left round count while `mode.lua` passes the rounds no D-pad slot. The page, its docs index row
-  and `coop gun`'s comment speak of no crouching. The page has no ", and" or ", but", no bold-label bullet and no
+  `fight/gunmode/data.lua` changes and the notice the parked key shows. While `mode.lua` passes the rounds no D-pad
+  slot, neither the page nor `ammo.lua`'s header promises the `rounds | magazines` count. While it passes one, the
+  page says what the slot shows, names its icon (`Icon_Nikke_LostItem_AssaultRifle`, row `Nikke_AR`) and says the
+  first in-game test sets its place. The page, its docs index row and `coop gun`'s comment speak of no crouching. The page has no ", and" or ", but", no bold-label bullet and no
   "co-op session". `ammo.lua`'s header and `facts.lua`'s note on the retired F11 have no ", and" or ", but" either.
   Only `fight/gunmode/wiring.lua` registers an engine hook (`NotifyOnNewObject`, `RegisterHook`);
 - `fight/gunmode/release_test` runs `fight/gunmode/release_check.lua` on gun mode's shipped defaults: no debug flag
