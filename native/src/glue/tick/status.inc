@@ -97,6 +97,8 @@ std::string status() {
   // The fishing tournament's book read (online/modes/fishing/game.lua): the last ask's answer, by its number.
   if (!fishbook_line.empty() && !blocked)
     s += fishbook_line;
+  // The photo hunt's photo check (online/modes/photohunt/game.lua): the last ask's answer, by its number, or its none.
+  s += photohunt_status();
   s += pad_slate ? " pad=slate" : " pad=xinput"; // coop_pad's source: the game's controller events, or XInput.
   if (nightop_on && !blocked) // Last, so Lua's unanchored remote= match still holds.
     s += poller.rule_asked() ? " nightop=rule" : " nightop=on";

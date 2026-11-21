@@ -71,6 +71,9 @@ if M.link then
         -- The fishing tournament's round and book reads, after the inbox, which keeps its mode lines apart: it logs its
         -- own lines.
         if not M.off then M.guarded('fishing',M.fishing.tick) end
+        -- The photo hunt's round and photo checks, after the inbox, which keeps its mode lines apart: it logs its own
+        -- lines.
+        if not M.off then M.guarded('photohunt',M.photohunt.tick) end
         -- One of ours for the native part, two a second at most; never logged. Alone in the lobby it stays on our
         -- screen only, with one notice until someone is linked.
         local typed=M.guarded('chat',M.chat.take,M.chat_clock)

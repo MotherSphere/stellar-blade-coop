@@ -239,6 +239,9 @@
     "0x14710d194": {"kind": "global", "ghidra": "DAT_14710d194 in .sbss", "name": "kStatics[1]", "pattern": "8b 15 ?? ?? ?? ?? 48 8b c8 41 b0 01 e8 ?? ?? ?? ?? 84 c0 74 ?? 0f b6 83 96 01 00 00", "mask": "xx????xxxxxxx????xxx?xxxxxxx", "ref": {"from": "0x1423cf78a", "disp": 2, "end": 6, "add": 0}},
     "0x14710f6b8": {"kind": "global", "ghidra": "DAT_14710f6b8 in .sbss", "name": "kFileManager", "pattern": "48 8d 0d ?? ?? ?? ?? 41 ff d2", "mask": "xxx????xxx", "ref": {"from": "0x14385d9aa", "disp": 3, "end": 7, "add": 0}},
     "0x147112ca8": {"kind": "global", "ghidra": "DAT_147112ca8 in .sbss", "name": "kRotationAt", "pattern": "f3 0f 10 0d ?? ?? ?? ?? 48 8d 4d f0", "mask": "xxxx????xxxx", "ref": {"from": "0x14240e2a8", "disp": 4, "end": 8, "add": 0}},
-    "0x147112cb8": {"kind": "global", "ghidra": "DAT_147112cb8 in .sbss", "name": "kLocationAt", "pattern": "f2 0f 10 05 ?? ?? ?? ?? 4c 8d 45 d8", "mask": "xxxx????xxxx", "ref": {"from": "0x141baddfc", "disp": 4, "end": 8, "add": 0}}
+    "0x147112cb8": {"kind": "global", "ghidra": "DAT_147112cb8 in .sbss", "name": "kLocationAt", "pattern": "f2 0f 10 05 ?? ?? ?? ?? 4c 8d 45 d8", "mask": "xxxx????xxxx", "ref": {"from": "0x141baddfc", "disp": 4, "end": 8, "add": 0}},
+    "0x141f0d7a0": {"kind": "function", "ghidra": "FUN_141f0d7a0", "name": "kCheck", "pattern": "48 8b c4 48 89 58 08 48 89 70 10 55 57 41 56 48 8d 68 d8", "mask": "xxxxxxxxxxxxxxxxxxx"},
+    "0x141f24370": {"kind": "function", "ghidra": "FUN_141f24370", "name": "kRowOf", "pattern": "48 89 5c 24 08 48 89 74 24 10 57 48 83 ec 20 33 f6 49 8b d8 80 79 58 01 48 8b f9 0f 85 ?? ?? ?? ?? 8b 41 68 3b 81 94 00 00 00 0f 84 ?? ?? ?? ?? 48 8d 91 98 00 00 00 8b 89 a8 00 00 00 48 8b 42 08 48 ff c9 81 e1 8d 00 00 00", "mask": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx????xxxxxxxxxxx????xxxxxxxxxxxxxxxxxxxxxxxxxx"},
+    "0x145c3bee0": {"kind": "rdata", "ghidra": "PTR_FUN_145c3bee0 in .link, holds 0x141f09a00 (FUN_141f09a00)", "name": "kUiVtable", "pattern": "48 8d 05 ?? ?? ?? ?? 48 8b d9 48 89 01 48 8b 89 38 03 00 00", "mask": "xxx????xxxxxxxxxxxxx", "ref": {"from": "0x141f09a5f", "disp": 3, "end": 7, "add": 0}}
   }
 }

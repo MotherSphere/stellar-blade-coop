@@ -203,6 +203,11 @@ std::string ask_items(const coop::Request &request);
 // pinned build and after coop off. Returns the line for the log, empty while the answer's kind (read, or none and why)
 // stays the same: Lua asks once a second.
 std::string ask_fishbook(const coop::Request &request);
+// Worker thread, the photo hunt (online/modes/photohunt/photohunt.h): Lua's photohunt request, SB's photo check of 1 to
+// 3 rows at each photo of the selfie mode, from the game thread's next frame, or photohunt off; the answer goes in the
+// engine line's photohunt= (status()). Refused off the pinned build, after coop off and after its latch's fault, with a
+// none answer. Returns the line for the log.
+std::string ask_photohunt(const coop::Request &request);
 // Worker thread, the Night Operation shop's screen (online/modes/nightop/shop_ui.h): Lua's nightshop request, SB's shop
 // screen opened on Shop_NightOperation_Coop or _CoopBolt, or closed, at the game thread's next frame. Refused off the
 // pinned build and after its latch's fault; after coop off, only a close. Returns the line for the log; fight_pass logs
@@ -316,6 +321,8 @@ void ask_hud(bool hide);
 void hud_pass();
 // Every pass: logs each answer of the team shop's screen (world/teamshop/shop_ui.h's describe) and its fault once.
 void teamshop_pass();
+// Every pass: logs the photo hunt's fault once (online/modes/photohunt/photohunt_worker.inc).
+void photohunt_pass();
 // The pause menu's Online tab (ui/pause_tab_game.inc, ui/pause_tab.h), worker thread. Lua's pausetab on or off
 // (Command::pausetab): RB on the pause menu's last tab opens the Online tab only while on (on until Lua says off). A
 // change is logged.

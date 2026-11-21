@@ -49,4 +49,85 @@ disk.fail[P]='open'
 assert(not pcall(o.record,'Xion',3,50),'It raises')
 disk.fail[P]=nil
 assert(disk.files[P]:find('\nbest_photohunt_xion=3 100\n',1,true))
+
+-- The two runtime lines on a host's round over a fake clock and world: the 250 ms loop ticks the round, then its game
+-- side, which arms the native part at GO with the three targets' FNames; a valid photo in the engine line makes the
+-- host's own claim and its board line; coop off ends the round with no line and takes the ask back, with no ask after
+-- it; the pass line is guarded; photohunt=off and a save that is not a co-op one refuse the host's start.
+local T=1000
+local time=os.time
+os.time=function() return T end
+local round
+Round.new=function(opts) o=opts; round=new(opts); return round end
+local Game=require('online.modes.photohunt.game')
+local read,game_new=Game.read,Game.new
+Game.read=function() return {'Cat1','Cat2','MemoryOfXion'},'Xion' end -- SB's tables, walked by targets.lua.
+Game.new=function(opts)
+    opts.fname=function(row) return {index=({Cat1=502,Cat2=503,MemoryOfXion=501})[row],number=0} end -- FNAME_Find.
+    return game_new(opts)
+end
+load_main(true)
+local Where=require('core.where')
+local world,me=Where.world,Where.me
+Where.world,Where.me=function() return true,false end,function() return {map='/game/art/bg/worldmap/level_p/e04'} end
+saves_info,chatting={steamid='1001'},true
+fake_link.host=function() return {id='1001'} end
+fake_link.members=function() return {{id='2002',linked=true,lost=false,name='P2'}} end
+status_text='mod=v proto=3 steam=ready\nlink=host lobby=7\nslot=coop 2\nengine=v1 pad=xinput\n'
+coop('photohunt','start','1')
+assert(round.round().phase=='play' and fake_link.modes[#fake_link.modes]:find('^photohunt go %d+ 1 Xion %w+,%w+,%w+ 1001,2002$'),
+    tostring(fake_link.modes[#fake_link.modes]))
+local function arms()
+    local n,last=0,nil
+    for _,line in ipairs(asked) do if line:find('^photohunt %d+ ') then n,last=n+1,line end end
+    return n,last
+end
+loops[2].f() -- In the countdown: no ask.
+assert(arms()==0)
+T=T+5 -- GO.
+loops[2].f()
+local n,line=arms()
+assert(n==1 and line:find('^photohunt %d+ 50%d 0 50%d 0 50%d 0$'),'The pass ticks the game side: its ask at GO')
+-- The native part's answer: a shot with a 3 for the round's first target. The host's own claim at this pass, then
+-- its board at the next.
+local ask=line:match('^photohunt (%d+) ')
+status_text=status_text:gsub(' pad=',' photohunt='..ask..' 1 1,0,0 300 pad=')
+loops[2].f()
+assert(round.round().board[1] and round.round().board[1].id=='1001','Taken by the host')
+loops[2].f()
+assert(fake_link.modes[#fake_link.modes]:find('^photohunt board %d+ 1001:0,0:0,0:0$'),fake_link.modes[#fake_link.modes])
+local lines=#fake_link.modes
+coop('off')
+assert(round.round().phase=='over' and round.round().why=='coop off' and #fake_link.modes==lines,'No line')
+local back=false
+for i=#asked,1,-1 do
+    if asked[i]:find('^photohunt %d+ ') then break end
+    back=back or asked[i]=='photohunt off'
+end
+assert(back,'The ask taken back, before the native part goes off')
+local after=#asked
+T=T+1
+loops[2].f()
+assert(#asked==after,'No pass and no ask after coop off')
+-- Guarded: a tick that raises is logged once and the loop goes on.
+load_main(true)
+round.tick=function() error('boom',0) end
+loops[2].f()
+loops[2].f()
+local errors=0
+local ERROR='photohunt: error (logged once until the mod reloads; the other modules go on): boom'
+for _,l in ipairs(printed) do if l:find(ERROR,1,true) then errors=errors+1 end end
+assert(errors==1,'Logged once')
+-- The photohunt setting and the co-op save check reach the round through main.lua: each refuses the host's start.
+settings_text='photohunt=off\n'
+load_main(true)
+assert(select(2,round.start('1'))=='off','photohunt=off from the settings')
+settings_text=''
+load_main(true)
+status_text=status_text:gsub('slot=coop ','slot=normal ')
+assert(select(2,round.start('1'))=='slot','Off a co-op save')
+status_text=status_text:gsub('slot=normal ','slot=coop ')
+assert(round.start('1'),'Both hold: it starts')
+Where.world,Where.me,os.time=world,me,time
+Game.read,Game.new=read,game_new
 print('main/photohunt_test ok')

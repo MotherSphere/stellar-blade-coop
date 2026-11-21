@@ -246,6 +246,7 @@ private:
     case Command::devinfo:
     case Command::items:
     case Command::fishbook:
+    case Command::photohunt:
     case Command::nightshop:
     case Command::teamshop:
     case Command::roxanne:

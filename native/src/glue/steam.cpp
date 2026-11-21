@@ -749,6 +749,10 @@ bool step() {
         event(said);
       request.clear();
       break;
+    case coop::Command::photohunt: // The photo hunt's photo check: the game thread's; the worker logs each ask.
+      event(coop::pose::ask_photohunt(coop::parse_request(request)));
+      request.clear();
+      break;
     case coop::Command::rows: // The rows of coop lion, coop gardener/tendril fight, the Shock Bolt, coop mxiii's four, the
                               // shop, Lily's signal: the game thread's.
       event(coop::pose::ask_rows(coop::parse_request(request)));
@@ -1005,6 +1009,7 @@ bool step() {
       link->notice(said);
     coop::pose::hud_pass();
     coop::pose::teamshop_pass();
+    coop::pose::photohunt_pass();
     coop::pose::loading_pass();
     coop::pose::sky_pass();
     if (const std::string kept = coop::pose::keep_pass(); !kept.empty())

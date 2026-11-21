@@ -1001,8 +1001,11 @@ inline std::string masked(std::string_view text) {
 // index> <FName number>" (how many of that item our EVE carries, read by the worker, cutmenus/items.h: ask 1 to 65535,
 // answered in the engine line's items=; index above 0, both within 32 bits); for the fishing tournament
 // (online/modes/fishing/game.lua) "fishbook <ask>" (our EVE's fishing log book, read by the worker,
-// online/modes/fishing/fishing.h: ask 1 to 65535, answered in the engine line's fish=); and for coop lion
-// (fight/bosses/lion.lua)
+// online/modes/fishing/fishing.h: ask 1 to 65535, answered in the engine line's fish=); for the photo hunt
+// (online/modes/photohunt/game.lua) "photohunt <ask> <FName index> <FName number> ..." (SB's photo check of 1 to 3
+// PhotoChallengeTable rows at each selfie photo, on the game thread, online/modes/photohunt/photohunt.h: ask 1 to
+// 65535, answered in the engine line's photohunt=; each index above 0, both within 32 bits) and "photohunt off"; and
+// for coop lion (fight/bosses/lion.lua)
 // "lion rows <Table>=0x<address> ...", for coop gardener fight (fight/bosses/gardener.lua) "gardener rows
 // <Table>=0x<address> ...", for coop tendril fight (fight/bosses/tendril.lua) "tendril rows <Table>=0x<address> ...",
 // for the shop's Shock Bolt (through fight/bosses/lion.lua) "bolt rows <Table>=0x<address> ...", for coop mxiii
@@ -1043,7 +1046,7 @@ enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
   signal, match, mute, sbo, guardtext, hud, loading, world, scenes, bike, block, unblock, list, where, rules, sky,
-  pausetab, popups, teamshop, score, spot, rest, mode, fishbook
+  pausetab, popups, teamshop, score, spot, rest, mode, fishbook, photohunt
 };
 // match: "match search <mode> <room> <hall>" (quick match: join an open Public lobby of that mode and hall, or host
 // one), "match create <mode> <room> <hall>" (a private match lobby joined with its code), "match cancel" (forget the
@@ -1121,7 +1124,7 @@ struct Request {
   uint64_t ms = 0, jitter = 0, loss = 0; // loopback: the one-way delay, its jitter, the segment loss in %. freeze:
                                          // the seconds in ms.
   bool off = false;                      // loopback off, record off, replay off, freeze off, a gate off, anim stop,
-                                         // fight pvp off, unmute, list stop.
+                                         // fight pvp off, unmute, list stop, photohunt off.
   uint8_t gate = 0;                      // gate: eve/debug_keys.h's Gate, 0 for fly, 1 for slowmo.
   uint8_t panel = 0;                     // devinfo: game/dev_panels.h's Panel, 0 off, 1 quest, 2 player.
   ShopAsk shop = ShopAsk::close;         // nightshop: open, open bolt, close or watch.
@@ -1167,7 +1170,9 @@ struct Request {
                                   // Join's alias; sbo warp: the zone; sbo seq: the sequence's alias.
   bool spot = false;            // travel spot: SB's position warp to at, no camp.
   Spot at{};                    // travel spot: the place in whole centimetres and the yaw in whole degrees.
-  uint32_t ask = 0;             // items, fishbook: Lua's number for its answer.
+  uint32_t ask = 0;             // items, fishbook, photohunt: Lua's number for its answer.
+  std::array<uint64_t, 3> names{}; // photohunt: the rows' FNames (number << 32 | index), name_count of them.
+  uint8_t name_count = 0;
   std::string text;             // mark: its text, or empty. gift: the payload. guardtext: what follows the word.
                                 // rules: the word.
   std::string zone, camp;       // where: the map segment and the camp alias (or empty).
@@ -1575,6 +1580,22 @@ inline Request parse_request(std::string text) {
   } else if (uint64_t ask = 0;
              split(text, f, 2, nullptr) && f[0] == "fishbook" && number(f[1], ask) && ask && ask <= 65535) {
     r.command = Command::fishbook, r.ask = static_cast<uint32_t>(ask);
+  } else if (text == "photohunt off") {
+    r.command = Command::photohunt, r.off = true;
+  } else if (text.rfind("photohunt ", 0) == 0) {
+    std::string w[8];
+    uint64_t ask = 0;
+    size_t n = 0; // The fields: the word, the ask, then 1 to 3 index and number pairs.
+    for (size_t count = 4; !n && count <= 8; count += 2)
+      n = split(text, w, count, nullptr) ? count : 0;
+    bool ok = n && number(w[1], ask) && ask && ask <= 65535;
+    for (size_t i = 2; ok && i < n; i += 2) {
+      uint64_t index = 0, number_ = 0;
+      ok = number(w[i], index) && index && index <= UINT32_MAX && number(w[i + 1], number_) && number_ <= UINT32_MAX;
+      r.names[(i - 2) / 2] = number_ << 32 | index;
+    }
+    if (ok)
+      r.command = Command::photohunt, r.ask = static_cast<uint32_t>(ask), r.name_count = uint8_t((n - 2) / 2);
   } else if (text == "nightop" || text == "nightop rule") {
     r.command = Command::nightop;
     r.rule = text.size() > 7;
