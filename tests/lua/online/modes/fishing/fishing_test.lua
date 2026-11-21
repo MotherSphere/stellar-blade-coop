@@ -9,6 +9,7 @@ local session,members={id='1001'},{{id='2002',linked=true,lost=false,name='P2'}}
 local sent={}
 local link={saves=function() return {steamid='1001'} end,host=function() return session end,
     match=function() end,members=function() return members end,member=function() end,me=function() return 'P1' end,
+    chatting=function() return true end,
     take_mode=function() return {} end,mode_line=function(_,text) sent[#sent+1]=text; return true end}
 local fish=nil
 local round=require('online.modes.fishing.round').new({link=link,clock=function() return 100 end,

@@ -111,11 +111,13 @@ function R.new(o)
     end
     -- Each 250 ms pass: the fish lines in, then the host's board and ranking, or a guest's wait for it. A tournament
     -- ends when our online session does: on the host, once the status says it has none; on a guest, once her host's
-    -- session is gone with no rejoin of hers under way, or another host's comes.
+    -- session is gone with no rejoin of hers under way, or another host's comes. A pass whose status was not read
+    -- (link.chatting() nil) does nothing: it names no host and not our SteamID, so the fish lines wait in the link.
     function self.tick()
+        if link.chatting()==nil then return end
         local now,me,s=o.clock(),(link.saves() or {}).steamid,link.host()
         if cur and cur.phase=='play' and cur.go then
-            if cur.host and (s and s.id~=me or not s and link.chatting()~=nil) then finish('left')
+            if cur.host and (not s or s.id~=me) then finish('left')
             elseif not cur.host and (s and s.id~=cur.from or not s and link.chatting()==false) then
                 finish('host_left')
             end

@@ -4,7 +4,8 @@
 -- A fishing tournament on a fake link and clock (online/modes/fishing/round.lua): coop fish start and its refusals;
 -- the host's go, board, checks (each refusal of the design's section 7), rank and record; a guest's go, ready, catch,
 -- board, rank and record, her sit-out and the lines she drops; who may send which line; a guest who is lost and comes
--- back; the host leaving; coop fish stop; a guest's and the host's Lua reload; a guest's rejoin; 2, 4 and 8 players.
+-- back; the host leaving; coop fish stop; a guest's and the host's Lua reload; a guest's rejoin; a pass whose status
+-- was not read; 2, 4 and 8 players.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Round=require('online.modes.fishing.round')
 local Fm=require('online.modes.fishing.model')
@@ -13,7 +14,8 @@ local HOST,P2,P3='1001','2002','4003'
 local POINTS={[9220]=138,[9201]=30,[9230]=0}
 local t=1000
 -- A fake link: our SteamID, the online session's host (nil for none), whether the status says a chat session holds,
--- the members, a match lobby, the fish lines waiting and the ones we sent.
+-- the members, a match lobby, the fish lines waiting and the ones we sent. unread: a pass whose status was not read
+-- (core/link.lua's changes() then has no host, no SteamID of ours and chatting() nil).
 local function fake(me,n)
     local L={me=me,session={id=HOST},chat=true,match=nil,inbox={},sent={},roster={}}
     for i=1,(n or 3) do
@@ -21,9 +23,9 @@ local function fake(me,n)
         if id~=me then L.roster[#L.roster+1]={id=id,linked=true,lost=false,name='P'..i} end
     end
     L.api={
-        saves=function() return {steamid=L.me} end,
-        host=function() return L.session end,
-        chatting=function() return L.chat end,
+        saves=function() return L.unread and {} or {steamid=L.me} end,
+        host=function() return not L.unread and L.session or nil end,
+        chatting=function() if L.unread then return nil end return L.chat end,
         match=function() return L.match end,
         me=function() return 'P'..(L.me==HOST and 1 or L.me==P2 and 2 or 3) end,
         members=function() return L.roster end,
@@ -165,6 +167,13 @@ L.chat=false
 n=#L.sent
 r.tick()
 assert(r.round().why=='left' and last(o.stopped)=='left' and #L.sent==n)
+-- We are in another host's online session: ours ends the same way.
+L.session,L.chat={id=HOST},true
+assert(r.start('1'))
+n=#L.sent
+L.session={id=P2}
+r.tick()
+assert(r.round().why=='left' and #L.sent==n)
 -- coop off: no line.
 L.session,L.chat={id=HOST},true
 assert(r.start('1'))
@@ -176,6 +185,10 @@ assert(r.round().why=='coop off' and #L.sent==n and select(2,r.cancel())=='none'
 r,o=make(L)
 L.from(P2,'catch '..seed..' 9220 138'); r.tick()
 assert(last(L.sent)=='void '..seed and r.round()==nil)
+-- A ready of a seed we do not run gets nothing back: only a catch does.
+n=#L.sent
+L.from(P2,'ready 78'); r.tick()
+assert(#L.sent==n)
 
 -- A guest of three: lines from another guest are refused as sender (go) or dropped with no log (ready, catch).
 L=fake(P2)
@@ -213,6 +226,8 @@ assert(r.round().seed==9 and #L.sent==2)
 -- void: the tournament ends, no record.
 L.from(HOST,'go 11 10 1001,2002'); r.tick()
 assert(r.round().seed==11 and last(L.sent)=='ready 11')
+L.from(HOST,'void 77'); r.tick()
+assert(r.round().phase=='play','A void of another seed changes nothing')
 L.from(HOST,'void 11'); r.tick()
 assert(r.round().why=='void' and last(o.stopped)=='void')
 -- The host leaves: the session ends with no rejoin of ours. While our own rejoin runs, it goes on.
@@ -246,6 +261,14 @@ assert(r.round().phase=='over' and #o.records==1)
 L.from(HOST,'go 15 10 1001,2002'); r.tick()
 L.from(HOST,'go 16 10 1001,2002'); r.tick()
 assert(last(o.stopped)=='replaced' and r.round().seed==16)
+-- A pass whose status was not read: the lines wait for the next pass, none refused, the tournament goes on.
+L.unread=true
+L.from(HOST,'rank 16 10 1001:30:1'); r.tick()
+assert(r.round().phase=='play' and said(o,'line refused from P1: sender')==0)
+L.unread=nil
+r.tick()
+-- A rank of ours that does not name us (lost at the rank): the ranking, no record.
+assert(r.round().phase=='ranked' and r.round().list[1].id==HOST and #o.records==1)
 
 -- A guest whose game sits out (off a co-op save): the notice with the why, no ready, the tournament over for her.
 L=fake(P3)
@@ -254,7 +277,7 @@ L.from(HOST,'go 20 10 1001,2002,4003'); r.tick()
 assert(o.told[1]=='starts P1 10' and o.told[2]=='out slot' and #L.sent==0 and r.round().why=='out' and o.started==0)
 assert(not r.catch(9220,138))
 L.from(HOST,'board 20 1001:0:0,2002:0:0'); L.from(HOST,'rank 20 10 1001:0:0,2002:0:0'); r.tick()
-assert(#o.told==2 and #o.records==0)
+assert(#o.told==2 and #o.records==0 and r.round().board==nil)
 
 -- A guest's Lua reload: the first board that names us under a seed we do not run says so once; a board that does not
 -- name us says nothing. The rank still gives the ranking and our record, with its minutes.
