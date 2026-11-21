@@ -128,6 +128,8 @@ for k,g in ipairs(mid) do
     g.files.store().save('/Game/Map.Map:PersistentLevel.Actor_'..k)
 end
 assert(mid[1].files.store().load()==nil,'The bench sweeps its list itself')
+assert(select(2,(files[Bench.LIST] or ''):gsub('\n',''))==16,'Listed at once: a Lua reload before the next pass '
+    ..'still finds them')
 b.sync()
 local text=files[Bench.FILE]
 assert(text:find('^bench 7\nghost 4000 0 2\ndisplay 7\nmailbox 0x1 0x5c0\nghost 3696 1531 2\ndisplay 7\n'),text)

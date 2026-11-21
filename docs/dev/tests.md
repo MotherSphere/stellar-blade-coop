@@ -234,9 +234,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   (0 to 64 ghosts, the three tiers, `ring` 1 to 300 m, `nocloth`, `noshadow`, `add`; any other word refused with the
   usage), the refusal while her ghost is off, the ghosts on their ring with their tier's look on slots 101 on, their
   table from `coop-bench-table.txt` at the native part's count, their displays in `coop-bench.txt` with offset and
-  stride, their paths in `coop-bench-ghosts.txt`, one log line a window with its text, `add` up to 64, a second ring of
-  the same size turned by half a step, a map change, `off`, a window left from an earlier run, a ghost that raises said
-  once and the next Lua load's sweep. Through `online/partner/wiring.lua` the bench ticks with the members' ghosts and
+  stride, their paths in `coop-bench-ghosts.txt` as each is built, one log line a window with its text, `add` up to
+  64, a second ring of the same size turned by half a step, a map change, `off`, a window left from an earlier run, a
+  ghost that raises said once and the next Lua load's sweep. Through `online/partner/wiring.lua` the bench ticks with the members' ghosts and
   `coop off` ends it. `online/partner/puppet_test` covers the tiers' looks: `look.lod` on every part (followers too),
   `look.shadow=false` on every part, `look.basesuit` (no mod-parts notice), `look.bare` leaving out a part with no
   fallback with its followers, `body()` nil before the first pose and once off. `online/partner/commands_test` covers

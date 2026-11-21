@@ -606,7 +606,7 @@ All four are in the mod folder.
 | `coop-bench.txt` | Lua, at the 250 ms pass after a change (`bench off` at once) | the worker, at each 250 ms pass when the text changed | `bench off`, or `bench <table generation>` then one block per ghost: `ghost <dx cm> <dy cm> <stride>` and that ghost's display lines |
 | `coop-bench-table.txt` | the worker, while the bench runs, each time her capture's wire text changes | each bench ghost, as its remote table | her capture table, as it would go to a friend |
 | `coop-bench-out.txt` | the worker, once a second while the bench runs | Lua, every 250 ms | the last second (below) |
-| `coop-bench-ghosts.txt` | Lua, at a 250 ms pass when a bench ghost's actor changed | Lua, at the first tick of the next load | the bench actors' object paths, one a line |
+| `coop-bench-ghosts.txt` | Lua, as each bench ghost's actor is built, and at a 250 ms pass when one went | Lua, at the first tick of the next load | the bench actors' object paths, one a line |
 
 The worker removes `coop-bench-out.txt` and `coop-bench-table.txt` at `bench off`. It reads `coop-bench.txt` (64 blocks
 and 4 MiB at most) against her capture table. A head that names another generation is stale: nothing is written until

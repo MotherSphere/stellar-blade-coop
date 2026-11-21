@@ -145,12 +145,20 @@ function Bench.new(o)
             out[#out+1]={true,string.format('Bench: %d ghost%s of an earlier Lua load removed.',n,n==1 and '' or 's')}
         end
     end
+    -- coop-bench-ghosts.txt: the bench actors' paths.
+    local function list()
+        local paths={}
+        for _,g in ipairs(ghosts) do if g.path then paths[#paths+1]=g.path..'\n' end end
+        listed=put(Bench.LIST,table.concat(paths),listed)
+    end
     local function files_of(g)
         return {
             remote_table=function() return link.read_file(Bench.TABLE) end,
             display=function(text) g.display=text; return true end,
+            -- A path is listed when its actor is built, as link.store() writes a ghost's: a Lua reload before the
+            -- next pass still finds the actor.
             store=function()
-                return {save=function(path) g.path=path end,load=function() end,clear=function() g.path=nil end}
+                return {save=function(path) g.path=path; list() end,load=function() end,clear=function() g.path=nil end}
             end,
             mod_assets=link.mod_assets,
         }
@@ -263,9 +271,7 @@ function Bench.new(o)
                 if w.generation>0 then call(out,k,'remote',w.generation,w.count,'bench') else call(out,k,'remote') end
             end
         end
-        local paths={}
-        for _,g in ipairs(ghosts) do if g.path then paths[#paths+1]=g.path..'\n' end end
-        listed=put(Bench.LIST,table.concat(paths),listed)
+        list()
         written=put(Bench.FILE,Bench.file(generation,ghosts),written)
         if w and w.seq~=seq then
             seq=w.seq
