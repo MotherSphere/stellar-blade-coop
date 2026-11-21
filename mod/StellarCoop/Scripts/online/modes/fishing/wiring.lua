@@ -2,10 +2,10 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The wiring of Fishing tournament (online/modes/fishing/): its tournament on the Steam link (round.lua, M.fishing, nil
--- without the link), logging [FT] lines, with coop fish as its console word. Our best tournament of each length goes in coop-records.txt
--- in the mod folder, written as score attack's wiring writes its records (a copy: .tmp, then a rename). To come: the
--- game side that reads the fishing log book and the fish table (fish and catches), the pass line, coop off and the
--- screens.
+-- without the link), logging [FT] lines, with coop fish as its console word. Our best tournament of each length goes
+-- in coop-records.txt in the mod folder, written as score attack's wiring writes its records (a copy: .tmp, then a
+-- rename). To come: the game side that reads the fishing log book and the fish table (fish and catches), the pass
+-- line, coop off and the screens.
 return {
 uses={},
 exports={'fishing'},
