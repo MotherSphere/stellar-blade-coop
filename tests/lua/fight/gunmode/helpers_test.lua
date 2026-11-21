@@ -72,13 +72,16 @@ do
     run(31,true,true)
     assert(a.left<1 and a.reload_until and reloads[1]==true and cools[1]==1.2)
     run(62,true,false)
-    assert(a.left==10 and a.reserve==10 and not a.reload_until and reloads[2]==false and cools[2]==0.05)
+    -- The reload's end writes 0 (SB's own copy of a longer cool time cleared). The first round puts the rate of fire
+    -- back one cool time later.
+    assert(a.left==10 and a.reserve==10 and not a.reload_until and reloads[2]==false and cools[2]==0)
     run(31,true,true); run(62,true,false)
+    assert(cools[3]==0.05,tostring(cools[3]))
     assert(a.left==10 and a.reserve==0)
     run(31,true,true)
     assert(a.left==0 and a.reserve==0 and cools[#cools]==999)
     a.refill()
-    assert(a.left==10 and a.reserve==20 and cools[#cools]==0.05)
+    assert(a.left==10 and a.reserve==20 and cools[#cools]==0)
     run(1,true,false); run(1,true,true)
     run(120,false,false)
     assert(a.left==9 and a.reserve==20,'no reload when lowered (11-20): '..a.left..' '..a.reserve)

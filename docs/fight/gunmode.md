@@ -58,7 +58,12 @@ rifle changes:
   them until 1 s after the last one.
 - `SkillCommandTable`: the NIKKE fire commands take the burst shot's command type, which checks no equipped round.
   With `gun_fire=native` (the default) every drone fire command starts the NIKKE shot too, also in a jump.
-- `SkillTable`: the NIKKE shot's cool time (the rate of fire).
+- `SkillTable`: the NIKKE shot's cool time. It is the rate of fire (0.045 s), the reload's wait during a reload and
+  999 with no round. SB keeps its own copy of the cool time from each shot's start and counts that copy down. It
+  refuses a shot while the row's cool time and that copy are both above 0. So the rifle out, the end of a reload and a
+  new world write 0. One cool time after the first round the row holds the rate of fire again. Without the 0, a
+  magazine fired dry with the trigger held leaves SB a copy of 999. The next magazine then fires no round and no shot
+  sound for up to 999 s, while gun mode's flash, recoil and count go on.
 - `SkillActiveStepTable`: the shot's `Hit1` step takes the `Type` of its `Cast1` step. It fires its projectile and
   spends no round.
 - `ProjectileTable`: the round leaves the rifle's muzzle for the crosshair point. Its destination is an offset from
@@ -271,6 +276,9 @@ save without the Steam link or the native part, or when the rows were refused or
   actor a controller takes (`FUN_141ba6820`) and of an actor spawned with an inventory (`FUN_141ad24d0`,
   `FUN_141ba7f60`) with it set. The buckets the save load makes (`FUN_141ad2fa0`) have owner 0 with it clear. That no
   bucket of EVE's comes from that load was not read.
+- A 999 written at an off while the game's aim runs (the off's hold) may be copied by a shot SB starts during the
+  hold. SB's NIKKE shot outside gun mode would then wait up to 999 s. The next rifle out clears it. This was not seen
+  in a test.
 - The camp machines carry the `AllShop` tag. A buy of rounds there counts toward the gold-spending trophy, as a buy of
   drone ammo does.
 - A RandomEach group rolls each of its rows on its own (`FUN_141be9540`): a pick up to the constant

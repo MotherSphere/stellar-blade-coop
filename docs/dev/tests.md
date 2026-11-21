@@ -68,7 +68,7 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   without them, `gun_key` with its modifier or none, `gun_spread` from 0 to 10, its test lines with refusals), the polled keys' edges and D-pad
   Right's tap (a hold is the bike's), the crosshair point in EVE's frame and the rifle's magazine (a round per cool
   time, the reload when empty and none when lowered part-spent, the HUD count, no round once the spares are spent, a
-  refill). The reticle's round slot shows the round's name, the reload word and the empty word in the menu's language.
+  refill, the cool time 0 at a reload's end and a refill until one cool time after the first round). The reticle's round slot shows the round's name, the reload word and the empty word in the menu's language.
   It reads the words once a second, not on each frame. It writes the slot on the aim's first frame, over the round the
   game writes when its aim starts. It keeps the slot found at the first aim. A block whose address another object took
   gets no write. Only that slot is looked for: the bottom-left count keeps the game's text. It also covers
@@ -229,7 +229,13 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   once the stock stops being ready, a new world that keeps the magazine and the rifle put away mid-reload that takes
   once. A part-spent magazine never reloads by itself. The player's reload keeps its rounds and tops it up through the
   stock with at most what she carries. A refused take there keeps the magazine as it was. The player's reload is
-  refused while a refused take waits;
+  refused while a refused take waits. A reload's end, a refill and free magazines again write the cool time 0. The
+  rifle out keeps the take's 0 (`sync` writes nothing). One cool time after the first round the rate of fire is back.
+  A fake SB shot follows SB's cool time rule as read in Ghidra: a start copies the row's cool time, the copy counts
+  down and a start is refused while both are above 0. Each start drops the game's aim for a frame. A magazine fired
+  dry with the trigger held leaves the fake a copy of 999. After the next reload it fires 8 to 14 rounds in 1 s, within
+  2 of gun mode's count. This holds in both orders of SB's check and gun mode's tick, with the trigger held through
+  the reload or let go;
 - `vehicles/bike/ride_test` covers `vehicles/bike/ride.lua` over a fake EVE and native part: the preload asked once and
   released at `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every
   mount refusal with its reason and nothing written, the mount's order and the dismount backward, the lean (the math

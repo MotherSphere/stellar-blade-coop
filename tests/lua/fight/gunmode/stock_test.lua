@@ -82,6 +82,10 @@ assert(#st.takes==1 and st.takes[1]==30 and a.left==30,'min(mag_size, count) tak
 -- controller, a walk of the object array (each reload's frame took 64 to 66 ms in the 2026-11-21 test).
 assert(st.by[1].pc==PC and st.by[1].pawn==PAWN,'the take looks for the controller and EVE itself')
 while a.reload_until do frame(a) end
+-- The reload's end writes 0, which clears SB's own copy of a longer cool time. The first round puts the rate of fire
+-- back one cool time later.
+assert(cool()==0,tostring(cool()))
+frames(a,12,true,true)
 assert(cool()==CFG.fire_interval,tostring(cool()))
 assert(a.reserve==20,'The spares follow the count: '..a.reserve)
 
@@ -119,11 +123,13 @@ assert(a.manual(clock),'The player\'s reload')
 st.rows=false
 frame(a)
 assert(a.left==30 and a.reserve==60 and not a.reload_until,'Free magazines: '..a.left..' '..a.reserve)
-assert(reloads[#reloads]==false and st.watches[#st.watches]==false and cool()==CFG.fire_interval)
+assert(reloads[#reloads]==false and st.watches[#st.watches]==false and cool()==0)
 local takes=#st.takes
 frames(a,120)
 assert(a.left==30 and a.reserve==60 and #st.takes==takes,'No take with free magazines')
 assert(count('ammo: free magazines')==1,count('ammo: free magazines')..' logs')
+frames(a,12,true,true)
+assert(cool()==CFG.fire_interval,tostring(cool()))
 
 -- A refused take: nothing loaded, the cool time 999 at the reload's end.
 st=stock(40)
@@ -165,7 +171,9 @@ st.carried=30
 frame(a)
 assert(a.reload_until and reloads[#reloads]==true,'Reload by itself')
 while a.reload_until do frame(a) end
-assert(a.left==30 and st.takes[1]==30 and cool()==CFG.fire_interval)
+assert(a.left==30 and st.takes[1]==30 and cool()==0)
+frames(a,12,true,true)
+assert(cool()==CFG.fire_interval,tostring(cool()))
 
 -- refill() with stock: the magazine as it was (its rounds came out of the inventory).
 st=stock(30)
@@ -178,7 +186,9 @@ local left=a.left
 assert(left>0 and left<30)
 a.refill()
 assert(a.left==left and a.reserve==0,'refill keeps the magazine: '..a.left)
-assert(cool()==CFG.fire_interval)
+assert(cool()==0)
+frames(a,12,true,true)
+assert(cool()==CFG.fire_interval,tostring(cool()))
 
 -- stop() mid-reload: the watch ends, the magazine goes in through take().
 st=stock(30)
@@ -239,7 +249,9 @@ assert(count('rounds not taken')==refused+1,'The take was refused once')
 retry=assert(a.retry_at)
 for _=1,600 do if not a.reload_until then break end; frame(a) end
 assert(not a.reload_until and a.left==20,'The refused take loaded nothing, the 20 rounds stay: '..a.left)
-assert(cool()==CFG.fire_interval,'The 20 rounds fire: '..tostring(cool()))
+assert(cool()==0,'The 20 rounds fire: '..tostring(cool()))
+frames(a,12,true,true)
+assert(cool()==CFG.fire_interval,tostring(cool()))
 reloaded,takes=count('ammo: reload ('),#st.takes
 for _=1,math.ceil((retry-0.05-clock)*60) do frame(a,true,true) end
 assert(clock<retry and count('ammo: reload (')==reloaded and #st.takes==takes and not a.reload_until and a.left==0,
@@ -248,5 +260,72 @@ assert(cool()==999,'No round while it waits: '..tostring(cool()))
 st.refuse=nil
 frames(a,10,true)
 assert(count('ammo: reload (')==reloaded+1 and a.reload_until,'Reloaded after Ammo.RETRY s')
+
+-- SB's own NIKKE shot, built on SB's rule as read in Ghidra on 26123051: a skill start copies the row's CoolTime into
+-- the skill component (FUN_141d2f750, from FSBSkillStart::Execute). Each tick counts that copy down by the frame time
+-- (FUN_141d2e4c0). A start is refused while the row's CoolTime and the copy are both above 0 (FUN_141d2cce0). Each
+-- start drops the game's aim for the next frame (bTPSMode, seen in the game), so that frame fires nothing.
+-- sb_first: SB's check runs before gun mode's tick in the frame, else after it.
+local function sb_fire(a,sb,n,held,sb_first)
+    for _=1,n do
+        clock=clock+1/60
+        sb.stored=math.max(0,sb.stored-1/60)
+        local tps=not sb.dropped
+        sb.dropped=false
+        local function try()
+            local row=cool() or 0
+            if held and tps and not (row>0 and sb.stored>0) then sb.starts,sb.stored,sb.dropped=sb.starts+1,row,true end
+        end
+        if sb_first then try() end
+        a.tick(true,held and tps,clock)
+        if not sb_first then try() end
+    end
+end
+-- A magazine fired dry with the trigger held and nothing carried: the 999 goes in while SB can start, so SB keeps 999.
+-- Rounds come, the reload runs with the trigger held or let go. Then 1 s with the trigger held: SB fires again at the
+-- rate of fire. Before the fix the reload's end wrote the rate of fire, which SB refuses while its copy of 999 lasts:
+-- no round and no shot sound after the second reload (2026-11-21 test).
+for _,sb_first in ipairs({true,false}) do
+    for _,through in ipairs({true,false}) do
+        local how=(sb_first and 'SB first' or 'gun mode first')..(through and ', held through the reload' or '')
+        st=stock(30)
+        st.rows=true
+        a=new(st)
+        local sb={starts=0,stored=0}
+        for _=1,600 do sb_fire(a,sb,1,false,sb_first); if not a.reload_until then break end end
+        for _=1,600 do if a.dry then break end; sb_fire(a,sb,1,true,sb_first) end
+        sb_fire(a,sb,30,true,sb_first)
+        assert(a.dry and cool()==999 and sb.stored>900,how..': SB keeps the 999: '..sb.stored)
+        st.carried=30
+        for _=1,600 do sb_fire(a,sb,1,through,sb_first); if a.reload_until then break end end
+        for _=1,600 do if not a.reload_until then break end; sb_fire(a,sb,1,through,sb_first) end
+        assert(a.left==30 and cool()==0,how..': the reload ends on 0: '..tostring(cool()))
+        local starts,fired=sb.starts,a.fired
+        sb_fire(a,sb,60,true,sb_first)
+        local n,counted=sb.starts-starts,a.fired-fired
+        assert(n>=8 and n<=14,how..': '..n..' SB rounds in 1 s after the reload, about 10 wanted')
+        assert(math.abs(n-counted)<=2,how..': SB fired '..n..', gun mode counted '..counted)
+        assert(cool()==CFG.fire_interval,how..': the rate of fire back: '..tostring(cool()))
+    end
+end
+
+-- The rifle out again: fight/gunmode/data.lua's take writes 0, sync() with rounds writes nothing over it. The first
+-- round puts the rate of fire back after one cool time, not a first round of an earlier rifle out.
+st=stock(30)
+st.rows=true
+a=new(st)
+frame(a)
+while a.reload_until do frame(a) end
+frames(a,2,true,true)
+a.stop()
+frames(a,60)
+cools[#cools+1]=0 -- data.take at the rifle out
+local writes=#cools
+a.sync()
+assert(#cools==writes,'sync() with rounds writes nothing')
+frame(a,true,true)
+assert(cool()==0,'0 kept on the first round: '..tostring(cool()))
+frames(a,12,true,true)
+assert(cool()==CFG.fire_interval,'the rate of fire back: '..tostring(cool()))
 
 print('fight/gunmode/stock_test: ok')

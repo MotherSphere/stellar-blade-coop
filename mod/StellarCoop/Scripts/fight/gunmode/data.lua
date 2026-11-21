@@ -178,7 +178,8 @@ function Data.new(g,native,opts)
         if self.saved then return true end
         local saved={}
         local ok,err=pcall(function()
-            -- The NIKKE shot's cool time: the rifle's rate of fire (opts.cool s between rounds).
+            -- The NIKKE shot's cool time: opts.cool at the rifle out (fight/gunmode/mode.lua gives 0, which
+            -- fight/gunmode/ammo.lua turns into the rate of fire at the first round).
             if self.opts.cool then
                 local sk=row(tbl('SkillTable'),Data.FIRE_SKILL)
                 saved[#saved+1]={sk,'CoolTime',sk.CoolTime}
