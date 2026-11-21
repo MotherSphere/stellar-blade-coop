@@ -13,13 +13,15 @@ out as the rest of this page describes.
 ## The rifle layer
 
 When the rifle comes out, `fight/gunmode/overlay.lua` swaps her body mesh's post-process anim blueprint for
-`ABP_NGM_Spike`. The layer works on her finished pose. It plays one of the pak's `NGM_R_` clips on her arms only (from
-the clavicles down): `NGM_R_C_Idle` while she carries the rifle or reloads, `NGM_R_AimIdle` in firing mode. It also
-runs her outfit's own post-process graph. Her main animation, springs and outfit physics are left as they are.
+`ABP_NGM_Spike`. The layer works on her finished pose. It plays one of the pak's poses (`Mods/NGM/Poses`) on her arms,
+hands and head (from `Bip001-Neck` down): `CarryLowReady` while she carries the rifle or reloads it out of firing mode,
+`AimLevel` in firing mode, a reload included (`AimUp45` or `AimDown45` past 22 degrees of rifle pitch). It also runs
+her outfit's own post-process graph. Her main animation, springs and outfit physics are left as they are.
 
 Each frame `fight/gunmode/ik.lua` places the rifle in her mesh's component space: on the camera's line in firing mode,
 at low ready otherwise. It puts her right hand on the rifle's grip and her left palm on the handguard. The rifle is
-attached to her real right hand (`fight/gunmode/rifle.lua`).
+attached to her real right hand (`fight/gunmode/rifle.lua`) with the grip of the pose on the layer. When the pose
+changes, her hands and the grip ease to the new place together over 0.14 s, so the rifle never jumps in her hand.
 
 During one of the game's own moves (a dodge, a hit reaction, a knockdown, a parry) the layer lets go of her arms until
 the move ends. A new outfit drops the layer: gun mode puts it back within a second, or puts the rifle away when it
@@ -53,7 +55,8 @@ stay for the game run ([The rounds' rows](#the-rounds-rows)). The fields the rif
 - `SkillTable`: the NIKKE shot's cool time (the rate of fire).
 - `SkillActiveStepTable`: the shot's `Hit1` step takes the `Type` of its `Cast1` step. It fires its projectile and
   spends no round.
-- `ProjectileTable`: the round leaves the rifle's muzzle and goes to the crosshair with no spread.
+- `ProjectileTable`: the round leaves the rifle's muzzle for the crosshair point. Its own spread (a random range of
+  300 cm) is off. Its destination is placed once, when the round spawns, not again while it flies.
 - `CharacterStanceTable` (with `gun_fire=native`): the aim stance is faster. A jump does not end it.
 - `CharacterAnimSetTable`: not on the rifle layer. With the rifle clips alone, the aim stance's animation set points at
   the rifle's blend spaces. A spare NPC row takes EVE's peaceful set with the rifle clips for the carry. The test line
@@ -102,7 +105,12 @@ on her normal standing spine. The camera's field of view is 66 (the game's aim u
 in frame. She runs, strafes and backpedals at the aim stance's speed times 1.4.
 
 Every round is the NIKKE shot, whatever drone round is selected. It spends no drone ammo. Each round flies from the
-muzzle to the point under the reticle.
+muzzle to the point under the reticle in the frame it leaves. Gun mode writes that point every frame of firing mode.
+Rounds land at random within `gun_spread` degrees of it, seen from the camera: 0.5 unless set, 0 for none. The `[GM]`
+line `round #N` gives where the first three rounds of a rifle out and one in fifty went, against the reticle point.
+
+A reload in firing mode keeps her aimed. Only her arms and hands move: the rifle tilts and her left hand goes to the
+magazine.
 
 When the rifle goes away while the game's aim is still on (F4 in firing mode, a cutscene), the aim stays on RMB and
 the trigger fires nothing until the aim ends. Letting RMB / LT go ends it. The keys and SB's rows then go back.
@@ -111,9 +119,12 @@ A jump drops the game's aim stance in the air. Gun mode keeps the rifle up, keep
 the NIKKE shot itself until the aim button is let go, after landing as well. Press RMB / LT again to get the game's
 strafing aim back.
 
-On the posed stance, the posed body and the rifle you see are drawn for your own camera only. The laser sight shows on
-your screen only: its end is a value each game keeps for its own world, so a copy on another player's screen would
-point elsewhere.
+In firing mode the laser sight runs from the rifle's muzzle to the reticle point. The rifle turns in her hands onto
+that line every frame, up to 6 degrees. The beam hangs from the muzzle socket through a component of its own, so a
+partner's game never copies it. The laser shows on your screen only: its end is a value each game keeps for its own
+world, so a copy on another player's screen would point elsewhere.
+
+On the posed stance, the posed body and the rifle you see are drawn for your own camera only.
 
 ## Rounds
 
@@ -293,7 +304,8 @@ gets no gun key. Stellar Blade's input settings bind no F-key. They bind G to a 
 which is why G is no longer the default.
 
 The lines below are test lines. A new file does not have them and Options has no row for them. A line with an empty
-value counts as absent. Gun mode checks four of them: `gun_aim_key`, `gun_zoom`, `gun_fire` and `gun_upper`. A value
+value counts as absent. Gun mode checks five of them: `gun_aim_key`, `gun_zoom`, `gun_fire`, `gun_upper` and
+`gun_spread`. A value
 it refuses there keeps the default. `UE4SS.log` names it on a `[GM]` line, such as
 `coop-settings.txt: gun_zoom: use hold or toggle`. The other lines get no log line. The last column says what a
 value outside the list does.
@@ -304,6 +316,7 @@ value outside the list does.
 | `gun_zoom` | `hold`, `toggle`, in any case | `hold` | Refused and logged |
 | `gun_fire` | `native` (the game's aim), `own`, in any case | `native` | Refused and logged |
 | `gun_upper` | `nikke` (the NIKKE rifle's upper-body animations in firing mode), `off`, in any case | `off` | Refused and logged |
+| `gun_spread` | Degrees from 0 to 10: how far a round may land off the reticle point, seen from the camera. 0: none | `0.5` | Refused and logged |
 | `gun_probe`, `gun_trace` | `on` in any case: development logging | off | Read as off |
 | `gun_facts`, `gun_g0` | `on` in lower case: development probes (`fight/gunmode/facts.lua`, `fight/gunmode/g0.lua`) | off | Ignored |
 | `gun_bs` | A blend space for the aim stance's animation set | none | Not checked: taken as written |
