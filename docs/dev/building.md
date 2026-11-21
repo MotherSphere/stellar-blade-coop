@@ -207,7 +207,8 @@ mod/StellarCoop/            the UE4SS mod folder
       saves/                the co-op saves and their question, coop shortcut
       photo/                the synced photo mode's pause setting
       modes/nightop/        Night Operation: the probe, the run, its waves, shop and challenges, the recruiter
-      modes/race/           Doro races: the run, the track model, the Doro look, the driving
+      modes/race/           Doro races: the run, the track model, the Doro look, the driving, its HUD in ui/, races
+                            in a match in match/ (the round, its model, the official tracks)
     fight/
       enemies/              shared enemies: coop fight and their notices
       bosses/               the cut model viewer (coop leviathan and six more); coop lion, gardener fight, tendril

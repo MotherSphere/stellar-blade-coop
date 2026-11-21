@@ -62,7 +62,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop unblock <SteamID>`, `coop unblock all` | Take one player off your block list, or empty it |
 | `coop blocked` | Print how many players your block list holds (the file keeps only hashes, so it cannot name them) |
 | `coop leave` | Leave the session (F8) |
-| `coop match search\|create <mode>`, `coop match cancel`, `coop match end`, `coop match join <code>`, `coop match leave` | A [match lobby](online/lobby.md#search) of up to 8 players (experimental). The modes are `scoreattack` and `ffa`. A `scoreattack` round plays a challenge in the lobby room ([Score attack](online/modes/scoreattack.md)). An `ffa` round's start does not take anyone to an arena yet. `search` joins an open public lobby of that mode, or hosts one when none is open; `create` hosts a private one that players join with its [join code](players/playing-with-a-friend.md#join-codes); `cancel` stops a search; `end` ends the round you host; `join <code>` and `leave` work like `coop join <code>` and `coop leave`. `search` and `create` are refused while you are in a lobby. They run from the console anywhere and on any save, not only in the SBO lobby; outside it they have not been tested in game |
+| `coop match search\|create <mode>`, `coop match cancel`, `coop match end`, `coop match join <code>`, `coop match leave` | A [match lobby](online/lobby.md#search) of up to 8 players (experimental). The modes are `scoreattack`, `race` and `ffa`. A `scoreattack` round plays a challenge in the lobby room ([Score attack](online/modes/scoreattack.md)). A `race` round races a track in the lobby room ([Races in a match](online/modes/race.md#races-in-a-match)). An `ffa` round's start does not take anyone to an arena yet. `search` joins an open public lobby of that mode, or hosts one when none is open; `create` hosts a private one that players join with its [join code](players/playing-with-a-friend.md#join-codes); `cancel` stops a search; `end` ends the round you host; `join <code>` and `leave` work like `coop join <code>` and `coop leave`. `search` and `create` are refused while you are in a lobby. They run from the console anywhere and on any save, not only in the SBO lobby; outside it they have not been tested in game |
 | `coop mute <SteamID>` / `coop unmute <SteamID>` | Drop that player's chat lines, or show them again, in any lobby until the game closes (experimental). The `member=` lines of `coop status` start with each member's SteamID, masked to its last 4 digits, which these commands take too |
 | `coop travel host` | As the guest, travel to the camp nearest the host (F7), or cancel the travel that `follow_host=always` is about to start ([Following the host](players/playing-with-a-friend.md#following-the-host)) |
 | `coop travel probe <camp>` | Solo test of the follow's travel: the game's own fast travel to one of its 120 camps that your save has activated (the `activated=` line of `coop status`), with no session and no host's answer; any other camp is refused, see [Following the host](players/playing-with-a-friend.md#following-the-host) (test command, co-op save only) |
@@ -118,8 +118,9 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop story [dump\|find]` | Write the [story dump](dev/story-dump.md) to `StellarCoopStory.txt` in the mod folder: the story lines of the game's live save object, or with `find` a list of the objects that may hold them; a `coop-story.txt` file in the mod folder asks the same while a world is loaded (test command, untested in game, any save, read only) |
 | `coop gift [send <item> [count]\|take [n]]` | The [cut mailbox as a gift box](cutmenus/menus.md#cut-mailbox-coop-gift): what waits in yours, a gift of 1 to 10 consumables to your linked friend, or the gifts that wait put into your inventory (untested in game, co-op save on both sides) |
 | `coop race record <name>\|cp\|save [laps]\|cancel` | Record a [Doro race](online/modes/race.md) track (untested in game) |
-| `coop race start <name>\|quit` | Start a Doro race on that track as the host or alone (co-op save only), or leave it |
-| `coop race look on\|off`, `coop race probe doro`, `coop race drive [probe\|off\|feed impulse\|struct\|<name> <value>]` | [Doro race](online/modes/race.md) test and tuning commands: the Doro look with no race, a Doro that plays each of its animations, the drive probe, and the driving values (test commands; `look on`, `probe doro` and `drive probe` on a co-op save only) |
+| `coop race start <name>\|quit` | Start a Doro race on that track as the host or alone (co-op save only), or leave it; refused in a match lobby |
+| `coop race match [status\|pick <name>\|<number>\|random]` | [Doro races in matches](online/modes/race.md#settings-and-commands) (untested in game): alone or `status`, one line with `race_match`, the official tracks, the host's track pick, the tracks the room offers and your last round with its ranking; `pick` sets the pick as the lobby menu's Track row does. Only the host's pick counts. Needs the Steam link |
+| `coop race look on\|off`, `coop race probe doro`, `coop race drive [probe\|off\|<name> <value>]` | [Doro race](online/modes/race.md) test and tuning commands: the Doro look with no race, a Doro that plays each of its animations, the drive probe, and the driving values (test commands; `look on`, `probe doro` and `drive probe` on a co-op save only) |
 | `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
 | `coop fight probe\|record\|replay`, `coop fight test hp\|sh\|st <change>`, `coop fight test kill` | Shared enemies' solo test tools (experimental, co-op save only) |
 | `coop fight pilot status\|probe\|on\|off`, `coop fight pilot test freeze\|cmc\|drive\|replay\|target\|exec` | [Same place](fight/enemies.md#same-place-experimental) (experimental, on by default) and its solo test steps |
@@ -344,8 +345,10 @@ word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`
 - the shared world (its hooks are taken out of the game's slots);
 - story together (its hooks are taken out of the game's slots; a scene of hers still paused is given back);
 - the photo pause (released; the native tick keeps running for this alone);
-- a Doro race (left as a DNF, or cancelled before GO, with EVE's movement values put back), the drive probe, a race
-  track being recorded (dropped, nothing written) and the Doro look (EVE drawn again);
+- a Doro race (left as a DNF, or cancelled before GO, with EVE's movement values put back by the native part), the
+  drive probe, a race track being recorded (dropped, nothing written), the Doro look (EVE drawn again) and a
+  [Doro race round](online/modes/race.md#what-stops-a-round) of a match (the other players count you as a player who
+  left);
 - the cut model display and its free camera (`coop leviathan` and the other viewer commands; the view goes back as it
   was);
 - what `coop lion` is doing (a wait for its rows, its search, its entrance copy, its log lines; a living Lion stays),
@@ -524,6 +527,7 @@ Each section that left this page is listed under its old name, with its new plac
 | Results | [online/modes/race.md](online/modes/race.md#results) |
 | The Doro look | [online/modes/race.md](online/modes/race.md#the-doro-look) |
 | Limits | [online/modes/race.md](online/modes/race.md#limits) |
+| Races in a match | [online/modes/race.md](online/modes/race.md#races-in-a-match) |
 | Track files | [online/modes/race.md](online/modes/race.md#track-files) |
 | Teleport screen | [players/interface.md](players/interface.md#teleport-screen) |
 | Night Operation previews | [this page: Commands that need a co-op save](#commands-that-need-a-co-op-save) |

@@ -207,6 +207,9 @@ hide_popups=on
 # Score attack: on or off, on by default. On, you play each round of a score attack match in the SBO lobby. Off, you
 # sit out its rounds.
 scoreattack=on
+# Doro races in matches: on or off, on by default. On, you race each round of a Doro race match in the SBO lobby.
+# Off, you sit out its rounds. Doro races in an online session do not read it.
+race_match=on
 ```
 
 | Setting | Values | Default |
@@ -276,6 +279,7 @@ scoreattack=on
 | `pvp_spike` | `on` or `off`: lets `coop pvp on` start the [PvP test](../online/lobby.md#the-pvp-test) with your friend: a stand-in enemy at their ghost takes your hits for their game, down to 1 HP; needs `shared_enemies=off`; no menu row | `on` |
 | `sbo_lobby` | `on` or `off`: the [SBO lobby](../online/lobby.md), a test. On, the recruiter's Join saves the co-op game and takes you to the lobby in Xion's training room (a hall lobby with the hall lobby pak), and each co-op save is copied before the game rewrites it (10 copies kept per slot). At each arrival in the lobby the screen stays black until the lobby menu is ready, 8 s at most, then fades onto the open menu. No menu row | `on` |
 | `scoreattack` | `on` or `off`: [score attack](../online/modes/scoreattack.md), a match mode of the SBO lobby. On, you play each round of a score attack lobby you are in. Off locks the lobby menu's Score attack row. You then sit out its rounds, with a notice. Options, Modes, Score attack; read at each round's start | `on` |
+| `race_match` | `on` or `off`: [Doro races in matches](../online/modes/race.md#races-in-a-match) of the SBO lobby. On, you race each round of a race lobby you are in. Off locks the lobby menu's Doro race row. You then sit out its rounds, with a notice. Options, Modes, Doro race; read at each round's start. Doro races in an online session do not read it | `on` |
 
 Rules:
 
@@ -330,7 +334,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-settings.txt` | Lua, once, then the co-op menu | Your settings (see above) |
 | `coop-settings.old.txt` | Lua, at the menu's first change since the mod loaded | `coop-settings.txt` as it was before that change |
 | `coop-guide.txt` | Lua, on the guide's Don't show again or a close on its last page | One line. While it exists, the [guide](interface.md#guide) does not open by itself |
-| `coop-records.txt` | Lua, after a challenge or Night Operation success that beats the best kept | Your best runs, one `best_<name>=<score> <seconds>` line each (see [online/modes/challenges.md](../online/modes/challenges.md#best-runs-coop-recordstxt)). Written to `coop-records.txt.tmp` first, then renamed |
+| `coop-records.txt` | Lua, after a challenge or Night Operation success that beats the best kept, and after a Doro race finish in a match that beats your best time on its track | Your best runs, one `best_<name>=<score> <seconds>` line each (see [online/modes/challenges.md](../online/modes/challenges.md#best-runs-coop-recordstxt)), and your best race times, one `best_race_<sum>=<ms> <track>` line each (see [Best times](../online/modes/race.md#best-times)). Written to `coop-records.txt.tmp` first, then renamed |
 | `coop-blocked.txt` | native, after `coop remove`, `coop block` or `coop unblock` | Your [block list](playing-with-a-friend.md#block-list): two comment lines, then a salted hash of each blocked SteamID, one a line |
 | `coop-status.txt` | native | The current state, as `coop status` shows it |
 | `coop-link.log` | native | This run's header and numbered events, in UTC like `UE4SS.log`, repeats counted, capped at 1 MB |
@@ -367,9 +371,10 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-gift-toast.txt` | Lua | While a gift's toast shows: its object path, so the next Lua load (Ctrl+R) can take it off |
 | `coop-race.txt` | Lua | Your [Doro race](../online/modes/race.md) lines, for a moment: the native part takes and deletes the file at its next pass |
 | `coop-track-<name>.txt` | Lua, on `coop race save` | A Doro race track |
-| `coop-look.txt` | Lua | While the Doro look is on: EVE's object path, her main mesh's animation option before the look, the Doro's object path, the names of the parts the look hid and, once the look hid the drone's body, the drone's object path, so the next Lua load (Ctrl+R) can show both again |
+| `coop-tracks.txt` | Lua, on `coop race save` and `coop race match pick <name>` | The names of your tracks that a [match lobby](../online/modes/race.md#tracks-a-room-offers) may offer, one a line, the newest 32 |
+| `coop-look.txt` | Lua | While the Doro look is on: EVE's object path, a dash (older versions wrote her main mesh's animation option there; the native part now keeps it and puts it back at a new Lua load), the Doro's object path, the names of the parts the look hid and, once the look hid the drone's body, the drone's object path, so the next Lua load (Ctrl+R) can show both again |
 | `coop-race-doros.txt` | Lua | While a race shows Doros: their object paths, so the next Lua load (Ctrl+R) can remove them |
-| `coop-drive.txt` | Lua | While a race, the drive probe or the [bike](../vehicles/bike.md) drives EVE: her object path and her movement's four values from before, so the next Lua load (Ctrl+R) can put them back |
+| `coop-drive.txt` | Lua | While the [bike](../vehicles/bike.md) drives EVE: her object path and her movement's four values from before, so the next Lua load (Ctrl+R) can put them back |
 | `coop-bike.txt` | Lua | While EVE rides the [bike](../vehicles/bike.md): her object path and her main mesh's relative rotation and location from before, so the next Lua load (Ctrl+R) can put her mesh back and hide the bike |
 | `coop-bike-<steamid>-<saves><index>.txt` | Lua, each time the bike is parked at a new place, never in the SBO lobby | Where your [bike](../vehicles/bike.md#where-the-bike-stays) stands for that Steam account and save, one line: version 1, the map, its position and its rotation (see [The place per save](../vehicles/bike-internals.md#the-place-per-save)) |
 | `coop-bike-stand.txt` | Lua | While your parked bike stands in the world: its actor path, so the next Lua load (Ctrl+R) can remove it |

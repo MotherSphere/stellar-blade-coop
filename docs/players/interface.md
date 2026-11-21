@@ -313,7 +313,8 @@ players it holds (Players, 2 to 4), the [revive](playing-with-a-friend.md#revive
 [cutscene wait](playing-with-a-friend.md#cutscene-wait),
 [following the host](playing-with-a-friend.md#following-the-host), the [shared world](../world/objects.md),
 [story together](../story/together.md) and Hide popups online, which turns the game's tutorial and record popups off
-during online play), Modes ([score attack](../online/modes/scoreattack.md) on or off), Saves (the
+during online play), Modes ([score attack](../online/modes/scoreattack.md) and
+[Doro races in matches](../online/modes/race.md#races-in-a-match), each on or off), Saves (the
 [co-op saves](playing-with-a-friend.md#co-op-saves) at the title and
 [shared quests](playing-with-a-friend.md#shared-quests-experimental)), Combat (shared enemies, same place, shared
 flinches, stagger resistance, who same-place enemies attack, same spawns, extra enemies, shared bosses, the host's
@@ -666,3 +667,4 @@ a Steam name or a chat line shows as `?`.
 | Story together on with your friend, or stopped after an error | `Story together on with <name>.` or `Story together stopped until the game restarts. coop-link.log says why.` ([story together](../story/together.md)) |
 | Night Operation: a partner's run starting, a partner who cannot join, the points a run gave | See [online/modes/nightop.md](../online/modes/nightop.md#the-co-op-run) and [the reward shop](../online/modes/nightop-shop.md) |
 | Score attack: a round you sit out, a round that ends with no ranking, your run's start, waves, end and place with the UI off | See [Score attack](../online/modes/scoreattack.md#what-you-see) |
+| Doro races in matches: a round you sit out, a room with no track, a round that ends with no ranking, your place and best time with the UI off | See [Races in a match](../online/modes/race.md#a-round) |

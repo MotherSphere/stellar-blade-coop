@@ -212,7 +212,7 @@ that follows her, and draws a Doro at her feet. The race's end, `coop race quit`
 again. If EVE or the drone stays hidden:
 
 - Type `coop race look off`. While the look is still on, it answers `OK: Doro look off (coop race look off): <n> parts
-  shown again, tick option <t> back.`, with `and the drone` after `parts` when it hid the drone. If it answers
+  shown again, tick option <t> asked back.`, with `and the drone` after `parts` when it hid the drone. If it answers
   `The Doro look is off already.`, go on to Ctrl+R.
 - Press Ctrl+R. The next Lua load reads `coop-look.txt`, which the look keeps while it is on, and shows EVE and the
   drone again at its first tick: `UE4SS.log` says `[StellarCoop][DR] look restored <n> parts from coop-look.txt`, with
@@ -228,14 +228,44 @@ While your look is on, your friend sees your ghost with no body unless their gam
 
 ### EVE does not speed up or stop after a race
 
-During a [Doro race](../online/modes/race.md), the race sets four values of EVE's movement to 0 so it can drive her (see
-[Driving](../online/modes/race.md#driving)). Her result, `coop race quit`, `coop off` and a map change put them back. If she keeps
-sliding or does not move with the stick after a race or `coop race drive probe`:
+During a [Doro race](../online/modes/race.md), the native part sets four values of EVE's movement to 0 so the race can
+drive her (see [Driving](../online/modes/race.md#driving)). Her result, `coop race quit`, `coop off`, a map change and
+a new Lua load put them back. If she keeps sliding or does not move with the stick after a race or
+`coop race drive probe`:
 
 - Type `coop race drive off` if the probe still runs.
-- Press Ctrl+R. The next Lua load reads `coop-drive.txt`, which the race keeps while it drives, and writes the values
-  back at its first tick: `UE4SS.log` says `[StellarCoop][DR] drive restored from coop-drive.txt: MaxAcceleration=...`.
+- Press Ctrl+R. At the new Lua load the native part puts the values back at the game thread's next frame. When it held
+  them, `coop-link.log` then says `race hold: fields game's (none), tick option game's (none)`.
+- `race hold fault ...` in `coop-link.log` means the hold stopped for the game run after a fault, with the values put
+  back. Races then do not drive until the game restarts.
 - Restart the game if neither works. The values are in memory only, and no save holds them.
+
+### I sit out every Doro race round of a match
+
+The notice and the `[StellarCoop][DR] sit out: <why>` line in `UE4SS.log` say why (see
+[A round](../online/modes/race.md#a-round)):
+
+- `the track runs outside the room <key>`: the track does not fit this room's fence. Only a track recorded inside the
+  room fits: the host picks another, or Random.
+- `the track is on <map>; EVE is on <map>`: the host's track was recorded on another map.
+- `EVE is not in the lobby room`: your game does not see you in the SBO lobby's room.
+- `a track is being recorded`, `the drive probe runs` or `a race is on`: type `coop race cancel`, `coop race drive off`
+  or `coop race quit`.
+- `the game refused the teleport to slot <k>` or `no EVE in the world`: the game would not move EVE to her slot.
+- `the track did not come whole`: the host's lines did not all arrive within 10 s. The log line before it gives the
+  reason (`match round <n>: ...`).
+
+`No track here: record one in this room with coop race record.` on the host's screen means the room offers no track:
+a hall lobby has no official track yet. Record one inside the hall (`coop race record <name>`, F9 at each checkpoint,
+`coop race save`), then pick it on the Track row.
+
+### A racer is not ranked
+
+The host's `UE4SS.log` has `rank: refused <name>: <why>` for a split or an end its checks refused (`order`, `time`,
+`flags`, `why` or `twice`; see [The end and the ranking](../online/modes/race.md#the-end-and-the-ranking)). A racer is
+also left out when her end came after the ranking. The host stops waiting 65 s after the first finish. It does not
+wait at all for a racer whose countdown started more than 10 s after the round's start. A racer who left the lobby or
+lost her link is left out too.
 
 ## Score attack
 
@@ -776,6 +806,9 @@ Every 60 s, `coop-link.log` gets these lines for diagnosing performance problems
 - `score lines, last 60 s: <in> in, <out> out, <dropped> dropped`, in a minute that carried
   [score attack](../online/modes/scoreattack.md) lines: the lines received, sent and dropped (see
   [The score line](../online/steam-link-internals.md#the-score-line)).
+- `dr lines, last 60 s: <in> in, <out> out, <dropped> dropped`, in a minute that carried the lines of a
+  [Doro races in matches](../online/modes/race.md#races-in-a-match): the same counts (see
+  [The dr line](../online/steam-link-internals.md#the-dr-line)).
 - `effects, last 60 s: ...`, with any effect activity: effects started, over 4, unlisted reads and boxes written.
 - `vitals read, last 60 s: ...`, during a session: the reads of your vitals for your friend's partner card and the
   slowest one in µs. Over 1000 µs, the next read waits 500 ms instead of 100.

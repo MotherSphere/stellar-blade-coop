@@ -57,7 +57,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `online/partner/commands.lua` | The ghost's `coop` commands: `puppet`, `basesuit`, `where`, `near`, `cns`, `look`, `loopback`, `record` and `replay` |
 | `online/photo/commands.lua` | `coop freeze` |
 | `online/modes/nightop/commands.lua` | `coop no`, `coop nightop`, `coop challenge` and `coop recruiter`, with their co-op save check |
-| `online/modes/race/commands.lua` | `coop race`: the Doro look and probe, and the co-op save check before `online/modes/race/run.lua`'s command |
+| `online/modes/race/commands.lua` | `coop race`: the Doro look and probe, `coop race match` ([Races in a match](../online/modes/race.md#races-in-a-match)), and the co-op save check before `online/modes/race/run.lua`'s command |
 | `online/modes/scoreattack/commands.lua` | `coop scoreattack`: the round's state line and the host's challenge pick ([Score attack](../online/modes/scoreattack.md)) |
 | `fight/enemies/commands.lua` | `coop fight` (its pilot and spawn probe included) and `coop pvp`: their lines for the native part |
 | `story/quests/commands.lua` | `coop quests`: its lines for the native part |
@@ -115,7 +115,9 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `online/modes/nightop/guard_text.lua` | The recruiter's lines for the native part: the game language's seven lines as one `guardtext` request, sent again when the language changes, and the `[RC] text:` line |
 | `online/modes/race/doro.lua` | The display Doro (a plain actor with Doro's mesh, animated by the engine's single-node animation, made through `core/actors.lua`), the Doro look on your EVE, and `coop race probe doro` |
 | `online/modes/race/model.lua` | Doro races with no engine call: the track file, the rules, the start slots, the host's and the guest's race over the race lines, and the ranking |
-| `online/modes/race/run.lua` | Doro races in game: recording a track, the race run from EVE's feet, its HUD, its Doros and its notices |
+| `online/modes/race/run.lua` | Doro races in game: recording a track, the race run from EVE's feet, its Doros and its notices, and a match round's race (the slot teleport, every round player's ghost as a Doro). `online/modes/race/ui/hud.lua` draws its panel, banners and results |
+| `online/modes/race/match/model.lua` | Doro races in matches with no engine call: the dr line's texts, the tracks a lobby room offers, the host's pick and its draw, the split floors, the host's checks and wait, the ranking, our race from the start line to the results, the best times and `coop-tracks.txt` |
+| `online/modes/race/match/round.lua` | Doro races in matches on the Steam link: the round from the link's start line, the dr lines sent and read, the host's draw and arbitration. `online/modes/race/match/game.lua` starts our race on its slot and sends its lines |
 | `online/modes/scoreattack/model.lua` | Score attack with no engine call: the challenges a lobby room offers, the host's pick and its draw, the score line's texts, the host's checks and wait, the ranking |
 | `online/modes/scoreattack/round.lua` | Score attack on the Steam link: the round from the link's start line, the score lines sent and read, the host's draw and arbitration |
 | `online/modes/scoreattack/run.lua` | Score attack in game: a copy of Night Operation's run with its heal and group play's in-place respawn. `online/modes/scoreattack/game.lua` starts it at the player's lobby spot and `online/modes/scoreattack/ui/board.lua` draws its card, board and result panel |
@@ -218,6 +220,10 @@ file is written in full beside its final name and then renamed over it, so the r
 - Score attack sends its lines as requests (`score <text>` in `coop-request.txt`). The other players' lines come in
   `coop-chat.txt` as `score <SteamID> <text>`. `core/link.lua` keeps them apart from the chat lines until the module's
   250 ms pass takes them (`take_score()`).
+- A Doro race of a match does the same with `dr <text>` requests and `dr <SteamID> <text>` lines (`take_dr()`). The
+  races' drive and look ask the native part for its hold on EVE (`race hold on|off`, `race tick on|off` in
+  `coop-request.txt`). The `engine=` line of `coop-status.txt` answers with `race_hold=`, `race_tick=` and
+  `race_retick=` ([The native hold](../online/modes/race-internals.md#the-native-hold)).
 - `coop gift` sends its lines as requests (`gift <payload>` in `coop-request.txt`), and asks the inventory read the
   same way (`items ...`, answered in `coop-status.txt`). Your friend's gift lines, and a gift of yours that could not
   go, come in `coop-chat.txt` as `gift <payload>` ([Cut mailbox](../cutmenus/menus-internals.md#cut-mailbox)).
@@ -279,9 +285,9 @@ Each module's `wiring.lua` returns its manifest, here `online/modes/race/wiring.
 
 ```lua
 return {
-uses={'online.partner','online.modes.nightop','vehicles.bike'}, -- the modules it reads later, never while it loads
-exports={'doro','drive','race'},                                 -- every M field its new and its build steps set
-new=function(M)                                                  -- its share of the startup; returns its coop words
+uses={'online.partner','online.modes.nightop','vehicles.bike','online.lobby'}, -- the modules it reads later
+exports={'doro','drive','race','race_match'},  -- every M field its new and its build steps set
+new=function(M)                                -- its share of the startup; returns its coop words
     M.doro=require('online.modes.race.doro').new({...})
     ...
     return require('online.modes.race.commands').new({...})
@@ -350,16 +356,18 @@ whose copy it is; from then on each module fixes its own.
 | `online/partner/doro_pick.lua` | `online/modes/race/doro.lua`'s clip pick and tilt | The ghost's Doro mode |
 | `fight/bosses/enemy.lua` | `core/enemy.lua` | The cut monsters' flow; Matrix XIII's and the hall lobbies' batches keep `core/enemy.lua` |
 | `online/partner/bike_part.lua` | `vehicles/bike/ride.lua`'s `find_part` | The capture while the bike module is off |
+| `online/modes/race/match/round.lua` | `online/modes/scoreattack/round.lua` | The Doro race's match round |
+| `Mm.best`, `Mm.better` and `Mm.write` in `online/modes/race/match/model.lua` | `online/modes/scoreattack/challenges.lua`'s `C.best`, `C.better` and `C.write` | The Doro race's best times in `coop-records.txt` |
 
 `world/maps/matrix13/level/travel.lua` also asks the Lion's and the Gardener's rows itself, where it read them from
 `fight/bosses/lion.lua` and `fight/bosses/gardener.lua`.
 
 While the races and the bike shared one drive, the drive gave four cross-checks. Each is now a late read of
 `M.riding()` or the races' drive: no race start, drive probe or drive off while EVE rides; the guest taken off the
-bike at a track line; no ride while the races' drive runs. Two pieces of state stay apart. `coop race drive feed`
-sets the races' drive only (the bike's stays `impulse`). A failed drift-key read latches in each copy on its own. Both
-copies keep EVE's movement values in `coop-drive.txt`: the races' restore runs first in the frame loop, the bike's
-after it. With both modules on, the first puts the values back and clears the file; with one off, the other does it.
+bike at a track line; no ride while the races' drive runs. A failed drift-key read latches in each copy on its own.
+The races' drive asks the native part to hold EVE's movement values (`race hold`), which puts them back at a new Lua
+load. The bike's copy still writes them from Lua and keeps them in `coop-drive.txt` for the next Lua load. The races'
+restore in the frame loop is an empty function now.
 
 Code that only reads the game, a row batch or a text is no feature code. It moved to `core/` (`core/actors.lua`,
 `core/line.lua`, `core/player.lua` and the rest), `ui/kit/hud_parts.lua` and `ui/text/culture.lua`, where every module

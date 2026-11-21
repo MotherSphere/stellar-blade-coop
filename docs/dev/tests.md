@@ -27,7 +27,8 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `cutmenus/`: `devmenu`, `mailbox`, `off`; `story/scenes/`: `lines`, `off`, `scene`; `fight/enemies/`: `off`, `wiring`,
 `wiring_notices`; `online/group/`: `group`, `off`, `region_tabs`, `travel`; `online/lobby/`: `arrival`, `commands`,
 `halls_rows`, `off`, `sbo`, `wiring`; `online/lobby/ui/`: `lobby`, `lobby_model`; `main/`: `bike`, `boot`, `collide`,
-`guide`, `gun`, `idle`, `input`, `keep`, `loader`, `match`, `menu`, `scoreattack`, `session_ui`, `settings`;
+`guide`, `gun`, `idle`, `input`, `keep`, `loader`, `match`, `menu`, `race_match`, `scoreattack`, `session_ui`,
+`settings`;
 `world/maps/matrix13/`:
 `off`, `words`;
 `world/maps/matrix13/quest/`: `on_time`, `subtitles`, `zone_talks`; `world/maps/matrix13/talks/`: `zones`;
@@ -35,7 +36,8 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `board`, `challenges`, `guard_text`, `off`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
 `online/partner/`: `bike_part`, `capture`, `doro_pick`, `ghosts`, `hud`, `off`, `puppet`, `sentinel`; `online/photo/`:
 `off`; `story/quests/`: `off`, `wiring`; `online/modes/race/`: `commands`, `doro`, `drive`, `drive_model`, `model`,
-`off`, `run`; `online/modes/scoreattack/`: `board`, `challenges`, `game`, `model`, `off`, `round`, `run`,
+`off`, `run`; `online/modes/race/match/`: `game`, `model`, `round`; `online/modes/race/ui/`: `hud`;
+`online/modes/scoreattack/`: `board`, `challenges`, `game`, `model`, `off`, `round`, `run`,
 `scoreattack`, `waves`; `online/saves/`: `off`, `saves`; `online/session/`: `booth`, `chat`, `commands`, `join`, `off`,
 `wiring_cycle`, `wiring_dlc`; `online/session/ui/`: `create`, `create_model`, `sessions`, `sessions_model`;
 `world/daynight/`: `daynight`, `off`, `rule`, `wiring`; `story/together/`: `off`, `snapshot`, `wiring`, `wiring_dump`;
@@ -442,15 +444,17 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   row SB bound it to), its view and what its rows ask for (Search with the SBO lobby's room and hall words, Private with
   the map picked on the settings screen, which is not written to `coop-settings.txt`), the score attack's rows (the
   host's pick in the view while `scoreattack=on`, the mode picked kept for the Lua load and out of
-  `coop-settings.txt`, Select on Challenge cycling the pick over what the room offers), the countdown feed, the start
-  line (a score attack round's start logs its mode; its end line opens B again, once), the focus watchdog and the `hud hide` requests (`off` at the first pass after a load, then `on` and `off` once
-  each as the screens open and close, and one that cannot be written logged once and asked again; `main/fixture.lua`
-  keeps them apart from the other requests); last, the arrival's hold: after a lobby warp, ClientRestart's hook puts
-  SB's black up at the next pass (`LoadingScreenFadeAuto` with a 10 s lifetime, 0.5 s fades and tag 5) and veils the
-  kit; `hud hide on` is asked under it from the arrival on, passes before the lift; the menu camera takes the view while
-  B waits, and once nothing is missing `loading lift` is asked, the veil goes and B opens in that pass with SB's HUD
-  still hidden; a Lua load under an earlier load's hold asks `loading lift` once, at its first pass in the lobby world
-  and not before, and none when that pass also puts up its own black (one fade); without the hook, one log line;
+  `coop-settings.txt`, Select on Challenge cycling the pick over what the room offers), the Doro race's rows (its
+  match round's pick in the view while `race_match=on`, none with it off, Select on Track cycling the host's track over
+  what the room offers while score attack's pick stays), the countdown feed, the start line (a score attack or Doro
+  race round's start logs its mode; its end line opens B again, once), the focus watchdog and the `hud hide` requests
+  (`off` at the first pass after a load, then `on` and `off` once each as the screens open and close, and one that
+  cannot be written logged once and asked again; `main/fixture.lua` keeps them apart from the other requests); last, the
+  arrival's hold: after a lobby warp, ClientRestart's hook puts SB's black up at the next pass (`LoadingScreenFadeAuto`
+  with a 10 s lifetime, 0.5 s fades and tag 5) and veils the kit; `hud hide on` is asked under it from the arrival on,
+  passes before the lift; the menu camera takes the view while B waits, and once nothing is missing `loading lift` is
+  asked, the veil goes and B opens in that pass with SB's HUD still hidden; a Lua load under an earlier load's hold asks
+  `loading lift` once, at its first pass in the lobby world and not before, and none when that pass also puts up its own black (one fade); without the hook, one log line;
 - `online/modes/scoreattack/model_test` covers score attack's round without the game: the challenges planted rooms
   offer, the host's pick and its Random draw, the score texts and their refusals, a run's result, the host's checks
   against honest and inflated runs, the ranking with shared places, then the host's wait over a fake clock (ready,
@@ -468,6 +472,32 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `online/modes/scoreattack/board_test` covers the card, the in-round board and the result panel on a fake kit, their
   words in the game's language, the notices with the kit off and the HUD's STOP line. `main/scoreattack_test` covers
   the pass line and the `coop off` stop through `main.lua`, then the wiring on a fake run;
+- `online/modes/race/match/model_test` covers Doro races in matches without the game: the dr texts both ways with their
+  refusals and sizes, who may send which text, the track coming whole from its lines, the tracks planted rooms offer
+  (Xion's training room with its 30 m fence, a hall, a track in Xion's streets left out), the pick and the Random draw,
+  the split floors, the host's checks against honest and forged splits and ends, its wait over a fake clock (leavers,
+  refusals, late readies, both deadlines, the rank text and the match's end), the ranking with shared places, our race
+  from the start line to the results, the best times in `coop-records.txt` and `coop-tracks.txt`; each official track
+  file parses, names its room's map and fits its fence. `online/modes/race/match/round_test` covers the round on a fake
+  link and clock: the host's draw, its track lines one a pass, its checks, rank and match end, a guest's track read
+  before its start line, its rank and a void, a track that does not come whole, who may send which line, a round that
+  ends early, one replaced by the next, one found playing at a Lua reload, a room that offers nothing, a player who
+  leaves, the pick and its cycle. `online/modes/race/match/game_test` covers each sit-out with its log line and notice
+  key, a hall seat left first, the ghosts by SteamID, ready after our race started, our splits and end to the round,
+  the records written only for a better finish and the round's end before and after its ranking.
+  `online/modes/race/ui/hud_test` covers the race's HUD: the live place among up to 8 racers, the results' note and
+  rows (a session's two, a match's own row before the ranking, then the ranking with names cut, `Not ranked.` and
+  `New personal best.`) and the 8 result rows on a fake kit. `online/modes/race/run_test` adds the match role: the
+  teleport onto the slot at the start and back at GO past 3 m with the runner starting from the slot, every round
+  player's ghost as a Doro, `coop race start` refused in a match lobby, the round ticked from the 250 ms pass, the
+  place notices with the kit off. `online/modes/race/drive_test` and `doro_test` cover the asks to the native part
+  (`race hold`, `race tick`), the impulses only while the status says the hold is applied, a hold still applied with
+  no drive asked off again, nothing written to the four values or the tick option from Lua, and an older
+  `coop-look.txt` with a number in its tick field that writes nothing. `main/race_match_test` runs a round through
+  `main.lua` and the wiring: the official track read from the Scripts folder, the host's lines one a pass, a hall's
+  own tracks from `coop-tracks.txt`, `coop race save` and a pick by name adding to it, the sit-out notices, the host
+  gone, the records file, `coop off`. `main/isolation.lua` checks with the race module off that the lobby menu holds no
+  race and refuses Select on Track;
 - `online/modes/nightop/recruiter_test` also covers the auto spawn at each Xion load (waits while the spawn point is not
   loaded or EVE is too far, one spawn a load, a guard kept after a Lua reload, none after `coop recruiter off`). It
   checks the arm call right after the spawn and at a guard already there, before any check. It runs the looks every 3 s
@@ -483,14 +513,16 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   question, the countdown, the kit drawing that stands in for a part the game cannot make (row labels, settings items,
   the leave question with Yes and No, the countdown's seconds), the lines logged as the screens open and close and the
   question is asked and answered, the Map row of a Private match (left and right, the pick shown by its name), the
-  three mode rows with the picked mode marked and the score attack's Challenge row (the pick beside it, a guest's
-  locked and reading the host's pick, in tab MATCH too), and that
+  four idle mode rows with the picked mode marked, the score attack's Challenge row and the Doro race's Track row (the
+  pick beside it, a track's name cut at 18 columns and kept whole at 18, a guest's locked and reading the host's pick,
+  in tab MATCH too), every row slot synced when the mode rows go from four to three, the cursor kept on its action row,
+  and that
   no part is ever focused, clicked through or sent a call outside the allowed list;
 - `online/lobby/ui/lobby_model_test` covers the lobby menu's rows, actions, status and members by state, the settings
   rows (the Map row only with no lobby open and the hall lobbies in use) and the countdown's resync. It also covers the
   mode rows: score attack picked first while it can play, a mode row picking the mode that Search and Private match
-  ask for, the Challenge row of a score attack match lobby (the host's pick, locked for a guest) and tab MATCH's rules
-  of each mode;
+  ask for, the Challenge row of a score attack match lobby and the Track row of a Doro race match lobby (the host's
+  pick, locked for a guest, locked while the mode cannot play) and tab MATCH's rules of each mode;
 - `online/session/ui/sessions_test` covers the Sessions screen on fake SB parts: the search asked as it opens, the
   status line (SB's search word, the wait), Refresh and its stop, the 5 s gap, the tabs (SB's Comrades), the rows and
   their scroll window, the details pane and footer, Select asking to join, the mouse (a resting mouse moves neither the
@@ -618,13 +650,14 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   `popups on` and `popups off`; `loading lift`; `sky off`, `sky hold`, `sky cycle <hz> <H>` and `sky hour <minute> <hz>
   <H>` with their ranges; `world` and `scenes` with `on`, `off` or `status`; `nightshop`, `roxanne`, `lily`, `guardtext`
   and the 8 `signal` words, in `story/quests/own.h`'s order; the `sbo` requests (`on`, `arm`, `enter`, `warp`, `abort`,
-  `leave`, `seq`) and their refusals, the score request), Night Operation's night line (its round trip, its refusals
+  `leave`, `seq`) and their refusals, the score request, the dr request, `race hold` and `race tick` with `on` or
+  `off` and nothing else), Night Operation's night line (its round trip, its refusals
   and a fuzz seed), the score line (Lua's text after `score`, printable ASCII up to the 512-byte message, never read as
-  a race line, another protocol's refused, a fuzz seed), and
-  the join codes (both real lobby ids, loose typing, malformed codes, and the share of one-character typos the check
-  turns away), the masking of SteamIDs, lobby ids and join codes in the logs and the report (`masked`, with the numbers
-  and words of the same shape it leaves whole), the match modes (`find_mode`: `ffa` and `scoreattack`, nothing
-  else), `match search` and `match create` with
+  a race line, another protocol's refused, a fuzz seed), the dr line (the same way, never read as a race or score
+  line), and the join codes (both real lobby ids, loose typing, malformed codes, and the share of one-character typos
+  the check turns away), the masking of SteamIDs, lobby ids and join codes in the logs and the report (`masked`, with
+  the numbers and words of the same shape it leaves whole), the match modes (`find_mode`: `ffa`, `scoreattack` and
+  `race`, nothing else), `match search` and `match create` with
   their room and hall words (each refused when missing, extra, too long or not an alias word), `match cancel` and `match
   end`, `mute` and `unmute`, `block`, `unblock` and `unblock all`, the `host` words (`public`, `friends`, `invitation`
   with the older `code` and `private`, `closed`, then `ask`, then `max_players` from 2 to 4), `list
@@ -698,7 +731,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   member past the handshake. Each member's reaches Lua as `score <SteamID> <text>` with the SteamID from Steam; a
   text the line cannot carry never goes; past 16 a second either way they are dropped with one log line a minute; the
   counts have a line of their own beside the 60 s line, only in a minute that had some. Outside a match lobby a score
-  line never goes and is never taken, with no log line;
+  line never goes and is never taken, with no log line. The Doro race's dr lines get the same cases with their own
+  limit, drop lines and count line, which never touch the score line's, and a member with no handshake whose dr line
+  never reaches Lua;
 - `link_group_test`: online sessions of 3 and 4 players through the same fake Steam: the pair (the host and the guest in
   slot 0) with the host in slot 0 on every guest, the host's let line with its `max_players`, the `host=` (with `max=`),
   `players=` and `vit=` status lines, 30 poses a second for a member who comes in past 2 players and for the pair's
@@ -1064,6 +1099,13 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 ### Other native headers
 
 - `online_photo_photo_freeze_test`: the synced photo mode's pause against a fake pause set;
+- `online_modes_race_hold_test`: the Doro races' hold on EVE (`online/modes/race/hold.h`) over a fake memory of two
+  movement components and two meshes: the four fields kept and set to 0 while the hold is asked, one the game writes
+  again set to 0 and counted, the kept values back at the ask's end; the tick option the same way with its re-sets
+  counted; neither applied without EVE or while a scene stands still, both put back as such a scene starts and applied
+  again after it; a pause that changes nothing; a map change dropping the kept values unwritten when the old object is
+  gone and putting them back on it when it still lives; `coop off` and a new Lua load putting everything back; the
+  offsets as read in Ghidra;
 - `game_globals_test`: SB's globals as build 26123051 lays them out, checked at compile time: the block offsets the
   fight engine, the photo freeze, the lion gate and the Night Operation probe read land on the registry, the world,
   logic and the net-mode cache. Every header that names one of these globals by address names the same one. A port
