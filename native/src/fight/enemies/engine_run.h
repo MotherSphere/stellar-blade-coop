@@ -209,11 +209,17 @@ template <class Game> void Engine::simulate(Job &job, Game &g, uint64_t now_ms) 
   const bool hosting = hosting_seen_;
   Io<Game> io{*this, g, logic, now_ms};
   eve_life_ = eve_life(g);
-  host.set_down(hosting && eve_life_ >= 3 && eve_life_ <= 5);
+  const bool down = hosting && eve_life_ >= 3 && eve_life_ <= 5;
+  const auto her_up = [&] { // Her life as the pilot reads it (engine_pilot.h): unknown kMateMs after her last vitals.
+    const Life her = now_ms - mate_ms_ < kMateMs ? mate_ : Life::unknown;
+    return her == Life::alive || her == Life::coma;
+  };
+  host.set_down(down, her_up());
   Message m;
   while (g.receive(m)) {
-    if (m.type == Type::mate) { // The worker's, never hers: her life.
+    if (m.type == Type::mate) { // The worker's, never hers: her life. Her lines after it are judged on it.
       mate_ = m.life, mate_ms_ = now_ms;
+      host.set_down(down, her_up());
       continue;
     }
     // The host takes only her on, off and world (R33): a place, down or dead from her is a bad line, and from an

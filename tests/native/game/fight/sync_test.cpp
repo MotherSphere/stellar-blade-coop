@@ -2640,6 +2640,48 @@ int main() {
       assert(k > Type::cc && k < Type::mate);
   }
 
+  { // Phase 3: our EVE down. Her claims on our boss count while a member of the fight is still up (alive or in
+    // Coma); with nobody standing they are dropped, their numbers acknowledged, logged once a down of ours.
+    World hw;
+    hw.add(101, 5001, 0).s.boss = true;
+    Host h;
+    h.receive(msg("SBF25 on"), 0, hw);
+    step(h, hw, 1, 0);
+    hw.lines();
+    { // host_down_keeps_boss_claims: her hits count while she still fights.
+      h.set_down(true, true);
+      h.receive(msg("SBF25 hit 1 1 101 500 0 0 1600 0"), 100, hw);
+      step(h, hw, 2, 100);
+      assert(hw.hp(101) == 1100 && hw.count("claim dropped") == 0 && h.counts.claims == 1);
+    }
+    { // host_down_drops_boss_claims_alone: nobody left standing.
+      h.set_down(true, false);
+      h.receive(msg("SBF25 hit 1 2 101 500 0 0 1100 0"), 200, hw);
+      h.receive(msg("SBF25 hit 1 3 101 500 0 0 1100 0"), 210, hw);
+      step(h, hw, 3, 210);
+      assert(hw.hp(101) == 1100 && hw.count("claim dropped") == 1 && h.counts.claims == 1);
+      assert(hw.lines().find(" 3 101:1100:") != std::string::npos); // Acknowledged: the hp line carries ack 3.
+    }
+    { // Up again inside the same down of ours: counted; down alone again: dropped, not logged a second time.
+      h.set_down(true, true);
+      h.receive(msg("SBF25 hit 1 4 101 100 0 0 1100 0"), 300, hw);
+      step(h, hw, 4, 300);
+      h.set_down(true, false);
+      h.receive(msg("SBF25 hit 1 5 101 100 0 0 1000 0"), 400, hw);
+      step(h, hw, 5, 400);
+      assert(hw.hp(101) == 1000 && hw.count("claim dropped") == 1 && h.counts.claims == 2);
+    }
+    { // Our EVE up, then down again with nobody standing: logged again.
+      h.set_down(false, false);
+      h.receive(msg("SBF25 hit 1 6 101 100 0 0 1000 0"), 1500, hw);
+      step(h, hw, 6, 1500);
+      h.set_down(true, false);
+      h.receive(msg("SBF25 hit 1 7 101 100 0 0 900 0"), 1600, hw);
+      step(h, hw, 7, 1600);
+      assert(hw.hp(101) == 900 && hw.count("claim dropped") == 2 && h.counts.claims == 3 && h.counts.bad == 0);
+    }
+  }
+
   { // Phase 8: the cc line carries the hit's level (0-99) and the reaction's time in ms: 0 for the five crowd
     // controls (their rows' own time), 0 to 10000 for a flinch (HitStun 2003000; 0: its row's own time).
     Message m = msg("SBF25 cc 3 77 3000303 2 0");

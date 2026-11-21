@@ -2541,12 +2541,13 @@ int main() {
   // the next turn, her stream's AI task or not, with one log line, and stays ours through a 20 s down while her claims
   // keep coming; with no mate message for 3 s her state reads unknown and her last hit gives the pair back to her. Ours
   // down (life state 3 on our EVE): nothing goes to her while her state is unknown; with hers alive a common pair goes
-  // to her with one log line, and the boss stays ours. Her claims on the boss are dropped while we are down, their
-  // numbers still acknowledged, logged once a down, and count again once we are up; the pair she took stays hers. Her
-  // claims on a common pair still count while we are down. A down EVE's hand-overs move a pair only within 30 m of the
-  // EVE that takes it (its force target makes that EVE the enemy's last player): 102, 60 m from both EVEs, stays hers
-  // while she is down until it comes within 30 m of ours, and ours while we are down until her ghost stands by it. A
-  // pair the down rule gave stays where it went at any distance: 101 ours while she is down, hers while we are.
+  // to her with one log line; the boss stays ours. Her claims on the boss count while we are down and she is up. With
+  // her state unknown too they are dropped (their numbers still acknowledged, logged once a down); they count again
+  // once we are up. The pair she took stays hers. Her claims on a common pair still count while we are down. A down
+  // EVE's hand-overs move a pair only within 30 m of the EVE that takes it (its force target makes that EVE the enemy's
+  // last player): 102, 60 m from both EVEs, stays hers while she is down until it comes within 30 m of ours. It stays
+  // ours while we are down until her ghost stands by it. A pair the down rule gave stays where it went at any
+  // distance: 101 ours while she is down, hers while we are.
   {
     Game g;
     auto e = engine(false, true);
@@ -2648,9 +2649,16 @@ int main() {
     }
     assert(!has(sent, "own") && owner(101) == coop::pilot::kGuest);
     g.flags.her[0] = 0;
-    // Her claims on the boss while we are down: dropped, logged once, their numbers acknowledged. Hers on a common
-    // pair count.
+    // Her claims on the boss while we are down and she is up: they count.
     life(coop::Life::alive);
+    hers(130, 100);
+    frame(g, *e, t += 16);
+    assert(g.hp(130) == 1500 && count(g, "claim dropped") == 0);
+    // Her state unknown too (no vitals for 3 s): nobody is up. Her claims on the boss are dropped, logged once, their
+    // numbers acknowledged. Hers on a common pair count.
+    for (const uint64_t end = last + 3000; t < end;)
+      frame(g, *e, t += 16);
+    lines(g);
     const int32_t common = g.hp(101);
     hers(101, 100);
     hers(130, 100);
@@ -2664,21 +2672,75 @@ int main() {
         acked = acked || (m.type == Type::hp && m.seq == claim);
       g.sent.clear();
     }
-    assert(acked && g.hp(130) == 1600 && count(g, "claim dropped") == 1 && e->host.counts.bad == 0);
+    assert(acked && g.hp(130) == 1500 && count(g, "claim dropped") == 1 && e->host.counts.bad == 0);
     assert(g.hp(101) == common - 100);
     // Up: her claims count, and the pair she took stays hers.
     g.mem.put<int32_t>(g.fsb(1) + kLife, 1);
     hers(130, 100);
     frame(g, *e, t += 16);
-    assert(g.hp(130) == 1500 && count(g, "claim dropped") == 1);
+    assert(g.hp(130) == 1400 && count(g, "claim dropped") == 1);
     assert(!until(t + 3000, "own") && owner(101) == coop::pilot::kGuest);
-    // Down again: logged again.
+    // Down again, her state still unknown: logged again.
     g.mem.put<int32_t>(g.fsb(1) + kLife, 4);
     hers(130, 100);
     frame(g, *e, t += 16);
     hers(130, 100);
     frame(g, *e, t += 16);
-    assert(g.hp(130) == 1500 && count(g, "claim dropped") == 2 && !e->latched());
+    assert(g.hp(130) == 1400 && count(g, "claim dropped") == 2 && !e->latched());
+  }
+  // ---- Phase 3: her claims on our boss while our EVE is down ----
+  // They count while she is up (her vitals alive or Coma) and are dropped once she is down too. Her state is read
+  // before her lines and again after each mate message of the drain: a claim queued before a mate message is judged on
+  // the state before it, one queued after it on the new state.
+  {
+    Game g;
+    auto e = engine(false, true);
+    e->allow(nullptr, 0);
+    e->bosses(100);
+    e->set(true, true);
+    g.spawn(130, 30, 0, 35026001, 1600, kTypeBoss); // Marionette.
+    g.inbox.push_back(msg("SBF25 on"));
+    uint64_t t = 0;
+    uint32_t claim = 0;
+    frame(g, *e, t);
+    g.mem.put<int32_t>(g.fsb(1) + kLife, 3); // Our EVE dead.
+    const auto mate = [&](coop::Life state) {
+      Message m;
+      m.type = Type::mate, m.life = state;
+      g.inbox.push_back(m);
+    };
+    const auto hers = [&](int32_t hp) {
+      g.inbox.push_back(msg("SBF25 hit " + std::to_string(e->host.gen()) + " " + std::to_string(++claim) + " 130 " +
+                            std::to_string(hp) + " 0 0 " + std::to_string(g.hp(130)) + " 0"));
+    };
+    // mate_before_claim
+    mate(coop::Life::alive);
+    frame(g, *e, t += 16);
+    hers(100);
+    frame(g, *e, t += 16);
+    assert(g.hp(130) == 1500 && count(g, "claim dropped") == 0);
+    mate(coop::Life::coma); // In Coma she is still up.
+    frame(g, *e, t += 16);
+    hers(100);
+    frame(g, *e, t += 16);
+    assert(g.hp(130) == 1400 && count(g, "claim dropped") == 0);
+    mate(coop::Life::down);
+    frame(g, *e, t += 16);
+    hers(100);
+    frame(g, *e, t += 16);
+    assert(g.hp(130) == 1400 && count(g, "claim dropped") == 1);
+    // mate_same_pass: her claim, then her vitals alive, then her next claim, in one drain (the worker's order).
+    frame(g, *e, t += 1008);
+    hers(100);
+    mate(coop::Life::alive);
+    hers(200);
+    frame(g, *e, t += 16);
+    assert(g.hp(130) == 1200 && count(g, "claim dropped") == 1); // The first judged on down, the second on alive.
+    // No vitals of hers for kMateMs: her state reads unknown, nobody is up.
+    frame(g, *e, t += 3008);
+    hers(100);
+    frame(g, *e, t += 16);
+    assert(g.hp(130) == 1200 && count(g, "claim dropped") == 1 && e->host.counts.bad == 0 && !e->latched());
   }
   // ---- Stage 3b, the guest's side ----
   // An own G at her epoch plus one, for a paired copy in life state 1 while same-place enemies run here: hers, her

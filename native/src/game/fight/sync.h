@@ -1102,14 +1102,15 @@ public:
   void set_stagger(bool reactions, bool resist) { reactions_ = reactions, resist_ = resist; }
   bool reactions() const { return reactions_; }
   bool resist() const { return resist_; }
-  // Each turn, before her lines: our EVE is down (life state 3-5). While it is, her claims on our bosses are dropped
-  // (their numbers still acknowledged, so her copy's HP comes back to ours) and logged once a boss a down: a boss's AI
-  // is ours, so it fights nobody then, and nobody wins its fight in our world while we are dead.
-  void set_down(bool down) {
+  // Each turn before her lines, then again after each of her vitals: our EVE is down (life state 3-5); a member of the
+  // fight is still up (alive or in Coma). Her claims on our bosses count while a member still fights. While our EVE is
+  // down with nobody up, they are dropped (their numbers still acknowledged, so her copy's HP comes back to ours) and
+  // logged once a boss a down of ours: a boss's AI is ours, so with nobody standing nobody wins its fight.
+  void set_down(bool down, bool member_up) {
     if (down != down_)
       for (size_t i = 0; i < count_; ++i)
         enemies_[i].down_said = false;
-    down_ = down;
+    down_ = down, member_up_ = member_up;
   }
   // The enemies whose scaling the engine holds after this step: every one followed while her on held, until it leaves
   // our list (her off changes nothing, so a pause on her side never heals an enemy). None without scaling; with a
@@ -1486,7 +1487,7 @@ private:
       ++counts.stale;
       return;
     }
-    if (down_ && e->boss) { // set_down(); claimed: our next values carry its number.
+    if (down_ && !member_up_ && e->boss) { // set_down(); claimed: our next values carry its number.
       e->claimed = true;
       if (!std::exchange(e->down_said, true))
         io.event(Event{"claim dropped", "on our boss while our EVE is down", e->guid});
@@ -1689,7 +1690,7 @@ private:
   uint16_t boss_ = 0;                            // Our boss_hp_scale with bosses=on; 0: off.
   bool reactions_ = false, resist_ = false;      // Our hit_reactions and stagger_resist.
   bool told_reactions_ = false, told_resist_ = false; // Both as the guest last heard them.
-  bool down_ = false;                            // set_down(): our EVE is down.
+  bool down_ = false, member_up_ = false;        // set_down(): our EVE is down; a member of the fight is up.
   bool peer_on_ = false, announce_ = true, ignored_ = false;
   bool full_said_ = false; // "full" logged in this world.
   Fence fence_;
