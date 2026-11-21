@@ -4,7 +4,7 @@
 -- Gun mode: the NIKKE DLC's rifle in EVE's hands on any save, on luke77's rifle stance. F4 (gun_key) or a tap of
 -- D-pad Right brings the rifle out or puts it away. Out, EVE runs and jumps as Luke's stance has her (fight/gunmode/
 -- stance.lua: her own animation, the rifle at her chest). Holding RMB / LT is firing mode: the camera comes in over her
--- right shoulder, she turns to the camera and brings the rifle up with its laser sight on, and LMB / RT fires full
+-- right shoulder. She turns to the camera and brings the rifle up with its laser sight on. LMB / RT fires full
 -- auto at the point under the screen centre. Letting go goes back to Luke's movement. Logged as [StellarCoop][GM].
 -- How: each shot is the NIKKE shot skill, started by a zone event through SB's own rows (fight/gunmode/data.lua), its
 -- bullet sent to the crosshair's point (fight/gunmode/aim.lua). While the rifle is out the sword's attacks and the drone's
@@ -110,8 +110,8 @@ function GunMode.kick(dt,decay)
     local k=math.exp(-dt/decay); return k>0.02 and k or 0
 end
 
--- The chest turn c eased back toward 0 by AR.decay (fight/gunmode/aimrot.lua). Under 0.001 degrees in all it snaps to 0, and
--- a zero turn is given back as it is: no new table each frame out of aim.
+-- The chest turn c eased back toward 0 by AR.decay (fight/gunmode/aimrot.lua). Under 0.001 degrees in all it snaps
+-- to 0. A zero turn is given back as it is: no new table each frame out of aim.
 function GunMode.decay(AR,c)
     if c.Pitch==0 and c.Yaw==0 and c.Roll==0 then return c end
     if math.abs(c.Pitch)+math.abs(c.Yaw)+math.abs(c.Roll)<1e-3 then return {Pitch=0,Yaw=0,Roll=0} end
@@ -258,7 +258,7 @@ function GunMode.new(env)
         'move_block','resume','free_at','resume_n'}
     local restored=false -- coop-gun.txt read this Lua load (self.restore).
 
-    -- The reload: the NIKKE squad's reload animation on the rifle stance, and its sounds at their times.
+    -- The reload: the NIKKE squad's reload animation on the rifle stance with its sounds at their times.
     local function sound(path)
         local ok,err=pcall(function()
             local cue=g.asset(path) -- kept between reloads (a LoadAsset per sound walked the object array)
@@ -321,7 +321,7 @@ function GunMode.new(env)
         settings:ForceRebuildKeymaps()
         return n
     end
-    -- The input mask, as Luke's maskAim makes it: cfg.mask_on_keys on cfg.mask_keys, and cfg.mask_actions on any key,
+    -- The input mask, as Luke's maskAim makes it: cfg.mask_on_keys on cfg.mask_keys plus cfg.mask_actions on any key,
     -- set to key None and the keymaps rebuilt; restore() puts each one back. Axis mappings on those keys are only
     -- logged (the first time) so a later build can mask them if the game reads one. arriving (native fire): the
     -- rifle's arrival runs, so the game's aim (TPSMode) is masked on every key, RMB / LT included, instead of moved to
@@ -1085,7 +1085,7 @@ function GunMode.new(env)
         if cfg.morph~=false and s.layer then s.morph={dir='in',t0=os.clock()}; pcall(cube_make,p); pcall(single.morph,0,0) end
         lap('cube')
         if set.trace then pcall(function() Dpad.new(g).dump() end)
-            -- (dev) loaded key and pad icon textures (the HUD entry's gamepad and keyboard glyphs), and cube mesh candidates
+            -- (dev) loaded key and pad icon textures (the HUD entry's pad and keyboard glyphs) and cube mesh candidates
             pcall(function()
                 local hits={}
                 for _,t in ipairs(FindAllOf('Texture2D') or {}) do
@@ -1318,11 +1318,11 @@ function GunMode.new(env)
             if (ok_e and entry) or (ok_c and cross) then keep() end -- built: coop-gun.txt names it for a Lua reload
         end
         -- camps, seats, rests, doors and cutscenes: gun mode steps aside (rifle away, layer off, her own pose) while
-        -- the game holds EVE in an interaction or a level sequence, and comes back 1 s after she is free (SBCharacter's
-        -- reflected calls, as bike/ride.lua uses them). A press of the gun mode key cancels the comeback, as does one
-        -- that started the departure. So do a new map (new_controller) and another module's hold on EVE (env.busy: the
-        -- bike, an emote...). The comeback waits while the game is paused. A refused one is tried again 2, 4 and 8 s
-        -- later, then given up (RESUME_TRIES tries in all).
+        -- the game holds EVE in an interaction or a level sequence (SBCharacter's reflected calls, as bike/ride.lua
+        -- uses them). It comes back 1 s after she is free. A press of the gun mode key cancels the comeback, as does
+        -- one that started the departure. So do a new map (new_controller) and another module's hold on EVE (env.busy:
+        -- the bike, an emote...). The comeback waits while the game is paused. A refused one is tried again 2, 4 and
+        -- 8 s later, then given up (RESUME_TRIES tries in all).
         if (s.on or s.resume) and now-(s.held_at or 0)>=0.1 then -- (no game call for it while the rifle is simply away)
             s.held_at=now
             local p0=g.pawn()
@@ -1510,8 +1510,8 @@ function GunMode.new(env)
                 end
             end
             if s.reload_until and now>=s.reload_until then s.reload_until=nil end
-            -- the game's own moves (dodges, evades, hit reactions, knockdowns) get her arms back: the layer's clip
-            -- stops and the aim turn eases out until the move ends
+            -- the game's own moves (dodges, evades, hit reactions, knockdowns): on the ground the layer plays the carry
+            -- (GunMode.want) while the aim turn eases out, until the move ends
             if s.prof then s.prof('stance') end
             if now-(s.move_at or 0)>=0.1 then
                 s.move_at=now
@@ -1716,9 +1716,10 @@ function GunMode.new(env)
                 -- her head turned back by the same amount (the stance has her looking over her left shoulder). The layer's
                 -- Neck node is off since the v3a pak (rotating the neck dragged both shoulder joints ~7.4 cm, red test
                 -- 11-19): AimRot reaches Bip001-Head alone, so the head takes the whole turn
-                -- v3c pak: the NIKKE clip drives her arms, hands and head from Bip001-Neck down, and AimRot turns
-                -- Bip001-Spine2 (chest, arms and rifle together). In aim a closed loop turns it until the rifle's real
-                -- bore (FX_Fire forward) points at the spot aim_dist down the camera line; otherwise it eases back to 0
+                -- Since the v3c pak the layer's clip drives her arms, hands and head from Bip001-Neck down. AimRot
+                -- turns Bip001-Spine2 (chest, arms and rifle together). In aim a closed loop turns it until the rifle's
+                -- real bore (FX_Fire forward) points at the spot aim_dist down the camera line; otherwise it eases back
+                -- to 0
                 if ppi and not s.g1_hold then
                     local AR=require('fight.gunmode.aimrot')
                     s.chest=s.chest or {Pitch=0,Yaw=0,Roll=0}
@@ -1754,8 +1755,8 @@ function GunMode.new(env)
                     elseif not hold_aim then s.chest=GunMode.decay(AR,s.chest); s.rpitch=(s.rpitch or 0)*0.85 end
                     ppi.AimRot=s.chest
                     -- hip fire (the game's own aim off): she faces the camera through her own movement (the game turns
-                    -- her, standing or strafing: one writer, gunmode's face), and shots wait until the bore is on
-                    -- target (hip_aligned); a big turn from standing plays the game's aim-stance turn clip as the shuffle
+                    -- her, standing or strafing: one writer, gunmode's face). Shots wait until the bore is on target
+                    -- (hip_aligned). A big turn from standing plays the game's aim-stance turn clip as the shuffle
                     local hip=want=='aim' and not s.tps and not falling
                     face(p,hip)
                     local was=s.turning

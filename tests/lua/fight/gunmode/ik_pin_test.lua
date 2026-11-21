@@ -1,8 +1,9 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The v4 left-hand pin: the left hand lands at the right hand's transform composed with the clip's entry, the reload
--- (no entry) turns the IK off, and the pin follows a turned right hand.
+-- The v4 left-hand pin: the left hand lands at the right hand's transform composed with the clip's entry. A clip with
+-- no entry turns the IK off. The pin follows a turned right hand. A reload takes the left hand to the magazine and back
+-- on the carry's entry, on the aim's in firing mode.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 function FName(s) return s end
 local close=function(a,b) return math.abs(a-b)<=1e-4 end

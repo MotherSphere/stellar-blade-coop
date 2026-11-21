@@ -171,6 +171,24 @@ do
         if l:find('^%s*[-*] %*%*[^*]+:%*%*') then fail(('%s:%d: a bold-label bullet'):format(p,n)) end
         if l:lower():find('co-op session',1,true) then fail(('%s:%d: "co-op session"'):format(p,n)) end
     end)
+    -- The comments of the files the v4 review found joins in, a run of comment lines read as one text.
+    local T='tests/lua/fight/gunmode/'
+    for _,p in ipairs({S..'input.lua',S..'ik.lua',S..'mode.lua',S..'aimrot.lua',S..'ui/dpad.lua',
+            T..'ik_pin_test.lua',T..'input_memo_test.lua',T..'rifle_frame_test.lua'}) do
+        local blocks,last={},nil -- {line of its first comment, its text}
+        lines({p},function(_,n,l)
+            local c=l:match('%-%-(.*)$')
+            if c and last==n-1 then blocks[#blocks][2]=blocks[#blocks][2]..' '..c
+            elseif c then blocks[#blocks+1]={n,c} end
+            if c then last=n end
+        end)
+        for _,b in ipairs(blocks) do
+            local flat=b[2]:gsub('%s+',' ')
+            for _,j in ipairs({', and ',', but '}) do
+                if flat:find(j,1,true) then fail(('%s:%d: "%s" joins two clauses'):format(p,b[1],j)) end
+            end
+        end
+    end
 end
 
 -- 5. Engine hooks (NotifyOnNewObject, RegisterHook) are registered in wiring.lua only, where each callback checks

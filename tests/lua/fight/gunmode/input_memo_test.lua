@@ -3,7 +3,7 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode's key reads, over fake.lua with the rifle out: one IsInputKeyDown a key a frame. With
 -- gun_fire_key=RightMouseButton the right mouse button is in both the fire and the zoom keys (gun_fire=own polls the
--- zoom keys); it is read once a frame, and read again on the next frame. The keys' names are made once.
+-- zoom keys). It is read once a frame, then again on the next frame. The keys' names are made once.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Fake=dofile('tests/lua/fight/gunmode/fake.lua')
 package.loaded['fight.gunmode.laser']=function() return function() end,function() end end

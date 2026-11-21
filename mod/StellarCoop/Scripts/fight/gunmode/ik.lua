@@ -334,7 +334,7 @@ function IK.new(g)
         local b_rp,b_rq,b_rpole,b_l,b_lq,b_pole=sm[1],sm[2],sm[3],sm[4],sm[5],sm[6]
         local rc=st.recoil or 0
         if rc>0.01 and G then
-            -- recoil in the anchor frame: about the rifle's right (Y) through its butt, and back along its stock (+X)
+            -- recoil in the anchor frame: about the rifle's right (Y) through its butt, plus back along its stock (+X)
             local gq={G.Rotation.X,G.Rotation.Y,G.Rotation.Z,G.Rotation.W}
             local Rq=qmul(b_rq,gq); local Rp=add(b_rp,qrot(b_rq,G.Translation))
             local bw=add(Rp,qrot(Rq,IK.CFG.pin_butt))
@@ -382,7 +382,7 @@ function IK.new(g)
         local C=IK.CFG
         if mode~='aim' then
             -- carry (and firing in the air) follows her upper body, not the actor: turns and the run twist her shoulders
-            -- away from the actor's facing (seen on a test video), and in a flip the whole frame turns over with her
+            -- away from the actor's facing (seen on a test video). In a flip the whole frame turns over with her
             local neck=cs(mesh,'Bip001-Neck'); local pel=cs(mesh,'Bip001-Pelvis')
             local sr=nrm(sub(rsh,lsh)); local su=nrm(sub(neck,pel))
             local f2=nrm(cross(sr,su))

@@ -1,8 +1,8 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The rifle's frame: it keeps running while the controller holds the same pawn, and it stops when the controller
--- holds another pawn or the rifle component is gone.
+-- The rifle's frame: it keeps running while the controller holds the same pawn. It stops when the controller holds
+-- another pawn or the rifle component is gone.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local function obj(t) t=t or {}; if t.IsValid==nil then t.IsValid=function(o) return not o.dead end end; return t end
 local nop=function() end
