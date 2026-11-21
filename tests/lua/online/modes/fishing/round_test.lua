@@ -4,8 +4,8 @@
 -- A fishing tournament on a fake link and clock (online/modes/fishing/round.lua): coop fish start and its refusals;
 -- the host's go, board, checks (each refusal of the design's section 7), rank and record; a guest's go, ready, catch,
 -- board, rank and record, her sit-out and the lines she drops; who may send which line; a guest who is lost and comes
--- back; the host leaving; coop fish stop; a guest's and the host's Lua reload; a guest's rejoin; a pass whose status
--- was not read; 2, 4 and 8 players.
+-- back; the host leaving; a guest who leaves or whose rejoin gives up, then comes back; coop fish stop; a guest's and
+-- the host's Lua reload; a guest's rejoin; a pass whose status was not read; 2, 4 and 8 players.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Round=require('online.modes.fishing.round')
 local Fm=require('online.modes.fishing.model')
@@ -14,8 +14,9 @@ local HOST,P2,P3='1001','2002','4003'
 local POINTS={[9220]=138,[9201]=30,[9230]=0}
 local t=1000
 -- A fake link: our SteamID, the online session's host (nil for none), whether the status says a chat session holds,
--- the members, a match lobby, the fish lines waiting and the ones we sent. unread: a pass whose status was not read
--- (core/link.lua's changes() then has no host, no SteamID of ours and chatting() nil).
+-- the members, a match lobby, the fish lines waiting and the ones we sent. status: the status text, which holds the
+-- native part's notices. unread: a pass whose status was not read (core/link.lua's changes() then has no host, no
+-- SteamID of ours and chatting() nil).
 local function fake(me,n)
     local L={me=me,session={id=HOST},chat=true,match=nil,inbox={},sent={},roster={}}
     for i=1,(n or 3) do
@@ -26,6 +27,7 @@ local function fake(me,n)
         saves=function() return L.unread and {} or {steamid=L.me} end,
         host=function() return not L.unread and L.session or nil end,
         chatting=function() if L.unread then return nil end return L.chat end,
+        status=function() return L.status end,
         match=function() return L.match end,
         me=function() return 'P'..(L.me==HOST and 1 or L.me==P2 and 2 or 3) end,
         members=function() return L.roster end,
@@ -152,10 +154,14 @@ assert(#L.sent==n and r.status():find('ranked; board: .*; ranking: 1%. P2 138 %(
     r.status())
 assert(#o.stopped==0)
 
--- coop fish stop on the host: void to every game, then our tournament ends. Nothing to stop after it.
+-- coop fish stop on the host: void to every game, then our tournament ends. Nothing to stop after it. Each refusal is
+-- logged again in a new tournament; our own catch in the countdown is refused for time too.
 t=2000
 assert(r.start('1'))
 seed=tonumber(L.sent[#L.sent]:match('^go (%d+) 1 '))
+L.from(P2,'ready '..seed); L.from(P2,'catch '..seed..' 9220 138'); r.tick()
+assert(said(o,'rank: refused P2: time')==2,'Once a sender and reason each tournament')
+assert(r.catch(9220,138) and said(o,'rank: refused P1: time')==1)
 assert(r.cancel() and last(L.sent)=='void '..seed and r.round().why=='void' and last(o.stopped)=='void')
 assert(select(2,r.cancel())=='none')
 -- The host's session ends (coop off, leave): ours ends with it, with no line. A status not read ends nothing.
@@ -230,7 +236,8 @@ L.from(HOST,'void 77'); r.tick()
 assert(r.round().phase=='play','A void of another seed changes nothing')
 L.from(HOST,'void 11'); r.tick()
 assert(r.round().why=='void' and last(o.stopped)=='void')
--- The host leaves: the session ends with no rejoin of ours. While our own rejoin runs, it goes on.
+-- The host leaves: the session ends with no rejoin of ours and the native part's notice says she left. While our own
+-- rejoin runs, it goes on.
 L.from(HOST,'go 12 10 1001,2002'); r.tick()
 L.session,L.chat=nil,true
 r.tick()
@@ -239,12 +246,14 @@ L.chat=nil
 r.tick()
 assert(r.round().phase=='play','A status not read ends nothing')
 L.chat=false
+L.status='notice=1 Session ended: P1 left.\n'
 r.tick()
 assert(r.round().why=='host_left' and last(o.stopped)=='host_left' and #o.records==1)
--- Another host's session is a host who left too.
+-- Another host's session, after a notice that the host's game is gone: a host who left too.
 L.session,L.chat={id=HOST},true
 L.from(HOST,'go 13 10 1001,2002'); r.tick()
 L.session={id=P3}
+L.status=L.status.."notice=2 Session ended: P1's game is gone.\n"
 r.tick()
 assert(r.round().why=='host_left')
 -- No rank 30 s after our end: no ranking came; a later rank is not taken.
@@ -283,14 +292,37 @@ assert(#o.told==2 and #o.records==0 and r.round().board==nil)
 -- name us says nothing. The rank still gives the ranking and our record, with its minutes.
 L=fake(P2)
 r,o=make(L)
-L.from(HOST,'board 30 1001:0:0'); r.tick()
-assert(#o.told==0)
+L.from(HOST,'board 30 1001:0:0'); L.from(HOST,'rank 29 5 1001:0:0'); r.tick()
+assert(#o.told==0 and r.round()==nil and #o.logs==0,'Neither names us: nothing at all')
 L.from(HOST,'board 30 2002:138:1,1001:0:0'); L.from(HOST,'board 30 2002:168:2,1001:0:0'); r.tick()
 assert(#o.told==1 and o.told[1]=='reloaded' and r.round()==nil)
 assert(said(o,'tournament 30: our game reloaded, our catches no longer count')==1 and not r.catch(9220,138))
 L.from(HOST,'rank 30 5 2002:168:2,1001:0:0'); r.tick()
 assert(r.round().phase=='ranked' and r.round().minutes==5 and o.records[1]=='5 168 2' and #L.sent==0)
 assert(r.status()=='tournament 30, 5 minutes, ranked; ranking: 1. P2 168 (2 fish), 2. P1 0 (0 fish)',r.status())
+
+-- A guest whose own link ends while her host plays on: her coop leave ('Left the session.'), or a rejoin that gave up.
+-- Her tournament ends as left, never host_left, whatever notice came before the go line. Back in the host's session,
+-- a rank that names her gives her the ranking and her record; one that does not name her changes nothing.
+L=fake(P2)
+r,o=make(L)
+L.status='notice=4 Session ended: P1 left.\n'
+L.from(HOST,'go 40 10 1001,2002'); r.tick()
+L.session,L.chat=nil,false
+L.status=L.status..'notice=5 Left the session.\n'
+r.tick()
+assert(r.round().why=='left' and last(o.stopped)=='left' and #o.records==0)
+L.session,L.chat={id=HOST},true
+L.from(HOST,'rank 40 10 1001:0:0'); r.tick()
+assert(r.round().why=='left' and #o.records==0,'A rank that does not name us')
+L.from(HOST,'rank 40 10 2002:138:1,1001:0:0'); r.tick()
+assert(r.round().phase=='ranked' and r.round().why==nil and o.records[1]=='10 138 1')
+assert(said(o,'ranked: rank 40 10 2002:138:1,1001:0:0')==1)
+L.from(HOST,'go 41 10 1001,2002'); r.tick()
+L.session,L.chat=nil,false
+L.status=L.status.."notice=6 Session ended: could not rejoin P1's game.\n"
+r.tick()
+assert(r.round().why=='left' and #o.stopped==2)
 
 -- 2, 4 and 8 players: go names every member past the handshake, at most 8 with us; equal points share a place.
 for _,count in ipairs({2,4,8,9}) do

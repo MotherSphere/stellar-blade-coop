@@ -130,7 +130,8 @@ There is no notice for your own catches: SB's result popup shows each one.
 | --- | --- |
 | A guest leaves the online session, or her link is lost | The host drops her from the board at its next pass. Still lost at the ranking, she is not ranked |
 | A guest's link comes back (the 60 s rejoin) | The host kept her counted catches. She is back on the board at its next pass and ranked if linked at the ranking. A catch she made while her link was down may be lost: its line may have had no link to go on |
-| The host leaves | The online session ends for every guest, so the tournament cannot pass to a guest. Each game says `The host left. This tournament has no ranking.` No record. A guest's tournament goes on while her own rejoin runs |
+| The host leaves | The online session ends for every guest, so the tournament cannot pass to a guest. Each game says `The host left. This tournament has no ranking.` No record. A guest's game knows it from the link's notice since the start line: `Session ended: <host> left.` or `Session ended: <host>'s game is gone.` A guest's tournament goes on while her own rejoin runs |
+| A guest leaves the online session herself (`coop leave`), or her rejoin gives up | Her tournament stops with no notice of its own: the link's notice says what happened (`Left the session.`, `Session ended: could not rejoin <host>'s game.`). Her game reads no catches after that. If she joins the same host again before the ranking, her panel shows the ranking when it names her. Her record comes from it |
 | `coop fish stop` on the host | Every game ends the tournament with `The tournament was cancelled.` No record |
 | `coop off` | Your tournament stops with no line. The book reads stop and the screens hide. Your link goes with the mod, so the host counts you as a player who left. A host's `coop off` is a host who leaves |
 | A map change, a fast travel, a load or a respawn | The tournament goes on. Your game takes its baseline again (see [From two reads to catches](#from-two-reads-to-catches)), so a catch made in the second before it may not count |
@@ -169,8 +170,9 @@ Without the Steam link each one answers `STOP: A fishing tournament needs the St
 
 The state is `play` or `ranked`. While it plays, the clock part reads `starts in <n>`, `<m>:<ss> left` or `time up`.
 Once a tournament ended with no ranking for you, the state is why: `void` (cancelled), `host_left`, `left` (the host's
-own online session ended), `norank` (no ranking came), `out` (you sat out), `replaced` (a new tournament started) or
-`coop off`. The board part (`; board: ...`) and the ranking part (`; ranking: ...`) read `nobody` when empty.
+own online session ended, or a guest left hers or her rejoin gave up), `norank` (no ranking came), `out` (you sat out),
+`replaced` (a new tournament started) or `coop off`. The board part (`; board: ...`) and the ranking part (`; ranking:
+...`) read `nobody` when empty.
 
 ## Log lines
 
@@ -313,14 +315,14 @@ line for 8 players is about 265 bytes, under the link's 512.
 The Lua tests are in `tests/lua/online/modes/fishing/`: `model_test` (the length, the clock, the texts and their
 refusals, the host's checks, the standings, the board and the ranking for 2, 4 and 8 players, the catches from book
 reads with their baseline rules), `round_test` (the tournament on a fake link and clock: the start and its refusals,
-each check of the host, a guest who is lost and comes back, the host leaving, `coop fish stop`, a guest's and the
-host's Lua reload), `game_test` (the fish table read, the sit-outs, the asks and their timing, each event that takes the
-baseline again), `board_test` (the screens on a fake kit and their notices), `records_test` (the copy of the records),
-`fishing_test` (`coop fish`) and `off_test` (the module turned off alone). `tests/lua/main/fishing_test.lua` covers the
-records file, the pass line and the `coop off` stop through `main.lua`. The native
-`tests/native/online/modes/fishing/fishing_test.cpp` reads a fake memory image laid out like build 26123051's, hostile
-memory included. `link_protocol_test`, `link_group_test`, `link_match_test` and `link_core_test` cover the mode line
-and the `fishbook` request (see [Tests](../../dev/tests.md)).
+each check of the host, a guest who is lost and comes back, the host leaving, a guest who leaves or whose rejoin gives
+up, `coop fish stop`, a guest's and the host's Lua reload), `game_test` (the fish table read, the sit-outs, the asks and
+their timing, each event that takes the baseline again), `board_test` (the screens on a fake kit and their notices),
+`records_test` (the copy of the records), `fishing_test` (`coop fish`) and `off_test` (the module turned off alone).
+`tests/lua/main/fishing_test.lua` covers the records file, the pass line, the `coop off` stop, `fishing=off` and the
+co-op save check through `main.lua`. The native `tests/native/online/modes/fishing/fishing_test.cpp` reads a fake memory
+image laid out like build 26123051's, hostile memory included. `link_protocol_test`, `link_group_test`,
+`link_match_test` and `link_core_test` cover the mode line and the `fishbook` request (see [Tests](../../dev/tests.md)).
 
 Not checked in game: everything on this page. In particular the book read and its count at a catch, whether a fast
 travel, a camp rest or a respawn rebuilds the book (the baseline rules cover each case), the corner board's place

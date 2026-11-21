@@ -8,7 +8,8 @@
 -- host takes ready and catch from the go line's players only, by the SteamID the link took from Steam: a guest drops
 -- them with no log line. After the host's Lua reload, the first catch of a tournament it does not run gets void back.
 -- After a guest's, the first board that names her gives one notice and a rank that names her still gives her the
--- ranking and her record. The game side (game.lua) gives our fish table and our catches.
+-- ranking and her record. So does a rank that names a guest who left her host's session and came back. The game side
+-- (game.lua) gives our fish table and our catches.
 -- tests/lua/online/modes/fishing/round_test.lua covers it on a fake link and clock.
 local Fm=require('online.modes.fishing.model')
 local R={}
@@ -24,8 +25,9 @@ function R.new(o)
     local tell=o.tell or function() end
     -- cur: our last tournament {seed=, minutes=, ids= (the go line's players, host first), host= (we host it), me=,
     -- from= (the host's SteamID), go= (our clock at the go line; nil for one we only heard ranked after a Lua reload),
-    -- phase='play' | 'ranked' | 'over', why= once over, h= model.lua's host on the host, board= the last board's list,
-    -- list= the ranking, best= true when it gave us a new best}.
+    -- notice= (a guest's: the status's newest notice number at the go line), phase='play' | 'ranked' | 'over', why=
+    -- once over, h= model.lua's host on the host, board= the last board's list, list= the ranking, best= true when it
+    -- gave us a new best}.
     local cur=nil
     -- said: the refusal lines logged this tournament, one a sender and reason. told: the seeds whose board told us our
     -- game reloaded. voided: the seeds the host voided for a catch of a tournament it does not run.
@@ -40,6 +42,20 @@ function R.new(o)
         for k,each in ipairs(list) do if (each.id or each)==id then return k end end
     end
     local function send(l) return link.mode_line('fish',type(l)=='string' and l or Fm.encode(l)) end
+    -- Two values from the status: its newest notice number (0 for none); true when a notice above after says the
+    -- native part ended a guest's session because her host left: 'Session ended: <host> left.' or 'Session ended: <host>'s game is gone.'
+    -- (native/src/link/core/members.inc, lobby.inc). Our own coop leave says 'Left the session.' and a rejoin that
+    -- gave up says 'Session ended: could not rejoin <host>'s game.': neither tells whether the host is still there.
+    local function notices(after)
+        local top,ended=0,false
+        for n,text in ('\n'..(link.status() or '')):gmatch('\nnotice=(%d+) ([^\r\n]*)') do
+            n=tonumber(n)
+            top=math.max(top,n)
+            ended=ended or after and n>after and text:find('^Session ended: ')~=nil
+                and not text:find('^Session ended: could not rejoin ')
+        end
+        return top,ended
+    end
     local function refuse(from,why,line)
         local key=line..from..': '..why
         if said[key] then return end
@@ -54,7 +70,7 @@ function R.new(o)
     end
     -- The ranking came: our record from our row in it.
     local function ranked(list)
-        cur.list,cur.phase=list,'ranked'
+        cur.list,cur.phase,cur.why=list,'ranked',nil
         local k=has(list,cur.me)
         if k and o.record then cur.best=o.record(cur.minutes,list[k].points,list[k].catches)==true end
     end
@@ -84,7 +100,8 @@ function R.new(o)
         local ours=cur and cur.seed==l.seed
         if l.word=='go' and not ours and has(l.ids,me) then
             if cur then finish('replaced') end
-            said,cur={},{seed=l.seed,minutes=l.minutes,ids=l.ids,host=false,me=me,from=from,go=now,phase='play'}
+            said,cur={},{seed=l.seed,minutes=l.minutes,ids=l.ids,host=false,me=me,from=from,go=now,phase='play',
+                notice=(notices())}
             log(string.format('tournament %d: %d minutes, %d players, from %s',l.seed,l.minutes,#l.ids,name(from)))
             tell('starts',name(from),l.minutes)
             local points,why=nil,'table'
@@ -101,7 +118,10 @@ function R.new(o)
             told[l.seed]=true
             log(string.format('tournament %d: our game reloaded, our catches no longer count',l.seed))
             tell('reloaded')
-        elseif l.word=='rank' and (ours and cur.phase=='play' or not ours and has(l.list,me)) then
+        -- A rank that names us still counts after we left (or lost) the host's session and came back: the host kept
+        -- our catches and ranks us.
+        elseif l.word=='rank' and (ours and (cur.phase=='play' or cur.why=='left' and has(l.list,me))
+            or not ours and has(l.list,me)) then
             if not ours then cur={seed=l.seed,minutes=l.minutes,ids={},host=false,me=me,from=from,phase='play'} end
             log('ranked: '..text)
             ranked(l.list)
@@ -111,7 +131,8 @@ function R.new(o)
     end
     -- Each 250 ms pass: the fish lines in, then the host's board and ranking, or a guest's wait for it. A tournament
     -- ends when our online session does: on the host, once the status says it has none; on a guest, once her host's
-    -- session is gone with no rejoin of hers under way, or another host's comes. A pass whose status was not read
+    -- session is gone with no rejoin of hers under way, or another host's comes: host_left when a notice since the go
+    -- line says her host left, else left (she left, or her rejoin gave up). A pass whose status was not read
     -- (link.chatting() nil) does nothing: it names no host and not our SteamID, so the fish lines wait in the link.
     local function link_pass()
         if link.chatting()==nil then return end
@@ -119,7 +140,7 @@ function R.new(o)
         if cur and cur.phase=='play' and cur.go then
             if cur.host and (not s or s.id~=me) then finish('left')
             elseif not cur.host and (s and s.id~=cur.from or not s and link.chatting()==false) then
-                finish('host_left')
+                finish(select(2,notices(cur.notice)) and 'host_left' or 'left')
             end
         end
         for _,l in ipairs(link.take_mode('fish')) do hear(l.from,l.text,now,me) end
