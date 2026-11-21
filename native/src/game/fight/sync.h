@@ -80,8 +80,8 @@
 //                                                                  in a boss fight (phase 3); "-": she stops
 // A member is a number below kMatchMembers: kHostMember, kPairMember (7b1's first guest); 7b2 numbers the others.
 // The host answers the guest's on and world with its whole list (world, its scale, place, aggro, bosses and stagger,
-// then every up). The guest answers the host's on with its own (hers may have come while the host was off), so either
-// side may restart.
+// then every up, then a fin for each boss whose winner is set). The guest answers the host's on with its own (hers may
+// have come while the host was off), so either side may restart.
 // Same-place enemies (game/pilot.h) send their show, show-set and show-stop lines on this channel with the same tag,
 // from the side that owns an enemy; pilot_line() tells them apart, and game/pilot.h parses them. own and own-no are
 // the engine's (fight/enemies/engine.h keeps the owners), never Host's or Guest's; so are same spawns' four
@@ -167,6 +167,10 @@ inline bool scaling(const uint16_t *pct, uint16_t boss) { return scaling(pct) ||
 // it holds her lethal claim and its own dead for that enemy until her exec 0, kHoldMs at most from her exec 1, and her
 // lethal claim kHoldMs at most from its own arrival (M3-5).
 constexpr uint64_t kExecMs = 2000;
+// Phase 3's finisher (boss_finish=first): her exec 1 for a boss pair whose copy here does not show its Finish stance
+// yet waits this long, checked again at each step (SB puts DeathReady and FinishReady on our copy a tick after the hit
+// that brought it low, which may come in the same drain). Then it is refused with today's words.
+constexpr uint64_t kFinishWaitMs = 1000;
 // Why the guest answers own-no: no paired copy, her copy not in life state 1, same-place enemies not running on her
 // side, an epoch that was not hers plus one, the host's aggro=host, no room for the pair, or her game thread refused
 // the take-over (SB's force target needs net mode 0 and no logic task in flight: game/pilot.h's Taker).
@@ -1124,9 +1128,10 @@ public:
   // Each turn, before step(): our aggro (stage 3b), true for aggro=host. She hears it after our place while it says
   // host, and at each change.
   void set_aggro(bool host_only) { host_only_ = host_only; }
-  // Before the first step: our bosses=on (stage 5) with our boss_hp_scale in percent, 0 for off. She hears it after
-  // our aggro, in each whole list.
-  void set_bosses(uint16_t pct) { boss_ = pct; }
+  // Before the first step: our bosses=on (stage 5) with our boss_hp_scale in percent, 0 for off, and our boss_finish
+  // (phase 3): first, the first finisher press on any screen ends a boss; else (host) ours only, while our EVE is up.
+  // She hears both after our aggro, in each whole list.
+  void set_bosses(uint16_t pct, bool finish_first) { boss_ = pct, finish_first_ = finish_first; }
   uint16_t bosses() const { return boss_; }
   // Before each step: our hit_reactions and stagger_resist (phase 8). She hears them after our bosses in each whole
   // list while either is on, then again at each change.
@@ -1196,6 +1201,27 @@ public:
       }
     return false;
   }
+  // Phase 3, the engine's, each turn before her claims are applied (they wait for step()): our copy of guid shows a
+  // takedown marker in its Finish stance, our own finisher press. It wins a boss with no winner yet, so in one turn
+  // ours comes before hers (7b2's guests would then go by member number), and she hears fin. After another member won,
+  // it is refused, logged once a boss.
+  template <class Io> void own_press(uint32_t guid, uint64_t, Io &io) {
+    Enemy *e = boss_ ? find(guid) : nullptr;
+    if (!e || !e->boss || e->died)
+      return;
+    if (e->winner == kNoMember)
+      return won(*e, kHostMember, io);
+    if (e->winner != kHostMember && !std::exchange(e->fin_said, true))
+      io.event(Event{"finish refused", "another member won", e->guid, e->spawn, e->index});
+  }
+  // The member whose finisher ends that boss (phase 3), kNoMember while none won. Fixed until the boss dies or leaves
+  // our list; hers goes at her off (she left the fight, so ours may end it).
+  uint8_t finisher(uint32_t guid) const {
+    for (size_t i = 0; i < count_; ++i)
+      if (enemies_[i].guid == guid)
+        return enemies_[i].winner;
+    return kNoMember;
+  }
   // A line no honest guest sends (R33): counted and logged once; after kMaxBad of them her lines are ignored.
   template <class Io> void bad(const char *why, Io &io) {
     if (++counts.bad == 1)
@@ -1225,6 +1251,9 @@ public:
       return forget();
     case Type::off:
       peer_on_ = false;
+      for (size_t i = 0; i < count_; ++i)
+        if (enemies_[i].winner == kPairMember)
+          enemies_[i].winner = kNoMember;
       return forget();
     case Type::world: // Her world changed and she dropped every pair.
       announce_ = true;
@@ -1349,7 +1378,7 @@ public:
         io.send(aggro());
       if (boss_) { // Nor off.
         Message b = note(Type::bosses, 0);
-        b.boss = boss_;
+        b.boss = boss_, b.finish_first = finish_first_;
         io.send(b);
       }
       told_reactions_ = reactions_, told_resist_ = resist_;
@@ -1357,6 +1386,9 @@ public:
         io.send(staggered());
       for (size_t i = 0; i < count_; ++i)
         io.send(up(enemies_[i]));
+      for (size_t i = 0; i < count_; ++i) // The winners after every up (phase 3).
+        if (enemies_[i].winner != kNoMember)
+          io.send(fin(enemies_[i]));
       next_hp_ = next_refresh_ = now; // Every value at once.
     }
     if (peer_on_ && place_ != told_place_) {
@@ -1382,6 +1414,11 @@ public:
         apply(claim_[c], now, io);
     }
     claims_ = kept;
+    // Her finisher presses that wait for our copy's Finish stance (phase 3): taken once it shows, else refused at
+    // kFinishWaitMs.
+    for (size_t i = 0; i < count_; ++i)
+      if (Enemy &e = enemies_[i]; e.fin_until && (e.finish || now >= e.fin_until))
+        finish_take(e, e.finish ? finish_no(e) : "no Groggy or takedown on our copy", io);
     // The kills that wait: once NoDamageNoHit and her takedown end, or kHoldMs after the claim came.
     for (size_t i = 0; i < count_;) {
       Enemy &e = enemies_[i];
@@ -1412,7 +1449,10 @@ private:
     bool died = false;    // Dead in our world while her takedown runs (stage 3c): our dead waits; hp lines say 0.
     bool takedown = false, monster = false; // Seen::takedown and Seen::monster at the last pass.
     bool boss = false;                      // Seen::boss: never a common enemy's place to take (stage 5).
-    bool finish = false;                    // Seen::finish: only our own finisher ends it (stage 5).
+    bool finish = false;                    // Seen::finish: only its winner's finisher ends it (stage 5, phase 3).
+    uint8_t winner = kNoMember;             // The member whose finisher ends it (phase 3; finisher()).
+    bool fin_said = false;                  // Our press refused after another member won, logged (own_press()).
+    uint64_t fin_until = 0;                 // Her finisher press waits for our Finish stance until then; 0: none.
     bool down_said = false;                 // A claim of hers dropped in this down of ours, logged (set_down()).
     uint64_t scene_until = 0;               // Its claims wait for an HP scene until then (scene_wait()); 0: none.
     uint64_t exec_ms = 0, exec_last = 0; // Her takedown's exec 1 (0: none runs), and her last exec 1 (the rate).
@@ -1447,7 +1487,7 @@ private:
   void forget() { // Her claims not applied yet, her takedowns and her reactions: she restarted, or stopped.
     claims_ = 0;
     for (size_t i = 0; i < count_; ++i)
-      enemies_[i].exec_ms = enemies_[i].scene_until = 0;
+      enemies_[i].exec_ms = enemies_[i].scene_until = enemies_[i].fin_until = 0;
     recent_.clear();
   }
   // A reaction that rose on our copy e (seen as s): told to her (Rule A) unless it is our echo. Then Rule B's window
@@ -1515,6 +1555,11 @@ private:
   Message aggro() const {
     Message m = note(Type::aggro, 0);
     m.host_only = host_only_;
+    return m;
+  }
+  Message fin(const Enemy &e) const {
+    Message m = note(Type::fin, e.guid);
+    m.member = e.winner;
     return m;
   }
   Message up(const Enemy &e) const {
@@ -1608,9 +1653,10 @@ private:
       }
       return;
     }
-    if (e->finish)
+    if (e->finish && e->winner != kPairMember)
       return finish_held(*e, io);
-    if (e->nodamage == kNoDamageNoHit || running(*e, now)) {
+    // Her winning finisher's kill goes at once: the engine takes FinishReady, which holds NoDamageNoHit, off first.
+    if (!e->finish && (e->nodamage == kNoDamageNoHit || running(*e, now))) {
       e->holding = true, e->hold_ms = now;
       ++counts.held;
       io.event(Event{"kill held", running(*e, now) ? "her takedown" : "NoDamageNoHit", e->guid, e->spawn, e->index});
@@ -1635,7 +1681,13 @@ private:
         e->exec_ms = 0, io.event(Event{"exec", "her takedown ended", e->guid, e->spawn, e->index});
       return;
     }
-    if (!e || e->died || !place_ || host_only_) {
+    if (!e || e->died) {
+      ++counts.stale;
+      return;
+    }
+    if (e->boss && boss_) // A finisher press (phase 3), whatever same place and aggro say.
+      return finish_press(*e, now, io);
+    if (!place_ || host_only_) {
       ++counts.stale;
       return;
     }
@@ -1653,8 +1705,49 @@ private:
     ++counts.execs;
     io.event(Event{"exec", "her takedown begins", e->guid, e->spawn, e->index});
   }
-  // A kill of hers on a boss in its Finish stance (stage 5): only our own finisher ends it, so her claim takes it down
-  // to 1 HP, whenever it came, and nothing waits.
+  // Her exec 1 on a boss pair with bosses on (phase 3): a finisher press, once a boss in kExecMs as any exec 1 (a
+  // flood is refused unlogged). A repeat after she won is stale. Refused at once while boss_finish=host has our EVE
+  // up; a copy of ours not in its Finish stance yet makes it wait kFinishWaitMs (step()); else finish_take().
+  template <class Io> void finish_press(Enemy &e, uint64_t now, Io &io) {
+    const bool soon = e.exec_last && now - e.exec_last < kExecMs;
+    e.exec_last = now;
+    if (soon) {
+      ++counts.exec_refused;
+      return;
+    }
+    if (e.winner == kPairMember) {
+      ++counts.stale;
+      return;
+    }
+    if (!finish_no(e) && !e.finish) {
+      e.fin_until = e.fin_until ? e.fin_until : now + kFinishWaitMs;
+      return;
+    }
+    finish_take(e, finish_no(e), io);
+  }
+  // Why her finisher press cannot win e now, or null: another member won, or boss_finish=host with our EVE up.
+  const char *finish_no(const Enemy &e) const {
+    return e.winner != kNoMember ? "another member won" : !finish_first_ && !down_ ? "the host finishes" : nullptr;
+  }
+  // Her press decided: refused for why (counted, logged), or she wins (null).
+  template <class Io> void finish_take(Enemy &e, const char *why, Io &io) {
+    e.fin_until = 0;
+    if (why) {
+      ++counts.exec_refused;
+      return io.event(Event{"exec refused", why, e.guid, e.spawn, e.index});
+    }
+    ++counts.execs;
+    won(e, kPairMember, io);
+  }
+  // member wins e: logged, and she hears fin now unless our whole list goes to her first (it carries the winners).
+  template <class Io> void won(Enemy &e, uint8_t member, Io &io) {
+    e.winner = member, e.fin_until = 0;
+    io.event(Event{"finisher", member == kHostMember ? "ours" : "hers", e.guid, e.spawn, e.index});
+    if (peer_on_ && !announce_)
+      io.send(fin(e));
+  }
+  // A kill of hers on a boss in its Finish stance (stage 5) that she did not win (phase 3): only the winner's finisher
+  // ends it, so her claim takes it down to 1 HP, whenever it came, and nothing waits.
   template <class Io> void finish_held(Enemy &e, Io &io) {
     e.holding = false;
     ++counts.finish_held;
@@ -1667,7 +1760,7 @@ private:
   // alone. Our copy lives on at its full HP (heal()), never shared again (Io::unshare), and she hears our dead, so her
   // copy, which her hit killed or holds at the floor, dies on her side's own test.
   template <class Io> bool kill(Enemy &e, Io &io) {
-    if (e.finish)
+    if (e.finish && e.winner != kPairMember)
       return finish_held(e, io), false;
     if (e.holding && (e.nodamage == kNoDamageNoHit || e.exec_ms)) {
       ++counts.expired;
@@ -1750,6 +1843,7 @@ private:
   bool place_ = false, told_place_ = false; // Our same_place, and as the guest last heard it.
   bool host_only_ = false, told_aggro_ = false; // Our aggro=host, and as the guest last heard it.
   uint16_t boss_ = 0;                            // Our boss_hp_scale with bosses=on; 0: off.
+  bool finish_first_ = false;                    // Our boss_finish=first (host otherwise).
   bool reactions_ = false, resist_ = false;      // Our hit_reactions and stagger_resist.
   bool told_reactions_ = false, told_resist_ = false; // Both as the guest last heard them.
   bool down_ = false, member_up_ = false;        // set_down(): our EVE is down; a member of the fight is up.
@@ -1800,6 +1894,16 @@ public:
   // The host's boss_hp_scale from its bosses line (stage 5), the same way: 0 (bosses off) before one. While set, the
   // engine's census takes our bosses too.
   uint16_t bosses() const { return boss_; }
+  // The host's boss_finish=first from its bosses line (phase 3), the same way: false (host) before one, or a line
+  // without the word. While set and no fin names another member, the engine leaves our finisher prompt on a boss copy.
+  bool finish_first() const { return finish_first_; }
+  // The member the host's fin names for its enemy hguid (phase 3), kNoMember before one; dropped with the pair.
+  uint8_t finisher(uint32_t hguid) const {
+    for (size_t i = 0; i < count_; ++i)
+      if (pairs_[i].hguid == hguid)
+        return pairs_[i].fin;
+    return kNoMember;
+  }
   // The host's hit_reactions and stagger_resist from its stagger line (phase 8), the same way: both false before one.
   bool reactions() const { return reactions_; }
   bool resist() const { return resist_; }
@@ -1967,6 +2071,7 @@ public:
     case Type::hp:
     case Type::cc:
     case Type::poise:
+    case Type::fin:
       if (!known_gen_ || m.gen != known_gen_) {
         ++counts.stale;
         return;
@@ -1981,7 +2086,7 @@ public:
     if (m.type == Type::aggro)
       return (void)(host_only_ = m.host_only);
     if (m.type == Type::bosses)
-      return (void)(boss_ = m.boss);
+      return (void)(boss_ = m.boss, finish_first_ = m.finish_first);
     if (m.type == Type::stagger)
       return (void)(reactions_ = m.reactions, resist_ = m.resist);
     Pair *p = find(m.guid);
@@ -2004,6 +2109,11 @@ public:
     } else if (m.type == Type::cc) { // For our copy at the next step, while it is ours to follow.
       if (p && p->local && !p->lethal && !p->dead)
         p->cc.hear(m, counts);
+      else
+        ++counts.stale;
+    } else if (m.type == Type::fin) { // Its finisher's member (phase 3), kept on the pair for the engine.
+      if (p)
+        p->fin = m.member;
       else
         ++counts.stale;
     } else if (m.type == Type::poise) { // The owner's window, for our copy at the next step (take_poise).
@@ -2114,6 +2224,7 @@ private:
     bool fought = false;         // A drop we claimed since it paired: our EVE hit it (together only). Hurt when it
                                  // paired is not: the host's values before a pause or a re-pair hurt it too.
     bool started = false;        // Its bstart was taken (stage 5): one a copy while in battle mode.
+    uint8_t fin = kNoMember;     // The member the host's fin names (phase 3).
     bool phased = false;         // A phase line was applied to the copy (stage 5): phase, phases its set.
     bool retry = false;          // The game refused a row of its last one: the next plans from the copy's list.
     int32_t test_hp = 0;         // coop fight pilot test finish's HP for the copy (test_hp()); 0: the host's.
@@ -2145,6 +2256,7 @@ private:
     std::fill(scale_, scale_ + kScales, kMinScale);
     place_ = host_only_ = false;
     boss_ = 0;
+    finish_first_ = false;
     reactions_ = resist_ = false;
     recent_.clear();
   }
@@ -2374,6 +2486,7 @@ private:
   bool place_ = false;     // The host's same_place (its place line).
   bool host_only_ = false; // The host's aggro=host (its aggro line).
   uint16_t boss_ = 0;      // The host's boss_hp_scale (its bosses line); 0: bosses off.
+  bool finish_first_ = false; // The host's boss_finish=first (its bosses line).
   bool reactions_ = false, resist_ = false; // The host's hit_reactions and stagger_resist (its stagger line).
   bool confirm_ = false;
   bool spectating_ = false; // set_spectating(): our EVE watches the fight.

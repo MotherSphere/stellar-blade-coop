@@ -854,6 +854,16 @@ int main() {
                           "fight on spawns bosses 200", "fight on bosses 200 bosses 200", "fight on 1 bosses 200",
                           "fight on Bosses 200", "fight on boss 200", "fight off bosses 200", "fight pilot bosses 200"})
     assert(parse_request(bad).command == Command::none);
+  // Phase 3: boss_finish=host as "finish-host" right after the bosses percent; none: first. Never without bosses.
+  f = parse_request("fight on scale 135 115 bosses 200 finish-host");
+  assert(f.bosses == 200 && f.finish_host && f.fight == Fight::on);
+  assert(!parse_request("fight on scale 135 115 bosses 200").finish_host);
+  f = parse_request("fight record aggro-host bosses 250 finish-host reactions spawns 15011001");
+  assert(f.finish_host && f.bosses == 250 && f.reactions && f.spawns && (f.chars == std::vector<uint32_t>{15011001}));
+  for (const char *bad : {"fight on finish-host", "fight on scale 135 115 finish-host", "fight on bosses finish-host",
+                          "fight on bosses 200 reactions finish-host", "fight on bosses 200 finish-host finish-host",
+                          "fight on bosses 200 Finish-host", "fight on bosses 200 finish_host"})
+    assert(parse_request(bad).command == Command::none);
   // Phase 8: hit_reactions=on as "reactions" and stagger_resist=on as "resist", after bosses, before spawns; and the
   // host's change at once as "fight stagger <0|1> <0|1>".
   f = parse_request("fight on scale 135 115 place bosses 200 reactions resist spawns 15011001");

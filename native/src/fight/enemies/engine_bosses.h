@@ -56,8 +56,23 @@ inline void Engine::heard(uint64_t now) {
 }
 
 template <class Game> void Engine::bosses(Game &g, uint64_t logic, size_t n, bool census, uint64_t now) {
-  if (hosting_seen_)
+  const auto told = [&](const uint32_t *hguids, size_t count) { // finisher(): the first pair's winner.
+    uint8_t f = kNoMember;
+    for (size_t i = 0; i < count && f == kNoMember; ++i)
+      f = hosting_seen_ ? host.finisher(hguids[i]) : guest.finisher(hguids[i]);
+    fin_ = f;
+  };
+  if (hosting_seen_) {
+    uint32_t followed[kMaxTracked];
+    const size_t count = host.tracked(followed);
+    // Ours once another member won its finisher (phase 3): our prompt goes, so no finisher of ours plays.
+    guard(g, logic, n, followed, followed, count, [&](size_t i) {
+      const uint8_t f = host.finisher(followed[i]);
+      return f != kNoMember && f != kHostMember;
+    });
+    told(followed, count);
     return boss_lines(g, logic, n, now);
+  }
   for (Message m; boss_in_.pop(m) && !latched_;)
     if (m.type == Type::bstart)
       bstart_in(g, logic, m, n, now);
@@ -75,34 +90,16 @@ template <class Game> void Engine::bosses(Game &g, uint64_t logic, size_t n, boo
       lift(g, logic, i);
     else
       ++i;
-  uint32_t local[kMaxTracked], hguid[kMaxTracked], guarded[kMaxPairs];
+  uint32_t local[kMaxTracked], hguid[kMaxTracked];
   const size_t count = guest.tracked(local, hguid);
-  size_t guards = 0;
-  // The finish guard: a boss copy of hers in its Finish stance gets FinishReady_Dispel, then its own Passive_Immortal
-  // back, in that turn, each turn the stance shows, until the host's dead. So her hits stop at 1 HP, and the
-  // finisher prompt never stays on her side: the boss ends only by the host's finisher, then its dead. Captured
-  // before its first calls (kGuard) and held while its pair lasts: a pair that goes another way (the host's down or
-  // world, the link, coop fight off, a latch) takes our Immortal off with it.
-  let_go(g, logic, kGuard, local, count);
-  for (size_t i = 0; i < count && !latched_; ++i) {
-    const Seen *s = fight::find(seen_, n, local[i]);
-    if (!s || !s->finish || dying(*s))
-      continue;
-    if (!captured(local[i], kGuard)) {
-      if (captures_ == kMaxCaptures)
-        continue;
-      caps_[captures_++] = Capture{local[i], kGuard, 1};
-    }
-    const bool off = self_cast(g, logic, local[i], kFinishDispel) != 0;
-    const bool back = self_cast(g, logic, local[i], kImmortalRow) != 0;
-    ++counts.finish_guards;
-    if (std::find(guarded_, guarded_ + guards_, local[i]) == guarded_ + guards_ && !latched_)
-      g.event(Event{"finish guard", off && back ? "" : "the game refused a row", hguid[i], s->spawn, s->index});
-    if (guards < kMaxPairs)
-      guarded[guards++] = local[i];
-  }
-  std::copy(guarded, guarded + guards, guarded_);
-  guards_ = guards;
+  // The finish guard on her boss copies until the host's dead: the boss ends only by the host's finisher, then its
+  // dead. With the host's boss_finish=first, only once its fin named another member; never once it named her (phase
+  // 3): her own finisher may end it.
+  guard(g, logic, n, local, hguid, count, [&](size_t i) {
+    const uint8_t f = guest.finisher(hguid[i]);
+    return f != kPairMember && (!guest.finish_first() || f != kNoMember);
+  });
+  told(hguid, count);
   // Her summons: one that left the map is forgotten (a dying one stays until then, so the host's next line for its
   // key is "again"), and at a census one no pair holds kSummonWaitTurns after it was made goes (the host's is not
   // shared, or gone), its key refused for good.
@@ -122,6 +119,36 @@ template <class Game> void Engine::bosses(Game &g, uint64_t logic, size_t n, boo
       ++i;
     }
   }
+}
+
+template <class Game, class Want>
+void Engine::guard(Game &g, uint64_t logic, size_t n, const uint32_t *local, const uint32_t *hguid, size_t count,
+                   Want &&want) {
+  uint32_t guarded[kMaxPairs], wanted[kMaxTracked];
+  size_t guards = 0, k = 0;
+  for (size_t i = 0; i < count; ++i)
+    if (want(i))
+      wanted[k++] = local[i];
+  let_go(g, logic, kGuard, wanted, k);
+  for (size_t i = 0; i < count && !latched_; ++i) {
+    const Seen *s = fight::find(seen_, n, local[i]);
+    if (!s || !s->finish || dying(*s) || std::find(wanted, wanted + k, local[i]) == wanted + k)
+      continue;
+    if (!captured(local[i], kGuard)) {
+      if (captures_ == kMaxCaptures)
+        continue;
+      caps_[captures_++] = Capture{local[i], kGuard, 1};
+    }
+    const bool off = self_cast(g, logic, local[i], kFinishDispel) != 0;
+    const bool back = self_cast(g, logic, local[i], kImmortalRow) != 0;
+    ++counts.finish_guards;
+    if (std::find(guarded_, guarded_ + guards_, local[i]) == guarded_ + guards_ && !latched_)
+      g.event(Event{"finish guard", off && back ? "" : "the game refused a row", hguid[i], s->spawn, s->index});
+    if (guards < kMaxPairs)
+      guarded[guards++] = local[i];
+  }
+  std::copy(guarded, guarded + guards, guarded_);
+  guards_ = guards;
 }
 
 template <class Game> void Engine::boss_lines(Game &g, uint64_t logic, size_t n, uint64_t now) {

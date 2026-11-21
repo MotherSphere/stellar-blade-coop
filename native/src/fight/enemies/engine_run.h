@@ -145,7 +145,7 @@ template <class Game> void Engine::simulate(Job &job, Game &g, uint64_t now_ms) 
     new (&guest) Guest();
     guest.confirm(confirm_);
     host.set_scale(scale_hp_, scale_balance_);
-    host.set_bosses(bosses_);
+    host.set_bosses(bosses_, finish_first_);
     session_seen_ = session;
     hosting_seen_ = hosting_; // set() stores the side before the session, so a turn never runs one with the other.
     probing_seen_ = probing_;
@@ -167,6 +167,7 @@ template <class Game> void Engine::simulate(Job &job, Game &g, uint64_t now_ms) 
     boss_in_.clear();
     std::fill(std::begin(boss_out_), std::end(boss_out_), BossOut());
     summoned_count_ = guards_ = 0; // summon_n_ goes on for the run, as the extras' n.
+    fin_ = kNoMember;
     trial_ = Trial();
     unshared_n_ = lent_n_ = 0;
     calm_seen_ = calm_;
@@ -255,6 +256,10 @@ template <class Game> void Engine::simulate(Job &job, Game &g, uint64_t now_ms) 
     slow_motion(g, n);
   if (!latched_ && census)
     battles(g, n, now_ms);
+  // Our finisher presses (phase 3), before her claims (they wait for the step): in one turn ours comes first.
+  for (size_t i = 0; i < n && !latched_ && hosting; ++i)
+    if (seen_[i].finish && seen_[i].marked && !dying(seen_[i]))
+      host.own_press(seen_[i].guid, now_ms, io);
   if (!latched_ && hosting) {
     host.set_place(same_place_ && !pilot_off_ && !pilot_stopped_);
     host.set_aggro(aggro_host_);

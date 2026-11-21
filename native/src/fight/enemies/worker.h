@@ -322,10 +322,11 @@ public:
 
 private:
   // Spectate's words on the fight= line (phase 3): ours from the game thread's word, the member she watches as her
-  // last spec line said it (- for none) and our member number (0 the host or alone, 1 the pair).
+  // last spec line said it (- for none) and our member number (0 the host or alone, 1 the pair). While the mode on
+  // runs, the member whose finisher ends a boss (the job's, live; - for none).
   std::string spectate_words() const {
     return spectate::words(spec_) + " her_spec=" + spectate::member(her_spec_) + " mem=" +
-           (linked_ && !hosting_ ? "1" : "0");
+           (linked_ && !hosting_ ? "1" : "0") + (sharing() ? " fin=" + spectate::member(e_.finisher()) : "");
   }
   // Each pass: our spec line to her at each change of the member we watch and again after her on (none before we
   // first watch). A log line at each enter, reason to get up and leave of the game thread's spectate.
@@ -408,7 +409,7 @@ private:
     e_.credit(!r.fought);
     e_.same_place(r.place);
     e_.aggro(r.aggro_host);
-    e_.bosses(r.bosses);
+    e_.bosses(r.bosses, !r.finish_host);
     e_.stagger(r.reactions, r.resist);
     e_.same_spawns(r.spawns);
     e_.enemy_extra(r.extra);

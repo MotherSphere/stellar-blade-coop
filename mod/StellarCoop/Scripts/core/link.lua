@@ -19,8 +19,9 @@
 -- in an online session, its host and pair (host()) and each member's vitals (vitals()). Lua tells the native part the
 -- host's place and rules for the list's rows with where() and rules(), each sent only when it changed.
 -- coop-settings.txt's shared_enemies, fight_chars, guest_kills, enemy_hp_scale, enemy_balance_scale, kill_credit,
--- same_place, aggro, same_spawns, enemy_extra, spawn_filter, bosses, boss_hp_scale, hit_reactions and stagger_resist
--- (Phase 11 and phase 8, experimental) are fight/enemies/commands.lua's coop fight (main.lua's loop asks it on or off);
+-- same_place, aggro, same_spawns, enemy_extra, spawn_filter, bosses, boss_hp_scale, boss_finish, hit_reactions and
+-- stagger_resist (Phase 11, phases 3 and 8, experimental) are fight/enemies/commands.lua's coop fight (main.lua's loop
+-- asks it on or off);
 -- its photo_sync, photo_freeze_max, photo_ghost and photo_name_tag the synced photo mode's (main.lua, and the native
 -- part through coop-state.txt), photo_pause main.lua's own; its auto_coop_save the co-op saves'
 -- (online/saves/saves.lua), which also read saves() here; its shared_quests and quest_deny story/quests/commands.lua's

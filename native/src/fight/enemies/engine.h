@@ -97,7 +97,8 @@ public:
   // Any thread: our bosses=on (stage 5) with our boss_hp_scale in percent (0: off), the host's for both games; set
   // while off. On, fight_chars=auto shares the BossMonsters too (bosses and Alpha Naytibas, never handed to her), and
   // a boss's MaxHP takes this percent in place of enemy_hp_scale. A guest's side takes the host's from its bosses line.
-  void bosses(uint16_t pct) { bosses_ = pct; }
+  // first: our boss_finish=first (phase 3), the host's too; host otherwise.
+  void bosses(uint16_t pct, bool first = false) { bosses_ = pct, finish_first_ = first; }
   // Any thread: our hit_reactions and stagger_resist (phase 8), both on by default. The host's side tells her both
   // (its stagger line) and holds them each turn; a guest's side takes the host's from that line, never its own.
   void stagger(bool reactions, bool resist) { reactions_ = reactions, resist_ = resist; }
@@ -149,6 +150,9 @@ public:
   void latch(const char *why);
   bool latched() const { return latched_; }
   bool on() const { return on_; } // Any thread: set() said on, so the game thread arms.
+  // Any thread: the member whose finisher ends a boss of this session (phase 3: the host's winner, or as its fin line
+  // said), the first pair's that has one, as of the last turn; kNoMember for none.
+  uint8_t finisher() const { return fin_; }
   uint32_t session() const { return session_; } // Any thread: the session set() last started.
   const char *why() const;
 
@@ -561,8 +565,17 @@ private:
   // (kBattleOn) moves on by that silence.
   void heard(uint64_t now);
   // After the pair table (n: this pass's enemies). The host tells her about its bosses and their summons; the guest
-  // acts on the host's lines and holds the finish guard on her boss copies.
+  // acts on the host's lines. The finish guard on either side's boss copies, then finisher()'s word.
   template <class Game> void bosses(Game &g, uint64_t logic, size_t n, bool census, uint64_t now);
+  // The finish guard: each copy of local (hguid: the host's GUIDs) that want(i) names, in its Finish stance this pass,
+  // gets FinishReady_Dispel, then its own Passive_Immortal back, in that turn, each turn the stance shows. So hits stop
+  // at 1 HP, and the finisher prompt never stays on this side. Captured before its first calls (kGuard) and held while
+  // the pair lasts and want names it: a pair that goes another way (the host's down or world, the link, coop fight
+  // off, a latch, a winner forgotten at her off) takes our Immortal off with it. Her winning kill on the host's side
+  // takes the capture off first (write()).
+  template <class Game, class Want>
+  void guard(Game &g, uint64_t logic, size_t n, const uint32_t *local, const uint32_t *hguid, size_t count,
+             Want &&want);
   // The host, while same place runs with her: for each boss pair, bstart at the edge of its battle mode (FSBActor
   // +0xb58) and every kRefreshMs while it lasts; phase, with the rows of its allowlist our copy runs in its list's
   // order, whenever they change (the first time too) and every kRefreshMs in battle mode; then each summon we keyed and
@@ -722,6 +735,8 @@ private:
   std::atomic<uint8_t> extra_{0}; // enemy_extra.
   std::atomic<uint16_t> scale_hp_{kMinScale}, scale_balance_{kMinScale};
   std::atomic<uint16_t> bosses_{0}; // Our boss_hp_scale with bosses=on; 0: off.
+  std::atomic<bool> finish_first_{false}; // Our boss_finish=first (bosses()).
+  std::atomic<uint8_t> fin_{kNoMember};   // finisher(), the logic thread's.
   std::atomic<bool> reactions_{true}, resist_{true}; // Our hit_reactions and stagger_resist (stagger()).
   std::atomic<uint64_t> test_{0}; // A test asked (test()): (stat - kNoTest) << 32 | change; 0 for none.
   std::atomic<const char *> why_{nullptr};

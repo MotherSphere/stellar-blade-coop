@@ -90,11 +90,20 @@ if M.link then
     -- the line's last zone, n and resets, when the host last read down, and since when ours reads alive. Forgotten with
     -- fight_maxhp.
     local REST_CALM,rest=10,{}
+    -- The boss finisher (phase 3), from the line's fin= (the member whose finisher ends a boss) and mem= (ours): named
+    -- once a winner, never when the winner is us. fin_was: the last fin= read, nil for none.
+    -- shortcut: any member but us is named as her (M.her_name), right for the pair only; 7b2 maps members to names.
+    local fin_was
     function M.fight_notices()
         M.guarded('spectate',M.spectate.tick,M.chat_clock)
         if M.link.mode()=='none' then fight_told=nil end
         local line=M.link.fight()
         if not line then return end
+        local fin=line:match(' fin=(%d+)')
+        if fin and fin~=fin_was and fin~=line:match(' mem=(%d+)') then
+            M.tell(function(w) return w.fight.finisher:format(M.her_name(w)) end)
+        end
+        fin_was=fin
         local state,mode,her=line:match('^fight=(%a+)'),line:match(' mode=(%a+)'),line:match(' her=(%S+)')
         local why=line:match(' why=(.*)$')
         local now=state=='on' and 'on '..tostring(mode) or state

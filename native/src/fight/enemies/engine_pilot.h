@@ -297,7 +297,10 @@ template <class Game> void Engine::takedowns(Game &g, const uint32_t *local, con
   };
   for (size_t i = 0; i < count; ++i) {
     const Seen *s = fight::find(seen_, n, local[i]);
-    const bool alive = on && s && !dying(*s);
+    // With the host's boss_finish=first, our finisher on a boss copy in its Finish stance goes past both gates (phase
+    // 3): the host decides who finishes it.
+    const bool finisher = s && s->finish && guest.finish_first();
+    const bool alive = (on || finisher) && s && !dying(*s);
     if (const int x = execs_.step(hguids[i], alive && s->marked, alive, now); x >= 0)
       tell(hguids[i], x == 1, s);
   }

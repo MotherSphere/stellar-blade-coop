@@ -63,7 +63,8 @@ function Fight.new(o)
     -- them, in this order: guest_kills=confirmed and kill_credit=fought as one word each with on and replay (the modes
     -- that kill on the other side's word), and the host's scaling as "scale" and two whole percents with on and record
     -- (the modes that can host), and same_place=on as "place", aggro=host as "aggro-host" and bosses=on as "bosses" and
-    -- boss_hp_scale in whole percents after them, hit_reactions=on as "reactions" and stagger_resist=on as "resist"
+    -- boss_hp_scale in whole percents after them (then boss_finish=host as "finish-host"; first, the default, adds
+    -- nothing), hit_reactions=on as "reactions" and stagger_resist=on as "resist"
     -- after those, then with on only same_spawns=on as "spawns", and with it an
     -- enemy_extra above 0 as "extra" and its number, then with on and spawn probe the guest's own spawn_filter=on as
     -- "filter". status answers
@@ -95,7 +96,8 @@ function Fight.new(o)
                 line=line..string.format(' scale %d %d',math.floor(settings.enemy_hp_scale*100+0.5),
                     math.floor(settings.enemy_balance_scale*100+0.5))..(settings.same_place and ' place' or '')
                     ..(settings.aggro=='host' and ' aggro-host' or '')
-                    ..(settings.bosses and string.format(' bosses %d',math.floor(settings.boss_hp_scale*100+0.5)) or '')
+                    ..(settings.bosses and string.format(' bosses %d',math.floor(settings.boss_hp_scale*100+0.5))
+                        ..(settings.boss_finish=='host' and ' finish-host' or '') or '')
                     ..(settings.hit_reactions and ' reactions' or '')..(settings.stagger_resist and ' resist' or '')
                     ..(sub=='on' and settings.same_spawns and ' spawns' or '')
                     ..(sub=='on' and settings.same_spawns and settings.enemy_extra>0

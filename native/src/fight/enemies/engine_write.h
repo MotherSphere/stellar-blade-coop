@@ -113,10 +113,19 @@ template <class Game> bool Engine::write(Game &g, uint64_t logic, const Write &w
       ++i;
   if (w.kill)
     noted(w.guid);
-  // The host's dead on a boss copy of hers (stage 5): its MinimumHP rows and its Passive_Immortal off first, so the
-  // kill is not held at a phase threshold or at 1 HP that the host's copy no longer had.
+  // The host's dead on a boss copy of hers (stage 5), or on the host's side the kill of her winning finisher (phase
+  // 3): its MinimumHP rows and its Passive_Immortal off first, so the kill is not held at a phase threshold or at 1 HP
+  // that the other copy no longer had. Ours then drops our finish guard's capture first: the kill ends it.
+  const uint8_t won = hosting_seen_ && w.kill ? host.finisher(w.guid) : kNoMember;
+  const bool hers = won != kNoMember && won != kHostMember;
   uint8_t type = 0;
-  if (w.kill && !hosting_seen_ && !probing_seen_ && g.read(a.fsb + kActorType, &type, 1) && type == kTypeBoss) {
+  if (w.kill && (hers || !hosting_seen_) && !probing_seen_ && g.read(a.fsb + kActorType, &type, 1) &&
+      type == kTypeBoss) {
+    for (size_t i = 0; hers && i < captures_; ++i)
+      if (caps_[i].guid == w.guid && caps_[i].type == kGuard) { // One a copy (guard()).
+        caps_[i] = caps_[--captures_];
+        break;
+      }
     self_cast(g, logic, w.guid, kFloorDispel);
     self_cast(g, logic, w.guid, kFinishDispel);
     if (latched_)

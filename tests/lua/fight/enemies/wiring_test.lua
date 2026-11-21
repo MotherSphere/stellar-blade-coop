@@ -274,6 +274,18 @@ settings_text='shared_enemies=on\nbosses=on\n'
 load_main(true)
 status_text=COOP
 coop('fight','on'); assert(asked[#asked]=='fight on scale 135 115 bosses 200',asked[#asked])
+-- boss_finish=host (the host's, phase 3) as "finish-host" right after the bosses percent; first (the default) adds
+-- nothing, nor does host with bosses off.
+for _,case in ipairs({{'bosses=on\nboss_finish=host\n','fight on scale 135 115 bosses 200 finish-host'},
+        {'bosses=on\nboss_finish=first\n','fight on scale 135 115 bosses 200'},
+        {'bosses=on\nboss_finish=host\nhit_reactions=on\n','fight on scale 135 115 bosses 200 finish-host reactions'},
+        {'boss_finish=host\n','fight on scale 135 115'}}) do
+    settings_text='shared_enemies=on\n'..case[1]
+    load_main(true)
+    status_text=COOP
+    coop('fight','on'); assert(asked[#asked]==case[2],asked[#asked])
+    coop('fight','record'); assert(asked[#asked]==case[2]:gsub('^fight on','fight record'),asked[#asked])
+end
 settings_text='shared_enemies=on\nboss_hp_scale=3\n'
 load_main(true)
 status_text=COOP

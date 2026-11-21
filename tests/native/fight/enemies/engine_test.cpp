@@ -4237,6 +4237,190 @@ int main() {
     run(t + 100);
     assert(G.dying(931) && G.dying(933) && !G.dying(935) && !eg->latched());
   }
+  // ---- Phase 3: the first press finishes the boss, the guest's side ----
+  // guard_waits_for_fin: with the host's boss_finish=first her copy of GorillaB (931) in its Finish stance keeps its
+  // prompt until the host's fin. A fin naming the host brings the guard in that turn; one naming her takes it away.
+  {
+    Game G;
+    auto eg = engine(false, false);
+    eg->allow(nullptr, 0);
+    eg->set(true, false);
+    G.spawn(931, 31, 0, 15005100, 1600, kTypeBoss);
+    G.knock(931, kImmortalRow);
+    for (const char *line : {"SBF25 world 1", "SBF25 bosses 1 100 first", "SBF25 up 1 101 31 0 15005100 1600"})
+      G.inbox.push_back(msg(line));
+    uint64_t t = 0;
+    const auto run = [&](uint64_t until) {
+      for (; t <= until; t += 16)
+        frame(G, *eg, t);
+    };
+    run(500);
+    assert(eg->guest.linked() == 1 && eg->guest.finish_first() && eg->finisher() == kNoMember);
+    uint64_t op = G.ops;
+    G.mem.put(G.stat_at(931, kHp), 1.f);
+    G.knock(931, kDeathReady);
+    run(t + 200);
+    assert(G.cast_ids(931, op).empty() && count(G, "finish guard") == 0);
+    op = G.ops;
+    G.inbox.push_back(msg("SBF25 fin 1 101 0"));
+    frame(G, *eg, t);
+    t += 16;
+    assert((G.cast_ids(931, op) == std::vector<int32_t>{kFinishDispel, kImmortalRow}) && eg->finisher() == 0);
+    G.inbox.push_back(msg("SBF25 fin 1 101 1"));
+    frame(G, *eg, t);
+    t += 16;
+    op = G.ops;
+    run(t + 200);
+    assert(G.cast_ids(931, op).empty() && eg->finisher() == 1 && !eg->latched());
+  }
+  // guest_exec_gates: with boss_finish=first, aggro=host and same place off, her takedown marker on her boss copy in
+  // its Finish stance (931) sends exec 1; a common enemy's (932) sends nothing, as today.
+  {
+    Game G;
+    auto eg = engine(false, false);
+    eg->allow(nullptr, 0);
+    eg->set(true, false);
+    G.spawn(931, 31, 0, 15005100, 1600, kTypeBoss);
+    G.spawn(932, 32, 0, kChar, 1600);
+    for (const char *line : {"SBF25 world 1", "SBF25 aggro 1 host", "SBF25 bosses 1 100 first",
+                             "SBF25 up 1 101 31 0 15005100 1600", "SBF25 up 1 102 32 0 900 1600"})
+      G.inbox.push_back(msg(line));
+    uint64_t t = 0;
+    const auto run = [&](uint64_t until) {
+      for (; t <= until; t += 16)
+        frame(G, *eg, t);
+    };
+    run(500);
+    assert(eg->guest.linked() == 2 && eg->guest.host_only() && !G.table.on);
+    lines(G);
+    G.knock(931, kDeathReady);
+    G.knock(931, 5000039);
+    run(t + 100);
+    assert(lines(G) == "SBF25 exec 1 101 1\n");
+    G.knock(932, 5000039);
+    run(t + 100);
+    assert(lines(G).empty());
+  }
+  // ---- Phase 3: the first press finishes the boss, the host's side ----
+  // host_guard_after_her_win: her exec 1 on our GorillaB (130) at 1 HP in its Finish stance wins: fin, and our guard
+  // in that turn and each turn its stance shows, so our prompt goes. Our marker then is refused once. Her lethal claim
+  // takes the guard's capture off, then MinimumHP_Dispel and FinishReady_Dispel go before the kill.
+  {
+    Game H;
+    auto eh = engine(false, true);
+    eh->allow(nullptr, 0);
+    eh->bosses(100, true);
+    eh->set(true, true);
+    H.spawn(130, 30, 0, 15005100, 1600, kTypeBoss);
+    H.knock(130, kImmortalRow);
+    H.inbox.push_back(msg("SBF25 on"));
+    uint64_t t = 0;
+    const auto run = [&](uint64_t until) {
+      for (; t <= until; t += 16)
+        frame(H, *eh, t);
+    };
+    run(200);
+    assert(eh->host.linked() == 1 && has(lines(H), "SBF25 bosses 1 100 first\n"));
+    H.mem.put(H.stat_at(130, kHp), 1.f);
+    H.knock(130, kDeathReady);
+    run(t + 50);
+    lines(H);
+    const std::string gen = std::to_string(eh->host.gen());
+    uint64_t op = H.ops;
+    H.inbox.push_back(msg("SBF25 exec " + gen + " 130 1"));
+    frame(H, *eh, t);
+    t += 16;
+    assert(eh->host.finisher(130) == 1 && has(lines(H), "SBF25 fin " + gen + " 130 1\n") && eh->finisher() == 1);
+    assert((H.cast_ids(130, op) == std::vector<int32_t>{kFinishDispel, kImmortalRow}));
+    op = H.ops;
+    run(t + 100);
+    const std::vector<int32_t> each = H.cast_ids(130, op);
+    assert(each.size() >= 8 && count(H, "finish guard") == 1);
+    for (size_t i = 0; i < each.size(); ++i)
+      assert(each[i] == (i % 2 ? kImmortalRow : kFinishDispel));
+    H.knock(130, 5000039); // Our marker.
+    run(t + 100);
+    assert(count(H, "finish refused", "another member won") == 1 && !has(lines(H), " fin "));
+    op = H.ops;
+    H.inbox.push_back(msg("SBF25 hit " + gen + " 1 130 1 0 0 1 1"));
+    run(t + 100);
+    uint64_t kill_op = 0;
+    for (const Game::Call &c : H.calls)
+      kill_op = !kill_op && c.la == H.by_guid[130] && c.type == 1 && c.op > op ? c.op : kill_op;
+    assert((H.cast_ids(130, op) == std::vector<int32_t>{kFloorDispel, kFinishDispel}) && kill_op);
+    for (const Game::Cast &c : H.casts)
+      assert(c.op <= op || c.op < kill_op);
+    const std::string l = lines(H), dead = "SBF25 dead " + gen + " 130\n";
+    assert(H.dying(130) && has(l, dead) && l.find(dead) == l.rfind(dead) && !eh->latched());
+    assert(eh->host.counts.finish_held == 0 && eh->host.counts.kills == 1);
+  }
+  // her_off_after_win: her off forgets her win, with her lethal claim never come. Our guard comes off at once
+  // (FinishReady_Dispel at 1 HP takes our Immortal), so once its stance has run out our own hit ends the boss.
+  {
+    Game H;
+    auto eh = engine(false, true);
+    eh->allow(nullptr, 0);
+    eh->bosses(100, true);
+    eh->set(true, true);
+    H.spawn(130, 30, 0, 15005100, 1600, kTypeBoss);
+    H.knock(130, kImmortalRow);
+    H.inbox.push_back(msg("SBF25 on"));
+    uint64_t t = 0;
+    const auto run = [&](uint64_t until) {
+      for (; t <= until; t += 16)
+        frame(H, *eh, t);
+    };
+    run(200);
+    H.mem.put(H.stat_at(130, kHp), 1.f);
+    H.knock(130, kDeathReady);
+    run(t + 50);
+    H.inbox.push_back(msg("SBF25 exec " + std::to_string(eh->host.gen()) + " 130 1"));
+    run(t + 600); // DeathReady runs out into FinishReady, which the guard ends too.
+    assert(eh->finisher() == 1 && count(H, "finish guard") == 1 && H.body(130).immortal);
+    assert(!Game::held(H.body(130), kNoDamageNoHit) && count(H, "finish guard ended") == 0);
+    H.inbox.push_back(msg("SBF25 off coop fight off"));
+    run(t + 50);
+    assert(eh->finisher() == kNoMember && count(H, "finish guard ended", "Immortal off") == 1);
+    assert(!H.body(130).immortal && H.hp(130) == 1 && !H.dying(130));
+    H.hit(130, kHp, 1);
+    run(t + 50);
+    assert(H.dying(130) && !eh->latched());
+  }
+  // fin_on_the_line: the fight= line's fin= while the mode on runs as the host, live from the job: - until her press
+  // wins, then 1.
+  {
+    Game H;
+    auto mail = std::make_unique<Mail>();
+    H.mail = mail.get();
+    auto e = engine(false, true);
+    Worker w(*e, *mail);
+    Desk io;
+    const auto gate = [] { return std::string(); };
+    std::vector<std::string> hers; // Her lines for the next pass.
+    uint64_t t = 0;
+    const auto run = [&](uint64_t until) {
+      for (; t < until; t += 16) {
+        frame(H, *e, t);
+        w.pass(t, true, true, true, hers, gate, io);
+        hers.clear();
+      }
+    };
+    H.spawn(130, 30, 0, 15005100, 1600, kTypeBoss);
+    H.knock(130, kImmortalRow);
+    w.ask(coop::parse_request("fight on bosses 100"), gate, io);
+    run(32);
+    hers = {"SBF25 on"}; // Once we share: hers before that goes nowhere.
+    run(500);
+    assert(w.sharing() && e->host.peer_on() && e->host.linked() == 1 && has(w.detail(), " mem=0 fin=-"));
+    H.mem.put(H.stat_at(130, kHp), 1.f);
+    H.knock(130, kDeathReady);
+    run(t + 100);
+    hers = {"SBF25 exec " + std::to_string(e->host.gen()) + " 130 1"};
+    run(t + 100);
+    assert(e->finisher() == 1 && has(w.detail(), " mem=0 fin=1") && has(io.lines(), " fin "));
+    w.ask(coop::parse_request("fight off"), gate, io);
+    assert(!has(w.detail(), " fin="));
+  }
 
   // ---- Bosses (stage 5), the guest's side: our battle mode undone. Her copies 930 to 933 take the host's bstart, so
   // SetBattleMode (1, 0, 0, 0, 1) puts each in battle mode. Each way out puts it back through SetBattleMode (0, 0, 0,
@@ -7510,7 +7694,7 @@ int main() {
       assert(has(w.detail(), " bosses=200"));
       w.ask(coop::parse_request("fight off"), gate, io);
       assert(has(io.file, " SBF25 world 1\n") && has(io.file, " SBF25 scale 1 135 115\n"));
-      assert(has(io.file, " SBF25 bosses 1 200 host\n") && has(io.file, " SBF25 up 1 102 5002 0 15005100 1600\n"));
+      assert(has(io.file, " SBF25 bosses 1 200 first\n") && has(io.file, " SBF25 up 1 102 5002 0 15005100 1600\n"));
       assert(has(io.file, " SBF25 up 1 101 5001 0 900 1600\n") && has(io.file, " 101:2160:100:230"));
       recording = io.file;
     }

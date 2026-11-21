@@ -985,7 +985,7 @@ int main() {
     w.add(102, 5002, 0, 15005100).s.boss = true;
     Host h;
     h.set_aggro(true);
-    h.set_bosses(200);
+    h.set_bosses(200, false);
     assert(h.bosses() == 200);
     h.receive(msg("SBF25 on"), 0, w);
     step(h, w, 1, 0);
@@ -1005,7 +1005,7 @@ int main() {
     World u;
     u.add(102, 5002, 0, 15005100).s.boss = true;
     Host flat; // Bosses on at 100 %, no other scaling: the line, and nothing to scale.
-    flat.set_bosses(100);
+    flat.set_bosses(100, false);
     flat.receive(msg("SBF25 on"), 0, u);
     step(flat, u, 1, 0);
     assert(has(u.lines(), "SBF25 world 1\nSBF25 bosses 1 100 host\nSBF25 up 1 102 ") && !flat.scaled(guids));
@@ -2851,7 +2851,7 @@ int main() {
     // whole list while both are off.
     World w;
     Host h;
-    h.set_bosses(200);
+    h.set_bosses(200, false);
     h.set_stagger(true, true);
     h.receive(msg("SBF25 on"), 0, w);
     step(h, w, 1, 0);
@@ -3334,6 +3334,187 @@ int main() {
       step(gu, g, 3, 200);
       assert(g.windows.size() == windows && gu.counts.windows == windows);
     }
+  }
+
+  { // Phase 3: the first press finishes the boss (boss_finish). Each case on a fresh host: 101 a boss in its Finish
+    // stance (spawn 5001, MaxHP 1600), 102 a boss never in it, 103 a common enemy; no set_place call (same place off).
+    const auto host = [](World &hw, Host &h, bool first) {
+      Seen &a = hw.add(101, 5001, 0).s;
+      a.boss = a.finish = true;
+      hw.add(102, 5002, 0).s.boss = true;
+      hw.add(103, 5003, 0);
+      h.set_bosses(200, first);
+      h.receive(msg("SBF25 on"), 0, hw);
+      step(h, hw, 1, 0);
+      const std::string l = hw.lines();
+      assert(has(l, first ? "SBF25 bosses 1 200 first\n" : "SBF25 bosses 1 200 host\n"));
+    };
+    { // finish_first_guest: her press wins, fin goes, her lethal claim kills.
+      World hw;
+      Host h;
+      host(hw, h, true);
+      assert(h.finisher(101) == kNoMember && h.finisher(999) == kNoMember);
+      h.receive(msg("SBF25 exec 1 101 1"), 100, hw);
+      step(h, hw, 2, 100);
+      assert(h.counts.execs == 1 && h.finisher(101) == 1 && has(hw.lines(), "SBF25 fin 1 101 1\n"));
+      h.receive(msg("SBF25 hit 1 1 101 1600 0 0 1600 1"), 200, hw);
+      step(h, hw, 3, 200);
+      assert(hw.actor(101)->s.dying && hw.count("finish-held") == 0 && has(hw.lines(), "SBF25 dead 1 101\n"));
+    }
+    { // finish_gates: with aggro=host and same place on, then aggro=game and same place off, her press still wins and
+      // her lethal claim kills; a common enemy's exec 1 under aggro=host stays stale, with no fin.
+      for (const bool aggro : {true, false}) {
+        World hw;
+        Host h;
+        h.set_aggro(aggro);
+        h.set_place(aggro);
+        host(hw, h, true);
+        h.receive(msg("SBF25 exec 1 101 1"), 100, hw);
+        step(h, hw, 2, 100);
+        assert(h.finisher(101) == 1 && has(hw.lines(), "SBF25 fin 1 101 1\n"));
+        h.receive(msg("SBF25 hit 1 1 101 1600 0 0 1600 1"), 200, hw);
+        step(h, hw, 3, 200);
+        assert(hw.actor(101)->s.dying && has(hw.lines(), "SBF25 dead 1 101\n"));
+        if (!aggro)
+          continue;
+        const uint64_t stale = h.counts.stale;
+        h.receive(msg("SBF25 exec 1 103 1"), 300, hw);
+        step(h, hw, 4, 300);
+        assert(h.counts.stale == stale + 1 && !has(hw.lines(), " fin ") && h.finisher(103) == kNoMember);
+      }
+    }
+    { // finish_same_turn (Review Focus 4): our press, then hers in the same turn: ours wins. Her lethal claim stops at
+      // 1 HP; our finisher's kill sends one dead.
+      World hw;
+      Host h;
+      host(hw, h, true);
+      h.own_press(101, 100, hw);
+      h.receive(msg("SBF25 exec 1 101 1"), 100, hw);
+      step(h, hw, 2, 100);
+      const std::string l = hw.lines();
+      assert(h.finisher(101) == 0 && has(l, "SBF25 fin 1 101 0\n") && !has(l, "SBF25 fin 1 101 1"));
+      h.receive(msg("SBF25 hit 1 1 101 1600 0 0 1600 1"), 200, hw);
+      step(h, hw, 3, 200);
+      assert(hw.hp(101) == 1 && h.counts.finish_held == 1 && hw.count("finish-held") == 1);
+      hw.hit(101, kHp, 1); // Our finisher's kill on our copy.
+      step(h, hw, 4, 300);
+      step(h, hw, 5, 400);
+      const std::string d = hw.lines();
+      assert(has(d, "SBF25 dead 1 101\n") && d.find("SBF25 dead 1 101\n") == d.rfind("SBF25 dead 1 101\n"));
+      h.own_press(101, 500, hw); // Gone: nothing.
+      assert(!has(hw.lines(), " fin ") && hw.count("finish refused") == 0);
+    }
+    { // own_after_her_win: our press after hers won is refused, logged once, with no fin.
+      World hw;
+      Host h;
+      host(hw, h, true);
+      h.receive(msg("SBF25 exec 1 101 1"), 100, hw);
+      step(h, hw, 2, 100);
+      hw.lines();
+      for (const uint64_t t : {uint64_t(150), uint64_t(170)}) {
+        h.own_press(101, t, hw);
+        step(h, hw, uint32_t(t), t);
+      }
+      assert(h.finisher(101) == 1 && hw.count("finish refused", "another member won") == 1);
+      assert(!has(hw.lines(), " fin "));
+    }
+    { // finish_wait: her press a turn before our copy shows its Finish stance waits kFinishWaitMs for it, then is
+      // refused with today's words.
+      World hw;
+      Host h;
+      host(hw, h, true);
+      hw.actor(101)->s.finish = false;
+      h.receive(msg("SBF25 exec 1 101 1"), 100, hw);
+      h.receive(msg("SBF25 exec 1 102 1"), 100, hw);
+      step(h, hw, 2, 100);
+      assert(!has(hw.lines(), " fin ") && hw.count("exec refused") == 0 && h.finisher(101) == kNoMember);
+      hw.actor(101)->s.finish = true;
+      step(h, hw, 3, 150);
+      assert(has(hw.lines(), "SBF25 fin 1 101 1\n") && h.finisher(101) == 1 && h.counts.execs == 1);
+      step(h, hw, 4, 600);
+      step(h, hw, 5, 1099);
+      assert(hw.count("exec refused") == 0 && h.counts.exec_refused == 0);
+      step(h, hw, 6, 1100);
+      assert(hw.count("exec refused", "no Groggy or takedown on our copy") == 1 && h.counts.exec_refused == 1);
+      step(h, hw, 7, 2200);
+      assert(h.finisher(102) == kNoMember && !has(hw.lines(), " fin ") && hw.count("exec refused") == 1);
+    }
+    { // finish_host_mode: boss_finish=host. Our EVE up: her press is refused, her lethal claim stops at 1 HP. Our
+      // EVE down: the first press wins.
+      World hw;
+      Host h;
+      host(hw, h, false);
+      h.receive(msg("SBF25 exec 1 101 1"), 100, hw);
+      step(h, hw, 2, 100);
+      assert(!has(hw.lines(), " fin ") && hw.count("exec refused", "the host finishes") == 1);
+      assert(h.finisher(101) == kNoMember && h.counts.exec_refused == 1);
+      h.receive(msg("SBF25 hit 1 1 101 1600 0 0 1600 1"), 200, hw);
+      step(h, hw, 3, 200);
+      assert(hw.hp(101) == 1 && h.counts.finish_held == 1);
+      h.set_down(true, true);
+      h.receive(msg("SBF25 exec 1 101 1"), 100 + kExecMs, hw);
+      step(h, hw, 4, 100 + kExecMs);
+      assert(has(hw.lines(), "SBF25 fin 1 101 1\n") && h.finisher(101) == 1);
+      h.receive(msg("SBF25 hit 1 2 101 1 0 0 1 1"), 200 + kExecMs, hw);
+      step(h, hw, 5, 200 + kExecMs);
+      assert(hw.actor(101)->s.dying && h.counts.finish_held == 1);
+    }
+    { // finish_line_once: a second press of hers after she won sends no second fin.
+      World hw;
+      Host h;
+      host(hw, h, true);
+      h.receive(msg("SBF25 exec 1 101 1"), 100, hw);
+      step(h, hw, 2, 100);
+      hw.lines();
+      h.receive(msg("SBF25 exec 1 101 1"), 100 + kExecMs, hw);
+      step(h, hw, 3, 100 + kExecMs);
+      assert(!has(hw.lines(), " fin ") && h.finisher(101) == 1);
+    }
+    { // finish_resend: her on brings the whole list again, a fin for each pair whose winner is set after every up.
+      // Her off forgets a winner of hers: she left the fight, so our finisher may end it.
+      World hw;
+      Host h;
+      host(hw, h, true);
+      h.receive(msg("SBF25 exec 1 101 1"), 100, hw);
+      step(h, hw, 2, 100);
+      hw.lines();
+      h.receive(msg("SBF25 on"), 300, hw);
+      step(h, hw, 4, 300);
+      const std::string l = hw.lines();
+      const size_t fin = l.find("SBF25 fin 1 101 1\n");
+      assert(has(l, "SBF25 up 1 101 5001 0 900 1600\n") && fin != std::string::npos);
+      assert(fin == l.rfind("SBF25 fin ") && fin > l.rfind("SBF25 up "));
+      h.receive(msg("SBF25 off coop fight off"), 400, hw);
+      assert(h.finisher(101) == kNoMember);
+      h.receive(msg("SBF25 on"), 500, hw);
+      step(h, hw, 5, 500);
+      assert(!has(hw.lines(), " fin "));
+    }
+  }
+  { // Phase 3, the guest: the host's boss_finish from its bosses line and its fin for a pair it announced, at its
+    // generation, until its next world, on or off.
+    World w;
+    Guest g;
+    assert(!g.finish_first() && g.finisher(101) == kNoMember);
+    g.receive(msg("SBF25 world 1"), w);
+    g.receive(msg("SBF25 bosses 1 200 first"), w);
+    g.receive(msg("SBF25 up 1 101 5001 0 900 1600"), w);
+    assert(g.finish_first() && g.finisher(101) == kNoMember);
+    g.receive(msg("SBF25 fin 1 101 0"), w);
+    assert(g.finisher(101) == kHostMember);
+    const uint64_t stale = g.counts.stale;
+    g.receive(msg("SBF25 fin 2 101 1"), w); // Another generation.
+    g.receive(msg("SBF25 fin 1 999 1"), w); // No such enemy.
+    assert(g.finisher(101) == kHostMember && g.counts.stale == stale + 2 && g.counts.bad == 0);
+    g.receive(msg("SBF25 fin 1 101 1"), w);
+    assert(g.finisher(101) == kPairMember);
+    g.receive(msg("SBF25 bosses 1 200 host"), w);
+    assert(!g.finish_first() && g.finisher(101) == kPairMember);
+    g.receive(msg("SBF25 bosses 1 200"), w); // A host from before phase 3: host.
+    assert(!g.finish_first());
+    g.receive(msg("SBF25 bosses 1 200 first"), w);
+    g.receive(msg("SBF25 world 2"), w);
+    assert(!g.finish_first() && g.finisher(101) == kNoMember);
   }
 
   std::puts("fight_sync_test: ok");
