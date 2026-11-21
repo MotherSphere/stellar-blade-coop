@@ -4,7 +4,8 @@
 -- Where the rounds go. The round's destination is written in EVE's root frame with its pitch and roll, as SB places it
 -- (Base and RootAxis). Firing mode writes it every frame from that frame's camera: a round that spawns in any frame
 -- leaves for that frame's reticle point (it was written ten times a second). The spread keeps each round within
--- gun_spread degrees of the reticle point, seen from the camera; gun_spread=0 puts every round on it.
+-- gun_spread degrees of the reticle point, seen from the camera; gun_spread=0 puts every round on it. The round line
+-- names the first three rounds within the spread. A reload in firing mode keeps the aim pose on the layer and the IK.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Aim=require('fight.gunmode.aim')
 local close=function(a,b,e) return math.abs(a-b)<=(e or 1e-6) end
@@ -94,6 +95,14 @@ for _,spread in ipairs({0,0.5}) do
         if spread==0 then assert(off<1e-3,('frame %d: the destination is %.2f deg off this frame\'s reticle point'):format(i,off)) end
     end
     if spread>0 then assert(most<=spread+1e-6 and most>0,'spread '..most) end
+    -- A reload in firing mode: the IK stands on the aim entry with the reload's hands, the layer keeps an aim clip.
+    -- The carry pose there turned her torso to the right (11-21).
+    local st=gun.state
+    st.reload_until,st.reload_len,st.layer_clip=clock+1,1,nil -- (as the reload's start sets them on the layer)
+    for _=1,3 do clock=clock+1/60; gun.tick() end
+    assert(st.ik.want=='aim' and st.ik.reload_k and st.layer_clip~='reload',
+        ('aimed reload: IK on %s, clip %s'):format(tostring(st.ik.want),tostring(st.layer_clip)))
+    st.reload_until=nil
     -- The game's montage on her while she fires is named in the log once (what bends her as she fires).
     local montage={IsValid=function() return true end,GetFName=function() return {ToString=function() return 'Test_Shot_Montage' end} end}
     w.mesh.GetAnimInstance=function() return {GetCurrentActiveMontage=function() return montage end,
@@ -101,6 +110,12 @@ for _,spread in ipairs({0,0.5}) do
     w.down.LeftMouseButton=true
     for _=1,30 do clock=clock+1/60; gun.tick() end
     w.down.LeftMouseButton=nil
+    local rounds=0
+    for _,l in ipairs(logs) do
+        local d=l:match('^round #%d+: .-, ([%d.]+) deg apart')
+        if d then rounds=rounds+1; assert(tonumber(d)<=spread+0.01,l) end
+    end
+    assert(rounds==3,'round lines '..rounds)
     local named=0
     for _,l in ipairs(logs) do if l:find('layer: montage Test_Shot_Montage while firing',1,true) then named=named+1 end end
     assert(named==1,'montage named '..named..' times')
