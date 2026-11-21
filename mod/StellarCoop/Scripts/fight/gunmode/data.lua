@@ -381,8 +381,8 @@ function Data.new(g,native,opts)
             -- No free rounds from SB's own NIKKE reload while the rifle is out, in both fire modes: the magazine loads
             -- only what EVE carries (the user's call, 11-21). Each NIKKE shot's Cast1 step applies SkillUseCheck. About
             -- 1 s after the last one, with fewer than 60 carried, Reload ends in ReloadCompleted, whose Action1 adds 60.
-            -- Action1 is an ESBEffectAction byte at +0x2fc of SBEffectTableProperty (property params 0x145df9618 on
-            -- 26123051, enum params 0x146d33c30): EffectAction_None 0 (entry 0x145e27d30), EffectAction_ItemRefill 22
+            -- Action1 is an ESBEffectAction byte at +0x2fc of the row (property params 0x145df9618 on 26123051, enum
+            -- params 0x146d33c30): EffectAction_None 0 (entry 0x145e27d30), EffectAction_ItemRefill 22
             -- (entry 0x145e27e90). The effect start (0x141bc8d40) reads the live row's +0x2fc at each start. Its switch
             -- has no case 0. Its case 0x16 adds AddCount to bucket 1 (0x141bdbc20). Last here: nothing after it can
             -- fail, so a refused take never leaves it changed. During put_back's hold (self.late) it reads 0: the
