@@ -151,7 +151,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   back. A start puts back what an earlier load left before it reads the rows. `coop-gun.txt` keeps floats, integers,
   booleans, strings, FNames and vectors exactly. A start whose input mask or rifle fails gives back what it took, as
   does a start that raises once the rifle layer is on. A new controller clears the old pawn's state at once; its
-  deferred reset shows the drone, puts her facing back and takes the layer off her new body;
+  deferred reset shows the drone, puts her facing back and takes the layer off her new body. Her facing flags go back
+  only to the movement they were taken from: another object at its address after a map change gets no write;
 - `fight/gunmode/state_test` runs gun mode over the same fake against the game's state. While the rifle is out the
   shot's Hit1 step has its Cast1 step's `Type`. The shipped value comes back when the rifle goes away. The shot's two
   borrowed fields keep their shipped values while the rifle is only out. They change at the first shot through the zone

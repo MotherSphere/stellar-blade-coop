@@ -708,11 +708,12 @@ function GunMode.new(env)
     -- Firing mode (Luke's aim on her normal stance): the game itself keeps her facing the camera, through her
     -- movement's own settings (no yaw written from Lua each frame: two writers made her legs twitch).
     -- (UCharacterMovementComponent's bOrientRotationToMovement and bUseControllerDesiredRotation: bool params
-    -- 0x146517cc0 and 0x146517c88 on 26123051.) coop-gun.txt lists the flags as they were (keep).
+    -- 0x146517cc0 and 0x146517c88 on 26123051.) coop-gun.txt lists the flags as they were (keep). They go back only to
+    -- the movement they were taken from (its path, f.at): after a map change another object can sit at its address.
     local function unface()
         local f=s.facing
         s.facing=nil
-        if f and g.valid(f.cm) then
+        if f and f.at~=nil and g.path(f.cm)==f.at then
             pcall(function() f.cm.bOrientRotationToMovement=f.orient; f.cm.bUseControllerDesiredRotation=f.desired end)
         end
     end

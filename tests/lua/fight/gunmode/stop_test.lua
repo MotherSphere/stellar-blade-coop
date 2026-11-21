@@ -269,9 +269,10 @@ do
     out(gun)
     local s=gun.state
     local part=w.component(w.pawn); part.bHiddenInGame=true
-    local move={IsValid=function() return true end,bOrientRotationToMovement=false,bUseControllerDesiredRotation=true}
+    local move={IsValid=function() return true end,GetFullName=function() return 'CharacterMovementComponent Old.Move' end,
+        bOrientRotationToMovement=false,bUseControllerDesiredRotation=true}
     s.drone={actor=w.pawn,parts={{c=part,hidden=false,visible=true}}}
-    s.facing={cm=move,orient=true,desired=false}
+    s.facing={cm=move,orient=true,desired=false,at='Old.Move'}
     s.ovr,s.ovr_row,s.flash_fx,s.pose_m=true,'N_Test_Dead',{},{}
     local p2=w.new_pawn()
     gun.new_controller(w.pc)
@@ -285,6 +286,27 @@ do
     assert(move.bOrientRotationToMovement==true and move.bUseControllerDesiredRotation==false and s.facing==nil)
     out(gun)
     assert(#w.rifles()==1)
+end
+
+-- 7b. Her facing flags go back only to the movement they were taken from. A map change frees it. Another object can
+--     then sit at its address and pass IsValid, so its path is checked before the write.
+do
+    local w=Fake.new(); w.install()
+    local gun=new(file(),'gun_fire=own\n')
+    local function frames(n) for _=1,n do clock=clock+1/60; gun.tick() end end
+    out(gun)
+    frames(60)
+    w.down.RightMouseButton=true
+    frames(10)
+    local move=w.pawn.CharacterMovement
+    assert(move.bOrientRotationToMovement==false and move.bUseControllerDesiredRotation==true,'facing the camera')
+    move.full='SkeletalMeshComponent Test.Other'
+    move.bOrientRotationToMovement,move.bUseControllerDesiredRotation='other','other'
+    w.down.RightMouseButton=nil
+    clock=clock+1; gun.toggle_now(); frames(120)
+    assert(not gun.state.on and gun.state.facing==nil,'the rifle away, no facing kept')
+    assert(move.bOrientRotationToMovement=='other' and move.bUseControllerDesiredRotation=='other',
+        'the facing flags written to another object')
 end
 
 -- 8. H4: a Lua reload with the rifle out on the layer's path, a sword drawn and a drone near her, a second sword drawn
