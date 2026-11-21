@@ -54,7 +54,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `online/group/commands.lua` | `coop revive test` and `coop travel` |
 | `online/lobby/commands.lua` | `coop match` and `coop sbo`, with its own copy of `coop join` for `coop match join` |
 | `online/saves/commands.lua` | `coop saves` and `coop shortcut` |
-| `online/partner/commands.lua` | The ghost's `coop` commands: `puppet`, `basesuit`, `where`, `near`, `cns`, `look`, `loopback`, `record` and `replay` |
+| `online/partner/commands.lua` | The ghost's `coop` commands: `puppet`, `basesuit`, `where`, `near`, `cns`, `look`, `loopback`, `record`, `replay` and `bench` ([Ghost bench](../online/partner-internals.md#ghost-bench)) |
 | `online/photo/commands.lua` | `coop freeze` |
 | `online/modes/nightop/commands.lua` | `coop no`, `coop nightop`, `coop challenge` and `coop recruiter`, with their co-op save check |
 | `online/modes/race/commands.lua` | `coop race`: the Doro look and probe, `coop race match` ([Races in a match](../online/modes/race.md#races-in-a-match)) and the co-op save check before `online/modes/race/run.lua`'s command |
