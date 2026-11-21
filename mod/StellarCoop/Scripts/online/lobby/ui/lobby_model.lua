@@ -113,8 +113,8 @@ function M.view(o)
         count={n=n,limit=limit},left=m and m.state=='countdown' and m.left or nil}
 end
 -- What Select on row id asks for: {request=a link request, lobby=true when it names the lobby}, {open='join'|'settings'},
--- {close='room'}, {copy=true}, {popup='leave'}, {mode=the mode picked}, {cycle=true} (the Challenge row), {cycle='race'}
--- (the Track row); nil for more, a locked row or a row the view does not show.
+-- {close='room'}, {copy=true}, {popup='leave'}, {mode=the mode picked}, {cycle=true} (the Challenge row),
+-- {cycle='race'} (the Track row); nil for more, a locked row or a row the view does not show.
 function M.act(view,id)
     for _,row in ipairs(view.rows) do
         if row.id==id then

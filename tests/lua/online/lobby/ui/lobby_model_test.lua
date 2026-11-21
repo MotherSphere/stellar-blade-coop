@@ -2,7 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The lobby screens' model: the lobby menu's rows, actions, status and members by state, the mode rows, the score
--- attack's Challenge row and the Doro race's Track row, the cursor, the settings rows of both tabs and the countdown's resync.
+-- attack's Challenge row and the Doro race's Track row, the cursor, the settings rows of both tabs and the countdown's
+-- resync.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local M=require('online.lobby.ui.lobby_model')
 local function ids(v) local t={} for i,r in ipairs(v.rows) do t[i]=r.id..(r.locked and '*' or '') end return table.concat(t,',') end

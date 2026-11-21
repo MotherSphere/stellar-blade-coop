@@ -29,8 +29,8 @@ assert(select(2,Hud.place({role='host',m={track=TRACK,me={passed=0},her={out=tru
 local duo={role='host',m={track=TRACK,pos={x=1000,y=0,z=0},me={passed=0},her={joined=true,passed=0}}}
 pos,of=Hud.place(duo,{X=3000,Y=0,Z=0})
 assert(pos==2 and of==2)
--- In a match: us at 6000 past checkpoint 1; one racer past checkpoint 1 nearer the next (ahead), one past none (behind),
--- one finished (ahead of all), one DNF (behind all).
+-- In a match: us at 6000 past checkpoint 1; one racer past checkpoint 1 nearer the next (ahead), one past none
+-- (behind), one finished (ahead of all), one DNF (behind all).
 local function match(me,racers)
     return {role='match',pos={x=6000,y=0,z=0},m={track=TRACK,phase='race',me=me},heard={racers=racers}}
 end
@@ -159,7 +159,8 @@ r.m.phase,r.m.me.flags='results',3
 r.m.results={{who='2002',ms=32000,pos=1,name=('W'):rep(30)},{who='me',ms=33000,pos=2},{who='3003'}}
 H.draw(r,false)
 assert(v.sub.text=='fast run · paused' and v.note.text=='')
-assert(v.rows[1].label.text=='1  '..('W'):rep(16)..'...' and v.rows[1].label.c=='text','A name cut as core/line.lua cuts it')
+assert(v.rows[1].label.text=='1  '..('W'):rep(16)..'...' and v.rows[1].label.c=='text',
+    'A name cut as core/line.lua cuts it')
 assert(v.rows[2].label.text=='2  You' and v.rows[2].label.c=='beta')
 assert(v.rows[3].label.text=='-  Partner' and v.rows[3].value.text=='DNF','No name: the partner word')
 assert(v.rows[4].label.text=='' and v.rows[4].value.text=='')

@@ -4,10 +4,10 @@
 -- The Doro race's HUD on the Uplink kit (ui/kit/kit.lua). online/modes/race/run.lua keeps the race's events and calls
 -- it each frame. The panel at the top centre (DORO RACE over the time, CP, LAP and POS among up to 8 racers, or the
 -- wait for her), in its place once the race ends the results (the heading, the fin flags, a note, then 8 rows: place,
--- name, time or DNF; ours in Beta blue), the banner over the middle, the marker and the edge arrow. In a match round the
--- results show from our own end: our row alone until the host's ranking comes, with the note Results still to come,
--- then the ranking with Not ranked. when it has no place for us, or New personal best. when our finish wrote one. All
--- hidden while the game is paused or on one of its screens. Its words follow the game's language unless
+-- name, time or DNF; ours in Beta blue), the banner over the middle, the marker and the edge arrow. In a match round
+-- the results show from our own end: our row alone until the host's ranking comes, with the note Results still to
+-- come, then the ranking with Not ranked. when it has no place for us, or New personal best. when our finish wrote
+-- one. All hidden while the game is paused or on one of its screens. Its words follow the game's language unless
 -- ui_language=english, picked again at each build of the kit's root. tests/lua/online/modes/race/ui/hud_test.lua covers
 -- it on a fake kit.
 local P=require('ui.kit.hud_parts')

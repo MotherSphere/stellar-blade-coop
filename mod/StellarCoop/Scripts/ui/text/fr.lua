@@ -294,7 +294,7 @@ return {
             scoreattack='Course au score',
             ffa='Chacun pour soi'},
         desc={
-            race='De 2 à 8 joueurs font la course en Doro sur le même circuit. Le temps le plus court gagne.',
+            race='De 2 à 8 joueurs font la course en Doro sur le même circuit. Le meilleur temps gagne.',
             scoreattack='De 2 à 8 joueurs jouent le même défi en même temps. Le meilleur score gagne, puis le temps '
                 ..'le plus court.',
             ffa='De 2 à 8 joueurs. Premier à 20 éliminations, sinon le meilleur score au bout de 10 minutes. '
@@ -317,7 +317,7 @@ return {
             room='Carte',players='Joueurs',finish='Fin',tie='Égalité',respawn='Réapparition',protection='Protection',
             difficulty='Difficulté',equipment='Équipement',arena='Arène',start='Début',lobby='Lobby',version='Version',
             mute='Couper %s'},val={
-            race_ranking='Temps le plus court, ex aequo à 0,01 s',
+            race_ranking='Meilleur temps, ex aequo à 0,01 s près',
             ranking='Meilleur score, puis temps le plus court',
             damage='Aucun',host_pick="Choix de l'hôte",
             random='Aléatoire',
