@@ -110,6 +110,7 @@ public:
     Effect fx[kEffectSlots];
     Free free[kMaxParts]; // The free parts' blocks in table order; the rest stay hidden.
     Event events[kEventSlots];
+    std::vector<uint8_t> morphs; // The table's morph weights, in table order.
   };
   // Counts since the last take(), for the counter line.
   struct Stats {
@@ -117,13 +118,15 @@ public:
     double lag_ms = 0, behind_ms = 0; // Sums over poses and over drawn frames.
   };
 
-  void reset(size_t bone_bytes) {
+  void reset(size_t bone_bytes, size_t morphs = 0) {
     for (auto &f : frames_) {
       f.bones.assign(bone_bytes, 0);
       std::fill(f.free, f.free + kMaxParts, Free());
       std::fill(f.events, f.events + kEventSlots, Event());
+      f.morphs.assign(morphs, 0);
     }
     scratch_.bones.assign(bone_bytes, 0);
+    scratch_.morphs.assign(morphs, 0);
     std::fill(scratch_.free, scratch_.free + kMaxParts, Free());
     std::fill(scratch_.events, scratch_.events + kEventSlots, Event());
     clear();
@@ -189,11 +192,13 @@ public:
     stats_.lag_ms += lag;
     return true;
   }
-  // The pose to draw at now into root (10 floats), bones (the scratch's size), fx (kEffectSlots) and free (kMaxParts,
-  // nullptr: none); false when there is none yet or the stream has been silent for kSilentMs. The effect slots are
-  // held, never blended: the older pose's. A free block is blended when both poses show it, with the newer one's state;
-  // else the newer one's is drawn as it is.
-  bool sample(uint64_t now_us, float *root, uint8_t *bones, Effect *fx, Free *free = nullptr) {
+  // The pose to draw at now into root (10 floats), bones (the scratch's size), fx (kEffectSlots), free (kMaxParts,
+  // nullptr: none) and morphs (the table's, nullptr: none); false when there is none yet or the stream has been silent
+  // for kSilentMs. The effect slots are held, never blended: the older pose's. A free block is blended when both poses
+  // show it, with the newer one's state; else the newer one's is drawn as it is. A morph's weight is blended as the
+  // translation is, cut to a byte.
+  bool sample(uint64_t now_us, float *root, uint8_t *bones, Effect *fx, Free *free = nullptr,
+              uint8_t *morphs = nullptr) {
     double now = now_us / 1000.0;
     if (!count_ || now - last_arrival_ > kSilentMs)
       return false;
@@ -232,6 +237,8 @@ public:
       if (fa.free[k].state & fb.free[k].state & 0x80)
         blend_transform(fa.free[k].place, fb.free[k].place, alpha, free[k].place, 4, 7);
     }
+    for (size_t k = 0; morphs && k < fa.morphs.size(); ++k)
+      morphs[k] = uint8_t(std::clamp(std::lround(fa.morphs[k] + alpha * (fb.morphs[k] - fa.morphs[k])), 0L, 255L));
     ++stats_.drawn;
     stats_.extrapolated += at > ms(newest_);
     stats_.behind_ms += ms(newest_) - at;

@@ -232,6 +232,14 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   its light at step x 4 while the box and the table say so, never in Doro mode. A Lua error there hides the drone on
   that ghost only. A part that turns free under one generation builds a new ghost. With the look off no free part,
   box or light is made, nor the parts that follow or hang on the free part;
+- her face and shape keys: `online/partner/capture_test` names each part's morph targets on a morphs line after its
+  names line (before its read line), a follower's with its morph_read line. It sends none over 256 on a part and
+  none past 512 in a table, both named in the capture line. Over the pose size it drops the last part's morphs before
+  any leader. Past the table's room it keeps the values and drops the morphs. Under one generation the morph lines
+  stay as its first table had them. Faces off or on again is a new generation. `online/partner/puppet_test` writes a
+  display morphs line per part drawn with morphs, after the drive lines, mapping her morphs by name (-1 for none),
+  never for the cloth follower or a mesh past 256 morphs; with the look off none. Another morph count under one
+  generation builds a new ghost;
 - `core/link_test` also covers the status's `uidev=`, `me=`, `world=` and `story=` lines and the `owner=`, `room=`
   and `hall=` fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty)
   and never from a player's name; the `shared_world`, `shared_story`, `daynight`, `pause_tab` and `hide_popups`
@@ -726,11 +734,14 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 - `game_partner_engine_test`: the pose path against fake memory. Her drone's block: its place relative to her main
   mesh, its light's step (none, hidden, another actor's light, capped at 127), her pose still read when the drone is
   gone (only its block hidden), an effect attached to the drone part in the effect slots, its box written only when it
-  is the ghost's own;
+  is the ghost's own. Her weights read from a leader or a follower's component (cut to 0 to 255 and counted, refused
+  while an anim task holds them, past their count, null or gone) and written into a ghost part's morph arrays: by the
+  map, with the mesh's morph count, the active list in mesh order without a null morph target, nothing written when
+  unchanged, refused with nothing written when a capacity is short, SB emptied the active list or the mesh differs;
 - `game_codec_test`: the codec's round trips, the deltas against a keyframe, a decoder fuzz and a 60 a second stream
   with every second delta dropped, which decodes whole; a free part's 25-byte block in a pose and in a delta's fixed
   part, a hidden block as 25 zero bytes; the four event slots, each a delta unit compared byte for byte, a refused one
-  refusing the pose;
+  refusing the pose; the morph bytes after them, each a delta unit compared byte for byte, through the keyed pair too;
 - `online_partner_delta_gain_test`: what the sender's delta tolerance (`kTolerance` in `game/codec.h`) saves. With no
   argument, as `tools/install.py` runs it, it encodes two synthetic recordings (idle and running) made by the real
   sender with no tolerance and with it, checks that the tolerance saves bytes on both and prints keyframes, deltas,
@@ -738,7 +749,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   recording of the current protocol instead;
 - `game_table_test`: the component table and the display file, with a parser fuzz, and the per-slot file names
   (`slot_file`); a free part (its free line, its size in the pose, the lines it refuses) and the display's six effect
-  boxes and `free` box lines;
+  boxes and `free` box lines; morphs lines (a byte each in the pose, 256 a part, 512 a table, a follower's morph_read
+  line in the capture file only) and the display's morphs lines (a remote morph per word, each index once, a leader's
+  on its drive object);
 - `online_partner_drone_test`: her drone's pick (the nearest within 3000 cm, a tie to the first) and when the lookup
   may run (both of SB's globals set, the world's manager and map found, game calls allowed);
 - `online_partner_sound_test`: her sounds' slots swapped all or none (another mod's hook in one slot or a page that
@@ -772,8 +785,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   show lines re-stamped on the poses' clock;
 - `game_stream_test`: the loopback pipeline in simulated time, and the playback of a match lobby member who gets every
   2nd or 3rd pose of a 60 a second stream (cap 30 or 20): with 100 ms of lag she is drawn 150 or 175 ms back; a free
-  part's place blended between two poses that show it, with the newer pose's state; the events a ghost plays (each
-  slot's serial once, none from the poses a playback starts with);
+  part's place blended between two poses that show it, with the newer pose's state; a morph's weight blended between
+  two poses and cut to a byte past the newest; the events a ghost plays (each slot's serial once, none from the poses a
+  playback starts with);
 - `online_partner_inbox_test`: the game thread's pose inbox (`kInbox` in `game/core.h`) in a full match lobby, 7 members
   sending 60 or 30 poses a second: one game-thread stall of 102, 198, 291 or 361 ms (the stalls of steady play
   in the 2026-11-12 log) drops no pose and leaves no delta without its keyframe;

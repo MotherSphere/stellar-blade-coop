@@ -46,6 +46,7 @@ uint64_t drone_written = ~uint64_t(0);
 std::string fault_where(uint64_t rva); // fight_worker_shared.inc's, after this part: the drone's fault line.
 // Her sounds and world effects (online/partner/sound_game.inc): their faults; sound_worker.inc's pass, after this part.
 bool sounds_fault_logged = false, worldfx_fault_logged = false;
+bool faces_fault_logged = false; // Her face and shape keys (online/partner/pose_game.inc): their fault.
 void sound_pass(bool sounds);
 uint32_t travel_logged = 0, travel_watch_logged = 0, travel_alias_ask = 0;
 std::string travel_alias;
@@ -752,6 +753,15 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                   static_cast<unsigned long long>(worldfx_fault_address.load()));
     event(text);
   }
+  if (faces_faulted && !faces_fault_logged) {
+    faces_fault_logged = true;
+    char text[200];
+    std::snprintf(text, sizeof text,
+                  "faces off: fault 0x%08llx in %s reading 0x%llx; the ghost goes on without her face and shape keys",
+                  static_cast<unsigned long long>(faces_fault_code.load()), fault_where(faces_fault_rva).c_str(),
+                  static_cast<unsigned long long>(faces_fault_address.load()));
+    event(text);
+  }
   // coop-drone.txt for the capture, written only when the actor changes (none after coop off); a failed write is tried
   // again at the next pass.
   if (const uint64_t actor = blocked ? 0 : drone_actor.load(); actor != drone_written) {
@@ -885,6 +895,9 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                    fx_played = window_worldfx_played.exchange(0), fx_unspawned = window_worldfx_unspawned.exchange(0),
                    fx_hidden = window_worldfx_hidden.exchange(0), fx_scene = window_worldfx_scene.exchange(0),
                    fx_unnamed = window_worldfx_unnamed.exchange(0), fx_unloaded = window_worldfx_unloaded.exchange(0);
+    const uint64_t faces_read = window_faces_read.exchange(0), faces_clamped = window_faces_clamped.exchange(0),
+                   faces_written = window_faces_written.exchange(0), faces_dirty = window_faces_dirty.exchange(0),
+                   faces_refused = window_faces_refused.exchange(0);
     if (!first && vitals_reads) { // Eight ReadProcessMemory calls each; the cost under Proton is unmeasured.
       char line[96];
       std::snprintf(line, sizeof line, "vitals read, last 60 s: %llu reads, max %llu us",
@@ -976,6 +989,14 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                       static_cast<unsigned long long>(fx_unspawned), static_cast<unsigned long long>(fx_hidden),
                       static_cast<unsigned long long>(fx_scene), static_cast<unsigned long long>(fx_unnamed),
                       static_cast<unsigned long long>(fx_unloaded));
+        event(line);
+      }
+      if (faces_read || faces_clamped || faces_written || faces_dirty || faces_refused) {
+        std::snprintf(line, sizeof line,
+                      "faces, last 60 s: %llu parts read, %llu clamped, %llu written, %llu dirty calls, %llu refused",
+                      static_cast<unsigned long long>(faces_read), static_cast<unsigned long long>(faces_clamped),
+                      static_cast<unsigned long long>(faces_written), static_cast<unsigned long long>(faces_dirty),
+                      static_cast<unsigned long long>(faces_refused));
         event(line);
       }
       if (names_in || names_refused || loaded_in || loaded_refused) {

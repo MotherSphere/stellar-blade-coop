@@ -11,6 +11,14 @@ std::atomic<int> current_part{-1}; // The part being read or written, for the fa
 std::atomic<bool> effects_on{true};
 std::atomic<uint64_t> fx_fault_code{0}, fx_fault_rva{0}, fx_fault_address{0};
 std::atomic<int> fx_fault_part{-1};
+// Her face and shape keys' own latch: her parts' weights read and the ghosts' written here (memory only), the arrays
+// reserved and the dirty calls in play_game.inc. The first fault turns faces off for the run, the worker logs it once.
+// The counters of the worker's 60 s line: parts read, weights cut, parts written, dirty calls, reads and writes
+// refused.
+std::atomic<bool> faces_faulted{false};
+std::atomic<uint64_t> faces_fault_code{0}, faces_fault_rva{0}, faces_fault_address{0};
+std::atomic<uint64_t> window_faces_read{0}, window_faces_clamped{0}, window_faces_written{0}, window_faces_dirty{0},
+    window_faces_refused{0};
 
 std::atomic<uint32_t> loopback_delay{0}, loopback_jitter{0}, loopback_loss{0};
 std::atomic<uint32_t> loopback_epoch{0}; // Bumped by every settings change: the playback's clock starts again.
@@ -174,6 +182,96 @@ bool guarded_effects_write(Drawn &ghost) {
   return all;
 }
 
+// Her weights: each part with a morphs line, from its leader object or its morph_read component, into capture_morphs.
+__declspec(noinline) void faces_read(Live &live, uint64_t &read, uint64_t &refused, uint32_t &clamped) {
+  const Table &t = live.capture;
+  size_t offset = 0;
+  for (size_t i = 0; i < t.eve.size(); ++i) {
+    const size_t n = t.look[i].morphs.size();
+    if (!n)
+      continue;
+    current_part = static_cast<int>(i);
+    const uint64_t component = t.eve[i].leader ? t.eve[i].object : t.look[i].morph_read;
+    ++(read_morphs(objects, t.eve[i], component, n, live.capture_morphs.data() + offset, clamped) == Io::ok ? read
+                                                                                                           : refused);
+    current_part = -1;
+    offset += n;
+  }
+}
+// Under the faces latch: the first fault zeroes her weights (a neutral face on every ghost) and turns faces off.
+void guarded_faces_read(Live &live) {
+  uint64_t read = 0, refused = 0;
+  uint32_t clamped = 0;
+  __try {
+    faces_read(live, read, refused, clamped);
+  } __except (fault_filter(GetExceptionInformation(), faces_fault_code, faces_fault_rva, faces_fault_address)) {
+    faces_faulted = true;
+    current_part = -1;
+    std::memset(live.capture_morphs.data(), 0, live.capture_morphs.size());
+  }
+  window_faces_read += read, window_faces_refused += refused, window_faces_clamped += clamped;
+}
+// The component remote part i's weights go on, as Lua's display names it: live, of the root part's class (a Poseable,
+// so never the cloth follower), on the named mesh and of the ghost's own actor (UObject outer). Else 0.
+uintptr_t morph_target(const Drawn &g, size_t i) {
+  const Part &root = g.display.puppet[0];
+  Part p = g.display.morph_part[i];
+  p.cls = root.cls;
+  return p.object && published(objects, p) && alive(objects, static_cast<uintptr_t>(root.object)) &&
+                 at<uintptr_t>(static_cast<uintptr_t>(p.object) + kOuter) ==
+                     at<uintptr_t>(static_cast<uintptr_t>(root.object) + kOuter)
+             ? static_cast<uintptr_t>(p.object)
+             : 0;
+}
+// The weights drawn this frame into each part Lua named, by its morph map; a part whose weights changed is marked for
+// play_game.inc's dirty call. The first refusal's part and reason go to refused_part and refused_io.
+__declspec(noinline) void faces_write(Drawn &ghost, uint64_t &written, uint64_t &refused, int &refused_part,
+                                      Io &refused_io) {
+  const Display &d = ghost.display;
+  const Table &remote = ghost.remote;
+  size_t offset = 0;
+  for (size_t i = 0; i < remote.eve.size() && i < d.morph_map.size(); ++i) {
+    const size_t n = remote.look[i].morphs.size();
+    if (n && d.morph_map[i].size() == n) {
+      current_part = static_cast<int>(i);
+      const uintptr_t object = morph_target(ghost, i);
+      Part p = d.morph_part[i];
+      p.cls = d.puppet[0].cls;
+      bool changed = false;
+      const Io r = object ? write_morphs(objects, p, ghost.draw_morphs.data() + offset, d.morph_map[i].data(), n,
+                                         ghost.mesh_morphs[i], changed)
+                          : Io::gone;
+      current_part = -1;
+      if (r != Io::ok) {
+        if (!refused++)
+          refused_part = static_cast<int>(i), refused_io = r;
+      } else if (changed) {
+        ++written;
+        ghost.morphs_dirty |= 1u << i;
+      }
+    }
+    offset += n;
+  }
+}
+// Under the faces latch; false when a part was refused (logged the first time on this ghost) or faulted.
+bool guarded_faces_write(Drawn &ghost) {
+  uint64_t written = 0, refused_count = 0;
+  int part = -1;
+  Io why = Io::ok;
+  bool faulted_now = false;
+  __try {
+    faces_write(ghost, written, refused_count, part, why);
+  } __except (fault_filter(GetExceptionInformation(), faces_fault_code, faces_fault_rva, faces_fault_address)) {
+    faces_faulted = true;
+    faulted_now = true;
+    current_part = -1;
+  }
+  window_faces_written += written, window_faces_refused += refused_count;
+  if (refused_count)
+    refused(ghost, part, why);
+  return !refused_count && !faulted_now;
+}
+
 // Her sounds and world effects the hooks recorded since the last frame (the logic thread's ring only while no logic
 // task runs), into the asset keys and the event outbox while her capture goes to the loopback or a member; else
 // dropped. Each kind under its own latch. Each frame, before the capture: an event waits for its slot from the frame SB
@@ -206,7 +304,8 @@ void events_drain(const Live &live, uint64_t now_us) {
 }
 
 // The pose drawn this frame into the ghost: each remote leader Lua built a part for, as it came or through its remap,
-// with the box of a free part (her drone) Lua named, then its effect boxes and the mailbox. True when every write
+// with the box of a free part (her drone) Lua named, then her weights on the parts Lua named for them, its effect
+// boxes and the mailbox. True when every write
 // passed its checks.
 bool write_puppet(Drawn &ghost) {
   const Table &remote = ghost.remote;
@@ -236,6 +335,8 @@ bool write_puppet(Drawn &ghost) {
     }
     k += remote.eve[i].free;
   }
+  if (!faces_faulted && ghost.morphs_reserved && !guarded_faces_write(ghost)) // Her face: after the bones.
+    all = false;
   if (effects_on && d.effects[0] && !guarded_effects_write(ghost)) {
     all = false;
     if (effects_on) // Refused, not faulted: a fault has its own line.
@@ -274,6 +375,8 @@ void stream(uint64_t now_us) {
       else
         for (Effect &e : live.capture_fx)
           e = Effect();
+      if (!faces_faulted && !live.capture_morphs.empty()) // Only with morphs lines: Lua sends none with faces off.
+        guarded_faces_read(live);
       PoseHeader h;
       h.generation = live.capture.generation;
       h.publication = now_us;
@@ -285,7 +388,7 @@ void stream(uint64_t now_us) {
       event_outbox.fill(events, now_us, every);
       sound::fit_parts(events, live.capture.eve.size()); // An event recorded under an earlier, larger table.
       size_t size = encode_pose(live.capture, h, live.capture_root, live.capture_bones.data(), live.capture_fx,
-                                out_back.data.data(), clamped, live.capture_free, events);
+                                out_back.data.data(), clamped, live.capture_free, events, live.capture_morphs.data());
       size = out_back.size = live.encoder.encode(live.capture, out_back.data.data(), size, now_us);
       if (out_back.data[2] == 'D')
         ++window_deltas, window_delta_bytes += size;
@@ -315,7 +418,7 @@ void stream(uint64_t now_us) {
     Playback::Frame &f = ghost->playback.scratch();
     PoseHeader h;
     if (const char *why = ghost->decoder.decode(ghost->remote, in.data.data(), in.size, h, f.root, f.bones.data(), f.fx,
-                                                f.free, f.events)) {
+                                                f.free, f.events, f.morphs.data())) {
       if (!std::strcmp(why, "generation")) { // Of a table the ghost is not built on (yet): an outfit in flight.
         ++window_foreign;
       } else if (!std::strcmp(why, "key")) { // A delta whose keyframe was lost, or came before this Live.
@@ -339,7 +442,8 @@ void stream(uint64_t now_us) {
       // but the worker reads that withdrawal only within 250 ms: a destroyed ghost is no refused write, just the end.
       if (!alive(objects, static_cast<uintptr_t>(ghost.display.puppet[0].object)))
         ghost.ghost_gone = true;
-      else if (ghost.playback.sample(now_us, ghost.draw_root, ghost.draw.data(), ghost.draw_fx, ghost.draw_free)) {
+      else if (ghost.playback.sample(now_us, ghost.draw_root, ghost.draw.data(), ghost.draw_fx, ghost.draw_free,
+                                     ghost.draw_morphs.data())) {
         ++(write_puppet(ghost) ? window_drawn_written : window_drawn_refused);
         ghost.drawn_at = now_us;
         // Her sounds and world effects the playback reached go to wait for their names (a world effect only while

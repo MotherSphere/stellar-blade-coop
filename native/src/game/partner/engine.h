@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The game's memory for the native pose path: the build pin, object liveness and the published-component checks, EVE's
-// pose (her drone's block among it) and effects read and the ghost's written behind CopyPose's own gate. Plain
-// accesses of addresses only, but for alive()'s first read (safe_read); the caller runs every one of them under an SEH
-// guard on the game thread. No Windows types, so tests/native/game/partner/engine_test.cpp drives it with fake memory.
-// Offsets are for Stellar Blade's Steam build 26123051 (UE 4.26), pinned by check_build().
+// pose (her drone's block among it), effects and morph weights read and the ghost's written behind CopyPose's own
+// gate. Plain accesses of addresses only, but for alive()'s first read (safe_read); the caller runs every one of them
+// under an SEH guard on the game thread. No Windows types, so tests/native/game/partner/engine_test.cpp drives it with
+// fake memory. Offsets are for Stellar Blade's Steam build 26123051 (UE 4.26), pinned by check_build().
 #pragma once
 
 #include <algorithm>
@@ -121,7 +121,7 @@ inline bool weak_valid(uintptr_t objects, uintptr_t weak) {
          !(at<int32_t>(item + kItemFlags) & (kPendingKill | kUnreachable));
 }
 
-enum class Io { ok, gone, count, null_array, busy, gate };
+enum class Io { ok, gone, count, null_array, busy, gate, room };
 inline const char *describe(Io r) {
   switch (r) {
   case Io::ok: return "ok";
@@ -130,6 +130,7 @@ inline const char *describe(Io r) {
   case Io::null_array: return "bone array null";
   case Io::busy: return "anim task busy";
   case Io::gate: return "write gate closed";
+  case Io::room: return "morph arrays too small";
   }
   return "?";
 }
@@ -461,6 +462,92 @@ inline Io write_free_box(uintptr_t objects, uint64_t box, uint64_t cls, const Pa
     return Io::gone;
   const float scale[3] = {float(f.state >> 7) + 1.f, float(f.state & 0x7f) + 1.f, 1.f};
   put_relative(object, f.place + 4, f.place, scale);
+  return Io::ok;
+}
+
+// Her face and shape keys. USkinnedMeshComponent's morph arrays, as SendRenderDynamicData FUN_144124660 hands them to
+// the render side (MeshObject +0x7e8, vtable +0x20): ActiveMorphTargets (TArray at +0x728, count +0x730, max +0x734) of
+// 16-byte entries {UMorphTarget* +0, int32 weight index +8} (FUN_144118f20 walks them so and checks the index against
+// +0x740), and MorphTargetWeights (TArray of floats at +0x738, count +0x740, max +0x744; ResetMorphTargetCurves
+// FUN_1441152f0 zeroes max << 2 bytes). The mesh's MorphTargets: USkeletalMesh +0x198, count +0x1a0 (both functions
+// read them from the component's mesh +0x568).
+constexpr size_t kActiveMorphs = 0x728, kActiveCount = 0x730, kActiveMax = 0x734, kActiveMorphBytes = 0x10,
+                 kMorphWeights = 0x738, kWeightCount = 0x740, kWeightMax = 0x744, kMorphTargets = 0x198,
+                 kMorphTargetCount = 0x1a0;
+
+// One part's weights into out (n bytes, lround(w * 255), each out of 0 to 1 or NaN cut and counted in clamped), from
+// component: a leader's own object (published) or a follower's morph_read component (live). Only while no parallel anim
+// task holds them (+0x1180, +0xf80) and the array has n. Reads only.
+inline Io read_morphs(uintptr_t objects, const Part &p, uint64_t component, size_t n, uint8_t *out,
+                      uint32_t &clamped) {
+  const auto c = static_cast<uintptr_t>(component);
+  if (component == p.object ? !published(objects, p) : !alive(objects, c))
+    return Io::gone;
+  if (at<uintptr_t>(c + kAnimTask) || at<uintptr_t>(c + kAnimTask2))
+    return Io::busy;
+  if (at<int32_t>(c + kWeightCount) < int32_t(n))
+    return Io::count;
+  const auto data = at<uintptr_t>(c + kMorphWeights);
+  if (!data)
+    return Io::null_array;
+  for (size_t k = 0; k < n; ++k) {
+    const double x = std::nearbyint(double(at<float>(data + 4 * k)) * 255);
+    if (!(x >= 0 && x <= 255)) // NaN too.
+      ++clamped;
+    out[k] = x > 255 ? 255 : x >= 0 ? uint8_t(x) : 0;
+  }
+  return Io::ok;
+}
+
+// The ghost's part (a Poseable of the ghost: its leader or a follower, never the cloth follower, which UE's
+// UpdateSlaveComponent resets) takes her weights: remote morph j sets this mesh's morph map[j] (-1: none) to
+// weights[j] / 255, every other morph of the mesh 0. MorphTargetWeights' count becomes mesh_morphs, the mesh's own
+// count (at most kMaxPartMorphs). ActiveMorphTargets lists each morph above 0, in mesh order, whose UMorphTarget is not
+// null. Both arrays' data, count and max are read at each call, never kept; nothing is reallocated: a capacity short
+// (play_game.inc reserves them, SB frees ActiveMorphTargets while morphs are off) refuses with nothing written.
+// changed: something was written, so the render side must take it (the dirty call).
+inline Io write_morphs(uintptr_t objects, const Part &puppet, const uint8_t *weights, const int16_t *map, size_t n,
+                       size_t mesh_morphs, bool &changed) {
+  changed = false;
+  if (!published(objects, puppet))
+    return Io::gone;
+  const auto object = static_cast<uintptr_t>(puppet.object), mesh = static_cast<uintptr_t>(puppet.mesh);
+  if (mesh_morphs > kMaxPartMorphs || at<int32_t>(mesh + kMorphTargetCount) != int32_t(mesh_morphs))
+    return Io::count;
+  float target[kMaxPartMorphs] = {};
+  for (size_t j = 0; j < n; ++j)
+    if (map[j] >= 0 && size_t(map[j]) < mesh_morphs)
+      target[map[j]] = weights[j] / 255.f;
+  const auto targets = at<uintptr_t>(mesh + kMorphTargets);
+  int32_t active = 0;
+  for (size_t k = 0; targets && k < mesh_morphs; ++k)
+    active += target[k] > 0 && at<uint64_t>(targets + 8 * k);
+  const auto data = at<uintptr_t>(object + kMorphWeights), list = at<uintptr_t>(object + kActiveMorphs);
+  if ((mesh_morphs && !data) || at<int32_t>(object + kWeightMax) < int32_t(mesh_morphs) ||
+      (active && !list) || at<int32_t>(object + kActiveMax) < active)
+    return Io::room;
+  changed = at<int32_t>(object + kWeightCount) != int32_t(mesh_morphs) ||
+            at<int32_t>(object + kActiveCount) != active ||
+            (mesh_morphs && std::memcmp(reinterpret_cast<const void *>(data), target, 4 * mesh_morphs));
+  for (size_t k = 0, e = 0; !changed && targets && k < mesh_morphs; ++k)
+    if (target[k] > 0 && at<uint64_t>(targets + 8 * k)) {
+      const uintptr_t entry = list + kActiveMorphBytes * e++;
+      changed = at<uint64_t>(entry) != at<uint64_t>(targets + 8 * k) || at<int32_t>(entry + 8) != int32_t(k);
+    }
+  if (!changed)
+    return Io::ok;
+  if (mesh_morphs)
+    std::memcpy(reinterpret_cast<void *>(data), target, 4 * mesh_morphs);
+  *reinterpret_cast<int32_t *>(object + kWeightCount) = int32_t(mesh_morphs);
+  for (size_t k = 0, e = 0; targets && k < mesh_morphs; ++k)
+    if (target[k] > 0 && at<uint64_t>(targets + 8 * k)) {
+      const uintptr_t entry = list + kActiveMorphBytes * e++;
+      const uint64_t morph = at<uint64_t>(targets + 8 * k);
+      const int32_t index[2] = {int32_t(k), 0}; // The weight index, then the entry's pad.
+      std::memcpy(reinterpret_cast<void *>(entry), &morph, 8);
+      std::memcpy(reinterpret_cast<void *>(entry + 8), index, 8);
+    }
+  *reinterpret_cast<int32_t *>(object + kActiveCount) = active;
   return Io::ok;
 }
 

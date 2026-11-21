@@ -8,7 +8,8 @@
 -- materials (a dynamic one as its parent); with effects on, the Niagara layout by reflection and the listed systems in
 -- memory, looked up one a tick; the game's own folders against a mod's, a mod's mesh tagged with its outfit and sending
 -- its materials with dyes off, her cloth's collision line, a dynamic material's value lines, and the hide lines
--- (hidden material slots), with no shape key read; SBO's bike left out while she does not ride (leave_out).
+-- (hidden material slots); SBO's bike left out while she does not ride (leave_out); her drone; with faces on, her
+-- morph target names within their caps, the pose size and the table's room.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -663,7 +664,6 @@ assert(ok and message:find('; %d+ values left out, over the table size$') and no
     and published[1]:find('\nmaterial 0 0 ') and #published[1]>56000,tostring(message))
 -- Hidden slots (CNS's toggles and hidden slots, read from the component): a hide line with the slots hidden at LOD 0,
 -- any slot, after the values. A change waits as a value does; with dyes off on the game's own mesh nothing is read.
--- Shape keys are never read: no ghost part can draw them.
 raw[body].state.slots,raw[body].state.hidden=4,{[1]=true,[3]=true}
 raw[body].OverrideMaterials=slots(1,{skin})
 published={}
@@ -878,4 +878,144 @@ t=published[#published]
 assert(ok and message:find('^Capture %d+: 3 parts, '),tostring(message))
 assert(t:find('\npart 1 - - - 1 3 CharacterMesh0 '..DRONE..'\nfree 1\n',1,true),t)
 assert(t:find('\npart 2 - 1 - 1 2 DroneArm '..ARM..'\nplace 2 0 0 0 1 3 0.1 0 1 1 1\n',1,true),t)
+-- Her face and shape keys (looks.faces): each part whose mesh has morph targets names them, in the mesh's order, on a
+-- morphs line after its last line (before a leader's read line); a follower's morph_read line after it names its
+-- component for the native read. Each morph is a byte of every pose (Capture.MORPH_BYTES). At most 256 on a part and
+-- 512 in a table, the rest left out and named in the capture line. Over the pose size the morph lines go before any
+-- leader does, the last part's first; past the table's room, after the values. Faces off or on again: a new
+-- generation.
+assert(Capture.MORPH_BYTES==1 and Capture.pose_bytes({{bones=2,morphs=3},{bones=3,free=true}})==339)
+local FACE_MESH='/Game/Art/Character/PC/CH_P_EVE_Head/CH_P_EVE_Face_Jali3.CH_P_EVE_Face_Jali3'
+local function targets(n,stem)
+    if type(n)=='table' then
+        local list={}
+        for k,name in ipairs(n) do list[k]=object(name) end
+        return list
+    end
+    local list={}
+    for k=1,n do list[k]=object((stem or 'Morph')..(k-1)) end
+    return list
+end
+local function lines_of(text)
+    local list={}
+    for line in text:gmatch('([^\n]*)\n') do list[#list+1]=line end
+    return list
+end
+local function line_of(lines,prefix)
+    for _,line in ipairs(lines) do if line:sub(1,#prefix)==prefix then return line end end
+end
+local function has_prefix(lines,prefix) return line_of(lines,prefix)~=nil end
+local function words(line)
+    local list={}
+    for w in (line or ''):gmatch('%S+') do list[#list+1]=w end
+    return list
+end
+local function look_lines() return lines_of(published[#published]) end
+looks={faces=true}
+local faces_eve=0
+-- Her face with n morph targets (or these names), a leader of two bones or a follower of her body, after her body and
+-- before the parts given, captured on a new EVE. Returns the capture's ok and line, and her face.
+local function face_with(n,follower,more)
+    local f=her('Mesh_Face',FACE_MESH,follower and {leader=body,parent=body} or {parent=body,bones=2})
+    raw[f].SkeletalMesh.MorphTargets=targets(n)
+    local list={body,f}
+    for _,c in ipairs(more or {}) do list[#list+1]=c end
+    published={}
+    capture=Capture.new(function(text) published[#published+1]=text or 'withdrawn'; return true end,looks)
+    faces_eve=faces_eve+1
+    player=eve_of('Faces'..faces_eve,list)
+    tick()
+    local ok_of,said_of=step(2)
+    return ok_of,said_of,f
+end
+local said_of,face_of
+ok,said_of,face_of=face_with(40)
+local lines=look_lines()
+assert(ok and said_of:find('^Capture 100001: 2 parts, .*; morphs: 40$'),tostring(said_of))
+assert(#words(line_of(lines,'morphs 1 '))==42 and
+    line_of(lines,'morphs 1 '):find('^morphs 1 Morph0 Morph1 .* Morph39$'),'morphs, the part, 40 names')
+assert(published[1]:find('\nnames 1 b0 b1\nmorphs 1 Morph0 [^\n]*\nread 1 0x'),'After its names, before its read line')
+assert(not has_prefix(lines,'morph_read ') and not has_prefix(lines,'morphs 0 '),
+    'A leader: its read line; her body none')
+assert(step(1)==nil,'Nothing new')
+looks.faces=false
+ok,said_of=step(1)
+assert(ok and said_of:find('^Capture 100002: ') and not has_prefix(look_lines(),'morphs '),tostring(said_of))
+looks.faces=true
+ok,said_of=step(1)
+assert(ok and said_of:find('^Capture 100003: ') and has_prefix(look_lines(),'morphs 1 '),tostring(said_of))
+-- The same face as a follower: its morph_read line too, naming its component, after its morphs line.
+ok,said_of,face_of=face_with(40,true)
+lines=look_lines()
+assert(ok and #words(line_of(lines,'morphs 1 '))==42,tostring(said_of))
+assert(line_of(lines,'morph_read 1 0x')==string.format('morph_read 1 0x%x',face_of:GetAddress()))
+assert(published[1]:find('\nplace 1 [^\n]*\nmorphs 1 [^\n]*\nmorph_read 1 0x%x+\n$'),published[1])
+-- Caps: over 256 on a part, none of them; 512 in a table, the rest left out; both named in the line.
+ok,said_of=face_with(257)
+assert(ok and not has_prefix(look_lines(),'morphs ') and said_of:find('; morphs left out: Mesh_Face %(257 morphs%)$'),
+    tostring(said_of))
+local hair_of=her('SBHair',HAIR,{parent=body,bones=2})
+raw[hair_of].SkeletalMesh.MorphTargets=targets(256,'H')
+local tail_of=her('Tail',X..'Tail2.Tail2',{parent=body,bones=1})
+raw[tail_of].SkeletalMesh.MorphTargets=targets(1,'T')
+ok,said_of=face_with(256,false,{hair_of,tail_of})
+lines=look_lines()
+assert(ok and #words(line_of(lines,'morphs 1 '))==258 and #words(line_of(lines,'morphs 2 '))==258 and
+    not has_prefix(lines,'morphs 3 '),tostring(said_of))
+assert(said_of:find('; morphs: 512; morphs left out: Tail %(over 512 in the table%)$'),said_of)
+-- Over the pose size: her face's 40 and a 892-bone part are 16408 bytes, 16368 without the morphs. The morph lines go
+-- and every leader stays.
+local heavy=her('Heavy',X..'Heavy.Heavy',{parent=body,bones=892})
+assert(Capture.pose_bytes({{bones=3},{bones=2,morphs=40},{bones=892}})==16408)
+ok,said_of=face_with(40,false,{heavy})
+lines=look_lines()
+assert(ok and not has_prefix(lines,'morphs ') and has_prefix(lines,'part 2 ') and
+    said_of:find('; morphs of 1 parts left out, over the pose size',1,true),tostring(said_of))
+-- With 30 on the heavy part too (890 bones): the last part's go first, her face's stay.
+heavy.state.bones=890
+raw[heavy].SkeletalMesh.MorphTargets=targets(30,'W')
+ok,said_of=face_with(40,false,{heavy})
+lines=look_lines()
+assert(ok and has_prefix(lines,'morphs 1 ') and not has_prefix(lines,'morphs 2 ') and
+    said_of:find('; morphs: 40; morphs of 1 parts left out, over the pose size',1,true),tostring(said_of))
+-- Past the table's room the values keep it: the morph lines stay home. Under one generation they stay as its first
+-- table had them, so her poses keep their size: past the room once, they stay home when the values go.
+local roomy_values={}
+for k=1,16 do roomy_values[k]=scalar('RoomValue'..k,k) end
+local roomy=dynamic(skin,{ScalarParameterValues=roomy_values})
+raw[body].OverrideMaterials=slots(1,{roomy})
+local wordy_names={}
+for b=1,640 do wordy_names[b]=('w'):rep(60)..b end
+local wordy=her('Wordy',X..'Wordy.Wordy',{parent=body,bones=640,names=wordy_names})
+looks={faces=true,dyes=true}
+face_with(1,false,{wordy}) -- Measured: the table without its morph line, the value lines.
+local text_of=published[#published]
+local value_bytes=0
+for line in text_of:gmatch('\nvalue [^\n]*') do value_bytes=value_bytes+#line end
+assert(value_bytes>300,'the values fit')
+local geometry=#text_of-value_bytes-#text_of:match('\nmorphs 1 [^\n]*')
+local want=56000-geometry-value_bytes//2 -- A morph line with the values over the room, without them within it.
+local long,count=nil,(want-11)//64
+long={}
+for k=1,count do long[k]=string.format('m%062d',k) end
+long[#long+1]=('z'):rep(want-9-64*count-1)
+assert(9+64*count+#long[#long]+1==want and #long<=256)
+ok,said_of=face_with(long,false,{wordy})
+lines=look_lines()
+assert(ok and not has_prefix(lines,'morphs ') and has_prefix(lines,'value 0 0 s RoomValue16 ') and
+    said_of:find('; morphs of 1 parts left out, over the table size',1,true),tostring(said_of))
+raw[roomy].ScalarParameterValues={}
+for _=1,8 do step(1) end -- One part's values a look, a table at most each 5 s.
+lines=look_lines()
+assert(#published==2 and published[2]:find('^generation 100001\n') and not has_prefix(lines,'value ') and
+    not has_prefix(lines,'morphs '),'The same generation: still none')
+looks.faces=false
+step(1)
+looks.faces=true
+ok,said_of=step(1)
+assert(ok and said_of:find('^Capture 100003: ') and #words(line_of(look_lines(),'morphs 1 '))==#long+2,
+    tostring(said_of))
+raw[body].OverrideMaterials=slots(1,{skin})
+looks={}
+
 print('capture_test ok')

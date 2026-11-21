@@ -23,8 +23,8 @@ CNS packs declare.
 
 Under the same rule as the materials, it also reads which material slots each part hides at LOD 0
 (`IsMaterialSectionShown`). CNS hides slots for an outfit's `HiddenMats` and `MaterialToggles`, so the capture reads the
-result on the component and never reads CNS itself. A change waits like a value change. Shape keys are not read, since
-the ghost cannot draw them (see [Looks](#looks)).
+result on the component and never reads CNS itself. A change waits like a value change. With the faces look on, it
+names each part's morph targets (see [Looks](#looks)).
 
 With the effects look on, it adds what the native part needs to read her effects. A part whose ponytail cloth has a
 collision asset of its own (`OverrideClothPhysicsAsset`) names it.
@@ -77,6 +77,8 @@ hide <i> <slot>...                                optional: 1 to 64 slots 0 to 6
 cloth <i> <path>                                  optional: the collision asset of the part's cloth
 mod <i> <tag>                                     optional: on a mod's mesh, the outfit it comes from
 names <i> <bone>...                               leaders only: one per bone
+morphs <i> <name>...                              optional, after the part's last line: its mesh's morph targets in
+                                                  the mesh's order, 1 to 256 a part and 512 a table
 ```
 
 A value line that breaks its rules is left out and counted, and the table is still taken: a number that is not finite or
@@ -87,9 +89,11 @@ other does. Hide lines follow the same rule: a slot past 63, slots not rising or
 counted with the value lines. Value and hide lines do not count for the layout, so a change in them never builds a new
 ghost.
 
-The capture file also carries the memory addresses the native part reads from (`read`, `light`, `effects` and `effect`
-lines); those never go on the wire. The `fx <k> <path>` lines after the last part do: each names the effect index `k`
-(20 to 64) by the path of a Niagara system (see [Looks](#looks)). A leader part has bones of its own. A follower follows
+The capture file also carries the memory addresses the native part reads from (`read`, `light`, `morph_read`, `effects`
+and `effect` lines); those never go on the wire. A leader's `morphs` line comes before its `read` line. A follower's
+is followed by `morph_read <i> 0x<component>`, the component whose weights the native part reads. The `fx <k> <path>`
+lines after the last part do go on the wire: each names the effect index `k` (20 to 64) by the path of a Niagara
+system (see [Looks](#looks)). A leader part has bones of its own. A follower follows
 a leader's bones (her ponytail, for example). Part 0 is her main mesh. A table is at most 64 KiB. The native parser
 checks every line (the tests fuzz it).
 
@@ -117,14 +121,16 @@ game thread at the send rate, and the worker sends it. A pose message holds:
   19 zero bytes. An event waits at most 100 ms for a free slot. It holds the slot for at least 2 poses and 50 ms plus
   one send interval, so a member on the lowest pose cap (20 a second) gets a pose that carries it. The ghost plays each
   slot's serial once, when its playback reaches the first pose that carried it; a playback that starts (a new table, a
-  new member) plays none of the events standing in its first poses.
+  new member) plays none of the events standing in its first poses;
+- a byte for each morph target of the table, in table order: its weight in 1/255 steps (see [Looks](#looks)).
 
 A pose is at most 16 KiB; in the outfits measured it is 4.8 to 5.1 KB with the event slots. A world position beyond
 1e7 cm, or not finite, is refused.
 
 Since protocol 9 most poses go as deltas. A keyframe is a full pose as above. A delta has the same header, the age of
 its keyframe in microseconds, the world transform and free blocks, one bit for each bone rotation, translation, scale,
-effect slot and event slot, then the bytes of those that changed since the keyframe. The sender sends a keyframe first,
+effect slot, event slot and morph, then the bytes of those that changed since the keyframe. A morph that holds still
+costs nothing after the keyframe. The sender sends a keyframe first,
 then every 250 ms, and whenever a delta would not be smaller. The receiver rebuilds the full pose from the keyframe it
 holds and decodes it like a keyframe. A delta whose keyframe was lost on the way is dropped and counted as keyless; the
 ghost waits for the next keyframe, at most 250 ms later. In tests a delta was 26 % (idle) to 41 % (combat) of the full
@@ -226,9 +232,9 @@ for 2 s and the maps match. A ghost left standing by a Lua reload (Ctrl+R) is fo
 
 ## Looks
 
-The four looks (cloth, dyes, effects, drone) use the same pipeline. Dyes add `material` and `value` lines to the table
-(parts on a mod's mesh have them either way). A slot's values go on a dynamic instance the ghost makes of that slot's
-material (`CreateDynamicMaterialInstance`, then `SetVectorParameterValue`, `SetScalarParameterValue` and
+The cloth, dyes, effects, drone and faces looks use the same pipeline. Dyes add `material` and `value` lines to the
+table (parts on a mod's mesh have them either way). A slot's values go on a dynamic instance the ghost makes of that
+slot's material (`CreateDynamicMaterialInstance`, then `SetVectorParameterValue`, `SetScalarParameterValue` and
 `SetTextureParameterValue`), and a later table sets only what changed on that instance. A value gone from a later table
 puts the slot back on the plain material, and what is left goes on a new instance. A slot with no material here (a
 missing pack) gets no values and no error. If the instance or a setter fails, the slot goes back on the plain material
@@ -241,11 +247,48 @@ Hide lines go on a part drawn on its own mesh, under the dyes rule. The ghost ca
 again only when they change. If a call fails, the part shows every slot, with one note in the log. Not tested in game
 yet.
 
-Shape keys are not carried. A leader is a PoseableMeshComponent, which has no morph call. A follower follows its
-leader through `SetMasterPoseComponent`, and in UE 4.26 `USkeletalMeshComponent::UpdateSlaveComponent` zeroes the
-follower's morph weights on every tick, then adds `SetMorphTarget`'s values back only when the leader is a
-SkeletalMeshComponent. With a Poseable leader, a follower's shape keys would be cleared before each frame is drawn.
-Drawing them would need a SkeletalMeshComponent leader.
+Her face and shape keys (the faces look) go into the ghost parts' own morph arrays, since a PoseableMeshComponent has
+no morph call. Offsets and functions are those of build 26123051, read in Ghidra:
+
+- The capture names each part's morph targets on a `morphs` line, in the order of its mesh's `MorphTargets`
+  (`USkeletalMesh` `+0x198`, count `+0x1a0`): at most 256 a part (a part with more sends none, named in the
+  `Capture ...` line) and 512 a table (the parts past it send none, named too). A follower's `morph_read` line names
+  its component, since followers have no `read` line. Over the pose size the morph lines go first, the last part's
+  first, before any leader. Their names come after the value lines, only while the table stays within 56 KB. They stay
+  as the generation's first table had them: they size her poses, so they never change under one generation. Turning
+  the look on or off is a new generation.
+- At each pose the native part reads `MorphTargetWeights` (floats at `+0x738`, count `+0x740`) of each part with a
+  `morphs` line, from its leader object or its `morph_read` component, while no parallel anim task holds them
+  (`+0x1180`, `+0xf80`). SB indexes these weights by the mesh's morph index: `AppendActiveMorphTargets`
+  (`FUN_143f8d220`) sizes them to the mesh's count and finds each curve's index through `FindMorphTargetAndIndex`
+  (`FUN_144531b00`). Each weight
+  travels as `lround(w * 255)`. One outside 0 to 1 (or not a number) is cut and counted. A part that cannot be read
+  keeps its last weights.
+- The ghost's display file names, after its `drive` lines, `morphs <i> 0x<component> 0x<mesh> <j>...` for each part
+  drawn with morphs: per morph of hers, the index of the morph of that name on the mesh drawn, -1 for none. Never the
+  cloth follower, a SkeletalMeshComponent: UE 4.26's `USkeletalMeshComponent::UpdateSlaveComponent` starts with
+  `ResetMorphTargetCurves` (`FUN_1441152f0`), which empties `ActiveMorphTargets` and zeroes the weights (in this build
+  `FUN_14411cc10` makes that call first). A mesh with more than 256 morphs gets none, noted in the build line. The
+  native part writes only on a component of the root part's class (a Poseable), on the named mesh, of the ghost's own
+  actor. Poseable's `RefreshBoneTransforms` (`0x1440e6260`) and the base `UpdateSlaveComponent` (`0x144124ef0`) leave
+  both arrays alone.
+- At the ghost's first frame the native part gives each such part room for its mesh's morph count in both arrays, with
+  SB's own resizes, which `ResetMorphTargetCurves` uses too: `FUN_140e4baa0` for `ActiveMorphTargets` (16-byte entries
+  at `+0x728`, count `+0x730`, max `+0x734`) and `FUN_140e6b160` for `MorphTargetWeights` (max `+0x744`). Both go
+  through GMalloc (`0x1470703c0`) and run only while it is set.
+- At each pose drawn, after the bones, it sets every weight of the mesh (hers by the map, the others 0) with the count
+  at the mesh's morph count. It lists each morph above 0 in `ActiveMorphTargets` as `{UMorphTarget*, weight index}`,
+  as `AppendActiveMorphTargets` fills it. It never reallocates: an array too small refuses the write with nothing
+  written (`write refused: part <i> morph arrays too small`). SB empties `ActiveMorphTargets` when the component's
+  `bDisableMorphTarget` (bit 7 of `+0x7d5`) is set or morph targets are off (`FUN_144124660`). A write that changed
+  something marks the part. The next `play_tick` makes the dirty call SB's `UpdateSlaveComponent` makes:
+  `0x144124ef0` sets bit `0x80` of `+0x98` and calls `MarkForNeededEndOfFrameUpdate` (`FUN_14408e610`), once a part.
+  A face that holds still makes no call.
+
+The reads, the writes, the reservation and the dirty calls run on the game thread under one latch: the first fault
+logs `faces off: fault ...`, zeroes her weights in the poses she sends and stops the writes until the game restarts.
+Every 60 s with any of them, `faces, last 60 s: <n> parts read, <n> clamped, <n> written, <n> dirty calls, <n>
+refused` counts reads and writes (a refusal of either). Not tested in game yet.
 
 Effects fill the pose's six slots, and the native part writes the drawn slots into six boxes beside the mailbox, from
 which Lua starts and moves the effects. Effects have their own fault latch, so a fault there turns effects off for the

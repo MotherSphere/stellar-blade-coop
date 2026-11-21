@@ -23,24 +23,26 @@
 //   then kEventSlots event slots (game/events.h) of 19 bytes: kind (u8), serial (u8), asset key (u16), part (u8,
 //   kNoPart: placed relative to component 0), two value bytes, translation (3 i16 in cm) and rotation (6 B) relative to
 //   the part; an empty slot is 19 zero bytes
+//   then a byte per morph target of the table (its morphs lines, in table order): its weight in 1/255 steps
 // A bone travels in local space (N3), as the engine holds it: FTransform's 48 bytes, rotation xyzw, translation xyz and
 // a pad, scale xyz and a pad.
 //
 // A delta (protocol 9): the units of a pose that differ from the sender's latest keyframe. A unit is one 6-byte field
-// of a leader bone (its rotation, translation or scale), one effect slot or one event slot. Little-endian:
+// of a leader bone (its rotation, translation or scale), one effect slot, one event slot or one morph's byte.
+// Little-endian:
 //   "SBD" (3 bytes), protocol (u8), then generation, sequence, publication and map as in a pose (the same offsets)
 //   age (u32): its publication minus its keyframe's, in microseconds, 1 or more (the keyframe's sequence would not
 //   survive the replay's re-stamping; this does, as the replay moves every publication of a loop alike)
 //   world (24 bytes): the world transform, as in the pose, then the free blocks, as in the pose
 //   mask: a bit per unit (byte u / 8, bit u % 8), in pose order: per leader bone its rotation, translation and scale,
-//   then the kEffectSlots effect slots, then the kEventSlots event slots; padding bits 0
+//   then the kEffectSlots effect slots, then the kEventSlots event slots, then the morphs; padding bits 0
 //   then each unit the mask names, its exact bytes in the pose
 // The receiver rebuilds the pose's bytes from its held keyframe and decodes them with decode_pose, so a delta passes
 // every check a pose does. A delta is always smaller than its pose: the sender sends the keyframe when it would not be.
 // A bone's field counts as changed only past kTolerance (in quantized steps) from the keyframe: a delta comes back as
 // the keyframe path would give it within that (rotation 0.035 degrees, translation 1/32 cm, scale 1/4096), and the
 // keyframe's value holds until the next keyframe, 250 ms at most. The wire is the same: the receiver does not know.
-// Every other unit (an effect or event slot) counts as changed when any of its bytes differs.
+// Every other unit (an effect or event slot, a morph) counts as changed when any of its bytes differs.
 #pragma once
 
 #include <algorithm>
@@ -278,11 +280,11 @@ inline const char *get_event(const uint8_t *&in, Event &e, size_t parts) {
 // One pose into out (at least pose_size(t) bytes): root is the main mesh's world transform (10 floats: rotation xyzw,
 // translation xyz, scale xyz), bones the leaders' local transforms back to back in table order, fx the kEffectSlots
 // slots, free one block per free part in table order (nullptr: each hidden), events the kEventSlots event slots
-// (nullptr: each empty). Returns the size, 0 when the table is too large. clamped counts values cut to the fixed-point
-// ranges.
+// (nullptr: each empty), morphs morph_count(t) weights in table order (nullptr: each 0). Returns the size, 0 when the
+// table is too large. clamped counts values cut to the fixed-point ranges.
 inline size_t encode_pose(const Table &t, const PoseHeader &h, const float *root, const uint8_t *bones,
                           const Effect *fx, uint8_t *out, uint32_t &clamped, const Free *free = nullptr,
-                          const Event *events = nullptr) {
+                          const Event *events = nullptr, const uint8_t *morphs = nullptr) {
   using namespace codec;
   size_t size = pose_size(t);
   if (!size)
@@ -339,15 +341,20 @@ inline size_t encode_pose(const Table &t, const PoseHeader &h, const float *root
   }
   for (size_t n = 0; n < kEventSlots; ++n)
     put_event(at, events ? events[n] : Event(), clamped);
-  return size_t(at - out);
+  const size_t n = morph_count(t);
+  if (morphs)
+    std::memcpy(at, morphs, n);
+  else
+    std::memset(at, 0, n);
+  return size_t(at + n - out);
 }
 
-// Reads a pose of this table into root, bones, fx, free and events (the layouts encode_pose takes; pads written as 0;
-// free or events nullptr: checked, not stored; a hidden block stored as Free(), an empty slot as Event()). Returns null
-// when it is good, else why not; on a refusal root, bones, fx, free and events may hold part of it and must not be
-// used.
+// Reads a pose of this table into root, bones, fx, free, events and morphs (the layouts encode_pose takes; pads written
+// as 0; free, events or morphs nullptr: checked, not stored; a hidden block stored as Free(), an empty slot as
+// Event()). Returns null when it is good, else why not; on a refusal they may hold part of it and must not be used.
 inline const char *decode_pose(const Table &t, const uint8_t *data, size_t size, PoseHeader &h, float *root,
-                               uint8_t *bones, Effect *fx, Free *free = nullptr, Event *events = nullptr) {
+                               uint8_t *bones, Effect *fx, Free *free = nullptr, Event *events = nullptr,
+                               uint8_t *morphs = nullptr) {
   using namespace codec;
   if (size < kPoseHeader || size > kMaxPose)
     return "size";
@@ -424,7 +431,9 @@ inline const char *decode_pose(const Table &t, const uint8_t *data, size_t size,
     if (events)
       events[n] = e;
   }
-  return nullptr; // in == data + size: pose_size(t) matched and every field above has a fixed width.
+  if (morphs) // Any byte is a weight.
+    std::memcpy(morphs, in, morph_count(t));
+  return nullptr; // in + morph_count(t) == data + size: pose_size(t) matched and every field has a fixed width.
 }
 
 // ---- Codec v2: deltas against a keyframe ----
@@ -438,7 +447,7 @@ constexpr int64_t kPoseBytesPerSecond = 196'608, kPoseBurst = 2 * kMaxPose, kSbe
 constexpr size_t kWorldAt = kPoseHeader + 1; // The world transform in a pose: after component 0's status.
 
 // A unit's kind: a bone's rotation, translation or scale (compared within the tolerance), or exact (an effect or event
-// slot: compared byte for byte).
+// slot, a morph: compared byte for byte).
 enum class Unit : uint8_t { rotation, translation, scale, exact };
 // Each unit of a pose of t, in order, as f(offset in the pose, bytes, Unit); stops when f returns false.
 template <class F> void each_unit(const Table &t, F &&f) {
@@ -457,9 +466,12 @@ template <class F> void each_unit(const Table &t, F &&f) {
   for (size_t n = 0; n < kEventSlots; ++n, at += kEventBytes)
     if (!f(at, kEventBytes, Unit::exact))
       return;
+  for (size_t n = 0, morphs = morph_count(t); n < morphs; ++n, ++at)
+    if (!f(at, 1, Unit::exact))
+      return;
 }
 inline size_t delta_units(const Table &t) {
-  size_t units = kEffectSlots + kEventSlots;
+  size_t units = kEffectSlots + kEventSlots + morph_count(t);
   for (const Part &p : t.eve)
     units += p.leader ? size_t(p.bones) * 3 : 0;
   return units;
@@ -500,8 +512,8 @@ inline bool strays(const uint8_t *a, const uint8_t *b, int kind, const Tolerance
 }
 
 // The delta of full (a pose of t that encode_pose wrote) against key (an earlier one, age µs before) into out, which
-// holds limit bytes: the bone fields that stray past tol and the effect and event slots that differ at all. Returns its
-// size, or 0 when it would not be smaller than limit (send the pose then).
+// holds limit bytes: the bone fields that stray past tol and the effect and event slots and morphs that differ at all.
+// Returns its size, or 0 when it would not be smaller than limit (send the pose then).
 inline size_t encode_delta(const Table &t, const uint8_t *key, const uint8_t *full, uint32_t age, uint8_t *out,
                            size_t limit, const Tolerance &tol = kTolerance) {
   const size_t fixed = delta_fixed(t);
@@ -680,19 +692,19 @@ public:
     key_publication_ = 0;
     key_sequence_ = 0;
   }
-  // A keyframe or a delta of t into root, bones, fx, free and events, as decode_pose: null when good, else why not
-  // ("key": a delta whose keyframe is not the one held). A keyframe that decodes is held when it was sent after the one
-  // held (its sequence, which never restarts in the sender's run, unlike its clock after a step).
+  // A keyframe or a delta of t into root, bones, fx, free, events and morphs, as decode_pose: null when good, else why
+  // not ("key": a delta whose keyframe is not the one held). A keyframe that decodes is held when it was sent after the
+  // one held (its sequence, which never restarts in the sender's run, unlike its clock after a step).
   const char *decode(const Table &t, const uint8_t *data, size_t size, PoseHeader &h, float *root, uint8_t *bones,
-                     Effect *fx, Free *free = nullptr, Event *events = nullptr) {
+                     Effect *fx, Free *free = nullptr, Event *events = nullptr, uint8_t *morphs = nullptr) {
     if (size >= 3 && data[2] == 'D') {
       if (key_.size() != pose_size(t))
         return "key";
       if (const char *why = apply_delta(t, key_.data(), key_publication_, data, size, rebuilt_.data()))
         return why;
-      return decode_pose(t, rebuilt_.data(), key_.size(), h, root, bones, fx, free, events);
+      return decode_pose(t, rebuilt_.data(), key_.size(), h, root, bones, fx, free, events, morphs);
     }
-    const char *why = decode_pose(t, data, size, h, root, bones, fx, free, events);
+    const char *why = decode_pose(t, data, size, h, root, bones, fx, free, events, morphs);
     if (!why && size == key_.size() && (!key_publication_ || h.sequence > key_sequence_)) {
       std::memcpy(key_.data(), data, size);
       key_publication_ = h.publication;

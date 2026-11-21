@@ -64,8 +64,15 @@ These looks have not been tested in game yet. Back up your saves before you play
   sound the first time a ghost names it, one every 0.25 s, so that first time it may be missing. A sound not loaded
   within 0.2 s of its turn is dropped. Every 60 s with any sound played or dropped, a `sounds played, last 60 s:` line
   counts why. A fault logs `sounds off: fault ...` once. Her sounds then stop on both sides until the game restarts.
-- `dyes=off`, `effects=off`, `drone=off` and `sounds=off` also stop sending yours, so your friend's ghost of you lacks
-  them too.
+- `faces`: her eyes, face and shape keys. Her capture names the morph targets of each part that has them (her default
+  face mesh has 169). Each pose carries their weights, one byte each. The ghost sets each weight on the morph of
+  the same name on the mesh your game draws, so a morph your mesh lacks stays at 0. Her ponytail on a cloth part shows
+  none: the engine resets a cloth part's weights at every tick. A part carries at most 256 morphs and a table 512.
+  When a pose would pass 16384 bytes, the morphs go first, the last part's first, before any leader part does. Every
+  60 s with any of them, a `faces, last 60 s:` line counts parts read, weights cut, parts written, redraw calls and
+  refusals. A fault logs `faces off: fault ...` once. Her face then stops on both sides until the game restarts.
+- `dyes=off`, `effects=off`, `drone=off`, `sounds=off` and `faces=off` also stop sending yours, so your friend's ghost
+  of you lacks them too.
 
 ## Mods and CNS outfits
 
@@ -103,7 +110,8 @@ with them, and the ghost applies them on a dynamic instance of the material (not
 colour reaches the ghost within 21 s, without a new ghost. A texture option shows only if your packs declare the same
 texture or it is one of the game's own. A slot whose material your PC lacks keeps the mesh's own, with no values and no
 error. The slots an outfit hides (`HiddenMats`, and `MaterialToggles` turned off) are hidden on the ghost too, and the
-same change delay applies (not tested in game yet). Shape keys (`ShapeKeys`) do not reach the ghost. Her ponytail's
+same change delay applies (not tested in game yet). Shape keys (`ShapeKeys`) reach the ghost with `faces=on` as the
+weights her game gives those morph targets (not tested in game yet). Her ponytail's
 collision asset goes too (the `cloth` look uses it), so a CNS outfit's `PonyPhysics` reaches the ghost.
 
 A mod's added assets are usually missing from the game's cooked asset registry, and UE4SS's `LoadAsset` finds an
@@ -169,7 +177,7 @@ texture not set. The build line shows `<path> set aside after a crash (coop cns 
 cns reset` and when you install another version of the mod. A crash at any other moment leaves the file empty and sets
 nothing aside. Neither part has been tested in game yet.
 
-Not carried: shape keys and face morphs, accessories that are static meshes, actors attached to EVE, and parts past 16.
+Not carried: accessories that are static meshes, actors attached to EVE, and parts past 16.
 A pose holds about 900 leader bones in all. When her parts have more, the capture leaves out the last leader parts and
 their followers until the pose fits. Its log line then ends with `<n> leaders left out, over the pose size`. Her drone's
 parts come after hers, so they go first.

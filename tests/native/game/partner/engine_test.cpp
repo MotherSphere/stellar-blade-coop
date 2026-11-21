@@ -172,6 +172,124 @@ void test_free_box_written() {
   assert(at<Vec>(box + kRelativeLocation) == Vec{0, 50, 0});
   assert(write_free_box(o.objects, other, o.box_class, root, f) == Io::gone); // Another actor's box.
 }
+
+// Her face and shape keys. A ghost part on a mesh of n MorphTargets (+0x198, count +0x1a0; target k at 0x7000 + k),
+// with its MorphTargetWeights (floats, +0x738) and ActiveMorphTargets (16-byte entries, +0x728) of these capacities.
+uintptr_t morph_mesh(Objects &o, int32_t n) {
+  const uintptr_t mesh = o.make(0x200), targets = o.raw(8 * size_t(n));
+  for (int32_t k = 0; k < n; ++k)
+    poke(targets + 8 * uintptr_t(k), uint64_t(0x7000 + k));
+  poke(mesh + kMorphTargets, targets);
+  poke(mesh + kMorphTargetCount, n);
+  return mesh;
+}
+Part morph_part(Objects &o, uintptr_t mesh, int32_t weights, int32_t active) {
+  Part p = part(o, 2, {0, 0, 0});
+  p.mesh = mesh;
+  poke(p.object + kMesh, uint64_t(mesh));
+  poke(p.object + kMorphWeights, weights ? o.raw(4 * size_t(weights)) : 0);
+  poke(p.object + kWeightMax, weights);
+  poke(p.object + kActiveMorphs, active ? o.raw(kActiveMorphBytes * size_t(active)) : 0);
+  poke(p.object + kActiveMax, active);
+  return p;
+}
+float weight(const Part &p, int k) { return at<float>(at<uintptr_t>(p.object + kMorphWeights) + 4 * uintptr_t(k)); }
+int32_t weights_count(const Part &p) { return at<int32_t>(p.object + kWeightCount); }
+int32_t active_count(const Part &p) { return at<int32_t>(p.object + kActiveCount); }
+uint64_t active_target(const Part &p, int n) {
+  return at<uint64_t>(at<uintptr_t>(p.object + kActiveMorphs) + kActiveMorphBytes * uintptr_t(n));
+}
+int32_t active_index(const Part &p, int n) {
+  return at<int32_t>(at<uintptr_t>(p.object + kActiveMorphs) + kActiveMorphBytes * uintptr_t(n) + 8);
+}
+void empty_active(const Part &p) { // As SB's FUN_144124660 leaves it: count 0, the array freed.
+  poke(p.object + kActiveMorphs, uint64_t(0));
+  poke(p.object + kActiveCount, int32_t(0));
+  poke(p.object + kActiveMax, int32_t(0));
+}
+// Her component's weights: n floats, count n.
+void set_weights(Objects &o, uintptr_t component, std::initializer_list<float> w) {
+  const uintptr_t data = o.raw(4 * w.size());
+  int k = 0;
+  for (float x : w)
+    poke(data + 4 * uintptr_t(k++), x);
+  poke(component + kMorphWeights, data);
+  poke(component + kWeightCount, int32_t(w.size()));
+  poke(component + kWeightMax, int32_t(w.size()));
+}
+
+void test_morphs_written() {
+  Objects o;
+  const uintptr_t mesh = morph_mesh(o, 8);
+  const Part ghost = morph_part(o, mesh, 8, 8), small = morph_part(o, mesh, 2, 8);
+  uint8_t w[3] = {0, 255, 51};
+  const int16_t map[3] = {2, 0, -1}; // her third morph is not on this mesh
+  bool changed = false;
+  assert(write_morphs(o.objects, ghost, w, map, 3, 8, changed) == Io::ok && changed);
+  assert(weight(ghost, 2) == 0.f && weight(ghost, 0) == 1.f && weights_count(ghost) == 8); // the mesh's count
+  assert(active_count(ghost) == 1 && active_target(ghost, 0) == 0x7000 && active_index(ghost, 0) == 0);
+  assert(write_morphs(o.objects, ghost, w, map, 3, 8, changed) == Io::ok && !changed); // the same: no dirty call
+  w[0] = 128; // her first morph moves: mesh morph 2 active too, in mesh order
+  assert(write_morphs(o.objects, ghost, w, map, 3, 8, changed) == Io::ok && changed);
+  assert(std::fabs(weight(ghost, 2) - 128 / 255.f) < 1e-6f && active_count(ghost) == 2);
+  assert(active_target(ghost, 0) == 0x7000 && active_target(ghost, 1) == 0x7002 && active_index(ghost, 1) == 2);
+  w[1] = 0; // her second back to 0: only mesh morph 2 stays active
+  assert(write_morphs(o.objects, ghost, w, map, 3, 8, changed) == Io::ok && changed && weight(ghost, 0) == 0.f);
+  assert(active_count(ghost) == 1 && active_target(ghost, 0) == 0x7002);
+  poke(at<uintptr_t>(ghost.object + kActiveMorphs), uint64_t(0x7777)); // the entry changed under us: rewritten
+  assert(write_morphs(o.objects, ghost, w, map, 3, 8, changed) == Io::ok && changed &&
+         active_target(ghost, 0) == 0x7002);
+  // Refused, nothing written: SB emptied and freed ActiveMorphTargets, a capacity short, another morph count, another
+  // mesh, a part gone.
+  empty_active(ghost);
+  w[1] = 255;
+  assert(write_morphs(o.objects, ghost, w, map, 3, 8, changed) == Io::room && !changed && weight(ghost, 0) == 0.f);
+  assert(write_morphs(o.objects, small, w, map, 3, 8, changed) == Io::room && weight(small, 0) == 0.f &&
+         weights_count(small) == 0);
+  const Part other = morph_part(o, mesh, 8, 8);
+  assert(write_morphs(o.objects, other, w, map, 3, 7, changed) == Io::count && weights_count(other) == 0);
+  Part moved = other;
+  moved.mesh = morph_mesh(o, 8); // the display's mesh is no longer on it
+  assert(write_morphs(o.objects, moved, w, map, 3, 8, changed) == Io::gone);
+  kill(o, other.object);
+  assert(write_morphs(o.objects, other, w, map, 3, 8, changed) == Io::gone && weights_count(other) == 0);
+  // A null MorphTarget on the mesh: its weight is set, it is never active. Over 256 on the mesh: refused.
+  const uintptr_t holed = morph_mesh(o, 8);
+  poke(at<uintptr_t>(holed + kMorphTargets), uint64_t(0));
+  const Part on_holed = morph_part(o, holed, 8, 8);
+  const int16_t first[3] = {0, 1, -1};
+  assert(write_morphs(o.objects, on_holed, w, first, 3, 8, changed) == Io::ok && weight(on_holed, 0) > 0.5f);
+  assert(active_count(on_holed) == 1 && active_target(on_holed, 0) == 0x7001);
+  const uintptr_t many = morph_mesh(o, 257);
+  assert(write_morphs(o.objects, morph_part(o, many, 300, 300), w, first, 3, 257, changed) == Io::count);
+}
+
+void test_morphs_read() {
+  Objects o;
+  const Part her = part(o, 2, {0, 0, 0});
+  set_weights(o, her.object, {1.2f, -0.1f, 0.2f, std::nanf("")});
+  uint32_t clamped = 0;
+  uint8_t out[4] = {};
+  assert(read_morphs(o.objects, her, her.object, 4, out, clamped) == Io::ok);
+  assert(out[0] == 255 && out[1] == 0 && out[2] == 51 && out[3] == 0 && clamped == 3); // cut and counted
+  // A follower's own weights, through its morph_read component: a live one, read only.
+  const uintptr_t face = o.make(0x1200);
+  set_weights(o, face, {0.2f});
+  const Part follower{}; // no read line of its own
+  clamped = 0;
+  assert(read_morphs(o.objects, follower, face, 1, out, clamped) == Io::ok && out[0] == 51 && clamped == 0);
+  assert(read_morphs(o.objects, follower, face, 2, out, clamped) == Io::count); // more names than weights
+  poke(face + kAnimTask, uint64_t(1));
+  assert(read_morphs(o.objects, follower, face, 1, out, clamped) == Io::busy); // an anim task holds them
+  poke(face + kAnimTask, uint64_t(0));
+  poke(face + kMorphWeights, uint64_t(0));
+  assert(read_morphs(o.objects, follower, face, 1, out, clamped) == Io::null_array);
+  kill(o, face);
+  assert(read_morphs(o.objects, follower, face, 1, out, clamped) == Io::gone);
+  Part stale = her;
+  stale.mesh = 0xdead; // another mesh on her leader since the capture
+  assert(read_morphs(o.objects, stale, her.object, 1, out, clamped) == Io::gone);
+}
 } // namespace
 
 int main() {
@@ -576,6 +694,8 @@ int main() {
   test_free_relative_and_light();
   test_effect_on_drone_part();
   test_free_box_written();
+  test_morphs_written();
+  test_morphs_read();
 
   std::puts("pose_engine_test: ok");
 }

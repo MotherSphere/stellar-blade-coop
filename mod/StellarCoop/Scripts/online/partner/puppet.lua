@@ -15,7 +15,7 @@
 -- other bones is drawn on that mesh with the same remap (a head replacer this PC lacks still shows a head), and a part
 -- with no fallback is left out, with its followers. A part of a mod's outfit (its mod line) that is not drawn on its
 -- own mesh is named on screen once a generation. Parts hang as the table says (parent part, socket, placement) and
--- followers follow their leader (SetMasterPoseComponent). No morphs: a neutral face. With look.cloth (on unless
+-- followers follow their leader (SetMasterPoseComponent). With look.cloth (on unless
 -- coop-settings.txt says cloth=off, or coop look), a follower whose mesh has clothing assets (her ponytail) is a
 -- SkeletalMeshComponent whose cloth swings on its leader's bones, as hers does in solo: the bones only anchor the
 -- strands. Else it is a rigid Poseable like the rest, which draws her ponytail as one block. Its collision is the one
@@ -26,10 +26,12 @@
 -- MIN_TEXTURE seconds by the same rules as meshes. An instance or a setter that fails puts the plain material back for
 -- that ghost; a value gone from a later table puts it back too, and what is left goes on a new instance. By the same
 -- rule, such a part hides the material slots the table's hide line names (CNS's toggles and hidden slots: LOD 0, as
--- CNS), set again only when they change; a call that fails shows every slot, said once. No shape keys either: a leader
--- is a Poseable, which has no morph call, and UE 4.26's UpdateSlaveComponent zeroes a follower's SetMorphTarget weights
--- each tick when its master is not a SkeletalMeshComponent. With look.effects, her attack and
--- skill effects: the native part writes her six effect slots into boxes beside the mailbox, and place() starts the
+-- CNS), set again only when they change; a call that fails shows every slot, said once. With look.faces, her face and
+-- shape keys: each part drawn whose table part has morphs gets a morphs line in the display file, naming the morph of
+-- the same name on this PC's mesh for each of hers (none: -1). The native part writes her weights into that
+-- Poseable's own morph arrays at each pose. Never on the cloth follower, a SkeletalMeshComponent whose
+-- UpdateSlaveComponent resets them each tick, nor on a mesh past MAX_MORPHS. With look.effects, her attack and skill
+-- effects: the native part writes her six effect slots into boxes beside the mailbox. place() starts the
 -- Niagara system each names (an index into Capture.EFFECTS, or past it one her table's fx lines name by path, loaded
 -- by fetch()'s rules in a build step or one a tick after it, never in place()) on the part it hangs on, moves it with
 -- the slot and stops it when the slot changes, at most 8 starts a second. With look.drone, her drone: a free part of
@@ -84,6 +86,7 @@ local EFFECTS=Capture.EFFECTS -- What the wire's effect indexes name, for both p
 local MAX_EFFECT_ASSETS=64 -- The native part's kMaxEffectAssets: past EFFECTS, the indexes the table's fx lines name.
 local NIAGARA_SYSTEM='/Script/Niagara.NiagaraSystem'
 local MAX_STARTS=8 -- Effects started on one ghost in a second, at most: a peer's slots cannot flood the game.
+local MAX_MORPHS=256 -- The native part's kMaxPartMorphs: morphs on one part, hers or this PC's mesh's.
 -- What a peer's value lines may cost here. FNames are never freed, so a Lua load makes at most MAX_VALUE_NAMES; at most
 -- MAX_TEXTURES wait, one loaded each MIN_TEXTURE seconds.
 local MAX_VALUE_NAMES,MAX_TEXTURES,MIN_TEXTURE=1024,64,0.25
@@ -169,7 +172,8 @@ end
 -- in order, each with i (its index), lead and parent (indexes, nil for '-'), socket and path (nil for '-'), shown,
 -- bones, name, place (its 10 numbers as written; free instead for a free part, her drone), materials ({slot=, path=,
 -- values=}, slots rising), hidden (the hide line's slots, rising), cloth (its cloth's collision asset) and label (the
--- outfit a mod's mesh comes from), each nil without its line, and a leader's names.
+-- outfit a mod's mesh comes from), each nil without its line, a leader's names and morphs (its morph targets' names,
+-- nil without).
 -- values: a material's value lines, each {kind=, name=, text= (the rest of its line), x= (its numbers)}.
 local function parse_remote(file)
     if type(file)~='string' then return nil end
@@ -229,6 +233,12 @@ local function parse_remote(file)
             for name_of in names:gmatch('%S+') do part.names[#part.names+1]=name_of end
             if #part.names~=part.bones then return nil end
         end
+        local morph_index,morphs=take('^morphs (%d+) (%S.*)$')
+        if morph_index then
+            if tonumber(morph_index)~=part.i then return nil end
+            part.morphs={}
+            for name_of in morphs:gmatch('%S+') do part.morphs[#part.morphs+1]=name_of end
+        end
         t.parts[#t.parts+1]=part
     end
     t.fx={} -- The systems named by path: index to path.
@@ -241,11 +251,13 @@ local function parse_remote(file)
     end
     return #t.parts>0 and t or nil
 end
--- What must stay for a table to be applied to a ghost built from another under the same generation.
+-- What must stay for a table to be applied to a ghost built from another under the same generation: her poses' layout,
+-- her morphs among it.
 local function layout(t)
     local key={}
     for _,part in ipairs(t.parts) do
         key[#key+1]=tostring(part.lead)..':'..part.bones..':'..(part.path or '-')..(part.free and ':free' or '')
+            ..':'..(part.morphs and #part.morphs or 0)
     end
     return table.concat(key,' ')
 end
@@ -277,8 +289,8 @@ end
 -- Steam name, mod_assets() the assets our CNS packs declare and those of the mods both players have (path to
 -- outfit or container). capture gives yaw_delta(), the loopback's
 -- offset. say(text,en) puts a line on screen (en: the same in English); name_tag: the tag. look: what else the ghost
--- shows ({cloth=,dyes=,effects=,drone=true|false}, read at each build; nil: nothing more). words: the words for the
--- screen now (ui/text.lua's T.en or T.fr; English when nil). sentinel: online/partner/sentinel.lua's (none: nothing
+-- shows ({cloth=,dyes=,effects=,drone=,faces=true|false}, read at each build; nil: nothing more). words: the words for
+-- the screen now (ui/text.lua's T.en or T.fr; English when nil). sentinel: online/partner/sentinel.lua's (none: nothing
 -- marked or set aside). slot: the ghost slot whose files link gives (0 unless said).
 function Puppet.new(link,capture,say,name_tag,look,words,sentinel,slot)
     look,slot=look or {},slot or 0
@@ -946,6 +958,41 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel,slot)
                     if built.remap then lines[#lines+1]='remap '..part.i..' '..table.concat(built.remap,' ') end
                 end
             end
+            -- Her face and shape keys: per part drawn with morphs (never the cloth follower), each of hers named by
+            -- its index on the mesh drawn, the first of a name only. A mesh that cannot say gets none.
+            local cloth_of,faced={},0
+            for _,c in ipairs(g.cloth) do cloth_of[c]=true end
+            for _,part in ipairs(look.faces and t.parts or {}) do
+                local built=g.parts[part.i]
+                if built and part.morphs and not cloth_of[built.target] then
+                    local read,index=pcall(function()
+                        local of,n={},0
+                        each(built.mesh.MorphTargets,function(_,m)
+                            n=n+1
+                            m=valid(m)
+                            local name=m and word(text(m:GetFName()))
+                            if name and of[name]==nil then of[name]=n-1 end
+                        end)
+                        return {of=of,n=n}
+                    end)
+                    if not read then
+                        notes[#notes+1]=string.format('%s: morphs not drawn (%s)',part.name,tostring(index))
+                    elseif index.n>MAX_MORPHS then
+                        notes[#notes+1]=string.format('%s: morphs not drawn (%d on this mesh, over %d)',part.name,
+                            index.n,MAX_MORPHS)
+                    else
+                        local map,used={},{}
+                        for k,name in ipairs(part.morphs) do
+                            local j=index.of[name]
+                            map[k]=j and not used[j] and j or -1
+                            if j then used[j]=true end
+                        end
+                        lines[#lines+1]=string.format('morphs %d %s %s %s',part.i,hex(built.target),hex(built.mesh),
+                            table.concat(map,' '))
+                        faced=faced+1
+                    end
+                end
+            end
             local published,why=files.display(table.concat(lines,'\n')..'\n')
             g.built=true
             -- Her sounds (and her effects' events): what her game names, loaded for the native part to play.
@@ -976,6 +1023,7 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel,slot)
                 for _ in pairs(g.free) do n=n+1 end
                 looks[#looks+1]=string.format('drone parts %d',n)
             end
+            if look.faces then looks[#looks+1]=string.format('faces parts %d',faced) end
             if #looks>0 then line=line..'; look: '..table.concat(looks,', ') end
             if #notes>0 then line=line..'; '..table.concat(notes,'; ') end
             if value_note then line,value_note=line..' '..value_note,false end

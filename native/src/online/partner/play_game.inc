@@ -13,6 +13,8 @@
 // sounds latch (sound_game.inc): a fault turns her sounds off for the run on both sides and the ghost goes on.
 // Her world effects (Task 11) wait apart and play with SB's own spawn at a location, in the ghost actor's world, while
 // the effects look is on and the ghost has effect boxes: no gate but a shown ghost and no scene. Under their own latch.
+// Her face and shape keys (Task 12): the morph arrays of the ghost's parts Lua named reserved once a ghost, then the
+// dirty call for each part pose_game.inc wrote new weights into. Under the faces latch (pose_game.inc's).
 
 namespace coop::pose {
 namespace {
@@ -270,8 +272,57 @@ __declspec(noinline) void worldfx_body(uint64_t now_us) {
   }
 }
 
+// SB's own resizes of the two morph arrays (ResetMorphTargetCurves FUN_1441152f0 calls both, Ghidra, build 26123051):
+// FUN_140e4baa0 (array, n) for ActiveMorphTargets' 16-byte entries and FUN_140e6b160 (array, n) for MorphTargetWeights'
+// floats. Each asks GMalloc (the FMalloc at 0x1470703c0, camps::kMallocAt) for the quantized size (vtable +0x38),
+// reallocates the data (+0x20) and sets the max; each makes GMalloc when it is null (FUN_14283aeb0), so they run only
+// while it is set. The dirty call: 0x144124ef0, which both skinned vtables (0x1463e5a88 Poseable, 0x1463fcac8 its base)
+// hold at +0x960: it sets bit 0x80 of +0x98 (render dynamic data dirty) when bits 0 and 1 are set (registered, render
+// state made) and jumps to FUN_14408e610 (MarkForNeededEndOfFrameUpdate, this only).
+constexpr uint64_t kResizeActive = 0x140e4baa0, kResizeWeights = 0x140e6b160, kMarkDirty = 0x144124ef0;
+using ResizeArray = void (*)(uintptr_t array, int32_t n);
+using MarkDirty = void (*)(uintptr_t component);
+
+// Each frame while game calls are allowed: a drawn ghost's parts with a morph map get room for their mesh's morph count
+// in both arrays, once (a part not of the ghost then, or on a mesh past kMaxPartMorphs, keeps none and its writes are
+// refused); then each part marked since gets its dirty call, once. Out of line with plain values.
+__declspec(noinline) void faces_body(uint64_t &dirty) {
+  Live &live = *session;
+  if (!ghost_calls_ok())
+    return; // The marks wait.
+  const bool gmalloc = game::plausible(at<uintptr_t>(base + (camps::kMallocAt - game::kImageBase)));
+  for (const std::unique_ptr<Drawn> &slot : live.remotes) {
+    Drawn *g = slot.get();
+    if (!g || !g->drawn() || g->ghost_gone)
+      continue;
+    const Display &d = g->display;
+    if (!g->morphs_reserved && gmalloc) {
+      for (size_t i = 0; i < d.morph_map.size() && i < kMaxParts; ++i) {
+        const uintptr_t object = d.morph_map[i].empty() ? 0 : morph_target(*g, i);
+        const int32_t n = object ? at<int32_t>(static_cast<uintptr_t>(d.morph_part[i].mesh) + kMorphTargetCount) : 0;
+        if (n <= 0 || n > int32_t(kMaxPartMorphs))
+          continue;
+        g->mesh_morphs[i] = uint16_t(n);
+        if (at<int32_t>(object + kActiveMax) < n)
+          game_function<ResizeArray>(kResizeActive)(object + kActiveMorphs, n);
+        if (at<int32_t>(object + kWeightMax) < n)
+          game_function<ResizeArray>(kResizeWeights)(object + kMorphWeights, n);
+      }
+      g->morphs_reserved = true;
+    }
+    for (size_t i = 0; g->morphs_dirty && i < kMaxParts; ++i)
+      if (g->morphs_dirty & (1u << i)) {
+        g->morphs_dirty &= ~(1u << i);
+        if (const uintptr_t object = morph_target(*g, i)) {
+          game_function<MarkDirty>(kMarkDirty)(object);
+          ++dirty;
+        }
+      }
+  }
+}
+
 // Each frame on the game thread, pinned, with the engine on and before coop off: her sounds on every ghost under the
-// sounds latch, then her world effects under theirs.
+// sounds latch, then her world effects under theirs, then her face under its own.
 void play_tick() {
   if (!session)
     return;
@@ -291,6 +342,15 @@ void play_tick() {
       worldfx_faulted = true;
       sound_applying = false;
     }
+  }
+  if (!faces_faulted) {
+    uint64_t dirty = 0;
+    __try {
+      faces_body(dirty);
+    } __except (fault_filter(GetExceptionInformation(), faces_fault_code, faces_fault_rva, faces_fault_address)) {
+      faces_faulted = true;
+    }
+    window_faces_dirty += dirty;
   }
 }
 } // namespace

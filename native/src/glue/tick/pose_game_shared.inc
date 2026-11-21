@@ -54,28 +54,38 @@ struct Drawn {
   // counted.
   NameWait waiting, fx_waiting;
   uint64_t drawn_at = 0, waits_seen = 0, fx_waits_seen = 0;
+  // Her face and shape keys: her weights drawn this frame (table order). Partner's play_game.inc reserves the parts'
+  // morph arrays once (with each mesh's morph count) before pose_game.inc writes any. It makes the dirty call for the
+  // parts whose weights changed (a bit per remote part).
+  std::vector<uint8_t> draw_morphs;
+  bool morphs_reserved = false;
+  uint16_t mesh_morphs[kMaxParts] = {};
+  uint32_t morphs_dirty = 0;
   Drawn(Table r, Display d) : remote(std::move(r)), display(std::move(d)) {
     decoder.reset(pose_size(remote));
-    playback.reset(leader_bytes(remote));
+    playback.reset(leader_bytes(remote), morph_count(remote));
     draw.assign(leader_bytes(remote), 0);
+    draw_morphs.assign(morph_count(remote), 0);
     for (Effect &e : fx_drawn)
       e.asset = 0xff; // No slot's: the first frame drawn writes every box.
   }
   bool drawn() const { return display.generation && display.generation == remote.generation; }
 };
 // What the worker hands the game thread, all sized off the game thread: EVE's capture table with her pose, effect
-// slots and free parts' blocks as read for sending, and each ghost slot holding a remote table (null for an empty
-// slot).
+// slots, free parts' blocks and morph weights as read for sending, and each ghost slot holding a remote table (null
+// for an empty slot).
 struct Live {
   Table capture;
   std::vector<uint8_t> capture_bones;
   float capture_root[10] = {};
   Effect capture_fx[kEffectSlots];
   Free capture_free[kMaxParts]; // In table order; a free part not read keeps its place, hidden.
+  std::vector<uint8_t> capture_morphs; // Her morph weights in table order; a part not read keeps its last.
   KeyedEncoder encoder; // Her keyframe and the byte budget: a new Live starts with a keyframe.
   std::array<std::unique_ptr<Drawn>, kMaxRemote> remotes;
   explicit Live(Table c) : capture(std::move(c)) {
     capture_bones.assign(leader_bytes(capture), 0);
+    capture_morphs.assign(morph_count(capture), 0);
     encoder.reset(pose_size(capture));
   }
 };

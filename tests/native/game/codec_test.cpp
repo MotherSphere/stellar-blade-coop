@@ -234,11 +234,72 @@ void test_event_slots_as_units() { // kFreeTable's layout; key: a keyframe with 
   const char *why = decode_pose(t, full.data(), full.size(), h, root_back, bones_back.data(), fx_back, free_back, got);
   assert(why && std::string(why) == "event");
 }
+
+// Her face and shape keys: kFreeTable with part 0's three morph targets. A morph's byte comes after the event slots,
+// one exact unit each in a delta.
+void test_morph_bytes_as_units() {
+  std::string text = kFreeTable;
+  text.replace(text.find("names 0 a b\n"), 12, "names 0 a b\nmorphs 0 EyeL_Up EyeL_Down Smile\n");
+  const Table t = *parse_table(text, false);
+  const float root[10] = {0, 0, 0, 1, 0, 0, 0, 1, 1, 1};
+  const std::vector<uint8_t> bones(leader_bones(t) * kTransformBytes);
+  const Effect fx[kEffectSlots];
+  auto pose = [&](uint32_t s, const std::vector<uint8_t> &morphs) { // The pose of sequence s with these weights.
+    std::vector<uint8_t> out(pose_size(t));
+    uint32_t clamped = 0;
+    assert(encode_pose(t, {t.generation, s * kAgeUs, s, 0}, root, bones.data(), fx, out.data(), clamped, nullptr,
+                       nullptr, morphs.data()) == out.size());
+    return out;
+  };
+  const std::vector<uint8_t> key = pose(1, {0, 0, 0});
+  const std::vector<uint8_t> full = pose(2, {255, 128, 7});
+  assert(full[full.size() - 3] == 255 && full[full.size() - 2] == 128 && full.back() == 7); // the pose's last bytes
+  std::vector<uint8_t> delta(pose_size(t));
+  auto delta_of_morphs = [&](const std::vector<uint8_t> &m) {
+    const std::vector<uint8_t> next = pose(2, m);
+    return encode_delta(t, key.data(), next.data(), uint32_t(kAgeUs), delta.data(), delta.size());
+  };
+  assert(delta_units(t) == 3 * (2 + 3) + kEffectSlots + kEventSlots + 3);
+  assert(delta_of_morphs({0, 0, 0}) == delta_fixed(t));
+  const size_t n = delta_of_morphs({0, 1, 0});
+  assert(n == delta_fixed(t) + 1); // one unit, compared exactly: a bone field's tolerance would pass one step
+  std::vector<uint8_t> back(pose_size(t));
+  assert(apply_at(t, key, delta, n, back));
+  PoseHeader h;
+  float root_back[10];
+  std::vector<uint8_t> bones_back(bones.size());
+  Effect fx_back[kEffectSlots];
+  uint8_t m[3] = {9, 9, 9};
+  assert(!decode_pose(t, back.data(), back.size(), h, root_back, bones_back.data(), fx_back, nullptr, nullptr, m));
+  assert(m[0] == 0 && m[1] == 1 && m[2] == 0);
+  assert(!decode_pose(t, full.data(), full.size(), h, root_back, bones_back.data(), fx_back, nullptr, nullptr, m));
+  assert(m[0] == 255 && m[1] == 128 && m[2] == 7);
+  // No weights given: zeros. Any byte is a weight, so nothing in them refuses a pose.
+  std::vector<uint8_t> plain(pose_size(t));
+  uint32_t clamped = 0;
+  assert(encode_pose(t, {t.generation, kAgeUs, 1, 0}, root, bones.data(), fx, plain.data(), clamped) == plain.size());
+  assert(plain == key);
+  // Through the keyed pair: a keyframe, then a delta of one morph.
+  KeyedEncoder sender;
+  KeyedDecoder receiver;
+  sender.reset(pose_size(t));
+  receiver.reset(pose_size(t));
+  std::vector<uint8_t> wire = key;
+  size_t sent = sender.encode(t, wire.data(), wire.size(), 1 * kAgeUs);
+  assert(sent == wire.size() && !receiver.decode(t, wire.data(), sent, h, root_back, bones_back.data(), fx_back,
+                                                 nullptr, nullptr, m));
+  wire = pose(2, {0, 1, 0});
+  sent = sender.encode(t, wire.data(), wire.size(), 2 * kAgeUs);
+  assert(wire[2] == 'D' && sent == delta_fixed(t) + 1);
+  assert(!receiver.decode(t, wire.data(), sent, h, root_back, bones_back.data(), fx_back, nullptr, nullptr, m) &&
+         m[1] == 1);
+}
 } // namespace
 
 int main() {
   test_free_in_pose_and_delta();
   test_event_slots_as_units();
+  test_morph_bytes_as_units();
   const Table t = table();
   // 6 effect slots of 15, 4 event slots of 19.
   assert(pose_size(t) == kPoseHeader + 3 + kWorldBytes + kBoneBytes * kLeaderBones + 90 + 76);

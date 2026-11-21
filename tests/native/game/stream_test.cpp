@@ -251,6 +251,43 @@ void test_free_interpolated() { // between two frames: the place blended, the ne
   assert(sample_free(q, uint64_t((now_ms + 50) * 1000), f) && f[0].place[4] == 0 && f[0].state == 0);
 }
 
+// Her face and shape keys: a pose whose one morph weight is w, published at publication_us; the morph drawn at at (0:
+// the first pose, 1: the second, past 1 extrapolated) between a pose of a and one of b, 50 ms apart.
+void feed_morph(Playback &p, uint32_t sequence, uint64_t publication_us, uint8_t w) {
+  Playback::Frame &f = p.scratch();
+  f.sequence = sequence;
+  f.publication = publication_us;
+  assert(f.morphs.size() == 1);
+  f.morphs[0] = w;
+  assert(p.accept(publication_us));
+}
+uint8_t sample_morph(uint8_t a, uint8_t b, double at) {
+  Playback p;
+  p.reset(0, 1);
+  feed_morph(p, 1, 0, a);
+  feed_morph(p, 2, 50'000, b);
+  const double now_ms = at * 50 - p.display_ms(0); // display_ms(now) = now + display_ms(0)
+  float root[10];
+  Effect fx[kEffectSlots];
+  uint8_t morph = 77;
+  assert(p.sample(uint64_t(now_ms * 1000), root, nullptr, fx, nullptr, &morph));
+  return morph;
+}
+void test_morphs_interpolated() {
+  assert(std::abs(int(sample_morph(0, 255, 0.5)) - 128) <= 1);
+  assert(sample_morph(0, 255, 0) == 0 && sample_morph(0, 255, 1) == 255 && sample_morph(200, 200, 0.3) == 200);
+  assert(sample_morph(255, 0, 1.4) == 0 && sample_morph(0, 255, 1.4) == 255); // extrapolated, cut to a byte
+  Playback none; // No morph in the table: nothing written.
+  none.reset(0);
+  none.scratch().sequence = 1;
+  none.scratch().publication = 1;
+  assert(none.scratch().morphs.empty() && none.accept(1));
+  float root[10];
+  Effect fx[kEffectSlots];
+  uint8_t morph = 77;
+  assert(none.sample(100'000, root, nullptr, fx, nullptr, &morph) && morph == 77);
+}
+
 // Events (game/events.h): a pose of sequence seq published at publication_us, accepted with arrival = publication, its
 // event slot `slot` holding a sound of that serial; and a sample at now_us.
 void feed(Playback &p, uint32_t seq, uint64_t publication_us, uint8_t serial, size_t slot = 0) {
@@ -305,6 +342,7 @@ void test_first_sample_plays_nothing() { // Review Focus 2
 
 int main() {
   test_free_interpolated();
+  test_morphs_interpolated();
   test_first_sample_plays_nothing();
   // The hand-over on its own: a keyframe the worker has not taken stays and the delta is dropped; anything else is
   // swapped in, and a taken slot always is. A keyframe still in back when the next pose is encoded is lost.

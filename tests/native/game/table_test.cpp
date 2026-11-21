@@ -114,12 +114,12 @@ bool same(const Table &a, const Table &b, bool addresses) {
     const Part &p = a.eve[i], &q = b.eve[i];
     const Look &l = a.look[i], &m = b.look[i];
     if (p.bones != q.bones || p.leader != q.leader || p.free != q.free ||
-        (addresses &&
-         (p.object != q.object || p.cls != q.cls || p.mesh != q.mesh || a.look[i].light != b.look[i].light)))
+        (addresses && (p.object != q.object || p.cls != q.cls || p.mesh != q.mesh ||
+                       a.look[i].light != b.look[i].light || a.look[i].morph_read != b.look[i].morph_read)))
       return false;
     if (l.name != m.name || l.path != m.path || l.socket != m.socket || l.lead != m.lead || l.parent != m.parent ||
         l.shown != m.shown || l.names != m.names || l.materials != m.materials || l.cloth != m.cloth ||
-        l.label != m.label || l.values != m.values || l.hidden != m.hidden)
+        l.label != m.label || l.values != m.values || l.hidden != m.hidden || l.morphs != m.morphs)
       return false;
     for (int k = 0; k < 10; ++k)
       if (l.place[k] != m.place[k])
@@ -200,6 +200,111 @@ void test_display_free_box() {
                             "effects 0x31 0x32 0x33 0x34 0x35 0x36\n" + drive, remote)); // before effects
   assert(!parse_display("display 7\nmailbox 0x10 0x20\neffects 0x31 0x32 0x33 0x34\n" + drive, remote)); // 4 boxes
 }
+
+// Her face and shape keys: kFreeTable with part 0's morph target names, and a follower (her face on part 0).
+const std::string kFollower = "part 2 0 0 - 1 0 Mesh_Face " + kFace + "\nplace 2 0 0 0 1 0 0 0 1 1 1\n";
+std::string with_morphs() {
+  return with(kFreeTable, "names 0 a b\n", "names 0 a b\nmorphs 0 EyeL_Up EyeL_Down Smile\n");
+}
+std::string names_of(int n, const std::string &stem) { // " <stem>0 <stem>1 ..."
+  std::string s;
+  for (int i = 0; i < n; ++i)
+    s += " " + stem + std::to_string(i);
+  return s;
+}
+
+// A morphs line after a part's last line, one byte a morph in each pose; in the capture file a leader's comes before
+// its read line and a follower's is followed by its morph_read line.
+void test_morphs_line() {
+  const std::string t = with_morphs();
+  auto got = parse_table(t, false);
+  assert(got && got->look[0].morphs.size() == 3 && got->look[0].morphs[2] == "Smile" && got->look[1].morphs.empty());
+  assert(format_table(*got) == t && pose_size(*got) == 336 + 3 && morph_count(*got) == 3);
+  assert(!same_layout(*got, wire_table(kFreeTable)) && same_layout(*got, *got)); // the morphs change the pose
+  const std::string fol = t + kFollower + "morphs 2 Blink\n"; // a follower's weights are its own
+  auto f = parse_table(fol, false);
+  assert(f && format_table(*f) == fol && pose_size(*f) == 336 + 1 + 3 + 1); // the follower's status byte, 4 morphs
+  // The capture file: a leader's morphs before its read line, a follower's morph_read right after its morphs line.
+  const std::string local =
+      with(kFreeLocal, "names 0 a b\n", "names 0 a b\nmorphs 0 EyeL_Up EyeL_Down Smile\n") + kFollower +
+      "morphs 2 Blink\nmorph_read 2 0x5000\n";
+  auto l = parse_table(local, true);
+  assert(l && l->look[2].morph_read == 0x5000 && !l->look[0].morph_read && l->eve[0].object == 0x10);
+  assert(format_table(*l) == fol);
+  for (const std::string &bad : {
+           fol + "morph_read 2 0x5000\n",                                  // local only
+           with(fol, "morphs 2 Blink\n", "morph_read 2 0x5000\nmorphs 2 Blink\n"), // and after the morphs line
+       })
+    assert(!parse_table(bad, false));
+  for (const std::string &bad : {
+           with(local, "morph_read 2 0x5000\n", ""),                       // a follower's morphs need their component
+           with(local, "morph_read 2 0x5000", "morph_read 2 0x0"),         // null
+           with(local, "morph_read 2 0x5000", "morph_read 2 5000"),        // not hex
+           with(local, "morph_read 2 0x5000", "morph_read 1 0x5000"),      // another part's
+           with(local, "morph_read 2 0x5000\n", "morph_read 2 0x5000\nmorph_read 2 0x5001\n"), // twice
+           with(local, "read 0 0x10 0x20 0x30\n", "read 0 0x10 0x20 0x30\nmorph_read 0 0x5000\n"), // a leader: its read
+           with(local, "morphs 0 EyeL_Up EyeL_Down Smile\nread 0 0x10 0x20 0x30\n",
+                "read 0 0x10 0x20 0x30\nmorphs 0 EyeL_Up EyeL_Down Smile\n"), // a leader's after its read line
+           with(local, "morphs 2 Blink\n", ""),                            // a morph_read without morphs
+       })
+    assert(!parse_table(bad, true));
+  // Caps: 256 names on a part, 512 in a table, each name a word of at most 64 bytes.
+  const std::string three = "morphs 0 EyeL_Up EyeL_Down Smile";
+  assert(!parse_table(with(t, three, "morphs 0" + names_of(257, "m")), false));    // 257 on a part
+  std::string over = with(t, three, "morphs 0" + names_of(256, "m"));
+  assert(parse_table(over, false) && morph_count(*parse_table(over, false)) == 256);
+  over = with(over, "names 1 c d e\n", "names 1 c d e\nmorphs 1" + names_of(256, "n") + "\n"); // 512: the cap
+  assert(parse_table(over, false) && !parse_table(over + kFollower + "morphs 2 Blink\n", false)); // 513 refused
+  for (const std::string &bad : {
+           with(t, "Smile", "Smile " + std::string(65, 'x')),            // a name over 64 bytes
+           with(t, "names 0 a b\n" + three + "\n", three + "\nnames 0 a b\n"), // before the names line
+           with(t, "Smile\n", "Smile\nmorphs 0 Two\n"),                   // a second morphs line for one part
+           with(t, three, "morphs 0"),                                    // no name
+           with(t, "morphs 0 ", "morphs 1 "),                             // another part's
+           with(fol, "morphs 2 Blink\n", "morphs 2 Blink\nmod 2 Label\n"), // a follower's before its mod line
+       })
+    assert(!parse_table(bad, false));
+  // A pose past kMaxPose with its morphs is refused whole, as one with too many bones: 897 bones take 16366 bytes.
+  const std::string big = kSbt + "generation 7\nmap /game/x\npart 0 - - - 1 897 Body " + kBody + "\nnames 0" +
+                          names_of(897, "b") + "\n";
+  assert(parse_table(big, false) && pose_size(*parse_table(big, false)) == 16366);
+  assert(pose_size(*parse_table(big + "morphs 0" + names_of(18, "m") + "\n", false)) == kMaxPose);
+  assert(!parse_table(big + "morphs 0" + names_of(19, "m") + "\n", false));
+}
+
+// A display's morphs lines, after the drive lines: per remote morph of the part, the index of the morph of that name
+// on this PC's mesh or -1; the component written (a leader's drive object, or a follower's own part) and its mesh.
+void test_display_morphs() {
+  auto remote = *parse_table(with_morphs() + kFollower + "morphs 2 Blink\n", false);
+  const std::string head = "display 7\nmailbox 0x10 0x20\n",
+                    drive = "drive 0 0x50 0x60 0x70 2\ndrive 1 0x51 0x60 0x71 3\n",
+                    morphs = "morphs 0 0x50 0x70 2 -1 0\nmorphs 2 0x52 0x72 -1\n";
+  auto d = parse_display(head + drive + morphs, remote);
+  assert(d && d->morph_map[0] == std::vector<int16_t>({2, -1, 0}) && d->morph_map[1].empty() &&
+         d->morph_map[2] == std::vector<int16_t>({-1}));
+  assert(d->morph_part[0].object == 0x50 && d->morph_part[0].mesh == 0x70 && d->morph_part[2].object == 0x52 &&
+         d->morph_part[2].mesh == 0x72 && !d->morph_part[1].object);
+  auto plain = parse_display(head + drive, remote); // faces off: no morphs line
+  assert(plain && plain->morph_map.size() == 3 && plain->morph_map[0].empty() && plain->morph_map[2].empty());
+  assert(parse_display(head + drive + "morphs 2 0x52 0x72 0\n", remote));
+  for (const std::string &bad : {
+           head + drive + "morphs 0 0x50 0x70 2 -1\n",           // a word short
+           head + drive + "morphs 0 0x50 0x70 2 -1 0 1\n",       // a word more
+           head + drive + "morphs 0 0x50 0x70 2 -1 256\n",       // past 255
+           head + drive + "morphs 0 0x50 0x70 2 -2 0\n",         // below -1
+           head + drive + "morphs 0 0x50 0x70 2 x 0\n",          // not a number
+           head + drive + "morphs 0 0x50 0x70 2 2 0\n",          // two remote morphs on one of this mesh
+           head + drive + "morphs 1 0x51 0x71 0\n",              // a part without morphs
+           head + drive + "morphs 0 0x59 0x70 2 -1 0\n",         // a leader not on its drive object
+           head + drive + "morphs 0 0x50 0x79 2 -1 0\n",         // nor its loaded mesh
+           head + drive + "morphs 2 0x0 0x72 -1\n",              // null
+           head + drive + "morphs 2 0x52 0x0 -1\n",
+           head + drive + "morphs 2 0x52 0x72 -1\nmorphs 2 0x52 0x72 -1\n", // twice
+           head + "morphs 2 0x52 0x72 -1\n" + drive,             // before the drive lines
+           head + drive + "morphs 2 0x52 0x72 -1\ndrive 1 0x51 0x60 0x71 3\n", // a drive line after it
+       })
+    assert(!parse_display(bad, remote));
+}
 } // namespace
 
 int main() {
@@ -238,6 +343,8 @@ int main() {
   assert(!parse_table(kWire, true) && !parse_table(kLocal, false)); // Each form only where it belongs.
   test_free_part();
   test_display_free_box();
+  test_morphs_line();
+  test_display_morphs();
 
   // Refused: the good wire table with exactly one defect each.
   const std::string p0 = "part 0 - - - 1 3 CharacterMesh0 " + kBody + "\n", n0 = "names 0 Root Bip001 Bip001-Pelvis\n",
@@ -728,10 +835,14 @@ int main() {
     return text;
   };
   size_t accepted = 0;
-  const std::string *seeds_of[2][2] = {{&kWire, &kFreeTable}, {&kLocal, &kFreeLocal}}; // [local][free]
+  const std::string morph_wire = with_morphs() + kFollower + "morphs 2 Blink\n",
+                    morph_local = with(kFreeLocal, "names 0 a b\n", "names 0 a b\nmorphs 0 EyeL_Up EyeL_Down Smile\n") +
+                                  kFollower + "morphs 2 Blink\nmorph_read 2 0x5000\n";
+  const std::string *seeds_of[2][3] = {{&kWire, &kFreeTable, &morph_wire},
+                                       {&kLocal, &kFreeLocal, &morph_local}}; // [local][plain, free, morphs]
   for (int round = 0; round < 200000; ++round) {
     const bool is_local = round % 2;
-    auto t = parse_table(mutate(*seeds_of[is_local][round / 2 % 2]), is_local);
+    auto t = parse_table(mutate(*seeds_of[is_local][round / 2 % 3]), is_local);
     if (!t)
       continue;
     ++accepted;
@@ -747,6 +858,10 @@ int main() {
     for (size_t i = 0; i < t->eve.size(); ++i) // A free part is a leader after part 0, hung from nothing.
       assert((!t->eve[i].free || (i && t->eve[i].leader && t->look[i].parent == -1)) &&
              (!t->look[i].light || (is_local && t->eve[i].free)));
+    for (size_t i = 0; i < t->eve.size(); ++i) // A morph_read line names a follower's own weights, locally.
+      assert(t->look[i].morphs.size() <= kMaxPartMorphs &&
+             (!t->look[i].morph_read || (is_local && !t->eve[i].leader && !t->look[i].morphs.empty())));
+    assert(morph_count(*t) <= kMaxMorphs);
     for (const Look &l : t->look) {
       assert((l.path.empty() || path_allowed(l.path)) && (l.cloth.empty() || path_allowed(l.cloth)));
       assert(l.label.size() <= kMaxWord);

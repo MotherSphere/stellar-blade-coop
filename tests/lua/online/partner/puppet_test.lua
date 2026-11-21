@@ -443,6 +443,7 @@ local function remote_text(generation,parts,map)
         if p.cloth then lines[#lines+1]=string.format('cloth %d %s',i-1,p.cloth) end
         if p.label then lines[#lines+1]=string.format('mod %d %s',i-1,p.label) end
         if p.names then lines[#lines+1]='names '..(i-1)..' '..table.concat(p.names,' ') end
+        if p.morphs then lines[#lines+1]='morphs '..(i-1)..' '..table.concat(p.morphs,' ') end
     end
     return table.concat(lines,'\n')..'\n'
 end
@@ -1778,6 +1779,80 @@ actor=spawned[#spawned]
 assert(ok and message:find('^Ghost 964 built: 6 parts %(3 leaders%), .* 0 left out; '),message)
 assert(#actor.parts==6 and not displays[#displays]:find('\ndrive [678] '),displays[#displays])
 look.drone=nil
+end
+
+-- Her face and shape keys (look.faces): each part drawn with morphs in her table gets a morphs line in the display file
+-- after the drive lines: the component the native part writes (a leader's drive object, a follower's own part), its
+-- mesh, and per morph of hers the index of the morph of that name on this PC's mesh, -1 for none. Never the cloth
+-- follower: SB's UpdateSlaveComponent zeroes its weights each tick. A mesh past 256 morphs gets none, said in the build
+-- line. Off: none. A table whose parts carry other morph counts under the same generation is a new ghost.
+do
+local function remote_with_morphs()
+    local parts=her_parts()
+    parts[2].morphs={'EyeL_Up','Smile','Gone'} -- her face, a follower of her body
+    parts[3].morphs={'Hair_A','Hair_B'}        -- her hair, a leader
+    parts[4].morphs={'Pony_A'}                 -- her ponytail, on the cloth follower
+    return parts
+end
+meshes[FACE].MorphTargets={object('Smile'),object('EyeL_Up')}
+meshes[HAIR].MorphTargets={object('Hair_B')}
+meshes[PONY].MorphTargets={object('Pony_A')}
+local function display_lines(text)
+    local list={}
+    for line in (text or displays[#displays]):gmatch('[^\n]+') do list[#list+1]=line end
+    return list
+end
+local function has(lines,line) for _,l in ipairs(lines) do if l==line then return true end end return false end
+local function has_prefix(lines,prefix)
+    for _,l in ipairs(lines) do if l:sub(1,#prefix)==prefix then return true end end
+    return false
+end
+local function on_mesh(path)
+    for _,p in ipairs(spawned[#spawned].parts) do if p.mesh==meshes[path] then return p end end
+end
+local function build_with(look_of,generation)
+    ghost=new(nil,true,look_of)
+    ghost.toggle()
+    send(generation,remote_with_morphs())
+    ghost.tick()
+    clock=clock+2
+    return build()
+end
+ok,message=build_with({faces=true,cloth=true},970)
+local d=display_lines()
+local face_part,hair_part=on_mesh(FACE),on_mesh(HAIR)
+assert(ok and message:find('; look: cloth parts 2, faces parts 2',1,true),message)
+assert(has(d,string.format('morphs 1 0x%x 0x%x 1 0 -1',face_part.GetAddress(),meshes[FACE].GetAddress())),
+    'by name, -1 for a missing one: '..displays[#displays])
+assert(has(d,string.format('morphs 2 0x%x 0x%x -1 0',hair_part.GetAddress(),meshes[HAIR].GetAddress())),
+    'a leader: on its drive object')
+assert(not has_prefix(d,'morphs 3 '),'never the cloth follower')
+local last_drive
+for k,line in ipairs(d) do if line:find('^drive ') then last_drive=k end end
+for k,line in ipairs(d) do if line:find('^morphs ') then assert(k>last_drive,'after the drive lines') end end
+-- Off: none.
+ok=build_with({faces=false,cloth=true},971)
+assert(ok and not has_prefix(display_lines(),'morphs '),displays[#displays])
+-- Without cloth the ponytail is a plain Poseable follower: its morphs go too.
+ok=build_with({faces=true},972)
+assert(ok and has_prefix(display_lines(),'morphs 3 0x'),displays[#displays])
+-- A mesh past 256 morphs: none for that part, said in the build line.
+local many={}
+for k=1,257 do many[k]=object('M'..k) end
+meshes[FACE].MorphTargets=many
+ok,message=build_with({faces=true,cloth=true},973)
+assert(ok and not has_prefix(display_lines(),'morphs 1 ') and has_prefix(display_lines(),'morphs 2 ') and
+    message:find('Mesh_Face: morphs not drawn (257 on this mesh, over 256)',1,true),message)
+-- Another morph count under the same generation: a new ghost.
+meshes[FACE].MorphTargets={object('Smile'),object('EyeL_Up')}
+build_with({faces=true,cloth=true},974)
+local fewer=remote_with_morphs()
+fewer[2].morphs={'Smile'}
+remote_file=remote_text(974,fewer)
+count=count+1
+ok,message=ghost.remote(974,count,'loopback')
+assert(ok and message=='Ghost 974 removed (a new table).',tostring(message))
+meshes[FACE].MorphTargets,meshes[HAIR].MorphTargets,meshes[PONY].MorphTargets=nil,nil,nil
 end
 
 -- The solid partner (collide=on, on by default). Puppet.solid's rules a to g as a table, one case each, then the
