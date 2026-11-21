@@ -208,6 +208,11 @@ assert(said(o,'rank: refused P2: time')==1)
 assert(r.claim(2) and said(o,'rank: refused P1: time')==1)
 assert(r.cancel() and last(L.sent)=='void '..seed and r.round().why=='void' and last(o.stopped)=='void')
 assert(select(2,r.cancel())=='none')
+-- A claim still on the way when the host cancelled takes no target and logs no refusal: the host's checks ended too.
+n=#L.sent
+t=3010; L.from(P2,'claim '..seed..' 3'); L.from(P2,'claim '..seed..' 1'); r.tick()
+assert(r.round().board[3]==nil and r.round().h.phase=='over' and #L.sent==n,last(L.sent))
+assert(said(o,'rank: refused P2: again')==0)
 -- A voided round sends nothing more: no rank at its end + 10 s.
 t=3000+5+60+10; r.tick()
 assert(last(L.sent)=='void '..seed,last(L.sent))

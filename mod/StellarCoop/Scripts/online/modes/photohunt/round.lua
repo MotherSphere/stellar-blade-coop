@@ -74,6 +74,7 @@ function R.new(o)
     local function finish(why)
         if cur.phase~='play' then return end
         cur.phase,cur.why='over',why
+        if cur.h then cur.h.phase='over' end -- The host's checks take no claim of a round that ended.
         log(string.format('round %d: %s',cur.seed,why))
         if o.stop then o.stop(why) end
     end
