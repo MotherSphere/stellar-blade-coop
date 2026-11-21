@@ -1734,13 +1734,15 @@ function GunMode.new(env)
                     end
                 end
             end)
-            -- the game's aim stance turns her side-on; her mesh is turned back toward the aim (eased)
+            -- the game's aim stance turns her side-on; her mesh is turned back toward the aim (eased). A frame where the
+            -- aim dropped after a frame in it (each shot's skill) keeps the turn: each drop eased it a quarter of the way
+            -- back.
             pcall(function()
                 local m=mesh
                 if not s.mesh_rot then local r=m.RelativeRotation; s.mesh_rot={Pitch=r.Pitch,Yaw=r.Yaw,Roll=r.Roll}; s.mesh_yaw=0
                     s.mesh_at=g.path(m); keep() end -- (coop-gun.txt: her mesh turned back at a Lua reload)
                 local C=require('fight.gunmode.ik').CFG
-                local target=(hold_aim and s.tps) and C.aim_mesh_yaw or 0
+                local target=(hold_aim and (s.tps or s.tps_was)) and C.aim_mesh_yaw or 0
                 local dy=target-s.mesh_yaw
                 if math.abs(dy)>0.05 then
                     s.mesh_yaw=s.mesh_yaw+dy*0.25

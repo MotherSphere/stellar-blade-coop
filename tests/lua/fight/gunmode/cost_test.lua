@@ -632,7 +632,8 @@ end
 --     and back, with two writes of the file (about 40 a second in a burst). Hip fire (LMB without RMB) still faces her
 --     to the camera. The chest loop runs here on neutral math (no turn) with the rifle's muzzle on her root. Nor does
 --     gun mode fire its own round on such a frame: the game's aim fires its own. An aim dropped two frames in a row (a
---     jump or a dodge with RMB held) has gun mode fire from its second frame.
+--     jump or a dodge with RMB held) has gun mode fire from its second frame. Her mesh stays turned toward the aim
+--     through a drop: each drop eased it a quarter of the way back (about 19 degrees).
 do
     local w=world()
     local ML={IsValid=function() return true end,GetForwardVector=function() return {X=1,Y=0,Z=0} end,
@@ -656,16 +657,19 @@ do
     frames(gun,60)
     w.pawn.bTPSMode,w.down.RightMouseButton=true,true; frames(gun,30)
     w.down.LeftMouseButton=true
-    local flips=0
+    local flips,lo,hi=0,math.huge,-math.huge
     for i=1,90 do
         if i==31 then saves,flips=0,0 end
         w.pawn.bTPSMode=i%3~=0
         local was=move.bOrientRotationToMovement
         frames(gun,1)
         if move.bOrientRotationToMovement~=was then flips=flips+1 end
+        local yaw=w.mesh.RelativeRotation.Yaw
+        lo,hi=math.min(lo,yaw),math.max(hi,yaw)
     end
     assert(flips==0 and saves==0,('20 drops in 1 s: her facing turned over %d times, coop-gun.txt written %d times')
         :format(flips,saves))
+    assert(lo<-150 and hi-lo<1,('her mesh turned between %.1f and %.1f deg through the drops'):format(lo,hi))
     assert(gun.state.next_shot==0,'gun mode fired its own round on a drop frame')
     w.pawn.bTPSMode=true; frames(gun,1)
     w.pawn.bTPSMode=false; frames(gun,1)
