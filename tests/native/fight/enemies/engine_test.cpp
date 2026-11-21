@@ -4274,15 +4274,17 @@ int main() {
     assert(G.cast_ids(931, op).empty() && eg->finisher() == 1 && !eg->latched());
   }
   // guest_exec_gates: with boss_finish=first, aggro=host and same place off, her takedown marker on her boss copy in
-  // its Finish stance (931) sends exec 1; a common enemy's (932) sends nothing, as today.
-  {
+  // its Finish stance (931) sends exec 1; a common enemy's (932) sends nothing, as today. With boss_finish=host both
+  // gates hold for the boss copy too.
+  for (const bool first : {true, false}) {
     Game G;
     auto eg = engine(false, false);
     eg->allow(nullptr, 0);
     eg->set(true, false);
     G.spawn(931, 31, 0, 15005100, 1600, kTypeBoss);
     G.spawn(932, 32, 0, kChar, 1600);
-    for (const char *line : {"SBF25 world 1", "SBF25 aggro 1 host", "SBF25 bosses 1 100 first",
+    for (const char *line : {"SBF25 world 1", "SBF25 aggro 1 host",
+                             first ? "SBF25 bosses 1 100 first" : "SBF25 bosses 1 100 host",
                              "SBF25 up 1 101 31 0 15005100 1600", "SBF25 up 1 102 32 0 900 1600"})
       G.inbox.push_back(msg(line));
     uint64_t t = 0;
@@ -4291,12 +4293,12 @@ int main() {
         frame(G, *eg, t);
     };
     run(500);
-    assert(eg->guest.linked() == 2 && eg->guest.host_only() && !G.table.on);
+    assert(eg->guest.linked() == 2 && eg->guest.host_only() && !G.table.on && eg->guest.finish_first() == first);
     lines(G);
     G.knock(931, kDeathReady);
     G.knock(931, 5000039);
     run(t + 100);
-    assert(lines(G) == "SBF25 exec 1 101 1\n");
+    assert(lines(G) == (first ? "SBF25 exec 1 101 1\n" : ""));
     G.knock(932, 5000039);
     run(t + 100);
     assert(lines(G).empty());
@@ -4385,6 +4387,41 @@ int main() {
     H.hit(130, kHp, 1);
     run(t + 50);
     assert(H.dying(130) && !eh->latched());
+  }
+  // own_press_first (Review Focus 4, the engine's order): our marker and her exec 1 in the same turn. Our press goes
+  // before her lines, so ours wins and hers is refused. Our own copy then gets no guard: our finisher ends it.
+  {
+    Game H;
+    auto eh = engine(false, true);
+    eh->allow(nullptr, 0);
+    eh->bosses(100, true);
+    eh->set(true, true);
+    H.spawn(130, 30, 0, 15005100, 1600, kTypeBoss);
+    H.knock(130, kImmortalRow);
+    H.inbox.push_back(msg("SBF25 on"));
+    uint64_t t = 0;
+    const auto run = [&](uint64_t until) {
+      for (; t <= until; t += 16)
+        frame(H, *eh, t);
+    };
+    run(200);
+    H.mem.put(H.stat_at(130, kHp), 1.f);
+    H.knock(130, kDeathReady);
+    run(t + 50);
+    lines(H);
+    const std::string gen = std::to_string(eh->host.gen());
+    const uint64_t op = H.ops;
+    H.knock(130, 5000039); // Our marker, read in the pass of the turn her exec 1 comes in.
+    H.inbox.push_back(msg("SBF25 exec " + gen + " 130 1"));
+    frame(H, *eh, t);
+    t += 16;
+    const std::string l = lines(H);
+    assert(eh->host.finisher(130) == kHostMember && eh->finisher() == kHostMember);
+    assert(has(l, "SBF25 fin " + gen + " 130 0\n") && !has(l, "SBF25 fin " + gen + " 130 1"));
+    assert(count(H, "finisher", "ours") == 1 && count(H, "exec refused", "another member won") == 1);
+    run(t + 300);
+    assert(H.cast_ids(130, op).empty() && count(H, "finish guard") == 0 && count(H, "finish refused") == 0);
+    assert(!has(lines(H), " fin ") && !eh->latched());
   }
   // fin_on_the_line: the fight= line's fin= while the mode on runs as the host, live from the job: - until her press
   // wins, then 1.

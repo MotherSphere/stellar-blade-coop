@@ -569,7 +569,7 @@ private:
   template <class Game> void bosses(Game &g, uint64_t logic, size_t n, bool census, uint64_t now);
   // The finish guard: each copy of local (hguid: the host's GUIDs) that want(i) names, in its Finish stance this pass,
   // gets FinishReady_Dispel, then its own Passive_Immortal back, in that turn, each turn the stance shows. So hits stop
-  // at 1 HP, and the finisher prompt never stays on this side. Captured before its first calls (kGuard) and held while
+  // at 1 HP. The finisher prompt never stays on this side. Captured before its first calls (kGuard) and held while
   // the pair lasts and want names it: a pair that goes another way (the host's down or world, the link, coop fight
   // off, a latch, a winner forgotten at her off) takes our Immortal off with it. Her winning kill on the host's side
   // takes the capture off first (write()).

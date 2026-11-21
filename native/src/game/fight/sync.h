@@ -1203,8 +1203,8 @@ public:
   }
   // Phase 3, the engine's, each turn before her claims are applied (they wait for step()): our copy of guid shows a
   // takedown marker in its Finish stance, our own finisher press. It wins a boss with no winner yet, so in one turn
-  // ours comes before hers (7b2's guests would then go by member number), and she hears fin. After another member won,
-  // it is refused, logged once a boss.
+  // ours comes before hers (7b2's guests would then go by member number). She hears fin. After another member won, it
+  // is refused, logged once a boss.
   template <class Io> void own_press(uint32_t guid, uint64_t, Io &io) {
     Enemy *e = boss_ ? find(guid) : nullptr;
     if (!e || !e->boss || e->died)
@@ -1739,7 +1739,7 @@ private:
     ++counts.execs;
     won(e, kPairMember, io);
   }
-  // member wins e: logged, and she hears fin now unless our whole list goes to her first (it carries the winners).
+  // member wins e: logged. She hears fin now unless our whole list goes to her first (it carries the winners).
   template <class Io> void won(Enemy &e, uint8_t member, Io &io) {
     e.winner = member, e.fin_until = 0;
     io.event(Event{"finisher", member == kHostMember ? "ours" : "hers", e.guid, e.spawn, e.index});

@@ -3490,6 +3490,19 @@ int main() {
       step(h, hw, 5, 500);
       assert(!has(hw.lines(), " fin "));
     }
+    { // finish_won_at_her_on: our press wins in the turn her on comes. The whole list carries the fin, once, after
+      // every up.
+      World hw;
+      Host h;
+      host(hw, h, true);
+      h.receive(msg("SBF25 on"), 300, hw);
+      h.own_press(101, 300, hw);
+      step(h, hw, 2, 300);
+      const std::string l = hw.lines();
+      const size_t fin = l.find("SBF25 fin 1 101 0\n");
+      assert(h.finisher(101) == kHostMember && fin != std::string::npos);
+      assert(fin == l.rfind("SBF25 fin ") && fin > l.rfind("SBF25 up "));
+    }
   }
   { // Phase 3, the guest: the host's boss_finish from its bosses line and its fin for a pair it announced, at its
     // generation, until its next world, on or off.
