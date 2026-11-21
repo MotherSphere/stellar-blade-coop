@@ -114,6 +114,12 @@ std::atomic<uint64_t> window_sent{0}, window_sent_bytes{0}, window_clamped{0}, w
 std::atomic<uint64_t> window_fx_started{0}, window_fx_over{0}, window_fx_unlisted{0}, window_fx_written{0};
 std::atomic<int64_t> window_lag_us{0}, window_behind_us{0};
 std::atomic<const char *> last_reject{"none"}; // decode_pose's reason.
+// The ghost bench's game thread half, online/partner/bench_game.inc's (after this part): game_tick hands it each
+// frame's new list, gap, own time and her Live.
+void bench_take();
+void bench_gap(uint64_t gap_us);
+void bench_tick(uint64_t us);
+void bench_stream(const Live &live);
 
 // The encoded pose to the worker (m held): replaces one it has not taken yet, which the receiver counts missing; but a
 // keyframe not taken yet stays and a delta, which names it, is dropped instead (keeps_waiting, in game/codec.h's
@@ -486,6 +492,7 @@ void game_tick() {
   if (last_call.QuadPart) {
     uint64_t gap = micros_between(last_call, now);
     raise_max(window_max_gap_us, gap);
+    bench_gap(gap);
     if (gap > 100000) {
       ++window_long_gaps;
       FILETIME utc;
@@ -524,6 +531,7 @@ void game_tick() {
       asset_named.swap(asset_waiting);
     m.unlock();
   }
+  bench_take();
   if (asset_keys_stale) {
     asset_keys.clear();
     asset_waiting.clear();
@@ -536,6 +544,8 @@ void game_tick() {
     stream(micros_now(now));
   else
     window_foreign += game_inbox_count; // No table at all: nothing to decode them with.
+  if (session)
+    bench_stream(*session); // After the members' ghosts.
   game_inbox_count = 0;
   LARGE_INTEGER done;
   QueryPerformanceCounter(&done);
@@ -543,6 +553,7 @@ void game_tick() {
   window_ticks++;
   window_us += us;
   raise_max(window_max_us, us);
+  bench_tick(us);
 }
 
 void guarded_tick() {

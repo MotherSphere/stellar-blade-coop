@@ -274,6 +274,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX // std::min and std::max in game/stream.h.
 #include <windows.h>
+#include <psapi.h> // K32GetProcessMemoryInfo, for the ghost bench (online/partner/bench_worker.inc).
 #include <xinput.h>
 
 #include <intrin.h>
@@ -336,6 +337,7 @@
 #include "online/partner/record.h"
 #include "online/partner/drone.h"
 #include "online/partner/sound.h"
+#include "online/partner/bench.h"
 #include "game/stream.h"
 #include "game/quests/engine.h"
 #include "story/quests/own.h"
@@ -351,6 +353,7 @@
 // After pose_game_shared.inc (base, objects, fault_filter, Live) and before pose_game.inc, which drains its rings.
 #include "online/partner/sound_game.inc"
 #include "online/partner/pose_game.inc"
+#include "online/partner/bench_game.inc" // After pose_game.inc: its current_part and raise_max; its game_tick calls it.
 #include "glue/tick/fight_game_shared.inc"
 #include "fight/enemies/fight_game.inc"
 #include "glue/tick/freeze_game_shared.inc"
@@ -407,6 +410,7 @@
 #include "online/lobby/sbo_game.inc"
 #include "online/lobby/cycle_game.inc" // After sbo_game.inc: its sbo_global and DifficultyOf.
 #include "glue/tick/worker.inc"
+#include "online/partner/bench_worker.inc" // After worker.inc: its dir, read_file, capture and sent_table.
 #include "glue/tick/saves_worker_shared.inc"
 #include "online/saves/saves_worker.inc"
 #include "glue/tick/fight_worker_shared.inc"

@@ -49,6 +49,7 @@ bool sounds_fault_logged = false, worldfx_fault_logged = false;
 bool faces_fault_logged = false; // Her face and shape keys (online/partner/pose_game.inc): their fault.
 bool push_fault_logged = false;  // Enemies out of a shown ghost (fight/enemies/push_game.inc): its fault.
 void sound_pass(bool sounds);
+void bench_pass(uint64_t now_ms); // online/partner/bench_worker.inc's, after this part: the ghost bench's files.
 uint32_t travel_logged = 0, travel_watch_logged = 0, travel_alias_ask = 0;
 std::string travel_alias;
 uint64_t next_poll = 0, next_counters = 0;
@@ -870,6 +871,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     event("new Lua session: capture and ghost dropped");
   }
   take_capture(now_ms);
+  bench_pass(now_ms);
   for (size_t k = 0; k < kMaxRemote; ++k) {
     if (remotes[k].table.generation)
       take_display(k);
