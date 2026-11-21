@@ -503,17 +503,15 @@ function GunMode.new(env)
         end
         return items
     end
-    -- For the log (fix list item 4: the shot sound gone after a few rifle outs): her audio components, or every one
-    -- (all: FindAllOf, a walk of the object array), with the number that play (UAudioComponent's IsPlaying, exec
-    -- 0x1446ef250 on 26123051; its Sound, params near 0x1464f8fb0). SB's show sound keys (0x142465a60) create their
-    -- component through 0x1441ff120 with the show's actor as owner, unless it comes from the audio pool (0x1440228e0),
-    -- which gives it another owner: a sound that never ends or a refused spawn shows in one of the two counts.
+    -- For the log (fix list item 4: the shot sound gone after a few rifle outs): her audio components with the number
+    -- that play (UAudioComponent's IsPlaying, exec 0x1446ef250 on 26123051; its Sound, params near 0x1464f8fb0). SB's
+    -- show sound keys (0x142465a60) create their component through 0x1441ff120 with the show's actor as owner, unless
+    -- it comes from the audio pool (0x1440228e0), which gives it another owner. A count over every owner (FindAllOf, a
+    -- walk of the object array) took 60 to 90 ms in the middle of a burst: none is made.
     local AUDIO='/Script/Engine.AudioComponent'
-    local function sounds(p,all)
+    local function sounds(p)
         local cls=g.find(AUDIO)
-        local items
-        if all then items=g.try(function() return FindAllOf('AudioComponent') end) or {}
-        else items=p and g.valid(cls) and components(p,cls) end
+        local items=p and g.valid(cls) and components(p,cls)
         if not items then return 'unreadable' end
         local playing,names=0,{}
         for _,c in ipairs(items) do
@@ -1483,9 +1481,9 @@ function GunMode.new(env)
                 g.log(('round #%d: to %s, reticle point %s, %.2f deg apart from the camera (spread %.1f)'):format(
                     s.shots,v(to),v(s.target),Aim.apart(to,s.target,s.cam_loc),spread))
             end) end
-            if s.shots>=30 and not s.snd_logged then -- (every owner's for the first 6 outs of a Lua load: a walk, 60-90 ms)
-                s.snd_logged=true; s.snd_walks=(s.snd_walks or 0)+1
-                g.log('sounds while firing: hers '..sounds(p)..(s.snd_walks<=6 and '; every owner '..sounds(nil,true) or ''))
+            if s.shots>=30 and not s.snd_logged then
+                s.snd_logged=true
+                g.log('sounds while firing: hers '..sounds(p))
             end
             -- The muzzle flash on Luke's rifle, once a frame that rounds went out: the NIKKE shot's own flash is on
             -- the NIKKE rifle of her hidden real body (the fire round her waist), which the pak's show drops.

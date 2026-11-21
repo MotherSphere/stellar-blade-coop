@@ -175,7 +175,7 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   During the rifle's arrival TPSMode
   has no key (RMB and LT included). A pause keeps it so. Once the arrival is over it moves to RMB. The 'off' line
   counts the rounds the game's aim fired. Her audio components and the ones playing are logged after 30 rounds and at
-  each off. With `gun_fire=own` the 60th shot starts a reload, no shot leaves while it runs and the shots go on after
+  each off, with no walk of every audio component. With `gun_fire=own` the 60th shot starts a reload, no shot leaves while it runs and the shots go on after
   it, also after the player's reload. The free magazines keep their count when the rifle goes away and comes out
   again. A new controller while the rifle is away fills them again. Without the rifle layer the jump or dodge bridge fires gun mode's own shot. Hip fire then fires nothing.
   A round fired in the double-jump flip keeps the bore's destination to the frame's end. In the game's aim the
