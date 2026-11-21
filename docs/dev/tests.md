@@ -224,7 +224,10 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   number after 1 s, the numbers from 32768;
 - `online/partner/capture_test` also covers SBO's bike left out of the parts while EVE does not ride (`leave_out`, asked
   once a look): an outfit of 16 parts keeps them all; while she rides the bike is part 1 and the last follower goes;
-  getting on or off starts a new generation; another component on the bike's mesh stays a part;
+  getting on or off starts a new generation; another component on the bike's mesh stays a part; her body on the bike's
+  rig (`pose_source`, asked once a look): her main mesh and two followers give the table without the rig except part
+  0's `read` object, a new generation; on another mesh the rig's bone count, bone names and morph names; no table for a
+  rig `pose_source` does not name or one without a mesh;
 - the ghost's drone, sounds and faces looks: `core/link_test` reads `drone`, `sounds` and `faces` (each on unless set;
   a bad value keeps it on with a line) and gives a file with 0.11's ghost comment the new comment once, with a line that
   names no setting. `coop-state.txt` gets `sounds=0` when the sounds look is off, nothing when it is on or not given.
@@ -418,10 +421,11 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   D-pad Right hold with a refusal on screen, the hold ignored with its reason logged at the title, with one of our
   screens open or with the game paused, the restore, the frame and the 250 ms pass with an end said on screen, the
   Options rows, `coop off`; `riding()` as `coop emote`, the race, the hall seats, `coop fly on` and `coop glide on` read
-  it; the ride's `idle_part` as the capture's `leave_out`; what the parked bike gets (the menu's words, a notice, SB's
-  text by table path, the travel worlds, its record through the link's files, `coop-bike-stand.txt`, its bike line
-  through `link.bike`, the paid fetch with `coop gift`'s FName and pause rules, the follow's `camp_near`); the other
-  players' parked bikes built, restored at the first tick, run after the ride's pass and cleared at `coop off`;
+  it; the ride's `idle_part` as the capture's `leave_out` and its `pose_source` as the capture's; what the parked bike
+  gets (the menu's words, a notice, SB's text by table path, the travel worlds, its record through the link's files,
+  `coop-bike-stand.txt`, its bike line through `link.bike`, the paid fetch with `coop gift`'s FName and pause rules, the
+  follow's `camp_near`); the other players' parked bikes built, restored at the first tick, run after the ride's pass
+  and cleared at `coop off`;
 - `world/daynight/wiring_test` covers the day and night cycle's wiring (`world/daynight/wiring.lua`) through `main.lua`
   with a fake `world/daynight/daynight.lua`: what it is built with (the native asks and status, the `daynight` setting
   (no cutscene or screen read), photo mode, Night Operation, the SBO lobby in Xion's training room only, the third-party

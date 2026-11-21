@@ -213,7 +213,7 @@ destroys the rig while photo mode is open. A Ctrl+R does ([After Ctrl+R](#after-
 photo mode reads of her own bones while she follows the rig was not read in Ghidra.
 
 `self.pose_source(at)` on the bike table is the rig's component while the EVE at address `at` rides the rig way, else
-nil. It makes no engine call. The capture in `online/partner` does not read it yet ([Ghosts](#ghosts)).
+nil. It makes no engine call. The capture in `online/partner` asks it at each look ([Ghosts](#ghosts)).
 
 ### After Ctrl+R
 
@@ -528,10 +528,23 @@ first 250 ms pass removes it. While the bike module is off (it failed to load), 
 earlier Lua load left may still be on her: `online/partner/bike_part.lua`, the partner's own copy of the ride's part
 lookup, answers that part's address by its tag ([Modules and isolation](../dev/architecture.md#modules-and-isolation)).
 
-On the rig way the capture does not follow the rig yet. Her main mesh has a leader outside her part list (the rig's
-component), so `capture.lua` takes no part for it and publishes no table while she rides. The other players keep the
-table published before the mount: her ghost without the bike. What its pose shows then was not read. On the hold way
-the capture works as above. `pose_source` ([The rig](#the-rig)) is the export the capture is to read.
+On the rig way her main mesh and the parts that followed it copy the rig's component, which is no part of hers.
+`online/partner/wiring.lua` gives `capture.pose_source` the ride's `pose_source` ([The rig](#the-rig)), which the
+capture asks once a look with her actor's address. A part of hers whose leader is that component is mapped. Her main
+mesh gets no leader. Any other part gets her main mesh as its leader. The table is then the one of the hold way, except
+part 0's `read` line, which names the rig's component (object, class, mesh). Part 0's bone count, bone names and morph
+names come from the rig's mesh too: the native part checks the rig's bone count (`+0x8c8`) against the table's. That
+mesh is her body mesh, or `Ride.SPARE` when her body is on another skeleton than the clip's. With the spare, the viewer
+draws part 0 by bone name, as for any mesh whose bone count differs from the table's (`online/partner/puppet.lua`). A
+change of the rig's component or of its mesh starts a new generation.
+
+The native `read_pose` (`game/partner/engine.h`) reads part 0's world transform (`+0x1f0`) and bones (`+0x8c0`, count
+`+0x8c8`) from part 0's `read` object: the rig's component. The rig is snapped to her main mesh, so both transforms
+should match. This was not checked in game. The native effect read walks the attach children of
+each leader's `read` object: effects hung on her main mesh do not reach the ghost while she rides this way. A pose
+source with no mesh gives no table. So does a rig that `pose_source` does not name (after Ctrl+R, before the release):
+the other players keep the table published before. On the hold way `pose_source` answers nil and the capture works as
+above.
 
 While she rides, the part has no `MasterPoseComponent`, so `capture.lua` ranks it with the leaders, ahead of every
 follower. With `MAX_PARTS` at 16, an EVE with 16 skeletal parts or more loses the last follower of her outfit from every

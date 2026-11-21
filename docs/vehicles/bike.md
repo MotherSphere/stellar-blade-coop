@@ -225,9 +225,9 @@ player who joins later gets every member's bike at the handshake. Nobody rides a
 your own. With `bike=off`, your bike leaves every world and your game shows nobody else's parked bike, since that
 setting frees the bike's files.
 
-With `bike_pose=rig` the ghost does not read the hidden copy yet. While you ride, the other players keep your ghost as
-it was before you got on, with no bike under it. How it moves then has not been checked. With `bike_pose=hold` they
-see her on the bike as described above.
+With `bike_pose=rig` your ghost takes her pose from the hidden copy, so the other players see her on the bike as with
+`bike_pose=hold`. Effects that play on EVE while she rides this way do not show on your ghost. This has not been
+checked in game yet.
 
 Getting on or off may show two bikes or none for about 2 s in your friend's game: the copy changes at once while your
 ghost is built again with or without the bike.
