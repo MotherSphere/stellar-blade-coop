@@ -3,7 +3,7 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- online/partner/commands.lua's coop look over a fake ghost: each of the six looks (cloth, dyes, effects, drone, sounds,
 -- faces) changes in the table the ghost holds and builds the ghost again; any other word gets the usage with nothing
--- changed; no argument prints the looks with the help that names the six.
+-- changed; no argument prints the looks with the help that names the six. Then coop bench over a fake bench.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Partner=require('online.partner.commands')
 local look={cloth=true,dyes=true,effects=true,drone=true,sounds=true,faces=true}
@@ -35,4 +35,20 @@ for _,name in ipairs({'cloth','dyes','effects'}) do
     assert(select(2,run(name..' off')):find('^'..word..' off until the mod reloads') and look[name]==false,name)
 end
 assert(#rebuilds==6 and rebuilds[6]=='look')
+-- coop bench: ghosts and its words reach the bench, off alone ends it, no word gives its status, anything else the
+-- usage. Without the native part there is no bench.
+local Bench=require('online.partner.bench')
+local asked={}
+local bench={ghosts=function(...) asked[#asked+1]=table.concat({...},' '); return true,'on' end,
+    off=function(why) asked[#asked+1]='off: '..why; return true,'off' end,status=function() return 'Bench off.' end}
+p=Partner.new({puppet=puppet,look=look,bench=bench})
+assert(p.bench('ghosts','16','mid','ring','40')==true and asked[1]=='16 mid ring 40')
+assert(p.bench('off')==true and asked[2]=='off: coop bench off')
+assert(select(2,p.bench())=='Bench off.')
+for _,bad in ipairs({{'off','now'},{'size'}}) do
+    ok,usage=p.bench(table.unpack(bad))
+    assert(ok==false and usage==Bench.USAGE and #asked==2,table.concat(bad,' '))
+end
+ok,usage=Partner.new({puppet=puppet,look=look}).bench('ghosts','2')
+assert(ok==false and usage=='the native tick is unavailable')
 print('online.partner_commands_test ok')

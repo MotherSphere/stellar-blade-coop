@@ -2226,6 +2226,12 @@ send(902,{modded()[1],modded()[2]},'peer')
 build()
 assert(#said==said_before+2,'basesuit: not said')
 ghost.basesuit()
+-- A bench tier's look.basesuit (online/partner/bench.lua's far ghosts) likewise.
+look.basesuit=true
+send(9020,{modded()[1],modded()[2]},'peer')
+ok,message=build()
+assert(ok and spawned[#spawned].parts[1].mesh==meshes[BASE_BODY] and #said==said_before+2,'look.basesuit: not said')
+look.basesuit=nil
 -- A mesh of her pack with no Skeleton would crash the game on a Poseable: it counts as missing, on the base body.
 local NO_SKELETON='/Game/Mods/Foo/No_Skeleton.No_Skeleton'
 mesh(NO_SKELETON,{'Root','Bip001','Bip001-Pelvis'})
