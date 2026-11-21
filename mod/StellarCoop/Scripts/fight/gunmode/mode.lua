@@ -1751,8 +1751,6 @@ function GunMode.new(env)
         end
         if s.prof then s.prof('hide') end
         if set.native and set.upper then pcall(hold_pose,p,inp.fire) end
-        -- In firing mode, ten times a second: the NIKKE bullet's start put on the rifle's muzzle and its destination
-        -- on the crosshair point (each shot writes the destination again).
         if s.prof then s.prof('pose') end
         -- In firing mode, every frame (SB reads the row when a round spawns): the NIKKE bullet's start on the rifle's
         -- muzzle and its destination on this frame's crosshair point, moved at random within the spread.
