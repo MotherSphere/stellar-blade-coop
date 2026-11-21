@@ -273,8 +273,10 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   and `hall=` fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty)
   and never from a player's name; the `shared_world`, `shared_story`, `daynight`, `pause_tab` and `hide_popups`
   settings (the `sky=` line kept out of the `link:` lines); `bike` and `bike_key` (an older
-  file whose keys hold F3 gets no bike key); `gun_mode` and `gun_key` (F4 by default, G refused, an older file whose
-  keys hold F4 gets no gun key, a clash both ways) with gun mode's test lines, kept as written with no note; `fishing`
+  file whose keys hold F3 gets no bike key); `bike_pose` (`rig` by default and in a new file after `bike=on`, `hold`
+  taken in any case with no note, another word refused with its note and `rig` kept); `gun_mode` and `gun_key` (F4 by
+  default, G refused, an older file whose keys hold F4 gets no gun key, a clash both ways) with gun mode's test lines,
+  kept as written with no note; `fishing`
   (on by default, its template line after `scoreattack`); the mode lines (`mode_line()` a mode request, each member's
   line kept under its word with her SteamID apart from the chat and the other words, oldest first, 64 at most a word).
   It also reads the `dlcs=` line with the `dlc_missing=` and
@@ -383,7 +385,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `world/maps/matrix13/level/drone_test` the hook tried once a stay, only once its class is found by name;
 - `ui/kit/model_test` covers the four Who can join values and the Friends join without asking row, shown under Public
   and Invitation only, then the Online tab row named in `docs/players/interface.md`'s Options paragraph between the
-  bike's key and Reset all keys;
+  bike's key and Reset all keys. The bike's riding pose row comes after the bike's key (`rig` by default, `rig` read
+  for any word but `hold`). The Options paragraph names it after the bike's key and before gun mode's key;
 - `online/group/travel_test` covers the host's row in the session list: the rules word at each change, the map and
   nearest camp at once on each map and once a minute at most, from the follow's spawn point read (read again a minute
   later when it found no camp), nothing in a load, as a guest or in a match lobby. A refusal is logged once. For the
