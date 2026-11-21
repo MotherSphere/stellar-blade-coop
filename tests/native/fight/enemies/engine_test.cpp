@@ -4494,6 +4494,18 @@ int main() {
       assert(g.hp(131) == 1 && has(lines(g), "SBF25 qte-own " + gen + " 131 1410024156 0 0\n"));
       assert(count(g, "qte owner") == 1 && !e->latched());
     }
+    { // qte_owner_stale_vitals: her vitals read alive kMateMs ago read unknown: she is not up, so ours.
+      Game g;
+      auto e = engine(false, true);
+      uint64_t t = 0;
+      raven(g, *e, t, coop::Life::alive, true);
+      frame(g, *e, t += coop::kMateMs);
+      lines(g);
+      hers(g, *e, 1, 2);
+      frame(g, *e, t += 16);
+      const std::string gen = std::to_string(e->host.gen());
+      assert(g.hp(131) == 1 && has(lines(g), "SBF25 qte-own " + gen + " 131 1410024156 0 0\n"));
+    }
     { // qte_owner_alive: the same with her vitals alive: hers. A local qte_end for its spawn is a miss: ours, try 1.
       Game g;
       auto e = engine(false, true);
@@ -4621,6 +4633,26 @@ int main() {
     assert((given == std::vector<Type>{Type::world}));
     w.pass(t += 16, true, false, true, {"SBF25 world 2"}, gate, io);
     assert(has(w.detail(), " qte=-") && w.qte_owners().empty());
+    // The host's off empties it too, as does the mode's end. A new session with story together still on gives the
+    // new job its qte_on again.
+    const auto heard = [&](const std::vector<std::string> &l) {
+      w.pass(t += 16, true, false, true, l, gate, io, false, coop::Life::alive, false, 0, ended, true);
+    };
+    heard({"SBF25 world 3", "SBF25 qte-own 3 77 1410024156 1 0"});
+    assert(w.qte_owners().size() == 1);
+    heard({"SBF25 off coop fight off"});
+    assert(has(w.detail(), " qte=-") && w.qte_owners().empty());
+    heard({"SBF25 world 4", "SBF25 qte-own 4 77 1410024156 0 1"});
+    assert(has(w.detail(), " qte=0:1") && w.qte_owners().size() == 1);
+    w.ask(coop::parse_request("fight off"), gate, io);
+    assert(w.qte_owners().empty());
+    w.ask(coop::parse_request("fight on 900"), gate, io);
+    heard({});
+    bool again = false;
+    assert(w.sharing() && mail.exchange(s));
+    while (mail.receive(m))
+      again = again || (m.type == Type::qte_on && m.on);
+    assert(again && !e->latched());
   }
 
   // ---- Bosses (stage 5), the guest's side: our battle mode undone. Her copies 930 to 933 take the host's bstart, so
