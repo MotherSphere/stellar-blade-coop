@@ -715,21 +715,25 @@ function Link.new(folder,fs)
     function self.display(text) return put_or_remove('coop-display.txt',text) end
     function self.remote_table() return fs.read(path('coop-remote.txt')) end
     -- A ghost's asset names (game/events.h's SBA lines as 'name <k> <kind> <asset> <a> <b>[ <params>]' in
-    -- coop-names.txt, which the native part appends to): the whole lines past byte from and the offset past them; ''
-    -- and from while no whole line came; false when the file is gone or shorter than from (its slot was reset: read it
-    -- again from 0); nil with no file at 0. The byte before from must still be the newline the last read ended on.
-    local function names(name,from)
+    -- coop-names.txt, which the native part appends to after a head line 'book <n>', new at each reset of the slot):
+    -- the whole lines past byte from, the offset past them and the file's head (nil for none); '' and from while no
+    -- whole line came; false when the file is gone, shorter than from or has another head than head, the one the
+    -- read at 0 gave (its slot was reset: read it again from 0); nil with no file at 0. The byte before from must
+    -- still be the newline the last read ended on.
+    local function head_of(text) return text and text:match('^(book %d+)\r?\n') end
+    local function names(name,from,head)
         local text=fs.read(path(name),nil,from>0 and from-1 or nil)
         if not text then
             if from>0 then return false end
             return nil
         end
+        local now=head_of(from>0 and fs.read(path(name),32) or text)
         if from>0 then
-            if text:sub(1,1)~='\n' then return false end
+            if text:sub(1,1)~='\n' or now~=head then return false end
             text=text:sub(2)
         end
         local whole=text:match('^.*\n') or ''
-        return whole,from+#whole
+        return whole,from+#whole,now
     end
     -- Our loaded objects for a ghost's names ('loaded <k> 0x<object> 0x<class> 0x<a|0> 0x<b|0>'), one line appended
     -- to coop-loaded.txt, which the native part reads from its last offset; nil removes the file.
@@ -737,7 +741,7 @@ function Link.new(folder,fs)
         if line==nil then fs.remove(path(name)); return true end
         return fs.append(path(name),line..'\n')
     end
-    function self.names(from) return names('coop-names.txt',from) end
+    function self.names(from,head) return names('coop-names.txt',from,head) end
     function self.loaded(line) return loaded('coop-loaded.txt',line) end
     -- Her drone as the native part found it ("drone 0x<actor>" in coop-drone.txt): the address text, or nil.
     function self.drone()
@@ -1188,7 +1192,7 @@ function Link.new(folder,fs)
         return {
             remote_table=function() return fs.read(path(file('coop-remote'))) end,
             display=function(text) return put_or_remove(file('coop-display'),text) end,
-            names=function(from) return names(file('coop-names'),from) end,
+            names=function(from,head) return names(file('coop-names'),from,head) end,
             loaded=function(line) return loaded(file('coop-loaded'),line) end,
             store=function() return self.store(file('coop-puppet')) end,
             friend=function() for _,m in ipairs(roster) do if m.slot==k then return m.name end end end,

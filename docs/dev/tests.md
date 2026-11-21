@@ -218,17 +218,17 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `ui/kit/model_test` puts the three rows after `effects` on the Ghost page; `ui/text_test` checks their labels in
   every language table;
 - asset names: `core/link_test` reads a slot's `coop-names` file from an offset (whole lines only, false once the file
-  is shorter or gone) and appends to its `coop-loaded` file (nil removes it). `online/partner/assets_test` loads what
-  the slots name with one loader: one load each 0.25 s for every slot together, a path two slots name once, a slot's
-  `loaded` line once all its paths are in, an object of the wrong class refused, a collected one loaded again with a
-  new line (one whose address another sound took too, found by its full name), a failed load said once and not tried
-  again, a mod's path only when both players have it (through the crash sentinel), a set-aside path never, a reset
-  slot read again from 0, a kind the slot does not want never (until it is watched again with it), a path checked as
-  each class a key names it as, an unwatched slot's file kept with no line appended twice once it is watched again, the
-  loaded files removed by `off`. A collected object the check has not
-  found yet is never asked its class when other lines are written. `online/partner/puppet_test` makes
-  that loader once. It watches a ghost's slot once the ghost is built with sounds on (with the kinds its look wants),
-  never with sounds and effects off. The slot is unwatched when the ghost goes;
+  is shorter, gone or has a new head line) and appends to its `coop-loaded` file (nil removes it).
+  `online/partner/assets_test` loads what the slots name with one loader: one load each 0.25 s for every slot together,
+  a path two slots name once, a slot's `loaded` line once all its paths are in, an object of the wrong class refused, a
+  collected one loaded again with a new line (one whose address another sound took too, found by its full name), a
+  failed load said once and not tried again, a mod's path only when both players have it (through the crash sentinel), a
+  set-aside path never, a reset slot read again from 0 (one reset while unwatched too, by its head line), a kind the
+  slot does not want never (until it is watched again with it), a path checked as each class a key names it as, an
+  unwatched slot's file kept with no line appended twice once it is watched again, the loaded files removed by `off`. A
+  collected object the check has not found yet is never asked its class when other lines are written.
+  `online/partner/puppet_test` makes that loader once. It watches a ghost's slot once the ghost is built with sounds on
+  (with the kinds its look wants), never with sounds and effects off. The slot is unwatched when the ghost goes;
 - her drone: `core/link_test` reads `coop-drone.txt` (`drone()`: the address, nil for `none` or anything but 0x and
   hex digits). `online/partner/capture_test` adds the SBCharacter of class `CH_Drone_BP_C` at that address after her
   parts and the bike's, its main mesh a free part with a light line after its read line; hidden in game it goes with

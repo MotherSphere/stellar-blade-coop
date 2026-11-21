@@ -1256,7 +1256,7 @@ do
     assert(g==5 and n==2 and source=='peer')
     assert(select('#',link.remote(2))==0 or link.remote(2)==nil,'No table in slot 2')
     -- Her asset names (coop-names-<k>.txt, the native part appends): read from an offset, only whole lines; false
-    -- once the file is shorter than the offset or gone (the slot was reset). Our loaded objects (coop-loaded-<k>.txt):
+    -- once the file is shorter than the offset, gone or has a new head line (the slot was reset). Our loaded objects (coop-loaded-<k>.txt):
     -- appended a line at a time; nil removes the file.
     local NAMES,LOADED='C:\\Mod\\coop-names-2.txt','C:\\Mod\\coop-loaded-2.txt'
     files[NAMES]='name 1 sound /Game/Sound/A.A - - -\n'
@@ -1270,6 +1270,16 @@ do
     assert(link.slot(2).names(at)==false,'shorter: the slot was reset')
     files[NAMES]=nil
     assert(link.slot(2).names(at)==false and link.slot(2).names(0)==nil,'gone: reset, then nothing')
+    -- The head line the native part writes at each reset: given back by the read at 0, then a read past it with
+    -- another head is a reset, even when the new file is longer and has a newline before the offset.
+    files[NAMES]='book 4\nname 1 sound /Game/Sound/A.A - - -\n'
+    local first,past,head=link.slot(2).names(0)
+    assert(first==files[NAMES] and past==#first and head=='book 4',tostring(head))
+    files[NAMES]=files[NAMES]..'name 2 sound /Game/Sound/B.B - - -\n'
+    assert(link.slot(2).names(past,head)=='name 2 sound /Game/Sound/B.B - - -\n','the same head: read on')
+    files[NAMES]='book 5\nname 1 sound /Game/Sound/X.X - - -\nname 2 sound /Game/Sound/D.D - - -\n'
+    assert(files[NAMES]:sub(past,past)=='\n' and link.slot(2).names(past,head)==false,'another head: reset')
+    assert(select(3,link.slot(2).names(0))=='book 5')
     assert(link.slot(2).loaded('loaded 1 0x10 0x20 0x0 0x0') and link.slot(2).loaded('loaded 2 0x11 0x20 0x0 0x0'))
     assert(files[LOADED]=='loaded 1 0x10 0x20 0x0 0x0\nloaded 2 0x11 0x20 0x0 0x0\n','appended')
     assert(link.slot(2).loaded(nil) and files[LOADED]==nil,'nil removes the file')

@@ -1138,11 +1138,18 @@ void asset_keys_clear() {
   asset_keys_reset = true;
 }
 
+// A reset slot's coop-names file starts again with a head line, "book <n>", n new at each reset of the run (the Steam
+// worker removes a previous run's files when it starts, glue/steam.cpp). Lua reads the file from its last offset: the
+// head tells it the file was started again even when the new one is already longer than that offset (core/link.lua's
+// names()).
+uint64_t asset_books = 0;
 void asset_slot_reset(size_t slot) {
   if (slot >= kMaxRemote || dir.empty()) // dir: worker_poll's first pass ran (never the game's own folder).
     return;
   asset_names[slot] = AssetNames();
   DeleteFileW(slot_path("coop-names", slot).c_str());
+  const std::string name = slot_file("coop-names", slot);
+  append_file(std::wstring(name.begin(), name.end()).c_str(), "book " + std::to_string(++asset_books) + "\n");
   DeleteFileW(slot_path("coop-loaded", slot).c_str());
   std::lock_guard<std::mutex> lock(m);
   asset_loaded[slot].clear();

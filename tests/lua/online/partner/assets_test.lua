@@ -4,10 +4,10 @@
 -- online/partner/assets.lua with fake slot files and a fake LoadAsset: one loader for every ghost slot, one load each
 -- 0.25 s for all of them, a path two slots name loaded once, a slot's loaded line once all its paths are in, each
 -- object of the wrong class refused, a collected one loaded again with a new line (one whose address went to another
--- object of its class too), a failed load said once and not
--- tried again, a mod's path only when both players have it (through the crash sentinel), the slot's names read again
--- from 0 after a reset, a kind the slot does not want never loaded, a path checked as each class a key names it,
--- unwatch() keeping the loaded file and off() removing it.
+-- object of its class too), a failed load said once and not tried again, a mod's path only when both players have it
+-- (through the crash sentinel), the slot's names read again from 0 after a reset (one while it was unwatched too, seen
+-- by core/link.lua's head line), a kind the slot does not want never loaded, a path checked as each class a key names
+-- it, unwatch() keeping the loaded file and off() removing it.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -194,4 +194,35 @@ for i=1,4 do at_fresh(11+i*0.25) end
 assert(loads_of['/Game/Sound/F2.F2']==2 and fifth.appended[5] and fifth.appended[5]:match('^loaded 2 ') and
     fifth.appended[5]~=string.format('loaded 2 0x%x 0x%x 0x0 0x0',f2.GetAddress(),classes.cue.GetAddress()),
     'its address taken by another sound: loaded again, a new line')
+-- Reset while unwatched (her ghost rebuilt for the slot's next member), through core/link.lua's own slot files: the
+-- new book is already longer than what was read, with a newline right before that offset. Its new head line makes it
+-- read from 0, so the new member's key 1 loads.
+local disk={}
+local link=require('core.link').new('C:\\Mod',{
+    read=function(path,limit,offset)
+        local text=disk[path]
+        if text and offset then text=text:sub(offset+1) end
+        if text and limit then text=text:sub(1,limit) end
+        return text
+    end,
+    append=function(path,text) disk[path]=(disk[path] or '')..text; return true end,
+    remove=function(path) disk[path]=nil; return true end,
+})
+local NAMES6,LOADED6='C:\\Mod\\coop-names-6.txt','C:\\Mod\\coop-loaded-6.txt'
+local again=Assets.new(sentinel,function() return false end)
+disk[NAMES6]='book 1\nname 1 sound /Game/Sound/A.A - - -\n'
+local six=link.slot(6) -- One table a slot, as online/partner/ghosts.lua makes it once for every member in it.
+again.watch(6,six)
+local function at_again(t) clock=t; again.tick() end
+at_again(20)
+at_again(20.25)
+assert(disk[LOADED6] and disk[LOADED6]:match('^loaded 1 '),'member A: key 1 in')
+again.unwatch(6)
+local before_b=#disk[NAMES6]
+disk[NAMES6],disk[LOADED6]='book 2\nname 1 sound /Game/Sound/B.B - - -\nname 2 sound /Game/Sound/A.A - - -\n',nil
+assert(disk[NAMES6]:sub(before_b,before_b)=='\n','the shape the newline check alone misses')
+again.watch(6,six)
+for i=1,4 do at_again(20.25+i*0.25) end
+assert(disk[LOADED6] and disk[LOADED6]:find(string.format('loaded 1 0x%x ',objects['/Game/Sound/B.B'].GetAddress()),1,
+    true),'the new member\'s key 1 names B')
 print('assets_test: ok')

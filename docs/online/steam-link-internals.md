@@ -693,8 +693,9 @@ Two files per ghost slot carry the names to Lua and back. Slot 0's have no numbe
 appended to, not rewritten:
 
 - `coop-names.txt`: the native part adds each name it took as `name <k> <kind> <asset> <a> <b>[ <params>]`. Lua reads
-  it from its last offset (`names(from)` in `core/link.lua`). A file shorter than that offset, or gone, means the slot
-  was reset.
+  it from its last offset (`names(from, head)` in `core/link.lua`). A reset starts the file again with a head line
+  `book <n>`, its number new at each reset of the run. A file shorter than that offset, gone or with another head
+  means the slot was reset. The head catches a new file that is already longer than the offset.
 - `coop-loaded.txt`: Lua adds `loaded <k> 0x<object> 0x<class> 0x<a|0> 0x<b|0>` once a key's assets are loaded
   (`loaded(line)`). The native part reads it from its last offset every 250 ms and hands the objects to the game thread
   in place, with no new ghost. A later line for a key replaces the earlier one. A key the slot never named is refused.

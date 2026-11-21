@@ -27,8 +27,9 @@ end
 -- sentinel: online/partner/sentinel.lua's. allowed(path): true for a mod's asset both players have.
 function Assets.new(sentinel,allowed)
     local self={}
-    -- By ghost slot: files, from (bytes read), read_at, keys ({k, kind, paths}) in order, sent (k: line), kinds, on
-    -- (watched now). A slot unwatched keeps its place, so watching it again appends no line it already has.
+    -- By ghost slot: files, from (bytes read), head (the names file's head line as of that read), read_at, keys ({k,
+    -- kind, paths}) in order, sent (k: line), kinds, on (watched now). A slot unwatched keeps its place, so watching it
+    -- again appends no line it already has; a reset while it was unwatched shows in the head.
     local slots={}
     -- By class and path: {object=, hex=, class=, full=}, or false after a failed load (never tried again). Its
     -- address, class and full name are read at the load: lines() may run after the game collected it, before the check
@@ -44,13 +45,13 @@ function Assets.new(sentinel,allowed)
     end
     -- A slot's new names from its files, or all of them again after a reset.
     local function read(s)
-        local text,to=s.files.names(s.from)
-        if text==false then -- Shorter than read: the native part started the slot again.
+        local text,to,head=s.files.names(s.from,s.head)
+        if text==false then -- Gone, shorter than read or a new head: the native part started the slot again.
             s.from,s.keys,s.sent=0,{},{}
-            text,to=s.files.names(0)
+            text,to,head=s.files.names(0)
         end
         if not text then return end
-        s.from=to
+        s.from,s.head=to,head
         for line in text:gmatch('[^\n]+') do
             local k,kind,asset,a,b=line:match('^name (%d+) (%a+) (%S+) (%S+) (%S+)')
             local classes=CLASSES[kind]
