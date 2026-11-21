@@ -141,13 +141,13 @@ assert(Ph.hear(h,B,ready(),1002)==nil and h.ready[B])
 assert(Ph.hear(h,C,ready(),1011)==nil and not h.ready[C],'A late ready')
 assert(Ph.hear(h,D,ready(),1002)=='sender','Not on the go line')
 assert(Ph.hear(h,B,ready(54),1002)=='seed')
--- Each refusal: a sender not counted (late ready, not a player), another seed, a target outside 1 to 3, before GO,
--- after end + 10, a target another player took, the same target twice.
+-- Each refusal: a sender not counted (late ready, not a player), another seed, a target outside 1 to 3, more than 1 s
+-- before GO, after end + 10, a target another player took, the same target twice.
 assert(Ph.hear(h,C,claim(1),1100)=='sender','Her ready came late')
 assert(Ph.hear(h,D,claim(1),1100)=='sender')
 assert(Ph.hear(h,B,claim(1,54),1100)=='seed')
 assert(Ph.hear(h,B,claim(0),1100)=='row' and Ph.hear(h,B,claim(4),1100)=='row')
-assert(Ph.hear(h,B,claim(1),1004)=='time','Before the host\'s GO')
+assert(Ph.hear(h,B,claim(1),1003)=='time','More than 1 s before the host\'s GO')
 assert(next(h.taken)==nil,'Nothing taken yet')
 assert(Ph.hear(h,B,claim(1),1100)=='again','Her early claim of target 1 counted as her claim')
 assert(Ph.hear(h,B,claim(2),1100)==nil and h.taken[2].id==B and h.taken[2].s==95,'Taken at 95 s since GO')
@@ -161,6 +161,8 @@ Ph.hear(h,B,ready(),1001)
 assert(Ph.hear(h,B,claim(3),1136)=='time' and h.taken[3]==nil,'After end + 10')
 assert(Ph.hear(h,B,claim(3),1140)=='again','Once per target, refused or not')
 assert(Ph.hear(h,A,claim(1),1005)==nil and h.taken[1].s==0,'At GO: 0 seconds')
+-- 1 s before the host's GO: an honest guest's whole-second GO can come first. Her point counts 0 seconds.
+assert(Ph.hear(h,B,claim(2),1004)==nil and h.taken[2].id==B and h.taken[2].s==0,'1 s before GO: 0 seconds')
 -- Words that are no business of the host's give nothing.
 assert(Ph.hear(h,A,{word='board',seed=55,taken={}},1100)==nil and Ph.hear(h,A,{word='go',seed=55},1100)==nil)
 -- Two claims of one target in one pass: the first read wins, the second is refused.

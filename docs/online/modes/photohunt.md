@@ -105,7 +105,9 @@ The host's game refuses a claim when:
 - another player took that target (`taken`). Two players can photograph one target in the same second, so this is
   not a cheat: the first claim read wins;
 - the same sender claimed that target before, a claim refused for its time included (`again`);
-- it comes before the host's GO or more than 10 s after the host's end (`time`).
+- it comes more than 1 s before the host's GO or more than 10 s after the host's end (`time`). Each game counts its
+  GO from a whole second of its own clock, so an honest guest's GO can come up to 1 s before the host's. A claim in
+  that second counts 0 s.
 
 A refused claim gives no point. The host's log gets `rank: refused <name>: <why>` once a sender and reason each round.
 The host's own claims go to the same checks in its own game: the host sends no claim line. A player can win 3 claims at

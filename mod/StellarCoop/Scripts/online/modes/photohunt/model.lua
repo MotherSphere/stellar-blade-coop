@@ -185,7 +185,7 @@ end
 
 -- The host's round from the go line it sent at now: {seed=, minutes=, world=, rows={its three targets}, ids={the go
 -- line's players, host first}, now=}. h.start and h.ends: its GO and its end. h.phase: play (claims taken), ranked
--- (rank sent). h.taken: the board; h.list: the ranking once sent.
+-- (rank sent) or over (round.lua ended the round with no ranking). h.taken: the board; h.list: the ranking once sent.
 function Ph.host(o)
     local start=o.now+Ph.COUNTDOWN
     local h={seed=o.seed,minutes=o.minutes,world=o.world,rows=o.rows,ids=o.ids,go=o.now,start=start,
@@ -196,9 +196,10 @@ end
 -- A text d (Ph.decode) from player id while the host plays: nil when taken, else the reason for its log line. A ready
 -- counts within Ph.READY of the go line; the host and each guest whose ready counted are the counted players. A claim
 -- of target k takes its point when its sender is counted (else sender), k is 1 to Ph.ROWS (row), no other player took
--- that target (taken), she did not claim it before, refused or not (again) and it comes from the host's GO to its
--- end + Ph.LATE (time). The first claim the host reads wins. The host's own claims come here too. Every other word is
--- no business of the host's.
+-- that target (taken), she did not claim it before, refused or not (again) and it comes from the host's GO - 1 s to
+-- its end + Ph.LATE (time). Each game's GO counts from a whole second of its own clock, so an honest guest's GO can
+-- come up to 1 s before the host's: a claim in that second counts 0 s. The first claim the host reads wins. The host's
+-- own claims come here too. Every other word is no business of the host's.
 function Ph.hear(h,id,d,now)
     if h.phase~='play' or (d.word~='ready' and d.word~='claim') then return nil end
     local player=false
@@ -216,8 +217,8 @@ function Ph.hear(h,id,d,now)
     local key=id..' '..d.k
     if h.claimed[key] then return 'again' end
     h.claimed[key]=true
-    if now<h.start or now>h.ends+Ph.LATE then return 'time' end
-    h.taken[d.k]={id=id,s=math.floor(now-h.start)}
+    if now<h.start-1 or now>h.ends+Ph.LATE then return 'time' end
+    h.taken[d.k]={id=id,s=math.max(0,math.floor(now-h.start))}
     return nil
 end
 -- The ranking with members (a set of the SteamIDs still in the session, ours included): each counted player still in
