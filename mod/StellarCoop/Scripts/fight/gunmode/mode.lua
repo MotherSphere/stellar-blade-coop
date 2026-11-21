@@ -297,8 +297,8 @@ function GunMode.new(env)
         for _,k in ipairs(cfg.mask_keys) do masked_key[k]=true end
         for _,n in ipairs(set.native and cfg.native_mask_on_keys or cfg.mask_on_keys) do on_keys[n]=true end
         if not set.native then for _,n in ipairs(cfg.mask_actions) do masked_name[n]=true end end
-        if arriving and set.native then masked_name.TPSMode=true end
-        s.mask_arrival=arriving==true
+        s.mask_arrival=arriving==true and set.native==true -- (own fire masks TPSMode anyway)
+        if s.mask_arrival then masked_name.TPSMode=true end
         local saved,names,rows={},{},{} -- rows: the mappings to mask, written in this call only (keys_back)
         settings.ActionMappings:ForEach(function(at,wrapped)
             local row=wrapped:get()

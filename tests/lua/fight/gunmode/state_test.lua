@@ -347,6 +347,12 @@ do
     assert(w.keys()==keys)
     toggle(gun,true); frames(gun,3); toggle(gun,false)
     assert(w.keys()==keys and #w.changed()==0,'away during the arrival: '..w.keys())
+    -- gun_fire=own masks TPSMode anyway: one mask for the whole rifle out
+    local own,logs=new('gun_fire=own\n')
+    toggle(own,true); frames(own,40); toggle(own,false)
+    local masks=0
+    for _,l in ipairs(logs) do if l:find('input: masked',1,true) then masks=masks+1 end end
+    assert(masks==1,masks..' masks')
 end
 
 -- 10. The 'off' line counts the rounds fired, the game's aim's too (fight/gunmode/ammo.lua's timer): it read 0 shots
