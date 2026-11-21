@@ -6,19 +6,29 @@
 -- fishing=on, a co-op save, then SB's fishing log book read through the native part once a second from GO to our end),
 -- logging [FT] lines, with coop fish as its console word. main/pass.lua ticks M.fishing every 250 ms after the inbox;
 -- coop off stops it (main/commands.lua). Our best tournament of each length goes in coop-records.txt in the mod
--- folder, written as score attack's wiring writes its records (a copy: .tmp, then a rename). To come: the screens.
+-- folder, written as score attack's wiring writes its records (a copy: .tmp, then a rename). Its screens
+-- (ui/board.lua, M.fishing_board): the corner board and the result panel, drawn after each pass; the round's notices
+-- come in the menu's words (M.tell).
 return {
 uses={},
-exports={'fishing'},
+exports={'fishing','fishing_board'},
 new=function(M)
 if M.link then
     local log=function(m) M.print('[StellarCoop][FT] '..tostring(m)..'\n') end
     local Rec=require('online.modes.fishing.records')
     local Game=require('online.modes.fishing.game')
-    local game
+    local game,board
     M.fishing=require('online.modes.fishing.round').new({link=M.link,clock=os.time,log=log,
         fish=function() return game.fish() end,start=function(t) game.start(t) end,
-        stop=function(why) game.stop(why) end,pass=function() game.tick() end,
+        stop=function(why)
+            game.stop(why)
+            board.stop()
+        end,
+        pass=function()
+            game.tick()
+            board.tick()
+        end,
+        tell=function(...) board.notice(...) end,
         record=M.folder and function(minutes,points,catches)
             local fs,p=require('core.link').files,M.folder..'\\coop-records.txt'
             local text,e,code=fs.read(p)
@@ -35,6 +45,13 @@ if M.link then
             log(string.format('new best of %d minutes: %d points, %d fish',minutes,points,catches))
             return true
         end or nil})
+    board=require('online.modes.fishing.ui.board').new({round=M.fishing.round,clock=os.time,log=log,tell=M.tell,
+        name=function(id)
+            if id==(M.link.saves() or {}).steamid then return M.link.me() end
+            local m=M.link.member(id)
+            return m and m.name
+        end})
+    M.fishing_board=board
     local Where,U=require('core.where'),require('core.unreal')
     game=Game.new({round=M.fishing,status=function() return M.link.status() end,
         request=function(line) return M.link.request(line) end,clock=os.time,log=log,
@@ -48,4 +65,9 @@ if M.link then
 end
 return require('online.modes.fishing.commands').new({round=M.fishing})
 end,
+build={
+hud=function(M,Ui)
+    if M.fishing_board then M.fishing_board.hud({kit=M.kit,theme=Ui.THEME,settings=M.settings}) end
+end,
+},
 }

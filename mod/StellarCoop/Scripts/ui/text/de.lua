@@ -342,6 +342,18 @@ return {
                 ..'den Grund.'},
         end_notice='%s: %s, Punkte %d, Zeit %s.',
         placed='Punktejagd: Platz %d von %d.'},
+    fishing={head='ANGELN',count='Start in %d',up='Zeit um',title='Angelturnier',mine='%d Punkte · Fische: %d',
+        fish='Fische: %d',waiting='Warte auf die Wertung des Hosts.',unranked='Nicht gewertet.',
+        best='Neue persönliche Bestleistung.',norank='Vom Host kam keine Wertung.',
+        start='%s startet ein Angelturnier: %d Min.',
+        out={off='Das Angelturnier ist in den Optionen aus.',
+            slot='Lade einen Koop-Speicherstand, um im Turnier zu angeln.',
+            table='Die Fischtabelle konnte nicht gelesen werden.'},
+        host_left='Der Host ist gegangen. Dieses Turnier hat keine Wertung.',cancelled='Das Turnier wurde abgebrochen.',
+        reloaded='Dein Spiel wurde neu geladen: Deine Fänge zählen in diesem Turnier nicht mehr.',
+        go='Angelturnier: Leg los. Noch %d Min.',standing='Angelturnier: Platz %d, %d Punkte.',
+        end_notice='Angelturnier: Zeit um, %d Punkte, Fische: %d.',top='Angelturnier: %s.',entry='%d. %s %d',sep=', ',
+        placed='Dein Platz: %d von %d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='Das Spiel blieb pausiert, daher hat sich das Koop-Menü nicht geöffnet.'},
 }

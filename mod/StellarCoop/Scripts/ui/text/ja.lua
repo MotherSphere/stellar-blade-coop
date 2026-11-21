@@ -285,6 +285,14 @@ return {
             refused='チャレンジを開始できなかったため、このラウンドには参加しません。理由はUE4SS.logで確認。'},
         end_notice='%s：%s、スコア %d、タイム %s。',
         placed='スコアアタック：%d位（%d人中）。'},
+    fishing={head='釣り',count='開始まで %d',up='時間切れ',title='釣り大会',mine='%dポイント · %d匹',fish='%d匹',waiting='ホストの順位を待っています。',
+        unranked='順位なし。',best='自己ベスト更新。',norank='ホストから順位が届きませんでした。',start='%sが釣り大会を開始：%d分。',
+        out={off='オプションで釣り大会がオフです。',
+            slot='大会で釣るには協力プレイ用セーブをロードしてください。',
+            table='魚のテーブルを読み込めませんでした。'},
+        host_left='ホストが退出しました。この大会は順位なしです。',cancelled='大会は中止されました。',reloaded='ゲームが再読み込みされました：この大会ではあなたの釣果はもう数えられません。',
+        go='釣り大会：釣り開始。残り%d分。',standing='釣り大会：%d位、%dポイント。',end_notice='釣り大会：時間切れ、%dポイント、%d匹。',top='釣り大会：%s。',
+        entry='%d位 %s %d',sep='、',placed='あなたの順位：%d位（%d人中）。'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='オンライン',stuck='ゲームが一時停止したままのため、協力プレイメニューを開けませんでした。'},
 }

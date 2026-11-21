@@ -321,6 +321,18 @@ return {
             refused='Gra nie mogła rozpocząć wyzwania: pomijasz tę rundę. Powód podaje UE4SS.log.'},
         end_notice='%s: %s, punkty %d, czas %s.',
         placed='Pogoń za punktami: miejsce %d z %d.'},
+    fishing={head='WĘDKOWANIE',count='Start za %d',up='Koniec czasu',title='Turniej wędkarski',
+        mine='Punkty: %d · ryby: %d',fish='Ryby: %d',waiting='Czekamy na ranking hosta.',unranked='Poza rankingiem.',
+        best='Nowy rekord osobisty.',norank='Host nie przysłał rankingu.',
+        start='%s rozpoczyna turniej wędkarski: %d min.',
+        out={off='Turniej wędkarski jest wyłączony w Opcjach.',
+            slot='Wczytaj zapis co-op, aby łowić w turnieju.',
+            table='Nie udało się odczytać tabeli ryb.'},
+        host_left='Host wyszedł. Ten turniej nie ma rankingu.',cancelled='Turniej został anulowany.',
+        reloaded='Gra została wczytana ponownie: twoje połowy nie liczą się już w tym turnieju.',
+        go='Turniej wędkarski: zaczynaj łowić. Czas: %d min.',standing='Turniej wędkarski: miejsce %d, punkty: %d.',
+        end_notice='Turniej wędkarski: koniec czasu, punkty: %d, ryby: %d.',top='Turniej wędkarski: %s.',
+        entry='%d. %s %d',sep=', ',placed='Twoje miejsce: %d z %d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='Gra pozostała wstrzymana, więc menu co-op się nie otworzyło.'},
 }

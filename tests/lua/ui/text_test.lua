@@ -16,14 +16,15 @@
 -- which comes without its prefix, the race's panel, marker, banner and results within theirs, the lobby menu's rows,
 -- settings, values and status within their columns and its waiting-room notice within 200 bytes, Find a session's
 -- hints, status lines, version and footer within theirs, Create a session's title, rules header, Start row and
--- right-pane words within theirs, the pause menu's Online tab word within its tab and its notice within 200 bytes; no
--- Thai word that ends on a leading vowel; each join Steam refused as link/core.h words it, in every language; the DLC
--- notice (T.dlcs) within 200 bytes with 100-byte DLC names in every language; its English as main.lua says it; the New
--- Game+ notice (T.cycle) within 200 bytes with every count word and difficulty on both sides; its English; the bike's
--- refusals with each side word and a six-digit distance or another map's 32-byte name, the paid fetch's offer after
--- them with the longest key name and betacrystal, the fetch's other lines with a 32-byte money name, within 200 bytes;
--- the 20 module names in every table; the notice of a module that failed to load with the longest of them within
--- 200 bytes.
+-- right-pane words within theirs, the fishing tournament's corner board and result panel within theirs and its
+-- notices with 32-byte names within 200 bytes, the pause menu's Online tab word within its tab and its notice within
+-- 200 bytes; no Thai word that ends on a leading vowel; each join Steam refused as link/core.h words it, in every
+-- language; the DLC notice (T.dlcs) within 200 bytes with 100-byte DLC names in every language; its English as main.lua
+-- says it; the New Game+ notice (T.cycle) within 200 bytes with every count word and difficulty on both sides; its
+-- English; the bike's refusals with each side word and a six-digit distance or another map's 32-byte name, the paid
+-- fetch's offer after them with the longest key name and betacrystal, the fetch's other lines with a 32-byte money
+-- name, within 200 bytes; the 20 module names in every table; the notice of a module that failed to load with the
+-- longest of them within 200 bytes.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
 local R=require('online.modes.nightop.recruiter_text')
@@ -159,6 +160,18 @@ local function notices(w)
     for _,text in pairs(sa.out) do lines[#lines+1]=text end
     for _,text in ipairs({sa.host_left,sa.cancelled,sa.unranked,sa.end_notice:format(long,ending,9999,'12:00.0'),
         sa.placed:format(8,8)}) do
+        lines[#lines+1]=text
+    end
+    -- The fishing tournament's notices (online/modes/fishing/ui/board.lua): the start with a 32-byte name and 60
+    -- minutes, each sit-out, a tournament without a ranking, a reloaded game; with the UI off GO, our place and points,
+    -- our end, the first three with 32-byte names and 6-digit points (a catch scores 450 at most, one each 2 s for an
+    -- hour), our place and Not ranked.
+    local f=w.fishing
+    for _,text in pairs(f.out) do lines[#lines+1]=text end
+    local entry=f.entry:format(8,NAME,999999)
+    for _,text in ipairs({f.start:format(NAME,60),f.host_left,f.cancelled,f.reloaded,f.norank,f.unranked,
+        f.go:format(60),f.standing:format(8,999999),f.end_notice:format(999999,9999),
+        f.top:format(table.concat({entry,entry,entry},f.sep)),f.placed:format(8,8)}) do
         lines[#lines+1]=text
     end
     -- The race's notices (online/modes/race/run.lua): its banners too, which come as notices with the UI off.
@@ -324,6 +337,17 @@ for name in pairs(R.TEXT) do
         fits(name..'.scoreattack.'..k,sa[k]:format(8),54)
     end
     for _,k in ipairs({'normal','story','hard'}) do fits(name..'.cycle.'..k,w.cycle[k],10) end
+    -- The fishing tournament's screens (online/modes/fishing/ui/board.lua): the corner board's title line (Bold 36,
+    -- about 21 units a column, 32 units in from each side of its 720: 31 columns) with the countdown, the longest
+    -- time left (60:00) or Time up; the result panel's heading (Bold 56, 31 columns as score attack's), the line
+    -- under it with 6-digit points and 4-digit fish and each note within 54 (Mideum 34); a ranking row's fish within
+    -- the 16 columns between the name and the points (Mideum 30, 16 units a column, right-aligned at 780).
+    local fi=w.fishing
+    for _,clock in ipairs({fi.count:format(5),'60:00',fi.up}) do fits(name..'.fishing.head',fi.head..'  '..clock,31) end
+    fits(name..'.fishing.title',fi.title,31)
+    fits(name..'.fishing.mine',fi.mine:format(999999,9999),54)
+    for _,k in ipairs({'waiting','unranked','best','norank'}) do fits(name..'.fishing.'..k,fi[k],54) end
+    fits(name..'.fishing.fish',fi.fish:format(9999),16)
     local room=w.lobby.room:format('F5')
     assert(Chat.clean(room)==room,name..'.lobby.room: '..#room..' bytes or a control')
     -- Find a session (online/session/ui/sessions.lua): a key hint's label within the 420 units between two hints less

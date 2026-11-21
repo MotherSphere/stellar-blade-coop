@@ -331,6 +331,18 @@ return {
             refused='Pelisi ei voinut aloittaa haastetta: jäät pois tältä kierrokselta. UE4SS.log kertoo syyn.'},
         end_notice='%s: %s, pisteet %d, aika %s.',
         placed='Pistejahti: sija %d/%d.'},
+    fishing={head='KALASTUS',count='Alkuun %d',up='Aika loppui',title='Kalastuskilpailu',
+        mine='%d pistettä · kaloja: %d',fish='Kaloja: %d',waiting='Odotetaan isännän sijoituksia.',
+        unranked='Ei sijoitusta.',best='Uusi henkilökohtainen ennätys.',norank='Isännältä ei tullut sijoituksia.',
+        start='%s aloittaa kalastuskilpailun: %d min.',
+        out={off='Kalastuskilpailu on pois päältä asetuksissa.',
+            slot='Lataa co-op-tallennus, niin voit kalastaa kilpailussa.',
+            table='Kalataulukkoa ei voitu lukea.'},
+        host_left='Isäntä lähti. Tällä kilpailulla ei ole sijoituksia.',cancelled='Kilpailu peruttiin.',
+        reloaded='Pelisi latautui uudelleen: saaliitasi ei enää lasketa tässä kilpailussa.',
+        go='Kalastuskilpailu: aloita kalastus. %d min jäljellä.',standing='Kalastuskilpailu: sija %d, %d pistettä.',
+        end_notice='Kalastuskilpailu: aika loppui, %d pistettä, kaloja: %d.',top='Kalastuskilpailu: %s.',
+        entry='%d. %s %d',sep=', ',placed='Sijoituksesi: %d/%d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='Peli jäi tauolle, joten co-op-valikko ei avautunut.'},
 }

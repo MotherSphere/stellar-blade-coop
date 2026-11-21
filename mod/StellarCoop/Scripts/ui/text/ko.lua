@@ -283,6 +283,16 @@ return {
             refused='게임이 챌린지를 시작하지 못해 이번 라운드에 참가하지 않습니다. 이유는 UE4SS.log에서 확인.'},
         end_notice='%s: %s, 점수 %d, 시간 %s.',
         placed='스코어 어택: %d위 (%d명 중).'},
+    fishing={head='낚시',count='시작까지 %d',up='시간 종료',title='낚시 대회',mine='%d점 · %d마리',fish='%d마리',
+        waiting='호스트의 순위를 기다리는 중입니다.',unranked='순위 없음.',best='개인 최고 기록 경신.',norank='호스트에게서 순위가 오지 않았습니다.',
+        start='%s 님이 낚시 대회를 시작합니다: %d분.',
+        out={off='옵션에서 낚시 대회가 꺼져 있습니다.',
+            slot='대회에서 낚시하려면 코옵 세이브를 불러오세요.',
+            table='물고기 표를 읽을 수 없습니다.'},
+        host_left='호스트가 나갔습니다. 이 대회는 순위가 없습니다.',cancelled='대회가 취소되었습니다.',
+        reloaded='게임이 다시 로드되었습니다: 이 대회에서 더 이상 내 조과가 집계되지 않습니다.',go='낚시 대회: 낚시를 시작하세요. %d분 남았습니다.',
+        standing='낚시 대회: %d위, %d점.',end_notice='낚시 대회: 시간 종료, %d점, %d마리.',top='낚시 대회: %s.',entry='%d위 %s %d',sep=', ',
+        placed='내 순위: %d위 (%d명 중).'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='온라인',stuck='게임이 일시 정지된 상태라 코옵 메뉴가 열리지 않았습니다.'},
 }

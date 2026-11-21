@@ -327,6 +327,18 @@ return {
             refused='Je spel kon de uitdaging niet starten: je slaat deze ronde over. UE4SS.log zegt waarom.'},
         end_notice='%s: %s, score %d, tijd %s.',
         placed='Scorejacht: plaats %d van %d.'},
+    fishing={head='VISSEN',count='Start over %d',up='Tijd op',title='Viswedstrijd',mine='%d punten · vissen: %d',
+        fish='Vissen: %d',waiting='Wachten op de ranglijst van de host.',unranked='Niet gerangschikt.',
+        best='Nieuw persoonlijk record.',norank='Er kwam geen ranglijst van de host.',
+        start='%s start een viswedstrijd: %d min.',
+        out={off='De viswedstrijd staat uit in Opties.',
+            slot='Laad een opgeslagen co-opgame om mee te vissen in de wedstrijd.',
+            table='De vistabel kon niet worden gelezen.'},
+        host_left='De host is weg. Deze wedstrijd heeft geen ranglijst.',cancelled='De wedstrijd is geannuleerd.',
+        reloaded='Je game is herladen: je vangsten tellen niet meer mee in deze wedstrijd.',
+        go='Viswedstrijd: vissen maar. Nog %d min.',standing='Viswedstrijd: plaats %d, %d punten.',
+        end_notice='Viswedstrijd: tijd op, %d punten, vissen: %d.',top='Viswedstrijd: %s.',entry='%d. %s %d',sep=', ',
+        placed='Je plaats: %d van %d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='De game bleef gepauzeerd, dus het co-opmenu ging niet open.'},
 }

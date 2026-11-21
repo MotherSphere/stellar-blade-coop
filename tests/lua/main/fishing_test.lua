@@ -5,8 +5,9 @@
 -- and its records file. coop-records.txt in the mod folder is read and written through core/link.lua's files: no
 -- file, the .tmp write, a tournament that beats the best or not, a failed write, a refused rename, the write in place,
 -- a file that cannot be opened. The other lines of the file stay. Then its two runtime lines: the 250 ms loop ticks
--- the round and its game side (the book asked once a second from GO); coop off ends the tournament with no line and no
--- ask after it; the pass line is guarded.
+-- the round, its game side (the book asked once a second from GO) and its screens (online/modes/fishing/ui/board.lua,
+-- built on the kit's hud step: the round's start notice in the menu's words, the corner board each pass); coop off ends
+-- the tournament with no line and no ask after it and hides the board; the pass line is guarded.
 dofile('tests/lua/main/fixture.lua')
 local Round=require('online.modes.fishing.round')
 local new,o=Round.new,nil
@@ -70,6 +71,10 @@ status_text='mod=v proto=3 steam=ready\nlink=host lobby=7\nslot=coop 2\nengine=v
 coop('fish','start','1')
 assert(round.round().phase=='play' and fake_link.modes[#fake_link.modes]:find('^fish go %d+ 1 1001,2002$'),
     tostring(fake_link.modes[#fake_link.modes]))
+local starts=false
+for _,text in ipairs(said) do starts=starts or text:find(' starts a fishing tournament: 1 min.',1,true)~=nil end
+assert(starts,'The start notice through M.tell')
+kit_ready=true
 local function books()
     local n=0
     for _,line in ipairs(asked) do if line:find('^fishbook %d+$') then n=n+1 end end
@@ -77,6 +82,7 @@ local function books()
 end
 loops[2].f() -- In the countdown: the round's first board, no ask.
 assert(fake_link.modes[#fake_link.modes]:find('^fish board %d+ 1001:0:0$') and books()==0)
+assert(kit_shown.fishing==true and not kit_shown.fishing_result,'The pass ticks the screens: the corner board')
 T=T+5 -- GO.
 loops[2].f()
 assert(books()==1,'The pass ticks the game side: its first ask at GO')
@@ -89,6 +95,7 @@ assert(books()==2,'Once a second')
 local lines=#fake_link.modes
 coop('off')
 assert(round.round().phase=='over' and round.round().why=='coop off' and #fake_link.modes==lines,'No line')
+assert(kit_shown.fishing==false,'coop off hides the board')
 T=T+1
 loops[2].f()
 assert(books()==2,'No pass and no ask after coop off')

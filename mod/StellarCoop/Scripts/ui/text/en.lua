@@ -394,6 +394,24 @@ return {
             refused='Your game could not start the challenge: you sit out this round. UE4SS.log says why.'},
         end_notice='%s: %s, score %d, time %s.',
         placed='Score attack: you placed %d of %d.'},
+    -- The fishing tournament (online/modes/fishing/ui/board.lua): the corner board's title line (head, then the
+    -- countdown, the time left or up); the result panel's heading (title), the line under it (mine: our points and
+    -- fish), a ranking row's fish and its notes (waiting, unranked, best, norank); the notices: the start (start: the
+    -- host's name, the minutes), why a player sits out (out: off, slot, table), why a tournament ends with no ranking
+    -- (host_left, cancelled), a reloaded game (reloaded). With the UI off: GO (go: the minutes), each change of our
+    -- place and points (standing), our end (end_notice: points, fish), the first three (top: their entries, each
+    -- place, name and points, joined by sep) and our place (placed: ours, of how many).
+    fishing={head='FISHING',count='Starts in %d',up='Time up',title='Fishing tournament',mine='%d points · %d fish',
+        fish='%d fish',waiting="Waiting for the host's ranking.",unranked='Not ranked.',best='New personal best.',
+        norank='No ranking came from the host.',start='%s starts a fishing tournament: %d min.',
+        out={off='Fishing tournament is off in Options.',
+            slot='Load a co-op save to fish in the tournament.',
+            table='Could not read the fish table.'},
+        host_left='The host left. This tournament has no ranking.',cancelled='The tournament was cancelled.',
+        reloaded='Your game reloaded: your catches no longer count in this tournament.',
+        go='Fishing tournament: start fishing. %d min left.',standing='Fishing tournament: place %d, %d points.',
+        end_notice='Fishing tournament: time up, %d points, %d fish.',top='Fishing tournament: %s.',entry='%d. %s %d',
+        sep=', ',placed='You placed %d of %d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='The game stayed paused, so the co-op menu did not open.'},
 }

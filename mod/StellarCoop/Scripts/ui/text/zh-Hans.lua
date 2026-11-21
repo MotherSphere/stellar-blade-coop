@@ -260,6 +260,14 @@ return {
             refused='游戏无法开始挑战：你不参加本轮。原因见UE4SS.log。'},
         end_notice='%s：%s，得分 %d，用时 %s。',
         placed='得分挑战：第%d名，共%d人。'},
+    fishing={head='钓鱼',count='开始倒计时 %d',up='时间到',title='钓鱼大赛',mine='%d分 · %d条',fish='%d条',waiting='正在等待房主的排名。',
+        unranked='未计入排名。',best='刷新个人最佳纪录。',norank='房主没有发来排名。',start='%s发起了钓鱼大赛：%d分钟。',
+        out={off='选项中已关闭钓鱼大赛。',
+            slot='请加载合作存档以参加钓鱼大赛。',
+            table='无法读取鱼类表。'},
+        host_left='房主已离开。本次大赛没有排名。',cancelled='大赛已取消。',reloaded='你的游戏已重新加载：你的渔获不再计入本次大赛。',go='钓鱼大赛：开始钓鱼。剩余%d分钟。',
+        standing='钓鱼大赛：第%d名，%d分。',end_notice='钓鱼大赛：时间到，%d分，%d条。',top='钓鱼大赛：%s。',entry='第%d名 %s %d分',sep='，',
+        placed='你的名次：第%d名，共%d人。'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='在线',stuck='游戏仍处于暂停状态，因此合作菜单没有打开。'},
 }

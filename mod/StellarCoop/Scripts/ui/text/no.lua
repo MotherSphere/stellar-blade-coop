@@ -321,6 +321,17 @@ return {
             refused='Spillet ditt kunne ikke starte utfordringen: du står over denne runden. UE4SS.log sier hvorfor.'},
         end_notice='%s: %s, poeng %d, tid %s.',
         placed='Poengjakt: plass %d av %d.'},
+    fishing={head='FISKE',count='Starter om %d',up='Tiden er ute',title='Fiskekonkurranse',mine='%d poeng · %d fisk',
+        fish='%d fisk',waiting='Venter på vertens rangering.',unranked='Ikke rangert.',best='Ny personlig rekord.',
+        norank='Ingen rangering kom fra verten.',start='%s starter en fiskekonkurranse: %d min.',
+        out={off='Fiskekonkurranse er slått av i Alternativer.',
+            slot='Last inn en co-op-lagring for å fiske i konkurransen.',
+            table='Fisketabellen kunne ikke leses.'},
+        host_left='Verten gikk. Denne konkurransen har ingen rangering.',cancelled='Konkurransen ble avlyst.',
+        reloaded='Spillet ditt ble lastet inn på nytt: fangstene dine teller ikke lenger i denne konkurransen.',
+        go='Fiskekonkurranse: sett i gang. %d min igjen.',standing='Fiskekonkurranse: plass %d, %d poeng.',
+        end_notice='Fiskekonkurranse: tiden er ute, %d poeng, %d fisk.',top='Fiskekonkurranse: %s.',entry='%d. %s %d',
+        sep=', ',placed='Du ble nummer %d av %d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='Spillet ble stående på pause, så co-op-menyen åpnet seg ikke.'},
 }

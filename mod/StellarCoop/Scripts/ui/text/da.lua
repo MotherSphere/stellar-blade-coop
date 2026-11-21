@@ -320,6 +320,17 @@ return {
                 ..'hvorfor.'},
         end_notice='%s: %s, point %d, tid %s.',
         placed='Pointjagt: nummer %d af %d.'},
+    fishing={head='FISKERI',count='Starter om %d',up='Tiden er gået',title='Fiskekonkurrence',mine='%d point · %d fisk',
+        fish='%d fisk',waiting='Venter på værtens rangering.',unranked='Ikke rangeret.',best='Ny personlig rekord.',
+        norank='Der kom ingen rangering fra værten.',start='%s starter en fiskekonkurrence: %d min.',
+        out={off='Fiskekonkurrence er slået fra i Indstillinger.',
+            slot='Indlæs et gemt co-op-spil for at fiske med i konkurrencen.',
+            table='Fisketabellen kunne ikke læses.'},
+        host_left='Værten gik. Denne konkurrence har ingen rangering.',cancelled='Konkurrencen blev aflyst.',
+        reloaded='Dit spil blev genindlæst: dine fangster tæller ikke længere i denne konkurrence.',
+        go='Fiskekonkurrence: fisk løs. %d min tilbage.',standing='Fiskekonkurrence: nummer %d, %d point.',
+        end_notice='Fiskekonkurrence: tiden er gået, %d point, %d fisk.',top='Fiskekonkurrence: %s.',entry='%d. %s %d',
+        sep=', ',placed='Du blev nummer %d af %d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='Spillet blev på pause, så co-op-menuen åbnede ikke.'},
 }

@@ -332,6 +332,18 @@ return {
             refused="Votre jeu n'a pas pu lancer le défi : vous ne jouez pas cette manche. UE4SS.log dit pourquoi."},
         end_notice='%s : %s, score %d, temps %s.',
         placed='Course au score : place %d sur %d.'},
+    fishing={head='PÊCHE',count='Début dans %d',up='Temps écoulé',title='Tournoi de pêche',
+        mine='%d points · poissons : %d',fish='Poissons : %d',waiting="En attente du classement de l'hôte.",
+        unranked='Hors classement.',best='Nouveau record personnel.',norank="Aucun classement n'est venu de l'hôte.",
+        start='%s lance un tournoi de pêche : %d min.',
+        out={off='Le tournoi de pêche est désactivé dans les Options.',
+            slot='Chargez une sauvegarde co-op pour pêcher dans le tournoi.',
+            table='Impossible de lire la table des poissons.'},
+        host_left="L'hôte est parti. Ce tournoi n'a pas de classement.",cancelled='Le tournoi a été annulé.',
+        reloaded='Votre jeu a été rechargé : vos prises ne comptent plus dans ce tournoi.',
+        go='Tournoi de pêche : à vos lignes. Encore %d min.',standing='Tournoi de pêche : place %d, %d points.',
+        end_notice='Tournoi de pêche : temps écoulé, %d points, poissons : %d.',top='Tournoi de pêche : %s.',
+        entry='%d. %s %d',sep=', ',placed='Votre place : %d sur %d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='En ligne',stuck='Le jeu est resté en pause : le menu co-op ne s\'est pas ouvert.'},
 }

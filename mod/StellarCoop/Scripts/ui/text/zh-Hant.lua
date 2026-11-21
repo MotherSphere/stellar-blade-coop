@@ -259,6 +259,14 @@ return {
             refused='遊戲無法開始挑戰：你不參加本輪。原因請見UE4SS.log。'},
         end_notice='%s：%s，得分 %d，用時 %s。',
         placed='得分挑戰：第%d名，共%d人。'},
+    fishing={head='釣魚',count='開始倒數 %d',up='時間到',title='釣魚大賽',mine='%d分 · %d條',fish='%d條',waiting='正在等待房主的排名。',
+        unranked='未計入排名。',best='刷新個人最佳紀錄。',norank='房主沒有傳來排名。',start='%s發起了釣魚大賽：%d分鐘。',
+        out={off='選項中已關閉釣魚大賽。',
+            slot='請載入合作存檔以參加釣魚大賽。',
+            table='無法讀取魚類表。'},
+        host_left='房主已離開。本次大賽沒有排名。',cancelled='大賽已取消。',reloaded='你的遊戲已重新載入：你的漁獲不再計入本次大賽。',go='釣魚大賽：開始釣魚。剩餘%d分鐘。',
+        standing='釣魚大賽：第%d名，%d分。',end_notice='釣魚大賽：時間到，%d分，%d條。',top='釣魚大賽：%s。',entry='第%d名 %s %d分',sep='，',
+        placed='你的名次：第%d名，共%d人。'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='線上',stuck='遊戲仍處於暫停狀態，因此合作選單沒有開啟。'},
 }
