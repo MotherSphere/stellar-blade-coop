@@ -61,14 +61,15 @@ bike's hidden rig through `SetMasterPoseComponent` ([The rig](../vehicles/bike-i
 belongs to another actor. `online/partner/wiring.lua` gives `capture.pose_source` the bike's `pose_source`, which the
 capture asks once a look with her actor's address: the rig's `SkeletalMeshComponent` during such a ride, else nil. A
 part whose leader is that component is mapped. Her main mesh then has no leader. Any other part follows her main mesh.
-Part 0's `read` line names the rig's component, its class and its mesh. Its bone count, bone names and morph names come
-from the rig's mesh, so the native part reads part 0's world transform, bones and morph weights from the rig. The rig's
-component and mesh are in the generation key: a new rig or a new rig mesh starts a new generation. A pose source without
-a mesh counts as none. Her main mesh then follows a component outside her parts, so no table goes out and the other
-players keep the one published before. On the hold way, off the bike and while the bike module is off, `pose_source`
-answers nil and the capture works as above. The native sound and world effect hooks take the owner of part 0's `read`
-object as her actor. During a rig ride that is the rig's actor, so most of her sounds and world effects do not reach the
-ghost ([Ghosts](../vehicles/bike-internals.md#ghosts)).
+Part 0's `read` line names the rig's component, its class and its mesh, so the native part reads part 0's world
+transform, bones and morph weights from the rig. Part 0's bone count, bone names and morph names come from the rig too,
+to match what the native part reads. The rig's component and mesh are in the generation key: a new rig or a new rig mesh
+starts a new generation. A pose source without a mesh counts as none. Her main mesh then follows a component outside her
+parts, so no table goes out and the other players keep the one published before. On the hold way, off the bike and while
+the bike module is off, `pose_source` answers nil and the capture works as above. The native sound and world effect
+hooks take the owner of part 0's `read` object as her actor, which is the rig's actor during a rig ride. A sound or
+world effect then counts as hers only when it hangs on another part of hers, plays from a notify of the rig's clip or
+belongs to her drone ([Ghosts](../vehicles/bike-internals.md#ghosts)).
 
 ## 2. The component table
 
