@@ -5,9 +5,10 @@
 -- main/frame.lua ticks it each frame and runs its restore at the first one (coop-gun.txt, through the link's store);
 -- coop off stops it (main/commands.lua). It reads its settings from main.lua's (core/link.lua parses its gun_ lines);
 -- its notices and its reticle words come in the menu's words (ui/text.lua's gun). The rifle neither comes out nor
--- stays out while another module holds EVE (busy) or an SBO match runs (match); the bike asks out() in turn.
+-- stays out while another module holds EVE (busy) or an SBO match runs (match); the bike asks out() in turn. D-pad
+-- Right's tap toggles nothing while spectate watches: that tap switches the member it watches (pad_taken).
 return {
-uses={'vehicles.bike','online.modes.race','eve','online.lobby'},
+uses={'vehicles.bike','online.modes.race','eve','online.lobby','fight.enemies'},
 exports={'gun','gunrounds'},
 new=function(M)
 local function log(m) M.print('[StellarCoop][GM] '..tostring(m)..'\n') end
@@ -44,6 +45,7 @@ M.gun=require('fight.gunmode.mode').new({log=log,settings=settings,words=M.words
         local m=M.link.match()
         return m~=nil and m.state=='playing' or (M.link.fight() or ''):find('^fight=%a+ mode=pvp')~=nil
     end,
+    pad_taken=function() return M.spectate.watching()==true end,
     -- Read late through each module's export; an off module's stub answers nil (it holds nothing).
     busy=function()
         if M.bike.riding() then return 'EVE rides the bike' end

@@ -266,4 +266,37 @@ do
     assert(not gun.state.on,'Ctrl+F4 puts it away')
 end
 
+-- 8. A D-pad Right tap toggles nothing while another module takes it (env.pad_taken: spectate's switch of the member
+--    it watches): no rifle, no notice, no toggle line. F4 still toggles. Parked (no rifle layer), a tap then shows
+--    the rebuilding notice once it is free again.
+for _,parked in ipairs({false,true}) do
+    local w=Fake.new(); w.no_layer=parked; w.install()
+    local logs,notices,taken={},{},true
+    local gun=GunMode.new({log=function(m) logs[#logs+1]=m end,
+        notice=function(key) notices[#notices+1]=tostring(key) end,pad_taken=function() return taken end})
+    local function tap()
+        clock=clock+1
+        w.down.Gamepad_DPad_Right=true; frames(gun,6); w.down.Gamepad_DPad_Right=nil; frames(gun,3)
+    end
+    frames(gun,10)
+    tap()
+    assert(not gun.state.on and #notices==0,'taken: '..table.concat(notices,'|'))
+    for _,l in ipairs(logs) do assert(not l:find('toggle',1,true) and not l:find('not now',1,true),l) end
+    if not parked then
+        clock=clock+1
+        w.down.F4=true; frames(gun,1); w.down.F4=nil; frames(gun,1)
+        assert(gun.state.on,'F4 is not the pad: the rifle out')
+        clock=clock+1
+        w.down.F4=true; frames(gun,1); w.down.F4=nil; frames(gun,1)
+        assert(not gun.state.on)
+    end
+    taken=false
+    tap()
+    if parked then
+        assert(#notices==1 and notices[1]=='nil','free: the rebuilding notice '..table.concat(notices,'|'))
+    else
+        assert(gun.state.on,'free: the tap brings the rifle out')
+    end
+end
+
 print('gunmode state: ok')

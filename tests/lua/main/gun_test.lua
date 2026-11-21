@@ -3,9 +3,9 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode through main.lua (fixture.lua's fake fight/gunmode/mode.lua; fight/gunmode/stop_test tests the mode): its
 -- coop-gun.txt through the link's store (none without the native part), the photo mode as the runtime reads it, the
--- other modules' states that hold EVE (busy), its restore at the first tick before its tick, coop off's stop and after
--- a Lua reload with coop off still on its restore alone. Its hud build step gets the kit and its theme (the D-pad rifle
--- slot), with the Steam link only.
+-- other modules' states that hold EVE (busy), D-pad Right taken while spectate watches (pad_taken), its restore at the
+-- first tick before its tick, coop off's stop and after a Lua reload with coop off still on its restore alone. Its hud
+-- build step gets the kit and its theme (the D-pad rifle slot), with the Steam link only.
 dofile('tests/lua/main/fixture.lua')
 -- coop fly's keys: eve/flight.lua for real, with fly_on in place of its active() (on() needs SB's player input).
 local Flight,fly_on=require('eve.flight'),nil
@@ -47,6 +47,10 @@ for _,case in ipairs({{{state='playing',mode='ffa'},nil,true},{{state='countdown
     assert(gm.o.match()==case[3],tostring(fight_text or link_match.state))
 end
 link_match,fight_text=nil,nil
+-- D-pad Right's tap is spectate's while it watches (fight/enemies/spectate.lua's switch): gun mode then takes none.
+assert(gm.o.pad_taken()==false)
+sp.watching=true; assert(gm.o.pad_taken()==true)
+sp.watching=false
 -- Its notices in the menu's words: the rebuilding one by default, the match one and each refusal by its key.
 gm.o.notice()
 assert(said_en[#said_en]=='Gun mode: rebuilding',tostring(said_en[#said_en]))

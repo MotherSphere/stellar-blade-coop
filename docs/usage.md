@@ -25,7 +25,7 @@ The keys work with or without the console. They need the native part (`StellarCo
 | F3 | Put EVE on the [bike](vehicles/bike.md) or take her off it; a refusal shows its reason on screen | `coop bike` |
 | D-pad Right held 1 s, on a controller | The same as F3, in a world with none of the mod's screens or the game's menus open | `coop bike` |
 | F4 | Bring the NIKKE rifle out or put it away ([gun mode](fight/gunmode.md), experimental; without the optional `zNGMSpike_P` pak it shows only the notice "Gun mode: rebuilding"). `gun_key` in `coop-settings.txt` sets the key. G is left to Stellar Blade, which binds it to a menu action | `coop gun` |
-| A tap of D-pad Right (released within 0.4 s), on a controller | The same as F4 | `coop gun` |
+| A tap of D-pad Right (released within 0.4 s), on a controller | The same as F4, except while you watch a friend after a fall (spectate): that tap then switches the member you watch | `coop gun` |
 | Left and Right arrows; D-pad or left stick left and right | While you watch a friend after a fall in a shared boss fight ([spectate](fight/enemies.md#down-in-a-boss-fight-spectate)) and no menu, screen or box is open, watch the previous or next member alive on your map | (none) |
 | Enter | During a session or in the SBO lobby, open the [chat](players/interface.md#session-chat) box, then send a line; Esc closes the box | (none) |
 | none | Host a session at once, or open the Steam invite dialog again while you host (`host_key`) | `coop host` |

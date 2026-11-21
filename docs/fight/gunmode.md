@@ -63,7 +63,7 @@ stay for the game run ([The rounds' rows](#the-rounds-rows)). The fields the rif
 
 | Key | Pad | What it does |
 | --- | --- | --- |
-| F4 (`gun_key`) | A tap of D-pad Right | Rifle out or away. A hold of D-pad Right is the bike's |
+| F4 (`gun_key`) | A tap of D-pad Right | Rifle out or away. A hold of D-pad Right is the bike's. While [spectate](enemies.md#down-in-a-boss-fight-spectate) watches, the tap is spectate's |
 | RMB (held) | LT (held) | Firing mode: the camera comes over her shoulder, the laser sight and the reticle come up |
 | LMB | RT | In firing mode: full auto |
 | Space | A | In firing mode: jump, still firing |

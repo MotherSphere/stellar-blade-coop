@@ -84,6 +84,7 @@ function GunMode.ease(a,b,k) return a+(b-a)*k end
 -- in ui/text.lua's gun: rebuilding when nil), store (coop-gun.txt through core/link.lua's store: save, load, clear; nil
 -- without the native part, so a Lua reload then cannot put back what an earlier load changed), photo (main/base.lua's photo_state; '0' when not given), busy (why another module holds EVE now, or nil:
 -- fight/gunmode/wiring.lua reads them), match (true while an SBO match runs: fight/gunmode/wiring.lua reads the link),
+-- pad_taken (true while another module takes D-pad Right's tap: fight/gunmode/wiring.lua reads spectate's switch),
 -- stock (fight/gunmode/nikke.lua: the magazine loads from EVE's Bullet_Nikke rounds once its rows are in; nil: free
 -- magazines, fight/gunmode/ammo.lua)}.
 function GunMode.new(env)
@@ -880,6 +881,7 @@ function GunMode.new(env)
         local function down(name) return g.try(function() return pc:IsInputKeyDown({KeyName=FName(name)}) end)==true end
         -- The rifle away: the toggle keys only. The game's own aim (gun_fire=native) reads its zoom keys itself (M2).
         local inp=Input.read(keys,down,now,cfg,set.key,not s.on,set.native)
+        if inp.toggle and env.pad_taken and env.pad_taken() then inp.toggle=false end -- That tap is the other module's.
         if (inp.key or inp.toggle) and not (idle and paused()) then
             if inp.key then self.toggle(set.key.name) else self.toggle('D-pad Right') end
         end
