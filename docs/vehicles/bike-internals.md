@@ -541,7 +541,10 @@ change of the rig's component or of its mesh starts a new generation.
 The native `read_pose` (`game/partner/engine.h`) reads part 0's world transform (`+0x1f0`) and bones (`+0x8c0`, count
 `+0x8c8`) from part 0's `read` object: the rig's component. The rig is snapped to her main mesh, so both transforms
 should match. This was not checked in game. The native effect read walks the attach children of
-each leader's `read` object: effects hung on her main mesh do not reach the ghost while she rides this way. A pose
+each leader's `read` object: effects hung on her main mesh do not reach the ghost while she rides this way. The native
+sound and world effect hooks (`online/partner/sound_game.inc`) take her actor as the owner of part 0's `read` object,
+which is the rig's actor on this way. A sound or world effect then counts as hers only when it hangs on another part of
+hers or plays from a notify of the rig's clip. Her other sounds and world effects do not reach the ghost. A pose
 source with no mesh gives no table. So does a rig that `pose_source` does not name (after Ctrl+R, before the release):
 the other players keep the table published before. On the hold way `pose_source` answers nil and the capture works as
 above.

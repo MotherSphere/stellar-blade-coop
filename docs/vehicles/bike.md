@@ -226,8 +226,8 @@ your own. With `bike=off`, your bike leaves every world and your game shows nobo
 setting frees the bike's files.
 
 With `bike_pose=rig` your ghost takes her pose from the hidden copy, so the other players see her on the bike as with
-`bike_pose=hold`. Effects that play on EVE while she rides this way do not show on your ghost. This has not been
-checked in game yet.
+`bike_pose=hold`. Most of EVE's sounds and effects while she rides this way do not reach your ghost. This has not
+been checked in game yet.
 
 Getting on or off may show two bikes or none for about 2 s in your friend's game: the copy changes at once while your
 ghost is built again with or without the bike.

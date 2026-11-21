@@ -225,9 +225,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `online/partner/capture_test` also covers SBO's bike left out of the parts while EVE does not ride (`leave_out`, asked
   once a look): an outfit of 16 parts keeps them all; while she rides the bike is part 1 and the last follower goes;
   getting on or off starts a new generation; another component on the bike's mesh stays a part; her body on the bike's
-  rig (`pose_source`, asked once a look): her main mesh and two followers give the table without the rig except part
-  0's `read` object, a new generation; on another mesh the rig's bone count, bone names and morph names; no table for a
-  rig `pose_source` does not name or one without a mesh;
+  rig (`pose_source`, asked once a look): her main mesh, two followers and a ponytail with no leader give the table
+  without the rig except part 0's `read` object, a new generation; on another mesh the rig's bone count, bone names
+  and morph names; no table for a rig `pose_source` does not name or one without a mesh;
 - the ghost's drone, sounds and faces looks: `core/link_test` reads `drone`, `sounds` and `faces` (each on unless set;
   a bad value keeps it on with a line) and gives a file with 0.11's ghost comment the new comment once, with a line that
   names no setting. `coop-state.txt` gets `sounds=0` when the sounds look is off, nothing when it is on or not given.
