@@ -306,6 +306,10 @@ do
     assert(not gun.state.on and cool.CoolTime==999,'held while the aim lasts')
     clock=clock+1; gun.toggle_now()
     assert(not gun.state.on and said('not now: release the drone aim first'),'no rifle while the aim lasts')
+    -- The aim drops for a few frames with RMB still down (a shot's skill, a jump): the hold lasts until RMB is up too.
+    -- Put back then, TPSMode would go to Ctrl under the held RMB again.
+    w.pawn.bTPSMode=false; frames(gun,3); w.pawn.bTPSMode=true; frames(gun,2)
+    assert(w.keys():find('TPSMode=RightMouseButton',1,true) and cool.CoolTime==999,'held through a drop: '..w.keys())
     w.down.RightMouseButton=nil; w.pawn.bTPSMode=false
     frames(gun,1)
     assert(#w.changed()==0 and w.keys()==keys and said('drone aim hold over (the drone aim ended)'),

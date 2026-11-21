@@ -796,8 +796,8 @@ function GunMode.new(env)
         keep()
         g.log('drone aim hold over ('..why..')')
     end
-    -- An off while the game's aim runs (gun_fire=native) holds the input mask and SB's rows until that aim ends, with
-    -- no round to fire (the NIKKE shot's cool time 999, as with an empty magazine). The aim key stays on RMB, so
+    -- An off while the game's aim runs (gun_fire=native) holds the input mask and SB's rows until that aim ends with the
+    -- aim key up, with no round to fire (the NIKKE shot's cool time 999, as with an empty magazine). The aim key stays on RMB, so
     -- letting it go ends the aim: SB binds TPSMode's press and release (0x1420473b0 hands both to 0x14209f660, command
     -- key 0x2b). Put back under a held RMB, the key moved to Ctrl, the release never came and the plain drone aim
     -- stayed on, firing (2026-11-21 test).
@@ -1184,9 +1184,11 @@ function GunMode.new(env)
             if s.armed_until then s.armed_until=math.max(s.armed_until,now+cfg.arm_hold) end -- SB's events wait too
             return
         end
+        dn_pc,dn_frame=pc,dn_frame+1
+        -- (the aim key up too: bTPSMode drops for a frame on a shot's skill and through a jump while RMB is held)
         if s.aim_hold and not s.on then
             local p=g.pawn()
-            if not (p and aim_on(p)) then release_hold('the drone aim ended') end
+            if not (p and aim_on(p)) and not down(set.aim_key) then release_hold('the drone aim ended') end
         end
         if (s.on or s.aim_hold) and not s.mask then
             local ok,err=pcall(function() s.mask,s.keys=mask(s.morph~=nil and s.morph.dir=='in') end)
@@ -1201,7 +1203,6 @@ function GunMode.new(env)
             s.armed_until=nil
             if data.armed then data.disarm(); keep() end
         end
-        dn_pc,dn_frame=pc,dn_frame+1
         if s.prof then s.prof('head') end
         -- The rifle away: the toggle keys only. The game's own aim (gun_fire=native) reads its zoom keys itself (M2).
         local inp=Input.read(keys,down,now,cfg,set.key,not s.on,set.native,inp_buf)
