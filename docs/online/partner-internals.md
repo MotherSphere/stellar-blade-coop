@@ -582,3 +582,136 @@ parts with collision on (0 expected). `coop status` counts the capsule's changes
 
 Nothing goes over the network for it, and neither game's state changes: each PC decides for its own EVE. The ghost
 shows your friend about one ping late, so the two PCs never agree on a contact, and nothing depends on them agreeing.
+
+## Ghost bench
+
+`coop bench` is a developer command that measures what ghosts cost on one PC. It puts up to 64 local ghosts on rings
+around your EVE. They replay her own pose with no Steam link and no session, so nothing is sent. `UE4SS.log` gets one
+line a second with the frame time, the native tick's own time, Lua's time in the bench ghosts and how many of them are
+drawn. The commands are in [usage.md](../usage.md#ghost-bench-coop-bench). The Lua half is `online/partner/bench.lua`.
+The native half is `native/src/online/partner/bench.h` (tested on the build machine), `bench_game.inc` (game thread)
+and `bench_worker.inc` (worker). Not tested in game yet.
+
+The bench needs the native tick and the ghost on (`coop puppet`), which publishes her capture, as `coop loopback` does.
+Each bench ghost is a ghost of `online/partner/puppet.lua` on files of the bench. The bench ghosts take the assets
+loader's slots 101 to 164, never the members' slots 0 to 6. The native part keeps them in a list of its own, not in its
+7 remote slots.
+
+### The bench's files
+
+All four are in the mod folder.
+
+| File | Written by | Read by | Holds |
+| --- | --- | --- | --- |
+| `coop-bench.txt` | Lua, at the 250 ms pass after a change (`bench off` at once) | the worker, at each 250 ms pass when the text changed | `bench off`, or `bench <table generation>` then one block per ghost: `ghost <dx cm> <dy cm> <stride>` and that ghost's display lines |
+| `coop-bench-table.txt` | the worker, while the bench runs, each time her capture's wire text changes | each bench ghost, as its remote table | her capture table, as it would go to a friend |
+| `coop-bench-out.txt` | the worker, once a second while the bench runs | Lua, every 250 ms | the last second (below) |
+| `coop-bench-ghosts.txt` | Lua, at a 250 ms pass when a bench ghost's actor changed | Lua, at the first tick of the next load | the bench actors' object paths, one a line |
+
+The worker removes `coop-bench-out.txt` and `coop-bench-table.txt` at `bench off`. It reads `coop-bench.txt` (64 blocks
+and 4 MiB at most) against her capture table. A head that names another generation is stale: nothing is written until
+Lua sends a list built on the new table. A block whose display does not parse on that table is left out. It counts in
+the file's blocks, not in those taken. A stride other than 1, 2 or 4, an offset past 30000 cm (300 m), a 65th block or
+a bad head makes the whole file malformed. The writes then stop until a good file, with `bench file refused: malformed`
+in `coop-link.log`. Lua writes a file by removing the old one before it renames the new one in. A missing file during a
+run is therefore no change. Before a run it reads as off.
+
+### Each frame
+
+`game_tick` (`online/partner/pose_game.inc`) runs the bench after the members' ghosts, behind the partner's fault
+guard. A fault there turns the members' ghosts and the bench off together, with `engine off: fault ... at part <i>` in
+`coop-link.log`.
+
+For the first 240 frames of a run (4 s at 60 fps) the game thread reads her pose once a frame, as the capture does, and
+keeps it. After that it plays the 240 frames in a loop. Her root is recorded too, so a walk or a turn in those 4 s
+repeats on every ring. A new list on the same capture (a ghost built, a group added) keeps the loop. A new capture
+generation (another outfit, a map change) records again.
+
+Each frame it writes that one pose into every bench ghost due: each leader part Lua built (as it came, or through its
+remap on a fallback mesh), then the mailbox with her root moved by the ghost's ring offset. The measure is the cost of
+the writes and of the engine's work on them, with no decode: decoding runs once per received pose. A ghost is due every
+frame, every 2nd or every 4th by its stride, counted on the bench's own frames. A tier's ghosts are spread over those
+frames by their order. A ghost whose root part is no longer live (a set replaced, a map change) is skipped until the
+next list. It does not count as refused. The first refused write of a list logs `bench: write refused: part
+<i>|mailbox <reason> (table <generation>)` in `coop-link.log`.
+
+### Tiers
+
+| Tier | The ghost | Written |
+| --- | --- | --- |
+| `full` | Today's ghost with its name tag, without faces, world effects, sounds or drone (they need native calls the bench does not make) | every frame |
+| `mid` | `SetForcedLOD(2)` on every part, no shadow, no cloth, no name tag | every 2nd frame |
+| `far` | Each part on its base-suit mesh, a part with none left out (the body and hair stay), `SetForcedLOD(99)` on every part, no shadow, no cloth, no dyes, no name tag | every 4th frame |
+
+`nocloth` and `noshadow` take cloth or shadows off any tier, to measure their share on `full` ghosts. The looks are the
+ghost's `look.lod`, `look.shadow=false`, `look.basesuit` and `look.bare` (`online/partner/puppet.lua`). Each is nil on
+a friend's ghost.
+
+`SetForcedLOD` (exec `0x14492ac00`, native table entry `0x14665f160`) writes the component's ForcedLodModel (`+0x778`):
+0 for an argument of 0 or less, the argument when it is below the mesh's LOD count, else the count. In UE 4.26 a
+ForcedLodModel of n draws LOD n - 1. So 2 draws LOD 1 (LOD 0 on a mesh with one LOD) and 99 draws the mesh's lowest LOD,
+with no pak read of LOD counts. A friend's ghost has `SetForcedLOD(1)` (LOD 0) on its leaders only. `SetCastShadow`
+(exec `0x1448f0b20`, entry `0x14662b1a0`) sets or clears bit 6 of `+0x28f`. A refusal is noted once a build as `shadow
+not turned off`.
+
+### The line a second
+
+Once a second the worker writes the window to `coop-bench-out.txt`, on one line:
+
+```
+bench <seq> ghosts <blocks> taken <taken> frames <f> gap <mean µs> <max µs> tick <mean µs> <max µs>
+written <w> refused <r> table <generation> <count> [memory <working set MB> <private MB>]
+```
+
+- `ghosts` and `taken`: the blocks of the last bench file read, then how many of them parsed.
+- `frames`: the native ticks of that second, each counted with the gap before it. They run with or without a ghost to
+  write.
+- `gap`: the time between two native ticks (QueryPerformanceCounter; `game_tick` runs once per engine frame), its mean
+  and maximum.
+- `tick`: the native tick's own time, its mean over the same frames and its maximum. The members' ghosts are in it.
+- `written` and `refused`: the ghosts written whole, the ghosts with a refused write.
+- `table`: the generation of the table in `coop-bench-table.txt` (0 for none) and how many times one was written.
+- `memory`: the process working set and private bytes (`K32GetProcessMemoryInfo`'s WorkingSetSize and PrivateUsage),
+  on the first line of a run then every 10 s; `0 0` when the call fails.
+
+Lua reads the file at each 250 ms pass and logs one line for each new window (one line in the log, wrapped here):
+
+```
+[StellarCoop] Bench: 16 ghosts (16 full at 5 m nocloth noshadow), 16 of 16 taken, 16 drawn, 11 rendered; frame mean
+16.7 ms, worst 24.1 ms (60 frames); native tick mean 0.41 ms, max 1.20 ms; Lua ghosts 0.250 ms a frame; 960 written, 0
+refused; working set 9876 MB, private 10234 MB
+```
+
+`16 ghosts (...)` is the bench ghosts Lua holds, by group. `drawn` counts those built and shown. `rendered` counts the
+drawn ones whose main mesh answers `WasRecentlyRendered(0.2)` true. `frame mean` and `worst` are `gap` in ms, `native
+tick` is `tick`. `Lua ghosts` is the time of the bench ghosts' tick and place, a frame, from `os.clock()`. On Windows
+that clock moves in 1 ms steps, so the mean of a second is an average of whole milliseconds. A window already in the
+file when the bench starts (left by a crash) is not logged.
+
+`WasRecentlyRendered` (native table entry `0x14662b530`, exec `0x1448f6f10`) calls `FUN_1440f02f0`. It is true when the
+world's `+0x748` minus the component's `+0x30c` is at most the larger of the tolerance and the world's `+0x758` plus
+0.0001. In UE 4.26 these are the world's time and the component's last render time. The engine also sets that time in
+shadow passes (not read in this build), so a ghost seen only through its shadow can count as rendered.
+
+### Map change, reload, coop off
+
+- A map change: each bench ghost goes and is built again on her new table, as any ghost is. The native part records
+  her loop again on the new capture.
+- A Lua reload ends the bench. The next load's first tick destroys the actors `coop-bench-ghosts.txt` lists that still
+  have a PoseableMeshComponent root, then writes `bench off`. It logs `Bench: <n> ghosts of an earlier Lua load
+  removed.` when it destroyed any.
+- `coop off` removes the bench ghosts and writes `bench off` (`online/partner/wiring.lua`'s `M.ghosts_off`). The worker
+  then removes the out and table files.
+- Photo mode, the pause and cutscenes change nothing for the bench. Its writes keep the alive, class, mesh and owner
+  checks of a friend's ghost. The bench ghosts are not hidden in photo mode.
+
+### Limits
+
+- The console passes six words after `coop bench`. `ring <m>` takes two of them, so a ring with both `nocloth` and
+  `noshadow` does not fit. A seventh word is dropped without a refusal.
+- While the bench runs, `stray_parts=` in `coop status` counts the bench ghosts' parts.
+- 64 ghosts read the same table at once and build one step a frame each. The first lines of a set show that build.
+- After a set is replaced, `coop-bench.txt` keeps the old blocks until the next 250 ms pass. Their actors are already
+  destroyed, so those ghosts are skipped as gone.
+- Each new list allocates a loop on the worker (240 frames of 40 bytes plus her leader bones). It is dropped when the
+  capture is the same.

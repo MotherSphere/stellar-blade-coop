@@ -89,6 +89,8 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop loopback off` | Stop the loopback |
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
 | `coop replay` / `coop replay off` | Play `coop-record.bin` back as a ghost, in a loop |
+| `coop bench ghosts <0-64> [full\|mid\|far] [ring <1-300>] [nocloth] [noshadow] [add]` | Put up to 64 local ghosts on a ring around EVE that replay her own pose, with a `Bench:` line a second in `UE4SS.log` of what they cost ([Ghost bench](#ghost-bench-coop-bench); developer command, untested in game) |
+| `coop bench off` / `coop bench` | Remove the bench ghosts and stop the lines / say whether the bench runs |
 | `coop nightop [start [easy\|normal\|hard\|nightmare] [noaggro\|nomove]\|stop]` | [Night Operation's run](online/modes/nightop.md#the-solo-run-coop-nightop) at one of four [levels](online/modes/nightop.md#levels), solo or, started by the host at his level, [for both players](online/modes/nightop.md#the-co-op-run) (one solo run in game, on 2026-10-28, tracked none of its monsters and spawned some inside walls; the fixes for the tracking and for the spawn points are untested in game; co-op save only; `stop` on any save) |
 | `coop nightop revive` | In a co-op run with `revive=on`, while your EVE is down: revive her yourself, a few times a run ([Down and revive](online/modes/nightop.md#down-and-revive)) (untested in game, co-op save only) |
 | `coop nightop shop` | Night Operation's [reward shop](online/modes/nightop-shop.md#the-shop-screen-coop-nightop-shop) in the game's own shop screen, your points as Beta Seeds, with its seven items (two cut stimpacks and the cut [Shock Bolt](online/modes/nightop-shop.md#cut-ammo-shock-bolt) ammo among them; the Shock Bolt only once EVE's gun can fire it) (the screen opened in game; buying from it is untested; co-op save only) |
@@ -278,6 +280,35 @@ These three commands run the ghost pipeline on one PC. They need the native tick
 
 See [dev/architecture.md](dev/architecture.md#loopback-record-and-replay) for the parts of the pipeline each one tests.
 
+### Ghost bench: `coop bench`
+
+`coop bench` measures what ghosts cost on your PC, with no session (a developer command, untested in game). Its ghosts
+are local: nothing is sent, so no other PC sees them. It needs the native tick and the ghost on (`coop puppet`). With
+the ghost off it answers `turn the ghost on first: coop puppet`. How it works is in
+[online/partner-internals.md](online/partner-internals.md#ghost-bench).
+
+- `coop bench ghosts <n> [full|mid|far] [ring <m>] [nocloth] [noshadow] [add]` puts n ghosts (0 to 64) on a circle of
+  m metres around your EVE (1 to 300, 5 by default). They replay her own pose. The first 4 s after the bench starts are
+  recorded, then played in a loop, so what she does in those 4 s repeats.
+- `full` (the default) is a friend's ghost without faces, world effects, sounds or drone. `mid` draws LOD 1 with
+  no shadow, no cloth and no name tag, written every 2nd frame. `far` draws the base suit's body and hair at their
+  lowest LOD with no shadow, no cloth, no dyes and no name tag, written every 4th frame. `nocloth` and `noshadow` take
+  cloth or shadows off any tier.
+- Without `add`, the new ghosts replace the bench ghosts already there. With it, they join them, up to 64 in all.
+  `coop bench ghosts 0` gives the lines with no ghost, for a baseline.
+- The console passes six words after `coop bench`. A seventh word is dropped without a refusal:
+  `coop bench ghosts 16 mid ring 40 nocloth add` loses `add` and replaces the set.
+- From the next second on, `UE4SS.log` gets one line a second, on one line:
+  `[StellarCoop] Bench: 16 ghosts (16 mid at 40 m), 16 of 16 taken, 16 drawn, 9 rendered; frame mean 16.7 ms, worst
+  24.1 ms (60 frames); native tick mean 0.41 ms, max 1.20 ms; Lua ghosts 0.250 ms a frame; 480 written, 0 refused`.
+  Every 10 s it ends with `; working set <MB> MB, private <MB> MB`. Each field is explained in
+  [The line a second](online/partner-internals.md#the-line-a-second).
+- `coop bench off` removes the bench ghosts and stops the lines. `coop bench` alone answers `Bench off.` or
+  `Bench on: <n> ghosts (<groups>), <d> drawn (coop bench off ends it).`
+- `coop off` ends the bench. A map change builds each bench ghost again on the new map, as for any ghost. Ctrl+R ends it:
+  the next load removes the bench ghosts left in the world, with `Bench: <n> ghosts of an earlier Lua load removed.`
+- While the bench runs, `stray_parts=` in `coop status` counts the bench ghosts' parts.
+
 ### Commands that need a co-op save
 
 `coop no` (the probe) and `coop recruiter` (the cut recruiter) are research previews of the cut Night Operation mode,
@@ -333,7 +364,8 @@ word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`
 
 `coop off` stops the following until the game restarts, even across a Lua reload:
 
-- the ghost, EVE's capture, the loopback, a recording (which is written) and a replay;
+- the ghost, EVE's capture, the loopback, a recording (which is written), a replay and the
+  [ghost bench](#ghost-bench-coop-bench) (its ghosts removed);
 - engine reads and the Steam link;
 - the screen notices, the co-op menu, the chat box, the feed and the partner HUD (the game gets its keys back), and the
   chat history (cleared);

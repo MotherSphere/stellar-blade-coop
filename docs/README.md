@@ -179,6 +179,7 @@ body reads its state and how the game reuses Lion bodies, which is in
 | The ghost pipeline: Looks | [online/partner-internals.md](online/partner-internals.md#looks) |
 | The ghost pipeline: CNS guard and crash sentinel | [online/partner-internals.md](online/partner-internals.md#cns-guard-and-crash-sentinel) |
 | The ghost pipeline: Solid partner | [online/partner-internals.md](online/partner-internals.md#solid-partner) |
+| The ghost pipeline: Ghost bench | [online/partner-internals.md](online/partner-internals.md#ghost-bench) |
 | Same-place enemies | [fight/enemies-internals.md](fight/enemies-internals.md#same-place-enemies) |
 | Same spawns | [fight/enemies-internals.md](fight/enemies-internals.md#same-spawns) |
 | Same spawns: The spawn filter | [fight/enemies-internals.md](fight/enemies-internals.md#the-spawn-filter) |

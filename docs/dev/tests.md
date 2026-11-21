@@ -34,7 +34,7 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `world/maps/matrix13/quest/`: `on_time`, `subtitles`, `zone_talks`; `world/maps/matrix13/talks/`: `zones`;
 `world/maps/matrix13/level/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`; `online/modes/nightop/`:
 `board`, `challenges`, `guard_text`, `off`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
-`online/partner/`: `assets`, `bike_part`, `capture`, `commands`, `doro_pick`, `ghosts`, `hud`, `off`, `puppet`,
+`online/partner/`: `assets`, `bench`, `bike_part`, `capture`, `commands`, `doro_pick`, `ghosts`, `hud`, `off`, `puppet`,
 `sentinel`; `online/photo/`: `off`; `story/quests/`: `off`, `wiring`; `online/modes/race/`: `commands`, `doro`,
 `drive`, `drive_model`, `model`, `off`, `run`; `online/modes/race/match/`: `game`, `model`, `round`;
 `online/modes/race/ui/`: `hud`; `online/modes/scoreattack/`: `board`, `challenges`, `game`, `model`, `off`, `round`,
@@ -230,6 +230,17 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   rig (`pose_source`, asked once a look): her main mesh, two followers and a ponytail with no leader give the table
   without the rig except part 0's `read` object, a new generation; on another mesh the rig's bone count, bone names
   and morph names; no table for a rig `pose_source` does not name or one without a mesh;
+- the ghost bench (`coop bench`): `online/partner/bench_test` over fake ghosts and files covers the command's words
+  (0 to 64 ghosts, the three tiers, `ring` 1 to 300 m, `nocloth`, `noshadow`, `add`; any other word refused with the
+  usage), the refusal while her ghost is off, the ghosts on their ring with their tier's look on slots 101 on, their
+  table from `coop-bench-table.txt` at the native part's count, their displays in `coop-bench.txt` with offset and
+  stride, their paths in `coop-bench-ghosts.txt`, one log line a window with its text, `add` up to 64, a second ring of
+  the same size turned by half a step, a map change, `off`, a window left from an earlier run, a ghost that raises said
+  once and the next Lua load's sweep. Through `online/partner/wiring.lua` the bench ticks with the members' ghosts and
+  `coop off` ends it. `online/partner/puppet_test` covers the tiers' looks: `look.lod` on every part (followers too),
+  `look.shadow=false` on every part, `look.basesuit` (no mod-parts notice), `look.bare` leaving out a part with no
+  fallback with its followers, `body()` nil before the first pose and once off. `online/partner/commands_test` covers
+  `coop bench ghosts`, `off`, the status, two wrong words and the refusal without the native part;
 - the ghost's drone, sounds and faces looks: `core/link_test` reads `drone`, `sounds` and `faces` (each on unless set;
   a bad value keeps it on with a line) and gives a file with 0.11's ghost comment the new comment once, with a line that
   names no setting. `coop-state.txt` gets `sounds=0` when the sounds look is off, nothing when it is on or not given.
@@ -1005,6 +1016,17 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 - `online_partner_gap_test`: the native tick's gap line (`gap_line` in `game/core.h`) from fixed values: the UTC time of
   day out of a FILETIME (the last 100 ns of a day included), the gap in whole ms, a frame past 32 bits, the tick before
   it, and the `vkd3d-proton.cache.write` growth, left out when there is no such file;
+- `online_partner_bench_test`: the ghost bench's native core (`online/partner/bench.h`) over its own fake object array.
+  `coop-bench.txt` read against her table: off, stale for another generation or with no capture, an empty list (the
+  baseline), offsets of 300 m, a display that does not parse left out and counted, the phases of strides 2 and 4,
+  malformed for a bad head, a block line that is not `ghost` and three whole numbers, stride 0, 3 or 8, an offset past
+  30000 cm, a 65th block or a file over 4 MiB. A pass's read of a missing file: off before a run, kept during one. Her
+  loop: nothing before her first read, the frame just added drawn while recording (again after a refused read), then the
+  240 frames in order from the first again, a new list taking the loop over. One pose written into a bench ghost: its
+  leaders' bones and refresh bytes, the mailbox at her root plus the offset with the stamp, a remapped leader, a closed
+  gate refused with its part while the rest is written, the first refused part named, a mailbox of another actor refused
+  as the mailbox, a destroyed root part gone with nothing written or counted, a left-out leader's bytes skipped.
+  `bench_due` for stride 4 and phase 1. The exact `coop-bench-out.txt` lines with the memory, without it and empty;
 
 ### Saves
 
