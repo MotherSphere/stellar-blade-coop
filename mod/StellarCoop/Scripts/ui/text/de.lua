@@ -296,13 +296,16 @@ return {
             warp='Die Lobby wurde nicht geladen. Es hat sich nichts geändert.',
             leave='Rückkehr nach Xion nicht möglich. Geh ins Hauptmenü: Dort wird der '
                 ..'Koop-Speicherstand wiederhergestellt.'}},
-    lobby={sub='PvP-LOBBY · SBO',page='LOBBY · SBO',mode={scoreattack='Punktejagd',
+    lobby={sub='PvP-LOBBY · SBO',page='LOBBY · SBO',mode={race='Doro-Rennen',
+            scoreattack='Punktejagd',
             ffa='Jeder gegen jeden'},
         desc={
+            race='2 bis 8 Spieler fahren als Doro auf derselben Strecke. Die kürzeste Zeit gewinnt.',
             scoreattack='2 bis 8 Spieler spielen gleichzeitig dieselbe Herausforderung. Die beste Punktzahl gewinnt, '
                 ..'danach die kürzeste Zeit.',
             ffa='2 bis 8 Spieler. Wer zuerst 20 Kills hat, gewinnt, sonst die beste Punktzahl nach 10 Minuten. '
-            ..'Respawn nach 4 Sek.',more='Weitere Modi kommen in späteren Versionen.'},row={challenge='Herausforderung',
+            ..'Respawn nach 4 Sek.',more='Weitere Modi kommen in späteren Versionen.'},row={track='Strecke',
+            challenge='Herausforderung',
             search='Suchen',
             cancel='Abbrechen',private='Privates Match',code='Code %s',join_code='Code eingeben',room='Warteraum',
             settings='Einstellungen',leave='Verlassen',more='Weitere Modi'},tag={picked='gewählt',
@@ -314,11 +317,13 @@ return {
         empty='Noch keine Lobby. Suchen findet eine oder öffnet eine.',
         empty_search='Suche nach einer öffentlichen Lobby dieses Modus.',hint={change='Ändern',tabs='Reiter'},
         room='Lobby-Menü: %s oder Ansicht-Taste halten',tab={match='MATCH',sbo='SBO'},head={lobby='LOBBY'},
-        set={challenge='Herausforderung',ranking='Wertung',
+        set={track='Strecke',
+            challenge='Herausforderung',ranking='Wertung',
             damage='Schaden zwischen Spielern',
             room='Karte',players='Spieler',finish='Ende',tie='Gleichstand',respawn='Respawn',protection='Spawnschutz',
             difficulty='Schwierigkeitsstufe',equipment='Ausrüstung',arena='Arena',start='Start',lobby='Lobby',
             version='Version',mute='Stumm: %s'},val={
+            race_ranking='Kürzeste Zeit, gleichauf bis 0,01 Sek.',
             ranking='Beste Punktzahl, dann kürzeste Zeit',
             damage='Keiner',host_pick='Wahl des Hosts',
             random='Zufällig',players='2 bis 8',finish='20 Kills oder 10 Min.',

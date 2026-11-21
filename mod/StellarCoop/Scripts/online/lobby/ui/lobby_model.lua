@@ -4,18 +4,23 @@
 -- The lobby screens' model (design-lobby 4.3 to 4.5), no engine call: the lobby menu's rows by state, what Select on a
 -- row asks for, its status line and members box, a cursor that wraps and visits locked rows, the settings screen's
 -- rows of both tabs, and the countdown's local clock. Rows, statuses and values are ids or keys of ui/text.lua's
--- lobby table; online/lobby/ui/lobby.lua gives them their words. The mode rows: free-for-all and score attack
--- (online.modes.scoreattack, its round in the waiting room), picked before Search or Private match; in a score attack
--- match lobby, its Challenge row in place of free-for-all.
+-- lobby table; online/lobby/ui/lobby.lua gives them their words. The mode rows: free-for-all, score attack
+-- (online.modes.scoreattack) and the Doro race (online.modes.race), the last two with their round in the waiting room,
+-- picked before Search or Private match; in a score attack match lobby, its Challenge row in place of free-for-all; in
+-- a Doro race match lobby, its Track row.
 local Join=require('core.line')
 local Maps=require('online.lobby.sbo_maps')
 local M={}
 -- FFA's lobby size (N11's 8); an online session's while its max_players is not known (a guest before the host's let
 -- line: the most one holds); seconds the copied word stays.
 local LIMIT,COOP,COPIED=8,4,3
--- The mode rows (three, so B's top block keeps one layout), then the action rows of each state.
-local MODES={'ffa','scoreattack','more'}
+-- The mode rows (four at most, so B's top block keeps one layout), then the action rows of each state.
+local MODES={'ffa','scoreattack','race','more'}
 local SCORE={'scoreattack','challenge','more'} -- In a score attack match lobby.
+local RACE={'race','track','more'} -- In a Doro race match lobby.
+local OWN={scoreattack=SCORE,race=RACE}
+-- Each mode row's round: it can play while the view holds it (sa, dr).
+local CAN={scoreattack='sa',race='dr'}
 local ROWS={
     idle={'search','private','join_code','room','settings','leave'},
     public={'cancel','room','settings','leave'},
@@ -24,13 +29,17 @@ local ROWS={
 -- Select on a row; cancel depends on the state; search and private name the mode picked; more asks for nothing. Search
 -- and Private name the lobby too (lobby: main.lua adds the room and hall words of online/lobby/sbo.lua's lobby_words()
 -- to Search, and sends Private through sbo.create() with the map picked on C). A mode row picks its mode; the Challenge
--- row cycles the host's pick (online.modes.scoreattack's cycle).
+-- row cycles the host's pick (online.modes.scoreattack's cycle), the Track row the host's track (online.modes.race's).
 local ACTS={search={request='match search',lobby=true},private={request='match create',lobby=true},
     join_code={open='join'},code={copy=true},room={close='room'},settings={open='settings'},leave={popup='leave'},
-    ffa={mode='ffa'},scoreattack={mode='scoreattack'},challenge={cycle=true}}
--- Tab match's rules of each mode.
+    ffa={mode='ffa'},scoreattack={mode='scoreattack'},race={mode='race'},challenge={cycle=true},track={cycle='race'}}
+-- Tab match's rules of each mode; a value key of a mode's own where the rule's words differ from another mode's.
 local MATCH={ffa={'players','finish','tie','respawn','protection','difficulty','equipment','start'},
-    scoreattack={'players','challenge','ranking','damage','equipment','start'}}
+    scoreattack={'players','challenge','ranking','damage','equipment','start'},
+    race={'players','track','ranking','damage','start'}}
+local VALUE={race={ranking='race_ranking'}}
+-- The rows that read the host's pick: the score attack's challenge, the Doro race's track.
+local PICK={challenge='sa',track='dr'}
 -- A Private match's map: a draw, or one of the hall lobbies.
 local ROOMS={'random',table.unpack(Maps.order)}
 -- The other members (link.members()), our own SteamID left out.
@@ -57,23 +66,25 @@ end
 -- o: {match=link.match(), members=link.members(), role=link.mode() or 'none', limit=link.cap() (the players at most of
 -- the online session we are in, its host's max_players; nil otherwise), code=our code while we host with one,
 -- me={id=our SteamID, name=link.me()}, owner=link.owner(), last=our last request ('search', 'create', 'join' or nil),
--- copied_at=, now= (seconds), version=, proto= (mod= and proto=), pick= (the mode picked on B: 'ffa', 'scoreattack' or
--- nil), sa= (score attack while it can play: online.modes.scoreattack on and scoreattack=on, {pick=the host's challenge
--- pick, 'random' or a challenge id}; nil otherwise)}. A countdown's status is its left seconds; a match lobby playing a
--- round reads as open. view.mode: the match lobby's mode, else the mode picked (score attack unless it cannot play or
--- free-for-all was picked: it is the mode whose round plays). The picked mode's row is marked (picked); the Challenge
--- row's value is the host's pick, or 'host' for a guest.
+-- copied_at=, now= (seconds), version=, proto= (mod= and proto=), pick= (the mode picked on B: 'ffa', 'scoreattack',
+-- 'race' or nil), sa= (score attack while it can play: online.modes.scoreattack on and scoreattack=on, {pick=the host's
+-- challenge pick, 'random' or a challenge id}; nil otherwise), dr= (the Doro race while it can play: online.modes.race
+-- on and race_match=on, {pick=the host's track pick, 'random' or a track's name}; nil otherwise)}. A countdown's status
+-- is its left seconds; a match lobby playing a round reads as open. view.mode: the match lobby's mode, else the mode
+-- picked (the Doro race when it was picked and can play, else score attack unless it cannot play or free-for-all was
+-- picked: it is the mode whose round plays). The picked mode's row is marked (picked); the Challenge and Track rows'
+-- value is the host's pick, or 'host' for a guest.
 function M.view(o)
     local m,me,list=o.match,o.me or {},others(o)
     local state=state_of(o)
-    local mode=m and m.mode or (o.sa and o.pick~='ffa' and 'scoreattack' or 'ffa')
+    local mode=m and m.mode or (o.dr and o.pick=='race' and 'race' or o.sa and o.pick~='ffa' and 'scoreattack' or 'ffa')
     local rows={}
-    for _,id in ipairs(m and m.mode=='scoreattack' and SCORE or MODES) do
-        local locked=id=='more'
-            or (id=='ffa' or id=='scoreattack') and (state~='idle' or id=='scoreattack' and not o.sa)
-        if id=='challenge' then
-            locked=o.role~='host' or not o.sa
-            rows[#rows+1]={id=id,locked=locked,value=o.role=='host' and (o.sa and o.sa.pick or 'random') or 'host'}
+    for _,id in ipairs(m and OWN[m.mode] or MODES) do
+        local locked=id=='more' or (id=='ffa' or CAN[id]) and (state~='idle' or CAN[id] and not o[CAN[id]])
+        if PICK[id] then
+            local can=o[PICK[id]]
+            locked=o.role~='host' or not can
+            rows[#rows+1]={id=id,locked=locked,value=o.role=='host' and (can and can.pick or 'random') or 'host'}
         else rows[#rows+1]={id=id,locked=locked,picked=id==mode or nil} end
     end
     for _,id in ipairs(ROWS[state]) do -- The code row only while we hold a code (a guest by code has none).
@@ -102,8 +113,8 @@ function M.view(o)
         count={n=n,limit=limit},left=m and m.state=='countdown' and m.left or nil}
 end
 -- What Select on row id asks for: {request=a link request, lobby=true when it names the lobby}, {open='join'|'settings'},
--- {close='room'}, {copy=true}, {popup='leave'}, {mode=the mode picked}, {cycle=true} (the Challenge row); nil for more,
--- a locked row or a row the view does not show.
+-- {close='room'}, {copy=true}, {popup='leave'}, {mode=the mode picked}, {cycle=true} (the Challenge row), {cycle='race'}
+-- (the Track row); nil for more, a locked row or a row the view does not show.
 function M.act(view,id)
     for _,row in ipairs(view.rows) do
         if row.id==id then
@@ -119,8 +130,9 @@ end
 function M.move(rows,at,step) return (at-1+step)%#rows+1 end
 -- The settings screen's rows of tab 'match' or 'sbo': headers {head=} and items {id=, value=, args=, locked=,
 -- values=, action=, name=, shown=, pick=}. Tab match, all locked: headers are the mode's id (view.mode) and 'lobby',
--- values keys of the lobby table (args when they format), the score attack's challenge its pick (pick: 'random', a
--- challenge id or 'host', as the Challenge row's value); idle with the hall lobbies in use, the room row is not
+-- values keys of the lobby table (args when they format), the score attack's challenge and the Doro race's track their
+-- pick (pick: 'random', a challenge id or a track's name, or 'host', as the row's value on B); idle with the hall
+-- lobbies in use, the room row is not
 -- locked: the map of a Private match, 'random' or a hall's key, shown by its word (shown: a key of the lobby table, or
 -- the hall's name). Tab sbo: headers 'chat', 'display', 'help'; values the setting's own ('on', 'off', 'game',
 -- 'english') with the values a change cycles through; one mute row per other member, its action the link request.
@@ -131,11 +143,13 @@ function M.settings(view,tab,o)
     local function add(row) rows[#rows+1]=row end
     if tab=='match' then
         add({head=view.mode})
-        local pick=nil
-        for _,row in ipairs(view.rows) do if row.id=='challenge' then pick=row.value end end
+        local pick={}
+        for _,row in ipairs(view.rows) do if PICK[row.id] then pick[row.id]=row.value end end
         for _,id in ipairs(MATCH[view.mode] or MATCH.ffa) do
-            if id=='challenge' then add({id=id,pick=pick or o.sa and o.sa.pick or 'random',locked=true})
-            else add({id=id,value='val.'..id,locked=true}) end
+            if PICK[id] then
+                local can=o[PICK[id]]
+                add({id=id,pick=pick[id] or can and can.pick or 'random',locked=true})
+            else add({id=id,value='val.'..((VALUE[view.mode] or {})[id] or id),locked=true}) end
         end
         add({head='lobby'})
         if view.state=='code' then add({id='lobby',value='val.private',args={o.code or '-'},locked=true})

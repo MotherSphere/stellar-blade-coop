@@ -346,12 +346,15 @@ return {
     -- Equipment and Change are the game's own StringTable_UI words (UI_Lobby_Options, UI_Cancel,
     -- UI_Setting_GamePlay_Mode, UI_Equipment, UI_Setting_Rolling), and Search, Start and Normal Mode
     -- (UI_Interaction_T_Search, UI_BossRush_Start, UI_NormalMode) where the game's word means the same thing there.
-    lobby={sub='PvP LOBBY · SBO',page='LOBBY · SBO',mode={scoreattack='Score attack',
+    lobby={sub='PvP LOBBY · SBO',page='LOBBY · SBO',mode={race='Doro race',
+            scoreattack='Score attack',
             ffa='Free-for-all'},
         desc={
+            race='2 to 8 players race as Doros on the same track. The shortest time wins.',
             scoreattack='2 to 8 players play the same challenge at once. The best score wins, then the shortest time.',
             ffa='2 to 8 players. First to 20 kills, or the best score after 10 minutes. You respawn after 4 s.',
-            more='More modes come in later versions.'},row={challenge='Challenge',
+            more='More modes come in later versions.'},row={track='Track',
+            challenge='Challenge',
             search='Search',cancel='Cancel',private='Private match',
             code='Code %s',join_code='Join with a code',room='Waiting room',settings='Settings',leave='Leave',
             more='More modes'},tag={picked='picked',
@@ -361,11 +364,13 @@ return {
         members='Members',count='%d of %d',you='you',host='host',connecting='connecting…',lost='lost',
         empty='No lobby yet. Search finds one or opens one.',empty_search='Looking for a public lobby of this mode.',
         hint={change='Change',tabs='Tabs'},room='Lobby menu: %s, or hold View',tab={match='MATCH',sbo='SBO'},
-        head={lobby='LOBBY'},set={challenge='Challenge',ranking='Ranking',
+        head={lobby='LOBBY'},set={track='Track',
+            challenge='Challenge',ranking='Ranking',
             damage='Damage between players',
             room='Map',players='Players',finish='End',tie='Tie',respawn='Respawn',
             protection='Spawn protection',difficulty='Difficulty',equipment='Equipment',arena='Arena',start='Start',
             lobby='Lobby',version='Version',mute='Mute %s'},val={
+            race_ranking='Shortest time, ties within 0.01 s',
             ranking='Best score, then shortest time',
             damage='None',host_pick="Host's pick",
             random='Random',

@@ -285,13 +285,16 @@ return {
         fail={save='O jogo não guardou. Nada mudou.',warp='O lobby não carregou. Nada mudou.',
             leave='Não foi possível voltar a Xion. Volta ao menu principal: os dados guardados co-op '
                 ..'são restaurados aí.'}},
-    lobby={sub='LOBBY PvP · SBO',page='LOBBY · SBO',mode={scoreattack='Corrida aos pontos',
+    lobby={sub='LOBBY PvP · SBO',page='LOBBY · SBO',mode={race='Corrida de Doro',
+            scoreattack='Corrida aos pontos',
             ffa='Todos contra todos'},
         desc={
+            race='De 2 a 8 jogadores correm como Doro no mesmo percurso. Ganha o tempo mais curto.',
             scoreattack='De 2 a 8 jogadores jogam o mesmo desafio ao mesmo tempo. Ganha a melhor pontuação, depois o '
                 ..'tempo mais curto.',
             ffa='De 2 a 8 jogadores. Ganha quem chegar primeiro às 20 eliminações, ou a melhor pontuação após 10 '
-            ..'minutos. Reapareces após 4 s.',more='Mais modos chegam em versões futuras.'},row={challenge='Desafio',
+            ..'minutos. Reapareces após 4 s.',more='Mais modos chegam em versões futuras.'},row={track='Percurso',
+            challenge='Desafio',
             search='Procurar',
             cancel='Cancelar',private='Partida privada',code='Código %s',join_code='Introduzir código',
             room='Sala de espera',settings='Definições',leave='Sair',more='Mais modos'},tag={picked='escolhido',
@@ -303,12 +306,14 @@ return {
         empty='Ainda sem lobby. Procurar encontra um ou abre um.',
         empty_search='À procura de um lobby público deste modo.',hint={change='Alterar',tabs='Separadores'},
         room='Menu do lobby: %s, ou mantém premido Ver',tab={match='PARTIDA',sbo='SBO'},head={lobby='LOBBY'},
-        set={challenge='Desafio',ranking='Classificação',
+        set={track='Percurso',
+            challenge='Desafio',ranking='Classificação',
             damage='Dano entre jogadores',
             room='Mapa',
             players='Jogadores',finish='Fim',tie='Empate',respawn='Reaparecimento',protection='Proteção ao reaparecer',
             difficulty='Dificuldade',equipment='Equipamento',arena='Arena',start='Início',lobby='Lobby',
             version='Versão',mute='Silenciar %s'},val={
+            race_ranking='Menor tempo, empate até 0,01 s',
             ranking='Melhor pontuação, depois menor tempo',
             damage='Nenhum',host_pick='Escolha do anfitrião',
             random='Aleatório',
