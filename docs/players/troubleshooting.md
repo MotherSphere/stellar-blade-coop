@@ -477,6 +477,20 @@ while the on-screen UI is up.
 
 ## UE4SS settings and mod errors
 
+### The game does not start at all with UE4SS installed
+
+You press Play. The game closes or never shows a window. The usual cause is the UE4SS signature file
+`SB/Binaries/Win64/ue4ss/UE4SS_Signatures/FText_Constructor.lua`: its byte pattern can stop matching the game after a
+Stellar Blade update. UE4SS can then stop the game during its start. Players have reported it on the Stellar Blade
+Steam forum since July 2025.
+
+Close the game. Rename `FText_Constructor.lua` to `dFText_Constructor.lua` (or delete it), then start the game again.
+If the folder holds both files, delete `FText_Constructor.lua`.
+
+On game build 26123051 (the update of 5 November 2026), the pattern in the Stellar Blade UE4SS 1.3 package matches the
+game's FText constructor at one place only, so the file is not the cause there. If the mod's menus show empty texts
+after the rename, put the file back and post your `UE4SS.log`.
+
 ### The game crashes when EVE lets go of a crate
 
 Look in `UE4SS.log` for a `[StellarCoop] UE4SS-settings.ini:` line. With `HookBeginPlay` on in

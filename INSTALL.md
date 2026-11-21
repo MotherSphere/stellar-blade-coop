@@ -107,6 +107,9 @@ When the game starts, the mod reads these two lines. If one of them is on, or mi
 which is on), the mod writes a `[StellarCoop] UE4SS-settings.ini:` line to `UE4SS.log` and shows a notice. It never
 changes the file.
 
+If the game no longer starts at all after a Stellar Blade update, see
+[Troubleshooting: The game does not start at all with UE4SS installed](docs/players/troubleshooting.md#the-game-does-not-start-at-all-with-ue4ss-installed).
+
 ## Keys and settings
 
 - `F5` opens the co-op menu. Its first row, Host a session, opens the Create a session screen: pick who can join
