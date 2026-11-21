@@ -8,7 +8,8 @@
 -- a new HUD with nothing of the old one kept; a widget whose address another object took gets no write; after a Lua
 -- reload the earlier load's widgets are taken again, never made over; a HUD without the item column is tried once;
 -- the pad glyph walk once each time the pad layer comes up; the crosshair on the HUD's root without a walk; records
--- and hide. Through gun mode over fake.lua, with a stub entry: ticked ten times a second with the configured key (F4
+-- and hide; the HUD named by its Construct hook built on screen with no walk; a hook that fails. Through gun mode
+-- over fake.lua, with a stub entry: ticked ten times a second with the configured key (F4
 -- unless set; nil for none), the rounds as "rounds | magazines" while the rifle is out and no text while it is away,
 -- the hip-fire crosshair off while the rifle is away; taken off the HUD at coop off. None with gun_mode=off or
 -- hud_entry=false. A built entry goes into coop-gun.txt. A later load takes it off, gun mode on or off. The
@@ -31,6 +32,7 @@ do
     Keep.want=function(paths) for _,p in ipairs(paths) do wanted[p]=true end end
     D.new({log=function() end,valid=function() return false end,try=function() end})
     assert(wanted[D.ICON],'the keep wants the rifle icon')
+    assert(wanted[D.HUD],'the keep wants SB\'s HUD class: its Construct is hooked only while the keep holds it')
     Keep.want=want
 end
 
@@ -318,6 +320,79 @@ do
     assert(#e.records()==2,'the entry and the crosshair recorded')
     e.hide()
     assert(#a.overlay.kids==0 and #a.WidgetTree.RootWidget.kids==0 and #e.records()==0,'taken off the HUD')
+end
+
+-- 9. The keep holds SB's HUD class: its Construct is hooked once (gun mode's g.hook_hud). A HUD seen by its Construct
+--    gets the entry at the first tick it is on screen, with no walk. One never on screen for D.FRESH s is dropped:
+--    a look builds it then. Once the entry is taken off (coop off), a Construct makes no engine call.
+do
+    world(); logs={}
+    local Keep=require('core.keep')
+    local serves=Keep.serves
+    Keep.serves=function(p) return p==D.HUD end
+    local hooks={}
+    local g=gee()
+    g.hook_hud=function(p,cb) hooks[#hooks+1]={p,cb} end
+    local e=D.new(g)
+    local function built_from(src)
+        local n=0
+        for _,m in ipairs(logs) do if m=='dpad: rifle entry built (HUD from '..src..')' then n=n+1 end end
+        return n
+    end
+    ticks(e,1,'F4',nil) -- the title: no HUD yet
+    assert(#hooks==1 and hooks[1][1]==D.HUD,'the Construct hooked once: '..#hooks)
+    assert(W.walks.WB_MainHUD_Master_C==1,'one look at the title')
+    local a=hud(1); a.viewport=false
+    hooks[1][2]({get=function() return a end})
+    ticks(e,5,'F4',nil)
+    assert(not ours(a,'GunModeRifleHolder'),'nothing built before the HUD is on screen')
+    a.viewport=true
+    ticks(e,1,'F4',nil)
+    assert(ours(a,'GunModeRifleHolder') and built_from('its Construct')==1,'built at the first tick on screen')
+    assert(W.walks.WB_MainHUD_Master_C==1 and #hooks==1,'no walk for it: '..W.walks.WB_MainHUD_Master_C)
+    free(a) -- a map change: the next HUD's Construct
+    local b=hud(2)
+    hooks[1][2]({get=function() return b end})
+    ticks(e,1,'F4',nil)
+    assert(ours(b,'GunModeRifleHolder') and built_from('its Construct')==2,'built in the next HUD at once')
+    assert(W.walks.WB_MainHUD_Master_C==1,'still no walk: '..W.walks.WB_MainHUD_Master_C)
+    free(b) -- a HUD seen by its Construct but kept off the screen
+    local c=hud(3); c.viewport=false
+    hooks[1][2]({get=function() return c end})
+    ticks(e,(D.FRESH+1)*10,'F4',nil)
+    c.viewport=true
+    ticks(e,1,'F4',nil)
+    assert(not ours(c,'GunModeRifleHolder'),'dropped after D.FRESH s: the next look builds it')
+    ticks(e,100,'F4',nil)
+    assert(ours(c,'GunModeRifleHolder') and built_from('a look')==1,'built by a look')
+    local n=0
+    for _,m in ipairs(logs) do if m=='dpad: no HUD in the viewport' then n=n+1 end end
+    assert(n==1,n..' "no HUD" lines')
+    e.hide()
+    local read=false
+    hooks[1][2]({get=function() read=true end})
+    assert(not read,'no engine call from a Construct once the entry is taken off')
+    Keep.serves=serves
+end
+
+-- 10. A Construct hook that cannot be registered: one line, tried once. The look still builds the entry.
+do
+    world(); logs={}
+    local Keep=require('core.keep')
+    local serves=Keep.serves
+    Keep.serves=function(p) return p==D.HUD end
+    local tries=0
+    local g=gee()
+    g.hook_hud=function() tries=tries+1; error('no such function',0) end
+    local e=D.new(g)
+    ticks(e,1,'F4',nil)
+    local a=hud(1)
+    ticks(e,110,'F4',nil)
+    local n=0
+    for _,m in ipairs(logs) do if m=='dpad: no Construct hook: no such function' then n=n+1 end end
+    assert(tries==1 and n==1,tries..' tries, '..n..' lines')
+    assert(ours(a,'GunModeRifleHolder'),'built by the look')
+    Keep.serves=serves
 end
 os.clock=real_clock
 
