@@ -28,9 +28,9 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `world/maps/matrix13/quest/`: `on_time`, `subtitles`, `zone_talks`; `world/maps/matrix13/talks/`: `zones`;
 `world/maps/matrix13/level/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`; `online/modes/nightop/`:
 `board`, `challenges`, `guard_text`, `off`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
-`online/partner/`: `assets`, `bike_part`, `capture`, `doro_pick`, `ghosts`, `hud`, `off`, `puppet`, `sentinel`;
-`online/photo/`:
-`off`; `story/quests/`: `off`, `wiring`; `online/modes/race/`: `commands`, `doro`, `drive`, `drive_model`, `model`,
+`online/partner/`: `assets`, `bike_part`, `capture`, `commands`, `doro_pick`, `ghosts`, `hud`, `off`, `puppet`,
+`sentinel`; `online/photo/`: `off`;
+`story/quests/`: `off`, `wiring`; `online/modes/race/`: `commands`, `doro`, `drive`, `drive_model`, `model`,
 `off`, `run`; `online/saves/`: `off`, `saves`; `online/session/`: `booth`, `chat`, `commands`, `join`, `off`,
 `wiring_cycle`, `wiring_dlc`; `online/session/ui/`: `create`, `create_model`, `sessions`, `sessions_model`;
 `world/daynight/`: `daynight`, `off`, `rule`, `wiring`; `story/together/`: `off`, `snapshot`, `wiring`, `wiring_dump`;
@@ -209,6 +209,14 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `online/partner/capture_test` also covers SBO's bike left out of the parts while EVE does not ride (`leave_out`, asked
   once a look): an outfit of 16 parts keeps them all; while she rides the bike is part 1 and the last follower goes;
   getting on or off starts a new generation; another component on the bike's mesh stays a part;
+- the ghost's drone, sounds and faces looks: `core/link_test` reads `drone`, `sounds` and `faces` (each on unless set;
+  a bad value keeps it on with a line) and gives a file with 0.11's ghost comment the new comment once, with a line that
+  names no setting. `coop-state.txt` gets `sounds=0` when the sounds look is off, nothing when it is on or not given.
+  `main/settings_test` passes the sounds look to the state, `coop look`'s change at the next pass.
+  `online/partner/commands_test` covers `coop look` for each of the six looks (the table the ghost holds changed, the
+  ghost built again) and any other word refused with the usage, nothing changed; its help names the six.
+  `ui/kit/model_test` puts the three rows after `effects` on the Ghost page; `ui/text_test` checks their labels in
+  every language table;
 - asset names: `core/link_test` reads a slot's `coop-names` file from an offset (whole lines only, false once the file
   is shorter or gone) and appends to its `coop-loaded` file (nil removes it). `online/partner/assets_test` loads what
   the slots name with one loader: one load each 0.25 s for every slot together, a path two slots name once, a slot's
