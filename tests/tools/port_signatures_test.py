@@ -3,14 +3,19 @@
 # SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """tools/port/make_signatures.py: its instruction decoder on hand-written instructions, every kind of signature on a
-small PE file built here, then the form of each entry in tools/port/signatures.json. tools/port/find.py on that file
-and on copies of it with moved code, a pattern that matches three times, a holder held twice, a missing function and
-a value read outside the file. Then find.py on the executable of build 26123051 when this PC has Ghidra's copy of it:
-every entry is found at its own address.
+small PE file built here, its main writing signatures.json and ue4ss.json in one pass, then the form of each entry in
+tools/port/signatures.json and tools/port/ue4ss.json. tools/port/find.py on that file and on copies of it with moved
+code, a pattern that matches three times, a holder held twice, a missing function and a value read outside the file.
+Its UE4SS signature scripts run under lua5.4 and give their address; a signature UE4SS cannot use gives none. Then
+find.py on the executable of build 26123051 when this PC has Ghidra's copy of it: every entry is found at its own
+address and each UE4SS target's script gives it.
 Run: python3 tests/tools/port_signatures_test.py"""
 import contextlib
 import io
+import json
+import re
 import struct
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -184,13 +189,51 @@ for exe_stamp, exe_size in ((0x11223344, 0x4000), (0x11223344, size), (stamp, 0x
         except SystemExit as e:
             assert 'not the pinned build' in str(e.code), e.code
 
-# Every entry of signatures.json that a port must find has a signature in the form the tool writes.
+# main on the fake executable as the pinned build: one build for both files. signatures.json takes the code's names,
+# ue4ss.json keeps its own. flag is in both and gets the same signature in each. Old signature fields go.
+with tempfile.TemporaryDirectory() as tmp:
+    exe, sig_file, ue4ss_file = Path(tmp) / 'SB-Win64-Shipping.exe', Path(tmp) / 'sig.json', Path(tmp) / 'ue4ss.json'
+    exe.write_bytes(data)
+    flag, unique, table = (f'{at[k]:#x}' for k in ('flag', 'unique', 'table_a'))
+    sig_file.write_text(json.dumps({'build': 'old', 'addresses': {
+        flag: {'kind': 'global', 'ghidra': 'flag'},
+        unique: {'kind': 'function', 'ghidra': 'unique', 'name': 'kOld', 'pattern': '90', 'mask': 'x'}}}))
+    ue4ss_file.write_text(json.dumps({'build': 'old', 'addresses': {
+        flag: {'kind': 'global', 'ghidra': 'flag, a UE4SS target', 'name': 'Flag'},
+        table: {'kind': 'global', 'ghidra': 'table_a', 'name': 'Table', 'pattern': '90', 'mask': 'x', 'holder': {}}}}))
+    uses = [addresses.Use(at['flag'], 'kFlag', 'a.h', 1), addresses.Use(at['unique'], 'kUnique', 'a.h', 2)]
+    with mock.patch.object(addresses, 'SIGNATURES', sig_file), mock.patch.object(addresses, 'UE4SS', ue4ss_file), \
+            mock.patch.object(addresses, 'scan', lambda: uses), \
+            mock.patch.object(ms, 'pinned', lambda: (0x11223344, 0x4000)), contextlib.redirect_stdout(io.StringIO()):
+        assert ms.main(['make_signatures.py', str(exe)]) == 0
+    sig_doc, ue4ss_doc = json.loads(sig_file.read_text()), json.loads(ue4ss_file.read_text())
+
+
+def signature(e):
+    return {k: v for k, v in e.items() if k in ('pattern', 'mask', 'ref', 'holder')}
+
+
+assert sig_doc['build'] == ue4ss_doc['build'] == 'old', (sig_doc['build'], ue4ss_doc['build'])
+assert sig_doc['addresses'] == {flag: {'kind': 'global', 'ghidra': 'flag', 'name': 'kFlag', **signature(out[flag])},
+                                unique: {'kind': 'function', 'ghidra': 'unique', 'name': 'kUnique',
+                                         **signature(out[unique])}}, sig_doc
+assert ue4ss_doc['addresses'] == {
+    flag: {'kind': 'global', 'ghidra': 'flag, a UE4SS target', 'name': 'Flag', **signature(out[flag])},
+    table: {'kind': 'global', 'ghidra': 'table_a', 'name': 'Table', **signature(out[table])}}, ue4ss_doc
+
+# Every entry of signatures.json that a port must find has a signature in the form the tool writes. So has every
+# UE4SS target in ue4ss.json: the three files that UE4SS_Signatures/ can hold for Stellar Blade.
 names = {}
 for u in addresses.scan():
     names.setdefault(f'{u.address:#x}', set()).add(u.name)
 for address, e in addresses.load().items():
     assert e.get('name') == ', '.join(sorted(names.get(address, ()))), (
         f'{address}: name {e.get("name")!r}; the code names it {sorted(names.get(address, ()))}')
+TARGETS = addresses.load(addresses.UE4SS)
+assert sorted(e['name'] for e in TARGETS.values()) == ['FText_Constructor', 'GNatives', 'GUObjectArray'], TARGETS
+for address, e in TARGETS.items():
+    assert address == f'{int(address, 16):#x}' and e['kind'] in ms.SIGNED and e.get('ghidra'), (address, e)
+for address, e in [*addresses.load().items(), *TARGETS.items()]:
     if e['kind'] not in ms.SIGNED:
         assert 'pattern' not in e, f'{address}: a {e["kind"]} entry comes from the PE header, not a signature'
         continue
@@ -254,8 +297,102 @@ states, count, code = report(data, far)
 assert states[f'{at["zero_a"]:#x}'] == 'missing', states
 assert (count, code) == (f'{len(found) - 1} found (0 moved), 0 ambiguous, 1 missing', 1), (count, code)
 
-# The executable of build 26123051 itself: every entry of signatures.json is found at its own address.
+# A UE4SS signature script under lua5.4 as UE4SS runs it: Register() gives the pattern, OnMatchFound(match) the
+# address. DerefToInt32 reads the bytes given and, as UE4SS's, gives nil for a value of 0.
+DRIVER = r'''
+local mem = {}
+for k = 3, #arg, 2 do
+  local base, i = tonumber(arg[k], 16), 0
+  for h in arg[k + 1]:gmatch('%x%x') do mem[base + i] = tonumber(h, 16); i = i + 1 end
+end
+function DerefToInt32(a)
+  local v = mem[a] | mem[a + 1] << 8 | mem[a + 2] << 16 | mem[a + 3] << 24
+  if v == 0 then return nil end
+  return v >= 0x80000000 and v - 0x100000000 or v
+end
+dofile(arg[1])
+print(Register())
+if arg[2] then print(string.format('%x', OnMatchFound(tonumber(arg[2], 16)))) end
+'''
+
+
+def lua(text, img, entry):
+    """The addresses the script text gives in img, one per place its pattern matches in any section, as UE4SS scans
+    the whole image. Each run gets the bytes from the match on and from each copy start a ref with then reaches."""
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / 'script.lua'
+        path.write_text(text)
+
+        def run(*args):
+            done = subprocess.run(['lua5.4', '-', str(path), *args], input=DRIVER, capture_output=True, text=True,
+                                  timeout=60)
+            assert done.returncode == 0, done.stderr
+            return done.stdout.split('\n')
+
+        pattern = run()[0]
+        rx = re.compile(b''.join(b'.' if t == '??' else re.escape(bytes([int(t, 16)])) for t in pattern.split()), re.S)
+        got = []
+        for va in [start + m.start() for _, start, blob, _ in img.sections for m in rx.finditer(blob)]:
+            windows, step, ref = [(va, img.at(va, ms.MAX_LEN))], va, entry.get('ref')
+            while ref and ref.get('then'):
+                step += ref['end'] + struct.unpack('<i', img.at(step + ref['disp'], 4))[0] + ref['add']
+                windows.append((step, img.at(step, ms.MAX_LEN)))
+                ref = ref['then']
+            got.append(int(run(f'{va:x}', *(x for w, b in windows for x in (f'{w:x}', b.hex())))[1], 16))
+        return pattern, got
+
+
+# Scripts from the fake signatures: a function's own run, a ref, a ref with an add, a ref with then. Each pattern
+# matches once in the whole image and the script gives the address. In the build with moved code, the moved address.
+for name, symbol, add in (('Unique', 'unique', 0), ('Flag', 'flag', 0), ('Slot', 'vtable', 0x10),
+                          ('Table', 'table_a', 0)):
+    entry = dict(out[f'{at[symbol] + add:#x}'], name=name)
+    text = find.script(image, entry)
+    assert text and text.startswith('-- Copyright (C) 2026 MotherSphere') and f'UE4SS_Signatures/{name}.lua' in text
+    assert lua(text, image, entry) == (entry['pattern'], [at[symbol] + add]), (name, lua(text, image, entry))
+    assert lua(find.script(ms.Image(moved), entry), ms.Image(moved), entry)[1] == [at2[symbol] + add], name
+# A holder and a read of 8 bytes need more than DerefToInt32: no script. Neither for a signature found twice or not
+# at all, nor for one that also matches in .rdata, where UE4SS scans too though find.py looks in the code only.
+copied = bytearray(data)
+vt2 = data.index(struct.pack('<2Q', at['unique'], at['lone']))  # vtable2, at .rdata + 0x148
+copied[vt2 + 0x60:vt2 + 0x6a] =bytes.fromhex(out[f'{at["unique"]:#x}']['pattern'])  # .rdata + 0x1a8, free
+assert find.locate(ms.Image(bytes(copied)), out[f'{at["unique"]:#x}']) == [at['unique']]
+# unique's last immediate byte changed in the code, its old bytes in .rdata: the pattern matches once, outside the code.
+elsewhere = bytearray(fake_exe({**FUNCS, 'unique': [FUNCS['unique'][0][:9] + b'\x45\xc3']})[0])
+elsewhere[vt2 + 0x60:vt2 + 0x6a] = copied[vt2 + 0x60:vt2 + 0x6a]
+assert find.locate(ms.Image(bytes(elsewhere)), out[f'{at["unique"]:#x}']) == []
+for img, address in ((image, at['vtable2']), (image, at['zero_a']), (ms.Image(bytes(copied)), at['unique']),
+                     (ms.Image(bytes(elsewhere)), at['unique']),
+                     (ms.Image(fake_exe({**FUNCS, 'again': FUNCS['unique']})[0]), at['unique']),
+                     (ms.Image(fake_exe({k: v for k, v in FUNCS.items() if k != 'check'})[0]), at['flag'])):
+    assert find.script(img, dict(out[f'{address:#x}'], name='None')) is None, hex(address)
+
+
+def ue4ss(img, targets):
+    """(printed text, exit code) of find.py's UE4SS part."""
+    printed = io.StringIO()
+    with contextlib.redirect_stdout(printed):
+        code = find.ue4ss(img, targets)
+    return printed.getvalue(), code
+
+
+# find.py's UE4SS part: the report of the targets, then a script for each, or a line that says it has none.
+both = {f'{a:#x}': dict(out[f'{a:#x}'], name=n) for n, a in (('Flag', at['flag']), ('Held', at['vtable2']))}
+text, code = ue4ss(image, both)
+assert text.startswith('UE4SS signature targets (ue4ss.json):\n'), text
+assert '2 found (0 moved), 0 ambiguous, 0 missing\n' in text and code == 1, (text, code)
+assert text.count('function Register()') == 1 and '-- UE4SS_Signatures/Flag.lua:' in text, text
+assert '\nUE4SS_Signatures/Held.lua: no script. ' in text, text
+text, code = ue4ss(image, {f'{at["flag"]:#x}': both[f'{at["flag"]:#x}']})
+assert code == 0 and find.script(image, both[f'{at["flag"]:#x}']) in text, (text, code)
+
+# The executable of build 26123051 itself: every entry of signatures.json and ue4ss.json is found at its own address.
+# Each UE4SS target's script matches once in the whole image and gives it. Ghidra, 2026-11-21: FUN_142862fc0 builds
+# an FText from an FString&& (0x70-byte text history, FText 0x18 bytes); FUN_142b79420 calls (&DAT_146f17900)[opcode]
+# until opcode 4 (GNatives); FUN_142b8bc20 writes DAT_146ddd240 and the fields after it (GUObjectArray).
 EXE = Path.home() / 'Ghidra/stellar-blade/input/26123051/SB-Win64-Shipping.exe'
+assert {e['name']: a for a, e in TARGETS.items()} == {
+    'FText_Constructor': '0x142862fc0', 'GNatives': '0x146f17900', 'GUObjectArray': '0x146ddd240'}, TARGETS
 if EXE.is_file():
     real = EXE.read_bytes()
     assert ms.Image(real).stamp == ms.pinned()[0], f'{EXE} is not the executable of build 26123051'
@@ -263,7 +400,12 @@ if EXE.is_file():
     states, count, code = report(real, entries)
     assert states == {a: f'found {a}' for a in entries}, [(a, s) for a, s in states.items() if s != f'found {a}']
     assert code == 0, count
-    real = f'find.py on build 26123051: {count}'
+    real_image = ms.Image(real)
+    text, code = ue4ss(real_image, TARGETS)
+    assert code == 0, text
+    for a, e in TARGETS.items():
+        assert lua(find.script(real_image, e), real_image, e) == (e['pattern'], [int(a, 16)]), (e['name'], text)
+    real = f'find.py on build 26123051: {count}; 3 UE4SS scripts'
 else:
     real = f'find.py on build 26123051 skipped: no {EXE}'
 print(f'port_signatures_test: ok ({len(CASES) + len(SHORT)} instructions, {len(want)} fake signatures; {real})')
