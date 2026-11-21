@@ -6,12 +6,12 @@ the ghost in [online/partner-internals.md](partner-internals.md).
 
 ## Looks
 
-Three looks change what the ghost shows. Each is `on` or `off` in `coop-settings.txt`, and all three are on by
-default. The file names them in a comment only, so add a line such as `dyes=off` or `cloth=off`, or change them in
-the menu's Options > Ghost. A file that already says `cloth=off` keeps it off. `coop look` changes
-one until the mod reloads. With one on, the `Ghost ... built` log line ends with `; look: ...`.
+The looks below change what the ghost shows. Each is `on` or `off` in `coop-settings.txt`. All are on by default. The
+file names them in a comment only, so add a line such as `dyes=off` or `cloth=off`, or change them in the menu's
+Options > Ghost. A file that already says `cloth=off` keeps it off. `coop look` changes one until the mod reloads. With
+one on, the `Ghost ... built` log line ends with `; look: ...`.
 
-The three looks have not been tested in game yet. Back up your saves before you play with one on (see
+These looks have not been tested in game yet. Back up your saves before you play with one on (see
 [players/saves.md](../players/saves.md)), and turn it off if the game crashes or the ghost looks wrong.
 
 - `cloth`: her ponytail moves as in solo. In solo, the strands you see are an NvCloth simulation of the ponytail mesh,
@@ -33,7 +33,7 @@ The three looks have not been tested in game yet. Back up your saves before you 
   meshes, such as a CNS eye colour on the base face: the sender to send it, the viewer to show it. The same goes for
   the material slots a part hides (CNS toggles).
 - `effects`: her attack and skill effects. The native part reads which Niagara systems are playing on her parts, at
-  most 4 at a time, into four effect slots of each pose. A slot holds an index: one of 19 known effects of EVE's own,
+  most 6 at a time, into six effect slots of each pose. A slot holds an index: one of 19 known effects of EVE's own,
   or one of up to 45 more that her capture names by path. Her capture gives a system such a name when it plays on one
   of her parts with bones (body, hair, weapon) and lies in the game's FX folders (`/Game/Art/FX/` or
   `/Game/DLC_<n>/Art/FX/`), or belongs to a mod you both have in one version (see
@@ -42,8 +42,39 @@ The three looks have not been tested in game yet. Back up your saves before you 
   it cannot load or may not load draws nothing, with one note in the log for that ghost. The ghost starts each effect
   on the part it hangs on, moves it with the slot and stops it when the slot changes, at most 8 starts a second. A fault in the native effect read or write turns effects off until the game restarts
   (`effects off: fault ...`), and the ghost stays without them. Every 60 s with any effect activity, an
-  `effects, last 60 s:` line counts those started, those over 4, unlisted reads and boxes written.
-- `dyes=off` and `effects=off` also stop sending yours, so your friend's ghost of you lacks them too.
+  `effects, last 60 s:` line counts those started, those over 6, unlisted reads and boxes written.
+  Her ghost also leaves her footstep dust and the world effects of her skills where her game put them.
+  Each Niagara or Cascade effect her game starts for her goes as an event of her pose, unless the six slots
+  already carry it. The ghost plays it there with the game's own spawn call, at her scale, while it shows and no
+  shared scene plays. `effects=off` hides them with her attached effects. Her footprints (decals) and her sword
+  trails do not reach the ghost. A fault logs `world effects off: fault ...` once. Her world effects then stop on
+  both sides until the game restarts. Every 60 s with any of them, a `world effects, last 60 s:` line counts them.
+- `drone`: her drone. It flies beside her ghost in her drone skin, with its light, lens flare, guide ray and wait
+  signal. Her capture adds the drone's meshes after hers. Each pose places them relative to her body. The light
+  takes the intensity her drone's light has at that pose and casts no shadows. The lens flare, guide ray and wait
+  signal are effects on the drone: they need `effects=on` and share the six effect slots with hers. The Doro look hides
+  it as it does in her game. Her game finds the drone once a second through Stellar Blade's own lookup of the drone
+  character: the one nearest her within 30 m. `drone=off` hides it on the ghosts you see and stops sending yours. A
+  fault in that lookup logs `drone off: fault ...` once. Her ghost then goes on without the drone until the game
+  restarts.
+- `sounds`: her sounds. Her ghost plays the steps, voice, swings and hits her game played, from where it played them.
+  Your game hears ghosts within 50 m of your EVE, at most 8 sounds a second from one ghost and 32 from all of them,
+  the nearest first. A shared scene plays its own sound, so the ghosts are silent during it and during your own
+  cutscenes. A hidden ghost is silent too (your photo mode's veil, or a second without a pose). Your game loads each
+  sound the first time a ghost names it, one every 0.25 s, so that first time it may be missing. A sound not loaded
+  within 0.2 s of its turn is dropped. A sound that loops (the wind of her wall run) does not play on the ghost. Her
+  game stops it when her move ends. The ghost has no such stop. Every 60 s with any sound played or dropped, a
+  `sounds played, last 60 s:` line counts why. A fault logs `sounds off: fault ...` once. Her sounds then stop on both
+  sides until the game restarts.
+- `faces`: her eyes, face and shape keys. Her capture names the morph targets of each part that has them (her default
+  face mesh has 169). Each pose carries their weights, one byte each. The ghost sets each weight on the morph of
+  the same name on the mesh your game draws, so a morph your mesh lacks stays at 0. Her ponytail on a cloth part shows
+  none: the engine resets a cloth part's weights at every tick. A part carries at most 256 morphs and a table 512.
+  When a pose would pass 16384 bytes, the morphs go first, the last part's first, before any leader part does. Every
+  60 s with any of them, a `faces, last 60 s:` line counts parts read, weights cut, parts written, redraw calls and
+  refusals. A fault logs `faces off: fault ...` once. Her face then stops on both sides until the game restarts.
+- `dyes=off`, `effects=off`, `drone=off`, `sounds=off` and `faces=off` also stop sending yours, so your friend's ghost
+  of you lacks them too.
 
 ## Mods and CNS outfits
 
@@ -81,7 +112,8 @@ with them, and the ghost applies them on a dynamic instance of the material (not
 colour reaches the ghost within 21 s, without a new ghost. A texture option shows only if your packs declare the same
 texture or it is one of the game's own. A slot whose material your PC lacks keeps the mesh's own, with no values and no
 error. The slots an outfit hides (`HiddenMats`, and `MaterialToggles` turned off) are hidden on the ghost too, and the
-same change delay applies (not tested in game yet). Shape keys (`ShapeKeys`) do not reach the ghost. Her ponytail's
+same change delay applies (not tested in game yet). Shape keys (`ShapeKeys`) reach the ghost with `faces=on` as the
+weights her game gives those morph targets (not tested in game yet). Her ponytail's
 collision asset goes too (the `cloth` look uses it), so a CNS outfit's `PonyPhysics` reaches the ghost.
 
 A mod's added assets are usually missing from the game's cooked asset registry, and UE4SS's `LoadAsset` finds an
@@ -120,9 +152,10 @@ Scarlet effects its skills play are the game's own systems under `/Game/Art/FX/C
 `/Game/DLC_2/Art/FX/` and EVE's FX folders, so the `effects` look names them by path whether or not you have the mod.
 Its animations arrive as bones, mod or not. Its Raven and Scarlet blades are new meshes inside the game's character
 folders, so your game draws them only with the mod installed; with the same version on both PCs they also load under
-the crash sentinel. What does not reach the ghost from it, as from any skill: effects placed in the world instead of on
-her (about a quarter of its effect keys), its Cascade weapon trails, decals, projectiles, the screen effects (post
-process, camera shake, time scale) and the weapon fades of its mode switch. None of this has been tested in game yet.
+the crash sentinel. Its effects placed in the world instead of on her (about a quarter of its effect keys) reach the
+ghost as world effects of the `effects` look when her game starts them for her. What does not reach the ghost from it,
+as from any skill: its Cascade weapon trails, decals, projectiles, the screen effects (post process, camera shake, time
+scale) and the weapon fades of its mode switch. None of this has been tested in game yet.
 
 ### When a mod asset fails
 
@@ -146,17 +179,18 @@ texture not set. The build line shows `<path> set aside after a crash (coop cns 
 cns reset` and when you install another version of the mod. A crash at any other moment leaves the file empty and sets
 nothing aside. Neither part has been tested in game yet.
 
-Not carried: shape keys and face morphs, accessories that are static meshes, actors attached to EVE, and parts past 16.
+Not carried: accessories that are static meshes, actors attached to EVE, and parts past 16.
 A pose holds about 900 leader bones in all. When her parts have more, the capture leaves out the last leader parts and
-their followers until the pose fits, and its log line ends with `<n> leaders left out, over the pose size`.
+their followers until the pose fits. Its log line then ends with `<n> leaders left out, over the pose size`. Her drone's
+parts come after hers, so they go first.
 
 ## Solid partner (experimental)
 
 With `collide=on` (Options > Ghost > Solid partner; on by default, not tested in game yet), your EVE cannot walk
 through your friend's ghost, as with an NPC in town. It is your own setting and changes nothing in your friend's game.
-Only your EVE is stopped: enemies, NPCs, the camera and attacks pass through the ghost. If a game update changes her
-capsule's collision, the mod falls back to a capsule that the enemies run by your PC meet too, and its build line in
-`UE4SS.log` says `ours type 1`.
+Only your EVE is stopped by its capsule: enemies, NPCs, the camera and attacks pass through it (enemies your game runs
+are moved out of the ghost instead, below). If a game update changes her capsule's collision, the mod falls back to a
+capsule that the enemies run by your PC meet too. Its build line in `UE4SS.log` then says `ours type 1`.
 
 The ghost lets your EVE through:
 
@@ -171,3 +205,13 @@ The ghost lets your EVE through:
 A dodge into the ghost stops at it, where it would pass through an enemy. Turn it off in the menu if it gets in your
 way (see [players/troubleshooting.md](../players/troubleshooting.md#stuck-at-a-doorway-with-the-solid-partner)). `coop status` shows
 `collide=` on the ghost's line.
+
+Enemies your game runs are moved out of your friend's ghost by the rule the game uses between them and your EVE. An
+enemy her game runs meets her real EVE there. On a slow link a push can come from where she stood a moment ago. That
+rule decides who moves: an enemy as heavy as EVE (weight Normal) is moved out of the ghost when its rank is lower, or
+the same while it moves or she stands still. A lighter one always moves. A heavier one (Medium, Large or SuperLarge:
+most enemies and every boss) is never moved, so it walks through the ghost. Against your EVE the game moves EVE instead.
+The ghost itself never moves. Nothing moves while the game is paused, during a cutscene or while the ghost is hidden or
+not drawn for a second. It follows `collide`, never in an SBO session. The capsule above still blocks only your EVE; the
+enemy contact is a move of the enemy, made by the mod each frame. A minute's counts go to `UE4SS.log` as
+`enemy contact, last 60 s: ...`.

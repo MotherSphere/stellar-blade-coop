@@ -33,6 +33,7 @@
 #include "glue/clipboard.h"
 #include "glue/tick.h"
 #include "link/core.h"
+#include "game/events.h" // NameBook, send_from, SlotWatch: our asset names to every member
 #include "game/keep.h"  // kFileBytes
 #include "game/table.h" // path_allowed
 #include "game/rotation.h"      // rotation_name(), stamped()
@@ -549,6 +550,16 @@ coop::Api api;
 std::unique_ptr<coop::Link> link;
 bool chat_was = false;    // A chat session held at the last pass.
 uint64_t was_pair = 0;    // Link::partner() at the last pass.
+// Our asset names (game/events.h's SBA lines): every line of this link session, each member's cursor in it and byte
+// budget, when the budgets were last refilled, linked() at the last pass and each ghost slot's member.
+struct NamesSent {
+  size_t cursor = 0, budget = coop::pose::kNamesBytesPerSecond;
+};
+coop::pose::NameBook names_book;
+std::map<uint64_t, NamesSent> names_sent;
+uint64_t names_at = 0;
+bool names_linked = false;
+coop::pose::SlotWatch names_slots;
 // Link::solo_pair() at the last pass: story together and the shared fight send nothing to the pair while it holds.
 bool pair_paused = false;
 uint64_t next_vitals = 0; // Our vitals are read every 100 ms in a chat session (500 after a read over 1 ms).
@@ -646,6 +657,49 @@ void write_report() {
   // Masked like coop-link.log: the status and the save folder's names carry SteamIDs and our join code.
   event(write_text(folder + L"coop-report.txt", coop::masked(text)) ? "report written to coop-report.txt"
                                                                      : "report not written");
+}
+
+// Asset names, before this pass files the members' SBA lines: a link session that starts or ends empties our book and
+// cursors. Our keys then start again from 1 (asset_keys_clear()). A ghost slot whose member changed forgets her names
+// (asset_slot_reset()) before her lines of this pass are filed, so the first ones stay.
+void names_watch(bool linked) {
+  if (linked != names_linked) {
+    names_linked = linked;
+    names_book.clear();
+    names_sent.clear();
+    coop::pose::asset_keys_clear();
+  }
+  uint64_t ids[coop::kMaxRemote] = {};
+  if (linked)
+    for (const auto &p : link->peers())
+      if (p.compatible && p.accepted && p.slot < coop::kMaxRemote)
+        ids[p.slot] = p.id;
+  names_slots.pass(ids, coop::kMaxRemote, linked, [](size_t slot) { coop::pose::asset_slot_reset(slot); });
+}
+// Our asset names, after the fight pass. Each member past the handshake gets the book from her cursor, at
+// kNamesBytesPerSecond, while fewer than kFightQueue / 4 channel-2 lines wait for her: the pair's fight, world and
+// story lines and the poses keep their room. A member who came in later gets every earlier line. A member gone loses
+// her cursor.
+void names_pass(bool linked) {
+  for (std::string &line : coop::pose::asset_lines(linked)) // Also while not linked: the loopback's slot 0 takes them.
+    if (linked)
+      names_book.add(std::move(line));
+  const uint64_t now = GetTickCount64(), refill = (now - names_at) * coop::pose::kNamesBytesPerSecond / 1000;
+  names_at = now;
+  if (!linked)
+    return;
+  const std::vector<uint64_t> members = link->members();
+  for (auto it = names_sent.begin(); it != names_sent.end();)
+    it = std::find(members.begin(), members.end(), it->first) == members.end() ? names_sent.erase(it) : std::next(it);
+  for (const uint64_t id : members) {
+    auto [it, fresh] = names_sent.try_emplace(id);
+    NamesSent &n = it->second;
+    if (!fresh)
+      n.budget = static_cast<size_t>(std::min<uint64_t>(coop::pose::kNamesBytesPerSecond, n.budget + refill));
+    coop::pose::send_from(names_book, n.cursor, n.budget, [id](const std::string &line) {
+      return link->queued_for(id) < coop::kFightQueue / 4 && link->send_fight(line, true, id);
+    });
+  }
 }
 
 // One pass of the worker; false stops it for good.
@@ -748,6 +802,15 @@ bool step() {
       event(coop::pose::ask_items(coop::parse_request(request)));
       request.clear();
       break;
+    case coop::Command::fishbook: // The fishing tournament's book read: the worker's, now; logged as its kind changes.
+      if (const std::string said = coop::pose::ask_fishbook(coop::parse_request(request)); !said.empty())
+        event(said);
+      request.clear();
+      break;
+    case coop::Command::photohunt: // The photo hunt's photo check: the game thread's; the worker logs each ask.
+      event(coop::pose::ask_photohunt(coop::parse_request(request)));
+      request.clear();
+      break;
     case coop::Command::rows: // The rows of coop lion, coop gardener/tendril fight, the Shock Bolt, coop mxiii's four, the
                               // shop, Lily's signal: the game thread's.
       event(coop::pose::ask_rows(coop::parse_request(request)));
@@ -779,6 +842,10 @@ bool step() {
         const std::string why = coop_saves.plant_refusal(account.get(), game);
         event(why.empty() ? coop::pose::ask_shortcut_load(ask.slot) : "shortcut load refused: " + why);
       }
+      request.clear();
+      break;
+    case coop::Command::race: // Doro races' hold on EVE: the game thread's too.
+      event(coop::pose::ask_race(coop::parse_request(request)));
       request.clear();
       break;
     case coop::Command::hud: // SB's HUD under the SBO lobby's screens: the game thread's; the change is logged.
@@ -1002,8 +1069,12 @@ bool step() {
     said = coop::pose::bike_pass();
     if (loaded && !said.empty())
       link->notice(said);
+    said = coop::pose::race_pass();
+    if (loaded && !said.empty())
+      link->notice(said);
     coop::pose::hud_pass();
     coop::pose::teamshop_pass();
+    coop::pose::photohunt_pass();
     coop::pose::loading_pass();
     coop::pose::sky_pass();
     if (const std::string kept = coop::pose::keep_pass(); !kept.empty())
@@ -1020,15 +1091,31 @@ bool step() {
     // training room, the Matrix 11 demo room, a test zone), story together and the shared fight read the pair as
     // unlinked, as on another map: the pair's SBS and fight lines are dropped and theirs send nothing. The world and
     // the quests go on.
+    names_watch(linked);
     std::vector<coop::FightLine> fights = loaded ? link->take_fight() : std::vector<coop::FightLine>();
+    // Asset names (SBA lines) come from every member: each goes to its sender's ghost slot, out of what the shared
+    // quests, world, story and fight read.
+    const std::string names_tag = coop::asset_tag() + " ";
+    fights.erase(std::remove_if(fights.begin(), fights.end(),
+                                [&](const coop::FightLine &l) {
+                                  if (l.line.compare(0, names_tag.size(), names_tag) != 0)
+                                    return false;
+                                  const int slot = link->slot_of(l.from);
+                                  coop::pose::asset_line_in(slot < 0 ? coop::kMaxRemote : size_t(slot), l.line);
+                                  return true;
+                                }),
+                 fights.end());
     const uint64_t partner = linked ? link->partner() : 0;
     const bool shared = partner != 0;
     const bool solo = linked && link->solo_pair(ours);
     const uint64_t pair_now = solo ? 0 : partner;
     // A guest the let line names the pair: once the pair before her left, the host moved her ghost to slot 0, which
-    // holds no table of hers yet, so ours goes to every member at once (at a session's start, one table more).
-    if (partner && partner != was_pair && !link->host())
+    // holds no table of hers yet, so ours goes to every member at once (at a session's start, one table more). Our
+    // asset names go to every member again from the first: the other members drop the lines they already have.
+    if (partner && partner != was_pair && !link->host()) {
       coop::pose::table_again();
+      names_sent.clear(); // Our asset names too: the host's slot 0 forgot them (names_watch()).
+    }
     was_pair = partner;
     if (solo != pair_paused)
       event(solo ? "online play paused toward the pair: a solo area" : "online play resumed toward the pair");
@@ -1065,6 +1152,7 @@ bool step() {
         },
         pair_now ? link->mate_life() : coop::Life::unknown, pair_now, qte_ended, coop::pose::story_together());
     streaming = streaming || fighting;
+    names_pass(linked);
     // Every send passes here, worker_poll's and worker_stream's before this pass's ready(): none once Steam shut down.
     coop::pose::peer(
         linked ? link->slots() : 0, GetTickCount64(),
@@ -1107,10 +1195,11 @@ DWORD WINAPI worker(void *) {
   DeleteFileW((folder + L"coop-report.txt").c_str());
   // And a previous run's world state, whose world=1 would release a held invite on the title screen.
   for (const wchar_t *stale : {L"coop-components.txt", L"coop-remote.txt", L"coop-display.txt", L"coop-state.txt",
-                               L"coop-night.txt", L"coop-parked.txt", L"coop-cns.txt", L"coop-shared-assets.txt"})
+                               L"coop-night.txt", L"coop-parked.txt", L"coop-cns.txt", L"coop-shared-assets.txt",
+                               L"coop-drone.txt", L"coop-names.txt", L"coop-loaded.txt"})
     DeleteFileW((folder + stale).c_str()); // Tables, addresses and a run's line from a previous run mean nothing now.
   for (size_t k = 1; k < coop::kMaxRemote; ++k) // And those of the other ghost slots.
-    for (const char *stem : {"coop-remote", "coop-display"})
+    for (const char *stem : {"coop-remote", "coop-display", "coop-names", "coop-loaded"})
       DeleteFileW((folder + wide(coop::pose::slot_file(stem, k))).c_str());
   write_header();
   log_paks();

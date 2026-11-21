@@ -31,7 +31,7 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
 
   `ask` after the word (`host public ask`, from `friends_ask=on`) makes the host's Steam friends wait for her answer
   too (see [Players who are not Steam friends](#players-who-are-not-steam-friends)). The lobby carries a tag under the
-  key `stellarcoop`: the protocol and the game's Steam build (`25:<build>`). A lobby from another protocol or game
+  key `stellarcoop`: the protocol and the game's Steam build (`26:<build>`). A lobby from another protocol or game
   build is refused on joining, with both versions in the joiner's log and on screen. A lobby with no tag is another
   game's. It is refused as such.
 - Anyone who has an invisible lobby's id can join it. The host's friends do not see it. Steamworks documents that a
@@ -57,13 +57,13 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
 
 ### Match lobbies
 
-A match lobby holds up to 8 players. Its owner writes five keys beside `stellarcoop`: `sbo_mode` (the mode: `ffa` or
-`scoreattack`), `sbo_state`, `sbo_map`, `sbo_room` and `sbo_hall`. A lobby whose `sbo_mode` names a mode the game knows
+A match lobby holds up to 8 players. Its owner writes five keys beside `stellarcoop`: `sbo_mode` (the mode: `ffa`,
+`scoreattack` or `race`), `sbo_state`, `sbo_map`, `sbo_room` and `sbo_hall`. A lobby whose `sbo_mode` names a mode the game knows
 is a match lobby, a co-op lobby carries none, and a lobby of a mode the game does not know is left. A match lobby keeps
 its mode while a player is in it: if its owner clears `sbo_mode` or writes another mode, the player leaves, so the
 rules of [In a match lobby](#in-a-match-lobby) never lapse for her. `sbo_state` is written on Public lobbies only:
 `open` while players can join, `playing` during a round. `sbo_map` names the round's map, `lobby` for a score attack
-round, which plays in the room the members wait in. `sbo_room` and `sbo_hall` are the last two
+round or a Doro race round, which plays in the room the members wait in. `sbo_room` and `sbo_hall` are the last two
 words of the request that created the lobby: the SBO lobby map its players wait in (`xion`, or a hall lobby's key such
 as `hotel`) and the version of the hall lobby pak `zSBO_Lobby` (its `.utoc` and `.ucas` sizes joined by `_`, or `xion`
 without the pak). Lua's `online/lobby/sbo.lua` picks both words (`lobby_words()`): the lobby map the player stands in,
@@ -202,7 +202,7 @@ host answers with native requests, which Lua writes to `coop-request.txt` like t
   without a new question for as long as the lobby lasts.
 - `deny <SteamID>`, or 60 s with no answer, refuses the player. So does leaving before the answer. The host's
   questions come one at a time, in the order the players joined: a player's minute starts when her question is the
-  first one waiting. The host's game sends each waiting player `SBC25 wait <seconds>`, reliable, at the start and after
+  first one waiting. The host's game sends each waiting player `SBC29 wait <seconds>`, reliable, at the start and after
   each change: what is left of the minute of the player asked now, plus a minute for each player after that one, hers
   included.
   `remove <SteamID>` refuses any player already in (friends included) and puts them on the block list.
@@ -238,7 +238,7 @@ Apart from the wait line, this uses the hello's timing, the ping and the reject.
 
 An online session holds up to 4 players (`max_players`). The host leads every guest:
 
-- The host's game sends each guest past its handshake `SBC25 let <pair> <id>,<id>,... <max>`, reliable, again after
+- The host's game sends each guest past its handshake `SBC29 let <pair> <id>,<id>,... <max>`, reliable, again after
   each change and after each hello of hers. It names the pair, then the guests past the host's handshake in the order
   they came, then the host's `max_players` (2 to 4). A guest greets, reads and accepts a session from the host and the members this line names only. A joiner who
   waits for the host's answer gets nothing from the guests and sends them nothing. A member the line no longer names
@@ -264,7 +264,7 @@ An online session holds up to 4 players (`max_players`). The host leads every gu
   Same-place enemies' `SBE` on channel 1 goes to the pair only. The shared quests run with every member: the host's game
   runs one quest side per guest past the handshake, all fed by one read of its quests each pass. Each guest gets her own
   lines (see [Group play: how it works](group-internals.md#shared-quests)). A guest sends her `SBQ` lines to the host
-  only and reads the host's only. Lines from any other member are dropped. A quest step a guest makes first (`SBQ25
+  only and reads the host's only. Lines from any other member are dropped. A quest step a guest makes first (`SBQ29
   step`) is story together's: the host's game takes it from the pair only and logs any other guest's as `a step line
   from guest <SteamID> not taken: her game is not the pair`. A guest out of the pair sends none.
 - In a shared boss fight the pair's `SBF` lines go both ways: the game that runs a boss sends its `bstart`, `phase`
@@ -309,12 +309,13 @@ there:
   `<name> runs another version and was refused.` That player then stays refused for the lobby, as above. A guest who
   gets such a hello from another guest marks that member incompatible, counts an invalid message, sends no reject and
   stays. A mismatched hello from the owner still makes the guest reject it and leave.
-- No photo line (and so no photo or cutscene pause), gift, race line, camps line, night line, shared quests' `SBQ` line,
+- No photo line (and so no photo or cutscene pause), gift, race line, mode line, camps line, night line, shared quests' `SBQ` line,
   shared world's `SBW` line or story together's `SBS` line goes either way. The game sends none. Such a line that
   arrives on channel 0 is dropped with no log line. An `SBQ`, `SBW` or `SBS` line on channel 2 is dropped too. The log
   says `dropped fight data from <name>: shared quests are off in a match lobby`, `...: the shared world is off in a
   match lobby` or `...: story together is off in a match lobby` at most once a minute. `coop gift` gets its items back
   at once (`gift n <id> nolink`), and a camps request ends with `camps line not sent: a match lobby` in the log.
+  A Doro race of a match goes on the dr line instead of the race line (see [The dr line](#the-dr-line)).
   The spot lines and the rest line go neither way either (`spot line not sent: a match lobby`, `rest line not sent:
   a match lobby`).
 - Chat stays on, with a mute per player. `mute <SteamID>` drops that player's chat lines and `unmute <SteamID>` lets
@@ -359,38 +360,40 @@ Channel 0 carries short text messages over Steam's relayed P2P messages (SteamNe
 handshake, every message carries the protocol number, and a peer that runs another protocol drops it:
 
 ```
-SBC25 ping <seq> <ms>
-SBC25 pong <seq> <ms>
-SBC25 photo <0|1|s|c> <both|notice>
-SBC25 say <text>
-SBC25 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life> <zone type>
-SBC25 pak <hash> <name>
-SBC25 paks <count> <hash>
-SBC25 dlc <app id> <name>
-SBC25 dlcs
-SBC25 cycle <count> <difficulty>
-SBC25 camps? <id>
-SBC25 camps <id> <world> <camp>:<m> ...
-SBC25 camps <id> none <title|loading|nocamp|busy>
-SBC25 spot? <id>
-SBC25 spot <id> <x> <y> <z> <yaw>
-SBC25 spot <id> none <title|loading|air|busy|solo|boss>
-SBC25 rest <zone> <SteamID>
-SBC25 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level> <down> <help>
-SBC25 night g <n> <run> <state> <up> <killed> <done> <why> <down> <help>
-SBC25 mark <n> [<text>]
-SBC25 race <text>
-SBC25 score <text>
-SBC25 gift s <id> <item> <count>
-SBC25 gift a <id>
-SBC25 gift n <id> <why>
-SBC25 bike park <map> <x> <y> <z> <pitch> <yaw> <roll>
-SBC25 bike none
-SBC25 start <mode> <map> <seed> <id>,<id>,...
-SBC25 count <1-10|stop>
-SBC25 end
-SBC25 let <pair> <id>,<id>,... <max>
-SBC25 wait <seconds>
+SBC29 ping <seq> <ms>
+SBC29 pong <seq> <ms>
+SBC29 photo <0|1|s|c> <both|notice>
+SBC29 say <text>
+SBC29 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life> <zone type>
+SBC29 pak <hash> <name>
+SBC29 paks <count> <hash>
+SBC29 dlc <app id> <name>
+SBC29 dlcs
+SBC29 cycle <count> <difficulty>
+SBC29 camps? <id>
+SBC29 camps <id> <world> <camp>:<m> ...
+SBC29 camps <id> none <title|loading|nocamp|busy>
+SBC29 spot? <id>
+SBC29 spot <id> <x> <y> <z> <yaw>
+SBC29 spot <id> none <title|loading|air|busy|solo|boss>
+SBC29 rest <zone> <SteamID>
+SBC29 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level> <down> <help>
+SBC29 night g <n> <run> <state> <up> <killed> <done> <why> <down> <help>
+SBC29 mark <n> [<text>]
+SBC29 race <text>
+SBC29 score <text>
+SBC29 mode <word> <text>
+SBC29 dr <text>
+SBC29 gift s <id> <item> <count>
+SBC29 gift a <id>
+SBC29 gift n <id> <why>
+SBC29 bike park <map> <x> <y> <z> <pitch> <yaw> <roll>
+SBC29 bike none
+SBC29 start <mode> <map> <seed> <id>,<id>,...
+SBC29 count <1-10|stop>
+SBC29 end
+SBC29 let <pair> <id>,<id>,... <max>
+SBC29 wait <seconds>
 ```
 
 ### The photo line
@@ -408,7 +411,7 @@ released. A host's line says `c` while a cutscene plays in its game and its own 
 The say line is one chat line, sent reliable. Both games clean it the same way: they keep well-formed UTF-8 only, drop
 control, bidi and zero-width characters, trim spaces, and keep at most 200 bytes, never cutting inside a character.
 At most 3 lines a second are sent, and at most 10 a second are kept from a friend. The rest are dropped, with one log
-line a minute that holds no text. At most 64 received lines, chat, race and score lines together, wait for the Lua side. The
+line a minute that holds no text. At most 64 received lines, chat, race, score, mode and dr lines together, wait for the Lua side. The
 text never goes into `coop-link.log`, `coop-status.txt`, `coop-report.txt` or the console. When the session ends, the
 log gets the counts only: `chat this session: <n> in, <n> out, <n> dropped; race lines: <n> in, <n> out, <n> dropped`.
 
@@ -499,7 +502,7 @@ pass 200 bytes, the notice cuts that name. Nothing is refused.
 
 ### The cycle line
 
-The cycle line gives your game's New Game+ count and difficulty: `SBC25 cycle 1 2` is New Game+ 1 on Hard. The count
+The cycle line gives your game's New Game+ count and difficulty: `SBC29 cycle 1 2` is New Game+ 1 on Hard. The count
 is 0 on a first playthrough and goes up to 99; the difficulty is 0 for Normal, 1 for Story and 2 for Hard. Any other
 value makes the line invalid. The game thread reads both once a second while you are in game: the count is the int32 at
 `+0xe4` of the game object at 0x1470373c8 (the value SB's IsPlayNewGamePlus tests); the difficulty is the one SB gives
@@ -616,6 +619,42 @@ the limit are dropped, with at most one line a minute in `coop-link.log`: `dropp
 limit`, or `dropped score lines from <name>: over the rate limit` (or `too many waiting`). In a minute that carried score
 lines, `score lines, last 60 s: <in> in, <out> out, <dropped> dropped` follows the 60 s link line.
 
+### The mode line
+
+The mode line carries one line of a mode of online sessions, sent reliable. The [fishing
+tournament](modes/fishing.md#the-mode-line) is the first such mode. Its word is `fish`. The
+[photo hunt](modes/photohunt.md#the-mode-line) uses the word `photohunt`. The line goes in an online
+session only: Lua's `mode <word> <text>` request sends it to every member past the handshake, the host and each guest
+the let line names (guests link with each other, see [Sessions of more than 2
+players](#sessions-of-more-than-2-players)). In a match lobby the request sends nothing. A mode line that arrives there
+is dropped with no log line. The word is 1 to 16 lowercase letters. The link reads no further: it passes the text on as
+it is and refuses only a byte outside printable ASCII (0x20 to 0x7e) or a line over 512 bytes. A member's line reaches
+Lua in `coop-chat.txt` as `mode <SteamID> <word> <text>`. The SteamID is the one Steam gives for the sender, never one
+from the text. `core/link.lua` keeps these lines apart from the chat under their word, 64 at most a word
+(`take_mode(word)`), so each mode takes its own lines only. The mode's module checks who may send which text.
+
+The rate is the score line's, for all modes together: at most 16 lines a second go out. At most 16 a second are
+kept from each member. Lines past the limit are dropped, with at most one line a minute in `coop-link.log`:
+`dropped our mode lines: over the rate limit`, or `dropped mode lines from <name>: over the rate limit` (or `too many
+waiting`). With nobody linked the request sends nothing. In a minute that carried mode lines,
+`mode lines, last 60 s: <in> in, <out> out, <dropped> dropped` follows the 60 s link line.
+### The dr line
+
+The dr line carries one line of a round of [Doro races in matches](modes/race-internals.md#races-in-a-match), sent
+reliable. It is a copy of the score line with its own kind, so score attack's round, which takes every score line at
+each pass, never reads it. It goes in a match lobby only: Lua's `dr <text>` request sends it to every member past the
+handshake. Outside a match lobby the request sends nothing. A dr line that arrives there is dropped with no log line.
+The link passes the text on as it is and refuses only a byte outside printable ASCII or a line over 512 bytes. A
+member's line reaches Lua in `coop-chat.txt` as `dr <SteamID> <text>`, the SteamID the one Steam gives for the sender.
+`core/link.lua` keeps these lines apart from the chat, the race lines and the score lines for the module (`take_dr()`,
+64 at most, the oldest dropped).
+
+At most 16 lines a second go out (`kDrPerSecond`). At most 16 a second are kept from each member. A racer sends about
+one a second. The host's busiest moment is the round's start: its track, cps and go lines, up to 8, one each 250 ms.
+Lines past the limit are dropped, with at most one line a minute in `coop-link.log`: `dropped our dr lines: over the
+rate limit`, or `dropped dr lines from <name>: over the rate limit` (or `too many waiting`). In a minute that carried
+dr lines, `dr lines, last 60 s: <in> in, <out> out, <dropped> dropped` follows the 60 s link line.
+
 ### The gift line
 
 The gift line carries a [cut mailbox](../cutmenus/menus-internals.md#cut-mailbox) gift and its answer, sent reliable: `s` with the gift's id (1
@@ -653,8 +692,8 @@ These lines run a round in a [match lobby](#match-lobbies). Only the lobby's own
 past the handshake. A member counts the same line from anyone else as invalid.
 
 The owner counts the players past the handshake, itself included and lost players left out. When they reach the
-mode's minimum (2 for `ffa` and `scoreattack`), a 10 s countdown starts, and when the lobby is full (8) it drops to
-5 s. Each member gets a count line with the seconds left at the start, at the drop to 5 s, and when they complete the
+mode's minimum (2 for `ffa`, `scoreattack` and `race`), a 10 s countdown starts. When the lobby is full (8) it drops
+to 5 s. Each member gets a count line with the seconds left at the start, at the drop to 5 s, and when they complete the
 handshake while it runs. If the count falls under the minimum, the countdown stops and the owner sends `count stop`.
 
 A member takes at most 8 start, count and end lines a second from the owner and drops the rest, with at most one log
@@ -679,7 +718,7 @@ from the owner.
 
 ### Unlinked peers, pings and session requests
 
-Say, vit, pak, paks, camps, spot, rest, night, mark, race, score, gift, bike, start, count and end lines from a friend who has not passed the handshake are ignored, without a log line.
+Say, vit, pak, paks, camps, spot, rest, night, mark, race, score, mode, dr, gift, bike, start, count and end lines from a friend who has not passed the handshake are ignored, without a log line.
 
 Accepted peers ping every 2 s. A game answers at most 4 pings a second from one player and sends no pong for the
 rest. A peer silent on channel 0 for 10 s is marked lost (`<name> silent for 10 s: lost`)
@@ -692,7 +731,7 @@ is ignored.
 
 ## Channel 1: tables and poses
 
-Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 25` (sent reliable) and
+Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 29` (sent reliable) and
 each pose as a binary message starting `SBP` (a keyframe) or `SBD` (a delta), then the protocol byte (sent unreliable,
 without Nagle delay). Same-place enemies add a binary message starting `SBE` and the protocol byte, at most 30 a
 second (sent unreliable): the place, rotation and animation speed of up to 16 enemies that the sender moves on the
@@ -719,6 +758,50 @@ other screen. An `SBE` goes to the pair only (`Link::partner()`), never in a mat
   friend for the 10 s lost check.
 - Once they are out of the lobby (`<name> left the lobby`), or you left it, the log says `peer unlinked`, and their
   table and the ghost are removed (`Ghost <generation> removed (her table is gone).`).
+
+## Channel 2: asset names
+
+A ghost's events name what her game played by an asset key, 1 to 4096 in a link session (see
+[Partner: how it works](partner-internals.md)). The name behind each key travels once on channel 2, reliable, to every
+member:
+
+```
+SBA29 <k> <kind> <asset> <a> <b>[ <params>]
+```
+
+- `kind` is `sound`, `niagara`, `cascade`, `decal` or `trail`. A sound's `a` and `b` are its sound class and
+  attenuation paths, or `-`, then `-` or at most 8 `<name>:<int>` parameters joined by commas. Niagara and Cascade
+  carry `- -`. A decal carries its size in cm (`<x>,<y>,<z>`, 1 to 4096) and its fade-out in ms (0 to 60000). A trail
+  carries its two sockets (`<socket>,<socket>`) and its width in 1/100 cm (1 to 100000).
+- Every path is one of SB's own: `/Game/[DLC_<n>/](Sound|Art)/<folders>/<asset>.<asset>`, at most 255 bytes, names of
+  letters, digits and `_`. A line is at most 512 bytes. The receiver refuses any other line (`parse_asset_line` in
+  `game/events.h`).
+- `glue/steam.cpp` keeps every SBA line of the link session in order. Each member past the handshake gets them from her
+  own place in that list, at 8 KB a second, while fewer than 64 of the 256 channel-2 lines wait for her. So the pair's
+  fight, world and story lines keep their room. A member who comes in later gets the earlier lines the same way.
+- A new pair keeps the SBA lines queued both ways, as it keeps the shared quests' lines. A link session that starts or
+  ends empties them. Our keys then start again from 1. A guest who becomes the pair sends all her lines again, since the
+  host moved her ghost to slot 0 and forgot her names. The other members drop the lines they already have.
+- The receiver takes an SBA line from any member and files it under her ghost slot. A key lives for the link session:
+  another line for a key she already named is refused. A slot forgets its names when its member changes (leaving
+  counts) and when a session starts or ends.
+
+Two files per ghost slot carry the names to Lua and back. Slot 0's have no number, the others end in `-<k>`. Both are
+appended to, not rewritten:
+
+- `coop-names.txt`: the native part adds each name it took as `name <k> <kind> <asset> <a> <b>[ <params>]`. Lua reads
+  it from its last offset (`names(from, head)` in `core/link.lua`). A reset starts the file again with a head line
+  `book <n>`, its number new at each reset of the run. A file shorter than that offset, gone or with another head
+  means the slot was reset. The head catches a new file that is already longer than the offset.
+- `coop-loaded.txt`: Lua adds `loaded <k> 0x<object> 0x<class> 0x<a|0> 0x<b|0>` once a key's assets are loaded
+  (`loaded(line)`). The native part reads it from its last offset every 250 ms and hands the objects to the game thread
+  in place, with no new ghost. A later line for a key replaces the earlier one. A key the slot never named is refused.
+  A file shorter than that offset, or gone, empties the slot's objects.
+
+While `coop loopback` runs outside a link session, our own names go to slot 0 too. In a link session slot 0 holds a
+member's names, so the loopback ghost gets none of ours there. Every 60 s `coop-link.log` counts them: `asset names,
+last 60 s: <n> taken, <n> refused; <n> loaded lines taken, <n> refused`. The native part deletes both files when it
+starts.
 
 ## Protocol versions
 
@@ -750,7 +833,11 @@ is refused instead of misread:
 | 22 | Never released: development builds of story together's `SBS` lines on channel 2 (the host's story scenes and story trips, followed in the guest's game; see [Story together: how it works](../story/together-internals.md)) and of the guest's `SBQ22 step` line (a quest step she made first, made in the host's game) used it |
 | 23 | Online sessions of up to 4 players: the host's `let` and `wait` lines on channel 0, which a protocol-22 peer would count invalid; a protocol-22 game would also leave a lobby of 3. The cycle line (each game's New Game+ count and difficulty) and the bike line (where each player's parked bike stands) on channel 0. 23 also adds the shared world's catch-up lines (`c ask`, `c`, `c end`) on channel 2, which an earlier protocol-23 development build counts malformed. On channel 2, shared flinches and stagger resistance: the cc line with the hit's level and the reaction's time (`SBF23 cc <gen> <hguid> <effect> <level> <ms>`), the host's `SBF23 stagger <gen> <0\|1> <0\|1>` and the owner's `SBF23 poise <gen> <hguid> <oe> <k> <ms>` (see [Shared enemies: how they work](../fight/enemies-internals.md#lines-and-counters)), which an earlier protocol-23 build drops as malformed lines. Never released |
 | 24 | The score attack: the `scoreattack` match mode under `sbo_mode` and its score line (`SBC24 score <text>`) on channel 0 (see [The score line](#the-score-line)), which a protocol-23 peer would count invalid. Never released |
-| 25 | The [spot lines](#the-spot-lines) (`spot?`, `spot`) and the [rest line](#the-rest-line) on channel 0, with the zone type as the [vit line](#the-vit-line)'s 13th number, which a protocol-24 peer would count invalid (this version) |
+| 25 | The [spot lines](#the-spot-lines) (`spot?`, `spot`) and the [rest line](#the-rest-line) on channel 0, with the zone type as the [vit line](#the-vit-line)'s 13th number, which a protocol-24 peer would count invalid. Never released |
+| 26 | The [mode line](#the-mode-line) on channel 0 in online sessions, first for the fishing tournament (go, ready, catch, board, rank and void), which a protocol-25 peer would count invalid. Never released |
+| 27 | [Doro races in matches](modes/race-internals.md#races-in-a-match): the `race` match mode under `sbo_mode` and the [dr line](#the-dr-line) on channel 0 (track, cps, go, ready, cp, done, rank and void), which a protocol-26 peer would count invalid. Never released |
+| 28 | The ghost's fidelity: her drone (a free part placed by the pose), six effect slots, four event slots and her morph weights in the pose and the table, with the [asset names](#channel-2-asset-names) (`SBA28 <k> <kind> <asset> <a> <b>`) on channel 2 to every member, which a protocol-27 peer would refuse. Never released |
+| 29 | Shared boss fights ([Shared enemies: how they work](../fight/enemies-internals.md#shared-bosses)): the `fin`, `qte-own` and `spec` lines on channel 2, the host's `boss_finish` as the `bosses` line's last word and a summon's owner in its key. A guest sends the boss lines of a boss her game runs and story together's `SBS` lines of a [boss QTE scene](../story/together-internals.md#boss-qte-scenes) she leads. A protocol-28 peer would count the new lines invalid (this version) |
 
 ## Link health in the log
 

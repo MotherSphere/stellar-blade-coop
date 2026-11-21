@@ -89,8 +89,8 @@ __declspec(noinline) void anim_play(uint64_t now) {
   const anim::Play p = anim::play(anim_now.loop, anim_now.ride);
   const int32_t ret = game_function<PlayByPath>(anim::kPlayByPath)(
       reinterpret_cast<void *>(ch), 0, &path, out, zero, p.start, p.end, p.rate, p.blend_in, p.blend_out,
-      p.input_blend, p.loop, p.loops, p.priority, 0, 0, 0, &empty[0], 0.f, &empty[1], 0.f, &empty[2], 0.f, &empty[3],
-      0, &empty[4], 0, 0, 0.f, p.foot_ik, 0);
+      p.input_blend, p.loop, p.loops, p.priority, 0, 0, p.hold, &empty[0], 0.f, &empty[1], 0.f, &empty[2], 0.f,
+      &empty[3], 0, &empty[4], 0, 0, 0.f, p.foot_ik, 0);
   uint64_t name = 0;
   anim_read(slots + anim::kSlotName, &name, sizeof name);
   anim_ch = ch, anim_index = index, anim_serial = serial;

@@ -36,8 +36,8 @@
 -- online/saves/commands.lua's (coop shortcut load, a test tool with no menu row); its pvp_spike
 -- fight/enemies/commands.lua's (coop pvp, the PvP test, a test tool with no menu row; main.lua's reload ends it when
 -- off); its sbo_lobby online/lobby/sbo.lua's (the SBO lobby in Xion, on by default, no menu row), which also reads
--- sbo() here; its bike and bike_key vehicles/bike/ride.lua's and main.lua's (the bike); its gun_mode, gun_key and
--- gun_ test lines fight/gunmode/mode.lua's (gun mode, which checks the test lines itself); its spectate
+-- sbo() here; its bike, bike_pose and bike_key vehicles/bike/ride.lua's and main.lua's (the bike); its gun_mode,
+-- gun_key and gun_ test lines fight/gunmode/mode.lua's (gun mode, which checks the test lines itself); its spectate
 -- fight/enemies/wiring.lua's (it asks the native part spectate on or off). The co-op menu
 -- (ui/kit/menu.lua) changes the file, one line at a time (D-UI4).
 local K=require('core.keybind')
@@ -70,8 +70,11 @@ drift_keys=Gamepad_RightTrigger B
 # The bike: on or off, on by default. On, the mod keeps Stellar Blade's own bike loaded. bike_key, D-pad Right held 1 s
 # on a pad or the console command coop bike puts EVE on it or takes her off, on any save. The bike stays where she gets
 # off: its place is kept for each save, in the mod folder. Off gets her off the bike, removes her parked bike from
-# every world (its place stays), hides the other players' parked bikes and frees the bike's files.
+# every world (its place stays), hides the other players' parked bikes and frees the bike's files. bike_pose, a test
+# of two ways to show EVE's riding pose, read at each mount: rig (a hidden copy of her plays the pose, her body
+# follows it) or hold (the pose plays on EVE herself, kept above the game's own animations). rig by default.
 bike=on
+bike_pose=rig
 # Gun mode: on or off, on by default. On, gun_key or a tap of D-pad Right gives EVE the NIKKE rifle on any save, or
 # puts it away. Off, gun mode does nothing. Both are read when the mod loads.
 gun_mode=on
@@ -93,8 +96,9 @@ name_tag=on
 # Poses sent to your friend a second: 10 to 60.
 send_rate=60
 # What the ghost shows, each on or off and on unless set here: cloth (her ponytail swings as in solo; it sends
-# nothing), dyes (hair colours and material variants) and effects (her attack and skill effects). dyes and effects off
-# also stop sending yours.
+# nothing), dyes (hair colours and material variants), effects (her attack and skill effects), drone (her drone),
+# sounds (her steps, voice, swings and hits) and faces (her eyes, face and shape keys). Each one but cloth also stops
+# sending yours when off.
 # For example: dyes=off
 # Shared enemies, experimental: on or off. On, the enemies you and your friend both fight share one HP bar and one
 # death, while both of you play a co-op save. fight_chars: auto (every common enemy, and with bosses=on the bosses
@@ -249,13 +253,24 @@ hide_popups=on
 # Score attack: on or off, on by default. On, you play each round of a score attack match in the SBO lobby. Off, you
 # sit out its rounds.
 scoreattack=on
+# Fishing tournament: on or off, on by default. On, you fish in each tournament the host of your online session starts
+# with coop fish start. Off, you sit out its tournaments. As the host you cannot start one.
+fishing=on
+# Doro races in matches: on or off, on by default. On, you race each round of a Doro race match in the SBO lobby.
+# Off, you sit out its rounds. Doro races in an online session do not read it.
+race_match=on
+# Photo hunt: on or off, on by default. On, you photograph the targets of each photo hunt the host of your
+# online session starts with coop photohunt start. Off, you sit out its rounds. As the host you cannot start one.
+photohunt=on
 ]]
 -- The looks are comments only in the file above: an old file and a new one both follow the code's default here. A file
 -- written before shared_enemies and fight_chars existed lacks them: on and auto, as here; one written before the photo
 -- settings, or the menu's, lacks those: the defaults here. One written before menu_key: see parse_settings.
 local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',race_key='F9',bike_key='F3',bike='on',
+    bike_pose='rig',
     drift_keys='Gamepad_RightTrigger B',name_tag='on',
-    send_rate='60',cloth='on',dyes='on',effects='on',shared_enemies='on',fight_chars='auto',guest_kills='at_once',
+    send_rate='60',cloth='on',dyes='on',effects='on',drone='on',sounds='on',faces='on',shared_enemies='on',
+    fight_chars='auto',guest_kills='at_once',
     enemy_hp_scale='1.35',enemy_balance_scale='1.15',kill_credit='together',same_place='on',aggro='game',
     same_spawns='on',enemy_extra='0',spawn_filter='on',bosses='on',boss_hp_scale='2.0',hit_reactions='on',
     stagger_resist='on',boss_finish='first',spectate='on',
@@ -265,7 +280,8 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',rac
     shared_quests='on',
     quest_deny='',revive='on',cutscene_wait='on',follow_host='ask',follow_key='F7',collide='on',mod_names='on',shortcut_load='on',
     pvp_spike='on',sbo_lobby='on',shared_world='on',shared_story='on',daynight='on',pause_tab='on',hide_popups='on',
-    gun_mode='on',gun_key='F4',scoreattack='on'}
+    gun_mode='on',gun_key='F4',scoreattack='on',fishing='on',race_match='on',
+    photohunt='on'}
 -- Gun mode's test lines (fight/gunmode/config.lua): no template line, no menu row. Kept as written, empty when absent;
 -- gun mode checks them and logs what it refuses.
 local GUN_TESTS={gun_aim_key=true,gun_zoom=true,gun_upper=true,gun_fire=true,gun_probe=true,gun_trace=true,
@@ -278,13 +294,16 @@ local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=tr
     photo_ghost=true,photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
     card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true,mod_names=true,shortcut_load=true,
     pvp_spike=true,sbo_lobby=true,shared_world=true,shared_story=true,friends_ask=true,bike=true,daynight=true,
-    pause_tab=true,hide_popups=true,gun_mode=true,scoreattack=true,spectate=true}
-local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (online/partner/puppet.lua), each on or off.
+    pause_tab=true,hide_popups=true,gun_mode=true,scoreattack=true,fishing=true,race_match=true,
+    photohunt=true,spectate=true}
+-- What the ghost shows (online/partner/puppet.lua), each on or off.
+local LOOKS={cloth=true,dyes=true,effects=true,drone=true,sounds=true,faces=true}
 local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key','bike_key','gun_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
     kill_credit={'together','fought'},who_can_join={'public','friends','invitation','closed'},
     auto_coop_save={'ask','always','off'},aggro={'game','host'},photo_pause={'full','scenery'},
-    follow_host={'ask','always','off'},status_overlay={'off','compact','detailed'},boss_finish={'first','host'}}
+    follow_host={'ask','always','off'},status_overlay={'off','compact','detailed'},boss_finish={'first','host'},
+    bike_pose={'rig','hold'}}
 -- The session list's rules word (the rules request, the sbo_rules lobby key the native part writes): a letter for each
 -- session rule on in the host's settings, in this order: e shared enemies, b shared bosses (with shared enemies only),
 -- w shared world, s shared story, q shared quests, r revive; then the boss HP scale in whole percent. ebwqr200: all
@@ -328,9 +347,9 @@ function Link.solo(type) return math.type(type)=='integer' and type>=2 and type<
 -- nil, name='Shift+F7'}; host_key none: no key); fight_chars a list of whole numbers (the native part takes at most 16,
 -- each from 1 to 2^32-1), empty for auto (every Monster, the native part's rule), which an empty value means too (a
 -- file written before auto); a choice (CHOICES: photo_sync, ui_language, guest_kills, kill_credit, who_can_join,
--- auto_coop_save, aggro, photo_pause, follow_host, status_overlay, boss_finish) one of its words; photo_freeze_max a
--- whole number of seconds; ui_scale one of percent; max_players a whole number from 2 to 4; the scales a number from
--- 1 to 4, digits with a decimal point or none
+-- auto_coop_save, aggro, photo_pause, follow_host, status_overlay, boss_finish, bike_pose) one of its words;
+-- photo_freeze_max a whole number of seconds; ui_scale one of percent; max_players a whole number from 2 to 4; the
+-- scales a number from 1 to 4, digits with a decimal point or none
 -- (fight/enemies/commands.lua sends them in whole percents); quest_deny its text, letters, digits, '_', spaces and
 -- commas only, at most 200 bytes (the native part's request limit; it names the entries that are no shared quest);
 -- drift_keys a list of Unreal key names (online/modes/race/drive.lua reads them with IsInputKeyDown), at most 4, empty
@@ -456,9 +475,10 @@ end
 -- 0.5.0-beta.1 to 0.9.0 wrote spawn_filter, photo_name_tag, shared_quests, revive, collide and status_overlay as off,
 -- 0.7.0-beta.1 and later shortcut_load too, and the PvP test builds pvp_spike. Each has a comment that says off, but
 -- photo_name_tag and status_overlay: the shared quests comment, which the same builds wrote, stands for them. Their
--- ghost comment said dyes and effects are off unless set. A file with one of those comments: its text with each as
--- Link.DEFAULT has it and the settings it stands for that say off set to their default, so it is changed once and an
--- off picked later stays. nil for any other file, and nil, why when a line cannot be set.
+-- ghost comment said dyes and effects are off unless set. 0.11's ghost comment lacks drone, sounds and faces. A file
+-- with one of those comments: its text with each as Link.DEFAULT has it and the settings it stands for that say off
+-- set to their default, so it is changed once and an off picked later stays, then true when no setting changed (only
+-- comments). nil for any other file, and nil, why when a line cannot be set.
 local OLD_OFF_NOTES={
     {"same_spawns=on: on or off, off\n# until it has been tested in game.",
         "same_spawns=on: on or off, on by\n# default, not tested in game yet.",{'spawn_filter'}},
@@ -477,7 +497,14 @@ local OLD_OFF_NOTES={
         .."both off unless set\n# here. dyes and effects off also stop sending yours.\n# For example: dyes=on",
     "# What the ghost shows, each on or off and on unless set here: cloth (her ponytail swings as in solo; it sends\n"
         .."# nothing), dyes (hair colours and material variants) and effects (her attack and skill effects). dyes and "
-        .."effects off\n# also stop sending yours.\n# For example: dyes=off",{}}}
+        .."effects off\n# also stop sending yours.\n# For example: dyes=off",{}},
+    {"# What the ghost shows, each on or off and on unless set here: cloth (her ponytail swings as in solo; it sends\n"
+        .."# nothing), dyes (hair colours and material variants) and effects (her attack and skill effects). dyes and "
+        .."effects off\n# also stop sending yours.\n# For example: dyes=off",
+    "# What the ghost shows, each on or off and on unless set here: cloth (her ponytail swings as in solo; it sends\n"
+        .."# nothing), dyes (hair colours and material variants), effects (her attack and skill effects), drone (her "
+        .."drone),\n# sounds (her steps, voice, swings and hits) and faces (her eyes, face and shape keys). Each one "
+        .."but cloth also stops\n# sending yours when off.\n# For example: dyes=off",{}}}
 function Link.migrate_off(text)
     local nl=text:find('\r\n',1,true) and '\r\n' or '\n'
     local new,keys=text,{}
@@ -489,14 +516,15 @@ function Link.migrate_off(text)
         end
     end
     if new==text then return nil end
+    local comments=true
     for _,key in ipairs(keys) do
         if (SF.get(new,key) or ''):lower()=='off' then
             local set,why=SF.set(new,key,DEFAULTS[key])
             if not set then return nil,why end
-            new=set
+            new,comments=set,false
         end
     end
-    return new
+    return new,comments
 end
 -- The settings from the file's text, and the log lines for what was refused: a bad value keeps its default.
 function Link.parse_settings(text)
@@ -576,6 +604,12 @@ Link.files={
     -- A full disk fails at the write or only at the close's flush: either one is a failed write.
     write=function(path,text)
         local f=io.open(path,'wb'); if not f then return false end
+        local wrote=f:write(text); local closed=f:close()
+        return wrote~=nil and closed==true
+    end,
+    -- Onto the end of the file (made when there is none), for files the native part reads from an offset.
+    append=function(path,text)
+        local f=io.open(path,'ab'); if not f then return false end
         local wrote=f:write(text); local closed=f:close()
         return wrote~=nil and closed==true
     end,
@@ -689,13 +723,15 @@ function Link.new(folder,fs)
     -- (world=title: the only time the native part changes the co-op saves), the poses sent a second, and the synced
     -- photo mode's: ours ('0', '1' or 's'; 'c' while the host's cutscene plays, online/group/group.lua's), photo_sync
     -- and photo_freeze_max; then cut=1 while the guest asks for the pause during the host's cutscene (cut), and names=0
-    -- with mod_names=off (names false: the native part then sends no pak line). Written when its text changes, and
+    -- with mod_names=off (names false: the native part then sends no pak line), sounds=0 with the sounds look off
+    -- (sounds false: the native part then records and plays no sound) and collide=0 when no enemy is to be pushed out
+    -- of a ghost (collide false: the solid partner off, or an SBO session). Written when its text changes, and
     -- remembered only once written, so a failed write is tried again; returns the line it wrote.
     local state=nil
-    function self.state(world,rate,photo_now,sync,max,title,cut,names)
-        local line=string.format('world=%s rate=%d photo=%s sync=%s max=%d%s%s',
+    function self.state(world,rate,photo_now,sync,max,title,cut,names,sounds,collide)
+        local line=string.format('world=%s rate=%d photo=%s sync=%s max=%d%s%s%s%s',
             world and '1' or title and 'title' or '0',rate,photo_now,sync,max,cut and ' cut=1' or '',
-            names==false and ' names=0' or '')
+            names==false and ' names=0' or '',sounds==false and ' sounds=0' or '',collide==false and ' collide=0' or '')
         if line==state or not put('coop-state.txt',line..'\n') then return nil end
         state=line
         return line
@@ -710,6 +746,40 @@ function Link.new(folder,fs)
     -- The ghost built for the remote table, or nil when there is none.
     function self.display(text) return put_or_remove('coop-display.txt',text) end
     function self.remote_table() return fs.read(path('coop-remote.txt')) end
+    -- A ghost's asset names (game/events.h's SBA lines as 'name <k> <kind> <asset> <a> <b>[ <params>]' in
+    -- coop-names.txt, which the native part appends to after a head line 'book <n>', new at each reset of the slot):
+    -- the whole lines past byte from, the offset past them and the file's head (nil for none); '' and from while no
+    -- whole line came; false when the file is gone, shorter than from or has another head than head, the one the
+    -- read at 0 gave (its slot was reset: read it again from 0); nil with no file at 0. The byte before from must
+    -- still be the newline the last read ended on.
+    local function head_of(text) return text and text:match('^(book %d+)\r?\n') end
+    local function names(name,from,head)
+        local text=fs.read(path(name),nil,from>0 and from-1 or nil)
+        if not text then
+            if from>0 then return false end
+            return nil
+        end
+        local now=head_of(from>0 and fs.read(path(name),32) or text)
+        if from>0 then
+            if text:sub(1,1)~='\n' or now~=head then return false end
+            text=text:sub(2)
+        end
+        local whole=text:match('^.*\n') or ''
+        return whole,from+#whole,now
+    end
+    -- Our loaded objects for a ghost's names ('loaded <k> 0x<object> 0x<class> 0x<a|0> 0x<b|0>'), one line appended
+    -- to coop-loaded.txt, which the native part reads from its last offset; nil removes the file.
+    local function loaded(name,line)
+        if line==nil then fs.remove(path(name)); return true end
+        return fs.append(path(name),line..'\n')
+    end
+    function self.names(from,head) return names('coop-names.txt',from,head) end
+    function self.loaded(line) return loaded('coop-loaded.txt',line) end
+    -- Her drone as the native part found it ("drone 0x<actor>" in coop-drone.txt): the address text, or nil.
+    function self.drone()
+        local text=fs.read(path('coop-drone.txt'))
+        return text and text:match('^drone (0x%x+)\r?\n?$') or nil
+    end
     function self.status()
         if pass then return pass end
         return fs.read(status_path)
@@ -787,11 +857,34 @@ function Link.new(folder,fs)
         scores={}
         return out
     end
+    -- Doro race lines of a match round (online/modes/race/match/round.lua's), the same way: dr() is a dr request, each
+    -- member's comes as "dr <her SteamID> <text>" and take_dr() hands them over.
+    -- shortcut: 64 at most, the oldest dropped, as the score lines.
+    local drs={}
+    function self.dr(text) return self.request('dr '..text) end
+    function self.take_dr()
+        local out=drs
+        drs={}
+        return out
+    end
+    -- Lines of the modes of online sessions (online/modes/fishing/round.lua's), keyed by the mode's word: mode_line()
+    -- asks the native part to send one to every member of the online session (a mode request, so it waits in the
+    -- request queue above). Each member's comes in coop-chat.txt as "mode <her SteamID> <word> <text>". take_chat()
+    -- keeps it here under its word. take_mode(word) hands over that word's lines only, {from=, text=} each, oldest
+    -- first. The name is not mode(), which says our role.
+    -- ponytail: 64 at most a word, the oldest dropped, for a pass that never takes them (the module off).
+    local modes={}
+    function self.mode_line(word,text) return self.request('mode '..word..' '..text) end
+    function self.take_mode(word)
+        local out=modes[word] or {}
+        modes[word]=nil
+        return out
+    end
     -- The native part's coop-chat.txt, taken and deleted at once: {text=,from=} for each member's line (from: her
     -- SteamID as digits; ours in the loopback), {fail=true} when one of ours could not go, {race=} for each of her race
     -- lines, {gift=} for each of her gift lines (or a gift of ours that could not go, as her refusal), {rest=,from=} for
     -- each member's camp rest (the zone's alias, her SteamID as digits), oldest first; a score line goes to
-    -- take_score(); anything else is ignored.
+    -- take_score(), a dr line to take_dr(), a mode line to take_mode(); anything else is ignored.
     function self.take_chat()
         local name=path('coop-chat.txt')
         local text,lines=fs.read(name),{}
@@ -801,9 +894,19 @@ function Link.new(folder,fs)
             local raced,gifted=line:match('^race (.+)$'),line:match('^gift (.+)$')
             local rested,by=line:match('^rest ([%w_]+) (%d+)$')
             local scorer,scored=line:match('^score (%d+) (.+)$')
+            local dr_from,dr_text=line:match('^dr (%d+) (.+)$')
+            local moder,word,moded=line:match('^mode (%d+) (%l+) (.+)$')
             if scorer then
                 if #scores>=64 then table.remove(scores,1) end
                 scores[#scores+1]={from=scorer,text=scored}
+            elseif dr_from then
+                if #drs>=64 then table.remove(drs,1) end
+                drs[#drs+1]={from=dr_from,text=dr_text}
+            elseif moder then
+                local list=modes[word] or {}
+                modes[word]=list
+                if #list>=64 then table.remove(list,1) end
+                list[#list+1]={from=moder,text=moded}
             elseif said then lines[#lines+1]={text=said,from=from}
             elseif rested then lines[#lines+1]={rest=rested,from=by}
             elseif raced then lines[#lines+1]={race=raced}
@@ -1180,12 +1283,15 @@ function Link.new(folder,fs)
     function self.room() return room end
     function self.hall() return hall end
     -- Ghost slot k's files (1 to 6, online/partner/ghosts.lua), shaped as online/partner/puppet.lua reads this link:
-    -- coop-remote-<k>.txt, coop-display-<k>.txt and coop-puppet-<k>.txt, and the name of the member holding slot k.
+    -- coop-remote-<k>.txt, coop-display-<k>.txt, coop-puppet-<k>.txt, coop-names-<k>.txt and coop-loaded-<k>.txt;
+    -- the name of the member holding slot k.
     function self.slot(k)
         local function file(stem) return stem..'-'..k..'.txt' end
         return {
             remote_table=function() return fs.read(path(file('coop-remote'))) end,
             display=function(text) return put_or_remove(file('coop-display'),text) end,
+            names=function(from,head) return names(file('coop-names'),from,head) end,
+            loaded=function(line) return loaded(file('coop-loaded'),line) end,
             store=function() return self.store(file('coop-puppet')) end,
             friend=function() for _,m in ipairs(roster) do if m.slot==k then return m.name end end end,
             mate=function() for _,m in ipairs(roster) do if m.slot==k then return vits[m.id] end end end,
@@ -1341,13 +1447,21 @@ function Link.new(folder,fs)
             end
             local off,why_off=Link.migrate_off(text) -- 0.5.0-beta.1 to 0.9.0's off lines, read as the new defaults.
             if off then
-                local ok
+                local ok,comments=nil,why_off -- With a new text, true when only comments changed.
                 ok,why_off=self.write_settings(off)
                 text=off
-                switched=ok and 'settings: spawn_filter, photo_name_tag, shared_quests, revive, collide, shortcut_load '
-                    ..'and pvp_spike are now on and status_overlay compact in coop-settings.txt, where they said off'
-                    or 'settings: the old off defaults read as the new ones (coop-settings.txt not rewritten: '
-                        ..tostring(why_off)..')'
+                if comments then
+                    switched=ok and 'settings: the comments in coop-settings.txt now read as this version writes '
+                        ..'them; no setting changed'
+                        or 'settings: the comments in coop-settings.txt kept as they were (not rewritten: '
+                            ..tostring(why_off)..')'
+                else
+                    switched=ok and 'settings: spawn_filter, photo_name_tag, shared_quests, revive, collide, '
+                        ..'shortcut_load and pvp_spike are now on and status_overlay compact in coop-settings.txt, '
+                        ..'where they said off'
+                        or 'settings: the old off defaults read as the new ones (coop-settings.txt not rewritten: '
+                            ..tostring(why_off)..')'
+                end
             elseif why_off then
                 switched='settings: the old off defaults kept as they are: '..why_off
             end

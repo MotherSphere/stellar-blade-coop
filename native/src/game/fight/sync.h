@@ -22,11 +22,11 @@
 //                                                                  its world (and scale) while on, and at each change
 //   SBF11 aggro <gen> <game|host>                                  host, reliable: its aggro (stage 3b), after its
 //                                                                  place while host, and at each change
-//   SBF25 bosses <gen> <boss %> <first|host>                     host, reliable: its bosses=on (stage 5), its
+//   SBF29 bosses <gen> <boss %> <first|host>                     host, reliable: its bosses=on (stage 5), its
 //                                                                  boss_hp_scale and its boss_finish (phase 3), after
 //                                                                  its aggro while on; read without the last word as
 //                                                                  host (a host from before phase 3)
-//   SBF25 stagger <gen> <0|1> <0|1>                                host, reliable: its hit_reactions and
+//   SBF29 stagger <gen> <0|1> <0|1>                                host, reliable: its hit_reactions and
 //                                                                  stagger_resist (phase 8), after its bosses while
 //                                                                  either is on; again at each change
 //   SBF11 up <gen> <hguid> <spawnId> <idx> <charId> <maxHp>        host, reliable: an enemy it arbitrates, with the
@@ -37,7 +37,7 @@
 //                                                                  hp 0 while a kill waits (Host::apply)
 //   SBF11 hit <gen> <seq> <hguid> <dHp> <dSh> <dSt> <preHp> <0|1>  guest, reliable: drops since its last claim, the HP
 //                                                                  before them, and whether its copy died
-//   SBF25 cc <gen> <hguid> <effect> <level> <ms>                   both, reliable: a crowd control (kCcEffects) or a
+//   SBF29 cc <gen> <hguid> <effect> <level> <ms>                   both, reliable: a crowd control (kCcEffects) or a
 //                                                                  flinch (kFlinch, phase 8) that started on our
 //                                                                  copy, with the hit's level (0-99) and the
 //                                                                  reaction's time (0 for a crowd control: its row's;
@@ -72,16 +72,16 @@
 //                                                                  first line for a copy, each one it lacks. So a
 //                                                                  repeat changes nothing and brings back a line
 //                                                                  refused before that side paired
-//   SBF25 poise <gen> <hguid> <oe> <k> <ms>                        the owner of a copy, reliable: a window of raised
+//   SBF29 poise <gen> <hguid> <oe> <k> <ms>                        the owner of a copy, reliable: a window of raised
 //                                                                  poise (phase 8) it started on its copy, k 1 or 2,
 //                                                                  1 to 16000 ms, at owner epoch oe
-//   SBF25 pvp <seq> <skill> <d>                                    both, reliable: the PvP test, a drop of the
+//   SBF29 pvp <seq> <skill> <d>                                    both, reliable: the PvP test, a drop of the
 //                                                                  sender's stand-in of us, to apply to our EVE
-//   SBF25 fin <gen> <hguid> <member>                               host, reliable: the member whose finisher on that
+//   SBF29 fin <gen> <hguid> <member>                               host, reliable: the member whose finisher on that
 //                                                                  boss counts (phase 3)
-//   SBF25 qte-own <gen> <hguid> <spawnId> <member> <try>           host, reliable: the member who owns that boss's
+//   SBF29 qte-own <gen> <hguid> <spawnId> <member> <try>           host, reliable: the member who owns that boss's
 //                                                                  QTE (phase 3) at its try, 0 first, 255 at most
-//   SBF25 spec <member> <watched|->                                both, reliable: a downed member watches another
+//   SBF29 spec <member> <watched|->                                both, reliable: a downed member watches another
 //                                                                  in a boss fight (phase 3); "-": she stops
 // A member is a number below kMatchMembers: kHostMember, kPairMember (7b1's first guest); 7b2 numbers the others.
 // The host answers the guest's on and world with its whole list (world, its scale, place, aggro, bosses and stagger,

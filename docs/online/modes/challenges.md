@@ -201,7 +201,9 @@ a `New personal best.` notice.
 
 Best runs are kept in `Mods/StellarCoop/coop-records.txt`, one line per challenge in the form
 `best_<name>=<score> <seconds>`. Night Operation's lines are `best_night` for the normal level, `best_night_easy`,
-`best_night_hard` and `best_night_nightmare`. After a first Target Practice best, the file reads:
+`best_night_hard` and `best_night_nightmare`. Score attack adds its `best_match_<name>` lines and Doro races in matches
+their `best_race_<sum>` lines (see [Best times](race.md#best-times)). After a first Target Practice best, the file
+reads:
 
 ```
 # StellarCoop: your best challenge runs on this PC (score and seconds).

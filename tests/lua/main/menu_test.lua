@@ -132,9 +132,9 @@ settings_text='# mine\nname_tag=on\n'
 key('F5'); to('Options'); key('RETURN')
 assert(screen():find('^CONTROLS||disabled\nOpen this menu|F5|focus\nShow the status|F6|normal\n'
     ..'Leave the session|F8|normal\nTravel to the host|F7|normal\nSet a race checkpoint|F9|normal\n'
-    ..'Bike|On|normal\nGet on or off the bike|F3|normal\nGun mode|On|normal\nBring out or put away the rifle|F4|normal\n'
-    ..'Online tab in the pause menu|On|normal\n'
-    ..'Reset all keys||normal\nPHOTO MODE||disabled\nPhoto sync|Both|normal\nLongest pause|10 min|normal$'),screen())
+    ..'Bike|On|normal\nGet on or off the bike|F3|normal\nRiding pose %(test%)|Hidden copy|normal\n'
+    ..'Gun mode|On|normal\nBring out or put away the rifle|F4|normal\nOnline tab in the pause menu|On|normal\n'
+    ..'Reset all keys||normal\nPHOTO MODE||disabled\nPhoto sync|Both|normal$'),screen())
 to('Ponytail cloth'); local rebuilt=#rebuilds
 key('RIGHT_ARROW')
 assert(settings_text=='# mine\nname_tag=on\ncloth=off\n' and look.cloth==false and #rebuilds==rebuilt+1
@@ -477,7 +477,7 @@ clock=clock+1
 key('F5'); to('Options'); key('RETURN'); to('Reset all keys')
 assert(select(2,focus())==''
     and screen():find('Set a race checkpoint|F9|normal\nBike|On|normal\nGet on or off the bike|F3|normal\n'
-        ..'Gun mode|On|normal\nBring out or put away the rifle|F4|normal\n'
+        ..'Riding pose (test)|Hidden copy|normal\nGun mode|On|normal\nBring out or put away the rifle|F4|normal\n'
         ..'Online tab in the pause menu|On|normal\nReset all keys||focus\nPHOTO MODE',1,true))
 key('RETURN')
 assert(menu_view.note.s=='Select again within 3 s to reset every key.' and settings_text:find('F12',1,true))

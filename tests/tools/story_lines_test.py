@@ -91,12 +91,14 @@ assert 'quest Quest_Example_07#2 tracked = True' in lines and 'zone Zone_Example
 assert L.digest(lines) == '045f870eadaac816520e6ad0d5cf27bde23e5688f94bc954d67c657e114a2cec', L.digest(lines)
 
 # 2. story_case.json: its lines are story_case.txt, also after a trip through a .sav file in the game's layout.
-case = from_json(json.loads((HERE / 'story_case.json').read_text()))
-expected = (HERE / 'story_case.txt').read_text().splitlines()
+# UTF-8 files, as the game writes its dump: without the encoding, Windows reads and writes its code page (cp1252).
+case = from_json(json.loads((HERE / 'story_case.json').read_text(encoding='utf-8')))
+expected = (HERE / 'story_case.txt').read_text(encoding='utf-8').splitlines()
 assert L.lines(case) == expected, '\n'.join(sorted(set(L.lines(case)) ^ set(expected)))
 assert save_read.read_save(save_read.wrap(save_read.encode(case)))[1] == case
 # A few of its lines by hand: each scope's numbering, tracked on a numbered quest, a name by position and by map key,
-# a negative integer, a float read from a FloatProperty, a None value in a path line, a map below an entry.
+# a negative integer, a float read from a FloatProperty, a None value in a path line, a map below an entry, a string
+# that is not ASCII.
 for line in ('quest Quest_Case_01 group Quest_Case_01_G1#2 task Quest_Case_01_T1#2 state = ESBQuestTaskState_None',
              'quest Quest_Case_01#2 tracked = True', 'quest 2 group 0 task Key_Only value = 1',
              'quest 2 tracked = False', 'quest None complete = True', 'quest Quest_Case_09 failed = True',
@@ -109,6 +111,7 @@ for line in ('quest Quest_Case_01 group Quest_Case_01_G1#2 task Quest_Case_01_T1
              'zone Zone_Case_A object 7 activate = ESBObject_Disable', 'zone Zone_Case_A object Case_EffVol_020#2 deaths = 1',
              'zone Zone_Case_A trigger Case_Trigger_01#2 interacted = False', 'zone Zone_Case_A npc Npc_Case_Kaya life = 0',
              'zone Zone_Case_A item Case_Pickup_03 Share = 0.10000000149011612',
+             'zone Zone_Case_A item Case_Pickup_03 Label = Caf\u00e9',
              'world World_Case_A actor 1 Parts[Part_Case_X].Hp = 10', 'world World_Case_A actor 1 Slots[-1].On = False',
              'world World_Case_A actor 1 EventName = None'):
     assert line in expected, line
@@ -213,14 +216,14 @@ with tempfile.TemporaryDirectory() as tmp:
     edited = [x for x in expected if not x.startswith('zone Zone_Case_B ')] + ['quest Quest_Extra state = 1',
                                                                                'quest Quest_Case_01 state = 2']
     edited.remove('quest Quest_Case_01 state = 1')
-    dump.write_text('# edited\n' + '\n'.join(edited) + '\n')
+    dump.write_text('# edited\n' + '\n'.join(edited) + '\n', encoding='utf-8')
     code, out, _ = run('compare', a, dump)
     head = [f'save {digest} {len(expected)} lines', f'dump {L.digest(sorted(edited))} {len(edited)} lines']
     assert code == 1 and out.splitlines() == head + [
         '+ quest Quest_Case_01 state = 2', '+ quest Quest_Extra state = 1', '- quest Quest_Case_01 state = 1',
         '- zone Zone_Case_B state = ESBObject_Enable', '2 dump lines not in the save, 2 save lines not in the dump'], out
     # A repeated line is counted, and the stories then differ.
-    dump.write_text('\n'.join(expected + expected[:1]) + '\n')
+    dump.write_text('\n'.join(expected + expected[:1]) + '\n', encoding='utf-8')
     code, out, _ = run('compare', a, dump)
     assert code == 1 and f'dump {L.digest(sorted(expected + expected[:1]))} {len(expected) + 1} lines' in out, out
     # A file with a NUL byte, a missing file and a save that cannot be read: the tool's message and exit 2.

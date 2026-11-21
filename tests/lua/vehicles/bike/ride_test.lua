@@ -23,7 +23,11 @@
 -- camp (o.camp, o.fetch): offered after a far or another-map refusal, paid by a press within 5 s, every press refused
 -- while it runs, the place it gives, its notices; never within reach, in an SBO lobby or away from a camp. The money's
 -- name in them: SB's (o.game_text) on the screen's words, betacrystal in the English copy of another language, for a
--- name over 32 bytes and in an offer it would take past the feed's 200 bytes.
+-- name over 32 bytes and in an offer it would take past the feed's 200 bytes. The rig way (a fake
+-- vehicles/bike/rig.lua): its mount and dismount, bike_pose read at each mount, pose_source (the rig's component during
+-- a rig ride of her EVE only, nil off the bike and on a hold ride), its 250 ms checks; after Ctrl+R the rig
+-- of fields 8 and 9 released before her mesh goes back (a hold ride's file releases nothing); a dismount in photo mode
+-- keeps the rig until the first 250 ms pass with photo mode closed.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -55,6 +59,10 @@ local function mesh_asset(path)
         IsA=function(_,c) return c.path=='/Script/Engine.SkeletalMesh' end})
 end
 local bike_mesh,eve_mesh=mesh_asset(MESH),mesh_asset('/Game/Art/Character/PC/CH_P_EVE_01/Mesh/EVE.EVE')
+-- The skeletons the rig's mesh is matched by (the riding clip's and her body mesh's are one), told by address.
+local function skeleton(at) return uobj({GetAddress=function() return at end}) end
+local eve_skeleton=skeleton(0x9001)
+eve_mesh.Skeleton=eve_skeleton
 -- The bike mesh's own material in each of its four slots (vehicles/bike/paint.lua makes its instances from them).
 local own={}
 bike_mesh.Materials={}
@@ -140,13 +148,14 @@ local function make_eve(name)
     e.CapsuleComponent=uobj({GetUnscaledCapsuleRadius=function() return 35 end})
     -- A walkable flat floor; its read raises while floor_raises (a struct UE4SS would not read).
     local floor={bWalkableFloor=true,HitResult={ImpactNormal={X=0,Y=0,Z=1}}}
-    e.CharacterMovement=setmetatable(uobj({MovementMode=1}),{__index=function(_,k)
+    -- Her movement base: her movement component's GetMovementBase, as in the game (her actor class has none).
+    e.CharacterMovement=setmetatable(uobj({MovementMode=1,
+        GetMovementBase=function() return e.base and uobj(e.base) end}),{__index=function(_,k)
         if k~='CurrentFloor' then return nil end
         if e.floor_raises then error('CurrentFloor unreadable',0) end
         return floor
     end})
     function e:GetWorld() return {GetFullName=function() return e.world_name end} end
-    function e:GetMovementBase() return self.base and uobj(self.base) end
     function e:GetFullName() return 'CH_P_EVE_01_Blueprint_C /Game/Map.Map:PersistentLevel.'..name end
     function e:GetAddress() return address end
     function e:IsA(c) return c.path=='/Script/SB.SBCharacter' end
@@ -264,7 +273,8 @@ local logs={}
 local function log(m) logs[#logs+1]=m end
 local function last() return logs[#logs] end
 local function find(pattern) for _,l in ipairs(logs) do if l:find(pattern) then return l end end end
-local settings={bike_key={name='F3'}}
+-- bike_pose=hold for today's cases up to section 23 (the hold way: the riding clip in her slot); section 24 has the rig.
+local settings={bike_key={name='F3'},bike_pose='hold'}
 local world={paused=false,photo='0',frozen=false,life=nil,armed=false,busy=nil}
 -- vehicles/bike/stand.lua (vehicles/bike/stand_test tests it): each display made (st_made) with its place, shown,
 -- removed, path and component (mesh); a hide also goes to stand_order; sweep records what it was asked (swept,
@@ -291,6 +301,54 @@ package.loaded['vehicles.bike.stand']={CULL=20000,
     alive=function(d) return not d.removed and d or nil end,
     remove=function(d) d.removed,d.shown=true,false end,
     sweep=function(path,mesh) swept[#swept+1],swept_mesh[#swept_mesh+1]=path,mesh end}
+-- vehicles/bike/rig.lua (rig_test tests it): each rig made in rigs ({actor, path, mesh, skip, eve, mesh_path, clip};
+-- worn: the mesh SetSkeletalMesh gave it; plays: PlayAnimation's calls after it; hooks: hook's calls; unhooked: what
+-- unhook was given). make, hook, unhook, remove, release and a new mesh are events. rig_state: refuse (make raises
+-- it), hook_raise (hook raises it), hooked (what hooked answers; a hook sets it true), failed (unhook's and release's
+-- failed calls), released (what release was given), release_raise (release raises it), unswept (release finds no rig).
+local rigs,rig_state={},{hooked=true}
+package.loaded['vehicles.bike.rig']={
+    make=function(e,mesh_path,clip,skip)
+        if rig_state.refuse then error(rig_state.refuse,0) end
+        local n=#rigs+1
+        local d={path='/Game/Map.Map:PersistentLevel.Actor_Rig'..n,skip=skip,eve=e,mesh_path=mesh_path,clip=clip,
+            hooks=0,plays=0}
+        d.actor=uobj({GetFullName=function() return 'Actor '..d.path end})
+        d.mesh=uobj({SetSkeletalMesh=function(_,m,reinit)
+                assert(reinit==true)
+                d.worn=m
+                event('rig mesh')
+            end,PlayAnimation=function(_,c,loop)
+                assert(c==clip and loop==true,'The riding clip, looped')
+                d.plays=d.plays+1
+            end})
+        rigs[n]=d
+        event('rig')
+        return d
+    end,
+    hook=function(e,d)
+        if rig_state.hook_raise then error(rig_state.hook_raise,0) end
+        d.hooks=d.hooks+1
+        rig_state.hooked=true
+        event('hook')
+        return {'list '..d.hooks,'second part'},2
+    end,
+    unhook=function(e,d,list)
+        d.unhooked={e=e,list=list}
+        event('unhook')
+        return 2,rig_state.failed or 0
+    end,
+    hooked=function() return rig_state.hooked end,
+    remove=function(d)
+        d.actor.gone=true
+        event('rig gone')
+    end,
+    release=function(e,path,mesh_path,skip)
+        rig_state.released={e=e,path=path,mesh_path=mesh_path,skip=skip}
+        event('release')
+        if rig_state.release_raise then error(rig_state.release_raise,0) end
+        return 3,rig_state.failed or 0,not rig_state.unswept
+    end}
 local Ride=require('vehicles.bike.ride')
 -- The screen's words (T.en until a test picks another table) and the notices told in them, with their English copies
 -- (told_en, main.lua's for the line above EVE). o.game_text answers money and logs each ask (money_asks).
@@ -336,6 +394,9 @@ end
 local R=new()
 local CLIP='/Game/Art/Character/PC/CH_P_EVE_01/Animation/event/G03/MV_SD20_AfterBruteBattle_Main/eve/'
     ..'eve_bikeSleepPose.eve_bikeSleepPose'
+-- The riding clip in memory (the native bike load keeps it), on her body mesh's skeleton.
+local clip=uobj({Skeleton=eve_skeleton})
+by_path[CLIP]=clip
 local ok,why
 
 -- 1. The status words; the preload's word as a refusal.
@@ -723,6 +784,7 @@ assert(logs[n_logs+1]=="bike part found on EVE (an earlier Lua load's), hidden",
 assert(stored==nil and eve.Mesh.RelativeRotation.Yaw==-90 and eve.Mesh.RelativeRotation.Roll==0)
 assert(eve.Mesh.RelativeLocation.Z==-90 and not part.visible)
 assert(last()=='bike restored from coop-bike.txt: her mesh back, the bike hidden',last())
+assert(rig_state.released==nil and not find('^bike rig from'),'Seven fields: no rig to release')
 stored='/Game/Gone\t0\t0\t0\t0\t0\t0'
 R2.restore()
 assert(stored~=nil,'Once a Lua load')
@@ -798,7 +860,7 @@ assert(said=='bike: preload ready, part not made yet, not riding; top=2306 accel
 settle()
 id=mount()
 said=R.status()
-assert(said:find('^bike: preload ready, part on EVE, riding for 0 s; '),said)
+assert(said:find('^bike: preload ready, part on EVE, riding for 0 s %(hold%); '),said)
 R.toggle()
 ok,said=R.tune('top','3000')
 assert(ok and said=='Bike top=3000 from your next ride (this Lua load).')
@@ -1116,4 +1178,286 @@ eve.Mesh.SkeletalMesh=rose; clock=clock+1; R.slow()
 local s10=st_made[#st_made]
 assert(s10~=s9 and s10.mesh:GetAddress()==s9.mesh:GetAddress() and s10.mesh:GetFullName()==s9.mesh:GetFullName())
 assert(s10.mesh.made[SLOT] and s10.mesh.current[SLOT]==s10.mesh.made[SLOT],'The new parked bike is painted')
+
+-- 24. The rig way, bike_pose's default. The mount in its order: the file, the drive, the gate, the rig made in her body
+-- mesh with the clip and the bike part's address left out, the file again with fields 8 and 9, the hook, the part
+-- shown; no clip asked of the native part. The dismount backward: the part hidden, the rig unhooked from the hook's
+-- list then removed, the gate off, the drive off, her mesh back, the file cleared.
+settings.bike_pose=nil
+R=new(); eve=make_eve('EVE_R'); settle()
+local rpart=eve.list[2]
+assert(R.pose_source(eve:GetAddress())==nil,'Off the bike: no pose source')
+local function on_rig()
+    events={}
+    local n_asked=#asked
+    ok,why=R.toggle()
+    assert(ok and R.riding(),tostring(why))
+    assert(#asked==n_asked+1 and asked[#asked]=='bike gate on','No clip asked of the native part')
+    return rigs[#rigs]
+end
+local rig=on_rig()
+order={'save','drive on bike','bike gate on','rig','save','hook','show'}
+for k,e in ipairs(order) do assert(events[k]==e,k..': '..tostring(events[k])) end
+assert(#events==#order and rpart.visible)
+local BODY='/Game/Art/Character/PC/CH_P_EVE_01/Mesh/EVE.EVE'
+assert(rig.eve:GetAddress()==eve:GetAddress() and rig.mesh_path==BODY and rig.clip==clip
+    and rig.skip==rpart:GetAddress())
+local LINE='/Game/Map.Map:PersistentLevel.EVE_R\t0\t-90\t0\t0\t0\t-90'
+assert(stored==LINE..'\t'..rig.path..'\t'..BODY,'Fields 8 and 9: the rig and its mesh')
+assert(find('^bike rig made in [%d.]+ ms wearing '..BODY:gsub('%p','%%%0')..': her body and 2 of 2 part%(s%) follow it$'))
+assert(R.status():find(', riding for 0 s %(rig%); '),R.status())
+assert(R.pose_source(eve:GetAddress())==rig.mesh and R.pose_source(eve:GetAddress()+100)==nil,
+    "The rig's component is her pose source, for her EVE only")
+R.toggle()
+assert(R.pose_source(eve:GetAddress())==nil,'Off the bike again: no pose source')
+order={'hide','unhook','rig gone','bike gate off','drive off','mesh back'}
+for k,e in ipairs(order) do assert(events[7+k]==e,k..': '..tostring(events[7+k])) end
+assert(#events==7+#order and stored==nil and not R.riding() and rig.actor.gone)
+assert(rig.unhooked.e:GetAddress()==eve:GetAddress() and rig.unhooked.list[1]=='list 1','The hook\'s list')
+-- The last log line that starts with start.
+local function latest(start) for k=#logs,1,-1 do if logs[k]:sub(1,#start)==start then return logs[k] end end end
+assert(latest('bike rig unhooked')=='bike rig unhooked: 2 part(s) back to her body'
+    and last():find('^bike off %(coop bike%)'))
+-- An unhook with calls that failed says how many.
+rig_state.failed=1; on_rig(); R.toggle(); rig_state.failed=nil
+assert(latest('bike rig unhooked')=='bike rig unhooked: 2 part(s) back to her body, 1 call(s) failed')
+
+-- The setting, read at each mount: hold plays the clip in her slot with no rig; a word that is neither is the rig, said
+-- once; a change during a ride counts from the next mount.
+settings.bike_pose='hold'
+local made=#rigs
+events={}
+assert(R.toggle() and asked[#asked]:find('^anim play %d+ ') and #rigs==made)
+assert(R.riding() and R.pose_source(eve:GetAddress())==nil,'A hold ride: no pose source')
+R.toggle()
+settings.bike_pose='puppet'
+on_rig(); R.toggle()
+assert(#rigs==made+1 and find('^bike_pose=puppet is neither rig nor hold: the rig$'))
+local function told_pose()
+    local n=0
+    for _,l in ipairs(logs) do if l:find('^bike_pose=') then n=n+1 end end
+    return n
+end
+local said_n=told_pose()
+on_rig(); R.toggle()
+assert(said_n==1 and told_pose()==1 and #rigs==made+2,'Said once')
+settings.bike_pose=nil
+rig=on_rig()
+assert(told_pose()==1,'No setting: the rig, nothing said')
+settings.bike_pose='hold'
+local n_asked=#asked
+clock=clock+0.25; R.slow()
+assert(R.riding() and #asked==n_asked,'The ride keeps its rig')
+R.toggle()
+assert(rig.actor.gone and R.toggle() and asked[#asked]:find('^anim play %d+ '),'The next mount holds the clip')
+R.toggle()
+settings.bike_pose=nil
+
+-- Every 250 ms: the rig gone ends the ride.
+rig=on_rig()
+rig.actor.gone=true
+clock=clock+0.25; ok,why=R.slow()
+assert(not ok and why=='Off the bike: the riding rig is gone' and not R.riding(),why)
+-- Her main mesh found off the rig: hooked again once; again 1 s or more later: hooked again; again within 1 s: off.
+rig=on_rig()
+rig_state.hooked=false
+clock=clock+0.25; ok=R.slow()
+assert(ok==nil and R.riding() and rig.hooks==2,'Hooked again')
+assert(last()=='bike rig: her body had left it: hooked again, her body and 2 of 2 part(s) follow it',last())
+rig_state.hooked=false
+clock=clock+1; ok=R.slow()
+assert(ok==nil and R.riding() and rig.hooks==3,'1 s later: hooked again')
+rig_state.hooked=false
+clock=clock+0.25; ok,why=R.slow()
+assert(not ok and why=='Off the bike: her body left the riding rig twice within 1 s' and rig.hooks==3,why)
+assert(rig.unhooked and rig.actor.gone)
+
+-- An outfit on the clip's skeleton: the rig wears it, played again, field 9 written, every part hooked again.
+local SUIT='/Game/Art/Character/PC/CH_P_EVE_01/Mesh/Suit.Suit'
+local suit=mesh_asset(SUIT)
+suit.Skeleton=eve_skeleton
+rig=on_rig()
+eve.Mesh.SkeletalMesh=suit
+events={}
+clock=clock+0.25; ok=R.slow()
+assert(ok==nil and R.riding() and rig.worn==suit and rig.plays==1 and rig.hooks==2)
+assert(events[1]=='rig mesh' and events[2]=='save' and events[3]=='hook',tostring(events[1]))
+assert(stored==LINE..'\t'..rig.path..'\t'..SUIT,stored)
+assert(last()=='bike rig: her outfit changed to '..SUIT..': the rig wears '..SUIT..', her body and 2 of 2 part(s) '
+    ..'follow it',last())
+clock=clock+0.25; R.slow()
+assert(rig.hooks==2,'Once a change')
+-- An outfit on another skeleton with no spare body in memory or on this PC: off with why.
+local ALIEN='/Game/Art/Character/NPC/Other/Other.Other'
+local alien=mesh_asset(ALIEN)
+alien.Skeleton=skeleton(0x9002)
+eve.Mesh.SkeletalMesh=alien
+clock=clock+0.25; ok,why=R.slow()
+assert(not ok and why=="Off the bike: her outfit's body and the spare body are on another skeleton than the riding "
+    .."clip" and rig.actor.gone,why)
+made=#rigs
+ok,why=R.toggle()
+assert(not ok and why=="her outfit's body and the spare body are on another skeleton than the riding clip"
+    and #rigs==made and not R.riding(),why)
+-- With the spare body: the rig wears it from the mount; back to her own body when an outfit fits; the spare again for
+-- another outfit that does not; one more that does not keeps the spare, hooked again with nothing written.
+local spare=mesh_asset(Ride.SPARE)
+spare.Skeleton=eve_skeleton
+by_path[Ride.SPARE]=spare
+rig=on_rig()
+assert(Ride.SPARE=='/Game/Art/Character/PC/CH_P_EVE_InnerSuit/CH_P_EVE_InnerSuit.CH_P_EVE_InnerSuit')
+assert(rig.mesh_path==Ride.SPARE and stored==LINE..'\t'..rig.path..'\t'..Ride.SPARE,stored)
+eve.Mesh.SkeletalMesh=eve_mesh
+clock=clock+0.25; R.slow()
+assert(R.riding() and rig.worn==eve_mesh and stored:sub(-#BODY)==BODY)
+local ALIEN2='/Game/Art/Character/NPC/Other/Other2.Other2'
+local alien2=mesh_asset(ALIEN2)
+alien2.Skeleton=skeleton(0x9003)
+eve.Mesh.SkeletalMesh=alien2
+clock=clock+0.25; R.slow()
+assert(R.riding() and rig.worn==spare and stored:sub(-#Ride.SPARE)==Ride.SPARE and rig.hooks==3)
+eve.Mesh.SkeletalMesh=alien
+events={}
+clock=clock+0.25; R.slow()
+assert(R.riding() and rig.hooks==4 and #events==1 and events[1]=='hook','The spare kept')
+R.toggle()
+eve.Mesh.SkeletalMesh=eve_mesh
+
+-- A mount that fails on the rig way: a rig that cannot be made (nothing to unhook); her main mesh refusing the hook
+-- or the file's second write failing (the rig unhooked and removed); the clip not in memory. Each refused with why.
+rig_state.refuse='the rig could not be spawned'
+events={}
+ok,why=R.toggle()
+assert(not ok and why=='the rig could not be spawned' and not R.riding() and stored==nil,why)
+order={'save','drive on bike','bike gate on','bike gate off','drive off','mesh back'}
+for k,e in ipairs(order) do assert(events[k]==e,k..': '..tostring(events[k])) end
+assert(#events==#order)
+rig_state.refuse=nil
+rig_state.hook_raise='her main mesh refused'
+events={}
+ok,why=R.toggle()
+rig_state.hook_raise=nil
+rig=rigs[#rigs]
+assert(not ok and why=='her main mesh refused' and events[4]=='rig' and events[6]=='unhook' and rig.actor.gone,why)
+local saves,real_save=0,store.save
+store.save=function(line)
+    saves=saves+1
+    if saves==2 then return false,'disk full' end
+    return real_save(line)
+end
+events={}
+ok,why=R.toggle()
+store.save=real_save
+rig=rigs[#rigs]
+assert(not ok and why=='coop-bike.txt could not be written: disk full' and rig.actor.gone and rig.hooks==0,why)
+assert(events[4]=='rig' and events[5]=='unhook' and stored==nil,tostring(events[5]))
+by_path[CLIP]=nil
+made=#rigs
+ok,why=R.toggle()
+by_path[CLIP]=clip
+assert(not ok and why=='the riding clip is not in memory' and #rigs==made,why)
+-- Her EVE gone with the map: off, the unhook given no EVE (it calls nothing), the rig removed.
+rig=on_rig()
+local gone_eve=eve
+gone_eve.gone=true
+eve=make_eve('EVE_R2')
+ok,why=R.slow()
+assert(not ok and why=='Off the bike: her EVE changed' and rig.unhooked.e==nil and rig.actor.gone,why)
+gone_eve.gone=nil
+
+-- 25. The next Lua load after a rig ride (Ctrl+R): fields 8 and 9 name the rig. Her body and parts come off it and it
+-- is swept (vehicles/bike/rig.lua's release: her EVE, the rig's path and mesh, the bike part left out), then her mesh
+-- goes back as for any ride. A release that raises or finds no rig is logged and the rest goes on. A hold ride's file
+-- (seven fields) releases nothing.
+settle()
+rpart=eve.list[2]
+local function reload()
+    events={}
+    rig_state.released=nil
+    local again=new()
+    again.restore()
+    dv.on=false -- The earlier load's drive off, as vehicles/bike/drive.lua's restore leaves it.
+    return again
+end
+rig=on_rig()
+eve.Mesh.RelativeRotation={Pitch=3,Yaw=-90,Roll=7}
+local R6=reload()
+local rel=rig_state.released
+assert(rel.e:GetAddress()==eve:GetAddress() and rel.path==rig.path and rel.mesh_path==BODY
+    and rel.skip==rpart:GetAddress(),'Her EVE, the rig and its mesh, the bike part left out')
+order={'hide','release','mesh back','hide'}
+for k,e in ipairs(order) do assert(events[k]==e,k..': '..tostring(events[k])) end
+assert(#events==#order and stored==nil and eve.Mesh.RelativeRotation.Roll==0)
+assert(find('^bike rig from coop%-bike%.txt: 3 part%(s%) back to her body, swept$'))
+assert(last()=='bike restored from coop-bike.txt: her mesh back, the bike hidden',last())
+R=R6; settle()
+rig=on_rig()
+rig_state.failed,rig_state.unswept=2,true
+reload()
+rig_state.failed,rig_state.unswept=nil,nil
+assert(latest('bike rig from')=='bike rig from coop-bike.txt: 3 part(s) back to her body, 2 call(s) failed, '
+    ..'no rig at its path' and stored==nil)
+R=new(); R.restore(); settle()
+rig=on_rig()
+rig_state.release_raise='her actor does not read'
+reload()
+rig_state.release_raise=nil
+assert(latest('bike rig from')=='bike rig from coop-bike.txt not released: her actor does not read')
+assert(stored==nil and last()=='bike restored from coop-bike.txt: her mesh back, the bike hidden',last())
+R=new(); R.restore(); settle()
+settings.bike_pose='hold'
+assert(R.toggle() and not stored:find('\t.*\t.*\t.*\t.*\t.*\t.*\t'),'Seven fields')
+reload()
+settings.bike_pose=nil
+assert(rig_state.released==nil and events[2]=='mesh back' and stored==nil,tostring(events[2]))
+R=new(); R.restore(); settle()
+
+-- 26. Photo mode: a dismount there unhooks at once and keeps the rig; it goes at the first 250 ms pass with photo mode
+-- closed, once. The selfie mode and the friend's photo mode that holds our game count too. At bike=off the pass still
+-- removes it after photo mode closes.
+rig=on_rig()
+world.photo='1'
+events={}
+R.toggle()
+order={'hide','unhook','bike gate off','drive off','mesh back'}
+for k,e in ipairs(order) do assert(events[k]==e,k..': '..tostring(events[k])) end
+assert(#events==#order and not rig.actor.gone and not R.riding() and stored==nil)
+assert(find('^bike rig kept until photo mode closes$'))
+clock=clock+0.25; R.slow()
+assert(not rig.actor.gone,'Photo mode still open')
+world.photo='0'
+events={}
+clock=clock+0.25; R.slow()
+assert(rig.actor.gone and events[1]=='rig gone' and find('^bike rig removed: photo mode closed$'))
+local removed=0
+for _,l in ipairs(logs) do if l=='bike rig removed: photo mode closed' then removed=removed+1 end end
+clock=clock+0.25; R.slow()
+local now_removed=0
+for _,l in ipairs(logs) do if l=='bike rig removed: photo mode closed' then now_removed=now_removed+1 end end
+assert(removed==1 and now_removed==1,'Once')
+for _,hold in ipairs({{photo='s'},{frozen=true}}) do
+    rig=on_rig()
+    world.photo,world.frozen=hold.photo or '0',hold.frozen or false
+    if hold.photo then -- The selfie mode ends the ride at the 250 ms check.
+        clock=clock+0.25; ok,why=R.slow()
+        assert(not ok and why=='Off the bike: the selfie mode is open',why)
+    else
+        R.toggle()
+    end
+    assert(not R.riding() and not rig.actor.gone)
+    clock=clock+0.25; R.slow()
+    assert(not rig.actor.gone)
+    world.photo,world.frozen='0',false
+    clock=clock+0.25; R.slow()
+    assert(rig.actor.gone)
+end
+rig=on_rig()
+world.photo='1'
+settings.bike=false
+clock=clock+0.25; R.slow()
+assert(not R.riding() and not rig.actor.gone and find('^bike off %(bike=off%)'))
+world.photo='0'
+clock=clock+0.25; R.slow()
+settings.bike=nil
+assert(rig.actor.gone,'Removed at bike=off once photo mode closed')
 print('ride_test ok')

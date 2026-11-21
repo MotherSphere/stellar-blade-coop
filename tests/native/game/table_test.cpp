@@ -3,8 +3,9 @@
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The component table and the display file on the build machine: round trips, every refusal one defect at a time,
 // the mesh path rule (material and cloth paths too, the game's folders and a mod's), the cloth, mod, value and hide
-// lines, the capture's effect lines and the display's effect boxes, and mutated tables, which must re-format to
-// the same bytes whenever they are accepted; and the ghost slots' file names.
+// lines, the capture's effect lines and the display's effect boxes, free parts (her drone) with their light and free
+// boxes, and mutated tables, which must re-format to the same bytes whenever they are accepted; and the ghost slots'
+// file names.
 #include "game/table.h"
 
 #include <algorithm>
@@ -29,6 +30,14 @@ const std::string kBody = "/Game/Art/Character/PC/CH_P_EVE_52/CH_P_EVE_52_TypeB.
                            "CH_P_EVE_52_TypeB_PonytailPhysicsAsset",
                   kIris = "/Game/Mods/DekCNS_P/Textures/T_Iris.T_Iris";
 const std::string kSbt = "SBT " + std::to_string(coop::kProtocol) + "\n";
+const std::string kDrone = "/Game/Art/Character/NPC/CH_NPC_Drone/CH_NPC_Drone.CH_NPC_Drone";
+// Her drone: part 1 is free, a leader hung from nothing that the pose's free block places.
+const std::string kFreeTable = kSbt + "generation 7\nmap /game/x\npart 0 - - - 1 2 Body " + kBody + "\nnames 0 a b\n"
+                               "part 1 - - - 1 3 CharacterMesh0 " + kDrone + "\nfree 1\nnames 1 c d e\n";
+// Its capture file: the read lines, and the drone's SpotLight after its read line.
+const std::string kFreeLocal = "generation 7\nmap /game/x\npart 0 - - - 1 2 Body " + kBody + "\nnames 0 a b\n"
+                               "read 0 0x10 0x20 0x30\npart 1 - - - 1 3 CharacterMesh0 " + kDrone + "\nfree 1\n"
+                               "names 1 c d e\nread 1 0x40 0x50 0x60\nlight 1 0x70\n";
 
 // EVE as Lua captures her, cut down: the body, the face following it, the hair (a leader on the head socket) with the
 // ponytail following it, hidden, with its cloth's collision, and the blade. The blade's mesh comes from a mod's own
@@ -104,12 +113,13 @@ bool same(const Table &a, const Table &b, bool addresses) {
   for (size_t i = 0; i < a.eve.size(); ++i) {
     const Part &p = a.eve[i], &q = b.eve[i];
     const Look &l = a.look[i], &m = b.look[i];
-    if (p.bones != q.bones || p.leader != q.leader ||
-        (addresses && (p.object != q.object || p.cls != q.cls || p.mesh != q.mesh)))
+    if (p.bones != q.bones || p.leader != q.leader || p.free != q.free ||
+        (addresses && (p.object != q.object || p.cls != q.cls || p.mesh != q.mesh ||
+                       a.look[i].light != b.look[i].light || a.look[i].morph_read != b.look[i].morph_read)))
       return false;
     if (l.name != m.name || l.path != m.path || l.socket != m.socket || l.lead != m.lead || l.parent != m.parent ||
         l.shown != m.shown || l.names != m.names || l.materials != m.materials || l.cloth != m.cloth ||
-        l.label != m.label || l.values != m.values || l.hidden != m.hidden)
+        l.label != m.label || l.values != m.values || l.hidden != m.hidden || l.morphs != m.morphs)
       return false;
     for (int k = 0; k < 10; ++k)
       if (l.place[k] != m.place[k])
@@ -128,6 +138,172 @@ Table wire_table(const std::string &text) {
 // The table with part 4's path replaced.
 std::string blade(const std::string &path) {
   return with(kWire, "SBSkeletalMeshComponent_7 " + kMods + "\n", "SBSkeletalMeshComponent_7 " + path + "\n");
+}
+
+// A free part: a leader with no parent and a free line in place of its place line. It counts 1 + kFreeBytes in a pose.
+void test_free_part() {
+  const std::string &t = kFreeTable;
+  auto got = parse_table(t, false);
+  assert(got && got->eve[1].free && got->eve[1].leader && got->look[1].parent == -1 && !got->eve[0].free);
+  assert(format_table(*got) == t && free_count(*got) == 1 && !got->look[1].light);
+  assert(pose_size(*got) == 29 + 6 * 15 + 4 * 19 + (1 + 24 + 2 * 18) + (1 + 25 + 3 * 18)); // 336
+  for (const std::string &bad : {
+           with(t, "free 1\n", ""),                                         // '-' parent needs free
+           with(t, "free 1\n", "place 1 0 0 0 1 0 0 0 1 1 1\nfree 1\n"),    // a place line too
+           with(t, "free 1\n", "free 1\nplace 1 0 0 0 1 0 0 0 1 1 1\n"),    // after it
+           with(t, "part 1 - - - 1 3 CharacterMesh0 " + kDrone + "\nfree 1\nnames 1 c d e\n",
+                "part 1 0 - - 1 0 CharacterMesh0 " + kDrone + "\nfree 1\n"), // a follower is never free
+           with(t, "free 1\n", "free 2\n"),                                 // another part's
+           with(t, "free 1\n", "free\n"),                                   // no index
+           with(t, "free 1\n", "free 1 1\n"),                               // a word more
+           with(t, "names 1 c d e\n", "names 1 c d e\nlight 1 0x70\n"),     // a light line on the wire
+           with(t, "part 0 - - - 1 2 Body " + kBody + "\nnames 0 a b\n",
+                "part 0 - - - 1 2 Body " + kBody + "\nfree 0\nnames 0 a b\n"), // part 0 is never free
+       })
+    assert(!parse_table(bad, false));
+  // The capture file's light line, local only and never formatted: the SpotLight on a free part, after its read line.
+  auto local = parse_table(kFreeLocal, true);
+  assert(local && local->look[1].light == 0x70 && !local->look[0].light && local->eve[1].object == 0x40);
+  assert(format_table(*local) == t);
+  auto dark = parse_table(with(kFreeLocal, "light 1 0x70\n", ""), true); // optional
+  assert(dark && !dark->look[1].light);
+  for (const std::string &bad : {
+           with(kFreeLocal, "light 1 0x70", "light 1 0x0"),                  // null
+           with(kFreeLocal, "light 1 0x70", "light 1 70"),                   // not hex
+           with(kFreeLocal, "light 1 0x70", "light 0 0x70"),                 // another part's
+           with(kFreeLocal, "light 1 0x70\n", "light 1 0x70\nlight 1 0x71\n"), // twice
+           with(with(kFreeLocal, "light 1 0x70\n", ""), "read 1 0x40 0x50 0x60\n",
+                "light 1 0x70\nread 1 0x40 0x50 0x60\n"),                     // before the read line
+           with(kFreeLocal, "read 0 0x10 0x20 0x30\n", "read 0 0x10 0x20 0x30\nlight 0 0x70\n"), // on a hung part
+       })
+    assert(!parse_table(bad, true));
+}
+
+// A display's free lines: after effects (6 boxes), before the drive lines, one box per free part the ghost draws.
+void test_display_free_box() {
+  auto remote = *parse_table(kFreeTable, false);
+  const std::string head = "display 7\nmailbox 0x10 0x20\neffects 0x31 0x32 0x33 0x34 0x35 0x36\n",
+                    drive = "drive 0 0x50 0x60 0x70 2\ndrive 1 0x51 0x60 0x71 3\n";
+  auto d = parse_display(head + "free 1 0x40\n" + drive, remote);
+  assert(d && d->free_box[1] == 0x40 && !d->free_box[0] && d->effects[5] == 0x36);
+  assert(parse_display(head + drive, remote) && !parse_display(head + drive, remote)->free_box[1]); // not drawn
+  auto plain = parse_display("display 7\nmailbox 0x10 0x20\nfree 1 0x40\n" + drive, remote); // effects off
+  assert(plain && plain->free_box[1] == 0x40 && !plain->effects[0]);
+  assert(!parse_display(head + "free 1 0x10\n" + drive, remote));                  // the mailbox
+  assert(!parse_display(head + "free 1 0x33\n" + drive, remote));                  // an effect box
+  assert(!parse_display(head + "free 0 0x40\n" + drive, remote));                  // part 0 is never free
+  assert(!parse_display(head + "free 2 0x40\n" + drive, remote));                  // no such part
+  assert(!parse_display(head + "free 1 0x0\n" + drive, remote));                   // null
+  assert(!parse_display(head + "free 1 0x40\nfree 1 0x41\n" + drive, remote));     // twice
+  assert(!parse_display(head + drive + "free 1 0x40\n", remote));                  // after the drive lines
+  assert(!parse_display(std::string("display 7\nmailbox 0x10 0x20\nfree 1 0x40\n") +
+                            "effects 0x31 0x32 0x33 0x34 0x35 0x36\n" + drive, remote)); // before effects
+  assert(!parse_display("display 7\nmailbox 0x10 0x20\neffects 0x31 0x32 0x33 0x34\n" + drive, remote)); // 4 boxes
+}
+
+// Her face and shape keys: kFreeTable with part 0's morph target names, and a follower (her face on part 0).
+const std::string kFollower = "part 2 0 0 - 1 0 Mesh_Face " + kFace + "\nplace 2 0 0 0 1 0 0 0 1 1 1\n";
+std::string with_morphs() {
+  return with(kFreeTable, "names 0 a b\n", "names 0 a b\nmorphs 0 EyeL_Up EyeL_Down Smile\n");
+}
+std::string names_of(int n, const std::string &stem) { // " <stem>0 <stem>1 ..."
+  std::string s;
+  for (int i = 0; i < n; ++i)
+    s += " " + stem + std::to_string(i);
+  return s;
+}
+
+// A morphs line after a part's last line, one byte a morph in each pose; in the capture file a leader's comes before
+// its read line and a follower's is followed by its morph_read line.
+void test_morphs_line() {
+  const std::string t = with_morphs();
+  auto got = parse_table(t, false);
+  assert(got && got->look[0].morphs.size() == 3 && got->look[0].morphs[2] == "Smile" && got->look[1].morphs.empty());
+  assert(format_table(*got) == t && pose_size(*got) == 336 + 3 && morph_count(*got) == 3);
+  assert(!same_layout(*got, wire_table(kFreeTable)) && same_layout(*got, *got)); // the morphs change the pose
+  const std::string fol = t + kFollower + "morphs 2 Blink\n"; // a follower's weights are its own
+  auto f = parse_table(fol, false);
+  assert(f && format_table(*f) == fol && pose_size(*f) == 336 + 1 + 3 + 1); // the follower's status byte, 4 morphs
+  // The capture file: a leader's morphs before its read line, a follower's morph_read right after its morphs line.
+  const std::string local =
+      with(kFreeLocal, "names 0 a b\n", "names 0 a b\nmorphs 0 EyeL_Up EyeL_Down Smile\n") + kFollower +
+      "morphs 2 Blink\nmorph_read 2 0x5000\n";
+  auto l = parse_table(local, true);
+  assert(l && l->look[2].morph_read == 0x5000 && !l->look[0].morph_read && l->eve[0].object == 0x10);
+  assert(format_table(*l) == fol);
+  for (const std::string &bad : {
+           fol + "morph_read 2 0x5000\n",                                  // local only
+           with(fol, "morphs 2 Blink\n", "morph_read 2 0x5000\nmorphs 2 Blink\n"), // and after the morphs line
+       })
+    assert(!parse_table(bad, false));
+  for (const std::string &bad : {
+           with(local, "morph_read 2 0x5000\n", ""),                       // a follower's morphs need their component
+           with(local, "morph_read 2 0x5000", "morph_read 2 0x0"),         // null
+           with(local, "morph_read 2 0x5000", "morph_read 2 5000"),        // not hex
+           with(local, "morph_read 2 0x5000", "morph_read 1 0x5000"),      // another part's
+           with(local, "morph_read 2 0x5000\n", "morph_read 2 0x5000\nmorph_read 2 0x5001\n"), // twice
+           with(local, "read 0 0x10 0x20 0x30\n", "read 0 0x10 0x20 0x30\nmorph_read 0 0x5000\n"), // a leader: its read
+           with(local, "morphs 0 EyeL_Up EyeL_Down Smile\nread 0 0x10 0x20 0x30\n",
+                "read 0 0x10 0x20 0x30\nmorphs 0 EyeL_Up EyeL_Down Smile\n"), // a leader's after its read line
+           with(local, "morphs 2 Blink\n", ""),                            // a morph_read without morphs
+       })
+    assert(!parse_table(bad, true));
+  // Caps: 256 names on a part, 512 in a table, each name a word of at most 64 bytes.
+  const std::string three = "morphs 0 EyeL_Up EyeL_Down Smile";
+  assert(!parse_table(with(t, three, "morphs 0" + names_of(257, "m")), false));    // 257 on a part
+  std::string over = with(t, three, "morphs 0" + names_of(256, "m"));
+  assert(parse_table(over, false) && morph_count(*parse_table(over, false)) == 256);
+  over = with(over, "names 1 c d e\n", "names 1 c d e\nmorphs 1" + names_of(256, "n") + "\n"); // 512: the cap
+  assert(parse_table(over, false) && !parse_table(over + kFollower + "morphs 2 Blink\n", false)); // 513 refused
+  for (const std::string &bad : {
+           with(t, "Smile", "Smile " + std::string(65, 'x')),            // a name over 64 bytes
+           with(t, "names 0 a b\n" + three + "\n", three + "\nnames 0 a b\n"), // before the names line
+           with(t, "Smile\n", "Smile\nmorphs 0 Two\n"),                   // a second morphs line for one part
+           with(t, three, "morphs 0"),                                    // no name
+           with(t, "morphs 0 ", "morphs 1 "),                             // another part's
+           with(fol, "morphs 2 Blink\n", "morphs 2 Blink\nmod 2 Label\n"), // a follower's before its mod line
+       })
+    assert(!parse_table(bad, false));
+  // A pose past kMaxPose with its morphs is refused whole, as one with too many bones: 897 bones take 16366 bytes.
+  const std::string big = kSbt + "generation 7\nmap /game/x\npart 0 - - - 1 897 Body " + kBody + "\nnames 0" +
+                          names_of(897, "b") + "\n";
+  assert(parse_table(big, false) && pose_size(*parse_table(big, false)) == 16366);
+  assert(pose_size(*parse_table(big + "morphs 0" + names_of(18, "m") + "\n", false)) == kMaxPose);
+  assert(!parse_table(big + "morphs 0" + names_of(19, "m") + "\n", false));
+}
+
+// A display's morphs lines, after the drive lines: per remote morph of the part, the index of the morph of that name
+// on this PC's mesh or -1; the component written (a leader's drive object, or a follower's own part) and its mesh.
+void test_display_morphs() {
+  auto remote = *parse_table(with_morphs() + kFollower + "morphs 2 Blink\n", false);
+  const std::string head = "display 7\nmailbox 0x10 0x20\n",
+                    drive = "drive 0 0x50 0x60 0x70 2\ndrive 1 0x51 0x60 0x71 3\n",
+                    morphs = "morphs 0 0x50 0x70 2 -1 0\nmorphs 2 0x52 0x72 -1\n";
+  auto d = parse_display(head + drive + morphs, remote);
+  assert(d && d->morph_map[0] == std::vector<int16_t>({2, -1, 0}) && d->morph_map[1].empty() &&
+         d->morph_map[2] == std::vector<int16_t>({-1}));
+  assert(d->morph_part[0].object == 0x50 && d->morph_part[0].mesh == 0x70 && d->morph_part[2].object == 0x52 &&
+         d->morph_part[2].mesh == 0x72 && !d->morph_part[1].object);
+  auto plain = parse_display(head + drive, remote); // faces off: no morphs line
+  assert(plain && plain->morph_map.size() == 3 && plain->morph_map[0].empty() && plain->morph_map[2].empty());
+  assert(parse_display(head + drive + "morphs 2 0x52 0x72 0\n", remote));
+  for (const std::string &bad : {
+           head + drive + "morphs 0 0x50 0x70 2 -1\n",           // a word short
+           head + drive + "morphs 0 0x50 0x70 2 -1 0 1\n",       // a word more
+           head + drive + "morphs 0 0x50 0x70 2 -1 256\n",       // past 255
+           head + drive + "morphs 0 0x50 0x70 2 -2 0\n",         // below -1
+           head + drive + "morphs 0 0x50 0x70 2 x 0\n",          // not a number
+           head + drive + "morphs 0 0x50 0x70 2 2 0\n",          // two remote morphs on one of this mesh
+           head + drive + "morphs 1 0x51 0x71 0\n",              // a part without morphs
+           head + drive + "morphs 0 0x59 0x70 2 -1 0\n",         // a leader not on its drive object
+           head + drive + "morphs 0 0x50 0x79 2 -1 0\n",         // nor its loaded mesh
+           head + drive + "morphs 2 0x0 0x72 -1\n",              // null
+           head + drive + "morphs 2 0x52 0x0 -1\n",
+           head + drive + "morphs 2 0x52 0x72 -1\nmorphs 2 0x52 0x72 -1\n", // twice
+           head + "morphs 2 0x52 0x72 -1\n" + drive,             // before the drive lines
+           head + drive + "morphs 2 0x52 0x72 -1\ndrive 1 0x51 0x60 0x71 3\n", // a drive line after it
+       })
+    assert(!parse_display(bad, remote));
 }
 } // namespace
 
@@ -165,6 +341,10 @@ int main() {
   auto wire = parse_table(kWire, false);
   assert(wire && same(*wire, *local, false) && !wire->eve[0].object && format_table(*wire) == kWire && !wire->fx.cls);
   assert(!parse_table(kWire, true) && !parse_table(kLocal, false)); // Each form only where it belongs.
+  test_free_part();
+  test_display_free_box();
+  test_morphs_line();
+  test_display_morphs();
 
   // Refused: the good wire table with exactly one defect each.
   const std::string p0 = "part 0 - - - 1 3 CharacterMesh0 " + kBody + "\n", n0 = "names 0 Root Bip001 Bip001-Pelvis\n",
@@ -209,7 +389,7 @@ int main() {
            with(kWire, "part 3 2 2", "part 3 1 2"),                                              // lead a follower
            with(kWire, "part 1 0 0 - 1 0", "part 1 0 0 - 1 3"),                                  // a follower's bones
            with(with(kWire, "1 1 SBSkeletalMesh", "1 0 SBSkeletalMesh"), "names 4 Root", "names 4"), // a leader's 0
-           // pose_size refuses a leader over 903 bones, but not one whose names count, 2 + bones, wraps to 1.
+           // pose_size refuses a lone leader over 898 bones, but not one whose names count, 2 + bones, wraps to 1.
            with(with(kWire, "1 1 SBSkeletalMesh", "1 18446744073709551615 SBSkeletalMesh"), "names 4 Root",
                 "names"),                                                                        // > kMaxBones
            with(with(kWire, "1 3 CharacterMesh0", "1 1000 CharacterMesh0"), n0, names_1000 + "\n"), // pose > 16 KiB
@@ -379,7 +559,7 @@ int main() {
   assert(dropped.look[2].materials == (Materials{{3, kTail}}));
   assert(format_table(dropped) == with(kWire, "material 2 0 " + kTypeB + "\n", ""));
   // Material lines (5), effect slots (6), channel 2 (7), chat (8), deltas (9), scale (10), same-place enemies (11).
-  assert(kSbt == "SBT 25\n");
+  assert(kSbt == "SBT 29\n");
   // Text that is not canonical is read, and passed on in the canonical form only.
   auto loose = parse_table(with(kWire, "generation 100001", "generation 0100001"), false);
   assert(loose && format_table(*loose) == kWire);
@@ -526,23 +706,26 @@ int main() {
   const Table every = wire_table(with(kWire, hair_tail, hair_tail + all_slots + "\n"));
   assert(every.ignored == 0 && every.look[2].hidden == ~uint64_t(0));
   assert(wire_table(format_table(every)).look[2].hidden == ~uint64_t(0));
-  // Values grow as read back too (".1" again), past what the places alone would leave room for: refused here.
-  std::string growing = kSbt + "generation 1\nmap /m\npart 0 - - - 1 900 Body " + kBody + "\n";
+  // Values grow as read back too (".1" again), past what the places alone would leave room for: refused here. 897
+  // bones keep each pose of these tables under kMaxPose (pose_size), so only the text refuses them.
+  std::string growing = kSbt + "generation 1\nmap /m\npart 0 - - - 1 897 Body " + kBody + "\n";
   for (int k = 0; k < 8; ++k)
     growing += "material 0 " + std::to_string(k) + " " + kSkin + "\n";
   for (int k = 0; k < 8; ++k)
     for (int n = 0; n < 16; ++n)
       growing += "value 0 " + std::to_string(k) + " v N" + std::to_string(n) + " .1 .1 .1 .1\n";
   growing += "names 0";
-  for (int b = 0; b < 900; ++b)
+  for (int b = 0; b < 897; ++b)
     growing += " " + std::string(63, 'b');
   growing += "\n";
   assert(growing.size() + kMaxParts * 10 * 14 <= kMaxTable && !parse_table(growing, false));
 
   // Under 64 KiB as read but over it as the wire form (".1" comes back as "0.100000001"): refused, as a peer could
-  // not read it back. The same table with floats that do not grow passes.
-  std::string near_cap = kSbt + "generation 1\nmap /m\npart 0 - - - 1 900 Body " + p255 + "\nnames 0";
-  for (int b = 0; b < 900; ++b)
+  // not read it back. The same table with floats that do not grow passes. The longest map and part name make up for
+  // the bones the event slots took.
+  std::string near_cap = kSbt + "generation 1\nmap /" + std::string(127, 'm') + "\npart 0 - - - 1 897 " +
+                         std::string(64, 'o') + " " + p255 + "\nnames 0";
+  for (int b = 0; b < 897; ++b)
     near_cap += " " + std::string(64, 'b');
   near_cap += "\n";
   for (int i = 1; i < 16; ++i)
@@ -552,7 +735,7 @@ int main() {
   for (size_t at; (at = still.find(" .1 0 0 .995")) != std::string::npos;)
     still.replace(at, 12, " 0 0 0 1");
   assert(near_cap.size() <= kMaxTable && !parse_table(near_cap, false));
-  assert(format_table(wire_table(still)).size() <= kMaxTable);
+  assert(format_table(wire_table(still)).size() <= kMaxTable && pose_size(wire_table(still)) == 16381);
 
   // The display file: part 0 on a 4-bone fallback mapped by name, the hair driven as it came, the blade left out.
   const std::string display = "display 100001\n"
@@ -573,11 +756,12 @@ int main() {
   for (uint64_t box : d->effects)
     assert(!box); // No effects line: no boxes.
   // The effect boxes, right after the mailbox: each its own, never 0 or the mailbox.
-  const std::string boxes = "effects 0x2100 0x2200 0x2300 0x2400\n",
+  const std::string boxes = "effects 0x2100 0x2200 0x2300 0x2400 0x2500 0x2600\n",
                     display_fx = with(display, "0x5c0\n", "0x5c0\n" + boxes);
   auto fx = parse_display(display_fx, *wire);
   assert(fx && fx->effects[0] == 0x2100 && fx->effects[1] == 0x2200 && fx->effects[2] == 0x2300 &&
-         fx->effects[3] == 0x2400 && fx->puppet[0].object == 0x3000);
+         fx->effects[3] == 0x2400 && fx->effects[4] == 0x2500 && fx->effects[5] == 0x2600 &&
+         fx->puppet[0].object == 0x3000);
   for (const std::string &bad : {
            with(display, "0x5c0\n", "0x5c0\n" + boxes + boxes),                   // twice
            with(display, "display 100001\n", "display 100001\n" + boxes),         // before the mailbox
@@ -586,8 +770,9 @@ int main() {
            with(display_fx, "0x2300", "0x2100"),                                  // a repeated box
            with(display_fx, "0x2400", "0x2000"),                                  // the mailbox
            with(display_fx, "0x2200", "0x0"),                                     // a null box
-           with(display_fx, " 0x2400", ""),                                       // three boxes
-           with(display_fx, "0x2400", "0x2400 0x2500"),                           // five
+           with(display_fx, " 0x2600", ""),                                       // five boxes
+           with(display_fx, "0x2600", "0x2600 0x2700"),                           // seven
+           with(display_fx, "0x2600", "0x2500"),                                  // the last one repeated
            with(display_fx, "0x2400", "2400"),                                    // not hex
        })
     assert(!parse_display(bad, *wire));
@@ -650,9 +835,14 @@ int main() {
     return text;
   };
   size_t accepted = 0;
+  const std::string morph_wire = with_morphs() + kFollower + "morphs 2 Blink\n",
+                    morph_local = with(kFreeLocal, "names 0 a b\n", "names 0 a b\nmorphs 0 EyeL_Up EyeL_Down Smile\n") +
+                                  kFollower + "morphs 2 Blink\nmorph_read 2 0x5000\n";
+  const std::string *seeds_of[2][3] = {{&kWire, &kFreeTable, &morph_wire},
+                                       {&kLocal, &kFreeLocal, &morph_local}}; // [local][plain, free, morphs]
   for (int round = 0; round < 200000; ++round) {
     const bool is_local = round % 2;
-    auto t = parse_table(mutate(is_local ? kLocal : kWire), is_local);
+    auto t = parse_table(mutate(*seeds_of[is_local][round / 2 % 3]), is_local);
     if (!t)
       continue;
     ++accepted;
@@ -665,6 +855,13 @@ int main() {
              (!k || t->fx_paths[k].first > t->fx_paths[k - 1].first) && path_allowed(t->fx_paths[k].second));
     assert(!t->fx.assets[0] && (t->fx.cls ? t->fx.asset >= 0x100 && t->fx.asset <= 0x1000 && t->fx.asset % 8 == 0
                                           : !t->fx.asset && t->fx.assets == decltype(t->fx.assets){}));
+    for (size_t i = 0; i < t->eve.size(); ++i) // A free part is a leader after part 0, hung from nothing.
+      assert((!t->eve[i].free || (i && t->eve[i].leader && t->look[i].parent == -1)) &&
+             (!t->look[i].light || (is_local && t->eve[i].free)));
+    for (size_t i = 0; i < t->eve.size(); ++i) // A morph_read line names a follower's own weights, locally.
+      assert(t->look[i].morphs.size() <= kMaxPartMorphs &&
+             (!t->look[i].morph_read || (is_local && !t->eve[i].leader && !t->look[i].morphs.empty())));
+    assert(morph_count(*t) <= kMaxMorphs);
     for (const Look &l : t->look) {
       assert((l.path.empty() || path_allowed(l.path)) && (l.cloth.empty() || path_allowed(l.cloth)));
       assert(l.label.size() <= kMaxWord);
@@ -707,11 +904,11 @@ int main() {
       continue;
     ++drawn;
     assert(got->puppet.size() == 5 && got->remap.size() == 5 && got->puppet[0].object);
-    const uint64_t *box = got->effects; // None, or four of their own.
-    assert(!box[0] ? !box[1] && !box[2] && !box[3]
-                   : box[0] && box[1] && box[2] && box[3] && box[0] != box[1] && box[0] != box[2] && box[0] != box[3] &&
-                         box[1] != box[2] && box[1] != box[3] && box[2] != box[3] && box[3] != got->mailbox &&
-                         box[0] != got->mailbox && box[1] != got->mailbox && box[2] != got->mailbox);
+    const uint64_t *box = got->effects; // None, or six of their own.
+    for (size_t n = 0; n < kEffectSlots; ++n)
+      assert(!box[0] ? !box[n] : box[n] && box[n] != got->mailbox && std::count(box, box + kEffectSlots, box[n]) == 1);
+    for (uint64_t free : got->free_box)
+      assert(!free); // kWire has no free part.
     for (size_t i = 0; i < 5; ++i) {
       const Part &part = got->puppet[i];
       const std::vector<int16_t> &map = got->remap[i];

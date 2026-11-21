@@ -39,6 +39,16 @@ local GUARDED={['fight.bosses']={function() return nr.o.rows(function() end,'buy
     ['story.scenes']={function() return ts.o.scene.talk('Sequence',{}) end},
     ['online.modes.nightop']={function() return sb.o.recruiter.run() end},
     ['eve']={function() return sb.o.emote.sit('chair') end},
+    -- The lobby menu's Doro race rows (online/lobby/wiring.lua): its view holds no race, Select on Track is refused.
+    ['online.modes.race']={function()
+        if lb.o.view().dr~=nil then return true,'the lobby view holds the race' end
+        local n=#printed
+        lb.o.act({cycle='race'})
+        for i=n+1,#printed do
+            local why=printed[i]:match('%] STOP: (.-)\n$')
+            if why then return false,why end
+        end
+    end},
     ['vehicles.bike']={function() -- The pad's bike hold (bike_key runs the same bike_press), past the keys' own
     -- filters.
         local n=#printed
@@ -198,6 +208,7 @@ return function(name)
         assert(M.off_modules['vehicles.bike'] and capture_leave_out,'bike off, partner gave the capture its leave_out')
         assert(capture_leave_out(0x100)==0x203,'With bike off, the capture leaves out the bike part on EVE')
         assert(capture_leave_out(0x999)==nil,'Another EVE: nothing left out')
+        assert(capture_pose_source and capture_pose_source(0x100)==nil,'With bike off, no rig: no pose source')
         package.preload[wiring],package.loaded[wiring]=nil,real
         StaticFindObject,UE.GetPlayer=find,nil
     end

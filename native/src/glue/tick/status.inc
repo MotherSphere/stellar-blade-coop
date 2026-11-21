@@ -18,10 +18,13 @@ void block() {
   fight_engine.set(false, false); // Its job ends at its next turn; the worker says why at its next pass.
   filter_undo("coop off");
   hold_undo("coop off");
+  race_hold_undo("coop off"); // The game thread puts the race's kept values back at its next frame.
   region_tabs_undo("coop off");
   pause_tab_undo("coop off");
   options_block(); // The game thread puts a forced option back; options_pass gives the slots back after that.
   pad_hook_undo("coop off");
+  sound_undo("coop off"); // Her sounds' slots back; nothing recorded after it.
+  worldfx_undo("coop off"); // Her world effects' slots back, the same way.
   world_off("coop off"); // Before sbo_off, which swaps back the ZoneEvent slot they share.
   story_off("coop off");
   spectate_undo("coop off"); // The game thread's next step gives the death screen back (spectate's Out::off).
@@ -76,6 +79,7 @@ std::string status() {
     s += " anim=" + (anim_faulted ? std::string("fault") : anim::state_text(a.state, a.why)) +
          " anim_id=" + std::to_string(a.id);
     s += bike_status(); // The bike (vehicles/bike/ride.lua): the preload's state and the gate's.
+    s += race_status(); // Doro races' hold on EVE (online/modes/race/drive.lua, doro.lua): applied or not, re-ticks.
     // The keep (core/keep.lua): the paths asked, those settled, those found in memory; fault once its latch ended it.
     if (keep_faulted) {
       s += " keep=fault";
@@ -91,6 +95,9 @@ std::string status() {
       std::lock_guard<std::mutex> lock(theater_m);
       s += " " + theater_text;
     }
+    // Her sounds for the ghost (online/partner/sound_worker.inc): on, off, refused (another mod holds a slot) or fault.
+    // Her world effects the same way.
+    s += " sounds=" + sound_status() + " world_effects=" + worldfx_status();
   }
   // coop gift's inventory read (cutmenus/mailbox.lua): the last ask's answer, by its number.
   if (!items_line.empty() && !blocked)
@@ -98,6 +105,11 @@ std::string status() {
   // Spectate (fight/enemies/spectate.lua): the setting or the latch, and the death screen's state as last read.
   if (game_pinned && !blocked)
     s += spectate_status();
+  // The fishing tournament's book read (online/modes/fishing/game.lua): the last ask's answer, by its number.
+  if (!fishbook_line.empty() && !blocked)
+    s += fishbook_line;
+  // The photo hunt's photo check (online/modes/photohunt/game.lua): the last ask's answer, by its number, or its none.
+  s += photohunt_status();
   s += pad_slate ? " pad=slate" : " pad=xinput"; // coop_pad's source: the game's controller events, or XInput.
   if (nightop_on && !blocked) // Last, so Lua's unanchored remote= match still holds.
     s += poller.rule_asked() ? " nightop=rule" : " nightop=on";

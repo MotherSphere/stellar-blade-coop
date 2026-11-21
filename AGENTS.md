@@ -96,6 +96,12 @@ When you split work between subagents or run a workflow:
 - Work on a branch made from `dev`, named after the task (`gun-mode`), with
   no prefix. Never put `claude/`, `codex/`, `cursor/` or any AI or vendor
   name in a branch name.
+- Commit each step once it works, before you start the next change. Commit
+  before each test in the game, so the build under test is a commit. Tell
+  the user its hash (`git log --oneline -1`).
+- When a change makes things worse, go back with git: `git revert <hash>`
+  for one bad commit, or a new branch from the last good one
+  (`git switch -c <name> <hash>`). Never rebuild a lost version from memory.
 - Push the task branch. When the user asks, open a pull request into `dev`
   (`gh pr create --base dev`). Never open one into `main`.
 - Never push to `main`. Push to `dev` or merge into `dev` only when the

@@ -48,6 +48,7 @@ M.OPTIONS={
     {head='controls'},
     bind('menu_key','F5'),bind('status_key','F6'),bind('leave_key','F8'),bind('follow_key','F7'),bind('race_key','F9'),
     toggle('bike','on'),bind('bike_key','F3'), -- bike at once: vehicles/bike/ride.lua reads it every 250 ms.
+    {key='bike_pose',values={'rig','hold'},default='rig'}, -- At the next mount: vehicles/bike/ride.lua reads it there.
     reload(toggle('gun_mode','on')),reload(bind('gun_key','F4')), -- Gun mode reads both when it starts.
     toggle('pause_tab','on'), -- At once: ui/kit/pause_tab.lua asks the native part pausetab on or off.
     {id='reset_keys',confirm=true}, -- Every key back to its default (reset_keys), host_key too.
@@ -61,7 +62,8 @@ M.OPTIONS={
     reload(toggle('name_tag','on')),toggle('partner_bar','on'),toggle('partner_arrow','on'),toggle('partner_card','on'),
     toggle('card_details','on'), -- Ping and the friend's map on the card.
     {head='ghost'},
-    toggle('cloth','on'),toggle('dyes','on'),toggle('effects','on'),
+    toggle('cloth','on'),toggle('dyes','on'),toggle('effects','on'),toggle('drone','on'),toggle('sounds','on'),
+    toggle('faces','on'),
     toggle('collide','on'), -- Yours, at once: the solid partner (online/partner/puppet.lua).
     range('send_rate',10,60,5,60), -- 5 a step.
     {head='session'},
@@ -84,6 +86,9 @@ M.OPTIONS={
     toggle('hide_popups','on'), -- At once: main.lua's switch_pass asks the native part popups on or off.
     {head='modes'},
     toggle('scoreattack','on'), -- At each round's start: online/modes/scoreattack/game.lua reads it.
+    toggle('fishing','on'), -- At each go line: online/modes/fishing reads it.
+    toggle('race_match','on'), -- At once: coop race match shows it (online/modes/race/commands.lua).
+    toggle('photohunt','on'), -- At each go line: online/modes/photohunt reads it.
     {head='saves'},
     {key='auto_coop_save',values={'ask','always','off'},default='ask'}, -- At the next title.
     toggle('shared_quests','on'), -- At once: main.lua asks coop quests on or off.

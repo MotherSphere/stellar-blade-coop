@@ -18,7 +18,7 @@
 // her own, slot k from 1 with coop-remote-<k>.txt and coop-display-<k>.txt); a pose (a keyframe, or a delta rebuilt
 // on the held keyframe) is decoded with that table into the playback, whose pose for each frame the game thread
 // writes into the ghost's leaders, and the main mesh's world transform into its mailbox for Lua to place it. With
-// effect lines in her capture (protocol 6), her effects travel in the pose's four slots too, and the drawn slots go
+// effect lines in her capture (protocol 6), her effects travel in the pose's six slots too, and the drawn slots go
 // into the ghost's effect boxes; they have their own SEH latch, so a fault there turns effects off for the run and the
 // ghost goes on.
 //
@@ -175,6 +175,14 @@
 // preload's state and the gate's in the engine line for vehicles/bike/ride.lua. The worker logs each change with the
 // load's time.
 //
+// Doro races' hold on EVE (online/modes/race/hold.h): the worker hands over Lua's race hold and race tick, on or off;
+// each frame the game thread finds our EVE as coop emote's clips do, keeps her movement component's four fields and her
+// main mesh's tick option and sets them to the race's values while each is asked and no scene stands still (a theater,
+// photo mode but the selfie's). It sets one the game wrote again back and counts it. It puts the kept values back on
+// the same live object once the ask goes, at a new Lua load and at coop off. All of it runs under its own SEH latch;
+// status() puts race_hold=, race_tick= and race_retick= in the engine line for online/modes/race/drive.lua and
+// doro.lua. The worker logs each change.
+//
 // The keep (game/keep.h): the worker adds the object paths Lua writes to coop-keep.txt to the keep's list. Every 250 ms
 // the game thread asks SB's own streamable manager for the paths added since its last look in one request, as the
 // bike's preload asks. It keeps the handle for the game run. Once the handle's loaded flag is set it finds each path
@@ -236,6 +244,17 @@
 // item our EVE carries through ReadProcessMemory, her GUID too, and status() puts the answer in the engine
 // line for cutmenus/mailbox.lua.
 //
+// The fishing tournament's book read (online/modes/fishing/fishing.h) is the worker's alone too: on Lua's fishbook
+// request it reads our EVE's fishing log book through ReadProcessMemory, her GUID too. status() puts the answer in the
+// engine line's fish= for online/modes/fishing/game.lua. It never writes and calls no game function.
+//
+// The photo hunt's photo check (online/modes/photohunt/photohunt.h): on Lua's photohunt request the worker hands over
+// 1 to 3 PhotoChallengeTable rows' FNames; each frame while they are armed the game thread, under its own SEH latch,
+// reads SB's photo manager and, in selfie mode, finds the photo UI through SB's own finder. At each photo it takes
+// (the shutter's byte +0x310 turning 3) it looks up each row with SB's getter, makes the row's lazy init once as SB's
+// tick does (the part's only game write) and calls SB's own photo check. status() puts the answer in the engine
+// line's photohunt= for online/modes/photohunt/game.lua. A new Lua session disarms it.
+//
 // The pad (ui/pad.h): once a run the worker finds the twelve controller key names PadKeys reads, checks that Slate's
 // application holds its message handler, then swaps the handler's three controller slots of the game's image (analog,
 // button pressed, button released), all or none, for hooks on the game thread that record the key and run the game's
@@ -266,6 +285,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX // std::min and std::max in game/stream.h.
 #include <windows.h>
+#include <psapi.h> // K32GetProcessMemoryInfo, for the ghost bench (online/partner/bench_worker.inc).
 #include <xinput.h>
 
 #include <intrin.h>
@@ -282,6 +302,7 @@
 #include <vector>
 
 #include "fight/enemies/worker.h"
+#include "fight/enemies/push.h"
 #include "game/camp_text.h"
 #include "game/camps.h"
 #include "game/anim.h"
@@ -291,6 +312,7 @@
 #include "eve/debug_keys.h"
 #include "game/dev_panels.h"
 #include "cutmenus/items.h"
+#include "online/modes/fishing/fishing.h"
 #include "online/lobby/loading.h"
 #include "game/memory.h"
 #include "online/session/options.h"
@@ -319,9 +341,14 @@
 #include "online/modes/nightop/roxanne.h"
 #include "online/modes/nightop/shop_ui.h"
 #include "world/teamshop/shop_ui.h"
+#include "online/modes/photohunt/photohunt.h"
 #include "game/codec.h"
+#include "game/events.h"
 #include "game/partner/engine.h"
 #include "online/partner/record.h"
+#include "online/partner/drone.h"
+#include "online/partner/sound.h"
+#include "online/partner/bench.h"
 #include "game/stream.h"
 #include "game/quests/engine.h"
 #include "story/quests/own.h"
@@ -334,7 +361,10 @@
 #include "game/objects/engine.h"
 
 #include "glue/tick/pose_game_shared.inc"
+// After pose_game_shared.inc (base, objects, fault_filter, Live) and before pose_game.inc, which drains its rings.
+#include "online/partner/sound_game.inc"
 #include "online/partner/pose_game.inc"
+#include "online/partner/bench_game.inc" // After pose_game.inc: its current_part and raise_max; its game_tick calls it.
 #include "glue/tick/fight_game_shared.inc"
 #include "fight/enemies/fight_game.inc"
 #include "glue/tick/freeze_game_shared.inc"
@@ -353,11 +383,19 @@
 #include "online/group/camps_game.inc"
 #include "rows/rows_game.inc"
 #include "fight/enemies/spectate_game.inc" // After rows_game.inc and pilot_game.inc: its lion_gate, pilot_stream.
+// After rows_game.inc, fight_game_shared.inc and pilot_game_shared.inc: lion_gate, game_function and kFindCharacter.
+#include "online/partner/drone_game.inc"
+// After drone_game.inc, fight_game_shared.inc and freeze_game_shared.inc: ghost_calls_ok, game_function and MakeName.
+#include "online/partner/play_game.inc"
+// After pilot_game.inc and rows_game.inc: pilot_table and lion_gate (freeze_game_shared.inc's FreezeGame too).
+#include "fight/enemies/push_game.inc"
 #include "glue/tick/debug_game_shared.inc" // Before nightop_game.inc, which takes its UI calls and ui_reads.
 #include "eve/debug_game.inc"
 #include "ui/pause_tab_game.inc" // After debug_game_shared.inc: its UI calls and ui_reads.
 #include "online/modes/nightop/nightop_game.inc"
 #include "world/teamshop/teamshop_game.inc" // After debug_game_shared.inc and rows_game.inc: its UI calls and names.
+// After debug_game_shared.inc and fight_game_shared.inc: its UI finder and game_function.
+#include "online/modes/photohunt/photohunt_game.inc"
 #include "glue/tick/anim_game_shared.inc"
 #include "eve/anim_game.inc"
 // After anim_game_shared.inc, freeze_game_shared.inc and rows_game.inc: their calls and GMalloc.
@@ -365,6 +403,10 @@
 #include "glue/tick/keep_game.inc" // After bike_game_shared.inc: its async load, names and finds.
 #include "glue/tick/theater_game.inc" // After fight_game_shared.inc: its game_function.
 #include "vehicles/bike/bike_game.inc"
+#include "online/modes/race/hold.h"
+// After anim_game_shared.inc, eve/anim_game.inc, freeze_game_shared.inc and theater_game.inc: its controller reach and
+// the theater's last read.
+#include "online/modes/race/hold_game.inc"
 #include "glue/tick/camp_text_game_shared.inc"
 // After anim_game_shared.inc and freeze_game_shared.inc: their FStringArg and MakeName.
 #include "world/maps/matrix13/camp_text_game.inc"
@@ -380,11 +422,14 @@
 #include "online/lobby/sbo_game.inc"
 #include "online/lobby/cycle_game.inc" // After sbo_game.inc: its sbo_global and DifficultyOf.
 #include "glue/tick/worker.inc"
+#include "online/partner/bench_worker.inc" // After worker.inc: its dir, read_file, capture and sent_table.
 #include "glue/tick/saves_worker_shared.inc"
 #include "online/saves/saves_worker.inc"
 #include "glue/tick/fight_worker_shared.inc"
 #include "fight/enemies/fight_worker.inc"
 #include "fight/enemies/spectate_worker.inc" // After fight_worker_shared.inc: its swap_slot, slot_value and Filter.
+// After fight_worker_shared.inc and freeze_game_shared.inc: swap_slot, slot_value, Filter and story_scene.
+#include "online/partner/sound_worker.inc"
 #include "online/group/region_tabs_worker.inc"
 #include "ui/pause_tab_worker.inc" // After pause_tab_game.inc: its hook and flags.
 #include "glue/tick/sbo_worker_shared.inc"
@@ -394,6 +439,8 @@
 #include "online/group/travel_worker.inc"
 #include "online/saves/shortcut_worker.inc"
 #include "cutmenus/items_worker.inc"
+#include "online/modes/fishing/fishing_worker.inc"
+#include "online/modes/photohunt/photohunt_worker.inc"
 #include "glue/tick/quests_worker_shared.inc"
 #include "story/quests/quests_worker.inc"
 #include "glue/tick/world_worker_shared.inc"
@@ -404,6 +451,7 @@
 #include "eve/debug_worker.inc"
 #include "eve/anim_worker.inc"
 #include "vehicles/bike/bike_worker.inc"
+#include "online/modes/race/hold_worker.inc" // After eve/anim_worker.inc and fight_worker_shared.inc: its fault_where.
 #include "online/lobby/hud_worker.inc" // After fight_worker_shared.inc: its fault_where.
 #include "online/lobby/loading_worker.inc" // Likewise.
 #include "world/daynight/sky_worker.inc" // Likewise.
@@ -448,6 +496,13 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   QueryPerformanceCounter(&entry);
   if (engine_on && !blocked)
     guarded_tick();
+  // Her drone for the capture, its own latch: a look each second while her capture is live, none after coop off or its
+  // first fault.
+  if (game_pinned && !drone_faulted && !blocked)
+    drone_tick();
+  // Her sounds and world effects on the ghosts, each latch checked inside: none after coop off.
+  if (game_pinned && engine_on && !blocked)
+    play_tick();
   // Its own latch: a ghost fault leaves the shared fight running, and the reverse. Once more after off: the arm rule
   // then forgets its last arm, so the next on arms at once.
   const bool fight_on = fight_engine.on();
@@ -482,6 +537,10 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // the screen, to give it back once; after a fault one release, then nothing.
   if (game_pinned && (!blocked || spectate_holding()))
     spectate_tick(clock_us() / 1000);
+  // Enemies we run out of a shown ghost, their own latch: a pass each frame while collide is on, none after coop off or
+  // their first fault.
+  if (game_pinned && !push_faulted && !blocked)
+    push_tick();
   // The shared quests' own latch: a pass each 250 ms, none after coop off or their first fault.
   if (game_pinned && !quest_faulted && !blocked)
     quest_tick();
@@ -534,6 +593,10 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
     bike_tick();
   else if (game_pinned && bike_gate_pending)
     bike_publish();
+  // Doro races' hold on EVE, its own latch: each frame while Lua asks it or something is kept; after coop off only to
+  // put the kept values back.
+  if (game_pinned && !race_faulted && (!blocked || race_holding_now))
+    race_tick();
   // The keep, its own latch: a look each 250 ms (new paths asked, loaded batches found); none after coop off or its
   // first fault. The handles stay held.
   if (game_pinned && !keep_faulted && !blocked)
@@ -572,6 +635,10 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // The team shop's screen, its own latch: an open ask taken each frame (the worker takes none after coop off).
   if (game_pinned && !teamshop_faulted)
     teamshop_tick();
+  // The photo hunt's photo check, its own latch: a new arm taken each frame, then SB's check of the armed rows at each
+  // selfie photo; none after coop off or its first fault.
+  if (game_pinned && !photohunt_faulted && !blocked)
+    photohunt_tick();
   LARGE_INTEGER left;
   QueryPerformanceCounter(&left);
   coop_tick_us = micros_between(entry, left); // The next gap line's "that tick took".

@@ -31,6 +31,11 @@
 //   further).
 //   SBC<protocol> score <text> (a score attack line, online/modes/scoreattack/model.lua's, printable ASCII, in a match
 //   lobby only; the link reads no further either).
+//   SBC<protocol> mode <word> <text> (a line of a mode of online sessions: the mode's word, 1 to kMaxModeWord lowercase
+//   letters, then Lua's text, printable ASCII; fish for online/modes/fishing/model.lua's; in an online session only,
+//   the link reads no further).
+//   SBC<protocol> dr <text> (a Doro race line of a match round, online/modes/race/match/model.lua's, the way the score
+//   line goes).
 //   SBC<protocol> gift <payload> (coop gift, cutmenus/mailbox.lua: "s <id> <alias> <count>" a gift sent, "a <id>" kept
 //   in the friend's mailbox, "n <id> <why>" refused; gift_ok()).
 //   SBC<protocol> bike park <map> <x> <y> <z> <pitch> <yaw> <roll> or SBC<protocol> bike none (her parked bike,
@@ -48,7 +53,8 @@
 // the pilot's show lines, which start with fight_tag() (game/fight/sync.h and game/pilot.h parse them), the shared
 // quests' lines, which start with quest_tag() (game/quests/sync.h parses them), and the shared world's lines, which
 // start with world_tag() (game/objects/sync.h parses them). Story together's lines go there too, after story_tag()
-// (game/story/sync.h parses them).
+// (game/story/sync.h parses them). So do the asset names a ghost's events carry, after asset_tag() (game/events.h
+// parses them).
 #pragma once
 
 #include <algorithm>
@@ -69,7 +75,7 @@
 #include "link/pak_list.h"
 
 namespace coop {
-constexpr int kProtocol = 25; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 29; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                               // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
                               // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
                               // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines,
@@ -120,11 +126,21 @@ constexpr int kProtocol = 25; // Bump on any wire change. 1 was the first link (
                               // scoreattack match mode under sbo_mode and its score line on channel 0, which a
                               // protocol-23 peer would count invalid; 25 adds the spot?, spot and rest lines on channel
                               // 0 and the zone type in the vitals (a vit line of 13 numbers), which a protocol-24 peer
-                              // would count invalid. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's
-                              // builds, 11: v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14:
-                              // v0.7.0-beta.1, 17: a v0.7.5 test build, 18: v0.7.5, 19: v0.8.0 to v0.10.0, 20: v0.11.0;
-                              // 15, 16, 21, 22, 23 and 24 were never released) is told why: the lobby tag, then the
-                              // hello's reject, name both.
+                              // would count invalid; 26 adds the mode line on channel 0 in online sessions, first for
+                              // the fishing tournament (go, ready, catch, board, rank and void), which a protocol-25
+                              // peer would count invalid; 27 adds Doro races in matches: the race match mode under
+                              // sbo_mode and the dr line on channel 0 (track, cps, go, ready, cp, done, rank and void),
+                              // which a protocol-26 peer would count invalid; 28 adds her drone (free parts placed by
+                              // the pose), six effect slots, event slots with SBA lines on channel 2 and morph weights
+                              // to the table and the pose, which a protocol-27 peer would refuse; 29 adds the shared
+                              // boss fight's fin, qte-own and spec lines on channel 2, the host's boss_finish as the
+                              // bosses line's last word and a summon's owner in its key; a guest sends the boss lines
+                              // of a boss her game runs and the SBS lines of a boss QTE scene she leads. A protocol-28
+                              // peer would count the new lines invalid. An older peer (6: v0.1.1, 7: v0.2.0, 9:
+                              // v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1
+                              // to beta.3, 14: v0.7.0-beta.1, 17: a v0.7.5 test build, 18: v0.7.5, 19: v0.8.0 to
+                              // v0.10.0, 20: v0.11.0; 15, 16, 21, 22, 23, 24, 25, 26, 27 and 28 were never released) is
+                              // told why: the lobby tag, then the hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -144,13 +160,14 @@ constexpr int kMaxMembers = 4;
 constexpr char kModeKey[] = "sbo_mode", kStateKey[] = "sbo_state", kMapKey[] = "sbo_map";
 constexpr char kRoomKey[] = "sbo_room", kHallKey[] = "sbo_hall";
 // A mode: its name in kModeKey, the players its round needs at least, and its map until stage 4 adds arenas. The score
-// attack's map word is lobby: its round plays in the room the members wait in (online/modes/scoreattack/).
+// attack's and the Doro race's map word is lobby: their rounds play in the room the members wait in
+// (online/modes/scoreattack/, online/modes/race/match/).
 struct Mode {
   const char *name;
   uint32_t min;
   const char *map;
 };
-constexpr Mode kModes[] = {{"ffa", 2, "NK_Boss_Scarlet"}, {"scoreattack", 2, "lobby"}};
+constexpr Mode kModes[] = {{"ffa", 2, "NK_Boss_Scarlet"}, {"scoreattack", 2, "lobby"}, {"race", 2, "lobby"}};
 // The mode of that name, or null when unknown.
 inline const Mode *find_mode(std::string_view name) {
   for (const Mode &m : kModes)
@@ -293,7 +310,7 @@ inline Life life_of(const Vitals &v) {
 
 enum class Kind {
   invalid, hello, accept, reject, ping, pong, photo, say, vitals, pak, paks, dlc, dlcs, camps_ask, camps, night, mark,
-  race, gift, bike, start, count, end, let, wait, cycle, score, spot_ask, spot, rest
+  race, gift, bike, start, count, end, let, wait, cycle, score, spot_ask, spot, rest, mode, dr
 };
 // The follow's camps lines (online/group/travel.lua): the guest asks with an id from 0 to kMaxCampId, the host answers
 // that id with his world and up to kMaxCamps ZoneCampTable aliases, nearest his EVE first, each with its distance in
@@ -347,8 +364,9 @@ struct Message {
                          // the container's name, mod_name_ok(). dlc: its name, chat_clean() to kMaxDlcName and never
                          // empty. camps: the host's world, or "none". night: the
                          // payload, night_ok(). mark: chat_clean() to kMaxMark, maybe empty. race: the text after
-                         // "race ", printable ASCII. score: the text after "score ", the same way. gift: the payload,
-                         // gift_ok(). bike: the payload, bike_ok().
+                         // "race ", printable ASCII. score: the text after "score ", the same way. mode: the word, a
+                         // space and the text after it, as mode_line() takes them. dr: the text after "dr ", printable
+                         // ASCII. gift: the payload, gift_ok(). bike: the payload, bike_ok().
                          // start: the mode. spot: "none" when she has no spot. rest: the zone, alias_word().
   Vitals vitals{};       // vitals: hers, plausible_vitals().
   Spot at{};             // spot: her ground point and yaw.
@@ -388,6 +406,12 @@ inline std::string say_line(const std::string &text) {
 inline std::string race_line(const std::string &text) { return "SBC" + std::to_string(kProtocol) + " race " + text; }
 // A score attack line, reliable, the same way: one that parse() would not read as Kind::score is never sent.
 inline std::string score_line(const std::string &text) { return "SBC" + std::to_string(kProtocol) + " score " + text; }
+// A line of a mode of online sessions, reliable: "<word> <text>" as Lua wrote it, the word 1 to kMaxModeWord lowercase
+// letters. One that parse() would not read as Kind::mode is never sent.
+constexpr size_t kMaxModeWord = 16;
+inline std::string mode_line(const std::string &text) { return "SBC" + std::to_string(kProtocol) + " mode " + text; }
+// A Doro race line of a match round, reliable, the same way: one that parse() would not read as Kind::dr is never sent.
+inline std::string dr_line(const std::string &text) { return "SBC" + std::to_string(kProtocol) + " dr " + text; }
 // Our vitals, unreliable: on change and each second (link/core.h).
 inline std::string vit_line(const Vitals &v) {
   std::string line = "SBC" + std::to_string(kProtocol) + " vit";
@@ -534,12 +558,13 @@ inline std::string let_line(uint64_t pair, const std::vector<uint64_t> &ids, int
 inline std::string wait_line(uint64_t seconds) {
   return "SBC" + std::to_string(kProtocol) + " wait " + std::to_string(seconds);
 }
-// Channel 2's tags, versioned like channel 0's: "SBF25" for the shared fight, "SBQ25" for the shared quests, "SBW25"
-// for the shared world, "SBS25" for story together.
+// Channel 2's tags, versioned like channel 0's: "SBF29" for the shared fight, "SBQ29" for the shared quests, "SBW29"
+// for the shared world, "SBS29" for story together, "SBA29" for the asset names of a ghost's events (game/events.h).
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
 inline std::string world_tag() { return "SBW" + std::to_string(kProtocol); }
 inline std::string story_tag() { return "SBS" + std::to_string(kProtocol); }
+inline std::string asset_tag() { return "SBA" + std::to_string(kProtocol); }
 // A channel-2 line as link/core.h's take_fight() hands it on: its sender's SteamID and the line as it came. The shared
 // quests take theirs from every partner by sender (game/quests/engine.h's Worker); the shared fight, the shared world
 // and story together take the pair's only (lines_from).
@@ -747,10 +772,17 @@ inline Message parse(const char *data, size_t size) {
       m.kind = Kind::night;
       m.text = rest;
     }
-  } else if (split(text, f, 2, &rest) && f[0] == versioned_tag && (f[1] == "race" || f[1] == "score")) {
+  } else if (split(text, f, 2, &rest) && f[0] == versioned_tag && (f[1] == "race" || f[1] == "score" || f[1] == "dr")) {
     if (std::all_of(rest.begin(), rest.end(), [](char c) { return c >= 0x20 && c <= 0x7e; })) {
-      m.kind = f[1] == "race" ? Kind::race : Kind::score;
+      m.kind = f[1] == "race" ? Kind::race : f[1] == "score" ? Kind::score : Kind::dr;
       m.text = rest;
+    }
+  } else if (split(text, f, 3, &rest) && f[0] == versioned_tag && f[1] == "mode") {
+    if (f[2].size() <= kMaxModeWord &&
+        std::all_of(f[2].begin(), f[2].end(), [](char c) { return c >= 'a' && c <= 'z'; }) &&
+        std::all_of(rest.begin(), rest.end(), [](char c) { return c >= 0x20 && c <= 0x7e; })) {
+      m.kind = Kind::mode;
+      m.text = f[2] + " " + rest;
     }
   } else if (split(text, f, 2, &rest) && f[0] == versioned_tag && f[1] == "gift") {
     if (gift_ok(rest)) {
@@ -960,12 +992,14 @@ inline std::string masked(std::string_view text) {
 // (game/dev_panels.h, coop devinfo) "devinfo quest|player|off"; for SB's HUD under the SBO lobby's screens (main.lua,
 // online/lobby/hud_game.inc) "hud hide on|off"; for the pause menu's Online tab (ui/kit/pause_tab.lua, ui/pause_tab.h)
 // "pausetab on|off"; for the game's tutorial and record popups during online play (online/session/options.h) "popups
-// on|off"; for the day/night cycle (world/daynight/sky.h, world/daynight/daynight.lua) "sky off|hold",
-// "sky cycle <hz> <heading>" and "sky hour <minute> <hz> <heading>" (whole numbers: hz 0 to 30, heading 0 to 359,
-// minute 0 to 1439); for the SBO lobby arrival's black (online/lobby/arrival.lua,
-// online/lobby/loading_game.inc) "loading lift"; for the co-op saves (game/slot.h,
-// game/twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make
-// them, then switch to them), "saves main" (switch back to the player's own saves) and "saves refresh <0-4>" (that
+// on|off"; for Doro races' hold on EVE (online/modes/race/hold.h) "race hold on|off" (drive.lua: her movement's four
+// fields at 0) and "race tick on|off" (doro.lua: her mesh's tick option); for the day/night cycle
+// (world/daynight/sky.h, world/daynight/daynight.lua) "sky off|hold", "sky cycle <hz> <heading>" and "sky hour <minute>
+// <hz> <heading>" (whole numbers: hz 0 to 30, heading 0 to 359, minute 0 to 1439); for the SBO lobby arrival's black
+// (online/lobby/arrival.lua, online/lobby/loading_game.inc) "loading lift"; for the co-op saves (game/slot.h,
+// game/twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies),
+// "saves coop" (make them, then switch to them), "saves main" (switch back to the player's own saves) and "saves
+// refresh <0-4>" (that
 // slot's copy replaced by a new copy of the player's save, the old one backed up first) and "saves export <0-4> <0-4>"
 // (that co-op slot's copy written over that save of the player's, the save backed up first); for the shared quests
 // (game/quests/engine.h's Worker) "quests on|probe|record [deny <list>]" (deny: quest_deny's aliases or IDs, separated
@@ -987,7 +1021,13 @@ inline std::string masked(std::string_view text) {
 // "mark <text>" (a numbered line in both players' logs, the text chat_clean() to kMaxMark bytes, maybe empty); for coop
 // gift (cutmenus/mailbox.lua) "gift <payload>" (a gift line for the friend, gift_ok()) and "items <ask> <alias> <FName
 // index> <FName number>" (how many of that item our EVE carries, read by the worker, cutmenus/items.h: ask 1 to 65535,
-// answered in the engine line's items=; index above 0, both within 32 bits); and for coop lion (fight/bosses/lion.lua)
+// answered in the engine line's items=; index above 0, both within 32 bits); for the fishing tournament
+// (online/modes/fishing/game.lua) "fishbook <ask>" (our EVE's fishing log book, read by the worker,
+// online/modes/fishing/fishing.h: ask 1 to 65535, answered in the engine line's fish=); for the photo hunt
+// (online/modes/photohunt/game.lua) "photohunt <ask> <FName index> <FName number> ..." (SB's photo check of 1 to 3
+// PhotoChallengeTable rows at each selfie photo, on the game thread, online/modes/photohunt/photohunt.h: ask 1 to
+// 65535, answered in the engine line's photohunt=; each index above 0, both within 32 bits) and "photohunt off"; and
+// for coop lion (fight/bosses/lion.lua)
 // "lion rows <Table>=0x<address> ...", for coop gardener fight (fight/bosses/gardener.lua) "gardener rows
 // <Table>=0x<address> ...", for coop tendril fight (fight/bosses/tendril.lua) "tendril rows <Table>=0x<address> ...",
 // for the shop's Shock Bolt (through fight/bosses/lion.lua) "bolt rows <Table>=0x<address> ...", for coop mxiii
@@ -1028,7 +1068,7 @@ enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
   signal, match, mute, sbo, guardtext, hud, loading, world, scenes, bike, block, unblock, list, where, rules, sky,
-  pausetab, popups, teamshop, score, spot, rest, spectate
+  pausetab, popups, teamshop, score, spot, rest, mode, fishbook, dr, race, photohunt, spectate
 };
 // match: "match search <mode> <room> <hall>" (quick match: join an open Public lobby of that mode and hall, or host
 // one), "match create <mode> <room> <hall>" (a private match lobby joined with its code), "match cancel" (forget the
@@ -1037,7 +1077,10 @@ enum class Command {
 // <SteamID>" and "unmute <SteamID>", in any lobby: that member's chat lines are dropped here, or heard again, for the
 // rest of the game run. block: "block <SteamID>" (the block list, link/core.h: kept out of every lobby we host, across
 // game runs); unblock: "unblock <SteamID>" or "unblock all" (player 0). score: "score <text>", a score attack line for
-// every member of the match lobby (link/core.h's score(), which refuses a text score_line() would not carry).
+// every member of the match lobby (link/core.h's score(), which refuses a text score_line() would not carry). mode:
+// "mode <word> <text>", a line of a mode of online sessions for every member past the handshake (link/core.h's mode(),
+// which refuses a text mode_line() would not carry). dr: "dr <text>", a Doro race line of a match round for every
+// member of the match lobby, the way score goes (dr(), dr_line()).
 enum class MatchAsk : uint8_t { search, create, cancel, end };
 // shortcut load's maps, game/shortcut.h's kMapNames in its order (shortcut_load_test checks they match).
 constexpr const char *kShortcutMaps[4] = {"B07", "F02", "G03", "Matrix_XI"};
@@ -1105,12 +1148,12 @@ struct Request {
   uint64_t ms = 0, jitter = 0, loss = 0; // loopback: the one-way delay, its jitter, the segment loss in %. freeze:
                                          // the seconds in ms.
   bool off = false;                      // loopback off, record off, replay off, freeze off, a gate off, anim stop,
-                                         // fight pvp off, unmute, list stop.
+                                         // fight pvp off, unmute, list stop, photohunt off.
   uint8_t gate = 0;                      // gate: eve/debug_keys.h's Gate, 0 for fly, 1 for slowmo.
   uint8_t panel = 0;                     // devinfo: game/dev_panels.h's Panel, 0 off, 1 quest, 2 player.
   ShopAsk shop = ShopAsk::close;         // nightshop: open, open bolt, close or watch.
-  bool on = false;                       // roxanne on, lily on, hud hide on, pausetab on, popups on (true) or off;
-                                         // host ... ask.
+  bool on = false;                       // roxanne on, lily on, hud hide on, pausetab on, popups on, race hold on and
+                                         // race tick on (true) or off (race: text holds hold or tick); host ... ask.
   bool lily = false;                     // roxanne: lily on or off (Lily's list) rather than Roxanne's.
   uint8_t signal = 0;                    // signal: its word's index in kSignalWords.
   bool rule = false;                     // nightop rule.
@@ -1152,7 +1195,9 @@ struct Request {
                                   // Join's alias; sbo warp: the zone; sbo seq: the sequence's alias.
   bool spot = false;            // travel spot: SB's position warp to at, no camp.
   Spot at{};                    // travel spot: the place in whole centimetres and the yaw in whole degrees.
-  uint32_t ask = 0;             // items: Lua's number for its answer.
+  uint32_t ask = 0;             // items, fishbook, photohunt: Lua's number for its answer.
+  std::array<uint64_t, 3> names{}; // photohunt: the rows' FNames (number << 32 | index), name_count of them.
+  uint8_t name_count = 0;
   std::string text;             // mark: its text, or empty. gift: the payload. guardtext: what follows the word.
                                 // rules: the word.
   std::string zone, camp;       // where: the map segment and the camp alias (or empty).
@@ -1550,6 +1595,10 @@ inline Request parse_request(std::string text) {
     r.command = Command::gift, r.text = text.substr(5);
   } else if (text.rfind("score ", 0) == 0) {
     r.command = Command::score, r.text = text.substr(6);
+  } else if (text.rfind("mode ", 0) == 0) {
+    r.command = Command::mode, r.text = text.substr(5);
+  } else if (text.rfind("dr ", 0) == 0) {
+    r.command = Command::dr, r.text = text.substr(3);
   } else if (text.rfind("guardtext ", 0) == 0) {
     r.command = Command::guardtext, r.text = text.substr(10);
   } else if (uint64_t ask = 0, index = 0, number_ = 0;
@@ -1558,6 +1607,25 @@ inline Request parse_request(std::string text) {
              number_ <= UINT32_MAX) {
     r.command = Command::items, r.alias = f[2], r.ask = static_cast<uint32_t>(ask);
     r.index = static_cast<uint32_t>(index), r.number = static_cast<uint32_t>(number_);
+  } else if (uint64_t ask = 0;
+             split(text, f, 2, nullptr) && f[0] == "fishbook" && number(f[1], ask) && ask && ask <= 65535) {
+    r.command = Command::fishbook, r.ask = static_cast<uint32_t>(ask);
+  } else if (text == "photohunt off") {
+    r.command = Command::photohunt, r.off = true;
+  } else if (text.rfind("photohunt ", 0) == 0) {
+    std::string w[8];
+    uint64_t ask = 0;
+    size_t n = 0; // The fields: the word, the ask, then 1 to 3 index and number pairs.
+    for (size_t count = 4; !n && count <= 8; count += 2)
+      n = split(text, w, count, nullptr) ? count : 0;
+    bool ok = n && number(w[1], ask) && ask && ask <= 65535;
+    for (size_t i = 2; ok && i < n; i += 2) {
+      uint64_t index = 0, number_ = 0;
+      ok = number(w[i], index) && index && index <= UINT32_MAX && number(w[i + 1], number_) && number_ <= UINT32_MAX;
+      r.names[(i - 2) / 2] = number_ << 32 | index;
+    }
+    if (ok)
+      r.command = Command::photohunt, r.ask = static_cast<uint32_t>(ask), r.name_count = uint8_t((n - 2) / 2);
   } else if (text == "nightop" || text == "nightop rule") {
     r.command = Command::nightop;
     r.rule = text.size() > 7;
@@ -1594,6 +1662,9 @@ inline Request parse_request(std::string text) {
   } else if (text == "popups on" || text == "popups off") {
     r.command = Command::popups;
     r.on = text.size() == 9;
+  } else if (split(text, f, 3, nullptr) && f[0] == "race" && (f[1] == "hold" || f[1] == "tick") &&
+             (f[2] == "on" || f[2] == "off")) {
+    r.command = Command::race, r.text = f[1], r.on = f[2] == "on";
   } else if (text == "sky off" || text == "sky hold") {
     r.command = Command::sky;
     r.sky = text[4] == 'o' ? SkyAsk::off : SkyAsk::hold;
@@ -1641,7 +1712,8 @@ inline Request parse_request(std::string text) {
 enum class Sync { off, notice, both };
 inline const char *sync_name(Sync s) { return s == Sync::both ? "both" : s == Sync::notice ? "notice" : "off"; }
 // coop-state.txt, from Lua: "world=<0|1|title> rate=<10..60> photo=<0|1|s|c> sync=<both|notice|off> max=<0|30..3600>",
-// then " cut=<0|1>" or nothing (0), then " names=<0|1>" or nothing (1).
+// then " cut=<0|1>" or nothing (0), then " names=<0|1>" or nothing (1), then " sounds=0" or nothing (on), then
+// " collide=0" or nothing (on).
 struct State {
   bool world = false;    // A save is loaded (world=1): held invites wait for one.
   bool title = false;    // world=title: no save loaded, and a pawn stands on the title screen's map (the co-op saves).
@@ -1652,9 +1724,12 @@ struct State {
   uint32_t max = 600;    // photo_freeze_max: the longest pause the friend's photo mode holds us in, in s; 0: no cap.
   bool cut = false;      // The guest's cutscene_wait=on with the host's ghost on her map: the host's 'c' pauses us.
   bool names = true;     // mod_names: our mod containers go to the friend by name (the pak lines), on until Lua says.
+  bool sounds = true;    // The sounds look: ours recorded and the ghosts' played, on until Lua says sounds=0.
+  bool collide = true;   // Enemies we run pushed out of a shown ghost (fight/enemies/push.h), on until Lua says
+                         // collide=0: the solid partner off, or an SBO session (the capsule's rule).
 };
 // One trailing \n or \r\n, at most kMaxState bytes; anything else is refused and changes nothing.
-constexpr size_t kMaxState = 80;
+constexpr size_t kMaxState = 96;
 inline bool parse_state(const std::string &text, State &out) {
   if (text.size() > kMaxState)
     return false;
@@ -1663,16 +1738,24 @@ inline bool parse_state(const std::string &text, State &out) {
     line.resize(line.size() - 2);
   else if (!line.empty() && line.back() == '\n')
     line.pop_back();
-  std::string f[7];
+  std::string f[9];
   uint64_t rate = 0, max = 0;
-  size_t n = 7, at = 5; // Its words: five, then cut= and names= if there, in this order.
+  size_t n = 9, at = 5; // Its words: five, then cut=, names=, sounds=0 and collide=0 if there, in this order.
   while (n >= 5 && !split(line, f, n, nullptr))
     --n;
-  bool cut = false, names = true;
+  bool cut = false, names = true, sounds = true, collide = true;
   if (at < n && (f[at] == "cut=0" || f[at] == "cut=1"))
     cut = f[at++] == "cut=1";
   if (at < n && (f[at] == "names=0" || f[at] == "names=1"))
     names = f[at++] == "names=1";
+  if (at < n && f[at] == "sounds=0") {
+    sounds = false;
+    ++at;
+  }
+  if (at < n && f[at] == "collide=0") {
+    collide = false;
+    ++at;
+  }
   if (n < 5 || at != n || (f[0] != "world=0" && f[0] != "world=1" && f[0] != "world=title") ||
       f[1].rfind("rate=", 0) != 0 || !number(std::string_view(f[1]).substr(5), rate) || rate < 10 || rate > 60 ||
       (f[2] != "photo=0" && f[2] != "photo=1" && f[2] != "photo=s" && f[2] != "photo=c") ||
@@ -1687,6 +1770,8 @@ inline bool parse_state(const std::string &text, State &out) {
   out.max = static_cast<uint32_t>(max);
   out.cut = cut;
   out.names = names;
+  out.sounds = sounds;
+  out.collide = collide;
   return true;
 }
 

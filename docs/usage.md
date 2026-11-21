@@ -63,7 +63,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop unblock <SteamID>`, `coop unblock all` | Take one player off your block list, or empty it |
 | `coop blocked` | Print how many players your block list holds (the file keeps only hashes, so it cannot name them) |
 | `coop leave` | Leave the session (F8) |
-| `coop match search\|create <mode>`, `coop match cancel`, `coop match end`, `coop match join <code>`, `coop match leave` | A [match lobby](online/lobby.md#search) of up to 8 players (experimental). The modes are `scoreattack` and `ffa`. A `scoreattack` round plays a challenge in the lobby room ([Score attack](online/modes/scoreattack.md)). An `ffa` round's start does not take anyone to an arena yet. `search` joins an open public lobby of that mode, or hosts one when none is open; `create` hosts a private one that players join with its [join code](players/playing-with-a-friend.md#join-codes); `cancel` stops a search; `end` ends the round you host; `join <code>` and `leave` work like `coop join <code>` and `coop leave`. `search` and `create` are refused while you are in a lobby. They run from the console anywhere and on any save, not only in the SBO lobby; outside it they have not been tested in game |
+| `coop match search\|create <mode>`, `coop match cancel`, `coop match end`, `coop match join <code>`, `coop match leave` | A [match lobby](online/lobby.md#search) of up to 8 players (experimental). The modes are `scoreattack`, `race` and `ffa`. A `scoreattack` round plays a challenge in the lobby room ([Score attack](online/modes/scoreattack.md)). A `race` round races a track in the lobby room ([Races in a match](online/modes/race.md#races-in-a-match)). An `ffa` round's start does not take anyone to an arena yet. `search` joins an open public lobby of that mode, or hosts one when none is open; `create` hosts a private one that players join with its [join code](players/playing-with-a-friend.md#join-codes); `cancel` stops a search; `end` ends the round you host; `join <code>` and `leave` work like `coop join <code>` and `coop leave`. `search` and `create` are refused while you are in a lobby. They run from the console anywhere and on any save, not only in the SBO lobby; outside it they have not been tested in game |
 | `coop mute <SteamID>` / `coop unmute <SteamID>` | Drop that player's chat lines, or show them again, in any lobby until the game closes (experimental). The `member=` lines of `coop status` start with each member's SteamID, masked to its last 4 digits, which these commands take too |
 | `coop travel host` | As the guest, travel to where the host last stood on solid ground (F7), or cancel the travel that `follow_host=always` is about to start ([Following the host](players/playing-with-a-friend.md#following-the-host)). On the death screen it does what F7 does there |
 | `coop travel spot [<world>] <x> <y> <z>` | Solo test of the spot warp: the game's own position warp to that place in whole centimetres, yaw 0, with no camp and no session; with a world of the game's story worlds (`core/worlds.lua`), that world's name goes into the warp's record. The result is in `UE4SS.log` and `coop-link.log` ([The spot warp](online/group-internals.md#the-spot-warp)) (test command, co-op save only) |
@@ -76,25 +76,29 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop puppet` | Turn the ghost on or off by hand |
 | `coop basesuit` | Draw the ghost's body and hair on the base suit, or back on her own meshes |
 | `coop look` | Show which looks are on |
-| `coop look <cloth\|dyes\|effects> <on\|off>` | Turn one look on or off until the mod reloads |
+| `coop look <cloth\|dyes\|effects\|drone\|sounds\|faces> <on\|off>` | Turn one look on or off until the mod reloads |
 | `coop cns` | Show whether the ghost's CNS part is on and which mod assets the crash sentinel set aside |
 | `coop cns reset` | Clear the set-aside list, turn the CNS part on again and build the ghost again |
 | `coop wear [<name>\|off [hair\|suit]]` | Put a [cut hair or suit](eve/eve.md#cut-hairs-and-suits-coop-wear) on your EVE (display only, untested in game), or give the game's back |
 | `coop lines [<name>\|stop]` | Show the subtitles of a [scene cut before it was voiced](story/scenes.md#cut-scene-lines-coop-lines) in the chat's feed, or play unused voice takes, or end it (untested in game) |
 | `coop emote [list\|<name>\|off]` | Play one of [EVE's clips](eve/eve.md#emotes-coop-emote) (a photo-mode pose held until she moves, a wave, a clip of the Cut category; untested in game), list them or end it |
 | `coop bike` | Put EVE on the [bike](vehicles/bike.md) or take her off it, on any save (untested in game) |
-| `coop bike status` | The bike's preload, whether it is on EVE, whether she rides, its four riding values, where it is [parked](vehicles/bike.md#where-the-bike-stays) (`parked on <map>`, with `<n> m away` on her map, or `no place yet`) |
+| `coop bike status` | The bike's preload, whether it is on EVE, whether she rides (with the way of her riding pose, `rig` or `hold`), its four riding values, where it is [parked](vehicles/bike.md#where-the-bike-stays) (`parked on <map>`, with `<n> m away` on her map, or `no place yet`) |
 | `coop bike tune [<name> <value>]` | The four [riding values](vehicles/bike.md#coop-bike), or one changed for your next rides until the mod reloads |
 | `coop gun [status]` | Alone: bring the NIKKE rifle out or put it away, as `gun_key` does ([gun mode](fight/gunmode.md), experimental). `status` prints one line: whether the rifle is out, firing mode or moving, the key and the shots fired, as `gun mode on (moving), key F4, 12 shots` |
 | `coop loopback <delay ms> <jitter ms> <loss %>` | Run your own ghost through a simulated network on one PC |
 | `coop loopback off` | Stop the loopback |
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
 | `coop replay` / `coop replay off` | Play `coop-record.bin` back as a ghost, in a loop |
+| `coop bench ghosts <0-64> [full\|mid\|far] [ring <1-300>] [nocloth] [noshadow] [add]` | Put up to 64 local ghosts on a ring around EVE that replay her own pose, with a `Bench:` line a second in `UE4SS.log` of what they cost ([Ghost bench](#ghost-bench-coop-bench); developer command, untested in game) |
+| `coop bench off` / `coop bench` | Remove the bench ghosts and stop the lines / say whether the bench runs |
 | `coop nightop [start [easy\|normal\|hard\|nightmare] [noaggro\|nomove]\|stop]` | [Night Operation's run](online/modes/nightop.md#the-solo-run-coop-nightop) at one of four [levels](online/modes/nightop.md#levels), solo or, started by the host at his level, [for both players](online/modes/nightop.md#the-co-op-run) (one solo run in game, on 2026-10-28, tracked none of its monsters and spawned some inside walls; the fixes for the tracking and for the spawn points are untested in game; co-op save only; `stop` on any save) |
 | `coop nightop revive` | In a co-op run with `revive=on`, while your EVE is down: revive her yourself, a few times a run ([Down and revive](online/modes/nightop.md#down-and-revive)) (untested in game, co-op save only) |
 | `coop nightop shop` | Night Operation's [reward shop](online/modes/nightop-shop.md#the-shop-screen-coop-nightop-shop) in the game's own shop screen, your points as Beta Seeds, with its seven items (two cut stimpacks and the cut [Shock Bolt](online/modes/nightop-shop.md#cut-ammo-shock-bolt) ammo among them; the Shock Bolt only once EVE's gun can fire it) (the screen opened in game; buying from it is untested; co-op save only) |
 | `coop nightop buy [<n> [count]]` | The same shop from the console: your points and its seven items, or a buy of 1 to 10 of one of them (untested in game, co-op save only) |
 | `coop scoreattack [status\|pick <challenge>]` | [Score attack](online/modes/scoreattack.md#settings-and-commands) (untested in game): alone or `status`, one line with the host's challenge pick, your last round, its state and its ranking; `pick random`, a challenge's name or its number (1 to 5) sets the pick as the lobby menu's Challenge row does. Only the host's pick counts. Needs the Steam link |
+| `coop fish [status\|start [<minutes>]\|stop]` | [Fishing tournament](online/modes/fishing.md#settings-and-commands) (untested in game): alone or `status`, one line with your last tournament, its state, its clock, the board and the ranking; `start` on the host of an online session starts one of 10 minutes, or of 1 to 60, for every player past the handshake; `stop` on the host cancels it in every game. Needs the Steam link |
+| `coop photohunt [status\|start [<minutes>]\|stop\|try [<row> ...]]` | [Photo hunt](online/modes/photohunt.md#settings-and-commands) (untested in game): alone or `status`, one line with your last round, its state, its clock, the board, the ranking, the photo checks' state and the targets your map offers; `start` on the host of an online session starts one of 15 minutes, or of 1 to 60, with three photo targets of the host's map for every player past the handshake; `stop` on the host cancels it in every game; `try` checks up to 3 targets at each selfie photo for 5 minutes, alone, each photo logged. Needs the Steam link |
 | `coop challenge [<name>\|stop]` | [Challenges](online/modes/challenges.md): the list with each best run, a start by name or number (1 to 5), or the end of the run that is on (untested in game, co-op save only; solo but the [Shooting Range](online/modes/challenges.md#shooting-range), which the host can start for both players; `stop` on any save) |
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only). He also appears by himself at each Xion load, on any save; `off` keeps him away until the next one |
@@ -120,8 +124,9 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop story [dump\|find]` | Write the [story dump](dev/story-dump.md) to `StellarCoopStory.txt` in the mod folder: the story lines of the game's live save object, or with `find` a list of the objects that may hold them; a `coop-story.txt` file in the mod folder asks the same while a world is loaded (test command, untested in game, any save, read only) |
 | `coop gift [send <item> [count]\|take [n]]` | The [cut mailbox as a gift box](cutmenus/menus.md#cut-mailbox-coop-gift): what waits in yours, a gift of 1 to 10 consumables to your linked friend, or the gifts that wait put into your inventory (untested in game, co-op save on both sides) |
 | `coop race record <name>\|cp\|save [laps]\|cancel` | Record a [Doro race](online/modes/race.md) track (untested in game) |
-| `coop race start <name>\|quit` | Start a Doro race on that track as the host or alone (co-op save only), or leave it |
-| `coop race look on\|off`, `coop race probe doro`, `coop race drive [probe\|off\|feed impulse\|struct\|<name> <value>]` | [Doro race](online/modes/race.md) test and tuning commands: the Doro look with no race, a Doro that plays each of its animations, the drive probe, and the driving values (test commands; `look on`, `probe doro` and `drive probe` on a co-op save only) |
+| `coop race start <name>\|quit` | Start a Doro race on that track as the host or alone (co-op save only), or leave it; refused in a match lobby |
+| `coop race match [status\|pick <name>\|<number>\|random]` | [Doro races in matches](online/modes/race.md#settings-and-commands) (untested in game): alone or `status`, one line with `race_match`, the official tracks, the host's track pick, the tracks the room offers and your last round with its ranking; `pick` sets the pick as the lobby menu's Track row does. Only the host's pick counts. Needs the Steam link |
+| `coop race look on\|off`, `coop race probe doro`, `coop race drive [probe\|off\|<name> <value>]` | [Doro race](online/modes/race.md) test and tuning commands: the Doro look with no race, a Doro that plays each of its animations, the drive probe, and the driving values (test commands; `look on`, `probe doro` and `drive probe` on a co-op save only) |
 | `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
 | `coop fight probe\|record\|replay`, `coop fight test hp\|sh\|st <change>`, `coop fight test kill` | Shared enemies' solo test tools (experimental, co-op save only) |
 | `coop fight pilot status\|probe\|on\|off`, `coop fight pilot test freeze\|cmc\|drive\|replay\|target\|exec` | [Same place](fight/enemies.md#same-place-experimental) (experimental, on by default) and its solo test steps |
@@ -193,8 +198,9 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 - `coop basesuit` draws the body and hair on the base suit whatever the table names, and rebuilds the ghost. Run it
   again to go back to each part's own mesh.
 - `coop look` with no arguments prints the same `look:` line that each load logs, for example
-  `look: cloth=on dyes=off effects=off`. `coop look <cloth|dyes|effects> <on|off>` changes one look until the mod
-  reloads (game start or Ctrl+R) and rebuilds the ghost. It does not change `coop-settings.txt`. See [Looks](online/partner.md#looks).
+  `look: cloth=on dyes=off effects=off drone=on sounds=on faces=on`.
+  `coop look <cloth|dyes|effects|drone|sounds|faces> <on|off>` changes one look until the mod reloads (game start or
+  Ctrl+R) and rebuilds the ghost. It does not change `coop-settings.txt`. See [Looks](online/partner.md#looks).
 - `coop cns` prints one line: `CNS part on` (or `off (<error>)`), then the mod assets set aside after a crash, each with
   its outfit, or `none`. `coop cns reset` clears both and builds the ghost again. See [When a mod asset
   fails](online/partner.md#when-a-mod-asset-fails).
@@ -263,7 +269,7 @@ These three commands run the ghost pipeline on one PC. They need the native tick
   `coop-record.bin` in the mod folder if it holds a pose. The name is fixed, so a new recording replaces the last one.
   Rename the file by hand to keep it.
 - `coop replay` checks the whole of `coop-record.bin` before anything plays and refuses a file that fails, with the
-  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 25). It
+  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 29). It
   then plays the file in a loop as the remote side, each pose re-stamped as if sent now, until `coop replay off`, which
   removes the ghost. The generation, map and positions stay as recorded: the ghost wears the recorded outfit and walks
   where you walked, with no offset, and the map gate applies.
@@ -275,6 +281,35 @@ These three commands run the ghost pipeline on one PC. They need the native tick
   them after the gap. A recording can run at the same time as either one.
 
 See [dev/architecture.md](dev/architecture.md#loopback-record-and-replay) for the parts of the pipeline each one tests.
+
+### Ghost bench: `coop bench`
+
+`coop bench` measures what ghosts cost on your PC, with no session (a developer command, untested in game). Its ghosts
+are local: nothing is sent, so no other PC sees them. It needs the native tick and the ghost on (`coop puppet`). With
+the ghost off it answers `turn the ghost on first: coop puppet`. How it works is in
+[online/partner-internals.md](online/partner-internals.md#ghost-bench).
+
+- `coop bench ghosts <n> [full|mid|far] [ring <m>] [nocloth] [noshadow] [add]` puts n ghosts (0 to 64) on a circle of
+  m metres around your EVE (1 to 300, 5 by default). They replay her own pose. The first 4 s after the bench starts are
+  recorded, then played in a loop, so what she does in those 4 s repeats.
+- `full` (the default) is a friend's ghost without faces, world effects, sounds or drone. `mid` draws LOD 1 with
+  no shadow, no cloth and no name tag, written every 2nd frame. `far` draws the base suit's body and hair at their
+  lowest LOD with no shadow, no cloth, no dyes and no name tag, written every 4th frame. `nocloth` and `noshadow` take
+  cloth or shadows off any tier.
+- Without `add`, the new ghosts replace the bench ghosts already there. With it, they join them, up to 64 in all.
+  `coop bench ghosts 0` gives the lines with no ghost, for a baseline.
+- The console passes six words after `coop bench`. A seventh word is dropped without a refusal:
+  `coop bench ghosts 16 mid ring 40 nocloth add` loses `add` and replaces the set.
+- From the next second on, `UE4SS.log` gets one line a second, on one line:
+  `[StellarCoop] Bench: 16 ghosts (16 mid at 40 m), 16 of 16 taken, 16 drawn, 9 rendered; frame mean 16.7 ms, worst
+  24.1 ms (60 frames); native tick mean 0.41 ms, max 1.20 ms; Lua ghosts 0.250 ms a frame; 480 written, 0 refused`.
+  Every 10 s it ends with `; working set <MB> MB, private <MB> MB`. Each field is explained in
+  [The line a second](online/partner-internals.md#the-line-a-second).
+- `coop bench off` removes the bench ghosts and stops the lines. `coop bench` alone answers `Bench off.` or
+  `Bench on: <n> ghosts (<groups>), <d> drawn (coop bench off ends it).`
+- `coop off` ends the bench. A map change builds each bench ghost again on the new map, as for any ghost. Ctrl+R ends it:
+  the next load removes the bench ghosts left in the world, with `Bench: <n> ghosts of an earlier Lua load removed.`
+- While the bench runs, `stray_parts=` in `coop status` counts the bench ghosts' parts.
 
 ### Commands that need a co-op save
 
@@ -331,13 +366,18 @@ word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`
 
 `coop off` stops the following until the game restarts, even across a Lua reload:
 
-- the ghost, EVE's capture, the loopback, a recording (which is written) and a replay;
+- the ghost, EVE's capture, the loopback, a recording (which is written), a replay and the
+  [ghost bench](#ghost-bench-coop-bench) (its ghosts removed);
 - engine reads and the Steam link;
 - the screen notices, the co-op menu, the chat box, the feed and the partner HUD (the game gets its keys back), and the
   chat history (cleared);
 - a [score attack](online/modes/scoreattack.md#what-stops-a-round) round (your run ends as aborted and your game
   sends nothing more; the other players count you as a player who left) and a death screen its respawn hid (shown
   again);
+- a [fishing tournament](online/modes/fishing.md#what-stops-a-tournament) (your game sends nothing more and stops
+  its book reads; the host counts you as a player who left);
+- a [photo hunt](online/modes/photohunt.md#what-stops-a-photo-hunt) (your game sends nothing more and its photo
+  checks stop; the host counts you as a player who left);
 - a Night Operation run or a challenge (it ends as aborted, and so does the partner's co-op run; your shop points stay
   as they are), the Night Operation poller, the Night Operation shop screen (closed, its seeds back in your wallet) and
   Roxanne's Night Operation choices (her own two back, and a run booked at her dropped);
@@ -351,6 +391,10 @@ word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`
   own value, its press filter goes out of the death screen's slot and the view comes back to your EVE);
 - a Doro race (left as a DNF, or cancelled before GO, with EVE's movement values put back), the drive probe, a race
   track being recorded (dropped, nothing written) and the Doro look (EVE drawn again);
+- a Doro race (left as a DNF, or cancelled before GO, with EVE's movement values put back by the native part), the
+  drive probe, a race track being recorded (dropped, nothing written), the Doro look (EVE drawn again) and a
+  [Doro race round](online/modes/race.md#what-stops-a-round) of a match (the other players count you as a player who
+  left);
 - the cut model display and its free camera (`coop leviathan` and the other viewer commands; the view goes back as it
   was);
 - what `coop lion` is doing (a wait for its rows, its search, its entrance copy, its log lines; a living Lion stays),
@@ -396,7 +440,7 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 `***` and its last 4 digits, the join code and the lobby id as the code's first 3 characters and `****`, as in every
 line the mod writes to its logs. `coop-status.txt` in the mod folder holds the same state with them whole.
 
-- Steam: `mod=<version> proto=25 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
+- Steam: `mod=<version> proto=29 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts, your Steam name on a `me=` line, then `blocked=<n>`: the players on your
   [block list](players/playing-with-a-friend.md#block-list). A `block=<SteamID> <name>` line follows for each player you
   blocked in this game run.
@@ -447,7 +491,13 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
   gift`](cutmenus/menus.md#cut-mailbox-coop-gift)'s last inventory read, by its number; why is `unpinned`, `noeve`,
   `nomanager`, `nobucket` or `unread`), `spectate=<on|off|faulted> hud=<n|->` (the
   [spectate](fight/enemies.md#down-in-a-boss-fight-spectate) setting or its latch; the death screen's state as last
-  read, `-` while your EVE stands) and `nightop=on` or `nightop=rule` while the probe's poller runs.
+  read, `-` while your EVE stands), `fish=<ask> <ID>:<count>,...`, `fish=<ask> -` or `fish=<ask> none <why>` (the
+  answer to the [fishing tournament](online/modes/fishing.md#the-book-read)'s last read of SB's fishing log book, by
+  its number; why is `unpinned`, `noeve`, `nobook` or `unread`), `photohunt=<ask> <shots> <v1>,<v2>,<v3> <l1><l2><l3>`
+  or `photohunt=<ask> none <why>` (the answer to the last ask of SB's photo check for the
+  [photo hunt](online/modes/photohunt.md#the-photo-check): the selfie photos since the ask, then for each row the last
+  photo SB found valid and its answer at the last photo; why is `unpinned`, `off` or `fault`), and `nightop=on` or
+  `nightop=rule` while the probe's poller runs.
 - Activated camps: `activated=<n>:<camp>,<camp>,...` lists the camps of the game's camp table (simple and full camps,
   phone booths, tetrapods) that the game's own camp list would show for this save, read every 2 s while you play,
   followed by `rested=<camp>`, the camp where EVE respawns (that of her last rest or fast-travel arrival), when the
@@ -542,6 +592,7 @@ Each section that left this page is listed under its old name, with its new plac
 | Results | [online/modes/race.md](online/modes/race.md#results) |
 | The Doro look | [online/modes/race.md](online/modes/race.md#the-doro-look) |
 | Limits | [online/modes/race.md](online/modes/race.md#limits) |
+| Races in a match | [online/modes/race.md](online/modes/race.md#races-in-a-match) |
 | Track files | [online/modes/race.md](online/modes/race.md#track-files) |
 | Teleport screen | [players/interface.md](players/interface.md#teleport-screen) |
 | Night Operation previews | [this page: Commands that need a co-op save](#commands-that-need-a-co-op-save) |

@@ -7,10 +7,10 @@ uses={'vehicles.bike'},
 exports={'capture','puppet','ghosts','ghost_of','ghosts_off','ghost_start','hud'},
 new=function(M)
 local print,log=M.print,M.log
--- With mod_names=off, no mod's path goes in the capture either.
+-- With mod_names=off, no mod's path goes in the capture either. Her drone comes from the native part's lookup.
 M.capture=require('online.partner.capture').new(M.link and M.link.components or nil,M.look,
     M.link and M.link.mod_assets or nil,
-    M.settings~=nil and not M.settings.mod_names)
+    M.settings~=nil and not M.settings.mod_names,M.link and M.link.drone or nil)
 -- The crash sentinel (online/partner/sentinel.lua): a mod asset the game crashed on during a call of the last Lua load
 -- is set aside now, logged, and said once a notice can show, with UE4SS-settings.ini's (main/pass.lua).
 local sentinel,crashed=require('online.partner.sentinel').new(M.link,M.VERSION)
@@ -25,10 +25,33 @@ M.puppet=require('online.partner.puppet').new(M.link,M.capture,M.say,M.settings 
     sentinel,M.link and function() return Link.solo((M.link.mate() or {}).zone) end)
 -- With the Steam link, a ghost for each other member of a lobby in ghost slots 1 to 6 (a match lobby, or an online
 -- session of more than 2 players), each on its slot's files.
-M.ghosts=M.link and require('online.partner.ghosts').new(M.link,function(files,_,solo)
+M.ghosts=M.link and require('online.partner.ghosts').new(M.link,function(files,k,solo)
     return require('online.partner.puppet').new(files,M.capture,M.say,M.settings and M.settings.name_tag,M.look,M.words,
-        sentinel,solo)
+        sentinel,solo,k)
 end)
+-- With the native part, the ghost bench (coop bench, online/partner/bench.lua): its ghosts tick, place and sync with
+-- the members' ghosts, so main/frame.lua and main/pass.lua run them where they run those. Its say only logs.
+local bench=M.ghosts and M.native_tick and require('online.partner.bench').new({link=M.link,
+    make=function(files,slot,look,tag)
+        local function say(_,en) log('Bench ghost: '..tostring(en)) end
+        return require('online.partner.puppet').new(files,M.capture,say,tag,look,M.words,sentinel,nil,slot)
+    end,look=M.look,name_tag=M.settings and M.settings.name_tag,log=log,active=M.puppet.active})
+if bench then
+    local raised={} -- A bench call that raises is said once a Lua load: the members' ghosts still report.
+    for _,name in ipairs({'tick','place','sync'}) do
+        local theirs=M.ghosts[name]
+        M.ghosts[name]=function()
+            local said=theirs()
+            local ran,ours=pcall(bench[name])
+            if not ran then
+                ours=raised[name] and {} or {{false,'bench: error (said once until the mod reloads): '..tostring(ours)}}
+                raised[name]=true
+            end
+            for _,r in ipairs(ours) do said[#said+1]=r end
+            return said
+        end
+    end
+end
 -- Ghost slot k's puppet past slot 0 (the HUD rows, the revive, the follow), nil before a member held it.
 function M.ghost_of(k) return M.ghosts and M.ghosts.get(k) end
 -- coop off's ghost lines: main/commands.lua calls this where they stood.
@@ -43,6 +66,12 @@ function M.ghost_of(k) return M.ghosts and M.ghosts.get(k) end
             if not gone then said={{false,said}} end
             for _,r in ipairs(said) do log((r[1] and 'OK: ' or 'STOP: ')..tostring(r[2])) end
         end
+        if bench then -- The bench's ghosts and its native writes.
+            local gone,ok,said=pcall(bench.off,'coop off')
+            log(gone and (ok and 'OK: ' or 'STOP: ')..tostring(said) or 'bench: '..tostring(ok))
+        end
+        local gone,why=pcall(require('online.partner.puppet').assets_off) -- Her sounds' loaded files.
+        if not gone then log('ghost: '..tostring(why)) end
     end
 -- The capture leaves the bike's part out while EVE does not ride: hidden, it would take one of the ghost's 16 parts.
 -- The bike's idle_part is read at each look: vehicles/bike/wiring.lua builds the bike later. While the bike module is
@@ -52,13 +81,16 @@ M.capture.leave_out(function(at)
     if M.off_modules['vehicles.bike'] then return BikePart.idle(at) end
     return M.bike.idle_part(at)
 end)
+-- While she rides the bike's rig, her body copies its bones: the capture reads the rig in place of her main mesh. The
+-- bike's pose_source is read at each look. While the bike module is off its stub answers nothing: no ride, no rig.
+M.capture.pose_source(function(at) return M.bike.pose_source(at) end)
 if M.link then
     -- The ghost turns on when a session starts (main/pass.lua calls this then): once, so coop puppet off holds
     -- until the next.
     function M.ghost_start() M.report(M.puppet.toggle()) end
 end
 return require('online.partner.commands').new({ask=M.ask,look=M.look,looks=M.looks,native_tick=M.native_tick,
-    puppet=M.puppet})
+    puppet=M.puppet,bench=bench})
 end,
 build={
 hud=function(M,Ui)

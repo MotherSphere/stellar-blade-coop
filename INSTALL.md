@@ -70,9 +70,10 @@ so check for a new Stellar Blade Online version first. Both players need the sam
 
 `CHANGELOG.md` in the zip gives the zip's version and its features and fixes, newest first. Both players must update
 together. Two games with different protocols cannot link, and the player who tries to join sees
-`Version mismatch: that game runs protocol ..., build ...; yours runs ...`. This version uses protocol 25, for
-the shared world, story together, sessions of up to 4 players and the score attack. It does not link with 0.11.0 or
-older (protocol 20).
+`Version mismatch: that game runs protocol ..., build ...; yours runs ...`. This version uses protocol 29, for
+the shared world, story together, sessions of up to 4 players, the score attack, the travel to the host, the fishing
+tournament, Doro races in matches, the ghost's drone, sounds, effects and faces, then spectate, the first-press
+finisher and the QTE owner in boss fights. It does not link with 0.11.0 or older (protocol 20).
 In a match lobby, the host's game refuses a player on another protocol, and Search never finds a lobby made by
 another version.
 
@@ -106,6 +107,9 @@ it, close the game and set those two lines back to `HookBeginPlay = 0` and `bUse
 When the game starts, the mod reads these two lines. If one of them is on, or missing (UE4SS then uses its default,
 which is on), the mod writes a `[StellarCoop] UE4SS-settings.ini:` line to `UE4SS.log` and shows a notice. It never
 changes the file.
+
+If the game no longer starts at all after a Stellar Blade update, see
+[Troubleshooting: The game does not start at all with UE4SS installed](docs/players/troubleshooting.md#the-game-does-not-start-at-all-with-ue4ss-installed).
 
 ## Keys and settings
 

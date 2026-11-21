@@ -84,10 +84,15 @@ function Paint.apply(c,entry)
         for name,v in pairs(values) do mid:SetVectorParameterValue(FName(name),{R=v[1],G=v[2],B=v[3],A=v[4]}) end
     end
 end
--- Every slot of component c back to the mesh's own material. Raises on a failed call.
+-- Every slot of component c back to the mesh's own material. Raises on a failed call. SetMaterial is
+-- UPrimitiveComponent::SetMaterial(ElementIndex, Material): its exec thunk at 0x1448f4c20 reads an int and an object.
+-- The material goes through a local: assert returns its message too, a third value UE4SS refuses.
 function Paint.clear(c)
     local base=bases(c)
-    for slot=0,Paint.SLOTS-1 do c:SetMaterial(slot,assert(base[slot],'no material in slot '..slot)) end
+    for slot=0,Paint.SLOTS-1 do
+        local own=assert(base[slot],'no material in slot '..slot)
+        c:SetMaterial(slot,own)
+    end
 end
 
 local function path_of(o) return U.text(o:GetFullName()):match('^%S+ (.+)$') end

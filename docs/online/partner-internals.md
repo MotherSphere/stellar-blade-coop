@@ -23,11 +23,24 @@ CNS packs declare.
 
 Under the same rule as the materials, it also reads which material slots each part hides at LOD 0
 (`IsMaterialSectionShown`). CNS hides slots for an outfit's `HiddenMats` and `MaterialToggles`, so the capture reads the
-result on the component and never reads CNS itself. A change waits like a value change. Shape keys are not read, since
-the ghost cannot draw them (see [Looks](#looks)).
+result on the component and never reads CNS itself. A change waits like a value change. With the faces look on, it
+names each part's morph targets (see [Looks](#looks)).
 
 With the effects look on, it adds what the native part needs to read her effects. A part whose ponytail cloth has a
 collision asset of its own (`OverrideClothPhysicsAsset`) names it.
+
+With the drone look on, it adds her drone. The native part finds the drone once a second on the game thread while her
+capture is live (`online/partner/drone_game.inc`). It asks Stellar Blade's own companion lookup: the drone's CharID
+(`CharID_N_Drone`, `FUN_141aafe60(0x11)`), then that CharID's FSBActors (`FUN_141aae2f0`) and each one's character
+through the character map. It asks only in game, outside loading and SB's logic thread, while both globals the lookup
+reads (`0x147037400` and `0x1470373b0`) are set and the world's actor manager and character map exist. Of the
+characters found, it keeps the one nearest her main mesh within 30 m. The worker writes `coop-drone.txt` (`drone
+0x<actor>` or `drone none`) when that changes. `core/link.lua`'s `drone()` reads it. A fault in the lookup sets `drone
+none` for the run with one `drone off: fault ...` line. The capture takes the
+SBCharacter at that address whose class is `CH_Drone_BP_C` and adds its meshes after hers and the bike's. Its main mesh
+is a free part, placed by the pose instead of a `place` line. Its other meshes hang from it. A `light` line names its
+SpotLight for the native read. Another drone actor has other component addresses, so it starts a new generation. A
+drone the capture cannot read is left out with one `Capture: drone not read: ...` line. Her own parts go on.
 
 A mesh outside the game's own folders (`/Game/[DLC_<n>/]Art/Character/`) comes from a mod. Such a part gets a tag: the
 `UniqueFitID` that your CNS packs give its path (from `coop-cns.txt`), else the first two folders of the path
@@ -43,6 +56,21 @@ It reads her again once a second. A new mesh (her outfit) starts a new generatio
 part hung elsewhere (the blade drawn or sheathed), shown or hidden is published again under the same generation. The log
 gives a `Capture` line per generation.
 
+While she rides SBO's bike with `bike_pose=rig`, her main mesh and the parts that followed it copy the bones of the
+bike's hidden rig through `SetMasterPoseComponent` ([The rig](../vehicles/bike-internals.md#the-rig)). That component
+belongs to another actor. `online/partner/wiring.lua` gives `capture.pose_source` the bike's `pose_source`, which the
+capture asks once a look with her actor's address: the rig's `SkeletalMeshComponent` during such a ride, else nil. A
+part whose leader is that component is mapped. Her main mesh then has no leader. Any other part follows her main mesh.
+Part 0's `read` line names the rig's component, its class and its mesh, so the native part reads part 0's world
+transform, bones and morph weights from the rig. Part 0's bone count, bone names and morph names come from the rig too,
+to match what the native part reads. The rig's component and mesh are in the generation key: a new rig or a new rig mesh
+starts a new generation. A pose source without a mesh counts as none. Her main mesh then follows a component outside her
+parts, so no table goes out and the other players keep the one published before. On the hold way, off the bike and while
+the bike module is off, `pose_source` answers nil and the capture works as above. The native sound and world effect
+hooks take the owner of part 0's `read` object as her actor, which is the rig's actor during a rig ride. A sound or
+world effect then counts as hers only when it hangs on another part of hers, plays from a notify of the rig's clip or
+belongs to her drone ([Ghosts](../vehicles/bike-internals.md#ghosts)).
+
 ## 2. The component table
 
 The capture becomes the component table: one plain-ASCII grammar used for the capture file, the wire and the remote
@@ -54,6 +82,8 @@ generation <1 to 2^53>
 map /<package path, lowercased>
 part <i> <lead|-> <parent|-> <socket|-> <shown 0|1> <bones> <name> <path|->
 place <i> qx qy qz qw tx ty tz sx sy sz           parts after 0: placement relative to the parent
+free <i>                                          in place of place: a leader hung from nothing (her drone), placed by
+                                                  the pose's free block
 material <i> <slot> <path>                        up to 16, slots 0 to 63 rising: an overridden material
 value <i> <slot> v <name> r g b a                 up to 32 a slot and 512 a table, slots rising: a vector value of
 value <i> <slot> s <name> x                       that slot's dynamic material, a scalar, or a texture (a space in a
@@ -62,6 +92,8 @@ hide <i> <slot>...                                optional: 1 to 64 slots 0 to 6
 cloth <i> <path>                                  optional: the collision asset of the part's cloth
 mod <i> <tag>                                     optional: on a mod's mesh, the outfit it comes from
 names <i> <bone>...                               leaders only: one per bone
+morphs <i> <name>...                              optional, after the part's last line: its mesh's morph targets in
+                                                  the mesh's order, 1 to 256 a part and 512 a table
 ```
 
 A value line that breaks its rules is left out and counted, and the table is still taken: a number that is not finite or
@@ -72,11 +104,13 @@ other does. Hide lines follow the same rule: a slot past 63, slots not rising or
 counted with the value lines. Value and hide lines do not count for the layout, so a change in them never builds a new
 ghost.
 
-The capture file also carries the memory addresses the native part reads from (`read`, `effects` and `effect` lines);
-those never go on the wire. The `fx <k> <path>` lines after the last part do: each names the effect index `k` (20 to
-64) by the path of a Niagara system (see [Looks](#looks)). A leader part has bones of its own. A follower follows a leader's bones (her ponytail, for
-example). Part 0 is her main mesh. A table is at most 64 KiB, and the native parser checks every line (the tests fuzz
-it).
+The capture file also carries the memory addresses the native part reads from (`read`, `light`, `morph_read`, `effects`
+and `effect` lines); those never go on the wire. A leader's `morphs` line comes before its `read` line. A follower's
+is followed by `morph_read <i> 0x<component>`, the component whose weights the native part reads. The `fx <k> <path>`
+lines after the last part do go on the wire: each names the effect index `k` (20 to 64) by the path of a Niagara
+system (see [Looks](#looks)). A leader part has bones of its own. A follower follows
+a leader's bones (her ponytail, for example). Part 0 is her main mesh. A table is at most 64 KiB. The native parser
+checks every line (the tests fuzz it).
 
 ## 3. The pose codec
 
@@ -88,18 +122,34 @@ game thread at the send rate, and the worker sends it. A pose message holds:
 - the main mesh's world transform: translation as three floats, rotation in 6 bytes, scale in three 16-bit integers;
 - each leader's bones in local space, 18 bytes a bone: rotation as the smallest three of its unit quaternion (6 bytes),
   translation in 1/32 cm and scale in 1/4096 (16-bit integers each);
-- four effect slots of 15 bytes each: an index (1 to 19 for the fixed list of effects, 20 to 64 for the table's `fx`
-  lines), the part it hangs on, a serial for each new instance, and its rotation and translation relative to the part.
+- for each free part (her drone), right after the world transform, a 25-byte block: its main mesh's transform relative
+  to her main mesh in the world transform's 24 bytes, then a state byte. Bit 7 of the state is set when the part was
+  read this pose. Bits 0 to 6 are its light's step: the SpotLight's intensity / 4, rounded, up to 127, 0 while the
+  light is hidden or missing. A hidden block is 25 zero bytes. A drone that cannot be read shows hidden while her own
+  pose goes on;
+- six effect slots of 15 bytes each: an index (1 to 19 for the fixed list of effects, 20 to 64 for the table's `fx`
+  lines), the part it hangs on, a serial for each new instance, and its rotation and translation relative to the part;
+- four event slots of 19 bytes each (`game/events.h`, `put_event` in `game/codec.h`): what her game played, by kind
+  (sound, Niagara, Cascade, decal, trail start or end), a serial for each new event in the slot, its asset key (1 to
+  4096), the part it is attached to (none: placed relative to her main mesh), two value bytes (a sound's volume and
+  pitch in 1/64 steps, an effect's scale in 1/32 steps), its translation in whole cm and its rotation. An empty slot is
+  19 zero bytes. An event waits at most 100 ms for a free slot. It holds the slot for at least 2 poses and 50 ms plus
+  one send interval, so a member on the lowest pose cap (20 a second) gets a pose that carries it. The ghost plays each
+  slot's serial once, when its playback reaches the first pose that carried it; a playback that starts (a new table, a
+  new member) plays none of the events standing in its first poses;
+- a byte for each morph target of the table, in table order: its weight in 1/255 steps (see [Looks](#looks)).
 
-A pose is at most 16 KiB; in the outfits measured it is 4.7 to 5 KB. A world position beyond 1e7 cm, or not finite,
-is refused.
+A pose is at most 16 KiB; in the outfits measured it is 4.8 to 5.1 KB with the event slots. A world position beyond
+1e7 cm, or not finite, is refused.
 
 Since protocol 9 most poses go as deltas. A keyframe is a full pose as above. A delta has the same header, the age of
-its keyframe in microseconds, the world transform, one bit for each bone rotation, translation, scale and effect slot,
-and the bytes of those that changed since the keyframe. The sender sends a keyframe first, then every 250 ms, and
-whenever a delta would not be smaller. The receiver rebuilds the full pose from the keyframe it holds and decodes it
-like a keyframe. A delta whose keyframe was lost on the way is dropped and counted as keyless; the ghost waits for the
-next keyframe, at most 250 ms later. In tests a delta was 26 % (idle) to 41 % (combat) of the full pose.
+its keyframe in microseconds, the world transform and free blocks, one bit for each bone rotation, translation, scale,
+effect slot, event slot and morph, then the bytes of those that changed since the keyframe. A morph that holds still
+costs nothing after the keyframe. The sender sends a keyframe first,
+then every 250 ms, and whenever a delta would not be smaller. The receiver rebuilds the full pose from the keyframe it
+holds and decodes it like a keyframe. A delta whose keyframe was lost on the way is dropped and counted as keyless; the
+ghost waits for the next keyframe, at most 250 ms later. In tests a delta was 26 % (idle) to 41 % (combat) of the full
+pose.
 
 A bone's rotation, translation or scale counts as changed only when it is more than a small tolerance away from the
 keyframe, in the codec's own steps: 2 steps on each rotation component (0.035° at most), 1 step of translation (1/32 cm)
@@ -107,7 +157,7 @@ and 1 step of scale (1/4096). Until it moves further, the receiver keeps the key
 drops the fields that only flip their last step from float noise, and needs no change on the receiving side. The test
 build `build/host/online_partner_delta_gain_test` reads a `coop-record.bin` and prints the stream's keyframes, deltas
 and KiB/s with and without the tolerance: `build/host/online_partner_delta_gain_test coop-record.bin`. A recording holds
-the stream you sent. The tool reads only a recording of its own protocol (25): a recording from an older protocol fails
+the stream you sent. The tool reads only a recording of its own protocol (26): a recording from an older protocol fails
 its check (`protocol`). Every build since protocol 14 has the tolerance, so its recording already holds the keyframe's
 values for those fields and both lines show the same KiB/s, the stream's rate with the tolerance. With no file the tool
 measures two synthetic recordings; they show how the tool works, not what a real outfit saves.
@@ -197,28 +247,65 @@ for 2 s and the maps match. A ghost left standing by a Lua reload (Ctrl+R) is fo
 
 ## Looks
 
-The three looks (cloth, dyes, effects) use the same pipeline. Dyes add `material` and `value` lines to the table (parts
-on a mod's mesh have them either way). A slot's values go on a dynamic instance the ghost makes of that slot's material
-(`CreateDynamicMaterialInstance`, then `SetVectorParameterValue`, `SetScalarParameterValue` and
+The cloth, dyes, effects, drone and faces looks use the same pipeline. Dyes add `material` and `value` lines to the
+table (parts on a mod's mesh have them either way). A slot's values go on a dynamic instance the ghost makes of that
+slot's material (`CreateDynamicMaterialInstance`, then `SetVectorParameterValue`, `SetScalarParameterValue` and
 `SetTextureParameterValue`), and a later table sets only what changed on that instance. A value gone from a later table
 puts the slot back on the plain material, and what is left goes on a new instance. A slot with no material here (a
 missing pack) gets no values and no error. If the instance or a setter fails, the slot goes back on the plain material
 and stays there for this ghost, with one note in the log. Textures load after the build, one each 0.25 s, by the same
-rules as meshes. At most 64 wait at once, with one note in the log, and those left over are tried again once none
-waits. A Lua load makes at most 1024 FNames for values, since FNames are never freed.
+rules as meshes. At most 64 wait at once, with one note in the log. Those left over are tried again once none waits. A
+Lua load makes at most 1024 FNames for values, since FNames are never freed.
 
 Hide lines go on a part drawn on its own mesh, under the dyes rule. The ghost calls `ShowAllMaterialSections(0)`, then
 `ShowMaterialSection(slot, 0, false, 0)` for each slot the mesh has: section 0 and LOD 0, as CNS calls it. They are set
 again only when they change. If a call fails, the part shows every slot, with one note in the log. Not tested in game
 yet.
 
-Shape keys are not carried. A leader is a PoseableMeshComponent, which has no morph call. A follower follows its
-leader through `SetMasterPoseComponent`, and in UE 4.26 `USkeletalMeshComponent::UpdateSlaveComponent` zeroes the
-follower's morph weights on every tick, then adds `SetMorphTarget`'s values back only when the leader is a
-SkeletalMeshComponent. With a Poseable leader, a follower's shape keys would be cleared before each frame is drawn.
-Drawing them would need a SkeletalMeshComponent leader.
+Her face and shape keys (the faces look) go into the ghost parts' own morph arrays, since a PoseableMeshComponent has
+no morph call. Offsets and functions are those of build 26123051, read in Ghidra:
 
-Effects fill the pose's four slots, and the native part writes the drawn slots into four boxes beside the mailbox, from
+- The capture names each part's morph targets on a `morphs` line, in the order of its mesh's `MorphTargets`
+  (`USkeletalMesh` `+0x198`, count `+0x1a0`): at most 256 a part (a part with more sends none, named in the
+  `Capture ...` line) and 512 a table (the parts past it send none, named too). A follower's `morph_read` line names
+  its component, since followers have no `read` line. Over the pose size the morph lines go first, the last part's
+  first, before any leader. Their names come after the value lines, only while the table stays within 56 KB. They stay
+  as the generation's first table had them: they size her poses, so they never change under one generation. Turning
+  the look on or off is a new generation.
+- At each pose the native part reads `MorphTargetWeights` (floats at `+0x738`, count `+0x740`) of each part with a
+  `morphs` line, from its leader object or its `morph_read` component, while no parallel anim task holds them
+  (`+0x1180`, `+0xf80`). SB indexes these weights by the mesh's morph index: `AppendActiveMorphTargets`
+  (`FUN_143f8d220`) sizes them to the mesh's count and finds each curve's index through `FindMorphTargetAndIndex`
+  (`FUN_144531b00`). Each weight
+  travels as `lround(w * 255)`. One outside 0 to 1 (or not a number) is cut and counted. A part that cannot be read
+  keeps its last weights.
+- The ghost's display file names, after its `drive` lines, `morphs <i> 0x<component> 0x<mesh> <j>...` for each part
+  drawn with morphs: per morph of hers, the index of the morph of that name on the mesh drawn, -1 for none. Never the
+  cloth follower, a SkeletalMeshComponent: UE 4.26's `USkeletalMeshComponent::UpdateSlaveComponent` starts with
+  `ResetMorphTargetCurves` (`FUN_1441152f0`), which empties `ActiveMorphTargets` and zeroes the weights (in this build
+  `FUN_14411cc10` makes that call first). A mesh with more than 256 morphs gets none, noted in the build line. The
+  native part writes only on a component of the root part's class (a Poseable), on the named mesh, of the ghost's own
+  actor. Poseable's `RefreshBoneTransforms` (`0x1440e6260`) and the base `UpdateSlaveComponent` (`0x144124ef0`) leave
+  both arrays alone.
+- At the ghost's first frame the native part gives each such part room for its mesh's morph count in both arrays, with
+  SB's own resizes, which `ResetMorphTargetCurves` uses too: `FUN_140e4baa0` for `ActiveMorphTargets` (16-byte entries
+  at `+0x728`, count `+0x730`, max `+0x734`) and `FUN_140e6b160` for `MorphTargetWeights` (max `+0x744`). Both go
+  through GMalloc (`0x1470703c0`) and run only while it is set.
+- At each pose drawn, after the bones, it sets every weight of the mesh (hers by the map, the others 0) with the count
+  at the mesh's morph count. It lists each morph above 0 in `ActiveMorphTargets` as `{UMorphTarget*, weight index}`,
+  as `AppendActiveMorphTargets` fills it. It never reallocates: an array too small refuses the write with nothing
+  written (`write refused: part <i> morph arrays too small`). SB empties `ActiveMorphTargets` when the component's
+  `bDisableMorphTarget` (bit 7 of `+0x7d5`) is set or morph targets are off (`FUN_144124660`). A write that changed
+  something marks the part. The next `play_tick` makes the dirty call SB's `UpdateSlaveComponent` makes:
+  `0x144124ef0` sets bit `0x80` of `+0x98` and calls `MarkForNeededEndOfFrameUpdate` (`FUN_14408e610`), once a part.
+  A face that holds still makes no call.
+
+The reads, the writes, the reservation and the dirty calls run on the game thread under one latch: the first fault
+logs `faces off: fault ...`, zeroes her weights in the poses she sends and stops the writes until the game restarts.
+Every 60 s with any of them, `faces, last 60 s: <n> parts read, <n> clamped, <n> written, <n> dirty calls, <n>
+refused` counts reads and writes (a refusal of either). Not tested in game yet.
+
+Effects fill the pose's six slots, and the native part writes the drawn slots into six boxes beside the mailbox, from
 which Lua starts and moves the effects. Effects have their own fault latch, so a fault there turns effects off for the
 run and the ghost stays. See [Ghost](partner.md#looks).
 
@@ -239,6 +326,17 @@ is loaded by the tick, one each 0.25 s, never while the boxes are read. A slot n
 silently, so the first instance of a new effect does not show on either side. One that fails or is refused draws nothing
 on its index, with one note a ghost. Not tested in game yet.
 
+Her drone's free part is a Poseable hung on part 0, with its followers on it. The ghost adds a box beside the mailbox
+for it, named on the display file's `free <i> 0x<box>` line. At each pose the native part writes the drone's block
+there: location and rotation relative to part 0, scale (shown + 1, light step + 1, 1). Lua's `place()` moves the drone
+to it at each new pose and shows it while the box and the table say so, never in Doro mode. A SpotLight on the drone's
+`FX_Lens` socket, where her drone's Blueprint (`CH_Drone_BP`) hangs its light, gets the step x 4 as intensity. It is
+movable, casts no shadows and has an outer cone of 40 degrees, as in the Blueprint. It is off at step 0 or while the
+drone is hidden. A Lua error there hides the drone on that ghost until its next build, with one line. The ghost
+stays. With the drone look off, the viewer draws no free part, nor the parts that follow or hang on one. The drone's
+light shows on every ghost: a lobby holds at most 7 others, under the spec's cap of the 8 nearest. Not tested in game
+yet.
+
 Cloth, on by default, uses only the table's `cloth` line (sent whatever the setting): each PC runs NvCloth on the
 ghost's ponytail from the body bones that already arrive (her hair chain `Ab-TL-HairB01` to `HairB09` among them). While
 the ghost is shown, its root moves without the engine's teleport flag: a teleport clears the cloth's inertia, and the
@@ -249,6 +347,163 @@ ghost is drawn again. The ponytail's cloth part is set up as SB sets up hers: th
 hang on (`AdditiveMasterBoneArray`), the collision asset as `OverrideClothPhysicsAsset` (the table's `cloth` line, else
 the outfit's `<body mesh>_PonytailPhysicsAsset`), then its leader, then its mesh, which creates the cloth. Each asset is
 loaded in a build step of its own: the named one before its part's step, the outfit's after the body's.
+
+## Her sounds, sent
+
+With the sounds look on, your game records the sounds it plays for your EVE and sends each one in an event slot of the
+pose. The native part does it in `online/partner/sound.h`, `sound_game.inc` and `sound_worker.inc`.
+
+Seven context hooks mark her events. Each one sits in a vtable slot in `.rdata` and runs the game's own function with
+the same arguments:
+
+| Slot | Game function | What it plays |
+| --- | --- | --- |
+| `0x145c51bb0` | `0x142019370` | SB's footstep notify |
+| `0x145c525f0` | `0x1420173d0` | SB's character sound notify |
+| `0x145c60d60` | `0x1420286c0` | the start of SB's sound notify state (`USBAnimNotifyState_PlaySound`) |
+| `0x145cf6398`, `0x145cf5a40`, `0x145cf5cb0` | `0x1424679c0`, `0x142468d90`, `0x14245cdb0` | the show sound updaters |
+| `0x1463c3358` | `0x143fccef0` | the engine's `UAnimNotify_PlaySound` |
+
+A notify is hers when its mesh's owner is your EVE or her drone. A show updater is hers when its stage's main actor is
+your EVE, read the way the same-place capture reads a stage. No show updater counts while your game's theater holds a
+cutscene or a shared scene plays: scene dialogue is not sent.
+
+The sink sits in the audio component's start slot. `0x1463db320` (UAudioComponent) and `0x145d07e48`
+(USBSoundComponent) both hold Play, `0x1440925f0`. When the game starts a sound, the sink records it if one of three
+rules holds, checked in this order: one of her context hooks is running (mark), the component's owner is her EVE or her
+drone (owner), or the component hangs on one of her parts (attach). The record holds the sound, its class and
+attenuation, its volume and pitch, its first 8 int parameters and its place relative to the part it hangs on (her main
+mesh when none). A parameter with a float, bool or wave value is left out and counted. Under one mark a later start of
+the same component replaces its record: the game's pooled spawn starts a component once before its setup and again
+after it.
+
+Each record goes into a ring of 64 for its thread. The game thread has one. SB's logic thread, where the show updaters
+also run, has its own. A start on any other thread is only counted. The game thread empties its ring each frame and the
+logic thread's only while no logic task runs. Nothing is recorded while no capture goes to the loopback or a member, or
+while your game plays a ghost's sounds.
+
+A sound gets an asset key the first time its sound, class, attenuation and parameters come together in a link session.
+Its SBA line names them by their paths in the game's name pool: `sound <asset> <class|-> <attenuation|-> <params|->`.
+A sound outside the game's own folders is dropped and counted. So is one whose line would pass 512 bytes under key
+4096. A class or attenuation outside them goes as `-`. Then the event waits for a slot of the pose ([3. The pose
+codec](#3-the-pose-codec)) with its volume and pitch in 1/64 steps, its part and its place. An event on a part the
+pose's table no longer has (her drone gone since) goes empty in that pose, since the viewer refuses a whole pose that
+carries one.
+
+The worker swaps three sets apart, each all or none: the seven context slots, the two audio slots and the two
+world-effect slots ([Her world effects](#her-world-effects)). The context set stays while the sounds look or the
+effects look is on, so her world effects keep their marks with sounds off. Each swap is a compare-and-swap from the
+game's function, relocated to the loaded image. If one slot of a set holds another value, the slots of that set already
+swapped go back, with the line `sounds refused: 0x<slot> holds <value>; nothing of that set swapped, the ghost goes on
+without sounds (<set>)`. The other sets stay. With the sounds look off the audio set goes back until it is on again.
+At `coop off` and after a fault they go back for the run. A fault in a hook or in the naming turns sounds off with one
+`sounds off: fault ...` line. The ghost goes on. Her world effects go on without the marks: only a start owned by her
+or hung on her parts is recorded.
+
+`coop status` shows `sounds=on`, `off`, `refused` or `fault`. Every 60 s `coop-link.log` has `sounds, last 60 s:
+captured <n> (mark <n>, owner <n>, attach <n>, other thread <n>), sent <n>, <n> events dropped waiting for a slot, <n>
+paths refused, <n> params left out, <n> over 4096 keys, <n> events lost to a full ring`. Sounds and world effects share
+the rings and the pose's event slots, so the two counts of events cover both. Not tested in game yet.
+
+## Her sounds, played
+
+The viewer's side is `online/partner/assets.lua` in Lua and `online/partner/play_game.inc` in the native part, with
+the gate and the wait in `game/events.h`.
+
+One loader serves every ghost slot. A ghost built with the sounds look on (or the effects look, for effect kinds)
+has its slot watched. Each 0.25 s at most, the loader reads the new lines of the slot's `coop-names[-k].txt`. It loads
+one path each 0.25 s for all the slots together with `LoadAsset`. A path two slots name loads once. Each object must be
+of its kind's class: a sound's asset a SoundBase, its class a SoundClass, its attenuation a SoundAttenuation. A path
+outside the game's own `Sound` and `Art` folders is a mod's and loads only when you both have that mod, under the crash
+sentinel. A failed load is logged once and not tried again. Once every path of a key is in, the loader appends
+`loaded <k> 0x<object> 0x<class> 0x<a|0> 0x<b|0>` to the slot's `coop-loaded[-k].txt`. `LoadAsset` keeps nothing
+loaded: the game may collect an object and give its address to another one, even one of the same class. So the loader
+checks one cached object a frame: it must still be valid and still have the full name it had at its load. A collected
+one is loaded again at the same pace. Each key naming it then gets a new line. Each object is
+cached with the class it was checked as, so a path named as a sound and as a sound class is checked as both. When the
+ghost goes, its slot is no longer read or loaded for. Its loaded file stays: removing it could race the worker's read
+offset. `coop off` removes every slot's loaded file.
+
+The worker reads each slot's loaded file every 250 ms and keeps each key's objects with the int parameters its SBA line
+names. Each frame the game thread puts the sound events the ghost's playback reached into that ghost's wait (16 at
+most). A key with no loaded objects 200 ms later drops its event. Each event whose key is loaded goes to the gate, which
+lets through the nearest first: within 50 m of your EVE, at most 8 a second from one ghost and 32 from all of them,
+none while a shared scene plays or your theater holds a cutscene. Nothing plays from a ghost that does not show: one
+Lua has not built for its table or has destroyed, one with no pose drawn yet, or one whose actor is hidden (`bHidden`,
+byte `+0x58`, bit `0x20`). A hidden ghost's waiting events are dropped at once.
+
+Each admitted sound plays with the calls SB's footstep notify (`0x142019370`) makes, in its order:
+
+| Call | What it does |
+| --- | --- |
+| `0x1441ff120` | makes the audio component on the ghost's actor (world context and owner), never from SB's pool |
+| `0x1441088f0` | places it: the event's offset on her main mesh's drawn place, or on the ghost's part |
+| `+0x278`, `+0x2d0` | her sound class and attenuation, when her line named them |
+| `0x144094850`, `0x144094900` | her volume and pitch |
+| `0x1441090b0` | attaches it to the ghost's part (rules at `0x146e15994`: KeepWorld three times), when hers was |
+| `0x1440944c0` | each int parameter, its FName found (never added) through `0x14293dde0` |
+| `0x1440925f0` | Play, at 0 s |
+
+A sound is dropped and counted as not loaded when one of its objects is no longer the one Lua loaded. The sound must
+be alive with the class it was loaded as. Its sound class and attenuation, when named, must be alive. The path of each
+one, read from the name pool (its package, then its name), must be the one her SBA line names, in any case. An effect
+gets the same check. A sound that loops is dropped and counted as looping: its `GetDuration` (vtable `+0x290`) reads
+10000 s or more. SB's own one-shot notifies skip such a sound the same way (`0x143fccef0`, `0x142018660`). Only a
+notify state starts one in her game. Its end stops it. The ghost stops nothing, so a loop would play on it until the
+ghost goes, one more at each start. A part Lua did not draw (a follower, a part left out) hangs the sound on the
+ghost's main mesh. These calls run only while
+`game_calls_ok()` holds. While they run, the sink of [Her sounds, sent](#her-sounds-sent) records nothing. With the
+sounds look off, nothing plays. A fault turns her sounds off on both sides with the `sounds off: fault ...` line.
+
+Every 60 s with any of it, `coop-link.log` has `sounds played, last 60 s: <n> played, <n> far, <n> over a ghost's 8, <n>
+over all 32, <n> in a scene, <n> from a hidden ghost, <n> without a name, <n> not loaded, <n> looping`. Not tested in
+game yet.
+
+## Her world effects
+
+With the effects look on, the Niagara and Cascade effects her game starts for your EVE travel the way her sounds do
+([Her sounds, sent](#her-sounds-sent)): same context hooks, same rings, same asset keys and event slots. The effects
+look counts as on while your capture names effect lines or a ghost's display names effect boxes. Lua writes neither with
+`effects=off`.
+
+Two sinks sit in the start slots:
+
+| Slot | Game function | Class |
+| --- | --- | --- |
+| `0x145952d08` (vtable `0x145952a98` `+0x270`) | `0x140f309d0`, Activate | UNiagaraComponent |
+| `0x14645f648` (vtable `0x14645ed28` `+0x920`) | `0x144390180`, ActivateSystem | UParticleSystemComponent |
+
+SB's spawns at a location, `0x142325990` (Niagara) and `0x142325290` (Cascade), place and scale the component, then call
+these slots. A sink records a start under the three rules of the audio sink (mark, owner, attach). It reads the system
+at the offset of the capture's `effects` line, or the Cascade template at `+0x578`. It also reads the component's world
+X scale, its attach parent, its class and its place relative to the part it hangs on (her main mesh when none). Nothing
+is recorded while the capture names no effect line. The game thread skips a Niagara start the pose's six effect slots
+already carry, by the effect read's own rule: a component of the capture's Niagara class hung right on one of her
+published leaders whose system the capture lists. Every other start goes as an event: one placed in the world, one on a
+follower part, a system the capture does not list. Its SBA line is `niagara <asset> - -` or `cascade <asset> - -`.
+Its event carries the scale in 1/32 steps.
+
+No decal sink exists. SB starts no decal through a component slot: `0x142324d60` registers the decal and the footstep
+notify places it after. Her footprints stay out. Her sword trail is a show key (`SBShowTrailKey`) that neither the
+engine's trail notify nor the `bVisibleSwordTrail` byte drives, so trails stay out too.
+
+On the viewer, the effect events a ghost's playback reaches wait in their own wait (16 at most, 200 ms each) while the
+ghost has effect boxes. One whose key is loaded plays while the ghost shows. A shared scene or a cutscene of your
+theater drops it. An event whose key names another kind (a sound, or the other effect kind) is dropped as not loaded, as
+a sound event whose key names an effect is. No distance cap or rate cap applies. It plays where her game played it,
+through the call her footstep notify makes, in the ghost actor's world (`AActor::GetWorld`, `0x143f60200`, at vtable
+`+0x158`): `0x142325990` with her scale and 1 for the world pool's auto release, or `0x142325290` with her scale. The
+effect is placed, never attached. These calls run only while `game_calls_ok()` holds. While they run, the sinks record
+nothing.
+
+The world-effect set swaps apart from the sound sets. A refusal logs `world effects refused: 0x<slot> holds <value>;
+nothing of that set swapped, the ghost goes on without world effects (world effect starts)`. A fault in a sink, in the
+naming or in a play turns world effects off on both sides with one `world effects off: fault ...` line. Her sounds go
+on. `coop status` shows `world_effects=on`, `off`, `refused` or `fault`. Every 60 s with any of it, `coop-link.log` has
+`world effects, last 60 s: captured <n> (mark <n>, owner <n>, attach <n>, other thread <n>), sent <n>, <n> attached
+skipped, <n> paths refused, <n> over 4096 keys; played <n>, <n> not spawned, <n> from a hidden ghost, <n> in a scene,
+<n> without a name, <n> not loaded`. "Not spawned" counts a spawn call that gave no component and an effect past 128 in
+one frame. Not tested in game yet.
 
 ## CNS guard and crash sentinel
 
@@ -327,3 +582,139 @@ parts with collision on (0 expected). `coop status` counts the capsule's changes
 
 Nothing goes over the network for it, and neither game's state changes: each PC decides for its own EVE. The ghost
 shows your friend about one ping late, so the two PCs never agree on a contact, and nothing depends on them agreeing.
+
+## Ghost bench
+
+`coop bench` is a developer command that measures what ghosts cost on one PC. It puts up to 64 local ghosts on rings
+around your EVE. They replay her own pose with no Steam link and no session, so nothing is sent. `UE4SS.log` gets one
+line a second with the frame time, the native tick's own time, Lua's time in the bench ghosts and how many of them are
+drawn. The commands are in [usage.md](../usage.md#ghost-bench-coop-bench). The Lua half is `online/partner/bench.lua`.
+The native half is `native/src/online/partner/bench.h` (tested on the build machine), `bench_game.inc` (game thread)
+and `bench_worker.inc` (worker). Not tested in game yet.
+
+The bench needs the native tick and the ghost on (`coop puppet`), which publishes her capture, as `coop loopback` does.
+Each bench ghost is a ghost of `online/partner/puppet.lua` on files of the bench. The bench ghosts take the assets
+loader's slots 101 to 164, never the members' slots 0 to 6. The native part keeps them in a list of its own, not in its
+7 remote slots.
+
+### The bench's files
+
+All four are in the mod folder.
+
+| File | Written by | Read by | Holds |
+| --- | --- | --- | --- |
+| `coop-bench.txt` | Lua, at the 250 ms pass after a change (`bench off` at once) | the worker, at each 250 ms pass when the text changed | `bench off`, or `bench <table generation>` then one block per ghost: `ghost <dx cm> <dy cm> <stride>` and that ghost's display lines |
+| `coop-bench-table.txt` | the worker, while the bench runs, each time her capture's wire text changes | each bench ghost, as its remote table | her capture table, as it would go to a friend |
+| `coop-bench-out.txt` | the worker, once a second while the bench runs | Lua, every 250 ms | the last second (below) |
+| `coop-bench-ghosts.txt` | Lua, as each bench ghost's actor is built, and at a 250 ms pass when one went | Lua, at the first tick of the next load | the bench actors' object paths, one a line |
+
+The worker removes `coop-bench-out.txt` and `coop-bench-table.txt` at `bench off`. It reads `coop-bench.txt` (64 blocks
+and 4 MiB at most) against her capture table. A head that names another generation is stale: nothing is written until
+Lua sends a list built on the new table. A block whose display does not parse on that table is left out. It counts in
+the file's blocks, not in those taken. A stride other than 1, 2 or 4, an offset past 30000 cm (300 m), a 65th block or
+a bad head makes the whole file malformed. The writes then stop until a good file, with `bench file refused: malformed`
+in `coop-link.log`. Lua writes a file by removing the old one before it renames the new one in. A missing file during a
+run is therefore no change. Before a run it reads as off. Under Wine a removed file keeps its name while the worker has
+it open, so a write that lands during the worker's read fails and leaves no file. Lua writes it again at its next pass,
+`bench off` included. A new Lua load that finds no `coop-bench.txt` while `coop-bench-out.txt` or
+`coop-bench-table.txt` is there writes `bench off`.
+
+### Each frame
+
+`game_tick` (`online/partner/pose_game.inc`) runs the bench after the members' ghosts, behind the partner's fault
+guard. A fault there turns the members' ghosts and the bench off together, with `engine off: fault ... at part <i>` in
+`coop-link.log`.
+
+For the first 240 frames of a run (4 s at 60 fps) the game thread reads her pose once a frame, as the capture does, and
+keeps it. After that it plays the 240 frames in a loop. Her root is recorded too, so a walk or a turn in those 4 s
+repeats on every ring. A new list on the same capture (a ghost built, a group added) keeps the loop. A new capture
+generation (another outfit, a map change) records again.
+
+Each frame it writes that one pose into every bench ghost due: each leader part Lua built (as it came, or through its
+remap on a fallback mesh), then the mailbox with her root moved by the ghost's ring offset. The measure is the cost of
+the writes and of the engine's work on them, with no decode: decoding runs once per received pose. A ghost is due every
+frame, every 2nd or every 4th by its stride, counted on the bench's own frames. A tier's ghosts are spread over those
+frames by their order. A ghost whose root part is no longer live (a set replaced, a map change) is skipped until the
+next list. It does not count as refused. The first refused write of a list logs `bench: write refused: part
+<i>|mailbox <reason> (table <generation>)` in `coop-link.log`.
+
+### Tiers
+
+| Tier | The ghost | Written |
+| --- | --- | --- |
+| `full` | Today's ghost with its name tag, without faces, world effects, sounds or drone (they need native calls the bench does not make) | every frame |
+| `mid` | `SetForcedLOD(2)` on every part, no shadow, no cloth, no name tag | every 2nd frame |
+| `far` | Each part on its base-suit mesh, a part with none left out (the body and hair stay), `SetForcedLOD(99)` on every part, no shadow, no cloth, no dyes, no name tag | every 4th frame |
+
+`nocloth` and `noshadow` take cloth or shadows off any tier, to measure their share on `full` ghosts. The looks are the
+ghost's `look.lod`, `look.shadow=false`, `look.basesuit` and `look.bare` (`online/partner/puppet.lua`). Each is nil on
+a friend's ghost.
+
+`SetForcedLOD` (exec `0x14492ac00`, native table entry `0x14665f160`) writes the component's ForcedLodModel (`+0x778`):
+0 for an argument of 0 or less, the argument when it is below the mesh's LOD count, else the count. In UE 4.26 a
+ForcedLodModel of n draws LOD n - 1. So 2 draws LOD 1 (LOD 0 on a mesh with one LOD) and 99 draws the mesh's lowest LOD,
+with no pak read of LOD counts. A friend's ghost has `SetForcedLOD(1)` (LOD 0) on its leaders only. `SetCastShadow`
+(exec `0x1448f0b20`, entry `0x14662b1a0`) sets or clears bit 6 of `+0x28f`. A refusal is noted once a build as `shadow
+not turned off`.
+
+### The line a second
+
+Once a second the worker writes the window to `coop-bench-out.txt`, on one line:
+
+```
+bench <seq> ghosts <blocks> taken <taken> frames <f> gap <mean µs> <max µs> tick <mean µs> <max µs>
+written <w> refused <r> table <generation> <count> [memory <working set MB> <private MB>]
+```
+
+- `ghosts` and `taken`: the blocks of the last bench file read, then how many of them parsed.
+- `frames`: the native ticks of that second, each counted with the gap before it. They run with or without a ghost to
+  write.
+- `gap`: the time between two native ticks (QueryPerformanceCounter; `game_tick` runs once per engine frame), its mean
+  and maximum.
+- `tick`: the native tick's own time, its mean over the same frames and its maximum. The members' ghosts are in it.
+- `written` and `refused`: the ghosts written whole, the ghosts with a refused write.
+- `table`: the generation of the table in `coop-bench-table.txt` (0 for none) and how many times one was written.
+- `memory`: the process working set and private bytes (`K32GetProcessMemoryInfo`'s WorkingSetSize and PrivateUsage),
+  on the first line of a run then every 10 s; `0 0` when the call fails.
+
+Lua reads the file at each 250 ms pass and logs one line for each new window (one line in the log, wrapped here):
+
+```
+[StellarCoop] Bench: 16 ghosts (16 full at 5 m nocloth noshadow), 16 of 16 taken, 16 drawn, 11 rendered; frame mean
+16.7 ms, worst 24.1 ms (60 frames); native tick mean 0.41 ms, max 1.20 ms; Lua ghosts 0.250 ms a frame; 960 written, 0
+refused; working set 9876 MB, private 10234 MB
+```
+
+`16 ghosts (...)` is the bench ghosts Lua holds, by group. `drawn` counts those built and shown. `rendered` counts the
+drawn ones whose main mesh answers `WasRecentlyRendered(0.2)` true. `frame mean` and `worst` are `gap` in ms, `native
+tick` is `tick`. `Lua ghosts` is the time of the bench ghosts' tick and place, a frame, from `os.clock()`. On Windows
+that clock moves in 1 ms steps, so the mean of a second is an average of whole milliseconds. A window already in the
+file when the bench starts (left by a crash) is not logged.
+
+`WasRecentlyRendered` (native table entry `0x14662b530`, exec `0x1448f6f10`) calls `FUN_1440f02f0`. It is true when the
+world's `+0x748` minus the component's `+0x30c` is at most the larger of the tolerance and the world's `+0x758` plus
+0.0001. In UE 4.26 these are the world's time and the component's last render time. The engine also sets that time in
+shadow passes (not read in this build), so a ghost seen only through its shadow can count as rendered.
+
+### Map change, reload, coop off
+
+- A map change: each bench ghost goes and is built again on her new table, as any ghost is. The native part records
+  her loop again on the new capture.
+- A Lua reload ends the bench. The next load's first tick or pass destroys the actors `coop-bench-ghosts.txt` lists that
+  still have a PoseableMeshComponent root, then writes `bench off`. It logs `Bench: <n> ghosts of an earlier Lua
+  load removed.` when it destroyed any.
+- `coop off` removes the bench ghosts and writes `bench off` (`online/partner/wiring.lua`'s `M.ghosts_off`). The worker
+  then removes the out and table files.
+- Photo mode, the pause and cutscenes change nothing for the bench. Its writes keep the alive, class, mesh and owner
+  checks of a friend's ghost. The bench ghosts are not hidden in photo mode.
+
+### Limits
+
+- The console passes six words after `coop bench`. `ring <m>` takes two of them, so a ring with both `nocloth` and
+  `noshadow` does not fit. A seventh word is dropped without a refusal.
+- While the bench runs, `stray_parts=` in `coop status` counts the bench ghosts' parts.
+- 64 ghosts read the same table at once and build one step a frame each. The first lines of a set show that build.
+- After a set is replaced, `coop-bench.txt` keeps the old blocks until the next 250 ms pass. Their actors are already
+  destroyed, so those ghosts are skipped as gone.
+- Each new list allocates a loop on the worker (240 frames of 40 bytes plus her leader bones). It is dropped when the
+  capture is the same.

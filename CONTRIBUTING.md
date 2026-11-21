@@ -100,6 +100,15 @@ Every change keeps the tests passing. New logic comes with a test.
 - No AI attribution: no `Co-authored-by` line for an AI tool, no
   "Generated with" footer.
 - The body says why the change was made when the subject does not.
+- Commit each step once it works, before you start the next one. Commit
+  before each test in the game and note the hash (`git log --oneline -1`).
+  A version that was never committed is lost: no AI agent can bring it
+  back.
+- To go back to a good version, use git: `git revert <hash>` undoes one
+  bad commit; `git switch -c <name> <hash>` starts a new branch from the
+  last good commit.
+- Push your branch at the end of each session, so your commits are on
+  GitHub too.
 
 ## Texts
 

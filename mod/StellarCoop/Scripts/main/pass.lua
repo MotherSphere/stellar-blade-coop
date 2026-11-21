@@ -68,6 +68,12 @@ if M.link then
         if not M.race.armed() then M.guarded('inbox',M.inbox) end -- Each frame while one is.
         -- The score attack's round and run, after the inbox, which keeps its score lines apart: it logs its own lines.
         if not M.off then M.guarded('scoreattack',M.scoreattack.tick) end
+        -- The fishing tournament's round and book reads, after the inbox, which keeps its mode lines apart: it logs its
+        -- own lines.
+        if not M.off then M.guarded('fishing',M.fishing.tick) end
+        -- The photo hunt's round and photo checks, after the inbox, which keeps its mode lines apart: it logs its own
+        -- lines.
+        if not M.off then M.guarded('photohunt',M.photohunt.tick) end
         -- One of ours for the native part, two a second at most; never logged. Alone in the lobby it stays on our
         -- screen only, with one notice until someone is linked.
         local typed=M.guarded('chat',M.chat.take,M.chat_clock)
@@ -114,12 +120,14 @@ if M.link then
             local own=photo~='0' -- Our photo or selfie mode: nothing of ours in the shot unless the settings say so.
             M.guarded('notice',M.notice.veil,own)
             M.guarded('ghost',M.puppet.photo,own and not M.settings.photo_ghost,own and not M.settings.photo_name_tag)
-            -- The solid partner, as the co-op menu last set it; never in an SBO session (design-lobby 12.7).
-            M.guarded('ghost',M.puppet.collide,M.settings.collide and not M.sbo.active())
+            -- The solid partner, as the co-op menu last set it; never in an SBO session (design-lobby 12.7). The
+            -- native part pushes enemies out of a ghost under the same rule (collide=0 in the state when false).
+            local solid=M.settings.collide and not M.sbo.active()
+            M.guarded('ghost',M.puppet.collide,solid)
             -- The host's cutscene rides the photo state as 'c', and the guest asks for its pause
             -- (online/group/group.lua).
             local line=M.link.state(world,M.settings.send_rate,M.group.photo(photo) or photo,M.settings.photo_sync,
-                M.settings.photo_freeze_max,title,M.group.cut(),M.settings.mod_names)
+                M.settings.photo_freeze_max,title,M.group.cut(),M.settings.mod_names,M.look.sounds,solid)
             if line then log('state: '..line) end
             local shown=world~=nil and world~=false and not own -- Our HUD: in a world, out of our own photos.
             M.hud_shown=shown
@@ -187,7 +195,7 @@ if M.link then
             -- check of the SBO session records at each title visit still runs then (design-lobby 12.8).
             local world,title=M.guarded('ghost',require('core.where').world)
             local line=M.link.state(world,M.settings.send_rate,'0',M.settings.photo_sync,M.settings.photo_freeze_max,
-                title,false,M.settings.mod_names)
+                title,false,M.settings.mod_names,M.look.sounds,M.settings.collide and not M.sbo.active())
             if line then log('state: '..line) end
         end
         -- Withdrawn when the ghost is off, coop off included.

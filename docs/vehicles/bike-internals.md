@@ -1,12 +1,12 @@
 # The bike: how it works
 
 The player page is [vehicles/bike.md](bike.md). The bike is `vehicles/bike/ride.lua` (the part, the checks, the mount
-and the dismount, the lean, the pose, the parked bike's place), `vehicles/bike/model.lua` (the riding model),
-`vehicles/bike/park.lua` (the parked bike's rules, its record and its line), `vehicles/bike/stand.lua` (the parked
-bike's actor), `vehicles/bike/paint.lua` (the paint for EVE's outfit), `vehicles/bike/others.lua` (the other players'
-parked bikes), `vehicles/bike/fetch.lua` (the paid fetch at Xion), `vehicles/bike/commands.lua` (`coop bike`) and the
-native part's `game/bike.h` with `vehicles/bike/bike_game.inc` and `bike_worker.inc` (the preload and the gate). It is
-not tested in game yet. The addresses are build 26123051's.
+and the dismount, the lean, the pose, the parked bike's place), `vehicles/bike/rig.lua` (the riding rig),
+`vehicles/bike/model.lua` (the riding model), `vehicles/bike/park.lua` (the parked bike's rules, its record and its
+line), `vehicles/bike/stand.lua` (the parked bike's actor), `vehicles/bike/paint.lua` (the paint for EVE's outfit),
+`vehicles/bike/others.lua` (the other players' parked bikes), `vehicles/bike/fetch.lua` (the paid fetch at Xion),
+`vehicles/bike/commands.lua` (`coop bike`) and the native part's `game/bike.h` with `vehicles/bike/bike_game.inc` and
+`bike_worker.inc` (the preload and the gate). It is not tested in game yet. The addresses are build 26123051's.
 
 ## The preload
 
@@ -26,9 +26,10 @@ loaded or failed; `+0x12` is `bCanceled`. Once it is set, each path is looked up
 the `TSharedPtr`'s own end: the strong count at `+8` down, at 0 the controller's `DestroyObject` (vtable `+0`), then the
 weak count at `+0xc` down, at 0 its deleting destructor (vtable `+8`).
 
-The clip must be one of EVE's clips in object path form (`game/anim.h`'s `path_ok`), so the ride's play later takes it.
-`Ride.CLIP` is the one place that names it. When the status line still reads `bike=off` 5 s after a `bike load`, the ask
-was lost on the way and the ride asks again. The same clip asked again while it is held (a new Lua load) does nothing.
+The clip must be one of EVE's clips in object path form (`game/anim.h`'s `path_ok`), so the hold's play later takes it.
+The rig finds the same object with `StaticFindObject` and never loads it from Lua. `Ride.CLIP` is the one place that
+names it. When the status line still reads `bike=off` 5 s after a `bike load`, the ask was lost on the way and the ride
+asks again. The same clip asked again while it is held (a new Lua load) does nothing.
 
 ## The part on EVE
 
@@ -69,28 +70,30 @@ With a place, the parked bike's rules come next ([Getting on at the parked bike]
 
 Then, in this order:
 
-1. `coop-bike.txt` (through `link.store`): EVE's object path, her main mesh's relative rotation and location. A file
-   this Lua load kept for her (a dismount that could not write her mesh back) gives the base instead, since her mesh may
-   still lean. A file that cannot be written refuses the mount.
+1. `coop-bike.txt` (through `link.store`): EVE's object path, her main mesh's relative rotation and location (seven
+   tab-separated fields). A file this Lua load kept for her (a dismount that could not write her mesh back) gives the
+   base instead, since her mesh may still lean. A file that cannot be written refuses the mount.
 2. `vehicles/bike/drive.lua`'s drive (the bike's copy of the races' `online/modes/race/drive.lua`) with
    `vehicles/bike/model.lua` (why `bike`). It keeps her movement component's `MaxAcceleration`, `GroundFriction`,
    `BrakingDecelerationWalking` and `BrakingFrictionFactor` in `coop-drive.txt`, then sets them to 0
    ([Driving](../online/modes/race-internals.md#driving)).
 3. `bike gate on` (below).
-4. `anim play <id> <clip> ride` (below).
+4. Her riding pose, the way `bike_pose` says ([The riding pose](#the-riding-pose)): the rig made, written to
+   `coop-bike.txt` as fields 8 and 9 and hooked, or `anim play <id> <clip> ride`.
 5. The part shown.
 
-A step that fails runs the dismount for what was done. The dismount runs backward: the part hidden, `anim stop`,
-`bike gate off`, the drive off, her main mesh's relative rotation and location written back (on the EVE she rode only),
-`coop-bike.txt` cleared unless that write failed. Each step runs in its own `pcall`; the log line names the ones that
-failed. The next Lua load replays `coop-bike.txt` at its first tick (`self.restore`): her mesh back on that EVE if she
-still is one, the part hidden. Her movement values come back through `coop-drive.txt` the same way. The native part
-turns the gate off and stops the clip itself at a new Lua load and at `coop off`.
+A step that fails runs the dismount for what was done. The dismount runs backward: the part hidden, the rig unhooked
+then removed or `anim stop`, `bike gate off`, the drive off, her main mesh's relative rotation and location written back
+(on the EVE she rode only), `coop-bike.txt` cleared unless that write failed. Each step runs in its own `pcall`; the log
+line names the ones that failed. The next Lua load replays `coop-bike.txt` at its first tick (`self.restore`): the rig
+of fields 8 and 9 released ([After Ctrl+R](#after-ctrlr)), her mesh back on that EVE if she still is one, the part
+hidden. Her movement values come back through `coop-drive.txt` the same way. The native part turns the gate off and
+stops the clip itself at a new Lua load and at `coop off`.
 
 Every 250 ms while she rides, the ride checks again and takes her off with the reason: a load or warp, a cutscene, an
 interaction, the move block, water, a custom mode, a lift or train, fishing, her life state 3 to 5, selfie mode, her EVE
-changed, the drive gone, or the gate not reading `on` 1 s after the mount. Combat, the air, a skill, aiming and the free
-camera do not take her off.
+changed, the drive gone, or the gate not reading `on` 1 s after the mount. The way of the pose adds its own checks ([The
+rig](#the-rig), [The hold](#the-hold)). Combat, the air, a skill, aiming and the free camera do not take her off.
 
 ## The gate
 
@@ -119,17 +122,144 @@ longer reads 0: SB wrote it during the ride, so SB's value stays. The log names 
 held, then the ones left as SB set them. When the controller the gate was made on is gone (a map change), its map went
 with it: nothing is written.
 
-## The riding clip
+## The riding pose
 
 SB has no clip of EVE driving a bike. The default is `eve_bikeSleepPose`
 (`/Game/Art/Character/PC/CH_P_EVE_01/Animation/event/G03/MV_SD20_AfterBruteBattle_Main/eve/`), her pose asleep as a
-passenger: 301 frames at 30 fps, no root motion. The ride asks `anim play <id> <clip> ride`: SB's by-path call
-`0x1420b7800` on slot 0 as [coop emote](../eve/eve-internals.md#emotes) plays, looped with count -1, priority 0, with
-the call's int 30 at 2. `PlayCustomAnim` keeps it at the slot's `+0x68` and turns her foot IK off over the blend-in
-through `0x1421119c0`, under the key `ASBCharacter::PlayCustomAnim_29770`, at priority 100. Only a call at priority 100
-or more can turn it back on. SB's stop (`0x1420b23f0`) does that only while the slot's `+0x68` still reads 1 or 2. When
-one of SB's clips takes slot 0, its own type replaces ours there, so SB's stop no longer turns her foot IK on. So once
-the ride's play is over without SB doing it (another clip took the slot, a replay was refused, or our stop found another
+passenger: 301 frames at 30 fps, no root motion, on `CH_P_EVE_01_Skeleton`. Two ways can show it: [the rig](#the-rig)
+and [the hold](#the-hold). They are both in the mod so they can be compared in game. The one that loses that test
+will be removed.
+
+`bike_pose` in `coop-settings.txt` picks the way at each mount: `rig` (the default) or `hold`. A change during a ride
+counts from the next mount. `core/link.lua` refuses any other word with its usual note and keeps `rig`. If another word
+still reaches the ride, it rides the rig and logs `bike_pose=<word> is neither rig nor hold: the rig` once. The co-op
+menu shows the setting under Options, Controls, after the bike's key: Riding pose (test), with Hidden copy (`rig`) and
+On EVE (`hold`). `coop bike status` names the way of the ride: `riding for <n> s (rig)`. The ride's log lines quoted
+in this section are in `UE4SS.log` after `[StellarCoop][BK] `. The native part's (`anim: ...`, `bike ride clip ...
+before ride play <n>`) are in `coop-link.log`.
+
+### The slot 0 bug
+
+Before the rig and the hold, the ride played the clip in EVE's custom animation slot 0 at priority 0, looped with
+count -1. SB plays its own clips into that slot. `ASBCharacter::PlayCustomAnim` (`0x1420b2d70`) keeps the slots, 0x70
+bytes each, at character `+0x21b8`. It compares priorities only while the slot plays (`+0x18`) and is locked: its byte
+`+0x34` set, or its time `+0x10` still below its end `+0x04` (`0x1420b303b..0x1420b3050`). A locked slot refuses a new
+play whose priority is strictly below the slot's `+0x30` (`COMISS` at `0x1420b3052`, then `JC`). A loop with a negative
+count gets `+0x04` = -1.0 (`0x1420b3840`), so the riding slot was never locked. Any play of SB's into slot 0 replaced
+the ride, whatever its priority.
+
+One of those plays is SB's turn toward a target: `FUN_142130a00` reads the `FixedTargetRotation` settings and calls
+`FUN_142037710` (at `0x142130ea9`), which calls `PlayCustomAnim` at `0x142037f0e` on slot 0 at priority 99.0 (the
+float at `0x14675034c`, stored as the 14th argument at `0x142037ec3`). While SB's clip held the slot, the ride's replay
+at priority 0 was refused too: the by-path entry `0x1420b7800` asks `0x1420b39b0` at `0x1420b7c78` whether the slot ran
+out (`+0x18` set, `+0x34` clear, `+0x04` at most `+0x10`), then refuses a priority below the slot's (`0x1420b7c81`).
+Three ends within 1 s took her off the bike.
+
+### The rig
+
+The rig adapts kwisatz's puppet ride in Eve Hoverbike ([his permission](#credits)). `vehicles/bike/rig.lua` makes a
+hidden actor that plays the clip. EVE's main mesh and her outfit parts copy its bones. The ride uses no custom
+animation slot of hers, so SB's plays and stops in slot 0 run on her animation blueprint, which nobody sees while she
+rides. The code says "rig" because `online/partner/puppet.lua` already owns the word "puppet".
+
+At the mount, `Rig.make` spawns `core/actors.lua`'s plain Actor at her location with no rotation. Its one
+`SkeletalMeshComponent` wears her body mesh, collision off. Then the actor is hidden (`SetActorHiddenInGame`). Its
+component gets `VisibilityBasedAnimTickOption` 0 (`AlwaysTickPoseAndRefreshBones`, value table `0x14665ff00`), so it
+still poses while hidden. It also gets `bDisableClothSimulation`, its tick on and `K2_AttachToComponent` to her main
+mesh with no socket and SnapToTarget for location, rotation and scale. Last comes `PlayAnimation(clip, true)`: the
+clip looped in single-node mode. The rig follows her main mesh, so her lean and pitch carry it.
+
+The rig wears her body mesh while that mesh is on the clip's skeleton (`USkeletalMesh.Skeleton`, `+0x88`, params
+`0x146650d80`; `UAnimationAsset.Skeleton`, `+0x38`, params `0x1464d5380`). Otherwise it wears SB's inner suit
+`CH_P_EVE_InnerSuit`, which is on the clip's skeleton. With neither, the mount fails with why. The rig's actor path and
+the path of the mesh it wears go to `coop-bike.txt` as fields 8 and 9, in a second write. That write failing fails the
+mount. The log says `bike rig made in <ms> ms wearing <mesh>: her body and <n> of <m> part(s) follow it`.
+
+The hook calls `SetMasterPoseComponent(rig, true)` on her main mesh, then on each follower. A follower is a skeletal
+mesh component of hers that has a mesh and hangs on her main mesh with no socket and no anim instance of its own
+(`AnimScriptInstance`), taken in address order. The bike part is left out by its address. `SetMasterPoseComponent`
+is native: its table entry `0x14665f180` names the thunk `0x144928a80`, which calls `0x144129240(this, leader, force)`.
+That function keeps the leader as a weak pointer at component `+0x570` (the reflected `MasterPoseComponent`, params
+`0x14665ddd8`). For a leader that is not null it walks up to the top of the leader's chain. It also moves the
+component's own followers to that leader. A null leader moves no follower back.
+
+The hook's call on her main mesh moves all its followers to the rig, also those the rule does not take. In
+`CH_P_EVE_01_Blueprint`, `SBPonytailShort` hangs on `CharacterMesh0` at socket `Bip001-Head`. SB's body slot code
+(`0x1424c12e0`) calls `0x144129240(part, body, 1)` on each slot part whose attach type is `Root` (0, value table
+`0x145e29840`; the part's `MeshSlotAttachType` at `+0x1341`). That call leaves the part on its socket.
+So the unhook first calls `SetMasterPoseComponent(nil, true)` on her main mesh. Then it points back at her main mesh
+each part of the hook's list that is still hers, each part of hers whose `MasterPoseComponent` is the rig and each
+follower she has now: each part once, each call in its own `pcall`. The log says `bike rig unhooked: <n> part(s) back
+to her body`, with the failed calls when there are any. Then the rig goes. With her EVE gone (a map change) nothing
+is called on her, since the world took the rig with it.
+
+Every 250 ms on the rig way, after the checks of every ride:
+
+- When the rig's actor is no longer the one made, she gets off: `Off the bike: the riding rig is gone`.
+- When her body mesh changed (an outfit change from SB's inventory, which a ride does not block), the ride picks the
+  mesh that fits the clip's skeleton as at the mount. When that is another mesh than the rig wears, the rig takes it
+  with `SetSkeletalMesh` and plays the clip again. Field 9 is written again. Then her body and every follower are hooked
+  again: `bike rig: her outfit changed to <mesh>: the rig wears <mesh>, ...`. With no mesh that fits, she gets off with
+  why.
+- When her main mesh's `MasterPoseComponent` no longer reads the rig, the ride hooks her again: `bike rig: her body had
+  left it: hooked again, ...`. A second time within 1 s ends the ride: `Off the bike: her body left the riding rig
+  twice within 1 s`.
+
+With `photo_pause=full`, photo mode pauses the world, so the rig holds its frame and her body with it. The photo menu's
+poses do not show on her while she rides the rig: her body copies the rig, not her animation blueprint. A dismount
+while a photo mode holds the world (ours, the selfie mode or the friend's photo mode that holds our game) unhooks at
+once. The rig stays until the first 250 ms pass with that mode closed (`bike rig kept until photo mode closes`, then
+`bike rig removed: photo mode closed`), at `bike=off` too. `coop off` stops the passes until the game restarts: a rig
+kept then stays hidden and unhooked until the map changes.
+A part that still follows a destroyed leader in a paused world stays broken until the world runs again (kwisatz's
+note). kwisatz's notes also say photo mode crashed his build once, on 2026-11-13, when it opened with her body on his
+copy. They give that crash two causes: a copy already destroyed, or a body with no bones of its own. A dismount never
+destroys the rig while photo mode is open. A Ctrl+R does ([After Ctrl+R](#after-ctrlr)), after it unhooks her. What
+photo mode reads of her own bones while she follows the rig was not read in Ghidra.
+
+`self.pose_source(at)` on the bike table is the rig's component while the EVE at address `at` rides the rig way, else
+nil. It makes no engine call. The capture in `online/partner` asks it at each look ([Ghosts](#ghosts)).
+
+### After Ctrl+R
+
+A rig stays in the world across a Lua load, with her body still on it. The next load's first tick reads fields 8 and 9
+of `coop-bike.txt`. `Rig.release` acts only while the actor at field 8's path has a `SkeletalMeshComponent` root that
+shows field 9's mesh (the test of `core/actors.lua`'s `sweep`). It unhooks her as a dismount does, with that root as
+the rig, then sweeps the rig: `bike rig from coop-bike.txt: <n> part(s) back to her body, swept`. Her mesh restore
+follows as for any ride. A file of seven fields, from a hold ride or an older build, releases nothing. One case is
+left: a dismount in photo mode, then Ctrl+R before photo mode closes, leaves that rig hidden and unhooked until the map
+changes.
+
+### The hold
+
+The hold keeps the clip on EVE's own mesh. The ride asks `anim play <id> <clip> ride`: SB's by-path call `0x1420b7800`
+on slot 0 as [coop emote](../eve/eve-internals.md#emotes) plays, looped with count -1, with the call's int 30 at 2
+(below). Two more arguments differ from the emote's (`game/anim.h`'s `play(loop, ride)`):
+
+- The 17th argument, `hold`, is 1. The by-path call hands it on as `PlayCustomAnim`'s 17th (`0x1420b7dea`,
+  `0x1420b7df1`), which writes it to the slot's byte `+0x34` (`0x1420b36e0`). The slot is then locked: `PlayCustomAnim`
+  compares priorities. The by-path entry's ran-out test `0x1420b39b0` is false.
+- The priority is `kRidePriority`, 100.5. It refuses every play of SB's into slot 0 below it: the 99.0 turn above, or
+  the play at `0x14206947a` when `0x1420692f5` sets its priority to 100.0 (`0x146750350`). Three plays at 101.0
+  (`0x146750358`) still replace the ride: `0x142094ff3` (the call coop emote copies), the end of a slide slip
+  (`0x14208303b`, in the function that reads `SlideSlipEndShowPath`) and `0x14206947a` with the 101.0 of
+  `0x1420690a2`.
+
+It stays below 101.0 because of one stop. In `FUN_1420634f0`, while her state passes the tests at
+`0x142063a3e..0x142063b25`, SB stops slot 0 when its priority is 101.0 or more (`COMISS` at `0x142063b32`), with the
+FName None (`0x140e4abf0` writes index 0; the stop is the call at `0x142063b6d`). `StopCustomAnim` (`0x1420b23f0`)
+compares the slot's clip name only for a name other than None (`0x1420b24a2`), so that stop would end any clip. A ride
+at 102 fell under it.
+
+SB's other stops of slot 0 still end the hold ride. `StopCustomAnim` compares no priority. It clears `+0x34` at
+`0x1420b253b`. SB's plays whose priority comes from game data were not read: one at 100.5 or more replaces the ride.
+While the hold keeps slot 0, SB's lower plays there do not show, such as the turn. SB's own logic goes on without them.
+
+`PlayCustomAnim` keeps the int 30 at the slot's `+0x68` and turns her foot IK off over the blend-in through
+`0x1421119c0`, under the key `ASBCharacter::PlayCustomAnim_29770`, at priority 100. Only a call at priority 100 or more
+can turn it back on. SB's stop (`0x1420b23f0`) does that only while the slot's `+0x68` still reads 1 or 2. When one of
+SB's clips takes slot 0, its own type replaces ours there, so SB's stop no longer turns her foot IK on. So once the
+ride's play is over without SB doing it (another clip took the slot, a replay was refused, or our stop found another
 clip there), the game thread does what SB's stop does. It does nothing when her foot IK is already on, or when the clip
 now in slot 0 is of type 1 or 2 (its own stop turns it on). Otherwise, when `0x142111440(character, 0)` allows it, it
 calls `0x1421119c0(character, "ASBCharacter::StopCustomAnim_29443", 1, 0.25, -1, 0, 0, 100)`. When it does not, it sets
@@ -138,9 +268,26 @@ says which (`anim: EVE's foot IK ...`). Before the play, the game thread looks t
 says whether it was in memory (`bike ride clip in memory before ride play <n>`) or whether SB's call loaded it.
 
 Every 250 ms the ride's pass reads the `anim=` word for its id in the status text it already has: no frame reads the
-file. When SB ends the clip, the ride plays it again at that pass,
-unless photo mode is open, a skill runs or a root-motion move plays. Three ends within 1 s take her off the bike: SB
-uses the slot.
+file. When SB ends the clip, the ride plays it again at that pass, unless photo mode is open, a skill runs or a
+root-motion move plays. Three ends within 1 s take her off the bike: `Off the bike: SB ended the riding clip 3 times
+within 1 s`.
+
+### kwisatz's notes, checked
+
+kwisatz's notes in Eve Hoverbike name runtime facts the rig depends on. These were checked for build 26123051:
+
+- In his build, `GetMovementBase` on EVE raised UE4SS's "the UObject instance is nullptr" right after a mount. In
+  Ghidra the only reflected `GetMovementBase` is `UCharacterMovementComponent`'s (table entry `0x14651a6d0`, thunk
+  `0x144720090`: its `CharacterOwner` at `+0x168`, then `BasedMovement.MovementBase` at `+0x340`). EVE's actor class
+  has none. The ride's floor test calls her movement component's.
+- His unhook calls each part back by itself. In Ghidra `0x144129240` moves no follower for a null leader, so the rig's
+  unhook does the same.
+- An outfit change relinks her parts to her main mesh. In Ghidra `0x144129240` walks up the leader's chain, so a part
+  linked to her main mesh while it follows the rig ends on the rig. A new body mesh is the 250 ms check above.
+- His spare body `CH_P_EVE_InnerSuit` is on `CH_P_EVE_01_Skeleton`, as `eve_bikeSleepPose` is. Both were read in the
+  game's paks.
+- His hidden copy poses with `VisibilityBasedAnimTickOption` 0. The value table `0x14665ff00` names 0
+  `AlwaysTickPoseAndRefreshBones`. How the engine poses a hidden leader with the other values was not read.
 
 ## Riding
 
@@ -386,6 +533,26 @@ first 250 ms pass removes it. While the bike module is off (it failed to load), 
 earlier Lua load left may still be on her: `online/partner/bike_part.lua`, the partner's own copy of the ride's part
 lookup, answers that part's address by its tag ([Modules and isolation](../dev/architecture.md#modules-and-isolation)).
 
+On the rig way her main mesh and the parts that followed it copy the rig's component, which is no part of hers.
+`online/partner/wiring.lua` gives `capture.pose_source` the ride's `pose_source` ([The rig](#the-rig)), which the
+capture asks once a look with her actor's address. A part of hers whose leader is that component is mapped. Her main
+mesh gets no leader. Any other part gets her main mesh as its leader. The table is then the one of the hold way, except
+part 0's `read` line, which names the rig's component (object, class, mesh). Part 0's bone count, bone names and morph
+names come from the rig's mesh too: the native part checks the rig's bone count (`+0x8c8`) against the table's. That
+mesh is her body mesh, or `Ride.SPARE` when her body is on another skeleton than the clip's. With the spare, the viewer
+draws part 0 by bone name, as for any mesh whose bone count differs from the table's (`online/partner/puppet.lua`). A
+change of the rig's component or of its mesh starts a new generation.
+
+The native `read_pose` (`game/partner/engine.h`) reads part 0's world transform (`+0x1f0`) and bones (`+0x8c0`, count
+`+0x8c8`) from part 0's `read` object: the rig's component. The rig is snapped to her main mesh, so both transforms
+should match. This was not checked in game. The native effect read walks the attach children of each leader's `read`
+object: effects hung on her main mesh do not reach the ghost while she rides this way. The native sound and world effect
+hooks (`online/partner/sound_game.inc`) take her actor as the owner of part 0's `read` object, which is the rig's actor
+on this way. A sound or world effect then counts as hers only when it hangs on another part of hers, plays from a notify
+of the rig's clip or belongs to her drone. Her other sounds and world effects do not reach the ghost. A pose source with
+no mesh gives no table. So does a rig that `pose_source` does not name (after Ctrl+R, before the release): the other
+players keep the table published before. On the hold way `pose_source` answers nil and the capture works as above.
+
 While she rides, the part has no `MasterPoseComponent`, so `capture.lua` ranks it with the leaders, ahead of every
 follower. With `MAX_PARTS` at 16, an EVE with 16 skeletal parts or more loses the last follower of her outfit from every
 ghost until she gets off. Over the pose size, `capture.lua` drops the last leader in `K2_GetComponentsByClass` order,
@@ -410,3 +577,9 @@ message on the link is the bike line ([The bike line](#the-bike-line)).
 Stellar Blade mod 4165](https://www.nexusmods.com/stellarblade/mods/4165)), used with his written consent of 2026-11-16
 under the SBO License 1.0 or any later version (see [NOTICE](../../NOTICE)). Each adapted function says so in its
 comment. No file of Eve On Wheels ships with Stellar Blade Online.
+
+`vehicles/bike/rig.lua` and the rig way in `vehicles/bike/ride.lua` adapt the puppet ride of Eve Hoverbike by kwisatz
+(GitHub sarojratul): a hidden copy that plays the pose while EVE's body and outfit parts copy its bones. He gave his
+written permission on 2026-11-20 to adapt that code into Stellar Blade Online under the SBO License 1.0 or any later
+version ([his comment on pull request 11](https://github.com/MotherSphere/stellar-blade-coop/pull/11#issuecomment-7047471384)).
+No file of Eve Hoverbike ships with Stellar Blade Online.

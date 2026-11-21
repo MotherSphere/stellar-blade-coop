@@ -202,10 +202,12 @@ fake_link={
     end,
     settings=function() return Link.parse_settings(pinned(settings_text)) end,
     -- The real one writes on a change only (link_test): this one says each call.
-    state=function(world,rate,photo,sync,max,title,cut,names)
+    state=function(world,rate,photo,sync,max,title,cut,names,sounds,collide)
         photos[#photos+1]=string.format('%s %s %s',photo,sync,max)
         gr.cuts[#gr.cuts+1]=cut
         state_names[#state_names+1]=names
+        state_sounds[#state_sounds+1]=sounds
+        state_collides[#state_collides+1]=collide
         states[#states+1]=string.format('world=%s rate=%d',world and '1' or title and 'title' or '0',rate)
         return states[#states]
     end,
@@ -249,11 +251,22 @@ fake_link.uidev=function() return link_uidev end
 fake_link.scores={}
 fake_link.take_score=function() return {} end
 fake_link.score=function(text) fake_link.scores[#fake_link.scores+1]=text; return true end
+-- link.take_dr() and link.dr(text), the same for the Doro race lines of a match round (fake_link.drs).
+fake_link.drs={}
+fake_link.take_dr=function() return {} end
+fake_link.dr=function(text) fake_link.drs[#fake_link.drs+1]=text; return true end
+-- link.take_mode(word), the lines of a mode of online sessions waiting (none in these tests), and
+-- link.mode_line(word, text), each sent in fake_link.modes as '<word> <text>'.
+fake_link.modes={}
+fake_link.take_mode=function() return {} end
+fake_link.mode_line=function(word,text) fake_link.modes[#fake_link.modes+1]=word..' '..text; return true end
 native_ok=nil
 captured,remoted={},nil
--- capture_leave_out: what main.lua gave the capture's leave_out (the bike's idle_part).
+-- capture_leave_out and capture_pose_source: what main.lua gave the capture's leave_out (the bike's idle_part) and
+-- pose_source (the bike's).
 fake_capture={tick=function(on) captured[#captured+1]=on; return true,'Capture 7: 3 parts' end,
-    yaw_delta=function() return 0 end,leave_out=function(f) capture_leave_out=f end}
+    yaw_delta=function() return 0 end,leave_out=function(f) capture_leave_out=f end,
+    pose_source=function(f) capture_pose_source=f end}
 capture_look=nil
 package.loaded['online.partner.capture']={new=function(publish,looks)
     assert(publish==(native_ok and fake_link.components or nil),'The capture publishes through the link, if any')
@@ -416,12 +429,12 @@ package.loaded['online.modes.nightop.run']={new=function(o)
             if nr.raise then error(nr.raise,0) end
         end}
 end}
--- The Doro look and probe (online/modes/race/doro.lua; doro_test tests them): what doro.new got (log, store), its calls
--- as words, its restores and ticks, what a tick says, a stop that raises; and the ghost's Doro mode as puppet.doro was
--- last given it, with what it answers.
+-- The Doro look and probe (online/modes/race/doro.lua; doro_test tests them): what doro.new got (o, its log and store),
+-- its calls as words, its restores and ticks, what a tick says, a stop that raises; and the ghost's Doro mode as
+-- puppet.doro was last given it, with what it answers.
 dr={calls={},restores=0,ticks=0}
 package.loaded['online.modes.race.doro']={new=function(o)
-    dr.log,dr.store=o.log,o.store
+    dr.o,dr.log,dr.store=o,o.log,o.store
     return {log=o.log,
         on=function() dr.calls[#dr.calls+1]='on'; if dr.no_eve then return false,'no EVE in the world' end
             return true,'look on' end,
@@ -585,12 +598,14 @@ end}
 -- The bike (vehicles/bike/ride.lua; vehicles/bike/ride_test tests it): what new got (o), the why of each toggle and
 -- stop, its steers, slows and restores, its tunes; whether she rides, what a toggle answers (answer: ok and a line;
 -- raise: an error), what a steer or a slow says (an end of the ride); what idle_part answers (idle_part), with the
--- address it got (idle_part_at); the last stop's why at its leave (left).
+-- address it got (idle_part_at); what pose_source answers (pose_source), with its address (pose_source_at); the last
+-- stop's why at its leave (left).
 bk={}
 package.loaded['vehicles.bike.ride']={new=function(o)
     bk.o=o
     return {riding=function() return bk.riding==true end,
         idle_part=function(at) bk.idle_part_at=at; return bk.idle_part end,
+        pose_source=function(at) bk.pose_source_at=at; return bk.pose_source end,
         toggle=function(why)
             bk.toggles[#bk.toggles+1]=why
             if bk.raise then error(bk.raise,0) end
@@ -976,17 +991,21 @@ USAGE='Use: coop puppet | host [public|friends|invitation|closed] | invite | lis
     ..'unblock <SteamID>|all | blocked | leave | '
     ..'match search|create <mode>|cancel|end|join <code>|leave | mute|unmute <SteamID> | '
     ..'status | report | mark [text] | where | near [metres] | travel host | loopback '
-    ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
-    ..'on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | '
+    ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look '
+    ..'[cloth|dyes|effects|drone|sounds|faces on|off] | cns [reset] | wear [<name>|off [hair|suit]] | '
+    ..'scene [emil|orcal|stop] | lines [<name>|stop] | '
     ..'emote [list|<name>|off] | bike [status|tune [<name> <value>]] | gun [status] | '
     ..'no [heal|rule|spawnpt|actor] | '
     ..'nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | '
     ..'challenge [<name>|stop] | '
     ..'scoreattack [status|pick <challenge>] | '
+    ..'fish [status|start [<minutes>]|stop] | '
+    ..'photohunt [start [<minutes>]|stop|try [<row> ...]|status] | '
     ..'recruiter [off] | '
     ..'gift [send <item> [count]|take [n]] | '
-    ..'race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|'
-    ..'spawn | quests on|off|status|probe|record|replay|force <number> | world on|off|status | scenes on|off|status | '
+    ..'race record <name>|cp|save [laps]|cancel|start <name>|quit|match [status|pick <track>] | '
+    ..'fight on|off|status|probe|test|record|replay|pilot|spawn | '
+    ..'quests on|off|status|probe|record|replay|force <number> | world on|off|status | scenes on|off|status | '
     ..'keys reset [<name>|all] | '
     ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
 
@@ -1025,6 +1044,8 @@ function load_main(with_native,no_folder,source)
     printed,handler,loops,asked,huds,sessions,ticks,active,withdrawn,captured,states={},nil,{},{},{},{},0,false,{},{},{}
     pausetabs,popup_asks={},{}
     state_names={} -- link.state's mod_names argument, each call.
+    state_sounds={} -- link.state's sounds look, each call.
+    state_collides={} -- link.state's collide (the solid partner on, outside an SBO session), each call.
     settles=0 -- link.settle() calls: the end of each 250 ms pass and the top of each frame.
     photos,veils,photo_veils={},{},{}
     queued,binds,the_notice,probe,probe_runs,probe_ticks={},{},nil,nil,{},0
@@ -1063,6 +1084,7 @@ function load_main(with_native,no_folder,source)
     em.o,em.cmds,em.restores,em.ticks,em.stops,em.says,em.active=nil,{},0,0,0,nil,nil
     bk.o,bk.riding,bk.toggles,bk.stops,bk.steers,bk.slows,bk.restores,bk.tunes,bk.left=nil,false,{},{},0,0,0,{},nil
     bk.answer,bk.raise,bk.says,bk.slow_says,bk.idle_part,bk.idle_part_at=nil,nil,nil,nil,nil,nil
+    bk.pose_source,bk.pose_source_at=nil,nil
     bo.o,bo.slows,bo.restores,bo.cleared=nil,0,0,nil
     dr.active,gl.active=nil,nil
     dn.o,dn.slows,dn.words=nil,{},{}
