@@ -37,6 +37,14 @@ if M.gunrounds then M.gunrounds.round=Nikke.ROUND end -- fight/gunmode/ammo.lua'
 M.gun=require('fight.gunmode.mode').new({log=log,settings=settings,words=M.words,stock=M.gunrounds or nil,
     store=M.link and M.link.store('coop-gun.txt'),
     notice=function(key) M.tell(function(w) return w.gun[key or 'rebuilding'] end) end,photo=M.photo_state,
+    -- The HUD entry's hook on SB's HUD Construct (fight/gunmode/ui/dpad.lua), once a Lua load. It raises when UE4SS
+    -- cannot hook the function. The hook stays registered while the module is off.
+    hook_hud=function(path,cb)
+        RegisterHook(path..':Construct',function(ctx)
+            if M.off_modules['fight.gunmode'] then return end
+            cb(ctx)
+        end)
+    end,
     -- An SBO match: a round of a match lobby in play (the link's match line), or the PvP test (coop pvp: the fight
     -- line's mode, on or waiting). The rifle stays away then (fight/gunmode/mode.lua's MATCH).
     match=function()

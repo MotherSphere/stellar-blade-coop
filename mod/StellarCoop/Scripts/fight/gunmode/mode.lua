@@ -159,13 +159,15 @@ end
 -- without the native part, so a Lua reload then cannot put back what an earlier load changed), photo (main/base.lua's photo_state; '0' when not given), busy (why another module holds EVE now, or nil:
 -- fight/gunmode/wiring.lua reads them), match (true while an SBO match runs: fight/gunmode/wiring.lua reads the link),
 -- stock (fight/gunmode/nikke.lua: the magazine loads from EVE's Bullet_Nikke rounds once its rows are in; nil: free
--- magazines, fight/gunmode/ammo.lua)}.
+-- magazines, fight/gunmode/ammo.lua), hook_hud (path, callback: a hook on the Construct of the widget class at path,
+-- registered by fight/gunmode/wiring.lua; nil: the HUD entry looks for the HUD every 10 s)}.
 function GunMode.new(env)
     local cfg=Config.DEFAULTS
     local set,bad=Config.from(env.settings)
     local spread=set.spread or cfg.spread -- degrees around the reticle point (gun_spread)
     local g={}
     function g.log(m) env.log(m) end
+    g.hook_hud=env.hook_hud -- (fight/gunmode/ui/dpad.lua's Construct hook on SB's HUD; raises when it fails)
     function g.words() return (env.words and env.words() or require('ui.text').en).gun end
     local function is_valid(o) return o:IsValid() end
     local function get_field(o,k) return o[k] end
