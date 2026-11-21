@@ -289,7 +289,10 @@ end
 -- Steam name, mod_assets() the assets our CNS packs declare and those of the mods both players have (path to
 -- outfit or container). capture gives yaw_delta(), the loopback's
 -- offset. say(text,en) puts a line on screen (en: the same in English); name_tag: the tag. look: what else the ghost
--- shows ({cloth=,dyes=,effects=,drone=,faces=true|false}, read at each build; nil: nothing more). words: the words for
+-- shows ({cloth=,dyes=,effects=,drone=,faces=true|false}, read at each build; nil: nothing more). The ghost bench's
+-- tiers (online/partner/bench.lua) add four keys, each nil for today's ghost: lod, the LOD forced on every part
+-- (SetForcedLOD's argument: 2 is LOD 1, past the mesh's LOD count its lowest); shadow=false, no part casts a shadow;
+-- basesuit=true, as coop basesuit; bare=true, a part with no fallback is left out. words: the words for
 -- the screen now (ui/text.lua's T.en or T.fr; English when nil). sentinel: online/partner/sentinel.lua's (none: nothing
 -- marked or set aside). solo: true while her vitals' zone type is a solo area (core/link.lua's Link.solo): her ghost
 -- stays hidden, as a Boss Challenge can sit on a story map (nil: never). slot: the ghost slot whose files link gives (0
@@ -653,6 +656,14 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel,solo,slot)
         -- lights use 1) and custom depth with stencil 10 (ESBCustomDepthStencilValue::PC). Each its own pcall: one
         -- refused leaves the others set, and is said once a build.
         local function light(target)
+            -- The bench's mid and far ghosts: no shadow (UPrimitiveComponent::SetCastShadow, exec 0x1448f0b20).
+            if look.shadow==false then
+                local ok,why=pcall(function() target:SetCastShadow(false) end)
+                if not (ok or g.shadowed) then
+                    g.shadowed=true
+                    notes[#notes+1]='shadow not turned off ('..tostring(why)..')'
+                end
+            end
             for _,set in ipairs({function() target:SetLightingChannels(true,true,false) end,
                 function() target:SetRenderCustomDepth(true) end,
                 function() target:SetCustomDepthStencilValue(10) end}) do
@@ -723,8 +734,11 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel,solo,slot)
             if lead then
                 target:SetMasterPoseComponent(lead.target,false)
                 target.bUseBoundsFromMasterPoseComponent=true -- No culling pops apart from its leader.
+                if look.lod then target:SetForcedLOD(look.lod) end
             else
-                target:SetForcedLOD(1) -- LOD 0 always: no pops as the ghost walks away.
+                -- LOD 0 always: no pops as the ghost walks away. A bench tier's look.lod instead: the exec
+                -- (0x14492ac00) takes an argument past the mesh's LOD count as that count, its lowest LOD.
+                target:SetForcedLOD(look.lod or 1)
                 g.leaders=g.leaders+1
             end
             g.base=g.base+(based and 1 or 0)
@@ -733,7 +747,7 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel,solo,slot)
         end
         -- A part of a mod's outfit not drawn on its own mesh: its outfit, for the notice (unless basesuit asked).
         local function missed(part)
-            if part.label and not basesuit and not g.missed[part.label] then
+            if part.label and not (basesuit or look.basesuit) and not g.missed[part.label] then
                 g.missed[part.label]=true
                 g.missed[#g.missed+1]=part.label
             end
@@ -773,7 +787,8 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel,solo,slot)
         local function dress(part)
             if part.lead and not g.parts[part.lead] then return left_out(part) end
             local base,why=fallback(part),'missing'
-            if basesuit and base then
+            if look.bare and not base then return left_out(part) end
+            if (basesuit or look.basesuit) and base then
                 why='replaced (basesuit)'
             elseif part.path then
                 -- Resolved and added in the same frame, so a freshly loaded mesh nothing holds yet cannot be collected
@@ -1139,6 +1154,12 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel,solo,slot)
     -- While a race drives: its top speed, so her Doro dashes, plays and leans by it as yours does; nil after.
     function self.drive(top) doro_top=top end
     function self.active() return wanted end
+    -- The main mesh while the ghost shows (the bench counts it drawn and asks it whether it was rendered); nil while it
+    -- is hidden or not built.
+    function self.body()
+        local g=ghost
+        if wanted and g and g.built and not g.hidden then return g.parts[0].target end
+    end
     function self.toggle()
         sweep()
         if wanted then

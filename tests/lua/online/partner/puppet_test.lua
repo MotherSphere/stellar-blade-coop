@@ -127,7 +127,7 @@ local function poseable(actor)
     function p:K2_IsCollisionEnabled() return self.calls.SetCollisionEnabled~=0 end
     function p:SetRenderCustomDepth(on) if fail_depth then error('no custom depth') end self.custom_depth=on end
     function p:SetCustomDepthStencilValue(v) self.stencil=v end
-    for _,f in ipairs({'SetCollisionEnabled','SetMasterPoseComponent','SetForcedLOD'}) do
+    for _,f in ipairs({'SetCollisionEnabled','SetMasterPoseComponent','SetForcedLOD','SetCastShadow'}) do
         p[f]=function(self,a) self.calls[f]=a end
     end
     function p:SetSkeletalMesh(m)
@@ -1853,6 +1853,49 @@ count=count+1
 ok,message=ghost.remote(974,count,'loopback')
 assert(ok and message=='Ghost 974 removed (a new table).',tostring(message))
 meshes[FACE].MorphTargets,meshes[HAIR].MorphTargets,meshes[PONY].MorphTargets=nil,nil,nil
+end
+
+-- The ghost bench's looks (online/partner/bench.lua's tiers). look.lod forces that LOD on every part, followers too;
+-- look.shadow=false turns each part's shadow off; look.basesuit draws the body and hair on the base suit; look.bare
+-- leaves out each part with no fallback, with its followers. Today's ghost: LOD 0 forced on the leaders alone, no
+-- shadow call. body(): the main mesh while the ghost shows, nil before its first pose and once off.
+do
+local function bench_build(look_of,generation)
+    ghost=new(nil,false,look_of)
+    ghost.toggle()
+    send(generation,her_parts())
+    ghost.tick()
+    clock=clock+2
+    local built_ok,line=build()
+    return built_ok,line,spawned[#spawned]
+end
+local a
+ok,message,a=bench_build({lod=2,shadow=false},980)
+assert(ok and #a.parts==6,message)
+for k,p in ipairs(a.parts) do
+    assert(p.calls.SetForcedLOD==2 and p.calls.SetCastShadow==false,'LOD 1 forced and no shadow: part '..k)
+end
+assert(ghost.body()==nil,'Hidden until the first pose: no body')
+a.mailbox.RelativeScale3D.Z=5
+a.mailbox.RelativeLocation={X=0,Y=0,Z=0}
+a.mailbox.RelativeRotation={Pitch=0,Yaw=0,Roll=0}
+ghost.place()
+assert(a.hidden==false and ghost.body()==a.parts[1],'Shown: its main mesh')
+ghost.toggle()
+assert(ghost.body()==nil,'Off: none')
+ok,message,a=bench_build({},981)
+assert(ok and #a.parts==6,message)
+for k,p in ipairs(a.parts) do
+    local leader=k==1 or k==3 or k==5
+    assert(p.calls.SetForcedLOD==(leader and 1 or nil) and p.calls.SetCastShadow==nil,'Today\'s ghost: part '..k)
+end
+ghost.toggle()
+ok,message,a=bench_build({lod=99,shadow=false,basesuit=true,bare=true},982)
+assert(ok and message:find('^Ghost 982 built: 2 parts %(2 leaders%), %d+ loaded in %d+ ms, 2 on the base suit, 4 left '
+    ..'out'),message)
+assert(#a.parts==2 and a.parts[1].mesh==meshes[BASE_BODY] and a.parts[2].mesh==meshes[BASE_HAIR],'Body and hair alone')
+assert(a.parts[1].calls.SetForcedLOD==99 and a.parts[2].calls.SetForcedLOD==99,'Its lowest LOD')
+ghost.toggle()
 end
 
 -- The solid partner (collide=on, on by default). Puppet.solid's rules a to g as a table, one case each, then the
