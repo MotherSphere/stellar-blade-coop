@@ -358,13 +358,20 @@ While the rifle is out, `UE4SS.log` has a `[GM]` line every 10 s: `perf: tick <a
 <n> ticks, Lua <heap> KB (lowest <low> KB), gun mode allocated at least <k> KB a tick; ms a tick:` and the six costliest
 parts of the tick, then `; KB a tick:` and the six parts that allocate the most. Each rifle out starts a new 10 s
 window: a line never counts a tick with the rifle away or one of the last rifle out. The heap is the Lua heap of the
-whole mod. Its lowest point over the 10 s goes up when something keeps memory. It also goes up when most of the garbage
-is UE4SS's objects. UE4SS makes one at each read of a game object and at each call of a game function. Lua frees such
-garbage one collection after it finds it, so each collection ends higher. In the second 2026-11-21 test the lowest point
-went from 18 MB to 124 MB in 6 minutes, while the tests' fake game shows no table of gun mode growing. A carried frame
-now reads 4 such objects and calls 16 game functions on that fake game (7 and 19 before). The heap went from 33 MB to
-223 MB in 8 minutes with the rifle out in the first 2026-11-21 test. The `on` and `off` lines end with the heap at that
-moment, so a rise while the rifle is away shows too.
+whole mod. It grows between two Lua collections and drops when one ends. The lowest point of a window is the heap's
+floor only when a collection ends inside it. A window with no collection end gives about the heap at its start: the
+floor plus garbage that nothing keeps. The floor goes up when something keeps memory. It also sits higher when most of
+the garbage is UE4SS's objects. UE4SS makes one at each read of a game object and at each call of a game function. Lua
+frees such garbage one collection after it finds it, so the heap at a collection's end still holds the garbage that
+collection found. In a 2026-11-21 test from 20:51 to 21:00 UTC, collections ended about every 40 s. The floor rose from
+about 31 MB to about 68 MB, then levelled: the last five collections ended at 67.4, 68.1, 68.2, 68.3 and 68.4 MB. The
+windows with no collection end gave lowest points up to 109 MB. In the second 2026-11-21 test the lowest point went from
+18 MB to 124 MB in 6 minutes, while the tests' fake game shows no table of gun mode growing. A carried frame now reads 4
+such objects and calls 16 game functions on that fake game (7 and 19 before). The heap went from 33 MB to 223 MB in 8
+minutes with the rifle out in the first 2026-11-21 test. The `on` and `off` lines end with the heap at that moment, so a
+rise while the rifle is away shows too. Gun mode leaves Lua's collector as UE4SS sets it. Do not lower its pause to
+bring the floor down: a lower pause tried on 2026-11-20 crashed UE4SS (an access violation in UE4SS.dll right after gun
+mode came on).
 
 ## coop gun
 

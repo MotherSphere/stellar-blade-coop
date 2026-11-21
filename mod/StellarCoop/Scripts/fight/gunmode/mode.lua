@@ -1927,14 +1927,16 @@ function GunMode.new(env)
     -- 10 s, with what gun mode's own ticks allocated (a collector step inside a tick hides its part of that tick: at
     -- least that much), then that allocation split by section, the six largest. The heap grew from 33 MB to 223 MB in
     -- 8 minutes with the rifle out (2026-11-21 test), with no figure from the rifle away or for gun mode's share: the
-    -- on and off lines give the heap too. Its lowest point rose from 18 MB to 124 MB in 6 minutes in the next test,
-    -- with gun mode allocating 20.6 KB a tick carried: the split names the sections that make that garbage. No table
-    -- of gun mode grew over thousands of ticks on the fake game, with a new object at each read as UE4SS makes one
-    -- (tests/lua/fight/gunmode/cost_test.lua 11b). The rise matches Lua 5.4's collector at its default pause (200)
-    -- when nearly all the garbage has a finalizer, as UE4SS's objects have: such garbage outlives the cycle that finds
-    -- it, so each cycle's floor holds the last cycle's garbage. A model of that climbs as the square root of time (114
-    -- MB at 6 minutes for that test's figures). A frame that makes fewer objects slows the climb. A lower pause would
-    -- stop it, for the whole mod: not set here (a changed collector crashed UE4SS once, above).
+    -- on and off lines give the heap too. Its lowest went from 18 MB to 124 MB in 6 minutes in the next test, with
+    -- gun mode allocating 20.6 KB a tick carried: the split names the sections that make that garbage. No table of
+    -- gun mode grew over thousands of ticks on the fake game, with a new object at each read as UE4SS makes one
+    -- (tests/lua/fight/gunmode/cost_test.lua 11b). The lowest is the heap's floor only when a collection cycle ends in
+    -- those 10 s. With no cycle end it is about the heap at the window's start: the floor plus garbage that nothing
+    -- keeps. In a test on 2026-11-21 from 20:51 to 21:00 UTC, cycles ended about every 40 s. The floor rose from about
+    -- 31 MB to about 68 MB, then levelled: 67.4, 68.1, 68.2, 68.3 and 68.4 MB at the last five cycle ends. The windows
+    -- with no cycle end gave lowests up to 109 MB. Lua 5.4's default pause is 200. Garbage with a finalizer, as
+    -- UE4SS's objects have, outlives the cycle that finds it, so each cycle's floor holds the last cycle's garbage. Do
+    -- not lower the pause to bring the floor down: a changed collector crashed UE4SS once (above).
     local sec,smax,mem,last,last_kb={},{},{},0,0
     -- A new window: after each perf line and at each rifle out (enable).
     s.perf_new=function() s.perf=nil; sec={}; smax={}; mem={} end
