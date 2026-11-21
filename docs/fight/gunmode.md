@@ -335,7 +335,8 @@ test (36 ms).
 
 While the rifle is out, `UE4SS.log` has a `[GM]` line every 10 s: `perf: tick <average> ms average, <worst> ms worst,
 <n> ticks, Lua <heap> KB (lowest <low> KB), gun mode allocated at least <k> KB a tick; ms a tick:` and the six
-costliest parts of the tick. The heap is the Lua heap of the whole mod. Its lowest point over the 10 s goes up when
+costliest parts of the tick, then `; KB a tick:` and the six parts that allocate the most. The heap is the Lua heap of
+the whole mod. Its lowest point over the 10 s goes up when
 something keeps memory. The heap went from 33 MB to 223 MB in 8 minutes with the rifle out in the 2026-11-21 test. The
 `on` and `off` lines end with the heap at that moment, so a rise while the rifle is away shows too.
 

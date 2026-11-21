@@ -1889,30 +1889,44 @@ function GunMode.new(env)
     -- (access violation in UE4SS.dll right after gun mode came on). The stutters are cut at their source instead: less
     -- garbage a frame. The line also gives the Lua heap of the whole mod now and its lowest at a tick's end in those
     -- 10 s, with what gun mode's own ticks allocated (a collector step inside a tick hides its part of that tick: at
-    -- least that much). The heap grew from 33 MB to 223 MB in 8 minutes with the rifle out (2026-11-21 test), with no
-    -- figure from the rifle away or for gun mode's share: the on and off lines give the heap too.
-    local sec,smax,last={},{},0
-    s.prof=function(name) local t=os.clock(); local d=t-last; sec[name]=(sec[name] or 0)+d; if d>(smax[name] or 0) then smax[name]=d end; last=t end
+    -- least that much), then that allocation split by section, the six largest. The heap grew from 33 MB to 223 MB in
+    -- 8 minutes with the rifle out (2026-11-21 test), with no figure from the rifle away or for gun mode's share: the
+    -- on and off lines give the heap too. Its lowest point rose from 18 MB to 124 MB in 6 minutes in the next test,
+    -- with gun mode allocating 20.6 KB a tick carried: the split names the sections that make that garbage.
+    local sec,smax,mem,last,last_kb={},{},{},0,0
+    s.prof=function(name)
+        local t,kb=os.clock(),collectgarbage('count')
+        local d,a=t-last,kb-last_kb
+        sec[name]=(sec[name] or 0)+d; if d>(smax[name] or 0) then smax[name]=d end
+        if a>0 then mem[name]=(mem[name] or 0)+a end
+        last,last_kb=t,kb
+    end
+    -- The six largest of a section table as 'name value', the value scaled by k.
+    local function top(t,k,fmt)
+        local parts={}
+        for name,v in pairs(t) do parts[#parts+1]={name,v} end
+        table.sort(parts,function(a,b) return a[2]>b[2] end)
+        local txt={}
+        for i=1,math.min(6,#parts) do txt[#txt+1]=fmt(parts[i][1],parts[i][2]*k) end
+        return table.concat(txt,', ')
+    end
     local function perf(t0,dt,kb)
         local heap=collectgarbage('count')
         local pf=s.perf or {n=0,sum=0,max=0,at=t0,kb=0,low=heap}; s.perf=pf
         pf.n,pf.sum,pf.max,pf.kb,pf.low=pf.n+1,pf.sum+dt,math.max(pf.max,dt),pf.kb+math.max(0,kb),math.min(pf.low,heap)
         if t0-pf.at<10 then return end
-        local parts={}
-        for k,v in pairs(sec) do parts[#parts+1]={k,v} end
-        table.sort(parts,function(a,b) return a[2]>b[2] end)
-        local txt={}
-        for i=1,math.min(6,#parts) do txt[#txt+1]=('%s %.2f (worst %.1f)'):format(parts[i][1],parts[i][2]/pf.n*1000,(smax[parts[i][1]] or 0)*1000) end
-        g.log(('perf: tick %.2f ms average, %.2f ms worst, %d ticks, Lua %.0f KB (lowest %.0f KB), gun mode allocated at least %.1f KB a tick; ms a tick: %s'):format(
-            pf.sum/pf.n*1000,pf.max*1000,pf.n,heap,pf.low,pf.kb/pf.n,table.concat(txt,', ')))
-        s.perf=nil; sec={}; smax={}
+        local ms=top(sec,1000/pf.n,function(name,v) return ('%s %.2f (worst %.1f)'):format(name,v,(smax[name] or 0)*1000) end)
+        local kbs=top(mem,1/pf.n,function(name,v) return ('%s %.1f'):format(name,v) end)
+        g.log(('perf: tick %.2f ms average, %.2f ms worst, %d ticks, Lua %.0f KB (lowest %.0f KB), gun mode allocated at least %.1f KB a tick; ms a tick: %s; KB a tick: %s'):format(
+            pf.sum/pf.n*1000,pf.max*1000,pf.n,heap,pf.low,pf.kb/pf.n,ms,kbs))
+        s.perf=nil; sec={}; smax={}; mem={}
     end
 
     -- The tick main/frame.lua runs each frame. Nothing at all with gun_mode=off.
     function self.tick()
         if not set.on or s.dead then return end
         local t0=os.clock(); last=t0
-        local kb=collectgarbage('count')
+        local kb=collectgarbage('count'); last_kb=kb
         local ok,e=pcall(tick)
         if not ok and s.errors<5 then s.errors=s.errors+1; g.log('error: '..tostring(e)) end
         if s.on then perf(t0,os.clock()-t0,collectgarbage('count')-kb) end

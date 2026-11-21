@@ -491,12 +491,15 @@ do
     frames(gun,600)
     Journal.line=line
     assert(built==0,built..' journal lines built in 10 s carried')
-    local perf,on
+    local perf,on,split
     for _,m in ipairs(logs) do
         perf=perf or m:match('^perf: .* Lua %d+ KB %(lowest %d+ KB%), gun mode allocated at least [%d.]+ KB a tick; ')
         on=on or m:match('^on %(command%), ms: .*; Lua %d+ KB$')
+        -- the allocation split by section too, the largest first (which part of the tick makes the garbage)
+        split=split or m:match('^perf: .*; KB a tick: ([%w_]+ [%d.]+, [%w_]+ [%d.]+)')
     end
     assert(perf and on,'the perf and on lines give the heap')
+    assert(split,'the perf line splits the allocation by section')
     clock=clock+1; gun.toggle_now(); frames(gun,60)
     assert(logs[#logs-1]:match('^off %(command%), %d+ shots, Lua %d+ KB$'),logs[#logs-1])
 end
