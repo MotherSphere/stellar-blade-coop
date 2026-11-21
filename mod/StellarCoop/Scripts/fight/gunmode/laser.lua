@@ -9,7 +9,11 @@
 -- laser(pawn, gun, mathlib) -> update(target), cleanup.
 -- gun mode: the laser starts at each aim and at each reload's end. Its five objects were looked up at each start (five
 -- walks of the object array, about 100-150 ms: a hitch on every press). They are kept here for the game run, each
--- checked against its path at the next start (an asset can be collected and its address reused).
+-- checked against its path at the next start (an asset can be collected and its address reused). gun mode: an asset
+-- (load) is looked for by the engine's name hash (core/unreal.lua's object_at, never a load), not by UE4SS's
+-- StaticFindObject, which walks the whole object array for a path not in memory; StaticFindObject before that soft
+-- path is proven.
+local U=require('core.unreal')
 local kept,socket,tag={},nil,nil
 local function find(path,load)
  local o=kept[path]
@@ -17,7 +21,9 @@ local function find(path,load)
   local ok,full=pcall(function() return o:GetFullName() end)
   if ok and type(full)=='string' and full:match('^%S+ (.+)$')==path then return o end
  end
- o=StaticFindObject(path)
+ local ok,x,known=false,nil,nil
+ if load then ok,x,known=pcall(U.object_at,path) end
+ if ok and known~=nil then o=x else o=StaticFindObject(path) end
  if load and (not o or not o:IsValid()) then o=LoadAsset(path) end
  kept[path]=o
  return o

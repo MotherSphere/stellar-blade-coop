@@ -13,6 +13,8 @@ local function isv(o) return o:IsValid() end
 local function valid(o) if o==nil then return false end local ok,r=pcall(isv,o); return ok and r==true end
 -- The rifle component's tag, so the next Lua load finds a rifle this one left on her (sweep).
 Rifle.TAG='SBO_Gun'
+-- The NIKKE rifle's mesh (kept for the game run: fight/gunmode/mode.lua asks the keep for it).
+Rifle.WEAPON='/Game/DLC_2/Art/Character/Weapon/Gun/CH_G_Nikke_01/GunNikke_Weapon.GunNikke_Weapon'
 
 -- The grip: the rifle in her right hand (Bip001-R-Hand) as the pak's animations were made with it (Blender
 -- ngm_bl_rifle1: the NIKKE shot's grip, the barrel through her support hand). UE units (cm), the bone's frame.
@@ -33,8 +35,9 @@ Rifle.GRIPS.aimdown=Rifle.GRIPS.aim
 Rifle.TURN_MAX,Rifle.EASE_IN=6,0.15
 local function qmul(a,b) return require('fight.gunmode.ik').math.qmul(a,b) end
 
--- laser: fight/gunmode/laser.lua's function (pawn, rifle, mathlib) -> beam(target), finish().
-function Rifle.new(laser,trace,grip)
+-- laser: fight/gunmode/laser.lua's function (pawn, rifle, mathlib) -> beam(target), finish(). loaded: the mesh while it
+-- is in memory (fight/gunmode/mode.lua's g.loaded, with no walk), else nil: LoadAsset then.
+function Rifle.new(laser,trace,grip,loaded)
     local function crumb(t) if trace then trace('crumb '..t) end end
     local self={single=true}
     local st -- the running state: {pawn, src, gun, held, target, beam, finish, reload...}
@@ -49,7 +52,7 @@ function Rifle.new(laser,trace,grip)
         local pawn=pc.Pawn
         local src=pawn.Mesh
         assert(valid(src),'no body mesh')
-        local weapon=assert(LoadAsset('/Game/DLC_2/Art/Character/Weapon/Gun/CH_G_Nikke_01/GunNikke_Weapon.GunNikke_Weapon'))
+        local weapon=assert(loaded and loaded(Rifle.WEAPON) or LoadAsset(Rifle.WEAPON))
         local id={Rotation={X=0,Y=0,Z=0,W=1},Translation={X=0,Y=0,Z=0},Scale3D={X=1,Y=1,Z=1}}
         local gun=pawn:AddComponentByClass(StaticFindObject('/Script/Engine.SkeletalMeshComponent'),true,id,true)
         assert(valid(gun),'rifle component')

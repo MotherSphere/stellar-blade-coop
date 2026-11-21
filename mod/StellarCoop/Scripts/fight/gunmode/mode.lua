@@ -27,6 +27,7 @@ local Ammo=require('fight.gunmode.ammo')
 local Overlay=require('fight.gunmode.overlay')
 local Journal=require('fight.gunmode.journal')
 local U=require('core.unreal')
+local Keep=require('core.keep')
 local Morph=require('fight.gunmode.morph')
 local Dpad=require('fight.gunmode.ui.dpad')
 
@@ -38,6 +39,10 @@ local GunMode={}
 -- matchmaking or go back to single play. The only zone event gun mode fires: kind 2 on the shot's row
 -- (Data.row('Fire'), read at the call: arm() can borrow a spare NIKKE row in its place).
 local ATTACH_ACTOR_EFFECT=2
+-- The aim camera's modifier class (BP_NGM_CamMod in the layer pak) and the aim stance's turn clips (a big turn from
+-- standing in hip fire): kept for the game run with the other assets (GunMode.new).
+local CAMMOD='/Game/Mods/NGM/BP_NGM_CamMod.BP_NGM_CamMod_C'
+local function turn_clip(nm) return '/Game/Art/Character/PC/CH_P_EVE_01/Animation/'..nm..'.'..nm end
 function GunMode.allowed(kind,name) return kind==ATTACH_ACTOR_EFFECT and name~=nil and name==Data.row('Fire') end
 local function find_name(t) return FName(t,EFindName.FNAME_Find) end -- None (index 0) when not a name yet.
 local function zone_event(kind,name)
@@ -178,17 +183,30 @@ function GunMode.new(env)
         if g.valid(o) then found[path]=o; return o end
         missed[path]=os.clock()+1.0
     end
-    -- An asset (/Game, /Engine) by its path, loaded when missing. The reference is kept and checked against its path at
-    -- each use: nothing of the game may hold the asset, so the engine can collect it. Another object can then sit at
-    -- the freed address and pass IsValid. One GetFullName per use instead of StaticFindObject's walk of the object
-    -- array (25-35 ms a miss, core/unreal.lua) at each shot, turn or morph. nil when it cannot be found or loaded, and
-    -- then nil for 5 s without a walk.
+    -- An asset (/Game, /Engine) while it is in memory, else nil, with no walk of the object array: the keep's
+    -- (core/keep.lua: loaded off the frame and held for the game run), else the engine's name hash through the soft
+    -- path (core/unreal.lua's object_at: FSoftObjectPath::ResolveObject 0x142b82f40 calls StaticFindObject
+    -- 0x142b957b0, whose ResolveName 0x142b96d70 is asked not to create, so it never loads, on 26123051). UE4SS's
+    -- StaticFindObject walked the whole array for each asset not in memory (25-35 ms): the first rifle out on a map
+    -- froze the game 100 to 340 ms (2026-11-21 test). Before the soft path is proven (no pawn yet), or where it
+    -- fails, StaticFindObject as before.
+    function g.loaded(path)
+        local o=Keep.serves(path) and Keep.get(path) or nil
+        if g.valid(o) then return o end
+        local ok,x,known=pcall(U.object_at,path,g.pc())
+        if not (ok and known~=nil) then x=StaticFindObject(path) end
+        if g.valid(x) then return x end
+    end
+    -- An asset by its path, loaded when missing. The reference is kept and checked against its path at each use:
+    -- nothing of the game may hold the asset, so the engine can collect it. Another object can then sit at the freed
+    -- address and pass IsValid. One GetFullName per use at each shot, turn or morph. nil when it cannot be found or
+    -- loaded. A miss is not looked for again for 5 s.
     local assets,asset_missed={},{}
     function g.asset(path)
         local o=assets[path]
         if o and g.path(o)==path then return o end
         if (asset_missed[path] or -1)>os.clock() then return nil end
-        o=StaticFindObject(path)
+        o=g.loaded(path)
         if not g.valid(o) then o=g.try(function() return LoadAsset(path) end) end
         if g.valid(o) then assets[path]=o; return o end
         assets[path]=nil; asset_missed[path]=os.clock()+5.0
@@ -214,12 +232,21 @@ function GunMode.new(env)
     -- The rifle: with the rifle layer or the rifle clips alone (zNGMSpike_P), fight/gunmode/rifle.lua (the rifle in her
     -- real hand; the rifle clips play on her real body); without them, Luke's posed stance (fight/gunmode/stance.lua).
     local posed=Stance.new(Laser,set.trace and g.log or nil)
-    local single=Rifle.new(Laser,set.trace and g.log or nil)
+    local single=Rifle.new(Laser,set.trace and g.log or nil,nil,g.loaded)
     local stance=posed
     local probe=set.probe and Probe.new(g)
     -- The rifle layer (fight/gunmode/overlay.lua: ABP_NGM_Spike in zNGMSpike_P) plays the rifle clips on her arms over
     -- her own finished pose; nothing of her main animation, springs or outfit physics is touched.
     local layer=Overlay.new(g)
+    -- The assets of the rifle out, the aim, the rounds and the reload, asked of the keep (g.loaded): none is looked for
+    -- or loaded on the frame of a press. Nothing with gun_mode=off.
+    if set.on then
+        local want={Overlay.CLASS,Overlay.CLIPS.carry,Overlay.CLIPS.aim,Overlay.CLIPS.aimup,Overlay.CLIPS.aimdown,
+            Rifle.WEAPON,CAMMOD,cfg.cube_mesh,cfg.muzzle_fx,cfg.morph_fx,turn_clip('P_Eve_Gun_RotateLw'),
+            turn_clip('P_Eve_Gun_RotateRw')}
+        for _,e in ipairs(cfg.reload_sounds) do want[#want+1]=e[1] end
+        Keep.want(want)
+    end
     local keys=Input.state()
     local self={}
     local s={hidden={},followed={},on=false,pause=0,next_shot=0,shots=0,zoom=0,zoom_held=false,target=nil,cam=nil,mask=nil,
@@ -566,6 +593,24 @@ function GunMode.new(env)
     -- None near her: none for the rest of this rifle out (s.drone false). A rifle out within DRONE_WAIT s of that miss
     -- looks once the wait is over. A new controller looks at once.
     local DRONE,DRONE_WAIT='CH_Drone_BP_C',10
+    -- The drones in her world: once the first walk has given the drone's class (its path, for the Lua load), the
+    -- engine's class hash (core/unreal.lua's class_at, then actors_of: GetAllActorsOfClass, exec 0x144773110 on
+    -- 26123051, lists them through ForEachObjectOfClass 0x142ba5920) instead of FindAllOf's walk (32 ms at a rifle out,
+    -- 2026-11-21 test). That class not in memory: no drone. Anything that fails walks as before.
+    local drone_class
+    local function drones()
+        if drone_class then
+            local pc=g.pc()
+            local ok,cls=pcall(U.class_at,drone_class,pc)
+            if ok and not g.valid(cls) then return {} end
+            local ok2,list=false,nil
+            if ok then ok2,list=pcall(U.actors_of,cls,DRONE,pc) end
+            if ok2 and type(list)=='table' then return list end
+        end
+        local all=g.try(function() return FindAllOf(DRONE) end) or {}
+        if not drone_class and all[1] then drone_class=g.path(g.try(function() return all[1]:GetClass() end)) end
+        return all
+    end
     local function hide_drone(p,now)
         if s.drone==false or (s.drone and g.valid(s.drone.actor)) or now<(s.drone_wait or -1) then return end
         local best,best_d
@@ -577,8 +622,8 @@ function GunMode.new(env)
         local kq=k and g.valid(k.actor) and g.try(function() return k.actor:GetFullName() end)==k.name
             and g.try(function() return k.actor:K2_GetActorLocation() end)
         local near=kq and (kq.X-loc.X)^2+(kq.Y-loc.Y)^2+(kq.Z-loc.Z)^2<3000*3000
-        if not near then s.drone_keep=nil end -- gone, another actor now, or far from her: every drone walked again
-        local all=near and {k.actor} or g.try(function() return FindAllOf(DRONE) end) or {}
+        if not near then s.drone_keep=nil end -- gone, another actor now, or far from her: every drone listed again
+        local all=near and {k.actor} or drones()
         for _,d in ipairs(all) do
             local q=g.valid(d) and g.try(function() return d:K2_GetActorLocation() end)
             if q then
@@ -1071,7 +1116,7 @@ function GunMode.new(env)
         s.resume,s.free_at=false,nil -- (a press wins over the comeback after an interaction)
         -- Parked while it is rebuilt: the toggle says so on screen and nothing else of gun mode runs (no rows taken,
         -- no rifle, no posed copy).
-        if cfg.enabled==false and not Overlay.available() then
+        if cfg.enabled==false and not Overlay.available(g.loaded) then
             if s.on then disable(why) end
             g.log('toggle ('..why..'): gun mode is being rebuilt, off')
             notice(now)
@@ -1626,10 +1671,9 @@ function GunMode.new(env)
                     -- class again each frame
                     s.cmod_fail=true
                     local cm=pc.PlayerCameraManager
-                    local path='/Game/Mods/NGM/BP_NGM_CamMod.BP_NGM_CamMod_C'
-                    local cls=StaticFindObject(path)
+                    local cls=g.loaded(CAMMOD)
                     if not g.valid(cls) then
-                        cls=g.find('/Script/AssetRegistry.Default__AssetRegistryHelpers'):GetAsset({ObjectPath=FName(path)})
+                        cls=g.find('/Script/AssetRegistry.Default__AssetRegistryHelpers'):GetAsset({ObjectPath=FName(CAMMOD)})
                     end
                     -- (APlayerCameraManager's AddNewCameraModifier: exec 0x1448d37d0 on 26123051)
                     if g.valid(cls) then s.cmod=cm:AddNewCameraModifier(cls); s.cmod_k=0 end
@@ -1715,8 +1759,7 @@ function GunMode.new(env)
                         s.shuffle_at=now
                         pcall(function()
                             local nm=(s.chest.Yaw or 0)<0 and 'P_Eve_Gun_RotateLw' or 'P_Eve_Gun_RotateRw'
-                            local path='/Game/Art/Character/PC/CH_P_EVE_01/Animation/'..nm..'.'..nm
-                            local seq=g.asset(path)
+                            local seq=g.asset(turn_clip(nm))
                             s.slot_name=s.slot_name or FName('DefaultSlot')
                             if seq then p.Mesh:GetAnimInstance():PlaySlotAnimationAsDynamicMontage(seq,s.slot_name,0.1,0.15,1.0,1,-1,0)
                                 s.shuffles=(s.shuffles or 0)+1

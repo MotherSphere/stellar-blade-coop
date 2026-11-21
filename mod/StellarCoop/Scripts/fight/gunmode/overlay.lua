@@ -30,10 +30,11 @@ Overlay.CLIPS={ carry=POSE:format('CarryLowReady','CarryLowReady'), aim=POSE:for
     aimup=POSE:format('AimUp45','AimUp45'), aimdown=POSE:format('AimDown45','AimDown45'),
     reload=POSE:format('CarryLowReady','CarryLowReady'), nikke=SHOOT_IDLE, nikke_reload=RELOAD }
 
--- the layer's class is loadable (zNGMSpike_P is installed)
-function Overlay.available()
+-- the layer's class is loadable (zNGMSpike_P is installed). loaded: the class while it is in memory, with no walk
+-- (fight/gunmode/mode.lua's g.loaded); StaticFindObject without it.
+function Overlay.available(loaded)
     local ok,r=pcall(function()
-        local o=StaticFindObject(Overlay.CLASS)
+        local o=(loaded or StaticFindObject)(Overlay.CLASS)
         if o and o:IsValid() then return true end
         o=StaticFindObject('/Script/AssetRegistry.Default__AssetRegistryHelpers'):GetAsset({ObjectPath=FName(Overlay.CLASS)})
         return o~=nil and o:IsValid()
@@ -53,16 +54,23 @@ function Overlay.new(g)
     -- path -> object, checked by its path before each use. Nothing of gun mode holds the clips across a map change.
     -- Another object can then sit at a freed address and pass IsValid.
     local found={}
+    -- An asset in memory, with no walk of the object array (fight/gunmode/mode.lua's g.loaded: the keep, else the
+    -- engine's name hash), else nil.
+    local function loaded(path)
+        if g.loaded then return g.loaded(path) end
+        local o=StaticFindObject(path)
+        if valid(o) then return o end
+    end
     local function find(path)
         local c=found[path]; if c and valid(c) and path_of(c)==path then return c end
-        local o=StaticFindObject(path)
+        local o=loaded(path)
         if valid(o) then found[path]=o; return o end
         local ok,r=pcall(function()
             return StaticFindObject('/Script/AssetRegistry.Default__AssetRegistryHelpers'):GetAsset({ObjectPath=FName(path)})
         end)
         if ok and valid(r) then found[path]=r; return r end
         pcall(LoadAsset,path)   -- base-game assets
-        o=StaticFindObject(path)
+        o=loaded(path)
         if valid(o) then found[path]=o; return o end
         return nil
     end
@@ -80,7 +88,9 @@ function Overlay.new(g)
     local function pp_of(mesh) local pp=g.try(function() return mesh:GetPostProcessInstance() end); return valid(pp) and pp or nil end
     local function rebuild(mesh,sk,cls)
         local mine=path_of(sk); local base
-        for _,b in ipairs(Overlay.BASES) do if b~=mine then base=find(b); if base then break end end end
+        -- a body already in memory first: no body loaded on the frame of the press
+        for _,b in ipairs(Overlay.BASES) do if b~=mine and not base then base=loaded(b) end end
+        for _,b in ipairs(Overlay.BASES) do if b~=mine and not base then base=find(b) end end
         if not valid(base) then return false,'no other body to rebuild with' end
         sk.PostProcessAnimBlueprint=cls
         mesh:SetSkeletalMesh(base,false); mesh:SetSkeletalMesh(sk,false)

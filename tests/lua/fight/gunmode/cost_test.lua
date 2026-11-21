@@ -12,6 +12,7 @@ local Fake=dofile('tests/lua/fight/gunmode/fake.lua')
 package.loaded['fight.gunmode.laser']=function() return function() end,function() end end
 local GunMode=require('fight.gunmode.mode')
 local Overlay=require('fight.gunmode.overlay')
+local Rifle=require('fight.gunmode.rifle')
 local clock=100
 os.clock=function() return clock end
 local function frames(gun,n) for _=1,n do clock=clock+1/60; gun.tick() end end
@@ -319,6 +320,99 @@ do
     frames(gun,60)
     assert(ticks==60,ticks..' facts ticks in 60 frames')
     package.loaded['fight.gunmode.facts']=nil
+end
+
+-- 9. The first rifle out on a map froze the game 100 to 340 ms (2026-11-21 test): each asset not in memory was looked
+--    for with UE4SS's StaticFindObject (a walk of the object array) and some were loaded on the frame. With the soft
+--    path proven and the keep holding gun mode's assets, the rifle out, its arrival, the aim, the rounds through a
+--    reload and the departure look for no asset with StaticFindObject (SB's data tables aside, always in memory) and
+--    load none of the kept ones. The layer's rebuild takes a body already in memory (Overlay.BASES[2] here) over
+--    loading one.
+do
+    local U=require('core.unreal')
+    local Keep=require('core.keep')
+    local w=world()
+    local function typed(o) if o then o.type=o.type or function() return 'UObject' end end; return o end
+    local other=Overlay.BASES[2]
+    local body={IsValid=function() return true end,GetFullName=function() return 'SkeletalMesh '..other end}
+    local engine={}
+    local seen=w.find
+    function w.find(path)
+        if path==Fake.BASE then return nil end -- not in memory
+        if path==other then return body end
+        local o=seen(path)
+        if o==nil and path:sub(1,8)=='/Engine/' then
+            engine[path]=engine[path] or {IsValid=function() return true end,GetFullName=function() return 'Object '..path end}
+            o=engine[path]
+        end
+        return o
+    end
+    local loads={}
+    local load=LoadAsset
+    LoadAsset=function(path) loads[path]=(loads[path] or 0)+1; return load(path) end
+    local registry=w.find('/Script/AssetRegistry.Default__AssetRegistryHelpers')
+    local get=registry.GetAsset
+    registry.GetAsset=function(o,d) local path=d.ObjectPath:ToString(); loads[path]=(loads[path] or 0)+1; return get(o,d) end
+    local object_at=U.object_at
+    U.object_at=function(path) return typed(w.find(path)),true end
+    local k=dofile('tests/lua/core/keep_fake.lua')(function(path) return typed(w.find(path)),true end)
+    local gun=GunMode.new({log=function() end})
+    Keep.slow(); k.settle()
+    assert(Keep.serves(Overlay.CLASS) and Keep.serves(Overlay.CLIPS.aim) and Keep.serves(Rifle.WEAPON),'the keep serves the layer and the rifle')
+    frames(gun,1)
+    w.n.asset={}
+    out(w,gun)
+    frames(gun,60)
+    w.pawn.bTPSMode,w.down.RightMouseButton=true,true
+    frames(gun,60)
+    w.down.LeftMouseButton=true
+    frames(gun,600)
+    w.down.LeftMouseButton=nil
+    w.pawn.bTPSMode,w.down.RightMouseButton=false,nil
+    frames(gun,30)
+    clock=clock+1; gun.toggle_now(); frames(gun,60)
+    assert(not gun.state.on,'the rifle is away')
+    local walked={}
+    for path,n in pairs(w.n.asset) do
+        if not path:find('^/Game/Local/Data/') then walked[#walked+1]=path..' x'..n end
+    end
+    table.sort(walked)
+    assert(#walked==0,'assets looked for with StaticFindObject: '..table.concat(walked,', '))
+    local loaded={}
+    for path,n in pairs(loads) do if Keep.wanted(path) or path==Fake.BASE then loaded[#loaded+1]=path..' x'..n end end
+    table.sort(loaded)
+    assert(#loaded==0,'kept assets or a body loaded on the frame: '..table.concat(loaded,', '))
+    assert(w.mesh.SkeletalMesh==w.body,'her own body back after the rebuild')
+    U.object_at,LoadAsset,registry.GetAsset=object_at,load,get
+    Keep.reset()
+end
+
+-- 10. The drone's class from the first walk: a rifle out on a new map lists the drones through the engine's class hash
+--     (core/unreal.lua's class_at and actors_of) with no FindAllOf walk (32 ms in the 2026-11-21 test). The new drone
+--     is hidden.
+do
+    local U=require('core.unreal')
+    local w=world()
+    local path='/Game/Test/CH_Drone_BP.CH_Drone_BP_C'
+    local cls={IsValid=function() return true end,GetFullName=function() return 'BlueprintGeneratedClass '..path end}
+    local d=w.drone(); d.GetClass=function() return cls end
+    local class_at,actors_of=U.class_at,U.actors_of
+    local hashed=0
+    U.class_at=function(p) assert(p==path,p); return cls,'soft path' end
+    U.actors_of=function(c,name) assert(c==cls and name=='CH_Drone_BP_C'); hashed=hashed+1; return w.drones,'class hash' end
+    local gun=GunMode.new({log=function() end})
+    out(w,gun)
+    frames(gun,60)
+    assert(count(w,'CH_Drone_BP_C')==1 and hashed==0,'the first rifle out walks once')
+    gun.new_controller(w.pc) -- a new map: its own drone
+    frames(gun,5*60)
+    w.drones={}
+    local d2,part2=w.drone(); d2.GetClass=function() return cls end
+    out(w,gun)
+    frames(gun,60)
+    assert(count(w,'CH_Drone_BP_C')==1,count(w,'CH_Drone_BP_C')..' drone walks after a new map')
+    assert(hashed==1 and part2.bHiddenInGame==true,'the new drone listed by the class hash and hidden')
+    U.class_at,U.actors_of=class_at,actors_of
 end
 
 print('gunmode cost: ok')

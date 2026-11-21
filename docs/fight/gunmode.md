@@ -303,6 +303,17 @@ Gun mode calls no item add, save, shop or drop function. SB's own buy and drops 
 `ammo: free magazines (no co-op save, or the rounds' rows are not in)`, `rounds: a co-op save loaded: the rows asked
 (try N of 4)` and `rounds: N taken but the count did not fall in 10 s`.
 
+## Frame cost
+
+With `gun_mode=on`, gun mode asks SBO's keep for the assets of the rifle out, the aim, the rounds and the reload when
+it loads: the rifle layer's class and its four poses, the camera modifier, the rifle mesh, the morph's cube and flash,
+the muzzle flash, the three reload sounds and the two turn clips. While the native part runs, the keep loads them off
+the frame and holds them for the game run. Any other asset, or one the keep does not hold, is found in memory through
+the engine's name hash before it is loaded. UE4SS's own lookup walked the game's objects for each asset not in memory:
+the first rifle out on a map froze the game for 100 to 340 ms in the 2026-11-21 test. The layer's rebuild swaps in a
+body that is already in memory when there is one. The first rifle out of a Lua load finds her drone with a walk of the
+game's objects. After that the drone comes from the engine's list of actors of its class.
+
 ## coop gun
 
 | Command | What it does |
