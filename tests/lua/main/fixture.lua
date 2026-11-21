@@ -971,6 +971,7 @@ USAGE='Use: coop puppet | host [public|friends|invitation|closed] | invite | lis
     ..'nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | '
     ..'challenge [<name>|stop] | '
     ..'scoreattack [status|pick <challenge>] | '
+    ..'fish [status|start [<minutes>]|stop] | '
     ..'recruiter [off] | '
     ..'gift [send <item> [count]|take [n]] | '
     ..'race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|'
