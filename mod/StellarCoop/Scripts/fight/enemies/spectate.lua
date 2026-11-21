@@ -1,7 +1,8 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Its respawn call (call() and the fallback in tick()) is a copy of online/group/group.lua's, made for spectate.
+-- Its respawn call (blocker(), call() and the fallback in after()) is a copy of online/group/group.lua's, made for
+-- spectate.
 -- Spectate's Lua side (phase 3): the camera, the respawn, the switch and coop spectate test. The native part decides
 -- (fight/enemies/spectate.h): it holds the death screen hidden while our EVE is down in a shared boss fight. It writes
 -- spec=, watch=, up=, upn=, her_spec= and mem= on the fight= line, with spectate= and hud= on the engine line. Lua

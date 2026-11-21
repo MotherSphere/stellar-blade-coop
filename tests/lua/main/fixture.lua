@@ -302,7 +302,8 @@ package.loaded['online.partner.puppet']={new=function(link,capture,say,tag,looks
         toggles=toggles+1; active=not active; return true,'ghost'
     end,tick=function() end,
         active=function() return active end,status=function() return 'ghost='..(active and 'on' or 'off') end,
-        remote=function(g,n,source) remoted={g,n,source} end,place=function() end,
+        -- place: spectate's frames counted when it ran (sp.placed), so a test sees the camera follow it.
+        remote=function(g,n,source) remoted={g,n,source} end,place=function() sp.placed=sp.frames end,
         basesuit=function() basesuits=basesuits+1; return true,'base suit' end,
         cns=function(arg) cns_args=arg; return true,'cns '..tostring(arg) end,
         where=function() wheres=wheres+1; return true,'where map=/game/e04' end,

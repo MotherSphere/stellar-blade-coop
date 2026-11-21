@@ -251,6 +251,11 @@ end)()
     assert(table.concat(sp.switches,'|')=='left|right|left|right',table.concat(sp.switches,'|'))
     key('A'); key('Q'); key('D'); key('UP_ARROW'); key('DOWN_ARROW')
     assert(#sp.switches==4,'A, Q, D and the up and down arrows: no switch')
+    -- The camera's frame each frame, right after the ghost's place (main/frame.lua).
+    local frames=sp.frames
+    loops[1].f()
+    assert(sp.frames==frames+1 and sp.placed==frames,
+        'One frame call after the place: '..sp.frames..' '..tostring(sp.placed))
     sp.watching=false
     in_world,kit_ready=false,false
 end)()
