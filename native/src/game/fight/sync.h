@@ -1834,7 +1834,7 @@ private:
       io.send(fin(e));
   }
   // A kill of hers on a boss in its Finish stance (stage 5) that she did not win (phase 3): only the winner's finisher
-  // ends it, so her claim takes it down to 1 HP, whenever it came, and nothing waits.
+  // ends it, so her claim takes it down to 1 HP whenever it came. Nothing waits.
   template <class Io> void finish_held(Enemy &e, Io &io) {
     e.holding = false;
     ++counts.finish_held;
