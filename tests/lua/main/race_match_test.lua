@@ -5,18 +5,33 @@
 -- is the fixture's, its match and match_stop added here): the race's 250 ms pass ticks the round, which needs no
 -- runtime line of its own. The host's Random draw reads the official track of Xion's room from the Scripts folder
 -- (online/modes/race/match/tracks/xion_eight.txt) and our race starts on slot 1 with ready after the host's lines,
--- one handed to the link a pass; a guest's ghost by her ghost slot; a hall offers the host's own tracks of
--- coop-tracks.txt that fit it, a name with no track file dropped from that file; coop race save and a pick by name
--- add to it; each sit-out's notice in the menu's words (race_match=off read from the settings, out of the room);
--- the round's end with the host gone tells it; our finish writes coop-records.txt in the mod folder once it beats the
--- best; coop off stops the round (the race's stop calls round_stop); the match lobby refuses coop race start.
+-- one handed to the link a pass; a guest's ghost by her ghost slot (the puppet on slot 0, ghost_of(k) on slots 1 to 6
+-- in a round of 8); a hall offers the host's own tracks of coop-tracks.txt that fit it, a name with no track file
+-- dropped from that file; coop race save and a pick by name add to it; each sit-out's notice in the menu's words
+-- (race_match=off read from the settings, out of the room, SB's own hall chair seating her); the round's end with the
+-- host gone tells it; our finish writes coop-records.txt in the mod folder once it beats the best; coop off stops the
+-- round (the race's stop calls round_stop); the match lobby refuses coop race start. Then the wiring's adapters that
+-- match/game.lua reads (the bike, a Night Operation run, the co-op save, SB's chair, the mod's seat and its stand-up,
+-- a member's name), the round's clock in milliseconds and the records file's read and write, as score attack's copy.
 dofile('tests/lua/main/fixture.lua')
 local T=require('ui.text')
 local R=require('online.modes.race.model')
 local Mm=require('online.modes.race.match.model')
 local Round=require('online.modes.race.match.round')
-local new,round=Round.new,nil
-Round.new=function(o) round=new(o); return round end -- The round main.lua's loader makes.
+local new,round,round_o=Round.new,nil,nil
+Round.new=function(o) round_o,round=o,new(o); return round end -- The round main.lua's loader makes; its o kept.
+local Game=require('online.modes.race.match.game')
+local game_new,game_o=Game.new,nil
+Game.new=function(o) game_o=o; return game_new(o) end -- The game side's o, the wiring's adapters.
+-- The ghosts of slots 1 to 6 (online/partner/ghosts.lua) main.lua's loader makes: get(k) gives slot_ghost[k].
+local Ghosts=require('online.partner.ghosts')
+local ghosts_new,slot_ghost=Ghosts.new,{}
+for k=1,6 do slot_ghost[k]={slot=k} end
+Ghosts.new=function(...)
+    local g=ghosts_new(...)
+    g.get=function(k) return slot_ghost[k] end
+    return g
+end
 -- The fixture's fake race, with the match role's two calls: each start's arguments and each stop's reason.
 local fake={}
 local Run=package.loaded['online.modes.race.run']
@@ -160,5 +175,71 @@ link_match.state='searching'
 assert(ra.o.match_lobby()==false)
 link_match=nil
 assert(ra.o.match_lobby()==false)
+
+-- SB's own hall chair seats her at the round's start (the lobby's busy): she sits out with its notice, not stood up.
+load()
+sb.busy,sb.sitting=true,{n=3}
+link_round={n=8,kind='start',mode='race',map='lobby',seed=21,ids={'1001','2002'}}
+pass()
+assert(#fake.matches==0 and sb.stands==0 and dr('sit out: SB\'s chair seats EVE') and told(T.en.race.match.seat))
+
+-- A round of 8: the puppet for the member on ghost slot 0, ghost_of(k) for each one on slots 1 to 6.
+load()
+local members,ids={{id='2002',slot=0,linked=true,name='Bee'}},{'1001','2002'}
+for k=1,6 do
+    members[#members+1]={id=tostring(3000+k),slot=k,linked=true,name='P'..k}
+    ids[#ids+1]=tostring(3000+k)
+end
+fake_link.members=function() return members end
+link_round={n=9,kind='start',mode='race',map='lobby',seed=23,ids=ids}
+pass()
+m=fake.matches[1]
+assert(m and dr('match round 9: xion_eight, seed 23, slot 1 of 8') and m.by_id['1001']==nil)
+for k=1,6 do assert(m.by_id[tostring(3000+k)]==slot_ghost[k],'Slot '..k) end
+for k=1,6 do assert(m.by_id['2002']~=nil and m.by_id['2002']~=slot_ghost[k],'Slot 0: the puppet') end
+
+-- The wiring's adapters, each read at its call: the bike, a Night Operation run, the co-op save (the slot line), SB's
+-- chair, the mod's seat and its stand-up, a member's name; the round's clock in milliseconds (round.lua's waits).
+load()
+local g=game_o
+bk.riding=true; assert(g.riding()==true); bk.riding=false; assert(g.riding()==false)
+nr.running=true; assert(g.night()==true); nr.running=nil; assert(g.night()==false)
+assert(g.slot()==true)
+status_text=plain; assert(g.slot()==false,'No slot line: not a co-op save'); status_text=COOP
+sb.busy=true; assert(g.resting()==true); sb.busy=false; assert(g.resting()==false)
+sb.sitting={n=3}; assert(g.seated()==true); sb.sitting=nil; assert(g.seated()==false)
+g.stand(); assert(sb.stands==1)
+local member=fake_link.member
+fake_link.member=function(id) return {name=id=='2002' and 'Bee' or ''} end
+assert(g.name('2002')=='Bee' and g.name('3003')==nil,'An empty name: none')
+fake_link.member=member
+assert(g.name('2002')==nil,'No member line')
+clock=12.5; assert(round_o.clock()==12500,tostring(round_o.clock()))
+-- The records file through core/link.lua's files, as score attack's copy: no file reads as none, nothing raised; a
+-- write goes through coop-records.txt.tmp, then a rename. A write that fails (a full disk) leaves the file as it was;
+-- so does a rename refused while the old file stays. A rename refused once the old file went writes in place. A
+-- rename that replaces the old file needs it gone first (rename never replaces on Windows). A file that cannot be
+-- opened raises, so nothing is written over it.
+do
+    local rec,P=g.records,'mod/StellarCoop\\coop-records.txt'
+    disk.files[P],disk.files[P..'.tmp']=nil,nil
+    assert(rec.read()==nil and nr.read==P,nr.read)
+    assert(rec.write('best_race_1=1250 a\n')==true and nr.wrote[1]==P..'.tmp' and disk.files[P..'.tmp']==nil)
+    assert(rec.read()=='best_race_1=1250 a\n')
+    disk.fail[P..'.tmp']='write'
+    assert(rec.write('x')==false and disk.files[P]=='best_race_1=1250 a\n')
+    disk.fail[P..'.tmp']='rename'
+    local files=package.loaded['core.link'].files
+    local remove=files.remove
+    files.remove=function() return nil,'in use',13 end
+    assert(rec.write('x')==false and disk.files[P]=='best_race_1=1250 a\n')
+    files.remove=remove
+    assert(rec.write('y')==true and disk.files[P]=='y',tostring(disk.files[P]))
+    disk.fail[P..'.tmp']=nil
+    assert(rec.write('z')==true and disk.files[P]=='z' and disk.files[P..'.tmp']==nil)
+    disk.fail[P]='open'
+    assert(not pcall(rec.read),'It raises')
+    disk.fail[P]=nil
+end
 for _,l in ipairs(printed) do assert(not l:find('match round: error',1,true),l) end
 io.stdout:write('main race_match_test ok\n')
