@@ -81,7 +81,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop lines [<name>\|stop]` | Show the subtitles of a [scene cut before it was voiced](story/scenes.md#cut-scene-lines-coop-lines) in the chat's feed, or play unused voice takes, or end it (untested in game) |
 | `coop emote [list\|<name>\|off]` | Play one of [EVE's clips](eve/eve.md#emotes-coop-emote) (a photo-mode pose held until she moves, a wave, a clip of the Cut category; untested in game), list them or end it |
 | `coop bike` | Put EVE on the [bike](vehicles/bike.md) or take her off it, on any save (untested in game) |
-| `coop bike status` | The bike's preload, whether it is on EVE, whether she rides, its four riding values, where it is [parked](vehicles/bike.md#where-the-bike-stays) (`parked on <map>`, with `<n> m away` on her map, or `no place yet`) |
+| `coop bike status` | The bike's preload, whether it is on EVE, whether she rides (with the way of her riding pose, `rig` or `hold`), its four riding values, where it is [parked](vehicles/bike.md#where-the-bike-stays) (`parked on <map>`, with `<n> m away` on her map, or `no place yet`) |
 | `coop bike tune [<name> <value>]` | The four [riding values](vehicles/bike.md#coop-bike), or one changed for your next rides until the mod reloads |
 | `coop gun [status]` | Alone: bring the NIKKE rifle out or put it away, as `gun_key` does ([gun mode](fight/gunmode.md), experimental). `status` prints one line: whether the rifle is out, firing mode or moving, the key and the shots fired, as `gun mode on (moving), key F4, 12 shots` |
 | `coop loopback <delay ms> <jitter ms> <loss %>` | Run your own ghost through a simulated network on one PC |

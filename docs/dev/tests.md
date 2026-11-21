@@ -19,9 +19,9 @@ clone made before that file keeps its CRLF files. With no uncommitted changes, `
 
 ## Lua tests
 
-The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`, `others`, `park`, `ride`, `stand`;
-`core/`: `actors`, `actors_of`, `class_at`, `effect`, `enemy`, `items`, `keep`, `keybind`, `line`, `link`, `mask`,
-`pak_gate`, `picks`, `player`, `row_edit`, `settings_file`, `ue4ss_settings`, `unreal`, `where`, `worlds`;
+The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`, `others`, `park`, `ride`, `rig`,
+`stand`; `core/`: `actors`, `actors_of`, `class_at`, `effect`, `enemy`, `items`, `keep`, `keybind`, `line`, `link`,
+`mask`, `pak_gate`, `picks`, `player`, `row_edit`, `settings_file`, `ue4ss_settings`, `unreal`, `where`, `worlds`;
 `fight/bosses/`: `enemy`, `gardener`, `leviathan`, `lion`, `off`, `tendril`; `eve/`: `chainspin`, `emote`, `flight`,
 `glide`, `off`, `wear`;
 `cutmenus/`: `devmenu`, `mailbox`, `off`; `story/scenes/`: `lines`, `off`, `scene`; `fight/enemies/`: `off`, `wiring`,
@@ -160,8 +160,11 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `vehicles/bike/ride_test` covers `vehicles/bike/ride.lua` over a fake EVE and native part: the preload asked once and
   released at `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every
   mount refusal with its reason and nothing written, the mount's order and the dismount backward, the lean (the math
-  library looked up once a ride), the riding pose played again or ending the ride (read in the 250 ms pass only: no
-  frame reads the status), the 250 ms checks (EVE down read from the status line's `bike_life=` with no session, or from
+  library looked up once a ride), `bike_pose`'s two ways (on the rig way: the rig made in her body or the spare body,
+  fields 8 and 9 written, a gone rig, an outfit change, a lost hook hooked again once and ending the ride the second
+  time within 1 s, the rig released after Ctrl+R, the rig kept through photo mode, `pose_source`; on the hold way: the
+  riding clip played again or ending the ride, read in the 250 ms pass only, as no frame reads the status), the 250 ms
+  checks (EVE down read from the status line's `bike_life=` with no session, or from
   the session's life state without that word), `coop-bike.txt` and its restore after its own drive's
   (`vehicles/bike/drive.lua`), `coop bike status` and `tune`, a mount refused while the races' drive runs, `idle_part`
   (the part the capture leaves out) before the part, on and off the bike, after a ride ended on a fault, after a reload
@@ -183,6 +186,11 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   EVE's outfit within a second, put back for another outfit and on the part at `coop off`; a parked bike made after
   `coop off` at the freed address and path of the removed one painted again; the `paint on for <mesh>` or `paint off
   for <mesh>` end of `coop bike status`;
+- `vehicles/bike/rig_test` covers `vehicles/bike/rig.lua` with fake UE4SS objects: the follower rule (hung on her main
+  mesh with no socket, no anim instance of its own and a mesh; the bike part left out by its address; address order),
+  the rig made hidden, posing while hidden, its cloth off, snapped to her main mesh with the clip looped, a rig that
+  cannot be made leaving no actor, the hook and the unhook (each part back once, a failing call counted while the
+  others go on, nothing called once her EVE is gone), `hooked`, the sweep and the release after Ctrl+R;
 - `vehicles/bike/paint_test` covers `vehicles/bike/paint.lua` with fake UE4SS objects: the shipped table passes its
   check with one entry, a `Base Color Tint` on slot 1; the check takes a name with spaces (`Base Color Tint`),
   punctuation (`A_b-1`) or a `}` and refuses a slot out of 0 to 3, an empty or 65-byte name, a control character, a
@@ -1081,8 +1089,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   our clip, another clip, a cleared slot, a gone EVE and a slot that takes no weight, with paused time left out,
   the stops, the fault, the status word and the log lines), our EVE as the controller's pawn and the check that she
   is still the object played on, over fake memory (no pawn, a pawn of another class, a pending kill, a new serial),
-  what each frame does; the bike's `ride` play (a loop forever with foot IK type 2) and its foot IK put back as SB's
-  stop does once the ride's play is over;
+  what each frame does; the bike's `ride` play (a loop forever with foot IK type 2, held with argument 17 at 1 and
+  `kRidePriority` between 100.0 and 101.0) and its foot IK put back as SB's stop does once the ride's play is over;
 - `game_bike_test`: the bike's native side (`game/bike.h`): the preload path rule, the 54 gated names, the gate over a
   fake action map (each state kept and put back, an absent name back as on, a name SB changed during the ride left as SB
   set it, a name the game never made skipped, a controller gone, a fault in the middle of turning it on, a fault), the
