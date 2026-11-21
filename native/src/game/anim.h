@@ -124,9 +124,10 @@ template <class Live> bool alive(Live &&live, uint64_t ch, int32_t index, int32_
 // 0x14206947a in its 100.0 branch (0x1420692f5). The 101.0 plays still replace the ride: CancelEventMove's play
 // 0x142094ff3, the slide slip end 0x14208303b, 0x14206947a in its 101.0 branch. It stays below 101.0 for SB's stop at
 // 0x142063b6d (in FUN_1420634f0). That stop runs when slot 0's priority is 101.0 or more (COMISS, JA at 0x142063b32)
-// and a state of hers holds (+0x2051 set, +0xa94 below 0, +0x204c at most 0). It passes the FName None: index 0 from
-// FUN_140e4abf0 (0x142063b40), number 0. StopCustomAnim compares the slot's clip name (+0x3c, 0x1420b24ba) only for a
-// name other than None (0x1420b24a2: 0x147017b00 is the name pool's entry of "None"), so it would end any clip.
+// and her state passes the tests at 0x142063a3e..0x142063b25, among them +0x2051 set, +0xa94 below 0, +0x204c at
+// most 0, +0x2050 and +0x2052 clear. It passes the FName None: index 0 from FUN_140e4abf0 (0x142063b40), number 0.
+// StopCustomAnim compares the slot's clip name (+0x3c, 0x1420b24ba) only for a name other than None (0x1420b24a2:
+// 0x147017b00 is the name pool's entry of "None"), so it would end any clip.
 constexpr float kRidePriority = 100.5f;
 struct Play {
   float start = 0, end = -1, rate = 1, blend_in = 0.25f, blend_out = 0.25f, input_blend = -1, priority = 0;
