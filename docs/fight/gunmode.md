@@ -187,7 +187,8 @@ image file ships with SBO. The entry is a child of the HUD's own D-pad marker, s
 box the marker's size holds it, so the item column never grows. While the native part runs, the keep also holds SB's
 HUD class (`WB_MainHUD_Master_C`). A hook on its Construct, registered in `fight/gunmode/wiring.lua` once a Lua load,
 then names each new HUD. The entry shows within a tenth of a second of that HUD coming on screen, with no walk of the
-game's objects. Without the hook (a Lua reload before the next map, the keep off, a hook that failed) gun mode looks
+game's objects. Gun mode waits 4 s after a new map, a death or a camp warp: a HUD shown sooner gets the entry when
+that wait ends. Without the hook (a Lua reload before the next map, the keep off, a hook that failed) gun mode looks
 for the HUD on screen once every 10 s. That look walks the game's objects. The entry's parts are found by their names
 in the HUD. A new HUD (a map change, a death, a camp warp) gets the entry built anew. A HUD without the D-pad marker
 is tried once. After a Lua reload the new load takes the earlier load's entry again instead of building a second one

@@ -8,7 +8,8 @@
 -- a new HUD with nothing of the old one kept; a widget whose address another object took gets no write; after a Lua
 -- reload the earlier load's widgets are taken again, never made over; a HUD without the item column is tried once;
 -- the pad glyph walk once each time the pad layer comes up; the crosshair on the HUD's root without a walk; records
--- and hide; the HUD named by its Construct hook built on screen with no walk; a hook that fails. Through gun mode over fake.lua, with a stub entry: ticked ten times a second with the configured key (F4
+-- and hide; the HUD named by its Construct hook built on screen with no walk; a hook that fails. Through gun mode
+-- over fake.lua, with a stub entry: ticked ten times a second with the configured key (F4
 -- unless set; nil for none), the rounds as "rounds | magazines" while the rifle is out and no text while it is away,
 -- the hip-fire crosshair off while the rifle is away; taken off the HUD at coop off. None with gun_mode=off or
 -- hud_entry=false. A built entry goes into coop-gun.txt. A later load takes it off, gun mode on or off. The
