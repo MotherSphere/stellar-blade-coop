@@ -426,15 +426,16 @@ do
     Keep.reset()
 end
 
--- 10. The drone's class from the first walk: a rifle out on a new map lists the drones through the engine's class hash
---     (core/unreal.lua's class_at and actors_of) with no FindAllOf walk (32 ms in the 2026-11-21 test). The new drone
---     is hidden.
+-- 10. The drone's class by its path (GunMode.DRONE_CLASS, in the base paks of 26123051): the first rifle out of a Lua
+--     load lists the drones through the engine's class hash (core/unreal.lua's class_at and actors_of) with no FindAllOf
+--     walk (36 ms at the first F4 of the 2026-11-21 test), as does a rifle out on a new map. Each drone is hidden.
 do
     local U=require('core.unreal')
     local w=world()
-    local path='/Game/Test/CH_Drone_BP.CH_Drone_BP_C'
+    local path=GunMode.DRONE_CLASS
+    assert(path=='/Game/Art/Character/NPC/CH_NPC_Drone/BluePrints/CH_Drone_BP.CH_Drone_BP_C',tostring(path))
     local cls={IsValid=function() return true end,GetFullName=function() return 'BlueprintGeneratedClass '..path end}
-    local d=w.drone(); d.GetClass=function() return cls end
+    local d,part=w.drone(); d.GetClass=function() return cls end
     local class_at,actors_of=U.class_at,U.actors_of
     local hashed=0
     U.class_at=function(p) assert(p==path,p); return cls,'soft path' end
@@ -442,15 +443,16 @@ do
     local gun=GunMode.new({log=function() end})
     out(w,gun)
     frames(gun,60)
-    assert(count(w,'CH_Drone_BP_C')==1 and hashed==0,'the first rifle out walks once')
+    assert(count(w,'CH_Drone_BP_C')==0,count(w,'CH_Drone_BP_C')..' drone walks at the first rifle out')
+    assert(hashed==1 and part.bHiddenInGame==true,'the drone listed by the class hash and hidden')
     gun.new_controller(w.pc) -- a new map: its own drone
     frames(gun,5*60)
     w.drones={}
     local d2,part2=w.drone(); d2.GetClass=function() return cls end
     out(w,gun)
     frames(gun,60)
-    assert(count(w,'CH_Drone_BP_C')==1,count(w,'CH_Drone_BP_C')..' drone walks after a new map')
-    assert(hashed==1 and part2.bHiddenInGame==true,'the new drone listed by the class hash and hidden')
+    assert(count(w,'CH_Drone_BP_C')==0,count(w,'CH_Drone_BP_C')..' drone walks after a new map')
+    assert(hashed==2 and part2.bHiddenInGame==true,'the new drone listed by the class hash and hidden')
     U.class_at,U.actors_of=class_at,actors_of
 end
 

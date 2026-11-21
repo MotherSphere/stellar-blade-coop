@@ -329,8 +329,9 @@ for the game run. Any other asset, or one the keep does not hold, is found in me
 before it is loaded. UE4SS's own lookup walked the game's objects for each asset not in memory: the first rifle out on
 a map froze the game for 100 to 340 ms in the 2026-11-21 test. The layer's rebuild swaps in a body that is already in
 memory when there is one. The keep holds both bodies so that none loads on the frame of a press: the layer's step took
-49 ms at the first rifle out of that test and 11 ms at the next ones. The first rifle out of a Lua load finds her
-drone with a walk of the game's objects. After that the drone comes from the engine's list of actors of its class.
+49 ms at the first rifle out of that test and 11 ms at the next ones. Her drone comes from the engine's list of actors
+of its class, `CH_Drone_BP_C`, found by its path. A walk of the game's objects found it at the first rifle out of that
+test (36 ms).
 
 While the rifle is out, `UE4SS.log` has a `[GM]` line every 10 s: `perf: tick <average> ms average, <worst> ms worst,
 <n> ticks, Lua <heap> KB (lowest <low> KB), gun mode allocated at least <k> KB a tick; ms a tick:` and the six

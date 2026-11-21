@@ -39,6 +39,10 @@ local GunMode={}
 -- matchmaking or go back to single play. The only zone event gun mode fires: kind 2 on the shot's row
 -- (Data.row('Fire'), read at the call: arm() can borrow a spare NIKKE row in its place).
 local ATTACH_ACTOR_EFFECT=2
+-- Her drone's class (hide_drone below). The base paks of 26123051 (pakchunk0) hold the package
+-- /Game/Art/Character/NPC/CH_NPC_Drone/BluePrints/CH_Drone_BP, whose names include CH_Drone_BP_C and
+-- Default__CH_Drone_BP_C.
+GunMode.DRONE_CLASS='/Game/Art/Character/NPC/CH_NPC_Drone/BluePrints/CH_Drone_BP.CH_Drone_BP_C'
 -- The aim camera's modifier class (BP_NGM_CamMod in the layer pak) and the aim stance's turn clips (a big turn from
 -- standing in hip fire): kept for the game run with the other assets (GunMode.new).
 local CAMMOD='/Game/Mods/NGM/BP_NGM_CamMod.BP_NGM_CamMod_C'
@@ -601,23 +605,19 @@ function GunMode.new(env)
     -- None near her: none for the rest of this rifle out (s.drone false). A rifle out within DRONE_WAIT s of that miss
     -- looks once the wait is over. A new controller looks at once.
     local DRONE,DRONE_WAIT='CH_Drone_BP_C',10
-    -- The drones in her world: once the first walk has given the drone's class (its path, for the Lua load), the
-    -- engine's class hash (core/unreal.lua's class_at, then actors_of: GetAllActorsOfClass, exec 0x144773110 on
-    -- 26123051, lists them through ForEachObjectOfClass 0x142ba5920) instead of FindAllOf's walk (32 ms at a rifle out,
-    -- 2026-11-21 test). That class not in memory: no drone. Anything that fails walks as before.
-    local drone_class
+    -- The drones in her world: the drone's class by its path (GunMode.DRONE_CLASS), then the engine's class hash
+    -- (core/unreal.lua's class_at, then actors_of: GetAllActorsOfClass, exec 0x144773110 on 26123051, lists them
+    -- through ForEachObjectOfClass 0x142ba5920) instead of FindAllOf's walk, from the first rifle out of a Lua load on
+    -- (the walk took 36 ms at the first F4 of the 2026-11-21 test). That class not in memory: no drone. Anything that
+    -- fails walks as before.
     local function drones()
-        if drone_class then
-            local pc=g.pc()
-            local ok,cls=pcall(U.class_at,drone_class,pc)
-            if ok and not g.valid(cls) then return {} end
-            local ok2,list=false,nil
-            if ok then ok2,list=pcall(U.actors_of,cls,DRONE,pc) end
-            if ok2 and type(list)=='table' then return list end
-        end
-        local all=g.try(function() return FindAllOf(DRONE) end) or {}
-        if not drone_class and all[1] then drone_class=g.path(g.try(function() return all[1]:GetClass() end)) end
-        return all
+        local pc=g.pc()
+        local ok,cls=pcall(U.class_at,GunMode.DRONE_CLASS,pc)
+        if ok and not g.valid(cls) then return {} end
+        local ok2,list=false,nil
+        if ok then ok2,list=pcall(U.actors_of,cls,DRONE,pc) end
+        if ok2 and type(list)=='table' then return list end
+        return g.try(function() return FindAllOf(DRONE) end) or {}
     end
     local function hide_drone(p,now)
         if s.drone==false or (s.drone and g.valid(s.drone.actor)) or now<(s.drone_wait or -1) then return end
