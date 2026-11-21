@@ -53,11 +53,11 @@ for name,t in pairs(T) do
     end
 end
 assert(T.fr and next(T.fr),'French stays complete')
--- The modules' names for the off notice: exactly T.en's 23 keys in every table (tests/tools/modules_test.py checks
+-- The modules' names for the off notice: exactly T.en's 24 keys in every table (tests/tools/modules_test.py checks
 -- them against main.lua's MODULES).
 local MODULE_KEYS=0
 for _ in pairs(T.en.modules) do MODULE_KEYS=MODULE_KEYS+1 end
-assert(MODULE_KEYS==23,'T.en.modules: '..MODULE_KEYS..' names')
+assert(MODULE_KEYS==24,'T.en.modules: '..MODULE_KEYS..' names')
 for name,t in pairs(T) do
     if type(t)=='table' and next(t) then
         local n=0

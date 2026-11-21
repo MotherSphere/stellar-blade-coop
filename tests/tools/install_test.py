@@ -280,6 +280,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'online/modes/fishing/records', 'online/modes/fishing/rows',
                               'online/modes/fishing/round', 'online/modes/fishing/game',
                               'online/modes/fishing/ui/board',
+                              'online/modes/photohunt/commands',
                               *(f'{module}/wiring' for module in ('online/partner', 'online/modes/nightop',
                                                                   'fight/bosses', 'online/group',
                                                                    'online/modes/race', 'eve', 'story/scenes',
@@ -290,7 +291,7 @@ with tempfile.TemporaryDirectory() as tmp:
                                                                    'world/daynight', 'cutmenus',
                                                                    'online/saves', 'world/teamshop',
                                                                    'fight/gunmode', 'online/modes/scoreattack',
-                                                                   'online/modes/fishing')),
+                                                                   'online/modes/fishing', 'online/modes/photohunt')),
                               'version'))}
     assert set(files) == shipped - docs, sorted(files)
     assert not [rel for rel in files

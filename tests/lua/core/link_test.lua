@@ -614,10 +614,18 @@ assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for sco
 -- reads it at each go line).
 assert(Link.parse_settings('').fishing==true and Link.parse_settings('fishing=OFF').fishing==false
     and Link.DEFAULT:find('\nscoreattack=on\n# Fishing tournament: on or off, on by default.',1,true)
-    and Link.DEFAULT:find('\nfishing=on\n$'))
+    and Link.DEFAULT:find('\nfishing=on\n',1,true))
 s,notes=Link.parse_settings('fishing=maybe')
 assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for fishing (use on or off); "
     .."fishing stays on" and s.fishing==true,notes[1])
+-- Photo hunt: on by default, last in a new file, its comment right after fishing (online/modes/photohunt reads it at
+-- each go line).
+assert(Link.parse_settings('').photohunt==true and Link.parse_settings('photohunt=OFF').photohunt==false
+    and Link.DEFAULT:find('\nfishing=on\n# Photo hunt: on or off, on by default.',1,true)
+    and Link.DEFAULT:find('\nphotohunt=on\n$'))
+s,notes=Link.parse_settings('photohunt=maybe')
+assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for photohunt (use on or off); "
+    .."photohunt stays on" and s.photohunt==true,notes[1])
 assert(Link.DEFAULT:find('\ndaynight=on\n# Shortcut saves, a test tool: on or off, on by default.',1,true)
     and Link.DEFAULT:find('cannot be taken back',1,true) and Link.DEFAULT:find('\nshortcut_load=on\n'))
 assert(Link.parse_settings('shortcut_load=OFF').shortcut_load==false)

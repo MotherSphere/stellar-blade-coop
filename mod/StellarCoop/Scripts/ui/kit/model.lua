@@ -84,6 +84,7 @@ M.OPTIONS={
     {head='modes'},
     toggle('scoreattack','on'), -- At each round's start: online/modes/scoreattack/game.lua reads it.
     toggle('fishing','on'), -- At each go line: online/modes/fishing reads it.
+    toggle('photohunt','on'), -- At each go line: online/modes/photohunt reads it.
     {head='saves'},
     {key='auto_coop_save',values={'ask','always','off'},default='ask'}, -- At the next title.
     toggle('shared_quests','on'), -- At once: main.lua asks coop quests on or off.
