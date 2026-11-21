@@ -176,6 +176,8 @@ template <class Game> void Engine::boss_lines(Game &g, uint64_t logic, size_t n,
     return;
   for (uint8_t r = 0; r < table_.count && !latched_; ++r) {
     const PilotPair &p = table_.pairs[r];
+    if (!hosting_seen_ && p.owner == table_.side)
+      guest.phase_ran(p.hguid);
     const Seen *s = p.owner == table_.side ? fight::find(seen_, n, p.local) : nullptr; // Ours (phase 3: hers too).
     uint8_t battle = 0;
     if (!s || !s->boss || dying(*s) || !g.read(fsbs_[s - seen_] + kBattleFlag, &battle, 1))

@@ -4829,6 +4829,47 @@ int main() {
     assert(has(sent, " spawn 1 ") && has(sent, " 4043309057 0 35025002 300 0 0 90 130 5026000\n"));
     assert(count(G, "summon keyed") == 1 && eg->guest.counts.bad == 0 && !eg->latched());
   }
+  // Her side, a boss back with the host after she ran it (phase 3): her copy took 5026013 by its own AI while it was
+  // hers. The host's first phase line after its own H holds that row: it casts nothing on her copy, since it is planned
+  // from her copy's list, not from the host's line before the hand-over.
+  {
+    Game G;
+    G.spawns();
+    auto eg = engine(false, false);
+    eg->allow(nullptr, 0);
+    eg->set(true, false);
+    G.spawn(930, 30, 0, 35026001, 1600, kTypeBoss);
+    for (const char *line : {"SBF25 world 1", "SBF25 place 1 1", "SBF25 bosses 1 100",
+                             "SBF25 up 1 130 30 0 35026001 1600"})
+      G.inbox.push_back(msg(line));
+    uint64_t t = 0;
+    const auto run = [&](uint64_t until) {
+      std::string sent;
+      for (; t <= until; t += 16) {
+        frame(G, *eg, t);
+        sent += lines(G);
+      }
+      return sent;
+    };
+    run(500);
+    const uint64_t stale = eg->guest.counts.stale;
+    G.inbox.push_back(msg("SBF25 phase 1 130 0 -"));
+    run(600);
+    assert(eg->guest.counts.stale == stale && eg->counts.phase_rows == 0);
+    G.inbox.push_back(msg("SBF25 own 1 130 G 1"));
+    run(700);
+    assert(G.table.pairs[0].owner == coop::pilot::kGuest);
+    G.knock(930, 5026013);
+    assert(has(run(1300), "SBF25 phase 1 130 1 5026013\n"));
+    G.inbox.push_back(msg("SBF25 own 1 130 H 2"));
+    run(1400);
+    assert(G.table.pairs[0].owner == coop::pilot::kHost && Game::held(G.body(930), kBlockAiState));
+    const uint64_t op = G.ops;
+    G.inbox.push_back(msg("SBF25 phase 1 130 2 5026013"));
+    run(1500);
+    assert(eg->guest.counts.stale == stale && G.cast_ids(930, op).empty() && eg->counts.phase_rows == 0);
+    assert(eg->guest.counts.bad == 0 && !eg->latched());
+  }
   // qte_on_the_line: the worker gives the job story together's flag at each change and, while it is on, at each new
   // session (off needs none: the job starts off); on the host, the QTE scenes that ended in our game. The fight= line
   // shows the latest qte-own while the mode on runs; qte_owners() keeps the latest per spawn through her world (the

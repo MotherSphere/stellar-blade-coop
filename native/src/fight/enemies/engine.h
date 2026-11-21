@@ -394,14 +394,17 @@ private:
   // again each turn.
   static constexpr int kFreeze = -1; // Not a stat: BlockAI_Infinite and SkillCancel on a copy this side draws.
   static constexpr int kExtra = -2;  // Not a stat: an extra enemy this side made (stage 4b), despawned at the end.
-  static constexpr int kSummon = -3; // Not a stat: a boss's summon the guest made (stage 5), despawned at the end.
+  // Not a stat: a boss's summon this side made from the owner's line (stage 5; phase 3: the host too), despawned at the
+  // end.
+  static constexpr int kSummon = -3;
   // Not a stat: the finish guard ran on this boss copy of the guest's (stage 5), so it may hold our Passive_Immortal at
   // 1 HP with its FinishReady ended. Undone when its pair goes without the host's dead: FinishReady_Dispel.
   static constexpr int kGuard = -4;
-  // Not a stat: SetBattleMode put this boss copy of the guest's in battle mode at the host's bstart (stage 5); key the
-  // host's GUID, battle its last bstart (ms; moved on by the host's silences, heard()). Undone by SetBattleMode off once
-  // the copy is no longer drawn (its pair gone, same place off), no bstart came for kBattleEndMs, and on every lift
-  // path.
+  // Not a stat: this boss copy is in battle mode for the owner's bstart (stage 5: the guest's copy at the host's; phase
+  // 3: either side's, with no SetBattleMode call when it was on already); key the host's GUID, battle its last bstart
+  // (ms; moved on by the other side's silences, heard()). Undone by SetBattleMode off once the copy is no longer drawn
+  // (its pair gone, same place off), no bstart came for kBattleEndMs, and on every lift path. Dropped with no call once
+  // the pair turns ours (bosses()).
   static constexpr int kBattleOn = -5;
   static constexpr int kProxy = -6; // Not a stat: the PvP test's stand-in this side made, despawned at the end.
   static constexpr const char *kUnlisted = "its row's effects refused"; // A summon's (make_extra()).

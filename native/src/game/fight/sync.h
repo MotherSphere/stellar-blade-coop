@@ -2110,6 +2110,12 @@ public:
     p->phases = std::min<uint8_t>(m.idn, kMaxPhaseIds), p->phased = true;
     return n;
   }
+  // Phase 3: the host's boss hguid runs on her copy (hers), so the set of the host's last line is old. Once it is the
+  // host's again, its next line plans from the copy's list, as a first one does: no row the copy holds goes twice.
+  void phase_ran(uint32_t hguid) {
+    if (Pair *p = find(hguid))
+      p->phased = false;
+  }
   // The engine's casts of phase()'s rows for the host's enemy hguid: all taken or not. After a refusal the copy's next
   // line plans from its effect list again, as a first one does, so a row the game refused comes again and a row whose
   // dispel it refused leaves again. True for a refusal to log: the first since a line taken whole.
