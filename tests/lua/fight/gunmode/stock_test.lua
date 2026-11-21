@@ -21,9 +21,12 @@ local Ammo=require('fight.gunmode.ammo')
 local CFG={mag_size=30,spare_mags=2,reload_time=1.5,fire_interval=0.1,round_color={1,1,1},
     reload_color={1,0,0}}
 local logs,cools,reloads={},{},{}
+-- Gun mode's controller and EVE, as fight/gunmode/mode.lua's g gives them without a walk of the object array.
+local PC,PAWN={name='controller'},{name='EVE'}
 local g={log=function(m) logs[#logs+1]=m end,valid=function(x) return x~=nil end,
     try=function(f) local ok,v=pcall(f); if ok then return v end end,
-    words=function() return {round='round',reload='reload',empty='empty'} end}
+    words=function() return {round='round',reload='reload',empty='empty'} end,
+    pc=function() return PC end,pawn=function() return PAWN end}
 local function count(text) local n=0; for _,l in ipairs(logs) do if l:find(text,1,true) then n=n+1 end end; return n end
 local function cool() return cools[#cools] end
 
@@ -33,9 +36,11 @@ local function stock(carried)
     st.ready=function() return st.rows end
     st.count=function() return st.carried end
     st.watch=function(on) st.watches[#st.watches+1]=on end
-    st.take=function(n)
+    st.take=function(n,pc,pawn)
         if st.refuse then return false,st.refuse end
         st.takes[#st.takes+1]=n
+        st.by=st.by or {}
+        st.by[#st.by+1]={pc=pc,pawn=pawn}
         st.carried=math.max(0,st.carried-n)
         return true
     end
@@ -73,6 +78,9 @@ while clock+1/60<start+0.6*CFG.reload_time do frame(a) end
 assert(#st.takes==0 and a.left==0,'Nothing taken before two thirds')
 while clock<start+0.7*CFG.reload_time do frame(a) end
 assert(#st.takes==1 and st.takes[1]==30 and a.left==30,'min(mag_size, count) taken at two thirds')
+-- The take gets gun mode's controller and EVE: fight/gunmode/nikke.lua's own lookup is a FindFirstOf of the
+-- controller, a walk of the object array (each reload's frame took 64 to 66 ms in the 2026-11-21 test).
+assert(st.by[1].pc==PC and st.by[1].pawn==PAWN,'the take looks for the controller and EVE itself')
 while a.reload_until do frame(a) end
 assert(cool()==CFG.fire_interval,tostring(cool()))
 assert(a.reserve==20,'The spares follow the count: '..a.reserve)

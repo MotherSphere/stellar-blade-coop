@@ -149,13 +149,15 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
     end
 
     -- The magazine goes in: with stock, its rounds taken out of EVE's inventory first, at most what she carries now (a
-    -- refused take loads nothing).
+    -- refused take loads nothing). The take gets gun mode's controller and EVE (g.pc, g.pawn: kept, no walk). Without
+    -- them fight/gunmode/nikke.lua finds the controller with FindFirstOf, twice: a walk of the object array each time
+    -- (each reload's frame took 64 to 66 ms in the 2026-11-21 test).
     local function load(now)
         local n=self.reload_to-self.reload_from
         if self.stocked then
             n=math.min(n,stock.count() or 0)
             local ok,why=true,nil
-            if n>0 then ok,why=stock.take(n) end
+            if n>0 then ok,why=stock.take(n,g.pc and g.pc(),g.pawn and g.pawn()) end
             if not ok then
                 self.retry_at=(now or 0)+Ammo.RETRY
                 return g.log('ammo: '..n..' rounds not taken ('..tostring(why)..'): nothing loaded')

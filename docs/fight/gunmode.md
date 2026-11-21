@@ -309,7 +309,9 @@ to free magazines (`mag_size` in the magazine, `spare_mags` spares).
 - The take: SB's own `ServerRequest_ItemBucketItemRemove` (bucket 1, EVE's GUID, `Bullet_Nikke`, the count, no
   pocket), once a reload, for the rounds the magazine loads. That is at most `mag_size` and at most the count she
   carries then (the last read less the takes it does not show yet). A take is refused while SB's logic is paused, with
-  no EVE or no GUID for her. A refused take loads nothing. The next empty reload then waits 5 s (`Ammo.RETRY`).
+  no EVE or no GUID for her. A refused take loads nothing. The next empty reload then waits 5 s (`Ammo.RETRY`). The
+  take uses gun mode's own controller and EVE. Looking them up again walked the game's objects twice: each reload
+  froze a frame for 64 to 66 ms in the 2026-11-21 test.
 
 Gun mode calls no item add, save, shop or drop function. SB's own buy and drops add the rounds. `UE4SS.log` has the
 `[GM]` lines `ammo: the magazine loads from EVE's inventory (Bullet_Nikke)` once the rows are in, `ammo: out of rounds`
