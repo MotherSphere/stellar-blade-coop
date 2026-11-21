@@ -39,7 +39,7 @@ return {
         gun_mode='Tüfek modu',gun_key='Tüfeği çıkar veya kaldır',daynight='Gündüz ve gece',
         pause_tab='Duraklatmada Çevrimiçi sekmesi',
         hide_popups='Çevrimiçi açılır pencereleri gizle',
-        spectate='Düşünce arkadaşımı izle',
+        spectate='Yere düşünce arkadaşımı izle',
         boss_finish='Baş düşman bitirişi (ev sahibi)',
         reset_keys='Tüm tuşları sıfırla'},
     value={on='Açık',off='Kapalı',both='Duraklatma ve bildirim',notice='Yalnızca bildirim',game='Oyun dili',
