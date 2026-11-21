@@ -216,11 +216,16 @@ feature or drops the input.
   - The recruiter's Join slot, `0x145bfece8`, is swapped at the first `sbo arm`, which Lua sends once the recruiter
     stands in Xion, only with `sbo_lobby=on`; with it off, the slot is never written. Its hook counts the recruiter's
     Join and always calls the game's own function, and the slot is swapped back from the mod's value at `coop off`.
-  - [Her sounds](../online/partner-internals.md#her-sounds-sent) use nine slots in two sets: the context set
-    (`0x145c51bb0`, `0x145c525f0`, `0x145c60d60`, `0x145cf6398`, `0x145cf5a40`, `0x145cf5cb0`, `0x1463c3358`) and the
-    audio starts (`0x1463db320`, `0x145d07e48`). Each set is swapped all or none while the sounds look is on. If one
-    of its slots holds another value, the slots already swapped go back. Each set goes back when the look is turned
-    off, at `coop off` and after a fault. A slot that will not swap back keeps a hook that only runs the game's
+  - [Her sounds](../online/partner-internals.md#her-sounds-sent) and [her world
+    effects](../online/partner-internals.md#her-world-effects) use eleven slots in three sets. Each set is swapped all
+    or none. The context set (`0x145c51bb0`, `0x145c525f0`, `0x145c60d60`, `0x145cf6398`, `0x145cf5a40`, `0x145cf5cb0`,
+    `0x1463c3358`) is swapped while the sounds look or the effects look is on. The audio starts (`0x1463db320`,
+    `0x145d07e48`) are swapped while the sounds look is on. The world-effect starts are swapped while the effects look
+    is on: `0x145952d08` (UNiagaraComponent's Activate) with `0x14645f648` (UParticleSystemComponent's ActivateSystem).
+    If one slot of a set holds another value, the slots of that set already swapped go back. That set then stays as it
+    is for the run. A set goes back when none of the looks it serves is on, until one is on again. At `coop off` every
+    set goes back for the run. After a sounds fault the context and audio sets go back for the run. After a world
+    effects fault the world-effect set does. A slot that will not swap back keeps a hook that only runs the game's
     function.
 - Except for those copies, the mod never reads or writes a save, unlocks or equipment. It adds to the inventory only for
   a Night Operation shop buy (`coop nightop buy`, co-op saves only) and for `coop gift` (a take, or a gift coming back,
