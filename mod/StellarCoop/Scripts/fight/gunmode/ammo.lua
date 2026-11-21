@@ -200,6 +200,9 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
                 -- The rows are in: from now on the magazine loads from her inventory, and holds no free round.
                 self.stocked,self.left=true,0
                 if self.reload_until then self.reload_until,self.loaded=nil,false; pcall(on_reload,false) end
+                -- No round until a reload loads one. Before the count's first read the empty check below waits, so
+                -- the take's 0 stayed and SB fired NIKKE shots that no round paid for.
+                pcall(cool,999)
                 g.log('ammo: the magazine loads from EVE\'s inventory ('..tostring(stock.round)..')')
             end
             if self.stocked then

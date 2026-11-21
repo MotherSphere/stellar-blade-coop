@@ -11,7 +11,8 @@
 -- take(). A part-spent magazine never reloads by itself (the rifle lowered or not): the player's reload (manual)
 -- keeps its rounds and tops it up through take() with at most what she carries, never while a refused take waits
 -- Ammo.RETRY s. A refused take at the player's reload keeps the magazine as it was. Fired empty after it, the magazine
--- waits Ammo.RETRY s too. Before the count's first read an empty magazine writes no 999 and logs no 'out of rounds'.
+-- waits Ammo.RETRY s too. Before the count's first read an empty magazine logs no 'out of rounds'. Its cool time is
+-- 999, so SB fires no free shot.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
@@ -351,16 +352,25 @@ frames(a,12,true,true)
 assert(cool()==CFG.fire_interval,'the rate of fire back: '..tostring(cool()))
 
 -- The rows in before the first read of the count (nikke.lua's count() is nil until a read answers, 0.37 s after the
--- rifle out in the 2026-11-21 test): no 'out of rounds' and no 999. The first read of 30 starts the reload.
+-- rifle out in the 2026-11-21 test): no 'out of rounds'. The empty magazine holds no round: with the trigger held SB
+-- starts at most the one shot a 999 lets through. On the take's 0 it fired a free shot every other frame. The first
+-- read of 30 starts the reload. SB fires again after it.
 st=stock(nil)
 st.rows=true
 a=new(st)
-frames(a,20,true,false)
+cools[#cools+1]=0 -- data.take at the rifle out
+local sb={starts=0,stored=0}
+sb_fire(a,sb,20,true,false)
 assert(a.left==0 and not a.reload_until,'empty, nothing to load yet')
 assert(count('out of rounds')==0 and not a.dry,'no out of rounds while the count is unread')
-for _,v in ipairs(cools) do assert(v~=999,'no 999 while the count is unread') end
+assert(cool()==999 and sb.starts<=1,'no free SB round while the count is unread: '..sb.starts..' SB starts, cool time '
+    ..tostring(cool()))
 st.carried=30
-frame(a,true,false)
+sb_fire(a,sb,1,true,false)
 assert(a.reload_until and count('out of rounds')==0,'the first read starts the reload')
+for _=1,600 do if not a.reload_until then break end; sb_fire(a,sb,1,true,false) end
+local starts=sb.starts
+sb_fire(a,sb,60,true,false)
+assert(sb.starts-starts>=8,'SB fires after the first reload: '..(sb.starts-starts)..' starts in 1 s')
 
 print('fight/gunmode/stock_test: ok')

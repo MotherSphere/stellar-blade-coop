@@ -263,7 +263,8 @@ magazine starts empty. Each reload takes the rounds it loads out of EVE's invent
 and at most what she carries. The rounds she carries are the spares. An empty magazine reloads as
 soon as she carries rounds (a buy, a drop). With none in the magazine and none carried the reticle's slot reads NO AMMO.
 Until the count's first read after a co-op save loads (0.37 s after the rifle out in the 2026-11-21 test), the empty
-magazine waits for it with no `out of rounds` line.
+magazine waits for it with no `out of rounds` line. It holds no round in that time: the shot's cool time is 999, as
+for any empty magazine. On the take's 0, SB's own NIKKE shot fired with no round paid for.
 
 Rounds in the magazine have already left the inventory. They stay in the magazine across a new map, a death or a camp
 warp. Nothing gives them back to the inventory: not putting the rifle away, not `coop off`. A reload loads nothing
