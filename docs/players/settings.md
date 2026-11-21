@@ -35,8 +35,11 @@ drift_keys=Gamepad_RightTrigger B
 # The bike: on or off, on by default. On, the mod keeps Stellar Blade's own bike loaded. bike_key, D-pad Right held 1 s
 # on a pad or the console command coop bike puts EVE on it or takes her off, on any save. The bike stays where she gets
 # off: its place is kept for each save, in the mod folder. Off gets her off the bike, removes her parked bike from
-# every world (its place stays), hides the other players' parked bikes and frees the bike's files.
+# every world (its place stays), hides the other players' parked bikes and frees the bike's files. bike_pose, a test
+# of two ways to show EVE's riding pose, read at each mount: rig (a hidden copy of her plays the pose, her body
+# follows it) or hold (the pose plays on EVE herself, kept above the game's own animations). rig by default.
 bike=on
+bike_pose=rig
 # Gun mode: on or off, on by default. On, gun_key or a tap of D-pad Right gives EVE the NIKKE rifle on any save, or
 # puts it away. Off, gun mode does nothing. Both are read when the mod loads.
 gun_mode=on
@@ -220,6 +223,7 @@ scoreattack=on
 | `bike_key` | same, or `none`: a key that puts EVE on the [bike](../vehicles/bike.md) or takes her off it | `F3` |
 | `drift_keys` | up to 4 Unreal key names separated by spaces, or `none`: the keys held to [drift](../online/modes/race.md#driving) in a race or on the [bike](../vehicles/bike.md#riding) | `Gamepad_RightTrigger B` |
 | `bike` | `on` or `off`: the [bike](../vehicles/bike.md), on any save; off takes EVE off the bike, removes it from her, takes her parked bike out of every world (its place is kept), hides the other players' parked bikes and frees its loaded files | `on` |
+| `bike_pose` | `rig` or `hold`: how EVE's riding pose shows on the [bike](../vehicles/bike.md), a test of two ways until one is kept. `rig`: a hidden copy of her plays the pose and her body follows it. `hold`: the pose plays on EVE herself, kept above the game's own animations. Read at each mount. Options, Controls, Riding pose (test): Hidden copy or On EVE | `rig` |
 | `gun_key` | same, or `none`: a key that brings the [gun mode](../fight/gunmode.md) rifle out or puts it away; read when the mod loads | `F4` |
 | `gun_mode` | `on` or `off`: [gun mode](../fight/gunmode.md); off, its key and D-pad Right tap do nothing; read when the mod loads. Its other `gun_` lines are test lines, listed on its page | `on` |
 | `pause_tab` | `on` or `off`: the [Online tab](interface.md#pause-menu) after Settings in the game's pause menu, which opens the co-op menu. Off, RB on Settings goes to Equipment as in the game. Options, Controls, Online tab in the pause menu; it applies from the next pause menu | `on` |
@@ -370,7 +374,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-look.txt` | Lua | While the Doro look is on: EVE's object path, her main mesh's animation option before the look, the Doro's object path, the names of the parts the look hid and, once the look hid the drone's body, the drone's object path, so the next Lua load (Ctrl+R) can show both again |
 | `coop-race-doros.txt` | Lua | While a race shows Doros: their object paths, so the next Lua load (Ctrl+R) can remove them |
 | `coop-drive.txt` | Lua | While a race, the drive probe or the [bike](../vehicles/bike.md) drives EVE: her object path and her movement's four values from before, so the next Lua load (Ctrl+R) can put them back |
-| `coop-bike.txt` | Lua | While EVE rides the [bike](../vehicles/bike.md): her object path and her main mesh's relative rotation and location from before, so the next Lua load (Ctrl+R) can put her mesh back and hide the bike |
+| `coop-bike.txt` | Lua | While EVE rides the [bike](../vehicles/bike.md): her object path and her main mesh's relative rotation and location from before, then on a `bike_pose=rig` ride the hidden copy's actor path and the mesh it wears, so the next Lua load (Ctrl+R) can free her body from the copy, remove the copy, put her mesh back and hide the bike |
 | `coop-bike-<steamid>-<saves><index>.txt` | Lua, each time the bike is parked at a new place, never in the SBO lobby | Where your [bike](../vehicles/bike.md#where-the-bike-stays) stands for that Steam account and save, one line: version 1, the map, its position and its rotation (see [The place per save](../vehicles/bike-internals.md#the-place-per-save)) |
 | `coop-bike-stand.txt` | Lua | While your parked bike stands in the world: its actor path, so the next Lua load (Ctrl+R) can remove it |
 | `coop-bike-copies.txt` | Lua | While the other players' parked bikes show: their actor paths, tab-separated, so the next Lua load (Ctrl+R) can remove them |

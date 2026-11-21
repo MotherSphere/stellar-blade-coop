@@ -482,15 +482,16 @@ assert(s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name==
 assert(M.reset_keys('')=='host_key=none\nmenu_key=F5\nstatus_key=F6\nleave_key=F8\nfollow_key=F7\nrace_key=F9\n'
     ..'bike_key=F3\ngun_key=F4\n')
 
--- docs/players/interface.md's Options paragraph names the Controls rows in the model's order: the bike's key, gun
--- mode's, the Online tab, then Reset all keys.
+-- docs/players/interface.md's Options paragraph names the Controls rows in the model's order: the bike's key, its
+-- riding pose, gun mode's key, the Online tab, then Reset all keys.
 local f=assert(io.open('docs/players/interface.md','rb'))
 local doc=f:read('a'):gsub('\r\n','\n'):match('### Options\n(.-)\n### ') -- LF ends: a Windows checkout may have CRLF.
 f:close()
-local bike,tab=doc:find('off and its key',1,true),doc:find(require('ui.text').en.row.pause_tab,1,true)
+local bike,tab=doc:find('off, its key',1,true),doc:find(require('ui.text').en.row.pause_tab,1,true)
+local pose=doc:find('its riding pose test',1,true)
 local gun=doc:find('[gun mode](../fight/gunmode.md) on or off and its key',1,true)
 local reset=doc:find('then Reset all keys)',1,true)
-assert(bike and gun and tab and reset and bike<gun and gun<tab and tab<reset,
+assert(bike and pose and gun and tab and reset and bike<pose and pose<gun and gun<tab and tab<reset,
     'docs/players/interface.md: the Options Controls rows out of order')
 
 print('ui_model_test ok')
