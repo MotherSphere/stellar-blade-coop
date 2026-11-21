@@ -215,16 +215,20 @@ function Data.new(g,native,opts)
                         st[f]=(pak and pak.speeds and pak.speeds[f]) or v*self.opts.speed
                     end
                 end
-                -- With the pak: no drone summon/dismiss show when the aim starts and ends (it played the drone's
-                -- raise pose for a moment before her rifle aim); her default stance has none either.
-                if pak then
-                    for _,f in ipairs({'StartShowPathWhenPeaceful','StartShowPathWhenBattle','EndShowPathWhenPeaceful','EndShowPathWhenBattle'}) do
-                        local v=g.try(function() return text(st[f]) end)
-                        if v and v~='' and v~='None' then
-                            saved[#saved+1]={st,f,v}
-                            local ok=pcall(function() st[f]='' end)
-                            g.log('data: aim stance '..f..(ok and ' cleared (was '..v..')' or ' could not be cleared'))
-                        end
+                -- No drone dismiss show when the aim ends. SB's stance change (0x141a7e2a0 on 26123051) reads the old
+                -- stance's row again and plays its EndShowPathWhenBattle (an FString at +0x130, property params
+                -- 0x145dfe518) or its EndShowPathWhenPeaceful (+0x120, params 0x145dfe540) on her whole body. For
+                -- P_Eve_Gun that is the drone aim's side-on exit with bent knees. It queues the show only when that
+                -- FString's length is above 1 (the check at 0x141a7e3e4), so an empty one plays nothing.
+                -- Her default stance has none either. The End pair is cleared on every native path. The Start pair
+                -- only with the pak (it played the drone's raise pose for a moment before her rifle aim).
+                for _,f in ipairs(pak and {'StartShowPathWhenPeaceful','StartShowPathWhenBattle','EndShowPathWhenPeaceful',
+                        'EndShowPathWhenBattle'} or {'EndShowPathWhenPeaceful','EndShowPathWhenBattle'}) do
+                    local v=g.try(function() return text(st[f]) end)
+                    if v and v~='' and v~='None' then
+                        saved[#saved+1]={st,f,v}
+                        local ok=pcall(function() st[f]='' end)
+                        g.log('data: aim stance '..f..(ok and ' cleared (was '..v..')' or ' could not be cleared'))
                     end
                 end
                 -- Jumping in the aim (fight/gunmode/mode.lua launches her): a jump no longer ends the aim stance
