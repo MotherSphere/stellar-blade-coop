@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[2]
 TOOL = ROOT / 'tools/new_module.py'
 S = 'mod/StellarCoop/Scripts'
 COPY = ('mod', 'native/src', 'tests/lua', 'tests/native', 'tests/tools/modules_test.py', 'tests/tools/install_test.py',
-        'tools/install.py', 'docs', 'LICENSE', 'NOTICE', 'INSTALL.md', 'EXCLUDED-PARTIES.md')
+        'tools/install.py', 'tools/ue4ss.py', 'docs', 'LICENSE', 'NOTICE', 'INSTALL.md', 'EXCLUDED-PARTIES.md')
 LICENSE = 'Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors'
 
 
